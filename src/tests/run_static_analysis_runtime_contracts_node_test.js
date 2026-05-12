@@ -393,4 +393,70 @@ assert.strictEqual(
     'cosmetic rule checks should compare final projections after suppressing cosmetic rules'
 );
 
+const inertCommandRuleSource = [
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'Pink',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    '',
+    '======',
+    'SOUNDS',
+    '======',
+    '',
+    'sfx0 123',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ Player ] -> [ Player ] sfx0',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'Some Player',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'P.',
+].join('\n');
+
+const inertCommandRule = runSimulationWithStaticChecks('inert command rule', [
+    inertCommandRuleSource,
+    [3],
+    'background:0,background player:1,\n',
+]);
+
+assert.ok(
+    inertCommandRule.inertCommandRuleCount > 0,
+    'inert command fixture should have at least one inert command-only rule'
+);
+assert.strictEqual(
+    inertCommandRule.inertCommandRuleSuppressionChecks,
+    1,
+    'inert command checks should compare final solver state after suppressing inert command-only rules'
+);
+
 console.log('run_static_analysis_runtime_contracts_node_test: ok');
