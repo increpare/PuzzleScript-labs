@@ -114,6 +114,7 @@ function emptyStaticContract(unavailableReason) {
         temporaryObjectNames: [],
         neverAppearsObjectNames: [],
         cosmeticObjectNames: [],
+        cosmeticRuleSourceLines: [],
         referencedObjectNames: [],
         actionNoopProved: false,
         tickNoopProved: false,
@@ -150,6 +151,70 @@ function ruleReferencedObjectNames(psTagged) {
     return Array.from(out).sort((left, right) =>
         left.localeCompare(right, undefined, { numeric: true })
     );
+}
+
+function movementKeyObjectName(key) {
+    const text = String(key);
+    const separator = text.lastIndexOf(':');
+    return separator === -1 ? text : text.slice(0, separator);
+}
+
+function movementTouchedObjectSet(rule) {
+    const out = new Set();
+    const tags = (rule && rule.tags) || {};
+    for (const key of tags.movements_written || []) {
+        out.add(movementKeyObjectName(key));
+    }
+    for (const key of tags.movements_removed || []) {
+        out.add(movementKeyObjectName(key));
+    }
+    return out;
+}
+
+function isCosmeticRuleContractEligible(rule, cosmeticObjects) {
+    const mutatedObjects = new Set([
+        ...((rule && rule.tags && rule.tags.objects_written) || []),
+        ...((rule && rule.tags && rule.tags.objects_erased) || []),
+    ]);
+    const mutatesOnlyCosmeticObjects = mutatedObjects.size > 0
+        && [...mutatedObjects].every(objectName => cosmeticObjects.has(objectName));
+    const movementOnlyTouchesMutatedObjects = [...movementTouchedObjectSet(rule || { tags: {} })]
+        .every(objectName => mutatedObjects.has(objectName));
+    return rule
+        && rule.tags
+        && rule.tags.cosmetic === true
+        && rule.tags.object_mutating === true
+        && rule.random_rule !== true
+        && mutatesOnlyCosmeticObjects
+        && movementOnlyTouchesMutatedObjects
+        && (!rule.summary || (
+            rule.summary.semantic_commands.length === 0
+            && rule.summary.rhs_random_objects.length === 0
+        ));
+}
+
+function cosmeticRuleSourceLines(psTagged) {
+    const byLine = new Map();
+    const cosmeticObjects = new Set(((psTagged && psTagged.objects) || [])
+        .filter(object => object.tags && object.tags.cosmetic === true)
+        .map(object => object.name));
+    for (const section of (psTagged && psTagged.rule_sections) || []) {
+        for (const group of section.groups || []) {
+            for (const rule of group.rules || []) {
+                if (!Number.isFinite(rule && rule.source_line)) continue;
+                if (!byLine.has(rule.source_line)) {
+                    byLine.set(rule.source_line, { total: 0, eligible: 0 });
+                }
+                const entry = byLine.get(rule.source_line);
+                entry.total++;
+                if (isCosmeticRuleContractEligible(rule, cosmeticObjects)) entry.eligible++;
+            }
+        }
+    }
+    return Array.from(byLine.entries())
+        .filter(([_line, entry]) => entry.total > 0 && entry.total === entry.eligible)
+        .map(([line]) => line)
+        .sort((left, right) => left - right);
 }
 
 function staticContractForSource(source, testName) {
@@ -199,6 +264,7 @@ function staticContractForSource(source, testName) {
         cosmeticObjectNames: objects
             .filter(object => object.tags && object.tags.cosmetic === true)
             .map(object => object.name),
+        cosmeticRuleSourceLines: cosmeticRuleSourceLines(report.ps_tagged),
         referencedObjectNames,
         actionNoopProved: movementFacts.some(fact => fact.id === 'action_noop' && fact.status === 'proved'),
         tickNoopProved: gameTags.has_autonomous_tick_rules !== true,
@@ -400,6 +466,13 @@ function projectableCosmeticObjectNames(objectNames, staticReferencedObjectNames
     });
 }
 
+function cosmeticRuleProjectionObjectNames(objectNames) {
+    return objectNames.filter(objectName => {
+        engineObjectName(objectName);
+        return true;
+    });
+}
+
 function objectMaskForNames(objectNames) {
     const mask = new BitVec(STRIDE_OBJ);
     for (const objectName of objectNames) {
@@ -499,6 +572,42 @@ function runProjectedReplayFinalProjection(testName, source, inputs, targetLevel
         const inputToken = inputs[inputIndex];
         executeInputToken(inputToken);
         drainAgain(`${testName}: cosmetic projected input ${inputIndex} ${tokenLabel(inputToken)}`);
+    }
+    return cosmeticProjectionSnapshot(objectNames);
+}
+
+function suppressCosmeticRulesFromGroups(ruleGroups, sourceLines) {
+    if (!Array.isArray(ruleGroups)) return 0;
+    const sourceLineSet = new Set(sourceLines);
+    let removed = 0;
+    for (const group of ruleGroups) {
+        if (!Array.isArray(group)) continue;
+        for (const rule of group) {
+            if (!sourceLineSet.has(rule && rule.lineNumber)) continue;
+            rule.tryApply = () => false;
+            rule.findMatches = () => [];
+            rule.applyAt = () => false;
+            rule.queueCommands = () => {};
+            rule.commands = [];
+            rule.hasReplacements = false;
+            removed++;
+        }
+    }
+    return removed;
+}
+
+function suppressCosmeticRulesBySourceLine(sourceLines) {
+    return suppressCosmeticRulesFromGroups(state.rules, sourceLines)
+        + suppressCosmeticRulesFromGroups(state.lateRules, sourceLines);
+}
+
+function runCosmeticRuleSuppressedReplayFinalProjection(testName, source, inputs, targetLevel, randomSeed, sourceLines, objectNames) {
+    compileSimulationSource(`${testName}: cosmetic rules suppressed`, source, targetLevel, randomSeed);
+    suppressCosmeticRulesBySourceLine(sourceLines);
+    for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
+        const inputToken = inputs[inputIndex];
+        executeInputToken(inputToken);
+        drainAgain(`${testName}: cosmetic rules suppressed input ${inputIndex} ${tokenLabel(inputToken)}`);
     }
     return cosmeticProjectionSnapshot(objectNames);
 }
@@ -862,6 +971,8 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const temporaryObjects = staticContract.temporaryObjectNames;
     const neverAppearsObjects = staticContract.neverAppearsObjectNames;
     let cosmeticObjects = staticContract.cosmeticObjectNames;
+    const cosmeticRuleSourceLines = staticContract.cosmeticRuleSourceLines;
+    let cosmeticRuleProjectionObjects = [];
     const countedObjects = quantityObjectNames(quantityContracts);
     const actionNoopProved = staticContract.actionNoopProved;
     const tickNoopProved = staticContract.tickNoopProved;
@@ -885,6 +996,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let noAgainBoundaryChecks = 0;
     let noRandomReplayChecks = 0;
     let cosmeticProjectionChecks = 0;
+    let cosmeticRuleProjectionChecks = 0;
     let restartBoundaryTriggered = false;
     const previousDoRestart = global.DoRestart;
     if (typeof previousDoRestart === 'function') {
@@ -895,6 +1007,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     }
     try {
         const initialAgainSteps = compileSimulationSource(testName, source, targetLevel, randomSeed);
+        cosmeticRuleProjectionObjects = cosmeticRuleProjectionObjectNames(cosmeticObjects);
         cosmeticObjects = projectableCosmeticObjectNames(cosmeticObjects, staticContract.referencedObjectNames);
         if (noAgainProved) {
             noAgainBoundaryChecks++;
@@ -1071,6 +1184,28 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             cosmeticProjectionChecks++;
         }
 
+        if (cosmeticRuleSourceLines.length > 0) {
+            const normalProjection = cosmeticProjectionSnapshot(cosmeticRuleProjectionObjects);
+            const suppressedReplayProjection = runCosmeticRuleSuppressedReplayFinalProjection(
+                testName,
+                source,
+                inputs,
+                targetLevel,
+                randomSeed,
+                cosmeticRuleSourceLines,
+                cosmeticRuleProjectionObjects
+            );
+            const projectionDiff = firstReplayTraceDifference([normalProjection], [suppressedReplayProjection]);
+            if (projectionDiff) {
+                throw new Error([
+                    `${testName}: cosmetic rule suppression replay diverged`,
+                    `  normal projected: ${JSON.stringify(projectionDiff.left)}`,
+                    `  suppressed projected: ${JSON.stringify(projectionDiff.right)}`,
+                ].join('\n'));
+            }
+            cosmeticRuleProjectionChecks++;
+        }
+
         if (checkNoRandomReplay) {
             const alternateTrace = replayBoundaryTrace(
                 testName,
@@ -1099,6 +1234,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             constantQuantityObjectCount: constantQuantityObjects.length,
             temporaryObjectCount: temporaryObjects.length,
             neverAppearsObjectCount: neverAppearsObjects.length,
+            cosmeticRuleCount: cosmeticRuleSourceLines.length,
             objectBoundaryChecks,
             staticLayerBoundaryChecks,
             layerBoundaryChecks: staticLayerBoundaryChecks,
@@ -1108,6 +1244,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             neverAppearsBoundaryChecks,
             cosmeticObjectCount: cosmeticObjects.length,
             cosmeticProjectionChecks,
+            cosmeticRuleProjectionChecks,
             actionNoopProved,
             actionNoopBoundaryChecks,
             tickNoopProved,
@@ -1150,6 +1287,7 @@ function runAll(options = {}) {
     let casesWithTemporaryObjects = 0;
     let casesWithNeverAppearsObjects = 0;
     let casesWithCosmeticObjects = 0;
+    let casesWithCosmeticRules = 0;
     let casesWithActionNoop = 0;
     let casesWithTickNoop = 0;
     let casesWithNoAgain = 0;
@@ -1161,6 +1299,7 @@ function runAll(options = {}) {
     let temporaryBoundaryChecks = 0;
     let neverAppearsBoundaryChecks = 0;
     let cosmeticProjectionChecks = 0;
+    let cosmeticRuleProjectionChecks = 0;
     let actionNoopBoundaryChecks = 0;
     let tickNoopBoundaryChecks = 0;
     let noAgainBoundaryChecks = 0;
@@ -1205,6 +1344,9 @@ function runAll(options = {}) {
             if (result.cosmeticObjectCount > 0) {
                 casesWithCosmeticObjects++;
             }
+            if (result.cosmeticRuleCount > 0) {
+                casesWithCosmeticRules++;
+            }
             if (result.actionNoopProved) {
                 casesWithActionNoop++;
             }
@@ -1224,6 +1366,7 @@ function runAll(options = {}) {
             temporaryBoundaryChecks += result.temporaryBoundaryChecks;
             neverAppearsBoundaryChecks += result.neverAppearsBoundaryChecks;
             cosmeticProjectionChecks += result.cosmeticProjectionChecks;
+            cosmeticRuleProjectionChecks += result.cosmeticRuleProjectionChecks;
             actionNoopBoundaryChecks += result.actionNoopBoundaryChecks;
             tickNoopBoundaryChecks += result.tickNoopBoundaryChecks;
             noAgainBoundaryChecks += result.noAgainBoundaryChecks;
@@ -1247,6 +1390,7 @@ function runAll(options = {}) {
         casesWithTemporaryObjects,
         casesWithNeverAppearsObjects,
         casesWithCosmeticObjects,
+        casesWithCosmeticRules,
         casesWithActionNoop,
         casesWithTickNoop,
         casesWithNoAgain,
@@ -1259,6 +1403,7 @@ function runAll(options = {}) {
         temporaryBoundaryChecks,
         neverAppearsBoundaryChecks,
         cosmeticProjectionChecks,
+        cosmeticRuleProjectionChecks,
         actionNoopBoundaryChecks,
         tickNoopBoundaryChecks,
         noAgainBoundaryChecks,
@@ -1285,7 +1430,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }

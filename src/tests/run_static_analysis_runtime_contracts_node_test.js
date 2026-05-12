@@ -320,4 +320,77 @@ assert.ok(
     'never-appears checks should run for absent uncreated objects'
 );
 
+const cosmeticRuleProjectionSource = [
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'Pink',
+    '',
+    'Goal',
+    'Yellow',
+    '',
+    'Trail',
+    'Blue',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    'P = Player',
+    'G = Goal',
+    '',
+    '======',
+    'SOUNDS',
+    '======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player',
+    'Goal',
+    'Trail',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ Player ] -> [ Player Trail ]',
+    '[ right Player | Goal ] -> [ | Player ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'Some Player On Goal',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'PG',
+].join('\n');
+
+const cosmeticRuleProjection = runSimulationWithStaticChecks('cosmetic rule projection', [
+    cosmeticRuleProjectionSource,
+    [3],
+    'background trail:0,background player:1,\n',
+]);
+
+assert.ok(
+    cosmeticRuleProjection.cosmeticRuleCount > 0,
+    'cosmetic rule fixture should have at least one cosmetic rule'
+);
+assert.strictEqual(
+    cosmeticRuleProjection.cosmeticRuleProjectionChecks,
+    1,
+    'cosmetic rule checks should compare final projections after suppressing cosmetic rules'
+);
+
 console.log('run_static_analysis_runtime_contracts_node_test: ok');

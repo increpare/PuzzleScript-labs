@@ -1131,12 +1131,33 @@ function tagCosmeticObjects(psTagged) {
 
 const NON_COSMETIC_COMMANDS = new Set(['again', 'restart', 'cancel', 'win']);
 
+function movementTouchedObjectSet(rule) {
+    const out = new Set();
+    for (const key of rule.tags.movements_written || []) {
+        out.add(movementKeyObjectName(key));
+    }
+    for (const key of rule.tags.movements_removed || []) {
+        out.add(movementKeyObjectName(key));
+    }
+    return out;
+}
+
+function ruleCanAffectObjectReadSet(rule, readSet) {
+    if ([...rule.tags.objects_written, ...rule.tags.objects_erased].some(obj => readSet.has(obj))) {
+        return true;
+    }
+    return [...movementTouchedObjectSet(rule)].some(obj => readSet.has(obj));
+}
+
 function tagCosmeticRules(psTagged) {
     const allRules = allRuleEntries(psTagged).map(entry => entry.rule);
     const nonCosmetic = new Set();
+    const playerObjects = playerObjectNameSet(psTagged);
 
     for (const rule of allRules) {
         if (rule.summary.semantic_commands.some(cmd => NON_COSMETIC_COMMANDS.has(cmd))) {
+            nonCosmetic.add(rule.id);
+        } else if (ruleCanAffectObjectReadSet(rule, playerObjects)) {
             nonCosmetic.add(rule.id);
         }
     }
@@ -1145,7 +1166,7 @@ function tagCosmeticRules(psTagged) {
         if (nonCosmetic.has(rule.id)) continue;
         for (const win of psTagged.winconditions) {
             const winReadSet = new Set([...win.tags.objects_matched, ...win.tags.object_absences_matched]);
-            if ([...rule.tags.objects_written, ...rule.tags.objects_erased].some(obj => winReadSet.has(obj))) {
+            if (ruleCanAffectObjectReadSet(rule, winReadSet)) {
                 nonCosmetic.add(rule.id);
                 break;
             }
@@ -1154,7 +1175,7 @@ function tagCosmeticRules(psTagged) {
 
     function r1AffectsR2(r1, r2) {
         const r2ReadObjs = new Set([...r2.tags.objects_matched, ...r2.tags.object_absences_matched]);
-        if ([...r1.tags.objects_written, ...r1.tags.objects_erased].some(obj => r2ReadObjs.has(obj))) return true;
+        if (ruleCanAffectObjectReadSet(r1, r2ReadObjs)) return true;
         const r2MovSet = new Set(r2.tags.movements_matched);
         return [...r1.tags.movements_written, ...r1.tags.movements_removed].some(mov => r2MovSet.has(mov));
     }

@@ -200,6 +200,108 @@ assert.strictEqual(stoneCrate.ps_tagged.objects.find(object => object.name === '
 assert.strictEqual(stoneCrate.ps_tagged.objects.find(object => object.name === 'Background').tags.cosmetic, true, 'background never pulled into core is cosmetic');
 assert.strictEqual(stoneCrate.ps_tagged.objects.find(object => object.name === 'Player').tags.cosmetic, false, 'player entity is never cosmetic');
 
+const MOVEMENT_WRITE_TO_WIN_OBJECT = `
+title Movement write to win object
+========
+OBJECTS
+========
+Background
+black
+Crate
+brown
+Target
+yellow
+Player
+white
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+C = Crate
+T = Target
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Crate
+Target
+Player
+=====
+RULES
+=====
+[ > Player | Crate ] -> [ > Player | > Crate ]
+=============
+WINCONDITIONS
+=============
+All Crate On Target
+======
+LEVELS
+======
+PCT
+`;
+
+const movementWriteToWinObject = analyzeSource(MOVEMENT_WRITE_TO_WIN_OBJECT, { sourcePath: 'movement_write_to_win_object.txt' });
+assert.strictEqual(movementWriteToWinObject.status, 'ok');
+const pushRules = movementWriteToWinObject.ps_tagged.rule_sections
+    .flatMap(section => section.groups)
+    .flatMap(group => group.rules)
+    .filter(rule => rule.tags.movements_written.includes('Crate:right'));
+assert.ok(pushRules.length > 0, 'movement write fixture should expose a crate push rule');
+assert.ok(
+    pushRules.every(rule => rule.tags.cosmetic === false),
+    'rules that write movement to win-referenced objects are not cosmetic'
+);
+
+const PLAYER_ERASE_RULE = `
+title Player erase rule
+========
+OBJECTS
+========
+Background
+black
+Player
+white
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Player
+=====
+RULES
+=====
+[ Player ] -> [ ]
+=============
+WINCONDITIONS
+=============
+======
+LEVELS
+======
+P
+`;
+
+const playerEraseRule = analyzeSource(PLAYER_ERASE_RULE, { sourcePath: 'player_erase_rule.txt' });
+assert.strictEqual(playerEraseRule.status, 'ok');
+const playerEraseRules = playerEraseRule.ps_tagged.rule_sections
+    .flatMap(section => section.groups)
+    .flatMap(group => group.rules);
+assert.ok(playerEraseRules.length > 0, 'player erase fixture should expose a rule');
+assert.ok(
+    playerEraseRules.every(rule => rule.tags.cosmetic === false),
+    'rules that erase player objects are not cosmetic'
+);
+
 assert.deepStrictEqual(
     report.ps_tagged.properties.find(property => property.name === 'avatar').members,
     ['Hero'],
