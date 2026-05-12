@@ -1247,8 +1247,17 @@ function runSimulationWithStaticChecks(testName, dataarray) {
 
         assertFinalReplayParity(testName, expectedSerializedLevel, expectedSounds);
 
+        const normalInertCommandCoreState = inertCommandRuleSourceLines.length > 0
+            ? solverCoreStateSnapshot()
+            : null;
+        const normalCosmeticProjection = cosmeticObjects.length > 0
+            ? cosmeticProjectionSnapshot(cosmeticObjects)
+            : null;
+        const normalCosmeticRuleProjection = cosmeticRuleSourceLines.length > 0
+            ? cosmeticProjectionSnapshot(cosmeticRuleProjectionObjects)
+            : null;
+
         if (inertCommandRuleSourceLines.length > 0) {
-            const normalCoreState = solverCoreStateSnapshot();
             const suppressedCoreState = runInertCommandSuppressedReplayFinalState(
                 testName,
                 source,
@@ -1257,7 +1266,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 randomSeed,
                 inertCommandRuleSourceLines
             );
-            const coreStateDiff = firstReplayTraceDifference([normalCoreState], [suppressedCoreState]);
+            const coreStateDiff = firstReplayTraceDifference([normalInertCommandCoreState], [suppressedCoreState]);
             if (coreStateDiff) {
                 throw new Error([
                     `${testName}: inert command rule suppression replay diverged`,
@@ -1269,7 +1278,6 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         }
 
         if (cosmeticObjects.length > 0) {
-            const normalProjection = cosmeticProjectionSnapshot(cosmeticObjects);
             const projectedReplayProjection = runProjectedReplayFinalProjection(
                 testName,
                 source,
@@ -1278,7 +1286,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 randomSeed,
                 cosmeticObjects
             );
-            const projectionDiff = firstReplayTraceDifference([normalProjection], [projectedReplayProjection]);
+            const projectionDiff = firstReplayTraceDifference([normalCosmeticProjection], [projectedReplayProjection]);
             if (projectionDiff) {
                 throw new Error([
                     `${testName}: cosmetic projection replay diverged`,
@@ -1290,7 +1298,6 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         }
 
         if (cosmeticRuleSourceLines.length > 0) {
-            const normalProjection = cosmeticProjectionSnapshot(cosmeticRuleProjectionObjects);
             const suppressedReplayProjection = runCosmeticRuleSuppressedReplayFinalProjection(
                 testName,
                 source,
@@ -1300,7 +1307,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 cosmeticRuleSourceLines,
                 cosmeticRuleProjectionObjects
             );
-            const projectionDiff = firstReplayTraceDifference([normalProjection], [suppressedReplayProjection]);
+            const projectionDiff = firstReplayTraceDifference([normalCosmeticRuleProjection], [suppressedReplayProjection]);
             if (projectionDiff) {
                 throw new Error([
                     `${testName}: cosmetic rule suppression replay diverged`,
