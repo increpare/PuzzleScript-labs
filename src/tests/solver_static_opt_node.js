@@ -19,6 +19,7 @@ const {
     formatSolverOptimizationHumanSuffixFromTotals,
     isInertCommandOnlyCompiledRule,
     applyNameSubstitutionToWinconditions,
+    buildMergeAliasMap,
 } = require('./solver_static_opt');
 
 function assertThrows(fn, msg) {
@@ -129,6 +130,25 @@ function run() {
         ),
         true,
     );
+
+    const mergeAliasState = {
+        objects: { alpha: {}, beta: {} },
+        original_case_names: { alpha: 'Alpha', beta: 'Beta' },
+    };
+    const mergeAlias = buildMergeAliasMap([['Alpha', 'Beta']], new Set(), mergeAliasState);
+    assert.strictEqual(mergeAlias.groups, 1, 'mixed-case static names should resolve to runtime object names');
+    assert.strictEqual(mergeAlias.alias.get('beta'), 'alpha');
+    const cosmeticMergeAlias = buildMergeAliasMap([['Alpha', 'Beta']], new Set(['Beta']), mergeAliasState);
+    assert.strictEqual(cosmeticMergeAlias.alias.size, 0, 'cosmetic merge candidates should remain excluded after name resolution');
+    const structuralMergeAlias = buildMergeAliasMap([['Player', 'Beta']], new Set(), {
+        objects: { player: {}, beta: {} },
+        original_case_names: { player: 'Player', beta: 'Beta' },
+    });
+    assert.strictEqual(structuralMergeAlias.alias.size, 0, 'player objects should remain excluded from merge aliases');
+    const mutatedMergeAlias = buildMergeAliasMap([['Alpha', 'Beta']], new Set(), mergeAliasState, {
+        excludedNames: new Set(['Alpha']),
+    });
+    assert.strictEqual(mutatedMergeAlias.alias.size, 0, 'mutated objects should remain excluded from merge aliases');
 
     const opt = { solverOptimizeStatic: true, solverOptPasses: { cosmetic: true, merge: false } };
     const merged = resolveSolverPasses(opt);

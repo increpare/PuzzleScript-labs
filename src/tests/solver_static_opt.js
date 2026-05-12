@@ -518,16 +518,74 @@ function mergeabilityCandidatePairs(report) {
     return pairs;
 }
 
-function buildMergeAliasMap(pairs, cosmeticNames, state) {
+function runtimeObjectNameForStaticName(state, staticName) {
+    if (!state || !state.objects || typeof staticName !== 'string') return null;
+    if (Object.prototype.hasOwnProperty.call(state.objects, staticName)) return staticName;
+    if (state.original_case_names) {
+        for (const [runtimeName, originalName] of Object.entries(state.original_case_names)) {
+            if (originalName === staticName && Object.prototype.hasOwnProperty.call(state.objects, runtimeName)) {
+                return runtimeName;
+            }
+        }
+    }
+    const lowerName = staticName.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(state.objects, lowerName)) return lowerName;
+    return null;
+}
+
+function runtimeObjectNameSetForStaticNames(state, staticNames) {
+    const out = new Set();
+    for (const staticName of staticNames || []) {
+        const runtimeName = runtimeObjectNameForStaticName(state, staticName);
+        if (runtimeName) out.add(runtimeName);
+    }
+    return out;
+}
+
+function movementObjectName(movementKey) {
+    const text = String(movementKey);
+    const separator = text.lastIndexOf(':');
+    return separator === -1 ? text : text.slice(0, separator);
+}
+
+function mergeMutationObjectNames(report) {
+    const out = new Set();
+    const sections = report && report.ps_tagged && report.ps_tagged.rule_sections;
+    if (!Array.isArray(sections)) return out;
+    for (const section of sections) {
+        for (const group of section.groups || []) {
+            for (const rule of group.rules || []) {
+                const tags = (rule && rule.tags) || {};
+                for (const name of tags.objects_written || []) out.add(name);
+                for (const name of tags.objects_erased || []) out.add(name);
+                for (const key of tags.movements_written || []) out.add(movementObjectName(key));
+                for (const key of tags.movements_removed || []) out.add(movementObjectName(key));
+            }
+        }
+    }
+    return out;
+}
+
+function buildMergeAliasMap(pairs, cosmeticNames, state, options = {}) {
     // Union-find over pairs whose endpoints both survive (not cosmetic-removed,
-    // still present in state.objects). Each component's alphabetically-first
-    // member is the canonical name; everyone else becomes an alias to it.
+    // not engine-structural, not rule-mutated, still present in state.objects).
+    // Each component's alphabetically-first member is the canonical name;
+    // everyone else becomes an alias to it.
+    const cosmeticRuntimeNames = runtimeObjectNameSetForStaticNames(state, cosmeticNames);
+    const excludedRuntimeNames = runtimeObjectNameSetForStaticNames(state, options.excludedNames || []);
+    const structuralNames = collectStructuralObjectNames(state);
     const present = new Set();
-    for (const [a, b] of pairs) {
-        if (cosmeticNames.has(a) || cosmeticNames.has(b)) continue;
-        if (!state.objects[a] || !state.objects[b]) continue;
+    const resolvedPairs = [];
+    for (const [left, right] of pairs) {
+        const a = runtimeObjectNameForStaticName(state, left);
+        const b = runtimeObjectNameForStaticName(state, right);
+        if (!a || !b || a === b) continue;
+        if (cosmeticRuntimeNames.has(a) || cosmeticRuntimeNames.has(b)) continue;
+        if (excludedRuntimeNames.has(a) || excludedRuntimeNames.has(b)) continue;
+        if (structuralNames.has(a) || structuralNames.has(b)) continue;
         present.add(a);
         present.add(b);
+        resolvedPairs.push([a, b]);
     }
     const parent = new Map();
     for (const n of present) parent.set(n, n);
@@ -538,7 +596,7 @@ function buildMergeAliasMap(pairs, cosmeticNames, state) {
         parent.set(x, r);
         return r;
     }
-    for (const [a, b] of pairs) {
+    for (const [a, b] of resolvedPairs) {
         if (!present.has(a) || !present.has(b)) continue;
         const ra = find(a), rb = find(b);
         if (ra !== rb) parent.set(rb, ra);
@@ -564,7 +622,9 @@ function buildMergeAliasMap(pairs, cosmeticNames, state) {
 function passMerge(state, report, telemetry) {
     const cosmetic = collectCosmeticNames(report);
     const pairs = mergeabilityCandidatePairs(report);
-    const { alias, groups } = buildMergeAliasMap(pairs, cosmetic, state);
+    const { alias, groups } = buildMergeAliasMap(pairs, cosmetic, state, {
+        excludedNames: mergeMutationObjectNames(report),
+    });
     telemetry.merged_object_groups = groups;
     if (alias.size === 0) return;
 
@@ -718,6 +778,10 @@ module.exports = {
     inertCommandOnlyRuleSourceLines,
     isInertCommandOnlyCompiledRule,
     dropSolverInertCommandOnlyRules,
+    mergeabilityCandidatePairs,
+    mergeMutationObjectNames,
+    runtimeObjectNameForStaticName,
+    buildMergeAliasMap,
     applyNameSubstitutionToWinconditions: (state, renameFn) => {
         // Backwards-compatible shim for legacy callers (test runner).
         const rename = new Map();

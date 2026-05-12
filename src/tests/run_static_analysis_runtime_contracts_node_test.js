@@ -459,4 +459,75 @@ assert.strictEqual(
     'inert command checks should compare final solver state after suppressing inert command-only rules'
 );
 
+const mergeProjectionSource = [
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Alpha',
+    'Red',
+    '',
+    'Beta',
+    'Blue',
+    '',
+    'Player',
+    'Yellow',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'a = Alpha',
+    'b = Beta',
+    '',
+    '======',
+    'SOUNDS',
+    '======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Alpha, Beta',
+    'Player',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ no Alpha no Beta ] -> [ no Alpha no Beta ] win',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'Pab',
+].join('\n');
+
+const mergeProjection = runSimulationWithStaticChecks('merge projection', [
+    mergeProjectionSource,
+    [3],
+    'background:0,alpha background player:1,background beta:2,\n',
+]);
+
+assert.ok(
+    mergeProjection.mergeAliasCount > 0,
+    'merge fixture should have at least one object alias folded by the optimizer'
+);
+assert.strictEqual(
+    mergeProjection.mergeProjectionChecks,
+    1,
+    'merge checks should compare final canonical snapshots after optimizer alias folding'
+);
+
 console.log('run_static_analysis_runtime_contracts_node_test: ok');
