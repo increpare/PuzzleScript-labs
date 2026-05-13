@@ -195,6 +195,70 @@ function summarizeQuantity(objects) {
     return groups;
 }
 
+function mergeableObjectSavings(mergeableGroups) {
+    return mergeableGroups.reduce((sum, group) => sum + Math.max(0, group.objects.length - 1), 0);
+}
+
+function sourceRuleCount(rules) {
+    const sourceLines = new Set();
+    for (const entry of rules) {
+        if (Number.isFinite(entry.rule.source_line)) sourceLines.add(entry.rule.source_line);
+    }
+    return sourceLines.size || rules.length;
+}
+
+function rulegroupCount(report) {
+    if (!report.ps_tagged) return 0;
+    return (report.ps_tagged.rule_sections || [])
+        .reduce((sum, section) => sum + (section.groups || []).length, 0);
+}
+
+function actionState(programFlow, actionNoop) {
+    if (programFlow.action_input === false) return 'disabled';
+    if (programFlow.has_action_rules === false && programFlow.wake_edge_count === 0) return 'none';
+    return actionNoop.status === 'proved' ? 'none' : 'action';
+}
+
+function tickState(programFlow) {
+    return programFlow.tick_noop ? 'none' : 'tick';
+}
+
+function summarizeCorpusMetrics(report, summary) {
+    const rules = allRules(report);
+    const winconditions = report.ps_tagged ? report.ps_tagged.winconditions || [] : [];
+    const cosmeticRules = rules.filter(entry => entry.rule.tags && entry.rule.tags.cosmetic);
+    return {
+        objects: {
+            total: summary.objects.length,
+            static: summary.staticObjects.length,
+            constant_count: summary.quantity.constant.length,
+            temporary: summary.transient.length,
+            cosmetic: summary.cosmeticObjects.length,
+            mergable: mergeableObjectSavings(summary.mergeableGroups),
+        },
+        layers: {
+            total: summary.layers.length,
+            static: summary.staticLayers.length,
+            inert: summary.inertLayers.length,
+        },
+        rules: {
+            source: sourceRuleCount(rules),
+            compiled: rules.length,
+            action: actionState(summary.programFlow, summary.actionNoop),
+            tick: tickState(summary.programFlow),
+            cosmetic: cosmeticRules.length,
+            inert_command: summary.inertRules.length,
+        },
+        rulegroups: {
+            total: rulegroupCount(report),
+            splittable: summary.rulegroupFlowSummary.splitTotal,
+        },
+        winconditions: {
+            total: winconditions.length,
+        },
+    };
+}
+
 function actionNoopSummary(report) {
     const actionNoop = facts(report, 'movement_action')
         .find(item => item.id === 'action_noop') || null;
@@ -378,6 +442,22 @@ function summarizeReport(report, options = {}) {
     const actionNoop = actionNoopSummary(report);
     const programFlow = programFlowSummary(report);
     const winflow = summarizeWinflow(report);
+    const summaryParts = {
+        objects,
+        layers,
+        mergeableGroups,
+        quantity,
+        staticObjects,
+        staticLayers,
+        inertLayers,
+        cosmeticObjects,
+        transient,
+        inertRules,
+        actionNoop,
+        programFlow,
+        rulegroupFlowSummary,
+    };
+    const corpusMetrics = summarizeCorpusMetrics(report, summaryParts);
     const score = mergeable.length * 4
         + rulegroupFlowSummary.splitTotal * 5
         + inertRules.length * 2
@@ -412,6 +492,7 @@ function summarizeReport(report, options = {}) {
         action_noop: actionNoop,
         program_flow: programFlow,
         winflow,
+        corpus_metrics: corpusMetrics,
         rulegroup_flow: rulegroupFlow,
         rulegroup_flow_total: rulegroupFlowSummary.total,
         rulegroup_flow_split_total: rulegroupFlowSummary.splitTotal,
@@ -444,6 +525,11 @@ function buildExplorerModel(reports, options = {}) {
             inert_layers: games.reduce((sum, game) => sum + game.inert_layers.length, 0),
             cosmetic_objects: games.reduce((sum, game) => sum + game.cosmetic_objects.length, 0),
             transient_objects: games.reduce((sum, game) => sum + game.transient_objects.length, 0),
+            mergable_objects: games.reduce((sum, game) => sum + game.corpus_metrics.objects.mergable, 0),
+            temporary_objects: games.reduce((sum, game) => sum + game.corpus_metrics.objects.temporary, 0),
+            cosmetic_rules: games.reduce((sum, game) => sum + game.corpus_metrics.rules.cosmetic, 0),
+            inert_command_rules: games.reduce((sum, game) => sum + game.corpus_metrics.rules.inert_command, 0),
+            splittable_rulegroups: games.reduce((sum, game) => sum + game.corpus_metrics.rulegroups.splittable, 0),
             action_noop: games.reduce((sum, game) => sum + (game.action_noop.status === 'proved' ? 1 : 0), 0),
             tick_noop: games.reduce((sum, game) => sum + (game.program_flow.tick_noop ? 1 : 0), 0),
             no_again: games.reduce((sum, game) => sum + (game.program_flow.no_again ? 1 : 0), 0),

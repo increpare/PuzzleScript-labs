@@ -198,6 +198,38 @@ assert.strictEqual(game.static_objects_label, 'Background, Wall, Rock, BodyH, Bo
 assert.ok(game.static_layers.some(layer => layer.objects.includes('Wall')));
 assert.ok(game.inert_rules.some(rule => rule.text.includes('sfx0')));
 assert.ok(game.rulegroup_flow.some(group => group.status === 'candidate' && group.components.length === 2));
+assert.deepStrictEqual(game.corpus_metrics.objects, {
+    total: 11,
+    static: 8,
+    constant_count: 9,
+    temporary: 0,
+    cosmetic: 10,
+    mergable: 2,
+});
+assert.deepStrictEqual(game.corpus_metrics.layers, {
+    total: 9,
+    static: 6,
+    inert: 2,
+});
+assert.deepStrictEqual(game.corpus_metrics.rules, {
+    source: 4,
+    compiled: 4,
+    action: 'none',
+    tick: 'tick',
+    cosmetic: 4,
+    inert_command: 1,
+});
+assert.deepStrictEqual(game.corpus_metrics.rulegroups, {
+    total: 3,
+    splittable: 1,
+});
+assert.deepStrictEqual(game.corpus_metrics.winconditions, {
+    total: 1,
+});
+assert.strictEqual(model.totals.mergable_objects, 2);
+assert.strictEqual(model.totals.temporary_objects, 0);
+assert.strictEqual(model.totals.cosmetic_rules, 4);
+assert.strictEqual(model.totals.inert_command_rules, 1);
 
 const flowReport = analyzeSource(EXPLORER_FLOW_FIXTURE, {
     sourcePath: path.join(repoRoot, 'src/tests/solver_tests/explorer_flow_fixture.txt'),
@@ -214,6 +246,9 @@ assert.ok(flowGame.action_noop.blockers.includes('autonomous_solver_active_rule'
 assert.strictEqual(flowGame.program_flow.tick_noop, false);
 assert.strictEqual(flowGame.program_flow.no_again, true);
 assert.strictEqual(flowGame.program_flow.no_random, true);
+assert.strictEqual(flowGame.corpus_metrics.rules.action, 'action');
+assert.strictEqual(flowGame.corpus_metrics.rules.tick, 'tick');
+assert.ok(flowGame.corpus_metrics.objects.temporary >= 0);
 assert.ok(flowGame.program_flow.wake_edge_count > 0);
 assert.ok(flowGame.winflow.wake_edges.some(edge =>
     edge.from_text.includes('MarkerX') && edge.to_text === 'Some MarkerX'
@@ -227,6 +262,8 @@ const noactionModel = buildExplorerModel([noactionReport], { repoRoot });
 const noactionGame = noactionModel.games[0];
 assert.strictEqual(noactionGame.action_noop.status, 'proved');
 assert.strictEqual(noactionGame.program_flow.action_input, false);
+assert.strictEqual(noactionGame.corpus_metrics.rules.action, 'disabled');
+assert.strictEqual(noactionGame.corpus_metrics.rules.tick, 'none');
 
 assert.strictEqual(
     editorHrefForSource(sourcePath, { repoRoot }),
