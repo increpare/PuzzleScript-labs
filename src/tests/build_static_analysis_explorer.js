@@ -218,6 +218,25 @@ function ruleTouchesObject(rule, objectName) {
     return fields.some(field => Array.isArray(tags[field]) && tags[field].includes(objectName));
 }
 
+function factItem(label, value) {
+    return {
+        label,
+        value: value == null || value === '' ? '-' : String(value),
+    };
+}
+
+function inspectorPayload(title, factsList, details = []) {
+    return {
+        title,
+        facts: factsList,
+        details,
+    };
+}
+
+function yesNo(value) {
+    return value ? 'yes' : '-';
+}
+
 function summarizeQuantity(objects) {
     const groups = {
         constant: [],
@@ -388,42 +407,76 @@ function summarizeObjectRows(report, mergeableGroups) {
     const rules = allRules(report);
     const winconditions = report.ps_tagged ? report.ps_tagged.winconditions || [] : [];
     const mergeByObject = mergeGroupIdByObject(mergeableGroups);
-    return objects.map(object => ({
-        id: object.id,
-        name: object.name,
-        canonical_name: object.canonical_name,
-        layer: object.layer,
-        quantity: quantityLabel(object),
-        static: Boolean(object.tags && object.tags.static),
-        temporary: Boolean(object.tags && object.tags.temporary),
-        cosmetic: Boolean(object.tags && object.tags.cosmetic),
-        merge_group: mergeByObject.get(object.name) || null,
-        rule_count: rules.filter(entry => ruleTouchesObject(entry.rule, object.name)).length,
-        win_role: winRoleForObject(object.name, winconditions),
-    }));
+    return objects.map(object => {
+        const row = {
+            id: object.id,
+            name: object.name,
+            canonical_name: object.canonical_name,
+            layer: object.layer,
+            quantity: quantityLabel(object),
+            static: Boolean(object.tags && object.tags.static),
+            temporary: Boolean(object.tags && object.tags.temporary),
+            cosmetic: Boolean(object.tags && object.tags.cosmetic),
+            merge_group: mergeByObject.get(object.name) || null,
+            rule_count: rules.filter(entry => ruleTouchesObject(entry.rule, object.name)).length,
+            win_role: winRoleForObject(object.name, winconditions),
+        };
+        row.inspector = inspectorPayload(`Object ${object.name}`, [
+            factItem('layer', row.layer),
+            factItem('quantity', row.quantity),
+            factItem('static', yesNo(row.static)),
+            factItem('temporary', yesNo(row.temporary)),
+            factItem('cosmetic', yesNo(row.cosmetic)),
+            factItem('merge group', row.merge_group || '-'),
+            factItem('rules touching object', row.rule_count),
+            factItem('win role', row.win_role),
+        ]);
+        return row;
+    });
 }
 
 function summarizeLayerRows(report) {
     const layers = report.ps_tagged ? report.ps_tagged.collision_layers || [] : [];
-    return layers.map(layer => ({
-        id: layer.id,
-        objects: layer.objects || [],
-        static: Boolean(layer.tags && layer.tags.static),
-        inert: Boolean(layer.tags && layer.tags.inert),
-    }));
+    return layers.map(layer => {
+        const row = {
+            id: layer.id,
+            objects: layer.objects || [],
+            object_count: (layer.objects || []).length,
+            static: Boolean(layer.tags && layer.tags.static),
+            inert: Boolean(layer.tags && layer.tags.inert),
+        };
+        row.inspector = inspectorPayload(`Layer ${layer.id}`, [
+            factItem('objects', row.objects.join(', ') || '-'),
+            factItem('object count', row.object_count),
+            factItem('static', yesNo(row.static)),
+            factItem('inert', yesNo(row.inert)),
+        ]);
+        return row;
+    });
 }
 
 function summarizeRuleRows(report) {
-    return allRules(report).map(entry => ({
-        compiled_id: entry.rule.id,
-        group: entry.group.id,
-        section: entry.section.name,
-        source_line: entry.rule.source_line,
-        text: ruleText(entry.rule),
-        cosmetic: Boolean(entry.rule.tags && entry.rule.tags.cosmetic),
-        inert_command: Boolean(entry.rule.tags && entry.rule.tags.inert_command_only),
-        command_only: Boolean(entry.rule.tags && entry.rule.tags.command_only),
-    }));
+    return allRules(report).map(entry => {
+        const row = {
+            compiled_id: entry.rule.id,
+            group: entry.group.id,
+            section: entry.section.name,
+            source_line: entry.rule.source_line,
+            text: ruleText(entry.rule),
+            cosmetic: Boolean(entry.rule.tags && entry.rule.tags.cosmetic),
+            inert_command: Boolean(entry.rule.tags && entry.rule.tags.inert_command_only),
+            command_only: Boolean(entry.rule.tags && entry.rule.tags.command_only),
+        };
+        row.inspector = inspectorPayload(`Rule ${entry.rule.id}`, [
+            factItem('line', Number.isFinite(entry.rule.source_line) ? entry.rule.source_line : 'compiled'),
+            factItem('section', row.section),
+            factItem('group', row.group),
+            factItem('cosmetic', yesNo(row.cosmetic)),
+            factItem('inert command', yesNo(row.inert_command)),
+            factItem('command only', yesNo(row.command_only)),
+        ], [row.text]);
+        return row;
+    });
 }
 
 function summarizeRulegroupRows(report) {
@@ -436,7 +489,7 @@ function summarizeRulegroupRows(report) {
             const sourceLines = sourceLineMin == null
                 ? 'compiled'
                 : (sourceLineMin === sourceLineMax ? String(sourceLineMin) : `${sourceLineMin}-${sourceLineMax}`);
-            return {
+            const row = {
                 id: group.id,
                 section: section.name,
                 source_lines: sourceLines,
@@ -450,6 +503,17 @@ function summarizeRulegroupRows(report) {
                     ? Object.values(flow.value.rerun_masks).filter(mask => Array.isArray(mask) && mask.length > 0).length
                     : 0,
             };
+            row.inspector = inspectorPayload(`Rulegroup ${group.id}`, [
+                factItem('source lines', sourceLines),
+                factItem('section', section.name),
+                factItem('rules', group.rules.length),
+                factItem('splittable', yesNo(row.splittable)),
+                factItem('flow status', row.status),
+                factItem('components', row.component_count),
+                factItem('interactions', row.interaction_edge_count),
+                factItem('rerun masks', row.rerun_mask_count),
+            ], group.rules.slice(0, 6).map(rule => ruleText(rule)));
+            return row;
         })
     );
 }
@@ -460,14 +524,23 @@ function summarizeWinconditionRows(report) {
     const wakeEdges = winflow && winflow.value && Array.isArray(winflow.value.wake_edges)
         ? winflow.value.wake_edges
         : [];
-    return winconditions.map(wincondition => ({
-        id: wincondition.id,
-        source_line: wincondition.source_line,
-        text: winconditionText(wincondition),
-        subjects: wincondition.subjects || [],
-        targets: wincondition.targets || [],
-        wake_edge_count: wakeEdges.filter(edge => edge.to === wincondition.id).length,
-    }));
+    return winconditions.map(wincondition => {
+        const row = {
+            id: wincondition.id,
+            source_line: wincondition.source_line,
+            text: winconditionText(wincondition),
+            subjects: wincondition.subjects || [],
+            targets: wincondition.targets || [],
+            wake_edge_count: wakeEdges.filter(edge => edge.to === wincondition.id).length,
+        };
+        row.inspector = inspectorPayload(`Wincondition ${wincondition.id}`, [
+            factItem('line', Number.isFinite(wincondition.source_line) ? wincondition.source_line : 'compiled'),
+            factItem('subjects', row.subjects.join(', ') || '-'),
+            factItem('targets', row.targets.join(', ') || '-'),
+            factItem('wake edges', row.wake_edge_count),
+        ], [row.text]);
+        return row;
+    });
 }
 
 function summarizeSourceLines(report) {
@@ -498,12 +571,42 @@ function summarizeSourceLines(report) {
     return text.split(/\r?\n/).map((lineText, index) => {
         const line = index + 1;
         const object = objectByName.get(lineText.trim()) || null;
+        const rulesForLine = ruleSummaries.get(line) || [];
+        const groupAnnotations = Array.from(new Set(rulesForLine.map(rule => rule.group))).map(group => ({
+            kind: 'rulegroup',
+            label: group,
+            title: rulesForLine
+                .filter(rule => rule.group === group)
+                .map(rule => `${rule.compiled_id}: ${rule.text}`)
+                .join('\n'),
+        }));
+        const winconditionCount = winconditionCounts.get(line) || 0;
+        const annotations = [
+            ...groupAnnotations,
+            ...(winconditionCount ? [{
+                kind: 'wincondition',
+                label: `${winconditionCount} wincondition${winconditionCount === 1 ? '' : 's'}`,
+                title: 'Wincondition source line',
+            }] : []),
+        ];
+        if (object) {
+            annotations.push({
+                kind: 'object',
+                label: `object ${object.name}`,
+                title: [
+                    `quantity: ${quantityLabel(object)}`,
+                    `static: ${yesNo(Boolean(object.tags && object.tags.static))}`,
+                    `temporary: ${yesNo(Boolean(object.tags && object.tags.temporary))}`,
+                    `cosmetic: ${yesNo(Boolean(object.tags && object.tags.cosmetic))}`,
+                ].join('\n'),
+            });
+        }
         return {
             line,
             text: lineText,
             rule_count: ruleCounts.get(line) || 0,
-            rule_summaries: ruleSummaries.get(line) || [],
-            wincondition_count: winconditionCounts.get(line) || 0,
+            rule_summaries: rulesForLine,
+            wincondition_count: winconditionCount,
             object_name: object ? object.name : null,
             object_traits: object ? {
                 quantity: quantityLabel(object),
@@ -511,6 +614,7 @@ function summarizeSourceLines(report) {
                 temporary: Boolean(object.tags && object.tags.temporary),
                 cosmetic: Boolean(object.tags && object.tags.cosmetic),
             } : null,
+            annotations,
         };
     });
 }
