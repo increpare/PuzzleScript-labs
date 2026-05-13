@@ -263,7 +263,8 @@ assert.ok(game.source_lines.some(row =>
 ));
 assert.ok(game.source_lines.some(row =>
     row.text.includes('[ Wall ] -> sfx0') &&
-    row.rule_count > 0
+    row.rule_count > 0 &&
+    row.rule_summaries.some(rule => rule.group === 'early_group_1')
 ));
 assert.strictEqual(model.totals.mergable_objects, 2);
 assert.strictEqual(model.totals.temporary_objects, 0);
@@ -343,17 +344,25 @@ assert.ok(html.includes('Layers tab'));
 assert.ok(html.includes('Rulegroups tab'));
 assert.ok(html.includes('Source tab'));
 assert.ok(html.includes('Winconditions tab'));
+assert.ok(html.includes('Rule Flow tab'));
+assert.ok(html.indexOf('Winconditions tab') < html.indexOf('Source tab'));
 assert.ok(html.includes('data-object-cell="quantity"'));
 assert.ok(html.includes('data-object-cell="merge_group"'));
 assert.ok(html.includes('data-object-cell="win_role"'));
+assert.ok(html.includes('data-object-sort-key="quantity"'));
+assert.ok(html.includes('function handleObjectHeaderSort'));
 assert.ok(html.includes('data-cell-kind="objects.mergable"'));
 assert.ok(html.includes('data-sort-key="corpus_metrics.objects.static"'));
 assert.ok(html.includes('function handleCorpusHeaderSort'));
+assert.ok(html.includes('white-space: normal'));
+assert.ok(html.includes('button.cell.name[data-game]'));
 assert.ok(html.includes('function closeInspector()'));
 assert.ok(html.includes('function inspectorContent'));
 assert.ok(html.includes('function renderRulesTab'));
 assert.ok(html.includes('Rule analysis'));
 assert.ok(html.includes('Rules summary'));
+assert.ok(html.includes('<th>Line</th>'));
+assert.ok(!html.includes("'<td>line ' +"));
 assert.ok(html.includes('data-rule-cell="cosmetic"'));
 assert.ok(html.includes('function renderLayersTab'));
 assert.ok(html.includes('Layer analysis'));
@@ -361,13 +370,19 @@ assert.ok(html.includes('Object count'));
 assert.ok(html.includes('data-layer-cell="static"'));
 assert.ok(html.includes('function renderRulegroupsTab'));
 assert.ok(html.includes('Rulegroup analysis'));
+assert.ok(html.includes('Source lines'));
+assert.ok(html.includes('data-rulegroup-cell="source_lines"'));
 assert.ok(html.includes('Components'));
 assert.ok(html.includes('data-rulegroup-cell="splittable"'));
+assert.ok(html.includes('function renderRuleFlowTab'));
+assert.ok(html.includes('Rule flow analysis'));
+assert.ok(html.includes('data-rule-flow-group='));
 assert.ok(html.includes('function renderSourceTab'));
 assert.ok(html.includes('Best-effort source annotation'));
 assert.ok(html.includes('Source line'));
 assert.ok(html.includes('title Explorer Fixture'));
 assert.ok(html.includes('data-source-line="'));
+assert.ok(html.includes('ruleSummariesTitle'));
 assert.ok(html.includes('function renderWinconditionsTab'));
 assert.ok(html.includes('Wincondition analysis'));
 assert.ok(html.includes('Subjects'));

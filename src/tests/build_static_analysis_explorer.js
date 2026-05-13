@@ -431,10 +431,17 @@ function summarizeRulegroupRows(report) {
     return (report.ps_tagged.rule_sections || []).flatMap(section =>
         (section.groups || []).map(group => {
             const flow = flowForGroup(report, group.id);
+            const sourceLineMin = Number.isFinite(group.source_line_min) ? group.source_line_min : null;
+            const sourceLineMax = Number.isFinite(group.source_line_max) ? group.source_line_max : null;
+            const sourceLines = sourceLineMin == null
+                ? 'compiled'
+                : (sourceLineMin === sourceLineMax ? String(sourceLineMin) : `${sourceLineMin}-${sourceLineMax}`);
             return {
                 id: group.id,
                 section: section.name,
+                source_lines: sourceLines,
                 rule_count: group.rules.length,
+                rule_preview: group.rules.slice(0, 3).map(rule => truncateText(ruleText(rule), 120)),
                 splittable: Boolean(flow && flow.value && flow.value.split_candidate),
                 status: flow ? flow.status : 'not_applicable',
                 component_count: flow && flow.value && Array.isArray(flow.value.components) ? flow.value.components.length : 0,
@@ -467,10 +474,18 @@ function summarizeSourceLines(report) {
     const text = report.source && typeof report.source.text === 'string' ? report.source.text : '';
     if (!text) return [];
     const ruleCounts = new Map();
+    const ruleSummaries = new Map();
     const winconditionCounts = new Map();
     for (const entry of allRules(report)) {
         if (Number.isFinite(entry.rule.source_line)) {
             ruleCounts.set(entry.rule.source_line, (ruleCounts.get(entry.rule.source_line) || 0) + 1);
+            if (!ruleSummaries.has(entry.rule.source_line)) ruleSummaries.set(entry.rule.source_line, []);
+            ruleSummaries.get(entry.rule.source_line).push({
+                compiled_id: entry.rule.id,
+                group: entry.group.id,
+                section: entry.section.name,
+                text: truncateText(ruleText(entry.rule), 160),
+            });
         }
     }
     for (const wincondition of (report.ps_tagged && report.ps_tagged.winconditions) || []) {
@@ -487,6 +502,7 @@ function summarizeSourceLines(report) {
             line,
             text: lineText,
             rule_count: ruleCounts.get(line) || 0,
+            rule_summaries: ruleSummaries.get(line) || [],
             wincondition_count: winconditionCounts.get(line) || 0,
             object_name: object ? object.name : null,
             object_traits: object ? {
@@ -731,6 +747,18 @@ const CORPUS_COLUMNS = [
     { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
 ];
 
+const OBJECT_COLUMNS = [
+    { key: 'name', label: 'Object' },
+    { key: 'layer', label: 'Layer' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'static', label: 'Static' },
+    { key: 'temporary', label: 'Temporary' },
+    { key: 'cosmetic', label: 'Cosmetic' },
+    { key: 'merge_group', label: 'Merge' },
+    { key: 'rule_count', label: 'Rules' },
+    { key: 'win_role', label: 'Win role' },
+];
+
 function valueAtPath(object, pathText) {
     return pathText.split('.').reduce((current, key) => current == null ? undefined : current[key], object);
 }
@@ -757,7 +785,7 @@ function renderCorpusMatrixHtml(games) {
         `<div class="cell group" style="grid-column: span ${span}">${escapeHtml(label)}</div>`
     ).join('');
     const headHtml = CORPUS_COLUMNS.map(column =>
-        `<button type="button" class="cell head sortable" data-sort-key="${escapeHtml(column.key)}">${escapeHtml(column.label)}</button>`
+        `<button type="button" class="cell head sortable" data-sort-key="${escapeHtml(column.key)}" title="${escapeHtml(column.label)}">${escapeHtml(column.label)}</button>`
     ).join('');
     const rowHtml = games.map(game => CORPUS_COLUMNS.map(column => {
         const value = column.kind === 'game' ? game.display_name : valueAtPath(game, column.key);
@@ -781,25 +809,18 @@ function renderGameTabsHtml() {
         '<button class="view-tab" type="button" data-game-tab="rules">Rules tab</button>' +
         '<button class="view-tab" type="button" data-game-tab="layers">Layers tab</button>' +
         '<button class="view-tab" type="button" data-game-tab="rulegroups">Rulegroups tab</button>' +
-        '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
         '<button class="view-tab" type="button" data-game-tab="winconditions">Winconditions tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="ruleflow">Rule Flow tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
         '</div>';
 }
 
 function renderObjectMatrixHtml(game) {
-    const columns = [
-        ['name', 'Object'],
-        ['layer', 'Layer'],
-        ['quantity', 'Quantity'],
-        ['static', 'Static'],
-        ['temporary', 'Temporary'],
-        ['cosmetic', 'Cosmetic'],
-        ['merge_group', 'Merge'],
-        ['rule_count', 'Rules'],
-        ['win_role', 'Win role'],
-    ];
-    const head = columns.map(([, label]) => `<div class="cell head">${escapeHtml(label)}</div>`).join('');
-    const rows = game.object_rows.map(row => columns.map(([key]) => {
+    const head = OBJECT_COLUMNS.map(column =>
+        `<button type="button" class="cell head sortable" data-object-sort-key="${escapeHtml(column.key)}" title="${escapeHtml(column.label)}">${escapeHtml(column.label)}</button>`
+    ).join('');
+    const rows = game.object_rows.map(row => OBJECT_COLUMNS.map(column => {
+        const key = column.key;
         const value = row[key];
         const shown = typeof value === 'boolean' ? (value ? 'yes' : '-') : (value == null ? '-' : value);
         const quiet = shown === '-' || shown === 'none' ? ' quiet' : '';
@@ -856,8 +877,10 @@ main { padding: 10px; }
 .object-matrix { grid-template-columns: minmax(160px, 1.4fr) repeat(8, minmax(72px, 1fr)); }
 .cell { min-height: 24px; border: 1px solid transparent; border-radius: 3px; padding: 3px 5px; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--panel-soft); color: var(--text); }
 .cell.name { justify-content: flex-start; font-weight: 650; background: #fff; }
+button.cell.name[data-game] { cursor: pointer; color: #174d82; }
+button.cell.name[data-game]:hover { text-decoration: underline; }
 .cell.group { min-height: 20px; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; color: var(--muted); background: #fff; border-color: var(--line); }
-.cell.head { min-height: 28px; font-size: 10px; font-weight: 650; color: var(--muted); background: #fff; border-color: var(--line); text-align: center; }
+.cell.head { min-height: 34px; font-size: 10px; font-weight: 650; line-height: 1.1; color: var(--muted); background: #fff; border-color: var(--line); text-align: center; white-space: normal; overflow: visible; text-overflow: clip; }
 .cell.head.sortable { cursor: pointer; }
 .cell.head.sorted { color: var(--text); border-color: #7b8796; background: #eef2f7; }
 .cell.objects { background: var(--object); }
@@ -876,7 +899,7 @@ main { padding: 10px; }
 .chip { border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; background: var(--panel-soft); }
 .analysis-summary { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
 .analysis-block h3 { margin: 0 0 6px; font-size: 14px; }
-.analysis-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.analysis-table { width: 100%; min-width: 920px; border-collapse: collapse; background: #fff; }
 .analysis-table th, .analysis-table td { border-bottom: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; }
 .analysis-table th { font-size: 10px; color: var(--muted); text-transform: uppercase; background: var(--panel-soft); }
 .analysis-table tr:last-child td { border-bottom: 0; }
@@ -925,6 +948,8 @@ let activeView = 'corpus';
 let activeGameTab = 'objects';
 let activeSortColumn = null;
 let activeSortDirection = 'desc';
+let activeObjectSortColumn = null;
+let activeObjectSortDirection = 'asc';
 document.getElementById('totals').textContent =
   model.totals.games + ' games | ' +
   model.totals.mergable_objects + ' mergable objects | ' +
@@ -993,6 +1018,17 @@ const corpusColumns = [
   { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups' },
   { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
 ];
+const objectColumns = [
+  { key: 'name', label: 'Object' },
+  { key: 'layer', label: 'Layer' },
+  { key: 'quantity', label: 'Quantity' },
+  { key: 'static', label: 'Static' },
+  { key: 'temporary', label: 'Temporary' },
+  { key: 'cosmetic', label: 'Cosmetic' },
+  { key: 'merge_group', label: 'Merge' },
+  { key: 'rule_count', label: 'Rules' },
+  { key: 'win_role', label: 'Win role' },
+];
 function valueAt(object, path) {
   return path.split('.').reduce((current, key) => current == null ? undefined : current[key], object);
 }
@@ -1000,6 +1036,7 @@ function compareScalar(left, right) {
   if (left == null && right == null) return 0;
   if (left == null) return -1;
   if (right == null) return 1;
+  if (typeof left === 'boolean' && typeof right === 'boolean') return Number(left) - Number(right);
   if (typeof left === 'number' && typeof right === 'number') return left - right;
   return String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: 'base' });
 }
@@ -1026,6 +1063,29 @@ function handleCorpusHeaderSort(column) {
   renderCorpus();
   if (activeView === 'game') renderGame();
 }
+function defaultDirectionForObjectColumn(column) {
+  return ['name', 'quantity', 'merge_group', 'win_role'].includes(column.key) ? 'asc' : 'desc';
+}
+function compareObjectRows(left, right, column, direction) {
+  const base = compareScalar(left[column.key], right[column.key]);
+  const directed = direction === 'asc' ? base : -base;
+  return directed || String(left.name).localeCompare(String(right.name));
+}
+function sortedObjectRows(game) {
+  const rows = game.object_rows.slice();
+  if (!activeObjectSortColumn) return rows;
+  rows.sort((left, right) => compareObjectRows(left, right, activeObjectSortColumn, activeObjectSortDirection));
+  return rows;
+}
+function handleObjectHeaderSort(column) {
+  if (activeObjectSortColumn && activeObjectSortColumn.key === column.key) {
+    activeObjectSortDirection = activeObjectSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    activeObjectSortColumn = column;
+    activeObjectSortDirection = defaultDirectionForObjectColumn(column);
+  }
+  renderGame();
+}
 function corpusCellClass(column, value) {
   const classes = ['cell'];
   if (column.className) classes.push(column.className);
@@ -1051,7 +1111,7 @@ function renderCorpus() {
   const headHtml = corpusColumns.map(column => {
     const sorted = activeSortColumn && activeSortColumn.key === column.key;
     const marker = sorted ? (activeSortDirection === 'asc' ? ' asc' : ' desc') : '';
-    return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-sort-key="' + escapeText(column.key) + '">' + escapeText(column.label + marker) + '</button>';
+    return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-sort-key="' + escapeText(column.key) + '" title="' + escapeText(column.label) + '">' + escapeText(column.label + marker) + '</button>';
   }).join('');
   const rowHtml = shown.map(game => corpusColumns.map(column => {
     const value = column.kind === 'game' ? game.display_name : valueAt(game, column.key);
@@ -1090,25 +1150,20 @@ function renderGameTabs() {
     '<button class="view-tab" type="button" data-game-tab="rules">Rules tab</button>' +
     '<button class="view-tab" type="button" data-game-tab="layers">Layers tab</button>' +
     '<button class="view-tab" type="button" data-game-tab="rulegroups">Rulegroups tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
     '<button class="view-tab" type="button" data-game-tab="winconditions">Winconditions tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="ruleflow">Rule Flow tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
     '</div>';
 }
 
 function renderObjectMatrix(game) {
-  const columns = [
-    ['name', 'Object'],
-    ['layer', 'Layer'],
-    ['quantity', 'Quantity'],
-    ['static', 'Static'],
-    ['temporary', 'Temporary'],
-    ['cosmetic', 'Cosmetic'],
-    ['merge_group', 'Merge'],
-    ['rule_count', 'Rules'],
-    ['win_role', 'Win role'],
-  ];
-  const head = columns.map(([, label]) => '<div class="cell head">' + escapeText(label) + '</div>').join('');
-  const rows = game.object_rows.map(row => columns.map(([key]) => {
+  const head = objectColumns.map(column => {
+    const sorted = activeObjectSortColumn && activeObjectSortColumn.key === column.key;
+    const marker = sorted ? (activeObjectSortDirection === 'asc' ? ' asc' : ' desc') : '';
+    return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-object-sort-key="' + escapeText(column.key) + '" title="' + escapeText(column.label) + '">' + escapeText(column.label + marker) + '</button>';
+  }).join('');
+  const rows = sortedObjectRows(game).map(row => objectColumns.map(column => {
+    const key = column.key;
     const value = row[key];
     const shown = typeof value === 'boolean' ? (value ? 'yes' : '-') : (value == null ? '-' : value);
     const quiet = shown === '-' || shown === 'none' ? ' quiet' : '';
@@ -1127,10 +1182,13 @@ function summaryPill(label, value) {
 function renderSummary(title, items) {
   return '<h4>' + escapeText(title) + '</h4><div class="analysis-summary">' + items.map(item => summaryPill(item[0], item[1])).join('') + '</div>';
 }
+function tableShell(html) {
+  return '<div class="matrix-shell"><div class="matrix-scroll">' + html + '</div></div>';
+}
 function renderRulesTab(game) {
   const rows = game.rule_rows.map(row =>
     '<tr>' +
-      '<td>line ' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + '</td>' +
+      '<td>' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + '</td>' +
       '<td>' + escapeText(row.section) + '</td>' +
       '<td>' + escapeText(row.group) + '</td>' +
       '<td data-rule="' + escapeText(row.compiled_id) + '" data-rule-cell="cosmetic">' + escapeText(boolText(row.cosmetic)) + '</td>' +
@@ -1148,13 +1206,13 @@ function renderRulesTab(game) {
       ['action', game.corpus_metrics.rules.action],
       ['tick', game.corpus_metrics.rules.tick],
     ]) +
-    '<table class="analysis-table"><thead><tr><th>Source</th><th>Section</th><th>Group</th><th>Cosmetic</th><th>Inert command</th><th>Command only</th><th>Rule</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    tableShell('<table class="analysis-table"><thead><tr><th>Line</th><th>Section</th><th>Group</th><th>Cosmetic</th><th>Inert command</th><th>Command only</th><th>Rule</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
 }
 
 function renderLayersTab(game) {
   const rows = game.layer_rows.map(layer =>
     '<tr>' +
-      '<td>layer ' + escapeText(layer.id) + '</td>' +
+      '<td>' + escapeText(layer.id) + '</td>' +
       '<td>' + escapeText(layer.objects.join(', ')) + '</td>' +
       '<td data-layer="' + escapeText(layer.id) + '" data-layer-cell="object_count">' + escapeText(layer.objects.length) + '</td>' +
       '<td data-layer="' + escapeText(layer.id) + '" data-layer-cell="static">' + escapeText(boolText(layer.static)) + '</td>' +
@@ -1167,20 +1225,19 @@ function renderLayersTab(game) {
       ['static', game.corpus_metrics.layers.static],
       ['inert', game.corpus_metrics.layers.inert],
     ]) +
-    '<table class="analysis-table"><thead><tr><th>Layer</th><th>Objects</th><th>Object count</th><th>Static</th><th>Inert</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    tableShell('<table class="analysis-table"><thead><tr><th>Layer</th><th>Objects</th><th>Object count</th><th>Static</th><th>Inert</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
 }
 
 function renderRulegroupsTab(game) {
   const rows = game.rulegroup_rows.map(group =>
     '<tr>' +
       '<td>' + escapeText(group.id) + '</td>' +
+      '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="source_lines">' + escapeText(group.source_lines) + '</td>' +
       '<td>' + escapeText(group.section) + '</td>' +
       '<td>' + escapeText(group.rule_count) + '</td>' +
-      '<td>' + escapeText(group.status) + '</td>' +
       '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="splittable">' + escapeText(boolText(group.splittable)) + '</td>' +
-      '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="component_count">' + escapeText(group.component_count) + '</td>' +
-      '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="interaction_edge_count">' + escapeText(group.interaction_edge_count) + '</td>' +
-      '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="rerun_mask_count">' + escapeText(group.rerun_mask_count) + '</td>' +
+      '<td>' + escapeText(group.status) + '</td>' +
+      '<td><code>' + escapeText(group.rule_preview.join('\\n') || '-') + '</code></td>' +
     '</tr>'
   ).join('');
   return '<div class="analysis-block"><h3>Rulegroup analysis</h3>' +
@@ -1188,21 +1245,61 @@ function renderRulegroupsTab(game) {
       ['rulegroups', game.corpus_metrics.rulegroups.total],
       ['splittable', game.corpus_metrics.rulegroups.splittable],
     ]) +
-    '<table class="analysis-table"><thead><tr><th>Rulegroup</th><th>Section</th><th>Rules</th><th>Status</th><th>Splittable</th><th>Components</th><th>Interactions</th><th>Rerun masks</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    tableShell('<table class="analysis-table"><thead><tr><th>Rulegroup</th><th>Source lines</th><th>Section</th><th>Rules</th><th>Splittable</th><th>Flow status</th><th>Preview</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
 }
 
+function renderRuleFlowTab(game) {
+  const groups = game.rulegroup_flow || [];
+  if (groups.length === 0) {
+    return '<div class="analysis-block"><h3>Rule flow analysis</h3><p class="empty">No splittable or rerun-sensitive rulegroups were reported for this game.</p></div>';
+  }
+  const rows = groups.map(group =>
+    '<tr data-rule-flow-group="' + escapeText(group.id) + '">' +
+      '<td>' + escapeText(group.id) + '</td>' +
+      '<td>' + escapeText(group.section) + '</td>' +
+      '<td>' + escapeText(boolText(group.split_candidate)) + '</td>' +
+      '<td>' + escapeText(group.component_count) + '</td>' +
+      '<td>' + escapeText(group.interaction_edge_count) + '</td>' +
+      '<td>' + escapeText(group.rerun_mask_count) + '</td>' +
+      '<td><code>' + escapeText(group.rules.map(rule => '[' + (rule.component == null ? '-' : rule.component) + '] ' + rule.text).join('\\n') || '-') + '</code></td>' +
+    '</tr>'
+  ).join('');
+  return '<div class="analysis-block"><h3>Rule flow analysis</h3>' +
+    renderSummary('Flow summary', [
+      ['reported groups', game.rulegroup_flow_total],
+      ['splittable', game.rulegroup_flow_split_total],
+      ['shown', groups.length],
+    ]) +
+    tableShell('<table class="analysis-table"><thead><tr><th>Rulegroup</th><th>Section</th><th>Splittable</th><th>Components</th><th>Interactions</th><th>Rerun masks</th><th>Compiled rules by component</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
+}
+
+function ruleSummariesTitle(rules) {
+  if (!rules || rules.length === 0) return '';
+  return rules.map(rule => rule.compiled_id + ': ' + rule.text).join('\\n');
+}
 function sourceBadges(row) {
   const badges = [];
-  if (row.rule_count) badges.push(row.rule_count + ' rule' + (row.rule_count === 1 ? '' : 's'));
-  if (row.wincondition_count) badges.push(row.wincondition_count + ' wincondition' + (row.wincondition_count === 1 ? '' : 's'));
-  if (row.object_name) {
-    badges.push('object ' + row.object_name);
-    if (row.object_traits && row.object_traits.static) badges.push('static');
-    if (row.object_traits && row.object_traits.temporary) badges.push('temporary');
-    if (row.object_traits && row.object_traits.cosmetic) badges.push('cosmetic');
-    if (row.object_traits && row.object_traits.quantity) badges.push(row.object_traits.quantity);
+  if (row.rule_summaries && row.rule_summaries.length) {
+    const byGroup = new Map();
+    for (const rule of row.rule_summaries) {
+      if (!byGroup.has(rule.group)) byGroup.set(rule.group, []);
+      byGroup.get(rule.group).push(rule);
+    }
+    for (const [group, rules] of byGroup.entries()) {
+      badges.push({ text: group, title: ruleSummariesTitle(rules) });
+    }
+  } else if (row.rule_count) {
+    badges.push({ text: row.rule_count + ' rule' + (row.rule_count === 1 ? '' : 's'), title: '' });
   }
-  return badges.map(badge => '<span class="chip">' + escapeText(badge) + '</span>').join('');
+  if (row.wincondition_count) badges.push({ text: row.wincondition_count + ' wincondition' + (row.wincondition_count === 1 ? '' : 's'), title: '' });
+  if (row.object_name) {
+    badges.push({ text: 'object ' + row.object_name, title: '' });
+    if (row.object_traits && row.object_traits.static) badges.push({ text: 'static', title: '' });
+    if (row.object_traits && row.object_traits.temporary) badges.push({ text: 'temporary', title: '' });
+    if (row.object_traits && row.object_traits.cosmetic) badges.push({ text: 'cosmetic', title: '' });
+    if (row.object_traits && row.object_traits.quantity) badges.push({ text: row.object_traits.quantity, title: '' });
+  }
+  return badges.map(badge => '<span class="chip"' + (badge.title ? ' title="' + escapeText(badge.title) + '"' : '') + '>' + escapeText(badge.text) + '</span>').join('');
 }
 function renderSourceTab(game) {
   if (!game.source_lines || game.source_lines.length === 0) {
@@ -1225,7 +1322,7 @@ function renderSourceTab(game) {
 function renderWinconditionsTab(game) {
   const rows = game.wincondition_rows.map(row =>
     '<tr>' +
-      '<td>line ' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + '</td>' +
+      '<td>' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + '</td>' +
       '<td>' + escapeText(row.text) + '</td>' +
       '<td data-wincondition="' + escapeText(row.id) + '" data-wincondition-cell="subjects">' + escapeText(row.subjects.join(', ') || '-') + '</td>' +
       '<td data-wincondition="' + escapeText(row.id) + '" data-wincondition-cell="targets">' + escapeText(row.targets.join(', ') || '-') + '</td>' +
@@ -1237,13 +1334,14 @@ function renderWinconditionsTab(game) {
       ['winconditions', game.corpus_metrics.winconditions.total],
       ['wake edges', game.winflow.wake_edge_count],
     ]) +
-    '<table class="analysis-table"><thead><tr><th>Source</th><th>Wincondition</th><th>Subjects</th><th>Targets</th><th>Wake edges</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    tableShell('<table class="analysis-table"><thead><tr><th>Line</th><th>Wincondition</th><th>Subjects</th><th>Targets</th><th>Wake edges</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
 }
 
 function renderGameTabPanel(game, tab) {
   if (tab === 'rules') return renderRulesTab(game);
   if (tab === 'layers') return renderLayersTab(game);
   if (tab === 'rulegroups') return renderRulegroupsTab(game);
+  if (tab === 'ruleflow') return renderRuleFlowTab(game);
   if (tab === 'source') return renderSourceTab(game);
   if (tab === 'winconditions') return renderWinconditionsTab(game);
   return renderObjectMatrix(game);
@@ -1261,6 +1359,12 @@ function renderGame() {
     tab.addEventListener('click', () => {
       activeGameTab = tab.dataset.gameTab;
       renderGame();
+    });
+  }
+  for (const head of gameView.querySelectorAll('[data-object-sort-key]')) {
+    head.addEventListener('click', () => {
+      const column = objectColumns.find(item => item.key === head.dataset.objectSortKey);
+      if (column) handleObjectHeaderSort(column);
     });
   }
   for (const cell of gameView.querySelectorAll('[data-object]')) {
