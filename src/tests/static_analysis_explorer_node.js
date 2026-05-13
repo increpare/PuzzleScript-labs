@@ -241,22 +241,27 @@ assert.ok(game.object_rows.some(row =>
     row.static === false &&
     row.win_role === 'none'
 ));
+assert.ok(game.object_rows.every(row => row.inspector && row.inspector.title && Array.isArray(row.inspector.facts)));
 assert.ok(game.layer_rows.some(row =>
     row.id === 4 &&
     row.static === true &&
     row.inert === false &&
     row.objects.join(',') === 'BodyH,BodyV,BodyD'
 ));
+assert.ok(game.layer_rows.every(row => row.inspector && row.inspector.title && Array.isArray(row.inspector.facts)));
 assert.ok(game.rule_rows.some(row =>
     row.compiled_id === 'early_group_1_rule_0' &&
     row.source_line === 60 &&
     row.cosmetic === true
 ));
+assert.ok(game.rule_rows.every(row => row.inspector && row.inspector.title && Array.isArray(row.inspector.facts)));
 assert.ok(game.rulegroup_rows.some(row =>
     row.id === 'early_group_0' &&
     row.rule_count > 0
 ));
+assert.ok(game.rulegroup_rows.every(row => row.inspector && row.inspector.title && Array.isArray(row.inspector.facts)));
 assert.deepStrictEqual(game.wincondition_rows.map(row => row.text), ['Some Player']);
+assert.ok(game.wincondition_rows.every(row => row.inspector && row.inspector.title && Array.isArray(row.inspector.facts)));
 assert.ok(game.source_lines.some(row =>
     row.line === 2 &&
     row.text === 'title Explorer Fixture'
@@ -264,7 +269,8 @@ assert.ok(game.source_lines.some(row =>
 assert.ok(game.source_lines.some(row =>
     row.text.includes('[ Wall ] -> sfx0') &&
     row.rule_count > 0 &&
-    row.rule_summaries.some(rule => rule.group === 'early_group_1')
+    row.rule_summaries.some(rule => rule.group === 'early_group_1') &&
+    row.annotations.some(annotation => annotation.kind === 'rulegroup' && annotation.label === 'early_group_1')
 ));
 assert.strictEqual(model.totals.mergable_objects, 2);
 assert.strictEqual(model.totals.temporary_objects, 0);
@@ -338,55 +344,73 @@ assert.ok(!html.includes('winflow edges'));
 assert.ok(!html.includes('cell name name'));
 assert.ok(html.includes('data-view="corpus"'));
 assert.ok(html.includes('data-view="game"'));
-assert.ok(html.includes('Objects tab'));
-assert.ok(html.includes('Rules tab'));
-assert.ok(html.includes('Layers tab'));
-assert.ok(html.includes('Rulegroups tab'));
-assert.ok(html.includes('Source tab'));
-assert.ok(html.includes('Winconditions tab'));
-assert.ok(html.includes('Rule Flow tab'));
-assert.ok(html.indexOf('Winconditions tab') < html.indexOf('Source tab'));
-assert.ok(html.includes('data-object-cell="quantity"'));
-assert.ok(html.includes('data-object-cell="merge_group"'));
-assert.ok(html.includes('data-object-cell="win_role"'));
-assert.ok(html.includes('data-object-sort-key="quantity"'));
-assert.ok(html.includes('function handleObjectHeaderSort'));
+assert.ok(html.includes('function reportDefinitionsForGame'));
+assert.ok(html.includes('function renderReportShell'));
+assert.ok(html.includes('function renderSortableTable'));
+assert.ok(html.includes('function renderSourceReport'));
+assert.ok(html.includes('function showInspectorForReportRow'));
+assert.ok(html.includes('function showInspectorForSourceLine'));
+assert.ok(html.includes('function renderInspectorPayload'));
+assert.ok(html.includes('const columnTypes ='));
+assert.ok(html.includes("id: 'objects'"));
+assert.ok(html.includes("id: 'rules'"));
+assert.ok(html.includes("id: 'layers'"));
+assert.ok(html.includes("id: 'rulegroups'"));
+assert.ok(html.includes("id: 'ruleflow'"));
+assert.ok(html.includes("id: 'winconditions'"));
+assert.ok(html.includes("id: 'source'"));
+assert.ok(html.includes('data-report-id="rules"'));
+assert.ok(html.includes('data-report-id="layers"'));
+assert.ok(html.includes('data-report-id="rulegroups"'));
+assert.ok(html.includes('data-report-id="ruleflow"'));
+assert.ok(html.includes('data-report-id="winconditions"'));
+assert.ok(html.includes('data-report-id="source"'));
+assert.ok(html.includes('class="report-shell"'));
+assert.ok(html.includes('class="report-header"'));
+assert.ok(html.includes('class="report-summary"'));
+assert.ok(html.includes('class="report-body"'));
+assert.ok(html.includes('class="report-notes"'));
+assert.ok(html.includes('class="sortable-table"'));
+assert.ok(html.includes('class="inspector-panel"'));
+assert.ok(html.includes('.report-shell'));
+assert.ok(html.includes('.report-header'));
+assert.ok(html.includes('.report-summary'));
+assert.ok(html.includes('.report-body'));
+assert.ok(html.includes('.report-notes'));
+assert.ok(html.includes('.sortable-table'));
+assert.ok(html.includes('.inspector-panel'));
+assert.ok(html.includes('data-report-sort-key="line"'));
+assert.ok(html.includes('data-report-sort-key="source_lines"'));
+assert.ok(html.includes('data-report-sort-key="wake_edge_count"'));
+assert.ok(html.includes('function handleReportSort'));
+assert.ok(html.includes('function sortReportRows'));
+assert.ok(html.includes('defaultSort'));
+assert.ok(html.includes('data-report-row='));
+assert.ok(html.includes('data-source-line='));
+assert.ok(!html.includes('function renderObjectMatrix'));
+assert.ok(!html.includes('function renderRulesTab'));
+assert.ok(!html.includes('function renderLayersTab'));
+assert.ok(!html.includes('function renderRulegroupsTab'));
+assert.ok(!html.includes('function renderWinconditionsTab'));
 assert.ok(html.includes('data-cell-kind="objects.mergable"'));
 assert.ok(html.includes('data-sort-key="corpus_metrics.objects.static"'));
+assert.ok(html.includes('function renderCorpusMatrix'));
 assert.ok(html.includes('function handleCorpusHeaderSort'));
 assert.ok(html.includes('white-space: normal'));
 assert.ok(html.includes('button.cell.name[data-game]'));
 assert.ok(html.includes('function closeInspector()'));
 assert.ok(html.includes('function inspectorContent'));
-assert.ok(html.includes('function renderRulesTab'));
-assert.ok(html.includes('Rule analysis'));
-assert.ok(html.includes('Rules summary'));
-assert.ok(html.includes('<th>Line</th>'));
+assert.ok(html.includes('Rule Flow'));
+assert.ok(html.includes('Line'));
 assert.ok(!html.includes("'<td>line ' +"));
-assert.ok(html.includes('data-rule-cell="cosmetic"'));
-assert.ok(html.includes('function renderLayersTab'));
-assert.ok(html.includes('Layer analysis'));
 assert.ok(html.includes('Object count'));
-assert.ok(html.includes('data-layer-cell="static"'));
-assert.ok(html.includes('function renderRulegroupsTab'));
-assert.ok(html.includes('Rulegroup analysis'));
 assert.ok(html.includes('Source lines'));
-assert.ok(html.includes('data-rulegroup-cell="source_lines"'));
 assert.ok(html.includes('Components'));
-assert.ok(html.includes('data-rulegroup-cell="splittable"'));
-assert.ok(html.includes('function renderRuleFlowTab'));
-assert.ok(html.includes('Rule flow analysis'));
-assert.ok(html.includes('data-rule-flow-group='));
-assert.ok(html.includes('function renderSourceTab'));
 assert.ok(html.includes('Best-effort source annotation'));
 assert.ok(html.includes('Source line'));
 assert.ok(html.includes('title Explorer Fixture'));
 assert.ok(html.includes('data-source-line="'));
-assert.ok(html.includes('ruleSummariesTitle'));
-assert.ok(html.includes('function renderWinconditionsTab'));
-assert.ok(html.includes('Wincondition analysis'));
 assert.ok(html.includes('Subjects'));
-assert.ok(html.includes('data-wincondition-cell="wake_edge_count"'));
 assert.ok(html.includes("row.source_line == null ? 'compiled' : row.source_line"));
 assert.ok(html.includes('Mergable object savings'));
 assert.ok(html.includes('Source-facing rules'));
