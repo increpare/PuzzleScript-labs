@@ -182,6 +182,42 @@ function quantityBehavior(object) {
     return 'dynamic';
 }
 
+function quantityLabel(object) {
+    const behavior = quantityBehavior(object);
+    if (behavior === 'can_increase') return 'can increase';
+    if (behavior === 'can_decrease') return 'can decrease';
+    return behavior;
+}
+
+function mergeGroupIdByObject(mergeableGroups) {
+    const result = new Map();
+    for (const group of mergeableGroups) {
+        for (const object of group.objects) result.set(object, group.id);
+    }
+    return result;
+}
+
+function winRoleForObject(objectName, winconditions) {
+    const roles = [];
+    for (const wincondition of winconditions) {
+        if ((wincondition.subjects || []).includes(objectName)) roles.push('subject');
+        if ((wincondition.targets || []).includes(objectName)) roles.push('target');
+    }
+    return roles.length ? Array.from(new Set(roles)).join(', ') : 'none';
+}
+
+function ruleTouchesObject(rule, objectName) {
+    const tags = rule.tags || {};
+    const fields = [
+        'objects_required',
+        'objects_matched',
+        'objects_written',
+        'objects_erased',
+        'object_absences_matched',
+    ];
+    return fields.some(field => Array.isArray(tags[field]) && tags[field].includes(objectName));
+}
+
 function summarizeQuantity(objects) {
     const groups = {
         constant: [],
@@ -347,6 +383,76 @@ function sortRulegroupInterest(left, right) {
         || left.id.localeCompare(right.id);
 }
 
+function summarizeObjectRows(report, mergeableGroups) {
+    const objects = report.ps_tagged ? report.ps_tagged.objects || [] : [];
+    const rules = allRules(report);
+    const winconditions = report.ps_tagged ? report.ps_tagged.winconditions || [] : [];
+    const mergeByObject = mergeGroupIdByObject(mergeableGroups);
+    return objects.map(object => ({
+        id: object.id,
+        name: object.name,
+        canonical_name: object.canonical_name,
+        layer: object.layer,
+        quantity: quantityLabel(object),
+        static: Boolean(object.tags && object.tags.static),
+        temporary: Boolean(object.tags && object.tags.temporary),
+        cosmetic: Boolean(object.tags && object.tags.cosmetic),
+        merge_group: mergeByObject.get(object.name) || null,
+        rule_count: rules.filter(entry => ruleTouchesObject(entry.rule, object.name)).length,
+        win_role: winRoleForObject(object.name, winconditions),
+    }));
+}
+
+function summarizeLayerRows(report) {
+    const layers = report.ps_tagged ? report.ps_tagged.collision_layers || [] : [];
+    return layers.map(layer => ({
+        id: layer.id,
+        objects: layer.objects || [],
+        static: Boolean(layer.tags && layer.tags.static),
+        inert: Boolean(layer.tags && layer.tags.inert),
+    }));
+}
+
+function summarizeRuleRows(report) {
+    return allRules(report).map(entry => ({
+        compiled_id: entry.rule.id,
+        group: entry.group.id,
+        section: entry.section.name,
+        source_line: entry.rule.source_line,
+        text: ruleText(entry.rule),
+        cosmetic: Boolean(entry.rule.tags && entry.rule.tags.cosmetic),
+        inert_command: Boolean(entry.rule.tags && entry.rule.tags.inert_command_only),
+        command_only: Boolean(entry.rule.tags && entry.rule.tags.command_only),
+    }));
+}
+
+function summarizeRulegroupRows(report) {
+    if (!report.ps_tagged) return [];
+    return (report.ps_tagged.rule_sections || []).flatMap(section =>
+        (section.groups || []).map(group => {
+            const flow = flowForGroup(report, group.id);
+            return {
+                id: group.id,
+                section: section.name,
+                rule_count: group.rules.length,
+                splittable: Boolean(flow && flow.value && flow.value.split_candidate),
+                status: flow ? flow.status : 'not_applicable',
+            };
+        })
+    );
+}
+
+function summarizeWinconditionRows(report) {
+    const winconditions = report.ps_tagged ? report.ps_tagged.winconditions || [] : [];
+    return winconditions.map(wincondition => ({
+        id: wincondition.id,
+        source_line: wincondition.source_line,
+        text: winconditionText(wincondition),
+        subjects: wincondition.subjects || [],
+        targets: wincondition.targets || [],
+    }));
+}
+
 function summarizeRuleGroups(report) {
     if (!report.ps_tagged) return { groups: [], total: 0, splitTotal: 0, omitted: 0 };
     const results = [];
@@ -493,6 +599,11 @@ function summarizeReport(report, options = {}) {
         program_flow: programFlow,
         winflow,
         corpus_metrics: corpusMetrics,
+        object_rows: summarizeObjectRows(report, mergeableGroups),
+        layer_rows: summarizeLayerRows(report),
+        rule_rows: summarizeRuleRows(report),
+        rulegroup_rows: summarizeRulegroupRows(report),
+        wincondition_rows: summarizeWinconditionRows(report),
         rulegroup_flow: rulegroupFlow,
         rulegroup_flow_total: rulegroupFlowSummary.total,
         rulegroup_flow_split_total: rulegroupFlowSummary.splitTotal,

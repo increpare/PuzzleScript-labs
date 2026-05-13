@@ -226,6 +226,37 @@ assert.deepStrictEqual(game.corpus_metrics.rulegroups, {
 assert.deepStrictEqual(game.corpus_metrics.winconditions, {
     total: 1,
 });
+assert.ok(game.object_rows.some(row =>
+    row.name === 'BodyH' &&
+    row.layer === 4 &&
+    row.quantity === 'constant' &&
+    row.static === true &&
+    row.cosmetic === true &&
+    row.merge_group === 'merge_group_0' &&
+    row.rule_count > 0
+));
+assert.ok(game.object_rows.some(row =>
+    row.name === 'MarkerX' &&
+    row.quantity === 'can increase' &&
+    row.static === false &&
+    row.win_role === 'none'
+));
+assert.ok(game.layer_rows.some(row =>
+    row.id === 4 &&
+    row.static === true &&
+    row.inert === false &&
+    row.objects.join(',') === 'BodyH,BodyV,BodyD'
+));
+assert.ok(game.rule_rows.some(row =>
+    row.compiled_id === 'early_group_1_rule_0' &&
+    row.source_line === 60 &&
+    row.cosmetic === true
+));
+assert.ok(game.rulegroup_rows.some(row =>
+    row.id === 'early_group_0' &&
+    row.rule_count > 0
+));
+assert.deepStrictEqual(game.wincondition_rows.map(row => row.text), ['Some Player']);
 assert.strictEqual(model.totals.mergable_objects, 2);
 assert.strictEqual(model.totals.temporary_objects, 0);
 assert.strictEqual(model.totals.cosmetic_rules, 4);
