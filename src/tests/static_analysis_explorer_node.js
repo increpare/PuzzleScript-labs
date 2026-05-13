@@ -324,6 +324,11 @@ assert.ok(html.includes('inert command rules'));
 assert.ok(html.includes('splittable rulegroups'));
 assert.ok(html.includes('data-view="corpus"'));
 assert.ok(html.includes('data-cell-kind="objects.mergable"'));
+assert.ok(html.includes('function closeInspector()'));
+assert.ok(html.includes('JSON.stringify(game.corpus_metrics)'));
+assert.ok(html.includes("corpusColumns.map(column => column.label).join(' ')"));
+assert.ok(html.includes('b.corpus_metrics.objects.mergable - a.corpus_metrics.objects.mergable'));
+assert.ok(html.includes('closeInspector();'));
 
 const flowHtml = renderExplorerHtml(flowModel);
 assert.ok(flowHtml.includes('can increase'));

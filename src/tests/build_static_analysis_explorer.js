@@ -819,6 +819,13 @@ function escapeText(value) {
 function searchable(game) {
   return [
     game.display_name, game.source_path, game.title,
+    JSON.stringify(game.corpus_metrics),
+    corpusColumns.map(column => column.label).join(' '),
+    corpusColumns.map(column => valueAt(game, column.key)).join(' '),
+    'winconditions',
+    'mergable objects',
+    'action ' + game.corpus_metrics.rules.action,
+    'tick ' + game.corpus_metrics.rules.tick,
     game.mergeable_groups.flatMap(group => group.objects).join(' '),
     Object.entries(game.quantity).map(([key, values]) => key + ' ' + values.join(' ')).join(' '),
     game.static_objects.join(' '),
@@ -840,7 +847,7 @@ function visibleGames() {
   out.sort((a, b) => {
     if (mode === 'name') return a.display_name.localeCompare(b.display_name);
     if (mode === 'split') return b.rulegroup_flow_split_total - a.rulegroup_flow_split_total || b.score - a.score;
-    if (mode === 'merge') return b.mergeable_groups.length - a.mergeable_groups.length || b.score - a.score;
+    if (mode === 'merge') return b.corpus_metrics.objects.mergable - a.corpus_metrics.objects.mergable || b.score - a.score || a.display_name.localeCompare(b.display_name);
     return b.score - a.score || a.display_name.localeCompare(b.display_name);
   });
   return out;
@@ -879,7 +886,9 @@ function corpusCellClass(column, value) {
 }
 function renderCorpus() {
   const shown = visibleGames();
+  const previousSelected = selected;
   if (!shown.includes(selected)) selected = shown[0] || null;
+  if (selected !== previousSelected) closeInspector();
   const groups = [
     ['', 1],
     ['Objects', 6],
@@ -928,7 +937,11 @@ function showInspector(game, kind) {
   inspector.innerHTML = '<button type="button" aria-label="Close inspector">Close</button><h2>' + escapeText(game.display_name) + '</h2><p class="path">' + escapeText(kind) + '</p><p><span class="pill">' + escapeText(value == null ? '' : value) + '</span></p>';
   inspector.classList.add('open');
   const button = inspector.querySelector('button');
-  if (button) button.addEventListener('click', () => inspector.classList.remove('open'));
+  if (button) button.addEventListener('click', closeInspector);
+}
+function closeInspector() {
+  inspector.classList.remove('open');
+  inspector.innerHTML = '';
 }
 function render() { renderCorpus(); renderGame(); }
 corpusTab.addEventListener('click', () => setView('corpus'));
