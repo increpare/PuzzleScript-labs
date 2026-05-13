@@ -459,6 +459,86 @@ assert.strictEqual(
     'inert command checks should compare final solver state after suppressing inert command-only rules'
 );
 
+const winflowCacheSource = [
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'Yellow',
+    '',
+    'Crate',
+    'Red',
+    '',
+    'Goal',
+    'Green',
+    '',
+    'Marker',
+    'Blue',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'C = Crate',
+    'G = Goal',
+    'M = Marker',
+    '',
+    '======',
+    'SOUNDS',
+    '======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Goal, Marker',
+    'Player',
+    'Crate',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    'right [ Crate | no Goal ] -> [ | Crate ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'No Marker',
+    'All Crate On Goal',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'PC.GM',
+].join('\n');
+
+const winflowCache = runSimulationWithStaticChecks('winflow cache', [
+    winflowCacheSource,
+    ['tick'],
+    'background player:0,background:1,background crate:2,background goal:3,background marker:4,\n',
+]);
+
+assert.strictEqual(
+    winflowCache.winflowWinconditionCount,
+    2,
+    'winflow fixture should expose both winconditions to the runtime contract'
+);
+assert.strictEqual(
+    winflowCache.winflowCleanWinconditionChecks,
+    1,
+    'winflow checks should keep unrelated winconditions cached across a rule application'
+);
+
 const mergeProjectionSource = [
     '========',
     'OBJECTS',

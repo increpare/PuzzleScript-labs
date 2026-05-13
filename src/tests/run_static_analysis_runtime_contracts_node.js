@@ -123,6 +123,7 @@ function emptyStaticContract(unavailableReason) {
         cosmeticRuleSourceLines: [],
         inertCommandRuleSourceLines: [],
         mergeCandidatePairs: [],
+        winflowFact: null,
         staticAnalysisReport: null,
         referencedObjectNames: [],
         actionNoopProved: false,
@@ -265,7 +266,7 @@ function staticContractForSource(source, testName) {
     const sourcePath = `testdata:${testName}`;
     const report = analyzeSource(source, {
         sourcePath,
-        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'mergeability'],
+        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'mergeability', 'winflow'],
     });
     const unavailableReason = expectedAnalysisUnavailable(report, testName, sourcePath);
     if (unavailableReason) {
@@ -276,6 +277,8 @@ function staticContractForSource(source, testName) {
     const layers = ((report.ps_tagged && report.ps_tagged.collision_layers) || []);
     const gameTags = (report.ps_tagged && report.ps_tagged.game && report.ps_tagged.game.tags) || {};
     const movementFacts = (report.facts && report.facts.movement_action) || [];
+    const winflowFact = ((report.facts && report.facts.winflow) || [])
+        .find(fact => fact && fact.id === 'winflow' && fact.status === 'proved') || null;
     const referencedObjectNames = ruleReferencedObjectNames(report.ps_tagged);
     const quantityContracts = objects
         .filter(object => object.tags && object.tags.quantity)
@@ -311,6 +314,7 @@ function staticContractForSource(source, testName) {
         cosmeticRuleSourceLines: cosmeticRuleSourceLines(report.ps_tagged),
         inertCommandRuleSourceLines: inertCommandRuleSourceLines(report.ps_tagged),
         mergeCandidatePairs: mergeabilityCandidatePairs(report),
+        winflowFact,
         staticAnalysisReport: report,
         referencedObjectNames,
         actionNoopProved: movementFacts.some(fact => fact.id === 'action_noop' && fact.status === 'proved'),
@@ -833,6 +837,176 @@ function solverCoreStateSnapshot() {
     };
 }
 
+function evaluateWincondition(wincondition) {
+    const filter1 = wincondition[1];
+    const filter2 = wincondition[2];
+    const aggregate1 = wincondition[4];
+    const aggregate2 = wincondition[5];
+    const matchesFirst = aggregate1
+        ? cell => filter1.bitsSetInArray(cell)
+        : cell => !filter1.bitsClearInArray(cell);
+    const matchesSecond = aggregate2
+        ? cell => filter2.bitsSetInArray(cell)
+        : cell => !filter2.bitsClearInArray(cell);
+
+    switch (wincondition[0]) {
+        case -1:
+            for (let cellIndex = 0; cellIndex < level.n_tiles; cellIndex++) {
+                const cell = level.getCell(cellIndex);
+                if (matchesFirst(cell.data) && matchesSecond(cell.data)) return false;
+            }
+            return true;
+        case 0:
+            for (let cellIndex = 0; cellIndex < level.n_tiles; cellIndex++) {
+                const cell = level.getCell(cellIndex);
+                if (matchesFirst(cell.data) && matchesSecond(cell.data)) return true;
+            }
+            return false;
+        case 1:
+            for (let cellIndex = 0; cellIndex < level.n_tiles; cellIndex++) {
+                const cell = level.getCell(cellIndex);
+                if (matchesFirst(cell.data) && !matchesSecond(cell.data)) return false;
+            }
+            return true;
+        default:
+            throw new Error(`unknown wincondition quantifier ${JSON.stringify(wincondition[0])}`);
+    }
+}
+
+function winconditionTruthSnapshot() {
+    if (!canSnapshotBoard() || !state || !Array.isArray(state.winconditions)) return [];
+    return state.winconditions.map(evaluateWincondition);
+}
+
+function winflowContractFromFact(fact) {
+    const value = (fact && fact.value) || {};
+    const winIds = Array.isArray(value.win_ids) ? value.win_ids.slice() : [];
+    const ruleIds = new Set(Array.isArray(value.rule_ids) ? value.rule_ids : []);
+    const wakeByRuleId = new Map();
+    for (const ruleId of ruleIds) {
+        wakeByRuleId.set(ruleId, new Set());
+    }
+    for (const edge of value.wake_edges || []) {
+        if (!edge || typeof edge.from !== 'string' || typeof edge.to !== 'string') continue;
+        if (!wakeByRuleId.has(edge.from)) wakeByRuleId.set(edge.from, new Set());
+        wakeByRuleId.get(edge.from).add(edge.to);
+    }
+    return { winIds, ruleIds, wakeByRuleId };
+}
+
+function staticRuleGroupsByRuntimePhase(staticAnalysisReport) {
+    const phases = { early: [], late: [] };
+    const sections = staticAnalysisReport
+        && staticAnalysisReport.ps_tagged
+        && staticAnalysisReport.ps_tagged.rule_sections;
+    for (const section of sections || []) {
+        const target = section.name === 'late' ? phases.late : phases.early;
+        for (const group of section.groups || []) {
+            target.push(group.rules || []);
+        }
+    }
+    return phases;
+}
+
+function wrapRuleApplyAtForWinflow(rule, ruleId, appliedRuleIds) {
+    if (!rule || typeof rule.applyAt !== 'function') return false;
+    if (rule.__staticAnalysisWinflowWrapped) return true;
+    const originalApplyAt = rule.applyAt;
+    rule.__staticAnalysisRuleId = ruleId;
+    rule.__staticAnalysisWinflowWrapped = true;
+    rule.applyAt = function (...args) {
+        const modified = originalApplyAt.apply(this, args);
+        if (modified) appliedRuleIds.add(ruleId);
+        return modified;
+    };
+    return true;
+}
+
+function installWinflowRuleRecorder(staticAnalysisReport, appliedRuleIds) {
+    const staticGroups = staticRuleGroupsByRuntimePhase(staticAnalysisReport);
+    let runtimeRuleCount = 0;
+    let staticRuleCount = 0;
+    let mappedRuleCount = 0;
+
+    function annotatePhase(runtimeGroups, phaseGroups) {
+        runtimeRuleCount += (runtimeGroups || []).reduce((sum, group) => sum + group.length, 0);
+        staticRuleCount += (phaseGroups || []).reduce((sum, group) => sum + group.length, 0);
+        const groupCount = Math.min((runtimeGroups || []).length, (phaseGroups || []).length);
+        for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+            const runtimeGroup = runtimeGroups[groupIndex] || [];
+            const staticGroup = phaseGroups[groupIndex] || [];
+            const ruleCount = Math.min(runtimeGroup.length, staticGroup.length);
+            for (let ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++) {
+                const staticRule = staticGroup[ruleIndex];
+                if (staticRule && wrapRuleApplyAtForWinflow(runtimeGroup[ruleIndex], staticRule.id, appliedRuleIds)) {
+                    mappedRuleCount++;
+                }
+            }
+        }
+    }
+
+    annotatePhase(state.rules, staticGroups.early);
+    annotatePhase(state.lateRules, staticGroups.late);
+    return {
+        mappedRuleCount,
+        runtimeRuleCount,
+        staticRuleCount,
+        complete: runtimeRuleCount === staticRuleCount && mappedRuleCount === runtimeRuleCount,
+    };
+}
+
+function inputMayMoveWithoutRule(inputToken) {
+    return Number.isInteger(inputToken) && inputToken >= 0 && inputToken <= 4;
+}
+
+function checkWinflowCache(testName, label, contract, cache, appliedRuleIds, options = {}) {
+    const actual = winconditionTruthSnapshot();
+    if (actual.length === 0 || contract.winIds.length === 0) {
+        return { cache: actual, cleanChecks: 0, diff: null };
+    }
+    if (actual.length !== contract.winIds.length) {
+        throw new Error(`${testName}: winflow wincondition count changed at ${label}; static ${contract.winIds.length}, runtime ${actual.length}`);
+    }
+    if (!Array.isArray(cache) || cache.length !== actual.length) {
+        cache = actual.slice();
+    }
+
+    const dirtyWinIds = new Set();
+    if (options.dirtyAll) {
+        for (const winId of contract.winIds) dirtyWinIds.add(winId);
+    } else {
+        for (const ruleId of appliedRuleIds) {
+            const winIds = contract.wakeByRuleId.get(ruleId);
+            for (const winId of winIds || []) dirtyWinIds.add(winId);
+        }
+    }
+
+    let cleanChecks = 0;
+    for (let index = 0; index < actual.length; index++) {
+        const winId = contract.winIds[index] || `win_${index}`;
+        if (dirtyWinIds.has(winId)) {
+            cache[index] = actual[index];
+            continue;
+        }
+        cleanChecks++;
+        if (cache[index] !== actual[index]) {
+            return {
+                cache,
+                cleanChecks,
+                diff: {
+                    winId,
+                    index,
+                    cached: cache[index],
+                    actual: actual[index],
+                    appliedRuleIds: Array.from(appliedRuleIds).sort(),
+                    dirtyWinIds: Array.from(dirtyWinIds).sort(),
+                },
+            };
+        }
+    }
+    return { cache, cleanChecks, diff: null };
+}
+
 function canonicalMergeName(runtimeName, aliasMap) {
     let name = runtimeName;
     const seen = new Set();
@@ -1126,6 +1300,10 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let cosmeticRuleProjectionObjects = [];
     let mergeAliasMap = new Map();
     let mergeGroupCount = 0;
+    const winflowContract = winflowContractFromFact(staticContract.winflowFact);
+    const winflowAppliedRuleIds = new Set();
+    let winflowCache = [];
+    let winflowRecorderComplete = false;
     const countedObjects = quantityObjectNames(quantityContracts);
     const actionNoopProved = staticContract.actionNoopProved;
     const tickNoopProved = staticContract.tickNoopProved;
@@ -1152,6 +1330,8 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let cosmeticRuleProjectionChecks = 0;
     let inertCommandRuleSuppressionChecks = 0;
     let mergeProjectionChecks = 0;
+    let winflowBoundaryChecks = 0;
+    let winflowCleanWinconditionChecks = 0;
     let restartBoundaryTriggered = false;
     const previousDoRestart = global.DoRestart;
     if (typeof previousDoRestart === 'function') {
@@ -1169,6 +1349,9 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         });
         mergeAliasMap = mergeAliases.alias;
         mergeGroupCount = mergeAliases.groups;
+        const winflowRecorder = installWinflowRuleRecorder(staticContract.staticAnalysisReport, winflowAppliedRuleIds);
+        winflowRecorderComplete = winflowRecorder.complete;
+        winflowCache = winconditionTruthSnapshot();
         if (noAgainProved) {
             noAgainBoundaryChecks++;
             if (initialAgainSteps !== 0) {
@@ -1192,6 +1375,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
             const inputToken = inputs[inputIndex];
             restartBoundaryTriggered = false;
+            winflowAppliedRuleIds.clear();
             const result = executeInputToken(inputToken);
             const againSteps = drainAgain(`${testName}: input ${inputIndex} ${tokenLabel(inputToken)}`);
             if (noAgainProved) {
@@ -1244,6 +1428,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 staticLayerSnapshots = snapshotLayers(staticLayers);
                 inertLayerSnapshots = snapshotLayers(inertLayers);
                 countSnapshots = snapshotObjectCounts(countedObjects);
+                winflowCache = winconditionTruthSnapshot();
                 continue;
             }
 
@@ -1292,6 +1477,29 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                     `  object: ${countDiff.objectName}`,
                     `  before: ${countDiff.before}`,
                     `  after: ${countDiff.after}`,
+                ].join('\n'));
+            }
+
+            const winflowCheck = checkWinflowCache(
+                testName,
+                `input ${inputIndex} ${tokenLabel(inputToken)}`,
+                winflowContract,
+                winflowCache,
+                winflowAppliedRuleIds,
+                { dirtyAll: !winflowRecorderComplete || inputMayMoveWithoutRule(inputToken) }
+            );
+            winflowCache = winflowCheck.cache;
+            winflowCleanWinconditionChecks += winflowCheck.cleanChecks;
+            if (winflowCheck.cleanChecks > 0) winflowBoundaryChecks++;
+            if (winflowCheck.diff) {
+                throw new Error([
+                    `${testName}: winflow cache claim violated`,
+                    `  input ${inputIndex}: ${tokenLabel(inputToken)}`,
+                    `  win: ${winflowCheck.diff.winId}`,
+                    `  cached: ${JSON.stringify(winflowCheck.diff.cached)}`,
+                    `  actual: ${JSON.stringify(winflowCheck.diff.actual)}`,
+                    `  applied rules: ${JSON.stringify(winflowCheck.diff.appliedRuleIds)}`,
+                    `  dirty wins: ${JSON.stringify(winflowCheck.diff.dirtyWinIds)}`,
                 ].join('\n'));
             }
 
@@ -1476,6 +1684,9 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             noAgainBoundaryChecks,
             noRandomProved,
             noRandomReplayChecks,
+            winflowWinconditionCount: winflowContract.winIds.length,
+            winflowBoundaryChecks,
+            winflowCleanWinconditionChecks,
             analysisUnavailableReason: staticContract.unavailableReason,
         };
     } finally {
@@ -1517,6 +1728,7 @@ function runAll(options = {}) {
     let casesWithTickNoop = 0;
     let casesWithNoAgain = 0;
     let casesWithNoRandomReplayChecks = 0;
+    let casesWithWinflowCleanChecks = 0;
     let objectBoundaryChecks = 0;
     let staticLayerBoundaryChecks = 0;
     let inertLayerBoundaryChecks = 0;
@@ -1531,6 +1743,8 @@ function runAll(options = {}) {
     let tickNoopBoundaryChecks = 0;
     let noAgainBoundaryChecks = 0;
     let noRandomReplayChecks = 0;
+    let winflowBoundaryChecks = 0;
+    let winflowCleanWinconditionChecks = 0;
     let analysisUnavailableCount = 0;
     const entries = global.testdata.filter(entry => testMatchesFilter(entry[0], options.filter || null));
 
@@ -1592,6 +1806,9 @@ function runAll(options = {}) {
             if (result.noRandomReplayChecks > 0) {
                 casesWithNoRandomReplayChecks++;
             }
+            if (result.winflowCleanWinconditionChecks > 0) {
+                casesWithWinflowCleanChecks++;
+            }
             objectBoundaryChecks += result.objectBoundaryChecks;
             staticLayerBoundaryChecks += result.staticLayerBoundaryChecks;
             inertLayerBoundaryChecks += result.inertLayerBoundaryChecks;
@@ -1606,6 +1823,8 @@ function runAll(options = {}) {
             tickNoopBoundaryChecks += result.tickNoopBoundaryChecks;
             noAgainBoundaryChecks += result.noAgainBoundaryChecks;
             noRandomReplayChecks += result.noRandomReplayChecks;
+            winflowBoundaryChecks += result.winflowBoundaryChecks;
+            winflowCleanWinconditionChecks += result.winflowCleanWinconditionChecks;
             if (result.analysisUnavailableReason) {
                 analysisUnavailableCount++;
                 progressLog(options, `static_analysis_runtime_contracts:   static analysis unavailable: ${result.analysisUnavailableReason}`);
@@ -1632,6 +1851,7 @@ function runAll(options = {}) {
         casesWithTickNoop,
         casesWithNoAgain,
         casesWithNoRandomReplayChecks,
+        casesWithWinflowCleanChecks,
         objectBoundaryChecks,
         staticLayerBoundaryChecks,
         layerBoundaryChecks: staticLayerBoundaryChecks,
@@ -1647,6 +1867,8 @@ function runAll(options = {}) {
         tickNoopBoundaryChecks,
         noAgainBoundaryChecks,
         noRandomReplayChecks,
+        winflowBoundaryChecks,
+        winflowCleanWinconditionChecks,
         analysisUnavailableCount,
         failures,
     };
@@ -1669,7 +1891,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }
