@@ -663,7 +663,7 @@ function safeJsonForScript(value) {
 }
 
 const CORPUS_COLUMNS = [
-    { group: '', key: 'display_name', label: 'Game', kind: 'game', className: 'name' },
+    { group: '', key: 'display_name', label: 'Game', kind: 'game', className: '' },
     { group: 'Objects', key: 'corpus_metrics.objects.total', label: 'objects', kind: 'objects.total', className: '' },
     { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects' },
     { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects' },
@@ -836,7 +836,7 @@ code { white-space: pre-wrap; }
 <h1>PuzzleScript Static Analysis Explorer</h1>
 <div class="toolbar">
 <input id="search" placeholder="Filter games or traits" autofocus>
-<select id="sort"><option value="score">Most interesting</option><option value="name">Name</option><option value="split">Split groups</option><option value="merge">Mergeable</option></select>
+<select id="sort"><option value="score">Most interesting</option><option value="name">Name</option><option value="split">Splittable rulegroups</option><option value="merge">Mergable objects</option></select>
 <span id="totals"></span>
 </div>
 </header>
@@ -863,7 +863,13 @@ const sort = document.getElementById('sort');
 let selected = model.games[0] || null;
 let activeView = 'corpus';
 let activeGameTab = 'objects';
-document.getElementById('totals').textContent = model.totals.games + ' games | ' + model.totals.split_groups + ' split groups | ' + model.totals.merge_groups + ' merge groups | ' + model.totals.quantity_dynamic + ' dynamic quantity objs | ' + model.totals.winflow_edges + ' winflow edges';
+document.getElementById('totals').textContent =
+  model.totals.games + ' games | ' +
+  model.totals.mergable_objects + ' mergable objects | ' +
+  model.totals.quantity_constant + ' constant-count objects | ' +
+  model.totals.temporary_objects + ' temporary objects | ' +
+  model.totals.cosmetic_rules + ' cosmetic rules | ' +
+  model.totals.splittable_rulegroups + ' splittable rulegroups';
 function escapeText(value) {
   return String(value).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 }
@@ -1152,7 +1158,7 @@ function main() {
     const html = renderExplorerHtml(model);
     fs.mkdirSync(path.dirname(options.outPath), { recursive: true });
     fs.writeFileSync(options.outPath, html, 'utf8');
-    process.stdout.write(`static_analysis_explorer wrote ${options.outPath} games=${model.games.length} split_groups=${model.totals.split_groups} merge_groups=${model.totals.merge_groups} merge_pairs=${model.totals.mergeable}\n`);
+    process.stdout.write(`static_analysis_explorer wrote ${options.outPath} games=${model.games.length} mergable_objects=${model.totals.mergable_objects} constant_count_objects=${model.totals.quantity_constant} cosmetic_rules=${model.totals.cosmetic_rules} splittable_rulegroups=${model.totals.splittable_rulegroups}\n`);
 }
 
 if (require.main === module) {
