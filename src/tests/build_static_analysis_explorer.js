@@ -1027,13 +1027,48 @@ function setView(view) {
   gameTab.classList.toggle('active', view === 'game');
   if (view === 'game') renderGame();
 }
-function showInspector(game, kind) {
+function listItems(title, items) {
+  const body = items.length ? '<ul>' + items.map(item => '<li>' + escapeText(item) + '</li>').join('') + '</ul>' : '<p class="empty">none</p>';
+  return '<h3>' + escapeText(title) + '</h3>' + body;
+}
+function corpusInspectorContent(game, kind) {
+  if (kind === 'objects.mergable') {
+    const groups = game.mergeable_groups.map(group => group.label + ' saves ' + Math.max(0, group.objects.length - 1));
+    return listItems('Mergable object savings', groups);
+  }
+  if (kind === 'objects.static') return listItems('Static objects', game.static_objects);
+  if (kind === 'objects.constant_count') return listItems('Constant-count objects', game.quantity.constant);
+  if (kind === 'objects.temporary') return listItems('Temporary objects', game.transient_objects);
+  if (kind === 'objects.cosmetic') return listItems('Cosmetic objects', game.cosmetic_objects);
+  if (kind === 'layers.static') return listItems('Static layers', game.static_layers.map(layer => 'layer ' + layer.id + ': ' + layer.objects.join(', ')));
+  if (kind === 'layers.inert') return listItems('Inert layers', game.inert_layers.map(layer => 'layer ' + layer.id + ': ' + layer.objects.join(', ')));
+  if (kind === 'rules.source') return '<h3>Source-facing rules</h3><p>' + escapeText(game.corpus_metrics.rules.source) + ' distinct source lines with compiled rules.</p>';
+  if (kind === 'rules.compiled') return '<h3>Compiled rules</h3><p>' + escapeText(game.corpus_metrics.rules.compiled) + ' analyzed rules after compilation.</p>';
+  if (kind === 'rules.action') return '<h3>Action input</h3><p>' + escapeText(game.corpus_metrics.rules.action) + '</p>';
+  if (kind === 'rules.tick') return '<h3>Autonomous tick</h3><p>' + escapeText(game.corpus_metrics.rules.tick) + '</p>';
+  if (kind === 'rules.cosmetic') return listItems('Cosmetic rules', game.rule_rows.filter(rule => rule.cosmetic).map(rule => rule.text));
+  if (kind === 'rules.inert_command') return listItems('Inert command rules', game.inert_rules.map(rule => rule.text));
+  if (kind === 'rulegroups.splittable') return listItems('Splittable rulegroups', game.rulegroup_rows.filter(row => row.splittable).map(row => row.id));
+  if (kind === 'winconditions.total') return listItems('Winconditions', game.wincondition_rows.map(row => row.text));
+  return '<h3>' + escapeText(kind) + '</h3><p>' + escapeText(valueAt(game, 'corpus_metrics.' + kind) ?? '') + '</p>';
+}
+function objectInspectorContent(game, kind, objectName) {
+  const row = game.object_rows.find(item => item.name === objectName);
+  if (!row) return '<h3>Object</h3><p>Object not found.</p>';
+  const field = kind.replace(/^object\./, '');
+  return '<h3>' + escapeText(row.name) + ' / ' + escapeText(field) + '</h3>' +
+    '<p>' + escapeText(row[field] == null ? 'none' : row[field]) + '</p>' +
+    '<p class="path">Layer ' + escapeText(row.layer) + '; rules ' + escapeText(row.rule_count) + '; win role ' + escapeText(row.win_role) + '</p>';
+}
+function inspectorContent(game, kind, objectName) {
+  if (kind.startsWith('object.')) return objectInspectorContent(game, kind, objectName);
+  return corpusInspectorContent(game, kind);
+}
+function showInspector(game, kind, objectName) {
   if (!game) return;
-  const value = valueAt(game, 'corpus_metrics.' + kind);
-  inspector.innerHTML = '<button type="button" aria-label="Close inspector">Close</button><h2>' + escapeText(game.display_name) + '</h2><p class="path">' + escapeText(kind) + '</p><p><span class="pill">' + escapeText(value == null ? '' : value) + '</span></p>';
+  inspector.innerHTML = '<button type="button" id="closeInspector">Close</button>' + inspectorContent(game, kind, objectName);
   inspector.classList.add('open');
-  const button = inspector.querySelector('button');
-  if (button) button.addEventListener('click', closeInspector);
+  document.getElementById('closeInspector').addEventListener('click', () => inspector.classList.remove('open'));
 }
 function closeInspector() {
   inspector.classList.remove('open');
