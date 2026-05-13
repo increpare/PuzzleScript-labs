@@ -1,0 +1,7 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "actionInput": false,
+  "actionNoop": true,
+  "actionNoopBlockers": [],
+  "movements_reachable_from_action_input": []
+}

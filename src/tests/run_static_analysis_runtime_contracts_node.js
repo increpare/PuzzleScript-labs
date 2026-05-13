@@ -1153,6 +1153,9 @@ function firstProbeDifference(before, after, modified) {
 }
 
 function firstActionNoopProbeDifference(testName, label) {
+    if (state && state.metadata && Object.prototype.hasOwnProperty.call(state.metadata, 'noaction')) {
+        return null;
+    }
     const before = solverVisibleStateSnapshot();
     const runtimeState = captureRuntimeProbeState();
     let modified;

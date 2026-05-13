@@ -585,6 +585,12 @@
           "specification": "Must be ps-static-analysis-testdata-v1."
         },
         {
+          "name": "actionInput",
+          "type": "boolean",
+          "description": "Projected ps_tagged.game.tags.has_action_input.",
+          "specification": "false when noaction metadata disables user action input; true otherwise. Optional in fixtures that do not need to assert metadata-level action availability."
+        },
+        {
           "name": "actionNoop",
           "type": "boolean",
           "description": "Projected action_noop.value.",

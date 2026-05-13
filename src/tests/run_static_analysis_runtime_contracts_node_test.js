@@ -61,6 +61,73 @@ assert.ok(
     'action-noop checks should ignore pre-existing message text while probing solver state'
 );
 
+const noactionActionRuleSource = [
+    'title noaction action rule',
+    'noaction',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'Pink',
+    '',
+    'Marker',
+    'Yellow',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'M = Marker',
+    '',
+    '======',
+    'SOUNDS',
+    '======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player',
+    'Marker',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ action Player ] -> [ action Player Marker ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'Some Marker',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'P.',
+].join('\n');
+
+const noactionActionRule = runSimulationWithStaticChecks('noaction action rule', [
+    noactionActionRuleSource,
+    ['tick'],
+    'background player:0,background:1,\n',
+]);
+
+assert.strictEqual(
+    noactionActionRule.actionNoopProved,
+    true,
+    'noaction metadata should prove user action input is a no-op even when action rules exist'
+);
+
 const restartBoundarySource = [
     '========',
     'OBJECTS',

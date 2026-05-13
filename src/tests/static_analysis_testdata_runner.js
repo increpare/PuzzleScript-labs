@@ -1069,6 +1069,9 @@ function buildMovementActionExpectations(report) {
     const movementsReachableFromActionInputFact = facts.find(f => f.id === 'movements_reachable_from_action_input');
     return {
         schema: FIXTURE_SCHEMA,
+        actionInput: report.ps_tagged && report.ps_tagged.game && report.ps_tagged.game.tags
+            ? report.ps_tagged.game.tags.has_action_input !== false
+            : true,
         actionNoop: noopFact ? !!noopFact.value : true,
         actionNoopBlockers: noopFact ? (noopFact.blockers || []).slice().sort() : [],
         movements_reachable_from_action_input: movementsReachableFromActionInputFact
@@ -1079,6 +1082,9 @@ function buildMovementActionExpectations(report) {
 
 function validateMovementActionExpectationShape(filePath, payload) {
     assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    if (payload.actionInput !== undefined) {
+        assert.ok(typeof payload.actionInput === 'boolean', `${filePath}: actionInput must be boolean`);
+    }
     assert.ok(typeof payload.actionNoop === 'boolean', `${filePath}: actionNoop must be boolean`);
     assertStringArray(filePath, 'actionNoopBlockers', payload.actionNoopBlockers);
     if (payload.movements_reachable_from_action_input !== undefined) {
@@ -1098,6 +1104,9 @@ function checkMovementActionFixture(txtPath, jsonPath, claimDescriptions) {
     assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'movement_action'), payload);
     validateMovementActionExpectationShape(jsonPath, payload);
     const actual = buildMovementActionExpectations(report);
+    if (payload.actionInput !== undefined) {
+        assert.strictEqual(actual.actionInput, payload.actionInput, `${jsonPath}: actionInput expected ${payload.actionInput}, got ${actual.actionInput}`);
+    }
     assert.strictEqual(actual.actionNoop, payload.actionNoop, `${jsonPath}: actionNoop expected ${payload.actionNoop}, got ${actual.actionNoop}`);
     assertSameStringSet(jsonPath, 'actionNoopBlockers', payload.actionNoopBlockers, actual.actionNoopBlockers);
     if (payload.movements_reachable_from_action_input !== undefined) {

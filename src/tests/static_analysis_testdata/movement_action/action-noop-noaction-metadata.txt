@@ -1,0 +1,53 @@
+title Static Analysis Movement Action Noaction Metadata
+noaction
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Marker
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+M = Marker
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Marker
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ action Player Marker ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Marker
+
+======
+LEVELS
+======
+
+P.

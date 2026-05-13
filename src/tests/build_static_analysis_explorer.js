@@ -213,6 +213,7 @@ function programFlowSummary(report) {
     const programFlow = facts(report, 'program_flow')[0] || null;
     const value = (programFlow && programFlow.value) || {};
     return {
+        action_input: gameTags.has_action_input !== false,
         tick_noop: gameTags.has_autonomous_tick_rules !== true,
         no_again: gameTags.has_again !== true,
         no_random: gameTags.has_random !== true,
@@ -615,6 +616,7 @@ function quantitySection(game) {
 }
 function actionTickSection(game) {
   const chips = [
+    'action input: ' + (game.program_flow.action_input ? 'enabled' : 'disabled'),
     'action noop: ' + game.action_noop.status,
     'tick noop: ' + (game.program_flow.tick_noop ? 'yes' : 'no'),
   ];

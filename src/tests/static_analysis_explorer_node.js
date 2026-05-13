@@ -139,6 +139,47 @@ LEVELS
 P.as
 `;
 
+const EXPLORER_NOACTION_FIXTURE = `
+title Explorer Noaction Fixture
+noaction
+========
+OBJECTS
+========
+Background
+black
+Player
+white
+Marker
+green
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+M = Marker
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Player
+Marker
+=====
+RULES
+=====
+[ action Player ] -> [ action Player Marker ]
+=============
+WINCONDITIONS
+=============
+Some Marker
+======
+LEVELS
+======
+P
+`;
+
 const repoRoot = path.resolve(__dirname, '..', '..');
 const sourcePath = path.join(repoRoot, 'src/tests/solver_tests/explorer_fixture.txt');
 const report = analyzeSource(EXPLORER_FIXTURE, { sourcePath });
@@ -178,6 +219,15 @@ assert.ok(flowGame.winflow.wake_edges.some(edge =>
     edge.from_text.includes('MarkerX') && edge.to_text === 'Some MarkerX'
 ));
 
+const noactionReport = analyzeSource(EXPLORER_NOACTION_FIXTURE, {
+    sourcePath: path.join(repoRoot, 'src/tests/solver_tests/explorer_noaction_fixture.txt'),
+});
+assert.strictEqual(noactionReport.status, 'ok');
+const noactionModel = buildExplorerModel([noactionReport], { repoRoot });
+const noactionGame = noactionModel.games[0];
+assert.strictEqual(noactionGame.action_noop.status, 'proved');
+assert.strictEqual(noactionGame.program_flow.action_input, false);
+
 assert.strictEqual(
     editorHrefForSource(sourcePath, { repoRoot }),
     '/src/editor.html?file=tests%2Fsolver_tests%2Fexplorer_fixture.txt'
@@ -205,6 +255,9 @@ assert.ok(flowHtml.includes('Action / Tick'));
 assert.ok(flowHtml.includes('Program Flow'));
 assert.ok(flowHtml.includes('Winflow Wake Edges'));
 assert.ok(flowHtml.includes('Some MarkerX'));
+
+const noactionHtml = renderExplorerHtml(noactionModel);
+assert.ok(noactionHtml.includes('action input: '));
 
 const editorSource = fs.readFileSync(path.join(repoRoot, 'src/js/editor.js'), 'utf8');
 assert.ok(editorSource.includes('getParameterByName("file")'), 'editor should accept explorer file links');

@@ -420,8 +420,19 @@ function allRuleEntries(psTagged) {
     );
 }
 
-function tagGame(psTagged) {
+function metadataHas(metadata, key) {
+    if (Array.isArray(metadata)) {
+        for (let index = 0; index < metadata.length; index += 2) {
+            if (metadata[index] === key) return true;
+        }
+        return false;
+    }
+    return Object.prototype.hasOwnProperty.call(metadata || {}, key);
+}
+
+function tagGame(psTagged, metadata = {}) {
     const rules = allRuleEntries(psTagged).map(entry => entry.rule);
+    psTagged.game.tags.has_action_input = !metadataHas(metadata, 'noaction');
     psTagged.game.tags.has_again = rules.some(rule => rule.tags.has_again);
     psTagged.game.tags.has_random = rules.some(rule => rule.random_rule || rule.summary.rhs_random_objects.length > 0);
     psTagged.game.tags.has_rigid = rules.some(rule => rule.rigid);
@@ -479,7 +490,7 @@ function buildPsTagged(state, options = {}) {
         rule_sections: buildRuleSections(state),
     };
     tagObjectLevelPresence(psTagged);
-    tagGame(psTagged);
+    tagGame(psTagged, state.metadata || {});
     normalizeTermRefs(psTagged);
     tagRuleObjectTags(psTagged);
     tagInertCollisionLayers(psTagged);
@@ -663,6 +674,20 @@ function ruleMovementRequirementsReachable(psTagged, rule, possibleMovements) {
 
 function deriveMovementActionFacts(psTagged) {
     const activeRules = allRuleEntries(psTagged).map(entry => entry.rule).filter(rule => rule.tags.solver_state_active);
+    if (psTagged.game.tags.has_action_input === false) {
+        return [
+            fact('movement_action', 'movements_reachable_from_action_input', 'proved', {
+                value: [],
+                proof: ['noaction_metadata_disables_action_input'],
+            }),
+            fact('movement_action', 'action_noop', 'proved', {
+                value: true,
+                blockers: [],
+                proof: ['noaction_metadata_disables_action_input'],
+                evidence: [],
+            }),
+        ];
+    }
     const possibleMovements = new Set(playerActionMovementSeeds(psTagged));
     const blockers = [];
     let changed = true;
