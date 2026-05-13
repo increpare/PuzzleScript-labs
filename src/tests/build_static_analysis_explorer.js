@@ -662,7 +662,63 @@ function safeJsonForScript(value) {
     return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
+const CORPUS_COLUMNS = [
+    { group: '', key: 'display_name', label: 'Game', kind: 'game', className: 'name' },
+    { group: 'Objects', key: 'corpus_metrics.objects.total', label: 'objects', kind: 'objects.total', className: '' },
+    { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects' },
+    { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects' },
+    { group: 'Objects', key: 'corpus_metrics.objects.temporary', label: 'temporary', kind: 'objects.temporary', className: 'objects' },
+    { group: 'Objects', key: 'corpus_metrics.objects.cosmetic', label: 'cosmetic', kind: 'objects.cosmetic', className: 'objects' },
+    { group: 'Objects', key: 'corpus_metrics.objects.mergable', label: 'mergable objects', kind: 'objects.mergable', className: 'objects' },
+    { group: 'Layers', key: 'corpus_metrics.layers.total', label: 'layers', kind: 'layers.total', className: '' },
+    { group: 'Layers', key: 'corpus_metrics.layers.static', label: 'static layers', kind: 'layers.static', className: 'layers' },
+    { group: 'Layers', key: 'corpus_metrics.layers.inert', label: 'inert layers', kind: 'layers.inert', className: 'layers' },
+    { group: 'Rules', key: 'corpus_metrics.rules.source', label: 'source rules', kind: 'rules.source', className: '' },
+    { group: 'Rules', key: 'corpus_metrics.rules.compiled', label: 'compiled rules', kind: 'rules.compiled', className: '' },
+    { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules' },
+    { group: 'Rules', key: 'corpus_metrics.rules.tick', label: 'tick', kind: 'rules.tick', className: 'rules' },
+    { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules' },
+    { group: 'Rules', key: 'corpus_metrics.rules.inert_command', label: 'inert command rules', kind: 'rules.inert_command', className: 'rules' },
+    { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.total', label: 'rulegroups', kind: 'rulegroups.total', className: '' },
+    { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups' },
+    { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
+];
+
+function valueAtPath(object, pathText) {
+    return pathText.split('.').reduce((current, key) => current == null ? undefined : current[key], object);
+}
+
+function corpusCellClassForHtml(column, value) {
+    const classes = ['cell'];
+    if (column.className) classes.push(column.className);
+    if (column.kind === 'game') classes.push('name');
+    if ((typeof value === 'number' && value === 0) || value === 'none') classes.push('quiet');
+    if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
+    return classes.join(' ');
+}
+
+function renderCorpusMatrixHtml(games) {
+    const groups = [
+        ['', 1],
+        ['Objects', 6],
+        ['Layers', 3],
+        ['Rules', 6],
+        ['Rulegroups', 2],
+        ['Winconditions', 1],
+    ];
+    const groupHtml = groups.map(([label, span]) =>
+        `<div class="cell group" style="grid-column: span ${span}">${escapeHtml(label)}</div>`
+    ).join('');
+    const headHtml = CORPUS_COLUMNS.map(column => `<div class="cell head">${escapeHtml(column.label)}</div>`).join('');
+    const rowHtml = games.map(game => CORPUS_COLUMNS.map(column => {
+        const value = column.kind === 'game' ? game.display_name : valueAtPath(game, column.key);
+        return `<button type="button" class="${escapeHtml(corpusCellClassForHtml(column, value))}" data-game="${escapeHtml(game.source_path)}" data-cell-kind="${escapeHtml(column.kind)}">${escapeHtml(value == null ? '' : value)}</button>`;
+    }).join('')).join('');
+    return `<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix corpus-matrix" style="grid-template-columns: minmax(180px, 1.4fr) repeat(${CORPUS_COLUMNS.length - 1}, minmax(58px, 1fr))">${groupHtml}${headHtml}${rowHtml}</div></div></div>`;
+}
+
 function renderExplorerHtml(model) {
+    const initialCorpusHtml = renderCorpusMatrixHtml(model.games);
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -670,89 +726,95 @@ function renderExplorerHtml(model) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PuzzleScript Static Analysis Explorer</title>
 <style>
-:root { color-scheme: dark; --bg: #101318; --panel: #191e25; --line: #303945; --text: #e8edf3; --muted: #9aa7b5; --accent: #74b9ff; --ok: #81d38a; --warn: #f3c969; --bad: #ff8f8f; }
+:root {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --panel: #ffffff;
+  --panel-soft: #eef2f7;
+  --line: #cfd7e3;
+  --text: #182230;
+  --muted: #617085;
+  --object: #d9defc;
+  --layer: #d8eddf;
+  --rule: #f3e4c6;
+  --rulegroup: #d4ecf5;
+  --win: #eadcf8;
+  --hot: #fff2a8;
+}
 * { box-sizing: border-box; }
-body { margin: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
-header { position: sticky; top: 0; z-index: 2; padding: 14px 18px; border-bottom: 1px solid var(--line); background: rgba(16,19,24,.96); }
-h1 { margin: 0 0 10px; font-size: 20px; }
-.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-input, select { background: #0c0f13; border: 1px solid var(--line); color: var(--text); padding: 7px 9px; border-radius: 6px; }
-main { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; min-height: calc(100vh - 82px); }
-#gameList { border-right: 1px solid var(--line); overflow: auto; max-height: calc(100vh - 82px); }
-.game-row { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); padding: 10px 12px; text-align: left; cursor: pointer; }
-.game-row:hover, .game-row.active { background: #202733; }
-.game-title { font-weight: 650; }
-.path { color: var(--muted); font-size: 12px; word-break: break-all; }
-.badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.badge { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-size: 12px; color: var(--muted); }
-.badge.hot { color: #07110a; background: var(--ok); border-color: var(--ok); }
-#detail { padding: 18px; overflow: auto; max-height: calc(100vh - 82px); }
-.section { margin: 0 0 18px; padding: 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
-details.section { padding: 0; }
-.section h2 { margin: 0 0 10px; font-size: 16px; }
-details.section summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; }
-details.section summary::-webkit-details-marker { display: none; }
-details.section summary::after { content: "show"; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
-details.section[open] summary::after { content: "hide"; }
-details.section summary h2 { margin: 0; }
-.section-body { padding: 0 14px 14px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; background: #11161d; }
-a { color: var(--accent); }
-.rule-group { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.rule-group-head { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #11161d; border-bottom: 1px solid var(--line); }
-.rule { display: grid; grid-template-columns: 86px 1fr; gap: 8px; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
+body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+header { padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+h1 { margin: 0 0 8px; font-size: 18px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+input, select, button { font: inherit; }
+input, select { border: 1px solid var(--line); background: #fff; color: var(--text); padding: 5px 7px; border-radius: 5px; }
+main { padding: 10px; }
+.view-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.view-tab { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 9px; cursor: pointer; }
+.view-tab.active { background: var(--text); color: white; }
+.matrix-shell { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; overflow: hidden; }
+.matrix-scroll { overflow-x: auto; }
+.matrix { display: grid; gap: 2px; padding: 8px; min-width: 1180px; }
+.cell { min-height: 24px; border: 1px solid transparent; border-radius: 3px; padding: 3px 5px; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--panel-soft); color: var(--text); }
+.cell.name { justify-content: flex-start; font-weight: 650; background: #fff; }
+.cell.group { min-height: 20px; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; color: var(--muted); background: #fff; border-color: var(--line); }
+.cell.head { min-height: 28px; font-size: 10px; font-weight: 650; color: var(--muted); background: #fff; border-color: var(--line); text-align: center; }
+.cell.objects { background: var(--object); }
+.cell.layers { background: var(--layer); }
+.cell.rules { background: var(--rule); }
+.cell.rulegroups { background: var(--rulegroup); }
+.cell.wins { background: var(--win); }
+.cell.hot { box-shadow: inset 0 0 0 2px #d7b900; background: var(--hot); }
+.cell.quiet { color: #8a97a8; background: #f7f9fb; }
+.detail-pane { margin-top: 10px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px; }
+.inspector { position: fixed; right: 14px; bottom: 14px; width: min(460px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 28px)); overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 32px rgba(20, 30, 45, .18); padding: 12px; display: none; z-index: 5; }
+.inspector.open { display: block; }
+.pill { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 2px 6px; background: #fff; margin: 2px; }
+.path { color: var(--muted); font-size: 11px; word-break: break-all; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; background: var(--panel-soft); }
+.rule-group { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #fff; }
+.rule { display: grid; grid-template-columns: 72px 1fr; gap: 6px; padding: 5px 7px; border-bottom: 1px solid var(--line); }
 .rule:last-child { border-bottom: 0; }
-.rule code { white-space: pre-wrap; word-break: break-word; }
-.p0 { border-left: 5px solid #74b9ff; } .p1 { border-left: 5px solid #81d38a; } .p2 { border-left: 5px solid #f3c969; } .p3 { border-left: 5px solid #ff8f8f; }
-.p4 { border-left: 5px solid #c7a6ff; } .p5 { border-left: 5px solid #7ee7d1; } .p6 { border-left: 5px solid #ffb77a; } .p7 { border-left: 5px solid #d6e17a; }
 .empty { color: var(--muted); }
-@media (max-width: 850px) { main { grid-template-columns: 1fr; } #gameList, #detail { max-height: none; } #gameList { border-right: 0; } }
+code { white-space: pre-wrap; }
+@media (max-width: 900px) { body { font-size: 11px; } main { padding: 6px; } }
 </style>
 </head>
 <body>
 <header>
 <h1>PuzzleScript Static Analysis Explorer</h1>
-<div class="controls">
+<div class="toolbar">
 <input id="search" placeholder="Filter games or traits" autofocus>
 <select id="sort"><option value="score">Most interesting</option><option value="name">Name</option><option value="split">Split groups</option><option value="merge">Mergeable</option></select>
 <span id="totals"></span>
 </div>
 </header>
 <main>
-<nav id="gameList"></nav>
-<section id="detail"></section>
+  <div class="view-tabs">
+    <button id="corpusTab" class="view-tab active" type="button">Corpus Explorer</button>
+    <button id="gameTab" class="view-tab" type="button">Game Explorer</button>
+  </div>
+  <section id="corpusView" data-view="corpus">${initialCorpusHtml}</section>
+  <section id="gameView" data-view="game" hidden></section>
+  <aside id="inspector" class="inspector" aria-live="polite"></aside>
 </main>
 <script id="explorer-data" type="application/json">${safeJsonForScript(model)}</script>
 <script>
 const model = JSON.parse(document.getElementById('explorer-data').textContent);
 let games = model.games.slice();
-let selected = games[0] || null;
-const list = document.getElementById('gameList');
-const detail = document.getElementById('detail');
+const corpusView = document.getElementById('corpusView');
+const gameView = document.getElementById('gameView');
+const inspector = document.getElementById('inspector');
+const corpusTab = document.getElementById('corpusTab');
+const gameTab = document.getElementById('gameTab');
 const search = document.getElementById('search');
 const sort = document.getElementById('sort');
+let selected = model.games[0] || null;
+let activeView = 'corpus';
 document.getElementById('totals').textContent = model.totals.games + ' games | ' + model.totals.split_groups + ' split groups | ' + model.totals.merge_groups + ' merge groups | ' + model.totals.quantity_dynamic + ' dynamic quantity objs | ' + model.totals.winflow_edges + ' winflow edges';
 function escapeText(value) {
   return String(value).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
-}
-function countBadges(game) {
-  return [
-    ['merge group', game.mergeable_groups.length],
-    ['qty +', game.quantity.can_increase.length],
-    ['qty -', game.quantity.can_decrease.length],
-    ['qty dyn', game.quantity.dynamic.length],
-    ['static obj', game.static_objects.length],
-    ['static layer', game.static_layers.length],
-    ['inert layer', game.inert_layers.length],
-    ['cosmetic', game.cosmetic_objects.length],
-    ['transient', game.transient_objects.length],
-    ['inert rule', game.inert_rules.length],
-    ['action noop', game.action_noop.status === 'proved' ? 1 : 0],
-    ['tick noop', game.program_flow.tick_noop ? 1 : 0],
-    ['winflow', game.winflow.wake_edge_count],
-    ['split', game.rulegroup_flow_split_total],
-  ].filter(item => item[1] > 0);
 }
 function searchable(game) {
   return [
@@ -783,106 +845,96 @@ function visibleGames() {
   });
   return out;
 }
-function renderList() {
+const corpusColumns = [
+  { group: '', key: 'display_name', label: 'Game', kind: 'game', className: 'name' },
+  { group: 'Objects', key: 'corpus_metrics.objects.total', label: 'objects', kind: 'objects.total', className: '' },
+  { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects' },
+  { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects' },
+  { group: 'Objects', key: 'corpus_metrics.objects.temporary', label: 'temporary', kind: 'objects.temporary', className: 'objects' },
+  { group: 'Objects', key: 'corpus_metrics.objects.cosmetic', label: 'cosmetic', kind: 'objects.cosmetic', className: 'objects' },
+  { group: 'Objects', key: 'corpus_metrics.objects.mergable', label: 'mergable objects', kind: 'objects.mergable', className: 'objects' },
+  { group: 'Layers', key: 'corpus_metrics.layers.total', label: 'layers', kind: 'layers.total', className: '' },
+  { group: 'Layers', key: 'corpus_metrics.layers.static', label: 'static layers', kind: 'layers.static', className: 'layers' },
+  { group: 'Layers', key: 'corpus_metrics.layers.inert', label: 'inert layers', kind: 'layers.inert', className: 'layers' },
+  { group: 'Rules', key: 'corpus_metrics.rules.source', label: 'source rules', kind: 'rules.source', className: '' },
+  { group: 'Rules', key: 'corpus_metrics.rules.compiled', label: 'compiled rules', kind: 'rules.compiled', className: '' },
+  { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules' },
+  { group: 'Rules', key: 'corpus_metrics.rules.tick', label: 'tick', kind: 'rules.tick', className: 'rules' },
+  { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules' },
+  { group: 'Rules', key: 'corpus_metrics.rules.inert_command', label: 'inert command rules', kind: 'rules.inert_command', className: 'rules' },
+  { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.total', label: 'rulegroups', kind: 'rulegroups.total', className: '' },
+  { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups' },
+  { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
+];
+function valueAt(object, path) {
+  return path.split('.').reduce((current, key) => current == null ? undefined : current[key], object);
+}
+function corpusCellClass(column, value) {
+  const classes = ['cell'];
+  if (column.className) classes.push(column.className);
+  if (column.kind === 'game') classes.push('name');
+  if ((typeof value === 'number' && value === 0) || value === 'none') classes.push('quiet');
+  if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
+  return classes.join(' ');
+}
+function renderCorpus() {
   const shown = visibleGames();
   if (!shown.includes(selected)) selected = shown[0] || null;
-  list.innerHTML = shown.map(game => {
-    const badges = countBadges(game).map(([label, count]) => '<span class="badge ' + (label === 'split' || label === 'merge group' ? 'hot' : '') + '">' + label + ' ' + count + '</span>').join('');
-    return '<button class="game-row ' + (game === selected ? 'active' : '') + '" data-path="' + escapeText(game.source_path) + '"><div class="game-title">' + escapeText(game.display_name) + '</div><div class="path">' + escapeText(game.source_path) + '</div><div class="badges">' + badges + '</div></button>';
-  }).join('');
-  for (const button of list.querySelectorAll('.game-row')) {
-    button.addEventListener('click', () => {
-      selected = games.find(game => game.source_path === button.dataset.path);
-      render();
+  const groups = [
+    ['', 1],
+    ['Objects', 6],
+    ['Layers', 3],
+    ['Rules', 6],
+    ['Rulegroups', 2],
+    ['Winconditions', 1],
+  ];
+  const groupHtml = groups.map(([label, span]) => '<div class="cell group" style="grid-column: span ' + span + '">' + escapeText(label) + '</div>').join('');
+  const headHtml = corpusColumns.map(column => '<div class="cell head">' + escapeText(column.label) + '</div>').join('');
+  const rowHtml = shown.map(game => corpusColumns.map(column => {
+    const value = column.kind === 'game' ? game.display_name : valueAt(game, column.key);
+    return '<button type="button" class="' + corpusCellClass(column, value) + '" data-game="' + escapeText(game.source_path) + '" data-cell-kind="' + escapeText(column.kind) + '">' + escapeText(value == null ? '' : value) + '</button>';
+  }).join('')).join('');
+  corpusView.innerHTML = '<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix corpus-matrix" style="grid-template-columns: minmax(180px, 1.4fr) repeat(' + (corpusColumns.length - 1) + ', minmax(58px, 1fr))">' + groupHtml + headHtml + rowHtml + '</div></div></div>';
+  for (const cell of corpusView.querySelectorAll('[data-game]')) {
+    cell.addEventListener('click', () => {
+      selected = games.find(game => game.source_path === cell.dataset.game) || selected;
+      if (cell.dataset.cellKind === 'game') {
+        setView('game');
+      } else {
+        showInspector(selected, cell.dataset.cellKind);
+      }
     });
   }
 }
-function chipList(values) {
-  return values.length ? '<div class="chips">' + values.map(value => '<span class="chip">' + escapeText(value) + '</span>').join('') + '</div>' : '<div class="empty">none</div>';
-}
-function quantitySection(game) {
-  const labels = [
-    ['constant', game.quantity.constant],
-    ['can increase', game.quantity.can_increase],
-    ['can decrease', game.quantity.can_decrease],
-    ['dynamic', game.quantity.dynamic],
-  ];
-  return labels.map(([label, values]) =>
-    '<h3>' + escapeText(label) + '</h3>' + chipList(values)
-  ).join('');
-}
-function actionTickSection(game) {
-  const chips = [
-    'action input: ' + (game.program_flow.action_input ? 'enabled' : 'disabled'),
-    'action noop: ' + game.action_noop.status,
-    'tick noop: ' + (game.program_flow.tick_noop ? 'yes' : 'no'),
-  ];
-  if (game.action_noop.blockers.length) {
-    chips.push('action blockers: ' + game.action_noop.blockers.join(', '));
-  }
-  return chipList(chips);
-}
-function programFlowSection(game) {
-  return chipList([
-    'no again: ' + (game.program_flow.no_again ? 'yes' : 'no'),
-    'no random: ' + (game.program_flow.no_random ? 'yes' : 'no'),
-    'action rules: ' + (game.program_flow.has_action_rules ? 'yes' : 'no'),
-    'wake edges: ' + game.program_flow.wake_edge_count,
-    'again rules: ' + game.program_flow.again_rule_count,
-    'tick restart possible: ' + (game.program_flow.tick_restart_possible ? 'yes' : 'no'),
-  ]);
-}
-function renderWinflow(game) {
-  if (!game.winflow.wake_edges.length) {
-    return '<p class="path">' + game.winflow.win_count + ' winconditions; no wake edges.</p>';
-  }
-  const rows = game.winflow.wake_edges.map(edge =>
-    '<div class="rule"><span>' + escapeText(edge.reasons.join(', ')) + '</span><code>' + escapeText(edge.from_text) + ' -> ' + escapeText(edge.to_text) + '</code></div>'
-  ).join('');
-  const omitted = game.winflow.wake_edges_omitted ? '<div class="rule empty"><span></span><code>' + game.winflow.wake_edges_omitted + ' more winflow edges omitted from this view</code></div>' : '';
-  return '<p class="path">' + game.winflow.win_count + ' winconditions; ' + game.winflow.wake_edge_count + ' wake edges.</p><div class="rule-group">' + rows + omitted + '</div>';
-}
-function analysisSection(title, content, open = true) {
-  return '<details class="section" ' + (open ? 'open' : '') + '><summary><h2>' + escapeText(title) + '</h2></summary><div class="section-body">' + content + '</div></details>';
-}
-function renderRuleGroups(groups) {
-  if (!groups.length) return '<div class="empty">none</div>';
-  return groups.map(group => {
-    const rules = group.rules.map(rule => {
-      const cls = rule.component === null ? '' : '${PARTITION_CLASSES[0]}'.replace('p0', 'p' + (rule.component % ${PARTITION_CLASSES.length}));
-      return '<div class="rule ' + cls + '"><span>' + escapeText(rule.id.replace(/^.*_rule_/, 'rule ')) + '</span><code>' + escapeText(rule.text) + '</code></div>';
-    }).join('');
-    const omitted = group.rules_omitted ? '<div class="rule empty"><span></span><code>' + group.rules_omitted + ' more rules omitted from this view</code></div>' : '';
-    const meta = group.component_count + ' components; ' + group.interaction_edge_count + ' edges; ' + group.rerun_mask_count + ' rerun masks';
-    return '<div class="rule-group"><div class="rule-group-head"><strong>' + escapeText(group.id) + ' · ' + escapeText(group.status) + '</strong><span>' + escapeText(meta) + '</span></div>' + rules + omitted + '</div>';
-  }).join('');
-}
-function renderDetail() {
+function renderGame() {
   const game = selected;
   if (!game) {
-    detail.innerHTML = '<div class="section empty">No games match.</div>';
+    gameView.innerHTML = '<div class="detail-pane empty">No games match.</div>';
     return;
   }
-  detail.innerHTML =
-    '<div class="section"><h2>' + escapeText(game.display_name) + '</h2><div class="path">' + escapeText(game.source_path) + '</div><p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open in editor</a></p></div>' +
-    analysisSection('Mergeable Objects', chipList(game.mergeable_groups.map(group => group.label))) +
-    analysisSection('Quantity', quantitySection(game)) +
-    analysisSection('Static Objects', game.static_objects_label ? chipList([game.static_objects_label]) : chipList([])) +
-    analysisSection('Never Initial Or Created', chipList(game.never_initial_or_created), false) +
-    analysisSection('Static Collision Layers', chipList(game.static_layers.map(layer => 'layer ' + layer.id + ': ' + layer.objects.join(', ')))) +
-    analysisSection('Inert Collision Layers', '<p class="path">No object on these layers appears in any rule (LHS/RHS), win condition, or the Player aggregate.</p>' + chipList(game.inert_layers.map(layer => 'layer ' + layer.id + ': ' + layer.objects.join(', ')))) +
-    analysisSection('Likely cosmetic objects', '<p class="path">Outside the static core closure: Player entities, wincondition objects, <code>win</code>-command LHS reads, plus objects reached by read→write rule edges or rules whose RHS write mask hits a layer that already holds a core object (see <code>docs/superpowers/specs/2026-05-03-cosmetic-closure-static-analysis-design.md</code>).</p>' + chipList(game.cosmetic_objects)) +
-    analysisSection('Transient Objects', chipList(game.transient_objects)) +
-    analysisSection('Action / Tick', actionTickSection(game), false) +
-    analysisSection('Program Flow', programFlowSection(game), false) +
-    analysisSection('Winflow Wake Edges', renderWinflow(game), false) +
-    analysisSection('Solver-Discardable Rules', chipList(game.inert_rules.map(rule => rule.group + ': ' + rule.text)), false) +
-    analysisSection('Semantic Command-Only Rules', chipList(game.command_only_rules.map(rule => rule.group + ': ' + rule.text)), false) +
-    analysisSection('rulegroup_flow Split Candidates / Rerun Masks', '<p class="path">' + game.rulegroup_flow_total + ' interesting groups; ' + game.rulegroup_flow_split_total + ' split candidates' + (game.rulegroup_flow_omitted ? '; showing first ' + game.rulegroup_flow.length + ', omitted ' + game.rulegroup_flow_omitted : '') + '</p>' + renderRuleGroups(game.rulegroup_flow), false);
+  gameView.innerHTML = '<div class="detail-pane"><h2>' + escapeText(game.display_name) + '</h2><div class="path">' + escapeText(game.source_path) + '</div><p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open in editor</a></p></div>';
 }
-function render() { renderList(); renderDetail(); }
-search.addEventListener('input', render);
-sort.addEventListener('change', render);
+function setView(view) {
+  activeView = view;
+  corpusView.hidden = view !== 'corpus';
+  gameView.hidden = view !== 'game';
+  corpusTab.classList.toggle('active', view === 'corpus');
+  gameTab.classList.toggle('active', view === 'game');
+  if (view === 'game') renderGame();
+}
+function showInspector(game, kind) {
+  if (!game) return;
+  const value = valueAt(game, 'corpus_metrics.' + kind);
+  inspector.innerHTML = '<button type="button" aria-label="Close inspector">Close</button><h2>' + escapeText(game.display_name) + '</h2><p class="path">' + escapeText(kind) + '</p><p><span class="pill">' + escapeText(value == null ? '' : value) + '</span></p>';
+  inspector.classList.add('open');
+  const button = inspector.querySelector('button');
+  if (button) button.addEventListener('click', () => inspector.classList.remove('open'));
+}
+function render() { renderCorpus(); renderGame(); }
+corpusTab.addEventListener('click', () => setView('corpus'));
+gameTab.addEventListener('click', () => setView('game'));
+search.addEventListener('input', () => { renderCorpus(); if (activeView === 'game') renderGame(); });
+sort.addEventListener('change', () => { renderCorpus(); if (activeView === 'game') renderGame(); });
 render();
 </script>
 </body>
