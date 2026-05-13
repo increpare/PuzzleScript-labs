@@ -1851,6 +1851,8 @@ function summarizeFacts(facts) {
 
 function analyzeSource(source, options = {}) {
     const sourcePath = options.sourcePath || '<memory>';
+    const sourceInfo = { path: sourcePath };
+    if (options.includeSourceText === true) sourceInfo.text = source;
     let compiled;
     try {
         compiled = compileSemanticSource(source, {
@@ -1860,7 +1862,7 @@ function analyzeSource(source, options = {}) {
     } catch (error) {
         return {
             schema: SCHEMA,
-            source: { path: sourcePath },
+            source: sourceInfo,
             status: 'compile_error',
             errors: [error && error.message ? error.message : String(error)],
             ps_tagged: null,
@@ -1872,7 +1874,7 @@ function analyzeSource(source, options = {}) {
     if (compiled.errorCount > 0 || compiled.state === null || compiled.state.invalid) {
         return {
             schema: SCHEMA,
-            source: { path: sourcePath },
+            source: sourceInfo,
             status: 'compile_error',
             errors: compiled.errorStrings.slice(),
             ps_tagged: null,
@@ -1885,7 +1887,7 @@ function analyzeSource(source, options = {}) {
     const facts = deriveFacts(psTagged, options.familyFilter);
     const report = {
         schema: SCHEMA,
-        source: { path: sourcePath },
+        source: sourceInfo,
         status: 'ok',
         ps_tagged: psTagged,
         facts,

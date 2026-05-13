@@ -182,7 +182,7 @@ P
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const sourcePath = path.join(repoRoot, 'src/tests/solver_tests/explorer_fixture.txt');
-const report = analyzeSource(EXPLORER_FIXTURE, { sourcePath });
+const report = analyzeSource(EXPLORER_FIXTURE, { sourcePath, includeSourceText: true });
 assert.strictEqual(report.status, 'ok');
 
 const model = buildExplorerModel([report], { repoRoot });
@@ -257,6 +257,14 @@ assert.ok(game.rulegroup_rows.some(row =>
     row.rule_count > 0
 ));
 assert.deepStrictEqual(game.wincondition_rows.map(row => row.text), ['Some Player']);
+assert.ok(game.source_lines.some(row =>
+    row.line === 2 &&
+    row.text === 'title Explorer Fixture'
+));
+assert.ok(game.source_lines.some(row =>
+    row.text.includes('[ Wall ] -> sfx0') &&
+    row.rule_count > 0
+));
 assert.strictEqual(model.totals.mergable_objects, 2);
 assert.strictEqual(model.totals.temporary_objects, 0);
 assert.strictEqual(model.totals.cosmetic_rules, 4);
@@ -339,15 +347,31 @@ assert.ok(html.includes('data-object-cell="quantity"'));
 assert.ok(html.includes('data-object-cell="merge_group"'));
 assert.ok(html.includes('data-object-cell="win_role"'));
 assert.ok(html.includes('data-cell-kind="objects.mergable"'));
+assert.ok(html.includes('data-sort-key="corpus_metrics.objects.static"'));
+assert.ok(html.includes('function handleCorpusHeaderSort'));
 assert.ok(html.includes('function closeInspector()'));
 assert.ok(html.includes('function inspectorContent'));
 assert.ok(html.includes('function renderRulesTab'));
-assert.ok(html.includes('Compiled facts are grouped by source line when source line data is available.'));
+assert.ok(html.includes('Rule analysis'));
+assert.ok(html.includes('Rules summary'));
+assert.ok(html.includes('data-rule-cell="cosmetic"'));
 assert.ok(html.includes('function renderLayersTab'));
+assert.ok(html.includes('Layer analysis'));
+assert.ok(html.includes('Object count'));
+assert.ok(html.includes('data-layer-cell="static"'));
 assert.ok(html.includes('function renderRulegroupsTab'));
+assert.ok(html.includes('Rulegroup analysis'));
+assert.ok(html.includes('Components'));
+assert.ok(html.includes('data-rulegroup-cell="splittable"'));
 assert.ok(html.includes('function renderSourceTab'));
 assert.ok(html.includes('Best-effort source annotation'));
+assert.ok(html.includes('Source line'));
+assert.ok(html.includes('title Explorer Fixture'));
+assert.ok(html.includes('data-source-line="'));
 assert.ok(html.includes('function renderWinconditionsTab'));
+assert.ok(html.includes('Wincondition analysis'));
+assert.ok(html.includes('Subjects'));
+assert.ok(html.includes('data-wincondition-cell="wake_edge_count"'));
 assert.ok(html.includes("row.source_line == null ? 'compiled' : row.source_line"));
 assert.ok(html.includes('Mergable object savings'));
 assert.ok(html.includes('Source-facing rules'));
