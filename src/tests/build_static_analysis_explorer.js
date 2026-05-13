@@ -15,6 +15,7 @@ const MAX_INTERACTION_EDGES = 80;
 const MAX_RERUN_MASKS = 80;
 const MAX_RERUN_MASK_ENTRIES = 80;
 const MAX_COMPONENT_RULE_IDS = 600;
+const MAX_WINFLOW_EDGES = 80;
 
 function usage(exitCode = 1) {
     const text = [
@@ -171,6 +172,94 @@ function hasNonEmptyRerunMask(flow) {
     return Object.values((flow && flow.value && flow.value.rerun_masks) || {}).some(mask => mask.length > 0);
 }
 
+function quantityBehavior(object) {
+    const quantity = (object.tags && object.tags.quantity) || {};
+    const neverIncreases = quantity.never_increases === true;
+    const neverDecreases = quantity.never_decreases === true;
+    if (neverIncreases && neverDecreases) return 'constant';
+    if (!neverIncreases && neverDecreases) return 'can_increase';
+    if (neverIncreases && !neverDecreases) return 'can_decrease';
+    return 'dynamic';
+}
+
+function summarizeQuantity(objects) {
+    const groups = {
+        constant: [],
+        can_increase: [],
+        can_decrease: [],
+        dynamic: [],
+    };
+    for (const object of objects) {
+        groups[quantityBehavior(object)].push(object.name);
+    }
+    return groups;
+}
+
+function actionNoopSummary(report) {
+    const actionNoop = facts(report, 'movement_action')
+        .find(item => item.id === 'action_noop') || null;
+    if (!actionNoop) {
+        return { status: 'unknown', value: false, blockers: [] };
+    }
+    return {
+        status: actionNoop.status,
+        value: actionNoop.value === true,
+        blockers: (actionNoop.blockers || []).slice(),
+    };
+}
+
+function programFlowSummary(report) {
+    const gameTags = report.ps_tagged && report.ps_tagged.game ? report.ps_tagged.game.tags || {} : {};
+    const programFlow = facts(report, 'program_flow')[0] || null;
+    const value = (programFlow && programFlow.value) || {};
+    return {
+        tick_noop: gameTags.has_autonomous_tick_rules !== true,
+        no_again: gameTags.has_again !== true,
+        no_random: gameTags.has_random !== true,
+        has_action_rules: gameTags.has_action_rules === true,
+        wake_edge_count: Array.isArray(value.wake_edges) ? value.wake_edges.length : 0,
+        again_rule_count: Array.isArray(value.again_rules) ? value.again_rules.length : 0,
+        tick_restart_possible: value.tick_restart_possible === true,
+    };
+}
+
+function winconditionText(wincondition) {
+    const quantifier = {
+        [-1]: 'No',
+        0: 'Some',
+        1: 'All',
+    }[wincondition.quantifier] || `Win ${wincondition.quantifier}`;
+    const subjects = (wincondition.subjects || []).join(' or ') || '?';
+    const targets = (wincondition.targets || []).join(' or ');
+    return targets ? `${quantifier} ${subjects} On ${targets}` : `${quantifier} ${subjects}`;
+}
+
+function summarizeWinflow(report) {
+    const winflow = facts(report, 'winflow')[0] || null;
+    const value = (winflow && winflow.value) || {};
+    const ruleById = new Map(allRules(report).map(entry => [entry.rule.id, entry]));
+    const winById = new Map(((report.ps_tagged && report.ps_tagged.winconditions) || [])
+        .map(wincondition => [wincondition.id, wincondition]));
+    const wakeEdges = (value.wake_edges || []).slice(0, MAX_WINFLOW_EDGES).map(edge => {
+        const ruleEntry = ruleById.get(edge.from);
+        const wincondition = winById.get(edge.to);
+        return {
+            from: edge.from,
+            to: edge.to,
+            from_text: ruleEntry ? ruleText(ruleEntry.rule) : edge.from,
+            to_text: wincondition ? winconditionText(wincondition) : edge.to,
+            reasons: (edge.reasons || []).slice(),
+        };
+    });
+    return {
+        rule_count: Array.isArray(value.rule_ids) ? value.rule_ids.length : 0,
+        win_count: Array.isArray(value.win_ids) ? value.win_ids.length : 0,
+        wake_edge_count: Array.isArray(value.wake_edges) ? value.wake_edges.length : 0,
+        wake_edges: wakeEdges,
+        wake_edges_omitted: Math.max(0, ((value.wake_edges || []).length) - wakeEdges.length),
+    };
+}
+
 function compactComponents(components) {
     const ruleIdCount = components.reduce((sum, component) => sum + component.length, 0);
     if (ruleIdCount > MAX_COMPONENT_RULE_IDS) return [];
@@ -254,6 +343,7 @@ function summarizeReport(report, options = {}) {
         .filter(item => item.status === 'proved')
         .map(item => item.subjects.objects[0]);
     const staticObjects = objects.filter(object => object.tags && object.tags.static).map(object => object.name);
+    const quantity = summarizeQuantity(objects);
     const neverInitialOrCreated = objects
         .filter(object => object.tags && object.tags.present_in_no_levels && !object.tags.may_be_created)
         .map(object => object.name);
@@ -284,9 +374,16 @@ function summarizeReport(report, options = {}) {
         }));
     const rulegroupFlowSummary = summarizeRuleGroups(report);
     const rulegroupFlow = rulegroupFlowSummary.groups;
+    const actionNoop = actionNoopSummary(report);
+    const programFlow = programFlowSummary(report);
+    const winflow = summarizeWinflow(report);
     const score = mergeable.length * 4
         + rulegroupFlowSummary.splitTotal * 5
         + inertRules.length * 2
+        + quantity.can_increase.length * 2
+        + quantity.can_decrease.length * 2
+        + quantity.dynamic.length * 3
+        + winflow.wake_edge_count
         + staticObjects.length
         + staticLayers.length
         + transient.length * 2
@@ -301,6 +398,7 @@ function summarizeReport(report, options = {}) {
         score,
         mergeable,
         mergeable_groups: mergeableGroups,
+        quantity,
         static_objects: staticObjects,
         static_objects_label: staticObjects.join(', '),
         never_initial_or_created: neverInitialOrCreated,
@@ -310,6 +408,9 @@ function summarizeReport(report, options = {}) {
         transient_objects: transient,
         inert_rules: inertRules,
         command_only_rules: commandOnlyRules,
+        action_noop: actionNoop,
+        program_flow: programFlow,
+        winflow,
         rulegroup_flow: rulegroupFlow,
         rulegroup_flow_total: rulegroupFlowSummary.total,
         rulegroup_flow_split_total: rulegroupFlowSummary.splitTotal,
@@ -333,11 +434,20 @@ function buildExplorerModel(reports, options = {}) {
             merge_groups: games.reduce((sum, game) => sum + game.mergeable_groups.length, 0),
             split_groups: games.reduce((sum, game) => sum + game.rulegroup_flow_split_total, 0),
             inert_rules: games.reduce((sum, game) => sum + game.inert_rules.length, 0),
+            quantity_constant: games.reduce((sum, game) => sum + game.quantity.constant.length, 0),
+            quantity_can_increase: games.reduce((sum, game) => sum + game.quantity.can_increase.length, 0),
+            quantity_can_decrease: games.reduce((sum, game) => sum + game.quantity.can_decrease.length, 0),
+            quantity_dynamic: games.reduce((sum, game) => sum + game.quantity.dynamic.length, 0),
             static_objects: games.reduce((sum, game) => sum + game.static_objects.length, 0),
             static_layers: games.reduce((sum, game) => sum + game.static_layers.length, 0),
             inert_layers: games.reduce((sum, game) => sum + game.inert_layers.length, 0),
             cosmetic_objects: games.reduce((sum, game) => sum + game.cosmetic_objects.length, 0),
             transient_objects: games.reduce((sum, game) => sum + game.transient_objects.length, 0),
+            action_noop: games.reduce((sum, game) => sum + (game.action_noop.status === 'proved' ? 1 : 0), 0),
+            tick_noop: games.reduce((sum, game) => sum + (game.program_flow.tick_noop ? 1 : 0), 0),
+            no_again: games.reduce((sum, game) => sum + (game.program_flow.no_again ? 1 : 0), 0),
+            no_random: games.reduce((sum, game) => sum + (game.program_flow.no_random ? 1 : 0), 0),
+            winflow_edges: games.reduce((sum, game) => sum + game.winflow.wake_edge_count, 0),
         },
     };
 }
@@ -424,19 +534,25 @@ const list = document.getElementById('gameList');
 const detail = document.getElementById('detail');
 const search = document.getElementById('search');
 const sort = document.getElementById('sort');
-document.getElementById('totals').textContent = model.totals.games + ' games | ' + model.totals.split_groups + ' split groups | ' + model.totals.merge_groups + ' merge groups | ' + model.totals.inert_layers + ' inert layers | ' + model.totals.cosmetic_objects + ' cosmetic objs';
+document.getElementById('totals').textContent = model.totals.games + ' games | ' + model.totals.split_groups + ' split groups | ' + model.totals.merge_groups + ' merge groups | ' + model.totals.quantity_dynamic + ' dynamic quantity objs | ' + model.totals.winflow_edges + ' winflow edges';
 function escapeText(value) {
   return String(value).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 }
 function countBadges(game) {
   return [
     ['merge group', game.mergeable_groups.length],
+    ['qty +', game.quantity.can_increase.length],
+    ['qty -', game.quantity.can_decrease.length],
+    ['qty dyn', game.quantity.dynamic.length],
     ['static obj', game.static_objects.length],
     ['static layer', game.static_layers.length],
     ['inert layer', game.inert_layers.length],
     ['cosmetic', game.cosmetic_objects.length],
     ['transient', game.transient_objects.length],
     ['inert rule', game.inert_rules.length],
+    ['action noop', game.action_noop.status === 'proved' ? 1 : 0],
+    ['tick noop', game.program_flow.tick_noop ? 1 : 0],
+    ['winflow', game.winflow.wake_edge_count],
     ['split', game.rulegroup_flow_split_total],
   ].filter(item => item[1] > 0);
 }
@@ -444,11 +560,16 @@ function searchable(game) {
   return [
     game.display_name, game.source_path, game.title,
     game.mergeable_groups.flatMap(group => group.objects).join(' '),
+    Object.entries(game.quantity).map(([key, values]) => key + ' ' + values.join(' ')).join(' '),
     game.static_objects.join(' '),
     game.static_layers.flatMap(layer => layer.objects).join(' '),
     game.inert_layers.flatMap(layer => layer.objects).join(' '),
     game.cosmetic_objects.join(' '),
     game.transient_objects.join(' '),
+    game.action_noop.status,
+    game.action_noop.blockers.join(' '),
+    Object.entries(game.program_flow).map(([key, value]) => key + ' ' + value).join(' '),
+    game.winflow.wake_edges.map(edge => edge.from_text + ' ' + edge.to_text + ' ' + edge.reasons.join(' ')).join(' '),
     game.rulegroup_flow.map(group => group.id).join(' '),
   ].join(' ').toLowerCase();
 }
@@ -481,6 +602,47 @@ function renderList() {
 function chipList(values) {
   return values.length ? '<div class="chips">' + values.map(value => '<span class="chip">' + escapeText(value) + '</span>').join('') + '</div>' : '<div class="empty">none</div>';
 }
+function quantitySection(game) {
+  const labels = [
+    ['constant', game.quantity.constant],
+    ['can increase', game.quantity.can_increase],
+    ['can decrease', game.quantity.can_decrease],
+    ['dynamic', game.quantity.dynamic],
+  ];
+  return labels.map(([label, values]) =>
+    '<h3>' + escapeText(label) + '</h3>' + chipList(values)
+  ).join('');
+}
+function actionTickSection(game) {
+  const chips = [
+    'action noop: ' + game.action_noop.status,
+    'tick noop: ' + (game.program_flow.tick_noop ? 'yes' : 'no'),
+  ];
+  if (game.action_noop.blockers.length) {
+    chips.push('action blockers: ' + game.action_noop.blockers.join(', '));
+  }
+  return chipList(chips);
+}
+function programFlowSection(game) {
+  return chipList([
+    'no again: ' + (game.program_flow.no_again ? 'yes' : 'no'),
+    'no random: ' + (game.program_flow.no_random ? 'yes' : 'no'),
+    'action rules: ' + (game.program_flow.has_action_rules ? 'yes' : 'no'),
+    'wake edges: ' + game.program_flow.wake_edge_count,
+    'again rules: ' + game.program_flow.again_rule_count,
+    'tick restart possible: ' + (game.program_flow.tick_restart_possible ? 'yes' : 'no'),
+  ]);
+}
+function renderWinflow(game) {
+  if (!game.winflow.wake_edges.length) {
+    return '<p class="path">' + game.winflow.win_count + ' winconditions; no wake edges.</p>';
+  }
+  const rows = game.winflow.wake_edges.map(edge =>
+    '<div class="rule"><span>' + escapeText(edge.reasons.join(', ')) + '</span><code>' + escapeText(edge.from_text) + ' -> ' + escapeText(edge.to_text) + '</code></div>'
+  ).join('');
+  const omitted = game.winflow.wake_edges_omitted ? '<div class="rule empty"><span></span><code>' + game.winflow.wake_edges_omitted + ' more winflow edges omitted from this view</code></div>' : '';
+  return '<p class="path">' + game.winflow.win_count + ' winconditions; ' + game.winflow.wake_edge_count + ' wake edges.</p><div class="rule-group">' + rows + omitted + '</div>';
+}
 function analysisSection(title, content, open = true) {
   return '<details class="section" ' + (open ? 'open' : '') + '><summary><h2>' + escapeText(title) + '</h2></summary><div class="section-body">' + content + '</div></details>';
 }
@@ -505,12 +667,16 @@ function renderDetail() {
   detail.innerHTML =
     '<div class="section"><h2>' + escapeText(game.display_name) + '</h2><div class="path">' + escapeText(game.source_path) + '</div><p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open in editor</a></p></div>' +
     analysisSection('Mergeable Objects', chipList(game.mergeable_groups.map(group => group.label))) +
+    analysisSection('Quantity', quantitySection(game)) +
     analysisSection('Static Objects', game.static_objects_label ? chipList([game.static_objects_label]) : chipList([])) +
     analysisSection('Never Initial Or Created', chipList(game.never_initial_or_created), false) +
     analysisSection('Static Collision Layers', chipList(game.static_layers.map(layer => 'layer ' + layer.id + ': ' + layer.objects.join(', ')))) +
     analysisSection('Inert Collision Layers', '<p class="path">No object on these layers appears in any rule (LHS/RHS), win condition, or the Player aggregate.</p>' + chipList(game.inert_layers.map(layer => 'layer ' + layer.id + ': ' + layer.objects.join(', ')))) +
     analysisSection('Likely cosmetic objects', '<p class="path">Outside the static core closure: Player entities, wincondition objects, <code>win</code>-command LHS reads, plus objects reached by read→write rule edges or rules whose RHS write mask hits a layer that already holds a core object (see <code>docs/superpowers/specs/2026-05-03-cosmetic-closure-static-analysis-design.md</code>).</p>' + chipList(game.cosmetic_objects)) +
     analysisSection('Transient Objects', chipList(game.transient_objects)) +
+    analysisSection('Action / Tick', actionTickSection(game), false) +
+    analysisSection('Program Flow', programFlowSection(game), false) +
+    analysisSection('Winflow Wake Edges', renderWinflow(game), false) +
     analysisSection('Solver-Discardable Rules', chipList(game.inert_rules.map(rule => rule.group + ': ' + rule.text)), false) +
     analysisSection('Semantic Command-Only Rules', chipList(game.command_only_rules.map(rule => rule.group + ': ' + rule.text)), false) +
     analysisSection('rulegroup_flow Split Candidates / Rerun Masks', '<p class="path">' + game.rulegroup_flow_total + ' interesting groups; ' + game.rulegroup_flow_split_total + ' split candidates' + (game.rulegroup_flow_omitted ? '; showing first ' + game.rulegroup_flow.length + ', omitted ' + game.rulegroup_flow_omitted : '') + '</p>' + renderRuleGroups(game.rulegroup_flow), false);

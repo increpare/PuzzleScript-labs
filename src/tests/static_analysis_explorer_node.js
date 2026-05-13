@@ -84,6 +84,61 @@ LEVELS
 P#Rhvdab
 `;
 
+const EXPLORER_FLOW_FIXTURE = `
+title Explorer Flow Fixture
+========
+OBJECTS
+========
+Background
+black
+Player
+white
+Alpha
+green
+MarkerX
+pink
+Shrink
+blue
+Flux
+yellow
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+a = Alpha
+m = MarkerX
+s = Shrink
+f = Flux
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Player
+Alpha
+MarkerX
+Shrink
+Flux
+=====
+RULES
+=====
+[ Alpha ] -> [ Alpha MarkerX ]
+[ Shrink ] -> [ ]
+[ no Flux Alpha ] -> [ Flux Alpha ]
+late [ Flux ] -> [ ]
+=============
+WINCONDITIONS
+=============
+Some MarkerX
+======
+LEVELS
+======
+P.as
+`;
+
 const repoRoot = path.resolve(__dirname, '..', '..');
 const sourcePath = path.join(repoRoot, 'src/tests/solver_tests/explorer_fixture.txt');
 const report = analyzeSource(EXPLORER_FIXTURE, { sourcePath });
@@ -103,6 +158,26 @@ assert.ok(game.static_layers.some(layer => layer.objects.includes('Wall')));
 assert.ok(game.inert_rules.some(rule => rule.text.includes('sfx0')));
 assert.ok(game.rulegroup_flow.some(group => group.status === 'candidate' && group.components.length === 2));
 
+const flowReport = analyzeSource(EXPLORER_FLOW_FIXTURE, {
+    sourcePath: path.join(repoRoot, 'src/tests/solver_tests/explorer_flow_fixture.txt'),
+});
+assert.strictEqual(flowReport.status, 'ok');
+const flowModel = buildExplorerModel([flowReport], { repoRoot });
+const flowGame = flowModel.games[0];
+assert.deepStrictEqual(flowGame.quantity.constant, ['Background', 'Player', 'Alpha']);
+assert.ok(flowGame.quantity.can_increase.includes('MarkerX'));
+assert.ok(flowGame.quantity.can_decrease.includes('Shrink'));
+assert.ok(flowGame.quantity.dynamic.includes('Flux'));
+assert.strictEqual(flowGame.action_noop.status, 'rejected');
+assert.ok(flowGame.action_noop.blockers.includes('autonomous_solver_active_rule'));
+assert.strictEqual(flowGame.program_flow.tick_noop, false);
+assert.strictEqual(flowGame.program_flow.no_again, true);
+assert.strictEqual(flowGame.program_flow.no_random, true);
+assert.ok(flowGame.program_flow.wake_edge_count > 0);
+assert.ok(flowGame.winflow.wake_edges.some(edge =>
+    edge.from_text.includes('MarkerX') && edge.to_text === 'Some MarkerX'
+));
+
 assert.strictEqual(
     editorHrefForSource(sourcePath, { repoRoot }),
     '/src/editor.html?file=tests%2Fsolver_tests%2Fexplorer_fixture.txt'
@@ -120,6 +195,16 @@ assert.ok(html.includes('<details class="section"'));
 assert.ok(html.includes('rulegroup_flow'));
 assert.ok(html.includes('Inert Collision Layers'));
 assert.ok(html.includes('Likely cosmetic objects'));
+
+const flowHtml = renderExplorerHtml(flowModel);
+assert.ok(flowHtml.includes('Quantity'));
+assert.ok(flowHtml.includes('can increase'));
+assert.ok(flowHtml.includes('can decrease'));
+assert.ok(flowHtml.includes('dynamic'));
+assert.ok(flowHtml.includes('Action / Tick'));
+assert.ok(flowHtml.includes('Program Flow'));
+assert.ok(flowHtml.includes('Winflow Wake Edges'));
+assert.ok(flowHtml.includes('Some MarkerX'));
 
 const editorSource = fs.readFileSync(path.join(repoRoot, 'src/js/editor.js'), 'utf8');
 assert.ok(editorSource.includes('getParameterByName("file")'), 'editor should accept explorer file links');
