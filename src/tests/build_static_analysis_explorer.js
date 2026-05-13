@@ -862,6 +862,7 @@ const search = document.getElementById('search');
 const sort = document.getElementById('sort');
 let selected = model.games[0] || null;
 let activeView = 'corpus';
+let activeGameTab = 'objects';
 document.getElementById('totals').textContent = model.totals.games + ' games | ' + model.totals.split_groups + ' split groups | ' + model.totals.merge_groups + ' merge groups | ' + model.totals.quantity_dynamic + ' dynamic quantity objs | ' + model.totals.winflow_edges + ' winflow edges';
 function escapeText(value) {
   return String(value).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
@@ -1008,13 +1009,61 @@ function renderObjectMatrix(game) {
   return '<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix object-matrix">' + head + rows + '</div></div></div>';
 }
 
+function renderRulesTab(game) {
+  const rows = game.rule_rows.map(rule =>
+    '<div class="rule"><span>line ' + escapeText(rule.source_line == null ? 'compiled' : rule.source_line) + '</span><code>' + escapeText(rule.text) + '</code></div>'
+  ).join('');
+  return '<p class="path">Compiled facts are grouped by source line when source line data is available.</p><div class="rule-group">' + rows + '</div>';
+}
+
+function renderLayersTab(game) {
+  return '<div class="chips">' + game.layer_rows.map(layer =>
+    '<span class="chip">layer ' + escapeText(layer.id) + ': ' + escapeText(layer.objects.join(', ')) +
+    (layer.static ? ' / static' : '') + (layer.inert ? ' / inert' : '') + '</span>'
+  ).join('') + '</div>';
+}
+
+function renderRulegroupsTab(game) {
+  return '<div class="chips">' + game.rulegroup_rows.map(group =>
+    '<span class="chip">' + escapeText(group.id) + ': ' + escapeText(group.rule_count) + ' rules' +
+    (group.splittable ? ' / splittable' : '') + '</span>'
+  ).join('') + '</div>';
+}
+
+function renderSourceTab(game) {
+  return '<p class="path">Best-effort source annotation. Static analysis facts are produced after compilation, so source mappings can be one-to-many.</p>' +
+    '<p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open source in editor</a></p>';
+}
+
+function renderWinconditionsTab(game) {
+  return '<div class="chips">' + game.wincondition_rows.map(row =>
+    '<span class="chip">line ' + escapeText(row.source_line) + ': ' + escapeText(row.text) + '</span>'
+  ).join('') + '</div>';
+}
+
+function renderGameTabPanel(game, tab) {
+  if (tab === 'rules') return renderRulesTab(game);
+  if (tab === 'layers') return renderLayersTab(game);
+  if (tab === 'rulegroups') return renderRulegroupsTab(game);
+  if (tab === 'source') return renderSourceTab(game);
+  if (tab === 'winconditions') return renderWinconditionsTab(game);
+  return renderObjectMatrix(game);
+}
+
 function renderGame() {
   const game = selected;
   if (!game) {
     gameView.innerHTML = '<div class="detail-pane">No game selected.</div>';
     return;
   }
-  gameView.innerHTML = renderGameHeader(game) + renderGameTabs() + '<section id="gameTabPanel">' + renderObjectMatrix(game) + '</section>';
+  gameView.innerHTML = renderGameHeader(game) + renderGameTabs() + '<section id="gameTabPanel">' + renderGameTabPanel(game, activeGameTab) + '</section>';
+  for (const tab of gameView.querySelectorAll('[data-game-tab]')) {
+    tab.classList.toggle('active', tab.dataset.gameTab === activeGameTab);
+    tab.addEventListener('click', () => {
+      activeGameTab = tab.dataset.gameTab;
+      renderGame();
+    });
+  }
   for (const cell of gameView.querySelectorAll('[data-object]')) {
     cell.addEventListener('click', () => showInspector(game, 'object.' + cell.dataset.objectCell, cell.dataset.object));
   }
