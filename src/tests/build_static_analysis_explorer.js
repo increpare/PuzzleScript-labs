@@ -1037,7 +1037,7 @@ function renderSourceTab(game) {
 
 function renderWinconditionsTab(game) {
   return '<div class="chips">' + game.wincondition_rows.map(row =>
-    '<span class="chip">line ' + escapeText(row.source_line) + ': ' + escapeText(row.text) + '</span>'
+    '<span class="chip">line ' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + ': ' + escapeText(row.text) + '</span>'
   ).join('') + '</div>';
 }
 

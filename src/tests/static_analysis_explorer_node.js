@@ -343,6 +343,7 @@ assert.ok(html.includes('function renderRulegroupsTab'));
 assert.ok(html.includes('function renderSourceTab'));
 assert.ok(html.includes('Best-effort source annotation'));
 assert.ok(html.includes('function renderWinconditionsTab'));
+assert.ok(html.includes("row.source_line == null ? 'compiled' : row.source_line"));
 assert.ok(html.includes('Mergable object savings'));
 assert.ok(html.includes('Source-facing rules'));
 assert.ok(html.includes('Compiled rules'));
