@@ -717,8 +717,57 @@ function renderCorpusMatrixHtml(games) {
     return `<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix corpus-matrix" style="grid-template-columns: minmax(180px, 1.4fr) repeat(${CORPUS_COLUMNS.length - 1}, minmax(58px, 1fr))">${groupHtml}${headHtml}${rowHtml}</div></div></div>`;
 }
 
+function renderGameHeaderHtml(game) {
+    return `<div class="detail-pane"><h2>${escapeHtml(game.display_name)}</h2>` +
+        `<div class="path">${escapeHtml(game.source_path)}</div>` +
+        `<p><a target="_blank" href="${escapeHtml(game.editor_href)}">Open in editor</a></p>` +
+        `<div class="pill">objects ${escapeHtml(game.corpus_metrics.objects.total)}</div>` +
+        `<div class="pill">source rules ${escapeHtml(game.corpus_metrics.rules.source)}</div>` +
+        `<div class="pill">winconditions ${escapeHtml(game.corpus_metrics.winconditions.total)}</div></div>`;
+}
+
+function renderGameTabsHtml() {
+    return '<div class="view-tabs">' +
+        '<button class="view-tab active" type="button" data-game-tab="objects">Objects tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="rules">Rules tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="layers">Layers tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="rulegroups">Rulegroups tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
+        '<button class="view-tab" type="button" data-game-tab="winconditions">Winconditions tab</button>' +
+        '</div>';
+}
+
+function renderObjectMatrixHtml(game) {
+    const columns = [
+        ['name', 'Object'],
+        ['layer', 'Layer'],
+        ['quantity', 'Quantity'],
+        ['static', 'Static'],
+        ['temporary', 'Temporary'],
+        ['cosmetic', 'Cosmetic'],
+        ['merge_group', 'Merge'],
+        ['rule_count', 'Rules'],
+        ['win_role', 'Win role'],
+    ];
+    const head = columns.map(([, label]) => `<div class="cell head">${escapeHtml(label)}</div>`).join('');
+    const rows = game.object_rows.map(row => columns.map(([key]) => {
+        const value = row[key];
+        const shown = typeof value === 'boolean' ? (value ? 'yes' : '-') : (value == null ? '-' : value);
+        const quiet = shown === '-' || shown === 'none' ? ' quiet' : '';
+        const name = key === 'name' ? ' name' : '';
+        return `<button type="button" class="cell${name}${quiet}" data-object="${escapeHtml(row.name)}" data-object-cell="${escapeHtml(key)}">${escapeHtml(shown)}</button>`;
+    }).join('')).join('');
+    return `<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix object-matrix">${head}${rows}</div></div></div>`;
+}
+
+function renderGameHtml(game) {
+    if (!game) return '<div class="detail-pane">No game selected.</div>';
+    return `${renderGameHeaderHtml(game)}${renderGameTabsHtml()}<section id="gameTabPanel">${renderObjectMatrixHtml(game)}</section>`;
+}
+
 function renderExplorerHtml(model) {
     const initialCorpusHtml = renderCorpusMatrixHtml(model.games);
+    const initialGameHtml = renderGameHtml(model.games[0] || null);
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -755,6 +804,7 @@ main { padding: 10px; }
 .matrix-shell { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; overflow: hidden; }
 .matrix-scroll { overflow-x: auto; }
 .matrix { display: grid; gap: 2px; padding: 8px; min-width: 1180px; }
+.object-matrix { grid-template-columns: minmax(160px, 1.4fr) repeat(8, minmax(72px, 1fr)); }
 .cell { min-height: 24px; border: 1px solid transparent; border-radius: 3px; padding: 3px 5px; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--panel-soft); color: var(--text); }
 .cell.name { justify-content: flex-start; font-weight: 650; background: #fff; }
 .cell.group { min-height: 20px; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; color: var(--muted); background: #fff; border-color: var(--line); }
@@ -796,7 +846,7 @@ code { white-space: pre-wrap; }
     <button id="gameTab" class="view-tab" type="button">Game Explorer</button>
   </div>
   <section id="corpusView" data-view="corpus">${initialCorpusHtml}</section>
-  <section id="gameView" data-view="game" hidden></section>
+  <section id="gameView" data-view="game" hidden>${initialGameHtml}</section>
   <aside id="inspector" class="inspector" aria-live="polite"></aside>
 </main>
 <script id="explorer-data" type="application/json">${safeJsonForScript(model)}</script>
@@ -915,13 +965,59 @@ function renderCorpus() {
     });
   }
 }
+function renderGameHeader(game) {
+  return '<div class="detail-pane"><h2>' + escapeText(game.display_name) + '</h2>' +
+    '<div class="path">' + escapeText(game.source_path) + '</div>' +
+    '<p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open in editor</a></p>' +
+    '<div class="pill">objects ' + escapeText(game.corpus_metrics.objects.total) + '</div>' +
+    '<div class="pill">source rules ' + escapeText(game.corpus_metrics.rules.source) + '</div>' +
+    '<div class="pill">winconditions ' + escapeText(game.corpus_metrics.winconditions.total) + '</div></div>';
+}
+
+function renderGameTabs() {
+  return '<div class="view-tabs">' +
+    '<button class="view-tab active" type="button" data-game-tab="objects">Objects tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="rules">Rules tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="layers">Layers tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="rulegroups">Rulegroups tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
+    '<button class="view-tab" type="button" data-game-tab="winconditions">Winconditions tab</button>' +
+    '</div>';
+}
+
+function renderObjectMatrix(game) {
+  const columns = [
+    ['name', 'Object'],
+    ['layer', 'Layer'],
+    ['quantity', 'Quantity'],
+    ['static', 'Static'],
+    ['temporary', 'Temporary'],
+    ['cosmetic', 'Cosmetic'],
+    ['merge_group', 'Merge'],
+    ['rule_count', 'Rules'],
+    ['win_role', 'Win role'],
+  ];
+  const head = columns.map(([, label]) => '<div class="cell head">' + escapeText(label) + '</div>').join('');
+  const rows = game.object_rows.map(row => columns.map(([key]) => {
+    const value = row[key];
+    const shown = typeof value === 'boolean' ? (value ? 'yes' : '-') : (value == null ? '-' : value);
+    const quiet = shown === '-' || shown === 'none' ? ' quiet' : '';
+    const name = key === 'name' ? ' name' : '';
+    return '<button type="button" class="cell' + name + quiet + '" data-object="' + escapeText(row.name) + '" data-object-cell="' + escapeText(key) + '">' + escapeText(shown) + '</button>';
+  }).join('')).join('');
+  return '<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix object-matrix">' + head + rows + '</div></div></div>';
+}
+
 function renderGame() {
   const game = selected;
   if (!game) {
-    gameView.innerHTML = '<div class="detail-pane empty">No games match.</div>';
+    gameView.innerHTML = '<div class="detail-pane">No game selected.</div>';
     return;
   }
-  gameView.innerHTML = '<div class="detail-pane"><h2>' + escapeText(game.display_name) + '</h2><div class="path">' + escapeText(game.source_path) + '</div><p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open in editor</a></p></div>';
+  gameView.innerHTML = renderGameHeader(game) + renderGameTabs() + '<section id="gameTabPanel">' + renderObjectMatrix(game) + '</section>';
+  for (const cell of gameView.querySelectorAll('[data-object]')) {
+    cell.addEventListener('click', () => showInspector(game, 'object.' + cell.dataset.objectCell, cell.dataset.object));
+  }
 }
 function setView(view) {
   activeView = view;
@@ -943,7 +1039,11 @@ function closeInspector() {
   inspector.classList.remove('open');
   inspector.innerHTML = '';
 }
-function render() { renderCorpus(); renderGame(); }
+function render() {
+  renderCorpus();
+  renderGame();
+  setView(activeView);
+}
 corpusTab.addEventListener('click', () => setView('corpus'));
 gameTab.addEventListener('click', () => setView('game'));
 search.addEventListener('input', () => { renderCorpus(); if (activeView === 'game') renderGame(); });
