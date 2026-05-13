@@ -1198,6 +1198,9 @@ function bScoreThenName(left, right) {
 function defaultDirectionForColumn(column) {
   return column.kind === 'game' ? 'asc' : 'desc';
 }
+function sortDirectionIcon(direction) {
+  return direction === 'asc' ? '⬆' : '⬇';
+}
 function handleCorpusHeaderSort(column) {
   if (activeSortColumn && activeSortColumn.key === column.key) {
     activeSortDirection = activeSortDirection === 'asc' ? 'desc' : 'asc';
@@ -1232,7 +1235,7 @@ function renderCorpusMatrix() {
   const groupHtml = groups.map(([label, span]) => '<div class="cell group" style="grid-column: span ' + span + '">' + escapeText(label) + '</div>').join('');
   const headHtml = corpusColumns.map(column => {
     const sorted = activeSortColumn && activeSortColumn.key === column.key;
-    const marker = sorted ? (activeSortDirection === 'asc' ? ' asc' : ' desc') : '';
+    const marker = sorted ? ' ' + sortDirectionIcon(activeSortDirection) : '';
     return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-sort-key="' + escapeText(column.key) + '" title="' + escapeText(column.label) + '">' + escapeText(column.label + marker) + '</button>';
   }).join('');
   const rowHtml = shown.map(game => corpusColumns.map(column => {
@@ -1521,7 +1524,7 @@ function renderSortableTable(report) {
   }
   const head = report.columns.map(column => {
     const sorted = sort.key === column.key;
-    const marker = sorted ? ' ' + sort.direction : '';
+    const marker = sorted ? ' ' + sortDirectionIcon(sort.direction) : '';
     const disabled = column.sortable === false;
     const inner = disabled
       ? escapeText(column.label)
@@ -1565,7 +1568,7 @@ function renderSourceReport(report) {
   const rows = sortSourceRows(report);
   if (!rows.length) return renderReportShell(report, '<div class="report-empty">' + escapeText(report.empty || 'Source text was not embedded in this explorer build.') + '</div>');
   const sort = reportSort(report);
-  const marker = sort.key === 'line' ? ' ' + sort.direction : '';
+  const marker = sort.key === 'line' ? ' ' + sortDirectionIcon(sort.direction) : '';
   const body = '<div class="source-report"><div class="source-row source-head"><button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="line">' + escapeText('Line' + marker) + '</button><span>Source</span><span>Annotations</span></div>' + rows.map(row =>
     '<div class="source-row" data-report-id="' + escapeText(report.id) + '" data-source-line="' + escapeText(row.line) + '">' +
       '<span class="line-no">' + escapeText(row.line) + '</span>' +
