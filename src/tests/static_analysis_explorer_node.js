@@ -198,6 +198,7 @@ assert.strictEqual(game.static_objects_label, 'Background, Wall, Rock, BodyH, Bo
 assert.ok(game.static_layers.some(layer => layer.objects.includes('Wall')));
 assert.ok(game.inert_rules.some(rule => rule.text.includes('sfx0')));
 assert.ok(game.rulegroup_flow.some(group => group.status === 'candidate' && group.components.length === 2));
+assert.ok(game.rulegroup_flow.every(group => group.inspector && group.inspector.title && Array.isArray(group.inspector.facts)));
 assert.deepStrictEqual(game.corpus_metrics.objects, {
     total: 11,
     static: 8,
@@ -384,6 +385,7 @@ assert.ok(html.includes('data-report-sort-key="source_lines"'));
 assert.ok(html.includes('data-report-sort-key="wake_edge_count"'));
 assert.ok(html.includes('function handleReportSort'));
 assert.ok(html.includes('function sortReportRows'));
+assert.ok(html.includes('function sortSourceRows'));
 assert.ok(html.includes('defaultSort'));
 assert.ok(html.includes('data-report-row='));
 assert.ok(html.includes('data-source-line='));

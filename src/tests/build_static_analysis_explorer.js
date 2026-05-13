@@ -639,7 +639,7 @@ function summarizeRuleGroups(report) {
                 component: partition.has(rule.id) ? partition.get(rule.id) : null,
                 tags: rule.tags,
             }));
-            results.push({
+            const row = {
                 id: group.id,
                 section: section.name,
                 status: flow.status,
@@ -653,7 +653,18 @@ function summarizeRuleGroups(report) {
                 rules_total: group.rules.length,
                 rules_omitted: Math.max(0, group.rules.length - rules.length),
                 rules,
-            });
+            };
+            row.inspector = inspectorPayload(`Rule Flow ${group.id}`, [
+                factItem('section', row.section),
+                factItem('status', row.status),
+                factItem('splittable', yesNo(row.split_candidate)),
+                factItem('components', row.component_count),
+                factItem('interactions', row.interaction_edge_count),
+                factItem('rerun masks', row.rerun_mask_count),
+                factItem('rules', row.rules_total),
+                factItem('omitted rules', row.rules_omitted),
+            ], rules.slice(0, 8).map(rule => `[${rule.component == null ? '-' : rule.component}] ${rule.text}`));
+            results.push(row);
         }
     }
     results.sort(sortRulegroupInterest);
@@ -1541,10 +1552,21 @@ function renderReportShell(report, bodyHtml) {
 function renderSourceAnnotation(annotation) {
   return '<span class="chip" data-source-annotation="' + escapeText(annotation.kind) + '" title="' + escapeText(annotation.title || '') + '">' + escapeText(annotation.label) + '</span>';
 }
+function sortSourceRows(report) {
+  const rows = (report.sourceRows || []).slice();
+  const sort = reportSort(report);
+  rows.sort((left, right) => {
+    const base = compareScalar(left.line, right.line);
+    return sort.direction === 'asc' ? base : -base;
+  });
+  return rows;
+}
 function renderSourceReport(report) {
-  const rows = report.sourceRows || [];
+  const rows = sortSourceRows(report);
   if (!rows.length) return renderReportShell(report, '<div class="report-empty">' + escapeText(report.empty || 'Source text was not embedded in this explorer build.') + '</div>');
-  const body = '<div class="source-report"><div class="source-row source-head"><button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="line">Line</button><span>Source</span><span>Annotations</span></div>' + rows.map(row =>
+  const sort = reportSort(report);
+  const marker = sort.key === 'line' ? ' ' + sort.direction : '';
+  const body = '<div class="source-report"><div class="source-row source-head"><button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="line">' + escapeText('Line' + marker) + '</button><span>Source</span><span>Annotations</span></div>' + rows.map(row =>
     '<div class="source-row" data-report-id="' + escapeText(report.id) + '" data-source-line="' + escapeText(row.line) + '">' +
       '<span class="line-no">' + escapeText(row.line) + '</span>' +
       '<code>' + escapeText(row.text || ' ') + '</code>' +
