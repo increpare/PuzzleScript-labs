@@ -2,6 +2,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 const {
     runSimulationWithStaticChecks,
@@ -9,6 +11,10 @@ const {
 const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 
 loadPuzzleScript({ includeTests: true, messageSink: [] });
+
+function loadStaticAnalysisFixtureSource(...parts) {
+    return fs.readFileSync(path.join(__dirname, 'static_analysis_testdata', ...parts), 'utf8');
+}
 
 const sokoban = global.testdata.find(entry => entry[0] === 'sokoban with win condition');
 assert.ok(sokoban, 'sokoban fixture should be available');
@@ -61,60 +67,10 @@ assert.ok(
     'action-noop checks should ignore pre-existing message text while probing solver state'
 );
 
-const noactionActionRuleSource = [
-    'title noaction action rule',
-    'noaction',
-    '========',
-    'OBJECTS',
-    '========',
-    '',
-    'Background',
-    'Black',
-    '',
-    'Player',
-    'Pink',
-    '',
-    'Marker',
-    'Yellow',
-    '',
-    '=======',
-    'LEGEND',
-    '=======',
-    '',
-    '. = Background',
-    'P = Player',
-    'M = Marker',
-    '',
-    '======',
-    'SOUNDS',
-    '======',
-    '',
-    '================',
-    'COLLISIONLAYERS',
-    '================',
-    '',
-    'Background',
-    'Player',
-    'Marker',
-    '',
-    '======',
-    'RULES',
-    '======',
-    '',
-    '[ action Player ] -> [ action Player Marker ]',
-    '',
-    '==============',
-    'WINCONDITIONS',
-    '==============',
-    '',
-    'Some Marker',
-    '',
-    '=======',
-    'LEVELS',
-    '=======',
-    '',
-    'P.',
-].join('\n');
+const noactionActionRuleSource = loadStaticAnalysisFixtureSource(
+    'movement_action',
+    'action-noop-noaction-metadata.txt'
+);
 
 const noactionActionRule = runSimulationWithStaticChecks('noaction action rule', [
     noactionActionRuleSource,
