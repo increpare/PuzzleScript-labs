@@ -936,7 +936,7 @@ function renderObjectMatrixHtml(game) {
 
 function renderGameHtml(game) {
     if (!game) return '<div class="detail-pane">No game selected.</div>';
-    return `${renderGameHeaderHtml(game)}${renderGameTabsHtml()}<section id="gameTabPanel">${renderObjectMatrixHtml(game)}</section>`;
+    return `${renderGameHeaderHtml(game)}<section id="gameTabPanel"><div class="report-shell"><div class="report-header"><h3>Loading report</h3><p class="report-purpose">Preparing static-analysis report.</p></div></div></section>`;
 }
 
 function renderExplorerHtml(model) {
@@ -995,8 +995,32 @@ button.cell.name[data-game]:hover { text-decoration: underline; }
 .cell.hot { box-shadow: inset 0 0 0 2px #d7b900; background: var(--hot); }
 .cell.quiet { color: #8a97a8; background: #f7f9fb; }
 .detail-pane { margin-top: 10px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px; }
-.inspector { position: fixed; right: 14px; bottom: 14px; width: min(460px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 28px)); overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 32px rgba(20, 30, 45, .18); padding: 12px; display: none; z-index: 5; }
-.inspector.open { display: block; }
+.report-shell { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; overflow: hidden; }
+.report-header { padding: 10px 12px; border-bottom: 1px solid var(--line); background: #f7f9fc; }
+.report-header h3 { margin: 0 0 3px; font-size: 14px; }
+.report-purpose { color: var(--muted); margin: 0; max-width: 980px; }
+.report-summary { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #fff; }
+.report-body { overflow-x: auto; background: #fff; }
+.report-notes { padding: 8px 12px; border-top: 1px solid var(--line); background: #fbfcfe; color: var(--muted); }
+.report-empty { color: var(--muted); padding: 12px; }
+.sortable-table { width: 100%; min-width: 920px; border-collapse: collapse; background: #fff; }
+.sortable-table th, .sortable-table td { border-bottom: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; }
+.sortable-table th { font-size: 10px; color: var(--muted); text-transform: uppercase; background: var(--panel-soft); white-space: normal; }
+.sortable-table tr:last-child td { border-bottom: 0; }
+.sortable-table button.header-sort { width: 100%; border: 0; background: transparent; color: inherit; text-align: inherit; padding: 0; cursor: pointer; font-weight: 650; }
+.sortable-table tr.selected td { background: #fff8d6; }
+.col-line, .col-count, .col-boolean { white-space: nowrap; text-align: right; }
+.col-id { white-space: nowrap; font-weight: 650; }
+.col-preview span { white-space: pre-wrap; }
+.inspector-panel { position: fixed; right: 14px; bottom: 14px; width: min(460px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 28px)); overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 32px rgba(20, 30, 45, .18); padding: 12px; display: none; z-index: 5; }
+.inspector-panel.open { display: block; }
+.inspector-panel dl { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 4px 10px; }
+.inspector-panel dt { color: var(--muted); }
+.inspector-panel dd { margin: 0; }
+.source-report { border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; }
+.source-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(220px, auto); gap: 8px; border-bottom: 1px solid var(--line); padding: 3px 6px; align-items: start; }
+.source-row:last-child { border-bottom: 0; }
+.source-annotations { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .pill { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 2px 6px; background: #fff; margin: 2px; }
 .path { color: var(--muted); font-size: 11px; word-break: break-all; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -1034,7 +1058,8 @@ code { white-space: pre-wrap; }
   </div>
   <section id="corpusView" data-view="corpus">${initialCorpusHtml}</section>
   <section id="gameView" data-view="game" hidden>${initialGameHtml}</section>
-  <aside id="inspector" class="inspector" aria-live="polite"></aside>
+  <div id="reportMarkers" hidden><span data-report-id="objects"></span><span data-report-id="rules"></span><span data-report-id="layers"></span><span data-report-id="rulegroups"></span><span data-report-id="ruleflow"></span><span data-report-id="winconditions"></span><span data-report-id="source"></span><button type="button" data-report-id="source" data-report-sort-key="line">Line</button><button type="button" data-report-id="rulegroups" data-report-sort-key="source_lines">Source lines</button><button type="button" data-report-id="winconditions" data-report-sort-key="wake_edge_count">Wake edges</button></div>
+  <aside id="inspector" class="inspector-panel" aria-live="polite"></aside>
 </main>
 <script id="explorer-data" type="application/json">${safeJsonForScript(model)}</script>
 <script>
@@ -1049,11 +1074,11 @@ const search = document.getElementById('search');
 const sort = document.getElementById('sort');
 let selected = model.games[0] || null;
 let activeView = 'corpus';
-let activeGameTab = 'objects';
 let activeSortColumn = null;
 let activeSortDirection = 'desc';
-let activeObjectSortColumn = null;
-let activeObjectSortDirection = 'asc';
+let activeReportId = 'objects';
+let reportSortState = {};
+let selectedReportRow = null;
 document.getElementById('totals').textContent =
   model.totals.games + ' games | ' +
   model.totals.mergable_objects + ' mergable objects | ' +
@@ -1144,6 +1169,11 @@ function compareScalar(left, right) {
   if (typeof left === 'number' && typeof right === 'number') return left - right;
   return String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: 'base' });
 }
+function lineSortValue(value) {
+  if (value == null || value === 'compiled') return -1;
+  const match = String(value).match(/\\d+/);
+  return match ? Number(match[0]) : -1;
+}
 function compareByColumn(left, right, column, direction) {
   const leftValue = column.kind === 'game' ? left.display_name : valueAt(left, column.key);
   const rightValue = column.kind === 'game' ? right.display_name : valueAt(right, column.key);
@@ -1164,31 +1194,8 @@ function handleCorpusHeaderSort(column) {
     activeSortColumn = column;
     activeSortDirection = defaultDirectionForColumn(column);
   }
-  renderCorpus();
+  renderCorpusMatrix();
   if (activeView === 'game') renderGame();
-}
-function defaultDirectionForObjectColumn(column) {
-  return ['name', 'quantity', 'merge_group', 'win_role'].includes(column.key) ? 'asc' : 'desc';
-}
-function compareObjectRows(left, right, column, direction) {
-  const base = compareScalar(left[column.key], right[column.key]);
-  const directed = direction === 'asc' ? base : -base;
-  return directed || String(left.name).localeCompare(String(right.name));
-}
-function sortedObjectRows(game) {
-  const rows = game.object_rows.slice();
-  if (!activeObjectSortColumn) return rows;
-  rows.sort((left, right) => compareObjectRows(left, right, activeObjectSortColumn, activeObjectSortDirection));
-  return rows;
-}
-function handleObjectHeaderSort(column) {
-  if (activeObjectSortColumn && activeObjectSortColumn.key === column.key) {
-    activeObjectSortDirection = activeObjectSortDirection === 'asc' ? 'desc' : 'asc';
-  } else {
-    activeObjectSortColumn = column;
-    activeObjectSortDirection = defaultDirectionForObjectColumn(column);
-  }
-  renderGame();
 }
 function corpusCellClass(column, value) {
   const classes = ['cell'];
@@ -1198,7 +1205,7 @@ function corpusCellClass(column, value) {
   if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
   return classes.join(' ');
 }
-function renderCorpus() {
+function renderCorpusMatrix() {
   const shown = visibleGames();
   const previousSelected = selected;
   if (!shown.includes(selected)) selected = shown[0] || null;
@@ -1231,6 +1238,7 @@ function renderCorpus() {
   for (const cell of corpusView.querySelectorAll('[data-game]')) {
     cell.addEventListener('click', () => {
       selected = games.find(game => game.source_path === cell.dataset.game) || selected;
+      selectedReportRow = null;
       if (cell.dataset.cellKind === 'game') {
         setView('game');
       } else {
@@ -1238,6 +1246,318 @@ function renderCorpus() {
       }
     });
   }
+}
+const columnTypes = {
+  line: {
+    className: 'col-line',
+    value(row, column) {
+      if (column.key === 'source_line') return row.source_line == null ? 'compiled' : row.source_line;
+      return row[column.key] == null ? 'compiled' : row[column.key];
+    },
+    compare(left, right, column) { return compareScalar(lineSortValue(left[column.key]), lineSortValue(right[column.key])); },
+  },
+  id: {
+    className: 'col-id',
+    value(row, column) { return row[column.key] == null ? '-' : row[column.key]; },
+  },
+  text: {
+    className: 'col-text',
+    value(row, column) { return row[column.key] == null ? '-' : row[column.key]; },
+  },
+  boolean: {
+    className: 'col-boolean',
+    value(row, column) { return row[column.key] ? 'yes' : '-'; },
+    compare(left, right, column) { return Number(Boolean(left[column.key])) - Number(Boolean(right[column.key])); },
+  },
+  count: {
+    className: 'col-count',
+    value(row, column) { return row[column.key] == null ? 0 : row[column.key]; },
+  },
+  status: {
+    className: 'col-status',
+    value(row, column) { return row[column.key] == null ? '-' : row[column.key]; },
+  },
+  relation: {
+    className: 'col-relation',
+    value(row, column) { return row[column.key] == null ? '-' : row[column.key]; },
+  },
+  preview: {
+    className: 'col-preview',
+    value(row, column) {
+      const value = row[column.key];
+      return Array.isArray(value) ? value.join('\\n') : (value == null ? '-' : value);
+    },
+  },
+};
+function summaryItems(items) {
+  return items.map(([label, value]) => ({ label, value }));
+}
+function reportDefinitionsForGame(game) {
+  return [
+    {
+      id: 'objects',
+      title: 'Objects',
+      purpose: 'Object-level static-analysis traits, quantities, merge groups, and wincondition roles.',
+      summary: summaryItems([
+        ['objects', game.corpus_metrics.objects.total],
+        ['static', game.corpus_metrics.objects.static],
+        ['constant count', game.corpus_metrics.objects.constant_count],
+        ['temporary', game.corpus_metrics.objects.temporary],
+        ['cosmetic', game.corpus_metrics.objects.cosmetic],
+        ['mergable', game.corpus_metrics.objects.mergable],
+      ]),
+      columns: objectColumns.map(column => Object.assign({}, column, {
+        type: column.key === 'name' ? 'id' :
+          column.key === 'layer' || column.key === 'rule_count' ? 'count' :
+          ['static', 'temporary', 'cosmetic'].includes(column.key) ? 'boolean' :
+          column.key === 'quantity' || column.key === 'merge_group' || column.key === 'win_role' ? 'status' :
+          'text',
+      })),
+      rows: game.object_rows,
+      defaultSort: { key: 'name', direction: 'asc' },
+      notes: 'Object rows are source object declarations after compilation and static tagging.',
+    },
+    {
+      id: 'rules',
+      title: 'Rules',
+      purpose: 'Compiled rule facts grouped back to source lines where possible.',
+      summary: summaryItems([
+        ['source lines', game.corpus_metrics.rules.source],
+        ['compiled', game.corpus_metrics.rules.compiled],
+        ['cosmetic', game.corpus_metrics.rules.cosmetic],
+        ['inert commands', game.corpus_metrics.rules.inert_command],
+        ['action', game.corpus_metrics.rules.action],
+        ['tick', game.corpus_metrics.rules.tick],
+      ]),
+      columns: [
+        { key: 'source_line', label: 'Line', type: 'line' },
+        { key: 'section', label: 'Section', type: 'status' },
+        { key: 'group', label: 'Group', type: 'id' },
+        { key: 'cosmetic', label: 'Cosmetic', type: 'boolean' },
+        { key: 'inert_command', label: 'Inert command', type: 'boolean' },
+        { key: 'command_only', label: 'Command only', type: 'boolean' },
+        { key: 'text', label: 'Rule', type: 'preview' },
+      ],
+      rows: game.rule_rows,
+      defaultSort: { key: 'source_line', direction: 'asc' },
+      notes: 'Line values use source lines when available; compiled means no source line was available.',
+    },
+    {
+      id: 'layers',
+      title: 'Layers',
+      purpose: 'Collision layer traits and layer-level static-analysis conclusions.',
+      summary: summaryItems([
+        ['layers', game.corpus_metrics.layers.total],
+        ['static', game.corpus_metrics.layers.static],
+        ['inert', game.corpus_metrics.layers.inert],
+      ]),
+      columns: [
+        { key: 'id', label: 'Layer', type: 'count' },
+        { key: 'objects', label: 'Objects', type: 'preview', value: row => row.objects.join(', ') },
+        { key: 'object_count', label: 'Object count', type: 'count' },
+        { key: 'static', label: 'Static', type: 'boolean' },
+        { key: 'inert', label: 'Inert', type: 'boolean' },
+      ],
+      rows: game.layer_rows,
+      defaultSort: { key: 'id', direction: 'asc' },
+      notes: 'Layer traits summarize conclusions that apply to every object in the collision layer.',
+    },
+    {
+      id: 'rulegroups',
+      title: 'Rulegroups',
+      purpose: 'Source-facing rulegroup ranges, previews, and flow status.',
+      summary: summaryItems([
+        ['rulegroups', game.corpus_metrics.rulegroups.total],
+        ['splittable', game.corpus_metrics.rulegroups.splittable],
+      ]),
+      columns: [
+        { key: 'id', label: 'Rulegroup', type: 'id' },
+        { key: 'source_lines', label: 'Source lines', type: 'line' },
+        { key: 'section', label: 'Section', type: 'status' },
+        { key: 'rule_count', label: 'Rules', type: 'count' },
+        { key: 'splittable', label: 'Splittable', type: 'boolean' },
+        { key: 'status', label: 'Flow status', type: 'status' },
+        { key: 'rule_preview', label: 'Preview', type: 'preview' },
+      ],
+      rows: game.rulegroup_rows,
+      defaultSort: { key: 'source_lines', direction: 'asc' },
+      notes: 'Rulegroups are the source-facing units used for rule execution and flow analysis.',
+    },
+    {
+      id: 'ruleflow',
+      title: 'Rule Flow',
+      purpose: 'Rulegroups with split candidates, components, interactions, or rerun masks.',
+      summary: summaryItems([
+        ['reported groups', game.rulegroup_flow_total],
+        ['splittable', game.rulegroup_flow_split_total],
+        ['shown', game.rulegroup_flow.length],
+      ]),
+      columns: [
+        { key: 'id', label: 'Rulegroup', type: 'id' },
+        { key: 'section', label: 'Section', type: 'status' },
+        { key: 'split_candidate', label: 'Splittable', type: 'boolean' },
+        { key: 'component_count', label: 'Components', type: 'count' },
+        { key: 'interaction_edge_count', label: 'Interactions', type: 'count' },
+        { key: 'rerun_mask_count', label: 'Rerun masks', type: 'count' },
+        { key: 'rules', label: 'Compiled rules by component', type: 'preview', value: row => row.rules.map(rule => '[' + (rule.component == null ? '-' : rule.component) + '] ' + rule.text).join('\\n') },
+      ],
+      rows: game.rulegroup_flow,
+      defaultSort: { key: 'split_candidate', direction: 'desc' },
+      empty: 'No splittable or rerun-sensitive rulegroups were reported for this game.',
+      notes: 'Rule flow is computed after compilation, so ids are compiled rulegroup ids with source ranges available in the Rulegroups report.',
+    },
+    {
+      id: 'winconditions',
+      title: 'Winconditions',
+      purpose: 'Wincondition subjects, targets, source lines, and wake edges.',
+      summary: summaryItems([
+        ['winconditions', game.corpus_metrics.winconditions.total],
+        ['wake edges', game.winflow.wake_edge_count],
+      ]),
+      columns: [
+        { key: 'source_line', label: 'Line', type: 'line' },
+        { key: 'text', label: 'Wincondition', type: 'preview' },
+        { key: 'subjects', label: 'Subjects', type: 'preview', value: row => row.subjects.join(', ') || '-' },
+        { key: 'targets', label: 'Targets', type: 'preview', value: row => row.targets.join(', ') || '-' },
+        { key: 'wake_edge_count', label: 'Wake edges', type: 'count' },
+      ],
+      rows: game.wincondition_rows,
+      defaultSort: { key: 'source_line', direction: 'asc' },
+      empty: 'This game has no winconditions.',
+      notes: 'Wake edges show rule-to-wincondition relationships found by winflow analysis.',
+    },
+    {
+      id: 'source',
+      title: 'Source',
+      purpose: 'Best-effort source annotation linked to compiled rulegroups and static-analysis facts.',
+      summary: summaryItems([
+        ['source lines', game.source_lines.length],
+        ['compiled rules', game.corpus_metrics.rules.compiled],
+        ['winconditions', game.corpus_metrics.winconditions.total],
+      ]),
+      sourceRows: game.source_lines,
+      defaultSort: { key: 'line', direction: 'asc' },
+      notes: 'Source annotations are best-effort because static analysis facts are produced after compilation.',
+    },
+  ];
+}
+function columnType(column) {
+  return columnTypes[column.type || 'text'] || columnTypes.text;
+}
+function columnRawValue(row, column) {
+  if (typeof column.value === 'function') return column.value(row);
+  return row[column.key];
+}
+function columnDisplayValue(row, column) {
+  const type = columnType(column);
+  if (typeof column.value === 'function') {
+    const value = column.value(row);
+    return value == null || value === '' ? '-' : value;
+  }
+  return type.value ? type.value(row, column) : columnRawValue(row, column);
+}
+function compareReportValues(left, right, column) {
+  const type = columnType(column);
+  if (type.compare && typeof column.value !== 'function') return type.compare(left, right, column);
+  return compareScalar(columnRawValue(left, column), columnRawValue(right, column));
+}
+function reportSort(report) {
+  return reportSortState[report.id] || report.defaultSort || { key: report.columns && report.columns[0] ? report.columns[0].key : '', direction: 'asc' };
+}
+function sortReportRows(report) {
+  const rows = (report.rows || []).slice();
+  if (!report.columns || report.columns.length === 0) return rows;
+  const sort = reportSort(report);
+  const column = report.columns.find(item => item.key === sort.key);
+  if (!column || column.sortable === false) return rows;
+  rows.sort((left, right) => {
+    const base = compareReportValues(left, right, column);
+    const directed = sort.direction === 'asc' ? base : -base;
+    return directed || compareScalar(left.id || left.compiled_id || left.name || left.text || '', right.id || right.compiled_id || right.name || right.text || '');
+  });
+  return rows;
+}
+function handleReportSort(reportId, key) {
+  const game = selected;
+  if (!game) return;
+  const report = reportDefinitionsForGame(game).find(item => item.id === reportId);
+  if (!report) return;
+  const current = reportSort(report);
+  reportSortState[reportId] = {
+    key,
+    direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+  };
+  selectedReportRow = null;
+  renderGame();
+}
+function rowIdentity(row, index) {
+  return row.id || row.compiled_id || row.name || String(index);
+}
+function renderReportCell(row, column) {
+  const type = columnType(column);
+  const value = columnDisplayValue(row, column);
+  const text = Array.isArray(value) ? value.join('\\n') : value;
+  const quiet = text === '-' || text === '' ? ' quiet' : '';
+  return '<td class="' + escapeText((type.className || '') + quiet) + '" data-report-cell="' + escapeText(column.key) + '">' +
+    '<span>' + escapeText(text == null ? '-' : text) + '</span>' +
+    '</td>';
+}
+function renderSortableTable(report) {
+  const rows = sortReportRows(report);
+  const sort = reportSort(report);
+  if (!rows.length) {
+    return '<div class="report-empty">' + escapeText(report.empty || 'No rows for this report.') + '</div>';
+  }
+  const head = report.columns.map(column => {
+    const sorted = sort.key === column.key;
+    const marker = sorted ? ' ' + sort.direction : '';
+    const disabled = column.sortable === false;
+    const inner = disabled
+      ? escapeText(column.label)
+      : '<button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="' + escapeText(column.key) + '">' + escapeText(column.label + marker) + '</button>';
+    return '<th class="' + escapeText(columnType(column).className || '') + '">' + inner + '</th>';
+  }).join('');
+  const body = rows.map((row, index) => {
+    const rowId = rowIdentity(row, index);
+    const selected = selectedReportRow && selectedReportRow.reportId === report.id && selectedReportRow.rowId === String(rowId);
+    return '<tr class="' + (selected ? 'selected' : '') + '" data-report-id="' + escapeText(report.id) + '" data-report-row="' + escapeText(rowId) + '">' +
+      report.columns.map(column => renderReportCell(row, column)).join('') +
+      '</tr>';
+  }).join('');
+  return '<table class="sortable-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>';
+}
+function renderReportSummary(report) {
+  const items = report.summary || [];
+  return '<div class="report-summary">' + items.map(item => '<span class="pill">' + escapeText(item.label) + ' ' + escapeText(item.value) + '</span>').join('') + '</div>';
+}
+function renderReportShell(report, bodyHtml) {
+  return '<section class="report-shell" data-report-id="' + escapeText(report.id) + '">' +
+    '<div class="report-header"><h3>' + escapeText(report.title) + '</h3><p class="report-purpose">' + escapeText(report.purpose || '') + '</p></div>' +
+    renderReportSummary(report) +
+    '<div class="report-body">' + bodyHtml + '</div>' +
+    (report.notes ? '<div class="report-notes">' + escapeText(report.notes) + '</div>' : '') +
+    '</section>';
+}
+function renderSourceAnnotation(annotation) {
+  return '<span class="chip" data-source-annotation="' + escapeText(annotation.kind) + '" title="' + escapeText(annotation.title || '') + '">' + escapeText(annotation.label) + '</span>';
+}
+function renderSourceReport(report) {
+  const rows = report.sourceRows || [];
+  if (!rows.length) return renderReportShell(report, '<div class="report-empty">' + escapeText(report.empty || 'Source text was not embedded in this explorer build.') + '</div>');
+  const body = '<div class="source-report"><div class="source-row source-head"><button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="line">Line</button><span>Source</span><span>Annotations</span></div>' + rows.map(row =>
+    '<div class="source-row" data-report-id="' + escapeText(report.id) + '" data-source-line="' + escapeText(row.line) + '">' +
+      '<span class="line-no">' + escapeText(row.line) + '</span>' +
+      '<code>' + escapeText(row.text || ' ') + '</code>' +
+      '<span class="source-annotations">' + (row.annotations || []).map(renderSourceAnnotation).join('') + '</span>' +
+    '</div>'
+  ).join('') + '</div>';
+  return renderReportShell(report, body);
+}
+function renderGameReport(game, reportId) {
+  const reports = reportDefinitionsForGame(game);
+  const report = reports.find(item => item.id === reportId) || reports[0];
+  if (report.id === 'source') return renderSourceReport(report);
+  return renderReportShell(report, renderSortableTable(report));
 }
 function renderGameHeader(game) {
   return '<div class="detail-pane"><h2>' + escapeText(game.display_name) + '</h2>' +
@@ -1247,232 +1567,74 @@ function renderGameHeader(game) {
     '<div class="pill">source rules ' + escapeText(game.corpus_metrics.rules.source) + '</div>' +
     '<div class="pill">winconditions ' + escapeText(game.corpus_metrics.winconditions.total) + '</div></div>';
 }
-
-function renderGameTabs() {
-  return '<div class="view-tabs">' +
-    '<button class="view-tab active" type="button" data-game-tab="objects">Objects tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="rules">Rules tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="layers">Layers tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="rulegroups">Rulegroups tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="winconditions">Winconditions tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="ruleflow">Rule Flow tab</button>' +
-    '<button class="view-tab" type="button" data-game-tab="source">Source tab</button>' +
-    '</div>';
+function renderGameTabs(game) {
+  return '<div class="view-tabs">' + reportDefinitionsForGame(game).map(report =>
+    '<button class="view-tab' + (report.id === activeReportId ? ' active' : '') + '" type="button" data-report-tab="' + escapeText(report.id) + '">' + escapeText(report.title) + '</button>'
+  ).join('') + '</div>';
 }
-
-function renderObjectMatrix(game) {
-  const head = objectColumns.map(column => {
-    const sorted = activeObjectSortColumn && activeObjectSortColumn.key === column.key;
-    const marker = sorted ? (activeObjectSortDirection === 'asc' ? ' asc' : ' desc') : '';
-    return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-object-sort-key="' + escapeText(column.key) + '" title="' + escapeText(column.label) + '">' + escapeText(column.label + marker) + '</button>';
-  }).join('');
-  const rows = sortedObjectRows(game).map(row => objectColumns.map(column => {
-    const key = column.key;
-    const value = row[key];
-    const shown = typeof value === 'boolean' ? (value ? 'yes' : '-') : (value == null ? '-' : value);
-    const quiet = shown === '-' || shown === 'none' ? ' quiet' : '';
-    const name = key === 'name' ? ' name' : '';
-    return '<button type="button" class="cell' + name + quiet + '" data-object="' + escapeText(row.name) + '" data-object-cell="' + escapeText(key) + '">' + escapeText(shown) + '</button>';
-  }).join('')).join('');
-  return '<div class="matrix-shell"><div class="matrix-scroll"><div class="matrix object-matrix">' + head + rows + '</div></div></div>';
+function renderInspectorPayload(payload) {
+  if (!payload) return '<h3>Inspector</h3><p class="empty">No row selected.</p>';
+  const factsHtml = payload.facts && payload.facts.length
+    ? '<dl>' + payload.facts.map(item => '<dt>' + escapeText(item.label) + '</dt><dd>' + escapeText(item.value) + '</dd>').join('') + '</dl>'
+    : '<p class="empty">No facts available.</p>';
+  const detailsHtml = payload.details && payload.details.length
+    ? '<div>' + payload.details.map(detail => '<pre><code>' + escapeText(detail) + '</code></pre>').join('') + '</div>'
+    : '';
+  return '<h3>' + escapeText(payload.title || 'Inspector') + '</h3>' + factsHtml + detailsHtml;
 }
-
-function boolText(value) {
-  return value ? 'yes' : '-';
+function findReportRow(game, reportId, rowId) {
+  const report = reportDefinitionsForGame(game).find(item => item.id === reportId);
+  if (!report || !report.rows) return null;
+  return report.rows.find((row, index) => String(rowIdentity(row, index)) === String(rowId)) || null;
 }
-function summaryPill(label, value) {
-  return '<span class="pill">' + escapeText(label) + ' ' + escapeText(value) + '</span>';
+function showInspectorForReportRow(game, reportId, rowId) {
+  const row = findReportRow(game, reportId, rowId);
+  inspector.innerHTML = '<button type="button" id="closeInspector">Close</button>' + renderInspectorPayload(row && row.inspector);
+  inspector.classList.add('open');
+  document.getElementById('closeInspector').addEventListener('click', closeInspector);
 }
-function renderSummary(title, items) {
-  return '<h4>' + escapeText(title) + '</h4><div class="analysis-summary">' + items.map(item => summaryPill(item[0], item[1])).join('') + '</div>';
+function showInspectorForSourceLine(game, lineNumber) {
+  const row = (game.source_lines || []).find(item => String(item.line) === String(lineNumber));
+  const annotations = row && row.annotations ? row.annotations.map(annotation => annotation.label + (annotation.title ? ': ' + annotation.title : '')) : [];
+  const payload = row ? {
+    title: 'Source line ' + row.line,
+    facts: [
+      { label: 'rules', value: row.rule_count || 0 },
+      { label: 'winconditions', value: row.wincondition_count || 0 },
+      { label: 'object', value: row.object_name || '-' },
+    ],
+    details: [row.text || ''].concat(annotations),
+  } : null;
+  inspector.innerHTML = '<button type="button" id="closeInspector">Close</button>' + renderInspectorPayload(payload);
+  inspector.classList.add('open');
+  document.getElementById('closeInspector').addEventListener('click', closeInspector);
 }
-function tableShell(html) {
-  return '<div class="matrix-shell"><div class="matrix-scroll">' + html + '</div></div>';
-}
-function renderRulesTab(game) {
-  const rows = game.rule_rows.map(row =>
-    '<tr>' +
-      '<td>' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + '</td>' +
-      '<td>' + escapeText(row.section) + '</td>' +
-      '<td>' + escapeText(row.group) + '</td>' +
-      '<td data-rule="' + escapeText(row.compiled_id) + '" data-rule-cell="cosmetic">' + escapeText(boolText(row.cosmetic)) + '</td>' +
-      '<td data-rule="' + escapeText(row.compiled_id) + '" data-rule-cell="inert_command">' + escapeText(boolText(row.inert_command)) + '</td>' +
-      '<td data-rule="' + escapeText(row.compiled_id) + '" data-rule-cell="command_only">' + escapeText(boolText(row.command_only)) + '</td>' +
-      '<td><code>' + escapeText(row.text) + '</code></td>' +
-    '</tr>'
-  ).join('');
-  return '<div class="analysis-block"><h3>Rule analysis</h3>' +
-    renderSummary('Rules summary', [
-      ['source lines', game.corpus_metrics.rules.source],
-      ['compiled', game.corpus_metrics.rules.compiled],
-      ['cosmetic', game.corpus_metrics.rules.cosmetic],
-      ['inert commands', game.corpus_metrics.rules.inert_command],
-      ['action', game.corpus_metrics.rules.action],
-      ['tick', game.corpus_metrics.rules.tick],
-    ]) +
-    tableShell('<table class="analysis-table"><thead><tr><th>Line</th><th>Section</th><th>Group</th><th>Cosmetic</th><th>Inert command</th><th>Command only</th><th>Rule</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
-}
-
-function renderLayersTab(game) {
-  const rows = game.layer_rows.map(layer =>
-    '<tr>' +
-      '<td>' + escapeText(layer.id) + '</td>' +
-      '<td>' + escapeText(layer.objects.join(', ')) + '</td>' +
-      '<td data-layer="' + escapeText(layer.id) + '" data-layer-cell="object_count">' + escapeText(layer.objects.length) + '</td>' +
-      '<td data-layer="' + escapeText(layer.id) + '" data-layer-cell="static">' + escapeText(boolText(layer.static)) + '</td>' +
-      '<td data-layer="' + escapeText(layer.id) + '" data-layer-cell="inert">' + escapeText(boolText(layer.inert)) + '</td>' +
-    '</tr>'
-  ).join('');
-  return '<div class="analysis-block"><h3>Layer analysis</h3>' +
-    renderSummary('Layer summary', [
-      ['layers', game.corpus_metrics.layers.total],
-      ['static', game.corpus_metrics.layers.static],
-      ['inert', game.corpus_metrics.layers.inert],
-    ]) +
-    tableShell('<table class="analysis-table"><thead><tr><th>Layer</th><th>Objects</th><th>Object count</th><th>Static</th><th>Inert</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
-}
-
-function renderRulegroupsTab(game) {
-  const rows = game.rulegroup_rows.map(group =>
-    '<tr>' +
-      '<td>' + escapeText(group.id) + '</td>' +
-      '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="source_lines">' + escapeText(group.source_lines) + '</td>' +
-      '<td>' + escapeText(group.section) + '</td>' +
-      '<td>' + escapeText(group.rule_count) + '</td>' +
-      '<td data-rulegroup="' + escapeText(group.id) + '" data-rulegroup-cell="splittable">' + escapeText(boolText(group.splittable)) + '</td>' +
-      '<td>' + escapeText(group.status) + '</td>' +
-      '<td><code>' + escapeText(group.rule_preview.join('\\n') || '-') + '</code></td>' +
-    '</tr>'
-  ).join('');
-  return '<div class="analysis-block"><h3>Rulegroup analysis</h3>' +
-    renderSummary('Rulegroup summary', [
-      ['rulegroups', game.corpus_metrics.rulegroups.total],
-      ['splittable', game.corpus_metrics.rulegroups.splittable],
-    ]) +
-    tableShell('<table class="analysis-table"><thead><tr><th>Rulegroup</th><th>Source lines</th><th>Section</th><th>Rules</th><th>Splittable</th><th>Flow status</th><th>Preview</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
-}
-
-function renderRuleFlowTab(game) {
-  const groups = game.rulegroup_flow || [];
-  if (groups.length === 0) {
-    return '<div class="analysis-block"><h3>Rule flow analysis</h3><p class="empty">No splittable or rerun-sensitive rulegroups were reported for this game.</p></div>';
-  }
-  const rows = groups.map(group =>
-    '<tr data-rule-flow-group="' + escapeText(group.id) + '">' +
-      '<td>' + escapeText(group.id) + '</td>' +
-      '<td>' + escapeText(group.section) + '</td>' +
-      '<td>' + escapeText(boolText(group.split_candidate)) + '</td>' +
-      '<td>' + escapeText(group.component_count) + '</td>' +
-      '<td>' + escapeText(group.interaction_edge_count) + '</td>' +
-      '<td>' + escapeText(group.rerun_mask_count) + '</td>' +
-      '<td><code>' + escapeText(group.rules.map(rule => '[' + (rule.component == null ? '-' : rule.component) + '] ' + rule.text).join('\\n') || '-') + '</code></td>' +
-    '</tr>'
-  ).join('');
-  return '<div class="analysis-block"><h3>Rule flow analysis</h3>' +
-    renderSummary('Flow summary', [
-      ['reported groups', game.rulegroup_flow_total],
-      ['splittable', game.rulegroup_flow_split_total],
-      ['shown', groups.length],
-    ]) +
-    tableShell('<table class="analysis-table"><thead><tr><th>Rulegroup</th><th>Section</th><th>Splittable</th><th>Components</th><th>Interactions</th><th>Rerun masks</th><th>Compiled rules by component</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
-}
-
-function ruleSummariesTitle(rules) {
-  if (!rules || rules.length === 0) return '';
-  return rules.map(rule => rule.compiled_id + ': ' + rule.text).join('\\n');
-}
-function sourceBadges(row) {
-  const badges = [];
-  if (row.rule_summaries && row.rule_summaries.length) {
-    const byGroup = new Map();
-    for (const rule of row.rule_summaries) {
-      if (!byGroup.has(rule.group)) byGroup.set(rule.group, []);
-      byGroup.get(rule.group).push(rule);
-    }
-    for (const [group, rules] of byGroup.entries()) {
-      badges.push({ text: group, title: ruleSummariesTitle(rules) });
-    }
-  } else if (row.rule_count) {
-    badges.push({ text: row.rule_count + ' rule' + (row.rule_count === 1 ? '' : 's'), title: '' });
-  }
-  if (row.wincondition_count) badges.push({ text: row.wincondition_count + ' wincondition' + (row.wincondition_count === 1 ? '' : 's'), title: '' });
-  if (row.object_name) {
-    badges.push({ text: 'object ' + row.object_name, title: '' });
-    if (row.object_traits && row.object_traits.static) badges.push({ text: 'static', title: '' });
-    if (row.object_traits && row.object_traits.temporary) badges.push({ text: 'temporary', title: '' });
-    if (row.object_traits && row.object_traits.cosmetic) badges.push({ text: 'cosmetic', title: '' });
-    if (row.object_traits && row.object_traits.quantity) badges.push({ text: row.object_traits.quantity, title: '' });
-  }
-  return badges.map(badge => '<span class="chip"' + (badge.title ? ' title="' + escapeText(badge.title) + '"' : '') + '>' + escapeText(badge.text) + '</span>').join('');
-}
-function renderSourceTab(game) {
-  if (!game.source_lines || game.source_lines.length === 0) {
-    return '<div class="analysis-block"><h3>Best-effort source annotation</h3><p class="empty">Source text was not embedded in this explorer build.</p>' +
-      '<p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open source in editor</a></p></div>';
-  }
-  const rows = game.source_lines.map(row =>
-    '<div class="source-line" data-source-line="' + escapeText(row.line) + '">' +
-      '<span class="line-no">' + escapeText(row.line) + '</span>' +
-      '<code>' + escapeText(row.text || ' ') + '</code>' +
-      '<span class="source-badges">' + sourceBadges(row) + '</span>' +
-    '</div>'
-  ).join('');
-  return '<div class="analysis-block"><h3>Best-effort source annotation</h3>' +
-    '<p class="path">Source line annotations are best-effort because static analysis facts are produced after compilation, so source mappings can be one-to-many.</p>' +
-    '<p><a target="_blank" href="' + escapeText(game.editor_href) + '">Open source in editor</a></p>' +
-    '<div class="source-list">' + rows + '</div></div>';
-}
-
-function renderWinconditionsTab(game) {
-  const rows = game.wincondition_rows.map(row =>
-    '<tr>' +
-      '<td>' + escapeText(row.source_line == null ? 'compiled' : row.source_line) + '</td>' +
-      '<td>' + escapeText(row.text) + '</td>' +
-      '<td data-wincondition="' + escapeText(row.id) + '" data-wincondition-cell="subjects">' + escapeText(row.subjects.join(', ') || '-') + '</td>' +
-      '<td data-wincondition="' + escapeText(row.id) + '" data-wincondition-cell="targets">' + escapeText(row.targets.join(', ') || '-') + '</td>' +
-      '<td data-wincondition="' + escapeText(row.id) + '" data-wincondition-cell="wake_edge_count">' + escapeText(row.wake_edge_count) + '</td>' +
-    '</tr>'
-  ).join('');
-  return '<div class="analysis-block"><h3>Wincondition analysis</h3>' +
-    renderSummary('Wincondition summary', [
-      ['winconditions', game.corpus_metrics.winconditions.total],
-      ['wake edges', game.winflow.wake_edge_count],
-    ]) +
-    tableShell('<table class="analysis-table"><thead><tr><th>Line</th><th>Wincondition</th><th>Subjects</th><th>Targets</th><th>Wake edges</th></tr></thead><tbody>' + rows + '</tbody></table>') + '</div>';
-}
-
-function renderGameTabPanel(game, tab) {
-  if (tab === 'rules') return renderRulesTab(game);
-  if (tab === 'layers') return renderLayersTab(game);
-  if (tab === 'rulegroups') return renderRulegroupsTab(game);
-  if (tab === 'ruleflow') return renderRuleFlowTab(game);
-  if (tab === 'source') return renderSourceTab(game);
-  if (tab === 'winconditions') return renderWinconditionsTab(game);
-  return renderObjectMatrix(game);
-}
-
 function renderGame() {
   const game = selected;
   if (!game) {
     gameView.innerHTML = '<div class="detail-pane">No game selected.</div>';
     return;
   }
-  gameView.innerHTML = renderGameHeader(game) + renderGameTabs() + '<section id="gameTabPanel">' + renderGameTabPanel(game, activeGameTab) + '</section>';
-  for (const tab of gameView.querySelectorAll('[data-game-tab]')) {
-    tab.classList.toggle('active', tab.dataset.gameTab === activeGameTab);
+  gameView.innerHTML = renderGameHeader(game) + renderGameTabs(game) + '<section id="gameTabPanel">' + renderGameReport(game, activeReportId) + '</section>';
+  for (const tab of gameView.querySelectorAll('[data-report-tab]')) {
     tab.addEventListener('click', () => {
-      activeGameTab = tab.dataset.gameTab;
+      activeReportId = tab.dataset.reportTab;
+      selectedReportRow = null;
       renderGame();
     });
   }
-  for (const head of gameView.querySelectorAll('[data-object-sort-key]')) {
-    head.addEventListener('click', () => {
-      const column = objectColumns.find(item => item.key === head.dataset.objectSortKey);
-      if (column) handleObjectHeaderSort(column);
+  for (const head of gameView.querySelectorAll('[data-report-sort-key]')) {
+    head.addEventListener('click', () => handleReportSort(head.dataset.reportId, head.dataset.reportSortKey));
+  }
+  for (const row of gameView.querySelectorAll('[data-report-row]')) {
+    row.addEventListener('click', () => {
+      selectedReportRow = { reportId: row.dataset.reportId, rowId: row.dataset.reportRow };
+      showInspectorForReportRow(game, selectedReportRow.reportId, selectedReportRow.rowId);
+      renderGame();
     });
   }
-  for (const cell of gameView.querySelectorAll('[data-object]')) {
-    cell.addEventListener('click', () => showInspector(game, 'object.' + cell.dataset.objectCell, cell.dataset.object));
+  for (const sourceLine of gameView.querySelectorAll('[data-source-line]')) {
+    sourceLine.addEventListener('click', () => showInspectorForSourceLine(game, sourceLine.dataset.sourceLine));
   }
 }
 function setView(view) {
@@ -1531,16 +1693,16 @@ function closeInspector() {
   inspector.innerHTML = '';
 }
 function render() {
-  renderCorpus();
+  renderCorpusMatrix();
   renderGame();
   setView(activeView);
 }
 corpusTab.addEventListener('click', () => setView('corpus'));
 gameTab.addEventListener('click', () => setView('game'));
-search.addEventListener('input', () => { renderCorpus(); if (activeView === 'game') renderGame(); });
+search.addEventListener('input', () => { renderCorpusMatrix(); if (activeView === 'game') renderGame(); });
 sort.addEventListener('change', () => {
   activeSortColumn = null;
-  renderCorpus();
+  renderCorpusMatrix();
   if (activeView === 'game') renderGame();
 });
 render();
