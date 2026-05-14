@@ -16,6 +16,7 @@ const MAX_RERUN_MASKS = 80;
 const MAX_RERUN_MASK_ENTRIES = 80;
 const MAX_COMPONENT_RULE_IDS = 600;
 const MAX_WINFLOW_EDGES = 80;
+const CLAIM_DESCRIPTIONS_PATH = path.join(__dirname, 'static_analysis_claim_descriptions.json');
 
 function usage(exitCode = 1) {
     const text = [
@@ -71,6 +72,50 @@ function truncateText(value, maxLength = MAX_RULE_TEXT) {
     const text = String(value);
     if (text.length <= maxLength) return text;
     return `${text.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function claimDescriptionEntry(field) {
+    if (!field || typeof field !== 'object') return null;
+    const entry = {};
+    if (field.description) entry.description = field.description;
+    if (field.specification) entry.specification = field.specification;
+    return entry.description || entry.specification ? entry : null;
+}
+
+function addClaimDescription(map, key, field) {
+    if (!key || map[key]) return;
+    const entry = claimDescriptionEntry(field);
+    if (entry) map[key] = entry;
+}
+
+function collectClaimFieldDescriptions(map, schemaName, field, parents = []) {
+    if (!field || !field.name) return;
+    const pathParts = parents.concat(field.name);
+    addClaimDescription(map, `${schemaName}.${pathParts.join('.')}`, field);
+    addClaimDescription(map, `${schemaName}.${field.name}`, field);
+
+    const childParents = pathParts;
+    for (const child of field.fields || []) {
+        collectClaimFieldDescriptions(map, schemaName, child, childParents);
+    }
+    if (field.items && Array.isArray(field.items.fields)) {
+        for (const child of field.items.fields) {
+            collectClaimFieldDescriptions(map, schemaName, child, childParents);
+        }
+    }
+}
+
+function loadClaimDescriptions() {
+    const doc = JSON.parse(fs.readFileSync(CLAIM_DESCRIPTIONS_PATH, 'utf8'));
+    const map = {};
+    for (const schema of doc.fixtureSchemas || []) {
+        if (!schema.name) continue;
+        addClaimDescription(map, schema.name, schema);
+        for (const field of schema.fields || []) {
+            collectClaimFieldDescriptions(map, schema.name, field);
+        }
+    }
+    return map;
 }
 
 function allRules(report) {
@@ -848,36 +893,65 @@ function safeJsonForScript(value) {
     return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
+const CLAIM_DESCRIPTIONS = loadClaimDescriptions();
+
+function readableClaimKey(key) {
+    return String(key).split('.').pop().replace(/_/g, ' ');
+}
+
+function claimTooltipBlock(claimKey, descriptions) {
+    const entry = descriptions[claimKey];
+    if (!entry) return '';
+    return [entry.description, entry.specification]
+        .filter(Boolean)
+        .filter((text, index, values) => index === 0 || text !== values[0])
+        .join('\n\n');
+}
+
+function headerTooltip(column, descriptions = CLAIM_DESCRIPTIONS) {
+    const claims = column.claims || (column.claim ? [column.claim] : []);
+    const blocks = claims
+        .map(claim => ({ claim, text: claimTooltipBlock(claim, descriptions) }))
+        .filter(item => item.text);
+    if (blocks.length === 1) return blocks[0].text;
+    if (blocks.length > 1) {
+        return blocks
+            .map(item => `${readableClaimKey(item.claim)}: ${item.text}`)
+            .join('\n\n');
+    }
+    return column.description || column.label || column.key || '';
+}
+
 const CORPUS_COLUMNS = [
     { group: '', key: 'display_name', label: 'Game', kind: 'game', className: '' },
     { group: 'Objects', key: 'corpus_metrics.objects.total', label: 'objects', kind: 'objects.total', className: '' },
-    { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects' },
-    { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects' },
-    { group: 'Objects', key: 'corpus_metrics.objects.temporary', label: 'temporary', kind: 'objects.temporary', className: 'objects' },
-    { group: 'Objects', key: 'corpus_metrics.objects.cosmetic', label: 'cosmetic', kind: 'objects.cosmetic', className: 'objects' },
-    { group: 'Objects', key: 'corpus_metrics.objects.mergable', label: 'mergable objects', kind: 'objects.mergable', className: 'objects' },
+    { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects', claim: 'object_tags.static' },
+    { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects', claims: ['object_tags.quantity_never_increases', 'object_tags.quantity_never_decreases'] },
+    { group: 'Objects', key: 'corpus_metrics.objects.temporary', label: 'temporary', kind: 'objects.temporary', className: 'objects', claim: 'object_tags.temporary' },
+    { group: 'Objects', key: 'corpus_metrics.objects.cosmetic', label: 'cosmetic', kind: 'objects.cosmetic', className: 'objects', claim: 'object_tags.cosmetic' },
+    { group: 'Objects', key: 'corpus_metrics.objects.mergable', label: 'mergable objects', kind: 'objects.mergable', className: 'objects', claim: 'mergeability' },
     { group: 'Layers', key: 'corpus_metrics.layers.total', label: 'layers', kind: 'layers.total', className: '' },
-    { group: 'Layers', key: 'corpus_metrics.layers.static', label: 'static layers', kind: 'layers.static', className: 'layers' },
+    { group: 'Layers', key: 'corpus_metrics.layers.static', label: 'static layers', kind: 'layers.static', className: 'layers', claim: 'object_tags.static' },
     { group: 'Layers', key: 'corpus_metrics.layers.inert', label: 'inert layers', kind: 'layers.inert', className: 'layers' },
     { group: 'Rules', key: 'corpus_metrics.rules.source', label: 'source rules', kind: 'rules.source', className: '' },
     { group: 'Rules', key: 'corpus_metrics.rules.compiled', label: 'compiled rules', kind: 'rules.compiled', className: '' },
-    { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules' },
+    { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules', claims: ['movement_action.actionInput', 'movement_action.actionNoop'] },
     { group: 'Rules', key: 'corpus_metrics.rules.tick', label: 'tick', kind: 'rules.tick', className: 'rules' },
-    { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules' },
+    { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules', claim: 'rule_tags.cosmetic' },
     { group: 'Rules', key: 'corpus_metrics.rules.inert_command', label: 'inert command rules', kind: 'rules.inert_command', className: 'rules' },
     { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.total', label: 'rulegroups', kind: 'rulegroups.total', className: '' },
-    { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups' },
+    { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups', claim: 'rulegroup_flow.split_candidate' },
     { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
 ];
 
 const OBJECT_COLUMNS = [
     { key: 'name', label: 'Object' },
     { key: 'layer', label: 'Layer' },
-    { key: 'quantity', label: 'Quantity' },
-    { key: 'static', label: 'Static' },
-    { key: 'temporary', label: 'Temporary' },
-    { key: 'cosmetic', label: 'Cosmetic' },
-    { key: 'merge_group', label: 'Merge' },
+    { key: 'quantity', label: 'Quantity', claims: ['object_tags.quantity_never_increases', 'object_tags.quantity_never_decreases'] },
+    { key: 'static', label: 'Static', claim: 'object_tags.static' },
+    { key: 'temporary', label: 'Temporary', claim: 'object_tags.temporary' },
+    { key: 'cosmetic', label: 'Cosmetic', claim: 'object_tags.cosmetic' },
+    { key: 'merge_group', label: 'Merge', claim: 'mergeability' },
     { key: 'rule_count', label: 'Rules' },
     { key: 'win_role', label: 'Win role' },
 ];
@@ -908,7 +982,7 @@ function renderCorpusMatrixHtml(games) {
         `<div class="cell group" style="grid-column: span ${span}">${escapeHtml(label)}</div>`
     ).join('');
     const headHtml = CORPUS_COLUMNS.map(column =>
-        `<button type="button" class="cell head sortable" data-sort-key="${escapeHtml(column.key)}" title="${escapeHtml(column.label)}">${escapeHtml(column.label)}</button>`
+        `<button type="button" class="cell head sortable" data-sort-key="${escapeHtml(column.key)}" title="${escapeHtml(headerTooltip(column))}">${escapeHtml(column.label)}</button>`
     ).join('');
     const rowHtml = games.map(game => CORPUS_COLUMNS.map(column => {
         const value = column.kind === 'game' ? game.display_name : valueAtPath(game, column.key);
@@ -940,7 +1014,7 @@ function renderGameTabsHtml() {
 
 function renderObjectMatrixHtml(game) {
     const head = OBJECT_COLUMNS.map(column =>
-        `<button type="button" class="cell head sortable" data-object-sort-key="${escapeHtml(column.key)}" title="${escapeHtml(column.label)}">${escapeHtml(column.label)}</button>`
+        `<button type="button" class="cell head sortable" data-object-sort-key="${escapeHtml(column.key)}" title="${escapeHtml(headerTooltip(column))}">${escapeHtml(column.label)}</button>`
     ).join('');
     const rows = game.object_rows.map(row => OBJECT_COLUMNS.map(column => {
         const key = column.key;
@@ -1087,6 +1161,7 @@ code { white-space: pre-wrap; }
 </main>
 <script id="explorer-data" type="application/json">${safeJsonForScript(model)}</script>
 <script>
+const claimDescriptions = ${safeJsonForScript(CLAIM_DESCRIPTIONS)};
 const model = JSON.parse(document.getElementById('explorer-data').textContent);
 let games = model.games.slice();
 const corpusView = document.getElementById('corpusView');
@@ -1112,6 +1187,30 @@ document.getElementById('totals').textContent =
   model.totals.splittable_rulegroups + ' splittable rulegroups';
 function escapeText(value) {
   return String(value).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+}
+function readableClaimKey(key) {
+  return String(key).split('.').pop().replace(/_/g, ' ');
+}
+function claimTooltipBlock(claimKey) {
+  const entry = claimDescriptions[claimKey];
+  if (!entry) return '';
+  return [entry.description, entry.specification]
+    .filter(Boolean)
+    .filter((text, index, values) => index === 0 || text !== values[0])
+    .join('\\n\\n');
+}
+function headerTooltip(column) {
+  const claims = column.claims || (column.claim ? [column.claim] : []);
+  const blocks = claims
+    .map(claim => ({ claim, text: claimTooltipBlock(claim) }))
+    .filter(item => item.text);
+  if (blocks.length === 1) return blocks[0].text;
+  if (blocks.length > 1) {
+    return blocks
+      .map(item => readableClaimKey(item.claim) + ': ' + item.text)
+      .join('\\n\\n');
+  }
+  return column.description || column.label || column.key || '';
 }
 function searchable(game) {
   return [
@@ -1153,33 +1252,33 @@ function visibleGames() {
 const corpusColumns = [
   { group: '', key: 'display_name', label: 'Game', kind: 'game', className: '' },
   { group: 'Objects', key: 'corpus_metrics.objects.total', label: 'objects', kind: 'objects.total', className: '' },
-  { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects' },
-  { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects' },
-  { group: 'Objects', key: 'corpus_metrics.objects.temporary', label: 'temporary', kind: 'objects.temporary', className: 'objects' },
-  { group: 'Objects', key: 'corpus_metrics.objects.cosmetic', label: 'cosmetic', kind: 'objects.cosmetic', className: 'objects' },
-  { group: 'Objects', key: 'corpus_metrics.objects.mergable', label: 'mergable objects', kind: 'objects.mergable', className: 'objects' },
+  { group: 'Objects', key: 'corpus_metrics.objects.static', label: 'static', kind: 'objects.static', className: 'objects', claim: 'object_tags.static' },
+  { group: 'Objects', key: 'corpus_metrics.objects.constant_count', label: 'constant count', kind: 'objects.constant_count', className: 'objects', claims: ['object_tags.quantity_never_increases', 'object_tags.quantity_never_decreases'] },
+  { group: 'Objects', key: 'corpus_metrics.objects.temporary', label: 'temporary', kind: 'objects.temporary', className: 'objects', claim: 'object_tags.temporary' },
+  { group: 'Objects', key: 'corpus_metrics.objects.cosmetic', label: 'cosmetic', kind: 'objects.cosmetic', className: 'objects', claim: 'object_tags.cosmetic' },
+  { group: 'Objects', key: 'corpus_metrics.objects.mergable', label: 'mergable objects', kind: 'objects.mergable', className: 'objects', claim: 'mergeability' },
   { group: 'Layers', key: 'corpus_metrics.layers.total', label: 'layers', kind: 'layers.total', className: '' },
-  { group: 'Layers', key: 'corpus_metrics.layers.static', label: 'static layers', kind: 'layers.static', className: 'layers' },
+  { group: 'Layers', key: 'corpus_metrics.layers.static', label: 'static layers', kind: 'layers.static', className: 'layers', claim: 'object_tags.static' },
   { group: 'Layers', key: 'corpus_metrics.layers.inert', label: 'inert layers', kind: 'layers.inert', className: 'layers' },
   { group: 'Rules', key: 'corpus_metrics.rules.source', label: 'source rules', kind: 'rules.source', className: '' },
   { group: 'Rules', key: 'corpus_metrics.rules.compiled', label: 'compiled rules', kind: 'rules.compiled', className: '' },
-  { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules' },
+  { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules', claims: ['movement_action.actionInput', 'movement_action.actionNoop'] },
   { group: 'Rules', key: 'corpus_metrics.rules.tick', label: 'tick', kind: 'rules.tick', className: 'rules' },
-  { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules' },
+  { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules', claim: 'rule_tags.cosmetic' },
   { group: 'Rules', key: 'corpus_metrics.rules.inert_command', label: 'inert command rules', kind: 'rules.inert_command', className: 'rules' },
   { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.total', label: 'rulegroups', kind: 'rulegroups.total', className: '' },
-  { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups' },
+  { group: 'Rulegroups', key: 'corpus_metrics.rulegroups.splittable', label: 'splittable rulegroups', kind: 'rulegroups.splittable', className: 'rulegroups', claim: 'rulegroup_flow.split_candidate' },
   { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
 ];
 const objectColumns = [
   { key: 'sprite', label: 'Sprite', type: 'sprite' },
   { key: 'name', label: 'Object' },
   { key: 'layer', label: 'Layer' },
-  { key: 'quantity', label: 'Quantity' },
-  { key: 'static', label: 'Static' },
-  { key: 'temporary', label: 'Temporary' },
-  { key: 'cosmetic', label: 'Cosmetic' },
-  { key: 'merge_group', label: 'Merge' },
+  { key: 'quantity', label: 'Quantity', claims: ['object_tags.quantity_never_increases', 'object_tags.quantity_never_decreases'] },
+  { key: 'static', label: 'Static', claim: 'object_tags.static' },
+  { key: 'temporary', label: 'Temporary', claim: 'object_tags.temporary' },
+  { key: 'cosmetic', label: 'Cosmetic', claim: 'object_tags.cosmetic' },
+  { key: 'merge_group', label: 'Merge', claim: 'mergeability' },
   { key: 'rule_count', label: 'Rules' },
   { key: 'win_role', label: 'Win role' },
 ];
@@ -1250,7 +1349,7 @@ function renderCorpusMatrix() {
   const headHtml = corpusColumns.map(column => {
     const sorted = activeSortColumn && activeSortColumn.key === column.key;
     const marker = sorted ? ' ' + sortDirectionIcon(activeSortDirection) : '';
-    return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-sort-key="' + escapeText(column.key) + '" title="' + escapeText(column.label) + '">' + escapeText(column.label + marker) + '</button>';
+    return '<button type="button" class="cell head sortable' + (sorted ? ' sorted' : '') + '" data-sort-key="' + escapeText(column.key) + '" title="' + escapeText(headerTooltip(column)) + '">' + escapeText(column.label + marker) + '</button>';
   }).join('');
   const rowHtml = shown.map(game => corpusColumns.map(column => {
     const value = column.kind === 'game' ? game.display_name : valueAt(game, column.key);
@@ -1366,7 +1465,7 @@ function reportDefinitionsForGame(game) {
         { key: 'source_line', label: 'Line', type: 'line' },
         { key: 'section', label: 'Section', type: 'status' },
         { key: 'group', label: 'Group', type: 'id' },
-        { key: 'cosmetic', label: 'Cosmetic', type: 'boolean' },
+        { key: 'cosmetic', label: 'Cosmetic', type: 'boolean', claim: 'rule_tags.cosmetic' },
         { key: 'inert_command', label: 'Inert command', type: 'boolean' },
         { key: 'command_only', label: 'Command only', type: 'boolean' },
         { key: 'text', label: 'Rule', type: 'preview' },
@@ -1388,7 +1487,7 @@ function reportDefinitionsForGame(game) {
         { key: 'id', label: 'Layer', type: 'count' },
         { key: 'objects', label: 'Objects', type: 'preview', value: row => row.objects.join(', ') },
         { key: 'object_count', label: 'Object count', type: 'count' },
-        { key: 'static', label: 'Static', type: 'boolean' },
+        { key: 'static', label: 'Static', type: 'boolean', claim: 'object_tags.static' },
         { key: 'inert', label: 'Inert', type: 'boolean' },
       ],
       rows: game.layer_rows,
@@ -1408,8 +1507,8 @@ function reportDefinitionsForGame(game) {
         { key: 'source_lines', label: 'Source lines', type: 'line' },
         { key: 'section', label: 'Section', type: 'status' },
         { key: 'rule_count', label: 'Rules', type: 'count' },
-        { key: 'splittable', label: 'Splittable', type: 'boolean' },
-        { key: 'status', label: 'Flow status', type: 'status' },
+        { key: 'splittable', label: 'Splittable', type: 'boolean', claim: 'rulegroup_flow.split_candidate' },
+        { key: 'status', label: 'Flow status', type: 'status', claim: 'rulegroup_flow.blockers' },
         { key: 'rule_preview', label: 'Preview', type: 'preview' },
       ],
       rows: game.rulegroup_rows,
@@ -1428,10 +1527,10 @@ function reportDefinitionsForGame(game) {
       columns: [
         { key: 'id', label: 'Rulegroup', type: 'id' },
         { key: 'section', label: 'Section', type: 'status' },
-        { key: 'split_candidate', label: 'Splittable', type: 'boolean' },
-        { key: 'component_count', label: 'Components', type: 'count' },
-        { key: 'interaction_edge_count', label: 'Interactions', type: 'count' },
-        { key: 'rerun_mask_count', label: 'Rerun masks', type: 'count' },
+        { key: 'split_candidate', label: 'Splittable', type: 'boolean', claim: 'rulegroup_flow.split_candidate' },
+        { key: 'component_count', label: 'Components', type: 'count', claim: 'rulegroup_flow.components_count' },
+        { key: 'interaction_edge_count', label: 'Interactions', type: 'count', claim: 'rulegroup_flow.interactionEdges' },
+        { key: 'rerun_mask_count', label: 'Rerun masks', type: 'count', claim: 'rulegroup_flow.rerunMasks' },
         { key: 'rules', label: 'Compiled rules by component', type: 'preview', value: row => row.rules.map(rule => '[' + (rule.component == null ? '-' : rule.component) + '] ' + rule.text).join('\\n') },
       ],
       rows: game.rulegroup_flow,
@@ -1450,9 +1549,9 @@ function reportDefinitionsForGame(game) {
       columns: [
         { key: 'source_line', label: 'Line', type: 'line' },
         { key: 'text', label: 'Wincondition', type: 'preview' },
-        { key: 'subjects', label: 'Subjects', type: 'preview', value: row => row.subjects.join(', ') || '-' },
-        { key: 'targets', label: 'Targets', type: 'preview', value: row => row.targets.join(', ') || '-' },
-        { key: 'wake_edge_count', label: 'Wake edges', type: 'count' },
+        { key: 'subjects', label: 'Subjects', type: 'preview', claim: 'wincondition_tags.subjects_matched', value: row => row.subjects.join(', ') || '-' },
+        { key: 'targets', label: 'Targets', type: 'preview', claim: 'wincondition_tags.targets_matched', value: row => row.targets.join(', ') || '-' },
+        { key: 'wake_edge_count', label: 'Wake edges', type: 'count', claim: 'winflow.wakeEdges' },
       ],
       rows: game.wincondition_rows,
       defaultSort: { key: 'source_line', direction: 'asc' },
@@ -1575,10 +1674,12 @@ function renderSortableTable(report) {
     const sorted = sort.key === column.key;
     const marker = sorted ? ' ' + sortDirectionIcon(sort.direction) : '';
     const disabled = column.sortable === false;
+    const title = headerTooltip(column);
+    const titleAttr = title ? ' title="' + escapeText(title) + '"' : '';
     const inner = disabled
       ? escapeText(column.label)
-      : '<button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="' + escapeText(column.key) + '">' + escapeText(column.label + marker) + '</button>';
-    return '<th class="' + escapeText(columnType(column).className || '') + '">' + inner + '</th>';
+      : '<button type="button" class="header-sort" data-report-id="' + escapeText(report.id) + '" data-report-sort-key="' + escapeText(column.key) + '"' + titleAttr + '>' + escapeText(column.label + marker) + '</button>';
+    return '<th class="' + escapeText(columnType(column).className || '') + '"' + titleAttr + '>' + inner + '</th>';
   }).join('');
   const body = rows.map((row, index) => {
     const rowId = rowIdentity(row, index);

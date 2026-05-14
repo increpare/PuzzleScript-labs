@@ -37,9 +37,18 @@ class FakeClassList {
     }
 }
 
+function decodeAttribute(value) {
+    return String(value)
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+}
+
 class FakeNode {
-    constructor(dataset = {}) {
+    constructor(dataset = {}, attrs = {}) {
         this.dataset = dataset;
+        this.title = attrs.title || '';
         this.classList = new FakeClassList();
         this.listeners = {};
     }
@@ -58,11 +67,7 @@ function toDatasetKey(name) {
 function attrsToDataset(attrs) {
     const dataset = {};
     for (const match of attrs.matchAll(/\sdata-([a-z0-9-]+)="([^"]*)"/g)) {
-        dataset[toDatasetKey(match[1])] = match[2]
-            .replace(/&quot;/g, '"')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&amp;/g, '&');
+        dataset[toDatasetKey(match[1])] = decodeAttribute(match[2]);
     }
     return dataset;
 }
@@ -73,7 +78,10 @@ function nodesWithDataAttribute(htmlFragment, attribute) {
     const tagPattern = /<[^>]*\sdata-[a-z0-9-]+="[^"]*"[^>]*>/g;
     for (const match of htmlFragment.matchAll(tagPattern)) {
         if (new RegExp('\\sdata-' + attr + '="').test(match[0])) {
-            nodes.push(new FakeNode(attrsToDataset(match[0])));
+            const titleMatch = match[0].match(/\stitle="([^"]*)"/);
+            nodes.push(new FakeNode(attrsToDataset(match[0]), {
+                title: titleMatch ? decodeAttribute(titleMatch[1]) : '',
+            }));
         }
     }
     return nodes;
@@ -126,6 +134,9 @@ const corpusView = document.getElementById('corpusView');
 const staticHeader = corpusView.querySelectorAll('[data-sort-key]')
     .find(node => node.dataset.sortKey === 'corpus_metrics.objects.static');
 if (!staticHeader) throw new Error('static corpus header missing');
+if (!/No solver-active rule can move/.test(staticHeader.title || '')) {
+    throw new Error('static corpus header description tooltip missing');
+}
 staticHeader.click();
 
 const firstGame = (corpusView.innerHTML.match(/data-game="([^"]+)"[^>]*data-cell-kind="game"/) || [])[1];
@@ -147,6 +158,13 @@ const gameView = document.getElementById('gameView');
 const reportHeader = gameView.querySelectorAll('[data-report-sort-key]')
     .find(node => node.dataset.reportSortKey === 'rule_count');
 if (!reportHeader) throw new Error('object report rule_count sort header missing');
+
+const cosmeticHeader = gameView.querySelectorAll('[data-report-sort-key]')
+    .find(node => node.dataset.reportSortKey === 'cosmetic');
+if (!cosmeticHeader) throw new Error('object cosmetic report header missing');
+if (!/Object is not read by any win condition/.test(cosmeticHeader.title || '')) {
+    throw new Error('object cosmetic report header description tooltip missing');
+}
 
 reportHeader.click();
 if (!gameView.innerHTML.includes('report-shell')) throw new Error('game report shell missing');
