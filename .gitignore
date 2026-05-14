@@ -13,3 +13,4 @@ node_modules/
 /Launch_ps_cli_2026-04-22_19.03.09_B5D2FB0F.trace
 /build-32
 *.o
+/.superpowers
