@@ -52,6 +52,8 @@ function buildObjects(state) {
             name: displayName(state, name),
             canonical_name: name,
             layer: state.objects[name].layer,
+            colors: (state.objects[name].colors || []).slice(),
+            spritematrix: (state.objects[name].spritematrix || []).map(row => row.slice()),
             tags: {},
         }))
         .sort((left, right) => left.id - right.id);

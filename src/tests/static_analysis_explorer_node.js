@@ -236,6 +236,16 @@ assert.ok(game.object_rows.some(row =>
     row.merge_group === 'merge_group_0' &&
     row.rule_count > 0
 ));
+assert.ok(game.object_rows.every(row =>
+    row.sprite &&
+    Array.isArray(row.sprite.colors) &&
+    Array.isArray(row.sprite.matrix)
+));
+assert.ok(game.object_rows.some(row =>
+    row.name === 'Player' &&
+    row.sprite.colors.includes('#FFFFFF') &&
+    row.sprite.matrix.length === 5
+));
 assert.ok(game.object_rows.some(row =>
     row.name === 'MarkerX' &&
     row.quantity === 'can increase' &&
@@ -349,11 +359,14 @@ assert.ok(html.includes('function reportDefinitionsForGame'));
 assert.ok(html.includes('function renderReportShell'));
 assert.ok(html.includes('function renderSortableTable'));
 assert.ok(html.includes('function renderSourceReport'));
+assert.ok(html.includes('function renderSpriteThumbnail'));
+assert.ok(html.includes('function renderBooleanBadge'));
 assert.ok(html.includes('function showInspectorForReportRow'));
 assert.ok(html.includes('function showInspectorForSourceLine'));
 assert.ok(html.includes('function renderInspectorPayload'));
 assert.ok(html.includes('const columnTypes ='));
 assert.ok(html.includes("id: 'objects'"));
+assert.ok(html.includes("{ key: 'sprite', label: 'Sprite', type: 'sprite' }"));
 assert.ok(html.includes("id: 'rules'"));
 assert.ok(html.includes("id: 'layers'"));
 assert.ok(html.includes("id: 'rulegroups'"));
@@ -373,6 +386,9 @@ assert.ok(html.includes('class="report-body"'));
 assert.ok(html.includes('class="report-notes"'));
 assert.ok(html.includes('class="sortable-table"'));
 assert.ok(html.includes('class="inspector-panel"'));
+assert.ok(html.includes('class="sprite-thumb"'));
+assert.ok(html.includes('class="boolean-badge yes"'));
+assert.ok(html.includes('class="boolean-badge no"'));
 assert.ok(html.includes('.report-shell'));
 assert.ok(html.includes('.report-header'));
 assert.ok(html.includes('.report-summary'));
@@ -380,6 +396,8 @@ assert.ok(html.includes('.report-body'));
 assert.ok(html.includes('.report-notes'));
 assert.ok(html.includes('.sortable-table'));
 assert.ok(html.includes('.inspector-panel'));
+assert.ok(html.includes('.sprite-thumb'));
+assert.ok(html.includes('.boolean-badge'));
 assert.ok(html.includes('data-report-sort-key="line"'));
 assert.ok(html.includes('data-report-sort-key="source_lines"'));
 assert.ok(html.includes('data-report-sort-key="wake_edge_count"'));

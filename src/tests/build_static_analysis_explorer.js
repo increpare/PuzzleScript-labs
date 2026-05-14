@@ -237,6 +237,13 @@ function yesNo(value) {
     return value ? 'yes' : '-';
 }
 
+function objectSprite(object) {
+    return {
+        colors: (object.colors || []).slice(),
+        matrix: (object.spritematrix || []).map(row => row.slice()),
+    };
+}
+
 function summarizeQuantity(objects) {
     const groups = {
         constant: [],
@@ -412,6 +419,7 @@ function summarizeObjectRows(report, mergeableGroups) {
             id: object.id,
             name: object.name,
             canonical_name: object.canonical_name,
+            sprite: objectSprite(object),
             layer: object.layer,
             quantity: quantityLabel(object),
             static: Boolean(object.tags && object.tags.static),
@@ -1020,9 +1028,14 @@ button.cell.name[data-game]:hover { text-decoration: underline; }
 .sortable-table tr:last-child td { border-bottom: 0; }
 .sortable-table button.header-sort { width: 100%; border: 0; background: transparent; color: inherit; text-align: inherit; padding: 0; cursor: pointer; font-weight: 650; }
 .sortable-table tr.selected td { background: #fff8d6; }
-.col-line, .col-count, .col-boolean { white-space: nowrap; text-align: right; }
+.col-line, .col-count, .col-boolean, .col-sprite { white-space: nowrap; text-align: center; }
 .col-id { white-space: nowrap; font-weight: 650; }
 .col-preview span { white-space: pre-wrap; }
+.sprite-thumb { display: inline-grid; grid-template-columns: repeat(5, 5px); grid-template-rows: repeat(5, 5px); gap: 0; padding: 2px; border: 1px solid var(--line); border-radius: 3px; background: #fff; vertical-align: middle; }
+.sprite-pixel { width: 5px; height: 5px; display: block; }
+.boolean-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; color: #fff; font-weight: 800; line-height: 1; }
+.boolean-badge.yes { background: #238043; }
+.boolean-badge.no { background: #bd3030; }
 .inspector-panel { position: fixed; right: 14px; bottom: 14px; width: min(460px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 28px)); overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 32px rgba(20, 30, 45, .18); padding: 12px; display: none; z-index: 5; }
 .inspector-panel.open { display: block; }
 .inspector-panel dl { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 4px 10px; }
@@ -1159,6 +1172,7 @@ const corpusColumns = [
   { group: 'Winconditions', key: 'corpus_metrics.winconditions.total', label: 'winconditions', kind: 'winconditions.total', className: 'wins' },
 ];
 const objectColumns = [
+  { key: 'sprite', label: 'Sprite', type: 'sprite' },
   { key: 'name', label: 'Object' },
   { key: 'layer', label: 'Layer' },
   { key: 'quantity', label: 'Quantity' },
@@ -1262,6 +1276,11 @@ function renderCorpusMatrix() {
   }
 }
 const columnTypes = {
+  sprite: {
+    className: 'col-sprite',
+    value(row) { return row.sprite || null; },
+    compare(left, right) { return compareScalar(left.name || '', right.name || ''); },
+  },
   line: {
     className: 'col-line',
     value(row, column) {
@@ -1321,11 +1340,11 @@ function reportDefinitionsForGame(game) {
         ['mergable', game.corpus_metrics.objects.mergable],
       ]),
       columns: objectColumns.map(column => Object.assign({}, column, {
-        type: column.key === 'name' ? 'id' :
+        type: column.type || (column.key === 'name' ? 'id' :
           column.key === 'layer' || column.key === 'rule_count' ? 'count' :
           ['static', 'temporary', 'cosmetic'].includes(column.key) ? 'boolean' :
           column.key === 'quantity' || column.key === 'merge_group' || column.key === 'win_role' ? 'status' :
-          'text',
+          'text'),
       })),
       rows: game.object_rows,
       defaultSort: { key: 'name', direction: 'asc' },
@@ -1507,8 +1526,38 @@ function handleReportSort(reportId, key) {
 function rowIdentity(row, index) {
   return row.id || row.compiled_id || row.name || String(index);
 }
+function renderSpriteThumbnail(sprite, label) {
+  const colors = sprite && Array.isArray(sprite.colors) ? sprite.colors : [];
+  const matrix = sprite && Array.isArray(sprite.matrix) ? sprite.matrix : [];
+  const pixels = [];
+  for (let y = 0; y < 5; y++) {
+    const row = Array.isArray(matrix[y]) ? matrix[y] : [];
+    for (let x = 0; x < 5; x++) {
+      const colorIndex = row[x];
+      const color = colorIndex == null ? 'transparent' : (colors[colorIndex] || 'transparent');
+      pixels.push('<span class="sprite-pixel" style="background:' + escapeText(color) + '"></span>');
+    }
+  }
+  return '<span class="sprite-thumb" role="img" aria-label="' + escapeText(label || 'sprite') + '">' + pixels.join('') + '</span>';
+}
+function renderBooleanBadge(value) {
+  const yes = Boolean(value);
+  return yes
+    ? '<span class="boolean-badge yes" title="yes">✔</span>'
+    : '<span class="boolean-badge no" title="no">✘</span>';
+}
 function renderReportCell(row, column) {
   const type = columnType(column);
+  if (column.type === 'sprite') {
+    return '<td class="' + escapeText(type.className || '') + '" data-report-cell="' + escapeText(column.key) + '">' +
+      renderSpriteThumbnail(row.sprite, row.name) +
+      '</td>';
+  }
+  if (column.type === 'boolean') {
+    return '<td class="' + escapeText(type.className || '') + '" data-report-cell="' + escapeText(column.key) + '">' +
+      renderBooleanBadge(row[column.key]) +
+      '</td>';
+  }
   const value = columnDisplayValue(row, column);
   const text = Array.isArray(value) ? value.join('\\n') : value;
   const quiet = text === '-' || text === '' ? ' quiet' : '';

@@ -153,5 +153,8 @@ if (!gameView.innerHTML.includes('report-shell')) throw new Error('game report s
 if (!gameView.innerHTML.includes('sortable-table')) throw new Error('sortable table missing');
 if (!gameView.querySelectorAll('[data-report-row]').length) throw new Error('report rows missing');
 if (gameView.innerHTML.includes('object-matrix')) throw new Error('legacy object matrix still rendered');
+if (!gameView.innerHTML.includes('sprite-thumb')) throw new Error('object sprite thumbnails missing');
+if (!gameView.innerHTML.includes('boolean-badge yes')) throw new Error('boolean yes badge missing');
+if (!gameView.innerHTML.includes('boolean-badge no')) throw new Error('boolean no badge missing');
 
 console.log('static_analysis_explorer_runtime_smoke: ok');
