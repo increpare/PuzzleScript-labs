@@ -192,13 +192,29 @@ function rewriteRulesByRename(rules, rename) {
 }
 
 function rewriteWinconditionsByRename(state, rename) {
-    for (const wc of state.winconditions || []) {
-        for (let i = 0; i < wc.length - 1; i++) {
-            if (typeof wc[i] !== 'string') continue;
-            const target = rename.get(wc[i]);
-            if (typeof target === 'string') wc[i] = target;
+    const wcs = state.winconditions;
+    if (!Array.isArray(wcs)) return;
+    const kept = [];
+    for (const wc of wcs) {
+        if (!Array.isArray(wc) || wc.length < 2) {
+            kept.push(wc);
+            continue;
         }
+        const next = wc.slice();
+        let skip = false;
+        for (let i = 0; i < next.length - 1; i++) {
+            if (typeof next[i] !== 'string') continue;
+            if (!rename.has(next[i])) continue;
+            const target = rename.get(next[i]);
+            if (target === null) {
+                skip = true;
+                break;
+            }
+            next[i] = target;
+        }
+        if (!skip) kept.push(next);
     }
+    state.winconditions = kept;
 }
 
 function rewriteSoundsByRename(state, rename) {
@@ -243,32 +259,60 @@ function rewriteCollisionLayersByRename(state, rename) {
     return before - state.collisionLayers.length;
 }
 
-function rewriteLegendListByRename(rows, rename) {
-    // legend_aggregates / legend_properties rows: [name, member1, member2, ...].
-    // Drop the entire row if any member is null-rename or if dedup leaves <2 entries.
-    // Mutate rows in place so attached properties (e.g. row.lineNumber, used by
-    // generateMasks's sort) are preserved.
+function rewriteLegendListByRename(rows, rename, isAggregate) {
+    // legend_aggregates: AND of objects — if any member is pruned (rename→null),
+    // drop the whole row; partial AND is invalid and breaks generateExtraMembers.
+    // legend_properties: OR — omit pruned members only so e.g. player = uc|rc|p|lc
+    // survives losing one cosmetic without dropping the entire player definition.
     const out = [];
     for (const row of rows || []) {
         if (!Array.isArray(row) || row.length < 2) continue;
-        let dropped = false;
-        for (let j = 1; j < row.length; j++) {
-            if (!rename.has(row[j])) continue;
-            const target = rename.get(row[j]);
-            if (target === null) { dropped = true; break; }
-            row[j] = target;
+        if (isAggregate) {
+            let dropped = false;
+            for (let j = 1; j < row.length; j++) {
+                if (!rename.has(row[j])) continue;
+                const target = rename.get(row[j]);
+                if (target === null) {
+                    dropped = true;
+                    break;
+                }
+                row[j] = target;
+            }
+            if (dropped) continue;
+            const seenAgg = new Set();
+            let writeIdx = 1;
+            for (let j = 1; j < row.length; j++) {
+                if (seenAgg.has(row[j])) continue;
+                seenAgg.add(row[j]);
+                row[writeIdx++] = row[j];
+            }
+            row.length = writeIdx;
+            if (row.length < 2) continue;
+            out.push(row);
+        } else {
+            const head = row[0];
+            const members = [];
+            for (let j = 1; j < row.length; j++) {
+                let m = row[j];
+                if (rename.has(m)) {
+                    const target = rename.get(m);
+                    if (target === null) continue;
+                    m = target;
+                }
+                members.push(m);
+            }
+            const seen = new Set();
+            const deduped = [];
+            for (const m of members) {
+                if (seen.has(m)) continue;
+                seen.add(m);
+                deduped.push(m);
+            }
+            if (deduped.length === 0) continue;
+            row.length = 0;
+            row.push(head, ...deduped);
+            out.push(row);
         }
-        if (dropped) continue;
-        const seen = new Set();
-        let writeIdx = 1;
-        for (let j = 1; j < row.length; j++) {
-            if (seen.has(row[j])) continue;
-            seen.add(row[j]);
-            row[writeIdx++] = row[j];
-        }
-        row.length = writeIdx;
-        if (row.length < 2) continue;
-        out.push(row);
     }
     return out;
 }
@@ -297,6 +341,79 @@ function rewriteLegendSynonymsByRename(state, rename) {
     state.legend_synonyms = out;
 }
 
+/**
+ * After cosmetic/merge renames, some legend OR-property definition rows are dropped
+ * entirely (e.g. all members were deleted objects). Other rows may still reference
+ * those property names as members; generateMasks then does val.ior(objectMask[name])
+ * with undefined objectMask[name]. Remove legend rows whose members are no longer
+ * resolvable to concrete objects or to a surviving property/aggregate definition.
+ */
+function pruneLegendRowsWithUnresolvedRefs(state) {
+    if (!state) return;
+    let changed = true;
+    let guard = 0;
+    while (changed && guard++ < 64) {
+        changed = false;
+        const propDefs = new Set(
+            (state.legend_properties || [])
+                .filter((row) => Array.isArray(row) && row.length >= 2 && typeof row[0] === 'string')
+                .map((row) => row[0])
+        );
+        const aggDefs = new Set(
+            (state.legend_aggregates || [])
+                .filter((row) => Array.isArray(row) && row.length >= 2 && typeof row[0] === 'string')
+                .map((row) => row[0])
+        );
+
+        function memberOk(m) {
+            if (typeof m !== 'string' || !m.length) return false;
+            if (state.objects && Object.prototype.hasOwnProperty.call(state.objects, m)) return true;
+            if (propDefs.has(m)) return true;
+            if (aggDefs.has(m)) return true;
+            return false;
+        }
+
+        const props = state.legend_properties || [];
+        const propsNext = props.filter((row) => {
+            if (!Array.isArray(row) || row.length < 2) return false;
+            for (let j = 1; j < row.length; j++) {
+                if (!memberOk(row[j])) return false;
+            }
+            return true;
+        });
+        if (propsNext.length !== props.length) {
+            state.legend_properties = propsNext;
+            changed = true;
+            continue;
+        }
+
+        const syns = state.legend_synonyms || [];
+        const synsNext = syns.filter((row) => {
+            if (!Array.isArray(row) || row.length < 2) return false;
+            return memberOk(row[1]);
+        });
+        if (synsNext.length !== syns.length) {
+            state.legend_synonyms = synsNext;
+            changed = true;
+            continue;
+        }
+
+        const aggs = state.legend_aggregates || [];
+        const aggsNext = aggs.filter((row) => {
+            if (!Array.isArray(row) || row.length < 2) return false;
+            for (let j = 1; j < row.length; j++) {
+                const m = row[j];
+                if (!state.objects || !Object.prototype.hasOwnProperty.call(state.objects, m)) return false;
+            }
+            return true;
+        });
+        if (aggsNext.length !== aggs.length) {
+            state.legend_aggregates = aggsNext;
+            changed = true;
+        }
+    }
+}
+
 function applyRenameMap(state, rename) {
     if (rename.size === 0) return 0;
     rewriteRulesByRename(state.rules, rename);
@@ -304,9 +421,10 @@ function applyRenameMap(state, rename) {
     rewriteWinconditionsByRename(state, rename);
     rewriteSoundsByRename(state, rename);
     const droppedLayers = rewriteCollisionLayersByRename(state, rename);
-    state.legend_aggregates = rewriteLegendListByRename(state.legend_aggregates, rename);
-    state.legend_properties = rewriteLegendListByRename(state.legend_properties, rename);
+    state.legend_aggregates = rewriteLegendListByRename(state.legend_aggregates, rename, true);
+    state.legend_properties = rewriteLegendListByRename(state.legend_properties, rename, false);
     rewriteLegendSynonymsByRename(state, rename);
+    pruneLegendRowsWithUnresolvedRefs(state);
     for (const oldName of rename.keys()) delete state.objects[oldName];
     return droppedLayers;
 }
