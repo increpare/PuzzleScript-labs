@@ -97,6 +97,28 @@ assert.strictEqual(
     'layer holding player or win-referenced objects should not be inert'
 );
 
+function countNumericLocaleCompareCalls(fn) {
+    const originalLocaleCompare = String.prototype.localeCompare;
+    let count = 0;
+    String.prototype.localeCompare = function patchedLocaleCompare(other, locales, options) {
+        if (options && options.numeric === true) {
+            count++;
+        }
+        return originalLocaleCompare.call(this, other, locales, options);
+    };
+    try {
+        fn();
+    } finally {
+        String.prototype.localeCompare = originalLocaleCompare;
+    }
+    return count;
+}
+
+const analysisNumericLocaleCompareCalls = countNumericLocaleCompareCalls(() => {
+    analyzeSource(SIMPLE_GAME, { sourcePath: 'simple-numeric-sort-profile.txt', familyFilter: 'mergeability' });
+});
+assert.strictEqual(analysisNumericLocaleCompareCalls, 0, 'static analysis should not call per-comparison numeric localeCompare');
+
 const INERT_LAYER_BACKGROUND_RULE = `
 title Inert layer rule ref
 ========

@@ -11,10 +11,11 @@ const {
 } = require('./canonicalize');
 
 function printUsage(exitCode) {
-    console.error('Usage: node src/canonicalize_cli.js <input.ps> [output.json] [--mode structural|full|no-levels|mechanics|ruleset|semantic|family] [--hashes]');
+    console.error('Usage: node src/canonicalize_cli.js <input.ps> [output.json] [--mode structural|full|no-levels|mechanics|ruleset|semantic|family] [--static-opt [all|inert,cosmetic,cosmetic-rules,merge]] [--hashes]');
     console.error('');
     console.error('Writes a canonical JSON representation of a PuzzleScript game.');
     console.error('Default mode is "semantic": gameplay metadata + player/background roles + collision layers + compiled rules + compiled maps.');
+    console.error('--static-opt applies the static optimizer before compiled canonical modes are serialized.');
     process.exit(exitCode);
 }
 
@@ -26,12 +27,23 @@ if (args.length < 1 || args.includes('--help') || args.includes('-h')) {
 const positional = [];
 let mode = 'semantic';
 let hashes = false;
+let staticOptimizations = false;
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--mode') {
         mode = args[i + 1];
         i++;
+    } else if (arg === '--static-opt' || arg === '--optimize-static') {
+        const next = args[i + 1];
+        if (next && !next.startsWith('-')) {
+            staticOptimizations = next;
+            i++;
+        } else {
+            staticOptimizations = 'all';
+        }
+    } else if (arg.startsWith('--static-opt=')) {
+        staticOptimizations = arg.slice('--static-opt='.length) || 'all';
     } else if (arg === '--hashes') {
         hashes = true;
     } else if (!arg.startsWith('-')) {
@@ -51,7 +63,8 @@ if (!fs.existsSync(inputFile)) {
 }
 
 try {
-    const canonical = canonicalizeFile(inputFile, mode);
+    const options = { staticOptimizations };
+    const canonical = canonicalizeFile(inputFile, mode, options);
     const serialized = stableStringify(canonical) + '\n';
 
     if (outputFile) {
@@ -64,7 +77,7 @@ try {
         const source = fs.readFileSync(inputFile, 'utf8');
         const summary = {
             file: path.resolve(inputFile),
-            hashes: buildComparisonHashes(source)
+            hashes: buildComparisonHashes(source, options)
         };
         console.error(JSON.stringify(summary, null, 2));
     }

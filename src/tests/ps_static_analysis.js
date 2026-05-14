@@ -12,11 +12,14 @@ const SEMANTIC_COMMANDS = new Set(['cancel', 'again', 'restart', 'win', 'checkpo
 const DIRECTIONAL_MOVEMENTS = new Set(['up', 'down', 'left', 'right', 'moving', 'randomdir']);
 const CARDINAL_MOVEMENTS = ['up', 'down', 'left', 'right'];
 const POSITIVE_MOVEMENT_STATES = CARDINAL_MOVEMENTS.concat(['action']);
+const numericNameCollator = new Intl.Collator(undefined, { numeric: true });
+
+function compareNumericNames(left, right) {
+    return numericNameCollator.compare(left, right);
+}
 
 function uniqueSorted(values) {
-    return Array.from(new Set(values)).sort((left, right) =>
-        left.localeCompare(right, undefined, { numeric: true })
-    );
+    return Array.from(new Set(values)).sort(compareNumericNames);
 }
 
 function uniqueInOrder(values) {
@@ -88,9 +91,7 @@ function buildProperties(state) {
             tags: {},
         });
     }
-    return properties.sort((left, right) =>
-        left.name.localeCompare(right.name, undefined, { numeric: true })
-    );
+    return properties.sort((left, right) => compareNumericNames(left.name, right.name));
 }
 
 function buildCollisionLayers(state) {
@@ -578,27 +579,138 @@ function groupObservationIsShared(psTagged, objects) {
     return true;
 }
 
+function mergePairKey(left, right) {
+    return left < right ? `${left}\u0000${right}` : `${right}\u0000${left}`;
+}
+
+function signatureFromSet(values) {
+    return Array.from(values || []).sort().join('\u0000');
+}
+
+function addDirectMergeBlocker(indexes, left, right, ruleId) {
+    const key = mergePairKey(left, right);
+    indexes.directReadBlockers.add(key);
+    if (!indexes.directReadEvidence.has(key)) {
+        indexes.directReadEvidence.set(key, []);
+    }
+    const evidence = indexes.directReadEvidence.get(key);
+    if (evidence[evidence.length - 1] !== ruleId) {
+        evidence.push(ruleId);
+    }
+}
+
+function buildMergeabilityIndexes(psTagged) {
+    const layerObjectsById = new Map((psTagged.collision_layers || []).map(layer => [layer.id, layer.objects || []]));
+    const layerByObject = new Map();
+    const winRoleSignature = new Map();
+    const objectSetMembership = new Map();
+    const objectSetIds = new Map();
+    const indexes = {
+        directReadBlockers: new Set(),
+        directReadEvidence: new Map(),
+        winRoleSignature,
+        objectSetSignature: new Map(),
+    };
+
+    for (const object of psTagged.objects || []) {
+        layerByObject.set(object.name, object.layer);
+        winRoleSignature.set(object.name, JSON.stringify(winRoleForObject(psTagged, object.name)));
+        objectSetMembership.set(object.name, new Set());
+    }
+
+    function objectSetId(objects) {
+        const key = uniqueSorted(objects || []).join('\u0000');
+        if (!objectSetIds.has(key)) {
+            objectSetIds.set(key, objectSetIds.size);
+        }
+        return objectSetIds.get(key);
+    }
+
+    for (const { rule } of allRuleEntries(psTagged)) {
+        if (rule.tags.inert_command_only) continue;
+        for (const term of rule.summary.lhs_terms) {
+            if (term.ref.type !== 'object_set') continue;
+            const id = objectSetId(term.expanded_objects || []);
+            for (const objectName of term.expanded_objects || []) {
+                if (!objectSetMembership.has(objectName)) {
+                    objectSetMembership.set(objectName, new Set());
+                }
+                objectSetMembership.get(objectName).add(id);
+            }
+        }
+
+        for (const row of rule.lhs) {
+            for (const cell of row) {
+                const directTermsByObject = new Map();
+                for (const term of cell) {
+                    if (term.ref.type !== 'object') continue;
+                    if (!directTermsByObject.has(term.ref.name)) {
+                        directTermsByObject.set(term.ref.name, []);
+                    }
+                    directTermsByObject.get(term.ref.name).push(`${term.kind}:${term.movement}`);
+                }
+                if (directTermsByObject.size === 0) continue;
+
+                const mentionedByLayer = new Map();
+                for (const objectName of directTermsByObject.keys()) {
+                    const layer = layerByObject.get(objectName);
+                    if (layer === undefined || layer === null) continue;
+                    if (!mentionedByLayer.has(layer)) mentionedByLayer.set(layer, []);
+                    mentionedByLayer.get(layer).push(objectName);
+                }
+
+                for (const [layer, mentionedObjects] of mentionedByLayer.entries()) {
+                    const layerObjects = layerObjectsById.get(layer) || [];
+                    const mentionedSet = new Set(mentionedObjects);
+                    for (const mentioned of mentionedObjects) {
+                        for (const other of layerObjects) {
+                            if (mentionedSet.has(other)) continue;
+                            addDirectMergeBlocker(indexes, mentioned, other, rule.id);
+                        }
+                    }
+                    for (let left = 0; left < mentionedObjects.length; left++) {
+                        for (let right = left + 1; right < mentionedObjects.length; right++) {
+                            const signatures = new Set(directTermsByObject.get(mentionedObjects[left]));
+                            addValues(signatures, directTermsByObject.get(mentionedObjects[right]));
+                            if (signatures.size !== 1) {
+                                addDirectMergeBlocker(indexes, mentionedObjects[left], mentionedObjects[right], rule.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (const object of psTagged.objects || []) {
+        indexes.objectSetSignature.set(object.name, signatureFromSet(objectSetMembership.get(object.name)));
+    }
+
+    return indexes;
+}
+
 function deriveMergeabilityFacts(psTagged) {
+    const indexes = buildMergeabilityIndexes(psTagged);
     const results = [];
     for (const layer of psTagged.collision_layers) {
         if (layer.objects.length < 2) continue;
         for (let left = 0; left < layer.objects.length; left++) {
             for (let right = left + 1; right < layer.objects.length; right++) {
                 const objects = [layer.objects[left], layer.objects[right]].sort();
+                const pairKey = mergePairKey(objects[0], objects[1]);
                 const blockers = [];
-                const directObservations = directObservationsForObjects(psTagged, objects);
-                if (directObservations.length > 0) blockers.push('individual_lhs_read');
-                if (!sameArray(winRoleForObject(psTagged, objects[0]), winRoleForObject(psTagged, objects[1]))) {
+                if (indexes.directReadBlockers.has(pairKey)) blockers.push('individual_lhs_read');
+                if (indexes.winRoleSignature.get(objects[0]) !== indexes.winRoleSignature.get(objects[1])) {
                     blockers.push('different_win_roles');
                 }
-                if (!groupObservationIsShared(psTagged, objects)) {
+                if (indexes.objectSetSignature.get(objects[0]) !== indexes.objectSetSignature.get(objects[1])) {
                     blockers.push('partial_property_observation');
                 }
                 results.push(fact('mergeability', `merge_${objects.join('_')}`, blockers.length === 0 ? 'candidate' : 'rejected', {
                     subjects: { objects },
                     proof: blockers.length === 0 ? ['same_collision_layer', 'observed_only_through_shared_sets', 'same_win_roles'] : ['same_collision_layer'],
                     blockers,
-                    evidence: directObservations.map(item => item.rule_id).concat(`layer_${layer.id}`),
+                    evidence: (indexes.directReadEvidence.get(pairKey) || []).concat(`layer_${layer.id}`),
                 }));
             }
         }
@@ -1176,16 +1288,54 @@ function ruleCanAffectObjectReadSet(rule, readSet) {
     return [...movementTouchedObjectSet(rule)].some(obj => readSet.has(obj));
 }
 
+function addRuleToIndex(index, key, rule) {
+    if (!index.has(key)) {
+        index.set(key, []);
+    }
+    index.get(key).push(rule);
+}
+
+function buildCosmeticRuleAffectIndex(rules) {
+    const byObject = new Map();
+    const byMovement = new Map();
+    for (const rule of rules) {
+        const objectKeys = new Set([...(rule.tags.objects_written || []), ...(rule.tags.objects_erased || [])]);
+        addValues(objectKeys, movementTouchedObjectSet(rule));
+        for (const objectName of objectKeys) {
+            addRuleToIndex(byObject, objectName, rule);
+        }
+        for (const movement of rule.tags.movements_written || []) {
+            addRuleToIndex(byMovement, movement, rule);
+        }
+        for (const movement of rule.tags.movements_removed || []) {
+            addRuleToIndex(byMovement, movement, rule);
+        }
+    }
+    return { byObject, byMovement };
+}
+
+function cosmeticRuleReadObjects(rule) {
+    return new Set([...(rule.tags.objects_matched || []), ...(rule.tags.object_absences_matched || [])]);
+}
+
 function tagCosmeticRules(psTagged) {
     const allRules = allRuleEntries(psTagged).map(entry => entry.rule);
     const nonCosmetic = new Set();
+    const pending = [];
     const playerObjects = playerObjectNameSet(psTagged);
+    const affectIndex = buildCosmeticRuleAffectIndex(allRules);
+
+    function markNonCosmetic(rule) {
+        if (nonCosmetic.has(rule.id)) return;
+        nonCosmetic.add(rule.id);
+        pending.push(rule);
+    }
 
     for (const rule of allRules) {
         if (rule.summary.semantic_commands.some(cmd => NON_COSMETIC_COMMANDS.has(cmd))) {
-            nonCosmetic.add(rule.id);
+            markNonCosmetic(rule);
         } else if (ruleCanAffectObjectReadSet(rule, playerObjects)) {
-            nonCosmetic.add(rule.id);
+            markNonCosmetic(rule);
         }
     }
 
@@ -1194,31 +1344,28 @@ function tagCosmeticRules(psTagged) {
         for (const win of psTagged.winconditions) {
             const winReadSet = new Set([...win.tags.objects_matched, ...win.tags.object_absences_matched]);
             if (ruleCanAffectObjectReadSet(rule, winReadSet)) {
-                nonCosmetic.add(rule.id);
+                markNonCosmetic(rule);
                 break;
             }
         }
     }
 
-    function r1AffectsR2(r1, r2) {
-        const r2ReadObjs = new Set([...r2.tags.objects_matched, ...r2.tags.object_absences_matched]);
-        if (ruleCanAffectObjectReadSet(r1, r2ReadObjs)) return true;
-        const r2MovSet = new Set(r2.tags.movements_matched);
-        return [...r1.tags.movements_written, ...r1.tags.movements_removed].some(mov => r2MovSet.has(mov));
-    }
-
-    let changed = true;
-    while (changed) {
-        changed = false;
-        for (const r1 of allRules) {
-            if (nonCosmetic.has(r1.id)) continue;
-            for (const r2 of allRules) {
-                if (!nonCosmetic.has(r2.id)) continue;
-                if (r1AffectsR2(r1, r2)) {
-                    nonCosmetic.add(r1.id);
-                    changed = true;
-                    break;
-                }
+    const propagatedObjects = new Set();
+    const propagatedMovements = new Set();
+    for (let index = 0; index < pending.length; index++) {
+        const rule = pending[index];
+        for (const objectName of cosmeticRuleReadObjects(rule)) {
+            if (propagatedObjects.has(objectName)) continue;
+            propagatedObjects.add(objectName);
+            for (const affectingRule of affectIndex.byObject.get(objectName) || []) {
+                markNonCosmetic(affectingRule);
+            }
+        }
+        for (const movement of rule.tags.movements_matched || []) {
+            if (propagatedMovements.has(movement)) continue;
+            propagatedMovements.add(movement);
+            for (const affectingRule of affectIndex.byMovement.get(movement) || []) {
+                markNonCosmetic(affectingRule);
             }
         }
     }

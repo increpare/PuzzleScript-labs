@@ -611,7 +611,7 @@ function collectStructuralObjectNames(state) {
 }
 
 function passCosmeticPrune(state, report, telemetry) {
-    const cosmetic = collectCosmeticNames(report);
+    const cosmetic = runtimeObjectNameSetForStaticNames(state, collectCosmeticNames(report));
     if (cosmetic.size === 0) return;
 
     const raw = new Set();

@@ -215,7 +215,7 @@ assert.deepStrictEqual(game.corpus_metrics.layers, {
 assert.deepStrictEqual(game.corpus_metrics.rules, {
     source: 4,
     compiled: 4,
-    action: 'none',
+    action: 'no-op',
     tick: 'tick',
     cosmetic: 4,
     inert_command: 1,
@@ -303,7 +303,7 @@ assert.ok(flowGame.action_noop.blockers.includes('autonomous_solver_active_rule'
 assert.strictEqual(flowGame.program_flow.tick_noop, false);
 assert.strictEqual(flowGame.program_flow.no_again, true);
 assert.strictEqual(flowGame.program_flow.no_random, true);
-assert.strictEqual(flowGame.corpus_metrics.rules.action, 'action');
+assert.strictEqual(flowGame.corpus_metrics.rules.action, 'active');
 assert.strictEqual(flowGame.corpus_metrics.rules.tick, 'tick');
 assert.ok(flowGame.corpus_metrics.objects.temporary >= 0);
 assert.ok(flowGame.program_flow.wake_edge_count > 0);
@@ -446,6 +446,10 @@ assert.ok(html.includes('Mergable object savings'));
 assert.ok(html.includes('Source-facing rules'));
 assert.ok(html.includes('Compiled rules'));
 assert.ok(html.includes('Action input'));
+assert.ok(html.includes('>action input</button>'));
+assert.ok(html.includes('active: action input may affect solver state'));
+assert.ok(html.includes('no-op: action input is enabled, but pressing action has no solver-observable effect'));
+assert.ok(html.includes('disabled: noaction metadata disables action input'));
 assert.ok(html.includes('Autonomous tick'));
 assert.ok(html.includes('JSON.stringify(game.corpus_metrics)'));
 assert.ok(html.includes("corpusColumns.map(column => column.label).join(' ')"));

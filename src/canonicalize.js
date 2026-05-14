@@ -34,6 +34,11 @@ const CANONICAL_METADATA_KEYS = new Set([
     'run_rules_on_level_start',
     'throttle_movement',
 ]);
+// Reusing one collator avoids rebuilding ICU collation state in hot canonical sorts.
+const numericNameCollator = new Intl.Collator(undefined, { numeric: true });
+function compareNumericNames(a, b) {
+    return numericNameCollator.compare(a, b);
+}
 
 function createRuntime() {
     const srcDir = __dirname;
@@ -130,6 +135,16 @@ function createRuntime() {
         allCode += `\n// ---- ${file} ----\n${code}\n`;
     }
 
+    const solverStaticOptCode = fs.readFileSync(path.join(srcDir, 'tests/solver_static_opt.js'), 'utf8');
+    allCode += `
+globalThis.__ps_solver_static_opt = (function() {
+    const module = { exports: {} };
+    const exports = module.exports;
+${solverStaticOptCode}
+    return module.exports;
+})();
+`;
+
     allCode += `
 globalThis.__ps_exports = {
     parseSource: function(str) {
@@ -154,10 +169,16 @@ globalThis.__ps_exports = {
             compiling = false;
         }
     },
-    compileSemantic: function(str, includeWinConditions) {
+    compileSemantic: function(str, includeWinConditions, optimizationOptions) {
         resetParserErrorState();
         compiling = true;
         try {
+            const optimizer = optimizationOptions && optimizationOptions.staticAnalysisReport
+                ? __ps_solver_static_opt.createSolverOptimizationHook(
+                    optimizationOptions.staticAnalysisReport,
+                    optimizationOptions.passes || {}
+                )
+                : null;
             const processor = new codeMirrorFn();
             const state = processor.startState();
             const lines = str.split('\\n');
@@ -188,6 +209,19 @@ globalThis.__ps_exports = {
             state.backgroundMask = getMaskFromName(state, 'background');
             levelsToArray(state);
             rulesToArray(state);
+            if (state.invalid > 0) {
+                return {
+                    state: null,
+                    errorCount: errorCount,
+                    errorStrings: errorStrings.slice()
+                };
+            }
+            if (optimizer) {
+                cacheAllRuleNames(state);
+                removeDuplicateRules(state);
+                optimizer(state);
+                state.backgroundMask = getMaskFromName(state, 'background');
+            }
             if (includeWinConditions) {
                 processWinConditions(state);
             }
@@ -319,6 +353,61 @@ function modeOptions(mode) {
                 includeSynonyms: false,
             };
     }
+}
+
+function compiledCanonicalMode(mode) {
+    return mode === 'ruleset' || mode === 'mechanics' || mode === 'semantic' || mode === 'family';
+}
+
+function solverStaticOptHelpers() {
+    return require('./tests/solver_static_opt');
+}
+
+function normalizeStaticOptimizationPasses(value) {
+    if (value === undefined || value === null || value === false) {
+        return null;
+    }
+    if (value === true) {
+        return solverStaticOptHelpers().parseSolverOptPassList('all');
+    }
+    if (typeof value === 'string') {
+        return solverStaticOptHelpers().parseSolverOptPassList(value || 'all');
+    }
+    if (typeof value === 'object') {
+        const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+        Object.assign(passes, value);
+        return passes;
+    }
+    throw new Error(`Invalid static optimization option: ${String(value)}`);
+}
+
+function staticAnalysisFamilyFilterForPasses(passes) {
+    const families = [];
+    if (passes && passes.merge) {
+        families.push('mergeability');
+    }
+    return families;
+}
+
+function staticOptimizationCompileOptions(source, options) {
+    const requested = normalizeStaticOptimizationPasses(
+        options.staticOptimizations !== undefined
+            ? options.staticOptimizations
+            : options.staticOptimizationPasses
+    );
+    if (!requested) {
+        return null;
+    }
+
+    const report = options.staticAnalysisReport || require('./tests/ps_static_analysis').analyzeSource(source, {
+        sourcePath: options.sourcePath || '<canonicalize>',
+        familyFilter: staticAnalysisFamilyFilterForPasses(requested),
+    });
+    const { effectiveSolverPassesForHook } = solverStaticOptHelpers();
+    return {
+        staticAnalysisReport: report,
+        passes: effectiveSolverPassesForHook(report, requested),
+    };
 }
 
 function buildNameData(state) {
@@ -661,7 +750,7 @@ function mapTermToCanonicalSet(name, state, nameMap) {
     }
     return listObjectNamesFromMask(mask, state)
         .map(concreteName => nameMap.get(concreteName) || concreteName)
-        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        .sort(compareNumericNames);
 }
 
 function serializeCompiledCell(cell, nameMap, state) {
@@ -683,7 +772,7 @@ function serializeCompiledCell(cell, nameMap, state) {
     entries.sort((a, b) => {
         const nameA = a.obj || a.objs.join('|');
         const nameB = b.obj || b.objs.join('|');
-        return nameA.localeCompare(nameB, undefined, { numeric: true }) || a.dir.localeCompare(b.dir);
+        return compareNumericNames(nameA, nameB) || a.dir.localeCompare(b.dir);
     });
     return entries;
 }
@@ -703,7 +792,7 @@ function relabelEntry(entry, mapper) {
         return { dir: entry.dir, obj: mapper(entry.obj) };
     }
     if (entry.objs) {
-        const mapped = Array.from(new Set(entry.objs.map(mapper))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const mapped = Array.from(new Set(entry.objs.map(mapper))).sort(compareNumericNames);
         if (mapped.length === 1) {
             return { dir: entry.dir, obj: mapped[0] };
         }
@@ -720,7 +809,7 @@ function normalizeRelabeledCell(cell, mapper) {
     relabeled.sort((a, b) => {
         const left = a.obj || (a.objs || []).join('|');
         const right = b.obj || (b.objs || []).join('|');
-        return left.localeCompare(right, undefined, { numeric: true }) || a.dir.localeCompare(b.dir);
+        return compareNumericNames(left, right) || a.dir.localeCompare(b.dir);
     });
     const deduped = [];
     const seen = new Set();
@@ -798,7 +887,7 @@ function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
     });
 
     const mapper = name => objectToFamily.get(name) || name;
-    const dedupeList = list => Array.from(new Set((list || []).map(mapper))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const dedupeList = list => Array.from(new Set((list || []).map(mapper))).sort(compareNumericNames);
 
     const rules = (canonical.rules || []).map(rule => ({
         direction: rule.direction,
@@ -882,7 +971,7 @@ function listObjectsInCompiledCell(cell, state, nameMap) {
             objects.push(nameMap.get(concreteName) || concreteName);
         }
     }
-    objects.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    objects.sort(compareNumericNames);
     return objects;
 }
 
@@ -930,10 +1019,10 @@ function serializeCompiledWinConditions(winConditions, state, nameMap) {
             quantifier,
             a: objectsA
                 .map(name => nameMap.get(name) || name)
-                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+                .sort(compareNumericNames),
             b: objectsB
                 .map(name => nameMap.get(name) || name)
-                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+                .sort(compareNumericNames)
         };
     });
 }
@@ -947,7 +1036,7 @@ function listObjectsFromMask(mask, state) {
             objects.push(objectName);
         }
     }
-    objects.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    objects.sort(compareNumericNames);
     return objects;
 }
 
@@ -960,7 +1049,7 @@ function listObjectNamesFromMask(mask, state) {
             objects.push(objectName);
         }
     }
-    objects.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    objects.sort(compareNumericNames);
     return objects;
 }
 
@@ -1029,10 +1118,16 @@ function canonicalizeCompiledState(state, options) {
     return result;
 }
 
-function canonicalizeSource(source, mode = 'structural') {
-    if (mode === 'ruleset' || mode === 'mechanics' || mode === 'semantic' || mode === 'family') {
-        const options = modeOptions(mode);
-        const compiled = getRuntime().compileSemantic(source, options.includeWinConditions);
+function canonicalizeSource(source, mode = 'structural', canonicalOptions = {}) {
+    if (mode && typeof mode === 'object') {
+        canonicalOptions = mode;
+        mode = canonicalOptions.mode || 'structural';
+    }
+
+    if (compiledCanonicalMode(mode)) {
+        const options = Object.assign({}, modeOptions(mode), canonicalOptions);
+        const optimizationOptions = staticOptimizationCompileOptions(source, options);
+        const compiled = getRuntime().compileSemantic(source, options.includeWinConditions, optimizationOptions);
         if (compiled.errorCount > 0 || compiled.state === null || compiled.state.invalid) {
             const message = compiled.errorStrings.join('\n');
             throw new Error(`Unable to canonicalize invalid PuzzleScript source.\n${message}`);
@@ -1046,14 +1141,15 @@ function canonicalizeSource(source, mode = 'structural') {
         throw new Error(`Unable to canonicalize invalid PuzzleScript source.\n${message}`);
     }
 
-    const options = modeOptions(mode);
+    const options = Object.assign({}, modeOptions(mode), canonicalOptions);
     return canonicalizeState(parsed.state, options);
 }
 
 function compileSemanticSource(source, options = {}) {
     const includeWinConditions = options.includeWinConditions !== false;
     const throwOnError = options.throwOnError !== false;
-    const compiled = getRuntime().compileSemantic(source, includeWinConditions);
+    const optimizationOptions = staticOptimizationCompileOptions(source, options);
+    const compiled = getRuntime().compileSemantic(source, includeWinConditions, optimizationOptions);
     if (throwOnError && (compiled.errorCount > 0 || compiled.state === null || compiled.state.invalid)) {
         const message = compiled.errorStrings.join('\n');
         throw new Error(`Unable to compile PuzzleScript source.\n${message}`);
@@ -1069,16 +1165,19 @@ function hashCanonical(value) {
     return crypto.createHash('sha256').update(stableStringify(value)).digest('hex');
 }
 
-function canonicalizeFile(inputPath, mode = 'structural') {
+function canonicalizeFile(inputPath, mode = 'structural', options = {}) {
     const source = fs.readFileSync(inputPath, 'utf8');
-    return canonicalizeSource(source, mode);
+    if (mode && typeof mode === 'object') {
+        return canonicalizeSource(source, Object.assign({ sourcePath: inputPath }, mode));
+    }
+    return canonicalizeSource(source, mode, Object.assign({ sourcePath: inputPath }, options));
 }
 
-function buildComparisonHashes(source) {
+function buildComparisonHashes(source, options = {}) {
     const modes = ['full', 'structural', 'no-levels', 'mechanics', 'ruleset', 'semantic', 'family'];
     const result = {};
     for (const mode of modes) {
-        result[mode] = hashCanonical(canonicalizeSource(source, mode));
+        result[mode] = hashCanonical(canonicalizeSource(source, mode, options));
     }
     return result;
 }

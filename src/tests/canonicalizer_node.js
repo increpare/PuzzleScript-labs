@@ -9,6 +9,7 @@ const {
     compileSemanticSource,
     hashCanonical,
 } = require('../canonicalize');
+const psStaticAnalysis = require('./ps_static_analysis');
 
 const baseGame = `
 title Base
@@ -619,5 +620,253 @@ assert.deepStrictEqual(inertMergeCanonical.collisionLayers, [['fam_0', 'fam_1', 
 
 const semanticInertMerge = canonicalizeSource(inertMergeSource, 'semantic');
 assert.deepStrictEqual(semanticInertMerge.collisionLayers, [['obj_0', 'obj_1', 'obj_2']], 'semantic mode should merge multiple rule-inert non-player objects within a retained layer by default');
+
+const inertCommandOptimizationSource = `
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+green
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Player
+G = Goal
+
+${'======='}
+SOUNDS
+${'======='}
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Goal
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player ] sfx0
+
+=============
+WINCONDITIONS
+=============
+
+All Player on Goal
+
+======
+LEVELS
+======
+
+PG
+`;
+
+const inertCommandBaseline = canonicalizeSource(inertCommandOptimizationSource, 'semantic');
+const inertCommandOptimized = canonicalizeSource(inertCommandOptimizationSource, 'semantic', {
+    staticOptimizations: 'inert',
+});
+assert.strictEqual(inertCommandBaseline.rules.length, 1, 'baseline semantic canonicalization should retain inert command-only rules after command payload stripping');
+assert.strictEqual(inertCommandOptimized.rules.length, 0, 'static optimization should prune inert command-only rules before canonical serialization');
+
+const cosmeticOptimizationSource = `
+title Canonical Static Cosmetic
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Hero
+blue
+
+Target
+green
+
+Dust
+red
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Hero
+T = Target
+d = Dust
+Player = Hero
+
+${'======='}
+SOUNDS
+${'======='}
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Hero
+Dust
+
+=====
+RULES
+=====
+
+[ Dust ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+All Hero on Target
+
+======
+LEVELS
+======
+
+PTd
+`;
+
+const cosmeticBaseline = canonicalizeSource(cosmeticOptimizationSource, 'semantic');
+const cosmeticOptimized = canonicalizeSource(cosmeticOptimizationSource, 'semantic', {
+    staticOptimizations: 'cosmetic-rules,cosmetic',
+});
+assert.strictEqual(cosmeticBaseline.rules.length, 1, 'baseline semantic canonicalization should retain cosmetic cleanup rules');
+assert.strictEqual(cosmeticOptimized.rules.length, 0, 'static optimization should prune cosmetic cleanup rules');
+assert.deepStrictEqual(cosmeticBaseline.collisionLayers, [['obj_0'], ['obj_1']], 'baseline should retain the rule-mentioned cosmetic layer');
+assert.deepStrictEqual(cosmeticOptimized.collisionLayers, [['obj_0']], 'static optimization should drop the now-unreferenced cosmetic layer');
+assert.deepStrictEqual(cosmeticBaseline.levels[0].rows[0][2], ['obj_1'], 'baseline should still project the cosmetic object into the canonical level');
+assert.deepStrictEqual(cosmeticOptimized.levels[0].rows[0][2], [], 'static optimization should remove cosmetic objects from canonical levels');
+
+const mergeOptimizationSource = `
+title Canonical Static Merge
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Alpha
+red
+
+Beta
+blue
+
+Player
+yellow
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Player
+a = Alpha
+b = Beta
+
+${'======='}
+SOUNDS
+${'======='}
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Alpha, Beta
+Player
+
+=====
+RULES
+=====
+
+[ no Alpha no Beta ] -> [ no Alpha no Beta ] win
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+Pab
+`;
+
+const mergeBaseline = canonicalizeSource(mergeOptimizationSource, 'semantic');
+const mergeOptimized = canonicalizeSource(mergeOptimizationSource, 'semantic', {
+    staticOptimizations: 'merge',
+});
+assert.deepStrictEqual(mergeBaseline.collisionLayers, [['obj_0', 'obj_1'], ['obj_2']], 'baseline should keep merge candidates distinct when rules mention them directly');
+assert.deepStrictEqual(mergeOptimized.collisionLayers, [['obj_0'], ['obj_1']], 'static optimization should fold equivalent object aliases before serialization');
+assert.deepStrictEqual(mergeBaseline.levels[0].rows[0], [['obj_2'], ['obj_0'], ['obj_1']], 'baseline should serialize distinct merge-candidate cells');
+assert.deepStrictEqual(mergeOptimized.levels[0].rows[0], [['obj_1'], ['obj_0'], ['obj_0']], 'static optimization should rewrite merged object aliases in levels');
+
+function captureStaticAnalysisOptions(fn) {
+    const originalAnalyzeSource = psStaticAnalysis.analyzeSource;
+    let captured = null;
+    psStaticAnalysis.analyzeSource = function patchedAnalyzeSource(source, options) {
+        captured = options;
+        return originalAnalyzeSource.call(this, source, options);
+    };
+    try {
+        fn();
+    } finally {
+        psStaticAnalysis.analyzeSource = originalAnalyzeSource;
+    }
+    return captured;
+}
+
+const inertStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
+    canonicalizeSource(inertCommandOptimizationSource, 'semantic', {
+        staticOptimizations: 'inert',
+    });
+});
+assert.deepStrictEqual(inertStaticAnalysisOptions.familyFilter, [], 'inert static optimization should skip unused static fact families');
+
+const mergeStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
+    canonicalizeSource(mergeOptimizationSource, 'semantic', {
+        staticOptimizations: 'merge',
+    });
+});
+assert.deepStrictEqual(mergeStaticAnalysisOptions.familyFilter, ['mergeability'], 'merge static optimization should request only mergeability facts');
+
+function countNumericLocaleCompareCalls(fn) {
+    const originalLocaleCompare = String.prototype.localeCompare;
+    let count = 0;
+    String.prototype.localeCompare = function patchedLocaleCompare(other, locales, options) {
+        if (options && options.numeric === true) {
+            count++;
+        }
+        return originalLocaleCompare.call(this, other, locales, options);
+    };
+    try {
+        fn();
+    } finally {
+        String.prototype.localeCompare = originalLocaleCompare;
+    }
+    return count;
+}
+
+const numericLocaleCompareCalls = countNumericLocaleCompareCalls(() => {
+    canonicalizeSource(baseGame, 'semantic');
+});
+assert.strictEqual(numericLocaleCompareCalls, 0, 'compiled canonicalization should not call per-comparison numeric localeCompare');
 
 console.log('canonicalizer_node: ok');

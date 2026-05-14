@@ -17,6 +17,12 @@ const MAX_RERUN_MASK_ENTRIES = 80;
 const MAX_COMPONENT_RULE_IDS = 600;
 const MAX_WINFLOW_EDGES = 80;
 const CLAIM_DESCRIPTIONS_PATH = path.join(__dirname, 'static_analysis_claim_descriptions.json');
+const ACTION_INPUT_DESCRIPTION = [
+    'Action input summary for this game.',
+    'active: action input may affect solver state.',
+    'no-op: action input is enabled, but pressing action has no solver-observable effect.',
+    'disabled: noaction metadata disables action input.',
+].join('\n');
 
 function usage(exitCode = 1) {
     const text = [
@@ -322,8 +328,8 @@ function rulegroupCount(report) {
 
 function actionState(programFlow, actionNoop) {
     if (programFlow.action_input === false) return 'disabled';
-    if (programFlow.has_action_rules === false && programFlow.wake_edge_count === 0) return 'none';
-    return actionNoop.status === 'proved' ? 'none' : 'action';
+    if (programFlow.has_action_rules === false && programFlow.wake_edge_count === 0) return 'no-op';
+    return actionNoop.status === 'proved' ? 'no-op' : 'active';
 }
 
 function tickState(programFlow) {
@@ -935,7 +941,7 @@ const CORPUS_COLUMNS = [
     { group: 'Layers', key: 'corpus_metrics.layers.inert', label: 'inert layers', kind: 'layers.inert', className: 'layers' },
     { group: 'Rules', key: 'corpus_metrics.rules.source', label: 'source rules', kind: 'rules.source', className: '' },
     { group: 'Rules', key: 'corpus_metrics.rules.compiled', label: 'compiled rules', kind: 'rules.compiled', className: '' },
-    { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules', claims: ['movement_action.actionInput', 'movement_action.actionNoop'] },
+    { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action input', kind: 'rules.action', className: 'rules', description: ACTION_INPUT_DESCRIPTION },
     { group: 'Rules', key: 'corpus_metrics.rules.tick', label: 'tick', kind: 'rules.tick', className: 'rules' },
     { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules', claim: 'rule_tags.cosmetic' },
     { group: 'Rules', key: 'corpus_metrics.rules.inert_command', label: 'inert command rules', kind: 'rules.inert_command', className: 'rules' },
@@ -964,7 +970,7 @@ function corpusCellClassForHtml(column, value) {
     const classes = ['cell'];
     if (column.className) classes.push(column.className);
     if (column.kind === 'game') classes.push('name');
-    if ((typeof value === 'number' && value === 0) || value === 'none') classes.push('quiet');
+    if ((typeof value === 'number' && value === 0) || value === 'none' || value === 'no-op' || value === 'disabled') classes.push('quiet');
     if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
     return classes.join(' ');
 }
@@ -1220,7 +1226,7 @@ function searchable(game) {
     corpusColumns.map(column => valueAt(game, column.key)).join(' '),
     'winconditions',
     'mergable objects',
-    'action ' + game.corpus_metrics.rules.action,
+    'action input ' + game.corpus_metrics.rules.action,
     'tick ' + game.corpus_metrics.rules.tick,
     game.mergeable_groups.flatMap(group => group.objects).join(' '),
     Object.entries(game.quantity).map(([key, values]) => key + ' ' + values.join(' ')).join(' '),
@@ -1262,7 +1268,7 @@ const corpusColumns = [
   { group: 'Layers', key: 'corpus_metrics.layers.inert', label: 'inert layers', kind: 'layers.inert', className: 'layers' },
   { group: 'Rules', key: 'corpus_metrics.rules.source', label: 'source rules', kind: 'rules.source', className: '' },
   { group: 'Rules', key: 'corpus_metrics.rules.compiled', label: 'compiled rules', kind: 'rules.compiled', className: '' },
-  { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action', kind: 'rules.action', className: 'rules', claims: ['movement_action.actionInput', 'movement_action.actionNoop'] },
+  { group: 'Rules', key: 'corpus_metrics.rules.action', label: 'action input', kind: 'rules.action', className: 'rules', description: ${JSON.stringify(ACTION_INPUT_DESCRIPTION)} },
   { group: 'Rules', key: 'corpus_metrics.rules.tick', label: 'tick', kind: 'rules.tick', className: 'rules' },
   { group: 'Rules', key: 'corpus_metrics.rules.cosmetic', label: 'cosmetic rules', kind: 'rules.cosmetic', className: 'rules', claim: 'rule_tags.cosmetic' },
   { group: 'Rules', key: 'corpus_metrics.rules.inert_command', label: 'inert command rules', kind: 'rules.inert_command', className: 'rules' },
@@ -1328,7 +1334,7 @@ function corpusCellClass(column, value) {
   const classes = ['cell'];
   if (column.className) classes.push(column.className);
   if (column.kind === 'game') classes.push('name');
-  if ((typeof value === 'number' && value === 0) || value === 'none') classes.push('quiet');
+  if ((typeof value === 'number' && value === 0) || value === 'none' || value === 'no-op' || value === 'disabled') classes.push('quiet');
   if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
   return classes.join(' ');
 }
