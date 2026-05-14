@@ -199,11 +199,11 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,merge|all] [--solver-opt-parity] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge|all] [--solver-opt-parity] [--summary-only] [--quiet] [--json]\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
-        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n';
+        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n';
     (exitCode === 0 ? process.stdout : process.stderr).write(message);
     process.exit(exitCode);
 }
@@ -3059,6 +3059,7 @@ function runGame(root, file, options = {}) {
     const needsStaticAnalysis = options.solverStaticHash
         || passes.inert
         || passes.cosmetic
+        || passes.cosmeticRules
         || passes.merge
         || options.solverOptParity;
     const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
@@ -3081,7 +3082,9 @@ function runGame(root, file, options = {}) {
     unitTesting = true;
     lazyFunctionGeneration = false;
     const hookPasses = effectiveSolverPassesForHook(staticAnalysisReport, passes);
-    const solverOptimizationGated = passes.cosmetic !== hookPasses.cosmetic || passes.merge !== hookPasses.merge;
+    const solverOptimizationGated = passes.cosmetic !== hookPasses.cosmetic
+        || passes.cosmeticRules !== hookPasses.cosmeticRules
+        || passes.merge !== hookPasses.merge;
     if (!options.quiet && solverOptimizationGated) {
         const st = staticAnalysisReport && staticAnalysisReport.status ? staticAnalysisReport.status : 'none';
         process.stderr.write(`solver_notice game=${game} static_analysis=${st} solver_opt_reduced_to_inert_only\n`);
@@ -3481,10 +3484,12 @@ function runCorpus(options) {
                     result.removed_inert_rules = tel.removed_inert_rules || 0;
                     result.removed_cosmetic_objects = tel.removed_cosmetic_objects || 0;
                     result.removed_collision_layers = tel.removed_collision_layers || 0;
+                    result.removed_cosmetic_rules = tel.removed_cosmetic_rules || 0;
                     result.merged_object_aliases = tel.merged_object_aliases || 0;
                     result.merged_object_groups = tel.merged_object_groups || 0;
                     result.solver_opt_ms_inert = tel.ms_inert || 0;
                     result.solver_opt_ms_cosmetic = tel.ms_cosmetic || 0;
+                    result.solver_opt_ms_cosmetic_rules = tel.ms_cosmetic_rules || 0;
                     result.solver_opt_ms_merge = tel.ms_merge || 0;
                 }
             } else {
@@ -3534,10 +3539,12 @@ function totals(results) {
         static_optimization_removed_rules: 0,
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
+        removed_cosmetic_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
+        solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
         solver_optimization_gated: false,
         load_ms: 0,
@@ -3563,10 +3570,12 @@ function totals(results) {
         out.static_optimization_removed_rules += result.static_optimization_removed_rules || 0;
         out.removed_cosmetic_objects += result.removed_cosmetic_objects || 0;
         out.removed_collision_layers += result.removed_collision_layers || 0;
+        out.removed_cosmetic_rules += result.removed_cosmetic_rules || 0;
         out.merged_object_aliases += result.merged_object_aliases || 0;
         out.merged_object_groups += result.merged_object_groups || 0;
         out.solver_opt_ms_inert += result.solver_opt_ms_inert || 0;
         out.solver_opt_ms_cosmetic += result.solver_opt_ms_cosmetic || 0;
+        out.solver_opt_ms_cosmetic_rules += result.solver_opt_ms_cosmetic_rules || 0;
         out.solver_opt_ms_merge += result.solver_opt_ms_merge || 0;
         if (result.solver_optimization_gated) {
             out.solver_optimization_gated = true;

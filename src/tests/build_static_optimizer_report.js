@@ -109,10 +109,12 @@ function aggregateGame(payload) {
             removed_inert_rules: mr ? num(mr.removed_inert_rules) : 0,
             removed_cosmetic_objects: mr ? num(mr.removed_cosmetic_objects) : 0,
             removed_collision_layers: mr ? num(mr.removed_collision_layers) : 0,
+            removed_cosmetic_rules: mr ? num(mr.removed_cosmetic_rules) : 0,
             merged_object_aliases: mr ? num(mr.merged_object_aliases) : 0,
             merged_object_groups: mr ? num(mr.merged_object_groups) : 0,
             solver_opt_ms_inert: mr ? num(mr.solver_opt_ms_inert) : 0,
             solver_opt_ms_cosmetic: mr ? num(mr.solver_opt_ms_cosmetic) : 0,
+            solver_opt_ms_cosmetic_rules: mr ? num(mr.solver_opt_ms_cosmetic_rules) : 0,
             solver_opt_ms_merge: mr ? num(mr.solver_opt_ms_merge) : 0,
             errors: gameRows.filter(r => ['compile_error', 'level_error'].includes(r.status)).length,
         });
@@ -139,6 +141,7 @@ function mergeBaselineOptimized(baselineGames, optimizedGames) {
             num(o.removed_inert_rules)
             + num(o.removed_cosmetic_objects)
             + num(o.removed_collision_layers)
+            + num(o.removed_cosmetic_rules)
             + num(o.merged_object_aliases)
             + num(o.merged_object_groups)
             + num(o.static_optimization_removed_rules);
@@ -156,10 +159,12 @@ function mergeBaselineOptimized(baselineGames, optimizedGames) {
             removed_inert: num(o.removed_inert_rules),
             removed_cosmetic: num(o.removed_cosmetic_objects),
             removed_layers: num(o.removed_collision_layers),
+            removed_cosmetic_rules: num(o.removed_cosmetic_rules),
             merged_aliases: num(o.merged_object_aliases),
             merged_groups: num(o.merged_object_groups),
             ms_inert: num(o.solver_opt_ms_inert),
             ms_cosmetic: num(o.solver_opt_ms_cosmetic),
+            ms_cosmetic_rules: num(o.solver_opt_ms_cosmetic_rules),
             ms_merge: num(o.solver_opt_ms_merge),
             errors_b: num(b.errors),
             errors_o: num(o.errors),
@@ -205,9 +210,10 @@ function buildHtml(meta, rows, totals) {
   <td class="num">${r.removed_inert ? fmtInt(r.removed_inert) : '—'}</td>
   <td class="num">${r.removed_cosmetic ? fmtInt(r.removed_cosmetic) : '—'}</td>
   <td class="num">${r.removed_layers ? fmtInt(r.removed_layers) : '—'}</td>
+  <td class="num">${r.removed_cosmetic_rules ? fmtInt(r.removed_cosmetic_rules) : '—'}</td>
   <td class="num">${r.merged_aliases ? fmtInt(r.merged_aliases) : '—'}</td>
   <td class="num">${r.merged_groups ? fmtInt(r.merged_groups) : '—'}</td>
-  <td class="num">${fmtMs(r.ms_inert + r.ms_cosmetic + r.ms_merge)}</td>
+  <td class="num">${fmtMs(r.ms_inert + r.ms_cosmetic + r.ms_cosmetic_rules + r.ms_merge)}</td>
 </tr>`;
         })
         .join('\n');
@@ -256,6 +262,7 @@ function buildHtml(meta, rows, totals) {
         <th class="num">inert rules −</th>
         <th class="num">cosmetic obj −</th>
         <th class="num">layers −</th>
+        <th class="num">cosmetic rules −</th>
         <th class="num">merge alias</th>
         <th class="num">merge groups</th>
         <th class="num">hook ms</th>
@@ -277,6 +284,7 @@ ${rowHtml}
         <td class="num">${fmtInt(totals.removed_inert)}</td>
         <td class="num">${fmtInt(totals.removed_cosmetic)}</td>
         <td class="num">${fmtInt(totals.removed_layers)}</td>
+        <td class="num">${fmtInt(totals.removed_cosmetic_rules)}</td>
         <td class="num">${fmtInt(totals.merged_aliases)}</td>
         <td class="num">${fmtInt(totals.merged_groups)}</td>
         <td class="num">${fmtMs(totals.hook_ms)}</td>
@@ -307,6 +315,7 @@ function footerTotals(rows) {
         removed_inert: 0,
         removed_cosmetic: 0,
         removed_layers: 0,
+        removed_cosmetic_rules: 0,
         merged_aliases: 0,
         merged_groups: 0,
         hook_ms: 0,
@@ -322,9 +331,10 @@ function footerTotals(rows) {
         t.removed_inert += r.removed_inert;
         t.removed_cosmetic += r.removed_cosmetic;
         t.removed_layers += r.removed_layers;
+        t.removed_cosmetic_rules += r.removed_cosmetic_rules;
         t.merged_aliases += r.merged_aliases;
         t.merged_groups += r.merged_groups;
-        t.hook_ms += r.ms_inert + r.ms_cosmetic + r.ms_merge;
+        t.hook_ms += r.ms_inert + r.ms_cosmetic + r.ms_cosmetic_rules + r.ms_merge;
     }
     t.d_compile = t.compile_o - t.compile_b;
     return t;

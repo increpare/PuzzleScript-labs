@@ -3,13 +3,15 @@
 /**
  * Solver-only static optimizations for compiled PuzzleScript state.
  *
- * Three independent passes, all opt-in via createSolverOptimizationHook(report, passes):
+ * Four independent passes, all opt-in via createSolverOptimizationHook(report, passes):
  *
  *   inert    — drop rules whose only effect is firing a sound or showing a
  *              message (sfx0..sfx10, message). These can't change game state,
  *              so the solver doesn't need to evaluate them.
  *   cosmetic — delete objects flagged "cosmetic" by the static analyzer that
  *              don't appear in any rule, wincondition, or sound row.
+ *   cosmeticRules — drop rules whose mutations are wholly cosmetic and whose
+ *              removal has no projected solver-visible effect.
  *   merge    — fold mergeability-candidate object pairs into a single canonical
  *              name (alphabetically first). Identical objects are equivalent
  *              for the solver.
@@ -37,10 +39,12 @@ const TELEMETRY_KEYS = [
     'removed_inert_rules',
     'removed_cosmetic_objects',
     'removed_collision_layers',
+    'removed_cosmetic_rules',
     'merged_object_aliases',
     'merged_object_groups',
     'ms_inert',
     'ms_cosmetic',
+    'ms_cosmetic_rules',
     'ms_merge',
 ];
 
@@ -447,6 +451,137 @@ function dropSolverInertCommandOnlyRules(state, inertSourceLines) {
     return main.removed + late.removed;
 }
 
+// ---------- Cosmetic rule pass ----------
+
+function movementKeyObjectName(movementKey) {
+    const text = String(movementKey);
+    const separator = text.lastIndexOf(':');
+    return separator === -1 ? text : text.slice(0, separator);
+}
+
+function movementTouchedObjectSet(rule) {
+    const out = new Set();
+    const tags = (rule && rule.tags) || {};
+    for (const key of tags.movements_written || []) out.add(movementKeyObjectName(key));
+    for (const key of tags.movements_removed || []) out.add(movementKeyObjectName(key));
+    return out;
+}
+
+function addAll(target, values) {
+    for (const value of values || []) target.add(value);
+}
+
+function ruleMutatedObjectSet(rule) {
+    const tags = (rule && rule.tags) || {};
+    const out = new Set();
+    addAll(out, tags.objects_written);
+    addAll(out, tags.objects_erased);
+    for (const objectName of movementTouchedObjectSet(rule)) out.add(objectName);
+    return out;
+}
+
+function ruleReadObjectSet(rule) {
+    const tags = (rule && rule.tags) || {};
+    const out = new Set();
+    addAll(out, tags.objects_required);
+    addAll(out, tags.objects_matched);
+    addAll(out, tags.object_absences_matched);
+    for (const key of tags.movements_required || []) out.add(movementKeyObjectName(key));
+    for (const key of tags.movements_matched || []) out.add(movementKeyObjectName(key));
+    return out;
+}
+
+function isCosmeticRuleOptimizationEligible(rule, cosmeticObjects) {
+    const tags = (rule && rule.tags) || {};
+    const mutatedObjects = ruleMutatedObjectSet(rule);
+    const readObjects = ruleReadObjectSet(rule);
+    const mutatesOnlyCosmeticObjects = mutatedObjects.size > 0
+        && [...mutatedObjects].every(objectName => cosmeticObjects.has(objectName));
+    const readsOnlyMutatedObjects = [...readObjects]
+        .every(objectName => mutatedObjects.has(objectName));
+    const movementOnlyTouchesMutatedObjects = [...movementTouchedObjectSet(rule)]
+        .every(objectName => mutatedObjects.has(objectName));
+    return rule
+        && tags.cosmetic === true
+        && tags.object_mutating === true
+        && rule.random_rule !== true
+        && rule.rigid !== true
+        && mutatesOnlyCosmeticObjects
+        && readsOnlyMutatedObjects
+        && movementOnlyTouchesMutatedObjects
+        && (!rule.summary || (
+            rule.summary.semantic_commands.length === 0
+            && rule.summary.rhs_random_objects.length === 0
+        ));
+}
+
+function cosmeticRuleSourceLines(report) {
+    const byLine = new Map();
+    const allRules = [];
+    const cosmeticObjects = collectCosmeticNames(report);
+    const sections = report && report.ps_tagged && report.ps_tagged.rule_sections;
+    if (!Array.isArray(sections)) return new Set();
+    for (const section of sections) {
+        for (const group of section.groups || []) {
+            for (const rule of group.rules || []) {
+                allRules.push(rule);
+                if (!Number.isFinite(rule && rule.source_line)) continue;
+                if (!byLine.has(rule.source_line)) {
+                    byLine.set(rule.source_line, { total: 0, eligible: 0, mutatedObjects: new Set() });
+                }
+                const entry = byLine.get(rule.source_line);
+                entry.total++;
+                if (isCosmeticRuleOptimizationEligible(rule, cosmeticObjects)) {
+                    entry.eligible++;
+                    for (const objectName of ruleMutatedObjectSet(rule)) entry.mutatedObjects.add(objectName);
+                }
+            }
+        }
+    }
+    const candidateLines = new Set(Array.from(byLine.entries())
+        .filter(([_line, entry]) => entry.total > 0 && entry.total === entry.eligible)
+        .map(([line]) => line));
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const rule of allRules) {
+            if (candidateLines.has(rule && rule.source_line)) continue;
+            const readObjects = ruleReadObjectSet(rule);
+            if (readObjects.size === 0) continue;
+            for (const line of Array.from(candidateLines)) {
+                const mutatedObjects = byLine.get(line).mutatedObjects;
+                if ([...readObjects].some(objectName => mutatedObjects.has(objectName))) {
+                    candidateLines.delete(line);
+                    changed = true;
+                }
+            }
+        }
+    }
+    return candidateLines;
+}
+
+function dropRulesBySourceLineFrom(rules, sourceLines) {
+    if (!Array.isArray(rules) || !sourceLines || sourceLines.size === 0) return { kept: rules, removed: 0 };
+    const kept = [];
+    let removed = 0;
+    for (const rule of rules) {
+        if (rule && sourceLines.has(rule.lineNumber) && rule.randomRule !== true) {
+            removed++;
+        } else {
+            kept.push(rule);
+        }
+    }
+    return { kept, removed };
+}
+
+function dropSolverCosmeticRules(state, sourceLines) {
+    const main = dropRulesBySourceLineFrom(state.rules, sourceLines);
+    state.rules = main.kept;
+    const late = dropRulesBySourceLineFrom(state.lateRules, sourceLines);
+    state.lateRules = late.kept;
+    return main.removed + late.removed;
+}
+
 // ---------- Cosmetic pass ----------
 
 function collectCosmeticNames(report) {
@@ -543,9 +678,7 @@ function runtimeObjectNameSetForStaticNames(state, staticNames) {
 }
 
 function movementObjectName(movementKey) {
-    const text = String(movementKey);
-    const separator = text.lastIndexOf(':');
-    return separator === -1 ? text : text.slice(0, separator);
+    return movementKeyObjectName(movementKey);
 }
 
 function mergeMutationObjectNames(report) {
@@ -651,6 +784,14 @@ function createSolverOptimizationHook(staticAnalysisReport, passes) {
             }
             telemetry.ms_inert += nowFn() - t0;
         }
+        if (p.cosmeticRules) {
+            const t0 = nowFn();
+            const lines = cosmeticRuleSourceLines(staticAnalysisReport);
+            if (lines.size > 0) {
+                telemetry.removed_cosmetic_rules += dropSolverCosmeticRules(compiledState, lines);
+            }
+            telemetry.ms_cosmetic_rules += nowFn() - t0;
+        }
         if (p.cosmetic) {
             const t0 = nowFn();
             passCosmeticPrune(compiledState, staticAnalysisReport, telemetry);
@@ -668,39 +809,46 @@ function createSolverOptimizationHook(staticAnalysisReport, passes) {
 // ---------- CLI / pass-list parsing ----------
 
 function parseSolverOptPassList(arg) {
-    const passes = { inert: false, cosmetic: false, merge: false };
+    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+    const aliases = {
+        cosmeticrules: 'cosmeticRules',
+        'cosmetic-rules': 'cosmeticRules',
+        cosmetic_rules: 'cosmeticRules',
+    };
     const parts = String(arg || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     if (parts.includes('all')) {
-        passes.inert = passes.cosmetic = passes.merge = true;
+        passes.inert = passes.cosmetic = passes.cosmeticRules = passes.merge = true;
         return passes;
     }
     for (const p of parts) {
-        if (!(p in passes)) throw new Error(`Unknown solver optimization pass: ${p}`);
-        passes[p] = true;
+        const key = aliases[p] || p;
+        if (!(key in passes)) throw new Error(`Unknown solver optimization pass: ${p}`);
+        passes[key] = true;
     }
     return passes;
 }
 
 function resolveSolverPasses(options) {
     if (options.solverOptParityBaseline) {
-        return { inert: false, cosmetic: false, merge: false };
+        return { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
     }
-    const passes = { inert: false, cosmetic: false, merge: false };
+    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
     if (options.solverOptPasses) Object.assign(passes, options.solverOptPasses);
     if (options.solverOptimizeStatic) passes.inert = true;
     return passes;
 }
 
 function solverPassesNeedFullStaticReport(passes) {
-    return !!(passes && (passes.cosmetic || passes.merge));
+    return !!(passes && (passes.cosmetic || passes.cosmeticRules || passes.merge));
 }
 
 function effectiveSolverPassesForHook(staticAnalysisReport, passes) {
-    const p = passes || { inert: false, cosmetic: false, merge: false };
+    const p = passes || { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
     const reportOk = !!(staticAnalysisReport && staticAnalysisReport.status === 'ok');
     return {
         inert: !!p.inert,
         cosmetic: !!p.cosmetic && reportOk,
+        cosmeticRules: !!p.cosmeticRules && reportOk,
         merge: !!p.merge && reportOk,
     };
 }
@@ -714,17 +862,22 @@ const FORMATTER_FIELDS = [
     ['static_optimization_removed_rules', 'inert_rules'],
     ['removed_cosmetic_objects',          'cosmetic_objs'],
     ['removed_collision_layers',          'empty_layers'],
+    ['removed_cosmetic_rules',            'cosmetic_rules'],
     ['merged_object_aliases',             'merge_aliases'],
     ['merged_object_groups',              'merge_groups'],
 ];
 const FORMATTER_MS_FIELDS = [
-    ['solver_opt_ms_inert',    'opt_ms_inert'],
-    ['solver_opt_ms_cosmetic', 'opt_ms_cosmetic'],
-    ['solver_opt_ms_merge',    'opt_ms_merge'],
+    ['solver_opt_ms_inert',          'opt_ms_inert'],
+    ['solver_opt_ms_cosmetic',       'opt_ms_cosmetic'],
+    ['solver_opt_ms_cosmetic_rules', 'opt_ms_cosmetic_rules'],
+    ['solver_opt_ms_merge',          'opt_ms_merge'],
 ];
 
 function totalHookMs(t) {
-    return (t.solver_opt_ms_inert || 0) + (t.solver_opt_ms_cosmetic || 0) + (t.solver_opt_ms_merge || 0);
+    return (t.solver_opt_ms_inert || 0)
+        + (t.solver_opt_ms_cosmetic || 0)
+        + (t.solver_opt_ms_cosmetic_rules || 0)
+        + (t.solver_opt_ms_merge || 0);
 }
 
 function formatSolverOptimizationHumanSuffixFromTotals(t) {
@@ -747,24 +900,28 @@ function buildSolverOptimizationJsonTotals(t) {
     const removedInert = t.static_optimization_removed_rules || 0;
     const removedCos = t.removed_cosmetic_objects || 0;
     const removedLayers = t.removed_collision_layers || 0;
+    const removedCosRules = t.removed_cosmetic_rules || 0;
     const mergedAliases = t.merged_object_aliases || 0;
     const mergedGroups = t.merged_object_groups || 0;
     const msInert = t.solver_opt_ms_inert || 0;
     const msCos = t.solver_opt_ms_cosmetic || 0;
+    const msCosRules = t.solver_opt_ms_cosmetic_rules || 0;
     const msMrg = t.solver_opt_ms_merge || 0;
-    const hookMs = msInert + msCos + msMrg;
+    const hookMs = msInert + msCos + msCosRules + msMrg;
     const gated = !!t.solver_optimization_gated;
-    if (removedInert + removedCos + removedLayers + mergedAliases + mergedGroups + hookMs === 0 && !gated) {
+    if (removedInert + removedCos + removedLayers + removedCosRules + mergedAliases + mergedGroups + hookMs === 0 && !gated) {
         return null;
     }
     const out = {
         removed_inert_rules: removedInert,
         removed_cosmetic_objects: removedCos,
         removed_collision_layers: removedLayers,
+        removed_cosmetic_rules: removedCosRules,
         merged_object_aliases: mergedAliases,
         merged_object_groups: mergedGroups,
         ms_inert: msInert,
         ms_cosmetic: msCos,
+        ms_cosmetic_rules: msCosRules,
         ms_merge: msMrg,
         ms_hook: hookMs,
     };
@@ -778,6 +935,9 @@ module.exports = {
     inertCommandOnlyRuleSourceLines,
     isInertCommandOnlyCompiledRule,
     dropSolverInertCommandOnlyRules,
+    cosmeticRuleSourceLines,
+    isCosmeticRuleOptimizationEligible,
+    dropSolverCosmeticRules,
     mergeabilityCandidatePairs,
     mergeMutationObjectNames,
     runtimeObjectNameForStaticName,

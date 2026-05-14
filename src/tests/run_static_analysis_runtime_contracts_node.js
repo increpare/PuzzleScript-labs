@@ -7,6 +7,7 @@ const { analyzeSource } = require('./ps_static_analysis');
 const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 const {
     buildMergeAliasMap,
+    cosmeticRuleSourceLines: optimizerCosmeticRuleSourceLines,
     createSolverOptimizationHook,
     mergeabilityCandidatePairs,
     mergeMutationObjectNames,
@@ -121,6 +122,7 @@ function emptyStaticContract(unavailableReason) {
         neverAppearsObjectNames: [],
         cosmeticObjectNames: [],
         cosmeticRuleSourceLines: [],
+        optimizerCosmeticRuleSourceLines: [],
         inertCommandRuleSourceLines: [],
         mergeCandidatePairs: [],
         winflowFact: null,
@@ -312,6 +314,7 @@ function staticContractForSource(source, testName) {
             .filter(object => object.tags && object.tags.cosmetic === true)
             .map(object => object.name),
         cosmeticRuleSourceLines: cosmeticRuleSourceLines(report.ps_tagged),
+        optimizerCosmeticRuleSourceLines: Array.from(optimizerCosmeticRuleSourceLines(report)).sort((left, right) => left - right),
         inertCommandRuleSourceLines: inertCommandRuleSourceLines(report.ps_tagged),
         mergeCandidatePairs: mergeabilityCandidatePairs(report),
         winflowFact,
@@ -668,7 +671,27 @@ function runCosmeticRuleSuppressedReplayFinalProjection(testName, source, inputs
         executeInputToken(inputToken);
         drainAgain(`${testName}: cosmetic rules suppressed input ${inputIndex} ${tokenLabel(inputToken)}`);
     }
-    return cosmeticProjectionSnapshot(objectNames);
+    return cosmeticRuleProjectionSnapshot(objectNames);
+}
+
+function runCosmeticRuleOptimizedReplayFinalProjection(testName, source, inputs, targetLevel, randomSeed, staticAnalysisReport, objectNames) {
+    const hook = createSolverOptimizationHook(staticAnalysisReport, {
+        inert: false,
+        cosmetic: false,
+        cosmeticRules: true,
+        merge: false,
+    });
+    compileSimulationSource(`${testName}: cosmetic rules optimized`, source, targetLevel, randomSeed, hook);
+    const telemetry = (state && state.solverOptimizationTelemetry) || {};
+    for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
+        const inputToken = inputs[inputIndex];
+        executeInputToken(inputToken);
+        drainAgain(`${testName}: cosmetic rules optimized input ${inputIndex} ${tokenLabel(inputToken)}`);
+    }
+    return {
+        projection: cosmeticRuleProjectionSnapshot(objectNames),
+        telemetry,
+    };
 }
 
 function runInertCommandSuppressedReplayFinalState(testName, source, inputs, targetLevel, randomSeed, sourceLines) {
@@ -1042,6 +1065,44 @@ function mergeCanonicalStateSnapshot(aliasMap) {
     return snapshot;
 }
 
+function namedBoardStateSnapshot() {
+    const snapshot = {
+        board: solverCoreBoardIdentity(),
+        curlevel: typeof curlevel === 'number' ? curlevel : null,
+        curlevelTarget: curlevelTarget === null ? null : JSON.stringify(curlevelTarget),
+        winning: Boolean(winning),
+        againing: Boolean(againing),
+        cells: [],
+        movements: canSnapshotBoard() ? Array.from(level.movements || []) : [],
+        rigidGroupIndexMask: canSnapshotBoard() ? bitVecArraySnapshot(level.rigidGroupIndexMask) : [],
+        rigidMovementAppliedMask: canSnapshotBoard() ? bitVecArraySnapshot(level.rigidMovementAppliedMask) : [],
+    };
+    if (!canSnapshotBoard()) return snapshot;
+
+    const objectEntries = Object.entries(state.objects || {})
+        .filter(([_name, object]) => object && Number.isInteger(object.id))
+        .sort((left, right) => left[0].localeCompare(right[0], undefined, { numeric: true }));
+    for (let cellIndex = 0; cellIndex < level.n_tiles; cellIndex++) {
+        const cell = level.getCell(cellIndex);
+        const names = [];
+        for (const [name, object] of objectEntries) {
+            if (cell.get(object.id)) names.push(name);
+        }
+        snapshot.cells.push(names);
+    }
+    return snapshot;
+}
+
+function cosmeticRuleProjectionSnapshot(objectNames) {
+    const runtimeState = captureRuntimeProbeState();
+    try {
+        applyCosmeticProjection(objectNames);
+        return namedBoardStateSnapshot();
+    } finally {
+        restoreRuntimeProbeState(runtimeState);
+    }
+}
+
 function cloneRandomGenerator(generator) {
     if (!generator) return generator;
     const clone = new RNG(generator.seed);
@@ -1298,6 +1359,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const neverAppearsObjects = staticContract.neverAppearsObjectNames;
     let cosmeticObjects = staticContract.cosmeticObjectNames;
     const cosmeticRuleSourceLines = staticContract.cosmeticRuleSourceLines;
+    const optimizerCosmeticRuleSourceLines = staticContract.optimizerCosmeticRuleSourceLines;
     const inertCommandRuleSourceLines = staticContract.inertCommandRuleSourceLines;
     const mergeCandidatePairs = staticContract.mergeCandidatePairs;
     let cosmeticRuleProjectionObjects = [];
@@ -1331,6 +1393,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let noRandomReplayChecks = 0;
     let cosmeticProjectionChecks = 0;
     let cosmeticRuleProjectionChecks = 0;
+    let cosmeticRuleOptimizerProjectionChecks = 0;
     let inertCommandRuleSuppressionChecks = 0;
     let mergeProjectionChecks = 0;
     let winflowBoundaryChecks = 0;
@@ -1540,8 +1603,8 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         const normalCosmeticProjection = cosmeticObjects.length > 0
             ? cosmeticProjectionSnapshot(cosmeticObjects)
             : null;
-        const normalCosmeticRuleProjection = cosmeticRuleSourceLines.length > 0
-            ? cosmeticProjectionSnapshot(cosmeticRuleProjectionObjects)
+        const normalCosmeticRuleProjection = (cosmeticRuleSourceLines.length > 0 || optimizerCosmeticRuleSourceLines.length > 0)
+            ? cosmeticRuleProjectionSnapshot(cosmeticRuleProjectionObjects)
             : null;
         const normalMergeProjection = mergeAliasMap.size > 0
             ? mergeCanonicalStateSnapshot(mergeAliasMap)
@@ -1635,6 +1698,34 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             cosmeticRuleProjectionChecks++;
         }
 
+        if (optimizerCosmeticRuleSourceLines.length > 0) {
+            const optimizedReplay = runCosmeticRuleOptimizedReplayFinalProjection(
+                testName,
+                source,
+                inputs,
+                targetLevel,
+                randomSeed,
+                staticContract.staticAnalysisReport,
+                cosmeticRuleProjectionObjects
+            );
+            const removedRules = optimizedReplay.telemetry.removed_cosmetic_rules || 0;
+            if (removedRules <= 0) {
+                throw new Error([
+                    `${testName}: cosmetic rule optimizer removed no rules`,
+                    `  optimizer source lines: ${JSON.stringify(optimizerCosmeticRuleSourceLines)}`,
+                ].join('\n'));
+            }
+            const projectionDiff = firstReplayTraceDifference([normalCosmeticRuleProjection], [optimizedReplay.projection]);
+            if (projectionDiff) {
+                throw new Error([
+                    `${testName}: cosmetic-rule-optimized replay diverged after projection`,
+                    `  normal projected: ${JSON.stringify(projectionDiff.left)}`,
+                    `  optimized projected: ${JSON.stringify(projectionDiff.right)}`,
+                ].join('\n'));
+            }
+            cosmeticRuleOptimizerProjectionChecks++;
+        }
+
         if (checkNoRandomReplay) {
             const alternateTrace = replayBoundaryTrace(
                 testName,
@@ -1675,6 +1766,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             cosmeticObjectCount: cosmeticObjects.length,
             cosmeticProjectionChecks,
             cosmeticRuleProjectionChecks,
+            cosmeticRuleOptimizerProjectionChecks,
             inertCommandRuleSuppressionChecks,
             mergeAliasCount: mergeAliasMap.size,
             mergeGroupCount,
@@ -1740,6 +1832,7 @@ function runAll(options = {}) {
     let neverAppearsBoundaryChecks = 0;
     let cosmeticProjectionChecks = 0;
     let cosmeticRuleProjectionChecks = 0;
+    let cosmeticRuleOptimizerProjectionChecks = 0;
     let inertCommandRuleSuppressionChecks = 0;
     let mergeProjectionChecks = 0;
     let actionNoopBoundaryChecks = 0;
@@ -1820,6 +1913,7 @@ function runAll(options = {}) {
             neverAppearsBoundaryChecks += result.neverAppearsBoundaryChecks;
             cosmeticProjectionChecks += result.cosmeticProjectionChecks;
             cosmeticRuleProjectionChecks += result.cosmeticRuleProjectionChecks;
+            cosmeticRuleOptimizerProjectionChecks += result.cosmeticRuleOptimizerProjectionChecks;
             inertCommandRuleSuppressionChecks += result.inertCommandRuleSuppressionChecks;
             mergeProjectionChecks += result.mergeProjectionChecks;
             actionNoopBoundaryChecks += result.actionNoopBoundaryChecks;
@@ -1864,6 +1958,7 @@ function runAll(options = {}) {
         neverAppearsBoundaryChecks,
         cosmeticProjectionChecks,
         cosmeticRuleProjectionChecks,
+        cosmeticRuleOptimizerProjectionChecks,
         inertCommandRuleSuppressionChecks,
         mergeProjectionChecks,
         actionNoopBoundaryChecks,
@@ -1894,7 +1989,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }

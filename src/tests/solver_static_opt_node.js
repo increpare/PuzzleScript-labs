@@ -18,6 +18,8 @@ const {
     buildSolverOptimizationJsonTotals,
     formatSolverOptimizationHumanSuffixFromTotals,
     isInertCommandOnlyCompiledRule,
+    cosmeticRuleSourceLines,
+    isCosmeticRuleOptimizationEligible,
     applyNameSubstitutionToWinconditions,
     buildMergeAliasMap,
 } = require('./solver_static_opt');
@@ -72,25 +74,27 @@ function run() {
     assert.ok(!onMap.has('player'));
 
     assert.deepStrictEqual(
-        effectiveSolverPassesForHook(null, { inert: true, cosmetic: true, merge: true }),
-        { inert: true, cosmetic: false, merge: false },
+        effectiveSolverPassesForHook(null, { inert: true, cosmetic: true, cosmeticRules: true, merge: true }),
+        { inert: true, cosmetic: false, cosmeticRules: false, merge: false },
     );
     assert.deepStrictEqual(
-        effectiveSolverPassesForHook({ status: 'compile_error' }, { inert: true, cosmetic: true, merge: true }),
-        { inert: true, cosmetic: false, merge: false },
+        effectiveSolverPassesForHook({ status: 'compile_error' }, { inert: true, cosmetic: true, cosmeticRules: true, merge: true }),
+        { inert: true, cosmetic: false, cosmeticRules: false, merge: false },
     );
     assert.deepStrictEqual(
-        effectiveSolverPassesForHook({ status: 'ok' }, { inert: false, cosmetic: true, merge: true }),
-        { inert: false, cosmetic: true, merge: true },
+        effectiveSolverPassesForHook({ status: 'ok' }, { inert: false, cosmetic: true, cosmeticRules: true, merge: true }),
+        { inert: false, cosmetic: true, cosmeticRules: true, merge: true },
     );
     const nest = buildSolverOptimizationJsonTotals({
         static_optimization_removed_rules: 1,
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
+        removed_cosmetic_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         solver_opt_ms_inert: 0.01,
         solver_opt_ms_cosmetic: 0,
+        solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
     });
     assert.strictEqual(nest.removed_inert_rules, 1);
@@ -100,18 +104,21 @@ function run() {
         static_optimization_removed_rules: 0,
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
+        removed_cosmetic_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
+        solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
         solver_optimization_gated: true,
     });
     assert.strictEqual(nestGated.gated, true);
     assert.ok(formatSolverOptimizationHumanSuffixFromTotals({ solver_optimization_gated: true }).includes('opt_gated=1'));
 
-    assert.deepStrictEqual(parseSolverOptPassList('all'), { inert: true, cosmetic: true, merge: true });
-    assert.deepStrictEqual(parseSolverOptPassList('inert,cosmetic'), { inert: true, cosmetic: true, merge: false });
+    assert.deepStrictEqual(parseSolverOptPassList('all'), { inert: true, cosmetic: true, cosmeticRules: true, merge: true });
+    assert.deepStrictEqual(parseSolverOptPassList('inert,cosmetic'), { inert: true, cosmetic: true, cosmeticRules: false, merge: false });
+    assert.deepStrictEqual(parseSolverOptPassList('cosmetic-rules'), { inert: false, cosmetic: false, cosmeticRules: true, merge: false });
     assertThrows(() => parseSolverOptPassList('nope'), 'Unknown');
 
     const inertLine = new Set([42]);
@@ -129,6 +136,91 @@ function run() {
             inertLine,
         ),
         true,
+    );
+    const cosmeticNames = new Set(['Dust']);
+    assert.strictEqual(
+        isCosmeticRuleOptimizationEligible({
+            random_rule: false,
+            rigid: false,
+            tags: {
+                cosmetic: true,
+                object_mutating: true,
+                objects_required: ['Dust'],
+                objects_matched: ['Dust'],
+                object_absences_matched: [],
+                objects_written: [],
+                objects_erased: ['Dust'],
+                movements_written: [],
+                movements_removed: [],
+            },
+            summary: { semantic_commands: [], rhs_random_objects: [] },
+        }, cosmeticNames),
+        true,
+        'pure cosmetic cleanup rules are optimizer-eligible',
+    );
+    assert.strictEqual(
+        isCosmeticRuleOptimizationEligible({
+            random_rule: false,
+            rigid: false,
+            tags: {
+                cosmetic: true,
+                object_mutating: true,
+                objects_required: ['Player'],
+                objects_matched: ['Player'],
+                object_absences_matched: [],
+                objects_written: ['Dust'],
+                objects_erased: [],
+                movements_written: [],
+                movements_removed: [],
+            },
+            summary: { semantic_commands: [], rhs_random_objects: [] },
+        }, cosmeticNames),
+        false,
+        'do not remove contextual cosmetic-marker rules before runtime grouping',
+    );
+    const dependentCosmeticReport = {
+        ps_tagged: {
+            objects: [{ name: 'Dust', tags: { cosmetic: true } }],
+            rule_sections: [{
+                groups: [
+                    { rules: [{
+                        source_line: 1,
+                        random_rule: false,
+                        rigid: false,
+                        tags: {
+                            cosmetic: true,
+                            object_mutating: true,
+                            objects_required: ['Dust'],
+                            objects_matched: ['Dust'],
+                            object_absences_matched: [],
+                            objects_written: [],
+                            objects_erased: ['Dust'],
+                            movements_written: [],
+                            movements_removed: [],
+                        },
+                        summary: { semantic_commands: [], rhs_random_objects: [] },
+                    }] },
+                    { rules: [{
+                        source_line: 2,
+                        random_rule: false,
+                        rigid: false,
+                        tags: {
+                            cosmetic: false,
+                            object_mutating: false,
+                            objects_required: ['Dust'],
+                            objects_matched: ['Dust'],
+                            object_absences_matched: [],
+                        },
+                        summary: { semantic_commands: [], rhs_random_objects: [] },
+                    }] },
+                ],
+            }],
+        },
+    };
+    assert.deepStrictEqual(
+        Array.from(cosmeticRuleSourceLines(dependentCosmeticReport)),
+        [],
+        'do not remove cosmetic cleanup rules whose markers are read by kept rules',
     );
 
     const mergeAliasState = {
@@ -154,9 +246,10 @@ function run() {
     const merged = resolveSolverPasses(opt);
     assert.strictEqual(merged.inert, true);
     assert.strictEqual(merged.cosmetic, true);
+    assert.strictEqual(merged.cosmeticRules, false);
 
     const baseline = resolveSolverPasses(Object.assign({}, opt, { solverOptParityBaseline: true }));
-    assert.deepStrictEqual(baseline, { inert: false, cosmetic: false, merge: false });
+    assert.deepStrictEqual(baseline, { inert: false, cosmetic: false, cosmeticRules: false, merge: false });
 
     loadPuzzleScript();
     const smokePath = path.join(__dirname, 'solver_smoke_tests', 'one_move.txt');
@@ -175,9 +268,98 @@ function run() {
     assert.ok(state && state.solverOptimizationTelemetry, 'telemetry attached');
     const tel = state.solverOptimizationTelemetry;
     assert.ok(typeof tel.removed_inert_rules === 'number');
+    assert.ok(typeof tel.removed_cosmetic_rules === 'number');
     assert.ok(typeof tel.ms_inert === 'number' && tel.ms_inert >= 0);
     assert.ok(typeof tel.ms_cosmetic === 'number' && tel.ms_cosmetic >= 0);
+    assert.ok(typeof tel.ms_cosmetic_rules === 'number' && tel.ms_cosmetic_rules >= 0);
     assert.ok(typeof tel.ms_merge === 'number' && tel.ms_merge >= 0);
+
+    const cosmeticRuleSource = `
+title Solver Static Cosmetic Rule
+
+========
+OBJECTS
+========
+
+background
+black
+
+Player
+blue
+
+Target
+green
+
+Dust
+red
+
+========
+LEGEND
+========
+
+. = background
+P = Player
+T = Target
+d = Dust
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+background
+Target
+Player
+Dust
+
+======
+RULES
+======
+
+[ Dust ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+all Player on Target
+
+======
+LEVELS
+======
+
+PTd
+`;
+    const cosmeticRuleReport = analyzeSource(cosmeticRuleSource, { sourcePath: 'solver_static_cosmetic_rule.txt' });
+    assert.strictEqual(cosmeticRuleReport.status, 'ok');
+    assert.ok(
+        cosmeticRuleReport.ps_tagged.rule_sections
+            .flatMap(section => section.groups)
+            .flatMap(group => group.rules)
+            .some(rule => rule.tags && rule.tags.cosmetic === true),
+        'fixture should exercise a cosmetic-tagged rule',
+    );
+    const cosmeticRuleHook = createSolverOptimizationHook(cosmeticRuleReport, {
+        inert: false,
+        cosmetic: false,
+        cosmeticRules: true,
+        merge: false,
+    });
+    setPluginOptimizationHook(cosmeticRuleHook);
+    try {
+        compile(['loadLevel', 0], cosmeticRuleSource, 'solver_static_cosmetic_rule');
+    } finally {
+        setPluginOptimizationHook(null);
+    }
+    assert.strictEqual(errorCount, 0, 'cosmetic rule optimization compile should succeed');
+    assert.strictEqual(
+        state.solverOptimizationTelemetry.removed_cosmetic_rules,
+        1,
+        'cosmetic rule pass should suppress the cosmetic cleanup rule',
+    );
 
     const backgroundOnlySource = `
 title Solver Static Cosmetic Background

@@ -88,10 +88,12 @@ function main() {
         'static_optimization_removed_rules',
         'removed_cosmetic_objects',
         'removed_collision_layers',
+        'removed_cosmetic_rules',
         'merged_object_aliases',
         'merged_object_groups',
         'solver_opt_ms_inert',
         'solver_opt_ms_cosmetic',
+        'solver_opt_ms_cosmetic_rules',
         'solver_opt_ms_merge',
     ];
 
