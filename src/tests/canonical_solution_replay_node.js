@@ -9,6 +9,7 @@ const path = require('path');
 const {
     formatReplayFailure,
     loadPuzzleScriptRuntime,
+    parseArgs,
     replaySolutionOnOriginal,
     runCanonicalReplay,
 } = require('./run_canonical_solution_replay');
@@ -119,6 +120,25 @@ P
 `;
 
 loadPuzzleScriptRuntime();
+
+function assertThrowsMessage(fn, pattern) {
+    assert.throws(fn, error => pattern.test(error && error.message ? error.message : String(error)));
+}
+
+assertThrowsMessage(
+    () => parseArgs(['node', 'script', 'corpus', '--timeout-ms', 'nope']),
+    /--timeout-ms must be a positive integer: nope/
+);
+assertThrowsMessage(
+    () => runCanonicalReplay({ corpusPath: '.', timeoutMs: NaN }),
+    /timeoutMs must be a positive integer: NaN/
+);
+for (const badTimeout of [Infinity, 0, -1]) {
+    assertThrowsMessage(
+        () => runCanonicalReplay({ corpusPath: '.', timeoutMs: badTimeout }),
+        new RegExp(`timeoutMs must be a positive integer: ${badTimeout}`)
+    );
+}
 
 const solved = replaySolutionOnOriginal({
     source: SIMPLE_SOURCE,

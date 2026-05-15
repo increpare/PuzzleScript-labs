@@ -157,6 +157,14 @@ function usage(exitCode) {
     process.exit(exitCode);
 }
 
+function parsePositiveTimeoutMs(value, label) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+        throw new Error(`${label} must be a positive integer: ${value}`);
+    }
+    return parsed;
+}
+
 function parseArgs(argv) {
     const options = {
         corpusPath: null,
@@ -174,7 +182,7 @@ function parseArgs(argv) {
         if (arg === '--solver-focus-manifest' && index + 1 < args.length) {
             options.manifestPath = path.resolve(args[++index]);
         } else if (arg === '--timeout-ms' && index + 1 < args.length) {
-            options.timeoutMs = Math.max(1, Number.parseInt(args[++index], 10));
+            options.timeoutMs = parsePositiveTimeoutMs(args[++index], '--timeout-ms');
         } else if (arg === '--static-optimizations' && index + 1 < args.length) {
             options.staticOptimizations = args[++index];
             parseSolverOptPassList(options.staticOptimizations);
@@ -342,6 +350,7 @@ function runCanonicalReplay(options) {
     if (!['portfolio', 'bfs', 'weighted-astar', 'greedy', 'phase-split'].includes(merged.strategy)) {
         throw new Error(`Unsupported strategy: ${merged.strategy}`);
     }
+    merged.timeoutMs = parsePositiveTimeoutMs(merged.timeoutMs, 'timeoutMs');
     const resolved = Object.assign({}, merged, {
         corpusPath: path.resolve(merged.corpusPath),
         manifestPath: path.resolve(merged.manifestPath),
