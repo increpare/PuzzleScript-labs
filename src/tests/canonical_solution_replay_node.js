@@ -33,6 +33,10 @@ LEGEND
 P = Player
 G = Goal
 
+======
+SOUNDS
+======
+
 ================
 COLLISIONLAYERS
 ================
