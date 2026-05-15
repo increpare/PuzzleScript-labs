@@ -542,29 +542,68 @@ function emitMetadata(canonical) {
     return lines;
 }
 
+function withEmittableBackground(canonical) {
+    if ((canonical.backgroundObjects || []).length > 0) {
+        return canonical;
+    }
+
+    const existingNames = new Set(canonicalObjectNames(canonical));
+    let nextObjectIndex = 0;
+    for (const name of existingNames) {
+        const match = /^obj_(\d+)$/.exec(name);
+        if (match) {
+            nextObjectIndex = Math.max(nextObjectIndex, Number(match[1]) + 1);
+        }
+    }
+
+    let syntheticBackground = `obj_${nextObjectIndex}`;
+    while (existingNames.has(syntheticBackground)) {
+        nextObjectIndex++;
+        syntheticBackground = `obj_${nextObjectIndex}`;
+    }
+
+    const levels = (canonical.levels || []).map(level => {
+        if (level.type !== 'map') {
+            return level;
+        }
+        return Object.assign({}, level, {
+            rows: level.rows.map(row => row.map(cell => (
+                cell.length === 0 ? [syntheticBackground] : cell.slice()
+            ))),
+        });
+    });
+
+    return Object.assign({}, canonical, {
+        backgroundObjects: [syntheticBackground],
+        collisionLayers: [[syntheticBackground], ...(canonical.collisionLayers || []).map(layer => layer.slice())],
+        levels,
+    });
+}
+
 function decanonicalizeSemantic(canonical) {
     if (canonical.format !== 'puzzlescript-semantic-canonical-v1') {
         throw new Error(`Unsupported canonical format: ${canonical.format}`);
     }
 
-    const objectNames = canonicalObjectNames(canonical);
-    const layerIndex = buildLayerIndex(canonical);
-    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet } = buildAliasDefinitions(canonical, objectNames);
+    const emissionCanonical = withEmittableBackground(canonical);
+    const objectNames = canonicalObjectNames(emissionCanonical);
+    const layerIndex = buildLayerIndex(emissionCanonical);
+    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet } = buildAliasDefinitions(emissionCanonical, objectNames);
 
     const output = [];
-    output.push(...emitMetadata(canonical));
+    output.push(...emitMetadata(emissionCanonical));
     output.push(...emitObjectsSection(objectNames, layerIndex));
     const forbiddenGlyphNames = new Set(objectNames.map(name => name.toLowerCase()));
     forbiddenGlyphNames.add('background');
     forbiddenGlyphNames.add('player');
     forbiddenGlyphNames.add('cell');
     forbiddenGlyphNames.add('set');
-    const { glyphMap, legendLines } = buildLevelGlyphs(canonical, cellAliasForSet, forbiddenGlyphNames);
+    const { glyphMap, legendLines } = buildLevelGlyphs(emissionCanonical, cellAliasForSet, forbiddenGlyphNames);
     output.push(...emitLegendSection(aliasLines, legendLines));
     output.push('=======', 'SOUNDS', '=======', '');
     output.push('================', 'COLLISIONLAYERS', '================', '');
     const seenLayerObjects = new Set();
-    for (const layer of canonical.collisionLayers || []) {
+    for (const layer of emissionCanonical.collisionLayers || []) {
         const filteredLayer = normalizeSet(layer).filter(name => {
             if (seenLayerObjects.has(name)) {
                 return false;
@@ -577,9 +616,9 @@ function decanonicalizeSemantic(canonical) {
         }
     }
     output.push('');
-    output.push(...emitRulesSection(canonical, ruleAliasForSet));
-    output.push(...emitWinConditionsSection(canonical, objectNames, winAliasForSet));
-    output.push(...emitLevelsSection(canonical, glyphMap));
+    output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet));
+    output.push(...emitWinConditionsSection(emissionCanonical, objectNames, winAliasForSet));
+    output.push(...emitLevelsSection(emissionCanonical, glyphMap));
     return `${output.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 
