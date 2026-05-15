@@ -96,4 +96,34 @@ const optimizedCompiled = compileSemanticSource(optimizedRehydrated);
 assert.strictEqual(optimizedCompiled.errorCount, 0, 'decanonicalized optimized source should compile with a concrete background');
 assert.strictEqual(JSON.stringify(optimizedCanonical), optimizedCanonicalBeforeRehydration, 'decanonicalization should not mutate optimized canonical input');
 
+const unlayeredWinObjectCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [
+        { key: 'title', value: 'Unlayered Win Object' },
+    ],
+    collisionLayers: [
+        ['obj_0'],
+        ['obj_1'],
+    ],
+    playerObjects: ['obj_1'],
+    backgroundObjects: ['obj_0'],
+    rules: [],
+    winConditions: [
+        { quantifier: 1, a: ['obj_1'], b: ['obj_2'] },
+    ],
+    levels: [
+        {
+            type: 'map',
+            rows: [
+                [['obj_0', 'obj_1']],
+            ],
+        },
+    ],
+};
+const unlayeredBeforeRehydration = JSON.stringify(unlayeredWinObjectCanonical);
+const unlayeredRehydrated = decanonicalizeSemantic(unlayeredWinObjectCanonical);
+const unlayeredCompiled = compileSemanticSource(unlayeredRehydrated);
+assert.strictEqual(unlayeredCompiled.errorCount, 0, 'decanonicalized objects referenced by wins should be assigned to a layer');
+assert.strictEqual(JSON.stringify(unlayeredWinObjectCanonical), unlayeredBeforeRehydration, 'decanonicalization should not mutate canonical input when adding emission layers');
+
 console.log('decanonicalize_node: ok');

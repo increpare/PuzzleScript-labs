@@ -11,6 +11,7 @@ const {
     loadPuzzleScriptRuntime,
     parseArgs,
     replaySolutionOnOriginal,
+    replayCanonicalSolutions,
     runCanonicalReplay,
 } = require('./run_canonical_solution_replay');
 
@@ -197,6 +198,23 @@ try {
     assert.strictEqual(e2e.results[0].canonical_status, 'solved');
     assert.strictEqual(e2e.results[0].original_replay_status, 'solved');
     assert.deepStrictEqual(e2e.results[0].canonical_solution, ['right']);
+
+    const canonicalCompileFailure = replayCanonicalSolutions({
+        corpusPath: corpusDir,
+    }, {
+        results: [
+            {
+                game: 'fixture.txt',
+                level: -1,
+                status: 'compile_error',
+                error: 'canonical fixture failed to compile',
+            },
+        ],
+    });
+    assert.strictEqual(canonicalCompileFailure.failures.length, 1, 'canonical compile errors should fail the replay harness');
+    assert.strictEqual(canonicalCompileFailure.failures[0].status, 'canonical_compile_error');
+    assert.strictEqual(canonicalCompileFailure.failures[0].canonical_status, 'compile_error');
+    assert.strictEqual(canonicalCompileFailure.results[0].canonical_status, 'compile_error');
 } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
 }

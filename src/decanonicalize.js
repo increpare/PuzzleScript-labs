@@ -542,41 +542,57 @@ function emitMetadata(canonical) {
     return lines;
 }
 
-function withEmittableBackground(canonical) {
-    if ((canonical.backgroundObjects || []).length > 0) {
-        return canonical;
-    }
+function withEmittableObjects(canonical) {
+    let emissionCanonical = canonical;
+    let collisionLayers = (canonical.collisionLayers || []).map(layer => layer.slice());
 
-    const existingNames = new Set(canonicalObjectNames(canonical));
-    let nextObjectIndex = 0;
-    for (const name of existingNames) {
-        const match = /^obj_(\d+)$/.exec(name);
-        if (match) {
-            nextObjectIndex = Math.max(nextObjectIndex, Number(match[1]) + 1);
+    if ((canonical.backgroundObjects || []).length === 0) {
+        const existingNames = new Set(canonicalObjectNames(canonical));
+        let nextObjectIndex = 0;
+        for (const name of existingNames) {
+            const match = /^obj_(\d+)$/.exec(name);
+            if (match) {
+                nextObjectIndex = Math.max(nextObjectIndex, Number(match[1]) + 1);
+            }
         }
-    }
 
-    let syntheticBackground = `obj_${nextObjectIndex}`;
-    while (existingNames.has(syntheticBackground)) {
-        nextObjectIndex++;
-        syntheticBackground = `obj_${nextObjectIndex}`;
-    }
-
-    const levels = (canonical.levels || []).map(level => {
-        if (level.type !== 'map') {
-            return level;
+        let syntheticBackground = `obj_${nextObjectIndex}`;
+        while (existingNames.has(syntheticBackground)) {
+            nextObjectIndex++;
+            syntheticBackground = `obj_${nextObjectIndex}`;
         }
-        return Object.assign({}, level, {
-            rows: level.rows.map(row => row.map(cell => (
-                cell.length === 0 ? [syntheticBackground] : cell.slice()
-            ))),
+
+        const levels = (canonical.levels || []).map(level => {
+            if (level.type !== 'map') {
+                return level;
+            }
+            return Object.assign({}, level, {
+                rows: level.rows.map(row => row.map(cell => (
+                    cell.length === 0 ? [syntheticBackground] : cell.slice()
+                ))),
+            });
         });
-    });
 
-    return Object.assign({}, canonical, {
-        backgroundObjects: [syntheticBackground],
-        collisionLayers: [[syntheticBackground], ...(canonical.collisionLayers || []).map(layer => layer.slice())],
-        levels,
+        collisionLayers = [[syntheticBackground], ...collisionLayers];
+        emissionCanonical = Object.assign({}, canonical, {
+            backgroundObjects: [syntheticBackground],
+            collisionLayers,
+            levels,
+        });
+    }
+
+    const layeredNames = new Set(collisionLayers.flat());
+    const missingLayerObjects = canonicalObjectNames(emissionCanonical)
+        .filter(name => !layeredNames.has(name));
+    if (missingLayerObjects.length === 0) {
+        return emissionCanonical;
+    }
+
+    return Object.assign({}, emissionCanonical, {
+        collisionLayers: [
+            ...collisionLayers,
+            ...missingLayerObjects.map(name => [name]),
+        ],
     });
 }
 
@@ -585,7 +601,7 @@ function decanonicalizeSemantic(canonical) {
         throw new Error(`Unsupported canonical format: ${canonical.format}`);
     }
 
-    const emissionCanonical = withEmittableBackground(canonical);
+    const emissionCanonical = withEmittableObjects(canonical);
     const objectNames = canonicalObjectNames(emissionCanonical);
     const layerIndex = buildLayerIndex(emissionCanonical);
     const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet } = buildAliasDefinitions(emissionCanonical, objectNames);

@@ -139,6 +139,13 @@ function replaySolutionOnOriginal({ source, game, level, solution }) {
 
 function formatReplayFailure(result) {
     const solution = Array.isArray(result.solution) ? result.solution.join(',') : '';
+    if (result.status === 'canonical_compile_error') {
+        return [
+            `canonical replay failed game=${result.game} level=${result.level}`,
+            `  canonical_status=${result.canonical_status}`,
+            `  error=${result.error || ''}`,
+        ].join('\n');
+    }
     return [
         `canonical replay failed game=${result.game} level=${result.level}`,
         `  solution=${solution}`,
@@ -313,6 +320,17 @@ function replayCanonicalSolutions(options, solverPayload) {
         if (result.error) {
             row.error = result.error;
         }
+        if (result.status === 'compile_error') {
+            failures.push({
+                game: result.game,
+                level: result.level,
+                solution: row.canonical_solution,
+                status: 'canonical_compile_error',
+                canonical_status: result.status,
+                key: resultKey(result),
+                error: result.error || 'Canonical corpus failed to compile',
+            });
+        }
         if (result.status === 'solved') {
             const replay = replaySolutionOnOriginal({
                 source: sourceForGame(result.game),
@@ -364,12 +382,16 @@ function runCanonicalReplay(options) {
     writeCanonicalCorpus(resolved, manifest, canonicalCorpusDir);
     const solverPayload = solveCanonicalCorpus(resolved, canonicalCorpusDir);
     const replay = replayCanonicalSolutions(resolved, solverPayload);
+    const canonicalFailures = replay.failures.filter(failure => failure.status === 'canonical_compile_error').length;
+    const replayFailures = replay.failures.length - canonicalFailures;
     return Object.assign({
         canonicalCorpusDir,
         totals: {
             targets: replay.results.length,
             solved: replay.results.filter(row => row.canonical_status === 'solved').length,
-            replay_failures: replay.failures.length,
+            canonical_failures: canonicalFailures,
+            replay_failures: replayFailures,
+            failures: replay.failures.length,
         },
     }, replay);
 }
@@ -378,7 +400,7 @@ function printHuman(summary) {
     for (const failure of summary.failures) {
         process.stdout.write(`${formatReplayFailure(failure)}\n`);
     }
-    process.stdout.write(`canonical_solution_replay targets=${summary.totals.targets} canonical_solved=${summary.totals.solved} replay_failures=${summary.totals.replay_failures}\n`);
+    process.stdout.write(`canonical_solution_replay targets=${summary.totals.targets} canonical_solved=${summary.totals.solved} canonical_failures=${summary.totals.canonical_failures} replay_failures=${summary.totals.replay_failures} failures=${summary.totals.failures}\n`);
 }
 
 function main() {
@@ -406,6 +428,7 @@ module.exports = {
     formatReplayFailure,
     loadPuzzleScriptRuntime,
     parseArgs,
+    replayCanonicalSolutions,
     replaySolutionOnOriginal,
     runCanonicalReplay,
 };
