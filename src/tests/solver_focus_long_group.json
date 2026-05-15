@@ -1,0 +1,414 @@
+{
+  "schema_version": 1,
+  "kind": "solver_focus_group",
+  "generated_at": "2026-05-15T00:00:00.000Z",
+  "description": "Longer canonical replay focus group derived from src/tests/solver_focus_group.json. It preserves the checked-in focus target set but is intended for deeper semantic-canonical replay sweeps with a 2000ms JS solver timeout.",
+  "source_manifest": "src/tests/solver_focus_group.json",
+  "corpus": "src/tests/solver_tests",
+  "strategy": "portfolio",
+  "timeout_ms": 2000,
+  "static_optimizations": "all",
+  "target_count": 50,
+  "targets": [
+    {
+      "game": "Van-to-Mobile-Living-Space-Conversion Window.txt",
+      "level": 7,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 250,
+      "source_solution_length": 35
+    },
+    {
+      "game": "heroes_of_sokoban_3.txt",
+      "level": 10,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 252,
+      "source_solution_length": 20
+    },
+    {
+      "game": "Vexatious Match 3.txt",
+      "level": 8,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 252,
+      "source_solution_length": 61
+    },
+    {
+      "game": "constellationz.txt",
+      "level": 10,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 258,
+      "source_solution_length": 64
+    },
+    {
+      "game": "gem soketeer.txt",
+      "level": 31,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 270,
+      "source_solution_length": 36
+    },
+    {
+      "game": "alternatey.txt",
+      "level": 4,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 271,
+      "source_solution_length": 7
+    },
+    {
+      "game": "dollyban.txt",
+      "level": 3,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 275,
+      "source_solution_length": 35
+    },
+    {
+      "game": "cakemonsters.txt",
+      "level": 49,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 276,
+      "source_solution_length": 27
+    },
+    {
+      "game": "Recondite Star Sector Sigma.txt",
+      "level": 17,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 276,
+      "source_solution_length": 39
+    },
+    {
+      "game": "head skuller.txt",
+      "level": 11,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 278,
+      "source_solution_length": 31
+    },
+    {
+      "game": "paint everything everywhere.txt",
+      "level": 9,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 279,
+      "source_solution_length": 44
+    },
+    {
+      "game": "witch lifter.txt",
+      "level": 1,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 282,
+      "source_solution_length": 28
+    },
+    {
+      "game": "Put the logs in the water, elephant.txt",
+      "level": 7,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 284,
+      "source_solution_length": 55
+    },
+    {
+      "game": "Recondite Star Sector Sigma.txt",
+      "level": 7,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 287,
+      "source_solution_length": 81
+    },
+    {
+      "game": "karamell.txt",
+      "level": 1,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 294,
+      "source_solution_length": 45
+    },
+    {
+      "game": "the_saga_of_the_candy_scroll.txt",
+      "level": 112,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 297,
+      "source_solution_length": 104
+    },
+    {
+      "game": "pushit.txt",
+      "level": 1,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 299,
+      "source_solution_length": 33
+    },
+    {
+      "game": "SWIMMING TIME.txt",
+      "level": 2,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 302,
+      "source_solution_length": 64
+    },
+    {
+      "game": "unclean residues.txt",
+      "level": 4,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 302,
+      "source_solution_length": 39
+    },
+    {
+      "game": "push.txt",
+      "level": 19,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 305,
+      "source_solution_length": 56
+    },
+    {
+      "game": "Put the logs in the water, elephant.txt",
+      "level": 16,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 306,
+      "source_solution_length": 54
+    },
+    {
+      "game": "kreiseln.txt",
+      "level": 5,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 309,
+      "source_solution_length": 42
+    },
+    {
+      "game": "Wand Spinner.txt",
+      "level": 29,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 309,
+      "source_solution_length": 50
+    },
+    {
+      "game": "constellationz.txt",
+      "level": 6,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 312,
+      "source_solution_length": 30
+    },
+    {
+      "game": "manic_ammo.txt",
+      "level": 10,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 313,
+      "source_solution_length": 19
+    },
+    {
+      "game": "Put the logs in the water, elephant.txt",
+      "level": 22,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 316,
+      "source_solution_length": 41
+    },
+    {
+      "game": "dollyban.txt",
+      "level": 7,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 318,
+      "source_solution_length": 52
+    },
+    {
+      "game": "Any hole is a goal.txt",
+      "level": 65,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 321,
+      "source_solution_length": 20
+    },
+    {
+      "game": "Cucumber Surprise.txt",
+      "level": 39,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 321,
+      "source_solution_length": 68
+    },
+    {
+      "game": "take heart lass.txt",
+      "level": 19,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 322,
+      "source_solution_length": 15
+    },
+    {
+      "game": "Yellow Box.txt",
+      "level": 35,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 325,
+      "source_solution_length": 55
+    },
+    {
+      "game": "paint everything everywhere.txt",
+      "level": 17,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 333,
+      "source_solution_length": 31
+    },
+    {
+      "game": "hedgehog stimulator.txt",
+      "level": 1,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 337,
+      "source_solution_length": 42
+    },
+    {
+      "game": "heroes_of_sokoban_2.txt",
+      "level": 8,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 339,
+      "source_solution_length": 25
+    },
+    {
+      "game": "slidings.txt",
+      "level": 17,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 340,
+      "source_solution_length": 12
+    },
+    {
+      "game": "15 push pull levels.txt",
+      "level": 27,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 350,
+      "source_solution_length": 52
+    },
+    {
+      "game": "Hole-Stuffer.txt",
+      "level": 1,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 361,
+      "source_solution_length": 20
+    },
+    {
+      "game": "S-tercourse.txt",
+      "level": 23,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 362,
+      "source_solution_length": 29
+    },
+    {
+      "game": "BIAXIAL INVASION OF SATURN.txt",
+      "level": 13,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 363,
+      "source_solution_length": 9
+    },
+    {
+      "game": "Yellow Box.txt",
+      "level": 11,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 368,
+      "source_solution_length": 42
+    },
+    {
+      "game": "gem soketeer.txt",
+      "level": 13,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 370,
+      "source_solution_length": 48
+    },
+    {
+      "game": "Put the logs in the water, elephant.txt",
+      "level": 19,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 371,
+      "source_solution_length": 57
+    },
+    {
+      "game": "15 push pull levels.txt",
+      "level": 21,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 378,
+      "source_solution_length": 40
+    },
+    {
+      "game": "sokobond demake.txt",
+      "level": 20,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 378,
+      "source_solution_length": 27
+    },
+    {
+      "game": "dollyban.txt",
+      "level": 5,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 379,
+      "source_solution_length": 52
+    },
+    {
+      "game": "mazezam.txt",
+      "level": 55,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 382,
+      "source_solution_length": 159
+    },
+    {
+      "game": "the_saga_of_the_candy_scroll.txt",
+      "level": 55,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 388,
+      "source_solution_length": 24
+    },
+    {
+      "game": "dollyban.txt",
+      "level": 9,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 392,
+      "source_solution_length": 48
+    },
+    {
+      "game": "gem soketeer.txt",
+      "level": 17,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 392,
+      "source_solution_length": 68
+    },
+    {
+      "game": "heroes_of_sokoban_2.txt",
+      "level": 17,
+      "first_solved_timeout_ms": 2000,
+      "source_focus_timeout_ms": 500,
+      "source_solved_elapsed_ms": 392,
+      "source_solution_length": 43
+    }
+  ]
+}

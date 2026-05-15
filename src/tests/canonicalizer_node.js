@@ -619,7 +619,103 @@ const inertMergeCanonical = canonicalizeSource(inertMergeSource, 'family');
 assert.deepStrictEqual(inertMergeCanonical.collisionLayers, [['fam_0', 'fam_1', 'fam_2']], 'family mode should merge multiple rule-inert non-player objects within a retained layer');
 
 const semanticInertMerge = canonicalizeSource(inertMergeSource, 'semantic');
-assert.deepStrictEqual(semanticInertMerge.collisionLayers, [['obj_0', 'obj_1', 'obj_2']], 'semantic mode should merge multiple rule-inert non-player objects within a retained layer by default');
+assert.deepStrictEqual(semanticInertMerge.collisionLayers, [['obj_0', 'obj_1', 'obj_2', 'obj_3']], 'semantic mode should keep win-condition objects distinct while bucketing other rule-inert non-player objects');
+assert.strictEqual(JSON.stringify(semanticInertMerge.winConditions), JSON.stringify([{ quantifier: 0, a: ['obj_2'], b: ['obj_0', 'obj_1', 'obj_2', 'obj_3'] }]), 'semantic mode should preserve some-object win conditions through inert bucketing');
+
+const semanticWinOnlyLayerSource = `
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Hero
+white
+00000
+00000
+00000
+00000
+00000
+
+Wall
+gray
+00000
+00000
+00000
+00000
+00000
+
+Goal
+green
+00000
+00000
+00000
+00000
+00000
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Hero
+# = Wall
+G = Goal
+Player = Hero
+
+${'======='}
+SOUNDS
+${'======='}
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Goal
+Hero, Wall
+
+=====
+RULES
+=====
+
+[ > Hero | Wall ] -> [ > Hero | Wall ]
+
+=============
+WINCONDITIONS
+=============
+
+All Hero on Goal
+
+======
+LEVELS
+======
+
+P#G
+`;
+
+const semanticWinOnlyLayer = canonicalizeSource(semanticWinOnlyLayerSource, 'semantic');
+assert.deepStrictEqual(
+    semanticWinOnlyLayer.collisionLayers,
+    [['obj_0'], ['obj_1', 'obj_2']],
+    'semantic mode should retain win-condition-only layers during object collapse'
+);
+assert.strictEqual(
+    JSON.stringify(semanticWinOnlyLayer.winConditions),
+    JSON.stringify([{ quantifier: 1, a: ['obj_1'], b: ['obj_0'] }]),
+    'semantic mode should not alias win-condition targets with retained rule/player objects'
+);
+assert.deepStrictEqual(
+    semanticWinOnlyLayer.levels[0].rows[0],
+    [['obj_1'], ['obj_2'], ['obj_0']],
+    'semantic mode should preserve win-condition target cells in levels'
+);
 
 const inertCommandOptimizationSource = `
 ========
@@ -747,9 +843,9 @@ const cosmeticOptimized = canonicalizeSource(cosmeticOptimizationSource, 'semant
 });
 assert.strictEqual(cosmeticBaseline.rules.length, 1, 'baseline semantic canonicalization should retain cosmetic cleanup rules');
 assert.strictEqual(cosmeticOptimized.rules.length, 0, 'static optimization should prune cosmetic cleanup rules');
-assert.deepStrictEqual(cosmeticBaseline.collisionLayers, [['obj_0'], ['obj_1']], 'baseline should retain the rule-mentioned cosmetic layer');
-assert.deepStrictEqual(cosmeticOptimized.collisionLayers, [['obj_0']], 'static optimization should drop the now-unreferenced cosmetic layer');
-assert.deepStrictEqual(cosmeticBaseline.levels[0].rows[0][2], ['obj_1'], 'baseline should still project the cosmetic object into the canonical level');
+assert.deepStrictEqual(cosmeticBaseline.collisionLayers, [['obj_0'], ['obj_1'], ['obj_2']], 'baseline should retain win-condition and rule-mentioned cosmetic layers');
+assert.deepStrictEqual(cosmeticOptimized.collisionLayers, [['obj_0'], ['obj_1']], 'static optimization should drop the now-unreferenced cosmetic layer');
+assert.deepStrictEqual(cosmeticBaseline.levels[0].rows[0][2], ['obj_2'], 'baseline should still project the cosmetic object into the canonical level');
 assert.deepStrictEqual(cosmeticOptimized.levels[0].rows[0][2], [], 'static optimization should remove cosmetic objects from canonical levels');
 
 const mergeOptimizationSource = `

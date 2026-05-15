@@ -844,6 +844,25 @@ function collectRuleMentionedObjects(rules) {
     return mentioned;
 }
 
+function collectWinMentionedObjects(canonical) {
+    const mentioned = new Set();
+    const allLayerObjects = Array.from(new Set((canonical.collisionLayers || []).flat())).sort(compareNumericNames);
+    const allObjectsKey = JSON.stringify(allLayerObjects);
+    for (const condition of canonical.winConditions || []) {
+        for (const objectName of condition.a || []) {
+            mentioned.add(objectName);
+        }
+        const bObjects = Array.from(new Set(condition.b || [])).sort(compareNumericNames);
+        if (JSON.stringify(bObjects) === allObjectsKey) {
+            continue;
+        }
+        for (const objectName of bObjects) {
+            mentioned.add(objectName);
+        }
+    }
+    return mentioned;
+}
+
 function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
     const format = options.format || canonical.format;
     const namePrefix = options.namePrefix || 'obj_';
@@ -852,18 +871,19 @@ function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
     const includeLevels = options.includeLevels !== false;
     const playerSet = new Set(canonical.playerObjects || []);
     const ruleMentioned = collectRuleMentionedObjects(canonical.rules || []);
+    const winMentioned = includeWinConditions ? collectWinMentionedObjects(canonical) : new Set();
     const retainedLayers = [];
     const retainedObjects = new Set();
     const inertBucketLabels = new Map();
 
     (canonical.collisionLayers || []).forEach((layer, layerIndex) => {
-        const hasRetainedObject = layer.some(name => playerSet.has(name) || ruleMentioned.has(name));
+        const hasRetainedObject = layer.some(name => playerSet.has(name) || ruleMentioned.has(name) || winMentioned.has(name));
         if (!hasRetainedObject) {
             return;
         }
         retainedLayers.push(layer.slice());
         layer.forEach(name => retainedObjects.add(name));
-        const inertNonPlayers = layer.filter(name => !playerSet.has(name) && !ruleMentioned.has(name));
+        const inertNonPlayers = layer.filter(name => !playerSet.has(name) && !ruleMentioned.has(name) && !winMentioned.has(name));
         if (inertNonPlayers.length > 0) {
             const bucketName = `__inert_layer_${layerIndex}`;
             inertNonPlayers.forEach(name => inertBucketLabels.set(name, bucketName));
