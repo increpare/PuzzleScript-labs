@@ -59,7 +59,6 @@ function stepReplayToken(token) {
     const beforeLevel = curlevel;
     const beforeTitle = titleScreen;
     const input = INPUT_BY_TOKEN.get(token);
-    let changed = false;
     if (input === 4 && textMode && !titleScreen) {
         if (state.levels[curlevel] && state.levels[curlevel].message !== undefined) {
             nextLevel();
@@ -68,12 +67,11 @@ function stepReplayToken(token) {
             messagetext = '';
             messageselected = false;
         }
-        changed = true;
     } else {
-        changed = Boolean(processInput(input, undefined, undefined, true));
+        processInput(input, undefined, undefined, true);
     }
     settleAgainForReplay();
-    return changed && (curlevel !== beforeLevel || (!beforeTitle && titleScreen));
+    return curlevel !== beforeLevel || (!beforeTitle && titleScreen);
 }
 
 function replaySolutionOnOriginal({ source, game, level, solution }) {
