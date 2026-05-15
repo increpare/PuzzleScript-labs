@@ -34,8 +34,8 @@ LEGEND
 =======
 
 . = Background
-P = Player
-G = Goal
+P = Player and Background
+G = Goal and Background
 
 ======
 SOUNDS
@@ -52,6 +52,8 @@ Player
 =====
 RULES
 =====
+
+[ Player Background | Goal ] -> [ Player Background | Goal ]
 
 =============
 WINCONDITIONS
