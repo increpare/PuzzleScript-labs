@@ -147,32 +147,36 @@ assert.strictEqual(actionSolved.status, 'solved', 'action win command should sol
 assert.strictEqual(actionSolved.steps, 1);
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-canonical-replay-test-'));
-const corpusDir = path.join(tempRoot, 'corpus');
-const manifestPath = path.join(tempRoot, 'manifest.json');
-fs.mkdirSync(corpusDir, { recursive: true });
-fs.writeFileSync(path.join(corpusDir, 'fixture.txt'), SIMPLE_SOURCE, 'utf8');
-fs.writeFileSync(manifestPath, `${JSON.stringify({
-    schema_version: 1,
-    kind: 'solver_focus_group',
-    target_count: 1,
-    targets: [
-        { game: 'fixture.txt', level: 0, first_solved_timeout_ms: 500 },
-    ],
-}, null, 2)}\n`, 'utf8');
+try {
+    const corpusDir = path.join(tempRoot, 'corpus');
+    const manifestPath = path.join(tempRoot, 'manifest.json');
+    fs.mkdirSync(corpusDir, { recursive: true });
+    fs.writeFileSync(path.join(corpusDir, 'fixture.txt'), SIMPLE_SOURCE, 'utf8');
+    fs.writeFileSync(manifestPath, `${JSON.stringify({
+        schema_version: 1,
+        kind: 'solver_focus_group',
+        target_count: 1,
+        targets: [
+            { game: 'fixture.txt', level: 0, first_solved_timeout_ms: 500 },
+        ],
+    }, null, 2)}\n`, 'utf8');
 
-const e2e = runCanonicalReplay({
-    corpusPath: corpusDir,
-    manifestPath,
-    timeoutMs: 500,
-    staticOptimizations: 'all',
-    strategy: 'bfs',
-    quiet: true,
-    workDir: path.join(tempRoot, 'work'),
-});
-assert.strictEqual(e2e.failures.length, 0, e2e.failures.map(formatReplayFailure).join('\n'));
-assert.strictEqual(e2e.results.length, 1);
-assert.strictEqual(e2e.results[0].canonical_status, 'solved');
-assert.strictEqual(e2e.results[0].original_replay_status, 'solved');
-assert.deepStrictEqual(e2e.results[0].canonical_solution, ['right']);
+    const e2e = runCanonicalReplay({
+        corpusPath: corpusDir,
+        manifestPath,
+        timeoutMs: 500,
+        staticOptimizations: 'all',
+        strategy: 'bfs',
+        quiet: true,
+        workDir: path.join(tempRoot, 'work'),
+    });
+    assert.strictEqual(e2e.failures.length, 0, e2e.failures.map(formatReplayFailure).join('\n'));
+    assert.strictEqual(e2e.results.length, 1);
+    assert.strictEqual(e2e.results[0].canonical_status, 'solved');
+    assert.strictEqual(e2e.results[0].original_replay_status, 'solved');
+    assert.deepStrictEqual(e2e.results[0].canonical_solution, ['right']);
+} finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+}
 
 console.log('canonical_solution_replay_node: ok');
