@@ -2418,6 +2418,39 @@ function stepSolverAction(action) {
     return { changed, solved };
 }
 
+function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
+    if (!Array.isArray(solution)) {
+        return { status: 'invalid_solution', steps: 0, error: 'solution is not an array' };
+    }
+    try {
+        if (typeof resetParserErrorState === 'function') {
+            resetParserErrorState();
+        }
+        loadLevelFromState(state, levelIndex, `solver-parity:${game}:${levelIndex}`);
+        if (textMode || titleScreen || (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined)) {
+            return { status: 'skipped_message', steps: 0 };
+        }
+        for (let index = 0; index < solution.length; index++) {
+            const token = solution[index];
+            const action = ACTIONS_WITH_ACTION.find(candidate => candidate.token === token);
+            if (!action) {
+                return { status: 'invalid_solution', steps: index, error: `unknown action token: ${token}` };
+            }
+            const step = stepSolverAction(action);
+            if (step.solved) {
+                return { status: 'solved', steps: index + 1 };
+            }
+        }
+        return { status: 'not_solved', steps: solution.length };
+    } catch (error) {
+        return {
+            status: 'replay_error',
+            steps: 0,
+            error: error && error.stack ? error.stack : String(error),
+        };
+    }
+}
+
 class MinHeap {
     constructor() {
         this.items = [];
@@ -3301,20 +3334,38 @@ function printHumanBlock(stream, label, summary, elapsedMs) {
     }
 }
 
-function assertSolverOptParity(baseline, optimized, game, levelIndex) {
-    if (!baseline || !optimized) return;
-    if (baseline.status !== optimized.status) {
-        throw new Error(`solver_opt_parity status mismatch game=${game} level=${levelIndex} baseline=${baseline.status} optimized=${optimized.status}`);
+function assertReplaySolved(label, game, levelIndex, solution, replay) {
+    if (replay.status !== 'solved') {
+        const error = replay.error ? ` error=${replay.error}` : '';
+        throw new Error(
+            `solver_opt_parity ${label} replay failed game=${game} level=${levelIndex}` +
+            ` replay_status=${replay.status} steps=${replay.steps} solution_length=${solution.length}${error}`
+        );
     }
-    if (baseline.solution_length !== optimized.solution_length) {
-        throw new Error(`solver_opt_parity solution_length mismatch game=${game} level=${levelIndex} baseline=${baseline.solution_length} optimized=${optimized.solution_length}`);
-    }
-    if (baseline.status === 'solved' && optimized.status === 'solved') {
-        const a = JSON.stringify(baseline.solution);
-        const b = JSON.stringify(optimized.solution);
-        if (a !== b) {
-            throw new Error(`solver_opt_parity solution mismatch game=${game} level=${levelIndex}`);
+}
+
+function assertSolverOptParityOnCurrentOptimized(baselineByLevel, optimizedByLevel, game) {
+    for (let levelIndex = 0; levelIndex < baselineByLevel.length; levelIndex++) {
+        const baseline = baselineByLevel[levelIndex];
+        const optimized = optimizedByLevel.get(levelIndex);
+        if (!baseline || !optimized) continue;
+        if (baseline.status === 'solved') {
+            const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, baseline.solution);
+            assertReplaySolved('baseline_on_optimized', game, levelIndex, baseline.solution, replay);
+            continue;
         }
+        if (optimized.status !== 'solved' && baseline.status !== optimized.status) {
+            throw new Error(`solver_opt_parity status mismatch game=${game} level=${levelIndex} baseline=${baseline.status} optimized=${optimized.status}`);
+        }
+    }
+}
+
+function assertSolverOptParityOnCurrentBaseline(baselineByLevel, optimizedByLevel, game) {
+    for (let levelIndex = 0; levelIndex < baselineByLevel.length; levelIndex++) {
+        const optimized = optimizedByLevel.get(levelIndex);
+        if (!optimized || optimized.status !== 'solved') continue;
+        const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, optimized.solution);
+        assertReplaySolved('optimized_on_baseline', game, levelIndex, optimized.solution, replay);
     }
 }
 
@@ -3501,9 +3552,6 @@ function runCorpus(options) {
                 result.solver_optimization_gated = true;
             }
             attachCompileOnceMetrics = false;
-            if (baselineByLevel && baselineByLevel[levelIndex]) {
-                assertSolverOptParity(baselineByLevel[levelIndex], result, compiled.game, levelIndex);
-            }
             results.push(result);
             attemptedLevels++;
             if (!opts.quiet && !opts.progressPerGame && opts.progressEvery > 0 && attemptedLevels % opts.progressEvery === 0) {
@@ -3511,6 +3559,18 @@ function runCorpus(options) {
             }
         }
         const slice = results.slice(gameResultBegin);
+        if (baselineByLevel) {
+            const optimizedByLevel = new Map(slice
+                .filter(row => row && row.level >= 0)
+                .map(row => [row.level, row]));
+            assertSolverOptParityOnCurrentOptimized(baselineByLevel, optimizedByLevel, compiled.game);
+            const baselineOpts = Object.assign({}, opts, { solverOptParityBaseline: true });
+            const compiledBaseline = runGame(opts.corpusPath, file, baselineOpts);
+            if (Array.isArray(compiledBaseline)) {
+                throw new Error(`solver_opt_parity baseline compile failed game=${compiled.game}`);
+            }
+            assertSolverOptParityOnCurrentBaseline(baselineByLevel, optimizedByLevel, compiled.game);
+        }
         writeAnnotatedSolutions(opts, compiled.game, compiled.source, slice);
         if (!opts.quiet && opts.progressPerGame) {
             printHumanBlock(process.stderr, `Game: ${compiled.game}`, summarizeHuman(slice), Date.now() - gameStarted);

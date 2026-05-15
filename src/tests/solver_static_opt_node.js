@@ -551,6 +551,34 @@ PT
             + (rowsWithCompileMs[0].solver_opt_ms_cosmetic || 0)
             + (rowsWithCompileMs[0].solver_opt_ms_merge || 0),
     );
+    const parityReplayJson = execFileSync(
+        process.execPath,
+        [
+            runner,
+            path.join(__dirname, 'solver_tests'),
+            '--game',
+            'kreiseln.txt',
+            '--level',
+            '5',
+            '--timeout-ms',
+            '5000',
+            '--strategy',
+            'portfolio',
+            '--quiet',
+            '--no-solutions',
+            '--solver-opt',
+            'all',
+            '--solver-opt-parity',
+            '--json',
+        ],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+    );
+    const parityReplayPayload = JSON.parse(parityReplayJson);
+    assert.strictEqual(
+        parityReplayPayload.results[0].status,
+        'solved',
+        'solver opt parity should accept replay-valid optimized solutions with different search order',
+    );
 
     process.stdout.write('solver_static_opt_node: ok\n');
 }
