@@ -598,6 +598,37 @@ function ruleMutatedObjectSet(rule) {
     return out;
 }
 
+function cosmeticMutationProjection(rule, cosmeticObjects) {
+    const tags = (rule && rule.tags) || {};
+    const mutatedObjects = new Set();
+    let hasVisibleMutation = false;
+    for (const objectName of tags.objects_written || []) {
+        if (cosmeticObjects.has(objectName)) mutatedObjects.add(objectName);
+        else hasVisibleMutation = true;
+    }
+    for (const objectName of tags.objects_erased || []) {
+        if (cosmeticObjects.has(objectName)) mutatedObjects.add(objectName);
+        else hasVisibleMutation = true;
+    }
+
+    const movementWrites = new Set(tags.movements_written || []);
+    const movementRemoves = new Set(tags.movements_removed || []);
+    const movementKeys = new Set([...movementWrites, ...movementRemoves]);
+    for (const key of movementKeys) {
+        // The compiler can report an exact visible movement write/remove pair
+        // for rules like `[ stationary X ] -> [ X cosmetic_marker ]`. That pair
+        // is neutral after projecting cosmetic effects, so only net movement
+        // changes count here.
+        if (movementWrites.has(key) && movementRemoves.has(key)) {
+            continue;
+        }
+        const objectName = movementKeyObjectName(key);
+        if (cosmeticObjects.has(objectName)) mutatedObjects.add(objectName);
+        else hasVisibleMutation = true;
+    }
+    return { mutatedObjects, hasVisibleMutation };
+}
+
 function ruleReadObjectSet(rule) {
     const tags = (rule && rule.tags) || {};
     const out = new Set();
@@ -611,22 +642,13 @@ function ruleReadObjectSet(rule) {
 
 function isCosmeticRuleOptimizationEligible(rule, cosmeticObjects) {
     const tags = (rule && rule.tags) || {};
-    const mutatedObjects = ruleMutatedObjectSet(rule);
-    const readObjects = ruleReadObjectSet(rule);
-    const mutatesOnlyCosmeticObjects = mutatedObjects.size > 0
-        && [...mutatedObjects].every(objectName => cosmeticObjects.has(objectName));
-    const readsOnlyMutatedObjects = [...readObjects]
-        .every(objectName => mutatedObjects.has(objectName));
-    const movementOnlyTouchesMutatedObjects = [...movementTouchedObjectSet(rule)]
-        .every(objectName => mutatedObjects.has(objectName));
+    const projection = cosmeticMutationProjection(rule, cosmeticObjects);
     return rule
-        && tags.cosmetic === true
-        && tags.object_mutating === true
+        && projection.mutatedObjects.size > 0
+        && projection.hasVisibleMutation === false
         && rule.random_rule !== true
         && rule.rigid !== true
-        && mutatesOnlyCosmeticObjects
-        && readsOnlyMutatedObjects
-        && movementOnlyTouchesMutatedObjects
+        && tags.has_again !== true
         && (!rule.summary || (
             rule.summary.semantic_commands.length === 0
             && rule.summary.rhs_random_objects.length === 0
@@ -651,7 +673,8 @@ function cosmeticRuleSourceLines(report) {
                 entry.total++;
                 if (isCosmeticRuleOptimizationEligible(rule, cosmeticObjects)) {
                     entry.eligible++;
-                    for (const objectName of ruleMutatedObjectSet(rule)) entry.mutatedObjects.add(objectName);
+                    const projection = cosmeticMutationProjection(rule, cosmeticObjects);
+                    for (const objectName of projection.mutatedObjects) entry.mutatedObjects.add(objectName);
                 }
             }
         }
@@ -665,10 +688,14 @@ function cosmeticRuleSourceLines(report) {
         for (const rule of allRules) {
             if (candidateLines.has(rule && rule.source_line)) continue;
             const readObjects = ruleReadObjectSet(rule);
-            if (readObjects.size === 0) continue;
+            const mutatedObjectsByKeptRule = ruleMutatedObjectSet(rule);
+            if (readObjects.size === 0 && mutatedObjectsByKeptRule.size === 0) continue;
             for (const line of Array.from(candidateLines)) {
                 const mutatedObjects = byLine.get(line).mutatedObjects;
-                if ([...readObjects].some(objectName => mutatedObjects.has(objectName))) {
+                if (
+                    [...readObjects].some(objectName => mutatedObjects.has(objectName))
+                    || [...mutatedObjectsByKeptRule].some(objectName => mutatedObjects.has(objectName))
+                ) {
                     candidateLines.delete(line);
                     changed = true;
                 }

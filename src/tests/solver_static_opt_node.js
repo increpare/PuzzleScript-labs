@@ -175,8 +175,48 @@ function run() {
             },
             summary: { semantic_commands: [], rhs_random_objects: [] },
         }, cosmeticNames),
+        true,
+        'contextual rules that only write cosmetic objects are optimizer-eligible',
+    );
+    assert.strictEqual(
+        isCosmeticRuleOptimizationEligible({
+            random_rule: false,
+            rigid: false,
+            tags: {
+                cosmetic: false,
+                object_mutating: true,
+                objects_required: ['Player'],
+                objects_matched: ['Player'],
+                object_absences_matched: [],
+                objects_written: ['Dust'],
+                objects_erased: [],
+                movements_written: ['Player:stationary', 'Dust:stationary'],
+                movements_removed: ['Player:stationary'],
+            },
+            summary: { semantic_commands: [], rhs_random_objects: [] },
+        }, cosmeticNames),
+        true,
+        'visible movement write/remove pairs cancel when projecting cosmetic effects',
+    );
+    assert.strictEqual(
+        isCosmeticRuleOptimizationEligible({
+            random_rule: false,
+            rigid: false,
+            tags: {
+                cosmetic: false,
+                object_mutating: true,
+                objects_required: ['Player'],
+                objects_matched: ['Player'],
+                object_absences_matched: [],
+                objects_written: ['Dust'],
+                objects_erased: [],
+                movements_written: ['Player:right', 'Dust:stationary'],
+                movements_removed: ['Player:stationary'],
+            },
+            summary: { semantic_commands: [], rhs_random_objects: [] },
+        }, cosmeticNames),
         false,
-        'do not remove contextual cosmetic-marker rules before runtime grouping',
+        'visible net movement changes keep a rule out of cosmetic projection',
     );
     const dependentCosmeticReport = {
         ps_tagged: {
@@ -221,6 +261,54 @@ function run() {
         Array.from(cosmeticRuleSourceLines(dependentCosmeticReport)),
         [],
         'do not remove cosmetic cleanup rules whose markers are read by kept rules',
+    );
+    const writerDependentCosmeticReport = {
+        ps_tagged: {
+            objects: [{ name: 'Dust', tags: { cosmetic: true } }],
+            rule_sections: [{
+                groups: [
+                    { rules: [{
+                        source_line: 1,
+                        random_rule: false,
+                        rigid: false,
+                        tags: {
+                            cosmetic: true,
+                            object_mutating: true,
+                            objects_required: ['Dust'],
+                            objects_matched: ['Dust'],
+                            object_absences_matched: [],
+                            objects_written: [],
+                            objects_erased: ['Dust'],
+                            movements_written: [],
+                            movements_removed: [],
+                        },
+                        summary: { semantic_commands: [], rhs_random_objects: [] },
+                    }] },
+                    { rules: [{
+                        source_line: 2,
+                        random_rule: false,
+                        rigid: false,
+                        tags: {
+                            cosmetic: false,
+                            object_mutating: true,
+                            objects_required: ['Player'],
+                            objects_matched: ['Player'],
+                            object_absences_matched: [],
+                            objects_written: ['Dust'],
+                            objects_erased: [],
+                            movements_written: [],
+                            movements_removed: [],
+                        },
+                        summary: { semantic_commands: [], rhs_random_objects: [] },
+                    }] },
+                ],
+            }],
+        },
+    };
+    assert.deepStrictEqual(
+        Array.from(cosmeticRuleSourceLines(writerDependentCosmeticReport)),
+        [1, 2],
+        'remove cosmetic cleanup rules together with projectable cosmetic writers',
     );
 
     const mergeAliasState = {
