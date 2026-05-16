@@ -80,9 +80,45 @@ Rebase is also possible for local feature branches, but the labs default branch 
 3. Add `PuzzleScript` as `upstream`.
 4. Push the current `cpp` branch to `PuzzleScript-labs` as the default branch named `main`.
 5. Stop pushing AI experiment branches to `increpare/PuzzleScript`.
-6. Leave `increpare/PuzzleScript` branches alone unless deliberately cleaning them up later.
+6. Verify the new labs repo from a fresh clone or independent checkout.
+7. Delete the remote `cpp` branch from `increpare/PuzzleScript` after verification.
 
 This preserves history, keeps current tooling paths working, and avoids GitHub watcher notifications on the canonical repository.
+
+## Post-Split Layout Cleanup
+
+The first migration should preserve the current `cpp` layout closely enough that existing commands still work. Do not combine repository creation with a large path migration.
+
+After `PuzzleScript-labs` is pushed and verified, do a labs-only cleanup pass that moves AI-generated and auxiliary test machinery out of `src/tests/`. In `PuzzleScript-labs`, `src/` should continue to feel like the PuzzleScript source tree, while labs machinery should live in visibly labs-owned paths.
+
+Target ownership:
+
+- Keep canonical JS engine tests and upstream-mirrored fixtures in `src/tests/`.
+- Move JS static analyser implementation, golden fixtures, explorer builders, and reports toward `tools/static-analysis/`.
+- Move solver corpora, focus groups, benchmark runners, and solver-specific smoke tests toward `tools/solver/` or `tests/solver/`.
+- Move native parity and JS oracle harnesses toward `native/tests/`, `tests/native-parity/`, or another labs-owned test path.
+- Update Makefile, npm scripts, CMake references, and VS Code extension paths only after the files move.
+
+This cleanup happens only in `PuzzleScript-labs`. It should not create churn in `PuzzleScript/master`.
+
+## Canonical Branch Cleanup
+
+After `PuzzleScript-labs/main` is pushed and verified, delete `cpp` from the canonical GitHub repository. The goal is to stop watcher notifications and remove the impression that AI-assisted labs work is an official PuzzleScript side branch.
+
+Deletion checklist:
+
+- `PuzzleScript-labs/main` contains the latest local `cpp` history.
+- A fresh clone or independent checkout of `PuzzleScript-labs` has `native/`, `tools/`, static analyser material, generated docs, and the latest migration commits.
+- `PuzzleScript-labs` has `upstream` pointing at `increpare/PuzzleScript`.
+- No open pull requests or important external links depend on `increpare/PuzzleScript:cpp`.
+
+If those checks pass, delete the canonical remote branch with a command that targets the remote still pointing at `increpare/PuzzleScript`, for example:
+
+```sh
+git push upstream --delete cpp
+```
+
+Keep backups, if needed, in `PuzzleScript-labs`; do not keep backup tags or branches in `PuzzleScript` for labs history.
 
 ## Graduation Policy
 
@@ -101,6 +137,7 @@ A graduating patch should:
 - If labs history becomes noisy, keep it noisy in labs rather than rewriting the canonical repo.
 - If a labs feature needs a cleaner boundary later, extract it inside `PuzzleScript-labs` first before considering a separate repository.
 - If `PuzzleScript-labs` accidentally points at the canonical repo as `origin`, fix remotes before pushing.
+- If the canonical `cpp` branch is deleted too early, recreate it only as a short-lived recovery branch and remove it again after `PuzzleScript-labs` is confirmed complete.
 
 ## Verification
 
