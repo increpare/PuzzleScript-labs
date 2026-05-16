@@ -1,4 +1,4 @@
-title Static Analysis Action Reachable Moving Requirement
+title Static Analysis Action Reject Cosmetic Action Marker Movement
 
 ========
 OBJECTS
@@ -10,10 +10,7 @@ black
 Player
 white
 
-Crate
-orange
-
-Goal
+Marker
 green
 
 =======
@@ -22,8 +19,6 @@ LEGEND
 
 . = Background
 P = Player
-C = Crate
-G = Goal
 
 =======
 SOUNDS
@@ -35,24 +30,22 @@ COLLISIONLAYERS
 
 Background
 Player
-Crate
-Goal
+Marker
 
 =====
 RULES
 =====
 
-[ action Player ] -> [ right Crate ]
-[ moving Crate ] -> [ right Goal ]
+[ action Player ] -> [ Player right Marker ]
 
 =============
 WINCONDITIONS
 =============
 
-Some Goal
+Some Player
 
 ======
 LEVELS
 ======
 
-PCG
+P.

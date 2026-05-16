@@ -2,8 +2,8 @@
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
   "actionNoop": false,
-  "actionNoopBlockers": ["reads_action", "rigid_rule"],
-  "actionNoopHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "rigid_rule_requires_runtime_proof"],
+  "actionNoopBlockers": ["autonomous_solver_active_rule"],
+  "actionNoopHypotheses": ["no_direct_action_reader", "only_autonomous_object_mutation"],
   "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
   "actionNoopChangedObjects": [],
   "movements_reachable_from_action_input": ["Player:action", "Player:moving", "Player:right"]

@@ -1,4 +1,5 @@
-title Static Analysis Action Reachable Moving Requirement
+title Static Analysis Action Noop Noaction Overrides Visible Action
+noaction
 
 ========
 OBJECTS
@@ -10,11 +11,8 @@ black
 Player
 white
 
-Crate
-orange
-
-Goal
-green
+Flag
+yellow
 
 =======
 LEGEND
@@ -22,8 +20,7 @@ LEGEND
 
 . = Background
 P = Player
-C = Crate
-G = Goal
+F = Flag
 
 =======
 SOUNDS
@@ -35,24 +32,22 @@ COLLISIONLAYERS
 
 Background
 Player
-Crate
-Goal
+Flag
 
 =====
 RULES
 =====
 
-[ action Player ] -> [ right Crate ]
-[ moving Crate ] -> [ right Goal ]
+[ action Player ] -> [ Player Flag ]
 
 =============
 WINCONDITIONS
 =============
 
-Some Goal
+Some Flag
 
 ======
 LEVELS
 ======
 
-PCG
+P.

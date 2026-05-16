@@ -1,0 +1,10 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "actionInput": true,
+  "actionNoop": false,
+  "actionNoopBlockers": ["autonomous_solver_active_rule", "queues_again"],
+  "actionNoopHypotheses": ["again_requires_wake_chain_proof", "no_direct_action_reader"],
+  "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionNoopChangedObjects": [],
+  "movements_reachable_from_action_input": ["Player:action"]
+}

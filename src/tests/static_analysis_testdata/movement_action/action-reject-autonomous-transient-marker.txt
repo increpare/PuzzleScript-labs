@@ -1,4 +1,4 @@
-title Static Analysis Action Reachable Moving Requirement
+title Static Analysis Action Reject Autonomous Transient Marker
 
 ========
 OBJECTS
@@ -10,11 +10,8 @@ black
 Player
 white
 
-Crate
-orange
-
-Goal
-green
+Temp
+blue
 
 =======
 LEGEND
@@ -22,8 +19,6 @@ LEGEND
 
 . = Background
 P = Player
-C = Crate
-G = Goal
 
 =======
 SOUNDS
@@ -35,24 +30,24 @@ COLLISIONLAYERS
 
 Background
 Player
-Crate
-Goal
+Temp
 
 =====
 RULES
 =====
 
-[ action Player ] -> [ right Crate ]
-[ moving Crate ] -> [ right Goal ]
+[ Player ] -> [ Player Temp ]
+[ Temp Player ] -> [ right Player Temp ]
+late [ Temp ] -> [ ]
 
 =============
 WINCONDITIONS
 =============
 
-Some Goal
+Some Player
 
 ======
 LEVELS
 ======
 
-PCG
+P.

@@ -6,5 +6,5 @@
   "actionNoopHypotheses": ["again_requires_wake_chain_proof", "direct_action_reader_requires_runtime_or_level_proof"],
   "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
   "actionNoopChangedObjects": [],
-  "movements_reachable_from_action_input": ["Hero:action"]
+  "movements_reachable_from_action_input": ["Player:action"]
 }

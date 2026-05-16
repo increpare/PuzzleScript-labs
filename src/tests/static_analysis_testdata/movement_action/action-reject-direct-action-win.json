@@ -1,0 +1,10 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "actionInput": true,
+  "actionNoop": false,
+  "actionNoopBlockers": ["reads_action", "semantic_command"],
+  "actionNoopHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "semantic_command_requires_runtime_or_goal_proof"],
+  "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionNoopChangedObjects": [],
+  "movements_reachable_from_action_input": ["Player:action"]
+}

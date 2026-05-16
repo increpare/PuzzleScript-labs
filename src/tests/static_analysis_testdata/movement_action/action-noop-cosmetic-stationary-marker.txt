@@ -1,4 +1,4 @@
-title Static Analysis Action Reachable Moving Requirement
+title Static Analysis Action Noop Cosmetic Stationary Marker
 
 ========
 OBJECTS
@@ -7,13 +7,10 @@ OBJECTS
 Background
 black
 
-Player
+Motile
 white
 
-Crate
-orange
-
-Goal
+Marker
 green
 
 =======
@@ -21,9 +18,8 @@ LEGEND
 =======
 
 . = Background
-P = Player
-C = Crate
-G = Goal
+P = Motile
+Player = Motile
 
 =======
 SOUNDS
@@ -34,25 +30,23 @@ COLLISIONLAYERS
 ================
 
 Background
-Player
-Crate
-Goal
+Motile
+Marker
 
 =====
 RULES
 =====
 
-[ action Player ] -> [ right Crate ]
-[ moving Crate ] -> [ right Goal ]
+[ stationary Motile ] -> [ stationary Motile Marker ]
 
 =============
 WINCONDITIONS
 =============
 
-Some Goal
+Some Player
 
 ======
 LEVELS
 ======
 
-PCG
+P.

@@ -175,6 +175,7 @@ function parseArgs(argv) {
         solverOptimizeStatic: false,
         solverOptPasses: null,
         solverOptParity: false,
+        forceNoaction: false,
     };
     const args = argv.slice(2);
     for (let index = 0; index < args.length; index++) {
@@ -238,6 +239,8 @@ function parseArgs(argv) {
             options.solverOptPasses = parseSolverOptPassList(args[++index]);
         } else if (arg === '--solver-opt-parity') {
             options.solverOptParity = true;
+        } else if (arg === '--force-noaction') {
+            options.forceNoaction = true;
         } else if (arg === '--help' || arg === '-h') {
             usage(0);
         } else if (options.corpusPath === null) {
@@ -254,11 +257,12 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--summary-only] [--quiet] [--json]\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
-        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n';
+        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
+        '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n';
     (exitCode === 0 ? process.stdout : process.stderr).write(message);
     process.exit(exitCode);
 }
@@ -3164,11 +3168,26 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
     };
 }
 
+function sourceHasNoaction(source) {
+    return /^\s*noaction\b/im.test(source);
+}
+
+function addNoactionMetadata(source) {
+    if (sourceHasNoaction(source)) return source;
+    if (/^title[^\n]*\n/im.test(source)) {
+        return source.replace(/^(title[^\n]*\n)/im, '$1noaction\n');
+    }
+    return `noaction\n${source}`;
+}
+
 function runGame(root, file, options = {}) {
     const game = gameName(root, file);
     let source = fs.readFileSync(file, 'utf8');
     if (!source.endsWith('\n')) {
         source += '\n';
+    }
+    if (options.forceNoaction) {
+        source = addNoactionMetadata(source);
     }
 
     const passes = resolveSolverPasses(options);

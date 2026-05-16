@@ -58,6 +58,11 @@ SOLVER_SOLUTIONS_DIR ?= $(BUILD_DIR)/solver-solutions
 # JS solver: baseline vs --solver-opt all JSON diff (see js_static_optimization_comparison_*).
 JS_STATIC_OPTIMIZATION_COMPARE_OUT ?= $(BUILD_DIR)/js-static-optimization-compare
 JS_STATIC_OPTIMIZATION_COMPARE_EXTRA_ARGS ?=
+ACTION_NOOP_CANDIDATES_OUT ?= $(BUILD_DIR)/action-noop-candidates/focus.json
+ACTION_NOOP_CANDIDATES_BASELINE_JSON ?=
+ACTION_NOOP_CANDIDATES_FORCED_NOACTION_JSON ?=
+ACTION_NOOP_CANDIDATES_BASELINE_ARG = $(if $(strip $(ACTION_NOOP_CANDIDATES_BASELINE_JSON)),--baseline-json "$(ACTION_NOOP_CANDIDATES_BASELINE_JSON)",)
+ACTION_NOOP_CANDIDATES_FORCED_ARG = $(if $(strip $(ACTION_NOOP_CANDIDATES_FORCED_NOACTION_JSON)),--forced-noaction-json "$(ACTION_NOOP_CANDIDATES_FORCED_NOACTION_JSON)",)
 # HTML + JSON summary: baseline vs --solver-opt all over a JS solver corpus (slow on full solver_tests).
 STATIC_OPTIMIZER_PAGE_CORPUS ?= $(SOLVER_TESTS_CORPUS)
 STATIC_OPTIMIZER_PAGE_OUT ?= $(BUILD_DIR)/static-optimizer-report/index.html
@@ -405,6 +410,8 @@ help:
 	@echo "  make js_static_optimization_comparison_solver_focus"
 	@echo "                                     A/B baseline vs --solver-opt all on only the manifest target levels"
 	@echo "                                     ($(SOLVER_FOCUS_MANIFEST) over $(SOLVER_FOCUS_CORPUS)); auto-runs solver_focus_mine if manifest missing"
+	@echo "  make action_noop_candidates_focus  Static noaction candidate report for focus manifest"
+	@echo "                                     (ACTION_NOOP_CANDIDATES_OUT=$(ACTION_NOOP_CANDIDATES_OUT))"
 	@echo "  make solver_canonical_replay       Solve static-optimized canonical focus targets and replay on originals"
 	@echo "  make solver_canonical_replay_long  Deeper canonical replay sweep using the long focus manifest"
 	@echo "  make static_optimizer_page         Build HTML + JSON per-game solver static-opt summary (two full corpus runs)"
@@ -573,6 +580,7 @@ tests_js:
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
+	$(NODE) src/tests/action_noop_candidates_node.js
 	$(NODE) src/tests/static_analysis_testdata_runner.js
 	$(NODE) src/tests/static_analysis_testdata_runner_node.js
 	$(NODE) src/tests/static_analysis_explorer_node.js
@@ -861,6 +869,16 @@ js_static_optimization_comparison_solver_focus: $(SOLVER_FOCUS_MANIFEST)
 	$(NODE) src/tests/run_solver_tests_js.js "$(SOLVER_FOCUS_CORPUS)" --solver-focus-manifest "$(SOLVER_FOCUS_MANIFEST)" --quiet --json --no-solutions --solver-opt all $(JS_STATIC_OPTIMIZATION_COMPARE_EXTRA_ARGS) > "$$out/optimized.json"; \
 	echo "=== totals A/B (baseline → optimized) ==="; \
 	$(NODE) src/tests/compare_solver_static_opt_runs.js "$$out/baseline.json" "$$out/optimized.json"
+
+action_noop_candidates_focus: $(SOLVER_FOCUS_MANIFEST)
+	@set -e; \
+	echo "action_noop_candidates_focus  (manifest=$(SOLVER_FOCUS_MANIFEST), corpus=$(SOLVER_FOCUS_CORPUS))"; \
+	echo "  JSON -> $(ACTION_NOOP_CANDIDATES_OUT)"; \
+	$(NODE) src/tests/report_action_noop_candidates.js "$(SOLVER_FOCUS_CORPUS)" \
+		--solver-focus-manifest "$(SOLVER_FOCUS_MANIFEST)" \
+		$(ACTION_NOOP_CANDIDATES_BASELINE_ARG) \
+		$(ACTION_NOOP_CANDIDATES_FORCED_ARG) \
+		--out "$(ACTION_NOOP_CANDIDATES_OUT)"
 
 solver_canonical_replay: $(SOLVER_FOCUS_MANIFEST)
 	$(NODE) src/tests/run_canonical_solution_replay.js "$(SOLVER_FOCUS_CORPUS)" --solver-focus-manifest "$(SOLVER_FOCUS_MANIFEST)" --timeout-ms $(SOLVER_CANONICAL_REPLAY_TIMEOUT_MS) --static-optimizations all --strategy $(SOLVER_FOCUS_STRATEGY)

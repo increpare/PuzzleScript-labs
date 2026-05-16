@@ -1,4 +1,4 @@
-title Static Analysis Action Reachable Moving Requirement
+title Static Analysis Action Reject Action Moves Crate
 
 ========
 OBJECTS
@@ -14,7 +14,7 @@ Crate
 orange
 
 Goal
-green
+yellow
 
 =======
 LEGEND
@@ -34,22 +34,21 @@ COLLISIONLAYERS
 ================
 
 Background
+Goal
 Player
 Crate
-Goal
 
 =====
 RULES
 =====
 
-[ action Player ] -> [ right Crate ]
-[ moving Crate ] -> [ right Goal ]
+[ action Player | Crate ] -> [ action Player | right Crate ]
 
 =============
 WINCONDITIONS
 =============
 
-Some Goal
+Some Crate on Goal
 
 ======
 LEVELS

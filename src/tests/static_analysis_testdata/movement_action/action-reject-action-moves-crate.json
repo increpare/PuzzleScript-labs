@@ -6,5 +6,5 @@
   "actionNoopHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "directional_movement_requires_reachability_proof"],
   "actionNoopBlockerRuleIds": ["early_group_0_rule_0", "early_group_0_rule_1", "early_group_0_rule_2", "early_group_0_rule_3"],
   "actionNoopChangedObjects": [],
-  "movements_reachable_from_action_input": ["Hero:action", "Hero:down", "Hero:left", "Hero:moving", "Hero:right", "Hero:up"]
+  "movements_reachable_from_action_input": ["Crate:moving", "Crate:right", "Player:action"]
 }

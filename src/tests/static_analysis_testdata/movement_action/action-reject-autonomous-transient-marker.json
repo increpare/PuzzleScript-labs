@@ -1,0 +1,10 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "actionInput": true,
+  "actionNoop": false,
+  "actionNoopBlockers": ["action_may_mutate_objects", "autonomous_solver_active_rule"],
+  "actionNoopHypotheses": ["no_direct_action_reader", "object_mutation_limited_to_transient_objects", "only_autonomous_object_mutation"],
+  "actionNoopBlockerRuleIds": ["early_group_0_rule_0", "early_group_1_rule_0", "late_group_0_rule_0"],
+  "actionNoopChangedObjects": ["Temp"],
+  "movements_reachable_from_action_input": ["Player:action", "Player:moving", "Player:right"]
+}

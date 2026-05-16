@@ -44,7 +44,7 @@ RULES
 WINCONDITIONS
 =============
 
-Some Player
+Some Crate
 
 ======
 LEVELS

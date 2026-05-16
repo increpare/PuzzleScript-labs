@@ -1528,7 +1528,7 @@ function withRuntimeSource(source, callback, options = {}) {
     lazyFunctionGeneration = false;
     try {
         compileRuntimeSource(source, options);
-        callback();
+        return callback();
     } finally {
         unitTesting = previousUnitTesting;
         lazyFunctionGeneration = previousLazyFunctionGeneration;
@@ -1577,6 +1577,26 @@ function levelSolverStateSnapshot() {
         rigidGroupIndexMask: Array.from(level.rigidGroupIndexMask || []),
         rigidMovementAppliedMask: Array.from(level.rigidMovementAppliedMask || []),
     };
+}
+
+function runtimeStateAfterInputs(source, inputs, options = {}) {
+    return withRuntimeSource(source, () => {
+        processRuntimeInputs(inputs);
+        return levelSolverStateSnapshot();
+    }, { levelIndex: options.levelIndex || 0 });
+}
+
+function runtimeSuccessorAfterInputs(source, inputs, probeInput, options = {}) {
+    return withRuntimeSource(source, () => {
+        processRuntimeInputs(inputs);
+        processInput(probeInput);
+        drainAgainRuntime();
+        return levelSolverStateSnapshot();
+    }, { levelIndex: options.levelIndex || 0 });
+}
+
+function solverSnapshotsEqual(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function splitPlusContinuationRules(source) {
@@ -1662,35 +1682,35 @@ function assertActionNoopAfterReplay(source, inputs, options = {}) {
     assert.ok(actionNoop, 'runtime fixture should emit action_noop fact');
     assert.strictEqual(actionNoop.status, 'proved', 'runtime fixture should prove action_noop before replay checks');
 
-    withRuntimeSource(source, () => {
-        const assertActionDoesNothing = label => {
-            const before = levelSolverStateSnapshot();
-            const modified = processInput(inputForToken('action'));
-            drainAgainRuntime();
-            assert.strictEqual(modified, false, `action should report no modification at ${label}`);
-            assert.deepStrictEqual(
-                levelSolverStateSnapshot(),
-                before,
-                `action should leave solver-visible state unchanged at ${label}`
-            );
-        };
-        assertActionDoesNothing('initial boundary');
-        inputs.forEach((input, turnIndex) => {
-            processInput(input);
-            drainAgainRuntime();
-            assertActionDoesNothing(`turn ${turnIndex} after`);
-        });
-        if (options.expectWinning) {
-            assert.strictEqual(winning, true, 'known replay should solve while action is noop');
+    const levelIndex = options.levelIndex || 0;
+    const assertActionIsRedundant = (label, prefixInputs) => {
+        const before = runtimeStateAfterInputs(source, prefixInputs, { levelIndex });
+        const actionAfter = runtimeSuccessorAfterInputs(source, prefixInputs, inputForToken('action'), { levelIndex });
+        if (solverSnapshotsEqual(actionAfter, before)) return;
+        for (const directionInput of inputsForTokens(['up', 'left', 'down', 'right'])) {
+            const directionAfter = runtimeSuccessorAfterInputs(source, prefixInputs, directionInput, { levelIndex });
+            if (solverSnapshotsEqual(actionAfter, directionAfter)) return;
         }
-    }, { levelIndex: options.levelIndex || 0 });
+        assert.fail(`action should match no input or a normal direction input at ${label}`);
+    };
+
+    assertActionIsRedundant('initial boundary', []);
+    inputs.forEach((_input, turnIndex) => {
+        assertActionIsRedundant(`turn ${turnIndex} after`, inputs.slice(0, turnIndex + 1));
+    });
+    if (options.expectWinning) {
+        withRuntimeSource(source, () => {
+            processRuntimeInputs(inputs);
+            assert.strictEqual(winning, true, 'known replay should solve while action is redundant');
+        }, { levelIndex });
+    }
 
     withRuntimeSource(addNoActionMetadata(source), () => {
         processRuntimeInputs(inputs);
         if (options.expectWinning) {
             assert.strictEqual(winning, true, 'known replay should solve with injected noaction metadata');
         }
-    }, { levelIndex: options.levelIndex || 0 });
+    }, { levelIndex });
 }
 
 function replayRuntimeSnapshot(source, inputs, options = {}) {
@@ -2014,8 +2034,63 @@ function assertCastleClosetActionNoopRejected() {
     const analysis = analyzeSource(solverTestSource('castlecloset.txt'), { sourcePath: 'castlecloset.txt' });
     const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
     assert.strictEqual(analysis.ps_tagged.game.tags.has_action_rules, true, 'castlecloset should contain action rules');
-    assert.strictEqual(actionNoop.status, 'rejected', 'castlecloset direct-Player action rules should not be action-noop');
-    assert.ok(actionNoop.blockers.includes('reads_action'));
+    assert.strictEqual(actionNoop.status, 'rejected', 'castlecloset direct-Player action win rule should not be action-noop');
+    assert.ok(actionNoop.blockers.includes('semantic_command'));
+}
+
+function assertKnownActionNoopClassifications() {
+    const expectedStrictStaticProved = [
+        'dollyban.txt',
+        'Wand Spinner.txt',
+    ];
+    for (const fileName of expectedStrictStaticProved) {
+        const analysis = analyzeSource(solverTestSource(fileName), { sourcePath: fileName });
+        const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
+        assert.strictEqual(actionNoop.status, 'proved', `${fileName} should prove strict static action_noop`);
+    }
+
+    const expectedStrictStaticRejected = [
+        'Yellow Box.txt',
+        'gem soketeer.txt',
+        'constellationz.txt',
+        'hedgehog stimulator.txt',
+        'Hole-Stuffer.txt',
+        'Any hole is a goal.txt',
+        'kreiseln.txt',
+        'paint everything everywhere.txt',
+        'Van-to-Mobile-Living-Space-Conversion Window.txt',
+        'take heart lass.txt',
+        'heroes_of_sokoban_2.txt',
+    ];
+    for (const fileName of expectedStrictStaticRejected) {
+        const analysis = analyzeSource(solverTestSource(fileName), { sourcePath: fileName });
+        const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
+        assert.strictEqual(actionNoop.status, 'rejected', `${fileName} should not pass strict static action_noop`);
+    }
+}
+
+function assertActionNoopDiagnosticsExposeHypotheses() {
+    const takeHeart = analyzeSource(solverTestSource('take heart lass.txt'), {
+        sourcePath: 'take heart lass.txt',
+        familyFilter: 'movement_action',
+    });
+    const takeHeartNoop = takeHeart.facts.movement_action.find(item => item.id === 'action_noop');
+    const takeHeartDiagnostics = takeHeart.facts.movement_action.find(item => item.id === 'action_noop_diagnostics');
+    assert.strictEqual(takeHeartNoop.status, 'rejected', 'take heart lass uses ACTION as a wait/turn button');
+    assert.ok(takeHeartDiagnostics, 'movement_action should include action_noop diagnostics');
+    assert.ok(takeHeartDiagnostics.value.hypotheses.includes('no_direct_action_reader'));
+    assert.ok(takeHeartDiagnostics.value.hypotheses.includes('only_autonomous_object_mutation'));
+    assert.ok(takeHeartDiagnostics.value.blocker_rules.some(rule => rule.changed_objects.includes('NewDespair')));
+
+    const elephant = analyzeSource(solverTestSource('Put the logs in the water, elephant.txt'), {
+        sourcePath: 'Put the logs in the water, elephant.txt',
+        familyFilter: 'movement_action',
+    });
+    const elephantNoop = elephant.facts.movement_action.find(item => item.id === 'action_noop');
+    const elephantDiagnostics = elephant.facts.movement_action.find(item => item.id === 'action_noop_diagnostics');
+    assert.strictEqual(elephantNoop.status, 'rejected', 'elephant action rules should stay rejected');
+    assert.ok(elephantDiagnostics.value.hypotheses.includes('direct_action_reader_requires_runtime_or_level_proof'));
+    assert.ok(elephantDiagnostics.value.blocker_rules.some(rule => rule.reasons.includes('reads_action')));
 }
 
 function assertPushRulegroupFlowReplay() {
@@ -2114,6 +2189,8 @@ assertOneMoveConstantQuantityReplay();
 assertCratesMoveConstantQuantityReplay();
 assertOneMoveActionNoopReplay();
 assertCastleClosetActionNoopRejected();
+assertKnownActionNoopClassifications();
+assertActionNoopDiagnosticsExposeHypotheses();
 assertPushRulegroupFlowReplay();
 assertSplittableRulegroupTransformReplay();
 

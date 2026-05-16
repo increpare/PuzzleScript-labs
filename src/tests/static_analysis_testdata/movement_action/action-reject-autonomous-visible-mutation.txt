@@ -1,4 +1,4 @@
-title Static Analysis Action Reachable Moving Requirement
+title Static Analysis Action Reject Autonomous Visible Mutation
 
 ========
 OBJECTS
@@ -10,11 +10,8 @@ black
 Player
 white
 
-Crate
-orange
-
-Goal
-green
+Flag
+yellow
 
 =======
 LEGEND
@@ -22,8 +19,7 @@ LEGEND
 
 . = Background
 P = Player
-C = Crate
-G = Goal
+F = Flag
 
 =======
 SOUNDS
@@ -35,24 +31,22 @@ COLLISIONLAYERS
 
 Background
 Player
-Crate
-Goal
+Flag
 
 =====
 RULES
 =====
 
-[ action Player ] -> [ right Crate ]
-[ moving Crate ] -> [ right Goal ]
+[ Player ] -> [ Player Flag ]
 
 =============
 WINCONDITIONS
 =============
 
-Some Goal
+Some Flag
 
 ======
 LEVELS
 ======
 
-PCG
+P.

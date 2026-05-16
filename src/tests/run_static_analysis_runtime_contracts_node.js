@@ -834,6 +834,19 @@ function solverVisibleStateSnapshot() {
     };
 }
 
+function projectedSolverVisibleStateSnapshot(objectNames) {
+    if (!Array.isArray(objectNames) || objectNames.length === 0) {
+        return solverVisibleStateSnapshot();
+    }
+    const runtimeState = captureRuntimeProbeState();
+    try {
+        applyCosmeticProjection(objectNames);
+        return solverVisibleStateSnapshot();
+    } finally {
+        restoreRuntimeProbeState(runtimeState);
+    }
+}
+
 function solverCoreBoardIdentity() {
     const identity = boardIdentity();
     return {
@@ -1185,14 +1198,7 @@ function firstArrayDifference(before, after) {
     return null;
 }
 
-function firstProbeDifference(before, after, modified) {
-    if (modified !== false) {
-        return {
-            field: 'modified',
-            before: false,
-            after: modified,
-        };
-    }
+function firstProbeDifference(before, after, modified, options = {}) {
     for (const key of Object.keys(before)) {
         if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
         const arrayDiff = firstArrayDifference(before[key], after[key]);
@@ -1210,20 +1216,58 @@ function firstProbeDifference(before, after, modified) {
             after: after[key],
         };
     }
+    if (modified !== false && options.ignoreModifiedWhenStateEqual !== true) {
+        return {
+            field: 'modified',
+            before: false,
+            after: modified,
+        };
+    }
     return null;
 }
 
-function firstActionNoopProbeDifference(testName, label) {
+function firstActionNoopProbeDifference(testName, label, projectionObjectNames = []) {
     if (state && state.metadata && Object.prototype.hasOwnProperty.call(state.metadata, 'noaction')) {
         return null;
     }
-    const before = solverVisibleStateSnapshot();
+    const before = projectedSolverVisibleStateSnapshot(projectionObjectNames);
     const runtimeState = captureRuntimeProbeState();
-    let modified;
     try {
-        modified = processInput(4);
-        drainAgain(`${testName}: action-noop probe ${label}`);
-        return firstProbeDifference(before, solverVisibleStateSnapshot(), modified);
+        const actionRuntimeState = captureRuntimeProbeState();
+        let actionModified;
+        let actionAfter;
+        try {
+            actionModified = processInput(4);
+            drainAgain(`${testName}: action-noop probe ${label}`);
+            actionAfter = projectedSolverVisibleStateSnapshot(projectionObjectNames);
+        } finally {
+            restoreRuntimeProbeState(actionRuntimeState);
+        }
+        const noopDiff = firstProbeDifference(
+            before,
+            actionAfter,
+            actionModified,
+            { ignoreModifiedWhenStateEqual: true }
+        );
+        if (noopDiff === null) return null;
+
+        for (const directionInput of [0, 1, 2, 3]) {
+            const directionRuntimeState = captureRuntimeProbeState();
+            try {
+                const directionModified = processInput(directionInput);
+                drainAgain(`${testName}: action-noop direction probe ${label}/${directionInput}`);
+                const directionDiff = firstProbeDifference(
+                    actionAfter,
+                    projectedSolverVisibleStateSnapshot(projectionObjectNames),
+                    directionModified,
+                    { ignoreModifiedWhenStateEqual: true }
+                );
+                if (directionDiff === null) return null;
+            } finally {
+                restoreRuntimeProbeState(directionRuntimeState);
+            }
+        }
+        return noopDiff;
     } finally {
         restoreRuntimeProbeState(runtimeState);
     }
@@ -1575,7 +1619,11 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             quantityBoundaryChecks += quantityClaimCount(quantityContracts);
             if (actionNoopProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
-                const actionDiff = firstActionNoopProbeDifference(testName, `input ${inputIndex} ${tokenLabel(inputToken)}`);
+                const actionDiff = firstActionNoopProbeDifference(
+                    testName,
+                    `input ${inputIndex} ${tokenLabel(inputToken)}`,
+                    cosmeticRuleProjectionObjects
+                );
                 restartBoundaryTriggered = restartBoundaryBeforeProbe;
                 if (actionDiff) {
                     throwProbeError(testName, 'action-noop', inputIndex, inputToken, actionDiff);

@@ -594,13 +594,31 @@
           "name": "actionNoop",
           "type": "boolean",
           "description": "Projected action_noop.value.",
-          "specification": "true only when pressing action has no solver-observable effect."
+          "specification": "true only when pressing action is solver-redundant: either no solver-visible state changes, or the solver-visible successor is covered by an ordinary directional player input."
         },
         {
           "name": "actionNoopBlockers",
           "type": "string[]",
           "description": "Projected action_noop.blockers.",
-          "specification": "Reasons the no-op proof was rejected. Known blockers are reads_action, queues_again, rigid_rule, autonomous_solver_active_rule, action_may_mutate_objects, and action_may_create_directional_movement."
+          "specification": "Reasons the no-op proof was rejected. Known blockers are reads_action, queues_again, semantic_command, rigid_rule, autonomous_solver_active_rule, action_may_mutate_objects, and action_may_create_directional_movement."
+        },
+        {
+          "name": "actionNoopHypotheses",
+          "type": "string[]",
+          "description": "Projected action_noop_diagnostics.value.hypotheses.",
+          "specification": "Review-oriented labels that explain why a rejected action_noop case might still be worth investigating. These labels do not prove noaction safety."
+        },
+        {
+          "name": "actionNoopBlockerRuleIds",
+          "type": "string[]",
+          "description": "Rule IDs from action_noop_diagnostics.value.blocker_rules.",
+          "specification": "Rules that contributed at least one action_noop blocker."
+        },
+        {
+          "name": "actionNoopChangedObjects",
+          "type": "string[]",
+          "description": "Objects whose counts may change in action_noop blocker rules.",
+          "specification": "Aggregated from action_noop_diagnostics.value.blocker_rules[].changed_objects for fixture-level review."
         },
         {
           "name": "movements_reachable_from_action_input",

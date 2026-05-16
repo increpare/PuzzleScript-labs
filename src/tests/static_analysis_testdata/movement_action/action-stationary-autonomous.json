@@ -1,6 +1,10 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
+  "actionInput": true,
   "actionNoop": false,
   "actionNoopBlockers": ["action_may_create_directional_movement", "autonomous_solver_active_rule"],
+  "actionNoopHypotheses": ["directional_movement_requires_reachability_proof", "no_direct_action_reader"],
+  "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionNoopChangedObjects": [],
   "movements_reachable_from_action_input": ["Goal:down", "Goal:left", "Goal:moving", "Goal:right", "Goal:up", "Hero:action"]
 }

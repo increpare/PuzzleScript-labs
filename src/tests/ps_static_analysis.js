@@ -436,6 +436,7 @@ function metadataHas(metadata, key) {
 function tagGame(psTagged, metadata = {}) {
     const rules = allRuleEntries(psTagged).map(entry => entry.rule);
     psTagged.game.tags.has_action_input = !metadataHas(metadata, 'noaction');
+    psTagged.game.tags.run_rules_on_level_start = metadataHas(metadata, 'run_rules_on_level_start');
     psTagged.game.tags.has_again = rules.some(rule => rule.tags.has_again);
     psTagged.game.tags.has_random = rules.some(rule => rule.random_rule || rule.summary.rhs_random_objects.length > 0);
     psTagged.game.tags.has_rigid = rules.some(rule => rule.rigid);
@@ -762,32 +763,343 @@ function movementEffectsFromTerms(psTagged, terms) {
     return movements;
 }
 
-function objectMovementReachable(psTagged, objectName, movementName, possibleMovements) {
+function movementKeyMovementName(key) {
+    return key.slice(key.lastIndexOf(':') + 1);
+}
+
+function playerDirectionalMovementSeeds(psTagged) {
+    const playerObjects = playerObjectNameSet(psTagged);
+    const movements = [];
+    for (const objectName of playerObjects) {
+        if (layerForObject(psTagged, objectName) === null) continue;
+        for (const movement of CARDINAL_MOVEMENTS) {
+            movements.push(`${objectName}:${movement}`);
+        }
+        movements.push(`${objectName}:moving`);
+    }
+    return uniqueSorted(movements);
+}
+
+function cosmeticObjectNameSet(psTagged) {
+    return new Set((psTagged.objects || [])
+        .filter(object => object && object.tags && object.tags.cosmetic)
+        .map(object => object.name));
+}
+
+function cosmeticMutationProjectionForRule(psTagged, rule) {
+    const cosmeticObjects = cosmeticObjectNameSet(psTagged);
+    const mutatedObjects = new Set();
+    let hasVisibleMutation = false;
+    for (const objectName of rule.tags.objects_written || []) {
+        if (cosmeticObjects.has(objectName)) mutatedObjects.add(objectName);
+        else hasVisibleMutation = true;
+    }
+    for (const objectName of rule.tags.objects_erased || []) {
+        if (cosmeticObjects.has(objectName)) mutatedObjects.add(objectName);
+        else hasVisibleMutation = true;
+    }
+
+    const movementWrites = new Set(rule.tags.movements_written || []);
+    const movementRemoves = new Set(rule.tags.movements_removed || []);
+    const movementKeys = new Set([...movementWrites, ...movementRemoves]);
+    for (const key of movementKeys) {
+        if (movementWrites.has(key) && movementRemoves.has(key)) continue;
+        const objectName = movementKeyObjectName(key);
+        if (cosmeticObjects.has(objectName)) mutatedObjects.add(objectName);
+        else hasVisibleMutation = true;
+    }
+    return { mutatedObjects, hasVisibleMutation };
+}
+
+function ruleProjectsToCosmeticMutationOnly(psTagged, rule) {
+    if (!rule || rule.tags.solver_state_active !== true) return false;
+    const projection = cosmeticMutationProjectionForRule(psTagged, rule);
+    return projection.mutatedObjects.size > 0
+        && projection.hasVisibleMutation === false
+        && rule.random_rule !== true
+        && rule.rigid !== true
+        && rule.tags.has_again !== true
+        && (!rule.summary || (
+            rule.summary.semantic_commands.length === 0
+            && rule.summary.rhs_random_objects.length === 0
+        ));
+}
+
+function transientBoundaryStatusForObject(psTagged, objectName) {
+    const creators = creatorsForObject(psTagged, objectName);
+    const clearers = lateClearersForObject(psTagged, objectName);
+    const blockers = [];
+    if (creators.length === 0) blockers.push('not_created_before_end_cleanup');
+    if (clearers.length === 0) blockers.push('no_late_cleanup_clear');
+    if (creators.length > 0 && clearers.length > 0 && !allCreatorsHaveLaterClearer(creators, clearers)) {
+        blockers.push('creator_not_followed_by_late_cleanup');
+    }
+    const object = psTagged.objects.find(item => item.name === objectName);
+    if (!object || !object.tags.present_in_no_levels) blockers.push('present_in_some_initial_levels');
+    if (objectInWincondition(psTagged, objectName)) blockers.push('appears_in_wincondition');
+    if (creators.some(entry => entry.group.tags.has_again || entry.rule.tags.has_again)) blockers.push('has_again_taint');
+    if (creators.some(entry => entry.rule.rigid) || clearers.some(entry => entry.rule.rigid)) blockers.push('rigid_rule');
+    return {
+        status: blockers.length === 0 ? 'proved' : 'rejected',
+        blockers,
+        evidence: creators.concat(clearers).map(entry => entry.rule.id),
+    };
+}
+
+function actionNoopRuleDiagnostic(psTagged, entry, reasonsOverride = null) {
+    const { section, group, rule } = entry;
+    const movementEffects = uniqueSorted(movementEffectsFromTerms(psTagged, rule.summary.rhs_terms));
+    const countEffects = ruleCountEffectObjects(psTagged, rule);
+    const changedObjects = uniqueSorted(Array.from(countEffects.increases).concat(Array.from(countEffects.decreases)));
+    const transientChangedObjects = changedObjects.filter(objectName =>
+        transientBoundaryStatusForObject(psTagged, objectName).status === 'proved'
+    );
+    let reasons = reasonsOverride ? reasonsOverride.slice() : null;
+    if (reasons === null) {
+        reasons = [];
+        if (rule.tags.reads_action) reasons.push('reads_action');
+        if (rule.tags.has_again) reasons.push('queues_again');
+        if (rule.summary.semantic_commands.some(command => command !== 'again')) reasons.push('semantic_command');
+        if (rule.rigid) reasons.push('rigid_rule');
+        if (!rule.summary.lhs_movement.some(termHasInputMovementRequirement)) reasons.push('autonomous_solver_active_rule');
+        if (rule.tags.object_mutating) reasons.push('action_may_mutate_objects');
+        if (movementEffects.some(movementTag => {
+            const movement = movementKeyMovementName(movementTag);
+            return DIRECTIONAL_MOVEMENTS.has(movement);
+        })) {
+            reasons.push('action_may_create_directional_movement');
+        }
+    }
+    return {
+        rule_id: rule.id,
+        group_id: group.id,
+        section: section.name,
+        source_line: rule.source_line,
+        late: !!rule.late,
+        rigid: !!rule.rigid,
+        reasons: uniqueSorted(reasons),
+        changed_objects: changedObjects,
+        transient_changed_objects: transientChangedObjects,
+        movement_effects: movementEffects,
+    };
+}
+
+function actionNoopDiagnosticHypotheses(uniqueBlockers, blockerRules) {
+    const blockers = new Set(uniqueBlockers);
+    const hypotheses = [];
+    if (uniqueBlockers.length === 0) {
+        hypotheses.push('no_reachable_action_effects');
+        return hypotheses;
+    }
+    if (blockers.has('reads_action')) {
+        hypotheses.push('direct_action_reader_requires_runtime_or_level_proof');
+    } else {
+        hypotheses.push('no_direct_action_reader');
+    }
+    if (blockers.has('queues_again')) hypotheses.push('again_requires_wake_chain_proof');
+    if (blockers.has('semantic_command')) hypotheses.push('semantic_command_requires_runtime_or_goal_proof');
+    if (blockers.has('action_may_create_directional_movement')) hypotheses.push('directional_movement_requires_reachability_proof');
+    if (blockers.has('rigid_rule')) hypotheses.push('rigid_rule_requires_runtime_proof');
+    if (uniqueBlockers.every(blocker =>
+        blocker === 'autonomous_solver_active_rule' || blocker === 'action_may_mutate_objects'
+    )) {
+        hypotheses.push('only_autonomous_object_mutation');
+    }
+    const changedObjects = uniqueSorted(blockerRules.flatMap(rule => rule.changed_objects || []));
+    const transientChangedObjects = uniqueSorted(blockerRules.flatMap(rule => rule.transient_changed_objects || []));
+    if (changedObjects.length > 0 && sameArray(changedObjects, transientChangedObjects)) {
+        hypotheses.push('object_mutation_limited_to_transient_objects');
+    }
+    return uniqueSorted(hypotheses);
+}
+
+function actionNoopDiagnosticsFact(uniqueBlockers, blockerRules) {
+    const hypotheses = actionNoopDiagnosticHypotheses(uniqueBlockers, blockerRules);
+    return fact('movement_action', 'action_noop_diagnostics', uniqueBlockers.length === 0 ? 'proved' : 'candidate', {
+        value: {
+            hypotheses,
+            blockers: uniqueBlockers,
+            blocker_rules: blockerRules,
+        },
+        blockers: uniqueBlockers,
+        proof: uniqueBlockers.length === 0 ? ['no_reachable_action_effects'] : [],
+        evidence: blockerRules.map(rule => rule.rule_id),
+    });
+}
+
+function combineMovementTaint(left, right) {
+    if (left === 'exclusive' || right === 'exclusive') return 'exclusive';
+    if (left === 'covered' || right === 'covered') return 'covered';
+    return null;
+}
+
+function movementReachabilityTaint(psTagged, objectName, movementName, movementStates) {
     // Runtime movement matching is layer-based; keep object-level facts and derive
     // the layer view only at requirement-check time.
     const layerObjects = layerObjectsForObject(psTagged, objectName);
+    let taint = null;
+    const consider = key => {
+        if (!movementStates.has(key)) return;
+        taint = combineMovementTaint(taint, movementStates.get(key));
+    };
     if (movementName === 'moving' || movementName === 'randomdir' || movementName === 'orthogonal') {
-        return layerObjects.some(layerObject =>
-            CARDINAL_MOVEMENTS.some(movement => possibleMovements.has(`${layerObject}:${movement}`))
-            || possibleMovements.has(`${layerObject}:moving`)
-            || possibleMovements.has(`${layerObject}:randomdir`)
-        );
+        for (const layerObject of layerObjects) {
+            for (const movement of CARDINAL_MOVEMENTS) {
+                consider(`${layerObject}:${movement}`);
+            }
+            consider(`${layerObject}:moving`);
+            consider(`${layerObject}:randomdir`);
+        }
+        return taint;
     }
-    return layerObjects.some(layerObject => possibleMovements.has(`${layerObject}:${movementName}`));
+    for (const layerObject of layerObjects) {
+        consider(`${layerObject}:${movementName}`);
+    }
+    return taint;
 }
 
-function ruleMovementRequirementsReachable(psTagged, rule, possibleMovements) {
+function ruleMovementRequirementTaint(psTagged, rule, movementStates) {
     const requirements = movementRequirementsFromTerms(psTagged, rule.summary.lhs_terms);
-    if (requirements.length === 0) return true;
-    return requirements.every(alternatives =>
-        alternatives.some(requirement =>
-            objectMovementReachable(psTagged, requirement.object, requirement.movement, possibleMovements)
-        )
+    if (requirements.length === 0) return 'autonomous';
+    let ruleTaint = null;
+    for (const alternatives of requirements) {
+        let requirementTaint = null;
+        for (const requirement of alternatives) {
+            requirementTaint = combineMovementTaint(
+                requirementTaint,
+                movementReachabilityTaint(psTagged, requirement.object, requirement.movement, movementStates)
+            );
+        }
+        if (requirementTaint === null) return null;
+        ruleTaint = combineMovementTaint(ruleTaint, requirementTaint);
+    }
+    return ruleTaint;
+}
+
+function setMovementState(movementStates, movementTag, taint) {
+    const normalizedTaint = taint === 'autonomous' ? 'exclusive' : taint;
+    const previous = movementStates.get(movementTag) || null;
+    const next = combineMovementTaint(previous, normalizedTaint);
+    if (previous === next) return false;
+    movementStates.set(movementTag, next);
+    return true;
+}
+
+function directionCoveredMovementStates(psTagged, activeEntries) {
+    const movementStates = new Map(playerDirectionalMovementSeeds(psTagged).map(key => [key, 'covered']));
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const entry of activeEntries) {
+            const taint = ruleMovementRequirementTaint(psTagged, entry.rule, movementStates);
+            if (taint === null) continue;
+            for (const movementTag of movementEffectsFromTerms(psTagged, entry.rule.summary.rhs_terms)) {
+                changed = setMovementState(movementStates, movementTag, 'covered') || changed;
+            }
+        }
+    }
+    return movementStates;
+}
+
+function visibleActionBranchObjectMutation(psTagged, rule) {
+    const cosmeticObjects = cosmeticObjectNameSet(psTagged);
+    return (rule.tags.objects_written || []).some(objectName => !cosmeticObjects.has(objectName))
+        || (rule.tags.objects_erased || []).some(objectName => !cosmeticObjects.has(objectName));
+}
+
+function visibleActionBranchMovementEffects(psTagged, rule) {
+    const cosmeticObjects = cosmeticObjectNameSet(psTagged);
+    return movementEffectsFromTerms(psTagged, rule.summary.rhs_terms)
+        .filter(movementTag => !cosmeticObjects.has(movementKeyObjectName(movementTag)));
+}
+
+function ambiguousActionDirectionSourceLines(psTagged, activeEntries) {
+    const playerObjects = playerObjectNameSet(psTagged);
+    const directionsBySourceLine = new Map();
+    for (const entry of activeEntries) {
+        const rule = entry.rule;
+        if (!rule.tags.reads_action) continue;
+        const directions = visibleActionBranchMovementEffects(psTagged, rule)
+            .filter(movementTag => playerObjects.has(movementKeyObjectName(movementTag)))
+            .map(movementKeyMovementName)
+            .filter(movement => CARDINAL_MOVEMENTS.includes(movement));
+        if (directions.length === 0) continue;
+        if (!directionsBySourceLine.has(rule.source_line)) {
+            directionsBySourceLine.set(rule.source_line, new Set());
+        }
+        addValues(directionsBySourceLine.get(rule.source_line), directions);
+    }
+    return new Set(Array.from(directionsBySourceLine.entries())
+        .filter(([_line, directions]) => directions.size > 1)
+        .map(([line]) => line));
+}
+
+function actionBranchMovementEffectsCoveredByDirectionInputs(psTagged, rule, movementEffects, directionMovements, ambiguousSourceLines) {
+    if (ambiguousSourceLines.has(rule.source_line)) return false;
+    const playerObjects = playerObjectNameSet(psTagged);
+    const cardinalDirections = new Set();
+    const covered = movementEffects.every(movementTag => {
+        if (!directionMovements.has(movementTag)) return false;
+        const objectName = movementKeyObjectName(movementTag);
+        const movement = movementKeyMovementName(movementTag);
+        if (CARDINAL_MOVEMENTS.includes(movement)) {
+            cardinalDirections.add(movement);
+        }
+        return playerObjects.has(objectName)
+            && (CARDINAL_MOVEMENTS.includes(movement) || movement === 'moving');
+    });
+    return covered && cardinalDirections.size <= 1;
+}
+
+function actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, ambiguousSourceLines) {
+    const movementEffects = uniqueSorted(visibleActionBranchMovementEffects(psTagged, rule));
+    const movementCovered = actionBranchMovementEffectsCoveredByDirectionInputs(
+        psTagged,
+        rule,
+        movementEffects,
+        directionMovements,
+        ambiguousSourceLines
     );
+    const semanticCommand = rule.summary.semantic_commands.some(command => command !== 'again');
+    const visibleObjectMutation = visibleActionBranchObjectMutation(psTagged, rule);
+    const reasons = [];
+    if (rule.tags.has_again) reasons.push('queues_again');
+    if (semanticCommand) reasons.push('semantic_command');
+    if (rule.rigid) reasons.push('rigid_rule');
+    if (reachabilityTaint === 'autonomous') reasons.push('autonomous_solver_active_rule');
+    if (visibleObjectMutation) reasons.push('action_may_mutate_objects');
+    if (rule.tags.reads_action && (reasons.length > 0 || !movementCovered)) reasons.push('reads_action');
+    if (!movementCovered) {
+        if (movementEffects.some(movementTag => DIRECTIONAL_MOVEMENTS.has(movementKeyMovementName(movementTag)))) {
+            reasons.push('action_may_create_directional_movement');
+        }
+    }
+    return uniqueSorted(reasons);
+}
+
+function actionNoopProvedByInputIndependentTurnEffects(psTagged, uniqueBlockers, blockerRules) {
+    const blockers = new Set(uniqueBlockers);
+    void psTagged;
+    if (blockers.size === 0) return true;
+    if (blockers.has('reads_action') || blockers.has('rigid_rule')) return false;
+
+    const changedObjects = uniqueSorted(blockerRules.flatMap(rule => rule.changed_objects || []));
+    const transientChangedObjects = uniqueSorted(blockerRules.flatMap(rule => rule.transient_changed_objects || []));
+    const movementEffects = uniqueSorted(blockerRules.flatMap(rule => rule.movement_effects || []));
+    const changesOnlyTransientObjects = changedObjects.length > 0
+        && sameArray(changedObjects, transientChangedObjects)
+        && movementEffects.length === 0;
+    if (changesOnlyTransientObjects) return true;
+
+    return false;
 }
 
 function deriveMovementActionFacts(psTagged) {
-    const activeRules = allRuleEntries(psTagged).map(entry => entry.rule).filter(rule => rule.tags.solver_state_active);
+    const activeEntries = allRuleEntries(psTagged).filter(entry =>
+        entry.rule.tags.solver_state_active
+        && !ruleProjectsToCosmeticMutationOnly(psTagged, entry.rule)
+    );
+    const activeRules = activeEntries.map(entry => entry.rule);
     if (psTagged.game.tags.has_action_input === false) {
         return [
             fact('movement_action', 'movements_reachable_from_action_input', 'proved', {
@@ -800,42 +1112,77 @@ function deriveMovementActionFacts(psTagged) {
                 proof: ['noaction_metadata_disables_action_input'],
                 evidence: [],
             }),
+            fact('movement_action', 'action_noop_diagnostics', 'proved', {
+                value: {
+                    hypotheses: ['already_noaction_metadata'],
+                    blockers: [],
+                    blocker_rules: [],
+                },
+                proof: ['noaction_metadata_disables_action_input'],
+            }),
         ];
     }
+    const directionMovementStates = directionCoveredMovementStates(psTagged, activeEntries);
+    const directionMovements = new Set(directionMovementStates.keys());
+    const ambiguousSourceLines = ambiguousActionDirectionSourceLines(psTagged, activeEntries);
     const possibleMovements = new Set(playerActionMovementSeeds(psTagged));
-    const blockers = [];
+    const movementStates = new Map(Array.from(possibleMovements, movementTag => [movementTag, 'exclusive']));
+    const blockerRulesById = new Map();
     let changed = true;
     while (changed) {
         changed = false;
-        for (const rule of activeRules) {
-            if (!ruleMovementRequirementsReachable(psTagged, rule, possibleMovements)) continue;
-            if (rule.tags.reads_action) blockers.push('reads_action');
-            if (rule.tags.has_again) blockers.push('queues_again');
-            if (rule.rigid) blockers.push('rigid_rule');
-            if (!rule.summary.lhs_movement.some(termHasInputMovementRequirement)) blockers.push('autonomous_solver_active_rule');
-            if (rule.tags.object_mutating) blockers.push('action_may_mutate_objects');
-            for (const movementTag of movementEffectsFromTerms(psTagged, rule.summary.rhs_terms)) {
-                const movement = movementTag.slice(movementTag.lastIndexOf(':') + 1);
-                if (DIRECTIONAL_MOVEMENTS.has(movement)) blockers.push('action_may_create_directional_movement');
+        for (const entry of activeEntries) {
+            const rule = entry.rule;
+            const reachabilityTaint = ruleMovementRequirementTaint(psTagged, rule, movementStates);
+            if (reachabilityTaint === null) continue;
+            const reasons = reachabilityTaint === 'covered'
+                ? []
+                : actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, ambiguousSourceLines);
+            const diagnostic = actionNoopRuleDiagnostic(psTagged, entry, reasons);
+            if (diagnostic && diagnostic.reasons.length > 0) {
+                blockerRulesById.set(diagnostic.rule_id, diagnostic);
+            }
+            const movementEffects = reasons.length === 0
+                ? visibleActionBranchMovementEffects(psTagged, rule)
+                : movementEffectsFromTerms(psTagged, rule.summary.rhs_terms);
+            for (const movementTag of movementEffects) {
+                const nextTaint = reasons.length === 0 && directionMovements.has(movementTag)
+                    ? 'covered'
+                    : reachabilityTaint;
                 if (!possibleMovements.has(movementTag)) {
                     possibleMovements.add(movementTag);
                     changed = true;
                 }
+                changed = setMovementState(movementStates, movementTag, nextTaint) || changed;
             }
         }
     }
-    const uniqueBlockers = uniqueSorted(blockers);
+    const blockerRules = Array.from(blockerRulesById.values())
+        .sort((left, right) => left.source_line - right.source_line || compareNumericNames(left.rule_id, right.rule_id));
+    const uniqueBlockers = uniqueSorted(blockerRules.flatMap(rule => rule.reasons));
+    const provedByInputIndependentTurnEffects = actionNoopProvedByInputIndependentTurnEffects(
+        psTagged,
+        uniqueBlockers,
+        blockerRules
+    );
+    const actionNoopProved = uniqueBlockers.length === 0 || provedByInputIndependentTurnEffects;
+    const reportedBlockers = actionNoopProved ? [] : uniqueBlockers;
+    const reportedBlockerRules = actionNoopProved ? [] : blockerRules;
+    const actionNoopProof = uniqueBlockers.length === 0
+        ? ['no_reachable_action_effects']
+        : (actionNoopProved ? ['input_independent_turn_effects_do_not_require_action_input'] : []);
     return [
         fact('movement_action', 'movements_reachable_from_action_input', 'proved', {
             value: Array.from(possibleMovements).sort(),
             proof: ['conservative_movement_reachability_fixpoint'],
         }),
-        fact('movement_action', 'action_noop', uniqueBlockers.length === 0 ? 'proved' : 'rejected', {
-            value: uniqueBlockers.length === 0,
-            blockers: uniqueBlockers,
-            proof: uniqueBlockers.length === 0 ? ['no_reachable_action_effects'] : [],
+        fact('movement_action', 'action_noop', actionNoopProved ? 'proved' : 'rejected', {
+            value: actionNoopProved,
+            blockers: reportedBlockers,
+            proof: actionNoopProof,
             evidence: activeRules.map(rule => rule.id),
         }),
+        actionNoopDiagnosticsFact(reportedBlockers, reportedBlockerRules),
     ];
 }
 
@@ -1378,26 +1725,15 @@ function tagCosmeticRules(psTagged) {
 function deriveTransientBoundaryFacts(psTagged) {
     const results = [];
     for (const object of psTagged.objects) {
-        const creators = creatorsForObject(psTagged, object.name);
-        const clearers = lateClearersForObject(psTagged, object.name);
-        const blockers = [];
-        if (creators.length === 0) blockers.push('not_created_before_end_cleanup');
-        if (clearers.length === 0) blockers.push('no_late_cleanup_clear');
-        if (creators.length > 0 && clearers.length > 0 && !allCreatorsHaveLaterClearer(creators, clearers)) {
-            blockers.push('creator_not_followed_by_late_cleanup');
-        }
-        if (!object.tags.present_in_no_levels) blockers.push('present_in_some_initial_levels');
-        if (objectInWincondition(psTagged, object.name)) blockers.push('appears_in_wincondition');
-        if (creators.some(entry => entry.group.tags.has_again || entry.rule.tags.has_again)) blockers.push('has_again_taint');
-        if (creators.some(entry => entry.rule.rigid) || clearers.some(entry => entry.rule.rigid)) blockers.push('rigid_rule');
-        const status = blockers.length === 0 ? 'proved' : 'rejected';
+        const transient = transientBoundaryStatusForObject(psTagged, object.name);
+        const status = transient.status;
         object.tags.temporary = status === 'proved';
         results.push(fact('transient_boundary', `object_${object.name}_end_turn_transient`, status, {
             subjects: { objects: [object.name] },
             tags: { single_turn_only: true },
             proof: status === 'proved' ? ['created_before_late_cleanup', 'cleared_in_late_rules', 'absent_from_initial_levels_and_winconditions'] : [],
-            blockers,
-            evidence: creators.concat(clearers).map(entry => entry.rule.id),
+            blockers: transient.blockers,
+            evidence: transient.evidence,
         }));
     }
     return results;

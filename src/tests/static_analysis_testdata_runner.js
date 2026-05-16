@@ -1066,7 +1066,10 @@ function runRulegroupFlowDir(dirPath, claimDescriptions, log = process.stdout.wr
 function buildMovementActionExpectations(report) {
     const facts = (report.facts && report.facts.movement_action) || [];
     const noopFact = facts.find(f => f.id === 'action_noop');
+    const diagnosticsFact = facts.find(f => f.id === 'action_noop_diagnostics');
     const movementsReachableFromActionInputFact = facts.find(f => f.id === 'movements_reachable_from_action_input');
+    const diagnostics = diagnosticsFact && diagnosticsFact.value ? diagnosticsFact.value : {};
+    const blockerRules = diagnostics.blocker_rules || [];
     return {
         schema: FIXTURE_SCHEMA,
         actionInput: report.ps_tagged && report.ps_tagged.game && report.ps_tagged.game.tags
@@ -1074,6 +1077,9 @@ function buildMovementActionExpectations(report) {
             : true,
         actionNoop: noopFact ? !!noopFact.value : true,
         actionNoopBlockers: noopFact ? (noopFact.blockers || []).slice().sort() : [],
+        actionNoopHypotheses: (diagnostics.hypotheses || []).slice().sort(),
+        actionNoopBlockerRuleIds: blockerRules.map(rule => rule.rule_id).sort(),
+        actionNoopChangedObjects: Array.from(new Set(blockerRules.flatMap(rule => rule.changed_objects || []))).sort(),
         movements_reachable_from_action_input: movementsReachableFromActionInputFact
             ? (movementsReachableFromActionInputFact.value || []).slice().sort()
             : [],
@@ -1087,6 +1093,15 @@ function validateMovementActionExpectationShape(filePath, payload) {
     }
     assert.ok(typeof payload.actionNoop === 'boolean', `${filePath}: actionNoop must be boolean`);
     assertStringArray(filePath, 'actionNoopBlockers', payload.actionNoopBlockers);
+    if (payload.actionNoopHypotheses !== undefined) {
+        assertStringArray(filePath, 'actionNoopHypotheses', payload.actionNoopHypotheses);
+    }
+    if (payload.actionNoopBlockerRuleIds !== undefined) {
+        assertStringArray(filePath, 'actionNoopBlockerRuleIds', payload.actionNoopBlockerRuleIds);
+    }
+    if (payload.actionNoopChangedObjects !== undefined) {
+        assertStringArray(filePath, 'actionNoopChangedObjects', payload.actionNoopChangedObjects);
+    }
     if (payload.movements_reachable_from_action_input !== undefined) {
         assertStringArray(
             filePath,
@@ -1109,6 +1124,15 @@ function checkMovementActionFixture(txtPath, jsonPath, claimDescriptions) {
     }
     assert.strictEqual(actual.actionNoop, payload.actionNoop, `${jsonPath}: actionNoop expected ${payload.actionNoop}, got ${actual.actionNoop}`);
     assertSameStringSet(jsonPath, 'actionNoopBlockers', payload.actionNoopBlockers, actual.actionNoopBlockers);
+    if (payload.actionNoopHypotheses !== undefined) {
+        assertSameStringSet(jsonPath, 'actionNoopHypotheses', payload.actionNoopHypotheses, actual.actionNoopHypotheses);
+    }
+    if (payload.actionNoopBlockerRuleIds !== undefined) {
+        assertSameStringSet(jsonPath, 'actionNoopBlockerRuleIds', payload.actionNoopBlockerRuleIds, actual.actionNoopBlockerRuleIds);
+    }
+    if (payload.actionNoopChangedObjects !== undefined) {
+        assertSameStringSet(jsonPath, 'actionNoopChangedObjects', payload.actionNoopChangedObjects, actual.actionNoopChangedObjects);
+    }
     if (payload.movements_reachable_from_action_input !== undefined) {
         assertSameStringSet(
             jsonPath,

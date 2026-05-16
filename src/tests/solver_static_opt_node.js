@@ -571,6 +571,23 @@ PT
     assert.ok(actionOptimized.results[0].generated < actionBaseline.results[0].generated, 'action-noop static pass should prune solver action branches');
     assert.strictEqual(actionOptimized.results[0].inserted_noaction_metadata, 1);
 
+    const actionForcedNoaction = JSON.parse(execFileSync(
+        process.execPath,
+        [
+            runner,
+            corpusDir,
+            '--game',
+            'push_goal.txt',
+            '--quiet',
+            '--no-solutions',
+            '--force-noaction',
+            '--json',
+        ],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+    ));
+    assert.strictEqual(actionForcedNoaction.results[0].status, 'solved');
+    assert.strictEqual(actionBaseline.results[0].solution_length, actionForcedNoaction.results[0].solution_length);
+
     const profiledAction = JSON.parse(execFileSync(
         process.execPath,
         [
