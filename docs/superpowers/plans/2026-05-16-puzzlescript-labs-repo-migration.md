@@ -12,7 +12,7 @@
 
 ## Scope
 
-This plan performs only the repository migration. It does not move solver, static analyser, or native parity files out of `src/tests/`; that is a follow-up labs-only cleanup after `PuzzleScript-labs/main` is safely verified.
+This plan performs only the repository migration. It does not move solver, static analyser, or native parity files out of `src/tests/`; that is a follow-up labs-only cleanup after `PuzzleScript-labs/master` is safely verified.
 
 ## File And Remote Structure
 
@@ -158,7 +158,7 @@ git clone --no-hardlinks PuzzleScript PuzzleScript-labs
 
 Expected: Git creates `/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs` and checks out the current source branch.
 
-- [ ] **Step 3: Rename the checked-out labs branch to `main`**
+- [ ] **Step 3: Rename the checked-out labs branch to `master`**
 
 Run:
 
@@ -166,15 +166,15 @@ Run:
 cd /Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs
 git status --short --branch
 git branch --show-current
-git branch -m main
-git branch --unset-upstream main
+git branch -m master
+git branch --unset-upstream master
 git status --short --branch
 ```
 
 Expected before rename: current branch is `cpp`. Expected after rename:
 
 ```text
-## main
+## master
 ```
 
 No modified, staged, or untracked files should be listed.
@@ -214,34 +214,34 @@ git rev-parse HEAD
 
 Expected: all `test` commands exit `0`, and `git rev-parse HEAD` matches `SOURCE_SHA`.
 
-### Task 4: Push Labs Main And Verify GitHub Defaults
+### Task 4: Push Labs Master And Verify GitHub Defaults
 
 **Files:**
 - Modify: `increpare/PuzzleScript-labs` remote refs
 
-- [ ] **Step 1: Push `main` to `PuzzleScript-labs`**
+- [ ] **Step 1: Push `master` to `PuzzleScript-labs`**
 
 Run:
 
 ```sh
 cd /Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs
-git push -u origin main
+git push -u origin master
 ```
 
-Expected: Git pushes `main` to `https://github.com/increpare/PuzzleScript-labs.git` and sets local `main` to track `origin/main`.
+Expected: Git pushes `master` to `https://github.com/increpare/PuzzleScript-labs.git` and sets local `master` to track `origin/master`.
 
-- [ ] **Step 2: Verify remote `main` points at the source commit**
+- [ ] **Step 2: Verify remote `master` points at the source commit**
 
 Run:
 
 ```sh
 git rev-parse HEAD
-git ls-remote --heads origin main
+git ls-remote --heads origin master
 ```
 
-Expected: both commands show the same commit SHA for `main`, matching `SOURCE_SHA`.
+Expected: both commands show the same commit SHA for `master`, matching `SOURCE_SHA`.
 
-- [ ] **Step 3: Ensure GitHub default branch is `main`**
+- [ ] **Step 3: Ensure GitHub default branch is `master`**
 
 Run:
 
@@ -252,20 +252,20 @@ gh repo view increpare/PuzzleScript-labs --json defaultBranchRef
 Expected:
 
 ```json
-{"defaultBranchRef":{"name":"main"}}
+{"defaultBranchRef":{"name":"master"}}
 ```
 
-If the default branch is not `main`, run:
+If the default branch is not `master`, run:
 
 ```sh
-gh repo edit increpare/PuzzleScript-labs --default-branch main
+gh repo edit increpare/PuzzleScript-labs --default-branch master
 gh repo view increpare/PuzzleScript-labs --json defaultBranchRef
 ```
 
 Expected after edit:
 
 ```json
-{"defaultBranchRef":{"name":"main"}}
+{"defaultBranchRef":{"name":"master"}}
 ```
 
 ### Task 5: Fresh Clone Verification
@@ -283,7 +283,7 @@ git clone https://github.com/increpare/PuzzleScript-labs.git "$VERIFY_DIR"
 cd "$VERIFY_DIR"
 ```
 
-Expected: Git clones the repository and checks out `main`.
+Expected: Git clones the repository and checks out `master`.
 
 - [ ] **Step 2: Verify branch, commit, and key directories**
 
@@ -302,7 +302,7 @@ test -f docs/superpowers/plans/2026-05-16-puzzlescript-labs-repo-migration.md
 Expected:
 
 ```text
-## main...origin/main
+## master...origin/master
 ```
 
 The commit SHA must match `SOURCE_SHA`, and all `test` commands must exit `0`.
@@ -403,7 +403,7 @@ origin  https://github.com/increpare/PuzzleScript-labs.git (fetch)
 origin  https://github.com/increpare/PuzzleScript-labs.git (push)
 upstream        https://github.com/increpare/PuzzleScript.git (fetch)
 upstream        https://github.com/increpare/PuzzleScript.git (push)
-main
+master
 ```
 
 - [ ] **Step 2: Leave local `cpp` untouched for now**

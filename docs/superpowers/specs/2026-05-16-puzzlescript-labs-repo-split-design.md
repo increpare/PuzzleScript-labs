@@ -78,7 +78,7 @@ Rebase is also possible for local feature branches, but the labs default branch 
 1. Create an empty GitHub repo named `PuzzleScript-labs`.
 2. From the current local repository on `cpp`, add or switch `origin` to `PuzzleScript-labs`.
 3. Add `PuzzleScript` as `upstream`.
-4. Push the current `cpp` branch to `PuzzleScript-labs` as the default branch named `main`.
+4. Push the current `cpp` branch to `PuzzleScript-labs` as the default branch named `master`.
 5. Stop pushing AI experiment branches to `increpare/PuzzleScript`.
 6. Verify the new labs repo from a fresh clone or independent checkout.
 7. Delete the remote `cpp` branch from `increpare/PuzzleScript` after verification.
@@ -103,11 +103,11 @@ This cleanup happens only in `PuzzleScript-labs`. It should not create churn in 
 
 ## Canonical Branch Cleanup
 
-After `PuzzleScript-labs/main` is pushed and verified, delete `cpp` from the canonical GitHub repository. The goal is to stop watcher notifications and remove the impression that AI-assisted labs work is an official PuzzleScript side branch.
+After `PuzzleScript-labs/master` is pushed and verified, delete `cpp` from the canonical GitHub repository. The goal is to stop watcher notifications and remove the impression that AI-assisted labs work is an official PuzzleScript side branch.
 
 Deletion checklist:
 
-- `PuzzleScript-labs/main` contains the latest local `cpp` history.
+- `PuzzleScript-labs/master` contains the latest local `cpp` history.
 - A fresh clone or independent checkout of `PuzzleScript-labs` has `native/`, `tools/`, static analyser material, generated docs, and the latest migration commits.
 - `PuzzleScript-labs` has `upstream` pointing at `increpare/PuzzleScript`.
 - No open pull requests or important external links depend on `increpare/PuzzleScript:cpp`.
