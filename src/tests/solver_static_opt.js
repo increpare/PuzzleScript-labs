@@ -3,7 +3,7 @@
 /**
  * Solver-only static optimizations for compiled PuzzleScript state.
  *
- * Four independent passes, all opt-in via createSolverOptimizationHook(report, passes):
+ * Five independent passes, all opt-in via createSolverOptimizationHook(report, passes):
  *
  *   inert    — drop rules whose only effect is firing a sound or showing a
  *              message (sfx0..sfx10, message). These can't change game state,
@@ -15,6 +15,8 @@
  *   merge    — fold mergeability-candidate object pairs into a single canonical
  *              name (alphabetically first). Identical objects are equivalent
  *              for the solver.
+ *   action   — insert noaction metadata when static analysis proves ACTION
+ *              input has no solver-visible effect.
  *
  * Hook timing: pluginOptimizationHook fires from compiler.js loadFile() after
  * rule compilation but before generateSoundData / processWinConditions. Cosmetic
@@ -42,10 +44,12 @@ const TELEMETRY_KEYS = [
     'removed_cosmetic_rules',
     'merged_object_aliases',
     'merged_object_groups',
+    'inserted_noaction_metadata',
     'ms_inert',
     'ms_cosmetic',
     'ms_cosmetic_rules',
     'ms_merge',
+    'ms_action',
 ];
 
 function defaultTelemetry() {
@@ -911,6 +915,31 @@ function passMerge(state, report, telemetry) {
     rebuildAfterStructuralEdit(state, alias);
 }
 
+function actionNoopProved(report) {
+    const facts = report && report.facts && report.facts.movement_action;
+    if (!Array.isArray(facts)) return false;
+    return facts.some(fact => fact && fact.id === 'action_noop' && fact.status === 'proved');
+}
+
+function passActionNoop(state, report, telemetry) {
+    if (!actionNoopProved(report)) return;
+    if (Array.isArray(state.metadata)) {
+        for (let index = 0; index < state.metadata.length; index += 2) {
+            if (state.metadata[index] === 'noaction') return;
+        }
+        state.metadata.push('noaction', true);
+        telemetry.inserted_noaction_metadata += 1;
+        return;
+    }
+    if (!state.metadata || typeof state.metadata !== 'object') {
+        state.metadata = {};
+    }
+    if (!Object.prototype.hasOwnProperty.call(state.metadata, 'noaction')) {
+        state.metadata.noaction = true;
+        telemetry.inserted_noaction_metadata += 1;
+    }
+}
+
 // ---------- Pass orchestration ----------
 
 function createSolverOptimizationHook(staticAnalysisReport, passes) {
@@ -947,6 +976,11 @@ function createSolverOptimizationHook(staticAnalysisReport, passes) {
             passMerge(compiledState, staticAnalysisReport, telemetry);
             telemetry.ms_merge += nowFn() - t0;
         }
+        if (p.action) {
+            const t0 = nowFn();
+            passActionNoop(compiledState, staticAnalysisReport, telemetry);
+            telemetry.ms_action += nowFn() - t0;
+        }
         compiledState.solverOptimizationTelemetry = telemetry;
     };
 }
@@ -954,7 +988,7 @@ function createSolverOptimizationHook(staticAnalysisReport, passes) {
 // ---------- CLI / pass-list parsing ----------
 
 function parseSolverOptPassList(arg) {
-    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
     const aliases = {
         cosmeticrules: 'cosmeticRules',
         'cosmetic-rules': 'cosmeticRules',
@@ -962,7 +996,7 @@ function parseSolverOptPassList(arg) {
     };
     const parts = String(arg || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     if (parts.includes('all')) {
-        passes.inert = passes.cosmetic = passes.cosmeticRules = passes.merge = true;
+        passes.inert = passes.cosmetic = passes.cosmeticRules = passes.merge = passes.action = true;
         return passes;
     }
     for (const p of parts) {
@@ -975,9 +1009,9 @@ function parseSolverOptPassList(arg) {
 
 function resolveSolverPasses(options) {
     if (options.solverOptParityBaseline) {
-        return { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+        return { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
     }
-    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
     if (options.solverOptPasses) Object.assign(passes, options.solverOptPasses);
     if (options.solverOptimizeStatic) passes.inert = true;
     return passes;
@@ -988,13 +1022,14 @@ function solverPassesNeedFullStaticReport(passes) {
 }
 
 function effectiveSolverPassesForHook(staticAnalysisReport, passes) {
-    const p = passes || { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+    const p = passes || { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
     const reportOk = !!(staticAnalysisReport && staticAnalysisReport.status === 'ok');
     return {
         inert: !!p.inert,
         cosmetic: !!p.cosmetic && reportOk,
         cosmeticRules: !!p.cosmeticRules && reportOk,
         merge: !!p.merge && reportOk,
+        action: !!p.action && reportOk,
     };
 }
 
@@ -1010,19 +1045,22 @@ const FORMATTER_FIELDS = [
     ['removed_cosmetic_rules',            'cosmetic_rules'],
     ['merged_object_aliases',             'merge_aliases'],
     ['merged_object_groups',              'merge_groups'],
+    ['inserted_noaction_metadata',         'noaction'],
 ];
 const FORMATTER_MS_FIELDS = [
     ['solver_opt_ms_inert',          'opt_ms_inert'],
     ['solver_opt_ms_cosmetic',       'opt_ms_cosmetic'],
     ['solver_opt_ms_cosmetic_rules', 'opt_ms_cosmetic_rules'],
     ['solver_opt_ms_merge',          'opt_ms_merge'],
+    ['solver_opt_ms_action',         'opt_ms_action'],
 ];
 
 function totalHookMs(t) {
     return (t.solver_opt_ms_inert || 0)
         + (t.solver_opt_ms_cosmetic || 0)
         + (t.solver_opt_ms_cosmetic_rules || 0)
-        + (t.solver_opt_ms_merge || 0);
+        + (t.solver_opt_ms_merge || 0)
+        + (t.solver_opt_ms_action || 0);
 }
 
 function formatSolverOptimizationHumanSuffixFromTotals(t) {
@@ -1048,13 +1086,15 @@ function buildSolverOptimizationJsonTotals(t) {
     const removedCosRules = t.removed_cosmetic_rules || 0;
     const mergedAliases = t.merged_object_aliases || 0;
     const mergedGroups = t.merged_object_groups || 0;
+    const noaction = t.inserted_noaction_metadata || 0;
     const msInert = t.solver_opt_ms_inert || 0;
     const msCos = t.solver_opt_ms_cosmetic || 0;
     const msCosRules = t.solver_opt_ms_cosmetic_rules || 0;
     const msMrg = t.solver_opt_ms_merge || 0;
-    const hookMs = msInert + msCos + msCosRules + msMrg;
+    const msAction = t.solver_opt_ms_action || 0;
+    const hookMs = msInert + msCos + msCosRules + msMrg + msAction;
     const gated = !!t.solver_optimization_gated;
-    if (removedInert + removedCos + removedLayers + removedCosRules + mergedAliases + mergedGroups + hookMs === 0 && !gated) {
+    if (removedInert + removedCos + removedLayers + removedCosRules + mergedAliases + mergedGroups + noaction + hookMs === 0 && !gated) {
         return null;
     }
     const out = {
@@ -1064,10 +1104,12 @@ function buildSolverOptimizationJsonTotals(t) {
         removed_cosmetic_rules: removedCosRules,
         merged_object_aliases: mergedAliases,
         merged_object_groups: mergedGroups,
+        inserted_noaction_metadata: noaction,
         ms_inert: msInert,
         ms_cosmetic: msCos,
         ms_cosmetic_rules: msCosRules,
         ms_merge: msMrg,
+        ms_action: msAction,
         ms_hook: hookMs,
     };
     if (gated) out.gated = true;
@@ -1085,6 +1127,7 @@ module.exports = {
     dropSolverCosmeticRules,
     mergeabilityCandidatePairs,
     mergeMutationObjectNames,
+    actionNoopProved,
     runtimeObjectNameForStaticName,
     buildMergeAliasMap,
     applyNameSubstitutionToWinconditions: (state, renameFn) => {

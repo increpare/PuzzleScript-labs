@@ -943,6 +943,73 @@ const mergeStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
 });
 assert.deepStrictEqual(mergeStaticAnalysisOptions.familyFilter, ['mergeability'], 'merge static optimization should request only mergeability facts');
 
+const actionNoopOptimizationSource = `
+title Canonical Static Action
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+blue
+
+Goal
+green
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Player
+G = Goal
+
+${'======='}
+SOUNDS
+${'======='}
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+
+=====
+RULES
+=====
+
+=============
+WINCONDITIONS
+=============
+
+All Player on Goal
+
+======
+LEVELS
+======
+
+PG
+`;
+
+const actionBaseline = canonicalizeSource(actionNoopOptimizationSource, 'semantic');
+const actionOptimized = canonicalizeSource(actionNoopOptimizationSource, 'semantic', {
+    staticOptimizations: 'action',
+});
+assert.strictEqual(actionBaseline.metadata.some(item => item.key === 'noaction'), false, 'baseline canonicalization should not synthesize noaction');
+assert.strictEqual(actionOptimized.metadata.some(item => item.key === 'noaction'), true, 'static action optimization should synthesize noaction metadata');
+
+const actionStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
+    canonicalizeSource(actionNoopOptimizationSource, 'semantic', {
+        staticOptimizations: 'action',
+    });
+});
+assert.deepStrictEqual(actionStaticAnalysisOptions.familyFilter, ['movement_action'], 'action static optimization should request only movement_action facts');
+
 function countNumericLocaleCompareCalls(fn) {
     const originalLocaleCompare = String.prototype.localeCompare;
     let count = 0;

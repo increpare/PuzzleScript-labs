@@ -75,15 +75,15 @@ function run() {
 
     assert.deepStrictEqual(
         effectiveSolverPassesForHook(null, { inert: true, cosmetic: true, cosmeticRules: true, merge: true }),
-        { inert: true, cosmetic: false, cosmeticRules: false, merge: false },
+        { inert: true, cosmetic: false, cosmeticRules: false, merge: false, action: false },
     );
     assert.deepStrictEqual(
         effectiveSolverPassesForHook({ status: 'compile_error' }, { inert: true, cosmetic: true, cosmeticRules: true, merge: true }),
-        { inert: true, cosmetic: false, cosmeticRules: false, merge: false },
+        { inert: true, cosmetic: false, cosmeticRules: false, merge: false, action: false },
     );
     assert.deepStrictEqual(
         effectiveSolverPassesForHook({ status: 'ok' }, { inert: false, cosmetic: true, cosmeticRules: true, merge: true }),
-        { inert: false, cosmetic: true, cosmeticRules: true, merge: true },
+        { inert: false, cosmetic: true, cosmeticRules: true, merge: true, action: false },
     );
     const nest = buildSolverOptimizationJsonTotals({
         static_optimization_removed_rules: 1,
@@ -116,10 +116,28 @@ function run() {
     assert.strictEqual(nestGated.gated, true);
     assert.ok(formatSolverOptimizationHumanSuffixFromTotals({ solver_optimization_gated: true }).includes('opt_gated=1'));
 
-    assert.deepStrictEqual(parseSolverOptPassList('all'), { inert: true, cosmetic: true, cosmeticRules: true, merge: true });
-    assert.deepStrictEqual(parseSolverOptPassList('inert,cosmetic'), { inert: true, cosmetic: true, cosmeticRules: false, merge: false });
-    assert.deepStrictEqual(parseSolverOptPassList('cosmetic-rules'), { inert: false, cosmetic: false, cosmeticRules: true, merge: false });
+    assert.deepStrictEqual(parseSolverOptPassList('all'), { inert: true, cosmetic: true, cosmeticRules: true, merge: true, action: true });
+    assert.deepStrictEqual(parseSolverOptPassList('inert,cosmetic'), { inert: true, cosmetic: true, cosmeticRules: false, merge: false, action: false });
+    assert.deepStrictEqual(parseSolverOptPassList('cosmetic-rules'), { inert: false, cosmetic: false, cosmeticRules: true, merge: false, action: false });
     assertThrows(() => parseSolverOptPassList('nope'), 'Unknown');
+
+    const actionReport = {
+        status: 'ok',
+        facts: {
+            movement_action: [{ id: 'action_noop', status: 'proved' }],
+        },
+    };
+    const actionState = { invalid: 0, metadata: [] };
+    createSolverOptimizationHook(actionReport, { action: true })(actionState);
+    assert.ok(actionState.metadata.includes('noaction'), 'action pass should insert noaction metadata when action_noop is proved');
+    assert.strictEqual(actionState.solverOptimizationTelemetry.inserted_noaction_metadata, 1);
+
+    const rejectedActionState = { invalid: 0, metadata: [] };
+    createSolverOptimizationHook({
+        status: 'ok',
+        facts: { movement_action: [{ id: 'action_noop', status: 'rejected' }] },
+    }, { action: true })(rejectedActionState);
+    assert.ok(!rejectedActionState.metadata.includes('noaction'), 'action pass should not insert noaction when action_noop is rejected');
 
     const inertLine = new Set([42]);
     assert.strictEqual(
@@ -337,7 +355,7 @@ function run() {
     assert.strictEqual(merged.cosmeticRules, false);
 
     const baseline = resolveSolverPasses(Object.assign({}, opt, { solverOptParityBaseline: true }));
-    assert.deepStrictEqual(baseline, { inert: false, cosmetic: false, cosmeticRules: false, merge: false });
+    assert.deepStrictEqual(baseline, { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false });
 
     loadPuzzleScript();
     const smokePath = path.join(__dirname, 'solver_smoke_tests', 'one_move.txt');
@@ -520,6 +538,60 @@ PT
 
     const corpusDir = path.join(__dirname, 'solver_smoke_tests');
     const runner = path.join(__dirname, 'run_solver_tests_js.js');
+    const actionBaseline = JSON.parse(execFileSync(
+        process.execPath,
+        [
+            runner,
+            corpusDir,
+            '--game',
+            'push_goal.txt',
+            '--quiet',
+            '--no-solutions',
+            '--json',
+        ],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+    ));
+    const actionOptimized = JSON.parse(execFileSync(
+        process.execPath,
+        [
+            runner,
+            corpusDir,
+            '--game',
+            'push_goal.txt',
+            '--quiet',
+            '--no-solutions',
+            '--solver-opt',
+            'action',
+            '--json',
+        ],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+    ));
+    assert.strictEqual(actionOptimized.results[0].status, 'solved');
+    assert.strictEqual(actionBaseline.results[0].solution_length, actionOptimized.results[0].solution_length);
+    assert.ok(actionOptimized.results[0].generated < actionBaseline.results[0].generated, 'action-noop static pass should prune solver action branches');
+    assert.strictEqual(actionOptimized.results[0].inserted_noaction_metadata, 1);
+
+    const profiledAction = JSON.parse(execFileSync(
+        process.execPath,
+        [
+            runner,
+            corpusDir,
+            '--game',
+            'push_goal.txt',
+            '--quiet',
+            '--no-solutions',
+            '--json',
+        ],
+        {
+            encoding: 'utf8',
+            maxBuffer: 16 * 1024 * 1024,
+            env: Object.assign({}, process.env, { PUZZLESCRIPT_SOLVER_STEP_PROFILE: '1' }),
+        },
+    ));
+    assert.ok(profiledAction.results[0].step_profile_early_rules_ms > 0, 'step profiler should time early rules');
+    assert.ok(profiledAction.results[0].step_profile_movement_ms > 0, 'step profiler should time movement resolution');
+    assert.ok(profiledAction.results[0].step_profile_command_ms > 0, 'step profiler should time command queue processing');
+
     const mlJson = execFileSync(
         process.execPath,
         [

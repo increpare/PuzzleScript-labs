@@ -81,6 +81,61 @@ const BEST_MANHATTAN_EMPTY_TARGETS_PENALTY = 128;
 
 /** When `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0`, skip `performance.now()` in the search hot loop (timing breakdown is zeroed; portfolio auto-lock uses step timing only when enabled). */
 const SOLVER_DETAIL_TIMING = process.env.PUZZLESCRIPT_SOLVER_DETAIL_TIMING !== '0';
+const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1';
+
+let solverStepProfilingInstalled = false;
+let currentSolverStepProfile = null;
+
+function recordSolverStepPhase(field, fn) {
+    if (!SOLVER_STEP_PROFILE || !currentSolverStepProfile) {
+        return fn();
+    }
+    const t0 = performance.now();
+    try {
+        return fn();
+    } finally {
+        currentSolverStepProfile[field] += performance.now() - t0;
+    }
+}
+
+function installSolverStepProfiler() {
+    if (!SOLVER_STEP_PROFILE || solverStepProfilingInstalled) {
+        return;
+    }
+    solverStepProfilingInstalled = true;
+    const originalApplyRules = applyRules;
+    applyRules = function profiledApplyRules(rules, loopPoint, bannedGroup) {
+        let field = 'step_profile_other_rules_ms';
+        if (state && rules === state.rules) {
+            field = 'step_profile_early_rules_ms';
+        } else if (state && rules === state.lateRules) {
+            field = 'step_profile_late_rules_ms';
+        }
+        return recordSolverStepPhase(field, () => originalApplyRules(rules, loopPoint, bannedGroup));
+    };
+    const originalProcessCommandQueue = processCommandQueue;
+    processCommandQueue = function profiledProcessCommandQueue(...args) {
+        return recordSolverStepPhase('step_profile_command_ms', () => originalProcessCommandQueue.apply(this, args));
+    };
+    const originalCheckWin = checkWin;
+    checkWin = function profiledCheckWin(...args) {
+        return recordSolverStepPhase('step_profile_win_ms', () => originalCheckWin.apply(this, args));
+    };
+}
+
+function installSolverResolveMovementProfiler(compiledState) {
+    if (!SOLVER_STEP_PROFILE || !compiledState || typeof compiledState.resolveMovements !== 'function') {
+        return;
+    }
+    if (compiledState.__solverStepProfileResolveMovements) {
+        return;
+    }
+    const originalResolveMovements = compiledState.resolveMovements;
+    compiledState.resolveMovements = function profiledResolveMovements(...args) {
+        return recordSolverStepPhase('step_profile_movement_ms', () => originalResolveMovements.apply(this, args));
+    };
+    compiledState.__solverStepProfileResolveMovements = true;
+}
 
 let _solverActionsNoActionFlag = null;
 let _solverActionsResolved = null;
@@ -199,7 +254,7 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge|all] [--solver-opt-parity] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--summary-only] [--quiet] [--json]\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
@@ -2397,25 +2452,31 @@ function settleAgain() {
     }
 }
 
-function stepSolverAction(action) {
-    const beforeLevel = curlevel;
-    const beforeTitle = titleScreen;
-    let changed = false;
-    if (action.input === 4 && textMode && !titleScreen) {
-        if (state.levels[curlevel] && state.levels[curlevel].message !== undefined) {
-            nextLevel();
+function stepSolverAction(action, stepProfile = null) {
+    const previousStepProfile = currentSolverStepProfile;
+    currentSolverStepProfile = stepProfile;
+    try {
+        const beforeLevel = curlevel;
+        const beforeTitle = titleScreen;
+        let changed = false;
+        if (action.input === 4 && textMode && !titleScreen) {
+            if (state.levels[curlevel] && state.levels[curlevel].message !== undefined) {
+                nextLevel();
+            } else {
+                textMode = false;
+                messagetext = '';
+                messageselected = false;
+            }
+            changed = true;
         } else {
-            textMode = false;
-            messagetext = '';
-            messageselected = false;
+            changed = Boolean(processInput(action.input, undefined, undefined, true));
         }
-        changed = true;
-    } else {
-        changed = Boolean(processInput(action.input, undefined, undefined, true));
+        settleAgain();
+        const solved = changed && (curlevel !== beforeLevel || (!beforeTitle && titleScreen));
+        return { changed, solved };
+    } finally {
+        currentSolverStepProfile = previousStepProfile;
     }
-    settleAgain();
-    const solved = changed && (curlevel !== beforeLevel || (!beforeTitle && titleScreen));
-    return { changed, solved };
 }
 
 function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
@@ -2602,11 +2663,15 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         removed_inert_rules: 0,
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
+        removed_cosmetic_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
+        inserted_noaction_metadata: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
+        solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
+        solver_opt_ms_action: 0,
         solver_optimization_gated: false,
         load_ms: 0,
         clone_ms: 0,
@@ -2616,6 +2681,12 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         hash_ms: 0,
         queue_ms: 0,
         reconstruct_ms: 0,
+        step_profile_early_rules_ms: 0,
+        step_profile_movement_ms: 0,
+        step_profile_late_rules_ms: 0,
+        step_profile_other_rules_ms: 0,
+        step_profile_command_ms: 0,
+        step_profile_win_ms: 0,
         hash_mode: null,
         snapshot_mode: null,
         strategy: null,
@@ -2697,7 +2768,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     solverOps.restore(node.snapshot);
                 });
 
-                const stepResult = timeBlock(modeResult, 'step_ms', () => stepSolverAction(action));
+                const stepResult = timeBlock(modeResult, 'step_ms', () => stepSolverAction(action, modeResult));
                 modeResult.generated++;
 
                 if (stepResult.solved) {
@@ -2912,7 +2983,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     primarySpec.restore(node.snapshot);
                 });
 
-                const stepResult = timeBlock(modeResult, 'step_ms', () => stepSolverAction(action));
+                const stepResult = timeBlock(modeResult, 'step_ms', () => stepSolverAction(action, modeResult));
                 modeResult.generated++;
 
                 if (stepResult.solved) {
@@ -3032,6 +3103,12 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.queue_ms += lastResult.queue_ms;
                 phaseResult.clone_ms += lastResult.clone_ms;
                 phaseResult.snapshot_ms += lastResult.snapshot_ms;
+                phaseResult.step_profile_early_rules_ms += lastResult.step_profile_early_rules_ms || 0;
+                phaseResult.step_profile_movement_ms += lastResult.step_profile_movement_ms || 0;
+                phaseResult.step_profile_late_rules_ms += lastResult.step_profile_late_rules_ms || 0;
+                phaseResult.step_profile_other_rules_ms += lastResult.step_profile_other_rules_ms || 0;
+                phaseResult.step_profile_command_ms += lastResult.step_profile_command_ms || 0;
+                phaseResult.step_profile_win_ms += lastResult.step_profile_win_ms || 0;
             }
             lastResult = phaseResult;
             if (phaseResult.status === 'solved') {
@@ -3078,6 +3155,12 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         hash_ms: 0,
         queue_ms: 0,
         reconstruct_ms: 0,
+        step_profile_early_rules_ms: 0,
+        step_profile_movement_ms: 0,
+        step_profile_late_rules_ms: 0,
+        step_profile_other_rules_ms: 0,
+        step_profile_command_ms: 0,
+        step_profile_win_ms: 0,
     };
 }
 
@@ -3094,6 +3177,7 @@ function runGame(root, file, options = {}) {
         || passes.cosmetic
         || passes.cosmeticRules
         || passes.merge
+        || passes.action
         || options.solverOptParity;
     const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
         || passes.inert
@@ -3104,9 +3188,15 @@ function runGame(root, file, options = {}) {
     let staticAnalysisMs = 0;
     if (needsStaticAnalysis) {
         const staticAnalysisStart = performance.now();
+        const familyFilter = useFullStaticFamilies
+            ? undefined
+            : [
+                options.solverStaticHash ? 'count_layer_invariants' : null,
+                passes.action ? 'movement_action' : null,
+            ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
             sourcePath: game,
-            familyFilter: useFullStaticFamilies ? undefined : 'count_layer_invariants',
+            familyFilter: familyFilter && familyFilter.length === 1 ? familyFilter[0] : familyFilter,
         });
         staticAnalysisMs = performance.now() - staticAnalysisStart;
     }
@@ -3117,14 +3207,15 @@ function runGame(root, file, options = {}) {
     const hookPasses = effectiveSolverPassesForHook(staticAnalysisReport, passes);
     const solverOptimizationGated = passes.cosmetic !== hookPasses.cosmetic
         || passes.cosmeticRules !== hookPasses.cosmeticRules
-        || passes.merge !== hookPasses.merge;
+        || passes.merge !== hookPasses.merge
+        || passes.action !== hookPasses.action;
     if (!options.quiet && solverOptimizationGated) {
         const st = staticAnalysisReport && staticAnalysisReport.status ? staticAnalysisReport.status : 'none';
         process.stderr.write(`solver_notice game=${game} static_analysis=${st} solver_opt_reduced_to_inert_only\n`);
     }
     const inertLines = hookPasses.inert ? inertCommandOnlyRuleSourceLines(staticAnalysisReport) : new Set();
     const installOptimizerHook = typeof setPluginOptimizationHook === 'function'
-        && (hookPasses.cosmetic || hookPasses.merge || (hookPasses.inert && inertLines.size > 0));
+        && (hookPasses.cosmetic || hookPasses.merge || hookPasses.action || (hookPasses.inert && inertLines.size > 0));
     const optimizationHook = installOptimizerHook
         ? createSolverOptimizationHook(staticAnalysisReport, hookPasses)
         : null;
@@ -3138,6 +3229,7 @@ function runGame(root, file, options = {}) {
             setPluginOptimizationHook(null);
         }
     }
+    installSolverResolveMovementProfiler(state);
     const compileMs = performance.now() - compileStart;
     const telemetry = state && state.solverOptimizationTelemetry ? state.solverOptimizationTelemetry : null;
     const staticOptimizationRemovedRules = telemetry ? telemetry.removed_inert_rules : 0;
@@ -3166,6 +3258,12 @@ function runGame(root, file, options = {}) {
             hash_ms: 0,
             queue_ms: 0,
             reconstruct_ms: 0,
+            step_profile_early_rules_ms: 0,
+            step_profile_movement_ms: 0,
+            step_profile_late_rules_ms: 0,
+            step_profile_other_rules_ms: 0,
+            step_profile_command_ms: 0,
+            step_profile_win_ms: 0,
         }];
     }
     return {
@@ -3436,6 +3534,7 @@ function collectCorpusRunJobs(options) {
 
 function runCorpus(options) {
     loadPuzzleScript();
+    installSolverStepProfiler();
     const results = [];
     let attemptedLevels = 0;
     const jobs = collectCorpusRunJobs(options);
@@ -3451,7 +3550,7 @@ function runCorpus(options) {
         }
         const passes = resolveSolverPasses(opts);
         let baselineByLevel = null;
-        if (opts.solverOptParity && (passes.inert || passes.cosmetic || passes.merge)) {
+        if (opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action)) {
             const baselineOpts = Object.assign({}, opts, { solverOptParityBaseline: true });
             const compiledBaseline = runGame(opts.corpusPath, file, baselineOpts);
             if (!Array.isArray(compiledBaseline)) {
@@ -3538,10 +3637,12 @@ function runCorpus(options) {
                     result.removed_cosmetic_rules = tel.removed_cosmetic_rules || 0;
                     result.merged_object_aliases = tel.merged_object_aliases || 0;
                     result.merged_object_groups = tel.merged_object_groups || 0;
+                    result.inserted_noaction_metadata = tel.inserted_noaction_metadata || 0;
                     result.solver_opt_ms_inert = tel.ms_inert || 0;
                     result.solver_opt_ms_cosmetic = tel.ms_cosmetic || 0;
                     result.solver_opt_ms_cosmetic_rules = tel.ms_cosmetic_rules || 0;
                     result.solver_opt_ms_merge = tel.ms_merge || 0;
+                    result.solver_opt_ms_action = tel.ms_action || 0;
                 }
             } else {
                 result.compile_ms = 0;
@@ -3602,10 +3703,12 @@ function totals(results) {
         removed_cosmetic_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
+        inserted_noaction_metadata: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
+        solver_opt_ms_action: 0,
         solver_optimization_gated: false,
         load_ms: 0,
         clone_ms: 0,
@@ -3615,6 +3718,12 @@ function totals(results) {
         hash_ms: 0,
         queue_ms: 0,
         reconstruct_ms: 0,
+        step_profile_early_rules_ms: 0,
+        step_profile_movement_ms: 0,
+        step_profile_late_rules_ms: 0,
+        step_profile_other_rules_ms: 0,
+        step_profile_command_ms: 0,
+        step_profile_win_ms: 0,
     };
     for (const result of results) {
         out.solved += result.status === 'solved' ? 1 : 0;
@@ -3633,10 +3742,12 @@ function totals(results) {
         out.removed_cosmetic_rules += result.removed_cosmetic_rules || 0;
         out.merged_object_aliases += result.merged_object_aliases || 0;
         out.merged_object_groups += result.merged_object_groups || 0;
+        out.inserted_noaction_metadata += result.inserted_noaction_metadata || 0;
         out.solver_opt_ms_inert += result.solver_opt_ms_inert || 0;
         out.solver_opt_ms_cosmetic += result.solver_opt_ms_cosmetic || 0;
         out.solver_opt_ms_cosmetic_rules += result.solver_opt_ms_cosmetic_rules || 0;
         out.solver_opt_ms_merge += result.solver_opt_ms_merge || 0;
+        out.solver_opt_ms_action += result.solver_opt_ms_action || 0;
         if (result.solver_optimization_gated) {
             out.solver_optimization_gated = true;
         }
@@ -3648,6 +3759,12 @@ function totals(results) {
         out.hash_ms += result.hash_ms || 0;
         out.queue_ms += result.queue_ms || 0;
         out.reconstruct_ms += result.reconstruct_ms || 0;
+        out.step_profile_early_rules_ms += result.step_profile_early_rules_ms || 0;
+        out.step_profile_movement_ms += result.step_profile_movement_ms || 0;
+        out.step_profile_late_rules_ms += result.step_profile_late_rules_ms || 0;
+        out.step_profile_other_rules_ms += result.step_profile_other_rules_ms || 0;
+        out.step_profile_command_ms += result.step_profile_command_ms || 0;
+        out.step_profile_win_ms += result.step_profile_win_ms || 0;
     }
     return out;
 }

@@ -91,10 +91,18 @@ function main() {
         'removed_cosmetic_rules',
         'merged_object_aliases',
         'merged_object_groups',
+        'inserted_noaction_metadata',
         'solver_opt_ms_inert',
         'solver_opt_ms_cosmetic',
         'solver_opt_ms_cosmetic_rules',
         'solver_opt_ms_merge',
+        'solver_opt_ms_action',
+        'step_profile_early_rules_ms',
+        'step_profile_movement_ms',
+        'step_profile_late_rules_ms',
+        'step_profile_other_rules_ms',
+        'step_profile_command_ms',
+        'step_profile_win_ms',
     ];
 
     const w = 28;

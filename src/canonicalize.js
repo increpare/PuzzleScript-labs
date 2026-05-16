@@ -374,7 +374,7 @@ function normalizeStaticOptimizationPasses(value) {
         return solverStaticOptHelpers().parseSolverOptPassList(value || 'all');
     }
     if (typeof value === 'object') {
-        const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false };
+        const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
         Object.assign(passes, value);
         return passes;
     }
@@ -385,6 +385,9 @@ function staticAnalysisFamilyFilterForPasses(passes) {
     const families = [];
     if (passes && passes.merge) {
         families.push('mergeability');
+    }
+    if (passes && passes.action) {
+        families.push('movement_action');
     }
     return families;
 }
