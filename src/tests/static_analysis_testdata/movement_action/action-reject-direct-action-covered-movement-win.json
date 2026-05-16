@@ -2,8 +2,8 @@
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
   "actionUnnecessary": false,
-  "actionUnnecessaryBlockers": ["reads_action", "rigid_rule"],
-  "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "rigid_rule_requires_runtime_proof"],
+  "actionUnnecessaryBlockers": ["reads_action", "semantic_command"],
+  "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "semantic_command_requires_runtime_or_goal_proof"],
   "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
   "actionUnnecessaryChangedObjects": [],
   "movements_reachable_from_action_input": ["Player:action", "Player:moving", "Player:right"]

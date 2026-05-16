@@ -128,7 +128,7 @@ function emptyStaticContract(unavailableReason) {
         winflowFact: null,
         staticAnalysisReport: null,
         referencedObjectNames: [],
-        actionNoopProved: false,
+        actionUnnecessaryProved: false,
         tickNoopProved: false,
         noAgainProved: false,
         noRandomProved: false,
@@ -320,7 +320,7 @@ function staticContractForSource(source, testName) {
         winflowFact,
         staticAnalysisReport: report,
         referencedObjectNames,
-        actionNoopProved: movementFacts.some(fact => fact.id === 'action_noop' && fact.status === 'proved'),
+        actionUnnecessaryProved: movementFacts.some(fact => fact.id === 'action_unnecessary' && fact.status === 'proved'),
         tickNoopProved: gameTags.has_autonomous_tick_rules !== true,
         noAgainProved: gameTags.has_again !== true,
         noRandomProved: gameTags.has_random !== true,
@@ -1226,7 +1226,7 @@ function firstProbeDifference(before, after, modified, options = {}) {
     return null;
 }
 
-function firstActionNoopProbeDifference(testName, label, projectionObjectNames = []) {
+function firstActionUnnecessaryProbeDifference(testName, label, projectionObjectNames = []) {
     if (state && state.metadata && Object.prototype.hasOwnProperty.call(state.metadata, 'noaction')) {
         return null;
     }
@@ -1238,7 +1238,7 @@ function firstActionNoopProbeDifference(testName, label, projectionObjectNames =
         let actionAfter;
         try {
             actionModified = processInput(4);
-            drainAgain(`${testName}: action-noop probe ${label}`);
+            drainAgain(`${testName}: action-unnecessary probe ${label}`);
             actionAfter = projectedSolverVisibleStateSnapshot(projectionObjectNames);
         } finally {
             restoreRuntimeProbeState(actionRuntimeState);
@@ -1255,7 +1255,7 @@ function firstActionNoopProbeDifference(testName, label, projectionObjectNames =
             const directionRuntimeState = captureRuntimeProbeState();
             try {
                 const directionModified = processInput(directionInput);
-                drainAgain(`${testName}: action-noop direction probe ${label}/${directionInput}`);
+                drainAgain(`${testName}: action-unnecessary direction probe ${label}/${directionInput}`);
                 const directionDiff = firstProbeDifference(
                     actionAfter,
                     projectedSolverVisibleStateSnapshot(projectionObjectNames),
@@ -1414,7 +1414,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let winflowCache = [];
     let winflowRecorderComplete = false;
     const countedObjects = quantityObjectNames(quantityContracts);
-    const actionNoopProved = staticContract.actionNoopProved;
+    const actionUnnecessaryProved = staticContract.actionUnnecessaryProved;
     const tickNoopProved = staticContract.tickNoopProved;
     const noAgainProved = staticContract.noAgainProved;
     const noRandomProved = staticContract.noRandomProved;
@@ -1431,7 +1431,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let quantityBoundaryChecks = 0;
     let temporaryBoundaryChecks = 0;
     let neverAppearsBoundaryChecks = 0;
-    let actionNoopBoundaryChecks = 0;
+    let actionUnnecessaryBoundaryChecks = 0;
     let tickNoopBoundaryChecks = 0;
     let noAgainBoundaryChecks = 0;
     let noRandomReplayChecks = 0;
@@ -1617,18 +1617,18 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             staticLayerBoundaryChecks += staticLayers.length;
             inertLayerBoundaryChecks += inertLayers.length;
             quantityBoundaryChecks += quantityClaimCount(quantityContracts);
-            if (actionNoopProved) {
+            if (actionUnnecessaryProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
-                const actionDiff = firstActionNoopProbeDifference(
+                const actionDiff = firstActionUnnecessaryProbeDifference(
                     testName,
                     `input ${inputIndex} ${tokenLabel(inputToken)}`,
                     cosmeticRuleProjectionObjects
                 );
                 restartBoundaryTriggered = restartBoundaryBeforeProbe;
                 if (actionDiff) {
-                    throwProbeError(testName, 'action-noop', inputIndex, inputToken, actionDiff);
+                    throwProbeError(testName, 'action-unnecessary', inputIndex, inputToken, actionDiff);
                 }
-                actionNoopBoundaryChecks++;
+                actionUnnecessaryBoundaryChecks++;
             }
             if (tickNoopProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
@@ -1819,8 +1819,8 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             mergeAliasCount: mergeAliasMap.size,
             mergeGroupCount,
             mergeProjectionChecks,
-            actionNoopProved,
-            actionNoopBoundaryChecks,
+            actionUnnecessaryProved,
+            actionUnnecessaryBoundaryChecks,
             tickNoopProved,
             tickNoopBoundaryChecks,
             noAgainProved,
@@ -1867,7 +1867,7 @@ function runAll(options = {}) {
     let casesWithCosmeticRules = 0;
     let casesWithInertCommandRules = 0;
     let casesWithMergeAliases = 0;
-    let casesWithActionNoop = 0;
+    let casesWithActionUnnecessary = 0;
     let casesWithTickNoop = 0;
     let casesWithNoAgain = 0;
     let casesWithNoRandomReplayChecks = 0;
@@ -1883,7 +1883,7 @@ function runAll(options = {}) {
     let cosmeticRuleOptimizerProjectionChecks = 0;
     let inertCommandRuleSuppressionChecks = 0;
     let mergeProjectionChecks = 0;
-    let actionNoopBoundaryChecks = 0;
+    let actionUnnecessaryBoundaryChecks = 0;
     let tickNoopBoundaryChecks = 0;
     let noAgainBoundaryChecks = 0;
     let noRandomReplayChecks = 0;
@@ -1938,8 +1938,8 @@ function runAll(options = {}) {
             if (result.mergeAliasCount > 0) {
                 casesWithMergeAliases++;
             }
-            if (result.actionNoopProved) {
-                casesWithActionNoop++;
+            if (result.actionUnnecessaryProved) {
+                casesWithActionUnnecessary++;
             }
             if (result.tickNoopProved) {
                 casesWithTickNoop++;
@@ -1964,7 +1964,7 @@ function runAll(options = {}) {
             cosmeticRuleOptimizerProjectionChecks += result.cosmeticRuleOptimizerProjectionChecks;
             inertCommandRuleSuppressionChecks += result.inertCommandRuleSuppressionChecks;
             mergeProjectionChecks += result.mergeProjectionChecks;
-            actionNoopBoundaryChecks += result.actionNoopBoundaryChecks;
+            actionUnnecessaryBoundaryChecks += result.actionUnnecessaryBoundaryChecks;
             tickNoopBoundaryChecks += result.tickNoopBoundaryChecks;
             noAgainBoundaryChecks += result.noAgainBoundaryChecks;
             noRandomReplayChecks += result.noRandomReplayChecks;
@@ -1992,7 +1992,7 @@ function runAll(options = {}) {
         casesWithCosmeticRules,
         casesWithInertCommandRules,
         casesWithMergeAliases,
-        casesWithActionNoop,
+        casesWithActionUnnecessary,
         casesWithTickNoop,
         casesWithNoAgain,
         casesWithNoRandomReplayChecks,
@@ -2009,7 +2009,7 @@ function runAll(options = {}) {
         cosmeticRuleOptimizerProjectionChecks,
         inertCommandRuleSuppressionChecks,
         mergeProjectionChecks,
-        actionNoopBoundaryChecks,
+        actionUnnecessaryBoundaryChecks,
         tickNoopBoundaryChecks,
         noAgainBoundaryChecks,
         noRandomReplayChecks,
@@ -2037,7 +2037,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionNoop} with action-noop, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.actionNoopBoundaryChecks} action-noop-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }

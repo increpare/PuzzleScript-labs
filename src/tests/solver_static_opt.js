@@ -16,7 +16,9 @@
  *              name (alphabetically first). Identical objects are equivalent
  *              for the solver.
  *   action   — insert noaction metadata when static analysis proves ACTION
- *              input has no solver-visible effect.
+ *              input is unnecessary for the solver/generator. Game-facing
+ *              callers can request stricter insertion that avoids changing
+ *              action inputs with direction-covered in-game effects.
  *
  * Hook timing: pluginOptimizationHook fires from compiler.js loadFile() after
  * rule compilation but before generateSoundData / processWinConditions. Cosmetic
@@ -915,14 +917,35 @@ function passMerge(state, report, telemetry) {
     rebuildAfterStructuralEdit(state, alias);
 }
 
-function actionNoopProved(report) {
+function movementActionFact(report, id) {
     const facts = report && report.facts && report.facts.movement_action;
     if (!Array.isArray(facts)) return false;
-    return facts.some(fact => fact && fact.id === 'action_noop' && fact.status === 'proved');
+    return facts.find(fact => fact && fact.id === id) || null;
 }
 
-function passActionNoop(state, report, telemetry) {
-    if (!actionNoopProved(report)) return;
+function actionUnnecessaryFact(report) {
+    return movementActionFact(report, 'action_unnecessary')
+        || movementActionFact(report, 'action_noop');
+}
+
+function actionUnnecessaryProved(report) {
+    const actionFact = actionUnnecessaryFact(report);
+    return !!(actionFact && actionFact.status === 'proved');
+}
+
+function actionNoactionSafeForGame(report) {
+    const actionFact = actionUnnecessaryFact(report);
+    if (!actionFact || actionFact.status !== 'proved') return false;
+    const proof = new Set(actionFact.proof || []);
+    return !proof.has('action_effects_covered_by_directional_inputs');
+}
+
+function passActionNoop(state, report, telemetry, options = {}) {
+    const actionMode = options.actionNoactionMode || 'solver';
+    const canInsert = actionMode === 'game'
+        ? actionNoactionSafeForGame(report)
+        : actionUnnecessaryProved(report);
+    if (!canInsert) return;
     if (Array.isArray(state.metadata)) {
         for (let index = 0; index < state.metadata.length; index += 2) {
             if (state.metadata[index] === 'noaction') return;
@@ -942,7 +965,7 @@ function passActionNoop(state, report, telemetry) {
 
 // ---------- Pass orchestration ----------
 
-function createSolverOptimizationHook(staticAnalysisReport, passes) {
+function createSolverOptimizationHook(staticAnalysisReport, passes, options = {}) {
     const p = passes || {};
     return (compiledState) => {
         const telemetry = defaultTelemetry();
@@ -978,7 +1001,7 @@ function createSolverOptimizationHook(staticAnalysisReport, passes) {
         }
         if (p.action) {
             const t0 = nowFn();
-            passActionNoop(compiledState, staticAnalysisReport, telemetry);
+            passActionNoop(compiledState, staticAnalysisReport, telemetry, options);
             telemetry.ms_action += nowFn() - t0;
         }
         compiledState.solverOptimizationTelemetry = telemetry;
@@ -1127,7 +1150,8 @@ module.exports = {
     dropSolverCosmeticRules,
     mergeabilityCandidatePairs,
     mergeMutationObjectNames,
-    actionNoopProved,
+    actionUnnecessaryProved,
+    actionNoactionSafeForGame,
     runtimeObjectNameForStaticName,
     buildMergeAliasMap,
     applyNameSubstitutionToWinconditions: (state, renameFn) => {

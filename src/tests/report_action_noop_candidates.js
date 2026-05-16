@@ -6,7 +6,7 @@ const path = require('path');
 
 const { analyzeSource } = require('./ps_static_analysis');
 
-const REPORT_SCHEMA = 'action-noop-candidates-v1';
+const REPORT_SCHEMA = 'action-unnecessary-candidates-v1';
 
 function readJson(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -36,9 +36,9 @@ function forcedComparisonVetsNoactionTarget(forcedComparison) {
         && ['solved', 'timeout', 'exhausted'].includes(forcedComparison.baseline_status);
 }
 
-function classificationForTarget(existingNoaction, actionNoop, hypotheses, forcedComparison = null) {
+function classificationForTarget(existingNoaction, actionUnnecessary, hypotheses, forcedComparison = null) {
     if (existingNoaction) return 'existing_noaction';
-    if (actionNoop && actionNoop.status === 'proved') return 'proved_insertable';
+    if (actionUnnecessary && actionUnnecessary.status === 'proved') return 'proved_insertable';
     if (hypotheses.includes('direct_action_reader_requires_runtime_or_level_proof')) return 'rejected_direct_action_reader';
     if (hypotheses.includes('only_autonomous_object_mutation')) return 'candidate_autonomous_object_mutation';
     if (hypotheses.includes('object_mutation_limited_to_transient_objects')) return 'candidate_transient_object_mutation';
@@ -60,9 +60,9 @@ function summarizeTargets(targets, games) {
         target_count: targets.length,
         unique_game_count: games.length,
         existing_noaction_games: games.filter(game => game.existing_noaction).length,
-        proved_insertable_games: games.filter(game => !game.existing_noaction && game.action_noop.status === 'proved').length,
+        proved_insertable_games: games.filter(game => !game.existing_noaction && game.action_unnecessary.status === 'proved').length,
         runtime_vetted_target_solved_targets: targets.filter(target => target.classification === 'runtime_vetted_target_solved').length,
-        rejected_games: games.filter(game => game.action_noop.status === 'rejected').length,
+        rejected_games: games.filter(game => game.action_unnecessary.status === 'rejected').length,
         rejected_candidate_targets: targets.filter(target => target.classification.startsWith('candidate_')).length,
         classifications,
         hypotheses,
@@ -86,11 +86,11 @@ function compareResultPair(baseline, forced) {
     };
 }
 
-function buildActionNoopCandidateReport(options) {
+function buildActionUnnecessaryCandidateReport(options) {
     const corpusPath = options.corpusPath;
     const manifestPath = options.manifestPath;
-    if (!corpusPath) throw new Error('buildActionNoopCandidateReport: corpusPath is required');
-    if (!manifestPath) throw new Error('buildActionNoopCandidateReport: manifestPath is required');
+    if (!corpusPath) throw new Error('buildActionUnnecessaryCandidateReport: corpusPath is required');
+    if (!manifestPath) throw new Error('buildActionUnnecessaryCandidateReport: manifestPath is required');
 
     const manifest = readJson(manifestPath);
     if (!Array.isArray(manifest.targets)) {
@@ -106,17 +106,17 @@ function buildActionNoopCandidateReport(options) {
             sourcePath: game,
             familyFilter: 'movement_action',
         });
-        const actionNoop = factById(report, 'movement_action', 'action_noop') || {};
-        const diagnostics = factById(report, 'movement_action', 'action_noop_diagnostics') || {};
+        const actionUnnecessary = factById(report, 'movement_action', 'action_unnecessary') || {};
+        const diagnostics = factById(report, 'movement_action', 'action_unnecessary_diagnostics') || {};
         const value = diagnostics.value || {};
         return {
             game,
             source_path: sourcePath,
             existing_noaction: sourceHasNoaction(source),
-            action_noop: {
-                status: actionNoop.status || report.status,
-                value: actionNoop.value === true,
-                blockers: (actionNoop.blockers || []).slice().sort(),
+            action_unnecessary: {
+                status: actionUnnecessary.status || report.status,
+                value: actionUnnecessary.value === true,
+                blockers: (actionUnnecessary.blockers || []).slice().sort(),
             },
             hypotheses: (value.hypotheses || []).slice().sort(),
             blocker_rules: (value.blocker_rules || []).map(rule => ({
@@ -145,11 +145,11 @@ function buildActionNoopCandidateReport(options) {
             existing_noaction: game.existing_noaction,
             classification: classificationForTarget(
                 game.existing_noaction,
-                game.action_noop,
+                game.action_unnecessary,
                 game.hypotheses,
                 forced_comparison
             ),
-            action_noop: game.action_noop,
+            action_unnecessary: game.action_unnecessary,
             hypotheses: game.hypotheses,
             blocker_rules: game.blocker_rules,
             forced_comparison,
@@ -207,7 +207,7 @@ function parseArgs(argv) {
 
 function main() {
     const options = parseArgs(process.argv.slice(2));
-    const report = buildActionNoopCandidateReport(options);
+    const report = buildActionUnnecessaryCandidateReport(options);
     const json = `${JSON.stringify(report, null, 2)}\n`;
     if (options.outPath) {
         fs.mkdirSync(path.dirname(options.outPath), { recursive: true });
@@ -222,6 +222,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-    buildActionNoopCandidateReport,
+    buildActionUnnecessaryCandidateReport,
     classificationForTarget,
 };

@@ -1,10 +1,10 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
-  "actionNoop": true,
-  "actionNoopBlockers": [],
-  "actionNoopHypotheses": ["no_reachable_action_effects"],
-  "actionNoopBlockerRuleIds": [],
-  "actionNoopChangedObjects": [],
+  "actionUnnecessary": true,
+  "actionUnnecessaryBlockers": [],
+  "actionUnnecessaryHypotheses": ["no_reachable_action_effects"],
+  "actionUnnecessaryBlockerRuleIds": [],
+  "actionUnnecessaryChangedObjects": [],
   "movements_reachable_from_action_input": ["Player:action"]
 }

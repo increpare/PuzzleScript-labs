@@ -575,7 +575,7 @@
     },
     {
       "name": "movement_action",
-      "description": "Fixtures for action-key movement reachability and solver no-op proofs.",
+      "description": "Fixtures for action-key movement reachability and solver action-unnecessary proofs.",
       "specification": "Each movement_action fixture projects the report.facts.movement_action family into fields that are convenient to assert in testdata.",
       "fields": [
         {
@@ -591,34 +591,34 @@
           "specification": "false when noaction metadata disables user action input; true otherwise. Optional in fixtures that do not need to assert metadata-level action availability."
         },
         {
-          "name": "actionNoop",
+          "name": "actionUnnecessary",
           "type": "boolean",
-          "description": "Projected action_noop.value.",
+          "description": "Projected action_unnecessary.value.",
           "specification": "true only when pressing action is solver-redundant: either no solver-visible state changes, or the solver-visible successor is covered by an ordinary directional player input."
         },
         {
-          "name": "actionNoopBlockers",
+          "name": "actionUnnecessaryBlockers",
           "type": "string[]",
-          "description": "Projected action_noop.blockers.",
-          "specification": "Reasons the no-op proof was rejected. Known blockers are reads_action, queues_again, semantic_command, rigid_rule, autonomous_solver_active_rule, action_may_mutate_objects, and action_may_create_directional_movement."
+          "description": "Projected action_unnecessary.blockers.",
+          "specification": "Reasons the action-unnecessary proof was rejected. Known blockers are reads_action, queues_again, semantic_command, rigid_rule, autonomous_solver_active_rule, action_may_mutate_objects, and action_may_create_directional_movement."
         },
         {
-          "name": "actionNoopHypotheses",
+          "name": "actionUnnecessaryHypotheses",
           "type": "string[]",
-          "description": "Projected action_noop_diagnostics.value.hypotheses.",
-          "specification": "Review-oriented labels that explain why a rejected action_noop case might still be worth investigating. These labels do not prove noaction safety."
+          "description": "Projected action_unnecessary_diagnostics.value.hypotheses.",
+          "specification": "Review-oriented labels for the action_unnecessary proof or rejection. Proved cases may report no_reachable_action_effects, action_effects_covered_by_directional_inputs, already_noaction_metadata, or input_independent_turn_effects_do_not_require_action_input. Rejected cases report why they might still be worth investigating. These labels are diagnostic summaries; actionUnnecessary is the proof result."
         },
         {
-          "name": "actionNoopBlockerRuleIds",
+          "name": "actionUnnecessaryBlockerRuleIds",
           "type": "string[]",
-          "description": "Rule IDs from action_noop_diagnostics.value.blocker_rules.",
-          "specification": "Rules that contributed at least one action_noop blocker."
+          "description": "Rule IDs from action_unnecessary_diagnostics.value.blocker_rules.",
+          "specification": "Rules that contributed at least one action_unnecessary blocker."
         },
         {
-          "name": "actionNoopChangedObjects",
+          "name": "actionUnnecessaryChangedObjects",
           "type": "string[]",
-          "description": "Objects whose counts may change in action_noop blocker rules.",
-          "specification": "Aggregated from action_noop_diagnostics.value.blocker_rules[].changed_objects for fixture-level review."
+          "description": "Objects whose counts may change in action_unnecessary blocker rules.",
+          "specification": "Aggregated from action_unnecessary_diagnostics.value.blocker_rules[].changed_objects for fixture-level review."
         },
         {
           "name": "movements_reachable_from_action_input",

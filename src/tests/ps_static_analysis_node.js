@@ -1676,11 +1676,11 @@ function assertConstantQuantityPreservedAfterReplay(source, inputs, options = {}
     }, { levelIndex: options.levelIndex || 0 });
 }
 
-function assertActionNoopAfterReplay(source, inputs, options = {}) {
-    const analysis = analyzeSource(source, { sourcePath: options.sourcePath || 'action_noop_runtime.txt' });
-    const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
-    assert.ok(actionNoop, 'runtime fixture should emit action_noop fact');
-    assert.strictEqual(actionNoop.status, 'proved', 'runtime fixture should prove action_noop before replay checks');
+function assertActionUnnecessaryAfterReplay(source, inputs, options = {}) {
+    const analysis = analyzeSource(source, { sourcePath: options.sourcePath || 'action_unnecessary_runtime.txt' });
+    const actionUnnecessary = analysis.facts.movement_action.find(item => item.id === 'action_unnecessary');
+    assert.ok(actionUnnecessary, 'runtime fixture should emit action_unnecessary fact');
+    assert.strictEqual(actionUnnecessary.status, 'proved', 'runtime fixture should prove action_unnecessary before replay checks');
 
     const levelIndex = options.levelIndex || 0;
     const assertActionIsRedundant = (label, prefixInputs) => {
@@ -2019,8 +2019,8 @@ function assertCratesMoveConstantQuantityReplay() {
     );
 }
 
-function assertOneMoveActionNoopReplay() {
-    assertActionNoopAfterReplay(
+function assertOneMoveActionUnnecessaryReplay() {
+    assertActionUnnecessaryAfterReplay(
         solverTestSource('one_move.txt'),
         inputsForTokens(['right']),
         {
@@ -2030,23 +2030,23 @@ function assertOneMoveActionNoopReplay() {
     );
 }
 
-function assertCastleClosetActionNoopRejected() {
+function assertCastleClosetActionUnnecessaryRejected() {
     const analysis = analyzeSource(solverTestSource('castlecloset.txt'), { sourcePath: 'castlecloset.txt' });
-    const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
+    const actionUnnecessary = analysis.facts.movement_action.find(item => item.id === 'action_unnecessary');
     assert.strictEqual(analysis.ps_tagged.game.tags.has_action_rules, true, 'castlecloset should contain action rules');
-    assert.strictEqual(actionNoop.status, 'rejected', 'castlecloset direct-Player action win rule should not be action-noop');
-    assert.ok(actionNoop.blockers.includes('semantic_command'));
+    assert.strictEqual(actionUnnecessary.status, 'rejected', 'castlecloset direct-Player action win rule should not be action-unnecessary');
+    assert.ok(actionUnnecessary.blockers.includes('semantic_command'));
 }
 
-function assertKnownActionNoopClassifications() {
+function assertKnownActionUnnecessaryClassifications() {
     const expectedStrictStaticProved = [
         'dollyban.txt',
         'Wand Spinner.txt',
     ];
     for (const fileName of expectedStrictStaticProved) {
         const analysis = analyzeSource(solverTestSource(fileName), { sourcePath: fileName });
-        const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
-        assert.strictEqual(actionNoop.status, 'proved', `${fileName} should prove strict static action_noop`);
+        const actionUnnecessary = analysis.facts.movement_action.find(item => item.id === 'action_unnecessary');
+        assert.strictEqual(actionUnnecessary.status, 'proved', `${fileName} should prove strict static action_unnecessary`);
     }
 
     const expectedStrictStaticRejected = [
@@ -2064,20 +2064,20 @@ function assertKnownActionNoopClassifications() {
     ];
     for (const fileName of expectedStrictStaticRejected) {
         const analysis = analyzeSource(solverTestSource(fileName), { sourcePath: fileName });
-        const actionNoop = analysis.facts.movement_action.find(item => item.id === 'action_noop');
-        assert.strictEqual(actionNoop.status, 'rejected', `${fileName} should not pass strict static action_noop`);
+        const actionUnnecessary = analysis.facts.movement_action.find(item => item.id === 'action_unnecessary');
+        assert.strictEqual(actionUnnecessary.status, 'rejected', `${fileName} should not pass strict static action_unnecessary`);
     }
 }
 
-function assertActionNoopDiagnosticsExposeHypotheses() {
+function assertActionUnnecessaryDiagnosticsExposeHypotheses() {
     const takeHeart = analyzeSource(solverTestSource('take heart lass.txt'), {
         sourcePath: 'take heart lass.txt',
         familyFilter: 'movement_action',
     });
-    const takeHeartNoop = takeHeart.facts.movement_action.find(item => item.id === 'action_noop');
-    const takeHeartDiagnostics = takeHeart.facts.movement_action.find(item => item.id === 'action_noop_diagnostics');
+    const takeHeartNoop = takeHeart.facts.movement_action.find(item => item.id === 'action_unnecessary');
+    const takeHeartDiagnostics = takeHeart.facts.movement_action.find(item => item.id === 'action_unnecessary_diagnostics');
     assert.strictEqual(takeHeartNoop.status, 'rejected', 'take heart lass uses ACTION as a wait/turn button');
-    assert.ok(takeHeartDiagnostics, 'movement_action should include action_noop diagnostics');
+    assert.ok(takeHeartDiagnostics, 'movement_action should include action_unnecessary diagnostics');
     assert.ok(takeHeartDiagnostics.value.hypotheses.includes('no_direct_action_reader'));
     assert.ok(takeHeartDiagnostics.value.hypotheses.includes('only_autonomous_object_mutation'));
     assert.ok(takeHeartDiagnostics.value.blocker_rules.some(rule => rule.changed_objects.includes('NewDespair')));
@@ -2086,8 +2086,8 @@ function assertActionNoopDiagnosticsExposeHypotheses() {
         sourcePath: 'Put the logs in the water, elephant.txt',
         familyFilter: 'movement_action',
     });
-    const elephantNoop = elephant.facts.movement_action.find(item => item.id === 'action_noop');
-    const elephantDiagnostics = elephant.facts.movement_action.find(item => item.id === 'action_noop_diagnostics');
+    const elephantNoop = elephant.facts.movement_action.find(item => item.id === 'action_unnecessary');
+    const elephantDiagnostics = elephant.facts.movement_action.find(item => item.id === 'action_unnecessary_diagnostics');
     assert.strictEqual(elephantNoop.status, 'rejected', 'elephant action rules should stay rejected');
     assert.ok(elephantDiagnostics.value.hypotheses.includes('direct_action_reader_requires_runtime_or_level_proof'));
     assert.ok(elephantDiagnostics.value.blocker_rules.some(rule => rule.reasons.includes('reads_action')));
@@ -2187,10 +2187,10 @@ assertAtlasTransientReplay();
 assertOneMoveStaticReplay();
 assertOneMoveConstantQuantityReplay();
 assertCratesMoveConstantQuantityReplay();
-assertOneMoveActionNoopReplay();
-assertCastleClosetActionNoopRejected();
-assertKnownActionNoopClassifications();
-assertActionNoopDiagnosticsExposeHypotheses();
+assertOneMoveActionUnnecessaryReplay();
+assertCastleClosetActionUnnecessaryRejected();
+assertKnownActionUnnecessaryClassifications();
+assertActionUnnecessaryDiagnosticsExposeHypotheses();
 assertPushRulegroupFlowReplay();
 assertSplittableRulegroupTransformReplay();
 

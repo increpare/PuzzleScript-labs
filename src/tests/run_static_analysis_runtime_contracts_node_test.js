@@ -27,7 +27,7 @@ assert.strictEqual(result.staticObjectCount, 3, 'sokoban should have three stati
 assert.strictEqual(result.staticLayerCount, 2, 'sokoban should have two static layers');
 assert.strictEqual(result.inertLayerCount, 1, 'sokoban should have one inert collision layer');
 assert.strictEqual(result.constantQuantityObjectCount, 5, 'sokoban should have five constant-quantity objects');
-assert.strictEqual(result.actionNoopProved, true, 'sokoban should prove action-noop');
+assert.strictEqual(result.actionUnnecessaryProved, true, 'sokoban should prove action-unnecessary');
 assert.strictEqual(result.tickNoopProved, true, 'sokoban should have no autonomous tick rules');
 assert.strictEqual(result.noAgainProved, true, 'sokoban should have no AGAIN rules');
 assert.strictEqual(result.noRandomProved, true, 'sokoban should have no random rules or random RHS objects');
@@ -44,8 +44,8 @@ assert.ok(
     'inert layer checks should include stable replay boundaries'
 );
 assert.ok(
-    result.actionNoopBoundaryChecks > 0,
-    'action-noop checks should probe action at stable replay boundaries'
+    result.actionUnnecessaryBoundaryChecks > 0,
+    'action-unnecessary checks should probe action at stable replay boundaries'
 );
 assert.ok(
     result.tickNoopBoundaryChecks > 0,
@@ -61,10 +61,10 @@ assert.ok(
 );
 
 const autowinResult = runSimulationWithStaticChecks(autowin[0], autowin[1]);
-assert.strictEqual(autowinResult.actionNoopProved, true, 'Autowin should prove action-noop');
+assert.strictEqual(autowinResult.actionUnnecessaryProved, true, 'Autowin should prove action-unnecessary');
 assert.ok(
-    autowinResult.actionNoopBoundaryChecks > 0,
-    'action-noop checks should ignore pre-existing message text while probing solver state'
+    autowinResult.actionUnnecessaryBoundaryChecks > 0,
+    'action-unnecessary checks should ignore pre-existing message text while probing solver state'
 );
 
 const noactionActionRuleSource = loadStaticAnalysisFixtureSource(
@@ -79,9 +79,9 @@ const noactionActionRule = runSimulationWithStaticChecks('noaction action rule',
 ]);
 
 assert.strictEqual(
-    noactionActionRule.actionNoopProved,
+    noactionActionRule.actionUnnecessaryProved,
     true,
-    'noaction metadata should prove user action input is a no-op even when action rules exist'
+    'noaction metadata should prove user action input is unnecessary even when action rules exist'
 );
 
 const restartBoundarySource = [

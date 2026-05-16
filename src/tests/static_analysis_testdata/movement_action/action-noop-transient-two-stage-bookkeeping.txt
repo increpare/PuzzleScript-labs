@@ -1,0 +1,58 @@
+title Static Analysis Action Noop Transient Two Stage Bookkeeping
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+TempA
+blue
+
+TempB
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+TempA
+TempB
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player TempA ]
+[ TempA ] -> [ TempA TempB ]
+late [ TempA ] -> [ ]
+late [ TempB ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.

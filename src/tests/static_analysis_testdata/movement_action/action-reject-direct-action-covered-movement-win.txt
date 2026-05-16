@@ -1,0 +1,52 @@
+title Static Analysis Action Reject Direct Action Covered Movement Win
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+G = Goal
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Goal
+Player
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ right Player ] win
+
+=============
+WINCONDITIONS
+=============
+
+Some Player on Goal
+
+======
+LEVELS
+======
+
+PG

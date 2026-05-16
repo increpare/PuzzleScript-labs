@@ -1,0 +1,53 @@
+title Static Analysis Action Noop Cosmetic Action Marker Sfx
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Marker
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+sfx0 123456
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Marker
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ Player Marker ] sfx0
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.

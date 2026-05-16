@@ -146,13 +146,13 @@ continued rule lines because the group shape is part of the specimen.
 
 1. Add a small whole-source `.txt` file under `movement_action/`.
 2. Run `make static_analysis_tests` (or `node src/tests/static_analysis_testdata_runner.js`).
-3. The runner will create the matching `.json` file with `actionNoop`
-   (`action_noop.value`), `actionNoopBlockers` (`action_noop.blockers`),
+3. The runner will create the matching `.json` file with `actionUnnecessary`
+   (`action_unnecessary.value`), `actionUnnecessaryBlockers` (`action_unnecessary.blockers`),
    and object-level `movements_reachable_from_action_input` entries shaped
    as `Object:movement`.
 4. Keep `movements_reachable_from_action_input` when the test is meant to protect action-reachable
    movement propagation. Delete it for a fixture that only cares whether action
-   is a solver no-op.
+   is solver-unnecessary.
 
 ## Adding A Winflow Test
 

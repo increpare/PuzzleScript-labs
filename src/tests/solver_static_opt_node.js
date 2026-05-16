@@ -124,20 +124,44 @@ function run() {
     const actionReport = {
         status: 'ok',
         facts: {
-            movement_action: [{ id: 'action_noop', status: 'proved' }],
+            movement_action: [{ id: 'action_unnecessary', status: 'proved' }],
         },
     };
     const actionState = { invalid: 0, metadata: [] };
     createSolverOptimizationHook(actionReport, { action: true })(actionState);
-    assert.ok(actionState.metadata.includes('noaction'), 'action pass should insert noaction metadata when action_noop is proved');
+    assert.ok(actionState.metadata.includes('noaction'), 'action pass should insert noaction metadata when action_unnecessary is proved');
     assert.strictEqual(actionState.solverOptimizationTelemetry.inserted_noaction_metadata, 1);
+
+    const actionUnnecessaryReport = {
+        status: 'ok',
+        facts: {
+            movement_action: [{
+                id: 'action_unnecessary',
+                status: 'proved',
+                proof: ['action_effects_covered_by_directional_inputs'],
+            }],
+        },
+    };
+    const solverActionState = { invalid: 0, metadata: [] };
+    createSolverOptimizationHook(actionUnnecessaryReport, { action: true })(solverActionState);
+    assert.ok(
+        solverActionState.metadata.includes('noaction'),
+        'solver action pass should insert noaction when action is unnecessary even if it has a direction-covered effect',
+    );
+
+    const gameActionState = { invalid: 0, metadata: [] };
+    createSolverOptimizationHook(actionUnnecessaryReport, { action: true }, { actionNoactionMode: 'game' })(gameActionState);
+    assert.ok(
+        !gameActionState.metadata.includes('noaction'),
+        'game action pass should not insert noaction when action has a direction-covered effect',
+    );
 
     const rejectedActionState = { invalid: 0, metadata: [] };
     createSolverOptimizationHook({
         status: 'ok',
-        facts: { movement_action: [{ id: 'action_noop', status: 'rejected' }] },
+        facts: { movement_action: [{ id: 'action_unnecessary', status: 'rejected' }] },
     }, { action: true })(rejectedActionState);
-    assert.ok(!rejectedActionState.metadata.includes('noaction'), 'action pass should not insert noaction when action_noop is rejected');
+    assert.ok(!rejectedActionState.metadata.includes('noaction'), 'action pass should not insert noaction when action_unnecessary is rejected');
 
     const inertLine = new Set([42]);
     assert.strictEqual(
@@ -568,7 +592,7 @@ PT
     ));
     assert.strictEqual(actionOptimized.results[0].status, 'solved');
     assert.strictEqual(actionBaseline.results[0].solution_length, actionOptimized.results[0].solution_length);
-    assert.ok(actionOptimized.results[0].generated < actionBaseline.results[0].generated, 'action-noop static pass should prune solver action branches');
+    assert.ok(actionOptimized.results[0].generated < actionBaseline.results[0].generated, 'action-unnecessary static pass should prune solver action branches');
     assert.strictEqual(actionOptimized.results[0].inserted_noaction_metadata, 1);
 
     const actionForcedNoaction = JSON.parse(execFileSync(

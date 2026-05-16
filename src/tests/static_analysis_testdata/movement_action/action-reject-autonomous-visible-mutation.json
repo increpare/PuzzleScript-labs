@@ -1,10 +1,10 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
-  "actionNoop": false,
-  "actionNoopBlockers": ["action_may_mutate_objects", "autonomous_solver_active_rule"],
-  "actionNoopHypotheses": ["no_direct_action_reader", "only_autonomous_object_mutation"],
-  "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
-  "actionNoopChangedObjects": ["Flag"],
+  "actionUnnecessary": false,
+  "actionUnnecessaryBlockers": ["action_may_mutate_objects", "autonomous_solver_active_rule"],
+  "actionUnnecessaryHypotheses": ["no_direct_action_reader", "only_autonomous_object_mutation"],
+  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionUnnecessaryChangedObjects": ["Flag"],
   "movements_reachable_from_action_input": ["Player:action"]
 }

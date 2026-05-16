@@ -1,10 +1,10 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
-  "actionNoop": false,
-  "actionNoopBlockers": ["queues_again", "reads_action"],
-  "actionNoopHypotheses": ["again_requires_wake_chain_proof", "direct_action_reader_requires_runtime_or_level_proof"],
-  "actionNoopBlockerRuleIds": ["early_group_0_rule_0"],
-  "actionNoopChangedObjects": [],
+  "actionUnnecessary": false,
+  "actionUnnecessaryBlockers": ["queues_again", "reads_action"],
+  "actionUnnecessaryHypotheses": ["again_requires_wake_chain_proof", "direct_action_reader_requires_runtime_or_level_proof"],
+  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionUnnecessaryChangedObjects": [],
   "movements_reachable_from_action_input": ["Hero:action"]
 }

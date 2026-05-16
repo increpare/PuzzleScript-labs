@@ -215,7 +215,7 @@ assert.deepStrictEqual(game.corpus_metrics.layers, {
 assert.deepStrictEqual(game.corpus_metrics.rules, {
     source: 4,
     compiled: 4,
-    action: 'no-op',
+    action: 'unnecessary',
     tick: 'tick',
     cosmetic: 4,
     inert_command: 1,
@@ -298,8 +298,8 @@ assert.deepStrictEqual(flowGame.quantity.constant, ['Background', 'Player', 'Alp
 assert.ok(flowGame.quantity.can_increase.includes('MarkerX'));
 assert.ok(flowGame.quantity.can_decrease.includes('Shrink'));
 assert.ok(flowGame.quantity.dynamic.includes('Flux'));
-assert.strictEqual(flowGame.action_noop.status, 'rejected');
-assert.ok(flowGame.action_noop.blockers.includes('autonomous_solver_active_rule'));
+assert.strictEqual(flowGame.action_unnecessary.status, 'rejected');
+assert.ok(flowGame.action_unnecessary.blockers.includes('autonomous_solver_active_rule'));
 assert.strictEqual(flowGame.program_flow.tick_noop, false);
 assert.strictEqual(flowGame.program_flow.no_again, true);
 assert.strictEqual(flowGame.program_flow.no_random, true);
@@ -317,7 +317,7 @@ const noactionReport = analyzeSource(EXPLORER_NOACTION_FIXTURE, {
 assert.strictEqual(noactionReport.status, 'ok');
 const noactionModel = buildExplorerModel([noactionReport], { repoRoot });
 const noactionGame = noactionModel.games[0];
-assert.strictEqual(noactionGame.action_noop.status, 'proved');
+assert.strictEqual(noactionGame.action_unnecessary.status, 'proved');
 assert.strictEqual(noactionGame.program_flow.action_input, false);
 assert.strictEqual(noactionGame.corpus_metrics.rules.action, 'disabled');
 assert.strictEqual(noactionGame.corpus_metrics.rules.tick, 'none');
@@ -447,8 +447,8 @@ assert.ok(html.includes('Source-facing rules'));
 assert.ok(html.includes('Compiled rules'));
 assert.ok(html.includes('Action input'));
 assert.ok(html.includes('>action input</button>'));
-assert.ok(html.includes('active: action input may affect solver state'));
-assert.ok(html.includes('no-op: action input is enabled, but pressing action has no solver-observable effect'));
+assert.ok(html.includes('active: action input may be necessary for solver state'));
+assert.ok(html.includes('unnecessary: action input is enabled, but the solver/generator can omit it'));
 assert.ok(html.includes('disabled: noaction metadata disables action input'));
 assert.ok(html.includes('Autonomous tick'));
 assert.ok(html.includes('JSON.stringify(game.corpus_metrics)'));

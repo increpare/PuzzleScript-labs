@@ -1,0 +1,56 @@
+title Static Analysis Action Noop Transient Crate Bookkeeping
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Temp
+blue
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+C = Crate
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+Temp
+
+=====
+RULES
+=====
+
+[ Crate ] -> [ Crate Temp ]
+late [ Temp ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PC

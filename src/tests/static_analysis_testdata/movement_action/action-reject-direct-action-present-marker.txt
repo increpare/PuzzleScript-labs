@@ -1,0 +1,52 @@
+title Static Analysis Action Reject Direct Action Present Marker
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Marker
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+M = Marker
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Marker
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ Player Marker ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Marker on Player
+
+======
+LEVELS
+======
+
+PM

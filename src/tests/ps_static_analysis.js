@@ -846,7 +846,7 @@ function transientBoundaryStatusForObject(psTagged, objectName) {
     };
 }
 
-function actionNoopRuleDiagnostic(psTagged, entry, reasonsOverride = null) {
+function actionUnnecessaryRuleDiagnostic(psTagged, entry, reasonsOverride = null) {
     const { section, group, rule } = entry;
     const movementEffects = uniqueSorted(movementEffectsFromTerms(psTagged, rule.summary.rhs_terms));
     const countEffects = ruleCountEffectObjects(psTagged, rule);
@@ -884,11 +884,11 @@ function actionNoopRuleDiagnostic(psTagged, entry, reasonsOverride = null) {
     };
 }
 
-function actionNoopDiagnosticHypotheses(uniqueBlockers, blockerRules) {
+function actionUnnecessaryDiagnosticHypotheses(uniqueBlockers, blockerRules, provedProof = null) {
     const blockers = new Set(uniqueBlockers);
     const hypotheses = [];
     if (uniqueBlockers.length === 0) {
-        hypotheses.push('no_reachable_action_effects');
+        hypotheses.push(...(provedProof || ['no_reachable_action_effects']));
         return hypotheses;
     }
     if (blockers.has('reads_action')) {
@@ -913,16 +913,19 @@ function actionNoopDiagnosticHypotheses(uniqueBlockers, blockerRules) {
     return uniqueSorted(hypotheses);
 }
 
-function actionNoopDiagnosticsFact(uniqueBlockers, blockerRules) {
-    const hypotheses = actionNoopDiagnosticHypotheses(uniqueBlockers, blockerRules);
-    return fact('movement_action', 'action_noop_diagnostics', uniqueBlockers.length === 0 ? 'proved' : 'candidate', {
+function actionUnnecessaryDiagnosticsFact(uniqueBlockers, blockerRules, provedProof = null) {
+    const hypotheses = actionUnnecessaryDiagnosticHypotheses(uniqueBlockers, blockerRules, provedProof);
+    const proof = uniqueBlockers.length === 0
+        ? (provedProof || ['no_reachable_action_effects'])
+        : [];
+    return fact('movement_action', 'action_unnecessary_diagnostics', uniqueBlockers.length === 0 ? 'proved' : 'candidate', {
         value: {
             hypotheses,
             blockers: uniqueBlockers,
             blocker_rules: blockerRules,
         },
         blockers: uniqueBlockers,
-        proof: uniqueBlockers.length === 0 ? ['no_reachable_action_effects'] : [],
+        proof,
         evidence: blockerRules.map(rule => rule.rule_id),
     });
 }
@@ -1077,7 +1080,7 @@ function actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, direction
     return uniqueSorted(reasons);
 }
 
-function actionNoopProvedByInputIndependentTurnEffects(psTagged, uniqueBlockers, blockerRules) {
+function actionUnnecessaryProvedByInputIndependentTurnEffects(psTagged, uniqueBlockers, blockerRules) {
     const blockers = new Set(uniqueBlockers);
     void psTagged;
     if (blockers.size === 0) return true;
@@ -1106,13 +1109,13 @@ function deriveMovementActionFacts(psTagged) {
                 value: [],
                 proof: ['noaction_metadata_disables_action_input'],
             }),
-            fact('movement_action', 'action_noop', 'proved', {
+            fact('movement_action', 'action_unnecessary', 'proved', {
                 value: true,
                 blockers: [],
                 proof: ['noaction_metadata_disables_action_input'],
                 evidence: [],
             }),
-            fact('movement_action', 'action_noop_diagnostics', 'proved', {
+            fact('movement_action', 'action_unnecessary_diagnostics', 'proved', {
                 value: {
                     hypotheses: ['already_noaction_metadata'],
                     blockers: [],
@@ -1128,6 +1131,7 @@ function deriveMovementActionFacts(psTagged) {
     const possibleMovements = new Set(playerActionMovementSeeds(psTagged));
     const movementStates = new Map(Array.from(possibleMovements, movementTag => [movementTag, 'exclusive']));
     const blockerRulesById = new Map();
+    let actionEffectsCoveredByDirectionalInputs = false;
     let changed = true;
     while (changed) {
         changed = false;
@@ -1138,13 +1142,18 @@ function deriveMovementActionFacts(psTagged) {
             const reasons = reachabilityTaint === 'covered'
                 ? []
                 : actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, ambiguousSourceLines);
-            const diagnostic = actionNoopRuleDiagnostic(psTagged, entry, reasons);
+            const diagnostic = actionUnnecessaryRuleDiagnostic(psTagged, entry, reasons);
             if (diagnostic && diagnostic.reasons.length > 0) {
                 blockerRulesById.set(diagnostic.rule_id, diagnostic);
             }
             const movementEffects = reasons.length === 0
                 ? visibleActionBranchMovementEffects(psTagged, rule)
                 : movementEffectsFromTerms(psTagged, rule.summary.rhs_terms);
+            if (reachabilityTaint !== 'covered'
+                && reasons.length === 0
+                && movementEffects.some(movementTag => directionMovements.has(movementTag))) {
+                actionEffectsCoveredByDirectionalInputs = true;
+            }
             for (const movementTag of movementEffects) {
                 const nextTaint = reasons.length === 0 && directionMovements.has(movementTag)
                     ? 'covered'
@@ -1160,29 +1169,35 @@ function deriveMovementActionFacts(psTagged) {
     const blockerRules = Array.from(blockerRulesById.values())
         .sort((left, right) => left.source_line - right.source_line || compareNumericNames(left.rule_id, right.rule_id));
     const uniqueBlockers = uniqueSorted(blockerRules.flatMap(rule => rule.reasons));
-    const provedByInputIndependentTurnEffects = actionNoopProvedByInputIndependentTurnEffects(
+    const provedByInputIndependentTurnEffects = actionUnnecessaryProvedByInputIndependentTurnEffects(
         psTagged,
         uniqueBlockers,
         blockerRules
     );
-    const actionNoopProved = uniqueBlockers.length === 0 || provedByInputIndependentTurnEffects;
-    const reportedBlockers = actionNoopProved ? [] : uniqueBlockers;
-    const reportedBlockerRules = actionNoopProved ? [] : blockerRules;
-    const actionNoopProof = uniqueBlockers.length === 0
-        ? ['no_reachable_action_effects']
-        : (actionNoopProved ? ['input_independent_turn_effects_do_not_require_action_input'] : []);
+    const actionUnnecessaryProved = uniqueBlockers.length === 0 || provedByInputIndependentTurnEffects;
+    const reportedBlockers = actionUnnecessaryProved ? [] : uniqueBlockers;
+    const reportedBlockerRules = actionUnnecessaryProved ? [] : blockerRules;
+    const actionUnnecessaryProof = uniqueBlockers.length === 0
+        ? (actionEffectsCoveredByDirectionalInputs
+            ? ['action_effects_covered_by_directional_inputs']
+            : ['no_reachable_action_effects'])
+        : (actionUnnecessaryProved ? ['input_independent_turn_effects_do_not_require_action_input'] : []);
     return [
         fact('movement_action', 'movements_reachable_from_action_input', 'proved', {
             value: Array.from(possibleMovements).sort(),
             proof: ['conservative_movement_reachability_fixpoint'],
         }),
-        fact('movement_action', 'action_noop', actionNoopProved ? 'proved' : 'rejected', {
-            value: actionNoopProved,
+        fact('movement_action', 'action_unnecessary', actionUnnecessaryProved ? 'proved' : 'rejected', {
+            value: actionUnnecessaryProved,
             blockers: reportedBlockers,
-            proof: actionNoopProof,
+            proof: actionUnnecessaryProof,
             evidence: activeRules.map(rule => rule.id),
         }),
-        actionNoopDiagnosticsFact(reportedBlockers, reportedBlockerRules),
+        actionUnnecessaryDiagnosticsFact(
+            reportedBlockers,
+            reportedBlockerRules,
+            actionUnnecessaryProved ? actionUnnecessaryProof : null
+        ),
     ];
 }
 

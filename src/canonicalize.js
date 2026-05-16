@@ -176,7 +176,8 @@ globalThis.__ps_exports = {
             const optimizer = optimizationOptions && optimizationOptions.staticAnalysisReport
                 ? __ps_solver_static_opt.createSolverOptimizationHook(
                     optimizationOptions.staticAnalysisReport,
-                    optimizationOptions.passes || {}
+                    optimizationOptions.passes || {},
+                    { actionNoactionMode: optimizationOptions.actionNoactionMode || 'solver' }
                 )
                 : null;
             const processor = new codeMirrorFn();
@@ -410,6 +411,7 @@ function staticOptimizationCompileOptions(source, options) {
     return {
         staticAnalysisReport: report,
         passes: effectiveSolverPassesForHook(report, requested),
+        actionNoactionMode: options.actionNoactionMode || options.staticOptimizationActionMode || 'game',
     };
 }
 

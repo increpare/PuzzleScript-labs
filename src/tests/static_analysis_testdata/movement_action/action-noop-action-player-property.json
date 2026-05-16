@@ -6,5 +6,5 @@
   "actionUnnecessaryHypotheses": ["action_effects_covered_by_directional_inputs"],
   "actionUnnecessaryBlockerRuleIds": [],
   "actionUnnecessaryChangedObjects": [],
-  "movements_reachable_from_action_input": ["Crate:moving", "Crate:right", "Player:action", "Player:moving", "Player:right"]
+  "movements_reachable_from_action_input": ["PlayerA:action", "PlayerA:moving", "PlayerA:right", "PlayerB:action", "PlayerB:moving", "PlayerB:right"]
 }

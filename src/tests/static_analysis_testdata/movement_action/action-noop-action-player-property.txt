@@ -1,0 +1,52 @@
+title Static Analysis Action Noop Action Player Property
+
+========
+OBJECTS
+========
+
+Background
+black
+
+PlayerA
+white
+
+PlayerB
+gray
+
+=======
+LEGEND
+=======
+
+. = Background
+P = PlayerA
+Q = PlayerB
+Player = PlayerA or PlayerB
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+PlayerA, PlayerB
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ right Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.

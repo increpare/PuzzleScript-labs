@@ -5,11 +5,11 @@ const assert = require('assert');
 const path = require('path');
 
 const {
-    buildActionNoopCandidateReport,
+    buildActionUnnecessaryCandidateReport,
     classificationForTarget,
 } = require('./report_action_noop_candidates');
 
-const report = buildActionNoopCandidateReport({
+const report = buildActionUnnecessaryCandidateReport({
     corpusPath: path.join(__dirname, 'solver_tests'),
     manifestPath: path.join(__dirname, 'solver_focus_group.json'),
 });
@@ -20,12 +20,12 @@ assert.ok(report.summary.rejected_candidate_targets > 0, 'focus report should ex
 
 const dollyban = report.targets.find(target => target.game === 'dollyban.txt' && target.level === 3);
 assert.ok(dollyban, 'report should include dollyban focus target');
-assert.strictEqual(dollyban.action_noop.status, 'proved');
+assert.strictEqual(dollyban.action_unnecessary.status, 'proved');
 assert.strictEqual(dollyban.classification, 'proved_insertable');
 
 const elephant = report.targets.find(target => target.game === 'Put the logs in the water, elephant.txt' && target.level === 7);
 assert.ok(elephant, 'report should include elephant focus target');
-assert.strictEqual(elephant.action_noop.status, 'rejected');
+assert.strictEqual(elephant.action_unnecessary.status, 'rejected');
 assert.ok(elephant.hypotheses.includes('direct_action_reader_requires_runtime_or_level_proof'));
 assert.ok(elephant.blocker_rules.some(rule => rule.reasons.includes('reads_action')));
 
@@ -54,4 +54,4 @@ assert.strictEqual(
     'pure autonomous mutation should remain a wait-button candidate instead of being promoted by one solved target',
 );
 
-process.stdout.write('action_noop_candidates_node: ok\n');
+process.stdout.write('action_unnecessary_candidates_node: ok\n');

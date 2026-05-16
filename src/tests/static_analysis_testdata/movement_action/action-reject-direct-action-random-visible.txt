@@ -1,0 +1,54 @@
+title Static Analysis Action Reject Direct Action Random Visible
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+TokenA
+blue
+
+TokenB
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+TokenA, TokenB
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ Player random TokenA random TokenB ]
+
+=============
+WINCONDITIONS
+=============
+
+Some TokenA
+
+======
+LEVELS
+======
+
+P.

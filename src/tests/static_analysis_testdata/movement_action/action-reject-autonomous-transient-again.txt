@@ -1,0 +1,52 @@
+title Static Analysis Action Reject Autonomous Transient Again
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Temp
+blue
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Temp
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player Temp ] again
+late [ Temp ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.

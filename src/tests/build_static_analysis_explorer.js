@@ -19,8 +19,8 @@ const MAX_WINFLOW_EDGES = 80;
 const CLAIM_DESCRIPTIONS_PATH = path.join(__dirname, 'static_analysis_claim_descriptions.json');
 const ACTION_INPUT_DESCRIPTION = [
     'Action input summary for this game.',
-    'active: action input may affect solver state.',
-    'no-op: action input is enabled, but pressing action has no solver-observable effect.',
+    'active: action input may be necessary for solver state.',
+    'unnecessary: action input is enabled, but the solver/generator can omit it.',
     'disabled: noaction metadata disables action input.',
 ].join('\n');
 
@@ -326,10 +326,10 @@ function rulegroupCount(report) {
         .reduce((sum, section) => sum + (section.groups || []).length, 0);
 }
 
-function actionState(programFlow, actionNoop) {
+function actionState(programFlow, actionUnnecessary) {
     if (programFlow.action_input === false) return 'disabled';
-    if (programFlow.has_action_rules === false && programFlow.wake_edge_count === 0) return 'no-op';
-    return actionNoop.status === 'proved' ? 'no-op' : 'active';
+    if (programFlow.has_action_rules === false && programFlow.wake_edge_count === 0) return 'unnecessary';
+    return actionUnnecessary.status === 'proved' ? 'unnecessary' : 'active';
 }
 
 function tickState(programFlow) {
@@ -357,7 +357,7 @@ function summarizeCorpusMetrics(report, summary) {
         rules: {
             source: sourceRuleCount(rules),
             compiled: rules.length,
-            action: actionState(summary.programFlow, summary.actionNoop),
+            action: actionState(summary.programFlow, summary.actionUnnecessary),
             tick: tickState(summary.programFlow),
             cosmetic: cosmeticRules.length,
             inert_command: summary.inertRules.length,
@@ -372,16 +372,16 @@ function summarizeCorpusMetrics(report, summary) {
     };
 }
 
-function actionNoopSummary(report) {
-    const actionNoop = facts(report, 'movement_action')
-        .find(item => item.id === 'action_noop') || null;
-    if (!actionNoop) {
+function actionUnnecessarySummary(report) {
+    const actionUnnecessary = facts(report, 'movement_action')
+        .find(item => item.id === 'action_unnecessary') || null;
+    if (!actionUnnecessary) {
         return { status: 'unknown', value: false, blockers: [] };
     }
     return {
-        status: actionNoop.status,
-        value: actionNoop.value === true,
-        blockers: (actionNoop.blockers || []).slice(),
+        status: actionUnnecessary.status,
+        value: actionUnnecessary.value === true,
+        blockers: (actionUnnecessary.blockers || []).slice(),
     };
 }
 
@@ -781,7 +781,7 @@ function summarizeReport(report, options = {}) {
         }));
     const rulegroupFlowSummary = summarizeRuleGroups(report);
     const rulegroupFlow = rulegroupFlowSummary.groups;
-    const actionNoop = actionNoopSummary(report);
+    const actionUnnecessary = actionUnnecessarySummary(report);
     const programFlow = programFlowSummary(report);
     const winflow = summarizeWinflow(report);
     const summaryParts = {
@@ -795,7 +795,7 @@ function summarizeReport(report, options = {}) {
         cosmeticObjects,
         transient,
         inertRules,
-        actionNoop,
+        actionUnnecessary,
         programFlow,
         rulegroupFlowSummary,
     };
@@ -831,7 +831,7 @@ function summarizeReport(report, options = {}) {
         transient_objects: transient,
         inert_rules: inertRules,
         command_only_rules: commandOnlyRules,
-        action_noop: actionNoop,
+        action_unnecessary: actionUnnecessary,
         program_flow: programFlow,
         winflow,
         corpus_metrics: corpusMetrics,
@@ -878,7 +878,7 @@ function buildExplorerModel(reports, options = {}) {
             cosmetic_rules: games.reduce((sum, game) => sum + game.corpus_metrics.rules.cosmetic, 0),
             inert_command_rules: games.reduce((sum, game) => sum + game.corpus_metrics.rules.inert_command, 0),
             splittable_rulegroups: games.reduce((sum, game) => sum + game.corpus_metrics.rulegroups.splittable, 0),
-            action_noop: games.reduce((sum, game) => sum + (game.action_noop.status === 'proved' ? 1 : 0), 0),
+            action_unnecessary: games.reduce((sum, game) => sum + (game.action_unnecessary.status === 'proved' ? 1 : 0), 0),
             tick_noop: games.reduce((sum, game) => sum + (game.program_flow.tick_noop ? 1 : 0), 0),
             no_again: games.reduce((sum, game) => sum + (game.program_flow.no_again ? 1 : 0), 0),
             no_random: games.reduce((sum, game) => sum + (game.program_flow.no_random ? 1 : 0), 0),
@@ -970,7 +970,7 @@ function corpusCellClassForHtml(column, value) {
     const classes = ['cell'];
     if (column.className) classes.push(column.className);
     if (column.kind === 'game') classes.push('name');
-    if ((typeof value === 'number' && value === 0) || value === 'none' || value === 'no-op' || value === 'disabled') classes.push('quiet');
+    if ((typeof value === 'number' && value === 0) || value === 'none' || value === 'unnecessary' || value === 'disabled') classes.push('quiet');
     if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
     return classes.join(' ');
 }
@@ -1235,8 +1235,8 @@ function searchable(game) {
     game.inert_layers.flatMap(layer => layer.objects).join(' '),
     game.cosmetic_objects.join(' '),
     game.transient_objects.join(' '),
-    game.action_noop.status,
-    game.action_noop.blockers.join(' '),
+    game.action_unnecessary.status,
+    game.action_unnecessary.blockers.join(' '),
     Object.entries(game.program_flow).map(([key, value]) => key + ' ' + value).join(' '),
     game.winflow.wake_edges.map(edge => edge.from_text + ' ' + edge.to_text + ' ' + edge.reasons.join(' ')).join(' '),
     game.rulegroup_flow.map(group => group.id).join(' '),
@@ -1334,7 +1334,7 @@ function corpusCellClass(column, value) {
   const classes = ['cell'];
   if (column.className) classes.push(column.className);
   if (column.kind === 'game') classes.push('name');
-  if ((typeof value === 'number' && value === 0) || value === 'none' || value === 'no-op' || value === 'disabled') classes.push('quiet');
+  if ((typeof value === 'number' && value === 0) || value === 'none' || value === 'unnecessary' || value === 'disabled') classes.push('quiet');
   if (['objects.mergable', 'objects.temporary', 'rules.cosmetic', 'rules.inert_command', 'rulegroups.splittable'].includes(column.kind) && Number(value) > 0) classes.push('hot');
   return classes.join(' ');
 }

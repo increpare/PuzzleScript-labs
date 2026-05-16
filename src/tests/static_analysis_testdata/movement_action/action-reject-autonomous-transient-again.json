@@ -2,9 +2,9 @@
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
   "actionUnnecessary": false,
-  "actionUnnecessaryBlockers": ["action_may_mutate_objects", "reads_action"],
-  "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof"],
+  "actionUnnecessaryBlockers": ["autonomous_solver_active_rule", "queues_again"],
+  "actionUnnecessaryHypotheses": ["again_requires_wake_chain_proof", "no_direct_action_reader"],
   "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
-  "actionUnnecessaryChangedObjects": ["Marker"],
+  "actionUnnecessaryChangedObjects": ["Temp"],
   "movements_reachable_from_action_input": ["Player:action"]
 }

@@ -5,6 +5,6 @@
   "actionUnnecessaryBlockers": ["action_may_mutate_objects", "reads_action"],
   "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof"],
   "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
-  "actionUnnecessaryChangedObjects": ["Marker"],
+  "actionUnnecessaryChangedObjects": ["TokenA", "TokenB"],
   "movements_reachable_from_action_input": ["Player:action"]
 }

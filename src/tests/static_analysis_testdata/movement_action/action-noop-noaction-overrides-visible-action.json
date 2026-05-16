@@ -1,10 +1,10 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": false,
-  "actionNoop": true,
-  "actionNoopBlockers": [],
-  "actionNoopHypotheses": ["already_noaction_metadata"],
-  "actionNoopBlockerRuleIds": [],
-  "actionNoopChangedObjects": [],
+  "actionUnnecessary": true,
+  "actionUnnecessaryBlockers": [],
+  "actionUnnecessaryHypotheses": ["already_noaction_metadata"],
+  "actionUnnecessaryBlockerRuleIds": [],
+  "actionUnnecessaryChangedObjects": [],
   "movements_reachable_from_action_input": []
 }

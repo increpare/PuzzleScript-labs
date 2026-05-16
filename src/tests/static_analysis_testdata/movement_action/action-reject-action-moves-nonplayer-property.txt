@@ -1,0 +1,56 @@
+title Static Analysis Action Reject Action Moves Nonplayer Property
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+CrateA
+orange
+
+CrateB
+brown
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+A = CrateA
+B = CrateB
+Crate = CrateA or CrateB
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, CrateA, CrateB
+
+=====
+RULES
+=====
+
+[ action Player ][ Crate ] -> [ Player ][ right Crate ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PA

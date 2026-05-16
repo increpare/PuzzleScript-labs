@@ -943,7 +943,7 @@ const mergeStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
 });
 assert.deepStrictEqual(mergeStaticAnalysisOptions.familyFilter, ['mergeability'], 'merge static optimization should request only mergeability facts');
 
-const actionNoopOptimizationSource = `
+const actionUnnecessaryOptimizationSource = `
 title Canonical Static Action
 
 ========
@@ -996,15 +996,28 @@ LEVELS
 PG
 `;
 
-const actionBaseline = canonicalizeSource(actionNoopOptimizationSource, 'semantic');
-const actionOptimized = canonicalizeSource(actionNoopOptimizationSource, 'semantic', {
+const actionBaseline = canonicalizeSource(actionUnnecessaryOptimizationSource, 'semantic');
+const actionOptimized = canonicalizeSource(actionUnnecessaryOptimizationSource, 'semantic', {
     staticOptimizations: 'action',
 });
 assert.strictEqual(actionBaseline.metadata.some(item => item.key === 'noaction'), false, 'baseline canonicalization should not synthesize noaction');
 assert.strictEqual(actionOptimized.metadata.some(item => item.key === 'noaction'), true, 'static action optimization should synthesize noaction metadata');
 
+const actionCoveredByDirectionSource = actionUnnecessaryOptimizationSource.replace(
+    '=====\nRULES\n=====\n\n',
+    '=====\nRULES\n=====\n\n[ action Player ] -> [ right Player ]\n',
+);
+const actionCoveredByDirectionOptimized = canonicalizeSource(actionCoveredByDirectionSource, 'semantic', {
+    staticOptimizations: 'action',
+});
+assert.strictEqual(
+    actionCoveredByDirectionOptimized.metadata.some(item => item.key === 'noaction'),
+    false,
+    'game-facing static action optimization should not synthesize noaction when action has a direction-covered in-game effect',
+);
+
 const actionStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
-    canonicalizeSource(actionNoopOptimizationSource, 'semantic', {
+    canonicalizeSource(actionUnnecessaryOptimizationSource, 'semantic', {
         staticOptimizations: 'action',
     });
 });
