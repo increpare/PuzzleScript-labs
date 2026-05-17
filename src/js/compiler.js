@@ -1182,7 +1182,7 @@ function getPropertiesFromCell(state, cell) {
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
         let name = cell[j + 1];
-        if (dir === "random") {
+        if (dir === "random" || dir === "no") {
             continue;
         }
         if (name in state.propertiesDict) {
@@ -1645,17 +1645,8 @@ function expandNoPrefixedProperties(state, cell) {
         let dir = cell[i];
         let name = cell[i + 1];
 
-        if (dir === 'no' && (name in state.propertiesDict)) {
-            let aliases = state.propertiesDict[name];
-            for (let j = 0; j < aliases.length; j++) {
-                let alias = aliases[j];
-                expanded.push(dir);
-                expanded.push(alias);
-            }
-        } else {
-            expanded.push(dir);
-            expanded.push(name);
-        }
+        expanded.push(dir);
+        expanded.push(name);
     }
     return expanded;
 }

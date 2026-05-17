@@ -541,3 +541,69 @@ not expose it.
 Outcome: do not land 4e yet. A future version needs a sharper safety condition,
 probably tied to replacement locality and absence of RHS property inference,
 before we should change the compiler.
+
+## 2026-05-17 phase 4f lazy `no property` missing masks
+
+Baseline: `47c94342` (`Document multi-cell preserved-property spike`).
+After: this commit.
+
+This phase stops expanding `no property` into a chain of `no alias_i` terms in
+`expandNoPrefixedProperties()`. `getPropertiesFromCell()` now ignores `no`
+terms, so missing-property constraints do not become property-splitting
+drivers. Runtime masking already supports this because `rulesToMask()` reads
+`state.objectMasks[propertyName]` and emits the union mask as
+`objectsMissing`.
+
+Focused fixture:
+
+| Probe | Before | After |
+| --- | --- | --- |
+| `expandNoPrefixedProperties(state, ['no', 'thing'])` | `['no', 'alpha', 'no', 'beta', 'no', 'gamma', 'no', 'good']` | `['no', 'thing']` |
+| `[ no Thing ] -> [ Good ]` on an empty cell | creates `Good` | creates `Good` |
+| `[ no Thing ] -> [ Good ]` on `Alpha` | does not match | does not match |
+
+Validation-profile command:
+
+```sh
+node src/tests/run_tests_node.js --profile --profile-runs 5 --breakdown
+```
+
+| Metric | 4f baseline | Final 4f | Delta |
+| --- | ---: | ---: | ---: |
+| Total average | 9.45s | 9.47s | +0.2% |
+| Compile | 3904 ms | 3858 ms | -1.2% |
+| processInput | 6502 ms | 6578 ms | +1.2% |
+| Undo | 12 ms | 12 ms | 0.0% |
+| Restart | 25 ms | 25 ms | 0.0% |
+
+Solver focus:
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 9 solved / 41 timeout / 0 errors -> 9 solved / 41 timeout / 0 errors | 249.7 -> 233.3 (-6.6%) | 23130 -> 23112 (-0.1%) | 18781.8 -> 18750.7 (-0.2%) | 247538 -> 249814 (+0.9%) | 1210027 -> 1221129 (+0.9%) |
+| `solver_focus_long_group.json` | 2000 ms | 49 solved / 1 timeout / 0 errors -> 49 solved / 1 timeout / 0 errors | 241.6 -> 236.7 (-2.0%) | 45568 -> 46167 (+1.3%) | 36973.5 -> 37451.7 (+1.3%) | 474865 -> 476048 (+0.2%) | 2326732 -> 2332624 (+0.3%) |
+
+Largest focus deltas stayed in normal near-timeout noise: the 500 ms focus had
+no status changes; the 2000 ms focus had no status changes. The largest long
+positive elapsed delta was `constellationz.txt` L6, 641 ms -> 1112 ms; this game
+has repeatedly moved around in prior focus samples without corresponding rule
+count changes.
+
+Concrete rule-count probes:
+
+| Corpus | Result |
+| --- | --- |
+| checked-in solver corpus | 0 / 184 games changed rule count |
+
+Additional verification:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/static_analysis_testdata_runner_node.js` | passed |
+| `node src/tests/run_static_analysis_runtime_contracts_node_test.js` | passed |
+| `node src/tests/run_static_analysis_runtime_contracts_node.js` | passed, 469 cases plus 689 no-random replay checks |
+| `node src/tests/solver_static_opt_node.js` | passed |
+| `node src/tests/compare_solver_static_opt_runs_node.js --help` | exited 0 |
