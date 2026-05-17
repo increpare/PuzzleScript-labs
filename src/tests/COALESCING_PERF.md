@@ -607,3 +607,51 @@ Additional verification:
 | `node src/tests/run_static_analysis_runtime_contracts_node.js` | passed, 469 cases plus 689 no-random replay checks |
 | `node src/tests/solver_static_opt_node.js` | passed |
 | `node src/tests/compare_solver_static_opt_runs_node.js --help` | exited 0 |
+
+## 2026-05-18 phase 5a command-only rule coalescing
+
+Baseline: `2600cf38` (`/simplify`).
+After: this commit.
+
+This phase adds `shouldCoalesceCommandOnlyRule`, a new predicate that catches
+rules with `rhs.length === 0` (command-only: `cancel`, `again`, `restart`,
+`win`, etc.) whose LHS contains a layer-coupled property term with disjoint
+layer constraints. These rules were previously bailed out of the three
+existing coalescer predicates because each required an RHS to validate.
+They are now collapsed to a single `CellPattern`; no engine change is
+needed because the LHS handler in `rulesToMask` already routes coupled
+properties through `buildLayerCoupledMovementTerm`. The predicate defers to
+the splitter when a sibling `no X` term overlaps the coupled property's
+aliases, so the per-alias `X NO X` warnings keep firing for ambiguous
+authoring patterns.
+
+Focused rule-count probes (whole-game compiled rules incl. `lateRules`):
+
+| Game | Before | After |
+| --- | ---: | ---: |
+| `hungry kraken.txt` | 711 | 503 |
+| `Oh No My Dog Is About To Swallow A Piece Of.txt` | 373 | 257 |
+| `robotarm.txt` | 1003 | 955 |
+| `paint everything everywhere.txt` | 105 | 105 |
+| `match three billiards.txt` | 33 | 33 |
+| `easyenigma.txt` | 891 | 891 |
+| `Voitex Rasteriser 2.txt` | 350 | 350 |
+
+The three games that shrank all contain large `[ > property | … ] -> cancel`
+groups whose LHS terms reference layer-coupled properties. Games where the
+cancel rules only reference single-layer properties (or no cancel/again
+rules at all) are unchanged.
+
+Concrete rule-count probes:
+
+| Corpus | Result |
+| --- | --- |
+| checked-in solver corpus probe | 3 / 7 sampled games changed rule count |
+
+Additional verification:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |

@@ -292,6 +292,48 @@ test('does not satisfy a stationary property term from a different stationary la
     assertCell(2, ['player1'], 'player should keep the input movement');
 });
 
+test('coalesces command-only rules with a coupled-property movement term', () => {
+    const state = compileSource(baseSource(
+        'right [ > Crate | Player ] -> cancel',
+        'CP'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('coalesces command-only rules with multiple coupled-property terms', () => {
+    const state = compileSource(baseSource(
+        'right [ > Player > Gem ] -> cancel',
+        'PG'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('coalesces command-only rules for various terminating commands', () => {
+    for (const command of ['cancel', 'restart', 'win']) {
+        const state = compileSource(baseSource(
+            `right [ > Crate | Player ] -> ${command}`,
+            'CP'
+        ));
+        assert.strictEqual(ruleCount(state), 1, command);
+    }
+});
+
+test('keeps command-only rules with overlapping coupled-term layers on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ > Player > Crate ] -> cancel',
+        'PX'
+    ));
+    assert.ok(ruleCount(state) > 1);
+});
+
+test('keeps command-only rules with no-term overlapping a coupled property on the expansion path', () => {
+    const result = compileSourceAllowingMessages(baseSource(
+        'right [ Crate no Crate1 ] -> cancel',
+        'C'
+    ));
+    assert.ok(result.messages.some(message => message.indexOf('can never match') >= 0));
+});
+
 if (process.exitCode) {
     process.exit(process.exitCode);
 }

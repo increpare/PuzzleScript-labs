@@ -1544,6 +1544,73 @@ function shouldCoalesceMixedPropertyRule(state, rule) {
     return sawLayerCoupledMovement && sawPropertyRewrite;
 }
 
+function shouldCoalesceCommandOnlyRule(state, rule) {
+    if (rule.rhs.length !== 0 ||
+        rule.rigid ||
+        rule.late) {
+        return false;
+    }
+
+    let sawLayerCoupledProperty = false;
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const row_l = rule.lhs[rowIndex];
+
+        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
+            const cell_l = row_l[colIndex];
+
+            if (cellHasEllipsis(cell_l)) {
+                return false;
+            }
+
+            const fixedLayers = {};
+            const layerCoupledTerms = [];
+
+            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                const dir_l = cell_l[termIndex];
+                const name_l = cell_l[termIndex + 1];
+
+                if (dir_l === 'no' || dir_l === 'random') {
+                    continue;
+                }
+                if (!LAYER_COUPLED_MOVEMENT_DIRS[dir_l]) {
+                    return false;
+                }
+                if (!(state.objects.hasOwnProperty(name_l) || state.propertiesDict.hasOwnProperty(name_l))) {
+                    return false;
+                }
+
+                if (isLayerCoupledProperty(state, name_l)) {
+                    // Defer to the splitter when a sibling `no X` overlaps this
+                    // property's aliases, so the per-alias "X NO X" warning can fire.
+                    if (cellHasNoTermOverlappingProperty(state, cell_l, name_l)) {
+                        return false;
+                    }
+                    sawLayerCoupledProperty = true;
+                    layerCoupledTerms.push(name_l);
+                } else {
+                    const fixedLayer = objectOrSingleLayerPropertyLayer(state, name_l);
+                    if (fixedLayer !== null) {
+                        fixedLayers[fixedLayer] = true;
+                    }
+                }
+            }
+
+            const occupiedCoupledLayers = {};
+            for (let i = 0; i < layerCoupledTerms.length; i++) {
+                const coupledLayers = propertyAliasLayerSet(state, layerCoupledTerms[i], fixedLayers);
+                if (layerSetIsEmpty(coupledLayers) ||
+                    layerSetsOverlap(occupiedCoupledLayers, coupledLayers)) {
+                    return false;
+                }
+                Object.assign(occupiedCoupledLayers, coupledLayers);
+            }
+        }
+    }
+
+    return sawLayerCoupledProperty;
+}
+
 function cellHasNoTermOverlappingProperty(state, cell, propertyName) {
     const propertyMask = state.objectMasks[propertyName];
     for (let termIndex = 0; termIndex < cell.length; termIndex += 2) {
@@ -1658,6 +1725,10 @@ function concretizePropertyRule(state, rule, lineNumber) {
 
     if (shouldCoalesceMixedPropertyRule(state, rule)) {
         rule.propertyObjectRewriteRule = true;
+        return [rule];
+    }
+
+    if (shouldCoalesceCommandOnlyRule(state, rule)) {
         return [rule];
     }
 
