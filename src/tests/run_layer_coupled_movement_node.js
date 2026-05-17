@@ -81,6 +81,14 @@ function compileSource(source) {
     return global.eval('state');
 }
 
+function compileSourceAllowingMessages(source) {
+    compile(['loadLevel', 0], source);
+    return {
+        state: global.eval('state'),
+        messages: errorStrings.map(stripHTMLTags)
+    };
+}
+
 function ruleCount(state) {
     return state.rules.reduce((sum, group) => sum + group.length, 0);
 }
@@ -182,6 +190,38 @@ test('coalesces one same-cell property movement term beside fixed layer terms', 
     assertCell(0, [], 'left cell should remain empty');
     assertCell(1, [], 'source cell should be empty after both objects move');
     assertCell(2, ['player1', 'crate2'], 'only the compatible crate layer should move with player1');
+});
+
+test('keeps multi-cell preserved layer-coupled properties on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ Crate | Player ] -> [ Crate | Player ] again',
+        'CP'
+    ));
+    assert.ok(ruleCount(state) > 1);
+});
+
+test('does not split preserved layer-coupled properties beside object changes', () => {
+    const state = compileSource(baseSource(
+        'late [ Crate no Target ] -> [ Crate Target ]',
+        'C'
+    ));
+    assert.strictEqual(ruleCount(state) + state.lateRules.reduce((sum, group) => sum + group.length, 0), 1);
+});
+
+test('keeps duplicate same-cell properties on the expansion path', () => {
+    const result = compileSourceAllowingMessages(baseSource(
+        'right [ Crate Crate ] -> [ Crate Crate ]',
+        'C'
+    ));
+    assert.ok(result.messages.some(message => message.indexOf('can never overlap') >= 0));
+});
+
+test('keeps properties with overlapping no-constraints on the expansion path', () => {
+    const result = compileSourceAllowingMessages(baseSource(
+        'right [ Crate no Crate1 ] -> [ Crate no Crate1 ]',
+        'C'
+    ));
+    assert.ok(result.messages.some(message => message.indexOf('can never match') >= 0));
 });
 
 test('does not satisfy a stationary property term from a different stationary layer', () => {

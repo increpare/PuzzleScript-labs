@@ -105,3 +105,58 @@ Concrete rule-count probes:
 | `Wand Spinner.txt` | 51 -> 51 | no phase-3a hit |
 | `constellationz.txt` | 4 -> 4 | no phase-3a hit |
 | `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |
+
+## 2026-05-17 phase 3b single-cell preserved property coalescing
+
+Baseline: `64e6a712` (`Allow command-bearing movement coalescing`).
+After: this commit.
+
+This is intentionally narrower than the original sketch: preserved
+layer-coupled properties are only skipped in single-cell rules. A multi-cell
+`at the hedges of time` rule uses the expansion order of a preserved `Mark`
+property to choose a single `Highest` marker, so multi-cell preserved properties
+stay on the old expansion path.
+
+Commands used for the focus runs:
+
+```sh
+node src/tests/run_solver_tests_js.js src/tests/solver_tests \
+  --solver-focus-manifest <manifest> \
+  --timeout-ms <manifest timeout> \
+  --strategy portfolio \
+  --quiet --json --no-solutions
+```
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 5 solved / 45 timeout / 0 errors -> 9 solved / 41 timeout / 0 errors | 337.5 -> 243.6 (-27.8%) | 23600 -> 23133 (-2.0%) | 19036.1 -> 18776.7 (-1.4%) | 224066 -> 247051 (+10.3%) | 1097625 -> 1207927 (+10.0%) |
+| `solver_focus_long_group.json` | 2000 ms | 48 solved / 2 timeout / 0 errors -> 47 solved / 3 timeout / 0 errors | 257.5 -> 272.3 (+5.7%) | 50588 -> 47629 (-5.8%) | 40642.8 -> 38638.6 (-4.9%) | 466353 -> 475450 (+2.0%) | 2284018 -> 2329683 (+2.0%) |
+
+Largest speedups:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `manic_ammo.txt` L10 | timeout at 500 ms | solved at 361 ms | status win |
+| `solver_focus_group.json` | `paint everything everywhere.txt` L9 | timeout at 500 ms | solved at 423 ms | status win |
+| `solver_focus_group.json` | `take heart lass.txt` L19 | 171 ms | 113 ms | -58 ms |
+| `solver_focus_long_group.json` | `constellationz.txt` L6 | 1834 ms | 1122 ms | -712 ms |
+| `solver_focus_long_group.json` | `Yellow Box.txt` L35 | 1807 ms | 1140 ms | -667 ms |
+
+Largest positive elapsed deltas:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `SWIMMING TIME.txt` L2 | timeout at 500 ms | timeout at 501 ms | +1 ms |
+| `solver_focus_long_group.json` | `S-tercourse.txt` L23 | solved at 1878 ms | timeout at 2000 ms | status loss |
+| `solver_focus_long_group.json` | `heroes_of_sokoban_2.txt` L17 | 1260 ms | 1368 ms | +108 ms |
+| `solver_focus_long_group.json` | `witch lifter.txt` L1 | 652 ms | 721 ms | +69 ms |
+| `solver_focus_long_group.json` | `Put the logs in the water, elephant.txt` L22 | 775 ms | 842 ms | +67 ms |
+
+Concrete rule-count probes:
+
+| Game | Total rules | Notes |
+| --- | ---: | --- |
+| `paint everything everywhere.txt` | 115 -> 105 | line 266 late preserved-`crate1` paint rule drops from 6 -> 1 |
+| `Wand Spinner.txt` | 51 -> 51 | no phase-3b hit |
+| `constellationz.txt` | 4 -> 4 | no phase-3b hit |
+| `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |

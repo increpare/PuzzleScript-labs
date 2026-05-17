@@ -1379,6 +1379,82 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
     return propertyRewriteCount > 1;
 }
 
+function cellHasNoTermOverlappingProperty(state, cell, propertyName) {
+    const propertyMask = state.objectMasks[propertyName];
+    for (let termIndex = 0; termIndex < cell.length; termIndex += 2) {
+        if (cell[termIndex] !== 'no') {
+            continue;
+        }
+        const missingMask = state.objectMasks[cell[termIndex + 1]];
+        if (missingMask && propertyMask.anyBitsInCommon(missingMask)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
+    const preservedProperties = {};
+    const rejectedProperties = {};
+
+    if (rule.rhs.length === 0 || rule.lhs.length !== rule.rhs.length) {
+        return preservedProperties;
+    }
+    if (rule.lhs.length !== 1 || rule.lhs[0].length !== 1) {
+        return preservedProperties;
+    }
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const row_l = rule.lhs[rowIndex];
+        const row_r = rule.rhs[rowIndex];
+        if (row_l.length !== row_r.length) {
+            return {};
+        }
+
+        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
+            const cell_l = row_l[colIndex];
+            const cell_r = row_r[colIndex];
+            const cellPropertiesSeen = {};
+
+            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                const dir_l = cell_l[termIndex];
+                const name_l = cell_l[termIndex + 1];
+
+                if (!isLayerCoupledProperty(state, name_l) ||
+                    ambiguousProperties[name_l] === true) {
+                    continue;
+                }
+
+                if (cellPropertiesSeen[name_l]) {
+                    delete preservedProperties[name_l];
+                    rejectedProperties[name_l] = true;
+                    continue;
+                }
+                cellPropertiesSeen[name_l] = true;
+
+                if (cellHasNoTermOverlappingProperty(state, cell_l, name_l)) {
+                    delete preservedProperties[name_l];
+                    rejectedProperties[name_l] = true;
+                    continue;
+                }
+
+                if (!rejectedProperties[name_l]) {
+                    preservedProperties[name_l] = true;
+                }
+
+                if (termIndex + 1 >= cell_r.length ||
+                    dir_l !== cell_r[termIndex] ||
+                    name_l !== cell_r[termIndex + 1]) {
+                    delete preservedProperties[name_l];
+                    rejectedProperties[name_l] = true;
+                }
+            }
+        }
+    }
+
+    return preservedProperties;
+}
+
 //returns you a list of object names in that cell that're moving
 function getMovings(state, cell) {
     let result = [];
@@ -1480,6 +1556,8 @@ function concretizePropertyRule(state, rule, lineNumber) {
         }
     }
 
+    const preservedLayerCoupledProperties = getPreservedLayerCoupledProperties(state, rule, ambiguousProperties);
+
     let shouldremove;
     let result = [rule];
     let modified = true;
@@ -1500,6 +1578,10 @@ function concretizePropertyRule(state, rule, lineNumber) {
                         if (state.propertiesSingleLayer.hasOwnProperty(property) &&
                             ambiguousProperties[property] !== true) {
                             // we don't need to explode this property
+                            continue;
+                        }
+
+                        if (preservedLayerCoupledProperties[property]) {
                             continue;
                         }
 
