@@ -214,3 +214,57 @@ Concrete rule-count probes:
 | `Wand Spinner.txt` | 51 -> 51 | no phase-3c hit |
 | `constellationz.txt` | 4 -> 4 | no phase-3c hit |
 | `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |
+
+## 2026-05-17 phase 3d mixed movement/rewrite coalescing
+
+Baseline: `85e8bf7c` (`Coalesce disjoint same-cell properties`).
+After: this commit.
+
+This phase accepts conservative mixed rules containing both layer-coupled
+movement terms and property-to-object rewrite terms. The checked-in focus games
+did not contain a new rule-count hit for this shape; coverage comes from a
+focused mixed-rule fixture.
+
+Commands used for the focus runs:
+
+```sh
+node src/tests/run_solver_tests_js.js src/tests/solver_tests \
+  --solver-focus-manifest <manifest> \
+  --timeout-ms <manifest timeout> \
+  --strategy portfolio \
+  --quiet --json --no-solutions
+```
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 9 solved / 41 timeout / 0 errors -> 8 solved / 42 timeout / 0 errors | 281.4 -> 282.0 (+0.2%) | 23264 -> 23229 (-0.2%) | 18883.0 -> 18707.0 (-0.9%) | 241641 -> 240700 (-0.4%) | 1181240 -> 1177641 (-0.3%) |
+| `solver_focus_long_group.json` | 2000 ms | 48 solved / 2 timeout / 0 errors -> 49 solved / 1 timeout / 0 errors | 256.7 -> 238.8 (-7.0%) | 46368 -> 45792 (-1.2%) | 37327.7 -> 37066.9 (-0.7%) | 468292 -> 474971 (+1.4%) | 2293780 -> 2327262 (+1.5%) |
+
+Largest speedups:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `the_saga_of_the_candy_scroll.txt` L55 | 451 ms | 407 ms | -44 ms |
+| `solver_focus_group.json` | `heroes_of_sokoban_3.txt` L10 | 486 ms | 443 ms | -43 ms |
+| `solver_focus_long_group.json` | `constellationz.txt` L6 | 1140 ms | 632 ms | -508 ms |
+| `solver_focus_long_group.json` | `pushit.txt` L1 | 1942 ms | 1739 ms | -203 ms |
+| `solver_focus_long_group.json` | `gem soketeer.txt` L17 | timeout at 2000 ms | solved | status win |
+
+Largest positive elapsed deltas:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `alternatey.txt` L4 | 110 ms | 187 ms | +77 ms |
+| `solver_focus_group.json` | `Vexatious Match 3.txt` L8 | 181 ms | 202 ms | +21 ms |
+| `solver_focus_group.json` | `15 push pull levels.txt` L21 | solved at 495 ms | timeout at 500 ms | status loss |
+| `solver_focus_long_group.json` | `kreiseln.txt` L5 | 830 ms | 1873 ms | +1043 ms |
+| `solver_focus_long_group.json` | `Wand Spinner.txt` L29 | 968 ms | 1060 ms | +92 ms |
+
+Concrete rule-count probes:
+
+| Game | Total rules | Notes |
+| --- | ---: | --- |
+| `paint everything everywhere.txt` | 105 -> 105 | no phase-3d hit |
+| `Wand Spinner.txt` | 51 -> 51 | no phase-3d hit |
+| `constellationz.txt` | 4 -> 4 | no phase-3d hit |
+| `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |

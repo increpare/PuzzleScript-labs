@@ -219,6 +219,14 @@ test('keeps overlapping same-cell property movement terms on the expansion path'
     assert.ok(ruleCount(state) > 1);
 });
 
+test('coalesces mixed movement and property rewrite rules', () => {
+    const state = compileSource(baseSource(
+        'right [ > Player | Crate ] -> [ > Player | Crate1 ]',
+        'P.C'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
 test('keeps multi-cell preserved layer-coupled properties on the expansion path', () => {
     const state = compileSource(baseSource(
         'right [ Crate | Player ] -> [ Crate | Player ] again',
