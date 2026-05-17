@@ -1227,21 +1227,31 @@ function forEachPropertyAliasLayer(state, propertyName, callback) {
 }
 
 function propertyAliasLayerSet(state, propertyName, excludedLayers) {
-    const layers = {};
-    forEachPropertyAliasLayer(state, propertyName, layer => {
-        if (!excludedLayers || !excludedLayers[layer]) {
-            layers[layer] = true;
+    if (!state.propertyAliasLayers) {
+        state.propertyAliasLayers = {};
+    }
+    let fullSet = state.propertyAliasLayers[propertyName];
+    if (!fullSet) {
+        fullSet = {};
+        forEachPropertyAliasLayer(state, propertyName, layer => {
+            fullSet[layer] = true;
+        });
+        state.propertyAliasLayers[propertyName] = fullSet;
+    }
+    if (!excludedLayers) {
+        return fullSet;
+    }
+    const filtered = {};
+    for (const layer in fullSet) {
+        if (!excludedLayers[layer]) {
+            filtered[layer] = true;
         }
-    });
-    return layers;
-}
-
-function layerSetHasAny(layers) {
-    return Object.keys(layers).length > 0;
+    }
+    return filtered;
 }
 
 function layerSetsOverlap(layers1, layers2) {
-    for (const layer of Object.keys(layers1)) {
+    for (const layer in layers1) {
         if (layers2[layer]) {
             return true;
         }
@@ -1249,8 +1259,11 @@ function layerSetsOverlap(layers1, layers2) {
     return false;
 }
 
-function layerSetContainsLayer(layers, layer) {
-    return layers[layer] === true;
+function layerSetIsEmpty(layers) {
+    for (const layer in layers) {
+        return false;
+    }
+    return true;
 }
 
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
@@ -1318,7 +1331,7 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
             const occupiedCoupledLayers = {};
             for (let i = 0; i < layerCoupledTerms.length; i++) {
                 const coupledLayers = propertyAliasLayerSet(state, layerCoupledTerms[i], fixedLayers);
-                if (!layerSetHasAny(coupledLayers) ||
+                if (layerSetIsEmpty(coupledLayers) ||
                     layerSetsOverlap(occupiedCoupledLayers, coupledLayers)) {
                     return false;
                 }
@@ -1347,7 +1360,7 @@ function propertyRewriteTermsAreLayerDisjoint(propertyTerms, fixedLayers) {
             if (i === j) {
                 continue;
             }
-            if (layerSetContainsLayer(term.aliasLayers, propertyTerms[j].destinationLayer)) {
+            if (term.aliasLayers[propertyTerms[j].destinationLayer]) {
                 return false;
             }
         }
@@ -1510,14 +1523,14 @@ function shouldCoalesceMixedPropertyRule(state, rule) {
             const occupiedCoupledLayers = {};
             for (let i = 0; i < movementTerms.length; i++) {
                 const movementLayers = propertyAliasLayerSet(state, movementTerms[i], fixedLayers);
-                if (!layerSetHasAny(movementLayers) ||
+                if (layerSetIsEmpty(movementLayers) ||
                     layerSetsOverlap(occupiedCoupledLayers, movementLayers)) {
                     return false;
                 }
                 for (let j = 0; j < propertyTerms.length; j++) {
                     const term = propertyTerms[j];
                     if (layerSetsOverlap(movementLayers, term.aliasLayers) ||
-                        layerSetContainsLayer(movementLayers, term.destinationLayer)) {
+                        movementLayers[term.destinationLayer]) {
                         return false;
                     }
                 }
@@ -1544,65 +1557,52 @@ function cellHasNoTermOverlappingProperty(state, cell, propertyName) {
 }
 
 function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
+    if (rule.rhs.length === 0 ||
+        rule.lhs.length !== 1 ||
+        rule.rhs.length !== 1 ||
+        rule.lhs[0].length !== 1 ||
+        rule.rhs[0].length !== 1) {
+        return {};
+    }
+
+    const cell_l = rule.lhs[0][0];
+    const cell_r = rule.rhs[0][0];
+    // candidateIndex maps property name -> termIndex of first occurrence, or -1 if disqualified.
+    const candidateIndex = {};
+
+    for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+        const dir_l = cell_l[termIndex];
+        const name_l = cell_l[termIndex + 1];
+
+        if (!isLayerCoupledProperty(state, name_l) ||
+            dir_l !== '' ||
+            ambiguousProperties[name_l] === true) {
+            continue;
+        }
+
+        if (candidateIndex[name_l] !== undefined) {
+            candidateIndex[name_l] = -1;
+        } else {
+            candidateIndex[name_l] = termIndex;
+        }
+    }
+
     const preservedProperties = {};
-    const rejectedProperties = {};
-
-    if (rule.rhs.length === 0 || rule.lhs.length !== rule.rhs.length) {
-        return preservedProperties;
-    }
-    if (rule.lhs.length !== 1 || rule.lhs[0].length !== 1) {
-        return preservedProperties;
-    }
-
-    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
-        const row_l = rule.lhs[rowIndex];
-        const row_r = rule.rhs[rowIndex];
-        if (row_l.length !== row_r.length) {
-            return {};
+    for (const name in candidateIndex) {
+        const termIndex = candidateIndex[name];
+        if (termIndex < 0) {
+            continue;
         }
-
-        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
-            const cell_l = row_l[colIndex];
-            const cell_r = row_r[colIndex];
-            const cellPropertiesSeen = {};
-
-            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
-                const dir_l = cell_l[termIndex];
-                const name_l = cell_l[termIndex + 1];
-
-                if (!isLayerCoupledProperty(state, name_l) ||
-                    dir_l !== '' ||
-                    ambiguousProperties[name_l] === true) {
-                    continue;
-                }
-
-                if (cellPropertiesSeen[name_l]) {
-                    delete preservedProperties[name_l];
-                    rejectedProperties[name_l] = true;
-                    continue;
-                }
-                cellPropertiesSeen[name_l] = true;
-
-                if (cellHasNoTermOverlappingProperty(state, cell_l, name_l)) {
-                    delete preservedProperties[name_l];
-                    rejectedProperties[name_l] = true;
-                    continue;
-                }
-
-                if (!rejectedProperties[name_l]) {
-                    preservedProperties[name_l] = true;
-                }
-
-                if (termIndex + 1 >= cell_r.length ||
-                    dir_l !== cell_r[termIndex] ||
-                    name_l !== cell_r[termIndex + 1]) {
-                    delete preservedProperties[name_l];
-                    rejectedProperties[name_l] = true;
-                }
-            }
+        if (cellHasNoTermOverlappingProperty(state, cell_l, name)) {
+            continue;
         }
+        if (termIndex + 1 >= cell_r.length ||
+            cell_r[termIndex] !== '' ||
+            cell_r[termIndex + 1] !== name) {
+            continue;
+        }
+        preservedProperties[name] = true;
     }
-
     return preservedProperties;
 }
 
