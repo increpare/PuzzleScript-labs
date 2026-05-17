@@ -1380,8 +1380,7 @@ function propertyRewriteTermsAreLayerDisjoint(propertyTerms, fixedLayers) {
 function shouldCoalescePropertyObjectRewriteRule(state, rule) {
     if (rule.rhs.length === 0 ||
         rule.rigid ||
-        rule.randomRule ||
-        rule.late) {
+        rule.randomRule) {
         return false;
     }
 

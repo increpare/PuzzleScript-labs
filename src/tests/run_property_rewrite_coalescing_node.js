@@ -98,6 +98,10 @@ function ruleCount(state) {
     return state.rules.reduce((sum, group) => sum + group.length, 0);
 }
 
+function totalRuleCount(state) {
+    return ruleCount(state) + state.lateRules.reduce((sum, group) => sum + group.length, 0);
+}
+
 function cellObjectNames(index) {
     const state = global.eval('state');
     const level = global.eval('level');
@@ -185,6 +189,14 @@ test('keeps overlapping same-cell property rewrites on the expansion path', () =
         'x'
     ));
     assert.ok(result.messages.some(message => message.indexOf('can never overlap') >= 0));
+});
+
+test('coalesces late property-to-object rewrite rules', () => {
+    const state = compileSource(baseSource(
+        'late [ Thing | Thing ] -> [ Good | Good ]',
+        'ab'
+    ));
+    assert.strictEqual(totalRuleCount(state), 2);
 });
 
 if (process.exitCode) {

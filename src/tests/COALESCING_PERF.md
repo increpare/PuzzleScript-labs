@@ -268,3 +268,84 @@ Concrete rule-count probes:
 | `Wand Spinner.txt` | 51 -> 51 | no phase-3d hit |
 | `constellationz.txt` | 4 -> 4 | no phase-3d hit |
 | `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |
+
+## 2026-05-17 phase 4a late property-rewrite coalescing
+
+Baseline: `fac365ba` (`Cache property alias layers and simplify helpers`).
+After: this commit.
+
+PuzzleScript rejects term-level movement annotations in `late` rules
+(`Movements cannot appear in late rules.`), so this phase deliberately keeps the
+cheap `late` guard on the movement-only and mixed movement/rewrite predicates.
+Only the property-to-object rewrite predicate accepts late rules. A broad first
+draft that removed all three `late` guards regressed `run_tests_node.js
+--profile --breakdown` to 9.47s average; restoring the two syntactically
+impossible paths brought the final result back to roughly neutral.
+
+Validation-profile command:
+
+```sh
+node src/tests/run_tests_node.js --profile --profile-runs 5 --breakdown
+```
+
+The first narrowed sample measured 8.82s -> 8.65s, but a later single full-suite
+run was slower. A paired rerun under the same current load is the safer number
+to use:
+
+| Metric | Baseline paired rerun | Final 4a paired rerun | Delta |
+| --- | ---: | ---: | ---: |
+| Total average | 9.49s | 9.55s | +0.6% |
+| Compile | 3907 ms | 3904 ms | -0.1% |
+| processInput | 6562 ms | 6629 ms | +1.0% |
+| Undo | 12 ms | 12 ms | 0.0% |
+| Restart | 25 ms | 25 ms | 0.0% |
+
+Commands used for the focus runs:
+
+```sh
+node src/tests/run_solver_tests_js.js src/tests/solver_tests \
+  --solver-focus-manifest <manifest> \
+  --timeout-ms <manifest timeout> \
+  --strategy portfolio \
+  --quiet --json --no-solutions
+```
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 3 solved / 47 timeout / 0 errors -> 8 solved / 42 timeout / 0 errors | 2278.6 -> 433.8 (-81.0%) | 25418 -> 23610 (-7.1%) | 20851.6 -> 19026.0 (-8.8%) | 174586 -> 181659 (+4.1%) | 858700 -> 881158 (+2.6%) |
+| `solver_focus_long_group.json` | 2000 ms | 46 solved / 4 timeout / 0 errors -> 48 solved / 2 timeout / 0 errors | 337.5 -> 254.4 (-24.6%) | 52635 -> 46504 (-11.6%) | 42204.1 -> 37545.1 (-11.0%) | 470889 -> 475694 (+1.0%) | 2306704 -> 2330725 (+1.0%) |
+
+The solver focus sample crossed several near-timeout boundaries and the planned
+rule-count probes below are unchanged, so treat the large status changes as
+focus-run noise rather than direct proof of a 4a solver win.
+
+Largest speedups:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `sokobond demake.txt` L20 | timeout at 929 ms | solved at 70 ms | status win |
+| `solver_focus_group.json` | `take heart lass.txt` L19 | timeout at 501 ms | solved at 118 ms | status win |
+| `solver_focus_group.json` | `Vexatious Match 3.txt` L8 | timeout at 500 ms | solved at 199 ms | status win |
+| `solver_focus_long_group.json` | `15 push pull levels.txt` L21 | timeout at 2000 ms | solved at 519 ms | status win |
+| `solver_focus_long_group.json` | `heroes_of_sokoban_2.txt` L17 | 1938 ms | 1233 ms | -705 ms |
+
+Largest positive elapsed deltas:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `dollyban.txt` L7 | timeout at 500 ms | timeout at 738 ms | +238 ms |
+| `solver_focus_group.json` | `15 push pull levels.txt` L21 | solved at 478 ms | timeout at 500 ms | status loss |
+| `solver_focus_group.json` | `dollyban.txt` L5 | timeout at 500 ms | timeout at 515 ms | +15 ms |
+| `solver_focus_long_group.json` | `kreiseln.txt` L5 | 1051 ms | 1928 ms | +877 ms |
+| `solver_focus_long_group.json` | `BIAXIAL INVASION OF SATURN.txt` L13 | 958 ms | 1031 ms | +73 ms |
+
+Concrete rule-count probes:
+
+| Game | Total rules | Notes |
+| --- | ---: | --- |
+| Synthetic `late [ Thing | Thing ] -> [ Good | Good ]` | 32 -> 2 | focused 4a regression fixture |
+| `paint everything everywhere.txt` | 105 -> 105 | no phase-4a hit |
+| `hairtug.txt` | 63 -> 63 | no phase-4a hit after preserving movement/mixed `late` guards |
+| `Wand Spinner.txt` | 51 -> 51 | no phase-4a hit |
+| `match three billiards.txt` | 33 -> 33 | unchanged |
+| `diesinthelight.txt` | 35 -> 35 | no phase-4a hit |
