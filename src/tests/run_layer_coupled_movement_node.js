@@ -131,12 +131,22 @@ test('coalesces a multi-layer movement-only property rule to one runtime rule', 
     assert.strictEqual(ruleCount(state), 1);
 });
 
-test('keeps command-bearing multi-layer property movement rules on the old expansion path', () => {
+test('coalesces command-bearing multi-layer property movement rules', () => {
     const state = compileSource(baseSource(
         'right [ > Player | Crate ] -> [ > Player | > Crate ] again',
         'P.C'
     ));
-    assert.strictEqual(ruleCount(state), 4);
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('coalesces movement rules with terminating and sound commands', () => {
+    for (const command of ['cancel', 'restart', 'win', 'checkpoint', 'sfx0']) {
+        const state = compileSource(baseSource(
+            `right [ > Player | Crate ] -> [ > Player | > Crate ] ${command}`,
+            'P.C'
+        ));
+        assert.strictEqual(ruleCount(state), 1, command);
+    }
 });
 
 test('does not satisfy a moving property term with movement from a different layer', () => {

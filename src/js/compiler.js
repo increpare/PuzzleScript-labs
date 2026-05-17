@@ -1228,7 +1228,6 @@ function forEachPropertyAliasLayer(state, propertyName, callback) {
 
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
     if (rule.rhs.length === 0 ||
-        rule.commands.length > 0 ||
         rule.rigid ||
         rule.randomRule ||
         rule.late) {
