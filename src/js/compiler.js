@@ -1192,6 +1192,127 @@ function getPropertiesFromCell(state, cell) {
     return result;
 }
 
+function isLayerCoupledProperty(state, name) {
+    return state.propertiesDict.hasOwnProperty(name) &&
+        !state.propertiesSingleLayer.hasOwnProperty(name);
+}
+
+function isLayerCoupledMovementDir(dir) {
+    return dir === '' ||
+        dir === 'stationary' ||
+        dir === 'up' ||
+        dir === 'down' ||
+        dir === 'left' ||
+        dir === 'right' ||
+        dir === 'action';
+}
+
+function layerCoupledPropertyLayerSet(state, propertyName) {
+    const result = {};
+    const aliases = state.propertiesDict[propertyName] || [];
+    for (let i = 0; i < aliases.length; i++) {
+        const object = state.objects[aliases[i]];
+        if (object) {
+            result[object.layer | 0] = true;
+        }
+    }
+    return result;
+}
+
+function objectOrSingleLayerPropertyLayer(state, name) {
+    if (state.objects.hasOwnProperty(name)) {
+        return state.objects[name].layer | 0;
+    }
+    if (state.propertiesSingleLayer.hasOwnProperty(name)) {
+        return state.propertiesSingleLayer[name];
+    }
+    return null;
+}
+
+function cellHasEllipsis(cell) {
+    return cell.length === 2 && cell[0] === '...';
+}
+
+function shouldCoalesceLayerCoupledMovementRule(state, rule) {
+    if (rule.rhs.length === 0 ||
+        rule.commands.length > 0 ||
+        rule.rigid ||
+        rule.randomRule ||
+        rule.late) {
+        return false;
+    }
+
+    let sawLayerCoupledProperty = false;
+    let sawMovementEffect = false;
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const row_l = rule.lhs[rowIndex];
+        const row_r = rule.rhs[rowIndex];
+        if (row_l.length !== row_r.length) {
+            return false;
+        }
+
+        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
+            const cell_l = row_l[colIndex];
+            const cell_r = row_r[colIndex];
+
+            if (cellHasEllipsis(cell_l) || cellHasEllipsis(cell_r) || cell_l.length !== cell_r.length) {
+                return false;
+            }
+
+            let layerCoupledTermCount = 0;
+            let layerCoupledTermName = null;
+
+            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                const dir_l = cell_l[termIndex];
+                const name_l = cell_l[termIndex + 1];
+                const dir_r = cell_r[termIndex];
+                const name_r = cell_r[termIndex + 1];
+
+                if (name_l !== name_r ||
+                    !isLayerCoupledMovementDir(dir_l) ||
+                    !isLayerCoupledMovementDir(dir_r)) {
+                    return false;
+                }
+
+                if (!(state.objects.hasOwnProperty(name_l) || state.propertiesDict.hasOwnProperty(name_l))) {
+                    return false;
+                }
+
+                if (isLayerCoupledProperty(state, name_l)) {
+                    sawLayerCoupledProperty = true;
+                    layerCoupledTermCount++;
+                    layerCoupledTermName = name_l;
+                    if (dir_l !== '' || dir_r !== '' || dir_l !== dir_r) {
+                        sawMovementEffect = true;
+                    }
+                } else if (dir_l !== dir_r) {
+                    sawMovementEffect = true;
+                }
+            }
+
+            if (layerCoupledTermCount > 1) {
+                return false;
+            }
+            if (layerCoupledTermCount === 1 && cell_l.length > 2) {
+                const coupledLayers = layerCoupledPropertyLayerSet(state, layerCoupledTermName);
+                for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                    const name = cell_l[termIndex + 1];
+                    if (name === layerCoupledTermName) {
+                        continue;
+                    }
+                    const layer = objectOrSingleLayerPropertyLayer(state, name);
+                    if (layer !== null && coupledLayers[layer]) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    return sawLayerCoupledProperty && sawMovementEffect;
+}
+
 //returns you a list of object names in that cell that're moving
 function getMovings(state, cell) {
     let result = [];
@@ -1260,6 +1381,11 @@ function concretizePropertyRule(state, rule, lineNumber) {
             if (rule.rhs.length > 0)
                 rule.rhs[i][j] = expandNoPrefixedProperties(state, rule.rhs[i][j]);
         }
+    }
+
+    if (shouldCoalesceLayerCoupledMovementRule(state, rule)) {
+        rule.layerCoupledMovementRule = true;
+        return [rule];
     }
 
     //are there any properties we could avoid processing?
@@ -1741,6 +1867,87 @@ const dirMasks = {
     '': parseInt('00000', 2)
 };
 
+function buildLayerCoupledPropertyOptions(state, propertyName, excludedLayers) {
+    const aliases = state.propertiesDict[propertyName];
+    const byLayer = {};
+    for (let i = 0; i < aliases.length; i++) {
+        const alias = aliases[i];
+        const object = state.objects[alias];
+        if (!object) {
+            continue;
+        }
+        const layerIndex = object.layer | 0;
+        if (excludedLayers && excludedLayers[layerIndex]) {
+            continue;
+        }
+        if (!byLayer.hasOwnProperty(layerIndex)) {
+            byLayer[layerIndex] = new BitVec(STRIDE_OBJ);
+        }
+        byLayer[layerIndex].ibitset(object.id);
+    }
+
+    return Object.keys(byLayer).map(layerIndex => ({
+        layerIndex: Number(layerIndex),
+        objectMask: byLayer[layerIndex]
+    }));
+}
+
+function buildLayerCoupledExcludedLayers(state, cell, termIndexToSkip) {
+    const excludedLayers = {};
+    for (let i = 0; i < cell.length; i += 2) {
+        if (i === termIndexToSkip || cell[i] === 'no' || cell[i] === 'random') {
+            continue;
+        }
+        const name = cell[i + 1];
+        if (state.objects.hasOwnProperty(name)) {
+            excludedLayers[state.objects[name].layer | 0] = true;
+        } else if (state.propertiesSingleLayer.hasOwnProperty(name)) {
+            excludedLayers[state.propertiesSingleLayer[name]] = true;
+        }
+    }
+    return excludedLayers;
+}
+
+function buildObjectMaskFromLayerOptions(options) {
+    const result = new BitVec(STRIDE_OBJ);
+    for (let i = 0; i < options.length; i++) {
+        result.ior(options[i].objectMask);
+    }
+    return result;
+}
+
+function buildLayerCoupledMovementTerm(state, propertyName, movementDir, excludedLayers) {
+    const layers = buildLayerCoupledPropertyOptions(state, propertyName, excludedLayers);
+    let movementsPresentMask = 0;
+    let movementsMissingMask = 0;
+    if (movementDir === 'stationary') {
+        movementsMissingMask = 0x1f;
+    } else if (movementDir !== '') {
+        movementsPresentMask = dirMasks[movementDir];
+    }
+    for (let i = 0; i < layers.length; i++) {
+        const layerIndex = layers[i].layerIndex;
+        layers[i].movementsPresent = new BitVec(STRIDE_MOV);
+        layers[i].movementsMissing = new BitVec(STRIDE_MOV);
+        if (movementsPresentMask) {
+            layers[i].movementsPresent.ishiftor(movementsPresentMask, 5 * layerIndex);
+        }
+        if (movementsMissingMask) {
+            layers[i].movementsMissing.ishiftor(movementsMissingMask, 5 * layerIndex);
+        }
+    }
+    return {
+        layers: layers,
+        objectMask: buildObjectMaskFromLayerOptions(layers),
+        movementsPresentMask: movementsPresentMask,
+        movementsMissingMask: movementsMissingMask
+    };
+}
+
+function movementTermHasRuntimeEffect(lhsDir, rhsDir) {
+    return lhsDir !== rhsDir || lhsDir !== '';
+}
+
 function getOverlapObjectNames(state, objects1,objects2){
     //given two bitvecs, return an array of object names that are present in both
     let result=[];
@@ -1777,6 +1984,7 @@ function rulesToMask(state) {
                 };
                 
                 const anyObjectsPresent = [];
+                const layerCoupledMovementMasks = [];
 
                 // Process left-hand side cell
                 for (let i = 0; i < cell_l.length; i += 2) {
@@ -1811,14 +2019,26 @@ function rulesToMask(state) {
                     // Process regular object
                     const object = state.objects[object_name];
                     const objectMask = state.objectMasks[object_name];
+                    const isCoupledProperty = !object && isLayerCoupledProperty(state, object_name);
                     const layerIndex = object ? (object.layer | 0) : state.propertiesSingleLayer[object_name];
 
-                    if (typeof layerIndex === "undefined") {
+                    if (!isCoupledProperty && typeof layerIndex === "undefined") {
                         logError(`Oops! ${object_name.toUpperCase()} not assigned to a layer.`, rule.lineNumber);
                     }
 
                     if (object_dir === 'no') {
                         bitVectors.objectsMissing.ior(objectMask);
+                    } else if (isCoupledProperty) {
+                        const coupledTerm = buildLayerCoupledMovementTerm(
+                            state,
+                            object_name,
+                            object_dir,
+                            buildLayerCoupledExcludedLayers(state, cell_l, i)
+                        );
+                        anyObjectsPresent.push(coupledTerm.objectMask);
+                        if (object_dir !== '') {
+                            layerCoupledMovementMasks.push(coupledTerm);
+                        }
                     } else {
                         const existingname = layersUsed_l[layerIndex];
                         if (existingname !== null) {
@@ -1854,7 +2074,8 @@ function rulesToMask(state) {
                     anyObjectsPresent,
                     bitVectors.movementsPresent,
                     bitVectors.movementsMissing,
-                    null
+                    null,
+                    layerCoupledMovementMasks
                 ]);
 
                 // Check for invalid patterns
@@ -1900,6 +2121,7 @@ function rulesToMask(state) {
                     postMovementsLayerMask_r: new BitVec(STRIDE_MOV),
                     randomDirMask_r: new BitVec(STRIDE_MOV)
                 };
+                const layerCoupledMovementReplacements = [];
 
 
                 // Process right-hand side cell
@@ -1940,10 +2162,26 @@ function rulesToMask(state) {
 
                     const object = state.objects[object_name];
                     const objectMask = state.objectMasks[object_name];
+                    const isCoupledProperty = !object && isLayerCoupledProperty(state, object_name);
                     const layerIndex = object ? (object.layer | 0) : state.propertiesSingleLayer[object_name];
 
                     if (object_dir === 'no') {
                         rhsBitVectors.objectsClear.ior(objectMask);
+                    } else if (isCoupledProperty) {
+                        const lhs_dir = cell_l[i];
+                        const lhs_name = cell_l[i + 1];
+                        if (lhs_name !== object_name) {
+                            logError(`Rule has a layer-coupled property mismatch between ${lhs_name.toUpperCase()} and ${object_name.toUpperCase()}.`, rule.lineNumber);
+                        } else if (movementTermHasRuntimeEffect(lhs_dir, object_dir)) {
+                            const replacementTerm = buildLayerCoupledMovementTerm(
+                                state,
+                                object_name,
+                                lhs_dir,
+                                buildLayerCoupledExcludedLayers(state, cell_l, i)
+                            );
+                            replacementTerm.replacementMovementMask = object_dir === 'stationary' || object_dir === '' ? 0 : dirMasks[object_dir];
+                            layerCoupledMovementReplacements.push(replacementTerm);
+                        }
                     } else {
                         const existingname = layersUsed_r[layerIndex] || layersUsedRand_r[layerIndex];
                         if (existingname !== null && !rule.hasOwnProperty('discard')) {
@@ -2000,7 +2238,8 @@ function rulesToMask(state) {
                                  !rhsBitVectors.movementsSet.iszero() || 
                                  !rhsBitVectors.postMovementsLayerMask_r.iszero() || 
                                  !rhsBitVectors.randomMask_r.iszero() || 
-                                 !rhsBitVectors.randomDirMask_r.iszero();
+                                 !rhsBitVectors.randomDirMask_r.iszero() ||
+                                 layerCoupledMovementReplacements.length > 0;
 
                 if (hasChanges) {
                     const target_cell_pattern = cellrow_l[colIndex];
@@ -2011,7 +2250,8 @@ function rulesToMask(state) {
                         rhsBitVectors.movementsSet,
                         rhsBitVectors.postMovementsLayerMask_r,
                         rhsBitVectors.randomMask_r,
-                        rhsBitVectors.randomDirMask_r
+                        rhsBitVectors.randomDirMask_r,
+                        layerCoupledMovementReplacements
                     ]);
                 }
             }
@@ -3239,4 +3479,3 @@ function qualifyURL(url) {
     a.href = url;
     return a.href;
 }
-
