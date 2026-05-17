@@ -500,3 +500,44 @@ needed for this phase.
 
 Verification: source inspection of the compiler pass order plus fixture probe;
 no runtime or replay behavior changed.
+
+## 2026-05-17 phase 4e multi-cell preserved-property spike
+
+Baseline: `d983f4cb` (`Document relative movement coalescing reachability`).
+After: no code change.
+
+I tried a temporary broad spike that allowed
+`getPreservedLayerCoupledProperties()` to preserve same-position
+layer-coupled properties across multi-cell and multi-row rules. The spike was
+reverted.
+
+Replay result under the spike:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js "gallery game: at the hedges of time"` | passed, 1 / 1 |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | failed the intentional guard test that multi-cell preserved properties stay expanded |
+
+Solver-corpus rule-count probe under the spike:
+
+| Corpus result | Count |
+| --- | ---: |
+| Changed solver games | 15 / 184 |
+| Largest reduction | `ponies jumping synchronously.txt`, 213 -> 101 (-112) |
+| Next reductions | `pipe puffer.txt`, 150 -> 90 (-60); `Eyeball-watching flowers bloom.txt`, 114 -> 66 (-48) |
+| Largest increase | `dreizack.txt`, 124 -> 168 (+44) |
+| Other increases | `robotarm.txt`, 1003 -> 1015 (+12); `karamell.txt`, 123 -> 129 (+6) |
+
+The reductions are real, especially for rules that preserve a layer-coupled
+property while writing an ordinary marker such as `flow`. But the broad rule is
+not monotonic: it increases concrete rule counts in several games, which means
+it changes splitter interactions rather than merely deleting redundant alias
+work. More importantly, split alias rules can serialize through temporary
+blockers, while a single coalesced property rule batches matches across aliases.
+That can be semantically relevant even when the checked-in replay corpus does
+not expose it.
+
+Outcome: do not land 4e yet. A future version needs a sharper safety condition,
+probably tied to replacement locality and absence of RHS property inference,
+before we should change the compiler.
