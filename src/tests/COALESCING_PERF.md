@@ -439,3 +439,35 @@ Additional verification:
 | `node src/tests/run_static_analysis_runtime_contracts_node.js` | passed, 469 cases plus 689 no-random replay checks |
 | `node src/tests/solver_static_opt_node.js` | passed |
 | `node src/tests/compare_solver_static_opt_runs_node.js --help` | exited 0 |
+
+## 2026-05-17 phase 4c paint plus-group investigation
+
+Baseline: `83533734` (`Coalesce random property rules`).
+After: no code change.
+
+The `paint everything everywhere.txt` plus-group at lines 255-262 is already on
+the layer-coupled path. Each line has coupled movement match metadata and
+coupled movement replacement metadata, so the crate property alias expansion is
+not the remaining multiplier.
+
+Probe command:
+
+```sh
+node -e '<compile paint everything everywhere and count lines 255-262>'
+```
+
+Probe result:
+
+| Line range | Concrete rules | Coupled match metadata | Coupled replacement metadata | Interpretation |
+| --- | ---: | --- | --- | --- |
+| `255-262` | 4 per source line | yes | yes | property coalescing is already active |
+| whole game | 105 total rules | n/a | n/a | unchanged from phases 3c/3d/4a |
+
+The remaining `4x` is ordinary scan-direction expansion for a two-cell rule with
+no explicit rule direction. Reducing that would require a separate,
+semantics-sensitive optimization that proves the authored movement direction
+also constrains the adjacency direction. This phase therefore lands as a
+read-only finding rather than a compiler change.
+
+Verification: the probe compiled the fixture with `errorCount === 0`; no runtime
+or replay behavior changed.
