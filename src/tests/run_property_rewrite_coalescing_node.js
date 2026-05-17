@@ -212,17 +212,11 @@ test('coalesces random property-to-object rewrite rules', () => {
     assertCell(1, ['good'], 'second cell should become Good');
 });
 
-test('keeps no-property terms lazy while preserving missing-mask behavior', () => {
-    const state = compileSource(baseSource(
+test('no-property terms match via the property union mask', () => {
+    compileSource(baseSource(
         '[ no Thing ] -> [ Good ]',
         '.'
     ));
-    const expandNoPrefixedProperties = global.eval('expandNoPrefixedProperties');
-    assert.deepStrictEqual(
-        expandNoPrefixedProperties(state, ['no', 'thing']),
-        ['no', 'thing']
-    );
-
     processInput(-1);
     assertCell(0, ['good'], 'empty cell should match no Thing and create Good');
 

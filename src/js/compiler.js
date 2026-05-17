@@ -1178,6 +1178,8 @@ function getPossibleObjectsFromCell(state, cell) {
 }
 
 function getPropertiesFromCell(state, cell) {
+    // `random` and `no` directions are constraints, not rewrite targets,
+    // so they don't drive property splitting.
     let result = [];
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
@@ -1267,6 +1269,8 @@ function layerSetIsEmpty(layers) {
 }
 
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
+    // The parser rejects movement terms inside `late` rules, so any late rule
+    // reaching here has no per-term movement to coalesce; bail cheaply.
     if (rule.rhs.length === 0 ||
         rule.rigid ||
         rule.late) {
@@ -1442,6 +1446,8 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
 }
 
 function shouldCoalesceMixedPropertyRule(state, rule) {
+    // The parser rejects movement terms inside `late` rules, so a late rule
+    // cannot have the movement leg this predicate looks for; bail cheaply.
     if (rule.rhs.length === 0 ||
         rule.rigid ||
         rule.late) {
@@ -1639,29 +1645,7 @@ function concretizeMovingInCellByAmbiguousMovementName(cell, ambiguousMovement, 
     }
 }
 
-function expandNoPrefixedProperties(state, cell) {
-    let expanded = [];
-    for (let i = 0; i < cell.length; i += 2) {
-        let dir = cell[i];
-        let name = cell[i + 1];
-
-        expanded.push(dir);
-        expanded.push(name);
-    }
-    return expanded;
-}
-
 function concretizePropertyRule(state, rule, lineNumber) {
-
-    //step 1, rephrase rule to change "no flying" to "no cat no bat"
-    for (let i = 0; i < rule.lhs.length; i++) {
-        let cur_cellrow_l = rule.lhs[i];
-        for (let j = 0; j < cur_cellrow_l.length; j++) {
-            cur_cellrow_l[j] = expandNoPrefixedProperties(state, cur_cellrow_l[j]);
-            if (rule.rhs.length > 0)
-                rule.rhs[i][j] = expandNoPrefixedProperties(state, rule.rhs[i][j]);
-        }
-    }
 
     if (shouldCoalesceLayerCoupledMovementRule(state, rule)) {
         return [rule];
