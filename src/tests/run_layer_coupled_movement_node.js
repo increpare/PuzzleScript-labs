@@ -81,27 +81,6 @@ function compileSource(source) {
     return global.eval('state');
 }
 
-function compileSourceWithCoalescingProbe(source) {
-    const originalShouldCoalesce = global.eval('shouldCoalesceLayerCoupledMovementRule');
-    global.__layerCoupledMovementProbeCalls = 0;
-    global.__originalShouldCoalesceLayerCoupledMovementRule = originalShouldCoalesce;
-    global.eval(`shouldCoalesceLayerCoupledMovementRule = function() {
-        globalThis.__layerCoupledMovementProbeCalls++;
-        return globalThis.__originalShouldCoalesceLayerCoupledMovementRule.apply(this, arguments);
-    }`);
-    try {
-        const state = compileSource(source);
-        return {
-            state,
-            calls: global.__layerCoupledMovementProbeCalls
-        };
-    } finally {
-        global.eval('shouldCoalesceLayerCoupledMovementRule = globalThis.__originalShouldCoalesceLayerCoupledMovementRule');
-        delete global.__layerCoupledMovementProbeCalls;
-        delete global.__originalShouldCoalesceLayerCoupledMovementRule;
-    }
-}
-
 function ruleCount(state) {
     return state.rules.reduce((sum, group) => sum + group.length, 0);
 }
@@ -153,12 +132,11 @@ test('coalesces a multi-layer movement-only property rule to one runtime rule', 
 });
 
 test('keeps command-bearing multi-layer property movement rules on the old expansion path', () => {
-    const result = compileSourceWithCoalescingProbe(baseSource(
+    const state = compileSource(baseSource(
         'right [ > Player | Crate ] -> [ > Player | > Crate ] again',
         'P.C'
     ));
-    assert.strictEqual(result.calls, 0);
-    assert.strictEqual(ruleCount(result.state), 4);
+    assert.strictEqual(ruleCount(state), 4);
 });
 
 test('does not satisfy a moving property term with movement from a different layer', () => {

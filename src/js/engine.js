@@ -1662,7 +1662,7 @@ function CellPattern(row) {
 	this.anyObjectsPresent = row[2];
 	this.movementsPresent = row[3];
 	this.movementsMissing = row[4];
-	this.layerCoupledMovementMasks = row[6] || [];
+	this.layerCoupledMovementMasks = row[6];
 	if (lazyFunctionGeneration){
 		WORKLIST_OBJECTS_TO_GENERATE_FUNCTIONS_FOR.push(this);
 	} else {
@@ -1681,7 +1681,7 @@ function CellReplacement(row) {
 	this.movementsLayerMask = row[4];
 	this.randomEntityMask = row[5];
 	this.randomDirMask = row[6];
-	this.layerCoupledMovementReplacements = row[7] || [];
+	this.layerCoupledMovementReplacements = row[7];
 	this.replace = null;
 };
 
@@ -1695,69 +1695,46 @@ CellPattern.prototype.replace = function (level, rule, currentIndex) {
 	return this.replace(level, rule, currentIndex);
 }
 
-function bitVecAnyWordExpression(prefix, bitvec, stride) {
-	let parts = [];
+function bitVecWordExpression(prefix, bitvec, stride, formatWord, emptyResult, separator) {
+	const parts = [];
 	for (let i = 0; i < stride; i++) {
 		const mask = bitvec.data[i];
 		if (mask) {
-			parts.push(`(${prefix}${i}&${mask})`);
+			parts.push(formatWord(`${prefix}${i}`, mask));
 		}
 	}
-	return parts.length === 0 ? '0' : parts.join('|');
-}
-
-function bitVecAllWordsSetExpression(prefix, bitvec, stride) {
-	let parts = [];
-	for (let i = 0; i < stride; i++) {
-		const mask = bitvec.data[i];
-		if (mask) {
-			parts.push(`((${prefix}${i}&${mask})===${mask})`);
-		}
-	}
-	return parts.length === 0 ? 'true' : parts.join('&&');
-}
-
-function bitVecNoWordsSetExpression(prefix, bitvec, stride) {
-	let parts = [];
-	for (let i = 0; i < stride; i++) {
-		const mask = bitvec.data[i];
-		if (mask) {
-			parts.push(`!(${prefix}${i}&${mask})`);
-		}
-	}
-	return parts.length === 0 ? 'true' : parts.join('&&');
+	return parts.length === 0 ? emptyResult : parts.join(separator);
 }
 
 function layerCoupledMovementMaskMatchExpression(term) {
-	let options = [];
+	const options = [];
 	for (let i = 0; i < term.layers.length; i++) {
 		const layer = term.layers[i];
-		options.push(`((${bitVecAnyWordExpression('cellObjects', layer.objectMask, STRIDE_OBJ)})&&` +
-			`(${bitVecAllWordsSetExpression('cellMovements', layer.movementsPresent, STRIDE_MOV)})&&` +
-			`(${bitVecNoWordsSetExpression('cellMovements', layer.movementsMissing, STRIDE_MOV)}))`);
+		const objs = bitVecWordExpression('cellObjects', layer.objectMask, STRIDE_OBJ,
+			(w, m) => `(${w}&${m})`, '0', '|');
+		const present = bitVecWordExpression('cellMovements', layer.movementsPresent, STRIDE_MOV,
+			(w, m) => `((${w}&${m})===${m})`, 'true', '&&');
+		const missing = bitVecWordExpression('cellMovements', layer.movementsMissing, STRIDE_MOV,
+			(w, m) => `!(${w}&${m})`, 'true', '&&');
+		options.push(`((${objs})&&(${present})&&(${missing}))`);
 	}
 	return options.length === 0 ? 'false' : options.join('||');
 }
 
-function bitVecCacheKey(bitvec, stride) {
-	let parts = [];
-	for (let i = 0; i < stride; i++) {
-		parts.push(bitvec.data[i] || 0);
-	}
-	return parts.join(',');
-}
-
 function layerCoupledMovementMasksCacheKey(terms) {
-	let parts = [terms.length];
+	if (terms.length === 0) {
+		return '0';
+	}
+	const parts = [terms.length];
 	for (let i = 0; i < terms.length; i++) {
 		const term = terms[i];
 		parts.push(term.layers.length);
 		for (let j = 0; j < term.layers.length; j++) {
 			const layer = term.layers[j];
 			parts.push(layer.layerIndex);
-			parts.push(bitVecCacheKey(layer.objectMask, STRIDE_OBJ));
-			parts.push(bitVecCacheKey(layer.movementsPresent, STRIDE_MOV));
-			parts.push(bitVecCacheKey(layer.movementsMissing, STRIDE_MOV));
+			for (let w = 0; w < STRIDE_OBJ; w++) parts.push(layer.objectMask.data[w] || 0);
+			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsPresent.data[w] || 0);
+			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsMissing.data[w] || 0);
 		}
 	}
 	return parts.join(':');
@@ -1892,11 +1869,12 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+1] = MOVEMENT_SIZE;
 	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+2] = rule.rigid;
 
-	const key = key_array.toString();
+	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
+	const key = key_array.toString() + (hasCoupledReplacements ? ",c" : "");
 	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
 		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
 	}
-	
+
 	const replace_randomEntityMask_zero = this.replacement.randomEntityMask.iszero()
 	const replace_randomDirMask_zero = this.replacement.randomDirMask.iszero()
 	let deterministic = replace_randomEntityMask_zero && replace_randomDirMask_zero;
@@ -1969,6 +1947,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		${FOR(0, MOVEMENT_SIZE, i => `
 			const oldMovement${i} = ${LEVEL_MOVEMENT_WORD("currentIndex", MOVEMENT_SIZE, i)};
 		`)}
+		${IF_LAZY(hasCoupledReplacements, () => `
 		const layerCoupledMovementReplacements = replace.layerCoupledMovementReplacements;
 		for (let coupledIndex = 0; coupledIndex < layerCoupledMovementReplacements.length; coupledIndex++) {
 			const coupled = layerCoupledMovementReplacements[coupledIndex];
@@ -2007,6 +1986,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 				}
 			}
 		}
+		`)}
 		${FOR(0, MOVEMENT_SIZE, i => `
 			curMovementMask.data[${i}] = (oldMovement${i} & (~movementsClear.data[${i}])) | movementsSet.data[${i}]
 		`)}

@@ -1197,27 +1197,10 @@ function isLayerCoupledProperty(state, name) {
         !state.propertiesSingleLayer.hasOwnProperty(name);
 }
 
-function isLayerCoupledMovementDir(dir) {
-    return dir === '' ||
-        dir === 'stationary' ||
-        dir === 'up' ||
-        dir === 'down' ||
-        dir === 'left' ||
-        dir === 'right' ||
-        dir === 'action';
-}
-
-function layerCoupledPropertyLayerSet(state, propertyName) {
-    const result = {};
-    const aliases = state.propertiesDict[propertyName] || [];
-    for (let i = 0; i < aliases.length; i++) {
-        const object = state.objects[aliases[i]];
-        if (object) {
-            result[object.layer | 0] = true;
-        }
-    }
-    return result;
-}
+const LAYER_COUPLED_MOVEMENT_DIRS = {
+    '': true, 'stationary': true, 'action': true,
+    'up': true, 'down': true, 'left': true, 'right': true
+};
 
 function objectOrSingleLayerPropertyLayer(state, name) {
     if (state.objects.hasOwnProperty(name)) {
@@ -1233,62 +1216,14 @@ function cellHasEllipsis(cell) {
     return cell.length === 2 && cell[0] === '...';
 }
 
-function couldCoalesceLayerCoupledMovementRule(state, rule) {
-    if (rule.rhs.length === 0 ||
-        rule.commands.length > 0 ||
-        rule.rigid ||
-        rule.randomRule ||
-        rule.late) {
-        return false;
-    }
-
-    let sawLayerCoupledProperty = false;
-    let sawMovementEffect = false;
-
-    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
-        const row_l = rule.lhs[rowIndex];
-        const row_r = rule.rhs[rowIndex];
-        if (row_l.length !== row_r.length) {
-            return false;
-        }
-
-        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
-            const cell_l = row_l[colIndex];
-            const cell_r = row_r[colIndex];
-
-            if (cellHasEllipsis(cell_l) || cellHasEllipsis(cell_r) || cell_l.length !== cell_r.length) {
-                return false;
-            }
-
-            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
-                const dir_l = cell_l[termIndex];
-                const name_l = cell_l[termIndex + 1];
-                const dir_r = cell_r[termIndex];
-                const name_r = cell_r[termIndex + 1];
-
-                if (name_l !== name_r ||
-                    !isLayerCoupledMovementDir(dir_l) ||
-                    !isLayerCoupledMovementDir(dir_r)) {
-                    return false;
-                }
-
-                if (isLayerCoupledProperty(state, name_l)) {
-                    sawLayerCoupledProperty = true;
-                    if (dir_l !== '' || dir_r !== '' || dir_l !== dir_r) {
-                        sawMovementEffect = true;
-                    }
-                } else if (dir_l !== dir_r) {
-                    sawMovementEffect = true;
-                }
-
-                if (sawLayerCoupledProperty && sawMovementEffect) {
-                    return true;
-                }
-            }
+function forEachPropertyAliasLayer(state, propertyName, callback) {
+    const aliases = state.propertiesDict[propertyName];
+    for (let i = 0; i < aliases.length; i++) {
+        const object = state.objects[aliases[i]];
+        if (object) {
+            callback(object.layer | 0, object);
         }
     }
-
-    return false;
 }
 
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
@@ -1328,8 +1263,8 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
                 const name_r = cell_r[termIndex + 1];
 
                 if (name_l !== name_r ||
-                    !isLayerCoupledMovementDir(dir_l) ||
-                    !isLayerCoupledMovementDir(dir_r)) {
+                    !LAYER_COUPLED_MOVEMENT_DIRS[dir_l] ||
+                    !LAYER_COUPLED_MOVEMENT_DIRS[dir_r]) {
                     return false;
                 }
 
@@ -1341,7 +1276,7 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
                     sawLayerCoupledProperty = true;
                     layerCoupledTermCount++;
                     layerCoupledTermName = name_l;
-                    if (dir_l !== '' || dir_r !== '' || dir_l !== dir_r) {
+                    if (dir_l !== '' || dir_r !== '') {
                         sawMovementEffect = true;
                     }
                 } else if (dir_l !== dir_r) {
@@ -1353,7 +1288,10 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
                 return false;
             }
             if (layerCoupledTermCount === 1 && cell_l.length > 2) {
-                const coupledLayers = layerCoupledPropertyLayerSet(state, layerCoupledTermName);
+                const coupledLayers = {};
+                forEachPropertyAliasLayer(state, layerCoupledTermName, layer => {
+                    coupledLayers[layer] = true;
+                });
                 for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
                     const name = cell_l[termIndex + 1];
                     if (name === layerCoupledTermName) {
@@ -1369,17 +1307,6 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
     }
 
     return sawLayerCoupledProperty && sawMovementEffect;
-}
-
-function propertyObjectRewriteSourceLayersOverlap(state, propertyName, fixedLayers) {
-    const aliases = state.propertiesDict[propertyName] || [];
-    for (let i = 0; i < aliases.length; i++) {
-        const object = state.objects[aliases[i]];
-        if (object && fixedLayers[object.layer | 0]) {
-            return true;
-        }
-    }
-    return false;
 }
 
 function shouldCoalescePropertyObjectRewriteRule(state, rule) {
@@ -1413,10 +1340,9 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
             for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
                 const dir_l = cell_l[termIndex];
                 const name_l = cell_l[termIndex + 1];
-                const dir_r = cell_r[termIndex];
                 const name_r = cell_r[termIndex + 1];
 
-                if (dir_l !== '' || dir_r !== '') {
+                if (dir_l !== '' || cell_r[termIndex] !== '') {
                     return false;
                 }
 
@@ -1437,9 +1363,16 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
                 }
             }
 
-            if (propertyTermName !== null &&
-                propertyObjectRewriteSourceLayersOverlap(state, propertyTermName, fixedLayers)) {
-                return false;
+            if (propertyTermName !== null) {
+                let overlap = false;
+                forEachPropertyAliasLayer(state, propertyTermName, layer => {
+                    if (fixedLayers[layer]) {
+                        overlap = true;
+                    }
+                });
+                if (overlap) {
+                    return false;
+                }
             }
         }
     }
@@ -1517,9 +1450,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
         }
     }
 
-    if (couldCoalesceLayerCoupledMovementRule(state, rule) &&
-        shouldCoalesceLayerCoupledMovementRule(state, rule)) {
-        rule.layerCoupledMovementRule = true;
+    if (shouldCoalesceLayerCoupledMovementRule(state, rule)) {
         return [rule];
     }
 
@@ -2007,35 +1938,24 @@ const dirMasks = {
     '': parseInt('00000', 2)
 };
 
-function buildLayerCoupledPropertyOptions(state, propertyName, excludedLayers) {
-    const aliases = state.propertiesDict[propertyName];
-    const byLayer = {};
-    for (let i = 0; i < aliases.length; i++) {
-        const alias = aliases[i];
-        const object = state.objects[alias];
-        if (!object) {
-            continue;
-        }
-        const layerIndex = object.layer | 0;
-        if (excludedLayers && excludedLayers[layerIndex]) {
-            continue;
-        }
-        if (!byLayer.hasOwnProperty(layerIndex)) {
-            byLayer[layerIndex] = new BitVec(STRIDE_OBJ);
-        }
-        byLayer[layerIndex].ibitset(object.id);
+function dirToMovementMasks(dir) {
+    if (dir === 'stationary') {
+        return { present: 0, missing: 0x1f };
     }
-
-    return Object.keys(byLayer).map(layerIndex => ({
-        layerIndex: Number(layerIndex),
-        objectMask: byLayer[layerIndex]
-    }));
+    if (dir === '') {
+        return { present: 0, missing: 0 };
+    }
+    return { present: dirMasks[dir], missing: 0 };
 }
 
-function buildLayerCoupledExcludedLayers(state, cell, termIndexToSkip) {
+function buildLayerCoupledExcludedLayers(state, cell, coupledTermIndex) {
     const excludedLayers = {};
     for (let i = 0; i < cell.length; i += 2) {
-        if (i === termIndexToSkip || cell[i] === 'no' || cell[i] === 'random') {
+        if (i === coupledTermIndex) {
+            continue;
+        }
+        // 'no' / 'random' terms don't pin an object to its layer at match time
+        if (cell[i] === 'no' || cell[i] === 'random') {
             continue;
         }
         const name = cell[i + 1];
@@ -2048,63 +1968,52 @@ function buildLayerCoupledExcludedLayers(state, cell, termIndexToSkip) {
     return excludedLayers;
 }
 
-function buildObjectMaskFromLayerOptions(options) {
-    const result = new BitVec(STRIDE_OBJ);
-    for (let i = 0; i < options.length; i++) {
-        result.ior(options[i].objectMask);
-    }
-    return result;
-}
-
 function buildLayerCoupledMovementTerm(state, propertyName, movementDir, excludedLayers) {
-    const layers = buildLayerCoupledPropertyOptions(state, propertyName, excludedLayers);
-    let movementsPresentMask = 0;
-    let movementsMissingMask = 0;
-    if (movementDir === 'stationary') {
-        movementsMissingMask = 0x1f;
-    } else if (movementDir !== '') {
-        movementsPresentMask = dirMasks[movementDir];
-    }
-    for (let i = 0; i < layers.length; i++) {
-        const layerIndex = layers[i].layerIndex;
-        layers[i].movementsPresent = new BitVec(STRIDE_MOV);
-        layers[i].movementsMissing = new BitVec(STRIDE_MOV);
-        if (movementsPresentMask) {
-            layers[i].movementsPresent.ishiftor(movementsPresentMask, 5 * layerIndex);
+    const { present: movementsPresentMask, missing: movementsMissingMask } = dirToMovementMasks(movementDir);
+    const byLayer = {};
+    const objectMask = new BitVec(STRIDE_OBJ);
+    forEachPropertyAliasLayer(state, propertyName, (layerIndex, object) => {
+        if (excludedLayers && excludedLayers[layerIndex]) {
+            return;
         }
-        if (movementsMissingMask) {
-            layers[i].movementsMissing.ishiftor(movementsMissingMask, 5 * layerIndex);
+        if (!byLayer.hasOwnProperty(layerIndex)) {
+            const layer = {
+                layerIndex,
+                objectMask: new BitVec(STRIDE_OBJ),
+                movementsPresent: new BitVec(STRIDE_MOV),
+                movementsMissing: new BitVec(STRIDE_MOV)
+            };
+            if (movementsPresentMask) {
+                layer.movementsPresent.ishiftor(movementsPresentMask, 5 * layerIndex);
+            }
+            if (movementsMissingMask) {
+                layer.movementsMissing.ishiftor(movementsMissingMask, 5 * layerIndex);
+            }
+            byLayer[layerIndex] = layer;
         }
-    }
-    return {
-        layers: layers,
-        objectMask: buildObjectMaskFromLayerOptions(layers),
-        movementsPresentMask: movementsPresentMask,
-        movementsMissingMask: movementsMissingMask
-    };
-}
+        byLayer[layerIndex].objectMask.ibitset(object.id);
+        objectMask.ibitset(object.id);
+    });
 
-function movementTermHasRuntimeEffect(lhsDir, rhsDir) {
-    return lhsDir !== rhsDir || lhsDir !== '';
+    return {
+        layers: Object.values(byLayer),
+        objectMask,
+        movementsPresentMask,
+        movementsMissingMask
+    };
 }
 
 function applyPropertyObjectRewriteClears(state, rhsBitVectors, propertyName, destinationLayer) {
     rhsBitVectors.objectsClear.ior(state.objectMasks[propertyName]);
 
-    const aliases = state.propertiesDict[propertyName] || [];
     const clearedLayers = {};
-    for (let i = 0; i < aliases.length; i++) {
-        const object = state.objects[aliases[i]];
-        if (!object) {
-            continue;
-        }
-        const layer = object.layer | 0;
+    forEachPropertyAliasLayer(state, propertyName, layer => {
         if (layer === destinationLayer || clearedLayers[layer]) {
-            continue;
+            return;
         }
         rhsBitVectors.postMovementsLayerMask_r.ishiftor(0x1f, 5 * layer);
         clearedLayers[layer] = true;
-    }
+    });
 }
 
 function getOverlapObjectNames(state, objects1,objects2){
@@ -2331,14 +2240,14 @@ function rulesToMask(state) {
                         const lhs_name = cell_l[i + 1];
                         if (lhs_name !== object_name) {
                             logError(`Rule has a layer-coupled property mismatch between ${lhs_name.toUpperCase()} and ${object_name.toUpperCase()}.`, rule.lineNumber);
-                        } else if (movementTermHasRuntimeEffect(lhs_dir, object_dir)) {
+                        } else if (lhs_dir !== '' || object_dir !== '') {
                             const replacementTerm = buildLayerCoupledMovementTerm(
                                 state,
                                 object_name,
                                 lhs_dir,
                                 buildLayerCoupledExcludedLayers(state, cell_l, i)
                             );
-                            replacementTerm.replacementMovementMask = object_dir === 'stationary' || object_dir === '' ? 0 : dirMasks[object_dir];
+                            replacementTerm.replacementMovementMask = dirToMovementMasks(object_dir).present;
                             layerCoupledMovementReplacements.push(replacementTerm);
                         }
                     } else {
