@@ -471,3 +471,32 @@ read-only finding rather than a compiler change.
 
 Verification: the probe compiled the fixture with `errorCount === 0`; no runtime
 or replay behavior changed.
+
+## 2026-05-17 phase 4d relative-direction reachability investigation
+
+Baseline: `3834c3a9` (`Document paint plus-group coalescing probe`).
+After: no code change.
+
+Relative movement directions do not reach the layer-coupled coalescer as raw
+`>`, `<`, `^`, `v`, `parallel`, or `perpendicular` terms. The compiler pipeline
+expands authored rule directions, calls `convertRelativeDirsToAbsolute(rule)`,
+then calls `rewriteUpLeftRules(rule)`, and only afterwards enters
+`concretizeMovingRule()` and `concretizePropertyRule()`.
+
+This means `LAYER_COUPLED_MOVEMENT_DIRS` only needs to accept the absolute
+directions plus `stationary`, `action`, and the plain object case. The existing
+focused fixture `right [ > Player | Crate ] -> [ > Player | > Crate ]` already
+exercises this path after `>` is converted to an absolute movement.
+
+Probe result for `paint everything everywhere.txt` line 254:
+
+| Source line | Concrete rules | Coupled match metadata | Coupled replacement metadata | Interpretation |
+| --- | ---: | --- | --- | --- |
+| `254` | 4 | yes | yes | `>` was absolutified before coalescing |
+
+The four concrete rules again come from scan-direction expansion and the
+up/left rewrite, not from relative-direction rejection. No compiler change is
+needed for this phase.
+
+Verification: source inspection of the compiler pass order plus fixture probe;
+no runtime or replay behavior changed.
