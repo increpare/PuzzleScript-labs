@@ -80,8 +80,8 @@ ${level}
 `;
 }
 
-function compileSource(source) {
-    compile(['loadLevel', 0], source);
+function compileSource(source, randomseed) {
+    compile(['loadLevel', 0], source, randomseed);
     assert.strictEqual(errorCount, 0, errorStrings.map(stripHTMLTags).join('\n'));
     return global.eval('state');
 }
@@ -197,6 +197,19 @@ test('coalesces late property-to-object rewrite rules', () => {
         'ab'
     ));
     assert.strictEqual(totalRuleCount(state), 2);
+});
+
+test('coalesces random property-to-object rewrite rules', () => {
+    const source = baseSource(
+        'random [ Thing | Thing ] -> [ Good | Good ]',
+        'ab'
+    );
+    const state = compileSource(source, 'random-property-rewrite');
+    assert.strictEqual(ruleCount(state), 2);
+
+    processInput(-1);
+    assertCell(0, ['good'], 'first cell should become Good');
+    assertCell(1, ['good'], 'second cell should become Good');
 });
 
 if (process.exitCode) {

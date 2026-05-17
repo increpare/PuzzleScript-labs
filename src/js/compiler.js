@@ -1269,7 +1269,6 @@ function layerSetIsEmpty(layers) {
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
     if (rule.rhs.length === 0 ||
         rule.rigid ||
-        rule.randomRule ||
         rule.late) {
         return false;
     }
@@ -1379,8 +1378,7 @@ function propertyRewriteTermsAreLayerDisjoint(propertyTerms, fixedLayers) {
 
 function shouldCoalescePropertyObjectRewriteRule(state, rule) {
     if (rule.rhs.length === 0 ||
-        rule.rigid ||
-        rule.randomRule) {
+        rule.rigid) {
         return false;
     }
 
@@ -1446,7 +1444,6 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
 function shouldCoalesceMixedPropertyRule(state, rule) {
     if (rule.rhs.length === 0 ||
         rule.rigid ||
-        rule.randomRule ||
         rule.late) {
         return false;
     }

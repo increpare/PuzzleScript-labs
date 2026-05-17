@@ -349,3 +349,93 @@ Concrete rule-count probes:
 | `Wand Spinner.txt` | 51 -> 51 | no phase-4a hit |
 | `match three billiards.txt` | 33 -> 33 | unchanged |
 | `diesinthelight.txt` | 35 -> 35 | no phase-4a hit |
+
+## 2026-05-17 phase 4b random property-rule coalescing
+
+Baseline: `c5581c53` (`Allow late property rewrite coalescing`).
+After: this commit.
+
+This phase removes the conservative `randomRule` guard from the three
+property-preserving coalescers. Random rules still use the existing runtime
+random scheduling machinery; the only intentional representation change is
+that random groups count authored coalesced rules rather than alias-split
+duplicates. Existing checked-in replay data did not need resimulation.
+
+Focused synthetic rule-count probes:
+
+| Probe | Before | After | Notes |
+| --- | ---: | ---: | --- |
+| `random right [ > Player | Crate ] -> [ > Player | > Crate ]` | 4 | 1 | layer-coupled movement metadata |
+| random plus-group movement/rewrite pair | 5 | 2 | group size follows authored coalesced rules |
+| `random [ Thing | Thing ] -> [ Good | Good ]` | 32 | 2 | property-to-object rewrite metadata |
+| checked-in random solver corpus files | 0 changed games | 0 changed games | no new corpus hit for the 4b shapes |
+
+Validation-profile command:
+
+```sh
+node src/tests/run_tests_node.js --profile --profile-runs 5 --breakdown
+```
+
+| Metric | 4a baseline | Final 4b | Delta |
+| --- | ---: | ---: | ---: |
+| Total average | 10.25s | 10.23s | -0.2% |
+| Compile | 4233 ms | 4231 ms | -0.0% |
+| processInput | 7056 ms | 7037 ms | -0.3% |
+| Undo | 13 ms | 13 ms | 0.0% |
+| Restart | 26 ms | 26 ms | 0.0% |
+
+Commands used for the focus runs:
+
+```sh
+node src/tests/run_solver_tests_js.js src/tests/solver_tests \
+  --solver-focus-manifest <manifest> \
+  --timeout-ms <manifest timeout> \
+  --strategy portfolio \
+  --quiet --json --no-solutions
+```
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 9 solved / 41 timeout / 0 errors -> 9 solved / 41 timeout / 0 errors | 262.4 -> 237.3 (-9.6%) | 23363 -> 23103 (-1.1%) | 18902.3 -> 18770.9 (-0.7%) | 240997 -> 249018 (+3.3%) | 1178137 -> 1217363 (+3.3%) |
+| `solver_focus_long_group.json` | 2000 ms | 47 solved / 3 timeout / 0 errors -> 48 solved / 2 timeout / 0 errors | 243.3 -> 252.3 (+3.7%) | 46851 -> 46816 (-0.1%) | 37934.7 -> 37919.3 (-0.0%) | 474915 -> 475735 (+0.2%) | 2326986 -> 2331085 (+0.2%) |
+
+Largest speedups:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `manic_ammo.txt` L10 | 431 ms | 359 ms | -72 ms |
+| `solver_focus_group.json` | `the_saga_of_the_candy_scroll.txt` L55 | 477 ms | 412 ms | -65 ms |
+| `solver_focus_group.json` | `alternatey.txt` L4 | 162 ms | 111 ms | -51 ms |
+| `solver_focus_long_group.json` | `S-tercourse.txt` L23 | 1911 ms | 1752 ms | -159 ms |
+| `solver_focus_long_group.json` | `Van-to-Mobile-Living-Space-Conversion Window.txt` L7 | 820 ms | 661 ms | -159 ms |
+
+Largest positive elapsed deltas:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `15 push pull levels.txt` L21 | 487 ms | 496 ms | +9 ms |
+| `solver_focus_group.json` | `paint everything everywhere.txt` L9 | 413 ms | 417 ms | +4 ms |
+| `solver_focus_long_group.json` | `constellationz.txt` L6 | 633 ms | 1099 ms | +466 ms |
+| `solver_focus_long_group.json` | `dollyban.txt` L9 | 1427 ms | 1655 ms | +228 ms |
+| `solver_focus_long_group.json` | `gem soketeer.txt` L13 | 1245 ms | 1372 ms | +127 ms |
+
+Native reverse-checks:
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| `make solver_parity_smoke` | passed | 7 solver parity smoke cases |
+| `make solver_smoke_tests` | passed | 7 native solver smoke cases |
+| `make simulation_tests_cpp_js_parity` | failed before and after | both 4a baseline and 4b produced 422 / 469 trace replays passing, 47 failing |
+
+Additional verification:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/static_analysis_testdata_runner_node.js` | passed |
+| `node src/tests/run_static_analysis_runtime_contracts_node_test.js` | passed |
+| `node src/tests/run_static_analysis_runtime_contracts_node.js` | passed, 469 cases plus 689 no-random replay checks |
+| `node src/tests/solver_static_opt_node.js` | passed |
+| `node src/tests/compare_solver_static_opt_runs_node.js --help` | exited 0 |

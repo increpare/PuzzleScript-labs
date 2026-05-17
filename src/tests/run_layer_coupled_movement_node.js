@@ -86,8 +86,8 @@ ${level}
 `;
 }
 
-function compileSource(source) {
-    compile(['loadLevel', 0], source);
+function compileSource(source, randomseed) {
+    compile(['loadLevel', 0], source, randomseed);
     assert.strictEqual(errorCount, 0, errorStrings.map(stripHTMLTags).join('\n'));
     return global.eval('state');
 }
@@ -121,8 +121,8 @@ function assertCell(index, expectedNames, message) {
     assert.deepStrictEqual(cellObjectNames(index).sort(), expectedNames.slice().sort(), message);
 }
 
-function runRight(source) {
-    compileSource(source);
+function runRight(source, randomseed) {
+    compileSource(source, randomseed);
     processInput(3);
 }
 
@@ -166,6 +166,28 @@ test('coalesces movement rules with terminating and sound commands', () => {
         ));
         assert.strictEqual(ruleCount(state), 1, command);
     }
+});
+
+test('coalesces random multi-layer property movement rules', () => {
+    const source = baseSource(
+        'random right [ > Player | Crate ] -> [ > Player | > Crate ]',
+        'PC.'
+    );
+    const state = compileSource(source, 'random-layer-coupled-movement');
+    assert.strictEqual(ruleCount(state), 1);
+
+    processInput(3);
+    assertCell(0, [], 'source cell should be empty after the random push');
+    assertCell(1, ['player1'], 'player should move into the crate cell');
+    assertCell(2, ['crate1'], 'crate should move right');
+});
+
+test('keeps random plus-group size at authored coalesced rule count', () => {
+    const state = compileSource(baseSource(`
+random right [ > Player | Crate ] -> [ > Player | > Crate ]
++ right [ > Player | Gem ] -> [ > Player | > Gem ]
+`, 'P.C'));
+    assert.strictEqual(ruleCount(state), 2);
 });
 
 test('does not satisfy a moving property term with movement from a different layer', () => {
