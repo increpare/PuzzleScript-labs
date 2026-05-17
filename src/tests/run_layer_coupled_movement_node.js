@@ -257,6 +257,22 @@ test('keeps multi-cell preserved layer-coupled properties on the expansion path'
     assert.ok(ruleCount(state) > 1);
 });
 
+test('coalesces safe single-row multi-cell preserved properties', () => {
+    const state = compileSource(baseSource(
+        'right [ Crate Target | Player no Target ] -> [ Crate Target | Player Target ]',
+        'CP'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('keeps multi-row preserved properties on the expansion path', () => {
+    const state = compileSource(baseSource(
+        '[ Player1 no Target ] [ Gem ] -> [ Player1 Target ] [ Gem Wall ]',
+        'PG'
+    ));
+    assert.ok(ruleCount(state) > 1);
+});
+
 test('does not split preserved layer-coupled properties beside object changes', () => {
     const state = compileSource(baseSource(
         'late [ Crate no Target ] -> [ Crate Target ]',

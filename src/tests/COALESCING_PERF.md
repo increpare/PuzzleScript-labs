@@ -655,3 +655,68 @@ Additional verification:
 | `node src/tests/run_property_rewrite_coalescing_node.js` | passed |
 | `node src/tests/run_layer_coupled_movement_node.js` | passed |
 | `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+
+## 2026-05-18 phase 5b single-row multi-cell preserved properties
+
+Baseline: `5a450533` (`Coalesce command-only rules with coupled-property LHS`).
+After: this commit.
+
+The broad Phase 4e spike was unsafe because multi-row selector rules can use
+property split order as control flow. In `gallery game: at the hedges of time`,
+rules like:
+
+```txt
+late [PlayerSpr no Stop] [Mark no Crate no PlayerSpr] -> [PlayerSpr Stop] [Mark Highest]
+```
+
+rely on the concrete `Mark` aliases running in priority order. The first alias
+that matches writes `Stop`, and later aliases fail their `no Stop` check. A
+single coalesced `Mark` predicate would choose by spatial tuple order instead of
+alias priority. Phase 5b therefore only preserves layer-coupled properties
+across **single-row** multi-cell rules, and only when every changed cell contains
+one of the preserved property candidates. Changed external control cells remain
+on the old expansion path.
+
+Concrete rule-count probes (whole-game compiled rules incl. `lateRules`):
+
+| Game | Before | After |
+| --- | ---: | ---: |
+| `pipe puffer.txt` | 106 | 46 |
+| `der hydra krypta.txt` | 360 | 336 |
+| `gallery game: at the hedges of time` | 3087 | 3087 |
+| `robotarm.txt` | 955 | 955 |
+| `hungry kraken.txt` | 503 | 503 |
+| `Oh No My Dog Is About To Swallow A Piece Of.txt` | 257 | 257 |
+| `easyenigma.txt` | 891 | 891 |
+| `Voitex Rasteriser 2.txt` | 350 | 350 |
+| `paint everything everywhere.txt` | 105 | 105 |
+| `match three billiards.txt` | 33 | 33 |
+
+Full solver-corpus rule-count probe:
+
+| Corpus result | Count |
+| --- | ---: |
+| Changed solver games | 2 / 184 |
+| Rule-count decreases | 2 |
+| Rule-count increases | 0 |
+
+Solver focus comparison against the 5a baseline:
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 8 solved / 42 timeout / 0 errors -> 9 solved / 41 timeout / 0 errors | 235.5 -> 240.0 (+1.9%) | 23138 -> 23120 (-0.1%) | 18817.0 -> 18746.8 (-0.4%) | 243616 -> 249149 (+2.3%) | 1190786 -> 1218667 (+2.3%) |
+| `solver_focus_long_group.json` | 2000 ms | 48 solved / 2 timeout / 0 errors -> 49 solved / 1 timeout / 0 errors | 243.3 -> 234.2 (-3.8%) | 46285 -> 44780 (-3.3%) | 37419.9 -> 36246.5 (-3.1%) | 476061 -> 474330 (-0.4%) | 2332715 -> 2324057 (-0.4%) |
+
+Largest focus changes were still mostly near-timeout noise. The largest short
+positive elapsed delta was `Vexatious Match 3.txt` L8, 183 ms -> 187 ms. The
+largest long positive elapsed delta was `pushit.txt` L1, 1740 ms -> 1764 ms.
+
+Additional verification:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed |
+| `make solver_smoke_tests` | passed, 7 cases |
+| `make solver_parity_smoke` | passed, 7 cases |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742; Simulation 8.67s, Error messages 0.46s |

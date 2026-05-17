@@ -1625,52 +1625,100 @@ function cellHasNoTermOverlappingProperty(state, cell, propertyName) {
     return false;
 }
 
+function ruleCellTermsEqual(cell_l, cell_r) {
+    if (cell_l.length !== cell_r.length) {
+        return false;
+    }
+    for (let termIndex = 0; termIndex < cell_l.length; termIndex++) {
+        if (cell_l[termIndex] !== cell_r[termIndex]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function shouldAllowMultiCellPreservedLayerCoupledProperties(rule) {
+    if (rule.commands.length > 0 ||
+        rule.randomRule ||
+        rule.rigid ||
+        rule.lhs.length !== 1 ||
+        rule.rhs.length !== 1) {
+        return false;
+    }
+    return rule.lhs[0].length > 1;
+}
+
 function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
     if (rule.rhs.length === 0 ||
-        rule.lhs.length !== 1 ||
-        rule.rhs.length !== 1 ||
-        rule.lhs[0].length !== 1 ||
-        rule.rhs[0].length !== 1) {
+        rule.lhs.length !== rule.rhs.length) {
         return {};
     }
 
-    const cell_l = rule.lhs[0][0];
-    const cell_r = rule.rhs[0][0];
-    // candidateIndex maps property name -> termIndex of first occurrence, or -1 if disqualified.
-    const candidateIndex = {};
+    const singleCellRule = rule.lhs.length === 1 &&
+        rule.rhs.length === 1 &&
+        rule.lhs[0].length === 1 &&
+        rule.rhs[0].length === 1;
+    const multiCellRule = !singleCellRule;
+    if (multiCellRule && !shouldAllowMultiCellPreservedLayerCoupledProperties(rule)) {
+        return {};
+    }
 
-    for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
-        const dir_l = cell_l[termIndex];
-        const name_l = cell_l[termIndex + 1];
+    const candidateStatus = {};
 
-        if (!isLayerCoupledProperty(state, name_l) ||
-            dir_l !== '' ||
-            ambiguousProperties[name_l] === true) {
-            continue;
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const row_l = rule.lhs[rowIndex];
+        const row_r = rule.rhs[rowIndex];
+        if (row_l.length !== row_r.length) {
+            return {};
         }
 
-        if (candidateIndex[name_l] !== undefined) {
-            candidateIndex[name_l] = -1;
-        } else {
-            candidateIndex[name_l] = termIndex;
+        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
+            const cell_l = row_l[colIndex];
+            const cell_r = row_r[colIndex];
+
+            const seenPropertiesInCell = {};
+            let cellHasPreservedCandidate = false;
+
+            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                const dir_l = cell_l[termIndex];
+                const name_l = cell_l[termIndex + 1];
+
+                if (!isLayerCoupledProperty(state, name_l)) {
+                    continue;
+                }
+
+                const canPreserve = dir_l === '' &&
+                    ambiguousProperties[name_l] !== true &&
+                    termIndex + 1 < cell_r.length &&
+                    cell_r[termIndex] === '' &&
+                    cell_r[termIndex + 1] === name_l &&
+                    !cellHasNoTermOverlappingProperty(state, cell_l, name_l);
+
+                if (!canPreserve || seenPropertiesInCell[name_l]) {
+                    candidateStatus[name_l] = false;
+                    continue;
+                }
+
+                seenPropertiesInCell[name_l] = true;
+                if (candidateStatus[name_l] !== false) {
+                    candidateStatus[name_l] = true;
+                    cellHasPreservedCandidate = true;
+                }
+            }
+
+            if (multiCellRule &&
+                !ruleCellTermsEqual(cell_l, cell_r) &&
+                !cellHasPreservedCandidate) {
+                return {};
+            }
         }
     }
 
     const preservedProperties = {};
-    for (const name in candidateIndex) {
-        const termIndex = candidateIndex[name];
-        if (termIndex < 0) {
-            continue;
+    for (const name in candidateStatus) {
+        if (candidateStatus[name] === true) {
+            preservedProperties[name] = true;
         }
-        if (cellHasNoTermOverlappingProperty(state, cell_l, name)) {
-            continue;
-        }
-        if (termIndex + 1 >= cell_r.length ||
-            cell_r[termIndex] !== '' ||
-            cell_r[termIndex + 1] !== name) {
-            continue;
-        }
-        preservedProperties[name] = true;
     }
     return preservedProperties;
 }
