@@ -30,6 +30,9 @@ yellow
 Player
 purple
 
+Target
+white
+
 =======
 LEGEND
 =======
@@ -39,8 +42,11 @@ b = Beta
 c = Gamma
 g = Good
 p = Player
+t = Target
 x = Alpha and Beta
+y = Alpha and Target
 Thing = Alpha or Beta or Gamma or Good
+Actor = Target or Player
 
 =======
 SOUNDS
@@ -56,6 +62,7 @@ Beta
 Gamma
 Good
 Player
+Target
 
 ======
 RULES
@@ -79,6 +86,14 @@ function compileSource(source) {
     return global.eval('state');
 }
 
+function compileSourceAllowingMessages(source) {
+    compile(['loadLevel', 0], source);
+    return {
+        state: global.eval('state'),
+        messages: errorStrings.map(stripHTMLTags)
+    };
+}
+
 function ruleCount(state) {
     return state.rules.reduce((sum, group) => sum + group.length, 0);
 }
@@ -88,7 +103,7 @@ function cellObjectNames(index) {
     const level = global.eval('level');
     const cell = level.getCell(index);
     const names = [];
-    for (const name of ['alpha', 'beta', 'gamma', 'good']) {
+    for (const name of ['alpha', 'beta', 'gamma', 'good', 'player', 'target']) {
         if (cell.get(state.objects[name].id)) {
             names.push(name);
         }
@@ -143,6 +158,33 @@ test('clears every matching source property alternative in a cell', () => {
     assertCell(0, ['good'], 'cell with A and B should become only Good');
     assertCell(1, ['good'], 'existing Good should remain Good');
     assertCell(2, ['good'], 'existing Good should remain Good');
+});
+
+test('coalesces multiple same-cell property rewrites with disjoint layers', () => {
+    const state = compileSource(baseSource(
+        '[ Thing Actor ] -> [ Good Player ]',
+        'y'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('applies multiple same-cell property rewrites to their own layers', () => {
+    compileSource(baseSource(
+        '[ Thing Actor ] -> [ Good Player ]',
+        'y'
+    ));
+
+    processInput(-1);
+
+    assertCell(0, ['good', 'player'], 'Alpha/Gamma should become Good/Player');
+});
+
+test('keeps overlapping same-cell property rewrites on the expansion path', () => {
+    const result = compileSourceAllowingMessages(baseSource(
+        '[ Thing Thing ] -> [ Good Target ]',
+        'x'
+    ));
+    assert.ok(result.messages.some(message => message.indexOf('can never overlap') >= 0));
 });
 
 if (process.exitCode) {

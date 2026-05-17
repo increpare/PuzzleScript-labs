@@ -33,6 +33,12 @@ orange
 Wall
 grey
 
+Gem1
+pink
+
+Gem2
+white
+
 =======
 LEGEND
 =======
@@ -43,9 +49,12 @@ C = Crate1
 D = Crate2
 X = Player1 and Crate2
 Z = Crate1 and Crate2
+G = Gem1
+H = Gem2
 # = Wall
 Crate = Crate1 or Crate2
 Player = Player1 or Player2
+Gem = Gem1 or Gem2
 
 ======
 SOUNDS
@@ -58,6 +67,8 @@ Background
 Target
 Player1, Crate1, Wall
 Player2, Crate2
+Gem1
+Gem2
 
 ======
 RULES
@@ -98,7 +109,7 @@ function cellObjectNames(index) {
     const level = global.eval('level');
     const cell = level.getCell(index);
     const names = [];
-    for (const name of ['player1', 'player2', 'crate1', 'crate2']) {
+    for (const name of ['player1', 'player2', 'crate1', 'crate2', 'gem1', 'gem2']) {
         if (cell.get(state.objects[name].id)) {
             names.push(name);
         }
@@ -190,6 +201,22 @@ test('coalesces one same-cell property movement term beside fixed layer terms', 
     assertCell(0, [], 'left cell should remain empty');
     assertCell(1, [], 'source cell should be empty after both objects move');
     assertCell(2, ['player1', 'crate2'], 'only the compatible crate layer should move with player1');
+});
+
+test('coalesces multiple same-cell property movement terms with disjoint layers', () => {
+    const state = compileSource(baseSource(
+        'right [ > Player > Gem ] -> [ > Player > Gem ]',
+        'PG'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('keeps overlapping same-cell property movement terms on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ > Player > Crate ] -> [ > Player > Crate ]',
+        'PX'
+    ));
+    assert.ok(ruleCount(state) > 1);
 });
 
 test('keeps multi-cell preserved layer-coupled properties on the expansion path', () => {

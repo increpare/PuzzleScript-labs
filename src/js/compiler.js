@@ -1226,6 +1226,33 @@ function forEachPropertyAliasLayer(state, propertyName, callback) {
     }
 }
 
+function propertyAliasLayerSet(state, propertyName, excludedLayers) {
+    const layers = {};
+    forEachPropertyAliasLayer(state, propertyName, layer => {
+        if (!excludedLayers || !excludedLayers[layer]) {
+            layers[layer] = true;
+        }
+    });
+    return layers;
+}
+
+function layerSetHasAny(layers) {
+    return Object.keys(layers).length > 0;
+}
+
+function layerSetsOverlap(layers1, layers2) {
+    for (const layer of Object.keys(layers1)) {
+        if (layers2[layer]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function layerSetContainsLayer(layers, layer) {
+    return layers[layer] === true;
+}
+
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
     if (rule.rhs.length === 0 ||
         rule.rigid ||
@@ -1252,8 +1279,8 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
                 return false;
             }
 
-            let layerCoupledTermCount = 0;
-            let layerCoupledTermName = null;
+            const fixedLayers = {};
+            const layerCoupledTerms = [];
 
             for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
                 const dir_l = cell_l[termIndex];
@@ -1273,34 +1300,29 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
 
                 if (isLayerCoupledProperty(state, name_l)) {
                     sawLayerCoupledProperty = true;
-                    layerCoupledTermCount++;
-                    layerCoupledTermName = name_l;
+                    layerCoupledTerms.push(name_l);
                     if (dir_l !== '' || dir_r !== '') {
                         sawMovementEffect = true;
                     }
-                } else if (dir_l !== dir_r) {
-                    sawMovementEffect = true;
+                } else {
+                    const fixedLayer = objectOrSingleLayerPropertyLayer(state, name_l);
+                    if (fixedLayer !== null) {
+                        fixedLayers[fixedLayer] = true;
+                    }
+                    if (dir_l !== dir_r) {
+                        sawMovementEffect = true;
+                    }
                 }
             }
 
-            if (layerCoupledTermCount > 1) {
-                return false;
-            }
-            if (layerCoupledTermCount === 1 && cell_l.length > 2) {
-                const coupledLayers = {};
-                forEachPropertyAliasLayer(state, layerCoupledTermName, layer => {
-                    coupledLayers[layer] = true;
-                });
-                for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
-                    const name = cell_l[termIndex + 1];
-                    if (name === layerCoupledTermName) {
-                        continue;
-                    }
-                    const layer = objectOrSingleLayerPropertyLayer(state, name);
-                    if (layer !== null && coupledLayers[layer]) {
-                        return false;
-                    }
+            const occupiedCoupledLayers = {};
+            for (let i = 0; i < layerCoupledTerms.length; i++) {
+                const coupledLayers = propertyAliasLayerSet(state, layerCoupledTerms[i], fixedLayers);
+                if (!layerSetHasAny(coupledLayers) ||
+                    layerSetsOverlap(occupiedCoupledLayers, coupledLayers)) {
+                    return false;
                 }
+                Object.assign(occupiedCoupledLayers, coupledLayers);
             }
         }
     }
@@ -1333,8 +1355,8 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
                 return false;
             }
 
-            let propertyTermName = null;
             const fixedLayers = {};
+            const propertyTerms = [];
 
             for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
                 const dir_l = cell_l[termIndex];
@@ -1346,11 +1368,15 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
                 }
 
                 if (state.propertiesDict.hasOwnProperty(name_l)) {
-                    if (propertyTermName !== null ||
-                        !state.objects.hasOwnProperty(name_r)) {
+                    if (!state.objects.hasOwnProperty(name_r)) {
                         return false;
                     }
-                    propertyTermName = name_l;
+                    const destinationLayer = state.objects[name_r].layer | 0;
+                    propertyTerms.push({
+                        name: name_l,
+                        destinationLayer,
+                        aliasLayers: propertyAliasLayerSet(state, name_l)
+                    });
                     propertyRewriteCount++;
                 } else if (state.objects.hasOwnProperty(name_l)) {
                     if (name_l !== name_r) {
@@ -1362,16 +1388,34 @@ function shouldCoalescePropertyObjectRewriteRule(state, rule) {
                 }
             }
 
-            if (propertyTermName !== null) {
-                let overlap = false;
-                forEachPropertyAliasLayer(state, propertyTermName, layer => {
-                    if (fixedLayers[layer]) {
-                        overlap = true;
-                    }
-                });
-                if (overlap) {
+            const occupiedAliasLayers = {};
+            const destinationLayers = {};
+            const seenProperties = {};
+            for (let i = 0; i < propertyTerms.length; i++) {
+                const term = propertyTerms[i];
+
+                if (seenProperties[term.name] ||
+                    layerSetsOverlap(fixedLayers, term.aliasLayers) ||
+                    destinationLayers[term.destinationLayer]) {
                     return false;
                 }
+
+                for (let j = 0; j < propertyTerms.length; j++) {
+                    if (i === j) {
+                        continue;
+                    }
+                    if (layerSetContainsLayer(term.aliasLayers, propertyTerms[j].destinationLayer)) {
+                        return false;
+                    }
+                }
+
+                if (layerSetsOverlap(occupiedAliasLayers, term.aliasLayers)) {
+                    return false;
+                }
+
+                seenProperties[term.name] = true;
+                destinationLayers[term.destinationLayer] = true;
+                Object.assign(occupiedAliasLayers, term.aliasLayers);
             }
         }
     }
@@ -1421,6 +1465,7 @@ function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
                 const name_l = cell_l[termIndex + 1];
 
                 if (!isLayerCoupledProperty(state, name_l) ||
+                    dir_l !== '' ||
                     ambiguousProperties[name_l] === true) {
                     continue;
                 }

@@ -160,3 +160,57 @@ Concrete rule-count probes:
 | `Wand Spinner.txt` | 51 -> 51 | no phase-3b hit |
 | `constellationz.txt` | 4 -> 4 | no phase-3b hit |
 | `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |
+
+## 2026-05-17 phase 3c multiple same-cell properties
+
+Baseline: `b6cfe0da` (`Preserve safe single-cell coupled properties`).
+After: this commit.
+
+This phase adds pairwise layer-disjoint validation for multiple same-cell
+properties in the movement and property-rewrite coalescers. The checked-in
+focus games did not contain a new rule-count hit for this shape; coverage comes
+from focused synthetic fixtures.
+
+Commands used for the focus runs:
+
+```sh
+node src/tests/run_solver_tests_js.js src/tests/solver_tests \
+  --solver-focus-manifest <manifest> \
+  --timeout-ms <manifest timeout> \
+  --strategy portfolio \
+  --quiet --json --no-solutions
+```
+
+| Group | Timeout | Result | Compile ms | Solver elapsed ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 9 solved / 41 timeout / 0 errors both before and after | 233.6 -> 259.9 (+11.3%) | 23102 -> 23130 (+0.1%) | 18718.7 -> 18750.8 (+0.2%) | 250856 -> 251325 (+0.2%) | 1226115 -> 1228510 (+0.2%) |
+| `solver_focus_long_group.json` | 2000 ms | 49 solved / 1 timeout / 0 errors both before and after | 253.2 -> 239.1 (-5.5%) | 45792 -> 44733 (-2.3%) | 37043.4 -> 36201.6 (-2.3%) | 476258 -> 475058 (-0.3%) | 2333673 -> 2327684 (-0.3%) |
+
+Largest speedups:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `Vexatious Match 3.txt` L8 | 186 ms | 183 ms | -3 ms |
+| `solver_focus_group.json` | `sokobond demake.txt` L20 | 71 ms | 68 ms | -3 ms |
+| `solver_focus_long_group.json` | `constellationz.txt` L6 | 1080 ms | 638 ms | -442 ms |
+| `solver_focus_long_group.json` | `witch lifter.txt` L1 | 711 ms | 621 ms | -90 ms |
+| `solver_focus_long_group.json` | `pushit.txt` L1 | 1799 ms | 1730 ms | -69 ms |
+
+Largest positive elapsed deltas:
+
+| Group | Target | Before | After | Delta |
+| --- | --- | ---: | ---: | ---: |
+| `solver_focus_group.json` | `paint everything everywhere.txt` L9 | 415 ms | 450 ms | +35 ms |
+| `solver_focus_group.json` | `heroes_of_sokoban_3.txt` L10 | 444 ms | 446 ms | +2 ms |
+| `solver_focus_long_group.json` | `mazezam.txt` L55 | 1041 ms | 1060 ms | +19 ms |
+| `solver_focus_long_group.json` | `SWIMMING TIME.txt` L2 | 1260 ms | 1277 ms | +17 ms |
+| `solver_focus_long_group.json` | `dollyban.txt` L9 | 1394 ms | 1408 ms | +14 ms |
+
+Concrete rule-count probes:
+
+| Game | Total rules | Notes |
+| --- | ---: | --- |
+| `paint everything everywhere.txt` | 105 -> 105 | no phase-3c hit |
+| `Wand Spinner.txt` | 51 -> 51 | no phase-3c hit |
+| `constellationz.txt` | 4 -> 4 | no phase-3c hit |
+| `match three billiards.txt` | 33 -> 33 | already optimized by earlier coalescing |
