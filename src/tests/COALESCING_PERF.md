@@ -720,3 +720,39 @@ Additional verification:
 | `make solver_smoke_tests` | passed, 7 cases |
 | `make solver_parity_smoke` | passed, 7 cases |
 | `node src/tests/run_tests_node.js` | passed, 742 / 742; Simulation 8.67s, Error messages 0.46s |
+
+## 2026-05-18 phase 5c inferred RHS property bindings design spike
+
+Baseline: `d52667df` (`Coalesce safe single-row preserved properties`).
+After: this commit.
+
+This spike renames the old "identity propagation" framing to **inferred RHS
+property bindings**. The important semantic line is that independent LHS
+property terms stay independent:
+
+```txt
+[ Prop | Prop ]
+```
+
+still means any `Prop` in the first cell and any `Prop` in the second cell.
+The proposed runtime binding only applies to RHS property or movement aggregate
+terms that the existing compiler already infers from a unique LHS occurrence.
+
+No compiler/runtime optimization is enabled in this commit, so rule counts and
+solver performance are intentionally unchanged. The current high-count 5c
+targets remain:
+
+| Game | Source line | Current concrete rules |
+| --- | ---: | ---: |
+| `hungry kraken.txt` | 598 | 108 |
+| `easyenigma.txt` | 1074 | 100 |
+| `easyenigma.txt` | 1075 | 100 |
+| `robotarm.txt` | 366 | 80 |
+| `Voitex Rasteriser 2.txt` | 271 / 276 / 281 / 286 | 72 each |
+
+Additional verification:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742; Simulation 8.07s, Error messages 0.42s |
