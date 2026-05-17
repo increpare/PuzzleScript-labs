@@ -2,6 +2,7 @@
   "scripts": {
     "test:node": "node src/tests/run_tests_node.js",
     "test:layer-coupled-movement": "node src/tests/run_layer_coupled_movement_node.js",
+    "test:property-rewrite-coalescing": "node src/tests/run_property_rewrite_coalescing_node.js",
     "native:export-fixtures": "node src/tests/js_oracle/export_native_fixtures.js",
     "native:export-ir": "node src/tests/js_oracle/export_ir_json.js",
     "native:export-trace": "node src/tests/js_oracle/export_execution_trace.js",

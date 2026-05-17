@@ -1233,6 +1233,64 @@ function cellHasEllipsis(cell) {
     return cell.length === 2 && cell[0] === '...';
 }
 
+function couldCoalesceLayerCoupledMovementRule(state, rule) {
+    if (rule.rhs.length === 0 ||
+        rule.commands.length > 0 ||
+        rule.rigid ||
+        rule.randomRule ||
+        rule.late) {
+        return false;
+    }
+
+    let sawLayerCoupledProperty = false;
+    let sawMovementEffect = false;
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const row_l = rule.lhs[rowIndex];
+        const row_r = rule.rhs[rowIndex];
+        if (row_l.length !== row_r.length) {
+            return false;
+        }
+
+        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
+            const cell_l = row_l[colIndex];
+            const cell_r = row_r[colIndex];
+
+            if (cellHasEllipsis(cell_l) || cellHasEllipsis(cell_r) || cell_l.length !== cell_r.length) {
+                return false;
+            }
+
+            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                const dir_l = cell_l[termIndex];
+                const name_l = cell_l[termIndex + 1];
+                const dir_r = cell_r[termIndex];
+                const name_r = cell_r[termIndex + 1];
+
+                if (name_l !== name_r ||
+                    !isLayerCoupledMovementDir(dir_l) ||
+                    !isLayerCoupledMovementDir(dir_r)) {
+                    return false;
+                }
+
+                if (isLayerCoupledProperty(state, name_l)) {
+                    sawLayerCoupledProperty = true;
+                    if (dir_l !== '' || dir_r !== '' || dir_l !== dir_r) {
+                        sawMovementEffect = true;
+                    }
+                } else if (dir_l !== dir_r) {
+                    sawMovementEffect = true;
+                }
+
+                if (sawLayerCoupledProperty && sawMovementEffect) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 function shouldCoalesceLayerCoupledMovementRule(state, rule) {
     if (rule.rhs.length === 0 ||
         rule.commands.length > 0 ||
@@ -1313,6 +1371,82 @@ function shouldCoalesceLayerCoupledMovementRule(state, rule) {
     return sawLayerCoupledProperty && sawMovementEffect;
 }
 
+function propertyObjectRewriteSourceLayersOverlap(state, propertyName, fixedLayers) {
+    const aliases = state.propertiesDict[propertyName] || [];
+    for (let i = 0; i < aliases.length; i++) {
+        const object = state.objects[aliases[i]];
+        if (object && fixedLayers[object.layer | 0]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function shouldCoalescePropertyObjectRewriteRule(state, rule) {
+    if (rule.rhs.length === 0 ||
+        rule.rigid ||
+        rule.randomRule ||
+        rule.late) {
+        return false;
+    }
+
+    let propertyRewriteCount = 0;
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const row_l = rule.lhs[rowIndex];
+        const row_r = rule.rhs[rowIndex];
+        if (row_l.length !== row_r.length) {
+            return false;
+        }
+
+        for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
+            const cell_l = row_l[colIndex];
+            const cell_r = row_r[colIndex];
+
+            if (cellHasEllipsis(cell_l) || cellHasEllipsis(cell_r) || cell_l.length !== cell_r.length) {
+                return false;
+            }
+
+            let propertyTermName = null;
+            const fixedLayers = {};
+
+            for (let termIndex = 0; termIndex < cell_l.length; termIndex += 2) {
+                const dir_l = cell_l[termIndex];
+                const name_l = cell_l[termIndex + 1];
+                const dir_r = cell_r[termIndex];
+                const name_r = cell_r[termIndex + 1];
+
+                if (dir_l !== '' || dir_r !== '') {
+                    return false;
+                }
+
+                if (state.propertiesDict.hasOwnProperty(name_l)) {
+                    if (propertyTermName !== null ||
+                        !state.objects.hasOwnProperty(name_r)) {
+                        return false;
+                    }
+                    propertyTermName = name_l;
+                    propertyRewriteCount++;
+                } else if (state.objects.hasOwnProperty(name_l)) {
+                    if (name_l !== name_r) {
+                        return false;
+                    }
+                    fixedLayers[state.objects[name_l].layer | 0] = true;
+                } else {
+                    return false;
+                }
+            }
+
+            if (propertyTermName !== null &&
+                propertyObjectRewriteSourceLayersOverlap(state, propertyTermName, fixedLayers)) {
+                return false;
+            }
+        }
+    }
+
+    return propertyRewriteCount > 1;
+}
+
 //returns you a list of object names in that cell that're moving
 function getMovings(state, cell) {
     let result = [];
@@ -1383,8 +1517,14 @@ function concretizePropertyRule(state, rule, lineNumber) {
         }
     }
 
-    if (shouldCoalesceLayerCoupledMovementRule(state, rule)) {
+    if (couldCoalesceLayerCoupledMovementRule(state, rule) &&
+        shouldCoalesceLayerCoupledMovementRule(state, rule)) {
         rule.layerCoupledMovementRule = true;
+        return [rule];
+    }
+
+    if (shouldCoalescePropertyObjectRewriteRule(state, rule)) {
+        rule.propertyObjectRewriteRule = true;
         return [rule];
     }
 
@@ -1948,6 +2088,25 @@ function movementTermHasRuntimeEffect(lhsDir, rhsDir) {
     return lhsDir !== rhsDir || lhsDir !== '';
 }
 
+function applyPropertyObjectRewriteClears(state, rhsBitVectors, propertyName, destinationLayer) {
+    rhsBitVectors.objectsClear.ior(state.objectMasks[propertyName]);
+
+    const aliases = state.propertiesDict[propertyName] || [];
+    const clearedLayers = {};
+    for (let i = 0; i < aliases.length; i++) {
+        const object = state.objects[aliases[i]];
+        if (!object) {
+            continue;
+        }
+        const layer = object.layer | 0;
+        if (layer === destinationLayer || clearedLayers[layer]) {
+            continue;
+        }
+        rhsBitVectors.postMovementsLayerMask_r.ishiftor(0x1f, 5 * layer);
+        clearedLayers[layer] = true;
+    }
+}
+
 function getOverlapObjectNames(state, objects1,objects2){
     //given two bitvecs, return an array of object names that are present in both
     let result=[];
@@ -2200,6 +2359,16 @@ function rulesToMask(state) {
                             rhsBitVectors.objectsSet.ibitset(object.id);
                             rhsBitVectors.objectsClear.ior(layerMask);
                             rhsBitVectors.objectlayers_r.ishiftor(0x1f, STRIDE_5 * layerIndex);
+
+                            if (rule.propertyObjectRewriteRule) {
+                                const lhs_dir = cell_l[i];
+                                const lhs_name = cell_l[i + 1];
+                                if (lhs_dir === '' &&
+                                    object_dir === '' &&
+                                    state.propertiesDict.hasOwnProperty(lhs_name)) {
+                                    applyPropertyObjectRewriteClears(state, rhsBitVectors, lhs_name, layerIndex);
+                                }
+                            }
                         }
 
                         if (object_dir === 'stationary') {
