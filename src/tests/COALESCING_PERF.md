@@ -756,3 +756,30 @@ Additional verification:
 | --- | --- |
 | `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed |
 | `node src/tests/run_tests_node.js` | passed, 742 / 742; Simulation 8.07s, Error messages 0.42s |
+
+## 2026-05-18 phase 6 step 1: unified coalescing-plan entry point
+
+Baseline: `359beb13` (`Extract shared Node test harness`).
+After: this commit.
+
+This commit introduces a single unified entry point, `getCoalescingPlan`,
+that replaces four sequential `shouldCoalesce*` short-circuits plus a
+preserved-helper call inside `concretizePropertyRule`. The new entry
+point returns `{ skippable, hasRewriteTerm }`; the splitter consults
+`skippable` instead of the previous `preservedLayerCoupledProperties`.
+The rule-level rewrite flag is renamed
+`rule.propertyObjectRewriteRule` → `rule.hasInferredPropertyRewriteTerm`
+to match what the runtime gate (`applyPropertyObjectRewriteClears`)
+actually checks for.
+
+Step 1 keeps the legacy predicates intact — `getCoalescingPlan`
+delegates to them — so the change is a pure refactor. Step 2 (a later
+commit) can inline each predicate into the walker and delete the
+menagerie.
+
+Parity validation: rule-count probe over all 184 games in
+`src/tests/solver_tests/` shows bit-identical totals before vs after.
+The four checked-in Node test suites pass with no fixture changes:
+`run_tests_node.js` (742 / 742), `run_layer_coupled_movement_node.js`
+(24 fixtures), `run_property_rewrite_coalescing_node.js` (9 fixtures),
+`run_inferred_rhs_property_bindings_node.js` (4 fixtures).

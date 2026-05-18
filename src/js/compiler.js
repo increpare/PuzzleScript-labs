@@ -1775,29 +1775,56 @@ function concretizeMovingInCellByAmbiguousMovementName(cell, ambiguousMovement, 
     }
 }
 
-function concretizePropertyRule(state, rule, lineNumber) {
-
+// Phase 6 unified entry point: returns { skippable, hasRewriteTerm }.
+// `skippable` is the set of layer-coupled property names the splitter should
+// treat as already-handleable (no Cartesian expansion needed). `hasRewriteTerm`
+// is true iff any term in the rule is an LHS-property → RHS-concrete-object
+// rewrite, which the runtime needs to know to fire `applyPropertyObjectRewriteClears`.
+//
+// Internally this dispatches to the existing legacy predicates (one of the
+// four shouldCoalesce* short-circuits, else the preservation-only helper)
+// and produces a single unified plan object. Subsequent commits can inline
+// each legacy predicate into this walker and delete the menagerie.
+function getCoalescingPlan(state, rule, ambiguousProperties) {
     if (shouldCoalesceLayerCoupledMovementRule(state, rule)) {
-        return [rule];
+        return { skippable: collectCoupledPropertiesInRule(state, rule), hasRewriteTerm: false };
     }
-
     if (shouldCoalescePropertyObjectRewriteRule(state, rule)) {
-        rule.propertyObjectRewriteRule = true;
-        return [rule];
+        return { skippable: collectCoupledPropertiesInRule(state, rule), hasRewriteTerm: true };
     }
-
     if (shouldCoalesceMixedPropertyRule(state, rule)) {
-        rule.propertyObjectRewriteRule = true;
-        return [rule];
+        return { skippable: collectCoupledPropertiesInRule(state, rule), hasRewriteTerm: true };
     }
-
     if (shouldCoalesceCommandOnlyRule(state, rule)) {
-        return [rule];
+        return { skippable: collectCoupledPropertiesInRule(state, rule), hasRewriteTerm: false };
     }
+    return {
+        skippable: getPreservedLayerCoupledProperties(state, rule, ambiguousProperties),
+        hasRewriteTerm: false,
+    };
+}
 
-    //are there any properties we could avoid processing?
-    // e.g. [> player | movable] -> [> player | > movable],
-    // 		doesn't need to be split up (assuming single-layer player/block aggregates)
+function collectCoupledPropertiesInRule(state, rule) {
+    const result = {};
+    const collect = function(rows) {
+        for (let j = 0; j < rows.length; j++) {
+            const row = rows[j];
+            for (let k = 0; k < row.length; k++) {
+                const cell = row[k];
+                for (let i = 0; i < cell.length; i += 2) {
+                    const name = cell[i + 1];
+                    if (isLayerCoupledProperty(state, name)) result[name] = true;
+                }
+            }
+        }
+    };
+    collect(rule.lhs);
+    collect(rule.rhs);
+    return result;
+}
+
+
+function concretizePropertyRule(state, rule, lineNumber) {
 
     // we can't manage this if they're being used to disambiguate
     let ambiguousProperties = {};
@@ -1817,7 +1844,11 @@ function concretizePropertyRule(state, rule, lineNumber) {
         }
     }
 
-    const preservedLayerCoupledProperties = getPreservedLayerCoupledProperties(state, rule, ambiguousProperties);
+    const plan = getCoalescingPlan(state, rule, ambiguousProperties);
+    if (plan.hasRewriteTerm) {
+        rule.hasInferredPropertyRewriteTerm = true;
+    }
+    const skippableProperties = plan.skippable;
 
     let shouldremove;
     let result = [rule];
@@ -1842,7 +1873,7 @@ function concretizePropertyRule(state, rule, lineNumber) {
                             continue;
                         }
 
-                        if (preservedLayerCoupledProperties[property]) {
+                        if (skippableProperties[property]) {
                             continue;
                         }
 
@@ -2611,7 +2642,7 @@ function rulesToMask(state) {
                             rhsBitVectors.objectsClear.ior(layerMask);
                             rhsBitVectors.objectlayers_r.ishiftor(0x1f, STRIDE_5 * layerIndex);
 
-                            if (rule.propertyObjectRewriteRule) {
+                            if (rule.hasInferredPropertyRewriteTerm) {
                                 const lhs_dir = cell_l[i];
                                 const lhs_name = cell_l[i + 1];
                                 if (lhs_dir === '' &&
