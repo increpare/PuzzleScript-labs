@@ -783,3 +783,42 @@ The four checked-in Node test suites pass with no fixture changes:
 `run_tests_node.js` (742 / 742), `run_layer_coupled_movement_node.js`
 (24 fixtures), `run_property_rewrite_coalescing_node.js` (9 fixtures),
 `run_inferred_rhs_property_bindings_node.js` (4 fixtures).
+
+## 2026-05-18 phase 6 step 2: absorb legacy predicates into the unified walker
+
+Baseline: `dce43a4e` (`Unify coalescing dispatch into getCoalescingPlan walker`).
+After: this commit.
+
+This step inlines all five legacy coalescing entry points into the single
+`getCoalescingPlan` walker and deletes them:
+
+- `shouldCoalesceLayerCoupledMovementRule`
+- `shouldCoalescePropertyObjectRewriteRule`
+- `shouldCoalesceMixedPropertyRule`
+- `shouldCoalesceCommandOnlyRule`
+- `getPreservedLayerCoupledProperties`
+- (plus the local helper `shouldAllowMultiCellPreservedLayerCoupledProperties`)
+
+The new walker performs one structural traversal of the rule. Each cell is
+visited once. Per-mode validity is tracked as a set of sticky-false flags,
+and the dispatch at the end matches the legacy order
+(movement → rewrite → mixed → command-only → preserved). Per-cell post-checks
+(layer-disjointness via `propertyAliasLayerSet` / `layerSetsOverlap` /
+`propertyRewriteTermsAreLayerDisjoint`) run per-mode against the
+mode-specific tracker arrays accumulated during the walk.
+
+Parity validation:
+
+| Probe | Result |
+| --- | --- |
+| Rule-count probe across all 184 games in `src/tests/solver_tests/` | Bit-identical vs both Step 1 (`dce43a4e`) and pre-Phase-6 baseline |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 24 fixtures |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+
+Net diff: `src/js/compiler.js` is `+288 / −440` lines, a `−152` line reduction.
+The five legacy predicate definitions plus their shared row/cell/term
+structural walks collapse into one walker with explicit per-mode
+trackers and one dispatch tail. New term shapes plug in by adding a
+mode arm.
