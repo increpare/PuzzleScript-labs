@@ -822,3 +822,50 @@ The five legacy predicate definitions plus their shared row/cell/term
 structural walks collapse into one walker with explicit per-mode
 trackers and one dispatch tail. New term shapes plug in by adding a
 mode arm.
+
+## 2026-05-18 phase 6.5 R2: relax multi-cell preserved-only safety guard
+
+Baseline: `7ce4a5e8` (`Absorb legacy coalescing predicates into the unified walker`).
+After: this commit.
+
+The legacy `getPreservedLayerCoupledProperties` enforced a per-cell safety
+guard: every cell that differs between LHS and RHS must contribute at
+least one preserved layer-coupled property candidate; otherwise no
+property in the rule is preserved. This was added after the Phase 4e
+spike (commit `47c94342`) when a broader relaxation tripped an
+intentional guard test.
+
+This commit drops that per-cell guard. The rule-level multi-cell gate
+(no commands, no randomRule, no rigid, single row, multi-cell) still
+applies; only the per-cell "candidate-per-changed-cell" check is removed.
+
+Rule-count probe across all 184 solver corpus games:
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `Eyeball-watching flowers bloom.txt` | 114 | 98 | −16 |
+| `puzzles.txt` | 91 | 79 | −12 |
+| `Putting Bicycle Helmets on Young Children.txt` | 72 | 68 | −4 |
+| `BIAXIAL INVASION OF SATURN.txt` | 58 | 57 | −1 |
+| `a clear view of the sky.txt` | 56 | 55 | −1 |
+
+Five games show reductions, zero games show increases, 179 games
+unchanged. Total `−34` rules.
+
+Behaviour parity validated via a deterministic-replay probe: each of
+the 184 corpus games loaded with `compile(['restart'], src,
+'phase6-replay-seed')`, then exercised with a fixed 20-input sequence
+(right/down/left/up/action mix) on its first two non-message levels.
+Level-state SHA-256 fingerprints compared before vs after: 182 games
+identical, 0 different (2 skipped due to compile errors). The probe is
+deterministic across baseline-vs-baseline reruns (verified 0 diffs).
+
+Additional verification:
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 24 fixtures |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| Deterministic-replay probe (184 games, 20-input sequence) | 0 behaviour diffs |

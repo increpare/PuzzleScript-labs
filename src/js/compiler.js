@@ -1457,8 +1457,6 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
             const mixedMovementTerms = [];
             const mixedPropertyTerms = [];
             const preservedSeenInCell = {};
-            let preservedCellHasCandidate = false;
-            const cellDiffersFromRhs = cell_r ? !ruleCellTermsEqual(cell_l, cell_r) : false;
 
             for (let i = 0; i < cell_l.length; i += 2) {
                 const dir_l = cell_l[i];
@@ -1581,7 +1579,6 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                         preservedSeenInCell[name_l] = true;
                         if (preservedCandidateStatus[name_l] !== false) {
                             preservedCandidateStatus[name_l] = true;
-                            preservedCellHasCandidate = true;
                         }
                     }
                 }
@@ -1639,11 +1636,6 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 }
             }
 
-            // Preserved-mode multi-cell safety: every changed cell must
-            // contribute a preserved candidate.
-            if (preservedValid && !singleCellRule && cellDiffersFromRhs && !preservedCellHasCandidate) {
-                preservedValid = false;
-            }
         }
     }
 
