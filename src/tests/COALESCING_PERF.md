@@ -869,3 +869,27 @@ Additional verification:
 | `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
 | `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
 | Deterministic-replay probe (184 games, 20-input sequence) | 0 behaviour diffs |
+
+## 2026-05-19 phase 6.5 R1 / R3 / rewrite-count: negative findings
+
+R2 landed in `559ff564`. The remaining candidate relaxations were tested
+empirically and all turned out to be either zero-benefit or unsafe. No
+code change shipped.
+
+| Relaxation | Approach | Corpus rule-count | Behaviour (deterministic-replay, seeded) | Verdict |
+| --- | --- | --- | --- | --- |
+| R1: drop `sawMovementEffect` from movement-mode acceptance | Walker accepts movement-mode for any rule with name-matching terms in `LAYER_COUPLED_MOVEMENT_DIRS`, even with no movement effect | 0 changes (184 same) | 0 diffs (182 same, 2 compile-skip) | No corpus benefit; trips the `keeps multi-cell preserved layer-coupled properties on the expansion path` canary fixture. Not worth shipping. |
+| Drop `propertyRewriteCount > 1` (rewrite-mode count gate) | Rewrite-mode fires for single rewrites as well | (not measured) | `gallery: vacuum` + `(NSFW / censored) Tugging…` simulation tests FAIL | Real semantic regression. The count gate is load-bearing for at least these recorded sessions. Not safe. |
+| R3: drop mixed-mode's movement-vs-rewrite cross-check (movement-term layers may overlap rewrite-term alias / destination layers) | Walker keeps the per-cell pairwise disjointness on movement-vs-self and propertyRewriteTermsAreLayerDisjoint but drops the cross-check loop | 0 changes (184 same) | 0 diffs | Dead defensive code on the current corpus, but the check is principled (`applyPropertyObjectRewriteClears` would otherwise wipe coupled-movement bits on the rewrite property's alias layers). Kept as safety. |
+
+Lessons:
+- The walker's legacy-derived restrictions are tight to the current corpus's
+  actual needs. Phase 6.5 R2 (multi-cell preserved per-cell guard) was the
+  exception — that one was over-conservative.
+- The deterministic-replay probe with seeded RNG (`compile(['restart'],
+  src, 'phase6-replay-seed')`) is the right safety net for further
+  relaxation attempts. Without seeding it produces ~9 false-positive
+  diffs per run.
+- Probe / corpus scripts used (cleaned up after each experiment):
+  `/tmp/replay_probe_full.js` (184-game state-fingerprint diff) and
+  `/tmp/corpus_rulecount.js` (per-game rule count).
