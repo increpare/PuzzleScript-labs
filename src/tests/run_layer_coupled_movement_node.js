@@ -265,6 +265,15 @@ test('coalesces safe single-row multi-cell preserved properties', () => {
     assert.strictEqual(ruleCount(state), 1);
 });
 
+test('coalesces late single-row multi-cell preserved properties', () => {
+    const state = compileSource(baseSource(
+        'late right [ Crate Target | Player no Target ] -> [ Crate Target | Player Target ]',
+        'CP'
+    ));
+    assert.strictEqual(state.lateRules.reduce((sum, group) => sum + group.length, 0), 1);
+    assert.strictEqual(ruleCount(state), 0);
+});
+
 test('keeps multi-row preserved properties on the expansion path', () => {
     const state = compileSource(baseSource(
         '[ Player1 no Target ] [ Gem ] -> [ Player1 Target ] [ Gem Wall ]',

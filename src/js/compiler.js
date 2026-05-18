@@ -1638,6 +1638,11 @@ function ruleCellTermsEqual(cell_l, cell_r) {
 }
 
 function shouldAllowMultiCellPreservedLayerCoupledProperties(rule) {
+    // `commands` and `randomRule` are excluded because rules like "At the
+    // Hedges of Time" use split alias order plus Stop writes to choose a
+    // single matching alias. `late` is not excluded: the parser already
+    // rejects movement terms in late rules, so the preservation semantics
+    // here (dir-empty terms only) compose cleanly with `late` firing.
     if (rule.commands.length > 0 ||
         rule.randomRule ||
         rule.rigid ||
@@ -1663,6 +1668,10 @@ function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
         return {};
     }
 
+    // candidateStatus is sticky-false across the rule: once a cell rejects a
+    // name (cell-local dup or fails `canPreserve`), no later cell may
+    // re-promote it. `seenPropertiesInCell` resets per cell to catch
+    // duplicate appearances of the same property inside one cell.
     const candidateStatus = {};
 
     for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
@@ -1675,6 +1684,10 @@ function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
         for (let colIndex = 0; colIndex < row_l.length; colIndex++) {
             const cell_l = row_l[colIndex];
             const cell_r = row_r[colIndex];
+
+            if (cell_l.length !== cell_r.length) {
+                return {};
+            }
 
             const seenPropertiesInCell = {};
             let cellHasPreservedCandidate = false;
@@ -1689,7 +1702,6 @@ function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
 
                 const canPreserve = dir_l === '' &&
                     ambiguousProperties[name_l] !== true &&
-                    termIndex + 1 < cell_r.length &&
                     cell_r[termIndex] === '' &&
                     cell_r[termIndex + 1] === name_l &&
                     !cellHasNoTermOverlappingProperty(state, cell_l, name_l);
@@ -1706,6 +1718,9 @@ function getPreservedLayerCoupledProperties(state, rule, ambiguousProperties) {
                 }
             }
 
+            // Every cell that differs from its RHS counterpart must contribute
+            // at least one preserved candidate; otherwise the rule has
+            // cell-local rewrites we can't carry across the splitter skip.
             if (multiCellRule &&
                 !ruleCellTermsEqual(cell_l, cell_r) &&
                 !cellHasPreservedCandidate) {

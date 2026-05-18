@@ -51,39 +51,43 @@ Both passes currently encode inference by making more concrete rules. Phase 5c
 should move only the inference payload to runtime; it should not change which
 rules are inferable.
 
-## Runtime Model
+## Runtime Model (proposed, to be confirmed during planning)
 
-The proposed runtime model is:
+A sketch of one viable runtime model:
 
 1. Match functions remain pure predicates. They test each LHS property term
    independently, just as today.
-2. Before replacements run, `Rule.applyAt()` captures inferred bindings from
-   source cells in the matched tuple. This must happen before any replacement
-   mutates the board.
-3. `CellReplacement` receives the binding context and uses it to compute dynamic
-   object set/clear masks and movement set/clear masks for RHS terms that are
-   explicitly marked as inferred.
-4. If a rule shape cannot be represented without changing existing inference or
-   alias-priority semantics, it stays on the old expansion path.
+2. Before replacements run, the rule firing path captures inferred bindings
+   from source cells in the matched tuple. This must happen before any
+   replacement mutates the board.
+3. `CellReplacement` receives the binding context and uses it to compute
+   dynamic object set/clear masks and movement set/clear masks for RHS terms
+   that are explicitly marked as inferred.
+4. If a rule shape cannot be represented without changing existing inference
+   or alias-priority semantics, it stays on the old expansion path.
 
 The binding context is per rule application, not global state. It should be
-small and scratch-like: source row/cell/term references, inferred object id or
-layer, and inferred movement bits where needed.
+small and scratch-like: source row/cell/term references, inferred object id
+or layer, and inferred movement bits where needed.
 
-## Conservative First Slice
+Concrete attachment points (which struct owns the binding capture, which
+rule-fire pass invokes it) and any engine-side iteration changes belong to the
+implementation plan, not this design.
 
-Start with tests and metadata for the semantics, then implement runtime support
+## Candidate First Slice (to evaluate during planning)
+
+Start with tests and metadata for the semantics, then evaluate runtime support
 in small steps.
 
-The first runtime implementation should prefer movement writes where the target
-cell already constrains the relevant object/layer. That proves the capture and
-replacement plumbing without immediately handling object creation.
+One candidate first runtime slice: handle movement writes where the target
+cell already constrains the relevant object/layer. That would prove the
+capture and replacement plumbing without immediately handling object creation.
 
 Object creation into an unconstrained or `no Property` target, such as the
 `hungry kraken` growth rule, is the riskiest part. The old expanded rules have
 alias ordering, and repeated rule application can use earlier alias writes to
-block later aliases. V1 may either emulate that ordering explicitly or
-conservatively leave those rules expanded.
+block later aliases. A first implementation may either emulate that ordering
+explicitly or conservatively leave those rules expanded.
 
 ## Required Tests
 
