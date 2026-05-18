@@ -6,6 +6,20 @@ const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 
 loadPuzzleScript();
 
+const {
+    test,
+    compileSource,
+    compileSourceAllowingMessages,
+    ruleCount,
+    lateRuleCount,
+    makeCellInspector,
+    runTick,
+    runRight,
+} = require('./lib/node_test_harness');
+const { cellObjectNames, assertCell } = makeCellInspector(
+    ['player1', 'player2', 'crate1', 'crate2', 'gem1', 'gem2']
+);
+
 function baseSource(rules, level) {
     return `title layer coupled movement
 
@@ -84,62 +98,6 @@ LEVELS
 =======
 ${level}
 `;
-}
-
-function compileSource(source, randomseed) {
-    compile(['loadLevel', 0], source, randomseed);
-    assert.strictEqual(errorCount, 0, errorStrings.map(stripHTMLTags).join('\n'));
-    return global.eval('state');
-}
-
-function compileSourceAllowingMessages(source) {
-    compile(['loadLevel', 0], source);
-    return {
-        state: global.eval('state'),
-        messages: errorStrings.map(stripHTMLTags)
-    };
-}
-
-function ruleCount(state) {
-    return state.rules.reduce((sum, group) => sum + group.length, 0);
-}
-
-function cellObjectNames(index) {
-    const state = global.eval('state');
-    const level = global.eval('level');
-    const cell = level.getCell(index);
-    const names = [];
-    for (const name of ['player1', 'player2', 'crate1', 'crate2', 'gem1', 'gem2']) {
-        if (cell.get(state.objects[name].id)) {
-            names.push(name);
-        }
-    }
-    return names;
-}
-
-function assertCell(index, expectedNames, message) {
-    assert.deepStrictEqual(cellObjectNames(index).sort(), expectedNames.slice().sort(), message);
-}
-
-function runRight(source, randomseed) {
-    compileSource(source, randomseed);
-    processInput(3);
-}
-
-function runTick(source) {
-    compileSource(source);
-    processInput(-1);
-}
-
-function test(name, body) {
-    try {
-        body();
-        console.log(`ok - ${name}`);
-    } catch (error) {
-        console.error(`not ok - ${name}`);
-        console.error(error && error.stack ? error.stack : String(error));
-        process.exitCode = 1;
-    }
 }
 
 test('coalesces a multi-layer movement-only property rule to one runtime rule', () => {
@@ -270,7 +228,7 @@ test('coalesces late single-row multi-cell preserved properties', () => {
         'late right [ Crate Target | Player no Target ] -> [ Crate Target | Player Target ]',
         'CP'
     ));
-    assert.strictEqual(state.lateRules.reduce((sum, group) => sum + group.length, 0), 1);
+    assert.strictEqual(lateRuleCount(state), 1);
     assert.strictEqual(ruleCount(state), 0);
 });
 
@@ -287,7 +245,7 @@ test('does not split preserved layer-coupled properties beside object changes', 
         'late [ Crate no Target ] -> [ Crate Target ]',
         'C'
     ));
-    assert.strictEqual(ruleCount(state) + state.lateRules.reduce((sum, group) => sum + group.length, 0), 1);
+    assert.strictEqual(ruleCount(state) + lateRuleCount(state), 1);
 });
 
 test('keeps duplicate same-cell properties on the expansion path', () => {

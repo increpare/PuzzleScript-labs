@@ -6,6 +6,17 @@ const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 
 loadPuzzleScript();
 
+const {
+    test,
+    compileSource,
+    compileSourceAllowingMessages,
+    makeCellInspector,
+    runTick,
+} = require('./lib/node_test_harness');
+const { assertCell: assertNamesAt } = makeCellInspector(
+    ['alpha', 'beta', 'marker', 'player']
+);
+
 function baseSource(rules, level) {
     return `title inferred rhs property bindings
 
@@ -64,54 +75,6 @@ LEVELS
 ${'======='}
 ${level}
 `;
-}
-
-function compileSource(source, randomseed) {
-    compile(['loadLevel', 0], source, randomseed);
-    assert.strictEqual(errorCount, 0, errorStrings.map(stripHTMLTags).join('\n'));
-    return global.eval('state');
-}
-
-function compileSourceAllowingMessages(source) {
-    compile(['loadLevel', 0], source);
-    return {
-        state: global.eval('state'),
-        errorCount,
-        messages: errorStrings.map(stripHTMLTags)
-    };
-}
-
-function namesAt(index) {
-    const state = global.eval('state');
-    const level = global.eval('level');
-    const cell = level.getCell(index);
-    const names = [];
-    for (const name of ['alpha', 'beta', 'marker', 'player']) {
-        if (cell.get(state.objects[name].id)) {
-            names.push(name);
-        }
-    }
-    return names.sort();
-}
-
-function assertNamesAt(index, expected, message) {
-    assert.deepStrictEqual(namesAt(index), expected.slice().sort(), message);
-}
-
-function runTick(source) {
-    compileSource(source);
-    processInput(-1);
-}
-
-function test(name, body) {
-    try {
-        body();
-        console.log(`ok - ${name}`);
-    } catch (error) {
-        console.error(`not ok - ${name}`);
-        console.error(error && error.stack ? error.stack : String(error));
-        process.exitCode = 1;
-    }
 }
 
 test('independent LHS property terms do not require the same concrete object', () => {
