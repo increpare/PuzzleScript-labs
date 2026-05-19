@@ -1451,17 +1451,38 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
             // Phase 7C: tolerate LHS-only tail terms when they are `no`/`random`
             // constraints. These need no RHS counterpart — at the runtime LHS
             // handler, `no X` becomes `objectsMissing.ior(state.objectMasks[X])`,
-            // and `random` on LHS is rejected by an earlier pass. Any other LHS
-            // tail term, or an RHS that is longer than the LHS, bails the
-            // RHS-bearing modes.
-            if (cell_r && cell_r.length > cell_l.length) {
-                movementValid = rewriteValid = mixedValid = preservedValid = false;
-            }
+            // and `random` on LHS is rejected by an earlier pass.
             if (cell_r && cell_l.length > cell_r.length) {
                 for (let tail = cell_r.length; tail < cell_l.length; tail += 2) {
                     const tailDir = cell_l[tail];
                     if (tailDir !== 'no' && tailDir !== 'random') {
                         movementValid = rewriteValid = mixedValid = preservedValid = false;
+                        break;
+                    }
+                }
+            }
+            // Phase 7D: tolerate RHS-only tail terms when they are concrete-object
+            // writes (empty/movement direction + objects-table name) or `no X`
+            // destroys. These translate at the runtime RHS handler to
+            // `objectsSet`/`movementsSet` or `objectsClear` mask updates that
+            // don't need an LHS counterpart. Movement-mode and preserved-mode
+            // ignore the tail (their per-term classifiers iterate cell_l only);
+            // rewrite-mode and mixed-mode bail because their layer-disjointness
+            // check only covers aligned terms and an RHS-only tail object could
+            // collide with a property's destination/alias layers. Layer-coupled
+            // properties on the RHS-only tail still bail entirely (the splitter
+            // would need to pick a concrete alias — Phase 7B / 5c territory).
+            if (cell_r && cell_r.length > cell_l.length) {
+                rewriteValid = mixedValid = false;
+                for (let tail = cell_l.length; tail < cell_r.length; tail += 2) {
+                    const tailDir = cell_r[tail];
+                    const tailName = cell_r[tail + 1];
+                    const handleable =
+                        (tailDir === 'no' && state.objectMasks.hasOwnProperty(tailName)) ||
+                        (LAYER_COUPLED_MOVEMENT_DIRS[tailDir] &&
+                            state.objects.hasOwnProperty(tailName));
+                    if (!handleable) {
+                        movementValid = preservedValid = false;
                         break;
                     }
                 }

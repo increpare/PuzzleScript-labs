@@ -341,12 +341,20 @@ test('keeps asymmetric cells with non-no LHS extras on the expansion path', () =
     assert.ok(ruleCount(state) > 1);
 });
 
-test('keeps asymmetric cells with RHS longer than LHS on the expansion path', () => {
+test('coalesces asymmetric cells with RHS-only concrete-object writes', () => {
     const state = compileSource(baseSource(
         'right [ > Crate | Crate ] -> [ > Crate | > Crate Target ]',
         'CC'
     ));
-    assert.ok(ruleCount(state) > 1);
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('coalesces asymmetric cells with an RHS-only no-X destroy', () => {
+    const state = compileSource(baseSource(
+        'right [ Crate ] -> [ > Crate no Target ]',
+        'C'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
 });
 
 if (process.exitCode) {

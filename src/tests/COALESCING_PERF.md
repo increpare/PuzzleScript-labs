@@ -1050,3 +1050,87 @@ and other top-impact games).
 | solver-corpus rule-count probe | 5 decreases, 0 increases |
 | testdata.js rule-count probe | 7 decreases, 0 increases |
 | solver-corpus deterministic-replay probe | 0 behaviour diffs |
+
+## 2026-05-19 phase 7D: RHS-only tail term writes
+
+Baseline: `6e8e7d02`. After: this commit.
+
+Mirror of Phase 7C but for the opposite asymmetry: when
+`cell_r.length > cell_l.length`, the RHS-only tail terms are accepted
+iff they are either:
+- a `no X` destroy (clears X at runtime via `objectsClear.ior`), or
+- a movement / empty-direction concrete-object write (sets the object
+  at runtime via `objectsSet.ior` / `movementsSet.ior`).
+
+Rewrite-mode and mixed-mode bail on any RHS-only tail because their
+per-cell layer-disjointness check only covers aligned terms; an RHS-only
+write could collide with a rewrite property's destination or alias
+layers. Movement-mode and preserved-mode proceed because their per-term
+classifiers iterate `cell_l` only — the tail is invisible to them and
+the runtime handles it independently. Layer-coupled properties in the
+RHS-only tail are still bailed (the parser rejects them anyway, but the
+walker mirrors the check).
+
+### Solver corpus (`src/tests/solver_tests/`, 184 games)
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `talo pipi 2.txt` | 210 | 166 | −44 |
+| `kreiseln.txt` | 180 | 140 | −40 |
+| `der hydra krypta.txt` | 363 | 336 | −27 |
+| `Oh No My Dog Is About To Swallow A Piece Of.txt` | 181 | 159 | −22 |
+| `pupush.txt` | 41 | 38 | −3 |
+| `karamell.txt` | 124 | 123 | −1 |
+
+6 decreased, 0 increased. Total **−137 rules**.
+
+### `testdata.js` (467 games)
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `vertebrae` | 8166 | 4613 | **−3553 (−44%)** |
+| `gallery:cyber-lasso` | 1646 | 1590 | −56 |
+| `gallery game: vexd edit` | 3532 | 3490 | −42 |
+| `VEXT EDIT` | 3532 | 3490 | −42 |
+| `VEXT EDIT B` | 3532 | 3490 | −42 |
+| `gallery: JAM3 Game` | 145 | 105 | −40 |
+| `Kreiseln` | 180 | 140 | −40 |
+| `Rigidbody fix bug #246` | 243 | 215 | −28 |
+| `der Hydra Krypta` | 363 | 336 | −27 |
+| `Oh No My Dog Is About To Swallow A Piece Of Chocolate` | 181 | 159 | −22 |
+| `gallery game: mad queens` | 66 | 50 | −16 |
+| `gallery: paralands` | 268 | 255 | −13 |
+| `gallery: hazard golf` | 211 | 203 | −8 |
+| `gallery game: path lines` | 46 | 40 | −6 |
+| `Pupush` | 41 | 38 | −3 |
+
+17 decreased, 0 increased. Total **−3,942 rules**.
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
+**0 behaviour diffs**. 742-test simulation suite passes (includes
+recorded play sessions for vertebrae, gallery:cyber-lasso, vexd edit,
+Oh No My Dog, Rigidbody fix bug, der hydra krypta, and others).
+
+### Vertebrae trajectory across this session
+
+| Phase | vertebrae rules |
+| --- | ---: |
+| Baseline (pre-Phase-7) | 11706 |
+| After 7C (LHS-only no/random tail) | 8166 |
+| After 7D (RHS-only object writes) | 4613 |
+
+Cumulative reduction **−7,093 rules (−61%)** from Phase 7C+7D alone.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 29 fixtures |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| solver-corpus rule-count probe | 6 decreases, 0 increases |
+| testdata.js rule-count probe | 17 decreases, 0 increases |
+| solver-corpus deterministic-replay probe | 0 behaviour diffs |
