@@ -1442,8 +1442,26 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 movementValid = rewriteValid = mixedValid = commandOnlyValid = preservedValid = false;
                 continue;
             }
-            if (cell_r && (cellHasEllipsis(cell_r) || cell_l.length !== cell_r.length)) {
+            if (cell_r && cellHasEllipsis(cell_r)) {
                 movementValid = rewriteValid = mixedValid = preservedValid = false;
+            }
+            // Phase 7C: tolerate LHS-only tail terms when they are `no`/`random`
+            // constraints. These need no RHS counterpart — at the runtime LHS
+            // handler, `no X` becomes `objectsMissing.ior(state.objectMasks[X])`,
+            // and `random` on LHS is rejected by an earlier pass. Any other LHS
+            // tail term, or an RHS that is longer than the LHS, bails the
+            // RHS-bearing modes.
+            if (cell_r && cell_r.length > cell_l.length) {
+                movementValid = rewriteValid = mixedValid = preservedValid = false;
+            }
+            if (cell_r && cell_l.length > cell_r.length) {
+                for (let tail = cell_r.length; tail < cell_l.length; tail += 2) {
+                    const tailDir = cell_l[tail];
+                    if (tailDir !== 'no' && tailDir !== 'random') {
+                        movementValid = rewriteValid = mixedValid = preservedValid = false;
+                        break;
+                    }
+                }
             }
 
             // Per-cell trackers for each mode's post-check.
@@ -1467,6 +1485,14 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
                 if (isLayerCoupledProperty(state, name_l)) coupledPropertiesInRule[name_l] = true;
                 if (cell_r && name_r !== null && isLayerCoupledProperty(state, name_r)) {
                     coupledPropertiesInRule[name_r] = true;
+                }
+
+                // Phase 7C: LHS-only tail term (validated as `no`/`random` by the
+                // per-cell prelude above). RHS-bearing classifiers have no
+                // counterpart to compare against; skip them. Command-only mode
+                // never reaches here because cell_r is null when hasRhs is false.
+                if (cell_r && i >= cell_r.length) {
+                    continue;
                 }
 
                 // --- Command-only mode (LHS-only matching) ---

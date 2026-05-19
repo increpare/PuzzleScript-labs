@@ -317,6 +317,38 @@ test('keeps command-only rules with no-term overlapping a coupled property on th
     assert.ok(result.messages.some(message => message.indexOf('can never match') >= 0));
 });
 
+test('coalesces asymmetric cells where LHS has trailing no-constraints', () => {
+    const state = compileSource(baseSource(
+        'right [ > Crate | Crate no Target ] -> [ > Crate | > Crate ]',
+        'CC'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('coalesces asymmetric cells with multiple LHS-only no-constraints', () => {
+    const state = compileSource(baseSource(
+        'right [ > Crate | Crate no Target no Wall ] -> [ > Crate | > Crate ]',
+        'CC'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('keeps asymmetric cells with non-no LHS extras on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ > Crate | Crate Target ] -> [ > Crate | > Crate ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1);
+});
+
+test('keeps asymmetric cells with RHS longer than LHS on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ > Crate | Crate ] -> [ > Crate | > Crate Target ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1);
+});
+
 if (process.exitCode) {
     process.exit(process.exitCode);
 }

@@ -893,3 +893,79 @@ Lessons:
 - Probe / corpus scripts used (cleaned up after each experiment):
   `/tmp/replay_probe_full.js` (184-game state-fingerprint diff) and
   `/tmp/corpus_rulecount.js` (per-game rule count).
+
+## 2026-05-19 phase 7C: asymmetric LHS/RHS cell lengths
+
+Baseline: `bc7229de` (`Document phase 6.5 R1/R3/rewrite-count negative
+findings`). After: this commit.
+
+The walker previously bailed every RHS-bearing mode when
+`cell_l.length !== cell_r.length`. Phase 7C relaxes this: LHS-only tail
+terms (termIndices `>= cell_r.length`) are allowed iff their direction is
+`no` or `random` — constraint-only terms that the runtime LHS handler
+processes via `objectsMissing.ior(state.objectMasks[name])` without
+needing an RHS counterpart. Any other LHS tail term, or `cell_r.length
+> cell_l.length`, still bails. Per-mode term classifiers skip the
+LHS-only tail terms since they have no RHS partner to compare against.
+
+### Solver corpus (`src/tests/solver_tests/`, 184 games)
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `Oh No My Dog Is About To Swallow A Piece Of.txt` | 257 | 181 | −76 |
+| `robot arm.txt` | 967 | 907 | −60 |
+| `robotarm.txt` | 967 | 907 | −60 |
+| `SWIMMING TIME.txt` | 1053 | 1005 | −48 |
+| `Eyeball-watching flowers bloom.txt` | 98 | 82 | −16 |
+| `realtime dog mountain rescue.txt` | 190 | 182 | −8 |
+
+6 games decreased, 0 increased, 178 unchanged. Total **−268 rules**.
+
+### `testdata.js` (467 games)
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `vertebrae` | 11706 | 8166 | **−3540 (−30%)** |
+| `gallery: season finale` | 2818 | 886 | **−1932 (−69%)** |
+| `gallery:cyber-lasso` | 1728 | 1646 | −82 |
+| `Oh No My Dog Is About To Swallow A Piece Of Chocolate` | 257 | 181 | −76 |
+| `robotic arm` | 956 | 896 | −60 |
+| `increpare game: robot arm` | 967 | 907 | −60 |
+| `SWIMMING TIME!` | 1053 | 1005 | −48 |
+| `gallery game: maera public works` | 178 | 162 | −16 |
+| `gallery: Symbolism` | 330 | 314 | −16 |
+| `Eyeball-watching flowers bloom` | 98 | 82 | −16 |
+| `gallery game: Indigestion` | 423 | 409 | −14 |
+| `gallery: vines` | 42 | 30 | −12 |
+| `gallery: you're pulleying my leg` | 189 | 180 | −9 |
+| `late beginloop/endloop test` | 41 | 33 | −8 |
+| `REALTIME DOG MOUNTAIN RESCUE` | 190 | 182 | −8 |
+| `gallery: i herd u liek water templs` | 64 | 60 | −4 |
+
+16 games decreased, 0 increased, 451 unchanged. Total **−5,901 rules**.
+
+### Behaviour parity
+
+The seeded-RNG deterministic-replay probe (20-input sequence per
+non-message level, first 2 levels per game) over the 184 corpus games
+shows 0 behaviour diffs. The 742-test simulation suite (which includes
+recorded play sessions for many of the high-impact testdata.js games:
+vertebrae, gallery: season finale, gallery:cyber-lasso, Oh No My Dog,
+robot arm, SWIMMING TIME, etc.) all pass.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 28 fixtures (4 new for 7C) |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| solver-corpus rule-count probe | 6 decreases, 0 increases |
+| testdata.js rule-count probe | 16 decreases, 0 increases |
+| solver-corpus deterministic-replay probe | 0 behaviour diffs |
+
+The single-hunk relaxation in `getCoalescingPlan`'s per-cell prelude
+absorbs the previously load-bearing length-equality check. Combined
+across both corpora, Phase 7C reduces compile-time rule output by
+**−6,169 rules** in the games that benefit.
