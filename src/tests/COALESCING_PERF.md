@@ -993,3 +993,60 @@ bookkeeping); a 30% rule reduction translates to a smaller per-input
 win when non-rule work dominates the turn loop. Games with the largest
 rule cuts (vertebrae, season finale) show the cleanest perf wins; the
 marginal cases (~5% rule cuts) land within measurement noise.
+
+## 2026-05-19 phase 7E: ellipsis cell transparency
+
+Baseline: `725b4a32`. After: this commit.
+
+Ellipsis cells (`...`) are runtime sentinels — `rulesToMask` emits the
+singleton `ellipsisPattern` for them and the engine's ellipsis-match
+code path stitches matches across the gap independently of
+property/direction analysis. The walker previously bailed every mode
+when it encountered an ellipsis cell on either side; this commit makes
+the walker skip ellipsis cells (`continue` instead of bail) so the
+analysis can proceed over the non-ellipsis cells in the same rule.
+
+### Solver corpus (`src/tests/solver_tests/`, 184 games)
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `kishoutenketsu.txt` | 348 | 324 | −24 |
+| `snortal.txt` | 89 | 81 | −8 |
+| `whaleworld.txt` | 31 | 23 | −8 |
+| `gabelstapler.txt` | 67 | 63 | −4 |
+| `mazezam.txt` | 17 | 13 | −4 |
+
+5 decreased, 0 increased. Total **−48 rules**.
+
+### `testdata.js` (467 games)
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `gallery: censored version of NSFW game pornography for beginners` | 3881 | 3497 | **−384 (−10%)** |
+| `Rigidbody fix bug #246` | 299 | 243 | −56 |
+| `Psyshic push` | 36 | 24 | −12 |
+| `2D whale world` | 31 | 23 | −8 |
+| `increpare game: snortal` | 89 | 81 | −8 |
+| `MazezaM` | 17 | 13 | −4 |
+| `Gabelstapler` | 67 | 63 | −4 |
+
+7 decreased, 0 increased. Total **−476 rules**.
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus
+shows 0 behaviour diffs. 742-test simulation suite passes (these
+include recorded play sessions for `gallery: censored`, `kishoutenketsu`,
+and other top-impact games).
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 28 fixtures |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| solver-corpus rule-count probe | 5 decreases, 0 increases |
+| testdata.js rule-count probe | 7 decreases, 0 increases |
+| solver-corpus deterministic-replay probe | 0 behaviour diffs |

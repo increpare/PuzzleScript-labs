@@ -1214,7 +1214,7 @@ function objectOrSingleLayerPropertyLayer(state, name) {
     return null;
 }
 
-function cellHasEllipsis(cell) {
+function cellIsEllipsis(cell) {
     return cell.length === 2 && cell[0] === '...';
 }
 
@@ -1438,12 +1438,15 @@ function getCoalescingPlan(state, rule, ambiguousProperties) {
             const cell_r = row_r ? row_r[k] : null;
 
             // Per-cell bails.
-            if (cellHasEllipsis(cell_l)) {
-                movementValid = rewriteValid = mixedValid = commandOnlyValid = preservedValid = false;
+            // Phase 7E: ellipsis cells are runtime sentinels. rulesToMask
+            // emits the singleton `ellipsisPattern` for them and the engine's
+            // ellipsis-match code path stitches matches across the gap.
+            // The walker doesn't need to constrain property/direction analysis
+            // on them — skip and continue to the next cell. The parser enforces
+            // that LHS ellipsis is matched by RHS ellipsis at the same column,
+            // so checking the LHS side is sufficient.
+            if (cellIsEllipsis(cell_l)) {
                 continue;
-            }
-            if (cell_r && cellHasEllipsis(cell_r)) {
-                movementValid = rewriteValid = mixedValid = preservedValid = false;
             }
             // Phase 7C: tolerate LHS-only tail terms when they are `no`/`random`
             // constraints. These need no RHS counterpart — at the runtime LHS
