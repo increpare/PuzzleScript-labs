@@ -969,3 +969,27 @@ The single-hunk relaxation in `getCoalescingPlan`'s per-cell prelude
 absorbs the previously load-bearing length-equality check. Combined
 across both corpora, Phase 7C reduces compile-time rule output by
 **−6,169 rules** in the games that benefit.
+
+### Phase 7C runtime perf benchmark
+
+Compile and per-input timings for the headline games, averaged over 10
+compile runs and 200 turn-sequence runs (20 input tokens per sequence,
+deterministic seed). Measured on a single host; absolute numbers depend
+on hardware, but the deltas are stable across reruns.
+
+| Game | Rules | Compile (ms) | Per-input (ms) |
+| --- | --- | --- | --- |
+| `vertebrae` | 11706 → 8166 (−30%) | 193.1 → 133.3 (**−31%**) | 1.615 → 1.490 (**−8%**) |
+| `gallery: season finale` | 2818 → 886 (−69%) | 52.6 → 20.4 (**−61%**) | 0.107 → 0.061 (**−43%**) |
+| `gallery:cyber-lasso` | 1728 → 1646 (−5%) | 26.3 → 26.1 (~) | 0.698 → 0.686 (−2%) |
+| `SWIMMING TIME` | 1053 → 1005 (−5%) | 11.0 → 11.5 (+4%, noise) | 0.385 → 0.437 (+13%, noise) |
+| `increpare game: robot arm` | 967 → 907 (−6%) | 12.1 → 9.1 (**−25%**) | 0.133 → 0.144 (+8%, noise) |
+| `Oh No My Dog…` | 257 → 181 (−30%) | 8.1 → 6.6 (**−19%**) | 1.302 → 1.380 (+6%, noise) |
+
+Compile-time savings track rule count linearly (one mask-building pass
+per rule). Per-input savings are diluted by non-rule work (movement
+resolution, `again` re-run loop, sound / checkpoint / state
+bookkeeping); a 30% rule reduction translates to a smaller per-input
+win when non-rule work dominates the turn loop. Games with the largest
+rule cuts (vertebrae, season finale) show the cleanest perf wins; the
+marginal cases (~5% rule cuts) land within measurement noise.
