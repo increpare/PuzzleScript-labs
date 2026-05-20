@@ -1334,16 +1334,54 @@ function ruleCellTermsEqual(cell_l, cell_r) {
 
 
 //returns you a list of object names in that cell that're moving
-function getMovings(state, cell) {
+function getMovings(state, cell, safeAggregates) {
     let result = [];
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
         let name = cell[j + 1];
         if (dir in directionaggregates) {
+            if (safeAggregates && safeAggregates.has(dir)) {
+                const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
+                if (!isLayerCoupled) continue;
+            }
             result.push([name, dir]);
         }
     }
     return result;
+}
+
+// Aggregate-direction terms on the LHS that don't reappear on the RHS need no
+// alias capture: the runtime can match them via anyMovementsPresent (OR
+// semantics) and the splitter's Cartesian expansion is wasted work. Returns the
+// set of aggregate names safe to leave un-split for this rule. Layer-coupled
+// property attachments still split (handled by the existing layer-coupled
+// machinery; a follow-up phase can extend coverage there).
+function computeSafeCoalesceAggregateNames(state, rule) {
+    const rhsAggregateNames = new Set();
+    for (const row of rule.rhs) {
+        for (const cell of row) {
+            for (let i = 0; i < cell.length; i += 2) {
+                if (cell[i] in directionaggregates) {
+                    rhsAggregateNames.add(cell[i]);
+                }
+            }
+        }
+    }
+    const safe = new Set();
+    for (const row of rule.lhs) {
+        for (const cell of row) {
+            for (let i = 0; i < cell.length; i += 2) {
+                const dir = cell[i];
+                if (!(dir in directionaggregates)) continue;
+                if (rhsAggregateNames.has(dir)) continue;
+                const name = cell[i + 1];
+                const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
+                if (isLayerCoupled) continue;
+                safe.add(dir);
+            }
+        }
+    }
+    return safe;
 }
 
 function concretizePropertyInCell(cell, property, concreteType) {
@@ -1906,6 +1944,7 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
 
 function concretizeMovingRule(state, rule, lineNumber) {
 
+    const safeAggregates = computeSafeCoalesceAggregateNames(state, rule);
     let shouldremove;
     let result = [rule];
     let modified = true;
@@ -1919,7 +1958,7 @@ function concretizeMovingRule(state, rule, lineNumber) {
                 let cur_rulerow = cur_rule.lhs[j];
                 for (let k = 0; k < cur_rulerow.length; k++) {
                     let cur_cell = cur_rulerow[k];
-                    let movings = getMovings(state, cur_cell); //finds aggregate directions
+                    let movings = getMovings(state, cur_cell, safeAggregates); //finds aggregate directions
                     if (movings.length > 0) {
                         shouldremove = true;
                         modified = true;
@@ -2311,10 +2350,17 @@ function rulesToMask(state) {
                     objectsMissing: new BitVec(STRIDE_OBJ),
                     movementsPresent: new BitVec(STRIDE_MOV),
                     movementsMissing: new BitVec(STRIDE_MOV),
-                    objectlayers_l: new BitVec(STRIDE_MOV)
+                    objectlayers_l: new BitVec(STRIDE_MOV),
+                    // Aggregate-direction terms on the LHS that the matcher tests via
+                    // anyMovementsPresent (OR semantics) don't appear in movementsPresent;
+                    // we track their bits separately so the RHS clear logic still
+                    // wipes them when the rule fires (the splitter previously relied on
+                    // movementsPresent containing the matched concrete bit).
+                    aggregateMovementsMask: new BitVec(STRIDE_MOV)
                 };
                 
                 const anyObjectsPresent = [];
+                const anyMovementsPresent = [];
                 const layerCoupledMovementMasks = [];
 
                 // Process left-hand side cell
@@ -2385,10 +2431,20 @@ function rulesToMask(state) {
                             anyObjectsPresent.push(objectMask);
                         }
 
-                        const movementMask = object_dir === 'stationary' ? 
-                            bitVectors.movementsMissing : bitVectors.movementsPresent;
-                        movementMask.ishiftor(object_dir === 'stationary' ? 0x1f : dirMasks[object_dir], 
-                                           STRIDE_5 * layerIndex);
+                        if (object_dir in directionaggregates) {
+                            const aggregateBits = new BitVec(STRIDE_MOV);
+                            const concretes = directionaggregates[object_dir];
+                            for (let cd = 0; cd < concretes.length; cd++) {
+                                aggregateBits.ishiftor(dirMasks[concretes[cd]], STRIDE_5 * layerIndex);
+                            }
+                            anyMovementsPresent.push(aggregateBits);
+                            bitVectors.aggregateMovementsMask.ior(aggregateBits);
+                        } else {
+                            const movementMask = object_dir === 'stationary' ?
+                                bitVectors.movementsMissing : bitVectors.movementsPresent;
+                            movementMask.ishiftor(object_dir === 'stationary' ? 0x1f : dirMasks[object_dir],
+                                               STRIDE_5 * layerIndex);
+                        }
                     }
                 }
 
@@ -2406,7 +2462,8 @@ function rulesToMask(state) {
                     bitVectors.movementsPresent,
                     bitVectors.movementsMissing,
                     null,
-                    layerCoupledMovementMasks
+                    layerCoupledMovementMasks,
+                    anyMovementsPresent
                 ]);
 
                 // Check for invalid patterns
@@ -2559,6 +2616,9 @@ function rulesToMask(state) {
                 }
                 if (!bitVectors.movementsPresent.bitsSetInArray(rhsBitVectors.movementsSet.data)) {
                     rhsBitVectors.movementsClear.ior(bitVectors.movementsPresent);
+                }
+                if (!bitVectors.aggregateMovementsMask.bitsSetInArray(rhsBitVectors.movementsSet.data)) {
+                    rhsBitVectors.movementsClear.ior(bitVectors.aggregateMovementsMask);
                 }
 
                 // Handle layer-specific clearing

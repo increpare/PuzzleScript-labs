@@ -1521,6 +1521,13 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 					usedMovementIndices.add(j);
 				}
 			}
+			for (let j = 0; j < pattern.anyMovementsPresent.length; j++) {
+				for (let k = 0; k < STRIDE_MOV; k++) {
+					if (pattern.anyMovementsPresent[j].data[k]) {
+						usedMovementIndices.add(k);
+					}
+				}
+			}
 			for (let j = 0; j < pattern.layerCoupledMovementMasks.length; j++) {
 				const term = pattern.layerCoupledMovementMasks[j];
 				for (let k = 0; k < term.layers.length; k++) {
@@ -1663,6 +1670,7 @@ function CellPattern(row) {
 	this.movementsPresent = row[3];
 	this.movementsMissing = row[4];
 	this.layerCoupledMovementMasks = row[6];
+	this.anyMovementsPresent = row[7] || [];
 	if (lazyFunctionGeneration){
 		WORKLIST_OBJECTS_TO_GENERATE_FUNCTIONS_FOR.push(this);
 	} else {
@@ -1775,6 +1783,15 @@ CellPattern.prototype.generateMatchString = function () {
 		}
 		fn += ")";
 	}
+	for (let j = 0; j < this.anyMovementsPresent.length; j++) {
+		fn += "\t\t&& (0";
+		for (let i = 0; i < STRIDE_MOV; ++i) {
+			const amp = this.anyMovementsPresent[j].data[i];
+			if (amp)
+				fn += "|(cellMovements" + i + "&" + amp + ")";
+		}
+		fn += ")";
+	}
 	for (let j = 0; j < this.layerCoupledMovementMasks.length; j++) {
 		fn += "\t\t&& (" + layerCoupledMovementMaskMatchExpression(this.layerCoupledMovementMasks[j]) + ")\n";
 	}
@@ -1785,9 +1802,13 @@ CellPattern.prototype.generateMatchString = function () {
 let CACHE_CELLPATTERN_MATCHFUNCTION = new Map();
 let _generateMatchFunction_key_array = new Int32Array(0);
 CellPattern.prototype.generateMatchFunction = function() {
-    // Calculate total size needed for the key array
-    const keyLength = STRIDE_OBJ * 2 + STRIDE_MOV * 2 + 
-                     this.anyObjectsPresent.length * STRIDE_OBJ + 2;
+    // Calculate total size needed for the key array.
+    // The two trailing length values disambiguate cases where anyObjectsPresent
+    // bits and anyMovementsPresent bits would otherwise occupy the same slots
+    // (e.g. STRIDE_OBJ == STRIDE_MOV with counts swapped).
+    const keyLength = STRIDE_OBJ * 2 + STRIDE_MOV * 2 +
+                     this.anyObjectsPresent.length * STRIDE_OBJ +
+                     this.anyMovementsPresent.length * STRIDE_MOV + 4;
 	if (keyLength!==_generateMatchFunction_key_array.length) {
 		_generateMatchFunction_key_array = new Int32Array(keyLength);
 	}
@@ -1808,8 +1829,15 @@ CellPattern.prototype.generateMatchFunction = function() {
             keyArray[keyIndex++] = this.anyObjectsPresent[i].data[j] || 0;
         }
     }
+    for (let i = 0; i < this.anyMovementsPresent.length; i++) {
+        for (let j = 0; j < STRIDE_MOV; j++) {
+            keyArray[keyIndex++] = this.anyMovementsPresent[i].data[j] || 0;
+        }
+    }
     keyArray[keyIndex++] = STRIDE_OBJ;
     keyArray[keyIndex++] = STRIDE_MOV;
+    keyArray[keyIndex++] = this.anyObjectsPresent.length;
+    keyArray[keyIndex++] = this.anyMovementsPresent.length;
 	let str_key = keyArray.toString() + "|" + layerCoupledMovementMasksCacheKey(this.layerCoupledMovementMasks);
 
     if (CACHE_CELLPATTERN_MATCHFUNCTION.has(str_key)) {

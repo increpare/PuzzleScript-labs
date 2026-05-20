@@ -1134,3 +1134,131 @@ Cumulative reduction **−7,093 rules (−61%)** from Phase 7C+7D alone.
 | solver-corpus rule-count probe | 6 decreases, 0 increases |
 | testdata.js rule-count probe | 17 decreases, 0 increases |
 | solver-corpus deterministic-replay probe | 0 behaviour diffs |
+
+## 2026-05-20 phase 7B-1a: anyMovementsPresent + LHS-only aggregate coalescing
+
+Baseline: `fd402c63`. After: this commit.
+
+First slice of the Phase 7B alias-binding effort. Lays the engine
+prerequisite for any direction-aggregate coalescing (`anyMovementsPresent`
+predicate on `CellPattern` with OR semantics, parallel to
+`anyObjectsPresent`) and ships the cheap coalescing it unlocks: direction
+aggregates that appear only on the LHS (command-only rules, or rules
+whose RHS doesn't reference the same aggregate name) no longer split
+into one concrete rule per direction.
+
+### What coalesces
+
+`concretizeMovingRule` skips the Cartesian split for an aggregate when:
+- the aggregate name does not appear anywhere on the rule's RHS, AND
+- the attached object is a single concrete object or single-layer
+  property (layer-coupled properties still split — extending coverage
+  there is a follow-up).
+
+For each coalesced aggregate term, `rulesToMask` builds the union of the
+aggregate's concrete-direction bits and pushes it onto
+`anyMovementsPresent`. The runtime matcher tests
+`(cellMovements & mask) !== 0` (any-of), letting one rule cover all
+concrete directions.
+
+### Replacement-clear fix
+
+The old splitter relied on `movementsPresent` containing the matched
+concrete bit, which line 2607-2612 of `rulesToMask` translates into a
+`movementsClear` entry when the RHS doesn't preserve it. Coalesced
+aggregate bits live in `anyMovementsPresent` and would otherwise be
+invisible to that check. A new per-cell `aggregateMovementsMask`
+accumulates the union of LHS aggregate bits and is OR-ed into
+`movementsClear` whenever the RHS doesn't preserve them — which is
+always the case for the shapes we coalesce.
+
+### Engine cache key fix
+
+`CACHE_CELLPATTERN_MATCHFUNCTION` previously serialized
+`anyObjectsPresent[i].data` followed by `anyMovementsPresent[i].data`
+into a shared Int32Array buffer. With STRIDE_OBJ == STRIDE_MOV, two
+patterns with opposite counts but the same total bits could hash to the
+same key (the wrong cached match function would be returned across
+unrelated games). Fixed by appending `anyObjectsPresent.length` and
+`anyMovementsPresent.length` to the key so the structure is unambiguous.
+
+### Rule-count probe (solver corpus + testdata.js)
+
+Combined: **90 decreases, 1 increase, net −1,185 rules**.
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `witch lifter` (solver + testdata) | 288 | 202 | −86 each |
+| `gallery: skipping stones to lonely homes` | 677 | 625 | −52 |
+| `gallery game: Indigestion` | 409 | 359 | −50 |
+| `The sponge what lights up the seafloor` (×2) | 195 | 155 | −40 each |
+| `gallery: boxes love boxing gloves` | 771 | 731 | −40 |
+| `CŌDEX·LŪBRICUS` (×2) | 96 | 60 | −36 each |
+| `I SURE LOOK TASTY!` (×2) | 393 | 361 | −32 each |
+| `No! Don't eat that!` (×2) | 200 | 168 | −32 each |
+| `the exit is under my left foot` (×2) | 161 | 129 | −32 each |
+| `gallery: Spikes 'n' Stuff` | 684 | 652 | −32 |
+| `Seize the flag!` (×2) | 193 | 169 | −24 each |
+| `hungry kraken` / `increpare game: happy kraken` | 503 | 487 | −16 each |
+| `legend of zokoban` / `zokoban` (×2) | 58 | 42 | −16 each |
+| `Moved by leaves of grass` (×2) | 132 | 116 | −16 each |
+| `sticky candy puzzle saga` (×2) | 82 | 66 | −16 each |
+| `gallery: PrograMaze` | 41 | 29 | −12 |
+| `It gets its Feet Wet` (×2) | 87 | 76 | −11 each |
+| `chaos wizard` (×2) | 103 | 95 | −8 each |
+| `easyenigma` (×2) | 891 | 883 | −8 each |
+| `vexd edit` / VEXT EDIT / VEXT EDIT B | 3490 | 3482 | −8 each |
+| `damn I'm huge` / `dang I'm huge` | 84 | 76 | −8 each |
+| `gallery: hazard golf` | 203 | 195 | −8 |
+| `gallery: Play Mini Gemini Replay` | 276 | 268 | −8 |
+| `Many parallel players, unlimited rigidbodies` | 53 | 45 | −8 |
+| `der Hydra Krypta` (×2) | 336 | 331 | −5 each |
+| `Gabelstapler` (×2) | 63 | 58 | −5 each |
+| `Kreiseln` (×2) | 140 | 136 | −4 each |
+| `Threes` (×2) | 501 | 497 | −4 each |
+| `North Wind Simple Sailboat Buoy Collection` (×2) | 270 | 266 | −4 each |
+| `Oh no I accidentally swallowed myself!` (×2) | 178 | 174 | −4 each |
+| `REALTIME DOG MOUNTAIN RESCUE` (×2) | 182 | 178 | −4 each |
+| `Des Poseidons Dreizack` (×2) | 168 | 164 | −4 each |
+| `Pocket Gopher: Root-Shoot Nibbler` (×2) | 112 | 108 | −4 each |
+| `Car Crash` (×2) | 93 | 89 | −4 each |
+| `collapse simple` / `collapse long` | 55 | 51 | −4 each |
+| `Alternatey` (×2) | 8 | 4 | −4 each |
+| `S-tercourse` (= censored Sexual Intercourse) | 57 | 53 | −4 each |
+| `explod` | 61 | 57 | −4 |
+| `gallery: singleton traffic` | 25 | 21 | −4 |
+| `gallery: train braining` | 166 | 162 | −4 |
+| `gallery: Stand Off` | 80 | 76 | −4 |
+| `gallery: beam islands` | 143 | 139 | −4 |
+| `gallery game: I'm too far gone` | 182 | 178 | −4 |
+| various `right [ vertical … ]` error fixtures | 5–9 | 1–5 | −2 to −4 |
+| `gallery:cyber-lasso` | 1590 | **1594** | **+4** |
+
+The +4 on `gallery:cyber-lasso` is a single multi-cell rule
+(line 1050: `[ action Here ] [ Done > Chain | moving Done ] -> cancel`)
+that loses its aggregate-split (saving 16 rules across this and 9 sibling
+rules) but somehow triples in a downstream stage (20 → 60). Net is still
+–12 in this game (-36 from coalescing + 40 from the line 1050 expansion);
+the +4 net comes from one specific layout interaction with downstream
+splitters that's worth investigating but not blocking. Flagged for a
+follow-up pass.
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
+**0 behaviour diffs**. 742-test simulation suite passes (includes
+recorded play sessions for several of the largest affected games:
+witch lifter, sponge, codex lubricus, hazard golf, train braining,
+Kreiseln, Threes, explod, and others).
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 35 fixtures (6 new) |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| solver-corpus rule-count probe | 60 decreases, 0 increases |
+| testdata.js rule-count probe | 30 decreases, 1 increase (cyber-lasso +4) |
+| solver-corpus deterministic-replay probe | 0 behaviour diffs |

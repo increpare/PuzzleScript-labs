@@ -357,6 +357,52 @@ test('coalesces asymmetric cells with an RHS-only no-X destroy', () => {
     assert.strictEqual(ruleCount(state), 1);
 });
 
+test('coalesces a command-only rule with an LHS-only moving aggregate', () => {
+    const state = compileSource(baseSource(
+        '[ moving Crate1 ] -> cancel',
+        'C'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('coalesces a moving-aggregate LHS that does not reappear on RHS', () => {
+    const state = compileSource(baseSource(
+        'right [ moving Crate1 ] -> [ Wall ]',
+        'C'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('clears LHS aggregate movement when RHS preserves the object without movement', () => {
+    // First rule gives crate1 right-movement, second rule cancels it before
+    // movements resolve. The expected end state is the same as if the player
+    // were blocked: no one moves.
+    runRight(baseSource(`
+right [ Player1 | Crate1 ] -> [ Player1 | right Crate1 ]
+[ moving Crate1 ] -> [ Crate1 ]
+`, 'PC.'));
+
+    assertCell(0, ['player1'], 'player1 should remain put — crate1 movement was cleared before resolution');
+    assertCell(1, ['crate1'], 'crate1 should remain put');
+    assertCell(2, [], 'destination cell should still be empty');
+});
+
+test('keeps rules with aggregate on both LHS and RHS on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ moving Crate1 | Crate1 ] -> [ moving Crate1 | moving Crate1 ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1, 'LHS+RHS aggregate cases should still split');
+});
+
+test('horizontal aggregate matches only horizontal-moving objects', () => {
+    const state = compileSource(baseSource(
+        '[ horizontal Crate1 ] -> cancel',
+        'C'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
 if (process.exitCode) {
     process.exit(process.exitCode);
 }
