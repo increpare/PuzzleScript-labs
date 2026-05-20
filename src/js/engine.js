@@ -2463,20 +2463,30 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 			{
 				let ellipse_index=0;
 				let currentIndex = ${ellipsisCount[cellRowIndex] > 0 ? `tuple[${cellRowIndex}][0]` : `tuple[${cellRowIndex}]`}
-				${FOR(0, preRow.length, cellIndex => `
-					{
-						${IF(preRow[cellIndex] === ellipsisPattern)}
+				${FOR(0, preRow.length, cellIndex => {
+					if (preRow[cellIndex] === ellipsisPattern) {
+						return `
+						{
 							const k = tuple[${cellRowIndex}][1+ellipse_index];
 							ellipse_index++;
 							anyellipses=true;
 							currentIndex += delta*k;
-						${ELSE(preRow[cellIndex] === ellipsisPattern)}
+						}`;
+					}
+					// Skip the function call entirely when the cell has no
+					// replacement — saves one indirect call per non-mutating
+					// cell across the inner apply loop.
+					if (preRow[cellIndex].replacement === null) {
+						return `currentIndex += delta;\n`;
+					}
+					return `
+						{
 							const preCell = this.patterns[${cellRowIndex}][${cellIndex}];
 							result = preCell.replace(level,this, currentIndex) || result;
 							currentIndex += delta;
-						${ENDELSE(preRow[cellIndex] === ellipsisPattern)}
-					}
-				`)}
+						}
+					`;
+				})}
 			}`
 	}
 	)}
@@ -2537,9 +2547,9 @@ Rule.prototype.tryApply = function (level) {
 		}
 	}
 
-	if (matches.length > 0) {
-		this.queueCommands();
-	}
+	// findMatches either returns [] (early return above) or one entry per row,
+	// so reaching here implies matches.length > 0.
+	this.queueCommands();
 	return result;
 };
 
