@@ -1466,6 +1466,12 @@ function Rule(rule) {
 	// via the inferredAggregateBindings entries.
 	this.aggregateBindingsArr = rule[12] || null;
 	this.aggregateCaptures = this.aggregateBindingsArr ? {} : null;
+	// Phase 5c-1: property-binding alias capture. capturePropertyBindings
+	// scans the LHS source cell to find which alias is present and stashes
+	// {objectId, layerIndex} on this.propertyCaptures keyed by property name.
+	// CellReplacement.inferredPropertyBindings entries consume the captures.
+	this.propertyBindingsArr = rule[13] || null;
+	this.propertyCaptures = this.propertyBindingsArr ? {} : null;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
 	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
 	for (const m of this.cellRowMasks) {
@@ -1520,6 +1526,33 @@ Rule.prototype.captureAggregateBindings = function (level, tuple, delta) {
 			raw |= level.movements[movementsBase + wordIdx + 1] << (32 - wordShift);
 		}
 		captures[b.aggregateName] = raw & b.aggregateMask;
+	}
+};
+
+// Phase 5c-1: scan the LHS source cell's objects to find which alias of each
+// layer-coupled property is present, and stash {objectId, layerIndex} on
+// this.propertyCaptures keyed by property name. CellReplacement.replace reads
+// the captures to write the same alias at each sink position.
+Rule.prototype.capturePropertyBindings = function (level, tuple, delta) {
+	const bindings = this.propertyBindingsArr;
+	if (!bindings || bindings.length === 0) return;
+	const captures = this.propertyCaptures;
+	for (let bi = 0; bi < bindings.length; bi++) {
+		const b = bindings[bi];
+		const tupleEntry = tuple[b.sourceRow];
+		const basePos = (typeof tupleEntry === 'number') ? tupleEntry : tupleEntry[0];
+		const cellPos = basePos + b.sourceCell * delta;
+		const objectsBase = cellPos * STRIDE_OBJ;
+		captures[b.propertyName] = null;
+		for (let ai = 0; ai < b.aliases.length; ai++) {
+			const alias = b.aliases[ai];
+			const wordIdx = (alias.objectId / 32) | 0;
+			const bitOffset = alias.objectId & 31;
+			if (level.objects[objectsBase + wordIdx] & (1 << bitOffset)) {
+				captures[b.propertyName] = alias;
+				break;
+			}
+		}
 	}
 };
 
@@ -1722,6 +1755,7 @@ function CellReplacement(row) {
 	this.randomDirMask = row[6];
 	this.layerCoupledMovementReplacements = row[7];
 	this.inferredAggregateBindings = row[8] || [];
+	this.inferredPropertyBindings = row[9] || [];
 	this.replace = null;
 };
 
@@ -1931,9 +1965,11 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
 	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
+	const hasInferredPropertyBindings = this.replacement.inferredPropertyBindings.length > 0;
 	const key = key_array.toString()
 		+ (hasCoupledReplacements ? ",c" : "")
-		+ (hasInferredAggregateBindings ? ",a" : "");
+		+ (hasInferredAggregateBindings ? ",a" : "")
+		+ (hasInferredPropertyBindings ? ",p" : "");
 	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
 		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
 	}
@@ -1954,11 +1990,28 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 
 		// Using IMPORT_COMPILE_TIME_ARRAY should make the following three declarations faster,
 		// but it really slows down the compiler.
-		const objectsSet = _o1;	
+		const objectsSet = _o1;
 		${UNROLL("objectsSet = replace.objectsSet", OBJECT_SIZE)}
-	
+
 		const objectsClear = _o2;
 		${UNROLL("objectsClear = replace.objectsClear", OBJECT_SIZE)}
+
+		${IF_LAZY(hasInferredPropertyBindings, () => `
+		// Phase 5c-1: OR the captured alias's object bit into objectsSet at
+		// each inferred property sink. Also clear the captured alias's layer
+		// so the new bit lands cleanly (mirrors the splitter's per-alias
+		// objectsClear |= layerMask).
+		const inferredPropertyBindings = replace.inferredPropertyBindings;
+		const propertyCaptures = rule.propertyCaptures;
+		for (let bi = 0; bi < inferredPropertyBindings.length; bi++) {
+			const b = inferredPropertyBindings[bi];
+			const captured = propertyCaptures[b.propertyName];
+			if (captured) {
+				objectsClear.ior(state.layerMasks[captured.layerIndex]);
+				objectsSet.ibitset(captured.objectId);
+			}
+		}
+		`)}
 
 		const movementsSet = _m1;
 		${UNROLL("movementsSet = replace.movementsSet", MOVEMENT_SIZE)}
@@ -2506,6 +2559,10 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 	// confirmation and the apply pass. No-op when the rule has none.
 	if (this.aggregateBindingsArr !== null) {
 		this.captureAggregateBindings(level, tuple, delta);
+	}
+	// Phase 5c-1: same for property-binding alias captures.
+	if (this.propertyBindingsArr !== null) {
+		this.capturePropertyBindings(level, tuple, delta);
 	}
 
     let result=false;

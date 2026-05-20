@@ -127,3 +127,15 @@ test('RHS property with multiple possible LHS sources remains ambiguous', () => 
         result.messages.join('\n')
     );
 });
+
+const { ruleCount } = require('./lib/node_test_harness');
+
+test('Phase 5c-1: single rule coalesces cross-cell property preservation', () => {
+    // Before 5c: 2 rules (one per Thing alias). After 5c: 1 rule with runtime
+    // alias-binding capture.
+    const state = compileSource(baseSource(
+        'right [ Thing | ] -> [ | Thing ]',
+        'a.'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});

@@ -1480,3 +1480,90 @@ Combined 7B-1a + 7B-2a + 7B-2b:
 | `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
 | Rule-count probe (640 games) | 43 decreases, 0 increases |
 | Seeded-replay probe (184 games) | 0 behaviour diffs |
+
+## 2026-05-20 phase 5c-1: cross-cell property-binding alias capture (narrow)
+
+Baseline: `3d4399f0`. After: this commit.
+
+First slice of property-binding alias capture — the property analogue
+of 7B-2b's aggregate-direction binding. The runtime captures which
+alias of a layer-coupled property is present at the LHS source cell
+between match and replace; each RHS sink writes the captured object id
+into the cell.
+
+### Mechanism
+
+- `computePropertyCoalescingPlan(state, rule)` returns
+  `{safe, bindings, sinks}` similar to the aggregate plan.
+- `concretizePropertyRule` adds plan-safe names to its skippable map so
+  the property splitter leaves them alone.
+- `rulesToMask` adds a new RHS branch for layer-coupled property sinks
+  that recognise the cell as a 5c sink (no matching LHS counterpart
+  required, unlike the legacy layer-coupled mismatch error path).
+- `Rule.capturePropertyBindings(level, tuple, delta)` scans the LHS
+  source cell's objects for the first alias bit it finds; stashes
+  `{name, objectId, layerIndex}` on `this.propertyCaptures`.
+- `CellPattern.generateReplaceFunction` emits a loop that reads
+  `replace.inferredPropertyBindings`, looks up the captured alias on
+  `rule.propertyCaptures`, ORs the object id bit into `objectsSet`
+  and ORs the captured layer's mask into `objectsClear` so the bit
+  lands cleanly. Cache key gains a `,p` suffix.
+
+### Scope gate (deliberately narrow first slice)
+
+`rulePropertyBindingAllowed(rule)`: not rigid, no commands, single LHS
+row, no ellipsis.
+
+Per-property eligibility (in `computePropertyCoalescingPlan`):
+- Property is layer-coupled (single-layer auto-skipped elsewhere).
+- Exactly one LHS occurrence with empty direction (concrete-direction
+  LHS sources are deferred — hungry kraken's `[ > Pushable | no Pushable ]
+  -> [ | Pushable ]` shape triggers alias-ordering divergence with the
+  splitter when multiple aliases coexist).
+- At least one RHS occurrence at a different cell, all with empty
+  direction.
+- No `no Property` term overlap in the source cell.
+
+Cases still on the expansion path:
+- LHS source with concrete direction modifier (hungry kraken).
+- Property-attached aggregate direction (Voitex, robot arm — would need
+  5c + 7B-2b composed).
+- Multi-row rules.
+- Object-creation patterns that depend on alias ordering.
+
+### Rule-count probe (solver corpus + testdata.js)
+
+**1 decrease, 0 increases, net total −60 rules.**
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `gallery: season finale` | 886 | 826 | −60 |
+
+Modest first hit — most layer-coupled cross-cell preservation in the
+corpus has direction modifiers (hungry kraken, vertebrae). Those
+unlock with scope widening in 5c-2.
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
+**0 behaviour diffs**. 742-test simulation suite passes.
+
+### Cumulative Phase 7B + 5c impact
+
+| Phase | Cumulative net rule change |
+| --- | ---: |
+| Pre-7B baseline (`fd402c63`) | 0 |
+| After 7B-1a | −1,185 |
+| After 7B-2a | −3,214 |
+| After 7B-2b | −4,462 |
+| **After 5c-1** | **−4,522** |
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 5 fixtures (1 new) |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 40 fixtures |
+| Rule-count probe (640 games) | 1 decrease, 0 increases |
+| Seeded-replay probe (184 games) | 0 behaviour diffs |

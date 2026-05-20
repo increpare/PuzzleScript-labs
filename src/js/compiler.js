@@ -882,6 +882,9 @@ function deepCloneRule(rule) {
     // clones. Maps/arrays are read-only at runtime so shared references are safe.
     if (rule.aggregateSinks) clonedRule.aggregateSinks = rule.aggregateSinks;
     if (rule.aggregateBindingsArr) clonedRule.aggregateBindingsArr = rule.aggregateBindingsArr;
+    // Phase 5c-1: same for property-binding metadata.
+    if (rule.propertySinks) clonedRule.propertySinks = rule.propertySinks;
+    if (rule.propertyBindingsArr) clonedRule.propertyBindingsArr = rule.propertyBindingsArr;
     return clonedRule;
 }
 
@@ -1518,6 +1521,127 @@ function concretizePropertyInCell(cell, property, concreteType) {
     }
 }
 
+// Phase 5c-1: property-binding alias capture for cross-cell preservation.
+// Parallel to ruleAllowsAggregateInferenceBinding — same scope gates.
+function rulePropertyBindingAllowed(rule) {
+    if (rule.rigid) return false;
+    if (rule.commands.length !== 0) return false;
+    if (rule.lhs.length !== 1) return false;
+    const lhsRow = rule.lhs[0];
+    for (let c = 0; c < lhsRow.length; c++) {
+        const cell = lhsRow[c];
+        for (let i = 0; i < cell.length; i += 2) {
+            if (cell[i] === '...') return false;
+        }
+    }
+    return true;
+}
+
+// Plan for property-binding coalescing. Returns:
+//   {
+//     safe: Set<propertyName>,
+//     bindings: Map<propertyName, {sourceRow, sourceCell, aliases, propertyMask, layerMaskUnion}>,
+//     sinks: Map<propertyName, [{row, cell, name}, ...]>
+//   }
+//
+// A layer-coupled property qualifies when:
+//   - The rule passes rulePropertyBindingAllowed.
+//   - It has exactly one LHS occurrence with empty direction modifier and
+//     no overlapping `no` term in the cell.
+//   - It has at least one RHS occurrence at a different cell, also with
+//     empty direction.
+// At runtime the rule scans the LHS source cell's objects to find which
+// alias is present and stashes its object id + layer on the rule. Each
+// sink's CellReplacement OR's that bit into objectsSet and clears the
+// other aliases' bits from the relevant layers.
+function computePropertyCoalescingPlan(state, rule) {
+    const empty = { safe: new Set(), bindings: new Map(), sinks: new Map() };
+    if (!rulePropertyBindingAllowed(rule)) return empty;
+
+    const collect = (rows) => {
+        const byName = new Map();
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            for (let c = 0; c < row.length; c++) {
+                const cell = row[c];
+                for (let i = 0; i < cell.length; i += 2) {
+                    const dir = cell[i];
+                    const name = cell[i + 1];
+                    // `no X` and `random X` are constraints, not presence
+                    // assertions, so they don't establish an LHS source nor
+                    // count as RHS sinks.
+                    if (dir === 'no' || dir === 'random') continue;
+                    if (!isLayerCoupledProperty(state, name)) continue;
+                    if (!byName.has(name)) byName.set(name, []);
+                    byName.get(name).push({ row: r, cell: c, dir });
+                }
+            }
+        }
+        return byName;
+    };
+
+    const lhsByName = collect(rule.lhs);
+    const rhsByName = collect(rule.rhs);
+
+    const safe = new Set();
+    const bindings = new Map();
+    const sinks = new Map();
+
+    for (const [propName, lhsList] of lhsByName) {
+        if (lhsList.length !== 1) continue;
+        const source = lhsList[0];
+        // For this slice, LHS source must have empty direction. Direction
+        // modifiers (concrete `right`, `up`, etc.) trigger separate
+        // movement-bit handling that the layer-coupled machinery already
+        // covers and that interacts subtly with the captured-alias path
+        // (see hungry kraken's growth rule for an example).
+        if (source.dir !== '') continue;
+        // 'no propName' anywhere in the source cell would invalidate the
+        // anyObjectsPresent match — be conservative.
+        if (cellHasNoTermOverlappingProperty(state, rule.lhs[source.row][source.cell], propName)) continue;
+
+        const rhsList = rhsByName.get(propName) || [];
+        if (rhsList.length === 0) continue;
+        // For this slice, RHS sinks must have empty direction — applying the
+        // captured alias's bit at a non-empty-direction sink would also need
+        // to set the destination layer's movement bits, which the current
+        // generated replace code doesn't do for properties.
+        if (rhsList.some(p => p.dir !== '')) continue;
+        // At least one sink must be at a different cell than the source —
+        // otherwise the existing layer-coupled preservation handles it.
+        const hasCrossCellSink = rhsList.some(
+            p => p.row !== source.row || p.cell !== source.cell
+        );
+        if (!hasCrossCellSink) continue;
+
+        const propAliases = state.propertiesDict && state.propertiesDict[propName];
+        if (!propAliases || propAliases.length === 0) continue;
+        const aliases = [];
+        for (const aliasName of propAliases) {
+            const obj = state.objects[aliasName];
+            if (!obj || typeof obj.layer !== 'number') {
+                aliases.length = 0;
+                break;
+            }
+            aliases.push({ name: aliasName, objectId: obj.id | 0, layerIndex: obj.layer | 0 });
+        }
+        if (aliases.length === 0) continue;
+
+        safe.add(propName);
+        bindings.set(propName, {
+            sourceRow: source.row,
+            sourceCell: source.cell,
+            aliases,
+        });
+        const sinkList = [];
+        for (const p of rhsList) {
+            sinkList.push({ row: p.row, cell: p.cell, name: propName });
+        }
+        sinks.set(propName, sinkList);
+    }
+    return { safe, bindings, sinks };
+}
+
 function concretizeMovingInCell(cell, ambiguousMovement, nameToMove, concreteDirection) {
     for (let j = 0; j < cell.length; j += 2) {
         if (cell[j] === ambiguousMovement && cell[j + 1] === nameToMove) {
@@ -1904,6 +2028,15 @@ function concretizePropertyRule(state, rule, lineNumber) {
     }
     const skippableProperties = plan.skippable;
 
+    // Phase 5c-1: in addition to the walker's skippable set, add properties
+    // safe for runtime alias-binding capture. concretizePropertyRule below
+    // checks skippableProperties[name], so adding entries to it suppresses
+    // splitting and the runtime takes over.
+    const propertyPlan = computePropertyCoalescingPlan(state, rule);
+    for (const name of propertyPlan.safe) {
+        skippableProperties[name] = true;
+    }
+
     let shouldremove;
     let result = [rule];
     let modified = true;
@@ -2014,8 +2147,13 @@ function concretizePropertyRule(state, rule, lineNumber) {
                 let cur_cell = cur_rulerow[k];
                 let properties = getPropertiesFromCell(state, cur_cell);
                 for (let prop_n = 0; prop_n < properties.length; prop_n++) {
-                    if (ambiguousProperties.hasOwnProperty(properties[prop_n])) {
-                        rhsPropertyRemains = properties[prop_n];
+                    const propName = properties[prop_n];
+                    // Phase 5c-1: properties in the coalescing plan's safe set
+                    // are intentionally left un-split — the runtime will infer
+                    // each RHS occurrence from the captured LHS alias.
+                    if (propertyPlan.safe.has(propName)) continue;
+                    if (ambiguousProperties.hasOwnProperty(propName)) {
+                        rhsPropertyRemains = propName;
                     }
                 }
             }
@@ -2026,6 +2164,24 @@ function concretizePropertyRule(state, rule, lineNumber) {
     if (rhsPropertyRemains.length > 0) {
         logError('This rule has a property on the right-hand side, "' + rhsPropertyRemains.toUpperCase() + "\", that can't be inferred from the left-hand side.  (either for every property on the right there has to be a corresponding one on the left in the same cell, OR, if there's a single occurrence of a particular property name on the left, all properties of the same name on the right are assumed to be the same).", lineNumber);
         return [];
+    }
+
+    // Phase 5c-1: attach binding metadata to each result rule (including
+    // property-split clones) so rulesToMask + runtime can find them.
+    if (propertyPlan.bindings.size > 0) {
+        const bindingsArr = [];
+        for (const [name, b] of propertyPlan.bindings) {
+            bindingsArr.push({
+                propertyName: name,
+                sourceRow: b.sourceRow,
+                sourceCell: b.sourceCell,
+                aliases: b.aliases,
+            });
+        }
+        for (const r of result) {
+            r.propertySinks = propertyPlan.sinks;
+            r.propertyBindingsArr = bindingsArr;
+        }
     }
 
     return result;
@@ -2567,6 +2723,27 @@ function rulesToMask(state) {
                         if (object_dir !== '') {
                             layerCoupledMovementMasks.push(coupledTerm);
                         }
+                        // Phase 5c-1: when this is the source of a coalesced
+                        // property binding, record the alias layers in
+                        // layersUsed_l so the layer-clearing logic at the end
+                        // of the cell wipes the source. NOTE: this is conservative
+                        // — it clears all property-alias layers in the source
+                        // cell, which matches the splitter's behavior when only
+                        // one alias is present in the cell. If multiple aliases
+                        // coexisted, the splitter would clear only the matched
+                        // layer per iteration; we lose that fidelity.
+                        if (rule.propertySinks &&
+                            rule.propertySinks.has(object_name)) {
+                            const aliases = state.propertiesDict[object_name] || [];
+                            for (const aliasName of aliases) {
+                                const aliasObj = state.objects[aliasName];
+                                if (!aliasObj) continue;
+                                const aliasLayer = aliasObj.layer | 0;
+                                if (layersUsed_l[aliasLayer] === null) {
+                                    layersUsed_l[aliasLayer] = object_name;
+                                }
+                            }
+                        }
                     } else {
                         const existingname = layersUsed_l[layerIndex];
                         if (existingname !== null) {
@@ -2680,6 +2857,7 @@ function rulesToMask(state) {
                 };
                 const layerCoupledMovementReplacements = [];
                 const inferredAggregateBindings = [];
+                const inferredPropertyBindings = [];
 
 
                 // Process right-hand side cell
@@ -2726,19 +2904,57 @@ function rulesToMask(state) {
                     if (object_dir === 'no') {
                         rhsBitVectors.objectsClear.ior(objectMask);
                     } else if (isCoupledProperty) {
-                        const lhs_dir = cell_l[i];
-                        const lhs_name = cell_l[i + 1];
-                        if (lhs_name !== object_name) {
-                            logError(`Rule has a layer-coupled property mismatch between ${lhs_name.toUpperCase()} and ${object_name.toUpperCase()}.`, rule.lineNumber);
-                        } else if (lhs_dir !== '' || object_dir !== '') {
-                            const replacementTerm = buildLayerCoupledMovementTerm(
-                                state,
-                                object_name,
-                                lhs_dir,
-                                buildLayerCoupledExcludedLayers(state, cell_l, i)
-                            );
-                            replacementTerm.replacementMovementMask = dirToMovementMasks(object_dir).present;
-                            layerCoupledMovementReplacements.push(replacementTerm);
+                        // Phase 5c-1: cross-cell property-binding sink. The runtime
+                        // captures which alias matched at the LHS source cell and
+                        // writes it into this sink at replace time. No same-cell
+                        // LHS counterpart is required (in contrast to the legacy
+                        // layer-coupled movement-replacement path below).
+                        let propertyInferredSink = false;
+                        if (object_dir === '' && rule.propertySinks) {
+                            const sinkList = rule.propertySinks.get(object_name);
+                            if (sinkList) {
+                                for (let si = 0; si < sinkList.length; si++) {
+                                    const s = sinkList[si];
+                                    if (s.row === rowIndex && s.cell === colIndex) {
+                                        propertyInferredSink = true;
+                                        // Mark the property's destination layers as
+                                        // "in use" so layer-clearing logic doesn't
+                                        // wipe the captured alias.
+                                        const aliases = state.propertiesDict[object_name] || [];
+                                        for (const aliasName of aliases) {
+                                            const aliasObj = state.objects[aliasName];
+                                            if (!aliasObj) continue;
+                                            const aliasLayer = aliasObj.layer | 0;
+                                            if (layersUsed_r[aliasLayer] === null) {
+                                                layersUsed_r[aliasLayer] = object_name;
+                                            }
+                                        }
+                                        inferredPropertyBindings.push({
+                                            propertyName: object_name,
+                                        });
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (propertyInferredSink) {
+                            // Skip the legacy lhs_name === object_name match — the
+                            // sink doesn't need a same-cell LHS counterpart.
+                        } else {
+                            const lhs_dir = cell_l[i];
+                            const lhs_name = cell_l[i + 1];
+                            if (lhs_name !== object_name) {
+                                logError(`Rule has a layer-coupled property mismatch between ${lhs_name.toUpperCase()} and ${object_name.toUpperCase()}.`, rule.lineNumber);
+                            } else if (lhs_dir !== '' || object_dir !== '') {
+                                const replacementTerm = buildLayerCoupledMovementTerm(
+                                    state,
+                                    object_name,
+                                    lhs_dir,
+                                    buildLayerCoupledExcludedLayers(state, cell_l, i)
+                                );
+                                replacementTerm.replacementMovementMask = dirToMovementMasks(object_dir).present;
+                                layerCoupledMovementReplacements.push(replacementTerm);
+                            }
                         }
                     } else {
                         const existingname = layersUsed_r[layerIndex] || layersUsedRand_r[layerIndex];
@@ -2864,7 +3080,8 @@ function rulesToMask(state) {
                                  !rhsBitVectors.randomMask_r.iszero() ||
                                  !rhsBitVectors.randomDirMask_r.iszero() ||
                                  layerCoupledMovementReplacements.length > 0 ||
-                                 inferredAggregateBindings.length > 0;
+                                 inferredAggregateBindings.length > 0 ||
+                                 inferredPropertyBindings.length > 0;
 
                 if (hasChanges) {
                     const target_cell_pattern = cellrow_l[colIndex];
@@ -2877,7 +3094,8 @@ function rulesToMask(state) {
                         rhsBitVectors.randomMask_r,
                         rhsBitVectors.randomDirMask_r,
                         layerCoupledMovementReplacements,
-                        inferredAggregateBindings
+                        inferredAggregateBindings,
+                        inferredPropertyBindings
                     ]);
                 }
             }
@@ -2961,6 +3179,7 @@ function collapseRules(groups) {
             newrule.push(cellRowMasksGeneric(newrule, STRIDE_MOV, 'movementsPresent'));
             newrule.push(buildLiveRulePlanMetadata(newrule));
             newrule.push(oldrule.aggregateBindingsArr || null);
+            newrule.push(oldrule.propertyBindingsArr || null);
             rules[i] = new Rule(newrule);
         }
     }
