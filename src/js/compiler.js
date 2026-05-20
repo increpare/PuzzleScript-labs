@@ -1350,36 +1350,57 @@ function getMovings(state, cell, safeAggregates) {
     return result;
 }
 
-// Aggregate-direction terms on the LHS that don't reappear on the RHS need no
-// alias capture: the runtime can match them via anyMovementsPresent (OR
-// semantics) and the splitter's Cartesian expansion is wasted work. Returns the
-// set of aggregate names safe to leave un-split for this rule. Layer-coupled
-// property attachments still split (handled by the existing layer-coupled
-// machinery; a follow-up phase can extend coverage there).
+// Aggregate-direction terms that don't require alias capture can match via
+// anyMovementsPresent (OR semantics) and the splitter's Cartesian expansion is
+// wasted work. Returns the set of aggregate names safe to leave un-split for
+// this rule. Two cases qualify:
+//   (a) The aggregate name never appears on the RHS (LHS-only). Runtime
+//       matches via anyMovementsPresent; the per-cell aggregateMovementsMask
+//       clears the matched bit on replacement.
+//   (b) Every RHS occurrence of the aggregate is at the same
+//       (row, cell, attached-name) as a corresponding LHS occurrence
+//       (pure preservation). The LHS's matched movement bit flows through
+//       the replacement unchanged — the per-cell preservation handling
+//       in rulesToMask omits the bit from aggregateMovementsMask and skips
+//       movement bookkeeping for the RHS occurrence.
+// Layer-coupled property attachments still split (handled by the existing
+// layer-coupled machinery; a follow-up phase can extend coverage there).
 function computeSafeCoalesceAggregateNames(state, rule) {
-    const rhsAggregateNames = new Set();
-    for (const row of rule.rhs) {
-        for (const cell of row) {
-            for (let i = 0; i < cell.length; i += 2) {
-                if (cell[i] in directionaggregates) {
-                    rhsAggregateNames.add(cell[i]);
-                }
-            }
-        }
-    }
-    const safe = new Set();
-    for (const row of rule.lhs) {
-        for (const cell of row) {
+    const lhsPositionsByDir = new Map();
+    for (let r = 0; r < rule.lhs.length; r++) {
+        const row = rule.lhs[r];
+        for (let c = 0; c < row.length; c++) {
+            const cell = row[c];
             for (let i = 0; i < cell.length; i += 2) {
                 const dir = cell[i];
                 if (!(dir in directionaggregates)) continue;
-                if (rhsAggregateNames.has(dir)) continue;
                 const name = cell[i + 1];
                 const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
                 if (isLayerCoupled) continue;
-                safe.add(dir);
+                if (!lhsPositionsByDir.has(dir)) lhsPositionsByDir.set(dir, new Set());
+                lhsPositionsByDir.get(dir).add(r + ':' + c + ':' + name);
             }
         }
+    }
+
+    const safe = new Set();
+    for (const [dir, lhsPositions] of lhsPositionsByDir) {
+        let ok = true;
+        outer: for (let r = 0; r < rule.rhs.length; r++) {
+            const row = rule.rhs[r];
+            for (let c = 0; c < row.length; c++) {
+                const cell = row[c];
+                for (let i = 0; i < cell.length; i += 2) {
+                    if (cell[i] !== dir) continue;
+                    const name = cell[i + 1];
+                    if (!lhsPositions.has(r + ':' + c + ':' + name)) {
+                        ok = false;
+                        break outer;
+                    }
+                }
+            }
+        }
+        if (ok) safe.add(dir);
     }
     return safe;
 }
@@ -2104,10 +2125,10 @@ function concretizeMovingRule(state, rule, lineNumber) {
     let rhsAmbiguousMovementsRemain = '';
     
     outerloop: for (const currentRule of result) {
-        delete currentRule.movingReplacement;        
+        delete currentRule.movingReplacement;
         for (const ruleRow of currentRule.rhs) {
             for (const cell of ruleRow) {
-                const movings = getMovings(state, cell);
+                const movings = getMovings(state, cell, safeAggregates);
                 if (movings.length > 0) {
                     rhsAmbiguousMovementsRemain = movings[0][1];
                     break outerloop;
@@ -2438,7 +2459,22 @@ function rulesToMask(state) {
                                 aggregateBits.ishiftor(dirMasks[concretes[cd]], STRIDE_5 * layerIndex);
                             }
                             anyMovementsPresent.push(aggregateBits);
-                            bitVectors.aggregateMovementsMask.ior(aggregateBits);
+                            // If the RHS preserves this same aggregate at the same cell, the
+                            // matched movement bit flows through the replacement unchanged
+                            // (no clear). Otherwise the bit must be cleared on replace.
+                            let preservedOnRHS = false;
+                            if (cellrow_r && cellrow_r[colIndex]) {
+                                const cell_r = cellrow_r[colIndex];
+                                for (let ri = 0; ri < cell_r.length; ri += 2) {
+                                    if (cell_r[ri] === object_dir && cell_r[ri + 1] === object_name) {
+                                        preservedOnRHS = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!preservedOnRHS) {
+                                bitVectors.aggregateMovementsMask.ior(aggregateBits);
+                            }
                         } else {
                             const movementMask = object_dir === 'stationary' ?
                                 bitVectors.movementsMissing : bitVectors.movementsPresent;
@@ -2578,7 +2614,21 @@ function rulesToMask(state) {
 
                         layersUsed_r[layerIndex] = object_name;
 
-                        if (object_dir.length > 0) {
+                        // Detect a preserved aggregate: this same aggregate-direction term
+                        // appears on the LHS at the same (row, cell, attached-name). The
+                        // matched concrete movement bit flows through unchanged — we still
+                        // need to write the object, but skip every movement-bit shift below.
+                        let preservedAggregate = false;
+                        if (object_dir in directionaggregates && cell_l) {
+                            for (let li = 0; li < cell_l.length; li += 2) {
+                                if (cell_l[li] === object_dir && cell_l[li + 1] === object_name) {
+                                    preservedAggregate = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (object_dir.length > 0 && !preservedAggregate) {
                             rhsBitVectors.postMovementsLayerMask_r.ishiftor(0x1f, STRIDE_5 * layerIndex);
                         }
 
@@ -2600,7 +2650,9 @@ function rulesToMask(state) {
                             }
                         }
 
-                        if (object_dir === 'stationary') {
+                        if (preservedAggregate) {
+                            // LHS bit flows through; no movement shift needed.
+                        } else if (object_dir === 'stationary') {
                             rhsBitVectors.movementsClear.ishiftor(0x1f, STRIDE_5 * layerIndex);
                         } else if (object_dir === 'randomdir') {
                             rhsBitVectors.randomDirMask_r.ishiftor(dirMasks[object_dir], STRIDE_5 * layerIndex);

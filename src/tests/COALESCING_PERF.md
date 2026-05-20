@@ -1262,3 +1262,103 @@ Kreiseln, Threes, explod, and others).
 | solver-corpus rule-count probe | 60 decreases, 0 increases |
 | testdata.js rule-count probe | 30 decreases, 1 increase (cyber-lasso +4) |
 | solver-corpus deterministic-replay probe | 0 behaviour diffs |
+
+## 2026-05-20 phase 7B-2a: same-position aggregate preservation coalescing
+
+Baseline: `5864788c`. After: this commit.
+
+Extends Phase 7B-1a's direction-aggregate coalescing to the
+*preservation* case: aggregates that appear on the RHS at the same
+`(row, cell, attached-name)` as a corresponding LHS occurrence no
+longer split into one concrete rule per direction. The LHS's matched
+movement bit flows through the replacement unchanged — no alias
+capture needed.
+
+### What coalesces
+
+`computeSafeCoalesceAggregateNames` is now an "RHS positions ⊆ LHS
+positions" check per aggregate name. The two cases it accepts are:
+
+- **LHS-only** (7B-1a): the aggregate name doesn't appear on the RHS.
+  The per-cell `aggregateMovementsMask` clears the matched bit on
+  replace.
+- **Same-position preservation** (7B-2a): every RHS occurrence has a
+  matching LHS occurrence at the same `(row, cell, attached-name)`.
+  Per-LHS-term, the bits are omitted from `aggregateMovementsMask` so
+  the level's preserved bit survives. Per-RHS-term, the object still
+  registers via `objectsSet` / `objectsClear` / `objectlayers_r`, but
+  `postMovementsLayerMask_r` / `movementsSet` / `movementsClear` are
+  skipped.
+
+Cases that still split:
+
+- Cross-cell inference (aggregate moves to a different cell index on
+  the RHS — SWIMMING TIME's `[ > force moving R0 | ] -> [ | moving R0 ]`).
+- Different-object inference (`rigid [ Moving Bigfish | Bigfish ] -> [
+  Moving Bigfish | Moving Bigfish ]`).
+- Layer-coupled property attachments (existing 7B-1a restriction).
+
+Those are 7B-2b territory (needs alias-binding capture at runtime).
+
+### Final ambiguous-RHS check
+
+`concretizeMovingRule`'s post-loop sweep at the end of the function
+now passes the `safeAggregates` set to `getMovings`, so it doesn't
+flag an aggregate that was deliberately left un-split.
+
+### Rule-count probe (solver corpus + testdata.js)
+
+**58 decreases, 1 increase (`gallery: Spikes 'n' Stuff` +6), net total
+–2,029 rules.**
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `gallery:cyber-lasso` | 1594 | 566 | **−1028 (−65%)** |
+| `SWIMMING TIME!` (×2) | 1005 | 921 | −84 each |
+| `robot arm` / `robotarm` / `robotic arm` (×5) | 907 | 823 | −84 each |
+| `vertebrae` | 4613 | 4553 | −60 |
+| `gallery: train braining` / `cute train` (solver) | 95–162 | 63–130 | −32 each |
+| `Mini Jill Off` | 101 | 73 | −28 |
+| `unewton` (×2) | 68 | 44 | −24 each |
+| `galley game: easy enigma` (×2) | 883 | 863 | −20 each |
+| `Pants, Shirt, Cap` / `gallery game: Indigestion` | 72 / 359 | 56 / 343 | −16 each |
+| `increpare game: happy kraken` (= hungry kraken, ×2) | 487 | 471 | −16 each |
+| `Car Crash` (×2) | 89 | 73 | −16 each |
+| `B*TTEATER` / `butteater` | 74 | 58 | −16 each |
+| `Cute Train` / `gallery: hazard golf` / `gallery: newton's crates` | 103–195 | 95–187 | −8 each |
+| `Cratopia` / `cratopia` | 91 | 86 | −5 each |
+| plus 30 more games at −1 to −4 each |  |  |  |
+
+The +6 on `gallery: Spikes 'n' Stuff` is the same shape of downstream
+splitter interaction that the +4 on `cyber-lasso` showed in 7B-1a
+(now resolved in 7B-2a). Flagged for follow-up alongside the existing
+cyber-lasso investigation.
+
+### cyber-lasso trajectory
+
+| Phase | gallery:cyber-lasso rule count |
+| --- | ---: |
+| Baseline (pre-Phase-7) | 1646 |
+| After 7C / 7D | 1590 |
+| After 7B-1a | 1594 (+4 regression) |
+| After 7B-2a | **566 (−1024 from baseline, −65% from pre-7B)** |
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
+**0 behaviour diffs**. 742-test simulation suite passes (covers
+recorded play sessions for cyber-lasso, SWIMMING TIME, robot arm,
+vertebrae, easyenigma, hungry kraken, witch lifter, and other
+high-impact games).
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 39 fixtures (4 new) |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| solver-corpus rule-count probe | only decreases |
+| testdata.js rule-count probe | 30 decreases, 1 increase (Spikes 'n' Stuff +6) |
+| solver-corpus deterministic-replay probe | 0 behaviour diffs |

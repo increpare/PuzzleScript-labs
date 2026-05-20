@@ -403,6 +403,46 @@ test('horizontal aggregate matches only horizontal-moving objects', () => {
     assert.strictEqual(ruleCount(state), 1);
 });
 
+test('coalesces same-position preservation of moving aggregate on RHS', () => {
+    const state = compileSource(baseSource(
+        'right [ moving Player1 | Crate1 ] -> [ moving Player1 | Wall ]',
+        'PC'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('preserved aggregate-only LHS still matches when Player1 has any movement', () => {
+    // Run twice: once where Player1 starts moving (input 'right'), the rule
+    // should fire and clear the Crate1; once with no input, Player1 has no
+    // movement and the rule should not fire.
+    runRight(baseSource(`
+right [ Player1 ] -> [ right Player1 ]
+right [ moving Player1 | Crate1 ] -> [ moving Player1 | ]
+`, 'PC.'));
+
+    assertCell(0, [], 'player1 source cell should be empty (player moved right)');
+    assertCell(1, ['player1'], 'player1 should be in the second cell');
+    assertCell(2, [], 'crate1 should be cleared by the moving-player1 rule');
+});
+
+test('keeps rules with cross-cell aggregate inference on the expansion path', () => {
+    // moving Crate1 in cell 0 of LHS but cell 1 of RHS — different positions,
+    // which 7B-2a does not coalesce (would need alias-binding).
+    const state = compileSource(baseSource(
+        'right [ moving Crate1 | ] -> [ | moving Crate1 ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1, 'cross-cell aggregate inference should still split');
+});
+
+test('coalesces a rule where every RHS aggregate is preserved on LHS', () => {
+    const state = compileSource(baseSource(
+        'right [ moving Player1 | Crate1 ] -> [ moving Player1 | > Crate1 ]',
+        'PC'
+    ));
+    assert.strictEqual(ruleCount(state), 1);
+});
+
 if (process.exitCode) {
     process.exit(process.exitCode);
 }
