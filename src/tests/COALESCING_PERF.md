@@ -1567,3 +1567,86 @@ Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
 | `node src/tests/run_layer_coupled_movement_node.js` | passed, 40 fixtures |
 | Rule-count probe (640 games) | 1 decrease, 0 increases |
 | Seeded-replay probe (184 games) | 0 behaviour diffs |
+
+## 2026-05-20 phase 5c-2: widen property-binding to LHS direction modifiers
+
+Baseline: `7fc0aefd`. After: this commit.
+
+5c-1 only handled LHS sources with empty direction. 5c-2 widens to also
+accept concrete-direction sources (`> Pushable`, `up Pushable`, etc.),
+which unlocks hungry kraken's growth rule shape (the design doc's
+"riskiest case").
+
+### Mechanism: dynamic source-cell clearing
+
+The 5c-1 implementation marked all of a property's alias layers in
+`layersUsed_l` so the source cell's RHS replacement statically cleared
+the alias. This diverged from the splitter when multiple aliases
+coexisted at the source — the splitter clears only the matched alias's
+layer per iteration; the static path clears them all.
+
+5c-2 replaces the static marking with a per-cell
+`inferredPropertySources` list. At replace time, the generated function
+looks up `rule.propertyCaptures[propertyName]` and ORs the captured
+layer's mask into `objectsClear` and shifts `0x1f` into `movementsClear`
+at the captured layer. Only the matched alias's layer is cleared.
+
+### Scope (now)
+
+Per-property eligibility in `computePropertyCoalescingPlan`:
+- Property is layer-coupled.
+- Exactly one LHS occurrence with direction modifier that is anything
+  except `no` or `random` (5c-1 required strict empty direction).
+- At least one RHS occurrence at a different cell, all with empty
+  direction.
+- No `no Property` term overlap in the source cell.
+
+Cases still on the expansion path:
+- RHS sinks with concrete direction modifiers.
+- Property-attached aggregate direction (composes with 7B-2b).
+- Multi-row rules.
+
+### Rule-count probe (solver corpus + testdata.js)
+
+**4 decreases, 0 increases, net total −440 rules.**
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `hungry kraken` / `increpare game: happy kraken` | 471 | 263 | **−208 each (−44%)** |
+| `Match-Maker` (×2) | 51 | 39 | −12 each |
+
+The hungry kraken win came from the very rule the design doc flagged as
+risky — `[ no T_Grow > Pushable | no Pushable ] -> [ | Pushable ]`.
+The "alias ordering" concern the doc raised was real, but it turns out
+to be addressable by dynamic source-cell clearing rather than emulating
+the splitter's order explicitly: the splitter and coalesced versions
+end up at the same fixed point after the rule-group loop, as long as
+each firing only clears the alias it captured.
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
+**0 behaviour diffs**. 742-test simulation suite passes. Static-analysis
+runtime contracts (469 cases) pass.
+
+### Cumulative Phase 7B + 5c impact
+
+| Phase | Cumulative net rule change |
+| --- | ---: |
+| Pre-7B baseline (`fd402c63`) | 0 |
+| After 7B-1a | −1,185 |
+| After 7B-2a | −3,214 |
+| After 7B-2b | −4,462 |
+| After 5c-1 | −4,522 |
+| **After 5c-2** | **−4,962** |
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 5 fixtures |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 40 fixtures |
+| `node src/tests/run_static_analysis_runtime_contracts_node.js` | passed, 469 cases |
+| Rule-count probe (640 games) | 4 decreases, 0 increases |
+| Seeded-replay probe (184 games) | 0 behaviour diffs |

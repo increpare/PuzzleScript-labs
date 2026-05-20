@@ -1590,12 +1590,11 @@ function computePropertyCoalescingPlan(state, rule) {
     for (const [propName, lhsList] of lhsByName) {
         if (lhsList.length !== 1) continue;
         const source = lhsList[0];
-        // For this slice, LHS source must have empty direction. Direction
-        // modifiers (concrete `right`, `up`, etc.) trigger separate
-        // movement-bit handling that the layer-coupled machinery already
-        // covers and that interacts subtly with the captured-alias path
-        // (see hungry kraken's growth rule for an example).
-        if (source.dir !== '') continue;
+        // 5c-2: LHS source may have concrete direction modifiers — the
+        // matcher's layerCoupledMovementMasks already handles the movement
+        // check; binding capture only cares about which alias's object bit
+        // is present.
+        if (source.dir === 'no' || source.dir === 'random') continue;
         // 'no propName' anywhere in the source cell would invalidate the
         // anyObjectsPresent match — be conservative.
         if (cellHasNoTermOverlappingProperty(state, rule.lhs[source.row][source.cell], propName)) continue;
@@ -2669,6 +2668,7 @@ function rulesToMask(state) {
                 const anyObjectsPresent = [];
                 const anyMovementsPresent = [];
                 const layerCoupledMovementMasks = [];
+                const inferredPropertySources = [];
 
                 // Process left-hand side cell
                 for (let i = 0; i < cell_l.length; i += 2) {
@@ -2723,26 +2723,17 @@ function rulesToMask(state) {
                         if (object_dir !== '') {
                             layerCoupledMovementMasks.push(coupledTerm);
                         }
-                        // Phase 5c-1: when this is the source of a coalesced
-                        // property binding, record the alias layers in
-                        // layersUsed_l so the layer-clearing logic at the end
-                        // of the cell wipes the source. NOTE: this is conservative
-                        // — it clears all property-alias layers in the source
-                        // cell, which matches the splitter's behavior when only
-                        // one alias is present in the cell. If multiple aliases
-                        // coexisted, the splitter would clear only the matched
-                        // layer per iteration; we lose that fidelity.
+                        // Phase 5c-2: when this is the source of a coalesced
+                        // property binding, record a per-cell entry so the
+                        // RHS replacement dynamically clears only the captured
+                        // alias's layer (rather than all property layers
+                        // statically — that diverges from the splitter when
+                        // multiple aliases coexist at the source).
                         if (rule.propertySinks &&
                             rule.propertySinks.has(object_name)) {
-                            const aliases = state.propertiesDict[object_name] || [];
-                            for (const aliasName of aliases) {
-                                const aliasObj = state.objects[aliasName];
-                                if (!aliasObj) continue;
-                                const aliasLayer = aliasObj.layer | 0;
-                                if (layersUsed_l[aliasLayer] === null) {
-                                    layersUsed_l[aliasLayer] = object_name;
-                                }
-                            }
+                            inferredPropertySources.push({
+                                propertyName: object_name,
+                            });
                         }
                     } else {
                         const existingname = layersUsed_l[layerIndex];
@@ -3081,7 +3072,8 @@ function rulesToMask(state) {
                                  !rhsBitVectors.randomDirMask_r.iszero() ||
                                  layerCoupledMovementReplacements.length > 0 ||
                                  inferredAggregateBindings.length > 0 ||
-                                 inferredPropertyBindings.length > 0;
+                                 inferredPropertyBindings.length > 0 ||
+                                 inferredPropertySources.length > 0;
 
                 if (hasChanges) {
                     const target_cell_pattern = cellrow_l[colIndex];
@@ -3095,7 +3087,8 @@ function rulesToMask(state) {
                         rhsBitVectors.randomDirMask_r,
                         layerCoupledMovementReplacements,
                         inferredAggregateBindings,
-                        inferredPropertyBindings
+                        inferredPropertyBindings,
+                        inferredPropertySources
                     ]);
                 }
             }

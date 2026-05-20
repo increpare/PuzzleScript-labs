@@ -1756,6 +1756,7 @@ function CellReplacement(row) {
 	this.layerCoupledMovementReplacements = row[7];
 	this.inferredAggregateBindings = row[8] || [];
 	this.inferredPropertyBindings = row[9] || [];
+	this.inferredPropertySources = row[10] || [];
 	this.replace = null;
 };
 
@@ -1966,10 +1967,12 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
 	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
 	const hasInferredPropertyBindings = this.replacement.inferredPropertyBindings.length > 0;
+	const hasInferredPropertySources = this.replacement.inferredPropertySources.length > 0;
 	const key = key_array.toString()
 		+ (hasCoupledReplacements ? ",c" : "")
 		+ (hasInferredAggregateBindings ? ",a" : "")
-		+ (hasInferredPropertyBindings ? ",p" : "");
+		+ (hasInferredPropertyBindings ? ",p" : "")
+		+ (hasInferredPropertySources ? ",s" : "");
 	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
 		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
 	}
@@ -2013,6 +2016,22 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		}
 		`)}
 
+		${IF_LAZY(hasInferredPropertySources, () => `
+		// Phase 5c-2: dynamically clear the captured alias's layer at the
+		// source cell. The splitter clears only the matched alias's layer per
+		// iteration; clearing all property-alias layers statically would
+		// remove unrelated aliases that happen to coexist at the source.
+		const inferredPropertySources = replace.inferredPropertySources;
+		const propertyCapturesS = rule.propertyCaptures;
+		for (let si = 0; si < inferredPropertySources.length; si++) {
+			const s = inferredPropertySources[si];
+			const captured = propertyCapturesS[s.propertyName];
+			if (captured) {
+				objectsClear.ior(state.layerMasks[captured.layerIndex]);
+			}
+		}
+		`)}
+
 		const movementsSet = _m1;
 		${UNROLL("movementsSet = replace.movementsSet", MOVEMENT_SIZE)}
 
@@ -2031,10 +2050,25 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		`)}
 
 		const movementsClear = _m2;
-		
+
 		${FOR(0,MOVEMENT_SIZE,i=>
 			`movementsClear.data[${i}] = ${this.replacement.movementsClear.data[i] | this.replacement.movementsLayerMask.data[i]};\n`
 		)}
+
+		${IF_LAZY(hasInferredPropertySources, () => `
+		// Phase 5c-2: also clear the captured alias's layer's movement bits
+		// at the source cell (the splitter's postMovementsLayerMask_r covered
+		// this when the layer was in LHS but not RHS).
+		const inferredPropertySourcesM = replace.inferredPropertySources;
+		const propertyCapturesSM = rule.propertyCaptures;
+		for (let si = 0; si < inferredPropertySourcesM.length; si++) {
+			const s = inferredPropertySourcesM[si];
+			const captured = propertyCapturesSM[s.propertyName];
+			if (captured) {
+				movementsClear.ishiftor(0x1f, 5 * captured.layerIndex);
+			}
+		}
+		`)}
 
 		${IF_LAZY(!replace_randomEntityMask_zero,()=>`
 			const choices=[];
