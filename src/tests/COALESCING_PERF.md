@@ -1362,3 +1362,121 @@ high-impact games).
 | solver-corpus rule-count probe | only decreases |
 | testdata.js rule-count probe | 30 decreases, 1 increase (Spikes 'n' Stuff +6) |
 | solver-corpus deterministic-replay probe | 0 behaviour diffs |
+
+## 2026-05-20 phase 7B-2b: alias-binding for cross-cell aggregate inference
+
+Baseline: `619d19fa`. After: this commit.
+
+Final slice of the Phase 7B effort. Builds the runtime binding-capture
+machinery the design doc proposes: between match-confirmation and
+replace, the rule reads the matched concrete movement bit from the
+LHS source cell and stashes it on a per-rule scratch map. Each RHS
+cell-replace OR's the captured bit into `movementsSet` at the sink's
+layer position.
+
+### Architecture
+
+- `computeAggregateCoalescingPlan(state, rule)` returns `{safe, bindings,
+  sinks}`. The `safe` set drives compile-time coalescing (Phases 7B-1a,
+  7B-2a, and now 7B-2b). `bindings` and `sinks` populate runtime
+  metadata.
+- `concretizeMovingRule` attaches `aggregateBindingsArr` and
+  `aggregateSinks` to every result rule, including property-split
+  clones (via `deepCloneRule`).
+- The splitter's RHS inference pass at line 2168+ now skips aggregate
+  names in `safeAggregates`, leaving the inferred-sink terms intact so
+  the runtime can fill them.
+- `rulesToMask` detects RHS aggregate terms that are inferred sinks
+  (via `rule.aggregateSinks.get(dir)` matching `(row, cell, layer)`).
+  Those terms skip standard movement-bit bookkeeping but still
+  register the object via `objectsSet` / `objectsClear` /
+  `objectlayers_r`, and DO shift `postMovementsLayerMask_r` to clear
+  the destination layer's old movement bits before the captured bits
+  overwrite.
+- Rule slot 12 carries `aggregateBindingsArr` through `collapseRules`
+  to the engine.
+- Engine: `Rule.captureAggregateBindings(level, tuple, delta)` reads
+  the source cell's movement word, masks against the aggregate's
+  bitmask, and stashes on `this.aggregateCaptures`. Hook inserted in
+  `generateApplyAt` between the match-confirmation block and the
+  apply loop.
+- `CellPattern.generateReplaceFunction` emits an extra loop that
+  reads `replace.inferredAggregateBindings` and `rule.aggregateCaptures`,
+  OR-ing captured bits into `movementsSet` at each sink's layer.
+  The replace-function cache key gains a `,a` suffix when the
+  CellReplacement has inferred bindings.
+
+### Scope gate (very aggressive — narrow first slice)
+
+`ruleAllowsAggregateInferenceBinding(rule)` requires:
+
+- Not rigid (rigid-group iteration has a separate code path).
+- No commands (cancel/restart/sfx/again all complicate the capture
+  window).
+- Single LHS row (multi-row tuple enumeration is out of scope).
+- No ellipsis (capture position math is `basePos + sourceCell * delta`
+  — doesn't account for the runtime-determined ellipsis gap).
+
+Per-aggregate eligibility (in `computeAggregateCoalescingPlan`):
+
+- LHS source attached to a concrete object (`state.objects`).
+- Every RHS sink attached to a concrete object.
+- No layer-coupled property attachments of the aggregate anywhere
+  in the rule (otherwise the existing layer-coupled machinery would
+  leave a layer-coupled aggregate that the post-loop sweep can't
+  resolve).
+
+Cases still on the expansion path (deferred):
+
+- Rigid + aggregate inference.
+- Multi-row aggregate inference.
+- Property-attached aggregate inference (would need Phase 5c's
+  alias-binding for properties too).
+
+### Rule-count probe (solver corpus + testdata.js)
+
+**43 decreases, 0 increases, net total −1,248 rules.**
+
+| Game | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| `WITCH LIFTER` (×2) | 201 | 105 | −96 each |
+| `gallery game: I'm too far gone` | 178 | 98 | −80 |
+| `gallery game: Indigestion` | 343 | 279 | −64 |
+| `You can't make this up!` (×2) | 99 | 35 | −64 each |
+| `Oh No My Dog…` (×2) | 158 | 110 | −48 each |
+| `Moved by leaves of grass` (×2) | 116 | 68 | −48 each |
+| `gallery game: vexd edit` / VEXT EDIT (×3) | 3482 | 3438 | −44 each |
+| `The sponge what lights up the seafloor` (×2) | 151 | 119 | −32 each |
+| `increpare game: cooperacing` (×2) | 110 | 78 | −32 each |
+| `No! Don't eat that!` (×2) | 164 | 132 | −32 each |
+| `wool-clawer` | 173 | 141 | −32 |
+| `Caramelban` | 131 | 99 | −32 |
+| `gallery: boxes love boxing gloves` | 731 | 711 | −20 |
+| 20+ smaller wins of −4 to −16 |  |  |  |
+
+### Behaviour parity
+
+Seeded-RNG deterministic-replay probe over the 184-game solver corpus:
+**0 behaviour diffs**. 742-test simulation suite passes.
+
+### Cumulative Phase 7B impact
+
+Combined 7B-1a + 7B-2a + 7B-2b:
+
+| Phase | Cumulative net rule change |
+| --- | ---: |
+| Pre-7B baseline (`fd402c63`) | 0 |
+| After 7B-1a | −1,185 |
+| After 7B-2a | −3,214 |
+| After 7B-2b | **−4,462** |
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `node src/tests/run_tests_node.js` | passed, 742 / 742 |
+| `node src/tests/run_layer_coupled_movement_node.js` | passed, 42 fixtures (3 new) |
+| `node src/tests/run_property_rewrite_coalescing_node.js` | passed, 9 fixtures |
+| `node src/tests/run_inferred_rhs_property_bindings_node.js` | passed, 4 fixtures |
+| Rule-count probe (640 games) | 43 decreases, 0 increases |
+| Seeded-replay probe (184 games) | 0 behaviour diffs |

@@ -387,12 +387,16 @@ right [ Player1 | Crate1 ] -> [ Player1 | right Crate1 ]
     assertCell(2, [], 'destination cell should still be empty');
 });
 
-test('keeps rules with aggregate on both LHS and RHS on the expansion path', () => {
+test('coalesces same-cell different-object aggregate inference', () => {
+    // Phase 7B-2b: single LHS 'moving' on Crate1, RHS has it preserved at
+    // (0,0,Crate1) AND inferred at (0,1,Crate1). Both concrete objects, the
+    // runtime captures the matched direction at cell 0 and applies it at
+    // cell 1.
     const state = compileSource(baseSource(
         'right [ moving Crate1 | Crate1 ] -> [ moving Crate1 | moving Crate1 ]',
         'CC'
     ));
-    assert.ok(ruleCount(state) > 1, 'LHS+RHS aggregate cases should still split');
+    assert.strictEqual(ruleCount(state), 1);
 });
 
 test('horizontal aggregate matches only horizontal-moving objects', () => {
@@ -425,14 +429,34 @@ right [ moving Player1 | Crate1 ] -> [ moving Player1 | ]
     assertCell(2, [], 'crate1 should be cleared by the moving-player1 rule');
 });
 
-test('keeps rules with cross-cell aggregate inference on the expansion path', () => {
-    // moving Crate1 in cell 0 of LHS but cell 1 of RHS — different positions,
-    // which 7B-2a does not coalesce (would need alias-binding).
+test('coalesces cross-cell aggregate inference via runtime binding capture', () => {
+    // Phase 7B-2b: single LHS 'moving' on Crate1 at cell 0, RHS sink at cell 1.
+    // Runtime captures the matched direction at cell 0 and applies it at cell 1.
     const state = compileSource(baseSource(
         'right [ moving Crate1 | ] -> [ | moving Crate1 ]',
         'CC'
     ));
-    assert.ok(ruleCount(state) > 1, 'cross-cell aggregate inference should still split');
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('keeps rigid LHS+RHS aggregate inference on the expansion path', () => {
+    // Phase 7B-2b's gate excludes rigid rules — the rigid-group iteration
+    // code path hasn't been validated against the captured-direction handoff.
+    const state = compileSource(baseSource(
+        'right rigid [ moving Crate1 | ] -> [ | moving Crate1 ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1, 'rigid aggregate inference should still split');
+});
+
+test('keeps property-attached aggregate inference on the expansion path', () => {
+    // Phase 7B-2b's gate requires concrete-object attachments. When the LHS
+    // source or any RHS sink is on a property, the rule still splits.
+    const state = compileSource(baseSource(
+        'right [ moving Crate | ] -> [ | moving Crate ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1, 'property-attached aggregate inference should still split');
 });
 
 test('coalesces a rule where every RHS aggregate is preserved on LHS', () => {

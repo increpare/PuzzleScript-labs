@@ -1461,6 +1461,11 @@ function Rule(rule) {
 			this.patterns.length === 1 &&
 			this.commands.length === 0,
 	};
+	// Phase 7B-2b: aggregate-direction bindings populated between match and
+	// replace by captureAggregateBindings; consumed in CellReplacement.replace
+	// via the inferredAggregateBindings entries.
+	this.aggregateBindingsArr = rule[12] || null;
+	this.aggregateCaptures = this.aggregateBindingsArr ? {} : null;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
 	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
 	for (const m of this.cellRowMasks) {
@@ -1491,6 +1496,32 @@ Rule.prototype.generate_all_MatchFunctions = function(){
 		this.cellRowMatches.push(this.generateCellRowMatchesFunction(this.patterns[i], this.ellipsisCount[i]));
 	}
 }
+
+// Phase 7B-2b: for each aggregate-direction binding, read the concrete
+// movement bits from the matched LHS cell and stash them on
+// this.aggregateCaptures keyed by aggregate name. The cell's
+// CellReplacement.inferredAggregateBindings list reads from this scratch
+// map at replace time.
+Rule.prototype.captureAggregateBindings = function (level, tuple, delta) {
+	const bindings = this.aggregateBindingsArr;
+	if (!bindings || bindings.length === 0) return;
+	const captures = this.aggregateCaptures;
+	for (let bi = 0; bi < bindings.length; bi++) {
+		const b = bindings[bi];
+		const tupleEntry = tuple[b.sourceRow];
+		const basePos = (typeof tupleEntry === 'number') ? tupleEntry : tupleEntry[0];
+		const cellPos = basePos + b.sourceCell * delta;
+		const shift = 5 * b.sourceLayer;
+		const wordIdx = shift >>> 5;
+		const wordShift = shift & 31;
+		const movementsBase = cellPos * STRIDE_MOV;
+		let raw = level.movements[movementsBase + wordIdx] >>> wordShift;
+		if (wordShift > 27) {
+			raw |= level.movements[movementsBase + wordIdx + 1] << (32 - wordShift);
+		}
+		captures[b.aggregateName] = raw & b.aggregateMask;
+	}
+};
 
 let CACHE_RULE_CELLROWMATCHESFUNCTION = {}
 Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount) {
@@ -1690,6 +1721,7 @@ function CellReplacement(row) {
 	this.randomEntityMask = row[5];
 	this.randomDirMask = row[6];
 	this.layerCoupledMovementReplacements = row[7];
+	this.inferredAggregateBindings = row[8] || [];
 	this.replace = null;
 };
 
@@ -1898,7 +1930,10 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+2] = rule.rigid;
 
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
-	const key = key_array.toString() + (hasCoupledReplacements ? ",c" : "");
+	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
+	const key = key_array.toString()
+		+ (hasCoupledReplacements ? ",c" : "")
+		+ (hasInferredAggregateBindings ? ",a" : "");
 	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
 		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
 	}
@@ -1927,7 +1962,21 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 
 		const movementsSet = _m1;
 		${UNROLL("movementsSet = replace.movementsSet", MOVEMENT_SIZE)}
-		
+
+		${IF_LAZY(hasInferredAggregateBindings, () => `
+		// Phase 7B-2b: OR captured aggregate-direction bits into movementsSet
+		// at each inferred sink's layer position.
+		const inferredAggregateBindings = replace.inferredAggregateBindings;
+		const aggregateCaptures = rule.aggregateCaptures;
+		for (let bi = 0; bi < inferredAggregateBindings.length; bi++) {
+			const b = inferredAggregateBindings[bi];
+			const captured = aggregateCaptures[b.aggregateName];
+			if (captured) {
+				movementsSet.ishiftor(captured, 5 * b.layerIndex);
+			}
+		}
+		`)}
+
 		const movementsClear = _m2;
 		
 		${FOR(0,MOVEMENT_SIZE,i=>
@@ -2438,19 +2487,25 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 			${ENDIF(ellipsisCount[cellRowIndex] === 1)}
 			${IF(ellipsisCount[cellRowIndex] === 2)}
 				if ( this.cellRowMatches[${cellRowIndex}](
-						this.patterns[${cellRowIndex}], 
-						tuple[${cellRowIndex}][0],  
-						tuple[${cellRowIndex}][1]+tuple[${cellRowIndex}][2]+1, 
-							tuple[${cellRowIndex}][1]+tuple[${cellRowIndex}][2], 
-						tuple[${cellRowIndex}][1]+1, 
-							tuple[${cellRowIndex}][1],  
-						tuple[${cellRowIndex}][2]+1, 
-							tuple[${cellRowIndex}][2], 
+						this.patterns[${cellRowIndex}],
+						tuple[${cellRowIndex}][0],
+						tuple[${cellRowIndex}][1]+tuple[${cellRowIndex}][2]+1,
+							tuple[${cellRowIndex}][1]+tuple[${cellRowIndex}][2],
+						tuple[${cellRowIndex}][1]+1,
+							tuple[${cellRowIndex}][1],
+						tuple[${cellRowIndex}][2]+1,
+							tuple[${cellRowIndex}][2],
 							delta, level.objects, level.movements
 						).length === 0 )
 					return false
 			${ENDIF(ellipsisCount[cellRowIndex] === 2)}
 		}`)}
+	}
+
+	// Phase 7B-2b: capture aggregate-direction bindings between match
+	// confirmation and the apply pass. No-op when the rule has none.
+	if (this.aggregateBindingsArr !== null) {
+		this.captureAggregateBindings(level, tuple, delta);
 	}
 
     let result=false;

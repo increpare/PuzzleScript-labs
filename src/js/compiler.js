@@ -878,6 +878,10 @@ function deepCloneRule(rule) {
         commands: rule.commands,
         randomRule: rule.randomRule
     };
+    // Phase 7B-2b: propagate aggregate binding metadata through property-split
+    // clones. Maps/arrays are read-only at runtime so shared references are safe.
+    if (rule.aggregateSinks) clonedRule.aggregateSinks = rule.aggregateSinks;
+    if (rule.aggregateBindingsArr) clonedRule.aggregateBindingsArr = rule.aggregateBindingsArr;
     return clonedRule;
 }
 
@@ -1353,56 +1357,157 @@ function getMovings(state, cell, safeAggregates) {
 // Aggregate-direction terms that don't require alias capture can match via
 // anyMovementsPresent (OR semantics) and the splitter's Cartesian expansion is
 // wasted work. Returns the set of aggregate names safe to leave un-split for
-// this rule. Two cases qualify:
-//   (a) The aggregate name never appears on the RHS (LHS-only). Runtime
-//       matches via anyMovementsPresent; the per-cell aggregateMovementsMask
-//       clears the matched bit on replacement.
-//   (b) Every RHS occurrence of the aggregate is at the same
-//       (row, cell, attached-name) as a corresponding LHS occurrence
-//       (pure preservation). The LHS's matched movement bit flows through
-//       the replacement unchanged — the per-cell preservation handling
-//       in rulesToMask omits the bit from aggregateMovementsMask and skips
-//       movement bookkeeping for the RHS occurrence.
-// Layer-coupled property attachments still split (handled by the existing
-// layer-coupled machinery; a follow-up phase can extend coverage there).
+// this rule.
+//
+// Wraps computeAggregateCoalescingPlan and returns just the safe-set so
+// concretizeMovingRule call sites remain ergonomic.
 function computeSafeCoalesceAggregateNames(state, rule) {
-    const lhsPositionsByDir = new Map();
-    for (let r = 0; r < rule.lhs.length; r++) {
-        const row = rule.lhs[r];
-        for (let c = 0; c < row.length; c++) {
-            const cell = row[c];
-            for (let i = 0; i < cell.length; i += 2) {
-                const dir = cell[i];
-                if (!(dir in directionaggregates)) continue;
-                const name = cell[i + 1];
-                const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
-                if (isLayerCoupled) continue;
-                if (!lhsPositionsByDir.has(dir)) lhsPositionsByDir.set(dir, new Set());
-                lhsPositionsByDir.get(dir).add(r + ':' + c + ':' + name);
-            }
+    return computeAggregateCoalescingPlan(state, rule).safe;
+}
+
+// Phase 7B-2b: alias-binding for single-LHS-occurrence aggregates. The runtime
+// captures the matched concrete direction at the source position between match
+// and replace, then OR's it into each sink's movementsSet at replace time.
+//
+// Aggressive scope gate — only enabled for rules where every interaction is
+// well-understood:
+//   - Not rigid (rigid-group iteration is a separate code path).
+//   - No commands (cancel/restart/sfx/again all complicate the capture window).
+//   - Single LHS row (multi-row tuple enumeration is not in scope yet).
+//   - No ellipsis (capture position math is `basePos + sourceCell * delta`,
+//     which doesn't account for the runtime-determined ellipsis gap).
+// Per-aggregate eligibility checked in computeAggregateCoalescingPlan:
+//   - LHS source's attached name is a concrete object (state.objects).
+//   - Every RHS sink's attached name is a concrete object.
+// Properties (single-layer or layer-coupled) on the aggregate term skip the
+// binding path and fall back to splitting.
+function ruleAllowsAggregateInferenceBinding(rule) {
+    if (rule.rigid) return false;
+    if (rule.commands.length !== 0) return false;
+    if (rule.lhs.length !== 1) return false;
+    // Ellipsis check: any cell in the LHS row that's the ellipsis sentinel.
+    const lhsRow = rule.lhs[0];
+    for (let c = 0; c < lhsRow.length; c++) {
+        const cell = lhsRow[c];
+        for (let i = 0; i < cell.length; i += 2) {
+            if (cell[i] === '...') return false;
         }
     }
+    return true;
+}
 
-    const safe = new Set();
-    for (const [dir, lhsPositions] of lhsPositionsByDir) {
-        let ok = true;
-        outer: for (let r = 0; r < rule.rhs.length; r++) {
-            const row = rule.rhs[r];
+// Full coalescing plan for direction-aggregate terms in a rule. Returns:
+//   {
+//     safe: Set<aggregateName>,
+//     bindings: Map<aggregateName, {sourceRow, sourceCell, sourceLayer, aggregateMask}>,
+//     sinks: Map<aggregateName, [{row, cell, layer}, ...]>
+//   }
+//
+// An aggregate name is safe to coalesce when one of:
+//   (a) The name never appears on the RHS. Runtime matches via
+//       anyMovementsPresent; per-cell aggregateMovementsMask clears the bit
+//       on replacement.
+//   (b) Every RHS occurrence is at the same (row, cell, attached-name) as a
+//       corresponding LHS occurrence (pure preservation). The level's matched
+//       bit flows through unchanged.
+//   (c) Phase 7B-2b: ruleAllowsAggregateInferenceBinding(rule) is true AND
+//       the aggregate has exactly one LHS occurrence on a concrete object,
+//       and every RHS occurrence is on a concrete object. The runtime
+//       captures the concrete direction at the source position and applies
+//       it at each sink.
+//
+// Pure preservation cases emit no binding (level bit preserved in place);
+// only the inference case populates bindings + sinks.
+function computeAggregateCoalescingPlan(state, rule) {
+    // Collect every aggregate-direction occurrence — layer-coupled property
+    // attachments are kept (marked) so the safe-set check can see them and
+    // bail rather than silently skipping. If we coalesce a name but the rule
+    // still has a layer-coupled aggregate on RHS, concretizeMovingRule's
+    // post-loop check will flag it as ambiguous and abort compilation.
+    const collectAggregatePositions = (rows) => {
+        const byDir = new Map();
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
             for (let c = 0; c < row.length; c++) {
                 const cell = row[c];
                 for (let i = 0; i < cell.length; i += 2) {
-                    if (cell[i] !== dir) continue;
+                    const dir = cell[i];
+                    if (!(dir in directionaggregates)) continue;
                     const name = cell[i + 1];
-                    if (!lhsPositions.has(r + ':' + c + ':' + name)) {
-                        ok = false;
-                        break outer;
-                    }
+                    const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
+                    const rawLayer = state.objects[name]
+                        ? state.objects[name].layer
+                        : state.propertiesSingleLayer[name];
+                    const layerIndex = (typeof rawLayer === 'number') ? (rawLayer | 0) : null;
+                    if (!byDir.has(dir)) byDir.set(dir, []);
+                    byDir.get(dir).push({ row: r, cell: c, name, layer: layerIndex, isLayerCoupled });
                 }
             }
         }
-        if (ok) safe.add(dir);
+        return byDir;
+    };
+
+    const lhsByDir = collectAggregatePositions(rule.lhs);
+    const rhsByDir = collectAggregatePositions(rule.rhs);
+
+    const safe = new Set();
+    const bindings = new Map();
+    const sinks = new Map();
+    const inferenceAllowed = ruleAllowsAggregateInferenceBinding(rule);
+
+    for (const [dir, lhsList] of lhsByDir) {
+        const rhsList = rhsByDir.get(dir) || [];
+        // Skip any aggregate name that has layer-coupled attachments anywhere
+        // — the existing layer-coupled machinery handles those by splitting,
+        // and coalescing would leave a layer-coupled aggregate term that the
+        // final ambiguous-on-RHS sweep can't resolve.
+        const nonCoupledLhs = lhsList.filter(p => !p.isLayerCoupled);
+        if (nonCoupledLhs.length === 0) continue;
+        if (lhsList.some(p => p.isLayerCoupled)) continue;
+        if (rhsList.some(p => p.isLayerCoupled)) continue;
+
+        const lhsPosKeys = new Set(nonCoupledLhs.map(p => p.row + ':' + p.cell + ':' + p.name));
+
+        const preservationOnly = rhsList.every(
+            p => lhsPosKeys.has(p.row + ':' + p.cell + ':' + p.name)
+        );
+
+        if (preservationOnly) {
+            safe.add(dir);
+            continue;
+        }
+
+        // Inference case: single LHS occurrence + concrete-object attachments.
+        if (!inferenceAllowed || nonCoupledLhs.length !== 1) continue;
+        const source = nonCoupledLhs[0];
+        if (!state.objects.hasOwnProperty(source.name)) continue;
+        const allRhsConcrete = rhsList.every(p => state.objects.hasOwnProperty(p.name));
+        if (!allRhsConcrete) continue;
+        if (source.layer === null) continue;
+        if (rhsList.some(p => p.layer === null)) continue;
+
+        let aggregateMask = 0;
+        const concretes = directionaggregates[dir];
+        for (let cdi = 0; cdi < concretes.length; cdi++) {
+            aggregateMask |= dirMasks[concretes[cdi]];
+        }
+
+        safe.add(dir);
+        bindings.set(dir, {
+            sourceRow: source.row,
+            sourceCell: source.cell,
+            sourceLayer: source.layer,
+            aggregateMask,
+        });
+        const sinkList = [];
+        for (const p of rhsList) {
+            if (p.row !== source.row || p.cell !== source.cell || p.name !== source.name) {
+                sinkList.push({ row: p.row, cell: p.cell, layer: p.layer });
+            }
+        }
+        sinks.set(dir, sinkList);
     }
-    return safe;
+    return { safe, bindings, sinks };
 }
 
 function concretizePropertyInCell(cell, property, concreteType) {
@@ -1965,7 +2070,8 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
 
 function concretizeMovingRule(state, rule, lineNumber) {
 
-    const safeAggregates = computeSafeCoalesceAggregateNames(state, rule);
+    const coalescingPlan = computeAggregateCoalescingPlan(state, rule);
+    const safeAggregates = coalescingPlan.safe;
     let shouldremove;
     let result = [rule];
     let modified = true;
@@ -2110,6 +2216,12 @@ function concretizeMovingRule(state, rule, lineNumber) {
                 if (concreteMovement === "INVALID") {
                     continue;
                 }
+                // Phase 7B-2b: leave coalesced aggregate names alone — concretizing
+                // them here would clobber inferred-sink terms that the runtime is
+                // going to fill in from captured bindings.
+                if (safeAggregates.has(ambiguousMovement)) {
+                    continue;
+                }
                 for (let j = 0; j < cur_rule.rhs.length; j++) {
                     let cellRow_rhs = cur_rule.rhs[j];
                     for (let k = 0; k < cellRow_rhs.length; k++) {
@@ -2141,6 +2253,26 @@ function concretizeMovingRule(state, rule, lineNumber) {
     if (rhsAmbiguousMovementsRemain.length > 0) {
         logError('This rule has an ambiguous movement on the right-hand side, "' + rhsAmbiguousMovementsRemain + "\", that can't be inferred from the left-hand side.  (either for every ambiguous movement associated to an entity on the right there has to be a corresponding one on the left attached to the same entity, OR, if there's a single occurrence of a particular ambiguous movement on the left, all properties of the same movement attached to the same object on the right are assumed to be the same (or something like that)).", lineNumber);
         state.invalid = true;
+    }
+
+    // Phase 7B-2b: attach binding metadata to every rule that survived. The
+    // Maps and arrays are read-only at runtime so shared references across
+    // property-split clones are safe.
+    if (coalescingPlan.bindings.size > 0) {
+        const bindingsArr = [];
+        for (const [name, b] of coalescingPlan.bindings) {
+            bindingsArr.push({
+                aggregateName: name,
+                sourceRow: b.sourceRow,
+                sourceCell: b.sourceCell,
+                sourceLayer: b.sourceLayer,
+                aggregateMask: b.aggregateMask,
+            });
+        }
+        for (const r of result) {
+            r.aggregateSinks = coalescingPlan.sinks;
+            r.aggregateBindingsArr = bindingsArr;
+        }
     }
 
     return result;
@@ -2547,6 +2679,7 @@ function rulesToMask(state) {
                     randomDirMask_r: new BitVec(STRIDE_MOV)
                 };
                 const layerCoupledMovementReplacements = [];
+                const inferredAggregateBindings = [];
 
 
                 // Process right-hand side cell
@@ -2629,7 +2762,41 @@ function rulesToMask(state) {
                             }
                         }
 
-                        if (object_dir.length > 0 && !preservedAggregate) {
+                        // Phase 7B-2b: inferred sink. The runtime captures the
+                        // matched concrete direction at the LHS source and ORs it
+                        // into movementsSet at this layer via the CellReplacement's
+                        // inferredAggregateBindings list. Object registration goes
+                        // through the standard branch below; movement bits skip.
+                        let inferredAggregateSink = false;
+                        if (!preservedAggregate &&
+                            object_dir in directionaggregates &&
+                            rule.aggregateSinks) {
+                            const sinkList = rule.aggregateSinks.get(object_dir);
+                            if (sinkList) {
+                                for (let si = 0; si < sinkList.length; si++) {
+                                    const s = sinkList[si];
+                                    if (s.row === rowIndex && s.cell === colIndex && s.layer === layerIndex) {
+                                        inferredAggregateSink = true;
+                                        inferredAggregateBindings.push({
+                                            aggregateName: object_dir,
+                                            layerIndex,
+                                        });
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        const skipMovementShifts = preservedAggregate || inferredAggregateSink;
+
+                        // Inferred sinks still need the destination layer's pre-existing
+                        // movement bits cleared — otherwise OR-ing the captured bit on top
+                        // of any prior direction yields a multi-bit layer state that
+                        // repositionEntitiesOnLayer can't decode. The splitter clears the
+                        // layer for the same reason (via postMovementsLayerMask_r) before
+                        // setting its concrete direction. Preserved aggregates do NOT
+                        // clear: the LHS bit must flow through unchanged.
+                        if (object_dir.length > 0 && (!skipMovementShifts || inferredAggregateSink)) {
                             rhsBitVectors.postMovementsLayerMask_r.ishiftor(0x1f, STRIDE_5 * layerIndex);
                         }
 
@@ -2651,8 +2818,10 @@ function rulesToMask(state) {
                             }
                         }
 
-                        if (preservedAggregate) {
-                            // LHS bit flows through; no movement shift needed.
+                        if (skipMovementShifts) {
+                            // Preserved aggregate: LHS bit flows through unchanged.
+                            // Inferred sink: rule.aggregateCaptures supplies the bit
+                            // at replace time via inferredAggregateBindings.
                         } else if (object_dir === 'stationary') {
                             rhsBitVectors.movementsClear.ishiftor(0x1f, STRIDE_5 * layerIndex);
                         } else if (object_dir === 'randomdir') {
@@ -2687,14 +2856,15 @@ function rulesToMask(state) {
                 rhsBitVectors.postMovementsLayerMask_r.ior(bitVectors.objectlayers_l);
 
                 // Set replacement if any changes would occur
-                const hasChanges = !rhsBitVectors.objectsClear.iszero() || 
-                                 !rhsBitVectors.objectsSet.iszero() || 
-                                 !rhsBitVectors.movementsClear.iszero() || 
-                                 !rhsBitVectors.movementsSet.iszero() || 
-                                 !rhsBitVectors.postMovementsLayerMask_r.iszero() || 
-                                 !rhsBitVectors.randomMask_r.iszero() || 
+                const hasChanges = !rhsBitVectors.objectsClear.iszero() ||
+                                 !rhsBitVectors.objectsSet.iszero() ||
+                                 !rhsBitVectors.movementsClear.iszero() ||
+                                 !rhsBitVectors.movementsSet.iszero() ||
+                                 !rhsBitVectors.postMovementsLayerMask_r.iszero() ||
+                                 !rhsBitVectors.randomMask_r.iszero() ||
                                  !rhsBitVectors.randomDirMask_r.iszero() ||
-                                 layerCoupledMovementReplacements.length > 0;
+                                 layerCoupledMovementReplacements.length > 0 ||
+                                 inferredAggregateBindings.length > 0;
 
                 if (hasChanges) {
                     const target_cell_pattern = cellrow_l[colIndex];
@@ -2706,7 +2876,8 @@ function rulesToMask(state) {
                         rhsBitVectors.postMovementsLayerMask_r,
                         rhsBitVectors.randomMask_r,
                         rhsBitVectors.randomDirMask_r,
-                        layerCoupledMovementReplacements
+                        layerCoupledMovementReplacements,
+                        inferredAggregateBindings
                     ]);
                 }
             }
@@ -2789,6 +2960,7 @@ function collapseRules(groups) {
             newrule.push(cellRowMasksGeneric(newrule, STRIDE_OBJ, 'objectsPresent'));
             newrule.push(cellRowMasksGeneric(newrule, STRIDE_MOV, 'movementsPresent'));
             newrule.push(buildLiveRulePlanMetadata(newrule));
+            newrule.push(oldrule.aggregateBindingsArr || null);
             rules[i] = new Rule(newrule);
         }
     }
