@@ -2365,19 +2365,17 @@ function rulesToMask(state) {
                 const cell_l = cellrow_l[colIndex];
                 const layersUsed_l = [...layerTemplate];
                 
-                // Initialize bit vectors for the current cell
+                // Initialize bit vectors for the current cell.
+                // aggregateMovementsMask is allocated lazily — most cells have no
+                // direction-aggregate terms and we save an Int32Array alloc per
+                // cell across compile.
                 const bitVectors = {
                     objectsPresent: new BitVec(STRIDE_OBJ),
                     objectsMissing: new BitVec(STRIDE_OBJ),
                     movementsPresent: new BitVec(STRIDE_MOV),
                     movementsMissing: new BitVec(STRIDE_MOV),
                     objectlayers_l: new BitVec(STRIDE_MOV),
-                    // Aggregate-direction terms on the LHS that the matcher tests via
-                    // anyMovementsPresent (OR semantics) don't appear in movementsPresent;
-                    // we track their bits separately so the RHS clear logic still
-                    // wipes them when the rule fires (the splitter previously relied on
-                    // movementsPresent containing the matched concrete bit).
-                    aggregateMovementsMask: new BitVec(STRIDE_MOV)
+                    aggregateMovementsMask: null
                 };
                 
                 const anyObjectsPresent = [];
@@ -2473,6 +2471,9 @@ function rulesToMask(state) {
                                 }
                             }
                             if (!preservedOnRHS) {
+                                if (!bitVectors.aggregateMovementsMask) {
+                                    bitVectors.aggregateMovementsMask = new BitVec(STRIDE_MOV);
+                                }
                                 bitVectors.aggregateMovementsMask.ior(aggregateBits);
                             }
                         } else {
@@ -2669,7 +2670,8 @@ function rulesToMask(state) {
                 if (!bitVectors.movementsPresent.bitsSetInArray(rhsBitVectors.movementsSet.data)) {
                     rhsBitVectors.movementsClear.ior(bitVectors.movementsPresent);
                 }
-                if (!bitVectors.aggregateMovementsMask.bitsSetInArray(rhsBitVectors.movementsSet.data)) {
+                if (bitVectors.aggregateMovementsMask &&
+                    !bitVectors.aggregateMovementsMask.bitsSetInArray(rhsBitVectors.movementsSet.data)) {
                     rhsBitVectors.movementsClear.ior(bitVectors.aggregateMovementsMask);
                 }
 
