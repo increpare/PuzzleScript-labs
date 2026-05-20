@@ -797,6 +797,21 @@ function createSolverLevelSpecialization(options = {}) {
         return Boolean(mask && mask.data && !mask.iszero());
     }
 
+    // Phase 7B-1a+: cells may carry aggregate-direction match bits in
+    // anyMovementsPresent rather than movementsPresent. cellMatchesMovement
+    // is the analyzer-side "this cell requires any movement bit" predicate.
+    function cellMatchesMovement(cell) {
+        if (!cell) return false;
+        if (movementsHaveBits(cell.movementsPresent)) return true;
+        const anyMov = cell.anyMovementsPresent;
+        if (anyMov && anyMov.length > 0) {
+            for (let i = 0; i < anyMov.length; i++) {
+                if (anyMov[i] && !anyMov[i].iszero()) return true;
+            }
+        }
+        return false;
+    }
+
     function objectPresenceMask(cell) {
         const mask = new BitVec(STRIDE_OBJ);
         if (!cell || !cell.objectsPresent || !cell.objectsPresent.data) {
@@ -836,9 +851,27 @@ function createSolverLevelSpecialization(options = {}) {
         if (masksIntersect(present, objectMask) && masksIntersect(cell.replacement.objectsClear, objectMask)) {
             return true;
         }
-        return masksIntersect(present, objectMask) &&
+        if (masksIntersect(present, objectMask) &&
             (movementMaskTouchesObjectMask(cell.replacement.movementsSet, objectMask) ||
-                movementMaskTouchesObjectMask(cell.replacement.movementsClear, objectMask));
+                movementMaskTouchesObjectMask(cell.replacement.movementsClear, objectMask))) {
+            return true;
+        }
+        // Phase 7B-2b: inferred aggregate-direction sinks write movement bits
+        // at runtime from the rule's captured concrete direction. Conservatively
+        // treat the sink's layer as touched.
+        if (masksIntersect(present, objectMask)) {
+            const sinks = cell.replacement.inferredAggregateBindings;
+            if (sinks && sinks.length > 0) {
+                for (const objectName of state.idDict || []) {
+                    const object = state.objects && state.objects[objectName];
+                    if (!object || !objectMask.get(object.id)) continue;
+                    for (let si = 0; si < sinks.length; si++) {
+                        if (sinks[si].layerIndex === (object.layer | 0)) return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     function foreignSetMask(cell, excludedMask) {
@@ -924,7 +957,7 @@ function createSolverLevelSpecialization(options = {}) {
                         if (!actorCell) {
                             continue;
                         }
-                        const actorMoves = movementsHaveBits(cell.movementsPresent);
+                        const actorMoves = cellMatchesMovement(cell);
                         const actorChanges = cellChangesObjects(cell);
                         if (!actorMoves && !actorChanges && !cancelRule) {
                             continue;
@@ -1008,7 +1041,7 @@ function createSolverLevelSpecialization(options = {}) {
                             targetChangedRules++;
                         }
                         const present = objectPresenceMask(cell);
-                        if (masksIntersect(present, condition[1]) && movementsHaveBits(cell.movementsPresent)) {
+                        if (masksIntersect(present, condition[1]) && cellMatchesMovement(cell)) {
                             const foreign = foreignSetMask(cell, excludedTrailMask);
                             if (!foreign.iszero()) {
                                 sourceTrailRules++;

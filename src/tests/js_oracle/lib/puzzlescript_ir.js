@@ -130,6 +130,12 @@ function replacementGuaranteedNoop(replacement, pattern) {
         bitVecHasBits(replacement.randomDirMask)) {
         return false;
     }
+    // Phase 7B-2b: inferred-aggregate-binding sinks write movement bits at
+    // runtime from the rule's captured concrete direction. A replacement
+    // that's otherwise empty but has sinks is NOT a no-op.
+    if (replacement.inferredAggregateBindings && replacement.inferredAggregateBindings.length > 0) {
+        return false;
+    }
     return bitVecSubsetOf(replacement.objectsClear, pattern.objectsMissing) &&
         bitVecSubsetOf(replacement.movementsClear, pattern.movementsMissing);
 }
@@ -187,6 +193,15 @@ function serializeReplacement(replacement) {
         movements_layer_mask: bitVecToArray(replacement.movementsLayerMask),
         random_entity_mask: bitVecToArray(replacement.randomEntityMask),
         random_dir_mask: bitVecToArray(replacement.randomDirMask),
+        // Phase 7B-2b: aggregate-direction sinks. Each entry says "at replace
+        // time, OR rule.aggregateCaptures[aggregateName] into movementsSet
+        // at this layer's 5-bit slice." Consumers analysing replacement
+        // effects must treat these as conservative movement-bit writes on
+        // the named layer.
+        inferred_aggregate_bindings: (replacement.inferredAggregateBindings || []).map(b => ({
+            aggregate_name: b.aggregateName,
+            layer_index: b.layerIndex,
+        })),
     };
 }
 
@@ -196,10 +211,13 @@ function serializeRulePlanReplacement(rule, rowIndex, cellIndex, pattern, state)
     const touchesObjects = bitVecHasBits(replacement.objectsClear) ||
         bitVecHasBits(replacement.objectsSet) ||
         bitVecHasBits(replacement.randomEntityMask);
+    const hasInferredSinks = Boolean(replacement.inferredAggregateBindings &&
+        replacement.inferredAggregateBindings.length > 0);
     const touchesMovements = bitVecHasBits(replacement.movementsClear) ||
         bitVecHasBits(replacement.movementsSet) ||
         bitVecHasBits(replacement.movementsLayerMask) ||
-        bitVecHasBits(replacement.randomDirMask);
+        bitVecHasBits(replacement.randomDirMask) ||
+        hasInferredSinks;
     const touchesRandom = bitVecHasBits(replacement.randomEntityMask) ||
         bitVecHasBits(replacement.randomDirMask);
     const touchesRigid = Boolean(rule.rigid && touchesMovements);
@@ -339,6 +357,11 @@ function serializePattern(pattern) {
         any_objects_present: pattern.anyObjectsPresent.map(bitVecToArray),
         movements_present: bitVecToArray(pattern.movementsPresent),
         movements_missing: bitVecToArray(pattern.movementsMissing),
+        // Phase 7B-1a+: aggregate-direction terms use OR semantics —
+        // (cellMovements & mask) !== 0 instead of the AND-style check
+        // movementsPresent uses. Each entry is an independent
+        // "any-of-these-bits-required" mask for one aggregate term.
+        any_movements_present: (pattern.anyMovementsPresent || []).map(bitVecToArray),
         replacement: serializeReplacement(pattern.replacement),
     };
 }

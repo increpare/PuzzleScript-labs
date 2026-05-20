@@ -265,8 +265,25 @@ function analyzeGame(game) {
                         const hasTarget = masksIntersect(present, condition[2]);
                         const sourceChanged = cellChangesObjectMask(cell, condition[1]);
                         const targetChanged = cellChangesObjectMask(cell, condition[2]);
-                        const sourceMoved = hasSource && cell.replacement && movementMaskTouchesObjectMask(cell.replacement.movementsSet, condition[1]);
-                        const targetMoved = hasTarget && cell.replacement && movementMaskTouchesObjectMask(cell.replacement.movementsSet, condition[2]);
+                        // Phase 7B-2b: also treat inferred-aggregate-binding sinks
+                        // as movement writes on the sink's layer (runtime OR's the
+                        // captured concrete bit into movementsSet at replace time).
+                        const cellMovesObjectMask = (objMask) => {
+                            if (!cell.replacement || !objMask) return false;
+                            if (movementMaskTouchesObjectMask(cell.replacement.movementsSet, objMask)) return true;
+                            const sinks = cell.replacement.inferredAggregateBindings;
+                            if (!sinks || sinks.length === 0) return false;
+                            for (const objectName of state.idDict || []) {
+                                const object = state.objects && state.objects[objectName];
+                                if (!object || !objMask.get(object.id)) continue;
+                                for (let si = 0; si < sinks.length; si++) {
+                                    if (sinks[si].layerIndex === (object.layer | 0)) return true;
+                                }
+                            }
+                            return false;
+                        };
+                        const sourceMoved = hasSource && cellMovesObjectMask(condition[1]);
+                        const targetMoved = hasTarget && cellMovesObjectMask(condition[2]);
 
                         if (hasPlayer && hasSource) {
                             stats.player_source_same_cell_rules++;

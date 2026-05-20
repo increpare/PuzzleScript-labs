@@ -98,7 +98,19 @@ function foreignSetMask(cell, excludedMask) {
 }
 
 function cellHasMovement(cell) {
-    return Boolean(cell && cell.movementsPresent && !cell.movementsPresent.iszero());
+    if (!cell) return false;
+    if (cell.movementsPresent && !cell.movementsPresent.iszero()) return true;
+    // Phase 7B-1a+: anyMovementsPresent holds the OR-semantics aggregate masks
+    // for coalesced direction-aggregate terms. Each entry is a BitVec of
+    // candidate movement bits for that term — if any entry has bits, the
+    // cell matches an aggregate movement.
+    const anyMov = cell.anyMovementsPresent;
+    if (anyMov && anyMov.length > 0) {
+        for (let i = 0; i < anyMov.length; i++) {
+            if (anyMov[i] && !anyMov[i].iszero()) return true;
+        }
+    }
+    return false;
 }
 
 function cellChangesObjects(cell) {
@@ -137,9 +149,28 @@ function cellChangesObjectMask(state, cell, objectMask) {
     if (masksIntersect(present, objectMask) && masksIntersect(cell.replacement.objectsClear, objectMask)) {
         return true;
     }
-    return masksIntersect(present, objectMask) &&
+    if (masksIntersect(present, objectMask) &&
         (movementMaskTouchesObjectMask(state, cell.replacement.movementsSet, objectMask) ||
-            movementMaskTouchesObjectMask(state, cell.replacement.movementsClear, objectMask));
+            movementMaskTouchesObjectMask(state, cell.replacement.movementsClear, objectMask))) {
+        return true;
+    }
+    // Phase 7B-2b: inferred aggregate-direction sinks write movement bits at
+    // runtime (from the rule's captured concrete direction). Static analysis
+    // can't know which concrete bit will be captured, so conservatively
+    // report the layer as touched if any sink lands on it.
+    if (masksIntersect(present, objectMask)) {
+        const sinks = cell.replacement.inferredAggregateBindings;
+        if (sinks && sinks.length > 0) {
+            for (const objectName of state.idDict || []) {
+                const object = state.objects && state.objects[objectName];
+                if (!object || !objectMask.get(object.id)) continue;
+                for (let si = 0; si < sinks.length; si++) {
+                    if (sinks[si].layerIndex === (object.layer | 0)) return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 // Returns the set of object types that, if present in a cell, would prevent
