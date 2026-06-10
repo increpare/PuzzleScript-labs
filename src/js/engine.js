@@ -1490,6 +1490,7 @@ function Rule(rule) {
 	for (const m of this.cellRowMasks) {
 		this.ruleMask.ior(m);
 	}
+	this.readObjects = this.ruleMask;
 
 	/*I tried out doing a ruleMask_movements as well along the lines of the above,
 	but it didn't help at all - I guess because almost every tick there are movements 
