@@ -42,15 +42,28 @@ Not touched (deliberately deferred to Phase A.2):
 
 ---
 
-## Task 1: Add `BitVec.prototype.intersects` and `setZero`
+## Task 1: Regression-test the existing `anyBitsInCommon` and `setZero`
+
+`BitVec.prototype.anyBitsInCommon` (`src/js/bitvec.js:287`) and
+`BitVec.prototype.setZero` (`src/js/bitvec.js:206`) already exist with the
+bodies Phase A.1 needs (word-by-word AND with early exit; `data.fill(0)`).
+This task adds standalone regression coverage so any future refactor that
+breaks them surfaces immediately. **Do not add any new BitVec methods** —
+the duplicate-method bug from the original Task 1 commit has been reverted.
 
 **Files:**
-- Modify: `src/js/bitvec.js` (after the existing `iclear` method around line 47)
-- Test: `src/tests/run_bitvec_intersects_node.js` (new)
+- Create: `src/tests/run_bitvec_any_bits_in_common_node.js`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Sanity-check that the methods exist**
 
-Create `src/tests/run_bitvec_intersects_node.js`:
+```bash
+grep -n 'anyBitsInCommon\|setZero' src/js/bitvec.js | head -3
+```
+Expected: lines pointing at the two existing methods. If either is missing, stop and report — the plan's assumption is wrong.
+
+- [ ] **Step 2: Create the test driver**
+
+`src/tests/run_bitvec_any_bits_in_common_node.js`:
 
 ```js
 #!/usr/bin/env node
@@ -67,43 +80,43 @@ function test(name, fn) {
     catch (err) { console.error(`  FAIL ${name}\n    ${err.message}`); process.exitCode = 1; }
 }
 
-test('intersects: empty vs empty is false', () => {
+test('anyBitsInCommon: empty vs empty is false', () => {
     const a = new BitVec(2);
     const b = new BitVec(2);
-    assert.strictEqual(a.intersects(b), false);
+    assert.strictEqual(a.anyBitsInCommon(b), false);
 });
 
-test('intersects: nonempty disjoint is false', () => {
+test('anyBitsInCommon: nonempty disjoint is false', () => {
     const a = new BitVec(2);
     const b = new BitVec(2);
     a.ibitset(0);
     b.ibitset(1);
-    assert.strictEqual(a.intersects(b), false);
+    assert.strictEqual(a.anyBitsInCommon(b), false);
 });
 
-test('intersects: shared bit returns true', () => {
+test('anyBitsInCommon: shared bit returns true', () => {
     const a = new BitVec(2);
     const b = new BitVec(2);
     a.ibitset(5);
     b.ibitset(5);
-    assert.strictEqual(a.intersects(b), true);
+    assert.strictEqual(a.anyBitsInCommon(b), true);
 });
 
-test('intersects: bit in second word', () => {
+test('anyBitsInCommon: bit in second word', () => {
     const a = new BitVec(2);
     const b = new BitVec(2);
     a.ibitset(40);
     b.ibitset(40);
-    assert.strictEqual(a.intersects(b), true);
+    assert.strictEqual(a.anyBitsInCommon(b), true);
 });
 
-test('intersects: early-exit on first word', () => {
+test('anyBitsInCommon: match in first word with trailing zero words', () => {
     const a = new BitVec(4);
     const b = new BitVec(4);
     a.ibitset(0);
     b.ibitset(0);
-    // No bits set in words 1..3 on either side; result must still be true.
-    assert.strictEqual(a.intersects(b), true);
+    // Later words are zero on both sides; result must still be true.
+    assert.strictEqual(a.anyBitsInCommon(b), true);
 });
 
 test('setZero: clears all words', () => {
@@ -115,52 +128,24 @@ test('setZero: clears all words', () => {
     }
 });
 
-console.log('All BitVec.intersects/setZero tests passed.');
+console.log('All BitVec.anyBitsInCommon/setZero tests passed.');
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 3: Run the test**
 
-Run: `node src/tests/run_bitvec_intersects_node.js`
-Expected: FAIL with `a.intersects is not a function` on the first test.
+Run: `node src/tests/run_bitvec_any_bits_in_common_node.js`
+Expected: 6 PASS lines, exit 0.
 
-- [ ] **Step 3: Implement `intersects` and `setZero`**
-
-In `src/js/bitvec.js`, insert after the `iclear` method (around line 47, before `ibitset`):
-
-```js
-BitVec.prototype.intersects = function (other) {
-    const data = this.data;
-    const otherData = other.data;
-    const n = data.length;
-    for (let i = 0; i < n; ++i) {
-        if ((data[i] & otherData[i]) !== 0) return true;
-    }
-    return false;
-};
-
-BitVec.prototype.setZero = function () {
-    const data = this.data;
-    const n = data.length;
-    for (let i = 0; i < n; ++i) {
-        data[i] = 0;
-    }
-};
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `node src/tests/run_bitvec_intersects_node.js`
-Expected: All 6 PASS lines, exit 0.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/js/bitvec.js src/tests/run_bitvec_intersects_node.js
-git commit -m "Add BitVec.intersects and BitVec.setZero
+git add src/tests/run_bitvec_any_bits_in_common_node.js
+git commit -m "Add regression tests for BitVec.anyBitsInCommon and setZero
 
-Cheap any-bit-anded-nonzero check with early exit, plus an in-place
-zero. Used by the upcoming incremental rule-application pruning in
-applyRuleGroup."
+Both methods already exist and are used heavily by engine.js / compiler.js,
+but had no standalone coverage. Phase A.1's applyRuleGroup pruning relies
+on them, so locking the behavior down here surfaces any future refactor
+breakage immediately."
 ```
 
 ---
