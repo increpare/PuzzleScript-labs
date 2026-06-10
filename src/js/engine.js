@@ -1490,7 +1490,10 @@ function Rule(rule) {
 	for (const m of this.cellRowMasks) {
 		this.ruleMask.ior(m);
 	}
-	this.readObjects = this.ruleMask;
+	// Phase A.1: readObjects for incremental pruning. Includes both
+	// objectsPresent (existing ruleMask) and objectsMissing (no X terms) —
+	// a rule like [X no Y] cares whether Y has just been created.
+	this.readObjects = rule[19] || this.ruleMask;
 
 	/*I tried out doing a ruleMask_movements as well along the lines of the above,
 	but it didn't help at all - I guess because almost every tick there are movements 
@@ -2866,7 +2869,7 @@ function applyRandomRuleGroup(level, ruleGroup) {
 }
 
 
-function applyRuleGroup(ruleGroup) {
+function applyRuleGroupLegacy(ruleGroup) {
     if (ruleGroup[0].isRandom) {
         return applyRandomRuleGroup(level, ruleGroup);
     }
@@ -2874,17 +2877,17 @@ function applyRuleGroup(ruleGroup) {
     const MAX_LOOP_COUNT = 200;
     const GROUP_LENGTH = ruleGroup.length;
     const shouldLog = verbose_logging;
-    let hasChanges = false;        
-    let madeChangeThisLoop = true; 
+    let hasChanges = false;
+    let madeChangeThisLoop = true;
     let loopcount = 0;
-    
+
     while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
         madeChangeThisLoop = false;
         let consecutiveFailures = 0;
 
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
             const rule = ruleGroup[ruleIndex];
-            
+
             if (rule.tryApply(level)) {
                 madeChangeThisLoop = true;
                 consecutiveFailures = 0;
@@ -2893,7 +2896,7 @@ function applyRuleGroup(ruleGroup) {
                 if (consecutiveFailures === GROUP_LENGTH) {
                     break;  // No rule can apply - exit early
                 }
-            }            
+            }
         }
 
         if (madeChangeThisLoop) {
@@ -2910,6 +2913,157 @@ function applyRuleGroup(ruleGroup) {
     }
 
     return hasChanges;
+}
+
+function applyRuleGroupPruned(ruleGroup) {
+    if (ruleGroup[0].isRandom) {
+        return applyRandomRuleGroup(level, ruleGroup);
+    }
+    const MAX_LOOP_COUNT = 200;
+    const GROUP_LENGTH = ruleGroup.length;
+    let hasChanges = false;
+    let madeChangeThisLoop = true;
+    let loopcount = 0;
+
+    let priorObjects = _allOnesObjects;
+    let priorMovements = _allOnesMovements;
+    let nextObjects = _changedObjects_a;
+    let nextMovements = _changedMovements_a;
+    let spareObjects = _changedObjects_b;
+    let spareMovements = _changedMovements_b;
+
+    while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
+        madeChangeThisLoop = false;
+        nextObjects.setZero();
+        nextMovements.setZero();
+        let consecutiveFailures = 0;
+
+        for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
+            const rule = ruleGroup[ruleIndex];
+            if (!rule.forceAlwaysRun
+                && !rule.readObjects.anyBitsInCommon(priorObjects)
+                && !rule.readMovements.anyBitsInCommon(priorMovements)) {
+                consecutiveFailures++;
+                if (consecutiveFailures === GROUP_LENGTH) break;
+                continue;
+            }
+            if (rule.tryApply(level)) {
+                madeChangeThisLoop = true;
+                consecutiveFailures = 0;
+                nextObjects.ior(rule.writeObjects);
+                nextMovements.ior(rule.writeMovements);
+            } else {
+                consecutiveFailures++;
+                if (consecutiveFailures === GROUP_LENGTH) break;
+            }
+        }
+
+        if (madeChangeThisLoop) {
+            hasChanges = true;
+            if (verbose_logging) {
+                debugger_turnIndex++;
+                addToDebugTimeline(level, -2);
+            }
+        }
+
+        if (priorObjects === _allOnesObjects) {
+            priorObjects = nextObjects;
+            priorMovements = nextMovements;
+            nextObjects = spareObjects;
+            nextMovements = spareMovements;
+        } else {
+            const tmpO = priorObjects; priorObjects = nextObjects; nextObjects = tmpO;
+            const tmpM = priorMovements; priorMovements = nextMovements; nextMovements = tmpM;
+        }
+    }
+
+    if (loopcount >= MAX_LOOP_COUNT) {
+        logErrorCacheable("Got caught looping lots in a rule group :O",
+                          ruleGroup[0].lineNumber, true);
+    }
+    return hasChanges;
+}
+
+// Phase A.1 parity wrapper. When the parity flag is set, both legacy
+// and pruned paths run; their post-state is compared. Mismatch is fatal.
+// Flag and wrapper are removed once one CI cycle confirms parity.
+const INCREMENTAL_PARITY = (typeof process !== 'undefined' && process.env
+    && process.env.PUZZLESCRIPT_INCREMENTAL_PARITY === '1');
+
+// Phase A.1 parity helpers: deep snapshot of every level field that
+// applyRuleGroup may mutate (or that downstream code reads as a cache
+// derived from objects/movements). Only used when the parity flag is on;
+// removed in Task 11.
+function snapshotLevelStateForParity() {
+    const snap = {
+        objects: new Int32Array(level.objects),
+        movements: new Int32Array(level.movements),
+        mapCellContents: level.mapCellContents.clone(),
+        mapCellContents_Movements: level.mapCellContents_Movements.clone(),
+        rowCellContents: level.rowCellContents.map(b => b.clone()),
+        rowCellContents_Movements: level.rowCellContents_Movements.map(b => b.clone()),
+        colCellContents: level.colCellContents.map(b => b.clone()),
+        colCellContents_Movements: level.colCellContents_Movements.map(b => b.clone()),
+        commandQueue: level.commandQueue.slice(),
+        commandQueueSourceRules: level.commandQueueSourceRules.slice(),
+    };
+    if (state && state.rigid) {
+        snap.rigidMovementAppliedMask = level.rigidMovementAppliedMask.map(b => b.clone());
+        snap.rigidGroupIndexMask = level.rigidGroupIndexMask.map(b => b.clone());
+    }
+    return snap;
+}
+function restoreLevelStateForParity(snap) {
+    level.objects.set(snap.objects);
+    level.movements.set(snap.movements);
+    snap.mapCellContents.cloneInto(level.mapCellContents);
+    snap.mapCellContents_Movements.cloneInto(level.mapCellContents_Movements);
+    for (let i = 0; i < snap.rowCellContents.length; i++) {
+        snap.rowCellContents[i].cloneInto(level.rowCellContents[i]);
+        snap.rowCellContents_Movements[i].cloneInto(level.rowCellContents_Movements[i]);
+    }
+    for (let i = 0; i < snap.colCellContents.length; i++) {
+        snap.colCellContents[i].cloneInto(level.colCellContents[i]);
+        snap.colCellContents_Movements[i].cloneInto(level.colCellContents_Movements[i]);
+    }
+    level.commandQueue = snap.commandQueue.slice();
+    level.commandQueueSourceRules = snap.commandQueueSourceRules.slice();
+    if (snap.rigidMovementAppliedMask) {
+        for (let i = 0; i < snap.rigidMovementAppliedMask.length; i++) {
+            snap.rigidMovementAppliedMask[i].cloneInto(level.rigidMovementAppliedMask[i]);
+            snap.rigidGroupIndexMask[i].cloneInto(level.rigidGroupIndexMask[i]);
+        }
+    }
+}
+
+function applyRuleGroup(ruleGroup) {
+    if (!INCREMENTAL_PARITY) {
+        return applyRuleGroupPruned(ruleGroup);
+    }
+    // Parity mode: snapshot level state, run legacy, snapshot post-legacy,
+    // restore, run pruned, compare.
+    const pre = snapshotLevelStateForParity();
+    const legacyResult = applyRuleGroupLegacy(ruleGroup);
+    const post = snapshotLevelStateForParity();
+    restoreLevelStateForParity(pre);
+    const prunedResult = applyRuleGroupPruned(ruleGroup);
+    if (legacyResult !== prunedResult) {
+        throw new Error(`A.1 parity: hasChanges mismatch on rule group at line `
+            + `${ruleGroup[0].lineNumber}: legacy=${legacyResult} pruned=${prunedResult}`);
+    }
+    for (let i = 0; i < post.objects.length; i++) {
+        if (post.objects[i] !== level.objects[i]) {
+            throw new Error(`A.1 parity: level.objects mismatch at word ${i} on rule group `
+                + `at line ${ruleGroup[0].lineNumber}: legacy=${post.objects[i]} pruned=${level.objects[i]}`);
+        }
+    }
+    for (let i = 0; i < post.movements.length; i++) {
+        if (post.movements[i] !== level.movements[i]) {
+            throw new Error(`A.1 parity: level.movements mismatch at word ${i} on rule group `
+                + `at line ${ruleGroup[0].lineNumber}: legacy=${post.movements[i]} pruned=${level.movements[i]}`);
+        }
+    }
+    return prunedResult;
 }
 
 function applyRules(rules, loopPoint, bannedGroup) {

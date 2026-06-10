@@ -3121,6 +3121,34 @@ function rulesToMask(state) {
     }
 }
 
+// Phase A.1: per-rule readObjects derivation. Union of objectsPresent and
+// objectsMissing across every LHS cell. Broader than the existing ruleMask
+// (which is objectsPresent only) because pruning has to consider `no X`
+// patterns — if X gets created elsewhere, an `[X no Y]`-shaped rule's match
+// result changes even though objectsPresent didn't.
+function computeReadObjects(ruleTuple) {
+    const result = new BitVec(STRIDE_OBJ);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            if (cell.objectsPresent) result.ior(cell.objectsPresent);
+            if (cell.objectsMissing) result.ior(cell.objectsMissing);
+            // Property terms: anyObjectsPresent[i] is a BitVec of the property
+            // members; the rule gates on any one of them being present.
+            const anys = cell.anyObjectsPresent;
+            if (anys) {
+                for (let i = 0; i < anys.length; i++) {
+                    if (anys[i]) result.ior(anys[i]);
+                }
+            }
+        }
+    }
+    return result;
+}
+
 // Phase A.1: per-rule readMovements derivation. Walks every LHS cell row,
 // ORs into a BitVec(STRIDE_MOV) the movement-bit layers the LHS gates on.
 // At this point (called from collapseRules), each LHS cell is a CellPattern
@@ -3390,6 +3418,9 @@ function collapseRules(groups, state) {
             const classification = classifyForceAlwaysRun(state, newrule, oldrule);
             newrule.push(classification.force);   // slot [17]
             newrule.push(classification.reason);  // slot [18]
+            // Phase A.1 slot [19]: readObjects superset of ruleMask, including
+            // objectsMissing so `no X` patterns aren't pruned when X gets created.
+            newrule.push(computeReadObjects(newrule));
             rules[i] = new Rule(newrule);
         }
     }
