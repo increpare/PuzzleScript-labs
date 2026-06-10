@@ -4,6 +4,12 @@ Each `.txt` file is a whole valid PuzzleScript source. Each matching `.json`
 file lists the static-analysis expectations that should be checked for that
 source.
 
+Some regressions deliberately appear in multiple family directories. That
+duplication is preferred when a small PuzzleScript source protects several
+independent analyses: each family stays browseable on its own, and
+`regressions.md` links the duplicated fixture stems for readers who want the bug
+story.
+
 `../static_analysis_claim_descriptions.json` is the schema companion for these
 fixtures. Its `fixtureSchemas` entries are named after the testdata directories
 and mirror the JSON hierarchy used by those fixture files. The runner rejects any
@@ -188,6 +194,22 @@ as rule-tag tests). Fixtures should follow the same object-naming conventions
 (Background / Target / Player / Wall / Crate / Alpha / Beta / Gamma / Orphan1 /
 Sibling1 / Sibling2) so readers can understand the collision-layer structure
 without re-reading the entire source file.
+
+## Adding A Runtime-Contract Test
+
+1. Add a small whole-source `.txt` file under `runtime_contracts/`.
+2. Run `make static_analysis_tests`.
+3. The runner will create a matching `.json` file using a default `["tick"]`
+   replay and the observed final serialized level.
+4. If the fixture needs a different replay, edit the JSON `inputs`,
+   `targetLevel`, `randomSeed`, `expectedSounds`, and `expectedFinalLevel`,
+   then rerun `make static_analysis_tests`.
+5. Trim the `expect` object to the summary fields the fixture is meant to
+   protect.
+
+Runtime-contract fixtures call `runSimulationWithStaticChecks()`. They are for
+small specimens that need runtime evidence for static-analysis claims, not for
+large corpus replays.
 
 ## Review Policy
 
