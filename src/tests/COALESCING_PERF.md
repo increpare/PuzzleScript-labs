@@ -1,5 +1,101 @@
 # Coalescing Performance Notes
 
+## 2026-06-11 incremental rule application (Phase A.1)
+
+Baseline: `db04af10` (`Coalesce property-binding with LHS direction modifiers`).
+After: `70af75a9` (`Disable 5c-3 plan-level permissiveness (Voitex regression fix)`).
+
+Both worktrees compile the same number of concrete rules (5c-3 is inactive at
+both heads). The only behavioural delta is Phase A.1's per-iteration
+`changedObjects`/`changedMovements` pruning inside `applyRuleGroup`.
+
+Headline: A.1's pruning helps sim-test workloads by ~5% on `processInput` time
+and is **noise-to-mild-regression on the solver focus groups** at the
+strategies measured (`--strategy portfolio`).
+
+### Sim test suite
+
+Single-process breakdown (`--breakdown --sim-only`, 1 run each side):
+
+| Bucket | Baseline | A.1 | Δ |
+| --- | ---: | ---: | ---: |
+| Wall | 8.90s | 8.47s | −4.8% |
+| `compile` (469 calls) | 3223ms | 3075ms | −4.6% |
+| `processInput` (22302 calls) | 6679ms | 6337ms | −5.1% |
+| `undo` (2939 calls) | 12ms | 11ms | noise |
+| `restart` (82 calls) | 26ms | 25ms | noise |
+
+Cold-process profile (`--profile --sim-only`, 5 runs each side):
+
+| | Baseline | A.1 |
+| --- | ---: | ---: |
+| Median wall | 8.76s | 8.63s |
+| Average wall | 8.77s | 8.73s |
+| Min / Max | 8.68 / 8.83 | 8.56 / 9.25 |
+
+Sim-test parity (`PUZZLESCRIPT_INCREMENTAL_PARITY=1`): 469/469 pass, no
+mismatches.
+
+### Solver focus groups
+
+Commands:
+```sh
+node src/tests/run_solver_tests_js.js src/tests/solver_tests \
+  --solver-focus-manifest <manifest> \
+  --timeout-ms <T> --strategy portfolio --quiet --json --no-solutions
+```
+
+| Group | Timeout | Result | Compile ms | Step ms | Expanded | Generated |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| `solver_focus_group.json` | 500 ms | 9 solved → **7 solved** (−2) | 242 → 297 (+22.7%) | 18727 → 19166 (+2.3%) | 243349 → 228297 (−6.2%) | 1189381 → 1120696 (−5.8%) |
+| `solver_focus_long_group.json` | 2000 ms | 48 solved → **46 solved** (−2) | 258 → 244 (−5.4%) | 37782 → 41234 (+9.1%) | 468746 → 472622 (+0.8%) | 2296139 → 2315522 (+0.8%) |
+
+Solver-side parity bake (focus 500ms, `PUZZLESCRIPT_INCREMENTAL_PARITY=1`):
+0 errors, no `A.1 parity:` throws over a 4-minute run.
+
+### Interpretation
+
+The pruning machinery (per-rule bitvec intersect check, `next`/`prior`
+buffer swaps, per-iteration `setZero`+`ior` accumulation) adds a small
+fixed cost per rule per fixpoint iteration. For the sim test corpus, that
+cost is more than recovered by the reduction in rules actually evaluated;
+the `consecutiveFailures === GROUP_LENGTH` early-out was already cutting
+a lot, but A.1 cuts more.
+
+For the solver focus groups the picture flips. The solver re-evaluates
+tight clusters of rule groups millions of times against state that
+evolves predictably; the prune check's overhead exceeds the savings, and
+the −2 solves at both timeouts are real regressions, not noise. The
+`expanded` / `generated` deltas confirm: at 500 ms, fewer total nodes
+were explored despite the same time budget, which is consistent with
+extra per-step overhead pushing several near-timeout levels over the
+deadline.
+
+The §2-table targets in the spec (≥+12 solves at 250ms over the 1341-game
+corpus; −17% sim `processInput`) are not met by A.1 alone:
+- Sim `processInput` Δ is −5%, not −17%. The spec assumed a higher
+  baseline fixpoint-iteration count than the corpus actually has.
+- The solver-focus solves regressed. The full 1341-game corpus may show
+  a different aggregate (it has many small levels where the prune
+  overhead dominates less); a full-corpus run is required to know for
+  sure but was skipped here for run-time reasons.
+
+### Next steps
+
+A.1's pruning is correctness-clean (parity passes everywhere) but not a
+clear performance win. Before proceeding to Phase A.2 (outer-loop
+pruning), three options:
+
+1. Profile A.1's per-call overhead and trim it (e.g. fold the prune
+   check into `findMatches`, drop the buffer swap in favour of a single
+   monotonically-growing changed mask cleared once per group, skip the
+   `setZero` when the previous iteration's `next` was empty).
+2. Make pruning opt-in per game / per rule-group based on a static
+   prediction of fixpoint-iteration savings, so games that don't benefit
+   skip the overhead entirely.
+3. Run the full 1341-game corpus at 250ms and 5000ms to confirm the
+   aggregate impact before deciding A.2 vs revert.
+
 ## 2026-05-17 property rewrite coalescing
 
 Baseline: `eae1a1d2` (`Implement layer-coupled movement coalescing`).
