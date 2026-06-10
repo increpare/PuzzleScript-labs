@@ -25,7 +25,7 @@
 
 Files touched in this phase:
 
-- `src/js/bitvec.js` — add `BitVec.prototype.intersects`, `setZero`.
+- `src/js/bitvec.js` — no new methods required. The plan author missed that `BitVec.prototype.anyBitsInCommon` (line 287) and `BitVec.prototype.setZero` (line 206) already exist with the bodies we need. Subsequent tasks call `anyBitsInCommon(other)` and `setZero()` directly.
 - `src/js/compiler.js` — add `computeRuleReadWriteMasks(state, rule, ruleTuple)` and four new slots on each rule tuple (indices `[14..17]` after the existing `[0..13]`).
 - `src/js/globalVariables.js` — declare three module-level BitVec slots (`_changedObjects_a/b`, `_changedMovements_a/b`, `_allOnesObjects`, `_allOnesMovements`). Initialization happens in `setGameState` once `STRIDE_OBJ`/`STRIDE_MOV` are known.
 - `src/js/engine.js`
@@ -1005,8 +1005,8 @@ function applyRuleGroupPruned(ruleGroup) {
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
             const rule = ruleGroup[ruleIndex];
             if (!rule.forceAlwaysRun
-                && !rule.readObjects.intersects(priorObjects)
-                && !rule.readMovements.intersects(priorMovements)) {
+                && !rule.readObjects.anyBitsInCommon(priorObjects)
+                && !rule.readMovements.anyBitsInCommon(priorMovements)) {
                 consecutiveFailures++;
                 if (consecutiveFailures === GROUP_LENGTH) break;
                 continue;

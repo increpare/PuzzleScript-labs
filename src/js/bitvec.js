@@ -46,16 +46,6 @@ BitVec.prototype.iclear = function (other) {
 	}
 }
 
-BitVec.prototype.intersects = function (other) {
-	const data = this.data;
-	const otherData = other.data;
-	const n = data.length;
-	for (let i = 0; i < n; ++i) {
-		if ((data[i] & otherData[i]) !== 0) return true;
-	}
-	return false;
-}
-
 
 BitVec.prototype.ibitset = function (ind) {
 	const outer_idx = ind >> 5;
