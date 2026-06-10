@@ -3163,13 +3163,7 @@ function computeReadMovements(state, ruleTuple) {
     if (aggregates) {
         for (let i = 0; i < aggregates.length; i++) {
             const b = aggregates[i];
-            const shift = 5 * b.sourceLayer;
-            const wordIdx = shift >>> 5;
-            const wordShift = shift & 31;
-            result.data[wordIdx] |= ((b.aggregateMask & 0x1f) << wordShift) | 0;
-            if (wordShift > 27) {
-                result.data[wordIdx + 1] |= ((b.aggregateMask & 0x1f) >>> (32 - wordShift)) | 0;
-            }
+            result.ishiftor(b.aggregateMask & 0x1f, 5 * b.sourceLayer);
         }
     }
     return result;
