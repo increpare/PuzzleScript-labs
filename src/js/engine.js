@@ -906,6 +906,14 @@ function RebuildGameArrays(){
 	_o10 = new BitVec(STRIDE_OBJ);
 	_o11 = new BitVec(STRIDE_OBJ);
 	_o12 = new BitVec(STRIDE_OBJ);
+	_changedObjects_a = new BitVec(STRIDE_OBJ);
+	_changedObjects_b = new BitVec(STRIDE_OBJ);
+	_changedMovements_a = new BitVec(STRIDE_MOV);
+	_changedMovements_b = new BitVec(STRIDE_MOV);
+	_allOnesObjects = new BitVec(STRIDE_OBJ);
+	_allOnesMovements = new BitVec(STRIDE_MOV);
+	for (let i = 0; i < _allOnesObjects.data.length; i++) _allOnesObjects.data[i] = -1;
+	for (let i = 0; i < _allOnesMovements.data.length; i++) _allOnesMovements.data[i] = -1;
 	_m1 = new BitVec(STRIDE_MOV);
 	_m2 = new BitVec(STRIDE_MOV);
 	_m3 = new BitVec(STRIDE_MOV);
