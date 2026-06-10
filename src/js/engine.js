@@ -3011,6 +3011,13 @@ function snapshotLevelStateForParity() {
         snap.rigidMovementAppliedMask = level.rigidMovementAppliedMask.map(b => b.clone());
         snap.rigidGroupIndexMask = level.rigidGroupIndexMask.map(b => b.clone());
     }
+    // Snapshot the RC4 RNG state so random rules consume identical
+    // sequences in legacy and pruned paths during parity comparison.
+    if (RandomGen && RandomGen._state) {
+        snap.rngStateS = RandomGen._state.s.slice();
+        snap.rngStateI = RandomGen._state.i;
+        snap.rngStateJ = RandomGen._state.j;
+    }
     return snap;
 }
 function restoreLevelStateForParity(snap) {
@@ -3033,6 +3040,13 @@ function restoreLevelStateForParity(snap) {
             snap.rigidMovementAppliedMask[i].cloneInto(level.rigidMovementAppliedMask[i]);
             snap.rigidGroupIndexMask[i].cloneInto(level.rigidGroupIndexMask[i]);
         }
+    }
+    if (snap.rngStateS && RandomGen && RandomGen._state) {
+        for (let i = 0; i < snap.rngStateS.length; i++) {
+            RandomGen._state.s[i] = snap.rngStateS[i];
+        }
+        RandomGen._state.i = snap.rngStateI;
+        RandomGen._state.j = snap.rngStateJ;
     }
 }
 
