@@ -99,6 +99,47 @@ LEVELS
             writeObjectsNonEmpty: true,
         },
     },
+    {
+        name: 'stationary-on-rhs',
+        source: `
+title test
+========
+OBJECTS
+========
+Background
+white
+Player
+red
+=======
+LEGEND
+=======
+. = Background
+P = Player
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+Background
+Player
+======
+RULES
+======
+right [ Player ] -> [ stationary Player ]
+==============
+WINCONDITIONS
+==============
+=======
+LEVELS
+=======
+.P.
+`,
+        expect: {
+            // RHS [ stationary Player ] touches the Player layer's movement bits.
+            writeMovementsNonEmpty: true,
+        },
+    },
 ];
 
 let failures = 0;

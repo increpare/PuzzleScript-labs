@@ -3227,6 +3227,65 @@ function computeWriteObjects(state, ruleTuple, oldrule) {
     return result;
 }
 
+// Phase A.1: per-rule writeMovements derivation. Returns a BitVec(STRIDE_MOV)
+// covering every movement-bit layer the RHS may overwrite. Walks each LHS
+// cell's attached CellReplacement (precomputed by rulesToMask) for its
+// statically known movementsSet/movementsClear/movementsLayerMask
+// contributions (covering direction modifiers on RHS objects and the layer
+// clears triggered by plain RHS objects). Conservatively expands for
+// runtime-bound destinations: aggregate sinks touch their destination layer's
+// aggregate mask, and 5c-3 inferredPropertyBindings with dirMode != 0 touch
+// the full movement-bit slot on every alias layer of the captured property.
+function computeWriteMovements(state, ruleTuple, oldrule) {
+    const result = new BitVec(STRIDE_MOV);
+    const patterns = ruleTuple[1]; // cell rows of CellPattern instances
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            const replacement = cell.replacement;
+            if (!replacement) continue;
+            if (replacement.movementsSet) result.ior(replacement.movementsSet);
+            if (replacement.movementsClear) result.ior(replacement.movementsClear);
+            if (replacement.movementsLayerMask) result.ior(replacement.movementsLayerMask);
+            if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
+        }
+    }
+    // Aggregate sinks: runtime ORs the captured concrete direction bit into
+    // movementsSet at the sink's destination layer. Be conservative and union
+    // the full aggregate mask at that layer.
+    if (oldrule.aggregateSinks) {
+        for (const sinkList of oldrule.aggregateSinks.values()) {
+            for (let i = 0; i < sinkList.length; i++) {
+                const sink = sinkList[i];
+                if (typeof sink.layer !== 'number') continue;
+                const mask = (sink.aggregateMask !== undefined ? sink.aggregateMask : 0x1f) & 0x1f;
+                result.ishiftor(mask, 5 * sink.layer);
+            }
+        }
+    }
+    // 5c-3 inferred property bindings with dirMode != 0 touch the captured
+    // property's destination layer movement bits (clear + optional set).
+    // Union the full 0x1f slot for every alias layer of the property.
+    const propertyBindings = ruleTuple[13];
+    if (propertyBindings) {
+        for (let i = 0; i < propertyBindings.length; i++) {
+            const b = propertyBindings[i];
+            if (!b || b.dirMode === 0) continue;
+            const aliases = state.propertiesDict && state.propertiesDict[b.propertyName];
+            if (!aliases) continue;
+            for (let j = 0; j < aliases.length; j++) {
+                const aliasObj = state.objects[aliases[j]];
+                if (!aliasObj) continue;
+                const aliasLayer = aliasObj.layer | 0;
+                result.ishiftor(0x1f, 5 * aliasLayer);
+            }
+        }
+    }
+    return result;
+}
+
 function cellRowMasksGeneric(rule, stride, propertyName) {
     const ruleMasks = [];
     const lhs = rule[1];
@@ -3306,6 +3365,7 @@ function collapseRules(groups, state) {
             newrule.push(oldrule.propertyBindingsArr || null);
             newrule.push(computeReadMovements(state, newrule));   // slot [14]
             newrule.push(computeWriteObjects(state, newrule, oldrule));  // slot [15]
+            newrule.push(computeWriteMovements(state, newrule, oldrule));  // slot [16]
             rules[i] = new Rule(newrule);
         }
     }
