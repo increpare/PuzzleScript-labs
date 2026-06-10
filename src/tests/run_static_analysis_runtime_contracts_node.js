@@ -1375,6 +1375,28 @@ function assertFinalReplayParity(testName, expectedSerializedLevel, expectedSoun
     }
 }
 
+function replayFinalSerializedLevel(testName, source, inputs, options = {}) {
+    ensureRuntimeLoaded();
+    const targetLevel = options.targetLevel === undefined ? 0 : options.targetLevel;
+    const randomSeed = options.randomSeed === undefined ? null : options.randomSeed;
+    const previousUnitTesting = unitTesting;
+    const previousLazyFunctionGeneration = lazyFunctionGeneration;
+    unitTesting = true;
+    lazyFunctionGeneration = false;
+    try {
+        compileSimulationSource(testName, source, targetLevel, randomSeed);
+        for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
+            const inputToken = inputs[inputIndex];
+            executeInputToken(inputToken);
+            drainAgain(`${testName}: fixture generation input ${inputIndex} ${tokenLabel(inputToken)}`);
+        }
+        return convertLevelToString();
+    } finally {
+        unitTesting = previousUnitTesting;
+        lazyFunctionGeneration = previousLazyFunctionGeneration;
+    }
+}
+
 function throwProbeError(testName, kind, inputIndex, inputToken, diff) {
     const location = diff.index === undefined ? '' : `  index: ${diff.index}\n`;
     throw new Error([
@@ -1387,6 +1409,7 @@ function throwProbeError(testName, kind, inputIndex, inputToken, diff) {
 }
 
 function runSimulationWithStaticChecks(testName, dataarray) {
+    ensureRuntimeLoaded();
     const source = dataarray[0];
     const inputs = dataarray[1];
     const expectedSerializedLevel = dataarray[2];
@@ -2065,6 +2088,7 @@ module.exports = {
     layerOccupancySnapshot,
     objectCountSnapshot,
     parseArgs,
+    replayFinalSerializedLevel,
     runAll,
     runSimulationWithStaticChecks,
     snapshotLayers,

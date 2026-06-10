@@ -627,6 +627,243 @@
           "specification": "Object:movement pairs reachable starting from player object action movement via a fixpoint over solver-active rules whose movement requirements are satisfiable. Runtime movement requirements are layer-based, so the check derives layer reachability from object movement facts instead of storing layer movement as the primary analysis state."
         }
       ]
+    },
+    {
+      "name": "runtime_contracts",
+      "description": "Fixtures for runtime replay checks of static-analysis contracts.",
+      "specification": "Each runtime_contracts fixture stores a PuzzleScript input replay, the expected final serialized level, and a selected expect object copied from runSimulationWithStaticChecks result fields.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "inputs",
+          "type": "array",
+          "description": "Input tokens to replay after compiling the fixture source.",
+          "specification": "Entries may be string tokens such as tick, undo, or restart, or integer input codes accepted by processInput."
+        },
+        {
+          "name": "targetLevel",
+          "type": "integer",
+          "description": "Optional starting level index.",
+          "specification": "When omitted, the runtime contract runner starts from level 0."
+        },
+        {
+          "name": "randomSeed",
+          "type": "integer",
+          "description": "Optional deterministic random seed for compiling and replaying the fixture.",
+          "specification": "When omitted, the fixture uses the runtime default null random seed."
+        },
+        {
+          "name": "expectedSounds",
+          "type": "array",
+          "description": "Optional sound history expectation.",
+          "specification": "When present, sound entries are joined with semicolons and compared with the runtime soundHistory produced by the replay."
+        },
+        {
+          "name": "expectedFinalLevel",
+          "type": "string",
+          "description": "Serialized final level after replaying inputs.",
+          "specification": "The runtime replay must finish with convertLevelToString() exactly matching this value."
+        },
+        {
+          "name": "expect",
+          "type": "object",
+          "description": "Selected runtime static-contract check results.",
+          "specification": "Each field is compared exactly with the same-named field returned by runSimulationWithStaticChecks for this fixture replay.",
+          "fields": [
+            {
+              "name": "staticObjectCount",
+              "type": "integer",
+              "description": "Number of projectable static objects in the analyzed source.",
+              "specification": "Copied from result.staticObjectCount."
+            },
+            {
+              "name": "staticLayerCount",
+              "type": "integer",
+              "description": "Number of projectable static collision layers in the analyzed source.",
+              "specification": "Copied from result.staticLayerCount."
+            },
+            {
+              "name": "inertLayerCount",
+              "type": "integer",
+              "description": "Number of inert collision layers in the analyzed source.",
+              "specification": "Copied from result.inertLayerCount."
+            },
+            {
+              "name": "constantQuantityObjectCount",
+              "type": "integer",
+              "description": "Number of objects with constant-quantity contracts.",
+              "specification": "Copied from result.constantQuantityObjectCount."
+            },
+            {
+              "name": "temporaryObjectCount",
+              "type": "integer",
+              "description": "Number of temporary objects checked by runtime replay.",
+              "specification": "Copied from result.temporaryObjectCount."
+            },
+            {
+              "name": "neverAppearsObjectCount",
+              "type": "integer",
+              "description": "Number of never-appears objects checked by runtime replay.",
+              "specification": "Copied from result.neverAppearsObjectCount."
+            },
+            {
+              "name": "cosmeticObjectCount",
+              "type": "integer",
+              "description": "Number of cosmetic objects eligible for runtime projection.",
+              "specification": "Copied from result.cosmeticObjectCount."
+            },
+            {
+              "name": "cosmeticRuleCount",
+              "type": "integer",
+              "description": "Number of cosmetic rule source lines eligible for runtime projection.",
+              "specification": "Copied from result.cosmeticRuleCount."
+            },
+            {
+              "name": "inertCommandRuleCount",
+              "type": "integer",
+              "description": "Number of inert command-only rule source lines checked by runtime replay.",
+              "specification": "Copied from result.inertCommandRuleCount."
+            },
+            {
+              "name": "mergeAliasCount",
+              "type": "integer",
+              "description": "Number of merge aliases checked by runtime replay.",
+              "specification": "Copied from result.mergeAliasCount."
+            },
+            {
+              "name": "objectBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for static objects.",
+              "specification": "Copied from result.objectBoundaryChecks."
+            },
+            {
+              "name": "staticLayerBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for static layers.",
+              "specification": "Copied from result.staticLayerBoundaryChecks."
+            },
+            {
+              "name": "inertLayerBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for inert layers.",
+              "specification": "Copied from result.inertLayerBoundaryChecks."
+            },
+            {
+              "name": "quantityBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for constant-quantity objects.",
+              "specification": "Copied from result.quantityBoundaryChecks."
+            },
+            {
+              "name": "temporaryBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for temporary objects.",
+              "specification": "Copied from result.temporaryBoundaryChecks."
+            },
+            {
+              "name": "neverAppearsBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for never-appears objects.",
+              "specification": "Copied from result.neverAppearsBoundaryChecks."
+            },
+            {
+              "name": "cosmeticProjectionChecks",
+              "type": "integer",
+              "description": "Runtime projection checks performed for cosmetic objects.",
+              "specification": "Copied from result.cosmeticProjectionChecks."
+            },
+            {
+              "name": "cosmeticRuleProjectionChecks",
+              "type": "integer",
+              "description": "Runtime projection checks performed for cosmetic rules.",
+              "specification": "Copied from result.cosmeticRuleProjectionChecks."
+            },
+            {
+              "name": "cosmeticRuleOptimizerProjectionChecks",
+              "type": "integer",
+              "description": "Runtime projection checks performed for optimizer cosmetic rules.",
+              "specification": "Copied from result.cosmeticRuleOptimizerProjectionChecks."
+            },
+            {
+              "name": "inertCommandRuleSuppressionChecks",
+              "type": "integer",
+              "description": "Runtime suppression checks performed for inert command-only rules.",
+              "specification": "Copied from result.inertCommandRuleSuppressionChecks."
+            },
+            {
+              "name": "mergeProjectionChecks",
+              "type": "integer",
+              "description": "Runtime projection checks performed for merge aliases.",
+              "specification": "Copied from result.mergeProjectionChecks."
+            },
+            {
+              "name": "winflowBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for winflow facts.",
+              "specification": "Copied from result.winflowBoundaryChecks."
+            },
+            {
+              "name": "winflowCleanWinconditionChecks",
+              "type": "integer",
+              "description": "Runtime checks for clean wincondition winflow facts.",
+              "specification": "Copied from result.winflowCleanWinconditionChecks."
+            },
+            {
+              "name": "actionUnnecessaryBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for action-unnecessary proofs.",
+              "specification": "Copied from result.actionUnnecessaryBoundaryChecks."
+            },
+            {
+              "name": "tickNoopBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for tick-noop proofs.",
+              "specification": "Copied from result.tickNoopBoundaryChecks."
+            },
+            {
+              "name": "noAgainBoundaryChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for no-again proofs.",
+              "specification": "Copied from result.noAgainBoundaryChecks."
+            },
+            {
+              "name": "noRandomReplayChecks",
+              "type": "integer",
+              "description": "Runtime replay checks performed for no-random proofs.",
+              "specification": "Copied from result.noRandomReplayChecks."
+            },
+            {
+              "name": "actionUnnecessaryProved",
+              "type": "boolean",
+              "description": "Whether static analysis proved action input unnecessary for this source.",
+              "specification": "Copied from result.actionUnnecessaryProved."
+            },
+            {
+              "name": "tickNoopProved",
+              "type": "boolean",
+              "description": "Whether static analysis proved tick input has no solver-visible effect for this source.",
+              "specification": "Copied from result.tickNoopProved."
+            },
+            {
+              "name": "noAgainProved",
+              "type": "boolean",
+              "description": "Whether static analysis proved no again behavior is reachable for this source.",
+              "specification": "Copied from result.noAgainProved."
+            },
+            {
+              "name": "noRandomProved",
+              "type": "boolean",
+              "description": "Whether static analysis proved runtime replay is not affected by random behavior for this source.",
+              "specification": "Copied from result.noRandomProved."
+            }
+          ]
+        }
+      ]
     }
   ]
 }

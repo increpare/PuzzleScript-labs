@@ -6,10 +6,48 @@ const fs = require('fs');
 const path = require('path');
 
 const { analyzeSource } = require('./ps_static_analysis');
+const {
+    replayFinalSerializedLevel,
+    runSimulationWithStaticChecks,
+} = require('./run_static_analysis_runtime_contracts_node');
 
 const CLAIM_DESCRIPTIONS_PATH = path.join(__dirname, 'static_analysis_claim_descriptions.json');
 const TESTDATA_ROOT = path.join(__dirname, 'static_analysis_testdata');
 const FIXTURE_SCHEMA = 'ps-static-analysis-testdata-v1';
+const RUNTIME_CONTRACT_DEFAULT_INPUTS = ['tick'];
+const RUNTIME_CONTRACT_EXPECT_FIELDS = [
+    'staticObjectCount',
+    'staticLayerCount',
+    'inertLayerCount',
+    'constantQuantityObjectCount',
+    'temporaryObjectCount',
+    'neverAppearsObjectCount',
+    'cosmeticObjectCount',
+    'cosmeticRuleCount',
+    'inertCommandRuleCount',
+    'mergeAliasCount',
+    'objectBoundaryChecks',
+    'staticLayerBoundaryChecks',
+    'inertLayerBoundaryChecks',
+    'quantityBoundaryChecks',
+    'temporaryBoundaryChecks',
+    'neverAppearsBoundaryChecks',
+    'cosmeticProjectionChecks',
+    'cosmeticRuleProjectionChecks',
+    'cosmeticRuleOptimizerProjectionChecks',
+    'inertCommandRuleSuppressionChecks',
+    'mergeProjectionChecks',
+    'winflowBoundaryChecks',
+    'winflowCleanWinconditionChecks',
+    'actionUnnecessaryBoundaryChecks',
+    'tickNoopBoundaryChecks',
+    'noAgainBoundaryChecks',
+    'noRandomReplayChecks',
+    'actionUnnecessaryProved',
+    'tickNoopProved',
+    'noAgainProved',
+    'noRandomProved',
+];
 
 function readJson(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -1166,6 +1204,124 @@ function runMovementActionDir(dirPath, claimDescriptions, log = process.stdout.w
     }
 }
 
+// ─── runtime_contracts ───────────────────────────────────────────────────────
+
+function normalizeRuntimeContractInputs(payload) {
+    if (payload && payload.inputs !== undefined) {
+        assert.ok(Array.isArray(payload.inputs), 'runtime_contracts inputs must be an array');
+        return payload.inputs.slice();
+    }
+    return RUNTIME_CONTRACT_DEFAULT_INPUTS.slice();
+}
+
+function runtimeContractDataArray(source, payload) {
+    const inputs = normalizeRuntimeContractInputs(payload);
+    return [
+        source,
+        inputs,
+        payload.expectedFinalLevel,
+        payload.targetLevel === undefined ? 0 : payload.targetLevel,
+        payload.randomSeed === undefined ? null : payload.randomSeed,
+        payload.expectedSounds === undefined ? null : payload.expectedSounds,
+    ];
+}
+
+function runtimeContractExpectationSubset(result, requestedExpect = null) {
+    const fields = requestedExpect ? Object.keys(requestedExpect) : RUNTIME_CONTRACT_EXPECT_FIELDS;
+    const out = {};
+    for (const fieldName of fields) {
+        assert.ok(
+            RUNTIME_CONTRACT_EXPECT_FIELDS.includes(fieldName),
+            `runtime_contracts expect contains unsupported field ${JSON.stringify(fieldName)}`
+        );
+        assert.ok(
+            Object.prototype.hasOwnProperty.call(result, fieldName),
+            `runtime contract result missing field ${JSON.stringify(fieldName)}`
+        );
+        out[fieldName] = result[fieldName];
+    }
+    return out;
+}
+
+function buildRuntimeContractExpectations(source, testName, seedPayload = {}) {
+    const inputs = normalizeRuntimeContractInputs(seedPayload);
+    const targetLevel = seedPayload.targetLevel === undefined ? 0 : seedPayload.targetLevel;
+    const randomSeed = seedPayload.randomSeed === undefined ? null : seedPayload.randomSeed;
+    const expectedFinalLevel = seedPayload.expectedFinalLevel === undefined
+        ? replayFinalSerializedLevel(testName, source, inputs, { targetLevel, randomSeed })
+        : seedPayload.expectedFinalLevel;
+    const payload = {
+        schema: FIXTURE_SCHEMA,
+        inputs,
+        expectedFinalLevel,
+    };
+    if (seedPayload.targetLevel !== undefined) payload.targetLevel = seedPayload.targetLevel;
+    if (seedPayload.randomSeed !== undefined) payload.randomSeed = seedPayload.randomSeed;
+    if (seedPayload.expectedSounds !== undefined) payload.expectedSounds = seedPayload.expectedSounds;
+
+    const result = runSimulationWithStaticChecks(testName, runtimeContractDataArray(source, payload));
+    payload.expect = runtimeContractExpectationSubset(result, seedPayload.expect || null);
+    return payload;
+}
+
+function validateRuntimeContractFixtureShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(Array.isArray(payload.inputs), `${filePath}: inputs must be an array`);
+    for (const [index, input] of payload.inputs.entries()) {
+        assert.ok(
+            typeof input === 'string' || Number.isInteger(input),
+            `${filePath}: inputs[${index}] must be a string token or integer input code`
+        );
+    }
+    assert.ok(typeof payload.expectedFinalLevel === 'string', `${filePath}: expectedFinalLevel must be a string`);
+    if (payload.targetLevel !== undefined) {
+        assert.ok(Number.isInteger(payload.targetLevel) && payload.targetLevel >= 0, `${filePath}: targetLevel must be a non-negative integer`);
+    }
+    if (payload.randomSeed !== undefined) {
+        assert.ok(Number.isInteger(payload.randomSeed), `${filePath}: randomSeed must be an integer`);
+    }
+    if (payload.expectedSounds !== undefined) {
+        assert.ok(Array.isArray(payload.expectedSounds), `${filePath}: expectedSounds must be an array`);
+    }
+    assert.ok(payload.expect && typeof payload.expect === 'object' && !Array.isArray(payload.expect), `${filePath}: expect must be an object`);
+    for (const fieldName of Object.keys(payload.expect)) {
+        assert.ok(RUNTIME_CONTRACT_EXPECT_FIELDS.includes(fieldName), `${filePath}: unsupported expect field ${fieldName}`);
+    }
+}
+
+function checkRuntimeContractFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'runtime_contracts'), payload);
+    validateRuntimeContractFixtureShape(jsonPath, payload);
+    const result = runSimulationWithStaticChecks(path.basename(txtPath, '.txt'), runtimeContractDataArray(source, payload));
+    const actual = runtimeContractExpectationSubset(result, payload.expect);
+    assert.deepStrictEqual(actual, payload.expect, `${jsonPath}: expect mismatch`);
+}
+
+function runRuntimeContractsDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            writeJson(jsonPath, buildRuntimeContractExpectations(source, stem, {
+                inputs: RUNTIME_CONTRACT_DEFAULT_INPUTS,
+            }));
+            log(`generated static analysis testdata: runtime_contracts/${stem}.json (review before committing)\n`);
+        }
+        checkRuntimeContractFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 function runStaticAnalysisTestdata(options = {}) {
     const root = options.root || TESTDATA_ROOT;
     const claimDescriptions = loadClaimDescriptions(options.claimDescriptionsPath || CLAIM_DESCRIPTIONS_PATH);
@@ -1193,6 +1349,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const movementActionDir = path.join(root, 'movement_action');
     assert.ok(fs.existsSync(movementActionDir), `${movementActionDir}: missing movement_action testdata directory`);
     runMovementActionDir(movementActionDir, claimDescriptions, options.log);
+    const runtimeContractsDir = path.join(root, 'runtime_contracts');
+    assert.ok(fs.existsSync(runtimeContractsDir), `${runtimeContractsDir}: missing runtime_contracts testdata directory`);
+    runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, options.log);
     process.stdout.write('static_analysis_testdata_runner: ok\n');
 }
 
@@ -1208,6 +1367,7 @@ module.exports = {
     buildProgramFlowExpectations,
     buildRuleTagExpectations,
     buildRulegroupFlowExpectations,
+    buildRuntimeContractExpectations,
     buildWinConditionTagExpectations,
     buildWinflowExpectations,
     deriveObjectTagValue,
@@ -1225,6 +1385,7 @@ module.exports = {
     runProgramFlowDir,
     runRuleTagsDir,
     runRulegroupFlowDir,
+    runRuntimeContractsDir,
     runStaticAnalysisTestdata,
     runWinConditionTagsDir,
     runWinflowDir,
