@@ -3250,6 +3250,25 @@ function computeWriteMovements(state, ruleTuple, oldrule) {
             if (replacement.movementsClear) result.ior(replacement.movementsClear);
             if (replacement.movementsLayerMask) result.ior(replacement.movementsLayerMask);
             if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
+            // 5c-3 inferred property bindings with dirMode != 0 touch the
+            // captured property's destination layer movement bits (clear +
+            // optional set). Union the full 0x1f slot for every alias layer
+            // of the property — we don't know the concrete direction at
+            // compile time so the safe upper bound is all 5 bits.
+            const bindings = replacement.inferredPropertyBindings;
+            if (bindings) {
+                for (let bi = 0; bi < bindings.length; bi++) {
+                    const b = bindings[bi];
+                    if (!b || b.dirMode === 0) continue;
+                    const propMembers = state.propertiesDict ? state.propertiesDict[b.propertyName] : null;
+                    if (!propMembers) continue;
+                    for (let mi = 0; mi < propMembers.length; mi++) {
+                        const memberObj = state.objects[propMembers[mi]];
+                        if (!memberObj) continue;
+                        result.ishiftor(0x1f, 5 * memberObj.layer);
+                    }
+                }
+            }
         }
     }
     // Aggregate sinks: runtime ORs the captured concrete direction bit into
@@ -3262,24 +3281,6 @@ function computeWriteMovements(state, ruleTuple, oldrule) {
                 if (typeof sink.layer !== 'number') continue;
                 const mask = (sink.aggregateMask !== undefined ? sink.aggregateMask : 0x1f) & 0x1f;
                 result.ishiftor(mask, 5 * sink.layer);
-            }
-        }
-    }
-    // 5c-3 inferred property bindings with dirMode != 0 touch the captured
-    // property's destination layer movement bits (clear + optional set).
-    // Union the full 0x1f slot for every alias layer of the property.
-    const propertyBindings = ruleTuple[13];
-    if (propertyBindings) {
-        for (let i = 0; i < propertyBindings.length; i++) {
-            const b = propertyBindings[i];
-            if (!b || b.dirMode === 0) continue;
-            const aliases = state.propertiesDict && state.propertiesDict[b.propertyName];
-            if (!aliases) continue;
-            for (let j = 0; j < aliases.length; j++) {
-                const aliasObj = state.objects[aliases[j]];
-                if (!aliasObj) continue;
-                const aliasLayer = aliasObj.layer | 0;
-                result.ishiftor(0x1f, 5 * aliasLayer);
             }
         }
     }
