@@ -6,11 +6,11 @@ const fs = require('fs');
 const path = require('path');
 
 const {
+    ensureRuntimeLoaded,
     runSimulationWithStaticChecks,
 } = require('./run_static_analysis_runtime_contracts_node');
-const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 
-loadPuzzleScript({ includeTests: true, messageSink: [] });
+ensureRuntimeLoaded();
 
 function loadStaticAnalysisFixtureSource(...parts) {
     return fs.readFileSync(path.join(__dirname, 'static_analysis_testdata', ...parts), 'utf8');

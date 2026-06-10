@@ -11,6 +11,7 @@ an initial `ObjB`.
 
 - `object_tags/property-inferred-overwrite.*`
 - `rule_tags/property-inferred-overwrite.*`
+- `rule_tags/property-inferred-overwrite-win.*`
 - `winflow/property-inferred-overwrite.*`
 - `movement_action/property-inferred-overwrite-action.*`
 - `runtime_contracts/property-inferred-overwrite.*`

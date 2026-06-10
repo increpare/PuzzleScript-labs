@@ -2085,6 +2085,7 @@ module.exports = {
     firstReplayTraceDifference,
     firstSnapshotDifference,
     firstTemporaryPresence,
+    ensureRuntimeLoaded,
     layerOccupancySnapshot,
     objectCountSnapshot,
     parseArgs,

@@ -1,0 +1,12 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "ruleTag": [
+    {
+      "line": 33,
+      "text": "[ thing ] -> [ thing obja ]",
+      "tags": {
+        "cosmetic": false
+      }
+    }
+  ]
+}

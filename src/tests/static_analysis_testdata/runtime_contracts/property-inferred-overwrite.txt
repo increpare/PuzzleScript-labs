@@ -10,17 +10,17 @@ ObjA
 red
 ObjB
 blue
-=======
+========
 LEGEND
-=======
+========
 . = Background
 P = Player
 x = ObjA
 y = ObjB
 Thing = ObjA or ObjB
-=======
+========
 SOUNDS
-=======
+========
 ================
 COLLISIONLAYERS
 ================
