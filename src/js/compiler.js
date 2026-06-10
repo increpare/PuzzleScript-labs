@@ -1601,17 +1601,9 @@ function computePropertyCoalescingPlan(state, rule) {
 
         const rhsList = rhsByName.get(propName) || [];
         if (rhsList.length === 0) continue;
-        // 5c-3: RHS sinks may have empty direction, `stationary`, or any
-        // concrete direction (up/down/left/right/action). Aggregate
-        // directions ('moving', 'horizontal' …) and `randomdir` are still
-        // deferred — they need composition with 7B-2b or extra capture
-        // machinery.
-        const sinkDirsOk = rhsList.every(p =>
-            p.dir === '' ||
-            p.dir === 'stationary' ||
-            (LAYER_COUPLED_MOVEMENT_DIRS[p.dir] && dirMasks.hasOwnProperty(p.dir))
-        );
-        if (!sinkDirsOk) continue;
+        // 5c-3 (regression-fix WIP): temporarily restrict back to empty
+        // directions until the non-empty-direction sink path is verified.
+        if (rhsList.some(p => p.dir !== '')) continue;
         // At least one sink must be at a different cell than the source —
         // otherwise the existing layer-coupled preservation handles it.
         const hasCrossCellSink = rhsList.some(
