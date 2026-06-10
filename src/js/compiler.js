@@ -3278,6 +3278,20 @@ function computeWriteMovements(state, ruleTuple, oldrule) {
             if (replacement.movementsClear) result.ior(replacement.movementsClear);
             if (replacement.movementsLayerMask) result.ior(replacement.movementsLayerMask);
             if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
+            // layerCoupledMovementReplacements: the runtime clears the
+            // captured layer's full 0x1f slot and (optionally) sets the
+            // replacementMovementMask. Cover both with 0x1f per layer.
+            const coupled = replacement.layerCoupledMovementReplacements;
+            if (coupled) {
+                for (let ci = 0; ci < coupled.length; ci++) {
+                    const term = coupled[ci];
+                    if (!term || !term.layers) continue;
+                    for (let li = 0; li < term.layers.length; li++) {
+                        const layer = term.layers[li];
+                        result.ishiftor(0x1f, 5 * layer.layerIndex);
+                    }
+                }
+            }
             // 5c-3 inferred property bindings with dirMode != 0 touch the
             // captured property's destination layer movement bits (clear +
             // optional set). Union the full 0x1f slot for every alias layer
