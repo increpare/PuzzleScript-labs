@@ -1,0 +1,8 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "inputs": ["tick"],
+  "expectedFinalLevel": "background player:0,background obja:1,\n",
+  "expect": {
+    "neverAppearsObjectCount": 0
+  }
+}

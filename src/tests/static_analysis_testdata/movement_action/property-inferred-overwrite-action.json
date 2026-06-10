@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "actionInput": true,
+  "actionUnnecessary": false,
+  "actionUnnecessaryBlockers": ["action_may_mutate_objects", "reads_action"],
+  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionUnnecessaryChangedObjects": ["ObjA", "ObjB"],
+  "movements_reachable_from_action_input": ["Player:action"]
+}
