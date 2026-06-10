@@ -2070,6 +2070,23 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		}
 		`)}
 
+		${IF_LAZY(hasInferredPropertyBindings, () => `
+		// Phase 5c-3: when a sink specifies a direction, also clear the
+		// captured layer's prior movement bits and set the sink's direction.
+		const inferredPropertyBindingsM = replace.inferredPropertyBindings;
+		const propertyCapturesM = rule.propertyCaptures;
+		for (let bi = 0; bi < inferredPropertyBindingsM.length; bi++) {
+			const b = inferredPropertyBindingsM[bi];
+			if (b.dirMode === 0) continue;
+			const captured = propertyCapturesM[b.propertyName];
+			if (!captured) continue;
+			movementsClear.ishiftor(0x1f, 5 * captured.layerIndex);
+			if (b.dirMode === 2) {
+				movementsSet.ishiftor(b.dirMask, 5 * captured.layerIndex);
+			}
+		}
+		`)}
+
 		${IF_LAZY(!replace_randomEntityMask_zero,()=>`
 			const choices=[];
 			${FOR(0,(32*OBJECT_SIZE),i =>

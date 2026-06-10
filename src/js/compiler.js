@@ -1601,11 +1601,17 @@ function computePropertyCoalescingPlan(state, rule) {
 
         const rhsList = rhsByName.get(propName) || [];
         if (rhsList.length === 0) continue;
-        // For this slice, RHS sinks must have empty direction — applying the
-        // captured alias's bit at a non-empty-direction sink would also need
-        // to set the destination layer's movement bits, which the current
-        // generated replace code doesn't do for properties.
-        if (rhsList.some(p => p.dir !== '')) continue;
+        // 5c-3: RHS sinks may have empty direction, `stationary`, or any
+        // concrete direction (up/down/left/right/action). Aggregate
+        // directions ('moving', 'horizontal' …) and `randomdir` are still
+        // deferred — they need composition with 7B-2b or extra capture
+        // machinery.
+        const sinkDirsOk = rhsList.every(p =>
+            p.dir === '' ||
+            p.dir === 'stationary' ||
+            (LAYER_COUPLED_MOVEMENT_DIRS[p.dir] && dirMasks.hasOwnProperty(p.dir))
+        );
+        if (!sinkDirsOk) continue;
         // At least one sink must be at a different cell than the source —
         // otherwise the existing layer-coupled preservation handles it.
         const hasCrossCellSink = rhsList.some(
@@ -2901,7 +2907,14 @@ function rulesToMask(state) {
                         // LHS counterpart is required (in contrast to the legacy
                         // layer-coupled movement-replacement path below).
                         let propertyInferredSink = false;
-                        if (object_dir === '' && rule.propertySinks) {
+                        // 5c-3: sinks may have empty direction, `stationary`,
+                        // or any concrete direction. The captured alias's
+                        // layer carries the sink's direction at replace time.
+                        const sinkDirOk =
+                            object_dir === '' ||
+                            object_dir === 'stationary' ||
+                            (LAYER_COUPLED_MOVEMENT_DIRS[object_dir] && dirMasks.hasOwnProperty(object_dir));
+                        if (sinkDirOk && rule.propertySinks) {
                             const sinkList = rule.propertySinks.get(object_name);
                             if (sinkList) {
                                 for (let si = 0; si < sinkList.length; si++) {
@@ -2920,8 +2933,20 @@ function rulesToMask(state) {
                                                 layersUsed_r[aliasLayer] = object_name;
                                             }
                                         }
+                                        // 0 → no movement update at sink.
+                                        // 1 → stationary (clear layer, no set).
+                                        // mask → concrete direction (clear + set bit).
+                                        let dirMode = 0, dirMask = 0;
+                                        if (object_dir === 'stationary') {
+                                            dirMode = 1;
+                                        } else if (object_dir !== '' && dirMasks.hasOwnProperty(object_dir)) {
+                                            dirMode = 2;
+                                            dirMask = dirMasks[object_dir];
+                                        }
                                         inferredPropertyBindings.push({
                                             propertyName: object_name,
+                                            dirMode,
+                                            dirMask,
                                         });
                                         break;
                                     }
