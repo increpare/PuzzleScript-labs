@@ -3169,6 +3169,64 @@ function computeReadMovements(state, ruleTuple) {
     return result;
 }
 
+// Phase A.1: per-rule writeObjects derivation. Returns a BitVec(STRIDE_OBJ)
+// of the object IDs the rule's RHS may add or remove. Walks each LHS cell's
+// attached CellReplacement (precomputed by rulesToMask) for its statically
+// known objectsSet/objectsClear contributions, then conservatively expands
+// for runtime-bound sinks: property sinks may receive any alias of the bound
+// property, and aggregate sinks may touch any object on the destination
+// layer.
+function computeWriteObjects(state, ruleTuple, oldrule) {
+    const result = new BitVec(STRIDE_OBJ);
+    const patterns = ruleTuple[1]; // cell rows of CellPattern instances
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            const replacement = cell.replacement;
+            if (!replacement) continue;
+            if (replacement.objectsSet) result.ior(replacement.objectsSet);
+            if (replacement.objectsClear) result.ior(replacement.objectsClear);
+            if (replacement.randomEntityMask) result.ior(replacement.randomEntityMask);
+        }
+    }
+    // Property sinks: the runtime ORs in whichever alias was captured at the
+    // LHS source. Union every possible alias object id for safety.
+    if (oldrule.propertySinks) {
+        for (const propName of oldrule.propertySinks.keys()) {
+            const aliases = state.propertiesDict && state.propertiesDict[propName];
+            if (!aliases) continue;
+            for (let i = 0; i < aliases.length; i++) {
+                const aliasObj = state.objects[aliases[i]];
+                if (aliasObj && typeof aliasObj.id === 'number') {
+                    result.ibitset(aliasObj.id);
+                }
+            }
+        }
+    }
+    // Aggregate sinks: the runtime writes movement bits only, but be
+    // conservative and union every object on each sink's destination layer
+    // (matches the plan's "every member of the destination layer" intent).
+    if (oldrule.aggregateSinks) {
+        for (const sinkList of oldrule.aggregateSinks.values()) {
+            for (let i = 0; i < sinkList.length; i++) {
+                const layerIndex = sinkList[i].layer;
+                if (typeof layerIndex !== 'number') continue;
+                const layerObjects = state.collisionLayers[layerIndex];
+                if (!layerObjects) continue;
+                for (let j = 0; j < layerObjects.length; j++) {
+                    const obj = state.objects[layerObjects[j]];
+                    if (obj && typeof obj.id === 'number') {
+                        result.ibitset(obj.id);
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
 function cellRowMasksGeneric(rule, stride, propertyName) {
     const ruleMasks = [];
     const lhs = rule[1];
@@ -3247,6 +3305,7 @@ function collapseRules(groups, state) {
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
             newrule.push(computeReadMovements(state, newrule));   // slot [14]
+            newrule.push(computeWriteObjects(state, newrule, oldrule));  // slot [15]
             rules[i] = new Rule(newrule);
         }
     }

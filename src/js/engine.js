@@ -1481,6 +1481,7 @@ function Rule(rule) {
 	this.propertyBindingsArr = rule[13] || null;
 	this.propertyCaptures = this.propertyBindingsArr ? {} : null;
 	this.readMovements = rule[14];
+	this.writeObjects = rule[15];
 	this.ruleMask = new BitVec(STRIDE_OBJ);
 	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
 	for (const m of this.cellRowMasks) {

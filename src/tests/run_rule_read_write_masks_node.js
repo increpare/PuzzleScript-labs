@@ -55,6 +55,50 @@ LEVELS
             readMovementsNonEmpty: true,
         },
     },
+    {
+        name: 'rhs-writes-new-object',
+        source: `
+title test
+========
+OBJECTS
+========
+Background
+white
+Player
+red
+Crab
+blue
+=======
+LEGEND
+=======
+. = Background
+P = Player
+C = Crab
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+Background
+Player, Crab
+======
+RULES
+======
+[ Player ] -> [ Crab ]
+==============
+WINCONDITIONS
+==============
+=======
+LEVELS
+=======
+.P.
+`,
+        expect: {
+            // Crab is on the Player/Crab layer; writeObjects must include its bit.
+            writeObjectsNonEmpty: true,
+        },
+    },
 ];
 
 let failures = 0;
