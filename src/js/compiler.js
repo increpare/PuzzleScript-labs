@@ -3320,7 +3320,7 @@ function computeWriteMovements(state, ruleTuple, oldrule) {
 const PHASE_A1_REPLAY_COMMANDS = new Set([
     'again', 'restart', 'cancel', 'win', 'checkpoint',
 ]);
-function classifyForceAlwaysRun(state, ruleTuple, oldrule) {
+function classifyForceAlwaysRun(state, ruleTuple, oldrule, readObjects, readMovements) {
     if (ruleTuple[8]) return { force: true, reason: 'isRandom' };       // slot [8] = isRandom
     const commands = ruleTuple[7] || [];                                 // slot [7] = commands
     for (let i = 0; i < commands.length; i++) {
@@ -3330,6 +3330,13 @@ function classifyForceAlwaysRun(state, ruleTuple, oldrule) {
         }
     }
     if (ruleTuple[6]) return { force: true, reason: 'rigid' };          // slot [6] = rigid; pruning rigid rules interacts with bannedGroup logic in resolveMovements
+    // Empty LHS cell patterns (e.g. `[] -> [PlayArea]`) gate on nothing —
+    // they match unconditionally and would otherwise be permanently pruned
+    // by the readObjects/readMovements bitmask check.
+    if (readObjects && readMovements
+        && readObjects.iszero() && readMovements.iszero()) {
+        return { force: true, reason: 'empty-LHS' };
+    }
     // No global-pattern / late-rule special-casing in A.1. (LATE rules
     // already run in a separate applyRules call so don't need extra handling here.)
     return { force: false, reason: null };
@@ -3412,15 +3419,17 @@ function collapseRules(groups, state) {
             newrule.push(buildLiveRulePlanMetadata(newrule));
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
-            newrule.push(computeReadMovements(state, newrule));   // slot [14]
+            const readMovements = computeReadMovements(state, newrule);
+            const readObjects = computeReadObjects(newrule);
+            newrule.push(readMovements);   // slot [14]
             newrule.push(computeWriteObjects(state, newrule, oldrule));  // slot [15]
             newrule.push(computeWriteMovements(state, newrule, oldrule));  // slot [16]
-            const classification = classifyForceAlwaysRun(state, newrule, oldrule);
+            const classification = classifyForceAlwaysRun(state, newrule, oldrule, readObjects, readMovements);
             newrule.push(classification.force);   // slot [17]
             newrule.push(classification.reason);  // slot [18]
             // Phase A.1 slot [19]: readObjects superset of ruleMask, including
             // objectsMissing so `no X` patterns aren't pruned when X gets created.
-            newrule.push(computeReadObjects(newrule));
+            newrule.push(readObjects);
             rules[i] = new Rule(newrule);
         }
     }
