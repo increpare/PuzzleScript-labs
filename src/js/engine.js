@@ -1483,6 +1483,8 @@ function Rule(rule) {
 	this.readMovements = rule[14];
 	this.writeObjects = rule[15];
 	this.writeMovements = rule[16];
+	this.forceAlwaysRun = rule[17] === true;
+	this.forceAlwaysRunReason = rule[18] || null;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
 	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
 	for (const m of this.cellRowMasks) {

@@ -3287,6 +3287,26 @@ function computeWriteMovements(state, ruleTuple, oldrule) {
     return result;
 }
 
+// Phase A.1: rules we can't soundly prune. Returns { force: bool, reason: string|null }.
+// Conservative — when in doubt, return force=true so the rule is always evaluated.
+const PHASE_A1_REPLAY_COMMANDS = new Set([
+    'again', 'restart', 'cancel', 'win', 'checkpoint',
+]);
+function classifyForceAlwaysRun(state, ruleTuple, oldrule) {
+    if (ruleTuple[8]) return { force: true, reason: 'isRandom' };       // slot [8] = isRandom
+    const commands = ruleTuple[7] || [];                                 // slot [7] = commands
+    for (let i = 0; i < commands.length; i++) {
+        const name = commands[i][0];
+        if (PHASE_A1_REPLAY_COMMANDS.has(name)) {
+            return { force: true, reason: 'command:' + name };
+        }
+    }
+    if (ruleTuple[6]) return { force: true, reason: 'rigid' };          // slot [6] = rigid; pruning rigid rules interacts with bannedGroup logic in resolveMovements
+    // No global-pattern / late-rule special-casing in A.1. (LATE rules
+    // already run in a separate applyRules call so don't need extra handling here.)
+    return { force: false, reason: null };
+}
+
 function cellRowMasksGeneric(rule, stride, propertyName) {
     const ruleMasks = [];
     const lhs = rule[1];
@@ -3367,6 +3387,9 @@ function collapseRules(groups, state) {
             newrule.push(computeReadMovements(state, newrule));   // slot [14]
             newrule.push(computeWriteObjects(state, newrule, oldrule));  // slot [15]
             newrule.push(computeWriteMovements(state, newrule, oldrule));  // slot [16]
+            const classification = classifyForceAlwaysRun(state, newrule, oldrule);
+            newrule.push(classification.force);   // slot [17]
+            newrule.push(classification.reason);  // slot [18]
             rules[i] = new Rule(newrule);
         }
     }

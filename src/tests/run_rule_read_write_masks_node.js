@@ -140,6 +140,91 @@ LEVELS
             writeMovementsNonEmpty: true,
         },
     },
+    {
+        name: 'random-rule-is-force-always',
+        source: `
+title test
+========
+OBJECTS
+========
+Background
+white
+Player
+red
+Crab
+blue
+=======
+LEGEND
+=======
+. = Background
+P = Player
+C = Crab
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+Background
+Player, Crab
+======
+RULES
+======
+random [ Player ] -> [ Crab ]
+==============
+WINCONDITIONS
+==============
+=======
+LEVELS
+=======
+.P.
+`,
+        expect: {
+            forceAlwaysRun: true,
+            forceAlwaysRunReason: 'isRandom',
+        },
+    },
+    {
+        name: 'again-command-is-force-always',
+        source: `
+title test
+========
+OBJECTS
+========
+Background
+white
+Player
+red
+=======
+LEGEND
+=======
+. = Background
+P = Player
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+Background
+Player
+======
+RULES
+======
+[ Player ] -> [ Player ] again
+==============
+WINCONDITIONS
+==============
+=======
+LEVELS
+=======
+.P.
+`,
+        expect: {
+            forceAlwaysRun: true,
+            forceAlwaysRunReason: 'command:again',
+        },
+    },
 ];
 
 let failures = 0;
