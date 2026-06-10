@@ -9,12 +9,14 @@ const path = require('path');
 const {
     assertFixtureFieldsDocumented,
     buildMovementActionExpectations,
+    buildRuntimeContractExpectations,
     fixtureFieldsAtPath,
     fixtureSchemaByName,
     findRuleRecord,
     formatFixtureJson,
     loadClaimDescriptions,
     runObjectTagsDir,
+    runRuntimeContractsDir,
     runRuleTagsDir,
 } = require('./static_analysis_testdata_runner');
 const { analyzeSource } = require('./ps_static_analysis');
@@ -113,6 +115,64 @@ P
             movementActionPayload.movements_reachable_from_action_input,
             ['Player:action', 'Player:moving', 'Player:right']
         );
+
+        const runtimeContractSource = [
+            '========',
+            'OBJECTS',
+            '========',
+            '',
+            'Background',
+            'Black',
+            '',
+            'Player',
+            'Pink',
+            '',
+            '=======',
+            'LEGEND',
+            '=======',
+            '',
+            '. = Background',
+            'P = Player',
+            '',
+            '======',
+            'SOUNDS',
+            '======',
+            '',
+            '================',
+            'COLLISIONLAYERS',
+            '================',
+            '',
+            'Background',
+            'Player',
+            '',
+            '======',
+            'RULES',
+            '======',
+            '',
+            '[ Player ] -> [ Player ]',
+            '',
+            '==============',
+            'WINCONDITIONS',
+            '==============',
+            '',
+            'Some Player',
+            '',
+            '=======',
+            'LEVELS',
+            '=======',
+            '',
+            'P',
+        ].join('\n');
+
+        const runtimeContractPayload = buildRuntimeContractExpectations(
+            runtimeContractSource,
+            'runtime-contract-tmp',
+            { inputs: ['tick'] }
+        );
+        assert.strictEqual(runtimeContractPayload.schema, FIXTURE_SCHEMA);
+        assert.deepStrictEqual(runtimeContractPayload.inputs, ['tick']);
+        assert.strictEqual(runtimeContractPayload.expectedFinalLevel, 'background player:0,\n');
+        assert.strictEqual(runtimeContractPayload.expect.neverAppearsObjectCount, 0);
         const generatedLog = [];
         runObjectTagsDir(objectTagsDir, claimDescriptions, message => generatedLog.push(message));
         assert.deepStrictEqual(generatedLog, ['generated static analysis testdata: object_tags/roles-basic.json (review before committing)\n']);
@@ -165,6 +225,22 @@ P
             ),
             /undocumented fixture field wakeEdges\[\]\.mysteryEdgeField/
         );
+        assert.throws(
+            () => assertFixtureFieldsDocumented(
+                'undocumented-runtime-contract-field.json',
+                fixtureSchemaByName(claimDescriptions, 'runtime_contracts'),
+                {
+                    schema: FIXTURE_SCHEMA,
+                    inputs: ['tick'],
+                    expectedFinalLevel: 'background player:0,\n',
+                    expect: {
+                        neverAppearsObjectCount: 0,
+                        mysteryRuntimeField: 1,
+                    },
+                }
+            ),
+            /undocumented fixture field expect\.mysteryRuntimeField/
+        );
 
         const curated = {
             schema: FIXTURE_SCHEMA,
@@ -182,6 +258,39 @@ P
         runObjectTagsDir(objectTagsDir, claimDescriptions, message => rerunLog.push(message));
         assert.deepStrictEqual(rerunLog, []);
         assert.strictEqual(fs.readFileSync(jsonPath, 'utf8'), curatedText);
+
+        const runtimeContractsDir = path.join(tmpRoot, 'runtime_contracts');
+        fs.mkdirSync(runtimeContractsDir, { recursive: true });
+        fs.writeFileSync(path.join(runtimeContractsDir, 'runtime-contract-tmp.txt'), runtimeContractSource, 'utf8');
+
+        const generatedRuntimeLog = [];
+        runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, message => generatedRuntimeLog.push(message));
+        assert.deepStrictEqual(generatedRuntimeLog, [
+            'generated static analysis testdata: runtime_contracts/runtime-contract-tmp.json (review before committing)\n',
+        ]);
+
+        const runtimeJsonPath = path.join(runtimeContractsDir, 'runtime-contract-tmp.json');
+        const generatedRuntimePayload = JSON.parse(fs.readFileSync(runtimeJsonPath, 'utf8'));
+        assert.strictEqual(generatedRuntimePayload.schema, FIXTURE_SCHEMA);
+        assert.deepStrictEqual(generatedRuntimePayload.inputs, ['tick']);
+        assert.strictEqual(generatedRuntimePayload.expectedFinalLevel, 'background player:0,\n');
+        assert.strictEqual(generatedRuntimePayload.expect.neverAppearsObjectCount, 0);
+
+        const curatedRuntime = {
+            schema: FIXTURE_SCHEMA,
+            inputs: ['tick'],
+            expectedFinalLevel: 'background player:0,\n',
+            expect: {
+                neverAppearsObjectCount: 0,
+            },
+        };
+        writeJson(runtimeJsonPath, curatedRuntime);
+        const curatedRuntimeText = fs.readFileSync(runtimeJsonPath, 'utf8');
+
+        const rerunRuntimeLog = [];
+        runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, message => rerunRuntimeLog.push(message));
+        assert.deepStrictEqual(rerunRuntimeLog, []);
+        assert.strictEqual(fs.readFileSync(runtimeJsonPath, 'utf8'), curatedRuntimeText);
 
         const ruleTagsDir = path.join(tmpRoot, 'rule_tags');
         fs.mkdirSync(ruleTagsDir, { recursive: true });
