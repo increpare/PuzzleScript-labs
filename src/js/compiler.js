@@ -3121,6 +3121,60 @@ function rulesToMask(state) {
     }
 }
 
+// Phase A.1: per-rule readMovements derivation. Walks every LHS cell row,
+// ORs into a BitVec(STRIDE_MOV) the movement-bit layers the LHS gates on.
+// At this point (called from collapseRules), each LHS cell is a CellPattern
+// produced by rulesToMask, so we draw the masks straight from its precomputed
+// bitvecs (direct dir matches, stationary requirements, aggregate matches,
+// and layer-coupled property terms). Aggregate LHS bindings (slot [12])
+// contribute their source-layer aggregate mask too.
+function computeReadMovements(state, ruleTuple) {
+    const result = new BitVec(STRIDE_MOV);
+    const patterns = ruleTuple[1]; // cell rows
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            if (cell.movementsPresent) result.ior(cell.movementsPresent);
+            if (cell.movementsMissing) result.ior(cell.movementsMissing);
+            const anyMovements = cell.anyMovementsPresent;
+            if (anyMovements) {
+                for (let i = 0; i < anyMovements.length; i++) {
+                    result.ior(anyMovements[i]);
+                }
+            }
+            const coupled = cell.layerCoupledMovementMasks;
+            if (coupled) {
+                for (let i = 0; i < coupled.length; i++) {
+                    const term = coupled[i];
+                    if (!term || !term.layers) continue;
+                    for (let j = 0; j < term.layers.length; j++) {
+                        const layer = term.layers[j];
+                        if (layer.movementsPresent) result.ior(layer.movementsPresent);
+                        if (layer.movementsMissing) result.ior(layer.movementsMissing);
+                    }
+                }
+            }
+        }
+    }
+    // Aggregate LHS bindings (slot [12] = aggregateBindingsArr) gate on the source layer's aggregate mask.
+    const aggregates = ruleTuple[12];
+    if (aggregates) {
+        for (let i = 0; i < aggregates.length; i++) {
+            const b = aggregates[i];
+            const shift = 5 * b.sourceLayer;
+            const wordIdx = shift >>> 5;
+            const wordShift = shift & 31;
+            result.data[wordIdx] |= ((b.aggregateMask & 0x1f) << wordShift) | 0;
+            if (wordShift > 27) {
+                result.data[wordIdx + 1] |= ((b.aggregateMask & 0x1f) >>> (32 - wordShift)) | 0;
+            }
+        }
+    }
+    return result;
+}
+
 function cellRowMasksGeneric(rule, stride, propertyName) {
     const ruleMasks = [];
     const lhs = rule[1];
@@ -3160,7 +3214,7 @@ function buildLiveRulePlanMetadata(rule) {
     };
 }
 
-function collapseRules(groups) {
+function collapseRules(groups, state) {
     for (let gn = 0; gn < groups.length; gn++) {
         const rules = groups[gn];
         for (let i = 0; i < rules.length; i++) {
@@ -3198,6 +3252,7 @@ function collapseRules(groups) {
             newrule.push(buildLiveRulePlanMetadata(newrule));
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
+            newrule.push(computeReadMovements(state, newrule));   // slot [14]
             rules[i] = new Rule(newrule);
         }
     }
@@ -4148,8 +4203,8 @@ function loadFile(str) {
     }
 
     arrangeRulesByGroupNumber(state);
-    collapseRules(state.rules);
-    collapseRules(state.lateRules);
+    collapseRules(state.rules, state);
+    collapseRules(state.lateRules, state);
 
     generateRigidGroupList(state);
 
