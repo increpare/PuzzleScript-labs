@@ -4,7 +4,7 @@
   "actionUnnecessary": false,
   "actionUnnecessaryBlockers": ["action_may_create_directional_movement", "action_may_mutate_objects", "reads_action"],
   "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "directional_movement_requires_reachability_proof"],
-  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0", "early_group_1_rule_3"],
+  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0", "early_group_1_rule_0"],
   "actionUnnecessaryChangedObjects": ["Crate", "Goal", "Player"],
   "movements_reachable_from_action_input": ["Crate:moving", "Crate:right", "Goal:moving", "Goal:right", "Player:action"]
 }

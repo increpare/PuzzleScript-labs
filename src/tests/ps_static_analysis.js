@@ -1250,7 +1250,7 @@ function ruleCountEffectObjects(psTagged, rule) {
             const rhsAbsent = absentObjectSet(rhsCell);
             const lhsRequiredPresent = requiredPresentObjectSet(lhsCell);
             const rhsRequiredPresent = requiredPresentObjectSet(rhsCell);
-            const rhsInferredPresent = inferredRhsPropertyObjectSet(lhsCell, rhsCell);
+            const rhsInferredPresent = inferredRhsPropertyObjectSet(psTagged, lhsCell, rhsCell);
             const possibleCellObjects = new Set();
             addValues(possibleCellObjects, lhsPresent);
             addValues(possibleCellObjects, lhsRequiredPresent);
@@ -1264,6 +1264,12 @@ function ruleCountEffectObjects(psTagged, rule) {
                     layerObjectsForObject(psTagged, objectName)
                 ));
                 if (term.kind === 'random_object') addValues(effects.increases, termObjects(term));
+                if (term.kind === 'present'
+                    && term.ref
+                    && term.ref.type === 'object_set'
+                    && !termObjects(term).every(objectName => rhsInferredPresent.has(objectName))) {
+                    addValues(effects.increases, termObjects(term));
+                }
             }
 
             for (const objectName of possibleCellObjects) {
@@ -1845,15 +1851,39 @@ function sameObjectSet(left, right) {
     return JSON.stringify(leftObjects) === JSON.stringify(rightObjects);
 }
 
-function inferredRhsPropertyObjectSet(lhsCell, rhsCell) {
+function rhsTermIsSameLhsProperty(lhsProperties, rhsTerm) {
+    return rhsTerm.kind === 'present'
+        && rhsTerm.ref
+        && rhsTerm.ref.type === 'object_set'
+        && lhsProperties.some(lhsTerm => sameObjectSet(lhsTerm, rhsTerm));
+}
+
+function rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell) {
+    const layers = new Set();
+    for (const rhsTerm of rhsCell) {
+        if (rhsTerm.kind !== 'present' && rhsTerm.kind !== 'random_object') continue;
+        if (rhsTermIsSameLhsProperty(lhsProperties, rhsTerm)) continue;
+        for (const objectName of termObjects(rhsTerm)) {
+            layers.add(layerForObject(psTagged, objectName));
+        }
+    }
+    return layers;
+}
+
+function inferredRhsPropertyObjectSet(psTagged, lhsCell, rhsCell) {
     const objects = new Set();
     const lhsProperties = lhsCell.filter(term =>
         term.kind === 'present' && term.ref && term.ref.type === 'object_set'
     );
+    const overwrittenLayers = rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell);
     for (const rhsTerm of rhsCell) {
         if (rhsTerm.kind !== 'present' || !rhsTerm.ref || rhsTerm.ref.type !== 'object_set') continue;
-        if (lhsProperties.some(lhsTerm => sameObjectSet(lhsTerm, rhsTerm))) {
-            addValues(objects, termObjects(rhsTerm));
+        if (rhsTermIsSameLhsProperty(lhsProperties, rhsTerm)) {
+            for (const objectName of termObjects(rhsTerm)) {
+                if (!overwrittenLayers.has(layerForObject(psTagged, objectName))) {
+                    objects.add(objectName);
+                }
+            }
         }
     }
     return objects;
@@ -1897,15 +1927,18 @@ function ruleFlowWrites(psTagged, rule) {
                 const lhsRequiredPresent = requiredPresentObjectSet(lhsCell);
                 const lhsMatchedPresent = presentObjectSet(lhsCell);
                 const lhsAbsent = absentObjectSet(lhsCell);
-                const rhsInferredPresent = inferredRhsPropertyObjectSet(lhsCell, rhsCell);
+                const rhsInferredPresent = inferredRhsPropertyObjectSet(psTagged, lhsCell, rhsCell);
                 const rhsCellDefinitePresent = requiredPresentObjectSet(rhsCell);
                 addValues(rhsCellDefinitePresent, rhsInferredPresent);
 
                 for (const term of rhsCell) {
                     if (term.kind === 'present' || term.kind === 'random_object') {
-                        const writtenObjects = termObjects(term).filter(objectName =>
-                            term.kind === 'random_object' || (!lhsRequiredPresent.has(objectName) && !rhsInferredPresent.has(objectName))
-                        );
+                        const writtenObjects = termObjects(term).filter(objectName => {
+                            if (term.kind === 'random_object') return true;
+                            if (lhsRequiredPresent.has(objectName)) return false;
+                            if (term.ref && term.ref.type === 'object_set' && rhsInferredPresent.has(objectName)) return false;
+                            return true;
+                        });
                         addValues(objectPresent, writtenObjects);
                         if (term.kind === 'present' && term.ref && term.ref.type === 'object_set' && termObjects(term).every(objectName => rhsInferredPresent.has(objectName))) {
                             continue;
@@ -2263,16 +2296,16 @@ function deriveWinflowFacts(psTagged) {
         }
         for (const win of wins) {
             const reasons = [];
-            for (const objectName of win.tags.objects_matched) {
+            const winObjectsRead = new Set([...win.tags.objects_matched, ...win.tags.object_absences_matched]);
+            for (const objectName of winObjectsRead) {
                 if (writes.object_present.has(objectName)) { reasons.push('object_presence'); break; }
             }
-            for (const objectName of win.tags.object_absences_matched) {
+            for (const objectName of winObjectsRead) {
                 if (writes.object_absent.has(objectName)) { reasons.push('object_absence'); break; }
             }
             if (win.tags.targets_matched.length > 0) {
-                const winReads = new Set([...win.tags.objects_matched, ...win.tags.object_absences_matched]);
                 for (const obj of movementObjects) {
-                    if (winReads.has(obj)) { reasons.push('movement'); break; }
+                    if (winObjectsRead.has(obj)) { reasons.push('movement'); break; }
                 }
             }
             if (reasons.length > 0) wakeEdges.push({ from: rule.id, to: win.id, reasons });

@@ -343,6 +343,76 @@ assert.ok(
     'never-appears checks should run for absent uncreated objects'
 );
 
+const propertyInferredOverwriteBoundarySource = [
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'Pink',
+    '',
+    'ObjA',
+    'Red',
+    '',
+    'ObjB',
+    'Blue',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'x = ObjA',
+    'y = ObjB',
+    'Thing = ObjA or ObjB',
+    '',
+    '======',
+    'SOUNDS',
+    '======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player',
+    'ObjA, ObjB',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ Thing ] -> [ Thing ObjA ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'Some Player',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'Py',
+].join('\n');
+
+const propertyInferredOverwriteBoundary = runSimulationWithStaticChecks('property inferred overwrite boundary', [
+    propertyInferredOverwriteBoundarySource,
+    ['tick'],
+    'background player:0,background obja:1,\n',
+]);
+
+assert.strictEqual(
+    propertyInferredOverwriteBoundary.neverAppearsObjectCount,
+    0,
+    'same-cell property overwrites should not prove never-appears for objects created by an explicit same-layer RHS write'
+);
+
 const cosmeticRuleProjectionSource = [
     '========',
     'OBJECTS',

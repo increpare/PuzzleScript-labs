@@ -1274,6 +1274,138 @@ const propertyToObjectCrate = staticPropertyToObject.ps_tagged.objects.find(obje
 assertQuantity(propertyToObjectWall.tags, { never_increases: true, never_decreases: false }, 'property-to-object rewrite can destroy individual property members');
 assertQuantity(propertyToObjectCrate.tags, { never_increases: false, never_decreases: true }, 'property-to-object rewrite can create the selected concrete object');
 
+const PROPERTY_BINDING_SPAWN_GAME = `
+title Property Binding Spawn
+========
+OBJECTS
+========
+Background
+black
+Player
+white
+Target
+yellow
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+T = Target
+PlayerOrTarget = Player or Target
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Player
+Target
+=====
+RULES
+=====
+[ Target ] -> [ up Target ]
+right [ vertical PlayerOrTarget | vertical Player ] -> [ vertical PlayerOrTarget | vertical PlayerOrTarget ]
+=============
+WINCONDITIONS
+=============
+Some Player
+======
+LEVELS
+======
+TP
+`;
+const propertyBindingSpawn = analyzeSource(PROPERTY_BINDING_SPAWN_GAME, { sourcePath: 'property_binding_spawn.txt' });
+const propertyBindingSpawnTarget = propertyBindingSpawn.ps_tagged.objects.find(object => object.name === 'Target');
+const propertyBindingSpawnTargetCount = propertyBindingSpawn.facts.count_layer_invariants.find(item => item.id === 'object_Target_count_preserved');
+assert.strictEqual(propertyBindingSpawnTargetCount.status, 'rejected', 'ambiguous property RHS writes can create individual property members');
+assert.strictEqual(propertyBindingSpawnTarget.tags.may_be_created, true, 'ambiguous property RHS writes should mark possible creations');
+assert.strictEqual(propertyBindingSpawnTarget.tags.quantity.never_increases, false, 'ambiguous property RHS writes should reject never-increases claims');
+
+const PROPERTY_INFERRED_OVERWRITE_GAME = `
+title Property inferred overwrite
+========
+OBJECTS
+========
+Background
+black
+Player
+white
+ObjA
+red
+ObjB
+blue
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+x = ObjA
+y = ObjB
+Thing = ObjA or ObjB
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Player
+ObjA, ObjB
+=====
+RULES
+=====
+[ Thing ] -> [ Thing ObjA ]
+=============
+WINCONDITIONS
+=============
+Some Player
+======
+LEVELS
+======
+Py
+`;
+const propertyInferredOverwrite = analyzeSource(PROPERTY_INFERRED_OVERWRITE_GAME, { sourcePath: 'property_inferred_overwrite.txt' });
+const propertyInferredOverwriteRule = propertyInferredOverwrite.ps_tagged.rule_sections
+    .flatMap(section => section.groups)
+    .flatMap(group => group.rules)[0];
+const propertyInferredOverwriteObjA = propertyInferredOverwrite.ps_tagged.objects.find(object => object.name === 'ObjA');
+const propertyInferredOverwriteObjB = propertyInferredOverwrite.ps_tagged.objects.find(object => object.name === 'ObjB');
+const propertyInferredOverwriteObjACount = propertyInferredOverwrite.facts.count_layer_invariants.find(item => item.id === 'object_ObjA_count_preserved');
+const propertyInferredOverwriteObjBCount = propertyInferredOverwrite.facts.count_layer_invariants.find(item => item.id === 'object_ObjB_count_preserved');
+assert.ok(propertyInferredOverwriteRule.tags.objects_written.includes('ObjA'), 'explicit same-layer RHS object can be created even when the RHS property matches the LHS property');
+assert.ok(propertyInferredOverwriteRule.tags.objects_erased.includes('ObjB'), 'explicit same-layer RHS object can overwrite sibling property members');
+assert.strictEqual(propertyInferredOverwriteObjA.tags.may_be_created, true, 'same-layer property overwrite should mark the explicit object as possibly created');
+assert.strictEqual(propertyInferredOverwriteObjB.tags.may_be_destroyed, true, 'same-layer property overwrite should mark sibling property members as possibly destroyed');
+assert.strictEqual(propertyInferredOverwriteObjA.tags.quantity.never_increases, false, 'same-layer property overwrite should reject explicit object never-increases');
+assert.strictEqual(propertyInferredOverwriteObjB.tags.quantity.never_decreases, false, 'same-layer property overwrite should reject sibling never-decreases');
+assert.strictEqual(propertyInferredOverwriteObjACount.status, 'rejected', 'same-layer property overwrite should reject explicit object count preservation');
+assert.strictEqual(propertyInferredOverwriteObjBCount.status, 'rejected', 'same-layer property overwrite should reject sibling count preservation');
+
+const PROPERTY_INFERRED_OVERWRITE_WIN_GAME = PROPERTY_INFERRED_OVERWRITE_GAME
+    .replace('title Property inferred overwrite', 'title Property inferred overwrite win')
+    .replace('Some Player', 'Some ObjB');
+const propertyInferredOverwriteWin = analyzeSource(PROPERTY_INFERRED_OVERWRITE_WIN_GAME, { sourcePath: 'property_inferred_overwrite_win.txt' });
+const propertyInferredOverwriteWinRule = propertyInferredOverwriteWin.ps_tagged.rule_sections
+    .flatMap(section => section.groups)
+    .flatMap(group => group.rules)[0];
+const propertyInferredOverwriteWinflow = propertyInferredOverwriteWin.facts.winflow.find(item => item.id === 'winflow');
+assert.strictEqual(propertyInferredOverwriteWinRule.tags.cosmetic, false, 'same-layer property overwrite of a win object should not be classified as cosmetic');
+assert.ok(
+    propertyInferredOverwriteWinflow.value.wake_edges.some(edge =>
+        edge.from === propertyInferredOverwriteWinRule.id && edge.reasons.includes('object_absence')
+    ),
+    'same-layer property overwrite should wake win conditions that read the overwritten sibling'
+);
+
+const PROPERTY_INFERRED_OVERWRITE_ACTION_GAME = PROPERTY_INFERRED_OVERWRITE_WIN_GAME
+    .replace('title Property inferred overwrite win', 'title Property inferred overwrite action')
+    .replace('[ Thing ] -> [ Thing ObjA ]', '[ action Player ] [ Thing ] -> [ Player ] [ Thing ObjA ]');
+const propertyInferredOverwriteAction = analyzeSource(PROPERTY_INFERRED_OVERWRITE_ACTION_GAME, { sourcePath: 'property_inferred_overwrite_action.txt' });
+const propertyInferredOverwriteActionUnnecessary = propertyInferredOverwriteAction.facts.movement_action.find(item => item.id === 'action_unnecessary');
+assert.strictEqual(propertyInferredOverwriteActionUnnecessary.status, 'rejected', 'ACTION-only same-layer property overwrites should not prove action_unnecessary');
+assert.ok(propertyInferredOverwriteActionUnnecessary.blockers.includes('action_may_mutate_objects'));
+
 const ABSENT_GUARD_ADJACENT_MOVE_GAME = STATIC_OBJECT_GAME
     .replace('Solid = Wall or Crate', 'Solid = Wall or Crate\nObstacle = PlayerObject or Wall or Crate')
     .replace('[ > PlayerObject ] -> [ > PlayerObject ]', '[ > Crate | no Obstacle ] -> [ | > Crate ]');

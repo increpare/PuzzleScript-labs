@@ -4,7 +4,7 @@
     {
       "line": 55,
       "split_candidate": true,
-      "components_count": 6,
+      "components_count": 2,
       "interactionEdges": [
         {
           "from_line": 56,
@@ -15,26 +15,6 @@
         }
       ],
       "rerunMasks": [
-        {
-          "line": 55,
-          "text": "[ moving alpha ] -> [ alpha markerx ]",
-          "rerun": []
-        },
-        {
-          "line": 55,
-          "text": "[ moving alpha ] -> [ alpha markerx ]",
-          "rerun": []
-        },
-        {
-          "line": 55,
-          "text": "[ moving alpha ] -> [ alpha markerx ]",
-          "rerun": []
-        },
-        {
-          "line": 55,
-          "text": "[ moving alpha ] -> [ alpha markerx ]",
-          "rerun": []
-        },
         {
           "line": 55,
           "text": "[ moving alpha ] -> [ alpha markerx ]",

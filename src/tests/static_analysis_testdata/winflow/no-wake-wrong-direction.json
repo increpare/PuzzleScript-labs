@@ -1,4 +1,19 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
-  "wakeEdges": []
+  "wakeEdges": [
+    {
+      "from_line": 45,
+      "from_text": "[ alpha ] -> [ ]",
+      "to_line": 52,
+      "to_text": "Some Alpha",
+      "reasons": ["object_absence"]
+    },
+    {
+      "from_line": 46,
+      "from_text": "[ player ] -> [ stationary player stationary orphan1 ]",
+      "to_line": 53,
+      "to_text": "No Orphan1",
+      "reasons": ["object_presence"]
+    }
+  ]
 }

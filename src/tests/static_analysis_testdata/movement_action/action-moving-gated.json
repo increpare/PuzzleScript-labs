@@ -1,10 +1,10 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
   "actionInput": true,
-  "actionUnnecessary": false,
-  "actionUnnecessaryBlockers": ["action_may_create_directional_movement", "reads_action"],
-  "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "directional_movement_requires_reachability_proof"],
-  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0", "early_group_0_rule_1", "early_group_0_rule_2", "early_group_0_rule_3", "early_group_0_rule_4"],
+  "actionUnnecessary": true,
+  "actionUnnecessaryBlockers": [],
+  "actionUnnecessaryHypotheses": ["no_reachable_action_effects"],
+  "actionUnnecessaryBlockerRuleIds": [],
   "actionUnnecessaryChangedObjects": [],
-  "movements_reachable_from_action_input": ["Goal:down", "Goal:left", "Goal:moving", "Goal:right", "Goal:up", "Hero:action"]
+  "movements_reachable_from_action_input": ["Hero:action"]
 }

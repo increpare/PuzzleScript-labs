@@ -3,8 +3,8 @@
   "rulegroupFlow": [
     {
       "line": 56,
-      "split_candidate": true,
-      "components_count": 2,
+      "split_candidate": false,
+      "components_count": 1,
       "interactionEdges": [
         {
           "from_line": 57,
@@ -21,11 +21,6 @@
           "rerun": []
         },
         {
-          "line": 56,
-          "text": "[ thing ] -> [ thing player ]",
-          "rerun": []
-        },
-        {
           "line": 57,
           "text": "+ [ alpha ] -> [ alpha markerx ]",
           "rerun": [
@@ -36,7 +31,7 @@
           ]
         }
       ],
-      "blockers": []
+      "blockers": ["single_component"]
     }
   ]
 }

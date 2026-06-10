@@ -9,6 +9,7 @@ const {
     compileSemanticSource,
     hashCanonical,
 } = require('../canonicalize');
+const { decanonicalizeSemantic } = require('../decanonicalize');
 const psStaticAnalysis = require('./ps_static_analysis');
 
 const baseGame = `
@@ -345,6 +346,83 @@ assert.ok(
 
 const semanticReordered = canonicalizeSource(reorderedObjects, 'semantic');
 assert.deepStrictEqual(semanticReordered, semanticBase, 'semantic mode should ignore object declaration order');
+
+const perpendicularSource = `
+title Perpendicular Round Trip
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+Crate
+orange
+00000
+00000
+00000
+00000
+00000
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Player
+C = Crate
+
+${'======='}
+SOUNDS
+${'======='}
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Crate
+
+=====
+RULES
+=====
+
+right [ Player | perpendicular Crate ] -> [ Player | perpendicular Crate ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+${'======'}
+LEVELS
+${'======'}
+
+PC
+..
+`;
+
+const perpendicularCanonical = canonicalizeSource(perpendicularSource, 'semantic');
+const perpendicularRehydrated = decanonicalizeSemantic(perpendicularCanonical);
+assert.ok(!/\b(?:horizontal|vertical)_(?:par|perp)\b/.test(perpendicularRehydrated), 'decanonicalized rules should not emit internal relative direction markers');
+const perpendicularRecompiled = compileSemanticSource(perpendicularRehydrated, { throwOnError: false });
+assert.strictEqual(perpendicularRecompiled.errorCount, 0, 'decanonicalized perpendicular rules should compile as source');
 
 const familySource = `
 ========

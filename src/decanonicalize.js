@@ -413,6 +413,16 @@ function normalizeRuleCellEntries(cell) {
     return result;
 }
 
+function sourceRuleEntryDirection(direction) {
+    if (direction === 'horizontal_par' || direction === 'vertical_par') {
+        return 'parallel';
+    }
+    if (direction === 'horizontal_perp' || direction === 'vertical_perp') {
+        return 'perpendicular';
+    }
+    return direction;
+}
+
 function formatRuleCell(cell) {
     if (cell.ellipsis) {
         return '...';
@@ -422,7 +432,8 @@ function formatRuleCell(cell) {
     }
     return cell.map(entry => {
         const name = entry.obj || entry.alias || (entry.objs && entry.objs[0]) || '';
-        return entry.dir ? `${entry.dir} ${name}` : name;
+        const direction = sourceRuleEntryDirection(entry.dir);
+        return direction ? `${direction} ${name}` : name;
     }).join(' ');
 }
 
