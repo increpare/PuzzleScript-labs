@@ -1289,19 +1289,30 @@ function generate_calculateRowColMasks(OBJECT_SIZE, MOVEMENT_SIZE) {
 			${SET_ZERO("rcc_Movements")}
 		}
 
+		const objectsArr = level.objects;
+		const movementsArr = level.movements;
+		const mapCC = level.mapCellContents.data;
+		const mapCCM = level.mapCellContents_Movements.data;
 		for (let i=0;i<level.width;i++) {
+			const colCC = level.colCellContents[i].data;
+			const colCCM = level.colCellContents_Movements[i].data;
+			let index = i*level.height;
 			for (let j=0;j<level.height;j++) {
-				let index = j+i*level.height;
-				let cellContents=_o9;
-				${LEVEL_GET_CELL_INTO("level", "index", "cellContents", OBJECT_SIZE)}
-				${UNROLL("level.mapCellContents |= cellContents", OBJECT_SIZE)}
-				${UNROLL("level.rowCellContents[j] |= cellContents", OBJECT_SIZE)}
-				${UNROLL("level.colCellContents[i] |= cellContents", OBJECT_SIZE)}
-				
-				let mapCellContents_Movements=level.getMovementsInto(index,_m1);
-				${UNROLL("level.mapCellContents_Movements |= mapCellContents_Movements", MOVEMENT_SIZE)}
-				${UNROLL("level.rowCellContents_Movements[j] |= mapCellContents_Movements", MOVEMENT_SIZE)}
-				${UNROLL("level.colCellContents_Movements[i] |= mapCellContents_Movements", MOVEMENT_SIZE)}
+				${FOR(0, OBJECT_SIZE, w => `
+				{
+					const v = objectsArr[index${OBJECT_SIZE === 1 ? '' : '*' + OBJECT_SIZE}${w ? '+' + w : ''}];
+					mapCC[${w}] |= v;
+					level.rowCellContents[j].data[${w}] |= v;
+					colCC[${w}] |= v;
+				}`)}
+				${FOR(0, MOVEMENT_SIZE, w => `
+				{
+					const v = movementsArr[index${MOVEMENT_SIZE === 1 ? '' : '*' + MOVEMENT_SIZE}${w ? '+' + w : ''}];
+					mapCCM[${w}] |= v;
+					level.rowCellContents_Movements[j].data[${w}] |= v;
+					colCCM[${w}] |= v;
+				}`)}
+				index++;
 			}
 		}`
 	if (fn in CACHE_CALCULATEROWCOLMASKS) {
@@ -2356,19 +2367,23 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
     }
 
     const horizontal=direction>2;
+    const height=level.height;
+    const objectsArr=level.objects;
+    const movementsArr=level.movements;
     if (horizontal) {
 		for (let y=ymin;y<ymax;y++) {
-			if (${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.rowCellContents[y].data", OBJECT_SIZE)} 
+			if (${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.rowCellContents[y].data", OBJECT_SIZE)}
 			|| ${NOT_BITS_SET_IN_ARRAY("cellRowMask_Movements", "level.rowCellContents_Movements[y].data", MOVEMENT_SIZE)}) {
 				continue;
 			}
 
+			let i = xmin*height+y;
 			for (let x=xmin;x<xmax;x++) {
-				const i = x*level.height+y;
-				if (cellRowMatch(cellRow,i,d, level.objects, level.movements))
+				if (cellRowMatch(cellRow,i,d, objectsArr, movementsArr))
 				{
 					result.push(i);
 				}
+				i += height;
 			}
 		}
 	} else {
@@ -2378,14 +2393,15 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 				continue;
 			}
 
+			let i = x*height+ymin;
 			for (let y=ymin;y<ymax;y++) {
-				const i = x*level.height+y;
-				if (cellRowMatch(cellRow,i, d, level.objects, level.movements))
+				if (cellRowMatch(cellRow,i, d, objectsArr, movementsArr))
 				{
 					result.push(i);
 				}
+				i++;
 			}
-		}		
+		}
 	}
 
 	return result;`
@@ -2438,6 +2454,9 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
     }
 
     const horizontal=direction>2;
+    const height=level.height;
+    const objectsArr=level.objects;
+    const movementsArr=level.movements;
     if (horizontal) {
 		for (let y=ymin;y<ymax;y++) {
 			if (${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.rowCellContents[y].data", OBJECT_SIZE)}
@@ -2445,23 +2464,24 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 				continue;
 			}
 
+			let i = xmin*height+y;
 			for (let x=xmin;x<xmax;x++) {
-				const i = x*level.height+y;
 				let kmax;
 
 				if (direction === 4) { //left
 					kmax=x-len+2;
 				} else if (direction === 8) { //right
-					kmax=level.width-(x+len)+1;	
+					kmax=level.width-(x+len)+1;
 				} else {
 					console.error("Unexpected direction: "+direction);
 				}
 
 				if (wildcardCount===1) {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, level.objects, level.movements));
+					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr));
 				} else {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0,kmax,0,kmax,0, d, level.objects, level.movements));
+					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0,kmax,0,kmax,0, d, objectsArr, movementsArr));
 				}
+				i += height;
 			}
 		}
 	} else {
@@ -2471,24 +2491,25 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 				continue;
 			}
 
+			let i = x*height+ymin;
 			for (let y=ymin;y<ymax;y++) {
-				const i = x*level.height+y;
 				let kmax;
 
 				if (direction === 2) { // down
-					kmax=level.height-(y+len)+1;
+					kmax=height-(y+len)+1;
 				} else if (direction === 1) { // up
-					kmax=y-len+2;					
+					kmax=y-len+2;
 				} else {
 					console.error("Unexpected direction: "+direction);
 				}
 				if (wildcardCount===1) {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, level.objects, level.movements));
+					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr));
 				} else {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, kmax,0, kmax,0, d, level.objects, level.movements));
+					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, kmax,0, kmax,0, d, objectsArr, movementsArr));
 				}
+				i++;
 			}
-		}		
+		}
 	}
 
 	return result;`
@@ -3036,10 +3057,14 @@ function applyRules(rules, loopPoint, bannedGroup) {
 let CACHE_RESOLVEMOVEMENTS = {}
 function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 	const fn = `'use strict';
+		const movementsArr = level.movements;
 		let moved=true;
 		while(moved){
 			moved=false;
 			for (let i=0;i<level.n_tiles;i++) {
+				if (${FOR(0, MOVEMENT_SIZE, w => `${w ? ' && ' : ''}movementsArr[i${MOVEMENT_SIZE === 1 ? '' : '*' + MOVEMENT_SIZE}${w ? '+' + w : ''}] === 0`)}) {
+					continue;
+				}
 				moved = state.repositionEntitiesAtCell(level,i) || moved;
 			}
 		}
