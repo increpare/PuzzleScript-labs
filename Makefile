@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -399,6 +399,8 @@ help:
 	@echo "                                     Replay JS simulation corpus with static-object contracts"
 	@echo "  make static_analysis_performance_tests"
 	@echo "                                     Run static analyzer wall-clock performance guards"
+	@echo "  make static_analysis_fuzz          Verify static-analysis claims on randomized input traces"
+	@echo "                                     (STATIC_ANALYSIS_FUZZ_ARGS for --iterations/--game/--strict)"
 	@echo "  make static_analysis_explorer      Build HTML static-analysis explorer (see STATIC_ANALYSIS_EXPLORER_*)"
 	@echo "  make solver_tests_cpp              Run standalone native solver corpus"
 	@echo "  make solver_tests_cpp SPECIALIZE=true"
@@ -589,8 +591,13 @@ static_analysis_tests:
 	$(NODE) src/tests/analyze_solver_static_relationships_node.js
 	$(NODE) src/tests/static_tool_cli_hardening_node.js
 	$(NODE) src/tests/compare_solver_static_opt_runs_node.js
+	$(NODE) src/tests/static_analysis_adversarial_node.js
+	$(NODE) src/tests/static_analysis_claims_consistency_node.js
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node_test.js
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node.js
+
+static_analysis_fuzz:
+	$(NODE) src/tests/fuzz_static_contracts.js $(STATIC_ANALYSIS_FUZZ_ARGS)
 
 static_analysis_runtime_contracts:
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node.js

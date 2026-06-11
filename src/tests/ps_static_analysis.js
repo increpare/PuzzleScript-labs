@@ -438,7 +438,9 @@ function tagGame(psTagged, metadata = {}) {
     psTagged.game.tags.has_action_input = !metadataHas(metadata, 'noaction');
     psTagged.game.tags.run_rules_on_level_start = metadataHas(metadata, 'run_rules_on_level_start');
     psTagged.game.tags.has_again = rules.some(rule => rule.tags.has_again);
-    psTagged.game.tags.has_random = rules.some(rule => rule.random_rule || rule.summary.rhs_random_objects.length > 0);
+    psTagged.game.tags.has_random = rules.some(rule => rule.random_rule
+        || rule.summary.rhs_random_objects.length > 0
+        || rule.summary.rhs_movement.some(term => term.movement === 'randomdir'));
     psTagged.game.tags.has_rigid = rules.some(rule => rule.rigid);
     psTagged.game.tags.has_action_rules = rules.some(rule => rule.tags.reads_action);
     psTagged.game.tags.has_autonomous_tick_rules = rules.some(rule =>
