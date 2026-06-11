@@ -469,12 +469,24 @@ right [ moving Crate | ] -> [ | moving Crate ]
     assertCell(1, ['crate2'], 'captured moving Crate2 alias should be written at the inferred sink');
 });
 
-test('keeps property-attached aggregate inference with same-cell preservation on the expansion path', () => {
+test('coalesces property-attached aggregate inference with same-cell preservation', () => {
     const state = compileSource(baseSource(
         'right [ moving Crate | Crate ] -> [ moving Crate | moving Crate ]',
         'CC'
     ));
-    assert.ok(ruleCount(state) > 1, 'same-cell aggregate preservation plus inferred sink should still split');
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('property-attached aggregate inference preserves source-cell movement', () => {
+    runRight(baseSource(`
+right [ Crate2 ] -> [ right Crate2 ]
+right [ moving Crate | Crate ] -> [ moving Crate | moving Crate ]
+[ moving Crate1 ] -> [ Crate1 Gem1 ]
+[ moving Crate2 ] -> [ Crate2 Gem2 ]
+`, 'ZC.'));
+
+    assertCell(0, ['crate1', 'crate2', 'gem2'], 'source cell should observe the preserved moving Crate2 before movement resolves');
+    assertCell(1, ['crate1', 'gem1'], 'same-cell Crate1 alias should receive the inferred aggregate movement');
 });
 
 test('coalesces a rule where every RHS aggregate is preserved on LHS', () => {
