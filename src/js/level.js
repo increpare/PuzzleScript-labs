@@ -93,6 +93,22 @@ function LEVEL_SET_MOVEMENTS(index, vec, array_size) {
 	return result;
 }
 
+//same as LEVEL_SET_MOVEMENTS, but expects colIndex/rowIndex to already be in scope
+//(so callers that also update the object masks don't compute the div/mod twice)
+function LEVEL_SET_MOVEMENTS_REUSE_INDICES(index, vec, array_size) {
+	var result = "";
+	for (let i = 0; i < array_size; i++) {
+		result += `\tlevel.movements[${index}*${array_size}+${i}]=${vec}.data[${i}];\n`;
+	}
+	result += `
+	${UNROLL(`level.colCellContents_Movements[colIndex] |= ${vec}`, array_size)}
+	${UNROLL(`level.rowCellContents_Movements[rowIndex] |= ${vec}`, array_size)}
+	${UNROLL(`level.mapCellContents_Movements |= ${vec}`, array_size)}
+`
+
+	return result;
+}
+
 Level.prototype.calcBackgroundMask = function (state) {
 	if (state.backgroundlayer === undefined) {
 		logError("you have to have a background layer");

@@ -1254,13 +1254,9 @@ function generate_moveEntitiesAtIndex(OBJECT_SIZE, MOVEMENT_SIZE) {
     	${ISHIFTOR("movementMask", "dirMask", "(5 * layers[i])")}
     }
 		
-    ${LEVEL_SET_MOVEMENTS( "positionIndex", "movementMask", MOVEMENT_SIZE)}
-
 	const colIndex=(positionIndex/level.height)|0;
 	const rowIndex=(positionIndex%level.height);
-	${UNROLL("level.colCellContents_Movements[colIndex] |= movementMask", MOVEMENT_SIZE)}
-	${UNROLL("level.rowCellContents_Movements[rowIndex] |= movementMask", MOVEMENT_SIZE)}
-	${UNROLL("level.mapCellContents_Movements |= movementMask", MOVEMENT_SIZE)}
+    ${LEVEL_SET_MOVEMENTS_REUSE_INDICES("positionIndex", "movementMask", MOVEMENT_SIZE)}
 	`
 	if (fn in CACHE_MOVEENTITIESATINDEX) {
 		return CACHE_MOVEENTITIESATINDEX[fn];
@@ -2038,16 +2034,12 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 	const replace_randomDirMask_zero = this.replacement.randomDirMask.iszero()
 	let deterministic = replace_randomEntityMask_zero && replace_randomDirMask_zero;
 
-	let fn = `	
+	let fn = `
 		let replace = this.replacement;
-
-		if (replace === null) {
-			return false;
-		}
-
+		${IF_LAZY(!deterministic, () => `
 		const replace_RandomEntityMask = replace.randomEntityMask;
 		const replace_RandomDirMask = replace.randomDirMask;
-
+		`)}
 		// Using IMPORT_COMPILE_TIME_ARRAY should make the following three declarations faster,
 		// but it really slows down the compiler.
 		const objectsSet = _o1;
@@ -2307,15 +2299,16 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 
 		${LEVEL_UPDATE_CELL_HASH("level", "currentIndex", "curCellMask")}
 		${LEVEL_SET_CELL("level", "currentIndex", "curCellMask", OBJECT_SIZE)}
-		${LEVEL_SET_MOVEMENTS( "currentIndex", "curMovementMask", MOVEMENT_SIZE)}
 
 		const colIndex=(currentIndex/level.height)|0;
 		const rowIndex=(currentIndex%level.height);
 
+		${LEVEL_SET_MOVEMENTS_REUSE_INDICES("currentIndex", "curMovementMask", MOVEMENT_SIZE)}
+
 		${UNROLL("level.colCellContents[colIndex] |= curCellMask", OBJECT_SIZE)}
 		${UNROLL("level.rowCellContents[rowIndex] |= curCellMask", OBJECT_SIZE)}
 		${UNROLL("level.mapCellContents |= curCellMask", OBJECT_SIZE)}
-		return true;	
+		return true;
 	`
 
 	return CACHE_CELLPATTERN_REPLACEFUNCTION[key] = new Function("level", "rule", "currentIndex", generatedFunctionSource("cellPatternReplace", fn));
