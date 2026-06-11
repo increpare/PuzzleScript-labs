@@ -156,7 +156,7 @@ function generateExtraMembers(state) {
             o.spritematrix = generateSpriteMatrix(o.spritematrix);
         }    
 
-        let mask = blankMask.concat([]);
+        let mask = blankMask.slice();
         mask[o.layer] = o.id;
         glyphDict[n] = mask;
         glyphOrder.push([o.lineNumber, n]);    
@@ -192,7 +192,7 @@ function generateExtraMembers(state) {
                 }
             }
             if ((!(key in glyphDict) || (glyphDict[key] === undefined)) && allVallsFound) {
-                let mask = blankMask.concat([]);
+                let mask = blankMask.slice();
 
                 for (let j = 1; j < dat.length; j++) {
                     let n = dat[j];
@@ -423,9 +423,10 @@ function levelFromString(state, level) {
     let glyphMaskCache = {};
     for (let i = 0; i < o.width; i++) {
         for (let j = 0; j < o.height; j++) {
-            let ch = level[j + 1].charAt(i);
-            if (ch.length === 0) {
-                ch = level[j + 1].charAt(level[j + 1].length - 1);
+            const row = level[j + 1];
+            let ch = row[i];
+            if (ch === undefined) {
+                ch = row[row.length - 1];
             }
 
             let maskint = glyphMaskCache[ch];

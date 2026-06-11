@@ -206,6 +206,9 @@ if (typeof Object.assign !== 'function') {
 }
 
 
+const reg_ascii_lower_word = /^[a-z0-9_]+$/;
+const reg_non_ascii = /[^\x00-\x7F]/;
+
 const metadata_with_value_set = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
 const metadata_no_value_set = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline']);
 
@@ -239,10 +242,33 @@ let codeMirrorFn = function () {
         logError(`You're talking about ${candname.toUpperCase()} but it's not defined anywhere.`, state.lineNumber);
     }
 
+    function isAsciiWordCharCode(c) {
+        return (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 95 || (c >= 65 && c <= 90);
+    }
+
     function registerOriginalCaseName(state, candname, mixedCase, lineNumber) {
 
         function escapeRegExp(str) {
             return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+        }
+
+        //fast path: for a plain-ASCII-word name in a plain-ASCII line (the overwhelmingly
+        //common case), an indexOf scan with word-boundary checks gives the same result as
+        //the \b regex below without compiling a RegExp per declared name
+        if (reg_ascii_lower_word.test(candname) && !reg_non_ascii.test(mixedCase)) {
+            const lowerLine = mixedCase.toLowerCase();
+            let idx = lowerLine.indexOf(candname);
+            while (idx >= 0) {
+                const end = idx + candname.length;
+                if ((idx === 0 || !isAsciiWordCharCode(lowerLine.charCodeAt(idx - 1))) &&
+                    (end === lowerLine.length || !isAsciiWordCharCode(lowerLine.charCodeAt(end)))) {
+                    state.original_case_names[candname] = mixedCase.substring(idx, end);
+                    state.original_line_numbers[candname] = lineNumber;
+                    return;
+                }
+                idx = lowerLine.indexOf(candname, idx + 1);
+            }
+            return;
         }
 
         let nameFinder = new RegExp("\\b" + escapeRegExp(candname) + "\\b", "i")
