@@ -753,7 +753,7 @@ function processRuleString(rule, state, curRules) {
                         } else {
                             rhs = true;
                         }
-                    } else if (state.names.indexOf(token) >= 0) {
+                    } else if (state.namesSet.has(token)) {
                         if (!incellrow) {
                             logWarning("Invalid token " + token.toUpperCase() + ". Object names should only be used within cells (square brackets).", lineNumber);
                         } else {
@@ -4390,7 +4390,9 @@ function loadFile(str) {
     delete state.line_should_end_because;
     delete state.sol_after_comment;
     delete state.names;
+    delete state.namesSet;
     delete state.abbrevNames;
+    delete state.abbrevNamesSet;
     delete state.objects_candname;
     delete state.objects_section;
     delete state.objects_spritematrix;

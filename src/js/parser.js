@@ -1046,7 +1046,7 @@ let codeMirrorFn = function () {
                 stream.match(/[\p{Z}\s]*/u, true);
                 return 'DIRECTION';
             } else {
-                if (state.names.indexOf(m) >= 0) {
+                if (state.namesSet.has(m)) {
                     if (sol) {
                         logError('Objects cannot appear outside of square brackets in rules, only directions can.', state.lineNumber);
                         return 'ERROR';
@@ -1111,7 +1111,7 @@ let codeMirrorFn = function () {
                 }
             }
             else if (state.tokenIndex === 1 || state.tokenIndex === 3) {
-                if (state.names.indexOf(candword) === -1) {
+                if (!state.namesSet.has(candword)) {
                     logError('Error in win condition: "' + candword.toUpperCase() + '" is not a valid object name.', state.lineNumber);
                     return 'ERROR';
                 } else {
@@ -1184,7 +1184,7 @@ let codeMirrorFn = function () {
         if (state.tokenIndex === 2 && !stream.eol()) {
             let ch = stream.peek();
             stream.next();
-            if (state.abbrevNames.indexOf(ch) >= 0) {
+            if (state.abbrevNamesSet.has(ch)) {
                 return 'LEVEL';
             } else {
                 logError('Key "' + ch.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?', state.lineNumber);
@@ -1374,6 +1374,7 @@ let codeMirrorFn = function () {
                 rules: rulesCopy,
 
                 names: state.names.concat([]),
+                namesSet: new Set(state.namesSet),
 
                 winconditions: winConditionsCopy,
 
@@ -1381,6 +1382,7 @@ let codeMirrorFn = function () {
                 original_line_numbers: original_line_numbersCopy,
 
                 abbrevNames: state.abbrevNames.concat([]),
+                abbrevNamesSet: new Set(state.abbrevNamesSet),
 
                 metadata: state.metadata.concat([]),
                 metadata_lines: Object.assign({}, state.metadata_lines),
@@ -1546,6 +1548,8 @@ let codeMirrorFn = function () {
                         for (let i = 0; i < state.legend_properties.length; i++) {
                             state.names.push(state.legend_properties[i][0]);
                         }
+                        //names doesn't grow after this point - mirror it in a Set for O(1) membership tests
+                        state.namesSet = new Set(state.names);
                     }
                     else if (state.section === 'levels') {
                         //populate character abbreviations
@@ -1565,6 +1569,8 @@ let codeMirrorFn = function () {
                                 state.abbrevNames.push(state.legend_aggregates[i][0]);
                             }
                         }
+                        //abbrevNames doesn't grow after this point - mirror it in a Set for O(1) membership tests
+                        state.abbrevNamesSet = new Set(state.abbrevNames);
                     }
                     return 'HEADER';
                 } else {
@@ -1650,6 +1656,7 @@ let codeMirrorFn = function () {
                 rules: [],
 
                 names: [],
+                namesSet: new Set(),
 
                 winconditions: [],
                 metadata: [],
@@ -1659,6 +1666,7 @@ let codeMirrorFn = function () {
                 original_line_numbers: {},
 
                 abbrevNames: [],
+                abbrevNamesSet: new Set(),
 
                 levels: [[]],
 
