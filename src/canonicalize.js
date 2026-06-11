@@ -41,6 +41,8 @@ const numericNameCollator = new Intl.Collator(undefined, { numeric: true });
 function compareNumericNames(a, b) {
     return numericNameCollator.compare(a, b);
 }
+const MAX_CANONICAL_RELABEL_BUCKET_SIZE = 10;
+const MAX_CANONICAL_EXACT_RELABEL_PAIRS = 96;
 
 function createRuntime() {
     const srcDir = __dirname;
@@ -951,6 +953,270 @@ function collectWinMentionedObjects(canonical) {
     return mentioned;
 }
 
+function relabelCanonicalObjectList(list, mapper) {
+    return Array.from(new Set((list || []).map(mapper))).sort(compareNumericNames);
+}
+
+function relabelCanonicalLevel(level, mapper) {
+    if (level.type !== 'map') {
+        return Object.assign({}, level);
+    }
+    return {
+        type: 'map',
+        rows: level.rows.map(row =>
+            row.map(cell => relabelCanonicalObjectList(cell || [], mapper))
+        ),
+    };
+}
+
+function relabelCanonicalObjectReferences(canonical, mapper) {
+    const result = {
+        format: canonical.format,
+        metadata: (canonical.metadata || []).map(entry => Object.assign({}, entry)),
+        playerObjects: relabelCanonicalObjectList(canonical.playerObjects || [], mapper),
+        backgroundObjects: relabelCanonicalObjectList(canonical.backgroundObjects || [], mapper),
+        collisionLayers: (canonical.collisionLayers || []).map(layer => relabelCanonicalObjectList(layer, mapper)),
+        rules: (canonical.rules || []).map(rule => ({
+            direction: rule.direction,
+            late: !!rule.late,
+            rigid: !!rule.rigid,
+            randomRule: !!rule.randomRule,
+            groupNumber: rule.groupNumber,
+            lhs: (rule.lhs || []).map(row => row.map(cell => normalizeRelabeledCell(cell, mapper))),
+            rhs: (rule.rhs || []).map(row => row.map(cell => normalizeRelabeledCell(cell, mapper))),
+            commands: (rule.commands || []).map(command => command.slice()),
+        })),
+        winConditions: (canonical.winConditions || []).map(condition => ({
+            quantifier: condition.quantifier,
+            a: relabelCanonicalObjectList(condition.a || [], mapper),
+            b: relabelCanonicalObjectList(condition.b || [], mapper),
+        })),
+        levels: (canonical.levels || []).map(level => relabelCanonicalLevel(level, mapper)),
+    };
+    if (canonical.loops && canonical.loops.length > 0) {
+        result.loops = canonical.loops.map(loop => Object.assign({}, loop));
+    }
+    return result;
+}
+
+function collectCanonicalObjectNames(canonical) {
+    return Array.from(new Set((canonical.collisionLayers || []).flat())).sort(compareNumericNames);
+}
+
+function canonicalObjectRoleKey(canonical, objectName) {
+    const playerSet = new Set(canonical.playerObjects || []);
+    const backgroundSet = new Set(canonical.backgroundObjects || []);
+    return `${backgroundSet.has(objectName) ? 1 : 0}:${playerSet.has(objectName) ? 1 : 0}`;
+}
+
+function collectAtomicRuleObjects(rule) {
+    const objects = [];
+    for (const side of [rule.lhs || [], rule.rhs || []]) {
+        for (const row of side) {
+            for (const cell of row) {
+                if (cell.ellipsis) {
+                    continue;
+                }
+                for (const entry of cell) {
+                    if (entry.obj) {
+                        objects.push(entry.obj);
+                    }
+                }
+            }
+        }
+    }
+    return Array.from(new Set(objects)).sort(compareNumericNames);
+}
+
+function connectCanonicalObjects(edges, left, right) {
+    if (left === right || !edges.has(left) || !edges.has(right)) {
+        return;
+    }
+    edges.get(left).add(right);
+    edges.get(right).add(left);
+}
+
+function buildCanonicalObjectGraph(canonical) {
+    const objectNames = collectCanonicalObjectNames(canonical);
+    const edges = new Map(objectNames.map(name => [name, new Set()]));
+
+    for (const rule of canonical.rules || []) {
+        const objects = collectAtomicRuleObjects(rule);
+        for (let i = 0; i < objects.length; i++) {
+            for (let j = i + 1; j < objects.length; j++) {
+                connectCanonicalObjects(edges, objects[i], objects[j]);
+            }
+        }
+    }
+
+    for (const condition of canonical.winConditions || []) {
+        for (const sideObjects of [condition.a || [], condition.b || []]) {
+            const objects = Array.from(new Set(sideObjects)).sort(compareNumericNames);
+            for (let i = 0; i < objects.length; i++) {
+                for (let j = i + 1; j < objects.length; j++) {
+                    connectCanonicalObjects(edges, objects[i], objects[j]);
+                }
+            }
+        }
+    }
+
+    for (const level of canonical.levels || []) {
+        if (level.type !== 'map') {
+            continue;
+        }
+        for (const row of level.rows) {
+            for (const cell of row) {
+                const objects = Array.from(new Set(cell || [])).sort(compareNumericNames);
+                for (let i = 0; i < objects.length; i++) {
+                    for (let j = i + 1; j < objects.length; j++) {
+                        connectCanonicalObjects(edges, objects[i], objects[j]);
+                    }
+                }
+            }
+        }
+    }
+
+    return edges;
+}
+
+function buildCanonicalRelabelBuckets(canonical) {
+    const layerIndex = new Map();
+    (canonical.collisionLayers || []).forEach((layer, index) => {
+        for (const objectName of layer) {
+            layerIndex.set(objectName, index);
+        }
+    });
+
+    const edges = buildCanonicalObjectGraph(canonical);
+    const visited = new Set();
+    const buckets = [];
+    for (const objectName of collectCanonicalObjectNames(canonical)) {
+        if (visited.has(objectName)) {
+            continue;
+        }
+        const stack = [objectName];
+        const component = [];
+        visited.add(objectName);
+        while (stack.length > 0) {
+            const current = stack.pop();
+            component.push(current);
+            for (const next of edges.get(current) || []) {
+                if (!visited.has(next)) {
+                    visited.add(next);
+                    stack.push(next);
+                }
+            }
+        }
+
+        const grouped = new Map();
+        for (const name of component) {
+            const key = `${layerIndex.get(name)}:${canonicalObjectRoleKey(canonical, name)}`;
+            if (!grouped.has(key)) {
+                grouped.set(key, []);
+            }
+            grouped.get(key).push(name);
+        }
+        for (const bucket of grouped.values()) {
+            const sorted = bucket.sort(compareNumericNames);
+            if (sorted.length > 1 && sorted.length <= MAX_CANONICAL_RELABEL_BUCKET_SIZE) {
+                buckets.push(sorted);
+            }
+        }
+    }
+    return buckets;
+}
+
+function updateCanonicalObjectMapForSwap(objectMap, left, right) {
+    const updated = new Map();
+    for (const [key, value] of objectMap.entries()) {
+        if (value === left) {
+            updated.set(key, right);
+        } else if (value === right) {
+            updated.set(key, left);
+        } else {
+            updated.set(key, value);
+        }
+    }
+    return updated;
+}
+
+function swapCanonicalKeyString(key, left, right) {
+    const leftToken = JSON.stringify(left);
+    const rightToken = JSON.stringify(right);
+    const placeholder = '"__canonical_swap_placeholder__"';
+    return key
+        .split(leftToken).join(placeholder)
+        .split(rightToken).join(leftToken)
+        .split(placeholder).join(rightToken);
+}
+
+function swapCanonicalObjects(canonical, left, right) {
+    return relabelCanonicalObjectReferences(canonical, name => {
+        if (name === left) {
+            return right;
+        }
+        if (name === right) {
+            return left;
+        }
+        return name;
+    });
+}
+
+function stabilizeCanonicalObjectLabels(canonical) {
+    let current = canonical;
+    let currentKey = JSON.stringify(current);
+    let objectMap = new Map(collectCanonicalObjectNames(canonical).map(name => [name, name]));
+    const candidatePairs = [];
+    for (const bucket of buildCanonicalRelabelBuckets(canonical)) {
+        for (let i = 0; i < bucket.length; i++) {
+            for (let j = i + 1; j < bucket.length; j++) {
+                candidatePairs.push([bucket[i], bucket[j]]);
+            }
+        }
+    }
+
+    for (let iteration = 0; iteration < 200; iteration++) {
+        let best = null;
+        let bestKey = currentKey;
+        let bestSwap = null;
+        for (const [left, right] of candidatePairs) {
+            const approximateKey = swapCanonicalKeyString(currentKey, left, right);
+            if (approximateKey >= bestKey) {
+                continue;
+            }
+            const candidate = swapCanonicalObjects(current, left, right);
+            const candidateKey = JSON.stringify(candidate);
+            if (candidateKey < bestKey) {
+                best = candidate;
+                bestKey = candidateKey;
+                bestSwap = [left, right];
+            }
+        }
+
+        if (bestSwap === null && candidatePairs.length <= MAX_CANONICAL_EXACT_RELABEL_PAIRS) {
+            for (const [left, right] of candidatePairs) {
+                const candidate = swapCanonicalObjects(current, left, right);
+                const candidateKey = JSON.stringify(candidate);
+                if (candidateKey < bestKey) {
+                    best = candidate;
+                    bestKey = candidateKey;
+                    bestSwap = [left, right];
+                    break;
+                }
+            }
+        }
+
+        if (bestSwap === null) {
+            return { canonical: current, objectMap };
+        }
+        current = best;
+        currentKey = bestKey;
+        objectMap = updateCanonicalObjectMapForSwap(objectMap, bestSwap[0], bestSwap[1]);
+    }
+
+    return { canonical: current, objectMap };
+}
+
 function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
     const format = options.format || canonical.format;
     const namePrefix = options.namePrefix || 'obj_';
@@ -1259,7 +1525,7 @@ function canonicalizeCompiledState(state, options) {
     const collisionLayers = state.collisionLayers.map(layer =>
         Array.from(new Set(layer))
             .map(name => nameMap.get(name) || name)
-            .sort((a, b) => a.localeCompare(b))
+            .sort(compareNumericNames)
     );
 
     const rawRulePairs = state.rules
@@ -1284,8 +1550,8 @@ function canonicalizeCompiledState(state, options) {
     const result = {
         format: 'puzzlescript-semantic-canonical-v1',
         metadata,
-        playerObjects: Array.from(playerSet).map(name => nameMap.get(name)).sort((a, b) => a.localeCompare(b)),
-        backgroundObjects: Array.from(backgroundSet).map(name => nameMap.get(name)).sort((a, b) => a.localeCompare(b)),
+        playerObjects: Array.from(playerSet).map(name => nameMap.get(name)).sort(compareNumericNames),
+        backgroundObjects: Array.from(backgroundSet).map(name => nameMap.get(name)).sort(compareNumericNames),
         collisionLayers,
         rules,
     };
@@ -1306,13 +1572,14 @@ function canonicalizeCompiledState(state, options) {
     }
 
     if (options.collapseEquivalentObjects) {
-        return collapseEquivalentObjectsInCanonical(result, {
+        const collapsed = collapseEquivalentObjectsInCanonical(result, {
             format: options.canonicalFormat || result.format,
             namePrefix: options.objectNamePrefix || 'obj_',
             includeMetadata: options.includeMetadata,
             includeWinConditions: options.includeWinConditions,
             includeLevels: options.includeLevels,
         });
+        return stabilizeCanonicalObjectLabels(collapsed).canonical;
     }
 
     return result;
@@ -1333,6 +1600,21 @@ function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOp
     const options = canonicalModeOptions(mode, canonicalOptions);
     const compiledNameData = buildCompiledNameMap(state, options);
     const { map: nameMap } = compiledNameData;
+    let collapsedObjectMap = null;
+    if (options.collapseEquivalentObjects) {
+        const fullRawCanonical = canonicalizeCompiledState(state, Object.assign({}, options, {
+            collapseEquivalentObjects: false,
+            compiledNameData,
+        }));
+        const fullCollapsed = collapseEquivalentObjectsInCanonical(fullRawCanonical, {
+            format: options.canonicalFormat || fullRawCanonical.format,
+            namePrefix: options.objectNamePrefix || 'obj_',
+            includeMetadata: options.includeMetadata,
+            includeWinConditions: options.includeWinConditions,
+            includeLevels: options.includeLevels,
+        });
+        collapsedObjectMap = stabilizeCanonicalObjectLabels(fullCollapsed).objectMap;
+    }
     const rawCanonical = canonicalizeCompiledState(state, Object.assign({}, options, {
         includeLevels: false,
         collapseEquivalentObjects: false,
@@ -1355,7 +1637,11 @@ function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOp
             includeWinConditions: options.includeWinConditions,
             includeLevels: true,
         });
-        return collapsed.levels[0] || { type: 'message', text: '' };
+        const projected = collapsed.levels[0] || { type: 'message', text: '' };
+        if (!collapsedObjectMap) {
+            return projected;
+        }
+        return relabelCanonicalLevel(projected, name => collapsedObjectMap.get(name) || name);
     }
 
     return {

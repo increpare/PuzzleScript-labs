@@ -23,6 +23,33 @@ assert.deepStrictEqual(
     'decanonicalized semantic source should preserve exact object labels for asymmetric layers'
 );
 
+const numericLayerSource = fs.readFileSync('src/demo/blockfaker.txt', 'utf8');
+const numericLayerCanonical = canonicalizeSource(numericLayerSource, 'semantic');
+const numericLayerRehydrated = decanonicalizeSemantic(numericLayerCanonical);
+assert.deepStrictEqual(
+    canonicalizeSource(numericLayerRehydrated, 'semantic'),
+    numericLayerCanonical,
+    'decanonicalized semantic source should preserve exact object labels when layers contain obj_10'
+);
+
+const cyclicRelabelSource = fs.readFileSync('src/demo/atlas shrank.txt', 'utf8');
+const cyclicRelabelCanonical = canonicalizeSource(cyclicRelabelSource, 'semantic');
+const cyclicRelabelRehydrated = decanonicalizeSemantic(cyclicRelabelCanonical);
+assert.deepStrictEqual(
+    canonicalizeSource(cyclicRelabelRehydrated, 'semantic'),
+    cyclicRelabelCanonical,
+    'decanonicalized semantic source should preserve exact object labels for cyclic object families'
+);
+
+const winLinkedRelabelSource = fs.readFileSync('src/demo/byyourside.txt', 'utf8');
+const winLinkedRelabelCanonical = canonicalizeSource(winLinkedRelabelSource, 'semantic');
+const winLinkedRelabelRehydrated = decanonicalizeSemantic(winLinkedRelabelCanonical);
+assert.deepStrictEqual(
+    canonicalizeSource(winLinkedRelabelRehydrated, 'semantic'),
+    winLinkedRelabelCanonical,
+    'decanonicalized semantic source should preserve exact object labels for win-linked object families'
+);
+
 const loopSource = `
 title Loop Preservation
 
