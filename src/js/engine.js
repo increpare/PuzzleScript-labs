@@ -3110,6 +3110,9 @@ let sfxDestroyMask = null;
 /* returns a bool indicating if anything changed */
 function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	againing = false;
+	if (textMode || titleScreen || !level || !Number.isInteger(level.n_tiles)) {
+		return false;
+	}
 
 	let bak = backupLevel();
 	let inputindex = dir;

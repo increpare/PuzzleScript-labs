@@ -7,6 +7,7 @@ const path = require('path');
 
 const {
     ensureRuntimeLoaded,
+    replayFinalSerializedLevel,
     runSimulationWithStaticChecks,
 } = require('./run_static_analysis_runtime_contracts_node');
 
@@ -76,6 +77,152 @@ assert.ok(
     result.noRandomReplayChecks > 0,
     'no-random checks should compare replay boundaries under an alternate seed'
 );
+
+const initialProbeSource = [
+    'title Initial Probe Coverage',
+    '',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'White',
+    '',
+    'Goal',
+    'Yellow',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'G = Goal',
+    '',
+    '=======',
+    'SOUNDS',
+    '=======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Goal',
+    'Player',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'Some Player On Goal',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'P',
+].join('\n');
+const initialProbeExpected = replayFinalSerializedLevel('initial probe coverage', initialProbeSource, []);
+const initialProbe = runSimulationWithStaticChecks('initial probe coverage', [
+    initialProbeSource,
+    [],
+    initialProbeExpected,
+]);
+
+assert.strictEqual(initialProbe.actionUnnecessaryProved, true, 'empty fixture should prove action unnecessary');
+assert.strictEqual(initialProbe.tickNoopProved, true, 'empty fixture should prove tick noop');
+assert.strictEqual(
+    initialProbe.actionUnnecessaryBoundaryChecks,
+    1,
+    'action-unnecessary probes should include the freshly loaded initial boundary'
+);
+assert.strictEqual(
+    initialProbe.tickNoopBoundaryChecks,
+    1,
+    'tick-noop probes should include the freshly loaded initial boundary'
+);
+
+const textModeGuardSource = [
+    'title Text Mode ProcessInput Guard',
+    '',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'White',
+    '',
+    'Wall',
+    'Gray',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    '# = Wall',
+    '',
+    '=======',
+    'SOUNDS',
+    '=======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player, Wall',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    'rigid [ > Player | Wall ] -> [ > Player | > Wall ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'Some Player',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'message hello',
+    '',
+    'P#.',
+].join('\n');
+
+levelString = textModeGuardSource;
+compile(['loadLevel', 0], textModeGuardSource, 'text-mode-guard');
+assert.strictEqual(textMode, true, 'message level should leave the engine in text mode');
+assert.strictEqual(titleScreen, false, 'message level should not be the title screen');
+assert.doesNotThrow(() => {
+    assert.strictEqual(processInput(3), false, 'processInput should ignore message-level input');
+});
+assert.strictEqual(textMode, true, 'message-level input should leave text mode untouched');
+
+levelString = textModeGuardSource;
+compile(['restart'], textModeGuardSource, 'title-screen-guard');
+assert.strictEqual(titleScreen, true, 'restart should leave the title screen showing');
+assert.strictEqual(textMode, true, 'title screen is text mode');
+assert.doesNotThrow(() => {
+    assert.strictEqual(processInput(4), false, 'processInput should ignore title-screen input');
+});
+assert.strictEqual(titleScreen, true, 'title-screen input should leave the title screen untouched');
 
 const autowinResult = runSimulationWithStaticChecks(autowin[0], autowin[1]);
 assert.strictEqual(autowinResult.actionUnnecessaryProved, true, 'Autowin should prove action-unnecessary');

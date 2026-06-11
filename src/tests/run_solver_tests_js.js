@@ -73,7 +73,7 @@ const PUSH_ACCESS_DIRECTIONS = [
     [0, -1],
 ];
 
-/** When some-on heuristics have no valid target cells, use a large penalty so search does not treat the state as nearly solved (see TODO.md). */
+/** Some-on heuristics with no reachable target cells are degenerate, not nearly solved; use a finite penalty so A* can keep ordering states without mistaking missing target geometry for mild distance. */
 const SOME_ON_NO_TARGET_PENALTY = 64;
 
 /** `bestManhattan` with no target tiles: stronger than `distanceOrFallback(Infinity)` (64) so degenerate geometry is not confused with mild distance. */
@@ -2494,6 +2494,8 @@ function hashCurrentState() {
 }
 
 function settleAgain() {
+    // Some corpus games intentionally use `again` as animation. robot arm has
+    // a reachable 3-cycle, so the cap is load-bearing for solver harnesses.
     for (let pass = 0; pass < 500 && againing; pass++) {
         againing = false;
         processInput(-1, undefined, undefined, true);

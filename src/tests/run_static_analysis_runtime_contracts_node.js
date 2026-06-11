@@ -14,6 +14,9 @@ const {
 } = require('./solver_static_opt');
 
 let runtimeLoaded = false;
+// Corpus games such as robot arm can enter non-terminating animation cycles.
+// Harness drains need a hard cap so randomized/static checks fail or skip
+// instead of hanging forever.
 const MAX_AGAIN_DRAIN_STEPS = 10000;
 const RUNTIME_INPUT_TOKENS = Object.freeze({
     U: 0,
@@ -929,6 +932,10 @@ function winconditionTruthSnapshot() {
     return state.winconditions.map(evaluateWincondition);
 }
 
+function currentBoundaryIsTerminalWin() {
+    return winconditionTruthSnapshot().some(Boolean);
+}
+
 function winflowContractFromFact(fact) {
     const value = (fact && fact.value) || {};
     const winIds = Array.isArray(value.win_ids) ? value.win_ids.slice() : [];
@@ -1429,9 +1436,12 @@ function replayFinalSerializedLevel(testName, source, inputs, options = {}) {
 
 function throwProbeError(testName, kind, inputIndex, inputToken, diff) {
     const location = diff.index === undefined ? '' : `  index: ${diff.index}\n`;
+    const boundary = inputIndex === null
+        ? `  boundary: ${tokenLabel(inputToken)}`
+        : `  input ${inputIndex}: ${tokenLabel(inputToken)}`;
     throw new Error([
         `${testName}: ${kind} claim violated`,
-        `  input ${inputIndex}: ${tokenLabel(inputToken)}`,
+        boundary,
         `  field: ${diff.field}`,
         location + `  before: ${JSON.stringify(diff.before)}`,
         `  after: ${JSON.stringify(diff.after)}`,
@@ -1472,6 +1482,12 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const noAgainProved = staticContract.noAgainProved;
     const noRandomProved = staticContract.noRandomProved;
     const checkNoRandomReplay = noRandomProved && randomSeed === null;
+    const hasUndoInput = inputs.some(inputToken => normalizeRuntimeInputToken(inputToken) === 'undo');
+    // Cosmetic object projection, cosmetic rule suppression, and object merging
+    // are solver optimizations. Solver search never issues undo, and undo-stack
+    // depth is observable only to runtime traces that do, so scope these replay
+    // parity checks to undo-free inputs.
+    const checkSolverProjectionReplays = !hasUndoInput;
 
     const previousUnitTesting = unitTesting;
     const previousLazyFunctionGeneration = lazyFunctionGeneration;
@@ -1534,6 +1550,52 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         const noRandomTrace = checkNoRandomReplay
             ? [replayBoundarySnapshot('initial')]
             : [];
+
+        if (canSnapshotBoard()) {
+            const initialTemporaryDiff = firstTemporaryPresence(temporaryObjects);
+            if (initialTemporaryDiff) {
+                throw new Error([
+                    `${testName}: temporary object survived stable boundary`,
+                    '  boundary: initial',
+                    `  object: ${initialTemporaryDiff.objectName}`,
+                    `  count: ${initialTemporaryDiff.count}`,
+                ].join('\n'));
+            }
+            temporaryBoundaryChecks += temporaryObjects.length;
+            const initialNeverAppearsDiff = firstTemporaryPresence(neverAppearsObjects);
+            if (initialNeverAppearsDiff) {
+                throw new Error([
+                    `${testName}: never-appears object appeared at stable boundary`,
+                    '  boundary: initial',
+                    `  object: ${initialNeverAppearsDiff.objectName}`,
+                    `  count: ${initialNeverAppearsDiff.count}`,
+                ].join('\n'));
+            }
+            neverAppearsBoundaryChecks += neverAppearsObjects.length;
+        }
+        const initialBoundaryIsTerminalWin = currentBoundaryIsTerminalWin();
+        if (!initialBoundaryIsTerminalWin && actionUnnecessaryProved) {
+            const restartBoundaryBeforeProbe = restartBoundaryTriggered;
+            const actionDiff = firstActionUnnecessaryProbeDifference(
+                testName,
+                'initial',
+                cosmeticRuleProjectionObjects
+            );
+            restartBoundaryTriggered = restartBoundaryBeforeProbe;
+            if (actionDiff) {
+                throwProbeError(testName, 'action-unnecessary', null, 'initial', actionDiff);
+            }
+            actionUnnecessaryBoundaryChecks++;
+        }
+        if (!initialBoundaryIsTerminalWin && tickNoopProved) {
+            const restartBoundaryBeforeProbe = restartBoundaryTriggered;
+            const tickDiff = firstTickNoopProbeDifference(testName, 'initial');
+            restartBoundaryTriggered = restartBoundaryBeforeProbe;
+            if (tickDiff) {
+                throwProbeError(testName, 'tick-noop', null, 'initial', tickDiff);
+            }
+            tickNoopBoundaryChecks++;
+        }
 
         for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
             const inputToken = inputs[inputIndex];
@@ -1670,7 +1732,8 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             staticLayerBoundaryChecks += staticLayers.length;
             inertLayerBoundaryChecks += inertLayers.length;
             quantityBoundaryChecks += quantityClaimCount(quantityContracts);
-            if (actionUnnecessaryProved) {
+            const boundaryIsTerminalWin = currentBoundaryIsTerminalWin();
+            if (!boundaryIsTerminalWin && actionUnnecessaryProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
                 const actionDiff = firstActionUnnecessaryProbeDifference(
                     testName,
@@ -1683,7 +1746,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 }
                 actionUnnecessaryBoundaryChecks++;
             }
-            if (tickNoopProved) {
+            if (!boundaryIsTerminalWin && tickNoopProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
                 const tickDiff = firstTickNoopProbeDifference(testName, `input ${inputIndex} ${tokenLabel(inputToken)}`);
                 restartBoundaryTriggered = restartBoundaryBeforeProbe;
@@ -1701,13 +1764,13 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         const normalInertCommandCoreState = inertCommandRuleSourceLines.length > 0
             ? solverCoreStateSnapshot()
             : null;
-        const normalCosmeticProjection = cosmeticObjects.length > 0
+        const normalCosmeticProjection = checkSolverProjectionReplays && cosmeticObjects.length > 0
             ? cosmeticProjectionSnapshot(cosmeticObjects)
             : null;
-        const normalCosmeticRuleProjection = (cosmeticRuleSourceLines.length > 0 || optimizerCosmeticRuleSourceLines.length > 0)
+        const normalCosmeticRuleProjection = checkSolverProjectionReplays && (cosmeticRuleSourceLines.length > 0 || optimizerCosmeticRuleSourceLines.length > 0)
             ? cosmeticRuleProjectionSnapshot(cosmeticRuleProjectionObjects)
             : null;
-        const normalMergeProjection = mergeAliasMap.size > 0
+        const normalMergeProjection = checkSolverProjectionReplays && mergeAliasMap.size > 0
             ? mergeCanonicalStateSnapshot(mergeAliasMap)
             : null;
 
@@ -1731,7 +1794,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             inertCommandRuleSuppressionChecks++;
         }
 
-        if (mergeAliasMap.size > 0) {
+        if (checkSolverProjectionReplays && mergeAliasMap.size > 0) {
             const optimizedReplay = runMergeOptimizedReplayFinalProjection(
                 testName,
                 source,
@@ -1758,7 +1821,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             mergeProjectionChecks++;
         }
 
-        if (cosmeticObjects.length > 0) {
+        if (checkSolverProjectionReplays && cosmeticObjects.length > 0) {
             const projectedReplayProjection = runProjectedReplayFinalProjection(
                 testName,
                 source,
@@ -1778,7 +1841,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             cosmeticProjectionChecks++;
         }
 
-        if (cosmeticRuleSourceLines.length > 0) {
+        if (checkSolverProjectionReplays && cosmeticRuleSourceLines.length > 0) {
             const suppressedReplayProjection = runCosmeticRuleSuppressedReplayFinalProjection(
                 testName,
                 source,
@@ -1799,7 +1862,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             cosmeticRuleProjectionChecks++;
         }
 
-        if (optimizerCosmeticRuleSourceLines.length > 0) {
+        if (checkSolverProjectionReplays && optimizerCosmeticRuleSourceLines.length > 0) {
             const optimizedReplay = runCosmeticRuleOptimizedReplayFinalProjection(
                 testName,
                 source,

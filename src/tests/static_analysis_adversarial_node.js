@@ -9,10 +9,9 @@
 // We assert the analyzer never over-claims, then run the runtime contract
 // checker on a targeted input sequence as a second opinion.
 //
-// Two fixtures are characterizations of open bugs (see TODO.md). They assert
-// the CURRENT buggy behavior on purpose: when the underlying bug is fixed,
-// the characterization fails loudly and should be flipped into a regular
-// soundness assertion.
+// The final fixture covers the resolved cosmetic/undo scope from TODO.md:
+// solver-only projection checks are deliberately skipped on undo-bearing
+// traces because solver search never issues undo.
 
 const assert = require('assert');
 
@@ -67,7 +66,7 @@ function game(parts) {
 
 function runContract(name, source, inputs, randomSeed) {
     const expected = replayFinalSerializedLevel(name, source, inputs, { targetLevel: 0, randomSeed });
-    runSimulationWithStaticChecks(name, [source, inputs, expected, 0, randomSeed, null]);
+    return runSimulationWithStaticChecks(name, [source, inputs, expected, 0, randomSeed, null]);
 }
 
 function quantityFor(contract, objectName) {
@@ -238,11 +237,11 @@ function ok(condition, message) {
     runContract('adversarial:randomdir', source, [4, 4], 9);
 }
 
-// --- KNOWN BUG characterization: cosmetic claims are not undo-safe (TODO.md). -
+// --- Cosmetic claims are solver-scoped and therefore undo-free. ---------------
 // A turn whose only effect is a cosmetic change still pushes an undo state,
 // so suppressing cosmetic rules changes undo-stack depth and a later undo
-// restores a different turn. When the contract scope (or engine behavior) is
-// fixed, this characterization fails: turn it into a plain runContract call.
+// restores a different turn. Solver search never issues undo, so runtime
+// contract checks skip cosmetic/merge projection checks for undo-bearing traces.
 {
     const source = game({
         objects: 'DustA\nred\n\nDustB\ngreen\n\nDustC\nblue\n',
@@ -251,17 +250,12 @@ function ok(condition, message) {
         rules: '[ DustB ] -> [ DustC ]\n[ DustA ] -> [ DustB ]',
         levels: '#####\n#P.a#\n#####',
     });
-    const c = staticContractForSource(source, 'adversarial:cosmetic_undo_known_bug');
+    const c = staticContractForSource(source, 'adversarial:cosmetic_undo_solver_scope');
     ok(c.cosmeticObjectNames.includes('DustA'), 'dust decay chain should be cosmetic');
-    let divergence = null;
-    try {
-        runContract('adversarial:cosmetic_undo_known_bug', source, [3, 0, 'undo'], 9);
-    } catch (error) {
-        divergence = String(error && error.message);
-    }
-    ok(divergence !== null && /cosmetic rule suppression replay diverged/.test(divergence),
-        'characterization of open bug changed: cosmetic rule suppression now survives undo — update this fixture (see TODO.md)');
-    process.stderr.write('static_analysis_adversarial_node: KNOWN BUG (TODO.md): cosmetic rule suppression diverges under undo\n');
+    const result = runContract('adversarial:cosmetic_undo_solver_scope', source, [3, 0, 'undo'], 9);
+    ok(result.cosmeticRuleCount > 0, 'fixture should still expose cosmetic rules');
+    ok(result.cosmeticRuleProjectionChecks === 0,
+        'undo-bearing traces should skip solver-only cosmetic rule projection checks');
 }
 
 console.log(`static_analysis_adversarial_node: ok (${checks} checks)`);

@@ -5,10 +5,12 @@
 //
 // The runtime-contract suite (run_static_analysis_runtime_contracts_node.js)
 // verifies static-analysis claims along the recorded testdata traces. The
-// claims are universal ("never increases", "static", "suppression-safe"), so
-// this tool re-verifies them along randomized input sequences the recordings
-// never exercised. It found the cosmetic/undo divergence and the Karamell
-// merge regression candidates within two corpus runs.
+// most claims are universal ("never increases", "static"), so this tool
+// re-verifies them along randomized input sequences the recordings never
+// exercised. Solver-only projection/suppression claims are checked by the
+// runtime-contract runner on undo-free traces. This fuzzer found the
+// cosmetic/undo scope issue and the Karamell merge regression candidates within
+// two corpus runs.
 //
 // Usage: node src/tests/fuzz_static_contracts.js [options]
 //   --iterations N     random sequences per (game, level)   (default 2)
@@ -16,17 +18,14 @@
 //   --max-levels N     playable levels fuzzed per game      (default 2)
 //   --game SUBSTRING   only fuzz matching corpus games
 //   --start N --end N  corpus index window (for sharding)
-//   --strict           treat known issues (see TODO.md) as failures
+//   --strict           treat known limitations (see TODO.md) as failures
 //
 // Inputs are generated adaptively: a sequence stops as soon as the game
 // leaves a playable board (message level / title / end of game), because
 // processInput must never be called in text mode — the browser input layer
 // guards this, so node harnesses must too.
 //
-// Known-issue classification (non-strict mode):
-// - "replay diverged" on a sequence containing undo: the cosmetic/merge
-//   suppression contracts are not undo-safe (TODO.md). Reported as a
-//   warning, not a failure, until the contract scope is decided.
+// Known-limitation classification (non-strict mode):
 // - again-drain overflow during input generation: corpus games with
 //   non-terminating `again` animation cycles (robot arm). Reported as a
 //   skip.
@@ -37,6 +36,7 @@ const path = require('path');
 const contracts = require('./run_static_analysis_runtime_contracts_node');
 const {
     ensureRuntimeLoaded,
+    MAX_AGAIN_DRAIN_STEPS,
     runSimulationWithStaticChecks,
     replayFinalSerializedLevel,
     staticContractForSource,
@@ -59,7 +59,7 @@ function drainAgainLocal(context) {
     let steps = 0;
     while (againing) {
         steps++;
-        if (steps > 10000) throw new Error(`${context}: again drain overflow`);
+        if (steps > MAX_AGAIN_DRAIN_STEPS) throw new Error(`${context}: again drain overflow`);
         againing = false;
         processInput(-1);
     }
@@ -134,11 +134,6 @@ function hashString(text) {
 function classifyFailure(failure) {
     if (failure.phase === 'input_generation' && /again drain overflow/.test(failure.error)) {
         return 'known_again_overflow';
-    }
-    if (failure.phase === 'contract_check'
-        && /replay diverged/.test(failure.error)
-        && /"undo"/.test(failure.inputs || '')) {
-        return 'known_undo_divergence';
     }
     return 'unexpected';
 }
@@ -259,7 +254,7 @@ function main() {
     }
 
     for (const failure of known) {
-        process.stderr.write(`fuzz_static_contracts: known issue (${failure.kind}, see TODO.md): ${failure.label}\n`);
+        process.stderr.write(`fuzz_static_contracts: known limitation (${failure.kind}, see TODO.md): ${failure.label}\n`);
     }
     for (const failure of unexpected) {
         process.stderr.write(`fuzz_static_contracts: FAILURE ${failure.label} [${failure.phase}]\n  inputs: ${failure.inputs || 'n/a'}\n  ${failure.error}\n`);

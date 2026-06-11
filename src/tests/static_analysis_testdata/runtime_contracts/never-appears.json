@@ -4,6 +4,6 @@
   "expectedFinalLevel": "background:0,background player:1,0,\n",
   "expect": {
     "neverAppearsObjectCount": 1,
-    "neverAppearsBoundaryChecks": 1
+    "neverAppearsBoundaryChecks": 2
   }
 }

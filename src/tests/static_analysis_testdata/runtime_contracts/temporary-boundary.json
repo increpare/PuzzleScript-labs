@@ -4,6 +4,6 @@
   "expectedFinalLevel": "background player:0,\n",
   "expect": {
     "temporaryObjectCount": 1,
-    "temporaryBoundaryChecks": 1
+    "temporaryBoundaryChecks": 2
   }
 }
