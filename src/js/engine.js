@@ -3163,14 +3163,17 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	level.commandQueue = [];
 	level.commandQueueSourceRules = [];
 	let rigidloop = false;
-	const startState = {
+	//startState is only read by the rigid-body trackback below, and
+	//resolveMovements can only request an undo when the game has rigid rules -
+	//skip the full level snapshot otherwise.
+	const startState = state.rigid ? {
 		objects: new Int32Array(level.objects),
 		movements: new Int32Array(level.movements),
 		rigidGroupIndexMask: level.rigidGroupIndexMask.concat([]),
 		rigidMovementAppliedMask: level.rigidMovementAppliedMask.concat([]),
 		commandQueue: [],
 		commandQueueSourceRules: []
-	};
+	} : null;
 	sfxCreateMask.setZero();
 	sfxDestroyMask.setZero();
 	seedsToPlay_CanMove = [];
