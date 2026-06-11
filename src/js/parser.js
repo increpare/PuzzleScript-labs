@@ -206,6 +206,9 @@ if (typeof Object.assign !== 'function') {
 }
 
 
+const metadata_with_value_set = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
+const metadata_no_value_set = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline']);
+
 let codeMirrorFn = function () {
     'use strict';
 
@@ -282,7 +285,7 @@ let codeMirrorFn = function () {
                 ok = false;
             }
 
-            if (keyword_array.indexOf(candname) >= 0) {
+            if (keyword_array_set.has(candname)) {
                 logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
             }
 
@@ -491,7 +494,7 @@ let codeMirrorFn = function () {
                         logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
                     }
                 }
-                if (keyword_array.indexOf(candname) >= 0) {
+                if (keyword_array_set.has(candname)) {
                     logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
                 }
 
@@ -1057,7 +1060,7 @@ let codeMirrorFn = function () {
                     return 'DIRECTION';
                 } else if (m === 'random') {
                     return 'DIRECTION';
-                } else if (commandwords.indexOf(m) >= 0) {
+                } else if (commandwords_set.has(m)) {
                     if (m === 'message') {
                         state.tokenIndex = TOKEN_MESSAGE;
                     }
@@ -1199,7 +1202,7 @@ let codeMirrorFn = function () {
             if (match !== null) {
                 let token = match[0].trim();
                 if (sol) {
-                    if (['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube'].indexOf(token) >= 0) {
+                    if (metadata_with_value_set.has(token)) {
 
                         if (token === 'author' || token === 'homepage' || token === 'title') {
                             stream.string = mixedCase;
@@ -1224,7 +1227,7 @@ let codeMirrorFn = function () {
                         }
                         state.tokenIndex = 1;
                         return 'METADATA';
-                    } else if (['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline'].indexOf(token) >= 0) {
+                    } else if (metadata_no_value_set.has(token)) {
                         state.metadata.push(token);
                         state.metadata.push("true");
                         state.tokenIndex = TOKEN_NO_PARAMS;

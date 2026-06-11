@@ -505,7 +505,7 @@ function directionalRule(rule) {
         for (let j = 0; j < cellRow.length; j++) {
             let cell = cellRow[j];
             for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections.indexOf(cell[k]) >= 0) {
+                if (relativeDirections_set.has(cell[k])) {
                     return true;
                 }
             }
@@ -516,7 +516,7 @@ function directionalRule(rule) {
         for (let j = 0; j < cellRow.length; j++) {
             let cell = cellRow[j];
             for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections.indexOf(cell[k]) >= 0) {
+                if (relativeDirections_set.has(cell[k])) {
                     return true;
                 }
             }
@@ -664,9 +664,9 @@ function processRuleString(rule, state, curRules) {
                             logError(`A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line).  Why? Well, you see "random" isn't a property of individual rules, but of whole rule groups.  It indicates that a single possible application of some rule from the whole group should be applied at random.`, lineNumber)
                         }
 
-                    } else if (simpleAbsoluteDirections.indexOf(token) >= 0) {
+                    } else if (simpleAbsoluteDirections_set.has(token)) {
                         directions.push(token);
-                    } else if (simpleRelativeDirections.indexOf(token) >= 0) {
+                    } else if (simpleRelativeDirections_set.has(token)) {
                         logError('You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions', lineNumber);
                     } else if (token === '[') {
                         if (directions.length === 0) {
@@ -780,7 +780,7 @@ function processRuleString(rule, state, curRules) {
                             curcell.push(token);
                             curcell.push(token);
                         }
-                    } else if (commandwords.indexOf(token) >= 0) {
+                    } else if (commandwords_set.has(token)) {
                         if (rhs === false) {
                             logError("Commands should only appear at the end of rules, not in or before the pattern-detection/-replacement sections.", lineNumber);
                         } else if (incellrow || rightBracketToRightOf(tokens, i)) {//only a warning for legacy support reasons.
@@ -796,7 +796,7 @@ function processRuleString(rule, state, curRules) {
                             commands.push([token, messageStr]);
                             i = tokens.length;
                         } else {
-                            if (commandwords_sfx.indexOf(token) >= 0) {
+                            if (commandwords_sfx_set.has(token)) {
                                 //check defined
                                 let found = false;
                                 for (let j = 0; j < state.sounds.length; j++) {
