@@ -1414,7 +1414,7 @@ let codeMirrorFn = function () {
 
 
 
-            stream.eatWhile(/[ \t]/);
+            stream.eatSpace();
 
             ////////////////////////////////
             // COMMENT PROCESSING BEGIN
@@ -1468,7 +1468,7 @@ let codeMirrorFn = function () {
                 return 'comment';
             }
 
-            stream.eatWhile(/[ \t]/);
+            stream.eatSpace();
 
             if (sol && stream.eol()) {
                 endOfLineProcessing(state, mixedCase);
@@ -1664,4 +1664,3 @@ let codeMirrorFn = function () {
         }
     };
 };
-

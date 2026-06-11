@@ -13313,7 +13313,7 @@ let codeMirrorFn = function () {
 
 
 
-            stream.eatWhile(/[ \t]/);
+            stream.eatSpace();
 
             ////////////////////////////////
             // COMMENT PROCESSING BEGIN
@@ -13367,7 +13367,7 @@ let codeMirrorFn = function () {
                 return 'comment';
             }
 
-            stream.eatWhile(/[ \t]/);
+            stream.eatSpace();
 
             if (sol && stream.eol()) {
                 endOfLineProcessing(state, mixedCase);
@@ -13989,29 +13989,34 @@ function levelFromString(state, level) {
     let o = new Level(level[0], level[1].length, level.length - 1, state.collisionLayers.length, null);
     o.objects = new Int32Array(o.width * o.height * STRIDE_OBJ);
 
+    let glyphMaskCache = {};
     for (let i = 0; i < o.width; i++) {
         for (let j = 0; j < o.height; j++) {
             let ch = level[j + 1].charAt(i);
             if (ch.length === 0) {
                 ch = level[j + 1].charAt(level[j + 1].length - 1);
             }
-            let mask = state.glyphDict[ch];
 
-            if (mask === undefined) {
-                if (state.propertiesDict[ch] === undefined) {
-                    logError('Error, symbol "' + ch + '", used in map, not found.', level[0] + j);
-                } else {
-                    logError('Error, symbol "' + ch + '" is defined using OR, and therefore ambiguous - it cannot be used in a map. Did you mean to define it in terms of AND?', level[0] + j);
-                }
-                return o;
-            }
+            let maskint = glyphMaskCache[ch];
+            if (maskint === undefined) {
+                let mask = state.glyphDict[ch];
 
-            let maskint = new BitVec(STRIDE_OBJ);
-            mask = mask.concat([]);
-            for (let z = 0; z < o.layerCount; z++) {
-                if (mask[z] >= 0) {
-                    maskint.ibitset(mask[z]);
+                if (mask === undefined) {
+                    if (state.propertiesDict[ch] === undefined) {
+                        logError('Error, symbol "' + ch + '", used in map, not found.', level[0] + j);
+                    } else {
+                        logError('Error, symbol "' + ch + '" is defined using OR, and therefore ambiguous - it cannot be used in a map. Did you mean to define it in terms of AND?', level[0] + j);
+                    }
+                    return o;
                 }
+
+                maskint = new BitVec(STRIDE_OBJ);
+                for (let z = 0; z < o.layerCount; z++) {
+                    if (mask[z] >= 0) {
+                        maskint.ibitset(mask[z]);
+                    }
+                }
+                glyphMaskCache[ch] = maskint;
             }
             for (let w = 0; w < STRIDE_OBJ; ++w) {
                 o.objects[STRIDE_OBJ * (i * o.height + j) + w] = maskint.data[w];
