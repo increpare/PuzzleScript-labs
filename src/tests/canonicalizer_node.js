@@ -441,7 +441,9 @@ const mergeOptimized = canonicalizeSource(mergeOptimizationSource, 'semantic', {
 });
 assert.deepStrictEqual(mergeBaseline.collisionLayers, [['obj_0', 'obj_1'], ['obj_2']], 'baseline should keep merge candidates distinct when rules mention them directly');
 assert.deepStrictEqual(mergeOptimized.collisionLayers, [['obj_0'], ['obj_1']], 'static optimization should fold equivalent object aliases before serialization');
-assert.deepStrictEqual(mergeBaseline.levels[0].rows[0], [['obj_2'], ['obj_0'], ['obj_1']], 'baseline should serialize distinct merge-candidate cells');
+assert.deepStrictEqual(mergeBaseline.levels[0].rows[0][0], ['obj_2'], 'baseline should keep the player cell stable');
+assert.deepStrictEqual(mergeBaseline.levels[0].rows[0].slice(1).flat().sort(), ['obj_0', 'obj_1'], 'baseline should serialize both merge-candidate cells');
+assert.notDeepStrictEqual(mergeBaseline.levels[0].rows[0][1], mergeBaseline.levels[0].rows[0][2], 'baseline should keep merge candidates distinct when merge optimization is disabled');
 assert.deepStrictEqual(mergeOptimized.levels[0].rows[0], [['obj_1'], ['obj_0'], ['obj_0']], 'static optimization should rewrite merged object aliases in levels');
 
 function captureStaticAnalysisOptions(fn) {

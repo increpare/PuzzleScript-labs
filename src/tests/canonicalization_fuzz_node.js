@@ -286,4 +286,18 @@ const castleClosetMetaResult = runCanonicalizationFuzzCase({
 });
 assert.strictEqual(castleClosetMetaResult.status, 'ok');
 
+const levelSignatureSource = fs.readFileSync('src/tests/solver_tests/i want to grind myself into dust.txt', 'utf8');
+const levelSignatureResult = runCanonicalizationFuzzCase({
+    label: 'canonicalization_fuzz_node:level-signature-map',
+    source: levelSignatureSource,
+    targetLevel: 3,
+    randomSeed: 36419,
+    inputs: [
+        4, 'tick', 1, 1, 4, 3, 0, 0, 'tick', 'undo',
+        3, 4, 4, 2, 3, 2, 'restart', 'undo', 'tick', 1,
+        2, 0, 0, 4, 3, 4, 3, 4, 2, 1,
+    ],
+});
+assert.strictEqual(levelSignatureResult.status, 'ok');
+
 console.log('canonicalization_fuzz_node: ok');

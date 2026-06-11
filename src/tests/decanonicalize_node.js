@@ -14,6 +14,15 @@ const roundTripped = canonicalizeSource(rehydrated, 'semantic');
 
 assert.deepStrictEqual(roundTripped, canonical, 'decanonicalized source should preserve semantic canonical form');
 
+const exactRoundTripSource = fs.readFileSync('src/tests/solver_tests/a clear view of the sky.txt', 'utf8');
+const exactCanonical = canonicalizeSource(exactRoundTripSource, 'semantic');
+const exactRehydrated = decanonicalizeSemantic(exactCanonical);
+assert.deepStrictEqual(
+    canonicalizeSource(exactRehydrated, 'semantic'),
+    exactCanonical,
+    'decanonicalized semantic source should preserve exact object labels for asymmetric layers'
+);
+
 const loopSource = `
 title Loop Preservation
 

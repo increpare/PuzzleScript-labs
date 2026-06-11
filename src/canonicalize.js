@@ -643,6 +643,7 @@ function buildSemanticObjectOrdering(state, options) {
     const backgroundMask = state.backgroundMask || (state.objectMasks && state.objectMasks.background);
     const playerSet = new Set(listObjectNamesFromMask(playerMask, state));
     const backgroundSet = new Set(listObjectNamesFromMask(backgroundMask, state));
+    const objectSignatures = buildSemanticObjectSignatures(state, uniqueObjectNames, options);
     const firstSeen = new Map();
     let nextOrdinal = 0;
 
@@ -719,6 +720,11 @@ function buildSemanticObjectOrdering(state, options) {
             return rolePriorityA - rolePriorityB;
         }
 
+        const signatureDelta = objectSignatures.get(a).localeCompare(objectSignatures.get(b));
+        if (signatureDelta !== 0) {
+            return signatureDelta;
+        }
+
         const seenA = firstSeen.has(a) ? firstSeen.get(a) : Number.MAX_SAFE_INTEGER;
         const seenB = firstSeen.has(b) ? firstSeen.get(b) : Number.MAX_SAFE_INTEGER;
         if (seenA !== seenB) {
@@ -733,6 +739,79 @@ function buildSemanticObjectOrdering(state, options) {
         playerSet,
         backgroundSet,
     };
+}
+
+function termMaskContainsObject(term, objectName, objectId, state) {
+    if (state.objects[term]) {
+        return term === objectName;
+    }
+    const mask = state.objectMasks[term] || state.aggregateMasks[term];
+    const bitMask = Array.isArray(mask) ? mask[1] : mask;
+    if (!bitMask || typeof bitMask.get !== 'function') {
+        return false;
+    }
+    return !!bitMask.get(objectId);
+}
+
+function buildSemanticObjectSignatures(state, objectNames, options) {
+    const signatures = new Map();
+    for (const objectName of objectNames) {
+        const objectId = state.objects[objectName].id;
+        const parts = [];
+        for (let ruleIndex = 0; ruleIndex < state.rules.length; ruleIndex++) {
+            const rule = state.rules[ruleIndex];
+            for (const sideName of ['lhs', 'rhs']) {
+                const side = rule[sideName] || [];
+                for (let rowIndex = 0; rowIndex < side.length; rowIndex++) {
+                    const row = side[rowIndex];
+                    for (let cellIndex = 0; cellIndex < row.length; cellIndex++) {
+                        const cell = row[cellIndex];
+                        if (cell.length === 2 && cell[0] === '...' && cell[1] === '...') {
+                            continue;
+                        }
+                        for (let entryIndex = 0; entryIndex < cell.length; entryIndex += 2) {
+                            if (termMaskContainsObject(cell[entryIndex + 1], objectName, objectId, state)) {
+                                const direction = cell[entryIndex];
+                                parts.push(`r:${ruleIndex}:${sideName}:${rowIndex}:${cellIndex}:${entryIndex}:${direction}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (options.includeWinConditions) {
+            for (let conditionIndex = 0; conditionIndex < state.winconditions.length; conditionIndex++) {
+                const condition = state.winconditions[conditionIndex];
+                if (condition[1].get(objectId)) {
+                    parts.push(`w:${conditionIndex}:a`);
+                }
+                if (condition[2].get(objectId)) {
+                    parts.push(`w:${conditionIndex}:b`);
+                }
+            }
+        }
+
+        if (options.includeLevels) {
+            for (let levelIndex = 0; levelIndex < state.levels.length; levelIndex++) {
+                const level = state.levels[levelIndex];
+                if (level.message !== undefined) {
+                    continue;
+                }
+                for (let y = 0; y < level.height; y++) {
+                    for (let x = 0; x < level.width; x++) {
+                        const cellIndex = x * level.height + y;
+                        if (level.getCell(cellIndex).get(objectId)) {
+                            parts.push(`l:${levelIndex}:${y}:${x}`);
+                        }
+                    }
+                }
+            }
+        }
+
+        signatures.set(objectName, parts.join('|'));
+    }
+    return signatures;
 }
 
 function buildCompiledNameMap(state, options) {
@@ -1165,7 +1244,8 @@ function listObjectNamesFromMask(mask, state) {
 }
 
 function canonicalizeCompiledState(state, options) {
-    const { map: nameMap, playerSet, backgroundSet } = buildCompiledNameMap(state, options);
+    const nameData = options.compiledNameData || buildCompiledNameMap(state, options);
+    const { map: nameMap, playerSet, backgroundSet } = nameData;
     const metadata = [];
     if (options.includeMetadata) {
         for (let i = 0; i < state.metadata.length; i += 2) {
@@ -1251,10 +1331,12 @@ function canonicalModeOptions(mode, canonicalOptions) {
 
 function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOptions = {}) {
     const options = canonicalModeOptions(mode, canonicalOptions);
-    const { map: nameMap } = buildCompiledNameMap(state, options);
+    const compiledNameData = buildCompiledNameMap(state, options);
+    const { map: nameMap } = compiledNameData;
     const rawCanonical = canonicalizeCompiledState(state, Object.assign({}, options, {
         includeLevels: false,
         collapseEquivalentObjects: false,
+        compiledNameData,
     }));
 
     function canonicalizeLevelState(runtimeState, level) {
