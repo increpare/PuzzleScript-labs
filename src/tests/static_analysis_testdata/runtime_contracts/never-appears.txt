@@ -1,0 +1,49 @@
+========
+OBJECTS
+========
+
+Background
+Black
+
+Player
+Pink
+
+Unused
+Blue
+
+========
+LEGEND
+========
+
+P = Player
+. = Background
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Unused
+
+======
+RULES
+======
+
+[ > Player ] -> [ > Player ]
+
+==============
+WINCONDITIONS
+==============
+
+Some Player
+
+========
+LEVELS
+========
+
+P..

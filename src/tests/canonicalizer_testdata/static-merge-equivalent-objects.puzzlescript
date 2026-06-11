@@ -1,0 +1,54 @@
+title Canonical Static Merge
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Alpha
+red
+
+Beta
+blue
+
+Player
+yellow
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+a = Alpha
+b = Beta
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Alpha, Beta
+Player
+
+=====
+RULES
+=====
+
+[ no Alpha no Beta ] -> [ no Alpha no Beta ] win
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+Pab

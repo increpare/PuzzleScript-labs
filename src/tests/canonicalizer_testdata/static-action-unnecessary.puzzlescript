@@ -1,0 +1,50 @@
+title Canonical Static Action
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+blue
+
+Goal
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+G = Goal
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+
+=====
+RULES
+=====
+
+=============
+WINCONDITIONS
+=============
+
+All Player on Goal
+
+======
+LEVELS
+======
+
+PG

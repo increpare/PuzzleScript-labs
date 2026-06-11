@@ -1,0 +1,75 @@
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Hero
+white
+00000
+00000
+00000
+00000
+00000
+
+Wall
+gray
+00000
+00000
+00000
+00000
+00000
+
+Goal
+green
+00000
+00000
+00000
+00000
+00000
+
+========
+LEGEND
+========
+
+. = Background
+P = Hero
+# = Wall
+G = Goal
+Player = Hero
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Goal
+Hero, Wall
+
+=====
+RULES
+=====
+
+[ > Hero | Wall ] -> [ > Hero | Wall ]
+
+=============
+WINCONDITIONS
+=============
+
+All Hero on Goal
+
+======
+LEVELS
+======
+
+P#G

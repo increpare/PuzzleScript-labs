@@ -1,0 +1,40 @@
+title Static Analysis Object Tag Cosmetic Layer Write Propagation
+========
+OBJECTS
+========
+Background
+black
+Crate
+brown
+Stone
+gray
+Player
+white
+========
+LEGEND
+========
+. = Background
+P = Player
+C = Crate
+S = Stone
+========
+SOUNDS
+========
+================
+COLLISIONLAYERS
+================
+Background
+Crate, Stone
+Player
+=====
+RULES
+=====
+[ ] -> [ Stone ]
+=============
+WINCONDITIONS
+=============
+Some Crate
+======
+LEVELS
+======
+PC.

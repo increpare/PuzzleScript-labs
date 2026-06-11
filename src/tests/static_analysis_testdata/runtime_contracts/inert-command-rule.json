@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "inputs": ["R"],
+  "expectedFinalLevel": "background:0,background player:1,\n",
+  "expect": {
+    "inertCommandRuleCount": 1,
+    "inertCommandRuleSuppressionChecks": 1
+  }
+}

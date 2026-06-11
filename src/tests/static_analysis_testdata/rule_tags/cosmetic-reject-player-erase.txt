@@ -1,0 +1,32 @@
+title Static Analysis Rule Tag Cosmetic Reject Player Erase
+========
+OBJECTS
+========
+Background
+black
+Player
+white
+========
+LEGEND
+========
+. = Background
+P = Player
+========
+SOUNDS
+========
+================
+COLLISIONLAYERS
+================
+Background
+Player
+=====
+RULES
+=====
+[ player ] -> [ ]
+=============
+WINCONDITIONS
+=============
+======
+LEVELS
+======
+P

@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "inputs": ["R"],
+  "expectedFinalLevel": "background trail:0,background player:1,\n",
+  "expect": {
+    "cosmeticRuleCount": 1,
+    "cosmeticRuleProjectionChecks": 1
+  }
+}

@@ -1,0 +1,54 @@
+========
+OBJECTS
+========
+
+Background
+Black
+
+Player
+Pink
+
+Goal
+Yellow
+
+Trail
+Blue
+
+========
+LEGEND
+========
+
+P = Player
+G = Goal
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Trail
+
+======
+RULES
+======
+
+[ Player ] -> [ Player Trail ]
+[ right Player | Goal ] -> [ | Player ]
+
+==============
+WINCONDITIONS
+==============
+
+Some Player On Goal
+
+========
+LEVELS
+========
+
+PG

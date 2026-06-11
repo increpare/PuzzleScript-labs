@@ -1,0 +1,54 @@
+========
+OBJECTS
+========
+
+Background
+Black
+
+Player
+Pink
+
+Goal
+Yellow
+
+Sparkle
+Blue
+
+========
+LEGEND
+========
+
+P = Player
+G = Goal
+S = Sparkle
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Sparkle
+
+======
+RULES
+======
+
+[ right Player | Goal ] -> [ | Player ]
+
+==============
+WINCONDITIONS
+==============
+
+Some Player On Goal
+
+========
+LEVELS
+========
+
+PSG

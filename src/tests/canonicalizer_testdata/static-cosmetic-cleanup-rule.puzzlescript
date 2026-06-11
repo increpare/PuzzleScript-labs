@@ -1,0 +1,58 @@
+title Canonical Static Cosmetic
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Hero
+blue
+
+Target
+green
+
+Dust
+red
+
+========
+LEGEND
+========
+
+. = Background
+P = Hero
+T = Target
+d = Dust
+Player = Hero
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Hero
+Dust
+
+=====
+RULES
+=====
+
+[ Dust ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+All Hero on Target
+
+======
+LEVELS
+======
+
+PTd

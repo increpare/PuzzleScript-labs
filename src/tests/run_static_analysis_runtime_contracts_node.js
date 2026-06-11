@@ -15,6 +15,21 @@ const {
 
 let runtimeLoaded = false;
 const MAX_AGAIN_DRAIN_STEPS = 10000;
+const RUNTIME_INPUT_TOKENS = Object.freeze({
+    U: 0,
+    UP: 0,
+    L: 1,
+    LEFT: 1,
+    D: 2,
+    DOWN: 2,
+    R: 3,
+    RIGHT: 3,
+    A: 4,
+    ACTION: 4,
+    UNDO: 'undo',
+    RESTART: 'restart',
+    TICK: 'tick',
+});
 
 const ANALYSIS_UNAVAILABLE_TESTS = new Map([
     ['by your side', { status: 'compile_error', diagnostic: 'Object "TARGET" included in multiple collision layers' }],
@@ -1324,20 +1339,35 @@ function firstReplayTraceDifference(leftTrace, rightTrace) {
     return null;
 }
 
+function normalizeRuntimeInputToken(inputToken) {
+    if (typeof inputToken !== 'string') {
+        return inputToken;
+    }
+    const token = inputToken.trim().toUpperCase();
+    if (Object.prototype.hasOwnProperty.call(RUNTIME_INPUT_TOKENS, token)) {
+        return RUNTIME_INPUT_TOKENS[token];
+    }
+    throw new Error(`Unknown runtime input token ${JSON.stringify(inputToken)}`);
+}
+
 function executeInputToken(inputToken) {
-    if (inputToken === 'undo') {
+    const normalizedInputToken = normalizeRuntimeInputToken(inputToken);
+    if (normalizedInputToken === 'undo') {
         DoUndo(false, true);
         return { resetsSnapshot: true };
     }
-    if (inputToken === 'restart') {
+    if (normalizedInputToken === 'restart') {
         DoRestart();
         return { resetsSnapshot: true };
     }
-    if (inputToken === 'tick') {
+    if (normalizedInputToken === 'tick') {
         processInput(-1);
         return { resetsSnapshot: false };
     }
-    processInput(inputToken);
+    if (!Number.isInteger(normalizedInputToken)) {
+        throw new Error(`Runtime input must be an integer engine input or readable token, got ${JSON.stringify(inputToken)}`);
+    }
+    processInput(normalizedInputToken);
     return { resetsSnapshot: false };
 }
 

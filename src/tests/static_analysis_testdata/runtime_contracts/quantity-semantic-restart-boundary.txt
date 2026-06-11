@@ -1,0 +1,47 @@
+========
+OBJECTS
+========
+
+Background
+Black
+
+Player
+Pink
+
+Marker
+Yellow
+
+========
+LEGEND
+========
+
+X = Player and Marker
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Marker
+
+======
+RULES
+======
+
+[ action Player Marker ] -> [ Player ]
+[ action Player no Marker ] -> restart
+
+==============
+WINCONDITIONS
+==============
+
+========
+LEVELS
+========
+
+X

@@ -1,0 +1,52 @@
+========
+OBJECTS
+========
+
+Background
+Black
+
+Alpha
+Red
+
+Beta
+Blue
+
+Player
+Yellow
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+a = Alpha
+b = Beta
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Alpha, Beta
+Player
+
+======
+RULES
+======
+
+[ no Alpha no Beta ] -> [ no Alpha no Beta ] win
+
+==============
+WINCONDITIONS
+==============
+
+========
+LEVELS
+========
+
+Pab

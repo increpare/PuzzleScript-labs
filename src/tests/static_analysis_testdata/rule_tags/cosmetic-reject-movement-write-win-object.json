@@ -1,0 +1,13 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "ruleTag": [
+    {
+      "line": 33,
+      "text": "right [ right player | crate ] -> [ right player | right crate ]",
+      "tags": {
+        "movements_written": ["Crate:right"],
+        "cosmetic": false
+      }
+    }
+  ]
+}
