@@ -1671,7 +1671,7 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 			fn += 'let cellMovements' + i + ' = movements[i' + movStride + (i ? '+' + i : '') + '];\n';
 		}
 		
-		fn += "return " + cellRow[0].generateMatchString('0_');
+		fn += "return " + cellRow[0].generateMatchString('cellRow[0]');
 		for (let cellIndex = 1; cellIndex < cr_l; cellIndex++) {
 			fn += "&&cellRow[" + cellIndex + "].matches(i+" + cellIndex + "*d, objects, movements)";
 		}
@@ -1868,7 +1868,14 @@ function layerCoupledMovementMasksCacheKey(terms) {
 	return parts.join(':');
 }
 
-CellPattern.prototype.generateMatchString = function () {
+//patternExpr is a source-level expression that evaluates to this CellPattern in
+//the generated function's scope (e.g. 'this' or 'cellRow[0]'). Masks are read
+//from it at runtime rather than embedded as integer literals: the emitted source
+//then depends only on the *shape* of the pattern (which words/terms are in
+//play), so V8's source-keyed compilation cache can share one hot compiled
+//function across patterns, games and recompiles. Empirically this is much
+//faster than constant-specialized code.
+CellPattern.prototype.generateMatchString = function (patternExpr) {
 	let fn = "(true";
 	for (let i = 0; i < Math.max(STRIDE_OBJ, STRIDE_MOV); ++i) {
 		const co = 'cellObjects' + i;
@@ -1877,29 +1884,33 @@ CellPattern.prototype.generateMatchString = function () {
 		const om = this.objectsMissing.data[i];
 		const mp = this.movementsPresent.data[i];
 		const mm = this.movementsMissing.data[i];
+		const opExpr = patternExpr + '.objectsPresent.data[' + i + ']';
+		const omExpr = patternExpr + '.objectsMissing.data[' + i + ']';
+		const mpExpr = patternExpr + '.movementsPresent.data[' + i + ']';
+		const mmExpr = patternExpr + '.movementsMissing.data[' + i + ']';
 		if (op) {
 			if (op & (op - 1))
-				fn += '\t\t&& ((' + co + '&' + op + ')===' + op + ')\n';
+				fn += '\t\t&& ((' + co + '&' + opExpr + ')===' + opExpr + ')\n';
 			else
-				fn += '\t\t&& (' + co + '&' + op + ')\n';
+				fn += '\t\t&& (' + co + '&' + opExpr + ')\n';
 		}
 		if (om)
-			fn += '\t\t&& !(' + co + '&' + om + ')\n';
+			fn += '\t\t&& !(' + co + '&' + omExpr + ')\n';
 		if (mp) {
 			if (mp & (mp - 1))
-				fn += '\t\t&& ((' + cm + '&' + mp + ')===' + mp + ')\n';
+				fn += '\t\t&& ((' + cm + '&' + mpExpr + ')===' + mpExpr + ')\n';
 			else
-				fn += '\t\t&& (' + cm + '&' + mp + ')\n';
+				fn += '\t\t&& (' + cm + '&' + mpExpr + ')\n';
 		}
 		if (mm)
-			fn += '\t\t&& !(' + cm + '&' + mm + ')\n';
+			fn += '\t\t&& !(' + cm + '&' + mmExpr + ')\n';
 	}
 	for (let j = 0; j < this.anyObjectsPresent.length; j++) {
 		fn += "\t\t&& (0";
 		for (let i = 0; i < STRIDE_OBJ; ++i) {
 			const aop = this.anyObjectsPresent[j].data[i];
 			if (aop)
-				fn += "|(cellObjects" + i + "&" + aop + ")";
+				fn += "|(cellObjects" + i + "&" + patternExpr + ".anyObjectsPresent[" + j + "].data[" + i + "])";
 		}
 		fn += ")";
 	}
@@ -1908,7 +1919,7 @@ CellPattern.prototype.generateMatchString = function () {
 		for (let i = 0; i < STRIDE_MOV; ++i) {
 			const amp = this.anyMovementsPresent[j].data[i];
 			if (amp)
-				fn += "|(cellMovements" + i + "&" + amp + ")";
+				fn += "|(cellMovements" + i + "&" + patternExpr + ".anyMovementsPresent[" + j + "].data[" + i + "])";
 		}
 		fn += ")";
 	}
@@ -1977,7 +1988,7 @@ CellPattern.prototype.generateMatchFunction = function() {
         fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
     }
     
-    fn += `return ${this.generateMatchString()};`;
+    fn += `return ${this.generateMatchString('this')};`;
 
     const result = new Function("i", "objects", "movements", generatedFunctionSource("cellPatternMatch", fn));
     CACHE_CELLPATTERN_MATCHFUNCTION.set(str_key, result);
