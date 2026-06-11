@@ -101,4 +101,85 @@ assert.strictEqual(result.status, 'ok');
 assert.strictEqual(result.mismatches.length, 0);
 assert.ok(result.snapshotsChecked >= 2, 'should compare the initial and replayed canonical level states');
 
+const duplicateLayerSource = `
+title Duplicate Layer Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+blue
+00000
+00000
+00000
+00000
+00000
+
+Wall
+gray
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+W = Background and Wall
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+Wall
+
+=====
+RULES
+=====
+
+[ > Player | Wall ] -> [ > Player | Wall ]
+
+=============
+WINCONDITIONS
+=============
+
+No Player
+
+======
+LEVELS
+======
+
+PW
+`;
+
+const duplicateLayerResult = runCanonicalizationFuzzCase({
+    label: 'canonicalization_fuzz_node:duplicate-layer',
+    source: duplicateLayerSource,
+    targetLevel: 0,
+    randomSeed: 123,
+    inputs: [3],
+});
+
+assert.strictEqual(duplicateLayerResult.status, 'skipped');
+assert.strictEqual(duplicateLayerResult.reason, 'unrepresentable_duplicate_collision_layers');
+
 console.log('canonicalization_fuzz_node: ok');

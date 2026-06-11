@@ -14,6 +14,85 @@ const roundTripped = canonicalizeSource(rehydrated, 'semantic');
 
 assert.deepStrictEqual(roundTripped, canonical, 'decanonicalized source should preserve semantic canonical form');
 
+const loopSource = `
+title Loop Preservation
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+blue
+00000
+00000
+00000
+00000
+00000
+
+Crate
+red
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+C = Background and Crate
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+
+=====
+RULES
+=====
+
+startLoop
+[ > Player | Crate ] -> [ > Player | > Crate ]
+[ > Crate | Crate ] -> [ > Crate | > Crate ]
+endLoop
+
+=============
+WINCONDITIONS
+=============
+
+No Crate
+
+======
+LEVELS
+======
+
+PCC.
+`;
+
+const loopCanonical = canonicalizeSource(loopSource, 'semantic');
+assert.deepStrictEqual(loopCanonical.loops, [{ startGroup: 0, endGroup: 1 }], 'semantic canonicalization should preserve loop group ranges');
+const loopRehydrated = decanonicalizeSemantic(loopCanonical);
+assert.ok(/\bstartLoop\b/.test(loopRehydrated), 'decanonicalized loop source should include startLoop');
+assert.ok(/\bendLoop\b/.test(loopRehydrated), 'decanonicalized loop source should include endLoop');
+assert.deepStrictEqual(canonicalizeSource(loopRehydrated, 'semantic'), loopCanonical, 'decanonicalized loop source should preserve loop canonical form');
+
 const optimizedBackgroundSource = `
 title Optimized Background
 
@@ -95,6 +174,99 @@ const optimizedRehydrated = decanonicalizeSemantic(optimizedCanonical);
 const optimizedCompiled = compileSemanticSource(optimizedRehydrated);
 assert.strictEqual(optimizedCompiled.errorCount, 0, 'decanonicalized optimized source should compile with a concrete background');
 assert.strictEqual(JSON.stringify(optimizedCanonical), optimizedCanonicalBeforeRehydration, 'decanonicalization should not mutate optimized canonical input');
+
+const broadWinConditionSource = `
+title Broad Win Condition
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+blue
+00000
+00000
+00000
+00000
+00000
+
+Marker
+red
+00000
+00000
+00000
+00000
+00000
+
+Goal
+green
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+M = Background and Marker
+G = Background and Goal
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Marker
+Goal
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player Marker ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PG
+`;
+
+const broadWinCanonical = canonicalizeSource(broadWinConditionSource, 'semantic');
+assert.deepStrictEqual(
+    broadWinCanonical.winConditions[0].b,
+    ['obj_0', 'obj_1'],
+    'broad win conditions should be normalized to retained semantic objects'
+);
+const broadWinRehydrated = decanonicalizeSemantic(broadWinCanonical);
+assert.deepStrictEqual(
+    canonicalizeSource(broadWinRehydrated, 'semantic'),
+    broadWinCanonical,
+    'decanonicalized broad win conditions should not reintroduce pruned inert objects'
+);
 
 const unlayeredWinObjectCanonical = {
     format: 'puzzlescript-semantic-canonical-v1',

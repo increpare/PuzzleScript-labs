@@ -444,12 +444,28 @@ function formatRuleRow(row) {
 function emitRulesSection(canonical, ruleAliasForSet) {
     const lines = ['======', 'RULES', '======', ''];
     let previousGroupNumber = null;
-    for (const rule of canonical.rules || []) {
+    const startLoopGroups = new Map();
+    const endLoopGroups = new Map();
+    for (const loop of canonical.loops || []) {
+        if (!Number.isInteger(loop.startGroup) || !Number.isInteger(loop.endGroup)) {
+            continue;
+        }
+        startLoopGroups.set(loop.startGroup, (startLoopGroups.get(loop.startGroup) || 0) + 1);
+        endLoopGroups.set(loop.endGroup, (endLoopGroups.get(loop.endGroup) || 0) + 1);
+    }
+    const rules = canonical.rules || [];
+    for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
+        const rule = rules[ruleIndex];
         if ((!rule.rhs || rule.rhs.length === 0) && (!rule.commands || rule.commands.length === 0)) {
             continue;
         }
         const prefix = [];
         const continuingGroup = previousGroupNumber !== null && previousGroupNumber === rule.groupNumber;
+        if (!continuingGroup && startLoopGroups.has(rule.groupNumber)) {
+            for (let count = 0; count < startLoopGroups.get(rule.groupNumber); count++) {
+                lines.push('startLoop');
+            }
+        }
         if (continuingGroup) {
             prefix.push('+');
         }
@@ -489,6 +505,13 @@ function emitRulesSection(canonical, ruleAliasForSet) {
             lines.push(commands ? `${base} -> ${rhs} ${commands}` : `${base} -> ${rhs}`);
         } else if (commands) {
             lines.push(`${base} -> ${commands}`);
+        }
+        const nextRule = rules[ruleIndex + 1];
+        const groupEnds = !nextRule || nextRule.groupNumber !== rule.groupNumber;
+        if (groupEnds && endLoopGroups.has(rule.groupNumber)) {
+            for (let count = 0; count < endLoopGroups.get(rule.groupNumber); count++) {
+                lines.push('endLoop');
+            }
         }
         previousGroupNumber = rule.groupNumber;
     }

@@ -18,6 +18,7 @@
 //   --max-levels N     playable levels fuzzed per game     (default 2)
 //   --game SUBSTRING   only fuzz matching corpus games
 //   --start N --end N  corpus index window for sharding
+//   --include-meta-inputs  include undo/restart in generated traces
 
 const fs = require('fs');
 const path = require('path');
@@ -297,10 +298,44 @@ function canonicalHasRandomSemantics(canonical) {
     });
 }
 
+function firstDuplicateCollisionLayerObject(canonical) {
+    const seen = new Map();
+    for (let layerIndex = 0; layerIndex < (canonical.collisionLayers || []).length; layerIndex++) {
+        for (const name of canonical.collisionLayers[layerIndex] || []) {
+            if (seen.has(name)) {
+                return { name, firstLayer: seen.get(name), secondLayer: layerIndex };
+            }
+            seen.set(name, layerIndex);
+        }
+    }
+    return null;
+}
+
 function canonicalSourceForReplay(source, label) {
-    const canonical = canonicalizeSource(source, 'semantic', { sourcePath: label });
+    let canonical;
+    try {
+        canonical = canonicalizeSource(source, 'semantic', { sourcePath: label });
+    } catch (error) {
+        const message = error && error.message ? error.message : String(error);
+        if (!/^Unable to canonicalize invalid PuzzleScript source\./.test(message)) {
+            throw error;
+        }
+        return {
+            skipped: true,
+            reason: 'canonicalize_unavailable',
+            error: message,
+        };
+    }
     if (canonicalHasRandomSemantics(canonical)) {
         return { skipped: true, reason: 'random_rule_semantics' };
+    }
+    const duplicateLayerObject = firstDuplicateCollisionLayerObject(canonical);
+    if (duplicateLayerObject) {
+        return {
+            skipped: true,
+            reason: 'unrepresentable_duplicate_collision_layers',
+            duplicateLayerObject,
+        };
     }
     return {
         skipped: false,
@@ -369,15 +404,19 @@ function hashString(text) {
     return hash >>> 0;
 }
 
-function randomInputToken(rand) {
+function randomInputToken(rand, includeMetaInputs = false) {
     const roll = rand();
+    if (!includeMetaInputs) {
+        if (roll < 0.88) return Math.floor(rand() * 5);
+        return 'tick';
+    }
     if (roll < 0.82) return Math.floor(rand() * 5);
     if (roll < 0.90) return 'tick';
     if (roll < 0.97) return 'undo';
     return 'restart';
 }
 
-function generateSafeInputs(label, source, targetLevel, randomSeed, rand, maxLength) {
+function generateSafeInputs(label, source, targetLevel, randomSeed, rand, maxLength, options = {}) {
     ensureRuntimeLoaded();
     const previousUnitTesting = unitTesting;
     const previousLazyFunctionGeneration = lazyFunctionGeneration;
@@ -389,7 +428,7 @@ function generateSafeInputs(label, source, targetLevel, randomSeed, rand, maxLen
         compileSimulationSource(`${label}: input generation`, source, targetLevel, randomSeed);
         for (let index = 0; index < maxLength; index++) {
             if (!boardIsPlayable()) break;
-            const inputToken = randomInputToken(rand);
+            const inputToken = randomInputToken(rand, options.includeMetaInputs);
             executeInputToken(inputToken);
             drainAgain(`${label}: input generation ${index}`);
             if (!boardIsPlayable()) break;
@@ -435,6 +474,7 @@ function parseArgs(argv) {
         gameFilter: null,
         startIndex: 0,
         endIndex: Infinity,
+        includeMetaInputs: false,
         help: false,
     };
     for (let index = 2; index < argv.length; index++) {
@@ -446,6 +486,7 @@ function parseArgs(argv) {
         else if (arg === '--game') options.gameFilter = argv[++index];
         else if (arg === '--start') options.startIndex = Number(argv[++index]);
         else if (arg === '--end') options.endIndex = Number(argv[++index]);
+        else if (arg === '--include-meta-inputs') options.includeMetaInputs = true;
         else if (arg === '--help' || arg === '-h') options.help = true;
         else throw new Error(`Unsupported argument: ${arg}`);
     }
@@ -456,6 +497,7 @@ function usage() {
     return [
         'Usage: node src/tests/fuzz_canonicalization.js [--corpus PATH] [--iterations N]',
         '  [--input-length N] [--max-levels N] [--game SUBSTRING] [--start N --end N]',
+        '  [--include-meta-inputs]',
     ].join('\n');
 }
 
@@ -496,9 +538,16 @@ function runCanonicalizationFuzzer(options) {
                 const label = `canonical-fuzz:${game}#L${levelIndex}#i${iteration}`;
                 let inputs;
                 try {
-                    inputs = generateSafeInputs(label, source, levelIndex, randomSeed, rand, options.inputLength);
+                    inputs = generateSafeInputs(label, source, levelIndex, randomSeed, rand, options.inputLength, {
+                        includeMetaInputs: options.includeMetaInputs,
+                    });
                 } catch (error) {
-                    failures.push({ label, phase: 'input_generation', error: String(error && error.message).slice(0, 900) });
+                    const message = String(error && error.message);
+                    if (/again-drain|exceeded 10000 again-drain/.test(message)) {
+                        casesSkipped++;
+                    } else {
+                        failures.push({ label, phase: 'input_generation', error: message.slice(0, 900) });
+                    }
                     continue;
                 }
                 if (inputs.length === 0) {

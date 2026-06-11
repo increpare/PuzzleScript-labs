@@ -936,8 +936,20 @@ function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
             dedupedRules.push(rule);
         }
     }
+    const loops = normalizeCanonicalLoops(canonical.loops || [], dedupedRules);
+    const allLayerObjectsKey = JSON.stringify(
+        Array.from(new Set((canonical.collisionLayers || []).flat())).sort(compareNumericNames)
+    );
+    const retainedObjectList = Array.from(retainedObjects).sort(compareNumericNames);
+    const normalizedWinConditionB = condition => {
+        const bObjects = Array.from(new Set(condition.b || [])).sort(compareNumericNames);
+        if (JSON.stringify(bObjects) === allLayerObjectsKey) {
+            return retainedObjectList;
+        }
+        return condition.b || [];
+    };
 
-    return {
+    const result = {
         format,
         metadata: includeMetadata ? (canonical.metadata || []) : [],
         playerObjects: dedupeList((canonical.playerObjects || []).filter(name => retainedObjects.has(name))),
@@ -948,7 +960,7 @@ function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
             ? (canonical.winConditions || []).map(condition => ({
                 quantifier: condition.quantifier,
                 a: dedupeList(condition.a || []),
-                b: dedupeList(condition.b || []),
+                b: dedupeList(normalizedWinConditionB(condition)),
             }))
             : [],
         levels: includeLevels
@@ -965,6 +977,40 @@ function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
             })
             : [],
     };
+    if (loops.length > 0) {
+        result.loops = loops;
+    }
+    return result;
+}
+
+function normalizeCanonicalLoops(loops, rules) {
+    if (!Array.isArray(loops) || loops.length === 0) {
+        return [];
+    }
+    const retainedGroups = Array.from(new Set((rules || []).map(rule => rule.groupNumber)))
+        .filter(Number.isInteger)
+        .sort((a, b) => a - b);
+    const result = [];
+    const seen = new Set();
+    for (const loop of loops) {
+        if (!Number.isInteger(loop.startGroup) || !Number.isInteger(loop.endGroup)) {
+            continue;
+        }
+        const groups = retainedGroups.filter(group => group >= loop.startGroup && group <= loop.endGroup);
+        if (groups.length === 0) {
+            continue;
+        }
+        const normalized = {
+            startGroup: groups[0],
+            endGroup: groups[groups.length - 1],
+        };
+        const key = `${normalized.startGroup}:${normalized.endGroup}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            result.push(normalized);
+        }
+    }
+    return result;
 }
 
 function serializeCompiledRule(rule, nameMap, state, options) {
@@ -988,6 +1034,37 @@ function serializeCompiledRule(rule, nameMap, state, options) {
         rhs: rule.rhs.map(row => row.map(cell => serializeCompiledCell(cell, nameMap, state))),
         commands
     };
+}
+
+function serializeCompiledLoops(state, rulePairs, groupMap) {
+    if (!Array.isArray(state.loops) || state.loops.length < 2) {
+        return [];
+    }
+    const loops = [];
+    for (let index = 0; index + 1 < state.loops.length; index += 2) {
+        const startLine = state.loops[index][0];
+        const endLine = state.loops[index + 1][0];
+        const groups = [];
+        for (const pair of rulePairs) {
+            const lineNumber = pair.compiledRule && pair.compiledRule.lineNumber;
+            if (lineNumber >= startLine && lineNumber <= endLine) {
+                const canonicalGroup = groupMap.get(pair.compiledRule.groupNumber);
+                if (Number.isInteger(canonicalGroup)) {
+                    groups.push(canonicalGroup);
+                }
+            }
+        }
+        const uniqueGroups = Array.from(new Set(groups)).sort((a, b) => a - b);
+        if (uniqueGroups.length > 0) {
+            loops.push({
+                startGroup: uniqueGroups[0],
+                endGroup: uniqueGroups[uniqueGroups.length - 1],
+            });
+        }
+    }
+    return normalizeCanonicalLoops(loops, rulePairs.map(pair => ({
+        groupNumber: groupMap.get(pair.compiledRule.groupNumber),
+    })));
 }
 
 function listObjectsInCompiledCell(cell, state, nameMap) {
@@ -1103,19 +1180,25 @@ function canonicalizeCompiledState(state, options) {
             .sort((a, b) => a.localeCompare(b))
     );
 
-    const rawRules = state.rules
-        .map(rule => serializeCompiledRule(rule, nameMap, state, options))
-        .filter(rule => rule.rhs.length > 0 || rule.commands.length > 0);
+    const rawRulePairs = state.rules
+        .map(rule => ({
+            compiledRule: rule,
+            canonicalRule: serializeCompiledRule(rule, nameMap, state, options),
+        }))
+        .filter(pair => pair.canonicalRule.rhs.length > 0 || pair.canonicalRule.commands.length > 0);
     const groupMap = new Map();
     let nextGroupNumber = 0;
-    const rules = rawRules.map(rule => {
-        if (!groupMap.has(rule.groupNumber)) {
-            groupMap.set(rule.groupNumber, nextGroupNumber++);
+    const rules = rawRulePairs.map(pair => {
+        const rule = pair.canonicalRule;
+        const originalGroupNumber = pair.compiledRule.groupNumber;
+        if (!groupMap.has(originalGroupNumber)) {
+            groupMap.set(originalGroupNumber, nextGroupNumber++);
         }
         return Object.assign({}, rule, {
-            groupNumber: groupMap.get(rule.groupNumber)
+            groupNumber: groupMap.get(originalGroupNumber)
         });
     });
+    const loops = serializeCompiledLoops(state, rawRulePairs, groupMap);
     const result = {
         format: 'puzzlescript-semantic-canonical-v1',
         metadata,
@@ -1124,6 +1207,9 @@ function canonicalizeCompiledState(state, options) {
         collisionLayers,
         rules,
     };
+    if (loops.length > 0) {
+        result.loops = loops;
+    }
 
     if (options.includeWinConditions) {
         result.winConditions = serializeCompiledWinConditions(state.winconditions, state, nameMap);
