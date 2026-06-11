@@ -2108,7 +2108,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		const movementsClear = _m2;
 
 		${FOR(0,MOVEMENT_SIZE,i=>
-			`movementsClear.data[${i}] = ${this.replacement.movementsClear.data[i] | this.replacement.movementsLayerMask.data[i]};\n`
+			`movementsClear.data[${i}] = replace.movementsClear.data[${i}] | replace.movementsLayerMask.data[${i}];\n`
 		)}
 
 		${IF_LAZY(hasInferredAggregateBindings, () => `
