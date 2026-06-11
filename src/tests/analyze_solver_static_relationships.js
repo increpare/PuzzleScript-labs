@@ -25,6 +25,8 @@ function usage() {
     console.error([
         'Usage: node src/tests/analyze_solver_static_relationships.js <solver_tests_dir> <focus_group_json>',
         '  [--out PATH] [--matrix PATH]... [--quiet]',
+        '  focus_group_json may be a checked-in solver_focus_group manifest or',
+        '  a solver_wincondition_focus_group manifest from mine_solver_wincondition_focus.js.',
     ].join('\n'));
     process.exit(1);
 }
@@ -67,8 +69,12 @@ function readJson(filePath) {
 
 function loadFocus(inputPath) {
     const root = readJson(inputPath);
-    if (root.kind !== 'solver_wincondition_focus_group') {
-        throw new Error(`Expected focus group manifest, got ${root.kind || 'unknown'}`);
+    const supportedKinds = new Set(['solver_focus_group', 'solver_wincondition_focus_group']);
+    if (!supportedKinds.has(root.kind)) {
+        throw new Error(`Expected solver focus group manifest, got ${root.kind || 'unknown'}`);
+    }
+    if (!Array.isArray(root.targets)) {
+        throw new Error(`Focus group manifest ${inputPath} has no targets array`);
     }
     return root;
 }
@@ -197,8 +203,14 @@ function relationSummary(stats, condition, playerMask) {
 function analyzeGame(game) {
     compileGame(game);
     const condition = state.winconditions && state.winconditions.length === 1 ? state.winconditions[0] : null;
-    if (!condition || condition[0] !== 0) {
-        throw new Error(`${game} is not a single some wincondition game`);
+    if (!condition || condition[0] !== 0 || !maskHasBits(condition[1]) || !maskHasBits(condition[2])) {
+        return {
+            game,
+            skipped: {
+                reason: 'unsupported_wincondition',
+                detail: 'expected a single SOME ... ON ... wincondition',
+            },
+        };
     }
 
     const playerMask = playerMaskForState();
@@ -461,6 +473,12 @@ function summarizeOutcomes(targets, metrics) {
 
 function printHuman(report) {
     for (const game of report.games) {
+        if (game.skipped) {
+            process.stdout.write(
+                `${game.game}: skipped ${game.skipped.reason} (${game.skipped.detail})\n`
+            );
+            continue;
+        }
         const outcome = game.outcome || {};
         const best = Object.entries(outcome.best_heuristic_counts || {})
             .sort((left, right) => right[1] - left[1])
@@ -497,8 +515,10 @@ function main() {
     for (const game of games) {
         log(`static_relationships game=${game}`);
         const analysis = analyzeGame(game);
-        analysis.relationship = relationSummary(analysis.stats, state.winconditions[0], playerMaskForState());
-        analysis.outcome = outcomes.get(game) || null;
+        if (!analysis.skipped) {
+            analysis.relationship = relationSummary(analysis.stats, state.winconditions[0], playerMaskForState());
+            analysis.outcome = outcomes.get(game) || null;
+        }
         report.games.push(analysis);
     }
 
