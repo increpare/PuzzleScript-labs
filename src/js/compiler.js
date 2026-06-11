@@ -3840,7 +3840,9 @@ function printCellRow(cellRow) {
 }
 
 function cacheRuleStringRep(rule) {
-    let result = "(<a onclick=\"jumpToLine('" + rule.lineNumber.toString() + "');\"  href=\"javascript:void(0);\">" + rule.lineNumber + "</a>) ";
+    //plain-text line-number marker; printRules swaps in the jumpToLine anchor for display.
+    //keeping stringRep free of the HTML anchor halves the bytes removeDuplicateRules has to hash.
+    let result = "(" + rule.lineNumber + ") ";
 
     //only print rule-direction if some lhs cellrow has length>1
     let directed=false;
@@ -3950,7 +3952,8 @@ function printRules(state) {
             } else {
                 output += '&nbsp;&nbsp;';
             }
-            output += rule.stringRep + "<br>";
+            const lineNumberAnchor = "(<a onclick=\"jumpToLine('" + rule.lineNumber.toString() + "');\"  href=\"javascript:void(0);\">" + rule.lineNumber + "</a>)";
+            output += rule.stringRep.replace("(" + rule.lineNumber + ")", lineNumberAnchor) + "<br>";
         }
     }
     if (!outsideLoop) {

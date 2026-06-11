@@ -2640,32 +2640,44 @@ function FOR(start, end, fn) {
 
 let CACHE_RULE_APPLYAT = {}
 Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE, MOVEMENT_SIZE) {
+	//have to double check the cell rows still apply
+	//(cf test ellipsis bug: rule matches two candidates, first replacement invalidates second).
+	//only the variant matching the row's ellipsis count is emitted - dead variants would
+	//just bloat the source that new Function has to parse.
+	//
+	//capture ordering in the generated code: Phase 5c-1 property aliases are captured
+	//before Phase 7B-2b/5c-4 aggregate bindings, because property-attached aggregate
+	//bindings need the captured alias layer to know where to read the source movement bit.
 	const fn = `'use strict';
-	//have to double check they apply 
-	//(cf test ellipsis bug: rule matches two candidates, first replacement invalidates second)
 	if (check)
 	{
-	${FOR(0, patterns.length, cellRowIndex => `
+	${FOR(0, patterns.length, cellRowIndex => {
+		const rowEllipsisCount = ellipsisCount[cellRowIndex];
+		if (rowEllipsisCount === 0) {
+			return `
 		{
-			${IF(ellipsisCount[cellRowIndex] === 0)}
 				if ( ! this.cellRowMatches[${cellRowIndex}](
-					this.patterns[${cellRowIndex}], 
-						tuple[${cellRowIndex}], 
+					this.patterns[${cellRowIndex}],
+						tuple[${cellRowIndex}],
 						delta, level.objects, level.movements
 						) )
 				return false
-			${ENDIF(ellipsisCount[cellRowIndex] === 0)}
-			${IF(ellipsisCount[cellRowIndex] === 1)}
+		}`;
+		} else if (rowEllipsisCount === 1) {
+			return `
+		{
 				if ( this.cellRowMatches[${cellRowIndex}](
-						this.patterns[${cellRowIndex}], 
-						tuple[${cellRowIndex}][0], 
-						tuple[${cellRowIndex}][1]+1, 
-							tuple[${cellRowIndex}][1], 
+						this.patterns[${cellRowIndex}],
+						tuple[${cellRowIndex}][0],
+						tuple[${cellRowIndex}][1]+1,
+							tuple[${cellRowIndex}][1],
 						delta, level.objects, level.movements
 					).length === 0 )
 					return false
-			${ENDIF(ellipsisCount[cellRowIndex] === 1)}
-			${IF(ellipsisCount[cellRowIndex] === 2)}
+		}`;
+		} else {
+			return `
+		{
 				if ( this.cellRowMatches[${cellRowIndex}](
 						this.patterns[${cellRowIndex}],
 						tuple[${cellRowIndex}][0],
@@ -2678,18 +2690,14 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 							delta, level.objects, level.movements
 						).length === 0 )
 					return false
-			${ENDIF(ellipsisCount[cellRowIndex] === 2)}
-		}`)}
+		}`;
+		}
+	})}
 	}
 
-	// Phase 5c-1: capture property aliases before aggregate bindings. Phase
-	// 5c-4's property-attached aggregate bindings need the captured alias
-	// layer to know where to read the source movement bit.
 	if (this.propertyBindingsArr !== null) {
 		this.capturePropertyBindings(level, tuple, delta);
 	}
-	// Phase 7B-2b/5c-4: capture aggregate-direction bindings between match
-	// confirmation and the apply pass. No-op when the rule has none.
 	if (this.aggregateBindingsArr !== null) {
 		this.captureAggregateBindings(level, tuple, delta);
 	}
@@ -2697,7 +2705,6 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
     let result=false;
 	let anyellipses=false;
 
-    //APPLY THE RULE
 	${FOR(0, patterns.length, cellRowIndex => {
 		const preRow = patterns[cellRowIndex];
 		return `
@@ -3089,10 +3096,10 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 				`)}
 			}
 
-			${IF(state.rigid)}
+			${IF_LAZY(state.rigid, () => `
 				${SET_ZERO("level.rigidGroupIndexMask[i]")}
 				${SET_ZERO("level.rigidMovementAppliedMask[i]")}
-			${ENDIF(state.rigid)}
+			`)}
 
 		}
 		return doUndo;
