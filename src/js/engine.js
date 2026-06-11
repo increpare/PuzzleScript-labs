@@ -1466,8 +1466,9 @@ function Rule(rule) {
 	// via the inferredAggregateBindings entries.
 	this.aggregateBindingsArr = rule[12] || null;
 	this.aggregateCaptures = this.aggregateBindingsArr ? {} : null;
-	// Phase 5c-1: property-binding alias capture. capturePropertyBindings
-	// scans the LHS source cell to find which alias is present and stashes
+	// Phase 5c-1/5c-3: property-binding alias capture.
+	// capturePropertyBindings scans the LHS source cell to find which alias
+	// is present and satisfies the source movement predicate, then stashes
 	// {objectId, layerIndex} on this.propertyCaptures keyed by property name.
 	// CellReplacement.inferredPropertyBindings entries consume the captures.
 	this.propertyBindingsArr = rule[13] || null;
@@ -1529,10 +1530,23 @@ Rule.prototype.captureAggregateBindings = function (level, tuple, delta) {
 	}
 };
 
-// Phase 5c-1: scan the LHS source cell's objects to find which alias of each
-// layer-coupled property is present, and stash {objectId, layerIndex} on
-// this.propertyCaptures keyed by property name. CellReplacement.replace reads
-// the captures to write the same alias at each sink position.
+function getMovementBitsForLayerAt(level, cellPos, layerIndex) {
+	const shift = 5 * layerIndex;
+	const wordIdx = shift >>> 5;
+	const wordShift = shift & 31;
+	const movementsBase = cellPos * STRIDE_MOV;
+	let raw = (level.movements[movementsBase + wordIdx] || 0) >>> wordShift;
+	if (wordShift > 27) {
+		raw |= (level.movements[movementsBase + wordIdx + 1] || 0) << (32 - wordShift);
+	}
+	return raw & 0x1f;
+}
+
+// Phase 5c-1/5c-3: scan the LHS source cell's objects to find which alias of
+// each layer-coupled property is present and satisfies the source movement
+// predicate, then stash {objectId, layerIndex} on this.propertyCaptures keyed
+// by property name. CellReplacement.replace reads the captures to write the
+// same alias at each sink position.
 Rule.prototype.capturePropertyBindings = function (level, tuple, delta) {
 	const bindings = this.propertyBindingsArr;
 	if (!bindings || bindings.length === 0) return;
@@ -1548,10 +1562,23 @@ Rule.prototype.capturePropertyBindings = function (level, tuple, delta) {
 			const alias = b.aliases[ai];
 			const wordIdx = (alias.objectId / 32) | 0;
 			const bitOffset = alias.objectId & 31;
-			if (level.objects[objectsBase + wordIdx] & (1 << bitOffset)) {
-				captures[b.propertyName] = alias;
-				break;
+			if ((level.objects[objectsBase + wordIdx] & (1 << bitOffset)) === 0) {
+				continue;
 			}
+			const sourceMovementMode = b.sourceMovementMode || 0;
+			if (sourceMovementMode !== 0) {
+				const movementBits = getMovementBitsForLayerAt(level, cellPos, alias.layerIndex);
+				const sourceMovementMask = b.sourceMovementMask || 0;
+				if (sourceMovementMode === 1) {
+					if (movementBits & sourceMovementMask) {
+						continue;
+					}
+				} else if ((movementBits & sourceMovementMask) !== sourceMovementMask) {
+					continue;
+				}
+			}
+			captures[b.propertyName] = alias;
+			break;
 		}
 	}
 };

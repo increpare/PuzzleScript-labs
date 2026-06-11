@@ -38,6 +38,12 @@ blue
 Marker
 yellow
 
+Temp
+green
+
+Fixed
+darkgreen
+
 ${'======='}
 LEGEND
 ${'======='}
@@ -59,6 +65,8 @@ Background
 Marker
 Alpha
 Beta
+Temp
+Fixed
 Player
 
 ${'======'}
@@ -75,6 +83,13 @@ LEVELS
 ${'======='}
 ${level}
 `;
+}
+
+function runInputs(source, inputs, randomseed) {
+    compileSource(source, randomseed);
+    for (const input of inputs) {
+        processInput(input);
+    }
 }
 
 test('independent LHS property terms do not require the same concrete object', () => {
@@ -138,4 +153,20 @@ test('Phase 5c-1: single rule coalesces cross-cell property preservation', () =>
         'a.'
     ));
     assert.strictEqual(ruleCount(state), 1);
+});
+
+test('Phase 5c-3: action source captures the alias with the matching movement bit', () => {
+    runInputs(baseSource(
+        `[action player no Alpha no fixed ] -> [ player action Alpha fixed temp]
+[action player no Beta no fixed ] -> [ player action Beta fixed temp]
+
+right [ action Thing temp | ] -> [ action Thing temp | > Thing ]
++ [ perpendicular Thing | ] -> [ perpendicular Thing | Thing ]
+[orthogonal Thing]->[Thing]
+
+[temp]->[]`,
+        'p...'
+    ), [4, 3, 4]);
+
+    assertNamesAt(2, ['beta'], 'second action should propagate the newly action-tagged Beta, not stale Alpha');
 });
