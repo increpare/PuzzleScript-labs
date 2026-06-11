@@ -1848,26 +1848,6 @@ function layerCoupledMovementMaskMatchExpression(term) {
 	return options.length === 0 ? 'false' : options.join('||');
 }
 
-function layerCoupledMovementMasksCacheKey(terms) {
-	if (terms.length === 0) {
-		return '0';
-	}
-	const parts = [terms.length];
-	for (let i = 0; i < terms.length; i++) {
-		const term = terms[i];
-		parts.push(term.layers.length);
-		for (let j = 0; j < term.layers.length; j++) {
-			const layer = term.layers[j];
-			parts.push(layer.layerIndex);
-			for (let w = 0; w < STRIDE_OBJ; w++) parts.push(layer.objectMask.data[w] || 0);
-			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsAny.data[w] || 0);
-			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsPresent.data[w] || 0);
-			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsMissing.data[w] || 0);
-		}
-	}
-	return parts.join(':');
-}
-
 //patternExpr is a source-level expression that evaluates to this CellPattern in
 //the generated function's scope (e.g. 'this' or 'cellRow[0]'). Masks are read
 //from it at runtime rather than embedded as integer literals: the emitted source
@@ -1931,67 +1911,31 @@ CellPattern.prototype.generateMatchString = function (patternExpr) {
 }
 
 let CACHE_CELLPATTERN_MATCHFUNCTION = new Map();
-let _generateMatchFunction_key_array = new Int32Array(0);
 CellPattern.prototype.generateMatchFunction = function() {
-    // Calculate total size needed for the key array.
-    // The two trailing length values disambiguate cases where anyObjectsPresent
-    // bits and anyMovementsPresent bits would otherwise occupy the same slots
-    // (e.g. STRIDE_OBJ == STRIDE_MOV with counts swapped).
-    const keyLength = STRIDE_OBJ * 2 + STRIDE_MOV * 2 +
-                     this.anyObjectsPresent.length * STRIDE_OBJ +
-                     this.anyMovementsPresent.length * STRIDE_MOV + 4;
-	if (keyLength!==_generateMatchFunction_key_array.length) {
-		_generateMatchFunction_key_array = new Int32Array(keyLength);
-	}
-    const keyArray = _generateMatchFunction_key_array;
-    let keyIndex = 0;
-
-    // Fill the array with data
-    for (let i = 0; i < STRIDE_OBJ; i++) {
-        keyArray[keyIndex++] = this.objectsPresent.data[i] || 0;
-        keyArray[keyIndex++] = this.objectsMissing.data[i] || 0;
-    }
-    for (let i = 0; i < STRIDE_MOV; i++) {
-        keyArray[keyIndex++] = this.movementsPresent.data[i] || 0;
-        keyArray[keyIndex++] = this.movementsMissing.data[i] || 0;
-    }
-    for (let i = 0; i < this.anyObjectsPresent.length; i++) {
-        for (let j = 0; j < STRIDE_OBJ; j++) {
-            keyArray[keyIndex++] = this.anyObjectsPresent[i].data[j] || 0;
-        }
-    }
-    for (let i = 0; i < this.anyMovementsPresent.length; i++) {
-        for (let j = 0; j < STRIDE_MOV; j++) {
-            keyArray[keyIndex++] = this.anyMovementsPresent[i].data[j] || 0;
-        }
-    }
-    keyArray[keyIndex++] = STRIDE_OBJ;
-    keyArray[keyIndex++] = STRIDE_MOV;
-    keyArray[keyIndex++] = this.anyObjectsPresent.length;
-    keyArray[keyIndex++] = this.anyMovementsPresent.length;
-	let str_key = keyArray.toString() + "|" + layerCoupledMovementMasksCacheKey(this.layerCoupledMovementMasks);
-
-    if (CACHE_CELLPATTERN_MATCHFUNCTION.has(str_key)) {
-        return CACHE_CELLPATTERN_MATCHFUNCTION.get(str_key);
-    }
-
+    // The generated source reads the masks through 'this' at runtime, so it
+    // depends only on the pattern's shape - the source itself is the cache key.
+    // Patterns with the same shape share one function object (and so share
+    // V8's type feedback, keeping the shared function optimized).
     const objStride = STRIDE_OBJ === 1 ? '' : `*${STRIDE_OBJ}`;
     const movStride = STRIDE_MOV === 1 ? '' : `*${STRIDE_MOV}`;
-    
+
     let fn = '';
-    
+
     for (let i = 0; i < STRIDE_OBJ; ++i) {
         fn += `const cellObjects${i} = objects[i${objStride}${i ? '+' + i : ''}];\n`;
     }
-    
+
     for (let i = 0; i < STRIDE_MOV; ++i) {
         fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
     }
-    
+
     fn += `return ${this.generateMatchString('this')};`;
 
-    const result = new Function("i", "objects", "movements", generatedFunctionSource("cellPatternMatch", fn));
-    CACHE_CELLPATTERN_MATCHFUNCTION.set(str_key, result);
+    let result = CACHE_CELLPATTERN_MATCHFUNCTION.get(fn);
+    if (result === undefined) {
+        result = new Function("i", "objects", "movements", generatedFunctionSource("cellPatternMatch", fn));
+        CACHE_CELLPATTERN_MATCHFUNCTION.set(fn, result);
+    }
     return result;
 }
 
@@ -2007,43 +1951,62 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		return FALSE_FUNCTION;
 	}
 
-	const array_len = 3*OBJECT_SIZE + 4*MOVEMENT_SIZE + 3;
-	if (array_len!==_replace_function_key_array.length) {
-		_replace_function_key_array = new Int32Array(array_len);
-	}
-
-	const key_array = _replace_function_key_array;
-	for (let i = 0; i < OBJECT_SIZE; i++) {
-		key_array[i] = this.replacement.objectsSet.data[i] || 0;
-		key_array[i+OBJECT_SIZE] = this.replacement.objectsClear.data[i] || 0;
-		key_array[i+2*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomEntityMask.data[i] || 0;
-	}
-	for (let i = 0; i < MOVEMENT_SIZE; i++) {
-		key_array[i+2*OBJECT_SIZE] = this.replacement.movementsSet.data[i] || 0;
-		key_array[i+2*OBJECT_SIZE+MOVEMENT_SIZE] = this.replacement.movementsClear.data[i] || 0;
-		key_array[i+2*OBJECT_SIZE+2*MOVEMENT_SIZE] = this.replacement.movementsLayerMask.data[i] || 0;
-		key_array[i+3*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomDirMask.data[i] || 0;
-	}
-	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE] = OBJECT_SIZE;
-	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+1] = MOVEMENT_SIZE;
-	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+2] = rule.rigid;
-
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
 	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
 	const hasInferredPropertyBindings = this.replacement.inferredPropertyBindings.length > 0;
 	const hasInferredPropertySources = this.replacement.inferredPropertySources.length > 0;
-	const key = key_array.toString()
-		+ (hasCoupledReplacements ? ",c" : "")
-		+ (hasInferredAggregateBindings ? ",a" : "")
-		+ (hasInferredPropertyBindings ? ",p" : "")
-		+ (hasInferredPropertySources ? ",s" : "");
-	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
-		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
-	}
 
 	const replace_randomEntityMask_zero = this.replacement.randomEntityMask.iszero()
 	const replace_randomDirMask_zero = this.replacement.randomDirMask.iszero()
 	let deterministic = replace_randomEntityMask_zero && replace_randomDirMask_zero;
+
+	let key;
+	if (deterministic && !rule.rigid && !hasCoupledReplacements &&
+		!hasInferredAggregateBindings && !hasInferredPropertyBindings && !hasInferredPropertySources) {
+		// The masks are all read from this.replacement at runtime, so the
+		// generated source for this (overwhelmingly common) case depends only
+		// on the strides - no need to build a key from the mask values.
+		key = OBJECT_SIZE + "," + MOVEMENT_SIZE;
+	} else {
+		// The random-entity and rigid blocks still embed pattern/rule-specific
+		// constants in the source, so key on the full mask values.
+		const array_len = 3*OBJECT_SIZE + 4*MOVEMENT_SIZE + 3;
+		if (array_len!==_replace_function_key_array.length) {
+			_replace_function_key_array = new Int32Array(array_len);
+		}
+
+		const key_array = _replace_function_key_array;
+		for (let i = 0; i < OBJECT_SIZE; i++) {
+			key_array[i] = this.replacement.objectsSet.data[i] || 0;
+			key_array[i+OBJECT_SIZE] = this.replacement.objectsClear.data[i] || 0;
+			key_array[i+2*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomEntityMask.data[i] || 0;
+		}
+		for (let i = 0; i < MOVEMENT_SIZE; i++) {
+			key_array[i+2*OBJECT_SIZE] = this.replacement.movementsSet.data[i] || 0;
+			key_array[i+2*OBJECT_SIZE+MOVEMENT_SIZE] = this.replacement.movementsClear.data[i] || 0;
+			key_array[i+2*OBJECT_SIZE+2*MOVEMENT_SIZE] = this.replacement.movementsLayerMask.data[i] || 0;
+			key_array[i+3*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomDirMask.data[i] || 0;
+		}
+		key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE] = OBJECT_SIZE;
+		key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+1] = MOVEMENT_SIZE;
+		key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+2] = rule.rigid;
+
+		// The rigid block embeds the rule's rigid-group index and the rigid and
+		// random-dir blocks loop over the layer count, so those must be part of
+		// the key: rigid rules with identical masks but different groups (or
+		// different games that happen to share mask values) must not share a
+		// generated function.
+		key = key_array.toString()
+			+ (hasCoupledReplacements ? ",c" : "")
+			+ (hasInferredAggregateBindings ? ",a" : "")
+			+ (hasInferredPropertyBindings ? ",p" : "")
+			+ (hasInferredPropertySources ? ",s" : "")
+			+ ",lc" + LAYER_COUNT
+			+ (rule.rigid ? ",rg" + (state.groupNumber_to_RigidGroupIndex[rule.groupNumber] | 0) : "");
+	}
+	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
+		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
+	}
 
 	let fn = `
 		let replace = this.replacement;
