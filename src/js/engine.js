@@ -1518,7 +1518,16 @@ Rule.prototype.captureAggregateBindings = function (level, tuple, delta) {
 		const tupleEntry = tuple[b.sourceRow];
 		const basePos = (typeof tupleEntry === 'number') ? tupleEntry : tupleEntry[0];
 		const cellPos = basePos + b.sourceCell * delta;
-		const shift = 5 * b.sourceLayer;
+		let sourceLayer = b.sourceLayer;
+		if (b.sourcePropertyName) {
+			const propertyCapture = this.propertyCaptures && this.propertyCaptures[b.sourcePropertyName];
+			if (!propertyCapture) {
+				captures[b.aggregateName] = 0;
+				continue;
+			}
+			sourceLayer = propertyCapture.layerIndex;
+		}
+		const shift = 5 * sourceLayer;
 		const wordIdx = shift >>> 5;
 		const wordShift = shift & 31;
 		const movementsBase = cellPos * STRIDE_MOV;
@@ -1571,6 +1580,10 @@ Rule.prototype.capturePropertyBindings = function (level, tuple, delta) {
 				const sourceMovementMask = b.sourceMovementMask || 0;
 				if (sourceMovementMode === 1) {
 					if (movementBits & sourceMovementMask) {
+						continue;
+					}
+				} else if (sourceMovementMode === 3) {
+					if ((movementBits & sourceMovementMask) === 0) {
 						continue;
 					}
 				} else if ((movementBits & sourceMovementMask) !== sourceMovementMask) {
@@ -2067,11 +2080,18 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		// at each inferred sink's layer position.
 		const inferredAggregateBindings = replace.inferredAggregateBindings;
 		const aggregateCaptures = rule.aggregateCaptures;
+		const propertyCapturesForAggregates = rule.propertyCaptures;
 		for (let bi = 0; bi < inferredAggregateBindings.length; bi++) {
 			const b = inferredAggregateBindings[bi];
 			const captured = aggregateCaptures[b.aggregateName];
 			if (captured) {
-				movementsSet.ishiftor(captured, 5 * b.layerIndex);
+				let layerIndex = b.layerIndex;
+				if (b.propertyName) {
+					const propertyCaptured = propertyCapturesForAggregates && propertyCapturesForAggregates[b.propertyName];
+					if (!propertyCaptured) continue;
+					layerIndex = propertyCaptured.layerIndex;
+				}
+				movementsSet.ishiftor(captured, 5 * layerIndex);
 			}
 		}
 		`)}
@@ -2081,6 +2101,18 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		${FOR(0,MOVEMENT_SIZE,i=>
 			`movementsClear.data[${i}] = ${this.replacement.movementsClear.data[i] | this.replacement.movementsLayerMask.data[i]};\n`
 		)}
+
+		${IF_LAZY(hasInferredAggregateBindings, () => `
+		// Phase 5c-4: property-attached aggregate sinks need dynamic layer
+		// clearing because the destination layer is the captured alias layer.
+		for (let bi = 0; bi < inferredAggregateBindings.length; bi++) {
+			const b = inferredAggregateBindings[bi];
+			if (!b.propertyName) continue;
+			const propertyCaptured = propertyCapturesForAggregates && propertyCapturesForAggregates[b.propertyName];
+			if (!propertyCaptured) continue;
+			movementsClear.ishiftor(0x1f, 5 * propertyCaptured.layerIndex);
+		}
+		`)}
 
 		${IF_LAZY(hasInferredPropertySources, () => `
 		// Phase 5c-2: also clear the captured alias's layer's movement bits
@@ -2633,14 +2665,16 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 		}`)}
 	}
 
-	// Phase 7B-2b: capture aggregate-direction bindings between match
+	// Phase 5c-1: capture property aliases before aggregate bindings. Phase
+	// 5c-4's property-attached aggregate bindings need the captured alias
+	// layer to know where to read the source movement bit.
+	if (this.propertyBindingsArr !== null) {
+		this.capturePropertyBindings(level, tuple, delta);
+	}
+	// Phase 7B-2b/5c-4: capture aggregate-direction bindings between match
 	// confirmation and the apply pass. No-op when the rule has none.
 	if (this.aggregateBindingsArr !== null) {
 		this.captureAggregateBindings(level, tuple, delta);
-	}
-	// Phase 5c-1: same for property-binding alias captures.
-	if (this.propertyBindingsArr !== null) {
-		this.capturePropertyBindings(level, tuple, delta);
 	}
 
     let result=false;

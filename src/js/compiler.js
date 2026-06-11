@@ -1341,7 +1341,7 @@ function ruleCellTermsEqual(cell_l, cell_r) {
 
 
 //returns you a list of object names in that cell that're moving
-function getMovings(state, cell, safeAggregates) {
+function getMovings(state, cell, safeAggregates, safeAggregatePropertyAttachments) {
     let result = [];
     for (let j = 0; j < cell.length; j += 2) {
         let dir = cell[j];
@@ -1349,7 +1349,9 @@ function getMovings(state, cell, safeAggregates) {
         if (dir in directionaggregates) {
             if (safeAggregates && safeAggregates.has(dir)) {
                 const isLayerCoupled = !state.objects[name] && isLayerCoupledProperty(state, name);
-                if (!isLayerCoupled) continue;
+                const safePropertyAttachment = safeAggregatePropertyAttachments &&
+                    safeAggregatePropertyAttachments.has(dir + '\0' + name);
+                if (!isLayerCoupled || safePropertyAttachment) continue;
             }
             result.push([name, dir]);
         }
@@ -1454,12 +1456,56 @@ function computeAggregateCoalescingPlan(state, rule) {
     const rhsByDir = collectAggregatePositions(rule.rhs);
 
     const safe = new Set();
+    const safePropertyAttachments = new Set();
     const bindings = new Map();
     const sinks = new Map();
     const inferenceAllowed = ruleAllowsAggregateInferenceBinding(rule);
 
     for (const [dir, lhsList] of lhsByDir) {
         const rhsList = rhsByDir.get(dir) || [];
+        const hasLayerCoupledAttachments =
+            lhsList.some(p => p.isLayerCoupled) || rhsList.some(p => p.isLayerCoupled);
+
+        // Phase 5c-4: narrow composition with property alias capture. If this
+        // aggregate's only source and all sinks are attached to the same
+        // layer-coupled property, the runtime can first capture the property
+        // alias layer, then capture/apply the aggregate movement bit on that
+        // captured layer.
+        if (hasLayerCoupledAttachments) {
+            if (!inferenceAllowed || lhsList.length !== 1 || rhsList.length !== 1) continue;
+            const source = lhsList[0];
+            if (!source.isLayerCoupled) continue;
+            const sink = rhsList[0];
+            if (sink.row === source.row && sink.cell === source.cell && sink.name === source.name) continue;
+            const allRhsSameProperty = rhsList.every(
+                p => p.isLayerCoupled && p.name === source.name
+            );
+            if (!allRhsSameProperty) continue;
+
+            let aggregateMask = 0;
+            const concretes = directionaggregates[dir];
+            for (let cdi = 0; cdi < concretes.length; cdi++) {
+                aggregateMask |= dirMasks[concretes[cdi]];
+            }
+
+            safe.add(dir);
+            safePropertyAttachments.add(dir + '\0' + source.name);
+            bindings.set(dir, {
+                sourceRow: source.row,
+                sourceCell: source.cell,
+                sourcePropertyName: source.name,
+                aggregateMask,
+            });
+            const sinkList = [];
+            for (const p of rhsList) {
+                if (p.row !== source.row || p.cell !== source.cell || p.name !== source.name) {
+                    sinkList.push({ row: p.row, cell: p.cell, propertyName: p.name });
+                }
+            }
+            sinks.set(dir, sinkList);
+            continue;
+        }
+
         // Skip any aggregate name that has layer-coupled attachments anywhere
         // — the existing layer-coupled machinery handles those by splitting,
         // and coalescing would leave a layer-coupled aggregate term that the
@@ -1510,7 +1556,7 @@ function computeAggregateCoalescingPlan(state, rule) {
         }
         sinks.set(dir, sinkList);
     }
-    return { safe, bindings, sinks };
+    return { safe, safePropertyAttachments, bindings, sinks };
 }
 
 function concretizePropertyInCell(cell, property, concreteType) {
@@ -1606,10 +1652,21 @@ function computePropertyCoalescingPlan(state, rule) {
         // directions ('moving', 'horizontal' …) and `randomdir` are still
         // deferred — they need composition with 7B-2b or extra capture
         // machinery.
+        const aggregateSinkMatches = (p) => {
+            if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return false;
+            const sinkList = rule.aggregateSinks.get(p.dir);
+            if (!sinkList) return false;
+            return sinkList.some(s =>
+                s.row === p.row &&
+                s.cell === p.cell &&
+                s.propertyName === propName
+            );
+        };
         const sinkDirsOk = rhsList.every(p =>
             p.dir === '' ||
             p.dir === 'stationary' ||
-            (LAYER_COUPLED_MOVEMENT_DIRS[p.dir] && dirMasks.hasOwnProperty(p.dir))
+            (LAYER_COUPLED_MOVEMENT_DIRS[p.dir] && dirMasks.hasOwnProperty(p.dir)) ||
+            aggregateSinkMatches(p)
         );
         if (!sinkDirsOk) continue;
         // At least one sink must be at a different cell than the source —
@@ -1640,6 +1697,12 @@ function computePropertyCoalescingPlan(state, rule) {
         } else if (source.dir !== '' && dirMasks.hasOwnProperty(source.dir)) {
             sourceMovementMode = 2;
             sourceMovementMask = dirMasks[source.dir];
+        } else if (source.dir in directionaggregates) {
+            sourceMovementMode = 3;
+            const concretes = directionaggregates[source.dir];
+            for (let cdi = 0; cdi < concretes.length; cdi++) {
+                sourceMovementMask |= dirMasks[concretes[cdi]];
+            }
         }
         bindings.set(propName, {
             sourceRow: source.row,
@@ -2247,6 +2310,7 @@ function concretizeMovingRule(state, rule, lineNumber) {
 
     const coalescingPlan = computeAggregateCoalescingPlan(state, rule);
     const safeAggregates = coalescingPlan.safe;
+    const safeAggregatePropertyAttachments = coalescingPlan.safePropertyAttachments;
     let shouldremove;
     let result = [rule];
     let modified = true;
@@ -2260,7 +2324,12 @@ function concretizeMovingRule(state, rule, lineNumber) {
                 let cur_rulerow = cur_rule.lhs[j];
                 for (let k = 0; k < cur_rulerow.length; k++) {
                     let cur_cell = cur_rulerow[k];
-                    let movings = getMovings(state, cur_cell, safeAggregates); //finds aggregate directions
+                    let movings = getMovings(
+                        state,
+                        cur_cell,
+                        safeAggregates,
+                        safeAggregatePropertyAttachments
+                    ); //finds aggregate directions
                     if (movings.length > 0) {
                         shouldremove = true;
                         modified = true;
@@ -2415,7 +2484,12 @@ function concretizeMovingRule(state, rule, lineNumber) {
         delete currentRule.movingReplacement;
         for (const ruleRow of currentRule.rhs) {
             for (const cell of ruleRow) {
-                const movings = getMovings(state, cell, safeAggregates);
+                const movings = getMovings(
+                    state,
+                    cell,
+                    safeAggregates,
+                    safeAggregatePropertyAttachments
+                );
                 if (movings.length > 0) {
                     rhsAmbiguousMovementsRemain = movings[0][1];
                     break outerloop;
@@ -2441,6 +2515,7 @@ function concretizeMovingRule(state, rule, lineNumber) {
                 sourceRow: b.sourceRow,
                 sourceCell: b.sourceCell,
                 sourceLayer: b.sourceLayer,
+                sourcePropertyName: b.sourcePropertyName,
                 aggregateMask: b.aggregateMask,
             });
         }
@@ -2927,7 +3002,8 @@ function rulesToMask(state) {
                         const sinkDirOk =
                             object_dir === '' ||
                             object_dir === 'stationary' ||
-                            (LAYER_COUPLED_MOVEMENT_DIRS[object_dir] && dirMasks.hasOwnProperty(object_dir));
+                            (LAYER_COUPLED_MOVEMENT_DIRS[object_dir] && dirMasks.hasOwnProperty(object_dir)) ||
+                            (object_dir in directionaggregates && rule.aggregateSinks);
                         if (sinkDirOk && rule.propertySinks) {
                             const sinkList = rule.propertySinks.get(object_name);
                             if (sinkList) {
@@ -2962,6 +3038,23 @@ function rulesToMask(state) {
                                             dirMode,
                                             dirMask,
                                         });
+                                        if (object_dir in directionaggregates && rule.aggregateSinks) {
+                                            const aggregateSinkList = rule.aggregateSinks.get(object_dir);
+                                            if (aggregateSinkList) {
+                                                for (let ai = 0; ai < aggregateSinkList.length; ai++) {
+                                                    const aggregateSink = aggregateSinkList[ai];
+                                                    if (aggregateSink.row === rowIndex &&
+                                                        aggregateSink.cell === colIndex &&
+                                                        aggregateSink.propertyName === object_name) {
+                                                        inferredAggregateBindings.push({
+                                                            aggregateName: object_dir,
+                                                            propertyName: object_name,
+                                                        });
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
                                         break;
                                     }
                                 }

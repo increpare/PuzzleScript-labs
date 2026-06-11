@@ -449,14 +449,32 @@ test('keeps rigid LHS+RHS aggregate inference on the expansion path', () => {
     assert.ok(ruleCount(state) > 1, 'rigid aggregate inference should still split');
 });
 
-test('keeps property-attached aggregate inference on the expansion path', () => {
-    // Phase 7B-2b's gate requires concrete-object attachments. When the LHS
-    // source or any RHS sink is on a property, the rule still splits.
+test('coalesces property-attached aggregate inference via property capture', () => {
+    // Phase 5c-4: the runtime captures both the matched property alias and the
+    // matched aggregate movement bit, then writes both at the inferred sink.
     const state = compileSource(baseSource(
         'right [ moving Crate | ] -> [ | moving Crate ]',
         'CC'
     ));
-    assert.ok(ruleCount(state) > 1, 'property-attached aggregate inference should still split');
+    assert.strictEqual(ruleCount(state), 1);
+});
+
+test('property-attached aggregate inference preserves captured alias movement', () => {
+    runRight(baseSource(`
+right [ Crate2 ] -> [ right Crate2 ]
+right [ moving Crate | ] -> [ | moving Crate ]
+`, 'Z..'));
+
+    assertCell(0, ['crate1'], 'non-moving Crate1 alias should remain in the source cell');
+    assertCell(1, ['crate2'], 'captured moving Crate2 alias should be written at the inferred sink');
+});
+
+test('keeps property-attached aggregate inference with same-cell preservation on the expansion path', () => {
+    const state = compileSource(baseSource(
+        'right [ moving Crate | Crate ] -> [ moving Crate | moving Crate ]',
+        'CC'
+    ));
+    assert.ok(ruleCount(state) > 1, 'same-cell aggregate preservation plus inferred sink should still split');
 });
 
 test('coalesces a rule where every RHS aggregate is preserved on LHS', () => {
