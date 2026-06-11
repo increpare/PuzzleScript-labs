@@ -1,0 +1,8 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "inputs": ["A", "A"],
+  "expectedFinalLevel": "background marker player:0,\n",
+  "expect": {
+    "quantityBoundaryChecks": 5
+  }
+}

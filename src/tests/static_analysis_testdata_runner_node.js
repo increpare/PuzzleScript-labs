@@ -167,10 +167,10 @@ P
         const runtimeContractPayload = buildRuntimeContractExpectations(
             runtimeContractSource,
             'runtime-contract-tmp',
-            { inputs: ['tick'] }
+            { inputs: ['TICK'] }
         );
         assert.strictEqual(runtimeContractPayload.schema, FIXTURE_SCHEMA);
-        assert.deepStrictEqual(runtimeContractPayload.inputs, ['tick']);
+        assert.deepStrictEqual(runtimeContractPayload.inputs, ['TICK']);
         assert.strictEqual(runtimeContractPayload.expectedFinalLevel, 'background player:0,\n');
         assert.strictEqual(runtimeContractPayload.expect.neverAppearsObjectCount, 0);
         const generatedLog = [];
@@ -231,7 +231,7 @@ P
                 fixtureSchemaByName(claimDescriptions, 'runtime_contracts'),
                 {
                     schema: FIXTURE_SCHEMA,
-                    inputs: ['tick'],
+                    inputs: ['TICK'],
                     expectedFinalLevel: 'background player:0,\n',
                     expect: {
                         neverAppearsObjectCount: 0,
@@ -272,13 +272,19 @@ P
         const runtimeJsonPath = path.join(runtimeContractsDir, 'runtime-contract-tmp.json');
         const generatedRuntimePayload = JSON.parse(fs.readFileSync(runtimeJsonPath, 'utf8'));
         assert.strictEqual(generatedRuntimePayload.schema, FIXTURE_SCHEMA);
-        assert.deepStrictEqual(generatedRuntimePayload.inputs, ['tick']);
+        assert.deepStrictEqual(generatedRuntimePayload.inputs, ['TICK']);
         assert.strictEqual(generatedRuntimePayload.expectedFinalLevel, 'background player:0,\n');
         assert.strictEqual(generatedRuntimePayload.expect.neverAppearsObjectCount, 0);
 
+        writeJson(runtimeJsonPath, Object.assign({}, generatedRuntimePayload, { inputs: [4] }));
+        assert.throws(
+            () => runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, () => {}),
+            /inputs\[0\] must be a readable string token/
+        );
+
         const curatedRuntime = {
             schema: FIXTURE_SCHEMA,
-            inputs: ['tick'],
+            inputs: ['TICK'],
             expectedFinalLevel: 'background player:0,\n',
             expect: {
                 neverAppearsObjectCount: 0,

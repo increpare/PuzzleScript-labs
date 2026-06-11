@@ -1,0 +1,49 @@
+========
+OBJECTS
+========
+
+Background
+Black
+
+Player
+Pink
+
+Spark
+Yellow
+
+========
+LEGEND
+========
+
+P = Player
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Spark
+
+======
+RULES
+======
+
+[ action Player ] -> [ Player Spark ]
+late [ Spark ] -> []
+
+==============
+WINCONDITIONS
+==============
+
+Some Player
+
+========
+LEVELS
+========
+
+P

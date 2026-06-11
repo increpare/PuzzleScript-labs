@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "inputs": ["R"],
+  "expectedFinalLevel": "background:0,background player sparkle:1,background goal:2,\n",
+  "expect": {
+    "cosmeticObjectCount": 1,
+    "cosmeticProjectionChecks": 1
+  }
+}

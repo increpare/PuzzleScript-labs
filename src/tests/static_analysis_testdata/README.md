@@ -199,13 +199,18 @@ without re-reading the entire source file.
 
 1. Add a small whole-source `.txt` file under `runtime_contracts/`.
 2. Run `make static_analysis_tests`.
-3. The runner will create a matching `.json` file using a default `["tick"]`
+3. The runner will create a matching `.json` file using a default `["TICK"]`
    replay and the observed final serialized level.
 4. If the fixture needs a different replay, edit the JSON `inputs`,
    `targetLevel`, `randomSeed`, `expectedSounds`, and `expectedFinalLevel`,
    then rerun `make static_analysis_tests`.
 5. Trim the `expect` object to the summary fields the fixture is meant to
    protect.
+
+Runtime-contract `inputs` are committed as readable string tokens:
+`"U"`, `"D"`, `"L"`, `"R"`, `"A"`, `"UNDO"`, `"RESTART"`, and `"TICK"`.
+The runner also accepts the longer aliases `"UP"`, `"DOWN"`, `"LEFT"`,
+`"RIGHT"`, and `"ACTION"`.
 
 Runtime-contract fixtures call `runSimulationWithStaticChecks()`. They are for
 small specimens that need runtime evidence for static-analysis claims, not for

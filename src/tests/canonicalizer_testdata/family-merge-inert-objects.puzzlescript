@@ -1,0 +1,84 @@
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Hero
+white
+00000
+00000
+00000
+00000
+00000
+
+Wall
+gray
+00000
+00000
+00000
+00000
+00000
+
+Tree
+green
+00000
+00000
+00000
+00000
+00000
+
+Rock
+brown
+00000
+00000
+00000
+00000
+00000
+
+========
+LEGEND
+========
+
+. = Background
+P = Hero
+W = Wall
+T = Tree
+R = Rock
+Player = Hero
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Hero, Wall, Tree, Rock
+
+=====
+RULES
+=====
+
+[ > Hero | Wall ] -> [ > Hero | Wall ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Tree
+
+======
+LEVELS
+======
+
+PW
+TR

@@ -1,0 +1,68 @@
+title Perpendicular Round Trip
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+Crate
+orange
+00000
+00000
+00000
+00000
+00000
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+C = Crate
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Crate
+
+=====
+RULES
+=====
+
+right [ Player | perpendicular Crate ] -> [ Player | perpendicular Crate ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PC
+..

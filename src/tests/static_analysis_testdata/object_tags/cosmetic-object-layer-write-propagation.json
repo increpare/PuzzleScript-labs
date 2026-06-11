@@ -1,0 +1,21 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Crate",
+      "cosmetic": false
+    },
+    {
+      "object": "Stone",
+      "cosmetic": false
+    },
+    {
+      "object": "Background",
+      "cosmetic": true
+    },
+    {
+      "object": "Player",
+      "cosmetic": false
+    }
+  ]
+}

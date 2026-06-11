@@ -1,0 +1,75 @@
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+ObjA
+red
+00000
+00000
+00000
+00000
+00000
+
+ObjB
+blue
+00000
+00000
+00000
+00000
+00000
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+a = ObjA
+b = ObjB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, ObjA, ObjB
+
+=====
+RULES
+=====
+
+[ > Player | ObjA ] -> [ > Player | ObjA ]
+[ > Player | ObjB ] -> [ > Player | ObjB ]
+
+=============
+WINCONDITIONS
+=============
+
+Some ObjA
+
+======
+LEVELS
+======
+
+Pa
+Pb

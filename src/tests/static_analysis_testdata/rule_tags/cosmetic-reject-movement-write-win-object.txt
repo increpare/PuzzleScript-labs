@@ -1,0 +1,41 @@
+title Static Analysis Rule Tag Cosmetic Reject Movement Write Win Object
+========
+OBJECTS
+========
+Background
+black
+Crate
+brown
+Target
+yellow
+Player
+white
+========
+LEGEND
+========
+. = Background
+P = Player
+C = Crate
+T = Target
+========
+SOUNDS
+========
+================
+COLLISIONLAYERS
+================
+Background
+Crate
+Target
+Player
+=====
+RULES
+=====
+right [ right player | crate ] -> [ right player | right crate ]
+=============
+WINCONDITIONS
+=============
+All Crate On Target
+======
+LEVELS
+======
+PCT

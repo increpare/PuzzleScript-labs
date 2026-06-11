@@ -1,0 +1,49 @@
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+G = Goal
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Goal
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player ] sfx0
+
+=============
+WINCONDITIONS
+=============
+
+All Player on Goal
+
+======
+LEVELS
+======
+
+PG

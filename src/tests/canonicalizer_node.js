@@ -2,6 +2,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 const {
     buildComparisonHashes,
@@ -11,6 +13,12 @@ const {
 } = require('../canonicalize');
 const { decanonicalizeSemantic } = require('../decanonicalize');
 const psStaticAnalysis = require('./ps_static_analysis');
+
+const fixtureDir = path.join(__dirname, 'canonicalizer_testdata');
+
+function loadCanonicalizerFixture(filename) {
+    return fs.readFileSync(path.join(fixtureDir, filename), 'utf8');
+}
 
 const baseGame = `
 title Base
@@ -347,76 +355,7 @@ assert.ok(
 const semanticReordered = canonicalizeSource(reorderedObjects, 'semantic');
 assert.deepStrictEqual(semanticReordered, semanticBase, 'semantic mode should ignore object declaration order');
 
-const perpendicularSource = `
-title Perpendicular Round Trip
-
-========
-OBJECTS
-========
-
-Background
-black
-00000
-00000
-00000
-00000
-00000
-
-Player
-white
-00000
-00000
-00000
-00000
-00000
-
-Crate
-orange
-00000
-00000
-00000
-00000
-00000
-
-${'======='}
-LEGEND
-${'======='}
-
-. = Background
-P = Player
-C = Crate
-
-${'======='}
-SOUNDS
-${'======='}
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Player
-Crate
-
-=====
-RULES
-=====
-
-right [ Player | perpendicular Crate ] -> [ Player | perpendicular Crate ]
-
-=============
-WINCONDITIONS
-=============
-
-Some Player
-
-${'======'}
-LEVELS
-${'======'}
-
-PC
-..
-`;
+const perpendicularSource = loadCanonicalizerFixture('perpendicular-round-trip.puzzlescript');
 
 const perpendicularCanonical = canonicalizeSource(perpendicularSource, 'semantic');
 const perpendicularRehydrated = decanonicalizeSemantic(perpendicularCanonical);
@@ -424,83 +363,7 @@ assert.ok(!/\b(?:horizontal|vertical)_(?:par|perp)\b/.test(perpendicularRehydrat
 const perpendicularRecompiled = compileSemanticSource(perpendicularRehydrated, { throwOnError: false });
 assert.strictEqual(perpendicularRecompiled.errorCount, 0, 'decanonicalized perpendicular rules should compile as source');
 
-const familySource = `
-========
-OBJECTS
-========
-
-Background
-black
-00000
-00000
-00000
-00000
-00000
-
-Player
-white
-00000
-00000
-00000
-00000
-00000
-
-ObjA
-red
-00000
-00000
-00000
-00000
-00000
-
-ObjB
-blue
-00000
-00000
-00000
-00000
-00000
-
-=======
-LEGEND
-=======
-
-. = Background
-P = Player
-a = ObjA
-b = ObjB
-
-=======
-SOUNDS
-=======
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Player, ObjA, ObjB
-
-=====
-RULES
-=====
-
-[ > Player | ObjA ] -> [ > Player | ObjA ]
-[ > Player | ObjB ] -> [ > Player | ObjB ]
-
-=============
-WINCONDITIONS
-=============
-
-Some ObjA
-
-======
-LEVELS
-======
-
-Pa
-Pb
-`;
+const familySource = loadCanonicalizerFixture('family-distinct-rule-objects.puzzlescript');
 
 const familyCanonical = canonicalizeSource(familySource, 'family');
 assert.strictEqual(familyCanonical.format, 'puzzlescript-family-canonical-v1', 'family mode should expose the family format');
@@ -508,93 +371,7 @@ assert.deepStrictEqual(familyCanonical.collisionLayers, [['fam_0', 'fam_1', 'fam
 assert.strictEqual(familyCanonical.rules.length, 8, 'family mode should preserve distinct compiled rules for distinct rule-mentioned objects');
 assert.deepStrictEqual(familyCanonical.playerObjects, ['fam_0'], 'family mode should preserve player role after family relabeling');
 
-const inertLayerSource = `
-========
-OBJECTS
-========
-
-Background
-black
-00000
-00000
-00000
-00000
-00000
-
-Hero
-white
-00000
-00000
-00000
-00000
-00000
-
-Wall
-gray
-00000
-00000
-00000
-00000
-00000
-
-Gem
-green
-00000
-00000
-00000
-00000
-00000
-
-Flower
-pink
-00000
-00000
-00000
-00000
-00000
-
-=======
-LEGEND
-=======
-
-. = Background
-P = Hero
-W = Wall
-G = Gem
-F = Flower
-Player = Hero
-
-=======
-SOUNDS
-=======
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Hero, Wall
-Gem, Flower
-
-=====
-RULES
-=====
-
-[ > Hero | Wall ] -> [ > Hero | Wall ]
-
-=============
-WINCONDITIONS
-=============
-
-Some Gem
-
-======
-LEVELS
-======
-
-PW
-GF
-`;
+const inertLayerSource = loadCanonicalizerFixture('family-prune-inert-layer.puzzlescript');
 
 const inertLayerCanonical = canonicalizeSource(inertLayerSource, 'family');
 assert.deepStrictEqual(inertLayerCanonical.collisionLayers, [['fam_0', 'fam_1']], 'family mode should remove layers with no player or rule-mentioned objects');
@@ -606,92 +383,7 @@ assert.deepStrictEqual(
     'family mode should keep surviving rule-mentioned objects intact when pruning inert layers'
 );
 
-const inertMergeSource = `
-========
-OBJECTS
-========
-
-Background
-black
-00000
-00000
-00000
-00000
-00000
-
-Hero
-white
-00000
-00000
-00000
-00000
-00000
-
-Wall
-gray
-00000
-00000
-00000
-00000
-00000
-
-Tree
-green
-00000
-00000
-00000
-00000
-00000
-
-Rock
-brown
-00000
-00000
-00000
-00000
-00000
-
-=======
-LEGEND
-=======
-
-. = Background
-P = Hero
-W = Wall
-T = Tree
-R = Rock
-Player = Hero
-
-=======
-SOUNDS
-=======
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Hero, Wall, Tree, Rock
-
-=====
-RULES
-=====
-
-[ > Hero | Wall ] -> [ > Hero | Wall ]
-
-=============
-WINCONDITIONS
-=============
-
-Some Tree
-
-======
-LEVELS
-======
-
-PW
-TR
-`;
+const inertMergeSource = loadCanonicalizerFixture('family-merge-inert-objects.puzzlescript');
 
 const inertMergeCanonical = canonicalizeSource(inertMergeSource, 'family');
 assert.deepStrictEqual(inertMergeCanonical.collisionLayers, [['fam_0', 'fam_1', 'fam_2']], 'family mode should merge multiple rule-inert non-player objects within a retained layer');
@@ -700,83 +392,7 @@ const semanticInertMerge = canonicalizeSource(inertMergeSource, 'semantic');
 assert.deepStrictEqual(semanticInertMerge.collisionLayers, [['obj_0', 'obj_1', 'obj_2', 'obj_3']], 'semantic mode should keep win-condition objects distinct while bucketing other rule-inert non-player objects');
 assert.strictEqual(JSON.stringify(semanticInertMerge.winConditions), JSON.stringify([{ quantifier: 0, a: ['obj_2'], b: ['obj_0', 'obj_1', 'obj_2', 'obj_3'] }]), 'semantic mode should preserve some-object win conditions through inert bucketing');
 
-const semanticWinOnlyLayerSource = `
-========
-OBJECTS
-========
-
-Background
-black
-00000
-00000
-00000
-00000
-00000
-
-Hero
-white
-00000
-00000
-00000
-00000
-00000
-
-Wall
-gray
-00000
-00000
-00000
-00000
-00000
-
-Goal
-green
-00000
-00000
-00000
-00000
-00000
-
-${'======='}
-LEGEND
-${'======='}
-
-. = Background
-P = Hero
-# = Wall
-G = Goal
-Player = Hero
-
-${'======='}
-SOUNDS
-${'======='}
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Goal
-Hero, Wall
-
-=====
-RULES
-=====
-
-[ > Hero | Wall ] -> [ > Hero | Wall ]
-
-=============
-WINCONDITIONS
-=============
-
-All Hero on Goal
-
-======
-LEVELS
-======
-
-P#G
-`;
+const semanticWinOnlyLayerSource = loadCanonicalizerFixture('semantic-retain-win-only-layer.puzzlescript');
 
 const semanticWinOnlyLayer = canonicalizeSource(semanticWinOnlyLayerSource, 'semantic');
 assert.deepStrictEqual(
@@ -795,57 +411,7 @@ assert.deepStrictEqual(
     'semantic mode should preserve win-condition target cells in levels'
 );
 
-const inertCommandOptimizationSource = `
-========
-OBJECTS
-========
-
-Background
-black
-
-Player
-white
-
-Goal
-green
-
-${'======='}
-LEGEND
-${'======='}
-
-. = Background
-P = Player
-G = Goal
-
-${'======='}
-SOUNDS
-${'======='}
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Player, Goal
-
-=====
-RULES
-=====
-
-[ Player ] -> [ Player ] sfx0
-
-=============
-WINCONDITIONS
-=============
-
-All Player on Goal
-
-======
-LEVELS
-======
-
-PG
-`;
+const inertCommandOptimizationSource = loadCanonicalizerFixture('static-inert-command-rule.puzzlescript');
 
 const inertCommandBaseline = canonicalizeSource(inertCommandOptimizationSource, 'semantic');
 const inertCommandOptimized = canonicalizeSource(inertCommandOptimizationSource, 'semantic', {
@@ -854,66 +420,7 @@ const inertCommandOptimized = canonicalizeSource(inertCommandOptimizationSource,
 assert.strictEqual(inertCommandBaseline.rules.length, 1, 'baseline semantic canonicalization should retain inert command-only rules after command payload stripping');
 assert.strictEqual(inertCommandOptimized.rules.length, 0, 'static optimization should prune inert command-only rules before canonical serialization');
 
-const cosmeticOptimizationSource = `
-title Canonical Static Cosmetic
-
-========
-OBJECTS
-========
-
-Background
-black
-
-Hero
-blue
-
-Target
-green
-
-Dust
-red
-
-${'======='}
-LEGEND
-${'======='}
-
-. = Background
-P = Hero
-T = Target
-d = Dust
-Player = Hero
-
-${'======='}
-SOUNDS
-${'======='}
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Target
-Hero
-Dust
-
-=====
-RULES
-=====
-
-[ Dust ] -> [ ]
-
-=============
-WINCONDITIONS
-=============
-
-All Hero on Target
-
-======
-LEVELS
-======
-
-PTd
-`;
+const cosmeticOptimizationSource = loadCanonicalizerFixture('static-cosmetic-cleanup-rule.puzzlescript');
 
 const cosmeticBaseline = canonicalizeSource(cosmeticOptimizationSource, 'semantic');
 const cosmeticOptimized = canonicalizeSource(cosmeticOptimizationSource, 'semantic', {
@@ -926,62 +433,7 @@ assert.deepStrictEqual(cosmeticOptimized.collisionLayers, [['obj_0'], ['obj_1']]
 assert.deepStrictEqual(cosmeticBaseline.levels[0].rows[0][2], ['obj_2'], 'baseline should still project the cosmetic object into the canonical level');
 assert.deepStrictEqual(cosmeticOptimized.levels[0].rows[0][2], [], 'static optimization should remove cosmetic objects from canonical levels');
 
-const mergeOptimizationSource = `
-title Canonical Static Merge
-
-========
-OBJECTS
-========
-
-Background
-black
-
-Alpha
-red
-
-Beta
-blue
-
-Player
-yellow
-
-${'======='}
-LEGEND
-${'======='}
-
-. = Background
-P = Player
-a = Alpha
-b = Beta
-
-${'======='}
-SOUNDS
-${'======='}
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Alpha, Beta
-Player
-
-=====
-RULES
-=====
-
-[ no Alpha no Beta ] -> [ no Alpha no Beta ] win
-
-=============
-WINCONDITIONS
-=============
-
-======
-LEVELS
-======
-
-Pab
-`;
+const mergeOptimizationSource = loadCanonicalizerFixture('static-merge-equivalent-objects.puzzlescript');
 
 const mergeBaseline = canonicalizeSource(mergeOptimizationSource, 'semantic');
 const mergeOptimized = canonicalizeSource(mergeOptimizationSource, 'semantic', {
@@ -1021,58 +473,7 @@ const mergeStaticAnalysisOptions = captureStaticAnalysisOptions(() => {
 });
 assert.deepStrictEqual(mergeStaticAnalysisOptions.familyFilter, ['mergeability'], 'merge static optimization should request only mergeability facts');
 
-const actionUnnecessaryOptimizationSource = `
-title Canonical Static Action
-
-========
-OBJECTS
-========
-
-Background
-black
-
-Player
-blue
-
-Goal
-green
-
-${'======='}
-LEGEND
-${'======='}
-
-. = Background
-P = Player
-G = Goal
-
-${'======='}
-SOUNDS
-${'======='}
-
-================
-COLLISIONLAYERS
-================
-
-Background
-Player
-Goal
-
-=====
-RULES
-=====
-
-=============
-WINCONDITIONS
-=============
-
-All Player on Goal
-
-======
-LEVELS
-======
-
-PG
-`;
+const actionUnnecessaryOptimizationSource = loadCanonicalizerFixture('static-action-unnecessary.puzzlescript');
 
 const actionBaseline = canonicalizeSource(actionUnnecessaryOptimizationSource, 'semantic');
 const actionOptimized = canonicalizeSource(actionUnnecessaryOptimizationSource, 'semantic', {

@@ -1,0 +1,85 @@
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Hero
+white
+00000
+00000
+00000
+00000
+00000
+
+Wall
+gray
+00000
+00000
+00000
+00000
+00000
+
+Gem
+green
+00000
+00000
+00000
+00000
+00000
+
+Flower
+pink
+00000
+00000
+00000
+00000
+00000
+
+========
+LEGEND
+========
+
+. = Background
+P = Hero
+W = Wall
+G = Gem
+F = Flower
+Player = Hero
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Hero, Wall
+Gem, Flower
+
+=====
+RULES
+=====
+
+[ > Hero | Wall ] -> [ > Hero | Wall ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Gem
+
+======
+LEVELS
+======
+
+PW
+GF
