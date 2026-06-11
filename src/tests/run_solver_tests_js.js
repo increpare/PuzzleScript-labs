@@ -301,6 +301,17 @@ function gameName(root, file) {
     return stat.isDirectory() ? path.relative(root, file).split(path.sep).join('/') : path.basename(file);
 }
 
+function formatGameFilterMiss(gameFilter, names) {
+    const lower = gameFilter.toLowerCase();
+    const suggestions = names
+        .filter(name => name.toLowerCase().includes(lower) || path.basename(name, path.extname(name)).toLowerCase() === lower)
+        .slice(0, 5);
+    const hint = suggestions.length > 0
+        ? ` Did you mean ${suggestions.map(name => `"${name}"`).join(', ')}?`
+        : '';
+    return `No solver games matched --game "${gameFilter}". --game expects an exact relative filename.${hint}`;
+}
+
 function cloneLevelState(value) {
     if (value == null) {
         return value;
@@ -3589,7 +3600,14 @@ function runCorpus(options) {
     installSolverStepProfiler();
     const results = [];
     let attemptedLevels = 0;
-    const jobs = collectCorpusRunJobs(options);
+    let jobs = collectCorpusRunJobs(options);
+    if (options.gameFilter !== null && !options.solverFocusManifest) {
+        const names = jobs.map(({ file, opts }) => gameName(opts.corpusPath, file));
+        jobs = jobs.filter(({ file, opts }) => gameName(opts.corpusPath, file) === options.gameFilter);
+        if (jobs.length === 0) {
+            throw new Error(formatGameFilterMiss(options.gameFilter, names));
+        }
+    }
     for (const { file, opts } of jobs) {
         const name = gameName(opts.corpusPath, file);
         if (opts.gameFilter !== null && name !== opts.gameFilter) {
@@ -3868,7 +3886,12 @@ function main() {
 }
 
 if (require.main === module) {
-    main();
+    try {
+        main();
+    } catch (error) {
+        process.stderr.write(`${error && error.message ? error.message : error}\n`);
+        process.exit(1);
+    }
 }
 
 module.exports = {

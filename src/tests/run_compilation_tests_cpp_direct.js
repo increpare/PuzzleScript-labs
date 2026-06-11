@@ -7,8 +7,24 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const vm = require('vm');
 
+function usage() {
+  return [
+    'Usage: run_compilation_tests_cpp_direct.js <path/to/errormessage_testdata.js> [--cli path]',
+    '  [--progress-every N] [--keep-temps]',
+    '',
+    'Runs the native compiler diagnostics directly against JS error-message fixtures.',
+  ].join('\n');
+}
+
+function printUsage(exitCode = 1) {
+  (exitCode === 0 ? process.stdout : process.stderr).write(`${usage()}\n`);
+  process.exit(exitCode);
+}
+
 function parseArgs(argv) {
   const args = argv.slice(2);
+  if (args.length === 0) printUsage(1);
+  if (args.includes('--help') || args.includes('-h')) printUsage(0);
   const out = {
     errdataPath: null,
     cliPath: path.resolve('build/native/puzzlescript_cpp'),
@@ -30,7 +46,7 @@ function parseArgs(argv) {
     }
   }
   if (!out.errdataPath) {
-    throw new Error('Usage: run_compilation_tests_cpp_direct.js <path/to/errormessage_testdata.js> [--cli path]');
+    printUsage(1);
   }
   return out;
 }
@@ -150,4 +166,3 @@ function main() {
 }
 
 main();
-

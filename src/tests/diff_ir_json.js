@@ -15,6 +15,11 @@ function usage() {
   ].join('\n');
 }
 
+function printUsage(exitCode = 1) {
+  (exitCode === 0 ? process.stdout : process.stderr).write(`${usage()}\n`);
+  process.exit(exitCode);
+}
+
 function parseArgs(argv) {
   const out = {
     sourcePath: null,
@@ -23,6 +28,8 @@ function parseArgs(argv) {
     level: 0,
   };
   const args = argv.slice(2);
+  if (args.length === 0) printUsage(1);
+  if (args.includes('--help') || args.includes('-h')) printUsage(0);
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--cli' && i + 1 < args.length) out.cliPath = path.resolve(args[++i]);
@@ -31,7 +38,7 @@ function parseArgs(argv) {
     else if (!out.sourcePath) out.sourcePath = path.resolve(a);
     else throw new Error(`Unexpected arg: ${a}\n\n${usage()}`);
   }
-  if (!out.sourcePath) throw new Error(usage());
+  if (!out.sourcePath) printUsage(1);
   return out;
 }
 
@@ -155,4 +162,3 @@ function main() {
 }
 
 main();
-

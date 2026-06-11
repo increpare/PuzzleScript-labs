@@ -584,8 +584,10 @@ static_analysis_tests:
 	$(NODE) src/tests/static_analysis_testdata_runner.js
 	$(NODE) src/tests/static_analysis_testdata_runner_node.js
 	$(NODE) src/tests/static_analysis_explorer_node.js
+	$(NODE) src/tests/static_analysis_explorer_runtime_smoke.js
 	$(NODE) src/tests/solver_static_opt_node.js
 	$(NODE) src/tests/analyze_solver_static_relationships_node.js
+	$(NODE) src/tests/static_tool_cli_hardening_node.js
 	$(NODE) src/tests/compare_solver_static_opt_runs_node.js
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node_test.js
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node.js

@@ -2,8 +2,66 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
 
-const htmlPath = process.argv[2] || 'build/static-analysis-explorer/index.html';
+const rootDir = path.resolve(__dirname, '..', '..');
+const DEFAULT_HTML_PATH = path.join(rootDir, 'build/static-analysis-explorer/index.html');
+const DEFAULT_BUILD_INPUT = 'src/tests/static_analysis_testdata/runtime_contracts';
+
+function usage(exitCode = 1) {
+    const text = [
+        'Usage: node src/tests/static_analysis_explorer_runtime_smoke.js [path/to/index.html]',
+        '',
+        'If no HTML path is supplied and the default build artifact is missing,',
+        `the smoke builds a fixture explorer from ${DEFAULT_BUILD_INPUT}.`,
+    ].join('\n');
+    (exitCode === 0 ? process.stdout : process.stderr).write(`${text}\n`);
+    process.exit(exitCode);
+}
+
+function buildDefaultExplorer(htmlPath) {
+    fs.mkdirSync(path.dirname(htmlPath), { recursive: true });
+    const result = spawnSync(process.execPath, [
+        path.join(rootDir, 'src/tests/build_static_analysis_explorer.js'),
+        path.join(rootDir, DEFAULT_BUILD_INPUT),
+        '--out',
+        htmlPath,
+    ], {
+        cwd: rootDir,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+    });
+    if (result.error) {
+        throw new Error(`failed to build static analysis explorer: ${result.error.message}`);
+    }
+    if (result.status !== 0) {
+        throw new Error([
+            `failed to build static analysis explorer (exit ${result.status})`,
+            result.stderr,
+            result.stdout,
+        ].filter(Boolean).join('\n'));
+    }
+}
+
+function resolveHtmlPath(argv) {
+    const args = argv.slice(2);
+    if (args.includes('--help') || args.includes('-h')) usage(0);
+    if (args.length > 1) usage(1);
+    if (args.length === 1) {
+        const htmlPath = path.resolve(args[0]);
+        if (!fs.existsSync(htmlPath)) {
+            throw new Error(`static analysis explorer HTML not found: ${htmlPath}`);
+        }
+        return htmlPath;
+    }
+    if (!fs.existsSync(DEFAULT_HTML_PATH)) {
+        buildDefaultExplorer(DEFAULT_HTML_PATH);
+    }
+    return DEFAULT_HTML_PATH;
+}
+
+const htmlPath = resolveHtmlPath(process.argv);
 const html = fs.readFileSync(htmlPath, 'utf8');
 const dataMatch = html.match(/<script id="explorer-data" type="application\/json">([\s\S]*?)<\/script>/);
 if (!dataMatch) throw new Error('explorer data script missing');
