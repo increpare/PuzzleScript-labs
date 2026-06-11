@@ -1642,7 +1642,9 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 						}
 					}
 					for (let word = 0; word < STRIDE_MOV; word++) {
-						if (layer.movementsPresent.data[word] || layer.movementsMissing.data[word]) {
+						if (layer.movementsAny.data[word] ||
+							layer.movementsPresent.data[word] ||
+							layer.movementsMissing.data[word]) {
 							usedMovementIndices.add(word);
 						}
 					}
@@ -1827,11 +1829,14 @@ function layerCoupledMovementMaskMatchExpression(term) {
 		const layer = term.layers[i];
 		const objs = bitVecWordExpression('cellObjects', layer.objectMask, STRIDE_OBJ,
 			(w, m) => `(${w}&${m})`, '0', '|');
+		const any = bitVecWordExpression('cellMovements', layer.movementsAny, STRIDE_MOV,
+			(w, m) => `(${w}&${m})`, '0', '|');
 		const present = bitVecWordExpression('cellMovements', layer.movementsPresent, STRIDE_MOV,
 			(w, m) => `((${w}&${m})===${m})`, 'true', '&&');
 		const missing = bitVecWordExpression('cellMovements', layer.movementsMissing, STRIDE_MOV,
 			(w, m) => `!(${w}&${m})`, 'true', '&&');
-		options.push(`((${objs})&&(${present})&&(${missing}))`);
+		const anyCheck = any === '0' ? 'true' : `(${any})`;
+		options.push(`((${objs})&&(${anyCheck})&&(${present})&&(${missing}))`);
 	}
 	return options.length === 0 ? 'false' : options.join('||');
 }
@@ -1848,6 +1853,7 @@ function layerCoupledMovementMasksCacheKey(terms) {
 			const layer = term.layers[j];
 			parts.push(layer.layerIndex);
 			for (let w = 0; w < STRIDE_OBJ; w++) parts.push(layer.objectMask.data[w] || 0);
+			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsAny.data[w] || 0);
 			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsPresent.data[w] || 0);
 			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsMissing.data[w] || 0);
 		}
@@ -2206,6 +2212,11 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 				let movementMatches = true;
 				for (let wordIndex = 0; wordIndex < ${MOVEMENT_SIZE}; wordIndex++) {
 					const oldMovementWord = level.movements[currentIndex * ${MOVEMENT_SIZE} + wordIndex];
+					const anyMask = layerTerm.movementsAny.data[wordIndex];
+					if (anyMask && !(oldMovementWord & anyMask)) {
+						movementMatches = false;
+						break;
+					}
 					const presentMask = layerTerm.movementsPresent.data[wordIndex];
 					if (presentMask && ((oldMovementWord & presentMask) !== presentMask)) {
 						movementMatches = false;
@@ -2221,7 +2232,13 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 					continue;
 				}
 				movementsClear.ishiftor(0x1f, 5 * layerTerm.layerIndex);
-				if (coupled.replacementMovementMask) {
+				if (coupled.replacementAggregateName) {
+					const aggregateCaptured = rule.aggregateCaptures &&
+						rule.aggregateCaptures[coupled.replacementAggregateName];
+					if (aggregateCaptured) {
+						movementsSet.ishiftor(aggregateCaptured, 5 * layerTerm.layerIndex);
+					}
+				} else if (coupled.replacementMovementMask) {
 					movementsSet.ishiftor(coupled.replacementMovementMask, 5 * layerTerm.layerIndex);
 				}
 			}

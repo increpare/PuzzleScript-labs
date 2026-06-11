@@ -1477,11 +1477,13 @@ function computeAggregateCoalescingPlan(state, rule) {
         // alias layer, then capture/apply the aggregate movement bit on that
         // captured layer.
         if (hasLayerCoupledAttachments) {
-            if (!inferenceAllowed || lhsList.length !== 1 || rhsList.length !== 1) continue;
+            if (!inferenceAllowed || lhsList.length !== 1 || rhsList.length === 0) continue;
             const source = lhsList[0];
             if (!source.isLayerCoupled) continue;
-            const sink = rhsList[0];
-            if (sink.row === source.row && sink.cell === source.cell && sink.name === source.name) continue;
+            const hasCrossCellSink = rhsList.some(
+                p => p.row !== source.row || p.cell !== source.cell || p.name !== source.name
+            );
+            if (!hasCrossCellSink) continue;
             const allRhsSameProperty = rhsList.every(
                 p => p.isLayerCoupled && p.name === source.name
             );
@@ -1503,9 +1505,18 @@ function computeAggregateCoalescingPlan(state, rule) {
             });
             const sinkList = [];
             for (const p of rhsList) {
-                if (p.row !== source.row || p.cell !== source.cell || p.name !== source.name) {
-                    sinkList.push({ row: p.row, cell: p.cell, propertyName: p.name });
+                let localProperty = false;
+                const lhsCell = rule.lhs[p.row] && rule.lhs[p.row][p.cell];
+                if (lhsCell) {
+                    for (let i = 0; i < lhsCell.length; i += 2) {
+                        const lhsDir = lhsCell[i];
+                        if (lhsDir !== 'no' && lhsDir !== 'random' && lhsCell[i + 1] === p.name) {
+                            localProperty = true;
+                            break;
+                        }
+                    }
                 }
+                sinkList.push({ row: p.row, cell: p.cell, propertyName: p.name, localProperty });
             }
             sinks.set(dir, sinkList);
             continue;
@@ -1639,7 +1650,80 @@ function computePropertyCoalescingPlan(state, rule) {
     const sinks = new Map();
 
     for (const [propName, lhsList] of lhsByName) {
-        if (lhsList.length !== 1) continue;
+        const rhsList = rhsByName.get(propName) || [];
+        if (rhsList.length === 0) continue;
+
+        const findAggregateSink = (p) => {
+            if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return null;
+            const sinkList = rule.aggregateSinks.get(p.dir);
+            if (!sinkList) return null;
+            for (let si = 0; si < sinkList.length; si++) {
+                const s = sinkList[si];
+                if (s.row === p.row &&
+                    s.cell === p.cell &&
+                    s.propertyName === propName) {
+                    return s;
+                }
+            }
+            return null;
+        };
+
+        const propAliases = state.propertiesDict && state.propertiesDict[propName];
+        if (!propAliases || propAliases.length === 0) continue;
+        const aliases = [];
+        for (const aliasName of propAliases) {
+            const obj = state.objects[aliasName];
+            if (!obj || typeof obj.layer !== 'number') {
+                aliases.length = 0;
+                break;
+            }
+            aliases.push({ name: aliasName, objectId: obj.id | 0, layerIndex: obj.layer | 0 });
+        }
+        if (aliases.length === 0) continue;
+
+        if (lhsList.length !== 1) {
+            let aggregateBinding = null;
+            if (rule.aggregateBindingsArr) {
+                for (let bi = 0; bi < rule.aggregateBindingsArr.length; bi++) {
+                    const b = rule.aggregateBindingsArr[bi];
+                    if (b.sourcePropertyName === propName) {
+                        aggregateBinding = b;
+                        break;
+                    }
+                }
+            }
+            if (!aggregateBinding) continue;
+            const source = lhsList.find(p =>
+                p.row === aggregateBinding.sourceRow &&
+                p.cell === aggregateBinding.sourceCell &&
+                p.dir === aggregateBinding.aggregateName
+            );
+            if (!source) continue;
+            if (cellHasNoTermOverlappingProperty(state, rule.lhs[source.row][source.cell], propName)) continue;
+
+            const allSinksAreLocalAggregatePreservation = rhsList.every(p => {
+                const sink = findAggregateSink(p);
+                return sink && sink.localProperty === true;
+            });
+            if (!allSinksAreLocalAggregatePreservation) continue;
+
+            safe.add(propName);
+            let sourceMovementMask = 0;
+            const concretes = directionaggregates[source.dir];
+            for (let cdi = 0; cdi < concretes.length; cdi++) {
+                sourceMovementMask |= dirMasks[concretes[cdi]];
+            }
+            bindings.set(propName, {
+                sourceRow: source.row,
+                sourceCell: source.cell,
+                sourceDir: source.dir,
+                sourceMovementMode: 3,
+                sourceMovementMask,
+                aliases,
+            });
+            continue;
+        }
+
         const source = lhsList[0];
         // 5c-2: LHS source may have concrete direction modifiers — the
         // matcher's layerCoupledMovementMasks already handles the movement
@@ -1650,8 +1734,6 @@ function computePropertyCoalescingPlan(state, rule) {
         // anyObjectsPresent match — be conservative.
         if (cellHasNoTermOverlappingProperty(state, rule.lhs[source.row][source.cell], propName)) continue;
 
-        const rhsList = rhsByName.get(propName) || [];
-        if (rhsList.length === 0) continue;
         // 5c-3: RHS sinks may have empty direction, `stationary`, or any
         // concrete direction (up/down/left/right/action). Aggregate
         // directions ('moving', 'horizontal' …) and `randomdir` are still
@@ -1661,11 +1743,7 @@ function computePropertyCoalescingPlan(state, rule) {
             if (!(p.dir in directionaggregates) || !rule.aggregateSinks) return false;
             const sinkList = rule.aggregateSinks.get(p.dir);
             if (!sinkList) return false;
-            return sinkList.some(s =>
-                s.row === p.row &&
-                s.cell === p.cell &&
-                s.propertyName === propName
-            );
+            return findAggregateSink(p) !== null;
         };
         const sinkDirsOk = rhsList.every(p =>
             p.dir === '' ||
@@ -1680,19 +1758,6 @@ function computePropertyCoalescingPlan(state, rule) {
             p => p.row !== source.row || p.cell !== source.cell
         );
         if (!hasCrossCellSink) continue;
-
-        const propAliases = state.propertiesDict && state.propertiesDict[propName];
-        if (!propAliases || propAliases.length === 0) continue;
-        const aliases = [];
-        for (const aliasName of propAliases) {
-            const obj = state.objects[aliasName];
-            if (!obj || typeof obj.layer !== 'number') {
-                aliases.length = 0;
-                break;
-            }
-            aliases.push({ name: aliasName, objectId: obj.id | 0, layerIndex: obj.layer | 0 });
-        }
-        if (aliases.length === 0) continue;
 
         safe.add(propName);
         let sourceMovementMode = 0, sourceMovementMask = 0;
@@ -2658,6 +2723,18 @@ function dirToMovementMasks(dir) {
     return { present: dirMasks[dir], missing: 0 };
 }
 
+function aggregateDirectionMask(dir) {
+    if (!(dir in directionaggregates)) {
+        return 0;
+    }
+    let mask = 0;
+    const concretes = directionaggregates[dir];
+    for (let i = 0; i < concretes.length; i++) {
+        mask |= dirMasks[concretes[i]];
+    }
+    return mask;
+}
+
 function buildLayerCoupledExcludedLayers(state, cell, coupledTermIndex) {
     const excludedLayers = {};
     for (let i = 0; i < cell.length; i += 2) {
@@ -2679,7 +2756,9 @@ function buildLayerCoupledExcludedLayers(state, cell, coupledTermIndex) {
 }
 
 function buildLayerCoupledMovementTerm(state, propertyName, movementDir, excludedLayers) {
-    const { present: movementsPresentMask, missing: movementsMissingMask } = dirToMovementMasks(movementDir);
+    const movementsAnyMask = aggregateDirectionMask(movementDir);
+    const { present: movementsPresentMask, missing: movementsMissingMask } =
+        movementsAnyMask ? { present: 0, missing: 0 } : dirToMovementMasks(movementDir);
     const byLayer = {};
     const objectMask = new BitVec(STRIDE_OBJ);
     forEachPropertyAliasLayer(state, propertyName, (layerIndex, object) => {
@@ -2690,9 +2769,13 @@ function buildLayerCoupledMovementTerm(state, propertyName, movementDir, exclude
             const layer = {
                 layerIndex,
                 objectMask: new BitVec(STRIDE_OBJ),
+                movementsAny: new BitVec(STRIDE_MOV),
                 movementsPresent: new BitVec(STRIDE_MOV),
                 movementsMissing: new BitVec(STRIDE_MOV)
             };
+            if (movementsAnyMask) {
+                layer.movementsAny.ishiftor(movementsAnyMask, 5 * layerIndex);
+            }
             if (movementsPresentMask) {
                 layer.movementsPresent.ishiftor(movementsPresentMask, 5 * layerIndex);
             }
@@ -2708,6 +2791,7 @@ function buildLayerCoupledMovementTerm(state, propertyName, movementDir, exclude
     return {
         layers: Object.values(byLayer),
         objectMask,
+        movementsAnyMask,
         movementsPresentMask,
         movementsMissingMask
     };
@@ -2995,6 +3079,22 @@ function rulesToMask(state) {
                     if (object_dir === 'no') {
                         rhsBitVectors.objectsClear.ior(objectMask);
                     } else if (isCoupledProperty) {
+                        let localAggregateSink = null;
+                        if (object_dir in directionaggregates && rule.aggregateSinks) {
+                            const aggregateSinkList = rule.aggregateSinks.get(object_dir);
+                            if (aggregateSinkList) {
+                                for (let ai = 0; ai < aggregateSinkList.length; ai++) {
+                                    const aggregateSink = aggregateSinkList[ai];
+                                    if (aggregateSink.row === rowIndex &&
+                                        aggregateSink.cell === colIndex &&
+                                        aggregateSink.propertyName === object_name &&
+                                        aggregateSink.localProperty === true) {
+                                        localAggregateSink = aggregateSink;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         // Phase 5c-1: cross-cell property-binding sink. The runtime
                         // captures which alias matched at the LHS source cell and
                         // writes it into this sink at replace time. No same-cell
@@ -3051,10 +3151,12 @@ function rulesToMask(state) {
                                                     if (aggregateSink.row === rowIndex &&
                                                         aggregateSink.cell === colIndex &&
                                                         aggregateSink.propertyName === object_name) {
-                                                        inferredAggregateBindings.push({
-                                                            aggregateName: object_dir,
-                                                            propertyName: object_name,
-                                                        });
+                                                        if (aggregateSink.localProperty !== true) {
+                                                            inferredAggregateBindings.push({
+                                                                aggregateName: object_dir,
+                                                                propertyName: object_name,
+                                                            });
+                                                        }
                                                         break;
                                                     }
                                                 }
@@ -3080,7 +3182,11 @@ function rulesToMask(state) {
                                     lhs_dir,
                                     buildLayerCoupledExcludedLayers(state, cell_l, i)
                                 );
-                                replacementTerm.replacementMovementMask = dirToMovementMasks(object_dir).present;
+                                if (localAggregateSink) {
+                                    replacementTerm.replacementAggregateName = object_dir;
+                                } else {
+                                    replacementTerm.replacementMovementMask = dirToMovementMasks(object_dir).present;
+                                }
                                 layerCoupledMovementReplacements.push(replacementTerm);
                             }
                         }
