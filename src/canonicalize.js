@@ -29,6 +29,8 @@ const sourceFiles = [
 let runtime = null;
 const CANONICAL_METADATA_KEYS = new Set([
     'noaction',
+    'norestart',
+    'noundo',
     'realtime_interval',
     'require_player_movement',
     'run_rules_on_level_start',
