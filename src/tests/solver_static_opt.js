@@ -515,6 +515,91 @@ function remapLevelsToNewIds(state, snapshot, rename) {
     }
 }
 
+function findAggregateAttachedName(rows, binding) {
+    const row = rows && rows[binding.sourceRow];
+    const cell = row && row[binding.sourceCell];
+    if (!Array.isArray(cell)) return null;
+    for (let i = 0; i < cell.length; i += 2) {
+        if (cell[i] === binding.aggregateName) {
+            return cell[i + 1];
+        }
+    }
+    return null;
+}
+
+function findAggregateSinkName(rule, aggregateName, sink) {
+    const row = rule.rhs && rule.rhs[sink.row];
+    const cell = row && row[sink.cell];
+    if (!Array.isArray(cell)) return null;
+    for (let i = 0; i < cell.length; i += 2) {
+        if (cell[i] === aggregateName) {
+            return cell[i + 1];
+        }
+    }
+    return null;
+}
+
+function refreshPropertyBindingAliases(state, binding) {
+    const aliases = [];
+    const names = state.propertiesDict && state.propertiesDict[binding.propertyName];
+    if (!Array.isArray(names)) {
+        binding.aliases = aliases;
+        return;
+    }
+    for (const aliasName of names) {
+        const object = state.objects && state.objects[aliasName];
+        if (object && Number.isInteger(object.id) && Number.isInteger(object.layer)) {
+            aliases.push({
+                name: aliasName,
+                objectId: object.id | 0,
+                layerIndex: object.layer | 0,
+            });
+        }
+    }
+    binding.aliases = aliases;
+}
+
+function refreshRuleBindingMetadata(state, rule) {
+    if (!rule) return;
+    for (const binding of rule.propertyBindingsArr || []) {
+        refreshPropertyBindingAliases(state, binding);
+    }
+    for (const binding of rule.aggregateBindingsArr || []) {
+        if (binding.sourcePropertyName) continue;
+        const sourceName = findAggregateAttachedName(rule.lhs, binding);
+        const object = sourceName && state.objects && state.objects[sourceName];
+        if (object && Number.isInteger(object.layer)) {
+            binding.sourceLayer = object.layer | 0;
+        }
+    }
+    if (rule.aggregateSinks && typeof rule.aggregateSinks.forEach === 'function') {
+        rule.aggregateSinks.forEach((sinks, aggregateName) => {
+            for (const sink of sinks || []) {
+                if (sink.propertyName) continue;
+                const sinkName = findAggregateSinkName(rule, aggregateName, sink);
+                const object = sinkName && state.objects && state.objects[sinkName];
+                if (object && Number.isInteger(object.layer)) {
+                    sink.layer = object.layer | 0;
+                }
+            }
+        });
+    }
+}
+
+function refreshBindingMetadataAfterStructuralEdit(state) {
+    for (const groups of [state.rules, state.lateRules]) {
+        for (const item of groups || []) {
+            if (item && item.lhs && item.rhs) {
+                refreshRuleBindingMetadata(state, item);
+            } else if (Array.isArray(item)) {
+                for (const rule of item) {
+                    refreshRuleBindingMetadata(state, rule);
+                }
+            }
+        }
+    }
+}
+
 function rebuildAfterStructuralEdit(state, rename) {
     if (!state || state.invalid > 0) return;
     const snapshot = snapshotLevels(state);
@@ -522,6 +607,7 @@ function rebuildAfterStructuralEdit(state, rename) {
     generateExtraMembers(state);
     remapLevelsToNewIds(state, snapshot, rename);
     generateMasks(state);
+    refreshBindingMetadataAfterStructuralEdit(state);
     cacheAllRuleNames(state);
     removeDuplicateRules(state);
 }
