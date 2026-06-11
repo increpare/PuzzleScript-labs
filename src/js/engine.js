@@ -1670,8 +1670,9 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 		for (let i of usedMovementIndices) {
 			fn += 'let cellMovements' + i + ' = movements[i' + movStride + (i ? '+' + i : '') + '];\n';
 		}
-		
-		fn += "return " + cellRow[0].generateMatchString('cellRow[0]');
+
+		fn += 'const p0 = cellRow[0];\n';
+		fn += "return " + cellRow[0].generateMatchString('p0');
 		for (let cellIndex = 1; cellIndex < cr_l; cellIndex++) {
 			fn += "&&cellRow[" + cellIndex + "].matches(i+" + cellIndex + "*d, objects, movements)";
 		}
@@ -1684,7 +1685,7 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 	} else if (ellipsisCount === 1) {
 		let cr_l = cellRow.length;
 
-		let fn = `let result = [];
+		let fn = `let result = EMPTY_MATCH_RESULT;
 if(cellRow[0].matches(i, objects, movements)`;
 		let cellIndex = 1;
 		for (; cellRow[cellIndex] !== ellipsisPattern; cellIndex++) {
@@ -1699,6 +1700,7 @@ if(cellRow[0].matches(i, objects, movements)`;
 			fn += "&&cellRow[" + cellIndex + "].matches((i+d*(k+" + (cellIndex - 1) + ")), objects, movements)";
 		}
 		fn += `){
+			if (result===EMPTY_MATCH_RESULT) result=[];
 			result.push([i,k]);
 		}
 	}
@@ -1727,7 +1729,7 @@ if(cellRow[0].matches(i, objects, movements)`;
 			}
 		}
 
-		let fn = `let result = [];
+		let fn = `let result = EMPTY_MATCH_RESULT;
 if(cellRow[0].matches(i, objects, movements)`;
 
 		for (let idx = 1; idx < ellipsis_index_1; idx++) {
@@ -1753,6 +1755,7 @@ if(cellRow[0].matches(i, objects, movements)`;
 		}
 		fn += `
 				){
+					if (result===EMPTY_MATCH_RESULT) result=[];
 					result.push([i,k1,k2]);
 				}
 			}
@@ -1773,6 +1776,10 @@ let STRIDE_OBJ = 1;
 let STRIDE_MOV = 1;
 let LAYER_COUNT = 1;
 const FALSE_FUNCTION = new Function("return false;");
+//shared result for the no-matches case in the match-scan functions. Callers
+//treat an empty result as terminal and never mutate it (frozen so any future
+//violation fails loudly rather than corrupting shared state).
+const EMPTY_MATCH_RESULT = Object.freeze([]);
 
 // We don't generate the matches functions all at once at initailization, we generate them in the background/as needed
 
@@ -2292,12 +2299,11 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 let CACHE_MATCHCELLROW = {}
 function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 	const fn = `'use strict';
-	let result=[];
-	
 	if ((${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.mapCellContents.data", OBJECT_SIZE)})||
 	(${NOT_BITS_SET_IN_ARRAY("cellRowMask_Movements", "level.mapCellContents_Movements.data", MOVEMENT_SIZE)})) {
-		return result;
+		return EMPTY_MATCH_RESULT;
 	}
+	let result=EMPTY_MATCH_RESULT;
 
 	let xmin=0;
 	let xmax=level.width;
@@ -2348,6 +2354,7 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 			for (let x=xmin;x<xmax;x++) {
 				if (cellRowMatch(cellRow,i,d, objectsArr, movementsArr))
 				{
+					if (result===EMPTY_MATCH_RESULT) result=[];
 					result.push(i);
 				}
 				i += height;
@@ -2364,6 +2371,7 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 			for (let y=ymin;y<ymax;y++) {
 				if (cellRowMatch(cellRow,i, d, objectsArr, movementsArr))
 				{
+					if (result===EMPTY_MATCH_RESULT) result=[];
 					result.push(i);
 				}
 				i++;
@@ -2381,11 +2389,11 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 let CACHE_MATCHCELLROWWILDCARD = {}
 function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 	const fn = `'use strict';
-	let result=[];
 	if ((${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.mapCellContents.data", OBJECT_SIZE)})||
 	(${NOT_BITS_SET_IN_ARRAY("cellRowMask_Movements", "level.mapCellContents_Movements.data", MOVEMENT_SIZE)})) {
-		return result;
+		return EMPTY_MATCH_RESULT;
 	}
+	let result=EMPTY_MATCH_RESULT;
 	
 	let xmin=0;
 	let xmax=level.width;
@@ -2444,9 +2452,9 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 				}
 
 				if (wildcardCount===1) {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				} else {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0,kmax,0,kmax,0, d, objectsArr, movementsArr));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0,kmax,0,kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				}
 				i += height;
 			}
@@ -2470,9 +2478,9 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 					console.error("Unexpected direction: "+direction);
 				}
 				if (wildcardCount===1) {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				} else {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, kmax,0, kmax,0, d, objectsArr, movementsArr));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0, kmax,0, kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				}
 				i++;
 			}
@@ -2528,7 +2536,7 @@ function applyTwoRowTuples(rule, level, matches, delta) {
 
 Rule.prototype.findMatches = function () {
 	if (!this.ruleMask.bitsSetInArray(level.mapCellContents.data))
-		return [];
+		return EMPTY_MATCH_RESULT;
 
 	const direction = this.direction;
 	const delta = (((direction >> 3) & 1) - ((direction >> 2) & 1)) * level.height + ((direction >> 1) & 1) - (direction & 1);
@@ -2546,7 +2554,7 @@ Rule.prototype.findMatches = function () {
 			match = state.matchCellRowWildCard(this.direction, matchFunction, cellRow, cellRowMasks[cellRowIndex], cellRowMasks_Movements[cellRowIndex], delta, this.ellipsisCount[cellRowIndex]);
 		}
 		if (match.length === 0) {
-			return [];
+			return EMPTY_MATCH_RESULT;
 		} else {
 			matches.push(match);
 		}
@@ -3642,7 +3650,7 @@ Rule.prototype.generateFindMatchesFunction = function () {
 	let fn = '';
 
 	// Initial mask check
-	fn += `if (${NOT_BITS_SET_IN_ARRAY("this.ruleMask", "level.mapCellContents.data", STRIDE_OBJ)}) return [];\n`;
+	fn += `if (${NOT_BITS_SET_IN_ARRAY("this.ruleMask", "level.mapCellContents.data", STRIDE_OBJ)}) return EMPTY_MATCH_RESULT;\n`;
 	fn += 'const direction = this.direction;\n';
 	fn += 'const d = (((direction >> 3) & 1) - ((direction >> 2) & 1)) * level.height + ((direction >> 1) & 1) - (direction & 1);\n';
 	fn += 'const matches = [];\n';
@@ -3667,7 +3675,7 @@ Rule.prototype.generateFindMatchesFunction = function () {
 		}
 
 		// Early return if no matches
-		fn += `if (match${i}.length === 0) return [];\n`;
+		fn += `if (match${i}.length === 0) return EMPTY_MATCH_RESULT;\n`;
 		fn += `matches.push(match${i});\n`;
 	}
 
