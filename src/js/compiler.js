@@ -3113,241 +3113,6 @@ function rulesToMask(state) {
     }
 }
 
-// Phase A.1: per-rule readObjects derivation. Union of objectsPresent and
-// objectsMissing across every LHS cell. Broader than the existing ruleMask
-// (which is objectsPresent only) because pruning has to consider `no X`
-// patterns — if X gets created elsewhere, an `[X no Y]`-shaped rule's match
-// result changes even though objectsPresent didn't.
-function computeReadObjects(ruleTuple) {
-    const result = new BitVec(STRIDE_OBJ);
-    const patterns = ruleTuple[1];
-    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
-        const cellrow = patterns[rowIndex];
-        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
-            const cell = cellrow[colIndex];
-            if (cell === ellipsisPattern) continue;
-            if (cell.objectsPresent) result.ior(cell.objectsPresent);
-            if (cell.objectsMissing) result.ior(cell.objectsMissing);
-            // Property terms: anyObjectsPresent[i] is a BitVec of the property
-            // members; the rule gates on any one of them being present.
-            const anys = cell.anyObjectsPresent;
-            if (anys) {
-                for (let i = 0; i < anys.length; i++) {
-                    if (anys[i]) result.ior(anys[i]);
-                }
-            }
-        }
-    }
-    return result;
-}
-
-// Phase A.1: per-rule readMovements derivation. Walks every LHS cell row,
-// ORs into a BitVec(STRIDE_MOV) the movement-bit layers the LHS gates on.
-// At this point (called from collapseRules), each LHS cell is a CellPattern
-// produced by rulesToMask, so we draw the masks straight from its precomputed
-// bitvecs (direct dir matches, stationary requirements, aggregate matches,
-// and layer-coupled property terms). Aggregate LHS bindings (slot [12])
-// contribute their source-layer aggregate mask too.
-function computeReadMovements(state, ruleTuple) {
-    const result = new BitVec(STRIDE_MOV);
-    const patterns = ruleTuple[1]; // cell rows
-    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
-        const cellrow = patterns[rowIndex];
-        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
-            const cell = cellrow[colIndex];
-            if (cell === ellipsisPattern) continue;
-            if (cell.movementsPresent) result.ior(cell.movementsPresent);
-            if (cell.movementsMissing) result.ior(cell.movementsMissing);
-            const anyMovements = cell.anyMovementsPresent;
-            if (anyMovements) {
-                for (let i = 0; i < anyMovements.length; i++) {
-                    result.ior(anyMovements[i]);
-                }
-            }
-            const coupled = cell.layerCoupledMovementMasks;
-            if (coupled) {
-                for (let i = 0; i < coupled.length; i++) {
-                    const term = coupled[i];
-                    if (!term || !term.layers) continue;
-                    for (let j = 0; j < term.layers.length; j++) {
-                        const layer = term.layers[j];
-                        if (layer.movementsPresent) result.ior(layer.movementsPresent);
-                        if (layer.movementsMissing) result.ior(layer.movementsMissing);
-                    }
-                }
-            }
-        }
-    }
-    // Aggregate LHS bindings (slot [12] = aggregateBindingsArr) gate on the source layer's aggregate mask.
-    const aggregates = ruleTuple[12];
-    if (aggregates) {
-        for (let i = 0; i < aggregates.length; i++) {
-            const b = aggregates[i];
-            result.ishiftor(b.aggregateMask & 0x1f, 5 * b.sourceLayer);
-        }
-    }
-    return result;
-}
-
-// Phase A.1: per-rule writeObjects derivation. Returns a BitVec(STRIDE_OBJ)
-// of the object IDs the rule's RHS may add or remove. Walks each LHS cell's
-// attached CellReplacement (precomputed by rulesToMask) for its statically
-// known objectsSet/objectsClear contributions, then conservatively expands
-// for runtime-bound sinks: property sinks may receive any alias of the bound
-// property, and aggregate sinks may touch any object on the destination
-// layer.
-function computeWriteObjects(state, ruleTuple, oldrule) {
-    const result = new BitVec(STRIDE_OBJ);
-    const patterns = ruleTuple[1]; // cell rows of CellPattern instances
-    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
-        const cellrow = patterns[rowIndex];
-        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
-            const cell = cellrow[colIndex];
-            if (cell === ellipsisPattern) continue;
-            const replacement = cell.replacement;
-            if (!replacement) continue;
-            if (replacement.objectsSet) result.ior(replacement.objectsSet);
-            if (replacement.objectsClear) result.ior(replacement.objectsClear);
-            if (replacement.randomEntityMask) result.ior(replacement.randomEntityMask);
-        }
-    }
-    // Property sinks: the runtime ORs in whichever alias was captured at the
-    // LHS source. Union every possible alias object id for safety.
-    if (oldrule.propertySinks) {
-        for (const propName of oldrule.propertySinks.keys()) {
-            const aliases = state.propertiesDict && state.propertiesDict[propName];
-            if (!aliases) continue;
-            for (let i = 0; i < aliases.length; i++) {
-                const aliasObj = state.objects[aliases[i]];
-                if (aliasObj && typeof aliasObj.id === 'number') {
-                    result.ibitset(aliasObj.id);
-                }
-            }
-        }
-    }
-    // Aggregate sinks: the runtime writes movement bits only, but be
-    // conservative and union every object on each sink's destination layer
-    // (matches the plan's "every member of the destination layer" intent).
-    if (oldrule.aggregateSinks) {
-        for (const sinkList of oldrule.aggregateSinks.values()) {
-            for (let i = 0; i < sinkList.length; i++) {
-                const layerIndex = sinkList[i].layer;
-                if (typeof layerIndex !== 'number') continue;
-                const layerObjects = state.collisionLayers[layerIndex];
-                if (!layerObjects) continue;
-                for (let j = 0; j < layerObjects.length; j++) {
-                    const obj = state.objects[layerObjects[j]];
-                    if (obj && typeof obj.id === 'number') {
-                        result.ibitset(obj.id);
-                    }
-                }
-            }
-        }
-    }
-    return result;
-}
-
-// Phase A.1: per-rule writeMovements derivation. Returns a BitVec(STRIDE_MOV)
-// covering every movement-bit layer the RHS may overwrite. Walks each LHS
-// cell's attached CellReplacement (precomputed by rulesToMask) for its
-// statically known movementsSet/movementsClear/movementsLayerMask
-// contributions (covering direction modifiers on RHS objects and the layer
-// clears triggered by plain RHS objects). Conservatively expands for
-// runtime-bound destinations: aggregate sinks touch their destination layer's
-// aggregate mask, and 5c-3 inferredPropertyBindings with dirMode != 0 touch
-// the full movement-bit slot on every alias layer of the captured property.
-function computeWriteMovements(state, ruleTuple, oldrule) {
-    const result = new BitVec(STRIDE_MOV);
-    const patterns = ruleTuple[1]; // cell rows of CellPattern instances
-    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
-        const cellrow = patterns[rowIndex];
-        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
-            const cell = cellrow[colIndex];
-            if (cell === ellipsisPattern) continue;
-            const replacement = cell.replacement;
-            if (!replacement) continue;
-            if (replacement.movementsSet) result.ior(replacement.movementsSet);
-            if (replacement.movementsClear) result.ior(replacement.movementsClear);
-            if (replacement.movementsLayerMask) result.ior(replacement.movementsLayerMask);
-            if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
-            // layerCoupledMovementReplacements: the runtime clears the
-            // captured layer's full 0x1f slot and (optionally) sets the
-            // replacementMovementMask. Cover both with 0x1f per layer.
-            const coupled = replacement.layerCoupledMovementReplacements;
-            if (coupled) {
-                for (let ci = 0; ci < coupled.length; ci++) {
-                    const term = coupled[ci];
-                    if (!term || !term.layers) continue;
-                    for (let li = 0; li < term.layers.length; li++) {
-                        const layer = term.layers[li];
-                        result.ishiftor(0x1f, 5 * layer.layerIndex);
-                    }
-                }
-            }
-            // 5c-3 inferred property bindings with dirMode != 0 touch the
-            // captured property's destination layer movement bits (clear +
-            // optional set). Union the full 0x1f slot for every alias layer
-            // of the property — we don't know the concrete direction at
-            // compile time so the safe upper bound is all 5 bits.
-            const bindings = replacement.inferredPropertyBindings;
-            if (bindings) {
-                for (let bi = 0; bi < bindings.length; bi++) {
-                    const b = bindings[bi];
-                    if (!b || b.dirMode === 0) continue;
-                    const propMembers = state.propertiesDict ? state.propertiesDict[b.propertyName] : null;
-                    if (!propMembers) continue;
-                    for (let mi = 0; mi < propMembers.length; mi++) {
-                        const memberObj = state.objects[propMembers[mi]];
-                        if (!memberObj) continue;
-                        result.ishiftor(0x1f, 5 * memberObj.layer);
-                    }
-                }
-            }
-        }
-    }
-    // Aggregate sinks: runtime ORs the captured concrete direction bit into
-    // movementsSet at the sink's destination layer. Be conservative and union
-    // the full aggregate mask at that layer.
-    if (oldrule.aggregateSinks) {
-        for (const sinkList of oldrule.aggregateSinks.values()) {
-            for (let i = 0; i < sinkList.length; i++) {
-                const sink = sinkList[i];
-                if (typeof sink.layer !== 'number') continue;
-                const mask = (sink.aggregateMask !== undefined ? sink.aggregateMask : 0x1f) & 0x1f;
-                result.ishiftor(mask, 5 * sink.layer);
-            }
-        }
-    }
-    return result;
-}
-
-// Phase A.1: rules we can't soundly prune. Returns { force: bool, reason: string|null }.
-// Conservative — when in doubt, return force=true so the rule is always evaluated.
-const PHASE_A1_REPLAY_COMMANDS = new Set([
-    'again', 'restart', 'cancel', 'win', 'checkpoint',
-]);
-function classifyForceAlwaysRun(state, ruleTuple, oldrule, readObjects, readMovements) {
-    if (ruleTuple[8]) return { force: true, reason: 'isRandom' };       // slot [8] = isRandom
-    const commands = ruleTuple[7] || [];                                 // slot [7] = commands
-    for (let i = 0; i < commands.length; i++) {
-        const name = commands[i][0];
-        if (PHASE_A1_REPLAY_COMMANDS.has(name)) {
-            return { force: true, reason: 'command:' + name };
-        }
-    }
-    if (ruleTuple[6]) return { force: true, reason: 'rigid' };          // slot [6] = rigid; pruning rigid rules interacts with bannedGroup logic in resolveMovements
-    // Empty LHS cell patterns (e.g. `[] -> [PlayArea]`) gate on nothing —
-    // they match unconditionally and would otherwise be permanently pruned
-    // by the readObjects/readMovements bitmask check.
-    if (readObjects && readMovements
-        && readObjects.iszero() && readMovements.iszero()) {
-        return { force: true, reason: 'empty-LHS' };
-    }
-    // No global-pattern / late-rule special-casing in A.1. (LATE rules
-    // already run in a separate applyRules call so don't need extra handling here.)
-    return { force: false, reason: null };
-}
-
 function cellRowMasksGeneric(rule, stride, propertyName) {
     const ruleMasks = [];
     const lhs = rule[1];
@@ -3387,7 +3152,7 @@ function buildLiveRulePlanMetadata(rule) {
     };
 }
 
-function collapseRules(groups, state) {
+function collapseRules(groups) {
     for (let gn = 0; gn < groups.length; gn++) {
         const rules = groups[gn];
         for (let i = 0; i < rules.length; i++) {
@@ -3425,17 +3190,6 @@ function collapseRules(groups, state) {
             newrule.push(buildLiveRulePlanMetadata(newrule));
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
-            const readMovements = computeReadMovements(state, newrule);
-            const readObjects = computeReadObjects(newrule);
-            newrule.push(readMovements);   // slot [14]
-            newrule.push(computeWriteObjects(state, newrule, oldrule));  // slot [15]
-            newrule.push(computeWriteMovements(state, newrule, oldrule));  // slot [16]
-            const classification = classifyForceAlwaysRun(state, newrule, oldrule, readObjects, readMovements);
-            newrule.push(classification.force);   // slot [17]
-            newrule.push(classification.reason);  // slot [18]
-            // Phase A.1 slot [19]: readObjects superset of ruleMask, including
-            // objectsMissing so `no X` patterns aren't pruned when X gets created.
-            newrule.push(readObjects);
             rules[i] = new Rule(newrule);
         }
     }
@@ -4386,8 +4140,8 @@ function loadFile(str) {
     }
 
     arrangeRulesByGroupNumber(state);
-    collapseRules(state.rules, state);
-    collapseRules(state.lateRules, state);
+    collapseRules(state.rules);
+    collapseRules(state.lateRules);
 
     generateRigidGroupList(state);
 

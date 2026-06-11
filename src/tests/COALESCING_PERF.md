@@ -1,13 +1,19 @@
 # Coalescing Performance Notes
 
-## 2026-06-11 incremental rule application (Phase A.1)
+## 2026-06-11 incremental rule application (Phase A.1) — reverted
+
+Phase A.1 ("incremental rule application") was implemented through Task 7
+with full parity coverage but produced a net regression on the solver
+workload. The implementation is reverted; this section is kept as a
+record of what was tried, what the numbers were, and why it didn't pay.
 
 Baseline: `db04af10` (`Coalesce property-binding with LHS direction modifiers`).
-After: `70af75a9` (`Disable 5c-3 plan-level permissiveness (Voitex regression fix)`).
+After (pre-revert): `70af75a9` (`Disable 5c-3 plan-level permissiveness (Voitex regression fix)`).
 
-Both worktrees compile the same number of concrete rules (5c-3 is inactive at
-both heads). The only behavioural delta is Phase A.1's per-iteration
-`changedObjects`/`changedMovements` pruning inside `applyRuleGroup`.
+Both worktrees compiled the same number of concrete rules (5c-3 was
+inactive at both heads). The behavioural delta measured below was
+purely Phase A.1's per-iteration `changedObjects`/`changedMovements`
+pruning inside `applyRuleGroup`.
 
 Headline: A.1's pruning helps sim-test workloads by ~5% on `processInput` time
 and is **noise-to-mild-regression on the solver focus groups** at the
@@ -80,21 +86,17 @@ corpus; −17% sim `processInput`) are not met by A.1 alone:
   overhead dominates less); a full-corpus run is required to know for
   sure but was skipped here for run-time reasons.
 
-### Next steps
+### Decision
 
-A.1's pruning is correctness-clean (parity passes everywhere) but not a
-clear performance win. Before proceeding to Phase A.2 (outer-loop
-pruning), three options:
-
-1. Profile A.1's per-call overhead and trim it (e.g. fold the prune
-   check into `findMatches`, drop the buffer swap in favour of a single
-   monotonically-growing changed mask cleared once per group, skip the
-   `setZero` when the previous iteration's `next` was empty).
-2. Make pruning opt-in per game / per rule-group based on a static
-   prediction of fixpoint-iteration savings, so games that don't benefit
-   skip the overhead entirely.
-3. Run the full 1341-game corpus at 250ms and 5000ms to confirm the
-   aggregate impact before deciding A.2 vs revert.
+Reverted. The sim-test win is small and the focus-group regression
+indicates the per-iteration bookkeeping cost (per-rule
+`anyBitsInCommon` × 2, buffer swap, `setZero` + `ior` accumulation per
+fired rule) exceeds the savings on solver workloads where state
+evolves predictably and the existing `consecutiveFailures` early-out
+already cuts most of what A.1 would. The spec / plan / design docs are
+retained for the historical record and as a starting point if a
+different incrementalization approach (smaller per-iteration overhead,
+or opt-in per game) is tried later.
 
 ## 2026-05-17 property rewrite coalescing
 
