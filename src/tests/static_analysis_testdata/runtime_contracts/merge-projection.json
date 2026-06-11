@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "inputs": ["R"],
+  "expectedFinalLevel": "background:0,alpha background player:1,background beta:2,\n",
+  "expect": {
+    "mergeAliasCount": 1,
+    "mergeProjectionChecks": 1
+  }
+}
