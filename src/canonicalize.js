@@ -637,8 +637,10 @@ function canonicalizeState(state, options) {
 
 function buildSemanticObjectOrdering(state, options) {
     const uniqueObjectNames = Object.keys(state.objects);
-    const playerSet = new Set(listObjectNamesFromMask(state.playerMask, state));
-    const backgroundSet = new Set(listObjectNamesFromMask(state.backgroundMask, state));
+    const playerMask = state.playerMask || (state.objectMasks && state.objectMasks.player);
+    const backgroundMask = state.backgroundMask || (state.objectMasks && state.objectMasks.background);
+    const playerSet = new Set(listObjectNamesFromMask(playerMask, state));
+    const backgroundSet = new Set(listObjectNamesFromMask(backgroundMask, state));
     const firstSeen = new Map();
     let nextOrdinal = 0;
 
@@ -1000,26 +1002,25 @@ function listObjectsInCompiledCell(cell, state, nameMap) {
     return objects;
 }
 
-function serializeCompiledLevels(levels, state, nameMap) {
-    const result = [];
-    for (const level of levels) {
-        if (level.message !== undefined) {
-            result.push({ type: 'message', text: '' });
-            continue;
-        }
-
-        const rows = [];
-        for (let y = 0; y < level.height; y++) {
-            const row = [];
-            for (let x = 0; x < level.width; x++) {
-                const cellIndex = x * level.height + y;
-                row.push(listObjectsInCompiledCell(level.getCell(cellIndex), state, nameMap));
-            }
-            rows.push(row);
-        }
-        result.push({ type: 'map', rows });
+function serializeCompiledLevel(level, state, nameMap) {
+    if (level.message !== undefined) {
+        return { type: 'message', text: '' };
     }
-    return result;
+
+    const rows = [];
+    for (let y = 0; y < level.height; y++) {
+        const row = [];
+        for (let x = 0; x < level.width; x++) {
+            const cellIndex = x * level.height + y;
+            row.push(listObjectsInCompiledCell(level.getCell(cellIndex), state, nameMap));
+        }
+        rows.push(row);
+    }
+    return { type: 'map', rows };
+}
+
+function serializeCompiledLevels(levels, state, nameMap) {
+    return levels.map(level => serializeCompiledLevel(level, state, nameMap));
 }
 
 function serializeCompiledWinConditions(winConditions, state, nameMap) {
@@ -1054,6 +1055,9 @@ function serializeCompiledWinConditions(winConditions, state, nameMap) {
 
 function listObjectsFromMask(mask, state) {
     const bitMask = Array.isArray(mask) ? mask[1] : mask;
+    if (!bitMask || typeof bitMask.get !== 'function') {
+        return [];
+    }
     const objects = [];
     for (const objectName of Object.keys(state.objects)) {
         const objectId = state.objects[objectName].id;
@@ -1067,6 +1071,9 @@ function listObjectsFromMask(mask, state) {
 
 function listObjectNamesFromMask(mask, state) {
     const bitMask = Array.isArray(mask) ? mask[1] : mask;
+    if (!bitMask || typeof bitMask.get !== 'function') {
+        return [];
+    }
     const objects = [];
     for (const objectName of Object.keys(state.objects)) {
         const objectId = state.objects[objectName].id;
@@ -1143,6 +1150,55 @@ function canonicalizeCompiledState(state, options) {
     return result;
 }
 
+function canonicalModeOptions(mode, canonicalOptions) {
+    if (mode && typeof mode === 'object') {
+        canonicalOptions = mode;
+        mode = canonicalOptions.mode || 'semantic';
+    }
+    if (!compiledCanonicalMode(mode)) {
+        throw new Error(`Cannot canonicalize compiled level state in non-compiled mode: ${mode}`);
+    }
+    return Object.assign({}, modeOptions(mode), canonicalOptions);
+}
+
+function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOptions = {}) {
+    const options = canonicalModeOptions(mode, canonicalOptions);
+    const { map: nameMap } = buildCompiledNameMap(state, options);
+    const rawCanonical = canonicalizeCompiledState(state, Object.assign({}, options, {
+        includeLevels: false,
+        collapseEquivalentObjects: false,
+    }));
+
+    function canonicalizeLevelState(runtimeState, level) {
+        const canonical = Object.assign({}, rawCanonical, {
+            levels: [serializeCompiledLevel(level, runtimeState, nameMap)],
+        });
+
+        if (!options.collapseEquivalentObjects) {
+            return canonical.levels[0];
+        }
+
+        const collapsed = collapseEquivalentObjectsInCanonical(canonical, {
+            format: options.canonicalFormat || canonical.format,
+            namePrefix: options.objectNamePrefix || 'obj_',
+            includeMetadata: options.includeMetadata,
+            includeWinConditions: options.includeWinConditions,
+            includeLevels: true,
+        });
+        return collapsed.levels[0] || { type: 'message', text: '' };
+    }
+
+    return {
+        canonicalizeLevelState,
+        rawCanonical,
+    };
+}
+
+function canonicalizeCompiledLevelState(state, level, mode = 'semantic', canonicalOptions = {}) {
+    return createCompiledLevelStateProjector(state, mode, canonicalOptions)
+        .canonicalizeLevelState(state, level);
+}
+
 function canonicalizeSource(source, mode = 'structural', canonicalOptions = {}) {
     if (mode && typeof mode === 'object') {
         canonicalOptions = mode;
@@ -1209,9 +1265,11 @@ function buildComparisonHashes(source, options = {}) {
 
 module.exports = {
     buildComparisonHashes,
+    canonicalizeCompiledLevelState,
     canonicalizeFile,
     canonicalizeSource,
     compileSemanticSource,
+    createCompiledLevelStateProjector,
     hashCanonical,
     stableStringify,
 };
