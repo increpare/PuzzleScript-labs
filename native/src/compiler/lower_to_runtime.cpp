@@ -1787,9 +1787,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                                       const std::set<std::string>& ambiguousProperties)
             -> std::set<std::string> {
             std::set<std::string> skippable;
-            if (rhs.empty()) {
-                return skippable;
-            }
             auto isLayerCoupledMovementDir = [](const std::string& dir) {
                 return dir.empty() || dir == "stationary" || dir == "action"
                     || dir == "up" || dir == "down" || dir == "left" || dir == "right";
@@ -1853,6 +1850,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             const bool hasRhs = !rhs.empty();
             bool movementValid = hasRhs && !lateRule;
             bool preservedValid = hasRhs && lhs.size() == rhs.size();
+            bool commandOnlyValid = !hasRhs && !lateRule;
             bool sawLayerCoupledProperty = false;
             bool sawMovementEffect = false;
             std::set<std::string> coupledPropertiesInRule;
@@ -1875,8 +1873,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             std::map<std::string, bool> preservedCandidateStatus;
             for (size_t j = 0; j < lhs.size(); ++j) {
                 const auto& rowL = lhs[j];
-                const auto& rowR = rhs[j];
-                if (rowR.size() != rowL.size()) {
+                const ParsedRow* rowRPtr = hasRhs && j < rhs.size() ? &rhs[j] : nullptr;
+                if (rowRPtr != nullptr && rowRPtr->size() != rowL.size()) {
                     movementValid = false;
                     preservedValid = false;
                     break;
@@ -1885,10 +1883,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 std::set<std::string> preservedSeenInCell;
                 std::map<int32_t, bool> movFixedLayers;
                 std::vector<std::string> movCoupledTerms;
+                std::map<int32_t, bool> cmdFixedLayers;
+                std::vector<std::string> cmdCoupledTerms;
 
                 for (size_t k = 0; k < rowL.size(); ++k) {
                     const ParsedCell& cellL = rowL[k];
-                    const ParsedCell& cellR = rowR[k];
+                    const ParsedCell* cellRPtr =
+                        rowRPtr != nullptr && k < rowRPtr->size() ? &(*rowRPtr)[k] : nullptr;
                     if (cellL.isEllipsis) {
                         continue;
                     }
@@ -1900,8 +1901,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
 
                         ParsedItem rhsItem;
                         bool hasRhsItem = false;
-                        if (itemIndex < cellR.items.size()) {
-                            rhsItem = cellR.items[itemIndex];
+                        if (cellRPtr != nullptr && itemIndex < cellRPtr->items.size()) {
+                            rhsItem = cellRPtr->items[itemIndex];
                             hasRhsItem = true;
                         }
                         const std::string& dirR = hasRhsItem ? rhsItem.dir : std::string{};
@@ -1913,6 +1914,28 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         if (hasRhsItem && isLayerCoupledPropertyName(nameR)) {
                             coupledPropertiesInRule.insert(nameR);
                         }
+
+                        if (commandOnlyValid) {
+                            if (dirL != "no" && dirL != "random") {
+                                if (!isLayerCoupledMovementDir(dirL)) {
+                                    commandOnlyValid = false;
+                                } else if (objectIdByName.find(nameL) == objectIdByName.end()
+                                           && propertyOf.find(nameL) == propertyOf.end()) {
+                                    commandOnlyValid = false;
+                                } else if (isLayerCoupledPropertyName(nameL)) {
+                                    if (cellHasNoTermOverlappingProperty(cellL, nameL)) {
+                                        commandOnlyValid = false;
+                                    } else {
+                                        sawLayerCoupledProperty = true;
+                                        cmdCoupledTerms.push_back(nameL);
+                                    }
+                                } else if (const auto layer = objectOrSingleLayerPropertyLayer(nameL);
+                                           layer.has_value()) {
+                                    cmdFixedLayers[*layer] = true;
+                                }
+                            }
+                        }
+
                         if (!hasRhsItem) {
                             continue;
                         }
@@ -1942,7 +1965,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
 
                         if (preservedValid && isLayerCoupledPropertyName(nameL) && dirL.empty()) {
                             bool hasMatchingRhs = false;
-                            for (const auto& itemR : cellR.items) {
+                            for (const auto& itemR : cellRPtr->items) {
                                 if (itemR.dir.empty() && itemR.name == nameL) {
                                     hasMatchingRhs = true;
                                     break;
@@ -1963,6 +1986,18 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         }
                     }
 
+                    if (commandOnlyValid) {
+                        std::set<int32_t> occupied;
+                        for (const std::string& coupledName : cmdCoupledTerms) {
+                            const std::set<int32_t> layers = propertyAliasLayers(coupledName, cmdFixedLayers);
+                            if (layers.empty() || layerSetsOverlap(occupied, layers)) {
+                                commandOnlyValid = false;
+                                break;
+                            }
+                            occupied.insert(layers.begin(), layers.end());
+                        }
+                    }
+
                     if (movementValid) {
                         std::set<int32_t> occupied;
                         for (const std::string& coupledName : movCoupledTerms) {
@@ -1978,6 +2013,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
 
             if (movementValid && sawLayerCoupledProperty && sawMovementEffect) {
+                return coupledPropertiesInRule;
+            }
+            if (commandOnlyValid && sawLayerCoupledProperty) {
                 return coupledPropertiesInRule;
             }
             for (const auto& [propertyName, status] : preservedCandidateStatus) {
