@@ -176,11 +176,20 @@ function parseArgs(argv) {
         solverOptPasses: null,
         solverOptParity: false,
         forceNoaction: false,
+        jobs: 1,
+        shardIndex: null,
+        shardCount: null,
     };
     const args = argv.slice(2);
     for (let index = 0; index < args.length; index++) {
         const arg = args[index];
-        if (arg === '--timeout-ms') {
+        if (arg === '--jobs') {
+            options.jobs = Math.max(1, Number.parseInt(args[++index], 10) || 1);
+        } else if (arg === '--shard') {
+            const parts = String(args[++index]).split('/');
+            options.shardIndex = Number.parseInt(parts[0], 10);
+            options.shardCount = Math.max(1, Number.parseInt(parts[1], 10) || 1);
+        } else if (arg === '--timeout-ms') {
             options.timeoutMs = Math.max(1, Number.parseInt(args[++index], 10));
         } else if (arg === '--no-timeout') {
             options.timeoutMs = null;
@@ -3932,6 +3941,9 @@ function runCorpus(options) {
             throw new Error(formatGameFilterMiss(options.gameFilter, names));
         }
     }
+    if (options.shardCount !== null && options.shardCount > 1) {
+        jobs = jobs.filter((job, index) => index % options.shardCount === options.shardIndex);
+    }
     for (const { file, opts } of jobs) {
         const name = gameName(opts.corpusPath, file);
         if (opts.gameFilter !== null && name !== opts.gameFilter) {
@@ -4181,9 +4193,53 @@ function printSolutionsLocation(options) {
     process.stdout.write(`Solutions: ${options.writeSolutions ? options.solutionsDir : 'disabled'}\n`);
 }
 
-function main() {
-    const options = parseArgs(process.argv);
-    const results = runCorpus(options);
+//--jobs N: shard the game list across N child processes and merge their JSON
+//results. Solve counts at a fixed wall-clock timeout are NOT comparable with
+//serial runs when workers contend for cores - use parallel mode for
+//correctness/coverage iteration, serial mode for benchmarking.
+function runParallel(options) {
+    const { spawn } = require('child_process');
+    const childArgs = [];
+    const args = process.argv.slice(2);
+    for (let index = 0; index < args.length; index++) {
+        if (args[index] === '--jobs') {
+            index++;
+            continue;
+        }
+        if (args[index] === '--json' || args[index] === '--quiet') {
+            continue;
+        }
+        childArgs.push(args[index]);
+    }
+    const children = [];
+    for (let shard = 0; shard < options.jobs; shard++) {
+        const argv = [process.argv[1], ...childArgs, '--shard', `${shard}/${options.jobs}`, '--json', '--quiet'];
+        children.push(new Promise((resolve, reject) => {
+            const child = spawn(process.execPath, argv, { stdio: ['ignore', 'pipe', 'inherit'] });
+            let out = '';
+            child.stdout.on('data', (chunk) => { out += chunk; });
+            child.on('error', reject);
+            child.on('close', (code) => {
+                if (code !== 0) {
+                    reject(new Error(`solver shard ${shard}/${options.jobs} exited with code ${code}`));
+                    return;
+                }
+                try {
+                    resolve(JSON.parse(out).results);
+                } catch (error) {
+                    reject(new Error(`solver shard ${shard}/${options.jobs} produced invalid JSON: ${error.message}`));
+                }
+            });
+        }));
+    }
+    return Promise.all(children).then((shardResults) => {
+        const results = [].concat(...shardResults);
+        results.sort((a, b) => (a.game === b.game ? (a.level | 0) - (b.level | 0) : (a.game < b.game ? -1 : 1)));
+        return results;
+    });
+}
+
+function emitResults(options, results) {
     if (options.json) {
         const t = totals(results);
         const payload = { results, totals: t };
@@ -4209,13 +4265,23 @@ function main() {
     }
 }
 
-if (require.main === module) {
-    try {
-        main();
-    } catch (error) {
-        process.stderr.write(`${error && error.message ? error.message : error}\n`);
-        process.exit(1);
+function main() {
+    const options = parseArgs(process.argv);
+    if (options.jobs > 1 && options.shardCount === null) {
+        return runParallel(options).then((results) => emitResults(options, results));
     }
+    const results = runCorpus(options);
+    emitResults(options, results);
+    return Promise.resolve();
+}
+
+if (require.main === module) {
+    Promise.resolve()
+        .then(() => main())
+        .catch((error) => {
+            process.stderr.write(`${error && error.message ? error.message : error}\n`);
+            process.exit(1);
+        });
 }
 
 module.exports = {
