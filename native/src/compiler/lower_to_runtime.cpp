@@ -2066,6 +2066,19 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         continue;
                     }
 
+                    // Phase 7C: tolerate LHS-only tail terms when they are `no`/`random`
+                    // constraints. Other tail terms invalidate movement/preserved modes.
+                    if (cellRPtr != nullptr && cellL.items.size() > cellRPtr->items.size()) {
+                        for (size_t tail = cellRPtr->items.size(); tail < cellL.items.size(); ++tail) {
+                            const std::string& tailDir = cellL.items[tail].dir;
+                            if (tailDir != "no" && tailDir != "random") {
+                                movementValid = false;
+                                preservedValid = false;
+                                break;
+                            }
+                        }
+                    }
+
                     // JS getCoalescingPlan resets these per cell, not per row.
                     std::set<std::string> preservedSeenInCell;
                     std::map<int32_t, bool> movFixedLayers;
