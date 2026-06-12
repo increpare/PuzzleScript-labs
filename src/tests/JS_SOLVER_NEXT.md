@@ -65,6 +65,18 @@ Reasonable next moves only with fresh evidence:
     mid-turn break rule matching (masks not updated by `setCell`); correctness
     failure on games like CODEX LUBRICUS.
 
+- **Phase 2 (incremental rule A.1 + measurement stack) — partial land; solver
+  gate not met.** Re-implemented A.1 with conservative fixes (never prune rules
+  with non-empty `readMovements`; augment `writeMovements` from `writeObjects`;
+  solver harness sets `PUZZLESCRIPT_INCREMENTAL_PRUNE=0` by default). Sim
+  469/469; `--breakdown` `processInput` 8096ms (+5% vs Phase 0 baseline 7710ms).
+  Full corpus @ 250ms: **614 → 604 solved (−10)** with prune off in solver;
+  **544 solved** with prune on. µs/step 20.56 → 22.51 (prune off). A.2 group
+  masks compiled; outer-loop skip disabled (Rose + focus regressions). Phase 3:
+  `restore()` rebuilds masks + `solverMasksFreshFromRestore` skips redundant
+  rebuild on solver again-steps only. **`bench_solver.js` + `step_no_op` counters
+  landed** (`make solver_bench_js`).
+
 - **A3 — done.** Per-condition `staticDeadCellsCache` of `{corner, edge}`
   Uint8Arrays, built once via `inferStaticBlockerMask` + map boundaries.
   `deadPositionPenalty` and `allOnDeadlockHeuristic` rewritten as O(1) lookups.
@@ -472,10 +484,9 @@ of `'auto'`.
 We're flying half-blind: it's hard to tell which heuristic wins on which game
 without a manual sweep.
 
-- [ ] **F1. `bench_solver.js` driver.** Wrap `run_solver_tests_js.js` to run a
-      list of `(strategy, heuristic, astarWeight)` triples across the corpus
-      and emit CSV (`game, level, config, status, depth, expanded, elapsed_ms,
-      heuristic_ms`). Single source of truth for "did this change help?".
+- [x] **F1. `bench_solver.js` driver.** `src/tests/bench_solver.js` wraps
+      `run_solver_tests_js.js`; supports `--out`, `--csv`, `--configs` JSON.
+      Makefile target `solver_bench_js`.
 - [ ] **F2. Per-condition heuristic breakdown in JSON.** When `'auto'` is
       active, include the per-condition picks in `result.heuristic_breakdown`
       (string array) so the bench can correlate failures with classifier picks.

@@ -940,6 +940,9 @@ solver_tests_cpp: $(SOLVER_TARGET_PREREQ)
 solver_tests_js:
 	$(NODE) src/tests/run_solver_tests_js.js src/tests/solver_tests --timeout-ms $(SOLVER_TIMEOUT_MS) --solutions-dir $(SOLVER_SOLUTIONS_DIR)/js $(SOLVER_PROGRESS_ARGS) $(SOLVER_OUTPUT_ARGS)
 
+solver_bench_js:
+	$(NODE) src/tests/bench_solver.js src/tests/solver_tests --timeout-ms $(SOLVER_TIMEOUT_MS) --quiet --json --no-solutions $(SOLVER_BENCH_JS_EXTRA_ARGS)
+
 js_static_optimization_comparison_solver_smoke:
 	@set -e; \
 	out="$(JS_STATIC_OPTIMIZATION_COMPARE_OUT)/smoke"; \

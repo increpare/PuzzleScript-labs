@@ -1,5 +1,79 @@
 # Coalescing Performance Notes
 
+## 2026-06-12 Phase 2 execution (post perf-stack baseline)
+
+Phase 0 baseline (`build/solver-baseline-phase2.json`, pre-A.1 on this branch):
+
+| Metric | Value |
+| --- | ---: |
+| Solved @ 250ms | 614 |
+| Timeout | 683 |
+| `step_ms` | 165702 |
+| `generated` | 8.06M |
+| µs/step | 20.56 |
+| Sim `processInput` (`--breakdown`) | 7710ms / 22302 calls |
+| Sim `compile` | 3950ms / 469 calls |
+
+Post Phase 2 (A.1 + harness; solver prune off via default env):
+
+| Metric | Value | Δ vs baseline |
+| --- | ---: | ---: |
+| Solved @ 250ms | 604 | −10 |
+| Timeout | 693 | +10 |
+| `step_ms` | 169088 | +2.0% |
+| `generated` | 7.51M | −6.8% |
+| µs/step | 22.51 | +9.5% |
+| `step_no_op` / `step_changed` | 39.4% no-op | (new counters) |
+| Sim `processInput` | 8096ms | +5.0% |
+| Sim `compile` | 2510ms | −36%* |
+| Sim tests | 469/469 | pass |
+
+\*Compile bucket variance between runs; not attributed to A.1.
+
+### A.1 incremental rule application (re-landed)
+
+- Compiler: `readMovements`, `writeObjects`, `writeMovements`, `forceAlwaysRun`,
+  `readObjects` on rule tuple; group masks via `attachGroupIncrementalMasks`.
+- Engine: inner-loop prune skips only when `readMovements.iszero()` and
+  `readObjects` does not intersect prior write mask (movement-reading rules always
+  run). `augmentWriteMovementsForObjectLayers` conservatively widens write masks.
+- **Solver gate failed:** 604 vs required ≥612 (`baseline − 2`). Harness defaults
+  `PUZZLESCRIPT_INCREMENTAL_PRUNE=0` (unconditional inner loop). With prune on:
+  544 solved and +52% µs/step — discard for solver.
+- Parity: 469/469 sim with `PUZZLESCRIPT_INCREMENTAL_PARITY=1` before legacy path
+  removal; legacy/parity code removed after bake.
+- Fixture tests: `src/tests/run_rule_read_write_masks_node.js`.
+
+### A.2 outer-loop (infrastructure only)
+
+- `groupReadObjects` / `groupWriteObjects` etc. attached at compile time;
+  `applyRules` cumulative mask plumbing present.
+- **Outer group skip disabled** (`skipGroup = false`): enabling skip regressed
+  Rose, cyber-lasso, and other loop-heavy games even with conservative gates.
+
+### Phase 3 fused mask rebuild (revised item 3)
+
+- `restore()` calls `calculateRowColMasks` after `objects.set` / zeroed movements.
+- `processInput` skips mask rebuild on again-input only when
+  `level.solverMasksFreshFromRestore` is set (solver restore path).
+- CODEX LUBRICUS level 2: still solves @ 250ms.
+
+### Phase 4 residual — follow-ups not scoped
+
+Gates not met: solver −10 solves, sim `processInput` +5% (not −17% target).
+**Do not proceed** with A.3/E1 engine no-op early-out, action pruning, incremental
+`checkWin`, or static-only A2 distance cache retry on this evidence.
+
+### Commands
+
+```sh
+node src/tests/bench_solver.js src/tests/solver_tests --timeout-ms 250 \
+  --out build/solver-phase2-final.json
+node src/tests/run_tests_node.js --breakdown --sim-only
+PUZZLESCRIPT_INCREMENTAL_PRUNE=1 node src/tests/run_tests_node.js --sim-only
+make solver_bench_js
+```
+
 ## 2026-06-11 incremental rule application (Phase A.1) — reverted
 
 Phase A.1 ("incremental rule application") was implemented through Task 7

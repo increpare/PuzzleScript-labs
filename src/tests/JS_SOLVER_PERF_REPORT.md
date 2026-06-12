@@ -182,6 +182,12 @@ step cost → +38 solves) that's roughly **+15-25 solves at 250ms**, and it
 compounds with every future timeout/corpus increase. Item 2 additionally
 lowers the marginal cost of any future heuristic work.
 
+**Phase 2 update (2026-06-12):** Post perf-stack baseline 614 solved @ 250ms.
+Incremental A.1 re-landed for sim/editor (469/469 pass); solver corpus **604
+solved (−10)** with prune disabled in harness. Inner-loop pruning remains
+opt-in via `PUZZLESCRIPT_INCREMENTAL_PRUNE=1` for experiments. A.2 outer skip
+not enabled. See `COALESCING_PERF.md` §2026-06-12.
+
 ## Reproduce
 
 ```
