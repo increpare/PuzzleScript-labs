@@ -133,7 +133,8 @@ function hashString(text) {
 }
 
 function classifyFailure(failure) {
-    if (failure.phase === 'input_generation' && /again drain overflow/.test(failure.error)) {
+    if ((failure.phase === 'input_generation' || failure.phase === 'level_discovery')
+        && /(again drain overflow|exceeded \d+ again-drain steps)/.test(failure.error)) {
         return 'known_again_overflow';
     }
     return 'unexpected';

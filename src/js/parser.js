@@ -216,6 +216,15 @@ const reg_non_ascii = /[^\x00-\x7F]/;
 const metadata_with_value_set = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
 const metadata_no_value_set = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline']);
 
+function ensureNameMembershipSets(state) {
+    if (!state.namesSet) {
+        state.namesSet = new Set(Array.isArray(state.names) ? state.names : []);
+    }
+    if (!state.abbrevNamesSet) {
+        state.abbrevNamesSet = new Set(Array.isArray(state.abbrevNames) ? state.abbrevNames : []);
+    }
+}
+
 let codeMirrorFn = function () {
     'use strict';
 
@@ -1404,7 +1413,7 @@ let codeMirrorFn = function () {
                 rules: rulesCopy,
 
                 names: state.names.concat([]),
-                namesSet: new Set(state.namesSet),
+                namesSet: state.namesSet ? new Set(state.namesSet) : new Set(Array.isArray(state.names) ? state.names : []),
 
                 winconditions: winConditionsCopy,
 
@@ -1412,7 +1421,7 @@ let codeMirrorFn = function () {
                 original_line_numbers: original_line_numbersCopy,
 
                 abbrevNames: state.abbrevNames.concat([]),
-                abbrevNamesSet: new Set(state.abbrevNamesSet),
+                abbrevNamesSet: state.abbrevNamesSet ? new Set(state.abbrevNamesSet) : new Set(Array.isArray(state.abbrevNames) ? state.abbrevNames : []),
 
                 metadata: state.metadata.concat([]),
                 metadata_lines: Object.assign({}, state.metadata_lines),

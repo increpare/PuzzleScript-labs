@@ -370,12 +370,21 @@ function pruneLegendRowsWithUnresolvedRefs(state) {
                 .filter((row) => Array.isArray(row) && row.length >= 2 && typeof row[0] === 'string')
                 .map((row) => row[0])
         );
+        const synDefs = new Map(
+            (state.legend_synonyms || [])
+                .filter((row) => Array.isArray(row) && row.length >= 2 && typeof row[0] === 'string')
+                .map((row) => [row[0], row[1]])
+        );
 
-        function memberOk(m) {
+        function memberOk(m, context, seen = new Set()) {
             if (typeof m !== 'string' || !m.length) return false;
             if (state.objects && Object.prototype.hasOwnProperty.call(state.objects, m)) return true;
-            if (propDefs.has(m)) return true;
+            if (context !== 'aggregate' && propDefs.has(m)) return true;
             if (aggDefs.has(m)) return true;
+            if (synDefs.has(m) && !seen.has(m)) {
+                seen.add(m);
+                return memberOk(synDefs.get(m), context, seen);
+            }
             return false;
         }
 
@@ -383,7 +392,7 @@ function pruneLegendRowsWithUnresolvedRefs(state) {
         const propsNext = props.filter((row) => {
             if (!Array.isArray(row) || row.length < 2) return false;
             for (let j = 1; j < row.length; j++) {
-                if (!memberOk(row[j])) return false;
+                if (!memberOk(row[j], 'property')) return false;
             }
             return true;
         });
@@ -396,7 +405,7 @@ function pruneLegendRowsWithUnresolvedRefs(state) {
         const syns = state.legend_synonyms || [];
         const synsNext = syns.filter((row) => {
             if (!Array.isArray(row) || row.length < 2) return false;
-            return memberOk(row[1]);
+            return memberOk(row[1], 'synonym');
         });
         if (synsNext.length !== syns.length) {
             state.legend_synonyms = synsNext;
@@ -409,7 +418,7 @@ function pruneLegendRowsWithUnresolvedRefs(state) {
             if (!Array.isArray(row) || row.length < 2) return false;
             for (let j = 1; j < row.length; j++) {
                 const m = row[j];
-                if (!state.objects || !Object.prototype.hasOwnProperty.call(state.objects, m)) return false;
+                if (!memberOk(m, 'aggregate')) return false;
             }
             return true;
         });
@@ -527,13 +536,21 @@ function findAggregateAttachedName(rows, binding) {
     return null;
 }
 
-function findAggregateSinkName(rule, aggregateName, sink) {
+function findAggregateSinkName(state, rule, aggregateName, sink) {
     const row = rule.rhs && rule.rhs[sink.row];
     const cell = row && row[sink.cell];
     if (!Array.isArray(cell)) return null;
+    const candidates = [];
     for (let i = 0; i < cell.length; i += 2) {
         if (cell[i] === aggregateName) {
-            return cell[i + 1];
+            candidates.push(cell[i + 1]);
+        }
+    }
+    if (candidates.length === 1) return candidates[0];
+    for (const candidate of candidates) {
+        const object = candidate && state.objects && state.objects[candidate];
+        if (object && Number.isInteger(object.layer) && object.layer === sink.layer) {
+            return candidate;
         }
     }
     return null;
@@ -576,7 +593,7 @@ function refreshRuleBindingMetadata(state, rule) {
         rule.aggregateSinks.forEach((sinks, aggregateName) => {
             for (const sink of sinks || []) {
                 if (sink.propertyName) continue;
-                const sinkName = findAggregateSinkName(rule, aggregateName, sink);
+                const sinkName = findAggregateSinkName(state, rule, aggregateName, sink);
                 const object = sinkName && state.objects && state.objects[sinkName];
                 if (object && Number.isInteger(object.layer)) {
                     sink.layer = object.layer | 0;
@@ -735,12 +752,15 @@ function ruleReadObjectSet(rule) {
 function isCosmeticRuleOptimizationEligible(rule, cosmeticObjects) {
     const tags = (rule && rule.tags) || {};
     const projection = cosmeticMutationProjection(rule, cosmeticObjects);
+    const rhsMovement = (rule && rule.summary && rule.summary.rhs_movement) || [];
+    const hasRandomMovement = rhsMovement.some(term => term && term.movement === 'randomdir');
     return rule
         && projection.mutatedObjects.size > 0
         && projection.hasVisibleMutation === false
         && rule.random_rule !== true
         && rule.rigid !== true
         && tags.has_again !== true
+        && hasRandomMovement !== true
         && (!rule.summary || (
             rule.summary.semantic_commands.length === 0
             && rule.summary.rhs_random_objects.length === 0
@@ -753,6 +773,8 @@ function cosmeticRuleSourceLines(report) {
     const cosmeticObjects = collectCosmeticNames(report);
     const sections = report && report.ps_tagged && report.ps_tagged.rule_sections;
     if (!Array.isArray(sections)) return new Set();
+    const gameTags = report && report.ps_tagged && report.ps_tagged.game && report.ps_tagged.game.tags;
+    if (gameTags && gameTags.has_again === true) return new Set();
     for (const section of sections) {
         for (const group of section.groups || []) {
             for (const rule of group.rules || []) {

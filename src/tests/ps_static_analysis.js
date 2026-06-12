@@ -605,6 +605,7 @@ function addDirectMergeBlocker(indexes, left, right, ruleId) {
 function buildMergeabilityIndexes(psTagged) {
     const layerObjectsById = new Map((psTagged.collision_layers || []).map(layer => [layer.id, layer.objects || []]));
     const layerByObject = new Map();
+    const objectLayerMembership = new Map();
     const winRoleSignature = new Map();
     const objectSetMembership = new Map();
     const objectSetIds = new Map();
@@ -612,13 +613,24 @@ function buildMergeabilityIndexes(psTagged) {
         directReadBlockers: new Set(),
         directReadEvidence: new Map(),
         winRoleSignature,
+        layerMembershipSignature: new Map(),
         objectSetSignature: new Map(),
     };
 
     for (const object of psTagged.objects || []) {
         layerByObject.set(object.name, object.layer);
+        objectLayerMembership.set(object.name, new Set());
         winRoleSignature.set(object.name, JSON.stringify(winRoleForObject(psTagged, object.name)));
         objectSetMembership.set(object.name, new Set());
+    }
+
+    for (const layer of psTagged.collision_layers || []) {
+        for (const objectName of layer.objects || []) {
+            if (!objectLayerMembership.has(objectName)) {
+                objectLayerMembership.set(objectName, new Set());
+            }
+            objectLayerMembership.get(objectName).add(layer.id);
+        }
     }
 
     function objectSetId(objects) {
@@ -686,6 +698,7 @@ function buildMergeabilityIndexes(psTagged) {
     }
 
     for (const object of psTagged.objects || []) {
+        indexes.layerMembershipSignature.set(object.name, signatureFromSet(objectLayerMembership.get(object.name)));
         indexes.objectSetSignature.set(object.name, signatureFromSet(objectSetMembership.get(object.name)));
     }
 
@@ -705,6 +718,9 @@ function deriveMergeabilityFacts(psTagged) {
                 if (indexes.directReadBlockers.has(pairKey)) blockers.push('individual_lhs_read');
                 if (indexes.winRoleSignature.get(objects[0]) !== indexes.winRoleSignature.get(objects[1])) {
                     blockers.push('different_win_roles');
+                }
+                if (indexes.layerMembershipSignature.get(objects[0]) !== indexes.layerMembershipSignature.get(objects[1])) {
+                    blockers.push('different_collision_layer_membership');
                 }
                 if (indexes.objectSetSignature.get(objects[0]) !== indexes.objectSetSignature.get(objects[1])) {
                     blockers.push('partial_property_observation');
@@ -952,6 +968,9 @@ function movementReachabilityTaint(psTagged, objectName, movementName, movementS
             for (const movement of CARDINAL_MOVEMENTS) {
                 consider(`${layerObject}:${movement}`);
             }
+            if (movementName === 'moving') {
+                consider(`${layerObject}:action`);
+            }
             consider(`${layerObject}:moving`);
             consider(`${layerObject}:randomdir`);
         }
@@ -1039,12 +1058,32 @@ function ambiguousActionDirectionSourceLines(psTagged, activeEntries) {
         .map(([line]) => line));
 }
 
-function actionBranchMovementEffectsCoveredByDirectionInputs(psTagged, rule, movementEffects, directionMovements, ambiguousSourceLines) {
+function directionConsumedMovements(psTagged, activeEntries, directionMovementStates) {
+    const consumed = new Set();
+    for (const entry of activeEntries) {
+        const rule = entry.rule;
+        const taint = ruleMovementRequirementTaint(psTagged, rule, directionMovementStates);
+        if (taint === null) continue;
+        const written = new Set(rule.tags.movements_written || []);
+        for (const movementTag of rule.tags.movements_removed || []) {
+            if (written.has(movementTag)) continue;
+            const objectName = movementKeyObjectName(movementTag);
+            const movement = movementKeyMovementName(movementTag);
+            for (const layerObject of layerObjectsForObject(psTagged, objectName)) {
+                consumed.add(`${layerObject}:${movement}`);
+            }
+        }
+    }
+    return consumed;
+}
+
+function actionBranchMovementEffectsCoveredByDirectionInputs(psTagged, rule, movementEffects, directionMovements, directionConsumed, ambiguousSourceLines) {
     if (ambiguousSourceLines.has(rule.source_line)) return false;
     const playerObjects = playerObjectNameSet(psTagged);
     const cardinalDirections = new Set();
     const covered = movementEffects.every(movementTag => {
         if (!directionMovements.has(movementTag)) return false;
+        if (directionConsumed.has(movementTag)) return false;
         const objectName = movementKeyObjectName(movementTag);
         const movement = movementKeyMovementName(movementTag);
         if (CARDINAL_MOVEMENTS.includes(movement)) {
@@ -1056,13 +1095,14 @@ function actionBranchMovementEffectsCoveredByDirectionInputs(psTagged, rule, mov
     return covered && cardinalDirections.size <= 1;
 }
 
-function actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, ambiguousSourceLines) {
+function actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, directionConsumed, ambiguousSourceLines) {
     const movementEffects = uniqueSorted(visibleActionBranchMovementEffects(psTagged, rule));
     const movementCovered = actionBranchMovementEffectsCoveredByDirectionInputs(
         psTagged,
         rule,
         movementEffects,
         directionMovements,
+        directionConsumed,
         ambiguousSourceLines
     );
     const semanticCommand = rule.summary.semantic_commands.some(command => command !== 'again');
@@ -1129,6 +1169,7 @@ function deriveMovementActionFacts(psTagged) {
     }
     const directionMovementStates = directionCoveredMovementStates(psTagged, activeEntries);
     const directionMovements = new Set(directionMovementStates.keys());
+    const directionConsumed = directionConsumedMovements(psTagged, activeEntries, directionMovementStates);
     const ambiguousSourceLines = ambiguousActionDirectionSourceLines(psTagged, activeEntries);
     const possibleMovements = new Set(playerActionMovementSeeds(psTagged));
     const movementStates = new Map(Array.from(possibleMovements, movementTag => [movementTag, 'exclusive']));
@@ -1143,7 +1184,7 @@ function deriveMovementActionFacts(psTagged) {
             if (reachabilityTaint === null) continue;
             const reasons = reachabilityTaint === 'covered'
                 ? []
-                : actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, ambiguousSourceLines);
+                : actionExclusiveRuleReasons(psTagged, rule, reachabilityTaint, directionMovements, directionConsumed, ambiguousSourceLines);
             const diagnostic = actionUnnecessaryRuleDiagnostic(psTagged, entry, reasons);
             if (diagnostic && diagnostic.reasons.length > 0) {
                 blockerRulesById.set(diagnostic.rule_id, diagnostic);
@@ -1510,6 +1551,17 @@ function ruleHasPositiveLhsObject(rule, objectName) {
     return rule.summary.lhs_terms.some(term => term.kind === 'present' && termMentionsObject(term, objectName));
 }
 
+function termIsConcreteObject(term, objectName) {
+    return term
+        && term.ref
+        && term.ref.type === 'object'
+        && term.ref.name === objectName;
+}
+
+function ruleHasPositiveConcreteLhsObject(rule, objectName) {
+    return rule.summary.lhs_terms.some(term => term.kind === 'present' && termIsConcreteObject(term, objectName));
+}
+
 function rulePresentsObjectOnRhs(rule, objectName) {
     return rule.summary.rhs_terms.some(term =>
         (term.kind === 'present' || term.kind === 'random_object') && termMentionsObject(term, objectName)
@@ -1520,7 +1572,7 @@ function ruleCreatesObject(rule, objectName) {
     return rule.tags.solver_state_active
         && rule.tags.object_mutating
         && rulePresentsObjectOnRhs(rule, objectName)
-        && !ruleHasPositiveLhsObject(rule, objectName);
+        && !ruleHasPositiveConcreteLhsObject(rule, objectName);
 }
 
 function creatorsForObject(psTagged, objectName) {
@@ -1534,6 +1586,15 @@ function lateClearersForObject(psTagged, objectName) {
 }
 
 function ruleUnconditionallyClearsObject(rule, objectName) {
+    if (rule.random_rule) {
+        return false;
+    }
+    if (!rule.tags || !(rule.tags.objects_erased || []).includes(objectName)) {
+        return false;
+    }
+    if (!Array.isArray(rule.lhs) || rule.lhs.length !== 1 || !Array.isArray(rule.lhs[0]) || rule.lhs[0].length !== 1) {
+        return false;
+    }
     const lhsTerms = rule.summary.lhs_terms;
     if (lhsTerms.length !== 1) return false;
     const lhsTerm = lhsTerms[0];

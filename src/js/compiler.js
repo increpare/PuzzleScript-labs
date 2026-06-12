@@ -1075,6 +1075,7 @@ function checkSuperfluousCoincidences(state,rules){
 }
 
 function rulesToArray(state) {
+    ensureNameMembershipSets(state);
     let oldrules = state.rules;
     let rules = [];
     let loops = [];
@@ -4588,6 +4589,7 @@ function loadFile(str) {
 
     generateExtraMembers(state);
     generateMasks(state);
+    ensureNameMembershipSets(state);
     levelsToArray(state);
     rulesToArray(state);
     if (state.invalid > 0) {

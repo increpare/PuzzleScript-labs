@@ -6,6 +6,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { classifyFailure } = require('./fuzz_static_contracts');
 
 const rootDir = path.resolve(__dirname, '..', '..');
 
@@ -81,5 +82,14 @@ const summaryOut = runNode([
 assert.strictEqual(summaryOut.status, 0, summaryOut.stderr || summaryOut.stdout);
 assert.strictEqual(summaryOut.stdout, '');
 assert.strictEqual(JSON.parse(fs.readFileSync(outPath, 'utf8')).schema, 'ps-static-analysis-batch-summary-v1');
+
+assert.strictEqual(
+    classifyFailure({
+        phase: 'level_discovery',
+        error: 'levels:game.txt: initial compile: exceeded 10000 again-drain steps',
+    }),
+    'known_again_overflow',
+    'level-discovery again overflow should be classified like input-generation overflow'
+);
 
 console.log('static_tool_cli_hardening_node: ok');

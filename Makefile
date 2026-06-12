@@ -615,6 +615,7 @@ ctest: build build_solver build_generator
 
 tests_js:
 	$(NODE) src/tests/run_tests_node.js
+	$(NODE) src/tests/compiler_keyword_names_node.js
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js

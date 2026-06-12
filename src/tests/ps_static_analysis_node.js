@@ -793,6 +793,17 @@ assert.ok(
     'mergeability should not emit self-merge facts'
 );
 
+const DIFFERENT_LAYER_MEMBERSHIP_GAME = MERGEABLE_GAME
+    .replace('BodyH, BodyV, Goal', 'BodyH, BodyV, Goal\nBodyV, Goal');
+const differentLayerMembership = analyzeSource(DIFFERENT_LAYER_MEMBERSHIP_GAME, {
+    sourcePath: 'different_layer_membership.txt',
+});
+const differentLayerMembershipFact = differentLayerMembership.facts.mergeability.find(item =>
+    item.subjects.objects.join(',') === 'BodyH,BodyV'
+);
+assert.strictEqual(differentLayerMembershipFact.status, 'rejected');
+assert.ok(differentLayerMembershipFact.blockers.includes('different_collision_layer_membership'));
+
 const MOVEMENT_CLEAR_GAME = SIMPLE_GAME.replace('[ > Hero ] -> [ > Hero ]', '[ right Hero ] -> [ Hero ]');
 const movementClear = analyzeSource(MOVEMENT_CLEAR_GAME, { sourcePath: 'movement_clear.txt' });
 const movementClearRule = movementClear.ps_tagged.rule_sections[0].groups[0].rules[0];
@@ -1235,6 +1246,73 @@ const EMPTY_CLEAR_TRANSIENT_GAME = TRANSIENT_GAME.replace('late [ Mark ] -> [ no
 const emptyClearTransient = analyzeSource(EMPTY_CLEAR_TRANSIENT_GAME, { sourcePath: 'empty_clear_transient.txt' });
 const emptyClearMark = emptyClearTransient.facts.transient_boundary.find(item => item.id === 'object_Mark_end_turn_transient');
 assert.strictEqual(emptyClearMark.status, 'proved', 'empty RHS cleanup should count as an end-turn clear');
+
+const MULTICELL_CLEAR_TRANSIENT_GAME = TRANSIENT_GAME.replace('late [ Mark ] -> [ no Mark ]', 'late [ | Mark | ] -> [ | | ]');
+const multicellClearTransient = analyzeSource(MULTICELL_CLEAR_TRANSIENT_GAME, { sourcePath: 'multicell_clear_transient.txt' });
+const multicellClearMark = multicellClearTransient.facts.transient_boundary.find(item => item.id === 'object_Mark_end_turn_transient');
+assert.strictEqual(multicellClearMark.status, 'rejected', 'multi-cell cleanup rules are context-dependent, not unconditional end-turn clears');
+assert.ok(multicellClearMark.blockers.includes('no_late_cleanup_clear'));
+
+const COMMAND_ONLY_CLEAR_TRANSIENT_GAME = TRANSIENT_GAME.replace('late [ Mark ] -> [ no Mark ]', 'late [ Mark ] -> again');
+const commandOnlyClearTransient = analyzeSource(COMMAND_ONLY_CLEAR_TRANSIENT_GAME, { sourcePath: 'command_only_clear_transient.txt' });
+const commandOnlyClearMark = commandOnlyClearTransient.facts.transient_boundary.find(item => item.id === 'object_Mark_end_turn_transient');
+assert.strictEqual(commandOnlyClearMark.status, 'rejected', 'command-only rules preserve matched cells and should not count as cleanup');
+assert.ok(commandOnlyClearMark.blockers.includes('no_late_cleanup_clear'));
+
+const RANDOM_CLEAR_TRANSIENT_GAME = TRANSIENT_GAME.replace('late [ Mark ] -> [ no Mark ]', 'late random [ Mark ] -> [ no Mark ]');
+const randomClearTransient = analyzeSource(RANDOM_CLEAR_TRANSIENT_GAME, { sourcePath: 'random_clear_transient.txt' });
+const randomClearMark = randomClearTransient.facts.transient_boundary.find(item => item.id === 'object_Mark_end_turn_transient');
+assert.strictEqual(randomClearMark.status, 'rejected', 'random late rules are not guaranteed cleanup');
+assert.ok(randomClearMark.blockers.includes('no_late_cleanup_clear'));
+
+const PROPERTY_RECREATE_TRANSIENT_GAME = `
+title Property Recreate Transient
+${'========'}
+OBJECTS
+${'========'}
+Background
+black
+Player
+white
+Mark
+red
+Other
+blue
+${'======='}
+LEGEND
+${'======='}
+. = Background
+P = Player
+Token = Mark or Other
+${'======='}
+SOUNDS
+${'======='}
+================
+COLLISIONLAYERS
+================
+Background
+Player
+Mark
+Other
+=====
+RULES
+=====
+[ Player ] -> [ Player Mark Other ]
+late [ Mark ] -> [ no Mark ]
+late [ Token ] -> [ Mark ]
+=============
+WINCONDITIONS
+=============
+Some Player
+======
+LEVELS
+======
+P
+`;
+const propertyRecreateTransient = analyzeSource(PROPERTY_RECREATE_TRANSIENT_GAME, { sourcePath: 'property_recreate_transient.txt' });
+const propertyRecreateMark = propertyRecreateTransient.facts.transient_boundary.find(item => item.id === 'object_Mark_end_turn_transient');
+assert.strictEqual(propertyRecreateMark.status, 'rejected', 'property LHS rules can recreate a concrete member from a sibling after cleanup');
+assert.ok(propertyRecreateMark.blockers.includes('creator_not_followed_by_late_cleanup'));
 
 const PRESENT_TRANSIENT_GAME = TRANSIENT_GAME.replace('P\n', 'PM\n');
 const presentTransient = analyzeSource(PRESENT_TRANSIENT_GAME, { sourcePath: 'present_transient.txt' });
@@ -1934,6 +2012,125 @@ function assertCastleClosetActionUnnecessaryRejected() {
     assert.ok(actionUnnecessary.blockers.includes('semantic_command'));
 }
 
+function assertActionInputReachesMovingPlayerRules() {
+    const source = `
+title Static Analysis Action Reaches Moving Player Rules
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+=====
+RULES
+=====
+
+[ moving Player ] -> win
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P
+`;
+    const analysis = analyzeSource(source, {
+        sourcePath: 'action_reaches_moving_player_rules.txt',
+        familyFilter: 'movement_action',
+    });
+    const actionUnnecessary = analysis.facts.movement_action.find(item => item.id === 'action_unnecessary');
+    assert.strictEqual(actionUnnecessary.status, 'rejected', 'ACTION movement should reach moving-player rules');
+    assert.ok(actionUnnecessary.blockers.includes('semantic_command'));
+}
+
+function assertActionDirectionCoverageHonorsDirectionConsumers() {
+    const source = `
+title Static Analysis Action Direction Coverage Honors Direction Consumers
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+=====
+RULES
+=====
+
+[ > Player ] -> [ Player ]
+[ action Player ] -> [ right Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.
+`;
+    const analysis = analyzeSource(source, {
+        sourcePath: 'action_direction_coverage_consumed.txt',
+        familyFilter: 'movement_action',
+    });
+    const actionUnnecessary = analysis.facts.movement_action.find(item => item.id === 'action_unnecessary');
+    assert.strictEqual(actionUnnecessary.status, 'rejected', 'direction input cannot cover ACTION when an earlier rule consumes that direction');
+    assert.ok(actionUnnecessary.blockers.includes('reads_action'));
+}
+
 function assertKnownActionUnnecessaryClassifications() {
     const expectedStrictStaticProved = [
         'dollyban.txt',
@@ -2085,6 +2282,8 @@ assertOneMoveConstantQuantityReplay();
 assertCratesMoveConstantQuantityReplay();
 assertOneMoveActionUnnecessaryReplay();
 assertCastleClosetActionUnnecessaryRejected();
+assertActionInputReachesMovingPlayerRules();
+assertActionDirectionCoverageHonorsDirectionConsumers();
 assertKnownActionUnnecessaryClassifications();
 assertActionUnnecessaryDiagnosticsExposeHypotheses();
 assertPushRulegroupFlowReplay();

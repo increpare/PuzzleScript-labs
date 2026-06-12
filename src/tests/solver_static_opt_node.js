@@ -260,6 +260,30 @@ function run() {
         false,
         'visible net movement changes keep a rule out of cosmetic projection',
     );
+    assert.strictEqual(
+        isCosmeticRuleOptimizationEligible({
+            random_rule: false,
+            rigid: false,
+            tags: {
+                cosmetic: true,
+                object_mutating: true,
+                objects_required: ['Dust'],
+                objects_matched: ['Dust'],
+                object_absences_matched: [],
+                objects_written: [],
+                objects_erased: [],
+                movements_written: ['Dust:randomdir'],
+                movements_removed: ['Dust:stationary'],
+            },
+            summary: {
+                semantic_commands: [],
+                rhs_random_objects: [],
+                rhs_movement: [{ movement: 'randomdir', expanded_objects: ['Dust'] }],
+            },
+        }, cosmeticNames),
+        false,
+        'randomdir movement consumes randomness and is not cosmetic-rule safe',
+    );
     const dependentCosmeticReport = {
         ps_tagged: {
             objects: [{ name: 'Dust', tags: { cosmetic: true } }],
@@ -352,6 +376,39 @@ function run() {
         [1, 2],
         'remove cosmetic cleanup rules together with projectable cosmetic writers',
     );
+    const againCosmeticReport = {
+        ps_tagged: {
+            game: { tags: { has_again: true } },
+            objects: [{ name: 'Dust', tags: { cosmetic: true } }],
+            rule_sections: [{
+                groups: [
+                    { rules: [{
+                        source_line: 1,
+                        random_rule: false,
+                        rigid: false,
+                        tags: {
+                            cosmetic: true,
+                            object_mutating: true,
+                            has_again: false,
+                            objects_required: ['Dust'],
+                            objects_matched: ['Dust'],
+                            object_absences_matched: [],
+                            objects_written: [],
+                            objects_erased: ['Dust'],
+                            movements_written: [],
+                            movements_removed: [],
+                        },
+                        summary: { semantic_commands: [], rhs_random_objects: [] },
+                    }] },
+                ],
+            }],
+        },
+    };
+    assert.deepStrictEqual(
+        Array.from(cosmeticRuleSourceLines(againCosmeticReport)),
+        [],
+        'do not remove cosmetic rules in games with again-driven fixpoint timing',
+    );
 
     const mergeAliasState = {
         objects: { alpha: {}, beta: {} },
@@ -403,6 +460,188 @@ function run() {
     assert.ok(typeof tel.ms_cosmetic === 'number' && tel.ms_cosmetic >= 0);
     assert.ok(typeof tel.ms_cosmetic_rules === 'number' && tel.ms_cosmetic_rules >= 0);
     assert.ok(typeof tel.ms_merge === 'number' && tel.ms_merge >= 0);
+
+    const mergeSynonymPropertySource = `
+title Solver Static Merge Synonym Property
+
+========
+OBJECTS
+========
+
+background
+black
+
+Player
+blue
+
+KK
+red
+
+IK
+green
+
+OK
+yellow
+
+SK
+white
+
+========
+LEGEND
+========
+
+. = background
+P = Player
+K = KK
+I = IK
+O = OK
+S = SK
+Kioski = K or O or I or S
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+background
+KK, IK, OK, SK
+Player
+
+======
+RULES
+======
+
+[ Player Kioski ] -> win
+
+==============
+WINCONDITIONS
+==============
+
+=======
+LEVELS
+=======
+
+PI
+`;
+    const mergeSynonymReport = analyzeSource(mergeSynonymPropertySource, { sourcePath: 'solver_static_merge_synonym_property.txt' });
+    assert.strictEqual(mergeSynonymReport.status, 'ok');
+    const mergeSynonymHook = createSolverOptimizationHook(mergeSynonymReport, {
+        inert: false,
+        cosmetic: false,
+        cosmeticRules: false,
+        merge: true,
+    });
+    setPluginOptimizationHook(mergeSynonymHook);
+    try {
+        compile(['loadLevel', 0], mergeSynonymPropertySource, 'solver_static_merge_synonym_property');
+    } finally {
+        setPluginOptimizationHook(null);
+    }
+    assert.strictEqual(errorCount, 0, 'merge pass should preserve synonym-backed OR properties used by rules');
+    assert.ok(
+        state.solverOptimizationTelemetry.merged_object_aliases > 0,
+        'fixture should exercise a merge alias',
+    );
+    assert.ok(
+        state.propertiesDict && Object.prototype.hasOwnProperty.call(state.propertiesDict, 'kioski'),
+        'merged synonym-backed property should remain resolvable',
+    );
+
+    const mergeRepeatedAggregateMovementSource = `
+title Solver Static Merge Repeated Aggregate Movement
+
+========
+OBJECTS
+========
+
+background
+black
+
+Player
+blue
+
+Avatar
+white
+
+MarkerA
+red
+
+MarkerB
+green
+
+========
+LEGEND
+========
+
+. = background
+P = Player and Avatar
+a = MarkerA
+b = MarkerB
+Marker = MarkerA or MarkerB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+background
+Player
+MarkerA, MarkerB
+Avatar
+
+======
+RULES
+======
+
+[ Marker ] -> [ Marker ]
+[ moving Player Avatar ] -> [ moving Player moving Avatar ]
+
+=============
+WINCONDITIONS
+=============
+
+some Marker on background
+
+=======
+LEVELS
+=======
+
+.P.
+.ab
+`;
+    const mergeRepeatedAggregateReport = analyzeSource(mergeRepeatedAggregateMovementSource, {
+        sourcePath: 'solver_static_merge_repeated_aggregate_movement.txt',
+    });
+    assert.strictEqual(mergeRepeatedAggregateReport.status, 'ok');
+    const mergeRepeatedAggregateHook = createSolverOptimizationHook(mergeRepeatedAggregateReport, {
+        inert: false,
+        cosmetic: false,
+        cosmeticRules: false,
+        merge: true,
+    });
+    setPluginOptimizationHook(mergeRepeatedAggregateHook);
+    try {
+        compile(['loadLevel', 0], mergeRepeatedAggregateMovementSource, 'solver_static_merge_repeated_aggregate_movement');
+    } finally {
+        setPluginOptimizationHook(null);
+    }
+    assert.strictEqual(errorCount, 0, 'merge pass should preserve repeated aggregate movement rules');
+    assert.ok(
+        state.solverOptimizationTelemetry.merged_object_aliases > 0,
+        'fixture should exercise the merge rebuild path',
+    );
+    processInput(1);
+    const playerObject = state.objects.player;
+    const avatarObject = state.objects.avatar;
+    const movedCell = level.getCell(0);
+    assert.ok(movedCell.get(playerObject.id), 'optimized player should move left');
+    assert.ok(movedCell.get(avatarObject.id), 'optimized avatar should inherit the player movement');
 
     const cosmeticRuleSource = `
 title Solver Static Cosmetic Rule

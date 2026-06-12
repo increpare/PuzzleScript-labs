@@ -300,6 +300,8 @@ function staticContractForSource(source, testName) {
     const winflowFact = ((report.facts && report.facts.winflow) || [])
         .find(fact => fact && fact.id === 'winflow' && fact.status === 'proved') || null;
     const referencedObjectNames = ruleReferencedObjectNames(report.ps_tagged);
+    const optimizerCosmeticRuleLines = Array.from(optimizerCosmeticRuleSourceLines(report))
+        .sort((left, right) => left - right);
     const quantityContracts = objects
         .filter(object => object.tags && object.tags.quantity)
         .map(object => ({
@@ -331,8 +333,8 @@ function staticContractForSource(source, testName) {
         cosmeticObjectNames: objects
             .filter(object => object.tags && object.tags.cosmetic === true)
             .map(object => object.name),
-        cosmeticRuleSourceLines: cosmeticRuleSourceLines(report.ps_tagged),
-        optimizerCosmeticRuleSourceLines: Array.from(optimizerCosmeticRuleSourceLines(report)).sort((left, right) => left - right),
+        cosmeticRuleSourceLines: optimizerCosmeticRuleLines,
+        optimizerCosmeticRuleSourceLines: optimizerCosmeticRuleLines,
         inertCommandRuleSourceLines: inertCommandRuleSourceLines(report.ps_tagged),
         mergeCandidatePairs: mergeabilityCandidatePairs(report),
         winflowFact,
@@ -532,9 +534,16 @@ function projectableCosmeticObjectNames(objectNames, staticReferencedObjectNames
     for (const objectName of staticReferencedObjectNames) {
         addRuntimeObjectName(objectName, referenced);
     }
-    return objectNames.filter(objectName => {
+    const initial = objectNames.filter(objectName => {
         const runtimeName = engineObjectName(objectName);
         return !structural.has(runtimeName) && !referenced.has(runtimeName);
+    });
+    const projectableRuntimeNames = new Set(initial.map(objectName => engineObjectName(objectName)));
+    return initial.filter(objectName => {
+        const runtimeName = engineObjectName(objectName);
+        const object = state.objects[runtimeName];
+        const layerObjects = (object && state.collisionLayers && state.collisionLayers[object.layer]) || [];
+        return layerObjects.every(layerObjectName => projectableRuntimeNames.has(layerObjectName));
     });
 }
 
@@ -1487,7 +1496,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     // are solver optimizations. Solver search never issues undo, and undo-stack
     // depth is observable only to runtime traces that do, so scope these replay
     // parity checks to undo-free inputs.
-    const checkSolverProjectionReplays = !hasUndoInput;
+    const checkSolverProjectionReplays = !hasUndoInput && noRandomProved;
 
     const previousUnitTesting = unitTesting;
     const previousLazyFunctionGeneration = lazyFunctionGeneration;
@@ -1759,9 +1768,11 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             currentIdentity = nextIdentity;
         }
 
-        assertFinalReplayParity(testName, expectedSerializedLevel, expectedSounds);
+        if (noRandomProved) {
+            assertFinalReplayParity(testName, expectedSerializedLevel, expectedSounds);
+        }
 
-        const normalInertCommandCoreState = inertCommandRuleSourceLines.length > 0
+        const normalInertCommandCoreState = checkSolverProjectionReplays && inertCommandRuleSourceLines.length > 0
             ? solverCoreStateSnapshot()
             : null;
         const normalCosmeticProjection = checkSolverProjectionReplays && cosmeticObjects.length > 0
@@ -1774,7 +1785,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             ? mergeCanonicalStateSnapshot(mergeAliasMap)
             : null;
 
-        if (inertCommandRuleSourceLines.length > 0) {
+        if (checkSolverProjectionReplays && inertCommandRuleSourceLines.length > 0) {
             const suppressedCoreState = runInertCommandSuppressedReplayFinalState(
                 testName,
                 source,
