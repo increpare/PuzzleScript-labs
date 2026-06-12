@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
+// Inner-loop rule pruning helps sim/editor workloads but regresses the solver
+// corpus at 250ms (see COALESCING_PERF.md §2026-06-12). Disable by default here.
+if (process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === undefined) {
+    process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE = '0';
+}
+
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -2698,6 +2704,8 @@ function createSolverLevelSpecialization(options = {}) {
         hasUsedCheckpoint = snapshot.hasUsedCheckpoint;
         level.commandQueue = [];
         level.commandQueueSourceRules = [];
+        //row/col masks were already rebuilt by restoreObjectsAndMasks (fused
+        //with the snapshot copy), which set level.rowColMasksValid.
     }
 
     function matchesSnapshot(snapshot) {
@@ -3031,6 +3039,8 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         generated: 0,
         unique_states: 0,
         duplicates: 0,
+        step_no_op: 0,
+        step_changed: 0,
         hash_collisions: 0,
         max_frontier: 0,
         timeout_ms: timeoutMs,
@@ -3179,8 +3189,10 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     return modeResult;
                 }
                 if (!stepResult.changed) {
+                    modeResult.step_no_op++;
                     continue;
                 }
+                modeResult.step_changed++;
 
                 const key = SOLVER_DETAIL_TIMING
                     ? timeBlock(modeResult, 'hash_ms', () => solverOps.hash())
@@ -3422,8 +3434,10 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     return modeResult;
                 }
                 if (!stepResult.changed) {
+                    modeResult.step_no_op++;
                     continue;
                 }
+                modeResult.step_changed++;
 
                 const key = SOLVER_DETAIL_TIMING
                     ? timeBlock(modeResult, 'hash_ms', () => primarySpec.hash())
@@ -3539,6 +3553,8 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.expanded += lastResult.expanded;
                 phaseResult.generated += lastResult.generated;
                 phaseResult.duplicates += lastResult.duplicates;
+                phaseResult.step_no_op += lastResult.step_no_op || 0;
+                phaseResult.step_changed += lastResult.step_changed || 0;
                 phaseResult.heuristic_ms += lastResult.heuristic_ms;
                 phaseResult.step_ms += lastResult.step_ms;
                 phaseResult.hash_ms += lastResult.hash_ms;
@@ -3584,6 +3600,8 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         generated: 0,
         unique_states: 0,
         duplicates: 0,
+        step_no_op: 0,
+        step_changed: 0,
         hash_collisions: 0,
         max_frontier: 0,
         timeout_ms: timeoutMs,
@@ -4161,6 +4179,8 @@ function totals(results) {
         errors: 0,
         expanded: 0,
         generated: 0,
+        step_no_op: 0,
+        step_changed: 0,
         hash_collisions: 0,
         compile_ms: 0,
         static_analysis_ms: 0,
@@ -4200,6 +4220,8 @@ function totals(results) {
         out.errors += ['compile_error', 'level_error'].includes(result.status) ? 1 : 0;
         out.expanded += result.expanded;
         out.generated += result.generated;
+        out.step_no_op += result.step_no_op || 0;
+        out.step_changed += result.step_changed || 0;
         out.hash_collisions += result.hash_collisions || 0;
         out.compile_ms += result.compile_ms || 0;
         out.static_analysis_ms += result.static_analysis_ms || 0;

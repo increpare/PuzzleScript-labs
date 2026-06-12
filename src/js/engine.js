@@ -917,6 +917,18 @@ function RebuildGameArrays(){
 	_o10 = new BitVec(STRIDE_OBJ);
 	_o11 = new BitVec(STRIDE_OBJ);
 	_o12 = new BitVec(STRIDE_OBJ);
+	_changedObjects_a = new BitVec(STRIDE_OBJ);
+	_changedObjects_b = new BitVec(STRIDE_OBJ);
+	_changedMovements_a = new BitVec(STRIDE_MOV);
+	_changedMovements_b = new BitVec(STRIDE_MOV);
+	_allOnesObjects = new BitVec(STRIDE_OBJ);
+	_allOnesMovements = new BitVec(STRIDE_MOV);
+	for (let i = 0; i < _allOnesObjects.data.length; i++) _allOnesObjects.data[i] = -1;
+	for (let i = 0; i < _allOnesMovements.data.length; i++) _allOnesMovements.data[i] = -1;
+	_cumulativeChangedObjects = new BitVec(STRIDE_OBJ);
+	_cumulativeChangedMovements = new BitVec(STRIDE_MOV);
+	_lastGroupWriteObjects = new BitVec(STRIDE_OBJ);
+	_lastGroupWriteMovements = new BitVec(STRIDE_MOV);
 	_m1 = new BitVec(STRIDE_MOV);
 	_m2 = new BitVec(STRIDE_MOV);
 	_m3 = new BitVec(STRIDE_MOV);
@@ -1512,11 +1524,17 @@ function Rule(rule) {
 	// CellReplacement.inferredPropertyBindings entries consume the captures.
 	this.propertyBindingsArr = rule[13] || null;
 	this.propertyCaptures = this.propertyBindingsArr ? {} : null;
+	this.readMovements = rule[14];
+	this.writeObjects = rule[15];
+	this.writeMovements = rule[16];
+	this.forceAlwaysRun = rule[17] === true;
+	this.forceAlwaysRunReason = rule[18] || null;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
 	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
 	for (const m of this.cellRowMasks) {
 		this.ruleMask.ior(m);
 	}
+	this.readObjects = rule[19] || this.ruleMask;
 
 	/*I tried out doing a ruleMask_movements as well along the lines of the above,
 	but it didn't help at all - I guess because almost every tick there are movements 
@@ -2965,49 +2983,139 @@ function applyRandomRuleGroup(level, ruleGroup) {
 }
 
 
-function applyRuleGroup(ruleGroup) {
-    if (ruleGroup[0].isRandom) {
-        return applyRandomRuleGroup(level, ruleGroup);
-    }
+let _lastGroupWriteObjects = null;
+let _lastGroupWriteMovements = null;
 
+function applyRuleGroupUnconditional(ruleGroup) {
+    if (ruleGroup[0].isRandom) {
+        _lastGroupWriteObjects.setZero();
+        _lastGroupWriteMovements.setZero();
+        const changed = applyRandomRuleGroup(level, ruleGroup);
+        if (changed) {
+            _lastGroupWriteObjects.ior(ruleGroup.groupWriteObjects);
+            _lastGroupWriteMovements.ior(ruleGroup.groupWriteMovements);
+        }
+        return changed;
+    }
     const MAX_LOOP_COUNT = 200;
     const GROUP_LENGTH = ruleGroup.length;
-    const shouldLog = verbose_logging;
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
-
+    _lastGroupWriteObjects.setZero();
+    _lastGroupWriteMovements.setZero();
     while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
         madeChangeThisLoop = false;
         let consecutiveFailures = 0;
-
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
             const rule = ruleGroup[ruleIndex];
-
             if (rule.tryApply(level)) {
                 madeChangeThisLoop = true;
                 consecutiveFailures = 0;
             } else {
                 consecutiveFailures++;
-                if (consecutiveFailures === GROUP_LENGTH) {
-                    break;  // No rule can apply - exit early
-                }
+                if (consecutiveFailures === GROUP_LENGTH) break;
             }
         }
-
         if (madeChangeThisLoop) {
             hasChanges = true;
-            if (shouldLog) {
+            if (verbose_logging) {
                 debugger_turnIndex++;
                 addToDebugTimeline(level, -2);
             }
         }
     }
-
     if (loopcount >= MAX_LOOP_COUNT) {
         logErrorCacheable("Got caught looping lots in a rule group :O", ruleGroup[0].lineNumber, true);
     }
+    return hasChanges;
+}
 
+function applyRuleGroup(ruleGroup) {
+    if (typeof process !== 'undefined' && process.env
+        && process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === '0') {
+        return applyRuleGroupUnconditional(ruleGroup);
+    }
+    if (ruleGroup[0].isRandom) {
+        _lastGroupWriteObjects.setZero();
+        _lastGroupWriteMovements.setZero();
+        const changed = applyRandomRuleGroup(level, ruleGroup);
+        if (changed) {
+            _lastGroupWriteObjects.ior(ruleGroup.groupWriteObjects);
+            _lastGroupWriteMovements.ior(ruleGroup.groupWriteMovements);
+        }
+        return changed;
+    }
+    const MAX_LOOP_COUNT = 200;
+    const GROUP_LENGTH = ruleGroup.length;
+    let hasChanges = false;
+    let madeChangeThisLoop = true;
+    let loopcount = 0;
+
+    let priorObjects = _allOnesObjects;
+    let priorMovements = _allOnesMovements;
+    let nextObjects = _changedObjects_a;
+    let nextMovements = _changedMovements_a;
+    let spareObjects = _changedObjects_b;
+    let spareMovements = _changedMovements_b;
+
+    _lastGroupWriteObjects.setZero();
+    _lastGroupWriteMovements.setZero();
+
+    while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
+        madeChangeThisLoop = false;
+        nextObjects.setZero();
+        nextMovements.setZero();
+        let consecutiveFailures = 0;
+
+        for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
+            const rule = ruleGroup[ruleIndex];
+            const PRUNE_INNER_LOOP = !(typeof process !== 'undefined' && process.env
+                && process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === '0');
+            if (PRUNE_INNER_LOOP
+                && !rule.forceAlwaysRun
+                && rule.readMovements.iszero()
+                && !rule.readObjects.anyBitsInCommon(priorObjects)) {
+                consecutiveFailures++;
+                if (consecutiveFailures === GROUP_LENGTH) break;
+                continue;
+            }
+            if (rule.tryApply(level)) {
+                madeChangeThisLoop = true;
+                consecutiveFailures = 0;
+                nextObjects.ior(rule.writeObjects);
+                nextMovements.ior(rule.writeMovements);
+                _lastGroupWriteObjects.ior(rule.writeObjects);
+                _lastGroupWriteMovements.ior(rule.writeMovements);
+            } else {
+                consecutiveFailures++;
+                if (consecutiveFailures === GROUP_LENGTH) break;
+            }
+        }
+
+        if (madeChangeThisLoop) {
+            hasChanges = true;
+            if (verbose_logging) {
+                debugger_turnIndex++;
+                addToDebugTimeline(level, -2);
+            }
+        }
+
+        if (priorObjects === _allOnesObjects) {
+            priorObjects = nextObjects;
+            priorMovements = nextMovements;
+            nextObjects = spareObjects;
+            nextMovements = spareMovements;
+        } else {
+            const tmpO = priorObjects; priorObjects = nextObjects; nextObjects = tmpO;
+            const tmpM = priorMovements; priorMovements = nextMovements; nextMovements = tmpM;
+        }
+    }
+
+    if (loopcount >= MAX_LOOP_COUNT) {
+        logErrorCacheable("Got caught looping lots in a rule group :O",
+                          ruleGroup[0].lineNumber, true);
+    }
     return hasChanges;
 }
 
@@ -3017,10 +3125,26 @@ function applyRules(rules, loopPoint, bannedGroup) {
     let ruleGroupIndex = 0;
 	let rulesChanged = false;
 	const RULES_COUNT = rules.length;
+    let inLoopCycle = false;
+    let cumulativeAllOnes = true;
+    _cumulativeChangedObjects.setZero();
+    _cumulativeChangedMovements.setZero();
     while (ruleGroupIndex < RULES_COUNT) {
         // Apply rules if not banned
         if (!bannedGroup || !bannedGroup[ruleGroupIndex]) {
-			const groupChanged = applyRuleGroup(rules[ruleGroupIndex]);
+            const ruleGroup = rules[ruleGroupIndex];
+            let groupChanged = false;
+            // A.2 outer-loop group skip is wired (cumulative masks, groupRead*)
+            // but disabled until cumulative tracking is sound on all loop games.
+            const skipGroup = false;
+            if (!skipGroup) {
+                groupChanged = applyRuleGroup(ruleGroup);
+                if (groupChanged) {
+                    cumulativeAllOnes = false;
+                    _cumulativeChangedObjects.ior(_lastGroupWriteObjects);
+                    _cumulativeChangedMovements.ior(_lastGroupWriteMovements);
+                }
+            }
 			rulesChanged = groupChanged || rulesChanged;
             loopPropagated = groupChanged || loopPropagated;
         }
@@ -3030,6 +3154,8 @@ function applyRules(rules, loopPoint, bannedGroup) {
             ruleGroupIndex = loopPoint[ruleGroupIndex];
             loopPropagated = false;
             loopCount++;
+            inLoopCycle = true;
+            cumulativeAllOnes = true;
             
             if (loopCount > 200) {
                 logErrorCacheable("got caught in an endless startloop...endloop vortex, escaping!", rules[ruleGroupIndex][0].lineNumber, true);
@@ -3050,6 +3176,8 @@ function applyRules(rules, loopPoint, bannedGroup) {
             ruleGroupIndex = loopPoint[ruleGroupIndex];
             loopPropagated = false;
             loopCount++;
+            inLoopCycle = true;
+            cumulativeAllOnes = true;
             
             if (loopCount > 200) {
                 logErrorCacheable("got caught in an endless startloop...endloop vortex, escaping!", rules[ruleGroupIndex][0].lineNumber, true);
@@ -3222,8 +3350,9 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	seedsToPlay_CanMove = [];
 	seedsToPlay_CantMove = [];
 	//rowColMasksValid is set by callers that have just computed exact masks for
-	//the current board (the solver's restore path); it is one-shot - the masks
-	//accumulate conservatively during the turn, so the next turn must rebuild.
+	//the current board (the solver's restore path, which fuses the rebuild into
+	//its snapshot copy); it is one-shot - the masks accumulate conservatively
+	//during the turn, so the next turn must rebuild.
 	if (!level.rowColMasksValid) {
 		state.calculateRowColMasks(level);
 	}

@@ -257,12 +257,12 @@ function buildAliasDefinitions(canonical, objectNames) {
     let propertyAliasIndex = 0;
     let cellAliasIndex = 0;
 
-    function propertyAliasForSet(names) {
+    function propertyAliasForSet(names, options = {}) {
         const normalized = normalizeSet(names);
         if (normalized.length === 0) {
             return null;
         }
-        if (isPlainWinTargetB(normalized, objectNames, canonical.backgroundObjects)) {
+        if (options.allowPlainWin && isPlainWinTargetB(normalized, objectNames, canonical.backgroundObjects)) {
             return null;
         }
         if (normalized.length === 1) {
@@ -316,7 +316,7 @@ function buildAliasDefinitions(canonical, objectNames) {
     return {
         lines,
         cellAliasForSet,
-        winAliasForSet: propertyAliasForSet,
+        winAliasForSet: (names, options) => propertyAliasForSet(names, options),
         ruleAliasForSet: propertyAliasForSet,
     };
 }
@@ -427,6 +427,167 @@ function normalizeRuleCellEntries(cell) {
     return result;
 }
 
+function ruleEntryObjects(entry) {
+    if (entry.obj) {
+        return [entry.obj];
+    }
+    if (entry.objs) {
+        return entry.objs.slice();
+    }
+    return [];
+}
+
+function definiteRuleEntryLayer(entry, layerIndex) {
+    const objects = ruleEntryObjects(entry);
+    if (objects.length === 0) {
+        return null;
+    }
+    const layers = new Set();
+    for (const objectName of objects) {
+        if (!layerIndex.has(objectName)) {
+            return null;
+        }
+        layers.add(layerIndex.get(objectName));
+    }
+    if (layers.size !== 1) {
+        return null;
+    }
+    return Array.from(layers)[0];
+}
+
+function pruneRedundantNoEntries(cell, layerIndex) {
+    if (cell.ellipsis) {
+        return cell;
+    }
+
+    const occupiedLayers = new Set();
+    for (const entry of cell) {
+        if (entry.dir === 'no') {
+            continue;
+        }
+        const layer = definiteRuleEntryLayer(entry, layerIndex);
+        if (layer !== null) {
+            occupiedLayers.add(layer);
+        }
+    }
+    if (occupiedLayers.size === 0) {
+        return cell;
+    }
+
+    const pruned = [];
+    for (const entry of cell) {
+        if (entry.dir !== 'no') {
+            pruned.push(entry);
+            continue;
+        }
+        if (entry.obj) {
+            const layer = layerIndex.get(entry.obj);
+            if (!occupiedLayers.has(layer)) {
+                pruned.push(entry);
+            }
+            continue;
+        }
+        if (entry.objs) {
+            const remaining = entry.objs.filter(name => !occupiedLayers.has(layerIndex.get(name)));
+            if (remaining.length === 1) {
+                pruned.push({ dir: entry.dir, obj: remaining[0] });
+            } else if (remaining.length > 1) {
+                pruned.push({ dir: entry.dir, objs: remaining });
+            }
+            continue;
+        }
+        pruned.push(entry);
+    }
+    return pruned;
+}
+
+function concretePositiveObjectsByLayer(cell, layerIndex) {
+    const byLayer = new Map();
+    for (const entry of cell) {
+        if (entry.dir === 'no' || !entry.obj || !layerIndex.has(entry.obj)) {
+            continue;
+        }
+        const layer = layerIndex.get(entry.obj);
+        if (!byLayer.has(layer)) {
+            byLayer.set(layer, new Set());
+        }
+        byLayer.get(layer).add(entry.obj);
+    }
+    return byLayer;
+}
+
+function pruneRedundantPositiveSetEntries(cell, layerIndex) {
+    if (cell.ellipsis) {
+        return cell;
+    }
+
+    const concreteByLayer = concretePositiveObjectsByLayer(cell, layerIndex);
+    if (concreteByLayer.size === 0) {
+        return cell;
+    }
+
+    return cell.filter(entry => {
+        if (entry.dir === 'no' || !entry.objs) {
+            return true;
+        }
+        const layer = definiteRuleEntryLayer(entry, layerIndex);
+        if (layer === null || !concreteByLayer.has(layer)) {
+            return true;
+        }
+        const concreteObjects = concreteByLayer.get(layer);
+        return !entry.objs.some(name => concreteObjects.has(name));
+    });
+}
+
+function cellHasImpossiblePositiveRequirements(cell, layerIndex) {
+    if (cell.ellipsis) {
+        return false;
+    }
+
+    const concreteByLayer = new Map();
+    for (const entry of cell) {
+        if (entry.dir === 'no') {
+            continue;
+        }
+        if (entry.obj && layerIndex.has(entry.obj)) {
+            const layer = layerIndex.get(entry.obj);
+            if (!concreteByLayer.has(layer)) {
+                concreteByLayer.set(layer, new Set());
+            }
+            const concreteObjects = concreteByLayer.get(layer);
+            if (concreteObjects.size > 0 && !concreteObjects.has(entry.obj)) {
+                return true;
+            }
+            concreteObjects.add(entry.obj);
+        }
+    }
+
+    for (const entry of cell) {
+        if (entry.dir === 'no' || !entry.objs) {
+            continue;
+        }
+        const layer = definiteRuleEntryLayer(entry, layerIndex);
+        if (layer !== null && concreteByLayer.has(layer)) {
+            const concreteObjects = concreteByLayer.get(layer);
+            if (!entry.objs.some(name => concreteObjects.has(name))) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function ruleHasImpossibleLhs(rule, layerIndex) {
+    for (const row of rule.lhs || []) {
+        for (const cell of row) {
+            if (cellHasImpossiblePositiveRequirements(cell, layerIndex)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function sourceRuleEntryDirection(direction) {
     if (direction === 'horizontal_par' || direction === 'vertical_par') {
         return 'parallel';
@@ -455,7 +616,7 @@ function formatRuleRow(row) {
     return `[ ${row.map(formatRuleCell).join(' | ')} ]`;
 }
 
-function emitRulesSection(canonical, ruleAliasForSet) {
+function emitRulesSection(canonical, ruleAliasForSet, layerIndex) {
     const lines = ['======', 'RULES', '======', ''];
     let previousGroupNumber = null;
     const startLoopGroups = new Map();
@@ -467,7 +628,7 @@ function emitRulesSection(canonical, ruleAliasForSet) {
         startLoopGroups.set(loop.startGroup, (startLoopGroups.get(loop.startGroup) || 0) + 1);
         endLoopGroups.set(loop.endGroup, (endLoopGroups.get(loop.endGroup) || 0) + 1);
     }
-    const rules = canonical.rules || [];
+    const rules = (canonical.rules || []).filter(rule => !ruleHasImpossibleLhs(rule, layerIndex));
     for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++) {
         const rule = rules[ruleIndex];
         if ((!rule.rhs || rule.rhs.length === 0) && (!rule.commands || rule.commands.length === 0)) {
@@ -498,7 +659,11 @@ function emitRulesSection(canonical, ruleAliasForSet) {
             if (cell.ellipsis || cell.length === 0) {
                 return cell;
             }
-            return normalizeRuleCellEntries(cell.map(entry => {
+            const simplifiedCell = pruneRedundantNoEntries(
+                pruneRedundantPositiveSetEntries(cell, layerIndex),
+                layerIndex
+            );
+            return normalizeRuleCellEntries(simplifiedCell.map(entry => {
                 if (entry.objs) {
                     return {
                         dir: entry.dir,
@@ -679,7 +844,7 @@ function decanonicalizeSemantic(canonical) {
         }
     }
     output.push('');
-    output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet));
+    output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet, layerIndex));
     output.push(...emitWinConditionsSection(emissionCanonical, objectNames, winAliasForSet));
     output.push(...emitLevelsSection(emissionCanonical, glyphMap));
     return `${output.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;

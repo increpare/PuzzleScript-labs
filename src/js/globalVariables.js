@@ -66,6 +66,16 @@ function get_title_animation_frame() {
     return Math.floor(((timer / 1000) / 0.3) * 10)
 }
 
+// Incremental rule application: per-iteration swap buffers (applyRuleGroup).
+let _changedObjects_a = null;
+let _changedObjects_b = null;
+let _changedMovements_a = null;
+let _changedMovements_b = null;
+let _allOnesObjects = null;
+let _allOnesMovements = null;
+let _cumulativeChangedObjects = null;
+let _cumulativeChangedMovements = null;
+
 var WORKLIST_OBJECTS_TO_GENERATE_FUNCTIONS_FOR = [];
 function tick_lazy_function_generation(iterative_generation = false) {
     if (WORKLIST_OBJECTS_TO_GENERATE_FUNCTIONS_FOR.length === 0) {

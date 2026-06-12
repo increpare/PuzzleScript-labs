@@ -3379,7 +3379,221 @@ function buildLiveRulePlanMetadata(rule) {
     };
 }
 
-function collapseRules(groups) {
+function computeReadObjects(ruleTuple) {
+    const result = new BitVec(STRIDE_OBJ);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            if (cell.objectsPresent) result.ior(cell.objectsPresent);
+            if (cell.objectsMissing) result.ior(cell.objectsMissing);
+            const anys = cell.anyObjectsPresent;
+            if (anys) {
+                for (let i = 0; i < anys.length; i++) {
+                    if (anys[i]) result.ior(anys[i]);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+function computeReadMovements(state, ruleTuple) {
+    const result = new BitVec(STRIDE_MOV);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            if (cell.movementsPresent) result.ior(cell.movementsPresent);
+            if (cell.movementsMissing) result.ior(cell.movementsMissing);
+            const anyMovements = cell.anyMovementsPresent;
+            if (anyMovements) {
+                for (let i = 0; i < anyMovements.length; i++) {
+                    result.ior(anyMovements[i]);
+                }
+            }
+            const coupled = cell.layerCoupledMovementMasks;
+            if (coupled) {
+                for (let i = 0; i < coupled.length; i++) {
+                    const term = coupled[i];
+                    if (!term || !term.layers) continue;
+                    for (let j = 0; j < term.layers.length; j++) {
+                        const layer = term.layers[j];
+                        if (layer.movementsPresent) result.ior(layer.movementsPresent);
+                        if (layer.movementsMissing) result.ior(layer.movementsMissing);
+                    }
+                }
+            }
+        }
+    }
+    const aggregates = ruleTuple[12];
+    if (aggregates) {
+        for (let i = 0; i < aggregates.length; i++) {
+            const b = aggregates[i];
+            result.ishiftor(b.aggregateMask & 0x1f, 5 * b.sourceLayer);
+        }
+    }
+    return result;
+}
+
+function computeWriteObjects(state, ruleTuple, oldrule) {
+    const result = new BitVec(STRIDE_OBJ);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            const replacement = cell.replacement;
+            if (!replacement) continue;
+            if (replacement.objectsSet) result.ior(replacement.objectsSet);
+            if (replacement.objectsClear) result.ior(replacement.objectsClear);
+            if (replacement.randomEntityMask) result.ior(replacement.randomEntityMask);
+        }
+    }
+    if (oldrule.propertySinks) {
+        for (const propName of oldrule.propertySinks.keys()) {
+            const aliases = state.propertiesDict && state.propertiesDict[propName];
+            if (!aliases) continue;
+            for (let i = 0; i < aliases.length; i++) {
+                const aliasObj = state.objects[aliases[i]];
+                if (aliasObj && typeof aliasObj.id === 'number') {
+                    result.ibitset(aliasObj.id);
+                }
+            }
+        }
+    }
+    if (oldrule.aggregateSinks) {
+        for (const sinkList of oldrule.aggregateSinks.values()) {
+            for (let i = 0; i < sinkList.length; i++) {
+                const layerIndex = sinkList[i].layer;
+                if (typeof layerIndex !== 'number') continue;
+                const layerObjects = state.collisionLayers[layerIndex];
+                if (!layerObjects) continue;
+                for (let j = 0; j < layerObjects.length; j++) {
+                    const obj = state.objects[layerObjects[j]];
+                    if (obj && typeof obj.id === 'number') {
+                        result.ibitset(obj.id);
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+function computeWriteMovements(state, ruleTuple, oldrule) {
+    const result = new BitVec(STRIDE_MOV);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            const replacement = cell.replacement;
+            if (!replacement) continue;
+            if (replacement.movementsSet) result.ior(replacement.movementsSet);
+            if (replacement.movementsClear) result.ior(replacement.movementsClear);
+            if (replacement.movementsLayerMask) result.ior(replacement.movementsLayerMask);
+            if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
+            const coupled = replacement.layerCoupledMovementReplacements;
+            if (coupled) {
+                for (let ci = 0; ci < coupled.length; ci++) {
+                    const term = coupled[ci];
+                    if (!term || !term.layers) continue;
+                    for (let li = 0; li < term.layers.length; li++) {
+                        const layer = term.layers[li];
+                        result.ishiftor(0x1f, 5 * layer.layerIndex);
+                    }
+                }
+            }
+            const bindings = replacement.inferredPropertyBindings;
+            if (bindings) {
+                for (let bi = 0; bi < bindings.length; bi++) {
+                    const b = bindings[bi];
+                    if (!b || b.dirMode === 0) continue;
+                    const propMembers = state.propertiesDict ? state.propertiesDict[b.propertyName] : null;
+                    if (!propMembers) continue;
+                    for (let mi = 0; mi < propMembers.length; mi++) {
+                        const memberObj = state.objects[propMembers[mi]];
+                        if (!memberObj) continue;
+                        result.ishiftor(0x1f, 5 * memberObj.layer);
+                    }
+                }
+            }
+        }
+    }
+    if (oldrule.aggregateSinks) {
+        for (const sinkList of oldrule.aggregateSinks.values()) {
+            for (let i = 0; i < sinkList.length; i++) {
+                const sink = sinkList[i];
+                if (typeof sink.layer !== 'number') continue;
+                const mask = (sink.aggregateMask !== undefined ? sink.aggregateMask : 0x1f) & 0x1f;
+                result.ishiftor(mask, 5 * sink.layer);
+            }
+        }
+    }
+    return result;
+}
+
+function augmentWriteMovementsForObjectLayers(state, writeObjects, writeMovements) {
+    const layerMasks = state.layerMasks;
+    if (!layerMasks || !writeObjects) return;
+    for (let layer = 0; layer < layerMasks.length; layer++) {
+        if (layerMasks[layer].anyBitsInCommon(writeObjects)) {
+            writeMovements.ishiftor(0x1f, 5 * layer);
+        }
+    }
+}
+
+const PHASE_A1_REPLAY_COMMANDS = new Set([
+    'again', 'restart', 'cancel', 'win', 'checkpoint',
+]);
+function classifyForceAlwaysRun(state, ruleTuple, oldrule, readObjects, readMovements) {
+    if (ruleTuple[8]) return { force: true, reason: 'isRandom' };
+    const commands = ruleTuple[7] || [];
+    for (let i = 0; i < commands.length; i++) {
+        const name = commands[i][0];
+        if (PHASE_A1_REPLAY_COMMANDS.has(name)) {
+            return { force: true, reason: 'command:' + name };
+        }
+    }
+    if (ruleTuple[6]) return { force: true, reason: 'rigid' };
+    if (readObjects && readMovements
+        && readObjects.iszero() && readMovements.iszero()) {
+        return { force: true, reason: 'empty-LHS' };
+    }
+    return { force: false, reason: null };
+}
+
+function attachGroupIncrementalMasks(ruleGroup) {
+    const groupReadObjects = new BitVec(STRIDE_OBJ);
+    const groupReadMovements = new BitVec(STRIDE_MOV);
+    const groupWriteObjects = new BitVec(STRIDE_OBJ);
+    const groupWriteMovements = new BitVec(STRIDE_MOV);
+    let groupForceAlwaysRun = false;
+    for (let i = 0; i < ruleGroup.length; i++) {
+        const rule = ruleGroup[i];
+        groupReadObjects.ior(rule.readObjects);
+        groupReadMovements.ior(rule.readMovements);
+        groupWriteObjects.ior(rule.writeObjects);
+        groupWriteMovements.ior(rule.writeMovements);
+        if (rule.forceAlwaysRun || !rule.readMovements.iszero()) {
+            groupForceAlwaysRun = true;
+        }
+    }
+    ruleGroup.groupReadObjects = groupReadObjects;
+    ruleGroup.groupReadMovements = groupReadMovements;
+    ruleGroup.groupWriteObjects = groupWriteObjects;
+    ruleGroup.groupWriteMovements = groupWriteMovements;
+    ruleGroup.groupForceAlwaysRun = groupForceAlwaysRun;
+}
+
+function collapseRules(groups, state) {
     for (let gn = 0; gn < groups.length; gn++) {
         const rules = groups[gn];
         for (let i = 0; i < rules.length; i++) {
@@ -3417,8 +3631,21 @@ function collapseRules(groups) {
             newrule.push(buildLiveRulePlanMetadata(newrule));
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
+            const readMovements = computeReadMovements(state, newrule);
+            const readObjects = computeReadObjects(newrule);
+            const writeObjects = computeWriteObjects(state, newrule, oldrule);
+            const writeMovements = computeWriteMovements(state, newrule, oldrule);
+            augmentWriteMovementsForObjectLayers(state, writeObjects, writeMovements);
+            newrule.push(readMovements);
+            newrule.push(writeObjects);
+            newrule.push(writeMovements);
+            const classification = classifyForceAlwaysRun(state, newrule, oldrule, readObjects, readMovements);
+            newrule.push(classification.force);
+            newrule.push(classification.reason);
+            newrule.push(readObjects);
             rules[i] = new Rule(newrule);
         }
+        attachGroupIncrementalMasks(rules);
     }
 }
 
@@ -4370,8 +4597,8 @@ function loadFile(str) {
     }
 
     arrangeRulesByGroupNumber(state);
-    collapseRules(state.rules);
-    collapseRules(state.lateRules);
+    collapseRules(state.rules, state);
+    collapseRules(state.lateRules, state);
 
     generateRigidGroupList(state);
 
