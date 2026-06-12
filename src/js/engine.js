@@ -3221,7 +3221,13 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	sfxDestroyMask.setZero();
 	seedsToPlay_CanMove = [];
 	seedsToPlay_CantMove = [];
-	state.calculateRowColMasks(level);
+	//rowColMasksValid is set by callers that have just computed exact masks for
+	//the current board (the solver's restore path); it is one-shot - the masks
+	//accumulate conservatively during the turn, so the next turn must rebuild.
+	if (!level.rowColMasksValid) {
+		state.calculateRowColMasks(level);
+	}
+	level.rowColMasksValid = false;
 	let alreadyResolved = [];
 
 	// The main loop (dominated by rigid, but if you ignore that nonsense, it's

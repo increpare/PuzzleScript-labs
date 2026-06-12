@@ -638,6 +638,56 @@ function priorityForPortfolioMode(mode, depth, heuristic, astarWeight) {
     return depth;
 }
 
+//generated fused restore: copy snapshot objects into level.objects while
+//rebuilding the row/col/map object masks in the same pass, and zero the
+//movement masks (the caller zeroes level.movements). Row masks accumulate in
+//the flat rowAcc scratch (length height*OBJECT_SIZE, zeroed on entry and left
+//zeroed) to avoid per-cell BitVec indirection.
+const CACHE_SOLVER_RESTOREMASKS = {};
+function generate_solverRestoreObjectsAndMasks(OBJECT_SIZE, MOVEMENT_SIZE) {
+    const key = OBJECT_SIZE + ',' + MOVEMENT_SIZE;
+    if (CACHE_SOLVER_RESTOREMASKS[key]) {
+        return CACHE_SOLVER_RESTOREMASKS[key];
+    }
+    const fn = `'use strict';
+    const objects = level.objects;
+    const rowCellContents = level.rowCellContents;
+    const colCellContents = level.colCellContents;
+    const mapCC = level.mapCellContents.data;
+    ${FOR(0, MOVEMENT_SIZE, w => `level.mapCellContents_Movements.data[${w}] = 0;\n`)}
+    ${FOR(0, OBJECT_SIZE, w => `let map${w} = 0;\n`)}
+    let index = 0;
+    for (let x = 0; x < width; x++) {
+        const colCC = colCellContents[x].data;
+        ${MOVEMENT_SIZE > 0 ? `const colCCM = level.colCellContents_Movements[x].data;` : ''}
+        ${FOR(0, MOVEMENT_SIZE, w => `colCCM[${w}] = 0;\n`)}
+        ${FOR(0, OBJECT_SIZE, w => `let col${w} = 0;\n`)}
+        let rowBase = 0;
+        for (let y = 0; y < height; y++) {
+            ${FOR(0, OBJECT_SIZE, w => `{
+                const v = snapshotObjects[index];
+                objects[index] = v;
+                col${w} |= v;
+                rowAcc[rowBase${w ? '+' + w : ''}] |= v;
+                index++;
+            }`)}
+            rowBase += ${OBJECT_SIZE};
+        }
+        ${FOR(0, OBJECT_SIZE, w => `colCC[${w}] = col${w};\nmap${w} |= col${w};\n`)}
+    }
+    ${FOR(0, OBJECT_SIZE, w => `mapCC[${w}] = map${w};\n`)}
+    let rowBase = 0;
+    for (let y = 0; y < height; y++) {
+        const rcc = rowCellContents[y].data;
+        ${MOVEMENT_SIZE > 0 ? `const rccM = level.rowCellContents_Movements[y].data;` : ''}
+        ${FOR(0, MOVEMENT_SIZE, w => `rccM[${w}] = 0;\n`)}
+        ${FOR(0, OBJECT_SIZE, w => `rcc[${w}] = rowAcc[rowBase${w ? '+' + w : ''}];\nrowAcc[rowBase${w ? '+' + w : ''}] = 0;\n`)}
+        rowBase += ${OBJECT_SIZE};
+    }
+    level.rowColMasksValid = true;`;
+    return CACHE_SOLVER_RESTOREMASKS[key] = new Function('level', 'snapshotObjects', 'width', 'height', 'rowAcc', generatedFunctionSource('solverRestoreObjectsAndMasks', fn));
+}
+
 function createSolverLevelSpecialization(options = {}) {
     const objectWordCount = level && level.objects ? level.objects.length : 0;
     const turnBackupScratch = objectWordCount > 0 ? new Int32Array(objectWordCount) : null;
@@ -2371,6 +2421,25 @@ function createSolverLevelSpecialization(options = {}) {
         };
     }
 
+    //fused copy of snapshot.objects into level.objects that rebuilds the
+    //row/col/map object-content masks in the same traversal (stride-specialized
+    //generated code; rows accumulate in a flat scratch). Movements are zeroed by
+    //restore, so the movement masks are simply cleared. Marks the masks valid so
+    //processInput skips its own calculateRowColMasks pass (the flag is one-shot;
+    //see processInput).
+    const restoreMasksFn = generate_solverRestoreObjectsAndMasks(STRIDE_OBJ, movementWordCount > 0 ? STRIDE_MOV : 0);
+    const rowMaskScratch = new Int32Array(height > 0 ? height * STRIDE_OBJ : 0);
+    function restoreObjectsAndMasks(snapshotObjects) {
+        if (!level.colCellContents || level.colCellContents.length !== width ||
+            !level.rowCellContents || level.rowCellContents.length !== height ||
+            !level.mapCellContents || level.mapCellContents.data.length !== STRIDE_OBJ) {
+            level.objects.set(snapshotObjects);
+            level.rowColMasksValid = false;
+            return;
+        }
+        restoreMasksFn(level, snapshotObjects, width, height, rowMaskScratch);
+    }
+
     function restore(snapshot) {
         if (!level || !level.objects || level.objects.length !== objectWordCount || level.width !== width || level.height !== height) {
             level.solverExternalBackup = null;
@@ -2401,9 +2470,10 @@ function createSolverLevelSpecialization(options = {}) {
             if (turnBackupScratch) {
                 level.solverExternalBackup = turnBackupScratch;
             }
+            level.rowColMasksValid = false;
             return;
         }
-        level.objects.set(snapshot.objects);
+        restoreObjectsAndMasks(snapshot.objects);
         if (turnBackupScratch) {
             level.solverExternalBackup = turnBackupScratch;
         } else {
