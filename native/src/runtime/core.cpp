@@ -1370,7 +1370,108 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
         replacement.layerCoupledMovementReplacements =
             parseLayerCoupledMovementReplacements(game, coupled->second);
     }
+    if (const auto bindings = object.find("inferred_aggregate_bindings");
+        bindings != object.end() && bindings->second.isArray()) {
+        for (const auto& entry : bindings->second.asArray()) {
+            const auto& bindingObject = entry.asObject();
+            InferredAggregateBinding binding;
+            binding.aggregateName = toString(requireField(bindingObject, "aggregate_name"));
+            binding.layerIndex = toInt(requireField(bindingObject, "layer_index"));
+            replacement.inferredAggregateBindings.push_back(std::move(binding));
+        }
+    }
     return replacement;
+}
+
+void deriveAggregateBindings(Game& game, Rule& rule) {
+    std::vector<std::string> sinkAggregateNames;
+    for (const auto& row : rule.patterns) {
+        for (const auto& pattern : row) {
+            if (!pattern.replacement.has_value()) {
+                continue;
+            }
+            for (const auto& sink : pattern.replacement->inferredAggregateBindings) {
+                if (std::find(sinkAggregateNames.begin(), sinkAggregateNames.end(), sink.aggregateName)
+                    == sinkAggregateNames.end()) {
+                    sinkAggregateNames.push_back(sink.aggregateName);
+                }
+            }
+        }
+    }
+    if (sinkAggregateNames.empty()) {
+        return;
+    }
+
+    for (int32_t rowIndex = 0; rowIndex < static_cast<int32_t>(rule.patterns.size()); ++rowIndex) {
+        const auto& row = rule.patterns[static_cast<size_t>(rowIndex)];
+        for (int32_t cellIndex = 0; cellIndex < static_cast<int32_t>(row.size()); ++cellIndex) {
+            const Pattern& pattern = row[static_cast<size_t>(cellIndex)];
+            if (pattern.anyMovementsCount == 0) {
+                continue;
+            }
+            for (uint32_t maskIndex = 0; maskIndex < pattern.anyMovementsCount; ++maskIndex) {
+                const MaskWord* anyMask = maskPtr(
+                    game,
+                    game.anyMovementOffsets[pattern.anyMovementsFirst + maskIndex]
+                );
+                for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+                    const uint32_t word = movementWordIndexForLayer(static_cast<uint32_t>(layer));
+                    const uint32_t bit = movementBitShiftForLayer(static_cast<uint32_t>(layer));
+                    if (word >= game.movementWordCount
+                        || (anyMask[word] & (static_cast<MaskWord>(0x1F) << bit)) == 0) {
+                        continue;
+                    }
+                    for (const std::string& aggregateName : sinkAggregateNames) {
+                        rule.aggregateBindings.push_back(AggregateBinding{
+                            aggregateName,
+                            rowIndex,
+                            cellIndex,
+                            layer,
+                            0x1F,
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
+void captureAggregateBindings(
+    const FullState& session,
+    const Rule& rule,
+    int32_t startIndex,
+    int32_t delta,
+    std::map<std::string, int32_t>& captures
+) {
+    captures.clear();
+    for (const AggregateBinding& binding : rule.aggregateBindings) {
+        if (binding.sourceRow < 0
+            || static_cast<size_t>(binding.sourceRow) >= rule.patterns.size()) {
+            continue;
+        }
+        const auto& row = rule.patterns[static_cast<size_t>(binding.sourceRow)];
+        if (binding.sourceCell < 0 || static_cast<size_t>(binding.sourceCell) >= row.size()) {
+            continue;
+        }
+        const int32_t cellPos = startIndex + binding.sourceCell * delta;
+        const MaskVector movements = getCellMovements(session, cellPos);
+        const int32_t captured = getShiftedMask5(movements, 5 * binding.sourceLayer) & binding.aggregateMask;
+        captures[binding.aggregateName] = captured;
+    }
+}
+
+void applyInferredAggregateBindings(
+    const std::map<std::string, int32_t>& captures,
+    const std::vector<InferredAggregateBinding>& bindings,
+    MaskVector& movementsSet
+) {
+    for (const InferredAggregateBinding& binding : bindings) {
+        const auto capture = captures.find(binding.aggregateName);
+        if (capture == captures.end() || capture->second == 0) {
+            continue;
+        }
+        setShiftedMask5(movementsSet, 5 * binding.layerIndex, capture->second);
+    }
 }
 
 Pattern parsePattern(Game& game, const json::Value& value) {
@@ -1465,6 +1566,7 @@ Rule parseRule(Game& game, const json::Value& value) {
         }
         rule.patterns.push_back(std::move(patternRow));
     }
+    deriveAggregateBindings(game, rule);
     return rule;
 }
 
@@ -2498,6 +2600,10 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
                 movementsClearScratch,
                 movementsSetScratch,
                 replacement.layerCoupledMovementReplacements);
+            applyInferredAggregateBindings(
+                session.scratch.aggregateCaptures,
+                replacement.inferredAggregateBindings,
+                movementsSetScratch);
             for (uint32_t word = 0; word < movementWordCount; ++word) {
                 const MaskWord before = oldMovements[word];
                 const MaskWord after = (before & ~movementsClearScratch[word]) | movementsSetScratch[word];
@@ -2505,14 +2611,21 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
                 movementsChanged = movementsChanged || after != before;
             }
         } else {
+            movementsSetScratch.resize(movementWordCount);
+            for (uint32_t word = 0; word < movementWordCount; ++word) {
+                movementsSetScratch[word] = movementsSet != nullptr ? movementsSet[word] : 0;
+            }
+            applyInferredAggregateBindings(
+                session.scratch.aggregateCaptures,
+                replacement.inferredAggregateBindings,
+                movementsSetScratch);
             for (uint32_t word = 0; word < movementWordCount; ++word) {
                 MaskWord clearWord = movementsClear != nullptr ? movementsClear[word] : 0;
                 if (movementsLayerMask != nullptr) {
                     clearWord |= movementsLayerMask[word];
                 }
-                const MaskWord setWord = movementsSet != nullptr ? movementsSet[word] : 0;
                 const MaskWord before = oldMovements[word];
-                const MaskWord after = (before & ~clearWord) | setWord;
+                const MaskWord after = (before & ~clearWord) | movementsSetScratch[word];
                 newMovements[word] = after;
                 movementsChanged = movementsChanged || after != before;
             }
@@ -2689,6 +2802,10 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         movementsClear,
         movementsSet,
         replacement.layerCoupledMovementReplacements);
+    applyInferredAggregateBindings(
+        session.scratch.aggregateCaptures,
+        replacement.inferredAggregateBindings,
+        movementsSet);
 
     for (size_t word = 0; word < objects.size(); ++word) {
         objects[word] = (objects[word] & ~objectsClear[word]) | objectsSet[word];
@@ -2926,7 +3043,7 @@ bool collectAnchoredRowMatchesInto(
         });
         matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
     }
-    return true;
+    return !matches.empty();
 }
 
 void collectRowMatchesInto(
@@ -3070,6 +3187,7 @@ bool rowStillMatchesAt(const FullState& session, const std::vector<Pattern>& row
 }
 
 bool applyRowAt(FullState& session, const Rule& rule, const std::vector<Pattern>& row, int32_t startIndex, int32_t delta) {
+    captureAggregateBindings(session, rule, startIndex, delta, session.scratch.aggregateCaptures);
     bool changed = false;
     for (int32_t cellIndex = 0; cellIndex < static_cast<int32_t>(row.size()); ++cellIndex) {
         changed = applyReplacementAt(session, rule, row[static_cast<size_t>(cellIndex)], startIndex + cellIndex * delta) || changed;
@@ -3196,6 +3314,10 @@ bool applyEllipsisRowAt(FullState& session, const Rule& rule, const std::vector<
     if (positions.empty()) {
         return false;
     }
+
+    const auto [dx, dy] = directionMaskToDelta(rule.direction);
+    const int32_t delta = dx * currentLevelHeight(session) + dy;
+    captureAggregateBindings(session, rule, positions.front(), delta, session.scratch.aggregateCaptures);
 
     bool changed = false;
     int32_t positionIndex = 0;

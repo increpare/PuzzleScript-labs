@@ -195,6 +195,19 @@ struct LayerCoupledMovementReplacement {
     bool hasReplacementMovementMask = false;
 };
 
+struct InferredAggregateBinding {
+    std::string aggregateName;
+    int32_t layerIndex = 0;
+};
+
+struct AggregateBinding {
+    std::string aggregateName;
+    int32_t sourceRow = 0;
+    int32_t sourceCell = 0;
+    int32_t sourceLayer = 0;
+    int32_t aggregateMask = 0x1F;
+};
+
 struct Replacement {
     // All masks live in Game::maskArena; these are offsets (in words).
     // The "objects" / "movements" / "movementsLayerMask" fields have width
@@ -216,6 +229,7 @@ struct Replacement {
     std::vector<int32_t> randomEntityChoices;
     std::vector<int32_t> randomDirLayers;
     std::vector<LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
+    std::vector<InferredAggregateBinding> inferredAggregateBindings;
 };
 
 struct Pattern {
@@ -286,6 +300,7 @@ struct Rule {
     bool hasRuleMovementMask = false;
 
     std::vector<std::vector<Pattern>> patterns;
+    std::vector<AggregateBinding> aggregateBindings;
 };
 
 struct WinCondition {
@@ -469,6 +484,7 @@ struct Scratch {
     MaskVector replacementDestroyedScratch;
     MaskVector replacementRigidMaskScratch;
     std::vector<int32_t> singleRowMatchScratch;
+    std::map<std::string, int32_t> aggregateCaptures;
     std::vector<uint8_t> ellipsisLinePossibleScratch;
     std::vector<int32_t> ellipsisMinConcreteSuffixScratch;
     std::vector<int32_t> ellipsisPositionsScratch;
