@@ -2143,14 +2143,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         }
 
                         if (preservedValid && isLayerCoupledPropertyName(nameL) && dirL.empty()) {
-                            bool hasMatchingRhs = false;
-                            for (const auto& itemR : cellRPtr->items) {
-                                if (itemR.dir.empty() && itemR.name == nameL) {
-                                    hasMatchingRhs = true;
-                                    break;
-                                }
-                            }
-                            const bool canPreserve = hasMatchingRhs
+                            // JS getCoalescingPlan preserved mode requires an aligned
+                            // empty-direction RHS counterpart at the same term index,
+                            // not merely the same property name elsewhere in the cell
+                            // (e.g. Indigestion line 556: pushable vs move pushable).
+                            const bool canPreserve = hasRhsItem
+                                && dirR.empty()
+                                && nameR == nameL
                                 && ambiguousProperties.find(nameL) == ambiguousProperties.end()
                                 && !cellHasNoTermOverlappingProperty(cellL, nameL);
                             if (!canPreserve || preservedSeenInCell.count(nameL) != 0) {
