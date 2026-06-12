@@ -341,6 +341,27 @@ add_test(
   COMMAND puzzlescript_cpp_player_api_tests
 )
 
+add_executable(compiler_keyword_names
+  tests/compiler_keyword_names.cpp
+)
+
+target_link_libraries(compiler_keyword_names
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_keyword_names
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_keyword_names
+  COMMAND compiler_keyword_names
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 if(TARGET PkgConfig::SDL2)
   add_test(
     NAME puzzlescript_cpp_player_sdl_dummy_smoke

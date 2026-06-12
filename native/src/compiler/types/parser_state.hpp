@@ -4,6 +4,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace puzzlescript::compiler {
@@ -77,12 +78,14 @@ struct ParserState {
     std::vector<ParserSoundEntry> sounds;
     std::vector<ParserRuleEntry> rules;
     std::vector<std::string> names;
+    std::unordered_set<std::string> namesSet;
     std::vector<ParserWinConditionEntry> winconditions;
     std::vector<std::string> metadata;
     std::map<std::string, int32_t> metadataLines;
     std::map<std::string, std::string> originalCaseNames;
     std::map<std::string, int32_t> originalLineNumbers;
     std::vector<std::string> abbrevNames;
+    std::unordered_set<std::string> abbrevNamesSet;
     std::vector<ParserLevelEntry> levels;
     std::string subsection;
 };

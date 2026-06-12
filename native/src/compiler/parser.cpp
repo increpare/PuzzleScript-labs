@@ -1024,6 +1024,9 @@ void populateNamesForSounds(ParserState& state) {
     for (const auto& entry : state.legendProperties) {
         state.names.push_back(entry.name);
     }
+    // parser.js: names doesn't grow after this point — mirror it in a Set for O(1) membership tests.
+    state.namesSet.clear();
+    state.namesSet.insert(state.names.begin(), state.names.end());
 }
 
 void populateAbbrevNamesForLevels(ParserState& state) {
@@ -1043,6 +1046,9 @@ void populateAbbrevNamesForLevels(ParserState& state) {
             state.abbrevNames.push_back(entry.name);
         }
     }
+    // parser.js: abbrevNames doesn't grow after this point — mirror it in a Set for O(1) membership tests.
+    state.abbrevNamesSet.clear();
+    state.abbrevNamesSet.insert(state.abbrevNames.begin(), state.abbrevNames.end());
 }
 
 void handleBlankLine(ParserState& state) {
@@ -1205,7 +1211,9 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
                     "Name \"" + toUpperCopy(candLower) + "\" already in use.");
             }
         }
-        if (isLegendKeywordName(candLower)) {
+        // parser.js keyword_array_set applies to primary object/legend names only; same-line glyph
+        // aliases (e.g. "sprt_1_1 ^") are abbrev keys, not keyword object names.
+        if (sol && isLegendKeywordName(candLower)) {
             diagnostics.warning(
                 DiagnosticCode::GenericWarning,
                 state.lineNumber,
@@ -1364,12 +1372,7 @@ void parseObjectsLine(ParserState& state, DiagnosticSink& diagnostics, std::stri
 }
 
 bool abbrevNamesContainGlyph(const ParserState& state, std::string_view utf8Glyph) {
-    for (const auto& entry : state.abbrevNames) {
-        if (entry.size() == utf8Glyph.size() && entry == utf8Glyph) {
-            return true;
-        }
-    }
-    return false;
+    return state.abbrevNamesSet.count(std::string(utf8Glyph)) != 0;
 }
 
 // parser.js parseLevelsToken: first unknown glyph on a row yields one Key diagnostic (then parsing continues).
@@ -2114,12 +2117,7 @@ bool winConditionQuantifierOk(std::string_view loweredTrimmed) {
 }
 
 bool namesVectorContains(const ParserState& state, const std::string& lowered) {
-    for (const auto& name : state.names) {
-        if (name == lowered) {
-            return true;
-        }
-    }
-    return false;
+    return state.namesSet.count(lowered) != 0;
 }
 
 // parser.js parseRulesToken only flags a narrow set of errors during the tokenizer pass; a full line
