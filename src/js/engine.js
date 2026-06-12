@@ -3541,18 +3541,15 @@ function checkWin(dontDoWin) {
 
 		let rulePassed = true;
 
-		const f1 = aggr1
-			? (tile) => maskAggregateMatchesAtTile(filter1, tile)
-			: (tile) => maskAnyMatchesAtTile(filter1, tile);
-		const f2 = aggr2
-			? (tile) => maskAggregateMatchesAtTile(filter2, tile)
-			: (tile) => maskAnyMatchesAtTile(filter2, tile);
-
+		//branch on the aggregate flags inline rather than routing every tile
+		//through per-condition closures
+		const n_tiles = level.n_tiles;
 		switch (wincondition[0]) {
 			case -1://NO
 				{
-					for (let i = 0; i < level.n_tiles; i++) {
-						if (f1(i) && f2(i)) {
+					for (let i = 0; i < n_tiles; i++) {
+						if ((aggr1 ? maskAggregateMatchesAtTile(filter1, i) : maskAnyMatchesAtTile(filter1, i)) &&
+							(aggr2 ? maskAggregateMatchesAtTile(filter2, i) : maskAnyMatchesAtTile(filter2, i))) {
 							rulePassed = false;
 							break;
 						}
@@ -3563,8 +3560,9 @@ function checkWin(dontDoWin) {
 			case 0://SOME
 				{
 					let passedTest = false;
-					for (let i = 0; i < level.n_tiles; i++) {
-						if (f1(i) && f2(i)) {
+					for (let i = 0; i < n_tiles; i++) {
+						if ((aggr1 ? maskAggregateMatchesAtTile(filter1, i) : maskAnyMatchesAtTile(filter1, i)) &&
+							(aggr2 ? maskAggregateMatchesAtTile(filter2, i) : maskAnyMatchesAtTile(filter2, i))) {
 							passedTest = true;
 							break;
 						}
@@ -3576,8 +3574,9 @@ function checkWin(dontDoWin) {
 				}
 			case 1://ALL
 				{
-					for (let i = 0; i < level.n_tiles; i++) {
-						if (f1(i) && !f2(i)) {
+					for (let i = 0; i < n_tiles; i++) {
+						if ((aggr1 ? maskAggregateMatchesAtTile(filter1, i) : maskAnyMatchesAtTile(filter1, i)) &&
+							!(aggr2 ? maskAggregateMatchesAtTile(filter2, i) : maskAnyMatchesAtTile(filter2, i))) {
 							rulePassed = false;
 							break;
 						}
