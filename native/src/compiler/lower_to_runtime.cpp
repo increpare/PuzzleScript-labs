@@ -2248,9 +2248,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             if (commandOnlyValid && sawLayerCoupledProperty) {
                 return coupledPropertiesInRule;
             }
-            for (const auto& [propertyName, status] : preservedCandidateStatus) {
-                if (status) {
-                    skippable.insert(propertyName);
+            // JS getCoalescingPlan: preserved candidates apply only when preservedValid
+            // survived every per-cell bail (e.g. LHS-only movement tails on another cell).
+            if (preservedValid) {
+                for (const auto& [propertyName, status] : preservedCandidateStatus) {
+                    if (status) {
+                        skippable.insert(propertyName);
+                    }
                 }
             }
             return skippable;
