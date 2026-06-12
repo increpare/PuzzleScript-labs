@@ -13,12 +13,20 @@
 //
 // Usage:
 //   node src/tests/solver_timeout_curve.js [corpusDir] [--max-ms N] [--step-ms N]
-//       [--from-json results.json] [--out-svg path] [--out-csv path]
+//       [--from-json results.json] [--save-json path]
+//       [--series "label:results.json"]... [--label NAME]
+//       [--out-svg path] [--out-csv path]
 //       [-- extra args passed to run_solver_tests_js.js]
 //
 // Examples:
 //   node src/tests/solver_timeout_curve.js                      # solver_tests, 50..1000ms
 //   node src/tests/solver_timeout_curve.js --from-json run.json # re-plot existing run
+//   # overlay saved runs from different solvers on one chart (no corpus run):
+//   node src/tests/solver_timeout_curve.js --series "js:js_1s.json" --series "c++:cpp_1s.json"
+//
+// Any results JSON with [{status, elapsed_ms}, ...] entries works as a series,
+// including the native solver's: build/native/puzzlescript_solver ... --json.
+// A saved curve CSV (timeout_ms,solved,pct) is also accepted as a series.
 
 const fs = require('fs');
 const path = require('path');
@@ -30,6 +38,9 @@ function parseArgs(argv) {
         maxMs: 1000,
         stepMs: 50,
         fromJson: null,
+        saveJson: null,
+        label: 'js',
+        series: [],
         outSvg: 'build/solver_timeout_curve.svg',
         outCsv: 'build/solver_timeout_curve.csv',
         passthrough: [],
@@ -43,6 +54,17 @@ function parseArgs(argv) {
             options.stepMs = Math.max(1, Number.parseInt(args[++i], 10) || 50);
         } else if (arg === '--from-json') {
             options.fromJson = args[++i];
+        } else if (arg === '--save-json') {
+            options.saveJson = args[++i];
+        } else if (arg === '--label') {
+            options.label = args[++i];
+        } else if (arg === '--series') {
+            const spec = String(args[++i]);
+            const colon = spec.indexOf(':');
+            if (colon <= 0) {
+                throw new Error(`--series expects "label:path", got: ${spec}`);
+            }
+            options.series.push({ label: spec.slice(0, colon), file: spec.slice(colon + 1) });
         } else if (arg === '--out-svg') {
             options.outSvg = args[++i];
         } else if (arg === '--out-csv') {
@@ -108,26 +130,49 @@ function buildCurve(levels, options) {
     return { playable: playable.length, totalSolvedAtMax: solveTimes.length, points };
 }
 
-function renderAscii(curve) {
-    const width = 50;
-    const max = Math.max(...curve.points.map((p) => p.solved), 1);
-    let out = `cumulative solves out of ${curve.playable} playable levels\n`;
-    for (const p of curve.points) {
-        const bar = '#'.repeat(Math.round(p.solved / max * width));
-        out += `${String(p.timeout_ms).padStart(5)}ms |${bar.padEnd(width)}| ${String(p.solved).padStart(4)}  (${p.pct.toFixed(1)}%)\n`;
+function loadSeries(spec, options) {
+    if (spec.file.endsWith('.csv')) {
+        const lines = fs.readFileSync(spec.file, 'utf8').trim().split('\n');
+        const header = lines[0].split(',');
+        const col = (name) => header.indexOf(name);
+        const tCol = col('timeout_ms'), sCol = col('solved'), pCol = col('pct'), seriesCol = col('series');
+        const points = lines.slice(1)
+            .map((line) => line.split(','))
+            .filter((row) => seriesCol < 0 || row[seriesCol] === spec.label)
+            .map((row) => ({
+                timeout_ms: Number(row[tCol]), solved: Number(row[sCol]), pct: Number(row[pCol]),
+            }));
+        const last = points[points.length - 1];
+        const playable = last.pct > 0 ? Math.round(last.solved / (last.pct / 100)) : 0;
+        return { label: spec.label, playable, totalSolvedAtMax: last.solved, points };
+    }
+    const payload = JSON.parse(fs.readFileSync(spec.file, 'utf8'));
+    return { label: spec.label, ...buildCurve(flattenLevels(payload), options) };
+}
+
+function renderAscii(curves) {
+    const width = 44;
+    const max = Math.max(...curves.flatMap((c) => c.points.map((p) => p.solved)), 1);
+    let out = '';
+    for (const curve of curves) {
+        out += `\n[${curve.label}] cumulative solves out of ${curve.playable} playable levels\n`;
+        for (const p of curve.points) {
+            const bar = '#'.repeat(Math.round(p.solved / max * width));
+            out += `${String(p.timeout_ms).padStart(5)}ms |${bar.padEnd(width)}| ${String(p.solved).padStart(4)}  (${p.pct.toFixed(1)}%)\n`;
+        }
     }
     return out;
 }
 
-function renderSvg(curve, options) {
+const SERIES_COLORS = ['#2266cc', '#cc4422', '#22aa66', '#9944cc', '#888822'];
+
+function renderSvg(curves, options) {
     const W = 720, H = 420, mL = 60, mR = 20, mT = 30, mB = 45;
     const plotW = W - mL - mR, plotH = H - mT - mB;
     const maxX = options.maxMs;
-    const maxY = Math.max(curve.totalSolvedAtMax, 1) * 1.05;
+    const maxY = Math.max(...curves.map((c) => c.totalSolvedAtMax), 1) * 1.05;
     const x = (ms) => mL + ms / maxX * plotW;
     const y = (n) => mT + plotH - n / maxY * plotH;
-    const pts = [[0, 0], ...curve.points.map((p) => [p.timeout_ms, p.solved])];
-    const poly = pts.map(([ms, n]) => `${x(ms).toFixed(1)},${y(n).toFixed(1)}`).join(' ');
     let grid = '';
     for (let t = 0; t <= maxX; t += Math.max(options.stepMs * 2, 100)) {
         grid += `<line x1="${x(t)}" y1="${mT}" x2="${x(t)}" y2="${mT + plotH}" stroke="#eee"/>` +
@@ -139,30 +184,53 @@ function renderSvg(curve, options) {
         grid += `<line x1="${mL}" y1="${y(n)}" x2="${mL + plotW}" y2="${y(n)}" stroke="#eee"/>` +
             `<text x="${mL - 8}" y="${y(n) + 4}" font-size="11" text-anchor="end" fill="#555">${n}</text>`;
     }
-    const last = curve.points[curve.points.length - 1];
+    let lines = '';
+    let legend = '';
+    curves.forEach((curve, ci) => {
+        const color = SERIES_COLORS[ci % SERIES_COLORS.length];
+        const pts = [[0, 0], ...curve.points.map((p) => [p.timeout_ms, p.solved])];
+        const poly = pts.map(([ms, n]) => `${x(ms).toFixed(1)},${y(n).toFixed(1)}`).join(' ');
+        const last = curve.points[curve.points.length - 1];
+        lines += `<polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5"/>` +
+            `<text x="${x(last.timeout_ms) - 6}" y="${y(last.solved) - 8}" font-size="12" text-anchor="end" fill="${color}">${last.solved} (${last.pct.toFixed(1)}%)</text>`;
+        legend += `<rect x="${mL + 12}" y="${mT + 10 + ci * 20}" width="18" height="4" fill="${color}"/>` +
+            `<text x="${mL + 36}" y="${mT + 16 + ci * 20}" font-size="12" fill="#333">${curve.label}</text>`;
+    });
+    const playable = curves[0].playable;
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" font-family="sans-serif">
 <rect width="${W}" height="${H}" fill="white"/>
 ${grid}
-<polyline points="${poly}" fill="none" stroke="#2266cc" stroke-width="2.5"/>
+${lines}
+${legend}
 <line x1="${mL}" y1="${mT + plotH}" x2="${mL + plotW}" y2="${mT + plotH}" stroke="#333"/>
 <line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + plotH}" stroke="#333"/>
-<text x="${W / 2}" y="18" font-size="14" text-anchor="middle">JS solver: cumulative levels solved vs timeout (${curve.playable} playable levels)</text>
+<text x="${W / 2}" y="18" font-size="14" text-anchor="middle">Cumulative levels solved vs timeout (${playable} playable levels)</text>
 <text x="${W / 2}" y="${H - 8}" font-size="12" text-anchor="middle" fill="#333">timeout (ms)</text>
-<text x="${x(last.timeout_ms) - 6}" y="${y(last.solved) - 8}" font-size="12" text-anchor="end" fill="#2266cc">${last.solved} (${last.pct.toFixed(1)}%)</text>
 </svg>\n`;
 }
 
 function main() {
     const options = parseArgs(process.argv);
-    const payload = options.fromJson
-        ? JSON.parse(fs.readFileSync(options.fromJson, 'utf8'))
-        : runCorpus(options);
-    const curve = buildCurve(flattenLevels(payload), options);
-    process.stdout.write(renderAscii(curve));
+    const curves = [];
+    if (options.series.length > 0) {
+        for (const spec of options.series) {
+            curves.push(loadSeries(spec, options));
+        }
+    } else {
+        const payload = options.fromJson
+            ? JSON.parse(fs.readFileSync(options.fromJson, 'utf8'))
+            : runCorpus(options);
+        if (options.saveJson) {
+            fs.mkdirSync(path.dirname(options.saveJson), { recursive: true });
+            fs.writeFileSync(options.saveJson, JSON.stringify(payload));
+        }
+        curves.push({ label: options.label, ...buildCurve(flattenLevels(payload), options) });
+    }
+    process.stdout.write(renderAscii(curves));
     fs.mkdirSync(path.dirname(options.outCsv), { recursive: true });
-    fs.writeFileSync(options.outCsv, 'timeout_ms,solved,pct\n' +
-        curve.points.map((p) => `${p.timeout_ms},${p.solved},${p.pct.toFixed(2)}`).join('\n') + '\n');
-    fs.writeFileSync(options.outSvg, renderSvg(curve, options));
+    fs.writeFileSync(options.outCsv, 'series,timeout_ms,solved,pct\n' +
+        curves.flatMap((c) => c.points.map((p) => `${c.label},${p.timeout_ms},${p.solved},${p.pct.toFixed(2)}`)).join('\n') + '\n');
+    fs.writeFileSync(options.outSvg, renderSvg(curves, options));
     process.stderr.write(`wrote ${options.outCsv} and ${options.outSvg}\n`);
 }
 
