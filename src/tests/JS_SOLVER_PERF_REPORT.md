@@ -192,3 +192,106 @@ node src/tests/run_solver_tests_js.js src/tests/solver_tests --timeout-ms 250 --
 PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0 node --cpu-prof --cpu-prof-dir=prof \
   src/tests/run_solver_tests_js.js src/tests/solver_tests --timeout-ms 250 --quiet --json --no-solutions
 ```
+
+---
+
+# Round 2 — after the 1a/1b/1c/4 landing
+
+Re-profiled at master `0fd649e` (which landed report items 1a/1b/1c/4 and
+discarded 2 and 3). Same corpus/timeout/machine as round 1: **522 → 584
+solved**, 6.98M steps generated (+42% states per budget). `backupLevel` is
+gone from the profile, `checkWin` halved (4.5s → 2.1s), `startMovement` down
+(6.7s → 4.9s), `processCommandQueue` down (12.1s → 10.7s). No-ops are still
+41.7% of steps. Remaining top items: rule matching 74.6s (~35%),
+`matchingDistanceField` 14.5s, `calculateRowColMasks` 12.6s.
+
+## Recommendations, ranked
+
+### R1. A2 done right: version-keyed exact distance-field cache (~6%)
+
+The discarded A2 failed from **staleness** (−22 solves despite −3%
+heuristic_ms): cached fields diverged from what per-node recompute would
+have produced, changing search order. The exact variant cannot regress by
+construction:
+
+- Per condition `k`, keep `targetVersion[k]`. In the per-cell write hook
+  (`solverZobristUpdateCell` — already invoked by both `Level.setCell` and
+  the generated replace code), when a write flips the cell's filter2-match
+  status for condition `k`, bump `targetVersion[k]`.
+- **`capture()` stores the version vector; `restore()` restores it** — the
+  same snapshot/restore pattern the incremental Zobrist hash already uses.
+  This is the piece that makes dirty-tracking survive the solver's bulk
+  `objects.set(...)` restores.
+- The heuristic reuses the cached chamfer field iff the version matches;
+  otherwise recompute and re-tag. Identical field values ⇒ identical search
+  ⇒ solve count provably unchanged.
+- Gate with a `PUZZLESCRIPT_VERIFY_DISTANCE_FIELDS=1` mode asserting
+  cache == recompute (mirroring `PUZZLESCRIPT_VERIFY_ZOBRIST`).
+
+Line ticks show the two chamfer sweeps are ~2/3 of `matchingDistanceField`
+and the version check also skips the seeding pass, so expect nearly all of
+the 14.5s on target-static levels (most of the corpus), plus the same trick
+for the player-section `conditionDistances` filter1 fields.
+
+### R2. Fused restore + row/col mask rebuild (~3%) — the sound variant of item 3
+
+What was tried and failed was *skipping* `calculateRowColMasks` after
+restore (stale masks under-approximate ⇒ missed matches — correctly
+abandoned). The sound version keeps the rebuild but merges it into
+`restore()`'s existing full pass: a stride-specialized fused loop copies
+`snapshot.objects` into `level.objects` while OR-ing row/col/map object
+masks; movement masks just `fill(0)` since restore zeroes movements. Then:
+`level.rowColMasksValid = true` in restore;
+`if (!level.rowColMasksValid) state.calculateRowColMasks(level);
+level.rowColMasksValid = false;` in `processInput`. Vanilla gameplay never
+sets the flag, so engine behaviour is untouched; the solver saves one of the
+two full O(n_tiles) passes (`calculateRowColMasks` is 12.6s).
+
+### R3. Incremental player-position tracking (~2%)
+
+`startMovement`'s `getPlayerPositions` is still a full-grid scan per step
+(4.9s). Same exactness pattern as R1: maintain a player-tile set + version
+via the write hook, snapshot/restore the version. Consider extracting the
+pattern as a small "tracked tile predicate" utility (mask → maintained tile
+list + version) shared by R1, R3, and any future incremental `checkWin`.
+
+### R4. `checkWin` per-tile closures (~1%)
+
+The new direct word scans still route through per-condition arrow closures
+(`f1` frame: 2.9s). Branch on `(aggr1, aggr2)` outside the tile loops and
+call `maskAggregateMatchesAtTile` / `maskAnyMatchesAtTile` directly.
+
+### R5. E1-classic stays the locked prize (~30% of wall)
+
+No-ops still cost full rule matching. Before designing a skip predicate,
+instrument which *rules* fire on the changed steps per game: if the
+no-op-heavy games are purely movement-driven (`[> Player | …]` shapes), a
+per-level static proof ("no rule can fire from a stationary board" + "the
+pressed direction is blocked by static blockers") covers them, built from
+the existing `inferStaticBlockerMask` machinery. Gate on full-corpus solve
+parity and the sim suite. Do not ship without both.
+
+### R6. Suite throughput: `--jobs` for the JS corpus runner
+
+The C++ runner is parallel; the JS one is serial (~4min/run here, and every
+experiment above needs paired runs). `fuzz_corpus_batch_parallel.js` already
+demonstrates the worker pattern. This doesn't add solves — it multiplies
+experiment cadence for everything else.
+
+### R7. Robustness: nondeterministic "noping out" costs solves
+
+`tiny treasure hunt` loses 3-7 levels per run (varies) to
+`Error: Too many errors/warnings; noping out`, and `riverpuzzle` joins
+intermittently — warning counters accumulate across level attempts within
+one process and trip the cap order-dependently. Reset the error/warning
+accumulators per level attempt in `solveLevel` (the replay path already
+calls `resetParserErrorState`). The `null (reading 'seed')` errors on 6
+levels are a separate pre-existing sfx bug worth a look while in there.
+
+## Sizing
+
+R1-R4 stack to ~10-12% of search time with zero search-behaviour risk; at
+the measured dose-response (~0.8% per solve) that's roughly **+12-15 solves
+at 250ms**, before touching E1. The remaining ceiling is rule matching
+itself (~35%), which only an incremental/dirty-region matching architecture
+would move — a major engine project, not low-hanging fruit.
