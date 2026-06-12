@@ -22,6 +22,11 @@ const reg_winconditionquantifiers = /^(all|any|no|some)$/;
 // checkpoint omitted: allowed as object name (see issue #1109)
 const keyword_array = ['objects', 'collisionlayers', 'legend', 'sounds', 'rules', '...','winconditions', 'levels','|','[',']','up', 'down', 'left', 'right', 'late','rigid', '^','v','\>','\<','no','randomdir','random', 'horizontal', 'vertical','any', 'all', 'no', 'some', 'moving','stationary','parallel','perpendicular','action','message', "move", "action", "create", "destroy", "cantmove", "sfx0", "sfx1", "sfx2", "sfx3", "sfx4", "sfx5", "sfx6", "sfx7", "sfx8", "sfx9", "sfx10", "cancel", "restart", "win", "message", "again", "undo", "restart", "titlescreen", "startgame", "cancel", "endgame", "startlevel", "endlevel", "showmessage", "closemessage"];
 
+// Set versions of the above for O(1) membership tests in per-token hot paths.
+const commandwords_set = new Set(commandwords);
+const commandwords_sfx_set = new Set(commandwords_sfx);
+const keyword_array_set = new Set(keyword_array);
+
 const  directionaggregates = {
     'horizontal': ['left', 'right'],
     'horizontal_par': ['left', 'right'],
@@ -38,6 +43,9 @@ const  directionaggregates = {
 const relativeDirections = ['^', 'v', '<', '>', 'perpendicular', 'parallel'];
 const simpleAbsoluteDirections = ['up', 'down', 'left', 'right'];
 const simpleRelativeDirections = ['^', 'v', '<', '>'];
+const relativeDirections_set = new Set(relativeDirections);
+const simpleAbsoluteDirections_set = new Set(simpleAbsoluteDirections);
+const simpleRelativeDirections_set = new Set(simpleRelativeDirections);
 const reg_directions_only = /^(\>|\<|\^|v|up|down|left|right|moving|stationary|no|randomdir|random|horizontal|vertical|orthogonal|perpendicular|parallel|action)$/;//redeclaring here, i don't know wh
 
 const REGEX_HEX = /^#([0-9A-F]{3}){1,2}$/i;

@@ -1254,13 +1254,9 @@ function generate_moveEntitiesAtIndex(OBJECT_SIZE, MOVEMENT_SIZE) {
     	${ISHIFTOR("movementMask", "dirMask", "(5 * layers[i])")}
     }
 		
-    ${LEVEL_SET_MOVEMENTS( "positionIndex", "movementMask", MOVEMENT_SIZE)}
-
 	const colIndex=(positionIndex/level.height)|0;
 	const rowIndex=(positionIndex%level.height);
-	${UNROLL("level.colCellContents_Movements[colIndex] |= movementMask", MOVEMENT_SIZE)}
-	${UNROLL("level.rowCellContents_Movements[rowIndex] |= movementMask", MOVEMENT_SIZE)}
-	${UNROLL("level.mapCellContents_Movements |= movementMask", MOVEMENT_SIZE)}
+    ${LEVEL_SET_MOVEMENTS_REUSE_INDICES("positionIndex", "movementMask", MOVEMENT_SIZE)}
 	`
 	if (fn in CACHE_MOVEENTITIESATINDEX) {
 		return CACHE_MOVEENTITIESATINDEX[fn];
@@ -1289,19 +1285,30 @@ function generate_calculateRowColMasks(OBJECT_SIZE, MOVEMENT_SIZE) {
 			${SET_ZERO("rcc_Movements")}
 		}
 
+		const objectsArr = level.objects;
+		const movementsArr = level.movements;
+		const mapCC = level.mapCellContents.data;
+		const mapCCM = level.mapCellContents_Movements.data;
 		for (let i=0;i<level.width;i++) {
+			const colCC = level.colCellContents[i].data;
+			const colCCM = level.colCellContents_Movements[i].data;
+			let index = i*level.height;
 			for (let j=0;j<level.height;j++) {
-				let index = j+i*level.height;
-				let cellContents=_o9;
-				${LEVEL_GET_CELL_INTO("level", "index", "cellContents", OBJECT_SIZE)}
-				${UNROLL("level.mapCellContents |= cellContents", OBJECT_SIZE)}
-				${UNROLL("level.rowCellContents[j] |= cellContents", OBJECT_SIZE)}
-				${UNROLL("level.colCellContents[i] |= cellContents", OBJECT_SIZE)}
-				
-				let mapCellContents_Movements=level.getMovementsInto(index,_m1);
-				${UNROLL("level.mapCellContents_Movements |= mapCellContents_Movements", MOVEMENT_SIZE)}
-				${UNROLL("level.rowCellContents_Movements[j] |= mapCellContents_Movements", MOVEMENT_SIZE)}
-				${UNROLL("level.colCellContents_Movements[i] |= mapCellContents_Movements", MOVEMENT_SIZE)}
+				${FOR(0, OBJECT_SIZE, w => `
+				{
+					const v = objectsArr[index${OBJECT_SIZE === 1 ? '' : '*' + OBJECT_SIZE}${w ? '+' + w : ''}];
+					mapCC[${w}] |= v;
+					level.rowCellContents[j].data[${w}] |= v;
+					colCC[${w}] |= v;
+				}`)}
+				${FOR(0, MOVEMENT_SIZE, w => `
+				{
+					const v = movementsArr[index${MOVEMENT_SIZE === 1 ? '' : '*' + MOVEMENT_SIZE}${w ? '+' + w : ''}];
+					mapCCM[${w}] |= v;
+					level.rowCellContents_Movements[j].data[${w}] |= v;
+					colCCM[${w}] |= v;
+				}`)}
+				index++;
 			}
 		}`
 	if (fn in CACHE_CALCULATEROWCOLMASKS) {
@@ -1663,8 +1670,9 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 		for (let i of usedMovementIndices) {
 			fn += 'let cellMovements' + i + ' = movements[i' + movStride + (i ? '+' + i : '') + '];\n';
 		}
-		
-		fn += "return " + cellRow[0].generateMatchString('0_');
+
+		fn += 'const p0 = cellRow[0];\n';
+		fn += "return " + cellRow[0].generateMatchString('p0');
 		for (let cellIndex = 1; cellIndex < cr_l; cellIndex++) {
 			fn += "&&cellRow[" + cellIndex + "].matches(i+" + cellIndex + "*d, objects, movements)";
 		}
@@ -1677,7 +1685,7 @@ Rule.prototype.generateCellRowMatchesFunction = function (cellRow, ellipsisCount
 	} else if (ellipsisCount === 1) {
 		let cr_l = cellRow.length;
 
-		let fn = `let result = [];
+		let fn = `let result = EMPTY_MATCH_RESULT;
 if(cellRow[0].matches(i, objects, movements)`;
 		let cellIndex = 1;
 		for (; cellRow[cellIndex] !== ellipsisPattern; cellIndex++) {
@@ -1692,6 +1700,7 @@ if(cellRow[0].matches(i, objects, movements)`;
 			fn += "&&cellRow[" + cellIndex + "].matches((i+d*(k+" + (cellIndex - 1) + ")), objects, movements)";
 		}
 		fn += `){
+			if (result===EMPTY_MATCH_RESULT) result=[];
 			result.push([i,k]);
 		}
 	}
@@ -1720,7 +1729,7 @@ if(cellRow[0].matches(i, objects, movements)`;
 			}
 		}
 
-		let fn = `let result = [];
+		let fn = `let result = EMPTY_MATCH_RESULT;
 if(cellRow[0].matches(i, objects, movements)`;
 
 		for (let idx = 1; idx < ellipsis_index_1; idx++) {
@@ -1746,6 +1755,7 @@ if(cellRow[0].matches(i, objects, movements)`;
 		}
 		fn += `
 				){
+					if (result===EMPTY_MATCH_RESULT) result=[];
 					result.push([i,k1,k2]);
 				}
 			}
@@ -1766,6 +1776,10 @@ let STRIDE_OBJ = 1;
 let STRIDE_MOV = 1;
 let LAYER_COUNT = 1;
 const FALSE_FUNCTION = new Function("return false;");
+//shared result for the no-matches case in the match-scan functions. Callers
+//treat an empty result as terminal and never mutate it (frozen so any future
+//violation fails loudly rather than corrupting shared state).
+const EMPTY_MATCH_RESULT = Object.freeze([]);
 
 // We don't generate the matches functions all at once at initailization, we generate them in the background/as needed
 
@@ -1841,27 +1855,14 @@ function layerCoupledMovementMaskMatchExpression(term) {
 	return options.length === 0 ? 'false' : options.join('||');
 }
 
-function layerCoupledMovementMasksCacheKey(terms) {
-	if (terms.length === 0) {
-		return '0';
-	}
-	const parts = [terms.length];
-	for (let i = 0; i < terms.length; i++) {
-		const term = terms[i];
-		parts.push(term.layers.length);
-		for (let j = 0; j < term.layers.length; j++) {
-			const layer = term.layers[j];
-			parts.push(layer.layerIndex);
-			for (let w = 0; w < STRIDE_OBJ; w++) parts.push(layer.objectMask.data[w] || 0);
-			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsAny.data[w] || 0);
-			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsPresent.data[w] || 0);
-			for (let w = 0; w < STRIDE_MOV; w++) parts.push(layer.movementsMissing.data[w] || 0);
-		}
-	}
-	return parts.join(':');
-}
-
-CellPattern.prototype.generateMatchString = function () {
+//patternExpr is a source-level expression that evaluates to this CellPattern in
+//the generated function's scope (e.g. 'this' or 'cellRow[0]'). Masks are read
+//from it at runtime rather than embedded as integer literals: the emitted source
+//then depends only on the *shape* of the pattern (which words/terms are in
+//play), so V8's source-keyed compilation cache can share one hot compiled
+//function across patterns, games and recompiles. Empirically this is much
+//faster than constant-specialized code.
+CellPattern.prototype.generateMatchString = function (patternExpr) {
 	let fn = "(true";
 	for (let i = 0; i < Math.max(STRIDE_OBJ, STRIDE_MOV); ++i) {
 		const co = 'cellObjects' + i;
@@ -1870,29 +1871,33 @@ CellPattern.prototype.generateMatchString = function () {
 		const om = this.objectsMissing.data[i];
 		const mp = this.movementsPresent.data[i];
 		const mm = this.movementsMissing.data[i];
+		const opExpr = patternExpr + '.objectsPresent.data[' + i + ']';
+		const omExpr = patternExpr + '.objectsMissing.data[' + i + ']';
+		const mpExpr = patternExpr + '.movementsPresent.data[' + i + ']';
+		const mmExpr = patternExpr + '.movementsMissing.data[' + i + ']';
 		if (op) {
 			if (op & (op - 1))
-				fn += '\t\t&& ((' + co + '&' + op + ')===' + op + ')\n';
+				fn += '\t\t&& ((' + co + '&' + opExpr + ')===' + opExpr + ')\n';
 			else
-				fn += '\t\t&& (' + co + '&' + op + ')\n';
+				fn += '\t\t&& (' + co + '&' + opExpr + ')\n';
 		}
 		if (om)
-			fn += '\t\t&& !(' + co + '&' + om + ')\n';
+			fn += '\t\t&& !(' + co + '&' + omExpr + ')\n';
 		if (mp) {
 			if (mp & (mp - 1))
-				fn += '\t\t&& ((' + cm + '&' + mp + ')===' + mp + ')\n';
+				fn += '\t\t&& ((' + cm + '&' + mpExpr + ')===' + mpExpr + ')\n';
 			else
-				fn += '\t\t&& (' + cm + '&' + mp + ')\n';
+				fn += '\t\t&& (' + cm + '&' + mpExpr + ')\n';
 		}
 		if (mm)
-			fn += '\t\t&& !(' + cm + '&' + mm + ')\n';
+			fn += '\t\t&& !(' + cm + '&' + mmExpr + ')\n';
 	}
 	for (let j = 0; j < this.anyObjectsPresent.length; j++) {
 		fn += "\t\t&& (0";
 		for (let i = 0; i < STRIDE_OBJ; ++i) {
 			const aop = this.anyObjectsPresent[j].data[i];
 			if (aop)
-				fn += "|(cellObjects" + i + "&" + aop + ")";
+				fn += "|(cellObjects" + i + "&" + patternExpr + ".anyObjectsPresent[" + j + "].data[" + i + "])";
 		}
 		fn += ")";
 	}
@@ -1901,7 +1906,7 @@ CellPattern.prototype.generateMatchString = function () {
 		for (let i = 0; i < STRIDE_MOV; ++i) {
 			const amp = this.anyMovementsPresent[j].data[i];
 			if (amp)
-				fn += "|(cellMovements" + i + "&" + amp + ")";
+				fn += "|(cellMovements" + i + "&" + patternExpr + ".anyMovementsPresent[" + j + "].data[" + i + "])";
 		}
 		fn += ")";
 	}
@@ -1913,67 +1918,31 @@ CellPattern.prototype.generateMatchString = function () {
 }
 
 let CACHE_CELLPATTERN_MATCHFUNCTION = new Map();
-let _generateMatchFunction_key_array = new Int32Array(0);
 CellPattern.prototype.generateMatchFunction = function() {
-    // Calculate total size needed for the key array.
-    // The two trailing length values disambiguate cases where anyObjectsPresent
-    // bits and anyMovementsPresent bits would otherwise occupy the same slots
-    // (e.g. STRIDE_OBJ == STRIDE_MOV with counts swapped).
-    const keyLength = STRIDE_OBJ * 2 + STRIDE_MOV * 2 +
-                     this.anyObjectsPresent.length * STRIDE_OBJ +
-                     this.anyMovementsPresent.length * STRIDE_MOV + 4;
-	if (keyLength!==_generateMatchFunction_key_array.length) {
-		_generateMatchFunction_key_array = new Int32Array(keyLength);
-	}
-    const keyArray = _generateMatchFunction_key_array;
-    let keyIndex = 0;
-
-    // Fill the array with data
-    for (let i = 0; i < STRIDE_OBJ; i++) {
-        keyArray[keyIndex++] = this.objectsPresent.data[i] || 0;
-        keyArray[keyIndex++] = this.objectsMissing.data[i] || 0;
-    }
-    for (let i = 0; i < STRIDE_MOV; i++) {
-        keyArray[keyIndex++] = this.movementsPresent.data[i] || 0;
-        keyArray[keyIndex++] = this.movementsMissing.data[i] || 0;
-    }
-    for (let i = 0; i < this.anyObjectsPresent.length; i++) {
-        for (let j = 0; j < STRIDE_OBJ; j++) {
-            keyArray[keyIndex++] = this.anyObjectsPresent[i].data[j] || 0;
-        }
-    }
-    for (let i = 0; i < this.anyMovementsPresent.length; i++) {
-        for (let j = 0; j < STRIDE_MOV; j++) {
-            keyArray[keyIndex++] = this.anyMovementsPresent[i].data[j] || 0;
-        }
-    }
-    keyArray[keyIndex++] = STRIDE_OBJ;
-    keyArray[keyIndex++] = STRIDE_MOV;
-    keyArray[keyIndex++] = this.anyObjectsPresent.length;
-    keyArray[keyIndex++] = this.anyMovementsPresent.length;
-	let str_key = keyArray.toString() + "|" + layerCoupledMovementMasksCacheKey(this.layerCoupledMovementMasks);
-
-    if (CACHE_CELLPATTERN_MATCHFUNCTION.has(str_key)) {
-        return CACHE_CELLPATTERN_MATCHFUNCTION.get(str_key);
-    }
-
+    // The generated source reads the masks through 'this' at runtime, so it
+    // depends only on the pattern's shape - the source itself is the cache key.
+    // Patterns with the same shape share one function object (and so share
+    // V8's type feedback, keeping the shared function optimized).
     const objStride = STRIDE_OBJ === 1 ? '' : `*${STRIDE_OBJ}`;
     const movStride = STRIDE_MOV === 1 ? '' : `*${STRIDE_MOV}`;
-    
+
     let fn = '';
-    
+
     for (let i = 0; i < STRIDE_OBJ; ++i) {
         fn += `const cellObjects${i} = objects[i${objStride}${i ? '+' + i : ''}];\n`;
     }
-    
+
     for (let i = 0; i < STRIDE_MOV; ++i) {
         fn += `const cellMovements${i} = movements[i${movStride}${i ? '+' + i : ''}];\n`;
     }
-    
-    fn += `return ${this.generateMatchString()};`;
 
-    const result = new Function("i", "objects", "movements", generatedFunctionSource("cellPatternMatch", fn));
-    CACHE_CELLPATTERN_MATCHFUNCTION.set(str_key, result);
+    fn += `return ${this.generateMatchString('this')};`;
+
+    let result = CACHE_CELLPATTERN_MATCHFUNCTION.get(fn);
+    if (result === undefined) {
+        result = new Function("i", "objects", "movements", generatedFunctionSource("cellPatternMatch", fn));
+        CACHE_CELLPATTERN_MATCHFUNCTION.set(fn, result);
+    }
     return result;
 }
 
@@ -1989,54 +1958,69 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		return FALSE_FUNCTION;
 	}
 
-	const array_len = 3*OBJECT_SIZE + 4*MOVEMENT_SIZE + 3;
-	if (array_len!==_replace_function_key_array.length) {
-		_replace_function_key_array = new Int32Array(array_len);
-	}
-
-	const key_array = _replace_function_key_array;
-	for (let i = 0; i < OBJECT_SIZE; i++) {
-		key_array[i] = this.replacement.objectsSet.data[i] || 0;
-		key_array[i+OBJECT_SIZE] = this.replacement.objectsClear.data[i] || 0;
-		key_array[i+2*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomEntityMask.data[i] || 0;
-	}
-	for (let i = 0; i < MOVEMENT_SIZE; i++) {
-		key_array[i+2*OBJECT_SIZE] = this.replacement.movementsSet.data[i] || 0;
-		key_array[i+2*OBJECT_SIZE+MOVEMENT_SIZE] = this.replacement.movementsClear.data[i] || 0;
-		key_array[i+2*OBJECT_SIZE+2*MOVEMENT_SIZE] = this.replacement.movementsLayerMask.data[i] || 0;
-		key_array[i+3*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomDirMask.data[i] || 0;
-	}
-	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE] = OBJECT_SIZE;
-	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+1] = MOVEMENT_SIZE;
-	key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+2] = rule.rigid;
-
 	const hasCoupledReplacements = this.replacement.layerCoupledMovementReplacements.length > 0;
 	const hasInferredAggregateBindings = this.replacement.inferredAggregateBindings.length > 0;
 	const hasInferredPropertyBindings = this.replacement.inferredPropertyBindings.length > 0;
 	const hasInferredPropertySources = this.replacement.inferredPropertySources.length > 0;
-	const key = key_array.toString()
-		+ (hasCoupledReplacements ? ",c" : "")
-		+ (hasInferredAggregateBindings ? ",a" : "")
-		+ (hasInferredPropertyBindings ? ",p" : "")
-		+ (hasInferredPropertySources ? ",s" : "");
-	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
-		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
-	}
 
 	const replace_randomEntityMask_zero = this.replacement.randomEntityMask.iszero()
 	const replace_randomDirMask_zero = this.replacement.randomDirMask.iszero()
 	let deterministic = replace_randomEntityMask_zero && replace_randomDirMask_zero;
 
-	let fn = `	
-		let replace = this.replacement;
-
-		if (replace === null) {
-			return false;
+	let key;
+	if (deterministic && !rule.rigid && !hasCoupledReplacements &&
+		!hasInferredAggregateBindings && !hasInferredPropertyBindings && !hasInferredPropertySources) {
+		// The masks are all read from this.replacement at runtime, so the
+		// generated source for this (overwhelmingly common) case depends only
+		// on the strides - no need to build a key from the mask values.
+		key = OBJECT_SIZE + "," + MOVEMENT_SIZE;
+	} else {
+		// The random-entity and rigid blocks still embed pattern/rule-specific
+		// constants in the source, so key on the full mask values.
+		const array_len = 3*OBJECT_SIZE + 4*MOVEMENT_SIZE + 3;
+		if (array_len!==_replace_function_key_array.length) {
+			_replace_function_key_array = new Int32Array(array_len);
 		}
 
+		const key_array = _replace_function_key_array;
+		for (let i = 0; i < OBJECT_SIZE; i++) {
+			key_array[i] = this.replacement.objectsSet.data[i] || 0;
+			key_array[i+OBJECT_SIZE] = this.replacement.objectsClear.data[i] || 0;
+			key_array[i+2*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomEntityMask.data[i] || 0;
+		}
+		for (let i = 0; i < MOVEMENT_SIZE; i++) {
+			key_array[i+2*OBJECT_SIZE] = this.replacement.movementsSet.data[i] || 0;
+			key_array[i+2*OBJECT_SIZE+MOVEMENT_SIZE] = this.replacement.movementsClear.data[i] || 0;
+			key_array[i+2*OBJECT_SIZE+2*MOVEMENT_SIZE] = this.replacement.movementsLayerMask.data[i] || 0;
+			key_array[i+3*OBJECT_SIZE+3*MOVEMENT_SIZE] = this.replacement.randomDirMask.data[i] || 0;
+		}
+		key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE] = OBJECT_SIZE;
+		key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+1] = MOVEMENT_SIZE;
+		key_array[3*OBJECT_SIZE + 4*MOVEMENT_SIZE+2] = rule.rigid;
+
+		// The rigid block embeds the rule's rigid-group index and the rigid and
+		// random-dir blocks loop over the layer count, so those must be part of
+		// the key: rigid rules with identical masks but different groups (or
+		// different games that happen to share mask values) must not share a
+		// generated function.
+		key = key_array.toString()
+			+ (hasCoupledReplacements ? ",c" : "")
+			+ (hasInferredAggregateBindings ? ",a" : "")
+			+ (hasInferredPropertyBindings ? ",p" : "")
+			+ (hasInferredPropertySources ? ",s" : "")
+			+ ",lc" + LAYER_COUNT
+			+ (rule.rigid ? ",rg" + (state.groupNumber_to_RigidGroupIndex[rule.groupNumber] | 0) : "");
+	}
+	if (key in CACHE_CELLPATTERN_REPLACEFUNCTION) {
+		return CACHE_CELLPATTERN_REPLACEFUNCTION[key];
+	}
+
+	let fn = `
+		let replace = this.replacement;
+		${IF_LAZY(!deterministic, () => `
 		const replace_RandomEntityMask = replace.randomEntityMask;
 		const replace_RandomDirMask = replace.randomDirMask;
-
+		`)}
 		// Using IMPORT_COMPILE_TIME_ARRAY should make the following three declarations faster,
 		// but it really slows down the compiler.
 		const objectsSet = _o1;
@@ -2105,7 +2089,7 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 		const movementsClear = _m2;
 
 		${FOR(0,MOVEMENT_SIZE,i=>
-			`movementsClear.data[${i}] = ${this.replacement.movementsClear.data[i] | this.replacement.movementsLayerMask.data[i]};\n`
+			`movementsClear.data[${i}] = replace.movementsClear.data[${i}] | replace.movementsLayerMask.data[${i}];\n`
 		)}
 
 		${IF_LAZY(hasInferredAggregateBindings, () => `
@@ -2296,15 +2280,16 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 
 		${LEVEL_UPDATE_CELL_HASH("level", "currentIndex", "curCellMask")}
 		${LEVEL_SET_CELL("level", "currentIndex", "curCellMask", OBJECT_SIZE)}
-		${LEVEL_SET_MOVEMENTS( "currentIndex", "curMovementMask", MOVEMENT_SIZE)}
 
 		const colIndex=(currentIndex/level.height)|0;
 		const rowIndex=(currentIndex%level.height);
 
+		${LEVEL_SET_MOVEMENTS_REUSE_INDICES("currentIndex", "curMovementMask", MOVEMENT_SIZE)}
+
 		${UNROLL("level.colCellContents[colIndex] |= curCellMask", OBJECT_SIZE)}
 		${UNROLL("level.rowCellContents[rowIndex] |= curCellMask", OBJECT_SIZE)}
 		${UNROLL("level.mapCellContents |= curCellMask", OBJECT_SIZE)}
-		return true;	
+		return true;
 	`
 
 	return CACHE_CELLPATTERN_REPLACEFUNCTION[key] = new Function("level", "rule", "currentIndex", generatedFunctionSource("cellPatternReplace", fn));
@@ -2314,12 +2299,11 @@ CellPattern.prototype.generateReplaceFunction = function (OBJECT_SIZE, MOVEMENT_
 let CACHE_MATCHCELLROW = {}
 function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 	const fn = `'use strict';
-	let result=[];
-	
 	if ((${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.mapCellContents.data", OBJECT_SIZE)})||
 	(${NOT_BITS_SET_IN_ARRAY("cellRowMask_Movements", "level.mapCellContents_Movements.data", MOVEMENT_SIZE)})) {
-		return result;
+		return EMPTY_MATCH_RESULT;
 	}
+	let result=EMPTY_MATCH_RESULT;
 
 	let xmin=0;
 	let xmax=level.width;
@@ -2356,19 +2340,24 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
     }
 
     const horizontal=direction>2;
+    const height=level.height;
+    const objectsArr=level.objects;
+    const movementsArr=level.movements;
     if (horizontal) {
 		for (let y=ymin;y<ymax;y++) {
-			if (${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.rowCellContents[y].data", OBJECT_SIZE)} 
+			if (${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.rowCellContents[y].data", OBJECT_SIZE)}
 			|| ${NOT_BITS_SET_IN_ARRAY("cellRowMask_Movements", "level.rowCellContents_Movements[y].data", MOVEMENT_SIZE)}) {
 				continue;
 			}
 
+			let i = xmin*height+y;
 			for (let x=xmin;x<xmax;x++) {
-				const i = x*level.height+y;
-				if (cellRowMatch(cellRow,i,d, level.objects, level.movements))
+				if (cellRowMatch(cellRow,i,d, objectsArr, movementsArr))
 				{
+					if (result===EMPTY_MATCH_RESULT) result=[];
 					result.push(i);
 				}
+				i += height;
 			}
 		}
 	} else {
@@ -2378,14 +2367,16 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 				continue;
 			}
 
+			let i = x*height+ymin;
 			for (let y=ymin;y<ymax;y++) {
-				const i = x*level.height+y;
-				if (cellRowMatch(cellRow,i, d, level.objects, level.movements))
+				if (cellRowMatch(cellRow,i, d, objectsArr, movementsArr))
 				{
+					if (result===EMPTY_MATCH_RESULT) result=[];
 					result.push(i);
 				}
+				i++;
 			}
-		}		
+		}
 	}
 
 	return result;`
@@ -2398,11 +2389,11 @@ function generateMatchCellRow(OBJECT_SIZE, MOVEMENT_SIZE) {
 let CACHE_MATCHCELLROWWILDCARD = {}
 function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 	const fn = `'use strict';
-	let result=[];
 	if ((${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.mapCellContents.data", OBJECT_SIZE)})||
 	(${NOT_BITS_SET_IN_ARRAY("cellRowMask_Movements", "level.mapCellContents_Movements.data", MOVEMENT_SIZE)})) {
-		return result;
+		return EMPTY_MATCH_RESULT;
 	}
+	let result=EMPTY_MATCH_RESULT;
 	
 	let xmin=0;
 	let xmax=level.width;
@@ -2438,6 +2429,9 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
     }
 
     const horizontal=direction>2;
+    const height=level.height;
+    const objectsArr=level.objects;
+    const movementsArr=level.movements;
     if (horizontal) {
 		for (let y=ymin;y<ymax;y++) {
 			if (${NOT_BITS_SET_IN_ARRAY("cellRowMask", "level.rowCellContents[y].data", OBJECT_SIZE)}
@@ -2445,23 +2439,24 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 				continue;
 			}
 
+			let i = xmin*height+y;
 			for (let x=xmin;x<xmax;x++) {
-				const i = x*level.height+y;
 				let kmax;
 
 				if (direction === 4) { //left
 					kmax=x-len+2;
 				} else if (direction === 8) { //right
-					kmax=level.width-(x+len)+1;	
+					kmax=level.width-(x+len)+1;
 				} else {
 					console.error("Unexpected direction: "+direction);
 				}
 
 				if (wildcardCount===1) {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, level.objects, level.movements));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				} else {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0,kmax,0,kmax,0, d, level.objects, level.movements));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0,kmax,0,kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				}
+				i += height;
 			}
 		}
 	} else {
@@ -2471,24 +2466,25 @@ function generateMatchCellRowWildCard(OBJECT_SIZE, MOVEMENT_SIZE) {
 				continue;
 			}
 
+			let i = x*height+ymin;
 			for (let y=ymin;y<ymax;y++) {
-				const i = x*level.height+y;
 				let kmax;
 
 				if (direction === 2) { // down
-					kmax=level.height-(y+len)+1;
+					kmax=height-(y+len)+1;
 				} else if (direction === 1) { // up
-					kmax=y-len+2;					
+					kmax=y-len+2;
 				} else {
 					console.error("Unexpected direction: "+direction);
 				}
 				if (wildcardCount===1) {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, d, level.objects, level.movements));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				} else {
-					result.push.apply(result, cellRowMatch(cellRow,i,kmax,0, kmax,0, kmax,0, d, level.objects, level.movements));
+					{ const sub = cellRowMatch(cellRow,i,kmax,0, kmax,0, kmax,0, d, objectsArr, movementsArr); if (sub.length) { if (result===EMPTY_MATCH_RESULT) result=[]; result.push.apply(result, sub); } }
 				}
+				i++;
 			}
-		}		
+		}
 	}
 
 	return result;`
@@ -2540,7 +2536,7 @@ function applyTwoRowTuples(rule, level, matches, delta) {
 
 Rule.prototype.findMatches = function () {
 	if (!this.ruleMask.bitsSetInArray(level.mapCellContents.data))
-		return [];
+		return EMPTY_MATCH_RESULT;
 
 	const direction = this.direction;
 	const delta = (((direction >> 3) & 1) - ((direction >> 2) & 1)) * level.height + ((direction >> 1) & 1) - (direction & 1);
@@ -2558,7 +2554,7 @@ Rule.prototype.findMatches = function () {
 			match = state.matchCellRowWildCard(this.direction, matchFunction, cellRow, cellRowMasks[cellRowIndex], cellRowMasks_Movements[cellRowIndex], delta, this.ellipsisCount[cellRowIndex]);
 		}
 		if (match.length === 0) {
-			return [];
+			return EMPTY_MATCH_RESULT;
 		} else {
 			matches.push(match);
 		}
@@ -2640,32 +2636,44 @@ function FOR(start, end, fn) {
 
 let CACHE_RULE_APPLYAT = {}
 Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE, MOVEMENT_SIZE) {
+	//have to double check the cell rows still apply
+	//(cf test ellipsis bug: rule matches two candidates, first replacement invalidates second).
+	//only the variant matching the row's ellipsis count is emitted - dead variants would
+	//just bloat the source that new Function has to parse.
+	//
+	//capture ordering in the generated code: Phase 5c-1 property aliases are captured
+	//before Phase 7B-2b/5c-4 aggregate bindings, because property-attached aggregate
+	//bindings need the captured alias layer to know where to read the source movement bit.
 	const fn = `'use strict';
-	//have to double check they apply 
-	//(cf test ellipsis bug: rule matches two candidates, first replacement invalidates second)
 	if (check)
 	{
-	${FOR(0, patterns.length, cellRowIndex => `
+	${FOR(0, patterns.length, cellRowIndex => {
+		const rowEllipsisCount = ellipsisCount[cellRowIndex];
+		if (rowEllipsisCount === 0) {
+			return `
 		{
-			${IF(ellipsisCount[cellRowIndex] === 0)}
 				if ( ! this.cellRowMatches[${cellRowIndex}](
-					this.patterns[${cellRowIndex}], 
-						tuple[${cellRowIndex}], 
+					this.patterns[${cellRowIndex}],
+						tuple[${cellRowIndex}],
 						delta, level.objects, level.movements
 						) )
 				return false
-			${ENDIF(ellipsisCount[cellRowIndex] === 0)}
-			${IF(ellipsisCount[cellRowIndex] === 1)}
+		}`;
+		} else if (rowEllipsisCount === 1) {
+			return `
+		{
 				if ( this.cellRowMatches[${cellRowIndex}](
-						this.patterns[${cellRowIndex}], 
-						tuple[${cellRowIndex}][0], 
-						tuple[${cellRowIndex}][1]+1, 
-							tuple[${cellRowIndex}][1], 
+						this.patterns[${cellRowIndex}],
+						tuple[${cellRowIndex}][0],
+						tuple[${cellRowIndex}][1]+1,
+							tuple[${cellRowIndex}][1],
 						delta, level.objects, level.movements
 					).length === 0 )
 					return false
-			${ENDIF(ellipsisCount[cellRowIndex] === 1)}
-			${IF(ellipsisCount[cellRowIndex] === 2)}
+		}`;
+		} else {
+			return `
+		{
 				if ( this.cellRowMatches[${cellRowIndex}](
 						this.patterns[${cellRowIndex}],
 						tuple[${cellRowIndex}][0],
@@ -2678,18 +2686,14 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
 							delta, level.objects, level.movements
 						).length === 0 )
 					return false
-			${ENDIF(ellipsisCount[cellRowIndex] === 2)}
-		}`)}
+		}`;
+		}
+	})}
 	}
 
-	// Phase 5c-1: capture property aliases before aggregate bindings. Phase
-	// 5c-4's property-attached aggregate bindings need the captured alias
-	// layer to know where to read the source movement bit.
 	if (this.propertyBindingsArr !== null) {
 		this.capturePropertyBindings(level, tuple, delta);
 	}
-	// Phase 7B-2b/5c-4: capture aggregate-direction bindings between match
-	// confirmation and the apply pass. No-op when the rule has none.
 	if (this.aggregateBindingsArr !== null) {
 		this.captureAggregateBindings(level, tuple, delta);
 	}
@@ -2697,7 +2701,6 @@ Rule.prototype.generateApplyAt = function (patterns, ellipsisCount, OBJECT_SIZE,
     let result=false;
 	let anyellipses=false;
 
-    //APPLY THE RULE
 	${FOR(0, patterns.length, cellRowIndex => {
 		const preRow = patterns[cellRowIndex];
 		return `
@@ -3029,10 +3032,14 @@ function applyRules(rules, loopPoint, bannedGroup) {
 let CACHE_RESOLVEMOVEMENTS = {}
 function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 	const fn = `'use strict';
+		const movementsArr = level.movements;
 		let moved=true;
 		while(moved){
 			moved=false;
 			for (let i=0;i<level.n_tiles;i++) {
+				if (${FOR(0, MOVEMENT_SIZE, w => `${w ? ' && ' : ''}movementsArr[i${MOVEMENT_SIZE === 1 ? '' : '*' + MOVEMENT_SIZE}${w ? '+' + w : ''}] === 0`)}) {
+					continue;
+				}
 				moved = state.repositionEntitiesAtCell(level,i) || moved;
 			}
 		}
@@ -3089,10 +3096,10 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 				`)}
 			}
 
-			${IF(state.rigid)}
+			${IF_LAZY(state.rigid, () => `
 				${SET_ZERO("level.rigidGroupIndexMask[i]")}
 				${SET_ZERO("level.rigidMovementAppliedMask[i]")}
-			${ENDIF(state.rigid)}
+			`)}
 
 		}
 		return doUndo;
@@ -3159,14 +3166,17 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	level.commandQueue = [];
 	level.commandQueueSourceRules = [];
 	let rigidloop = false;
-	const startState = {
+	//startState is only read by the rigid-body trackback below, and
+	//resolveMovements can only request an undo when the game has rigid rules -
+	//skip the full level snapshot otherwise.
+	const startState = state.rigid ? {
 		objects: new Int32Array(level.objects),
 		movements: new Int32Array(level.movements),
 		rigidGroupIndexMask: level.rigidGroupIndexMask.concat([]),
 		rigidMovementAppliedMask: level.rigidMovementAppliedMask.concat([]),
 		commandQueue: [],
 		commandQueueSourceRules: []
-	};
+	} : null;
 	sfxCreateMask.setZero();
 	sfxDestroyMask.setZero();
 	seedsToPlay_CanMove = [];
@@ -3646,7 +3656,7 @@ Rule.prototype.generateFindMatchesFunction = function () {
 	let fn = '';
 
 	// Initial mask check
-	fn += `if (${NOT_BITS_SET_IN_ARRAY("this.ruleMask", "level.mapCellContents.data", STRIDE_OBJ)}) return [];\n`;
+	fn += `if (${NOT_BITS_SET_IN_ARRAY("this.ruleMask", "level.mapCellContents.data", STRIDE_OBJ)}) return EMPTY_MATCH_RESULT;\n`;
 	fn += 'const direction = this.direction;\n';
 	fn += 'const d = (((direction >> 3) & 1) - ((direction >> 2) & 1)) * level.height + ((direction >> 1) & 1) - (direction & 1);\n';
 	fn += 'const matches = [];\n';
@@ -3671,7 +3681,7 @@ Rule.prototype.generateFindMatchesFunction = function () {
 		}
 
 		// Early return if no matches
-		fn += `if (match${i}.length === 0) return [];\n`;
+		fn += `if (match${i}.length === 0) return EMPTY_MATCH_RESULT;\n`;
 		fn += `matches.push(match${i});\n`;
 	}
 

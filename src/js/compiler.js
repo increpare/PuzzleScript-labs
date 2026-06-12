@@ -156,7 +156,7 @@ function generateExtraMembers(state) {
             o.spritematrix = generateSpriteMatrix(o.spritematrix);
         }    
 
-        let mask = blankMask.concat([]);
+        let mask = blankMask.slice();
         mask[o.layer] = o.id;
         glyphDict[n] = mask;
         glyphOrder.push([o.lineNumber, n]);    
@@ -192,7 +192,7 @@ function generateExtraMembers(state) {
                 }
             }
             if ((!(key in glyphDict) || (glyphDict[key] === undefined)) && allVallsFound) {
-                let mask = blankMask.concat([]);
+                let mask = blankMask.slice();
 
                 for (let j = 1; j < dat.length; j++) {
                     let n = dat[j];
@@ -423,9 +423,10 @@ function levelFromString(state, level) {
     let glyphMaskCache = {};
     for (let i = 0; i < o.width; i++) {
         for (let j = 0; j < o.height; j++) {
-            let ch = level[j + 1].charAt(i);
-            if (ch.length === 0) {
-                ch = level[j + 1].charAt(level[j + 1].length - 1);
+            const row = level[j + 1];
+            let ch = row[i];
+            if (ch === undefined) {
+                ch = row[row.length - 1];
             }
 
             let maskint = glyphMaskCache[ch];
@@ -505,7 +506,7 @@ function directionalRule(rule) {
         for (let j = 0; j < cellRow.length; j++) {
             let cell = cellRow[j];
             for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections.indexOf(cell[k]) >= 0) {
+                if (relativeDirections_set.has(cell[k])) {
                     return true;
                 }
             }
@@ -516,7 +517,7 @@ function directionalRule(rule) {
         for (let j = 0; j < cellRow.length; j++) {
             let cell = cellRow[j];
             for (let k = 0; k < cell.length; k += 2) {
-                if (relativeDirections.indexOf(cell[k]) >= 0) {
+                if (relativeDirections_set.has(cell[k])) {
                     return true;
                 }
             }
@@ -664,9 +665,9 @@ function processRuleString(rule, state, curRules) {
                             logError(`A rule-group can only be marked random by the opening rule in the group (aka, a '+' and 'random' can't appear as rule modifiers on the same line).  Why? Well, you see "random" isn't a property of individual rules, but of whole rule groups.  It indicates that a single possible application of some rule from the whole group should be applied at random.`, lineNumber)
                         }
 
-                    } else if (simpleAbsoluteDirections.indexOf(token) >= 0) {
+                    } else if (simpleAbsoluteDirections_set.has(token)) {
                         directions.push(token);
-                    } else if (simpleRelativeDirections.indexOf(token) >= 0) {
+                    } else if (simpleRelativeDirections_set.has(token)) {
                         logError('You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions', lineNumber);
                     } else if (token === '[') {
                         if (directions.length === 0) {
@@ -753,7 +754,7 @@ function processRuleString(rule, state, curRules) {
                         } else {
                             rhs = true;
                         }
-                    } else if (state.names.indexOf(token) >= 0) {
+                    } else if (state.namesSet.has(token)) {
                         if (!incellrow) {
                             logWarning("Invalid token " + token.toUpperCase() + ". Object names should only be used within cells (square brackets).", lineNumber);
                         } else {
@@ -780,7 +781,7 @@ function processRuleString(rule, state, curRules) {
                             curcell.push(token);
                             curcell.push(token);
                         }
-                    } else if (commandwords.indexOf(token) >= 0) {
+                    } else if (commandwords_set.has(token)) {
                         if (rhs === false) {
                             logError("Commands should only appear at the end of rules, not in or before the pattern-detection/-replacement sections.", lineNumber);
                         } else if (incellrow || rightBracketToRightOf(tokens, i)) {//only a warning for legacy support reasons.
@@ -796,7 +797,7 @@ function processRuleString(rule, state, curRules) {
                             commands.push([token, messageStr]);
                             i = tokens.length;
                         } else {
-                            if (commandwords_sfx.indexOf(token) >= 0) {
+                            if (commandwords_sfx_set.has(token)) {
                                 //check defined
                                 let found = false;
                                 for (let j = 0; j < state.sounds.length; j++) {
@@ -3839,7 +3840,9 @@ function printCellRow(cellRow) {
 }
 
 function cacheRuleStringRep(rule) {
-    let result = "(<a onclick=\"jumpToLine('" + rule.lineNumber.toString() + "');\"  href=\"javascript:void(0);\">" + rule.lineNumber + "</a>) ";
+    //plain-text line-number marker; printRules swaps in the jumpToLine anchor for display.
+    //keeping stringRep free of the HTML anchor halves the bytes removeDuplicateRules has to hash.
+    let result = "(" + rule.lineNumber + ") ";
 
     //only print rule-direction if some lhs cellrow has length>1
     let directed=false;
@@ -3949,7 +3952,8 @@ function printRules(state) {
             } else {
                 output += '&nbsp;&nbsp;';
             }
-            output += rule.stringRep + "<br>";
+            const lineNumberAnchor = "(<a onclick=\"jumpToLine('" + rule.lineNumber.toString() + "');\"  href=\"javascript:void(0);\">" + rule.lineNumber + "</a>)";
+            output += rule.stringRep.replace("(" + rule.lineNumber + ")", lineNumberAnchor) + "<br>";
         }
     }
     if (!outsideLoop) {
@@ -4390,7 +4394,9 @@ function loadFile(str) {
     delete state.line_should_end_because;
     delete state.sol_after_comment;
     delete state.names;
+    delete state.namesSet;
     delete state.abbrevNames;
+    delete state.abbrevNamesSet;
     delete state.objects_candname;
     delete state.objects_section;
     delete state.objects_spritematrix;

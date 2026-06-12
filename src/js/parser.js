@@ -206,6 +206,12 @@ if (typeof Object.assign !== 'function') {
 }
 
 
+const reg_ascii_lower_word = /^[a-z0-9_]+$/;
+const reg_non_ascii = /[^\x00-\x7F]/;
+
+const metadata_with_value_set = new Set(['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube']);
+const metadata_no_value_set = new Set(['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline']);
+
 let codeMirrorFn = function () {
     'use strict';
 
@@ -236,10 +242,33 @@ let codeMirrorFn = function () {
         logError(`You're talking about ${candname.toUpperCase()} but it's not defined anywhere.`, state.lineNumber);
     }
 
+    function isAsciiWordCharCode(c) {
+        return (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 95 || (c >= 65 && c <= 90);
+    }
+
     function registerOriginalCaseName(state, candname, mixedCase, lineNumber) {
 
         function escapeRegExp(str) {
             return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+        }
+
+        //fast path: for a plain-ASCII-word name in a plain-ASCII line (the overwhelmingly
+        //common case), an indexOf scan with word-boundary checks gives the same result as
+        //the \b regex below without compiling a RegExp per declared name
+        if (reg_ascii_lower_word.test(candname) && !reg_non_ascii.test(mixedCase)) {
+            const lowerLine = mixedCase.toLowerCase();
+            let idx = lowerLine.indexOf(candname);
+            while (idx >= 0) {
+                const end = idx + candname.length;
+                if ((idx === 0 || !isAsciiWordCharCode(lowerLine.charCodeAt(idx - 1))) &&
+                    (end === lowerLine.length || !isAsciiWordCharCode(lowerLine.charCodeAt(end)))) {
+                    state.original_case_names[candname] = mixedCase.substring(idx, end);
+                    state.original_line_numbers[candname] = lineNumber;
+                    return;
+                }
+                idx = lowerLine.indexOf(candname, idx + 1);
+            }
+            return;
         }
 
         let nameFinder = new RegExp("\\b" + escapeRegExp(candname) + "\\b", "i")
@@ -282,7 +311,7 @@ let codeMirrorFn = function () {
                 ok = false;
             }
 
-            if (keyword_array.indexOf(candname) >= 0) {
+            if (keyword_array_set.has(candname)) {
                 logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
             }
 
@@ -491,7 +520,7 @@ let codeMirrorFn = function () {
                         logError('Name "' + candname.toUpperCase() + '" already in use.', state.lineNumber);
                     }
                 }
-                if (keyword_array.indexOf(candname) >= 0) {
+                if (keyword_array_set.has(candname)) {
                     logWarning('You named an object "' + candname.toUpperCase() + '", but this is a keyword. Don\'t do that!', state.lineNumber);
                 }
 
@@ -1043,7 +1072,7 @@ let codeMirrorFn = function () {
                 stream.match(/[\p{Z}\s]*/u, true);
                 return 'DIRECTION';
             } else {
-                if (state.names.indexOf(m) >= 0) {
+                if (state.namesSet.has(m)) {
                     if (sol) {
                         logError('Objects cannot appear outside of square brackets in rules, only directions can.', state.lineNumber);
                         return 'ERROR';
@@ -1057,7 +1086,7 @@ let codeMirrorFn = function () {
                     return 'DIRECTION';
                 } else if (m === 'random') {
                     return 'DIRECTION';
-                } else if (commandwords.indexOf(m) >= 0) {
+                } else if (commandwords_set.has(m)) {
                     if (m === 'message') {
                         state.tokenIndex = TOKEN_MESSAGE;
                     }
@@ -1108,7 +1137,7 @@ let codeMirrorFn = function () {
                 }
             }
             else if (state.tokenIndex === 1 || state.tokenIndex === 3) {
-                if (state.names.indexOf(candword) === -1) {
+                if (!state.namesSet.has(candword)) {
                     logError('Error in win condition: "' + candword.toUpperCase() + '" is not a valid object name.', state.lineNumber);
                     return 'ERROR';
                 } else {
@@ -1181,7 +1210,7 @@ let codeMirrorFn = function () {
         if (state.tokenIndex === 2 && !stream.eol()) {
             let ch = stream.peek();
             stream.next();
-            if (state.abbrevNames.indexOf(ch) >= 0) {
+            if (state.abbrevNamesSet.has(ch)) {
                 return 'LEVEL';
             } else {
                 logError('Key "' + ch.toUpperCase() + '" not found. Do you need to add it to the legend, or define a new object?', state.lineNumber);
@@ -1199,7 +1228,7 @@ let codeMirrorFn = function () {
             if (match !== null) {
                 let token = match[0].trim();
                 if (sol) {
-                    if (['title', 'author', 'homepage', 'background_color', 'text_color', 'key_repeat_interval', 'realtime_interval', 'again_interval', 'flickscreen', 'zoomscreen', 'color_palette', 'youtube'].indexOf(token) >= 0) {
+                    if (metadata_with_value_set.has(token)) {
 
                         if (token === 'author' || token === 'homepage' || token === 'title') {
                             stream.string = mixedCase;
@@ -1224,7 +1253,7 @@ let codeMirrorFn = function () {
                         }
                         state.tokenIndex = 1;
                         return 'METADATA';
-                    } else if (['run_rules_on_level_start', 'norepeat_action', 'require_player_movement', 'debug', 'verbose_logging', 'throttle_movement', 'noundo', 'noaction', 'norestart', 'scanline'].indexOf(token) >= 0) {
+                    } else if (metadata_no_value_set.has(token)) {
                         state.metadata.push(token);
                         state.metadata.push("true");
                         state.tokenIndex = TOKEN_NO_PARAMS;
@@ -1371,6 +1400,7 @@ let codeMirrorFn = function () {
                 rules: rulesCopy,
 
                 names: state.names.concat([]),
+                namesSet: new Set(state.namesSet),
 
                 winconditions: winConditionsCopy,
 
@@ -1378,6 +1408,7 @@ let codeMirrorFn = function () {
                 original_line_numbers: original_line_numbersCopy,
 
                 abbrevNames: state.abbrevNames.concat([]),
+                abbrevNamesSet: new Set(state.abbrevNamesSet),
 
                 metadata: state.metadata.concat([]),
                 metadata_lines: Object.assign({}, state.metadata_lines),
@@ -1543,6 +1574,8 @@ let codeMirrorFn = function () {
                         for (let i = 0; i < state.legend_properties.length; i++) {
                             state.names.push(state.legend_properties[i][0]);
                         }
+                        //names doesn't grow after this point - mirror it in a Set for O(1) membership tests
+                        state.namesSet = new Set(state.names);
                     }
                     else if (state.section === 'levels') {
                         //populate character abbreviations
@@ -1562,6 +1595,8 @@ let codeMirrorFn = function () {
                                 state.abbrevNames.push(state.legend_aggregates[i][0]);
                             }
                         }
+                        //abbrevNames doesn't grow after this point - mirror it in a Set for O(1) membership tests
+                        state.abbrevNamesSet = new Set(state.abbrevNames);
                     }
                     return 'HEADER';
                 } else {
@@ -1647,6 +1682,7 @@ let codeMirrorFn = function () {
                 rules: [],
 
                 names: [],
+                namesSet: new Set(),
 
                 winconditions: [],
                 metadata: [],
@@ -1656,6 +1692,7 @@ let codeMirrorFn = function () {
                 original_line_numbers: {},
 
                 abbrevNames: [],
+                abbrevNamesSet: new Set(),
 
                 levels: [[]],
 
