@@ -11,12 +11,12 @@ This file tracks the implementation plan for the native PuzzleScript port.
 
 ## Current Phase
 
-Phase 1 is hybrid-first:
+M1 bootstrap (differential harness) is largely complete. **M3 Native Compiler** is in progress:
 
-- JS exports canonical IR, fixtures, and execution traces.
-- Native code loads the exported IR and prepared-session state.
-- Differential tooling compares native behavior against JS behavior.
-- Native rule execution and native source compilation are still pending.
+- `puzzlescript_cpp compile` and `ps_compile_source` compile from source via native parser + lowering (no Node subprocess).
+- `test simulation-corpus` and `test diagnostics-corpus` use native compile end-to-end.
+- JS remains the behavioral oracle for differential checks; Node is still used by optional debug commands (`step`/`diff-trace-source` without `--native-compile`, trace export) and CMake fixture generation.
+- M2 runtime semantics and remaining M3 lowering parity work continue against the JS oracle.
 
 ## Milestones
 
