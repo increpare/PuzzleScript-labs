@@ -383,7 +383,11 @@ function restoreSnapshot(snapshot) {
     restoreLevel(snapshot.levelState);
     backups = cloneBackups(snapshot.backups);
     restartTarget = cloneLevelState(snapshot.restartTarget);
-    restoreRandomState(snapshot.random);
+    //specialized snapshots store random: null for games that never use the RNG
+    //(mirroring the fast restore path's usesRandom guard); leave RandomGen alone.
+    if (snapshot.random) {
+        restoreRandomState(snapshot.random);
+    }
     curlevel = snapshot.curlevel;
     curlevelTarget = cloneLevelState(snapshot.curlevelTarget);
     titleScreen = snapshot.titleScreen;
@@ -2764,6 +2768,11 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         }
         : (acc, field, fn) => fn();
     const seed = `solver:${game}:${levelIndex}`;
+    // Error/warning strings accumulate globally and trip the MAX_ERRORS_FOR_REAL
+    // "noping out" throw order-dependently across attempts; reset per attempt.
+    if (typeof resetParserErrorState === 'function') {
+        resetParserErrorState();
+    }
     const loadStart = performance.now();
     loadLevelFromState(state, levelIndex, seed);
     result.load_ms = performance.now() - loadStart;

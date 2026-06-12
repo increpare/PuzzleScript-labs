@@ -57,7 +57,11 @@ function logErrorCacheable(str, lineNumber, urgent) {
             return logErrorNoLine(str, urgent);
         }
         const errorString = buildErrorHtml(lineNumber, str, 'errorText');
-        if (errorStrings.indexOf(errorString) >= 0 && !urgent) {
+        //unlike logError, duplicates are dropped even for urgent messages - "cacheable"
+        //callers are per-turn loop-guard diagnostics that would otherwise grow
+        //errorStrings by one copy per turn until TooManyErrors() aborts the session
+        //(urgent here only means "show during play, not just while compiling").
+        if (errorStrings.indexOf(errorString) >= 0) {
             //do nothing, duplicate error
         } else {
             consolePrint(errorString);
