@@ -2012,15 +2012,19 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             return ambiguous;
         };
-        // Mirrors compiler.js `getCoalescingPlan` movement + preserved dispatch.
+        struct CoalescingPlanResult {
+            std::set<std::string> skippable;
+            bool hasRewriteTerm = false;
+        };
+        // Mirrors compiler.js `getCoalescingPlan` dispatch.
         auto computePropertyCoalescingSkippable = [&](const std::vector<ParsedRow>& lhs,
                                                       const std::vector<ParsedRow>& rhs,
                                                       const std::set<std::string>& ambiguousProperties)
-            -> std::set<std::string> {
-            std::set<std::string> skippable;
+            -> CoalescingPlanResult {
+            CoalescingPlanResult result;
             // JS getCoalescingPlan: rigid rules never skip property splitting.
             if (rigidRule) {
-                return skippable;
+                return result;
             }
             auto isLayerCoupledMovementDir = [](const std::string& dir) {
                 return dir.empty() || dir == "stationary" || dir == "action"
@@ -2063,13 +2067,62 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
                 return false;
             };
+            struct PropertyRewriteTerm {
+                std::string name;
+                int32_t destinationLayer = 0;
+                std::set<int32_t> aliasLayers;
+            };
+            auto propertyAliasLayerSetFull = [&](const std::string& propertyName) {
+                return propertyAliasLayers(propertyName, {});
+            };
+            auto propertyRewriteTermsAreLayerDisjoint = [&](const std::vector<PropertyRewriteTerm>& propertyTerms,
+                                                            const std::map<int32_t, bool>& fixedLayers) {
+                std::set<std::string> seenProperties;
+                std::set<int32_t> occupiedAliasLayers;
+                std::set<int32_t> destinationLayers;
+                std::set<int32_t> fixedLayerSet;
+                for (const auto& [layer, _] : fixedLayers) {
+                    fixedLayerSet.insert(layer);
+                }
+                for (size_t i = 0; i < propertyTerms.size(); ++i) {
+                    const PropertyRewriteTerm& term = propertyTerms[i];
+                    if (seenProperties.count(term.name) != 0
+                        || fixedLayers.count(term.destinationLayer) != 0
+                        || destinationLayers.count(term.destinationLayer) != 0) {
+                        return false;
+                    }
+                    if (layerSetsOverlap(fixedLayerSet, term.aliasLayers)) {
+                        return false;
+                    }
+                    for (size_t j = 0; j < propertyTerms.size(); ++j) {
+                        if (i == j) {
+                            continue;
+                        }
+                        if (term.aliasLayers.count(propertyTerms[j].destinationLayer) != 0) {
+                            return false;
+                        }
+                    }
+                    if (layerSetsOverlap(occupiedAliasLayers, term.aliasLayers)) {
+                        return false;
+                    }
+                    seenProperties.insert(term.name);
+                    destinationLayers.insert(term.destinationLayer);
+                    occupiedAliasLayers.insert(term.aliasLayers.begin(), term.aliasLayers.end());
+                }
+                return true;
+            };
 
             const bool hasRhs = !rhs.empty();
             bool movementValid = hasRhs && !lateRule;
+            bool rewriteValid = hasRhs;
+            bool mixedValid = hasRhs && !lateRule;
             bool preservedValid = hasRhs && lhs.size() == rhs.size();
             bool commandOnlyValid = !hasRhs && !lateRule;
             bool sawLayerCoupledProperty = false;
             bool sawMovementEffect = false;
+            bool sawLayerCoupledMovement = false;
+            bool sawPropertyRewrite = false;
+            int propertyRewriteCount = 0;
             std::set<std::string> coupledPropertiesInRule;
 
             const bool singleCellRule = hasRhs && lhs.size() == 1 && rhs.size() == 1
@@ -2084,6 +2137,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             if (hasRhs && lhs.size() != rhs.size()) {
                 movementValid = false;
+                rewriteValid = false;
+                mixedValid = false;
                 preservedValid = false;
             }
 
@@ -2093,6 +2148,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 const ParsedRow* rowRPtr = hasRhs && j < rhs.size() ? &rhs[j] : nullptr;
                 if (rowRPtr != nullptr && rowRPtr->size() != rowL.size()) {
                     movementValid = false;
+                    rewriteValid = false;
+                    mixedValid = false;
                     preservedValid = false;
                     break;
                 }
@@ -2112,6 +2169,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             const std::string& tailDir = cellL.items[tail].dir;
                             if (tailDir != "no" && tailDir != "random") {
                                 movementValid = false;
+                                rewriteValid = false;
+                                mixedValid = false;
                                 preservedValid = false;
                                 break;
                             }
@@ -2122,6 +2181,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     // `no` destroys are handled at rulesToMask time. Layer-coupled
                     // properties on an RHS-only tail invalidate movement/preserved modes.
                     if (cellRPtr != nullptr && cellRPtr->items.size() > cellL.items.size()) {
+                        rewriteValid = false;
+                        mixedValid = false;
                         for (size_t tail = cellL.items.size(); tail < cellRPtr->items.size(); ++tail) {
                             const std::string& tailDir = cellRPtr->items[tail].dir;
                             const std::string& tailName = cellRPtr->items[tail].name;
@@ -2144,6 +2205,11 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     std::vector<std::string> movCoupledTerms;
                     std::map<int32_t, bool> cmdFixedLayers;
                     std::vector<std::string> cmdCoupledTerms;
+                    std::map<int32_t, bool> rewriteFixedLayers;
+                    std::vector<PropertyRewriteTerm> rewritePropertyTerms;
+                    std::map<int32_t, bool> mixedFixedLayers;
+                    std::vector<std::string> mixedMovementTerms;
+                    std::vector<PropertyRewriteTerm> mixedPropertyTerms;
 
                     for (size_t itemIndex = 0; itemIndex < cellL.items.size(); ++itemIndex) {
                         const auto& itemL = cellL.items[itemIndex];
@@ -2214,6 +2280,62 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             }
                         }
 
+                        if (rewriteValid) {
+                            if (!dirL.empty() || !dirR.empty()) {
+                                rewriteValid = false;
+                            } else if (propertyOf.find(nameL) != propertyOf.end()) {
+                                if (objectIdByName.find(nameR) == objectIdByName.end()) {
+                                    rewriteValid = false;
+                                } else {
+                                    PropertyRewriteTerm term;
+                                    term.name = nameL;
+                                    term.destinationLayer =
+                                        game->objectsById[static_cast<size_t>(objectIdByName.at(nameR))].layer;
+                                    term.aliasLayers = propertyAliasLayerSetFull(nameL);
+                                    rewritePropertyTerms.push_back(std::move(term));
+                                    ++propertyRewriteCount;
+                                }
+                            } else if (objectIdByName.find(nameL) != objectIdByName.end()) {
+                                if (nameL != nameR) {
+                                    rewriteValid = false;
+                                } else {
+                                    rewriteFixedLayers[game->objectsById[static_cast<size_t>(objectIdByName.at(nameL))].layer] = true;
+                                }
+                            } else {
+                                rewriteValid = false;
+                            }
+                        }
+
+                        if (mixedValid) {
+                            if (dirL.empty() && dirR.empty()
+                                && propertyOf.find(nameL) != propertyOf.end()
+                                && objectIdByName.find(nameR) != objectIdByName.end()) {
+                                PropertyRewriteTerm term;
+                                term.name = nameL;
+                                term.destinationLayer =
+                                    game->objectsById[static_cast<size_t>(objectIdByName.at(nameR))].layer;
+                                term.aliasLayers = propertyAliasLayerSetFull(nameL);
+                                mixedPropertyTerms.push_back(std::move(term));
+                                sawPropertyRewrite = true;
+                            } else if (nameL != nameR
+                                       || !isLayerCoupledMovementDir(dirL)
+                                       || !isLayerCoupledMovementDir(dirR)) {
+                                mixedValid = false;
+                            } else if (isLayerCoupledPropertyName(nameL)) {
+                                if (!dirL.empty() || !dirR.empty()) {
+                                    mixedMovementTerms.push_back(nameL);
+                                    sawLayerCoupledMovement = true;
+                                }
+                            } else if (objectIdByName.find(nameL) != objectIdByName.end()
+                                       || propertiesSingleLayer.find(nameL) != propertiesSingleLayer.end()) {
+                                if (const auto layer = objectOrSingleLayerPropertyLayer(nameL); layer.has_value()) {
+                                    mixedFixedLayers[*layer] = true;
+                                }
+                            } else {
+                                mixedValid = false;
+                            }
+                        }
+
                         if (preservedValid && isLayerCoupledPropertyName(nameL) && dirL.empty()) {
                             // JS getCoalescingPlan preserved mode requires an aligned
                             // empty-direction RHS counterpart at the same term index,
@@ -2259,30 +2381,77 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             occupied.insert(layers.begin(), layers.end());
                         }
                     }
+                    if (rewriteValid
+                        && !propertyRewriteTermsAreLayerDisjoint(rewritePropertyTerms, rewriteFixedLayers)) {
+                        rewriteValid = false;
+                    }
+                    if (mixedValid) {
+                        if (!propertyRewriteTermsAreLayerDisjoint(mixedPropertyTerms, mixedFixedLayers)) {
+                            mixedValid = false;
+                        } else {
+                            std::set<int32_t> occupied;
+                            for (const std::string& coupledName : mixedMovementTerms) {
+                                const std::set<int32_t> layers = propertyAliasLayers(coupledName, mixedFixedLayers);
+                                if (layers.empty() || layerSetsOverlap(occupied, layers)) {
+                                    mixedValid = false;
+                                    break;
+                                }
+                                bool conflict = false;
+                                for (const PropertyRewriteTerm& term : mixedPropertyTerms) {
+                                    if (layerSetsOverlap(layers, term.aliasLayers)
+                                        || layers.count(term.destinationLayer) != 0) {
+                                        conflict = true;
+                                        break;
+                                    }
+                                }
+                                if (conflict) {
+                                    mixedValid = false;
+                                    break;
+                                }
+                                occupied.insert(layers.begin(), layers.end());
+                            }
+                        }
+                    }
                 }
             }
 
             if (movementValid && sawLayerCoupledProperty && sawMovementEffect) {
-                return coupledPropertiesInRule;
+                result.skippable = coupledPropertiesInRule;
+                return result;
+            }
+            if (rewriteValid && propertyRewriteCount > 1) {
+                result.skippable = coupledPropertiesInRule;
+                result.hasRewriteTerm = true;
+                return result;
+            }
+            if (mixedValid && sawLayerCoupledMovement && sawPropertyRewrite) {
+                result.skippable = coupledPropertiesInRule;
+                result.hasRewriteTerm = true;
+                return result;
             }
             if (commandOnlyValid && sawLayerCoupledProperty) {
-                return coupledPropertiesInRule;
+                result.skippable = coupledPropertiesInRule;
+                return result;
             }
             // JS getCoalescingPlan: preserved candidates apply only when preservedValid
             // survived every per-cell bail (e.g. LHS-only movement tails on another cell).
             if (preservedValid) {
                 for (const auto& [propertyName, status] : preservedCandidateStatus) {
                     if (status) {
-                        skippable.insert(propertyName);
+                        result.skippable.insert(propertyName);
                     }
                 }
             }
-            return skippable;
+            return result;
+        };
+        struct PropertyConcreteResult {
+            std::vector<std::pair<std::vector<ParsedRow>, std::vector<ParsedRow>>> chunks;
+            bool hasInferredPropertyRewriteTerm = false;
         };
         auto expandConcretizePropertyRows = [&](std::vector<ParsedRow> lhs0,
                                                   std::vector<ParsedRow> rhs0,
                                                   const std::set<std::string>& extraSkippableProperties)
-            -> std::vector<std::pair<std::vector<ParsedRow>, std::vector<ParsedRow>>> {
+            -> PropertyConcreteResult {
             struct Work {
                 std::vector<ParsedRow> lhs;
                 std::vector<ParsedRow> rhs;
@@ -2294,12 +2463,14 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             // recomputed as concrete names appear on the LHS during splitting.
             const std::set<std::string> ambiguousInitial =
                 buildAmbiguousPropertiesSet(work.front().lhs, work.front().rhs);
-            const std::set<std::string> skippableProperties = [&] {
-                std::set<std::string> out = computePropertyCoalescingSkippable(
+            const CoalescingPlanResult coalescingPlan = [&] {
+                CoalescingPlanResult out = computePropertyCoalescingSkippable(
                     work.front().lhs, work.front().rhs, ambiguousInitial);
-                out.insert(extraSkippableProperties.begin(), extraSkippableProperties.end());
+                out.skippable.insert(extraSkippableProperties.begin(), extraSkippableProperties.end());
                 return out;
             }();
+            const std::set<std::string>& skippableProperties = coalescingPlan.skippable;
+            const bool hasInferredPropertyRewriteTerm = coalescingPlan.hasRewriteTerm;
 
             bool modified = true;
             while (modified) {
@@ -2362,8 +2533,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
             }
 
-            std::vector<std::pair<std::vector<ParsedRow>, std::vector<ParsedRow>>> out;
-            out.reserve(work.size());
+            PropertyConcreteResult result;
+            result.hasInferredPropertyRewriteTerm = hasInferredPropertyRewriteTerm;
+            result.chunks.reserve(work.size());
             for (Work& w : work) {
                 for (const auto& [prop, info] : w.propRepl) {
                     if (info.second != 1) {
@@ -2396,9 +2568,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         + " has a property on the right-hand side, \"" + rhsPropertyRemains
                         + "\", that can't be inferred from the left-hand side.");
                 }
-                out.push_back({std::move(w.lhs), std::move(w.rhs)});
+                result.chunks.push_back({std::move(w.lhs), std::move(w.rhs)});
             }
-            return out;
+            return result;
         };
 
         // JS `makeSpawnedObjectsStationary` (compiler.js): after moving/property
@@ -2602,12 +2774,14 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             const PropertyCoalescingPlan propertyCoalescingPlan =
                 computePropertyCoalescingPlan(
                     movingVariant.first, movingVariant.second, aggregateCoalescingPlan);
-            const auto propertyConcreteChunks =
+            const PropertyConcreteResult propertyConcreteResult =
                 expandConcretizePropertyRows(
                     movingVariant.first,
                     movingVariant.second,
                     propertyCoalescingPlan.safe);
-            for (const auto& propChunk : propertyConcreteChunks) {
+            for (const auto& propChunk : propertyConcreteResult.chunks) {
+                const bool hasInferredPropertyRewriteTerm =
+                    propertyConcreteResult.hasInferredPropertyRewriteTerm;
                 std::vector<ParsedRow> variantLhsRowsExpanded = propChunk.first;
             std::vector<ParsedRow> variantRhsRowsExpanded = propChunk.second;
             if (lhsHasLayerOverlap(variantLhsRowsExpanded)) {
@@ -2787,6 +2961,33 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             }
                         };
 
+                        auto applyPropertyObjectRewriteClears = [&](const std::string& propertyName,
+                                                                    int32_t destinationLayer) {
+                            std::set<std::string> visiting;
+                            const auto propertyMask = resolveMask(resolveMask, propertyName, visiting);
+                            for (size_t w = 0; w < objectsClear.size(); ++w) {
+                                objectsClear[static_cast<size_t>(w)] |= propertyMask[static_cast<size_t>(w)];
+                            }
+                            std::set<int32_t> clearedLayers;
+                            const auto propIt = propertyOf.find(propertyName);
+                            if (propIt == propertyOf.end()) {
+                                return;
+                            }
+                            for (const auto& alias : propIt->second) {
+                                const auto objIt = objectIdByName.find(alias);
+                                if (objIt == objectIdByName.end()) {
+                                    continue;
+                                }
+                                const int32_t aliasLayer =
+                                    game->objectsById[static_cast<size_t>(objIt->second)].layer;
+                                if (aliasLayer == destinationLayer || clearedLayers.count(aliasLayer) != 0) {
+                                    continue;
+                                }
+                                orShiftedMask5(movementsLayerMask, 5 * aliasLayer, 0x1f);
+                                clearedLayers.insert(aliasLayer);
+                            }
+                        };
+
                         // Only clear object layers if the RHS actually writes objects
                         // (i.e. concrete objects or explicit deletes). For property
                         // rules like Moveable -> Moveable, JS leaves objects_clear/set empty.
@@ -2811,7 +3012,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             }
                         }
 
-                        for (const auto& item : rhsCell.items) {
+                        for (size_t rhsItemIndex = 0; rhsItemIndex < rhsCell.items.size(); ++rhsItemIndex) {
+                            const auto& item = rhsCell.items[rhsItemIndex];
                             if (item.dir == "random") {
                                 std::set<std::string> visiting;
                                 const auto mask = resolveMask(resolveMask, item.name, visiting);
@@ -2923,6 +3125,15 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                     const int32_t layer = *singleLayer;
                                     orLayerMaskToObjectsClear(layer);
                                     orShiftedMask5(rhsObjectLayersMovement, 5 * layer, 0x1f);
+                                    if (hasInferredPropertyRewriteTerm
+                                        && rhsItemIndex < cell.items.size()) {
+                                        const auto& lhsItem = cell.items[rhsItemIndex];
+                                        if (lhsItem.dir.empty()
+                                            && item.dir.empty()
+                                            && propertyOf.find(lhsItem.name) != propertyOf.end()) {
+                                            applyPropertyObjectRewriteClears(lhsItem.name, layer);
+                                        }
+                                    }
                                 }
                             }
                             if (singleLayer.has_value()) {
