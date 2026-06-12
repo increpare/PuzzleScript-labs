@@ -685,8 +685,19 @@ function tryPlayCloseMessageSound() {
 
 let backups = [];
 let restartTarget;
+let turnObjectsModified = false;
 
 function backupLevel() {
+	if (level && level.solverExternalBackup && level.solverExternalBackup !== level.objects) {
+		level.solverExternalBackup.set(level.objects);
+		return {
+			dat: level.solverExternalBackup,
+			width: level.width,
+			height: level.height,
+			oldflickscreendat: oldflickscreendat.concat([]),
+			borrowed: true
+		};
+	}
 	let ret = {
 		dat: new Int32Array(level.objects),
 		width: level.width,
@@ -1188,20 +1199,41 @@ function DoUndo(force, ignoreDuplicates) {
 	}
 }
 
+function maskAggregateMatchesAtTile(mask, tileIndex) {
+	const offset = tileIndex * STRIDE_OBJ;
+	const data = mask.data;
+	for (let word = 0; word < STRIDE_OBJ; word++) {
+		const required = data[word] | 0;
+		if ((level.objects[offset + word] & required) !== required) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function maskAnyMatchesAtTile(mask, tileIndex) {
+	const offset = tileIndex * STRIDE_OBJ;
+	const data = mask.data;
+	for (let word = 0; word < STRIDE_OBJ; word++) {
+		if ((level.objects[offset + word] & data[word]) !== 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 function getPlayerPositions() {
 	let result = [];
 	let [aggregate,playerMask] = state.playerMask;
 	if (aggregate){
 		for (let i = 0; i < level.n_tiles; i++) {
-			level.getCellInto(i, _o11);
-			if (playerMask.bitsSetInArray(_o11.data)) {
+			if (maskAggregateMatchesAtTile(playerMask, i)) {
 				result.push(i);
 			}
 		}
 	} else {
 		for (let i = 0; i < level.n_tiles; i++) {
-			level.getCellInto(i, _o11);
-			if (playerMask.anyBitsInCommon(_o11)) {
+			if (maskAnyMatchesAtTile(playerMask, i)) {
 				result.push(i);
 			}
 		}
@@ -2983,11 +3015,14 @@ function applyRules(rules, loopPoint, bannedGroup) {
     let loopPropagated = false;
     let loopCount = 0;
     let ruleGroupIndex = 0;
+	let rulesChanged = false;
 	const RULES_COUNT = rules.length;
     while (ruleGroupIndex < RULES_COUNT) {
         // Apply rules if not banned
         if (!bannedGroup || !bannedGroup[ruleGroupIndex]) {
-            loopPropagated = applyRuleGroup(rules[ruleGroupIndex]) || loopPropagated;
+			const groupChanged = applyRuleGroup(rules[ruleGroupIndex]);
+			rulesChanged = groupChanged || rulesChanged;
+            loopPropagated = groupChanged || loopPropagated;
         }
 
         // Handle mid-sequence loop point
@@ -3027,6 +3062,10 @@ function applyRules(rules, loopPoint, bannedGroup) {
             addToDebugTimeline(level, -2);
         }
     }
+	if (rulesChanged) {
+		turnObjectsModified = true;
+	}
+	return rulesChanged;
 }
 
 let CACHE_RESOLVEMOVEMENTS = {}
@@ -3122,6 +3161,7 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	}
 
 	let bak = backupLevel();
+	turnObjectsModified = false;
 	let inputindex = dir;
 	let playerPositions = [];
 
@@ -3192,7 +3232,9 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 		i++;
 
 		//everything outside of these two lines in this loop is rigid-body nonsense
-		applyRules(state.rules, state.loopPoint, bannedGroup);
+		if (applyRules(state.rules, state.loopPoint, bannedGroup)) {
+			turnObjectsModified = true;
+		}
 		let shouldUndo = state.resolveMovements(level, bannedGroup);
 
 		if (shouldUndo) {
@@ -3247,9 +3289,15 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 					consolePrint('Applying late rules');
 				}
 			}
-			applyRules(state.lateRules, state.lateLoopPoint);
+			if (applyRules(state.lateRules, state.lateLoopPoint)) {
+				turnObjectsModified = true;
+			}
 		}
 	} while (i < 50 && rigidloop);
+
+	if (level.commandQueue.length > 0) {
+		turnObjectsModified = true;
+	}
 
 	if (i >= 50) {
 		consolePrint("Looped through 50 times, gave up.  too many loops!");
@@ -3360,24 +3408,26 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 
 	// Check for modifications comparing level.objects to backup
 	let modified = false;
-	for (let i = 0; i < level.objects.length; i++) {
-		if (level.objects[i] !== bak.dat[i]) {
-			if (dontModify) {
-				if (verbose_logging) {
-					consoleCacheDump();
-				}
-				addUndoState(bak);
-				DoUndo(true, false);
-				return true;
-			} else {
-				if (inputDir !== -1) {
+	if (turnObjectsModified) {
+		for (let i = 0; i < level.objects.length; i++) {
+			if (level.objects[i] !== bak.dat[i]) {
+				if (dontModify) {
+					if (verbose_logging) {
+						consoleCacheDump();
+					}
 					addUndoState(bak);
-				} else if (backups.length > 0) {
-					backups[backups.length - 1] = unconsolidateDiff(backups[backups.length - 1], bak);
+					DoUndo(true, false);
+					return true;
+				} else {
+					if (inputDir !== -1) {
+						addUndoState(bak);
+					} else if (backups.length > 0) {
+						backups[backups.length - 1] = unconsolidateDiff(backups[backups.length - 1], bak);
+					}
+					modified = true;
 				}
-				modified = true;
+				break;
 			}
-			break;
 		}
 	}
 
@@ -3491,16 +3541,18 @@ function checkWin(dontDoWin) {
 
 		let rulePassed = true;
 
-		const f1 = aggr1 ? c => filter1.bitsSetInArray(c) : c => !filter1.bitsClearInArray(c);
-		const f2 = aggr2 ? c => filter2.bitsSetInArray(c) : c => !filter2.bitsClearInArray(c);
+		const f1 = aggr1
+			? (tile) => maskAggregateMatchesAtTile(filter1, tile)
+			: (tile) => maskAnyMatchesAtTile(filter1, tile);
+		const f2 = aggr2
+			? (tile) => maskAggregateMatchesAtTile(filter2, tile)
+			: (tile) => maskAnyMatchesAtTile(filter2, tile);
 
 		switch (wincondition[0]) {
 			case -1://NO
 				{
 					for (let i = 0; i < level.n_tiles; i++) {
-						let cell = level.getCellInto(i, _o10);
-						if ((f1(cell.data)) &&
-							(f2(cell.data))) {
+						if (f1(i) && f2(i)) {
 							rulePassed = false;
 							break;
 						}
@@ -3512,9 +3564,7 @@ function checkWin(dontDoWin) {
 				{
 					let passedTest = false;
 					for (let i = 0; i < level.n_tiles; i++) {
-						let cell = level.getCellInto(i, _o10);
-						if ((f1(cell.data)) &&
-							(f2(cell.data))) {
+						if (f1(i) && f2(i)) {
 							passedTest = true;
 							break;
 						}
@@ -3527,9 +3577,7 @@ function checkWin(dontDoWin) {
 			case 1://ALL
 				{
 					for (let i = 0; i < level.n_tiles; i++) {
-						let cell = level.getCellInto(i, _o10);
-						if ((f1(cell.data)) &&
-							(!f2(cell.data))) {
+						if (f1(i) && !f2(i)) {
 							rulePassed = false;
 							break;
 						}

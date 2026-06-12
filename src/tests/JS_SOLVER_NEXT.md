@@ -40,6 +40,31 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **Perf stack (JS_SOLVER_PERF_REPORT items 1a/1b/1c + 4) — landed; 2 and 3
+  discarded.** Engine + solver harness pass on full `solver_tests` corpus
+  (250ms, weighted-astar/auto): **645 → 651 solved (+6), step_ms −1.9%,
+  16.5µs/step → 15.6µs/step.** All 469 simulation tests pass.
+
+  Landed:
+  - **1a** — `turnObjectsModified` dirty flag (set in `level.setCell` +
+    generated `LEVEL_SET_CELL`); skip `processCommandQueue` object compare when
+    clean.
+  - **1b** — per-specialization `turnBackupScratch`; `backupLevel()` reuses it
+    via `.set(level.objects)` (must refresh every `processInput`, not only at
+    `restore`, so `settleAgain` again-passes get the right pre-turn bytes).
+  - **1c** — direct `level.objects[offset+word]` scans in `getPlayerPositions`
+    and `checkWin`.
+  - **4** — search hot loop calls ops directly when
+    `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0` (no per-op arrow closures).
+
+  Discarded after measurement:
+  - **A2 / item 2 (static filter2 distance cache)** — heuristic_ms −3% but
+    **651 → 629 solved (−22)** at 250ms; static-proof/fallback stale fields
+    hurt timeout-bound search enough to drop.
+  - **Item 3 (skip `calculateRowColMasks` after restore)** — stale row/col masks
+    mid-turn break rule matching (masks not updated by `setCell`); correctness
+    failure on games like CODEX LUBRICUS.
+
 - **A3 — done.** Per-condition `staticDeadCellsCache` of `{corner, edge}`
   Uint8Arrays, built once via `inferStaticBlockerMask` + map boundaries.
   `deadPositionPenalty` and `allOnDeadlockHeuristic` rewritten as O(1) lookups.

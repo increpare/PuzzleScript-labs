@@ -357,6 +357,7 @@ function LEVEL_GET_MOVEMENTS_INTO(index, targetarray, MOVEMENT_SIZE) {
 function LEVEL_SET_CELL(level, index, vec, array_size) {
 	let result = "";
 	for (let i = 0; i < array_size; i++) {
+		result += `\tif (${level}.objects[${index}*${array_size}+${i}]!==${vec}.data[${i}]) turnObjectsModified=true;\n`;
 		result += `\t${level}.objects[${index}*${array_size}+${i}]=${vec}.data[${i}];\n`;
 	}
 	return result;

@@ -584,10 +584,21 @@ function runCanonicalizationFuzzer(options) {
                 }
             }
         }
-        process.stderr.write(`fuzz_canonicalization: [${gameIndex + 1}/${games.length}] ${game} (run=${casesRun} skipped=${casesSkipped} fail=${failures.length})\n`);
+        if (typeof options.onGameComplete === 'function') {
+            options.onGameComplete({
+                game,
+                gameIndex,
+                gamesTotal: games.length,
+                casesRun,
+                casesSkipped,
+                failures: failures.slice(),
+            });
+        } else {
+            process.stderr.write(`fuzz_canonicalization: [${gameIndex + 1}/${games.length}] ${game} (run=${casesRun} skipped=${casesSkipped} fail=${failures.length})\n`);
+        }
     });
 
-    return { casesRun, casesSkipped, failures };
+    return { gamesTotal: games.length, casesRun, casesSkipped, failures };
 }
 
 function main() {

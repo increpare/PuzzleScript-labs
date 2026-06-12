@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz canonicalization_fuzz simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -38,6 +38,22 @@ STATIC_ANALYSIS_EXPLORER_OUT ?= $(BUILD_DIR)/static-analysis-explorer/index.html
 STATIC_ANALYSIS_EXPLORER_INPUTS ?= src/tests/solver_tests
 STATIC_ANALYSIS_EXPLORER_GAME ?=
 CANONICALIZATION_FUZZ_ARGS ?=
+# Large-corpus fuzz batch (see src/tests/fuzz_corpus_batch.js).
+# Set FUZZ_BATCH_CORPUS or PUZZLESCRIPT_FUZZ_CORPUS to the gist dump path for overnight runs.
+FUZZ_BATCH_CORPUS ?= $(if $(PUZZLESCRIPT_FUZZ_CORPUS),$(PUZZLESCRIPT_FUZZ_CORPUS),src/tests/solver_tests)
+FUZZ_BATCH_JOBS ?= 8
+FUZZ_BATCH_MODE ?= both
+FUZZ_BATCH_OUT ?= $(BUILD_DIR)/fuzz-batch
+FUZZ_BATCH_ARGS ?=
+FUZZ_BATCH_START ?=
+FUZZ_BATCH_END ?=
+FUZZ_BATCH_START_ARG = $(if $(strip $(FUZZ_BATCH_START)),--start $(FUZZ_BATCH_START),)
+FUZZ_BATCH_END_ARG = $(if $(strip $(FUZZ_BATCH_END)),--end $(FUZZ_BATCH_END),)
+FUZZ_BATCH_RESUME_FLAG = $(if $(filter true,$(FUZZ_BATCH_RESUME)),--resume,)
+FUZZ_BATCH_FRESH_FLAG = $(if $(filter true,$(FUZZ_BATCH_FRESH)),--fresh,)
+# ~30k-game gist scrape corpus (override FUZZ_BATCH_GIANT_CORPUS if your path differs).
+FUZZ_BATCH_GIANT_CORPUS ?= $(HOME)/Documents/google_gist_scraper/dumpprocessed_compiles
+FUZZ_BATCH_GIANT_OUT ?= $(BUILD_DIR)/fuzz-batch-giant
 PUZZLESCRIPT_CPP := $(BUILD_DIR)/native/puzzlescript_cpp
 PUZZLESCRIPT_CPP_32 := $(BUILD_DIR_32)/native/puzzlescript_cpp
 PUZZLESCRIPT_SOLVER := $(BUILD_DIR)/native/puzzlescript_solver
@@ -404,6 +420,16 @@ help:
 	@echo "                                     (STATIC_ANALYSIS_FUZZ_ARGS for --iterations/--game/--strict)"
 	@echo "  make canonicalization_fuzz         Verify semantic canonicalization on randomized input traces"
 	@echo "                                     (CANONICALIZATION_FUZZ_ARGS for --iterations/--game/--start/--end)"
+	@echo "  make fuzz_corpus_batch             Long-running static/canonical fuzz (parallel by default)"
+	@echo "                                     FUZZ_BATCH_JOBS=$(FUZZ_BATCH_JOBS); set FUZZ_BATCH_JOBS=1 for single process"
+	@echo "                                     Overnight gist example:"
+	@echo "                                       PUZZLESCRIPT_FUZZ_CORPUS=/path/to/dumpprocessed_compiles \\"
+	@echo "                                         make fuzz_corpus_batch FUZZ_BATCH_JOBS=8"
+	@echo "                                     If interrupted, re-run to choose continue or restart"
+	@echo "                                     Non-interactive: FUZZ_BATCH_RESUME=true or FUZZ_BATCH_FRESH=true"
+	@echo "  make fuzz_corpus_batch_giant       Parallel fuzz over the ~30k gist corpus ($(FUZZ_BATCH_GIANT_CORPUS))"
+	@echo "                                     Logs: $(FUZZ_BATCH_GIANT_OUT)"
+	@echo "  make fuzz_corpus_batch_single      Explicit single-process run (FUZZ_BATCH_START/END for one window)"
 	@echo "  make static_analysis_explorer      Build HTML static-analysis explorer (see STATIC_ANALYSIS_EXPLORER_*)"
 	@echo "  make solver_tests_cpp              Run standalone native solver corpus"
 	@echo "  make solver_tests_cpp SPECIALIZE=true"
@@ -604,6 +630,40 @@ static_analysis_fuzz:
 
 canonicalization_fuzz:
 	$(NODE) src/tests/fuzz_canonicalization.js $(CANONICALIZATION_FUZZ_ARGS)
+
+fuzz_corpus_batch:
+	@mkdir -p "$(FUZZ_BATCH_OUT)"
+ifeq ($(FUZZ_BATCH_JOBS),1)
+	$(NODE) src/tests/fuzz_corpus_batch.js \
+		--corpus "$(FUZZ_BATCH_CORPUS)" \
+		--mode "$(FUZZ_BATCH_MODE)" \
+		--log-dir "$(FUZZ_BATCH_OUT)" \
+		$(FUZZ_BATCH_START_ARG) \
+		$(FUZZ_BATCH_END_ARG) \
+		$(FUZZ_BATCH_RESUME_FLAG) \
+		$(FUZZ_BATCH_FRESH_FLAG) \
+		$(FUZZ_BATCH_ARGS)
+else
+	$(NODE) src/tests/fuzz_corpus_batch_parallel.js \
+		--corpus "$(FUZZ_BATCH_CORPUS)" \
+		--jobs "$(FUZZ_BATCH_JOBS)" \
+		--mode "$(FUZZ_BATCH_MODE)" \
+		--log-dir "$(FUZZ_BATCH_OUT)" \
+		$(FUZZ_BATCH_RESUME_FLAG) \
+		$(FUZZ_BATCH_FRESH_FLAG) \
+		$(FUZZ_BATCH_ARGS)
+endif
+
+fuzz_corpus_batch_giant:
+	@$(MAKE) fuzz_corpus_batch \
+		FUZZ_BATCH_CORPUS="$(FUZZ_BATCH_GIANT_CORPUS)" \
+		FUZZ_BATCH_OUT="$(FUZZ_BATCH_GIANT_OUT)"
+
+fuzz_corpus_batch_single:
+	@$(MAKE) fuzz_corpus_batch FUZZ_BATCH_JOBS=1
+
+fuzz_corpus_batch_parallel:
+	@$(MAKE) fuzz_corpus_batch
 
 static_analysis_runtime_contracts:
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node.js

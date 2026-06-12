@@ -13,6 +13,7 @@
 // two corpus runs.
 //
 // Usage: node src/tests/fuzz_static_contracts.js [options]
+//   --corpus PATH      corpus directory                    (default src/tests/solver_tests)
 //   --iterations N     random sequences per (game, level)   (default 2)
 //   --input-length N   max inputs per sequence              (default 40)
 //   --max-levels N     playable levels fuzzed per game      (default 2)
@@ -140,6 +141,7 @@ function classifyFailure(failure) {
 
 function parseArgs(argv) {
     const options = {
+        corpusPath: path.join(__dirname, 'solver_tests'),
         iterations: 2,
         inputLength: 40,
         maxLevels: 2,
@@ -151,7 +153,8 @@ function parseArgs(argv) {
     };
     for (let i = 2; i < argv.length; i++) {
         const arg = argv[i];
-        if (arg === '--iterations') options.iterations = Number(argv[++i]);
+        if (arg === '--corpus') options.corpusPath = path.resolve(argv[++i]);
+        else if (arg === '--iterations') options.iterations = Number(argv[++i]);
         else if (arg === '--input-length') options.inputLength = Number(argv[++i]);
         else if (arg === '--max-levels') options.maxLevels = Number(argv[++i]);
         else if (arg === '--game') options.gameFilter = argv[++i];
@@ -164,18 +167,19 @@ function parseArgs(argv) {
     return options;
 }
 
-function main() {
-    const options = parseArgs(process.argv);
-    if (options.help) {
-        console.error('Usage: node src/tests/fuzz_static_contracts.js [--iterations N] [--input-length N] [--max-levels N] [--game SUBSTRING] [--start N] [--end N] [--strict]');
-        process.exit(1);
-    }
+function usage() {
+    return [
+        'Usage: node src/tests/fuzz_static_contracts.js [--corpus PATH] [--iterations N]',
+        '  [--input-length N] [--max-levels N] [--game SUBSTRING] [--start N --end N] [--strict]',
+    ].join('\n');
+}
 
-    const corpusDir = path.join(__dirname, 'solver_tests');
+function runStaticContractsFuzzer(options) {
+    const corpusDir = path.resolve(options.corpusPath);
     const games = fs.readdirSync(corpusDir)
         .filter(name => name.endsWith('.txt'))
         .filter(name => !options.gameFilter || name.includes(options.gameFilter))
-        .sort();
+        .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
 
     const failures = [];
     let casesRun = 0;
@@ -242,7 +246,18 @@ function main() {
                 }
             }
         }
-        process.stderr.write(`fuzz_static_contracts: [${gameIndex + 1}/${games.length}] ${game} (run=${casesRun} fail=${failures.length})\n`);
+        if (typeof options.onGameComplete === 'function') {
+            options.onGameComplete({
+                game,
+                gameIndex,
+                gamesTotal: games.length,
+                casesRun,
+                casesSkipped,
+                failures: failures.slice(),
+            });
+        } else {
+            process.stderr.write(`fuzz_static_contracts: [${gameIndex + 1}/${games.length}] ${game} (run=${casesRun} fail=${failures.length})\n`);
+        }
     });
 
     const unexpected = [];
@@ -253,19 +268,47 @@ function main() {
         else known.push({ kind, ...failure });
     }
 
-    for (const failure of known) {
+    return {
+        gamesTotal: games.length,
+        casesRun,
+        casesSkipped,
+        failures,
+        known,
+        unexpected,
+    };
+}
+
+function main() {
+    const options = parseArgs(process.argv);
+    if (options.help) {
+        console.error(usage());
+        process.exit(1);
+    }
+
+    const result = runStaticContractsFuzzer(options);
+
+    for (const failure of result.known) {
         process.stderr.write(`fuzz_static_contracts: known limitation (${failure.kind}, see TODO.md): ${failure.label}\n`);
     }
-    for (const failure of unexpected) {
+    for (const failure of result.unexpected) {
         process.stderr.write(`fuzz_static_contracts: FAILURE ${failure.label} [${failure.phase}]\n  inputs: ${failure.inputs || 'n/a'}\n  ${failure.error}\n`);
     }
 
-    process.stderr.write(`fuzz_static_contracts: cases=${casesRun} skipped=${casesSkipped} known_issues=${known.length} failures=${unexpected.length}\n`);
-    if (unexpected.length > 0) {
+    process.stderr.write(`fuzz_static_contracts: cases=${result.casesRun} skipped=${result.casesSkipped} known_issues=${result.known.length} failures=${result.unexpected.length}\n`);
+    if (result.unexpected.length > 0) {
         process.stderr.write('fuzz_static_contracts: failed\n');
         process.exit(1);
     }
     console.log('fuzz_static_contracts: ok');
 }
 
-main();
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    classifyFailure,
+    generateSafeInputs,
+    playableLevelIndexes,
+    runStaticContractsFuzzer,
+};

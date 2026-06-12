@@ -636,6 +636,7 @@ function priorityForPortfolioMode(mode, depth, heuristic, astarWeight) {
 
 function createSolverLevelSpecialization(options = {}) {
     const objectWordCount = level && level.objects ? level.objects.length : 0;
+    const turnBackupScratch = objectWordCount > 0 ? new Int32Array(objectWordCount) : null;
     const movementWordCount = level && level.movements ? level.movements.length : 0;
     const width = level && level.width;
     const height = level && level.height;
@@ -2368,6 +2369,7 @@ function createSolverLevelSpecialization(options = {}) {
 
     function restore(snapshot) {
         if (!level || !level.objects || level.objects.length !== objectWordCount || level.width !== width || level.height !== height) {
+            level.solverExternalBackup = null;
             restoreSnapshot({
                 levelState: {
                     dat: snapshot.objects,
@@ -2392,9 +2394,17 @@ function createSolverLevelSpecialization(options = {}) {
                 loadedLevelSeed: snapshot.loadedLevelSeed,
                 hasUsedCheckpoint: snapshot.hasUsedCheckpoint,
             });
+            if (turnBackupScratch) {
+                level.solverExternalBackup = turnBackupScratch;
+            }
             return;
         }
         level.objects.set(snapshot.objects);
+        if (turnBackupScratch) {
+            level.solverExternalBackup = turnBackupScratch;
+        } else {
+            level.solverExternalBackup = null;
+        }
         if (snapshot.zobristTableId === zobristTableId) {
             level.solverZobristLo = snapshot.zobristLo | 0;
             level.solverZobristHi = snapshot.zobristHi | 0;
@@ -2408,8 +2418,6 @@ function createSolverLevelSpecialization(options = {}) {
             zeroBitVecArray(level.rigidMovementAppliedMask);
             zeroBitVecArray(level.rigidGroupIndexMask);
         }
-        // Solver turns call state.calculateRowColMasks(level) at processInput start,
-        // so keep post-turn row/column scratch available for heuristics until then.
         oldflickscreendat = Array.isArray(snapshot.oldflickscreendat) ? snapshot.oldflickscreendat.slice() : [];
         backups = [];
         if (usesCheckpoint) {
@@ -2809,23 +2817,36 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 modeResult.status = 'timeout';
                 break;
             }
-            const entry = timeBlock(modeResult, 'queue_ms', () => frontier.pop());
+            const entry = SOLVER_DETAIL_TIMING
+                ? timeBlock(modeResult, 'queue_ms', () => frontier.pop())
+                : frontier.pop();
             const node = nodes[entry.index];
             modeResult.expanded++;
 
             for (const action of actions) {
-                timeBlock(modeResult, 'clone_ms', () => {
+                if (SOLVER_DETAIL_TIMING) {
+                    timeBlock(modeResult, 'clone_ms', () => {
+                        solverOps.restore(node.snapshot);
+                    });
+                } else {
                     solverOps.restore(node.snapshot);
-                });
+                }
 
-                const stepResult = timeBlock(modeResult, 'step_ms', () => stepSolverAction(action, modeResult));
+                const stepResult = SOLVER_DETAIL_TIMING
+                    ? timeBlock(modeResult, 'step_ms', () => stepSolverAction(action, modeResult))
+                    : stepSolverAction(action, modeResult);
                 modeResult.generated++;
 
                 if (stepResult.solved) {
-                    timeBlock(modeResult, 'reconstruct_ms', () => {
+                    if (SOLVER_DETAIL_TIMING) {
+                        timeBlock(modeResult, 'reconstruct_ms', () => {
+                            modeResult.solution = reconstruct(nodes, entry.index, action.token);
+                            modeResult.solution_length = modeResult.solution.length;
+                        });
+                    } else {
                         modeResult.solution = reconstruct(nodes, entry.index, action.token);
                         modeResult.solution_length = modeResult.solution.length;
-                    });
+                    }
                     modeResult.elapsed_ms = Date.now() - searchStarted;
                     modeResult.status = 'solved';
                     return modeResult;
@@ -2834,7 +2855,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     continue;
                 }
 
-                const key = timeBlock(modeResult, 'hash_ms', () => solverOps.hash());
+                const key = SOLVER_DETAIL_TIMING
+                    ? timeBlock(modeResult, 'hash_ms', () => solverOps.hash())
+                    : solverOps.hash();
                 const childDepth = node.depth + 1;
                 let visitedMatch = null;
                 if (useHashBuckets) {
@@ -2850,7 +2873,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     }
                     bestDepth.set(key, childDepth);
                 }
-                const snapshot = timeBlock(modeResult, 'snapshot_ms', () => solverOps.capture());
+                const snapshot = SOLVER_DETAIL_TIMING
+                    ? timeBlock(modeResult, 'snapshot_ms', () => solverOps.capture())
+                    : solverOps.capture();
                 nodes.push({
                     snapshot,
                     parent: entry.index,
@@ -2867,15 +2892,25 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 }
                 let childHeuristic = 0;
                 if (mode !== 'bfs') {
-                    childHeuristic = timeBlock(modeResult, 'heuristic_ms', () => solverOps.heuristic());
+                    childHeuristic = SOLVER_DETAIL_TIMING
+                        ? timeBlock(modeResult, 'heuristic_ms', () => solverOps.heuristic())
+                        : solverOps.heuristic();
                 }
-                timeBlock(modeResult, 'queue_ms', () => {
+                if (SOLVER_DETAIL_TIMING) {
+                    timeBlock(modeResult, 'queue_ms', () => {
+                        frontier.push({
+                            priority: priorityForMode(mode, childDepth, childHeuristic, options.astarWeight || 2),
+                            tie: tie++,
+                            index: childIndex,
+                        });
+                    });
+                } else {
                     frontier.push({
                         priority: priorityForMode(mode, childDepth, childHeuristic, options.astarWeight || 2),
                         tie: tie++,
                         index: childIndex,
                     });
-                });
+                }
                 modeResult.max_frontier = Math.max(modeResult.max_frontier, frontier.length);
             }
         }
@@ -3002,7 +3037,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 }
             }
 
-            const entry = timeBlock(modeResult, 'queue_ms', () => activeMode.heap.pop());
+            const entry = SOLVER_DETAIL_TIMING
+                ? timeBlock(modeResult, 'queue_ms', () => activeMode.heap.pop())
+                : activeMode.heap.pop();
             if (entry === null) {
                 continue;
             }
@@ -3029,18 +3066,29 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             }
 
             for (const action of actions) {
-                timeBlock(modeResult, 'clone_ms', () => {
+                if (SOLVER_DETAIL_TIMING) {
+                    timeBlock(modeResult, 'clone_ms', () => {
+                        primarySpec.restore(node.snapshot);
+                    });
+                } else {
                     primarySpec.restore(node.snapshot);
-                });
+                }
 
-                const stepResult = timeBlock(modeResult, 'step_ms', () => stepSolverAction(action, modeResult));
+                const stepResult = SOLVER_DETAIL_TIMING
+                    ? timeBlock(modeResult, 'step_ms', () => stepSolverAction(action, modeResult))
+                    : stepSolverAction(action, modeResult);
                 modeResult.generated++;
 
                 if (stepResult.solved) {
-                    timeBlock(modeResult, 'reconstruct_ms', () => {
+                    if (SOLVER_DETAIL_TIMING) {
+                        timeBlock(modeResult, 'reconstruct_ms', () => {
+                            modeResult.solution = reconstruct(nodes, entry.index, action.token);
+                            modeResult.solution_length = modeResult.solution.length;
+                        });
+                    } else {
                         modeResult.solution = reconstruct(nodes, entry.index, action.token);
                         modeResult.solution_length = modeResult.solution.length;
-                    });
+                    }
                     modeResult.elapsed_ms = Date.now() - searchStarted;
                     modeResult.status = 'solved';
                     modeResult.strategy = `portfolio:${activeMode.name}`;
@@ -3050,7 +3098,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     continue;
                 }
 
-                const key = timeBlock(modeResult, 'hash_ms', () => primarySpec.hash());
+                const key = SOLVER_DETAIL_TIMING
+                    ? timeBlock(modeResult, 'hash_ms', () => primarySpec.hash())
+                    : primarySpec.hash();
                 const childDepth = node.depth + 1;
                 let visitedMatch = null;
                 if (useHashBuckets) {
@@ -3081,9 +3131,13 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 // already visible to each — just call heuristic on each needed spec.
                 for (let i = 0; i < specs.length; i++) {
                     if (!heuristicNeeded[i]) continue;
-                    childHeuristics[i] = timeBlock(modeResult, 'heuristic_ms', () => specs[i].heuristic());
+                    childHeuristics[i] = SOLVER_DETAIL_TIMING
+                        ? timeBlock(modeResult, 'heuristic_ms', () => specs[i].heuristic())
+                        : specs[i].heuristic();
                 }
-                const snapshot = timeBlock(modeResult, 'snapshot_ms', () => primarySpec.capture());
+                const snapshot = SOLVER_DETAIL_TIMING
+                    ? timeBlock(modeResult, 'snapshot_ms', () => primarySpec.capture())
+                    : primarySpec.capture();
                 nodes.push({
                     snapshot,
                     parent: entry.index,
@@ -3099,7 +3153,18 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 } else {
                     modeResult.unique_states = bestDepth.size;
                 }
-                timeBlock(modeResult, 'queue_ms', () => {
+                if (SOLVER_DETAIL_TIMING) {
+                    timeBlock(modeResult, 'queue_ms', () => {
+                        for (const mode of queueModes) {
+                            mode.heap.push({
+                                priority: priorityForPortfolioMode(mode.priorityMode, childDepth, childHeuristics[mode.heuristicIndex], portfolioAstarWeight),
+                                tie: tie++,
+                                index: childIndex,
+                            });
+                        }
+                        totalFrontier += queueModes.length;
+                    });
+                } else {
                     for (const mode of queueModes) {
                         mode.heap.push({
                             priority: priorityForPortfolioMode(mode.priorityMode, childDepth, childHeuristics[mode.heuristicIndex], portfolioAstarWeight),
@@ -3108,7 +3173,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                         });
                     }
                     totalFrontier += queueModes.length;
-                });
+                }
                 modeResult.max_frontier = Math.max(modeResult.max_frontier, totalFrontier);
             }
         }
@@ -3243,7 +3308,7 @@ function runGame(root, file, options = {}) {
         || passes.cosmeticRules
         || passes.merge
         || passes.action
-        || options.solverOptParity;
+        || options.solverOptParity
     const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
         || passes.inert
         || options.solverOptimizeStatic

@@ -33,6 +33,9 @@ Level.prototype.setCell = function (index, vec) {
 		this.solverZobristUpdateCell(index, vec);
 	}
 	for (let i = 0; i < vec.data.length; ++i) {
+		if (this.objects[index * STRIDE_OBJ + i] !== vec.data[i]) {
+			turnObjectsModified = true;
+		}
 		this.objects[index * STRIDE_OBJ + i] = vec.data[i];
 	}
 }
