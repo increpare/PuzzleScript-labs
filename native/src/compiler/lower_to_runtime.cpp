@@ -2231,6 +2231,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 auto objectsMissing = makeEmptyMask(game->wordCount);
                 auto movementsPresent = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
                 auto movementsMissing = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
+                // JS rulesToMask: per-cell aggregateMovementsMask — aggregate LHS bits
+                // cleared on replace unless the RHS preserves the same aggregate term.
+                auto aggregateMovementsMask = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
                 std::vector<puzzlescript::MaskOffset> anyOffsets;
                 std::vector<std::vector<int32_t>> anyAnchorIds;
 
@@ -2280,17 +2283,35 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
 
                     if (singleLayer.has_value()) {
                         const int32_t layer = *singleLayer;
+                        const auto* aggregateConcreteDirs = concreteDirsForAggregate(item.dir);
                         if (item.dir == "stationary") {
                             orShiftedMask5(movementsMissing, 5 * layer, 0x1f);
-                        } else if (!item.dir.empty()) {
-                            const bool safeAggregate =
-                                concreteDirsForAggregate(item.dir) != nullptr
-                                && aggregateCoalescingPlan.safe.count(item.dir) != 0;
-                            if (!safeAggregate) {
-                                const int32_t dm = dirMaskFromToken(item.dir);
-                                if (dm != 0) {
-                                    orShiftedMask5(movementsPresent, 5 * layer, dm);
+                        } else if (aggregateConcreteDirs != nullptr) {
+                            int32_t aggregateBits5 = 0;
+                            for (const auto& concreteDir : *aggregateConcreteDirs) {
+                                aggregateBits5 |= dirMaskFromToken(concreteDir);
+                            }
+                            if (aggregateBits5 != 0) {
+                                bool preservedOnRhs = false;
+                                if (rhsRow != nullptr && cellIndex < rhsRow->size()) {
+                                    const ParsedCell& rhsCell = (*rhsRow)[cellIndex];
+                                    if (!rhsCell.isEllipsis) {
+                                        for (const auto& rhsItem : rhsCell.items) {
+                                            if (rhsItem.dir == item.dir && rhsItem.name == item.name) {
+                                                preservedOnRhs = true;
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
+                                if (!preservedOnRhs) {
+                                    orShiftedMask5(aggregateMovementsMask, 5 * layer, aggregateBits5);
+                                }
+                            }
+                        } else if (!item.dir.empty()) {
+                            const int32_t dm = dirMaskFromToken(item.dir);
+                            if (dm != 0) {
+                                orShiftedMask5(movementsPresent, 5 * layer, dm);
                             }
                         }
                     }
@@ -2541,6 +2562,23 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             if (!movCovered) {
                                 for (uint32_t w = 0; w < game->movementWordCount; ++w) {
                                     movementsClear[static_cast<size_t>(w)] |= movementsPresent[static_cast<size_t>(w)];
+                                }
+                            }
+                        }
+                        // JS rulesToMask: aggregate LHS bits cleared unless movementsSet covers them.
+                        {
+                            bool aggCovered = true;
+                            for (uint32_t w = 0; w < game->movementWordCount; ++w) {
+                                const puzzlescript::MaskWord agg = aggregateMovementsMask[static_cast<size_t>(w)];
+                                const puzzlescript::MaskWord setv = movementsSet[static_cast<size_t>(w)];
+                                if ((agg & setv) != agg) {
+                                    aggCovered = false;
+                                    break;
+                                }
+                            }
+                            if (!aggCovered) {
+                                for (uint32_t w = 0; w < game->movementWordCount; ++w) {
+                                    movementsClear[static_cast<size_t>(w)] |= aggregateMovementsMask[static_cast<size_t>(w)];
                                 }
                             }
                         }
