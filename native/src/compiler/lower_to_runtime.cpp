@@ -1328,11 +1328,188 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             return false;
         };
 
+        const auto concreteDirsForAggregate = [](const std::string& dir) -> const std::vector<std::string>* {
+            static const std::vector<std::string> kHorizDirs = {"left", "right"};
+            static const std::vector<std::string> kVertDirs = {"up", "down"};
+            static const std::vector<std::string> kMovingDirs = {"up", "down", "left", "right", "action"};
+            static const std::vector<std::string> kOrthDirs = {"up", "down", "left", "right"};
+            static const std::vector<std::string> kPerpDirs = {"^", "v"};
+            static const std::vector<std::string> kParDirs = {"<", ">"};
+            if (dir == "horizontal" || dir == "horizontal_par" || dir == "horizontal_perp") return &kHorizDirs;
+            if (dir == "vertical" || dir == "vertical_par" || dir == "vertical_perp") return &kVertDirs;
+            if (dir == "moving") return &kMovingDirs;
+            if (dir == "orthogonal") return &kOrthDirs;
+            if (dir == "perpendicular") return &kPerpDirs;
+            if (dir == "parallel") return &kParDirs;
+            return nullptr;
+        };
+
+        auto isLayerCoupledPropertyName = [&](const std::string& nameLower) {
+            return propertyOf.find(nameLower) != propertyOf.end()
+                && propertiesSingleLayer.find(nameLower) == propertiesSingleLayer.end();
+        };
+
+        struct AggregatePosition {
+            size_t row = 0;
+            size_t cell = 0;
+            std::string name;
+            std::optional<int32_t> layer;
+            bool isLayerCoupled = false;
+        };
+        struct AggregateSinkPosition {
+            size_t row = 0;
+            size_t cell = 0;
+            std::optional<int32_t> layer;
+        };
+        struct AggregateCoalescingPlan {
+            std::set<std::string> safe;
+            std::set<std::string> safePropertyAttachments;
+            std::map<std::string, std::vector<AggregateSinkPosition>> sinks;
+        };
+
+        auto collectAggregatePositions = [&](const std::vector<ParsedRow>& rows) {
+            std::map<std::string, std::vector<AggregatePosition>> byDir;
+            for (size_t row = 0; row < rows.size(); ++row) {
+                for (size_t cell = 0; cell < rows[row].size(); ++cell) {
+                    const ParsedCell& parsedCell = rows[row][cell];
+                    if (parsedCell.isEllipsis) {
+                        continue;
+                    }
+                    for (const auto& item : parsedCell.items) {
+                        if (concreteDirsForAggregate(item.dir) == nullptr) {
+                            continue;
+                        }
+                        const std::string nameLower = toLowerAsciiCopy(item.name);
+                        AggregatePosition pos;
+                        pos.row = row;
+                        pos.cell = cell;
+                        pos.name = nameLower;
+                        pos.isLayerCoupled =
+                            objectIdByName.find(nameLower) == objectIdByName.end()
+                            && isLayerCoupledPropertyName(nameLower);
+                        if (const auto it = objectIdByName.find(nameLower); it != objectIdByName.end()) {
+                            pos.layer = game->objectsById[static_cast<size_t>(it->second)].layer;
+                        } else if (const auto propIt = propertiesSingleLayer.find(nameLower);
+                                   propIt != propertiesSingleLayer.end()) {
+                            pos.layer = propIt->second;
+                        }
+                        byDir[item.dir].push_back(std::move(pos));
+                    }
+                }
+            }
+            return byDir;
+        };
+
+        auto ruleAllowsAggregateInferenceBinding = [&](const std::vector<ParsedRow>& lhs) {
+            if (rigidRule || !parsedCommands.empty() || lhs.size() != 1) {
+                return false;
+            }
+            for (const auto& cell : lhs[0]) {
+                if (cell.isEllipsis) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        auto computeAggregateCoalescingPlan = [&](const std::vector<ParsedRow>& lhs,
+                                                  const std::vector<ParsedRow>& rhs) {
+            AggregateCoalescingPlan plan;
+            const auto lhsByDir = collectAggregatePositions(lhs);
+            const auto rhsByDir = collectAggregatePositions(rhs);
+            const bool inferenceAllowed = ruleAllowsAggregateInferenceBinding(lhs);
+
+            for (const auto& [dir, lhsList] : lhsByDir) {
+                const auto rhsIt = rhsByDir.find(dir);
+                const std::vector<AggregatePosition> rhsList =
+                    rhsIt != rhsByDir.end() ? rhsIt->second : std::vector<AggregatePosition>{};
+                const bool hasLayerCoupledAttachments =
+                    std::any_of(lhsList.begin(), lhsList.end(), [](const AggregatePosition& p) {
+                        return p.isLayerCoupled;
+                    })
+                    || std::any_of(rhsList.begin(), rhsList.end(), [](const AggregatePosition& p) {
+                        return p.isLayerCoupled;
+                    });
+                if (hasLayerCoupledAttachments) {
+                    continue;
+                }
+
+                std::vector<AggregatePosition> nonCoupledLhs;
+                nonCoupledLhs.reserve(lhsList.size());
+                for (const auto& p : lhsList) {
+                    if (!p.isLayerCoupled) {
+                        nonCoupledLhs.push_back(p);
+                    }
+                }
+                if (nonCoupledLhs.empty()) {
+                    continue;
+                }
+                if (std::any_of(lhsList.begin(), lhsList.end(), [](const AggregatePosition& p) {
+                        return p.isLayerCoupled;
+                    })) {
+                    continue;
+                }
+                if (std::any_of(rhsList.begin(), rhsList.end(), [](const AggregatePosition& p) {
+                        return p.isLayerCoupled;
+                    })) {
+                    continue;
+                }
+
+                std::set<std::string> lhsPosKeys;
+                for (const auto& p : nonCoupledLhs) {
+                    lhsPosKeys.insert(std::to_string(p.row) + ':' + std::to_string(p.cell) + ':' + p.name);
+                }
+                const bool preservationOnly = std::all_of(rhsList.begin(), rhsList.end(), [&](const AggregatePosition& p) {
+                    return lhsPosKeys.count(std::to_string(p.row) + ':' + std::to_string(p.cell) + ':' + p.name) != 0;
+                });
+                if (preservationOnly) {
+                    plan.safe.insert(dir);
+                    continue;
+                }
+
+                if (!inferenceAllowed || nonCoupledLhs.size() != 1) {
+                    continue;
+                }
+                const AggregatePosition& source = nonCoupledLhs.front();
+                if (objectIdByName.find(source.name) == objectIdByName.end()) {
+                    continue;
+                }
+                if (!source.layer.has_value()) {
+                    continue;
+                }
+                if (!std::all_of(rhsList.begin(), rhsList.end(), [&](const AggregatePosition& p) {
+                        return objectIdByName.find(p.name) != objectIdByName.end();
+                    })) {
+                    continue;
+                }
+                if (std::any_of(rhsList.begin(), rhsList.end(), [](const AggregatePosition& p) {
+                        return !p.layer.has_value();
+                    })) {
+                    continue;
+                }
+
+                plan.safe.insert(dir);
+                std::vector<AggregateSinkPosition> sinkList;
+                for (const auto& p : rhsList) {
+                    if (p.row != source.row || p.cell != source.cell || p.name != source.name) {
+                        sinkList.push_back({p.row, p.cell, p.layer});
+                    }
+                }
+                if (!sinkList.empty()) {
+                    plan.sinks.emplace(dir, std::move(sinkList));
+                }
+            }
+            return plan;
+        };
+
         // Mirrors JS `concretizeMovingRule` closely, including split order and the
         // two RHS disambiguation passes (`movingReplacement` and
         // `aggregateDirReplacement`). Rule-group order is observable, so the push /
         // erase behavior intentionally follows the JS implementation.
-        auto expandConcretizeMovingRows = [&](std::vector<ParsedRow> lhs0, std::vector<ParsedRow> rhs0)
+        auto expandConcretizeMovingRows = [&](std::vector<ParsedRow> lhs0,
+                                              std::vector<ParsedRow> rhs0,
+                                              const std::set<std::string>& safeAggregates,
+                                              const std::set<std::string>& safeAggregatePropertyAttachments)
             -> std::vector<std::pair<std::vector<ParsedRow>, std::vector<ParsedRow>>> {
             struct MovingReplacement {
                 std::string concreteDirection;
@@ -1354,30 +1531,26 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 std::map<std::string, AggregateDirReplacement> aggregateDirReplacement;
             };
 
-            const auto concreteDirsForAggregate = [](const std::string& dir) -> const std::vector<std::string>* {
-                static const std::vector<std::string> kHorizDirs = {"left", "right"};
-                static const std::vector<std::string> kVertDirs = {"up", "down"};
-                static const std::vector<std::string> kMovingDirs = {"up", "down", "left", "right", "action"};
-                static const std::vector<std::string> kOrthDirs = {"up", "down", "left", "right"};
-                static const std::vector<std::string> kPerpDirs = {"^", "v"};
-                static const std::vector<std::string> kParDirs = {"<", ">"};
-                if (dir == "horizontal" || dir == "horizontal_par" || dir == "horizontal_perp") return &kHorizDirs;
-                if (dir == "vertical" || dir == "vertical_par" || dir == "vertical_perp") return &kVertDirs;
-                if (dir == "moving") return &kMovingDirs;
-                if (dir == "orthogonal") return &kOrthDirs;
-                if (dir == "perpendicular") return &kPerpDirs;
-                if (dir == "parallel") return &kParDirs;
-                return nullptr;
-            };
             auto getMovingsParsed = [&](const ParsedCell& cell) {
                 std::vector<std::pair<std::string, std::string>> result;
                 if (cell.isEllipsis) {
                     return result;
                 }
                 for (const auto& item : cell.items) {
-                    if (concreteDirsForAggregate(item.dir) != nullptr) {
-                        result.push_back({item.name, item.dir});
+                    if (concreteDirsForAggregate(item.dir) == nullptr) {
+                        continue;
                     }
+                    if (safeAggregates.count(item.dir) != 0) {
+                        const std::string nameLower = toLowerAsciiCopy(item.name);
+                        const bool isLayerCoupled =
+                            objectIdByName.find(nameLower) == objectIdByName.end()
+                            && isLayerCoupledPropertyName(nameLower);
+                        const std::string attachmentKey = item.dir + '\0' + item.name;
+                        if (!isLayerCoupled || safeAggregatePropertyAttachments.count(attachmentKey) != 0) {
+                            continue;
+                        }
+                    }
+                    result.push_back({item.name, item.dir});
                 }
                 return result;
             };
@@ -1907,7 +2080,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         atomizeAggregatesRows(variantLhsRows, variantRhsRows);
         rephraseSynonymsRows(variantLhsRows, variantRhsRows);
 
-        const auto movingVariants = expandConcretizeMovingRows(std::move(variantLhsRows), std::move(variantRhsRows));
+        const AggregateCoalescingPlan aggregateCoalescingPlan =
+            computeAggregateCoalescingPlan(variantLhsRows, variantRhsRows);
+        const auto movingVariants = expandConcretizeMovingRows(
+            std::move(variantLhsRows),
+            std::move(variantRhsRows),
+            aggregateCoalescingPlan.safe,
+            aggregateCoalescingPlan.safePropertyAttachments);
         for (const auto& movingVariant : movingVariants) {
             const auto propertyConcreteChunks =
                 expandConcretizePropertyRows(movingVariant.first, movingVariant.second);
@@ -1934,7 +2113,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         rule.hasReplacements = !variantRhsRowsExpanded.empty();
         rule.commands = parsedCommands;
 
-        auto buildPatternRow = [&](const ParsedRow& row, const ParsedRow* rhsRow) -> std::vector<puzzlescript::Pattern> {
+        auto buildPatternRow = [&](const ParsedRow& row,
+                                   const ParsedRow* rhsRow,
+                                   size_t patternRowIndex) -> std::vector<puzzlescript::Pattern> {
             std::vector<puzzlescript::Pattern> out;
             out.reserve(row.size());
             for (size_t cellIndex = 0; cellIndex < row.size(); ++cellIndex) {
@@ -2002,9 +2183,14 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         if (item.dir == "stationary") {
                             orShiftedMask5(movementsMissing, 5 * layer, 0x1f);
                         } else if (!item.dir.empty()) {
-                            const int32_t dm = dirMaskFromToken(item.dir);
-                            if (dm != 0) {
-                                orShiftedMask5(movementsPresent, 5 * layer, dm);
+                            const bool safeAggregate =
+                                concreteDirsForAggregate(item.dir) != nullptr
+                                && aggregateCoalescingPlan.safe.count(item.dir) != 0;
+                            if (!safeAggregate) {
+                                const int32_t dm = dirMaskFromToken(item.dir);
+                                if (dm != 0) {
+                                    orShiftedMask5(movementsPresent, 5 * layer, dm);
+                                }
                             }
                         }
                     }
@@ -2043,6 +2229,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         auto randomDirMask = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
                         std::vector<int32_t> layersUsedR(game->layerCount, 0);
                         puzzlescript::MaskVector rhsObjectLayersMovement(static_cast<size_t>(game->movementWordCount), 0);
+                        std::set<int32_t> aggregateInferenceLayers;
 
                         auto markLayerClear = [&](int32_t layer) {
                             if (layer < 0 || layer >= game->layerCount) return;
@@ -2171,13 +2358,49 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             }
                             if (singleLayer.has_value()) {
                                 const int32_t layer = *singleLayer;
-                                // JS: any non-empty direction on RHS sets postMovementsLayerMask first.
-                                if (!item.dir.empty() && item.dir != "no") {
+                                bool preservedAggregate = false;
+                                bool inferredAggregateSink = false;
+                                if (concreteDirsForAggregate(item.dir) != nullptr
+                                    && aggregateCoalescingPlan.safe.count(item.dir) != 0
+                                    && cellIndex < row.size()) {
+                                    const ParsedCell& lhsCell = row[cellIndex];
+                                    if (!lhsCell.isEllipsis) {
+                                        for (const auto& lhsItem : lhsCell.items) {
+                                            if (lhsItem.dir == item.dir && lhsItem.name == item.name) {
+                                                preservedAggregate = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!preservedAggregate) {
+                                        const auto sinkIt = aggregateCoalescingPlan.sinks.find(item.dir);
+                                        if (sinkIt != aggregateCoalescingPlan.sinks.end()) {
+                                            for (const auto& sink : sinkIt->second) {
+                                                if (sink.row == patternRowIndex
+                                                    && sink.cell == cellIndex
+                                                    && sink.layer.has_value()
+                                                    && *sink.layer == layer) {
+                                                    inferredAggregateSink = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                const bool skipMovementShifts =
+                                    preservedAggregate || inferredAggregateSink;
+                                // JS rulesToMask: non-empty direction sets postMovementsLayerMask unless
+                                // preserved; inferred sinks still clear the layer before capture.
+                                if (!item.dir.empty() && item.dir != "no"
+                                    && (!skipMovementShifts || inferredAggregateSink)) {
                                     orShiftedMask5(movementsLayerMask, 5 * layer, 0x1f);
+                                    if (inferredAggregateSink) {
+                                        aggregateInferenceLayers.insert(layer);
+                                    }
                                 }
                                 if (item.dir == "stationary") {
                                     orShiftedMask5(movementsClear, 5 * layer, 0x1f);
-                                } else if (!item.dir.empty() && item.dir != "no") {
+                                } else if (!item.dir.empty() && item.dir != "no" && !skipMovementShifts) {
                                     const int32_t dm = dirMaskFromToken(item.dir);
                                     if (dm != 0) {
                                         orShiftedMask5(movementsSet, 5 * layer, dm);
@@ -2276,7 +2499,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                     const bool randomEntOnLayer = randomEntityTouchesLayer(layer);
                                     // Only suppress implicit layer-mask clearing when there is no explicit
                                     // movement directive on the layer (including randomDir / random entity).
-                                    if (moveSetBits == 0 && moveClearBits == 0 && randomDirBits == 0 && !randomEntOnLayer) {
+                                    if (aggregateInferenceLayers.count(layer) == 0
+                                        && moveSetBits == 0 && moveClearBits == 0 && randomDirBits == 0
+                                        && !randomEntOnLayer) {
                                         setShiftedMask5(movementsLayerMask, 5 * layer, 0);
                                     }
                                 }
@@ -2335,7 +2560,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         for (size_t rowIndex = 0; rowIndex < variantLhsRowsExpanded.size(); ++rowIndex) {
             const ParsedRow& lhsRow = variantLhsRowsExpanded[rowIndex];
             const ParsedRow* rhsRow = (rowIndex < variantRhsRowsExpanded.size()) ? &variantRhsRowsExpanded[rowIndex] : nullptr;
-            auto loweredRow = buildPatternRow(lhsRow, rhsRow);
+            auto loweredRow = buildPatternRow(lhsRow, rhsRow, rowIndex);
             int32_t ellipsisInRow = 0;
             for (const auto& pat : loweredRow) {
                 if (pat.kind == puzzlescript::Pattern::Kind::Ellipsis) {
