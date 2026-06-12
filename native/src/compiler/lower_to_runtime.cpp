@@ -1382,9 +1382,17 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             std::string propertyName;
             bool localProperty = false;
         };
+        struct AggregateBinding {
+            size_t sourceRow = 0;
+            size_t sourceCell = 0;
+            std::string sourcePropertyName;
+            std::string aggregateName;
+            int32_t aggregateMask = 0;
+        };
         struct AggregateCoalescingPlan {
             std::set<std::string> safe;
             std::set<std::string> safePropertyAttachments;
+            std::map<std::string, AggregateBinding> bindings;
             std::map<std::string, std::vector<AggregateSinkPosition>> sinks;
         };
         struct PropertySinkPosition {
@@ -1484,6 +1492,21 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
 
                     plan.safe.insert(dir);
                     plan.safePropertyAttachments.insert(dir + '\0' + source.name);
+                    int32_t aggregateMask = 0;
+                    if (const auto* concreteDirs = concreteDirsForAggregate(dir)) {
+                        for (const auto& concreteDir : *concreteDirs) {
+                            aggregateMask |= dirMaskFromToken(concreteDir);
+                        }
+                    }
+                    plan.bindings.emplace(
+                        dir,
+                        AggregateBinding{
+                            source.row,
+                            source.cell,
+                            source.name,
+                            dir,
+                            aggregateMask,
+                        });
                     std::vector<AggregateSinkPosition> sinkList;
                     for (const AggregatePosition& p : rhsList) {
                         AggregateSinkPosition sink;
@@ -1627,18 +1650,18 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             };
             auto findAggregatePropertySink = [&](const PropertyOccurrence& p, const std::string& propName) {
                 if (concreteDirsForAggregate(p.dir) == nullptr) {
-                    return false;
+                    return static_cast<const AggregateSinkPosition*>(nullptr);
                 }
                 const auto sinkIt = aggregatePlan.sinks.find(p.dir);
                 if (sinkIt == aggregatePlan.sinks.end()) {
-                    return false;
+                    return static_cast<const AggregateSinkPosition*>(nullptr);
                 }
                 for (const AggregateSinkPosition& sink : sinkIt->second) {
                     if (sink.row == p.row && sink.cell == p.cell && sink.propertyName == propName) {
-                        return true;
+                        return &sink;
                     }
                 }
-                return false;
+                return static_cast<const AggregateSinkPosition*>(nullptr);
             };
 
             const auto lhsByName = collectLayerCoupled(lhs);
@@ -1652,7 +1675,47 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 if (rhsList.empty()) {
                     continue;
                 }
+
                 if (lhsList.size() != 1) {
+                    const AggregateBinding* aggregateBinding = nullptr;
+                    for (const auto& [_, binding] : aggregatePlan.bindings) {
+                        if (binding.sourcePropertyName == propName) {
+                            aggregateBinding = &binding;
+                            break;
+                        }
+                    }
+                    if (aggregateBinding == nullptr) {
+                        continue;
+                    }
+                    const PropertyOccurrence* source = nullptr;
+                    for (const PropertyOccurrence& candidate : lhsList) {
+                        if (candidate.row == aggregateBinding->sourceRow
+                            && candidate.cell == aggregateBinding->sourceCell
+                            && candidate.dir == aggregateBinding->aggregateName) {
+                            source = &candidate;
+                            break;
+                        }
+                    }
+                    if (source == nullptr) {
+                        continue;
+                    }
+                    if (source->row >= lhs.size() || source->cell >= lhs[source->row].size()) {
+                        continue;
+                    }
+                    if (cellHasNoTermOverlappingProperty(lhs[source->row][source->cell], propName)) {
+                        continue;
+                    }
+                    const bool allSinksAreLocalAggregatePreservation = std::all_of(
+                        rhsList.begin(),
+                        rhsList.end(),
+                        [&](const PropertyOccurrence& p) {
+                            const AggregateSinkPosition* sink = findAggregatePropertySink(p, propName);
+                            return sink != nullptr && sink->localProperty;
+                        });
+                    if (!allSinksAreLocalAggregatePreservation) {
+                        continue;
+                    }
+                    plan.safe.insert(propName);
                     continue;
                 }
 
@@ -1671,7 +1734,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     return p.dir.empty()
                         || p.dir == "stationary"
                         || (isLayerCoupledMovementDir(p.dir) && dirMaskFromToken(p.dir) != 0)
-                        || findAggregatePropertySink(p, propName);
+                        || findAggregatePropertySink(p, propName) != nullptr;
                 });
                 if (!sinkDirsOk) {
                     continue;
