@@ -244,6 +244,12 @@ struct Pattern {
     uint32_t anyObjectsFirst = 0;
     uint32_t anyObjectsCount = 0;
 
+    // anyMovementsPresent is a variable-length list of masks of width
+    // Game::movementWordCount, stored in Game::anyMovementOffsets at
+    // [anyMovementsFirst, anyMovementsFirst + anyMovementsCount).
+    uint32_t anyMovementsFirst = 0;
+    uint32_t anyMovementsCount = 0;
+
     // Object ids from objectsPresent, precomputed once so anchored scans do
     // not repeatedly walk object-mask words to find possible anchors.
     std::vector<int32_t> objectAnchorIds;
@@ -359,6 +365,8 @@ struct GameInformation {
     // runs. Pattern locates its entries as
     // anyObjectOffsets[anyObjectsFirst .. anyObjectsFirst+anyObjectsCount).
     std::vector<MaskOffset> anyObjectOffsets;
+    // Offsets into maskArena for Pattern::anyMovementsPresent runs.
+    std::vector<MaskOffset> anyMovementOffsets;
 
     // Offsets into maskArena for the per-row object / movement masks of
     // Rule. Each referenced mask has width wordCount or movementWordCount.

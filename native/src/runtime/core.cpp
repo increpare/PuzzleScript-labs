@@ -1269,6 +1269,25 @@ bool layerCoupledMovementLayerMatches(
     return true;
 }
 
+bool layerCoupledMovementMaskTermMatches(
+    const MaskWord* objects,
+    const MaskWord* movements,
+    uint32_t objectWordCount,
+    uint32_t movementWordCount,
+    const Game& game,
+    const LayerCoupledMovementReplacement& term) {
+    for (const auto& layerTerm : term.layers) {
+        const MaskWord* objectMask = maskPtr(game, layerTerm.objectMask);
+        if (objectMask == nullptr || !maskOverlaps(objects, objectMask, objectWordCount)) {
+            continue;
+        }
+        if (layerCoupledMovementLayerMatches(movements, movementWordCount, game, layerTerm)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void applyLayerCoupledMovementReplacements(
     const Game& game,
     const MaskWord* oldObjects,
@@ -1385,6 +1404,16 @@ Pattern parsePattern(Game& game, const json::Value& value) {
         game.anyObjectOffsets.push_back(offset);
     }
     pattern.anyObjectsCount = static_cast<uint32_t>(game.anyObjectOffsets.size()) - pattern.anyObjectsFirst;
+
+    pattern.anyMovementsFirst = static_cast<uint32_t>(game.anyMovementOffsets.size());
+    if (const auto anyMovementsIt = object.find("any_movements_present");
+        anyMovementsIt != object.end() && anyMovementsIt->second.isArray()) {
+        for (const auto& anyMask : anyMovementsIt->second.asArray()) {
+            game.anyMovementOffsets.push_back(storeMaskWords(game, parseMaskVector(anyMask)));
+        }
+    }
+    pattern.anyMovementsCount =
+        static_cast<uint32_t>(game.anyMovementOffsets.size()) - pattern.anyMovementsFirst;
 
     if (const auto coupledMasks = object.find("layer_coupled_movement_masks");
         coupledMasks != object.end() && coupledMasks->second.isArray()) {
@@ -2372,6 +2401,26 @@ bool matchesPatternAt(const FullState& session, const Pattern& pattern, int32_t 
             if ((movements[w] & movementsMissing[w]) != 0) {
                 return false;
             }
+        }
+    }
+    for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i) {
+        const MaskOffset offset = game.anyMovementOffsets[pattern.anyMovementsFirst + i];
+        const MaskWord* anyMask = arena + offset;
+        bool found = false;
+        for (uint32_t w = 0; w < movementWordCount; ++w) {
+            if ((movements[w] & anyMask[w]) != 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    for (const auto& coupledMask : pattern.layerCoupledMovementMasks) {
+        if (!layerCoupledMovementMaskTermMatches(
+                objects, movements, objectWordCount, movementWordCount, game, coupledMask)) {
+            return false;
         }
     }
     addCounter(gRuntimeCounters.patternMatches);
