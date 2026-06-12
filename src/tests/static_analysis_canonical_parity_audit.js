@@ -1,6 +1,6 @@
 'use strict';
 
-const { canonicalizeSource } = require('../canonicalize');
+const { canonicalizeSemanticWithObjectMap } = require('../canonicalize');
 const { decanonicalizeSemantic } = require('../decanonicalize');
 
 const OBJECT_TAG_KEYS = [
@@ -31,14 +31,19 @@ function firstDuplicateCollisionLayerObject(canonical) {
 
 function canonicalSourceForParity(source, label) {
     let canonical;
+    let objectMap = null;
+    let displayNames = null;
     try {
-        canonical = canonicalizeSource(source, 'semantic', { sourcePath: label });
+        const mapped = canonicalizeSemanticWithObjectMap(source, { sourcePath: label });
+        canonical = mapped.canonical;
+        objectMap = mapped.objectMap;
+        displayNames = mapped.displayNames;
     } catch (error) {
         const message = error && error.message ? error.message : String(error);
-        if (!/^Unable to canonicalize invalid PuzzleScript source\./.test(message)) {
-            throw error;
+        if (/^Unable to (canonicalize|compile) (invalid )?PuzzleScript source\./.test(message)) {
+            return { skipped: true, reason: 'canonicalize_unavailable', error: message };
         }
-        return { skipped: true, reason: 'canonicalize_unavailable', error: message };
+        throw error;
     }
     if (canonicalHasRandomSemantics(canonical)) {
         return { skipped: true, reason: 'random_rule_semantics' };
@@ -54,6 +59,8 @@ function canonicalSourceForParity(source, label) {
     return {
         skipped: false,
         canonical,
+        objectMap,
+        displayNames,
         source: decanonicalizeSemantic(canonical),
     };
 }
@@ -73,60 +80,80 @@ function projectObjectTags(object) {
     return projected;
 }
 
-function projectTagSignature(report) {
-    if (report.status !== 'ok') return null;
-    const tagged = report.ps_tagged;
-    const objects = (tagged.objects || [])
-        .map(object => ({ name: object.name, tags: projectObjectTags(object) }))
-        .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }));
+function objectTagsByName(report) {
+    const byName = new Map();
+    if (!report || report.status !== 'ok') return byName;
+    for (const object of report.ps_tagged.objects || []) {
+        byName.set(object.name, projectObjectTags(object));
+    }
+    return byName;
+}
 
-    const mergeCandidates = ((report.facts && report.facts.mergeability) || [])
-        .filter(fact => fact.status === 'candidate').length;
-    const staticLayers = (tagged.collision_layers || [])
-        .filter(layer => layer.tags && layer.tags.static === true).length;
-    const winconditionCount = (tagged.winconditions || []).length;
-
-    return {
-        objects,
-        mergeCandidates,
-        staticLayers,
-        winconditionCount,
+function compareMappedObjectTags(originalReport, canonicalReport, replaySource, gameLabel) {
+    const violations = [];
+    const stats = {
+        mappedCompared: 0,
+        droppedCosmetic: 0,
+        droppedUnexpected: 0,
+        tagMismatches: 0,
+        missingCanonicalTarget: 0,
     };
-}
 
-function tagMultiset(objects) {
-    return objects
-        .map(object => JSON.stringify(object.tags))
-        .sort();
-}
+    if (originalReport.status !== 'ok' || canonicalReport.status !== 'ok') {
+        return { violations, stats, skipped: 'compile_error' };
+    }
 
-function diffTagSignatures(original, canonical) {
-    const diffs = [];
-    if (original.objects.length !== canonical.objects.length) {
-        diffs.push(`objectCount ${original.objects.length} vs ${canonical.objects.length}`);
-        return diffs;
+    const canonicalTagsByName = objectTagsByName(canonicalReport);
+    const { objectMap, displayNames } = replaySource;
+
+    for (const object of originalReport.ps_tagged.objects || []) {
+        const compilerName = object.canonical_name || object.name;
+        const displayName = displayNames && displayNames.get(compilerName)
+            ? displayNames.get(compilerName)
+            : object.name;
+        const finalName = objectMap.get(compilerName);
+
+        if (finalName === null || finalName === undefined) {
+            if (object.tags && object.tags.cosmetic === true) {
+                stats.droppedCosmetic++;
+                continue;
+            }
+            stats.droppedUnexpected++;
+            violations.push(
+                `${gameLabel}: object ${displayName} dropped by canonicalizer but not tagged cosmetic`,
+            );
+            continue;
+        }
+
+        const originalTags = projectObjectTags(object);
+        const canonicalTags = canonicalTagsByName.get(finalName);
+        if (!canonicalTags) {
+            stats.missingCanonicalTarget++;
+            violations.push(
+                `${gameLabel}: object ${displayName} maps to ${finalName} but canonical analysis has no such object`,
+            );
+            continue;
+        }
+
+        stats.mappedCompared++;
+        const leftJson = JSON.stringify(originalTags);
+        const rightJson = JSON.stringify(canonicalTags);
+        if (leftJson !== rightJson) {
+            stats.tagMismatches++;
+            violations.push(
+                `${gameLabel}: object ${displayName} -> ${finalName} tags differ: `
+                + `original=${leftJson} canonical=${rightJson}`,
+            );
+        }
     }
-    if (original.mergeCandidates !== canonical.mergeCandidates) {
-        diffs.push(`mergeCandidates ${original.mergeCandidates} vs ${canonical.mergeCandidates}`);
-    }
-    if (original.staticLayers !== canonical.staticLayers) {
-        diffs.push(`staticLayers ${original.staticLayers} vs ${canonical.staticLayers}`);
-    }
-    if (original.winconditionCount !== canonical.winconditionCount) {
-        diffs.push(`winconditionCount ${original.winconditionCount} vs ${canonical.winconditionCount}`);
-    }
-    const leftMultiset = tagMultiset(original.objects);
-    const rightMultiset = tagMultiset(canonical.objects);
-    if (JSON.stringify(leftMultiset) !== JSON.stringify(rightMultiset)) {
-        diffs.push('object tag multiset differs');
-    }
-    return diffs;
+
+    return { violations, stats, skipped: null };
 }
 
 function auditCanonicalParity(source, gameLabel, analyzeSource) {
     const replaySource = canonicalSourceForParity(source, gameLabel);
     if (replaySource.skipped) {
-        return { violations: [], skipped: replaySource.reason };
+        return { violations: [], stats: null, skipped: replaySource.reason };
     }
 
     let originalReport;
@@ -136,6 +163,7 @@ function auditCanonicalParity(source, gameLabel, analyzeSource) {
     } catch (error) {
         return {
             violations: [],
+            stats: null,
             skipped: `original_analyze_threw:${String(error && error.message).split('\n')[0]}`,
         };
     }
@@ -144,34 +172,18 @@ function auditCanonicalParity(source, gameLabel, analyzeSource) {
     } catch (error) {
         return {
             violations: [],
+            stats: null,
             skipped: `canonical_analyze_threw:${String(error && error.message).split('\n')[0]}`,
         };
     }
 
-    if (originalReport.status !== 'ok' || canonicalReport.status !== 'ok') {
-        return { violations: [], skipped: 'compile_error' };
-    }
-
-    const originalSignature = projectTagSignature(originalReport);
-    const canonicalSignature = projectTagSignature(canonicalReport);
-    if (originalSignature.objects.length !== canonicalSignature.objects.length) {
-        return { violations: [], skipped: 'object_count_mismatch' };
-    }
-    const diffs = diffTagSignatures(originalSignature, canonicalSignature);
-    if (diffs.length === 0) {
-        return { violations: [], skipped: null };
-    }
-    return {
-        violations: [`${gameLabel}: canonical parity mismatch: ${diffs.join('; ')}`],
-        skipped: null,
-    };
+    return compareMappedObjectTags(originalReport, canonicalReport, replaySource, gameLabel);
 }
 
 module.exports = {
     OBJECT_TAG_KEYS,
     auditCanonicalParity,
     canonicalSourceForParity,
-    diffTagSignatures,
-    projectTagSignature,
-    tagMultiset,
+    compareMappedObjectTags,
+    projectObjectTags,
 };

@@ -629,7 +629,7 @@ static_analysis_tests:
 	$(NODE) src/tests/compare_solver_static_opt_runs_node.js
 	$(NODE) src/tests/static_analysis_adversarial_node.js
 	$(NODE) src/tests/static_analysis_claims_consistency_node.js
-	$(NODE) src/tests/static_analysis_canonical_parity_node.js --warn-only
+	$(NODE) src/tests/static_analysis_canonical_parity_node.js --fixture-only
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node_test.js
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node.js
 

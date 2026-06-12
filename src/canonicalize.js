@@ -1327,7 +1327,7 @@ function collapseEquivalentObjectsInCanonical(canonical, options = {}) {
     if (loops.length > 0) {
         result.loops = loops;
     }
-    return result;
+    return { canonical: result, collapseMap: objectToFamily };
 }
 
 function normalizeCanonicalLoops(loops, rules) {
@@ -1572,7 +1572,7 @@ function canonicalizeCompiledState(state, options) {
     }
 
     if (options.collapseEquivalentObjects) {
-        const collapsed = collapseEquivalentObjectsInCanonical(result, {
+        const { canonical: collapsed } = collapseEquivalentObjectsInCanonical(result, {
             format: options.canonicalFormat || result.format,
             namePrefix: options.objectNamePrefix || 'obj_',
             includeMetadata: options.includeMetadata,
@@ -1583,6 +1583,51 @@ function canonicalizeCompiledState(state, options) {
     }
 
     return result;
+}
+
+function buildCompilerToFinalObjectMap(state, options) {
+    const nameData = buildCompiledNameMap(state, options);
+    const preCollapse = canonicalizeCompiledState(state, Object.assign({}, options, {
+        collapseEquivalentObjects: false,
+        compiledNameData: nameData,
+    }));
+    const { canonical: collapsed, collapseMap } = collapseEquivalentObjectsInCanonical(preCollapse, {
+        format: options.canonicalFormat || preCollapse.format,
+        namePrefix: options.objectNamePrefix || 'obj_',
+        includeMetadata: options.includeMetadata,
+        includeWinConditions: options.includeWinConditions,
+        includeLevels: options.includeLevels,
+    });
+    const { objectMap: stabilizeMap } = stabilizeCanonicalObjectLabels(collapsed);
+    const sourceToFinal = new Map();
+    for (const compilerName of Object.keys(state.objects || {})) {
+        const preName = nameData.map.get(compilerName);
+        if (!preName || !collapseMap.has(preName)) {
+            sourceToFinal.set(compilerName, null);
+            continue;
+        }
+        const collapsedName = collapseMap.get(preName);
+        sourceToFinal.set(compilerName, stabilizeMap.get(collapsedName) || collapsedName);
+    }
+    return { nameData, sourceToFinal };
+}
+
+function canonicalizeSemanticWithObjectMap(source, canonicalOptions = {}) {
+    const options = Object.assign({}, modeOptions('semantic'), canonicalOptions);
+    const compiled = compileSemanticSource(source, options);
+    const state = compiled.state;
+    const { sourceToFinal } = buildCompilerToFinalObjectMap(state, options);
+    const canonical = canonicalizeCompiledState(state, options);
+    return {
+        canonical,
+        objectMap: sourceToFinal,
+        displayNames: new Map(
+            Object.keys(state.objects || {}).map(compilerName => [
+                compilerName,
+                (state.original_case_names && state.original_case_names[compilerName]) || compilerName,
+            ]),
+        ),
+    };
 }
 
 function canonicalModeOptions(mode, canonicalOptions) {
@@ -1606,7 +1651,7 @@ function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOp
             collapseEquivalentObjects: false,
             compiledNameData,
         }));
-        const fullCollapsed = collapseEquivalentObjectsInCanonical(fullRawCanonical, {
+        const { canonical: fullCollapsed } = collapseEquivalentObjectsInCanonical(fullRawCanonical, {
             format: options.canonicalFormat || fullRawCanonical.format,
             namePrefix: options.objectNamePrefix || 'obj_',
             includeMetadata: options.includeMetadata,
@@ -1630,7 +1675,7 @@ function createCompiledLevelStateProjector(state, mode = 'semantic', canonicalOp
             return canonical.levels[0];
         }
 
-        const collapsed = collapseEquivalentObjectsInCanonical(canonical, {
+        const { canonical: collapsed } = collapseEquivalentObjectsInCanonical(canonical, {
             format: options.canonicalFormat || canonical.format,
             namePrefix: options.objectNamePrefix || 'obj_',
             includeMetadata: options.includeMetadata,
@@ -1723,6 +1768,7 @@ module.exports = {
     buildComparisonHashes,
     canonicalizeCompiledLevelState,
     canonicalizeFile,
+    canonicalizeSemanticWithObjectMap,
     canonicalizeSource,
     compileSemanticSource,
     createCompiledLevelStateProjector,

@@ -298,10 +298,50 @@ assert.deepStrictEqual(
     'broad win conditions should be normalized to retained semantic objects'
 );
 const broadWinRehydrated = decanonicalizeSemantic(broadWinCanonical);
+assert.ok(
+    !/\bon\b/i.test(broadWinRehydrated.split('WINCONDITIONS')[1].split('LEVELS')[0]),
+    'broad plain win conditions should not use explicit "on" form',
+);
 assert.deepStrictEqual(
     canonicalizeSource(broadWinRehydrated, 'semantic'),
     broadWinCanonical,
     'decanonicalized broad win conditions should not reintroduce pruned inert objects'
+);
+
+const plainWinMinusBackgroundCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [
+        { key: 'title', value: 'Plain Win Minus Background' },
+    ],
+    collisionLayers: [
+        ['obj_0'],
+        ['obj_1'],
+        ['obj_2'],
+    ],
+    playerObjects: ['obj_1'],
+    backgroundObjects: ['obj_0'],
+    rules: [],
+    winConditions: [
+        { quantifier: 0, a: ['obj_2'], b: ['obj_1', 'obj_2'] },
+    ],
+    levels: [
+        {
+            type: 'map',
+            rows: [
+                [['obj_0', 'obj_1']],
+            ],
+        },
+    ],
+};
+const plainWinMinusBackgroundRehydrated = decanonicalizeSemantic(plainWinMinusBackgroundCanonical);
+const plainWinSection = plainWinMinusBackgroundRehydrated.split('WINCONDITIONS')[1].split('LEVELS')[0];
+assert.ok(
+    !/\bon\b/i.test(plainWinSection),
+    'plain win targets that omit only background should not use explicit "on" form',
+);
+assert.ok(
+    /some obj_2/.test(plainWinSection),
+    'plain win targets that omit only background should emit subject-only win text',
 );
 
 const unlayeredWinObjectCanonical = {

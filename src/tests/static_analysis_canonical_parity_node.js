@@ -3,8 +3,8 @@
 
 // Original-vs-canonical static analysis tag parity audit (#9).
 //
-// For each game: canonicalize → decanonicalize → analyzeSource on both forms,
-// then compare projected object tag multisets and global counts.
+// Uses the canonicalizer object map to compare static tags on each original object
+// against the mapped object in the round-trip decanonicalized source.
 
 const fs = require('fs');
 const path = require('path');
@@ -30,6 +30,26 @@ function parseArgs(argv) {
         else throw new Error(`Unsupported argument: ${arg}`);
     }
     return options;
+}
+
+function emptyStats() {
+    return {
+        gamesCompared: 0,
+        skipped: 0,
+        compileErrors: 0,
+        mappedCompared: 0,
+        droppedCosmetic: 0,
+        droppedUnexpected: 0,
+        tagMismatches: 0,
+        missingCanonicalTarget: 0,
+    };
+}
+
+function mergeStats(target, source) {
+    if (!source) return;
+    for (const key of Object.keys(target)) {
+        target[key] += source[key] || 0;
+    }
 }
 
 function runFixtureSmokeTest() {
@@ -60,31 +80,28 @@ function main() {
     const corpusDir = path.resolve(options.corpusPath);
     const games = fs.readdirSync(corpusDir).filter(name => name.endsWith('.txt')).sort();
     const violations = [];
-    const stats = {
-        analyzed: 0,
-        skipped: 0,
-        objectCountMismatch: 0,
-        compileErrors: 0,
-    };
+    const stats = emptyStats();
 
     for (const game of games) {
         const source = fs.readFileSync(path.join(corpusDir, game), 'utf8');
         const result = auditCanonicalParity(source, game, analyzeSource);
         if (result.skipped === 'compile_error') {
             stats.compileErrors++;
-        } else if (result.skipped === 'object_count_mismatch') {
-            stats.objectCountMismatch++;
         } else if (result.skipped) {
             stats.skipped++;
         } else {
-            stats.analyzed++;
+            stats.gamesCompared++;
+            mergeStats(stats, result.stats);
         }
         violations.push(...result.violations);
     }
 
     process.stderr.write(
-        `static_analysis_canonical_parity_node: analyzed=${stats.analyzed} skipped=${stats.skipped}`
-        + ` object_count_mismatch=${stats.objectCountMismatch} compile_errors=${stats.compileErrors}`
+        `static_analysis_canonical_parity_node: games=${stats.gamesCompared} skipped=${stats.skipped}`
+        + ` compile_errors=${stats.compileErrors}`
+        + ` mapped=${stats.mappedCompared} dropped_cosmetic=${stats.droppedCosmetic}`
+        + ` dropped_unexpected=${stats.droppedUnexpected}`
+        + ` tag_mismatches=${stats.tagMismatches}`
         + ` violations=${violations.length}\n`
     );
 

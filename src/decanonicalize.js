@@ -171,18 +171,32 @@ function normalizeSet(names) {
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
+function isPlainWinTargetB(normalizedB, objectNames, backgroundObjects) {
+    if (!normalizedB || normalizedB.length === 0) {
+        return false;
+    }
+    const bKey = JSON.stringify(normalizedB);
+    const all = normalizeSet(objectNames);
+    const background = new Set(normalizeSet(backgroundObjects || []));
+    const nonBackground = normalizeSet(all.filter(name => !background.has(name)));
+    return bKey === JSON.stringify(all) || bKey === JSON.stringify(nonBackground);
+}
+
 function collectAliasNeeds(canonical, objectNames) {
-    const allObjectsKey = JSON.stringify(objectNames);
+    const allObjectsKey = JSON.stringify(normalizeSet(objectNames));
     const roleAliases = [];
     const propertySets = [];
     const cellSets = [];
 
-    function addPropertySet(names) {
+    function addPropertySet(names, options = {}) {
         const normalized = normalizeSet(names);
         if (normalized.length <= 1) {
             return;
         }
         if (JSON.stringify(normalized) === allObjectsKey) {
+            return;
+        }
+        if (options.allowPlainWin && isPlainWinTargetB(normalized, objectNames, canonical.backgroundObjects)) {
             return;
         }
         propertySets.push(normalized);
@@ -218,7 +232,7 @@ function collectAliasNeeds(canonical, objectNames) {
 
     for (const condition of canonical.winConditions || []) {
         addPropertySet(condition.a || []);
-        addPropertySet(condition.b || []);
+        addPropertySet(condition.b || [], { allowPlainWin: true });
     }
 
     for (const level of canonical.levels || []) {
@@ -236,7 +250,7 @@ function collectAliasNeeds(canonical, objectNames) {
 }
 
 function buildAliasDefinitions(canonical, objectNames) {
-    const allObjectsKey = JSON.stringify(objectNames);
+    const allObjectsKey = JSON.stringify(normalizeSet(objectNames));
     const lines = [];
     const propertyAliasBySet = new Map();
     const cellAliasBySet = new Map();
@@ -248,7 +262,7 @@ function buildAliasDefinitions(canonical, objectNames) {
         if (normalized.length === 0) {
             return null;
         }
-        if (normalized.length === objectNames.length && JSON.stringify(normalized) === allObjectsKey) {
+        if (isPlainWinTargetB(normalized, objectNames, canonical.backgroundObjects)) {
             return null;
         }
         if (normalized.length === 1) {
@@ -521,12 +535,11 @@ function emitRulesSection(canonical, ruleAliasForSet) {
 
 function emitWinConditionsSection(canonical, objectNames, winAliasForSet) {
     const lines = ['==============', 'WINCONDITIONS', '==============', ''];
-    const allObjectsKey = JSON.stringify(objectNames);
     for (const condition of canonical.winConditions || []) {
         const quantifier = QUANTIFIER_TEXT[String(condition.quantifier)];
         const left = winAliasForSet(condition.a) || condition.a[0];
-        const normalizedB = Array.from(new Set(condition.b || [])).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        if (JSON.stringify(normalizedB) === allObjectsKey) {
+        const normalizedB = normalizeSet(condition.b || []);
+        if (isPlainWinTargetB(normalizedB, objectNames, canonical.backgroundObjects)) {
             lines.push(`${quantifier} ${left}`);
         } else {
             const right = winAliasForSet(normalizedB) || normalizedB[0];

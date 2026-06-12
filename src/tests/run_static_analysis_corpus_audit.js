@@ -90,10 +90,13 @@ function freshStats() {
             ...emptyInfoStats(),
         },
         parity: {
-            analyzed: 0,
+            gamesCompared: 0,
             skipped: 0,
-            objectCountMismatch: 0,
             compileErrors: 0,
+            mappedCompared: 0,
+            droppedCosmetic: 0,
+            droppedUnexpected: 0,
+            tagMismatches: 0,
             violations: 0,
         },
     };
@@ -122,9 +125,16 @@ function updateStats(stats, checkResults) {
     if (checkResults.parity) {
         const check = checkResults.parity;
         if (check.skipped === 'compile_error') stats.parity.compileErrors++;
-        else if (check.skipped === 'object_count_mismatch') stats.parity.objectCountMismatch++;
         else if (check.skipped) stats.parity.skipped++;
-        else stats.parity.analyzed++;
+        else {
+            stats.parity.gamesCompared++;
+            if (check.stats) {
+                stats.parity.mappedCompared += check.stats.mappedCompared || 0;
+                stats.parity.droppedCosmetic += check.stats.droppedCosmetic || 0;
+                stats.parity.droppedUnexpected += check.stats.droppedUnexpected || 0;
+                stats.parity.tagMismatches += check.stats.tagMismatches || 0;
+            }
+        }
         stats.parity.violations += check.violations.length;
     }
 }
