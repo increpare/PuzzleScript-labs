@@ -344,6 +344,167 @@ assert.ok(
     'plain win targets that omit only background should emit subject-only win text',
 );
 
+const singletonPlayerPlainWinCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [],
+    collisionLayers: [
+        ['obj_0'],
+    ],
+    playerObjects: ['obj_0'],
+    backgroundObjects: [],
+    rules: [],
+    winConditions: [
+        { quantifier: -1, a: ['obj_0'], b: ['obj_0'] },
+    ],
+    levels: [
+        {
+            type: 'map',
+            rows: [
+                [['obj_0'], []],
+            ],
+        },
+    ],
+};
+const singletonPlayerPlainWinRehydrated = decanonicalizeSemantic(singletonPlayerPlainWinCanonical);
+assert.ok(
+    /\bplayer\s*=\s*obj_0\b/i.test(singletonPlayerPlainWinRehydrated),
+    'singleton player aliases should be emitted even when the player is also a plain win target'
+);
+assert.strictEqual(
+    compileSemanticSource(singletonPlayerPlainWinRehydrated).errorCount,
+    0,
+    'decanonicalized singleton player plain-win source should compile'
+);
+
+const redundantNoCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [],
+    collisionLayers: [
+        ['obj_3'],
+        ['obj_0'],
+        ['obj_1', 'obj_2'],
+    ],
+    playerObjects: ['obj_0'],
+    backgroundObjects: ['obj_3'],
+    rules: Array.from({ length: 110 }, (_, index) => ({
+        direction: 'down',
+        late: false,
+        rigid: false,
+        randomRule: false,
+        groupNumber: index,
+        lhs: [[[
+            { dir: '', obj: 'obj_1' },
+            { dir: 'no', obj: 'obj_2' },
+        ]]],
+        rhs: [[[
+            { dir: '', obj: 'obj_1' },
+        ]]],
+        commands: [],
+    })),
+    winConditions: [],
+    levels: [
+        {
+            type: 'map',
+            rows: [
+                [['obj_3', 'obj_0']],
+            ],
+        },
+    ],
+};
+const redundantNoRehydrated = decanonicalizeSemantic(redundantNoCanonical);
+assert.ok(
+    !/\bno obj_2\b/i.test(redundantNoRehydrated),
+    'decanonicalization should omit negated objects made redundant by positive same-layer objects'
+);
+assert.strictEqual(
+    compileSemanticSource(redundantNoRehydrated).errorCount,
+    0,
+    'decanonicalized redundant negation source should compile without warning overflow'
+);
+
+const impossibleRuleCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [],
+    collisionLayers: [
+        ['obj_3'],
+        ['obj_2'],
+        ['obj_0', 'obj_1'],
+        ['obj_4'],
+    ],
+    playerObjects: ['obj_2'],
+    backgroundObjects: ['obj_3'],
+    rules: [
+        {
+            direction: 'down',
+            late: true,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 0,
+            lhs: [[[
+                { dir: '', obj: 'obj_0' },
+                { dir: '', obj: 'obj_1' },
+            ]]],
+            rhs: [[[
+                { dir: '', obj: 'obj_4' },
+            ]]],
+            commands: [],
+        },
+        {
+            direction: 'down',
+            late: true,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 1,
+            lhs: [[[
+                { dir: '', obj: 'obj_0' },
+                { dir: '', obj: 'obj_2' },
+            ]]],
+            rhs: [[[
+                { dir: '', obj: 'obj_4' },
+            ]]],
+            commands: [],
+        },
+        {
+            direction: 'down',
+            late: true,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 2,
+            lhs: [[[
+                { dir: '', obj: 'obj_0' },
+                { dir: '', objs: ['obj_0', 'obj_1'] },
+            ]]],
+            rhs: [[[
+                { dir: '', obj: 'obj_4' },
+            ]]],
+            commands: [],
+        },
+    ],
+    winConditions: [],
+    levels: [
+        {
+            type: 'map',
+            rows: [
+                [['obj_3', 'obj_2']],
+            ],
+        },
+    ],
+};
+const impossibleRuleRehydrated = decanonicalizeSemantic(impossibleRuleCanonical);
+const impossibleRuleRules = impossibleRuleRehydrated.split('RULES')[1].split('WINCONDITIONS')[0];
+assert.ok(
+    !/\bobj_0 obj_1\b/.test(impossibleRuleRules),
+    'decanonicalization should omit rules with impossible same-layer positive requirements'
+);
+assert.ok(
+    /\bobj_0 obj_2\b/.test(impossibleRuleRules),
+    'decanonicalization should keep possible rules while omitting impossible neighbors'
+);
+assert.ok(
+    !/\b(?:obj_0 set_\d+|set_\d+ obj_0)\b/.test(impossibleRuleRules),
+    'decanonicalization should omit positive same-layer set aliases made redundant by concrete objects'
+);
+
 const unlayeredWinObjectCanonical = {
     format: 'puzzlescript-semantic-canonical-v1',
     metadata: [
