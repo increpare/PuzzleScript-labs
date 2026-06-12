@@ -759,12 +759,19 @@ function processRuleString(rule, state, curRules) {
                             logWarning("Invalid token " + token.toUpperCase() + ". Object names should only be used within cells (square brackets).", lineNumber);
                         } else {
                             //check that the object is not already present in the cell
+                            const incomingModifier = curcell.length % 2 === 1 ? curcell[curcell.length - 1] : '';
                             for (let j = 0; j < curcell.length; j += 2) {
                                 if (curcell[j + 1] === token) {
-                                    logError(`You cannot specify the same object more than once in a single cell (in this case ${token} occurs multiple times).`, lineNumber);
-                                    if (token in state.propertiesDict){
-                                        logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
-                                    } 
+                                    if (curcell[j] === 'no' && incomingModifier === 'no') {
+                                        //"no X ... no X" is redundant but not contradictory - the cell
+                                        //means the same thing with the duplicate removed
+                                        logWarning(`You're specifying "no ${token}" more than once in a single cell. That's redundant (but harmless) - you can remove one.`, lineNumber);
+                                    } else {
+                                        logError(`You cannot specify the same object more than once in a single cell (in this case ${token} occurs multiple times).`, lineNumber);
+                                        if (token in state.propertiesDict){
+                                            logWarningNoLine(`( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )`);
+                                        }
+                                    }
                                 }
                             }
                             if (curcell.length % 2 === 0) {
