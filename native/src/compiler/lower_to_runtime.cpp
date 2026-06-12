@@ -2118,6 +2118,26 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         }
                     }
 
+                    // Phase 7D: RHS-only tail terms that are concrete-object writes or
+                    // `no` destroys are handled at rulesToMask time. Layer-coupled
+                    // properties on an RHS-only tail invalidate movement/preserved modes.
+                    if (cellRPtr != nullptr && cellRPtr->items.size() > cellL.items.size()) {
+                        for (size_t tail = cellL.items.size(); tail < cellRPtr->items.size(); ++tail) {
+                            const std::string& tailDir = cellRPtr->items[tail].dir;
+                            const std::string& tailName = cellRPtr->items[tail].name;
+                            const bool handleable =
+                                (tailDir == "no"
+                                    && objectIdByName.find(tailName) != objectIdByName.end())
+                                || (isLayerCoupledMovementDir(tailDir)
+                                    && objectIdByName.find(tailName) != objectIdByName.end());
+                            if (!handleable) {
+                                movementValid = false;
+                                preservedValid = false;
+                                break;
+                            }
+                        }
+                    }
+
                     // JS getCoalescingPlan resets these per cell, not per row.
                     std::set<std::string> preservedSeenInCell;
                     std::map<int32_t, bool> movFixedLayers;
