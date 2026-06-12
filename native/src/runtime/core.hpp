@@ -197,6 +197,36 @@ struct LayerCoupledMovementReplacement {
 
 struct InferredAggregateBinding {
     std::string aggregateName;
+    std::optional<int32_t> layerIndex;
+    std::optional<std::string> propertyName;
+};
+
+struct InferredPropertyBinding {
+    std::string propertyName;
+    int32_t dirMode = 0;
+    int32_t dirMask = 0;
+};
+
+struct InferredPropertySource {
+    std::string propertyName;
+};
+
+struct PropertyAlias {
+    int32_t objectId = 0;
+    int32_t layerIndex = 0;
+};
+
+struct PropertyBinding {
+    std::string propertyName;
+    int32_t sourceRow = 0;
+    int32_t sourceCell = 0;
+    int32_t sourceMovementMode = 0;
+    int32_t sourceMovementMask = 0;
+    std::vector<PropertyAlias> aliases;
+};
+
+struct PropertyCapture {
+    int32_t objectId = 0;
     int32_t layerIndex = 0;
 };
 
@@ -206,6 +236,7 @@ struct AggregateBinding {
     int32_t sourceCell = 0;
     int32_t sourceLayer = 0;
     int32_t aggregateMask = 0x1F;
+    std::optional<std::string> sourcePropertyName;
 };
 
 struct Replacement {
@@ -230,6 +261,8 @@ struct Replacement {
     std::vector<int32_t> randomDirLayers;
     std::vector<LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
     std::vector<InferredAggregateBinding> inferredAggregateBindings;
+    std::vector<InferredPropertyBinding> inferredPropertyBindings;
+    std::vector<InferredPropertySource> inferredPropertySources;
 };
 
 struct Pattern {
@@ -298,9 +331,19 @@ struct Rule {
     MaskOffset ruleMask = kNullMaskOffset;
     MaskOffset ruleMovementMask = kNullMaskOffset;
     bool hasRuleMovementMask = false;
+    MaskOffset readMovements = kNullMaskOffset;
+    MaskOffset readObjects = kNullMaskOffset;
+    MaskOffset writeObjects = kNullMaskOffset;
+    MaskOffset writeMovements = kNullMaskOffset;
+    bool hasReadMovements = false;
+    bool hasReadObjects = false;
+    bool hasWriteObjects = false;
+    bool hasWriteMovements = false;
+    bool forceAlwaysRun = false;
 
     std::vector<std::vector<Pattern>> patterns;
     std::vector<AggregateBinding> aggregateBindings;
+    std::vector<PropertyBinding> propertyBindings;
 };
 
 struct WinCondition {
@@ -485,6 +528,12 @@ struct Scratch {
     MaskVector replacementRigidMaskScratch;
     std::vector<int32_t> singleRowMatchScratch;
     std::map<std::string, int32_t> aggregateCaptures;
+    std::map<std::string, std::optional<PropertyCapture>> propertyCaptures;
+    MaskVector incrementalPriorObjects;
+    MaskVector incrementalPriorMovements;
+    MaskVector incrementalNextObjects;
+    MaskVector incrementalNextMovements;
+    bool incrementalPriorAllOnes = true;
     std::vector<uint8_t> ellipsisLinePossibleScratch;
     std::vector<int32_t> ellipsisMinConcreteSuffixScratch;
     std::vector<int32_t> ellipsisPositionsScratch;

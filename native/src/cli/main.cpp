@@ -1865,7 +1865,7 @@ int traceStepAtCommand(const std::string& irPath, const std::string& tracePath, 
             "PS_DEBUG_RANDOM_SESSION_HASH",
             "PS_DEBUG_RANDOM_SUBSTRING",
             "PS_DEBUG_MOVES",
-            "PS_DEBUG_RULES",
+            "PS_DEBUG_RULES_UNUSED",
             "PS_DEBUG_RIGID",
             "PS_DEBUG_AGAIN"
         });

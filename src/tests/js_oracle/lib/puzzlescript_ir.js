@@ -221,9 +221,22 @@ function serializeReplacement(replacement) {
         // at this layer's 5-bit slice." Consumers analysing replacement
         // effects must treat these as conservative movement-bit writes on
         // the named layer.
-        inferred_aggregate_bindings: (replacement.inferredAggregateBindings || []).map(b => ({
-            aggregate_name: b.aggregateName,
-            layer_index: b.layerIndex,
+        inferred_aggregate_bindings: (replacement.inferredAggregateBindings || []).map(b => {
+            const out = { aggregate_name: b.aggregateName };
+            if (b.propertyName) {
+                out.property_name = b.propertyName;
+            } else if (b.layerIndex !== undefined && b.layerIndex !== null) {
+                out.layer_index = b.layerIndex;
+            }
+            return out;
+        }),
+        inferred_property_bindings: (replacement.inferredPropertyBindings || []).map(b => ({
+            property_name: b.propertyName,
+            dir_mode: b.dirMode,
+            dir_mask: b.dirMask,
+        })),
+        inferred_property_sources: (replacement.inferredPropertySources || []).map(s => ({
+            property_name: s.propertyName,
         })),
         // Phase 5c-3: layer-coupled movement copies matched movement from
         // property alias layers onto replacement sinks at apply time.
@@ -411,6 +424,36 @@ function serializeRule(rule) {
         cell_row_masks_movements: rule.cellRowMasks_Movements.map(bitVecToArray),
         rule_mask: bitVecToArray(rule.ruleMask),
         patterns: rule.patterns.map(cellRow => cellRow.map(serializePattern)),
+        property_bindings: (rule.propertyBindingsArr || []).map(b => ({
+            property_name: b.propertyName,
+            source_row: b.sourceRow,
+            source_cell: b.sourceCell,
+            source_movement_mode: b.sourceMovementMode || 0,
+            source_movement_mask: b.sourceMovementMask || 0,
+            aliases: (b.aliases || []).map(alias => ({
+                object_id: alias.objectId,
+                layer_index: alias.layerIndex,
+            })),
+        })),
+        aggregate_bindings: (rule.aggregateBindingsArr || []).map(b => {
+            const out = {
+                aggregate_name: b.aggregateName,
+                source_row: b.sourceRow,
+                source_cell: b.sourceCell,
+                aggregate_mask: b.aggregateMask,
+            };
+            if (b.sourcePropertyName) {
+                out.source_property_name = b.sourcePropertyName;
+            } else if (b.sourceLayer !== undefined && b.sourceLayer !== null) {
+                out.source_layer = b.sourceLayer;
+            }
+            return out;
+        }),
+        read_movements: bitVecToArray(rule.readMovements),
+        read_objects: bitVecToArray(rule.readObjects),
+        write_objects: bitVecToArray(rule.writeObjects),
+        write_movements: bitVecToArray(rule.writeMovements),
+        force_always_run: Boolean(rule.forceAlwaysRun),
     };
 }
 
