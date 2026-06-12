@@ -2767,6 +2767,49 @@ function settleAgain() {
     }
 }
 
+//PUZZLESCRIPT_SOLVER_NOOP_PROBE=1: measure (without acting on it) how a
+//candidate E1 no-op predicate would perform. For each direction step, check
+//whether every player's move-target cell is occupied by a non-background
+//object; tally against the actual step outcome. probe_blocked_changed counts
+//would-be false positives - the number that must reach zero (via static-only
+//blocker refinement) before any skip predicate is sound for a game.
+const SOLVER_NOOP_PROBE = process.env.PUZZLESCRIPT_SOLVER_NOOP_PROBE === '1';
+const PROBE_DELTAS = { 0: [0, -1], 1: [-1, 0], 2: [0, 1], 3: [1, 0] }; //input code -> [dx,dy]
+function probeAllMoveTargetsBlocked(inputCode) {
+    const delta = PROBE_DELTAS[inputCode];
+    if (!delta || !level || !level.objects || !state.layerMasks || !Number.isInteger(state.backgroundlayer)) {
+        return null;
+    }
+    const backgroundMask = state.layerMasks[state.backgroundlayer];
+    const positions = getPlayerPositions();
+    if (positions.length === 0) {
+        return null;
+    }
+    const strideObj = STRIDE_OBJ;
+    for (let i = 0; i < positions.length; i++) {
+        const pos = positions[i];
+        const x = (pos / level.height) | 0;
+        const y = pos % level.height;
+        const tx = x + delta[0];
+        const ty = y + delta[1];
+        if (tx < 0 || ty < 0 || tx >= level.width || ty >= level.height) {
+            continue; //off-board counts as blocked
+        }
+        const offset = (tx * level.height + ty) * strideObj;
+        let occupied = false;
+        for (let word = 0; word < strideObj; word++) {
+            if ((level.objects[offset + word] & ~(backgroundMask.data[word] | 0)) !== 0) {
+                occupied = true;
+                break;
+            }
+        }
+        if (!occupied) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function stepSolverAction(action, stepProfile = null) {
     const previousStepProfile = currentSolverStepProfile;
     currentSolverStepProfile = stepProfile;
@@ -2774,6 +2817,10 @@ function stepSolverAction(action, stepProfile = null) {
         const beforeLevel = curlevel;
         const beforeTitle = titleScreen;
         let changed = false;
+        let probeBlocked = null;
+        if (SOLVER_NOOP_PROBE && stepProfile && !textMode && !titleScreen) {
+            probeBlocked = probeAllMoveTargetsBlocked(action.input);
+        }
         if (action.input === 4 && textMode && !titleScreen) {
             if (state.levels[curlevel] && state.levels[curlevel].message !== undefined) {
                 nextLevel();
@@ -2785,6 +2832,20 @@ function stepSolverAction(action, stepProfile = null) {
             changed = true;
         } else {
             changed = Boolean(processInput(action.input, undefined, undefined, true));
+        }
+        if (probeBlocked !== null) {
+            stepProfile.probe_dir_steps = (stepProfile.probe_dir_steps || 0) + 1;
+            if (!changed) {
+                stepProfile.probe_noops = (stepProfile.probe_noops || 0) + 1;
+            }
+            if (probeBlocked) {
+                stepProfile.probe_blocked = (stepProfile.probe_blocked || 0) + 1;
+                if (changed) {
+                    stepProfile.probe_blocked_changed = (stepProfile.probe_blocked_changed || 0) + 1;
+                } else {
+                    stepProfile.probe_blocked_noop = (stepProfile.probe_blocked_noop || 0) + 1;
+                }
+            }
         }
         settleAgain();
         const solved = changed && (curlevel !== beforeLevel || (!beforeTitle && titleScreen));

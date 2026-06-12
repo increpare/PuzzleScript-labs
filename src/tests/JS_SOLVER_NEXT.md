@@ -40,6 +40,56 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **Round-3 perf stack (JS_SOLVER_PERF_REPORT round-2 items R1-R4, R6, R7) —
+  landed.** All changes are exactness-preserving: per-level `expanded` counts
+  on commonly-solved levels are byte-identical to baseline across every paired
+  corpus run (0 divergent levels), so solve-count movement is purely speed.
+  Bench machine had high variance (solves at 250ms swing +-20 between
+  identical-code runs); samples: baseline 555/579, stack 573/590/591/594.
+
+  - **R7 (error-handling solve loss) — fixed.** `logErrorCacheable` deduped
+    only for non-urgent messages, so per-turn loop-guard diagnostics grew
+    `errorStrings` by one copy per turn until `TooManyErrors()` aborted the
+    search (order-dependent across attempts). Now dedups unconditionally,
+    plus per-attempt `resetParserErrorState()` in `solveLevel`, plus a null
+    guard in `restoreSnapshot` for non-random games (`reading 'seed'`).
+    Recovers all 13 `level_error` levels per run.
+  - **R1 (exact version-keyed distance-field cache).** The write hook
+    (`updateZobristCell`) bumps per-filter-group target versions when a write
+    flips a cell's filter match; snapshots capture/restore versions like the
+    Zobrist hash; `recomputeZobrist` bumps conservatively. Cached chamfer
+    fields are reused iff versions match - byte-identical to recompute, unlike
+    the discarded stale-cache A2 (-22 solves). `heuristic_ms` -20-30%.
+    Versions are module-scoped (portfolio shares one installed hook across
+    specs). `PUZZLESCRIPT_VERIFY_DISTANCE_FIELDS=1` asserts cache==recompute.
+  - **R2 (fused restore + row/col mask rebuild).** `restore()` rebuilds the
+    occupancy masks in the same stride-specialized generated pass that copies
+    snapshot objects (movement masks just zero), and sets a one-shot
+    `level.rowColMasksValid` consumed by `processInput`. NOTE: a first
+    attempt with a generic (non-generated) fused loop was a net regression -
+    clone_ms grew more than step_ms shrank; the generated version is required.
+  - **R3 (player-position cache).** `getPlayerPositions` cached under a
+    player-target version maintained by the same machinery; >=4/5 hit rate
+    (five sibling actions restore the same parent). Deactivated across level
+    loads where the write hook is dead.
+  - **R4** - checkWin per-tile closures removed.
+  - **R6** - `--jobs N` shards games across child processes; corpus drops
+    ~4min -> ~66s at --jobs 4. Wall-clock-budget solve counts are NOT
+    comparable with serial runs (CPU contention); bench serially.
+
+- **E1 probe (PUZZLESCRIPT_SOLVER_NOOP_PROBE=1) — predicate space measured;
+  naive predicates are dead.** Full-corpus instrumentation of the candidate
+  "skip direction press when every player move-target cell is occupied":
+  coverage would be 94.5% of direction no-ops, but **38.4% of its fires are
+  false positives** (board changed anyway) and only 5/175 games are clean.
+  Cause: an occupied target is exactly what a *push* looks like, and
+  `[> Player]`-shaped rules fire and mutate the board even when the movement
+  itself is blocked. A sound predicate therefore needs per-game static
+  analysis of "no rule LHS can match a board whose only delta is a player
+  movement bit" - i.e. real rule-dependency reasoning, not cell-occupancy
+  checks. The probe plumbing stays (opt-in, zero cost when off) so future
+  candidates can be evaluated against ground truth in one corpus run.
+
 - **Perf stack (JS_SOLVER_PERF_REPORT items 1a/1b/1c + 4) — landed; 2 and 3
   discarded.** Engine + solver harness pass on full `solver_tests` corpus
   (250ms, weighted-astar/auto): **645 → 651 solved (+6), step_ms −1.9%,
