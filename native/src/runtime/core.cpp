@@ -1309,7 +1309,16 @@ void applyLayerCoupledMovementReplacements(
             if (!layerCoupledMovementLayerMatches(oldMovements, movementWordCount, game, layerTerm)) {
                 continue;
             }
-            clearShiftedMask5(movementsClear, 5 * layerTerm.layerIndex);
+            // Mark this layer's movement bits for clearing in the replacement
+            // clear-mask (JS: movementsClear.ishiftor(0x1f, 5 * layerIndex)).
+            // clearShiftedMask5 clears live movement bits, not clear-mask bits.
+            {
+                const uint32_t moveWord = movementWordIndexForLayer(static_cast<uint32_t>(layerTerm.layerIndex));
+                const uint32_t moveBit = movementBitShiftForLayer(static_cast<uint32_t>(layerTerm.layerIndex));
+                if (moveWord < movementsClear.size()) {
+                    movementsClear[moveWord] |= static_cast<MaskWord>(MaskWordUnsigned{0x1F} << moveBit);
+                }
+            }
             if (coupled.replacementAggregateName.has_value()) {
                 // Phase 7B aggregate capture path deferred; sokobond uses
                 // replacement_movement_mask for this milestone.
