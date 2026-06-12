@@ -2058,12 +2058,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     break;
                 }
 
-                std::set<std::string> preservedSeenInCell;
-                std::map<int32_t, bool> movFixedLayers;
-                std::vector<std::string> movCoupledTerms;
-                std::map<int32_t, bool> cmdFixedLayers;
-                std::vector<std::string> cmdCoupledTerms;
-
                 for (size_t k = 0; k < rowL.size(); ++k) {
                     const ParsedCell& cellL = rowL[k];
                     const ParsedCell* cellRPtr =
@@ -2071,6 +2065,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     if (cellL.isEllipsis) {
                         continue;
                     }
+
+                    // JS getCoalescingPlan resets these per cell, not per row.
+                    std::set<std::string> preservedSeenInCell;
+                    std::map<int32_t, bool> movFixedLayers;
+                    std::vector<std::string> movCoupledTerms;
+                    std::map<int32_t, bool> cmdFixedLayers;
+                    std::vector<std::string> cmdCoupledTerms;
 
                     for (size_t itemIndex = 0; itemIndex < cellL.items.size(); ++itemIndex) {
                         const auto& itemL = cellL.items[itemIndex];
@@ -2722,14 +2723,14 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                     rhsWritesObjects = true;
                                     break;
                                 }
-                                if (rhsItem.dir == "random") {
-                                    continue;
-                                }
                                 if (rhsItem.dir == "no") {
                                     rhsWritesObjects = true;
                                     break;
                                 }
-                                if (propertyOf.find(rhsItem.name) == propertyOf.end()) {
+                                // JS rulesToMask only calls objectsSet.ibitset when
+                                // state.objects[name] exists — legend aggregates like
+                                // Crates must not count as object writes.
+                                if (objectIdByName.find(rhsItem.name) != objectIdByName.end()) {
                                     rhsWritesObjects = true;
                                     break;
                                 }
@@ -2755,7 +2756,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                 if (singleLayer.has_value()) {
                                     layersUsedR[static_cast<size_t>(*singleLayer)] = 1;
                                 }
-                                if (!isProperty) {
+                                if (!isProperty
+                                    && objectIdByName.find(item.name) != objectIdByName.end()) {
                                     auto oneMask = makeEmptyMask(game->wordCount);
                                     std::set<std::string> rhsVisiting;
                                     const auto resolved = resolveMask(resolveMask, item.name, rhsVisiting);
@@ -2827,7 +2829,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                 layersUsedR[static_cast<size_t>(*singleLayer)] = 1;
                             }
 
-                            if (!isProperty) {
+                            if (!isProperty
+                                && objectIdByName.find(item.name) != objectIdByName.end()) {
                                 // Concrete objects: set only the first id represented
                                 // by this token (handles legend aliases like 1/2/3/4).
                                 auto oneMask = makeEmptyMask(game->wordCount);
