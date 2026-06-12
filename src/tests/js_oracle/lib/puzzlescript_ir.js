@@ -181,6 +181,29 @@ function directionDeltaHint(direction) {
     }
 }
 
+function serializeLayerCoupledMovementLayer(layer) {
+    return {
+        layer_index: layer.layerIndex,
+        object_mask: bitVecToArray(layer.objectMask),
+        movements_any: bitVecToArray(layer.movementsAny),
+        movements_present: bitVecToArray(layer.movementsPresent),
+        movements_missing: bitVecToArray(layer.movementsMissing),
+    };
+}
+
+function serializeLayerCoupledMovementReplacement(term) {
+    const out = {
+        layers: term.layers.map(serializeLayerCoupledMovementLayer),
+    };
+    if (term.replacementAggregateName) {
+        out.replacement_aggregate_name = term.replacementAggregateName;
+    }
+    if (term.replacementMovementMask) {
+        out.replacement_movement_mask = term.replacementMovementMask;
+    }
+    return out;
+}
+
 function serializeReplacement(replacement) {
     if (!replacement) {
         return null;
@@ -202,6 +225,10 @@ function serializeReplacement(replacement) {
             aggregate_name: b.aggregateName,
             layer_index: b.layerIndex,
         })),
+        // Phase 5c-3: layer-coupled movement copies matched movement from
+        // property alias layers onto replacement sinks at apply time.
+        layer_coupled_movement_replacements: (replacement.layerCoupledMovementReplacements || [])
+            .map(serializeLayerCoupledMovementReplacement),
     };
 }
 
@@ -362,6 +389,10 @@ function serializePattern(pattern) {
         // movementsPresent uses. Each entry is an independent
         // "any-of-these-bits-required" mask for one aggregate term.
         any_movements_present: (pattern.anyMovementsPresent || []).map(bitVecToArray),
+        layer_coupled_movement_masks: (pattern.layerCoupledMovementMasks || []).map(term => ({
+            layers: term.layers.map(serializeLayerCoupledMovementLayer),
+            object_mask: bitVecToArray(term.objectMask),
+        })),
         replacement: serializeReplacement(pattern.replacement),
     };
 }

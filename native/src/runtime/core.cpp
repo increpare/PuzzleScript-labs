@@ -43,6 +43,8 @@ MaskVector getCellObjects(const FullState& session, int32_t tileIndex);
 const MaskWord* getCellObjectsPtr(const FullState& session, int32_t tileIndex);
 MaskVector getCellMovements(const FullState& session, int32_t tileIndex);
 int32_t getShiftedMask5(const MaskVector& value, int32_t shift);
+void clearShiftedMask5(MaskVector& value, int32_t shift);
+void setShiftedMask5(MaskVector& value, int32_t shift, int32_t bits);
 size_t objectCellWordCount(const FullState& session);
 
 inline const MaskWord* maskPtr(const Game& game, MaskOffset offset);
@@ -463,7 +465,8 @@ void tryPlayCommandSound(FullState& session, TurnResult& out, std::string_view s
     if (it == session.game->sfxEvents.end()) {
         return;
     }
-    appendAudioEvent(out, it->second, "sfx");
+    // Rule-command sfx uses playSound(seed, true) in JS — not recorded in soundHistory.
+    appendUiAudioEvent(out, it->second, "sfx");
 }
 
 void processOutputCommands(FullState& session, TurnResult& out, const CommandState& commands, bool suppressMessages = false, bool emitAudio = true) {
@@ -1190,6 +1193,114 @@ std::vector<std::vector<int32_t>> parseSprite(const json::Value& value) {
     return sprite;
 }
 
+LayerCoupledMovementLayerTerm parseLayerCoupledMovementLayerTerm(Game& game, const json::Value& value) {
+    const auto& object = value.asObject();
+    LayerCoupledMovementLayerTerm term;
+    term.layerIndex = toInt(requireField(object, "layer_index"));
+    term.objectMask = storeMaskWords(game, parseMaskVector(requireField(object, "object_mask")));
+    term.movementsAny = storeMaskWords(game, parseMaskVector(requireField(object, "movements_any")));
+    term.movementsPresent = storeMaskWords(game, parseMaskVector(requireField(object, "movements_present")));
+    term.movementsMissing = storeMaskWords(game, parseMaskVector(requireField(object, "movements_missing")));
+    return term;
+}
+
+std::vector<LayerCoupledMovementReplacement> parseLayerCoupledMovementReplacements(
+    Game& game,
+    const json::Value& value) {
+    std::vector<LayerCoupledMovementReplacement> result;
+    if (!value.isArray()) {
+        return result;
+    }
+    result.reserve(value.asArray().size());
+    for (const auto& entry : value.asArray()) {
+        if (!entry.isObject()) {
+            continue;
+        }
+        const auto& object = entry.asObject();
+        LayerCoupledMovementReplacement coupled;
+        for (const auto& layer : requireField(object, "layers").asArray()) {
+            coupled.layers.push_back(parseLayerCoupledMovementLayerTerm(game, layer));
+        }
+        if (const auto aggregateName = object.find("replacement_aggregate_name");
+            aggregateName != object.end() && !aggregateName->second.isNull()) {
+            coupled.replacementAggregateName = toString(aggregateName->second);
+        }
+        if (const auto movementMask = object.find("replacement_movement_mask");
+            movementMask != object.end() && !movementMask->second.isNull()) {
+            coupled.replacementMovementMask = toInt(movementMask->second);
+            coupled.hasReplacementMovementMask = coupled.replacementMovementMask != 0;
+        }
+        result.push_back(std::move(coupled));
+    }
+    return result;
+}
+
+bool maskOverlaps(const MaskWord* left, const MaskWord* right, uint32_t wordCount) {
+    for (uint32_t word = 0; word < wordCount; ++word) {
+        if ((left[word] & right[word]) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool layerCoupledMovementLayerMatches(
+    const MaskWord* movements,
+    uint32_t movementWordCount,
+    const Game& game,
+    const LayerCoupledMovementLayerTerm& layerTerm) {
+    const MaskWord* movementsAny = maskPtr(game, layerTerm.movementsAny);
+    const MaskWord* movementsPresent = maskPtr(game, layerTerm.movementsPresent);
+    const MaskWord* movementsMissing = maskPtr(game, layerTerm.movementsMissing);
+    for (uint32_t word = 0; word < movementWordCount; ++word) {
+        const MaskWord anyMask = movementsAny != nullptr ? movementsAny[word] : 0;
+        if (anyMask != 0 && (movements[word] & anyMask) == 0) {
+            return false;
+        }
+        const MaskWord presentMask = movementsPresent != nullptr ? movementsPresent[word] : 0;
+        if (presentMask != 0 && (movements[word] & presentMask) != presentMask) {
+            return false;
+        }
+        const MaskWord missingMask = movementsMissing != nullptr ? movementsMissing[word] : 0;
+        if (missingMask != 0 && (movements[word] & missingMask) != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void applyLayerCoupledMovementReplacements(
+    const Game& game,
+    const MaskWord* oldObjects,
+    const MaskWord* oldMovements,
+    uint32_t objectWordCount,
+    uint32_t movementWordCount,
+    MaskVector& movementsClear,
+    MaskVector& movementsSet,
+    const std::vector<LayerCoupledMovementReplacement>& coupledReplacements) {
+    if (coupledReplacements.empty()) {
+        return;
+    }
+    for (const auto& coupled : coupledReplacements) {
+        for (const auto& layerTerm : coupled.layers) {
+            const MaskWord* objectMask = maskPtr(game, layerTerm.objectMask);
+            if (objectMask == nullptr || !maskOverlaps(oldObjects, objectMask, objectWordCount)) {
+                continue;
+            }
+            if (!layerCoupledMovementLayerMatches(oldMovements, movementWordCount, game, layerTerm)) {
+                continue;
+            }
+            clearShiftedMask5(movementsClear, 5 * layerTerm.layerIndex);
+            if (coupled.replacementAggregateName.has_value()) {
+                // Phase 7B aggregate capture path deferred; sokobond uses
+                // replacement_movement_mask for this milestone.
+            } else if (coupled.hasReplacementMovementMask) {
+                setShiftedMask5(movementsSet, 5 * layerTerm.layerIndex, coupled.replacementMovementMask);
+            }
+        }
+    }
+}
+
 Replacement parseReplacement(Game& game, const json::Value& value) {
     const auto& object = value.asObject();
     Replacement replacement;
@@ -1235,6 +1346,11 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
         }
         replacement.randomDirMask = storeMaskWords(game, words);
     }
+    if (const auto coupled = object.find("layer_coupled_movement_replacements");
+        coupled != object.end() && coupled->second.isArray()) {
+        replacement.layerCoupledMovementReplacements =
+            parseLayerCoupledMovementReplacements(game, coupled->second);
+    }
     return replacement;
 }
 
@@ -1269,6 +1385,12 @@ Pattern parsePattern(Game& game, const json::Value& value) {
         game.anyObjectOffsets.push_back(offset);
     }
     pattern.anyObjectsCount = static_cast<uint32_t>(game.anyObjectOffsets.size()) - pattern.anyObjectsFirst;
+
+    if (const auto coupledMasks = object.find("layer_coupled_movement_masks");
+        coupledMasks != object.end() && coupledMasks->second.isArray()) {
+        pattern.layerCoupledMovementMasks =
+            parseLayerCoupledMovementReplacements(game, coupledMasks->second);
+    }
 
     if (const auto* replacement = value.find("replacement"); replacement && !replacement->isNull()) {
         pattern.replacement = parseReplacement(game, *replacement);
@@ -2289,6 +2411,14 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         destroyed.resize(objectWordCount);
         newMovements.resize(movementWordCount);
 
+        const bool hasCoupledReplacements = !replacement.layerCoupledMovementReplacements.empty();
+        MaskVector& movementsClearScratch = session.scratch.replacementMovementsClearScratch;
+        MaskVector& movementsSetScratch = session.scratch.replacementMovementsSetScratch;
+        if (hasCoupledReplacements) {
+            movementsClearScratch.resize(movementWordCount);
+            movementsSetScratch.resize(movementWordCount);
+        }
+
         bool objectsChanged = false;
         bool movementsChanged = false;
         for (uint32_t word = 0; word < objectWordCount; ++word) {
@@ -2301,16 +2431,42 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
             destroyed[word] = before & ~after;
             objectsChanged = objectsChanged || after != before;
         }
-        for (uint32_t word = 0; word < movementWordCount; ++word) {
-            MaskWord clearWord = movementsClear != nullptr ? movementsClear[word] : 0;
-            if (movementsLayerMask != nullptr) {
-                clearWord |= movementsLayerMask[word];
+        if (hasCoupledReplacements) {
+            for (uint32_t word = 0; word < movementWordCount; ++word) {
+                MaskWord clearWord = movementsClear != nullptr ? movementsClear[word] : 0;
+                if (movementsLayerMask != nullptr) {
+                    clearWord |= movementsLayerMask[word];
+                }
+                movementsClearScratch[word] = clearWord;
+                movementsSetScratch[word] = movementsSet != nullptr ? movementsSet[word] : 0;
             }
-            const MaskWord setWord = movementsSet != nullptr ? movementsSet[word] : 0;
-            const MaskWord before = oldMovements[word];
-            const MaskWord after = (before & ~clearWord) | setWord;
-            newMovements[word] = after;
-            movementsChanged = movementsChanged || after != before;
+            applyLayerCoupledMovementReplacements(
+                game,
+                oldObjects,
+                oldMovements,
+                objectWordCount,
+                movementWordCount,
+                movementsClearScratch,
+                movementsSetScratch,
+                replacement.layerCoupledMovementReplacements);
+            for (uint32_t word = 0; word < movementWordCount; ++word) {
+                const MaskWord before = oldMovements[word];
+                const MaskWord after = (before & ~movementsClearScratch[word]) | movementsSetScratch[word];
+                newMovements[word] = after;
+                movementsChanged = movementsChanged || after != before;
+            }
+        } else {
+            for (uint32_t word = 0; word < movementWordCount; ++word) {
+                MaskWord clearWord = movementsClear != nullptr ? movementsClear[word] : 0;
+                if (movementsLayerMask != nullptr) {
+                    clearWord |= movementsLayerMask[word];
+                }
+                const MaskWord setWord = movementsSet != nullptr ? movementsSet[word] : 0;
+                const MaskWord before = oldMovements[word];
+                const MaskWord after = (before & ~clearWord) | setWord;
+                newMovements[word] = after;
+                movementsChanged = movementsChanged || after != before;
+            }
         }
 
         if (!objectsChanged && !movementsChanged) {
@@ -2474,6 +2630,16 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
             }
         }
     }
+
+    applyLayerCoupledMovementReplacements(
+        game,
+        oldObjects.data(),
+        oldMovements.data(),
+        objectWordCount,
+        movementWordCount,
+        movementsClear,
+        movementsSet,
+        replacement.layerCoupledMovementReplacements);
 
     for (size_t word = 0; word < objects.size(); ++word) {
         objects[word] = (objects[word] & ~objectsClear[word]) | objectsSet[word];

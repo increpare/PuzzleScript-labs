@@ -180,6 +180,21 @@ struct MetaGameState {
     bool suppressRuleMessages = false;
 };
 
+struct LayerCoupledMovementLayerTerm {
+    int32_t layerIndex = 0;
+    MaskOffset objectMask = kNullMaskOffset;
+    MaskOffset movementsAny = kNullMaskOffset;
+    MaskOffset movementsPresent = kNullMaskOffset;
+    MaskOffset movementsMissing = kNullMaskOffset;
+};
+
+struct LayerCoupledMovementReplacement {
+    std::vector<LayerCoupledMovementLayerTerm> layers;
+    std::optional<std::string> replacementAggregateName;
+    int32_t replacementMovementMask = 0;
+    bool hasReplacementMovementMask = false;
+};
+
 struct Replacement {
     // All masks live in Game::maskArena; these are offsets (in words).
     // The "objects" / "movements" / "movementsLayerMask" fields have width
@@ -200,6 +215,7 @@ struct Replacement {
     bool hasRandomDirMask      = false;
     std::vector<int32_t> randomEntityChoices;
     std::vector<int32_t> randomDirLayers;
+    std::vector<LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
 };
 
 struct Pattern {
@@ -232,6 +248,7 @@ struct Pattern {
     // not repeatedly walk object-mask words to find possible anchors.
     std::vector<int32_t> objectAnchorIds;
     std::vector<std::vector<int32_t>> anyObjectAnchorIds;
+    std::vector<LayerCoupledMovementReplacement> layerCoupledMovementMasks;
 
     std::optional<Replacement> replacement;
 };
