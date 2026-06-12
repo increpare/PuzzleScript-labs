@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -54,6 +54,11 @@ FUZZ_BATCH_FRESH_FLAG = $(if $(filter true,$(FUZZ_BATCH_FRESH)),--fresh,)
 # ~30k-game gist scrape corpus (override FUZZ_BATCH_GIANT_CORPUS if your path differs).
 FUZZ_BATCH_GIANT_CORPUS ?= $(HOME)/Documents/google_gist_scraper/dumpprocessed_compiles
 FUZZ_BATCH_GIANT_OUT ?= $(BUILD_DIR)/fuzz-batch-giant
+STATIC_ANALYSIS_GIANT_CORPUS ?= $(FUZZ_BATCH_GIANT_CORPUS)
+STATIC_ANALYSIS_GIANT_OUT ?= $(BUILD_DIR)/static-analysis-audit-giant
+STATIC_ANALYSIS_GIANT_JOBS ?= 8
+STATIC_ANALYSIS_FRESH_FLAG = $(if $(filter true,$(STATIC_ANALYSIS_FRESH)),--fresh,)
+STATIC_ANALYSIS_RESUME_FLAG = $(if $(filter true,$(STATIC_ANALYSIS_RESUME)),--resume,)
 PUZZLESCRIPT_CPP := $(BUILD_DIR)/native/puzzlescript_cpp
 PUZZLESCRIPT_CPP_32 := $(BUILD_DIR_32)/native/puzzlescript_cpp
 PUZZLESCRIPT_SOLVER := $(BUILD_DIR)/native/puzzlescript_solver
@@ -412,6 +417,8 @@ help:
 	@echo "  make compilation_tests_cpp_32      Run C++ diagnostics corpus with JS-style 32-bit masks"
 	@echo "  make tests_js                      Run the original JavaScript test suite"
 	@echo "  make static_analysis_tests         Run static analyzer unit and runtime claim tests"
+	@echo "  make static_analysis_consistency_giant  Parallel consistency audit on giant corpus ($(STATIC_ANALYSIS_GIANT_CORPUS))"
+	@echo "                                     Logs: $(STATIC_ANALYSIS_GIANT_OUT)"
 	@echo "  make static_analysis_runtime_contracts"
 	@echo "                                     Replay JS simulation corpus with static-object contracts"
 	@echo "  make static_analysis_performance_tests"
@@ -622,11 +629,25 @@ static_analysis_tests:
 	$(NODE) src/tests/compare_solver_static_opt_runs_node.js
 	$(NODE) src/tests/static_analysis_adversarial_node.js
 	$(NODE) src/tests/static_analysis_claims_consistency_node.js
+	$(NODE) src/tests/static_analysis_canonical_parity_node.js --warn-only
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node_test.js
 	$(NODE) src/tests/run_static_analysis_runtime_contracts_node.js
 
 static_analysis_fuzz:
 	$(NODE) src/tests/fuzz_static_contracts.js $(STATIC_ANALYSIS_FUZZ_ARGS)
+
+static_analysis_consistency_giant:
+	@$(MAKE) static_analysis_corpus_audit_giant CHECKS=consistency
+
+static_analysis_corpus_audit_giant:
+	@mkdir -p "$(STATIC_ANALYSIS_GIANT_OUT)"
+	$(NODE) src/tests/run_static_analysis_corpus_parallel.js \
+		--corpus "$(STATIC_ANALYSIS_GIANT_CORPUS)" \
+		--jobs "$(STATIC_ANALYSIS_GIANT_JOBS)" \
+		--checks "$(or $(CHECKS),both)" \
+		--log-dir "$(STATIC_ANALYSIS_GIANT_OUT)" \
+		$(STATIC_ANALYSIS_RESUME_FLAG) \
+		$(STATIC_ANALYSIS_FRESH_FLAG)
 
 canonicalization_fuzz:
 	$(NODE) src/tests/fuzz_canonicalization.js $(CANONICALIZATION_FUZZ_ARGS)
