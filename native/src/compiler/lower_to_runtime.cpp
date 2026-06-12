@@ -1781,6 +1781,101 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             return ambiguous;
         };
+        // Mirrors compiler.js `getCoalescingPlan` preserved-mode dispatch: layer-coupled
+        // properties preserved LHS→RHS at the same cell skip Cartesian splitting.
+        auto computePropertyCoalescingSkippable = [&](const std::vector<ParsedRow>& lhs,
+                                                      const std::vector<ParsedRow>& rhs,
+                                                      const std::set<std::string>& ambiguousProperties)
+            -> std::set<std::string> {
+            std::set<std::string> skippable;
+            if (rhs.empty() || rigidRule) {
+                return skippable;
+            }
+            if (lhs.size() != rhs.size()) {
+                return skippable;
+            }
+            const bool singleCellRule = lhs.size() == 1 && rhs.size() == 1
+                && !lhs[0].empty() && lhs[0].size() == 1
+                && !rhs[0].empty() && rhs[0].size() == 1;
+            bool preservedValid = true;
+            if (!singleCellRule) {
+                const bool multiCellAllowed = parsedCommands.empty() && !randomRule
+                    && lhs.size() == 1 && rhs.size() == 1 && lhs[0].size() > 1;
+                if (!multiCellAllowed) {
+                    preservedValid = false;
+                }
+            }
+            if (!preservedValid) {
+                return skippable;
+            }
+
+            auto cellHasNoTermOverlappingProperty = [&](const ParsedCell& cell, const std::string& propertyName) {
+                std::set<std::string> visiting;
+                const auto propertyMask = resolveMask(resolveMask, propertyName, visiting);
+                for (const auto& item : cell.items) {
+                    if (item.dir != "no") {
+                        continue;
+                    }
+                    std::set<std::string> itemVisiting;
+                    const auto missingMask = resolveMask(resolveMask, item.name, itemVisiting);
+                    const size_t nWords = std::min(propertyMask.size(), missingMask.size());
+                    for (size_t w = 0; w < nWords; ++w) {
+                        if ((propertyMask[w] & missingMask[w]) != 0) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            std::map<std::string, bool> preservedCandidateStatus;
+            for (size_t j = 0; j < lhs.size(); ++j) {
+                const auto& rowL = lhs[j];
+                const auto& rowR = rhs[j];
+                if (rowL.size() != rowR.size()) {
+                    return {};
+                }
+                std::set<std::string> preservedSeenInCell;
+                for (size_t k = 0; k < rowL.size(); ++k) {
+                    const ParsedCell& cellL = rowL[k];
+                    const ParsedCell& cellR = rowR[k];
+                    if (cellL.isEllipsis) {
+                        continue;
+                    }
+                    for (const auto& itemL : cellL.items) {
+                        if (!itemL.dir.empty() || !isLayerCoupledPropertyName(itemL.name)) {
+                            continue;
+                        }
+                        const std::string& propertyName = itemL.name;
+                        bool hasMatchingRhs = false;
+                        for (const auto& itemR : cellR.items) {
+                            if (itemR.dir.empty() && itemR.name == propertyName) {
+                                hasMatchingRhs = true;
+                                break;
+                            }
+                        }
+                        const bool canPreserve = hasMatchingRhs
+                            && ambiguousProperties.find(propertyName) == ambiguousProperties.end()
+                            && !cellHasNoTermOverlappingProperty(cellL, propertyName);
+                        if (!canPreserve || preservedSeenInCell.count(propertyName) != 0) {
+                            preservedCandidateStatus[propertyName] = false;
+                        } else {
+                            preservedSeenInCell.insert(propertyName);
+                            const auto statusIt = preservedCandidateStatus.find(propertyName);
+                            if (statusIt == preservedCandidateStatus.end() || statusIt->second) {
+                                preservedCandidateStatus[propertyName] = true;
+                            }
+                        }
+                    }
+                }
+            }
+            for (const auto& [propertyName, status] : preservedCandidateStatus) {
+                if (status) {
+                    skippable.insert(propertyName);
+                }
+            }
+            return skippable;
+        };
         auto expandConcretizePropertyRows = [&](std::vector<ParsedRow> lhs0, std::vector<ParsedRow> rhs0)
             -> std::vector<std::pair<std::vector<ParsedRow>, std::vector<ParsedRow>>> {
             struct Work {
@@ -1795,6 +1890,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             // recomputed as concrete names appear on the LHS during splitting.
             const std::set<std::string> ambiguousInitial =
                 buildAmbiguousPropertiesSet(work.front().lhs, work.front().rhs);
+            const std::set<std::string> skippableProperties =
+                computePropertyCoalescingSkippable(work.front().lhs, work.front().rhs, ambiguousInitial);
 
             bool modified = true;
             while (modified) {
@@ -1812,6 +1909,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                     continue;
                                 }
                                 if (propertyOf.find(property) == propertyOf.end()) {
+                                    continue;
+                                }
+                                if (skippableProperties.count(property) != 0) {
                                     continue;
                                 }
                                 splitJ = j;
