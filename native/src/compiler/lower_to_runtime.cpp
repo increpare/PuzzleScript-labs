@@ -1781,34 +1781,56 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             return ambiguous;
         };
-        // Mirrors compiler.js `getCoalescingPlan` preserved-mode dispatch: layer-coupled
-        // properties preserved LHS→RHS at the same cell skip Cartesian splitting.
+        // Mirrors compiler.js `getCoalescingPlan` movement + preserved dispatch.
         auto computePropertyCoalescingSkippable = [&](const std::vector<ParsedRow>& lhs,
                                                       const std::vector<ParsedRow>& rhs,
                                                       const std::set<std::string>& ambiguousProperties)
             -> std::set<std::string> {
             std::set<std::string> skippable;
-            if (rhs.empty() || rigidRule) {
+            if (rhs.empty()) {
                 return skippable;
             }
-            if (lhs.size() != rhs.size()) {
-                return skippable;
-            }
-            const bool singleCellRule = lhs.size() == 1 && rhs.size() == 1
-                && !lhs[0].empty() && lhs[0].size() == 1
-                && !rhs[0].empty() && rhs[0].size() == 1;
-            bool preservedValid = true;
-            if (!singleCellRule) {
-                const bool multiCellAllowed = parsedCommands.empty() && !randomRule
-                    && lhs.size() == 1 && rhs.size() == 1 && lhs[0].size() > 1;
-                if (!multiCellAllowed) {
-                    preservedValid = false;
+            auto isLayerCoupledMovementDir = [](const std::string& dir) {
+                return dir.empty() || dir == "stationary" || dir == "action"
+                    || dir == "up" || dir == "down" || dir == "left" || dir == "right";
+            };
+            auto objectOrSingleLayerPropertyLayer = [&](const std::string& name) -> std::optional<int32_t> {
+                if (const auto it = objectIdByName.find(name); it != objectIdByName.end()) {
+                    return game->objectsById[static_cast<size_t>(it->second)].layer;
                 }
-            }
-            if (!preservedValid) {
-                return skippable;
-            }
-
+                if (const auto pit = propertiesSingleLayer.find(name); pit != propertiesSingleLayer.end()) {
+                    return pit->second;
+                }
+                return std::nullopt;
+            };
+            auto propertyAliasLayers = [&](const std::string& propertyName,
+                                           const std::map<int32_t, bool>& excluded) -> std::set<int32_t> {
+                std::set<int32_t> layers;
+                const auto propIt = propertyOf.find(propertyName);
+                if (propIt == propertyOf.end()) {
+                    return layers;
+                }
+                for (const auto& alias : propIt->second) {
+                    const auto objIt = objectIdByName.find(alias);
+                    if (objIt == objectIdByName.end()) {
+                        continue;
+                    }
+                    const int32_t layer = game->objectsById[static_cast<size_t>(objIt->second)].layer;
+                    if (excluded.find(layer) != excluded.end()) {
+                        continue;
+                    }
+                    layers.insert(layer);
+                }
+                return layers;
+            };
+            auto layerSetsOverlap = [](const std::set<int32_t>& a, const std::set<int32_t>& b) {
+                for (int32_t layer : a) {
+                    if (b.count(layer) != 0) {
+                        return true;
+                    }
+                }
+                return false;
+            };
             auto cellHasNoTermOverlappingProperty = [&](const ParsedCell& cell, const std::string& propertyName) {
                 std::set<std::string> visiting;
                 const auto propertyMask = resolveMask(resolveMask, propertyName, visiting);
@@ -1828,46 +1850,135 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 return false;
             };
 
+            const bool hasRhs = !rhs.empty();
+            bool movementValid = hasRhs && !lateRule;
+            bool preservedValid = hasRhs && lhs.size() == rhs.size();
+            bool sawLayerCoupledProperty = false;
+            bool sawMovementEffect = false;
+            std::set<std::string> coupledPropertiesInRule;
+
+            const bool singleCellRule = hasRhs && lhs.size() == 1 && rhs.size() == 1
+                && !lhs[0].empty() && lhs[0].size() == 1
+                && !rhs[0].empty() && rhs[0].size() == 1;
+            if (preservedValid && !singleCellRule) {
+                const bool multiCellAllowed = parsedCommands.empty() && !randomRule
+                    && lhs.size() == 1 && rhs.size() == 1 && lhs[0].size() > 1;
+                if (!multiCellAllowed) {
+                    preservedValid = false;
+                }
+            }
+            if (hasRhs && lhs.size() != rhs.size()) {
+                movementValid = false;
+                preservedValid = false;
+            }
+
             std::map<std::string, bool> preservedCandidateStatus;
             for (size_t j = 0; j < lhs.size(); ++j) {
                 const auto& rowL = lhs[j];
                 const auto& rowR = rhs[j];
-                if (rowL.size() != rowR.size()) {
-                    return {};
+                if (rowR.size() != rowL.size()) {
+                    movementValid = false;
+                    preservedValid = false;
+                    break;
                 }
+
                 std::set<std::string> preservedSeenInCell;
+                std::map<int32_t, bool> movFixedLayers;
+                std::vector<std::string> movCoupledTerms;
+
                 for (size_t k = 0; k < rowL.size(); ++k) {
                     const ParsedCell& cellL = rowL[k];
                     const ParsedCell& cellR = rowR[k];
                     if (cellL.isEllipsis) {
                         continue;
                     }
-                    for (const auto& itemL : cellL.items) {
-                        if (!itemL.dir.empty() || !isLayerCoupledPropertyName(itemL.name)) {
+
+                    for (size_t itemIndex = 0; itemIndex < cellL.items.size(); ++itemIndex) {
+                        const auto& itemL = cellL.items[itemIndex];
+                        const std::string& dirL = itemL.dir;
+                        const std::string& nameL = itemL.name;
+
+                        ParsedItem rhsItem;
+                        bool hasRhsItem = false;
+                        if (itemIndex < cellR.items.size()) {
+                            rhsItem = cellR.items[itemIndex];
+                            hasRhsItem = true;
+                        }
+                        const std::string& dirR = hasRhsItem ? rhsItem.dir : std::string{};
+                        const std::string& nameR = hasRhsItem ? rhsItem.name : std::string{};
+
+                        if (isLayerCoupledPropertyName(nameL)) {
+                            coupledPropertiesInRule.insert(nameL);
+                        }
+                        if (hasRhsItem && isLayerCoupledPropertyName(nameR)) {
+                            coupledPropertiesInRule.insert(nameR);
+                        }
+                        if (!hasRhsItem) {
                             continue;
                         }
-                        const std::string& propertyName = itemL.name;
-                        bool hasMatchingRhs = false;
-                        for (const auto& itemR : cellR.items) {
-                            if (itemR.dir.empty() && itemR.name == propertyName) {
-                                hasMatchingRhs = true;
-                                break;
+
+                        if (movementValid) {
+                            if (nameL != nameR
+                                || !isLayerCoupledMovementDir(dirL)
+                                || !isLayerCoupledMovementDir(dirR)) {
+                                movementValid = false;
+                            } else if (objectIdByName.find(nameL) == objectIdByName.end()
+                                       && propertyOf.find(nameL) == propertyOf.end()) {
+                                movementValid = false;
+                            } else if (isLayerCoupledPropertyName(nameL)) {
+                                sawLayerCoupledProperty = true;
+                                movCoupledTerms.push_back(nameL);
+                                if (!dirL.empty() || !dirR.empty()) {
+                                    sawMovementEffect = true;
+                                }
+                            } else if (const auto layer = objectOrSingleLayerPropertyLayer(nameL);
+                                       layer.has_value()) {
+                                movFixedLayers[*layer] = true;
+                                if (dirL != dirR) {
+                                    sawMovementEffect = true;
+                                }
                             }
                         }
-                        const bool canPreserve = hasMatchingRhs
-                            && ambiguousProperties.find(propertyName) == ambiguousProperties.end()
-                            && !cellHasNoTermOverlappingProperty(cellL, propertyName);
-                        if (!canPreserve || preservedSeenInCell.count(propertyName) != 0) {
-                            preservedCandidateStatus[propertyName] = false;
-                        } else {
-                            preservedSeenInCell.insert(propertyName);
-                            const auto statusIt = preservedCandidateStatus.find(propertyName);
-                            if (statusIt == preservedCandidateStatus.end() || statusIt->second) {
-                                preservedCandidateStatus[propertyName] = true;
+
+                        if (preservedValid && isLayerCoupledPropertyName(nameL) && dirL.empty()) {
+                            bool hasMatchingRhs = false;
+                            for (const auto& itemR : cellR.items) {
+                                if (itemR.dir.empty() && itemR.name == nameL) {
+                                    hasMatchingRhs = true;
+                                    break;
+                                }
+                            }
+                            const bool canPreserve = hasMatchingRhs
+                                && ambiguousProperties.find(nameL) == ambiguousProperties.end()
+                                && !cellHasNoTermOverlappingProperty(cellL, nameL);
+                            if (!canPreserve || preservedSeenInCell.count(nameL) != 0) {
+                                preservedCandidateStatus[nameL] = false;
+                            } else {
+                                preservedSeenInCell.insert(nameL);
+                                const auto statusIt = preservedCandidateStatus.find(nameL);
+                                if (statusIt == preservedCandidateStatus.end() || statusIt->second) {
+                                    preservedCandidateStatus[nameL] = true;
+                                }
                             }
                         }
                     }
+
+                    if (movementValid) {
+                        std::set<int32_t> occupied;
+                        for (const std::string& coupledName : movCoupledTerms) {
+                            const std::set<int32_t> layers = propertyAliasLayers(coupledName, movFixedLayers);
+                            if (layers.empty() || layerSetsOverlap(occupied, layers)) {
+                                movementValid = false;
+                                break;
+                            }
+                            occupied.insert(layers.begin(), layers.end());
+                        }
+                    }
                 }
+            }
+
+            if (movementValid && sawLayerCoupledProperty && sawMovementEffect) {
+                return coupledPropertiesInRule;
             }
             for (const auto& [propertyName, status] : preservedCandidateStatus) {
                 if (status) {
