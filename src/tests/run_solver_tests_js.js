@@ -638,6 +638,16 @@ function priorityForPortfolioMode(mode, depth, heuristic, astarWeight) {
     return depth;
 }
 
+//Target-set versions for the distance-field caches live at module scope, NOT
+//inside the specialization closure: portfolio mode creates several
+//specializations for the same level but only one write hook is installed on
+//the level object, so per-closure versions would silently go stale for the
+//other specializations. The counter is monotonic across levels (a fresh
+//level's caches simply miss once).
+let targetVersionCounter = 1;
+let filter1TargetVersion = 1;
+let filter2TargetVersion = 1;
+
 //generated fused restore: copy snapshot objects into level.objects while
 //rebuilding the row/col/map object masks in the same pass, and zero the
 //movement masks (the caller zeroes level.movements). Row masks accumulate in
@@ -726,6 +736,89 @@ function createSolverLevelSpecialization(options = {}) {
         nonBackgroundWords[word] = backgroundMask && backgroundMask.data ? ~backgroundMask.data[word] : -1;
     }
     const verifyZobrist = process.env.PUZZLESCRIPT_VERIFY_ZOBRIST === '1';
+    const verifyDistanceFields = process.env.PUZZLESCRIPT_VERIFY_DISTANCE_FIELDS === '1';
+
+    // --- Exact target-set versioning for distance-field caching -------------
+    // winconditionDistanceHeuristic's chamfer fields depend only on the set of
+    // tiles matching a condition's filter; track a monotonic version per filter
+    // group (filter1 = sources, filter2 = ON-targets) that bumps whenever a cell
+    // write flips any condition filter's match status at that cell. Snapshots
+    // capture/restore the versions exactly like the incremental Zobrist hash,
+    // and recomputeZobrist (every wholesale board replacement funnels through
+    // it) conservatively bumps both. A cached field tagged with the current
+    // version is therefore byte-identical to a recompute: search order cannot
+    // change.
+    const _changedCellWords = new Int32Array(STRIDE_OBJ);
+    const trackedConditionFilters = [];
+    if (state.winconditions) {
+        for (let ci = 0; ci < state.winconditions.length; ci++) {
+            const condition = state.winconditions[ci];
+            if (condition[1] && condition[1].data) {
+                trackedConditionFilters.push({ mask: condition[1], aggregate: Boolean(condition[4]), group: 1 });
+            }
+            if (condition[2] && condition[2].data) {
+                trackedConditionFilters.push({ mask: condition[2], aggregate: Boolean(condition[5]), group: 2 });
+            }
+        }
+    }
+
+    function maskMatchesWordsAt(mask, aggregate, words, offset) {
+        if (aggregate) {
+            for (let word = 0; word < STRIDE_OBJ; word++) {
+                const required = mask.data[word] | 0;
+                if ((words[offset + word] & required) !== required) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        for (let word = 0; word < STRIDE_OBJ; word++) {
+            if ((words[offset + word] & mask.data[word]) !== 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //called with the old cell words still in level.objects and the new value in
+    //vec (same pre-write contract as updateZobristCell); _changedCellWords holds
+    //old^new per word.
+    function updateTargetVersions(tileIndex, vec) {
+        let f1Changed = false;
+        let f2Changed = false;
+        const offset = tileIndex * STRIDE_OBJ;
+        for (let i = 0; i < trackedConditionFilters.length; i++) {
+            const tracked = trackedConditionFilters[i];
+            if (tracked.group === 1 ? f1Changed : f2Changed) {
+                continue;
+            }
+            let touches = false;
+            for (let word = 0; word < STRIDE_OBJ; word++) {
+                if (_changedCellWords[word] & (tracked.mask.data[word] | 0)) {
+                    touches = true;
+                    break;
+                }
+            }
+            if (!touches) {
+                continue;
+            }
+            const oldMatch = maskMatchesWordsAt(tracked.mask, tracked.aggregate, level.objects, offset);
+            const newMatch = maskMatchesWordsAt(tracked.mask, tracked.aggregate, vec.data, 0);
+            if (oldMatch !== newMatch) {
+                if (tracked.group === 1) {
+                    f1Changed = true;
+                } else {
+                    f2Changed = true;
+                }
+            }
+        }
+        if (f1Changed) {
+            filter1TargetVersion = ++targetVersionCounter;
+        }
+        if (f2Changed) {
+            filter2TargetVersion = ++targetVersionCounter;
+        }
+    }
 
     function installZobristHash() {
         if (!level || !level.objects || level.objects.length !== objectWordCount) {
@@ -745,6 +838,10 @@ function createSolverLevelSpecialization(options = {}) {
         const hash = computeZobristBoardHash(level.objects, zobristTables.lo, zobristTables.hi, ignoredHashObjectWords);
         level.solverZobristLo = hash.lo;
         level.solverZobristHi = hash.hi;
+        //every wholesale board replacement (restoreLevel, rigid trackback, init)
+        //funnels through here - the target sets may have changed arbitrarily.
+        filter1TargetVersion = ++targetVersionCounter;
+        filter2TargetVersion = ++targetVersionCounter;
     }
 
     function updateZobristCell(tileIndex, vec) {
@@ -757,9 +854,14 @@ function createSolverLevelSpecialization(options = {}) {
                 throw new Error(`Incremental Zobrist hash already drifted before tile ${tileIndex}: ${lo}:${hi} !== ${expectedStart.lo}:${expectedStart.hi}`);
             }
         }
+        let anyChanged = 0;
         for (let word = 0; word < STRIDE_OBJ; word++) {
             const oldWord = level.objects[offset + word] | 0;
             const newWord = vec.data[word] | 0;
+            //note: recorded before the ignored-words mask - the target-version
+            //tracking must see every change, not just hash-relevant ones.
+            _changedCellWords[word] = oldWord ^ newWord;
+            anyChanged |= _changedCellWords[word];
             let changed = (oldWord ^ newWord) >>> 0;
             if (ignoredHashObjectWords) {
                 changed = (changed & ~(ignoredHashObjectWords[word] | 0)) >>> 0;
@@ -776,6 +878,9 @@ function createSolverLevelSpecialization(options = {}) {
         }
         level.solverZobristLo = lo | 0;
         level.solverZobristHi = hi | 0;
+        if (anyChanged !== 0 && trackedConditionFilters.length > 0) {
+            updateTargetVersions(tileIndex, vec);
+        }
         if (verifyZobrist) {
             const expected = computeZobristBoardHash(level.objects, zobristTables.lo, zobristTables.hi, ignoredHashObjectWords);
             // updateZobristCell runs before the caller writes vec into level.objects, so
@@ -1802,6 +1907,30 @@ function createSolverLevelSpecialization(options = {}) {
         }
     }
 
+    //version-tagged chamfer-field cache; valid iff the tagged version equals the
+    //current filter-group target version (see updateTargetVersions). A hit is
+    //byte-identical to a recompute, so search behaviour cannot change.
+    function cachedDistanceField(cacheArray, conditionIndex, mask, aggregate, currentVersion) {
+        let cache = cacheArray[conditionIndex];
+        if (!cache) {
+            cache = cacheArray[conditionIndex] = { version: 0, field: new Float64Array(level.n_tiles) };
+        }
+        if (cache.version !== currentVersion) {
+            matchingDistanceField(mask, aggregate, cache.field);
+            cache.version = currentVersion;
+        } else if (verifyDistanceFields) {
+            matchingDistanceField(mask, aggregate, heuristicDistances);
+            for (let tile = 0; tile < level.n_tiles; tile++) {
+                if (heuristicDistances[tile] !== cache.field[tile]) {
+                    throw new Error(`Cached distance field drifted (condition ${conditionIndex}, tile ${tile}): ${cache.field[tile]} !== ${heuristicDistances[tile]}`);
+                }
+            }
+        }
+        return cache.field;
+    }
+    const filter2FieldCache = [];
+    const filter1FieldCache = [];
+
     // Informative but not admissible for general PuzzleScript (rules can create/destroy/transform;
     // weighted A* uses this for ordering only). See native/src/solver/HEURISTICS_IMPLEMENTATION.md.
     function winconditionDistanceHeuristic() {
@@ -1816,17 +1945,17 @@ function createSolverLevelSpecialization(options = {}) {
             const filter2 = condition[2];
             const aggregate1 = condition[4];
             const aggregate2 = condition[5];
-            matchingDistanceField(filter2, aggregate2, heuristicDistances);
+            const targetDistances = cachedDistanceField(filter2FieldCache, conditionIndex, filter2, aggregate2, filter2TargetVersion);
             if (quantifier === 1) {
                 for (let tile = 0; tile < level.n_tiles; tile++) {
                     if (!matchesMask(filter1, aggregate1, tile)) {
                         continue;
                     }
                     // After matchingDistanceField, distance 0 iff filter2 matches at this tile.
-                    if (heuristicDistances[tile] === 0) {
+                    if (targetDistances[tile] === 0) {
                         continue;
                     }
-                    score += 10 + distanceOrFallback(heuristicDistances[tile]);
+                    score += 10 + distanceOrFallback(targetDistances[tile]);
                 }
             } else if (quantifier === 0) {
                 let passed = false;
@@ -1835,16 +1964,16 @@ function createSolverLevelSpecialization(options = {}) {
                     if (!matchesMask(filter1, aggregate1, tile)) {
                         continue;
                     }
-                    if (heuristicDistances[tile] === 0) {
+                    if (targetDistances[tile] === 0) {
                         passed = true;
                         break;
                     }
-                    best = Math.min(best, distanceOrFallback(heuristicDistances[tile]));
+                    best = Math.min(best, distanceOrFallback(targetDistances[tile]));
                 }
                 score += passed ? 0 : best;
             } else if (quantifier === -1) {
                 for (let tile = 0; tile < level.n_tiles; tile++) {
-                    if (matchesMask(filter1, aggregate1, tile) && heuristicDistances[tile] === 0) {
+                    if (matchesMask(filter1, aggregate1, tile) && targetDistances[tile] === 0) {
                         score += 10;
                     }
                 }
@@ -1856,9 +1985,7 @@ function createSolverLevelSpecialization(options = {}) {
             let best = 64;
             for (let conditionIndex = 0; conditionIndex < state.winconditions.length; conditionIndex++) {
                 const condition = state.winconditions[conditionIndex];
-                const distances = conditionDistances[conditionIndex] || new Float64Array(level.n_tiles);
-                conditionDistances[conditionIndex] = distances;
-                matchingDistanceField(condition[1], condition[4], distances);
+                conditionDistances[conditionIndex] = cachedDistanceField(filter1FieldCache, conditionIndex, condition[1], condition[4], filter1TargetVersion);
             }
             for (let tile = 0; tile < level.n_tiles; tile++) {
                 if (!matchesMask(playerMask, playerAggregate, tile)) {
@@ -2418,6 +2545,8 @@ function createSolverLevelSpecialization(options = {}) {
             zobristTableId,
             zobristLo: level.solverZobristLo | 0,
             zobristHi: level.solverZobristHi | 0,
+            filter1TargetVersion,
+            filter2TargetVersion,
         };
     }
 
@@ -2482,6 +2611,8 @@ function createSolverLevelSpecialization(options = {}) {
         if (snapshot.zobristTableId === zobristTableId) {
             level.solverZobristLo = snapshot.zobristLo | 0;
             level.solverZobristHi = snapshot.zobristHi | 0;
+            filter1TargetVersion = snapshot.filter1TargetVersion;
+            filter2TargetVersion = snapshot.filter2TargetVersion;
         } else {
             recomputeZobrist();
         }
