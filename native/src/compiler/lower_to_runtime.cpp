@@ -1787,6 +1787,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                                       const std::set<std::string>& ambiguousProperties)
             -> std::set<std::string> {
             std::set<std::string> skippable;
+            // JS getCoalescingPlan: rigid rules never skip property splitting.
+            if (rigidRule) {
+                return skippable;
+            }
             auto isLayerCoupledMovementDir = [](const std::string& dir) {
                 return dir.empty() || dir == "stationary" || dir == "action"
                     || dir == "up" || dir == "down" || dir == "left" || dir == "right";
