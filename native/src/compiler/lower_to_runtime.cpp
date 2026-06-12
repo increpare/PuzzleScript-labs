@@ -1961,9 +1961,11 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         };
 
         // Mirrors src/js/compiler.js `concretizePropertyRule` for ParsedRow/cell form:
-        // expandNoPrefixedProperties, ambiguousProperties (RHS vs LHS), per-cell
-        // property explosion with propertyReplacement bookkeeping, then RHS cleanup
-        // when a property was concretized exactly once on the LHS.
+        // ambiguousProperties (RHS vs LHS), per-cell property explosion with
+        // propertyReplacement bookkeeping, then RHS cleanup when a property was
+        // concretized exactly once on the LHS.
+        // JS phase 4f: do not expand `no property` into per-alias `no alias_i`
+        // terms — rulesToMask reads state.objectMasks[propertyName] directly.
         auto concretizePropertyInCell = [](ParsedCell& cell, const std::string& property, const std::string& concreteType) {
             if (cell.isEllipsis) {
                 return;
@@ -1980,7 +1982,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 return out;
             }
             for (const auto& it : cell.items) {
-                if (it.dir == "random") {
+                // JS getPropertiesFromCell: `random` and `no` are constraints, not
+                // rewrite targets, so they don't drive property splitting.
+                if (it.dir == "random" || it.dir == "no") {
                     continue;
                 }
                 if (propertyOf.find(it.name) != propertyOf.end()) {
@@ -1988,34 +1992,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
             }
             return out;
-        };
-        auto expandNoPrefixedCell = [&](ParsedCell& cell) {
-            if (cell.isEllipsis) {
-                return;
-            }
-            std::vector<ParsedItem> expanded;
-            expanded.reserve(cell.items.size() * 2);
-            for (const auto& it : cell.items) {
-                if (it.dir == "no" && propertyOf.find(it.name) != propertyOf.end()) {
-                    for (const auto& alias : propertyOf.at(it.name)) {
-                        expanded.push_back({"no", alias});
-                    }
-                } else {
-                    expanded.push_back(it);
-                }
-            }
-            cell.items = std::move(expanded);
-        };
-        auto expandNoPrefixedRows = [&](std::vector<ParsedRow>& lhs, std::vector<ParsedRow>& rhs) {
-            for (size_t ri = 0; ri < lhs.size(); ++ri) {
-                auto& lhsRow = lhs[ri];
-                for (size_t ci = 0; ci < lhsRow.size(); ++ci) {
-                    expandNoPrefixedCell(lhsRow[ci]);
-                    if (ri < rhs.size() && ci < rhs[ri].size()) {
-                        expandNoPrefixedCell(rhs[ri][ci]);
-                    }
-                }
-            }
         };
         auto buildAmbiguousPropertiesSet = [&](const std::vector<ParsedRow>& lhs, const std::vector<ParsedRow>& rhs) {
             std::set<std::string> ambiguous;
@@ -2290,8 +2266,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             };
             std::vector<Work> work;
             work.push_back({std::move(lhs0), std::move(rhs0), {}});
-            expandNoPrefixedRows(work.front().lhs, work.front().rhs);
-            // JS freezes `ambiguousProperties` after no-prefix expand; it is not
+            // JS freezes `ambiguousProperties` before property splitting; it is not
             // recomputed as concrete names appear on the LHS during splitting.
             const std::set<std::string> ambiguousInitial =
                 buildAmbiguousPropertiesSet(work.front().lhs, work.front().rhs);
