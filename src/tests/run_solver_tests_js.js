@@ -647,6 +647,35 @@ function priorityForPortfolioMode(mode, depth, heuristic, astarWeight) {
 let targetVersionCounter = 1;
 let filter1TargetVersion = 1;
 let filter2TargetVersion = 1;
+let playerTargetVersion = 1;
+
+//getPlayerPositions does a full-grid scan and runs at least once per solver
+//step; its result depends only on the set of player-matching tiles, so the
+//active specialization caches it under playerTargetVersion (bumped by the
+//write hook when a write flips a cell's player match, restored from snapshots
+//like the other versions). Callers treat the array as read-only.
+let activePlayerPositionsCache = null;
+function installPlayerPositionsCache() {
+    if (typeof getPlayerPositions !== 'function' || getPlayerPositions.__solverCached) {
+        return;
+    }
+    const baseGetPlayerPositions = getPlayerPositions;
+    const cached = function () {
+        const cache = activePlayerPositionsCache;
+        if (cache) {
+            if (cache.version === playerTargetVersion && cache.positions) {
+                return cache.positions;
+            }
+            const positions = baseGetPlayerPositions();
+            cache.version = playerTargetVersion;
+            cache.positions = positions;
+            return positions;
+        }
+        return baseGetPlayerPositions();
+    };
+    cached.__solverCached = true;
+    getPlayerPositions = cached;
+}
 
 //generated fused restore: copy snapshot objects into level.objects while
 //rebuilding the row/col/map object masks in the same pass, and zero the
@@ -761,6 +790,9 @@ function createSolverLevelSpecialization(options = {}) {
             }
         }
     }
+    if (playerMask && playerMask.data) {
+        trackedConditionFilters.push({ mask: playerMask, aggregate: playerAggregate, group: 3 });
+    }
 
     function maskMatchesWordsAt(mask, aggregate, words, offset) {
         if (aggregate) {
@@ -786,10 +818,11 @@ function createSolverLevelSpecialization(options = {}) {
     function updateTargetVersions(tileIndex, vec) {
         let f1Changed = false;
         let f2Changed = false;
+        let playerChanged = false;
         const offset = tileIndex * STRIDE_OBJ;
         for (let i = 0; i < trackedConditionFilters.length; i++) {
             const tracked = trackedConditionFilters[i];
-            if (tracked.group === 1 ? f1Changed : f2Changed) {
+            if (tracked.group === 1 ? f1Changed : (tracked.group === 2 ? f2Changed : playerChanged)) {
                 continue;
             }
             let touches = false;
@@ -807,8 +840,10 @@ function createSolverLevelSpecialization(options = {}) {
             if (oldMatch !== newMatch) {
                 if (tracked.group === 1) {
                     f1Changed = true;
-                } else {
+                } else if (tracked.group === 2) {
                     f2Changed = true;
+                } else {
+                    playerChanged = true;
                 }
             }
         }
@@ -817,6 +852,9 @@ function createSolverLevelSpecialization(options = {}) {
         }
         if (f2Changed) {
             filter2TargetVersion = ++targetVersionCounter;
+        }
+        if (playerChanged) {
+            playerTargetVersion = ++targetVersionCounter;
         }
     }
 
@@ -842,6 +880,7 @@ function createSolverLevelSpecialization(options = {}) {
         //funnels through here - the target sets may have changed arbitrarily.
         filter1TargetVersion = ++targetVersionCounter;
         filter2TargetVersion = ++targetVersionCounter;
+        playerTargetVersion = ++targetVersionCounter;
     }
 
     function updateZobristCell(tileIndex, vec) {
@@ -901,6 +940,8 @@ function createSolverLevelSpecialization(options = {}) {
     }
 
     installZobristHash();
+    installPlayerPositionsCache();
+    activePlayerPositionsCache = { version: 0, positions: null };
 
     function matchesMask(mask, aggregate, tileIndex) {
         if (!mask || !mask.data) {
@@ -2547,6 +2588,7 @@ function createSolverLevelSpecialization(options = {}) {
             zobristHi: level.solverZobristHi | 0,
             filter1TargetVersion,
             filter2TargetVersion,
+            playerTargetVersion,
         };
     }
 
@@ -2613,6 +2655,7 @@ function createSolverLevelSpecialization(options = {}) {
             level.solverZobristHi = snapshot.zobristHi | 0;
             filter1TargetVersion = snapshot.filter1TargetVersion;
             filter2TargetVersion = snapshot.filter2TargetVersion;
+            playerTargetVersion = snapshot.playerTargetVersion;
         } else {
             recomputeZobrist();
         }
@@ -2750,6 +2793,7 @@ function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
         if (typeof resetParserErrorState === 'function') {
             resetParserErrorState();
         }
+        activePlayerPositionsCache = null;
         loadLevelFromState(state, levelIndex, `solver-parity:${game}:${levelIndex}`);
         if (textMode || titleScreen || (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined)) {
             return { status: 'skipped_message', steps: 0 };
@@ -2974,6 +3018,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     if (typeof resetParserErrorState === 'function') {
         resetParserErrorState();
     }
+    //deactivate any previous level's player-position cache before loading; the
+    //write hook from the old specialization is dead on the freshly built level.
+    activePlayerPositionsCache = null;
     const loadStart = performance.now();
     loadLevelFromState(state, levelIndex, seed);
     result.load_ms = performance.now() - loadStart;
