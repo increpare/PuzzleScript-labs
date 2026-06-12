@@ -362,6 +362,27 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(compiler_duplicate_no_cell
+  tests/compiler_duplicate_no_cell.cpp
+)
+
+target_link_libraries(compiler_duplicate_no_cell
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_duplicate_no_cell
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_duplicate_no_cell
+  COMMAND compiler_duplicate_no_cell
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 if(TARGET PkgConfig::SDL2)
   add_test(
     NAME puzzlescript_cpp_player_sdl_dummy_smoke

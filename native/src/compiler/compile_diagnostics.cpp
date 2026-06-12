@@ -1,6 +1,7 @@
 #include "compiler/compile_diagnostics.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <map>
 #include <optional>
@@ -10,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "compiler/rule_text.hpp"
 #include "runtime/json.hpp"
 
 namespace puzzlescript::compiler {
@@ -314,6 +316,100 @@ void emitBasicPostParseDiagnostics(const ParserState& state, DiagnosticSink& dia
     }
 }
 
+bool isRuleDirectionOrModifier(std::string_view token) {
+    static constexpr std::array<const char*, 19> kWords = {
+        ">", "<", "^", "v",
+        "up", "down", "left", "right",
+        "moving", "stationary", "no", "randomdir", "random",
+        "horizontal", "vertical", "orthogonal", "perpendicular", "parallel", "action",
+    };
+    for (const char* word : kWords) {
+        if (token == word) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isLegendPropertyName(const ParserState& state, std::string_view name) {
+    const std::string lowered = toLowerAsciiCopy(name);
+    for (const auto& entry : state.legendProperties) {
+        if (toLowerAsciiCopy(entry.name) == lowered) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void emitRuleDuplicateCellDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
+    for (const auto& entry : state.rules) {
+        const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
+        std::vector<std::string> curcell;
+        bool incellrow = false;
+        for (const auto& rawToken : tokens) {
+            const std::string token = toLowerAsciiCopy(rawToken);
+            if (token == "[") {
+                incellrow = true;
+                curcell.clear();
+                continue;
+            }
+            if (token == "]") {
+                incellrow = false;
+                curcell.clear();
+                continue;
+            }
+            if (!incellrow) {
+                continue;
+            }
+            if (token == "|") {
+                curcell.clear();
+                continue;
+            }
+            if (isRuleDirectionOrModifier(token)) {
+                curcell.push_back(token);
+                continue;
+            }
+            if (token == "...") {
+                curcell.push_back("...");
+                curcell.push_back("...");
+                continue;
+            }
+            if (state.namesSet.find(token) == state.namesSet.end()) {
+                continue;
+            }
+            const std::string incomingModifier = curcell.size() % 2 == 1 ? curcell.back() : std::string{};
+            for (size_t index = 0; index + 1 < curcell.size(); index += 2) {
+                if (curcell[index + 1] != token) {
+                    continue;
+                }
+                if (curcell[index] == "no" && incomingModifier == "no") {
+                    diagnostics.warning(
+                        DiagnosticCode::GenericWarning,
+                        entry.lineNumber,
+                        "You're specifying \"no " + token + "\" more than once in a single cell. That's redundant (but harmless) - you can remove one.");
+                } else {
+                    diagnostics.error(
+                        DiagnosticCode::GenericError,
+                        entry.lineNumber,
+                        "You cannot specify the same object more than once in a single cell (in this case " + token + " occurs multiple times).");
+                    if (isLegendPropertyName(state, token)) {
+                        diagnostics.warning(
+                            DiagnosticCode::GenericWarning,
+                            std::nullopt,
+                            "( However, noticing that you're committing this crime with <i>properties</i>, and not being able to help but acknowledge that you <i>may</i> be trying to do something esoteric and <i>clever</i> with the property inference system,  I might be brought to suggest that you consider this: you can have multiple equivalent properties with different names. )");
+                    }
+                }
+            }
+            if (curcell.size() % 2 == 0) {
+                curcell.push_back("");
+                curcell.push_back(token);
+            } else {
+                curcell.push_back(token);
+            }
+        }
+    }
+}
+
 void emitMetadataDiagnostics(const ParserState& state, DiagnosticSink& diagnostics) {
     static const std::set<std::string> kKnownPalettes = {
         "arnecolors", "mastersystem", "gameboycolour", "amiga", "arnecolors",
@@ -353,6 +449,7 @@ void runCompileDiagnostics(
     for (const auto& diagnostic : parserDiagnostics) {
         diagnostics.add(diagnostic.severity, diagnostic.code, diagnostic.line, diagnostic.message);
     }
+    emitRuleDuplicateCellDiagnostics(state, diagnostics);
     emitBasicPostParseDiagnostics(state, diagnostics);
     emitMetadataDiagnostics(state, diagnostics);
 }
