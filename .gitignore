@@ -17,3 +17,4 @@ node_modules/
 /.superpowers
 /Testing/
 /tmp_*.js
+/.claude/worktrees
