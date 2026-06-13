@@ -81,6 +81,13 @@ assert.deepStrictEqual(analysis.strategy_solved_counts, {
     wa3: 1,
     greedy: 0,
 });
+assert.deepStrictEqual(analysis.strategy_unique_solve_counts, {
+    portfolio: 1,
+    bfs: 1,
+    wa3: 0,
+    greedy: 0,
+});
+assert.deepStrictEqual(analysis.strategy_unique_solve_examples.bfs, ['bfs-only.txt#0']);
 assert.deepStrictEqual(analysis.coverage, {
     targets: 4,
     any_solved: 3,

@@ -158,6 +158,7 @@ assert.deepStrictEqual(strategies.map((strategy) => strategy.id), [
     'bfs',
     'wa2',
     'wa3',
+    'wad2',
     'wa8',
     'greedy',
 ]);
@@ -172,6 +173,12 @@ assert.deepStrictEqual(strategies.find((strategy) => strategy.id === 'wa3'), {
     label: 'weighted-astar w=3',
     strategy: 'weighted-astar',
     solverArgs: ['--astar-weight', '3'],
+});
+assert.deepStrictEqual(strategies.find((strategy) => strategy.id === 'wad2'), {
+    id: 'wad2',
+    label: 'weighted-astar-deep w=2',
+    strategy: 'weighted-astar-deep',
+    solverArgs: ['--astar-weight', '2'],
 });
 
 const summary = summarizeStrategyOutputs({

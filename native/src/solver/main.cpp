@@ -50,6 +50,7 @@ enum class Strategy {
     Portfolio,
     Bfs,
     WeightedAStar,
+    WeightedAStarDeep,
     Greedy,
 };
 
@@ -132,6 +133,7 @@ struct Node {
 
 struct QueueEntry {
     int32_t priority = 0;
+    int32_t secondaryPriority = 0;
     uint64_t tie = 0;
     uint32_t nodeIndex = 0;
 };
@@ -140,6 +142,9 @@ struct QueueEntryGreater {
     bool operator()(const QueueEntry& a, const QueueEntry& b) const {
         if (a.priority != b.priority) {
             return a.priority > b.priority;
+        }
+        if (a.secondaryPriority != b.secondaryPriority) {
+            return a.secondaryPriority > b.secondaryPriority;
         }
         return a.tie > b.tie;
     }
@@ -406,6 +411,7 @@ std::string strategyName(Strategy strategy) {
         case Strategy::Portfolio: return "portfolio";
         case Strategy::Bfs: return "bfs";
         case Strategy::WeightedAStar: return "weighted-astar";
+        case Strategy::WeightedAStarDeep: return "weighted-astar-deep";
         case Strategy::Greedy: return "greedy";
     }
     return "unknown";
@@ -415,9 +421,30 @@ std::string searchModeName(SearchMode mode) {
     switch (mode) {
         case SearchMode::Bfs: return "bfs";
         case SearchMode::WeightedAStar: return "weighted-astar";
+        case SearchMode::WeightedAStarDeep: return "weighted-astar-deep";
         case SearchMode::Greedy: return "greedy";
     }
     return "unknown";
+}
+
+std::string heuristicName(SearchMode mode) {
+    switch (mode) {
+        case SearchMode::Bfs: return "zero";
+        case SearchMode::WeightedAStarDeep: return "auto:deep-tie";
+        case SearchMode::WeightedAStar:
+        case SearchMode::Greedy: return "auto";
+    }
+    return "auto";
+}
+
+int32_t secondaryPriorityFor(SearchMode mode, uint32_t depth) {
+    if (mode != SearchMode::WeightedAStarDeep) {
+        return 0;
+    }
+    const uint32_t cappedDepth = std::min<uint32_t>(
+        depth,
+        static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+    return -static_cast<int32_t>(cappedDepth);
 }
 
 Strategy parseStrategy(const std::string& value) {
@@ -429,6 +456,9 @@ Strategy parseStrategy(const std::string& value) {
     }
     if (value == "weighted-astar") {
         return Strategy::WeightedAStar;
+    }
+    if (value == "weighted-astar-deep") {
+        return Strategy::WeightedAStarDeep;
     }
     if (value == "greedy") {
         return Strategy::Greedy;
@@ -502,7 +532,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|greedy] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -1599,7 +1629,7 @@ Result runSearch(
     result.level = levelIndex;
     result.status = "exhausted";
     result.strategy = searchModeName(mode);
-    result.heuristic = mode == SearchMode::Bfs ? "zero" : "auto";
+    result.heuristic = heuristicName(mode);
     result.timeoutMs = timeoutMs;
     result.workerId = workerId;
     result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
@@ -1662,7 +1692,12 @@ Result runSearch(
     std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueEntryGreater> frontier;
     {
         ScopedTimer timer(result.timing.frontierPushNs);
-        frontier.push(QueueEntry{priorityFor(mode, 0, initialHeuristic, astarWeight), 0, 0});
+        frontier.push(QueueEntry{
+            priorityFor(mode, 0, initialHeuristic, astarWeight),
+            secondaryPriorityFor(mode, 0),
+            0,
+            0
+        });
     }
     result.maxFrontier = 1;
 
@@ -1827,7 +1862,12 @@ Result runSearch(
             }
             {
                 ScopedTimer timer(result.timing.frontierPushNs);
-                frontier.push(QueueEntry{priorityFor(mode, childDepth, childHeuristic, astarWeight), nextTie++, childIndex});
+                frontier.push(QueueEntry{
+                    priorityFor(mode, childDepth, childHeuristic, astarWeight),
+                    secondaryPriorityFor(mode, childDepth),
+                    nextTie++,
+                    childIndex
+                });
             }
             result.maxFrontier = std::max<uint64_t>(result.maxFrontier, frontier.size());
         }
@@ -1974,6 +2014,7 @@ Result runAdaptivePortfolioSearch(
         for (PortfolioMode& mode : modes) {
             mode.frontier.push(QueueEntry{
                 priorityFor(mode.mode, 0, initialHeuristic, mode.weight),
+                secondaryPriorityFor(mode.mode, 0),
                 nextTie++,
                 0
             });
@@ -2209,6 +2250,7 @@ Result runAdaptivePortfolioSearch(
                     PortfolioMode& mode = modes[modeIndexForPush];
                     mode.frontier.push(QueueEntry{
                         priorityFor(mode.mode, childDepth, childHeuristic, mode.weight),
+                        secondaryPriorityFor(mode.mode, childDepth),
                         nextTie++,
                         childIndex
                     });
@@ -2252,6 +2294,9 @@ Result solveLevel(
     }
     if (strategy == Strategy::WeightedAStar) {
         return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
+    }
+    if (strategy == Strategy::WeightedAStarDeep) {
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
     }
     if (strategy == Strategy::Greedy) {
         return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));

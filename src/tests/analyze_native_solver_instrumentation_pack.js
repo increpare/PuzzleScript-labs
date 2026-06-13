@@ -117,6 +117,39 @@ function countBestStrategies(targets, strategyOrder) {
     return counts;
 }
 
+function uniqueSolvedStrategy(target, strategyOrder) {
+    const rows = solvedBy(target, strategyOrder);
+    return rows.length === 1 ? rows[0].strategy : null;
+}
+
+function countUniqueSolvedStrategies(targets, strategyOrder) {
+    const counts = {};
+    for (const strategy of strategyOrder) {
+        counts[strategy] = 0;
+    }
+    for (const target of targets) {
+        const strategy = uniqueSolvedStrategy(target, strategyOrder);
+        if (strategy) {
+            counts[strategy] = (counts[strategy] || 0) + 1;
+        }
+    }
+    return counts;
+}
+
+function uniqueSolveExamples(targets, strategyOrder, limit = 10) {
+    const examples = {};
+    for (const strategy of strategyOrder) {
+        examples[strategy] = [];
+    }
+    for (const target of targets) {
+        const strategy = uniqueSolvedStrategy(target, strategyOrder);
+        if (strategy && examples[strategy].length < limit) {
+            examples[strategy].push(targetKey(target));
+        }
+    }
+    return examples;
+}
+
 function compactTargetRow(target, strategyOrder) {
     const best = bestSolvedStrategy(target, strategyOrder);
     const portfolio = strategyResult(target, 'portfolio');
@@ -289,6 +322,8 @@ function buildInstrumentationAnalysis(summary, rawOptions = {}) {
         strategy_order: strategyOrder,
         strategy_solved_counts: countByStrategy(targets, strategyOrder, isSolvedBy),
         best_strategy_counts: countBestStrategies(targets, strategyOrder),
+        strategy_unique_solve_counts: countUniqueSolvedStrategies(targets, strategyOrder),
+        strategy_unique_solve_examples: uniqueSolveExamples(targets, strategyOrder),
         coverage: {
             targets: targets.length,
             any_solved: anySolvedTargets.length,
@@ -353,6 +388,7 @@ function renderTextReport(analysis) {
     lines.push(`portfolio missed but other strategy solved: ${analysis.coverage.portfolio_missed_but_other_solved}`);
     lines.push(`portfolio solved but slower by >= ${analysis.slow_loss_ms}ms: ${analysis.coverage.portfolio_solved_but_slower}`);
     lines.push(`strategy solved counts: ${analysis.strategy_order.map((strategy) => `${strategy}=${analysis.strategy_solved_counts[strategy] || 0}`).join(' ')}`);
+    lines.push(`strategy unique solve counts: ${analysis.strategy_order.map((strategy) => `${strategy}=${analysis.strategy_unique_solve_counts[strategy] || 0}`).join(' ')}`);
     lines.push('');
     lines.push('Portfolio missed but another strategy solved:');
     for (const row of analysis.portfolio_missed_but_other_solved.slice(0, 20)) {

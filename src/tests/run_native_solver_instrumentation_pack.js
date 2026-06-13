@@ -269,6 +269,7 @@ function buildStrategySpecs() {
         { id: 'bfs', label: 'bfs', strategy: 'bfs', solverArgs: [] },
         { id: 'wa2', label: 'weighted-astar w=2', strategy: 'weighted-astar', solverArgs: ['--astar-weight', '2'] },
         { id: 'wa3', label: 'weighted-astar w=3', strategy: 'weighted-astar', solverArgs: ['--astar-weight', '3'] },
+        { id: 'wad2', label: 'weighted-astar-deep w=2', strategy: 'weighted-astar-deep', solverArgs: ['--astar-weight', '2'] },
         { id: 'wa8', label: 'weighted-astar w=8', strategy: 'weighted-astar', solverArgs: ['--astar-weight', '8'] },
         { id: 'greedy', label: 'greedy', strategy: 'greedy', solverArgs: [] },
     ];

@@ -14,6 +14,7 @@ namespace puzzlescript::search {
 enum class SearchMode {
     Bfs,
     WeightedAStar,
+    WeightedAStarDeep,
     Greedy,
 };
 
@@ -112,6 +113,7 @@ inline int32_t priorityFor(SearchMode mode, uint32_t depth, int32_t heuristic, i
     switch (mode) {
         case SearchMode::Bfs: return static_cast<int32_t>(depth);
         case SearchMode::WeightedAStar: return static_cast<int32_t>(depth) + heuristic * weightedAStarWeight;
+        case SearchMode::WeightedAStarDeep: return static_cast<int32_t>(depth) + heuristic * weightedAStarWeight;
         case SearchMode::Greedy: return heuristic;
     }
     return static_cast<int32_t>(depth);
