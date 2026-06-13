@@ -15,10 +15,10 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -77,6 +77,28 @@ SOLVER_STRATEGY ?= portfolio
 SOLVER_PROGRESS_EVERY ?= game
 SOLVER_OUTPUT_ARGS ?= --summary-only
 SOLVER_SOLUTIONS_DIR ?= $(BUILD_DIR)/solver-solutions
+SOLVER_JS_COVERAGE_TIMEOUT_MS ?= 1000
+SOLVER_JS_COVERAGE_STRATEGY ?= $(SOLVER_STRATEGY)
+SOLVER_JS_COVERAGE_JOBS ?= 1
+SOLVER_JS_COVERAGE_OUT_DIR ?= $(BUILD_DIR)/solver-js-coverage
+SOLVER_JS_COVERAGE_JS_RESULTS ?=
+SOLVER_JS_COVERAGE_NATIVE_RESULTS ?=
+SOLVER_JS_COVERAGE_JS_RESULTS_ARG = $(if $(strip $(SOLVER_JS_COVERAGE_JS_RESULTS)),--js-results "$(SOLVER_JS_COVERAGE_JS_RESULTS)",)
+SOLVER_JS_COVERAGE_NATIVE_RESULTS_ARG = $(if $(strip $(SOLVER_JS_COVERAGE_NATIVE_RESULTS)),--native-results "$(SOLVER_JS_COVERAGE_NATIVE_RESULTS)",)
+SOLVER_INSTRUMENTATION_OUT_DIR ?= $(BUILD_DIR)/native/solver_instrumentation_pack
+SOLVER_INSTRUMENTATION_TIMEOUT_MS ?= 1000
+SOLVER_INSTRUMENTATION_RUNS ?= 1
+SOLVER_INSTRUMENTATION_MAX_TARGETS ?= 40
+SOLVER_INSTRUMENTATION_JS_RESULTS ?= $(wildcard $(SOLVER_TIMEOUT_CURVE_JS_JSON))
+SOLVER_INSTRUMENTATION_NATIVE_RESULTS ?= $(wildcard $(SOLVER_TIMEOUT_CURVE_CPP_JSON))
+SOLVER_INSTRUMENTATION_MANIFESTS ?=
+SOLVER_INSTRUMENTATION_PROFILE_COUNTERS ?= true
+SOLVER_INSTRUMENTATION_DRY_RUN ?= false
+SOLVER_INSTRUMENTATION_JS_RESULTS_ARG = $(if $(strip $(SOLVER_INSTRUMENTATION_JS_RESULTS)),--js-results "$(SOLVER_INSTRUMENTATION_JS_RESULTS)",)
+SOLVER_INSTRUMENTATION_NATIVE_RESULTS_ARG = $(if $(strip $(SOLVER_INSTRUMENTATION_NATIVE_RESULTS)),--native-results "$(SOLVER_INSTRUMENTATION_NATIVE_RESULTS)",)
+SOLVER_INSTRUMENTATION_PROFILE_COUNTERS_ARG = $(if $(filter true,$(SOLVER_INSTRUMENTATION_PROFILE_COUNTERS)),--profile-runtime-counters,)
+SOLVER_INSTRUMENTATION_DRY_RUN_ARG = $(if $(filter true,$(SOLVER_INSTRUMENTATION_DRY_RUN)),--dry-run,)
+SOLVER_INSTRUMENTATION_MANIFEST_ARGS = $(foreach manifest,$(SOLVER_INSTRUMENTATION_MANIFESTS),--manifest "$(manifest)")
 # JS solver: baseline vs --solver-opt all JSON diff (see js_static_optimization_comparison_*).
 JS_STATIC_OPTIMIZATION_COMPARE_OUT ?= $(BUILD_DIR)/js-static-optimization-compare
 JS_STATIC_OPTIMIZATION_COMPARE_EXTRA_ARGS ?=
@@ -380,6 +402,7 @@ help:
 	@echo "  make profile_simulation_tests      Profile C++ simulation replay hot functions"
 	@echo "  make profile_simulation_tests_32   Profile the 32-bit-mask C++ simulation path"
 	@echo "  make tests                         Run the full native correctness suite"
+	@echo "  make all_tests_thorough            Run tests plus full JS/native solver coverage"
 	@echo "  make solver_tests                  Run native solver and JS comparison solver"
 	@echo "  make solver_compact_parity_smoke   Compare normal vs compact solver storage on smoke games"
 	@echo "  make solver_compact_parity         Compare normal vs compact solver storage on non-random corpus games"
@@ -415,6 +438,7 @@ help:
 	@echo "  make solver_focus_compact_codegen_perf_report"
 	@echo "                                     Compare compiler-mode compact-node focus outputs with runtime counters"
 	@echo "  make solver_benchmark_targets      Benchmark mined solver targets repeatedly"
+	@echo "  make solver_instrumentation_pack   Build cross-strategy native solver evidence pack"
 	@echo "  make clean                         Remove native build outputs and JS parity data"
 	@echo ""
 	@echo "Single-side test commands for timing:"
@@ -454,6 +478,7 @@ help:
 	@echo "  make solver_tests_cpp SPECIALIZE=true"
 	@echo "                                     Run standalone native solver corpus with compiled rules"
 	@echo "  make solver_tests_js               Run JavaScript comparison solver corpus"
+	@echo "  make solver_js_coverage_cpp        Fail if native misses any JS-solved corpus level"
 	@echo "  make solver_timeout_curve          Build js + PS+ + c++ cumulative solve chart (slow)"
 	@echo "  make solver_timeout_curve_replot   Re-render chart from saved JSON (does not re-run solvers)"
 	@echo "  make js_static_optimization_comparison_solver_smoke"
@@ -923,6 +948,22 @@ solver_parity_smoke: $(SOLVER_TARGET_PREREQ)
 		$(NODE) src/tests/run_solver_parity_smoke.js $(PUZZLESCRIPT_SOLVER) src/tests/solver_smoke_tests; \
 	fi
 
+solver_portfolio_regression_tests: $(SOLVER_TARGET_PREREQ)
+	$(NODE) src/tests/run_solver_portfolio_regression.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TESTS_CORPUS)
+
+solver_js_coverage_cpp: $(SOLVER_TARGET_PREREQ)
+	@set -e; \
+	mkdir -p "$(SOLVER_JS_COVERAGE_OUT_DIR)"; \
+	$(NODE) src/tests/run_native_solver_js_coverage.js \
+		"$(PUZZLESCRIPT_SOLVER)" "$(SOLVER_TESTS_CORPUS)" \
+		--timeout-ms $(SOLVER_JS_COVERAGE_TIMEOUT_MS) \
+		--strategy "$(SOLVER_JS_COVERAGE_STRATEGY)" \
+		--jobs $(SOLVER_JS_COVERAGE_JOBS) \
+		--write-js-results "$(SOLVER_JS_COVERAGE_OUT_DIR)/js.json" \
+		--write-native-results "$(SOLVER_JS_COVERAGE_OUT_DIR)/native.json" \
+		$(SOLVER_JS_COVERAGE_JS_RESULTS_ARG) \
+		$(SOLVER_JS_COVERAGE_NATIVE_RESULTS_ARG)
+
 solver_compact_parity_smoke: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_solver_compact_parity.js $(PUZZLESCRIPT_SOLVER) src/tests/solver_smoke_tests --timeout-ms 1000 --strategy bfs
 
@@ -1054,7 +1095,7 @@ static_optimizer_page:
 		--timeout-ms "$(STATIC_OPTIMIZER_PAGE_TIMEOUT_MS)" \
 		$(STATIC_OPTIMIZER_PAGE_GAME_ARG)
 
-solver_tests: solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_tests_cpp solver_tests_js
+solver_tests: solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests solver_tests_cpp solver_tests_js
 
 solver_benchmark: $(SOLVER_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \
@@ -1180,6 +1221,19 @@ solver_focus_compact_codegen_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_
 
 solver_benchmark_targets: $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_MANIFEST)
 	$(NODE) src/tests/run_solver_level_benchmark.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_CORPUS) $(SOLVER_TARGET_BENCH_MANIFEST) --runs $(SOLVER_TARGET_BENCH_RUNS) --strategy $(SOLVER_TARGET_BENCH_STRATEGY) --out $(SOLVER_TARGET_BENCH_OUT) $(SOLVER_TARGET_BENCH_TIMEOUT_ARG)
+
+solver_instrumentation_pack: $(PUZZLESCRIPT_SOLVER)
+	$(NODE) src/tests/run_native_solver_instrumentation_pack.js \
+		"$(PUZZLESCRIPT_SOLVER)" "$(SOLVER_TESTS_CORPUS)" \
+		--out-dir "$(SOLVER_INSTRUMENTATION_OUT_DIR)" \
+		--timeout-ms $(SOLVER_INSTRUMENTATION_TIMEOUT_MS) \
+		--runs $(SOLVER_INSTRUMENTATION_RUNS) \
+		--max-targets $(SOLVER_INSTRUMENTATION_MAX_TARGETS) \
+		$(SOLVER_INSTRUMENTATION_JS_RESULTS_ARG) \
+		$(SOLVER_INSTRUMENTATION_NATIVE_RESULTS_ARG) \
+		$(SOLVER_INSTRUMENTATION_MANIFEST_ARGS) \
+		$(SOLVER_INSTRUMENTATION_PROFILE_COUNTERS_ARG) \
+		$(SOLVER_INSTRUMENTATION_DRY_RUN_ARG)
 
 $(JS_PARITY_MANIFEST): $(JS_PARITY_INPUTS)
 	$(NODE) src/tests/js_oracle/export_native_fixtures.js $(JS_PARITY_DATA_DIR)
@@ -1311,6 +1365,11 @@ profile_simulation_tests_32: build_32
 	src/tests/profile_native_trace_suite.sh
 
 tests: ctest js_parity_tests
+
+all_tests_thorough:
+	$(MAKE) tests
+	$(MAKE) solver_portfolio_regression_tests
+	$(MAKE) solver_js_coverage_cpp SOLVER_JS_COVERAGE_TIMEOUT_MS=1000 SOLVER_JS_COVERAGE_JOBS=1 SOLVER_JS_COVERAGE_STRATEGY=portfolio
 
 basic_test_suite_cpp: js_parity_tests
 

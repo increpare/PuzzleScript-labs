@@ -3689,6 +3689,95 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             [](int32_t word) { return word != 0; });
         rule.ruleMovementMask = storeMaskWords(*game, ruleMovementMaskWords);
 
+        const uint32_t rowMissingObjectMasksFirst =
+            static_cast<uint32_t>(game->cellRowMissingObjectMaskOffsets.size());
+        for (const auto& row : rule.patterns) {
+            auto rowMissingWords = makeEmptyMask(game->wordCount);
+            for (const auto& pat : row) {
+                if (pat.kind != puzzlescript::Pattern::Kind::CellPattern) {
+                    continue;
+                }
+                const auto off = pat.objectsMissing;
+                if (off == puzzlescript::kNullMaskOffset) {
+                    continue;
+                }
+                for (uint32_t w = 0; w < game->wordCount; ++w) {
+                    rowMissingWords[static_cast<size_t>(w)] |=
+                        game->maskArena[static_cast<size_t>(off + w)];
+                }
+            }
+            if (std::any_of(rowMissingWords.begin(), rowMissingWords.end(),
+                    [](puzzlescript::MaskWord word) { return word != 0; })) {
+                game->needsObjectLineAllMasks = true;
+            }
+            game->cellRowMissingObjectMaskOffsets.push_back(storeMaskWords(*game, rowMissingWords));
+        }
+        rule.cellRowMissingObjectMasksFirst = rowMissingObjectMasksFirst;
+        rule.cellRowMissingObjectMasksCount =
+            static_cast<uint32_t>(game->cellRowMissingObjectMaskOffsets.size()) - rowMissingObjectMasksFirst;
+
+        const uint32_t rowMissingMovementMasksFirst =
+            static_cast<uint32_t>(game->cellRowMissingMovementMaskOffsets.size());
+        for (const auto& row : rule.patterns) {
+            auto rowMissingMovementWords = makeEmptyMask(game->movementWordCount);
+            for (const auto& pat : row) {
+                if (pat.kind != puzzlescript::Pattern::Kind::CellPattern) {
+                    continue;
+                }
+                const auto off = pat.movementsMissing;
+                if (off == puzzlescript::kNullMaskOffset) {
+                    continue;
+                }
+                for (uint32_t w = 0; w < game->movementWordCount; ++w) {
+                    rowMissingMovementWords[static_cast<size_t>(w)] |=
+                        game->maskArena[static_cast<size_t>(off + w)];
+                }
+            }
+            if (std::any_of(rowMissingMovementWords.begin(), rowMissingMovementWords.end(),
+                    [](puzzlescript::MaskWord word) { return word != 0; })) {
+                game->needsMovementLineAllMasks = true;
+            }
+            game->cellRowMissingMovementMaskOffsets.push_back(
+                storeMaskWords(*game, rowMissingMovementWords));
+        }
+        rule.cellRowMissingMovementMasksFirst = rowMissingMovementMasksFirst;
+        rule.cellRowMissingMovementMasksCount =
+            static_cast<uint32_t>(game->cellRowMissingMovementMaskOffsets.size()) - rowMissingMovementMasksFirst;
+
+        rule.cellRowAnyObjectMasks.clear();
+        rule.cellRowAnyObjectMasks.reserve(rule.patterns.size());
+        rule.cellRowAnyMovementMasks.clear();
+        rule.cellRowAnyMovementMasks.reserve(rule.patterns.size());
+        for (const auto& row : rule.patterns) {
+            puzzlescript::RowAnyMaskSpan anyObjectSpan{
+                static_cast<uint32_t>(game->cellRowAnyObjectMaskOffsets.size()),
+                0
+            };
+            puzzlescript::RowAnyMaskSpan anyMovementSpan{
+                static_cast<uint32_t>(game->cellRowAnyMovementMaskOffsets.size()),
+                0
+            };
+            for (const auto& pat : row) {
+                if (pat.kind != puzzlescript::Pattern::Kind::CellPattern) {
+                    continue;
+                }
+                for (uint32_t i = 0; i < pat.anyObjectsCount; ++i) {
+                    game->cellRowAnyObjectMaskOffsets.push_back(
+                        game->anyObjectOffsets[
+                            static_cast<size_t>(pat.anyObjectsFirst + i)]);
+                    ++anyObjectSpan.count;
+                }
+                for (uint32_t i = 0; i < pat.anyMovementsCount; ++i) {
+                    game->cellRowAnyMovementMaskOffsets.push_back(
+                        game->anyMovementOffsets[
+                            static_cast<size_t>(pat.anyMovementsFirst + i)]);
+                    ++anyMovementSpan.count;
+                }
+            }
+            rule.cellRowAnyObjectMasks.push_back(anyObjectSpan);
+            rule.cellRowAnyMovementMasks.push_back(anyMovementSpan);
+        }
+
         auto anyNonZeroMask = [](const puzzlescript::MaskVector& words) {
             return std::any_of(
                 words.begin(),

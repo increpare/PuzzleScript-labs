@@ -32,6 +32,8 @@
 // Any results JSON with [{status, elapsed_ms}, ...] entries works as a series,
 // including the native solver's: build/native/puzzlescript_solver ... --json.
 // A saved curve CSV (timeout_ms,solved,pct) is also accepted as a series.
+// Multi-series charts require every series to agree on the playable-level
+// denominator; otherwise absolute solve counts are misleading.
 
 const fs = require('fs');
 const path = require('path');
@@ -287,6 +289,24 @@ function buildCurve(levels, options) {
     return { playable: playable.length, totalSolvedAtMax: solveTimes.length, points };
 }
 
+function assertConsistentPlayableDenominators(curves) {
+    if (curves.length <= 1) {
+        return;
+    }
+    const expected = curves[0].playable;
+    const mismatches = curves
+        .filter((curve) => curve.playable !== expected)
+        .map((curve) => `${curve.label}=${curve.playable}`);
+    if (mismatches.length === 0) {
+        return;
+    }
+    const counts = curves.map((curve) => `${curve.label}=${curve.playable}`).join(', ');
+    throw new Error(
+        `playable denominator mismatch across solver curve series: ${counts}. ` +
+        'Do not compare solve counts from runs that disagree about which levels are playable.'
+    );
+}
+
 function loadSeries(spec, options) {
     // CSV path may carry a "#seriesName" suffix to pick one series out of a
     // multi-series curve CSV when the chart label differs from the stored name.
@@ -431,6 +451,7 @@ function main() {
             curves.push({ label: 'c++', meta: cppMeta, ...buildCurve(cppLevels, options) });
         }
     }
+    assertConsistentPlayableDenominators(curves);
     process.stdout.write(renderAscii(curves));
     fs.mkdirSync(path.dirname(options.outCsv), { recursive: true });
     fs.writeFileSync(options.outCsv, 'series,timeout_ms,solved,pct\n' +

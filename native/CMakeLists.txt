@@ -46,6 +46,7 @@ add_compile_definitions(
 find_package(Threads REQUIRED)
 find_package(PkgConfig QUIET)
 find_program(NODE_EXECUTABLE node REQUIRED)
+option(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS "Enable slow full solver JS-coverage CTest checks" OFF)
 
 # Repo root (parent of this `native/` tree). `CMAKE_SOURCE_DIR` is the checkout
 # only when this file is not the top-level project; when users configure from
@@ -383,6 +384,48 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(compiler_row_any_masks
+  tests/compiler_row_any_masks.cpp
+)
+
+target_link_libraries(compiler_row_any_masks
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_row_any_masks
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_row_any_masks
+  COMMAND compiler_row_any_masks
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(compiler_row_missing_masks
+  tests/compiler_row_missing_masks.cpp
+)
+
+target_link_libraries(compiler_row_missing_masks
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_row_missing_masks
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_row_missing_masks
+  COMMAND compiler_row_missing_masks
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 if(TARGET PkgConfig::SDL2)
   add_test(
     NAME puzzlescript_cpp_player_sdl_dummy_smoke
@@ -430,6 +473,298 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_smoke_tests
 )
 set_tests_properties(puzzlescript_solver_js_parity_smoke PROPERTIES TIMEOUT 120)
+
+add_test(
+  NAME native_solver_js_coverage_node
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/native_solver_js_coverage_node.js
+)
+set_tests_properties(native_solver_js_coverage_node PROPERTIES TIMEOUT 10)
+
+add_test(
+  NAME native_solver_instrumentation_pack_node
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/native_solver_instrumentation_pack_node.js
+)
+set_tests_properties(native_solver_instrumentation_pack_node PROPERTIES TIMEOUT 10)
+
+add_test(
+  NAME solver_timeout_curve_denominator_node
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_timeout_curve_denominator_node.js
+)
+set_tests_properties(solver_timeout_curve_denominator_node PROPERTIES TIMEOUT 10)
+
+if(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS)
+  add_test(
+    NAME puzzlescript_solver_js_coverage_full
+    COMMAND ${NODE_EXECUTABLE}
+            ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_native_solver_js_coverage.js
+            $<TARGET_FILE:puzzlescript_solver>
+            ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+            --timeout-ms 1000
+            --strategy portfolio
+            --jobs 1
+  )
+  set_tests_properties(puzzlescript_solver_js_coverage_full
+    PROPERTIES
+      TIMEOUT 1200
+      LABELS "slow;solver"
+  )
+endif()
+
+add_test(
+  NAME puzzlescript_solver_portfolio_alternatey_level4
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game alternatey.txt
+          --level 4
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_alternatey_level4
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_alternatey_level6
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game alternatey.txt
+          --level 6
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_alternatey_level6
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_twostep_pete
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game "Two-Step Pete.txt"
+          --level 15
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_twostep_pete
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_pending_again_start
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game "car crash.txt"
+          --level 2
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_pending_again_start
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_constellationz
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game constellationz.txt
+          --level 5
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_constellationz
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_karamell
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game karamell.txt
+          --level 1
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_karamell
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_xorro
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game "Xorro The Chaos Warden.txt"
+          --level 3
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_xorro
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_whaleworld
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game whaleworld.txt
+          --level 15
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_whaleworld
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_muraphilic
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game "Muraphilic Monophobic Multiban.txt"
+          --level 1
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_muraphilic
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_collapse
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game collapse.txt
+          --level 2
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_collapse
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_paint_everything_everywhere
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game "paint everything everywhere.txt"
+          --level 17
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_paint_everything_everywhere
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_expand_avoid_flames
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game "expand also avoid the flames.txt"
+          --level 1
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_expand_avoid_flames
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_weighted_astar_all_green_to_blue
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy weighted-astar
+          --astar-weight 3
+          --game "ALL GREEN TO BLUE.txt"
+          --level 11
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_weighted_astar_all_green_to_blue
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
+
+add_test(
+  NAME puzzlescript_solver_portfolio_pushit_level5
+  COMMAND puzzlescript_solver
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+          --timeout-ms 1000
+          --jobs 1
+          --strategy portfolio
+          --game pushit.txt
+          --level 5
+          --json
+          --quiet
+)
+set_tests_properties(puzzlescript_solver_portfolio_pushit_level5
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "\"status\":\"solved\""
+    TIMEOUT 10
+)
 
 add_test(
   NAME puzzlescript_generator_smoke
@@ -485,6 +820,38 @@ add_test(
 add_test(
   NAME puzzlescript_cpp_diff_trace_push_smoke
   COMMAND puzzlescript_cpp diff-trace ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt --level 0 --seed native-trace-push --inputs-file ${CMAKE_CURRENT_SOURCE_DIR}/tests/push_trace_inputs.json
+)
+
+add_test(
+  NAME puzzlescript_cpp_trace_alternatey_level4
+  COMMAND puzzlescript_cpp run
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/alternatey.txt
+          --headless
+          --level 4
+          --seed native-trace-alternatey-l4
+          --native-compile
+          --inputs-json "[3,0,1,2,2,3,3]"
+)
+set_tests_properties(puzzlescript_cpp_trace_alternatey_level4
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "trace_diff_passed"
+    TIMEOUT 30
+)
+
+add_test(
+  NAME puzzlescript_cpp_trace_expand_avoid_flames
+  COMMAND puzzlescript_cpp run
+          "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/expand also avoid the flames.txt"
+          --headless
+          --level 1
+          --seed native-trace-expand-flames-l1
+          --native-compile
+          --inputs-json "[0,0,1,1,4,1,1,4,0,0,4,0,0,4,3,3,4,4,4,2,2,2,4]"
+)
+set_tests_properties(puzzlescript_cpp_trace_expand_avoid_flames
+  PROPERTIES
+    PASS_REGULAR_EXPRESSION "trace_diff_passed"
+    TIMEOUT 30
 )
 
 if(PS_MASK_WORD_BITS STREQUAL "32")

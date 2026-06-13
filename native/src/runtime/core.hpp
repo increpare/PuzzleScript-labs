@@ -317,6 +317,11 @@ struct Pattern {
     std::optional<Replacement> replacement;
 };
 
+struct RowAnyMaskSpan {
+    uint32_t first = 0;
+    uint32_t count = 0;
+};
+
 struct RuleCommand {
     std::string name;
     std::optional<std::string> argument;
@@ -338,6 +343,12 @@ struct Rule {
     uint32_t cellRowMasksCount = 0;
     uint32_t cellRowMasksMovementsFirst = 0;
     uint32_t cellRowMasksMovementsCount = 0;
+    uint32_t cellRowMissingObjectMasksFirst = 0;
+    uint32_t cellRowMissingObjectMasksCount = 0;
+    uint32_t cellRowMissingMovementMasksFirst = 0;
+    uint32_t cellRowMissingMovementMasksCount = 0;
+    std::vector<RowAnyMaskSpan> cellRowAnyObjectMasks;
+    std::vector<RowAnyMaskSpan> cellRowAnyMovementMasks;
 
     MaskOffset ruleMask = kNullMaskOffset;
     MaskOffset ruleMovementMask = kNullMaskOffset;
@@ -441,6 +452,12 @@ struct GameInformation {
     // Rule. Each referenced mask has width wordCount or movementWordCount.
     std::vector<MaskOffset> cellRowMaskOffsets;
     std::vector<MaskOffset> cellRowMaskMovementsOffsets;
+    std::vector<MaskOffset> cellRowMissingObjectMaskOffsets;
+    std::vector<MaskOffset> cellRowMissingMovementMaskOffsets;
+    std::vector<MaskOffset> cellRowAnyObjectMaskOffsets;
+    std::vector<MaskOffset> cellRowAnyMovementMaskOffsets;
+    bool needsObjectLineAllMasks = false;
+    bool needsMovementLineAllMasks = false;
     int32_t layerCount = 1;
     int32_t objectCount = 0;
     int32_t backgroundId = -1;
@@ -495,9 +512,13 @@ struct Scratch {
     MaskVector liveMovements;
     MaskVector rowMasks;
     MaskVector columnMasks;
+    MaskVector rowAllMasks;
+    MaskVector columnAllMasks;
     MaskVector boardMask;
     MaskVector rowMovementMasks;
     MaskVector columnMovementMasks;
+    MaskVector rowAllMovementMasks;
+    MaskVector columnAllMovementMasks;
     MaskVector boardMovementMask;
     // Per-object cell presence bitsets for anchored rule scans. Layout is
     // object-major: objectCellBits[objectId * cellWordCount + word].
@@ -651,6 +672,7 @@ using SpecializedRulegroupsForInterpretedTurnFn = SpecializedRulegroupsForInterp
     std::vector<bool>* bannedGroups
 );
 
+std::unique_ptr<Error> loadLevel(FullState& state, int32_t levelIndex, RuntimeStepOptions options);
 std::unique_ptr<Error> loadLevelTemplate(FullState& state, const LevelTemplate& levelTemplate, int32_t levelIndex, RuntimeStepOptions options);
 bool restart(FullState& state, RuntimeStepOptions options);
 

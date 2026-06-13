@@ -203,6 +203,9 @@ function runTarget(target, runIndex, strategy, timeoutMs) {
     const sample = {
         run: runIndex + 1,
         status: solverResult.status,
+        strategy: solverResult.strategy,
+        heuristic: solverResult.heuristic,
+        astar_weight: solverResult.astar_weight,
         wall_ms: wallMs,
         elapsed_ms: solverResult.elapsed_ms,
         expanded: solverResult.expanded,

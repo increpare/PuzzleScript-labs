@@ -191,6 +191,23 @@ struct Result {
     bool specializedCompactTurnAttached = false;
     bool compactNodeStorage = false;
     int32_t astarWeight = 2;
+    std::string portfolioProfile;
+    int32_t portfolioRuleCount = 0;
+    int32_t portfolioObjectMutatingRuleCount = 0;
+    int32_t portfolioMovementOnlyRuleCount = 0;
+    int32_t portfolioCommandRuleCount = 0;
+    int32_t portfolioSemanticCommandRuleCount = 0;
+    int32_t portfolioCommandOnlyRuleCount = 0;
+    int32_t portfolioLateRuleCount = 0;
+    int32_t portfolioAllWinConditionCount = 0;
+    int32_t portfolioSomeWinConditionCount = 0;
+    int32_t portfolioAllPlainWinCount = 0;
+    int32_t portfolioNoPlainWinCount = 0;
+    int32_t portfolioWinConditionCount = 0;
+    bool portfolioHasActionInput = true;
+    bool portfolioHasAgain = false;
+    bool portfolioRunRulesOnLevelStart = false;
+    bool portfolioUsesRandom = false;
     uint64_t compactTurnAttempts = 0;
     uint64_t compactTurnHits = 0;
     uint64_t compactTurnNativeAttempts = 0;
@@ -645,9 +662,276 @@ void materializePersistentLevelStateIntoFullState(const PersistentLevelState& st
     markMaterializedFullStateDirty(session);
 }
 
-void prepareSolverChildFullStateFromParent(FullState& child, const FullState& parent) {
+void prepareSolverChildMetaFromParent(
+    puzzlescript::MetaGameState& child,
+    const puzzlescript::MetaGameState& parent,
+    bool copyRestartSnapshot
+) {
+    child.currentLevelIndex = parent.currentLevelIndex;
+    child.currentLevelTarget = parent.currentLevelTarget;
+    child.titleScreen = parent.titleScreen;
+    child.textMode = parent.textMode;
+    child.titleMode = parent.titleMode;
+    child.titleSelection = parent.titleSelection;
+    child.titleSelected = parent.titleSelected;
+    child.messageSelected = parent.messageSelected;
+    child.winning = parent.winning;
+    child.messageText.clear();
+    child.loadedLevelSeed = parent.loadedLevelSeed;
+    child.hasRandomState = parent.hasRandomState;
+    child.randomStateValid = parent.randomStateValid;
+    child.randomStateI = parent.randomStateI;
+    child.randomStateJ = parent.randomStateJ;
+    child.randomStateS.clear();
+    child.oldFlickscreenDat = parent.oldFlickscreenDat;
+    child.level.isMessage = parent.level.isMessage;
+    child.level.message.clear();
+    child.level.lineNumber = parent.level.lineNumber;
+    child.level.width = parent.level.width;
+    child.level.height = parent.level.height;
+    child.level.objects.clear();
+    child.levelDimensions = parent.levelDimensions;
+    if (copyRestartSnapshot) {
+        child.restart = parent.restart;
+    } else {
+        child.restart.objects.clear();
+        child.restart.oldFlickscreenDat.clear();
+    }
+    child.serializedLevel.clear();
+    child.undoStack.clear();
+    child.pendingAgain = false;
+    child.suppressRuleMessages = parent.suppressRuleMessages;
+}
+
+bool gameHasRuleCommand(const Game& game, std::string_view commandName) {
+    auto hasCommandInGroups = [&](const std::vector<std::vector<puzzlescript::Rule>>& groups) {
+        for (const std::vector<puzzlescript::Rule>& group : groups) {
+            for (const puzzlescript::Rule& rule : group) {
+                for (const puzzlescript::RuleCommand& command : rule.commands) {
+                    if (command.name == commandName) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+    return hasCommandInGroups(game.rules) || hasCommandInGroups(game.lateRules);
+}
+
+struct PortfolioFeatures {
+    int32_t ruleCount = 0;
+    int32_t objectMutatingRuleCount = 0;
+    int32_t movementOnlyRuleCount = 0;
+    int32_t commandRuleCount = 0;
+    int32_t semanticCommandRuleCount = 0;
+    int32_t commandOnlyRuleCount = 0;
+    int32_t lateRuleCount = 0;
+    int32_t allWinConditionCount = 0;
+    int32_t someWinConditionCount = 0;
+    int32_t allPlainWinCount = 0;
+    int32_t noPlainWinCount = 0;
+    int32_t winConditionCount = 0;
+    bool hasActionInput = true;
+    bool hasAgain = false;
+    bool runRulesOnLevelStart = false;
+    bool usesRandom = false;
+};
+
+enum class PortfolioProfile {
+    Balanced,
+    WeightedFirst,
+    HighWeightFirst,
+    BreadthFirst,
+};
+
+bool ruleUsesRandomReplacement(const Game& game, const puzzlescript::Rule& rule) {
+    if (rule.isRandom) {
+        return true;
+    }
+    for (const std::vector<puzzlescript::Pattern>& row : rule.patterns) {
+        for (const puzzlescript::Pattern& pattern : row) {
+            if (!pattern.replacement.has_value()) {
+                continue;
+            }
+            const puzzlescript::Replacement& replacement = *pattern.replacement;
+            if (replacement.hasRandomEntityMask || replacement.hasRandomDirMask) {
+                return true;
+            }
+            const MaskWord* randomEntity = puzzlescript::search::maskPtr(game, replacement.randomEntityMask);
+            const MaskWord* randomDir = puzzlescript::search::maskPtr(game, replacement.randomDirMask);
+            if (puzzlescript::search::maskHasBits(randomEntity, replacement.randomEntityMaskWidth)
+                || puzzlescript::search::maskHasBits(randomDir, replacement.randomDirMaskWidth)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool isPortfolioInertCommand(std::string_view name) {
+    return name.size() >= 3
+        && name[0] == 's'
+        && name[1] == 'f'
+        && name[2] == 'x';
+}
+
+bool ruleHasPortfolioSemanticCommand(const puzzlescript::Rule& rule) {
+    for (const puzzlescript::RuleCommand& command : rule.commands) {
+        if (!isPortfolioInertCommand(command.name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+PortfolioFeatures analyzePortfolioFeatures(const Game& game) {
+    PortfolioFeatures features;
+    features.hasActionInput = game.metadata.values.find("noaction") == game.metadata.values.end();
+    features.hasAgain = gameHasRuleCommand(game, "again");
+    features.runRulesOnLevelStart = game.metadata.values.find("run_rules_on_level_start") != game.metadata.values.end();
+    auto visitRuleGroups = [&](const std::vector<std::vector<puzzlescript::Rule>>& groups, bool late) {
+        for (const std::vector<puzzlescript::Rule>& group : groups) {
+            for (const puzzlescript::Rule& rule : group) {
+                ++features.ruleCount;
+                if (late) {
+                    ++features.lateRuleCount;
+                }
+                features.usesRandom = features.usesRandom || ruleUsesRandomReplacement(game, rule);
+                const bool writesObjects = rule.hasWriteObjects;
+                const bool readsMovements = rule.hasReadMovements;
+                const bool writesMovements = rule.hasWriteMovements;
+                const bool semanticCommand = ruleHasPortfolioSemanticCommand(rule);
+                if (!rule.commands.empty()) {
+                    ++features.commandRuleCount;
+                }
+                if (semanticCommand) {
+                    ++features.semanticCommandRuleCount;
+                }
+                if (writesObjects) {
+                    ++features.objectMutatingRuleCount;
+                }
+                if (!writesObjects && (readsMovements || writesMovements)) {
+                    ++features.movementOnlyRuleCount;
+                }
+                if (!writesObjects && !readsMovements && !writesMovements && semanticCommand) {
+                    ++features.commandOnlyRuleCount;
+                }
+            }
+        }
+    };
+    visitRuleGroups(game.rules, false);
+    visitRuleGroups(game.lateRules, true);
+
+    puzzlescript::search::HeuristicScratch scratch;
+    features.winConditionCount = static_cast<int32_t>(game.winConditions.size());
+    for (const puzzlescript::WinCondition& condition : game.winConditions) {
+        if (condition.quantifier == 1) {
+            ++features.allWinConditionCount;
+        } else if (condition.quantifier == 0) {
+            ++features.someWinConditionCount;
+        }
+        const bool plain = puzzlescript::search::isPlainCondition(game, condition, scratch);
+        if (plain && condition.quantifier == 1) {
+            ++features.allPlainWinCount;
+        } else if (plain && condition.quantifier == -1) {
+            ++features.noPlainWinCount;
+        }
+    }
+    return features;
+}
+
+PortfolioProfile choosePortfolioProfile(const PortfolioFeatures& features) {
+    const int32_t simpleRuleLimit = 20;
+    if (!features.hasAgain
+        && !features.usesRandom
+        && features.winConditionCount == 1
+        && features.ruleCount >= 12
+        && features.movementOnlyRuleCount * 4 >= std::max<int32_t>(1, features.ruleCount) * 3) {
+        return PortfolioProfile::BreadthFirst;
+    }
+    if (!features.hasAgain
+        && !features.runRulesOnLevelStart
+        && !features.usesRandom
+        && features.winConditionCount == 1
+        && features.allWinConditionCount == features.winConditionCount
+        && features.noPlainWinCount == 0
+        && features.semanticCommandRuleCount == 0
+        && features.lateRuleCount == 0
+        && features.ruleCount >= 12
+        && features.ruleCount <= 24) {
+        return PortfolioProfile::BreadthFirst;
+    }
+    if (!features.hasAgain
+        && features.hasActionInput
+        && features.runRulesOnLevelStart
+        && !features.usesRandom
+        && features.winConditionCount == 1
+        && features.ruleCount >= 12
+        && features.ruleCount <= simpleRuleLimit) {
+        return PortfolioProfile::HighWeightFirst;
+    }
+    if (features.hasAgain
+        && !features.hasActionInput
+        && !features.usesRandom
+        && features.ruleCount >= 30) {
+        return PortfolioProfile::WeightedFirst;
+    }
+    if (features.hasAgain
+        && features.hasActionInput
+        && features.runRulesOnLevelStart
+        && !features.usesRandom
+        && features.ruleCount >= 30
+        && features.ruleCount <= 90
+        && features.movementOnlyRuleCount * 3 < std::max<int32_t>(1, features.ruleCount)) {
+        return PortfolioProfile::BreadthFirst;
+    }
+    if (!features.hasAgain
+        && features.hasActionInput
+        && features.runRulesOnLevelStart
+        && !features.usesRandom
+        && features.ruleCount >= 30
+        && features.ruleCount <= 60
+        && features.movementOnlyRuleCount > 0) {
+        return PortfolioProfile::BreadthFirst;
+    }
+    if (features.noPlainWinCount > 0
+        && !features.usesRandom
+        && features.ruleCount <= simpleRuleLimit
+        && features.commandOnlyRuleCount + features.movementOnlyRuleCount >= 4) {
+        return PortfolioProfile::HighWeightFirst;
+    }
+    if (features.winConditionCount == 1
+        && !features.hasAgain
+        && !features.usesRandom
+        && features.ruleCount <= simpleRuleLimit) {
+        return PortfolioProfile::WeightedFirst;
+    }
+    return PortfolioProfile::Balanced;
+}
+
+std::string portfolioProfileName(PortfolioProfile profile) {
+    switch (profile) {
+        case PortfolioProfile::Balanced: return "balanced";
+        case PortfolioProfile::WeightedFirst: return "weighted-first";
+        case PortfolioProfile::HighWeightFirst: return "high-weight-first";
+        case PortfolioProfile::BreadthFirst: return "breadth-first";
+    }
+    return "unknown";
+}
+
+void prepareSolverChildFullStateFromParent(
+    FullState& child,
+    const FullState& parent,
+    bool trimSolverMeta,
+    bool copyRestartSnapshot
+) {
     child.game = parent.game;
-    child.meta = parent.meta;
+    if (trimSolverMeta) {
+        prepareSolverChildMetaFromParent(child.meta, parent.meta, copyRestartSnapshot);
+    } else {
+        child.meta = parent.meta;
+    }
     child.levelState.board.objects = parent.levelState.board.objects;
 
     child.scratch.liveMovements.assign(parent.scratch.liveMovements.size(), 0);
@@ -671,9 +955,13 @@ void prepareSolverChildFullStateFromParent(FullState& child, const FullState& pa
 // when a future expansion uses it as `parentSession`, only those few fields
 // are read, so this thin layout is sufficient — and is what F1 buys us over
 // the previous `std::make_unique<FullState>(parentSession)` deep clone.
-std::unique_ptr<FullState> snapshotSolverNodeFullState(const FullState& source) {
+std::unique_ptr<FullState> snapshotSolverNodeFullState(
+    const FullState& source,
+    bool trimSolverMeta,
+    bool copyRestartSnapshot
+) {
     auto owned = std::make_unique<FullState>();
-    prepareSolverChildFullStateFromParent(*owned, source);
+    prepareSolverChildFullStateFromParent(*owned, source, trimSolverMeta, copyRestartSnapshot);
     return owned;
 }
 
@@ -776,6 +1064,8 @@ SolverEdgeStep stepSolverEdge(
     const FullState& parentSession,
     ps_input input,
     bool compactNodeStorage,
+    bool trimSolverMeta,
+    bool copyRestartSnapshot,
     int32_t width,
     int32_t height,
     FullState& childScratch,
@@ -821,7 +1111,7 @@ SolverEdgeStep stepSolverEdge(
                         ++result.compactTurnOracleChecks;
                         {
                             ScopedTimer timer(result.timing.cloneNs);
-                            prepareSolverChildFullStateFromParent(childScratch, parentSession);
+                            prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
                         }
                         ps_step_result oracleStepResult{};
                         {
@@ -865,7 +1155,7 @@ SolverEdgeStep stepSolverEdge(
         // This avoids the per-edge full FullState copy that previously
         // cloned every scratch/mask vector from the parent.
         ScopedTimer timer(result.timing.cloneNs);
-        prepareSolverChildFullStateFromParent(childScratch, parentSession);
+        prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
         edge.child = &childScratch;
     }
 
@@ -926,10 +1216,7 @@ bool solvedByStep(const ps_step_result& stepResult, ps_full_state* state, int32_
 }
 
 int32_t heuristicScore(FullState& session, puzzlescript::search::HeuristicScratch& scratch) {
-    puzzlescript::search::HeuristicOptions options;
-    options.includeNoQuantifierPenalty = true;
-    options.includePlayerDistance = true;
-    return puzzlescript::search::winConditionHeuristicScore(session, options, scratch);
+    return puzzlescript::search::autoWinConditionHeuristicScore(session, scratch);
 }
 
 bool compactMatchesFilter(
@@ -1108,7 +1395,12 @@ std::unique_ptr<FullState> createLoadedSession(
     const std::string seed = "solver:" + gameName + ":" + std::to_string(levelIndex);
     auto session = puzzlescript::createFullStateWithLoadedLevelSeed(loadedGame, seed);
     session->meta.suppressRuleMessages = true;
-    if (auto error = puzzlescript::loadLevel(*session, levelIndex)) {
+    puzzlescript::RuntimeStepOptions loadOptions;
+    loadOptions.playableUndo = false;
+    loadOptions.emitAudio = false;
+    loadOptions.solverMode = true;
+    loadOptions.againPolicy = puzzlescript::AgainPolicy::Yield;
+    if (auto error = puzzlescript::loadLevel(*session, levelIndex, loadOptions)) {
         result.status = "level_error";
         result.error = error->message;
         return nullptr;
@@ -1294,7 +1586,7 @@ Result runSearch(
     result.level = levelIndex;
     result.status = "exhausted";
     result.strategy = searchModeName(mode);
-    result.heuristic = mode == SearchMode::Bfs ? "zero" : "winconditions";
+    result.heuristic = mode == SearchMode::Bfs ? "zero" : "auto";
     result.timeoutMs = timeoutMs;
     result.workerId = workerId;
     result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
@@ -1365,6 +1657,7 @@ Result runSearch(
 
     uint64_t nextTie = 1;
     const auto inputs = solverInputsForGame(*game);
+    const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
 
     while (!frontier.empty()) {
         bool timedOut = false;
@@ -1424,6 +1717,8 @@ Result runSearch(
                 parentSession,
                 input,
                 compactNodeStorage,
+                true,
+                copyRestartSnapshot,
                 searchWidth,
                 searchHeight,
                 *childScratch,
@@ -1483,7 +1778,7 @@ Result runSearch(
                 std::unique_ptr<FullState> ownedChild;
                 if (!compactNodeStorage) {
                     ScopedTimer timer(result.timing.cloneNs);
-                    ownedChild = snapshotSolverNodeFullState(*edge.child);
+                    ownedChild = snapshotSolverNodeFullState(*edge.child, true, copyRestartSnapshot);
                 }
                 {
                     ScopedTimer timer(result.timing.nodeStoreNs);
@@ -1511,7 +1806,7 @@ Result runSearch(
                 std::unique_ptr<FullState> ownedChild;
                 if (!compactNodeStorage) {
                     ScopedTimer timer(result.timing.cloneNs);
-                    ownedChild = snapshotSolverNodeFullState(*edge.child);
+                    ownedChild = snapshotSolverNodeFullState(*edge.child, true, copyRestartSnapshot);
                 }
                 {
                     ScopedTimer timer(result.timing.nodeStoreNs);
@@ -1530,44 +1825,391 @@ Result runSearch(
     return result;
 }
 
-void mergeStats(Result& target, const Result& source) {
-    target.expanded += source.expanded;
-    target.generated += source.generated;
-    target.uniqueStates += source.uniqueStates;
-    target.duplicates += source.duplicates;
-    target.maxFrontier = std::max(target.maxFrontier, source.maxFrontier);
-    target.compactTurnAttempts += source.compactTurnAttempts;
-    target.compactTurnHits += source.compactTurnHits;
-    target.compactTurnNativeAttempts += source.compactTurnNativeAttempts;
-    target.compactTurnNativeHits += source.compactTurnNativeHits;
-    target.compactTurnBridgeAttempts += source.compactTurnBridgeAttempts;
-    target.compactTurnBridgeHits += source.compactTurnBridgeHits;
-    target.compactTurnFallbacks += source.compactTurnFallbacks;
-    target.compactTurnUnsupported += source.compactTurnUnsupported;
-    target.compactTurnOracleChecks += source.compactTurnOracleChecks;
-    target.compactTurnOracleFailures += source.compactTurnOracleFailures;
-    target.timing.loadNs += source.timing.loadNs;
-    target.timing.cloneNs += source.timing.cloneNs;
-    target.timing.stepNs += source.timing.stepNs;
-    target.timing.hashNs += source.timing.hashNs;
-    target.timing.queueNs += source.timing.queueNs;
-    target.timing.frontierPopNs += source.timing.frontierPopNs;
-    target.timing.frontierPushNs += source.timing.frontierPushNs;
-    target.timing.visitedLookupNs += source.timing.visitedLookupNs;
-    target.timing.visitedInsertNs += source.timing.visitedInsertNs;
-    target.timing.nodeStoreNs += source.timing.nodeStoreNs;
-    target.timing.heuristicNs += source.timing.heuristicNs;
-    target.timing.solvedCheckNs += source.timing.solvedCheckNs;
-    target.timing.timeoutCheckNs += source.timing.timeoutCheckNs;
-    target.timing.reconstructNs += source.timing.reconstructNs;
-    target.timing.visitedLookupProbes += source.timing.visitedLookupProbes;
-    target.timing.visitedInsertProbes += source.timing.visitedInsertProbes;
-    target.timing.visitedGrows += source.timing.visitedGrows;
-    target.timing.visitedCapacity = std::max(target.timing.visitedCapacity, source.timing.visitedCapacity);
-    target.timing.visitedMaxProbe = std::max(target.timing.visitedMaxProbe, source.timing.visitedMaxProbe);
-    target.timing.visitedKeyCollisions += source.timing.visitedKeyCollisions;
-    target.timing.compactStateBytes += source.timing.compactStateBytes;
-    target.timing.compactMaxStateBytes = std::max(target.timing.compactMaxStateBytes, source.timing.compactMaxStateBytes);
+Result runAdaptivePortfolioSearch(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameName,
+    int32_t levelIndex,
+    int64_t timeoutMs,
+    int64_t compileNs,
+    TimePoint deadline,
+    uint32_t workerId,
+    bool exactStateKeys,
+    bool compactNodeStorage,
+    bool compactTurnOracle,
+    int32_t astarWeight
+) {
+    const std::shared_ptr<const Game>& game = loadedGame.information;
+    Result result;
+    result.game = gameName;
+    result.level = levelIndex;
+    result.status = "exhausted";
+    result.strategy = "portfolio";
+    const PortfolioFeatures portfolioFeatures = analyzePortfolioFeatures(*game);
+    const PortfolioProfile portfolioProfile = choosePortfolioProfile(portfolioFeatures);
+    result.portfolioProfile = portfolioProfileName(portfolioProfile);
+    result.portfolioRuleCount = portfolioFeatures.ruleCount;
+    result.portfolioObjectMutatingRuleCount = portfolioFeatures.objectMutatingRuleCount;
+    result.portfolioMovementOnlyRuleCount = portfolioFeatures.movementOnlyRuleCount;
+    result.portfolioCommandRuleCount = portfolioFeatures.commandRuleCount;
+    result.portfolioSemanticCommandRuleCount = portfolioFeatures.semanticCommandRuleCount;
+    result.portfolioCommandOnlyRuleCount = portfolioFeatures.commandOnlyRuleCount;
+    result.portfolioLateRuleCount = portfolioFeatures.lateRuleCount;
+    result.portfolioAllWinConditionCount = portfolioFeatures.allWinConditionCount;
+    result.portfolioSomeWinConditionCount = portfolioFeatures.someWinConditionCount;
+    result.portfolioAllPlainWinCount = portfolioFeatures.allPlainWinCount;
+    result.portfolioNoPlainWinCount = portfolioFeatures.noPlainWinCount;
+    result.portfolioWinConditionCount = portfolioFeatures.winConditionCount;
+    result.portfolioHasActionInput = portfolioFeatures.hasActionInput;
+    result.portfolioHasAgain = portfolioFeatures.hasAgain;
+    result.portfolioRunRulesOnLevelStart = portfolioFeatures.runRulesOnLevelStart;
+    result.portfolioUsesRandom = portfolioFeatures.usesRandom;
+    result.heuristic = "mixed:auto:" + result.portfolioProfile;
+    result.timeoutMs = timeoutMs;
+    result.workerId = workerId;
+    result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
+    result.specializedFullTurnAttached = game && game->specializedFullTurn != nullptr;
+    result.specializedCompactTurnAttached = game && game->specializedCompactTurn != nullptr;
+    result.compactNodeStorage = compactNodeStorage;
+    result.astarWeight = astarWeight;
+    result.timing.compileNs = compileNs;
+
+    std::unique_ptr<FullState> initial;
+    {
+        ScopedTimer timer(result.timing.loadNs);
+        initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
+    }
+    if (!initial) {
+        return result;
+    }
+    if (initial->meta.textMode || initial->meta.level.isMessage) {
+        result.status = "skipped_message";
+        return result;
+    }
+
+    const int32_t searchWidth = currentLevelWidth(*initial);
+    const int32_t searchHeight = currentLevelHeight(*initial);
+    std::unique_ptr<FullState> compactSessionBase;
+    std::unique_ptr<FullState> parentScratch;
+    std::unique_ptr<FullState> childScratch = std::make_unique<FullState>(*initial);
+    if (compactNodeStorage) {
+        compactSessionBase = std::make_unique<FullState>(*initial);
+        parentScratch = std::make_unique<FullState>(*initial);
+    }
+
+    std::vector<Node> nodes;
+    nodes.reserve(8192);
+    std::vector<uint8_t> expanded;
+    expanded.reserve(8192);
+
+    FlatBestDepth bestDepth(result.timing, exactStateKeys);
+    bestDepth.reserve(16384);
+    result.uniqueStates = 1;
+    puzzlescript::search::HeuristicScratch heuristicScratch;
+
+    PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
+    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    int32_t initialHeuristic = 0;
+    {
+        ScopedTimer timer(result.timing.heuristicNs);
+        initialHeuristic = compactNodeStorage
+            ? compactHeuristicScore(initialState, *game, searchWidth, searchHeight, heuristicScratch)
+            : heuristicScore(*initial, heuristicScratch);
+    }
+    {
+        ScopedTimer timer(result.timing.nodeStoreNs);
+        nodes.push_back(Node{compactNodeStorage ? nullptr : std::move(initial), std::move(initialState), initialKey, -1, PS_INPUT_UP, 0, initialHeuristic});
+        expanded.push_back(0);
+        recordPersistentLevelStateStorage(result.timing, nodes.back().state);
+    }
+    {
+        ScopedTimer timer(result.timing.visitedInsertNs);
+        bestDepth.insertOrAssignIfBetter(initialKey, nodes[0].state, 0, 0, nodes);
+    }
+
+    struct PortfolioMode {
+        std::string name;
+        SearchMode mode = SearchMode::Bfs;
+        int32_t weight = 1;
+        uint32_t expansionSlice = 128;
+        std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueEntryGreater> frontier;
+    };
+
+    std::vector<PortfolioMode> modes;
+    if (portfolioProfile == PortfolioProfile::WeightedFirst) {
+        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 20000, {}});
+        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 4096, {}});
+        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 2048, {}});
+        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 1024, {}});
+    } else if (portfolioProfile == PortfolioProfile::HighWeightFirst) {
+        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 50000, {}});
+        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 8192, {}});
+        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 4096, {}});
+        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 1024, {}});
+    } else if (portfolioProfile == PortfolioProfile::BreadthFirst) {
+        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 35000, {}});
+        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 4096, {}});
+        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 4096, {}});
+        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 2048, {}});
+    } else {
+        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 128, {}});
+        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 128, {}});
+        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 128, {}});
+        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 64, {}});
+    }
+
+    uint64_t nextTie = 0;
+    uint64_t totalFrontier = 0;
+    {
+        ScopedTimer timer(result.timing.frontierPushNs);
+        for (PortfolioMode& mode : modes) {
+            mode.frontier.push(QueueEntry{
+                priorityFor(mode.mode, 0, initialHeuristic, mode.weight),
+                nextTie++,
+                0
+            });
+            ++totalFrontier;
+        }
+    }
+    result.maxFrontier = totalFrontier;
+
+    const auto inputs = solverInputsForGame(*game);
+    const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
+    const bool allowLockedBfsProbe = inputs.size() <= 4;
+    const bool allowWeightedAStarLock = portfolioProfile != PortfolioProfile::BreadthFirst;
+    size_t modeIndex = 0;
+    uint32_t sliceExpansionsLeft = modes.empty() ? 0 : modes[0].expansionSlice;
+    constexpr uint32_t kLockedBfsMaxDepth = 8;
+    bool lockedToWeightedAStar = false;
+
+    auto findModeIndex = [&](SearchMode mode) -> std::optional<size_t> {
+        for (size_t index = 0; index < modes.size(); ++index) {
+            if (modes[index].mode == mode) {
+                return index;
+            }
+        }
+        return std::nullopt;
+    };
+    const std::optional<size_t> weightedModeIndex = findModeIndex(SearchMode::WeightedAStar);
+    const std::optional<size_t> bfsModeIndex = findModeIndex(SearchMode::Bfs);
+
+    auto modeEnabledWhenLocked = [&](size_t index) -> bool {
+        if (weightedModeIndex && index == *weightedModeIndex) {
+            return true;
+        }
+        return allowLockedBfsProbe && bfsModeIndex && index == *bfsModeIndex;
+    };
+
+    auto shouldPushModeForChild = [&](size_t index, uint32_t childDepth) -> bool {
+        if (!lockedToWeightedAStar) {
+            return true;
+        }
+        if (weightedModeIndex && index == *weightedModeIndex) {
+            return true;
+        }
+        return allowLockedBfsProbe && bfsModeIndex && index == *bfsModeIndex && childDepth <= kLockedBfsMaxDepth;
+    };
+
+    auto advanceMode = [&]() -> bool {
+        if (modes.empty()) {
+            return false;
+        }
+        for (size_t attempt = 0; attempt < modes.size(); ++attempt) {
+            modeIndex = (modeIndex + 1) % modes.size();
+            if (lockedToWeightedAStar && !modeEnabledWhenLocked(modeIndex)) {
+                continue;
+            }
+            if (!modes[modeIndex].frontier.empty()) {
+                sliceExpansionsLeft = modes[modeIndex].expansionSlice;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    while (totalFrontier > 0) {
+        bool timedOut = false;
+        {
+            ScopedTimer timer(result.timing.timeoutCheckNs);
+            timedOut = Clock::now() >= deadline;
+        }
+        if (timedOut) {
+            result.status = "timeout";
+            break;
+        }
+
+        if (modes[modeIndex].frontier.empty() || sliceExpansionsLeft == 0) {
+            if (!advanceMode()) {
+                break;
+            }
+        }
+
+        QueueEntry entry;
+        {
+            ScopedTimer timer(result.timing.frontierPopNs);
+            entry = modes[modeIndex].frontier.top();
+            modes[modeIndex].frontier.pop();
+        }
+        --totalFrontier;
+
+        if (entry.nodeIndex >= expanded.size() || expanded[entry.nodeIndex] != 0) {
+            continue;
+        }
+
+        const Node& parentNode = nodes[entry.nodeIndex];
+        if (lockedToWeightedAStar
+            && bfsModeIndex
+            && modeIndex == *bfsModeIndex
+            && parentNode.depth >= kLockedBfsMaxDepth) {
+            continue;
+        }
+        std::optional<uint32_t> best;
+        {
+            ScopedTimer timer(result.timing.visitedLookupNs);
+            best = bestDepth.find(parentNode.key, parentNode.state, nodes);
+        }
+        if (best && *best < parentNode.depth) {
+            ++result.duplicates;
+            continue;
+        }
+
+        expanded[entry.nodeIndex] = 1;
+        --sliceExpansionsLeft;
+
+        const FullState* parentSessionPtr = parentNode.session.get();
+        if (parentSessionPtr == nullptr) {
+            {
+                ScopedTimer timer(result.timing.cloneNs);
+                materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
+            }
+            parentSessionPtr = parentScratch.get();
+        }
+        const FullState& parentSession = *parentSessionPtr;
+        const uint32_t parentDepth = parentNode.depth;
+        ++result.expanded;
+        if (allowWeightedAStarLock && !lockedToWeightedAStar && result.expanded >= 128 && result.generated > 0) {
+            const double stepMsPerGenerated = ms(result.timing.stepNs) / static_cast<double>(result.generated);
+            if (stepMsPerGenerated > 0.05) {
+                lockedToWeightedAStar = true;
+                if (weightedModeIndex && !modes[*weightedModeIndex].frontier.empty()) {
+                    modeIndex = *weightedModeIndex;
+                    sliceExpansionsLeft = modes[*weightedModeIndex].expansionSlice;
+                }
+            }
+        }
+
+        for (const ps_input input : inputs) {
+            timedOut = false;
+            {
+                ScopedTimer timer(result.timing.timeoutCheckNs);
+                timedOut = Clock::now() >= deadline;
+            }
+            if (timedOut) {
+                result.status = "timeout";
+                break;
+            }
+
+            SolverEdgeStep edge = stepSolverEdge(
+                game,
+                parentNode,
+                parentSession,
+                input,
+                compactNodeStorage,
+                false,
+                copyRestartSnapshot,
+                searchWidth,
+                searchHeight,
+                *childScratch,
+                result,
+                compactTurnOracle
+            );
+            if (edge.oracleMismatch) {
+                result.status = "level_error";
+                result.error = edge.oracleError;
+                return result;
+            }
+            const ps_step_result& stepResult = edge.stepResult;
+            ++result.generated;
+
+            if (stepResult.restarted) {
+                continue;
+            }
+
+            bool solved = false;
+            {
+                ScopedTimer timer(result.timing.solvedCheckNs);
+                solved = edge.compactTurn.handled ? stepResult.won : solvedByStep(stepResult, *edge.child, levelIndex);
+            }
+            if (solved) {
+                result.status = "solved";
+                result.strategy = "portfolio:" + modes[modeIndex].name;
+                result.solution = reconstructSolution(nodes, entry.nodeIndex, input, result.timing);
+                return result;
+            }
+            if (!stepResult.changed) {
+                continue;
+            }
+
+            PersistentLevelState childState = edge.compactTurn.handled
+                ? std::move(edge.compactTurn.state)
+                : persistentLevelStateWithTiming(*edge.child, result.timing);
+            const StateKey key = persistentLevelStateKey(childState, result.timing);
+            const uint32_t childDepth = parentDepth + 1;
+            uint32_t childIndex = static_cast<uint32_t>(nodes.size());
+            bool shouldStore = false;
+            {
+                ScopedTimer timer(result.timing.visitedInsertNs);
+                shouldStore = bestDepth.insertOrAssignIfBetter(
+                    key,
+                    childState,
+                    childDepth,
+                    exactStateKeys ? childIndex : 0,
+                    nodes);
+                result.uniqueStates = bestDepth.size();
+            }
+            if (!shouldStore) {
+                ++result.duplicates;
+                continue;
+            }
+
+            int32_t childHeuristic = 0;
+            {
+                ScopedTimer timer(result.timing.heuristicNs);
+                childHeuristic = compactNodeStorage
+                    ? compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch)
+                    : heuristicScore(*edge.child, heuristicScratch);
+            }
+
+            std::unique_ptr<FullState> ownedChild;
+            if (!compactNodeStorage) {
+                ScopedTimer timer(result.timing.cloneNs);
+                ownedChild = snapshotSolverNodeFullState(*edge.child, false, copyRestartSnapshot);
+            }
+            {
+                ScopedTimer timer(result.timing.nodeStoreNs);
+                nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
+                expanded.push_back(0);
+                recordPersistentLevelStateStorage(result.timing, nodes.back().state);
+            }
+            {
+                ScopedTimer timer(result.timing.frontierPushNs);
+                for (size_t modeIndexForPush = 0; modeIndexForPush < modes.size(); ++modeIndexForPush) {
+                    if (!shouldPushModeForChild(modeIndexForPush, childDepth)) {
+                        continue;
+                    }
+                    PortfolioMode& mode = modes[modeIndexForPush];
+                    mode.frontier.push(QueueEntry{
+                        priorityFor(mode.mode, childDepth, childHeuristic, mode.weight),
+                        nextTie++,
+                        childIndex
+                    });
+                    ++totalFrontier;
+                }
+            }
+            result.maxFrontier = std::max<uint64_t>(result.maxFrontier, totalFrontier);
+        }
+    }
+
+    return result;
 }
 
 Result solveLevel(
@@ -1583,7 +2225,6 @@ Result solveLevel(
     bool compactTurnOracle,
     int32_t astarWeight
 ) {
-    const std::shared_ptr<const Game>& game = loadedGame.information;
     const TimePoint searchStart = Clock::now();
     const TimePoint deadline = searchStart + std::chrono::milliseconds(timeoutMs);
 
@@ -1603,44 +2244,18 @@ Result solveLevel(
         return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, compactNodeStorage, compactTurnOracle, astarWeight));
     }
 
-    Result combined;
-    combined.game = gameName;
-    combined.level = levelIndex;
-    combined.status = "timeout";
-    combined.strategy = "portfolio";
-    combined.heuristic = "winconditions";
-    combined.timeoutMs = timeoutMs;
-    combined.workerId = workerId;
-    combined.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
-    combined.specializedFullTurnAttached = game && game->specializedFullTurn != nullptr;
-    combined.specializedCompactTurnAttached = game && game->specializedCompactTurn != nullptr;
-    combined.compactNodeStorage = compactNodeStorage;
-    combined.astarWeight = astarWeight;
-    combined.timing.compileNs = compileNs;
-
-    const TimePoint bfsDeadline = searchStart + std::chrono::milliseconds(std::max<int64_t>(1, timeoutMs / 6));
-    Result bfs = runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, std::min(bfsDeadline, deadline), workerId, exactStateKeys, compactNodeStorage, compactTurnOracle, astarWeight);
-    mergeStats(combined, bfs);
-    if (bfs.status == "solved" || bfs.status == "skipped_message" || bfs.status == "level_error") {
-        bfs.strategy = bfs.status == "solved" ? "bfs" : "portfolio";
-        return finish(bfs);
-    }
-
-    if (Clock::now() < deadline) {
-        Result weighted = runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, compactNodeStorage, compactTurnOracle, astarWeight);
-        mergeStats(combined, weighted);
-        if (weighted.status == "solved" || weighted.status == "level_error") {
-            combined.status = weighted.status;
-            combined.error = weighted.error;
-            combined.strategy = weighted.status == "solved" ? "weighted-astar" : "portfolio";
-            combined.heuristic = weighted.heuristic;
-            combined.solution = std::move(weighted.solution);
-            return finish(combined);
-        }
-        combined.status = weighted.status == "exhausted" ? "exhausted" : "timeout";
-    }
-
-    return finish(combined);
+    return finish(runAdaptivePortfolioSearch(
+        loadedGame,
+        gameName,
+        levelIndex,
+        timeoutMs,
+        compileNs,
+        deadline,
+        workerId,
+        exactStateKeys,
+        compactNodeStorage,
+        compactTurnOracle,
+        astarWeight));
 }
 
 std::string relativeGameName(const std::filesystem::path& root, const std::filesystem::path& gamePath) {
@@ -1823,6 +2438,25 @@ void printJsonResult(const Result& result, std::ostream& out) {
     out << ",\"specialized_compact_turn_attached\":" << (result.specializedCompactTurnAttached ? "true" : "false");
     out << ",\"compact_node_storage\":" << (result.compactNodeStorage ? "true" : "false");
     out << ",\"astar_weight\":" << result.astarWeight;
+    if (!result.portfolioProfile.empty()) {
+        out << ",\"portfolio_profile\":" << jsonString(result.portfolioProfile);
+        out << ",\"portfolio_rule_count\":" << result.portfolioRuleCount;
+        out << ",\"portfolio_object_mutating_rule_count\":" << result.portfolioObjectMutatingRuleCount;
+        out << ",\"portfolio_movement_only_rule_count\":" << result.portfolioMovementOnlyRuleCount;
+        out << ",\"portfolio_command_rule_count\":" << result.portfolioCommandRuleCount;
+        out << ",\"portfolio_semantic_command_rule_count\":" << result.portfolioSemanticCommandRuleCount;
+        out << ",\"portfolio_command_only_rule_count\":" << result.portfolioCommandOnlyRuleCount;
+        out << ",\"portfolio_late_rule_count\":" << result.portfolioLateRuleCount;
+        out << ",\"portfolio_all_win_condition_count\":" << result.portfolioAllWinConditionCount;
+        out << ",\"portfolio_some_win_condition_count\":" << result.portfolioSomeWinConditionCount;
+        out << ",\"portfolio_all_plain_win_count\":" << result.portfolioAllPlainWinCount;
+        out << ",\"portfolio_no_plain_win_count\":" << result.portfolioNoPlainWinCount;
+        out << ",\"portfolio_win_condition_count\":" << result.portfolioWinConditionCount;
+        out << ",\"portfolio_has_action_input\":" << (result.portfolioHasActionInput ? "true" : "false");
+        out << ",\"portfolio_has_again\":" << (result.portfolioHasAgain ? "true" : "false");
+        out << ",\"portfolio_run_rules_on_level_start\":" << (result.portfolioRunRulesOnLevelStart ? "true" : "false");
+        out << ",\"portfolio_uses_random\":" << (result.portfolioUsesRandom ? "true" : "false");
+    }
     out << ",\"compact_turn_attempts\":" << result.compactTurnAttempts;
     out << ",\"compact_turn_hits\":" << result.compactTurnHits;
     out << ",\"compact_turn_native_attempts\":" << result.compactTurnNativeAttempts;

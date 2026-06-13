@@ -58,6 +58,7 @@ struct RuleApplyOutcome {
 };
 
 bool rowStillMatchesAt(const FullState& session, const std::vector<Pattern>& row, int32_t startIndex, int32_t delta);
+bool maskWordsAllZero(const MaskWord* mask, size_t wordCount);
 
 struct MovementResolveOutcome {
     bool moved = false;
@@ -1845,6 +1846,84 @@ Rule parseRule(Game& game, const json::Value& value) {
         }
         rule.patterns.push_back(std::move(patternRow));
     }
+
+    rule.cellRowMissingObjectMasksFirst = static_cast<uint32_t>(game.cellRowMissingObjectMaskOffsets.size());
+    for (const auto& row : rule.patterns) {
+        MaskVector rowMissingWords(static_cast<size_t>(game.wordCount), 0);
+        for (const auto& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) {
+                continue;
+            }
+            const MaskWord* missing = maskPtr(game, pattern.objectsMissing);
+            if (missing == nullptr) {
+                continue;
+            }
+            for (uint32_t word = 0; word < game.wordCount; ++word) {
+                rowMissingWords[static_cast<size_t>(word)] |= missing[word];
+            }
+        }
+        if (anyBitsSet(rowMissingWords)) {
+            game.needsObjectLineAllMasks = true;
+        }
+        game.cellRowMissingObjectMaskOffsets.push_back(storeMaskWords(game, rowMissingWords));
+    }
+    rule.cellRowMissingObjectMasksCount =
+        static_cast<uint32_t>(game.cellRowMissingObjectMaskOffsets.size()) - rule.cellRowMissingObjectMasksFirst;
+
+    rule.cellRowMissingMovementMasksFirst = static_cast<uint32_t>(game.cellRowMissingMovementMaskOffsets.size());
+    for (const auto& row : rule.patterns) {
+        MaskVector rowMissingMovementWords(static_cast<size_t>(game.movementWordCount), 0);
+        for (const auto& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) {
+                continue;
+            }
+            const MaskWord* missing = maskPtr(game, pattern.movementsMissing);
+            if (missing == nullptr) {
+                continue;
+            }
+            for (uint32_t word = 0; word < game.movementWordCount; ++word) {
+                rowMissingMovementWords[static_cast<size_t>(word)] |= missing[word];
+            }
+        }
+        if (anyBitsSet(rowMissingMovementWords)) {
+            game.needsMovementLineAllMasks = true;
+        }
+        game.cellRowMissingMovementMaskOffsets.push_back(storeMaskWords(game, rowMissingMovementWords));
+    }
+    rule.cellRowMissingMovementMasksCount =
+        static_cast<uint32_t>(game.cellRowMissingMovementMaskOffsets.size()) - rule.cellRowMissingMovementMasksFirst;
+
+    rule.cellRowAnyObjectMasks.reserve(rule.patterns.size());
+    rule.cellRowAnyMovementMasks.reserve(rule.patterns.size());
+    for (const auto& row : rule.patterns) {
+        RowAnyMaskSpan anyObjectSpan{
+            static_cast<uint32_t>(game.cellRowAnyObjectMaskOffsets.size()),
+            0
+        };
+        RowAnyMaskSpan anyMovementSpan{
+            static_cast<uint32_t>(game.cellRowAnyMovementMaskOffsets.size()),
+            0
+        };
+        for (const auto& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) {
+                continue;
+            }
+            for (uint32_t i = 0; i < pattern.anyObjectsCount; ++i) {
+                game.cellRowAnyObjectMaskOffsets.push_back(
+                    game.anyObjectOffsets[
+                        static_cast<size_t>(pattern.anyObjectsFirst + i)]);
+                ++anyObjectSpan.count;
+            }
+            for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i) {
+                game.cellRowAnyMovementMaskOffsets.push_back(
+                    game.anyMovementOffsets[
+                        static_cast<size_t>(pattern.anyMovementsFirst + i)]);
+                ++anyMovementSpan.count;
+            }
+        }
+        rule.cellRowAnyObjectMasks.push_back(anyObjectSpan);
+        rule.cellRowAnyMovementMasks.push_back(anyMovementSpan);
+    }
     if (const auto propertyBindings = object.find("property_bindings");
         propertyBindings != object.end() && propertyBindings->second.isArray()) {
         for (const auto& entry : propertyBindings->second.asArray()) {
@@ -3378,6 +3457,162 @@ struct RowAnchor {
     uint64_t cellCount = 0;
 };
 
+struct MovementRowAnchor {
+    int32_t patternIndex = -1;
+    MaskVector movements;
+    uint32_t movementWords = 0;
+    uint64_t cellCount = 0;
+};
+
+struct RowMaskPreconditions {
+    const MaskWord* requiredObjects = nullptr;
+    uint32_t requiredObjectWords = 0;
+    const MaskWord* requiredMovements = nullptr;
+    uint32_t requiredMovementWords = 0;
+    const MaskWord* missingObjects = nullptr;
+    uint32_t missingObjectWords = 0;
+    const MaskWord* missingMovements = nullptr;
+    uint32_t missingMovementWords = 0;
+    const RowAnyMaskSpan* anyObjects = nullptr;
+    const RowAnyMaskSpan* anyMovements = nullptr;
+};
+
+const RowAnyMaskSpan* rowAnyMaskSpanAt(const std::vector<RowAnyMaskSpan>& spans, size_t rowIndex) {
+    return rowIndex < spans.size() ? &spans[rowIndex] : nullptr;
+}
+
+RowMaskPreconditions rowMaskPreconditionsForRuleRow(
+    const Game& game,
+    const Rule& rule,
+    size_t rowIndex,
+    const MaskWord* requiredObjects,
+    uint32_t requiredObjectWords,
+    const MaskWord* requiredMovements,
+    uint32_t requiredMovementWords
+) {
+    const MaskWord* missingObjects = nullptr;
+    uint32_t missingObjectWords = 0;
+    if (rowIndex < rule.cellRowMissingObjectMasksCount) {
+        missingObjects = maskPtr(
+            game,
+            game.cellRowMissingObjectMaskOffsets[
+                static_cast<size_t>(rule.cellRowMissingObjectMasksFirst + rowIndex)]);
+        missingObjectWords = missingObjects != nullptr ? game.wordCount : 0;
+    }
+
+    const MaskWord* missingMovements = nullptr;
+    uint32_t missingMovementWords = 0;
+    if (rowIndex < rule.cellRowMissingMovementMasksCount) {
+        missingMovements = maskPtr(
+            game,
+            game.cellRowMissingMovementMaskOffsets[
+                static_cast<size_t>(rule.cellRowMissingMovementMasksFirst + rowIndex)]);
+        missingMovementWords = missingMovements != nullptr ? game.movementWordCount : 0;
+    }
+
+    return RowMaskPreconditions{
+        requiredObjects,
+        requiredObjectWords,
+        requiredMovements,
+        requiredMovementWords,
+        missingObjects,
+        missingObjectWords,
+        missingMovements,
+        missingMovementWords,
+        rowAnyMaskSpanAt(rule.cellRowAnyObjectMasks, rowIndex),
+        rowAnyMaskSpanAt(rule.cellRowAnyMovementMasks, rowIndex)
+    };
+}
+
+bool rowAnyMasksOverlapLine(
+    const Game& game,
+    const std::vector<MaskOffset>& offsets,
+    const RowAnyMaskSpan* span,
+    uint32_t maskWordCount,
+    const MaskWord* actual,
+    size_t actualWordCount
+) {
+    if (span == nullptr || span->count == 0) {
+        return true;
+    }
+    if (actual == nullptr) {
+        return false;
+    }
+    for (uint32_t i = 0; i < span->count; ++i) {
+        const size_t offsetIndex = static_cast<size_t>(span->first + i);
+        if (offsetIndex >= offsets.size()) {
+            return false;
+        }
+        const MaskWord* anyMask = maskPtr(game, offsets[offsetIndex]);
+        if (anyMask == nullptr
+            || !anyBitsInCommon(anyMask, maskWordCount, actual, actualWordCount)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool rowMissingMasksAllowLine(
+    const MaskWord* missingMask,
+    uint32_t missingMaskWords,
+    const MaskWord* lineAll,
+    size_t lineAllWordCount
+) {
+    if (missingMask == nullptr || missingMaskWords == 0 || lineAll == nullptr) {
+        return true;
+    }
+    return !anyBitsInCommon(missingMask, missingMaskWords, lineAll, lineAllWordCount);
+}
+
+bool lineSatisfiesRowPreconditions(
+    const FullState& session,
+    const RowMaskPreconditions& preconditions,
+    const MaskWord* objects,
+    size_t objectWordCount,
+    const MaskWord* movements,
+    size_t movementWordCount,
+    const MaskWord* allObjects,
+    size_t allObjectWordCount,
+    const MaskWord* allMovements,
+    size_t allMovementWordCount
+) {
+    const Game& game = *session.game;
+    return bitsSetInArray(
+               preconditions.requiredObjects,
+               preconditions.requiredObjectWords,
+               objects,
+               objectWordCount)
+        && bitsSetInArray(
+               preconditions.requiredMovements,
+               preconditions.requiredMovementWords,
+               movements,
+               movementWordCount)
+        && rowAnyMasksOverlapLine(
+               game,
+               game.cellRowAnyObjectMaskOffsets,
+               preconditions.anyObjects,
+               game.wordCount,
+               objects,
+               objectWordCount)
+        && rowAnyMasksOverlapLine(
+               game,
+               game.cellRowAnyMovementMaskOffsets,
+               preconditions.anyMovements,
+               game.movementWordCount,
+               movements,
+               movementWordCount)
+        && rowMissingMasksAllowLine(
+               preconditions.missingObjects,
+               preconditions.missingObjectWords,
+               allObjects,
+               allObjectWordCount)
+        && rowMissingMasksAllowLine(
+               preconditions.missingMovements,
+               preconditions.missingMovementWords,
+               allMovements,
+               allMovementWordCount);
+}
+
 uint64_t objectPresenceCount(const FullState& session, int32_t objectId) {
 #if !PS_INTERPRETER_OBJECT_CELL_INDEX
     (void)session;
@@ -3432,14 +3667,200 @@ std::optional<RowAnchor> chooseRowAnchor(const FullState& session, const std::ve
 #endif
 }
 
+uint64_t movementOverlapCount(const FullState& session, const MaskVector& requiredMovements) {
+    if (requiredMovements.empty() || session.scratch.liveMovements.empty()) {
+        return 0;
+    }
+    const int32_t width = currentLevelWidth(session);
+    const int32_t height = currentLevelHeight(session);
+    const int32_t tileCount = width * height;
+    uint64_t count = 0;
+    for (int32_t tile = 0; tile < tileCount; ++tile) {
+        const MaskWord* movements =
+            session.scratch.liveMovements.data() + static_cast<size_t>(tile * session.game->strideMovement);
+        if (anyBitsInCommon(
+                requiredMovements.data(),
+                requiredMovements.size(),
+                movements,
+                static_cast<size_t>(session.game->strideMovement))) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+void orMaskWordsInto(MaskVector& target, const MaskWord* source, uint32_t wordCount) {
+    if (source == nullptr) {
+        return;
+    }
+    if (target.size() < wordCount) {
+        target.resize(static_cast<size_t>(wordCount), 0);
+    }
+    for (uint32_t word = 0; word < wordCount; ++word) {
+        target[static_cast<size_t>(word)] |= source[word];
+    }
+}
+
+std::optional<MovementRowAnchor> chooseMovementRowAnchor(const FullState& session, const std::vector<Pattern>& row) {
+    if (session.scratch.liveMovements.empty() || session.game->movementWordCount == 0) {
+        return std::nullopt;
+    }
+    std::optional<MovementRowAnchor> best;
+    for (int32_t patternIndex = 0; patternIndex < static_cast<int32_t>(row.size()); ++patternIndex) {
+        const Pattern& pattern = row[static_cast<size_t>(patternIndex)];
+        if (pattern.kind != Pattern::Kind::CellPattern) {
+            continue;
+        }
+        MaskVector movementMask(static_cast<size_t>(session.game->movementWordCount), 0);
+        orMaskWordsInto(movementMask, maskPtr(*session.game, pattern.movementsPresent), session.game->movementWordCount);
+        for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i) {
+            const size_t offsetIndex = static_cast<size_t>(pattern.anyMovementsFirst + i);
+            if (offsetIndex < session.game->anyMovementOffsets.size()) {
+                orMaskWordsInto(
+                    movementMask,
+                    maskPtr(*session.game, session.game->anyMovementOffsets[offsetIndex]),
+                    session.game->movementWordCount);
+            }
+        }
+        for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+            for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                orMaskWordsInto(
+                    movementMask,
+                    maskPtr(*session.game, layerTerm.movementsAny),
+                    session.game->movementWordCount);
+                orMaskWordsInto(
+                    movementMask,
+                    maskPtr(*session.game, layerTerm.movementsPresent),
+                    session.game->movementWordCount);
+            }
+        }
+        if (maskWordsAllZero(movementMask.data(), movementMask.size())) {
+            continue;
+        }
+        const uint64_t count = movementOverlapCount(session, movementMask);
+        if (!best.has_value() || count < best->cellCount) {
+            best = MovementRowAnchor{
+                patternIndex,
+                std::move(movementMask),
+                session.game->movementWordCount,
+                count
+            };
+        }
+    }
+    return best;
+}
+
+std::optional<bool> collectMovementAnchoredRowMatchesInto(
+    const FullState& session,
+    const std::vector<Pattern>& row,
+    int32_t direction,
+    const RowMaskPreconditions& preconditions,
+    int32_t xmin,
+    int32_t xmax,
+    int32_t ymin,
+    int32_t ymax,
+    int32_t delta,
+    std::vector<int32_t>& matches
+) {
+    const auto anchor = chooseMovementRowAnchor(session, row);
+    if (!anchor.has_value()) {
+        return std::nullopt;
+    }
+
+    const int32_t validStartCount = std::max(0, xmax - xmin) * std::max(0, ymax - ymin);
+    if (validStartCount <= 0) {
+        return false;
+    }
+    if (anchor->cellCount == 0) {
+        return false;
+    }
+    if (anchor->cellCount >= static_cast<uint64_t>(std::max(8, validStartCount))) {
+        return std::nullopt;
+    }
+
+    const auto [dx, dy] = directionMaskToDelta(direction);
+    const bool horizontal = direction > 2;
+    const int32_t height = currentLevelHeight(session);
+    const int32_t width = currentLevelWidth(session);
+    const int32_t tileCount = width * height;
+    for (int32_t anchorTile = 0; anchorTile < tileCount; ++anchorTile) {
+        const MaskWord* movements =
+            session.scratch.liveMovements.data() + static_cast<size_t>(anchorTile * session.game->strideMovement);
+        if (!anyBitsInCommon(
+                anchor->movements.data(),
+                anchor->movementWords,
+                movements,
+                static_cast<size_t>(session.game->strideMovement))) {
+            continue;
+        }
+
+        const int32_t anchorX = anchorTile / height;
+        const int32_t anchorY = anchorTile % height;
+        const int32_t startX = anchorX - anchor->patternIndex * dx;
+        const int32_t startY = anchorY - anchor->patternIndex * dy;
+        if (startX < xmin || startX >= xmax || startY < ymin || startY >= ymax) {
+            continue;
+        }
+
+        const MaskWord* lineObjects = horizontal
+            ? session.scratch.rowMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
+            : session.scratch.columnMasks.data() + static_cast<size_t>(startX * session.game->strideObject);
+        const MaskWord* lineMovements = horizontal
+            ? session.scratch.rowMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
+            : session.scratch.columnMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement);
+        const MaskWord* lineAllObjects = session.game->needsObjectLineAllMasks
+            ? (horizontal
+                ? session.scratch.rowAllMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
+                : session.scratch.columnAllMasks.data() + static_cast<size_t>(startX * session.game->strideObject))
+            : nullptr;
+        const MaskWord* lineAllMovements = session.game->needsMovementLineAllMasks
+            ? (horizontal
+                ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
+                : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement))
+            : nullptr;
+        if (!lineSatisfiesRowPreconditions(
+                session,
+                preconditions,
+                lineObjects,
+                static_cast<size_t>(session.game->strideObject),
+                lineMovements,
+                static_cast<size_t>(session.game->strideMovement),
+                lineAllObjects,
+                static_cast<size_t>(session.game->strideObject),
+                lineAllMovements,
+                static_cast<size_t>(session.game->strideMovement))) {
+            continue;
+        }
+
+        addCounter(gRuntimeCounters.candidateCellsTested);
+        const int32_t startIndex = startX * height + startY;
+        if (rowStillMatchesAt(session, row, startIndex, delta)) {
+            matches.push_back(startIndex);
+        }
+    }
+
+    const bool needsSortAndUnique = horizontal;
+    if (needsSortAndUnique && matches.size() > 1) {
+        std::sort(matches.begin(), matches.end(), [horizontal, height](int32_t lhs, int32_t rhs) {
+            if (!horizontal) {
+                return lhs < rhs;
+            }
+            const int32_t lhsX = lhs / height;
+            const int32_t lhsY = lhs % height;
+            const int32_t rhsX = rhs / height;
+            const int32_t rhsY = rhs % height;
+            return lhsY == rhsY ? lhsX < rhsX : lhsY < rhsY;
+        });
+        matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+    }
+    return !matches.empty();
+}
+
 bool collectAnchoredRowMatchesInto(
     const FullState& session,
     const std::vector<Pattern>& row,
     int32_t direction,
-    const MaskWord* rowObjectMask,
-    uint32_t rowObjectMaskWords,
-    const MaskWord* rowMovementMask,
-    uint32_t rowMovementMaskWords,
+    const RowMaskPreconditions& preconditions,
     int32_t xmin,
     int32_t xmax,
     int32_t ymin,
@@ -3499,8 +3920,27 @@ bool collectAnchoredRowMatchesInto(
                 const MaskWord* lineMovements = horizontal
                     ? session.scratch.rowMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
                     : session.scratch.columnMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement);
-                if (!bitsSetInArray(rowObjectMask, rowObjectMaskWords, lineObjects, static_cast<size_t>(session.game->strideObject))
-                    || !bitsSetInArray(rowMovementMask, rowMovementMaskWords, lineMovements, static_cast<size_t>(session.game->strideMovement))) {
+                const MaskWord* lineAllObjects = session.game->needsObjectLineAllMasks
+                    ? (horizontal
+                        ? session.scratch.rowAllMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
+                        : session.scratch.columnAllMasks.data() + static_cast<size_t>(startX * session.game->strideObject))
+                    : nullptr;
+                const MaskWord* lineAllMovements = session.game->needsMovementLineAllMasks
+                    ? (horizontal
+                        ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
+                        : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement))
+                    : nullptr;
+                if (!lineSatisfiesRowPreconditions(
+                        session,
+                        preconditions,
+                        lineObjects,
+                        static_cast<size_t>(session.game->strideObject),
+                        lineMovements,
+                        static_cast<size_t>(session.game->strideMovement),
+                        lineAllObjects,
+                        static_cast<size_t>(session.game->strideObject),
+                        lineAllMovements,
+                        static_cast<size_t>(session.game->strideMovement))) {
                     continue;
                 }
 
@@ -3536,10 +3976,7 @@ void collectRowMatchesInto(
     const FullState& session,
     const std::vector<Pattern>& row,
     int32_t direction,
-    const MaskWord* rowObjectMask,
-    uint32_t rowObjectMaskWords,
-    const MaskWord* rowMovementMask,
-    uint32_t rowMovementMaskWords,
+    const RowMaskPreconditions& preconditions,
     std::vector<int32_t>& matches
 ) {
     matches.clear();
@@ -3576,14 +4013,38 @@ void collectRowMatchesInto(
         return;
     }
 
-    if (!bitsSetInArray(rowObjectMask, rowObjectMaskWords, session.scratch.boardMask.data(), session.scratch.boardMask.size())
-        || !bitsSetInArray(rowMovementMask, rowMovementMaskWords, session.scratch.boardMovementMask.data(), session.scratch.boardMovementMask.size())) {
+    if (!lineSatisfiesRowPreconditions(
+            session,
+            preconditions,
+            session.scratch.boardMask.data(),
+            session.scratch.boardMask.size(),
+            session.scratch.boardMovementMask.data(),
+            session.scratch.boardMovementMask.size(),
+            nullptr,
+            0,
+            nullptr,
+            0)) {
+        return;
+    }
+
+    if (const std::optional<bool> movementAnchored =
+            collectMovementAnchoredRowMatchesInto(
+                session,
+                row,
+                direction,
+                preconditions,
+                xmin,
+                xmax,
+                ymin,
+                ymax,
+                delta,
+                matches);
+        movementAnchored.has_value()) {
         return;
     }
 
     if (collectAnchoredRowMatchesInto(session, row, direction,
-                                      rowObjectMask, rowObjectMaskWords,
-                                      rowMovementMask, rowMovementMaskWords,
+                                      preconditions,
                                       xmin, xmax, ymin, ymax, delta,
                                       matches)) {
         return;
@@ -3594,8 +4055,23 @@ void collectRowMatchesInto(
             addCounter(gRuntimeCounters.rowScans);
             const MaskWord* rowObjects = session.scratch.rowMasks.data() + static_cast<size_t>(y * session.game->strideObject);
             const MaskWord* rowMovements = session.scratch.rowMovementMasks.data() + static_cast<size_t>(y * session.game->strideMovement);
-            if (!bitsSetInArray(rowObjectMask, rowObjectMaskWords, rowObjects, static_cast<size_t>(session.game->strideObject))
-                || !bitsSetInArray(rowMovementMask, rowMovementMaskWords, rowMovements, static_cast<size_t>(session.game->strideMovement))) {
+            const MaskWord* rowAllObjects = session.game->needsObjectLineAllMasks
+                ? session.scratch.rowAllMasks.data() + static_cast<size_t>(y * session.game->strideObject)
+                : nullptr;
+            const MaskWord* rowAllMovements = session.game->needsMovementLineAllMasks
+                ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(y * session.game->strideMovement)
+                : nullptr;
+            if (!lineSatisfiesRowPreconditions(
+                    session,
+                    preconditions,
+                    rowObjects,
+                    static_cast<size_t>(session.game->strideObject),
+                    rowMovements,
+                    static_cast<size_t>(session.game->strideMovement),
+                    rowAllObjects,
+                    static_cast<size_t>(session.game->strideObject),
+                    rowAllMovements,
+                    static_cast<size_t>(session.game->strideMovement))) {
                 continue;
             }
             for (int32_t x = xmin; x < xmax; ++x) {
@@ -3618,8 +4094,23 @@ void collectRowMatchesInto(
             addCounter(gRuntimeCounters.rowScans);
             const MaskWord* columnObjects = session.scratch.columnMasks.data() + static_cast<size_t>(x * session.game->strideObject);
             const MaskWord* columnMovements = session.scratch.columnMovementMasks.data() + static_cast<size_t>(x * session.game->strideMovement);
-            if (!bitsSetInArray(rowObjectMask, rowObjectMaskWords, columnObjects, static_cast<size_t>(session.game->strideObject))
-                || !bitsSetInArray(rowMovementMask, rowMovementMaskWords, columnMovements, static_cast<size_t>(session.game->strideMovement))) {
+            const MaskWord* columnAllObjects = session.game->needsObjectLineAllMasks
+                ? session.scratch.columnAllMasks.data() + static_cast<size_t>(x * session.game->strideObject)
+                : nullptr;
+            const MaskWord* columnAllMovements = session.game->needsMovementLineAllMasks
+                ? session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(x * session.game->strideMovement)
+                : nullptr;
+            if (!lineSatisfiesRowPreconditions(
+                    session,
+                    preconditions,
+                    columnObjects,
+                    static_cast<size_t>(session.game->strideObject),
+                    columnMovements,
+                    static_cast<size_t>(session.game->strideMovement),
+                    columnAllObjects,
+                    static_cast<size_t>(session.game->strideObject),
+                    columnAllMovements,
+                    static_cast<size_t>(session.game->strideMovement))) {
                 continue;
             }
             for (int32_t y = ymin; y < ymax; ++y) {
@@ -3644,20 +4135,14 @@ std::vector<int32_t> collectRowMatches(
     const FullState& session,
     const std::vector<Pattern>& row,
     int32_t direction,
-    const MaskWord* rowObjectMask,
-    uint32_t rowObjectMaskWords,
-    const MaskWord* rowMovementMask,
-    uint32_t rowMovementMaskWords
+    const RowMaskPreconditions& preconditions
 ) {
     std::vector<int32_t> matches;
     collectRowMatchesInto(
         session,
         row,
         direction,
-        rowObjectMask,
-        rowObjectMaskWords,
-        rowMovementMask,
-        rowMovementMaskWords,
+        preconditions,
         matches
     );
     return matches;
@@ -3705,10 +4190,7 @@ std::vector<RowMatch> collectEllipsisRowMatches(
     FullState& session,
     const std::vector<Pattern>& row,
     int32_t direction,
-    const MaskWord* rowObjectMask,
-    uint32_t rowObjectMaskWords,
-    const MaskWord* rowMovementMask,
-    uint32_t rowMovementMaskWords
+    const RowMaskPreconditions& preconditions
 ) {
     std::vector<RowMatch> matches;
     int32_t concreteCount = 0;
@@ -3737,11 +4219,28 @@ std::vector<RowMatch> collectEllipsisRowMatches(
         const MaskWord* lineMovements = horizontal
             ? session.scratch.rowMovementMasks.data() + static_cast<size_t>(line * session.game->strideMovement)
             : session.scratch.columnMovementMasks.data() + static_cast<size_t>(line * session.game->strideMovement);
+        const MaskWord* lineAllObjects = session.game->needsObjectLineAllMasks
+            ? (horizontal
+                ? session.scratch.rowAllMasks.data() + static_cast<size_t>(line * session.game->strideObject)
+                : session.scratch.columnAllMasks.data() + static_cast<size_t>(line * session.game->strideObject))
+            : nullptr;
+        const MaskWord* lineAllMovements = session.game->needsMovementLineAllMasks
+            ? (horizontal
+                ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(line * session.game->strideMovement)
+                : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(line * session.game->strideMovement))
+            : nullptr;
         linePossible[static_cast<size_t>(line)] =
-            bitsSetInArray(rowObjectMask, rowObjectMaskWords,
-                           lineObjects, static_cast<size_t>(session.game->strideObject))
-            && bitsSetInArray(rowMovementMask, rowMovementMaskWords,
-                              lineMovements, static_cast<size_t>(session.game->strideMovement));
+            lineSatisfiesRowPreconditions(
+                session,
+                preconditions,
+                lineObjects,
+                static_cast<size_t>(session.game->strideObject),
+                lineMovements,
+                static_cast<size_t>(session.game->strideMovement),
+                lineAllObjects,
+                static_cast<size_t>(session.game->strideObject),
+                lineAllMovements,
+                static_cast<size_t>(session.game->strideMovement));
     }
 
     auto availableAlongDirection = [&](int32_t x, int32_t y) {
@@ -3965,10 +4464,17 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
                 : kNullMaskOffset;
             const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
             const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+            const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+                game,
+                rule,
+                rowIndex,
+                rowObjectMask,
+                game.wordCount,
+                rowMovementMask,
+                rowMovementMaskWords);
             std::vector<int32_t>& matches = session.scratch.singleRowMatchScratch;
             collectRowMatchesInto(session, row, rule.direction,
-                                  rowObjectMask, game.wordCount,
-                                  rowMovementMask, rowMovementMaskWords,
+                                  preconditions,
                                   matches);
             if (matches.empty()) {
                 if (logRule) {
@@ -4011,9 +4517,16 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
                 : kNullMaskOffset;
             const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
             const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+            const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+                game,
+                rule,
+                rowIndex,
+                rowObjectMask,
+                game.wordCount,
+                rowMovementMask,
+                rowMovementMaskWords);
             auto matches = collectEllipsisRowMatches(session, row, rule.direction,
-                                                     rowObjectMask, game.wordCount,
-                                                     rowMovementMask, rowMovementMaskWords);
+                                                     preconditions);
             if (matches.empty()) {
                 if (logRule) {
                     std::ostringstream stream;
@@ -4073,9 +4586,16 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
                 : kNullMaskOffset;
             const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
             const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+            const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+                game,
+                rule,
+                rowIndex,
+                rowObjectMask,
+                rowObjectMaskWords,
+                rowMovementMask,
+                rowMovementMaskWords);
             auto matches = collectRowMatches(session, row, rule.direction,
-                                             rowObjectMask, rowObjectMaskWords,
-                                             rowMovementMask, rowMovementMaskWords);
+                                             preconditions);
             if (matches.empty()) {
                 if (logRule) {
                     const MaskVector rowObjectMaskCopy = arenaCopy(game, rowObjectOffset, game.wordCount);
@@ -4117,9 +4637,16 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
                 : kNullMaskOffset;
             const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
             const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+            const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+                game,
+                rule,
+                rowIndex,
+                rowObjectMask,
+                game.wordCount,
+                rowMovementMask,
+                rowMovementMaskWords);
             auto matches = collectEllipsisRowMatches(session, row, rule.direction,
-                                                     rowObjectMask, game.wordCount,
-                                                     rowMovementMask, rowMovementMaskWords);
+                                                     preconditions);
             if (matches.empty()) {
                 if (logRule) {
                     std::ostringstream stream;
@@ -4251,9 +4778,16 @@ bool collectRandomRuleMatches(FullState& session, const Rule& rule, std::vector<
                 : kNullMaskOffset;
             const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
             const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+            const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+                game,
+                rule,
+                rowIndex,
+                rowObjectMask,
+                game.wordCount,
+                rowMovementMask,
+                rowMovementMaskWords);
             auto matches = collectRowMatches(session, row, rule.direction,
-                                             rowObjectMask, game.wordCount,
-                                             rowMovementMask, rowMovementMaskWords);
+                                             preconditions);
             if (matches.empty()) {
                 outMatches.clear();
                 return true;
@@ -4275,9 +4809,16 @@ bool collectRandomRuleMatches(FullState& session, const Rule& rule, std::vector<
                 : kNullMaskOffset;
             const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
             const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+            const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+                game,
+                rule,
+                rowIndex,
+                rowObjectMask,
+                game.wordCount,
+                rowMovementMask,
+                rowMovementMaskWords);
             auto matches = collectEllipsisRowMatches(session, row, rule.direction,
-                                                     rowObjectMask, game.wordCount,
-                                                     rowMovementMask, rowMovementMaskWords);
+                                                     preconditions);
             if (matches.empty()) {
                 outMatches.clear();
                 return true;
@@ -4717,15 +5258,31 @@ void rebuildMasks(FullState& session) {
     const size_t columnObjectSize = static_cast<size_t>(width * objectStride);
     const size_t rowMovementSize = static_cast<size_t>(height * movementStride);
     const size_t columnMovementSize = static_cast<size_t>(width * movementStride);
+    const bool needsObjectLineAllMasks = session.game->needsObjectLineAllMasks;
+    const bool needsMovementLineAllMasks = session.game->needsMovementLineAllMasks;
     bool sizeChanged = false;
     auto ensureSize = [&sizeChanged](MaskVector& v, size_t n) {
         if (v.size() != n) { v.assign(n, 0); sizeChanged = true; }
     };
     ensureSize(session.scratch.rowMasks, rowObjectSize);
     ensureSize(session.scratch.columnMasks, columnObjectSize);
+    if (needsObjectLineAllMasks) {
+        ensureSize(session.scratch.rowAllMasks, rowObjectSize);
+        ensureSize(session.scratch.columnAllMasks, columnObjectSize);
+    } else {
+        session.scratch.rowAllMasks.clear();
+        session.scratch.columnAllMasks.clear();
+    }
     ensureSize(session.scratch.boardMask, static_cast<size_t>(objectStride));
     ensureSize(session.scratch.rowMovementMasks, rowMovementSize);
     ensureSize(session.scratch.columnMovementMasks, columnMovementSize);
+    if (needsMovementLineAllMasks) {
+        ensureSize(session.scratch.rowAllMovementMasks, rowMovementSize);
+        ensureSize(session.scratch.columnAllMovementMasks, columnMovementSize);
+    } else {
+        session.scratch.rowAllMovementMasks.clear();
+        session.scratch.columnAllMovementMasks.clear();
+    }
     ensureSize(session.scratch.boardMovementMask, static_cast<size_t>(movementStride));
     if (session.scratch.dirtyObjectRows.size() != static_cast<size_t>(height)) {
         session.scratch.dirtyObjectRows.assign(static_cast<size_t>(height), 1);
@@ -4777,11 +5334,20 @@ void rebuildMasks(FullState& session) {
         addCounter(gRuntimeCounters.maskRebuildRows);
         MaskWord* rowStart = session.scratch.rowMasks.data() + static_cast<size_t>(y * objectStride);
         std::fill(rowStart, rowStart + objectStride, 0);
+        MaskWord* rowAllStart = needsObjectLineAllMasks
+            ? session.scratch.rowAllMasks.data() + static_cast<size_t>(y * objectStride)
+            : nullptr;
+        if (rowAllStart != nullptr) {
+            std::fill(rowAllStart, rowAllStart + objectStride, static_cast<MaskWord>(~MaskWordUnsigned{0}));
+        }
         for (int32_t x = 0; x < width; ++x) {
             const int32_t tileIndex = x * height + y;
             const MaskWord* cell = getCellObjectsPtr(session, tileIndex);
             for (int32_t word = 0; word < objectStride; ++word) {
                 rowStart[word] |= cell[word];
+                if (rowAllStart != nullptr) {
+                    rowAllStart[word] &= cell[word];
+                }
             }
         }
         session.scratch.dirtyObjectRows[static_cast<size_t>(y)] = 0;
@@ -4791,11 +5357,20 @@ void rebuildMasks(FullState& session) {
         addCounter(gRuntimeCounters.maskRebuildColumns);
         MaskWord* colStart = session.scratch.columnMasks.data() + static_cast<size_t>(x * objectStride);
         std::fill(colStart, colStart + objectStride, 0);
+        MaskWord* columnAllStart = needsObjectLineAllMasks
+            ? session.scratch.columnAllMasks.data() + static_cast<size_t>(x * objectStride)
+            : nullptr;
+        if (columnAllStart != nullptr) {
+            std::fill(columnAllStart, columnAllStart + objectStride, static_cast<MaskWord>(~MaskWordUnsigned{0}));
+        }
         for (int32_t y = 0; y < height; ++y) {
             const int32_t tileIndex = x * height + y;
             const MaskWord* cell = getCellObjectsPtr(session, tileIndex);
             for (int32_t word = 0; word < objectStride; ++word) {
                 colStart[word] |= cell[word];
+                if (columnAllStart != nullptr) {
+                    columnAllStart[word] &= cell[word];
+                }
             }
         }
         session.scratch.dirtyObjectColumns[static_cast<size_t>(x)] = 0;
@@ -4818,11 +5393,20 @@ void rebuildMasks(FullState& session) {
         addCounter(gRuntimeCounters.maskRebuildRows);
         MaskWord* rowStart = session.scratch.rowMovementMasks.data() + static_cast<size_t>(y * movementStride);
         std::fill(rowStart, rowStart + movementStride, 0);
+        MaskWord* rowAllStart = needsMovementLineAllMasks
+            ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(y * movementStride)
+            : nullptr;
+        if (rowAllStart != nullptr) {
+            std::fill(rowAllStart, rowAllStart + movementStride, static_cast<MaskWord>(~MaskWordUnsigned{0}));
+        }
         for (int32_t x = 0; x < width; ++x) {
             const size_t movementBase = static_cast<size_t>((x * height + y) * movementStride);
             const MaskWord* cell = session.scratch.liveMovements.data() + movementBase;
             for (int32_t word = 0; word < movementStride; ++word) {
                 rowStart[word] |= cell[word];
+                if (rowAllStart != nullptr) {
+                    rowAllStart[word] &= cell[word];
+                }
             }
         }
         session.scratch.dirtyMovementRows[static_cast<size_t>(y)] = 0;
@@ -4832,11 +5416,20 @@ void rebuildMasks(FullState& session) {
         addCounter(gRuntimeCounters.maskRebuildColumns);
         MaskWord* colStart = session.scratch.columnMovementMasks.data() + static_cast<size_t>(x * movementStride);
         std::fill(colStart, colStart + movementStride, 0);
+        MaskWord* columnAllStart = needsMovementLineAllMasks
+            ? session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(x * movementStride)
+            : nullptr;
+        if (columnAllStart != nullptr) {
+            std::fill(columnAllStart, columnAllStart + movementStride, static_cast<MaskWord>(~MaskWordUnsigned{0}));
+        }
         for (int32_t y = 0; y < height; ++y) {
             const size_t movementBase = static_cast<size_t>((x * height + y) * movementStride);
             const MaskWord* cell = session.scratch.liveMovements.data() + movementBase;
             for (int32_t word = 0; word < movementStride; ++word) {
                 colStart[word] |= cell[word];
+                if (columnAllStart != nullptr) {
+                    columnAllStart[word] &= cell[word];
+                }
             }
         }
         session.scratch.dirtyMovementColumns[static_cast<size_t>(x)] = 0;
@@ -5463,16 +6056,21 @@ void compiledRuleCollectRowMatches(
         : kNullMaskOffset;
     const MaskWord* rowMovementMask = maskPtr(game, rowMovementOffset);
     const uint32_t rowMovementMaskWords = rowMovementMask != nullptr ? game.movementWordCount : 0;
+    const RowMaskPreconditions preconditions = rowMaskPreconditionsForRuleRow(
+        game,
+        rule,
+        rowIndex,
+        rowObjectMask,
+        game.wordCount,
+        rowMovementMask,
+        rowMovementMaskWords);
 
     if (ellipsisCount == 0) {
         std::vector<int32_t> starts = collectRowMatches(
             session,
             row,
             rule.direction,
-            rowObjectMask,
-            game.wordCount,
-            rowMovementMask,
-            rowMovementMaskWords
+            preconditions
         );
         outMatches.reserve(starts.size());
         for (const int32_t start : starts) {
@@ -5485,10 +6083,7 @@ void compiledRuleCollectRowMatches(
         session,
         row,
         rule.direction,
-        rowObjectMask,
-        game.wordCount,
-        rowMovementMask,
-        rowMovementMaskWords
+        preconditions
     );
 }
 
@@ -5790,7 +6385,7 @@ void prepareLoadedLevel(FullState& session, LevelTemplate level, int32_t levelIn
 
 } // namespace
 
-std::unique_ptr<Error> loadLevel(FullState& session, int32_t levelIndex) {
+std::unique_ptr<Error> loadLevel(FullState& session, int32_t levelIndex, RuntimeStepOptions options) {
     if (levelIndex < 0 || static_cast<size_t>(levelIndex) >= session.game->levels.size()) {
         return std::make_unique<Error>("Level index out of range");
     }
@@ -5800,9 +6395,17 @@ std::unique_ptr<Error> loadLevel(FullState& session, int32_t levelIndex) {
         session.game->levels[static_cast<size_t>(levelIndex)],
         levelIndex
     );
-    runRulesOnLevelStart(session);
-    settlePendingAgain(session);
+    runRulesOnLevelStart(session, options);
+    if (options.againPolicy == AgainPolicy::Drain) {
+        settlePendingAgain(session, options);
+    }
     return nullptr;
+}
+
+std::unique_ptr<Error> loadLevel(FullState& session, int32_t levelIndex) {
+    RuntimeStepOptions options;
+    options.againPolicy = AgainPolicy::Drain;
+    return loadLevel(session, levelIndex, options);
 }
 
 std::unique_ptr<Error> loadLevelTemplate(FullState& session, const LevelTemplate& levelTemplate, int32_t levelIndex, RuntimeStepOptions options) {
