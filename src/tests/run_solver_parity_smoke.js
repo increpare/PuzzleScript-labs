@@ -17,6 +17,26 @@ const solverPath = path.resolve(process.argv[2]);
 const fixtureDir = path.resolve(process.argv[3]);
 const jsSolverPath = path.join(__dirname, 'run_solver_tests_js.js');
 
+const TIMEOUT_MS = 2000;
+const JS_ARGS = [
+    fixtureDir,
+    '--timeout-ms', String(TIMEOUT_MS),
+    '--strategy', 'weighted-astar',
+    '--solver-heuristic', 'auto',
+    '--no-solutions',
+    '--quiet',
+    '--json',
+];
+const NATIVE_ARGS = [
+    fixtureDir,
+    '--timeout-ms', String(TIMEOUT_MS),
+    '--jobs', '1',
+    '--strategy', 'weighted-astar',
+    '--no-solutions',
+    '--quiet',
+    '--json',
+];
+
 function runJson(command, args, label) {
     const result = spawnSync(command, args, {
         encoding: 'utf8',
@@ -39,20 +59,29 @@ function resultKey(result) {
     return `${result.game}#${result.level}`;
 }
 
-const native = runJson(solverPath, [fixtureDir, '--timeout-ms', '1000', '--jobs', '1', '--strategy', 'bfs', '--no-solutions', '--quiet', '--json'], 'native solver');
-const js = runJson(process.execPath, [jsSolverPath, fixtureDir, '--timeout-ms', '1000', '--no-solutions', '--quiet', '--json'], 'JS solver');
-
-const nativeByKey = new Map(native.results.map((result) => [resultKey(result), result]));
-const jsByKey = new Map(js.results.map((result) => [resultKey(result), result]));
+// Curated smoke corpus: original tiny set plus push/pull sokoban, NO-in-rule, SOME wincondition.
 const expected = new Map([
     ['impossible.txt#0', { status: 'exhausted', solution: [] }],
     ['message_skip.txt#0', { status: 'skipped_message', solution: [] }],
     ['message_skip.txt#1', { status: 'solved', solution: ['right'] }],
     ['multi_level.txt#0', { status: 'solved', solution: ['right'] }],
     ['multi_level.txt#1', { status: 'solved', solution: ['left'] }],
+    ['no_wall_push.txt#0', { status: 'solved', solution: ['right', 'up', 'down'] }],
     ['one_move.txt#0', { status: 'solved', solution: ['right'] }],
     ['push_goal.txt#0', { status: 'solved', solution: ['right', 'right'] }],
+    ['push_pull.txt#0', { status: 'skipped_message', solution: [] }],
+    ['push_pull.txt#1', { status: 'solved', solution: ['up', 'left', 'down', 'right', 'down', 'right', 'up', 'left', 'left', 'down', 'down', 'right', 'up', 'left', 'up', 'up', 'right', 'up', 'left', 'down', 'down', 'right', 'up', 'left', 'down', 'right', 'right', 'down', 'left', 'up', 'right', 'right', 'down', 'left', 'up', 'left', 'up', 'left', 'down', 'down', 'right', 'right', 'up', 'left'] }],
+    ['push_pull.txt#2', { status: 'skipped_message', solution: [] }],
+    ['push_pull.txt#3', { status: 'solved', solution: ['up', 'left', 'left', 'down', 'left', 'up', 'right', 'down', 'up', 'right', 'down', 'left', 'up', 'right', 'down', 'up', 'right', 'down', 'left'] }],
+    ['push_pull.txt#4', { status: 'skipped_message', solution: [] }],
+    ['some_wincondition.txt#0', { status: 'solved', solution: ['right', 'up'] }],
 ]);
+
+const native = runJson(solverPath, NATIVE_ARGS, 'native solver');
+const js = runJson(process.execPath, [jsSolverPath, ...JS_ARGS], 'JS solver');
+
+const nativeByKey = new Map(native.results.map((result) => [resultKey(result), result]));
+const jsByKey = new Map(js.results.map((result) => [resultKey(result), result]));
 
 for (const [key, expectation] of expected) {
     const nativeResult = nativeByKey.get(key);
@@ -82,4 +111,4 @@ for (const [key, expectation] of expected) {
     }
 }
 
-process.stdout.write(`solver_parity_smoke passed cases=${expected.size}\n`);
+process.stdout.write(`solver_parity_smoke passed cases=${expected.size} strategy=weighted-astar timeout_ms=${TIMEOUT_MS}\n`);

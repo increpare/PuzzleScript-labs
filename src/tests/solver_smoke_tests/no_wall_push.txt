@@ -1,0 +1,66 @@
+title Solver No Wall Push
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+blue
+
+Crate
+orange
+
+Wall
+brown
+
+Target
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+C = Crate
+# = Wall
+T = Target
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Player
+Crate
+Wall
+
+======
+RULES
+======
+
+[ > Player | Crate | no Wall ] -> [ > Player | > Crate | ]
+
+=============
+WINCONDITIONS
+=============
+
+all Crate on Target
+
+======
+LEVELS
+======
+
+####
+#..#
+#PC#
+#.T#
+####

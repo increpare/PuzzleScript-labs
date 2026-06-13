@@ -1,0 +1,51 @@
+title Solver Some Wincondition
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+blue
+
+Target
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+T = Target
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Player
+
+======
+RULES
+======
+
+=============
+WINCONDITIONS
+=============
+
+some Player on Target
+
+======
+LEVELS
+======
+
+.T.T
+..P.

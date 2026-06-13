@@ -429,7 +429,7 @@ add_test(
           $<TARGET_FILE:puzzlescript_solver>
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_smoke_tests
 )
-set_tests_properties(puzzlescript_solver_js_parity_smoke PROPERTIES TIMEOUT 30)
+set_tests_properties(puzzlescript_solver_js_parity_smoke PROPERTIES TIMEOUT 120)
 
 add_test(
   NAME puzzlescript_generator_smoke

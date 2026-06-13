@@ -70,10 +70,10 @@ function resultKey(result) {
 }
 
 function assertSmoke(json) {
-    if (json.totals.levels !== 7) throw new Error(`levels ${json.totals.levels}, expected 7`);
-    if (json.totals.solved !== 5) throw new Error(`solved ${json.totals.solved}, expected 5`);
+    if (json.totals.levels !== 14) throw new Error(`levels ${json.totals.levels}, expected 14`);
+    if (json.totals.solved !== 9) throw new Error(`solved ${json.totals.solved}, expected 9`);
     if (json.totals.exhausted !== 1) throw new Error(`exhausted ${json.totals.exhausted}, expected 1`);
-    if (json.totals.skipped_message !== 1) throw new Error(`skipped ${json.totals.skipped_message}, expected 1`);
+    if (json.totals.skipped_message !== 4) throw new Error(`skipped ${json.totals.skipped_message}, expected 4`);
     if (json.totals.timeout !== 0) throw new Error(`timeout ${json.totals.timeout}, expected 0`);
     if (json.totals.errors !== 0) throw new Error(`errors ${json.totals.errors}, expected 0`);
     const compactTurnOracleFailures = total(json, 'compact_turn_oracle_failures', 'compact_tick_oracle_failures');
@@ -91,8 +91,15 @@ function assertSmoke(json) {
         ['message_skip.txt#1', { status: 'solved', solution: ['right'] }],
         ['multi_level.txt#0', { status: 'solved', solution: ['right'] }],
         ['multi_level.txt#1', { status: 'solved', solution: ['left'] }],
+        ['no_wall_push.txt#0', { status: 'solved', solution: ['right', 'up', 'down'] }],
         ['one_move.txt#0', { status: 'solved', solution: ['right'] }],
         ['push_goal.txt#0', { status: 'solved', solution: ['right', 'right'] }],
+        ['push_pull.txt#0', { status: 'skipped_message', solution: [] }],
+        ['push_pull.txt#1', { status: 'solved', solution: ['up', 'left', 'down', 'right', 'down', 'right', 'up', 'left', 'left', 'down', 'down', 'right', 'up', 'right', 'left', 'left', 'up', 'up', 'right', 'up', 'left', 'down', 'down', 'right', 'right', 'right', 'down', 'left', 'up', 'left', 'up', 'left', 'down', 'down', 'right', 'right', 'up', 'left'] }],
+        ['push_pull.txt#2', { status: 'skipped_message', solution: [] }],
+        ['push_pull.txt#3', { status: 'solved', solution: ['up', 'left', 'left', 'down', 'left', 'up', 'right', 'down', 'up', 'right', 'down', 'left', 'up', 'right', 'down', 'up', 'right', 'down', 'left'] }],
+        ['push_pull.txt#4', { status: 'skipped_message', solution: [] }],
+        ['some_wincondition.txt#0', { status: 'solved', solution: ['right', 'up'] }],
     ]);
     const byKey = new Map(json.results.map((result) => [resultKey(result), result]));
     if (byKey.size !== expected.size) {
@@ -126,4 +133,4 @@ if (compactTurnOracleChecks > 0 || compactTurnOracleFailures > 0 || requireCompa
     suffix += ` compact_turn_oracle_checks=${compactTurnOracleChecks}`;
     suffix += ` compact_turn_oracle_failures=${compactTurnOracleFailures}`;
 }
-process.stdout.write(`solver_smoke_assert passed cases=7${suffix}\n`);
+process.stdout.write(`solver_smoke_assert passed cases=14${suffix}\n`);
