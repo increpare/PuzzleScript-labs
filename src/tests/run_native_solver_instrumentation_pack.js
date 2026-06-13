@@ -4,6 +4,7 @@
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { analyzeFile } = require('./ps_static_analysis');
 
 const DEFAULT_TIMEOUT_MS = 1000;
 const DEFAULT_RUNS = 1;
@@ -75,6 +76,170 @@ function writeJsonFile(filePath, value) {
 function writeTextFile(filePath, value) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, value);
+}
+
+function normalizeStaticTagPart(value) {
+    return String(value)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'unknown';
+}
+
+function addCount(counts, key, amount = 1) {
+    counts[key] = (counts[key] || 0) + amount;
+}
+
+function addStaticTag(tags, tag) {
+    if (tag) {
+        tags.add(tag);
+    }
+}
+
+function addTagCountsFromObject(tags, counts, prefix, tagObject) {
+    for (const [name, value] of Object.entries(tagObject || {})) {
+        if (value === false || value === null || value === undefined) {
+            continue;
+        }
+        if (Array.isArray(value) && value.length === 0) {
+            continue;
+        }
+        const normalized = normalizeStaticTagPart(name);
+        addCount(counts, normalized);
+        addStaticTag(tags, `static:${prefix}:${normalized}`);
+    }
+}
+
+function collectPsTaggedRuleGroups(psTagged) {
+    const groups = [];
+    const sections = psTagged && psTagged.rule_sections ? psTagged.rule_sections : [];
+    for (const section of sections) {
+        for (const group of section.groups || []) {
+            groups.push(group);
+        }
+    }
+    return groups;
+}
+
+function summarizeStaticAnalysisReport(report) {
+    const tags = new Set();
+    const status = report && report.status ? report.status : 'missing';
+    addStaticTag(tags, `static:${normalizeStaticTagPart(status)}`);
+
+    const families = {};
+    const proofCounts = {};
+    const blockerCounts = {};
+    for (const [family, facts] of Object.entries((report && report.facts) || {})) {
+        const familyCounts = {};
+        for (const fact of facts || []) {
+            const factStatus = fact && fact.status ? fact.status : 'unknown';
+            addCount(familyCounts, factStatus);
+            addStaticTag(tags, `static:${normalizeStaticTagPart(factStatus)}:${normalizeStaticTagPart(family)}`);
+            for (const proof of fact && fact.proof ? fact.proof : []) {
+                const normalized = normalizeStaticTagPart(proof);
+                addCount(proofCounts, normalized);
+                addStaticTag(tags, `static:proof:${normalized}`);
+            }
+            for (const blocker of fact && fact.blockers ? fact.blockers : []) {
+                const normalized = normalizeStaticTagPart(blocker);
+                addCount(blockerCounts, normalized);
+                addStaticTag(tags, `static:blocker:${normalized}`);
+            }
+        }
+        if (Object.keys(familyCounts).length > 0) {
+            families[family] = familyCounts;
+        }
+    }
+
+    const psTagged = (report && report.ps_tagged) || {};
+    const ruleTagCounts = {};
+    const ruleGroupTagCounts = {};
+    const objectTagCounts = {};
+    const winConditionTagCounts = {};
+    const groups = collectPsTaggedRuleGroups(psTagged);
+    const rules = groups.flatMap((group) => group.rules || []);
+    for (const group of groups) {
+        addTagCountsFromObject(tags, ruleGroupTagCounts, 'group', group.tags || {});
+    }
+    for (const rule of rules) {
+        addTagCountsFromObject(tags, ruleTagCounts, 'rule', rule.tags || {});
+    }
+    for (const object of psTagged.objects || []) {
+        addTagCountsFromObject(tags, objectTagCounts, 'object', object.tags || {});
+    }
+    for (const condition of psTagged.winconditions || []) {
+        addTagCountsFromObject(tags, winConditionTagCounts, 'win', condition.tags || {});
+    }
+
+    return {
+        status,
+        summary: Object.assign({ proved: 0, candidate: 0, rejected: 0 }, (report && report.summary) || {}),
+        families,
+        counts: {
+            objects: (psTagged.objects || []).length,
+            properties: (psTagged.properties || []).length,
+            collision_layers: (psTagged.collision_layers || []).length,
+            levels: (psTagged.levels || []).length,
+            rulegroups: groups.length,
+            rules: rules.length,
+            late_rules: rules.filter((rule) => rule.late).length,
+            rigid_rules: rules.filter((rule) => rule.rigid).length,
+            random_rules: rules.filter((rule) => rule.random_rule).length,
+            winconditions: (psTagged.winconditions || []).length,
+        },
+        rule_tags: ruleTagCounts,
+        rulegroup_tags: ruleGroupTagCounts,
+        object_tags: objectTagCounts,
+        wincondition_tags: winConditionTagCounts,
+        proof_counts: proofCounts,
+        blocker_counts: blockerCounts,
+        tags: Array.from(tags).sort(),
+    };
+}
+
+function staticAnalysisProfileForGame(corpusDir, game, cache) {
+    if (cache.has(game)) {
+        return cache.get(game);
+    }
+    const gamePath = path.join(corpusDir, game);
+    let profile;
+    if (!fs.existsSync(gamePath)) {
+        profile = summarizeStaticAnalysisReport({
+            status: 'missing',
+            summary: { proved: 0, candidate: 0, rejected: 0 },
+        });
+    } else {
+        try {
+            profile = summarizeStaticAnalysisReport(analyzeFile(gamePath, { includePsTagged: true }));
+        } catch (error) {
+            profile = summarizeStaticAnalysisReport({
+                status: 'error',
+                errors: [error && error.message ? error.message : String(error)],
+                summary: { proved: 0, candidate: 0, rejected: 0 },
+            });
+            profile.error = error && error.message ? error.message : String(error);
+        }
+    }
+    cache.set(game, profile);
+    return profile;
+}
+
+function annotateStaticAnalysisTargets(targets, corpusDir) {
+    const cache = new Map();
+    for (const target of targets) {
+        target.static_analysis = staticAnalysisProfileForGame(corpusDir, target.game, cache);
+    }
+    return targets;
+}
+
+function countStaticAnalysisTags(targets) {
+    const counts = {};
+    for (const target of targets || []) {
+        for (const tag of target.static_analysis && target.static_analysis.tags ? target.static_analysis.tags : []) {
+            addCount(counts, tag);
+        }
+    }
+    return counts;
 }
 
 function buildStrategySpecs() {
@@ -280,6 +445,7 @@ function summarizeStrategyOutputs({ strategies, manifestTargets, outputsByStrate
             game: target.game,
             level: target.level,
             categories: target.categories || [],
+            static_analysis: target.static_analysis || null,
             first_solved_timeout_ms: target.first_solved_timeout_ms,
             strategies: {},
             best_strategy: null,
@@ -355,6 +521,7 @@ function summarizeStrategyOutputs({ strategies, manifestTargets, outputsByStrate
 
     return {
         strategies: strategySummary,
+        static_analysis_tag_counts: countStaticAnalysisTags(manifestTargets),
         targets: Array.from(targetRows.values()),
     };
 }
@@ -466,6 +633,7 @@ function renderReadme({ options, manifestPath, summaryPath, strategies }) {
         '',
         'This directory contains a reusable target manifest plus one benchmark JSON per strategy.',
         'The target set is selected from saved JS/native corpus results, known regressions, and optional extra manifests.',
+        'Each target also carries a compact static-analysis profile derived from the JS analyzer.',
         '',
         'Files:',
         `- manifest: ${path.basename(manifestPath)}`,
@@ -499,6 +667,7 @@ function main(argv) {
     if (selected.targets.length === 0) {
         throw new Error('no instrumentation targets selected; pass --native-results or --manifest');
     }
+    annotateStaticAnalysisTargets(selected.targets, options.corpusDir);
 
     fs.mkdirSync(options.outDir, { recursive: true });
     const manifestPath = path.join(options.outDir, 'manifest.json');
@@ -560,7 +729,10 @@ if (require.main === module) {
 
 module.exports = {
     buildStrategySpecs,
+    annotateStaticAnalysisTargets,
+    countStaticAnalysisTags,
     selectInstrumentationTargets,
+    summarizeStaticAnalysisReport,
     summarizeStrategyOutputs,
     resultKey,
 };

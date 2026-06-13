@@ -6,6 +6,7 @@ const assert = require('assert');
 const {
     buildStrategySpecs,
     selectInstrumentationTargets,
+    summarizeStaticAnalysisReport,
     summarizeStrategyOutputs,
 } = require('./run_native_solver_instrumentation_pack.js');
 
@@ -40,6 +41,77 @@ const selected = selectInstrumentationTargets({
     maxTargets: 20,
     timeoutMs: 1000,
 });
+
+const staticAnalysisProfile = summarizeStaticAnalysisReport({
+    status: 'ok',
+    summary: { proved: 1, candidate: 1, rejected: 1 },
+    facts: {
+        movement_action: [
+            { status: 'proved', proof: ['conservative_movement_reachability_fixpoint'], blockers: [] },
+            { status: 'rejected', proof: [], blockers: ['semantic_command'] },
+        ],
+        winflow: [
+            { status: 'candidate', proof: ['wake_graph'], blockers: ['late_rule'] },
+        ],
+    },
+    ps_tagged: {
+        objects: [
+            { tags: { static: true, present_in_all_levels: true, present_in_no_levels: false } },
+        ],
+        winconditions: [
+            { tags: { plain: true, objects_matched: ['Crate', 'Target'] } },
+        ],
+        rule_sections: [
+            {
+                groups: [
+                    {
+                        tags: { movement_only: true, object_mutating: false, solver_state_active: true },
+                        rules: [
+                            {
+                                late: false,
+                                rigid: false,
+                                random_rule: false,
+                                tags: {
+                                    movement_only: true,
+                                    objects_required: ['Player'],
+                                    objects_written: [],
+                                    cosmetic: false,
+                                },
+                            },
+                            {
+                                late: true,
+                                rigid: true,
+                                random_rule: true,
+                                tags: {
+                                    object_mutating: true,
+                                    has_again: true,
+                                    objects_written: ['Crate'],
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+});
+
+assert.strictEqual(staticAnalysisProfile.status, 'ok');
+assert.strictEqual(staticAnalysisProfile.counts.rulegroups, 1);
+assert.strictEqual(staticAnalysisProfile.counts.rules, 2);
+assert.strictEqual(staticAnalysisProfile.counts.late_rules, 1);
+assert.strictEqual(staticAnalysisProfile.counts.rigid_rules, 1);
+assert.strictEqual(staticAnalysisProfile.counts.random_rules, 1);
+assert.deepStrictEqual(staticAnalysisProfile.families.movement_action, { proved: 1, rejected: 1 });
+assert(staticAnalysisProfile.tags.includes('static:proved:movement_action'));
+assert(staticAnalysisProfile.tags.includes('static:rejected:movement_action'));
+assert(staticAnalysisProfile.tags.includes('static:blocker:semantic_command'));
+assert(staticAnalysisProfile.tags.includes('static:proof:wake_graph'));
+assert(staticAnalysisProfile.tags.includes('static:rule:object_mutating'));
+assert(staticAnalysisProfile.tags.includes('static:rule:movement_only'));
+assert(staticAnalysisProfile.tags.includes('static:group:solver_state_active'));
+assert(staticAnalysisProfile.tags.includes('static:object:static'));
+assert(staticAnalysisProfile.tags.includes('static:win:plain'));
 
 function findTarget(game, level) {
     return selected.targets.find((target) => target.game === game && target.level === level);
@@ -104,7 +176,11 @@ assert.deepStrictEqual(strategies.find((strategy) => strategy.id === 'wa3'), {
 
 const summary = summarizeStrategyOutputs({
     strategies,
-    manifestTargets: selected.targets,
+    manifestTargets: selected.targets.map((target) =>
+        target.game === 'js-miss.txt'
+            ? Object.assign({}, target, { static_analysis: staticAnalysisProfile })
+            : target
+    ),
     outputsByStrategy: new Map([
         ['portfolio', {
             targets: [
@@ -126,5 +202,8 @@ const summaryMiss = summary.targets.find((target) => target.game === 'js-miss.tx
 assert.strictEqual(summaryMiss.best_strategy, 'bfs');
 assert.strictEqual(summaryMiss.strategies.portfolio.materialize_ms, 12);
 assert.strictEqual(summaryMiss.strategies.portfolio.state_capture_ms, 7);
+assert.deepStrictEqual(summaryMiss.static_analysis.summary, { proved: 1, candidate: 1, rejected: 1 });
+assert(summaryMiss.static_analysis.tags.includes('static:rule:object_mutating'));
+assert.strictEqual(summary.static_analysis_tag_counts['static:rule:object_mutating'], 1);
 
 console.log('native_solver_instrumentation_pack_node passed');
