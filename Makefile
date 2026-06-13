@@ -18,7 +18,7 @@
 .PHONY: help build build_32 build_solver build_generator generator solver run ctest tests js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -107,6 +107,18 @@ SOLVER_BENCH_OUT ?= $(BUILD_DIR)/native/solver_benchmark.json
 SOLVER_PERF_BASELINE ?= solver_perf_baseline.json
 SOLVER_BENCH_JOBS ?= 1
 SOLVER_BENCH_STRATEGY ?= portfolio
+# Cumulative solve curve: js + PuzzleScriptPlus naive + native c++ (serial corpus runs).
+SOLVER_TIMEOUT_CURVE_MAX_MS ?= 1000
+SOLVER_TIMEOUT_CURVE_STEP_MS ?= 50
+SOLVER_TIMEOUT_CURVE_OUT_DIR ?= $(BUILD_DIR)/solver-timeout-curve
+SOLVER_TIMEOUT_CURVE_JS_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/js.json
+SOLVER_TIMEOUT_CURVE_PSPLUS_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/psplus.json
+SOLVER_TIMEOUT_CURVE_CPP_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp.json
+SOLVER_TIMEOUT_CURVE_SVG ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/solver_timeout_curve.svg
+SOLVER_TIMEOUT_CURVE_CSV ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/solver_timeout_curve.csv
+SOLVER_TIMEOUT_CURVE_EXTRA_ARGS ?=
+SOLVER_TIMEOUT_CURVE_PROGRESS ?= per-game
+SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS = $(if $(filter per-game,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--progress-per-game,$(if $(filter quiet,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--quiet,--progress-every $(SOLVER_TIMEOUT_CURVE_PROGRESS)))
 SOLVER_MINE_CORPUS ?= src/tests/solver_tests
 SOLVER_MINE_TIMEOUTS_MS ?= 50,100,250,500
 SOLVER_MINE_STRATEGY ?= portfolio
@@ -442,6 +454,8 @@ help:
 	@echo "  make solver_tests_cpp SPECIALIZE=true"
 	@echo "                                     Run standalone native solver corpus with compiled rules"
 	@echo "  make solver_tests_js               Run JavaScript comparison solver corpus"
+	@echo "  make solver_timeout_curve          Build js + PS+ + c++ cumulative solve chart (slow)"
+	@echo "  make solver_timeout_curve_replot   Re-render chart from saved JSON (does not re-run solvers)"
 	@echo "  make js_static_optimization_comparison_solver_smoke"
 	@echo "                                     JS solver smoke corpus: baseline vs --solver-opt all + totals diff"
 	@echo "                                     (override JS_STATIC_OPTIMIZATION_COMPARE_EXTRA_ARGS, JS_STATIC_OPTIMIZATION_COMPARE_OUT)"
@@ -465,6 +479,12 @@ help:
 	@echo "                                     Run native solver with one strategy"
 	@echo "  make solver_tests SOLVER_PROGRESS_EVERY=1"
 	@echo "                                     Show solver progress for every level"
+	@echo "  make solver_timeout_curve SOLVER_TIMEOUT_CURVE_MAX_MS=1000"
+	@echo "                                     Tune max timeout / step: SOLVER_TIMEOUT_CURVE_STEP_MS=50"
+	@echo "  make solver_timeout_curve SOLVER_TIMEOUT_CURVE_PROGRESS=25"
+	@echo "                                     Progress every N levels (default per-game; use quiet to disable)"
+	@echo "  make solver_timeout_curve SOLVER_TESTS_CORPUS=src/tests/solver_smoke_tests"
+	@echo "                                     Quick chart on the smoke corpus"
 	@echo "  make solver_tests SOLVER_OUTPUT_ARGS="
 	@echo "                                     Print per-level solver results after the run"
 	@echo "  make solver_tests SOLVER_SOLUTIONS_DIR=/tmp/solver-solutions"
@@ -940,6 +960,44 @@ solver_tests_cpp: $(SOLVER_TARGET_PREREQ)
 
 solver_tests_js:
 	$(NODE) src/tests/run_solver_tests_js.js src/tests/solver_tests --timeout-ms $(SOLVER_TIMEOUT_MS) --solutions-dir $(SOLVER_SOLUTIONS_DIR)/js $(SOLVER_PROGRESS_ARGS) $(SOLVER_OUTPUT_ARGS)
+
+solver_timeout_curve: build_solver
+	@set -e; \
+	mkdir -p "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)"; \
+	echo ""; \
+	echo "solver_timeout_curve  corpus=$(SOLVER_TESTS_CORPUS) max=$(SOLVER_TIMEOUT_CURVE_MAX_MS)ms step=$(SOLVER_TIMEOUT_CURVE_STEP_MS)ms"; \
+	echo "  JSON -> $(SOLVER_TIMEOUT_CURVE_JS_JSON) , $(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_JSON)"; \
+	echo "  chart -> $(SOLVER_TIMEOUT_CURVE_SVG)"; \
+	echo ""; \
+	$(NODE) src/tests/solver_timeout_curve.js "$(SOLVER_TESTS_CORPUS)" \
+		--max-ms $(SOLVER_TIMEOUT_CURVE_MAX_MS) \
+		--step-ms $(SOLVER_TIMEOUT_CURVE_STEP_MS) \
+		--compare-all \
+		--label js \
+		--save-json "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		--save-json-psplus "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
+		--save-json-cpp "$(SOLVER_TIMEOUT_CURVE_CPP_JSON)" \
+		--cpp-solver "$(PUZZLESCRIPT_SOLVER)" \
+		--cpp-strategy "$(SOLVER_STRATEGY)" \
+		--out-svg "$(SOLVER_TIMEOUT_CURVE_SVG)" \
+		--out-csv "$(SOLVER_TIMEOUT_CURVE_CSV)" \
+		$(SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS) \
+		-- --strategy "$(SOLVER_STRATEGY)" $(SOLVER_TIMEOUT_CURVE_EXTRA_ARGS)
+
+solver_timeout_curve_replot:
+	@set -e; \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_JSON)" ]; then \
+		echo "Missing saved curve JSON under $(SOLVER_TIMEOUT_CURVE_OUT_DIR)."; \
+		echo "Run: make solver_timeout_curve   (full corpus; takes a long time)"; \
+		exit 2; \
+	fi; \
+	mkdir -p "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)"; \
+	$(NODE) src/tests/solver_timeout_curve.js \
+		--series "js:$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		--series "PS+:$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
+		--series "c++:$(SOLVER_TIMEOUT_CURVE_CPP_JSON)" \
+		--out-svg "$(SOLVER_TIMEOUT_CURVE_SVG)" \
+		--out-csv "$(SOLVER_TIMEOUT_CURVE_CSV)"
 
 solver_bench_js:
 	$(NODE) src/tests/bench_solver.js src/tests/solver_tests --timeout-ms $(SOLVER_TIMEOUT_MS) --quiet --json --no-solutions $(SOLVER_BENCH_JS_EXTRA_ARGS)

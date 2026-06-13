@@ -24,6 +24,11 @@ const {
     inertCommandOnlyRuleSourceLines,
     parseSolverOptPassList,
 } = require('./solver_static_opt');
+const {
+    createDistanceTable,
+    createPsPlusGetScore,
+    runNaiveSolver,
+} = require('./solver_naive');
 
 const DEFAULT_STRATEGY = 'weighted-astar';
 const DEFAULT_SOLVER_HEURISTIC = 'auto';
@@ -201,7 +206,7 @@ function parseArgs(argv) {
             options.timeoutMs = null;
         } else if (arg === '--strategy') {
             options.strategy = args[++index];
-            if (!['portfolio', 'bfs', 'weighted-astar', 'greedy', 'phase-split'].includes(options.strategy)) {
+            if (!['portfolio', 'bfs', 'weighted-astar', 'greedy', 'phase-split', 'naive'].includes(options.strategy)) {
                 throw new Error(`Unsupported strategy: ${options.strategy}`);
             }
         } else if (arg === '--astar-weight') {
@@ -272,7 +277,8 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--summary-only] [--quiet] [--json]\n' +
+        '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
@@ -3027,6 +3033,63 @@ function reconstruct(nodes, index, finalToken) {
     return reversed.reverse();
 }
 
+function restoreNaiveObjectsSnapshot(snapshot) {
+    const objects = level.objects;
+    for (let index = 0; index < snapshot.length; index++) {
+        objects[index] = snapshot[index];
+    }
+    // PS+ only queues object words; between turns the live board has no movement bits.
+    if (level.movements) {
+        level.movements.fill(0);
+    }
+    level.rowColMasksValid = false;
+    winning = false;
+    againing = false;
+}
+
+function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, result, searchStarted, deadline) {
+    const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+    modeResult.load_ms = result.load_ms;
+    modeResult.strategy = 'naive';
+    modeResult.heuristic = 'psplus-winconditions';
+    modeResult.hash_mode = 'objects_toString';
+    modeResult.snapshot_mode = 'objects_only';
+    if (!_o10) {
+        throw new Error('PuzzleScriptPlus naive solver requires engine scratch cell _o10');
+    }
+    const initialCurlevel = curlevel;
+    const initialTitleScreen = titleScreen;
+    const distanceTable = createDistanceTable(level.n_tiles, level.height);
+    const getScore = createPsPlusGetScore(state, level, distanceTable, _o10);
+    const actions = solverActionsForGame().slice();
+    const restoreNaiveSnapshot = (snapshot) => {
+        restoreNaiveObjectsSnapshot(snapshot);
+        curlevel = initialCurlevel;
+        titleScreen = initialTitleScreen;
+        textMode = false;
+        hasUsedCheckpoint = false;
+    };
+    return runNaiveSolver({
+        deadline,
+        actions,
+        level,
+        getScore,
+        stepAction(action) {
+            const stepResult = stepSolverAction(action, modeResult);
+            return {
+                changed: stepResult.changed,
+                solved: stepResult.solved || Boolean(winning || hasUsedCheckpoint),
+            };
+        },
+        restoreObjects: restoreNaiveSnapshot,
+        createObjectsSnapshot() {
+            return new Int32Array(level.objects);
+        },
+        result: modeResult,
+        searchStarted,
+    });
+}
+
 function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
     return {
         game,
@@ -3111,8 +3174,13 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const searchStarted = Date.now();
     const deadline = Number.isFinite(timeoutMs) ? searchStarted + timeoutMs : Infinity;
-    const initialSnapshot = createSolverLevelSpecialization(options).capture();
     const strategy = options.strategy || DEFAULT_STRATEGY;
+
+    if (strategy === 'naive') {
+        return runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, result, searchStarted, deadline);
+    }
+
+    const initialSnapshot = createSolverLevelSpecialization(options).capture();
 
     const runMode = (mode, modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
