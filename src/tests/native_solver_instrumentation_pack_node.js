@@ -185,7 +185,18 @@ const summary = summarizeStrategyOutputs({
         ['portfolio', {
             targets: [
                 { game: 'js-miss.txt', level: 0, status_counts: { timeout: 1 }, median: { elapsed_ms: 1000, expanded: 100, materialize_ms: 12, state_capture_ms: 7 } },
-                { game: 'plain-timeout.txt', level: 1, status_counts: { timeout: 1 }, median: { elapsed_ms: 1000, expanded: 200 } },
+                {
+                    game: 'plain-timeout.txt',
+                    level: 1,
+                    status_counts: { timeout: 1 },
+                    median: {
+                        elapsed_ms: 1000,
+                        expanded: 200,
+                        portfolio_profile: 'balanced',
+                        portfolio_rule_count: 17,
+                        portfolio_has_again: true,
+                    },
+                },
             ],
         }],
         ['bfs', {
@@ -205,5 +216,9 @@ assert.strictEqual(summaryMiss.strategies.portfolio.state_capture_ms, 7);
 assert.deepStrictEqual(summaryMiss.static_analysis.summary, { proved: 1, candidate: 1, rejected: 1 });
 assert(summaryMiss.static_analysis.tags.includes('static:rule:object_mutating'));
 assert.strictEqual(summary.static_analysis_tag_counts['static:rule:object_mutating'], 1);
+const plainTimeout = summary.targets.find((target) => target.game === 'plain-timeout.txt');
+assert.strictEqual(plainTimeout.strategies.portfolio.portfolio_profile, 'balanced');
+assert.strictEqual(plainTimeout.strategies.portfolio.portfolio_rule_count, 17);
+assert.strictEqual(plainTimeout.strategies.portfolio.portfolio_has_again, true);
 
 console.log('native_solver_instrumentation_pack_node passed');

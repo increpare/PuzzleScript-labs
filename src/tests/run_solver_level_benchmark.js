@@ -119,6 +119,26 @@ const timingFields = [
     'unattributed_ms',
 ];
 
+const metadataFields = [
+    'portfolio_profile',
+    'portfolio_rule_count',
+    'portfolio_object_mutating_rule_count',
+    'portfolio_movement_only_rule_count',
+    'portfolio_command_rule_count',
+    'portfolio_semantic_command_rule_count',
+    'portfolio_command_only_rule_count',
+    'portfolio_late_rule_count',
+    'portfolio_all_win_condition_count',
+    'portfolio_some_win_condition_count',
+    'portfolio_all_plain_win_count',
+    'portfolio_no_plain_win_count',
+    'portfolio_win_condition_count',
+    'portfolio_has_action_input',
+    'portfolio_has_again',
+    'portfolio_run_rules_on_level_start',
+    'portfolio_uses_random',
+];
+
 function readField(source, name, oldName = null) {
     if (source[name] !== undefined) return source[name];
     if (oldName !== null && source[oldName] !== undefined) return source[oldName];
@@ -134,8 +154,37 @@ function copyTimingFields(target, source) {
     }
 }
 
+function copyMetadataFields(target, source) {
+    for (const fieldName of metadataFields) {
+        if (source[fieldName] !== undefined) {
+            target[fieldName] = source[fieldName];
+        }
+    }
+}
+
 function medianTiming(samples, field) {
     return median(samples.map((sample) => sample[field]).filter(Number.isFinite));
+}
+
+function representativeMetadata(samples, field) {
+    const values = samples
+        .map((sample) => sample[field])
+        .filter((value) => value !== undefined);
+    if (values.length === 0) {
+        return undefined;
+    }
+    if (values.every(Number.isFinite)) {
+        return median(values);
+    }
+    const counts = new Map();
+    for (const value of values) {
+        const key = JSON.stringify(value);
+        const previous = counts.get(key) || { value, count: 0 };
+        previous.count++;
+        counts.set(key, previous);
+    }
+    return Array.from(counts.values())
+        .sort((left, right) => right.count - left.count)[0].value;
 }
 
 function resultKey(result) {
@@ -232,6 +281,7 @@ function runTarget(target, runIndex, strategy, timeoutMs) {
         runtime_counters: profileRuntimeCounters ? parseRuntimeCounters(result.stderr) : null,
     };
     copyTimingFields(sample, solverResult);
+    copyMetadataFields(sample, solverResult);
     return sample;
 }
 
@@ -276,6 +326,12 @@ for (const target of targets) {
     };
     for (const field of timingFields) {
         targetMedian[field] = medianTiming(samples, field);
+    }
+    for (const field of metadataFields) {
+        const value = representativeMetadata(samples, field);
+        if (value !== undefined) {
+            targetMedian[field] = value;
+        }
     }
 
     summaries.push({

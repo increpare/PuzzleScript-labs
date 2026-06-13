@@ -18,7 +18,7 @@
 .PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -99,6 +99,13 @@ SOLVER_INSTRUMENTATION_NATIVE_RESULTS_ARG = $(if $(strip $(SOLVER_INSTRUMENTATIO
 SOLVER_INSTRUMENTATION_PROFILE_COUNTERS_ARG = $(if $(filter true,$(SOLVER_INSTRUMENTATION_PROFILE_COUNTERS)),--profile-runtime-counters,)
 SOLVER_INSTRUMENTATION_DRY_RUN_ARG = $(if $(filter true,$(SOLVER_INSTRUMENTATION_DRY_RUN)),--dry-run,)
 SOLVER_INSTRUMENTATION_MANIFEST_ARGS = $(foreach manifest,$(SOLVER_INSTRUMENTATION_MANIFESTS),--manifest "$(manifest)")
+SOLVER_INSTRUMENTATION_ANALYSIS_SUMMARY ?= $(SOLVER_INSTRUMENTATION_OUT_DIR)/summary.json
+SOLVER_INSTRUMENTATION_ANALYSIS_FORMAT ?= text
+SOLVER_INSTRUMENTATION_ANALYSIS_MIN_SUPPORT ?= 3
+SOLVER_INSTRUMENTATION_ANALYSIS_SLOW_LOSS_MS ?= 100
+SOLVER_INSTRUMENTATION_ANALYSIS_TOP_TAGS ?= 20
+SOLVER_INSTRUMENTATION_ANALYSIS_OUT ?=
+SOLVER_INSTRUMENTATION_ANALYSIS_OUT_ARG = $(if $(strip $(SOLVER_INSTRUMENTATION_ANALYSIS_OUT)),--out "$(SOLVER_INSTRUMENTATION_ANALYSIS_OUT)",)
 # JS solver: baseline vs --solver-opt all JSON diff (see js_static_optimization_comparison_*).
 JS_STATIC_OPTIMIZATION_COMPARE_OUT ?= $(BUILD_DIR)/js-static-optimization-compare
 JS_STATIC_OPTIMIZATION_COMPARE_EXTRA_ARGS ?=
@@ -439,6 +446,8 @@ help:
 	@echo "                                     Compare compiler-mode compact-node focus outputs with runtime counters"
 	@echo "  make solver_benchmark_targets      Benchmark mined solver targets repeatedly"
 	@echo "  make solver_instrumentation_pack   Build cross-strategy native solver evidence pack"
+	@echo "  make solver_instrumentation_analysis"
+	@echo "                                     Analyze instrumentation-pack strategy/static-tag results"
 	@echo "  make clean                         Remove native build outputs and JS parity data"
 	@echo ""
 	@echo "Single-side test commands for timing:"
@@ -1235,6 +1244,20 @@ solver_instrumentation_pack: $(PUZZLESCRIPT_SOLVER)
 		$(SOLVER_INSTRUMENTATION_PROFILE_COUNTERS_ARG) \
 		$(SOLVER_INSTRUMENTATION_DRY_RUN_ARG)
 
+solver_instrumentation_analysis:
+	$(NODE) src/tests/analyze_native_solver_instrumentation_pack.js \
+		"$(SOLVER_INSTRUMENTATION_ANALYSIS_SUMMARY)" \
+		--format "$(SOLVER_INSTRUMENTATION_ANALYSIS_FORMAT)" \
+		--min-support $(SOLVER_INSTRUMENTATION_ANALYSIS_MIN_SUPPORT) \
+		--slow-loss-ms $(SOLVER_INSTRUMENTATION_ANALYSIS_SLOW_LOSS_MS) \
+		--top-tags $(SOLVER_INSTRUMENTATION_ANALYSIS_TOP_TAGS) \
+		$(SOLVER_INSTRUMENTATION_ANALYSIS_OUT_ARG)
+
+solver_instrumentation_analysis_tests:
+	$(NODE) src/tests/run_solver_level_benchmark_node.js
+	$(NODE) src/tests/native_solver_instrumentation_pack_node.js
+	$(NODE) src/tests/analyze_native_solver_instrumentation_pack_node.js
+
 $(JS_PARITY_MANIFEST): $(JS_PARITY_INPUTS)
 	$(NODE) src/tests/js_oracle/export_native_fixtures.js $(JS_PARITY_DATA_DIR)
 
@@ -1368,6 +1391,7 @@ tests: ctest js_parity_tests
 
 all_tests_thorough:
 	$(MAKE) tests
+	$(MAKE) solver_instrumentation_analysis_tests
 	$(MAKE) solver_portfolio_regression_tests
 	$(MAKE) solver_js_coverage_cpp SOLVER_JS_COVERAGE_TIMEOUT_MS=1000 SOLVER_JS_COVERAGE_JOBS=1 SOLVER_JS_COVERAGE_STRATEGY=portfolio
 

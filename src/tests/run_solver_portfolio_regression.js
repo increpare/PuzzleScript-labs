@@ -49,6 +49,13 @@ const targets = [
         requireJsSolved: true,
         nativeArgs: ['--compact-node-storage'],
     },
+    {
+        game: 'Pushy-V Pully-H.txt',
+        level: 15,
+        canonicalRoundTrip: false,
+        requireJsSolved: false,
+        maxExpanded: 5000,
+    },
 ];
 
 function runJson(command, args, label) {

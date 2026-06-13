@@ -1945,6 +1945,7 @@ Result runAdaptivePortfolioSearch(
 
     std::vector<PortfolioMode> modes;
     if (portfolioProfile == PortfolioProfile::WeightedFirst) {
+        modes.push_back(PortfolioMode{"wa3", SearchMode::WeightedAStar, astarWeight + 1, 2048, {}});
         modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 20000, {}});
         modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 4096, {}});
         modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 2048, {}});

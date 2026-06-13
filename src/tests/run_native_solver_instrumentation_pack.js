@@ -12,6 +12,26 @@ const DEFAULT_MAX_TARGETS = 40;
 const DEFAULT_OUT_DIR = path.resolve('build/native/solver_instrumentation_pack');
 const MAX_PER_BUCKET = 12;
 
+const strategyMetadataFields = [
+    'portfolio_profile',
+    'portfolio_rule_count',
+    'portfolio_object_mutating_rule_count',
+    'portfolio_movement_only_rule_count',
+    'portfolio_command_rule_count',
+    'portfolio_semantic_command_rule_count',
+    'portfolio_command_only_rule_count',
+    'portfolio_late_rule_count',
+    'portfolio_all_win_condition_count',
+    'portfolio_some_win_condition_count',
+    'portfolio_all_plain_win_count',
+    'portfolio_no_plain_win_count',
+    'portfolio_win_condition_count',
+    'portfolio_has_action_input',
+    'portfolio_has_again',
+    'portfolio_run_rules_on_level_start',
+    'portfolio_uses_random',
+];
+
 const seedTargets = [
     { game: 'ALL GREEN TO BLUE.txt', level: 11 },
     { game: 'pushit.txt', level: 5 },
@@ -438,6 +458,14 @@ function medianNumber(values) {
     return numbers[Math.floor(numbers.length / 2)];
 }
 
+function copyStrategyMetadata(target, source) {
+    for (const fieldName of strategyMetadataFields) {
+        if (source && source[fieldName] !== undefined) {
+            target[fieldName] = source[fieldName];
+        }
+    }
+}
+
 function summarizeStrategyOutputs({ strategies, manifestTargets, outputsByStrategy }) {
     const targetRows = new Map();
     for (const target of manifestTargets) {
@@ -490,6 +518,7 @@ function summarizeStrategyOutputs({ strategies, manifestTargets, outputsByStrate
                     max_frontier: row.median ? row.median.max_frontier : null,
                     solution_length: row.median ? row.median.solution_length : null,
                 };
+                copyStrategyMetadata(targetRow.strategies[spec.id], row.median);
             }
         }
         strategySummary[spec.id] = {
