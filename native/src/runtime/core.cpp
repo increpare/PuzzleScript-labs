@@ -45,6 +45,7 @@ MaskVector getCellMovements(const FullState& session, int32_t tileIndex);
 int32_t getShiftedMask5(const MaskVector& value, int32_t shift);
 void clearShiftedMask5(MaskVector& value, int32_t shift);
 void markMovementLayerClear(MaskVector& movementsClear, int32_t layerIndex);
+void orMovementLayerClearMask(MaskVector& movementsClear, int32_t layerIndex);
 void setShiftedMask5(MaskVector& value, int32_t shift, int32_t bits);
 size_t objectCellWordCount(const FullState& session);
 
@@ -1245,6 +1246,20 @@ bool maskOverlaps(const MaskWord* left, const MaskWord* right, uint32_t wordCoun
     return false;
 }
 
+int32_t movementFieldAtLayer(
+    const MaskWord* words,
+    uint32_t wordCount,
+    int32_t layerIndex) {
+    if (words == nullptr || layerIndex < 0) {
+        return 0;
+    }
+    MaskVector packed(static_cast<size_t>(wordCount), 0);
+    for (uint32_t word = 0; word < wordCount; ++word) {
+        packed[static_cast<size_t>(word)] = words[word];
+    }
+    return getShiftedMask5(packed, 5 * layerIndex);
+}
+
 bool layerCoupledMovementLayerMatches(
     const MaskWord* movements,
     uint32_t movementWordCount,
@@ -1253,19 +1268,23 @@ bool layerCoupledMovementLayerMatches(
     const MaskWord* movementsAny = maskPtr(game, layerTerm.movementsAny);
     const MaskWord* movementsPresent = maskPtr(game, layerTerm.movementsPresent);
     const MaskWord* movementsMissing = maskPtr(game, layerTerm.movementsMissing);
-    for (uint32_t word = 0; word < movementWordCount; ++word) {
-        const MaskWord anyMask = movementsAny != nullptr ? movementsAny[word] : 0;
-        if (anyMask != 0 && (movements[word] & anyMask) == 0) {
-            return false;
-        }
-        const MaskWord presentMask = movementsPresent != nullptr ? movementsPresent[word] : 0;
-        if (presentMask != 0 && (movements[word] & presentMask) != presentMask) {
-            return false;
-        }
-        const MaskWord missingMask = movementsMissing != nullptr ? movementsMissing[word] : 0;
-        if (missingMask != 0 && (movements[word] & missingMask) != 0) {
-            return false;
-        }
+    const int32_t movementField =
+        movementFieldAtLayer(movements, movementWordCount, layerTerm.layerIndex);
+    const int32_t anyField =
+        movementFieldAtLayer(movementsAny, movementWordCount, layerTerm.layerIndex);
+    const int32_t presentField =
+        movementFieldAtLayer(movementsPresent, movementWordCount, layerTerm.layerIndex);
+    const int32_t missingField =
+        movementFieldAtLayer(movementsMissing, movementWordCount, layerTerm.layerIndex);
+
+    if (anyField != 0 && movementField == 0) {
+        return false;
+    }
+    if (presentField != 0 && movementField != presentField) {
+        return false;
+    }
+    if (missingField != 0 && (movementField & missingField) != 0) {
+        return false;
     }
     return true;
 }
@@ -1311,16 +1330,7 @@ void applyLayerCoupledMovementReplacements(
             if (!layerCoupledMovementLayerMatches(oldMovements, movementWordCount, game, layerTerm)) {
                 continue;
             }
-            // Mark this layer's movement bits for clearing in the replacement
-            // clear-mask (JS: movementsClear.ishiftor(0x1f, 5 * layerIndex)).
-            // clearShiftedMask5 clears live movement bits, not clear-mask bits.
-            {
-                const uint32_t moveWord = movementWordIndexForLayer(static_cast<uint32_t>(layerTerm.layerIndex));
-                const uint32_t moveBit = movementBitShiftForLayer(static_cast<uint32_t>(layerTerm.layerIndex));
-                if (moveWord < movementsClear.size()) {
-                    movementsClear[moveWord] |= static_cast<MaskWord>(MaskWordUnsigned{0x1F} << moveBit);
-                }
-            }
+            orMovementLayerClearMask(movementsClear, layerTerm.layerIndex);
             if (coupled.replacementAggregateName.has_value()) {
                 const auto capture =
                     aggregateCaptures.find(*coupled.replacementAggregateName);
@@ -1480,10 +1490,14 @@ void deriveAggregateBindings(Game& game, Rule& rule) {
     }
 }
 
-void captureAggregateBindings(
+int32_t tupleEntryBasePosition(const std::vector<int32_t>& rowMatch) {
+    return rowMatch.empty() ? -1 : rowMatch.front();
+}
+
+void captureAggregateBindingsForTuple(
     const FullState& session,
     const Rule& rule,
-    int32_t startIndex,
+    const std::vector<std::vector<int32_t>>& tuple,
     int32_t delta,
     std::map<std::string, int32_t>& captures,
     const std::map<std::string, std::optional<PropertyCapture>>& propertyCaptures
@@ -1491,14 +1505,19 @@ void captureAggregateBindings(
     captures.clear();
     for (const AggregateBinding& binding : rule.aggregateBindings) {
         if (binding.sourceRow < 0
-            || static_cast<size_t>(binding.sourceRow) >= rule.patterns.size()) {
+            || static_cast<size_t>(binding.sourceRow) >= rule.patterns.size()
+            || static_cast<size_t>(binding.sourceRow) >= tuple.size()) {
             continue;
         }
         const auto& row = rule.patterns[static_cast<size_t>(binding.sourceRow)];
         if (binding.sourceCell < 0 || static_cast<size_t>(binding.sourceCell) >= row.size()) {
             continue;
         }
-        const int32_t cellPos = startIndex + binding.sourceCell * delta;
+        const int32_t basePos = tupleEntryBasePosition(tuple[static_cast<size_t>(binding.sourceRow)]);
+        if (basePos < 0) {
+            continue;
+        }
+        const int32_t cellPos = basePos + binding.sourceCell * delta;
         int32_t sourceLayer = binding.sourceLayer;
         if (binding.sourcePropertyName.has_value()) {
             const auto capture = propertyCaptures.find(*binding.sourcePropertyName);
@@ -1627,24 +1646,29 @@ bool propertyAliasMatchesSourceMovement(
     return (movementBits & sourceMovementMask) == sourceMovementMask;
 }
 
-void capturePropertyBindings(
+void capturePropertyBindingsForTuple(
     const FullState& session,
     const Rule& rule,
-    int32_t startIndex,
+    const std::vector<std::vector<int32_t>>& tuple,
     int32_t delta,
     std::map<std::string, std::optional<PropertyCapture>>& captures
 ) {
     captures.clear();
     for (const PropertyBinding& binding : rule.propertyBindings) {
         if (binding.sourceRow < 0
-            || static_cast<size_t>(binding.sourceRow) >= rule.patterns.size()) {
+            || static_cast<size_t>(binding.sourceRow) >= rule.patterns.size()
+            || static_cast<size_t>(binding.sourceRow) >= tuple.size()) {
             continue;
         }
         const auto& row = rule.patterns[static_cast<size_t>(binding.sourceRow)];
         if (binding.sourceCell < 0 || static_cast<size_t>(binding.sourceCell) >= row.size()) {
             continue;
         }
-        const int32_t cellPos = startIndex + binding.sourceCell * delta;
+        const int32_t basePos = tupleEntryBasePosition(tuple[static_cast<size_t>(binding.sourceRow)]);
+        if (basePos < 0) {
+            continue;
+        }
+        const int32_t cellPos = basePos + binding.sourceCell * delta;
         const MaskWord* objects = getCellObjectsPtr(session, cellPos);
         const MaskVector movements = getCellMovements(session, cellPos);
         captures[binding.propertyName] = std::nullopt;
@@ -2268,15 +2292,26 @@ int32_t getShiftedMask5(const MaskVector& value, int32_t shift) {
     return static_cast<int32_t>(result & 0x1F);
 }
 
-void markMovementLayerClear(MaskVector& movementsClear, int32_t layerIndex) {
+void orMovementLayerClearMask(MaskVector& movementsClear, int32_t layerIndex) {
     if (layerIndex < 0) {
         return;
     }
-    const uint32_t moveWord = movementWordIndexForLayer(static_cast<uint32_t>(layerIndex));
-    const uint32_t moveBit = movementBitShiftForLayer(static_cast<uint32_t>(layerIndex));
-    if (moveWord < movementsClear.size()) {
-        movementsClear[moveWord] |= static_cast<MaskWord>(MaskWordUnsigned{0x1F} << moveBit);
+    const int32_t shift = 5 * layerIndex;
+    const int32_t word = shift / static_cast<int32_t>(kMaskWordBits);
+    const int32_t bit = shift & static_cast<int32_t>(kMaskWordBitMask);
+    if (word >= static_cast<int32_t>(movementsClear.size())) {
+        return;
     }
+    const MaskWordUnsigned lowMask = MaskWordUnsigned{0x1F} << bit;
+    movementsClear[static_cast<size_t>(word)] |= static_cast<MaskWord>(lowMask);
+    if (bit > static_cast<int32_t>(kMaskWordBits - 5U) && word + 1 < static_cast<int32_t>(movementsClear.size())) {
+        const MaskWordUnsigned highMask = MaskWordUnsigned{0x1F} >> (kMaskWordBits - bit);
+        movementsClear[static_cast<size_t>(word + 1)] |= static_cast<MaskWord>(highMask);
+    }
+}
+
+void markMovementLayerClear(MaskVector& movementsClear, int32_t layerIndex) {
+    orMovementLayerClearMask(movementsClear, layerIndex);
 }
 
 void clearShiftedMask5(MaskVector& value, int32_t shift) {
@@ -2301,16 +2336,18 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
     const size_t columnBase = static_cast<size_t>(columnIndex * stride);
     const size_t rowBase = static_cast<size_t>(rowIndex * stride);
     MaskWord clearedAny = 0;
+    bool changedAny = false;
     for (int32_t word = 0; word < stride; ++word) {
         const MaskWord oldValue = session.scratch.liveMovements[base + static_cast<size_t>(word)];
         const MaskWord value = movements[static_cast<size_t>(word)];
+        changedAny = changedAny || oldValue != value;
         clearedAny |= (oldValue & ~value);
         session.scratch.liveMovements[base + static_cast<size_t>(word)] = value;
         session.scratch.columnMovementMasks[columnBase + static_cast<size_t>(word)] |= value;
         session.scratch.rowMovementMasks[rowBase + static_cast<size_t>(word)] |= value;
         session.scratch.boardMovementMask[static_cast<size_t>(word)] |= value;
     }
-    if (clearedAny != 0) {
+    if (clearedAny != 0 || changedAny) {
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyMovementRows.size())
             session.scratch.dirtyMovementRows[static_cast<size_t>(rowIndex)] = 1;
         if (static_cast<size_t>(columnIndex) < session.scratch.dirtyMovementColumns.size())
@@ -3553,15 +3590,25 @@ bool rowStillMatchesAt(const FullState& session, const std::vector<Pattern>& row
     return true;
 }
 
-bool applyRowAt(FullState& session, const Rule& rule, const std::vector<Pattern>& row, int32_t startIndex, int32_t delta) {
-    capturePropertyBindings(session, rule, startIndex, delta, session.scratch.propertyCaptures);
-    captureAggregateBindings(
-        session,
-        rule,
-        startIndex,
-        delta,
-        session.scratch.aggregateCaptures,
-        session.scratch.propertyCaptures);
+bool applyRowAt(
+    FullState& session,
+    const Rule& rule,
+    const std::vector<Pattern>& row,
+    int32_t startIndex,
+    int32_t delta,
+    bool captureBindings = true
+) {
+    if (captureBindings) {
+        const std::vector<std::vector<int32_t>> tuple = {std::vector<int32_t>{startIndex}};
+        capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
+        captureAggregateBindingsForTuple(
+            session,
+            rule,
+            tuple,
+            delta,
+            session.scratch.aggregateCaptures,
+            session.scratch.propertyCaptures);
+    }
     bool changed = false;
     for (int32_t cellIndex = 0; cellIndex < static_cast<int32_t>(row.size()); ++cellIndex) {
         changed = applyReplacementAt(session, rule, row[static_cast<size_t>(cellIndex)], startIndex + cellIndex * delta) || changed;
@@ -3691,11 +3738,12 @@ bool applyEllipsisRowAt(FullState& session, const Rule& rule, const std::vector<
 
     const auto [dx, dy] = directionMaskToDelta(rule.direction);
     const int32_t delta = dx * currentLevelHeight(session) + dy;
-    capturePropertyBindings(session, rule, positions.front(), delta, session.scratch.propertyCaptures);
-    captureAggregateBindings(
+    const std::vector<std::vector<int32_t>> tuple = {positions};
+    capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
+    captureAggregateBindingsForTuple(
         session,
         rule,
-        positions.front(),
+        tuple,
         delta,
         session.scratch.aggregateCaptures,
         session.scratch.propertyCaptures);
@@ -3717,13 +3765,14 @@ bool applyRowMatchAt(
     const std::vector<Pattern>& row,
     int32_t ellipsisCount,
     const RowMatch& match,
-    int32_t delta
+    int32_t delta,
+    bool captureBindings = true
 ) {
     if (ellipsisCount == 0) {
         if (match.empty()) {
             return false;
         }
-        return applyRowAt(session, rule, row, match.front(), delta);
+        return applyRowAt(session, rule, row, match.front(), delta, captureBindings);
     }
     if (ellipsisCount >= 1) {
         return applyEllipsisRowAt(session, rule, row, match);
@@ -4047,11 +4096,27 @@ RuleApplyOutcome tryApplySimpleRule(FullState& session, const Rule& rule, Comman
                 continue;
             }
         }
+        capturePropertyBindingsForTuple(session, rule, tuple, delta, session.scratch.propertyCaptures);
+        captureAggregateBindingsForTuple(
+            session,
+            rule,
+            tuple,
+            delta,
+            session.scratch.aggregateCaptures,
+            session.scratch.propertyCaptures);
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             const int32_t ellipsisCount = rowIndex < rule.ellipsisCount.size()
                 ? rule.ellipsisCount[rowIndex]
                 : 0;
-            changed = applyRowMatchAt(session, rule, rule.patterns[rowIndex], ellipsisCount, tuple[rowIndex], delta) || changed;
+            changed = applyRowMatchAt(
+                session,
+                rule,
+                rule.patterns[rowIndex],
+                ellipsisCount,
+                tuple[rowIndex],
+                delta,
+                false
+            ) || changed;
         }
     }
     // Mirror JS `Rule.prototype.tryApply`: queue commands after replacement attempts,
@@ -4248,6 +4313,19 @@ bool applyRandomRuleGroup(FullState& session, const std::vector<Rule>& group, Co
     }
 
     bool changed = false;
+    capturePropertyBindingsForTuple(
+        session,
+        *chosen.rule,
+        chosen.tuple,
+        delta,
+        session.scratch.propertyCaptures);
+    captureAggregateBindingsForTuple(
+        session,
+        *chosen.rule,
+        chosen.tuple,
+        delta,
+        session.scratch.aggregateCaptures,
+        session.scratch.propertyCaptures);
     for (size_t rowIndex = 0; rowIndex < chosen.tuple.size() && rowIndex < chosen.rule->patterns.size(); ++rowIndex) {
         const int32_t ellipsisCount = rowIndex < chosen.rule->ellipsisCount.size()
             ? chosen.rule->ellipsisCount[rowIndex]
@@ -4258,7 +4336,8 @@ bool applyRandomRuleGroup(FullState& session, const std::vector<Rule>& group, Co
             chosen.rule->patterns[rowIndex],
             ellipsisCount,
             chosen.tuple[rowIndex],
-            delta
+            delta,
+            false
         ) || changed;
     }
     if (changed) {
