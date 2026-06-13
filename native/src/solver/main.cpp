@@ -99,6 +99,7 @@ struct Options {
     bool requireSpecializedFullTurn = false;
     bool exactStateKeys = true;
     bool compactNodeStorage = false;
+    bool fullNodeStorage = false;
     bool compactTurnOracle = false;
     int32_t astarWeight = 2;
 };
@@ -148,8 +149,10 @@ struct Timing {
     int64_t compileNs = 0;
     int64_t loadNs = 0;
     int64_t cloneNs = 0;
+    int64_t materializeNs = 0;
     int64_t stepNs = 0;
     int64_t hashNs = 0;
+    int64_t stateCaptureNs = 0;
     int64_t queueNs = 0;
     int64_t frontierPopNs = 0;
     int64_t frontierPushNs = 0;
@@ -346,8 +349,10 @@ double ms(int64_t ns) {
 int64_t measuredSearchNs(const Timing& timing) {
     return timing.loadNs
         + timing.cloneNs
+        + timing.materializeNs
         + timing.stepNs
         + timing.hashNs
+        + timing.stateCaptureNs
         + timing.queueNs
         + timing.frontierPopNs
         + timing.frontierPushNs
@@ -497,7 +502,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|greedy] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|greedy] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -563,10 +568,18 @@ Options parseArgs(int argc, char** argv) {
         }
         if (arg == "--compact-node-storage") {
             options.compactNodeStorage = true;
+            options.fullNodeStorage = false;
+            continue;
+        }
+        if (arg == "--full-node-storage" || arg == "--no-compact-node-storage") {
+            options.compactNodeStorage = false;
+            options.fullNodeStorage = true;
+            options.compactTurnOracle = false;
             continue;
         }
         if (arg == "--compact-turn-oracle" || arg == "--compact-tick-oracle") {
             options.compactNodeStorage = true;
+            options.fullNodeStorage = false;
             options.compactTurnOracle = true;
             continue;
         }
@@ -625,7 +638,7 @@ StateKey persistentLevelStateKey(const PersistentLevelState& state, Timing& timi
 }
 
 PersistentLevelState persistentLevelStateWithTiming(const FullState& session, Timing& timing) {
-    ScopedTimer timer(timing.hashNs);
+    ScopedTimer timer(timing.stateCaptureNs);
     return persistentLevelStateFromFullState(session);
 }
 
@@ -1635,9 +1648,7 @@ Result runSearch(
     int32_t initialHeuristic = 0;
     if (mode != SearchMode::Bfs) {
         ScopedTimer timer(result.timing.heuristicNs);
-        initialHeuristic = compactNodeStorage
-            ? compactHeuristicScore(initialState, *game, searchWidth, searchHeight, heuristicScratch)
-            : heuristicScore(*initial, heuristicScratch);
+        initialHeuristic = heuristicScore(*initial, heuristicScratch);
     }
     {
         ScopedTimer timer(result.timing.nodeStoreNs);
@@ -1691,7 +1702,7 @@ Result runSearch(
         const FullState* parentSessionPtr = parentNode.session.get();
         if (parentSessionPtr == nullptr) {
             {
-                ScopedTimer timer(result.timing.cloneNs);
+                ScopedTimer timer(result.timing.materializeNs);
                 materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
             }
             parentSessionPtr = parentScratch.get();
@@ -1771,9 +1782,9 @@ Result runSearch(
                 }
                 if (mode != SearchMode::Bfs) {
                     ScopedTimer timer(result.timing.heuristicNs);
-                    childHeuristic = compactNodeStorage
-                        ? compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch)
-                        : heuristicScore(*edge.child, heuristicScratch);
+                    childHeuristic = edge.child != nullptr
+                        ? heuristicScore(*edge.child, heuristicScratch)
+                        : compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch);
                 }
                 std::unique_ptr<FullState> ownedChild;
                 if (!compactNodeStorage) {
@@ -1798,9 +1809,9 @@ Result runSearch(
                 }
                 if (mode != SearchMode::Bfs) {
                     ScopedTimer timer(result.timing.heuristicNs);
-                    childHeuristic = compactNodeStorage
-                        ? compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch)
-                        : heuristicScore(*edge.child, heuristicScratch);
+                    childHeuristic = edge.child != nullptr
+                        ? heuristicScore(*edge.child, heuristicScratch)
+                        : compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch);
                 }
                 childIndex = static_cast<uint32_t>(nodes.size());
                 std::unique_ptr<FullState> ownedChild;
@@ -1911,9 +1922,7 @@ Result runAdaptivePortfolioSearch(
     int32_t initialHeuristic = 0;
     {
         ScopedTimer timer(result.timing.heuristicNs);
-        initialHeuristic = compactNodeStorage
-            ? compactHeuristicScore(initialState, *game, searchWidth, searchHeight, heuristicScratch)
-            : heuristicScore(*initial, heuristicScratch);
+        initialHeuristic = heuristicScore(*initial, heuristicScratch);
     }
     {
         ScopedTimer timer(result.timing.nodeStoreNs);
@@ -2078,7 +2087,7 @@ Result runAdaptivePortfolioSearch(
         const FullState* parentSessionPtr = parentNode.session.get();
         if (parentSessionPtr == nullptr) {
             {
-                ScopedTimer timer(result.timing.cloneNs);
+                ScopedTimer timer(result.timing.materializeNs);
                 materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
             }
             parentSessionPtr = parentScratch.get();
@@ -2174,9 +2183,9 @@ Result runAdaptivePortfolioSearch(
             int32_t childHeuristic = 0;
             {
                 ScopedTimer timer(result.timing.heuristicNs);
-                childHeuristic = compactNodeStorage
-                    ? compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch)
-                    : heuristicScore(*edge.child, heuristicScratch);
+                childHeuristic = edge.child != nullptr
+                    ? heuristicScore(*edge.child, heuristicScratch)
+                    : compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch);
             }
 
             std::unique_ptr<FullState> ownedChild;
@@ -2222,11 +2231,14 @@ Result solveLevel(
     uint32_t workerId,
     bool exactStateKeys,
     bool compactNodeStorage,
+    bool fullNodeStorage,
     bool compactTurnOracle,
     int32_t astarWeight
 ) {
     const TimePoint searchStart = Clock::now();
     const TimePoint deadline = searchStart + std::chrono::milliseconds(timeoutMs);
+    const bool effectiveCompactNodeStorage =
+        compactNodeStorage || (strategy == Strategy::Portfolio && !fullNodeStorage);
 
     auto finish = [&](Result result) {
         result.strategy = result.status == "solved" ? result.strategy : strategyName(strategy);
@@ -2235,13 +2247,13 @@ Result solveLevel(
     };
 
     if (strategy == Strategy::Bfs) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, compactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
     }
     if (strategy == Strategy::WeightedAStar) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, compactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
     }
     if (strategy == Strategy::Greedy) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, compactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
     }
 
     return finish(runAdaptivePortfolioSearch(
@@ -2253,7 +2265,7 @@ Result solveLevel(
         deadline,
         workerId,
         exactStateKeys,
-        compactNodeStorage,
+        effectiveCompactNodeStorage,
         compactTurnOracle,
         astarWeight));
 }
@@ -2471,8 +2483,10 @@ void printJsonResult(const Result& result, std::ostream& out) {
     out << ",\"compile_ms\":" << ms(result.timing.compileNs);
     out << ",\"load_ms\":" << ms(result.timing.loadNs);
     out << ",\"clone_ms\":" << ms(result.timing.cloneNs);
+    out << ",\"materialize_ms\":" << ms(result.timing.materializeNs);
     out << ",\"step_ms\":" << ms(result.timing.stepNs);
     out << ",\"hash_ms\":" << ms(result.timing.hashNs);
+    out << ",\"state_capture_ms\":" << ms(result.timing.stateCaptureNs);
     out << ",\"queue_ms\":" << ms(result.timing.queueNs);
     out << ",\"frontier_pop_ms\":" << ms(result.timing.frontierPopNs);
     out << ",\"frontier_push_ms\":" << ms(result.timing.frontierPushNs);
@@ -2535,8 +2549,10 @@ void printJson(const std::vector<Result>& results) {
         timing.compileNs += result.timing.compileNs;
         timing.loadNs += result.timing.loadNs;
         timing.cloneNs += result.timing.cloneNs;
+        timing.materializeNs += result.timing.materializeNs;
         timing.stepNs += result.timing.stepNs;
         timing.hashNs += result.timing.hashNs;
+        timing.stateCaptureNs += result.timing.stateCaptureNs;
         timing.queueNs += result.timing.queueNs;
         timing.frontierPopNs += result.timing.frontierPopNs;
         timing.frontierPushNs += result.timing.frontierPushNs;
@@ -2586,8 +2602,10 @@ void printJson(const std::vector<Result>& results) {
     std::cout << ",\"compile_ms\":" << ms(timing.compileNs);
     std::cout << ",\"load_ms\":" << ms(timing.loadNs);
     std::cout << ",\"clone_ms\":" << ms(timing.cloneNs);
+    std::cout << ",\"materialize_ms\":" << ms(timing.materializeNs);
     std::cout << ",\"step_ms\":" << ms(timing.stepNs);
     std::cout << ",\"hash_ms\":" << ms(timing.hashNs);
+    std::cout << ",\"state_capture_ms\":" << ms(timing.stateCaptureNs);
     std::cout << ",\"queue_ms\":" << ms(timing.queueNs);
     std::cout << ",\"frontier_pop_ms\":" << ms(timing.frontierPopNs);
     std::cout << ",\"frontier_push_ms\":" << ms(timing.frontierPushNs);
@@ -2804,6 +2822,7 @@ std::vector<Result> runCorpus(const Options& options) {
                     workerId,
                     options.exactStateKeys,
                     options.compactNodeStorage,
+                    options.fullNodeStorage,
                     options.compactTurnOracle,
                     options.astarWeight
                 );

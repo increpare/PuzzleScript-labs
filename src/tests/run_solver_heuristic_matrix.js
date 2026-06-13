@@ -47,7 +47,9 @@ const NUMERIC_FIELDS = [
     'solution_length',
     'heuristic_ms',
     'step_ms',
+    'materialize_ms',
     'hash_ms',
+    'state_capture_ms',
     'queue_ms',
 ];
 

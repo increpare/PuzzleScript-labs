@@ -82,12 +82,19 @@ assert(capped.targets.some((target) => target.game === 'js-miss.txt' && target.l
 const strategies = buildStrategySpecs();
 assert.deepStrictEqual(strategies.map((strategy) => strategy.id), [
     'portfolio',
+    'portfolio_full',
     'bfs',
     'wa2',
     'wa3',
     'wa8',
     'greedy',
 ]);
+assert.deepStrictEqual(strategies.find((strategy) => strategy.id === 'portfolio_full'), {
+    id: 'portfolio_full',
+    label: 'portfolio full-node',
+    strategy: 'portfolio',
+    solverArgs: ['--full-node-storage'],
+});
 assert.deepStrictEqual(strategies.find((strategy) => strategy.id === 'wa3'), {
     id: 'wa3',
     label: 'weighted-astar w=3',
@@ -101,7 +108,7 @@ const summary = summarizeStrategyOutputs({
     outputsByStrategy: new Map([
         ['portfolio', {
             targets: [
-                { game: 'js-miss.txt', level: 0, status_counts: { timeout: 1 }, median: { elapsed_ms: 1000, expanded: 100 } },
+                { game: 'js-miss.txt', level: 0, status_counts: { timeout: 1 }, median: { elapsed_ms: 1000, expanded: 100, materialize_ms: 12, state_capture_ms: 7 } },
                 { game: 'plain-timeout.txt', level: 1, status_counts: { timeout: 1 }, median: { elapsed_ms: 1000, expanded: 200 } },
             ],
         }],
@@ -115,6 +122,9 @@ const summary = summarizeStrategyOutputs({
 });
 assert.strictEqual(summary.strategies.portfolio.solved, 0);
 assert.strictEqual(summary.strategies.bfs.solved, 1);
-assert.strictEqual(summary.targets.find((target) => target.game === 'js-miss.txt').best_strategy, 'bfs');
+const summaryMiss = summary.targets.find((target) => target.game === 'js-miss.txt');
+assert.strictEqual(summaryMiss.best_strategy, 'bfs');
+assert.strictEqual(summaryMiss.strategies.portfolio.materialize_ms, 12);
+assert.strictEqual(summaryMiss.strategies.portfolio.state_capture_ms, 7);
 
 console.log('native_solver_instrumentation_pack_node passed');

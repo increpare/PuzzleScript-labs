@@ -27,6 +27,7 @@ const targets = [
         level: 3,
         canonicalRoundTrip: true,
         requireJsSolved: true,
+        expectCompactNodeStorage: true,
     },
     {
         game: 'kettle.txt',
@@ -40,6 +41,13 @@ const targets = [
         canonicalRoundTrip: true,
         requireJsSolved: true,
         maxExpanded: 5000,
+    },
+    {
+        game: 'Varifocal Nightmare.txt',
+        level: 9,
+        canonicalRoundTrip: false,
+        requireJsSolved: true,
+        nativeArgs: ['--compact-node-storage'],
     },
 ];
 
@@ -86,6 +94,7 @@ function solveWithNative(corpusDir, target) {
         '--no-solutions',
         '--quiet',
         '--json',
+        ...(target.nativeArgs || []),
     ], 'native solver').results[0];
 }
 
@@ -126,10 +135,17 @@ try {
                 `elapsed_ms=${native.elapsed_ms} strategy=${native.strategy} heuristic=${native.heuristic}`
             );
         }
+        if (target.expectCompactNodeStorage && !native.compact_node_storage) {
+            throw new Error(
+                `native portfolio did not use compact node storage for ${target.game}#${target.level}: ` +
+                `strategy=${native.strategy} compact_node_storage=${native.compact_node_storage}`
+            );
+        }
         passed.push(
             `${target.game}#${target.level}` +
             `${js ? ` js_ms=${js.elapsed_ms}` : ''}` +
-            ` native_ms=${native.elapsed_ms} native_strategy=${native.strategy}`
+            ` native_ms=${native.elapsed_ms} native_strategy=${native.strategy}` +
+            `${target.nativeArgs ? ` native_args=${target.nativeArgs.join(',')}` : ''}`
         );
     }
 

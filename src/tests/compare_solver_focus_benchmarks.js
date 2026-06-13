@@ -546,7 +546,9 @@ function printGraphSplit() {
     const split = [
         ['step', ['step_ms']],
         ['clone', ['clone_ms']],
+        ['materialize', ['materialize_ms']],
         ['hash', ['hash_ms']],
+        ['capture', ['state_capture_ms']],
         ['visited', ['visited_lookup_ms', 'visited_insert_ms']],
         ['frontier', ['frontier_pop_ms', 'frontier_push_ms']],
         ['node_store', ['node_store_ms']],
@@ -772,7 +774,9 @@ process.stdout.write(
 );
 printMedianMetric('step_ms', 'step_ms');
 printMedianMetric('clone_ms', 'clone_ms');
+printMedianMetric('materialize_ms', 'materialize_ms');
 printMedianMetric('hash_ms', 'hash_ms');
+printMedianMetric('state_capture_ms', 'state_capture_ms');
 printMedianMetricSum('visited_ms', ['visited_lookup_ms', 'visited_insert_ms']);
 printMedianMetric('visited_lookup_probes', 'visited_lookup_probes');
 printMedianMetric('visited_insert_probes', 'visited_insert_probes');

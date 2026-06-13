@@ -80,6 +80,7 @@ function writeTextFile(filePath, value) {
 function buildStrategySpecs() {
     return [
         { id: 'portfolio', label: 'portfolio', strategy: 'portfolio', solverArgs: [] },
+        { id: 'portfolio_full', label: 'portfolio full-node', strategy: 'portfolio', solverArgs: ['--full-node-storage'] },
         { id: 'bfs', label: 'bfs', strategy: 'bfs', solverArgs: [] },
         { id: 'wa2', label: 'weighted-astar w=2', strategy: 'weighted-astar', solverArgs: ['--astar-weight', '2'] },
         { id: 'wa3', label: 'weighted-astar w=3', strategy: 'weighted-astar', solverArgs: ['--astar-weight', '3'] },
@@ -316,7 +317,9 @@ function summarizeStrategyOutputs({ strategies, manifestTargets, outputsByStrate
                     expanded: row.median ? row.median.expanded : null,
                     generated: row.median ? row.median.generated : null,
                     step_ms: row.median ? row.median.step_ms : null,
+                    materialize_ms: row.median ? row.median.materialize_ms : null,
                     hash_ms: row.median ? row.median.hash_ms : null,
+                    state_capture_ms: row.median ? row.median.state_capture_ms : null,
                     heuristic_ms: row.median ? row.median.heuristic_ms : null,
                     max_frontier: row.median ? row.median.max_frontier : null,
                     solution_length: row.median ? row.median.solution_length : null,
