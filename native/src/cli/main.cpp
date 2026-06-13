@@ -3748,6 +3748,47 @@ void appendMovementLayersFromMask(std::ostream& out, const puzzlescript::Game& g
     out << "]";
 }
 
+void appendLayerCoupledMovementTerms(
+    std::ostream& out,
+    const puzzlescript::Game& game,
+    const std::vector<puzzlescript::LayerCoupledMovementReplacement>& terms) {
+    out << "[";
+    for (size_t termIndex = 0; termIndex < terms.size(); ++termIndex) {
+        if (termIndex != 0) out << ",";
+        const auto& term = terms[termIndex];
+        out << "{\"layers\":[";
+        for (size_t layerIndex = 0; layerIndex < term.layers.size(); ++layerIndex) {
+            if (layerIndex != 0) out << ",";
+            const auto& layer = term.layers[layerIndex];
+            out << "{\"layer_index\":" << layer.layerIndex
+                << ",\"object_mask\":";
+            appendJsonMask(out, game, layer.objectMask, game.wordCount);
+            out << ",\"movements_any\":";
+            appendJsonMask(out, game, layer.movementsAny, game.movementWordCount);
+            out << ",\"movements_present\":";
+            appendJsonMask(out, game, layer.movementsPresent, game.movementWordCount);
+            out << ",\"movements_missing\":";
+            appendJsonMask(out, game, layer.movementsMissing, game.movementWordCount);
+            out << "}";
+        }
+        out << "]";
+        if (term.replacementAggregateName.has_value()) {
+            out << ",\"replacement_aggregate_name\":"
+                << jsonStringLiteral(*term.replacementAggregateName);
+        } else {
+            out << ",\"replacement_aggregate_name\":null";
+        }
+        if (term.hasReplacementMovementMask) {
+            out << ",\"replacement_movement_mask\":"
+                << term.replacementMovementMask;
+        } else {
+            out << ",\"replacement_movement_mask\":null";
+        }
+        out << "}";
+    }
+    out << "]";
+}
+
 void appendRulePlanJson(std::ostream& out, const puzzlescript::Game& game) {
     auto appendRuleEntry = [&](const puzzlescript::Rule& rule, size_t groupIndex, size_t ruleIndex, bool late) {
         const auto [dx, dy] = ruleDirectionDelta(rule.direction);
@@ -4106,6 +4147,50 @@ std::string serializeRuntimeGameDebugJson(
                     out << "]";
                 }
                 out << "]";
+                out << ",\"aggregate_bindings\":[";
+                for (size_t bindingIndex = 0;
+                     bindingIndex < rule.aggregateBindings.size();
+                     ++bindingIndex) {
+                    if (bindingIndex != 0) out << ",";
+                    const auto& binding = rule.aggregateBindings[bindingIndex];
+                    out << "{\"aggregate_name\":"
+                        << jsonStringLiteral(binding.aggregateName)
+                        << ",\"source_row\":" << binding.sourceRow
+                        << ",\"source_cell\":" << binding.sourceCell
+                        << ",\"source_layer\":" << binding.sourceLayer
+                        << ",\"aggregate_mask\":" << binding.aggregateMask;
+                    if (binding.sourcePropertyName.has_value()) {
+                        out << ",\"source_property_name\":"
+                            << jsonStringLiteral(*binding.sourcePropertyName);
+                    }
+                    out << "}";
+                }
+                out << "]";
+                out << ",\"property_bindings\":[";
+                for (size_t bindingIndex = 0;
+                     bindingIndex < rule.propertyBindings.size();
+                     ++bindingIndex) {
+                    if (bindingIndex != 0) out << ",";
+                    const auto& binding = rule.propertyBindings[bindingIndex];
+                    out << "{\"property_name\":"
+                        << jsonStringLiteral(binding.propertyName)
+                        << ",\"source_row\":" << binding.sourceRow
+                        << ",\"source_cell\":" << binding.sourceCell
+                        << ",\"source_movement_mode\":" << binding.sourceMovementMode
+                        << ",\"source_movement_mask\":" << binding.sourceMovementMask
+                        << ",\"aliases\":[";
+                    for (size_t aliasIndex = 0;
+                         aliasIndex < binding.aliases.size();
+                         ++aliasIndex) {
+                        if (aliasIndex != 0) out << ",";
+                        const auto& alias = binding.aliases[aliasIndex];
+                        out << "{\"object_id\":" << alias.objectId
+                            << ",\"layer_index\":" << alias.layerIndex
+                            << "}";
+                    }
+                    out << "]}";
+                }
+                out << "]";
                 out << ",\"cell_row_masks\":[";
                 for (uint32_t row = 0; row < rule.cellRowMasksCount; ++row) {
                     if (row != 0) out << ",";
@@ -4146,7 +4231,8 @@ std::string serializeRuntimeGameDebugJson(
                                 const auto offset = game.anyMovementOffsets[static_cast<size_t>(pattern.anyMovementsFirst + anyIndex)];
                                 appendJsonMask(out, game, offset, game.movementWordCount);
                             }
-                            out << "]";
+                            out << "],\"layer_coupled_movement_masks\":";
+                            appendLayerCoupledMovementTerms(out, game, pattern.layerCoupledMovementMasks);
                             if (pattern.replacement.has_value()) {
                                 const auto& repl = *pattern.replacement;
                                 out << ",\"replacement\":{\"objects_clear\":"; appendJsonMask(out, game, repl.objectsClear, game.wordCount);
@@ -4156,6 +4242,34 @@ std::string serializeRuntimeGameDebugJson(
                                 out << ",\"movements_layer_mask\":"; appendJsonMask(out, game, repl.movementsLayerMask, game.movementWordCount);
                                 out << ",\"random_entity_mask\":"; appendJsonMask(out, game, repl.randomEntityMask, game.wordCount);
                                 out << ",\"random_dir_mask\":"; appendJsonMask(out, game, repl.randomDirMask, game.movementWordCount);
+                                const puzzlescript::ReplacementDynamic* dynamic = repl.dynamic.get();
+                                out << ",\"inferred_aggregate_bindings\":[";
+                                if (dynamic != nullptr) {
+                                    for (size_t bindingIndex = 0;
+                                         bindingIndex < dynamic->inferredAggregateBindings.size();
+                                         ++bindingIndex) {
+                                        if (bindingIndex != 0) out << ",";
+                                        const auto& binding = dynamic->inferredAggregateBindings[bindingIndex];
+                                        out << "{\"aggregate_name\":"
+                                            << jsonStringLiteral(binding.aggregateName);
+                                        if (binding.layerIndex.has_value()) {
+                                            out << ",\"layer_index\":"
+                                                << *binding.layerIndex;
+                                        }
+                                        if (binding.propertyName.has_value()) {
+                                            out << ",\"property_name\":"
+                                                << jsonStringLiteral(*binding.propertyName);
+                                        }
+                                        out << "}";
+                                    }
+                                }
+                                out << "]";
+                                out << ",\"layer_coupled_movement_replacements\":";
+                                if (dynamic != nullptr) {
+                                    appendLayerCoupledMovementTerms(out, game, dynamic->layerCoupledMovementReplacements);
+                                } else {
+                                    out << "[]";
+                                }
                                 out << "}";
                             } else {
                                 out << ",\"replacement\":null";

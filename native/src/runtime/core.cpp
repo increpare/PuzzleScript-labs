@@ -386,6 +386,14 @@ void audioDebugLog(const std::string& message) {
     }
 }
 
+bool incrementalPruneEnabled() {
+    static const bool enabled = [] {
+        const char* value = std::getenv("PUZZLESCRIPT_INCREMENTAL_PRUNE");
+        return value == nullptr || value[0] == '\0' || std::strcmp(value, "0") != 0;
+    }();
+    return enabled;
+}
+
 std::optional<uint64_t> randomDebugBoardHashFilter() {
     return debugConfig().randomBoardHash;
 }
@@ -1394,7 +1402,7 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
     }
     if (const auto coupled = object.find("layer_coupled_movement_replacements");
         coupled != object.end() && coupled->second.isArray()) {
-        replacement.layerCoupledMovementReplacements =
+        replacement.ensureDynamic().layerCoupledMovementReplacements =
             parseLayerCoupledMovementReplacements(game, coupled->second);
     }
     if (const auto bindings = object.find("inferred_aggregate_bindings");
@@ -1411,7 +1419,7 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
                 propertyName != bindingObject.end()) {
                 binding.propertyName = toString(propertyName->second);
             }
-            replacement.inferredAggregateBindings.push_back(std::move(binding));
+            replacement.ensureDynamic().inferredAggregateBindings.push_back(std::move(binding));
         }
     }
     if (const auto propertyBindings = object.find("inferred_property_bindings");
@@ -1422,14 +1430,14 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
             binding.propertyName = toString(requireField(bindingObject, "property_name"));
             binding.dirMode = toInt(requireField(bindingObject, "dir_mode"));
             binding.dirMask = toInt(requireField(bindingObject, "dir_mask"));
-            replacement.inferredPropertyBindings.push_back(std::move(binding));
+            replacement.ensureDynamic().inferredPropertyBindings.push_back(std::move(binding));
         }
     }
     if (const auto propertySources = object.find("inferred_property_sources");
         propertySources != object.end() && propertySources->second.isArray()) {
         for (const auto& entry : propertySources->second.asArray()) {
             const auto& sourceObject = entry.asObject();
-            replacement.inferredPropertySources.push_back(InferredPropertySource{
+            replacement.ensureDynamic().inferredPropertySources.push_back(InferredPropertySource{
                 toString(requireField(sourceObject, "property_name")),
             });
         }
@@ -1444,7 +1452,11 @@ void deriveAggregateBindings(Game& game, Rule& rule) {
             if (!pattern.replacement.has_value()) {
                 continue;
             }
-            for (const auto& sink : pattern.replacement->inferredAggregateBindings) {
+            const ReplacementDynamic* dynamic = pattern.replacement->dynamic.get();
+            if (dynamic == nullptr) {
+                continue;
+            }
+            for (const auto& sink : dynamic->inferredAggregateBindings) {
                 if (std::find(sinkAggregateNames.begin(), sinkAggregateNames.end(), sink.aggregateName)
                     == sinkAggregateNames.end()) {
                     sinkAggregateNames.push_back(sink.aggregateName);
@@ -2812,7 +2824,45 @@ MovementResolveOutcome resolveMovements(FullState& session, TurnResult& out, std
     return outcome;
 }
 
-bool matchesPatternAt(const FullState& session, const Pattern& pattern, int32_t tileIndex) {
+bool matchesAdvancedMovementPatternAt(
+    const FullState& session,
+    const Pattern& pattern,
+    const MaskWord* objects,
+    const MaskWord* movements
+) {
+    const Game& game = *session.game;
+    const uint32_t objectWordCount = game.wordCount;
+    const uint32_t movementWordCount = game.movementWordCount;
+    const MaskWord* arena = game.maskArena.data();
+
+    for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i) {
+        const MaskOffset offset = game.anyMovementOffsets[pattern.anyMovementsFirst + i];
+        const MaskWord* anyMask = arena + offset;
+        bool found = false;
+        for (uint32_t w = 0; w < movementWordCount; ++w) {
+            if ((movements[w] & anyMask[w]) != 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    for (const auto& coupledMask : pattern.layerCoupledMovementMasks) {
+        if (!layerCoupledMovementMaskTermMatches(
+                objects, movements, objectWordCount, movementWordCount, game, coupledMask)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+inline __attribute__((always_inline)) bool matchesPatternAt(
+    const FullState& session,
+    const Pattern& pattern,
+    int32_t tileIndex
+) {
     addCounter(gRuntimeCounters.patternTests);
     if (pattern.kind != Pattern::Kind::CellPattern) {
         return false;
@@ -2870,23 +2920,8 @@ bool matchesPatternAt(const FullState& session, const Pattern& pattern, int32_t 
             }
         }
     }
-    for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i) {
-        const MaskOffset offset = game.anyMovementOffsets[pattern.anyMovementsFirst + i];
-        const MaskWord* anyMask = arena + offset;
-        bool found = false;
-        for (uint32_t w = 0; w < movementWordCount; ++w) {
-            if ((movements[w] & anyMask[w]) != 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            return false;
-        }
-    }
-    for (const auto& coupledMask : pattern.layerCoupledMovementMasks) {
-        if (!layerCoupledMovementMaskTermMatches(
-                objects, movements, objectWordCount, movementWordCount, game, coupledMask)) {
+    if (pattern.anyMovementsCount != 0 || !pattern.layerCoupledMovementMasks.empty()) {
+        if (!matchesAdvancedMovementPatternAt(session, pattern, objects, movements)) {
             return false;
         }
     }
@@ -2927,6 +2962,51 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         destroyed.resize(objectWordCount);
         newMovements.resize(movementWordCount);
 
+        const ReplacementDynamic* dynamic = replacement.dynamic.get();
+        if (dynamic == nullptr) {
+            bool objectsChanged = false;
+            bool movementsChanged = false;
+            for (uint32_t word = 0; word < objectWordCount; ++word) {
+                const MaskWord clearWord = objectsClear != nullptr ? objectsClear[word] : 0;
+                const MaskWord setWord = objectsSet != nullptr ? objectsSet[word] : 0;
+                const MaskWord before = oldObjects[word];
+                const MaskWord after = (before & ~clearWord) | setWord;
+                newObjects[word] = after;
+                created[word] = after & ~before;
+                destroyed[word] = before & ~after;
+                objectsChanged = objectsChanged || after != before;
+            }
+            for (uint32_t word = 0; word < movementWordCount; ++word) {
+                MaskWord clearWord = movementsClear != nullptr ? movementsClear[word] : 0;
+                if (movementsLayerMask != nullptr) {
+                    clearWord |= movementsLayerMask[word];
+                }
+                const MaskWord setWord = movementsSet != nullptr ? movementsSet[word] : 0;
+                const MaskWord before = oldMovements[word];
+                const MaskWord after = (before & ~clearWord) | setWord;
+                newMovements[word] = after;
+                movementsChanged = movementsChanged || after != before;
+            }
+
+            if (!objectsChanged && !movementsChanged) {
+                return false;
+            }
+            if (objectsChanged) {
+                setCellObjectsFromWords(session, tileIndex, newObjects.data());
+                if (!session.scratch.pendingCreateMask.empty()) {
+                    accumulateMaskWords(session.scratch.pendingCreateMask, created.data(), created.size());
+                }
+                if (!session.scratch.pendingDestroyMask.empty()) {
+                    accumulateMaskWords(session.scratch.pendingDestroyMask, destroyed.data(), destroyed.size());
+                }
+            }
+            if (movementsChanged) {
+                setCellMovementsFromWords(session, tileIndex, newMovements.data());
+            }
+            addCounter(gRuntimeCounters.replacementsApplied);
+            return true;
+        }
+
         MaskVector& objectsClearScratch = session.scratch.replacementObjectsClearScratch;
         MaskVector& objectsSetScratch = session.scratch.replacementObjectsSetScratch;
         objectsClearScratch.resize(objectWordCount);
@@ -2938,16 +3018,16 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         applyInferredPropertyBindingsObjects(
             game,
             session.scratch.propertyCaptures,
-            replacement.inferredPropertyBindings,
+            dynamic->inferredPropertyBindings,
             objectsClearScratch,
             objectsSetScratch);
         applyInferredPropertySourcesObjects(
             game,
             session.scratch.propertyCaptures,
-            replacement.inferredPropertySources,
+            dynamic->inferredPropertySources,
             objectsClearScratch);
 
-        const bool hasCoupledReplacements = !replacement.layerCoupledMovementReplacements.empty();
+        const bool hasCoupledReplacements = !dynamic->layerCoupledMovementReplacements.empty();
         MaskVector& movementsClearScratch = session.scratch.replacementMovementsClearScratch;
         MaskVector& movementsSetScratch = session.scratch.replacementMovementsSetScratch;
         movementsClearScratch.resize(movementWordCount);
@@ -2980,25 +3060,25 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
                 movementWordCount,
                 movementsClearScratch,
                 movementsSetScratch,
-                replacement.layerCoupledMovementReplacements,
+                dynamic->layerCoupledMovementReplacements,
                 session.scratch.aggregateCaptures);
         }
         applyInferredAggregateBindings(
             session.scratch.aggregateCaptures,
             session.scratch.propertyCaptures,
-            replacement.inferredAggregateBindings,
+            dynamic->inferredAggregateBindings,
             movementsSetScratch);
         applyInferredAggregatePropertyClears(
             session.scratch.propertyCaptures,
-            replacement.inferredAggregateBindings,
+            dynamic->inferredAggregateBindings,
             movementsClearScratch);
         applyInferredPropertySourcesMovements(
             session.scratch.propertyCaptures,
-            replacement.inferredPropertySources,
+            dynamic->inferredPropertySources,
             movementsClearScratch);
         applyInferredPropertyBindingsMovements(
             session.scratch.propertyCaptures,
-            replacement.inferredPropertyBindings,
+            dynamic->inferredPropertyBindings,
             movementsClearScratch,
             movementsSetScratch);
         for (uint32_t word = 0; word < movementWordCount; ++word) {
@@ -3170,46 +3250,48 @@ bool applyReplacementAt(FullState& session, const Rule& rule, const Pattern& pat
         }
     }
 
-    applyInferredPropertyBindingsObjects(
-        game,
-        session.scratch.propertyCaptures,
-        replacement.inferredPropertyBindings,
-        objectsClear,
-        objectsSet);
-    applyInferredPropertySourcesObjects(
-        game,
-        session.scratch.propertyCaptures,
-        replacement.inferredPropertySources,
-        objectsClear);
+    if (const ReplacementDynamic* dynamic = replacement.dynamic.get()) {
+        applyInferredPropertyBindingsObjects(
+            game,
+            session.scratch.propertyCaptures,
+            dynamic->inferredPropertyBindings,
+            objectsClear,
+            objectsSet);
+        applyInferredPropertySourcesObjects(
+            game,
+            session.scratch.propertyCaptures,
+            dynamic->inferredPropertySources,
+            objectsClear);
 
-    applyLayerCoupledMovementReplacements(
-        game,
-        oldObjects.data(),
-        oldMovements.data(),
-        objectWordCount,
-        movementWordCount,
-        movementsClear,
-        movementsSet,
-        replacement.layerCoupledMovementReplacements,
-        session.scratch.aggregateCaptures);
-    applyInferredAggregateBindings(
-        session.scratch.aggregateCaptures,
-        session.scratch.propertyCaptures,
-        replacement.inferredAggregateBindings,
-        movementsSet);
-    applyInferredAggregatePropertyClears(
-        session.scratch.propertyCaptures,
-        replacement.inferredAggregateBindings,
-        movementsClear);
-    applyInferredPropertySourcesMovements(
-        session.scratch.propertyCaptures,
-        replacement.inferredPropertySources,
-        movementsClear);
-    applyInferredPropertyBindingsMovements(
-        session.scratch.propertyCaptures,
-        replacement.inferredPropertyBindings,
-        movementsClear,
-        movementsSet);
+        applyLayerCoupledMovementReplacements(
+            game,
+            oldObjects.data(),
+            oldMovements.data(),
+            objectWordCount,
+            movementWordCount,
+            movementsClear,
+            movementsSet,
+            dynamic->layerCoupledMovementReplacements,
+            session.scratch.aggregateCaptures);
+        applyInferredAggregateBindings(
+            session.scratch.aggregateCaptures,
+            session.scratch.propertyCaptures,
+            dynamic->inferredAggregateBindings,
+            movementsSet);
+        applyInferredAggregatePropertyClears(
+            session.scratch.propertyCaptures,
+            dynamic->inferredAggregateBindings,
+            movementsClear);
+        applyInferredPropertySourcesMovements(
+            session.scratch.propertyCaptures,
+            dynamic->inferredPropertySources,
+            movementsClear);
+        applyInferredPropertyBindingsMovements(
+            session.scratch.propertyCaptures,
+            dynamic->inferredPropertyBindings,
+            movementsClear,
+            movementsSet);
+    }
 
     for (size_t word = 0; word < objects.size(); ++word) {
         objects[word] = (objects[word] & ~objectsClear[word]) | objectsSet[word];
@@ -4389,6 +4471,7 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
     const size_t objectWordCount = game.wordCount;
     const size_t movementWordCount = game.movementWordCount;
     const size_t groupLength = group.size();
+    const bool useIncrementalPrune = incrementalPruneEnabled();
 
     bool hasChanges = false;
     bool madeChange = true;
@@ -4410,7 +4493,7 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
 
         for (const auto& rule : group) {
             addCounter(gRuntimeCounters.rulesVisited);
-            if (!rule.forceAlwaysRun) {
+            if (useIncrementalPrune && !rule.forceAlwaysRun) {
                 const MaskWord* readMovements = rule.hasReadMovements
                     ? maskPtr(game, rule.readMovements)
                     : nullptr;

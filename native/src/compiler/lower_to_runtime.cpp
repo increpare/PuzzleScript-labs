@@ -1385,6 +1385,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         struct AggregateBinding {
             size_t sourceRow = 0;
             size_t sourceCell = 0;
+            std::optional<int32_t> sourceLayer;
             std::string sourcePropertyName;
             std::string aggregateName;
             int32_t aggregateMask = 0;
@@ -1402,6 +1403,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         };
         struct PropertyCoalescingPlan {
             std::set<std::string> safe;
+            std::map<std::string, puzzlescript::PropertyBinding> bindings;
             std::map<std::string, std::vector<PropertySinkPosition>> sinks;
         };
 
@@ -1503,6 +1505,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         AggregateBinding{
                             source.row,
                             source.cell,
+                            std::nullopt,
                             source.name,
                             dir,
                             aggregateMask,
@@ -1583,6 +1586,22 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
 
                 plan.safe.insert(dir);
+                int32_t aggregateMask = 0;
+                if (const auto* concreteDirs = concreteDirsForAggregate(dir)) {
+                    for (const auto& concreteDir : *concreteDirs) {
+                        aggregateMask |= dirMaskFromToken(concreteDir);
+                    }
+                }
+                plan.bindings.emplace(
+                    dir,
+                    AggregateBinding{
+                        source.row,
+                        source.cell,
+                        source.layer,
+                        "",
+                        dir,
+                        aggregateMask,
+                    });
                 std::vector<AggregateSinkPosition> sinkList;
                 for (const auto& p : rhsList) {
                     if (p.row != source.row || p.cell != source.cell || p.name != source.name) {
@@ -1676,6 +1695,39 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     continue;
                 }
 
+                std::vector<puzzlescript::PropertyAlias> aliases;
+                const auto propIt = propertyOf.find(propName);
+                if (propIt == propertyOf.end()) {
+                    continue;
+                }
+                for (const auto& alias : propIt->second) {
+                    const auto objIt = objectIdByName.find(alias);
+                    if (objIt == objectIdByName.end()) {
+                        continue;
+                    }
+                    puzzlescript::PropertyAlias propertyAlias;
+                    propertyAlias.objectId = objIt->second;
+                    propertyAlias.layerIndex =
+                        game->objectsById[static_cast<size_t>(objIt->second)].layer;
+                    aliases.push_back(propertyAlias);
+                }
+                if (aliases.empty()) {
+                    continue;
+                }
+
+                auto makePropertyBinding = [&](const PropertyOccurrence& source,
+                                               int32_t sourceMovementMode,
+                                               int32_t sourceMovementMask) {
+                    puzzlescript::PropertyBinding binding;
+                    binding.propertyName = propName;
+                    binding.sourceRow = static_cast<int32_t>(source.row);
+                    binding.sourceCell = static_cast<int32_t>(source.cell);
+                    binding.sourceMovementMode = sourceMovementMode;
+                    binding.sourceMovementMask = sourceMovementMask;
+                    binding.aliases = aliases;
+                    return binding;
+                };
+
                 if (lhsList.size() != 1) {
                     const AggregateBinding* aggregateBinding = nullptr;
                     for (const auto& [_, binding] : aggregatePlan.bindings) {
@@ -1716,6 +1768,14 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         continue;
                     }
                     plan.safe.insert(propName);
+                    int32_t sourceMovementMask = 0;
+                    if (const auto* concreteDirs = concreteDirsForAggregate(source->dir)) {
+                        for (const auto& concreteDir : *concreteDirs) {
+                            sourceMovementMask |= dirMaskFromToken(concreteDir);
+                        }
+                    }
+                    plan.bindings[propName] =
+                        makePropertyBinding(*source, 3, sourceMovementMask);
                     continue;
                 }
 
@@ -1748,6 +1808,25 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
 
                 plan.safe.insert(propName);
+                int32_t sourceMovementMode = 0;
+                int32_t sourceMovementMask = 0;
+                if (source.dir == "stationary") {
+                    sourceMovementMode = 1;
+                    sourceMovementMask = 0x1f;
+                } else if (!source.dir.empty()) {
+                    if (const int32_t concreteMask = dirMaskFromToken(source.dir);
+                        concreteMask != 0 && concreteDirsForAggregate(source.dir) == nullptr) {
+                        sourceMovementMode = 2;
+                        sourceMovementMask = concreteMask;
+                    } else if (const auto* concreteDirs = concreteDirsForAggregate(source.dir)) {
+                        sourceMovementMode = 3;
+                        for (const auto& concreteDir : *concreteDirs) {
+                            sourceMovementMask |= dirMaskFromToken(concreteDir);
+                        }
+                    }
+                }
+                plan.bindings[propName] =
+                    makePropertyBinding(source, sourceMovementMode, sourceMovementMask);
                 std::vector<PropertySinkPosition> sinkList;
                 for (const PropertyOccurrence& p : rhsList) {
                     sinkList.push_back({p.row, p.cell, propName});
@@ -2803,6 +2882,23 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         rule.isRandom = randomRule;
         rule.hasReplacements = !variantRhsRowsExpanded.empty();
         rule.commands = parsedCommands;
+        for (const auto& [_, bindingPlan] : aggregateCoalescingPlan.bindings) {
+            puzzlescript::AggregateBinding binding;
+            binding.aggregateName = bindingPlan.aggregateName;
+            binding.sourceRow = static_cast<int32_t>(bindingPlan.sourceRow);
+            binding.sourceCell = static_cast<int32_t>(bindingPlan.sourceCell);
+            if (bindingPlan.sourceLayer.has_value()) {
+                binding.sourceLayer = *bindingPlan.sourceLayer;
+            }
+            binding.aggregateMask = bindingPlan.aggregateMask;
+            if (!bindingPlan.sourcePropertyName.empty()) {
+                binding.sourcePropertyName = bindingPlan.sourcePropertyName;
+            }
+            rule.aggregateBindings.push_back(std::move(binding));
+        }
+        for (const auto& [_, bindingPlan] : propertyCoalescingPlan.bindings) {
+            rule.propertyBindings.push_back(bindingPlan);
+        }
 
         auto buildPatternRow = [&](const ParsedRow& row,
                                    const ParsedRow* rhsRow,
@@ -2830,13 +2926,110 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 // JS rulesToMask: each unsplit aggregate direction term becomes an
                 // anyMovementsPresent entry (OR over its concrete-direction bits).
                 std::vector<puzzlescript::MaskVector> anyMovementMasks;
+                std::vector<puzzlescript::LayerCoupledMovementReplacement> layerCoupledMovementMasks;
+
+                struct CoupledMovementTermBuild {
+                    puzzlescript::MaskVector objectMask;
+                    puzzlescript::LayerCoupledMovementReplacement term;
+                };
+
+                auto buildLayerCoupledMovementTerm = [&](const std::string& propertyName,
+                                                         const std::string& movementDir,
+                                                         const ParsedCell& sourceCell,
+                                                         size_t sourceItemIndex) {
+                    CoupledMovementTermBuild built;
+                    built.objectMask = makeEmptyMask(game->wordCount);
+
+                    int32_t movementsAnyMask = 0;
+                    const auto* aggregateDirs = concreteDirsForAggregate(movementDir);
+                    if (aggregateDirs != nullptr) {
+                        for (const auto& concreteDir : *aggregateDirs) {
+                            movementsAnyMask |= dirMaskFromToken(concreteDir);
+                        }
+                    }
+                    const int32_t movementsPresentMask =
+                        movementsAnyMask != 0 || movementDir.empty() || movementDir == "stationary"
+                            ? 0
+                            : dirMaskFromToken(movementDir);
+                    const int32_t movementsMissingMask = movementDir == "stationary" ? 0x1f : 0;
+
+                    std::set<int32_t> excludedLayers;
+                    if (!sourceCell.isEllipsis) {
+                        for (size_t lhsIndex = 0; lhsIndex < sourceCell.items.size(); ++lhsIndex) {
+                            if (lhsIndex == sourceItemIndex) {
+                                continue;
+                            }
+                            const auto& lhsItem = sourceCell.items[lhsIndex];
+                            if (lhsItem.dir == "no" || lhsItem.dir == "random") {
+                                continue;
+                            }
+                            std::set<std::string> lhsVisiting;
+                            const auto lhsMask = resolveMask(resolveMask, lhsItem.name, lhsVisiting);
+                            if (const auto lhsLayer = maskSingleLayer(lhsMask); lhsLayer.has_value()) {
+                                excludedLayers.insert(*lhsLayer);
+                            }
+                        }
+                    }
+
+                    const auto propIt = propertyOf.find(propertyName);
+                    if (propIt == propertyOf.end()) {
+                        return built;
+                    }
+                    std::map<int32_t, puzzlescript::MaskVector> byLayer;
+                    for (const auto& alias : propIt->second) {
+                        const auto objIt = objectIdByName.find(alias);
+                        if (objIt == objectIdByName.end()) {
+                            continue;
+                        }
+                        const int32_t objectId = objIt->second;
+                        const int32_t layer =
+                            game->objectsById[static_cast<size_t>(objectId)].layer;
+                        if (excludedLayers.count(layer) != 0) {
+                            continue;
+                        }
+                        setMaskBit(built.objectMask, objectId);
+                        auto& layerMask = byLayer[layer];
+                        if (layerMask.empty()) {
+                            layerMask = makeEmptyMask(game->wordCount);
+                        }
+                        setMaskBit(layerMask, objectId);
+                    }
+
+                    for (const auto& [layer, objectMask] : byLayer) {
+                        puzzlescript::LayerCoupledMovementLayerTerm layerTerm;
+                        layerTerm.layerIndex = layer;
+                        layerTerm.objectMask = storeMaskWords(*game, objectMask);
+
+                        auto movementsAny = puzzlescript::MaskVector(
+                            static_cast<size_t>(game->movementWordCount), 0);
+                        auto movementsPresent = puzzlescript::MaskVector(
+                            static_cast<size_t>(game->movementWordCount), 0);
+                        auto movementsMissing = puzzlescript::MaskVector(
+                            static_cast<size_t>(game->movementWordCount), 0);
+                        if (movementsAnyMask != 0) {
+                            orShiftedMask5(movementsAny, 5 * layer, movementsAnyMask);
+                        }
+                        if (movementsPresentMask != 0) {
+                            orShiftedMask5(movementsPresent, 5 * layer, movementsPresentMask);
+                        }
+                        if (movementsMissingMask != 0) {
+                            orShiftedMask5(movementsMissing, 5 * layer, movementsMissingMask);
+                        }
+                        layerTerm.movementsAny = storeMaskWords(*game, movementsAny);
+                        layerTerm.movementsPresent = storeMaskWords(*game, movementsPresent);
+                        layerTerm.movementsMissing = storeMaskWords(*game, movementsMissing);
+                        built.term.layers.push_back(std::move(layerTerm));
+                    }
+                    return built;
+                };
 
                 // Per-layer occupancy names (JS `layersUsed_l`): any LHS token with a
                 // resolved single layer, including properties.
                 std::vector<int32_t> layersUsedL(game->layerCount, 0);
                 // Movement-bitvec lanes where LHS had a *concrete* object (JS `objectlayers_l`).
                 puzzlescript::MaskVector lhsObjectLayersMovement(static_cast<size_t>(game->movementWordCount), 0);
-                for (const auto& item : cell.items) {
+                for (size_t itemIndex = 0; itemIndex < cell.items.size(); ++itemIndex) {
+                    const auto& item = cell.items[itemIndex];
                     if (item.dir == "random") {
                         continue; // handled on RHS replacement
                     }
@@ -2855,10 +3048,26 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     if (isProperty) {
                         // JS semantics: OR properties become anyObjectsPresent even
                         // when they live on a single collision layer.
-                        const auto off = storeMaskWords(*game, mask);
-                        game->anyObjectOffsets.push_back(off);
-                        anyOffsets.push_back(off);
-                        anyAnchorIds.push_back(objectIdsFromMask(mask, game->objectCount));
+                        if (isLayerCoupledPropertyName(item.name)) {
+                            auto coupled = buildLayerCoupledMovementTerm(
+                                item.name,
+                                item.dir,
+                                cell,
+                                itemIndex);
+                            const auto off = storeMaskWords(*game, coupled.objectMask);
+                            game->anyObjectOffsets.push_back(off);
+                            anyOffsets.push_back(off);
+                            anyAnchorIds.push_back(
+                                objectIdsFromMask(coupled.objectMask, game->objectCount));
+                            if (!item.dir.empty() && !coupled.term.layers.empty()) {
+                                layerCoupledMovementMasks.push_back(std::move(coupled.term));
+                            }
+                        } else {
+                            const auto off = storeMaskWords(*game, mask);
+                            game->anyObjectOffsets.push_back(off);
+                            anyOffsets.push_back(off);
+                            anyAnchorIds.push_back(objectIdsFromMask(mask, game->objectCount));
+                        }
                         if (singleLayer.has_value()) {
                             layersUsedL[static_cast<size_t>(*singleLayer)] = 1;
                         }
@@ -2937,6 +3146,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     game->anyMovementOffsets.push_back(storeMaskWords(*game, anyMask));
                 }
                 pat.anyMovementsCount = static_cast<uint32_t>(anyMovementMasks.size());
+                pat.layerCoupledMovementMasks = std::move(layerCoupledMovementMasks);
 
                 if (rhsRow && cellIndex < rhsRow->size()) {
                     const ParsedCell& rhsCell = (*rhsRow)[cellIndex];
@@ -2954,6 +3164,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         std::vector<int32_t> layersUsedR(game->layerCount, 0);
                         puzzlescript::MaskVector rhsObjectLayersMovement(static_cast<size_t>(game->movementWordCount), 0);
                         std::set<int32_t> aggregateInferenceLayers;
+                        std::vector<puzzlescript::InferredAggregateBinding> inferredAggregateBindings;
+                        std::vector<puzzlescript::LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
 
                         auto markLayerClear = [&](int32_t layer) {
                             if (layer < 0 || layer >= game->layerCount) return;
@@ -3099,6 +3311,32 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                     }
                                     continue;
                                 }
+                                if (rhsItemIndex < cell.items.size()) {
+                                    const auto& lhsItem = cell.items[rhsItemIndex];
+                                    if (lhsItem.name == item.name
+                                        && (!lhsItem.dir.empty() || !item.dir.empty())) {
+                                        auto coupledReplacementBuild = buildLayerCoupledMovementTerm(
+                                            item.name,
+                                            lhsItem.dir,
+                                            cell,
+                                            rhsItemIndex);
+                                        auto coupledReplacement = std::move(coupledReplacementBuild.term);
+                                        if (concreteDirsForAggregate(item.dir) != nullptr) {
+                                            coupledReplacement.replacementAggregateName = item.dir;
+                                        } else {
+                                            const int32_t replacementMovementMask =
+                                                item.dir == "stationary" ? 0 : dirMaskFromToken(item.dir);
+                                            if (replacementMovementMask != 0) {
+                                                coupledReplacement.replacementMovementMask = replacementMovementMask;
+                                                coupledReplacement.hasReplacementMovementMask = true;
+                                            }
+                                        }
+                                        if (!coupledReplacement.layers.empty()) {
+                                            layerCoupledMovementReplacements.push_back(
+                                                std::move(coupledReplacement));
+                                        }
+                                    }
+                                }
                             }
                             std::set<std::string> visiting;
                             const auto mask = resolveMask(resolveMask, item.name, visiting);
@@ -3173,6 +3411,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                                     && sink.layer.has_value()
                                                     && *sink.layer == layer) {
                                                     inferredAggregateSink = true;
+                                                    puzzlescript::InferredAggregateBinding binding;
+                                                    binding.aggregateName = item.dir;
+                                                    binding.layerIndex = layer;
+                                                    inferredAggregateBindings.push_back(std::move(binding));
                                                     break;
                                                 }
                                             }
@@ -3331,6 +3573,16 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         repl.movementsSet = storeMaskWords(*game, movementsSet);
                         repl.movementsLayerMask = storeMaskWords(*game, movementsLayerMask);
                         repl.hasMovementsLayerMask = anyNonZero(movementsLayerMask);
+                        const bool hasDynamicReplacement =
+                            !inferredAggregateBindings.empty()
+                            || !layerCoupledMovementReplacements.empty();
+                        if (hasDynamicReplacement) {
+                            auto& dynamic = repl.ensureDynamic();
+                            dynamic.inferredAggregateBindings =
+                                std::move(inferredAggregateBindings);
+                            dynamic.layerCoupledMovementReplacements =
+                                std::move(layerCoupledMovementReplacements);
+                        }
                         if (anyNonZero(randomEntityMask)) {
                             repl.randomEntityMask = storeMaskWords(*game, randomEntityMask);
                             repl.randomEntityMaskWidth = game->wordCount;
@@ -3353,7 +3605,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         }
                         if (anyNonZero(objectsClear) || anyNonZero(objectsSet) || anyNonZero(movementsClear)
                             || anyNonZero(movementsSet) || anyNonZero(movementsLayerMask)
-                            || anyNonZero(randomEntityMask) || anyNonZero(randomDirMask)) {
+                            || anyNonZero(randomEntityMask) || anyNonZero(randomDirMask)
+                            || repl.dynamic != nullptr) {
                             pat.replacement = std::move(repl);
                         }
                     }
@@ -3435,6 +3688,104 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             ruleMovementMaskWords.end(),
             [](int32_t word) { return word != 0; });
         rule.ruleMovementMask = storeMaskWords(*game, ruleMovementMaskWords);
+
+        auto anyNonZeroMask = [](const puzzlescript::MaskVector& words) {
+            return std::any_of(
+                words.begin(),
+                words.end(),
+                [](puzzlescript::MaskWord word) { return word != 0; });
+        };
+        auto orArenaMask = [&](puzzlescript::MaskVector& target,
+                               puzzlescript::MaskOffset offset,
+                               uint32_t width) {
+            if (offset == puzzlescript::kNullMaskOffset) {
+                return;
+            }
+            for (uint32_t w = 0; w < width; ++w) {
+                target[static_cast<size_t>(w)] |=
+                    game->maskArena[static_cast<size_t>(offset + w)];
+            }
+        };
+
+        auto readObjectsWords = makeEmptyMask(game->wordCount);
+        auto writeObjectsWords = makeEmptyMask(game->wordCount);
+        auto readMovementWords = puzzlescript::MaskVector(
+            static_cast<size_t>(game->movementWordCount), 0);
+        auto writeMovementWords = puzzlescript::MaskVector(
+            static_cast<size_t>(game->movementWordCount), 0);
+
+        for (const auto& row : rule.patterns) {
+            for (const auto& pat : row) {
+                if (pat.kind != puzzlescript::Pattern::Kind::CellPattern) {
+                    continue;
+                }
+                orArenaMask(readObjectsWords, pat.objectsPresent, game->wordCount);
+                orArenaMask(readObjectsWords, pat.objectsMissing, game->wordCount);
+                for (uint32_t i = 0; i < pat.anyObjectsCount; ++i) {
+                    orArenaMask(
+                        readObjectsWords,
+                        game->anyObjectOffsets[
+                            static_cast<size_t>(pat.anyObjectsFirst + i)],
+                        game->wordCount);
+                }
+                orArenaMask(readMovementWords, pat.movementsPresent, game->movementWordCount);
+                orArenaMask(readMovementWords, pat.movementsMissing, game->movementWordCount);
+                for (uint32_t i = 0; i < pat.anyMovementsCount; ++i) {
+                    orArenaMask(
+                        readMovementWords,
+                        game->anyMovementOffsets[
+                            static_cast<size_t>(pat.anyMovementsFirst + i)],
+                        game->movementWordCount);
+                }
+                for (const auto& coupled : pat.layerCoupledMovementMasks) {
+                    for (const auto& layerTerm : coupled.layers) {
+                        orArenaMask(readObjectsWords, layerTerm.objectMask, game->wordCount);
+                        orArenaMask(readMovementWords, layerTerm.movementsAny, game->movementWordCount);
+                        orArenaMask(readMovementWords, layerTerm.movementsPresent, game->movementWordCount);
+                        orArenaMask(readMovementWords, layerTerm.movementsMissing, game->movementWordCount);
+                    }
+                }
+
+                if (!pat.replacement.has_value()) {
+                    continue;
+                }
+                const auto& repl = *pat.replacement;
+                orArenaMask(writeObjectsWords, repl.objectsClear, game->wordCount);
+                orArenaMask(writeObjectsWords, repl.objectsSet, game->wordCount);
+                if (repl.hasRandomEntityMask) {
+                    orArenaMask(writeObjectsWords, repl.randomEntityMask, game->wordCount);
+                }
+                orArenaMask(writeMovementWords, repl.movementsClear, game->movementWordCount);
+                orArenaMask(writeMovementWords, repl.movementsSet, game->movementWordCount);
+                if (repl.hasMovementsLayerMask) {
+                    orArenaMask(writeMovementWords, repl.movementsLayerMask, game->movementWordCount);
+                }
+                if (repl.hasRandomDirMask) {
+                    orArenaMask(writeMovementWords, repl.randomDirMask, game->movementWordCount);
+                }
+                if (repl.dynamic != nullptr) {
+                    for (const auto& coupled : repl.dynamic->layerCoupledMovementReplacements) {
+                        for (const auto& layerTerm : coupled.layers) {
+                            auto layerMovement = puzzlescript::MaskVector(
+                                static_cast<size_t>(game->movementWordCount), 0);
+                            orShiftedMask5(layerMovement, 5 * layerTerm.layerIndex, 0x1f);
+                            for (uint32_t w = 0; w < game->movementWordCount; ++w) {
+                                writeMovementWords[static_cast<size_t>(w)] |=
+                                    layerMovement[static_cast<size_t>(w)];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        rule.readObjects = storeMaskWords(*game, readObjectsWords);
+        rule.hasReadObjects = anyNonZeroMask(readObjectsWords);
+        rule.readMovements = storeMaskWords(*game, readMovementWords);
+        rule.hasReadMovements = anyNonZeroMask(readMovementWords);
+        rule.writeObjects = storeMaskWords(*game, writeObjectsWords);
+        rule.hasWriteObjects = anyNonZeroMask(writeObjectsWords);
+        rule.writeMovements = storeMaskWords(*game, writeMovementWords);
+        rule.hasWriteMovements = anyNonZeroMask(writeMovementWords);
 
         const std::string signature = ruleVariantSignature(
             entry.lineNumber,

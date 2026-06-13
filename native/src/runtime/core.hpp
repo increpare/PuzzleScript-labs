@@ -239,6 +239,13 @@ struct AggregateBinding {
     std::optional<std::string> sourcePropertyName;
 };
 
+struct ReplacementDynamic {
+    std::vector<LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
+    std::vector<InferredAggregateBinding> inferredAggregateBindings;
+    std::vector<InferredPropertyBinding> inferredPropertyBindings;
+    std::vector<InferredPropertySource> inferredPropertySources;
+};
+
 struct Replacement {
     // All masks live in Game::maskArena; these are offsets (in words).
     // The "objects" / "movements" / "movementsLayerMask" fields have width
@@ -259,10 +266,14 @@ struct Replacement {
     bool hasRandomDirMask      = false;
     std::vector<int32_t> randomEntityChoices;
     std::vector<int32_t> randomDirLayers;
-    std::vector<LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
-    std::vector<InferredAggregateBinding> inferredAggregateBindings;
-    std::vector<InferredPropertyBinding> inferredPropertyBindings;
-    std::vector<InferredPropertySource> inferredPropertySources;
+    std::shared_ptr<ReplacementDynamic> dynamic;
+
+    ReplacementDynamic& ensureDynamic() {
+        if (dynamic == nullptr) {
+            dynamic = std::make_shared<ReplacementDynamic>();
+        }
+        return *dynamic;
+    }
 };
 
 struct Pattern {
