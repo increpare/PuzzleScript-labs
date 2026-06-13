@@ -244,10 +244,12 @@ function curveMetaFromOptions(options, label, playable) {
 }
 
 function applyMetaFromSeriesFiles(options) {
-    if (options.series.length === 0) {
+    // CSV series carry no metadata; sniff the first JSON series instead.
+    const firstJson = options.series.find((spec) => !spec.file.replace(/#[^#]*$/, '').endsWith('.csv'));
+    if (!firstJson) {
         return;
     }
-    const first = unwrapPayload(JSON.parse(fs.readFileSync(options.series[0].file, 'utf8')));
+    const first = unwrapPayload(JSON.parse(fs.readFileSync(firstJson.file, 'utf8')));
     const meta = first.meta || {};
     if (meta.max_ms && !options.maxMsExplicit) {
         options.maxMs = meta.max_ms;
@@ -259,7 +261,7 @@ function applyMetaFromSeriesFiles(options) {
     const playable = meta.playable || flattenLevels(first).filter((l) => l.status !== 'skipped_message' && l.status !== 'compile_error').length;
     if (!options.allowSmoke && playable > 0 && playable < 50) {
         throw new Error(
-            `Saved curve JSON looks like a smoke run (${playable} playable levels in ${options.series[0].file}). ` +
+            `Saved curve JSON looks like a smoke run (${playable} playable levels in ${firstJson.file}). ` +
             'Run `make solver_timeout_curve` on the full corpus first, or pass --allow-smoke to replot anyway.'
         );
     }
@@ -286,22 +288,37 @@ function buildCurve(levels, options) {
 }
 
 function loadSeries(spec, options) {
-    if (spec.file.endsWith('.csv')) {
-        const lines = fs.readFileSync(spec.file, 'utf8').trim().split('\n');
+    // CSV path may carry a "#seriesName" suffix to pick one series out of a
+    // multi-series curve CSV when the chart label differs from the stored name.
+    const hash = spec.file.lastIndexOf('#');
+    const csvSeriesName = hash > 0 && spec.file.slice(0, hash).endsWith('.csv')
+        ? spec.file.slice(hash + 1)
+        : null;
+    const filePath = csvSeriesName ? spec.file.slice(0, hash) : spec.file;
+    if (filePath.endsWith('.csv')) {
+        const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
         const header = lines[0].split(',');
         const col = (name) => header.indexOf(name);
         const tCol = col('timeout_ms'), sCol = col('solved'), pCol = col('pct'), seriesCol = col('series');
-        const points = lines.slice(1)
-            .map((line) => line.split(','))
-            .filter((row) => seriesCol < 0 || row[seriesCol] === spec.label)
+        const wanted = csvSeriesName || spec.label;
+        const rows = lines.slice(1).map((line) => line.split(','));
+        const points = rows
+            .filter((row) => seriesCol < 0 || row[seriesCol] === wanted)
             .map((row) => ({
                 timeout_ms: Number(row[tCol]), solved: Number(row[sCol]), pct: Number(row[pCol]),
             }));
+        if (points.length === 0) {
+            const available = [...new Set(rows.map((row) => row[seriesCol]))].join(', ');
+            throw new Error(
+                `No rows for series "${wanted}" in ${filePath} (available: ${available}). ` +
+                'Use --series "label:path.csv#seriesName" to pick one.'
+            );
+        }
         const last = points[points.length - 1];
         const playable = last.pct > 0 ? Math.round(last.solved / (last.pct / 100)) : 0;
         return { label: spec.label, playable, totalSolvedAtMax: last.solved, points };
     }
-    const payload = unwrapPayload(JSON.parse(fs.readFileSync(spec.file, 'utf8')));
+    const payload = unwrapPayload(JSON.parse(fs.readFileSync(filePath, 'utf8')));
     const curve = buildCurve(flattenLevels(payload), options);
     return { label: spec.label, meta: payload.meta, ...curve };
 }

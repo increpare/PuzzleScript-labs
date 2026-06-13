@@ -2827,6 +2827,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 auto aggregateMovementsMask = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
                 std::vector<puzzlescript::MaskOffset> anyOffsets;
                 std::vector<std::vector<int32_t>> anyAnchorIds;
+                // JS rulesToMask: each unsplit aggregate direction term becomes an
+                // anyMovementsPresent entry (OR over its concrete-direction bits).
+                std::vector<puzzlescript::MaskVector> anyMovementMasks;
 
                 // Per-layer occupancy names (JS `layersUsed_l`): any LHS token with a
                 // resolved single layer, including properties.
@@ -2883,6 +2886,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                 aggregateBits5 |= dirMaskFromToken(concreteDir);
                             }
                             if (aggregateBits5 != 0) {
+                                auto anyMask = puzzlescript::MaskVector(
+                                    static_cast<size_t>(game->movementWordCount), 0);
+                                orShiftedMask5(anyMask, 5 * layer, aggregateBits5);
+                                anyMovementMasks.push_back(std::move(anyMask));
                                 bool preservedOnRhs = false;
                                 if (rhsRow != nullptr && cellIndex < rhsRow->size()) {
                                     const ParsedCell& rhsCell = (*rhsRow)[cellIndex];
@@ -2925,6 +2932,11 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 pat.anyObjectsFirst = static_cast<uint32_t>(game->anyObjectOffsets.size() - anyOffsets.size());
                 pat.anyObjectsCount = static_cast<uint32_t>(anyOffsets.size());
                 pat.anyObjectAnchorIds = std::move(anyAnchorIds);
+                pat.anyMovementsFirst = static_cast<uint32_t>(game->anyMovementOffsets.size());
+                for (const auto& anyMask : anyMovementMasks) {
+                    game->anyMovementOffsets.push_back(storeMaskWords(*game, anyMask));
+                }
+                pat.anyMovementsCount = static_cast<uint32_t>(anyMovementMasks.size());
 
                 if (rhsRow && cellIndex < rhsRow->size()) {
                     const ParsedCell& rhsCell = (*rhsRow)[cellIndex];

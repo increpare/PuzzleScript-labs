@@ -4140,6 +4140,12 @@ std::string serializeRuntimeGameDebugJson(
                                 const auto offset = game.anyObjectOffsets[static_cast<size_t>(pattern.anyObjectsFirst + anyIndex)];
                                 appendJsonMask(out, game, offset, game.wordCount);
                             }
+                            out << "],\"any_movements_present\":[";
+                            for (uint32_t anyIndex = 0; anyIndex < pattern.anyMovementsCount; ++anyIndex) {
+                                if (anyIndex != 0) out << ",";
+                                const auto offset = game.anyMovementOffsets[static_cast<size_t>(pattern.anyMovementsFirst + anyIndex)];
+                                appendJsonMask(out, game, offset, game.movementWordCount);
+                            }
                             out << "]";
                             if (pattern.replacement.has_value()) {
                                 const auto& repl = *pattern.replacement;
