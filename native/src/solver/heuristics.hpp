@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -11,24 +13,44 @@
 namespace puzzlescript::solver {
 
 enum class HeuristicKind {
+    Zero,
     Winconditions,
     Auto,
+    AllOnMatching,
+    AllOnPlayer,
+    NoPlayerDistance,
 };
 
 inline const char* heuristicName(HeuristicKind kind) {
     switch (kind) {
+        case HeuristicKind::Zero: return "zero";
         case HeuristicKind::Winconditions: return "winconditions";
         case HeuristicKind::Auto: return "auto";
+        case HeuristicKind::AllOnMatching: return "all-on-matching";
+        case HeuristicKind::AllOnPlayer: return "all-on-player";
+        case HeuristicKind::NoPlayerDistance: return "no-player-distance";
     }
     return "winconditions";
 }
 
 inline std::optional<HeuristicKind> parseHeuristicName(std::string_view name) {
+    if (name == "zero") {
+        return HeuristicKind::Zero;
+    }
     if (name == "winconditions") {
         return HeuristicKind::Winconditions;
     }
     if (name == "auto") {
         return HeuristicKind::Auto;
+    }
+    if (name == "all-on-matching") {
+        return HeuristicKind::AllOnMatching;
+    }
+    if (name == "all-on-player") {
+        return HeuristicKind::AllOnPlayer;
+    }
+    if (name == "no-player-distance") {
+        return HeuristicKind::NoPlayerDistance;
     }
     return std::nullopt;
 }
@@ -60,32 +82,65 @@ public:
         HeuristicKind kind,
         const MaskWord* initialBoard)
         : game_(game), width_(width), height_(height), kind_(kind) {
-        if (kind_ != HeuristicKind::Auto || game_.winConditions.empty()) {
+        if (kind_ == HeuristicKind::Zero || game_.winConditions.empty()) {
             return;
         }
         playerMask_ = search::maskPtr(game_, game_.playerMask);
         buildAllObjectsMask();
-        buildNonBackgroundMask();
 
         const size_t conditionCount = game_.winConditions.size();
         plain_.resize(conditionCount, false);
-        statics_.resize(conditionCount);
         for (size_t index = 0; index < conditionCount; ++index) {
-            plain_[index] = isPlainFilter(search::maskPtr(game_, game_.winConditions[index].filter2));
+            const WinCondition& condition = game_.winConditions[index];
+            plain_[index] = isPlainFilter(search::maskPtr(game_, condition.filter2));
+            if (condition.quantifier == -1) {
+                hasNoCondition_ = true;
+            }
         }
         if (conditionCount == 1 && game_.winConditions[0].quantifier == 1 && !plain_[0]) {
             singleAllOnIndex_ = 0;
         }
-        for (size_t index = 0; index < conditionCount; ++index) {
-            if (game_.winConditions[index].quantifier == 1 && !plain_[index]) {
-                buildConditionStatics(static_cast<int32_t>(index), initialBoard);
+
+        if (kind_ == HeuristicKind::Auto) {
+            buildNonBackgroundMask();
+            statics_.resize(conditionCount);
+            for (size_t index = 0; index < conditionCount; ++index) {
+                if (game_.winConditions[index].quantifier == 1 && !plain_[index]) {
+                    buildConditionStatics(static_cast<int32_t>(index), initialBoard);
+                }
             }
+            targetRowPresence_.assign(static_cast<size_t>(height_), 0);
+            targetColPresence_.assign(static_cast<size_t>(width_), 0);
         }
-        targetRowPresence_.assign(static_cast<size_t>(height_), 0);
-        targetColPresence_.assign(static_cast<size_t>(width_), 0);
     }
 
     HeuristicKind kind() const { return kind_; }
+
+    int32_t score(const MaskWord* board) {
+        if (kind_ == HeuristicKind::Zero || game_.winConditions.empty() || board == nullptr) {
+            return 0;
+        }
+        if (kind_ == HeuristicKind::AllOnMatching) {
+            return allOnAssignmentScore(board, false);
+        }
+        if (kind_ == HeuristicKind::AllOnPlayer) {
+            return allOnAssignmentScore(board, true);
+        }
+        if (kind_ == HeuristicKind::NoPlayerDistance) {
+            return noPlayerDistanceScore(board);
+        }
+        if (kind_ == HeuristicKind::Winconditions) {
+            return winconditionScore(board, true, true);
+        }
+
+        const int32_t base = hasNoCondition_
+            ? noPlayerDistanceScore(board)
+            : winconditionScore(board, true, true);
+        if (base <= 0) {
+            return base;
+        }
+        return base + autoExtras(board);
+    }
 
     int32_t autoExtras(const MaskWord* board) {
         if (kind_ != HeuristicKind::Auto || game_.winConditions.empty()) {
@@ -124,9 +179,18 @@ private:
         MaskVector allowed; // filter1 | filter2 | player
     };
 
+    struct AssignmentPair {
+        int32_t sourceIndex = 0;
+        int32_t targetIndex = 0;
+        int32_t distance = 0;
+    };
+
     int32_t tileCount() const { return width_ * height_; }
     int32_t tileX(int32_t tile) const { return tile / height_; }
     int32_t tileY(int32_t tile) const { return tile % height_; }
+    int32_t manhattan(int32_t left, int32_t right) const {
+        return std::abs(tileX(left) - tileX(right)) + std::abs(tileY(left) - tileY(right));
+    }
 
     const MaskWord* cellAt(const MaskWord* board, int32_t tile) const {
         return board + static_cast<size_t>(tile) * static_cast<size_t>(game_.strideObject);
@@ -212,6 +276,282 @@ private:
             }
         }
         return false;
+    }
+
+    void matchingDistanceField(
+        const MaskWord* mask,
+        bool aggregate,
+        const MaskWord* board,
+        std::vector<int32_t>& distances) const {
+        const int32_t n = tileCount();
+        distances.assign(static_cast<size_t>(n), std::numeric_limits<int32_t>::max());
+        if (mask == nullptr || board == nullptr) {
+            return;
+        }
+        for (int32_t tile = 0; tile < n; ++tile) {
+            if (matchesMask(mask, aggregate, cellAt(board, tile))) {
+                distances[static_cast<size_t>(tile)] = 0;
+            }
+        }
+
+        auto relax = [&](int32_t tile, int32_t neighbor) {
+            int32_t& distance = distances[static_cast<size_t>(tile)];
+            const int32_t neighborDistance = distances[static_cast<size_t>(neighbor)];
+            if (neighborDistance != std::numeric_limits<int32_t>::max()) {
+                distance = std::min(distance, neighborDistance + 1);
+            }
+        };
+
+        for (int32_t x = 0; x < width_; ++x) {
+            for (int32_t y = 0; y < height_; ++y) {
+                const int32_t tile = x * height_ + y;
+                if (x > 0) relax(tile, (x - 1) * height_ + y);
+                if (y > 0) relax(tile, x * height_ + (y - 1));
+            }
+        }
+        for (int32_t x = width_ - 1; x >= 0; --x) {
+            for (int32_t y = height_ - 1; y >= 0; --y) {
+                const int32_t tile = x * height_ + y;
+                if (x + 1 < width_) relax(tile, (x + 1) * height_ + y);
+                if (y + 1 < height_) relax(tile, x * height_ + (y + 1));
+            }
+        }
+    }
+
+    int32_t winconditionScore(const MaskWord* board, bool includeNoPenalty, bool includePlayerDistance) {
+        int32_t score = 0;
+        const int32_t n = tileCount();
+        for (const WinCondition& condition : game_.winConditions) {
+            const MaskWord* filter1 = search::maskPtr(game_, condition.filter1);
+            const MaskWord* filter2 = search::maskPtr(game_, condition.filter2);
+            if (filter1 == nullptr || filter2 == nullptr) {
+                continue;
+            }
+            if (condition.quantifier == 1) {
+                matchingDistanceField(filter2, condition.aggr2, board, distanceField_);
+                for (int32_t tile = 0; tile < n; ++tile) {
+                    const MaskWord* cell = cellAt(board, tile);
+                    if (!matchesMask(filter1, condition.aggr1, cell)) {
+                        continue;
+                    }
+                    if (matchesMask(filter2, condition.aggr2, cell)) {
+                        continue;
+                    }
+                    score += 10 + search::distanceOrFallback(distanceField_[static_cast<size_t>(tile)]);
+                }
+            } else if (condition.quantifier == 0) {
+                matchingDistanceField(filter2, condition.aggr2, board, distanceField_);
+                bool passed = false;
+                int32_t best = search::kNoMatchingDistance;
+                for (int32_t tile = 0; tile < n; ++tile) {
+                    const MaskWord* cell = cellAt(board, tile);
+                    if (!matchesMask(filter1, condition.aggr1, cell)) {
+                        continue;
+                    }
+                    if (matchesMask(filter2, condition.aggr2, cell)) {
+                        passed = true;
+                        break;
+                    }
+                    best = std::min(best, search::distanceOrFallback(distanceField_[static_cast<size_t>(tile)]));
+                }
+                score += passed ? 0 : best;
+            } else if (includeNoPenalty && condition.quantifier == -1) {
+                for (int32_t tile = 0; tile < n; ++tile) {
+                    const MaskWord* cell = cellAt(board, tile);
+                    if (matchesMask(filter1, condition.aggr1, cell)
+                        && matchesMask(filter2, condition.aggr2, cell)) {
+                        score += 10;
+                    }
+                }
+            }
+        }
+
+        if (includePlayerDistance && playerMask_ != nullptr && score > 0) {
+            bool hasPlayer = false;
+            int32_t best = search::kNoMatchingDistance;
+            conditionDistances_.resize(game_.winConditions.size());
+            for (size_t index = 0; index < game_.winConditions.size(); ++index) {
+                const WinCondition& condition = game_.winConditions[index];
+                matchingDistanceField(
+                    search::maskPtr(game_, condition.filter1),
+                    condition.aggr1,
+                    board,
+                    conditionDistances_[index]);
+            }
+            for (int32_t player = 0; player < n; ++player) {
+                if (!matchesMask(playerMask_, game_.playerMaskAggregate, cellAt(board, player))) {
+                    continue;
+                }
+                hasPlayer = true;
+                for (const std::vector<int32_t>& distances : conditionDistances_) {
+                    best = std::min(best, search::distanceOrFallback(distances[static_cast<size_t>(player)]));
+                }
+            }
+            if (hasPlayer) {
+                score += std::min(best, 16);
+            }
+        }
+        return score;
+    }
+
+    int32_t minPlayerDistanceToTiles(const MaskWord* board, const std::vector<int32_t>& tiles) {
+        if (playerMask_ == nullptr || tiles.empty()) {
+            return 0;
+        }
+        collectMatchingTiles(playerMask_, game_.playerMaskAggregate, board, players_);
+        if (players_.empty()) {
+            return 0;
+        }
+        int32_t best = std::numeric_limits<int32_t>::max();
+        for (const int32_t player : players_) {
+            for (const int32_t tile : tiles) {
+                best = std::min(best, manhattan(player, tile));
+            }
+        }
+        return search::distanceOrFallback(best);
+    }
+
+    int32_t minAssignmentDistance(const std::vector<int32_t>& sources, const std::vector<int32_t>& targets) {
+        if (sources.empty()) {
+            return 0;
+        }
+        if (targets.empty()) {
+            return static_cast<int32_t>(sources.size()) * search::kNoMatchingDistance;
+        }
+
+        if (targets.size() >= sources.size() && sources.size() <= 10 && targets.size() <= 20) {
+            const size_t maskCount = size_t{1} << targets.size();
+            const int32_t infinity = std::numeric_limits<int32_t>::max() / 4;
+            assignmentDp_.assign(maskCount, infinity);
+            assignmentNext_.assign(maskCount, infinity);
+            assignmentMasks_.clear();
+            assignmentNextMasks_.clear();
+            assignmentDp_[0] = 0;
+            assignmentMasks_.push_back(0);
+            for (size_t sourceIndex = 0; sourceIndex < sources.size(); ++sourceIndex) {
+                assignmentNextMasks_.clear();
+                for (const int32_t mask : assignmentMasks_) {
+                    const int32_t base = assignmentDp_[static_cast<size_t>(mask)];
+                    if (base >= infinity) {
+                        continue;
+                    }
+                    for (size_t targetIndex = 0; targetIndex < targets.size(); ++targetIndex) {
+                        const int32_t targetBit = int32_t{1} << targetIndex;
+                        if ((mask & targetBit) != 0) {
+                            continue;
+                        }
+                        const int32_t nextMask = mask | targetBit;
+                        int32_t& next = assignmentNext_[static_cast<size_t>(nextMask)];
+                        const int32_t candidate =
+                            base + manhattan(sources[sourceIndex], targets[targetIndex]);
+                        if (candidate < next) {
+                            if (next == infinity) {
+                                assignmentNextMasks_.push_back(nextMask);
+                            }
+                            next = candidate;
+                        }
+                    }
+                }
+                for (const int32_t mask : assignmentMasks_) {
+                    assignmentDp_[static_cast<size_t>(mask)] = infinity;
+                }
+                for (const int32_t mask : assignmentNextMasks_) {
+                    assignmentDp_[static_cast<size_t>(mask)] = assignmentNext_[static_cast<size_t>(mask)];
+                    assignmentNext_[static_cast<size_t>(mask)] = infinity;
+                }
+                assignmentMasks_.swap(assignmentNextMasks_);
+            }
+
+            int32_t best = infinity;
+            for (const int32_t mask : assignmentMasks_) {
+                best = std::min(best, assignmentDp_[static_cast<size_t>(mask)]);
+                assignmentDp_[static_cast<size_t>(mask)] = infinity;
+            }
+            return search::distanceOrFallback(best);
+        }
+
+        assignmentPairs_.clear();
+        for (size_t sourceIndex = 0; sourceIndex < sources.size(); ++sourceIndex) {
+            for (size_t targetIndex = 0; targetIndex < targets.size(); ++targetIndex) {
+                assignmentPairs_.push_back(AssignmentPair{
+                    static_cast<int32_t>(sourceIndex),
+                    static_cast<int32_t>(targetIndex),
+                    manhattan(sources[sourceIndex], targets[targetIndex]),
+                });
+            }
+        }
+        std::sort(assignmentPairs_.begin(), assignmentPairs_.end(), [](const AssignmentPair& left, const AssignmentPair& right) {
+            return left.distance < right.distance;
+        });
+        usedSources_.assign(sources.size(), 0);
+        usedTargets_.assign(targets.size(), 0);
+        size_t usedSourceCount = 0;
+        int32_t total = 0;
+        for (const AssignmentPair& pair : assignmentPairs_) {
+            if (usedSources_[static_cast<size_t>(pair.sourceIndex)] != 0
+                || usedTargets_[static_cast<size_t>(pair.targetIndex)] != 0) {
+                continue;
+            }
+            usedSources_[static_cast<size_t>(pair.sourceIndex)] = 1;
+            usedTargets_[static_cast<size_t>(pair.targetIndex)] = 1;
+            ++usedSourceCount;
+            total += pair.distance;
+            if (usedSourceCount == sources.size()) {
+                break;
+            }
+        }
+        return total + static_cast<int32_t>(sources.size() - usedSourceCount) * search::kNoMatchingDistance;
+    }
+
+    int32_t allOnAssignmentScore(const MaskWord* board, bool includePlayerDistance) {
+        if (singleAllOnIndex_ < 0) {
+            return winconditionScore(board, true, true);
+        }
+        const WinCondition& condition = game_.winConditions[static_cast<size_t>(singleAllOnIndex_)];
+        collectUnsatisfiedAllOnTiles(condition, board, unsatisfied_);
+        collectMatchingTiles(search::maskPtr(game_, condition.filter2), condition.aggr2, board, targets_);
+        int32_t score =
+            static_cast<int32_t>(unsatisfied_.size()) * 10 + minAssignmentDistance(unsatisfied_, targets_);
+        if (includePlayerDistance) {
+            score += std::min(minPlayerDistanceToTiles(board, unsatisfied_), 16);
+        }
+        return score;
+    }
+
+    void collectNoOffenderTiles(
+        const WinCondition& condition,
+        const MaskWord* board,
+        std::vector<int32_t>& out) const {
+        out.clear();
+        const MaskWord* filter1 = search::maskPtr(game_, condition.filter1);
+        const MaskWord* filter2 = search::maskPtr(game_, condition.filter2);
+        if (filter1 == nullptr || filter2 == nullptr) {
+            return;
+        }
+        const int32_t n = tileCount();
+        for (int32_t tile = 0; tile < n; ++tile) {
+            const MaskWord* cell = cellAt(board, tile);
+            if (matchesMask(filter1, condition.aggr1, cell)
+                && matchesMask(filter2, condition.aggr2, cell)) {
+                out.push_back(tile);
+            }
+        }
+    }
+
+    int32_t noPlayerDistanceScore(const MaskWord* board) {
+        int32_t score = winconditionScore(board, false, true);
+        for (const WinCondition& condition : game_.winConditions) {
+            if (condition.quantifier != -1) {
+                continue;
+            }
+            collectNoOffenderTiles(condition, board, noOffenders_);
+            if (noOffenders_.empty()) {
+                continue;
+            }
+            score += static_cast<int32_t>(noOffenders_.size()) * search::kNoMatchingDistance;
+            score += std::min(minPlayerDistanceToTiles(board, noOffenders_), 16);
+        }
+        return score;
     }
 
     void buildAllObjectsMask() {
@@ -666,6 +1006,7 @@ private:
     HeuristicKind kind_ = HeuristicKind::Winconditions;
     const MaskWord* playerMask_ = nullptr;
     int32_t singleAllOnIndex_ = -1;
+    bool hasNoCondition_ = false;
     MaskVector allObjects_;
     MaskVector nonBackground_;
     std::vector<bool> plain_;
@@ -676,8 +1017,19 @@ private:
     std::vector<uint8_t> targetColPresence_;
     std::vector<int32_t> unsatisfied_;
     std::vector<int32_t> targets_;
+    std::vector<int32_t> players_;
+    std::vector<int32_t> noOffenders_;
     std::vector<int32_t> isolationTargets_;
     std::vector<uint8_t> liveComponent_;
+    std::vector<int32_t> distanceField_;
+    std::vector<std::vector<int32_t>> conditionDistances_;
+    std::vector<int32_t> assignmentDp_;
+    std::vector<int32_t> assignmentNext_;
+    std::vector<int32_t> assignmentMasks_;
+    std::vector<int32_t> assignmentNextMasks_;
+    std::vector<AssignmentPair> assignmentPairs_;
+    std::vector<uint8_t> usedSources_;
+    std::vector<uint8_t> usedTargets_;
 };
 
 } // namespace puzzlescript::solver

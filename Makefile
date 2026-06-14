@@ -962,6 +962,7 @@ solver_portfolio_regression_tests: $(SOLVER_TARGET_PREREQ)
 
 solver_search_mode_tests: $(SOLVER_TARGET_PREREQ)
 	$(NODE) src/tests/run_solver_search_modes_node.js $(PUZZLESCRIPT_SOLVER)
+	$(NODE) src/tests/run_native_solver_heuristic_selection_node.js $(PUZZLESCRIPT_SOLVER)
 
 solver_js_coverage_cpp: $(SOLVER_TARGET_PREREQ)
 	@set -e; \

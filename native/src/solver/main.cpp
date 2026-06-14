@@ -30,6 +30,7 @@
 #include "runtime/compiled_rules.hpp"
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
+#include "solver/heuristics.hpp"
 
 namespace {
 
@@ -103,6 +104,7 @@ struct Options {
     bool fullNodeStorage = false;
     bool compactTurnOracle = false;
     int32_t astarWeight = 2;
+    puzzlescript::solver::HeuristicKind heuristicKind = puzzlescript::solver::HeuristicKind::Auto;
 };
 
 bool persistentLevelStatesEqual(const PersistentLevelState& lhs, const PersistentLevelState& rhs) {
@@ -427,14 +429,14 @@ std::string searchModeName(SearchMode mode) {
     return "unknown";
 }
 
-std::string heuristicName(SearchMode mode) {
+std::string heuristicName(SearchMode mode, puzzlescript::solver::HeuristicKind kind) {
     switch (mode) {
         case SearchMode::Bfs: return "zero";
-        case SearchMode::WeightedAStarDeep: return "auto:deep-tie";
+        case SearchMode::WeightedAStarDeep: return std::string(puzzlescript::solver::heuristicName(kind)) + ":deep-tie";
         case SearchMode::WeightedAStar:
-        case SearchMode::Greedy: return "auto";
+        case SearchMode::Greedy: return puzzlescript::solver::heuristicName(kind);
     }
-    return "auto";
+    return puzzlescript::solver::heuristicName(kind);
 }
 
 int32_t secondaryPriorityFor(SearchMode mode, uint32_t depth) {
@@ -532,7 +534,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -552,6 +554,15 @@ Options parseArgs(int argc, char** argv) {
         }
         if (arg == "--strategy" && index + 1 < argc) {
             options.strategy = parseStrategy(argv[++index]);
+            continue;
+        }
+        if (arg == "--solver-heuristic" && index + 1 < argc) {
+            const std::string value = argv[++index];
+            const auto parsed = puzzlescript::solver::parseHeuristicName(value);
+            if (!parsed) {
+                throw std::runtime_error("Unsupported solver heuristic: " + value);
+            }
+            options.heuristicKind = *parsed;
             continue;
         }
         if (arg == "--timing" && index + 1 < argc) {
@@ -886,6 +897,13 @@ PortfolioFeatures analyzePortfolioFeatures(const Game& game) {
 
 PortfolioProfile choosePortfolioProfile(const PortfolioFeatures& features) {
     const int32_t simpleRuleLimit = 20;
+    if (features.noPlainWinCount >= 2
+        && features.noPlainWinCount == features.winConditionCount
+        && features.objectMutatingRuleCount > 0
+        && features.usesRandom
+        && features.hasAgain) {
+        return PortfolioProfile::BreadthFirst;
+    }
     if (!features.hasAgain
         && !features.usesRandom
         && features.winConditionCount == 1
@@ -1621,7 +1639,8 @@ Result runSearch(
     bool exactStateKeys,
     bool compactNodeStorage,
     bool compactTurnOracle,
-    int32_t astarWeight
+    int32_t astarWeight,
+    puzzlescript::solver::HeuristicKind heuristicKind
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -1629,7 +1648,7 @@ Result runSearch(
     result.level = levelIndex;
     result.status = "exhausted";
     result.strategy = searchModeName(mode);
-    result.heuristic = heuristicName(mode);
+    result.heuristic = heuristicName(mode, heuristicKind);
     result.timeoutMs = timeoutMs;
     result.workerId = workerId;
     result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
@@ -1671,14 +1690,19 @@ Result runSearch(
     FlatBestDepth bestDepth(result.timing, exactStateKeys);
     bestDepth.reserve(16384);
     result.uniqueStates = 1;
-    puzzlescript::search::HeuristicScratch heuristicScratch;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
     const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    puzzlescript::solver::HeuristicContext heuristicContext(
+        *game,
+        searchWidth,
+        searchHeight,
+        mode == SearchMode::Bfs ? puzzlescript::solver::HeuristicKind::Zero : heuristicKind,
+        initialState.board.objects.data());
     int32_t initialHeuristic = 0;
     if (mode != SearchMode::Bfs) {
         ScopedTimer timer(result.timing.heuristicNs);
-        initialHeuristic = heuristicScore(*initial, heuristicScratch);
+        initialHeuristic = heuristicContext.score(initialState.board.objects.data());
     }
     {
         ScopedTimer timer(result.timing.nodeStoreNs);
@@ -1817,9 +1841,7 @@ Result runSearch(
                 }
                 if (mode != SearchMode::Bfs) {
                     ScopedTimer timer(result.timing.heuristicNs);
-                    childHeuristic = edge.child != nullptr
-                        ? heuristicScore(*edge.child, heuristicScratch)
-                        : compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch);
+                    childHeuristic = heuristicContext.score(childState.board.objects.data());
                 }
                 std::unique_ptr<FullState> ownedChild;
                 if (!compactNodeStorage) {
@@ -1844,9 +1866,7 @@ Result runSearch(
                 }
                 if (mode != SearchMode::Bfs) {
                     ScopedTimer timer(result.timing.heuristicNs);
-                    childHeuristic = edge.child != nullptr
-                        ? heuristicScore(*edge.child, heuristicScratch)
-                        : compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch);
+                    childHeuristic = heuristicContext.score(childState.board.objects.data());
                 }
                 childIndex = static_cast<uint32_t>(nodes.size());
                 std::unique_ptr<FullState> ownedChild;
@@ -1887,7 +1907,8 @@ Result runAdaptivePortfolioSearch(
     bool exactStateKeys,
     bool compactNodeStorage,
     bool compactTurnOracle,
-    int32_t astarWeight
+    int32_t astarWeight,
+    puzzlescript::solver::HeuristicKind heuristicKind
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -1914,7 +1935,7 @@ Result runAdaptivePortfolioSearch(
     result.portfolioHasAgain = portfolioFeatures.hasAgain;
     result.portfolioRunRulesOnLevelStart = portfolioFeatures.runRulesOnLevelStart;
     result.portfolioUsesRandom = portfolioFeatures.usesRandom;
-    result.heuristic = "mixed:auto:" + result.portfolioProfile;
+    result.heuristic = std::string("mixed:") + puzzlescript::solver::heuristicName(heuristicKind) + ":" + result.portfolioProfile;
     result.timeoutMs = timeoutMs;
     result.workerId = workerId;
     result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
@@ -1955,14 +1976,19 @@ Result runAdaptivePortfolioSearch(
     FlatBestDepth bestDepth(result.timing, exactStateKeys);
     bestDepth.reserve(16384);
     result.uniqueStates = 1;
-    puzzlescript::search::HeuristicScratch heuristicScratch;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
     const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    puzzlescript::solver::HeuristicContext heuristicContext(
+        *game,
+        searchWidth,
+        searchHeight,
+        heuristicKind,
+        initialState.board.objects.data());
     int32_t initialHeuristic = 0;
     {
         ScopedTimer timer(result.timing.heuristicNs);
-        initialHeuristic = heuristicScore(*initial, heuristicScratch);
+        initialHeuristic = heuristicContext.score(initialState.board.objects.data());
     }
     {
         ScopedTimer timer(result.timing.nodeStoreNs);
@@ -2225,9 +2251,7 @@ Result runAdaptivePortfolioSearch(
             int32_t childHeuristic = 0;
             {
                 ScopedTimer timer(result.timing.heuristicNs);
-                childHeuristic = edge.child != nullptr
-                    ? heuristicScore(*edge.child, heuristicScratch)
-                    : compactHeuristicScore(childState, *game, searchWidth, searchHeight, heuristicScratch);
+                childHeuristic = heuristicContext.score(childState.board.objects.data());
             }
 
             std::unique_ptr<FullState> ownedChild;
@@ -2276,7 +2300,8 @@ Result solveLevel(
     bool compactNodeStorage,
     bool fullNodeStorage,
     bool compactTurnOracle,
-    int32_t astarWeight
+    int32_t astarWeight,
+    puzzlescript::solver::HeuristicKind heuristicKind
 ) {
     const TimePoint searchStart = Clock::now();
     const TimePoint deadline = searchStart + std::chrono::milliseconds(timeoutMs);
@@ -2290,16 +2315,16 @@ Result solveLevel(
     };
 
     if (strategy == Strategy::Bfs) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
     }
     if (strategy == Strategy::WeightedAStar) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
     }
     if (strategy == Strategy::WeightedAStarDeep) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
     }
     if (strategy == Strategy::Greedy) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
     }
 
     return finish(runAdaptivePortfolioSearch(
@@ -2313,7 +2338,8 @@ Result solveLevel(
         exactStateKeys,
         effectiveCompactNodeStorage,
         compactTurnOracle,
-        astarWeight));
+        astarWeight,
+        heuristicKind));
 }
 
 std::string relativeGameName(const std::filesystem::path& root, const std::filesystem::path& gamePath) {
@@ -2870,7 +2896,8 @@ std::vector<Result> runCorpus(const Options& options) {
                     options.compactNodeStorage,
                     options.fullNodeStorage,
                     options.compactTurnOracle,
-                    options.astarWeight
+                    options.astarWeight,
+                    options.heuristicKind
                 );
                 results[item.resultIndex] = std::move(result);
                 const size_t done = completed.fetch_add(1) + 1;
