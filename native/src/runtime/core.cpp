@@ -1286,10 +1286,14 @@ bool layerCoupledMovementLayerMatches(
     const int32_t missingField =
         movementFieldAtLayer(movementsMissing, movementWordCount, layerTerm.layerIndex);
 
-    if (anyField != 0 && movementField == 0) {
+    // Match the JS engine semantics (engine.js generateMatchString for
+    // layer-coupled terms): "any" requires at least one of the aggregate
+    // direction bits to be present, "present" is a subset test (all required
+    // bits set), and "missing" forbids any of its bits.
+    if (anyField != 0 && (movementField & anyField) == 0) {
         return false;
     }
-    if (presentField != 0 && movementField != presentField) {
+    if (presentField != 0 && (movementField & presentField) != presentField) {
         return false;
     }
     if (missingField != 0 && (movementField & missingField) != 0) {

@@ -1780,7 +1780,9 @@ Result runSearch(
 
             SolverEdgeStep edge = stepSolverEdge(
                 game,
-                parentNode,
+                // Re-fetch by index: a previous input's push_back below may have
+                // reallocated `nodes`, which would dangle a held parentNode ref.
+                nodes[entry.nodeIndex],
                 parentSession,
                 input,
                 compactNodeStorage,
@@ -2189,7 +2191,9 @@ Result runAdaptivePortfolioSearch(
 
             SolverEdgeStep edge = stepSolverEdge(
                 game,
-                parentNode,
+                // Re-fetch by index: a previous input's push_back below may have
+                // reallocated `nodes`, which would dangle a held parentNode ref.
+                nodes[entry.nodeIndex],
                 parentSession,
                 input,
                 compactNodeStorage,
