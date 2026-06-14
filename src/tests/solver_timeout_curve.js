@@ -284,7 +284,7 @@ function buildCurve(levels, options) {
         for (const e of solveTimes) {
             if (e <= t) solved++; else break;
         }
-        return { timeout_ms: t, solved, pct: solved / playable.length * 100 };
+        return { timeout_ms: t, solved, pct: playable.length === 0 ? 0 : solved / playable.length * 100 };
     });
     return { playable: playable.length, totalSolvedAtMax: solveTimes.length, points };
 }

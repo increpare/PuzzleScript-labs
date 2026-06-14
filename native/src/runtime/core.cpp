@@ -853,6 +853,9 @@ bool bitsSetInArray(const int32_t* required, size_t requiredCount, const int32_t
 
 #if PS_MASK_WORD_BITS == 64
 bool bitsSetInArray(const MaskWord* required, size_t requiredCount, const MaskWord* actual, size_t actualCount) {
+    if (required == nullptr) {
+        return true;
+    }
     const size_t count = std::min(requiredCount, actualCount);
     for (size_t index = 0; index < count; ++index) {
         if ((actual[index] & required[index]) != required[index]) {
@@ -868,6 +871,9 @@ bool bitsSetInArray(const MaskWord* required, size_t requiredCount, const MaskWo
 }
 
 bool bitsSetInArray(const MaskWord* required, size_t requiredCount, const int32_t* actual, size_t actualCount) {
+    if (required == nullptr) {
+        return true;
+    }
     const size_t count = std::min(requiredCount, actualCount);
     for (size_t index = 0; index < count; ++index) {
         if ((static_cast<MaskWord>(actual[index]) & required[index]) != required[index]) {
@@ -1393,12 +1399,9 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
         replacement.hasRandomDirMask = anyBitsSet(words);
         if (replacement.hasRandomDirMask) {
             for (int32_t layer = 0; layer < game.layerCount; ++layer) {
-                const uint32_t word = movementWordIndexForLayer(static_cast<uint32_t>(layer));
-                const uint32_t bit = movementBitShiftForLayer(static_cast<uint32_t>(layer));
-                const int32_t dirBits = word < replacement.randomDirMaskWidth
-                    ? static_cast<int32_t>((words[static_cast<size_t>(word)] >> bit) & 0x1F)
-                    : 0;
-                if (dirBits != 0) {
+                // getShiftedMask5 reads the 5-bit field straddle-aware, so layers
+                // whose field crosses a MaskWord boundary are handled correctly.
+                if (getShiftedMask5(words, 5 * layer) != 0) {
                     replacement.randomDirLayers.push_back(layer);
                 }
             }
@@ -1486,10 +1489,8 @@ void deriveAggregateBindings(Game& game, Rule& rule) {
                     game.anyMovementOffsets[pattern.anyMovementsFirst + maskIndex]
                 );
                 for (int32_t layer = 0; layer < game.layerCount; ++layer) {
-                    const uint32_t word = movementWordIndexForLayer(static_cast<uint32_t>(layer));
-                    const uint32_t bit = movementBitShiftForLayer(static_cast<uint32_t>(layer));
-                    if (word >= game.movementWordCount
-                        || (anyMask[word] & (static_cast<MaskWord>(0x1F) << bit)) == 0) {
+                    // movementFieldAtLayer reads the 5-bit field straddle-aware.
+                    if (movementFieldAtLayer(anyMask, game.movementWordCount, layer) == 0) {
                         continue;
                     }
                     for (const std::string& aggregateName : sinkAggregateNames) {

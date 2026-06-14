@@ -8,6 +8,13 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-curve-denominator-'));
+process.on('exit', () => {
+    try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+        // best-effort cleanup
+    }
+});
 const csvPath = path.join(tempDir, 'mismatched.csv');
 const outCsv = path.join(tempDir, 'out.csv');
 const outSvg = path.join(tempDir, 'out.svg');

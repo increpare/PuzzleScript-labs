@@ -788,7 +788,11 @@ Options parseArgs(int argc, char** argv) {
             continue;
         }
         if (arg == "--astar-weight" && index + 1 < argc) {
-            options.astarWeight = std::max<int32_t>(1, std::stoi(argv[++index]));
+            // Clamp to a sane upper bound: the portfolio multiplies this by 4
+            // (wa8) and priorityFor computes `depth + heuristic * weight` in
+            // int32, so an unbounded weight would overflow and scramble the
+            // frontier ordering. A weight of 1024 is already effectively greedy.
+            options.astarWeight = std::clamp<int32_t>(std::stoi(argv[++index]), 1, 1024);
             continue;
         }
         if (arg == "--quiet") {

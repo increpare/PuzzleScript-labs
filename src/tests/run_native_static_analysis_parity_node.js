@@ -52,6 +52,7 @@ assert.strictEqual(
 const native = JSON.parse(result.stdout);
 const nativeByGame = new Map((native.games || []).map((entry) => [entry.game, entry]));
 const failures = [];
+let comparedCount = 0;
 for (const [game, entry] of Object.entries(manifest.games)) {
     const nativeEntry = nativeByGame.get(game);
     if (!nativeEntry) {
@@ -71,6 +72,7 @@ for (const [game, entry] of Object.entries(manifest.games)) {
     }
     const expected = sortedStaticObjects(entry);
     const actual = (nativeEntry.static_objects || []).map((name) => name.toLowerCase()).sort();
+    comparedCount += 1;
     try {
         assert.deepStrictEqual(actual, expected);
     } catch {
@@ -85,4 +87,16 @@ for (const [game, entry] of Object.entries(manifest.games)) {
 }
 
 assert.deepStrictEqual(failures, []);
-console.log('run_native_static_analysis_parity_node passed');
+
+// Guard against the test silently degrading to a vacuous pass: if the JS
+// manifest ever goes all-'compile_error' (or static extraction collapses),
+// every game hits a `continue` and `failures` stays empty. Require that the
+// bulk of the corpus was actually compared.
+const manifestGameCount = Object.keys(manifest.games).length;
+assert(
+    comparedCount >= Math.max(1, Math.floor(manifestGameCount / 2)),
+    `static-analysis parity compared only ${comparedCount} of ${manifestGameCount} games; ` +
+    'expected most to be status:ok and actually compared'
+);
+
+console.log(`run_native_static_analysis_parity_node passed (compared ${comparedCount} games)`);

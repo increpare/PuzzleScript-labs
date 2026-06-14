@@ -371,7 +371,7 @@ function selectInstrumentationTargets({
         result.status !== 'level_error'
     );
     const timeoutResults = usableNativeResults.filter((result) => result.status === 'timeout');
-    for (const result of takeTop(timeoutResults, MAX_PER_BUCKET, (item) => Number(item.expanded || item.generated || 0))) {
+    for (const result of takeTop(timeoutResults, MAX_PER_BUCKET, (item) => Number(item.expanded ?? item.generated ?? 0))) {
         store.add(result, 'native_timeout_high_expansion', resultFields(jsByKey.get(resultKey(result)), result));
     }
     for (const result of takeTop(timeoutResults, MAX_PER_BUCKET, (item) => Number(item.step_ms || 0))) {

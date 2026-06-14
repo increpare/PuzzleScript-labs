@@ -48,6 +48,7 @@ const targets = [
         canonicalRoundTrip: false,
         requireJsSolved: true,
         nativeArgs: ['--compact-node-storage'],
+        expectCompactNodeStorage: true,
     },
     {
         game: 'Pushy-V Pully-H.txt',
