@@ -2,6 +2,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
 const { spawnSync } = require('child_process');
 const path = require('path');
 
@@ -62,6 +64,84 @@ assert.strictEqual(allOnMatching.heuristic, 'all-on-matching');
 assert(
     allOnMatching.expanded <= 5000,
     `all-on-matching expanded ${allOnMatching.expanded}, expected <= 5000`
+);
+
+const autoStaticOnDynamic = runSolver(solverCorpus, [
+    '--game', 'Pushy-V Pully-H.txt',
+    '--level', '15',
+    '--timeout-ms', '1000',
+    '--strategy', 'weighted-astar',
+    '--astar-weight', '2',
+    '--solver-heuristic', 'auto',
+], 'auto all-static-on-dynamic assignment heuristic');
+assert.strictEqual(autoStaticOnDynamic.status, 'solved');
+assert.strictEqual(autoStaticOnDynamic.heuristic, 'auto');
+assert(
+    autoStaticOnDynamic.expanded <= 5000,
+    `auto all-static-on-dynamic expanded ${autoStaticOnDynamic.expanded}, expected <= 5000`
+);
+
+const autoDynamicOnStatic = runSolver(solverCorpus, [
+    '--game', 'make way.txt',
+    '--level', '3',
+    '--timeout-ms', '1000',
+    '--strategy', 'weighted-astar',
+    '--astar-weight', '2',
+    '--solver-heuristic', 'auto',
+], 'auto all-dynamic-on-static assignment heuristic');
+assert.strictEqual(autoDynamicOnStatic.status, 'solved');
+assert.strictEqual(autoDynamicOnStatic.heuristic, 'auto');
+assert(
+    autoDynamicOnStatic.expanded <= 3000,
+    `auto all-dynamic-on-static expanded ${autoDynamicOnStatic.expanded}, expected <= 3000`
+);
+
+const autoNonStaticOnStatic = runSolver(solverCorpus, [
+    '--game', 'mazezam.txt',
+    '--level', '23',
+    '--timeout-ms', '1500',
+    '--strategy', 'weighted-astar',
+    '--astar-weight', '2',
+    '--solver-heuristic', 'auto',
+], 'auto all-nonstatic-on-static assignment heuristic');
+assert.strictEqual(autoNonStaticOnStatic.status, 'solved');
+assert.strictEqual(autoNonStaticOnStatic.heuristic, 'auto');
+assert(
+    autoNonStaticOnStatic.expanded <= 31000,
+    `auto all-nonstatic-on-static expanded ${autoNonStaticOnStatic.expanded}, expected <= 31000`
+);
+
+const staticAnalysisDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-solver-static-analysis-'));
+const staticAnalysisPath = path.join(staticAnalysisDir, 'static-analysis.json');
+fs.writeFileSync(staticAnalysisPath, `${JSON.stringify({
+    schema: 'native-solver-static-analysis-hints-v1',
+    games: {
+        'mazezam.txt': {
+            status: 'ok',
+            objects: [
+                { canonical_name: 'target', tags: { static: true } },
+                { canonical_name: 'cplayer', tags: { static: false } },
+                { canonical_name: 'lplayer', tags: { static: false } },
+                { canonical_name: 'rplayer', tags: { static: false } },
+            ],
+        },
+    },
+}, null, 2)}\n`);
+const autoJsStaticAnalysis = runSolver(solverCorpus, [
+    '--game', 'mazezam.txt',
+    '--level', '23',
+    '--timeout-ms', '1500',
+    '--strategy', 'weighted-astar',
+    '--astar-weight', '2',
+    '--solver-heuristic', 'auto',
+    '--static-analysis-hints', staticAnalysisPath,
+], 'auto all-nonstatic-on-static JS static-analysis hints');
+assert.strictEqual(autoJsStaticAnalysis.status, 'solved');
+assert.strictEqual(autoJsStaticAnalysis.heuristic, 'auto');
+assert.strictEqual(autoJsStaticAnalysis.static_analysis_hints, 'js');
+assert(
+    autoJsStaticAnalysis.expanded <= 31000,
+    `auto JS static-analysis hints expanded ${autoJsStaticAnalysis.expanded}, expected <= 31000`
 );
 
 const noPlayerDistance = runSolver(solverCorpus, [

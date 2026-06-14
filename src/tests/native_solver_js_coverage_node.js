@@ -2,8 +2,12 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const {
+    buildStaticAnalysisHintsManifest,
     findJsSolvedNativeMisses,
     summarizeCoverage,
 } = require('./run_native_solver_js_coverage.js');
@@ -63,5 +67,30 @@ assert.deepStrictEqual(summarizeCoverage(jsRun, nativeRun, misses), {
     misses: 3,
     nativeErrors: 0,
 });
+
+const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-coverage-static-hints-'));
+fs.writeFileSync(path.join(fixtureDir, 'one.txt'), 'one');
+fs.mkdirSync(path.join(fixtureDir, 'nested'));
+fs.writeFileSync(path.join(fixtureDir, 'nested', 'two.txt'), 'two');
+const manifest = buildStaticAnalysisHintsManifest(fixtureDir, (filePath) => ({
+    status: 'ok',
+    ps_tagged: {
+        objects: [
+            {
+                name: path.basename(filePath, '.txt'),
+                canonical_name: path.basename(filePath, '.txt').toLowerCase(),
+                tags: { static: path.basename(filePath) === 'one.txt', cosmetic: true },
+            },
+        ],
+    },
+}));
+assert.deepStrictEqual(Object.keys(manifest.games).sort(), ['nested/two.txt', 'one.txt']);
+assert.deepStrictEqual(manifest.games['one.txt'], {
+    status: 'ok',
+    objects: [
+        { name: 'one', canonical_name: 'one', tags: { static: true } },
+    ],
+});
+assert.deepStrictEqual(manifest.games['nested/two.txt'].objects[0].tags, { static: false });
 
 console.log('native_solver_js_coverage_node passed');

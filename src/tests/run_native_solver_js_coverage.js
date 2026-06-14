@@ -2,8 +2,10 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { analyzeFile } = require('./ps_static_analysis');
 
 function usage() {
     console.error(
@@ -79,6 +81,66 @@ function readJsonFile(filePath, label) {
 function writeJsonFile(filePath, value) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function discoverSolverGameFiles(corpusDir) {
+    const stat = fs.statSync(corpusDir);
+    if (stat.isFile()) {
+        return [corpusDir];
+    }
+    const files = [];
+    function visit(dir) {
+        for (const entry of fs.readdirSync(dir).sort()) {
+            if (entry.startsWith('.')) {
+                continue;
+            }
+            const fullPath = path.join(dir, entry);
+            const entryStat = fs.statSync(fullPath);
+            if (entryStat.isDirectory()) {
+                visit(fullPath);
+            } else if (entryStat.isFile() && entry.toLowerCase().endsWith('.txt')) {
+                files.push(fullPath);
+            }
+        }
+    }
+    visit(corpusDir);
+    return files;
+}
+
+function relativeGamePath(corpusDir, filePath) {
+    const stat = fs.statSync(corpusDir);
+    const rel = stat.isFile()
+        ? path.basename(filePath)
+        : path.relative(corpusDir, filePath);
+    return rel.split(path.sep).join('/');
+}
+
+function staticHintObjectsFromReport(report) {
+    const objects = report && report.ps_tagged && Array.isArray(report.ps_tagged.objects)
+        ? report.ps_tagged.objects
+        : [];
+    return objects.map((object) => ({
+        name: object.name,
+        canonical_name: object.canonical_name,
+        tags: {
+            static: Boolean(object.tags && object.tags.static === true),
+        },
+    }));
+}
+
+function buildStaticAnalysisHintsManifest(corpusDir, analyze = analyzeFile) {
+    const games = {};
+    for (const filePath of discoverSolverGameFiles(corpusDir)) {
+        const report = analyze(filePath, { sourcePath: filePath });
+        games[relativeGamePath(corpusDir, filePath)] = {
+            status: report && report.status === 'ok' ? 'ok' : 'compile_error',
+            objects: staticHintObjectsFromReport(report),
+        };
+    }
+    return {
+        schema: 'native-solver-static-analysis-hints-v1',
+        games,
+    };
 }
 
 function runJson(command, args, label) {
@@ -163,11 +225,15 @@ function loadOrRunNative(options) {
     if (options.nativeResults) {
         return readJsonFile(options.nativeResults, 'native results');
     }
+    const staticAnalysisDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-solver-static-analysis-'));
+    const staticAnalysisPath = path.join(staticAnalysisDir, 'static-analysis-hints.json');
+    writeJsonFile(staticAnalysisPath, buildStaticAnalysisHintsManifest(options.corpusDir));
     const result = runJson(options.solverPath, [
         options.corpusDir,
         '--timeout-ms', String(options.timeoutMs),
         '--jobs', String(options.jobs),
         '--strategy', options.strategy,
+        '--static-analysis-hints', staticAnalysisPath,
         '--no-solutions',
         '--quiet',
         '--json',
@@ -214,6 +280,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    buildStaticAnalysisHintsManifest,
     findJsSolvedNativeMisses,
     summarizeCoverage,
     resultKey,

@@ -21,6 +21,11 @@ enum class HeuristicKind {
     NoPlayerDistance,
 };
 
+struct StaticAnalysisHints {
+    bool available = false;
+    MaskVector staticObjects;
+};
+
 inline const char* heuristicName(HeuristicKind kind) {
     switch (kind) {
         case HeuristicKind::Zero: return "zero";
@@ -80,19 +85,59 @@ public:
         int32_t width,
         int32_t height,
         HeuristicKind kind,
-        const MaskWord* initialBoard)
+        const MaskWord* initialBoard,
+        const StaticAnalysisHints* staticAnalysisHints = nullptr)
         : game_(game), width_(width), height_(height), kind_(kind) {
         if (kind_ == HeuristicKind::Zero || game_.winConditions.empty()) {
             return;
         }
         playerMask_ = search::maskPtr(game_, game_.playerMask);
         buildAllObjectsMask();
+        if (staticAnalysisHints != nullptr
+            && staticAnalysisHints->available
+            && staticAnalysisHints->staticObjects.size() == game_.wordCount) {
+            staticObjects_ = staticAnalysisHints->staticObjects;
+            staticAnalysisHintsUsed_ = true;
+        } else {
+            buildStaticObjectMask();
+        }
 
         const size_t conditionCount = game_.winConditions.size();
         plain_.resize(conditionCount, false);
+        conditionCaches_.resize(conditionCount);
+        allWinconditionsStaticOnNonStaticAll_ = conditionCount > 0;
+        allWinconditionsNonStaticOnStaticAll_ = conditionCount > 0;
         for (size_t index = 0; index < conditionCount; ++index) {
             const WinCondition& condition = game_.winConditions[index];
-            plain_[index] = isPlainFilter(search::maskPtr(game_, condition.filter2));
+            const MaskWord* filter1 = search::maskPtr(game_, condition.filter1);
+            const MaskWord* filter2 = search::maskPtr(game_, condition.filter2);
+            plain_[index] = isPlainFilter(filter2);
+            ConditionCache& cache = conditionCaches_[index];
+            cache.plain = plain_[index];
+            cache.subjectStatic = !cache.plain && filterIsStatic(filter1);
+            cache.subjectNonStatic = !cache.plain && filterIsNonStatic(filter1);
+            cache.targetStatic = !cache.plain && filterIsStatic(filter2);
+            cache.targetNonStatic = !cache.plain && filterIsNonStatic(filter2);
+            cache.assignmentSourceSmall =
+                initialBoard != nullptr
+                && countMatchingTiles(filter1, condition.aggr1, initialBoard) <= kAutoAssignmentMaxSources;
+            cache.staticOnNonStaticAll =
+                condition.quantifier == 1
+                && cache.assignmentSourceSmall
+                && cache.subjectStatic
+                && cache.targetNonStatic;
+            cache.nonStaticOnStaticAll =
+                condition.quantifier == 1
+                && cache.assignmentSourceSmall
+                && cache.subjectNonStatic
+                && cache.targetStatic;
+            if (cache.targetStatic && initialBoard != nullptr) {
+                buildTargetCache(static_cast<int32_t>(index), initialBoard);
+            }
+            allWinconditionsStaticOnNonStaticAll_ =
+                allWinconditionsStaticOnNonStaticAll_ && cache.staticOnNonStaticAll;
+            allWinconditionsNonStaticOnStaticAll_ =
+                allWinconditionsNonStaticOnStaticAll_ && cache.nonStaticOnStaticAll;
             if (condition.quantifier == -1) {
                 hasNoCondition_ = true;
             }
@@ -115,6 +160,7 @@ public:
     }
 
     HeuristicKind kind() const { return kind_; }
+    bool staticAnalysisHintsUsed() const { return staticAnalysisHintsUsed_; }
 
     int32_t score(const MaskWord* board) {
         if (kind_ == HeuristicKind::Zero || game_.winConditions.empty() || board == nullptr) {
@@ -133,9 +179,13 @@ public:
             return winconditionScore(board, true, true);
         }
 
-        const int32_t base = hasNoCondition_
-            ? noPlayerDistanceScore(board)
-            : winconditionScore(board, true, true);
+        if (!hasNoCondition_ && allWinconditionsStaticOnNonStaticAll_) {
+            return allStaticOnNonStaticAssignmentScore(board);
+        }
+        if (!hasNoCondition_ && allWinconditionsNonStaticOnStaticAll_) {
+            return allNonStaticOnStaticAssignmentScore(board);
+        }
+        const int32_t base = hasNoCondition_ ? noPlayerDistanceScore(board) : winconditionScore(board, true, true);
         if (base <= 0) {
             return base;
         }
@@ -179,17 +229,54 @@ private:
         MaskVector allowed; // filter1 | filter2 | player
     };
 
+    struct ConditionCache {
+        bool plain = false;
+        bool subjectStatic = false;
+        bool subjectNonStatic = false;
+        bool targetStatic = false;
+        bool targetNonStatic = false;
+        bool assignmentSourceSmall = false;
+        bool staticOnNonStaticAll = false;
+        bool nonStaticOnStaticAll = false;
+        bool targetCacheBuilt = false;
+        std::vector<int32_t> targetTiles;
+        std::vector<int32_t> targetDistances;
+        std::vector<uint8_t> targetRows;
+        std::vector<uint8_t> targetCols;
+    };
+
     struct AssignmentPair {
         int32_t sourceIndex = 0;
         int32_t targetIndex = 0;
         int32_t distance = 0;
     };
 
+    static constexpr int32_t kAutoAssignmentMaxSources = 32;
+
     int32_t tileCount() const { return width_ * height_; }
     int32_t tileX(int32_t tile) const { return tile / height_; }
     int32_t tileY(int32_t tile) const { return tile % height_; }
     int32_t manhattan(int32_t left, int32_t right) const {
         return std::abs(tileX(left) - tileX(right)) + std::abs(tileY(left) - tileY(right));
+    }
+
+    int32_t movementLayerBits(const MaskWord* mask, int32_t layer) const {
+        if (mask == nullptr || layer < 0) {
+            return 0;
+        }
+        const int32_t shift = 5 * layer;
+        const int32_t word = shift / static_cast<int32_t>(kMaskWordBits);
+        const int32_t bit = shift & static_cast<int32_t>(kMaskWordBitMask);
+        MaskWordUnsigned result = 0;
+        if (word < static_cast<int32_t>(game_.movementWordCount)) {
+            result = static_cast<MaskWordUnsigned>(mask[static_cast<size_t>(word)]) >> bit;
+        }
+        if (bit > static_cast<int32_t>(kMaskWordBits - 5U)
+            && word + 1 < static_cast<int32_t>(game_.movementWordCount)) {
+            result |= static_cast<MaskWordUnsigned>(mask[static_cast<size_t>(word + 1)])
+                << (kMaskWordBits - bit);
+        }
+        return static_cast<int32_t>(result & 0x1f);
     }
 
     const MaskWord* cellAt(const MaskWord* board, int32_t tile) const {
@@ -318,17 +405,35 @@ private:
         }
     }
 
+    const std::vector<int32_t>& targetDistanceField(
+        size_t conditionIndex,
+        const WinCondition& condition,
+        const MaskWord* board) {
+        const ConditionCache& cache = conditionCaches_[conditionIndex];
+        if (cache.targetCacheBuilt) {
+            return cache.targetDistances;
+        }
+        matchingDistanceField(
+            search::maskPtr(game_, condition.filter2),
+            condition.aggr2,
+            board,
+            distanceField_);
+        return distanceField_;
+    }
+
     int32_t winconditionScore(const MaskWord* board, bool includeNoPenalty, bool includePlayerDistance) {
         int32_t score = 0;
         const int32_t n = tileCount();
-        for (const WinCondition& condition : game_.winConditions) {
+        for (size_t conditionIndex = 0; conditionIndex < game_.winConditions.size(); ++conditionIndex) {
+            const WinCondition& condition = game_.winConditions[conditionIndex];
             const MaskWord* filter1 = search::maskPtr(game_, condition.filter1);
             const MaskWord* filter2 = search::maskPtr(game_, condition.filter2);
             if (filter1 == nullptr || filter2 == nullptr) {
                 continue;
             }
             if (condition.quantifier == 1) {
-                matchingDistanceField(filter2, condition.aggr2, board, distanceField_);
+                const std::vector<int32_t>& distances =
+                    targetDistanceField(conditionIndex, condition, board);
                 for (int32_t tile = 0; tile < n; ++tile) {
                     const MaskWord* cell = cellAt(board, tile);
                     if (!matchesMask(filter1, condition.aggr1, cell)) {
@@ -337,10 +442,11 @@ private:
                     if (matchesMask(filter2, condition.aggr2, cell)) {
                         continue;
                     }
-                    score += 10 + search::distanceOrFallback(distanceField_[static_cast<size_t>(tile)]);
+                    score += 10 + search::distanceOrFallback(distances[static_cast<size_t>(tile)]);
                 }
             } else if (condition.quantifier == 0) {
-                matchingDistanceField(filter2, condition.aggr2, board, distanceField_);
+                const std::vector<int32_t>& distances =
+                    targetDistanceField(conditionIndex, condition, board);
                 bool passed = false;
                 int32_t best = search::kNoMatchingDistance;
                 for (int32_t tile = 0; tile < n; ++tile) {
@@ -352,7 +458,7 @@ private:
                         passed = true;
                         break;
                     }
-                    best = std::min(best, search::distanceOrFallback(distanceField_[static_cast<size_t>(tile)]));
+                    best = std::min(best, search::distanceOrFallback(distances[static_cast<size_t>(tile)]));
                 }
                 score += passed ? 0 : best;
             } else if (includeNoPenalty && condition.quantifier == -1) {
@@ -518,7 +624,39 @@ private:
         return score;
     }
 
+    int32_t allOnAssignmentContribution(const WinCondition& condition, const MaskWord* board) {
+        collectUnsatisfiedAllOnTiles(condition, board, unsatisfied_);
+        if (unsatisfied_.empty()) {
+            return 0;
+        }
+        collectMatchingTiles(search::maskPtr(game_, condition.filter2), condition.aggr2, board, targets_);
+        return static_cast<int32_t>(unsatisfied_.size()) * 10 + minAssignmentDistance(unsatisfied_, targets_);
+    }
+
+    int32_t allStaticOnNonStaticAssignmentScore(const MaskWord* board) {
+        int32_t score = 0;
+        for (size_t index = 0; index < game_.winConditions.size(); ++index) {
+            if (!conditionCaches_[index].staticOnNonStaticAll) {
+                continue;
+            }
+            score += allOnAssignmentContribution(game_.winConditions[index], board);
+        }
+        return score;
+    }
+
+    int32_t allNonStaticOnStaticAssignmentScore(const MaskWord* board) {
+        int32_t score = 0;
+        for (size_t index = 0; index < game_.winConditions.size(); ++index) {
+            if (!conditionCaches_[index].nonStaticOnStaticAll) {
+                continue;
+            }
+            score += allOnAssignmentContribution(game_.winConditions[index], board);
+        }
+        return score;
+    }
+
     void collectNoOffenderTiles(
+        size_t conditionIndex,
         const WinCondition& condition,
         const MaskWord* board,
         std::vector<int32_t>& out) const {
@@ -526,6 +664,26 @@ private:
         const MaskWord* filter1 = search::maskPtr(game_, condition.filter1);
         const MaskWord* filter2 = search::maskPtr(game_, condition.filter2);
         if (filter1 == nullptr || filter2 == nullptr) {
+            return;
+        }
+        const ConditionCache& cache = conditionCaches_[conditionIndex];
+        if (cache.plain) {
+            const int32_t n = tileCount();
+            for (int32_t tile = 0; tile < n; ++tile) {
+                const MaskWord* cell = cellAt(board, tile);
+                if (matchesMask(filter1, condition.aggr1, cell)) {
+                    out.push_back(tile);
+                }
+            }
+            return;
+        }
+        if (cache.targetCacheBuilt) {
+            for (const int32_t tile : cache.targetTiles) {
+                const MaskWord* cell = cellAt(board, tile);
+                if (matchesMask(filter1, condition.aggr1, cell)) {
+                    out.push_back(tile);
+                }
+            }
             return;
         }
         const int32_t n = tileCount();
@@ -540,11 +698,12 @@ private:
 
     int32_t noPlayerDistanceScore(const MaskWord* board) {
         int32_t score = winconditionScore(board, false, true);
-        for (const WinCondition& condition : game_.winConditions) {
+        for (size_t conditionIndex = 0; conditionIndex < game_.winConditions.size(); ++conditionIndex) {
+            const WinCondition& condition = game_.winConditions[conditionIndex];
             if (condition.quantifier != -1) {
                 continue;
             }
-            collectNoOffenderTiles(condition, board, noOffenders_);
+            collectNoOffenderTiles(conditionIndex, condition, board, noOffenders_);
             if (noOffenders_.empty()) {
                 continue;
             }
@@ -563,6 +722,247 @@ private:
         }
     }
 
+    void buildStaticObjectMask() {
+        staticObjects_.assign(game_.wordCount, 0);
+        MaskVector writtenObjects(game_.wordCount, 0);
+        MaskVector movementWrittenObjects(game_.wordCount, 0);
+        auto visitGroups = [&](const std::vector<std::vector<Rule>>& groups) {
+            for (const std::vector<Rule>& group : groups) {
+                for (const Rule& rule : group) {
+                    accumulateWrittenObjects(rule, writtenObjects, movementWrittenObjects);
+                }
+            }
+        };
+        visitGroups(game_.rules);
+        visitGroups(game_.lateRules);
+
+        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
+            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+            const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+            if (word >= staticObjects_.size()) {
+                continue;
+            }
+            if ((writtenObjects[static_cast<size_t>(word)] & bit) != 0) {
+                continue;
+            }
+            if (playerMask_ != nullptr && (playerMask_[word] & bit) != 0) {
+                continue;
+            }
+            if ((movementWrittenObjects[static_cast<size_t>(word)] & bit) != 0) {
+                continue;
+            }
+            staticObjects_[static_cast<size_t>(word)] |= bit;
+        }
+    }
+
+    bool maskHasObject(const MaskWord* mask, int32_t objectId) const {
+        if (mask == nullptr || objectId < 0) {
+            return false;
+        }
+        const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word >= game_.wordCount) {
+            return false;
+        }
+        return (mask[word] & maskBit(static_cast<uint32_t>(objectId))) != 0;
+    }
+
+    bool objectCanCoexistWithObject(int32_t objectId, int32_t candidateId) const {
+        if (objectId == candidateId) {
+            return true;
+        }
+        if (objectId < 0
+            || candidateId < 0
+            || objectId >= game_.objectCount
+            || candidateId >= game_.objectCount) {
+            return true;
+        }
+        const int32_t objectLayer = game_.objectsById[static_cast<size_t>(objectId)].layer;
+        const int32_t candidateLayer = game_.objectsById[static_cast<size_t>(candidateId)].layer;
+        return objectLayer < 0 || candidateLayer < 0 || objectLayer != candidateLayer;
+    }
+
+    bool maskHasCoexistingObject(const MaskWord* mask, int32_t objectId) const {
+        if (mask == nullptr) {
+            return false;
+        }
+        for (int32_t candidateId = 0; candidateId < game_.objectCount; ++candidateId) {
+            if (maskHasObject(mask, candidateId)
+                && objectCanCoexistWithObject(objectId, candidateId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool patternCanContainObject(const Pattern& pattern, int32_t objectId) const {
+        if (pattern.kind == Pattern::Kind::Ellipsis || objectId < 0 || objectId >= game_.objectCount) {
+            return true;
+        }
+        const MaskWord* objectsMissing = search::maskPtr(game_, pattern.objectsMissing);
+        if (maskHasObject(objectsMissing, objectId)) {
+            return false;
+        }
+        const MaskWord* objectsPresent = search::maskPtr(game_, pattern.objectsPresent);
+        for (int32_t presentId = 0; presentId < game_.objectCount; ++presentId) {
+            if (maskHasObject(objectsPresent, presentId)
+                && !objectCanCoexistWithObject(objectId, presentId)) {
+                return false;
+            }
+        }
+        for (uint32_t entry = 0; entry < pattern.anyObjectsCount; ++entry) {
+            const MaskWord* anyMask =
+                search::maskPtr(game_, game_.anyObjectOffsets[pattern.anyObjectsFirst + entry]);
+            if (!maskHasCoexistingObject(anyMask, objectId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void addMaskToWrittenObjects(const MaskWord* mask, MaskVector& writtenObjects) const {
+        if (mask == nullptr) {
+            return;
+        }
+        for (uint32_t word = 0; word < game_.wordCount; ++word) {
+            writtenObjects[word] |= mask[word];
+        }
+    }
+
+    void addPossibleClearsToWrittenObjects(
+        const Pattern& pattern,
+        const MaskWord* objectsClear,
+        MaskVector& writtenObjects) const {
+        if (objectsClear == nullptr) {
+            return;
+        }
+        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
+            if (!maskHasObject(objectsClear, objectId) || !patternCanContainObject(pattern, objectId)) {
+                continue;
+            }
+            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+            if (word < game_.wordCount) {
+                writtenObjects[word] |= maskBit(static_cast<uint32_t>(objectId));
+            }
+        }
+    }
+
+    void addPossibleMovementWritesToWrittenObjects(
+        const Pattern& pattern,
+        const MaskWord* movementsSet,
+        MaskVector& movementWrittenObjects) const {
+        if (movementsSet == nullptr) {
+            return;
+        }
+        for (int32_t layer = 0; layer < game_.layerCount; ++layer) {
+            if (movementLayerBits(movementsSet, layer) == 0) {
+                continue;
+            }
+            addPossibleMovementLayerWriteToWrittenObjects(pattern, layer, movementWrittenObjects);
+        }
+    }
+
+    void addPossibleMovementLayerWriteToWrittenObjects(
+        const Pattern& pattern,
+        int32_t layer,
+        MaskVector& movementWrittenObjects) const {
+        if (layer < 0) {
+            return;
+        }
+        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
+            if (game_.objectsById[static_cast<size_t>(objectId)].layer != layer
+                || !patternCanContainObject(pattern, objectId)) {
+                continue;
+            }
+            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+            if (word < game_.wordCount) {
+                movementWrittenObjects[word] |= maskBit(static_cast<uint32_t>(objectId));
+            }
+        }
+    }
+
+    void accumulateWrittenObjects(
+        const Rule& rule,
+        MaskVector& writtenObjects,
+        MaskVector& movementWrittenObjects) const {
+        for (const std::vector<Pattern>& row : rule.patterns) {
+            for (const Pattern& pattern : row) {
+                if (!pattern.replacement.has_value()) {
+                    continue;
+                }
+                const Replacement& replacement = *pattern.replacement;
+                addMaskToWrittenObjects(search::maskPtr(game_, replacement.objectsSet), writtenObjects);
+                if (replacement.hasRandomEntityMask) {
+                    addMaskToWrittenObjects(search::maskPtr(game_, replacement.randomEntityMask), writtenObjects);
+                }
+                addPossibleClearsToWrittenObjects(
+                    pattern,
+                    search::maskPtr(game_, replacement.objectsClear),
+                    writtenObjects);
+                addPossibleMovementWritesToWrittenObjects(
+                    pattern,
+                    search::maskPtr(game_, replacement.movementsSet),
+                    movementWrittenObjects);
+                if (replacement.hasRandomDirMask) {
+                    addPossibleMovementWritesToWrittenObjects(
+                        pattern,
+                        search::maskPtr(game_, replacement.randomDirMask),
+                        movementWrittenObjects);
+                }
+                if (replacement.dynamic != nullptr) {
+                    for (const LayerCoupledMovementReplacement& coupled :
+                         replacement.dynamic->layerCoupledMovementReplacements) {
+                        if (!coupled.hasReplacementMovementMask || coupled.replacementMovementMask == 0) {
+                            continue;
+                        }
+                        for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                            addPossibleMovementLayerWriteToWrittenObjects(
+                                pattern,
+                                layerTerm.layerIndex,
+                                movementWrittenObjects);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    bool filterIsStatic(const MaskWord* filter) const {
+        if (filter == nullptr) {
+            return false;
+        }
+        bool foundObject = false;
+        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
+            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+            const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+            if (word >= game_.wordCount || (filter[word] & bit) == 0) {
+                continue;
+            }
+            foundObject = true;
+            if (word >= staticObjects_.size() || (staticObjects_[word] & bit) == 0) {
+                return false;
+            }
+        }
+        return foundObject;
+    }
+
+    bool filterHasConcreteObject(const MaskWord* filter) const {
+        if (filter == nullptr) {
+            return false;
+        }
+        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
+            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+            const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+            if (word < game_.wordCount && (filter[word] & bit) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool filterIsNonStatic(const MaskWord* filter) const {
+        return filterHasConcreteObject(filter) && !filterIsStatic(filter);
+    }
+
     void buildNonBackgroundMask() {
         nonBackground_.assign(game_.wordCount, static_cast<MaskWord>(~MaskWordUnsigned{0}));
         if (game_.backgroundLayer >= 0
@@ -575,6 +975,27 @@ private:
                 }
             }
         }
+    }
+
+    void buildTargetCache(int32_t conditionIndex, const MaskWord* board) {
+        ConditionCache& cache = conditionCaches_[static_cast<size_t>(conditionIndex)];
+        const WinCondition& condition = game_.winConditions[static_cast<size_t>(conditionIndex)];
+        const MaskWord* filter2 = search::maskPtr(game_, condition.filter2);
+        cache.targetTiles.clear();
+        cache.targetDistances.clear();
+        cache.targetRows.assign(static_cast<size_t>(height_), 0);
+        cache.targetCols.assign(static_cast<size_t>(width_), 0);
+        if (filter2 == nullptr || board == nullptr || cache.plain || !cache.targetStatic) {
+            cache.targetCacheBuilt = false;
+            return;
+        }
+        collectMatchingTiles(filter2, condition.aggr2, board, cache.targetTiles);
+        matchingDistanceField(filter2, condition.aggr2, board, cache.targetDistances);
+        for (const int32_t tile : cache.targetTiles) {
+            cache.targetRows[static_cast<size_t>(tileY(tile))] = 1;
+            cache.targetCols[static_cast<size_t>(tileX(tile))] = 1;
+        }
+        cache.targetCacheBuilt = true;
     }
 
     // A condition is "plain" when the source had no ON clause; the native
@@ -839,6 +1260,20 @@ private:
         }
     }
 
+    int32_t countMatchingTiles(const MaskWord* mask, bool aggregate, const MaskWord* board) const {
+        if (mask == nullptr || board == nullptr) {
+            return 0;
+        }
+        int32_t count = 0;
+        const int32_t n = tileCount();
+        for (int32_t tile = 0; tile < n; ++tile) {
+            if (matchesMask(mask, aggregate, cellAt(board, tile))) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
     void collectUnsatisfiedAllOnTiles(
         const WinCondition& condition,
         const MaskWord* board,
@@ -933,10 +1368,16 @@ private:
         const WinCondition& condition = game_.winConditions[static_cast<size_t>(conditionIndex)];
         const ConditionStatics& statics = statics_[static_cast<size_t>(conditionIndex)];
         int32_t penalty = 0;
-        buildTargetLinePresence(condition, board);
+        const ConditionCache& cache = conditionCaches_[static_cast<size_t>(conditionIndex)];
+        if (!cache.targetCacheBuilt) {
+            buildTargetLinePresence(condition, board);
+        }
         for (const int32_t tile : unsatisfied) {
-            const bool aligned = targetRowPresence_[static_cast<size_t>(tileY(tile))] != 0
-                || targetColPresence_[static_cast<size_t>(tileX(tile))] != 0;
+            const bool aligned = cache.targetCacheBuilt
+                ? (cache.targetRows[static_cast<size_t>(tileY(tile))] != 0
+                    || cache.targetCols[static_cast<size_t>(tileX(tile))] != 0)
+                : (targetRowPresence_[static_cast<size_t>(tileY(tile))] != 0
+                    || targetColPresence_[static_cast<size_t>(tileX(tile))] != 0);
             if (!aligned) {
                 penalty += 4;
             } else if (!hasClearAlignedTarget(tile, targets, statics.allowed, board)) {
@@ -956,13 +1397,20 @@ private:
             return 0;
         }
         int32_t penalty = 0;
-        buildTargetLinePresence(condition, board);
+        const ConditionCache& cache = conditionCaches_[static_cast<size_t>(conditionIndex)];
+        if (!cache.targetCacheBuilt) {
+            buildTargetLinePresence(condition, board);
+        }
         for (const int32_t tile : unsatisfied) {
+            const bool targetLine = cache.targetCacheBuilt
+                ? (cache.targetRows[static_cast<size_t>(tileY(tile))] != 0
+                    || cache.targetCols[static_cast<size_t>(tileX(tile))] != 0)
+                : (targetRowPresence_[static_cast<size_t>(tileY(tile))] != 0
+                    || targetColPresence_[static_cast<size_t>(tileX(tile))] != 0);
             if (statics.corner[static_cast<size_t>(tile)] != 0) {
                 penalty += 32;
             } else if (statics.edge[static_cast<size_t>(tile)] != 0
-                && targetRowPresence_[static_cast<size_t>(tileY(tile))] == 0
-                && targetColPresence_[static_cast<size_t>(tileX(tile))] == 0) {
+                && !targetLine) {
                 penalty += 8;
             }
         }
@@ -978,13 +1426,18 @@ private:
         if (!statics.built || statics.componentCount <= 1) {
             return 0;
         }
-        collectMatchingTiles(
-            search::maskPtr(game_, condition.filter2), condition.aggr2, board, isolationTargets_);
-        if (isolationTargets_.empty()) {
+        const ConditionCache& cache = conditionCaches_[static_cast<size_t>(conditionIndex)];
+        if (!cache.targetCacheBuilt) {
+            collectMatchingTiles(
+                search::maskPtr(game_, condition.filter2), condition.aggr2, board, isolationTargets_);
+        }
+        const std::vector<int32_t>& targets =
+            cache.targetCacheBuilt ? cache.targetTiles : isolationTargets_;
+        if (targets.empty()) {
             return 0;
         }
         liveComponent_.assign(static_cast<size_t>(statics.componentCount), 0);
-        for (const int32_t target : isolationTargets_) {
+        for (const int32_t target : targets) {
             const int32_t component = statics.componentId[static_cast<size_t>(target)];
             if (component >= 0) {
                 liveComponent_[static_cast<size_t>(component)] = 1;
@@ -1007,10 +1460,15 @@ private:
     const MaskWord* playerMask_ = nullptr;
     int32_t singleAllOnIndex_ = -1;
     bool hasNoCondition_ = false;
+    bool allWinconditionsStaticOnNonStaticAll_ = false;
+    bool allWinconditionsNonStaticOnStaticAll_ = false;
+    bool staticAnalysisHintsUsed_ = false;
     MaskVector allObjects_;
+    MaskVector staticObjects_;
     MaskVector nonBackground_;
     std::vector<bool> plain_;
     std::vector<ConditionStatics> statics_;
+    std::vector<ConditionCache> conditionCaches_;
 
     // per-call scratch
     std::vector<uint8_t> targetRowPresence_;

@@ -29,6 +29,7 @@
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/core.hpp"
+#include "runtime/json.hpp"
 #include "search/search_common.hpp"
 #include "solver/heuristics.hpp"
 
@@ -105,6 +106,7 @@ struct Options {
     bool compactTurnOracle = false;
     int32_t astarWeight = 2;
     puzzlescript::solver::HeuristicKind heuristicKind = puzzlescript::solver::HeuristicKind::Auto;
+    std::filesystem::path staticAnalysisHintsPath;
 };
 
 bool persistentLevelStatesEqual(const PersistentLevelState& lhs, const PersistentLevelState& rhs) {
@@ -187,6 +189,7 @@ struct Result {
     std::string error;
     std::string strategy = "bfs";
     std::string heuristic = "none";
+    std::string staticAnalysisHints;
     std::vector<std::string> solution;
     int64_t elapsedMs = 0;
     uint64_t expanded = 0;
@@ -257,6 +260,7 @@ struct CompiledGame {
     std::string source;
     puzzlescript::LoadedGame loadedGame;
     std::shared_ptr<const Game> game;
+    puzzlescript::solver::StaticAnalysisHints staticAnalysisHints;
     int64_t compileNs = 0;
     std::optional<Result> compileError;
     size_t resultBegin = 0;
@@ -331,6 +335,150 @@ std::string lowercase(std::string value) {
         return static_cast<char>(std::tolower(ch));
     });
     return value;
+}
+
+std::optional<bool> optionalJsonBoolField(
+    const puzzlescript::json::Value::Object& object,
+    std::string_view key
+) {
+    const auto it = object.find(std::string(key));
+    if (it == object.end() || it->second.isNull()) {
+        return std::nullopt;
+    }
+    if (it->second.isBool()) {
+        return it->second.asBool();
+    }
+    if (it->second.isInteger()) {
+        return it->second.asInteger() != 0;
+    }
+    if (it->second.isDouble()) {
+        return it->second.asDouble() != 0.0;
+    }
+    if (it->second.isString()) {
+        const std::string value = lowercase(it->second.asString());
+        return value == "true" || value == "1" || value == "yes";
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> optionalJsonStringField(
+    const puzzlescript::json::Value::Object& object,
+    std::string_view key
+) {
+    const auto it = object.find(std::string(key));
+    if (it == object.end() || it->second.isNull() || !it->second.isString()) {
+        return std::nullopt;
+    }
+    return it->second.asString();
+}
+
+const puzzlescript::json::Value* findStaticAnalysisForGame(
+    const puzzlescript::json::Value& root,
+    const std::string& gameName
+) {
+    if (!root.isObject()) {
+        return nullptr;
+    }
+    const auto& rootObject = root.asObject();
+    const auto games = rootObject.find("games");
+    if (games == rootObject.end() || !games->second.isObject()) {
+        return &root;
+    }
+
+    const auto& gamesObject = games->second.asObject();
+    const std::string baseName = std::filesystem::path(gameName).filename().generic_string();
+    const std::array<std::string, 4> keys{
+        gameName,
+        baseName,
+        lowercase(gameName),
+        lowercase(baseName),
+    };
+    for (const std::string& key : keys) {
+        const auto it = gamesObject.find(key);
+        if (it != gamesObject.end()) {
+            return &it->second;
+        }
+    }
+    return nullptr;
+}
+
+puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
+    const Game& game,
+    const puzzlescript::json::Value& value
+) {
+    puzzlescript::solver::StaticAnalysisHints hints;
+    if (!value.isObject()) {
+        return hints;
+    }
+    const auto& object = value.asObject();
+    if (const auto status = optionalJsonStringField(object, "status");
+        status.has_value() && lowercase(*status) != "ok") {
+        return hints;
+    }
+
+    const puzzlescript::json::Value* objectsValue = nullptr;
+    if (const auto tagged = object.find("ps_tagged");
+        tagged != object.end() && tagged->second.isObject()) {
+        const auto& taggedObject = tagged->second.asObject();
+        const auto objects = taggedObject.find("objects");
+        if (objects != taggedObject.end()) {
+            objectsValue = &objects->second;
+        }
+    }
+    if (objectsValue == nullptr) {
+        const auto objects = object.find("objects");
+        if (objects != object.end()) {
+            objectsValue = &objects->second;
+        }
+    }
+    if (objectsValue == nullptr || !objectsValue->isArray()) {
+        return hints;
+    }
+
+    std::unordered_map<std::string, std::vector<int32_t>> objectIdsByName;
+    for (const puzzlescript::ObjectDef& objectDef : game.objectsById) {
+        if (objectDef.id < 0) {
+            continue;
+        }
+        objectIdsByName[lowercase(objectDef.name)].push_back(objectDef.id);
+    }
+
+    hints.available = true;
+    hints.staticObjects.assign(game.wordCount, 0);
+    for (const puzzlescript::json::Value& entryValue : objectsValue->asArray()) {
+        if (!entryValue.isObject()) {
+            continue;
+        }
+        const auto& entry = entryValue.asObject();
+        const auto tags = entry.find("tags");
+        if (tags == entry.end() || !tags->second.isObject()) {
+            continue;
+        }
+        const auto staticTag = optionalJsonBoolField(tags->second.asObject(), "static");
+        if (!staticTag.has_value() || !*staticTag) {
+            continue;
+        }
+
+        std::optional<std::string> objectName = optionalJsonStringField(entry, "canonical_name");
+        if (!objectName.has_value()) {
+            objectName = optionalJsonStringField(entry, "name");
+        }
+        if (!objectName.has_value()) {
+            continue;
+        }
+
+        const auto ids = objectIdsByName.find(lowercase(*objectName));
+        if (ids == objectIdsByName.end()) {
+            continue;
+        }
+        for (const int32_t objectId : ids->second) {
+            const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+            if (word < hints.staticObjects.size()) {
+                hints.staticObjects[word] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+            }
+        }
+    }
+    return hints;
 }
 
 bool startsWith(std::string_view value, std::string_view prefix) {
@@ -534,7 +682,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--static-analysis-hints PATH] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -563,6 +711,10 @@ Options parseArgs(int argc, char** argv) {
                 throw std::runtime_error("Unsupported solver heuristic: " + value);
             }
             options.heuristicKind = *parsed;
+            continue;
+        }
+        if (arg == "--static-analysis-hints" && index + 1 < argc) {
+            options.staticAnalysisHintsPath = argv[++index];
             continue;
         }
         if (arg == "--timing" && index + 1 < argc) {
@@ -1640,7 +1792,8 @@ Result runSearch(
     bool compactNodeStorage,
     bool compactTurnOracle,
     int32_t astarWeight,
-    puzzlescript::solver::HeuristicKind heuristicKind
+    puzzlescript::solver::HeuristicKind heuristicKind,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -1698,7 +1851,11 @@ Result runSearch(
         searchWidth,
         searchHeight,
         mode == SearchMode::Bfs ? puzzlescript::solver::HeuristicKind::Zero : heuristicKind,
-        initialState.board.objects.data());
+        initialState.board.objects.data(),
+        staticAnalysisHints);
+    if (heuristicContext.staticAnalysisHintsUsed()) {
+        result.staticAnalysisHints = "js";
+    }
     int32_t initialHeuristic = 0;
     if (mode != SearchMode::Bfs) {
         ScopedTimer timer(result.timing.heuristicNs);
@@ -1908,7 +2065,8 @@ Result runAdaptivePortfolioSearch(
     bool compactNodeStorage,
     bool compactTurnOracle,
     int32_t astarWeight,
-    puzzlescript::solver::HeuristicKind heuristicKind
+    puzzlescript::solver::HeuristicKind heuristicKind,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -1984,7 +2142,11 @@ Result runAdaptivePortfolioSearch(
         searchWidth,
         searchHeight,
         heuristicKind,
-        initialState.board.objects.data());
+        initialState.board.objects.data(),
+        staticAnalysisHints);
+    if (heuristicContext.staticAnalysisHintsUsed()) {
+        result.staticAnalysisHints = "js";
+    }
     int32_t initialHeuristic = 0;
     {
         ScopedTimer timer(result.timing.heuristicNs);
@@ -2301,7 +2463,8 @@ Result solveLevel(
     bool fullNodeStorage,
     bool compactTurnOracle,
     int32_t astarWeight,
-    puzzlescript::solver::HeuristicKind heuristicKind
+    puzzlescript::solver::HeuristicKind heuristicKind,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
 ) {
     const TimePoint searchStart = Clock::now();
     const TimePoint deadline = searchStart + std::chrono::milliseconds(timeoutMs);
@@ -2315,16 +2478,16 @@ Result solveLevel(
     };
 
     if (strategy == Strategy::Bfs) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
     }
     if (strategy == Strategy::WeightedAStar) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
     }
     if (strategy == Strategy::WeightedAStarDeep) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
     }
     if (strategy == Strategy::Greedy) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
     }
 
     return finish(runAdaptivePortfolioSearch(
@@ -2339,7 +2502,8 @@ Result solveLevel(
         effectiveCompactNodeStorage,
         compactTurnOracle,
         astarWeight,
-        heuristicKind));
+        heuristicKind,
+        staticAnalysisHints));
 }
 
 std::string relativeGameName(const std::filesystem::path& root, const std::filesystem::path& gamePath) {
@@ -2495,6 +2659,9 @@ void printJsonResult(const Result& result, std::ostream& out) {
     out << ",\"status\":" << jsonString(result.status);
     out << ",\"strategy\":" << jsonString(result.strategy);
     out << ",\"heuristic\":" << jsonString(result.heuristic);
+    if (!result.staticAnalysisHints.empty()) {
+        out << ",\"static_analysis_hints\":" << jsonString(result.staticAnalysisHints);
+    }
     out << ",\"worker_id\":" << result.workerId;
     if (!result.error.empty()) {
         out << ",\"error\":" << jsonString(result.error);
@@ -2801,6 +2968,10 @@ std::vector<Result> runCorpus(const Options& options) {
     std::vector<Result> results;
     std::vector<CompiledGame> compiledGames;
     std::vector<WorkItem> workItems;
+    std::optional<puzzlescript::json::Value> staticAnalysisRoot;
+    if (!options.staticAnalysisHintsPath.empty()) {
+        staticAnalysisRoot = puzzlescript::json::parse(readFile(options.staticAnalysisHintsPath));
+    }
     const auto games = discoverGames(options.corpusPath);
     for (const auto& gamePath : games) {
         const std::string gameName = relativeGameName(options.corpusPath, gamePath);
@@ -2844,6 +3015,13 @@ std::vector<Result> runCorpus(const Options& options) {
             }
             compiledGames.push_back(std::move(compiled));
             continue;
+        }
+        if (staticAnalysisRoot.has_value()) {
+            if (const puzzlescript::json::Value* analysis =
+                    findStaticAnalysisForGame(*staticAnalysisRoot, gameName)) {
+                compiled.staticAnalysisHints =
+                    parseStaticAnalysisHintsForGame(*compiled.game, *analysis);
+            }
         }
 
         const int32_t levelCount = static_cast<int32_t>(compiled.game->levels.size());
@@ -2897,7 +3075,8 @@ std::vector<Result> runCorpus(const Options& options) {
                     options.fullNodeStorage,
                     options.compactTurnOracle,
                     options.astarWeight,
-                    options.heuristicKind
+                    options.heuristicKind,
+                    &compiled.staticAnalysisHints
                 );
                 results[item.resultIndex] = std::move(result);
                 const size_t done = completed.fetch_add(1) + 1;

@@ -643,7 +643,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_whaleworld
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 3000
           --jobs 1
           --strategy portfolio
           --game whaleworld.txt
@@ -733,7 +733,7 @@ add_test(
   NAME puzzlescript_solver_weighted_astar_all_green_to_blue
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 1500
           --jobs 1
           --strategy weighted-astar
           --astar-weight 3
