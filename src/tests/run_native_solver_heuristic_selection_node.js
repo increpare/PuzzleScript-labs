@@ -144,6 +144,56 @@ assert(
     `auto JS static-analysis hints expanded ${autoJsStaticAnalysis.expanded}, expected <= 31000`
 );
 
+// An external static-analysis hint must never be able to mark the player
+// static: the heuristic caches a static object's initial-board distance field,
+// which would be wrong for the input-controlled player on every later board.
+// A hint that (unsoundly) tags the player static must still drop the player
+// while keeping legitimately-static objects.
+const playerStaticHintDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-solver-player-static-hint-'));
+const playerStaticHintPath = path.join(playerStaticHintDir, 'static-analysis.json');
+fs.writeFileSync(playerStaticHintPath, `${JSON.stringify({
+    schema: 'native-solver-static-analysis-hints-v1',
+    games: {
+        'mazezam.txt': {
+            status: 'ok',
+            objects: [
+                { canonical_name: 'target', tags: { static: true } },
+                { canonical_name: 'cplayer', tags: { static: true } },
+            ],
+        },
+    },
+}, null, 2)}\n`);
+const playerStaticDump = spawnSync(solverPath, [
+    solverCorpus,
+    '--dump-static-analysis',
+    '--static-analysis-hints', playerStaticHintPath,
+    '--game', 'mazezam.txt',
+    '--quiet',
+    '--json',
+], {
+    cwd: rootDir,
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
+});
+assert.strictEqual(
+    playerStaticDump.status,
+    0,
+    `dump-static-analysis exited ${playerStaticDump.status}\nstdout:\n${playerStaticDump.stdout}\nstderr:\n${playerStaticDump.stderr}`
+);
+const playerStaticParsed = JSON.parse(playerStaticDump.stdout);
+const mazezamStaticEntry = (playerStaticParsed.games || []).find((entry) => entry.game === 'mazezam.txt');
+assert(mazezamStaticEntry, 'mazezam.txt missing from --dump-static-analysis output');
+assert.strictEqual(mazezamStaticEntry.source, 'js', 'expected the JS hint to be applied');
+const mazezamStaticNames = (mazezamStaticEntry.static_objects || []).map((name) => name.toLowerCase());
+assert(
+    !mazezamStaticNames.includes('cplayer'),
+    `player object 'cplayer' must be excluded from a hint-provided static set, got ${JSON.stringify(mazezamStaticNames)}`
+);
+assert(
+    mazezamStaticNames.includes('target'),
+    `legitimately-static 'target' should be retained, got ${JSON.stringify(mazezamStaticNames)}`
+);
+
 const noPlayerDistance = runSolver(solverCorpus, [
     '--game', 'butteater.txt',
     '--level', '1',

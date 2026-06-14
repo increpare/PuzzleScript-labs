@@ -444,8 +444,8 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
         objectIdsByName[lowercase(objectDef.name)].push_back(objectDef.id);
     }
 
-    hints.available = true;
     hints.staticObjects.assign(game.wordCount, 0);
+    bool anyStatic = false;
     for (const puzzlescript::json::Value& entryValue : objectsValue->asArray()) {
         if (!entryValue.isObject()) {
             continue;
@@ -476,9 +476,15 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
             const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
             if (word < hints.staticObjects.size()) {
                 hints.staticObjects[word] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+                anyStatic = true;
             }
         }
     }
+    // An empty result means this analysis did not match the game (e.g. a flat,
+    // single-game hints file applied to an unrelated game in a multi-game
+    // corpus). Treat it as unavailable so the native static-object analysis runs
+    // instead of being suppressed by a vacuous hint.
+    hints.available = anyStatic;
     return hints;
 }
 

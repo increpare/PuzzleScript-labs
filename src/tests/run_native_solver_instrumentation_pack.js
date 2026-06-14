@@ -381,7 +381,7 @@ function selectInstrumentationTargets({
     }
     const nearSolved = usableNativeResults.filter((result) =>
         result.status === 'solved' &&
-        Number(result.elapsed_ms || 0) >= timeoutMs * 0.75
+        Number(result.elapsed_ms || 0) >= Number(result.timeout_ms || timeoutMs) * 0.75
     );
     for (const result of takeTop(nearSolved, MAX_PER_BUCKET, (item) => Number(item.elapsed_ms || 0))) {
         store.add(result, 'near_timeout_solved', resultFields(jsByKey.get(resultKey(result)), result));

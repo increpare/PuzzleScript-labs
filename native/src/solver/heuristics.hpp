@@ -97,6 +97,16 @@ public:
             && staticAnalysisHints->available
             && staticAnalysisHints->staticObjects.size() == game_.wordCount) {
             staticObjects_ = staticAnalysisHints->staticObjects;
+            // The player is input-controlled and must never be treated as
+            // static: caching its initial-board distance field (buildTargetCache)
+            // would make the heuristic wrong on every later board. Drop the
+            // player even if an external hint unsoundly marks it static; broader
+            // dynamic-object soundness is enforced by the JS/native parity test.
+            if (playerMask_ != nullptr) {
+                for (uint32_t word = 0; word < game_.wordCount; ++word) {
+                    staticObjects_[static_cast<size_t>(word)] &= ~playerMask_[word];
+                }
+            }
             staticAnalysisHintsUsed_ = true;
         } else {
             buildStaticObjectMask();
@@ -489,27 +499,24 @@ private:
         }
 
         if (includePlayerDistance && playerMask_ != nullptr && score > 0) {
-            bool hasPlayer = false;
-            int32_t best = search::kNoMatchingDistance;
-            conditionDistances_.resize(game_.winConditions.size());
-            for (size_t index = 0; index < game_.winConditions.size(); ++index) {
-                const WinCondition& condition = game_.winConditions[index];
-                matchingDistanceField(
-                    search::maskPtr(game_, condition.filter1),
-                    condition.aggr1,
-                    board,
-                    conditionDistances_[index]);
-            }
-            for (int32_t player = 0; player < n; ++player) {
-                if (!matchesMask(playerMask_, game_.playerMaskAggregate, cellAt(board, player))) {
-                    continue;
+            collectMatchingTiles(playerMask_, game_.playerMaskAggregate, board, players_);
+            if (!players_.empty()) {
+                // Fold the minimum player-to-source distance across all win
+                // conditions into a single reused buffer rather than
+                // materializing one distance field per condition.
+                int32_t best = search::kNoMatchingDistance;
+                for (const WinCondition& condition : game_.winConditions) {
+                    matchingDistanceField(
+                        search::maskPtr(game_, condition.filter1),
+                        condition.aggr1,
+                        board,
+                        distanceField_);
+                    for (const int32_t player : players_) {
+                        best = std::min(
+                            best,
+                            search::distanceOrFallback(distanceField_[static_cast<size_t>(player)]));
+                    }
                 }
-                hasPlayer = true;
-                for (const std::vector<int32_t>& distances : conditionDistances_) {
-                    best = std::min(best, search::distanceOrFallback(distances[static_cast<size_t>(player)]));
-                }
-            }
-            if (hasPlayer) {
                 score += std::min(best, 16);
             }
         }
@@ -1513,7 +1520,6 @@ private:
     std::vector<int32_t> isolationTargets_;
     std::vector<uint8_t> liveComponent_;
     std::vector<int32_t> distanceField_;
-    std::vector<std::vector<int32_t>> conditionDistances_;
     std::vector<int32_t> assignmentDp_;
     std::vector<int32_t> assignmentNext_;
     std::vector<int32_t> assignmentMasks_;
