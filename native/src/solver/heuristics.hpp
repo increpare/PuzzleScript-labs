@@ -88,7 +88,7 @@ public:
         const MaskWord* initialBoard,
         const StaticAnalysisHints* staticAnalysisHints = nullptr)
         : game_(game), width_(width), height_(height), kind_(kind) {
-        if (kind_ == HeuristicKind::Zero || game_.winConditions.empty()) {
+        if (kind_ == HeuristicKind::Zero) {
             return;
         }
         playerMask_ = search::maskPtr(game_, game_.playerMask);
@@ -100,6 +100,9 @@ public:
             staticAnalysisHintsUsed_ = true;
         } else {
             buildStaticObjectMask();
+        }
+        if (game_.winConditions.empty()) {
+            return;
         }
 
         const size_t conditionCount = game_.winConditions.size();
@@ -161,6 +164,19 @@ public:
 
     HeuristicKind kind() const { return kind_; }
     bool staticAnalysisHintsUsed() const { return staticAnalysisHintsUsed_; }
+    std::vector<std::string> staticObjectNames() const {
+        std::vector<std::string> names;
+        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
+            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+            const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+            if (word < staticObjects_.size() && (staticObjects_[word] & bit) != 0) {
+                names.push_back(game_.objectsById[static_cast<size_t>(objectId)].name);
+            }
+        }
+        std::sort(names.begin(), names.end());
+        names.erase(std::unique(names.begin(), names.end()), names.end());
+        return names;
+    }
 
     int32_t score(const MaskWord* board) {
         if (kind_ == HeuristicKind::Zero || game_.winConditions.empty() || board == nullptr) {
@@ -525,11 +541,28 @@ private:
             return static_cast<int32_t>(sources.size()) * search::kNoMatchingDistance;
         }
 
-        if (targets.size() >= sources.size() && sources.size() <= 10 && targets.size() <= 20) {
+        // Exact min-cost matching via a subset-over-targets DP. The state space
+        // is 2^targets, so the target count must be capped tightly; larger
+        // problems fall through to the greedy matching below. Without this cap a
+        // board with ~20 target tiles would build a 2^20-entry table on every
+        // heuristic evaluation in the hot search loop.
+        constexpr size_t kMaxAssignmentDpSources = 10;
+        constexpr size_t kMaxAssignmentDpTargets = 12;
+        if (targets.size() >= sources.size()
+            && sources.size() <= kMaxAssignmentDpSources
+            && targets.size() <= kMaxAssignmentDpTargets) {
             const size_t maskCount = size_t{1} << targets.size();
             const int32_t infinity = std::numeric_limits<int32_t>::max() / 4;
-            assignmentDp_.assign(maskCount, infinity);
-            assignmentNext_.assign(maskCount, infinity);
+            // Every call leaves assignmentDp_/assignmentNext_ fully cleared
+            // (each table slot touched below is reset to infinity before
+            // returning), so we only grow the buffers when a larger target set
+            // appears rather than re-zeroing them on every evaluation.
+            if (assignmentDp_.size() < maskCount) {
+                assignmentDp_.resize(maskCount, infinity);
+            }
+            if (assignmentNext_.size() < maskCount) {
+                assignmentNext_.resize(maskCount, infinity);
+            }
             assignmentMasks_.clear();
             assignmentNextMasks_.clear();
             assignmentDp_[0] = 0;

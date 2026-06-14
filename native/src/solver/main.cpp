@@ -107,6 +107,7 @@ struct Options {
     int32_t astarWeight = 2;
     puzzlescript::solver::HeuristicKind heuristicKind = puzzlescript::solver::HeuristicKind::Auto;
     std::filesystem::path staticAnalysisHintsPath;
+    bool dumpStaticAnalysis = false;
 };
 
 bool persistentLevelStatesEqual(const PersistentLevelState& lhs, const PersistentLevelState& rhs) {
@@ -682,7 +683,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--static-analysis-hints PATH] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -715,6 +716,10 @@ Options parseArgs(int argc, char** argv) {
         }
         if (arg == "--static-analysis-hints" && index + 1 < argc) {
             options.staticAnalysisHintsPath = argv[++index];
+            continue;
+        }
+        if (arg == "--dump-static-analysis") {
+            options.dumpStaticAnalysis = true;
             continue;
         }
         if (arg == "--timing" && index + 1 < argc) {
@@ -1426,177 +1431,6 @@ bool solvedByStep(const ps_step_result& stepResult, ps_full_state* state, int32_
     ps_full_state_status_info status{};
     ps_full_state_status(state, &status);
     return status.current_level_index != levelIndex;
-}
-
-int32_t heuristicScore(FullState& session, puzzlescript::search::HeuristicScratch& scratch) {
-    return puzzlescript::search::autoWinConditionHeuristicScore(session, scratch);
-}
-
-bool compactMatchesFilter(
-    const PersistentLevelState& state,
-    const Game& game,
-    const puzzlescript::MaskWord* filter,
-    bool aggregate,
-    int32_t tileIndex
-) {
-    if (filter == nullptr) {
-        return false;
-    }
-    const size_t offset = static_cast<size_t>(tileIndex) * static_cast<size_t>(game.strideObject);
-    if (offset + static_cast<size_t>(game.wordCount) > state.board.objects.size()) {
-        return false;
-    }
-    const MaskWord* cell = state.board.objects.data() + offset;
-    bool sawFilterBit = false;
-    if (aggregate) {
-        for (int32_t word = 0; word < game.wordCount; ++word) {
-            const MaskWord required = filter[static_cast<size_t>(word)];
-            sawFilterBit = sawFilterBit || required != 0;
-            if ((cell[static_cast<size_t>(word)] & required) != required) {
-                return false;
-            }
-        }
-        return sawFilterBit;
-    }
-    for (int32_t word = 0; word < game.wordCount; ++word) {
-        if ((cell[static_cast<size_t>(word)] & filter[static_cast<size_t>(word)]) != 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void compactMatchingDistanceField(
-    const PersistentLevelState& state,
-    const Game& game,
-    int32_t width,
-    int32_t height,
-    const puzzlescript::MaskWord* filter,
-    bool aggregate,
-    std::vector<int32_t>& distances
-) {
-    const int32_t tileCount = width * height;
-    distances.assign(static_cast<size_t>(tileCount), std::numeric_limits<int32_t>::max());
-    if (filter == nullptr) {
-        return;
-    }
-
-    for (int32_t tile = 0; tile < tileCount; ++tile) {
-        if (compactMatchesFilter(state, game, filter, aggregate, tile)) {
-            distances[static_cast<size_t>(tile)] = 0;
-        }
-    }
-
-    auto relax = [&](int32_t tile, int32_t neighbor) {
-        int32_t& distance = distances[static_cast<size_t>(tile)];
-        const int32_t neighborDistance = distances[static_cast<size_t>(neighbor)];
-        if (neighborDistance != std::numeric_limits<int32_t>::max()) {
-            distance = std::min(distance, neighborDistance + 1);
-        }
-    };
-
-    for (int32_t x = 0; x < width; ++x) {
-        for (int32_t y = 0; y < height; ++y) {
-            const int32_t tile = x * height + y;
-            if (x > 0) relax(tile, (x - 1) * height + y);
-            if (y > 0) relax(tile, x * height + (y - 1));
-        }
-    }
-    for (int32_t x = width - 1; x >= 0; --x) {
-        for (int32_t y = height - 1; y >= 0; --y) {
-            const int32_t tile = x * height + y;
-            if (x + 1 < width) relax(tile, (x + 1) * height + y);
-            if (y + 1 < height) relax(tile, x * height + (y + 1));
-        }
-    }
-}
-
-int32_t compactHeuristicScore(
-    const PersistentLevelState& state,
-    const Game& game,
-    int32_t width,
-    int32_t height,
-    puzzlescript::search::HeuristicScratch& scratch
-) {
-    if (game.winConditions.empty()) {
-        return 0;
-    }
-
-    int32_t score = 0;
-    const int32_t tileCount = width * height;
-    for (const auto& condition : game.winConditions) {
-        const puzzlescript::MaskWord* filter1 = puzzlescript::search::maskPtr(game, condition.filter1);
-        const puzzlescript::MaskWord* filter2 = puzzlescript::search::maskPtr(game, condition.filter2);
-        if (filter1 == nullptr || filter2 == nullptr) {
-            continue;
-        }
-        compactMatchingDistanceField(state, game, width, height, filter2, condition.aggr2, scratch.distanceField);
-        if (condition.quantifier == 1) {
-            for (int32_t tile = 0; tile < tileCount; ++tile) {
-                if (!compactMatchesFilter(state, game, filter1, condition.aggr1, tile)) {
-                    continue;
-                }
-                if (compactMatchesFilter(state, game, filter2, condition.aggr2, tile)) {
-                    continue;
-                }
-                score += 10 + puzzlescript::search::distanceOrFallback(scratch.distanceField[static_cast<size_t>(tile)]);
-            }
-        } else if (condition.quantifier == 0) {
-            bool passed = false;
-            int32_t best = puzzlescript::search::kNoMatchingDistance;
-            for (int32_t tile = 0; tile < tileCount; ++tile) {
-                if (!compactMatchesFilter(state, game, filter1, condition.aggr1, tile)) {
-                    continue;
-                }
-                if (compactMatchesFilter(state, game, filter2, condition.aggr2, tile)) {
-                    passed = true;
-                    break;
-                }
-                best = std::min(best, puzzlescript::search::distanceOrFallback(scratch.distanceField[static_cast<size_t>(tile)]));
-            }
-            score += passed ? 0 : best;
-        } else if (condition.quantifier == -1) {
-            for (int32_t tile = 0; tile < tileCount; ++tile) {
-                if (compactMatchesFilter(state, game, filter1, condition.aggr1, tile)
-                    && compactMatchesFilter(state, game, filter2, condition.aggr2, tile)) {
-                    score += 10;
-                }
-            }
-        }
-    }
-
-    if (game.playerMask != puzzlescript::kNullMaskOffset && score > 0) {
-        const puzzlescript::MaskWord* playerMask = puzzlescript::search::maskPtr(game, game.playerMask);
-        bool hasPlayer = false;
-        int32_t best = puzzlescript::search::kNoMatchingDistance;
-        scratch.conditionDistances.resize(game.winConditions.size());
-        for (size_t index = 0; index < game.winConditions.size(); ++index) {
-            const auto& condition = game.winConditions[index];
-            compactMatchingDistanceField(
-                state,
-                game,
-                width,
-                height,
-                puzzlescript::search::maskPtr(game, condition.filter1),
-                condition.aggr1,
-                scratch.conditionDistances[index]
-            );
-        }
-        for (int32_t player = 0; player < tileCount; ++player) {
-            if (!compactMatchesFilter(state, game, playerMask, game.playerMaskAggregate, player)) {
-                continue;
-            }
-            hasPlayer = true;
-            for (const auto& distances : scratch.conditionDistances) {
-                best = std::min(best, puzzlescript::search::distanceOrFallback(distances[static_cast<size_t>(player)]));
-            }
-        }
-        if (hasPlayer) {
-            score += std::min(best, 16);
-        }
-    }
-
-    return score;
 }
 
 std::unique_ptr<FullState> createLoadedSession(
@@ -2962,6 +2796,97 @@ void printHumanSummary(const std::vector<Result>& results, const Options& option
     printSolutionsLocation(std::cout, options);
 }
 
+void printJsonStringArray(std::ostream& out, const std::vector<std::string>& values) {
+    out << "[";
+    for (size_t index = 0; index < values.size(); ++index) {
+        if (index > 0) {
+            out << ",";
+        }
+        out << jsonString(values[index]);
+    }
+    out << "]";
+}
+
+void printStaticAnalysisDump(const Options& options) {
+    std::optional<puzzlescript::json::Value> staticAnalysisRoot;
+    if (!options.staticAnalysisHintsPath.empty()) {
+        staticAnalysisRoot = puzzlescript::json::parse(readFile(options.staticAnalysisHintsPath));
+    }
+
+    struct Entry {
+        std::string game;
+        std::string status;
+        std::string error;
+        std::string source;
+        std::vector<std::string> staticObjects;
+    };
+
+    std::vector<Entry> entries;
+    const auto games = discoverGames(options.corpusPath);
+    for (const auto& gamePath : games) {
+        const std::string gameName = relativeGameName(options.corpusPath, gamePath);
+        if (!matchesGameFilter(gameName, options.gameFilter)) {
+            continue;
+        }
+
+        Entry entry;
+        entry.game = gameName;
+        entry.status = "ok";
+        entry.source = "fallback";
+
+        std::string source = readFile(gamePath);
+        if (source.empty() || source.back() != '\n') {
+            source.push_back('\n');
+        }
+        std::string compileError;
+        const puzzlescript::LoadedGame loadedGame = compileGame(source, compileError);
+        if (!loadedGame.information) {
+            entry.status = "compile_error";
+            entry.error = compileError;
+            entries.push_back(std::move(entry));
+            continue;
+        }
+
+        puzzlescript::solver::StaticAnalysisHints hints;
+        const puzzlescript::solver::StaticAnalysisHints* hintsPtr = nullptr;
+        if (staticAnalysisRoot.has_value()) {
+            if (const puzzlescript::json::Value* analysis =
+                    findStaticAnalysisForGame(*staticAnalysisRoot, gameName)) {
+                hints = parseStaticAnalysisHintsForGame(*loadedGame.information, *analysis);
+                if (hints.available) {
+                    hintsPtr = &hints;
+                }
+            }
+        }
+
+        puzzlescript::solver::HeuristicContext context(
+            *loadedGame.information,
+            1,
+            1,
+            puzzlescript::solver::HeuristicKind::Winconditions,
+            nullptr,
+            hintsPtr);
+        entry.source = context.staticAnalysisHintsUsed() ? "js" : "fallback";
+        entry.staticObjects = context.staticObjectNames();
+        entries.push_back(std::move(entry));
+    }
+
+    std::cout << "{\n  \"schema\":\"native-static-analysis-dump-v1\",\n  \"games\":[\n";
+    for (size_t index = 0; index < entries.size(); ++index) {
+        const Entry& entry = entries[index];
+        std::cout << "    {\"game\":" << jsonString(entry.game)
+                  << ",\"status\":" << jsonString(entry.status);
+        if (!entry.error.empty()) {
+            std::cout << ",\"error\":" << jsonString(entry.error);
+        }
+        std::cout << ",\"source\":" << jsonString(entry.source)
+                  << ",\"static_objects\":";
+        printJsonStringArray(std::cout, entry.staticObjects);
+        std::cout << "}" << (index + 1 == entries.size() ? "\n" : ",\n");
+    }
+    std::cout << "  ]\n}\n";
+}
+
 std::vector<Result> runCorpus(const Options& options) {
     gSolverTimingEnabled.store(options.timingMode != TimingMode::None, std::memory_order_relaxed);
 
@@ -3118,6 +3043,10 @@ std::vector<Result> runCorpus(const Options& options) {
 int main(int argc, char** argv) {
     try {
         const Options options = parseArgs(argc, argv);
+        if (options.dumpStaticAnalysis) {
+            printStaticAnalysisDump(options);
+            return 0;
+        }
         if (options.profileRuntimeCounters) {
             ps_runtime_counters_reset();
             ps_runtime_counters_set_enabled(true);
