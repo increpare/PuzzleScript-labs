@@ -1,0 +1,70 @@
+title Static Analysis Rule NBSP Whitespace
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Target
+yellow
+
+Player
+white
+
+PlayerA
+blue
+
+PlayerB
+lightblue
+
+FishA
+orange
+
+FishDead
+gray
+
+========
+LEGEND
+========
+
+. = Background
+T = Target
+P = Player and PlayerA
+B = PlayerB
+F = FishA
+D = FishDead
+Fish = FishA or FishDead
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Player
+PlayerA, PlayerB
+FishA, FishDead
+
+=====
+RULES
+=====
+
+up [ > Player PlayerA Fish | PlayerB ] -> [ | Fish Player PlayerB ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player on Target
+
+======
+LEVELS
+======
+
+PF

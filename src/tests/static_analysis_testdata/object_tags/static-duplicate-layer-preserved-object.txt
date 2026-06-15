@@ -1,0 +1,58 @@
+title Static Analysis Duplicate Layer Preserved Object
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Crate
+orange
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+C = Crate
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+Player, Wall
+Crate, Wall
+
+=====
+RULES
+=====
+
+[ > Player | Wall ] -> [ Player | Wall ]
+[ > Player | Crate ] -> [ Player | Crate ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#C

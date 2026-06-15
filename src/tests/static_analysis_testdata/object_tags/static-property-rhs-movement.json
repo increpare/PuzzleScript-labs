@@ -1,0 +1,17 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Drop",
+      "static": true
+    },
+    {
+      "object": "Source",
+      "static": true
+    },
+    {
+      "object": "Spray",
+      "static": true
+    }
+  ]
+}

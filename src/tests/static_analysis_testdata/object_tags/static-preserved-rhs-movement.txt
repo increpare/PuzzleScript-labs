@@ -1,0 +1,61 @@
+title Static Analysis Object Tag Static Preserved RHS Movement
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Input
+green
+
+Digit
+yellow
+
+Zero
+orange
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+I = Input
+D = Digit
+0 = Zero
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Input
+Digit, Zero
+Player
+
+=====
+RULES
+=====
+
+[ Input Digit ] [ left Player ] -> [ action Input Zero ] [ Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+IDP

@@ -75,6 +75,7 @@ set(PUZZLESCRIPT_COMPILER_SOURCES
   src/compiler/lower_to_runtime.cpp
   src/compiler/parser.cpp
   src/compiler/rule_text.cpp
+  src/compiler/static_analysis.cpp
   third_party/utf8proc/utf8proc.c
 )
 

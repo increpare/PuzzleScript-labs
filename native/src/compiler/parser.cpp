@@ -197,14 +197,47 @@ constexpr std::string_view kSoundDirections[] = {
     "orthogonal",
 };
 
+bool utf8CodepointIsZsOrAsciiSpace(utf8proc_int32_t codepoint) {
+    if (codepoint <= 0x7F) {
+        return std::isspace(static_cast<unsigned char>(static_cast<char>(codepoint))) != 0;
+    }
+    const auto category = utf8proc_category(codepoint);
+    return category == UTF8PROC_CATEGORY_ZS || category == UTF8PROC_CATEGORY_ZL || category == UTF8PROC_CATEGORY_ZP;
+}
+
 std::string trim(std::string_view value) {
     size_t start = 0;
-    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start])) != 0) {
-        ++start;
+    const auto* bytes = reinterpret_cast<const utf8proc_uint8_t*>(value.data());
+    const auto total = static_cast<utf8proc_ssize_t>(value.size());
+    while (start < value.size()) {
+        utf8proc_int32_t codepoint = 0;
+        const auto advance = utf8proc_iterate(
+            bytes + static_cast<utf8proc_ssize_t>(start),
+            total - static_cast<utf8proc_ssize_t>(start),
+            &codepoint);
+        if (advance <= 0 || !utf8CodepointIsZsOrAsciiSpace(codepoint)) {
+            break;
+        }
+        start += static_cast<size_t>(advance);
     }
     size_t end = value.size();
-    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1])) != 0) {
-        --end;
+    while (end > start) {
+        size_t previous = end - 1;
+        while (previous > start
+            && (static_cast<unsigned char>(value[previous]) & 0xC0u) == 0x80u) {
+            --previous;
+        }
+        utf8proc_int32_t codepoint = 0;
+        const auto advance = utf8proc_iterate(
+            bytes + static_cast<utf8proc_ssize_t>(previous),
+            static_cast<utf8proc_ssize_t>(end - previous),
+            &codepoint);
+        if (advance <= 0
+            || previous + static_cast<size_t>(advance) != end
+            || !utf8CodepointIsZsOrAsciiSpace(codepoint)) {
+            break;
+        }
+        end = previous;
     }
     return std::string(value.substr(start, end - start));
 }
@@ -517,14 +550,6 @@ bool utf8CodepointIsRegNameBody(utf8proc_int32_t codepoint) {
     return category == UTF8PROC_CATEGORY_LU || category == UTF8PROC_CATEGORY_LL || category == UTF8PROC_CATEGORY_LT
         || category == UTF8PROC_CATEGORY_LM || category == UTF8PROC_CATEGORY_LO || category == UTF8PROC_CATEGORY_ND
         || category == UTF8PROC_CATEGORY_NL || category == UTF8PROC_CATEGORY_NO;
-}
-
-bool utf8CodepointIsZsOrAsciiSpace(utf8proc_int32_t codepoint) {
-    if (codepoint <= 0x7F) {
-        return std::isspace(static_cast<unsigned char>(static_cast<char>(codepoint))) != 0;
-    }
-    const auto category = utf8proc_category(codepoint);
-    return category == UTF8PROC_CATEGORY_ZS || category == UTF8PROC_CATEGORY_ZL || category == UTF8PROC_CATEGORY_ZP;
 }
 
 bool utf8CodepointIsExcludedFromSynonymInterior(utf8proc_int32_t codepoint) {
@@ -855,11 +880,34 @@ bool isJsWordCharAfterMessage(char ch) {
     return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_';
 }
 
+bool startsRuleMessageCommand(std::string_view line, size_t index) {
+    constexpr std::string_view kMessage = "message";
+    if (index + kMessage.size() > line.size()) {
+        return false;
+    }
+    if (index > 0 && isAsciiWordCharByte(static_cast<unsigned char>(line[index - 1]))) {
+        return false;
+    }
+    if (!asciiSubstringEqualsInsensitive(line.substr(index, kMessage.size()), kMessage)) {
+        return false;
+    }
+    const size_t end = index + kMessage.size();
+    return end == line.size() || std::isspace(static_cast<unsigned char>(line[end])) != 0;
+}
+
 std::string stripCommentsCore(std::string_view line, ParserState& state, DiagnosticSink& diagnostics) {
     std::string visible;
     visible.reserve(line.size());
+    int ruleBracketDepth = 0;
     for (size_t index = 0; index < line.size(); ++index) {
         const char ch = line[index];
+        if (state.section == "rules"
+            && state.commentLevel == 0
+            && ruleBracketDepth == 0
+            && startsRuleMessageCommand(line, index)) {
+            visible.append(line.substr(index));
+            return visible;
+        }
         if (ch == '(') {
             // In parser.js, '(' after "message" in a rules line does not open a comment (TOKEN_MESSAGE).
             // Line-based strip cannot track that; in rules only, treat ":( ..." as literal '(' (message tails).
@@ -904,6 +952,13 @@ std::string stripCommentsCore(std::string_view line, ParserState& state, Diagnos
         }
         if (state.commentLevel == 0) {
             visible.push_back(ch);
+            if (state.section == "rules") {
+                if (ch == '[') {
+                    ++ruleBracketDepth;
+                } else if (ch == ']' && ruleBracketDepth > 0) {
+                    --ruleBracketDepth;
+                }
+            }
         }
     }
     return visible;

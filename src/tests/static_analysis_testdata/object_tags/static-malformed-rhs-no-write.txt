@@ -1,0 +1,52 @@
+title Static Analysis Object Tag Static Malformed RHS No Write
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Marker
+red
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+M = Marker
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Marker
+Player
+
+=====
+RULES
+=====
+
+[ Player | Marker ] -> [
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PM

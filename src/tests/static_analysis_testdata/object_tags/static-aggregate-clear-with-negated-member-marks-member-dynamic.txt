@@ -1,0 +1,58 @@
+title Static Analysis Aggregate Clear With Negated Member Marks Member Dynamic
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Beacon
+yellow
+
+LightU
+orange
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+B = Beacon
+U = LightU
+Light = Beacon or LightU
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Beacon
+LightU
+
+=====
+RULES
+=====
+
+[ Light no Beacon ] -> []
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PB

@@ -1,0 +1,63 @@
+title Static Analysis Object Tag Static Preserved RHS Property Members
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Cursor
+white
+
+SecretA
+red
+
+SecretB
+blue
+
+TileWhite
+gray
+
+========
+LEGEND
+========
+
+. = Background
+P = Cursor
+Player = Cursor
+A = SecretA
+B = SecretB
+SecretTile = SecretA or SecretB
+Tile = SecretA or SecretB or TileWhite
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+SecretA, SecretB
+TileWhite
+Cursor
+
+=====
+RULES
+=====
+
+[ action Cursor Tile SecretTile ] -> [ Cursor TileWhite SecretTile ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Cursor
+
+======
+LEVELS
+======
+
+PA

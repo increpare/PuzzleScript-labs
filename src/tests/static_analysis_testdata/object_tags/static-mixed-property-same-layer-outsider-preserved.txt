@@ -1,0 +1,71 @@
+title Static Analysis Mixed Property Same Layer Outsider Preserved
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+gray
+
+Crate
+brown
+
+Target
+blue
+
+Swapple
+red
+
+Hole
+black
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+W = Wall
+C = Crate
+T = Target
+S = Swapple
+H = Hole
+
+Swappable = Wall or Crate or Target or Swapple
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Swapple
+Player, Wall, Crate, Hole
+
+=====
+RULES
+=====
+
+right [ Player | Swappable ] -> [ Swappable | Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PTH

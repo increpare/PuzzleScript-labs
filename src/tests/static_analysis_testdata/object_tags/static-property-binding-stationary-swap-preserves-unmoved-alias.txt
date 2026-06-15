@@ -1,0 +1,67 @@
+title Static Analysis Property Binding Stationary Swap Preserves Unmoved Alias
+
+========
+OBJECTS
+========
+
+Switch
+transparent
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Crate
+orange
+
+TrueWall
+gray
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+# = Wall
+C = Crate
+x = TrueWall
+
+Thing = Crate or Player or Wall or TrueWall
+Thing2 = Thing
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Switch
+Background
+Player, Wall, Crate
+TrueWall
+
+=====
+RULES
+=====
+
+[ > Thing > Switch | < Thing2 < Switch ] -> [ stationary Thing2 | stationary Thing ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+xP

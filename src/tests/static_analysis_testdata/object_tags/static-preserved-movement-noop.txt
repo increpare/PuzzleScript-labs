@@ -1,0 +1,60 @@
+title Static Analysis Preserved Movement Noop
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Target
+yellow
+
+Player
+white
+
+Wall
+brown
+
+Crate
+orange
+
+========
+LEGEND
+========
+
+. = Background
+T = Target
+P = Player
+# = Wall
+C = Crate
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Player, Wall, Crate
+
+=====
+RULES
+=====
+
+[ > Crate | Player ] -> [ > Crate | Player ]
+
+=============
+WINCONDITIONS
+=============
+
+All Target on Crate
+
+======
+LEVELS
+======
+
+PCT

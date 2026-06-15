@@ -1,0 +1,62 @@
+title Static Analysis Layer Clear Absent Property
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Wall
+brown
+
+Door
+orange
+
+Light
+yellow
+
+Player
+white
+
+========
+LEGEND
+========
+
+. = Background
+# = Wall
+D = Door
+L = Light
+P = Player
+
+Terrain = Wall or Door
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Terrain, Light
+Player
+
+=====
+RULES
+=====
+
+[ no Terrain ] -> [ Light ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.D#

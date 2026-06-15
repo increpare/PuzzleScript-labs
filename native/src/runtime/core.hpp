@@ -216,6 +216,11 @@ struct PropertyAlias {
     int32_t layerIndex = 0;
 };
 
+struct PropertySink {
+    int32_t row = 0;
+    int32_t cell = 0;
+};
+
 struct PropertyBinding {
     std::string propertyName;
     int32_t sourceRow = 0;
@@ -223,6 +228,7 @@ struct PropertyBinding {
     int32_t sourceMovementMode = 0;
     int32_t sourceMovementMask = 0;
     std::vector<PropertyAlias> aliases;
+    std::vector<PropertySink> sinks;
 };
 
 struct PropertyCapture {
@@ -244,6 +250,7 @@ struct ReplacementDynamic {
     std::vector<InferredAggregateBinding> inferredAggregateBindings;
     std::vector<InferredPropertyBinding> inferredPropertyBindings;
     std::vector<InferredPropertySource> inferredPropertySources;
+    MaskOffset rhsPropertyPreserveMask = kNullMaskOffset;
 };
 
 struct Replacement {

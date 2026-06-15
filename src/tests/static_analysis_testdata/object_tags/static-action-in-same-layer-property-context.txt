@@ -1,0 +1,68 @@
+title Static Analysis Action In Same Layer Property Context
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+High
+gray
+
+Slash
+brown
+
+Water
+blue
+
+Wall
+red
+
+SlashPop
+yellow
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+X = Slash and High and Wall
+Solid = Water or Wall
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+High
+Water, Slash
+Wall
+SlashPop
+
+=====
+RULES
+=====
+
+[ right Solid stationary Slash High ] -> [ up Solid action Slash SlashPop High ] again
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PX

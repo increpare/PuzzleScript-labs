@@ -1,0 +1,58 @@
+title Static Analysis Property Clear Absent Member
+
+========
+OBJECTS
+========
+
+Background
+black
+
+LightSource
+yellow
+
+LightD
+orange
+
+Player
+white
+
+========
+LEGEND
+========
+
+. = Background
+S = LightSource
+D = LightD
+P = Player
+
+Light = LightSource or LightD
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Light
+Player
+
+=====
+RULES
+=====
+
+[ Light no LightSource ] -> []
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PDS

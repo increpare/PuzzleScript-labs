@@ -1,0 +1,61 @@
+title Static Analysis Property Binding Cardinal Movement Aliases
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Water
+blue
+
+Drain
+gray
+
+Wall
+brown
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+W = Water
+D = Drain
+# = Wall
+Obstacle = Wall or Drain
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Water, Drain
+Player, Wall
+
+=====
+RULES
+=====
+
+[ > Obstacle | Water ] -> [ | Obstacle ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#W

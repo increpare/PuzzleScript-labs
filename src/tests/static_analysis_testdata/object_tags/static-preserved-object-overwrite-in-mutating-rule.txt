@@ -1,0 +1,62 @@
+title Static Analysis Preserved Object Overwrite In Mutating Rule
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Ghost
+red
+
+Dot
+yellow
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+G = Ghost
+* = Dot
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+Wall, Ghost
+Dot
+
+=====
+RULES
+=====
+
+[ Player Dot ] -> [ Player Background ]
+
+=============
+WINCONDITIONS
+=============
+
+No Dot
+
+======
+LEVELS
+======
+
+P*
+G#

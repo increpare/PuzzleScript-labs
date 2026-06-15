@@ -1,0 +1,56 @@
+title Static Analysis Perpendicular Movement Writes Object
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Ant1
+red
+
+Mover
+blue
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+1 = Ant1
+M = Mover
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Ant1
+Mover
+
+=====
+RULES
+=====
+
+right [ perpendicular Mover | stationary Ant1 ] -> [ perpendicular Mover | perpendicular Ant1 ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+M1P

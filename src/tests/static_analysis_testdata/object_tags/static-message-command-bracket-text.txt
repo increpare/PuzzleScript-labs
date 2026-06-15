@@ -1,0 +1,56 @@
+title Static Analysis Message Command Bracket Text
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Book
+orange
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+B = Book
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+Book
+
+=====
+RULES
+=====
+
+[ > Player | Book ] -> message Read [Wall]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PB

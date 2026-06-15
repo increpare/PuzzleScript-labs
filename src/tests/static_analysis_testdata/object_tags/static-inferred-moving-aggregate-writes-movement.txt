@@ -1,0 +1,51 @@
+title Static Analysis Inferred Moving Aggregate Writes Movement
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+CrateS
+gray
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+S = CrateS
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, CrateS
+
+=====
+RULES
+=====
+
+[ MOVING Player | STATIONARY CrateS ] -> [ MOVING Player | MOVING CrateS ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PS

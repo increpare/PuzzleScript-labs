@@ -1,0 +1,61 @@
+title Static Analysis Object Tag Static Property RHS Movement
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Drop
+blue
+
+Source
+lightblue
+
+Spray
+gray
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+D = Drop
+S = Source
+water = Drop or Source
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Drop
+Source, Spray
+Player
+
+=====
+RULES
+=====
+
+[ > Player | water ] -> [ Player | stationary water ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PS

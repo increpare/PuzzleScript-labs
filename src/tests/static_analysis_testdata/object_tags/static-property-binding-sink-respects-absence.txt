@@ -1,0 +1,63 @@
+title Static Analysis Property Binding Sink Respects Absence
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Friend
+yellow
+
+Rock
+brown
+
+Wall
+gray
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+F = Friend
+R = Rock
+# = Wall
+
+Mover = Player or Friend or Rock
+Ground = Player or Friend or Wall
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Rock
+Player, Friend, Wall
+
+=====
+RULES
+=====
+
+late Down [ Mover | no Ground ] -> [ | Mover ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.

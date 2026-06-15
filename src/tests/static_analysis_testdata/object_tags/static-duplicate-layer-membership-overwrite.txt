@@ -1,0 +1,63 @@
+title Static Analysis Duplicate Layer Membership Overwrite
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Wall
+brown
+
+Floor
+gray
+
+Door
+orange
+
+Player
+white
+
+========
+LEGEND
+========
+
+. = Background
+# = Wall
+_ = Floor
+D = Door
+P = Player
+
+Surface = Wall or Floor
+Terrain = Surface or Door
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Terrain, Player
+Door
+
+=====
+RULES
+=====
+
+[ Wall ] -> [ Floor ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#D

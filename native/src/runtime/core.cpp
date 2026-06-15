@@ -1450,6 +1450,11 @@ Replacement parseReplacement(Game& game, const json::Value& value) {
             });
         }
     }
+    if (const auto preserveMask = object.find("rhs_property_preserve_mask");
+        preserveMask != object.end() && preserveMask->second.isArray()) {
+        replacement.ensureDynamic().rhsPropertyPreserveMask =
+            storeMaskWords(game, parseMaskVector(preserveMask->second));
+    }
     return replacement;
 }
 

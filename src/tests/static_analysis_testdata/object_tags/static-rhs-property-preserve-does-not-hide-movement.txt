@@ -1,0 +1,56 @@
+title Static Analysis RHS Property Preserve Does Not Hide Movement
+
+========
+OBJECTS
+========
+
+background
+black
+
+player
+white
+
+wall
+brown
+
+crate
+orange
+
+=======
+LEGEND
+=======
+
+. = background
+P = player
+# = wall
+C = crate
+mover = player or crate or wall
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+background
+player, wall, crate
+
+=====
+RULES
+=====
+
+[ > mover | stationary wall ] -> [ mover | wall ]
+
+=============
+WINCONDITIONS
+=============
+
+Some player
+
+======
+LEVELS
+======
+
+P#C

@@ -4270,6 +4270,13 @@ std::string serializeRuntimeGameDebugJson(
                                 } else {
                                     out << "[]";
                                 }
+                                out << ",\"rhs_property_preserve_mask\":";
+                                if (dynamic != nullptr
+                                    && dynamic->rhsPropertyPreserveMask != puzzlescript::kNullMaskOffset) {
+                                    appendJsonMask(out, game, dynamic->rhsPropertyPreserveMask, game.wordCount);
+                                } else {
+                                    out << "[]";
+                                }
                                 out << "}";
                             } else {
                                 out << ",\"replacement\":null";

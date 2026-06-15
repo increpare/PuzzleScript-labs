@@ -1,0 +1,53 @@
+title Static Analysis Object Tag Static Message Command Comment Depth
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Marker
+red
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+M = Marker
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Marker
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player ] message 1 ((
+[ Marker ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PM

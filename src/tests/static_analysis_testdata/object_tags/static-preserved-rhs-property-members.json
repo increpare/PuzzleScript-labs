@@ -1,0 +1,17 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "SecretA",
+      "static": true
+    },
+    {
+      "object": "SecretB",
+      "static": true
+    },
+    {
+      "object": "TileWhite",
+      "static": false
+    }
+  ]
+}

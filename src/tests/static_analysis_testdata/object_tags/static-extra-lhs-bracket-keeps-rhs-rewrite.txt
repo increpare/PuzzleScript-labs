@@ -1,0 +1,55 @@
+title Static Analysis Extra LHS Bracket Keeps RHS Rewrite
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Sumo
+red
+
+Deadplayer
+blue
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+S = Sumo
+D = Deadplayer
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Sumo, Deadplayer
+
+=====
+RULES
+=====
+
+[[ Player | Sumo ] -> [ Deadplayer | Sumo ] message You Died!
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PS

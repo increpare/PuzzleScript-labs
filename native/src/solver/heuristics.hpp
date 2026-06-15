@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "compiler/static_analysis.hpp"
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
 
@@ -175,17 +176,15 @@ public:
     HeuristicKind kind() const { return kind_; }
     bool staticAnalysisHintsUsed() const { return staticAnalysisHintsUsed_; }
     std::vector<std::string> staticObjectNames() const {
-        std::vector<std::string> names;
-        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
-            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
-            const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
-            if (word < staticObjects_.size() && (staticObjects_[word] & bit) != 0) {
-                names.push_back(game_.objectsById[static_cast<size_t>(objectId)].name);
-            }
-        }
-        std::sort(names.begin(), names.end());
-        names.erase(std::unique(names.begin(), names.end()), names.end());
-        return names;
+        return puzzlescript::compiler::staticObjectNames(game_, staticObjects_);
+    }
+
+    std::vector<std::pair<std::string, std::vector<std::string>>> staticObjectBlockers() const {
+        return puzzlescript::compiler::staticObjectBlockers(
+            game_,
+            staticObjects_,
+            staticWrittenObjects_,
+            staticMovementMentionedObjects_);
     }
 
     int32_t score(const MaskWord* board) {
@@ -763,207 +762,10 @@ private:
     }
 
     void buildStaticObjectMask() {
-        staticObjects_.assign(game_.wordCount, 0);
-        MaskVector writtenObjects(game_.wordCount, 0);
-        MaskVector movementWrittenObjects(game_.wordCount, 0);
-        auto visitGroups = [&](const std::vector<std::vector<Rule>>& groups) {
-            for (const std::vector<Rule>& group : groups) {
-                for (const Rule& rule : group) {
-                    accumulateWrittenObjects(rule, writtenObjects, movementWrittenObjects);
-                }
-            }
-        };
-        visitGroups(game_.rules);
-        visitGroups(game_.lateRules);
-
-        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
-            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
-            const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
-            if (word >= staticObjects_.size()) {
-                continue;
-            }
-            if ((writtenObjects[static_cast<size_t>(word)] & bit) != 0) {
-                continue;
-            }
-            if (playerMask_ != nullptr && (playerMask_[word] & bit) != 0) {
-                continue;
-            }
-            if ((movementWrittenObjects[static_cast<size_t>(word)] & bit) != 0) {
-                continue;
-            }
-            staticObjects_[static_cast<size_t>(word)] |= bit;
-        }
-    }
-
-    bool maskHasObject(const MaskWord* mask, int32_t objectId) const {
-        if (mask == nullptr || objectId < 0) {
-            return false;
-        }
-        const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
-        if (word >= game_.wordCount) {
-            return false;
-        }
-        return (mask[word] & maskBit(static_cast<uint32_t>(objectId))) != 0;
-    }
-
-    bool objectCanCoexistWithObject(int32_t objectId, int32_t candidateId) const {
-        if (objectId == candidateId) {
-            return true;
-        }
-        if (objectId < 0
-            || candidateId < 0
-            || objectId >= game_.objectCount
-            || candidateId >= game_.objectCount) {
-            return true;
-        }
-        const int32_t objectLayer = game_.objectsById[static_cast<size_t>(objectId)].layer;
-        const int32_t candidateLayer = game_.objectsById[static_cast<size_t>(candidateId)].layer;
-        return objectLayer < 0 || candidateLayer < 0 || objectLayer != candidateLayer;
-    }
-
-    bool maskHasCoexistingObject(const MaskWord* mask, int32_t objectId) const {
-        if (mask == nullptr) {
-            return false;
-        }
-        for (int32_t candidateId = 0; candidateId < game_.objectCount; ++candidateId) {
-            if (maskHasObject(mask, candidateId)
-                && objectCanCoexistWithObject(objectId, candidateId)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool patternCanContainObject(const Pattern& pattern, int32_t objectId) const {
-        if (pattern.kind == Pattern::Kind::Ellipsis || objectId < 0 || objectId >= game_.objectCount) {
-            return true;
-        }
-        const MaskWord* objectsMissing = search::maskPtr(game_, pattern.objectsMissing);
-        if (maskHasObject(objectsMissing, objectId)) {
-            return false;
-        }
-        const MaskWord* objectsPresent = search::maskPtr(game_, pattern.objectsPresent);
-        for (int32_t presentId = 0; presentId < game_.objectCount; ++presentId) {
-            if (maskHasObject(objectsPresent, presentId)
-                && !objectCanCoexistWithObject(objectId, presentId)) {
-                return false;
-            }
-        }
-        for (uint32_t entry = 0; entry < pattern.anyObjectsCount; ++entry) {
-            const MaskWord* anyMask =
-                search::maskPtr(game_, game_.anyObjectOffsets[pattern.anyObjectsFirst + entry]);
-            if (!maskHasCoexistingObject(anyMask, objectId)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    void addMaskToWrittenObjects(const MaskWord* mask, MaskVector& writtenObjects) const {
-        if (mask == nullptr) {
-            return;
-        }
-        for (uint32_t word = 0; word < game_.wordCount; ++word) {
-            writtenObjects[word] |= mask[word];
-        }
-    }
-
-    void addPossibleClearsToWrittenObjects(
-        const Pattern& pattern,
-        const MaskWord* objectsClear,
-        MaskVector& writtenObjects) const {
-        if (objectsClear == nullptr) {
-            return;
-        }
-        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
-            if (!maskHasObject(objectsClear, objectId) || !patternCanContainObject(pattern, objectId)) {
-                continue;
-            }
-            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
-            if (word < game_.wordCount) {
-                writtenObjects[word] |= maskBit(static_cast<uint32_t>(objectId));
-            }
-        }
-    }
-
-    void addPossibleMovementWritesToWrittenObjects(
-        const Pattern& pattern,
-        const MaskWord* movementsSet,
-        MaskVector& movementWrittenObjects) const {
-        if (movementsSet == nullptr) {
-            return;
-        }
-        for (int32_t layer = 0; layer < game_.layerCount; ++layer) {
-            if (movementLayerBits(movementsSet, layer) == 0) {
-                continue;
-            }
-            addPossibleMovementLayerWriteToWrittenObjects(pattern, layer, movementWrittenObjects);
-        }
-    }
-
-    void addPossibleMovementLayerWriteToWrittenObjects(
-        const Pattern& pattern,
-        int32_t layer,
-        MaskVector& movementWrittenObjects) const {
-        if (layer < 0) {
-            return;
-        }
-        for (int32_t objectId = 0; objectId < game_.objectCount; ++objectId) {
-            if (game_.objectsById[static_cast<size_t>(objectId)].layer != layer
-                || !patternCanContainObject(pattern, objectId)) {
-                continue;
-            }
-            const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
-            if (word < game_.wordCount) {
-                movementWrittenObjects[word] |= maskBit(static_cast<uint32_t>(objectId));
-            }
-        }
-    }
-
-    void accumulateWrittenObjects(
-        const Rule& rule,
-        MaskVector& writtenObjects,
-        MaskVector& movementWrittenObjects) const {
-        for (const std::vector<Pattern>& row : rule.patterns) {
-            for (const Pattern& pattern : row) {
-                if (!pattern.replacement.has_value()) {
-                    continue;
-                }
-                const Replacement& replacement = *pattern.replacement;
-                addMaskToWrittenObjects(search::maskPtr(game_, replacement.objectsSet), writtenObjects);
-                if (replacement.hasRandomEntityMask) {
-                    addMaskToWrittenObjects(search::maskPtr(game_, replacement.randomEntityMask), writtenObjects);
-                }
-                addPossibleClearsToWrittenObjects(
-                    pattern,
-                    search::maskPtr(game_, replacement.objectsClear),
-                    writtenObjects);
-                addPossibleMovementWritesToWrittenObjects(
-                    pattern,
-                    search::maskPtr(game_, replacement.movementsSet),
-                    movementWrittenObjects);
-                if (replacement.hasRandomDirMask) {
-                    addPossibleMovementWritesToWrittenObjects(
-                        pattern,
-                        search::maskPtr(game_, replacement.randomDirMask),
-                        movementWrittenObjects);
-                }
-                if (replacement.dynamic != nullptr) {
-                    for (const LayerCoupledMovementReplacement& coupled :
-                         replacement.dynamic->layerCoupledMovementReplacements) {
-                        if (!coupled.hasReplacementMovementMask || coupled.replacementMovementMask == 0) {
-                            continue;
-                        }
-                        for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
-                            addPossibleMovementLayerWriteToWrittenObjects(
-                                pattern,
-                                layerTerm.layerIndex,
-                                movementWrittenObjects);
-                        }
-                    }
-                }
-            }
-        }
+        const auto analysis = puzzlescript::compiler::analyzeStaticObjects(game_);
+        staticObjects_ = analysis.staticObjects;
+        staticWrittenObjects_ = analysis.writtenObjects;
+        staticMovementMentionedObjects_ = analysis.movementMentionedObjects;
     }
 
     bool filterIsStatic(const MaskWord* filter) const {
@@ -1505,6 +1307,8 @@ private:
     bool staticAnalysisHintsUsed_ = false;
     MaskVector allObjects_;
     MaskVector staticObjects_;
+    MaskVector staticWrittenObjects_;
+    MaskVector staticMovementMentionedObjects_;
     MaskVector nonBackground_;
     std::vector<bool> plain_;
     std::vector<ConditionStatics> statics_;

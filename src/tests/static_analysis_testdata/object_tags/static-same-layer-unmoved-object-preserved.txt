@@ -1,0 +1,70 @@
+title Static Analysis Same Layer Unmoved Object Preserved
+
+========
+OBJECTS
+========
+
+Background
+white
+
+Wall
+green
+
+Player
+blue
+
+Crate
+brown
+
+Temp
+transparent
+
+=======
+LEGEND
+=======
+
+. = Background
+# = Wall
+P = Player
+O = Crate
+CT = Crate or Temp
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall, Crate
+Temp
+
+=====
+RULES
+=====
+
+[ > Player | Crate ] -> [ > Player | > Crate ]
+
+[ < Player | Crate | Crate ] -> [ < Player | < Crate | < Crate ]
+
+late [CT | CT | CT | CT | CT] -> [  | | temp | | ]
+
+late [CT | CT | CT | CT] -> [ | temp | temp | ]
+
+late [CT | CT | CT ] -> [ temp | temp | temp ]
+
+late [temp]->[ ]
+
+=============
+WINCONDITIONS
+=============
+
+No Crate
+
+======
+LEVELS
+======
+
+P#O

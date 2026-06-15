@@ -11,6 +11,17 @@ const INERT_COMMANDS = new Set(['message', 'sfx0', 'sfx1', 'sfx2', 'sfx3', 'sfx4
 const SEMANTIC_COMMANDS = new Set(['cancel', 'again', 'restart', 'win', 'checkpoint']);
 const DIRECTIONAL_MOVEMENTS = new Set(['up', 'down', 'left', 'right', 'moving', 'randomdir']);
 const CARDINAL_MOVEMENTS = ['up', 'down', 'left', 'right'];
+const STATIC_INVALIDATING_MOVEMENT_AGGREGATES = new Set([
+    'horizontal',
+    'vertical',
+    'orthogonal',
+    'horizontal_par',
+    'vertical_par',
+    'horizontal_perp',
+    'vertical_perp',
+    'parallel',
+    'perpendicular',
+]);
 const POSITIVE_MOVEMENT_STATES = CARDINAL_MOVEMENTS.concat(['action']);
 const numericNameCollator = new Intl.Collator(undefined, { numeric: true });
 
@@ -764,7 +775,11 @@ function movementRequirementsFromTerms(psTagged, terms) {
 function movementEffectsFromTerms(psTagged, terms) {
     const movements = [];
     for (const term of terms) {
-        if (term.kind !== 'present' || term.movement === null || term.movement === 'stationary') continue;
+        if (term.kind !== 'present'
+            || term.movement === null
+            || term.movement === 'stationary') {
+            continue;
+        }
         for (const objectName of term.expanded_objects || []) {
             if (layerForObject(psTagged, objectName) === null) continue;
             if (term.movement === 'randomdir') {
@@ -783,6 +798,14 @@ function movementEffectsFromTerms(psTagged, terms) {
 
 function movementKeyMovementName(key) {
     return key.slice(key.lastIndexOf(':') + 1);
+}
+
+function movementKeyInvalidatesStatic(key) {
+    const movement = movementKeyMovementName(key);
+    return CARDINAL_MOVEMENTS.includes(movement)
+        || movement === 'moving'
+        || movement === 'randomdir'
+        || STATIC_INVALIDATING_MOVEMENT_AGGREGATES.has(movement);
 }
 
 function playerDirectionalMovementSeeds(psTagged) {
@@ -1461,10 +1484,9 @@ function buildCountLayerRuleIndex(psTagged, activeRules) {
         for (const objectName of countEffects.increases) addRuleForObject(countIncreasersByObject, objectName, rule);
         for (const objectName of countEffects.decreases) addRuleForObject(countDecreasersByObject, objectName, rule);
 
-        const movementObjects = new Set();
-        for (const term of rule.summary.lhs_terms.concat(rule.summary.rhs_terms)) {
-            if (term.movement !== null) addValues(movementObjects, termObjects(term));
-        }
+        const movementObjects = new Set((rule.tags.movements_written || [])
+            .filter(movementKeyInvalidatesStatic)
+            .map(movementKeyObjectName));
         for (const objectName of movementObjects) addRuleForObject(movementRulesByObject, objectName, rule);
     }
 
@@ -1962,6 +1984,16 @@ function objectsInLayer(psTagged, objectNames, layer) {
     return Array.from(objectNames).filter(objectName => layerForObject(psTagged, objectName) === layer);
 }
 
+function objectCanCoexistWithRequiredObjects(psTagged, requiredObjects, objectName) {
+    const objectLayer = layerForObject(psTagged, objectName);
+    for (const requiredObject of requiredObjects) {
+        if (requiredObject !== objectName && layerForObject(psTagged, requiredObject) === objectLayer) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function cellCouldContainObjectBefore(psTagged, lhsPresent, lhsAbsent, objectName) {
     if (lhsAbsent.has(objectName)) return false;
     const lhsPresentOnLayer = objectsInLayer(psTagged, lhsPresent, layerForObject(psTagged, objectName));
@@ -2044,10 +2076,12 @@ function ruleFlowWrites(psTagged, rule) {
                 const lhsMovementKeys = movementTermKeys(lhsCell);
                 const rhsMovementKeys = movementTermKeys(rhsCell);
                 const rhsPresent = presentObjectSet(rhsCell);
+                const rhsRequiredPresent = requiredPresentObjectSet(rhsCell);
 
                 for (const term of rhsCell) {
                     if (term.kind !== 'present' || term.movement === null) continue;
                     for (const objectName of termObjects(term)) {
+                        if (!objectCanCoexistWithRequiredObjects(psTagged, rhsRequiredPresent, objectName)) continue;
                         if (lhsMovementKeys.has(`${objectName}:${term.movement}`)) continue;
                         for (const movementName of movementExpansions(term.movement)) {
                             movement.push({ object: objectName, movement: movementName });
@@ -2111,7 +2145,7 @@ function ruleFlowReadTags(rule) {
     };
 }
 
-function ruleMovementWriteTags(rule) {
+function ruleMovementWriteTags(psTagged, rule) {
     const movementsWritten = new Set();
 
     if (!rule.tags.writes_movement) return movementsWritten;
@@ -2127,11 +2161,13 @@ function ruleMovementWriteTags(rule) {
             const lhsMovementKeys = movementTermKeys(lhsCell);
             const rhsMovementKeys = movementTermKeys(rhsCell);
             const rhsPresent = presentObjectSet(rhsCell);
+            const rhsRequiredPresent = requiredPresentObjectSet(rhsCell);
 
             for (const term of rhsCell) {
                 if (term.kind !== 'present' || term.movement === null) continue;
                 const writtenMovements = term.movement === 'randomdir' ? CARDINAL_MOVEMENTS : [term.movement];
                 for (const objectName of termObjects(term)) {
+                    if (!objectCanCoexistWithRequiredObjects(psTagged, rhsRequiredPresent, objectName)) continue;
                     for (const movement of writtenMovements) {
                         const key = `${objectName}:${movement}`;
                         if (!lhsMovementKeys.has(key)) {
@@ -2216,7 +2252,7 @@ function tagRuleObjectTags(psTagged) {
     for (const { rule } of allRuleEntries(psTagged)) {
         const reads = ruleFlowReadTags(rule);
         const writes = ruleFlowWrites(psTagged, rule);
-        const movementsWritten = ruleMovementWriteTags(rule);
+        const movementsWritten = ruleMovementWriteTags(psTagged, rule);
         const movementsRemoved = ruleMovementRemoveTags(rule);
         rule.tags.objects_required = uniqueSorted(reads.objects_required);
         rule.tags.objects_matched = uniqueSorted(reads.objects_matched);

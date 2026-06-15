@@ -1,0 +1,64 @@
+title Static Analysis Object Tag Static Property Movement With Other Layer Write
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Crate1
+orange
+
+Crate2
+yellow
+
+Grass
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+1 = Crate1
+2 = Crate2
+Crate = Wall or Crate1 or Crate2
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Grass
+Player, Wall, Crate
+
+=====
+RULES
+=====
+
+[ > Player | Crate ] -> [ > Player | > Crate Grass ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#

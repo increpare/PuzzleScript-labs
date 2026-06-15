@@ -851,8 +851,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             continue;
         }
-        const bool hasAnyArrowToken = std::find(tokens.begin(), tokens.end(), "->") != tokens.end();
         auto arrowIt = tokens.end();
+        auto firstArrowIt = tokens.end();
         int32_t arrowSearchBracketDepth = 0;
         for (auto it = tokens.begin(); it != tokens.end(); ++it) {
             if (*it == "[") {
@@ -863,12 +863,20 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 --arrowSearchBracketDepth;
                 continue;
             }
-            if (*it == "->" && arrowSearchBracketDepth == 0) {
-                arrowIt = it;
-                break;
+            if (*it == "->") {
+                if (firstArrowIt == tokens.end()) {
+                    firstArrowIt = it;
+                }
+                if (arrowSearchBracketDepth == 0) {
+                    arrowIt = it;
+                    break;
+                }
             }
         }
-        if (arrowIt == tokens.end() && !hasAnyArrowToken) {
+        if (arrowIt == tokens.end()) {
+            arrowIt = firstArrowIt;
+        }
+        if (arrowIt == tokens.end()) {
             continue;
         }
 
@@ -1010,6 +1018,25 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         && !cellNameRefersToLegendOrObject(nameNorm)) {
                         puzzlescript::RuleCommand cmd;
                         cmd.name = nameNorm;
+                        if (cmd.name == "message") {
+                            std::string message;
+                            for (size_t j = i + 1; j < end; ++j) {
+                                if (!message.empty()) {
+                                    message.push_back(' ');
+                                }
+                                if (mixedCaseTokens.size() == tokens.size()) {
+                                    message.append(mixedCaseTokens[j]);
+                                } else {
+                                    message.append(tokens[j]);
+                                }
+                            }
+                            if (message.empty()) {
+                                message = " ";
+                            }
+                            cmd.argument = message;
+                            inlineCommandSink->push_back(std::move(cmd));
+                            return rows;
+                        }
                         inlineCommandSink->push_back(std::move(cmd));
                         continue;
                     }
@@ -1018,12 +1045,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     }
                     cell.items.push_back({std::move(dirNorm), std::move(nameNorm)});
                 }
+                if (i >= end || tokens[i] != "]") {
+                    break;
+                }
                 // Always push the last cell, even if empty. This is required for
                 // rules like `[ | | ]` where empty RHS cells represent clearing.
                 current.push_back(std::move(cell));
-                if (i < end && tokens[i] == "]") {
-                    ++i;
-                }
+                ++i;
                 if (!current.empty()) {
                     rows.push_back(std::move(current));
                 }
@@ -1035,10 +1063,32 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             ? tokens.size()
             : static_cast<size_t>(std::distance(tokens.begin(), arrowIt));
         const size_t rhsEnd = tokens.size();
+        auto firstTopLevelPostfixCommand = [&]() -> size_t {
+            if (arrowPos >= tokens.size()) {
+                return rhsEnd;
+            }
+            int32_t bracketDepth = 0;
+            for (size_t i = arrowPos + 1; i < rhsEnd; ++i) {
+                if (tokens[i] == "[") {
+                    ++bracketDepth;
+                    continue;
+                }
+                if (tokens[i] == "]") {
+                    if (bracketDepth > 0) {
+                        --bracketDepth;
+                    }
+                    continue;
+                }
+                if (bracketDepth == 0 && tokens[i] == "message") {
+                    return i;
+                }
+            }
+            return rhsEnd;
+        }();
         std::vector<puzzlescript::RuleCommand> parsedCommands;
         auto lhsRows = parseSide(cursor, arrowPos, nullptr);
         auto rhsRows = arrowPos < tokens.size()
-            ? parseSide(arrowPos + 1, rhsEnd, &parsedCommands)
+            ? parseSide(arrowPos + 1, firstTopLevelPostfixCommand, &parsedCommands)
             : std::vector<ParsedRow>{};
 
         auto maskTouchesLayer = [&](const puzzlescript::MaskVector& mask, int32_t layer) -> bool {
@@ -2794,34 +2844,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             return sig;
         };
-        auto lhsHasLayerOverlap = [&](const std::vector<ParsedRow>& rows) {
-            for (const auto& row : rows) {
-                for (const auto& cell : row) {
-                    if (cell.isEllipsis) {
-                        continue;
-                    }
-                    std::vector<uint8_t> usedLayers(static_cast<size_t>(game->layerCount), 0);
-                    for (const auto& item : cell.items) {
-                        if (item.dir == "no" || item.dir == "random") {
-                            continue;
-                        }
-                        std::set<std::string> visiting;
-                        const auto mask = resolveMask(resolveMask, item.name, visiting);
-                        const auto layer = maskSingleLayer(mask);
-                        if (!layer.has_value() || *layer < 0 || *layer >= game->layerCount) {
-                            continue;
-                        }
-                        auto& used = usedLayers[static_cast<size_t>(*layer)];
-                        if (used != 0) {
-                            return true;
-                        }
-                        used = 1;
-                    }
-                }
-            }
-            return false;
-        };
-
         for (const auto& rawRuleDirection : ruleDirections) {
         auto variantLhsRows = lhsRows;
         auto variantRhsRows = rhsRows;
@@ -2859,13 +2881,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     movingVariant.second,
                     propertyCoalescingPlan.safe);
             for (const auto& propChunk : propertyConcreteResult.chunks) {
-                const bool hasInferredPropertyRewriteTerm =
-                    propertyConcreteResult.hasInferredPropertyRewriteTerm;
-                std::vector<ParsedRow> variantLhsRowsExpanded = propChunk.first;
+            const bool hasInferredPropertyRewriteTerm =
+                propertyConcreteResult.hasInferredPropertyRewriteTerm;
+            std::vector<ParsedRow> variantLhsRowsExpanded = propChunk.first;
             std::vector<ParsedRow> variantRhsRowsExpanded = propChunk.second;
-            if (lhsHasLayerOverlap(variantLhsRowsExpanded)) {
-                continue;
-            }
             if (!lateRule) {
                 makeSpawnedObjectsStationaryRows(variantLhsRowsExpanded, variantRhsRowsExpanded);
             }
@@ -2896,8 +2915,18 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             rule.aggregateBindings.push_back(std::move(binding));
         }
-        for (const auto& [_, bindingPlan] : propertyCoalescingPlan.bindings) {
-            rule.propertyBindings.push_back(bindingPlan);
+        for (const auto& [propertyName, bindingPlan] : propertyCoalescingPlan.bindings) {
+            puzzlescript::PropertyBinding binding = bindingPlan;
+            const auto sinkIt = propertyCoalescingPlan.sinks.find(propertyName);
+            if (sinkIt != propertyCoalescingPlan.sinks.end()) {
+                for (const PropertySinkPosition& sink : sinkIt->second) {
+                    binding.sinks.push_back(puzzlescript::PropertySink{
+                        static_cast<int32_t>(sink.row),
+                        static_cast<int32_t>(sink.cell),
+                    });
+                }
+            }
+            rule.propertyBindings.push_back(std::move(binding));
         }
 
         auto buildPatternRow = [&](const ParsedRow& row,
@@ -2936,7 +2965,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 auto buildLayerCoupledMovementTerm = [&](const std::string& propertyName,
                                                          const std::string& movementDir,
                                                          const ParsedCell& sourceCell,
-                                                         size_t sourceItemIndex) {
+                                                         size_t sourceItemIndex,
+                                                         bool excludeConflictingLayers = true) {
                     CoupledMovementTermBuild built;
                     built.objectMask = makeEmptyMask(game->wordCount);
 
@@ -2954,7 +2984,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                     const int32_t movementsMissingMask = movementDir == "stationary" ? 0x1f : 0;
 
                     std::set<int32_t> excludedLayers;
-                    if (!sourceCell.isEllipsis) {
+                    if (excludeConflictingLayers && !sourceCell.isEllipsis) {
                         for (size_t lhsIndex = 0; lhsIndex < sourceCell.items.size(); ++lhsIndex) {
                             if (lhsIndex == sourceItemIndex) {
                                 continue;
@@ -3161,6 +3191,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         auto movementsLayerMask = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
                         auto randomEntityMask = puzzlescript::MaskVector(static_cast<size_t>(game->wordCount), 0);
                         auto randomDirMask = puzzlescript::MaskVector(static_cast<size_t>(game->movementWordCount), 0);
+                        auto rhsPropertyPreserveMask = makeEmptyMask(game->wordCount);
                         std::vector<int32_t> layersUsedR(game->layerCount, 0);
                         puzzlescript::MaskVector rhsObjectLayersMovement(static_cast<size_t>(game->movementWordCount), 0);
                         std::set<int32_t> aggregateInferenceLayers;
@@ -3233,6 +3264,82 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                     rhsWritesObjects = true;
                                     break;
                                 }
+                            }
+                        }
+
+                        auto masksEqual = [](const puzzlescript::MaskVector& left,
+                                             const puzzlescript::MaskVector& right) {
+                            const size_t n = std::max(left.size(), right.size());
+                            for (size_t w = 0; w < n; ++w) {
+                                const puzzlescript::MaskWord l = w < left.size() ? left[w] : 0;
+                                const puzzlescript::MaskWord r = w < right.size() ? right[w] : 0;
+                                if (l != r) {
+                                    return false;
+                                }
+                            }
+                            return true;
+                        };
+                        auto sameAsUnmovedLhsProperty = [&](const ParsedItem& rhsItem) {
+                            if (rhsItem.dir == "no"
+                                || rhsItem.dir == "random"
+                                || propertyOf.find(rhsItem.name) == propertyOf.end()) {
+                                return false;
+                            }
+                            std::set<std::string> rhsVisiting;
+                            const auto rhsMask = resolveMask(resolveMask, rhsItem.name, rhsVisiting);
+                            for (const auto& lhsItem : cell.items) {
+                                if (!lhsItem.dir.empty()
+                                    || lhsItem.dir == "no"
+                                    || lhsItem.dir == "random"
+                                    || propertyOf.find(lhsItem.name) == propertyOf.end()) {
+                                    continue;
+                                }
+                                std::set<std::string> lhsVisiting;
+                                const auto lhsMask = resolveMask(resolveMask, lhsItem.name, lhsVisiting);
+                                if (masksEqual(lhsMask, rhsMask)) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        };
+                        std::vector<uint8_t> rhsNonPreservingWriteLayers(static_cast<size_t>(game->layerCount), 0);
+                        for (const auto& rhsItem : rhsCell.items) {
+                            if (rhsItem.dir == "no" || sameAsUnmovedLhsProperty(rhsItem)) {
+                                continue;
+                            }
+                            std::set<std::string> visiting;
+                            const auto mask = resolveMask(resolveMask, rhsItem.name, visiting);
+                            for (int32_t objectId = 0; objectId < game->objectCount; ++objectId) {
+                                if (!maskHasBit(mask, objectId)) {
+                                    continue;
+                                }
+                                const int32_t layer =
+                                    game->objectsById[static_cast<size_t>(objectId)].layer;
+                                if (layer >= 0 && layer < game->layerCount) {
+                                    rhsNonPreservingWriteLayers[static_cast<size_t>(layer)] = 1;
+                                }
+                            }
+                        }
+                        for (const auto& rhsItem : rhsCell.items) {
+                            if (!rhsItem.dir.empty()
+                                || propertyOf.find(rhsItem.name) == propertyOf.end()
+                                || !sameAsUnmovedLhsProperty(rhsItem)) {
+                                continue;
+                            }
+                            std::set<std::string> visiting;
+                            const auto mask = resolveMask(resolveMask, rhsItem.name, visiting);
+                            for (int32_t objectId = 0; objectId < game->objectCount; ++objectId) {
+                                if (!maskHasBit(mask, objectId)) {
+                                    continue;
+                                }
+                                const int32_t layer =
+                                    game->objectsById[static_cast<size_t>(objectId)].layer;
+                                if (layer < 0
+                                    || layer >= game->layerCount
+                                    || rhsNonPreservingWriteLayers[static_cast<size_t>(layer)] != 0) {
+                                    continue;
+                                }
+                                setMaskBit(rhsPropertyPreserveMask, objectId);
                             }
                         }
 
@@ -3319,7 +3426,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                             item.name,
                                             lhsItem.dir,
                                             cell,
-                                            rhsItemIndex);
+                                            rhsItemIndex,
+                                            false);
                                         auto coupledReplacement = std::move(coupledReplacementBuild.term);
                                         if (concreteDirsForAggregate(item.dir) != nullptr) {
                                             coupledReplacement.replacementAggregateName = item.dir;
@@ -3575,13 +3683,18 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         repl.hasMovementsLayerMask = anyNonZero(movementsLayerMask);
                         const bool hasDynamicReplacement =
                             !inferredAggregateBindings.empty()
-                            || !layerCoupledMovementReplacements.empty();
+                            || !layerCoupledMovementReplacements.empty()
+                            || anyNonZero(rhsPropertyPreserveMask);
                         if (hasDynamicReplacement) {
                             auto& dynamic = repl.ensureDynamic();
                             dynamic.inferredAggregateBindings =
                                 std::move(inferredAggregateBindings);
                             dynamic.layerCoupledMovementReplacements =
                                 std::move(layerCoupledMovementReplacements);
+                            if (anyNonZero(rhsPropertyPreserveMask)) {
+                                dynamic.rhsPropertyPreserveMask =
+                                    storeMaskWords(*game, rhsPropertyPreserveMask);
+                            }
                         }
                         if (anyNonZero(randomEntityMask)) {
                             repl.randomEntityMask = storeMaskWords(*game, randomEntityMask);

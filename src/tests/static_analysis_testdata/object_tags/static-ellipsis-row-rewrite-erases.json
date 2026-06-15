@@ -1,0 +1,17 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Star",
+      "static": false
+    },
+    {
+      "object": "Wall",
+      "static": false
+    },
+    {
+      "object": "Asteroid",
+      "static": false
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+title Static Analysis Object Tag Static Property Positive RHS Movement
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+green
+
+Crate
+orange
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+C = Crate
+Thing = Wall or Crate
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Wall, Crate
+Player
+
+=====
+RULES
+=====
+
+[ > Player | Thing ] -> [ > Player | > Thing ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PC

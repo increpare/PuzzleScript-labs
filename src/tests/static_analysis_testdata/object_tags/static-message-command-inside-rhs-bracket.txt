@@ -1,0 +1,52 @@
+title Static Analysis Object Tag Static Message Command Inside RHS Bracket
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Toxec
+gray
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+T = Toxec
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Toxec
+
+=====
+RULES
+=====
+
+[ > Player | Toxec ] ->[Background message boom]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PT

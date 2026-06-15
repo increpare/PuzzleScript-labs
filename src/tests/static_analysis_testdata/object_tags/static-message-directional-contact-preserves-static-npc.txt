@@ -1,0 +1,52 @@
+title Static Analysis Message Directional Contact Preserves Static NPC
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+NPC
+yellow
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+N = NPC
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+NPC
+Player
+
+=====
+RULES
+=====
+
+[ Player > NPC ] -> message hi
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PN

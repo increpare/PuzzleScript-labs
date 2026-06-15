@@ -1,0 +1,51 @@
+title Static Analysis Object Tag Static Unicode Object Whitespace
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall　#
+brown
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Wall
+
+=====
+RULES
+=====
+
+[ Player ] -> [ Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#

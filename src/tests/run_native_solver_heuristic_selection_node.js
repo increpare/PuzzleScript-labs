@@ -194,6 +194,44 @@ assert(
     `legitimately-static 'target' should be retained, got ${JSON.stringify(mazezamStaticNames)}`
 );
 
+const emptyStaticHintDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-solver-empty-static-hint-'));
+const emptyStaticHintPath = path.join(emptyStaticHintDir, 'static-analysis.json');
+fs.writeFileSync(emptyStaticHintPath, `${JSON.stringify({
+    schema: 'native-solver-static-analysis-hints-v1',
+    games: {
+        'mazezam.txt': {
+            status: 'ok',
+            objects: [
+                { canonical_name: 'target', tags: { static: false } },
+                { canonical_name: 'exit', tags: { static: false } },
+                { canonical_name: 'background', tags: { static: false } },
+            ],
+        },
+    },
+}, null, 2)}\n`);
+const emptyStaticDump = spawnSync(solverPath, [
+    solverCorpus,
+    '--dump-static-analysis',
+    '--static-analysis-hints', emptyStaticHintPath,
+    '--game', 'mazezam.txt',
+    '--quiet',
+    '--json',
+], {
+    cwd: rootDir,
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
+});
+assert.strictEqual(
+    emptyStaticDump.status,
+    0,
+    `empty dump-static-analysis exited ${emptyStaticDump.status}\nstdout:\n${emptyStaticDump.stdout}\nstderr:\n${emptyStaticDump.stderr}`
+);
+const emptyStaticParsed = JSON.parse(emptyStaticDump.stdout);
+const emptyStaticEntry = (emptyStaticParsed.games || []).find((entry) => entry.game === 'mazezam.txt');
+assert(emptyStaticEntry, 'mazezam.txt missing from empty --dump-static-analysis output');
+assert.strictEqual(emptyStaticEntry.source, 'js', 'expected a valid empty JS hint to be applied');
+assert.deepStrictEqual(emptyStaticEntry.static_objects, []);
+
 const noPlayerDistance = runSolver(solverCorpus, [
     '--game', 'butteater.txt',
     '--level', '1',

@@ -1,0 +1,51 @@
+title Static Analysis Stationary Movement Noop
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Ant1
+red
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+1 = Ant1
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Ant1
+
+=====
+RULES
+=====
+
+[ stationary Ant1 ] -> [ stationary Ant1 ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P1

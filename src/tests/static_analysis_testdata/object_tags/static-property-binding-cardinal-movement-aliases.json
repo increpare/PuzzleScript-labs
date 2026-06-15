@@ -1,0 +1,13 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Drain",
+      "static": false
+    },
+    {
+      "object": "Wall",
+      "static": false
+    }
+  ]
+}

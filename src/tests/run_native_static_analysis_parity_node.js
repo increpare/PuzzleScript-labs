@@ -9,13 +9,19 @@ const { spawnSync } = require('child_process');
 const { buildStaticAnalysisHintsManifest } = require('./run_native_solver_js_coverage');
 
 if (process.argv.length < 3) {
-    console.error('Usage: node src/tests/run_native_static_analysis_parity_node.js <puzzlescript_solver> [solver_tests_dir]');
+    console.error('Usage: node src/tests/run_native_static_analysis_parity_node.js <puzzlescript_solver> [corpus_dir] [--native|--native-subset]');
     process.exit(1);
 }
 
 const solverPath = path.resolve(process.argv[2]);
 const rootDir = path.resolve(__dirname, '..', '..');
-const corpusDir = path.resolve(process.argv[3] || path.join(rootDir, 'src/tests/solver_tests'));
+let corpusArg = process.argv[3];
+const requireNativeSubset = process.argv.includes('--native-subset');
+const useNativeAnalysis = requireNativeSubset || process.argv.includes('--native');
+if (corpusArg === '--native' || corpusArg === '--native-subset') {
+    corpusArg = null;
+}
+const corpusDir = path.resolve(corpusArg || path.join(rootDir, 'src/tests/solver_tests'));
 
 function sortedStaticObjects(entry) {
     return (entry.objects || [])
@@ -34,7 +40,7 @@ fs.writeFileSync(hintsPath, `${JSON.stringify(manifest, null, 2)}\n`);
 const result = spawnSync(solverPath, [
     corpusDir,
     '--dump-static-analysis',
-    '--static-analysis-hints', hintsPath,
+    ...(useNativeAnalysis ? [] : ['--static-analysis-hints', hintsPath]),
     '--quiet',
     '--json',
 ], {
@@ -62,10 +68,11 @@ for (const [game, entry] of Object.entries(manifest.games)) {
     if (entry.status !== 'ok') {
         continue;
     }
-    if (nativeEntry.source !== 'js') {
+    const expectedSource = useNativeAnalysis ? 'native' : 'js';
+    if (nativeEntry.source !== expectedSource) {
         failures.push({
             game,
-            expected_source: 'js',
+            expected_source: expectedSource,
             actual_source: nativeEntry.source || null,
         });
         continue;
@@ -73,15 +80,16 @@ for (const [game, entry] of Object.entries(manifest.games)) {
     const expected = sortedStaticObjects(entry);
     const actual = (nativeEntry.static_objects || []).map((name) => name.toLowerCase()).sort();
     comparedCount += 1;
-    try {
-        assert.deepStrictEqual(actual, expected);
-    } catch {
+    const jsOnly = expected.filter((name) => !actual.includes(name));
+    const nativeOnly = actual.filter((name) => !expected.includes(name));
+    if ((requireNativeSubset && nativeOnly.length > 0)
+        || (!requireNativeSubset && (jsOnly.length > 0 || nativeOnly.length > 0))) {
         failures.push({
             game,
             expected,
             actual,
-            js_only: expected.filter((name) => !actual.includes(name)),
-            native_only: actual.filter((name) => !expected.includes(name)),
+            js_only: jsOnly,
+            native_only: nativeOnly,
         });
     }
 }
@@ -99,4 +107,5 @@ assert(
     'expected most to be status:ok and actually compared'
 );
 
-console.log(`run_native_static_analysis_parity_node passed (compared ${comparedCount} games)`);
+const mode = requireNativeSubset ? 'native_subset' : (useNativeAnalysis ? 'native_exact' : 'js_exact');
+console.log(`run_native_static_analysis_parity_node passed mode=${mode} compared=${comparedCount}`);

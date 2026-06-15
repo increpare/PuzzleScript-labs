@@ -1,0 +1,57 @@
+title Static Analysis Same Property Swap Preserves Members
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+a
+red
+
+b
+blue
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+P1 = a or b
+P2 = a or b
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+a
+b
+
+=====
+RULES
+=====
+
+right [ p1 | p2 ] -> [ p2 | p1 ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P

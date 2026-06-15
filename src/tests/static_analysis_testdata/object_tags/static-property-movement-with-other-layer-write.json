@@ -1,0 +1,21 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Wall",
+      "static": false
+    },
+    {
+      "object": "Crate1",
+      "static": false
+    },
+    {
+      "object": "Crate2",
+      "static": false
+    },
+    {
+      "object": "Grass",
+      "static": false
+    }
+  ]
+}

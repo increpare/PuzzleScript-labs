@@ -1,0 +1,57 @@
+title Static Analysis Object Tag Static Preserved Property Movement Noop
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+green
+
+Crate
+orange
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+C = Crate
+Thing = Wall or Crate
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Wall, Crate
+Player
+
+=====
+RULES
+=====
+
+[ > Thing | Player ] -> [ > Thing | Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+CP

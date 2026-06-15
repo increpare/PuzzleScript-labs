@@ -438,14 +438,14 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
 
     std::unordered_map<std::string, std::vector<int32_t>> objectIdsByName;
     for (const puzzlescript::ObjectDef& objectDef : game.objectsById) {
-        if (objectDef.id < 0) {
+        if (objectDef.id < 0 || objectDef.layer < 0) {
             continue;
         }
         objectIdsByName[lowercase(objectDef.name)].push_back(objectDef.id);
     }
 
     hints.staticObjects.assign(game.wordCount, 0);
-    bool anyStatic = false;
+    hints.available = true;
     for (const puzzlescript::json::Value& entryValue : objectsValue->asArray()) {
         if (!entryValue.isObject()) {
             continue;
@@ -476,15 +476,9 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
             const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
             if (word < hints.staticObjects.size()) {
                 hints.staticObjects[word] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
-                anyStatic = true;
             }
         }
     }
-    // An empty result means this analysis did not match the game (e.g. a flat,
-    // single-game hints file applied to an unrelated game in a multi-game
-    // corpus). Treat it as unavailable so the native static-object analysis runs
-    // instead of being suppressed by a vacuous hint.
-    hints.available = anyStatic;
     return hints;
 }
 
@@ -2833,6 +2827,7 @@ void printStaticAnalysisDump(const Options& options) {
         std::string error;
         std::string source;
         std::vector<std::string> staticObjects;
+        std::vector<std::pair<std::string, std::vector<std::string>>> blockers;
     };
 
     std::vector<Entry> entries;
@@ -2846,7 +2841,7 @@ void printStaticAnalysisDump(const Options& options) {
         Entry entry;
         entry.game = gameName;
         entry.status = "ok";
-        entry.source = "fallback";
+        entry.source = "native";
 
         std::string source = readFile(gamePath);
         if (source.empty() || source.back() != '\n') {
@@ -2880,8 +2875,9 @@ void printStaticAnalysisDump(const Options& options) {
             puzzlescript::solver::HeuristicKind::Winconditions,
             nullptr,
             hintsPtr);
-        entry.source = context.staticAnalysisHintsUsed() ? "js" : "fallback";
+        entry.source = context.staticAnalysisHintsUsed() ? "js" : "native";
         entry.staticObjects = context.staticObjectNames();
+        entry.blockers = context.staticObjectBlockers();
         entries.push_back(std::move(entry));
     }
 
@@ -2896,6 +2892,18 @@ void printStaticAnalysisDump(const Options& options) {
         std::cout << ",\"source\":" << jsonString(entry.source)
                   << ",\"static_objects\":";
         printJsonStringArray(std::cout, entry.staticObjects);
+        std::cout << ",\"blockers\":[";
+        for (size_t blockerIndex = 0; blockerIndex < entry.blockers.size(); ++blockerIndex) {
+            const auto& blocker = entry.blockers[blockerIndex];
+            if (blockerIndex != 0) {
+                std::cout << ",";
+            }
+            std::cout << "{\"object\":" << jsonString(blocker.first)
+                      << ",\"reasons\":";
+            printJsonStringArray(std::cout, blocker.second);
+            std::cout << "}";
+        }
+        std::cout << "]";
         std::cout << "}" << (index + 1 == entries.size() ? "\n" : ",\n");
     }
     std::cout << "  ]\n}\n";

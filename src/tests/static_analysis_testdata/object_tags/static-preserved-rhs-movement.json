@@ -1,0 +1,17 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Input",
+      "static": true
+    },
+    {
+      "object": "Digit",
+      "static": false
+    },
+    {
+      "object": "Zero",
+      "static": false
+    }
+  ]
+}

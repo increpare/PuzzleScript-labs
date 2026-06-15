@@ -1,0 +1,55 @@
+title Static Analysis Random Same Layer Preserves RHS Object
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Robot
+red
+
+RobotSpawn
+yellow
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+R = Robot
+Q = RobotSpawn
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Robot, RobotSpawn
+
+=====
+RULES
+=====
+
+[ RobotSpawn no Robot ] -> [ RobotSpawn random Robot ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PQ

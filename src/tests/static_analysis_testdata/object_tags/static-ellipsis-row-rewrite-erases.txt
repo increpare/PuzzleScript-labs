@@ -1,0 +1,60 @@
+title Static Analysis Ellipsis Row Rewrite Erases
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Star
+yellow
+
+Player
+white
+
+Wall
+gray
+
+Asteroid
+brown
+
+=======
+LEGEND
+=======
+
+. = Background
+* = Star
+P = Player
+# = Wall
+A = Asteroid
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Star
+Player, Wall, Asteroid
+
+=====
+RULES
+=====
+
+[[ > Player | ... | Star ] -> [ | ... | Player ]
+
+=============
+WINCONDITIONS
+=============
+
+All Star on Asteroid
+
+======
+LEVELS
+======
+
+P.*A
