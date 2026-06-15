@@ -279,6 +279,7 @@ void addLayerOverwriteClearsToWrittenObjects(
             for (const auto& name : game.collisionLayers[static_cast<size_t>(layer)]) {
                 const int32_t objectId = canonicalObjectIdByName(game, name);
                 if (objectId >= 0
+                    && game.objectsById[static_cast<size_t>(objectId)].layer == layer
                     && std::find(layerObjectIds.begin(), layerObjectIds.end(), objectId)
                         == layerObjectIds.end()) {
                     layerObjectIds.push_back(objectId);
@@ -321,9 +322,11 @@ void addPossibleClearsToWrittenObjects(
     if (objectsClear == nullptr) {
         return;
     }
+    const MaskWord* objectsMissing = maskPtr(game, pattern.objectsMissing);
     for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
         if (!maskHasObject(game, objectsClear, objectId)
             || maskHasObject(game, objectsSet, objectId)
+            || maskHasObject(game, objectsMissing, objectId)
             || maskHasObject(game, rhsPropertyPreserveMask, objectId)) {
             continue;
         }
