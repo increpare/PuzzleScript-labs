@@ -798,11 +798,20 @@ const DIFFERENT_LAYER_MEMBERSHIP_GAME = MERGEABLE_GAME
 const differentLayerMembership = analyzeSource(DIFFERENT_LAYER_MEMBERSHIP_GAME, {
     sourcePath: 'different_layer_membership.txt',
 });
+assert.deepStrictEqual(
+    differentLayerMembership.ps_tagged.collision_layers[1].objects,
+    ['BodyH'],
+    'duplicate layer declarations should be filtered to the compiler canonical layer'
+);
+assert.deepStrictEqual(
+    differentLayerMembership.ps_tagged.collision_layers[2].objects,
+    ['BodyV', 'Goal'],
+    'duplicate layer declarations should keep the final compiler layer membership'
+);
 const differentLayerMembershipFact = differentLayerMembership.facts.mergeability.find(item =>
     item.subjects.objects.join(',') === 'BodyH,BodyV'
 );
-assert.strictEqual(differentLayerMembershipFact.status, 'rejected');
-assert.ok(differentLayerMembershipFact.blockers.includes('different_collision_layer_membership'));
+assert.strictEqual(differentLayerMembershipFact, undefined);
 
 const MOVEMENT_CLEAR_GAME = SIMPLE_GAME.replace('[ > Hero ] -> [ > Hero ]', '[ right Hero ] -> [ Hero ]');
 const movementClear = analyzeSource(MOVEMENT_CLEAR_GAME, { sourcePath: 'movement_clear.txt' });

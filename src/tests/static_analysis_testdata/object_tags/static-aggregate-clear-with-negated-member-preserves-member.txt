@@ -1,4 +1,4 @@
-title Static Analysis Aggregate Clear With Negated Member Marks Member Dynamic
+title Static Analysis Aggregate Clear With Negated Member Preserves Member
 
 ========
 OBJECTS

@@ -21,9 +21,9 @@
       "is_background": false,
       "level_presence": "all",
       "created_by_rules": false,
-      "destroyed_by_rules": true,
+      "destroyed_by_rules": false,
       "cosmetic": true,
-      "static": false,
+      "static": true,
       "temporary": false,
       "quantity_never_increases": true,
       "quantity_never_decreases": true

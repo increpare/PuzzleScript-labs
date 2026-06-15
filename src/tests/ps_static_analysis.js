@@ -106,8 +106,11 @@ function buildProperties(state) {
 }
 
 function buildCollisionLayers(state) {
+    const canonicalLayerByObject = new Map(Object.entries(state.objects || {})
+        .map(([name, object]) => [name, object.layer]));
     return Array.from(state.collisionLayers, (objects, id) => {
-        const canonicalObjects = uniqueInOrder(Array.from(objects));
+        const canonicalObjects = uniqueInOrder(Array.from(objects))
+            .filter(name => canonicalLayerByObject.get(name) === id);
         return {
             id,
             objects: canonicalObjects.map(name => displayName(state, name)),
@@ -1853,6 +1856,11 @@ function termObjects(term) {
     return term.expanded_objects || [];
 }
 
+function termObjectsExcept(term, excludedObjects) {
+    if (!excludedObjects || excludedObjects.size === 0) return termObjects(term);
+    return termObjects(term).filter(objectName => !excludedObjects.has(objectName));
+}
+
 function movementExpansions(movement) {
     if (movement === 'randomdir') return CARDINAL_MOVEMENTS.concat(['moving', 'randomdir']);
     if (CARDINAL_MOVEMENTS.includes(movement)) return [movement, 'moving'];
@@ -1863,26 +1871,32 @@ function ruleFlowReads(rule) {
     const objectPresent = new Set();
     const objectAbsent = new Set();
     const movement = [];
-    for (const term of rule.summary.lhs_terms) {
-        if (term.kind === 'present') {
-            addValues(objectPresent, termObjects(term));
-            if (term.movement !== null) {
-                for (const objectName of termObjects(term)) {
-                    movement.push({ object: objectName, movement: term.movement });
+    for (const row of rule.lhs) {
+        for (const cell of row) {
+            const absentInCell = absentObjectSet(cell);
+            for (const term of cell) {
+                if (term.kind === 'present') {
+                    const objects = termObjectsExcept(term, absentInCell);
+                    addValues(objectPresent, objects);
+                    if (term.movement !== null) {
+                        for (const objectName of objects) {
+                            movement.push({ object: objectName, movement: term.movement });
+                        }
+                    }
+                } else if (term.kind === 'absent') {
+                    addValues(objectAbsent, termObjects(term));
                 }
             }
-        } else if (term.kind === 'absent') {
-            addValues(objectAbsent, termObjects(term));
         }
     }
     return { object_present: objectPresent, object_absent: objectAbsent, movement };
 }
 
-function movementTermKeys(terms) {
+function movementTermKeys(terms, excludedObjects = null) {
     const keys = new Set();
     for (const term of terms) {
         if (term.kind !== 'present' || term.movement === null) continue;
-        for (const objectName of termObjects(term)) {
+        for (const objectName of termObjectsExcept(term, excludedObjects)) {
             keys.add(`${objectName}:${term.movement}`);
         }
     }
@@ -1901,11 +1915,11 @@ function possibleMovementStateKeys(objectName) {
     return POSITIVE_MOVEMENT_STATES.map(movement => `${objectName}:${movement}`);
 }
 
-function presentObjectSet(terms) {
+function presentObjectSet(terms, excludedObjects = null) {
     const objects = new Set();
     for (const term of terms) {
         if (term.kind === 'present' || term.kind === 'random_object') {
-            addValues(objects, termObjects(term));
+            addValues(objects, termObjectsExcept(term, excludedObjects));
         }
     }
     return objects;
@@ -1930,24 +1944,24 @@ function cellCouldContainObject(termObjectsInCell, objectName) {
         ).length === 0;
 }
 
-function sameObjectSet(left, right) {
-    const leftObjects = uniqueSorted(termObjects(left));
-    const rightObjects = uniqueSorted(termObjects(right));
+function sameObjectSet(left, right, excludedObjects = null) {
+    const leftObjects = uniqueSorted(termObjectsExcept(left, excludedObjects));
+    const rightObjects = uniqueSorted(termObjectsExcept(right, excludedObjects));
     return JSON.stringify(leftObjects) === JSON.stringify(rightObjects);
 }
 
-function rhsTermIsSameLhsProperty(lhsProperties, rhsTerm) {
+function rhsTermIsSameLhsProperty(lhsProperties, rhsTerm, excludedObjects = null) {
     return rhsTerm.kind === 'present'
         && rhsTerm.ref
         && rhsTerm.ref.type === 'object_set'
-        && lhsProperties.some(lhsTerm => sameObjectSet(lhsTerm, rhsTerm));
+        && lhsProperties.some(lhsTerm => sameObjectSet(lhsTerm, rhsTerm, excludedObjects));
 }
 
-function rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell) {
+function rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell, excludedObjects = null) {
     const layers = new Set();
     for (const rhsTerm of rhsCell) {
         if (rhsTerm.kind !== 'present' && rhsTerm.kind !== 'random_object') continue;
-        if (rhsTermIsSameLhsProperty(lhsProperties, rhsTerm)) continue;
+        if (rhsTermIsSameLhsProperty(lhsProperties, rhsTerm, excludedObjects)) continue;
         for (const objectName of termObjects(rhsTerm)) {
             layers.add(layerForObject(psTagged, objectName));
         }
@@ -1957,14 +1971,15 @@ function rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell) {
 
 function inferredRhsPropertyObjectSet(psTagged, lhsCell, rhsCell) {
     const objects = new Set();
+    const lhsAbsent = absentObjectSet(lhsCell);
     const lhsProperties = lhsCell.filter(term =>
         term.kind === 'present' && term.ref && term.ref.type === 'object_set'
     );
-    const overwrittenLayers = rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell);
+    const overwrittenLayers = rhsNonPreservingWriteLayers(psTagged, lhsProperties, rhsCell, lhsAbsent);
     for (const rhsTerm of rhsCell) {
         if (rhsTerm.kind !== 'present' || !rhsTerm.ref || rhsTerm.ref.type !== 'object_set') continue;
-        if (rhsTermIsSameLhsProperty(lhsProperties, rhsTerm)) {
-            for (const objectName of termObjects(rhsTerm)) {
+        if (rhsTermIsSameLhsProperty(lhsProperties, rhsTerm, lhsAbsent)) {
+            for (const objectName of termObjectsExcept(rhsTerm, lhsAbsent)) {
                 if (!overwrittenLayers.has(layerForObject(psTagged, objectName))) {
                     objects.add(objectName);
                 }
@@ -2019,26 +2034,39 @@ function ruleFlowWrites(psTagged, rule) {
             for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
                 const lhsCell = lhsRow[cellIndex] || [];
                 const rhsCell = rhsRow[cellIndex] || [];
-                const lhsRequiredPresent = requiredPresentObjectSet(lhsCell);
-                const lhsMatchedPresent = presentObjectSet(lhsCell);
                 const lhsAbsent = absentObjectSet(lhsCell);
+                const lhsRequiredPresent = requiredPresentObjectSet(lhsCell, lhsAbsent);
+                const lhsMatchedPresent = presentObjectSet(lhsCell, lhsAbsent);
                 const rhsInferredPresent = inferredRhsPropertyObjectSet(psTagged, lhsCell, rhsCell);
                 const rhsCellDefinitePresent = requiredPresentObjectSet(rhsCell);
+                const lhsProperties = lhsCell.filter(term =>
+                    term.kind === 'present' && term.ref && term.ref.type === 'object_set'
+                );
                 addValues(rhsCellDefinitePresent, rhsInferredPresent);
 
                 for (const term of rhsCell) {
                     if (term.kind === 'present' || term.kind === 'random_object') {
-                        const writtenObjects = termObjects(term).filter(objectName => {
+                        const termPreservesLhsProperty = term.kind === 'present'
+                            && term.ref
+                            && term.ref.type === 'object_set'
+                            && rhsTermIsSameLhsProperty(lhsProperties, term, lhsAbsent);
+                        const rhsTermObjects = termPreservesLhsProperty
+                            ? termObjectsExcept(term, lhsAbsent)
+                            : termObjects(term);
+                        const writtenObjects = rhsTermObjects.filter(objectName => {
                             if (term.kind === 'random_object') return true;
                             if (lhsRequiredPresent.has(objectName)) return false;
                             if (term.ref && term.ref.type === 'object_set' && rhsInferredPresent.has(objectName)) return false;
                             return true;
                         });
                         addValues(objectPresent, writtenObjects);
-                        if (term.kind === 'present' && term.ref && term.ref.type === 'object_set' && termObjects(term).every(objectName => rhsInferredPresent.has(objectName))) {
+                        if (term.kind === 'present'
+                            && term.ref
+                            && term.ref.type === 'object_set'
+                            && rhsTermObjects.every(objectName => rhsInferredPresent.has(objectName))) {
                             continue;
                         }
-                        for (const objectName of termObjects(term)) {
+                        for (const objectName of rhsTermObjects) {
                             for (const sibling of layerObjectsForObject(psTagged, objectName)) {
                                 if (sibling === objectName || rhsCellDefinitePresent.has(sibling)) continue;
                                 if (cellCouldContainObjectBefore(psTagged, lhsMatchedPresent, lhsAbsent, sibling)) {
@@ -2073,7 +2101,8 @@ function ruleFlowWrites(psTagged, rule) {
             for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
                 const lhsCell = lhsRow[cellIndex] || [];
                 const rhsCell = rhsRow[cellIndex] || [];
-                const lhsMovementKeys = movementTermKeys(lhsCell);
+                const lhsAbsent = absentObjectSet(lhsCell);
+                const lhsMovementKeys = movementTermKeys(lhsCell, lhsAbsent);
                 const rhsMovementKeys = movementTermKeys(rhsCell);
                 const rhsPresent = presentObjectSet(rhsCell);
                 const rhsRequiredPresent = requiredPresentObjectSet(rhsCell);
@@ -2102,11 +2131,11 @@ function ruleFlowWrites(psTagged, rule) {
     return { object_present: objectPresent, object_absent: objectAbsent, movement };
 }
 
-function requiredPresentObjectSet(terms) {
+function requiredPresentObjectSet(terms, excludedObjects = null) {
     const objects = new Set();
     for (const term of terms) {
         if (term.kind === 'present' && term.ref && term.ref.type === 'object') {
-            addValues(objects, termObjects(term));
+            addValues(objects, termObjectsExcept(term, excludedObjects));
         }
     }
     return objects;
@@ -2118,22 +2147,28 @@ function ruleFlowReadTags(rule) {
     const objectAbsencesMatched = new Set();
     const movementsRequired = new Set();
     const movementsMatched = new Set();
-    for (const term of rule.summary.lhs_terms) {
-        if (term.kind === 'present') {
-            addValues(objectsMatched, termObjects(term));
-            if (term.ref && term.ref.type === 'object') {
-                addValues(objectsRequired, termObjects(term));
-            }
-            if (term.movement !== null) {
-                for (const objectName of termObjects(term)) {
-                    movementsMatched.add(`${objectName}:${term.movement}`);
+    for (const row of rule.lhs) {
+        for (const cell of row) {
+            const absentInCell = absentObjectSet(cell);
+            for (const term of cell) {
+                if (term.kind === 'present') {
+                    const objects = termObjectsExcept(term, absentInCell);
+                    addValues(objectsMatched, objects);
                     if (term.ref && term.ref.type === 'object') {
-                        movementsRequired.add(`${objectName}:${term.movement}`);
+                        addValues(objectsRequired, objects);
                     }
+                    if (term.movement !== null) {
+                        for (const objectName of objects) {
+                            movementsMatched.add(`${objectName}:${term.movement}`);
+                            if (term.ref && term.ref.type === 'object') {
+                                movementsRequired.add(`${objectName}:${term.movement}`);
+                            }
+                        }
+                    }
+                } else if (term.kind === 'absent') {
+                    addValues(objectAbsencesMatched, termObjects(term));
                 }
             }
-        } else if (term.kind === 'absent') {
-            addValues(objectAbsencesMatched, termObjects(term));
         }
     }
     return {
@@ -2158,7 +2193,8 @@ function ruleMovementWriteTags(psTagged, rule) {
         for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
             const lhsCell = lhsRow[cellIndex] || [];
             const rhsCell = rhsRow[cellIndex] || [];
-            const lhsMovementKeys = movementTermKeys(lhsCell);
+            const lhsAbsent = absentObjectSet(lhsCell);
+            const lhsMovementKeys = movementTermKeys(lhsCell, lhsAbsent);
             const rhsMovementKeys = movementTermKeys(rhsCell);
             const rhsPresent = presentObjectSet(rhsCell);
             const rhsRequiredPresent = requiredPresentObjectSet(rhsCell);
@@ -2219,14 +2255,15 @@ function ruleMovementRemoveTags(rule) {
         for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
             const lhsCell = lhsRow[cellIndex] || [];
             const rhsCell = rhsRow[cellIndex] || [];
-            const lhsMovementKeys = movementTermKeys(lhsCell);
+            const lhsAbsent = absentObjectSet(lhsCell);
+            const lhsMovementKeys = movementTermKeys(lhsCell, lhsAbsent);
             const rhsMovementKeys = movementTermKeys(rhsCell);
             for (const key of lhsMovementKeys) {
                 if (!rhsMovementKeys.has(key)) {
                     movementsRemoved.add(key);
                 }
             }
-            const lhsPresent = presentObjectSet(lhsCell);
+            const lhsPresent = presentObjectSet(lhsCell, lhsAbsent);
             for (const objectName of lhsPresent) {
                 if (movementKeysContainObject(lhsMovementKeys, objectName)) continue;
                 const rhsMovements = rhsMovementsForObject(rhsMovementKeys, objectName);
