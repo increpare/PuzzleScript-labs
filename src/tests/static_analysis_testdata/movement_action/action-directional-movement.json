@@ -1,5 +1,6 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
   "actionInput": true,
   "actionUnnecessary": false,
   "actionUnnecessaryBlockers": ["action_may_create_directional_movement", "reads_action"],

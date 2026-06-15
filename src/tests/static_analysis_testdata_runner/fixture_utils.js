@@ -106,6 +106,9 @@ function fixtureFieldsAtPath(fixtureSchema, pathParts) {
 
 function assertFixtureFieldsDocumented(filePath, fixtureSchema, value, pathPrefix = '') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    if (pathPrefix === '') {
+        assert.ok(Object.prototype.hasOwnProperty.call(value, 'human_verified'), `${filePath}: missing human_verified`);
+    }
     const fields = pathPrefix === ''
         ? (fixtureSchema.fields || [])
         : fixtureFieldsAtPath(fixtureSchema, pathPrefix.split('.').map(part => part.replace(/\[\]$/, '')));
@@ -114,6 +117,9 @@ function assertFixtureFieldsDocumented(filePath, fixtureSchema, value, pathPrefi
         const pathLabel = pathPrefix ? `${pathPrefix}.${key}` : key;
         assert.ok(field, `${filePath}: undocumented fixture field ${pathLabel}`);
         const childValue = value[key];
+        if (pathLabel === 'human_verified') {
+            assert.strictEqual(typeof childValue, 'boolean', `${filePath}: human_verified must be boolean`);
+        }
         if (Array.isArray(childValue)) {
             for (const item of childValue) {
                 assertFixtureFieldsDocumented(filePath, fixtureSchema, item, `${pathLabel}[]`);

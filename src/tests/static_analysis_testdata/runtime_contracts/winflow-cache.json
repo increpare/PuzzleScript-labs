@@ -1,5 +1,6 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
   "inputs": ["TICK"],
   "expectedFinalLevel": "background player:0,background:1,background crate:2,background goal:3,background marker:4,\n",
   "expect": {

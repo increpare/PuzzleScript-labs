@@ -31,6 +31,11 @@ function findRuleTag(payload, text) {
     return payload.ruleTag.find(item => item.text === text);
 }
 
+function assertGeneratedFixtureIsUnverified(label, payload) {
+    assert.strictEqual(payload.human_verified, false, `${label}: generated fixture must set human_verified false`);
+    assert.ok(!Object.prototype.hasOwnProperty.call(payload, 'review'), `${label}: generated fixture must not set review`);
+}
+
 function writeJson(filePath, payload) {
     fs.writeFileSync(filePath, `${formatFixtureJson(payload)}\n`, 'utf8');
 }
@@ -180,6 +185,7 @@ P
         const jsonPath = path.join(objectTagsDir, 'roles-basic.json');
         const generated = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
         assert.strictEqual(generated.schema, FIXTURE_SCHEMA);
+        assertGeneratedFixtureIsUnverified('object_tags/roles-basic.json', generated);
         assert.strictEqual(generated.objectTag.length, 3);
         assert.strictEqual(findObjectTag(generated, 'Avatar').is_player, true);
         assert.strictEqual(findObjectTag(generated, 'Avatar').created_by_rules, false);
@@ -193,6 +199,7 @@ P
                 fixtureSchemaByName(claimDescriptions, 'object_tags'),
                 {
                     schema: FIXTURE_SCHEMA,
+                    human_verified: false,
                     note: 'undocumented fields should be rejected',
                     objectTag: [
                         {
@@ -206,10 +213,60 @@ P
         );
         assert.throws(
             () => assertFixtureFieldsDocumented(
+                'human-verified-missing-field.json',
+                fixtureSchemaByName(claimDescriptions, 'object_tags'),
+                {
+                    schema: FIXTURE_SCHEMA,
+                    objectTag: [
+                        {
+                            object: 'Avatar',
+                            is_player: true,
+                        },
+                    ],
+                }
+            ),
+            /missing human_verified/
+        );
+        assert.doesNotThrow(
+            () => assertFixtureFieldsDocumented(
+                'human-verified-field.json',
+                fixtureSchemaByName(claimDescriptions, 'object_tags'),
+                {
+                    schema: FIXTURE_SCHEMA,
+                    human_verified: true,
+                    objectTag: [
+                        {
+                            object: 'Avatar',
+                            is_player: true,
+                        },
+                    ],
+                }
+            )
+        );
+        assert.throws(
+            () => assertFixtureFieldsDocumented(
+                'human-verified-string-field.json',
+                fixtureSchemaByName(claimDescriptions, 'object_tags'),
+                {
+                    schema: FIXTURE_SCHEMA,
+                    human_verified: 'yes',
+                    objectTag: [
+                        {
+                            object: 'Avatar',
+                            is_player: true,
+                        },
+                    ],
+                }
+            ),
+            /human_verified must be boolean/
+        );
+        assert.throws(
+            () => assertFixtureFieldsDocumented(
                 'undocumented-nested-field.json',
                 fixtureSchemaByName(claimDescriptions, 'program_flow'),
                 {
                     schema: FIXTURE_SCHEMA,
+                    human_verified: false,
                     wakeEdges: [
                         {
                             from_line: 1,
@@ -231,6 +288,7 @@ P
                 fixtureSchemaByName(claimDescriptions, 'runtime_contracts'),
                 {
                     schema: FIXTURE_SCHEMA,
+                    human_verified: false,
                     inputs: ['TICK'],
                     expectedFinalLevel: 'background player:0,\n',
                     expect: {
@@ -244,6 +302,7 @@ P
 
         const curated = {
             schema: FIXTURE_SCHEMA,
+            human_verified: true,
             objectTag: [
                 {
                     object: 'Avatar',
@@ -272,6 +331,7 @@ P
         const runtimeJsonPath = path.join(runtimeContractsDir, 'runtime-contract-tmp.json');
         const generatedRuntimePayload = JSON.parse(fs.readFileSync(runtimeJsonPath, 'utf8'));
         assert.strictEqual(generatedRuntimePayload.schema, FIXTURE_SCHEMA);
+        assertGeneratedFixtureIsUnverified('runtime_contracts/runtime-contract-tmp.json', generatedRuntimePayload);
         assert.deepStrictEqual(generatedRuntimePayload.inputs, ['TICK']);
         assert.strictEqual(generatedRuntimePayload.expectedFinalLevel, 'background player:0,\n');
         assert.strictEqual(generatedRuntimePayload.expect.neverAppearsObjectCount, 0);
@@ -284,6 +344,7 @@ P
 
         const curatedRuntime = {
             schema: FIXTURE_SCHEMA,
+            human_verified: true,
             inputs: ['TICK'],
             expectedFinalLevel: 'background player:0,\n',
             expect: {
@@ -362,6 +423,7 @@ P#
         const ruleJsonPath = path.join(ruleTagsDir, 'tmp-rule.json');
         const generatedRulePayload = JSON.parse(fs.readFileSync(ruleJsonPath, 'utf8'));
         assert.strictEqual(generatedRulePayload.schema, FIXTURE_SCHEMA);
+        assertGeneratedFixtureIsUnverified('rule_tags/tmp-rule.json', generatedRulePayload);
         assert.strictEqual(generatedRulePayload.ruleTag.length, 1);
         assert.deepStrictEqual(findRuleTag(generatedRulePayload, '[ wall ] -> [ ]').tags.objects_required, ['Wall']);
         assert.deepStrictEqual(findRuleTag(generatedRulePayload, '[ wall ] -> [ ]').tags.objects_erased, ['Wall']);
@@ -397,6 +459,7 @@ P#
 
         const curatedRulePayload = {
             schema: FIXTURE_SCHEMA,
+            human_verified: true,
             ruleTag: [
                 {
                     line: 40,
@@ -486,6 +549,7 @@ P#M
         fs.writeFileSync(path.join(nonIdempotentDir, 'non-idempotent.txt'), nonIdempotentSource, 'utf8');
         writeJson(path.join(nonIdempotentDir, 'non-idempotent.json'), {
             schema: FIXTURE_SCHEMA,
+            human_verified: false,
             ruleTag: [
                 {
                     line: 45,

@@ -13,6 +13,12 @@
           "specification": "Must be ps-static-analysis-testdata-v1."
         },
         {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
           "name": "objectTag",
           "type": "array",
           "description": "Per-object tag expectation rows.",
@@ -102,6 +108,12 @@
           "type": "string",
           "description": "Fixture format version.",
           "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
         },
         {
           "name": "ruleTag",
@@ -208,6 +220,12 @@
           "specification": "Must be ps-static-analysis-testdata-v1."
         },
         {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
           "name": "wakeEdges",
           "type": "array",
           "description": "Rule-to-rule wake edges.",
@@ -285,6 +303,12 @@
           "specification": "Must be ps-static-analysis-testdata-v1."
         },
         {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
           "name": "wakeEdges",
           "type": "array",
           "description": "Rule-to-win-condition wake edges.",
@@ -337,6 +361,12 @@
           "type": "string",
           "description": "Fixture format version.",
           "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
         },
         {
           "name": "winConditionTag",
@@ -407,6 +437,12 @@
           "specification": "Must be ps-static-analysis-testdata-v1."
         },
         {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
           "name": "mergePairs",
           "type": "array",
           "description": "Mergeability expectations for object pairs.",
@@ -448,6 +484,12 @@
           "type": "string",
           "description": "Fixture format version.",
           "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
         },
         {
           "name": "rulegroupFlow",
@@ -585,6 +627,12 @@
           "specification": "Must be ps-static-analysis-testdata-v1."
         },
         {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
           "name": "actionInput",
           "type": "boolean",
           "description": "Projected ps_tagged.game.tags.has_action_input.",
@@ -638,6 +686,12 @@
           "type": "string",
           "description": "Fixture format version.",
           "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
         },
         {
           "name": "inputs",

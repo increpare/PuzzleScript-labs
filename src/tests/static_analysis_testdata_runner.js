@@ -149,6 +149,7 @@ function buildObjectTagExpectations(report, claimDescriptions) {
     }
     return {
         schema: FIXTURE_SCHEMA,
+        human_verified: false,
         objectTag,
     };
 }
@@ -240,6 +241,7 @@ function buildRuleTagExpectations(source, report, claimDescriptions) {
     assertRuleRecordsIdempotent(report.source.path, records);
     return {
         schema: FIXTURE_SCHEMA,
+        human_verified: false,
         ruleTag: records.map(record => ({
             line: record.line,
             text: record.text,
@@ -331,6 +333,7 @@ function buildProgramFlowExpectations(source, report) {
     againRules.sort(compareAgainRows);
     return {
         schema: FIXTURE_SCHEMA,
+        human_verified: false,
         wakeEdges,
         againRules,
     };
@@ -480,7 +483,7 @@ function buildWinflowExpectations(source, report) {
         };
     });
     wakeEdges.sort(compareEdgeRows);
-    return { schema: FIXTURE_SCHEMA, wakeEdges };
+    return { schema: FIXTURE_SCHEMA, human_verified: false, wakeEdges };
 }
 
 function validateWinflowExpectationShape(filePath, payload) {
@@ -559,6 +562,7 @@ function buildWinConditionTagExpectations(source, report, claimDescriptions) {
     const records = allWinConditionRecords(report, source);
     return {
         schema: FIXTURE_SCHEMA,
+        human_verified: false,
         winConditionTag: records.map(record => ({
             line: record.line,
             text: record.text,
@@ -647,7 +651,7 @@ function buildMergeabilityExpectations(report) {
         const cmp = a.objects[0].localeCompare(b.objects[0]);
         return cmp !== 0 ? cmp : (a.objects[1] || '').localeCompare(b.objects[1] || '');
     });
-    return { schema: FIXTURE_SCHEMA, mergePairs };
+    return { schema: FIXTURE_SCHEMA, human_verified: false, mergePairs };
 }
 
 function validateMergeabilityExpectationShape(filePath, payload) {
@@ -763,7 +767,7 @@ function buildRulegroupFlowExpectations(source, report) {
         };
     });
     rulegroupFlow.sort((a, b) => a.line - b.line);
-    return { schema: FIXTURE_SCHEMA, rulegroupFlow };
+    return { schema: FIXTURE_SCHEMA, human_verified: false, rulegroupFlow };
 }
 
 function validateRulegroupFlowExpectationShape(filePath, payload) {
@@ -883,6 +887,7 @@ function buildMovementActionExpectations(report) {
     const blockerRules = diagnostics.blocker_rules || [];
     return {
         schema: FIXTURE_SCHEMA,
+        human_verified: false,
         actionInput: report.ps_tagged && report.ps_tagged.game && report.ps_tagged.game.tags
             ? report.ps_tagged.game.tags.has_action_input !== false
             : true,
@@ -1025,6 +1030,7 @@ function buildRuntimeContractExpectations(source, testName, seedPayload = {}) {
         : seedPayload.expectedFinalLevel;
     const payload = {
         schema: FIXTURE_SCHEMA,
+        human_verified: false,
         inputs,
         expectedFinalLevel,
     };
