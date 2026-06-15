@@ -1,0 +1,11 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "actionInput": true,
+  "actionUnnecessary": false,
+  "actionUnnecessaryBlockers": ["action_may_create_directional_movement", "reads_action"],
+  "actionUnnecessaryHypotheses": ["direct_action_reader_requires_runtime_or_level_proof", "directional_movement_requires_reachability_proof"],
+  "actionUnnecessaryBlockerRuleIds": ["early_group_1_rule_0"],
+  "actionUnnecessaryChangedObjects": [],
+  "movements_reachable_from_action_input": ["Player:action", "Player:moving", "Player:right"]
+}

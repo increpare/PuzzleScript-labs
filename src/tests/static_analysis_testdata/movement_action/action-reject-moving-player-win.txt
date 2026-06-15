@@ -1,0 +1,47 @@
+title Static Analysis Action Reaches Moving Player Rules
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+=====
+RULES
+=====
+
+[ moving Player ] -> win
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P

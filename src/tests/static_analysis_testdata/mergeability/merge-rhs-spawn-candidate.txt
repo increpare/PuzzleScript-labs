@@ -1,0 +1,47 @@
+title Static Analysis Mergeability RHS Spawn Candidate
+========
+OBJECTS
+========
+Background
+black
+SpawnerH
+red
+SpawnerV
+blue
+BodyH
+white
+BodyV
+gray
+Goal
+yellow
+=======
+LEGEND
+=======
+. = Background
+h = SpawnerH
+v = SpawnerV
+g = Goal
+Body = BodyH or BodyV
+Player = SpawnerH
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+Background
+SpawnerH, SpawnerV
+BodyH, BodyV, Goal
+=====
+RULES
+=====
+[ SpawnerH ] -> [ SpawnerH BodyH ]
+[ SpawnerV ] -> [ SpawnerV BodyV ]
+=============
+WINCONDITIONS
+=============
+Some Body on Goal
+======
+LEVELS
+======
+hvg

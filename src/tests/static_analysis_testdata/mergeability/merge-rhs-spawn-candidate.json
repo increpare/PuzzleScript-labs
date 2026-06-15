@@ -1,0 +1,11 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "mergePairs": [
+    {
+      "objects": ["BodyH", "BodyV"],
+      "status": "candidate",
+      "blockers": []
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "actionInput": true,
+  "actionUnnecessary": false,
+  "actionUnnecessaryBlockers": ["semantic_command"],
+  "actionUnnecessaryHypotheses": ["no_direct_action_reader", "semantic_command_requires_runtime_or_goal_proof"],
+  "actionUnnecessaryBlockerRuleIds": ["early_group_0_rule_0"],
+  "actionUnnecessaryChangedObjects": [],
+  "movements_reachable_from_action_input": ["Player:action"]
+}

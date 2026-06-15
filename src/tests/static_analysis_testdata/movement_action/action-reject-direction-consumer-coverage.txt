@@ -1,0 +1,48 @@
+title Static Analysis Action Direction Coverage Honors Direction Consumers
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+
+=======
+SOUNDS
+=======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+=====
+RULES
+=====
+
+[ > Player ] -> [ Player ]
+[ action Player ] -> [ right Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.

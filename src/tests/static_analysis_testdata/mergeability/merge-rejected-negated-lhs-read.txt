@@ -1,0 +1,43 @@
+title Static Analysis Mergeability Rejected Negated LHS Read
+========
+OBJECTS
+========
+Background
+black
+BodyH
+white
+BodyV
+white
+Goal
+yellow
+=======
+LEGEND
+=======
+. = Background
+h = BodyH
+v = BodyV
+g = Goal
+Player = BodyH or BodyV
+Body = BodyH or BodyV
+=======
+SOUNDS
+=======
+================
+COLLISIONLAYERS
+================
+Background
+BodyH, BodyV, Goal
+=====
+RULES
+=====
+[ Body ] -> [ Body ]
+[ no BodyH ] -> [ no BodyH ]
+[ > Body ] -> [ > Body ]
+=============
+WINCONDITIONS
+=============
+Some Body on Goal
+======
+LEVELS
+======
+h.g
