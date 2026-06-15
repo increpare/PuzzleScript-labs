@@ -3028,6 +3028,10 @@ function rulesToMask(state) {
 
                 const layersUsed_r = [...layerTemplate];
                 const layersUsedRand_r = [...layerTemplate];
+                // Layers claimed by a concrete (new) object write this cell. A preserved
+                // property binding only overlaps when something is written on top of it,
+                // so the coupled-property branch errors only against these.
+                const newConcreteWriteLayers_r = new Set();
 
                 const rhsBitVectors = {
                     objectsClear: new BitVec(STRIDE_OBJ),
@@ -3088,6 +3092,41 @@ function rulesToMask(state) {
                     if (object_dir === 'no') {
                         rhsBitVectors.objectsClear.ior(objectMask);
                     } else if (isCoupledProperty) {
+                        // A preserved/bound property still OCCUPIES its member layers in the
+                        // output cell, so reserve them — otherwise a later concrete object on
+                        // one of those layers escapes the sequential can't-overlap check
+                        // below. But only flag an overlap when a CONCRETE (new) write already
+                        // claimed the layer: two preserved bindings can't overlap (they mirror
+                        // the LHS, which already forbids two same-layer objects per cell).
+                        // Upstream gets this by concretizing into per-member variants and
+                        // discarding the impossible ones; the coalescing path keeps the
+                        // binding, so it reserves explicitly and gates errors on concrete
+                        // writes. Order-independent.
+                        if (object_dir !== 'no') {
+                            const memberNames = state.propertiesDict[object_name] || [object_name];
+                            // Layers already flagged by THIS term, so two of its own members
+                            // sharing a layer (only one is chosen at runtime) aren't
+                            // double-reported.
+                            const reservedByThisTerm = new Set();
+                            for (const memberName of memberNames) {
+                                const memberObj = state.objects[memberName];
+                                if (!memberObj) continue;
+                                const memberLayer = memberObj.layer | 0;
+                                if (newConcreteWriteLayers_r.has(memberLayer) &&
+                                    !reservedByThisTerm.has(memberLayer) &&
+                                    !rule.hasOwnProperty('discard')) {
+                                    const existingname = layersUsed_r[memberLayer] || layersUsedRand_r[memberLayer];
+                                    logError(`Rule matches object types that can't overlap: "${memberName.toUpperCase()}" and "${existingname.toUpperCase()}".`, rule.lineNumber);
+                                }
+                                reservedByThisTerm.add(memberLayer);
+                                // Reserve the member layer (storing the concrete member, not
+                                // the property name) so a LATER concrete object on this layer
+                                // is caught by the concrete branch's check below.
+                                if (layersUsed_r[memberLayer] === null) {
+                                    layersUsed_r[memberLayer] = memberName;
+                                }
+                            }
+                        }
                         let localAggregateSink = null;
                         if (object_dir in directionaggregates && rule.aggregateSinks) {
                             const aggregateSinkList = rule.aggregateSinks.get(object_dir);
@@ -3125,18 +3164,9 @@ function rulesToMask(state) {
                                     const s = sinkList[si];
                                     if (s.row === rowIndex && s.cell === colIndex) {
                                         propertyInferredSink = true;
-                                        // Mark the property's destination layers as
-                                        // "in use" so layer-clearing logic doesn't
-                                        // wipe the captured alias.
-                                        const aliases = state.propertiesDict[object_name] || [];
-                                        for (const aliasName of aliases) {
-                                            const aliasObj = state.objects[aliasName];
-                                            if (!aliasObj) continue;
-                                            const aliasLayer = aliasObj.layer | 0;
-                                            if (layersUsed_r[aliasLayer] === null) {
-                                                layersUsed_r[aliasLayer] = object_name;
-                                            }
-                                        }
+                                        // Destination member layers are already reserved
+                                        // at the top of this coupled-property branch (so
+                                        // layer-clearing logic won't wipe the captured alias).
                                         // 0 → no movement update at sink.
                                         // 1 → stationary (clear layer, no set).
                                         // mask → concrete direction (clear + set bit).
@@ -3206,6 +3236,12 @@ function rulesToMask(state) {
                         }
 
                         layersUsed_r[layerIndex] = object_name;
+                        if (object) {
+                            // A concrete object is an unconditional new write; record it so a
+                            // preserved property binding on the same layer is flagged as
+                            // overlapping it.
+                            newConcreteWriteLayers_r.add(layerIndex);
+                        }
 
                         // Detect a preserved aggregate: this same aggregate-direction term
                         // appears on the LHS at the same (row, cell, attached-name). The

@@ -1,4 +1,4 @@
-title Property inferred overwrite action
+title Property overwrite valid
 ========
 OBJECTS
 ========
@@ -30,11 +30,11 @@ ObjA, ObjB
 =====
 RULES
 =====
-[ action Player ] [ Thing ] -> [ Player ] [ Thing ObjA ]
+[ Thing ] -> [ ObjA ]
 =============
 WINCONDITIONS
 =============
-Some ObjB
+Some Player
 ======
 LEVELS
 ======

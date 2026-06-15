@@ -1,0 +1,70 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "objectTag": [
+    {
+      "object": "Background",
+      "is_player": false,
+      "is_background": true,
+      "level_presence": "all",
+      "created_by_rules": false,
+      "destroyed_by_rules": false,
+      "cosmetic": true,
+      "static": true,
+      "temporary": false,
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true
+    },
+    {
+      "object": "Player",
+      "is_player": true,
+      "is_background": false,
+      "level_presence": "all",
+      "created_by_rules": false,
+      "destroyed_by_rules": false,
+      "cosmetic": false,
+      "static": false,
+      "temporary": false,
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true
+    },
+    {
+      "object": "ObjA",
+      "is_player": false,
+      "is_background": false,
+      "level_presence": "none",
+      "created_by_rules": false,
+      "destroyed_by_rules": false,
+      "cosmetic": true,
+      "static": true,
+      "temporary": false,
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true
+    },
+    {
+      "object": "ObjB",
+      "is_player": false,
+      "is_background": false,
+      "level_presence": "none",
+      "created_by_rules": false,
+      "destroyed_by_rules": false,
+      "cosmetic": true,
+      "static": true,
+      "temporary": false,
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true
+    },
+    {
+      "object": "ObjC",
+      "is_player": false,
+      "is_background": false,
+      "level_presence": "none",
+      "created_by_rules": false,
+      "destroyed_by_rules": false,
+      "cosmetic": true,
+      "static": true,
+      "temporary": false,
+      "quantity_never_increases": true,
+      "quantity_never_decreases": true
+    }
+  ]
+}

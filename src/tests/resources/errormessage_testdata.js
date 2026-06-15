@@ -1127,4 +1127,40 @@ var errormessage_testdata = [
         "fixes #1163 (Vertical tab can cause compiler to hang)",
         ["RULES\n¸\u000b\n",["line 1 : section \"RULES\" is out of order, must follow \"COLLISIONLAYERS\" (or it could be that the section \"COLLISIONLAYERS\"is just missing totally. You have to include all section headings, even if the section itself is empty).","line 2 : Name \"¸\", referred to in a rule, does not exist.","Error, didn't find any object called player, either in the objects section, or the legends section. There must be a player!","Error, didn't find any object called background, either in the objects section, or the legends section. There must be a background!","No collision layers defined. All objects need to be in collision layers."],5]
     ],
+    [
+        "Property inferred overwrite",
+        ["title Property inferred overwrite\ndebug\nverbose_logging\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\n========\nLEGEND\n========\n. = Background\nP = Player\nx = ObjA\ny = ObjB\nThing = ObjA or ObjB\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\n=====\nRULES\n=====\n[ Thing ] -> [ Thing ObjA ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nPy\n\n",["line 36 : Rule matches object types that can't overlap: \"OBJA\" and \"OBJA\"."],1]
+    ],
+    [
+        "coalesced property overlap: concrete then preserved property",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA ] -> [ ObjA TA ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",["line 44 : Rule matches object types that can't overlap: \"OBJA\" and \"OBJA\"."],1]
+    ],
+    [
+        "coalesced property overlap: preserved property then other-member concrete",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA ] -> [ TA ObjB ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",["line 44 : Rule matches object types that can't overlap: \"OBJB\" and \"OBJB\"."],1]
+    ],
+    [
+        "coalesced property overlap: directional preserved property plus concrete",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ left TA | ObjA ] -> [ left TA ObjA | ObjA ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nPA\n\n",["line 44 : Rule matches object types that can't overlap: \"OBJA\" and \"OBJA\"."],1]
+    ],
+    [
+        "coalesced properties: two preserved overlapping properties do not conflict",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA TC ] -> [ TA TC ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",[],0]
+    ],
+    [
+        "coalesced properties: two preserved overlapping properties reversed do not conflict",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA TC ] -> [ TC TA ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",[],0]
+    ],
+    [
+        "coalesced properties: single preserved property does not conflict",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA ] -> [ TA ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",[],0]
+    ],
+    [
+        "coalesced properties: two preserved disjoint properties do not conflict",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA TB ] -> [ TA TB ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",[],0]
+    ],
+    [
+        "coalesced properties: preserved property plus concrete on disjoint layer is fine",
+        ["title t\n========\nOBJECTS\n========\nBackground\nblack\nPlayer\nwhite\nObjA\nred\nObjB\nblue\nObjC\ngreen\nObjD\nyellow\n========\nLEGEND\n========\n. = Background\nP = Player\nA = ObjA\nB = ObjB\nC = ObjC\nD = ObjD\nTA = ObjA or ObjB\nTB = ObjC or ObjD\nTC = ObjA or ObjC\n========\nSOUNDS\n========\n================\nCOLLISIONLAYERS\n================\nBackground\nPlayer\nObjA\nObjB\nObjC\nObjD\n=====\nRULES\n=====\n[ TA ] -> [ TA ObjC ]\n=============\nWINCONDITIONS\n=============\nSome Player\n======\nLEVELS\n======\nP\n\n",[],0]
+    ],
 ];    
