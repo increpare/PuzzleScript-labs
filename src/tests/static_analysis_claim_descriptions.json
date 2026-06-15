@@ -690,8 +690,8 @@
         {
           "name": "human_verified",
           "type": "boolean",
-          "description": "Whether a human has reviewed this fixture's assertions.",
-          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+          "description": "Human certification that this fixture's expectations are correct.",
+          "specification": "true means that a human has manually checked the fixture source and expected assertions and certifies that the test is legitimate. false means the fixture is not certified and should be regarded with more suspicion if the assertion is causing issues. Generated fixtures must set this field to false. Automated tools and AI assistants must never set this field to true - only a human editing the fixture by hand may change it to true."
         },
         {
           "name": "inputs",

@@ -7,6 +7,7 @@ const path = require('path');
 
 const {
     ensureRuntimeLoaded,
+    projectStoredLevelState,
     replayFinalSerializedLevel,
     runSimulationWithStaticChecks,
     staticContractForSource,
@@ -494,6 +495,74 @@ assert.strictEqual(
     'winflow checks should keep unrelated winconditions cached across a rule application'
 );
 
+const winflowReadableMovementSource = [
+    'title Winflow Readable Movement Token',
+    '',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'White',
+    '',
+    'Goal',
+    'Green',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'G = Goal',
+    '',
+    '=======',
+    'SOUNDS',
+    '=======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Goal',
+    'Player',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'No Player On Goal',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'PG',
+].join('\n');
+const winflowReadableMovementExpected = replayFinalSerializedLevel(
+    'winflow readable movement token expected',
+    winflowReadableMovementSource,
+    ['R']
+);
+const winflowReadableMovement = runSimulationWithStaticChecks('winflow readable movement token', [
+    winflowReadableMovementSource,
+    ['R'],
+    winflowReadableMovementExpected,
+]);
+assert.strictEqual(
+    winflowReadableMovement.winflowCleanWinconditionChecks,
+    0,
+    'readable movement tokens should dirty all winflow cache entries like numeric movement tokens'
+);
+
 const mergeProjection = runRuntimeContractFixture('merge projection', 'merge-projection');
 
 assert.ok(
@@ -505,6 +574,228 @@ assert.strictEqual(
     1,
     'merge checks should compare final canonical snapshots after optimizer alias folding'
 );
+
+const cosmeticRuleLocalContractLines = [
+    'title Cosmetic Rule Local Contract',
+    '',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'White',
+    '',
+    'DustA',
+    'Red',
+    '',
+    'DustB',
+    'Blue',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    '',
+    '=======',
+    'SOUNDS',
+    '=======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player',
+    'DustA, DustB',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ Player ] -> [ Player ] again',
+    '[ DustA ] -> [ DustB ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'P',
+];
+const cosmeticRuleLocalContract = staticContractForSource(
+    cosmeticRuleLocalContractLines.join('\n'),
+    'cosmetic rule local contract'
+);
+const cosmeticOnlyRuleLine = cosmeticRuleLocalContractLines.indexOf('[ DustA ] -> [ DustB ]') + 1;
+assert.deepStrictEqual(
+    cosmeticRuleLocalContract.cosmeticRuleSourceLines,
+    [cosmeticOnlyRuleLine],
+    'runtime cosmetic-rule suppression should use the local contract oracle even when optimizer gating rejects the pass'
+);
+assert.deepStrictEqual(
+    cosmeticRuleLocalContract.optimizerCosmeticRuleSourceLines,
+    [],
+    'optimizer cosmetic-rule source lines should still reflect optimizer gating'
+);
+
+const probeRestoreSource = [
+    'title Probe Restore Seed',
+    '',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'White',
+    '',
+    'Goal',
+    'Green',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    'G = Goal',
+    '',
+    '=======',
+    'SOUNDS',
+    '=======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Goal',
+    'Player',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '[ ACTION Player ] -> [ RIGHT Player ]',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    'All Player On Goal',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'PG',
+    '',
+    'P.',
+].join('\n');
+const probeRestoreExpected = replayFinalSerializedLevel('probe restore seed expected', probeRestoreSource, [], {
+    randomSeed: 'probe-seed',
+});
+runSimulationWithStaticChecks('probe restore seed', [
+    probeRestoreSource,
+    [],
+    probeRestoreExpected,
+    0,
+    'probe-seed',
+    null,
+]);
+assert.strictEqual(
+    loadedLevelSeed,
+    'probe-seed',
+    'speculative action probes should restore loadedLevelSeed after loading another level'
+);
+
+assert.strictEqual(
+    typeof projectStoredLevelState,
+    'function',
+    'stored-level projection helper should be available to test diff-backed undo entries'
+);
+const storedProjectionSource = [
+    'title Stored Projection Diff',
+    '',
+    '========',
+    'OBJECTS',
+    '========',
+    '',
+    'Background',
+    'Black',
+    '',
+    'Player',
+    'White',
+    '',
+    'Dust',
+    'Red',
+    '',
+    '=======',
+    'LEGEND',
+    '=======',
+    '',
+    '. = Background',
+    'P = Player',
+    '',
+    '=======',
+    'SOUNDS',
+    '=======',
+    '',
+    '================',
+    'COLLISIONLAYERS',
+    '================',
+    '',
+    'Background',
+    'Player',
+    'Dust',
+    '',
+    '======',
+    'RULES',
+    '======',
+    '',
+    '==============',
+    'WINCONDITIONS',
+    '==============',
+    '',
+    '=======',
+    'LEVELS',
+    '=======',
+    '',
+    'P',
+].join('\n');
+levelString = storedProjectionSource;
+compile(['loadLevel', 0], storedProjectionSource, 'stored-projection-diff');
+const dustMask = new BitVec(STRIDE_OBJ);
+dustMask.ibitset(state.objects.dust.id);
+const largeBefore = {
+    dat: new Int32Array(1056 * STRIDE_OBJ),
+    width: 33,
+    height: 32,
+    oldflickscreendat: [],
+};
+const largeAfter = {
+    dat: new Int32Array(1056 * STRIDE_OBJ),
+    width: 33,
+    height: 32,
+    oldflickscreendat: [],
+};
+largeBefore.dat[5] = dustMask.data[0];
+const diffStoredLevel = consolidateDiff(largeBefore, largeAfter);
+assert.strictEqual(diffStoredLevel.diff, true, 'large stored level should use compact diff encoding');
+assert.strictEqual(diffStoredLevel.dat[0], 5, 'test fixture should place diff payload after a header with mask-overlapping bits');
+projectStoredLevelState(diffStoredLevel, dustMask);
+assert.strictEqual(diffStoredLevel.dat[0], 5, 'projecting a diff must not corrupt its start-index header');
+assert.strictEqual(diffStoredLevel.dat[2], 0, 'projecting a diff should clear projected objects from diff payload words');
 
 const randomFinalParitySkipSource = [
     'title Random Final Parity Skip',

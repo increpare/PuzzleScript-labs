@@ -223,27 +223,73 @@ function isCosmeticRuleContractEligible(rule, cosmeticObjects) {
         ));
 }
 
+function ruleReadObjectSet(rule) {
+    const out = new Set();
+    const tags = (rule && rule.tags) || {};
+    for (const objectName of tags.objects_required || []) out.add(objectName);
+    for (const objectName of tags.objects_matched || []) out.add(objectName);
+    for (const objectName of tags.object_absences_matched || []) out.add(objectName);
+    for (const key of tags.movements_required || []) out.add(movementKeyObjectName(key));
+    for (const key of tags.movements_matched || []) out.add(movementKeyObjectName(key));
+    return out;
+}
+
+function ruleMutatedObjectSet(rule) {
+    const out = new Set();
+    const tags = (rule && rule.tags) || {};
+    for (const objectName of tags.objects_written || []) out.add(objectName);
+    for (const objectName of tags.objects_erased || []) out.add(objectName);
+    for (const objectName of movementTouchedObjectSet(rule)) out.add(objectName);
+    return out;
+}
+
 function cosmeticRuleSourceLines(psTagged) {
     const byLine = new Map();
+    const allRules = [];
     const cosmeticObjects = new Set(((psTagged && psTagged.objects) || [])
         .filter(object => object.tags && object.tags.cosmetic === true)
         .map(object => object.name));
     for (const section of (psTagged && psTagged.rule_sections) || []) {
         for (const group of section.groups || []) {
             for (const rule of group.rules || []) {
+                allRules.push(rule);
                 if (!Number.isFinite(rule && rule.source_line)) continue;
                 if (!byLine.has(rule.source_line)) {
-                    byLine.set(rule.source_line, { total: 0, eligible: 0 });
+                    byLine.set(rule.source_line, { total: 0, eligible: 0, mutatedObjects: new Set() });
                 }
                 const entry = byLine.get(rule.source_line);
                 entry.total++;
-                if (isCosmeticRuleContractEligible(rule, cosmeticObjects)) entry.eligible++;
+                if (isCosmeticRuleContractEligible(rule, cosmeticObjects)) {
+                    entry.eligible++;
+                    for (const objectName of ruleMutatedObjectSet(rule)) {
+                        if (cosmeticObjects.has(objectName)) entry.mutatedObjects.add(objectName);
+                    }
+                }
             }
         }
     }
-    return Array.from(byLine.entries())
+    const candidateLines = new Set(Array.from(byLine.entries())
         .filter(([_line, entry]) => entry.total > 0 && entry.total === entry.eligible)
-        .map(([line]) => line)
+        .map(([line]) => line));
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const rule of allRules) {
+            if (candidateLines.has(rule && rule.source_line)) continue;
+            const readObjects = ruleReadObjectSet(rule);
+            const mutatedObjectsByKeptRule = ruleMutatedObjectSet(rule);
+            if (readObjects.size === 0 && mutatedObjectsByKeptRule.size === 0) continue;
+            for (const line of Array.from(candidateLines)) {
+                const mutatedObjects = byLine.get(line).mutatedObjects;
+                if ([...readObjects].some(objectName => mutatedObjects.has(objectName))
+                    || [...mutatedObjectsByKeptRule].some(objectName => mutatedObjects.has(objectName))) {
+                    candidateLines.delete(line);
+                    changed = true;
+                }
+            }
+        }
+    }
+    return Array.from(candidateLines)
         .sort((left, right) => left - right);
 }
 
@@ -300,6 +346,7 @@ function staticContractForSource(source, testName) {
     const winflowFact = ((report.facts && report.facts.winflow) || [])
         .find(fact => fact && fact.id === 'winflow' && fact.status === 'proved') || null;
     const referencedObjectNames = ruleReferencedObjectNames(report.ps_tagged);
+    const contractCosmeticRuleLines = cosmeticRuleSourceLines(report.ps_tagged);
     const optimizerCosmeticRuleLines = Array.from(optimizerCosmeticRuleSourceLines(report))
         .sort((left, right) => left - right);
     const quantityContracts = objects
@@ -333,7 +380,7 @@ function staticContractForSource(source, testName) {
         cosmeticObjectNames: objects
             .filter(object => object.tags && object.tags.cosmetic === true)
             .map(object => object.name),
-        cosmeticRuleSourceLines: optimizerCosmeticRuleLines,
+        cosmeticRuleSourceLines: contractCosmeticRuleLines,
         optimizerCosmeticRuleSourceLines: optimizerCosmeticRuleLines,
         inertCommandRuleSourceLines: inertCommandRuleSourceLines(report.ps_tagged),
         mergeCandidatePairs: mergeabilityCandidatePairs(report),
@@ -592,12 +639,70 @@ function clearMovementMaskFromRuntime(movementMask) {
 
 function projectStoredLevelState(storedLevel, objectMask) {
     if (!storedLevel || !storedLevel.dat) return;
-    for (let cellIndex = 0; cellIndex < storedLevel.width * storedLevel.height; cellIndex++) {
-        const offset = cellIndex * STRIDE_OBJ;
-        for (let word = 0; word < STRIDE_OBJ; word++) {
-            storedLevel.dat[offset + word] &= ~objectMask.data[word];
+    if (storedLevel.diff === true) {
+        let index = 0;
+        while (index + 1 < storedLevel.dat.length) {
+            const start = storedLevel.dat[index];
+            const length = storedLevel.dat[index + 1];
+            if (length === 0) break;
+            for (let wordOffset = 0; wordOffset < length; wordOffset++) {
+                const dataIndex = index + 2 + wordOffset;
+                if (dataIndex >= storedLevel.dat.length) break;
+                storedLevel.dat[dataIndex] &= ~objectMask.data[(start + wordOffset) % STRIDE_OBJ];
+            }
+            index += 2 + length;
         }
+        return;
     }
+    const wordCount = storedLevel.width * storedLevel.height * STRIDE_OBJ;
+    for (let wordIndex = 0; wordIndex < wordCount && wordIndex < storedLevel.dat.length; wordIndex++) {
+        storedLevel.dat[wordIndex] &= ~objectMask.data[wordIndex % STRIDE_OBJ];
+    }
+}
+
+function cloneStoredLevelState(storedLevel) {
+    if (!storedLevel || !storedLevel.dat) return storedLevel;
+    return {
+        ...storedLevel,
+        dat: new Int32Array(storedLevel.dat),
+        oldflickscreendat: Array.isArray(storedLevel.oldflickscreendat)
+            ? storedLevel.oldflickscreendat.concat([])
+            : [],
+    };
+}
+
+function cloneStoredLevelStateArray(storedLevels) {
+    return (storedLevels || []).map(cloneStoredLevelState);
+}
+
+function cloneCurlevelTarget(target) {
+    return target && target.dat ? cloneStoredLevelState(target) : target;
+}
+
+function cloneRestartTarget(target) {
+    return target && target.dat ? cloneStoredLevelState(target) : target;
+}
+
+function cloneScalarRuntimeFlags() {
+    return {
+        loadedLevelSeed,
+        titleMode,
+        titleSelection,
+        titleSelected,
+        quittingTitleScreen,
+        quittingMessageScreen,
+        runrulesonlevelstart_phase,
+    };
+}
+
+function restoreScalarRuntimeFlags(flags) {
+    loadedLevelSeed = flags.loadedLevelSeed;
+    titleMode = flags.titleMode;
+    titleSelection = flags.titleSelection;
+    titleSelected = flags.titleSelected;
+    quittingTitleScreen = flags.quittingTitleScreen;
+    quittingMessageScreen = flags.quittingMessageScreen;
+    runrulesonlevelstart_phase = flags.runrulesonlevelstart_phase;
 }
 
 function applyCosmeticProjection(objectNames, options = {}) {
@@ -1023,7 +1128,10 @@ function installWinflowRuleRecorder(staticAnalysisReport, appliedRuleIds) {
 }
 
 function inputMayMoveWithoutRule(inputToken) {
-    return Number.isInteger(inputToken) && inputToken >= 0 && inputToken <= 4;
+    const normalizedInputToken = normalizeRuntimeInputToken(inputToken);
+    return Number.isInteger(normalizedInputToken)
+        && normalizedInputToken >= 0
+        && normalizedInputToken <= 4;
 }
 
 function checkWinflowCache(testName, label, contract, cache, appliedRuleIds, options = {}) {
@@ -1169,11 +1277,11 @@ function captureRuntimeProbeState() {
         levelState: backupLevel(),
         commandQueue: (level.commandQueue || []).slice(),
         commandQueueSourceRules: (level.commandQueueSourceRules || []).slice(),
-        backups: backups.slice(),
-        restartTarget,
+        backups: cloneStoredLevelStateArray(backups),
+        restartTarget: cloneRestartTarget(restartTarget),
         RandomGen: cloneRandomGenerator(RandomGen),
         curlevel,
-        curlevelTarget,
+        curlevelTarget: cloneCurlevelTarget(curlevelTarget),
         hasUsedCheckpoint,
         levelEditorOpened,
         ignoreNotJustPressedAction,
@@ -1187,6 +1295,7 @@ function captureRuntimeProbeState() {
         messageselected,
         messagetext,
         titleScreen,
+        scalarFlags: cloneScalarRuntimeFlags(),
         soundHistory: soundHistory.slice(),
     };
 }
@@ -1195,11 +1304,11 @@ function restoreRuntimeProbeState(snapshot) {
     restoreLevel(snapshot.levelState);
     level.commandQueue = snapshot.commandQueue.slice();
     level.commandQueueSourceRules = snapshot.commandQueueSourceRules.slice();
-    backups = snapshot.backups;
-    restartTarget = snapshot.restartTarget;
+    backups = cloneStoredLevelStateArray(snapshot.backups);
+    restartTarget = cloneRestartTarget(snapshot.restartTarget);
     RandomGen = snapshot.RandomGen;
     curlevel = snapshot.curlevel;
-    curlevelTarget = snapshot.curlevelTarget;
+    curlevelTarget = cloneCurlevelTarget(snapshot.curlevelTarget);
     hasUsedCheckpoint = snapshot.hasUsedCheckpoint;
     levelEditorOpened = snapshot.levelEditorOpened;
     ignoreNotJustPressedAction = snapshot.ignoreNotJustPressedAction;
@@ -1213,6 +1322,7 @@ function restoreRuntimeProbeState(snapshot) {
     messageselected = snapshot.messageselected;
     messagetext = snapshot.messagetext;
     titleScreen = snapshot.titleScreen;
+    restoreScalarRuntimeFlags(snapshot.scalarFlags);
     soundHistory = snapshot.soundHistory;
 }
 
@@ -2193,6 +2303,7 @@ module.exports = {
     layerOccupancySnapshot,
     objectCountSnapshot,
     parseArgs,
+    projectStoredLevelState,
     replayFinalSerializedLevel,
     runAll,
     runSimulationWithStaticChecks,
