@@ -19,7 +19,7 @@
 //   --max-levels N     playable levels fuzzed per game      (default 2)
 //   --game SUBSTRING   only fuzz matching corpus games
 //   --start N --end N  corpus index window (for sharding)
-//   --strict           treat known limitations (see TODO.md) as failures
+//   --strict           treat known limitations (see STATIC_ANALYSIS_SOUNDNESS.md) as failures
 //
 // Inputs are generated adaptively: a sequence stops as soon as the game
 // leaves a playable board (message level / title / end of game), because
@@ -289,7 +289,7 @@ function main() {
     const result = runStaticContractsFuzzer(options);
 
     for (const failure of result.known) {
-        process.stderr.write(`fuzz_static_contracts: known limitation (${failure.kind}, see TODO.md): ${failure.label}\n`);
+        process.stderr.write(`fuzz_static_contracts: known limitation (${failure.kind}, see STATIC_ANALYSIS_SOUNDNESS.md): ${failure.label}\n`);
     }
     for (const failure of result.unexpected) {
         process.stderr.write(`fuzz_static_contracts: FAILURE ${failure.label} [${failure.phase}]\n  inputs: ${failure.inputs || 'n/a'}\n  ${failure.error}\n`);

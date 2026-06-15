@@ -255,6 +255,89 @@ globalThis.__ps_exports = {
         } finally {
             compiling = false;
         }
+    },
+    compileValidate: function(str, includeWinConditions) {
+        // Full-engine validation gate for the static analyzer. Mirrors
+        // loadFile's validation prefix through checkObjectsAreLayered,
+        // INCLUDING rulesToMask / collapseRules / generateRigidGroupList, which
+        // compileSemantic skips and which are where the real engine rejects
+        // several rule-level constructs (same-cell overlap, RANDOM on the LHS,
+        // ellipsis pairing, unlayered objects, etc.). rulesToMask is destructive
+        // (it overwrites rule cells with CellPattern objects), so this runs on
+        // its own throwaway state; only errorCount/errorStrings are returned.
+        // The non-validating tail of loadFile (sound/homepage/codegen) is
+        // intentionally skipped so this never needs graphics or audio shims.
+        resetParserErrorState();
+        compiling = true;
+        try {
+            const processor = new codeMirrorFn();
+            const state = processor.startState();
+            const lines = str.split('\\n');
+            for (let i = 0; i < lines.length; i++) {
+                const ss = new CodeMirror.StringStream(lines[i], 4);
+                do {
+                    processor.token(ss, state);
+                    if (errorCount > MAX_ERRORS) {
+                        return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+                    }
+                } while (ss.eol() === false);
+            }
+            if (!isObjectDefined(state, "player")) {
+                logErrorNoLine("Error, didn't find any object called player, either in the objects section, or the legends section. There must be a player!");
+            }
+            if (!isObjectDefined(state, "background")) {
+                logErrorNoLine("Error, didn't find any object called background, either in the objects section, or the legends section. There must be a background!");
+            }
+            if (state.collisionLayers.length === 0) {
+                logError("No collision layers defined.  All objects need to be in collision layers.");
+                return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+            }
+            generateExtraMembers(state);
+            generateMasks(state);
+            ensureNameMembershipSets(state);
+            levelsToArray(state);
+            rulesToArray(state);
+            if (state.invalid > 0) {
+                return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+            }
+            cacheAllRuleNames(state);
+            removeDuplicateRules(state);
+            pluginOptimizationHook(state);
+            rulesToMask(state);
+            arrangeRulesByGroupNumber(state);
+            collapseRules(state.rules, state);
+            collapseRules(state.lateRules, state);
+            generateRigidGroupList(state);
+            if (includeWinConditions !== false) {
+                processWinConditions(state);
+            }
+            checkObjectsAreLayered(state);
+            // loadFile's tail also validates loop bracket pairing, sound
+            // definitions, and homepage/metadata. Run those (in loadFile order)
+            // so the gate matches the engine exactly. addSpecializedFunctions is
+            // pure codegen (no diagnostics) and is intentionally skipped.
+            twiddleMetaData(state);
+            generateLoopPoints(state);
+            generateSoundData(state);
+            formatHomePage(state);
+            return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+        } catch (error) {
+            const message = error && error.message ? error.message : String(error);
+            if (message !== "Too many errors/warnings; aborting compilation.") {
+                throw error;
+            }
+            const errors = errorStrings.slice();
+            if (errors.indexOf(message) < 0) {
+                errors.push(message);
+            }
+            return {
+                errorCount: errorCount > 0 ? errorCount : errors.length,
+                errorStrings: errors,
+                thrown: true
+            };
+        } finally {
+            compiling = false;
+        }
     }
 };
 `;
@@ -1739,6 +1822,20 @@ function compileSemanticSource(source, options = {}) {
     return compiled;
 }
 
+// Full-engine validation gate: returns whether the real engine compile (which
+// the semantic pipeline approximates, but which additionally runs rulesToMask
+// and friends) accepts this source. Used by the static analyzer so it refuses
+// to analyze games the engine would reject at compile time.
+function validateCompileSource(source, options = {}) {
+    const includeWinConditions = options.includeWinConditions !== false;
+    const result = getRuntime().compileValidate(source, includeWinConditions);
+    return {
+        ok: !(result.errorCount > 0),
+        errorCount: result.errorCount || 0,
+        errorStrings: (result.errorStrings || []).slice(),
+    };
+}
+
 function stableStringify(value) {
     return JSON.stringify(value, null, 2);
 }
@@ -1774,4 +1871,5 @@ module.exports = {
     createCompiledLevelStateProjector,
     hashCanonical,
     stableStringify,
+    validateCompileSource,
 };

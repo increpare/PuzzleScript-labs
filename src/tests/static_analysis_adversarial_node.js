@@ -9,9 +9,9 @@
 // We assert the analyzer never over-claims, then run the runtime contract
 // checker on a targeted input sequence as a second opinion.
 //
-// The final fixture covers the resolved cosmetic/undo scope from TODO.md:
-// solver-only projection checks are deliberately skipped on undo-bearing
-// traces because solver search never issues undo.
+// The final fixture covers the resolved cosmetic/undo scope (see
+// STATIC_ANALYSIS_SOUNDNESS.md): solver-only projection checks are deliberately
+// skipped on undo-bearing traces because solver search never issues undo.
 
 const assert = require('assert');
 
@@ -207,7 +207,10 @@ function ok(condition, message) {
     const source = game({
         objects: 'Flag\nred\n',
         legend: 'F = Flag',
-        layers: 'Player, Wall, Flag',
+        // Flag needs its own collision layer: [ action Player Flag ] matches
+        // Player and Flag in one cell, which is impossible (rule can never
+        // match -> compile error) if they share a layer with Player.
+        layers: 'Player, Wall\nFlag',
         rules: [
             '[ > Player | Flag ] -> [ > Player | Flag ] sfx0',
             '[ action Player Flag ] -> [ action Player Flag ] checkpoint',

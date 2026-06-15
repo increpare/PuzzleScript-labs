@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { compileSemanticSource } = require('../canonicalize');
+const { compileSemanticSource, validateCompileSource } = require('../canonicalize');
 
 const SCHEMA = 'ps-static-analysis-v1';
 const INERT_COMMANDS = new Set(['message', 'sfx0', 'sfx1', 'sfx2', 'sfx3', 'sfx4', 'sfx5', 'sfx6', 'sfx7', 'sfx8', 'sfx9', 'sfx10']);
@@ -1935,15 +1935,6 @@ function absentObjectSet(terms) {
     return objects;
 }
 
-function cellCouldContainObject(termObjectsInCell, objectName) {
-    return termObjectsInCell.has(objectName)
-        || objectsInLayer(
-            { collision_layers: [], objects: [] },
-            [],
-            null
-        ).length === 0;
-}
-
 function sameObjectSet(left, right, excludedObjects = null) {
     const leftObjects = uniqueSorted(termObjectsExcept(left, excludedObjects));
     const rightObjects = uniqueSorted(termObjectsExcept(right, excludedObjects));
@@ -2546,6 +2537,36 @@ function analyzeSource(source, options = {}) {
             source: sourceInfo,
             status: 'compile_error',
             errors: compiled.errorStrings.slice(),
+            ps_tagged: null,
+            facts: emptyFacts(),
+            summary: { proved: 0, candidate: 0, rejected: 0 },
+        };
+    }
+
+    // The semantic compile stops before rulesToMask, so it accepts some games
+    // the real engine rejects (e.g. same-cell overlap writes). Run the
+    // full-engine validation gate and refuse to analyze anything the engine
+    // would reject at compile time. See STATIC_ANALYSIS_SOUNDNESS.md.
+    let validation;
+    try {
+        validation = validateCompileSource(source, { includeWinConditions: true });
+    } catch (error) {
+        return {
+            schema: SCHEMA,
+            source: sourceInfo,
+            status: 'compile_error',
+            errors: [error && error.message ? error.message : String(error)],
+            ps_tagged: null,
+            facts: emptyFacts(),
+            summary: { proved: 0, candidate: 0, rejected: 0 },
+        };
+    }
+    if (!validation.ok) {
+        return {
+            schema: SCHEMA,
+            source: sourceInfo,
+            status: 'compile_error',
+            errors: validation.errorStrings.slice(),
             ps_tagged: null,
             facts: emptyFacts(),
             summary: { proved: 0, candidate: 0, rejected: 0 },

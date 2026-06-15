@@ -770,7 +770,10 @@ assertQuantity(randomGoalTags, { never_increases: false, never_decreases: true }
 assert.strictEqual(randomHeroLayer.status, 'candidate', 'random same-layer writes should not prove layer static');
 assert.ok(randomHeroLayer.blockers.includes('layer_objects_may_change'));
 
-const SPAWN_GAME = SIMPLE_GAME.replace('[ > Hero ] -> [ > Hero ]', '[ Hero ] -> [ Hero Goal ]');
+// Goal shares Hero's collision layer, so spawn it into the adjacent cell:
+// [ Hero ] -> [ Hero Goal ] would write two same-layer objects into one cell,
+// which the engine rejects ("can't overlap") and the analyzer now refuses.
+const SPAWN_GAME = SIMPLE_GAME.replace('[ > Hero ] -> [ > Hero ]', '[ Hero | ] -> [ Hero | Goal ]');
 const spawnReport = analyzeSource(SPAWN_GAME, { sourcePath: 'spawn.txt' });
 const goalCount = spawnReport.facts.count_layer_invariants.find(item => item.id === 'object_Goal_count_preserved');
 const spawnedGoalTags = spawnReport.ps_tagged.objects.find(object => object.name === 'Goal').tags;
@@ -1249,6 +1252,29 @@ const TOO_MANY_ERRORS_GAME = SIMPLE_GAME.replace('P.G\n...', Array.from({ length
 const tooManyErrors = analyzeSource(TOO_MANY_ERRORS_GAME, { sourcePath: 'too_many_errors.txt' });
 assert.strictEqual(tooManyErrors.status, 'compile_error');
 assert.ok(tooManyErrors.errors.length > 1, 'too many errors should preserve partial diagnostics');
+
+// The semantic compile stops before rulesToMask, so it accepts some games the
+// real engine rejects (here: a rule writing two same-layer objects into one
+// cell). analyzeSource must run the full-engine validation gate and report
+// these as compile_error instead of analyzing them. See
+// STATIC_ANALYSIS_SOUNDNESS.md.
+const ENGINE_INVALID_OVERLAP_GAME = SIMPLE_GAME.replace('[ > Hero ] -> [ > Hero ]', '[ > Hero ] -> [ Hero Goal ]');
+const engineInvalidOverlap = analyzeSource(ENGINE_INVALID_OVERLAP_GAME, { sourcePath: 'engine_invalid_overlap.txt' });
+assert.strictEqual(
+    engineInvalidOverlap.status,
+    'compile_error',
+    'a same-cell overlap rule the engine rejects must not be analyzed'
+);
+assert.ok(
+    engineInvalidOverlap.errors.some(error => /can't overlap/i.test(error)),
+    'compile_error should surface the engine overlap diagnostic'
+);
+assert.strictEqual(engineInvalidOverlap.ps_tagged, null, 'rejected game should expose no ps_tagged');
+assert.deepStrictEqual(
+    engineInvalidOverlap.summary,
+    { proved: 0, candidate: 0, rejected: 0 },
+    'rejected game should derive no facts'
+);
 
 function assertProvedFactsHaveProof(reportToCheck) {
     for (const familyFacts of Object.values(reportToCheck.facts)) {

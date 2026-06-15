@@ -67,7 +67,8 @@
                 "name": "cosmetic",
                 "type": "boolean",
                 "description": "Object is not read by any win condition or non-cosmetic rule.",
-                "specification": "An object is cosmetic when it is not in any win condition's presence or absence read set, not read by any non-cosmetic rule, and does not share a collision layer with any non-cosmetic object. Player-role objects are always non-cosmetic. Background-role objects are cosmetic if unreferenced."
+                "specification": "An object is cosmetic when it is not in any win condition's presence or absence read set, not read by any non-cosmetic rule, and does not share a collision layer with any non-cosmetic object. Player-role objects are always non-cosmetic. Background-role objects are cosmetic if unreferenced. SCOPE: solver-only. Projecting a cosmetic object off the board is sound for forward solver search but NOT under undo, because a cosmetic-only turn still pushes an undo state, so suppressing it changes undo-stack depth and a later undo restores a different turn. Consumers that can issue undo (or otherwise observe undo-stack depth or turn-history length) must not rely on this tag. Random games are intentionally excluded from runtime cosmetic-projection verification because randomness already breaks end-state equality. See STATIC_ANALYSIS_SOUNDNESS.md.",
+                "scope": "solver-only; unsound under undo; not verified on random games (see STATIC_ANALYSIS_SOUNDNESS.md)"
               },
               {
                 "name": "static",
@@ -199,7 +200,8 @@
                     "name": "cosmetic",
                     "type": "boolean",
                     "description": "Rule has no reachable effect on win conditions or non-cosmetic rules.",
-                    "specification": "A rule is non-cosmetic if it carries a non-cosmetic semantic command, its object writes intersect a win-condition read, or its writes may enable any non-cosmetic rule."
+                    "specification": "A rule is non-cosmetic if it carries a non-cosmetic semantic command, its object writes intersect a win-condition read, or its writes may enable any non-cosmetic rule. SCOPE: solver-only. Suppressing a cosmetic rule is sound for forward solver search but NOT under undo, because a turn whose only effect is the cosmetic rule still pushes an undo state, so suppressing it changes undo-stack depth and a later undo restores a different turn. Consumers that can issue undo must not rely on this tag. Random games are intentionally excluded from runtime cosmetic-rule-suppression verification because randomness already breaks end-state equality. See STATIC_ANALYSIS_SOUNDNESS.md.",
+                    "scope": "solver-only; unsound under undo; not verified on random games (see STATIC_ANALYSIS_SOUNDNESS.md)"
                   }
                 ]
               }
