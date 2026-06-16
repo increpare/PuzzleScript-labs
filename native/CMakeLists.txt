@@ -427,6 +427,27 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(compiler_input_specialization_masks
+  tests/compiler_input_specialization_masks.cpp
+)
+
+target_link_libraries(compiler_input_specialization_masks
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_input_specialization_masks
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_input_specialization_masks
+  COMMAND compiler_input_specialization_masks
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 if(TARGET PkgConfig::SDL2)
   add_test(
     NAME puzzlescript_cpp_player_sdl_dummy_smoke
