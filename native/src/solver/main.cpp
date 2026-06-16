@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -54,6 +55,7 @@ enum class Strategy {
     WeightedAStar,
     WeightedAStarDeep,
     Greedy,
+    HdaWeightedAStar,
 };
 
 enum class TimingMode {
@@ -89,6 +91,8 @@ struct Options {
     int64_t timeoutMs = 5000;
     size_t progressEvery = 25;
     size_t jobs = 0;
+    size_t portfolioJobs = 1;
+    size_t hdaJobs = 1;
     Strategy strategy = Strategy::Portfolio;
     TimingMode timingMode = TimingMode::Summary;
     std::optional<std::string> gameFilter;
@@ -153,6 +157,43 @@ struct QueueEntryGreater {
         }
         return a.tie > b.tie;
     }
+};
+
+constexpr uint32_t kInvalidHdaShard = std::numeric_limits<uint32_t>::max();
+constexpr uint32_t kInvalidHdaNode = std::numeric_limits<uint32_t>::max();
+
+struct GlobalNodeId {
+    uint32_t shard = kInvalidHdaShard;
+    uint32_t index = kInvalidHdaNode;
+
+    bool valid() const {
+        return shard != kInvalidHdaShard && index != kInvalidHdaNode;
+    }
+};
+
+struct HdaNode {
+    PersistentLevelState state;
+    StateKey key;
+    GlobalNodeId parent;
+    ps_input input = PS_INPUT_UP;
+    uint32_t depth = 0;
+    int32_t heuristic = 0;
+};
+
+struct HdaMessage {
+    PersistentLevelState state;
+    StateKey key;
+    uint32_t depth = 0;
+    int32_t heuristic = 0;
+    GlobalNodeId parent;
+    ps_input input = PS_INPUT_UP;
+};
+
+struct HdaWinner {
+    bool found = false;
+    GlobalNodeId parent;
+    ps_input finalInput = PS_INPUT_UP;
+    uint32_t shard = 0;
 };
 
 struct Timing {
@@ -222,6 +263,13 @@ struct Result {
     bool portfolioHasAgain = false;
     bool portfolioRunRulesOnLevelStart = false;
     bool portfolioUsesRandom = false;
+    uint32_t portfolioJobs = 1;
+    bool portfolioParallel = false;
+    uint32_t hdaJobs = 1;
+    bool hdaParallel = false;
+    uint64_t hdaRemoteSends = 0;
+    uint64_t hdaInboxDrains = 0;
+    uint64_t hdaOwnerShardSolves = 0;
     uint64_t compactTurnAttempts = 0;
     uint64_t compactTurnHits = 0;
     uint64_t compactTurnNativeAttempts = 0;
@@ -564,6 +612,7 @@ std::string strategyName(Strategy strategy) {
         case Strategy::WeightedAStar: return "weighted-astar";
         case Strategy::WeightedAStarDeep: return "weighted-astar-deep";
         case Strategy::Greedy: return "greedy";
+        case Strategy::HdaWeightedAStar: return "hda-weighted-astar";
     }
     return "unknown";
 }
@@ -613,6 +662,9 @@ Strategy parseStrategy(const std::string& value) {
     }
     if (value == "greedy") {
         return Strategy::Greedy;
+    }
+    if (value == "hda-weighted-astar") {
+        return Strategy::HdaWeightedAStar;
     }
     throw std::runtime_error("Unsupported strategy: " + value);
 }
@@ -683,7 +735,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -699,6 +751,16 @@ Options parseArgs(int argc, char** argv) {
         if (arg == "--jobs" && index + 1 < argc) {
             const std::string value = argv[++index];
             options.jobs = value == "auto" ? autoJobCount() : std::max<size_t>(1, std::stoull(value));
+            continue;
+        }
+        if (arg == "--hda-jobs" && index + 1 < argc) {
+            const std::string value = argv[++index];
+            options.hdaJobs = value == "auto" ? autoJobCount() : std::max<size_t>(1, std::stoull(value));
+            continue;
+        }
+        if (arg == "--portfolio-jobs" && index + 1 < argc) {
+            const std::string value = argv[++index];
+            options.portfolioJobs = value == "auto" ? autoJobCount() : std::max<size_t>(1, std::stoull(value));
             continue;
         }
         if (arg == "--strategy" && index + 1 < argc) {
@@ -1142,6 +1204,66 @@ std::string portfolioProfileName(PortfolioProfile profile) {
     return "unknown";
 }
 
+struct PortfolioLaneConfig {
+    std::string name;
+    SearchMode mode = SearchMode::Bfs;
+    int32_t weight = 1;
+    uint32_t expansionSlice = 128;
+};
+
+std::vector<PortfolioLaneConfig> portfolioLaneConfigs(PortfolioProfile profile, int32_t astarWeight) {
+    std::vector<PortfolioLaneConfig> modes;
+    if (profile == PortfolioProfile::WeightedFirst) {
+        modes.push_back(PortfolioLaneConfig{"wa3", SearchMode::WeightedAStar, astarWeight + 1, 2048});
+        modes.push_back(PortfolioLaneConfig{"wa2", SearchMode::WeightedAStar, astarWeight, 20000});
+        modes.push_back(PortfolioLaneConfig{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 4096});
+        modes.push_back(PortfolioLaneConfig{"greedy", SearchMode::Greedy, astarWeight, 2048});
+        modes.push_back(PortfolioLaneConfig{"bfs", SearchMode::Bfs, astarWeight, 1024});
+    } else if (profile == PortfolioProfile::HighWeightFirst) {
+        modes.push_back(PortfolioLaneConfig{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 50000});
+        modes.push_back(PortfolioLaneConfig{"greedy", SearchMode::Greedy, astarWeight, 8192});
+        modes.push_back(PortfolioLaneConfig{"wa2", SearchMode::WeightedAStar, astarWeight, 4096});
+        modes.push_back(PortfolioLaneConfig{"bfs", SearchMode::Bfs, astarWeight, 1024});
+    } else if (profile == PortfolioProfile::BreadthFirst) {
+        modes.push_back(PortfolioLaneConfig{"bfs", SearchMode::Bfs, astarWeight, 35000});
+        modes.push_back(PortfolioLaneConfig{"wa2", SearchMode::WeightedAStar, astarWeight, 4096});
+        modes.push_back(PortfolioLaneConfig{"greedy", SearchMode::Greedy, astarWeight, 4096});
+        modes.push_back(PortfolioLaneConfig{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 2048});
+    } else {
+        modes.push_back(PortfolioLaneConfig{"wa2", SearchMode::WeightedAStar, astarWeight, 128});
+        modes.push_back(PortfolioLaneConfig{"bfs", SearchMode::Bfs, astarWeight, 128});
+        modes.push_back(PortfolioLaneConfig{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 128});
+        modes.push_back(PortfolioLaneConfig{"greedy", SearchMode::Greedy, astarWeight, 64});
+    }
+    return modes;
+}
+
+void applyPortfolioMetadata(
+    Result& result,
+    const PortfolioFeatures& features,
+    PortfolioProfile profile,
+    puzzlescript::solver::HeuristicKind heuristicKind
+) {
+    result.portfolioProfile = portfolioProfileName(profile);
+    result.portfolioRuleCount = features.ruleCount;
+    result.portfolioObjectMutatingRuleCount = features.objectMutatingRuleCount;
+    result.portfolioMovementOnlyRuleCount = features.movementOnlyRuleCount;
+    result.portfolioCommandRuleCount = features.commandRuleCount;
+    result.portfolioSemanticCommandRuleCount = features.semanticCommandRuleCount;
+    result.portfolioCommandOnlyRuleCount = features.commandOnlyRuleCount;
+    result.portfolioLateRuleCount = features.lateRuleCount;
+    result.portfolioAllWinConditionCount = features.allWinConditionCount;
+    result.portfolioSomeWinConditionCount = features.someWinConditionCount;
+    result.portfolioAllPlainWinCount = features.allPlainWinCount;
+    result.portfolioNoPlainWinCount = features.noPlainWinCount;
+    result.portfolioWinConditionCount = features.winConditionCount;
+    result.portfolioHasActionInput = features.hasActionInput;
+    result.portfolioHasAgain = features.hasAgain;
+    result.portfolioRunRulesOnLevelStart = features.runRulesOnLevelStart;
+    result.portfolioUsesRandom = features.usesRandom;
+    result.heuristic = std::string("mixed:") + puzzlescript::solver::heuristicName(heuristicKind) + ":" + result.portfolioProfile;
+}
+
 void prepareSolverChildFullStateFromParent(
     FullState& child,
     const FullState& parent,
@@ -1282,7 +1404,8 @@ CompactTurnTryResult trySpecializedCompactTurn(
 
 SolverEdgeStep stepSolverEdge(
     const std::shared_ptr<const Game>& game,
-    const Node& parentNode,
+    const PersistentLevelState& parentState,
+    uint32_t parentDepth,
     const FullState& parentSession,
     ps_input input,
     bool compactNodeStorage,
@@ -1315,7 +1438,7 @@ SolverEdgeStep stepSolverEdge(
                     ScopedTimer timer(result.timing.stepNs);
                     edge.compactTurn = trySpecializedCompactTurn(
                         *game,
-                        parentNode.state,
+                        parentState,
                         input,
                         LevelDimensions{width, height},
                         parentSession.meta.currentLevelIndex,
@@ -1355,7 +1478,7 @@ SolverEdgeStep stepSolverEdge(
                             ++result.compactTurnOracleFailures;
                             edge.oracleMismatch = true;
                             edge.oracleError = "compact turn oracle mismatch input=" + inputName(input)
-                                + " depth=" + std::to_string(parentNode.depth)
+                                + " depth=" + std::to_string(parentDepth)
                                 + " compact_step=" + stepResultSummary(edge.compactTurn.stepResult)
                                 + " interpreter_step=" + stepResultSummary(oracleStepResult)
                                 + persistentLevelStateDiffSummary(edge.compactTurn.state, oracleState);
@@ -1472,10 +1595,11 @@ public:
         rehash(capacityForExpected(expected));
     }
 
+    template <typename Nodes>
     std::optional<uint32_t> find(
         const StateKey& key,
         const PersistentLevelState& state,
-        const std::vector<Node>& nodes
+        const Nodes& nodes
     ) {
         if (entries.empty()) {
             return std::nullopt;
@@ -1489,12 +1613,13 @@ public:
         return entries[slot].depth;
     }
 
+    template <typename Nodes>
     bool insertOrAssignIfBetter(
         const StateKey& key,
         const PersistentLevelState& state,
         uint32_t depth,
         uint32_t nodeIndex,
-        const std::vector<Node>& nodes
+        const Nodes& nodes
     ) {
         ensureCapacityForInsert();
         size_t probes = 0;
@@ -1565,10 +1690,11 @@ private:
         }
     }
 
+    template <typename Nodes>
     size_t findSlot(
         const StateKey& key,
         const PersistentLevelState& state,
-        const std::vector<Node>& nodes,
+        const Nodes& nodes,
         size_t& probes
     ) {
         const size_t mask = entries.size() - 1;
@@ -1617,6 +1743,66 @@ private:
     size_t entryCount = 0;
 };
 
+struct HdaShard {
+    HdaShard(uint32_t shardId, bool exactStateKeys)
+        : shardId(shardId), bestDepth(timing, exactStateKeys) {}
+
+    uint32_t shardId = 0;
+    Timing timing;
+    FlatBestDepth bestDepth;
+    std::vector<HdaNode> nodes;
+    std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueEntryGreater> frontier;
+    std::mutex inboxMutex;
+    std::deque<HdaMessage> inbox;
+    std::atomic<uint64_t> inboxCount{0};
+    std::atomic<uint64_t> frontierCount{0};
+    uint64_t nextTie = 0;
+    uint64_t expanded = 0;
+    uint64_t generated = 0;
+    uint64_t duplicates = 0;
+    uint64_t maxFrontier = 0;
+    uint64_t compactTurnAttempts = 0;
+    uint64_t compactTurnHits = 0;
+    uint64_t compactTurnNativeAttempts = 0;
+    uint64_t compactTurnNativeHits = 0;
+    uint64_t compactTurnBridgeAttempts = 0;
+    uint64_t compactTurnBridgeHits = 0;
+    uint64_t compactTurnFallbacks = 0;
+    uint64_t compactTurnUnsupported = 0;
+    uint64_t compactTurnOracleChecks = 0;
+    uint64_t compactTurnOracleFailures = 0;
+    uint64_t remoteSends = 0;
+    uint64_t inboxDrains = 0;
+    uint64_t ownerShardSolves = 0;
+};
+
+size_t hdaOwnerFor(const StateKey& key, size_t shardCount) {
+    // Precondition: CLI dispatch and HDA callers pass shardCount > 0.
+    return StateKeyHash{}(key) % shardCount;
+}
+
+std::vector<std::string> reconstructHdaSolution(
+    const std::vector<std::unique_ptr<HdaShard>>& shards,
+    GlobalNodeId parent,
+    ps_input finalInput,
+    Timing& timing
+) {
+    ScopedTimer timer(timing.reconstructNs);
+    std::vector<std::string> reversed;
+    reversed.push_back(inputName(finalInput));
+    GlobalNodeId cursor = parent;
+    while (cursor.valid()) {
+        const HdaShard& shard = *shards.at(cursor.shard);
+        const HdaNode& node = shard.nodes.at(cursor.index);
+        if (node.parent.valid()) {
+            reversed.push_back(inputName(node.input));
+        }
+        cursor = node.parent;
+    }
+    std::reverse(reversed.begin(), reversed.end());
+    return reversed;
+}
+
 Result runSearch(
     const puzzlescript::LoadedGame& loadedGame,
     const std::string& gameName,
@@ -1631,7 +1817,8 @@ Result runSearch(
     bool compactTurnOracle,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
-    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    const std::atomic_bool* cancelRequested = nullptr
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -1723,15 +1910,24 @@ Result runSearch(
     uint64_t nextTie = 1;
     const auto inputs = solverInputsForGame(*game);
     const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
+    auto stopReason = [&]() -> const char* {
+        if (cancelRequested && cancelRequested->load(std::memory_order_relaxed)) {
+            return "cancelled";
+        }
+        if (Clock::now() >= deadline) {
+            return "timeout";
+        }
+        return nullptr;
+    };
 
     while (!frontier.empty()) {
-        bool timedOut = false;
+        const char* reason = nullptr;
         {
             ScopedTimer timer(result.timing.timeoutCheckNs);
-            timedOut = Clock::now() >= deadline;
+            reason = stopReason();
         }
-        if (timedOut) {
-            result.status = "timeout";
+        if (reason != nullptr) {
+            result.status = reason;
             break;
         }
 
@@ -1742,37 +1938,41 @@ Result runSearch(
             frontier.pop();
         }
 
-        const Node& parentNode = nodes[entry.nodeIndex];
-        std::optional<uint32_t> best;
+        const FullState* parentSessionPtr = nullptr;
+        uint32_t parentDepth = 0;
         {
-            ScopedTimer timer(result.timing.visitedLookupNs);
-            best = bestDepth.find(parentNode.key, parentNode.state, nodes);
-        }
-        if (best && *best < parentNode.depth) {
-            ++result.duplicates;
-            continue;
-        }
-
-        const FullState* parentSessionPtr = parentNode.session.get();
-        if (parentSessionPtr == nullptr) {
+            const Node& parentNode = nodes[entry.nodeIndex];
+            std::optional<uint32_t> best;
             {
-                ScopedTimer timer(result.timing.materializeNs);
-                materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
+                ScopedTimer timer(result.timing.visitedLookupNs);
+                best = bestDepth.find(parentNode.key, parentNode.state, nodes);
             }
-            parentSessionPtr = parentScratch.get();
+            if (best && *best < parentNode.depth) {
+                ++result.duplicates;
+                continue;
+            }
+
+            parentSessionPtr = parentNode.session.get();
+            if (parentSessionPtr == nullptr) {
+                {
+                    ScopedTimer timer(result.timing.materializeNs);
+                    materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
+                }
+                parentSessionPtr = parentScratch.get();
+            }
+            parentDepth = parentNode.depth;
         }
         const FullState& parentSession = *parentSessionPtr;
-        const uint32_t parentDepth = parentNode.depth;
         ++result.expanded;
 
         for (const ps_input input : inputs) {
-            timedOut = false;
+            reason = nullptr;
             {
                 ScopedTimer timer(result.timing.timeoutCheckNs);
-                timedOut = Clock::now() >= deadline;
+                reason = stopReason();
             }
-            if (timedOut) {
-                result.status = "timeout";
+            if (reason != nullptr) {
+                result.status = reason;
                 break;
             }
 
@@ -1780,7 +1980,8 @@ Result runSearch(
                 game,
                 // Re-fetch by index: a previous input's push_back below may have
                 // reallocated `nodes`, which would dangle a held parentNode ref.
-                nodes[entry.nodeIndex],
+                nodes[entry.nodeIndex].state,
+                nodes[entry.nodeIndex].depth,
                 parentSession,
                 input,
                 compactNodeStorage,
@@ -1916,24 +2117,7 @@ Result runAdaptivePortfolioSearch(
     result.strategy = "portfolio";
     const PortfolioFeatures portfolioFeatures = analyzePortfolioFeatures(*game);
     const PortfolioProfile portfolioProfile = choosePortfolioProfile(portfolioFeatures);
-    result.portfolioProfile = portfolioProfileName(portfolioProfile);
-    result.portfolioRuleCount = portfolioFeatures.ruleCount;
-    result.portfolioObjectMutatingRuleCount = portfolioFeatures.objectMutatingRuleCount;
-    result.portfolioMovementOnlyRuleCount = portfolioFeatures.movementOnlyRuleCount;
-    result.portfolioCommandRuleCount = portfolioFeatures.commandRuleCount;
-    result.portfolioSemanticCommandRuleCount = portfolioFeatures.semanticCommandRuleCount;
-    result.portfolioCommandOnlyRuleCount = portfolioFeatures.commandOnlyRuleCount;
-    result.portfolioLateRuleCount = portfolioFeatures.lateRuleCount;
-    result.portfolioAllWinConditionCount = portfolioFeatures.allWinConditionCount;
-    result.portfolioSomeWinConditionCount = portfolioFeatures.someWinConditionCount;
-    result.portfolioAllPlainWinCount = portfolioFeatures.allPlainWinCount;
-    result.portfolioNoPlainWinCount = portfolioFeatures.noPlainWinCount;
-    result.portfolioWinConditionCount = portfolioFeatures.winConditionCount;
-    result.portfolioHasActionInput = portfolioFeatures.hasActionInput;
-    result.portfolioHasAgain = portfolioFeatures.hasAgain;
-    result.portfolioRunRulesOnLevelStart = portfolioFeatures.runRulesOnLevelStart;
-    result.portfolioUsesRandom = portfolioFeatures.usesRandom;
-    result.heuristic = std::string("mixed:") + puzzlescript::solver::heuristicName(heuristicKind) + ":" + result.portfolioProfile;
+    applyPortfolioMetadata(result, portfolioFeatures, portfolioProfile, heuristicKind);
     result.timeoutMs = timeoutMs;
     result.workerId = workerId;
     result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
@@ -2012,27 +2196,8 @@ Result runAdaptivePortfolioSearch(
     };
 
     std::vector<PortfolioMode> modes;
-    if (portfolioProfile == PortfolioProfile::WeightedFirst) {
-        modes.push_back(PortfolioMode{"wa3", SearchMode::WeightedAStar, astarWeight + 1, 2048, {}});
-        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 20000, {}});
-        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 4096, {}});
-        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 2048, {}});
-        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 1024, {}});
-    } else if (portfolioProfile == PortfolioProfile::HighWeightFirst) {
-        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 50000, {}});
-        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 8192, {}});
-        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 4096, {}});
-        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 1024, {}});
-    } else if (portfolioProfile == PortfolioProfile::BreadthFirst) {
-        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 35000, {}});
-        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 4096, {}});
-        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 4096, {}});
-        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 2048, {}});
-    } else {
-        modes.push_back(PortfolioMode{"wa2", SearchMode::WeightedAStar, astarWeight, 128, {}});
-        modes.push_back(PortfolioMode{"bfs", SearchMode::Bfs, astarWeight, 128, {}});
-        modes.push_back(PortfolioMode{"wa8", SearchMode::WeightedAStar, astarWeight * 4, 128, {}});
-        modes.push_back(PortfolioMode{"greedy", SearchMode::Greedy, astarWeight, 64, {}});
+    for (const PortfolioLaneConfig& config : portfolioLaneConfigs(portfolioProfile, astarWeight)) {
+        modes.push_back(PortfolioMode{config.name, config.mode, config.weight, config.expansionSlice, {}});
     }
 
     uint64_t nextTie = 0;
@@ -2134,36 +2299,40 @@ Result runAdaptivePortfolioSearch(
             continue;
         }
 
-        const Node& parentNode = nodes[entry.nodeIndex];
-        if (lockedToWeightedAStar
-            && bfsModeIndex
-            && modeIndex == *bfsModeIndex
-            && parentNode.depth >= kLockedBfsMaxDepth) {
-            continue;
-        }
-        std::optional<uint32_t> best;
+        const FullState* parentSessionPtr = nullptr;
+        uint32_t parentDepth = 0;
         {
-            ScopedTimer timer(result.timing.visitedLookupNs);
-            best = bestDepth.find(parentNode.key, parentNode.state, nodes);
-        }
-        if (best && *best < parentNode.depth) {
-            ++result.duplicates;
-            continue;
-        }
-
-        expanded[entry.nodeIndex] = 1;
-        --sliceExpansionsLeft;
-
-        const FullState* parentSessionPtr = parentNode.session.get();
-        if (parentSessionPtr == nullptr) {
-            {
-                ScopedTimer timer(result.timing.materializeNs);
-                materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
+            const Node& parentNode = nodes[entry.nodeIndex];
+            if (lockedToWeightedAStar
+                && bfsModeIndex
+                && modeIndex == *bfsModeIndex
+                && parentNode.depth >= kLockedBfsMaxDepth) {
+                continue;
             }
-            parentSessionPtr = parentScratch.get();
+            std::optional<uint32_t> best;
+            {
+                ScopedTimer timer(result.timing.visitedLookupNs);
+                best = bestDepth.find(parentNode.key, parentNode.state, nodes);
+            }
+            if (best && *best < parentNode.depth) {
+                ++result.duplicates;
+                continue;
+            }
+
+            expanded[entry.nodeIndex] = 1;
+            --sliceExpansionsLeft;
+
+            parentSessionPtr = parentNode.session.get();
+            if (parentSessionPtr == nullptr) {
+                {
+                    ScopedTimer timer(result.timing.materializeNs);
+                    materializePersistentLevelStateIntoFullState(parentNode.state, *compactSessionBase, *parentScratch);
+                }
+                parentSessionPtr = parentScratch.get();
+            }
+            parentDepth = parentNode.depth;
         }
         const FullState& parentSession = *parentSessionPtr;
-        const uint32_t parentDepth = parentNode.depth;
         ++result.expanded;
         if (allowWeightedAStarLock && !lockedToWeightedAStar && result.expanded >= 128 && result.generated > 0) {
             const double stepMsPerGenerated = ms(result.timing.stepNs) / static_cast<double>(result.generated);
@@ -2191,7 +2360,8 @@ Result runAdaptivePortfolioSearch(
                 game,
                 // Re-fetch by index: a previous input's push_back below may have
                 // reallocated `nodes`, which would dangle a held parentNode ref.
-                nodes[entry.nodeIndex],
+                nodes[entry.nodeIndex].state,
+                nodes[entry.nodeIndex].depth,
                 parentSession,
                 input,
                 compactNodeStorage,
@@ -2292,6 +2462,668 @@ Result runAdaptivePortfolioSearch(
     return result;
 }
 
+void resetSearchWork(Result& result, int64_t compileNs) {
+    result.expanded = 0;
+    result.generated = 0;
+    result.uniqueStates = 0;
+    result.duplicates = 0;
+    result.maxFrontier = 0;
+    result.hdaRemoteSends = 0;
+    result.hdaInboxDrains = 0;
+    result.hdaOwnerShardSolves = 0;
+    result.compactTurnAttempts = 0;
+    result.compactTurnHits = 0;
+    result.compactTurnNativeAttempts = 0;
+    result.compactTurnNativeHits = 0;
+    result.compactTurnBridgeAttempts = 0;
+    result.compactTurnBridgeHits = 0;
+    result.compactTurnFallbacks = 0;
+    result.compactTurnUnsupported = 0;
+    result.compactTurnOracleChecks = 0;
+    result.compactTurnOracleFailures = 0;
+    result.timing = Timing{};
+    result.timing.compileNs = compileNs;
+}
+
+void addTiming(Timing& target, const Timing& source) {
+    target.loadNs += source.loadNs;
+    target.cloneNs += source.cloneNs;
+    target.materializeNs += source.materializeNs;
+    target.stepNs += source.stepNs;
+    target.hashNs += source.hashNs;
+    target.stateCaptureNs += source.stateCaptureNs;
+    target.queueNs += source.queueNs;
+    target.frontierPopNs += source.frontierPopNs;
+    target.frontierPushNs += source.frontierPushNs;
+    target.visitedLookupNs += source.visitedLookupNs;
+    target.visitedInsertNs += source.visitedInsertNs;
+    target.nodeStoreNs += source.nodeStoreNs;
+    target.heuristicNs += source.heuristicNs;
+    target.solvedCheckNs += source.solvedCheckNs;
+    target.timeoutCheckNs += source.timeoutCheckNs;
+    target.reconstructNs += source.reconstructNs;
+    target.visitedLookupProbes += source.visitedLookupProbes;
+    target.visitedInsertProbes += source.visitedInsertProbes;
+    target.visitedGrows += source.visitedGrows;
+    target.visitedCapacity = std::max(target.visitedCapacity, source.visitedCapacity);
+    target.visitedMaxProbe = std::max(target.visitedMaxProbe, source.visitedMaxProbe);
+    target.visitedKeyCollisions += source.visitedKeyCollisions;
+    target.compactStateBytes += source.compactStateBytes;
+    target.compactMaxStateBytes = std::max(target.compactMaxStateBytes, source.compactMaxStateBytes);
+}
+
+void addSearchWork(Result& target, const Result& source) {
+    target.expanded += source.expanded;
+    target.generated += source.generated;
+    target.uniqueStates += source.uniqueStates;
+    target.duplicates += source.duplicates;
+    target.maxFrontier += source.maxFrontier;
+    target.compactTurnAttempts += source.compactTurnAttempts;
+    target.compactTurnHits += source.compactTurnHits;
+    target.compactTurnNativeAttempts += source.compactTurnNativeAttempts;
+    target.compactTurnNativeHits += source.compactTurnNativeHits;
+    target.compactTurnBridgeAttempts += source.compactTurnBridgeAttempts;
+    target.compactTurnBridgeHits += source.compactTurnBridgeHits;
+    target.compactTurnFallbacks += source.compactTurnFallbacks;
+    target.compactTurnUnsupported += source.compactTurnUnsupported;
+    target.compactTurnOracleChecks += source.compactTurnOracleChecks;
+    target.compactTurnOracleFailures += source.compactTurnOracleFailures;
+    if (!source.staticAnalysisHints.empty()) {
+        target.staticAnalysisHints = source.staticAnalysisHints;
+    }
+    addTiming(target.timing, source.timing);
+}
+
+void addHdaShardWork(Result& target, const HdaShard& shard) {
+    target.expanded += shard.expanded;
+    target.generated += shard.generated;
+    target.uniqueStates += shard.bestDepth.size();
+    target.duplicates += shard.duplicates;
+    target.maxFrontier += shard.maxFrontier;
+    target.compactTurnAttempts += shard.compactTurnAttempts;
+    target.compactTurnHits += shard.compactTurnHits;
+    target.compactTurnNativeAttempts += shard.compactTurnNativeAttempts;
+    target.compactTurnNativeHits += shard.compactTurnNativeHits;
+    target.compactTurnBridgeAttempts += shard.compactTurnBridgeAttempts;
+    target.compactTurnBridgeHits += shard.compactTurnBridgeHits;
+    target.compactTurnFallbacks += shard.compactTurnFallbacks;
+    target.compactTurnUnsupported += shard.compactTurnUnsupported;
+    target.compactTurnOracleChecks += shard.compactTurnOracleChecks;
+    target.compactTurnOracleFailures += shard.compactTurnOracleFailures;
+    target.hdaRemoteSends += shard.remoteSends;
+    target.hdaInboxDrains += shard.inboxDrains;
+    target.hdaOwnerShardSolves += shard.ownerShardSolves;
+    addTiming(target.timing, shard.timing);
+}
+
+void enqueueHdaMessage(
+    HdaShard& target,
+    HdaMessage message,
+    std::atomic<uint64_t>& outstandingWork
+) {
+    outstandingWork.fetch_add(1, std::memory_order_acq_rel);
+    {
+        std::lock_guard<std::mutex> lock(target.inboxMutex);
+        target.inbox.push_back(std::move(message));
+        target.inboxCount.fetch_add(1, std::memory_order_release);
+    }
+}
+
+bool insertHdaNode(
+    HdaShard& shard,
+    HdaMessage message,
+    bool exactStateKeys,
+    int32_t astarWeight
+) {
+    uint32_t nodeIndex = static_cast<uint32_t>(shard.nodes.size());
+    bool shouldStore = false;
+    {
+        ScopedTimer timer(shard.timing.visitedInsertNs);
+        shouldStore = shard.bestDepth.insertOrAssignIfBetter(
+            message.key,
+            message.state,
+            message.depth,
+            exactStateKeys ? nodeIndex : 0,
+            shard.nodes);
+    }
+    if (!shouldStore) {
+        ++shard.duplicates;
+        return false;
+    }
+
+    {
+        ScopedTimer timer(shard.timing.nodeStoreNs);
+        shard.nodes.push_back(HdaNode{
+            std::move(message.state),
+            message.key,
+            message.parent,
+            message.input,
+            message.depth,
+            message.heuristic
+        });
+        recordPersistentLevelStateStorage(shard.timing, shard.nodes.back().state);
+    }
+
+    {
+        ScopedTimer timer(shard.timing.frontierPushNs);
+        shard.frontier.push(QueueEntry{
+            priorityFor(SearchMode::WeightedAStar, message.depth, message.heuristic, astarWeight),
+            secondaryPriorityFor(SearchMode::WeightedAStar, message.depth),
+            shard.nextTie++,
+            nodeIndex
+        });
+    }
+    shard.frontierCount.fetch_add(1, std::memory_order_release);
+    shard.maxFrontier = std::max<uint64_t>(shard.maxFrontier, shard.frontier.size());
+    return true;
+}
+
+Result runParallelPortfolioSearch(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameName,
+    int32_t levelIndex,
+    int64_t timeoutMs,
+    int64_t compileNs,
+    TimePoint deadline,
+    uint32_t workerId,
+    bool exactStateKeys,
+    bool compactNodeStorage,
+    bool compactTurnOracle,
+    int32_t astarWeight,
+    puzzlescript::solver::HeuristicKind heuristicKind,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    size_t portfolioJobs
+) {
+    const std::shared_ptr<const Game>& game = loadedGame.information;
+    Result base;
+    base.game = gameName;
+    base.level = levelIndex;
+    base.status = "exhausted";
+    base.strategy = "portfolio";
+    base.timeoutMs = timeoutMs;
+    base.workerId = workerId;
+    base.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
+    base.specializedFullTurnAttached = game && game->specializedFullTurn != nullptr;
+    base.specializedCompactTurnAttached = game && game->specializedCompactTurn != nullptr;
+    base.compactNodeStorage = compactNodeStorage;
+    base.astarWeight = astarWeight;
+    base.timing.compileNs = compileNs;
+
+    const PortfolioFeatures portfolioFeatures = analyzePortfolioFeatures(*game);
+    const PortfolioProfile portfolioProfile = choosePortfolioProfile(portfolioFeatures);
+    applyPortfolioMetadata(base, portfolioFeatures, portfolioProfile, heuristicKind);
+
+    const std::vector<PortfolioLaneConfig> configs = portfolioLaneConfigs(portfolioProfile, astarWeight);
+    const size_t laneCount = std::min(portfolioJobs, configs.size());
+    base.portfolioJobs = static_cast<uint32_t>(std::max<size_t>(1, laneCount));
+    base.portfolioParallel = laneCount > 1;
+    if (laneCount <= 1) {
+        return base;
+    }
+
+    std::vector<std::optional<Result>> laneResults(laneCount);
+    std::atomic_bool cancelRequested{false};
+    std::optional<Result> winner;
+    std::mutex winnerMutex;
+
+    auto worker = [&](size_t laneIndex) {
+        const PortfolioLaneConfig& config = configs[laneIndex];
+        Result laneResult = runSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            timeoutMs,
+            compileNs,
+            config.mode,
+            deadline,
+            workerId,
+            exactStateKeys,
+            compactNodeStorage,
+            compactTurnOracle,
+            config.weight,
+            heuristicKind,
+            staticAnalysisHints,
+            &cancelRequested);
+        applyPortfolioMetadata(laneResult, portfolioFeatures, portfolioProfile, heuristicKind);
+        laneResult.portfolioJobs = static_cast<uint32_t>(laneCount);
+        laneResult.portfolioParallel = true;
+        laneResult.strategy = laneResult.status == "solved" ? "portfolio:" + config.name : "portfolio";
+
+        if (laneResult.status == "solved") {
+            bool expected = false;
+            if (cancelRequested.compare_exchange_strong(expected, true, std::memory_order_relaxed)) {
+                std::lock_guard<std::mutex> lock(winnerMutex);
+                winner = laneResult;
+            }
+        }
+        laneResults[laneIndex] = std::move(laneResult);
+    };
+
+    std::vector<std::thread> threads;
+    threads.reserve(laneCount);
+    for (size_t laneIndex = 0; laneIndex < laneCount; ++laneIndex) {
+        threads.emplace_back(worker, laneIndex);
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+
+    Result combined = winner ? *winner : base;
+    if (!winner) {
+        bool anyLevelError = false;
+        bool anyTimeout = false;
+        bool allSkipped = true;
+        for (const std::optional<Result>& lane : laneResults) {
+            if (!lane.has_value()) {
+                allSkipped = false;
+                continue;
+            }
+            anyLevelError = anyLevelError || lane->status == "level_error";
+            anyTimeout = anyTimeout || lane->status == "timeout";
+            allSkipped = allSkipped && lane->status == "skipped_message";
+            if (lane->status == "level_error" && combined.error.empty()) {
+                combined.error = lane->error;
+            }
+        }
+        if (anyLevelError) {
+            combined.status = "level_error";
+        } else if (anyTimeout) {
+            combined.status = "timeout";
+        } else if (allSkipped) {
+            combined.status = "skipped_message";
+        } else {
+            combined.status = "exhausted";
+        }
+        combined.strategy = "portfolio";
+    }
+
+    resetSearchWork(combined, compileNs);
+    combined.portfolioJobs = static_cast<uint32_t>(laneCount);
+    combined.portfolioParallel = true;
+    combined.astarWeight = astarWeight;
+    for (const std::optional<Result>& lane : laneResults) {
+        if (lane.has_value()) {
+            addSearchWork(combined, *lane);
+        }
+    }
+    combined.timing.compileNs = compileNs;
+    return combined;
+}
+
+Result runHashDistributedWeightedAStarSearch(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameName,
+    int32_t levelIndex,
+    int64_t timeoutMs,
+    int64_t compileNs,
+    TimePoint deadline,
+    uint32_t workerId,
+    bool exactStateKeys,
+    bool compactNodeStorage,
+    bool compactTurnOracle,
+    int32_t astarWeight,
+    puzzlescript::solver::HeuristicKind heuristicKind,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    size_t hdaJobs
+) {
+    hdaJobs = std::max<size_t>(1, hdaJobs);
+
+    const std::shared_ptr<const Game>& game = loadedGame.information;
+    Result result;
+    result.game = gameName;
+    result.level = levelIndex;
+    result.status = "exhausted";
+    result.strategy = "hda-weighted-astar";
+    result.heuristic = heuristicName(SearchMode::WeightedAStar, heuristicKind);
+    result.timeoutMs = timeoutMs;
+    result.workerId = workerId;
+    result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
+    result.specializedFullTurnAttached = game && game->specializedFullTurn != nullptr;
+    result.specializedCompactTurnAttached = game && game->specializedCompactTurn != nullptr;
+    result.compactNodeStorage = compactNodeStorage;
+    result.astarWeight = astarWeight;
+    result.hdaJobs = static_cast<uint32_t>(std::min<size_t>(
+        hdaJobs,
+        std::numeric_limits<uint32_t>::max()));
+    result.hdaParallel = hdaJobs > 1;
+    result.timing.compileNs = compileNs;
+
+    if (!compactNodeStorage) {
+        result.status = "level_error";
+        result.error = "hda-weighted-astar requires compact node storage";
+        return result;
+    }
+
+    std::unique_ptr<FullState> initial;
+    {
+        ScopedTimer timer(result.timing.loadNs);
+        initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
+    }
+    if (!initial) {
+        return result;
+    }
+    if (initial->meta.textMode || initial->meta.level.isMessage) {
+        result.status = "skipped_message";
+        return result;
+    }
+
+    const int32_t searchWidth = currentLevelWidth(*initial);
+    const int32_t searchHeight = currentLevelHeight(*initial);
+    auto compactSessionBase = std::make_unique<FullState>(*initial);
+
+    PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
+    const std::vector<MaskWord> initialBoardObjects = initialState.board.objects;
+    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    puzzlescript::solver::HeuristicContext setupHeuristicContext(
+        *game,
+        searchWidth,
+        searchHeight,
+        heuristicKind,
+        initialState.board.objects.data(),
+        staticAnalysisHints);
+    if (setupHeuristicContext.staticAnalysisHintsUsed()) {
+        result.staticAnalysisHints = "js";
+    }
+    int32_t initialHeuristic = 0;
+    {
+        ScopedTimer timer(result.timing.heuristicNs);
+        initialHeuristic = setupHeuristicContext.score(initialState.board.objects.data());
+    }
+
+    std::vector<std::unique_ptr<HdaShard>> shards;
+    shards.reserve(hdaJobs);
+    for (size_t shardIndex = 0; shardIndex < hdaJobs; ++shardIndex) {
+        auto shard = std::make_unique<HdaShard>(static_cast<uint32_t>(shardIndex), exactStateKeys);
+        shard->nodes.reserve(std::max<size_t>(16, 8192 / hdaJobs));
+        shard->bestDepth.reserve(std::max<size_t>(16, 16384 / hdaJobs));
+        shards.push_back(std::move(shard));
+    }
+
+    std::atomic<uint64_t> outstandingWork{0};
+    const size_t initialOwner = hdaOwnerFor(initialKey, hdaJobs);
+    if (insertHdaNode(
+        *shards[initialOwner],
+        HdaMessage{
+            std::move(initialState),
+            initialKey,
+            0,
+            initialHeuristic,
+            GlobalNodeId{},
+            PS_INPUT_UP
+        },
+        exactStateKeys,
+        astarWeight)) {
+        outstandingWork.store(1, std::memory_order_release);
+    }
+
+    std::atomic_bool cancelRequested{false};
+    HdaWinner winner;
+    std::mutex winnerMutex;
+
+    const auto inputs = solverInputsForGame(*game);
+    const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
+
+    struct OutstandingWorkGuard {
+        explicit OutstandingWorkGuard(std::atomic<uint64_t>& outstandingWork)
+            : outstandingWork(outstandingWork) {}
+
+        OutstandingWorkGuard(const OutstandingWorkGuard&) = delete;
+        OutstandingWorkGuard& operator=(const OutstandingWorkGuard&) = delete;
+        OutstandingWorkGuard(OutstandingWorkGuard&&) = delete;
+        OutstandingWorkGuard& operator=(OutstandingWorkGuard&&) = delete;
+
+        ~OutstandingWorkGuard() {
+            outstandingWork.fetch_sub(1, std::memory_order_acq_rel);
+        }
+
+        std::atomic<uint64_t>& outstandingWork;
+    };
+
+    auto worker = [&](size_t shardIndex) {
+        HdaShard& shard = *shards[shardIndex];
+        Result edgeResult;
+        FullState parentScratch = *compactSessionBase;
+        FullState childScratch = *compactSessionBase;
+        puzzlescript::solver::HeuristicContext heuristicContext(
+            *game,
+            searchWidth,
+            searchHeight,
+            heuristicKind,
+            initialBoardObjects.data(),
+            staticAnalysisHints);
+
+        while (!cancelRequested.load(std::memory_order_acquire)) {
+            bool timedOut = false;
+            {
+                ScopedTimer timer(shard.timing.timeoutCheckNs);
+                timedOut = Clock::now() >= deadline;
+            }
+            if (timedOut) {
+                break;
+            }
+
+            std::deque<HdaMessage> drainedMessages;
+            {
+                std::lock_guard<std::mutex> lock(shard.inboxMutex);
+                if (!shard.inbox.empty()) {
+                    drainedMessages.swap(shard.inbox);
+                    ++shard.inboxDrains;
+                }
+            }
+            const size_t drainedCount = drainedMessages.size();
+            while (!drainedMessages.empty()) {
+                if (!insertHdaNode(shard, std::move(drainedMessages.front()), exactStateKeys, astarWeight)) {
+                    outstandingWork.fetch_sub(1, std::memory_order_acq_rel);
+                }
+                drainedMessages.pop_front();
+            }
+            if (drainedCount != 0) {
+                shard.inboxCount.fetch_sub(drainedCount, std::memory_order_release);
+            }
+
+            if (shard.frontier.empty()) {
+                if (outstandingWork.load(std::memory_order_acquire) == 0) {
+                    break;
+                }
+                std::this_thread::yield();
+                continue;
+            }
+
+            QueueEntry entry;
+            {
+                ScopedTimer timer(shard.timing.frontierPopNs);
+                entry = shard.frontier.top();
+                shard.frontier.pop();
+                shard.frontierCount.fetch_sub(1, std::memory_order_release);
+            }
+            OutstandingWorkGuard activeWork(outstandingWork);
+
+            if (entry.nodeIndex >= shard.nodes.size()) {
+                continue;
+            }
+
+            std::optional<uint32_t> best;
+            {
+                ScopedTimer timer(shard.timing.visitedLookupNs);
+                best = shard.bestDepth.find(
+                    shard.nodes[entry.nodeIndex].key,
+                    shard.nodes[entry.nodeIndex].state,
+                    shard.nodes);
+            }
+            if (best && *best < shard.nodes[entry.nodeIndex].depth) {
+                ++shard.duplicates;
+                continue;
+            }
+
+            const HdaNode parentNode = shard.nodes[entry.nodeIndex];
+            {
+                ScopedTimer timer(shard.timing.materializeNs);
+                materializePersistentLevelStateIntoFullState(
+                    parentNode.state,
+                    *compactSessionBase,
+                    parentScratch);
+            }
+            const FullState& parentSession = parentScratch;
+            ++shard.expanded;
+
+            for (const ps_input input : inputs) {
+                if (cancelRequested.load(std::memory_order_acquire)) {
+                    break;
+                }
+                timedOut = false;
+                {
+                    ScopedTimer timer(shard.timing.timeoutCheckNs);
+                    timedOut = Clock::now() >= deadline;
+                }
+                if (timedOut) {
+                    break;
+                }
+
+                SolverEdgeStep edge = stepSolverEdge(
+                    game,
+                    parentNode.state,
+                    parentNode.depth,
+                    parentSession,
+                    input,
+                    true,
+                    true,
+                    copyRestartSnapshot,
+                    searchWidth,
+                    searchHeight,
+                    childScratch,
+                    edgeResult,
+                    compactTurnOracle
+                );
+                if (edge.oracleMismatch) {
+                    bool expected = false;
+                    if (cancelRequested.compare_exchange_strong(
+                            expected,
+                            true,
+                            std::memory_order_acq_rel)) {
+                        std::lock_guard<std::mutex> lock(winnerMutex);
+                        result.status = "level_error";
+                        result.error = edge.oracleError;
+                    }
+                    break;
+                }
+
+                const ps_step_result& stepResult = edge.stepResult;
+                ++shard.generated;
+
+                if (stepResult.restarted) {
+                    continue;
+                }
+
+                bool solved = false;
+                {
+                    ScopedTimer timer(shard.timing.solvedCheckNs);
+                    solved = edge.compactTurn.handled ? stepResult.won : solvedByStep(stepResult, childScratch, levelIndex);
+                }
+                if (solved) {
+                    bool expected = false;
+                    if (cancelRequested.compare_exchange_strong(
+                            expected,
+                            true,
+                            std::memory_order_acq_rel)) {
+                        std::lock_guard<std::mutex> lock(winnerMutex);
+                        winner.found = true;
+                        winner.parent = GlobalNodeId{shard.shardId, entry.nodeIndex};
+                        winner.finalInput = input;
+                        winner.shard = shard.shardId;
+                        ++shard.ownerShardSolves;
+                    }
+                    break;
+                }
+                if (!stepResult.changed) {
+                    continue;
+                }
+
+                PersistentLevelState childState = edge.compactTurn.handled
+                    ? std::move(edge.compactTurn.state)
+                    : persistentLevelStateWithTiming(childScratch, shard.timing);
+                const StateKey childKey = persistentLevelStateKey(childState, shard.timing);
+                const uint32_t childDepth = parentNode.depth + 1;
+                int32_t childHeuristic = 0;
+                {
+                    ScopedTimer timer(shard.timing.heuristicNs);
+                    childHeuristic = heuristicContext.score(childState.board.objects.data());
+                }
+
+                HdaMessage childMessage{
+                    std::move(childState),
+                    childKey,
+                    childDepth,
+                    childHeuristic,
+                    GlobalNodeId{shard.shardId, entry.nodeIndex},
+                    input
+                };
+                const size_t owner = hdaOwnerFor(childKey, hdaJobs);
+                if (owner == shardIndex) {
+                    outstandingWork.fetch_add(1, std::memory_order_acq_rel);
+                    if (!insertHdaNode(shard, std::move(childMessage), exactStateKeys, astarWeight)) {
+                        outstandingWork.fetch_sub(1, std::memory_order_acq_rel);
+                    }
+                } else {
+                    ++shard.remoteSends;
+                    enqueueHdaMessage(*shards[owner], std::move(childMessage), outstandingWork);
+                }
+            }
+        }
+
+        shard.compactTurnAttempts += edgeResult.compactTurnAttempts;
+        shard.compactTurnHits += edgeResult.compactTurnHits;
+        shard.compactTurnNativeAttempts += edgeResult.compactTurnNativeAttempts;
+        shard.compactTurnNativeHits += edgeResult.compactTurnNativeHits;
+        shard.compactTurnBridgeAttempts += edgeResult.compactTurnBridgeAttempts;
+        shard.compactTurnBridgeHits += edgeResult.compactTurnBridgeHits;
+        shard.compactTurnFallbacks += edgeResult.compactTurnFallbacks;
+        shard.compactTurnUnsupported += edgeResult.compactTurnUnsupported;
+        shard.compactTurnOracleChecks += edgeResult.compactTurnOracleChecks;
+        shard.compactTurnOracleFailures += edgeResult.compactTurnOracleFailures;
+        addTiming(shard.timing, edgeResult.timing);
+    };
+
+    std::vector<std::thread> threads;
+    threads.reserve(hdaJobs);
+    for (size_t shardIndex = 0; shardIndex < hdaJobs; ++shardIndex) {
+        threads.emplace_back(worker, shardIndex);
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+
+    Timing setupTiming = result.timing;
+    resetSearchWork(result, compileNs);
+    addTiming(result.timing, setupTiming);
+    result.strategy = "hda-weighted-astar";
+    result.heuristic = heuristicName(SearchMode::WeightedAStar, heuristicKind);
+    result.timeoutMs = timeoutMs;
+    result.workerId = workerId;
+    result.specializedRulegroupsAttached = game && game->specializedRulegroups != nullptr;
+    result.specializedFullTurnAttached = game && game->specializedFullTurn != nullptr;
+    result.specializedCompactTurnAttached = game && game->specializedCompactTurn != nullptr;
+    result.compactNodeStorage = compactNodeStorage;
+    result.astarWeight = astarWeight;
+    result.hdaJobs = static_cast<uint32_t>(std::min<size_t>(
+        hdaJobs,
+        std::numeric_limits<uint32_t>::max()));
+    result.hdaParallel = hdaJobs > 1;
+    for (const std::unique_ptr<HdaShard>& shard : shards) {
+        addHdaShardWork(result, *shard);
+    }
+
+    if (winner.found) {
+        result.status = "solved";
+        result.solution = reconstructHdaSolution(shards, winner.parent, winner.finalInput, result.timing);
+    } else if (result.status != "level_error" && Clock::now() >= deadline) {
+        result.status = "timeout";
+    } else if (result.status != "level_error") {
+        result.status = "exhausted";
+    }
+
+    return result;
+}
+
 Result solveLevel(
     const puzzlescript::LoadedGame& loadedGame,
     const std::string& gameName,
@@ -2306,12 +3138,16 @@ Result solveLevel(
     bool compactTurnOracle,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
-    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    size_t portfolioJobs,
+    size_t hdaJobs
 ) {
     const TimePoint searchStart = Clock::now();
     const TimePoint deadline = searchStart + std::chrono::milliseconds(timeoutMs);
     const bool effectiveCompactNodeStorage =
-        compactNodeStorage || (strategy == Strategy::Portfolio && !fullNodeStorage);
+        compactNodeStorage
+        || (strategy == Strategy::HdaWeightedAStar && hdaJobs > 1)
+        || (strategy == Strategy::Portfolio && !fullNodeStorage);
 
     auto finish = [&](Result result) {
         result.strategy = result.status == "solved" ? result.strategy : strategyName(strategy);
@@ -2330,6 +3166,64 @@ Result solveLevel(
     }
     if (strategy == Strategy::Greedy) {
         return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
+    }
+
+    if (strategy == Strategy::HdaWeightedAStar && hdaJobs <= 1) {
+        Result result = runSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            timeoutMs,
+            compileNs,
+            SearchMode::WeightedAStar,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            astarWeight,
+            heuristicKind,
+            staticAnalysisHints);
+        result.strategy = "hda-weighted-astar";
+        result.hdaJobs = 1;
+        result.hdaParallel = false;
+        return finish(std::move(result));
+    }
+
+    if (strategy == Strategy::HdaWeightedAStar) {
+        return finish(runHashDistributedWeightedAStarSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            timeoutMs,
+            compileNs,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            astarWeight,
+            heuristicKind,
+            staticAnalysisHints,
+            hdaJobs));
+    }
+
+    if (portfolioJobs > 1) {
+        return finish(runParallelPortfolioSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            timeoutMs,
+            compileNs,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            astarWeight,
+            heuristicKind,
+            staticAnalysisHints,
+            portfolioJobs));
     }
 
     return finish(runAdaptivePortfolioSearch(
@@ -2531,6 +3425,11 @@ void printJsonResult(const Result& result, std::ostream& out) {
     out << ",\"specialized_compact_turn_attached\":" << (result.specializedCompactTurnAttached ? "true" : "false");
     out << ",\"compact_node_storage\":" << (result.compactNodeStorage ? "true" : "false");
     out << ",\"astar_weight\":" << result.astarWeight;
+    out << ",\"hda_jobs\":" << result.hdaJobs;
+    out << ",\"hda_parallel\":" << (result.hdaParallel ? "true" : "false");
+    out << ",\"hda_remote_sends\":" << result.hdaRemoteSends;
+    out << ",\"hda_inbox_drains\":" << result.hdaInboxDrains;
+    out << ",\"hda_owner_shard_solves\":" << result.hdaOwnerShardSolves;
     if (!result.portfolioProfile.empty()) {
         out << ",\"portfolio_profile\":" << jsonString(result.portfolioProfile);
         out << ",\"portfolio_rule_count\":" << result.portfolioRuleCount;
@@ -2549,6 +3448,8 @@ void printJsonResult(const Result& result, std::ostream& out) {
         out << ",\"portfolio_has_again\":" << (result.portfolioHasAgain ? "true" : "false");
         out << ",\"portfolio_run_rules_on_level_start\":" << (result.portfolioRunRulesOnLevelStart ? "true" : "false");
         out << ",\"portfolio_uses_random\":" << (result.portfolioUsesRandom ? "true" : "false");
+        out << ",\"portfolio_jobs\":" << result.portfolioJobs;
+        out << ",\"portfolio_parallel\":" << (result.portfolioParallel ? "true" : "false");
     }
     out << ",\"compact_turn_attempts\":" << result.compactTurnAttempts;
     out << ",\"compact_turn_hits\":" << result.compactTurnHits;
@@ -2609,6 +3510,9 @@ void printJson(const std::vector<Result>& results) {
     uint64_t compactTurnUnsupported = 0;
     uint64_t compactTurnOracleChecks = 0;
     uint64_t compactTurnOracleFailures = 0;
+    uint64_t hdaRemoteSends = 0;
+    uint64_t hdaInboxDrains = 0;
+    uint64_t hdaOwnerShardSolves = 0;
     for (const auto& result : results) {
         solved += result.status == "solved";
         timeout += result.status == "timeout";
@@ -2617,6 +3521,9 @@ void printJson(const std::vector<Result>& results) {
         errors += result.status == "compile_error" || result.status == "level_error";
         expanded += result.expanded;
         generated += result.generated;
+        hdaRemoteSends += result.hdaRemoteSends;
+        hdaInboxDrains += result.hdaInboxDrains;
+        hdaOwnerShardSolves += result.hdaOwnerShardSolves;
         compactTurnAttempts += result.compactTurnAttempts;
         compactTurnHits += result.compactTurnHits;
         compactTurnNativeAttempts += result.compactTurnNativeAttempts;
@@ -2669,6 +3576,9 @@ void printJson(const std::vector<Result>& results) {
     std::cout << ",\"errors\":" << errors;
     std::cout << ",\"expanded\":" << expanded;
     std::cout << ",\"generated\":" << generated;
+    std::cout << ",\"hda_remote_sends\":" << hdaRemoteSends;
+    std::cout << ",\"hda_inbox_drains\":" << hdaInboxDrains;
+    std::cout << ",\"hda_owner_shard_solves\":" << hdaOwnerShardSolves;
     std::cout << ",\"compact_turn_attempts\":" << compactTurnAttempts;
     std::cout << ",\"compact_turn_hits\":" << compactTurnHits;
     std::cout << ",\"compact_turn_native_attempts\":" << compactTurnNativeAttempts;
@@ -2953,6 +3863,12 @@ std::vector<Result> runCorpus(const Options& options) {
             result.error = compileError;
             result.strategy = strategyName(options.strategy);
             result.timeoutMs = options.timeoutMs;
+            if (options.strategy == Strategy::HdaWeightedAStar) {
+                result.hdaJobs = static_cast<uint32_t>(std::min<size_t>(
+                    options.hdaJobs,
+                    std::numeric_limits<uint32_t>::max()));
+                result.hdaParallel = options.hdaJobs > 1;
+            }
             result.timing.compileNs = compiled.compileNs;
             results.push_back(std::move(result));
             compiled.resultEnd = results.size();
@@ -3023,7 +3939,9 @@ std::vector<Result> runCorpus(const Options& options) {
                     options.compactTurnOracle,
                     options.astarWeight,
                     options.heuristicKind,
-                    &compiled.staticAnalysisHints
+                    &compiled.staticAnalysisHints,
+                    options.portfolioJobs,
+                    options.hdaJobs
                 );
                 results[item.resultIndex] = std::move(result);
                 const size_t done = completed.fetch_add(1) + 1;

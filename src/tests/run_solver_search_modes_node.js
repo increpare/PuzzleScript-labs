@@ -45,4 +45,28 @@ assert.strictEqual(deep.strategy, 'weighted-astar-deep');
 assert.strictEqual(deep.heuristic, 'auto:deep-tie');
 assert.deepStrictEqual(deep.solution, ['right']);
 
+const parallelPortfolio = runSolver('portfolio', ['--jobs', '1', '--portfolio-jobs', '2']);
+assert.strictEqual(parallelPortfolio.status, 'solved');
+assert.strictEqual(parallelPortfolio.portfolio_jobs, 2);
+assert.strictEqual(parallelPortfolio.portfolio_parallel, true);
+assert.match(parallelPortfolio.strategy, /^portfolio:/);
+assert.deepStrictEqual(parallelPortfolio.solution, ['right']);
+
+const hdaSerial = runSolver('hda-weighted-astar', ['--hda-jobs', '1']);
+assert.strictEqual(hdaSerial.status, 'solved');
+assert.strictEqual(hdaSerial.strategy, 'hda-weighted-astar');
+assert.strictEqual(hdaSerial.hda_jobs, 1);
+assert.strictEqual(hdaSerial.hda_parallel, false);
+assert.deepStrictEqual(hdaSerial.solution, ['right']);
+
+const hdaParallel = runSolver('hda-weighted-astar', ['--hda-jobs', '2']);
+assert.strictEqual(hdaParallel.status, 'solved');
+assert.strictEqual(hdaParallel.strategy, 'hda-weighted-astar');
+assert.strictEqual(hdaParallel.hda_jobs, 2);
+assert.strictEqual(hdaParallel.hda_parallel, true);
+assert.ok(hdaParallel.hda_inbox_drains >= 0);
+assert.ok(hdaParallel.hda_remote_sends >= 0);
+assert.ok(hdaParallel.hda_owner_shard_solves >= 0);
+assert.deepStrictEqual(hdaParallel.solution, ['right']);
+
 console.log('run_solver_search_modes_node passed');

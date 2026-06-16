@@ -136,16 +136,21 @@ SOLVER_BENCH_OUT ?= $(BUILD_DIR)/native/solver_benchmark.json
 SOLVER_PERF_BASELINE ?= solver_perf_baseline.json
 SOLVER_BENCH_JOBS ?= 1
 SOLVER_BENCH_STRATEGY ?= portfolio
-# Cumulative solve curve: js + PuzzleScriptPlus naive + native c++ (serial corpus runs).
+# Cumulative solve curve: JS + PuzzleScriptPlus naive + native C++ solvers.
 SOLVER_TIMEOUT_CURVE_MAX_MS ?= 1000
 SOLVER_TIMEOUT_CURVE_STEP_MS ?= 50
 SOLVER_TIMEOUT_CURVE_OUT_DIR ?= $(BUILD_DIR)/solver-timeout-curve
 SOLVER_TIMEOUT_CURVE_JS_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/js.json
 SOLVER_TIMEOUT_CURVE_PSPLUS_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/psplus.json
-SOLVER_TIMEOUT_CURVE_CPP_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp.json
+SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-portfolio.json
+SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-hda-weighted-astar-8.json
+SOLVER_TIMEOUT_CURVE_CPP_JSON ?= $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)
 SOLVER_TIMEOUT_CURVE_SVG ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/solver_timeout_curve.svg
 SOLVER_TIMEOUT_CURVE_CSV ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/solver_timeout_curve.csv
 SOLVER_TIMEOUT_CURVE_EXTRA_ARGS ?=
+SOLVER_TIMEOUT_CURVE_JS_ARGS ?= --strategy portfolio
+SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS ?= --jobs 1 --strategy portfolio
+SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS ?= --strategy hda-weighted-astar --hda-jobs 8
 SOLVER_TIMEOUT_CURVE_PROGRESS ?= per-game
 SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS = $(if $(filter per-game,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--progress-per-game,$(if $(filter quiet,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--quiet,--progress-every $(SOLVER_TIMEOUT_CURVE_PROGRESS)))
 SOLVER_MINE_CORPUS ?= src/tests/solver_tests
@@ -962,6 +967,7 @@ solver_portfolio_regression_tests: $(SOLVER_TARGET_PREREQ)
 
 solver_search_mode_tests: $(SOLVER_TARGET_PREREQ)
 	$(NODE) src/tests/run_solver_search_modes_node.js $(PUZZLESCRIPT_SOLVER)
+	$(NODE) src/tests/run_solver_hda_smoke_node.js $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_native_solver_heuristic_selection_node.js $(PUZZLESCRIPT_SOLVER)
 
 native_static_analysis_parity_tests: $(SOLVER_TARGET_PREREQ)
@@ -1031,36 +1037,37 @@ solver_timeout_curve: build_solver
 	mkdir -p "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)"; \
 	echo ""; \
 	echo "solver_timeout_curve  corpus=$(SOLVER_TESTS_CORPUS) max=$(SOLVER_TIMEOUT_CURVE_MAX_MS)ms step=$(SOLVER_TIMEOUT_CURVE_STEP_MS)ms"; \
-	echo "  JSON -> $(SOLVER_TIMEOUT_CURVE_JS_JSON) , $(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_JSON)"; \
+	echo "  JSON -> $(SOLVER_TIMEOUT_CURVE_JS_JSON) , $(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)"; \
 	echo "  chart -> $(SOLVER_TIMEOUT_CURVE_SVG)"; \
 	echo ""; \
 	$(NODE) src/tests/solver_timeout_curve.js "$(SOLVER_TESTS_CORPUS)" \
 		--max-ms $(SOLVER_TIMEOUT_CURVE_MAX_MS) \
 		--step-ms $(SOLVER_TIMEOUT_CURVE_STEP_MS) \
 		--compare-all \
-		--label js \
+		--label "JS smart" \
 		--save-json "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
 		--save-json-psplus "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
-		--save-json-cpp "$(SOLVER_TIMEOUT_CURVE_CPP_JSON)" \
 		--cpp-solver "$(PUZZLESCRIPT_SOLVER)" \
-		--cpp-strategy "$(SOLVER_STRATEGY)" \
+		--cpp-series "c++ portfolio:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON):$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS)" \
+		--cpp-series "c++ hda-weighted-astar x8:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON):$(SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS)" \
 		--out-svg "$(SOLVER_TIMEOUT_CURVE_SVG)" \
 		--out-csv "$(SOLVER_TIMEOUT_CURVE_CSV)" \
 		$(SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS) \
-		-- --strategy "$(SOLVER_STRATEGY)" $(SOLVER_TIMEOUT_CURVE_EXTRA_ARGS)
+		-- $(SOLVER_TIMEOUT_CURVE_JS_ARGS) $(SOLVER_TIMEOUT_CURVE_EXTRA_ARGS)
 
 solver_timeout_curve_replot:
 	@set -e; \
-	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_JSON)" ]; then \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)" ]; then \
 		echo "Missing saved curve JSON under $(SOLVER_TIMEOUT_CURVE_OUT_DIR)."; \
 		echo "Run: make solver_timeout_curve   (full corpus; takes a long time)"; \
 		exit 2; \
 	fi; \
 	mkdir -p "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)"; \
 	$(NODE) src/tests/solver_timeout_curve.js \
-		--series "js:$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
-		--series "PS+:$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
-		--series "c++:$(SOLVER_TIMEOUT_CURVE_CPP_JSON)" \
+		--series "JS smart:$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		--series "PS+ naive:$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
+		--series "c++ portfolio:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)" \
+		--series "c++ hda-weighted-astar x8:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)" \
 		--out-svg "$(SOLVER_TIMEOUT_CURVE_SVG)" \
 		--out-csv "$(SOLVER_TIMEOUT_CURVE_CSV)"
 

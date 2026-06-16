@@ -16,6 +16,7 @@
 //       [--with-psplus] [--with-cpp] [--compare-all]
 //       [--save-json path] [--save-json-psplus path] [--save-json-cpp path]
 //       [--cpp-solver path] [--cpp-strategy NAME]
+//       [--cpp-series "label:save-json-path:args..."]...
 //       [--series "label:results.json"]... [--label NAME]
 //       [--out-svg path] [--out-csv path]
 //       [-- extra args passed to run_solver_tests_js.js]
@@ -39,6 +40,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const PSPLUS_LABEL = 'PS+ naive';
+
 function parseArgs(argv) {
     const options = {
         corpus: 'src/tests/solver_tests',
@@ -56,6 +59,7 @@ function parseArgs(argv) {
         compareAll: false,
         cppSolver: path.join('build', 'native', 'puzzlescript_solver'),
         cppStrategy: 'portfolio',
+        cppSeries: [],
         label: 'js',
         series: [],
         outSvg: 'build/solver_timeout_curve.svg',
@@ -104,6 +108,8 @@ function parseArgs(argv) {
             options.cppSolver = args[++i];
         } else if (arg === '--cpp-strategy') {
             options.cppStrategy = args[++i];
+        } else if (arg === '--cpp-series') {
+            options.cppSeries.push(parseCppSeriesSpec(args[++i]));
         } else if (arg === '--label') {
             options.label = args[++i];
         } else if (arg === '--series') {
@@ -131,6 +137,59 @@ function parseArgs(argv) {
         options.withCpp = true;
     }
     return options;
+}
+
+function splitArgString(value) {
+    const args = [];
+    let current = '';
+    let quote = null;
+    let escaped = false;
+    for (const ch of String(value)) {
+        if (escaped) {
+            current += ch;
+            escaped = false;
+        } else if (ch === '\\') {
+            escaped = true;
+        } else if (quote) {
+            if (ch === quote) {
+                quote = null;
+            } else {
+                current += ch;
+            }
+        } else if (ch === '"' || ch === "'") {
+            quote = ch;
+        } else if (/\s/.test(ch)) {
+            if (current.length > 0) {
+                args.push(current);
+                current = '';
+            }
+        } else {
+            current += ch;
+        }
+    }
+    if (escaped) {
+        current += '\\';
+    }
+    if (quote) {
+        throw new Error(`unterminated quote in cpp series args: ${value}`);
+    }
+    if (current.length > 0) {
+        args.push(current);
+    }
+    return args;
+}
+
+function parseCppSeriesSpec(spec) {
+    const firstColon = String(spec).indexOf(':');
+    const secondColon = firstColon < 0 ? -1 : String(spec).indexOf(':', firstColon + 1);
+    if (firstColon <= 0 || secondColon <= firstColon + 1) {
+        throw new Error(`--cpp-series expects "label:save-json-path:args...", got: ${spec}`);
+    }
+    return {
+        label: String(spec).slice(0, firstColon),
+        saveJson: String(spec).slice(firstColon + 1, secondColon),
+        args: splitArgString(String(spec).slice(secondColon + 1)),
+    };
 }
 
 function progressArgs(options) {
@@ -164,7 +223,7 @@ function spawnJsonCommand(command, args, label) {
 
 function runCorpus(options, labelOverride) {
     const label = labelOverride || options.label;
-    const passthrough = labelOverride === 'PS+'
+    const passthrough = labelOverride === PSPLUS_LABEL
         ? [...options.passthrough, '--strategy', 'naive']
         : options.passthrough;
     const runnerArgs = [
@@ -178,17 +237,24 @@ function runCorpus(options, labelOverride) {
     return spawnJsonCommand(process.execPath, runnerArgs, label);
 }
 
-function runNativeCorpus(options) {
+function defaultCppSeries(options) {
+    return {
+        label: 'c++',
+        saveJson: options.saveJsonCpp,
+        args: ['--jobs', '1', '--strategy', options.cppStrategy],
+    };
+}
+
+function runNativeCorpus(options, series) {
     const runnerArgs = [
         options.cppSolver,
         options.corpus,
         '--timeout-ms', String(options.maxMs),
-        '--jobs', '1',
-        '--strategy', options.cppStrategy,
+        ...series.args,
         '--json', '--no-solutions',
         ...progressArgs(options),
     ];
-    return spawnJsonCommand(runnerArgs[0], runnerArgs.slice(1), 'c++');
+    return spawnJsonCommand(runnerArgs[0], runnerArgs.slice(1), series.label);
 }
 
 function flattenLevels(payload) {
@@ -430,25 +496,29 @@ function main() {
         options.chartMeta = jsMeta;
 
         if (options.withPsplus && !options.fromJson) {
-            const psplusRaw = runCorpus(options, 'PS+');
+            const psplusRaw = runCorpus(options, PSPLUS_LABEL);
             const psplusPayload = unwrapPayload(psplusRaw);
             const psplusLevels = flattenLevels(psplusPayload);
-            const psplusMeta = curveMetaFromOptions(options, 'PS+', buildCurve(psplusLevels, options).playable);
+            const psplusMeta = curveMetaFromOptions(options, PSPLUS_LABEL, buildCurve(psplusLevels, options).playable);
             if (options.saveJsonPsplus) {
                 writePayloadFile(options.saveJsonPsplus, psplusPayload, psplusMeta);
             }
-            curves.push({ label: 'PS+', meta: psplusMeta, ...buildCurve(psplusLevels, options) });
+            curves.push({ label: PSPLUS_LABEL, meta: psplusMeta, ...buildCurve(psplusLevels, options) });
         }
 
-        if (options.withCpp && !options.fromJson) {
-            const cppRaw = runNativeCorpus(options);
+        const cppSeries = [...options.cppSeries];
+        if (options.withCpp && cppSeries.length === 0 && !options.fromJson) {
+            cppSeries.push(defaultCppSeries(options));
+        }
+        for (const series of cppSeries) {
+            const cppRaw = runNativeCorpus(options, series);
             const cppPayload = unwrapPayload(cppRaw);
             const cppLevels = flattenLevels(cppPayload);
-            const cppMeta = curveMetaFromOptions(options, 'c++', buildCurve(cppLevels, options).playable);
-            if (options.saveJsonCpp) {
-                writePayloadFile(options.saveJsonCpp, cppPayload, cppMeta);
+            const cppMeta = curveMetaFromOptions(options, series.label, buildCurve(cppLevels, options).playable);
+            if (series.saveJson) {
+                writePayloadFile(series.saveJson, cppPayload, cppMeta);
             }
-            curves.push({ label: 'c++', meta: cppMeta, ...buildCurve(cppLevels, options) });
+            curves.push({ label: series.label, meta: cppMeta, ...buildCurve(cppLevels, options) });
         }
     }
     assertConsistentPlayableDenominators(curves);
