@@ -40,6 +40,30 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **E1 input-specialized rule sets — landed.** Engine compile now builds
+  per-input active rule arrays from positive movement dependencies, and the
+  solver can enable them with `PUZZLESCRIPT_INPUT_SPECIALIZATION=1`.
+  Runtime parity over all 469 simulation fixtures passes for off vs on traces.
+  Exactness/timing smoke:
+  `input_specialization_solver_compare_node.js src/tests/solver_tests --timeout-ms 250`
+  passed with **632 -> 639 solved** and `step_ms` **177230.552 ->
+  175056.907** in that paired run.
+
+  Bench artifacts in `build/input-specialized-rule-sets/`:
+  - Pre-implementation baseline (`baseline-250.json`): **619/2790 solved**,
+    `step_ms=178297.685`, `generated=8552011`, `20.849us/step`.
+  - Post-implementation paired portfolio bench (`after-250-baseline.json` vs
+    `after-250-input-specialized.json`): **629 -> 638 solved**,
+    `step_ms=175705.048 -> 173947.912`, `generated=8893287 -> 9194638`,
+    `19.757us/step -> 18.918us/step`.
+  - Step-profile paired bench:
+    **624 -> 629 solved**, `step_ms=178626.985 -> 176631.121`,
+    early rules **99500.495ms -> 96423.452ms**, late rules
+    **47196.932ms -> 47853.321ms**, movement **11030.609ms -> 11275.742ms**.
+  - `compare_solver_static_opt_runs.js` is not a good pass/fail gate here: the
+    250ms budget intentionally changes solved sets and solution lengths. Use
+    the dedicated input-specialization compare helper for off-vs-on exactness.
+
 - **Round-3 perf stack (JS_SOLVER_PERF_REPORT round-2 items R1-R4, R6, R7) —
   landed.** All changes are exactness-preserving: per-level `expanded` counts
   on commonly-solved levels are byte-identical to baseline across every paired

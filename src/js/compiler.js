@@ -3805,6 +3805,8 @@ function attachInputSpecializationMasks(state) {
         for (const rule of group) {
             rule.activeInputsMask = INPUT_SPEC_ALL;
         }
+        group.inputSpecializationUseful = false;
+        group.inputSpecializedRuleSets = null;
     }
 
     const flatRules = [];
@@ -3827,6 +3829,18 @@ function attachInputSpecializationMasks(state) {
     const tickActive = computeInputActiveSet(flatRules, tickSeed, state.STRIDE_OBJ);
     for (let index = 0; index < flatRules.length; index++) {
         if (tickActive[index]) flatRules[index].activeInputsMask |= (1 << INPUT_SPEC_TICK_BIT);
+    }
+
+    for (const group of state.rules || []) {
+        group.inputSpecializationUseful = group.some(rule => rule.activeInputsMask !== INPUT_SPEC_ALL);
+        group.inputSpecializedRuleSets = null;
+        if (group.inputSpecializationUseful) {
+            group.inputSpecializedRuleSets = [];
+            for (let bit = 0; bit <= INPUT_SPEC_TICK_BIT; bit++) {
+                const inputMask = 1 << bit;
+                group.inputSpecializedRuleSets[bit] = group.filter(rule => (rule.activeInputsMask & inputMask) !== 0);
+            }
+        }
     }
 
     state.hasInputSpecializationMasks = true;

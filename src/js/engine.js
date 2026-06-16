@@ -2987,6 +2987,14 @@ function applyRandomRuleGroup(level, ruleGroup) {
 let _lastGroupWriteObjects = null;
 let _lastGroupWriteMovements = null;
 
+function inputSpecializedRuleGroup(ruleGroup) {
+    return inputSpecializationActive
+        && ruleGroup.inputSpecializationUseful === true
+        && ruleGroup.inputSpecializedRuleSets
+        ? ruleGroup.inputSpecializedRuleSets[_currentInputSlot]
+        : ruleGroup;
+}
+
 function applyRuleGroupUnconditional(ruleGroup) {
     if (ruleGroup[0].isRandom) {
         _lastGroupWriteObjects.setZero();
@@ -2999,7 +3007,9 @@ function applyRuleGroupUnconditional(ruleGroup) {
         return changed;
     }
     const MAX_LOOP_COUNT = 200;
-    const GROUP_LENGTH = ruleGroup.length;
+    const activeRuleGroup = inputSpecializedRuleGroup(ruleGroup);
+    const GROUP_LENGTH = activeRuleGroup.length;
+    if (GROUP_LENGTH === 0) return false;
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
@@ -3009,7 +3019,7 @@ function applyRuleGroupUnconditional(ruleGroup) {
         madeChangeThisLoop = false;
         let consecutiveFailures = 0;
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
-            const rule = ruleGroup[ruleIndex];
+            const rule = activeRuleGroup[ruleIndex];
             if (rule.tryApply(level)) {
                 madeChangeThisLoop = true;
                 consecutiveFailures = 0;
@@ -3048,7 +3058,13 @@ function applyRuleGroup(ruleGroup) {
         return changed;
     }
     const MAX_LOOP_COUNT = 200;
-    const GROUP_LENGTH = ruleGroup.length;
+    const activeRuleGroup = inputSpecializedRuleGroup(ruleGroup);
+    const GROUP_LENGTH = activeRuleGroup.length;
+    if (GROUP_LENGTH === 0) {
+        _lastGroupWriteObjects.setZero();
+        _lastGroupWriteMovements.setZero();
+        return false;
+    }
     let hasChanges = false;
     let madeChangeThisLoop = true;
     let loopcount = 0;
@@ -3070,12 +3086,7 @@ function applyRuleGroup(ruleGroup) {
         let consecutiveFailures = 0;
 
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
-            const rule = ruleGroup[ruleIndex];
-            if (inputSpecializationActive && (rule.activeInputsMask & _currentInputBit) === 0) {
-                consecutiveFailures++;
-                if (consecutiveFailures === GROUP_LENGTH) break;
-                continue;
-            }
+            const rule = activeRuleGroup[ruleIndex];
             const PRUNE_INNER_LOOP = !(typeof process !== 'undefined' && process.env
                 && process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === '0');
             if (PRUNE_INNER_LOOP
@@ -3286,7 +3297,7 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 
 let sfxCreateMask = null;
 let sfxDestroyMask = null;
-let _currentInputBit = 0b111111;
+let _currentInputSlot = 5;
 let inputSpecializationActive =
 	(typeof process !== 'undefined' && process.env
 		&& process.env.PUZZLESCRIPT_INPUT_SPECIALIZATION === '1');
@@ -3309,7 +3320,7 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	let bak = backupLevel();
 	turnObjectsModified = false;
 	let inputindex = dir;
-	_currentInputBit = inputindex >= 0 ? (1 << inputindex) : (1 << 5);
+	_currentInputSlot = inputindex >= 0 ? inputindex : 5;
 	let playerPositions = [];
 
 	if (verbose_logging) {
