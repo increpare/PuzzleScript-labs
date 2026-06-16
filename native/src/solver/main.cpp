@@ -876,13 +876,21 @@ Options parseArgs(int argc, char** argv) {
     return options;
 }
 
-PersistentLevelState persistentLevelStateFromFullState(const FullState& session) {
-    PersistentLevelState state;
+// Writes the persistent slice of `session` into an existing PersistentLevelState,
+// reusing the destination's heap buffers (vector copy-assign keeps capacity when
+// it is large enough). This lets the HDA pool recycle node-state buffers instead
+// of allocating a fresh one per generated child.
+void fillPersistentLevelStateFromFullState(PersistentLevelState& state, const FullState& session) {
     state.rng.s = session.levelState.rng.s;
     state.rng.i = session.levelState.rng.i;
     state.rng.j = session.levelState.rng.j;
     state.rng.valid = session.levelState.rng.valid;
     state.board.objects = session.levelState.board.objects;
+}
+
+PersistentLevelState persistentLevelStateFromFullState(const FullState& session) {
+    PersistentLevelState state;
+    fillPersistentLevelStateFromFullState(state, session);
     return state;
 }
 
@@ -1751,6 +1759,11 @@ struct HdaShard {
     Timing timing;
     FlatBestDepth bestDepth;
     std::vector<HdaNode> nodes;
+    // Free-list of recycled node-state buffers. Dropped-duplicate states are
+    // returned here (on the owning thread) and reused by future child
+    // generation, so steady-state search makes ~no malloc/free calls for node
+    // state and never frees a buffer on a thread other than the one allocating.
+    std::vector<PersistentLevelState> statePool;
     std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueEntryGreater> frontier;
     std::mutex inboxMutex;
     std::deque<HdaMessage> inbox;
@@ -2556,6 +2569,31 @@ void addHdaShardWork(Result& target, const HdaShard& shard) {
     addTiming(target.timing, shard.timing);
 }
 
+// Upper bound on recycled buffers held per shard. Beyond this, dropped states
+// are freed normally (still thread-local, just not pooled). Buffers are a few KB
+// each; this cap (a few MB/shard) is negligible next to the retained node store.
+constexpr size_t kHdaStatePoolCap = 1024;
+
+// Pop a recycled node-state buffer (with its heap capacity intact) or, if the
+// pool is empty, hand back a fresh empty one. Caller fills it before use.
+PersistentLevelState acquirePooledState(HdaShard& shard) {
+    if (shard.statePool.empty()) {
+        return PersistentLevelState{};
+    }
+    PersistentLevelState state = std::move(shard.statePool.back());
+    shard.statePool.pop_back();
+    return state;
+}
+
+// Return a no-longer-needed node-state buffer to this shard's pool for reuse.
+// Always called on the owning thread, so the buffer's eventual free (if the cap
+// is exceeded) stays thread-local.
+void recyclePooledState(HdaShard& shard, PersistentLevelState&& state) {
+    if (shard.statePool.size() < kHdaStatePoolCap) {
+        shard.statePool.push_back(std::move(state));
+    }
+}
+
 void enqueueHdaMessage(
     HdaShard& target,
     HdaMessage message,
@@ -2588,6 +2626,7 @@ bool insertHdaNode(
     }
     if (!shouldStore) {
         ++shard.duplicates;
+        recyclePooledState(shard, std::move(message.state));
         return false;
     }
 
@@ -2970,14 +3009,10 @@ Result runHashDistributedWeightedAStarSearch(
                 if (cancelRequested.load(std::memory_order_acquire)) {
                     break;
                 }
-                timedOut = false;
-                {
-                    ScopedTimer timer(shard.timing.timeoutCheckNs);
-                    timedOut = Clock::now() >= deadline;
-                }
-                if (timedOut) {
-                    break;
-                }
+                // Deadline is checked once per expansion in the outer loop;
+                // we intentionally do NOT re-read the clock per input here.
+                // Overrun is bounded to one expansion (<= inputs.size() steps),
+                // which removes ~5 of the ~6 per-expansion Clock::now() reads.
 
                 SolverEdgeStep edge = stepSolverEdge(
                     game,
@@ -3038,9 +3073,14 @@ Result runHashDistributedWeightedAStarSearch(
                     continue;
                 }
 
-                PersistentLevelState childState = edge.compactTurn.handled
-                    ? std::move(edge.compactTurn.state)
-                    : persistentLevelStateWithTiming(childScratch, shard.timing);
+                PersistentLevelState childState;
+                if (edge.compactTurn.handled) {
+                    childState = std::move(edge.compactTurn.state);
+                } else {
+                    childState = acquirePooledState(shard);
+                    ScopedTimer timer(shard.timing.stateCaptureNs);
+                    fillPersistentLevelStateFromFullState(childState, childScratch);
+                }
                 const StateKey childKey = persistentLevelStateKey(childState, shard.timing);
                 const uint32_t childDepth = parentNode.depth + 1;
                 int32_t childHeuristic = 0;
