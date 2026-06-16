@@ -39,6 +39,10 @@ P = Player
 * = Crate
 O = Target
 
+======
+SOUNDS
+======
+
 ================
 COLLISIONLAYERS
 ================
@@ -50,7 +54,7 @@ Player, Wall, Crate
 RULES
 =====
 [ > Player | Crate ] -> [ > Player | > Crate ]
-[ Crate Target ] -> [ Crate Target ] sfx0
+[ Target ] -> [ Target ] sfx0
 
 =============
 WINCONDITIONS

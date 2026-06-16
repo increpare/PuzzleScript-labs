@@ -3484,6 +3484,44 @@ function computeReadMovements(state, ruleTuple) {
     return result;
 }
 
+function computeInputSpecReadMovementsPresent(state, ruleTuple) {
+    const result = new BitVec(STRIDE_MOV);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            if (cell.movementsPresent) result.ior(cell.movementsPresent);
+            const anyMovements = cell.anyMovementsPresent;
+            if (anyMovements) {
+                for (let i = 0; i < anyMovements.length; i++) {
+                    result.ior(anyMovements[i]);
+                }
+            }
+            const coupled = cell.layerCoupledMovementMasks;
+            if (coupled) {
+                for (let i = 0; i < coupled.length; i++) {
+                    const term = coupled[i];
+                    if (!term || !term.layers) continue;
+                    for (let j = 0; j < term.layers.length; j++) {
+                        const layer = term.layers[j];
+                        if (layer.movementsPresent) result.ior(layer.movementsPresent);
+                    }
+                }
+            }
+        }
+    }
+    const aggregates = ruleTuple[12];
+    if (aggregates) {
+        for (let i = 0; i < aggregates.length; i++) {
+            const b = aggregates[i];
+            result.ishiftor(b.aggregateMask & 0x1f, 5 * b.sourceLayer);
+        }
+    }
+    return result;
+}
+
 function computeWriteObjects(state, ruleTuple, oldrule) {
     const result = new BitVec(STRIDE_OBJ);
     const patterns = ruleTuple[1];
@@ -3584,6 +3622,58 @@ function computeWriteMovements(state, ruleTuple, oldrule) {
     return result;
 }
 
+function computeInputSpecWriteMovementsSet(state, ruleTuple, oldrule) {
+    const result = new BitVec(STRIDE_MOV);
+    const patterns = ruleTuple[1];
+    for (let rowIndex = 0; rowIndex < patterns.length; rowIndex++) {
+        const cellrow = patterns[rowIndex];
+        for (let colIndex = 0; colIndex < cellrow.length; colIndex++) {
+            const cell = cellrow[colIndex];
+            if (cell === ellipsisPattern) continue;
+            const replacement = cell.replacement;
+            if (!replacement) continue;
+            if (replacement.movementsSet) result.ior(replacement.movementsSet);
+            if (replacement.randomDirMask) result.ior(replacement.randomDirMask);
+            const coupled = replacement.layerCoupledMovementReplacements;
+            if (coupled) {
+                for (let ci = 0; ci < coupled.length; ci++) {
+                    const term = coupled[ci];
+                    if (!term || !term.layers) continue;
+                    for (let li = 0; li < term.layers.length; li++) {
+                        const layer = term.layers[li];
+                        result.ishiftor(term.replacementMovementMask || 0x1f, 5 * layer.layerIndex);
+                    }
+                }
+            }
+            const bindings = replacement.inferredPropertyBindings;
+            if (bindings) {
+                for (let bi = 0; bi < bindings.length; bi++) {
+                    const b = bindings[bi];
+                    if (!b || b.dirMode === 0) continue;
+                    const propMembers = state.propertiesDict ? state.propertiesDict[b.propertyName] : null;
+                    if (!propMembers) continue;
+                    for (let mi = 0; mi < propMembers.length; mi++) {
+                        const memberObj = state.objects[propMembers[mi]];
+                        if (!memberObj) continue;
+                        result.ishiftor(0x1f, 5 * memberObj.layer);
+                    }
+                }
+            }
+        }
+    }
+    if (oldrule.aggregateSinks) {
+        for (const sinkList of oldrule.aggregateSinks.values()) {
+            for (let i = 0; i < sinkList.length; i++) {
+                const sink = sinkList[i];
+                if (typeof sink.layer !== 'number') continue;
+                const mask = (sink.aggregateMask !== undefined ? sink.aggregateMask : 0x1f) & 0x1f;
+                result.ishiftor(mask, 5 * sink.layer);
+            }
+        }
+    }
+    return result;
+}
+
 function augmentWriteMovementsForObjectLayers(state, writeObjects, writeMovements) {
     const layerMasks = state.layerMasks;
     if (!layerMasks || !writeObjects) return;
@@ -3637,6 +3727,110 @@ function attachGroupIncrementalMasks(ruleGroup) {
     ruleGroup.groupForceAlwaysRun = groupForceAlwaysRun;
 }
 
+const INPUT_SPEC_ARG_TO_DIRBIT = [0, 2, 1, 3, 4];
+const INPUT_SPEC_TICK_BIT = 5;
+const INPUT_SPEC_ALL = 0b111111;
+
+function playerLayerSet(state) {
+    const layers = new Set();
+    const playerMask = state.playerMask && state.playerMask[1];
+    if (!playerMask || !state.idDict || !state.objects) return layers;
+    for (let id = 0; id < state.idDict.length; id++) {
+        const name = state.idDict[id];
+        const object = name !== undefined ? state.objects[name] : null;
+        if (object && Number.isInteger(object.id) && playerMask.get(object.id)) {
+            layers.add(object.layer | 0);
+        }
+    }
+    return layers;
+}
+
+function buildPlayerMoveMask(layers, dirBit, strideMov) {
+    const mask = new BitVec(strideMov);
+    for (const layer of layers) {
+        mask.ibitset(5 * layer + dirBit);
+    }
+    return mask;
+}
+
+function computeInputActiveSet(flatRules, seedMovements, strideObj) {
+    const included = new Array(flatRules.length).fill(false);
+    const possibleWriteMovements = seedMovements.clone();
+
+    function readMovementsPresent(rule) {
+        return rule.inputSpecReadMovementsPresent || rule.readMovements;
+    }
+
+    function writeMovementsSet(rule) {
+        return rule.inputSpecWriteMovementsSet || rule.writeMovements;
+    }
+
+    for (let index = 0; index < flatRules.length; index++) {
+        const rule = flatRules[index];
+        const readPresent = readMovementsPresent(rule);
+        if (rule.forceAlwaysRun
+            || readPresent.iszero()
+            || readPresent.anyBitsInCommon(seedMovements)) {
+            included[index] = true;
+            possibleWriteMovements.ior(writeMovementsSet(rule));
+        }
+    }
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (let index = 0; index < flatRules.length; index++) {
+            if (included[index]) continue;
+            const rule = flatRules[index];
+            const readPresent = readMovementsPresent(rule);
+            if (readPresent.anyBitsInCommon(possibleWriteMovements)) {
+                included[index] = true;
+                possibleWriteMovements.ior(writeMovementsSet(rule));
+                changed = true;
+            }
+        }
+    }
+
+    return included;
+}
+
+function attachInputSpecializationMasks(state) {
+    for (const group of state.rules || []) {
+        for (const rule of group) {
+            rule.activeInputsMask = 0;
+        }
+    }
+    for (const group of state.lateRules || []) {
+        for (const rule of group) {
+            rule.activeInputsMask = INPUT_SPEC_ALL;
+        }
+    }
+
+    const flatRules = [];
+    for (const group of state.rules || []) {
+        for (const rule of group) {
+            flatRules.push(rule);
+        }
+    }
+
+    const playerLayers = playerLayerSet(state);
+    for (let arg = 0; arg < INPUT_SPEC_ARG_TO_DIRBIT.length; arg++) {
+        const seed = buildPlayerMoveMask(playerLayers, INPUT_SPEC_ARG_TO_DIRBIT[arg], state.STRIDE_MOV);
+        const active = computeInputActiveSet(flatRules, seed, state.STRIDE_OBJ);
+        for (let index = 0; index < flatRules.length; index++) {
+            if (active[index]) flatRules[index].activeInputsMask |= (1 << arg);
+        }
+    }
+
+    const tickSeed = new BitVec(state.STRIDE_MOV);
+    const tickActive = computeInputActiveSet(flatRules, tickSeed, state.STRIDE_OBJ);
+    for (let index = 0; index < flatRules.length; index++) {
+        if (tickActive[index]) flatRules[index].activeInputsMask |= (1 << INPUT_SPEC_TICK_BIT);
+    }
+
+    state.hasInputSpecializationMasks = true;
+}
+
 function collapseRules(groups, state) {
     for (let gn = 0; gn < groups.length; gn++) {
         const rules = groups[gn];
@@ -3676,9 +3870,11 @@ function collapseRules(groups, state) {
             newrule.push(oldrule.aggregateBindingsArr || null);
             newrule.push(oldrule.propertyBindingsArr || null);
             const readMovements = computeReadMovements(state, newrule);
+            const inputSpecReadMovementsPresent = computeInputSpecReadMovementsPresent(state, newrule);
             const readObjects = computeReadObjects(newrule);
             const writeObjects = computeWriteObjects(state, newrule, oldrule);
             const writeMovements = computeWriteMovements(state, newrule, oldrule);
+            const inputSpecWriteMovementsSet = computeInputSpecWriteMovementsSet(state, newrule, oldrule);
             augmentWriteMovementsForObjectLayers(state, writeObjects, writeMovements);
             newrule.push(readMovements);
             newrule.push(writeObjects);
@@ -3687,7 +3883,10 @@ function collapseRules(groups, state) {
             newrule.push(classification.force);
             newrule.push(classification.reason);
             newrule.push(readObjects);
-            rules[i] = new Rule(newrule);
+            const rule = new Rule(newrule);
+            rule.inputSpecReadMovementsPresent = inputSpecReadMovementsPresent;
+            rule.inputSpecWriteMovementsSet = inputSpecWriteMovementsSet;
+            rules[i] = rule;
         }
         attachGroupIncrementalMasks(rules);
     }

@@ -256,7 +256,7 @@ globalThis.__ps_exports = {
             compiling = false;
         }
     },
-    compileValidate: function(str, includeWinConditions) {
+    compileValidateState: function(str, includeWinConditions) {
         // Full-engine validation gate for the static analyzer. Mirrors
         // loadFile's validation prefix through checkObjectsAreLayered,
         // INCLUDING rulesToMask / collapseRules / generateRigidGroupList, which
@@ -279,7 +279,7 @@ globalThis.__ps_exports = {
                 do {
                     processor.token(ss, state);
                     if (errorCount > MAX_ERRORS) {
-                        return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+                        return { state: null, errorCount: errorCount, errorStrings: errorStrings.slice() };
                     }
                 } while (ss.eol() === false);
             }
@@ -291,7 +291,7 @@ globalThis.__ps_exports = {
             }
             if (state.collisionLayers.length === 0) {
                 logError("No collision layers defined.  All objects need to be in collision layers.");
-                return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+                return { state: null, errorCount: errorCount, errorStrings: errorStrings.slice() };
             }
             generateExtraMembers(state);
             generateMasks(state);
@@ -299,7 +299,7 @@ globalThis.__ps_exports = {
             levelsToArray(state);
             rulesToArray(state);
             if (state.invalid > 0) {
-                return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+                return { state: null, errorCount: errorCount, errorStrings: errorStrings.slice() };
             }
             cacheAllRuleNames(state);
             removeDuplicateRules(state);
@@ -325,7 +325,7 @@ globalThis.__ps_exports = {
             // MAX_ERRORS and loadFile returns a non-null state), so running them
             // here would reject games the engine accepts and the analyzer can
             // soundly analyze. See STATIC_ANALYSIS_SOUNDNESS.md.
-            return { errorCount: errorCount, errorStrings: errorStrings.slice() };
+            return { state: state, errorCount: errorCount, errorStrings: errorStrings.slice() };
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
             if (message !== "Too many errors/warnings; aborting compilation.") {
@@ -351,6 +351,48 @@ globalThis.__ps_exports = {
             // nothing to drain here.
             lazy_function_generation_clear_backlog();
         }
+    },
+    compileValidate: function(str, includeWinConditions) {
+        const result = this.compileValidateState(str, includeWinConditions);
+        return {
+            errorCount: result.errorCount || 0,
+            errorStrings: (result.errorStrings || []).slice(),
+            thrown: result.thrown === true
+        };
+    },
+    analyzeInputSpecialization: function(str) {
+        const result = this.compileValidateState(str, true);
+        const output = {
+            ok: !(result.errorCount > 0) && result.state !== null,
+            errorCount: result.errorCount || 0,
+            errorStrings: (result.errorStrings || []).slice(),
+            mainRules: [],
+            lateRules: []
+        };
+        if (!result.state) {
+            return output;
+        }
+        attachInputSpecializationMasks(result.state);
+        function appendRules(groups, target) {
+            for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+                const group = groups[groupIndex];
+                for (let ruleIndex = 0; ruleIndex < group.length; ruleIndex++) {
+                    const rule = group[ruleIndex];
+                    target.push({
+                        groupIndex: groupIndex,
+                        ruleIndex: ruleIndex,
+                        line: rule.lineNumber,
+                        groupNumber: rule.groupNumber,
+                        activeInputsMask: rule.activeInputsMask,
+                        forceAlwaysRun: rule.forceAlwaysRun === true,
+                        forceAlwaysRunReason: rule.forceAlwaysRunReason || null
+                    });
+                }
+            }
+        }
+        appendRules(result.state.rules || [], output.mainRules);
+        appendRules(result.state.lateRules || [], output.lateRules);
+        return output;
     }
 };
 `;
@@ -1849,6 +1891,10 @@ function validateCompileSource(source, options = {}) {
     };
 }
 
+function analyzeInputSpecialization(source) {
+    return getRuntime().analyzeInputSpecialization(source);
+}
+
 function stableStringify(value) {
     return JSON.stringify(value, null, 2);
 }
@@ -1875,6 +1921,7 @@ function buildComparisonHashes(source, options = {}) {
 }
 
 module.exports = {
+    analyzeInputSpecialization,
     buildComparisonHashes,
     canonicalizeCompiledLevelState,
     canonicalizeFile,
