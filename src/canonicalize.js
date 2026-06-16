@@ -265,8 +265,9 @@ globalThis.__ps_exports = {
         // ellipsis pairing, unlayered objects, etc.). rulesToMask is destructive
         // (it overwrites rule cells with CellPattern objects), so this runs on
         // its own throwaway state; only errorCount/errorStrings are returned.
-        // The non-validating tail of loadFile (sound/homepage/codegen) is
-        // intentionally skipped so this never needs graphics or audio shims.
+        // loadFile's diagnostic tail after checkObjectsAreLayered is
+        // intentionally skipped (see the note at the end of this function),
+        // which also means this never needs graphics or audio shims.
         resetParserErrorState();
         compiling = true;
         try {
@@ -312,14 +313,18 @@ globalThis.__ps_exports = {
                 processWinConditions(state);
             }
             checkObjectsAreLayered(state);
-            // loadFile's tail also validates loop bracket pairing, sound
-            // definitions, and homepage/metadata. Run those (in loadFile order)
-            // so the gate matches the engine exactly. addSpecializedFunctions is
-            // pure codegen (no diagnostics) and is intentionally skipped.
-            twiddleMetaData(state);
-            generateLoopPoints(state);
-            generateSoundData(state);
-            formatHomePage(state);
+            // The gate stops here, at the last pass that can change the
+            // rule/object/win-condition model the analyzer reasons about.
+            // loadFile's remaining tail -- twiddleMetaData, generateLoopPoints,
+            // generateSoundData, formatHomePage, addSpecializedFunctions -- is
+            // intentionally NOT run. Those passes only diagnose presentation /
+            // audio / metadata (dimensions, loop-bracket pairing, sound
+            // declarations, homepage colors) and emit pure codegen; none of it
+            // feeds the analyzer's model. Crucially, the real engine still PLAYS
+            // a game whose only errors come from them (errorCount stays within
+            // MAX_ERRORS and loadFile returns a non-null state), so running them
+            // here would reject games the engine accepts and the analyzer can
+            // soundly analyze. See STATIC_ANALYSIS_SOUNDNESS.md.
             return { errorCount: errorCount, errorStrings: errorStrings.slice() };
         } catch (error) {
             const message = error && error.message ? error.message : String(error);
@@ -337,6 +342,14 @@ globalThis.__ps_exports = {
             };
         } finally {
             compiling = false;
+            // rulesToMask/collapseRules pushed every CellPattern/Rule onto the
+            // global lazy-function worklist, but this gate never plays the game
+            // so nothing ever drains it. Clear it on the way out so the shared
+            // runtime context doesn't accumulate those objects (and the state
+            // graphs they pin) across analyzeSource calls. compile() clears at
+            // the start for the same reason; we clear on exit since there is
+            // nothing to drain here.
+            lazy_function_generation_clear_backlog();
         }
     }
 };

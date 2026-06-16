@@ -81,22 +81,34 @@ claims about a program that can never run.
 (`validateCompileSource` in `src/canonicalize.js`, backed by the runtime's
 `compileValidate`) on a throwaway state, and `analyzeSource` returns
 `status: 'compile_error'` whenever it reports errors (`errorCount > 0`).
-`compileValidate` runs every diagnostic-producing pass of `loadFile` —
-`rulesToMask`, `collapseRules` (the "can never overlap, rule can never match"
-LHS check), `generateRigidGroupList`, `processWinConditions`,
-`checkObjectsAreLayered`, `generateLoopPoints` (loop bracket pairing),
-`generateSoundData`, and `formatHomePage` — in `loadFile` order, on its own
-re-parsed state (`rulesToMask` is destructive: it overwrites rule cells with
-`CellPattern` objects, so it cannot run on the state used for analysis). Only
-`addSpecializedFunctions` (pure codegen, no diagnostics) is skipped, so the
-analyzer's accept set now matches the real engine's.
+`compileValidate` runs every `loadFile` pass that can shape the
+rule/object/win-condition model the analyzer reasons about — `rulesToMask`
+(same-cell "can't overlap", RANDOM-on-LHS, ellipsis pairing/placement,
+unlayered objects), `collapseRules` (the "can never overlap, rule can never
+match" LHS check), `generateRigidGroupList`, `processWinConditions`, and
+`checkObjectsAreLayered` — in `loadFile` order, on its own re-parsed state
+(`rulesToMask` is destructive: it overwrites rule cells with `CellPattern`
+objects, so it cannot run on the state used for analysis).
+
+The gate deliberately **stops at `checkObjectsAreLayered`**. `loadFile`'s
+remaining tail — `twiddleMetaData`, `generateLoopPoints`, `generateSoundData`,
+`formatHomePage`, and `addSpecializedFunctions` — is **not** run. Those passes
+only diagnose presentation, audio, and metadata (level dimensions, loop-bracket
+pairing, sound declarations, homepage colors) or emit pure codegen; none of it
+feeds the analyzer's model. Crucially, the real engine still **plays** a game
+whose only errors come from them: such a game keeps `errorCount` within
+`MAX_ERRORS` and `loadFile` returns a non-null state, so `compile()` reaches
+`setGameState`. Rejecting on those diagnostics would therefore refuse games the
+engine accepts and the analyzer can soundly analyze. So the gate's accept set is
+scoped to the model-relevant passes — it is **not** "the engine emits zero
+diagnostics" (the engine itself plays many games with non-fatal warnings/errors).
 
 Verified across the bundled corpora (static_analysis_testdata + solver_tests +
-demo = 536 games, plus the 469-case runtime-contract corpus): zero valid games
-are rejected (no false positives) and zero engine-invalid games were hiding in
-the corpus. The only test games this gate newly rejected were two inline
-fixtures that had relied on the missing validation (a same-cell overlap spawn in
-`ps_static_analysis_node.js` and a same-layer `[ action Player Flag ]` match in
+demo, plus the runtime-contract corpus): no valid game is rejected (no false
+positives) and no engine-invalid game was hiding in the corpus. The only test
+games this gate newly rejected were two inline fixtures that had relied on the
+missing validation (a same-cell overlap spawn in `ps_static_analysis_node.js`
+and a same-layer `[ action Player Flag ]` match in
 `static_analysis_adversarial_node.js`); both were corrected to engine-valid
 sources.
 

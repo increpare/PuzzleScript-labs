@@ -1276,6 +1276,36 @@ assert.deepStrictEqual(
     'rejected game should derive no facts'
 );
 
+// The gate is scoped to passes that shape the analyzer's rule/object/win-
+// condition model; loadFile's presentation/audio/metadata tail (formatHomePage,
+// generateSoundData, generateLoopPoints, twiddleMetaData) is intentionally NOT
+// run. A game whose ONLY compile error comes from that tail is still PLAYED by
+// the real engine (errorCount stays within MAX_ERRORS, state is non-null), so
+// analyzeSource must analyze it rather than reject it. See
+// STATIC_ANALYSIS_SOUNDNESS.md.
+const BAD_TEXT_COLOR_GAME = SIMPLE_GAME.replace(
+    'title Static Analysis Simple',
+    'title Static Analysis Simple\ntext_color notacolorzzz'
+);
+const badTextColor = analyzeSource(BAD_TEXT_COLOR_GAME, { sourcePath: 'bad_text_color.txt' });
+assert.strictEqual(
+    badTextColor.status,
+    'ok',
+    'a presentation-only error (bad text_color) the engine still plays must be analyzed, not rejected'
+);
+assert.ok(badTextColor.ps_tagged !== null, 'presentation-only-error game should still expose ps_tagged');
+
+const UNMATCHED_LOOP_GAME = SIMPLE_GAME.replace(
+    '[ > Hero ] -> [ > Hero ]',
+    'startloop\n[ > Hero ] -> [ > Hero ]'
+);
+const unmatchedLoop = analyzeSource(UNMATCHED_LOOP_GAME, { sourcePath: 'unmatched_loop.txt' });
+assert.strictEqual(
+    unmatchedLoop.status,
+    'ok',
+    'an unmatched loop bracket (loop-pass only) the engine still plays must be analyzed, not rejected'
+);
+
 function assertProvedFactsHaveProof(reportToCheck) {
     for (const familyFacts of Object.values(reportToCheck.facts)) {
         for (const item of familyFacts) {
