@@ -62,6 +62,120 @@ bool maskHasBit(const puzzlescript::MaskVector& words, int32_t bitIndex) {
         && (words[word] & puzzlescript::maskBit(static_cast<uint32_t>(bitIndex))) != 0;
 }
 
+bool maskHasAnyBit(const puzzlescript::MaskVector& words) {
+    return std::any_of(
+        words.begin(),
+        words.end(),
+        [](puzzlescript::MaskWord word) { return word != 0; });
+}
+
+const puzzlescript::MaskWord* storedMaskPtr(
+    const puzzlescript::Game& game,
+    puzzlescript::MaskOffset offset
+) {
+    if (offset == puzzlescript::kNullMaskOffset) {
+        return nullptr;
+    }
+    return game.maskArena.data() + offset;
+}
+
+void orStoredMaskInto(
+    puzzlescript::MaskVector& target,
+    const puzzlescript::Game& game,
+    puzzlescript::MaskOffset offset,
+    uint32_t width
+) {
+    const puzzlescript::MaskWord* source = storedMaskPtr(game, offset);
+    if (source == nullptr) {
+        return;
+    }
+    for (uint32_t word = 0; word < width && word < target.size(); ++word) {
+        target[static_cast<size_t>(word)] |= source[word];
+    }
+}
+
+bool storedMaskAllZero(
+    const puzzlescript::Game& game,
+    puzzlescript::MaskOffset offset,
+    uint32_t width
+) {
+    const puzzlescript::MaskWord* source = storedMaskPtr(game, offset);
+    if (source == nullptr) {
+        return true;
+    }
+    for (uint32_t word = 0; word < width; ++word) {
+        if (source[word] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool storedMaskOverlaps(
+    const puzzlescript::Game& game,
+    puzzlescript::MaskOffset offset,
+    const puzzlescript::MaskVector& other,
+    uint32_t width
+) {
+    const puzzlescript::MaskWord* source = storedMaskPtr(game, offset);
+    if (source == nullptr) {
+        return false;
+    }
+    for (uint32_t word = 0; word < width && word < other.size(); ++word) {
+        if ((source[word] & other[static_cast<size_t>(word)]) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void orShiftedMask5(puzzlescript::MaskVector& words, int32_t shift, int32_t value5);
+
+void orMovementBitsForLayer(
+    puzzlescript::MaskVector& target,
+    int32_t layer,
+    int32_t movementBits
+) {
+    if (layer < 0) {
+        return;
+    }
+    orShiftedMask5(target, 5 * layer, movementBits & 0x1f);
+}
+
+void orMovementBitsForPropertyLayers(
+    puzzlescript::MaskVector& target,
+    const puzzlescript::Game& game,
+    const std::map<std::string, std::vector<std::string>>& propertyOf,
+    const std::map<std::string, int32_t>& objectIdByName,
+    const std::string& propertyName,
+    int32_t movementBits
+) {
+    const auto property = propertyOf.find(propertyName);
+    if (property == propertyOf.end()) {
+        for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+            orMovementBitsForLayer(target, layer, movementBits);
+        }
+        return;
+    }
+    for (const std::string& objectName : property->second) {
+        const auto object = objectIdByName.find(objectName);
+        if (object == objectIdByName.end()) {
+            continue;
+        }
+        const int32_t layer =
+            game.objectsById[static_cast<size_t>(object->second)].layer;
+        orMovementBitsForLayer(target, layer, movementBits);
+    }
+}
+
+bool isReplaySensitiveCommand(const std::string& name) {
+    return name == "again"
+        || name == "restart"
+        || name == "cancel"
+        || name == "win"
+        || name == "checkpoint";
+}
+
 std::vector<int32_t> objectIdsFromMask(const puzzlescript::MaskVector& words, int32_t objectCount) {
     std::vector<int32_t> ids;
     for (uint32_t word = 0; word < words.size(); ++word) {
@@ -219,6 +333,293 @@ int32_t getShiftedMask5(const puzzlescript::MaskVector& words, int32_t shift) {
         }
     }
     return static_cast<int32_t>(value);
+}
+
+constexpr std::array<int32_t, 5> kInputSpecArgToMovementMask = {
+    1 << 0,
+    1 << 2,
+    1 << 1,
+    1 << 3,
+    1 << 4,
+};
+constexpr uint8_t kInputSpecTickBit = 5;
+constexpr uint8_t kInputSpecAll = 0x3f;
+
+void orAggregateBindingReadMovements(
+    puzzlescript::MaskVector& target,
+    const puzzlescript::Game& game,
+    const std::map<std::string, std::vector<std::string>>& propertyOf,
+    const std::map<std::string, int32_t>& objectIdByName,
+    const puzzlescript::AggregateBinding& binding
+) {
+    const int32_t movementBits = binding.aggregateMask & 0x1f;
+    if (binding.sourcePropertyName.has_value()) {
+        orMovementBitsForPropertyLayers(
+            target,
+            game,
+            propertyOf,
+            objectIdByName,
+            *binding.sourcePropertyName,
+            movementBits);
+        return;
+    }
+    orMovementBitsForLayer(target, binding.sourceLayer, movementBits);
+}
+
+puzzlescript::MaskVector computeInputSpecReadMovementsPresent(
+    const puzzlescript::Game& game,
+    const puzzlescript::Rule& rule,
+    const std::map<std::string, std::vector<std::string>>& propertyOf,
+    const std::map<std::string, int32_t>& objectIdByName
+) {
+    puzzlescript::MaskVector result(static_cast<size_t>(game.movementWordCount), 0);
+    for (const auto& row : rule.patterns) {
+        for (const puzzlescript::Pattern& pattern : row) {
+            if (pattern.kind != puzzlescript::Pattern::Kind::CellPattern) {
+                continue;
+            }
+            orStoredMaskInto(result, game, pattern.movementsPresent, game.movementWordCount);
+            for (uint32_t index = 0; index < pattern.anyMovementsCount; ++index) {
+                orStoredMaskInto(
+                    result,
+                    game,
+                    game.anyMovementOffsets[
+                        static_cast<size_t>(pattern.anyMovementsFirst + index)],
+                    game.movementWordCount);
+            }
+            for (const auto& coupled : pattern.layerCoupledMovementMasks) {
+                for (const auto& layerTerm : coupled.layers) {
+                    orStoredMaskInto(result, game, layerTerm.movementsAny, game.movementWordCount);
+                    orStoredMaskInto(result, game, layerTerm.movementsPresent, game.movementWordCount);
+                }
+            }
+        }
+    }
+    for (const puzzlescript::AggregateBinding& binding : rule.aggregateBindings) {
+        orAggregateBindingReadMovements(
+            result,
+            game,
+            propertyOf,
+            objectIdByName,
+            binding);
+    }
+    return result;
+}
+
+std::map<std::string, int32_t> aggregateSourceMovementMasks(const puzzlescript::Rule& rule) {
+    std::map<std::string, int32_t> masks;
+    for (const puzzlescript::AggregateBinding& binding : rule.aggregateBindings) {
+        masks[binding.aggregateName] |= binding.aggregateMask & 0x1f;
+    }
+    return masks;
+}
+
+void orInferredAggregateWriteMovements(
+    puzzlescript::MaskVector& target,
+    const puzzlescript::Game& game,
+    const std::map<std::string, std::vector<std::string>>& propertyOf,
+    const std::map<std::string, int32_t>& objectIdByName,
+    const std::map<std::string, int32_t>& aggregateMasks,
+    const puzzlescript::InferredAggregateBinding& binding
+) {
+    int32_t movementBits = 0x1f;
+    if (const auto mask = aggregateMasks.find(binding.aggregateName);
+        mask != aggregateMasks.end() && mask->second != 0) {
+        movementBits = mask->second & 0x1f;
+    }
+    if (binding.layerIndex.has_value()) {
+        orMovementBitsForLayer(target, *binding.layerIndex, movementBits);
+        return;
+    }
+    if (binding.propertyName.has_value()) {
+        orMovementBitsForPropertyLayers(
+            target,
+            game,
+            propertyOf,
+            objectIdByName,
+            *binding.propertyName,
+            movementBits);
+        return;
+    }
+    for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+        orMovementBitsForLayer(target, layer, movementBits);
+    }
+}
+
+puzzlescript::MaskVector computeInputSpecWriteMovementsSet(
+    const puzzlescript::Game& game,
+    const puzzlescript::Rule& rule,
+    const std::map<std::string, std::vector<std::string>>& propertyOf,
+    const std::map<std::string, int32_t>& objectIdByName
+) {
+    puzzlescript::MaskVector result(static_cast<size_t>(game.movementWordCount), 0);
+    const std::map<std::string, int32_t> aggregateMasks =
+        aggregateSourceMovementMasks(rule);
+    for (const auto& row : rule.patterns) {
+        for (const puzzlescript::Pattern& pattern : row) {
+            if (pattern.kind != puzzlescript::Pattern::Kind::CellPattern
+                || !pattern.replacement.has_value()) {
+                continue;
+            }
+            const puzzlescript::Replacement& replacement = *pattern.replacement;
+            orStoredMaskInto(result, game, replacement.movementsSet, game.movementWordCount);
+            if (replacement.hasRandomDirMask) {
+                orStoredMaskInto(result, game, replacement.randomDirMask, game.movementWordCount);
+            }
+            const puzzlescript::ReplacementDynamic* dynamic = replacement.dynamic.get();
+            if (dynamic == nullptr) {
+                continue;
+            }
+            for (const auto& coupled : dynamic->layerCoupledMovementReplacements) {
+                const int32_t movementBits = coupled.hasReplacementMovementMask
+                    ? coupled.replacementMovementMask
+                    : 0x1f;
+                for (const auto& layerTerm : coupled.layers) {
+                    orMovementBitsForLayer(result, layerTerm.layerIndex, movementBits);
+                }
+            }
+            for (const auto& binding : dynamic->inferredPropertyBindings) {
+                if (binding.dirMode == 0) {
+                    continue;
+                }
+                orMovementBitsForPropertyLayers(
+                    result,
+                    game,
+                    propertyOf,
+                    objectIdByName,
+                    binding.propertyName,
+                    0x1f);
+            }
+            for (const auto& binding : dynamic->inferredAggregateBindings) {
+                orInferredAggregateWriteMovements(
+                    result,
+                    game,
+                    propertyOf,
+                    objectIdByName,
+                    aggregateMasks,
+                    binding);
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<uint8_t> computeInputActiveSet(
+    const puzzlescript::Game& game,
+    const std::vector<puzzlescript::Rule*>& flatRules,
+    const puzzlescript::MaskVector& seedMovements
+) {
+    std::vector<uint8_t> included(flatRules.size(), 0);
+    puzzlescript::MaskVector possibleWriteMovements = seedMovements;
+
+    auto readOffset = [](const puzzlescript::Rule& rule) {
+        return rule.inputSpecReadMovementsPresent != puzzlescript::kNullMaskOffset
+            ? rule.inputSpecReadMovementsPresent
+            : rule.readMovements;
+    };
+    auto writeOffset = [](const puzzlescript::Rule& rule) {
+        return rule.inputSpecWriteMovementsSet != puzzlescript::kNullMaskOffset
+            ? rule.inputSpecWriteMovementsSet
+            : rule.writeMovements;
+    };
+
+    for (size_t index = 0; index < flatRules.size(); ++index) {
+        const puzzlescript::Rule& rule = *flatRules[index];
+        const puzzlescript::MaskOffset read = readOffset(rule);
+        if (rule.forceAlwaysRun
+            || storedMaskAllZero(game, read, game.movementWordCount)
+            || storedMaskOverlaps(game, read, seedMovements, game.movementWordCount)) {
+            included[index] = 1;
+            orStoredMaskInto(
+                possibleWriteMovements,
+                game,
+                writeOffset(rule),
+                game.movementWordCount);
+        }
+    }
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (size_t index = 0; index < flatRules.size(); ++index) {
+            if (included[index] != 0) {
+                continue;
+            }
+            const puzzlescript::Rule& rule = *flatRules[index];
+            const puzzlescript::MaskOffset read = readOffset(rule);
+            if (storedMaskOverlaps(game, read, possibleWriteMovements, game.movementWordCount)) {
+                included[index] = 1;
+                orStoredMaskInto(
+                    possibleWriteMovements,
+                    game,
+                    writeOffset(rule),
+                    game.movementWordCount);
+                changed = true;
+            }
+        }
+    }
+
+    return included;
+}
+
+void attachInputSpecializationMasks(puzzlescript::Game& game) {
+    for (auto& group : game.rules) {
+        for (puzzlescript::Rule& rule : group) {
+            rule.activeInputsMask = 0;
+        }
+    }
+    for (auto& group : game.lateRules) {
+        for (puzzlescript::Rule& rule : group) {
+            rule.activeInputsMask = kInputSpecAll;
+        }
+    }
+
+    std::vector<puzzlescript::Rule*> flatRules;
+    for (auto& group : game.rules) {
+        for (puzzlescript::Rule& rule : group) {
+            flatRules.push_back(&rule);
+        }
+    }
+    if (flatRules.empty()) {
+        return;
+    }
+
+    std::set<int32_t> playerLayers;
+    const puzzlescript::MaskWord* playerMask = storedMaskPtr(game, game.playerMask);
+    if (playerMask != nullptr) {
+        for (const puzzlescript::ObjectDef& object : game.objectsById) {
+            const uint32_t word = puzzlescript::maskWordIndex(
+                static_cast<uint32_t>(object.id));
+            if (word >= game.wordCount) {
+                continue;
+            }
+            if ((playerMask[word] & puzzlescript::maskBit(static_cast<uint32_t>(object.id))) != 0) {
+                playerLayers.insert(object.layer);
+            }
+        }
+    }
+
+    for (size_t input = 0; input < kInputSpecArgToMovementMask.size(); ++input) {
+        puzzlescript::MaskVector seed(static_cast<size_t>(game.movementWordCount), 0);
+        for (const int32_t layer : playerLayers) {
+            orMovementBitsForLayer(seed, layer, kInputSpecArgToMovementMask[input]);
+        }
+        const std::vector<uint8_t> active = computeInputActiveSet(game, flatRules, seed);
+        for (size_t index = 0; index < flatRules.size(); ++index) {
+            if (active[index] != 0) {
+                flatRules[index]->activeInputsMask |= static_cast<uint8_t>(1u << input);
+            }
+        }
+    }
+
+    puzzlescript::MaskVector tickSeed(static_cast<size_t>(game.movementWordCount), 0);
+    const std::vector<uint8_t> tickActive =
+        computeInputActiveSet(game, flatRules, tickSeed);
+    for (size_t index = 0; index < flatRules.size(); ++index) {
+        if (tickActive[index] != 0) {
+            flatRules[index]->activeInputsMask |= static_cast<uint8_t>(1u << kInputSpecTickBit);
+        }
+    }
 }
 
 } // namespace
@@ -3891,12 +4292,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             rule.cellRowAnyMovementMasks.push_back(anyMovementSpan);
         }
 
-        auto anyNonZeroMask = [](const puzzlescript::MaskVector& words) {
-            return std::any_of(
-                words.begin(),
-                words.end(),
-                [](puzzlescript::MaskWord word) { return word != 0; });
-        };
         auto orArenaMask = [&](puzzlescript::MaskVector& target,
                                puzzlescript::MaskOffset offset,
                                uint32_t width) {
@@ -3980,14 +4375,44 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
             }
         }
+        const puzzlescript::MaskVector inputSpecReadMovementWords =
+            computeInputSpecReadMovementsPresent(
+                *game,
+                rule,
+                propertyOf,
+                objectIdByName);
+        const puzzlescript::MaskVector inputSpecWriteMovementWords =
+            computeInputSpecWriteMovementsSet(
+                *game,
+                rule,
+                propertyOf,
+                objectIdByName);
         rule.readObjects = storeMaskWords(*game, readObjectsWords);
-        rule.hasReadObjects = anyNonZeroMask(readObjectsWords);
+        rule.hasReadObjects = maskHasAnyBit(readObjectsWords);
         rule.readMovements = storeMaskWords(*game, readMovementWords);
-        rule.hasReadMovements = anyNonZeroMask(readMovementWords);
+        rule.hasReadMovements = maskHasAnyBit(readMovementWords);
         rule.writeObjects = storeMaskWords(*game, writeObjectsWords);
-        rule.hasWriteObjects = anyNonZeroMask(writeObjectsWords);
+        rule.hasWriteObjects = maskHasAnyBit(writeObjectsWords);
         rule.writeMovements = storeMaskWords(*game, writeMovementWords);
-        rule.hasWriteMovements = anyNonZeroMask(writeMovementWords);
+        rule.hasWriteMovements = maskHasAnyBit(writeMovementWords);
+        rule.inputSpecReadMovementsPresent =
+            storeMaskWords(*game, inputSpecReadMovementWords);
+        rule.hasInputSpecReadMovementsPresent =
+            maskHasAnyBit(inputSpecReadMovementWords);
+        rule.inputSpecWriteMovementsSet =
+            storeMaskWords(*game, inputSpecWriteMovementWords);
+        rule.hasInputSpecWriteMovementsSet =
+            maskHasAnyBit(inputSpecWriteMovementWords);
+        const bool replaySensitiveCommand = std::any_of(
+            rule.commands.begin(),
+            rule.commands.end(),
+            [](const puzzlescript::RuleCommand& command) {
+                return isReplaySensitiveCommand(command.name);
+            });
+        rule.forceAlwaysRun = rule.isRandom
+            || rule.rigid
+            || replaySensitiveCommand
+            || (!rule.hasReadObjects && !rule.hasReadMovements);
 
         const std::string signature = ruleVariantSignature(
             entry.lineNumber,
@@ -4086,6 +4511,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
         }
     }
+
+    attachInputSpecializationMasks(*game);
 
     auto calculateLoopPoints = [](const std::vector<std::pair<int32_t, int32_t>>& loopRanges,
                                   const std::vector<std::vector<puzzlescript::Rule>>& ruleGroups) {

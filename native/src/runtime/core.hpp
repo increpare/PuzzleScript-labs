@@ -369,6 +369,11 @@ struct Rule {
     bool hasWriteObjects = false;
     bool hasWriteMovements = false;
     bool forceAlwaysRun = false;
+    uint8_t activeInputsMask = 0x3f;
+    MaskOffset inputSpecReadMovementsPresent = kNullMaskOffset;
+    MaskOffset inputSpecWriteMovementsSet = kNullMaskOffset;
+    bool hasInputSpecReadMovementsPresent = false;
+    bool hasInputSpecWriteMovementsSet = false;
 
     std::vector<std::vector<Pattern>> patterns;
     std::vector<AggregateBinding> aggregateBindings;
@@ -573,6 +578,7 @@ struct Scratch {
     MaskVector incrementalNextObjects;
     MaskVector incrementalNextMovements;
     bool incrementalPriorAllOnes = true;
+    uint8_t currentInputMask = 0x3f;
     std::vector<uint8_t> ellipsisLinePossibleScratch;
     std::vector<int32_t> ellipsisMinConcreteSuffixScratch;
     std::vector<int32_t> ellipsisPositionsScratch;

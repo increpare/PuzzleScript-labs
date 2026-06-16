@@ -2541,6 +2541,25 @@ int32_t inputToDirectionMask(ps_input input) {
     }
 }
 
+bool inputSpecializationEnabled() {
+    static const bool enabled = []() {
+        const char* value = std::getenv("PUZZLESCRIPT_INPUT_SPECIALIZATION");
+        return value == nullptr || std::strcmp(value, "0") != 0;
+    }();
+    return enabled;
+}
+
+uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask) {
+    switch (directionMask) {
+        case 1: return 1u << PS_INPUT_UP;
+        case 4: return 1u << PS_INPUT_LEFT;
+        case 2: return 1u << PS_INPUT_DOWN;
+        case 8: return 1u << PS_INPUT_RIGHT;
+        case 16: return 1u << PS_INPUT_ACTION;
+        default: return 1u << PS_INPUT_TICK;
+    }
+}
+
 std::pair<int32_t, int32_t> directionMaskToDelta(int32_t directionMask) {
     switch (directionMask) {
         case 1: return {0, -1};
@@ -5023,6 +5042,21 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
     const size_t movementWordCount = game.movementWordCount;
     const size_t groupLength = group.size();
     const bool useIncrementalPrune = incrementalPruneEnabled();
+    const bool useInputSpecialization = inputSpecializationEnabled();
+    const uint8_t currentInputMask = session.scratch.currentInputMask;
+    size_t activeGroupLength = groupLength;
+    if (useInputSpecialization) {
+        activeGroupLength = 0;
+        for (const Rule& rule : group) {
+            if ((rule.activeInputsMask & currentInputMask) != 0) {
+                ++activeGroupLength;
+            }
+        }
+        if (activeGroupLength == 0) {
+            addCounter(gRuntimeCounters.rulesSkippedByMask, groupLength);
+            return false;
+        }
+    }
 
     bool hasChanges = false;
     bool madeChange = true;
@@ -5043,6 +5077,11 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
             : session.scratch.incrementalPriorMovements.data();
 
         for (const auto& rule : group) {
+            if (useInputSpecialization
+                && (rule.activeInputsMask & currentInputMask) == 0) {
+                addCounter(gRuntimeCounters.rulesSkippedByMask);
+                continue;
+            }
             addCounter(gRuntimeCounters.rulesVisited);
             if (useIncrementalPrune && !rule.forceAlwaysRun) {
                 const MaskWord* readMovements = rule.hasReadMovements
@@ -5060,7 +5099,7 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
                            objectWordCount);
                 if (readMovementsZero && !readObjectsOverlapPrior) {
                     ++consecutiveFailures;
-                    if (consecutiveFailures == groupLength) {
+                    if (consecutiveFailures == activeGroupLength) {
                         break;
                     }
                     continue;
@@ -5097,7 +5136,7 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
                 rebuildMasks(session);
             } else {
                 ++consecutiveFailures;
-                if (consecutiveFailures == groupLength) {
+                if (consecutiveFailures == activeGroupLength) {
                     break;
                 }
             }
@@ -6663,6 +6702,7 @@ bool wouldAgainChange(FullState& session, bool* outWouldModify, bool emitAudio) 
 TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOptions options) {
     TurnResult out;
     ps_step_result& result = out.core;
+    session.scratch.currentInputMask = inputSpecializationMaskForDirectionMask(directionMask);
     if (options.emitAudio && !session.game->sfxCreationMasks.empty()) {
         session.scratch.pendingCreateMask.assign(static_cast<size_t>(session.game->strideObject), 0);
     } else {

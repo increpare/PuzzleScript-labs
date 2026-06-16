@@ -80,3 +80,28 @@ make specialized_full_turn_dispatch_smoke
 That target requires at least one specialized full-turn backend to handle a
 solver step, while unsupported behavior still falls back to the interpreted turn
 path.
+
+## Interpreted Solver Input Specialization
+
+Date: 2026-06-16
+Branch: `codex/input-specialized-rule-sets-cpp`
+
+Command shape:
+
+```sh
+build/native/puzzlescript_solver src/tests/solver_tests --timeout-ms 250 --jobs 1 --strategy portfolio --no-solutions --quiet --json --summary-only --profile-runtime-counters
+```
+
+One local full-corpus before/after run used `PUZZLESCRIPT_INPUT_SPECIALIZATION=0`
+for the disabled pass and `PUZZLESCRIPT_INPUT_SPECIALIZATION=1` for the enabled
+pass:
+
+| Setting | Levels | Solved | Timeouts | Expanded | Generated | Wall | Step ms | us/generated |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Disabled | 2790 | 762 | 576 | 3131458 | 15069696 | 177.6s | 156749 | 10.40 |
+| Enabled | 2790 | 765 | 573 | 3183503 | 15318769 | 177.0s | 155926 | 10.18 |
+
+Solver smoke counters from the same build showed rule visits dropping from
+22132 to 4488 when input specialization was enabled. The shared
+`rules_skipped_by_mask` counter also includes the older incremental-prune path,
+so `rules_visited` is the cleaner quick signal for this optimization.
