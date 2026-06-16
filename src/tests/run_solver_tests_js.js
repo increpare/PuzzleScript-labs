@@ -6,8 +6,8 @@
 if (process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === undefined) {
     process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE = '0';
 }
-// PUZZLESCRIPT_INPUT_SPECIALIZATION=1 enables per-input rule skipping for
-// benchmark/proof runs until the feature is proven and made default-on.
+// PUZZLESCRIPT_INPUT_SPECIALIZATION=0 disables per-input rule-set specialization
+// for comparison and emergency opt-out runs.
 
 const crypto = require('crypto');
 const fs = require('fs');

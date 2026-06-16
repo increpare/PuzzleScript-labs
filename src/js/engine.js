@@ -3299,8 +3299,8 @@ let sfxCreateMask = null;
 let sfxDestroyMask = null;
 let _currentInputSlot = 5;
 let inputSpecializationActive =
-	(typeof process !== 'undefined' && process.env
-		&& process.env.PUZZLESCRIPT_INPUT_SPECIALIZATION === '1');
+	!(typeof process !== 'undefined' && process.env
+		&& process.env.PUZZLESCRIPT_INPUT_SPECIALIZATION === '0');
 
 function setInputSpecializationActive(value) {
 	inputSpecializationActive = value === true;
