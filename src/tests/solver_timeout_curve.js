@@ -425,6 +425,45 @@ function renderAscii(curves) {
 
 const SERIES_COLORS = ['#2266cc', '#cc4422', '#22aa66', '#9944cc', '#888822'];
 
+// Nudge overlapping end-of-line labels apart while staying as close as possible to
+// each curve's terminal point.
+function resolveLabelYs(baseYs, minGap, yMin, yMax) {
+    const n = baseYs.length;
+    if (n === 0) {
+        return [];
+    }
+    const order = baseYs.map((_, i) => i).sort((a, b) => baseYs[a] - baseYs[b]);
+    const ys = order.map((i) => baseYs[i]);
+    for (let j = 1; j < n; j++) {
+        if (ys[j] < ys[j - 1] + minGap) {
+            ys[j] = ys[j - 1] + minGap;
+        }
+    }
+    if (ys[n - 1] > yMax) {
+        const shift = ys[n - 1] - yMax;
+        for (let j = 0; j < n; j++) {
+            ys[j] -= shift;
+        }
+    }
+    if (ys[0] < yMin) {
+        const shift = yMin - ys[0];
+        for (let j = 0; j < n; j++) {
+            ys[j] += shift;
+        }
+        if (ys[n - 1] > yMax) {
+            const shift = ys[n - 1] - yMax;
+            for (let j = 0; j < n; j++) {
+                ys[j] -= shift;
+            }
+        }
+    }
+    const out = new Array(n);
+    for (let j = 0; j < n; j++) {
+        out[order[j]] = ys[j];
+    }
+    return out;
+}
+
 function renderSvg(curves, options) {
     const W = 720, H = 460, mL = 60, mR = 20, mT = 50, mB = 45;
     const plotW = W - mL - mR, plotH = H - mT - mB;
@@ -444,14 +483,23 @@ function renderSvg(curves, options) {
     }
     let lines = '';
     let legend = '';
+    const labelMeta = curves.map((curve) => {
+        const last = curve.points[curve.points.length - 1];
+        return { last, baseY: y(last.solved) };
+    });
+    const labelYs = resolveLabelYs(
+        labelMeta.map((meta) => meta.baseY),
+        14,
+        mT + 6,
+        mT + plotH - 6
+    );
     curves.forEach((curve, ci) => {
         const color = SERIES_COLORS[ci % SERIES_COLORS.length];
         const pts = [[0, 0], ...curve.points.map((p) => [p.timeout_ms, p.solved])];
         const poly = pts.map(([ms, n]) => `${x(ms).toFixed(1)},${y(n).toFixed(1)}`).join(' ');
-        const last = curve.points[curve.points.length - 1];
-        const labelY = y(last.solved) - 8 - ci * 14;
+        const { last } = labelMeta[ci];
         lines += `<polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5"/>` +
-            `<text x="${x(last.timeout_ms) - 6}" y="${labelY}" font-size="12" text-anchor="end" fill="${color}">${curve.label}: ${last.solved} (${last.pct.toFixed(1)}%)</text>`;
+            `<text x="${x(last.timeout_ms) - 6}" y="${labelYs[ci]}" font-size="12" text-anchor="end" dominant-baseline="middle" fill="${color}">${curve.label}: ${last.solved} (${last.pct.toFixed(1)}%)</text>`;
         legend += `<rect x="${mL + 12}" y="${mT + 10 + ci * 20}" width="18" height="4" fill="${color}"/>` +
             `<text x="${mL + 36}" y="${mT + 16 + ci * 20}" font-size="12" fill="#333">${curve.label}</text>`;
     });
