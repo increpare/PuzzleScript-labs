@@ -737,6 +737,13 @@ void orMaskPtrInto(MaskVector& dest, const MaskWord* src, uint32_t wordCount) {
     }
 }
 
+void andMaskInto(MaskVector& dest, const MaskVector& src) {
+    const size_t n = dest.size();
+    for (size_t word = 0; word < n; ++word) {
+        dest[word] &= (word < src.size()) ? src[word] : MaskWord{0};
+    }
+}
+
 MaskVector inferredPropertyAliasMask(
     const Game& game,
     const Rule& rule,
@@ -862,11 +869,21 @@ void addPropertyBindingSinkLayerOverwrites(
     const Game& game,
     const Rule& rule,
     const PropertyBinding& binding,
+    const MaskVector& objectsOriginatingMovement,
     MaskVector& writtenObjects) {
     if (binding.sinks.empty()) {
         return;
     }
     MaskVector aliases = propertyBindingAliasMask(game, binding);
+    // When the binding delivers its aliases into the sink purely by cardinal
+    // movement (source `> prop`), only aliases that can actually be in a moving
+    // state can ever land there. An alias that no rule ever sets in motion (e.g.
+    // `wall` in `wallAndPlayer = wall or Enemy`, where only Enemy receives
+    // movement) can never be the matched member, so it never overwrites a
+    // same-layer occupant of the sink. Restrict to movement-originating aliases.
+    if (propertyBindingAliasWritesAreCoveredByCardinalMovement(binding)) {
+        andMaskInto(aliases, objectsOriginatingMovement);
+    }
     if (!hasBits(aliases.data(), game.wordCount)) {
         return;
     }
@@ -1026,10 +1043,18 @@ bool hasStaticObjectRelevantCommand(const Rule& rule) {
 void accumulateWrittenObjects(
     const Game& game,
     const Rule& rule,
+    const MaskVector& objectsOriginatingMovement,
     MaskVector& writtenObjects,
     MaskVector& movementMentionedObjects) {
     MaskVector ruleWrittenObjects(game.wordCount, 0);
     MaskVector ruleLayerOverwriteObjects(game.wordCount, 0);
+    // Same-layer erasures caused by a property binding's aliases landing in a
+    // sink cell. Unlike the gated ruleLayerOverwriteObjects, these are real even
+    // when the rule performs no *direct* object write: the aliased object may be
+    // delivered into the cell purely by movement (e.g.
+    // [ > move | menu | no object ] -> [ | menu | move ]), which erases any
+    // same-layer occupant of that cell that the LHS did not exclude.
+    MaskVector rulePropertyBindingOverwriteObjects(game.wordCount, 0);
     MaskVector ruleReplacementMovementObjects(game.wordCount, 0);
     for (const std::vector<Pattern>& row : rule.patterns) {
         for (const Pattern& pattern : row) {
@@ -1164,13 +1189,115 @@ void accumulateWrittenObjects(
                 addObjectToWrittenObjects(game, alias.objectId, ruleWrittenObjects, "property-binding-alias");
             }
         }
-        addPropertyBindingSinkLayerOverwrites(game, rule, binding, ruleLayerOverwriteObjects);
+        addPropertyBindingSinkLayerOverwrites(
+            game, rule, binding, objectsOriginatingMovement, rulePropertyBindingOverwriteObjects);
     }
     if (hasBits(ruleWrittenObjects.data(), game.wordCount)) {
         orMaskInto(ruleWrittenObjects, ruleLayerOverwriteObjects);
     }
     orMaskInto(writtenObjects, ruleWrittenObjects);
+    orMaskInto(writtenObjects, rulePropertyBindingOverwriteObjects);
     orMaskInto(movementMentionedObjects, ruleReplacementMovementObjects);
+}
+
+// Objects that some rule can put into a cardinal-moving state, i.e. that can
+// *originate* movement. This is intentionally narrower than the general
+// "may receive movement" mention used for static-object blocking: it considers
+// only movement *written* by a replacement (RHS `>`, `randomdir`, layer-coupled
+// movement), never movement merely *read* on a LHS (`[ > prop | ... ]`). A
+// property member that only ever appears under a LHS movement read but is never
+// itself set in motion (e.g. `wall` in `wallAndPlayer`) is correctly excluded.
+//
+// Soundness: this must over-approximate the true set of movers — missing a real
+// mover could wrongly keep an erasable object static. Players are added by the
+// caller (they move from input). All PuzzleScript movement originates from a
+// rule writing it, so enumerating replacement movement writes is sufficient.
+void addReplacementOriginatedMovement(
+    const Game& game,
+    const Pattern& pattern,
+    MaskVector& originatesMovement) {
+    if (!pattern.replacement.has_value()) {
+        return;
+    }
+    const Replacement& replacement = *pattern.replacement;
+    constexpr int32_t kCardinalMovementBits = 0x0f;
+    const MaskWord* movementsSet = maskPtr(game, replacement.movementsSet);
+    const MaskWord* randomDirMask =
+        replacement.hasRandomDirMask ? maskPtr(game, replacement.randomDirMask) : nullptr;
+    const MaskWord* objectsSet = maskPtr(game, replacement.objectsSet);
+    const MaskWord* objectsPresent = maskPtr(game, pattern.objectsPresent);
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        const int32_t layer = game.objectsById[static_cast<size_t>(objectId)].layer;
+        if (layer < 0) {
+            continue;
+        }
+        int32_t bits = movementLayerBits(game, movementsSet, layer) & kCardinalMovementBits;
+        if (randomDirMask != nullptr) {
+            bits |= movementLayerBits(game, randomDirMask, layer) & kCardinalMovementBits;
+        }
+        if (bits == 0) {
+            continue;
+        }
+        // The object receiving that movement is whatever the replacement writes
+        // or preserves on the moving layer.
+        if (!maskHasObject(game, objectsSet, objectId)
+            && !maskHasObject(game, objectsPresent, objectId)) {
+            continue;
+        }
+        const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word < game.wordCount) {
+            originatesMovement[word] |= maskBit(static_cast<uint32_t>(objectId));
+        }
+    }
+    // Layer-coupled movement (e.g. `[ > A | B ] -> [ > A | > B ]`): the coupled
+    // object masks receive positive replacement movement.
+    if (replacement.dynamic != nullptr) {
+        for (const LayerCoupledMovementReplacement& coupled :
+             replacement.dynamic->layerCoupledMovementReplacements) {
+            if (!coupled.hasReplacementMovementMask
+                || (coupled.replacementMovementMask & kCardinalMovementBits) == 0) {
+                continue;
+            }
+            for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                if (layerCoupledReplacementPreservesPositiveMovement(game, coupled, layerTerm)) {
+                    continue;
+                }
+                const MaskWord* objectMask = maskPtr(game, layerTerm.objectMask);
+                if (objectMask == nullptr) {
+                    continue;
+                }
+                for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+                    if (!maskHasObject(game, objectMask, objectId)) {
+                        continue;
+                    }
+                    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+                    if (word < game.wordCount) {
+                        originatesMovement[word] |= maskBit(static_cast<uint32_t>(objectId));
+                    }
+                }
+            }
+        }
+    }
+}
+
+MaskVector computeObjectsOriginatingMovement(const Game& game) {
+    MaskVector originatesMovement(game.wordCount, 0);
+    auto visit = [&](const std::vector<std::vector<Rule>>& groups) {
+        for (const std::vector<Rule>& group : groups) {
+            for (const Rule& rule : group) {
+                for (const std::vector<Pattern>& row : rule.patterns) {
+                    for (const Pattern& pattern : row) {
+                        addReplacementOriginatedMovement(game, pattern, originatesMovement);
+                    }
+                }
+            }
+        }
+    };
+    visit(game.rules);
+    visit(game.lateRules);
+    // Players move from input, not from a rule writing movement.
+    orMaskPtrInto(originatesMovement, maskPtr(game, game.playerMask), game.wordCount);
+    return originatesMovement;
 }
 
 } // namespace
@@ -1181,12 +1308,15 @@ StaticObjectAnalysis analyzeStaticObjects(const Game& game) {
     analysis.writtenObjects.assign(game.wordCount, 0);
     analysis.movementMentionedObjects.assign(game.wordCount, 0);
 
+    const MaskVector objectsOriginatingMovement = computeObjectsOriginatingMovement(game);
+
     auto visitGroups = [&](const std::vector<std::vector<Rule>>& groups) {
         for (const std::vector<Rule>& group : groups) {
             for (const Rule& rule : group) {
                 accumulateWrittenObjects(
                     game,
                     rule,
+                    objectsOriginatingMovement,
                     analysis.writtenObjects,
                     analysis.movementMentionedObjects);
             }

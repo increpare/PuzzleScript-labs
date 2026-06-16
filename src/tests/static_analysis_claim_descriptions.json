@@ -74,7 +74,7 @@
                 "name": "static",
                 "type": "boolean",
                 "description": "No solver-active rule can move, create, destroy, or overwrite this object.",
-                "specification": "An object is static when no solver-active rule writes it present, writes it absent, or assigns or reads its movement state. Same-layer overwrite counts as a write-absent. Player-role objects are never static because player input always assigns them movement."
+                "specification": "An object is static when no solver-active rule writes it present, writes it absent, or assigns or reads its movement state. Same-layer overwrite counts as a write-absent. Only writes that can actually occur count: a rule branch whose LHS can never match (a required member is excluded by the same cell's negated property, e.g. Spawner with no Obstacle where Obstacle includes Spawner) is dead and writes nothing, and a property member delivered into a cell purely by cardinal movement counts only if some rule can set that member in motion. Player-role objects are never static because player input always assigns them movement."
               },
               {
                 "name": "temporary",

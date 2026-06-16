@@ -1,0 +1,68 @@
+title Static Analysis Immobile Property Member Preserved
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+yellow
+
+Enemy
+red
+
+Wall
+brown
+
+Hit
+blue
+
+Solid
+white
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+E = Enemy
+# = Wall
+H = Hit
+S = Solid
+
+WallAndEnemy = Wall or Enemy
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Wall, Hit
+Enemy
+Solid
+Player
+
+=====
+RULES
+=====
+
+[ stationary Enemy ] -> [ right Enemy ]
+[ > WallAndEnemy | no Solid ] -> [ | WallAndEnemy ]
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+P....
+E.H..

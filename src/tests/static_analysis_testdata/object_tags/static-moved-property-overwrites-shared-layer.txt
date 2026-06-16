@@ -1,0 +1,64 @@
+title Static Analysis Moved Property Overwrites Shared Layer
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+yellow
+
+Enemy
+red
+
+Switch
+blue
+
+Menu
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+E = Enemy
+S = Switch
+M = Menu
+
+Move = Player or Enemy
+Object = Menu
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Switch, Enemy
+Menu
+Player
+
+=====
+RULES
+=====
+
+[ stationary Enemy ] -> [ randomdir Enemy ]
+[ > Move | Menu | no Object ] -> [ | Menu | Move ]
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+P....
+EMS..

@@ -495,6 +495,22 @@ function normalizeTermRefs(psTagged) {
     }
 }
 
+// Objects that some solver-active rule can put into a cardinal-moving state,
+// i.e. that can *originate* movement (plus players, who move from input). This
+// counts movement *written* by a replacement, never movement merely read on a
+// LHS — so a property member that only ever appears under a `> prop` read but is
+// never itself set in motion (e.g. `wall` in `wallAndPlayer`) is excluded.
+function computeObjectsOriginatingMovement(psTagged) {
+    const movers = new Set(playerObjectNameSet(psTagged));
+    for (const { rule } of allRuleEntries(psTagged)) {
+        if (!rule.tags.solver_state_active) continue;
+        for (const key of ruleMovementWriteTags(psTagged, rule)) {
+            if (movementKeyInvalidatesStatic(key)) movers.add(movementKeyObjectName(key));
+        }
+    }
+    return movers;
+}
+
 function buildPsTagged(state, options = {}) {
     const psTagged = {
         game: {
@@ -512,6 +528,7 @@ function buildPsTagged(state, options = {}) {
     tagObjectLevelPresence(psTagged);
     tagGame(psTagged, state.metadata || {});
     normalizeTermRefs(psTagged);
+    psTagged.objects_originating_movement = computeObjectsOriginatingMovement(psTagged);
     tagRuleObjectTags(psTagged);
     tagInertCollisionLayers(psTagged);
     tagCosmeticRules(psTagged);
@@ -2010,11 +2027,41 @@ function maxCellsInRows(leftRow, rightRow) {
     return Math.max(leftRow ? leftRow.length : 0, rightRow ? rightRow.length : 0);
 }
 
+function objectSetSignature(objectNames) {
+    return uniqueSorted(objectNames).join('|');
+}
+
+function isCardinalDeliveryMovement(movement) {
+    return CARDINAL_MOVEMENTS.includes(movement) || movement === 'moving' || movement === 'randomdir';
+}
+
+// Object-set signatures of LHS present terms carrying a cardinal movement read
+// (e.g. `> wallAndPlayer`). A fresh RHS write of the same object set is the sink
+// of that moving property, so only members that can originate the movement can
+// actually land there.
+function cardinallyMovedLhsPropertySignatures(rule) {
+    const signatures = new Set();
+    for (const row of rule.lhs) {
+        for (const cell of row) {
+            const absent = absentObjectSet(cell);
+            for (const term of cell) {
+                if (term.kind !== 'present' || term.movement === null) continue;
+                if (!isCardinalDeliveryMovement(term.movement)) continue;
+                if (!term.ref || term.ref.type !== 'object_set') continue;
+                signatures.add(objectSetSignature(termObjectsExcept(term, absent)));
+            }
+        }
+    }
+    return signatures;
+}
+
 function ruleFlowWrites(psTagged, rule) {
     const objectPresent = new Set();
     const objectAbsent = new Set();
     const movement = [];
     const rhsPresent = presentObjectSet(rule.summary.rhs_terms);
+    const movedPropertySignatures = cardinallyMovedLhsPropertySignatures(rule);
+    const movers = psTagged.objects_originating_movement;
 
     if (rule.tags.object_mutating) {
         const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
@@ -2027,7 +2074,19 @@ function ruleFlowWrites(psTagged, rule) {
                 const rhsCell = rhsRow[cellIndex] || [];
                 const lhsAbsent = absentObjectSet(lhsCell);
                 const lhsRequiredPresent = requiredPresentObjectSet(lhsCell, lhsAbsent);
+                // Raw LHS-present objects, NOT minus the cell's `no` set. An
+                // object that is required present on the LHS is preserved when the
+                // RHS writes it back, even when the cell also forbids it (a dead
+                // `X` + `no X` branch): the rule never fires, so it is not a fresh
+                // write. Matches native's objectsPresent-based preserve check.
+                const lhsPresentObjects = requiredPresentObjectSet(lhsCell);
                 const lhsMatchedPresent = presentObjectSet(lhsCell, lhsAbsent);
+                // Layer occupancy for "could this sibling have been here before?"
+                // must use the raw present set (NOT minus the `no` set). In a dead
+                // `X` + `no X` branch the slot is still occupied by X, so a
+                // same-layer sibling could not also be there and is not overwritten.
+                // Matches native's objectsPresent-based reachability gate.
+                const lhsOccupiedPresent = presentObjectSet(lhsCell);
                 const rhsInferredPresent = inferredRhsPropertyObjectSet(psTagged, lhsCell, rhsCell);
                 const rhsCellDefinitePresent = requiredPresentObjectSet(rhsCell);
                 const lhsProperties = lhsCell.filter(term =>
@@ -2041,12 +2100,25 @@ function ruleFlowWrites(psTagged, rule) {
                             && term.ref
                             && term.ref.type === 'object_set'
                             && rhsTermIsSameLhsProperty(lhsProperties, term, lhsAbsent);
-                        const rhsTermObjects = termPreservesLhsProperty
+                        let rhsTermObjects = termPreservesLhsProperty
                             ? termObjectsExcept(term, lhsAbsent)
                             : termObjects(term);
+                        // A fresh write of a property that the rule moves in by
+                        // cardinal movement only delivers members that can be in
+                        // motion; non-movers (e.g. `wall` in `> wallAndPlayer`)
+                        // never land, so they neither write nor overwrite here.
+                        if (!termPreservesLhsProperty
+                            && term.kind === 'present'
+                            && term.ref
+                            && term.ref.type === 'object_set'
+                            && movers
+                            && movedPropertySignatures.has(objectSetSignature(rhsTermObjects))) {
+                            rhsTermObjects = rhsTermObjects.filter(objectName => movers.has(objectName));
+                        }
                         const writtenObjects = rhsTermObjects.filter(objectName => {
                             if (term.kind === 'random_object') return true;
                             if (lhsRequiredPresent.has(objectName)) return false;
+                            if (lhsPresentObjects.has(objectName)) return false;
                             if (term.ref && term.ref.type === 'object_set' && rhsInferredPresent.has(objectName)) return false;
                             return true;
                         });
@@ -2060,14 +2132,14 @@ function ruleFlowWrites(psTagged, rule) {
                         for (const objectName of rhsTermObjects) {
                             for (const sibling of layerObjectsForObject(psTagged, objectName)) {
                                 if (sibling === objectName || rhsCellDefinitePresent.has(sibling)) continue;
-                                if (cellCouldContainObjectBefore(psTagged, lhsMatchedPresent, lhsAbsent, sibling)) {
+                                if (cellCouldContainObjectBefore(psTagged, lhsOccupiedPresent, lhsAbsent, sibling)) {
                                     objectAbsent.add(sibling);
                                 }
                             }
                         }
                     } else if (term.kind === 'absent') {
                         for (const objectName of termObjects(term)) {
-                            if (cellCouldContainObjectBefore(psTagged, lhsMatchedPresent, lhsAbsent, objectName)) {
+                            if (cellCouldContainObjectBefore(psTagged, lhsOccupiedPresent, lhsAbsent, objectName)) {
                                 objectAbsent.add(objectName);
                             }
                         }

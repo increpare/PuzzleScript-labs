@@ -1,0 +1,61 @@
+title Static Analysis Contradictory Member Preserved
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+yellow
+
+Key
+orange
+
+Lock
+blue
+
+Glow
+white
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+K = Key
+L = Lock
+G = Glow
+
+Openable = Key or Lock
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Key, Lock
+Glow
+
+=====
+RULES
+=====
+
+[ Key no Openable ] -> [ Key Glow ]
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+P.KLG
