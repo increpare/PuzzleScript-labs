@@ -3506,6 +3506,7 @@ function computeInputSpecReadMovementsPresent(state, ruleTuple) {
                     if (!term || !term.layers) continue;
                     for (let j = 0; j < term.layers.length; j++) {
                         const layer = term.layers[j];
+                        if (layer.movementsAny) result.ior(layer.movementsAny);
                         if (layer.movementsPresent) result.ior(layer.movementsPresent);
                     }
                 }

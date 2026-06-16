@@ -86,6 +86,25 @@ function ensureRuntimeLoaded() {
     }
 }
 
+function loadRuntimeContractFixtures(filter = null) {
+    ensureRuntimeLoaded();
+    assert.ok(Array.isArray(global.testdata), 'global.testdata should be loaded');
+    return global.testdata
+        .filter(entry => testMatchesFilter(entry[0], filter))
+        .map(entry => {
+            const dataarray = entry[1];
+            return {
+                testName: entry[0],
+                source: dataarray[0],
+                inputs: dataarray[1],
+                expectedSerializedLevel: dataarray[2],
+                targetLevel: dataarray[3] === undefined ? 0 : dataarray[3],
+                randomSeed: dataarray[4] === undefined ? null : dataarray[4],
+                expectedSounds: dataarray[5] === undefined ? null : dataarray[5],
+            };
+        });
+}
+
 function resetParserErrors() {
     if (typeof resetParserErrorState === 'function') {
         resetParserErrorState();
@@ -1453,6 +1472,40 @@ function replayBoundaryTrace(testName, source, inputs, targetLevel, randomSeed, 
     return trace;
 }
 
+function replayInputSpecializationTrace(testName, source, inputs, options = {}) {
+    ensureRuntimeLoaded();
+    if (typeof setInputSpecializationActive !== 'function'
+        || typeof getInputSpecializationActive !== 'function') {
+        throw new Error('input-specialization runtime switch helpers are unavailable');
+    }
+    const enabled = options.enabled === true;
+    const targetLevel = options.targetLevel === undefined ? 0 : options.targetLevel;
+    const randomSeed = options.randomSeed === undefined ? null : options.randomSeed;
+    const label = enabled ? 'input specialization on' : 'input specialization off';
+    const previousSwitch = getInputSpecializationActive();
+    const previousUnitTesting = unitTesting;
+    const previousLazyFunctionGeneration = lazyFunctionGeneration;
+    const trace = [];
+    try {
+        setInputSpecializationActive(enabled);
+        unitTesting = true;
+        lazyFunctionGeneration = false;
+        compileSimulationSource(`${testName}: ${label}`, source, targetLevel, randomSeed);
+        trace.push(replayBoundarySnapshot('initial'));
+        for (let inputIndex = 0; inputIndex < inputs.length; inputIndex++) {
+            const inputToken = inputs[inputIndex];
+            executeInputToken(inputToken);
+            drainAgain(`${testName}: ${label} input ${inputIndex} ${tokenLabel(inputToken)}`);
+            trace.push(replayBoundarySnapshot(`input ${inputIndex} ${tokenLabel(inputToken)}`));
+        }
+        return trace;
+    } finally {
+        setInputSpecializationActive(previousSwitch);
+        unitTesting = previousUnitTesting;
+        lazyFunctionGeneration = previousLazyFunctionGeneration;
+    }
+}
+
 function firstReplayTraceDifference(leftTrace, rightTrace) {
     const length = Math.max(leftTrace.length, rightTrace.length);
     for (let index = 0; index < length; index++) {
@@ -2301,9 +2354,11 @@ module.exports = {
     firstTemporaryPresence,
     ensureRuntimeLoaded,
     layerOccupancySnapshot,
+    loadRuntimeContractFixtures,
     objectCountSnapshot,
     parseArgs,
     projectStoredLevelState,
+    replayInputSpecializationTrace,
     replayFinalSerializedLevel,
     runAll,
     runSimulationWithStaticChecks,
