@@ -1529,6 +1529,7 @@ function Rule(rule) {
 	this.writeMovements = rule[16];
 	this.forceAlwaysRun = rule[17] === true;
 	this.forceAlwaysRunReason = rule[18] || null;
+	this.activeInputsMask = 0b111111;
 	this.ruleMask = new BitVec(STRIDE_OBJ);
 	this.applyAt = this.generateApplyAt(this.patterns, this.ellipsisCount, STRIDE_OBJ, STRIDE_MOV);
 	for (const m of this.cellRowMasks) {
@@ -3070,6 +3071,11 @@ function applyRuleGroup(ruleGroup) {
 
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
             const rule = ruleGroup[ruleIndex];
+            if (inputSpecializationActive && (rule.activeInputsMask & _currentInputBit) === 0) {
+                consecutiveFailures++;
+                if (consecutiveFailures === GROUP_LENGTH) break;
+                continue;
+            }
             const PRUNE_INNER_LOOP = !(typeof process !== 'undefined' && process.env
                 && process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === '0');
             if (PRUNE_INNER_LOOP
@@ -3280,6 +3286,18 @@ function generate_resolveMovements(OBJECT_SIZE, MOVEMENT_SIZE,state) {
 
 let sfxCreateMask = null;
 let sfxDestroyMask = null;
+let _currentInputBit = 0b111111;
+let inputSpecializationActive =
+	(typeof process !== 'undefined' && process.env
+		&& process.env.PUZZLESCRIPT_INPUT_SPECIALIZATION === '1');
+
+function setInputSpecializationActive(value) {
+	inputSpecializationActive = value === true;
+}
+
+function getInputSpecializationActive() {
+	return inputSpecializationActive;
+}
 
 /* returns a bool indicating if anything changed */
 function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
@@ -3291,6 +3309,7 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 	let bak = backupLevel();
 	turnObjectsModified = false;
 	let inputindex = dir;
+	_currentInputBit = inputindex >= 0 ? (1 << inputindex) : (1 << 5);
 	let playerPositions = [];
 
 	if (verbose_logging) {

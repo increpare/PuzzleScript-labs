@@ -4845,6 +4845,7 @@ function loadFile(str) {
     collapseRules(state.lateRules, state);
 
     generateRigidGroupList(state);
+    attachInputSpecializationMasks(state);
 
     processWinConditions(state);
     checkObjectsAreLayered(state);
