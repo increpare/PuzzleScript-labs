@@ -70,6 +70,21 @@ bool hasAnyRulegroups(const std::vector<std::vector<Rule>>& groups) {
     });
 }
 
+bool hasGameMetadata(const Game& game, std::string_view key) {
+    return game.metadata.values.find(std::string(key)) != game.metadata.values.end();
+}
+
+bool hasTransparentColoredObject(const Game& game) {
+    for (const ObjectDef& object : game.objectsById) {
+        for (const std::string& color : object.colors) {
+            if (color == "transparent") {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool hasRuleCommand(const Game& game, std::string_view commandName) {
     auto hasCommandInGroups = [&](const std::vector<std::vector<Rule>>& groups) {
         for (const std::vector<Rule>& group : groups) {
@@ -84,6 +99,67 @@ bool hasRuleCommand(const Game& game, std::string_view commandName) {
         return false;
     };
     return hasCommandInGroups(game.rules) || hasCommandInGroups(game.lateRules);
+}
+
+bool hasLoopPoints(const LoopPointTable& loopPoint) {
+    return std::any_of(loopPoint.entries.begin(), loopPoint.entries.end(), [](const std::optional<int32_t>& entry) {
+        return entry.has_value();
+    });
+}
+
+std::string compactNativeTurnUnsupportedReasonForRule(const Rule& rule) {
+    const std::string ruleReason = compactRuleUnsupportedReason(rule);
+    if (!ruleReason.empty()) {
+        return ruleReason;
+    }
+    if (!rule.aggregateBindings.empty()) {
+        return "aggregate_bindings";
+    }
+    return {};
+}
+
+std::string compactNativeTurnUnsupportedReasonForGroups(const std::vector<std::vector<Rule>>& groups) {
+    for (const std::vector<Rule>& group : groups) {
+        for (const Rule& rule : group) {
+            const std::string reason = compactNativeTurnUnsupportedReasonForRule(rule);
+            if (!reason.empty()) {
+                return reason;
+            }
+        }
+    }
+    return {};
+}
+
+std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
+    if (const std::string earlyReason = compactNativeTurnUnsupportedReasonForGroups(game.rules); !earlyReason.empty()) {
+        return earlyReason;
+    }
+    if (const std::string lateReason = compactNativeTurnUnsupportedReasonForGroups(game.lateRules); !lateReason.empty()) {
+        return lateReason;
+    }
+    if (hasLoopPoints(game.loopPoint) || hasLoopPoints(game.lateLoopPoint)) {
+        return "rule_loops";
+    }
+    if (!hasAnyRulegroups(game.rules) && !hasAnyRulegroups(game.lateRules)) {
+        return "no_rules";
+    }
+    if (hasTransparentColoredObject(game)
+        && (hasGameMetadata(game, "again_interval")
+            || hasGameMetadata(game, "run_rules_on_level_start")
+            || hasGameMetadata(game, "require_player_movement"))) {
+        return "transparent_object_compact_unsupported";
+    }
+    if (hasGameMetadata(game, "run_rules_on_level_start") && hasAnyRulegroups(game.lateRules)
+        && !hasTransparentColoredObject(game)) {
+        return "run_rules_on_level_start_late_rules";
+    }
+    if (hasRuleCommand(game, "again")) {
+        return "again_command";
+    }
+    if (hasGameMetadata(game, "verbose_logging")) {
+        return "verbose_logging";
+    }
+    return {};
 }
 
 bool anyMaskWordSet(const std::vector<MaskWord>& words) {
@@ -2894,23 +2970,32 @@ void emitCompactTurnBackend(
 }
 
 CompactTurnSupport compactNativeTurnSupportForGame(const Game& game) {
-    (void)game;
-    return CompactTurnSupport{};
+    const std::string unsupportedReason = compactNativeTurnUnsupportedReasonForGame(game);
+    if (!unsupportedReason.empty()) {
+        CompactTurnSupport support;
+        support.backendKind = CompactTurnBackendKind::Unsupported;
+        support.statusReason = unsupportedReason;
+        return support;
+    }
+    CompactTurnSupport support;
+    support.backendKind = CompactTurnBackendKind::NativeKernel;
+    support.statusReason = "native_kernel";
+    return support;
 }
 
 CompactTurnSupport compactTurnSupportForGame(const Game& game, const CompactCodegenOptions& options) {
     CompactTurnSupport support = compactNativeTurnSupportForGame(game);
     support.nativeKernelStatusReason = support.statusReason;
-    if (!options.interpreterMode) {
-        support.backendKind = CompactTurnBackendKind::NativeKernel;
-        support.statusReason = "native_kernel";
-        support.nativeKernelStatusReason = "native_kernel";
-        return support;
-    }
-    if (options.interpreterMode && !support.supported()) {
+    if (options.interpreterMode) {
         support.backendKind = CompactTurnBackendKind::InterpreterBridge;
         support.statusReason = "interpreter_bridge";
+        return support;
     }
+    if (support.nativeKernel()) {
+        return support;
+    }
+    support.backendKind = CompactTurnBackendKind::InterpreterBridge;
+    support.statusReason = "interpreter_bridge";
     return support;
 }
 

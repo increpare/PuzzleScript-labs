@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 function usage() {
-    console.error('Usage: node src/tests/compare_solver_focus_benchmarks.js <interpreted.json> <compiled.json> [--detail] [--goal-ratio N]');
+    console.error('Usage: node src/tests/compare_solver_focus_benchmarks.js <interpreted.json> <compiled.json> [--detail] [--goal-ratio N] [--require-work-parity]');
     process.exit(1);
 }
 
@@ -16,11 +16,14 @@ if (process.argv.length < 4) {
 const options = {
     detail: false,
     goalRatio: null,
+    requireWorkParity: false,
 };
 for (let index = 4; index < process.argv.length; index++) {
     const arg = process.argv[index];
     if (arg === '--detail') {
         options.detail = true;
+    } else if (arg === '--require-work-parity') {
+        options.requireWorkParity = true;
     } else if (arg === '--goal-ratio' && index + 1 < process.argv.length) {
         options.goalRatio = Number.parseFloat(process.argv[++index]);
         if (!Number.isFinite(options.goalRatio) || options.goalRatio <= 0) {
@@ -571,17 +574,51 @@ function printGraphSplit() {
     }
 }
 
+function dominantStatus(target) {
+    const counts = target?.status_counts || {};
+    let status = null;
+    let bestCount = -1;
+    for (const [name, count] of Object.entries(counts)) {
+        if (count > bestCount) {
+            status = name;
+            bestCount = count;
+        }
+    }
+    return status;
+}
+
+function isTimeoutParityExempt(row) {
+    return dominantStatus(row.interpreted) === 'timeout'
+        && dominantStatus(row.compiled) === 'timeout';
+}
+
+function countWorkMismatches(rows) {
+    const isMismatch = (row, ratioKey) => {
+        const ratio = row[ratioKey];
+        if (ratio === null || ratio === 1) {
+            return false;
+        }
+        return !isTimeoutParityExempt(row);
+    };
+    const generatedMismatches = rows.filter((row) => isMismatch(row, 'generatedRatio'));
+    const expandedMismatches = rows.filter((row) => isMismatch(row, 'expandedRatio'));
+    return {
+        generated: generatedMismatches.length,
+        expanded: expandedMismatches.length,
+        generatedExamples: generatedMismatches,
+    };
+}
+
 function printWorkMismatchSummary(rows) {
-    const generatedMismatches = rows.filter((row) => row.generatedRatio !== null && row.generatedRatio !== 1);
-    const expandedMismatches = rows.filter((row) => row.expandedRatio !== null && row.expandedRatio !== 1);
+    const { generated, expanded, generatedExamples } = countWorkMismatches(rows);
     process.stdout.write(
-        `  work_mismatches: generated=${generatedMismatches.length}` +
-        ` expanded=${expandedMismatches.length}\n`
+        `  work_mismatches: generated=${generated}` +
+        ` expanded=${expanded}\n`
     );
-    if (generatedMismatches.length === 0 && expandedMismatches.length === 0) {
+    if (generated === 0 && expanded === 0) {
         return;
     }
-    const examples = generatedMismatches
+    const examples = generatedExamples
         .slice()
         .sort((a, b) => Math.abs((a.generatedRatio || 1) - 1) > Math.abs((b.generatedRatio || 1) - 1) ? -1 : 1)
         .slice(0, 5);
@@ -821,6 +858,10 @@ if (options.goalRatio !== null) {
     );
 }
 
+if (options.requireWorkParity) {
+    printWorkMismatchSummary(comparisonRows);
+}
+
 if (options.detail) {
     const rows = comparisonRows;
     printWorkMismatchSummary(rows);
@@ -848,5 +889,11 @@ if (options.goalRatio !== null) {
     const elapsedRatio = ratio(compiled.median.elapsed_ms, interpreted.median.elapsed_ms);
     if (elapsedRatio === null || elapsedRatio > options.goalRatio) {
         process.exitCode = 2;
+    }
+}
+if (options.requireWorkParity) {
+    const mismatches = countWorkMismatches(comparisonRows);
+    if (mismatches.generated > 0 || mismatches.expanded > 0) {
+        process.exitCode = 3;
     }
 }

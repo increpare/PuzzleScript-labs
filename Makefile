@@ -188,6 +188,10 @@ SOLVER_FOCUS_SOLVER_ARG_ARGS = $(foreach arg,$(SOLVER_FOCUS_SOLVER_ARGS),--solve
 SOLVER_FOCUS_COMPILED_RULES_ARGS ?=
 SOLVER_FOCUS_COMPACT_SOLVER_ARGS ?= --compact-node-storage
 SOLVER_FOCUS_COMPACT_SOLVER_ARG_ARGS = $(foreach arg,$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS),--solver-arg "$(arg)")
+SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARGS ?= --compact-node-storage --no-compact-turn-search
+SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARG_ARGS = $(foreach arg,$(SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARGS),--solver-arg "$(arg)")
+SOLVER_FOCUS_PARITY_STRATEGY ?= weighted-astar
+SOLVER_FOCUS_PARITY_TIMEOUT_MS ?= 10000
 SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS ?= --compact-turn-only --compact-turn-mode=compiler
 # Compile-probe timeout only affects mining (solver_focus_mine). Default is
 # disabled so `make solver_focus_mine` always yields a usable focus set.
@@ -836,7 +840,7 @@ compact_turn_codegen_bringup: build
 	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	"$$build_dir/native/puzzlescript_solver" "$(COMPACT_TURN_CODEGEN_BRINGUP_CORPUS)" --timeout-ms 1000 --jobs 1 --strategy bfs --no-solutions --quiet --json --compact-turn-oracle > "$$out_dir/bringup.json"; \
-	$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const t=j.totals; const unhandled=t.compact_turn_unhandled ?? t.compact_turn_fallbacks; const fail=m=>{ throw new Error(m); }; if (t.levels !== 7 || t.solved !== 5 || t.errors !== 0) fail("unexpected smoke baseline"); if (!(t.compact_turn_native_attempts > 0)) fail("expected native compact attempts"); if (t.compact_turn_native_hits !== t.compact_turn_native_attempts) fail("expected every compiler-mode native compact attempt to hit"); if (unhandled !== 0) fail("expected no compiler-mode compact unhandled attempts"); if (t.compact_turn_oracle_failures !== 0) fail("expected compact oracle parity"); console.log("compact_turn_codegen_bringup observed compiler-mode attempts="+t.compact_turn_native_attempts+" hits="+t.compact_turn_native_hits+" unhandled="+unhandled);' "$$out_dir/bringup.json"
+	$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const t=j.totals; const unhandled=t.compact_turn_unhandled ?? t.compact_turn_fallbacks; const fail=m=>{ throw new Error(m); }; if (t.levels !== 14 || t.solved !== 9 || t.errors !== 0) fail("unexpected smoke baseline"); if (!(t.compact_turn_native_attempts > 0)) fail("expected native compact attempts"); if (t.compact_turn_native_hits !== t.compact_turn_native_attempts) fail("expected every compiler-mode native compact attempt to hit"); if (unhandled !== 0) fail("expected no compiler-mode compact unhandled attempts"); if (t.compact_turn_oracle_failures !== 0) fail("expected compact oracle parity"); console.log("compact_turn_codegen_bringup observed compiler-mode attempts="+t.compact_turn_native_attempts+" hits="+t.compact_turn_native_hits+" bridge="+t.compact_turn_bridge_attempts+" unhandled="+unhandled);' "$$out_dir/bringup.json"
 
 compact_turn_codegen_solver_parity: build
 	@set -e; \
@@ -924,7 +928,7 @@ compact_turn_codegen_coverage:
 	$(COMPILED_RULES_BOOTSTRAP_CPP); \
 	mkdir -p "$$(dirname "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)")"; \
 	$(PUZZLESCRIPT_CPP) compile-rules src/tests/resources/testdata.js --stats-only --max-rows $(COMPACT_TURN_TESTDATA_MAX_ROWS) --coverage-json "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)" --compact-turn-mode=compiler; \
-	$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const c=j.aggregate.compact_turn||j.aggregate.compact_tick; const sources=c.sources; const native=c.native_kernel_supported; const bridge=c.interpreter_bridge_supported; const callable=c.whole_turn_supported; const pct=n=>sources?((100*n/sources).toFixed(1)+"%"):"n/a"; console.log(""); console.log("compact_turn_codegen_coverage"); console.log("  json: "+path); console.log("  unique_sources: "+sources); console.log("  callable_compact_backends: "+callable+"/"+sources+" ("+pct(callable)+")"); console.log("  native_compact_kernels: "+native+"/"+sources+" ("+pct(native)+")"); console.log("  interpreter_bridge_backends: "+bridge+"/"+sources+" ("+pct(bridge)+")"); console.log("  max_rows: "+j.max_rows); if (native !== sources) throw new Error("expected every compiler-mode source to report native compact kernel support"); if (bridge !== 0) throw new Error("expected zero compiler-mode interpreter bridge backends");' "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)"
+	$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const c=j.aggregate.compact_turn||j.aggregate.compact_tick; const sources=c.sources; const native=c.native_kernel_supported; const bridge=c.interpreter_bridge_supported; const callable=c.whole_turn_supported; const pct=n=>sources?((100*n/sources).toFixed(1)+"%"):"n/a"; console.log(""); console.log("compact_turn_codegen_coverage"); console.log("  json: "+path); console.log("  unique_sources: "+sources); console.log("  callable_compact_backends: "+callable+"/"+sources+" ("+pct(callable)+")"); console.log("  native_compact_kernels: "+native+"/"+sources+" ("+pct(native)+")"); console.log("  interpreter_bridge_backends: "+bridge+"/"+sources+" ("+pct(bridge)+")"); console.log("  max_rows: "+j.max_rows); if (callable !== sources) throw new Error("expected every compiler-mode source to emit a callable compact backend"); if (native + bridge !== sources) throw new Error("expected native+bridge to cover every compiler-mode source");' "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)"
 
 solver_determinism_tests: $(SOLVER_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \
@@ -1211,8 +1215,8 @@ solver_focus_compare: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 
 solver_focus_compact_compare: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 	@set -e; \
-	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
-		$(MAKE) solver_focus_benchmark SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_INTERPRETED_OUT)"; \
+	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
+		$(MAKE) solver_focus_benchmark SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_INTERPRETED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)"; \
 	fi; \
 	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_COMPACT_COMPILED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
 		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_COMPACT_COMPILED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)"; \
@@ -1221,13 +1225,13 @@ solver_focus_compact_compare: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 
 solver_focus_compact_codegen_compare: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 	@set -e; \
-	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
-		$(MAKE) solver_focus_benchmark SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_INTERPRETED_OUT)"; \
+	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_PARITY_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
+		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_INTERPRETED_OUT)" SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_STRATEGY="$(SOLVER_FOCUS_PARITY_STRATEGY)" SOLVER_FOCUS_TIMEOUT_MS=$(SOLVER_FOCUS_PARITY_TIMEOUT_MS) SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
 	fi; \
-	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
-		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
+	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" "$(SOLVER_FOCUS_MANIFEST)" --runs $(SOLVER_FOCUS_RUNS) --corpus "$(SOLVER_FOCUS_CORPUS)" --strategy "$(SOLVER_FOCUS_PARITY_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
+		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_STRATEGY="$(SOLVER_FOCUS_PARITY_STRATEGY)" SOLVER_FOCUS_TIMEOUT_MS=$(SOLVER_FOCUS_PARITY_TIMEOUT_MS) SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
 	fi; \
-	$(NODE) src/tests/compare_solver_focus_benchmarks.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)"
+	$(NODE) src/tests/compare_solver_focus_benchmarks.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" --require-work-parity
 
 solver_focus_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 	@set -e; \
@@ -1238,14 +1242,14 @@ solver_focus_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 
 solver_focus_compact_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 	@set -e; \
-	$(MAKE) solver_focus_benchmark SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_PROFILE_COUNTERS=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_PERF_INTERPRETED_OUT)"; \
+	$(MAKE) solver_focus_benchmark SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_PROFILE_COUNTERS=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_PERF_INTERPRETED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)"; \
 	$(MAKE) solver_focus_benchmark SPECIALIZE=true COMPILED_RULES_PERF=true SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_PROFILE_COUNTERS=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_COMPACT_PERF_COMPILED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)"; \
 	$(NODE) src/tests/compare_solver_focus_benchmarks.js "$(SOLVER_FOCUS_PERF_INTERPRETED_OUT)" "$(SOLVER_FOCUS_COMPACT_PERF_COMPILED_OUT)" --detail --goal-ratio 0.5 || \
 		(echo "solver_focus_compact_perf_report: goal-ratio check failed (non-fatal); see metrics above." && true)
 
 solver_focus_compact_codegen_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 	@set -e; \
-	$(MAKE) solver_focus_benchmark SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_PROFILE_COUNTERS=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_PERF_INTERPRETED_OUT)"; \
+	$(MAKE) solver_focus_benchmark SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_PROFILE_COUNTERS=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_PERF_INTERPRETED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)"; \
 	$(MAKE) solver_focus_benchmark SPECIALIZE=true COMPILED_RULES_PERF=true SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_PROFILE_COUNTERS=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_COMPACT_CODEGEN_PERF_COMPILED_OUT)" SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
 	$(NODE) src/tests/compare_solver_focus_benchmarks.js "$(SOLVER_FOCUS_PERF_INTERPRETED_OUT)" "$(SOLVER_FOCUS_COMPACT_CODEGEN_PERF_COMPILED_OUT)" --detail --goal-ratio 0.5 || \
 		(echo "solver_focus_compact_codegen_perf_report: goal-ratio check failed (non-fatal); see metrics above." && true)

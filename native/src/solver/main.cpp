@@ -108,6 +108,7 @@ struct Options {
     bool compactNodeStorage = false;
     bool fullNodeStorage = false;
     bool compactTurnOracle = false;
+    bool compactTurnSearch = true;
     int32_t astarWeight = 2;
     puzzlescript::solver::HeuristicKind heuristicKind = puzzlescript::solver::HeuristicKind::Auto;
     std::filesystem::path staticAnalysisHintsPath;
@@ -843,6 +844,10 @@ Options parseArgs(int argc, char** argv) {
             options.compactTurnOracle = true;
             continue;
         }
+        if (arg == "--no-compact-turn-search" || arg == "--compact-turn-search=never") {
+            options.compactTurnSearch = false;
+            continue;
+        }
         if (arg == "--astar-weight" && index + 1 < argc) {
             // Clamp to a sane upper bound: the portfolio multiplies this by 4
             // (wa8) and priorityFor computes `depth + heuristic * weight` in
@@ -1423,7 +1428,8 @@ SolverEdgeStep stepSolverEdge(
     int32_t height,
     FullState& childScratch,
     Result& result,
-    bool compactTurnOracle
+    bool compactTurnOracle,
+    bool compactTurnSearch
 ) {
     constexpr puzzlescript::RuntimeStepOptions solverStepOptions{
         .playableUndo = false,
@@ -1432,9 +1438,12 @@ SolverEdgeStep stepSolverEdge(
         .againPolicy = puzzlescript::AgainPolicy::Drain,
     };
     SolverEdgeStep edge;
-    if (compactNodeStorage) {
+    if (compactNodeStorage && compactTurnSearch) {
         const puzzlescript::SpecializedCompactTurnBackend* compactTurn = game ? game->specializedCompactTurn : nullptr;
-        if (compactTurn != nullptr && compactTurn->step != nullptr) {
+        // Bridged compact-turn codegen re-enters the interpreter on materialized state;
+        // the focus interpreted baseline uses plain turn() without that backend. Only
+        // dispatch the attached compact kernel when it is the native fast path.
+        if (compactTurn != nullptr && compactTurn->step != nullptr && compactTurn->nativeKernel) {
             if (compactTurn->support.wholeTurnSupported) {
                 ++result.compactTurnAttempts;
                 if (compactTurn->nativeKernel) {
@@ -1828,6 +1837,7 @@ Result runSearch(
     bool exactStateKeys,
     bool compactNodeStorage,
     bool compactTurnOracle,
+    bool compactTurnSearch,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
@@ -2004,7 +2014,8 @@ Result runSearch(
                 searchHeight,
                 *childScratch,
                 result,
-                compactTurnOracle
+                compactTurnOracle,
+                compactTurnSearch
             );
             if (edge.oracleMismatch) {
                 result.status = "level_error";
@@ -2118,6 +2129,7 @@ Result runAdaptivePortfolioSearch(
     bool exactStateKeys,
     bool compactNodeStorage,
     bool compactTurnOracle,
+    bool compactTurnSearch,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
@@ -2384,7 +2396,8 @@ Result runAdaptivePortfolioSearch(
                 searchHeight,
                 *childScratch,
                 result,
-                compactTurnOracle
+                compactTurnOracle,
+                compactTurnSearch
             );
             if (edge.oracleMismatch) {
                 result.status = "level_error";
@@ -2668,6 +2681,7 @@ Result runParallelPortfolioSearch(
     bool exactStateKeys,
     bool compactNodeStorage,
     bool compactTurnOracle,
+    bool compactTurnSearch,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
@@ -2719,6 +2733,7 @@ Result runParallelPortfolioSearch(
             exactStateKeys,
             compactNodeStorage,
             compactTurnOracle,
+            compactTurnSearch,
             config.weight,
             heuristicKind,
             staticAnalysisHints,
@@ -2800,6 +2815,7 @@ Result runHashDistributedWeightedAStarSearch(
     bool exactStateKeys,
     bool compactNodeStorage,
     bool compactTurnOracle,
+    bool compactTurnSearch,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
@@ -3027,7 +3043,8 @@ Result runHashDistributedWeightedAStarSearch(
                     searchHeight,
                     childScratch,
                     edgeResult,
-                    compactTurnOracle
+                    compactTurnOracle,
+                    compactTurnSearch
                 );
                 if (edge.oracleMismatch) {
                     bool expected = false;
@@ -3176,6 +3193,7 @@ Result solveLevel(
     bool compactNodeStorage,
     bool fullNodeStorage,
     bool compactTurnOracle,
+    bool compactTurnSearch,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
@@ -3196,16 +3214,16 @@ Result solveLevel(
     };
 
     if (strategy == Strategy::Bfs) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
     }
     if (strategy == Strategy::WeightedAStar) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
     }
     if (strategy == Strategy::WeightedAStarDeep) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
     }
     if (strategy == Strategy::Greedy) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
     }
 
     if (strategy == Strategy::HdaWeightedAStar && hdaJobs <= 1) {
@@ -3221,6 +3239,7 @@ Result solveLevel(
             exactStateKeys,
             effectiveCompactNodeStorage,
             compactTurnOracle,
+            compactTurnSearch,
             astarWeight,
             heuristicKind,
             staticAnalysisHints);
@@ -3242,6 +3261,7 @@ Result solveLevel(
             exactStateKeys,
             effectiveCompactNodeStorage,
             compactTurnOracle,
+            compactTurnSearch,
             astarWeight,
             heuristicKind,
             staticAnalysisHints,
@@ -3260,6 +3280,7 @@ Result solveLevel(
             exactStateKeys,
             effectiveCompactNodeStorage,
             compactTurnOracle,
+            compactTurnSearch,
             astarWeight,
             heuristicKind,
             staticAnalysisHints,
@@ -3277,6 +3298,7 @@ Result solveLevel(
         exactStateKeys,
         effectiveCompactNodeStorage,
         compactTurnOracle,
+        compactTurnSearch,
         astarWeight,
         heuristicKind,
         staticAnalysisHints));
@@ -3977,6 +3999,7 @@ std::vector<Result> runCorpus(const Options& options) {
                     options.compactNodeStorage,
                     options.fullNodeStorage,
                     options.compactTurnOracle,
+                    options.compactTurnSearch,
                     options.astarWeight,
                     options.heuristicKind,
                     &compiled.staticAnalysisHints,

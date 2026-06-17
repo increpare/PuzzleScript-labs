@@ -6918,7 +6918,7 @@ void printCompileRulesHelp() {
         << "The generated file, or sharded source directory, is meant to be linked into\n"
         << "solver/generator builds through the Makefile SPECIALIZE=true workflow. Use\n"
         << "--stats-only to print coverage and miss buckets without writing generated code. --coverage-json writes per-source coverage. --max-rows defaults to 1;\n"
-        << "higher values enable experimental deterministic multi-row kernels. --compact-turn-mode defaults to interpreter; compiler mode emits the native compact compiler skeleton without bridge fallback.\n"
+        << "higher values enable experimental deterministic multi-row kernels. --compact-turn-mode defaults to interpreter; compiler mode emits the native compact kernel when supported and falls back to the interpreter bridge otherwise.\n"
         << "--compact-turn-only emits compact turn backends and registry stubs without generated rule kernels, useful for compact oracle coverage builds.\n"
         << "--compact-tick-only remains as a compatibility alias. --emit-runtime-ir-cache writes loadable runtime metadata keyed by source hash. --runtime-ir-cache-omit-rules is experimental and only valid when callers do not need load-level rule execution. --max-compiled-rules-per-source and --max-generated-lines-per-source skip oversized sharded sources so the runtime can fall back for those games.\n\n"
         << "Examples:\n"
