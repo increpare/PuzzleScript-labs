@@ -4077,9 +4077,18 @@ function collectCorpusRunJobs(options) {
     return jobs;
 }
 
+let solverPuzzleScriptLoaded = false;
+
+function ensureSolverPuzzleScriptLoaded() {
+    if (!solverPuzzleScriptLoaded) {
+        loadPuzzleScript();
+        installSolverStepProfiler();
+        solverPuzzleScriptLoaded = true;
+    }
+}
+
 function runCorpus(options) {
-    loadPuzzleScript();
-    installSolverStepProfiler();
+    ensureSolverPuzzleScriptLoaded();
     const results = [];
     let attemptedLevels = 0;
     let jobs = collectCorpusRunJobs(options);
@@ -4437,8 +4446,27 @@ if (require.main === module) {
         });
 }
 
+function compileGameFile(filePath, options = {}) {
+    ensureSolverPuzzleScriptLoaded();
+    const abs = path.resolve(filePath);
+    const compiled = runGame(path.dirname(abs), abs, Object.assign({ quiet: true }, options));
+    if (Array.isArray(compiled)) {
+        const detail = compiled[0] && compiled[0].error ? compiled[0].error : 'compile_error';
+        throw new Error(detail);
+    }
+    return compiled;
+}
+
+function replaySolutionOnGameFile(filePath, levelIndex, solution, options = {}) {
+    const compiled = compileGameFile(filePath, options);
+    return replaySolutionOnCurrentCompiledState(compiled.game, levelIndex, solution);
+}
+
 module.exports = {
     parseArgs,
     runCorpus,
     totals,
+    compileGameFile,
+    replaySolutionOnCurrentCompiledState,
+    replaySolutionOnGameFile,
 };
