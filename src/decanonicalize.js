@@ -820,10 +820,10 @@ function unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias) {
             const negatedObjects = new Set(
                 cell.filter(entry => entry.obj && entry.dir === 'no').map(entry => entry.obj)
             );
-            const cellHasAlias = cell.some(entry => entry.alias && entry.dir !== 'no' && counterpartAliases.has(entry.alias));
-            if (cellHasAlias) {
-                return cell;
-            }
+            const positiveAliases = new Set(
+                cell.filter(entry => entry.alias && entry.dir !== 'no').map(entry => entry.alias)
+            );
+            const assignedAliases = new Set(positiveAliases);
             return cell.map(entry => {
                 if (!entry.obj || entry.dir === 'no' || !memberToPropertyAlias.has(entry.obj)) {
                     return entry;
@@ -832,6 +832,10 @@ function unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias) {
                 if (!counterpartAliases.has(alias) || negatedAliases.has(alias) || negatedObjects.has(entry.obj)) {
                     return entry;
                 }
+                if (assignedAliases.has(alias)) {
+                    return entry;
+                }
+                assignedAliases.add(alias);
                 return { dir: entry.dir, alias };
             });
         }));
