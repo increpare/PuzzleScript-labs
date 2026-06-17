@@ -587,36 +587,77 @@ function dominantStatus(target) {
     return status;
 }
 
-function isTimeoutParityExempt(row) {
-    return dominantStatus(row.interpreted) === 'timeout'
-        && dominantStatus(row.compiled) === 'timeout';
+function isWorkParityExempt(row) {
+    const interpreted = dominantStatus(row.interpreted);
+    const compiled = dominantStatus(row.compiled);
+    // Same wall-clock budget: native may solve while baseline times out.
+    if (interpreted === 'timeout' && compiled === 'solved') {
+        return true;
+    }
+    if (interpreted === 'timeout' && compiled === 'timeout') {
+        return true;
+    }
+    return false;
+}
+
+function isStatusRegression(row) {
+    const interpreted = dominantStatus(row.interpreted);
+    const compiled = dominantStatus(row.compiled);
+    if (interpreted === compiled) {
+        return false;
+    }
+    return !isWorkParityExempt(row);
 }
 
 function countWorkMismatches(rows) {
-    const isMismatch = (row, ratioKey) => {
+    const isCountMismatch = (row, ratioKey) => {
+        const interpreted = dominantStatus(row.interpreted);
+        const compiled = dominantStatus(row.compiled);
+        if (interpreted !== compiled) {
+            return false;
+        }
         const ratio = row[ratioKey];
         if (ratio === null || ratio === 1) {
             return false;
         }
-        return !isTimeoutParityExempt(row);
+        return !isWorkParityExempt(row);
     };
-    const generatedMismatches = rows.filter((row) => isMismatch(row, 'generatedRatio'));
-    const expandedMismatches = rows.filter((row) => isMismatch(row, 'expandedRatio'));
+    const statusRegressions = rows.filter(isStatusRegression);
+    const generatedMismatches = rows.filter((row) => isCountMismatch(row, 'generatedRatio'));
+    const expandedMismatches = rows.filter((row) => isCountMismatch(row, 'expandedRatio'));
     return {
+        statusRegressions: statusRegressions.length,
         generated: generatedMismatches.length,
         expanded: expandedMismatches.length,
+        statusRegressionExamples: statusRegressions,
         generatedExamples: generatedMismatches,
     };
 }
 
 function printWorkMismatchSummary(rows) {
-    const { generated, expanded, generatedExamples } = countWorkMismatches(rows);
+    const {
+        statusRegressions,
+        generated,
+        expanded,
+        statusRegressionExamples,
+        generatedExamples,
+    } = countWorkMismatches(rows);
     process.stdout.write(
-        `  work_mismatches: generated=${generated}` +
+        `  work_mismatches: status=${statusRegressions}` +
+        ` generated=${generated}` +
         ` expanded=${expanded}\n`
     );
-    if (generated === 0 && expanded === 0) {
+    if (statusRegressions === 0 && generated === 0 && expanded === 0) {
         return;
+    }
+    if (statusRegressions > 0) {
+        process.stdout.write('  status_regression_examples:\n');
+        for (const row of statusRegressionExamples.slice(0, 5)) {
+            process.stdout.write(
+                `    ${dominantStatus(row.interpreted)}->${dominantStatus(row.compiled)}` +
+                ` ${row.key}\n`
+            );
+        }
     }
     const examples = generatedExamples
         .slice()
@@ -893,7 +934,7 @@ if (options.goalRatio !== null) {
 }
 if (options.requireWorkParity) {
     const mismatches = countWorkMismatches(comparisonRows);
-    if (mismatches.generated > 0 || mismatches.expanded > 0) {
+    if (mismatches.statusRegressions > 0 || mismatches.generated > 0 || mismatches.expanded > 0) {
         process.exitCode = 3;
     }
 }

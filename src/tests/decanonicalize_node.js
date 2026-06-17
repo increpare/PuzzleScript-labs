@@ -535,4 +535,131 @@ const unlayeredCompiled = compileSemanticSource(unlayeredRehydrated);
 assert.strictEqual(unlayeredCompiled.errorCount, 0, 'decanonicalized objects referenced by wins should be assigned to a layer');
 assert.strictEqual(JSON.stringify(unlayeredWinObjectCanonical), unlayeredBeforeRehydration, 'decanonicalization should not mutate canonical input when adding emission layers');
 
+const tinyTreasureHuntSource = fs.readFileSync('src/tests/solver_tests/tiny treasure hunt.txt', 'utf8');
+const tinyTreasureHuntCanonical = canonicalizeSource(tinyTreasureHuntSource, 'semantic', {
+    staticOptimizations: 'all',
+    sourcePath: 'tiny treasure hunt.txt',
+});
+const tinyTreasureHuntRehydrated = decanonicalizeSemantic(tinyTreasureHuntCanonical);
+const tinyTreasureHuntCompiled = compileSemanticSource(tinyTreasureHuntRehydrated);
+assert.strictEqual(tinyTreasureHuntCompiled.errorCount, 0, 'pruned no-rule set aliases must be defined before rule emission');
+assert.ok(
+    /\bset_\d+ = obj_3 or obj_9 or obj_10 or obj_11\b/.test(tinyTreasureHuntRehydrated),
+    'decanonicalization should emit aliases for pruned no-rule object sets'
+);
+
+const duplicateLayerBackgroundCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [{ key: 'title', value: 'Duplicate Layer Background' }],
+    collisionLayers: [
+        ['obj_6'],
+        ['obj_0', 'obj_1', 'obj_2', 'obj_3', 'obj_4', 'obj_5', 'obj_6'],
+        ['obj_7'],
+        ['obj_8'],
+    ],
+    playerObjects: ['obj_8'],
+    backgroundObjects: ['obj_0', 'obj_1', 'obj_2', 'obj_3', 'obj_4', 'obj_5', 'obj_6'],
+    rules: [
+        {
+            direction: 'down',
+            late: false,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 0,
+            lhs: [[[{ dir: '>', obj: 'obj_8' }]]],
+            rhs: [[[{ dir: '>', obj: 'obj_8' }]]],
+            commands: [],
+        },
+    ],
+    winConditions: [{ quantifier: -1, a: ['obj_6'], b: ['obj_0', 'obj_1', 'obj_2', 'obj_3', 'obj_4', 'obj_5', 'obj_6', 'obj_7', 'obj_8'] }],
+    levels: [
+        {
+            type: 'map',
+            rows: [[['obj_0', 'obj_8']]],
+        },
+    ],
+};
+const duplicateLayerBackgroundRehydrated = decanonicalizeSemantic(duplicateLayerBackgroundCanonical);
+assert.strictEqual(
+    compileSemanticSource(duplicateLayerBackgroundRehydrated).errorCount,
+    0,
+    'decanonicalization should coalesce background objects onto one collision layer'
+);
+
+const multiLayerCellAliasCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [],
+    collisionLayers: [
+        ['obj_0', 'obj_1'],
+        ['obj_2'],
+        ['obj_1'],
+    ],
+    playerObjects: ['obj_2'],
+    backgroundObjects: ['obj_0'],
+    rules: [],
+    winConditions: [],
+    levels: [
+        {
+            type: 'map',
+            rows: [
+                [['obj_0', 'obj_1']],
+            ],
+        },
+    ],
+};
+const multiLayerCellAliasRehydrated = decanonicalizeSemantic(multiLayerCellAliasCanonical);
+assert.strictEqual(
+    compileSemanticSource(multiLayerCellAliasRehydrated, { throwOnError: false }).errorCount,
+    0,
+    'decanonicalization should keep last collision-layer assignment for multi-layer objects'
+);
+assert.ok(
+    /cell_\d+ = obj_0 and obj_1/.test(multiLayerCellAliasRehydrated),
+    'decanonicalization should preserve AND legend aliases across distinct layers'
+);
+
+const metadataValueCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [
+        { key: 'realtime_interval', value: 'true' },
+        { key: 'run_rules_on_level_start', value: 'true' },
+    ],
+    collisionLayers: [['obj_0'], ['obj_1']],
+    playerObjects: ['obj_1'],
+    backgroundObjects: ['obj_0'],
+    rules: [
+        {
+            direction: 'down',
+            late: false,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 0,
+            lhs: [[[{ dir: '>', obj: 'obj_1' }]]],
+            rhs: [[[{ dir: '>', obj: 'obj_1' }]]],
+            commands: [],
+        },
+    ],
+    winConditions: [],
+    levels: [
+        {
+            type: 'map',
+            rows: [[['obj_0', 'obj_1']]],
+        },
+    ],
+};
+const metadataValueRehydrated = decanonicalizeSemantic(metadataValueCanonical);
+assert.ok(
+    /^realtime_interval true$/m.test(metadataValueRehydrated),
+    'value-bearing metadata should keep explicit values even when the value is "true"'
+);
+assert.ok(
+    /^run_rules_on_level_start$/m.test(metadataValueRehydrated),
+    'flag metadata should still emit as standalone keys'
+);
+assert.strictEqual(
+    compileSemanticSource(metadataValueRehydrated).errorCount,
+    0,
+    'decanonicalized value-bearing metadata should compile'
+);
+
 console.log('decanonicalize_node: ok');

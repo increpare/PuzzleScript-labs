@@ -36,11 +36,12 @@ const result = spawnSync(process.execPath, [
     encoding: 'utf8',
 });
 
-assert.notStrictEqual(result.status, 0, 'mismatched playable denominators should fail');
+assert.strictEqual(result.status, 1, `expected failure, got:\n${result.stdout}\n${result.stderr}`);
 assert.match(
     `${result.stdout}\n${result.stderr}`,
     /playable denominator mismatch/,
-    'failure should explain the denominator mismatch'
+    'mismatched playable denominators should fail'
 );
+assert.ok(!fs.existsSync(outSvg), 'chart should not be written on denominator mismatch');
 
 console.log('solver_timeout_curve_denominator_node passed');

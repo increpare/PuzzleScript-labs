@@ -129,6 +129,24 @@ int main() {
         compileGameFromPath("src/tests/solver_tests/heroes_of_sokoban_3.txt");
     expectNativeKernel(compactNativeTurnSupportForGame(heroes), "heroes native");
 
+    const puzzlescript::Game redRing =
+        compileGameFromPath("src/tests/solver_tests/the red ring of immortality.txt");
+    assert(!compactNativeTurnSupportForGame(redRing).nativeKernel());
+    assert(compactNativeTurnSupportForGame(redRing).statusReason == "cancel_command");
+    expectCompilerBridge(
+        compactTurnSupportForGame(redRing, compilerMode),
+        "cancel_command",
+        "red ring compiler bridge");
+
+    const puzzlescript::Game hairtug =
+        compileGameFromPath("src/tests/solver_tests/hairtug.txt");
+    assert(!compactNativeTurnSupportForGame(hairtug).nativeKernel());
+    assert(compactNativeTurnSupportForGame(hairtug).statusReason == "cancel_command");
+    expectCompilerBridge(
+        compactTurnSupportForGame(hairtug, compilerMode),
+        "cancel_command",
+        "hairtug compiler bridge");
+
     std::cout << "compiler_compact_turn_support: ok\n";
     return 0;
 }

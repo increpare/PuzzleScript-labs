@@ -22,6 +22,20 @@ const RESERVED_GLYPHS = new Set([
     'up', 'down', 'left', 'right', 'late', 'rigid', 'random', 'no', 'v', '^', '<', '>', '[', ']', '|', '=', '+', 'and', 'or', 'message'
 ]);
 
+// Mirrors metadata_no_value_set in src/js/parser.js.
+const METADATA_NO_VALUE_KEYS = new Set([
+    'run_rules_on_level_start',
+    'norepeat_action',
+    'require_player_movement',
+    'debug',
+    'verbose_logging',
+    'throttle_movement',
+    'noundo',
+    'noaction',
+    'norestart',
+    'scanline',
+]);
+
 const DENSITY_PATTERNS = [
     [
         '00000',
@@ -130,6 +144,64 @@ function buildLayerIndex(canonical) {
         layer.forEach(name => index.set(name, layerIndex));
     });
     return index;
+}
+
+function chooseBackgroundEmissionLayer(layerIndex, backgroundSet) {
+    const counts = new Map();
+    for (const name of backgroundSet) {
+        if (!layerIndex.has(name)) {
+            continue;
+        }
+        const layer = layerIndex.get(name);
+        counts.set(layer, (counts.get(layer) || 0) + 1);
+    }
+    if (counts.size === 0) {
+        return 0;
+    }
+    let bestLayer = 0;
+    let bestCount = -1;
+    for (const [layer, count] of counts) {
+        if (count > bestCount || (count === bestCount && layer > bestLayer)) {
+            bestCount = count;
+            bestLayer = layer;
+        }
+    }
+    return bestLayer;
+}
+
+// Canonical collision layers may list the same object on multiple rows (mirroring
+// expanded legend membership in the compiler). The engine keeps the last row as
+// the authoritative layer assignment. Rebuild one row per object before emission.
+function buildEmissionCollisionLayers(canonical) {
+    const layerIndex = buildLayerIndex(canonical);
+    const backgroundSet = new Set(canonical.backgroundObjects || []);
+
+    if (backgroundSet.size > 0) {
+        const backgroundLayer = chooseBackgroundEmissionLayer(layerIndex, backgroundSet);
+        for (const name of backgroundSet) {
+            layerIndex.set(name, backgroundLayer);
+        }
+    }
+
+    for (const name of canonicalObjectNames(canonical)) {
+        if (!layerIndex.has(name)) {
+            const nextLayer = layerIndex.size > 0 ? Math.max(...layerIndex.values()) + 1 : 0;
+            layerIndex.set(name, nextLayer);
+        }
+    }
+
+    if (layerIndex.size === 0) {
+        return [];
+    }
+
+    const maxLayer = Math.max(...layerIndex.values());
+    const layers = Array.from({ length: maxLayer + 1 }, () => []);
+    for (const [name, layer] of layerIndex) {
+        layers[layer].push(name);
+    }
+    return layers
+        .map(layer => normalizeSet(layer))
+        .filter(layer => layer.length > 0);
 }
 
 function chooseColor(name, index) {
@@ -249,7 +321,34 @@ function collectAliasNeeds(canonical, objectNames) {
     return { propertySets, cellSets };
 }
 
-function buildAliasDefinitions(canonical, objectNames) {
+function registerPrunedRulePropertyAliases(canonical, propertyAliasForSet, layerIndex) {
+    const rules = (canonical.rules || []).filter(rule => !ruleHasImpossibleLhs(rule, layerIndex));
+    for (const rule of rules) {
+        if ((!rule.rhs || rule.rhs.length === 0) && (!rule.commands || rule.commands.length === 0)) {
+            continue;
+        }
+        for (const side of [rule.lhs || [], rule.rhs || []]) {
+            for (const row of side) {
+                for (const cell of row) {
+                    if (cell.ellipsis || cell.length === 0) {
+                        continue;
+                    }
+                    const simplifiedCell = pruneRedundantNoEntries(
+                        pruneRedundantPositiveSetEntries(cell, layerIndex),
+                        layerIndex
+                    );
+                    for (const entry of simplifiedCell) {
+                        if (entry.objs) {
+                            propertyAliasForSet(entry.objs);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function buildAliasDefinitions(canonical, objectNames, layerIndex) {
     const allObjectsKey = JSON.stringify(normalizeSet(objectNames));
     const lines = [];
     const propertyAliasBySet = new Map();
@@ -296,6 +395,7 @@ function buildAliasDefinitions(canonical, objectNames) {
     const { propertySets, cellSets } = collectAliasNeeds(canonical, objectNames);
     propertySets.forEach(set => propertyAliasForSet(set));
     cellSets.forEach(set => cellAliasForSet(set));
+    registerPrunedRulePropertyAliases(canonical, propertyAliasForSet, layerIndex);
 
     for (const [key, aliasName] of Array.from(propertyAliasBySet.entries()).sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }))) {
         lines.push(`${aliasName} = ${key.split('|').join(' or ')}`);
@@ -742,7 +842,7 @@ function emitLevelsSection(canonical, glyphMap) {
 function emitMetadata(canonical) {
     const lines = [];
     for (const entry of canonical.metadata || []) {
-        if (entry.value === 'true') {
+        if (entry.value === 'true' && METADATA_NO_VALUE_KEYS.has(entry.key)) {
             lines.push(entry.key);
         } else {
             lines.push(`${entry.key} ${entry.value}`);
@@ -813,10 +913,13 @@ function decanonicalizeSemantic(canonical) {
         throw new Error(`Unsupported canonical format: ${canonical.format}`);
     }
 
-    const emissionCanonical = withEmittableObjects(canonical);
+    const preparedCanonical = withEmittableObjects(canonical);
+    const emissionCanonical = Object.assign({}, preparedCanonical, {
+        collisionLayers: buildEmissionCollisionLayers(preparedCanonical),
+    });
     const objectNames = canonicalObjectNames(emissionCanonical);
     const layerIndex = buildLayerIndex(emissionCanonical);
-    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet } = buildAliasDefinitions(emissionCanonical, objectNames);
+    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet } = buildAliasDefinitions(emissionCanonical, objectNames, layerIndex);
 
     const output = [];
     output.push(...emitMetadata(emissionCanonical));
@@ -830,17 +933,9 @@ function decanonicalizeSemantic(canonical) {
     output.push(...emitLegendSection(aliasLines, legendLines));
     output.push('=======', 'SOUNDS', '=======', '');
     output.push('================', 'COLLISIONLAYERS', '================', '');
-    const seenLayerObjects = new Set();
     for (const layer of emissionCanonical.collisionLayers || []) {
-        const filteredLayer = normalizeSet(layer).filter(name => {
-            if (seenLayerObjects.has(name)) {
-                return false;
-            }
-            seenLayerObjects.add(name);
-            return true;
-        });
-        if (filteredLayer.length > 0) {
-            output.push(filteredLayer.join(', '));
+        if (layer.length > 0) {
+            output.push(layer.join(', '));
         }
     }
     output.push('');

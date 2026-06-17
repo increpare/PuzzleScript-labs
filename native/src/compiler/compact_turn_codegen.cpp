@@ -156,6 +156,9 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
     if (hasRuleCommand(game, "again")) {
         return "again_command";
     }
+    if (hasRuleCommand(game, "cancel")) {
+        return "cancel_command";
+    }
     if (hasGameMetadata(game, "verbose_logging")) {
         return "verbose_logging";
     }

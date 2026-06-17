@@ -15,10 +15,10 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -59,6 +59,13 @@ STATIC_ANALYSIS_GIANT_OUT ?= $(BUILD_DIR)/static-analysis-audit-giant
 STATIC_ANALYSIS_GIANT_JOBS ?= 8
 STATIC_ANALYSIS_FRESH_FLAG = $(if $(filter true,$(STATIC_ANALYSIS_FRESH)),--fresh,)
 STATIC_ANALYSIS_RESUME_FLAG = $(if $(filter true,$(STATIC_ANALYSIS_RESUME)),--resume,)
+# Canonicalizer round-trip compile audit over the ~30k gist corpus (slow; not in make tests).
+CANONICALIZER_GIANT_CORPUS ?= $(FUZZ_BATCH_GIANT_CORPUS)
+CANONICALIZER_GIANT_OUT ?= $(BUILD_DIR)/canonicalizer-audit-giant
+CANONICALIZER_GIANT_JOBS ?= 8
+CANONICALIZER_GIANT_FRESH_FLAG = $(if $(filter true,$(CANONICALIZER_GIANT_FRESH)),--fresh,)
+CANONICALIZER_GIANT_RESUME_FLAG = $(if $(filter true,$(CANONICALIZER_GIANT_RESUME)),--resume,)
+CANONICALIZER_GIANT_EXIT_ON_FAILURE_FLAG = $(if $(filter true,$(CANONICALIZER_GIANT_EXIT_ON_FAILURE)),--exit-on-failure,)
 PUZZLESCRIPT_CPP := $(BUILD_DIR)/native/puzzlescript_cpp
 PUZZLESCRIPT_CPP_32 := $(BUILD_DIR_32)/native/puzzlescript_cpp
 PUZZLESCRIPT_SOLVER := $(BUILD_DIR)/native/puzzlescript_solver
@@ -129,6 +136,15 @@ SOLVER_COMPACT_PARITY_MAX_GAMES ?=
 SOLVER_COMPACT_PARITY_GAME_ARG = $(if $(SOLVER_COMPACT_PARITY_GAME),--game "$(SOLVER_COMPACT_PARITY_GAME)",)
 SOLVER_COMPACT_PARITY_LEVEL_ARG = $(if $(SOLVER_COMPACT_PARITY_LEVEL),--level $(SOLVER_COMPACT_PARITY_LEVEL),)
 SOLVER_COMPACT_PARITY_MAX_GAMES_ARG = $(if $(SOLVER_COMPACT_PARITY_MAX_GAMES),--max-games $(SOLVER_COMPACT_PARITY_MAX_GAMES),)
+SOLVER_CORPUS_MANIFEST ?= $(BUILD_DIR)/native/solver_corpus_manifest.json
+SOLVER_CORPUS_RUNS ?= 1
+SOLVER_CORPUS_MAX_GAMES ?=
+SOLVER_CORPUS_MAX_TARGETS ?=
+SOLVER_CORPUS_MANIFEST_MAX_GAMES_ARG = $(if $(SOLVER_CORPUS_MAX_GAMES),--max-games $(SOLVER_CORPUS_MAX_GAMES),)
+SOLVER_CORPUS_MANIFEST_MAX_TARGETS_ARG = $(if $(SOLVER_CORPUS_MAX_TARGETS),--max-targets $(SOLVER_CORPUS_MAX_TARGETS),)
+SOLVER_CORPUS_INTERPRETED_OUT ?= $(BUILD_DIR)/native/solver_corpus_benchmark_interpreted_compact_codegen.json
+SOLVER_CORPUS_COMPILED_OUT ?= $(BUILD_DIR)/native/solver_corpus_benchmark_compiled_compact_codegen.json
+SOLVER_CORPUS_JOBS ?= 8
 SOLVER_BENCH_RUNS ?= 5
 SOLVER_BENCH_TIMEOUT_MS ?= 250
 SOLVER_BENCH_CORPUS ?= src/tests/solver_tests
@@ -141,9 +157,16 @@ SOLVER_TIMEOUT_CURVE_MAX_MS ?= 1000
 SOLVER_TIMEOUT_CURVE_STEP_MS ?= 50
 SOLVER_TIMEOUT_CURVE_OUT_DIR ?= $(BUILD_DIR)/solver-timeout-curve
 SOLVER_TIMEOUT_CURVE_JS_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/js.json
-SOLVER_TIMEOUT_CURVE_PSPLUS_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/psplus.json
+SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/js-canonical.json
+SOLVER_TIMEOUT_CURVE_CANONICAL_CORPUS ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/canonical-corpus
 SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-portfolio.json
+SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_CANONICAL_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-portfolio-canonical.json
 SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-hda-weighted-astar-8.json
+SOLVER_TIMEOUT_CURVE_CPP_HDA_CANONICAL_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-hda-weighted-astar-8-canonical.json
+SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-portfolio-compiled.json
+SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-hda-weighted-astar-8-compiled.json
+SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_CANONICAL_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-portfolio-compiled-canonical.json
+SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_CANONICAL_JSON ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/cpp-hda-weighted-astar-8-compiled-canonical.json
 SOLVER_TIMEOUT_CURVE_CPP_JSON ?= $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)
 SOLVER_TIMEOUT_CURVE_SVG ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/solver_timeout_curve.svg
 SOLVER_TIMEOUT_CURVE_CSV ?= $(SOLVER_TIMEOUT_CURVE_OUT_DIR)/solver_timeout_curve.csv
@@ -151,6 +174,9 @@ SOLVER_TIMEOUT_CURVE_EXTRA_ARGS ?=
 SOLVER_TIMEOUT_CURVE_JS_ARGS ?= --strategy portfolio
 SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS ?= --jobs 1 --strategy portfolio
 SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS ?= --strategy hda-weighted-astar --hda-jobs 8
+SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS ?= --compact-turn-only --compact-turn-mode=compiler
+SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS ?= --compact-node-storage --jobs 1 --strategy portfolio
+SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS ?= --compact-node-storage --strategy hda-weighted-astar --hda-jobs 8
 SOLVER_TIMEOUT_CURVE_PROGRESS ?= per-game
 SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS = $(if $(filter per-game,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--progress-per-game,$(if $(filter quiet,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--quiet,--progress-every $(SOLVER_TIMEOUT_CURVE_PROGRESS)))
 SOLVER_MINE_CORPUS ?= src/tests/solver_tests
@@ -178,6 +204,7 @@ SOLVER_FOCUS_MIN_ELAPSED_MS ?= 250
 SOLVER_FOCUS_MAX_TARGETS ?= 50
 SOLVER_FOCUS_STRATEGY ?= $(SOLVER_STRATEGY)
 SOLVER_FOCUS_JOBS ?= 1
+SOLVER_FOCUS_BENCHMARK_JOBS ?= $(SOLVER_FOCUS_JOBS)
 SOLVER_FOCUS_RUNS ?= 1
 SOLVER_FOCUS_EXCLUDE_GAMES ?=
 SOLVER_FOCUS_EXCLUDE_GAMES_ARG = $(if $(SOLVER_FOCUS_EXCLUDE_GAMES),--exclude-games "$(SOLVER_FOCUS_EXCLUDE_GAMES)",)
@@ -447,6 +474,11 @@ help:
 	@echo "  make solver_focus_compare          Compare interpreted vs compiled focus outputs"
 	@echo "  make solver_focus_compact_compare  Compare interpreted vs compiled compact-node focus outputs"
 	@echo "  make solver_focus_compact_codegen_compare"
+	@echo "                                     Require work parity on the focus manifest (weighted-astar, 10s)"
+	@echo "  make solver_corpus_manifest        Generate all-level manifest for non-random solver_tests games"
+	@echo "  make solver_corpus_compact_codegen_compare"
+	@echo "                                     Full-corpus compact-codegen work parity (SOLVER_CORPUS_JOBS=$(SOLVER_CORPUS_JOBS) by default)"
+	@echo "                                     Require work parity on the full solver corpus manifest"
 	@echo "                                     Compare interpreted vs compiler-mode compact-node focus outputs"
 	@echo "  make solver_focus_perf_report      Compare focus outputs with runtime counters and the 2x goal"
 	@echo "  make solver_focus_compact_perf_report"
@@ -481,6 +513,10 @@ help:
 	@echo "                                     (STATIC_ANALYSIS_FUZZ_ARGS for --iterations/--game/--strict)"
 	@echo "  make canonicalization_fuzz         Verify semantic canonicalization on randomized input traces"
 	@echo "                                     (CANONICALIZATION_FUZZ_ARGS for --iterations/--game/--start/--end)"
+	@echo "  make canonicalizer_giant_corpus    Canonicalize+recompile audit over ~30k gist corpus (slow)"
+	@echo "                                     Corpus: $(CANONICALIZER_GIANT_CORPUS)"
+	@echo "                                     Logs: $(CANONICALIZER_GIANT_OUT)"
+	@echo "                                     Non-interactive resume: CANONICALIZER_GIANT_RESUME=true"
 	@echo "  make fuzz_corpus_batch             Long-running static/canonical fuzz (parallel by default)"
 	@echo "                                     FUZZ_BATCH_JOBS=$(FUZZ_BATCH_JOBS); set FUZZ_BATCH_JOBS=1 for single process"
 	@echo "                                     Overnight gist example:"
@@ -497,7 +533,7 @@ help:
 	@echo "                                     Run standalone native solver corpus with compiled rules"
 	@echo "  make solver_tests_js               Run JavaScript comparison solver corpus"
 	@echo "  make solver_js_coverage_cpp        Fail if native misses any JS-solved corpus level"
-	@echo "  make solver_timeout_curve          Build js + PS+ + c++ cumulative solve chart (slow)"
+	@echo "  make solver_timeout_curve          Build Javascript + c++ cumulative solve chart (slow; includes canonical + compiled series)"
 	@echo "  make solver_timeout_curve_replot   Re-render chart from saved JSON (does not re-run solvers)"
 	@echo "  make js_static_optimization_comparison_solver_smoke"
 	@echo "                                     JS solver smoke corpus: baseline vs --solver-opt all + totals diff"
@@ -715,6 +751,16 @@ static_analysis_corpus_audit_giant:
 
 canonicalization_fuzz:
 	$(NODE) src/tests/fuzz_canonicalization.js $(CANONICALIZATION_FUZZ_ARGS)
+
+canonicalizer_giant_corpus:
+	@mkdir -p "$(CANONICALIZER_GIANT_OUT)"
+	$(NODE) src/tests/run_canonicalizer_corpus_parallel.js \
+		--corpus "$(CANONICALIZER_GIANT_CORPUS)" \
+		--jobs "$(CANONICALIZER_GIANT_JOBS)" \
+		--log-dir "$(CANONICALIZER_GIANT_OUT)" \
+		$(CANONICALIZER_GIANT_RESUME_FLAG) \
+		$(CANONICALIZER_GIANT_FRESH_FLAG) \
+		$(CANONICALIZER_GIANT_EXIT_ON_FAILURE_FLAG)
 
 fuzz_corpus_batch:
 	@mkdir -p "$(FUZZ_BATCH_OUT)"
@@ -1039,21 +1085,53 @@ solver_tests_js:
 solver_timeout_curve: build_solver
 	@set -e; \
 	mkdir -p "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)"; \
+	$(COMPILED_RULES_BOOTSTRAP_CPP); \
+	if [ ! -e "$(SOLVER_TESTS_CORPUS)" ]; then echo "Missing solver corpus: $(SOLVER_TESTS_CORPUS)"; exit 2; fi; \
+	canonical_corpus="$(SOLVER_TIMEOUT_CURVE_CANONICAL_CORPUS)"; \
+	$(NODE) src/tests/write_solver_canonical_corpus.js "$(SOLVER_TESTS_CORPUS)" "$$canonical_corpus"; \
+	build_compiled_solver() { \
+		corpus_dir="$$1"; \
+		symbol_prefix="$$2"; \
+		result_var="$$3"; \
+		corpus_hash=$$(find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
+		compiled_hash=$$({ find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 $(COMPILED_RULES_FINGERPRINT_INPUTS); printf '%s\n' "max_rows=$(COMPILED_RULES_MAX_ROWS)"; printf '%s\n' "compiled_rules_args=$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS)"; } | shasum -a 256 | awk '{print $$1}'); \
+		out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/solver-timeout-curve-$$compiled_hash"; \
+		build_dir="$(COMPILED_RULES_BUILD_ROOT)/solver-timeout-curve-$$compiled_hash"; \
+		out_cpp_dir="$$out_dir/sources"; \
+		sources_file="$$out_dir/sources.txt"; \
+		mkdir -p "$$out_dir"; \
+		$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,$$corpus_dir,$${symbol_prefix}_$$corpus_hash,$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS)); \
+		$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
+		$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver 1>&2; \
+		eval "$$result_var=\"$$build_dir/native/puzzlescript_solver\""; \
+	}; \
+	build_compiled_solver "$(SOLVER_TESTS_CORPUS)" solver_timeout_curve compiled_solver; \
+	build_compiled_solver "$$canonical_corpus" solver_timeout_curve_canonical compiled_solver_canonical; \
 	echo ""; \
 	echo "solver_timeout_curve  corpus=$(SOLVER_TESTS_CORPUS) max=$(SOLVER_TIMEOUT_CURVE_MAX_MS)ms step=$(SOLVER_TIMEOUT_CURVE_STEP_MS)ms"; \
-	echo "  JSON -> $(SOLVER_TIMEOUT_CURVE_JS_JSON) , $(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)"; \
+	echo "  canonical corpus -> $$canonical_corpus"; \
+	echo "  JSON -> $(SOLVER_TIMEOUT_CURVE_JS_JSON) , $(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_CANONICAL_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_HDA_CANONICAL_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_CANONICAL_JSON) , $(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_CANONICAL_JSON)"; \
+	echo "  compiled solver -> $$compiled_solver"; \
+	echo "  compiled canonical solver -> $$compiled_solver_canonical"; \
 	echo "  chart -> $(SOLVER_TIMEOUT_CURVE_SVG)"; \
 	echo ""; \
 	$(NODE) src/tests/solver_timeout_curve.js "$(SOLVER_TESTS_CORPUS)" \
 		--max-ms $(SOLVER_TIMEOUT_CURVE_MAX_MS) \
 		--step-ms $(SOLVER_TIMEOUT_CURVE_STEP_MS) \
 		--compare-all \
-		--label "JS smart" \
+		--label "Javascript" \
 		--save-json "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
-		--save-json-psplus "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
+		--save-json-canonical "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" \
+		--canonical-corpus "$$canonical_corpus" \
 		--cpp-solver "$(PUZZLESCRIPT_SOLVER)" \
 		--cpp-series "c++ portfolio:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON):$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS)" \
+		--cpp-series "c++ portfolio (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_CANONICAL_JSON):$$canonical_corpus:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS)" \
 		--cpp-series "c++ hda-weighted-astar x8:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON):$(SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS)" \
+		--cpp-series "c++ hda-weighted-astar x8 (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_HDA_CANONICAL_JSON):$$canonical_corpus:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS)" \
+		--cpp-series "c++ portfolio compiled:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_JSON):$$compiled_solver:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS)" \
+		--cpp-series "c++ hda-weighted-astar x8 compiled:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_JSON):$$compiled_solver:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS)" \
+		--cpp-series "c++ portfolio compiled (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_CANONICAL_JSON):$$canonical_corpus:$$compiled_solver_canonical:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS)" \
+		--cpp-series "c++ hda-weighted-astar x8 compiled (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_CANONICAL_JSON):$$canonical_corpus:$$compiled_solver_canonical:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS)" \
 		--out-svg "$(SOLVER_TIMEOUT_CURVE_SVG)" \
 		--out-csv "$(SOLVER_TIMEOUT_CURVE_CSV)" \
 		$(SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS) \
@@ -1061,17 +1139,23 @@ solver_timeout_curve: build_solver
 
 solver_timeout_curve_replot:
 	@set -e; \
-	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)" ]; then \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_CANONICAL_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_HDA_CANONICAL_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_CANONICAL_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_CANONICAL_JSON)" ]; then \
 		echo "Missing saved curve JSON under $(SOLVER_TIMEOUT_CURVE_OUT_DIR)."; \
 		echo "Run: make solver_timeout_curve   (full corpus; takes a long time)"; \
 		exit 2; \
 	fi; \
 	mkdir -p "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)"; \
 	$(NODE) src/tests/solver_timeout_curve.js \
-		--series "JS smart:$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
-		--series "PS+ naive:$(SOLVER_TIMEOUT_CURVE_PSPLUS_JSON)" \
+		--series "Javascript:$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		--series "Javascript (canonical):$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" \
 		--series "c++ portfolio:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_JSON)" \
+		--series "c++ portfolio (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_CANONICAL_JSON)" \
 		--series "c++ hda-weighted-astar x8:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_JSON)" \
+		--series "c++ hda-weighted-astar x8 (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_HDA_CANONICAL_JSON)" \
+		--series "c++ portfolio compiled:$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_JSON)" \
+		--series "c++ hda-weighted-astar x8 compiled:$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_JSON)" \
+		--series "c++ portfolio compiled (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_CANONICAL_JSON)" \
+		--series "c++ hda-weighted-astar x8 compiled (canonical):$(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_CANONICAL_JSON)" \
 		--out-svg "$(SOLVER_TIMEOUT_CURVE_SVG)" \
 		--out-csv "$(SOLVER_TIMEOUT_CURVE_CSV)"
 
@@ -1192,9 +1276,9 @@ solver_focus_benchmark: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 		$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,$$focus_corpus_dir,solver_focus_$$hash,$(SOLVER_FOCUS_MAX_COMPILED_RULES_PER_SOURCE_ARG) $(SOLVER_FOCUS_MAX_GENERATED_LINES_PER_SOURCE_ARG) $(SOLVER_FOCUS_COMPILED_RULES_ARGS),$(SOLVER_FOCUS_COMPILED_RULES_MAX_ROWS)); \
 		$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
 		$(SOLVER_FOCUS_COMPILE_TIMEOUT_PREFIX) $(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
-		$(NODE) src/tests/run_solver_level_benchmark.js "$$build_dir/native/puzzlescript_solver" $(SOLVER_FOCUS_CORPUS) $(SOLVER_FOCUS_MANIFEST) --runs $(SOLVER_FOCUS_RUNS) --strategy $(SOLVER_FOCUS_STRATEGY) --timeout-ms $(SOLVER_FOCUS_TIMEOUT_MS) --out $(SOLVER_FOCUS_OUT) $(SOLVER_FOCUS_PROFILE_COUNTERS_ARG) $(SOLVER_FOCUS_SOLVER_ARG_ARGS); \
+		$(NODE) src/tests/run_solver_level_benchmark.js "$$build_dir/native/puzzlescript_solver" $(SOLVER_FOCUS_CORPUS) $(SOLVER_FOCUS_MANIFEST) --runs $(SOLVER_FOCUS_RUNS) --strategy $(SOLVER_FOCUS_STRATEGY) --timeout-ms $(SOLVER_FOCUS_TIMEOUT_MS) --jobs $(SOLVER_FOCUS_BENCHMARK_JOBS) --out $(SOLVER_FOCUS_OUT) $(SOLVER_FOCUS_PROFILE_COUNTERS_ARG) $(SOLVER_FOCUS_SOLVER_ARG_ARGS); \
 	else \
-		$(NODE) src/tests/run_solver_level_benchmark.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_CORPUS) $(SOLVER_FOCUS_MANIFEST) --runs $(SOLVER_FOCUS_RUNS) --strategy $(SOLVER_FOCUS_STRATEGY) --timeout-ms $(SOLVER_FOCUS_TIMEOUT_MS) --out $(SOLVER_FOCUS_OUT) $(SOLVER_FOCUS_PROFILE_COUNTERS_ARG) $(SOLVER_FOCUS_SOLVER_ARG_ARGS); \
+		$(NODE) src/tests/run_solver_level_benchmark.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_CORPUS) $(SOLVER_FOCUS_MANIFEST) --runs $(SOLVER_FOCUS_RUNS) --strategy $(SOLVER_FOCUS_STRATEGY) --timeout-ms $(SOLVER_FOCUS_TIMEOUT_MS) --jobs $(SOLVER_FOCUS_BENCHMARK_JOBS) --out $(SOLVER_FOCUS_OUT) $(SOLVER_FOCUS_PROFILE_COUNTERS_ARG) $(SOLVER_FOCUS_SOLVER_ARG_ARGS); \
 	fi
 
 $(SOLVER_FOCUS_INTERPRETED_OUT): $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
@@ -1232,6 +1316,19 @@ solver_focus_compact_codegen_compare: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANI
 		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_OUT="$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" SOLVER_FOCUS_RUNS=$(SOLVER_FOCUS_RUNS) SOLVER_FOCUS_STRATEGY="$(SOLVER_FOCUS_PARITY_STRATEGY)" SOLVER_FOCUS_TIMEOUT_MS=$(SOLVER_FOCUS_PARITY_TIMEOUT_MS) SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
 	fi; \
 	$(NODE) src/tests/compare_solver_focus_benchmarks.js "$(SOLVER_FOCUS_INTERPRETED_OUT)" "$(SOLVER_FOCUS_COMPACT_CODEGEN_COMPILED_OUT)" --require-work-parity
+
+solver_corpus_manifest: $(PUZZLESCRIPT_CPP)
+	$(NODE) src/tests/generate_solver_corpus_manifest.js "$(SOLVER_COMPACT_PARITY_CORPUS)" "$(SOLVER_CORPUS_MANIFEST)" --puzzlescript-cpp $(PUZZLESCRIPT_CPP) --timeout-ms $(SOLVER_FOCUS_PARITY_TIMEOUT_MS) --strategy $(SOLVER_FOCUS_PARITY_STRATEGY) $(SOLVER_CORPUS_MANIFEST_MAX_GAMES_ARG) $(SOLVER_CORPUS_MANIFEST_MAX_TARGETS_ARG)
+
+solver_corpus_compact_codegen_compare: $(PUZZLESCRIPT_SOLVER) solver_corpus_manifest
+	@set -e; \
+	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_CORPUS_INTERPRETED_OUT)" "$(SOLVER_CORPUS_MANIFEST)" --runs $(SOLVER_CORPUS_RUNS) --corpus "$(SOLVER_COMPACT_PARITY_CORPUS)" --strategy "$(SOLVER_FOCUS_PARITY_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
+		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_MANIFEST="$(SOLVER_CORPUS_MANIFEST)" SOLVER_FOCUS_CORPUS="$(SOLVER_COMPACT_PARITY_CORPUS)" SOLVER_FOCUS_OUT="$(SOLVER_CORPUS_INTERPRETED_OUT)" SOLVER_FOCUS_RUNS=$(SOLVER_CORPUS_RUNS) SOLVER_FOCUS_STRATEGY="$(SOLVER_FOCUS_PARITY_STRATEGY)" SOLVER_FOCUS_TIMEOUT_MS=$(SOLVER_FOCUS_PARITY_TIMEOUT_MS) SOLVER_FOCUS_BENCHMARK_JOBS=$(SOLVER_CORPUS_JOBS) SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_INTERPRETED_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
+	fi; \
+	if ! $(NODE) src/tests/check_solver_focus_benchmark_fresh.js "$(SOLVER_CORPUS_COMPILED_OUT)" "$(SOLVER_CORPUS_MANIFEST)" --runs $(SOLVER_CORPUS_RUNS) --corpus "$(SOLVER_COMPACT_PARITY_CORPUS)" --strategy "$(SOLVER_FOCUS_PARITY_STRATEGY)" --profile-runtime-counters "$(SOLVER_FOCUS_PROFILE_COUNTERS)" $(SOLVER_FOCUS_COMPACT_SOLVER_ARG_ARGS) $(SOLVER_FOCUS_BENCHMARK_FRESH_ARGS); then \
+		$(MAKE) solver_focus_benchmark SPECIALIZE=true SOLVER_FOCUS_MANIFEST="$(SOLVER_CORPUS_MANIFEST)" SOLVER_FOCUS_CORPUS="$(SOLVER_COMPACT_PARITY_CORPUS)" SOLVER_FOCUS_OUT="$(SOLVER_CORPUS_COMPILED_OUT)" SOLVER_FOCUS_RUNS=$(SOLVER_CORPUS_RUNS) SOLVER_FOCUS_STRATEGY="$(SOLVER_FOCUS_PARITY_STRATEGY)" SOLVER_FOCUS_TIMEOUT_MS=$(SOLVER_FOCUS_PARITY_TIMEOUT_MS) SOLVER_FOCUS_BENCHMARK_JOBS=$(SOLVER_CORPUS_JOBS) SOLVER_FOCUS_SOLVER_ARGS="$(SOLVER_FOCUS_COMPACT_SOLVER_ARGS)" SOLVER_FOCUS_COMPILED_RULES_ARGS="$(SOLVER_FOCUS_COMPACT_CODEGEN_RULES_ARGS)"; \
+	fi; \
+	$(NODE) src/tests/compare_solver_focus_benchmarks.js "$(SOLVER_CORPUS_INTERPRETED_OUT)" "$(SOLVER_CORPUS_COMPILED_OUT)" --require-work-parity
 
 solver_focus_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_MANIFEST)
 	@set -e; \
