@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -66,6 +66,16 @@ CANONICALIZER_GIANT_JOBS ?= 8
 CANONICALIZER_GIANT_FRESH_FLAG = $(if $(filter true,$(CANONICALIZER_GIANT_FRESH)),--fresh,)
 CANONICALIZER_GIANT_RESUME_FLAG = $(if $(filter true,$(CANONICALIZER_GIANT_RESUME)),--resume,)
 CANONICALIZER_GIANT_EXIT_ON_FAILURE_FLAG = $(if $(filter true,$(CANONICALIZER_GIANT_EXIT_ON_FAILURE)),--exit-on-failure,)
+# Raw gist scrape corpus (~33k games) for compile-exception hardening (slow; not in make tests).
+COMPILE_EXCEPTION_CORPUS ?= $(HOME)/Documents/google_gist_scraper/dumpprocessed_nodupes
+COMPILE_EXCEPTION_OUT ?= $(BUILD_DIR)/compile-exception-audit
+COMPILE_EXCEPTION_JOBS ?= 8
+COMPILE_EXCEPTION_COMPILER ?= both
+COMPILE_EXCEPTION_JS_MODE ?= both
+COMPILE_EXCEPTION_FRESH_FLAG = $(if $(filter true,$(COMPILE_EXCEPTION_FRESH)),--fresh,)
+COMPILE_EXCEPTION_RESUME_FLAG = $(if $(filter true,$(COMPILE_EXCEPTION_RESUME)),--resume,)
+COMPILE_EXCEPTION_EXIT_ON_FAILURE_FLAG = $(if $(filter true,$(COMPILE_EXCEPTION_EXIT_ON_FAILURE)),--exit-on-failure,)
+COMPILE_EXCEPTION_CPP_CLI_ARG = $(if $(strip $(COMPILE_EXCEPTION_CPP_CLI)),--cpp-cli "$(COMPILE_EXCEPTION_CPP_CLI)",--cpp-cli "$(PUZZLESCRIPT_CPP)")
 PUZZLESCRIPT_CPP := $(BUILD_DIR)/native/puzzlescript_cpp
 PUZZLESCRIPT_CPP_32 := $(BUILD_DIR_32)/native/puzzlescript_cpp
 PUZZLESCRIPT_SOLVER := $(BUILD_DIR)/native/puzzlescript_solver
@@ -517,6 +527,11 @@ help:
 	@echo "                                     Corpus: $(CANONICALIZER_GIANT_CORPUS)"
 	@echo "                                     Logs: $(CANONICALIZER_GIANT_OUT)"
 	@echo "                                     Non-interactive resume: CANONICALIZER_GIANT_RESUME=true"
+	@echo "  make compile_exception_corpus      Compile corpus for thrown exceptions (JS and/or C++)"
+	@echo "                                     Corpus: $(COMPILE_EXCEPTION_CORPUS)"
+	@echo "                                     COMPILE_EXCEPTION_COMPILER=$(COMPILE_EXCEPTION_COMPILER)"
+	@echo "                                     COMPILE_EXCEPTION_JS_MODE=$(COMPILE_EXCEPTION_JS_MODE)"
+	@echo "  make compile_exception_corpus_nodupes  Alias for raw ~33k nodupes scrape corpus"
 	@echo "  make fuzz_corpus_batch             Long-running static/canonical fuzz (parallel by default)"
 	@echo "                                     FUZZ_BATCH_JOBS=$(FUZZ_BATCH_JOBS); set FUZZ_BATCH_JOBS=1 for single process"
 	@echo "                                     Overnight gist example:"
@@ -761,6 +776,22 @@ canonicalizer_giant_corpus:
 		$(CANONICALIZER_GIANT_RESUME_FLAG) \
 		$(CANONICALIZER_GIANT_FRESH_FLAG) \
 		$(CANONICALIZER_GIANT_EXIT_ON_FAILURE_FLAG)
+
+compile_exception_corpus:
+	@mkdir -p "$(COMPILE_EXCEPTION_OUT)"
+	$(NODE) src/tests/run_compile_exception_corpus_parallel.js \
+		--corpus "$(COMPILE_EXCEPTION_CORPUS)" \
+		--jobs "$(COMPILE_EXCEPTION_JOBS)" \
+		--compiler "$(COMPILE_EXCEPTION_COMPILER)" \
+		--js-mode "$(COMPILE_EXCEPTION_JS_MODE)" \
+		--log-dir "$(COMPILE_EXCEPTION_OUT)" \
+		$(COMPILE_EXCEPTION_CPP_CLI_ARG) \
+		$(COMPILE_EXCEPTION_RESUME_FLAG) \
+		$(COMPILE_EXCEPTION_FRESH_FLAG) \
+		$(COMPILE_EXCEPTION_EXIT_ON_FAILURE_FLAG)
+
+compile_exception_corpus_nodupes:
+	@$(MAKE) compile_exception_corpus COMPILE_EXCEPTION_CORPUS="$(HOME)/Documents/google_gist_scraper/dumpprocessed_nodupes"
 
 fuzz_corpus_batch:
 	@mkdir -p "$(FUZZ_BATCH_OUT)"
