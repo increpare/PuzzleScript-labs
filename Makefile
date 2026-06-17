@@ -733,6 +733,7 @@ tests_js:
 	PUZZLESCRIPT_SKIP_AUXILIARY_TESTS=1 $(NODE) src/tests/run_tests_node.js
 	$(NODE) src/tests/compiler_keyword_names_node.js
 	$(NODE) src/tests/solver_random_replay_node.js
+	$(NODE) src/tests/compare_solver_timeout_curve_json_node.js
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
@@ -1254,6 +1255,28 @@ canonical_roundtrip_replay:
 		--original-corpus "$(SOLVER_TESTS_CORPUS)" \
 		--canonical-corpus "$(SOLVER_TIMEOUT_CURVE_CANONICAL_CORPUS)" \
 		--both
+
+patch_solver_timeout_curve_invalid:
+	@set -e; \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" ]; then \
+		echo "Missing $(SOLVER_TIMEOUT_CURVE_JS_JSON) or $(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)."; \
+		exit 2; \
+	fi; \
+	$(NODE) src/tests/patch_solver_timeout_curve_invalid.js --both
+
+compare_solver_timeout_curve_json:
+	@set -e; \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" ]; then \
+		echo "Missing $(SOLVER_TIMEOUT_CURVE_JS_JSON) or $(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)."; \
+		exit 2; \
+	fi; \
+	$(NODE) src/tests/compare_solver_timeout_curve_json.js \
+		"$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		"$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)"; \
+	$(NODE) src/tests/compare_solver_timeout_curve_json.js \
+		"$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		"$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" \
+		--json > "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)/js-vs-canonical-diff.json"
 
 static_optimizer_page:
 	@set -e; \

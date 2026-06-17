@@ -3107,7 +3107,7 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         textMode = false;
         hasUsedCheckpoint = false;
     };
-    return runNaiveSolver({
+    const modeResult = runNaiveSolver({
         deadline,
         actions,
         level,
@@ -3126,6 +3126,16 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         result: modeResult,
         searchStarted,
     });
+    if (VERIFY_SOLUTION_REPLAY && modeResult.status === 'solved') {
+        const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, modeResult.solution);
+        if (replay.status !== 'solved') {
+            modeResult.replay_rejected = 1;
+            modeResult.status = 'exhausted';
+            modeResult.solution = [];
+            modeResult.solution_length = 0;
+        }
+    }
+    return modeResult;
 }
 
 function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
