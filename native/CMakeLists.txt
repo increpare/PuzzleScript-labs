@@ -337,6 +337,10 @@ target_include_directories(puzzlescript_cpp_player_api_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+if(PS_COMPILED_RULES_SOURCE_ABS_LIST)
+  target_sources(puzzlescript_cpp_player_api_tests PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
+endif()
+
 add_dependencies(puzzlescript_cpp puzzlescript_cpp_player_api_tests)
 
 add_test(

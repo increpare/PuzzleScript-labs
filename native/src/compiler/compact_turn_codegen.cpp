@@ -13,6 +13,21 @@ namespace puzzlescript::compiler {
 
 namespace {
 
+size_t compactLayerCoupledMovementTermCount(const Replacement& replacement) {
+    const ReplacementDynamic* dynamic = replacement.dynamic.get();
+    if (dynamic == nullptr) {
+        return 0;
+    }
+    size_t count = 0;
+    for (const LayerCoupledMovementReplacement& coupled : dynamic->layerCoupledMovementReplacements) {
+        if (coupled.replacementAggregateName.has_value()) {
+            continue;
+        }
+        count += coupled.layers.size();
+    }
+    return count;
+}
+
 std::string compactRulePatternUnsupportedReason(const Pattern& pattern) {
     if (pattern.kind == Pattern::Kind::Ellipsis) {
         return {};
@@ -153,9 +168,6 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
     }
     if (hasRuleCommand(game, "again")) {
         return "again_command";
-    }
-    if (hasRuleCommand(game, "cancel")) {
-        return "cancel_command";
     }
     if (hasGameMetadata(game, "verbose_logging")) {
         return "verbose_logging";
@@ -539,6 +551,19 @@ void emitCompactRuleMaskData(
                         masks.emitName(compiledMaskWords(game, replacement.movementsClear, game.movementWordCount));
                         masks.emitName(compiledMaskWords(game, replacement.movementsSet, game.movementWordCount));
                         masks.emitName(compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount));
+                        if (const ReplacementDynamic* dynamic = replacement.dynamic.get()) {
+                            for (const LayerCoupledMovementReplacement& coupled : dynamic->layerCoupledMovementReplacements) {
+                                if (coupled.replacementAggregateName.has_value()) {
+                                    continue;
+                                }
+                                for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                                    masks.emitName(compiledMaskWords(game, layerTerm.objectMask, game.wordCount));
+                                    masks.emitName(compiledMaskWords(game, layerTerm.movementsAny, game.movementWordCount));
+                                    masks.emitName(compiledMaskWords(game, layerTerm.movementsPresent, game.movementWordCount));
+                                    masks.emitName(compiledMaskWords(game, layerTerm.movementsMissing, game.movementWordCount));
+                                }
+                            }
+                        }
                         if (replacement.hasRandomEntityMask) {
                             out << "constexpr int32_t " << prefix << "_random_entity_choices[] = {";
                             if (replacement.randomEntityChoices.empty()) {
@@ -566,6 +591,29 @@ void emitCompactRuleMaskData(
                             out << "};\n";
                             out << "constexpr size_t " << prefix << "_random_dir_layer_count = "
                                 << replacement.randomDirLayers.size() << ";\n";
+                        }
+                        const size_t layerCoupledMovementTermCount = compactLayerCoupledMovementTermCount(replacement);
+                        if (layerCoupledMovementTermCount > 0) {
+                            out << "constexpr CompactTurnLayerCoupledMovementTerm_" << suffix << " "
+                                << prefix << "_layer_coupled_movement_terms[] = {\n";
+                            const ReplacementDynamic* dynamic = replacement.dynamic.get();
+                            for (const LayerCoupledMovementReplacement& coupled : dynamic->layerCoupledMovementReplacements) {
+                                if (coupled.replacementAggregateName.has_value()) {
+                                    continue;
+                                }
+                                for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                                    out << "    {"
+                                        << layerTerm.layerIndex << ", "
+                                        << compactMaskName(masks, game, layerTerm.objectMask, game.wordCount) << ", "
+                                        << compactMaskName(masks, game, layerTerm.movementsAny, game.movementWordCount) << ", "
+                                        << compactMaskName(masks, game, layerTerm.movementsPresent, game.movementWordCount) << ", "
+                                        << compactMaskName(masks, game, layerTerm.movementsMissing, game.movementWordCount) << ", "
+                                        << coupled.replacementMovementMask << "},\n";
+                                }
+                            }
+                            out << "};\n";
+                            out << "constexpr size_t " << prefix << "_layer_coupled_movement_term_count = "
+                                << layerCoupledMovementTermCount << ";\n";
                         }
                     }
                 }
@@ -893,6 +941,7 @@ std::string compactPatternApplyCall(
 ) {
     const std::string prefix = compactPatternPrefix(suffix, phase, groupIndex, ruleIndex, rowIndex, patternIndex);
     const Replacement& replacement = *pattern.replacement;
+    const size_t layerCoupledMovementTermCount = compactLayerCoupledMovementTermCount(replacement);
     std::ostringstream call;
     call << "compact_turn_pattern_apply_" << suffix << "(dimensions, levelState, scratch, " << tileIndexExpr
          << ", " << rigidGroupIndexExpr
@@ -905,6 +954,8 @@ std::string compactPatternApplyCall(
          << ", " << (replacement.hasRandomEntityMask ? prefix + "_random_entity_choice_count" : "0")
          << ", " << (replacement.hasRandomDirMask ? prefix + "_random_dir_layers" : "nullptr")
          << ", " << (replacement.hasRandomDirMask ? prefix + "_random_dir_layer_count" : "0")
+         << ", " << (layerCoupledMovementTermCount > 0 ? prefix + "_layer_coupled_movement_terms" : "nullptr")
+         << ", " << layerCoupledMovementTermCount
          << ")";
     return call.str();
 }
@@ -972,14 +1023,17 @@ std::string emitCompactRuleCommandFunction(
                 body << "    if (!commands.hasMessage) {\n"
                      << "        ++commands.commandCount;\n"
                      << "        commands.hasMessage = true;\n"
+                     << "        // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
                      << "        commands.messageText = " << cppStringLiteral(*command.argument) << ";\n"
                      << "    }\n";
             } else {
                 body << "    if (!commands.hasMessage) ++commands.commandCount;\n"
+                     << "    // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
                      << "    commands.hasMessage = true;\n";
             }
         } else if (command.name.rfind("sfx", 0) == 0) {
             body << "    ++commands.commandCount;\n"
+                 << "    // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
                  << "    // Sound effects are command output only; board/search state is unaffected.\n";
         } else {
             body << "    static_assert(false, \"compact turn compiler command queue emitted unsupported command\");\n";
@@ -2062,6 +2116,32 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
+        << "    if (options.solverMode && commands.hasCancel) {\n"
+        << "        levelState.board.objects = turnStartObjects;\n"
+        << "        levelState.rng = turnStartRng;\n"
+        << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
+        << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
+        << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
+        << "            std::fill(scratch.rigidGroupIndexMasks.begin(), scratch.rigidGroupIndexMasks.end(), 0);\n"
+        << "            std::fill(scratch.rigidMovementAppliedMasks.begin(), scratch.rigidMovementAppliedMasks.end(), 0);\n"
+        << "        }\n"
+        << "        scratch.objectCellIndexDirty = true;\n"
+        << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
+        << "        return compact_turn_solver_discard_" << suffix << "(\"cancel\");\n"
+        << "    }\n"
+        << "    if (options.solverMode && commands.hasRestart) {\n"
+        << "        levelState.board.objects = turnStartObjects;\n"
+        << "        levelState.rng = turnStartRng;\n"
+        << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
+        << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
+        << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
+        << "            std::fill(scratch.rigidGroupIndexMasks.begin(), scratch.rigidGroupIndexMasks.end(), 0);\n"
+        << "            std::fill(scratch.rigidMovementAppliedMasks.begin(), scratch.rigidMovementAppliedMasks.end(), 0);\n"
+        << "        }\n"
+        << "        scratch.objectCellIndexDirty = true;\n"
+        << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
+        << "        return compact_turn_solver_discard_" << suffix << "(\"restart\");\n"
+        << "    }\n"
         << "    if (commands.hasCancel) {\n"
         << "        levelState.board.objects = turnStartObjects;\n"
         << "        levelState.rng = turnStartRng;\n"
@@ -2309,6 +2389,15 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     if (!game.winConditions.empty()) {
         out << "\n";
     }
+    out << "struct CompactTurnLayerCoupledMovementTerm_" << suffix << " {\n"
+        << "    int32_t layerIndex = -1;\n"
+        << "    const MaskWord* objectMask = nullptr;\n"
+        << "    const MaskWord* movementsAny = nullptr;\n"
+        << "    const MaskWord* movementsPresent = nullptr;\n"
+        << "    const MaskWord* movementsMissing = nullptr;\n"
+        << "    int32_t replacementMovementMask = 0;\n"
+        << "};\n\n";
+
     CompactMaskConstantEmitter earlyMasks(suffix, "early");
     CompactMaskConstantEmitter lateMasks(suffix, "late");
     std::ostringstream ruleAuxiliaryData;
@@ -2332,6 +2421,16 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    bool hasMessage = false;\n"
         << "    std::string messageText;\n"
         << "};\n\n";
+
+    out << "SpecializedCompactTurnOutcome compact_turn_solver_discard_" << suffix << "(const char* reason) {\n"
+        << "    SpecializedCompactTurnOutcome outcome;\n"
+        << "    outcome.handled = true;\n"
+        << "    outcome.discard = true;\n"
+        << "    outcome.discardReason = reason;\n"
+        << "    outcome.result.changed = false;\n"
+        << "    outcome.pendingAgain = false;\n"
+        << "    return outcome;\n"
+        << "}\n\n";
 
     out << "struct CompactTurnMovementOutcome_" << suffix << " {\n"
         << "    bool moved = false;\n"
@@ -2828,6 +2927,30 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return true;\n"
         << "}\n\n";
 
+    out << "bool compact_turn_mask_overlaps_" << suffix << "(const MaskWord* left, const MaskWord* right, int32_t wordCount) {\n"
+        << "    if (left == nullptr || right == nullptr) return false;\n"
+        << "    for (int32_t word = 0; word < wordCount; ++word) {\n"
+        << "        if ((left[word] & right[word]) != 0) return true;\n"
+        << "    }\n"
+        << "    return false;\n"
+        << "}\n\n";
+
+    out << "bool compact_turn_layer_coupled_movement_matches_" << suffix << "(\n"
+        << "    const MaskWord* oldObjects,\n"
+        << "    const MaskWord* oldMovements,\n"
+        << "    const CompactTurnLayerCoupledMovementTerm_" << suffix << "& term\n"
+        << ") {\n"
+        << "    if (!compact_turn_mask_overlaps_" << suffix << "(oldObjects, term.objectMask, compact_turn_object_stride_" << suffix << ")) return false;\n"
+        << "    const int32_t movementField = compact_turn_layer_bits_" << suffix << "(oldMovements, term.layerIndex);\n"
+        << "    const int32_t anyField = compact_turn_layer_bits_" << suffix << "(term.movementsAny, term.layerIndex);\n"
+        << "    const int32_t presentField = compact_turn_layer_bits_" << suffix << "(term.movementsPresent, term.layerIndex);\n"
+        << "    const int32_t missingField = compact_turn_layer_bits_" << suffix << "(term.movementsMissing, term.layerIndex);\n"
+        << "    if (anyField != 0 && (movementField & anyField) == 0) return false;\n"
+        << "    if (presentField != 0 && (movementField & presentField) != presentField) return false;\n"
+        << "    if (missingField != 0 && (movementField & missingField) != 0) return false;\n"
+        << "    return true;\n"
+        << "}\n\n";
+
     out << "bool compact_turn_pattern_apply_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    PersistentLevelState& levelState,\n"
@@ -2842,7 +2965,9 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const int32_t* randomEntityChoices,\n"
         << "    size_t randomEntityChoiceCount,\n"
         << "    const int32_t* randomDirLayers,\n"
-        << "    size_t randomDirLayerCount\n"
+        << "    size_t randomDirLayerCount,\n"
+        << "    const CompactTurnLayerCoupledMovementTerm_" << suffix << "* layerCoupledMovementTerms,\n"
+        << "    size_t layerCoupledMovementTermCount\n"
         << ") {\n"
         << "    compact_turn_count_replacements_attempted_" << suffix << "();\n"
         << "    bool changed = false;\n"
@@ -2885,6 +3010,14 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    }\n"
         << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
         << "        movementsClear[word] |= movementsLayerMask[word];\n"
+        << "    }\n"
+        << "    const MaskWord* oldObjects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
+        << "    const MaskWord* oldMovements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+        << "    for (size_t termIndex = 0; termIndex < layerCoupledMovementTermCount; ++termIndex) {\n"
+        << "        const CompactTurnLayerCoupledMovementTerm_" << suffix << "& term = layerCoupledMovementTerms[termIndex];\n"
+        << "        if (!compact_turn_layer_coupled_movement_matches_" << suffix << "(oldObjects, oldMovements, term)) continue;\n"
+        << "        compact_turn_set_layer_bits_" << suffix << "(movementsClear, term.layerIndex, 0x1f);\n"
+        << "        compact_turn_set_layer_bits_" << suffix << "(movementsSet, term.layerIndex, term.replacementMovementMask);\n"
         << "    }\n"
         << "    MaskWord* objects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
         << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"

@@ -1,6 +1,9 @@
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "puzzlescript/puzzlescript.h"
@@ -77,9 +80,80 @@ struct SessionHandle {
     ~SessionHandle() { ps_full_state_destroy(state); }
 };
 
+std::string readTextFile(const char* path) {
+    std::ifstream input(path, std::ios::binary);
+    assert(input.good());
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
+}
+
+void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
+    const std::string source = readTextFile(sourcePath);
+    CompileHandle compiled;
+    if (!ps_compile_source(source.data(), source.size(), &compiled.result)) {
+        const ps_error* error = ps_compile_result_error(compiled.result);
+        std::cerr << "compiled compact discard source failed: " << ps_error_message(error) << "\n";
+        std::abort();
+    }
+
+    const ps_game* game = ps_compile_result_game(compiled.result);
+    assert(game != nullptr);
+    assert(ps_game_level_count(game) >= 2);
+    assert(ps_game_object_count(game) >= 4);
+    constexpr int32_t kPlayerId = 1;
+    constexpr int32_t kCrateId = 2;
+
+    SessionHandle session;
+    ps_error* error = nullptr;
+    assert(ps_full_state_create(game, &session.state, &error));
+    assert(ps_full_state_cell_has_object(session.state, 0, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(session.state, 1, 0, kCrateId));
+
+    bool handled = false;
+    const ps_step_result cancelResult = ps_full_state_turn_compiled_compact(session.state, PS_INPUT_RIGHT, true, &handled);
+    assert(handled);
+    assert(!cancelResult.changed);
+    assert(ps_full_state_cell_has_object(session.state, 0, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(session.state, 1, 0, kCrateId));
+
+    handled = false;
+    const ps_step_result restartResult = ps_full_state_turn_compiled_compact(session.state, PS_INPUT_ACTION, true, &handled);
+    assert(handled);
+    assert(!restartResult.changed);
+    assert(ps_full_state_cell_has_object(session.state, 0, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(session.state, 1, 0, kCrateId));
+
+    SessionHandle movementSession;
+    assert(ps_full_state_create(game, &movementSession.state, &error));
+    assert(ps_full_state_load_level(movementSession.state, 1, &error));
+    assert(ps_full_state_cell_has_object(movementSession.state, 0, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(movementSession.state, 1, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(movementSession.state, 0, 0, kCrateId));
+    assert(ps_full_state_cell_has_object(movementSession.state, 1, 0, kCrateId));
+    assert(!ps_full_state_cell_has_object(movementSession.state, 2, 0, kCrateId));
+
+    handled = false;
+    const ps_step_result clearOnlyResult =
+        ps_full_state_turn_compiled_compact(movementSession.state, PS_INPUT_RIGHT, false, &handled);
+    assert(handled);
+    (void)clearOnlyResult;
+    assert(ps_full_state_cell_has_object(movementSession.state, 0, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(movementSession.state, 1, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(movementSession.state, 0, 0, kCrateId));
+    assert(ps_full_state_cell_has_object(movementSession.state, 1, 0, kCrateId));
+    assert(!ps_full_state_cell_has_object(movementSession.state, 2, 0, kCrateId));
+
+    ps_free_game(const_cast<ps_game*>(game));
+}
+
 } // namespace
 
 int main() {
+    if (const char* compactDiscardSource = std::getenv("PUZZLESCRIPT_COMPILED_COMPACT_DISCARD_SOURCE")) {
+        runCompiledCompactSolverDiscardRegression(compactDiscardSource);
+    }
+
     CompileHandle compiled;
     if (!ps_compile_source(kSource, std::strlen(kSource), &compiled.result)) {
         const ps_error* error = ps_compile_result_error(compiled.result);

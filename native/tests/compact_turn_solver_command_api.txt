@@ -1,0 +1,52 @@
+title Native Compact Solver Command API Test
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Crate
+red
+
+Crate2
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+C = Crate
+D = Crate2
+Box = Crate or Crate2
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+Crate2
+
+======
+RULES
+======
+
+[ > Player | Background ] -> [ Background | Crate ] cancel
+[ Action Player ] -> [ Background ] restart
+right [ > Player | Box ] -> [ > Player | > Box ]
+right [ > Player | > Box ] -> [ > Player | Box ]
+
+=======
+LEVELS
+=======
+
+P.
+
+PC.
