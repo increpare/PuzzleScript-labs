@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 const { canonicalizeSource, compileSemanticSource } = require('../canonicalize');
 const { decanonicalizeSemantic } = require('../decanonicalize');
@@ -701,6 +702,22 @@ assert.strictEqual(
     compileSemanticSource(playerInBackgroundRehydrated).errorCount,
     0,
     'decanonicalized player-in-background source should compile'
+);
+
+const gapfillerSource = fs.readFileSync(path.join(__dirname, 'solver_tests', 'gapfiller.txt'), 'utf8');
+const gapfillerCanonical = canonicalizeSource(gapfillerSource, 'semantic', {
+    staticOptimizations: 'all',
+    sourcePath: 'gapfiller.txt',
+});
+const gapfillerRehydrated = decanonicalizeSemantic(gapfillerCanonical);
+const gapfillerWinSection = gapfillerRehydrated.split('WINCONDITIONS')[1].split('LEVELS')[0];
+assert.ok(
+    /\ball\b.*\bon\b/i.test(gapfillerWinSection),
+    'gapfiller ALL win conditions should keep an explicit "on" target after cosmeticRules pruning'
+);
+assert.ok(
+    !/^\s*all\s+obj_\d+\s*$/m.test(gapfillerWinSection),
+    'gapfiller should not emit background-only plain ALL win text'
 );
 
 console.log('decanonicalize_node: ok');

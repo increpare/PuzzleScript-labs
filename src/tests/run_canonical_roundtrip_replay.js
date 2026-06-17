@@ -138,12 +138,14 @@ function formatFailure(failure) {
 function verifyDirection({
     direction,
     sourceResults,
+    sourceCorpus,
     targetCorpus,
     gameFilter,
 }) {
     const failures = [];
     let checked = 0;
     let skippedMissingFile = 0;
+    let skippedInvalidSource = 0;
     for (const result of sourceResults) {
         if (!gameMatchesFilter(result.game, gameFilter)) {
             continue;
@@ -169,6 +171,14 @@ function verifyDirection({
             });
             continue;
         }
+        if (sourceCorpus) {
+            const sourcePath = safeCorpusPath(sourceCorpus, result.game);
+            const sourceReplay = replaySolutionOnGameFile(sourcePath, result.level, result.solution);
+            if (sourceReplay.status !== 'solved') {
+                skippedInvalidSource++;
+                continue;
+            }
+        }
         checked++;
         const replay = replaySolutionOnGameFile(targetPath, result.level, result.solution);
         if (replay.status !== 'solved') {
@@ -184,7 +194,7 @@ function verifyDirection({
             });
         }
     }
-    return { direction, checked, skippedMissingFile, failures };
+    return { direction, checked, skippedMissingFile, skippedInvalidSource, failures };
 }
 
 function runCanonicalRoundtripReplay(options) {
@@ -196,6 +206,7 @@ function runCanonicalRoundtripReplay(options) {
             checked: 0,
             failures: 0,
             skipped_missing_file: 0,
+            skipped_invalid_source: 0,
         },
     };
     if (options.direction === 'orig-to-canon' || options.direction === 'both') {
@@ -203,6 +214,7 @@ function runCanonicalRoundtripReplay(options) {
         const check = verifyDirection({
             direction: 'orig_to_canon',
             sourceResults: origResults,
+            sourceCorpus: options.originalCorpus,
             targetCorpus: options.canonicalCorpus,
             gameFilter: options.gameFilter,
         });
@@ -213,6 +225,7 @@ function runCanonicalRoundtripReplay(options) {
         const check = verifyDirection({
             direction: 'canon_to_orig',
             sourceResults: canonResults,
+            sourceCorpus: options.canonicalCorpus,
             targetCorpus: options.originalCorpus,
             gameFilter: options.gameFilter,
         });
@@ -222,6 +235,7 @@ function runCanonicalRoundtripReplay(options) {
         summary.failures.push(...check.failures);
         summary.totals.checked += check.checked;
         summary.totals.skipped_missing_file += check.skippedMissingFile;
+        summary.totals.skipped_invalid_source += check.skippedInvalidSource || 0;
     }
     summary.totals.failures = summary.failures.length;
     return summary;
@@ -235,7 +249,7 @@ function printHuman(summary, options) {
     }
     const parts = summary.checks.map((check) => `${check.direction}=${check.checked}`).join(' ');
     process.stdout.write(
-        `canonical_roundtrip_replay direction=${summary.direction} checked=${summary.totals.checked} failures=${summary.totals.failures} missing_target=${summary.totals.skipped_missing_file}${parts ? ` (${parts})` : ''}\n`
+        `canonical_roundtrip_replay direction=${summary.direction} checked=${summary.totals.checked} failures=${summary.totals.failures} missing_target=${summary.totals.skipped_missing_file} invalid_source=${summary.totals.skipped_invalid_source}${parts ? ` (${parts})` : ''}\n`
     );
 }
 

@@ -303,6 +303,20 @@ function isPlainWinTargetB(normalizedB, objectNames, backgroundObjects) {
     return bKey === JSON.stringify(all) || bKey === JSON.stringify(nonBackground);
 }
 
+function isEmittedPlainWinB(normalizedB, objectNames, backgroundObjects, quantifier) {
+    const normalized = normalizeSet(normalizedB || []);
+    const all = normalizeSet(objectNames);
+    if (JSON.stringify(normalized) === JSON.stringify(all)) {
+        return true;
+    }
+    if (quantifier === 1) {
+        return false;
+    }
+    const background = new Set(normalizeSet(backgroundObjects || []));
+    const nonBackground = normalizeSet(all.filter(name => !background.has(name)));
+    return JSON.stringify(normalized) === JSON.stringify(nonBackground);
+}
+
 function collectAliasNeeds(canonical, objectNames) {
     const allObjectsKey = JSON.stringify(normalizeSet(objectNames));
     const roleAliases = [];
@@ -317,7 +331,7 @@ function collectAliasNeeds(canonical, objectNames) {
         if (JSON.stringify(normalized) === allObjectsKey) {
             return;
         }
-        if (options.allowPlainWin && isPlainWinTargetB(normalized, objectNames, canonical.backgroundObjects)) {
+        if (options.allowPlainWin && isEmittedPlainWinB(normalized, objectNames, canonical.backgroundObjects, options.quantifier)) {
             return;
         }
         propertySets.push(normalized);
@@ -353,7 +367,7 @@ function collectAliasNeeds(canonical, objectNames) {
 
     for (const condition of canonical.winConditions || []) {
         addPropertySet(condition.a || []);
-        addPropertySet(condition.b || [], { allowPlainWin: true });
+        addPropertySet(condition.b || [], { allowPlainWin: true, quantifier: condition.quantifier });
     }
 
     for (const level of canonical.levels || []) {
@@ -410,7 +424,7 @@ function buildAliasDefinitions(canonical, objectNames, layerIndex) {
         if (normalized.length === 0) {
             return null;
         }
-        if (options.allowPlainWin && isPlainWinTargetB(normalized, objectNames, canonical.backgroundObjects)) {
+        if (options.allowPlainWin && isEmittedPlainWinB(normalized, objectNames, canonical.backgroundObjects, options.quantifier)) {
             return null;
         }
         if (normalized.length === 1) {
@@ -814,6 +828,11 @@ function unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias) {
             if (counterpartAliases.size === 0) {
                 return cell;
             }
+            const counterpartObjects = new Set(
+                counterpart
+                    .filter(entry => entry.obj && entry.dir !== 'no')
+                    .map(entry => entry.obj)
+            );
             const negatedAliases = new Set(
                 cell.filter(entry => entry.alias && entry.dir === 'no').map(entry => entry.alias)
             );
@@ -830,6 +849,11 @@ function unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias) {
                 }
                 const alias = memberToPropertyAlias.get(entry.obj);
                 if (!counterpartAliases.has(alias) || negatedAliases.has(alias) || negatedObjects.has(entry.obj)) {
+                    return entry;
+                }
+                // Keep concrete transformation targets when the counterpart only
+                // references the aggregate alias (e.g. Candy -> Candy0).
+                if (!counterpartObjects.has(entry.obj)) {
                     return entry;
                 }
                 if (assignedAliases.has(alias)) {
@@ -932,7 +956,11 @@ function emitWinConditionsSection(canonical, objectNames, winAliasForSet) {
         const quantifier = QUANTIFIER_TEXT[String(condition.quantifier)];
         const left = winAliasForSet(condition.a) || condition.a[0];
         const normalizedB = normalizeSet(condition.b || []);
-        if (isPlainWinTargetB(normalizedB, objectNames, canonical.backgroundObjects)) {
+        // Only omit the "on" clause when b is the full object universe. Treating
+        // b === all non-background objects as plain would emit e.g. "all background"
+        // which compiles as All background on \nall\n, not All background on obstacle.
+        const plainWin = isEmittedPlainWinB(normalizedB, objectNames, canonical.backgroundObjects, condition.quantifier);
+        if (plainWin) {
             lines.push(`${quantifier} ${left}`);
         } else {
             const right = winAliasForSet(normalizedB) || normalizedB[0];
