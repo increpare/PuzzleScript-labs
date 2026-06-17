@@ -18,6 +18,55 @@ const COLOR_NAMES = [
 
 const GLYPH_POOL = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!$%&*+,-/:;<=>?@[]^_{|}~';
 const EXTRA_GLYPHS = '¡¢£¤¥¦§¨©«¬®¯°±²³´µ¶·¸¹»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿĀĂĄĆĈĊČĎĐĒĔĖĘĚĜĞĠĢĤĦĨĪĬĮİĲĴĶĹĻĽĿŁŃŅŇŌŎŐŒŔŖŘŚŜŞŠŢŤŦŨŪŬŮŰŲŴŶŸŹŻŽƀƁƂƄƆƇƉƊƋƌƎƏƐƑƓƔƖƗƘƜƝƟƠƢƤƧƩƬƮƯƱƲƳƵƷƸƼǍǏǑǓǕǗǙǛǞǠǤǦǨǪǬǮǰǴǶǸǺǼǾȀȂȄȆȈȊȌȎ';
+
+function buildSupplementalGlyphPool() {
+    const ranges = [
+        [0x0100, 0x017F],
+        [0x0180, 0x024F],
+        [0x0370, 0x03FF],
+        [0x0400, 0x04FF],
+        [0x0500, 0x052F],
+        [0x1E00, 0x1EFF],
+        [0x20A0, 0x20CF],
+        [0x2150, 0x218F],
+        [0x2190, 0x21FF],
+        [0x2500, 0x257F],
+        [0x2580, 0x259F],
+        [0x25A0, 0x25FF],
+    ];
+    let glyphs = '';
+    for (const [start, end] of ranges) {
+        for (let codePoint = start; codePoint <= end; codePoint++) {
+            const ch = String.fromCharCode(codePoint);
+            if (isSafeLevelGlyph(ch)) {
+                glyphs += ch;
+            }
+        }
+    }
+    return glyphs;
+}
+
+function isSafeLevelGlyph(ch) {
+    if (!ch || ch.length !== 1) {
+        return false;
+    }
+    if (ch.normalize('NFD').length !== 1) {
+        return false;
+    }
+    const codePoint = ch.charCodeAt(0);
+    if (codePoint < 0x21 || codePoint === 0x7f) {
+        return false;
+    }
+    if (codePoint >= 0x300 && codePoint <= 0x36f) {
+        return false;
+    }
+    if (codePoint >= 0x200b && codePoint <= 0x200f) {
+        return false;
+    }
+    return true;
+}
+
+const SUPPLEMENTAL_GLYPHS = buildSupplementalGlyphPool();
 const RESERVED_GLYPHS = new Set([
     'up', 'down', 'left', 'right', 'late', 'rigid', 'random', 'no', 'v', '^', '<', '>', '[', ']', '|', '=', '+', 'and', 'or', 'message'
 ]);
@@ -421,14 +470,25 @@ function buildAliasDefinitions(canonical, objectNames, layerIndex) {
         cellAliasForSet,
         winAliasForSet: (names, options) => propertyAliasForSet(names, options),
         ruleAliasForSet: propertyAliasForSet,
+        memberToPropertyAlias: memberToPropertyAliasMap(propertyAliasBySet),
     };
+}
+
+function memberToPropertyAliasMap(propertyAliasBySet) {
+    const map = new Map();
+    for (const [key, alias] of propertyAliasBySet) {
+        for (const name of key.split('|')) {
+            map.set(name, alias);
+        }
+    }
+    return map;
 }
 
 function buildLevelGlyphs(canonical, cellAliasForSet, forbiddenNames) {
     const glyphMap = new Map();
     const usedGlyphs = new Set();
     const usedGlyphNames = new Set();
-    const glyphPool = GLYPH_POOL + EXTRA_GLYPHS;
+    const glyphPool = GLYPH_POOL + EXTRA_GLYPHS + SUPPLEMENTAL_GLYPHS;
 
     function assign(setNames, preferred) {
         const normalized = Array.from(new Set(setNames)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -442,6 +502,9 @@ function buildLevelGlyphs(canonical, cellAliasForSet, forbiddenNames) {
         } else {
             for (const candidate of glyphPool) {
                 const lowered = candidate.toLowerCase();
+                if (!isSafeLevelGlyph(candidate)) {
+                    continue;
+                }
                 if (!usedGlyphNames.has(lowered) && !forbiddenNames.has(lowered) && !RESERVED_GLYPHS.has(lowered)) {
                     glyph = candidate;
                     break;
@@ -719,7 +782,68 @@ function formatRuleRow(row) {
     return `[ ${row.map(formatRuleCell).join(' | ')} ]`;
 }
 
-function emitRulesSection(canonical, ruleAliasForSet, layerIndex) {
+function rewriteRuleCell(entry, ruleAliasForSet) {
+    if (entry.objs) {
+        return {
+            dir: entry.dir,
+            alias: ruleAliasForSet(entry.objs)
+        };
+    }
+    return entry;
+}
+
+function unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias) {
+    if (memberToPropertyAlias.size === 0) {
+        return { lhsRows, rhsRows };
+    }
+
+    function upgradeRows(rows, counterpartRows) {
+        return rows.map((row, rowIndex) => row.map((cell, cellIndex) => {
+            if (cell.ellipsis || cell.length === 0) {
+                return cell;
+            }
+            const counterpart = counterpartRows[rowIndex] && counterpartRows[rowIndex][cellIndex];
+            if (!counterpart || counterpart.ellipsis || counterpart.length === 0) {
+                return cell;
+            }
+            const counterpartAliases = new Set(
+                counterpart
+                    .filter(entry => entry.alias && entry.dir !== 'no')
+                    .map(entry => entry.alias)
+            );
+            if (counterpartAliases.size === 0) {
+                return cell;
+            }
+            const negatedAliases = new Set(
+                cell.filter(entry => entry.alias && entry.dir === 'no').map(entry => entry.alias)
+            );
+            const negatedObjects = new Set(
+                cell.filter(entry => entry.obj && entry.dir === 'no').map(entry => entry.obj)
+            );
+            const cellHasAlias = cell.some(entry => entry.alias && entry.dir !== 'no' && counterpartAliases.has(entry.alias));
+            if (cellHasAlias) {
+                return cell;
+            }
+            return cell.map(entry => {
+                if (!entry.obj || entry.dir === 'no' || !memberToPropertyAlias.has(entry.obj)) {
+                    return entry;
+                }
+                const alias = memberToPropertyAlias.get(entry.obj);
+                if (!counterpartAliases.has(alias) || negatedAliases.has(alias) || negatedObjects.has(entry.obj)) {
+                    return entry;
+                }
+                return { dir: entry.dir, alias };
+            });
+        }));
+    }
+
+    return {
+        lhsRows: upgradeRows(lhsRows, rhsRows),
+        rhsRows: upgradeRows(rhsRows, lhsRows),
+    };
+}
+
+function emitRulesSection(canonical, ruleAliasForSet, layerIndex, memberToPropertyAlias) {
     const lines = ['======', 'RULES', '======', ''];
     let previousGroupNumber = null;
     const startLoopGroups = new Map();
@@ -766,19 +890,16 @@ function emitRulesSection(canonical, ruleAliasForSet, layerIndex) {
                 pruneRedundantPositiveSetEntries(cell, layerIndex),
                 layerIndex
             );
-            return normalizeRuleCellEntries(simplifiedCell.map(entry => {
-                if (entry.objs) {
-                    return {
-                        dir: entry.dir,
-                        alias: ruleAliasForSet(entry.objs)
-                    };
-                }
-                return entry;
-            }));
+            return normalizeRuleCellEntries(simplifiedCell.map(entry =>
+                rewriteRuleCell(entry, ruleAliasForSet)
+            ));
         });
 
-        const lhs = (rule.lhs || []).map(row => formatRuleRow(rewriteRow(row))).join(' ');
-        const rhs = (rule.rhs || []).map(row => formatRuleRow(rewriteRow(row))).join(' ');
+        const lhsRows = (rule.lhs || []).map(row => rewriteRow(row));
+        const rhsRows = (rule.rhs || []).map(row => rewriteRow(row));
+        const unified = unifyRulePropertyAliases(lhsRows, rhsRows, memberToPropertyAlias);
+        const lhs = unified.lhsRows.map(row => formatRuleRow(row)).join(' ');
+        const rhs = unified.rhsRows.map(row => formatRuleRow(row)).join(' ');
         const commands = (rule.commands || [])
             .map(command => command.length > 1 ? `${command[0]} ${command[1]}` : command[0])
             .join(' ');
@@ -922,7 +1043,7 @@ function decanonicalizeSemantic(canonical) {
     });
     const objectNames = canonicalObjectNames(emissionCanonical);
     const layerIndex = buildLayerIndex(emissionCanonical);
-    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet } = buildAliasDefinitions(emissionCanonical, objectNames, layerIndex);
+    const { lines: aliasLines, cellAliasForSet, winAliasForSet, ruleAliasForSet, memberToPropertyAlias } = buildAliasDefinitions(emissionCanonical, objectNames, layerIndex);
 
     const output = [];
     output.push(...emitMetadata(emissionCanonical));
@@ -942,7 +1063,7 @@ function decanonicalizeSemantic(canonical) {
         }
     }
     output.push('');
-    output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet, layerIndex));
+    output.push(...emitRulesSection(emissionCanonical, ruleAliasForSet, layerIndex, memberToPropertyAlias));
     output.push(...emitWinConditionsSection(emissionCanonical, objectNames, winAliasForSet));
     output.push(...emitLevelsSection(emissionCanonical, glyphMap));
     return `${output.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
