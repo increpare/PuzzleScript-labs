@@ -895,12 +895,12 @@ compact_turn_oracle_smoke: build
 	@set -e; \
 	$(COMPILED_RULES_BOOTSTRAP_CPP); \
 	hash=$$(find src/tests/solver_smoke_tests -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
-	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/solver-smoke-$$hash"; \
-	build_dir="$(COMPILED_RULES_BUILD_ROOT)/solver-smoke-$$hash"; \
+	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/compact-oracle-smoke-$$hash"; \
+	build_dir="$(COMPILED_RULES_BUILD_ROOT)/compact-oracle-smoke-$$hash"; \
 	out_cpp_dir="$$out_dir/sources"; \
 	sources_file="$$out_dir/sources.txt"; \
 	mkdir -p "$$out_dir"; \
-	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,src/tests/solver_smoke_tests,solver_smoke_$$hash); \
+	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,src/tests/solver_smoke_tests,compact_oracle_smoke_$$hash,--compact-turn-only --compact-turn-mode=compiler); \
 	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	$(NODE) src/tests/run_solver_smoke_assert.js "$$build_dir/native/puzzlescript_solver" src/tests/solver_smoke_tests --timeout-ms 1000 --compact-turn-oracle --require-compact-oracle-checks
