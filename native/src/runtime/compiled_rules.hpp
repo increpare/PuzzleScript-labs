@@ -55,6 +55,8 @@ struct SpecializedCompactTurnOutcome {
     ps_step_result result{};
     bool pendingAgain = false;
     bool hasCheckpoint = false;
+    bool discard = false;
+    const char* discardReason = nullptr;
 };
 
 struct SpecializedCompactTurnContext {

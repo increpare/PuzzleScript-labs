@@ -7177,6 +7177,14 @@ ps_step_result compiledCompactPrimaryTurn(FullState& session, ps_input input, Ru
     }
 
     ps_step_result result = outcome.result;
+    if (outcome.discard) {
+        session.meta.pendingAgain = false;
+        markAllMasksDirty(session);
+        rebuildMasks(session);
+        gThreadTurnResult = TurnResult{};
+        gThreadTurnResult.core = result;
+        return result;
+    }
     session.meta.pendingAgain = outcome.pendingAgain;
 
     if (result.restarted) {

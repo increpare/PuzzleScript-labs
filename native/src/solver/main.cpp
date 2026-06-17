@@ -1331,6 +1331,8 @@ void recordPersistentLevelStateStorage(Timing& timing, const PersistentLevelStat
 struct CompactTurnTryResult {
     bool attempted = false;
     bool handled = false;
+    bool discard = false;
+    const char* discardReason = nullptr;
     PersistentLevelState state;
     ps_step_result stepResult{};
 };
@@ -1411,6 +1413,8 @@ CompactTurnTryResult trySpecializedCompactTurn(
     const puzzlescript::SpecializedCompactTurnOutcome outcome =
         game.specializedCompactTurn->step(game, result.state, scratch, context, input, options);
     result.handled = outcome.handled;
+    result.discard = outcome.discard;
+    result.discardReason = outcome.discardReason;
     result.stepResult = outcome.result;
     return result;
 }
@@ -1508,6 +1512,11 @@ SolverEdgeStep stepSolverEdge(
                 ++result.compactTurnUnsupported;
             }
         }
+    }
+
+    if (edge.compactTurn.handled && edge.compactTurn.discard) {
+        edge.stepResult = edge.compactTurn.stepResult;
+        return edge;
     }
 
     if (!edge.compactTurn.handled) {
@@ -2025,7 +2034,7 @@ Result runSearch(
             const ps_step_result& stepResult = edge.stepResult;
             ++result.generated;
 
-            if (stepResult.restarted) {
+            if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                 continue;
             }
 
@@ -2407,7 +2416,7 @@ Result runAdaptivePortfolioSearch(
             const ps_step_result& stepResult = edge.stepResult;
             ++result.generated;
 
-            if (stepResult.restarted) {
+            if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                 continue;
             }
 
@@ -3062,7 +3071,7 @@ Result runHashDistributedWeightedAStarSearch(
                 const ps_step_result& stepResult = edge.stepResult;
                 ++shard.generated;
 
-                if (stepResult.restarted) {
+                if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                     continue;
                 }
 
