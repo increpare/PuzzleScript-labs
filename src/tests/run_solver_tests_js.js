@@ -596,23 +596,37 @@ function createStaticHashObjectWords(report) {
     return { words, count };
 }
 
-function ruleGroupsUseRandom(groups) {
-    for (const group of groups || []) {
-        for (const rule of group || []) {
-            if (!rule) {
-                continue;
-            }
-            if (rule.isRandom) {
-                return true;
-            }
-            for (const row of rule.cells || []) {
-                const replacement = row && row.replacement;
+function ruleUsesRandom(rule) {
+    if (!rule) {
+        return false;
+    }
+    if (rule.isRandom) {
+        return true;
+    }
+    for (const rows of [rule.cells, rule.patterns]) {
+        if (!rows) {
+            continue;
+        }
+        for (const row of rows) {
+            for (const cell of row || []) {
+                const replacement = cell && cell.replacement;
                 if (replacement && (
                     (replacement.randomEntityMask && !replacement.randomEntityMask.iszero()) ||
                     (replacement.randomDirMask && !replacement.randomDirMask.iszero())
                 )) {
                     return true;
                 }
+            }
+        }
+    }
+    return false;
+}
+
+function ruleGroupsUseRandom(groups) {
+    for (const group of groups || []) {
+        for (const rule of group || []) {
+            if (ruleUsesRandom(rule)) {
+                return true;
             }
         }
     }
@@ -2871,6 +2885,10 @@ function stepSolverAction(action, stepProfile = null) {
     }
 }
 
+function solverLevelSeed(game, levelIndex) {
+    return `solver:${game}:${levelIndex}`;
+}
+
 function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
     if (!Array.isArray(solution)) {
         return { status: 'invalid_solution', steps: 0, error: 'solution is not an array' };
@@ -2880,7 +2898,7 @@ function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
             resetParserErrorState();
         }
         activePlayerPositionsCache = null;
-        loadLevelFromState(state, levelIndex, `solver-parity:${game}:${levelIndex}`);
+        loadLevelFromState(state, levelIndex, solverLevelSeed(game, levelIndex));
         if (textMode || titleScreen || (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined)) {
             return { status: 'skipped_message', steps: 0 };
         }
@@ -3157,7 +3175,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             return ret;
         }
         : (acc, field, fn) => fn();
-    const seed = `solver:${game}:${levelIndex}`;
+    const seed = solverLevelSeed(game, levelIndex);
     // Error/warning strings accumulate globally and trip the MAX_ERRORS_FOR_REAL
     // "noping out" throw order-dependently across attempts; reset per attempt.
     if (typeof resetParserErrorState === 'function') {
