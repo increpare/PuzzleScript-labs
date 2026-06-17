@@ -1,6 +1,7 @@
 #include "compiler/compact_turn_codegen.hpp"
 
 #include "compiler/compiled_rules_codegen.hpp"
+#include "compiler/compact_turn_program.hpp"
 
 #include <algorithm>
 #include <map>
@@ -2118,7 +2119,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "                    addRuntimeCounter(RuntimeCounterId::CompactTurnAgainProbeCalls);\n"
         << "                    againProbeStartNs = nowNs;\n"
         << "                }\n"
-        << "                const SpecializedCompactTurnOutcome probeOutcome = specialized_compact_turn_single_" << suffix << "(\n"
+        << "                const SpecializedCompactTurnOutcome probeOutcome = compact_turn_execute_program_" << suffix << "(\n"
         << "                    dimensions,\n"
         << "                    currentLevelIndex,\n"
         << "                    levelState,\n"
@@ -2147,7 +2148,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
 
 void emitCompactTurnCompilerDrainBody(std::ostream& out, std::string_view suffix) {
     out << "    bool hasAgain = false;\n"
-        << "    SpecializedCompactTurnOutcome outcome = specialized_compact_turn_single_" << suffix << "(\n"
+        << "    SpecializedCompactTurnOutcome outcome = compact_turn_execute_program_" << suffix << "(\n"
         << "        dimensions,\n"
         << "        currentLevelIndex,\n"
         << "        levelState,\n"
@@ -2168,7 +2169,7 @@ void emitCompactTurnCompilerDrainBody(std::ostream& out, std::string_view suffix
         << "            break;\n"
         << "        }\n"
         << "        bool tickHasAgain = false;\n"
-        << "        const SpecializedCompactTurnOutcome tickOutcome = specialized_compact_turn_single_" << suffix << "(\n"
+        << "        const SpecializedCompactTurnOutcome tickOutcome = compact_turn_execute_program_" << suffix << "(\n"
         << "            dimensions,\n"
         << "            currentLevelIndex,\n"
         << "            levelState,\n"
@@ -3174,9 +3175,17 @@ void emitCompactTurnBackend(
 ) {
     const CompactTurnSupport compactTurnSupport = compactTurnSupportForGame(game, options);
     const std::string suffix = sourceSuffix(sourceIndex);
+    const CompactTurnProgram program = buildCompactTurnProgram(game);
     if (compactTurnSupport.nativeKernel()) {
+        out << "// compact-turn program source_index=" << sourceIndex
+            << " instructions=" << program.instructions.size()
+            << " has_again=" << (program.hasAgain ? "true" : "false")
+            << " has_cancel=" << (program.hasCancel ? "true" : "false")
+            << " has_restart=" << (program.hasRestart ? "true" : "false")
+            << " has_rule_loops=" << (program.hasRuleLoops ? "true" : "false")
+            << "\n";
         emitCompactTurnAccessLayer(out, game, sourceIndex);
-        out << "SpecializedCompactTurnOutcome specialized_compact_turn_single_" << sourceIndex << "(\n"
+        out << "SpecializedCompactTurnOutcome compact_turn_execute_program_" << suffix << "(\n"
             << "    LevelDimensions dimensions,\n"
             << "    int32_t currentLevelIndex,\n"
             << "    PersistentLevelState& levelState,\n"
