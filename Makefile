@@ -313,6 +313,8 @@ COMPILED_RULES_FINGERPRINT_INPUTS := \
 	native/src/cli/main.cpp \
 	native/src/compiler/compact_turn_codegen.cpp \
 	native/src/compiler/compact_turn_codegen.hpp \
+	native/src/compiler/compact_turn_program.cpp \
+	native/src/compiler/compact_turn_program.hpp \
 	native/src/compiler/compiled_rules_codegen.cpp \
 	native/src/compiler/compiled_rules_codegen.hpp \
 	native/src/runtime/compiled_rules.cpp \
