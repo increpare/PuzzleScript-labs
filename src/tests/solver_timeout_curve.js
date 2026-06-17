@@ -748,10 +748,11 @@ ${lines}
 ${legend}
 <line x1="${mL}" y1="${mT + plotH}" x2="${mL + plotW}" y2="${mT + plotH}" stroke="#333"/>
 <line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + plotH}" stroke="#333"/>
-<text x="${W / 2}" y="18" font-size="14" text-anchor="middle">Cumulative levels solved vs timeout (${playableLabel})</text>
+<text x="${W / 2}" y="18" font-size="14" text-anchor="middle">Cumulative levels solved vs time (${playableLabel})</text>
 <text x="${W / 2}" y="36" font-size="11" text-anchor="middle" fill="#666">${subtitle}</text>
 ${denominatorNote}
-<text x="${W / 2}" y="${H - 8}" font-size="12" text-anchor="middle" fill="#333">timeout (ms)</text>
+<text x="14" y="${mT + plotH / 2}" font-size="12" text-anchor="middle" fill="#333" transform="rotate(-90 14 ${mT + plotH / 2})">levels solved</text>
+<text x="${W / 2}" y="${H - 8}" font-size="12" text-anchor="middle" fill="#333">time (ms)</text>
 </svg>\n`;
 }
 
