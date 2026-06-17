@@ -44,6 +44,26 @@ const good = runCanonicalRoundtripReplay({
 assert.strictEqual(good.totals.checked, 1);
 assert.strictEqual(good.totals.failures, 0);
 
+const staleJson = path.join(workDir, 'stale.json');
+fs.writeFileSync(staleJson, JSON.stringify({
+    results: [{
+        game: 'one_move.txt',
+        level: 0,
+        status: 'solved',
+        solution: ['left'],
+        solution_length: 1,
+    }],
+}), 'utf8');
+const skippedInvalidSource = runCanonicalRoundtripReplay({
+    fromJsonOrig: staleJson,
+    canonicalCorpus,
+    originalCorpus,
+    direction: 'orig-to-canon',
+});
+assert.strictEqual(skippedInvalidSource.totals.checked, 0);
+assert.strictEqual(skippedInvalidSource.totals.failures, 0);
+assert.strictEqual(skippedInvalidSource.totals.skipped_invalid_source, 1);
+
 const matchThree = path.join(__dirname, 'solver_tests', 'match three billiards.txt');
 if (fs.existsSync(matchThree)) {
     const source = fs.readFileSync(matchThree, 'utf8');
@@ -68,16 +88,16 @@ if (fs.existsSync(matchThree)) {
     assert.strictEqual(solve.status, 0, solve.stderr);
     const solved = JSON.parse(solve.stdout).results[0];
     assert.strictEqual(solved.status, 'solved');
-    const badJson = path.join(workDir, 'match-three-orig.json');
-    fs.writeFileSync(badJson, JSON.stringify({ results: [solved] }), 'utf8');
-    const bad = runCanonicalRoundtripReplay({
-        fromJsonOrig: badJson,
+    const matchThreeJson = path.join(workDir, 'match-three-orig.json');
+    fs.writeFileSync(matchThreeJson, JSON.stringify({ results: [solved] }), 'utf8');
+    const matchThreeRoundtrip = runCanonicalRoundtripReplay({
+        fromJsonOrig: matchThreeJson,
         canonicalCorpus: canonDir,
         originalCorpus: path.dirname(matchThree),
         direction: 'orig-to-canon',
     });
-    assert.strictEqual(bad.totals.checked, 1);
-    assert.strictEqual(bad.totals.failures, 0);
+    assert.strictEqual(matchThreeRoundtrip.totals.checked, 1);
+    assert.strictEqual(matchThreeRoundtrip.totals.failures, 0);
 }
 
 console.log('canonical_roundtrip_replay_node passed');

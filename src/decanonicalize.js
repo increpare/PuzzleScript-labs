@@ -292,17 +292,6 @@ function normalizeSet(names) {
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-function isPlainWinTargetB(normalizedB, objectNames, backgroundObjects) {
-    if (!normalizedB || normalizedB.length === 0) {
-        return false;
-    }
-    const bKey = JSON.stringify(normalizedB);
-    const all = normalizeSet(objectNames);
-    const background = new Set(normalizeSet(backgroundObjects || []));
-    const nonBackground = normalizeSet(all.filter(name => !background.has(name)));
-    return bKey === JSON.stringify(all) || bKey === JSON.stringify(nonBackground);
-}
-
 function isEmittedPlainWinB(normalizedB, objectNames, backgroundObjects, quantifier) {
     const normalized = normalizeSet(normalizedB || []);
     const all = normalizeSet(objectNames);
