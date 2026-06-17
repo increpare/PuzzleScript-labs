@@ -141,9 +141,6 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
     if (hasLoopPoints(game.loopPoint) || hasLoopPoints(game.lateLoopPoint)) {
         return "rule_loops";
     }
-    if (!hasAnyRulegroups(game.rules) && !hasAnyRulegroups(game.lateRules)) {
-        return "no_rules";
-    }
     if (hasTransparentColoredObject(game)
         && (hasGameMetadata(game, "again_interval")
             || hasGameMetadata(game, "run_rules_on_level_start")

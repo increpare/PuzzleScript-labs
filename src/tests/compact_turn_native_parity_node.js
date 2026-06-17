@@ -20,6 +20,7 @@ assert.strictEqual(compact.native_kernel_supported, sources, 'every source must 
 assert.strictEqual(compact.interpreter_bridge_supported, 0, 'compiler-mode compact-turn bridges are not accepted');
 
 const reasons = compact.native_kernel_status_reason_counts || {};
+assert.strictEqual(reasons.no_rules || 0, 0, 'no-rule games must lower to tiny native programs');
 const forbidden = [
     'interpreter_bridge',
     'native_compact_generator_rebuild',
