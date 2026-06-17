@@ -730,8 +730,9 @@ ctest: build build_solver build_generator
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
 tests_js:
-	$(NODE) src/tests/run_tests_node.js
+	PUZZLESCRIPT_SKIP_AUXILIARY_TESTS=1 $(NODE) src/tests/run_tests_node.js
 	$(NODE) src/tests/compiler_keyword_names_node.js
+	$(NODE) src/tests/solver_random_replay_node.js
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
