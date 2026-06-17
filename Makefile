@@ -185,6 +185,7 @@ SOLVER_TIMEOUT_CURVE_JS_ARGS ?= --strategy portfolio
 SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS ?= --jobs 1 --strategy portfolio
 SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS ?= --strategy hda-weighted-astar --hda-jobs 8
 SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS ?= --compact-turn-only --compact-turn-mode=compiler
+SOLVER_TIMEOUT_CURVE_COMPILED_RULES_OPT_LEVEL ?= 3
 SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS ?= --compact-node-storage --jobs 1 --strategy portfolio
 SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS ?= --compact-node-storage --strategy hda-weighted-astar --hda-jobs 8
 SOLVER_TIMEOUT_CURVE_PROGRESS ?= per-game
@@ -1125,14 +1126,16 @@ solver_timeout_curve: build_solver
 		symbol_prefix="$$2"; \
 		result_var="$$3"; \
 		corpus_hash=$$(find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
-		compiled_hash=$$({ find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 $(COMPILED_RULES_FINGERPRINT_INPUTS); printf '%s\n' "max_rows=$(COMPILED_RULES_MAX_ROWS)"; printf '%s\n' "compiled_rules_args=$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS)"; } | shasum -a 256 | awk '{print $$1}'); \
+		compiled_hash=$$({ find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 $(COMPILED_RULES_FINGERPRINT_INPUTS); printf '%s\n' "max_rows=$(COMPILED_RULES_MAX_ROWS)"; printf '%s\n' "compiled_rules_args=$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS)"; printf '%s\n' "compiled_rules_opt_level=$(SOLVER_TIMEOUT_CURVE_COMPILED_RULES_OPT_LEVEL)"; } | shasum -a 256 | awk '{print $$1}'); \
 		out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/solver-timeout-curve-$$compiled_hash"; \
 		build_dir="$(COMPILED_RULES_BUILD_ROOT)/solver-timeout-curve-$$compiled_hash"; \
 		out_cpp_dir="$$out_dir/sources"; \
 		sources_file="$$out_dir/sources.txt"; \
+		coverage_json="$$out_dir/coverage.json"; \
 		mkdir -p "$$out_dir"; \
-		$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,$$corpus_dir,$${symbol_prefix}_$$corpus_hash,$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS)); \
-		$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
+		$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,$$corpus_dir,$${symbol_prefix}_$$corpus_hash,$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS) --coverage-json "$$coverage_json"); \
+		$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const label=process.argv[2]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const c=(j.aggregate&&j.aggregate.compact_turn)||{}; const sources=c.sources||0; const native=c.native_kernel_supported||0; const bridge=c.interpreter_bridge_supported||0; const callable=c.whole_turn_supported||0; const pct=n=>sources?((100*n/sources).toFixed(1)+"%"):"n/a"; const reasons=c.native_kernel_status_reason_counts||{}; const guarded=reasons.run_rules_on_level_start_native_perf_guard||0; console.log("  compact coverage "+label+": callable="+callable+"/"+sources+" native="+native+"/"+sources+" ("+pct(native)+") bridge="+bridge+"/"+sources+" guarded_run_start="+guarded+" json="+path);' "$$coverage_json" "$$symbol_prefix"; \
+		$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file" -DPS_COMPILED_RULES_OPT_LEVEL=$(SOLVER_TIMEOUT_CURVE_COMPILED_RULES_OPT_LEVEL)); \
 		$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver 1>&2; \
 		eval "$$result_var=\"$$build_dir/native/puzzlescript_solver\""; \
 	}; \
