@@ -3107,7 +3107,7 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         textMode = false;
         hasUsedCheckpoint = false;
     };
-    const modeResult = runNaiveSolver({
+    runNaiveSolver({
         deadline,
         actions,
         level,
