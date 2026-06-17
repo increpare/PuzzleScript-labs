@@ -1473,6 +1473,13 @@ SolverEdgeStep stepSolverEdge(
                     } else {
                         ++result.compactTurnBridgeHits;
                     }
+                    if (edge.compactTurn.discard) {
+                        // Solver discard outcomes intentionally encode no-successor
+                        // policy, not player/interpreter step details. Later command
+                        // policy tests validate those deliberate differences.
+                        edge.stepResult = edge.compactTurn.stepResult;
+                        return edge;
+                    }
                     if (compactTurnOracle) {
                         ++result.compactTurnOracleChecks;
                         {
@@ -1512,11 +1519,6 @@ SolverEdgeStep stepSolverEdge(
                 ++result.compactTurnUnsupported;
             }
         }
-    }
-
-    if (edge.compactTurn.handled && edge.compactTurn.discard) {
-        edge.stepResult = edge.compactTurn.stepResult;
-        return edge;
     }
 
     if (!edge.compactTurn.handled) {

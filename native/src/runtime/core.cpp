@@ -7172,18 +7172,31 @@ ps_step_result compiledCompactPrimaryTurn(FullState& session, ps_input input, Ru
         }
         return ps_step_result{};
     }
-    if (outHandled != nullptr) {
-        *outHandled = true;
-    }
-
     ps_step_result result = outcome.result;
     if (outcome.discard) {
+        // Discard is a solver-only compact-turn policy; player/runtime use
+        // falls back to the generic interpreter path.
+        if (!options.solverMode) {
+            if (pushInputUndo) {
+                discardTopUndoSnapshot(session);
+            }
+            return ps_step_result{};
+        }
+        if (outHandled != nullptr) {
+            *outHandled = true;
+        }
+        if (pushInputUndo) {
+            discardTopUndoSnapshot(session);
+        }
         session.meta.pendingAgain = false;
         markAllMasksDirty(session);
         rebuildMasks(session);
         gThreadTurnResult = TurnResult{};
         gThreadTurnResult.core = result;
         return result;
+    }
+    if (outHandled != nullptr) {
+        *outHandled = true;
     }
     session.meta.pendingAgain = outcome.pendingAgain;
 
