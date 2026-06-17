@@ -95,6 +95,8 @@ const BEST_MANHATTAN_EMPTY_TARGETS_PENALTY = 128;
 /** When `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0`, skip `performance.now()` in the search hot loop (timing breakdown is zeroed; portfolio auto-lock uses step timing only when enabled). */
 const SOLVER_DETAIL_TIMING = process.env.PUZZLESCRIPT_SOLVER_DETAIL_TIMING !== '0';
 const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1';
+/** Reject search wins whose reconstructed input sequence does not replay from a fresh level load. */
+const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !== '0';
 
 let solverStepProfilingInstalled = false;
 let currentSolverStepProfile = null;
@@ -3053,6 +3055,22 @@ function reconstruct(nodes, index, finalToken) {
     return reversed.reverse();
 }
 
+function tryFinalizeSolvedModeResult(modeResult, nodes, parentIndex, action, game, levelIndex, searchStarted) {
+    const solution = reconstruct(nodes, parentIndex, action.token);
+    if (VERIFY_SOLUTION_REPLAY) {
+        const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, solution);
+        if (replay.status !== 'solved') {
+            modeResult.replay_rejected = (modeResult.replay_rejected || 0) + 1;
+            return false;
+        }
+    }
+    modeResult.solution = solution;
+    modeResult.solution_length = solution.length;
+    modeResult.elapsed_ms = Date.now() - searchStarted;
+    modeResult.status = 'solved';
+    return true;
+}
+
 function restoreNaiveObjectsSnapshot(snapshot) {
     const objects = level.objects;
     for (let index = 0; index < snapshot.length; index++) {
@@ -3125,6 +3143,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
+        replay_rejected: 0,
         max_frontier: 0,
         timeout_ms: timeoutMs,
         compile_ms: compileMs,
@@ -3263,17 +3282,17 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 modeResult.generated++;
 
                 if (stepResult.solved) {
+                    let finalized = false;
                     if (SOLVER_DETAIL_TIMING) {
-                        timeBlock(modeResult, 'reconstruct_ms', () => {
-                            modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                            modeResult.solution_length = modeResult.solution.length;
-                        });
+                        finalized = timeBlock(modeResult, 'reconstruct_ms', () =>
+                            tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted)
+                        );
                     } else {
-                        modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                        modeResult.solution_length = modeResult.solution.length;
+                        finalized = tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted);
                     }
-                    modeResult.elapsed_ms = Date.now() - searchStarted;
-                    modeResult.status = 'solved';
+                    if (!finalized) {
+                        continue;
+                    }
                     return modeResult;
                 }
                 if (!stepResult.changed) {
@@ -3507,17 +3526,17 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 modeResult.generated++;
 
                 if (stepResult.solved) {
+                    let finalized = false;
                     if (SOLVER_DETAIL_TIMING) {
-                        timeBlock(modeResult, 'reconstruct_ms', () => {
-                            modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                            modeResult.solution_length = modeResult.solution.length;
-                        });
+                        finalized = timeBlock(modeResult, 'reconstruct_ms', () =>
+                            tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted)
+                        );
                     } else {
-                        modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                        modeResult.solution_length = modeResult.solution.length;
+                        finalized = tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted);
                     }
-                    modeResult.elapsed_ms = Date.now() - searchStarted;
-                    modeResult.status = 'solved';
+                    if (!finalized) {
+                        continue;
+                    }
                     modeResult.strategy = `portfolio:${activeMode.name}`;
                     return modeResult;
                 }
