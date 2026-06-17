@@ -662,4 +662,45 @@ assert.strictEqual(
     'decanonicalized value-bearing metadata should compile'
 );
 
+const playerInBackgroundCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [],
+    collisionLayers: [['obj_0', 'obj_1']],
+    playerObjects: ['obj_1'],
+    backgroundObjects: ['obj_0', 'obj_1'],
+    rules: [
+        {
+            direction: 'down',
+            late: false,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 0,
+            lhs: [[[{ dir: '', obj: 'obj_1' }]]],
+            rhs: [[[{ dir: '', obj: 'obj_1' }]]],
+            commands: [],
+        },
+    ],
+    winConditions: [],
+    levels: [
+        {
+            type: 'map',
+            rows: [[['obj_1']], [['obj_0']]],
+        },
+    ],
+};
+const playerInBackgroundRehydrated = decanonicalizeSemantic(playerInBackgroundCanonical);
+assert.ok(
+    /set_0 = obj_0 or obj_1/.test(playerInBackgroundRehydrated),
+    'background spanning all objects should still emit its property alias definition'
+);
+assert.ok(
+    /background = set_0/.test(playerInBackgroundRehydrated),
+    'background role alias should reference the emitted property set'
+);
+assert.strictEqual(
+    compileSemanticSource(playerInBackgroundRehydrated).errorCount,
+    0,
+    'decanonicalized player-in-background source should compile'
+);
+
 console.log('decanonicalize_node: ok');

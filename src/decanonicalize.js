@@ -397,6 +397,11 @@ function buildAliasDefinitions(canonical, objectNames, layerIndex) {
     cellSets.forEach(set => cellAliasForSet(set));
     registerPrunedRulePropertyAliases(canonical, propertyAliasForSet, layerIndex);
 
+    // Role aliases may introduce property sets skipped by collectAliasNeeds (e.g.
+    // background spanning every object). Register them before emitting set lines.
+    const backgroundAlias = propertyAliasForSet(canonical.backgroundObjects || []);
+    const playerAlias = propertyAliasForSet(canonical.playerObjects || []);
+
     for (const [key, aliasName] of Array.from(propertyAliasBySet.entries()).sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }))) {
         lines.push(`${aliasName} = ${key.split('|').join(' or ')}`);
     }
@@ -404,8 +409,6 @@ function buildAliasDefinitions(canonical, objectNames, layerIndex) {
         lines.push(`${aliasName} = ${key.split('|').join(' and ')}`);
     }
 
-    const backgroundAlias = propertyAliasForSet(canonical.backgroundObjects || []);
-    const playerAlias = propertyAliasForSet(canonical.playerObjects || []);
     if (backgroundAlias) {
         lines.push(`background = ${backgroundAlias}`);
     }
