@@ -52,13 +52,18 @@ function generateExtraMembers(state) {
     for (let layerIndex = 0; layerIndex < state.collisionLayers.length; layerIndex++) {
         for (let j = 0; j < state.collisionLayers[layerIndex].length; j++) {
             let n = state.collisionLayers[layerIndex][j];
-            if (n in state.objects) {
-                let o = state.objects[n];
-                o.layer = layerIndex;
-                o.id = idcount;
-                state.idDict[idcount] = n;
-                idcount++;
+            if (!(n in state.objects)) {
+                continue;
             }
+            let o = state.objects[n];
+            if (o === undefined) {
+                logError('Object "' + n + '" is listed in collision layers but has no definition.', 0);
+                continue;
+            }
+            o.layer = layerIndex;
+            o.id = idcount;
+            state.idDict[idcount] = n;
+            idcount++;
         }
     }
 
@@ -123,6 +128,10 @@ function generateExtraMembers(state) {
         const n = state_object_keys[k_i];
         //convert color to hex
         let o = state.objects[n];
+        if (o === undefined) {
+            logError('Object "' + n + '" has no definition.', 0);
+            continue;
+        }
         if (o.colors.length > 10) {
             logError("a sprite cannot have more than 10 colors.  Why you would want more than 10 is beyond me.", o.lineNumber + 1);
         }
@@ -157,6 +166,9 @@ function generateExtraMembers(state) {
         }    
 
         let mask = blankMask.slice();
+        if (o.layer === undefined) {
+            continue;
+        }
         mask[o.layer] = o.id;
         glyphDict[n] = mask;
         glyphOrder.push([o.lineNumber, n]);    
@@ -198,22 +210,23 @@ function generateExtraMembers(state) {
                     let n = dat[j];
                     let o = state.objects[n];
                     if (o === undefined) {
-                        logError('Object not found with name ' + n, state.lineNumber);
+                        logError('Object not found with name ' + n, dat.lineNumber);
+                        continue;
+                    }
+                    if (o.layer === undefined) {
+                        logError('Object "' + n.toUpperCase() + '" has been defined, but not assigned to a layer.', dat.lineNumber);
+                        continue;
                     }
                     if (mask[o.layer] === -1) {
                         mask[o.layer] = o.id;
                     } else {
-                        if (o.layer === undefined) {
-                            logError('Object "' + n.toUpperCase() + '" has been defined, but not assigned to a layer.', dat.lineNumber);
-                        } else {
-                            let n1 = n.toUpperCase();
-                            let n2 = state.idDict[mask[o.layer]].toUpperCase();
-                            logError(
-                                'Trying to create an aggregate object (something defined in the LEGEND section using AND) with both "' +
-                                n1 + '" and "' + n2 + '", which are on the same layer and therefore can\'t coexist.',
-                                dat.lineNumber
-                            );
-                        }
+                        let n1 = n.toUpperCase();
+                        let n2 = state.idDict[mask[o.layer]].toUpperCase();
+                        logError(
+                            'Trying to create an aggregate object (something defined in the LEGEND section using AND) with both "' +
+                            n1 + '" and "' + n2 + '", which are on the same layer and therefore can\'t coexist.',
+                            dat.lineNumber
+                        );
                     }
                 }
                 added = true;
@@ -270,14 +283,22 @@ function generateExtraMembers(state) {
         const key = propertiesDict_keys[k_i];
         let values = propertiesDict[key];
         let sameLayer = true;
-        for (let i = 1; i < values.length; i++) {
-            if ((state.objects[values[i - 1]].layer !== state.objects[values[i]].layer)) {
+        let referenceLayer = null;
+        for (let i = 0; i < values.length; i++) {
+            const obj = state.objects[values[i]];
+            if (obj === undefined || obj.layer === undefined) {
+                sameLayer = false;
+                break;
+            }
+            if (referenceLayer === null) {
+                referenceLayer = obj.layer;
+            } else if (referenceLayer !== obj.layer) {
                 sameLayer = false;
                 break;
             }
         }
-        if (sameLayer) {
-            state.propertiesSingleLayer[key] = state.objects[values[0]].layer;
+        if (sameLayer && referenceLayer !== null) {
+            state.propertiesSingleLayer[key] = referenceLayer;
         }
     }
 
@@ -374,26 +395,32 @@ function resolveBackgroundObject(state) {
         if ('background' in state.synonymsDict) {
             let n = state.synonymsDict['background'];
             let o = state.objects[n];
-            backgroundid = o.id;
-            backgroundlayer = o.layer;
+            if (o !== undefined) {
+                backgroundid = o.id;
+                backgroundlayer = o.layer;
+            }
         } else if ('background' in state.propertiesDict) {
             let backgrounddef = state.propertiesDict['background'];
             let n = backgrounddef[0];
             let o = state.objects[n];
-            backgroundid = o.id;
-            backgroundlayer = o.layer;
+            if (o !== undefined) {
+                backgroundid = o.id;
+                backgroundlayer = o.layer;
+            }
             for (let i = 1; i < backgrounddef.length; i++) {
                 let nnew = backgrounddef[i];
                 let onew = state.objects[nnew];
-                if (onew.layer !== backgroundlayer) {
+                if (o !== undefined && onew !== undefined && onew.layer !== backgroundlayer) {
                     let lineNumber = state.original_line_numbers['background'];
                     logError('Background objects must be on the same layer', lineNumber);
                 }
             }
         } else if ('background' in state.aggregatesDict) {
             let o = state.objects[state.idDict[0]];
-            backgroundid = o.id;
-            backgroundlayer = o.layer;
+            if (o !== undefined) {
+                backgroundid = o.id;
+                backgroundlayer = o.layer;
+            }
             let lineNumber = state.original_line_numbers['background'];
             logError("background cannot be an aggregate (declared with 'and'), it has to be a simple type, or property (declared in terms of others using 'or').", lineNumber);
         } else {
@@ -1002,12 +1029,18 @@ function trimSuperfluousLHSNegations(state, rule){
 					for (let m=0;m<property_obs_len;m++){
 						const object_name = property_obs[m];
 						const object_data = state.objects[object_name];
-						required_objects.ibitset(object_data.id);
+						if (object_data !== undefined && typeof object_data.id === 'number') {
+							required_objects.ibitset(object_data.id);
+						}
 					}
 					occupier[layer]=entity_name;
 				} else if (state.objects.hasOwnProperty(entity_name)){
-					let layer = state.objects[entity_name].layer;
-					let ob_id = state.objects[entity_name].id;
+					let object_data = state.objects[entity_name];
+					if (object_data === undefined || object_data.layer === undefined || typeof object_data.id !== 'number') {
+						continue;
+					}
+					let layer = object_data.layer;
+					let ob_id = object_data.id;
 					required_layers.ibitset(layer);
 					required_objects.ibitset(ob_id);
 					occupier[layer]=entity_name;
@@ -1015,6 +1048,9 @@ function trimSuperfluousLHSNegations(state, rule){
 					let aggregate_obs = state.aggregatesDict[entity_name];
 					for (let m=0;m<aggregate_obs.length;m++){
 						let object_info = state.objects[aggregate_obs[m]];
+						if (object_info === undefined || object_info.layer === undefined || typeof object_info.id !== 'number') {
+							continue;
+						}
 						let layer = object_info.layer;
 						let ob_id = object_info.id;
 						required_layers.ibitset(layer);
@@ -1034,9 +1070,12 @@ function trimSuperfluousLHSNegations(state, rule){
 						continue;//error, should have been caught earlier - e.g. You cannot use 'no' to exclude the aggregate objec
 					}
 					let no_object_mask = state.objectMasks[no_name];
+					if (no_object_mask === undefined) {
+						continue;
+					}
 					let no_object_layer_mask = new BitVec(Math.ceil(LAYER_COUNT/32)|0);
 					for (let m=0;m<state.layerMasks.length;m++){
-						if (state.layerMasks[m].anyBitsInCommon(no_object_mask)){
+						if (state.layerMasks[m] && state.layerMasks[m].anyBitsInCommon(no_object_mask)){
 							no_object_layer_mask.ibitset(m);
 						}
 					}
@@ -2365,7 +2404,10 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
 
             //this is super intricate. uff. 
             let objects_l = getPossibleObjectsFromCell(state, row_l[k]);
-            let layers = objects_l.map(n => state.objects[n].layer);
+            let layers = objects_l.map(n => {
+                let obj = state.objects[n];
+                return obj !== undefined ? obj.layer : undefined;
+            }).filter(layer => layer !== undefined);
             for (let l = 0; l < cell.length; l += 2) {
                 let dir = cell[l];
                 if (dir !== "") {
@@ -2375,7 +2417,11 @@ function makeSpawnedObjectsStationary(state, rule, lineNumber) {
                 if (name in state.propertiesDict || objects_l.indexOf(name) >= 0) {
                     continue;
                 }
-                let r_layer = state.objects[name].layer;
+                let spawnedObject = state.objects[name];
+                if (spawnedObject === undefined || spawnedObject.layer === undefined) {
+                    continue;
+                }
+                let r_layer = spawnedObject.layer;
                 if (layers.indexOf(r_layer) === -1) {
                     cell[l] = 'stationary';
                 }
@@ -2807,7 +2853,9 @@ function buildLayerCoupledMovementTerm(state, propertyName, movementDir, exclude
 }
 
 function applyPropertyObjectRewriteClears(state, rhsBitVectors, propertyName, destinationLayer) {
-    rhsBitVectors.objectsClear.ior(state.objectMasks[propertyName]);
+    if (state.objectMasks[propertyName] !== undefined) {
+        rhsBitVectors.objectsClear.ior(state.objectMasks[propertyName]);
+    }
 
     const clearedLayers = {};
     forEachPropertyAliasLayer(state, propertyName, layer => {
@@ -2904,7 +2952,9 @@ function rulesToMask(state) {
                     }
 
                     if (object_dir === 'no') {
-                        bitVectors.objectsMissing.ior(objectMask);
+                        if (objectMask !== undefined) {
+                            bitVectors.objectsMissing.ior(objectMask);
+                        }
                     } else if (isCoupledProperty) {
                         const coupledTerm = buildLayerCoupledMovementTerm(
                             state,
@@ -2937,9 +2987,11 @@ function rulesToMask(state) {
                         layersUsed_l[layerIndex] = object_name;
 
                         if (object) {
-                            bitVectors.objectsPresent.ior(objectMask);
+                            if (objectMask !== undefined) {
+                                bitVectors.objectsPresent.ior(objectMask);
+                            }
                             bitVectors.objectlayers_l.ishiftor(0x1f, STRIDE_5 * layerIndex);
-                        } else {
+                        } else if (objectMask !== undefined) {
                             anyObjectsPresent.push(objectMask);
                         }
 
@@ -3067,7 +3119,11 @@ function rulesToMask(state) {
                             }
 
                             for (const subobject of values) {
-                                const layerIndex = state.objects[subobject].layer | 0;
+                                const subobjectData = state.objects[subobject];
+                                if (subobjectData === undefined || subobjectData.layer === undefined) {
+                                    continue;
+                                }
+                                const layerIndex = subobjectData.layer | 0;
                                 const existingname = layersUsed_r[layerIndex];
                                 
                                 if (existingname !== null) {
@@ -3090,7 +3146,9 @@ function rulesToMask(state) {
                     const layerIndex = object ? (object.layer | 0) : state.propertiesSingleLayer[object_name];
 
                     if (object_dir === 'no') {
-                        rhsBitVectors.objectsClear.ior(objectMask);
+                        if (objectMask !== undefined) {
+                            rhsBitVectors.objectsClear.ior(objectMask);
+                        }
                     } else if (isCoupledProperty) {
                         // A preserved/bound property still OCCUPIES its member layers in the
                         // output cell, so reserve them — otherwise a later concrete object on
@@ -3299,7 +3357,9 @@ function rulesToMask(state) {
 
                         if (object) {
                             rhsBitVectors.objectsSet.ibitset(object.id);
-                            rhsBitVectors.objectsClear.ior(layerMask);
+                            if (layerMask !== undefined) {
+                                rhsBitVectors.objectsClear.ior(layerMask);
+                            }
                             rhsBitVectors.objectlayers_r.ishiftor(0x1f, STRIDE_5 * layerIndex);
 
                             if (rule.hasInferredPropertyRewriteTerm) {
@@ -3342,7 +3402,9 @@ function rulesToMask(state) {
                 // Handle layer-specific clearing
                 for (let layerIndex = 0; layerIndex < layerCount; layerIndex++) {
                     if (layersUsed_l[layerIndex] !== null && layersUsed_r[layerIndex] === null) {
-                        rhsBitVectors.objectsClear.ior(state.layerMasks[layerIndex]);
+                        if (state.layerMasks[layerIndex] !== undefined) {
+                            rhsBitVectors.objectsClear.ior(state.layerMasks[layerIndex]);
+                        }
                         rhsBitVectors.postMovementsLayerMask_r.ishiftor(0x1f, STRIDE_5 * layerIndex);
                     }
                 }
@@ -4062,7 +4124,9 @@ function getMaskFromName(state, name) {
     let aggregate = false;
     if (name in state.objects) {
         const o = state.objects[name];
-        objectMask.ibitset(o.id);
+        if (o !== undefined && typeof o.id === 'number') {
+            objectMask.ibitset(o.id);
+        }
     }
 
     if (name in state.aggregatesDict) {
@@ -4071,7 +4135,9 @@ function getMaskFromName(state, name) {
         for (let i = 0; i < objectnames.length; i++) {
             const n = objectnames[i];
             const o = state.objects[n];
-            objectMask.ibitset(o.id);
+            if (o !== undefined && typeof o.id === 'number') {
+                objectMask.ibitset(o.id);
+            }
         }
     }
 
@@ -4080,17 +4146,21 @@ function getMaskFromName(state, name) {
         for (let i = 0; i < objectnames.length; i++) {
             const n = objectnames[i];
             const o = state.objects[n];
-            objectMask.ibitset(o.id);
+            if (o !== undefined && typeof o.id === 'number') {
+                objectMask.ibitset(o.id);
+            }
         }
     }
 
     if (name in state.synonymsDict) {
         const n = state.synonymsDict[name];
         const o = state.objects[n];
-        objectMask.ibitset(o.id);
+        if (o !== undefined && typeof o.id === 'number') {
+            objectMask.ibitset(o.id);
+        }
     }
 
-    if (objectMask.iszero()) {
+    if (objectMask.iszero() && !isObjectDefined(state, name)) {
         logErrorNoLine(`Error, didn't find any object called ${name}, either in the objects section, or the legends section.`);
     }
     return [aggregate,objectMask];
@@ -4106,7 +4176,7 @@ function generateMasks(state) {
         for (let j = 0; j < state.objectCount; j++) {
             let n = state.idDict[j];
             let o = state.objects[n];
-            if (o.layer === layer) {
+            if (o !== undefined && o.layer === layer && typeof o.id === 'number') {
                 layerMask.ibitset(o.id);
             }
         }
@@ -4121,6 +4191,9 @@ function generateMasks(state) {
     for (let k_i = 0; k_i < object_keys_l; k_i++) {
         const n = object_keys[k_i];
         let o = state.objects[n];
+        if (o === undefined || typeof o.id !== 'number') {
+            continue;
+        }
         objectMask[n] = new BitVec(STRIDE_OBJ);
         objectMask[n].ibitset(o.id);    
     }
@@ -4143,7 +4216,9 @@ function generateMasks(state) {
             let val = new BitVec(STRIDE_OBJ);
             for (let j = 1; j < synprop.length; j++) {
                 let n = synprop[j];
-                val.ior(objectMask[n]);
+                if (objectMask[n] !== undefined) {
+                    val.ior(objectMask[n]);
+                }
             }
             objectMask[synprop[0]] = val;
         }
@@ -4166,8 +4241,9 @@ function generateMasks(state) {
         let aggregateMask = new BitVec(STRIDE_OBJ);
         for (let i = 0; i < objectnames.length; i++) {
             let n = objectnames[i];
-            let o = state.objects[n];
-            aggregateMask.ior(objectMask[n]);
+            if (objectMask[n] !== undefined) {
+                aggregateMask.ior(objectMask[n]);
+            }
         }
         state.aggregateMasks[aggregateName] = aggregateMask;
     }
