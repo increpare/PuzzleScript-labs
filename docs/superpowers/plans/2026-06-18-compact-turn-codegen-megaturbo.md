@@ -353,7 +353,7 @@ Verification note: `make compact_turn_codegen_perf_expectations` still fails on 
 
 The generated group loop currently resets dirty flags for every rule apply and checks both dirty boards after every rule, even for rules whose replacements cannot write movements or cannot write objects.
 
-- [ ] Add compact-rule write classifiers in `native/src/compiler/compact_turn_codegen.cpp` near the existing compact rule-analysis helpers:
+- [x] Add compact-rule write classifiers in `native/src/compiler/compact_turn_codegen.cpp` near the existing compact rule-analysis helpers:
 
 ```cpp
 struct CompactRuleWriteSummary {
@@ -379,14 +379,14 @@ CompactRuleWriteSummary summarizeCompactRuleWrites(const Rule& rule) {
 
 Adapt field names to the actual compact replacement structs in this file. The logic must be structural: a rule can write objects if any emitted replacement clears or sets object bits, and can write movements if any emitted replacement clears or sets movement bits.
 
-- [ ] Emit per-rule write summary constants:
+- [x] Emit per-rule write summary constants:
 
 ```cpp
 static constexpr bool compact_turn_rule_writes_objects_42_game0 = true;
 static constexpr bool compact_turn_rule_writes_movements_42_game0 = false;
 ```
 
-- [ ] In generated group loops, emit only the dirty bookkeeping that the rule can use:
+- [x] In generated group loops, emit only the dirty bookkeeping that the rule can use:
 
 ```cpp
 if (compact_turn_rule_writes_objects_42_game0) {
@@ -410,7 +410,7 @@ Because code is generated per rule, prefer emitting concrete code without runtim
 - no-write command-only rules skip both dirty resets and derived-state rebuild;
 - object+movement rules keep both.
 
-- [ ] Add counters around rebuild calls:
+- [x] Add counters around rebuild calls:
 
 ```cpp
 compact_turn_count_rebuild_rule_derived_state_call_game0();
@@ -422,25 +422,27 @@ if (changedMovements_42) {
 }
 ```
 
-- [ ] Verify the task improves setup and early-phase costs in at least one dispatch-heavy case:
+- [x] Verify the task improves setup and early-phase costs in at least one dispatch-heavy case:
 
 ```sh
 make compact_turn_codegen_perf_suite
 ```
 
-- [ ] Run correctness:
+- [x] Run correctness:
 
 ```sh
 make compact_turn_codegen_solver_parity
 make compact_turn_native_parity
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```sh
 git add native/src/compiler/compact_turn_codegen.cpp
 git commit -m "perf: specialize compact turn dirty rebuild paths"
 ```
+
+Verification note: added `make compact_turn_codegen_dirty_shape` to assert generated object-only, object+movement, and no-write dirty paths. `make compact_turn_codegen_perf_suite` passed; examples from the focused run include `heroes_of_sokoban_3.txt#23` at `2.23us/generated`, `heroes_of_sokoban_3.txt#16` at `2.41us/generated`, and `gem soketeer.txt#21` at `16.84us/generated`. `big dog and little dog.txt#11` improved versus the previous run but remains slower than interpreter, and `Double-Entry Bookkeeping Simulator.txt#17` remains a late-rule hotspot for Task 5. `make compact_turn_codegen_solver_parity` passed with `compact_turn_oracle_failures=0`; `make compact_turn_native_parity` passed with `native=182/182`.
 
 ---
 
