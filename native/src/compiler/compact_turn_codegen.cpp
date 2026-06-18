@@ -155,19 +155,6 @@ bool hasGameMetadata(const Game& game, std::string_view key) {
     return game.metadata.values.find(std::string(key)) != game.metadata.values.end();
 }
 
-// Transparent color is normally rendering-only, but solver-drain games still
-// need a native parity fix before this diagnostic guard can be removed.
-bool hasTransparentColoredObject(const Game& game) {
-    for (const ObjectDef& object : game.objectsById) {
-        for (const std::string& color : object.colors) {
-            if (color == "transparent") {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 bool hasRuleCommand(const Game& game, std::string_view commandName) {
     auto hasCommandInGroups = [&](const std::vector<std::vector<Rule>>& groups) {
         for (const std::vector<Rule>& group : groups) {
@@ -210,12 +197,6 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
     }
     if (const std::string lateReason = compactNativeTurnUnsupportedReasonForGroups(game.lateRules); !lateReason.empty()) {
         return lateReason;
-    }
-    if (hasTransparentColoredObject(game)
-        && (hasGameMetadata(game, "again_interval")
-            || hasGameMetadata(game, "run_rules_on_level_start")
-            || hasGameMetadata(game, "require_player_movement"))) {
-        return "transparent_object_compact_unsupported";
     }
     return {};
 }
@@ -637,6 +618,8 @@ void emitCompactRuleMaskData(
     const std::vector<std::vector<Rule>>& groups,
     CompactMaskConstantEmitter& masks
 ) {
+    masks.emitName(compiledMaskWords(game, kNullMaskOffset, game.wordCount));
+    masks.emitName(compiledMaskWords(game, kNullMaskOffset, game.movementWordCount));
     for (size_t groupIndex = 0; groupIndex < groups.size(); ++groupIndex) {
         const std::vector<Rule>& group = groups[groupIndex];
         for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
@@ -2418,11 +2401,13 @@ void emitCompactRulegroupFunctions(
                         ? std::string{}
                         : "            " + ruleNames[ruleIndex].commandQueueName + "(commands);\n")
                     << "        {\n"
+                    << "            scratch.dirtyObjectBoard = false;\n"
+                    << "            scratch.dirtyMovementBoard = false;\n"
                     << "            const bool changed = " << rulePrefix << "_apply_tuple(dimensions, levelState, scratch, groupMatches[" << ruleIndex << "], chosen.tupleIndex);\n"
+                    << "            const bool changedObjects = scratch.dirtyObjectBoard;\n"
+                    << "            const bool changedMovements = scratch.dirtyMovementBoard;\n"
                     << "            if (changed) compact_turn_rebuild_rule_derived_state_" << suffix
-                    << "(dimensions, levelState, scratch, "
-                    << (group[ruleIndex].hasWriteObjects ? "true" : "false") << ", "
-                    << (group[ruleIndex].hasWriteMovements ? "true" : "false") << ");\n"
+                    << "(dimensions, levelState, scratch, changedObjects, changedMovements);\n"
                     << "            return changed;\n"
                     << "        }\n";
             }
@@ -2456,12 +2441,15 @@ void emitCompactRulegroupFunctions(
                 << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures) {\n";
             for (size_t ruleIndex = firstRuleIndex; ruleIndex < lastRuleIndex; ++ruleIndex) {
                 out << "    compact_turn_count_rules_visited_" << suffix << "();\n"
-                    << "    if (" << ruleNames[ruleIndex].applyName
-                    << "(dimensions, levelState, scratch, commands)) {\n"
+                    << "    scratch.dirtyObjectBoard = false;\n"
+                    << "    scratch.dirtyMovementBoard = false;\n"
+                    << "    const bool changed_" << ruleIndex << " = " << ruleNames[ruleIndex].applyName
+                    << "(dimensions, levelState, scratch, commands);\n"
+                    << "    const bool changedObjects_" << ruleIndex << " = scratch.dirtyObjectBoard;\n"
+                    << "    const bool changedMovements_" << ruleIndex << " = scratch.dirtyMovementBoard;\n"
+                    << "    if (changed_" << ruleIndex << ") {\n"
                     << "        compact_turn_rebuild_rule_derived_state_" << suffix
-                    << "(dimensions, levelState, scratch, "
-                    << (group[ruleIndex].hasWriteObjects ? "true" : "false") << ", "
-                    << (group[ruleIndex].hasWriteMovements ? "true" : "false") << ");\n"
+                    << "(dimensions, levelState, scratch, changedObjects_" << ruleIndex << ", changedMovements_" << ruleIndex << ");\n"
                     << "        madeChangeThisLoop = true;\n"
                     << "        consecutiveFailures = 0;\n"
                     << "    } else {\n"
@@ -2624,7 +2612,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        }\n"
         << "        ruleChanged = ruleChangedThisPass;\n"
         << "        moved = movementOutcome.moved;\n"
-        << "        if (moved) compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, true, true);\n"
+        << "        if (moved) compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, true, false);\n"
         << "        break;\n"
         << "    }\n"
         << "    const bool lateRuleChanged = compact_turn_apply_late_rules_" << suffix << "(dimensions, levelState, scratch, commands, nullptr);\n"
@@ -3220,9 +3208,6 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const size_t columnObjectWords = static_cast<size_t>(dimensions.width) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "    const size_t rowMovementWords = static_cast<size_t>(dimensions.height) * static_cast<size_t>(compact_turn_movement_stride_" << suffix << ");\n"
         << "    const size_t columnMovementWords = static_cast<size_t>(dimensions.width) * static_cast<size_t>(compact_turn_movement_stride_" << suffix << ");\n"
-        << "    if constexpr (compact_turn_needs_movement_row_masks_" << suffix << ") scratch.rowMovementMasks.assign(rowMovementWords, 0); else scratch.rowMovementMasks.clear();\n"
-        << "    if constexpr (compact_turn_needs_movement_column_masks_" << suffix << ") scratch.columnMovementMasks.assign(columnMovementWords, 0); else scratch.columnMovementMasks.clear();\n"
-        << "    if constexpr (compact_turn_needs_movement_board_mask_" << suffix << ") scratch.boardMovementMask.assign(static_cast<size_t>(compact_turn_movement_stride_" << suffix << "), 0); else scratch.boardMovementMask.clear();\n"
         << "    const auto noDirtyBytes = [](const std::vector<uint8_t>& values) {\n"
         << "        return std::none_of(values.begin(), values.end(), [](uint8_t value) { return value != 0; });\n"
         << "    };\n"
@@ -3256,9 +3241,29 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    if (!objectMasksReady) {\n"
         << "        if (!compact_turn_rebuild_object_derived_state_" << suffix << "(dimensions, levelState, scratch)) return false;\n"
         << "    }\n"
-        << "    scratch.dirtyMovementRows.assign(static_cast<size_t>(dimensions.height), compact_turn_needs_movement_row_masks_" << suffix << " ? 0 : 1);\n"
-        << "    scratch.dirtyMovementColumns.assign(static_cast<size_t>(dimensions.width), compact_turn_needs_movement_column_masks_" << suffix << " ? 0 : 1);\n"
-        << "    scratch.dirtyMovementBoard = !compact_turn_needs_movement_board_mask_" << suffix << ";\n"
+        << "    const bool movementRowsReady = !compact_turn_needs_movement_row_masks_" << suffix << "\n"
+        << "        || (scratch.rowMovementMasks.size() == rowMovementWords\n"
+        << "            && scratch.dirtyMovementRows.size() == static_cast<size_t>(dimensions.height)\n"
+        << "            && noDirtyBytes(scratch.dirtyMovementRows));\n"
+        << "    const bool movementColumnsReady = !compact_turn_needs_movement_column_masks_" << suffix << "\n"
+        << "        || (scratch.columnMovementMasks.size() == columnMovementWords\n"
+        << "            && scratch.dirtyMovementColumns.size() == static_cast<size_t>(dimensions.width)\n"
+        << "            && noDirtyBytes(scratch.dirtyMovementColumns));\n"
+        << "    const bool movementRowAllReady = !compact_turn_needs_movement_row_all_masks_" << suffix << "\n"
+        << "        || scratch.rowAllMovementMasks.size() == rowMovementWords;\n"
+        << "    const bool movementColumnAllReady = !compact_turn_needs_movement_column_all_masks_" << suffix << "\n"
+        << "        || scratch.columnAllMovementMasks.size() == columnMovementWords;\n"
+        << "    const bool movementBoardReady = !compact_turn_needs_movement_board_mask_" << suffix << "\n"
+        << "        || (scratch.boardMovementMask.size() == static_cast<size_t>(compact_turn_movement_stride_" << suffix << ")\n"
+        << "            && !scratch.dirtyMovementBoard);\n"
+        << "    const bool movementMasksReady = movementRowsReady\n"
+        << "        && movementColumnsReady\n"
+        << "        && movementRowAllReady\n"
+        << "        && movementColumnAllReady\n"
+        << "        && movementBoardReady;\n"
+        << "    if (!movementMasksReady) {\n"
+        << "        if (!compact_turn_rebuild_movement_derived_state_" << suffix << "(dimensions, scratch)) return false;\n"
+        << "    }\n"
         << "    scratch.anyMasksDirty = !compact_turn_needs_object_row_masks_" << suffix << "\n"
         << "        || !compact_turn_needs_object_column_masks_" << suffix << "\n"
         << "        || !compact_turn_needs_object_board_mask_" << suffix << "\n"
@@ -3291,6 +3296,11 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     out << "void compact_turn_note_object_cell_written_" << suffix << "(LevelDimensions dimensions, Scratch& scratch, int32_t tileIndex, const MaskWord* objects) {\n"
         << "    const int32_t x = tileIndex / dimensions.height;\n"
         << "    const int32_t y = tileIndex % dimensions.height;\n"
+        << "    if (y >= 0 && static_cast<size_t>(y) < scratch.dirtyObjectRows.size()) scratch.dirtyObjectRows[static_cast<size_t>(y)] = 1;\n"
+        << "    if (x >= 0 && static_cast<size_t>(x) < scratch.dirtyObjectColumns.size()) scratch.dirtyObjectColumns[static_cast<size_t>(x)] = 1;\n"
+        << "    scratch.dirtyObjectBoard = true;\n"
+        << "    scratch.anyMasksDirty = true;\n"
+        << "    scratch.objectCellIndexDirty = true;\n"
         << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
         << "        const MaskWord value = objects[word];\n"
         << "        if constexpr (compact_turn_needs_object_row_masks_" << suffix << ") scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_" << suffix << " + word)] |= value;\n"
@@ -3302,6 +3312,10 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     out << "void compact_turn_note_movement_cell_written_" << suffix << "(LevelDimensions dimensions, Scratch& scratch, int32_t tileIndex, const MaskWord* movements) {\n"
         << "    const int32_t x = tileIndex / dimensions.height;\n"
         << "    const int32_t y = tileIndex % dimensions.height;\n"
+        << "    if (y >= 0 && static_cast<size_t>(y) < scratch.dirtyMovementRows.size()) scratch.dirtyMovementRows[static_cast<size_t>(y)] = 1;\n"
+        << "    if (x >= 0 && static_cast<size_t>(x) < scratch.dirtyMovementColumns.size()) scratch.dirtyMovementColumns[static_cast<size_t>(x)] = 1;\n"
+        << "    scratch.dirtyMovementBoard = true;\n"
+        << "    scratch.anyMasksDirty = true;\n"
         << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
         << "        const MaskWord value = movements[word];\n"
         << "        if constexpr (compact_turn_needs_movement_row_masks_" << suffix << ") scratch.rowMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_" << suffix << " + word)] |= value;\n"
@@ -3313,9 +3327,14 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     out << "void compact_turn_clear_movement_masks_" << suffix << "(Scratch& scratch) {\n"
         << "    if constexpr (compact_turn_needs_movement_row_masks_" << suffix << ") std::fill(scratch.rowMovementMasks.begin(), scratch.rowMovementMasks.end(), 0);\n"
         << "    if constexpr (compact_turn_needs_movement_column_masks_" << suffix << ") std::fill(scratch.columnMovementMasks.begin(), scratch.columnMovementMasks.end(), 0);\n"
-        << "    if constexpr (compact_turn_needs_movement_row_all_masks_" << suffix << ") std::fill(scratch.rowAllMovementMasks.begin(), scratch.rowAllMovementMasks.end(), 0);\n"
-        << "    if constexpr (compact_turn_needs_movement_column_all_masks_" << suffix << ") std::fill(scratch.columnAllMovementMasks.begin(), scratch.columnAllMovementMasks.end(), 0);\n"
         << "    if constexpr (compact_turn_needs_movement_board_mask_" << suffix << ") std::fill(scratch.boardMovementMask.begin(), scratch.boardMovementMask.end(), 0);\n"
+        << "    std::fill(scratch.dirtyMovementRows.begin(), scratch.dirtyMovementRows.end(), 0);\n"
+        << "    std::fill(scratch.dirtyMovementColumns.begin(), scratch.dirtyMovementColumns.end(), 0);\n"
+        << "    scratch.dirtyMovementBoard = false;\n"
+        << "    const bool objectDirty = scratch.dirtyObjectBoard\n"
+        << "        || std::any_of(scratch.dirtyObjectRows.begin(), scratch.dirtyObjectRows.end(), [](uint8_t value) { return value != 0; })\n"
+        << "        || std::any_of(scratch.dirtyObjectColumns.begin(), scratch.dirtyObjectColumns.end(), [](uint8_t value) { return value != 0; });\n"
+        << "    if (!objectDirty) scratch.anyMasksDirty = false;\n"
         << "}\n\n";
 
     out << "bool compact_turn_board_has_required_masks_" << suffix << "(\n"
@@ -3752,7 +3771,6 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    changed = objectsChanged || movementsChanged;\n"
         << "    changed = changed || rigidChange;\n"
         << "    if (changed) compact_turn_count_replacements_applied_" << suffix << "();\n"
-        << "    if (changed) scratch.objectCellIndexDirty = true;\n"
         << "    return changed;\n"
         << "}\n\n";
 
@@ -4082,11 +4100,6 @@ CompactTurnSupport compactTurnSupportForGame(const Game& game, const CompactCode
         support.statusReason = "interpreter_bridge";
         return support;
     }
-    if (support.nativeKernel()) {
-        return support;
-    }
-    support.backendKind = CompactTurnBackendKind::InterpreterBridge;
-    support.statusReason = "interpreter_bridge";
     return support;
 }
 

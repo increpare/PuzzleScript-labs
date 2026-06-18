@@ -919,6 +919,23 @@ PersistentLevelState persistentLevelStateWithTiming(const FullState& session, Ti
     return persistentLevelStateFromFullState(session);
 }
 
+void clearMaterializedSolverMaskCaches(FullState& session) {
+    session.scratch.rowMasks.clear();
+    session.scratch.columnMasks.clear();
+    session.scratch.rowAllMasks.clear();
+    session.scratch.columnAllMasks.clear();
+    session.scratch.boardMask.clear();
+    session.scratch.rowMovementMasks.clear();
+    session.scratch.columnMovementMasks.clear();
+    session.scratch.rowAllMovementMasks.clear();
+    session.scratch.columnAllMovementMasks.clear();
+    session.scratch.boardMovementMask.clear();
+    session.scratch.dirtyObjectRows.clear();
+    session.scratch.dirtyObjectColumns.clear();
+    session.scratch.dirtyMovementRows.clear();
+    session.scratch.dirtyMovementColumns.clear();
+}
+
 void markMaterializedFullStateDirty(FullState& session) {
     std::fill(session.scratch.dirtyObjectRows.begin(), session.scratch.dirtyObjectRows.end(), 1);
     std::fill(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), 1);
@@ -943,6 +960,7 @@ void materializePersistentLevelStateIntoFullState(const PersistentLevelState& st
     session.scratch.liveMovements.assign(movementWordCount, 0);
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
+    clearMaterializedSolverMaskCaches(session);
     session.meta.pendingAgain = false;
     session.meta.undoStack.clear();
     session.levelState.rng.s = state.rng.s;
@@ -1294,6 +1312,7 @@ void prepareSolverChildFullStateFromParent(
     child.scratch.liveMovements.assign(parent.scratch.liveMovements.size(), 0);
     child.scratch.rigidGroupIndexMasks.assign(parent.scratch.rigidGroupIndexMasks.size(), 0);
     child.scratch.rigidMovementAppliedMasks.assign(parent.scratch.rigidMovementAppliedMasks.size(), 0);
+    clearMaterializedSolverMaskCaches(child);
     child.scratch.pendingCreateMask.clear();
     child.scratch.pendingDestroyMask.clear();
     child.meta.pendingAgain = false;

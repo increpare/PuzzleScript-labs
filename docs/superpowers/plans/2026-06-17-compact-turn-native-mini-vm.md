@@ -1046,11 +1046,21 @@ Keep the guard:
     }
 ```
 
-- [ ] **Step 4: Fix transparent solver-drain native semantics**
+- [x] **Step 4: Fix transparent solver-drain native semantics**
 
 Investigate the `alternatey.txt#2` mismatch before removing the guard. Current
 evidence points at generated compact multi-row/rule-loop behavior under solver
 `AgainPolicy::Drain`, not at rendering or the runtime object-cell index.
+
+Status: added the focused `alternatey_visible.txt` compact-turn regression and
+fixed generated compact movement/object mask dirtiness, movement line-all mask
+preservation, post-movement derived-state rebuild flags, and solver
+materialized-state mask cache clearing. Verification:
+`make compact_turn_codegen_regression_tests COMPILED_RULES_REUSE_SHARDED_CPP=false`
+passed with `compact_turn_oracle_failures=0`; after removing the transparent
+guard, full `make compact_turn_codegen_solver_parity` passed with
+`compact_turn_unhandled=0`, `compact_turn_oracle_failures=0`, and
+`compact_timeout_regressions=32`.
 
 - [x] **Step 5: Verify verbose coverage and transparent guard safety**
 
@@ -1070,6 +1080,10 @@ Status: coverage reports native compact kernels `124/182`,
 `levels=2513`, `compact_turn_unhandled=0`,
 `compact_turn_oracle_failures=0`, and `compact_timeout_regressions=21`.
 
+Follow-up status: after Step 4, the transparent guard was removed and
+`make compact_turn_native_parity` passed with native compact coverage
+`182/182`.
+
 - [x] **Step 6: Commit verbose support and transparent guard note**
 
 ```bash
@@ -1084,7 +1098,7 @@ git commit -m "feat: allow transparent compact native kernels"
 - Modify: `native/src/compiler/compact_turn_codegen.hpp`
 - Modify: `src/tests/compact_turn_native_parity_node.js`
 
-- [ ] **Step 1: Make compiler mode report native for all supported games**
+- [x] **Step 1: Make compiler mode report native for all supported games**
 
 Change `compactTurnSupportForGame` to stop converting unsupported native cases into accepted bridges. The final function should be:
 
@@ -1101,7 +1115,7 @@ CompactTurnSupport compactTurnSupportForGame(const Game& game, const CompactCode
 }
 ```
 
-- [ ] **Step 2: Make native support default to native kernel when no blocker remains**
+- [x] **Step 2: Make native support default to native kernel when no blocker remains**
 
 At the end of `compactNativeTurnSupportForGame`, keep:
 
@@ -1112,7 +1126,7 @@ At the end of `compactNativeTurnSupportForGame`, keep:
     return support;
 ```
 
-- [ ] **Step 3: Run strict coverage**
+- [x] **Step 3: Run strict coverage**
 
 Run:
 
@@ -1126,7 +1140,10 @@ Expected:
 compact_turn_native_parity_node passed native=182/182
 ```
 
-- [ ] **Step 4: Commit strict native support reporting**
+Status: `make compact_turn_native_parity` passed with
+`compact_turn_native_parity_node passed native=182/182`.
+
+- [x] **Step 4: Commit strict native support reporting**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp native/src/compiler/compact_turn_codegen.hpp src/tests/compact_turn_native_parity_node.js
