@@ -266,6 +266,27 @@ assert.strictEqual(legacyTimeoutExactOnlySolvedBatch.recordEvaluation({
 assert.strictEqual(legacyTimeoutExactOnlySolvedBatch.timeoutQueue().length, 0, 'safe exact-only solved identity should clear equivalent legacy timeout');
 assert.strictEqual(legacyTimeoutExactOnlySolvedBatch.nextPromotion(), null);
 
+const legacyTimeoutConflictingExactSolvedBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+legacyTimeoutConflictingExactSolvedBatch.recordEvaluation({
+    level_hash: 123,
+    status: 'timeout',
+    unique_states: 100,
+    solver_budget_ms: 1000,
+    cells: [['legacy']],
+});
+assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.recordEvaluation({
+    level_hash: 999999,
+    level_hash_hex: '000000000000007b',
+    status: 'solved',
+    unique_states: 101,
+    cells: [['exact']],
+}).becameTopSolved, true);
+assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.timeoutQueue().length, 0, 'exact-derived safe alias should ignore conflicting legacy field');
+assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.nextPromotion(), null);
+
 const solvedThenTimeoutBatch = new CandidateBatchState({
     promotionBudgetsMs: [1000, 5000],
     promotionQueueLimit: 4,
@@ -315,25 +336,57 @@ defensiveBatch.recordEvaluation({
     level_hash: 14,
     status: 'solved',
     unique_states: 20,
+    solution: ['right'],
+    rows: ['P..'],
     cells: [['player']],
 });
 const solvedSnapshot = defensiveBatch.solvedTop();
 solvedSnapshot[0].level_hash = 999;
 solvedSnapshot[0].cells[0][0] = 'mutated';
+solvedSnapshot[0].solution[0] = 'left';
+solvedSnapshot[0].rows[0] = 'mutated';
 assert.deepStrictEqual(defensiveBatch.solvedTop().map(candidate => candidate.level_hash), [14]);
 assert.deepStrictEqual(defensiveBatch.solvedTop()[0].cells, [['player']]);
+assert.deepStrictEqual(defensiveBatch.solvedTop()[0].solution, ['right']);
+assert.deepStrictEqual(defensiveBatch.solvedTop()[0].rows, ['P..']);
 defensiveBatch.recordEvaluation({
     level_hash: 15,
     status: 'timeout',
     unique_states: 10,
     solver_budget_ms: 1000,
+    solution: ['up'],
+    rows: ['..O'],
     cells: [['crate']],
 });
 const timeoutSnapshot = defensiveBatch.timeoutQueue();
 timeoutSnapshot[0].level_hash = 999;
 timeoutSnapshot[0].cells[0][0] = 'mutated';
+timeoutSnapshot[0].solution[0] = 'down';
+timeoutSnapshot[0].rows[0] = 'mutated';
 assert.deepStrictEqual(defensiveBatch.timeoutQueue().map(candidate => candidate.level_hash), [15]);
 assert.deepStrictEqual(defensiveBatch.timeoutQueue()[0].cells, [['crate']]);
+assert.deepStrictEqual(defensiveBatch.timeoutQueue()[0].solution, ['up']);
+assert.deepStrictEqual(defensiveBatch.timeoutQueue()[0].rows, ['..O']);
+
+const promotedCopyBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+});
+promotedCopyBatch.recordEvaluation({
+    level_hash: 17,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    solution: ['left'],
+    rows: ['P.O'],
+    cells: [['player']],
+});
+const promotedCopy = promotedCopyBatch.nextPromotion();
+promotedCopy.solution[0] = 'right';
+promotedCopy.rows[0] = 'mutated';
+promotedCopy.cells[0][0] = 'mutated';
+assert.deepStrictEqual(promotedCopyBatch.promoted[0].solution, ['left']);
+assert.deepStrictEqual(promotedCopyBatch.promoted[0].rows, ['P.O']);
+assert.deepStrictEqual(promotedCopyBatch.promoted[0].cells, [['player']]);
 
 const unsortedBudgetBatch = new CandidateBatchState({
     promotionBudgetsMs: [30000, 1000, 5000, 5000],
@@ -346,5 +399,39 @@ unsortedBudgetBatch.recordEvaluation({
     cells: [['player']],
 });
 assert.strictEqual(unsortedBudgetBatch.nextPromotion().next_budget_ms, 5000, 'budgets should promote to the next sorted higher value');
+
+const invalidOptionsBatch = new CandidateBatchState({
+    topCount: -1,
+    promotionQueueLimit: 1.5,
+    promotionBudgetsMs: [1000, 5000],
+});
+invalidOptionsBatch.recordEvaluation({
+    level_hash: 18,
+    status: 'solved',
+    unique_states: 30,
+    cells: [['player']],
+});
+invalidOptionsBatch.recordEvaluation({
+    level_hash: 19,
+    status: 'solved',
+    unique_states: 20,
+    cells: [['target']],
+});
+assert.deepStrictEqual(invalidOptionsBatch.solvedTop().map(candidate => candidate.level_hash), [18, 19]);
+invalidOptionsBatch.recordEvaluation({
+    level_hash: 20,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    cells: [['crate']],
+});
+invalidOptionsBatch.recordEvaluation({
+    level_hash: 21,
+    status: 'timeout',
+    unique_states: 9,
+    solver_budget_ms: 1000,
+    cells: [['wall']],
+});
+assert.deepStrictEqual(invalidOptionsBatch.timeoutQueue().map(candidate => candidate.level_hash), [20, 21]);
 
 console.log('candidate scheduler tests passed');

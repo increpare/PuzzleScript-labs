@@ -1,6 +1,8 @@
 'use strict';
 
 const DEFAULT_PROMOTION_BUDGETS_MS = [1000, 5000, 30000, 120000];
+const DEFAULT_TOP_COUNT = 3;
+const DEFAULT_PROMOTION_QUEUE_LIMIT = 64;
 
 function normalizeRows(cells) {
     if (!Array.isArray(cells)) {
@@ -12,6 +14,12 @@ function normalizeRows(cells) {
 function copyCandidate(candidate) {
     const copy = { ...candidate };
     copy.cells = normalizeRows(candidate.cells);
+    if (Array.isArray(candidate.rows)) {
+        copy.rows = candidate.rows.slice();
+    }
+    if (Array.isArray(candidate.solution)) {
+        copy.solution = candidate.solution.slice();
+    }
     if (Array.isArray(candidate.identity_keys)) {
         copy.identity_keys = candidate.identity_keys.slice();
     }
@@ -111,6 +119,7 @@ function candidateIdentity(candidate) {
             exactKey = `exact:${normalizedExactHash}`;
             legacyAliasFromExactHash = legacyHashFromExactHash(exactHash);
             addUniqueKey(keys, exactKey);
+            addUniqueKey(keys, legacyAliasFromExactHash ? `legacy:${legacyAliasFromExactHash}` : null);
         }
         const legacyHash = hasHashValue(candidate.levelHash) ? candidate.levelHash : candidate.level_hash;
         let legacyKey = null;
@@ -123,9 +132,6 @@ function candidateIdentity(candidate) {
                 legacyKey = `legacy:${normalizedLegacyHash}`;
                 addUniqueKey(keys, legacyKey);
             }
-        } else if (legacyAliasFromExactHash) {
-            legacyKey = `legacy:${legacyAliasFromExactHash}`;
-            addUniqueKey(keys, legacyKey);
         }
         if (exactKey || legacyKey) {
             return { key: exactKey || legacyKey, keys };
@@ -187,12 +193,17 @@ function normalizePromotionBudgets(budgets) {
     return normalized.length > 0 ? normalized : DEFAULT_PROMOTION_BUDGETS_MS.slice();
 }
 
+function normalizePositiveInteger(value, fallback) {
+    const normalized = Number(value);
+    return Number.isInteger(normalized) && normalized > 0 ? normalized : fallback;
+}
+
 class CandidateBatchState {
     constructor(options = {}) {
         this.batchId = options.batchId || `batch-${Date.now()}`;
-        this.topCount = options.topCount || 3;
+        this.topCount = normalizePositiveInteger(options.topCount, DEFAULT_TOP_COUNT);
         this.promotionBudgetsMs = normalizePromotionBudgets(options.promotionBudgetsMs);
-        this.promotionQueueLimit = options.promotionQueueLimit || 64;
+        this.promotionQueueLimit = normalizePositiveInteger(options.promotionQueueLimit, DEFAULT_PROMOTION_QUEUE_LIMIT);
         this.byHash = new Map();
         this.loggedTopHashes = new Set();
         this.solved = [];
@@ -314,9 +325,9 @@ class CandidateBatchState {
             if (nextBudget == null) {
                 continue;
             }
-            const promoted = { ...candidate, next_budget_ms: nextBudget };
+            const promoted = copyCandidate({ ...candidate, next_budget_ms: nextBudget });
             this.promoted.push(promoted);
-            return promoted;
+            return copyCandidate(promoted);
         }
         return null;
     }
