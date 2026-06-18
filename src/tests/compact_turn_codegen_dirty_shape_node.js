@@ -40,7 +40,14 @@ function parseArgs(argv) {
 }
 
 function functionBody(source, name) {
-    const start = source.lastIndexOf(`bool ${name}(`);
+    const prefixes = [
+        `bool ${name}(`,
+        `void ${name}(`,
+        `int32_t ${name}(`,
+        `MaskWord* ${name}(`,
+        `const MaskWord* ${name}(`,
+    ];
+    const start = Math.max(...prefixes.map((prefix) => source.lastIndexOf(prefix)));
     assert.notStrictEqual(start, -1, `missing generated function ${name}`);
     const braceStart = source.indexOf('{', start);
     assert.notStrictEqual(braceStart, -1, `missing body for generated function ${name}`);
@@ -166,6 +173,26 @@ function main() {
         /(?:static\s+)?constexpr bool \w+_writes_movements\s*=\s*false;/,
         'expected generated no-movement-write summary constant',
     );
+    const objectDerivedBody = functionBody(source, 'compact_turn_rebuild_object_derived_state_0');
+    assertExcludes(objectDerivedBody, 'objectCellBits.assign', 'object derived-state rebuild');
+    assertExcludes(objectDerivedBody, 'objectCellCounts.assign', 'object derived-state rebuild');
+    const objectCellIndexBody = functionBody(source, 'compact_turn_rebuild_object_cell_index_0');
+    assertIncludes(objectCellIndexBody, 'objectCellBits.assign', 'object-cell index rebuild');
+    assertIncludes(objectCellIndexBody, 'objectCellCounts.assign', 'object-cell index rebuild');
+    const prepareObjectCellIndexBody = functionBody(source, 'compact_turn_prepare_object_cell_index_0');
+    assertIncludes(
+        prepareObjectCellIndexBody,
+        'compact_turn_rebuild_object_cell_index_0(dimensions, levelState, scratch)',
+        'object-cell index prepare',
+    );
+    const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
+    assertIncludes(
+        ruleDerivedBody,
+        'compact_turn_rebuild_object_derived_state_0(dimensions, levelState, scratch)',
+        'rule derived-state rebuild',
+    );
+    assertExcludes(ruleDerivedBody, 'compact_turn_rebuild_object_cell_index_0', 'rule derived-state rebuild');
+
     const fastPathCallCount = (source.match(/compact_turn_count_simple_replacement_fast_path_call_0\(\);/g) || []).length;
     assert.ok(
         fastPathCallCount >= 2,
