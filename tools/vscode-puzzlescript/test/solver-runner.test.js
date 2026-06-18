@@ -35,6 +35,12 @@ async function runTests() {
     assert.deepStrictEqual(parseSolverJson('noise\n{"results":[{"status":"solved"}]}\n'), {
         results: [{ status: 'solved' }],
     });
+    assert.deepStrictEqual(parseSolverJson('warning {pid=1}\n{"results":[{"status":"solved"}]}\n'), {
+        results: [{ status: 'solved' }],
+    });
+    assert.deepStrictEqual(parseSolverJson('{"results":[{"status":"solved"}]}\nwarning {pid=1}\n'), {
+        results: [{ status: 'solved' }],
+    });
     assert.throws(() => parseSolverJson('not json'), /did not contain JSON/);
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-solver-runner-'));

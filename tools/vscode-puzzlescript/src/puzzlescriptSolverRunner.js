@@ -17,12 +17,53 @@ function removeTempDir(tempDir) {
 
 function parseSolverJson(stdout) {
     const text = String(stdout || '').trim();
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start < 0 || end < start) {
-        throw new Error('Solver output did not contain JSON.');
+    let fallback = null;
+    for (let start = text.indexOf('{'); start >= 0;) {
+        let nextStart = text.indexOf('{', start + 1);
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+        for (let index = start; index < text.length; index++) {
+            const char = text[index];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (char === '\\') {
+                    escaped = true;
+                } else if (char === '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (char === '"') {
+                inString = true;
+            } else if (char === '{') {
+                depth++;
+            } else if (char === '}') {
+                depth--;
+                if (depth === 0) {
+                    try {
+                        const parsed = JSON.parse(text.slice(start, index + 1));
+                        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                            if (Object.prototype.hasOwnProperty.call(parsed, 'results')) {
+                                return parsed;
+                            }
+                            fallback = parsed;
+                            nextStart = text.indexOf('{', index + 1);
+                        }
+                    } catch (error) {
+                        // Keep scanning; noisy output can contain non-JSON brace groups.
+                    }
+                    break;
+                }
+            }
+        }
+        start = nextStart;
     }
-    return JSON.parse(text.slice(start, end + 1));
+    if (fallback) {
+        return fallback;
+    }
+    throw new Error('Solver output did not contain JSON.');
 }
 
 function resolveSolverPath(configuredPath, repoRoot) {
