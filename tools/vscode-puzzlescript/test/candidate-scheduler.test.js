@@ -205,6 +205,28 @@ assert.strictEqual(promotable.level_hash, 9, 'max-budget timeout should be skipp
 assert.strictEqual(promotable.next_budget_ms, 5000);
 assert.strictEqual(maxBudgetBatch.nextPromotion(), null, 'only non-advancing max-budget timeout should remain skipped');
 
+const timeoutDuplicateAtMaxBudgetBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+timeoutDuplicateAtMaxBudgetBatch.recordEvaluation({
+    level_hash: 24,
+    status: 'timeout',
+    unique_states: 50,
+    solver_budget_ms: 1000,
+    cells: [['legacy']],
+});
+assert.strictEqual(timeoutDuplicateAtMaxBudgetBatch.timeoutQueue().length, 1);
+timeoutDuplicateAtMaxBudgetBatch.recordEvaluation({
+    level_hash_hex: '0000000000000018',
+    status: 'timeout',
+    unique_states: 60,
+    solver_budget_ms: 5000,
+    cells: [['exact']],
+});
+assert.strictEqual(timeoutDuplicateAtMaxBudgetBatch.timeoutQueue().length, 0, 'unpromotable duplicate timeout should clear older promotable entries');
+assert.strictEqual(timeoutDuplicateAtMaxBudgetBatch.nextPromotion(), null);
+
 const timeoutThenSolvedBatch = new CandidateBatchState({
     promotionBudgetsMs: [1000, 5000],
     promotionQueueLimit: 4,
@@ -401,6 +423,41 @@ promotedCopy.cells[0][0] = 'mutated';
 assert.deepStrictEqual(promotedCopyBatch.promoted[0].solution, ['left']);
 assert.deepStrictEqual(promotedCopyBatch.promoted[0].rows, ['P.O']);
 assert.deepStrictEqual(promotedCopyBatch.promoted[0].cells, [['player']]);
+
+const callerOwnedSolvedCandidate = {
+    level_hash: 25,
+    status: 'solved',
+    unique_states: 20,
+    solution: ['right'],
+    rows: [['P', '.', '.']],
+    cells: [['player']],
+};
+const callerOwnedTimeoutCandidate = {
+    level_hash: 26,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    solution: ['left'],
+    rows: [['.', 'O', '.']],
+    cells: [['crate']],
+};
+const callerSnapshotBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+});
+callerSnapshotBatch.recordEvaluation(callerOwnedSolvedCandidate);
+callerOwnedSolvedCandidate.solution[0] = 'down';
+callerOwnedSolvedCandidate.rows[0][0] = 'X';
+callerOwnedSolvedCandidate.cells[0][0] = 'mutated';
+assert.deepStrictEqual(callerSnapshotBatch.solvedTop()[0].solution, ['right']);
+assert.deepStrictEqual(callerSnapshotBatch.solvedTop()[0].rows, [['P', '.', '.']]);
+assert.deepStrictEqual(callerSnapshotBatch.solvedTop()[0].cells, [['player']]);
+callerSnapshotBatch.recordEvaluation(callerOwnedTimeoutCandidate);
+callerOwnedTimeoutCandidate.solution[0] = 'up';
+callerOwnedTimeoutCandidate.rows[0][1] = 'X';
+callerOwnedTimeoutCandidate.cells[0][0] = 'mutated';
+assert.deepStrictEqual(callerSnapshotBatch.timeoutQueue()[0].solution, ['left']);
+assert.deepStrictEqual(callerSnapshotBatch.timeoutQueue()[0].rows, [['.', 'O', '.']]);
+assert.deepStrictEqual(callerSnapshotBatch.timeoutQueue()[0].cells, [['crate']]);
 
 const unsortedBudgetBatch = new CandidateBatchState({
     promotionBudgetsMs: [30000, 1000, 5000, 5000],

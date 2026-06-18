@@ -11,11 +11,15 @@ function normalizeRows(cells) {
     return cells.map(row => Array.isArray(row) ? row.map(String) : [...String(row)]);
 }
 
+function copyRows(rows) {
+    return rows.map(row => Array.isArray(row) ? row.slice() : row);
+}
+
 function copyCandidate(candidate) {
     const copy = { ...candidate };
     copy.cells = normalizeRows(candidate.cells);
     if (Array.isArray(candidate.rows)) {
-        copy.rows = candidate.rows.slice();
+        copy.rows = copyRows(candidate.rows);
     }
     if (Array.isArray(candidate.solution)) {
         copy.solution = candidate.solution.slice();
@@ -217,6 +221,12 @@ class CandidateBatchState {
         const identity = candidateIdentity(candidate);
         normalized.identity_key = identity ? identity.key : null;
         normalized.identity_keys = identity ? identity.keys.slice() : [];
+        if (Array.isArray(candidate.rows)) {
+            normalized.rows = copyRows(candidate.rows);
+        }
+        if (Array.isArray(candidate.solution)) {
+            normalized.solution = candidate.solution.slice();
+        }
         const exactHash = hasHashValue(candidate.levelHashHex) ? candidate.levelHashHex : candidate.level_hash_hex;
         const normalizedExactHash = hasHashValue(exactHash) ? normalizeExactHash(exactHash) : null;
         if (normalizedExactHash) {
@@ -263,10 +273,13 @@ class CandidateBatchState {
             };
         }
         if (normalized.status === 'timeout') {
-            if (this.hasSolvedIdentity(keys) || this.nextBudgetFor(normalized) == null) {
+            if (this.hasSolvedIdentity(keys)) {
                 return { becameTopSolved: false };
             }
             this.timeouts = this.timeouts.filter(entry => !identitiesOverlap(entry, keys));
+            if (this.nextBudgetFor(normalized) == null) {
+                return { becameTopSolved: false };
+            }
             this.timeouts.push(normalized);
             this.sortAndTrimTimeouts();
             this.storeCandidate(normalized);
