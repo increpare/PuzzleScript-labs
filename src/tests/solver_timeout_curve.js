@@ -27,6 +27,10 @@
 //   node src/tests/solver_timeout_curve.js                      # solver_tests, 50..1000ms
 //   node src/tests/solver_timeout_curve.js --from-json run.json # re-plot existing run
 //   node src/tests/solver_timeout_curve.js --compare-all        # js + c++ chart
+//
+// Curve points use each level's exact elapsed_ms (a step function). --step-ms only
+// controls ASCII summary rows and SVG grid spacing (default 50ms).
+//
 //   # overlay saved runs from different solvers on one chart (no corpus run):
 //   node src/tests/solver_timeout_curve.js --series "js:js_1s.json" --series "PS+:psplus_1s.json" --series "c++:cpp_1s.json"
 //
@@ -411,19 +415,70 @@ function buildCurve(levels, options) {
     const solveTimes = playable
         .filter((l) => l.status === 'solved')
         .map((l) => Math.max(1, l.elapsed_ms | 0))
+        .filter((t) => t <= options.maxMs)
         .sort((a, b) => a - b);
-    const thresholds = [];
-    for (let t = options.stepMs; t <= options.maxMs; t += options.stepMs) {
-        thresholds.push(t);
-    }
-    const points = thresholds.map((t) => {
-        let solved = 0;
-        for (const e of solveTimes) {
-            if (e <= t) solved++; else break;
+    const points = [];
+    let solved = 0;
+    let index = 0;
+    while (index < solveTimes.length) {
+        const t = solveTimes[index];
+        while (index < solveTimes.length && solveTimes[index] === t) {
+            solved++;
+            index++;
         }
-        return { timeout_ms: t, solved, pct: playable.length === 0 ? 0 : solved / playable.length * 100 };
-    });
-    return { playable: playable.length, totalSolvedAtMax: solveTimes.length, points };
+        points.push({
+            timeout_ms: t,
+            solved,
+            pct: playable.length === 0 ? 0 : solved / playable.length * 100,
+        });
+    }
+    const totalSolvedAtMax = solved;
+    if (points.length === 0 || points[points.length - 1].timeout_ms < options.maxMs) {
+        points.push({
+            timeout_ms: options.maxMs,
+            solved: totalSolvedAtMax,
+            pct: playable.length === 0 ? 0 : totalSolvedAtMax / playable.length * 100,
+        });
+    }
+    return { playable: playable.length, totalSolvedAtMax, points };
+}
+
+function pointsAtStep(points, options) {
+    const sampled = [];
+    for (let t = options.stepMs; t <= options.maxMs; t += options.stepMs) {
+        let solved = 0;
+        let pct = 0;
+        for (const p of points) {
+            if (p.timeout_ms <= t) {
+                solved = p.solved;
+                pct = p.pct;
+            } else {
+                break;
+            }
+        }
+        sampled.push({ timeout_ms: t, solved, pct });
+    }
+    return sampled;
+}
+
+function stepPolylinePoints(curvePoints) {
+    if (curvePoints.length === 0) {
+        return [[0, 0]];
+    }
+    const pts = [[0, 0]];
+    let prevSolved = 0;
+    for (const p of curvePoints) {
+        const t = p.timeout_ms;
+        const n = p.solved;
+        if (n !== prevSolved) {
+            pts.push([t, prevSolved]);
+            pts.push([t, n]);
+            prevSolved = n;
+        } else if (pts[pts.length - 1][0] !== t) {
+            pts.push([t, n]);
+        }
+    }
+    return pts;
 }
 
 function isPlayableLevel(level) {
@@ -543,13 +598,13 @@ function loadSeries(spec, options) {
     return { label: spec.label, meta: payload.meta, ...curve };
 }
 
-function renderAscii(curves) {
+function renderAscii(curves, options) {
     const width = 44;
     const max = Math.max(...curves.flatMap((c) => c.points.map((p) => p.solved)), 1);
     let out = '';
     for (const curve of curves) {
         out += `\n[${curve.label}] cumulative solves out of ${curve.playable} playable levels\n`;
-        for (const p of curve.points) {
+        for (const p of pointsAtStep(curve.points, options)) {
             const bar = '#'.repeat(Math.round(p.solved / max * width));
             out += `${String(p.timeout_ms).padStart(5)}ms |${bar.padEnd(width)}| ${String(p.solved).padStart(4)}  (${p.pct.toFixed(1)}%)\n`;
         }
@@ -664,8 +719,9 @@ function renderSvg(curves, options) {
     const colorMap = buildSeriesColorMap(curves);
     curves.forEach((curve, ci) => {
         const color = seriesColor(curve.label, colorMap);
-        const pts = [[0, 0], ...curve.points.map((p) => [p.timeout_ms, p.solved])];
-        const poly = pts.map(([ms, n]) => `${x(ms).toFixed(1)},${y(n).toFixed(1)}`).join(' ');
+        const poly = stepPolylinePoints(curve.points)
+            .map(([ms, n]) => `${x(ms).toFixed(1)},${y(n).toFixed(1)}`)
+            .join(' ');
         const { last } = labelMeta[ci];
         const dash = isCanonicalLabel(curve.label) ? ' stroke-dasharray="6 4"' : '';
         lines += `<polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5"${dash}/>` +
@@ -692,10 +748,11 @@ ${lines}
 ${legend}
 <line x1="${mL}" y1="${mT + plotH}" x2="${mL + plotW}" y2="${mT + plotH}" stroke="#333"/>
 <line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + plotH}" stroke="#333"/>
-<text x="${W / 2}" y="18" font-size="14" text-anchor="middle">Cumulative levels solved vs timeout (${playableLabel})</text>
+<text x="${W / 2}" y="18" font-size="14" text-anchor="middle">Cumulative levels solved vs time (${playableLabel})</text>
 <text x="${W / 2}" y="36" font-size="11" text-anchor="middle" fill="#666">${subtitle}</text>
 ${denominatorNote}
-<text x="${W / 2}" y="${H - 8}" font-size="12" text-anchor="middle" fill="#333">timeout (ms)</text>
+<text x="14" y="${mT + plotH / 2}" font-size="12" text-anchor="middle" fill="#333" transform="rotate(-90 14 ${mT + plotH / 2})">levels solved</text>
+<text x="${W / 2}" y="${H - 8}" font-size="12" text-anchor="middle" fill="#333">time (ms)</text>
 </svg>\n`;
 }
 
@@ -762,7 +819,7 @@ function main() {
         }
     }
     assertConsistentPlayableDenominators(curves, options);
-    process.stdout.write(renderAscii(curves));
+    process.stdout.write(renderAscii(curves, options));
     fs.mkdirSync(path.dirname(options.outCsv), { recursive: true });
     fs.writeFileSync(options.outCsv, 'series,timeout_ms,solved,pct\n' +
         curves.flatMap((c) => c.points.map((p) => `${c.label},${p.timeout_ms},${p.solved},${p.pct.toFixed(2)}`)).join('\n') + '\n');
@@ -781,4 +838,7 @@ module.exports = {
     buildSeriesColorMap,
     seriesColor,
     lostPlayableLevels,
+    buildCurve,
+    pointsAtStep,
+    stepPolylinePoints,
 };

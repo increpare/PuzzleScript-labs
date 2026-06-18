@@ -538,6 +538,13 @@ add_test(
 )
 set_tests_properties(solver_timeout_curve_denominator_node PROPERTIES TIMEOUT 10)
 
+add_test(
+  NAME solver_timeout_curve_build_node
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_timeout_curve_build_node.js
+)
+set_tests_properties(solver_timeout_curve_build_node PROPERTIES TIMEOUT 10)
+
 if(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS)
   add_test(
     NAME puzzlescript_solver_js_coverage_full

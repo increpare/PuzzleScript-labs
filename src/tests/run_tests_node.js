@@ -52,7 +52,8 @@ if (process.argv.includes('--profile')) {
     for (let i = 0; i < runs; i++) {
         const result = spawnSync(process.execPath, [scriptPath, ...childArgs], {
             encoding: 'utf8',
-            cwd: path.join(__dirname, '..')
+            cwd: path.join(__dirname, '..'),
+            env: Object.assign({}, process.env, { PUZZLESCRIPT_SKIP_AUXILIARY_TESTS: '1' }),
         });
         const match = result.stdout && result.stdout.match(/Total:\s*\d+ tests in ([\d.]+)s/);
         if (match) times.push(parseFloat(match[1]) * 1000);
@@ -419,4 +420,16 @@ if (failures.length > 0) {
     }
 }
 
-process.exit(failed + errored > 0 ? 1 : 0);
+let auxiliaryExit = 0;
+if (!simOnly && !compilationOnly && !process.argv.includes('--profile')
+    && process.env.PUZZLESCRIPT_SKIP_AUXILIARY_TESTS !== '1') {
+    const auxiliaryResult = spawnSync(process.execPath, [path.join(__dirname, 'solver_random_replay_node.js')], {
+        cwd: srcDir,
+        stdio: 'inherit',
+    });
+    if (auxiliaryResult.status !== 0) {
+        auxiliaryExit = auxiliaryResult.status || 1;
+    }
+}
+
+process.exit(failed + errored > 0 ? 1 : auxiliaryExit);
