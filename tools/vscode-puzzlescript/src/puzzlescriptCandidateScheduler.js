@@ -88,6 +88,12 @@ function candidateIdentity(candidate) {
         }
         return null;
     }
+    if (typeof candidate === 'string') {
+        const normalizedExactHash = normalizeExactHash(candidate);
+        if (normalizedExactHash) {
+            return { key: `exact:${normalizedExactHash}`, exactHash: normalizedExactHash };
+        }
+    }
     const normalizedLegacyHash = normalizeLegacyHash(candidate);
     return normalizedLegacyHash ? { key: `legacy:${normalizedLegacyHash}`, legacyHash: normalizedLegacyHash } : null;
 }

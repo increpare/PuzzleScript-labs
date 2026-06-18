@@ -31,6 +31,18 @@ assert.strictEqual(
     'exact hash should be canonicalized and preferred over numeric hash'
 );
 assert.strictEqual(identityBatch.shouldLogSolvedTop({ level_hash_hex: 'abcdef1234567890' }), false);
+
+const exactStringBatch = new CandidateBatchState();
+exactStringBatch.recordEvaluation({
+    level_hash: 100,
+    level_hash_hex: 'abcdef1234567890',
+    status: 'solved',
+    unique_states: 1,
+    cells: [['player']],
+});
+assert.strictEqual(exactStringBatch.shouldLogSolvedTop('abcdef1234567890'), true);
+assert.strictEqual(exactStringBatch.shouldLogSolvedTop('abcdef1234567890'), false, 'exact hash string logs once');
+
 assert.strictEqual(identityBatch.recordEvaluation({
     level_hash: 2,
     level_hash_hex: 'not-a-hex-hash',
