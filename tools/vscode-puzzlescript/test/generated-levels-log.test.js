@@ -59,6 +59,11 @@ const exactHashEntry = {
 const exactHashBlock = formatGeneratedLevelBlock(exactHashEntry);
 assert(exactHashBlock.includes('level_hash_hex: 00000000000000000000000000003039'));
 assert(exactHashBlock.includes('level_hash: 12345'));
+const normalizedHashBlock = formatGeneratedLevelBlock({
+    ...entry,
+    levelHashHex: 'ABCDEF1234567890',
+});
+assert(normalizedHashBlock.includes('level_hash_hex: abcdef1234567890'));
 
 const exactLogPath = path.join(tmp, 'nested', 'logs', 'game.generatedlevels.txt');
 const exactLog = new GeneratedLevelsLog(exactLogPath);
@@ -95,6 +100,30 @@ const missingHashLog = new GeneratedLevelsLog(missingHashPath);
 const missingHashEntry = { ...entry, levelHash: undefined };
 assert.strictEqual(missingHashLog.appendIfNewTopSolved(missingHashEntry), false);
 assert.strictEqual(fs.existsSync(missingHashPath), false);
+
+const invalidHashPath = path.join(tmp, 'invalid.generatedlevels.txt');
+const invalidHashLog = new GeneratedLevelsLog(invalidHashPath);
+assert.strictEqual(
+    invalidHashLog.appendIfNewTopSolved({ ...entry, levelHashHex: 'not-a-hex-hash' }),
+    false,
+    'malformed exact hash should reject instead of falling back to numeric hash'
+);
+assert.strictEqual(
+    invalidHashLog.appendIfNewTopSolved({ ...entry, levelHashHex: 'abc123' }),
+    false,
+    'short exact hash should reject instead of guessing at identity length'
+);
+assert.strictEqual(
+    invalidHashLog.appendIfNewTopSolved({ ...entry, levelHash: Number.MAX_SAFE_INTEGER + 1 }),
+    false,
+    'unsafe numeric fallback hash should reject'
+);
+assert.strictEqual(
+    invalidHashLog.appendIfNewTopSolved({ ...entry, levelHash: '9007199254740992' }),
+    false,
+    'unsafe decimal string fallback hash should reject'
+);
+assert.strictEqual(fs.existsSync(invalidHashPath), false);
 
 const blockedParentPath = path.join(tmp, 'not-a-directory');
 fs.writeFileSync(blockedParentPath, 'file where directory should be', 'utf8');

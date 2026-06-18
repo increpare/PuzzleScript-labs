@@ -14,17 +14,49 @@ function hasHashValue(value) {
     return value !== undefined && value !== null && String(value) !== '';
 }
 
+function normalizeExactHash(value) {
+    if (typeof value !== 'string' || !/^(?:[0-9a-fA-F]{16}|[0-9a-fA-F]{32})$/.test(value)) {
+        return null;
+    }
+    return value.toLowerCase();
+}
+
+function normalizeLegacyHash(value) {
+    if (typeof value === 'number') {
+        return Number.isSafeInteger(value) && value >= 0 ? String(value) : null;
+    }
+    if (typeof value === 'string') {
+        if (!/^\d+$/.test(value)) {
+            return null;
+        }
+        const parsed = BigInt(value);
+        if (parsed > BigInt(Number.MAX_SAFE_INTEGER)) {
+            return null;
+        }
+        return parsed.toString();
+    }
+    return null;
+}
+
 function getHashIdentity(entry) {
     if (!entry) {
         return null;
     }
     const exactHash = hasHashValue(entry.levelHashHex) ? entry.levelHashHex : entry.level_hash_hex;
     if (hasHashValue(exactHash)) {
-        return { key: `exact:${String(exactHash)}`, exactHash: String(exactHash) };
+        const normalizedExactHash = normalizeExactHash(exactHash);
+        if (!normalizedExactHash) {
+            return null;
+        }
+        return { key: `exact:${normalizedExactHash}`, exactHash: normalizedExactHash };
     }
     const legacyHash = hasHashValue(entry.levelHash) ? entry.levelHash : entry.level_hash;
     if (hasHashValue(legacyHash)) {
-        return { key: `legacy:${String(legacyHash)}`, legacyHash };
+        const normalizedLegacyHash = normalizeLegacyHash(legacyHash);
+        if (!normalizedLegacyHash) {
+            return null;
+        }
+        return { key: `legacy:${normalizedLegacyHash}`, legacyHash: normalizedLegacyHash };
     }
     return null;
 }
