@@ -136,7 +136,12 @@ function candidateIdentity(candidate) {
         const normalizedExactHash = normalizeExactHash(candidate);
         if (normalizedExactHash) {
             const key = `exact:${normalizedExactHash}`;
-            return { key, keys: [key] };
+            const keys = [key];
+            const legacyAlias = legacyHashFromExactHash(candidate);
+            if (legacyAlias) {
+                addUniqueKey(keys, `legacy:${legacyAlias}`);
+            }
+            return { key, keys };
         }
     }
     const normalizedLegacyHash = normalizeLegacyHash(candidate);

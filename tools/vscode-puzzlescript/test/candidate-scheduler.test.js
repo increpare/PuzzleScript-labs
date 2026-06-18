@@ -43,6 +43,16 @@ exactStringBatch.recordEvaluation({
 assert.strictEqual(exactStringBatch.shouldLogSolvedTop('abcdef1234567890'), true);
 assert.strictEqual(exactStringBatch.shouldLogSolvedTop('abcdef1234567890'), false, 'exact hash string logs once');
 
+const exactStringLegacyBatch = new CandidateBatchState();
+exactStringLegacyBatch.recordEvaluation({
+    level_hash: 123,
+    status: 'solved',
+    unique_states: 1,
+    cells: [['player']],
+});
+assert.strictEqual(exactStringLegacyBatch.shouldLogSolvedTop('000000000000007b'), true);
+assert.strictEqual(exactStringLegacyBatch.shouldLogSolvedTop('000000000000007b'), false, 'safe exact hash string should alias legacy hash once');
+
 assert.strictEqual(identityBatch.recordEvaluation({
     level_hash: 2,
     level_hash_hex: 'not-a-hex-hash',
