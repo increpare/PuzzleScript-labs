@@ -1256,7 +1256,7 @@ git commit -m "test: validate compact native mini vm performance"
 **Files:**
 - No code changes expected.
 
-- [ ] **Step 1: Inspect final status**
+- [x] **Step 1: Inspect final status**
 
 Run:
 
@@ -1267,7 +1267,9 @@ git log --oneline -8
 
 Expected: clean worktree on the implementation branch.
 
-- [ ] **Step 2: Record final coverage numbers**
+Observed: clean worktree on `codex/compact-turn-anchors`; latest commits include `f49dc89c docs: record compact turn curve validation` and `19cfce9f perf: anchor compact turn movement scans`.
+
+- [x] **Step 2: Record final coverage numbers**
 
 Run:
 
@@ -1289,7 +1291,20 @@ Expected:
 }
 ```
 
-- [ ] **Step 3: Prepare handoff summary**
+Observed:
+
+```json
+{
+  "sources": 182,
+  "native": 182,
+  "bridge": 0,
+  "reasons": {
+    "native_kernel": 182
+  }
+}
+```
+
+- [x] **Step 3: Prepare handoff summary**
 
 Write a short summary with:
 
@@ -1302,6 +1317,16 @@ Known risks: any remaining perf variance or long-running full curve notes
 ```
 
 Do not commit this summary unless it is added to an existing project handoff document.
+
+Summary:
+
+```text
+Coverage: native 182/182, bridge 0/182
+Correctness: compact_turn_codegen_solver_parity passed with compact_turn_oracle_failures=0 and compact_turn_unhandled=0
+Perf: targeted harness passed; manic_ammo remains a strong compiled win and Voitex compiled generated 180896 vs interpreter 171380 states at 1000ms
+Curve: compiled >= interpreter at 1000ms for portfolio and HDA, raw and canonical
+Known risks: full timeout curve is long-running; remaining perf variance appears in non-failing compact timeout warnings, now 29 in solver parity
+```
 
 ---
 
