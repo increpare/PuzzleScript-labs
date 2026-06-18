@@ -1,0 +1,58 @@
+title Simple Replacement Fast Path
+author codex
+
+noaction
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+green
+
+Target
+yellow
+
+Crate
+blue
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player and Target
+C = Crate
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Goal, Crate
+Target
+
+======
+RULES
+======
+
+[ Player ] -> [ Goal ]
+right [ Crate ] -> [ > Crate ]
+
+==============
+WINCONDITIONS
+==============
+
+all Goal on Target
+
+=======
+LEVELS
+=======
+
+PC.

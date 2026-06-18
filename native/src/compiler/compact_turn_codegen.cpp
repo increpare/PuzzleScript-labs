@@ -1383,6 +1383,128 @@ std::string compactPatternApplyCall(
     return call.str();
 }
 
+bool compactReplacementHasDynamicTerms(const Replacement& replacement) {
+    if (replacement.hasRandomEntityMask || replacement.hasRandomDirMask) {
+        return true;
+    }
+    const ReplacementDynamic* dynamic = replacement.dynamic.get();
+    if (dynamic == nullptr) {
+        return false;
+    }
+    return !dynamic->layerCoupledMovementReplacements.empty()
+        || !dynamic->inferredAggregateBindings.empty()
+        || !dynamic->inferredPropertyBindings.empty()
+        || !dynamic->inferredPropertySources.empty()
+        || dynamic->rhsPropertyPreserveMask != kNullMaskOffset;
+}
+
+bool compactPatternSimpleReplacementFastPathSupported(
+    const Rule& rule,
+    const Pattern& pattern,
+    size_t rowIndex,
+    int32_t rigidGroupIndex
+) {
+    if (!pattern.replacement.has_value()) {
+        return false;
+    }
+    if (rigidGroupIndex > 0) {
+        return false;
+    }
+    if (!rule.aggregateBindings.empty()) {
+        return false;
+    }
+    if (rowIndex < rule.ellipsisCount.size() && rule.ellipsisCount[rowIndex] != 0) {
+        return false;
+    }
+    const Replacement& replacement = *pattern.replacement;
+    return !compactReplacementHasDynamicTerms(replacement);
+}
+
+std::string compactPatternSimpleReplacementFastPathCall(
+    const Game& game,
+    const CompactMaskConstantEmitter& masks,
+    const Pattern& pattern,
+    std::string_view suffix,
+    std::string_view tileIndexExpr
+) {
+    const Replacement& replacement = *pattern.replacement;
+    const std::string objectClearMask = compactMaskName(masks, game, replacement.objectsClear, game.wordCount);
+    const std::string objectSetMask = compactMaskName(masks, game, replacement.objectsSet, game.wordCount);
+    const std::string movementClearMask = compactMaskName(masks, game, replacement.movementsClear, game.movementWordCount);
+    const std::string movementSetMask = compactMaskName(masks, game, replacement.movementsSet, game.movementWordCount);
+    const std::string movementLayerMask = compactMaskName(masks, game, replacement.movementsLayerMask, game.movementWordCount);
+    std::ostringstream call;
+    call << "([&]() {\n"
+         << "                compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
+         << "                compact_turn_count_replacements_attempted_" << suffix << "();\n"
+         << "                bool fastObjectsChanged = false;\n"
+         << "                bool fastMovementsChanged = false;\n"
+         << "                MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, " << tileIndexExpr << ");\n"
+         << "                for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+         << "                    const MaskWord before = fastObjects[word];\n"
+         << "                    const MaskWord after = (before & ~(" << objectClearMask << ")[word]) | (" << objectSetMask << ")[word];\n"
+         << "                    fastObjects[word] = after;\n"
+         << "                    fastObjectsChanged = fastObjectsChanged || before != after;\n"
+         << "                }\n"
+         << "                MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, " << tileIndexExpr << ");\n"
+         << "                for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+         << "                    const MaskWord before = fastMovements[word];\n"
+         << "                    const MaskWord clear = (" << movementClearMask << ")[word] | (" << movementLayerMask << ")[word];\n"
+         << "                    const MaskWord after = (before & ~clear) | (" << movementSetMask << ")[word];\n"
+         << "                    fastMovements[word] = after;\n"
+         << "                    fastMovementsChanged = fastMovementsChanged || before != after;\n"
+         << "                }\n"
+         << "                if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, " << tileIndexExpr << ", fastObjects);\n"
+         << "                if (fastMovementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, " << tileIndexExpr << ", fastMovements);\n"
+         << "                const bool fastChanged = fastObjectsChanged || fastMovementsChanged;\n"
+         << "                if (fastChanged) {\n"
+         << "                    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
+         << "                    compact_turn_count_replacements_applied_" << suffix << "();\n"
+         << "                } else {\n"
+         << "                    compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "();\n"
+         << "                }\n"
+         << "                return fastChanged;\n"
+         << "            }())";
+    return call.str();
+}
+
+std::string compactPatternApplyCall(
+    const Game& game,
+    const CompactMaskConstantEmitter& masks,
+    const Rule& rule,
+    const Pattern& pattern,
+    std::string_view suffix,
+    std::string_view phase,
+    size_t groupIndex,
+    size_t ruleIndex,
+    size_t rowIndex,
+    size_t patternIndex,
+    std::string_view tileIndexExpr,
+    std::string_view rigidGroupIndexExpr,
+    int32_t rigidGroupIndex,
+    std::string_view aggregateCapturesExpr,
+    std::string_view aggregateCaptureCountExpr
+) {
+    if (compactPatternSimpleReplacementFastPathSupported(rule, pattern, rowIndex, rigidGroupIndex)) {
+        return compactPatternSimpleReplacementFastPathCall(game, masks, pattern, suffix, tileIndexExpr);
+    }
+    return compactPatternApplyCall(
+        game,
+        masks,
+        pattern,
+        suffix,
+        phase,
+        groupIndex,
+        ruleIndex,
+        rowIndex,
+        patternIndex,
+        tileIndexExpr,
+        rigidGroupIndexExpr,
+        aggregateCapturesExpr,
+        aggregateCaptureCountExpr
+    );
+}
+
 void emitCompactRuleCommandQueue(
     std::ostream& out,
     std::string_view commandQueueName
@@ -1781,6 +1903,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                       << compactPatternApplyCall(
                           game,
                           masks,
+                          rule,
                           row[patternIndex],
                           suffix,
                           phase,
@@ -1790,6 +1913,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                           patternIndex,
                           "applyTile_" + std::to_string(patternIndex),
                           std::to_string(rigidGroupIndex),
+                          rigidGroupIndex,
                           compactAggregateCapturesExpr(rule),
                           compactAggregateCaptureCountExpr(rule)
                       )
@@ -1931,6 +2055,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                           << compactPatternApplyCall(
                               game,
                               masks,
+                              rule,
                               row[patternIndex],
                               suffix,
                               phase,
@@ -1940,6 +2065,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                               patternIndex,
                               "applyTile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex),
                               std::to_string(rigidGroupIndex),
+                              rigidGroupIndex,
                               compactAggregateCapturesExpr(rule),
                               compactAggregateCaptureCountExpr(rule)
                           )
@@ -2014,6 +2140,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                          << compactPatternApplyCall(
                              game,
                              masks,
+                             rule,
                              row[patternIndex],
                              suffix,
                              phase,
@@ -2023,6 +2150,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                              patternIndex,
                              "match[positionIndex]",
                              std::to_string(rigidGroupIndex),
+                             rigidGroupIndex,
                              "aggregateCaptures",
                              "aggregateCaptureCount"
                          )
@@ -2217,6 +2345,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                           << compactPatternApplyCall(
                               game,
                               masks,
+                              rule,
                               row[patternIndex],
                               suffix,
                               phase,
@@ -2226,6 +2355,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                               patternIndex,
                               "match[positionIndex]",
                               std::to_string(rigidGroupIndex),
+                              rigidGroupIndex,
                               compactAggregateCapturesExpr(rule),
                               compactAggregateCaptureCountExpr(rule)
                           )
@@ -2403,6 +2533,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                               << compactPatternApplyCall(
                                   game,
                                   masks,
+                                  rule,
                                   row[patternIndex],
                                   suffix,
                                   phase,
@@ -2412,6 +2543,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                                   patternIndex,
                                   "applyTile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex),
                                   std::to_string(rigidGroupIndex),
+                                  rigidGroupIndex,
                                   compactAggregateCapturesExpr(rule),
                                   compactAggregateCaptureCountExpr(rule)
                               )
