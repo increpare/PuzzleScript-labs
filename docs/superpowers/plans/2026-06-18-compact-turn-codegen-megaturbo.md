@@ -195,7 +195,7 @@ git commit -m "test: add compact turn codegen perf suite"
 
 ## Task 2: Add Low-Overhead Attribution Counters
 
-- [ ] Extend runtime counters in `native/include/puzzlescript/puzzlescript.h`:
+- [x] Extend runtime counters in `native/include/puzzlescript/puzzlescript.h`:
 
 ```cpp
 uint64_t compact_turn_rule_mask_precheck_passes = 0;
@@ -211,7 +211,7 @@ uint64_t compact_turn_simple_replacement_fast_path_noops = 0;
 uint64_t compact_turn_simple_replacement_fast_path_changes = 0;
 ```
 
-- [ ] Update runtime reset/snapshot/print logic in:
+- [x] Update runtime reset/snapshot/print logic in:
 
   - `native/src/runtime/core.cpp`
   - `native/src/cli/main.cpp`
@@ -219,7 +219,7 @@ uint64_t compact_turn_simple_replacement_fast_path_changes = 0;
 
 Printed names must use the existing `solver_runtime_counters key=value` format.
 
-- [ ] In `native/src/compiler/compact_turn_codegen.cpp`, add generated helpers near the existing counter helpers. The emitter must write concrete function names by combining the helper role with the generated game suffix. For example, for suffix `game0` the generated C++ is:
+- [x] In `native/src/compiler/compact_turn_codegen.cpp`, add generated helpers near the existing counter helpers. The emitter must write concrete function names by combining the helper role with the generated game suffix. For example, for suffix `game0` the generated C++ is:
 
 ```cpp
 inline void compact_turn_count_rule_mask_precheck_pass_game0() {
@@ -237,28 +237,30 @@ inline void compact_turn_count_rule_mask_precheck_failure_game0() {
 
 Generate equivalent helpers for the apply, rebuild, and simple-replacement counters. Follow the exact naming pattern already used by `compact_turn_count_rules_visited_game0()`, but store into the real runtime-counter field names.
 
-- [ ] Increment the counters without adding per-rule timers:
+- [x] Increment the counters without adding per-rule timers:
 
   - Count rule apply calls at each emitted rule call site.
   - Count mask precheck pass/failure inside the generated mask-precheck helper.
   - Count no-match and changed outcomes at the end of each generated rule apply function.
   - Count derived rebuild calls and dirty object/movement reasons inside the generated rebuild function.
 
-- [ ] Add the new fields to `src/tests/compact_turn_codegen_perf_suite_node.js` output.
+- [x] Add the new fields to `src/tests/compact_turn_codegen_perf_suite_node.js` output.
 
-- [ ] Verify correctness and counter output:
+- [x] Verify correctness and counter output:
 
 ```sh
 make compact_turn_codegen_solver_parity
 make compact_turn_codegen_perf_suite
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```sh
 git add native/include/puzzlescript/puzzlescript.h native/src/runtime/core.cpp native/src/cli/main.cpp native/src/solver/main.cpp native/src/compiler/compact_turn_codegen.cpp src/tests/compact_turn_codegen_perf_suite_node.js
 git commit -m "perf: attribute compact turn codegen costs"
 ```
+
+Note: the simple replacement fast-path counter fields and generated helpers are in place for attribution plumbing, but `compact_turn_simple_replacement_fast_path_*` values are expected to remain zero until Task 5 adds the actual fast path.
 
 ---
 
