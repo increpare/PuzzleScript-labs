@@ -14,6 +14,17 @@ const REQUIRED_RUNTIME_COUNTER_KEYS = Object.freeze([
     'compact_turn_late_rules_ns',
     'compact_turn_win_ns',
     'compact_turn_canonicalize_ns',
+    'compact_turn_rule_mask_precheck_passes',
+    'compact_turn_rule_mask_precheck_failures',
+    'compact_turn_rule_apply_calls',
+    'compact_turn_rule_apply_no_match',
+    'compact_turn_rule_apply_changed',
+    'compact_turn_rebuild_rule_derived_state_calls',
+    'compact_turn_rebuild_rule_derived_state_objects_dirty',
+    'compact_turn_rebuild_rule_derived_state_movements_dirty',
+    'compact_turn_simple_replacement_fast_path_calls',
+    'compact_turn_simple_replacement_fast_path_noops',
+    'compact_turn_simple_replacement_fast_path_changes',
 ]);
 const ALLOWED_EXPECTATION_FIELDS = Object.freeze([
     'compiledUsPerGeneratedMax',
@@ -237,6 +248,12 @@ function nsToMs(value, key) {
     return numericValue / 1000000;
 }
 
+function counterValue(counters, key) {
+    const numericValue = Number(counters[key]);
+    assert.ok(Number.isFinite(numericValue), `expected finite runtime counter ${key}`);
+    return numericValue;
+}
+
 function finiteResultNumber(value, context, fieldName) {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
         throw new Error(`${context}: expected finite numeric ${fieldName}`);
@@ -279,6 +296,17 @@ function metricsFor(run, context) {
         compactTurnLateRulesMs: nsToMs(run.counters.compact_turn_late_rules_ns, 'compact_turn_late_rules_ns'),
         compactTurnWinMs: nsToMs(run.counters.compact_turn_win_ns, 'compact_turn_win_ns'),
         compactTurnCanonicalizeMs: nsToMs(run.counters.compact_turn_canonicalize_ns, 'compact_turn_canonicalize_ns'),
+        compactTurnRuleMaskPrecheckPasses: counterValue(run.counters, 'compact_turn_rule_mask_precheck_passes'),
+        compactTurnRuleMaskPrecheckFailures: counterValue(run.counters, 'compact_turn_rule_mask_precheck_failures'),
+        compactTurnRuleApplyCalls: counterValue(run.counters, 'compact_turn_rule_apply_calls'),
+        compactTurnRuleApplyNoMatch: counterValue(run.counters, 'compact_turn_rule_apply_no_match'),
+        compactTurnRuleApplyChanged: counterValue(run.counters, 'compact_turn_rule_apply_changed'),
+        compactTurnRebuildRuleDerivedStateCalls: counterValue(run.counters, 'compact_turn_rebuild_rule_derived_state_calls'),
+        compactTurnRebuildRuleDerivedStateObjectsDirty: counterValue(run.counters, 'compact_turn_rebuild_rule_derived_state_objects_dirty'),
+        compactTurnRebuildRuleDerivedStateMovementsDirty: counterValue(run.counters, 'compact_turn_rebuild_rule_derived_state_movements_dirty'),
+        compactTurnSimpleReplacementFastPathCalls: counterValue(run.counters, 'compact_turn_simple_replacement_fast_path_calls'),
+        compactTurnSimpleReplacementFastPathNoops: counterValue(run.counters, 'compact_turn_simple_replacement_fast_path_noops'),
+        compactTurnSimpleReplacementFastPathChanges: counterValue(run.counters, 'compact_turn_simple_replacement_fast_path_changes'),
     };
 }
 

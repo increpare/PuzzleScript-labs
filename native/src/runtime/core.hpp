@@ -774,6 +774,17 @@ enum class RuntimeCounterId {
     CompactTurnBridgeMaterializeNs,
     CompactTurnBridgeTurnNs,
     CompactTurnBridgeCopybackNs,
+    CompactTurnRuleMaskPrecheckPasses,
+    CompactTurnRuleMaskPrecheckFailures,
+    CompactTurnRuleApplyCalls,
+    CompactTurnRuleApplyNoMatch,
+    CompactTurnRuleApplyChanged,
+    CompactTurnRebuildRuleDerivedStateCalls,
+    CompactTurnRebuildRuleDerivedStateObjectsDirty,
+    CompactTurnRebuildRuleDerivedStateMovementsDirty,
+    CompactTurnSimpleReplacementFastPathCalls,
+    CompactTurnSimpleReplacementFastPathNoops,
+    CompactTurnSimpleReplacementFastPathChanges,
 };
 void setRuntimeCountersEnabled(bool enabled);
 bool runtimeCountersEnabled();

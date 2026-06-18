@@ -2777,6 +2777,17 @@ void writeSimulationJsonSummary(
         << ",\"compact_turn_bridge_materialize_ns\":" << counters.compact_turn_bridge_materialize_ns
         << ",\"compact_turn_bridge_turn_ns\":" << counters.compact_turn_bridge_turn_ns
         << ",\"compact_turn_bridge_copyback_ns\":" << counters.compact_turn_bridge_copyback_ns
+        << ",\"compact_turn_rule_mask_precheck_passes\":" << counters.compact_turn_rule_mask_precheck_passes
+        << ",\"compact_turn_rule_mask_precheck_failures\":" << counters.compact_turn_rule_mask_precheck_failures
+        << ",\"compact_turn_rule_apply_calls\":" << counters.compact_turn_rule_apply_calls
+        << ",\"compact_turn_rule_apply_no_match\":" << counters.compact_turn_rule_apply_no_match
+        << ",\"compact_turn_rule_apply_changed\":" << counters.compact_turn_rule_apply_changed
+        << ",\"compact_turn_rebuild_rule_derived_state_calls\":" << counters.compact_turn_rebuild_rule_derived_state_calls
+        << ",\"compact_turn_rebuild_rule_derived_state_objects_dirty\":" << counters.compact_turn_rebuild_rule_derived_state_objects_dirty
+        << ",\"compact_turn_rebuild_rule_derived_state_movements_dirty\":" << counters.compact_turn_rebuild_rule_derived_state_movements_dirty
+        << ",\"compact_turn_simple_replacement_fast_path_calls\":" << counters.compact_turn_simple_replacement_fast_path_calls
+        << ",\"compact_turn_simple_replacement_fast_path_noops\":" << counters.compact_turn_simple_replacement_fast_path_noops
+        << ",\"compact_turn_simple_replacement_fast_path_changes\":" << counters.compact_turn_simple_replacement_fast_path_changes
         << "},\n";
     out << "  \"compact\": {"
         << "\"compact_turn_oracle_checks\":" << compactTurnOracleChecks
@@ -3272,6 +3283,17 @@ int simulationTestdataCommand(const std::filesystem::path& testdataPath, int arg
                   << " compact_turn_bridge_materialize_ns=" << counters.compact_turn_bridge_materialize_ns
                   << " compact_turn_bridge_turn_ns=" << counters.compact_turn_bridge_turn_ns
                   << " compact_turn_bridge_copyback_ns=" << counters.compact_turn_bridge_copyback_ns
+                  << " compact_turn_rule_mask_precheck_passes=" << counters.compact_turn_rule_mask_precheck_passes
+                  << " compact_turn_rule_mask_precheck_failures=" << counters.compact_turn_rule_mask_precheck_failures
+                  << " compact_turn_rule_apply_calls=" << counters.compact_turn_rule_apply_calls
+                  << " compact_turn_rule_apply_no_match=" << counters.compact_turn_rule_apply_no_match
+                  << " compact_turn_rule_apply_changed=" << counters.compact_turn_rule_apply_changed
+                  << " compact_turn_rebuild_rule_derived_state_calls=" << counters.compact_turn_rebuild_rule_derived_state_calls
+                  << " compact_turn_rebuild_rule_derived_state_objects_dirty=" << counters.compact_turn_rebuild_rule_derived_state_objects_dirty
+                  << " compact_turn_rebuild_rule_derived_state_movements_dirty=" << counters.compact_turn_rebuild_rule_derived_state_movements_dirty
+                  << " compact_turn_simple_replacement_fast_path_calls=" << counters.compact_turn_simple_replacement_fast_path_calls
+                  << " compact_turn_simple_replacement_fast_path_noops=" << counters.compact_turn_simple_replacement_fast_path_noops
+                  << " compact_turn_simple_replacement_fast_path_changes=" << counters.compact_turn_simple_replacement_fast_path_changes
                   << "\n";
     }
     if (options.topSlowCases > 0 && !cases.empty()) {
