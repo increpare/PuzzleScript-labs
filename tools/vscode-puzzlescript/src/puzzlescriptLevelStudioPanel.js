@@ -140,6 +140,13 @@ function renderCandidate(candidate, source) {
     };
 }
 
+function normalizeRowsForAdopt(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+        return [];
+    }
+    return rows.map(row => Array.isArray(row) ? row.join('') : String(row));
+}
+
 class PuzzleScriptLevelStudioPanel {
     constructor({ context, repoRoot, document, intelligence }) {
         this.context = context;
@@ -173,6 +180,7 @@ class PuzzleScriptLevelStudioPanel {
                 }
                 this.document = event.document;
                 this.stopGeneration();
+                this.stopSolve();
                 this.postState('documentChanged');
             })
         );
@@ -184,10 +192,7 @@ class PuzzleScriptLevelStudioPanel {
         }
         this.disposed = true;
         this.stopGeneration();
-        if (this.currentSolve) {
-            this.currentSolve.cancel();
-            this.currentSolve = null;
-        }
+        this.stopSolve();
         while (this.disposables.length > 0) {
             const disposable = this.disposables.pop();
             if (disposable) {
@@ -270,8 +275,7 @@ class PuzzleScriptLevelStudioPanel {
                     await this.runGeneration(message);
                     break;
                 case 'stopGeneration':
-                    this.stopGeneration();
-                    this.post({ type: 'generationStopped' });
+                    this.post({ type: 'generationStopped', batchId: this.stopGeneration() });
                     break;
                 case 'adoptCandidate':
                     await this.adoptCandidate(message);
@@ -288,6 +292,24 @@ class PuzzleScriptLevelStudioPanel {
         const edit = new vscode.WorkspaceEdit();
         edit.replace(this.document.uri, fullDocumentRange(this.document), String(nextSource || ''));
         await vscode.workspace.applyEdit(edit);
+    }
+
+    stopSolve() {
+        if (this.currentSolve) {
+            this.currentSolve.cancel();
+            this.currentSolve = null;
+        }
+    }
+
+    isActiveSolve(run) {
+        return !this.disposed && this.currentSolve === run;
+    }
+
+    isActiveGeneration(run, batchId, batch) {
+        return !this.disposed
+            && this.currentRun === run
+            && this.batchId === batchId
+            && this.batch === batch;
     }
 
     async paint(message) {
@@ -324,10 +346,7 @@ class PuzzleScriptLevelStudioPanel {
         if (!level) {
             throw new Error('No playable level selected.');
         }
-        if (this.currentSolve) {
-            this.currentSolve.cancel();
-            this.currentSolve = null;
-        }
+        this.stopSolve();
 
         const timeoutMs = normalizePositiveInteger(message.timeoutMs, 1000);
         const strategy = String(message.strategy || 'portfolio');
@@ -349,10 +368,11 @@ class PuzzleScriptLevelStudioPanel {
 
         try {
             const output = await run.start();
-            if (this.currentSolve === run) {
-                this.currentSolve = null;
+            if (!this.isActiveSolve(run)) {
+                return;
             }
-            if (output.cancelled) {
+            this.currentSolve = null;
+            if (output.cancelled || this.disposed) {
                 return;
             }
             this.post({
@@ -362,18 +382,23 @@ class PuzzleScriptLevelStudioPanel {
                 label: statusLabel(output.result),
             });
         } catch (error) {
-            if (this.currentSolve === run) {
-                this.currentSolve = null;
+            if (!this.isActiveSolve(run)) {
+                return;
             }
+            this.currentSolve = null;
             this.post({ type: 'error', scope: 'solve', message: error.message || String(error) });
         }
     }
 
     stopGeneration() {
+        const activeBatchId = this.batchId;
         if (this.currentRun) {
             this.currentRun.cancel();
             this.currentRun = null;
         }
+        this.batch = null;
+        this.batchId = null;
+        return activeBatchId;
     }
 
     async runGeneration(message) {
@@ -395,8 +420,10 @@ class PuzzleScriptLevelStudioPanel {
             throw new Error('No playable level selected.');
         }
 
-        this.batchId = uniqueBatchId();
-        this.batch = new CandidateBatchState({ batchId: this.batchId, topCount: 3 });
+        const batchId = uniqueBatchId();
+        const batch = new CandidateBatchState({ batchId, topCount: 3 });
+        this.batchId = batchId;
+        this.batch = batch;
 
         const requestedOptions = {
             ...this.options,
@@ -407,13 +434,15 @@ class PuzzleScriptLevelStudioPanel {
         const recipeText = String(message.specText != null ? message.specText : this.sidecar.text || '');
         this.sidecar.text = recipeText;
         const startedAt = Date.now();
-        const batchId = this.batchId;
         const run = new PuzzleScriptGeneratorRun({
             binaryPath: resolved.path,
             sourceText: this.source(),
             specText: recipeText,
             runOptions: this.options,
             onProgress: progress => {
+                if (!this.isActiveGeneration(run, batchId, batch)) {
+                    return;
+                }
                 this.post({
                     type: 'generationProgress',
                     batchId,
@@ -421,7 +450,7 @@ class PuzzleScriptLevelStudioPanel {
                     elapsedMs: Date.now() - startedAt,
                 });
             },
-            onCandidateEvent: event => this.handleCandidateEvent(event, recipeText, level),
+            onCandidateEvent: event => this.handleCandidateEvent(event, recipeText, level, batchId, run, batch),
         });
         this.currentRun = run;
         this.post({
@@ -434,15 +463,18 @@ class PuzzleScriptLevelStudioPanel {
 
         try {
             const output = await run.start();
-            if (this.currentRun === run) {
-                this.currentRun = null;
-            }
-            if (output.cancelled) {
-                if (this.batchId === batchId) {
-                    this.post({ type: 'generationStopped', batchId });
-                }
+            if (!this.isActiveGeneration(run, batchId, batch)) {
                 return;
             }
+            this.currentRun = null;
+            if (output.cancelled) {
+                this.batch = null;
+                this.batchId = null;
+                this.post({ type: 'generationStopped', batchId });
+                return;
+            }
+            this.batch = null;
+            this.batchId = null;
             this.post({
                 type: 'generationFinished',
                 batchId,
@@ -450,30 +482,37 @@ class PuzzleScriptLevelStudioPanel {
                 warnings: output.warnings || [],
             });
         } catch (error) {
-            if (this.currentRun === run) {
-                this.currentRun = null;
+            if (!this.isActiveGeneration(run, batchId, batch)) {
+                return;
             }
-            this.post({ type: 'error', scope: 'generation', message: error.message || String(error) });
+            this.currentRun = null;
+            this.batch = null;
+            this.batchId = null;
+            this.post({ type: 'error', scope: 'generation', batchId, message: error.message || String(error) });
         }
     }
 
-    handleCandidateEvent(event, recipeText, sourceLevel) {
-        if (!this.batch) {
+    handleCandidateEvent(event, recipeText, sourceLevel, batchId, run, batch) {
+        if (!this.isActiveGeneration(run, batchId, batch)) {
             return;
         }
         const source = this.source();
-        const outcome = this.batch.recordEvaluation(event);
-        const solvedTop = this.batch.solvedTop().map(candidate => renderCandidate(candidate, source));
-        const timeouts = this.batch.timeoutQueue().map(candidate => renderCandidate(candidate, source));
+        const outcome = batch.recordEvaluation(event);
+        if (!this.isActiveGeneration(run, batchId, batch)) {
+            return;
+        }
+        const solvedTop = batch.solvedTop().map(candidate => renderCandidate(candidate, source));
+        const timeouts = batch.timeoutQueue().map(candidate => renderCandidate(candidate, source));
 
         this.post({
             type: 'candidateEvent',
+            batchId,
             event: renderCandidate(event, source),
             solvedTop,
             timeouts,
         });
 
-        if (event.status !== 'solved' || !outcome.becameTopSolved || !this.batch.shouldLogSolvedTop(event)) {
+        if (event.status !== 'solved' || !outcome.becameTopSolved || !batch.shouldLogSolvedTop(event)) {
             return;
         }
 
@@ -481,8 +520,8 @@ class PuzzleScriptLevelStudioPanel {
         const matched = rank >= 0 ? solvedTop[rank] : null;
         const legacyHash = event.level_hash != null ? event.level_hash : event.levelHash;
         this.generatedLog.appendIfNewTopSolved({
-            sourceFile: this.document.uri.fsPath,
-            batchId: this.batchId,
+            sourceFile: path.basename(this.document.uri.fsPath),
+            batchId,
             sourceLevel: sourceLevel ? sourceLevel.level : null,
             timestamp: new Date().toISOString(),
             levelHashHex: event.level_hash_hex || event.levelHashHex,
@@ -516,7 +555,7 @@ class PuzzleScriptLevelStudioPanel {
             throw new Error('No playable level selected.');
         }
         const candidate = message.candidate || message.event;
-        const rows = candidateRows(candidate, this.source());
+        const rows = normalizeRowsForAdopt(candidate && candidate.rows);
         if (rows.length === 0) {
             throw new Error('No candidate rows available to adopt.');
         }
@@ -613,7 +652,6 @@ textarea{min-height:220px;font-family:var(--vscode-editor-font-family);resize:ve
         <label>Samples<input id="samples"></label>
         <label>Jobs<input id="jobs"></label>
         <label>Solver ms<input id="solverTimeoutMs" type="number" min="1"></label>
-        <label>Top K<input id="topK" type="number" min="1"></label>
       </div>
       <div class="toolbar">
         <button id="runGenerationButton">Run</button>
@@ -648,7 +686,6 @@ const ui = {
   samples: document.getElementById('samples'),
   jobs: document.getElementById('jobs'),
   solverTimeoutMs: document.getElementById('solverTimeoutMs'),
-  topK: document.getElementById('topK'),
   runGenerationButton: document.getElementById('runGenerationButton'),
   stopGenerationButton: document.getElementById('stopGenerationButton'),
   generationStatus: document.getElementById('generationStatus'),
@@ -674,6 +711,7 @@ const state = {
   solveResult: null,
   solveTimeoutMs: ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS},
   generationMessage: '',
+  activeBatchId: null,
   solvedTop: [],
   timeouts: [],
   warnings: [],
@@ -695,7 +733,7 @@ function readGenerationOptions() {
     jobs: ui.jobs.value || 'auto',
     solverTimeoutMs: Number(ui.solverTimeoutMs.value || 0) || 250,
     solverStrategy: ui.solveStrategy.value || 'portfolio',
-    topK: Number(ui.topK.value || 0) || 3,
+    topK: 3,
   };
 }
 
@@ -887,9 +925,17 @@ window.addEventListener('message', event => {
     ui.samples.value = state.generatorOptions.samples != null ? state.generatorOptions.samples : '';
     ui.jobs.value = state.generatorOptions.jobs != null ? state.generatorOptions.jobs : 'auto';
     ui.solverTimeoutMs.value = state.generatorOptions.solverTimeoutMs != null ? state.generatorOptions.solverTimeoutMs : 250;
-    ui.topK.value = state.generatorOptions.topK != null ? state.generatorOptions.topK : 3;
     ui.solveTimeoutMs.value = state.solveTimeoutMs != null ? state.solveTimeoutMs : ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS};
     ui.solveStrategy.value = state.generatorOptions.solverStrategy || 'portfolio';
+    if (msg.reason === 'documentChanged') {
+      state.solveMessage = '';
+      state.solveResult = null;
+      state.generationMessage = '';
+      state.activeBatchId = null;
+      state.solvedTop = [];
+      state.timeouts = [];
+      state.warnings = [];
+    }
     render();
     return;
   }
@@ -905,31 +951,47 @@ window.addEventListener('message', event => {
     return;
   }
   if (msg.type === 'generationStarted') {
+    state.activeBatchId = msg.batchId || null;
     state.generationMessage = 'Generating...';
     state.solvedTop = [];
     state.timeouts = [];
+    state.warnings = [];
     render();
     return;
   }
   if (msg.type === 'generationProgress') {
+    if (!state.activeBatchId || msg.batchId !== state.activeBatchId) {
+      return;
+    }
     const progress = msg.progress || {};
     state.generationMessage = 'Generating... ' + Object.keys(progress).map(key => key + '=' + progress[key]).join(' ');
     render();
     return;
   }
   if (msg.type === 'candidateEvent') {
+    if (!state.activeBatchId || msg.batchId !== state.activeBatchId) {
+      return;
+    }
     state.solvedTop = Array.isArray(msg.solvedTop) ? msg.solvedTop : [];
     state.timeouts = Array.isArray(msg.timeouts) ? msg.timeouts : [];
     render();
     return;
   }
   if (msg.type === 'generationFinished') {
+    if (!state.activeBatchId || msg.batchId !== state.activeBatchId) {
+      return;
+    }
+    state.activeBatchId = null;
     state.generationMessage = 'Generation finished';
     state.warnings = Array.isArray(msg.warnings) ? msg.warnings : [];
     render();
     return;
   }
   if (msg.type === 'generationStopped') {
+    if (msg.batchId && state.activeBatchId && msg.batchId !== state.activeBatchId) {
+      return;
+    }
+    state.activeBatchId = null;
     state.generationMessage = 'Generation stopped';
     render();
     return;
@@ -938,6 +1000,10 @@ window.addEventListener('message', event => {
     if (msg.scope === 'solve') {
       state.solveMessage = msg.message || 'Error';
     } else {
+      if (msg.batchId && state.activeBatchId && msg.batchId !== state.activeBatchId) {
+        return;
+      }
+      state.activeBatchId = null;
       state.generationMessage = msg.message || 'Error';
     }
     render();
