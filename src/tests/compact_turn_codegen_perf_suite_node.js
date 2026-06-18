@@ -7,6 +7,14 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const DEFAULT_TIMEOUT_MS = 1000;
+const REQUIRED_RUNTIME_COUNTER_KEYS = Object.freeze([
+    'compact_turn_setup_ns',
+    'compact_turn_early_rules_ns',
+    'compact_turn_movement_ns',
+    'compact_turn_late_rules_ns',
+    'compact_turn_win_ns',
+    'compact_turn_canonicalize_ns',
+]);
 
 function usage() {
     console.log([
@@ -69,17 +77,30 @@ function readJson(jsonPath) {
     return JSON.parse(fs.readFileSync(path.resolve(jsonPath), 'utf8'));
 }
 
-function parseCounters(output) {
+function parseCounters(output, context) {
     const match = output.match(/^solver_runtime_counters\s+(.+)$/m);
-    const counters = {};
     if (!match) {
-        return counters;
+        throw new Error(`${context}: missing solver_runtime_counters line`);
     }
+    const counters = {};
     for (const part of match[1].trim().split(/\s+/)) {
         const [key, value] = part.split('=');
-        counters[key] = Number(value);
+        const numericValue = Number(value);
+        if (!key || !Number.isFinite(numericValue)) {
+            throw new Error(`${context}: invalid runtime counter ${part}`);
+        }
+        counters[key] = numericValue;
     }
     return counters;
+}
+
+function validateRuntimeCounters(counters, context) {
+    const missing = REQUIRED_RUNTIME_COUNTER_KEYS.filter((key) => (
+        !Object.prototype.hasOwnProperty.call(counters, key)
+    ));
+    if (missing.length > 0) {
+        throw new Error(`${context}: missing runtime counter key(s): ${missing.join(', ')}`);
+    }
 }
 
 function extractFirstJsonObject(output) {
@@ -118,7 +139,7 @@ function parseJson(output) {
     return JSON.parse(extractFirstJsonObject(output));
 }
 
-function runSolver(options, solver, testCase, extraArgs) {
+function runSolver(options, solver, testCase, extraArgs, runName) {
     const args = [
         options.corpus,
         '--timeout-ms', String(options.timeoutMs),
@@ -146,13 +167,16 @@ function runSolver(options, solver, testCase, extraArgs) {
             result.stderr,
         ].join('\n'));
     }
+    const key = caseKey(testCase);
     const json = parseJson(result.stdout);
-    assert.strictEqual(json.results.length, 1, `expected one result for ${caseKey(testCase)}`);
+    assert.strictEqual(json.results.length, 1, `expected one result for ${key}`);
+    const counters = parseCounters(`${result.stdout}\n${result.stderr}`, `${key} ${runName}`);
+    validateRuntimeCounters(counters, `${key} ${runName}`);
     return {
         args,
         result: json.results[0],
         totals: json.totals || {},
-        counters: parseCounters(`${result.stdout}\n${result.stderr}`),
+        counters,
     };
 }
 
@@ -160,8 +184,10 @@ function caseKey(testCase) {
     return `${testCase.game}#${testCase.level}`;
 }
 
-function nsToMs(value) {
-    return (Number(value) || 0) / 1000000;
+function nsToMs(value, key) {
+    const numericValue = Number(value);
+    assert.ok(Number.isFinite(numericValue), `expected finite runtime counter ${key}`);
+    return numericValue / 1000000;
 }
 
 function stepTimeUsFor(result) {
@@ -187,13 +213,29 @@ function metricsFor(run) {
         stepMs,
         stepTimeUs,
         usPerGenerated: generated > 0 ? stepTimeUs / generated : Number.POSITIVE_INFINITY,
-        compactTurnSetupMs: nsToMs(run.counters.compact_turn_setup_ns),
-        compactTurnEarlyRulesMs: nsToMs(run.counters.compact_turn_early_rules_ns),
-        compactTurnMovementMs: nsToMs(run.counters.compact_turn_movement_ns),
-        compactTurnLateRulesMs: nsToMs(run.counters.compact_turn_late_rules_ns),
-        compactTurnWinMs: nsToMs(run.counters.compact_turn_win_ns),
-        compactTurnCanonicalizeMs: nsToMs(run.counters.compact_turn_canonicalize_ns),
+        compactTurnSetupMs: nsToMs(run.counters.compact_turn_setup_ns, 'compact_turn_setup_ns'),
+        compactTurnEarlyRulesMs: nsToMs(run.counters.compact_turn_early_rules_ns, 'compact_turn_early_rules_ns'),
+        compactTurnMovementMs: nsToMs(run.counters.compact_turn_movement_ns, 'compact_turn_movement_ns'),
+        compactTurnLateRulesMs: nsToMs(run.counters.compact_turn_late_rules_ns, 'compact_turn_late_rules_ns'),
+        compactTurnWinMs: nsToMs(run.counters.compact_turn_win_ns, 'compact_turn_win_ns'),
+        compactTurnCanonicalizeMs: nsToMs(run.counters.compact_turn_canonicalize_ns, 'compact_turn_canonicalize_ns'),
     };
+}
+
+function validateExpectations(cases, expectations, expectationsPath) {
+    assert.ok(
+        expectations && typeof expectations === 'object' && !Array.isArray(expectations),
+        '--expectations must contain an object',
+    );
+    const knownKeys = new Set(cases.map(caseKey));
+    const unknownKeys = Object.keys(expectations).filter((key) => !knownKeys.has(key)).sort();
+    if (unknownKeys.length === 0) {
+        return;
+    }
+    throw new Error([
+        `${expectationsPath}: unknown expectation key(s): ${unknownKeys.join(', ')}`,
+        `known case key(s): ${Array.from(knownKeys).sort().join(', ')}`,
+    ].join('\n'));
 }
 
 function ratio(numerator, denominator) {
@@ -296,6 +338,9 @@ function main() {
     const cases = readJson(options.casesPath, 'cases');
     const expectations = options.expectationsPath ? readJson(options.expectationsPath, 'expectations') : null;
     assert.ok(Array.isArray(cases), '--cases must contain an array');
+    if (options.expectationsPath) {
+        validateExpectations(cases, expectations, options.expectationsPath);
+    }
 
     const report = {
         generated_at: new Date().toISOString(),
@@ -312,8 +357,8 @@ function main() {
     };
 
     for (const testCase of cases) {
-        const interpreter = runSolver(options, options.interpreterSolver, testCase, []);
-        const compiled = runSolver(options, options.compiledSolver, testCase, ['--compact-node-storage']);
+        const interpreter = runSolver(options, options.interpreterSolver, testCase, [], 'interpreter');
+        const compiled = runSolver(options, options.compiledSolver, testCase, ['--compact-node-storage'], 'compiled');
         const row = {
             key: caseKey(testCase),
             game: testCase.game,
