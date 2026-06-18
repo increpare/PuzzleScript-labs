@@ -349,6 +349,16 @@ assert.deepStrictEqual(defensiveBatch.solvedTop().map(candidate => candidate.lev
 assert.deepStrictEqual(defensiveBatch.solvedTop()[0].cells, [['player']]);
 assert.deepStrictEqual(defensiveBatch.solvedTop()[0].solution, ['right']);
 assert.deepStrictEqual(defensiveBatch.solvedTop()[0].rows, ['P..']);
+const currentSolvedSnapshot = defensiveBatch.currentSolvedTop();
+currentSolvedSnapshot[0].level_hash = 999;
+currentSolvedSnapshot[0].cells[0][0] = 'mutated';
+currentSolvedSnapshot[0].solution[0] = 'left';
+currentSolvedSnapshot[0].rows[0] = 'mutated';
+assert.deepStrictEqual(defensiveBatch.solvedTop().map(candidate => candidate.level_hash), [14]);
+assert.deepStrictEqual(defensiveBatch.currentSolvedTop().map(candidate => candidate.level_hash), [14]);
+assert.deepStrictEqual(defensiveBatch.currentSolvedTop()[0].cells, [['player']]);
+assert.deepStrictEqual(defensiveBatch.currentSolvedTop()[0].solution, ['right']);
+assert.deepStrictEqual(defensiveBatch.currentSolvedTop()[0].rows, ['P..']);
 defensiveBatch.recordEvaluation({
     level_hash: 15,
     status: 'timeout',

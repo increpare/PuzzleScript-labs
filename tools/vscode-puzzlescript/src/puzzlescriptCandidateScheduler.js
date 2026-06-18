@@ -235,13 +235,13 @@ class CandidateBatchState {
         }
         const keys = new Set(normalized.identity_keys);
         if (normalized.status === 'solved') {
-            const wasInTop = this.currentSolvedTop().some(entry => identitiesOverlap(entry, keys));
+            const wasInTop = this._currentSolvedTopEntries().some(entry => identitiesOverlap(entry, keys));
             this.solved = this.solved.filter(entry => !identitiesOverlap(entry, keys));
             this.timeouts = this.timeouts.filter(entry => !identitiesOverlap(entry, keys));
             this.solved.push(normalized);
             this.solved.sort((a, b) => b.effort_score - a.effort_score || String(candidateHash(a)).localeCompare(String(candidateHash(b))));
             this.storeCandidate(normalized);
-            const afterTop = this.currentSolvedTop();
+            const afterTop = this._currentSolvedTopEntries();
             return {
                 becameTopSolved: !wasInTop && afterTop.some(entry => identitiesOverlap(entry, keys)),
             };
@@ -264,12 +264,16 @@ class CandidateBatchState {
         }
     }
 
-    currentSolvedTop() {
+    _currentSolvedTopEntries() {
         return this.solved.slice(0, this.topCount);
     }
 
+    currentSolvedTop() {
+        return this._currentSolvedTopEntries().map(copyCandidate);
+    }
+
     solvedTop() {
-        return this.currentSolvedTop().map(copyCandidate);
+        return this.currentSolvedTop();
     }
 
     hasSolvedIdentity(candidateOrKeys) {
@@ -283,7 +287,7 @@ class CandidateBatchState {
     }
 
     diversityAnchors() {
-        return this.promoted.length > 0 ? this.promoted.slice() : [...this.currentSolvedTop(), ...this.timeouts.slice(0, 3)];
+        return this.promoted.length > 0 ? this.promoted.slice() : [...this._currentSolvedTopEntries(), ...this.timeouts.slice(0, 3)];
     }
 
     diversityScore(candidate, anchors = this.diversityAnchors()) {
@@ -346,7 +350,7 @@ class CandidateBatchState {
         if (identity.keys.some(key => this.loggedTopHashes.has(key))) {
             return false;
         }
-        const matched = this.currentSolvedTop().find(entry => identitiesOverlap(entry, keys));
+        const matched = this._currentSolvedTopEntries().find(entry => identitiesOverlap(entry, keys));
         if (!matched) {
             return false;
         }
