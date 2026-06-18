@@ -51,57 +51,71 @@ class PuzzleScriptSolverRun {
 
     start() {
         const tempDir = makeTempDir();
-        const gamePath = path.join(tempDir, 'game.txt');
-        fs.writeFileSync(gamePath, String(this.options.sourceText || ''), 'utf8');
-        const args = [
-            gamePath,
-            '--timeout-ms', String(this.options.timeoutMs || 1000),
-            '--jobs', '1',
-            '--strategy', String(this.options.strategy || 'portfolio'),
-            '--level', String(this.options.level || 0),
-            '--no-solutions',
-            '--quiet',
-            '--json',
-        ];
-        return new Promise((resolve, reject) => {
-            let stdout = '';
-            let stderr = '';
-            this.child = childProcess.spawn(this.options.binaryPath, args, {
-                cwd: path.dirname(this.options.binaryPath),
-                windowsHide: true,
-            });
-            this.child.stdout.on('data', chunk => {
-                stdout += String(chunk);
-            });
-            this.child.stderr.on('data', chunk => {
-                stderr += String(chunk);
-            });
-            this.child.on('error', error => {
-                removeTempDir(tempDir);
-                reject(error);
-            });
-            this.child.on('close', code => {
-                this.child = null;
-                if (this.cancelled) {
-                    removeTempDir(tempDir);
-                    resolve({ cancelled: true, tempDir });
-                    return;
-                }
-                if (code !== 0) {
-                    removeTempDir(tempDir);
-                    reject(new Error((stderr || `Solver exited with code ${code}`).trim()));
-                    return;
-                }
+        try {
+            const gamePath = path.join(tempDir, 'game.txt');
+            fs.writeFileSync(gamePath, String(this.options.sourceText || ''), 'utf8');
+            const args = [
+                gamePath,
+                '--timeout-ms', String(this.options.timeoutMs || 1000),
+                '--jobs', '1',
+                '--strategy', String(this.options.strategy || 'portfolio'),
+                '--level', String(this.options.level || 0),
+                '--no-solutions',
+                '--quiet',
+                '--json',
+            ];
+            return new Promise((resolve, reject) => {
+                let stdout = '';
+                let stderr = '';
                 try {
-                    const result = parseSolverJson(stdout);
-                    removeTempDir(tempDir);
-                    resolve({ cancelled: false, tempDir, result });
+                    this.child = childProcess.spawn(this.options.binaryPath, args, {
+                        cwd: path.dirname(this.options.binaryPath),
+                        windowsHide: true,
+                    });
                 } catch (error) {
+                    this.child = null;
                     removeTempDir(tempDir);
                     reject(error);
+                    return;
                 }
+                this.child.stdout.on('data', chunk => {
+                    stdout += String(chunk);
+                });
+                this.child.stderr.on('data', chunk => {
+                    stderr += String(chunk);
+                });
+                this.child.on('error', error => {
+                    this.child = null;
+                    removeTempDir(tempDir);
+                    reject(error);
+                });
+                this.child.on('close', code => {
+                    this.child = null;
+                    if (this.cancelled) {
+                        removeTempDir(tempDir);
+                        resolve({ cancelled: true, tempDir });
+                        return;
+                    }
+                    if (code !== 0) {
+                        removeTempDir(tempDir);
+                        reject(new Error((stderr || `Solver exited with code ${code}`).trim()));
+                        return;
+                    }
+                    try {
+                        const result = parseSolverJson(stdout);
+                        removeTempDir(tempDir);
+                        resolve({ cancelled: false, tempDir, result });
+                    } catch (error) {
+                        removeTempDir(tempDir);
+                        reject(error);
+                    }
+                });
             });
-        });
+        } catch (error) {
+            this.child = null;
+            removeTempDir(tempDir);
+            throw error;
+        }
     }
 
     cancel() {
