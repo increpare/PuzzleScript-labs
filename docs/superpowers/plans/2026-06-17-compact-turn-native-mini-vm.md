@@ -900,7 +900,7 @@ git commit -m "feat: support compact native level-start turns"
 **Files:**
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 
-- [ ] **Step 1: Remove aggregate bindings as a native blocker**
+- [x] **Step 1: Remove aggregate bindings as a native blocker**
 
 In `compactNativeTurnUnsupportedReasonForRule`, delete:
 
@@ -910,7 +910,7 @@ In `compactNativeTurnUnsupportedReasonForRule`, delete:
     }
 ```
 
-- [ ] **Step 2: Emit aggregate binding comments into affected rule kernels**
+- [x] **Step 2: Emit aggregate binding comments into affected rule kernels**
 
 In each compact rule emit path that receives a `Rule& rule`, before emitting the apply body, add this generated comment when bindings exist:
 
@@ -920,19 +920,45 @@ In each compact rule emit path that receives a `Rule& rule`, before emitting the
     }
 ```
 
-- [ ] **Step 3: Use lowered replacement masks for aggregate-bound rules**
+- [x] **Step 3: Emit native aggregate capture lowering**
 
-Confirm aggregate binding resolution has already populated runtime replacement masks in `Rule` lowering. Generated compact apply code must continue using the existing `Pattern` replacement masks and must not inspect source-level aggregate names during execution.
+Generated compact apply code now captures aggregate movement bits from the
+matched source tuple before replacements run, passes the integer capture array
+into replacement application, and applies captures through generated
+`CompactTurnInferredAggregateTerm` / layer-coupled replacement terms. Property
+source aggregate bindings are lowered through the existing `PropertyBinding`
+alias table by emitting object id, layer id, and movement-mask checks; generated
+runtime does not use string maps or source-level aggregate names.
 
-The emitted apply path should still call:
+The emitted apply path now calls:
 
 ```cpp
-compact_turn_pattern_apply_<suffix>(dimensions, levelState, scratch, tileIndex, replacementPattern, commands);
+compact_turn_pattern_apply_<suffix>(
+    dimensions,
+    levelState,
+    scratch,
+    tileIndex,
+    rigidGroupIndex,
+    objectsClearMask,
+    objectsSetMask,
+    movementsClearMask,
+    movementsSetMask,
+    movementsLayerMask,
+    randomEntityChoices,
+    randomEntityChoiceCount,
+    randomDirLayers,
+    randomDirLayerCount,
+    layerCoupledMovementTerms,
+    layerCoupledMovementTermCount,
+    inferredAggregateTerms,
+    inferredAggregateTermCount,
+    aggregateCaptures,
+    aggregateCaptureCount);
 ```
 
 for aggregate-bound rules.
 
-- [ ] **Step 4: Verify aggregate coverage and parity**
+- [x] **Step 4: Verify aggregate coverage and parity**
 
 Run:
 
@@ -944,7 +970,18 @@ make compact_turn_codegen_solver_parity
 
 Expected: `aggregate_bindings` count is zero and solver parity passes. If parity fails, inspect the first oracle mismatch and keep the blocker removed only after generated apply semantics match interpreter output.
 
-- [ ] **Step 5: Commit aggregate support**
+Status: initial parity failed on `witch lifter.txt` because generated compact
+apply skipped aggregate-captured movement propagation. Implemented per-match
+aggregate capture arrays, inferred aggregate binding terms, and property-source
+aggregate layer resolution. Coverage now reports native compact coverage
+`117/182` with no `aggregate_bindings` or `aggregate_property_bindings`
+blockers. Targeted `witch lifter.txt` parity passed with
+`compact_timeout_regressions=0`, and full
+`make compact_turn_codegen_solver_parity` passed with `games=153/153`,
+`levels=2513`, `compact_turn_unhandled=0`,
+`compact_turn_oracle_failures=0`, and `compact_timeout_regressions=19`.
+
+- [x] **Step 5: Commit aggregate support**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp

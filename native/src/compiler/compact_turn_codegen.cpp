@@ -20,12 +20,43 @@ size_t compactLayerCoupledMovementTermCount(const Replacement& replacement) {
     }
     size_t count = 0;
     for (const LayerCoupledMovementReplacement& coupled : dynamic->layerCoupledMovementReplacements) {
-        if (coupled.replacementAggregateName.has_value()) {
-            continue;
-        }
         count += coupled.layers.size();
     }
     return count;
+}
+
+size_t compactInferredAggregateTermCount(const Replacement& replacement) {
+    const ReplacementDynamic* dynamic = replacement.dynamic.get();
+    if (dynamic == nullptr) {
+        return 0;
+    }
+    size_t count = 0;
+    for (const InferredAggregateBinding& binding : dynamic->inferredAggregateBindings) {
+        if (binding.layerIndex.has_value() && !binding.propertyName.has_value()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+int32_t compactAggregateBindingIndex(const Rule& rule, const std::string& aggregateName) {
+    int32_t index = -1;
+    for (size_t bindingIndex = 0; bindingIndex < rule.aggregateBindings.size(); ++bindingIndex) {
+        if (rule.aggregateBindings[bindingIndex].aggregateName == aggregateName) {
+            index = static_cast<int32_t>(bindingIndex);
+        }
+    }
+    return index;
+}
+
+const PropertyBinding* compactPropertyBindingForName(const Rule& rule, const std::string& propertyName) {
+    const PropertyBinding* result = nullptr;
+    for (const PropertyBinding& binding : rule.propertyBindings) {
+        if (binding.propertyName == propertyName) {
+            result = &binding;
+        }
+    }
+    return result;
 }
 
 size_t compactLayerCoupledMovementTermCount(const Pattern& pattern) {
@@ -91,6 +122,22 @@ std::string compactRuleUnsupportedReason(const Rule& rule) {
             }
         }
     }
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (!pattern.replacement.has_value()) {
+                continue;
+            }
+            const ReplacementDynamic* dynamic = pattern.replacement->dynamic.get();
+            if (dynamic == nullptr) {
+                continue;
+            }
+            for (const InferredAggregateBinding& binding : dynamic->inferredAggregateBindings) {
+                if (binding.propertyName.has_value()) {
+                    return "inferred_aggregate_property_bindings";
+                }
+            }
+        }
+    }
     return {};
 }
 
@@ -139,9 +186,6 @@ std::string compactNativeTurnUnsupportedReasonForRule(const Rule& rule) {
     const std::string ruleReason = compactRuleUnsupportedReason(rule);
     if (!ruleReason.empty()) {
         return ruleReason;
-    }
-    if (!rule.aggregateBindings.empty()) {
-        return "aggregate_bindings";
     }
     return {};
 }
@@ -579,7 +623,8 @@ void emitCompactRuleMaskData(
                                     << compactMaskName(masks, game, layerTerm.movementsAny, game.movementWordCount) << ", "
                                     << compactMaskName(masks, game, layerTerm.movementsPresent, game.movementWordCount) << ", "
                                     << compactMaskName(masks, game, layerTerm.movementsMissing, game.movementWordCount) << ", "
-                                    << coupled.replacementMovementMask << "},\n";
+                                    << coupled.replacementMovementMask << ", "
+                                    << "-1},\n";
                             }
                         }
                         out << "};\n";
@@ -621,9 +666,6 @@ void emitCompactRuleMaskData(
                         masks.emitName(compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount));
                         if (const ReplacementDynamic* dynamic = replacement.dynamic.get()) {
                             for (const LayerCoupledMovementReplacement& coupled : dynamic->layerCoupledMovementReplacements) {
-                                if (coupled.replacementAggregateName.has_value()) {
-                                    continue;
-                                }
                                 for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
                                     masks.emitName(compiledMaskWords(game, layerTerm.objectMask, game.wordCount));
                                     masks.emitName(compiledMaskWords(game, layerTerm.movementsAny, game.movementWordCount));
@@ -666,9 +708,9 @@ void emitCompactRuleMaskData(
                                 << prefix << "_layer_coupled_movement_terms[] = {\n";
                             const ReplacementDynamic* dynamic = replacement.dynamic.get();
                             for (const LayerCoupledMovementReplacement& coupled : dynamic->layerCoupledMovementReplacements) {
-                                if (coupled.replacementAggregateName.has_value()) {
-                                    continue;
-                                }
+                                const int32_t aggregateCaptureIndex = coupled.replacementAggregateName.has_value()
+                                    ? compactAggregateBindingIndex(rule, *coupled.replacementAggregateName)
+                                    : -1;
                                 for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
                                     out << "    {"
                                         << layerTerm.layerIndex << ", "
@@ -676,12 +718,31 @@ void emitCompactRuleMaskData(
                                         << compactMaskName(masks, game, layerTerm.movementsAny, game.movementWordCount) << ", "
                                         << compactMaskName(masks, game, layerTerm.movementsPresent, game.movementWordCount) << ", "
                                         << compactMaskName(masks, game, layerTerm.movementsMissing, game.movementWordCount) << ", "
-                                        << coupled.replacementMovementMask << "},\n";
+                                        << coupled.replacementMovementMask << ", "
+                                        << aggregateCaptureIndex << "},\n";
                                 }
                             }
                             out << "};\n";
                             out << "constexpr size_t " << prefix << "_layer_coupled_movement_term_count = "
                                 << layerCoupledMovementTermCount << ";\n";
+                        }
+                        const size_t inferredAggregateTermCount = compactInferredAggregateTermCount(replacement);
+                        if (inferredAggregateTermCount > 0) {
+                            out << "constexpr CompactTurnInferredAggregateTerm_" << suffix << " "
+                                << prefix << "_inferred_aggregate_terms[] = {\n";
+                            const ReplacementDynamic* dynamic = replacement.dynamic.get();
+                            for (const InferredAggregateBinding& binding : dynamic->inferredAggregateBindings) {
+                                if (!binding.layerIndex.has_value() || binding.propertyName.has_value()) {
+                                    continue;
+                                }
+                                out << "    {"
+                                    << *binding.layerIndex << ", "
+                                    << compactAggregateBindingIndex(rule, binding.aggregateName)
+                                    << "},\n";
+                            }
+                            out << "};\n";
+                            out << "constexpr size_t " << prefix << "_inferred_aggregate_term_count = "
+                                << inferredAggregateTermCount << ";\n";
                         }
                     }
                 }
@@ -1017,11 +1078,14 @@ std::string compactPatternApplyCall(
     size_t rowIndex,
     size_t patternIndex,
     std::string_view tileIndexExpr,
-    std::string_view rigidGroupIndexExpr
+    std::string_view rigidGroupIndexExpr,
+    std::string_view aggregateCapturesExpr,
+    std::string_view aggregateCaptureCountExpr
 ) {
     const std::string prefix = compactPatternPrefix(suffix, phase, groupIndex, ruleIndex, rowIndex, patternIndex);
     const Replacement& replacement = *pattern.replacement;
     const size_t layerCoupledMovementTermCount = compactLayerCoupledMovementTermCount(replacement);
+    const size_t inferredAggregateTermCount = compactInferredAggregateTermCount(replacement);
     std::ostringstream call;
     call << "compact_turn_pattern_apply_" << suffix << "(dimensions, levelState, scratch, " << tileIndexExpr
          << ", " << rigidGroupIndexExpr
@@ -1036,6 +1100,10 @@ std::string compactPatternApplyCall(
          << ", " << (replacement.hasRandomDirMask ? prefix + "_random_dir_layer_count" : "0")
          << ", " << (layerCoupledMovementTermCount > 0 ? prefix + "_layer_coupled_movement_terms" : "nullptr")
          << ", " << layerCoupledMovementTermCount
+         << ", " << (inferredAggregateTermCount > 0 ? prefix + "_inferred_aggregate_terms" : "nullptr")
+         << ", " << inferredAggregateTermCount
+         << ", " << aggregateCapturesExpr
+         << ", " << aggregateCaptureCountExpr
          << ")";
     return call.str();
 }
@@ -1048,6 +1116,96 @@ void emitCompactRuleCommandQueue(
         return;
     }
     out << "    " << commandQueueName << "(commands);\n";
+}
+
+void emitCompactAggregateBindingComment(std::ostream& out, const Rule& rule) {
+    if (!rule.aggregateBindings.empty()) {
+        out << "    // compact aggregate bindings: " << rule.aggregateBindings.size() << "\n";
+    }
+}
+
+std::string compactAggregateCapturesExpr(const Rule& rule) {
+    return rule.aggregateBindings.empty() ? "nullptr" : "aggregateCaptures";
+}
+
+std::string compactAggregateCaptureCountExpr(const Rule& rule) {
+    return std::to_string(rule.aggregateBindings.size());
+}
+
+void emitCompactAggregateCaptureCode(
+    std::ostream& out,
+    const Rule& rule,
+    std::string_view suffix,
+    const std::vector<std::string>& rowStartExprs,
+    std::string_view indent
+) {
+    if (rule.aggregateBindings.empty()) {
+        return;
+    }
+    out << indent << "int32_t aggregateCaptures[" << rule.aggregateBindings.size() << "] = {};\n";
+    for (size_t bindingIndex = 0; bindingIndex < rule.aggregateBindings.size(); ++bindingIndex) {
+        const AggregateBinding& binding = rule.aggregateBindings[bindingIndex];
+        if (binding.sourceRow < 0 || static_cast<size_t>(binding.sourceRow) >= rowStartExprs.size()) {
+            continue;
+        }
+        out << indent << "{\n"
+            << indent << "    int32_t aggregateSourceLayer = " << binding.sourceLayer << ";\n"
+            << indent << "    bool aggregateSourceLayerResolved = true;\n";
+        if (binding.sourcePropertyName.has_value()) {
+            const PropertyBinding* propertyBinding =
+                compactPropertyBindingForName(rule, *binding.sourcePropertyName);
+            out << indent << "    aggregateSourceLayerResolved = false;\n";
+            if (propertyBinding != nullptr
+                && propertyBinding->sourceRow >= 0
+                && static_cast<size_t>(propertyBinding->sourceRow) < rowStartExprs.size()) {
+                out << indent << "    {\n"
+                    << indent << "        const int32_t propertyStart = "
+                    << rowStartExprs[static_cast<size_t>(propertyBinding->sourceRow)] << ";\n"
+                    << indent << "        int32_t propertyTile = -1;\n"
+                    << indent << "        if (propertyStart >= 0 && compact_turn_cell_at_direction_" << suffix
+                    << "(dimensions, propertyStart, " << rule.direction << ", "
+                    << propertyBinding->sourceCell << ", propertyTile)) {\n"
+                    << indent << "            const MaskWord* propertyMovements = compact_turn_cell_movements_"
+                    << suffix << "(scratch, propertyTile);\n";
+                for (const PropertyAlias& alias : propertyBinding->aliases) {
+                    out << indent << "            if (!aggregateSourceLayerResolved && compact_turn_cell_has_object_"
+                        << suffix << "(levelState, propertyTile, " << alias.objectId << ")) {\n"
+                        << indent << "                const int32_t propertyMovementBits = compact_turn_layer_bits_"
+                        << suffix << "(propertyMovements, " << alias.layerIndex << ");\n"
+                        << indent << "                bool propertyMovementMatches = false;\n";
+                    if (propertyBinding->sourceMovementMode == 0) {
+                        out << indent << "                propertyMovementMatches = true;\n";
+                    } else if (propertyBinding->sourceMovementMode == 1) {
+                        out << indent << "                propertyMovementMatches = (propertyMovementBits & "
+                            << propertyBinding->sourceMovementMask << ") == 0;\n";
+                    } else if (propertyBinding->sourceMovementMode == 3) {
+                        out << indent << "                propertyMovementMatches = (propertyMovementBits & "
+                            << propertyBinding->sourceMovementMask << ") != 0;\n";
+                    } else {
+                        out << indent << "                propertyMovementMatches = (propertyMovementBits & "
+                            << propertyBinding->sourceMovementMask << ") == "
+                            << propertyBinding->sourceMovementMask << ";\n";
+                    }
+                    out << indent << "                if (propertyMovementMatches) {\n"
+                        << indent << "                    aggregateSourceLayer = " << alias.layerIndex << ";\n"
+                        << indent << "                    aggregateSourceLayerResolved = true;\n"
+                        << indent << "                }\n"
+                        << indent << "            }\n";
+                }
+                out << indent << "        }\n"
+                    << indent << "    }\n";
+            }
+        }
+        out << indent << "    const int32_t aggregateStart = " << rowStartExprs[static_cast<size_t>(binding.sourceRow)] << ";\n"
+            << indent << "    int32_t aggregateTile = -1;\n"
+            << indent << "    if (aggregateSourceLayerResolved && aggregateStart >= 0 && compact_turn_cell_at_direction_" << suffix
+            << "(dimensions, aggregateStart, " << rule.direction << ", " << binding.sourceCell << ", aggregateTile)) {\n"
+            << indent << "        aggregateCaptures[" << bindingIndex << "] = compact_turn_layer_bits_" << suffix
+            << "(compact_turn_cell_movements_" << suffix << "(scratch, aggregateTile), aggregateSourceLayer) & "
+            << (binding.aggregateMask & 0x1f) << ";\n"
+            << indent << "    }\n"
+            << indent << "}\n";
+    }
 }
 
 std::string emitCompactRuleCommandFunction(
@@ -1201,8 +1359,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         const std::string commandQueueName = emitCompactRuleCommandFunction(out, functions, rule, prefix, suffix);
 
         std::ostringstream applyBody;
-        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n"
-                  << "    std::vector<int32_t>& matches = scratch.singleRowMatchScratch;\n"
+        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
+        emitCompactAggregateBindingComment(applyBody, rule);
+        applyBody << "    std::vector<int32_t>& matches = scratch.singleRowMatchScratch;\n"
                   << "    matches.clear();\n"
                   << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
                   << "    if (tileCount <= 0) return false;\n"
@@ -1251,6 +1410,13 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         }
         applyBody << "        }\n"
                   << "        if (stillMatches) {\n";
+        emitCompactAggregateCaptureCode(
+            applyBody,
+            rule,
+            suffix,
+            std::vector<std::string>{"startIndex"},
+            "            "
+        );
         for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
             if (!row[patternIndex].replacement.has_value()) {
                 continue;
@@ -1266,7 +1432,21 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 "continue;"
             );
             applyBody << "            changed = "
-                      << compactPatternApplyCall(game, masks, row[patternIndex], suffix, phase, groupIndex, ruleIndex, rowIndex, patternIndex, "applyTile_" + std::to_string(patternIndex), std::to_string(rigidGroupIndex))
+                      << compactPatternApplyCall(
+                          game,
+                          masks,
+                          row[patternIndex],
+                          suffix,
+                          phase,
+                          groupIndex,
+                          ruleIndex,
+                          rowIndex,
+                          patternIndex,
+                          "applyTile_" + std::to_string(patternIndex),
+                          std::to_string(rigidGroupIndex),
+                          compactAggregateCapturesExpr(rule),
+                          compactAggregateCaptureCountExpr(rule)
+                      )
                       << " || changed;\n";
         }
         applyBody << "        }\n"
@@ -1287,8 +1467,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     if (inlineMultiRowStartMatches) {
         const std::string commandQueueName = emitCompactRuleCommandFunction(out, functions, rule, prefix, suffix);
         std::ostringstream applyBody;
-        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n"
-                  << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
+        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
+        emitCompactAggregateBindingComment(applyBody, rule);
+        applyBody << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
                   << "    std::vector<std::vector<int32_t>> matches(rowCount);\n"
                   << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
                   << "    if (tileCount <= 0) return false;\n"
@@ -1360,6 +1541,17 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         }
         applyBody << "        }\n"
                   << "        if (stillMatches) {\n";
+        {
+            std::vector<std::string> rowStartExprs;
+            rowStartExprs.reserve(rule.patterns.size());
+            for (size_t captureRowIndex = 0; captureRowIndex < rule.patterns.size(); ++captureRowIndex) {
+                rowStartExprs.push_back(
+                    "matches[" + std::to_string(captureRowIndex)
+                    + "][tupleIndex[" + std::to_string(captureRowIndex) + "]]"
+                );
+            }
+            emitCompactAggregateCaptureCode(applyBody, rule, suffix, rowStartExprs, "            ");
+        }
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             const std::vector<Pattern>& row = rule.patterns[rowIndex];
             applyBody << "            const int32_t applyStartIndex_" << rowIndex << " = matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]];\n";
@@ -1389,7 +1581,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                               rowIndex,
                               patternIndex,
                               "applyTile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex),
-                              std::to_string(rigidGroupIndex)
+                              std::to_string(rigidGroupIndex),
+                              compactAggregateCapturesExpr(rule),
+                              compactAggregateCaptureCountExpr(rule)
                           )
                           << " || changed;\n";
             }
@@ -1439,8 +1633,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
 
         if (!inlineSingleRowHelpers) {
             std::ostringstream body;
-            body << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, const std::vector<int32_t>& match) {\n"
-                 << "    bool changed = false;\n"
+            body << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, const std::vector<int32_t>& match, const int32_t* aggregateCaptures, size_t aggregateCaptureCount) {\n";
+            emitCompactAggregateBindingComment(body, rule);
+            body << "    bool changed = false;\n"
                  << "    size_t positionIndex = 0;\n";
             for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
                 if (row[patternIndex].kind == Pattern::Kind::Ellipsis) {
@@ -1449,7 +1644,21 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 body << "    if (positionIndex >= match.size()) return changed;\n";
                 if (row[patternIndex].replacement.has_value()) {
                     body << "    changed = "
-                         << compactPatternApplyCall(game, masks, row[patternIndex], suffix, phase, groupIndex, ruleIndex, rowIndex, patternIndex, "match[positionIndex]", std::to_string(rigidGroupIndex))
+                         << compactPatternApplyCall(
+                             game,
+                             masks,
+                             row[patternIndex],
+                             suffix,
+                             phase,
+                             groupIndex,
+                             ruleIndex,
+                             rowIndex,
+                             patternIndex,
+                             "match[positionIndex]",
+                             std::to_string(rigidGroupIndex),
+                             "aggregateCaptures",
+                             "aggregateCaptureCount"
+                         )
                          << " || changed;\n";
                 }
                 body << "    ++positionIndex;\n";
@@ -1591,8 +1800,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         const size_t rowIndex = 0;
         const std::vector<Pattern>& row = rule.patterns[rowIndex];
         std::ostringstream applyBody;
-        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n"
-                  << "    std::vector<std::vector<int32_t>> matches;\n";
+        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
+        emitCompactAggregateBindingComment(applyBody, rule);
+        applyBody << "    std::vector<std::vector<int32_t>> matches;\n";
         emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask);
         applyBody << "    if (!" << rowCollectNames[rowIndex] << "(dimensions, levelState, scratch, matches)) return false;\n";
         emitCompactRuleCommandQueue(applyBody, commandQueueName);
@@ -1615,6 +1825,13 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "        }\n"
                   << "        if (stillMatches) {\n"
                   << "            size_t positionIndex = 0;\n";
+        emitCompactAggregateCaptureCode(
+            applyBody,
+            rule,
+            suffix,
+            std::vector<std::string>{"match.empty() ? -1 : match.front()"},
+            "            "
+        );
         for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
             if (row[patternIndex].kind == Pattern::Kind::Ellipsis) {
                 continue;
@@ -1622,7 +1839,21 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             applyBody << "            if (positionIndex >= match.size()) break;\n";
             if (row[patternIndex].replacement.has_value()) {
                 applyBody << "            changed = "
-                          << compactPatternApplyCall(game, masks, row[patternIndex], suffix, phase, groupIndex, ruleIndex, rowIndex, patternIndex, "match[positionIndex]", std::to_string(rigidGroupIndex))
+                          << compactPatternApplyCall(
+                              game,
+                              masks,
+                              row[patternIndex],
+                              suffix,
+                              phase,
+                              groupIndex,
+                              ruleIndex,
+                              rowIndex,
+                              patternIndex,
+                              "match[positionIndex]",
+                              std::to_string(rigidGroupIndex),
+                              compactAggregateCapturesExpr(rule),
+                              compactAggregateCaptureCountExpr(rule)
+                          )
                           << " || changed;\n";
             }
             applyBody << "            ++positionIndex;\n";
@@ -1638,8 +1869,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
 
     if (!groupIsRandom && rule.patterns.size() > 1) {
         std::ostringstream applyBody;
-        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n"
-                  << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
+        applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
+        emitCompactAggregateBindingComment(applyBody, rule);
+        applyBody << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
                   << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
                   << "    if (tileCount <= 0) return false;\n"
                   << "    constexpr bool horizontalScan = " << (rule.direction > 2 ? "true" : "false") << ";\n"
@@ -1734,6 +1966,26 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         }
         applyBody << "        }\n"
                   << "        if (stillMatches) {\n";
+        {
+            std::vector<std::string> rowStartExprs;
+            rowStartExprs.reserve(rule.patterns.size());
+            for (size_t captureRowIndex = 0; captureRowIndex < rule.patterns.size(); ++captureRowIndex) {
+                if (rule.ellipsisCount[captureRowIndex] == 0) {
+                    rowStartExprs.push_back(
+                        "matches_" + std::to_string(captureRowIndex)
+                        + "[tupleIndex[" + std::to_string(captureRowIndex) + "]]"
+                    );
+                } else {
+                    rowStartExprs.push_back(
+                        "matches_" + std::to_string(captureRowIndex)
+                        + "[tupleIndex[" + std::to_string(captureRowIndex) + "]].empty() ? -1 : matches_"
+                        + std::to_string(captureRowIndex)
+                        + "[tupleIndex[" + std::to_string(captureRowIndex) + "]].front()"
+                    );
+                }
+            }
+            emitCompactAggregateCaptureCode(applyBody, rule, suffix, rowStartExprs, "            ");
+        }
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             const std::vector<Pattern>& row = rule.patterns[rowIndex];
             if (rule.ellipsisCount[rowIndex] == 0) {
@@ -1764,13 +2016,17 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                                   rowIndex,
                                   patternIndex,
                                   "applyTile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex),
-                                  std::to_string(rigidGroupIndex)
+                                  std::to_string(rigidGroupIndex),
+                                  compactAggregateCapturesExpr(rule),
+                                  compactAggregateCaptureCountExpr(rule)
                               )
                               << " || changed;\n";
                 }
             } else {
                 applyBody << "            changed = " << rowApplyNames[rowIndex]
-                          << "(dimensions, levelState, scratch, matches_" << rowIndex << "[tupleIndex[" << rowIndex << "]]) || changed;\n";
+                          << "(dimensions, levelState, scratch, matches_" << rowIndex << "[tupleIndex[" << rowIndex << "]], "
+                          << compactAggregateCapturesExpr(rule) << ", "
+                          << compactAggregateCaptureCountExpr(rule) << ") || changed;\n";
             }
         }
         applyBody << "        }\n"
@@ -1820,19 +2076,36 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         out << "    return true;\n"
             << "}\n\n";
 
-        out << "bool " << prefix << "_apply_tuple(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, const std::vector<std::vector<std::vector<int32_t>>>& matches, const std::vector<size_t>& tupleIndex) {\n"
-            << "    bool changed = false;\n";
+        out << "bool " << prefix << "_apply_tuple(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, const std::vector<std::vector<std::vector<int32_t>>>& matches, const std::vector<size_t>& tupleIndex) {\n";
+        emitCompactAggregateBindingComment(out, rule);
+        {
+            std::vector<std::string> rowStartExprs;
+            rowStartExprs.reserve(rule.patterns.size());
+            for (size_t captureRowIndex = 0; captureRowIndex < rule.patterns.size(); ++captureRowIndex) {
+                rowStartExprs.push_back(
+                    "matches[" + std::to_string(captureRowIndex)
+                    + "][tupleIndex[" + std::to_string(captureRowIndex) + "]].empty() ? -1 : matches["
+                    + std::to_string(captureRowIndex)
+                    + "][tupleIndex[" + std::to_string(captureRowIndex) + "]].front()"
+                );
+            }
+            emitCompactAggregateCaptureCode(out, rule, suffix, rowStartExprs, "    ");
+        }
+        out << "    bool changed = false;\n";
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             out << "    changed = " << rowApplyNames[rowIndex]
-                << "(dimensions, levelState, scratch, matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]]) || changed;\n";
+                << "(dimensions, levelState, scratch, matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]], "
+                << compactAggregateCapturesExpr(rule) << ", "
+                << compactAggregateCaptureCountExpr(rule) << ") || changed;\n";
         }
         out << "    return changed;\n"
             << "}\n\n";
     }
 
     std::ostringstream applyBody;
-    applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n"
-              << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
+    applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
+    emitCompactAggregateBindingComment(applyBody, rule);
+    applyBody << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
               << "    std::vector<std::vector<std::vector<int32_t>>> matches;\n";
     emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask);
     if (groupIsRandom) {
@@ -1863,9 +2136,24 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     if (groupIsRandom) {
         applyBody << "            changed = " << prefix << "_apply_tuple(dimensions, levelState, scratch, matches, tupleIndex) || changed;\n";
     } else {
+        {
+            std::vector<std::string> rowStartExprs;
+            rowStartExprs.reserve(rule.patterns.size());
+            for (size_t captureRowIndex = 0; captureRowIndex < rule.patterns.size(); ++captureRowIndex) {
+                rowStartExprs.push_back(
+                    "matches[" + std::to_string(captureRowIndex)
+                    + "][tupleIndex[" + std::to_string(captureRowIndex) + "]].empty() ? -1 : matches["
+                    + std::to_string(captureRowIndex)
+                    + "][tupleIndex[" + std::to_string(captureRowIndex) + "]].front()"
+                );
+            }
+            emitCompactAggregateCaptureCode(applyBody, rule, suffix, rowStartExprs, "            ");
+        }
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             applyBody << "            changed = " << rowApplyNames[rowIndex]
-                      << "(dimensions, levelState, scratch, matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]]) || changed;\n";
+                      << "(dimensions, levelState, scratch, matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]], "
+                      << compactAggregateCapturesExpr(rule) << ", "
+                      << compactAggregateCaptureCountExpr(rule) << ") || changed;\n";
         }
     }
     applyBody << "        }\n"
@@ -2481,6 +2769,12 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const MaskWord* movementsPresent = nullptr;\n"
         << "    const MaskWord* movementsMissing = nullptr;\n"
         << "    int32_t replacementMovementMask = 0;\n"
+        << "    int32_t aggregateCaptureIndex = -1;\n"
+        << "};\n\n";
+
+    out << "struct CompactTurnInferredAggregateTerm_" << suffix << " {\n"
+        << "    int32_t layerIndex = -1;\n"
+        << "    int32_t aggregateCaptureIndex = -1;\n"
         << "};\n\n";
 
     CompactMaskConstantEmitter earlyMasks(suffix, "early");
@@ -3073,7 +3367,11 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const int32_t* randomDirLayers,\n"
         << "    size_t randomDirLayerCount,\n"
         << "    const CompactTurnLayerCoupledMovementTerm_" << suffix << "* layerCoupledMovementTerms,\n"
-        << "    size_t layerCoupledMovementTermCount\n"
+        << "    size_t layerCoupledMovementTermCount,\n"
+        << "    const CompactTurnInferredAggregateTerm_" << suffix << "* inferredAggregateTerms,\n"
+        << "    size_t inferredAggregateTermCount,\n"
+        << "    const int32_t* aggregateCaptures,\n"
+        << "    size_t aggregateCaptureCount\n"
         << ") {\n"
         << "    compact_turn_count_replacements_attempted_" << suffix << "();\n"
         << "    bool changed = false;\n"
@@ -3123,7 +3421,23 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        const CompactTurnLayerCoupledMovementTerm_" << suffix << "& term = layerCoupledMovementTerms[termIndex];\n"
         << "        if (!compact_turn_layer_coupled_movement_matches_" << suffix << "(oldObjects, oldMovements, term)) continue;\n"
         << "        compact_turn_set_layer_bits_" << suffix << "(movementsClear, term.layerIndex, 0x1f);\n"
-        << "        compact_turn_set_layer_bits_" << suffix << "(movementsSet, term.layerIndex, term.replacementMovementMask);\n"
+        << "        int32_t replacementMovementMask = term.replacementMovementMask;\n"
+        << "        if (term.aggregateCaptureIndex >= 0) {\n"
+        << "            replacementMovementMask = 0;\n"
+        << "            const size_t captureIndex = static_cast<size_t>(term.aggregateCaptureIndex);\n"
+        << "            if (aggregateCaptures != nullptr && captureIndex < aggregateCaptureCount) {\n"
+        << "                replacementMovementMask = aggregateCaptures[captureIndex] & 0x1f;\n"
+        << "            }\n"
+        << "        }\n"
+        << "        if (replacementMovementMask != 0) compact_turn_set_layer_bits_" << suffix << "(movementsSet, term.layerIndex, replacementMovementMask);\n"
+        << "    }\n"
+        << "    for (size_t termIndex = 0; termIndex < inferredAggregateTermCount; ++termIndex) {\n"
+        << "        const CompactTurnInferredAggregateTerm_" << suffix << "& term = inferredAggregateTerms[termIndex];\n"
+        << "        if (term.layerIndex < 0 || term.aggregateCaptureIndex < 0) continue;\n"
+        << "        const size_t captureIndex = static_cast<size_t>(term.aggregateCaptureIndex);\n"
+        << "        if (aggregateCaptures == nullptr || captureIndex >= aggregateCaptureCount) continue;\n"
+        << "        const int32_t captured = aggregateCaptures[captureIndex] & 0x1f;\n"
+        << "        if (captured != 0) compact_turn_set_layer_bits_" << suffix << "(movementsSet, term.layerIndex, captured);\n"
         << "    }\n"
         << "    MaskWord* objects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
         << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
