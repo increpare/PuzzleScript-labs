@@ -188,7 +188,22 @@ function main() {
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
     assertIncludes(
         ruleDerivedBody,
+        'compact_turn_rebuild_dirty_object_derived_state_0(dimensions, levelState, scratch)',
+        'rule derived-state rebuild',
+    );
+    assertIncludes(
+        ruleDerivedBody,
+        'compact_turn_rebuild_dirty_movement_derived_state_0(dimensions, scratch)',
+        'rule derived-state rebuild',
+    );
+    assertExcludes(
+        ruleDerivedBody,
         'compact_turn_rebuild_object_derived_state_0(dimensions, levelState, scratch)',
+        'rule derived-state rebuild',
+    );
+    assertExcludes(
+        ruleDerivedBody,
+        'compact_turn_rebuild_movement_derived_state_0(dimensions, scratch)',
         'rule derived-state rebuild',
     );
     assertExcludes(ruleDerivedBody, 'compact_turn_rebuild_object_cell_index_0', 'rule derived-state rebuild');
