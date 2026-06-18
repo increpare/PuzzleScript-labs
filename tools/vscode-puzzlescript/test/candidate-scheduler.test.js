@@ -236,6 +236,26 @@ assert.strictEqual(legacyTimeoutExactSolvedBatch.recordEvaluation({
 assert.strictEqual(legacyTimeoutExactSolvedBatch.timeoutQueue().length, 0, 'exact solved identity should clear equivalent legacy timeout');
 assert.strictEqual(legacyTimeoutExactSolvedBatch.nextPromotion(), null);
 
+const legacyTimeoutExactOnlySolvedBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+legacyTimeoutExactOnlySolvedBatch.recordEvaluation({
+    level_hash: 123,
+    status: 'timeout',
+    unique_states: 100,
+    solver_budget_ms: 1000,
+    cells: [['legacy']],
+});
+assert.strictEqual(legacyTimeoutExactOnlySolvedBatch.recordEvaluation({
+    level_hash_hex: '000000000000007b',
+    status: 'solved',
+    unique_states: 101,
+    cells: [['exact']],
+}).becameTopSolved, true);
+assert.strictEqual(legacyTimeoutExactOnlySolvedBatch.timeoutQueue().length, 0, 'safe exact-only solved identity should clear equivalent legacy timeout');
+assert.strictEqual(legacyTimeoutExactOnlySolvedBatch.nextPromotion(), null);
+
 const solvedThenTimeoutBatch = new CandidateBatchState({
     promotionBudgetsMs: [1000, 5000],
     promotionQueueLimit: 4,

@@ -102,12 +102,14 @@ function candidateIdentity(candidate) {
         const keys = [];
         const exactHash = hasHashValue(candidate.levelHashHex) ? candidate.levelHashHex : candidate.level_hash_hex;
         let exactKey = null;
+        let legacyAliasFromExactHash = null;
         if (hasHashValue(exactHash)) {
             const normalizedExactHash = normalizeExactHash(exactHash);
             if (!normalizedExactHash) {
                 return null;
             }
             exactKey = `exact:${normalizedExactHash}`;
+            legacyAliasFromExactHash = legacyHashFromExactHash(exactHash);
             addUniqueKey(keys, exactKey);
         }
         const legacyHash = hasHashValue(candidate.levelHash) ? candidate.levelHash : candidate.level_hash;
@@ -117,10 +119,13 @@ function candidateIdentity(candidate) {
             if (!normalizedLegacyHash && !exactKey) {
                 return null;
             }
-            if (normalizedLegacyHash && (!exactKey || legacyHashFromExactHash(exactHash) === normalizedLegacyHash)) {
+            if (normalizedLegacyHash && (!exactKey || legacyAliasFromExactHash === normalizedLegacyHash)) {
                 legacyKey = `legacy:${normalizedLegacyHash}`;
                 addUniqueKey(keys, legacyKey);
             }
+        } else if (legacyAliasFromExactHash) {
+            legacyKey = `legacy:${legacyAliasFromExactHash}`;
+            addUniqueKey(keys, legacyKey);
         }
         if (exactKey || legacyKey) {
             return { key: exactKey || legacyKey, keys };
