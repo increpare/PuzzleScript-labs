@@ -193,6 +193,38 @@ function main() {
     assertIncludes(noteMovementBody, 'scratch.rowMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
+    const dirtyObjectDerivedBody = functionBody(source, 'compact_turn_rebuild_dirty_object_derived_state_0');
+    assertExcludes(
+        dirtyObjectDerivedBody,
+        'std::fill(scratch.boardMask.begin(), scratch.boardMask.end(), 0);',
+        'dirty object derived-state rebuild should keep conservative board mask',
+    );
+    assertExcludes(
+        dirtyObjectDerivedBody,
+        'scratch.boardMask[static_cast<size_t>(word)] |= rowStart[word];',
+        'dirty object derived-state rebuild should keep conservative board mask',
+    );
+    assertExcludes(
+        dirtyObjectDerivedBody,
+        'scratch.boardMask[static_cast<size_t>(word)] |= objects[word];',
+        'dirty object derived-state rebuild should keep conservative board mask',
+    );
+    const dirtyMovementDerivedBody = functionBody(source, 'compact_turn_rebuild_dirty_movement_derived_state_0');
+    assertExcludes(
+        dirtyMovementDerivedBody,
+        'std::fill(scratch.boardMovementMask.begin(), scratch.boardMovementMask.end(), 0);',
+        'dirty movement derived-state rebuild should keep conservative board mask',
+    );
+    assertExcludes(
+        dirtyMovementDerivedBody,
+        'scratch.boardMovementMask[static_cast<size_t>(word)] |= rowStart[word];',
+        'dirty movement derived-state rebuild should keep conservative board mask',
+    );
+    assertExcludes(
+        dirtyMovementDerivedBody,
+        'scratch.boardMovementMask[static_cast<size_t>(word)] |= movements[word];',
+        'dirty movement derived-state rebuild should keep conservative board mask',
+    );
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
     assertIncludes(
         ruleDerivedBody,
