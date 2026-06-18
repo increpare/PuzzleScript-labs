@@ -642,6 +642,10 @@ git commit -m "perf: tighten compact turn derived rebuilds"
 
 Verification note: split generated object mask rebuilds from sparse object-cell index rebuilds. `compact_turn_prepare_state` no longer requires the sparse object-cell index to be fresh; emitted anchor scans lazily call `compact_turn_prepare_object_cell_index`, which now rebuilds only the sparse object-cell arrays. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_suite`, `make compact_turn_codegen_solver_parity`, `make compact_tick_oracle_smoke`, and `make compact_turn_native_parity` pass. Focused perf improved `Double-Entry Bookkeeping Simulator.txt#17` from roughly 23.8us/generated to 20.0us/generated, but `compact_turn_codegen_perf_expectations` still fails on `big dog and little dog.txt#11`, `Double-Entry Bookkeeping Simulator.txt#17` late-rules time, and the generated-count threshold for `heroes_of_sokoban_3.txt#23`; next work should target the remaining 860k object-dirty derived-state rebuild calls and replacement-heavy scans.
 
+- [x] Add dirty-slice derived mask rebuilds for rule-local object/movement writes.
+
+Verification note: generated rule-derived rebuilds now update only dirty rows/columns and their board masks, falling back to the full rebuild when scratch storage is not initialized to the expected shape. This reduces the per-replacement rebuild cost that remained after the lazy sparse object-cell index split. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, and `make compact_turn_codegen_perf_suite` passed before broad correctness. `make compact_turn_codegen_solver_parity` passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`; timeout warnings were `31`. `make compact_tick_oracle_smoke` passed with `cases=14` and `compact_turn_oracle_failures=0`. `make compact_turn_native_parity` passed with `native=182/182`.
+
 ---
 
 ## Task 7: Full Acceptance Run
