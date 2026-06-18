@@ -831,6 +831,15 @@ add_test(
 set_tests_properties(puzzlescript_generator_smoke PROPERTIES TIMEOUT 30)
 
 add_test(
+  NAME puzzlescript_generator_events_jsonl
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_generator_events_jsonl_node.js
+          $<TARGET_FILE:puzzlescript_generator>
+          ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(puzzlescript_generator_events_jsonl PROPERTIES TIMEOUT 30)
+
+add_test(
   NAME puzzlescript_rule_plan_parity
   COMMAND ${NODE_EXECUTABLE}
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_rule_plan_parity.js

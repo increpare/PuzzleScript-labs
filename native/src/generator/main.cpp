@@ -67,6 +67,7 @@ struct Options {
     std::filesystem::path gamePath;
     std::filesystem::path specPath;
     std::filesystem::path jsonOut;
+    std::filesystem::path eventsJsonl;
     int64_t timeMs = 60000;
     std::optional<uint64_t> samples;
     size_t jobs = 0;
@@ -154,6 +155,7 @@ struct SharedState {
     Counters counters;
     std::mutex topMutex;
     std::vector<Candidate> top;
+    std::mutex eventsMutex;
     std::array<std::mutex, 64> dedupeMutexes;
     std::array<std::unordered_set<uint64_t>, 64> dedupe;
     std::array<std::deque<uint64_t>, 64> dedupeOrder;
@@ -217,6 +219,17 @@ struct SolveResult {
     uint64_t uniqueStates = 0;
     uint64_t duplicates = 0;
 };
+
+void appendCandidateEvent(
+    const Options& options,
+    const Game& game,
+    SharedState& shared,
+    const LevelTemplate& level,
+    const SolveResult& solved,
+    uint64_t sampleId,
+    uint64_t sampleSeed,
+    uint64_t levelHash
+);
 
 std::atomic<bool>* gCancelFlag = nullptr;
 
@@ -330,7 +343,7 @@ Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
     if (argc < 3) {
-        throw std::runtime_error("Usage: puzzlescript_generator <game.txt> <spec.gen> [--time-ms N] [--samples N] [--jobs auto|N] [--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] [--top-k N] [--dedupe-max N] [--json-out PATH] [--quiet]");
+        throw std::runtime_error("Usage: puzzlescript_generator <game.txt> <spec.gen> [--time-ms N] [--samples N] [--jobs auto|N] [--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] [--top-k N] [--dedupe-max N] [--events-jsonl PATH] [--json-out PATH] [--quiet]");
     }
     options.gamePath = argv[1];
     options.specPath = argv[2];
@@ -353,6 +366,8 @@ Options parseArgs(int argc, char** argv) {
             options.topK = std::max<size_t>(1, std::stoull(argv[++index]));
         } else if (arg == "--dedupe-max" && index + 1 < argc) {
             options.dedupeMax = std::max<size_t>(64, std::stoull(argv[++index]));
+        } else if (arg == "--events-jsonl" && index + 1 < argc) {
+            options.eventsJsonl = argv[++index];
         } else if (arg == "--json-out" && index + 1 < argc) {
             options.jsonOut = argv[++index];
         } else if (arg == "--quiet") {
@@ -1322,6 +1337,7 @@ void workerMain(
         shared.counters.solverGenerated.fetch_add(solved.generated, std::memory_order_relaxed);
         shared.counters.solverUniqueStates.fetch_add(solved.uniqueStates, std::memory_order_relaxed);
         shared.counters.solverDuplicates.fetch_add(solved.duplicates, std::memory_order_relaxed);
+        appendCandidateEvent(options, *game, shared, candidateLevel, solved, sampleId, sampleSeed, levelHash);
         if (solved.status == SolveStatus::Solved) {
             shared.counters.solved.fetch_add(1, std::memory_order_relaxed);
             Candidate candidate;
@@ -1454,6 +1470,86 @@ std::string objectNamesForCell(const Game& game, const LevelTemplate& level, int
         out << names[i];
     }
     return out.str();
+}
+
+std::string solveStatusName(SolveStatus status) {
+    switch (status) {
+        case SolveStatus::Exhausted: return "exhausted";
+        case SolveStatus::Solved: return "solved";
+        case SolveStatus::Timeout: return "timeout";
+        case SolveStatus::LevelError: return "level_error";
+    }
+    return "unknown";
+}
+
+std::string candidateEventJson(
+    const Options& options,
+    const Game& game,
+    const LevelTemplate& level,
+    const SolveResult& solved,
+    uint64_t sampleId,
+    uint64_t sampleSeed,
+    uint64_t levelHash
+) {
+    std::ostringstream out;
+    out << "{";
+    out << "\"event\":\"candidate_evaluated\"";
+    out << ",\"sample_id\":" << sampleId;
+    out << ",\"seed\":" << sampleSeed;
+    out << ",\"level_hash\":" << levelHash;
+    out << ",\"status\":" << jsonString(solveStatusName(solved.status));
+    out << ",\"solver_budget_ms\":" << options.solverTimeoutMs;
+    out << ",\"unique_states\":" << solved.uniqueStates;
+    out << ",\"expanded\":" << solved.expanded;
+    out << ",\"generated\":" << solved.generated;
+    out << ",\"duplicates\":" << solved.duplicates;
+    out << ",\"solution_length\":" << solved.solution.size();
+    out << ",\"width\":" << level.width;
+    out << ",\"height\":" << level.height;
+    out << ",\"solution\":[";
+    for (size_t index = 0; index < solved.solution.size(); ++index) {
+        if (index > 0) out << ",";
+        out << jsonString(solved.solution[index]);
+    }
+    out << "],\"cells\":[";
+    for (int32_t y = 0; y < level.height; ++y) {
+        if (y > 0) out << ",";
+        out << "[";
+        for (int32_t x = 0; x < level.width; ++x) {
+            if (x > 0) out << ",";
+            const int32_t tile = x * level.height + y;
+            out << jsonString(objectNamesForCell(game, level, tile));
+        }
+        out << "]";
+    }
+    out << "]}";
+    return out.str();
+}
+
+void appendCandidateEvent(
+    const Options& options,
+    const Game& game,
+    SharedState& shared,
+    const LevelTemplate& level,
+    const SolveResult& solved,
+    uint64_t sampleId,
+    uint64_t sampleSeed,
+    uint64_t levelHash
+) {
+    if (options.eventsJsonl.empty()) {
+        return;
+    }
+    const std::string line = candidateEventJson(options, game, level, solved, sampleId, sampleSeed, levelHash);
+    std::lock_guard<std::mutex> lock(shared.eventsMutex);
+    if (!options.eventsJsonl.parent_path().empty()) {
+        std::filesystem::create_directories(options.eventsJsonl.parent_path());
+    }
+    std::ofstream stream(options.eventsJsonl, std::ios::binary | std::ios::app);
+    if (!stream) {
+        shared.cancel.store(true, std::memory_order_relaxed);
+        throw std::runtime_error("Failed to write generator events: " + options.eventsJsonl.string());
+    }
+    stream << line << "\n";
 }
 
 std::string finalJson(const Options& options, const Game& game, SharedState& shared) {
