@@ -20,6 +20,17 @@ const ALLOWED_EXPECTATION_FIELDS = Object.freeze([
     'compiledGeneratedMin',
     'compiledLateRulesMsMax',
 ]);
+const CASE_THRESHOLD_FIELDS = Object.freeze([
+    'compiledStepRatioMax',
+    'compiledGeneratedRatioMin',
+    'compiledUsPerGeneratedRatioMax',
+]);
+const ALLOWED_CASE_FIELDS = Object.freeze([
+    'game',
+    'level',
+    'kind',
+    ...CASE_THRESHOLD_FIELDS,
+]);
 
 function usage() {
     console.log([
@@ -82,6 +93,37 @@ function readJson(jsonPath) {
     return JSON.parse(fs.readFileSync(path.resolve(jsonPath), 'utf8'));
 }
 
+function hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function valueType(value) {
+    if (value === null) {
+        return 'null';
+    }
+    if (Array.isArray(value)) {
+        return 'array';
+    }
+    return typeof value;
+}
+
+function valueDescription(value) {
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+        return String(value);
+    }
+    const description = JSON.stringify(value);
+    return description === undefined ? String(value) : description;
+}
+
+function validateFiniteSchemaNumber(value, context, fieldName) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error(
+            `${context}: ${fieldName} must be a finite number; `
+            + `actual=${valueDescription(value)} type=${valueType(value)}`,
+        );
+    }
+}
+
 function parseCounters(output, context) {
     const match = output.match(/^solver_runtime_counters\s+(.+)$/m);
     if (!match) {
@@ -101,7 +143,7 @@ function parseCounters(output, context) {
 
 function validateRuntimeCounters(counters, context) {
     const missing = REQUIRED_RUNTIME_COUNTER_KEYS.filter((key) => (
-        !Object.prototype.hasOwnProperty.call(counters, key)
+        !hasOwn(counters, key)
     ));
     if (missing.length > 0) {
         throw new Error(`${context}: missing runtime counter key(s): ${missing.join(', ')}`);
@@ -203,10 +245,10 @@ function finiteResultNumber(value, context, fieldName) {
 }
 
 function stepTimeUsFor(result, context) {
-    if (Object.prototype.hasOwnProperty.call(result, 'step_time_us')) {
+    if (hasOwn(result, 'step_time_us')) {
         return finiteResultNumber(result.step_time_us, context, 'step_time_us');
     }
-    if (Object.prototype.hasOwnProperty.call(result, 'step_ms')) {
+    if (hasOwn(result, 'step_ms')) {
         const stepMs = finiteResultNumber(result.step_ms, context, 'step_ms');
         return stepMs * 1000;
     }
@@ -214,7 +256,7 @@ function stepTimeUsFor(result, context) {
 }
 
 function generatedFor(result, context) {
-    if (!Object.prototype.hasOwnProperty.call(result, 'generated')) {
+    if (!hasOwn(result, 'generated')) {
         throw new Error(`${context}: missing generated`);
     }
     return finiteResultNumber(result.generated, context, 'generated');
@@ -267,6 +309,38 @@ function validateExpectations(cases, expectations, expectationsPath) {
                 `${expectationsPath}: ${key}: unknown expectation field(s): ${unknownFields.join(', ')}`,
                 `allowed field(s): ${ALLOWED_EXPECTATION_FIELDS.join(', ')}`,
             ].join('\n'));
+        }
+        for (const field of ALLOWED_EXPECTATION_FIELDS) {
+            if (hasOwn(expectation, field)) {
+                validateFiniteSchemaNumber(expectation[field], `${expectationsPath}: ${key}`, field);
+            }
+        }
+    }
+}
+
+function validateCases(cases, casesPath) {
+    for (let index = 0; index < cases.length; ++index) {
+        const testCase = cases[index];
+        const context = testCase && typeof testCase === 'object' && !Array.isArray(testCase)
+            ? `${casesPath}: ${caseKey(testCase)}`
+            : `${casesPath}: case[${index}]`;
+        assert.ok(
+            testCase && typeof testCase === 'object' && !Array.isArray(testCase),
+            `${context}: case must be an object`,
+        );
+        const unknownFields = Object.keys(testCase).filter((field) => (
+            !ALLOWED_CASE_FIELDS.includes(field)
+        )).sort();
+        if (unknownFields.length > 0) {
+            throw new Error([
+                `${context}: unknown case field(s): ${unknownFields.join(', ')}`,
+                `allowed field(s): ${ALLOWED_CASE_FIELDS.join(', ')}`,
+            ].join('\n'));
+        }
+        for (const field of CASE_THRESHOLD_FIELDS) {
+            if (hasOwn(testCase, field)) {
+                validateFiniteSchemaNumber(testCase[field], context, field);
+            }
         }
     }
 }
@@ -371,6 +445,7 @@ function main() {
     const cases = readJson(options.casesPath, 'cases');
     const expectations = options.expectationsPath ? readJson(options.expectationsPath, 'expectations') : null;
     assert.ok(Array.isArray(cases), '--cases must contain an array');
+    validateCases(cases, options.casesPath);
     if (options.expectationsPath) {
         validateExpectations(cases, expectations, options.expectationsPath);
     }
