@@ -187,7 +187,7 @@ function normalizePromotionBudgets(budgets) {
     const source = Array.isArray(budgets) ? budgets : DEFAULT_PROMOTION_BUDGETS_MS;
     const normalized = source
         .map(Number)
-        .filter(Number.isFinite)
+        .filter(budget => Number.isFinite(budget) && Number.isInteger(budget) && budget > 0)
         .sort((a, b) => a - b)
         .filter((budget, index, values) => index === 0 || budget !== values[index - 1]);
     return normalized.length > 0 ? normalized : DEFAULT_PROMOTION_BUDGETS_MS.slice();
@@ -217,7 +217,23 @@ class CandidateBatchState {
         const identity = candidateIdentity(candidate);
         normalized.identity_key = identity ? identity.key : null;
         normalized.identity_keys = identity ? identity.keys.slice() : [];
-        normalized.level_hash = candidate.level_hash != null ? candidate.level_hash : candidate.levelHash;
+        const exactHash = hasHashValue(candidate.levelHashHex) ? candidate.levelHashHex : candidate.level_hash_hex;
+        const normalizedExactHash = hasHashValue(exactHash) ? normalizeExactHash(exactHash) : null;
+        if (normalizedExactHash) {
+            const legacyAlias = legacyHashFromExactHash(normalizedExactHash);
+            normalized.level_hash_hex = normalizedExactHash;
+            delete normalized.levelHash;
+            if (legacyAlias) {
+                normalized.level_hash = Number(legacyAlias);
+            } else {
+                delete normalized.level_hash;
+            }
+            if (hasHashValue(candidate.levelHashHex)) {
+                normalized.levelHashHex = normalizedExactHash;
+            }
+        } else {
+            normalized.level_hash = candidate.level_hash != null ? candidate.level_hash : candidate.levelHash;
+        }
         normalized.effort_score = effortScore(candidate);
         normalized.cells = normalizeRows(candidate.cells || candidate.rows);
         const solverBudgetMs = candidate.solver_budget_ms != null

@@ -60,7 +60,9 @@ assert.strictEqual(identityBatch.recordEvaluation({
     unique_states: 100,
     cells: [['target']],
 }).becameTopSolved, false, 'invalid exact hash should reject instead of falling back to numeric hash');
-assert.deepStrictEqual(identityBatch.solvedTop().map(candidate => candidate.level_hash), [1]);
+assert.strictEqual(identityBatch.solvedTop().length, 1);
+assert.strictEqual(identityBatch.solvedTop()[0].level_hash, undefined);
+assert.strictEqual(identityBatch.solvedTop()[0].level_hash_hex, 'abcdef1234567890');
 assert.strictEqual(identityBatch.shouldLogSolvedTop({ levelHashHex: 'not-a-hex-hash', levelHash: 2 }), false);
 assert.strictEqual(identityBatch.shouldLogSolvedTop(undefined), false);
 
@@ -279,13 +281,15 @@ legacyTimeoutConflictingExactSolvedBatch.recordEvaluation({
 });
 assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.recordEvaluation({
     level_hash: 999999,
-    level_hash_hex: '000000000000007b',
+    level_hash_hex: '000000000000007B',
     status: 'solved',
     unique_states: 101,
     cells: [['exact']],
 }).becameTopSolved, true);
 assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.timeoutQueue().length, 0, 'exact-derived safe alias should ignore conflicting legacy field');
 assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.nextPromotion(), null);
+assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.solvedTop()[0].level_hash, 123, 'exposed candidate should use exact-derived canonical legacy hash');
+assert.strictEqual(legacyTimeoutConflictingExactSolvedBatch.solvedTop()[0].level_hash_hex, '000000000000007b');
 
 const solvedThenTimeoutBatch = new CandidateBatchState({
     promotionBudgetsMs: [1000, 5000],
@@ -409,6 +413,33 @@ unsortedBudgetBatch.recordEvaluation({
     cells: [['player']],
 });
 assert.strictEqual(unsortedBudgetBatch.nextPromotion().next_budget_ms, 5000, 'budgets should promote to the next sorted higher value');
+
+const filteredBudgetBatch = new CandidateBatchState({
+    promotionBudgetsMs: [-5, 5000.5, 1000, 5000],
+});
+assert.deepStrictEqual(filteredBudgetBatch.promotionBudgetsMs, [1000, 5000], 'promotion budgets should keep only positive integers');
+filteredBudgetBatch.recordEvaluation({
+    level_hash: 22,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    cells: [['player']],
+});
+assert.strictEqual(filteredBudgetBatch.nextPromotion().next_budget_ms, 5000);
+
+const invalidBudgetFallbackBatch = new CandidateBatchState({
+    promotionBudgetsMs: [-5, 0, 5000.5, Infinity, 'nope'],
+});
+invalidBudgetFallbackBatch.recordEvaluation({
+    level_hash: 23,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    cells: [['target']],
+});
+const fallbackPromotion = invalidBudgetFallbackBatch.nextPromotion();
+assert(fallbackPromotion, 'invalid promotion budget lists should fall back to defaults');
+assert.strictEqual(fallbackPromotion.next_budget_ms, 5000);
 
 const invalidOptionsBatch = new CandidateBatchState({
     topCount: -1,
