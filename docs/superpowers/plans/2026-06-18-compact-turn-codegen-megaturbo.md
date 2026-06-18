@@ -49,7 +49,7 @@ Out of scope:
 
 ## Task 1: Add A Focused Codegen Perf Suite
 
-- [ ] Create `src/tests/compact_turn_codegen_perf_cases.json` with the representative cases and control thresholds:
+- [x] Create `src/tests/compact_turn_codegen_perf_cases.json` with the representative cases and control thresholds:
 
 ```json
 [
@@ -57,7 +57,7 @@ Out of scope:
     "game": "manic_ammo.txt",
     "level": 26,
     "kind": "positive_control",
-    "compiledStepRatioMax": 0.35
+    "compiledUsPerGeneratedRatioMax": 0.35
   },
   {
     "game": "Voitex Rasteriser 2.txt",
@@ -99,7 +99,7 @@ Out of scope:
 ]
 ```
 
-- [ ] Create `src/tests/compact_turn_codegen_perf_expectations.json`. These targets intentionally fail on the current baseline and become the perf acceptance gate after Tasks 3-5:
+- [x] Create `src/tests/compact_turn_codegen_perf_expectations.json`. These targets intentionally fail on the current baseline and become the perf acceptance gate after Tasks 3-5:
 
 ```json
 {
@@ -126,7 +126,7 @@ Out of scope:
 }
 ```
 
-- [ ] Add `src/tests/compact_turn_codegen_perf_suite_node.js`.
+- [x] Add `src/tests/compact_turn_codegen_perf_suite_node.js`.
 
 The script should:
 
@@ -140,7 +140,7 @@ The script should:
 
 Use the existing parser style from `src/tests/compact_turn_perf_regression_node.js`; keep this as a separate suite so the existing small regression target remains quick.
 
-- [ ] Add Make targets in `Makefile`:
+- [x] Add Make targets in `Makefile`:
 
 ```make
 COMPACT_TURN_CODEGEN_PERF_TIMEOUT_MS ?= 1000
@@ -172,19 +172,19 @@ compact_turn_codegen_perf_expectations: build/native/puzzlescript_cpp build/nati
 
 Wire `build/native/puzzlescript_cpp_compiled_rules` to use `COMPILED_RULES_OPT_LEVEL=3` for these targets, matching `solver_timeout_curve`.
 
-- [ ] Verify the new report target works:
+- [x] Verify the new report target works:
 
 ```sh
 make compact_turn_codegen_perf_suite
 ```
 
-- [ ] Verify the expectation target fails before optimization:
+- [x] Verify the expectation target fails before optimization:
 
 ```sh
 make compact_turn_codegen_perf_expectations
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```sh
 git add Makefile src/tests/compact_turn_codegen_perf_cases.json src/tests/compact_turn_codegen_perf_expectations.json src/tests/compact_turn_codegen_perf_suite_node.js
@@ -644,7 +644,7 @@ make compact_turn_codegen_perf_expectations
 
 Acceptance:
 
-- `manic_ammo.txt#26`: compiled step time remains at most `35%` of interpreter step time.
+- `manic_ammo.txt#26`: compiled `us/generated` remains at most `35%` of interpreter `us/generated`.
 - `Voitex Rasteriser 2.txt#1`: compiled generated states are at least `90%` of interpreter, or compiled `us/generated` is no worse than `1.15x` interpreter.
 - `heroes_of_sokoban_3.txt#23`: compiled `us/generated <= 4.3` and generated states `>= 185000`.
 - `heroes_of_sokoban_3.txt#16`: compiled `us/generated <= 4.4` and generated states `>= 180000`.
