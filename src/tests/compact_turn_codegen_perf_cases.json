@@ -1,5 +1,5 @@
 [
-  { "game": "manic_ammo.txt", "level": 26, "kind": "positive_control", "compiledStepRatioMax": 0.35 },
+  { "game": "manic_ammo.txt", "level": 26, "kind": "positive_control", "compiledUsPerGeneratedRatioMax": 0.35 },
   { "game": "Voitex Rasteriser 2.txt", "level": 1, "kind": "previous_regression", "compiledGeneratedRatioMin": 0.9, "compiledUsPerGeneratedRatioMax": 1.15 },
   { "game": "heroes_of_sokoban_3.txt", "level": 23, "kind": "dispatch_hotspot" },
   { "game": "heroes_of_sokoban_3.txt", "level": 16, "kind": "dispatch_hotspot" },

@@ -110,9 +110,15 @@ const cases = [
         level: 26,
         validate(interpreter, compiled) {
             assert.ok(compiled.result.compact_turn_native_hits > 0, 'manic_ammo compiled run should use native compact turns');
+            const interpreterMsPerGenerated = msPerGenerated(interpreter);
+            const compiledMsPerGenerated = msPerGenerated(compiled);
             assert.ok(
-                compiled.result.step_ms <= interpreter.result.step_ms * 0.35,
-                `manic_ammo compiled step_ms should stay <=35% of interpreter: interpreter=${interpreter.result.step_ms} compiled=${compiled.result.step_ms}`
+                compiledMsPerGenerated <= interpreterMsPerGenerated * 0.35,
+                [
+                    'manic_ammo compiled ms/generated should stay <=35% of interpreter',
+                    `interpreter step_ms=${interpreter.result.step_ms} generated=${interpreter.result.generated} ms/generated=${interpreterMsPerGenerated}`,
+                    `compiled step_ms=${compiled.result.step_ms} generated=${compiled.result.generated} ms/generated=${compiledMsPerGenerated}`,
+                ].join('\n')
             );
         },
     },
