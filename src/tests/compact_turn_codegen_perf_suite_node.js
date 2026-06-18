@@ -15,6 +15,11 @@ const REQUIRED_RUNTIME_COUNTER_KEYS = Object.freeze([
     'compact_turn_win_ns',
     'compact_turn_canonicalize_ns',
 ]);
+const ALLOWED_EXPECTATION_FIELDS = Object.freeze([
+    'compiledUsPerGeneratedMax',
+    'compiledGeneratedMin',
+    'compiledLateRulesMsMax',
+]);
 
 function usage() {
     console.log([
@@ -190,21 +195,34 @@ function nsToMs(value, key) {
     return numericValue / 1000000;
 }
 
-function stepTimeUsFor(result) {
-    const stepTimeUs = Number(result.step_time_us);
-    if (Number.isFinite(stepTimeUs)) {
-        return stepTimeUs;
+function finiteResultNumber(value, context, fieldName) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error(`${context}: expected finite numeric ${fieldName}`);
     }
-    const stepMs = Number(result.step_ms);
-    if (Number.isFinite(stepMs)) {
-        return stepMs * 1000;
-    }
-    return 0;
+    return value;
 }
 
-function metricsFor(run) {
-    const generated = Number(run.result.generated) || 0;
-    const stepTimeUs = stepTimeUsFor(run.result);
+function stepTimeUsFor(result, context) {
+    if (Object.prototype.hasOwnProperty.call(result, 'step_time_us')) {
+        return finiteResultNumber(result.step_time_us, context, 'step_time_us');
+    }
+    if (Object.prototype.hasOwnProperty.call(result, 'step_ms')) {
+        const stepMs = finiteResultNumber(result.step_ms, context, 'step_ms');
+        return stepMs * 1000;
+    }
+    throw new Error(`${context}: missing step_time_us or step_ms`);
+}
+
+function generatedFor(result, context) {
+    if (!Object.prototype.hasOwnProperty.call(result, 'generated')) {
+        throw new Error(`${context}: missing generated`);
+    }
+    return finiteResultNumber(result.generated, context, 'generated');
+}
+
+function metricsFor(run, context) {
+    const generated = generatedFor(run.result, context);
+    const stepTimeUs = stepTimeUsFor(run.result, context);
     const stepMs = Number.isFinite(Number(run.result.step_ms))
         ? Number(run.result.step_ms)
         : stepTimeUs / 1000;
@@ -229,13 +247,28 @@ function validateExpectations(cases, expectations, expectationsPath) {
     );
     const knownKeys = new Set(cases.map(caseKey));
     const unknownKeys = Object.keys(expectations).filter((key) => !knownKeys.has(key)).sort();
-    if (unknownKeys.length === 0) {
-        return;
+    if (unknownKeys.length > 0) {
+        throw new Error([
+            `${expectationsPath}: unknown expectation key(s): ${unknownKeys.join(', ')}`,
+            `known case key(s): ${Array.from(knownKeys).sort().join(', ')}`,
+        ].join('\n'));
     }
-    throw new Error([
-        `${expectationsPath}: unknown expectation key(s): ${unknownKeys.join(', ')}`,
-        `known case key(s): ${Array.from(knownKeys).sort().join(', ')}`,
-    ].join('\n'));
+    for (const key of Object.keys(expectations).sort()) {
+        const expectation = expectations[key];
+        assert.ok(
+            expectation && typeof expectation === 'object' && !Array.isArray(expectation),
+            `${expectationsPath}: ${key}: expectation must be an object`,
+        );
+        const unknownFields = Object.keys(expectation).filter((field) => (
+            !ALLOWED_EXPECTATION_FIELDS.includes(field)
+        )).sort();
+        if (unknownFields.length > 0) {
+            throw new Error([
+                `${expectationsPath}: ${key}: unknown expectation field(s): ${unknownFields.join(', ')}`,
+                `allowed field(s): ${ALLOWED_EXPECTATION_FIELDS.join(', ')}`,
+            ].join('\n'));
+        }
+    }
 }
 
 function ratio(numerator, denominator) {
@@ -370,13 +403,13 @@ function main() {
                 result: interpreter.result,
                 totals: interpreter.totals,
                 counters: interpreter.counters,
-                metrics: metricsFor(interpreter),
+                metrics: metricsFor(interpreter, `${caseKey(testCase)} interpreter`),
             },
             compiled: {
                 result: compiled.result,
                 totals: compiled.totals,
                 counters: compiled.counters,
-                metrics: metricsFor(compiled),
+                metrics: metricsFor(compiled, `${caseKey(testCase)} compiled`),
             },
             failures: [],
         };
