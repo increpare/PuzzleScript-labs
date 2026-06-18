@@ -1331,6 +1331,8 @@ void recordPersistentLevelStateStorage(Timing& timing, const PersistentLevelStat
 struct CompactTurnTryResult {
     bool attempted = false;
     bool handled = false;
+    bool discard = false;
+    const char* discardReason = nullptr;
     PersistentLevelState state;
     ps_step_result stepResult{};
 };
@@ -1411,6 +1413,8 @@ CompactTurnTryResult trySpecializedCompactTurn(
     const puzzlescript::SpecializedCompactTurnOutcome outcome =
         game.specializedCompactTurn->step(game, result.state, scratch, context, input, options);
     result.handled = outcome.handled;
+    result.discard = outcome.discard;
+    result.discardReason = outcome.discardReason;
     result.stepResult = outcome.result;
     return result;
 }
@@ -1468,6 +1472,45 @@ SolverEdgeStep stepSolverEdge(
                         ++result.compactTurnNativeHits;
                     } else {
                         ++result.compactTurnBridgeHits;
+                    }
+                    if (edge.compactTurn.discard) {
+                        // Solver discard outcomes intentionally encode no-successor
+                        // policy, not player/interpreter step details. Later command
+                        // policy tests validate those deliberate differences.
+                        const std::string_view discardReason =
+                            edge.compactTurn.discardReason != nullptr
+                                ? std::string_view(edge.compactTurn.discardReason)
+                                : std::string_view();
+                        if (compactTurnOracle && discardReason == "cancel") {
+                            ps_step_result oracleStepResult{};
+                            {
+                                ScopedTimer timer(result.timing.cloneNs);
+                                prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
+                            }
+                            {
+                                ScopedTimer timer(result.timing.stepNs);
+                                oracleStepResult = puzzlescript::turn(childScratch, input, solverStepOptions);
+                            }
+                            PersistentLevelState oracleState;
+                            {
+                                ScopedTimer timer(result.timing.stateCaptureNs);
+                                oracleState = persistentLevelStateWithTiming(childScratch, result.timing);
+                            }
+                            if (oracleStepResult.changed
+                                || oracleStepResult.won
+                                || oracleStepResult.transitioned
+                                || oracleStepResult.restarted
+                                || !persistentLevelStatesEqual(parentState, oracleState)) {
+                                ++result.compactTurnOracleFailures;
+                                edge.oracleMismatch = true;
+                                edge.oracleError = "compact turn cancel discard mismatch input=" + inputName(input)
+                                    + " compact_step=" + stepResultSummary(edge.compactTurn.stepResult)
+                                    + " interpreter_step=" + stepResultSummary(oracleStepResult)
+                                    + persistentLevelStateDiffSummary(parentState, oracleState);
+                            }
+                        }
+                        edge.stepResult = edge.compactTurn.stepResult;
+                        return edge;
                     }
                     if (compactTurnOracle) {
                         ++result.compactTurnOracleChecks;
@@ -2020,12 +2063,22 @@ Result runSearch(
             if (edge.oracleMismatch) {
                 result.status = "level_error";
                 result.error = edge.oracleError;
+                const std::vector<std::string> path = reconstructSolution(nodes, entry.nodeIndex, input, result.timing);
+                if (!path.empty()) {
+                    result.error += " path=";
+                    for (size_t pathIndex = 0; pathIndex < path.size(); ++pathIndex) {
+                        if (pathIndex > 0) {
+                            result.error += ",";
+                        }
+                        result.error += path[pathIndex];
+                    }
+                }
                 return result;
             }
             const ps_step_result& stepResult = edge.stepResult;
             ++result.generated;
 
-            if (stepResult.restarted) {
+            if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                 continue;
             }
 
@@ -2407,7 +2460,7 @@ Result runAdaptivePortfolioSearch(
             const ps_step_result& stepResult = edge.stepResult;
             ++result.generated;
 
-            if (stepResult.restarted) {
+            if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                 continue;
             }
 
@@ -3062,7 +3115,7 @@ Result runHashDistributedWeightedAStarSearch(
                 const ps_step_result& stepResult = edge.stepResult;
                 ++shard.generated;
 
-                if (stepResult.restarted) {
+                if ((edge.compactTurn.handled && edge.compactTurn.discard) || stepResult.restarted) {
                     continue;
                 }
 

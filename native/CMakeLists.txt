@@ -68,6 +68,7 @@ set(PUZZLESCRIPT_COMPILER_PUBLIC_HEADERS
 
 set(PUZZLESCRIPT_COMPILER_SOURCES
   src/compiler/compact_turn_codegen.cpp
+  src/compiler/compact_turn_program.cpp
   src/compiler/compiled_rules_codegen.cpp
   src/compiler/compile_diagnostics.cpp
   src/compiler/c_api.cpp
@@ -335,6 +336,10 @@ target_include_directories(puzzlescript_cpp_player_api_tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+if(PS_COMPILED_RULES_SOURCE_ABS_LIST)
+  target_sources(puzzlescript_cpp_player_api_tests PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
+endif()
 
 add_dependencies(puzzlescript_cpp puzzlescript_cpp_player_api_tests)
 

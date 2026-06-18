@@ -20,7 +20,7 @@
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
-	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
+	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
 	rule_plan_parity_tests \
 	profile_simulation_tests profile_simulation_tests_32 basic_test_suite_cpp basic_test_suite_js \
@@ -210,6 +210,7 @@ SOLVER_FOCUS_PERF_INTERPRETED_OUT ?= $(BUILD_DIR)/native/solver_focus_perf_inter
 SOLVER_FOCUS_PERF_COMPILED_OUT ?= $(BUILD_DIR)/native/solver_focus_perf_compiled.json
 SOLVER_FOCUS_COMPACT_PERF_COMPILED_OUT ?= $(BUILD_DIR)/native/solver_focus_perf_compiled_compact.json
 SOLVER_FOCUS_COMPACT_CODEGEN_PERF_COMPILED_OUT ?= $(BUILD_DIR)/native/solver_focus_perf_compiled_compact_codegen.json
+COMPACT_TURN_CODEGEN_COMMAND_API_SOURCE ?= native/tests/compact_turn_solver_command_api.txt
 SOLVER_FOCUS_TIMEOUT_MS ?= 500
 SOLVER_FOCUS_MIN_ELAPSED_MS ?= 250
 SOLVER_FOCUS_MAX_TARGETS ?= 50
@@ -313,6 +314,8 @@ COMPILED_RULES_FINGERPRINT_INPUTS := \
 	native/src/cli/main.cpp \
 	native/src/compiler/compact_turn_codegen.cpp \
 	native/src/compiler/compact_turn_codegen.hpp \
+	native/src/compiler/compact_turn_program.cpp \
+	native/src/compiler/compact_turn_program.hpp \
 	native/src/compiler/compiled_rules_codegen.cpp \
 	native/src/compiler/compiled_rules_codegen.hpp \
 	native/src/runtime/compiled_rules.cpp \
@@ -937,6 +940,21 @@ compact_turn_codegen_solver_parity: build
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	$(NODE) src/tests/run_solver_compact_parity.js "$$build_dir/native/puzzlescript_solver" "$(SOLVER_COMPACT_PARITY_CORPUS)" --timeout-ms $(SOLVER_COMPACT_PARITY_TIMEOUT_MS) --strategy $(SOLVER_COMPACT_PARITY_STRATEGY) $(SOLVER_COMPACT_PARITY_GAME_ARG) $(SOLVER_COMPACT_PARITY_LEVEL_ARG) $(SOLVER_COMPACT_PARITY_MAX_GAMES_ARG) --compact-turn-oracle --require-compact-oracle-checks --require-compact-handled
 
+compact_turn_codegen_solver_command_api: build
+	@set -e; \
+	$(COMPILED_RULES_BOOTSTRAP_CPP); \
+	hash=$$(shasum -a 256 "$(COMPACT_TURN_CODEGEN_COMMAND_API_SOURCE)" | awk '{print $$1}'); \
+	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/compact-codegen-command-api-$$hash"; \
+	build_dir="$(COMPILED_RULES_BUILD_ROOT)/compact-codegen-command-api-$$hash"; \
+	out_cpp_dir="$$out_dir/sources"; \
+	sources_file="$$out_dir/sources.txt"; \
+	mkdir -p "$$out_dir"; \
+	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,$(COMPACT_TURN_CODEGEN_COMMAND_API_SOURCE),compact_codegen_command_api_$$hash,--compact-turn-only --compact-turn-mode=compiler); \
+	$(NODE) -e 'const fs=require("fs"); const sources=fs.readFileSync(process.argv[1],"utf8").trim().split(/\r?\n/).filter(Boolean); const text=sources.map(p=>fs.readFileSync(p,"utf8")).join("\n"); const blocks=[...text.matchAll(/_layer_coupled_movement_terms\[\]\s*=\s*\{([\s\S]*?)\};/g)].map(m=>m[1]); if (!blocks.some(block=>/,\s*0\},/.test(block))) throw new Error("expected clear-only layer-coupled movement term");' "$$sources_file"; \
+	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
+	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_cpp_player_api_tests; \
+	PUZZLESCRIPT_COMPILED_COMPACT_DISCARD_SOURCE="$$PWD/$(COMPACT_TURN_CODEGEN_COMMAND_API_SOURCE)" "$$build_dir/native/puzzlescript_cpp_player_api_tests"
+
 compact_turn_codegen_frontier:
 	$(NODE) scripts/list_compact_codegen_frontier.js src/tests/resources/testdata.js --limit $(COMPACT_TURN_CODEGEN_FRONTIER_LIMIT) --after $(COMPACT_TURN_CODEGEN_FRONTIER_AFTER)
 
@@ -1010,6 +1028,13 @@ compact_turn_codegen_coverage:
 	mkdir -p "$$(dirname "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)")"; \
 	$(PUZZLESCRIPT_CPP) compile-rules src/tests/resources/testdata.js --stats-only --max-rows $(COMPACT_TURN_TESTDATA_MAX_ROWS) --coverage-json "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)" --compact-turn-mode=compiler; \
 	$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const c=j.aggregate.compact_turn||j.aggregate.compact_tick; const sources=c.sources; const native=c.native_kernel_supported; const bridge=c.interpreter_bridge_supported; const callable=c.whole_turn_supported; const pct=n=>sources?((100*n/sources).toFixed(1)+"%"):"n/a"; console.log(""); console.log("compact_turn_codegen_coverage"); console.log("  json: "+path); console.log("  unique_sources: "+sources); console.log("  callable_compact_backends: "+callable+"/"+sources+" ("+pct(callable)+")"); console.log("  native_compact_kernels: "+native+"/"+sources+" ("+pct(native)+")"); console.log("  interpreter_bridge_backends: "+bridge+"/"+sources+" ("+pct(bridge)+")"); console.log("  max_rows: "+j.max_rows); if (callable !== sources) throw new Error("expected every compiler-mode source to emit a callable compact backend"); if (native + bridge !== sources) throw new Error("expected native+bridge to cover every compiler-mode source");' "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)"
+
+compact_turn_native_parity: build
+	@set -e; \
+	$(COMPILED_RULES_BOOTSTRAP_CPP); \
+	mkdir -p "$$(dirname "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)")"; \
+	$(PUZZLESCRIPT_CPP) compile-rules src/tests/solver_tests --stats-only --compact-turn-only --compact-turn-mode=compiler --coverage-json "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)"; \
+	$(NODE) src/tests/compact_turn_native_parity_node.js "$(COMPACT_TURN_CODEGEN_COVERAGE_JSON)"
 
 solver_determinism_tests: $(SOLVER_TARGET_PREREQ)
 	@if [ "$(SPECIALIZE)" = "true" ]; then \
