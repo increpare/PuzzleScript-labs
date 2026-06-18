@@ -6835,6 +6835,11 @@ TurnResult executeTurn(FullState& session, int32_t directionMask, ExecuteTurnOpt
         if (options.pushUndo) {
             discardTopUndoSnapshot(session);
         }
+        if (options.solverMode) {
+            result.changed = false;
+            rebuildMasks(session);
+            return out;
+        }
         out.audio.clear();
         if (!options.dontModify && options.emitAudio) {
             tryPlaySimpleSound(session, out, "cancel");

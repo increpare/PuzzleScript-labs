@@ -16,6 +16,9 @@ red
 Crate2
 green
 
+Armed
+blue
+
 =======
 LEGEND
 =======
@@ -24,6 +27,7 @@ LEGEND
 P = Player
 C = Crate
 D = Crate2
+A = Player and Armed
 Box = Crate or Crate2
 
 ================
@@ -33,6 +37,7 @@ COLLISIONLAYERS
 Background
 Player, Crate
 Crate2
+Armed
 
 ======
 RULES
@@ -42,6 +47,8 @@ RULES
 [ Action Player ] -> [ Background ] restart
 right [ > Player | Box ] -> [ > Player | > Box ]
 right [ > Player | > Box ] -> [ > Player | Box ]
+[ < Player ] -> [ < Player Armed ] again
+[ stationary Player Armed ] -> cancel
 
 =======
 LEVELS
@@ -50,3 +57,5 @@ LEVELS
 P.
 
 PC.
+
+P

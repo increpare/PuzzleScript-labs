@@ -2031,6 +2031,16 @@ Result runSearch(
             if (edge.oracleMismatch) {
                 result.status = "level_error";
                 result.error = edge.oracleError;
+                const std::vector<std::string> path = reconstructSolution(nodes, entry.nodeIndex, input, result.timing);
+                if (!path.empty()) {
+                    result.error += " path=";
+                    for (size_t pathIndex = 0; pathIndex < path.size(); ++pathIndex) {
+                        if (pathIndex > 0) {
+                            result.error += ",";
+                        }
+                        result.error += path[pathIndex];
+                    }
+                }
                 return result;
             }
             const ps_step_result& stepResult = edge.stepResult;

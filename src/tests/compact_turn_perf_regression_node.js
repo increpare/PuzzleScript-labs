@@ -123,10 +123,9 @@ const cases = [
         validate(interpreter, compiled) {
             const generatedClose = compiled.result.generated >= interpreter.result.generated * 0.9;
             const throughputClose = msPerGenerated(compiled) <= msPerGenerated(interpreter) * 1.15;
-            const usedNative = compiled.result.compact_turn_native_hits > 0;
             assert.ok(
-                usedNative || compiled.result.compact_turn_native_attempts === 0,
-                'Voitex should either use native compact turns or deliberately skip native compact turns'
+                compiled.result.compact_turn_native_hits > 0,
+                'Voitex should use native compact turns after mini-VM parity'
             );
             assert.ok(
                 generatedClose || throughputClose,

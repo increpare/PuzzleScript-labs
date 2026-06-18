@@ -45,7 +45,7 @@ This plan implements compact-turn native kernel parity only. It does not change 
 - Create: `src/tests/compact_turn_native_parity_node.js`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Write the failing coverage test**
+- [x] **Step 1: Write the failing coverage test**
 
 Create `src/tests/compact_turn_native_parity_node.js`:
 
@@ -94,7 +94,7 @@ assert.strictEqual(reasons.native_kernel, sources, `expected native_kernel=${sou
 console.log(`compact_turn_native_parity_node passed native=${compact.native_kernel_supported}/${sources}`);
 ```
 
-- [ ] **Step 2: Add the Make target**
+- [x] **Step 2: Add the Make target**
 
 Add the target after `compact_turn_codegen_coverage` in `Makefile`:
 
@@ -109,7 +109,7 @@ compact_turn_native_parity: build
 
 Add `compact_turn_native_parity` to the `.PHONY` block near the other compact-turn targets.
 
-- [ ] **Step 3: Run the test and verify it fails on current coverage**
+- [x] **Step 3: Run the test and verify it fails on current coverage**
 
 Run:
 
@@ -119,7 +119,7 @@ make compact_turn_native_parity
 
 Expected: fail with `every source must use a native compact-turn kernel` because current coverage is `33/182`.
 
-- [ ] **Step 4: Commit the failing test**
+- [x] **Step 4: Commit the failing test**
 
 ```bash
 git add Makefile src/tests/compact_turn_native_parity_node.js
@@ -133,7 +133,7 @@ git commit -m "test: add strict compact turn native parity gate"
 - Modify: `native/src/runtime/core.cpp`
 - Modify: `native/src/solver/main.cpp`
 
-- [ ] **Step 1: Extend the compact-turn outcome interface**
+- [x] **Step 1: Extend the compact-turn outcome interface**
 
 In `native/src/runtime/compiled_rules.hpp`, change `SpecializedCompactTurnOutcome` to:
 
@@ -148,7 +148,7 @@ struct SpecializedCompactTurnOutcome {
 };
 ```
 
-- [ ] **Step 2: Extend the solver compact result**
+- [x] **Step 2: Extend the solver compact result**
 
 In `native/src/solver/main.cpp`, change `CompactTurnTryResult` to:
 
@@ -170,7 +170,7 @@ Then copy the fields in `trySpecializedCompactTurn` after `result.handled = outc
     result.discardReason = outcome.discardReason;
 ```
 
-- [ ] **Step 3: Skip child creation for discarded compact edges**
+- [x] **Step 3: Skip child creation for discarded compact edges**
 
 In `stepSolverEdge`, directly after a handled compact turn is recorded and before the fallback child preparation block, add:
 
@@ -181,7 +181,7 @@ In `stepSolverEdge`, directly after a handled compact turn is recorded and befor
     }
 ```
 
-- [ ] **Step 4: Skip solver queue work for discarded compact edges**
+- [x] **Step 4: Skip solver queue work for discarded compact edges**
 
 In each solver loop that currently checks `if (stepResult.restarted) { continue; }`, replace it with:
 
@@ -193,7 +193,7 @@ In each solver loop that currently checks `if (stepResult.restarted) { continue;
 
 There are three loops to update: the BFS/weighted loop, portfolio loop, and HDA loop.
 
-- [ ] **Step 5: Make the runtime wrapper return discard immediately**
+- [x] **Step 5: Make the runtime wrapper return discard immediately**
 
 In `compiledCompactPrimaryTurn` in `native/src/runtime/core.cpp`, after `ps_step_result result = outcome.result;`, add:
 
@@ -208,7 +208,7 @@ In `compiledCompactPrimaryTurn` in `native/src/runtime/core.cpp`, after `ps_step
     }
 ```
 
-- [ ] **Step 6: Build and run existing compact parity**
+- [x] **Step 6: Build and run existing compact parity**
 
 Run:
 
@@ -219,7 +219,7 @@ make compact_turn_codegen_solver_parity
 
 Expected: both pass with no behavior change, because no generated backend sets `discard=true` yet.
 
-- [ ] **Step 7: Commit outcome plumbing**
+- [x] **Step 7: Commit outcome plumbing**
 
 ```bash
 git add native/src/runtime/compiled_rules.hpp native/src/runtime/core.cpp native/src/solver/main.cpp
@@ -234,7 +234,7 @@ git commit -m "feat: add compact turn solver discard outcome"
 - Modify: `native/CMakeLists.txt`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Add the IR header**
+- [x] **Step 1: Add the IR header**
 
 Create `native/src/compiler/compact_turn_program.hpp`:
 
@@ -289,7 +289,7 @@ const char* compactTurnProgramOpName(CompactTurnProgramOp op);
 } // namespace puzzlescript::compiler
 ```
 
-- [ ] **Step 2: Add the IR builder implementation**
+- [x] **Step 2: Add the IR builder implementation**
 
 Create `native/src/compiler/compact_turn_program.cpp`:
 
@@ -394,7 +394,7 @@ const char* compactTurnProgramOpName(CompactTurnProgramOp op) {
 } // namespace puzzlescript::compiler
 ```
 
-- [ ] **Step 3: Wire the new compiler source into CMake and Make fingerprints**
+- [x] **Step 3: Wire the new compiler source into CMake and Make fingerprints**
 
 In `native/CMakeLists.txt`, add `src/compiler/compact_turn_program.cpp` to `PUZZLESCRIPT_COMPILER_SOURCES` directly after `src/compiler/compact_turn_codegen.cpp`.
 
@@ -405,7 +405,7 @@ In `Makefile`, add these two files to `COMPILED_RULES_FINGERPRINT_INPUTS`:
 	native/src/compiler/compact_turn_program.hpp \
 ```
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 Run:
 
@@ -415,7 +415,7 @@ make build
 
 Expected: native build passes.
 
-- [ ] **Step 5: Commit the IR scaffold**
+- [x] **Step 5: Commit the IR scaffold**
 
 ```bash
 git add native/CMakeLists.txt Makefile native/src/compiler/compact_turn_program.hpp native/src/compiler/compact_turn_program.cpp
@@ -427,7 +427,7 @@ git commit -m "feat: add compact turn program ir"
 **Files:**
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 
-- [ ] **Step 1: Include the program builder**
+- [x] **Step 1: Include the program builder**
 
 Near the top of `native/src/compiler/compact_turn_codegen.cpp`, add:
 
@@ -435,7 +435,7 @@ Near the top of `native/src/compiler/compact_turn_codegen.cpp`, add:
 #include "compiler/compact_turn_program.hpp"
 ```
 
-- [ ] **Step 2: Emit a program description comment for each generated backend**
+- [x] **Step 2: Emit a program description comment for each generated backend**
 
 In `emitCompactTurnBackend`, immediately after computing the `suffix`, add:
 
@@ -455,7 +455,7 @@ Then emit a comment block before the generated access layer:
         << "\\n";
 ```
 
-- [ ] **Step 3: Rename the existing single-turn body as the first executor backend**
+- [x] **Step 3: Rename the existing single-turn body as the first executor backend**
 
 Keep the current generated semantics intact by renaming the emitted function from:
 
@@ -471,7 +471,7 @@ compact_turn_execute_program_<suffix>
 
 Then update every generated call site inside `emitCompactTurnCompilerStepBody` and `emitCompactTurnCompilerDrainBody` to call `compact_turn_execute_program_<suffix>`.
 
-- [ ] **Step 4: Build and run parity**
+- [x] **Step 4: Build and run parity**
 
 Run:
 
@@ -482,7 +482,7 @@ make compact_turn_codegen_solver_parity
 
 Expected: parity still passes and coverage remains `33/182` native because blocker gates are unchanged.
 
-- [ ] **Step 5: Commit the executor routing**
+- [x] **Step 5: Commit the executor routing**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp
@@ -495,7 +495,7 @@ git commit -m "refactor: route compact turns through generated executor"
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `src/tests/compact_turn_native_parity_node.js`
 
-- [ ] **Step 1: Add a no-rule focused assertion**
+- [x] **Step 1: Add a no-rule focused assertion**
 
 In `src/tests/compact_turn_native_parity_node.js`, after reading `reasons`, add:
 
@@ -503,7 +503,7 @@ In `src/tests/compact_turn_native_parity_node.js`, after reading `reasons`, add:
 assert.strictEqual(reasons.no_rules || 0, 0, 'no-rule games must lower to tiny native programs');
 ```
 
-- [ ] **Step 2: Remove the no-rule support blocker**
+- [x] **Step 2: Remove the no-rule support blocker**
 
 In `compactNativeTurnUnsupportedReasonForGame`, delete this block:
 
@@ -513,7 +513,7 @@ In `compactNativeTurnUnsupportedReasonForGame`, delete this block:
     }
 ```
 
-- [ ] **Step 3: Ensure empty rule phases are valid**
+- [x] **Step 3: Ensure empty rule phases are valid**
 
 In `emitCompactRulePhaseGroupFunctions`, keep the existing no-group emission path and make sure it emits:
 
@@ -528,7 +528,7 @@ bool compact_turn_apply_<phase>_rules_<suffix>(LevelDimensions dimensions, Persi
 }
 ```
 
-- [ ] **Step 4: Verify no-rule coverage improves**
+- [x] **Step 4: Verify no-rule coverage improves**
 
 Run:
 
@@ -540,7 +540,7 @@ make compact_turn_codegen_solver_parity
 
 Expected: `no_rules` count is zero and solver parity passes.
 
-- [ ] **Step 5: Commit no-rule native lowering**
+- [x] **Step 5: Commit no-rule native lowering**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp src/tests/compact_turn_native_parity_node.js
@@ -553,7 +553,7 @@ git commit -m "feat: lower no-rule compact turns natively"
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/src/solver/main.cpp`
 
-- [ ] **Step 1: Emit command discard helpers**
+- [x] **Step 1: Emit command discard helpers**
 
 Inside `emitCompactTurnAccessLayer`, after `CompactTurnCommands_<suffix>`, emit:
 
@@ -569,7 +569,7 @@ SpecializedCompactTurnOutcome compact_turn_solver_discard_<suffix>(const char* r
 }
 ```
 
-- [ ] **Step 2: Return discard for solver cancel/restart**
+- [x] **Step 2: Return discard for solver cancel/restart**
 
 In the generated command handling section of the executor, before player-policy rollback/restart code, emit:
 
@@ -586,7 +586,7 @@ In the generated command handling section of the executor, before player-policy 
 
 Use the real generated suffix in the emitted text.
 
-- [ ] **Step 3: Keep checkpoint/message/sfx output-only in solver mode**
+- [x] **Step 3: Keep checkpoint/message/sfx output-only in solver mode**
 
 Confirm `emitCompactRuleCommandFunction` only sets flags for checkpoint/message/sfx and does not mutate board state. Add this comment in the generated message/sfx branches:
 
@@ -594,7 +594,7 @@ Confirm `emitCompactRuleCommandFunction` only sets flags for checkpoint/message/
     // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.
 ```
 
-- [ ] **Step 4: Remove the cancel blocker**
+- [x] **Step 4: Remove the cancel blocker**
 
 In `compactNativeTurnUnsupportedReasonForGame`, delete:
 
@@ -604,7 +604,7 @@ In `compactNativeTurnUnsupportedReasonForGame`, delete:
     }
 ```
 
-- [ ] **Step 5: Run command parity**
+- [x] **Step 5: Run command parity**
 
 Run:
 
@@ -616,7 +616,7 @@ make compact_turn_codegen_solver_parity
 
 Expected: `cancel_command` count is zero and solver parity passes.
 
-- [ ] **Step 6: Commit command policy**
+- [x] **Step 6: Commit command policy**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp native/src/solver/main.cpp
@@ -629,7 +629,7 @@ git commit -m "feat: handle compact solver command discards natively"
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `src/tests/compact_turn_perf_regression_node.js`
 
-- [ ] **Step 1: Remove `again` as a native blocker**
+- [x] **Step 1: Remove `again` as a native blocker**
 
 In `compactNativeTurnUnsupportedReasonForGame`, delete:
 
@@ -639,7 +639,7 @@ In `compactNativeTurnUnsupportedReasonForGame`, delete:
     }
 ```
 
-- [ ] **Step 2: Preserve native drain behavior in generated executor**
+- [x] **Step 2: Preserve native drain behavior in generated executor**
 
 In `emitCompactTurnCompilerDrainBody`, keep this structure and make every call target the renamed executor:
 
@@ -661,15 +661,21 @@ In `emitCompactTurnCompilerDrainBody`, keep this structure and make every call t
     }
 ```
 
-Inside the drain loop, stop immediately on discard:
+Inside the drain loop, keep the parent edge when an automatic `again` tick
+discards:
 
 ```cpp
-        if (!tickOutcome.handled || tickOutcome.discard) {
+        if (!tickOutcome.handled) {
             return tickOutcome;
+        }
+        if (tickOutcome.discard) {
+            hasAgain = false;
+            outcome.pendingAgain = false;
+            break;
         }
 ```
 
-- [ ] **Step 3: Verify `AgainPolicy::Drain` in coverage and parity**
+- [x] **Step 3: Verify `AgainPolicy::Drain` in coverage and parity**
 
 Run:
 
@@ -681,7 +687,16 @@ make compact_turn_codegen_solver_parity
 
 Expected: `again_command` count is zero and solver parity passes.
 
-- [ ] **Step 4: Tighten the Voitex perf regression to require native**
+Status: coverage passed with `again_command=0` and native coverage `74/182`.
+`make compact_turn_codegen_solver_parity` passed with `games=153/153`,
+`levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`.
+The previous `It gets its Feet Wet.txt#1` mismatch was fixed by preserving the
+primary edge when an internal automatic `again` tick returns solver discard and
+by teaching generated pattern matching to honor `anyMovements` and
+layer-coupled movement pattern masks. The run still reported
+`compact_timeout_regressions=5`, which is performance debt for a follow-up.
+
+- [x] **Step 4: Tighten the Voitex perf regression to require native**
 
 In `src/tests/compact_turn_perf_regression_node.js`, replace the Voitex native-skip assertion:
 
@@ -702,10 +717,10 @@ with:
             );
 ```
 
-- [ ] **Step 5: Commit native again support**
+- [x] **Step 5: Commit native again support**
 
 ```bash
-git add native/src/compiler/compact_turn_codegen.cpp src/tests/compact_turn_perf_regression_node.js
+git add docs/superpowers/plans/2026-06-17-compact-turn-native-mini-vm.md native/src/compiler/compact_turn_codegen.cpp native/src/runtime/core.cpp native/src/solver/main.cpp native/tests/compact_turn_solver_command_api.txt native/tests/player_api_tests.cpp src/tests/compact_turn_perf_regression_node.js
 git commit -m "feat: drain compact again natively"
 ```
 

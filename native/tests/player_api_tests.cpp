@@ -3,10 +3,15 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 
+#include "compiler/lower_to_runtime.hpp"
+#include "compiler/parser.hpp"
 #include "puzzlescript/puzzlescript.h"
+#include "runtime/compiled_rules.hpp"
+#include "runtime/core.hpp"
 
 namespace {
 
@@ -88,8 +93,201 @@ std::string readTextFile(const char* path) {
     return buffer.str();
 }
 
+std::string readCompiledRulesSourceText(const char* path) {
+    return readTextFile(path) + "\n";
+}
+
+void require(bool condition, const char* message) {
+    if (!condition) {
+        std::cerr << message << "\n";
+        std::abort();
+    }
+}
+
+std::string serializedState(const SessionHandle& session) {
+    char* raw = ps_full_state_serialize_test_string(session.state);
+    const std::string value = raw ? raw : "";
+    ps_string_free(raw);
+    return value;
+}
+
+void drainInterpreterSolverAgain(SessionHandle& session) {
+    for (int pass = 0; pass < 500 && ps_full_state_pending_again(session.state); ++pass) {
+        (void)ps_full_state_turn_with_options(session.state, PS_INPUT_TICK, true);
+    }
+}
+
+void drainCompiledCompactSolverAgain(SessionHandle& session) {
+    for (int pass = 0; pass < 500 && ps_full_state_pending_again(session.state); ++pass) {
+        bool handled = false;
+        (void)ps_full_state_turn_compiled_compact(session.state, PS_INPUT_TICK, true, &handled);
+        require(handled, "compiled compact tick was not handled");
+    }
+}
+
+void assertSolverStatesEqual(const SessionHandle& interpreter, const SessionHandle& compiled, const char* label) {
+    const std::string interpreterSerialized = serializedState(interpreter);
+    const std::string compiledSerialized = serializedState(compiled);
+    if (interpreterSerialized != compiledSerialized) {
+        std::cerr << "compiled compact solver path mismatch after " << label
+                  << "\ninterpreter:\n" << interpreterSerialized
+                  << "\ncompiled:\n" << compiledSerialized << "\n";
+        std::abort();
+    }
+}
+
+void assertPersistentStateMatches(
+    const puzzlescript::FullState& interpreter,
+    const puzzlescript::PersistentLevelState& compact,
+    const char* label
+) {
+    if (interpreter.levelState.board.objects != compact.board.objects) {
+        const size_t count = std::min(interpreter.levelState.board.objects.size(), compact.board.objects.size());
+        for (size_t index = 0; index < count; ++index) {
+            if (interpreter.levelState.board.objects[index] != compact.board.objects[index]) {
+                std::cerr << "fresh-scratch compact solver path mismatch after " << label
+                          << " word=" << index
+                          << " compact=" << compact.board.objects[index]
+                          << " interpreter=" << interpreter.levelState.board.objects[index]
+                          << "\n";
+                size_t printed = 0;
+                for (size_t diffIndex = 0; diffIndex < count && printed < 40; ++diffIndex) {
+                    if (interpreter.levelState.board.objects[diffIndex] != compact.board.objects[diffIndex]) {
+                        std::cerr << "diff word=" << diffIndex
+                                  << " compact=" << compact.board.objects[diffIndex]
+                                  << " interpreter=" << interpreter.levelState.board.objects[diffIndex]
+                                  << "\n";
+                        ++printed;
+                    }
+                }
+                std::abort();
+            }
+        }
+        std::cerr << "fresh-scratch compact solver path size mismatch after " << label
+                  << " compact=" << compact.board.objects.size()
+                  << " interpreter=" << interpreter.levelState.board.objects.size()
+                  << "\n";
+        std::abort();
+    }
+    if (interpreter.levelState.rng.valid != compact.rng.valid
+        || interpreter.levelState.rng.i != compact.rng.i
+        || interpreter.levelState.rng.j != compact.rng.j
+        || interpreter.levelState.rng.s != compact.rng.s) {
+        std::cerr << "fresh-scratch compact solver rng mismatch after " << label << "\n";
+        std::abort();
+    }
+}
+
+void runCompiledCompactSolverFreshScratchRegression(const std::string& source) {
+    puzzlescript::compiler::DiagnosticSink diagnostics;
+    const auto parserState = puzzlescript::compiler::parseSource(source, diagnostics);
+    puzzlescript::LoadedGame loadedGame;
+    if (auto error = puzzlescript::compiler::lowerToRuntimeGame(parserState, loadedGame)) {
+        std::cerr << "fresh-scratch source failed: " << error->message << "\n";
+        std::abort();
+    }
+    require(loadedGame.information != nullptr, "fresh-scratch lowering produced no game");
+    puzzlescript::attachLinkedCompiledRules(
+        *std::const_pointer_cast<puzzlescript::Game>(loadedGame.information),
+        source
+    );
+    const puzzlescript::Game& game = *loadedGame.information;
+    require(game.specializedCompactTurn != nullptr, "fresh-scratch compact backend was not attached");
+    require(game.specializedCompactTurn->step != nullptr, "fresh-scratch compact backend has no step");
+    require(game.specializedCompactTurn->nativeKernel, "fresh-scratch compact backend is not native");
+
+    constexpr puzzlescript::RuntimeStepOptions kSolverStepOptions{
+        .playableUndo = false,
+        .emitAudio = false,
+        .solverMode = true,
+        .againPolicy = puzzlescript::AgainPolicy::Drain,
+    };
+    std::unique_ptr<puzzlescript::FullState> interpreter =
+        puzzlescript::createFullStateWithLoadedLevelSeed(loadedGame, "solver:It gets its Feet Wet.txt:1");
+    require(interpreter != nullptr, "fresh-scratch failed to create session");
+    interpreter->meta.suppressRuleMessages = true;
+    puzzlescript::RuntimeStepOptions loadOptions;
+    loadOptions.playableUndo = false;
+    loadOptions.emitAudio = false;
+    loadOptions.solverMode = true;
+    loadOptions.againPolicy = puzzlescript::AgainPolicy::Yield;
+    if (auto error = puzzlescript::loadLevel(*interpreter, 1, loadOptions)) {
+        std::cerr << "fresh-scratch failed to load level: " << error->message << "\n";
+        std::abort();
+    }
+
+    puzzlescript::PersistentLevelState compact;
+    compact.board.objects = interpreter->levelState.board.objects;
+    compact.rng = interpreter->levelState.rng;
+    const puzzlescript::SpecializedCompactTurnContext context{
+        puzzlescript::LevelDimensions{
+            interpreter->meta.levelDimensions.width,
+            interpreter->meta.levelDimensions.height,
+        },
+        interpreter->meta.currentLevelIndex,
+    };
+    assertPersistentStateMatches(*interpreter, compact, "load");
+
+    constexpr ps_input kInputs[] = {PS_INPUT_UP, PS_INPUT_ACTION, PS_INPUT_UP};
+    constexpr const char* kLabels[] = {"up", "up,action", "up,action,up"};
+    for (size_t index = 0; index < 3; ++index) {
+        (void)puzzlescript::turn(*interpreter, kInputs[index], kSolverStepOptions);
+
+        puzzlescript::Scratch scratch;
+        const puzzlescript::SpecializedCompactTurnOutcome outcome = game.specializedCompactTurn->step(
+            game,
+            compact,
+            scratch,
+            context,
+            kInputs[index],
+            kSolverStepOptions
+        );
+        require(outcome.handled, "fresh-scratch compact turn was not handled");
+        require(!outcome.discard, "fresh-scratch compact turn unexpectedly discarded");
+        assertPersistentStateMatches(*interpreter, compact, kLabels[index]);
+    }
+}
+
+void runCompiledCompactSolverPathRegression(const char* sourcePath) {
+    const std::string source = readCompiledRulesSourceText(sourcePath);
+    runCompiledCompactSolverFreshScratchRegression(source);
+
+    CompileHandle compiled;
+    if (!ps_compile_source(source.data(), source.size(), &compiled.result)) {
+        const ps_error* error = ps_compile_result_error(compiled.result);
+        std::cerr << "compiled compact solver path source failed: " << ps_error_message(error) << "\n";
+        std::abort();
+    }
+
+    const ps_game* game = ps_compile_result_game(compiled.result);
+    require(game != nullptr, "compiled compact solver path produced no game");
+    SessionHandle interpreter;
+    SessionHandle compact;
+    ps_error* error = nullptr;
+    require(ps_full_state_create(game, &interpreter.state, &error), "failed to create interpreter session");
+    require(ps_full_state_create(game, &compact.state, &error), "failed to create compact session");
+    require(ps_full_state_load_level(interpreter.state, 1, &error), "failed to load interpreter level");
+    require(ps_full_state_load_level(compact.state, 1, &error), "failed to load compact level");
+    assertSolverStatesEqual(interpreter, compact, "load");
+
+    constexpr ps_input kInputs[] = {PS_INPUT_UP, PS_INPUT_ACTION, PS_INPUT_UP};
+    constexpr const char* kLabels[] = {"up", "up,action", "up,action,up"};
+    for (size_t index = 0; index < 3; ++index) {
+        (void)ps_full_state_turn_with_options(interpreter.state, kInputs[index], true);
+        drainInterpreterSolverAgain(interpreter);
+
+        bool handled = false;
+        (void)ps_full_state_turn_compiled_compact(compact.state, kInputs[index], true, &handled);
+        require(handled, "compiled compact solver path input was not handled");
+        drainCompiledCompactSolverAgain(compact);
+        assertSolverStatesEqual(interpreter, compact, kLabels[index]);
+    }
+
+    ps_free_game(const_cast<ps_game*>(game));
+}
+
 void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
-    const std::string source = readTextFile(sourcePath);
+    const std::string source = readCompiledRulesSourceText(sourcePath);
     CompileHandle compiled;
     if (!ps_compile_source(source.data(), source.size(), &compiled.result)) {
         const ps_error* error = ps_compile_result_error(compiled.result);
@@ -103,6 +301,7 @@ void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
     assert(ps_game_object_count(game) >= 4);
     constexpr int32_t kPlayerId = 1;
     constexpr int32_t kCrateId = 2;
+    constexpr int32_t kArmedId = 4;
 
     SessionHandle session;
     ps_error* error = nullptr;
@@ -144,6 +343,21 @@ void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
     assert(ps_full_state_cell_has_object(movementSession.state, 1, 0, kCrateId));
     assert(!ps_full_state_cell_has_object(movementSession.state, 2, 0, kCrateId));
 
+    SessionHandle againCancelSession;
+    assert(ps_full_state_create(game, &againCancelSession.state, &error));
+    assert(ps_full_state_load_level(againCancelSession.state, 2, &error));
+    assert(ps_full_state_cell_has_object(againCancelSession.state, 0, 0, kPlayerId));
+    assert(!ps_full_state_cell_has_object(againCancelSession.state, 0, 0, kArmedId));
+
+    handled = false;
+    const ps_step_result againCancelResult =
+        ps_full_state_turn_compiled_compact(againCancelSession.state, PS_INPUT_LEFT, true, &handled);
+    assert(handled);
+    assert(againCancelResult.changed);
+    assert(!ps_full_state_pending_again(againCancelSession.state));
+    assert(ps_full_state_cell_has_object(againCancelSession.state, 0, 0, kPlayerId));
+    assert(ps_full_state_cell_has_object(againCancelSession.state, 0, 0, kArmedId));
+
     ps_free_game(const_cast<ps_game*>(game));
 }
 
@@ -152,6 +366,9 @@ void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
 int main() {
     if (const char* compactDiscardSource = std::getenv("PUZZLESCRIPT_COMPILED_COMPACT_DISCARD_SOURCE")) {
         runCompiledCompactSolverDiscardRegression(compactDiscardSource);
+    }
+    if (const char* compactSolverPathSource = std::getenv("PUZZLESCRIPT_COMPILED_COMPACT_SOLVER_PATH_SOURCE")) {
+        runCompiledCompactSolverPathRegression(compactSolverPathSource);
     }
 
     CompileHandle compiled;

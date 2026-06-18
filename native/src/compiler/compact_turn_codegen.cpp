@@ -28,6 +28,14 @@ size_t compactLayerCoupledMovementTermCount(const Replacement& replacement) {
     return count;
 }
 
+size_t compactLayerCoupledMovementTermCount(const Pattern& pattern) {
+    size_t count = 0;
+    for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+        count += coupled.layers.size();
+    }
+    return count;
+}
+
 std::string compactRulePatternUnsupportedReason(const Pattern& pattern) {
     if (pattern.kind == Pattern::Kind::Ellipsis) {
         return {};
@@ -165,9 +173,6 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
     if (hasGameMetadata(game, "run_rules_on_level_start") && hasAnyRulegroups(game.lateRules)
         && !hasTransparentColoredObject(game)) {
         return "run_rules_on_level_start_late_rules";
-    }
-    if (hasRuleCommand(game, "again")) {
-        return "again_command";
     }
     if (hasGameMetadata(game, "verbose_logging")) {
         return "verbose_logging";
@@ -535,6 +540,18 @@ void emitCompactRuleMaskData(
                         const MaskOffset offset = game.anyObjectOffsets[pattern.anyObjectsFirst + anyIndex];
                         masks.emitName(compiledMaskWords(game, offset, game.wordCount));
                     }
+                    for (uint32_t anyIndex = 0; anyIndex < pattern.anyMovementsCount; ++anyIndex) {
+                        const MaskOffset offset = game.anyMovementOffsets[pattern.anyMovementsFirst + anyIndex];
+                        masks.emitName(compiledMaskWords(game, offset, game.movementWordCount));
+                    }
+                    for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+                        for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                            masks.emitName(compiledMaskWords(game, layerTerm.objectMask, game.wordCount));
+                            masks.emitName(compiledMaskWords(game, layerTerm.movementsAny, game.movementWordCount));
+                            masks.emitName(compiledMaskWords(game, layerTerm.movementsPresent, game.movementWordCount));
+                            masks.emitName(compiledMaskWords(game, layerTerm.movementsMissing, game.movementWordCount));
+                        }
+                    }
                     if (pattern.anyObjectsCount > 0) {
                         out << "constexpr const MaskWord* " << prefix << "_any_object_masks[] = {";
                         for (uint32_t anyIndex = 0; anyIndex < pattern.anyObjectsCount; ++anyIndex) {
@@ -543,6 +560,35 @@ void emitCompactRuleMaskData(
                             out << compactMaskName(masks, game, offset, game.wordCount);
                         }
                         out << "};\n";
+                    }
+                    if (pattern.anyMovementsCount > 0) {
+                        out << "constexpr const MaskWord* " << prefix << "_any_movement_masks[] = {";
+                        for (uint32_t anyIndex = 0; anyIndex < pattern.anyMovementsCount; ++anyIndex) {
+                            if (anyIndex > 0) out << ", ";
+                            const MaskOffset offset = game.anyMovementOffsets[pattern.anyMovementsFirst + anyIndex];
+                            out << compactMaskName(masks, game, offset, game.movementWordCount);
+                        }
+                        out << "};\n";
+                    }
+                    const size_t patternLayerCoupledMovementTermCount =
+                        compactLayerCoupledMovementTermCount(pattern);
+                    if (patternLayerCoupledMovementTermCount > 0) {
+                        out << "constexpr CompactTurnLayerCoupledMovementTerm_" << suffix << " "
+                            << prefix << "_layer_coupled_movement_match_terms[] = {\n";
+                        for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+                            for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+                                out << "    {"
+                                    << layerTerm.layerIndex << ", "
+                                    << compactMaskName(masks, game, layerTerm.objectMask, game.wordCount) << ", "
+                                    << compactMaskName(masks, game, layerTerm.movementsAny, game.movementWordCount) << ", "
+                                    << compactMaskName(masks, game, layerTerm.movementsPresent, game.movementWordCount) << ", "
+                                    << compactMaskName(masks, game, layerTerm.movementsMissing, game.movementWordCount) << ", "
+                                    << coupled.replacementMovementMask << "},\n";
+                            }
+                        }
+                        out << "};\n";
+                        out << "constexpr size_t " << prefix << "_layer_coupled_movement_match_term_count = "
+                            << patternLayerCoupledMovementTermCount << ";\n";
                     }
                     if (pattern.replacement.has_value()) {
                         const Replacement& replacement = *pattern.replacement;
@@ -642,7 +688,18 @@ std::string compactPatternMatchesCall(
          << ", " << compactMaskName(masks, game, pattern.movementsPresent, game.movementWordCount)
          << ", " << compactMaskName(masks, game, pattern.movementsMissing, game.movementWordCount)
          << ", " << (pattern.anyObjectsCount > 0 ? prefix + "_any_object_masks" : "nullptr")
-         << ", " << pattern.anyObjectsCount << ")";
+         << ", " << pattern.anyObjectsCount
+         << ", " << (pattern.anyMovementsCount > 0 ? prefix + "_any_movement_masks" : "nullptr")
+         << ", " << pattern.anyMovementsCount
+         << ", "
+         << (compactLayerCoupledMovementTermCount(pattern) > 0
+                 ? prefix + "_layer_coupled_movement_match_terms"
+                 : "nullptr")
+         << ", "
+         << (compactLayerCoupledMovementTermCount(pattern) > 0
+                 ? prefix + "_layer_coupled_movement_match_term_count"
+                 : "0")
+         << ")";
     return call.str();
 }
 
@@ -2236,7 +2293,7 @@ void emitCompactTurnCompilerDrainBody(std::ostream& out, std::string_view suffix
         << "        false\n"
         << "    );\n"
         << "    outcome.pendingAgain = hasAgain;\n"
-        << "    if (!outcome.handled || options.againPolicy != AgainPolicy::Drain) {\n"
+        << "    if (!outcome.handled || options.againPolicy != AgainPolicy::Drain || outcome.discard) {\n"
         << "        return outcome;\n"
         << "    }\n"
         << "    constexpr int kMaxAgainIterations = 500;\n"
@@ -2258,6 +2315,11 @@ void emitCompactTurnCompilerDrainBody(std::ostream& out, std::string_view suffix
         << "        );\n"
         << "        if (!tickOutcome.handled) {\n"
         << "            return tickOutcome;\n"
+        << "        }\n"
+        << "        if (tickOutcome.discard) {\n"
+        << "            hasAgain = false;\n"
+        << "            outcome.pendingAgain = false;\n"
+        << "            break;\n"
         << "        }\n"
         << "        outcome.result.changed = outcome.result.changed || tickOutcome.result.changed;\n"
         << "        outcome.result.won = outcome.result.won || tickOutcome.result.won;\n"
@@ -2900,33 +2962,6 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    }\n"
         << "}\n\n";
 
-    out << "bool compact_turn_pattern_matches_" << suffix << "(\n"
-        << "    const PersistentLevelState& levelState,\n"
-        << "    const Scratch& scratch,\n"
-        << "    int32_t tileIndex,\n"
-        << "    const MaskWord* objectsPresent,\n"
-        << "    const MaskWord* objectsMissing,\n"
-        << "    const MaskWord* movementsPresent,\n"
-        << "    const MaskWord* movementsMissing,\n"
-        << "    const MaskWord* const* anyObjectMasks,\n"
-        << "    size_t anyObjectMaskCount\n"
-        << ") {\n"
-        << "    const MaskWord* objects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
-        << "    const MaskWord* movements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
-        << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
-        << "        if ((objects[word] & objectsPresent[word]) != objectsPresent[word]) return false;\n"
-        << "        if ((objects[word] & objectsMissing[word]) != 0) return false;\n"
-        << "    }\n"
-        << "    for (size_t anyIndex = 0; anyIndex < anyObjectMaskCount; ++anyIndex) {\n"
-        << "        if (!compact_turn_cell_any_objects_" << suffix << "(levelState, tileIndex, anyObjectMasks[anyIndex])) return false;\n"
-        << "    }\n"
-        << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
-        << "        if ((movements[word] & movementsPresent[word]) != movementsPresent[word]) return false;\n"
-        << "        if ((movements[word] & movementsMissing[word]) != 0) return false;\n"
-        << "    }\n"
-        << "    return true;\n"
-        << "}\n\n";
-
     out << "bool compact_turn_mask_overlaps_" << suffix << "(const MaskWord* left, const MaskWord* right, int32_t wordCount) {\n"
         << "    if (left == nullptr || right == nullptr) return false;\n"
         << "    for (int32_t word = 0; word < wordCount; ++word) {\n"
@@ -2948,6 +2983,43 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    if (anyField != 0 && (movementField & anyField) == 0) return false;\n"
         << "    if (presentField != 0 && (movementField & presentField) != presentField) return false;\n"
         << "    if (missingField != 0 && (movementField & missingField) != 0) return false;\n"
+        << "    return true;\n"
+        << "}\n\n";
+
+    out << "bool compact_turn_pattern_matches_" << suffix << "(\n"
+        << "    const PersistentLevelState& levelState,\n"
+        << "    const Scratch& scratch,\n"
+        << "    int32_t tileIndex,\n"
+        << "    const MaskWord* objectsPresent,\n"
+        << "    const MaskWord* objectsMissing,\n"
+        << "    const MaskWord* movementsPresent,\n"
+        << "    const MaskWord* movementsMissing,\n"
+        << "    const MaskWord* const* anyObjectMasks,\n"
+        << "    size_t anyObjectMaskCount,\n"
+        << "    const MaskWord* const* anyMovementMasks,\n"
+        << "    size_t anyMovementMaskCount,\n"
+        << "    const CompactTurnLayerCoupledMovementTerm_" << suffix << "* layerCoupledMovementTerms,\n"
+        << "    size_t layerCoupledMovementTermCount\n"
+        << ") {\n"
+        << "    const MaskWord* objects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
+        << "    const MaskWord* movements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+        << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+        << "        if ((objects[word] & objectsPresent[word]) != objectsPresent[word]) return false;\n"
+        << "        if ((objects[word] & objectsMissing[word]) != 0) return false;\n"
+        << "    }\n"
+        << "    for (size_t anyIndex = 0; anyIndex < anyObjectMaskCount; ++anyIndex) {\n"
+        << "        if (!compact_turn_cell_any_objects_" << suffix << "(levelState, tileIndex, anyObjectMasks[anyIndex])) return false;\n"
+        << "    }\n"
+        << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+        << "        if ((movements[word] & movementsPresent[word]) != movementsPresent[word]) return false;\n"
+        << "        if ((movements[word] & movementsMissing[word]) != 0) return false;\n"
+        << "    }\n"
+        << "    for (size_t anyIndex = 0; anyIndex < anyMovementMaskCount; ++anyIndex) {\n"
+        << "        if (!compact_turn_mask_overlaps_" << suffix << "(movements, anyMovementMasks[anyIndex], compact_turn_movement_stride_" << suffix << ")) return false;\n"
+        << "    }\n"
+        << "    for (size_t termIndex = 0; termIndex < layerCoupledMovementTermCount; ++termIndex) {\n"
+        << "        if (!compact_turn_layer_coupled_movement_matches_" << suffix << "(objects, movements, layerCoupledMovementTerms[termIndex])) return false;\n"
+        << "    }\n"
         << "    return true;\n"
         << "}\n\n";
 
