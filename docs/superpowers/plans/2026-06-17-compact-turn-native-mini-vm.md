@@ -1232,7 +1232,7 @@ Expected: `compact_turn_perf_regression_node passed`, `manic_ammo` remains a str
 
 Observed: `manic_ammo.txt#26` compiled step time `273.312ms` vs interpreter `959.933ms`; `Voitex Rasteriser 2.txt#1` compiled generated `180896` states vs interpreter `171380` at 1000ms.
 
-- [ ] **Step 6: Run timeout curve validation**
+- [x] **Step 6: Run timeout curve validation**
 
 Run:
 
@@ -1242,7 +1242,9 @@ make solver_timeout_curve SOLVER_TIMEOUT_CURVE_MAX_MS=1000 SOLVER_TIMEOUT_CURVE_
 
 Expected: compiled portfolio and compiled HDA solve at least as many levels as their interpreter counterparts at 1000ms.
 
-- [ ] **Step 7: Commit validation target updates**
+Observed: raw corpus at 1000ms: compiled portfolio `938` vs interpreter portfolio `901`, compiled HDA `1016` vs interpreter HDA `990`; canonical corpus at 1000ms: compiled portfolio `926` vs interpreter portfolio `891`, compiled HDA `997` vs interpreter HDA `963`.
+
+- [x] **Step 7: Commit validation target updates**
 
 ```bash
 git add Makefile src/tests/compact_turn_perf_regression_node.js
