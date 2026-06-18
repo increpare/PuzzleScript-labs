@@ -268,7 +268,7 @@ Note: the simple replacement fast-path counter fields and generated helpers are 
 
 Current generated group loops visit every rule and call the rule function even when the board-level mask precheck inside the rule will immediately fail. This creates avoidable call overhead, dirty-flag resets, and consecutive-failure bookkeeping in rule-heavy games.
 
-- [ ] In `native/src/compiler/compact_turn_codegen.cpp`, add a generated inline precheck function for each compact rule. The emitter computes the concrete rule symbol from the rule index and suffix. For example, rule `42` in suffix `game0` emits:
+- [x] In `native/src/compiler/compact_turn_codegen.cpp`, add a generated inline precheck function for each compact rule. The emitter computes the concrete rule symbol from the rule index and suffix. For example, rule `42` in suffix `game0` emits:
 
 ```cpp
 inline bool compact_turn_precheck_rule_42_game0(const PSLevel& level, CompactTurnScratch& scratch) {
@@ -286,7 +286,7 @@ static constexpr uint64_t compact_turn_rule_required_movement_mask_42_game0[PS_M
 
 The emitter must write every word from the computed mask vector. The emitted mask array length must match the project’s native mask word count constant already used by compact-turn codegen.
 
-- [ ] Change the generated rulegroup apply loop so it performs the precheck before resetting dirty flags or calling the rule function:
+- [x] Change the generated rulegroup apply loop so it performs the precheck before resetting dirty flags or calling the rule function:
 
 ```cpp
 compact_turn_count_rules_visited_game0();
@@ -306,7 +306,7 @@ compact_turn_count_rule_apply_call_game0();
 const bool changed_42 = compact_turn_apply_rule_42_game0(level, scratch, commandResult);
 ```
 
-- [ ] Remove the duplicate board-mask precheck from the generated rule function when the caller has already checked it.
+- [x] Remove the duplicate board-mask precheck from the generated rule function when the caller has already checked it.
 
 Implement this by adding a codegen flag:
 
@@ -319,31 +319,33 @@ enum class CompactRulePrecheckMode {
 
 Pass `CompactRulePrecheckMode::External` for rule functions emitted exclusively for generated group apply loops. Keep `Internal` for any direct call sites that still need self-contained safety.
 
-- [ ] Keep consecutive-failure semantics identical:
+- [x] Keep consecutive-failure semantics identical:
 
   - A precheck failure counts as a failed rule attempt.
   - A rule that prechecks successfully but finds no matches also counts as a failed rule attempt.
   - A changed rule resets `consecutiveFailures` to zero.
 
-- [ ] Run the failing expectation target before finishing this task. It may still fail, but `heroes_of_sokoban_3.txt#23` and `heroes_of_sokoban_3.txt#16` should show improved early-rule time or improved `us/generated`:
+- [x] Run the failing expectation target before finishing this task. It may still fail, but `heroes_of_sokoban_3.txt#23` and `heroes_of_sokoban_3.txt#16` should show improved early-rule time or improved `us/generated`:
 
 ```sh
 make compact_turn_codegen_perf_expectations
 ```
 
-- [ ] Run correctness:
+- [x] Run correctness:
 
 ```sh
 make compact_turn_codegen_solver_parity
 make compact_tick_oracle_smoke
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```sh
 git add native/src/compiler/compact_turn_codegen.cpp
 git commit -m "perf: precheck compact turn rules before apply"
 ```
+
+Verification note: `make compact_turn_codegen_perf_expectations` still fails on remaining downstream thresholds (`big dog and little dog.txt#11`, `Double-Entry Bookkeeping Simulator.txt#17`, and one generated-count threshold for `heroes_of_sokoban_3.txt#23`), but the new Task 3 dispatch cap passes. The focused Heroes compiled apply-call counts dropped to `381279` for `#23` and `665506` for `#16`, both below the `2000000` gate.
 
 ---
 
