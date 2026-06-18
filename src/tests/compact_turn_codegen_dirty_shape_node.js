@@ -186,18 +186,6 @@ function main() {
         'object-cell index prepare',
     );
     const noteObjectBody = functionBody(source, 'compact_turn_note_object_cell_written_0');
-    assert.match(
-        source,
-        /void compact_turn_note_object_cell_written_0\(LevelDimensions dimensions, const PersistentLevelState& levelState, Scratch& scratch, int32_t tileIndex, const MaskWord\* beforeObjects, const MaskWord\* objects\)/,
-        'expected object write helper to receive before and after masks',
-    );
-    assertIncludes(source, 'scratch.rowObjectCounts.assign(', 'object derived-state rebuild should initialize row object counts');
-    assertIncludes(source, 'scratch.columnObjectCounts.assign(', 'object derived-state rebuild should initialize column object counts');
-    assertIncludes(source, 'scratch.boardObjectCounts.assign(', 'object derived-state rebuild should initialize board object counts');
-    assertIncludes(noteObjectBody, 'const MaskWord before = beforeObjects[word];', 'object write incremental counts');
-    assertIncludes(noteObjectBody, 'const MaskWord added = value & ~before;', 'object write incremental counts');
-    assertIncludes(noteObjectBody, 'const MaskWord removed = before & ~value;', 'object write incremental counts');
-    assertIncludes(noteObjectBody, 'compact_turn_update_object_presence_count_0(', 'object write incremental counts');
     assertIncludes(noteObjectBody, 'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
     assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
     assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
@@ -208,7 +196,7 @@ function main() {
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
     assertIncludes(
         ruleDerivedBody,
-        'compact_turn_commit_incremental_object_derived_state_0(dimensions, levelState, scratch)',
+        'compact_turn_rebuild_dirty_object_derived_state_0(dimensions, levelState, scratch)',
         'rule derived-state rebuild',
     );
     assertIncludes(
@@ -218,7 +206,7 @@ function main() {
     );
     assertExcludes(
         ruleDerivedBody,
-        'compact_turn_rebuild_dirty_object_derived_state_0(dimensions, levelState, scratch)',
+        'compact_turn_rebuild_object_derived_state_0(dimensions, levelState, scratch)',
         'rule derived-state rebuild',
     );
     assertExcludes(
