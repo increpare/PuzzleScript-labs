@@ -185,15 +185,27 @@ function main() {
         'compact_turn_rebuild_object_cell_index_0(dimensions, levelState, scratch)',
         'object-cell index prepare',
     );
+    const noteObjectBody = functionBody(source, 'compact_turn_note_object_cell_written_0');
+    assertIncludes(noteObjectBody, 'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
+    assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
+    assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
+    assertIncludes(noteObjectBody, 'scratch.rowAllMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] &= value;', 'object write conservative masks');
+    assertIncludes(noteObjectBody, 'scratch.columnAllMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] &= value;', 'object write conservative masks');
+    const noteMovementBody = functionBody(source, 'compact_turn_note_movement_cell_written_0');
+    assertIncludes(noteMovementBody, 'scratch.rowMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
+    assertIncludes(noteMovementBody, 'scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
+    assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
+    assertIncludes(noteMovementBody, 'scratch.rowAllMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_0 + word)] &= value;', 'movement write conservative masks');
+    assertIncludes(noteMovementBody, 'scratch.columnAllMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] &= value;', 'movement write conservative masks');
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
     assertIncludes(
         ruleDerivedBody,
-        'compact_turn_rebuild_dirty_object_derived_state_0(dimensions, levelState, scratch)',
+        'compact_turn_commit_conservative_object_derived_state_0(dimensions, levelState, scratch)',
         'rule derived-state rebuild',
     );
     assertIncludes(
         ruleDerivedBody,
-        'compact_turn_rebuild_dirty_movement_derived_state_0(dimensions, scratch)',
+        'compact_turn_commit_conservative_movement_derived_state_0(dimensions, scratch)',
         'rule derived-state rebuild',
     );
     assertExcludes(
@@ -204,6 +216,16 @@ function main() {
     assertExcludes(
         ruleDerivedBody,
         'compact_turn_rebuild_movement_derived_state_0(dimensions, scratch)',
+        'rule derived-state rebuild',
+    );
+    assertExcludes(
+        ruleDerivedBody,
+        'compact_turn_rebuild_dirty_object_derived_state_0(dimensions, levelState, scratch)',
+        'rule derived-state rebuild',
+    );
+    assertExcludes(
+        ruleDerivedBody,
+        'compact_turn_rebuild_dirty_movement_derived_state_0(dimensions, scratch)',
         'rule derived-state rebuild',
     );
     assertExcludes(ruleDerivedBody, 'compact_turn_rebuild_object_cell_index_0', 'rule derived-state rebuild');
