@@ -63,6 +63,7 @@ requireFlag('--quiet');
 requireFlag('--no-solutions');
 requireFlag('--level', '0');
 requireFlag('--timeout-ms', '1000');
+requireFlag('--jobs', '1');
 requireFlag('--strategy', 'portfolio');
 console.log(JSON.stringify({ results: [{ game: 'game', level: 0, status: 'solved', solution: ['right'], solution_length: 1, unique_states: 2 }] }));
 `);
