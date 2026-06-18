@@ -25,6 +25,8 @@ const {
 const { PuzzleScriptGeneratorRun } = require('./puzzlescriptGeneratorRunner');
 const { PuzzleScriptSolverRun, resolveSolverPath } = require('./puzzlescriptSolverRunner');
 
+const DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS = 1000;
+
 function uniqueBatchId() {
     return `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -670,6 +672,7 @@ const state = {
   generatedLogPath: '',
   solveMessage: '',
   solveResult: null,
+  solveTimeoutMs: ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS},
   generationMessage: '',
   solvedTop: [],
   timeouts: [],
@@ -818,9 +821,13 @@ ui.solveButton.addEventListener('click', () => {
   vscode.postMessage({
     type: 'solve',
     levelIndex: state.selectedLevelIndex,
-    timeoutMs: Number(ui.solveTimeoutMs.value || 0) || 1000,
+    timeoutMs: Number(ui.solveTimeoutMs.value || 0) || ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS},
     strategy: ui.solveStrategy.value || 'portfolio',
   });
+});
+
+ui.solveTimeoutMs.addEventListener('input', () => {
+  state.solveTimeoutMs = Number(ui.solveTimeoutMs.value || 0) || ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS};
 });
 
 ui.runGenerationButton.addEventListener('click', () => {
@@ -881,7 +888,7 @@ window.addEventListener('message', event => {
     ui.jobs.value = state.generatorOptions.jobs != null ? state.generatorOptions.jobs : 'auto';
     ui.solverTimeoutMs.value = state.generatorOptions.solverTimeoutMs != null ? state.generatorOptions.solverTimeoutMs : 250;
     ui.topK.value = state.generatorOptions.topK != null ? state.generatorOptions.topK : 3;
-    ui.solveTimeoutMs.value = state.generatorOptions.solverTimeoutMs != null ? state.generatorOptions.solverTimeoutMs : 1000;
+    ui.solveTimeoutMs.value = state.solveTimeoutMs != null ? state.solveTimeoutMs : ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS};
     ui.solveStrategy.value = state.generatorOptions.solverStrategy || 'portfolio';
     render();
     return;
