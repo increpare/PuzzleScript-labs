@@ -1156,7 +1156,7 @@ git commit -m "feat: require native compact compiler coverage"
 - Modify: `src/tests/compact_turn_perf_regression_node.js`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Run core build**
+- [x] **Step 1: Run core build**
 
 Run:
 
@@ -1166,7 +1166,7 @@ make build
 
 Expected: build passes.
 
-- [ ] **Step 2: Run strict native coverage**
+- [x] **Step 2: Run strict native coverage**
 
 Run:
 
@@ -1180,7 +1180,7 @@ Expected:
 compact_turn_native_parity_node passed native=182/182
 ```
 
-- [ ] **Step 3: Run solver parity**
+- [x] **Step 3: Run solver parity**
 
 Run:
 
@@ -1190,7 +1190,9 @@ make compact_turn_codegen_solver_parity
 
 Expected: JSON totals include `compact_turn_oracle_failures=0`, `compact_turn_unhandled=0`, and all required compact attempts handled.
 
-- [ ] **Step 4: Add a concrete targeted perf Make target**
+Observed: `compact_turn_oracle_failures=0`, `compact_turn_unhandled=0`, `compact_turn_hits=46949025`, and `compact_timeout_regressions=29`.
+
+- [x] **Step 4: Add a concrete targeted perf Make target**
 
 Add `compact_turn_perf_regression` to the `.PHONY` block.
 
@@ -1218,7 +1220,7 @@ compact_turn_perf_regression: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/compact_turn_perf_regression_node.js --corpus src/tests/solver_tests --interpreter-solver "$(PUZZLESCRIPT_SOLVER)" --compiled-solver "$$build_dir/native/puzzlescript_solver" --timeout-ms "$(COMPACT_TURN_PERF_TIMEOUT_MS)"
 ```
 
-- [ ] **Step 5: Run targeted perf harness**
+- [x] **Step 5: Run targeted perf harness**
 
 Run:
 
@@ -1227,6 +1229,8 @@ make compact_turn_perf_regression
 ```
 
 Expected: `compact_turn_perf_regression_node passed`, `manic_ammo` remains a strong native win, and `Voitex` uses native compact turns without throughput regression.
+
+Observed: `manic_ammo.txt#26` compiled step time `273.312ms` vs interpreter `959.933ms`; `Voitex Rasteriser 2.txt#1` compiled generated `180896` states vs interpreter `171380` at 1000ms.
 
 - [ ] **Step 6: Run timeout curve validation**
 
