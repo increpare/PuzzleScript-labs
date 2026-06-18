@@ -45,6 +45,33 @@ fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 2 }, top
     assert.strictEqual(fs.existsSync(good.tempDir), false);
     assert.strictEqual(seenProgress[0].samples, 2);
 
+    const eventing = writeExecutable(tmp, 'eventing.js', `
+const fs = require('fs');
+const jsonOut = process.argv[process.argv.indexOf('--json-out') + 1];
+const eventsOut = process.argv[process.argv.indexOf('--events-jsonl') + 1];
+fs.appendFileSync(eventsOut, JSON.stringify({ event: 'candidate_evaluated', level_hash: 1, status: 'timeout', unique_states: 9, cells: [['player']] }) + '\\n');
+fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 1 }, top: [] }));
+`);
+    const seenEvents = [];
+    const eventRun = new PuzzleScriptGeneratorRun({
+        binaryPath: eventing,
+        sourceText: 'title T\\nlevels\\nP',
+        specText: '(INIT LEVEL)\\nP\\n\\n(GENERATION RULES)\\nchoose 1 [ player ] -> [ player ]',
+        runOptions: {
+            timeMs: 10,
+            jobs: 1,
+            seed: 1,
+            solverTimeoutMs: 10,
+            solverStrategy: 'portfolio',
+            topK: 1,
+            samples: '',
+        },
+        onCandidateEvent: event => seenEvents.push(event),
+    });
+    await eventRun.start();
+    assert.strictEqual(seenEvents.length, 1);
+    assert.strictEqual(seenEvents[0].status, 'timeout');
+
     const failure = writeExecutable(tmp, 'failure.js', `
 console.error('bad spec');
 process.exit(2);

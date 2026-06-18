@@ -22,6 +22,14 @@ function parseProgressLine(line) {
     return progress;
 }
 
+function parseEventLines(text) {
+    return String(text || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
+}
+
 function parseGeneratorJson(stdout, jsonPath) {
     if (jsonPath && fs.existsSync(jsonPath)) {
         return JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
@@ -63,6 +71,7 @@ class PuzzleScriptGeneratorRun {
         const gamePath = path.join(tempDir, 'game.ps');
         const specPath = path.join(tempDir, 'recipe.gen');
         const jsonPath = path.join(tempDir, 'result.json');
+        const eventsPath = path.join(tempDir, 'events.jsonl');
         fs.writeFileSync(gamePath, sourceText, 'utf8');
         fs.writeFileSync(specPath, specText, 'utf8');
 
@@ -76,6 +85,7 @@ class PuzzleScriptGeneratorRun {
             '--solver-strategy', String(runOptions.solverStrategy),
             '--top-k', String(runOptions.topK),
             '--json-out', jsonPath,
+            '--events-jsonl', eventsPath,
         ];
         if (runOptions.samples !== '' && runOptions.samples != null) {
             args.push('--samples', String(runOptions.samples));
@@ -117,6 +127,11 @@ class PuzzleScriptGeneratorRun {
                     return;
                 }
                 try {
+                    if (eventsPath && fs.existsSync(eventsPath) && this.options.onCandidateEvent) {
+                        for (const event of parseEventLines(fs.readFileSync(eventsPath, 'utf8'))) {
+                            this.options.onCandidateEvent(event);
+                        }
+                    }
                     const result = parseGeneratorJson(stdout, jsonPath);
                     removeTempDir(tempDir);
                     resolve({
@@ -142,6 +157,7 @@ class PuzzleScriptGeneratorRun {
 
 module.exports = {
     PuzzleScriptGeneratorRun,
+    parseEventLines,
     parseGeneratorJson,
     parseProgressLine,
     removeTempDir,
