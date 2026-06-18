@@ -17,6 +17,57 @@ assert.strictEqual(effortScore({ unique_states: 10 }), 10);
 assert.strictEqual(effortScore({ uniqueStates: 11 }), 11);
 assert.strictEqual(effortScore({ expanded: 4, generated: 9 }), 9);
 
+const identityBatch = new CandidateBatchState();
+assert.strictEqual(identityBatch.recordEvaluation({
+    level_hash: 1,
+    level_hash_hex: 'ABCDEF1234567890',
+    status: 'solved',
+    unique_states: 1,
+    cells: [['player']],
+}).becameTopSolved, true);
+assert.strictEqual(
+    identityBatch.shouldLogSolvedTop({ levelHashHex: 'abcdef1234567890', levelHash: 999 }),
+    true,
+    'exact hash should be canonicalized and preferred over numeric hash'
+);
+assert.strictEqual(identityBatch.shouldLogSolvedTop({ level_hash_hex: 'abcdef1234567890' }), false);
+assert.strictEqual(identityBatch.recordEvaluation({
+    level_hash: 2,
+    level_hash_hex: 'not-a-hex-hash',
+    status: 'solved',
+    unique_states: 100,
+    cells: [['target']],
+}).becameTopSolved, false, 'invalid exact hash should reject instead of falling back to numeric hash');
+assert.deepStrictEqual(identityBatch.solvedTop().map(candidate => candidate.level_hash), [1]);
+assert.strictEqual(identityBatch.shouldLogSolvedTop({ levelHashHex: 'not-a-hex-hash', levelHash: 2 }), false);
+assert.strictEqual(identityBatch.shouldLogSolvedTop(undefined), false);
+
+const legacyIdentityBatch = new CandidateBatchState();
+legacyIdentityBatch.recordEvaluation({
+    levelHash: '00042',
+    status: 'solved',
+    uniqueStates: 1,
+    cells: [['player']],
+});
+assert.strictEqual(legacyIdentityBatch.shouldLogSolvedTop(42), true, 'safe decimal string legacy hashes should normalize');
+
+const invalidIdentityBatch = new CandidateBatchState();
+assert.strictEqual(invalidIdentityBatch.recordEvaluation(null).becameTopSolved, false);
+assert.strictEqual(invalidIdentityBatch.recordEvaluation({
+    status: 'solved',
+    unique_states: 1,
+    cells: [['player']],
+}).becameTopSolved, false);
+invalidIdentityBatch.recordEvaluation({
+    levelHash: Number.MAX_SAFE_INTEGER + 1,
+    status: 'timeout',
+    unique_states: 100,
+    solver_budget_ms: 1000,
+    cells: [['target']],
+});
+assert.strictEqual(invalidIdentityBatch.solvedTop().length, 0);
+assert.strictEqual(invalidIdentityBatch.timeoutQueue().length, 0);
+
 const batch = new CandidateBatchState({
     topCount: 3,
     promotionBudgetsMs: [1000, 5000, 30000],
@@ -59,6 +110,26 @@ assert.strictEqual(batch.recordEvaluation({
 assert.deepStrictEqual(batch.solvedTop().map(candidate => candidate.level_hash), [3, 1, 2]);
 assert.strictEqual(batch.shouldLogSolvedTop(3), true);
 assert.strictEqual(batch.shouldLogSolvedTop(3), false, 'same top solved candidate logs once');
+
+const duplicateTopBatch = new CandidateBatchState({ topCount: 3 });
+duplicateTopBatch.recordEvaluation({
+    level_hash: 30,
+    status: 'solved',
+    unique_states: 10,
+    cells: [['player']],
+});
+duplicateTopBatch.recordEvaluation({
+    level_hash: 31,
+    status: 'solved',
+    unique_states: 20,
+    cells: [['target']],
+});
+assert.strictEqual(duplicateTopBatch.recordEvaluation({
+    level_hash: 30,
+    status: 'solved',
+    unique_states: 25,
+    cells: [['player']],
+}).becameTopSolved, false, 'already-top duplicate should not count as newly entering top solved set');
 
 batch.recordEvaluation({
     level_hash: 5,
@@ -109,5 +180,68 @@ const promotable = maxBudgetBatch.nextPromotion();
 assert.strictEqual(promotable.level_hash, 9, 'max-budget timeout should be skipped for the next promotable candidate');
 assert.strictEqual(promotable.next_budget_ms, 5000);
 assert.strictEqual(maxBudgetBatch.nextPromotion(), null, 'only non-advancing max-budget timeout should remain skipped');
+
+const timeoutThenSolvedBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+timeoutThenSolvedBatch.recordEvaluation({
+    level_hash: 10,
+    status: 'timeout',
+    unique_states: 100,
+    solver_budget_ms: 1000,
+    cells: [['player']],
+});
+assert.strictEqual(timeoutThenSolvedBatch.timeoutQueue().length, 1);
+assert.strictEqual(timeoutThenSolvedBatch.recordEvaluation({
+    level_hash: 10,
+    status: 'solved',
+    unique_states: 101,
+    cells: [['player']],
+}).becameTopSolved, true);
+assert.strictEqual(timeoutThenSolvedBatch.timeoutQueue().length, 0, 'solved candidate should be removed from timeout queue');
+assert.strictEqual(timeoutThenSolvedBatch.nextPromotion(), null);
+
+const solvedThenTimeoutBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+solvedThenTimeoutBatch.recordEvaluation({
+    level_hash: 11,
+    status: 'solved',
+    unique_states: 100,
+    cells: [['target']],
+});
+solvedThenTimeoutBatch.recordEvaluation({
+    level_hash: 11,
+    status: 'timeout',
+    unique_states: 200,
+    solver_budget_ms: 1000,
+    cells: [['target']],
+});
+assert.strictEqual(solvedThenTimeoutBatch.timeoutQueue().length, 0, 'already solved candidate should not become promotable timeout');
+assert.deepStrictEqual(solvedThenTimeoutBatch.solvedTop().map(candidate => candidate.level_hash), [11]);
+assert.strictEqual(solvedThenTimeoutBatch.nextPromotion(), null);
+
+const trimBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 1,
+});
+trimBatch.recordEvaluation({
+    level_hash: 12,
+    status: 'timeout',
+    unique_states: 1000,
+    solver_budget_ms: 5000,
+    cells: [['max']],
+});
+trimBatch.recordEvaluation({
+    level_hash: 13,
+    status: 'timeout',
+    unique_states: 1,
+    solver_budget_ms: 1000,
+    cells: [['low']],
+});
+assert.deepStrictEqual(trimBatch.timeoutQueue().map(candidate => candidate.level_hash), [13]);
+assert.strictEqual(trimBatch.nextPromotion().level_hash, 13);
 
 console.log('candidate scheduler tests passed');
