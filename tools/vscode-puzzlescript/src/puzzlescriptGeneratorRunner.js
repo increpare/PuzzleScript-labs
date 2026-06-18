@@ -66,12 +66,14 @@ class PuzzleScriptGeneratorRun {
             specText,
             runOptions,
             onProgress,
+            onCandidateEvent,
         } = this.options;
         const tempDir = makeTempDir();
         const gamePath = path.join(tempDir, 'game.ps');
         const specPath = path.join(tempDir, 'recipe.gen');
         const jsonPath = path.join(tempDir, 'result.json');
-        const eventsPath = path.join(tempDir, 'events.jsonl');
+        const shouldCollectCandidateEvents = typeof onCandidateEvent === 'function';
+        const eventsPath = shouldCollectCandidateEvents ? path.join(tempDir, 'events.jsonl') : null;
         fs.writeFileSync(gamePath, sourceText, 'utf8');
         fs.writeFileSync(specPath, specText, 'utf8');
 
@@ -85,8 +87,10 @@ class PuzzleScriptGeneratorRun {
             '--solver-strategy', String(runOptions.solverStrategy),
             '--top-k', String(runOptions.topK),
             '--json-out', jsonPath,
-            '--events-jsonl', eventsPath,
         ];
+        if (eventsPath) {
+            args.push('--events-jsonl', eventsPath);
+        }
         if (runOptions.samples !== '' && runOptions.samples != null) {
             args.push('--samples', String(runOptions.samples));
         }
@@ -127,9 +131,18 @@ class PuzzleScriptGeneratorRun {
                     return;
                 }
                 try {
-                    if (eventsPath && fs.existsSync(eventsPath) && this.options.onCandidateEvent) {
-                        for (const event of parseEventLines(fs.readFileSync(eventsPath, 'utf8'))) {
-                            this.options.onCandidateEvent(event);
+                    const warnings = [];
+                    if (eventsPath && fs.existsSync(eventsPath)) {
+                        try {
+                            for (const event of parseEventLines(fs.readFileSync(eventsPath, 'utf8'))) {
+                                try {
+                                    onCandidateEvent(event);
+                                } catch (error) {
+                                    warnings.push(`Generator candidate event callback failed: ${error.message || error}`);
+                                }
+                            }
+                        } catch (error) {
+                            warnings.push(`Generator candidate events failed: ${error.message || error}`);
                         }
                     }
                     const result = parseGeneratorJson(stdout, jsonPath);
@@ -138,6 +151,7 @@ class PuzzleScriptGeneratorRun {
                         cancelled: false,
                         tempDir,
                         result,
+                        warnings,
                     });
                 } catch (error) {
                     removeTempDir(tempDir);

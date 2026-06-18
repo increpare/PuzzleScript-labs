@@ -45,6 +45,32 @@ fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 2 }, top
     assert.strictEqual(fs.existsSync(good.tempDir), false);
     assert.strictEqual(seenProgress[0].samples, 2);
 
+    const noEventsFlag = writeExecutable(tmp, 'no-events-flag.js', `
+const fs = require('fs');
+if (process.argv.includes('--events-jsonl')) {
+    console.error('unexpected events flag');
+    process.exit(3);
+}
+const jsonOut = process.argv[process.argv.indexOf('--json-out') + 1];
+fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 1 }, top: [] }));
+`);
+    const compatRun = new PuzzleScriptGeneratorRun({
+        binaryPath: noEventsFlag,
+        sourceText: 'title T\\nlevels\\nP',
+        specText: '(INIT LEVEL)\\nP\\n\\n(GENERATION RULES)\\nchoose 1 [ player ] -> [ player ]',
+        runOptions: {
+            timeMs: 10,
+            jobs: 1,
+            seed: 1,
+            solverTimeoutMs: 10,
+            solverStrategy: 'portfolio',
+            topK: 1,
+            samples: '',
+        },
+    });
+    const compat = await compatRun.start();
+    assert.deepStrictEqual(compat.result, { totals: { samples_attempted: 1 }, top: [] });
+
     const eventing = writeExecutable(tmp, 'eventing.js', `
 const fs = require('fs');
 const jsonOut = process.argv[process.argv.indexOf('--json-out') + 1];
@@ -71,6 +97,55 @@ fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 1 }, top
     await eventRun.start();
     assert.strictEqual(seenEvents.length, 1);
     assert.strictEqual(seenEvents[0].status, 'timeout');
+
+    const callbackThrowRun = new PuzzleScriptGeneratorRun({
+        binaryPath: eventing,
+        sourceText: 'title T\\nlevels\\nP',
+        specText: '(INIT LEVEL)\\nP\\n\\n(GENERATION RULES)\\nchoose 1 [ player ] -> [ player ]',
+        runOptions: {
+            timeMs: 10,
+            jobs: 1,
+            seed: 1,
+            solverTimeoutMs: 10,
+            solverStrategy: 'portfolio',
+            topK: 1,
+            samples: '',
+        },
+        onCandidateEvent: () => {
+            throw new Error('event callback failed');
+        },
+    });
+    const callbackThrow = await callbackThrowRun.start();
+    assert.deepStrictEqual(callbackThrow.result, { totals: { samples_attempted: 1 }, top: [] });
+    assert.strictEqual(callbackThrow.warnings.length, 1);
+    assert.match(callbackThrow.warnings[0], /event callback failed/);
+
+    const malformedEvents = writeExecutable(tmp, 'malformed-events.js', `
+const fs = require('fs');
+const jsonOut = process.argv[process.argv.indexOf('--json-out') + 1];
+const eventsOut = process.argv[process.argv.indexOf('--events-jsonl') + 1];
+fs.writeFileSync(eventsOut, '{not-json}\\n');
+fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 1 }, top: [] }));
+`);
+    const malformedRun = new PuzzleScriptGeneratorRun({
+        binaryPath: malformedEvents,
+        sourceText: 'title T\\nlevels\\nP',
+        specText: '(INIT LEVEL)\\nP\\n\\n(GENERATION RULES)\\nchoose 1 [ player ] -> [ player ]',
+        runOptions: {
+            timeMs: 10,
+            jobs: 1,
+            seed: 1,
+            solverTimeoutMs: 10,
+            solverStrategy: 'portfolio',
+            topK: 1,
+            samples: '',
+        },
+        onCandidateEvent: () => {},
+    });
+    const malformed = await malformedRun.start();
+    assert.deepStrictEqual(malformed.result, { totals: { samples_attempted: 1 }, top: [] });
+    assert.strictEqual(malformed.warnings.length, 1);
+    assert.match(malformed.warnings[0], /candidate events/);
 
     const failure = writeExecutable(tmp, 'failure.js', `
 console.error('bad spec');
