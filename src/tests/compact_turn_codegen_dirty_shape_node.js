@@ -166,6 +166,11 @@ function main() {
         /(?:static\s+)?constexpr bool \w+_writes_movements\s*=\s*false;/,
         'expected generated no-movement-write summary constant',
     );
+    const fastPathCallCount = (source.match(/compact_turn_count_simple_replacement_fast_path_call_0\(\);/g) || []).length;
+    assert.ok(
+        fastPathCallCount >= 2,
+        `expected at least two generated simple replacement fast-path calls; actual=${fastPathCallCount}`,
+    );
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');
     assertIncludes(objectOnlyBody, 'scratch.dirtyObjectBoard = false;', 'object-only rule');
