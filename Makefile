@@ -145,6 +145,10 @@ SOLVER_COMPACT_PARITY_LEVEL ?=
 SOLVER_COMPACT_PARITY_MAX_GAMES ?=
 COMPACT_TURN_CODEGEN_REGRESSION_CORPUS ?= src/tests/compact_turn_regression_tests
 COMPACT_TURN_PERF_TIMEOUT_MS ?= 1000
+COMPACT_TURN_CODEGEN_PERF_TIMEOUT_MS ?= 1000
+COMPACT_TURN_CODEGEN_PERF_CASES ?= src/tests/compact_turn_codegen_perf_cases.json
+COMPACT_TURN_CODEGEN_PERF_EXPECTATIONS ?= src/tests/compact_turn_codegen_perf_expectations.json
+COMPACT_TURN_CODEGEN_PERF_OUT ?= build/compact-turn-codegen-perf-suite.json
 SOLVER_COMPACT_PARITY_GAME_ARG = $(if $(SOLVER_COMPACT_PARITY_GAME),--game "$(SOLVER_COMPACT_PARITY_GAME)",)
 SOLVER_COMPACT_PARITY_LEVEL_ARG = $(if $(SOLVER_COMPACT_PARITY_LEVEL),--level $(SOLVER_COMPACT_PARITY_LEVEL),)
 SOLVER_COMPACT_PARITY_MAX_GAMES_ARG = $(if $(SOLVER_COMPACT_PARITY_MAX_GAMES),--max-games $(SOLVER_COMPACT_PARITY_MAX_GAMES),)
@@ -967,6 +971,51 @@ compact_turn_perf_regression: $(PUZZLESCRIPT_SOLVER)
 	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	$(NODE) src/tests/compact_turn_perf_regression_node.js --corpus src/tests/solver_tests --interpreter-solver "$(PUZZLESCRIPT_SOLVER)" --compiled-solver "$$build_dir/native/puzzlescript_solver" --timeout-ms "$(COMPACT_TURN_PERF_TIMEOUT_MS)"
+
+.PHONY: compact_turn_codegen_perf_suite
+compact_turn_codegen_perf_suite: COMPILED_RULES_OPT_LEVEL = 3
+compact_turn_codegen_perf_suite: $(PUZZLESCRIPT_SOLVER)
+	@set -e; \
+	$(COMPILED_RULES_BOOTSTRAP_CPP); \
+	hash=$$(find src/tests/solver_tests -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
+	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/compact-turn-codegen-perf-$$hash"; \
+	build_dir="$(COMPILED_RULES_BUILD_ROOT)/compact-turn-codegen-perf-$$hash"; \
+	out_cpp_dir="$$out_dir/sources"; \
+	sources_file="$$out_dir/sources.txt"; \
+	mkdir -p "$$out_dir"; \
+	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,src/tests/solver_tests,compact_turn_codegen_perf_$$hash,--compact-turn-only --compact-turn-mode=compiler); \
+	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
+	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
+	$(NODE) src/tests/compact_turn_codegen_perf_suite_node.js \
+		--corpus src/tests/solver_tests \
+		--interpreter-solver "$(PUZZLESCRIPT_SOLVER)" \
+		--compiled-solver "$$build_dir/native/puzzlescript_solver" \
+		--timeout-ms "$(COMPACT_TURN_CODEGEN_PERF_TIMEOUT_MS)" \
+		--cases "$(COMPACT_TURN_CODEGEN_PERF_CASES)" \
+		--out "$(COMPACT_TURN_CODEGEN_PERF_OUT)"
+
+.PHONY: compact_turn_codegen_perf_expectations
+compact_turn_codegen_perf_expectations: COMPILED_RULES_OPT_LEVEL = 3
+compact_turn_codegen_perf_expectations: $(PUZZLESCRIPT_SOLVER)
+	@set -e; \
+	$(COMPILED_RULES_BOOTSTRAP_CPP); \
+	hash=$$(find src/tests/solver_tests -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
+	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/compact-turn-codegen-perf-$$hash"; \
+	build_dir="$(COMPILED_RULES_BUILD_ROOT)/compact-turn-codegen-perf-$$hash"; \
+	out_cpp_dir="$$out_dir/sources"; \
+	sources_file="$$out_dir/sources.txt"; \
+	mkdir -p "$$out_dir"; \
+	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,src/tests/solver_tests,compact_turn_codegen_perf_$$hash,--compact-turn-only --compact-turn-mode=compiler); \
+	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
+	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
+	$(NODE) src/tests/compact_turn_codegen_perf_suite_node.js \
+		--corpus src/tests/solver_tests \
+		--interpreter-solver "$(PUZZLESCRIPT_SOLVER)" \
+		--compiled-solver "$$build_dir/native/puzzlescript_solver" \
+		--timeout-ms "$(COMPACT_TURN_CODEGEN_PERF_TIMEOUT_MS)" \
+		--cases "$(COMPACT_TURN_CODEGEN_PERF_CASES)" \
+		--expectations "$(COMPACT_TURN_CODEGEN_PERF_EXPECTATIONS)" \
+		--out "$(COMPACT_TURN_CODEGEN_PERF_OUT)"
 
 compact_turn_codegen_solver_command_api: build
 	@set -e; \

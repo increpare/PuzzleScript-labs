@@ -1,0 +1,10 @@
+[
+  { "game": "manic_ammo.txt", "level": 26, "kind": "positive_control", "compiledStepRatioMax": 0.35 },
+  { "game": "Voitex Rasteriser 2.txt", "level": 1, "kind": "previous_regression", "compiledGeneratedRatioMin": 0.9, "compiledUsPerGeneratedRatioMax": 1.15 },
+  { "game": "heroes_of_sokoban_3.txt", "level": 23, "kind": "dispatch_hotspot" },
+  { "game": "heroes_of_sokoban_3.txt", "level": 16, "kind": "dispatch_hotspot" },
+  { "game": "big dog and little dog.txt", "level": 11, "kind": "replacement_hotspot" },
+  { "game": "Double-Entry Bookkeeping Simulator.txt", "level": 17, "kind": "late_replacement_hotspot" },
+  { "game": "easyenigma.txt", "level": 11, "kind": "setup_hotspot" },
+  { "game": "gem soketeer.txt", "level": 21, "kind": "search_order_sensitive" }
+]
