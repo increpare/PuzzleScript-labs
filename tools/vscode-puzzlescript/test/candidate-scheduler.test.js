@@ -214,6 +214,28 @@ assert.strictEqual(timeoutThenSolvedBatch.recordEvaluation({
 assert.strictEqual(timeoutThenSolvedBatch.timeoutQueue().length, 0, 'solved candidate should be removed from timeout queue');
 assert.strictEqual(timeoutThenSolvedBatch.nextPromotion(), null);
 
+const legacyTimeoutExactSolvedBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+legacyTimeoutExactSolvedBatch.recordEvaluation({
+    level_hash: 123,
+    status: 'timeout',
+    unique_states: 100,
+    solver_budget_ms: 1000,
+    cells: [['legacy']],
+});
+assert.strictEqual(legacyTimeoutExactSolvedBatch.timeoutQueue().length, 1);
+assert.strictEqual(legacyTimeoutExactSolvedBatch.recordEvaluation({
+    level_hash: 123,
+    level_hash_hex: '000000000000007b',
+    status: 'solved',
+    unique_states: 101,
+    cells: [['exact']],
+}).becameTopSolved, true);
+assert.strictEqual(legacyTimeoutExactSolvedBatch.timeoutQueue().length, 0, 'exact solved identity should clear equivalent legacy timeout');
+assert.strictEqual(legacyTimeoutExactSolvedBatch.nextPromotion(), null);
+
 const solvedThenTimeoutBatch = new CandidateBatchState({
     promotionBudgetsMs: [1000, 5000],
     promotionQueueLimit: 4,
@@ -255,5 +277,44 @@ trimBatch.recordEvaluation({
 });
 assert.deepStrictEqual(trimBatch.timeoutQueue().map(candidate => candidate.level_hash), [13]);
 assert.strictEqual(trimBatch.nextPromotion().level_hash, 13);
+
+const defensiveBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+});
+defensiveBatch.recordEvaluation({
+    level_hash: 14,
+    status: 'solved',
+    unique_states: 20,
+    cells: [['player']],
+});
+const solvedSnapshot = defensiveBatch.solvedTop();
+solvedSnapshot[0].level_hash = 999;
+solvedSnapshot[0].cells[0][0] = 'mutated';
+assert.deepStrictEqual(defensiveBatch.solvedTop().map(candidate => candidate.level_hash), [14]);
+assert.deepStrictEqual(defensiveBatch.solvedTop()[0].cells, [['player']]);
+defensiveBatch.recordEvaluation({
+    level_hash: 15,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    cells: [['crate']],
+});
+const timeoutSnapshot = defensiveBatch.timeoutQueue();
+timeoutSnapshot[0].level_hash = 999;
+timeoutSnapshot[0].cells[0][0] = 'mutated';
+assert.deepStrictEqual(defensiveBatch.timeoutQueue().map(candidate => candidate.level_hash), [15]);
+assert.deepStrictEqual(defensiveBatch.timeoutQueue()[0].cells, [['crate']]);
+
+const unsortedBudgetBatch = new CandidateBatchState({
+    promotionBudgetsMs: [30000, 1000, 5000, 5000],
+});
+unsortedBudgetBatch.recordEvaluation({
+    level_hash: 16,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    cells: [['player']],
+});
+assert.strictEqual(unsortedBudgetBatch.nextPromotion().next_budget_ms, 5000, 'budgets should promote to the next sorted higher value');
 
 console.log('candidate scheduler tests passed');

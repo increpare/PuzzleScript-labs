@@ -1,10 +1,21 @@
 'use strict';
 
+const DEFAULT_PROMOTION_BUDGETS_MS = [1000, 5000, 30000, 120000];
+
 function normalizeRows(cells) {
     if (!Array.isArray(cells)) {
         return [];
     }
     return cells.map(row => Array.isArray(row) ? row.map(String) : [...String(row)]);
+}
+
+function copyCandidate(candidate) {
+    const copy = { ...candidate };
+    copy.cells = normalizeRows(candidate.cells);
+    if (Array.isArray(candidate.identity_keys)) {
+        copy.identity_keys = candidate.identity_keys.slice();
+    }
+    return copy;
 }
 
 function gridDifference(a, b) {
@@ -68,34 +79,67 @@ function normalizeLegacyHash(value) {
     return null;
 }
 
+function legacyHashFromExactHash(value) {
+    const normalizedExactHash = normalizeExactHash(value);
+    if (!normalizedExactHash) {
+        return null;
+    }
+    const parsed = BigInt(`0x${normalizedExactHash}`);
+    if (parsed > BigInt(Number.MAX_SAFE_INTEGER)) {
+        return null;
+    }
+    return parsed.toString();
+}
+
+function addUniqueKey(keys, key) {
+    if (key && !keys.includes(key)) {
+        keys.push(key);
+    }
+}
+
 function candidateIdentity(candidate) {
     if (candidate && typeof candidate === 'object') {
+        const keys = [];
         const exactHash = hasHashValue(candidate.levelHashHex) ? candidate.levelHashHex : candidate.level_hash_hex;
+        let exactKey = null;
         if (hasHashValue(exactHash)) {
             const normalizedExactHash = normalizeExactHash(exactHash);
             if (!normalizedExactHash) {
                 return null;
             }
-            return { key: `exact:${normalizedExactHash}`, exactHash: normalizedExactHash };
+            exactKey = `exact:${normalizedExactHash}`;
+            addUniqueKey(keys, exactKey);
         }
         const legacyHash = hasHashValue(candidate.levelHash) ? candidate.levelHash : candidate.level_hash;
+        let legacyKey = null;
         if (hasHashValue(legacyHash)) {
             const normalizedLegacyHash = normalizeLegacyHash(legacyHash);
-            if (!normalizedLegacyHash) {
+            if (!normalizedLegacyHash && !exactKey) {
                 return null;
             }
-            return { key: `legacy:${normalizedLegacyHash}`, legacyHash: normalizedLegacyHash };
+            if (normalizedLegacyHash && (!exactKey || legacyHashFromExactHash(exactHash) === normalizedLegacyHash)) {
+                legacyKey = `legacy:${normalizedLegacyHash}`;
+                addUniqueKey(keys, legacyKey);
+            }
+        }
+        if (exactKey || legacyKey) {
+            return { key: exactKey || legacyKey, keys };
         }
         return null;
     }
     if (typeof candidate === 'string') {
         const normalizedExactHash = normalizeExactHash(candidate);
         if (normalizedExactHash) {
-            return { key: `exact:${normalizedExactHash}`, exactHash: normalizedExactHash };
+            const key = `exact:${normalizedExactHash}`;
+            return { key, keys: [key] };
         }
     }
     const normalizedLegacyHash = normalizeLegacyHash(candidate);
-    return normalizedLegacyHash ? { key: `legacy:${normalizedLegacyHash}`, legacyHash: normalizedLegacyHash } : null;
+    if (normalizedLegacyHash) {
+        const key = `legacy:${normalizedLegacyHash}`;
+        return { key, keys: [key] };
+    }
+    return null;
 }
 
 function candidateHash(candidate) {
@@ -103,11 +147,41 @@ function candidateHash(candidate) {
     return identity ? identity.key : null;
 }
 
+function candidateKeys(candidate) {
+    const identity = candidateIdentity(candidate);
+    return identity ? identity.keys.slice() : [];
+}
+
+function keySetFor(candidateOrKeys) {
+    if (candidateOrKeys instanceof Set) {
+        return candidateOrKeys;
+    }
+    if (Array.isArray(candidateOrKeys)) {
+        return new Set(candidateOrKeys);
+    }
+    return new Set(candidateKeys(candidateOrKeys));
+}
+
+function identitiesOverlap(candidate, candidateOrKeys) {
+    const keys = keySetFor(candidateOrKeys);
+    return candidateKeys(candidate).some(key => keys.has(key));
+}
+
+function normalizePromotionBudgets(budgets) {
+    const source = Array.isArray(budgets) ? budgets : DEFAULT_PROMOTION_BUDGETS_MS;
+    const normalized = source
+        .map(Number)
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b)
+        .filter((budget, index, values) => index === 0 || budget !== values[index - 1]);
+    return normalized.length > 0 ? normalized : DEFAULT_PROMOTION_BUDGETS_MS.slice();
+}
+
 class CandidateBatchState {
     constructor(options = {}) {
         this.batchId = options.batchId || `batch-${Date.now()}`;
         this.topCount = options.topCount || 3;
-        this.promotionBudgetsMs = options.promotionBudgetsMs || [1000, 5000, 30000, 120000];
+        this.promotionBudgetsMs = normalizePromotionBudgets(options.promotionBudgetsMs);
         this.promotionQueueLimit = options.promotionQueueLimit || 64;
         this.byHash = new Map();
         this.loggedTopHashes = new Set();
@@ -121,6 +195,7 @@ class CandidateBatchState {
         const normalized = { ...candidate };
         const identity = candidateIdentity(candidate);
         normalized.identity_key = identity ? identity.key : null;
+        normalized.identity_keys = identity ? identity.keys.slice() : [];
         normalized.level_hash = candidate.level_hash != null ? candidate.level_hash : candidate.levelHash;
         normalized.effort_score = effortScore(candidate);
         normalized.cells = normalizeRows(candidate.cells || candidate.rows);
@@ -137,36 +212,48 @@ class CandidateBatchState {
         if (!key) {
             return { becameTopSolved: false };
         }
+        const keys = new Set(normalized.identity_keys);
         if (normalized.status === 'solved') {
-            const wasInTop = this.solvedTop().some(entry => candidateHash(entry) === key);
-            this.solved = this.solved.filter(entry => candidateHash(entry) !== key);
-            this.timeouts = this.timeouts.filter(entry => candidateHash(entry) !== key);
+            const wasInTop = this.currentSolvedTop().some(entry => identitiesOverlap(entry, keys));
+            this.solved = this.solved.filter(entry => !identitiesOverlap(entry, keys));
+            this.timeouts = this.timeouts.filter(entry => !identitiesOverlap(entry, keys));
             this.solved.push(normalized);
             this.solved.sort((a, b) => b.effort_score - a.effort_score || String(candidateHash(a)).localeCompare(String(candidateHash(b))));
-            this.byHash.set(key, normalized);
-            const afterTop = this.solvedTop();
+            this.storeCandidate(normalized);
+            const afterTop = this.currentSolvedTop();
             return {
-                becameTopSolved: !wasInTop && afterTop.some(entry => candidateHash(entry) === key),
+                becameTopSolved: !wasInTop && afterTop.some(entry => identitiesOverlap(entry, keys)),
             };
         }
         if (normalized.status === 'timeout') {
-            if (this.hasSolvedHash(key) || this.nextBudgetFor(normalized) == null) {
+            if (this.hasSolvedIdentity(keys) || this.nextBudgetFor(normalized) == null) {
                 return { becameTopSolved: false };
             }
-            this.timeouts = this.timeouts.filter(entry => candidateHash(entry) !== key);
+            this.timeouts = this.timeouts.filter(entry => !identitiesOverlap(entry, keys));
             this.timeouts.push(normalized);
             this.sortAndTrimTimeouts();
-            this.byHash.set(key, normalized);
+            this.storeCandidate(normalized);
         }
         return { becameTopSolved: false };
     }
 
-    solvedTop() {
+    storeCandidate(candidate) {
+        for (const key of candidateKeys(candidate)) {
+            this.byHash.set(key, candidate);
+        }
+    }
+
+    currentSolvedTop() {
         return this.solved.slice(0, this.topCount);
     }
 
-    hasSolvedHash(key) {
-        return this.solved.some(entry => candidateHash(entry) === key);
+    solvedTop() {
+        return this.currentSolvedTop().map(copyCandidate);
+    }
+
+    hasSolvedIdentity(candidateOrKeys) {
+        const keys = keySetFor(candidateOrKeys);
+        return this.solved.some(entry => identitiesOverlap(entry, keys));
     }
 
     nextBudgetFor(candidate) {
@@ -175,7 +262,7 @@ class CandidateBatchState {
     }
 
     diversityAnchors() {
-        return this.promoted.length > 0 ? this.promoted.slice() : [...this.solvedTop(), ...this.timeouts.slice(0, 3)];
+        return this.promoted.length > 0 ? this.promoted.slice() : [...this.currentSolvedTop(), ...this.timeouts.slice(0, 3)];
     }
 
     diversityScore(candidate, anchors = this.diversityAnchors()) {
@@ -191,8 +278,8 @@ class CandidateBatchState {
 
     sortAndTrimTimeouts() {
         this.timeouts = this.timeouts.filter(entry => {
-            const key = candidateHash(entry);
-            return key && this.nextBudgetFor(entry) != null && !this.hasSolvedHash(key);
+            const keys = candidateKeys(entry);
+            return keys.length > 0 && this.nextBudgetFor(entry) != null && !this.hasSolvedIdentity(keys);
         });
         const anchors = this.diversityAnchors();
         const scores = new Map();
@@ -226,21 +313,25 @@ class CandidateBatchState {
 
     timeoutQueue() {
         this.sortAndTrimTimeouts();
-        return this.timeouts.slice();
+        return this.timeouts.map(copyCandidate);
     }
 
     shouldLogSolvedTop(levelHash) {
-        const key = candidateHash(levelHash);
-        if (!key) {
+        const identity = candidateIdentity(levelHash);
+        if (!identity) {
             return false;
         }
-        if (this.loggedTopHashes.has(key)) {
+        const keys = new Set(identity.keys);
+        if (identity.keys.some(key => this.loggedTopHashes.has(key))) {
             return false;
         }
-        if (!this.solvedTop().some(entry => candidateHash(entry) === key)) {
+        const matched = this.currentSolvedTop().find(entry => identitiesOverlap(entry, keys));
+        if (!matched) {
             return false;
         }
-        this.loggedTopHashes.add(key);
+        for (const key of [...identity.keys, ...candidateKeys(matched)]) {
+            this.loggedTopHashes.add(key);
+        }
         return true;
     }
 }
