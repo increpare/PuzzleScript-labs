@@ -98,6 +98,34 @@ class PuzzleScriptGeneratorRun {
         return new Promise((resolve, reject) => {
             let stdout = '';
             let stderr = '';
+            let settled = false;
+            const finishCancelled = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.child = null;
+                removeTempDir(tempDir);
+                resolve({ cancelled: true, tempDir });
+            };
+            const finishReject = error => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.child = null;
+                removeTempDir(tempDir);
+                reject(error);
+            };
+            const finishResolve = output => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.child = null;
+                removeTempDir(tempDir);
+                resolve(output);
+            };
             this.child = childProcess.spawn(binaryPath, args, {
                 cwd: path.dirname(binaryPath),
                 windowsHide: true,
@@ -116,18 +144,19 @@ class PuzzleScriptGeneratorRun {
                 }
             });
             this.child.on('error', error => {
-                reject(error);
+                if (this.cancelled) {
+                    finishCancelled();
+                    return;
+                }
+                finishReject(error);
             });
             this.child.on('close', async code => {
-                this.child = null;
                 if (this.cancelled) {
-                    removeTempDir(tempDir);
-                    resolve({ cancelled: true, tempDir });
+                    finishCancelled();
                     return;
                 }
                 if (code !== 0) {
-                    removeTempDir(tempDir);
-                    reject(new Error((stderr || `Generator exited with code ${code}`).trim()));
+                    finishReject(new Error((stderr || `Generator exited with code ${code}`).trim()));
                     return;
                 }
                 try {
@@ -135,27 +164,45 @@ class PuzzleScriptGeneratorRun {
                     if (eventsPath && fs.existsSync(eventsPath)) {
                         try {
                             for (const event of parseEventLines(fs.readFileSync(eventsPath, 'utf8'))) {
+                                if (this.cancelled) {
+                                    finishCancelled();
+                                    return;
+                                }
                                 try {
                                     await onCandidateEvent(event);
                                 } catch (error) {
                                     warnings.push(`Generator candidate event callback failed: ${error.message || error}`);
+                                }
+                                if (this.cancelled) {
+                                    finishCancelled();
+                                    return;
                                 }
                             }
                         } catch (error) {
                             warnings.push(`Generator candidate events failed: ${error.message || error}`);
                         }
                     }
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
                     const result = parseGeneratorJson(stdout, jsonPath);
-                    removeTempDir(tempDir);
-                    resolve({
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
+                    finishResolve({
                         cancelled: false,
                         tempDir,
                         result,
                         warnings,
                     });
                 } catch (error) {
-                    removeTempDir(tempDir);
-                    reject(error);
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
+                    finishReject(error);
                 }
             });
         });

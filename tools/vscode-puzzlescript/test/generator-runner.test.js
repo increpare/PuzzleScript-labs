@@ -142,6 +142,31 @@ fs.writeFileSync(jsonOut, JSON.stringify({ totals: { samples_attempted: 1 }, top
     assert.strictEqual(asyncCallbackThrow.warnings.length, 1);
     assert.match(asyncCallbackThrow.warnings[0], /async event callback failed/);
 
+    let cancelDuringEventRun = null;
+    cancelDuringEventRun = new PuzzleScriptGeneratorRun({
+        binaryPath: eventing,
+        sourceText: 'title T\\nlevels\\nP',
+        specText: '(INIT LEVEL)\\nP\\n\\n(GENERATION RULES)\\nchoose 1 [ player ] -> [ player ]',
+        runOptions: {
+            timeMs: 10,
+            jobs: 1,
+            seed: 1,
+            solverTimeoutMs: 10,
+            solverStrategy: 'portfolio',
+            topK: 1,
+            samples: '',
+        },
+        onCandidateEvent: () => new Promise(resolve => {
+            setTimeout(() => {
+                cancelDuringEventRun.cancel();
+                resolve();
+            }, 10);
+        }),
+    });
+    const cancelDuringEvent = await cancelDuringEventRun.start();
+    assert.strictEqual(cancelDuringEvent.cancelled, true);
+    assert.strictEqual(fs.existsSync(cancelDuringEvent.tempDir), false);
+
     const malformedEvents = writeExecutable(tmp, 'malformed-events.js', `
 const fs = require('fs');
 const jsonOut = process.argv[process.argv.indexOf('--json-out') + 1];
