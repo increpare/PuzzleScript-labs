@@ -537,7 +537,8 @@ void emitCompactFixedRowScanBounds(
     std::ostream& out,
     const Rule& rule,
     size_t rowLength,
-    std::string_view indent
+    std::string_view indent,
+    std::string_view failureReturnExpression = "false"
 ) {
     const int32_t trailingCells = rowLength > 0 ? static_cast<int32_t>(rowLength - 1) : 0;
     int32_t secondaryStart = 0;
@@ -560,7 +561,7 @@ void emitCompactFixedRowScanBounds(
     }
     out << indent << "const int32_t secondaryStart = " << secondaryStart << ";\n"
         << indent << "const int32_t secondaryEnd = secondaryLimit - " << secondaryEndTrim << ";\n"
-        << indent << "if (secondaryStart >= secondaryEnd) return false;\n"
+        << indent << "if (secondaryStart >= secondaryEnd) return " << failureReturnExpression << ";\n"
         << indent << "const int32_t secondarySpan = secondaryEnd - secondaryStart;\n";
 }
 
@@ -1090,12 +1091,13 @@ void emitCompactFixedStartMatchCollection(
     size_t rowIndex,
     std::string_view indent,
     std::string_view matchVectorName,
-    std::string_view tilePrefix
+    std::string_view tilePrefix,
+    std::string_view failureReturnExpression = "false"
 ) {
-    emitCompactFixedRowScanBounds(out, rule, row.size(), indent);
+    emitCompactFixedRowScanBounds(out, rule, row.size(), indent, failureReturnExpression);
     if (rowMask.hasAnyRequiredMask) {
         out << indent << "if (!compact_turn_board_has_required_masks_" << suffix
-            << "(scratch, " << rowMask.objectMaskName << ", " << rowMask.movementMaskName << ")) return false;\n";
+            << "(scratch, " << rowMask.objectMaskName << ", " << rowMask.movementMaskName << ")) return " << failureReturnExpression << ";\n";
     }
 
     const std::vector<CompactMovementAnchorGroup> movementAnchorGroups = compactMovementAnchorGroupsForRow(game, row);
@@ -1658,7 +1660,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             rowIndex,
             "    ",
             "matches",
-            "tile_"
+            "tile_",
+            ruleApplyNoMatchExpr
         );
         applyBody << "    if (matches.empty()) return " << ruleApplyNoMatchExpr << ";\n";
         emitCompactRuleCommandQueue(applyBody, commandQueueName);
@@ -1771,7 +1774,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 rowIndex,
                 "        ",
                 "rowMatches",
-                "tile_" + std::to_string(rowIndex) + "_"
+                "tile_" + std::to_string(rowIndex) + "_",
+                ruleApplyNoMatchExpr
             );
             applyBody << "        if (rowMatches.empty()) return " << ruleApplyNoMatchExpr << ";\n"
                       << "    }\n";
