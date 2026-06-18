@@ -274,6 +274,9 @@ class PuzzleScriptLevelStudioPanel {
                 case 'runGeneration':
                     await this.runGeneration(message);
                     break;
+                case 'recipeChanged':
+                    this.sidecar.text = String(message.specText != null ? message.specText : '');
+                    break;
                 case 'stopGeneration':
                     this.post({ type: 'generationStopped', batchId: this.stopGeneration() });
                     break;
@@ -867,6 +870,17 @@ ui.solveButton.addEventListener('click', () => {
 ui.solveTimeoutMs.addEventListener('input', () => {
   state.solveTimeoutMs = Number(ui.solveTimeoutMs.value || 0) || ${DEFAULT_LEVEL_STUDIO_SOLVE_TIMEOUT_MS};
 });
+
+function syncRecipeText() {
+  state.specText = ui.recipe.value;
+  vscode.postMessage({
+    type: 'recipeChanged',
+    specText: ui.recipe.value,
+  });
+}
+
+ui.recipe.addEventListener('input', syncRecipeText);
+ui.recipe.addEventListener('change', syncRecipeText);
 
 ui.runGenerationButton.addEventListener('click', () => {
   state.warnings = [];
