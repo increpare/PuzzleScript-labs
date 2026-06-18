@@ -1428,35 +1428,48 @@ std::string compactPatternSimpleReplacementFastPathCall(
     std::string_view tileIndexExpr
 ) {
     const Replacement& replacement = *pattern.replacement;
-    const std::string objectClearMask = compactMaskName(masks, game, replacement.objectsClear, game.wordCount);
-    const std::string objectSetMask = compactMaskName(masks, game, replacement.objectsSet, game.wordCount);
-    const std::string movementClearMask = compactMaskName(masks, game, replacement.movementsClear, game.movementWordCount);
-    const std::string movementSetMask = compactMaskName(masks, game, replacement.movementsSet, game.movementWordCount);
-    const std::string movementLayerMask = compactMaskName(masks, game, replacement.movementsLayerMask, game.movementWordCount);
+    const std::vector<MaskWord> objectClearWords = compiledMaskWords(game, replacement.objectsClear, game.wordCount);
+    const std::vector<MaskWord> objectSetWords = compiledMaskWords(game, replacement.objectsSet, game.wordCount);
+    const std::vector<MaskWord> movementClearWords = compiledMaskWords(game, replacement.movementsClear, game.movementWordCount);
+    const std::vector<MaskWord> movementSetWords = compiledMaskWords(game, replacement.movementsSet, game.movementWordCount);
+    const std::vector<MaskWord> movementLayerWords = compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount);
+    const bool writesObjects = anyMaskWordSet(objectClearWords) || anyMaskWordSet(objectSetWords);
+    const bool writesMovements = anyMaskWordSet(movementClearWords)
+        || anyMaskWordSet(movementSetWords)
+        || anyMaskWordSet(movementLayerWords);
     std::ostringstream call;
+    if (writesObjects && writesMovements) {
+        call << "compact_turn_simple_replacement_fast_path_objects_movements_" << suffix
+             << "(dimensions, levelState, scratch, " << tileIndexExpr
+             << ", " << masks.name(objectClearWords)
+             << ", " << masks.name(objectSetWords)
+             << ", " << masks.name(movementClearWords)
+             << ", " << masks.name(movementSetWords)
+             << ", " << masks.name(movementLayerWords)
+             << ")";
+        return call.str();
+    }
+    if (writesObjects) {
+        call << "compact_turn_simple_replacement_fast_path_objects_" << suffix
+             << "(dimensions, levelState, scratch, " << tileIndexExpr
+             << ", " << masks.name(objectClearWords)
+             << ", " << masks.name(objectSetWords)
+             << ")";
+        return call.str();
+    }
+    if (writesMovements) {
+        call << "compact_turn_simple_replacement_fast_path_movements_" << suffix
+             << "(dimensions, scratch, " << tileIndexExpr
+             << ", " << masks.name(movementClearWords)
+             << ", " << masks.name(movementSetWords)
+             << ", " << masks.name(movementLayerWords)
+             << ")";
+        return call.str();
+    }
     call << "([&]() {\n"
          << "                compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
          << "                compact_turn_count_replacements_attempted_" << suffix << "();\n"
-         << "                bool fastObjectsChanged = false;\n"
-         << "                bool fastMovementsChanged = false;\n"
-         << "                MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, " << tileIndexExpr << ");\n"
-         << "                for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
-         << "                    const MaskWord before = fastObjects[word];\n"
-         << "                    const MaskWord after = (before & ~(" << objectClearMask << ")[word]) | (" << objectSetMask << ")[word];\n"
-         << "                    fastObjects[word] = after;\n"
-         << "                    fastObjectsChanged = fastObjectsChanged || before != after;\n"
-         << "                }\n"
-         << "                MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, " << tileIndexExpr << ");\n"
-         << "                for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
-         << "                    const MaskWord before = fastMovements[word];\n"
-         << "                    const MaskWord clear = (" << movementClearMask << ")[word] | (" << movementLayerMask << ")[word];\n"
-         << "                    const MaskWord after = (before & ~clear) | (" << movementSetMask << ")[word];\n"
-         << "                    fastMovements[word] = after;\n"
-         << "                    fastMovementsChanged = fastMovementsChanged || before != after;\n"
-         << "                }\n"
-         << "                if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, " << tileIndexExpr << ", fastObjects);\n"
-         << "                if (fastMovementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, " << tileIndexExpr << ", fastMovements);\n"
-         << "                const bool fastChanged = fastObjectsChanged || fastMovementsChanged;\n"
+         << "                const bool fastChanged = false;\n"
          << "                if (fastChanged) {\n"
          << "                    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
          << "                    compact_turn_count_replacements_applied_" << suffix << "();\n"
@@ -3386,7 +3399,16 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "inline void compact_turn_count_rebuild_rule_derived_state_movements_dirty_" << suffix << "(uint64_t amount = 1) { if (compact_turn_runtime_counters_" << suffix << " != nullptr) compact_turn_runtime_counters_" << suffix << "->rebuildRuleDerivedStateMovementsDirty += amount; }\n"
         << "inline void compact_turn_count_simple_replacement_fast_path_call_" << suffix << "(uint64_t amount = 1) { if (compact_turn_runtime_counters_" << suffix << " != nullptr) compact_turn_runtime_counters_" << suffix << "->simpleReplacementFastPathCalls += amount; }\n"
         << "inline void compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "(uint64_t amount = 1) { if (compact_turn_runtime_counters_" << suffix << " != nullptr) compact_turn_runtime_counters_" << suffix << "->simpleReplacementFastPathNoops += amount; }\n"
-        << "inline void compact_turn_count_simple_replacement_fast_path_change_" << suffix << "(uint64_t amount = 1) { if (compact_turn_runtime_counters_" << suffix << " != nullptr) compact_turn_runtime_counters_" << suffix << "->simpleReplacementFastPathChanges += amount; }\n\n";
+        << "inline void compact_turn_count_simple_replacement_fast_path_change_" << suffix << "(uint64_t amount = 1) { if (compact_turn_runtime_counters_" << suffix << " != nullptr) compact_turn_runtime_counters_" << suffix << "->simpleReplacementFastPathChanges += amount; }\n\n"
+        << "#ifndef PS_COMPACT_TURN_NOINLINE\n"
+        << "#if defined(__GNUC__) || defined(__clang__)\n"
+        << "#define PS_COMPACT_TURN_NOINLINE __attribute__((noinline))\n"
+        << "#elif defined(_MSC_VER)\n"
+        << "#define PS_COMPACT_TURN_NOINLINE __declspec(noinline)\n"
+        << "#else\n"
+        << "#define PS_COMPACT_TURN_NOINLINE\n"
+        << "#endif\n"
+        << "#endif\n\n";
 
     const std::vector<MaskWord> playerMask = compiledMaskWords(game, game.playerMask, game.wordCount);
     emitMaskArray(out, "compact_turn_player_mask_" + suffix, playerMask);
@@ -3831,6 +3853,104 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        if constexpr (compact_turn_needs_movement_column_masks_" << suffix << ") scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_" << suffix << " + word)] |= value;\n"
         << "        if constexpr (compact_turn_needs_movement_board_mask_" << suffix << ") scratch.boardMovementMask[static_cast<size_t>(word)] |= value;\n"
         << "    }\n"
+        << "}\n\n";
+
+    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_" << suffix << "(\n"
+        << "    LevelDimensions dimensions,\n"
+        << "    PersistentLevelState& levelState,\n"
+        << "    Scratch& scratch,\n"
+        << "    int32_t tileIndex,\n"
+        << "    const MaskWord* objectClearMask,\n"
+        << "    const MaskWord* objectSetMask\n"
+        << ") {\n"
+        << "    compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
+        << "    compact_turn_count_replacements_attempted_" << suffix << "();\n"
+        << "    bool fastObjectsChanged = false;\n"
+        << "    MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
+        << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+        << "        const MaskWord before = fastObjects[word];\n"
+        << "        const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
+        << "        fastObjects[word] = after;\n"
+        << "        fastObjectsChanged = fastObjectsChanged || before != after;\n"
+        << "    }\n"
+        << "    if (fastObjectsChanged) {\n"
+        << "        compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, fastObjects);\n"
+        << "        compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
+        << "        compact_turn_count_replacements_applied_" << suffix << "();\n"
+        << "        return true;\n"
+        << "    }\n"
+        << "    compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "();\n"
+        << "    return false;\n"
+        << "}\n\n";
+
+    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_movements_" << suffix << "(\n"
+        << "    LevelDimensions dimensions,\n"
+        << "    Scratch& scratch,\n"
+        << "    int32_t tileIndex,\n"
+        << "    const MaskWord* movementClearMask,\n"
+        << "    const MaskWord* movementSetMask,\n"
+        << "    const MaskWord* movementLayerMask\n"
+        << ") {\n"
+        << "    compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
+        << "    compact_turn_count_replacements_attempted_" << suffix << "();\n"
+        << "    bool fastMovementsChanged = false;\n"
+        << "    MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+        << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+        << "        const MaskWord before = fastMovements[word];\n"
+        << "        const MaskWord clear = movementClearMask[word] | movementLayerMask[word];\n"
+        << "        const MaskWord after = (before & ~clear) | movementSetMask[word];\n"
+        << "        fastMovements[word] = after;\n"
+        << "        fastMovementsChanged = fastMovementsChanged || before != after;\n"
+        << "    }\n"
+        << "    if (fastMovementsChanged) {\n"
+        << "        compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, fastMovements);\n"
+        << "        compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
+        << "        compact_turn_count_replacements_applied_" << suffix << "();\n"
+        << "        return true;\n"
+        << "    }\n"
+        << "    compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "();\n"
+        << "    return false;\n"
+        << "}\n\n";
+
+    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_movements_" << suffix << "(\n"
+        << "    LevelDimensions dimensions,\n"
+        << "    PersistentLevelState& levelState,\n"
+        << "    Scratch& scratch,\n"
+        << "    int32_t tileIndex,\n"
+        << "    const MaskWord* objectClearMask,\n"
+        << "    const MaskWord* objectSetMask,\n"
+        << "    const MaskWord* movementClearMask,\n"
+        << "    const MaskWord* movementSetMask,\n"
+        << "    const MaskWord* movementLayerMask\n"
+        << ") {\n"
+        << "    compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
+        << "    compact_turn_count_replacements_attempted_" << suffix << "();\n"
+        << "    bool fastObjectsChanged = false;\n"
+        << "    MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
+        << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+        << "        const MaskWord before = fastObjects[word];\n"
+        << "        const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
+        << "        fastObjects[word] = after;\n"
+        << "        fastObjectsChanged = fastObjectsChanged || before != after;\n"
+        << "    }\n"
+        << "    bool fastMovementsChanged = false;\n"
+        << "    MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+        << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+        << "        const MaskWord before = fastMovements[word];\n"
+        << "        const MaskWord clear = movementClearMask[word] | movementLayerMask[word];\n"
+        << "        const MaskWord after = (before & ~clear) | movementSetMask[word];\n"
+        << "        fastMovements[word] = after;\n"
+        << "        fastMovementsChanged = fastMovementsChanged || before != after;\n"
+        << "    }\n"
+        << "    if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, fastObjects);\n"
+        << "    if (fastMovementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, fastMovements);\n"
+        << "    if (fastObjectsChanged || fastMovementsChanged) {\n"
+        << "        compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
+        << "        compact_turn_count_replacements_applied_" << suffix << "();\n"
+        << "        return true;\n"
+        << "    }\n"
+        << "    compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "();\n"
+        << "    return false;\n"
         << "}\n\n";
 
     out << "void compact_turn_clear_movement_masks_" << suffix << "(Scratch& scratch) {\n"
