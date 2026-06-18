@@ -118,7 +118,7 @@ class PuzzleScriptGeneratorRun {
             this.child.on('error', error => {
                 reject(error);
             });
-            this.child.on('close', code => {
+            this.child.on('close', async code => {
                 this.child = null;
                 if (this.cancelled) {
                     removeTempDir(tempDir);
@@ -136,7 +136,7 @@ class PuzzleScriptGeneratorRun {
                         try {
                             for (const event of parseEventLines(fs.readFileSync(eventsPath, 'utf8'))) {
                                 try {
-                                    onCandidateEvent(event);
+                                    await onCandidateEvent(event);
                                 } catch (error) {
                                     warnings.push(`Generator candidate event callback failed: ${error.message || error}`);
                                 }
