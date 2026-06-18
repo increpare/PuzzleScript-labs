@@ -1560,10 +1560,46 @@ std::string emitCompactRuleCommandFunction(
 struct CompactRuleGeneratedNames {
     std::string applyName;
     std::string commandQueueName;
+    std::string precheckName;
+    bool hasMaskPrecheck = false;
 };
 
-CompactRuleGeneratedNames makeCompactRuleGeneratedNames(std::string applyName, std::string commandQueueName = {}) {
-    return CompactRuleGeneratedNames{std::move(applyName), std::move(commandQueueName)};
+CompactRuleGeneratedNames makeCompactRuleGeneratedNames(
+    std::string applyName,
+    std::string commandQueueName = {},
+    std::string precheckName = {},
+    bool hasMaskPrecheck = false
+) {
+    return CompactRuleGeneratedNames{
+        std::move(applyName),
+        std::move(commandQueueName),
+        std::move(precheckName),
+        hasMaskPrecheck
+    };
+}
+
+enum class CompactRulePrecheckMode {
+    Internal,
+    External
+};
+
+std::string emitCompactRulePrecheckFunction(
+    std::ostream& out,
+    std::string_view prefix,
+    std::string_view suffix,
+    const CompactRowMaskInfo& ruleMask
+) {
+    const std::string precheckName = std::string(prefix) + "_precheck";
+    out << "bool " << precheckName << "(const Scratch& scratch) {\n";
+    if (!ruleMask.hasAnyRequiredMask) {
+        out << "    (void)scratch;\n"
+            << "    return true;\n";
+    } else {
+        out << "    return compact_turn_board_has_required_masks_" << suffix
+            << "(scratch, " << ruleMask.objectMaskName << ", " << ruleMask.movementMaskName << ");\n";
+    }
+    out << "}\n\n";
+    return precheckName;
 }
 
 CompactRuleGeneratedNames emitCompactRuleFunction(
@@ -1576,7 +1612,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     std::string_view phase,
     size_t groupIndex,
     size_t ruleIndex,
-    bool groupIsRandom
+    bool groupIsRandom,
+    CompactRulePrecheckMode precheckMode
 ) {
     const std::string prefix = compactRulePrefix(suffix, phase, groupIndex, ruleIndex);
     const int32_t rigidGroupIndex = (rule.rigid
@@ -1622,8 +1659,10 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     }
 
     const CompactRowMaskInfo ruleMask = compactRuleMaskInfo(game, masks, rule);
+    const std::string precheckName = emitCompactRulePrecheckFunction(out, prefix, suffix, ruleMask);
     const std::string ruleApplyNoMatchExpr = "compact_turn_count_rule_apply_result_" + std::string(suffix) + "(false)";
     const std::string ruleApplyChangedExpr = "compact_turn_count_rule_apply_result_" + std::string(suffix) + "(changed)";
+    const bool useInternalRulePrecheck = precheckMode == CompactRulePrecheckMode::Internal;
     const bool inlineSingleRowHelpers = !groupIsRandom && rule.patterns.size() == 1;
     const bool inlineSingleRowStartMatches = inlineSingleRowHelpers
         && !rule.ellipsisCount.empty()
@@ -1645,7 +1684,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "    constexpr bool horizontalScan = " << (rule.direction > 2 ? "true" : "false") << ";\n"
                   << "    const int32_t primaryLimit = horizontalScan ? dimensions.height : dimensions.width;\n"
                   << "    const int32_t secondaryLimit = horizontalScan ? dimensions.width : dimensions.height;\n";
-        emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        if (useInternalRulePrecheck) {
+            emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        }
         emitCompactFixedStartMatchCollection(
             applyBody,
             game,
@@ -1732,7 +1773,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "}\n";
         const std::string applyName = functions.emitDefinition(out, prefix + "_apply", applyBody.str());
         out << "\n";
-        return makeCompactRuleGeneratedNames(applyName, commandQueueName);
+        return makeCompactRuleGeneratedNames(applyName, commandQueueName, precheckName, ruleMask.hasAnyRequiredMask);
     }
 
     const bool inlineMultiRowStartMatches = !groupIsRandom
@@ -1753,7 +1794,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "    constexpr bool horizontalScan = " << (rule.direction > 2 ? "true" : "false") << ";\n"
                   << "    const int32_t primaryLimit = horizontalScan ? dimensions.height : dimensions.width;\n"
                   << "    const int32_t secondaryLimit = horizontalScan ? dimensions.width : dimensions.height;\n";
-        emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        if (useInternalRulePrecheck) {
+            emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        }
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             const std::vector<Pattern>& row = rule.patterns[rowIndex];
             const CompactRowMaskInfo rowMask = compactRowMaskInfo(game, masks, rule, rowIndex, suffix, phase, groupIndex, ruleIndex);
@@ -1881,7 +1924,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "}\n";
         const std::string applyName = functions.emitDefinition(out, prefix + "_apply", applyBody.str());
         out << "\n";
-        return makeCompactRuleGeneratedNames(applyName, commandQueueName);
+        return makeCompactRuleGeneratedNames(applyName, commandQueueName, precheckName, ruleMask.hasAnyRequiredMask);
     }
 
     std::vector<std::string> rowMatchNames(rule.patterns.size());
@@ -2087,7 +2130,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
         emitCompactAggregateBindingComment(applyBody, rule);
         applyBody << "    std::vector<std::vector<int32_t>> matches;\n";
-        emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        if (useInternalRulePrecheck) {
+            emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        }
         applyBody << "    if (!" << rowCollectNames[rowIndex] << "(dimensions, levelState, scratch, matches)) return " << ruleApplyNoMatchExpr << ";\n";
         emitCompactRuleCommandQueue(applyBody, commandQueueName);
         applyBody << "    bool changed = false;\n"
@@ -2148,7 +2193,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "}\n";
         const std::string applyName = functions.emitDefinition(out, prefix + "_apply", applyBody.str());
         out << "\n";
-        return makeCompactRuleGeneratedNames(applyName, commandQueueName);
+        return makeCompactRuleGeneratedNames(applyName, commandQueueName, precheckName, ruleMask.hasAnyRequiredMask);
     }
 
     if (!groupIsRandom && rule.patterns.size() > 1) {
@@ -2161,7 +2206,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "    constexpr bool horizontalScan = " << (rule.direction > 2 ? "true" : "false") << ";\n"
                   << "    const int32_t primaryLimit = horizontalScan ? dimensions.height : dimensions.width;\n"
                   << "    const int32_t secondaryLimit = horizontalScan ? dimensions.width : dimensions.height;\n";
-        emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        if (useInternalRulePrecheck) {
+            emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+        }
         for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
             const std::vector<Pattern>& row = rule.patterns[rowIndex];
             if (rule.ellipsisCount[rowIndex] == 0) {
@@ -2347,7 +2394,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "}\n";
         const std::string applyName = functions.emitDefinition(out, prefix + "_apply", applyBody.str());
         out << "\n";
-        return makeCompactRuleGeneratedNames(applyName, commandQueueName);
+        return makeCompactRuleGeneratedNames(applyName, commandQueueName, precheckName, ruleMask.hasAnyRequiredMask);
     }
 
     if (groupIsRandom) {
@@ -2400,7 +2447,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     emitCompactAggregateBindingComment(applyBody, rule);
     applyBody << "    constexpr size_t rowCount = " << rule.patterns.size() << ";\n"
               << "    std::vector<std::vector<std::vector<int32_t>>> matches;\n";
-    emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+    if (useInternalRulePrecheck) {
+        emitCompactRuleMaskPrecheck(applyBody, "    ", suffix, ruleMask, ruleApplyNoMatchExpr);
+    }
     if (groupIsRandom) {
         applyBody << "    if (!" << prefix << "_collect_matches(dimensions, levelState, scratch, matches)) return " << ruleApplyNoMatchExpr << ";\n";
     } else {
@@ -2465,7 +2514,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
               << "}\n";
     const std::string applyName = functions.emitDefinition(out, prefix + "_apply", applyBody.str());
     out << "\n";
-    return makeCompactRuleGeneratedNames(applyName, commandQueueName);
+    return makeCompactRuleGeneratedNames(applyName, commandQueueName, precheckName, ruleMask.hasAnyRequiredMask);
 }
 
 void emitCompactRulegroupFunctions(
@@ -2483,7 +2532,19 @@ void emitCompactRulegroupFunctions(
         const bool groupIsRandom = !group.empty() && group[0].isRandom;
         std::vector<CompactRuleGeneratedNames> ruleNames(group.size());
         for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
-            ruleNames[ruleIndex] = emitCompactRuleFunction(out, game, masks, functions, group[ruleIndex], suffix, phase, groupIndex, ruleIndex, groupIsRandom);
+            ruleNames[ruleIndex] = emitCompactRuleFunction(
+                out,
+                game,
+                masks,
+                functions,
+                group[ruleIndex],
+                suffix,
+                phase,
+                groupIndex,
+                ruleIndex,
+                groupIsRandom,
+                groupIsRandom ? CompactRulePrecheckMode::Internal : CompactRulePrecheckMode::External
+            );
         }
 
         const std::string groupPrefix = compactGroupPrefix(suffix, phase, groupIndex);
@@ -2594,23 +2655,40 @@ void emitCompactRulegroupFunctions(
                 << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix
                 << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures) {\n";
             for (size_t ruleIndex = firstRuleIndex; ruleIndex < lastRuleIndex; ++ruleIndex) {
-                out << "    compact_turn_count_rules_visited_" << suffix << "();\n"
-                    << "    scratch.dirtyObjectBoard = false;\n"
-                    << "    scratch.dirtyMovementBoard = false;\n"
-                    << "    compact_turn_count_rule_apply_call_" << suffix << "();\n"
-                    << "    const bool changed_" << ruleIndex << " = " << ruleNames[ruleIndex].applyName
+                std::string ruleIndent = "    ";
+                out << "    compact_turn_count_rules_visited_" << suffix << "();\n";
+                if (ruleNames[ruleIndex].hasMaskPrecheck) {
+                    out << "    bool precheckPassed_" << ruleIndex << " = true;\n"
+                        << "    if (!" << ruleNames[ruleIndex].precheckName << "(scratch)) {\n"
+                        << "        compact_turn_count_rule_mask_precheck_failure_" << suffix << "();\n"
+                        << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "();\n"
+                        << "        ++consecutiveFailures;\n"
+                        << "        if (consecutiveFailures == " << group.size() << ") return true;\n"
+                        << "        precheckPassed_" << ruleIndex << " = false;\n"
+                        << "    }\n"
+                        << "    if (precheckPassed_" << ruleIndex << ") {\n"
+                        << "        compact_turn_count_rule_mask_precheck_pass_" << suffix << "();\n";
+                    ruleIndent = "        ";
+                }
+                out << ruleIndent << "scratch.dirtyObjectBoard = false;\n"
+                    << ruleIndent << "scratch.dirtyMovementBoard = false;\n"
+                    << ruleIndent << "compact_turn_count_rule_apply_call_" << suffix << "();\n"
+                    << ruleIndent << "const bool changed_" << ruleIndex << " = " << ruleNames[ruleIndex].applyName
                     << "(dimensions, levelState, scratch, commands);\n"
-                    << "    const bool changedObjects_" << ruleIndex << " = scratch.dirtyObjectBoard;\n"
-                    << "    const bool changedMovements_" << ruleIndex << " = scratch.dirtyMovementBoard;\n"
-                    << "    if (changed_" << ruleIndex << ") {\n"
-                    << "        compact_turn_rebuild_rule_derived_state_" << suffix
+                    << ruleIndent << "const bool changedObjects_" << ruleIndex << " = scratch.dirtyObjectBoard;\n"
+                    << ruleIndent << "const bool changedMovements_" << ruleIndex << " = scratch.dirtyMovementBoard;\n"
+                    << ruleIndent << "if (changed_" << ruleIndex << ") {\n"
+                    << ruleIndent << "    compact_turn_rebuild_rule_derived_state_" << suffix
                     << "(dimensions, levelState, scratch, changedObjects_" << ruleIndex << ", changedMovements_" << ruleIndex << ");\n"
-                    << "        madeChangeThisLoop = true;\n"
-                    << "        consecutiveFailures = 0;\n"
-                    << "    } else {\n"
-                    << "        ++consecutiveFailures;\n"
-                    << "        if (consecutiveFailures == " << group.size() << ") return true;\n"
-                    << "    }\n";
+                    << ruleIndent << "    madeChangeThisLoop = true;\n"
+                    << ruleIndent << "    consecutiveFailures = 0;\n"
+                    << ruleIndent << "} else {\n"
+                    << ruleIndent << "    ++consecutiveFailures;\n"
+                    << ruleIndent << "    if (consecutiveFailures == " << group.size() << ") return true;\n"
+                    << ruleIndent << "}\n";
+                if (ruleNames[ruleIndex].hasMaskPrecheck) {
+                    out << "    }\n";
+                }
             }
             out << "    return false;\n"
                 << "}\n\n";
