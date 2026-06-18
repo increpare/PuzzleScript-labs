@@ -730,7 +730,7 @@ git commit -m "feat: drain compact again natively"
 - Modify: `native/src/compiler/compact_turn_program.cpp`
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 
-- [ ] **Step 1: Use generated loop metadata from the program**
+- [x] **Step 1: Use generated loop metadata from the program**
 
 In `compact_turn_program.cpp`, confirm `JumpIfChanged` instructions are emitted after every group with a loop target. Keep the exact block from Task 3:
 
@@ -745,7 +745,7 @@ In `compact_turn_program.cpp`, confirm `JumpIfChanged` instructions are emitted 
         }
 ```
 
-- [ ] **Step 2: Remove the rule-loop native blocker**
+- [x] **Step 2: Remove the rule-loop native blocker**
 
 In `compactNativeTurnUnsupportedReasonForGame`, delete:
 
@@ -755,7 +755,7 @@ In `compactNativeTurnUnsupportedReasonForGame`, delete:
     }
 ```
 
-- [ ] **Step 3: Keep generated phase loop functions authoritative**
+- [x] **Step 3: Keep generated phase loop functions authoritative**
 
 Use the already-generated `compact_turn_lookup_<phase>_loop_point_<suffix>` and `compact_turn_apply_<phase>_rules_<suffix>` functions for loop execution. Confirm the generated phase function still contains:
 
@@ -767,7 +767,7 @@ Use the already-generated `compact_turn_lookup_<phase>_loop_point_<suffix>` and 
             }
 ```
 
-- [ ] **Step 4: Verify loop coverage and parity**
+- [x] **Step 4: Verify loop coverage and parity**
 
 Run:
 
@@ -779,10 +779,16 @@ make compact_turn_codegen_solver_parity
 
 Expected: `rule_loops` count is zero and solver parity passes.
 
-- [ ] **Step 5: Commit native rule loops**
+Status: coverage passed with `rule_loops=0` and native coverage `75/182`.
+`make compact_turn_codegen_solver_parity` passed with `games=153/153`,
+`levels=2513`, `compact_turn_unhandled=0`, and
+`compact_turn_oracle_failures=0`. The run reported
+`compact_timeout_regressions=6`, which remains performance debt.
+
+- [x] **Step 5: Commit native rule loops**
 
 ```bash
-git add native/src/compiler/compact_turn_program.cpp native/src/compiler/compact_turn_codegen.cpp
+git add docs/superpowers/plans/2026-06-17-compact-turn-native-mini-vm.md native/src/compiler/compact_turn_codegen.cpp
 git commit -m "feat: support compact native rule loops"
 ```
 

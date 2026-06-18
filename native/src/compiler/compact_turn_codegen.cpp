@@ -125,12 +125,6 @@ bool hasRuleCommand(const Game& game, std::string_view commandName) {
     return hasCommandInGroups(game.rules) || hasCommandInGroups(game.lateRules);
 }
 
-bool hasLoopPoints(const LoopPointTable& loopPoint) {
-    return std::any_of(loopPoint.entries.begin(), loopPoint.entries.end(), [](const std::optional<int32_t>& entry) {
-        return entry.has_value();
-    });
-}
-
 std::string compactNativeTurnUnsupportedReasonForRule(const Rule& rule) {
     const std::string ruleReason = compactRuleUnsupportedReason(rule);
     if (!ruleReason.empty()) {
@@ -160,9 +154,6 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
     }
     if (const std::string lateReason = compactNativeTurnUnsupportedReasonForGroups(game.lateRules); !lateReason.empty()) {
         return lateReason;
-    }
-    if (hasLoopPoints(game.loopPoint) || hasLoopPoints(game.lateLoopPoint)) {
-        return "rule_loops";
     }
     if (hasTransparentColoredObject(game)
         && (hasGameMetadata(game, "again_interval")
