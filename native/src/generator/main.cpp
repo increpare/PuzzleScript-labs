@@ -1601,7 +1601,15 @@ void appendCandidateEvent(
         shared.cancel.store(true, std::memory_order_relaxed);
         throw std::runtime_error("Failed to write generator events: " + options.eventsJsonl.string());
     }
-    stream << line << "\n";
+    try {
+        stream.exceptions(std::ios::failbit | std::ios::badbit);
+        stream << line << "\n";
+        stream.flush();
+        stream.close();
+    } catch (const std::ios_base::failure&) {
+        shared.cancel.store(true, std::memory_order_relaxed);
+        throw std::runtime_error("Failed to write generator events: " + options.eventsJsonl.string());
+    }
 }
 
 std::string finalJson(const Options& options, const Game& game, SharedState& shared) {
