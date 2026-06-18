@@ -230,7 +230,7 @@
     ]
   },
   "scripts": {
-    "test": "node ./test/level-studio-core.test.js && node ./test/editor-intelligence.test.js && node ./test/syntax-highlighting.test.js && node ./test/debugger.test.js && node ./test/level-links.test.js && node ./test/generator-core.test.js && node ./test/generator-runner.test.js",
+    "test": "node ./test/level-studio-core.test.js && node ./test/generated-levels-log.test.js && node ./test/editor-intelligence.test.js && node ./test/syntax-highlighting.test.js && node ./test/debugger.test.js && node ./test/level-links.test.js && node ./test/generator-core.test.js && node ./test/generator-runner.test.js",
     "test:syntax": "node ./test/syntax-highlighting.test.js",
     "preview:syntax": "node ./scripts/render-highlight-preview.js"
   },
