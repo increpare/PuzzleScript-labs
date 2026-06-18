@@ -450,7 +450,7 @@ Verification note: added `make compact_turn_codegen_dirty_shape` to assert gener
 
 Replacement-heavy games still spend too much time in generated replacement loops. Add a narrow generated fast path for the common simple case, while leaving the generic replacement path as the correctness fallback.
 
-- [ ] Add a classifier in `native/src/compiler/compact_turn_codegen.cpp`:
+- [x] Add a classifier in `native/src/compiler/compact_turn_codegen.cpp`:
 
 ```cpp
 struct CompactSimpleReplacementPlan {
@@ -496,7 +496,7 @@ std::optional<CompactSimpleReplacementPlan> makeCompactSimpleReplacementPlan(con
 
 Adapt field names to the actual compact replacement structs. The classifier must reject any replacement that depends on aggregate captures, command emission, rigid state, ellipsis captures, dynamic direction, or multi-cell side effects.
 
-- [ ] Emit direct replacement code for valid plans. For a one-cell plan at offset `1` with concrete emitted masks, the generated C++ has this shape:
+- [x] Emit direct replacement code for valid plans. For a one-cell plan at offset `1` with concrete emitted masks, the generated C++ has this shape:
 
 ```cpp
 const int targetCell = match.cell + 1;
@@ -524,40 +524,42 @@ if (!changedObjects && !changedMovements) {
 
 Use the real object and movement storage APIs from the current generated code. Do not bypass layer constraints or movement-layer bookkeeping that the generic replacement path applies; if the generic path uses helper functions to set/clear bits safely, call those helpers from the fast path.
 
-- [ ] Preserve command semantics:
+- [x] Preserve command semantics:
 
   - `again` remains generated and returned through `commandResult`.
   - `cancel`, `restart`, `undo`, `checkpoint`, `message`, and `sfx` keep their solver/native no-op or signal behavior from the existing native path.
   - The simple replacement fast path only handles replacements with no commands.
 
-- [ ] Count fast-path use:
+- [x] Count fast-path use:
 
 ```cpp
 compact_turn_count_simple_replacement_fast_path_call_game0();
 ```
 
-- [ ] Add `src/tests/compact_turn_regression_tests/simple_replacement_fast_path.txt` with a small game that exercises both one-cell object replacement and one-cell movement replacement. Assert generated and interpreter final states match through `make compact_turn_codegen_regression_tests`.
+- [x] Add `src/tests/compact_turn_regression_tests/simple_replacement_fast_path.txt` with a small game that exercises both one-cell object replacement and one-cell movement replacement. Assert generated and interpreter final states match through `make compact_turn_codegen_regression_tests`.
 
-- [ ] Run focused perf. This task should directly improve `Double-Entry Bookkeeping Simulator.txt#17` late-rule time or `big dog and little dog.txt#11` generated throughput:
+- [x] Run focused perf. This task should directly improve `Double-Entry Bookkeeping Simulator.txt#17` late-rule time or `big dog and little dog.txt#11` generated throughput:
 
 ```sh
 make compact_turn_codegen_perf_suite
 make compact_turn_codegen_perf_expectations
 ```
 
-- [ ] Run correctness:
+- [x] Run correctness:
 
 ```sh
 make compact_turn_codegen_solver_parity
 make compact_tick_oracle_smoke
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```sh
 git add native/src/compiler/compact_turn_codegen.cpp src/tests
 git commit -m "perf: specialize simple compact turn replacements"
 ```
+
+Verification note: added generated-source shape checks for fast-path emission, scoped object/movement writes, and compact helper call sites. `make compact_turn_codegen_dirty_shape` and `make compact_turn_codegen_regression_tests` pass. `make compact_turn_codegen_perf_suite` passes; the fast path is active across the focused cases and the helper refactor avoids the pathological `i sure look tasty.txt` compile-time blowup seen with fully inline fast paths. The focused expectation gate still fails for `big dog and little dog.txt#11`, `Double-Entry Bookkeeping Simulator.txt#17`, and the generated-count threshold for `heroes_of_sokoban_3.txt#23`, so Task 6 remains required. Correctness passed with `make compact_turn_codegen_solver_parity` (`games=153/153`, `levels=2513`, `compact_turn_oracle_failures=0`, `compact_timeout_regressions=32`) and `make compact_tick_oracle_smoke` (`cases=14`, `compact_turn_oracle_failures=0`).
 
 ---
 
