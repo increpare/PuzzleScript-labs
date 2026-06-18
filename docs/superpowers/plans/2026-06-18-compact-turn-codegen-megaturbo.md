@@ -567,7 +567,7 @@ Verification note: added generated-source shape checks for fast-path emission, s
 
 If Tasks 3-5 do not pass all expectations, use the new counters to target unnecessary derived-state rebuild work. This task is still generic codegen work: it reduces per-turn setup and rebuild cost inside generated kernels without changing solver behavior.
 
-- [ ] Inspect `compact_turn_rebuild_rule_derived_state` output in generated C++ for `heroes_of_sokoban_3.txt#23` and `easyenigma.txt#11`:
+- [x] Inspect `compact_turn_rebuild_rule_derived_state` output in generated C++ for `heroes_of_sokoban_3.txt#23` and `easyenigma.txt#11`:
 
 ```sh
 build/native/puzzlescript_cpp compile-rules src/tests/solver_tests \
@@ -578,7 +578,7 @@ build/native/puzzlescript_cpp compile-rules src/tests/solver_tests \
 rg -n "rebuild_rule_derived_state|apply_.*rules|dirtyObjectBoard|dirtyMovementBoard" build/compiled-rules/inspect_codegen.cpp
 ```
 
-- [ ] Split generated rebuild work into object-only and movement-only helpers:
+- [x] Split generated rebuild work into object-only and movement-only helpers:
 
 ```cpp
 inline void compact_turn_rebuild_rule_object_state_game0(const PSLevel& level, CompactTurnScratch& scratch) {
@@ -607,13 +607,13 @@ inline void compact_turn_rebuild_rule_derived_state_game0(
 
 Map these helpers to the actual generated rebuild functions. The important requirement is that object-only rule changes do not rebuild movement-only derived state, and movement-only rule changes do not rebuild object-only indexes.
 
-- [ ] Make object-cell index rebuilds lazy only when the next emitted rule needs object anchors:
+- [x] Make object-cell index rebuilds lazy only when the next emitted rule needs object anchors:
 
   - Keep setting `scratch.dirtyObjectCellIndex = true` when object writes occur.
   - Rebuild inside the emitted anchor-scan path before reading `Scratch::objectCellBits` or `objectCellCounts`.
   - Do not rebuild object-cell index immediately after a rule if no upcoming anchor scan reads it.
 
-- [ ] Verify with focused counters:
+- [x] Verify with focused counters:
 
 ```sh
 make compact_turn_codegen_perf_suite
@@ -625,7 +625,7 @@ Expected counter movement:
 - fewer object-cell index rebuilds in games where no following anchor scan needs the index;
 - no increase in candidate cells for Voitex or manic controls.
 
-- [ ] Run correctness:
+- [x] Run correctness:
 
 ```sh
 make compact_turn_codegen_solver_parity
@@ -633,12 +633,14 @@ make compact_tick_oracle_smoke
 make compact_turn_native_parity
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```sh
 git add native/src/compiler/compact_turn_codegen.cpp
 git commit -m "perf: tighten compact turn derived rebuilds"
 ```
+
+Verification note: split generated object mask rebuilds from sparse object-cell index rebuilds. `compact_turn_prepare_state` no longer requires the sparse object-cell index to be fresh; emitted anchor scans lazily call `compact_turn_prepare_object_cell_index`, which now rebuilds only the sparse object-cell arrays. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_suite`, `make compact_turn_codegen_solver_parity`, `make compact_tick_oracle_smoke`, and `make compact_turn_native_parity` pass. Focused perf improved `Double-Entry Bookkeeping Simulator.txt#17` from roughly 23.8us/generated to 20.0us/generated, but `compact_turn_codegen_perf_expectations` still fails on `big dog and little dog.txt#11`, `Double-Entry Bookkeeping Simulator.txt#17` late-rules time, and the generated-count threshold for `heroes_of_sokoban_3.txt#23`; next work should target the remaining 860k object-dirty derived-state rebuild calls and replacement-heavy scans.
 
 ---
 
