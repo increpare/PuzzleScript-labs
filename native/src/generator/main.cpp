@@ -1548,6 +1548,7 @@ std::string candidateEventJson(
     out << "{";
     out << "\"event\":\"candidate_evaluated\"";
     out << ",\"sample_id\":" << sampleId;
+    out << ",\"sample_id_hex\":" << jsonString(uint64Hex(sampleId));
     out << ",\"seed\":" << sampleSeed;
     out << ",\"seed_hex\":" << jsonString(uint64Hex(sampleSeed));
     out << ",\"sample_seed\":" << sampleSeed;

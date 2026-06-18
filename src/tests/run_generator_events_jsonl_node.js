@@ -66,6 +66,7 @@ function runGenerator(args) {
 function validateEvent(event) {
     assert.strictEqual(event.event, 'candidate_evaluated');
     assert.strictEqual(typeof event.sample_id, 'number');
+    assert(/^[0-9a-f]{16}$/.test(event.sample_id_hex), `sample_id_hex should be 16 lowercase hex digits, got ${event.sample_id_hex}`);
     assert.strictEqual(typeof event.seed, 'number');
     assert.strictEqual(typeof event.sample_seed, 'number');
     assert.strictEqual(event.sample_seed, event.seed);
