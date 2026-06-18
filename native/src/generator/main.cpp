@@ -156,6 +156,8 @@ struct SharedState {
     std::mutex topMutex;
     std::vector<Candidate> top;
     std::mutex eventsMutex;
+    std::mutex errorMutex;
+    std::exception_ptr workerError;
     std::array<std::mutex, 64> dedupeMutexes;
     std::array<std::unordered_set<uint64_t>, 64> dedupe;
     std::array<std::deque<uint64_t>, 64> dedupeOrder;
@@ -218,6 +220,7 @@ struct SolveResult {
     uint64_t generated = 0;
     uint64_t uniqueStates = 0;
     uint64_t duplicates = 0;
+    int64_t solveMs = 0;
 };
 
 void appendCandidateEvent(
@@ -230,6 +233,10 @@ void appendCandidateEvent(
     uint64_t sampleSeed,
     uint64_t levelHash
 );
+
+void initializeEventsJsonl(const Options& options);
+
+void captureWorkerException(SharedState& shared);
 
 std::atomic<bool>* gCancelFlag = nullptr;
 
@@ -258,6 +265,26 @@ void writeFile(const std::filesystem::path& path, const std::string& text) {
         throw std::runtime_error("Failed to write file: " + path.string());
     }
     stream << text;
+}
+
+void initializeEventsJsonl(const Options& options) {
+    if (options.eventsJsonl.empty()) {
+        return;
+    }
+    if (!options.eventsJsonl.parent_path().empty()) {
+        std::filesystem::create_directories(options.eventsJsonl.parent_path());
+    }
+    std::ofstream stream(options.eventsJsonl, std::ios::binary | std::ios::trunc);
+    if (!stream) {
+        throw std::runtime_error("Failed to initialize generator events: " + options.eventsJsonl.string());
+    }
+}
+
+void captureWorkerException(SharedState& shared) {
+    std::lock_guard<std::mutex> lock(shared.errorMutex);
+    if (shared.workerError == nullptr) {
+        shared.workerError = std::current_exception();
+    }
 }
 
 std::string trim(std::string_view value) {
@@ -1307,58 +1334,65 @@ void workerMain(
     TimePoint deadline
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
-    while (!shared.cancel.load(std::memory_order_relaxed)) {
-        const uint64_t sampleId = shared.nextSample.fetch_add(1, std::memory_order_relaxed);
-        if (options.samples && sampleId >= *options.samples) {
-            shared.cancel.store(true, std::memory_order_relaxed);
-            break;
+    try {
+        while (!shared.cancel.load(std::memory_order_relaxed)) {
+            const uint64_t sampleId = shared.nextSample.fetch_add(1, std::memory_order_relaxed);
+            if (options.samples && sampleId >= *options.samples) {
+                shared.cancel.store(true, std::memory_order_relaxed);
+                break;
+            }
+            if (Clock::now() >= deadline) {
+                shared.cancel.store(true, std::memory_order_relaxed);
+                break;
+            }
+            shared.counters.samplesAttempted.fetch_add(1, std::memory_order_relaxed);
+            const uint64_t sampleSeed = splitmix64(options.seed ^ (sampleId + 0x9e3779b97f4a7c15ULL));
+            Rng rng(sampleSeed);
+            LevelTemplate candidateLevel;
+            if (!applyProgram(program, initLevel, *game, rng, candidateLevel)) {
+                shared.counters.rejected.fetch_add(1, std::memory_order_relaxed);
+                continue;
+            }
+            shared.counters.validGenerated.fetch_add(1, std::memory_order_relaxed);
+            const uint64_t levelHash = hashLevel(candidateLevel);
+            if (!insertDedupe(shared, levelHash, options.dedupeMax)) {
+                shared.counters.deduped.fetch_add(1, std::memory_order_relaxed);
+                continue;
+            }
+            const TimePoint solveStart = Clock::now();
+            SolveResult solved = solveGeneratedLevel(loadedGame, candidateLevel, solverMetadata, sampleId, options.solverTimeoutMs, options.solverMode);
+            solved.solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - solveStart).count();
+            shared.counters.solverSearches.fetch_add(1, std::memory_order_relaxed);
+            shared.counters.solverExpanded.fetch_add(solved.expanded, std::memory_order_relaxed);
+            shared.counters.solverGenerated.fetch_add(solved.generated, std::memory_order_relaxed);
+            shared.counters.solverUniqueStates.fetch_add(solved.uniqueStates, std::memory_order_relaxed);
+            shared.counters.solverDuplicates.fetch_add(solved.duplicates, std::memory_order_relaxed);
+            appendCandidateEvent(options, *game, shared, candidateLevel, solved, sampleId, sampleSeed, levelHash);
+            if (solved.status == SolveStatus::Solved) {
+                shared.counters.solved.fetch_add(1, std::memory_order_relaxed);
+                Candidate candidate;
+                candidate.score = solved.uniqueStates;
+                candidate.uniqueStates = solved.uniqueStates;
+                candidate.expanded = solved.expanded;
+                candidate.solutionLength = solved.solution.size();
+                candidate.levelHash = levelHash;
+                candidate.sampleId = sampleId;
+                candidate.seed = sampleSeed;
+                candidate.solution = std::move(solved.solution);
+                candidate.level = std::move(candidateLevel);
+                maybeInsertTop(shared, std::move(candidate), options.topK);
+            } else if (solved.status == SolveStatus::Timeout) {
+                shared.counters.timeouts.fetch_add(1, std::memory_order_relaxed);
+            } else if (solved.status == SolveStatus::LevelError) {
+                shared.counters.levelErrors.fetch_add(1, std::memory_order_relaxed);
+                shared.counters.exhausted.fetch_add(1, std::memory_order_relaxed);
+            } else {
+                shared.counters.exhausted.fetch_add(1, std::memory_order_relaxed);
+            }
         }
-        if (Clock::now() >= deadline) {
-            shared.cancel.store(true, std::memory_order_relaxed);
-            break;
-        }
-        shared.counters.samplesAttempted.fetch_add(1, std::memory_order_relaxed);
-        const uint64_t sampleSeed = splitmix64(options.seed ^ (sampleId + 0x9e3779b97f4a7c15ULL));
-        Rng rng(sampleSeed);
-        LevelTemplate candidateLevel;
-        if (!applyProgram(program, initLevel, *game, rng, candidateLevel)) {
-            shared.counters.rejected.fetch_add(1, std::memory_order_relaxed);
-            continue;
-        }
-        shared.counters.validGenerated.fetch_add(1, std::memory_order_relaxed);
-        const uint64_t levelHash = hashLevel(candidateLevel);
-        if (!insertDedupe(shared, levelHash, options.dedupeMax)) {
-            shared.counters.deduped.fetch_add(1, std::memory_order_relaxed);
-            continue;
-        }
-        SolveResult solved = solveGeneratedLevel(loadedGame, candidateLevel, solverMetadata, sampleId, options.solverTimeoutMs, options.solverMode);
-        shared.counters.solverSearches.fetch_add(1, std::memory_order_relaxed);
-        shared.counters.solverExpanded.fetch_add(solved.expanded, std::memory_order_relaxed);
-        shared.counters.solverGenerated.fetch_add(solved.generated, std::memory_order_relaxed);
-        shared.counters.solverUniqueStates.fetch_add(solved.uniqueStates, std::memory_order_relaxed);
-        shared.counters.solverDuplicates.fetch_add(solved.duplicates, std::memory_order_relaxed);
-        appendCandidateEvent(options, *game, shared, candidateLevel, solved, sampleId, sampleSeed, levelHash);
-        if (solved.status == SolveStatus::Solved) {
-            shared.counters.solved.fetch_add(1, std::memory_order_relaxed);
-            Candidate candidate;
-            candidate.score = solved.uniqueStates;
-            candidate.uniqueStates = solved.uniqueStates;
-            candidate.expanded = solved.expanded;
-            candidate.solutionLength = solved.solution.size();
-            candidate.levelHash = levelHash;
-            candidate.sampleId = sampleId;
-            candidate.seed = sampleSeed;
-            candidate.solution = std::move(solved.solution);
-            candidate.level = std::move(candidateLevel);
-            maybeInsertTop(shared, std::move(candidate), options.topK);
-        } else if (solved.status == SolveStatus::Timeout) {
-            shared.counters.timeouts.fetch_add(1, std::memory_order_relaxed);
-        } else if (solved.status == SolveStatus::LevelError) {
-            shared.counters.levelErrors.fetch_add(1, std::memory_order_relaxed);
-            shared.counters.exhausted.fetch_add(1, std::memory_order_relaxed);
-        } else {
-            shared.counters.exhausted.fetch_add(1, std::memory_order_relaxed);
-        }
+    } catch (...) {
+        shared.cancel.store(true, std::memory_order_relaxed);
+        captureWorkerException(shared);
     }
 }
 
@@ -1472,6 +1506,19 @@ std::string objectNamesForCell(const Game& game, const LevelTemplate& level, int
     return out.str();
 }
 
+uint64_t filledCellCount(const Game& game, const LevelTemplate& level) {
+    uint64_t count = 0;
+    for (int32_t y = 0; y < level.height; ++y) {
+        for (int32_t x = 0; x < level.width; ++x) {
+            const int32_t tile = x * level.height + y;
+            if (!objectNamesForCell(game, level, tile).empty()) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
 std::string solveStatusName(SolveStatus status) {
     switch (status) {
         case SolveStatus::Exhausted: return "exhausted";
@@ -1496,6 +1543,7 @@ std::string candidateEventJson(
     out << "\"event\":\"candidate_evaluated\"";
     out << ",\"sample_id\":" << sampleId;
     out << ",\"seed\":" << sampleSeed;
+    out << ",\"sample_seed\":" << sampleSeed;
     out << ",\"level_hash\":" << levelHash;
     out << ",\"status\":" << jsonString(solveStatusName(solved.status));
     out << ",\"solver_budget_ms\":" << options.solverTimeoutMs;
@@ -1503,9 +1551,13 @@ std::string candidateEventJson(
     out << ",\"expanded\":" << solved.expanded;
     out << ",\"generated\":" << solved.generated;
     out << ",\"duplicates\":" << solved.duplicates;
+    out << ",\"solver_iterations\":" << solved.expanded;
+    out << ",\"effort_score\":" << solved.uniqueStates;
+    out << ",\"solve_ms\":" << solved.solveMs;
     out << ",\"solution_length\":" << solved.solution.size();
     out << ",\"width\":" << level.width;
     out << ",\"height\":" << level.height;
+    out << ",\"filled_cells\":" << filledCellCount(game, level);
     out << ",\"solution\":[";
     for (size_t index = 0; index < solved.solution.size(); ++index) {
         if (index > 0) out << ",";
@@ -1635,6 +1687,7 @@ int main(int argc, char** argv) {
         NameResolver resolver(*game, parserState);
         const GenerationProgram program = compileGenerationProgram(spec, *game, resolver);
         const SolverMetadata solverMetadata = buildSolverMetadata(*game);
+        initializeEventsJsonl(options);
 
         SharedState shared;
         gCancelFlag = &shared.cancel;
@@ -1666,6 +1719,9 @@ int main(int argc, char** argv) {
         }
         for (auto& worker : workers) {
             worker.join();
+        }
+        if (shared.workerError != nullptr) {
+            std::rethrow_exception(shared.workerError);
         }
         if (dashboard) {
             renderDashboard(options, shared, start, true);
