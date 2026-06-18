@@ -17,7 +17,9 @@ function gridDifference(a, b) {
         const rowB = right[y] || [];
         const width = Math.max(rowA.length, rowB.length);
         for (let x = 0; x < width; x++) {
-            if (String(rowA[x] || '') !== String(rowB[x] || '')) {
+            const hasA = x < rowA.length;
+            const hasB = x < rowB.length;
+            if (hasA !== hasB || (hasA && String(rowA[x]) !== String(rowB[x]))) {
                 diff += 1;
             }
         }
@@ -115,17 +117,17 @@ class CandidateBatchState {
 
     nextPromotion() {
         this.sortAndTrimTimeouts();
-        const candidate = this.timeouts.shift();
-        if (!candidate) {
-            return null;
+        while (this.timeouts.length > 0) {
+            const candidate = this.timeouts.shift();
+            const currentIndex = this.promotionBudgetsMs.findIndex(budget => budget > candidate.solver_budget_ms);
+            if (currentIndex < 0) {
+                continue;
+            }
+            const promoted = { ...candidate, next_budget_ms: this.promotionBudgetsMs[currentIndex] };
+            this.promoted.push(promoted);
+            return promoted;
         }
-        const currentIndex = this.promotionBudgetsMs.findIndex(budget => budget > candidate.solver_budget_ms);
-        const nextBudget = currentIndex >= 0
-            ? this.promotionBudgetsMs[currentIndex]
-            : this.promotionBudgetsMs[this.promotionBudgetsMs.length - 1];
-        const promoted = { ...candidate, next_budget_ms: nextBudget };
-        this.promoted.push(promoted);
-        return promoted;
+        return null;
     }
 
     timeoutQueue() {

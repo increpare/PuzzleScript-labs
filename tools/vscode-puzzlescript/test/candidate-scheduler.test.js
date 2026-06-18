@@ -11,6 +11,7 @@ const {
 assert.strictEqual(gridDifference(['P..', '.O.'], ['P..', '.O.']), 0);
 assert.strictEqual(gridDifference(['P..', '.O.'], ['.P.', '.O.']), 2);
 assert.strictEqual(gridDifference([['player', '', ''], ['', 'target', '']], [['', 'player', ''], ['', 'target', '']]), 2);
+assert.strictEqual(gridDifference([['']], [[]]), 1, 'missing cells should differ from present empty cells');
 
 assert.strictEqual(effortScore({ unique_states: 10 }), 10);
 assert.strictEqual(effortScore({ uniqueStates: 11 }), 11);
@@ -85,5 +86,28 @@ const next = batch.nextPromotion();
 assert.strictEqual(next.level_hash, 5, 'highest effort timeout should promote first');
 assert.strictEqual(next.next_budget_ms, 5000);
 assert(batch.timeoutQueue().length <= 1, 'queue limit should evict low-priority timeout candidates');
+
+const maxBudgetBatch = new CandidateBatchState({
+    promotionBudgetsMs: [1000, 5000],
+    promotionQueueLimit: 4,
+});
+maxBudgetBatch.recordEvaluation({
+    level_hash: 8,
+    status: 'timeout',
+    unique_states: 100,
+    solver_budget_ms: 5000,
+    cells: [['player']],
+});
+maxBudgetBatch.recordEvaluation({
+    level_hash: 9,
+    status: 'timeout',
+    unique_states: 10,
+    solver_budget_ms: 1000,
+    cells: [['target']],
+});
+const promotable = maxBudgetBatch.nextPromotion();
+assert.strictEqual(promotable.level_hash, 9, 'max-budget timeout should be skipped for the next promotable candidate');
+assert.strictEqual(promotable.next_budget_ms, 5000);
+assert.strictEqual(maxBudgetBatch.nextPromotion(), null, 'only non-advancing max-budget timeout should remain skipped');
 
 console.log('candidate scheduler tests passed');
