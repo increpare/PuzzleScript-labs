@@ -79,6 +79,12 @@ CompactTurnProgram buildCompactTurnProgram(const Game& game) {
     return program;
 }
 
+CompactTurnProgram buildCompactTurnLevelStartProgram(const Game& game) {
+    CompactTurnProgram program = buildCompactTurnProgram(game);
+    program.entry = CompactTurnProgramEntry::LevelStart;
+    return program;
+}
+
 const char* compactTurnProgramOpName(CompactTurnProgramOp op) {
     switch (op) {
     case CompactTurnProgramOp::BeginTurn: return "BeginTurn";

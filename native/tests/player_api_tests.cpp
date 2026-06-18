@@ -94,7 +94,7 @@ std::string readTextFile(const char* path) {
 }
 
 std::string readCompiledRulesSourceText(const char* path) {
-    return readTextFile(path) + "\n";
+    return readTextFile(path);
 }
 
 void require(bool condition, const char* message) {
@@ -357,6 +357,23 @@ void runCompiledCompactSolverDiscardRegression(const char* sourcePath) {
     assert(!ps_full_state_pending_again(againCancelSession.state));
     assert(ps_full_state_cell_has_object(againCancelSession.state, 0, 0, kPlayerId));
     assert(ps_full_state_cell_has_object(againCancelSession.state, 0, 0, kArmedId));
+
+    SessionHandle propertyMovementSession;
+    require(ps_full_state_create(game, &propertyMovementSession.state, &error), "failed to create property movement session");
+    require(ps_full_state_load_level(propertyMovementSession.state, 3, &error), "failed to load property movement level");
+    require(ps_full_state_cell_has_object(propertyMovementSession.state, 0, 0, kPlayerId), "property movement missing player at start");
+    require(ps_full_state_cell_has_object(propertyMovementSession.state, 0, 1, kCrateId), "property movement missing crate at start");
+    require(!ps_full_state_cell_has_object(propertyMovementSession.state, 0, 2, kCrateId), "property movement crate already at destination");
+
+    handled = false;
+    const ps_step_result propertyMovementResult =
+        ps_full_state_turn_compiled_compact(propertyMovementSession.state, PS_INPUT_DOWN, false, &handled);
+    require(handled, "property movement compact turn was not handled");
+    require(propertyMovementResult.changed, "property movement compact turn did not change");
+    require(!ps_full_state_cell_has_object(propertyMovementSession.state, 0, 0, kPlayerId), "property movement player stayed at source");
+    require(ps_full_state_cell_has_object(propertyMovementSession.state, 0, 1, kPlayerId), "property movement player did not move");
+    require(!ps_full_state_cell_has_object(propertyMovementSession.state, 0, 1, kCrateId), "property movement crate stayed in pushed cell");
+    require(ps_full_state_cell_has_object(propertyMovementSession.state, 0, 2, kCrateId), "property movement crate did not move");
 
     ps_free_game(const_cast<ps_game*>(game));
 }

@@ -1477,6 +1477,38 @@ SolverEdgeStep stepSolverEdge(
                         // Solver discard outcomes intentionally encode no-successor
                         // policy, not player/interpreter step details. Later command
                         // policy tests validate those deliberate differences.
+                        const std::string_view discardReason =
+                            edge.compactTurn.discardReason != nullptr
+                                ? std::string_view(edge.compactTurn.discardReason)
+                                : std::string_view();
+                        if (compactTurnOracle && discardReason == "cancel") {
+                            ps_step_result oracleStepResult{};
+                            {
+                                ScopedTimer timer(result.timing.cloneNs);
+                                prepareSolverChildFullStateFromParent(childScratch, parentSession, trimSolverMeta, copyRestartSnapshot);
+                            }
+                            {
+                                ScopedTimer timer(result.timing.stepNs);
+                                oracleStepResult = puzzlescript::turn(childScratch, input, solverStepOptions);
+                            }
+                            PersistentLevelState oracleState;
+                            {
+                                ScopedTimer timer(result.timing.stateCaptureNs);
+                                oracleState = persistentLevelStateWithTiming(childScratch, result.timing);
+                            }
+                            if (oracleStepResult.changed
+                                || oracleStepResult.won
+                                || oracleStepResult.transitioned
+                                || oracleStepResult.restarted
+                                || !persistentLevelStatesEqual(parentState, oracleState)) {
+                                ++result.compactTurnOracleFailures;
+                                edge.oracleMismatch = true;
+                                edge.oracleError = "compact turn cancel discard mismatch input=" + inputName(input)
+                                    + " compact_step=" + stepResultSummary(edge.compactTurn.stepResult)
+                                    + " interpreter_step=" + stepResultSummary(oracleStepResult)
+                                    + persistentLevelStateDiffSummary(parentState, oracleState);
+                            }
+                        }
                         edge.stepResult = edge.compactTurn.stepResult;
                         return edge;
                     }

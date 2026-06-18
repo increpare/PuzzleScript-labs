@@ -22,6 +22,11 @@ enum class CompactTurnProgramOp {
     ReturnOutcome,
 };
 
+enum class CompactTurnProgramEntry {
+    NormalTurn,
+    LevelStart,
+};
+
 struct CompactTurnProgramInstruction {
     CompactTurnProgramOp op = CompactTurnProgramOp::BeginTurn;
     int32_t groupIndex = -1;
@@ -31,6 +36,7 @@ struct CompactTurnProgramInstruction {
 
 struct CompactTurnProgram {
     std::vector<CompactTurnProgramInstruction> instructions;
+    CompactTurnProgramEntry entry = CompactTurnProgramEntry::NormalTurn;
     bool hasEarlyRules = false;
     bool hasLateRules = false;
     bool hasAgain = false;
@@ -43,6 +49,7 @@ struct CompactTurnProgram {
 };
 
 CompactTurnProgram buildCompactTurnProgram(const Game& game);
+CompactTurnProgram buildCompactTurnLevelStartProgram(const Game& game);
 const char* compactTurnProgramOpName(CompactTurnProgramOp op);
 
 } // namespace puzzlescript::compiler

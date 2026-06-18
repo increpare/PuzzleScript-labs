@@ -36,6 +36,16 @@ size_t compactLayerCoupledMovementTermCount(const Pattern& pattern) {
     return count;
 }
 
+size_t compactLayerCoupledMovementGroupCount(const Pattern& pattern) {
+    size_t count = 0;
+    for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+        if (!coupled.layers.empty()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 std::string compactRulePatternUnsupportedReason(const Pattern& pattern) {
     if (pattern.kind == Pattern::Kind::Ellipsis) {
         return {};
@@ -161,15 +171,8 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
             || hasGameMetadata(game, "require_player_movement"))) {
         return "transparent_object_compact_unsupported";
     }
-    if (hasGameMetadata(game, "run_rules_on_level_start") && hasAnyRulegroups(game.lateRules)
-        && !hasTransparentColoredObject(game)) {
-        return "run_rules_on_level_start_late_rules";
-    }
     if (hasGameMetadata(game, "verbose_logging")) {
         return "verbose_logging";
-    }
-    if (hasGameMetadata(game, "run_rules_on_level_start")) {
-        return "run_rules_on_level_start_native_perf_guard";
     }
     return {};
 }
@@ -564,6 +567,8 @@ void emitCompactRuleMaskData(
                     const size_t patternLayerCoupledMovementTermCount =
                         compactLayerCoupledMovementTermCount(pattern);
                     if (patternLayerCoupledMovementTermCount > 0) {
+                        const size_t patternLayerCoupledMovementGroupCount =
+                            compactLayerCoupledMovementGroupCount(pattern);
                         out << "constexpr CompactTurnLayerCoupledMovementTerm_" << suffix << " "
                             << prefix << "_layer_coupled_movement_match_terms[] = {\n";
                         for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
@@ -580,6 +585,32 @@ void emitCompactRuleMaskData(
                         out << "};\n";
                         out << "constexpr size_t " << prefix << "_layer_coupled_movement_match_term_count = "
                             << patternLayerCoupledMovementTermCount << ";\n";
+                        out << "constexpr int32_t " << prefix << "_layer_coupled_movement_match_group_firsts[] = {";
+                        size_t first = 0;
+                        bool wroteGroup = false;
+                        for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+                            if (coupled.layers.empty()) {
+                                continue;
+                            }
+                            if (wroteGroup) out << ", ";
+                            out << first;
+                            first += coupled.layers.size();
+                            wroteGroup = true;
+                        }
+                        out << "};\n";
+                        out << "constexpr int32_t " << prefix << "_layer_coupled_movement_match_group_counts[] = {";
+                        wroteGroup = false;
+                        for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+                            if (coupled.layers.empty()) {
+                                continue;
+                            }
+                            if (wroteGroup) out << ", ";
+                            out << coupled.layers.size();
+                            wroteGroup = true;
+                        }
+                        out << "};\n";
+                        out << "constexpr size_t " << prefix << "_layer_coupled_movement_match_group_count = "
+                            << patternLayerCoupledMovementGroupCount << ";\n";
                     }
                     if (pattern.replacement.has_value()) {
                         const Replacement& replacement = *pattern.replacement;
@@ -672,6 +703,7 @@ std::string compactPatternMatchesCall(
     std::string_view tileIndexExpr
 ) {
     const std::string prefix = compactPatternPrefix(suffix, phase, groupIndex, ruleIndex, rowIndex, patternIndex);
+    const bool hasLayerCoupledMovementTerms = compactLayerCoupledMovementTermCount(pattern) > 0;
     std::ostringstream call;
     call << "compact_turn_pattern_matches_" << suffix << "(levelState, scratch, " << tileIndexExpr
          << ", " << compactMaskName(masks, game, pattern.objectsPresent, game.wordCount)
@@ -683,13 +715,13 @@ std::string compactPatternMatchesCall(
          << ", " << (pattern.anyMovementsCount > 0 ? prefix + "_any_movement_masks" : "nullptr")
          << ", " << pattern.anyMovementsCount
          << ", "
-         << (compactLayerCoupledMovementTermCount(pattern) > 0
-                 ? prefix + "_layer_coupled_movement_match_terms"
-                 : "nullptr")
+         << (hasLayerCoupledMovementTerms ? prefix + "_layer_coupled_movement_match_terms" : "nullptr")
          << ", "
-         << (compactLayerCoupledMovementTermCount(pattern) > 0
-                 ? prefix + "_layer_coupled_movement_match_term_count"
-                 : "0")
+         << (hasLayerCoupledMovementTerms ? prefix + "_layer_coupled_movement_match_group_firsts" : "nullptr")
+         << ", "
+         << (hasLayerCoupledMovementTerms ? prefix + "_layer_coupled_movement_match_group_counts" : "nullptr")
+         << ", "
+         << (hasLayerCoupledMovementTerms ? prefix + "_layer_coupled_movement_match_group_count" : "0")
          << ")";
     return call.str();
 }
@@ -2990,7 +3022,9 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const MaskWord* const* anyMovementMasks,\n"
         << "    size_t anyMovementMaskCount,\n"
         << "    const CompactTurnLayerCoupledMovementTerm_" << suffix << "* layerCoupledMovementTerms,\n"
-        << "    size_t layerCoupledMovementTermCount\n"
+        << "    const int32_t* layerCoupledMovementGroupFirsts,\n"
+        << "    const int32_t* layerCoupledMovementGroupCounts,\n"
+        << "    size_t layerCoupledMovementGroupCount\n"
         << ") {\n"
         << "    const MaskWord* objects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
         << "    const MaskWord* movements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
@@ -3008,8 +3042,17 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    for (size_t anyIndex = 0; anyIndex < anyMovementMaskCount; ++anyIndex) {\n"
         << "        if (!compact_turn_mask_overlaps_" << suffix << "(movements, anyMovementMasks[anyIndex], compact_turn_movement_stride_" << suffix << ")) return false;\n"
         << "    }\n"
-        << "    for (size_t termIndex = 0; termIndex < layerCoupledMovementTermCount; ++termIndex) {\n"
-        << "        if (!compact_turn_layer_coupled_movement_matches_" << suffix << "(objects, movements, layerCoupledMovementTerms[termIndex])) return false;\n"
+        << "    for (size_t groupIndex = 0; groupIndex < layerCoupledMovementGroupCount; ++groupIndex) {\n"
+        << "        bool matchedGroup = false;\n"
+        << "        const int32_t first = layerCoupledMovementGroupFirsts[groupIndex];\n"
+        << "        const int32_t count = layerCoupledMovementGroupCounts[groupIndex];\n"
+        << "        for (int32_t offset = 0; offset < count; ++offset) {\n"
+        << "            if (compact_turn_layer_coupled_movement_matches_" << suffix << "(objects, movements, layerCoupledMovementTerms[first + offset])) {\n"
+        << "                matchedGroup = true;\n"
+        << "                break;\n"
+        << "            }\n"
+        << "        }\n"
+        << "        if (!matchedGroup) return false;\n"
         << "    }\n"
         << "    return true;\n"
         << "}\n\n";

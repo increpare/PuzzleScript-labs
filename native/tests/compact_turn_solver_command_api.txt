@@ -19,15 +19,20 @@ green
 Armed
 blue
 
+Player2
+purple
+
 =======
 LEGEND
 =======
 
 . = Background
 P = Player
+Q = Player2
 C = Crate
 D = Crate2
 A = Player and Armed
+Hero = Player or Player2
 Box = Crate or Crate2
 
 ================
@@ -38,15 +43,17 @@ Background
 Player, Crate
 Crate2
 Armed
+Player2
 
 ======
 RULES
 ======
 
-[ > Player | Background ] -> [ Background | Crate ] cancel
+right [ > Player | Background ] -> [ Background | Crate ] cancel
 [ Action Player ] -> [ Background ] restart
-right [ > Player | Box ] -> [ > Player | > Box ]
-right [ > Player | > Box ] -> [ > Player | Box ]
+right [ > Hero | Box ] -> [ > Hero | > Box ]
+right [ > Hero | > Box ] -> [ > Hero | Box ]
+down [ > Hero | Box ] -> [ > Hero | > Box ]
 [ < Player ] -> [ < Player Armed ] again
 [ stationary Player Armed ] -> cancel
 
@@ -59,3 +66,7 @@ P.
 PC.
 
 P
+
+P
+C
+.

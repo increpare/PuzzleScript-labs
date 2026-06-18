@@ -799,7 +799,7 @@ git commit -m "feat: support compact native rule loops"
 - Modify: `native/src/compiler/compact_turn_program.cpp`
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 
-- [ ] **Step 1: Add entry mode to the program model**
+- [x] **Step 1: Add entry mode to the program model**
 
 In `native/src/compiler/compact_turn_program.hpp`, add:
 
@@ -816,7 +816,7 @@ and add this field to `CompactTurnProgram`:
     CompactTurnProgramEntry entry = CompactTurnProgramEntry::NormalTurn;
 ```
 
-- [ ] **Step 2: Build a level-start program variant**
+- [x] **Step 2: Build a level-start program variant**
 
 In `compact_turn_program.hpp`, declare:
 
@@ -834,7 +834,7 @@ CompactTurnProgram buildCompactTurnLevelStartProgram(const Game& game) {
 }
 ```
 
-- [ ] **Step 3: Remove run-start blockers**
+- [x] **Step 3: Remove run-start blockers**
 
 In `compactNativeTurnUnsupportedReasonForGame`, delete both blocks:
 
@@ -853,7 +853,7 @@ and:
     }
 ```
 
-- [ ] **Step 4: Keep solver restart discard ahead of level-start**
+- [x] **Step 4: Keep solver restart discard ahead of level-start**
 
 In generated command handling, confirm solver restart discard appears before any player restart branch:
 
@@ -864,7 +864,7 @@ In generated command handling, confirm solver restart discard appears before any
     }
 ```
 
-- [ ] **Step 5: Verify run-start coverage and parity**
+- [x] **Step 5: Verify run-start coverage and parity**
 
 Run:
 
@@ -876,7 +876,19 @@ make compact_turn_codegen_solver_parity
 
 Expected: both run-start blocker counts are zero and solver parity passes.
 
-- [ ] **Step 6: Commit run-start support**
+Status: coverage passed with native compact coverage `111/182` and both
+`run_rules_on_level_start_*` blocker counts at zero. A generated matcher
+regression surfaced in `gem soketeer.txt#11`: layer-coupled movement masks were
+flattened as AND terms instead of OR-within-each-coupled-group. Added a focused
+compiled compact command API regression for property movement alternatives and
+fixed codegen to emit coupled match group first/count tables. Verification:
+`make compact_turn_codegen_solver_command_api` passed, targeted
+`gem soketeer.txt#11` compact oracle passed with a timeout warning, and full
+`make compact_turn_codegen_solver_parity` passed with `games=153/153`,
+`levels=2513`, `compact_turn_unhandled=0`,
+`compact_turn_oracle_failures=0`, and `compact_timeout_regressions=43`.
+
+- [x] **Step 6: Commit run-start support**
 
 ```bash
 git add native/src/compiler/compact_turn_program.hpp native/src/compiler/compact_turn_program.cpp native/src/compiler/compact_turn_codegen.cpp
