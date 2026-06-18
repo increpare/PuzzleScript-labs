@@ -182,6 +182,11 @@ function main() {
     );
     assertExcludes(objectOnlyBody, 'scratch.dirtyMovementBoard = false;', 'object-only rule');
     assertExcludes(objectOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object-only rule');
+    const objectOnlyApplyBody = functionBody(source, 'ctr_0_e_0_0_apply');
+    assertIncludes(objectOnlyApplyBody, 'compact_turn_count_simple_replacement_fast_path_call_0();', 'object-only fast replacement');
+    assertIncludes(objectOnlyApplyBody, 'fastObjects', 'object-only fast replacement');
+    assertExcludes(objectOnlyApplyBody, 'fastMovements', 'object-only fast replacement');
+    assertExcludes(objectOnlyApplyBody, 'compact_turn_cell_movements_0(scratch, applyTile_0)', 'object-only fast replacement');
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
     assertIncludes(objectAndMovementBody, 'scratch.dirtyObjectBoard = false;', 'object+movement rule');
