@@ -10,16 +10,42 @@ function indentRecipe(text) {
         .join('\n');
 }
 
+function hasHashValue(value) {
+    return value !== undefined && value !== null && String(value) !== '';
+}
+
+function getHashIdentity(entry) {
+    if (!entry) {
+        return null;
+    }
+    const exactHash = hasHashValue(entry.levelHashHex) ? entry.levelHashHex : entry.level_hash_hex;
+    if (hasHashValue(exactHash)) {
+        return { key: `exact:${String(exactHash)}`, exactHash: String(exactHash) };
+    }
+    const legacyHash = hasHashValue(entry.levelHash) ? entry.levelHash : entry.level_hash;
+    if (hasHashValue(legacyHash)) {
+        return { key: `legacy:${String(legacyHash)}`, legacyHash };
+    }
+    return null;
+}
+
 function formatGeneratedLevelBlock(entry) {
     const timestamp = entry.timestamp || new Date().toISOString();
     const solution = (entry.solution || []).join(' ');
     const rows = (entry.rows || []).join('\n');
-    return [
+    const hashIdentity = getHashIdentity(entry);
+    const legacyHash = hasHashValue(entry.levelHash) ? entry.levelHash : entry.level_hash;
+    const lines = [
         `===== GENERATED LEVEL ${timestamp} =====`,
         `source_file: ${entry.sourceFile || ''}`,
         `batch_id: ${entry.batchId || ''}`,
         `source_level: ${entry.sourceLevel}`,
-        `level_hash: ${entry.levelHash}`,
+    ];
+    if (hashIdentity && hashIdentity.exactHash) {
+        lines.push(`level_hash_hex: ${hashIdentity.exactHash}`);
+    }
+    lines.push(
+        `level_hash: ${hasHashValue(legacyHash) ? legacyHash : ''}`,
         `rank_when_logged: ${entry.rankWhenLogged}`,
         `effort_score: ${entry.effortScore}`,
         `solver_status: ${entry.solverStatus || 'solved'}`,
@@ -35,8 +61,9 @@ function formatGeneratedLevelBlock(entry) {
         'level:',
         rows,
         '',
-        '',
-    ].join('\n');
+        ''
+    );
+    return lines.join('\n');
 }
 
 class GeneratedLevelsLog {
@@ -49,15 +76,15 @@ class GeneratedLevelsLog {
         if (!entry || entry.solverStatus !== 'solved') {
             return false;
         }
-        const key = String(entry.levelHash);
-        if (!key || this.loggedHashes.has(key)) {
+        const hashIdentity = getHashIdentity(entry);
+        if (!hashIdentity || this.loggedHashes.has(hashIdentity.key)) {
             return false;
         }
-        this.loggedHashes.add(key);
         if (!path.dirname(this.logPath).match(/^\.?$/)) {
             fs.mkdirSync(path.dirname(this.logPath), { recursive: true });
         }
         fs.appendFileSync(this.logPath, formatGeneratedLevelBlock(entry), 'utf8');
+        this.loggedHashes.add(hashIdentity.key);
         return true;
     }
 }
