@@ -81,7 +81,7 @@ console.log(JSON.stringify({ results: [{ game: 'game', level: 0, status: 'solved
     const beforeSyncError = solverTempDirs();
     let leakedSyncError = [];
     try {
-        assert.throws(() => new PuzzleScriptSolverRun({
+        const syncErrorPromise = new PuzzleScriptSolverRun({
             binaryPath: success,
             sourceText: {
                 toString() {
@@ -91,7 +91,9 @@ console.log(JSON.stringify({ results: [{ game: 'game', level: 0, status: 'solved
             level: 0,
             timeoutMs: 1000,
             strategy: 'portfolio',
-        }).start(), /source stringify failed/);
+        }).start();
+        assert.strictEqual(typeof syncErrorPromise.then, 'function');
+        await assert.rejects(syncErrorPromise, /source stringify failed/);
     } finally {
         leakedSyncError = newSolverTempDirs(beforeSyncError);
         removeDirs(leakedSyncError);

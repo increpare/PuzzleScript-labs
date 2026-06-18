@@ -50,8 +50,9 @@ class PuzzleScriptSolverRun {
     }
 
     start() {
-        const tempDir = makeTempDir();
+        let tempDir = null;
         try {
+            tempDir = makeTempDir();
             const gamePath = path.join(tempDir, 'game.txt');
             fs.writeFileSync(gamePath, String(this.options.sourceText || ''), 'utf8');
             const args = [
@@ -114,7 +115,7 @@ class PuzzleScriptSolverRun {
         } catch (error) {
             this.child = null;
             removeTempDir(tempDir);
-            throw error;
+            return Promise.reject(error);
         }
     }
 
