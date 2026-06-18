@@ -33,11 +33,10 @@ function isPuzzleScriptCandidateDocument(source, filename) {
     if (!/\.txt$/i.test(String(filename || ''))) {
         return false;
     }
-    const lower = String(source || '').toLowerCase();
-    return lower.includes('\nobjects')
-        || lower.includes('\nlegend')
-        || lower.includes('\nlevels')
-        || /^\s*(objects|legend|levels)\s*$/im.test(lower);
+    return String(source || '').split(/\r?\n/).some(line => {
+        const section = sectionNameForLine(line);
+        return section === 'objects' || section === 'legend' || section === 'levels';
+    });
 }
 
 function generatedLevelsLogPath(sourcePath) {
@@ -83,7 +82,7 @@ function glyphPaletteForSource(source) {
 
 function boardFromLevel(level) {
     return (level && Array.isArray(level.rows) ? level.rows : [])
-        .map(row => [...String(row)]);
+        .map(row => [...stripLineComment(row).trim()]);
 }
 
 function replaceGlyphAt(board, x, y, glyph) {
@@ -98,9 +97,11 @@ function rowsFromBoard(board) {
 
 function replaceLevelRowsInSource(source, level, rows) {
     const edit = replacementForLevel(source, level, { cells: [] });
-    const lines = String(source || '').split('\n');
+    const sourceText = String(source || '');
+    const newline = sourceText.includes('\r\n') ? '\r\n' : '\n';
+    const lines = sourceText.split(newline);
     lines.splice(edit.startLine, edit.endLine - edit.startLine, ...rows);
-    return lines.join('\n');
+    return lines.join(newline);
 }
 
 function statusLabel(result) {
