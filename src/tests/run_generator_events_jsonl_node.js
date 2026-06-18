@@ -70,6 +70,10 @@ function validateEvent(event) {
     assert.strictEqual(typeof event.sample_seed, 'number');
     assert.strictEqual(event.sample_seed, event.seed);
     assert.strictEqual(typeof event.level_hash, 'number');
+    assert(/^[0-9a-f]{16}$/.test(event.seed_hex), `seed_hex should be 16 lowercase hex digits, got ${event.seed_hex}`);
+    assert(/^[0-9a-f]{16}$/.test(event.sample_seed_hex), `sample_seed_hex should be 16 lowercase hex digits, got ${event.sample_seed_hex}`);
+    assert(/^[0-9a-f]{16}$/.test(event.level_hash_hex), `level_hash_hex should be 16 lowercase hex digits, got ${event.level_hash_hex}`);
+    assert.strictEqual(event.sample_seed_hex, event.seed_hex);
     assert(['solved', 'timeout', 'exhausted', 'level_error'].includes(event.status), event.status);
     assert.strictEqual(typeof event.solver_budget_ms, 'number');
     assert.strictEqual(typeof event.unique_states, 'number');
@@ -110,7 +114,7 @@ try {
         specPath,
         '--samples', '3',
         '--time-ms', '5000',
-        '--jobs', '1',
+        '--jobs', '2',
         '--seed', '1',
         '--solver-timeout-ms', '100',
         '--top-k', '3',
@@ -128,9 +132,12 @@ try {
     assert(!rawEvents.includes('"stale":true'), 'old JSONL content should be truncated before the run');
     const lines = rawEvents.trim().split(/\r?\n/).filter(Boolean);
     assert(lines.length > 0, 'expected at least one candidate event');
-    for (const line of lines) {
-        validateEvent(JSON.parse(line));
+    const events = lines.map((line) => JSON.parse(line));
+    for (const event of events) {
+        validateEvent(event);
     }
+    assert(events.some((event) => BigInt(`0x${event.sample_seed_hex}`) > BigInt(Number.MAX_SAFE_INTEGER)),
+        'at least one sample_seed_hex should exceed JS safe integer range');
 
     const badEventsDir = path.join(tmp, 'events-dir');
     fs.mkdirSync(badEventsDir);

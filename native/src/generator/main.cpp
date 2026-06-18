@@ -332,6 +332,12 @@ std::string jsonString(std::string_view value) {
     return out.str();
 }
 
+std::string uint64Hex(uint64_t value) {
+    std::ostringstream out;
+    out << std::hex << std::nouppercase << std::setw(16) << std::setfill('0') << value;
+    return out.str();
+}
+
 std::vector<std::string> splitLines(const std::string& source) {
     std::vector<std::string> lines;
     std::istringstream stream(source);
@@ -1543,8 +1549,11 @@ std::string candidateEventJson(
     out << "\"event\":\"candidate_evaluated\"";
     out << ",\"sample_id\":" << sampleId;
     out << ",\"seed\":" << sampleSeed;
+    out << ",\"seed_hex\":" << jsonString(uint64Hex(sampleSeed));
     out << ",\"sample_seed\":" << sampleSeed;
+    out << ",\"sample_seed_hex\":" << jsonString(uint64Hex(sampleSeed));
     out << ",\"level_hash\":" << levelHash;
+    out << ",\"level_hash_hex\":" << jsonString(uint64Hex(levelHash));
     out << ",\"status\":" << jsonString(solveStatusName(solved.status));
     out << ",\"solver_budget_ms\":" << options.solverTimeoutMs;
     out << ",\"unique_states\":" << solved.uniqueStates;
