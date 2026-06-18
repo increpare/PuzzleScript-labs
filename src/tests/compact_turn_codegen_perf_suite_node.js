@@ -30,6 +30,7 @@ const ALLOWED_EXPECTATION_FIELDS = Object.freeze([
     'compiledUsPerGeneratedMax',
     'compiledGeneratedMin',
     'compiledLateRulesMsMax',
+    'compiledRuleApplyCallsMax',
 ]);
 const CASE_THRESHOLD_FIELDS = Object.freeze([
     'compiledStepRatioMax',
@@ -453,6 +454,10 @@ function evaluateExpectations(testCase, row, expectations) {
     if (expectation.compiledLateRulesMsMax !== undefined
             && !(compiled.compactTurnLateRulesMs <= expectation.compiledLateRulesMsMax)) {
         failures.push(metricFailure(key, 'compiledLateRulesMs', compiled.compactTurnLateRulesMs, '>', expectation.compiledLateRulesMsMax));
+    }
+    if (expectation.compiledRuleApplyCallsMax !== undefined
+            && !(compiled.compactTurnRuleApplyCalls <= expectation.compiledRuleApplyCallsMax)) {
+        failures.push(metricFailure(key, 'compiledRuleApplyCalls', compiled.compactTurnRuleApplyCalls, '>', expectation.compiledRuleApplyCallsMax));
     }
     return failures;
 }
