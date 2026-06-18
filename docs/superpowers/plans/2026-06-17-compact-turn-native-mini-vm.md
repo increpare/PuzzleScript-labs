@@ -1046,11 +1046,21 @@ Keep the guard:
     }
 ```
 
-- [ ] **Step 4: Fix transparent solver-drain native semantics**
+- [x] **Step 4: Fix transparent solver-drain native semantics**
 
 Investigate the `alternatey.txt#2` mismatch before removing the guard. Current
 evidence points at generated compact multi-row/rule-loop behavior under solver
 `AgainPolicy::Drain`, not at rendering or the runtime object-cell index.
+
+Status: added the focused `alternatey_visible.txt` compact-turn regression and
+fixed generated compact movement/object mask dirtiness, movement line-all mask
+preservation, post-movement derived-state rebuild flags, and solver
+materialized-state mask cache clearing. Verification:
+`make compact_turn_codegen_regression_tests COMPILED_RULES_REUSE_SHARDED_CPP=false`
+passed with `compact_turn_oracle_failures=0`; after removing the transparent
+guard, full `make compact_turn_codegen_solver_parity` passed with
+`compact_turn_unhandled=0`, `compact_turn_oracle_failures=0`, and
+`compact_timeout_regressions=32`.
 
 - [x] **Step 5: Verify verbose coverage and transparent guard safety**
 
@@ -1070,6 +1080,10 @@ Status: coverage reports native compact kernels `124/182`,
 `levels=2513`, `compact_turn_unhandled=0`,
 `compact_turn_oracle_failures=0`, and `compact_timeout_regressions=21`.
 
+Follow-up status: after Step 4, the transparent guard was removed and
+`make compact_turn_native_parity` passed with native compact coverage
+`182/182`.
+
 - [x] **Step 6: Commit verbose support and transparent guard note**
 
 ```bash
@@ -1084,7 +1098,7 @@ git commit -m "feat: allow transparent compact native kernels"
 - Modify: `native/src/compiler/compact_turn_codegen.hpp`
 - Modify: `src/tests/compact_turn_native_parity_node.js`
 
-- [ ] **Step 1: Make compiler mode report native for all supported games**
+- [x] **Step 1: Make compiler mode report native for all supported games**
 
 Change `compactTurnSupportForGame` to stop converting unsupported native cases into accepted bridges. The final function should be:
 
@@ -1101,7 +1115,7 @@ CompactTurnSupport compactTurnSupportForGame(const Game& game, const CompactCode
 }
 ```
 
-- [ ] **Step 2: Make native support default to native kernel when no blocker remains**
+- [x] **Step 2: Make native support default to native kernel when no blocker remains**
 
 At the end of `compactNativeTurnSupportForGame`, keep:
 
@@ -1112,7 +1126,7 @@ At the end of `compactNativeTurnSupportForGame`, keep:
     return support;
 ```
 
-- [ ] **Step 3: Run strict coverage**
+- [x] **Step 3: Run strict coverage**
 
 Run:
 
@@ -1126,7 +1140,10 @@ Expected:
 compact_turn_native_parity_node passed native=182/182
 ```
 
-- [ ] **Step 4: Commit strict native support reporting**
+Status: `make compact_turn_native_parity` passed with
+`compact_turn_native_parity_node passed native=182/182`.
+
+- [x] **Step 4: Commit strict native support reporting**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp native/src/compiler/compact_turn_codegen.hpp src/tests/compact_turn_native_parity_node.js
@@ -1139,7 +1156,7 @@ git commit -m "feat: require native compact compiler coverage"
 - Modify: `src/tests/compact_turn_perf_regression_node.js`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Run core build**
+- [x] **Step 1: Run core build**
 
 Run:
 
@@ -1149,7 +1166,7 @@ make build
 
 Expected: build passes.
 
-- [ ] **Step 2: Run strict native coverage**
+- [x] **Step 2: Run strict native coverage**
 
 Run:
 
@@ -1163,7 +1180,7 @@ Expected:
 compact_turn_native_parity_node passed native=182/182
 ```
 
-- [ ] **Step 3: Run solver parity**
+- [x] **Step 3: Run solver parity**
 
 Run:
 
@@ -1173,7 +1190,9 @@ make compact_turn_codegen_solver_parity
 
 Expected: JSON totals include `compact_turn_oracle_failures=0`, `compact_turn_unhandled=0`, and all required compact attempts handled.
 
-- [ ] **Step 4: Add a concrete targeted perf Make target**
+Observed: `compact_turn_oracle_failures=0`, `compact_turn_unhandled=0`, `compact_turn_hits=46949025`, and `compact_timeout_regressions=29`.
+
+- [x] **Step 4: Add a concrete targeted perf Make target**
 
 Add `compact_turn_perf_regression` to the `.PHONY` block.
 
@@ -1201,7 +1220,7 @@ compact_turn_perf_regression: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/compact_turn_perf_regression_node.js --corpus src/tests/solver_tests --interpreter-solver "$(PUZZLESCRIPT_SOLVER)" --compiled-solver "$$build_dir/native/puzzlescript_solver" --timeout-ms "$(COMPACT_TURN_PERF_TIMEOUT_MS)"
 ```
 
-- [ ] **Step 5: Run targeted perf harness**
+- [x] **Step 5: Run targeted perf harness**
 
 Run:
 
@@ -1211,7 +1230,9 @@ make compact_turn_perf_regression
 
 Expected: `compact_turn_perf_regression_node passed`, `manic_ammo` remains a strong native win, and `Voitex` uses native compact turns without throughput regression.
 
-- [ ] **Step 6: Run timeout curve validation**
+Observed: `manic_ammo.txt#26` compiled step time `273.312ms` vs interpreter `959.933ms`; `Voitex Rasteriser 2.txt#1` compiled generated `180896` states vs interpreter `171380` at 1000ms.
+
+- [x] **Step 6: Run timeout curve validation**
 
 Run:
 
@@ -1221,7 +1242,9 @@ make solver_timeout_curve SOLVER_TIMEOUT_CURVE_MAX_MS=1000 SOLVER_TIMEOUT_CURVE_
 
 Expected: compiled portfolio and compiled HDA solve at least as many levels as their interpreter counterparts at 1000ms.
 
-- [ ] **Step 7: Commit validation target updates**
+Observed: raw corpus at 1000ms: compiled portfolio `938` vs interpreter portfolio `901`, compiled HDA `1016` vs interpreter HDA `990`; canonical corpus at 1000ms: compiled portfolio `926` vs interpreter portfolio `891`, compiled HDA `997` vs interpreter HDA `963`.
+
+- [x] **Step 7: Commit validation target updates**
 
 ```bash
 git add Makefile src/tests/compact_turn_perf_regression_node.js
@@ -1233,7 +1256,7 @@ git commit -m "test: validate compact native mini vm performance"
 **Files:**
 - No code changes expected.
 
-- [ ] **Step 1: Inspect final status**
+- [x] **Step 1: Inspect final status**
 
 Run:
 
@@ -1244,7 +1267,9 @@ git log --oneline -8
 
 Expected: clean worktree on the implementation branch.
 
-- [ ] **Step 2: Record final coverage numbers**
+Observed: clean worktree on `codex/compact-turn-anchors`; latest commits include `f49dc89c docs: record compact turn curve validation` and `19cfce9f perf: anchor compact turn movement scans`.
+
+- [x] **Step 2: Record final coverage numbers**
 
 Run:
 
@@ -1266,7 +1291,20 @@ Expected:
 }
 ```
 
-- [ ] **Step 3: Prepare handoff summary**
+Observed:
+
+```json
+{
+  "sources": 182,
+  "native": 182,
+  "bridge": 0,
+  "reasons": {
+    "native_kernel": 182
+  }
+}
+```
+
+- [x] **Step 3: Prepare handoff summary**
 
 Write a short summary with:
 
@@ -1279,6 +1317,16 @@ Known risks: any remaining perf variance or long-running full curve notes
 ```
 
 Do not commit this summary unless it is added to an existing project handoff document.
+
+Summary:
+
+```text
+Coverage: native 182/182, bridge 0/182
+Correctness: compact_turn_codegen_solver_parity passed with compact_turn_oracle_failures=0 and compact_turn_unhandled=0
+Perf: targeted harness passed; manic_ammo remains a strong compiled win and Voitex compiled generated 180896 vs interpreter 171380 states at 1000ms
+Curve: compiled >= interpreter at 1000ms for portfolio and HDA, raw and canonical
+Known risks: full timeout curve is long-running; remaining perf variance appears in non-failing compact timeout warnings, now 29 in solver parity
+```
 
 ---
 
