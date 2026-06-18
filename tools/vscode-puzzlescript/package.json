@@ -30,6 +30,11 @@
           "type": "string",
           "default": "",
           "description": "Path to the native puzzlescript_generator executable. Empty uses <puzzlescript.repoRoot>/build/native/puzzlescript_generator."
+        },
+        "puzzlescript.solverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the native puzzlescript_solver executable. Empty uses <puzzlescript.repoRoot>/build/native/puzzlescript_solver."
         }
       }
     },
@@ -57,6 +62,11 @@
       {
         "command": "puzzlescript.generateLevels",
         "title": "Generate Levels",
+        "category": "PuzzleScript"
+      },
+      {
+        "command": "puzzlescript.openLevelStudio",
+        "title": "Open Level Studio",
         "category": "PuzzleScript"
       },
       {
@@ -111,6 +121,11 @@
           "command": "puzzlescript.generateLevels",
           "when": "resourceLangId == puzzlescript",
           "group": "navigation"
+        },
+        {
+          "command": "puzzlescript.openLevelStudio",
+          "when": "resourceLangId == puzzlescript",
+          "group": "navigation"
         }
       ],
       "editor/context": [
@@ -126,6 +141,11 @@
         },
         {
           "command": "puzzlescript.generateLevels",
+          "when": "resourceLangId == puzzlescript",
+          "group": "navigation"
+        },
+        {
+          "command": "puzzlescript.openLevelStudio",
           "when": "resourceLangId == puzzlescript",
           "group": "navigation"
         }
