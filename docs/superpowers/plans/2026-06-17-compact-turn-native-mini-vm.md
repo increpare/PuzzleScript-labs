@@ -988,14 +988,30 @@ git add native/src/compiler/compact_turn_codegen.cpp
 git commit -m "feat: support compact aggregate bindings natively"
 ```
 
-## Task 11: Native Transparent Object And Verbose Metadata Support
+## Task 11: Native Verbose Metadata Support And Transparent Guard Follow-Up
 
 **Files:**
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 
-- [ ] **Step 1: Remove transparent object and verbose blockers**
+**Status note (2026-06-17):** `verbose_logging` can be ungated, but removing
+the transparent-object guard exposed a compact-turn oracle mismatch in
+`alternatey.txt#2` on path `right,right`. Keep the transparent guard until
+generated compact multi-row/rule-loop semantics match the solver interpreter for
+this case.
+
+- [x] **Step 1: Remove the verbose metadata blocker**
 
 In `compactNativeTurnUnsupportedReasonForGame`, delete:
+
+```cpp
+    if (hasGameMetadata(game, "verbose_logging")) {
+        return "verbose_logging";
+    }
+```
+
+- [x] **Step 2: Probe transparent object support**
+
+Temporarily remove:
 
 ```cpp
     if (hasTransparentColoredObject(game)
@@ -1006,36 +1022,55 @@ In `compactNativeTurnUnsupportedReasonForGame`, delete:
     }
 ```
 
-and:
+Then run a focused solver parity check on the first transparent solver-drain
+failure:
+
+```bash
+make compact_turn_codegen_solver_parity SOLVER_COMPACT_PARITY_GAME='alternatey.txt' SOLVER_COMPACT_PARITY_LEVEL=2
+```
+
+Observed: removing the guard generated a native compact oracle mismatch for
+`alternatey.txt#2` on path `right,right`; the compact state stripped object `t`
+where the solver interpreter preserved it.
+
+- [x] **Step 3: Restore the transparent guard until native semantics match**
+
+Keep the guard:
 
 ```cpp
-    if (hasGameMetadata(game, "verbose_logging")) {
-        return "verbose_logging";
+    if (hasTransparentColoredObject(game)
+        && (hasGameMetadata(game, "again_interval")
+            || hasGameMetadata(game, "run_rules_on_level_start")
+            || hasGameMetadata(game, "require_player_movement"))) {
+        return "transparent_object_compact_unsupported";
     }
 ```
 
-- [ ] **Step 2: Keep transparent objects semantic-only in compact execution**
+- [ ] **Step 4: Fix transparent solver-drain native semantics**
 
-In `hasTransparentColoredObject`, keep the helper for diagnostics, but do not use it in native support gating. Add this comment above the function:
+Investigate the `alternatey.txt#2` mismatch before removing the guard. Current
+evidence points at generated compact multi-row/rule-loop behavior under solver
+`AgainPolicy::Drain`, not at rendering or the runtime object-cell index.
 
-```cpp
-// Transparent color affects rendering, not compact solver semantics. Keep this
-// helper for diagnostics only; native compact-turn support must not gate on it.
-```
-
-- [ ] **Step 3: Verify transparent coverage and parity**
+- [x] **Step 5: Verify verbose coverage and transparent guard safety**
 
 Run:
 
 ```bash
-build/native/puzzlescript_cpp compile-rules src/tests/solver_tests --stats-only --compact-turn-only --compact-turn-mode=compiler --coverage-json /tmp/compact_transparent.json
-node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("/tmp/compact_transparent.json","utf8")).aggregate.compact_turn; const r=c.native_kernel_status_reason_counts; if ((r.transparent_object_compact_unsupported||0)!==0 || (r.verbose_logging||0)!==0) throw new Error("transparent/verbose blockers remain"); console.log(c.native_kernel_supported);'
-make compact_turn_codegen_solver_parity
+build/native/puzzlescript_cpp compile-rules src/tests/solver_tests --stats-only --compact-turn-only --compact-turn-mode=compiler --coverage-json /tmp/compact_verbose.json
+node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("/tmp/compact_verbose.json","utf8")).aggregate.compact_turn; const r=c.native_kernel_status_reason_counts; if ((r.verbose_logging||0)!==0) throw new Error("verbose blocker remains"); if ((r.transparent_object_compact_unsupported||0)===0) throw new Error("transparent guard unexpectedly absent before semantic fix"); console.log(c.native_kernel_supported);'
 ```
 
-Expected: transparent and verbose blocker counts are zero and solver parity passes.
+Expected: verbose blocker count is zero; transparent guard remains until Step 4
+lands.
 
-- [ ] **Step 4: Commit transparent support**
+Status: coverage reports native compact kernels `124/182`,
+`verbose_logging=0`, and `transparent_object_compact_unsupported=58`. Full
+`make compact_turn_codegen_solver_parity` passed with `games=153/153`,
+`levels=2513`, `compact_turn_unhandled=0`,
+`compact_turn_oracle_failures=0`, and `compact_timeout_regressions=21`.
+
+- [x] **Step 6: Commit verbose support and transparent guard note**
 
 ```bash
 git add native/src/compiler/compact_turn_codegen.cpp

@@ -155,6 +155,8 @@ bool hasGameMetadata(const Game& game, std::string_view key) {
     return game.metadata.values.find(std::string(key)) != game.metadata.values.end();
 }
 
+// Transparent color is normally rendering-only, but solver-drain games still
+// need a native parity fix before this diagnostic guard can be removed.
 bool hasTransparentColoredObject(const Game& game) {
     for (const ObjectDef& object : game.objectsById) {
         for (const std::string& color : object.colors) {
@@ -214,9 +216,6 @@ std::string compactNativeTurnUnsupportedReasonForGame(const Game& game) {
             || hasGameMetadata(game, "run_rules_on_level_start")
             || hasGameMetadata(game, "require_player_movement"))) {
         return "transparent_object_compact_unsupported";
-    }
-    if (hasGameMetadata(game, "verbose_logging")) {
-        return "verbose_logging";
     }
     return {};
 }
