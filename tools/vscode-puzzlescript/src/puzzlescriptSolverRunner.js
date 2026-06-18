@@ -17,7 +17,6 @@ function removeTempDir(tempDir) {
 
 function parseSolverJson(stdout) {
     const text = String(stdout || '').trim();
-    let fallback = null;
     for (let start = text.indexOf('{'); start >= 0;) {
         let nextStart = text.indexOf('{', start + 1);
         let depth = 0;
@@ -48,7 +47,6 @@ function parseSolverJson(stdout) {
                             if (Object.prototype.hasOwnProperty.call(parsed, 'results')) {
                                 return parsed;
                             }
-                            fallback = parsed;
                             nextStart = text.indexOf('{', index + 1);
                         }
                     } catch (error) {
@@ -59,9 +57,6 @@ function parseSolverJson(stdout) {
             }
         }
         start = nextStart;
-    }
-    if (fallback) {
-        return fallback;
     }
     throw new Error('Solver output did not contain JSON.');
 }
@@ -109,15 +104,41 @@ class PuzzleScriptSolverRun {
             return new Promise((resolve, reject) => {
                 let stdout = '';
                 let stderr = '';
+                let settled = false;
+                const finishCancelled = () => {
+                    if (settled) {
+                        return;
+                    }
+                    settled = true;
+                    this.child = null;
+                    removeTempDir(tempDir);
+                    resolve({ cancelled: true, tempDir });
+                };
+                const finishReject = error => {
+                    if (settled) {
+                        return;
+                    }
+                    settled = true;
+                    this.child = null;
+                    removeTempDir(tempDir);
+                    reject(error);
+                };
+                const finishResolve = result => {
+                    if (settled) {
+                        return;
+                    }
+                    settled = true;
+                    this.child = null;
+                    removeTempDir(tempDir);
+                    resolve({ cancelled: false, tempDir, result });
+                };
                 try {
                     this.child = childProcess.spawn(this.options.binaryPath, args, {
                         cwd: path.dirname(this.options.binaryPath),
                         windowsHide: true,
                     });
                 } catch (error) {
-                    this.child = null;
-                    removeTempDir(tempDir);
-                    reject(error);
+                    finishReject(error);
                     return;
                 }
                 this.child.stdout.on('data', chunk => {
@@ -127,29 +148,26 @@ class PuzzleScriptSolverRun {
                     stderr += String(chunk);
                 });
                 this.child.on('error', error => {
-                    this.child = null;
-                    removeTempDir(tempDir);
-                    reject(error);
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
+                    finishReject(error);
                 });
                 this.child.on('close', code => {
-                    this.child = null;
                     if (this.cancelled) {
-                        removeTempDir(tempDir);
-                        resolve({ cancelled: true, tempDir });
+                        finishCancelled();
                         return;
                     }
                     if (code !== 0) {
-                        removeTempDir(tempDir);
-                        reject(new Error((stderr || `Solver exited with code ${code}`).trim()));
+                        finishReject(new Error((stderr || `Solver exited with code ${code}`).trim()));
                         return;
                     }
                     try {
                         const result = parseSolverJson(stdout);
-                        removeTempDir(tempDir);
-                        resolve({ cancelled: false, tempDir, result });
+                        finishResolve(result);
                     } catch (error) {
-                        removeTempDir(tempDir);
-                        reject(error);
+                        finishReject(error);
                     }
                 });
             });

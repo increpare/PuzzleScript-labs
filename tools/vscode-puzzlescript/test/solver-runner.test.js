@@ -2,6 +2,8 @@
 'use strict';
 
 const assert = require('assert');
+const childProcess = require('child_process');
+const { EventEmitter } = require('events');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -41,7 +43,11 @@ async function runTests() {
     assert.deepStrictEqual(parseSolverJson('{"results":[{"status":"solved"}]}\nwarning {pid=1}\n'), {
         results: [{ status: 'solved' }],
     });
+    assert.deepStrictEqual(parseSolverJson('{"note":"metadata"}\n{"results":[{"status":"solved"}]}\n{"note":"summary"}\n'), {
+        results: [{ status: 'solved' }],
+    });
     assert.throws(() => parseSolverJson('not json'), /did not contain JSON/);
+    assert.throws(() => parseSolverJson('{"note":"metadata"}\n{"note":"summary"}\n'), /did not contain JSON/);
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-solver-runner-'));
     const fakeSolver = path.join(tmp, process.platform === 'win32' ? 'puzzlescript_solver.exe' : 'puzzlescript_solver');
@@ -150,6 +156,39 @@ setTimeout(() => {}, 10000);
         removeDirs(leakedCancel);
     }
     assert.deepStrictEqual(leakedCancel, [], 'cancelled solver runs should not leak solver temp dirs');
+
+    const originalSpawn = childProcess.spawn;
+    const beforeCancelError = solverTempDirs();
+    let leakedCancelError = [];
+    try {
+        childProcess.spawn = () => {
+            const fakeChild = new EventEmitter();
+            fakeChild.stdout = new EventEmitter();
+            fakeChild.stderr = new EventEmitter();
+            fakeChild.kill = () => {
+                setImmediate(() => fakeChild.emit('error', new Error('cancel race')));
+                return true;
+            };
+            return fakeChild;
+        };
+        const raceRun = new PuzzleScriptSolverRun({
+            binaryPath: path.join(tmp, 'solver-race.js'),
+            sourceText: 'title T\nlevels\nP',
+            level: 0,
+            timeoutMs: 10000,
+            strategy: 'portfolio',
+        });
+        const pending = raceRun.start();
+        raceRun.cancel();
+        const cancelled = await pending;
+        assert.strictEqual(cancelled.cancelled, true);
+        assert.strictEqual(fs.existsSync(cancelled.tempDir), false);
+    } finally {
+        childProcess.spawn = originalSpawn;
+        leakedCancelError = newSolverTempDirs(beforeCancelError);
+        removeDirs(leakedCancelError);
+    }
+    assert.deepStrictEqual(leakedCancelError, [], 'cancel/error race should not leak solver temp dirs');
 
     fs.rmSync(tmp, { recursive: true, force: true });
 }
