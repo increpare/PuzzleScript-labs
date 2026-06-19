@@ -22,6 +22,14 @@ function parseProgressLine(line) {
     return progress;
 }
 
+function parseEventLines(text) {
+    return String(text || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
+}
+
 function parseGeneratorJson(stdout, jsonPath) {
     if (jsonPath && fs.existsSync(jsonPath)) {
         return JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
@@ -58,11 +66,14 @@ class PuzzleScriptGeneratorRun {
             specText,
             runOptions,
             onProgress,
+            onCandidateEvent,
         } = this.options;
         const tempDir = makeTempDir();
         const gamePath = path.join(tempDir, 'game.ps');
         const specPath = path.join(tempDir, 'recipe.gen');
         const jsonPath = path.join(tempDir, 'result.json');
+        const shouldCollectCandidateEvents = typeof onCandidateEvent === 'function';
+        const eventsPath = shouldCollectCandidateEvents ? path.join(tempDir, 'events.jsonl') : null;
         fs.writeFileSync(gamePath, sourceText, 'utf8');
         fs.writeFileSync(specPath, specText, 'utf8');
 
@@ -77,6 +88,9 @@ class PuzzleScriptGeneratorRun {
             '--top-k', String(runOptions.topK),
             '--json-out', jsonPath,
         ];
+        if (eventsPath) {
+            args.push('--events-jsonl', eventsPath);
+        }
         if (runOptions.samples !== '' && runOptions.samples != null) {
             args.push('--samples', String(runOptions.samples));
         }
@@ -84,6 +98,34 @@ class PuzzleScriptGeneratorRun {
         return new Promise((resolve, reject) => {
             let stdout = '';
             let stderr = '';
+            let settled = false;
+            const finishCancelled = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.child = null;
+                removeTempDir(tempDir);
+                resolve({ cancelled: true, tempDir });
+            };
+            const finishReject = error => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.child = null;
+                removeTempDir(tempDir);
+                reject(error);
+            };
+            const finishResolve = output => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                this.child = null;
+                removeTempDir(tempDir);
+                resolve(output);
+            };
             this.child = childProcess.spawn(binaryPath, args, {
                 cwd: path.dirname(binaryPath),
                 windowsHide: true,
@@ -102,31 +144,65 @@ class PuzzleScriptGeneratorRun {
                 }
             });
             this.child.on('error', error => {
-                reject(error);
-            });
-            this.child.on('close', code => {
-                this.child = null;
                 if (this.cancelled) {
-                    removeTempDir(tempDir);
-                    resolve({ cancelled: true, tempDir });
+                    finishCancelled();
+                    return;
+                }
+                finishReject(error);
+            });
+            this.child.on('close', async code => {
+                if (this.cancelled) {
+                    finishCancelled();
                     return;
                 }
                 if (code !== 0) {
-                    removeTempDir(tempDir);
-                    reject(new Error((stderr || `Generator exited with code ${code}`).trim()));
+                    finishReject(new Error((stderr || `Generator exited with code ${code}`).trim()));
                     return;
                 }
                 try {
+                    const warnings = [];
+                    if (eventsPath && fs.existsSync(eventsPath)) {
+                        try {
+                            for (const event of parseEventLines(fs.readFileSync(eventsPath, 'utf8'))) {
+                                if (this.cancelled) {
+                                    finishCancelled();
+                                    return;
+                                }
+                                try {
+                                    await onCandidateEvent(event);
+                                } catch (error) {
+                                    warnings.push(`Generator candidate event callback failed: ${error.message || error}`);
+                                }
+                                if (this.cancelled) {
+                                    finishCancelled();
+                                    return;
+                                }
+                            }
+                        } catch (error) {
+                            warnings.push(`Generator candidate events failed: ${error.message || error}`);
+                        }
+                    }
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
                     const result = parseGeneratorJson(stdout, jsonPath);
-                    removeTempDir(tempDir);
-                    resolve({
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
+                    finishResolve({
                         cancelled: false,
                         tempDir,
                         result,
+                        warnings,
                     });
                 } catch (error) {
-                    removeTempDir(tempDir);
-                    reject(error);
+                    if (this.cancelled) {
+                        finishCancelled();
+                        return;
+                    }
+                    finishReject(error);
                 }
             });
         });
@@ -142,6 +218,7 @@ class PuzzleScriptGeneratorRun {
 
 module.exports = {
     PuzzleScriptGeneratorRun,
+    parseEventLines,
     parseGeneratorJson,
     parseProgressLine,
     removeTempDir,

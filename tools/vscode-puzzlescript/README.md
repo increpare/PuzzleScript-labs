@@ -133,3 +133,22 @@ make build_generator
 ```
 
 If the extension cannot find it under `<puzzlescript.repoRoot>/build/native/puzzlescript_generator`, set `puzzlescript.generatorPath` to the executable path. Candidate adoption uses normal VS Code workspace edits, so Undo works as expected.
+
+## Level Studio
+
+Open a PuzzleScript-looking `.txt`, `.ps`, or `.puzzlescript` file and run `PuzzleScript: Open Level Studio`.
+
+The Level Studio opens beside the normal VS Code editor. The VS Code editor remains the source editor; Studio edits apply to the open document buffer and use normal VS Code save behavior.
+
+The `Levels` tab provides a glyph-based level browser/editor, solver run controls, and solve results.
+
+The `Candidates` tab runs generation recipes from the current in-memory source and selected level. Candidate generation stops when the Studio closes. Solved candidates that enter the current batch's top 3 are appended once to `<game>.generatedlevels.txt` beside the source file. Timeout candidates remain visible in the Studio but are not written to the log unless a later promoted evaluation solves them and they enter the solved top 3.
+
+Build native tools first:
+
+```sh
+make build_solver
+make build_generator
+```
+
+If the extension cannot find the native binaries under `<puzzlescript.repoRoot>/build/native`, set `puzzlescript.solverPath` or `puzzlescript.generatorPath`.

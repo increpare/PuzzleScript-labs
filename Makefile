@@ -18,7 +18,7 @@
 .PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_regression_tests compact_turn_codegen_dirty_shape compact_turn_perf_regression compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -570,6 +570,7 @@ help:
 	@echo "                                     (ACTION_NOOP_CANDIDATES_OUT=$(ACTION_NOOP_CANDIDATES_OUT))"
 	@echo "  make solver_canonical_replay       Solve static-optimized canonical focus targets and replay on originals"
 	@echo "  make solver_canonical_replay_long  Deeper canonical replay sweep using the long focus manifest"
+	@echo "  make canonical_roundtrip_replay    Replay timeout-curve solutions across original/canonical corpora"
 	@echo "  make static_optimizer_page         Build HTML + JSON per-game solver static-opt summary (two full corpus runs)"
 	@echo "                                     (STATIC_OPTIMIZER_PAGE_CORPUS=$(STATIC_OPTIMIZER_PAGE_CORPUS),"
 	@echo "                                     STATIC_OPTIMIZER_PAGE_OUT=$(STATIC_OPTIMIZER_PAGE_OUT); override STATIC_OPTIMIZER_PAGE_GAME=substring to filter)"
@@ -738,8 +739,10 @@ ctest: build build_solver build_generator
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
 
 tests_js:
-	$(NODE) src/tests/run_tests_node.js
+	PUZZLESCRIPT_SKIP_AUXILIARY_TESTS=1 $(NODE) src/tests/run_tests_node.js
 	$(NODE) src/tests/compiler_keyword_names_node.js
+	$(NODE) src/tests/solver_random_replay_node.js
+	$(NODE) src/tests/compare_solver_timeout_curve_json_node.js
 
 static_analysis_tests:
 	$(NODE) src/tests/ps_static_analysis_node.js
@@ -904,12 +907,12 @@ compact_turn_oracle_smoke: build
 	@set -e; \
 	$(COMPILED_RULES_BOOTSTRAP_CPP); \
 	hash=$$(find src/tests/solver_smoke_tests -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
-	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/compact-smoke-$$hash"; \
-	build_dir="$(COMPILED_RULES_BUILD_ROOT)/compact-smoke-$$hash"; \
+	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/compact-oracle-smoke-$$hash"; \
+	build_dir="$(COMPILED_RULES_BUILD_ROOT)/compact-oracle-smoke-$$hash"; \
 	out_cpp_dir="$$out_dir/sources"; \
 	sources_file="$$out_dir/sources.txt"; \
 	mkdir -p "$$out_dir"; \
-	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,src/tests/solver_smoke_tests,compact_smoke_$$hash,--compact-turn-only --compact-turn-mode=compiler); \
+	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,src/tests/solver_smoke_tests,compact_oracle_smoke_$$hash,--compact-turn-only --compact-turn-mode=compiler); \
 	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file"); \
 	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver; \
 	$(NODE) src/tests/run_solver_smoke_assert.js "$$build_dir/native/puzzlescript_solver" src/tests/solver_smoke_tests --timeout-ms 1000 --compact-turn-oracle --require-compact-oracle-checks
@@ -1347,6 +1350,42 @@ solver_canonical_replay: $(SOLVER_FOCUS_MANIFEST)
 
 solver_canonical_replay_long: $(SOLVER_FOCUS_LONG_MANIFEST)
 	$(NODE) src/tests/run_canonical_solution_replay.js "$(SOLVER_FOCUS_CORPUS)" --solver-focus-manifest "$(SOLVER_FOCUS_LONG_MANIFEST)" --timeout-ms $(SOLVER_CANONICAL_REPLAY_LONG_TIMEOUT_MS) --static-optimizations all --strategy $(SOLVER_FOCUS_STRATEGY)
+
+canonical_roundtrip_replay:
+	@set -e; \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -d "$(SOLVER_TIMEOUT_CURVE_CANONICAL_CORPUS)" ]; then \
+		echo "Missing $(SOLVER_TIMEOUT_CURVE_JS_JSON) or $(SOLVER_TIMEOUT_CURVE_CANONICAL_CORPUS)."; \
+		echo "Run: make solver_timeout_curve"; \
+		exit 2; \
+	fi; \
+	$(NODE) src/tests/run_canonical_roundtrip_replay.js \
+		--from-json-orig "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		--from-json-canonical "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" \
+		--original-corpus "$(SOLVER_TESTS_CORPUS)" \
+		--canonical-corpus "$(SOLVER_TIMEOUT_CURVE_CANONICAL_CORPUS)" \
+		--both
+
+patch_solver_timeout_curve_invalid:
+	@set -e; \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" ]; then \
+		echo "Missing $(SOLVER_TIMEOUT_CURVE_JS_JSON) or $(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)."; \
+		exit 2; \
+	fi; \
+	$(NODE) src/tests/patch_solver_timeout_curve_invalid.js --both
+
+compare_solver_timeout_curve_json:
+	@set -e; \
+	if [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_JSON)" ] || [ ! -f "$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" ]; then \
+		echo "Missing $(SOLVER_TIMEOUT_CURVE_JS_JSON) or $(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)."; \
+		exit 2; \
+	fi; \
+	$(NODE) src/tests/compare_solver_timeout_curve_json.js \
+		"$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		"$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)"; \
+	$(NODE) src/tests/compare_solver_timeout_curve_json.js \
+		"$(SOLVER_TIMEOUT_CURVE_JS_JSON)" \
+		"$(SOLVER_TIMEOUT_CURVE_JS_CANONICAL_JSON)" \
+		--json > "$(SOLVER_TIMEOUT_CURVE_OUT_DIR)/js-vs-canonical-diff.json"
 
 static_optimizer_page:
 	@set -e; \

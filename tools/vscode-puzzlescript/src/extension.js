@@ -13,6 +13,7 @@ const {
     PuzzleScriptDebugPreview,
 } = require('./puzzlescriptDebugAdapter');
 const { openGeneratorPanel } = require('./puzzlescriptGeneratorPanel');
+const { PuzzleScriptLevelStudioPanel, isPuzzleScriptCandidateDocument } = require('./puzzlescriptLevelStudioPanel');
 
 const DOCUMENT_SELECTOR = [
     { language: 'puzzlescript' },
@@ -363,6 +364,28 @@ function activate(context) {
         repoRoot: resolveRepoRoot(context),
         intelligence,
     });
+    const openLevelStudio = async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.uri.scheme !== 'file') {
+            vscode.window.showWarningMessage('Open a PuzzleScript file first.');
+            return;
+        }
+        const canHandle = shouldHandleDocument(editor.document, intelligence)
+            || isPuzzleScriptCandidateDocument(editor.document.getText(), editor.document.fileName);
+        if (!canHandle) {
+            vscode.window.showWarningMessage('Open a PuzzleScript source file first.');
+            return;
+        }
+        const document = editor.document.languageId === 'puzzlescript'
+            ? editor.document
+            : await vscode.languages.setTextDocumentLanguage(editor.document, 'puzzlescript');
+        new PuzzleScriptLevelStudioPanel({
+            context,
+            repoRoot: resolveRepoRoot(context),
+            document,
+            intelligence,
+        });
+    };
 
     const refreshDocument = document => {
         refreshDiagnostics(document, intelligence, diagnostics);
@@ -424,6 +447,7 @@ function activate(context) {
         vscode.commands.registerCommand('puzzlescript.runCurrentGame', startDebugCurrentGame),
         vscode.commands.registerCommand('puzzlescript.debugCurrentGame', startDebugCurrentGame),
         vscode.commands.registerCommand('puzzlescript.generateLevels', startGenerator),
+        vscode.commands.registerCommand('puzzlescript.openLevelStudio', openLevelStudio),
         vscode.commands.registerCommand('puzzlescript.runCurrentGameLevel', level => startDebugCurrentGame(level)),
         vscode.commands.registerCommand('puzzlescript.setLanguageMode', setCurrentDocumentLanguage),
         vscode.commands.registerCommand('puzzlescript.debugInputUp', () => sendDebugInput('up')),

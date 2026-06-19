@@ -95,6 +95,8 @@ const BEST_MANHATTAN_EMPTY_TARGETS_PENALTY = 128;
 /** When `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0`, skip `performance.now()` in the search hot loop (timing breakdown is zeroed; portfolio auto-lock uses step timing only when enabled). */
 const SOLVER_DETAIL_TIMING = process.env.PUZZLESCRIPT_SOLVER_DETAIL_TIMING !== '0';
 const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1';
+/** Reject search wins whose reconstructed input sequence does not replay from a fresh level load. */
+const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !== '0';
 
 let solverStepProfilingInstalled = false;
 let currentSolverStepProfile = null;
@@ -596,23 +598,37 @@ function createStaticHashObjectWords(report) {
     return { words, count };
 }
 
-function ruleGroupsUseRandom(groups) {
-    for (const group of groups || []) {
-        for (const rule of group || []) {
-            if (!rule) {
-                continue;
-            }
-            if (rule.isRandom) {
-                return true;
-            }
-            for (const row of rule.cells || []) {
-                const replacement = row && row.replacement;
+function ruleUsesRandom(rule) {
+    if (!rule) {
+        return false;
+    }
+    if (rule.isRandom) {
+        return true;
+    }
+    for (const rows of [rule.cells, rule.patterns]) {
+        if (!rows) {
+            continue;
+        }
+        for (const row of rows) {
+            for (const cell of row || []) {
+                const replacement = cell && cell.replacement;
                 if (replacement && (
                     (replacement.randomEntityMask && !replacement.randomEntityMask.iszero()) ||
                     (replacement.randomDirMask && !replacement.randomDirMask.iszero())
                 )) {
                     return true;
                 }
+            }
+        }
+    }
+    return false;
+}
+
+function ruleGroupsUseRandom(groups) {
+    for (const group of groups || []) {
+        for (const rule of group || []) {
+            if (ruleUsesRandom(rule)) {
+                return true;
             }
         }
     }
@@ -2871,6 +2887,10 @@ function stepSolverAction(action, stepProfile = null) {
     }
 }
 
+function solverLevelSeed(game, levelIndex) {
+    return `solver:${game}:${levelIndex}`;
+}
+
 function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
     if (!Array.isArray(solution)) {
         return { status: 'invalid_solution', steps: 0, error: 'solution is not an array' };
@@ -2880,7 +2900,7 @@ function replaySolutionOnCurrentCompiledState(game, levelIndex, solution) {
             resetParserErrorState();
         }
         activePlayerPositionsCache = null;
-        loadLevelFromState(state, levelIndex, `solver-parity:${game}:${levelIndex}`);
+        loadLevelFromState(state, levelIndex, solverLevelSeed(game, levelIndex));
         if (textMode || titleScreen || (state.levels[levelIndex] && state.levels[levelIndex].message !== undefined)) {
             return { status: 'skipped_message', steps: 0 };
         }
@@ -3035,6 +3055,22 @@ function reconstruct(nodes, index, finalToken) {
     return reversed.reverse();
 }
 
+function tryFinalizeSolvedModeResult(modeResult, nodes, parentIndex, action, game, levelIndex, searchStarted) {
+    const solution = reconstruct(nodes, parentIndex, action.token);
+    if (VERIFY_SOLUTION_REPLAY) {
+        const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, solution);
+        if (replay.status !== 'solved') {
+            modeResult.replay_rejected = (modeResult.replay_rejected || 0) + 1;
+            return false;
+        }
+    }
+    modeResult.solution = solution;
+    modeResult.solution_length = solution.length;
+    modeResult.elapsed_ms = Date.now() - searchStarted;
+    modeResult.status = 'solved';
+    return true;
+}
+
 function restoreNaiveObjectsSnapshot(snapshot) {
     const objects = level.objects;
     for (let index = 0; index < snapshot.length; index++) {
@@ -3071,7 +3107,7 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         textMode = false;
         hasUsedCheckpoint = false;
     };
-    return runNaiveSolver({
+    runNaiveSolver({
         deadline,
         actions,
         level,
@@ -3090,6 +3126,16 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
         result: modeResult,
         searchStarted,
     });
+    if (VERIFY_SOLUTION_REPLAY && modeResult.status === 'solved') {
+        const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, modeResult.solution);
+        if (replay.status !== 'solved') {
+            modeResult.replay_rejected = 1;
+            modeResult.status = 'exhausted';
+            modeResult.solution = [];
+            modeResult.solution_length = 0;
+        }
+    }
+    return modeResult;
 }
 
 function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
@@ -3107,6 +3153,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
+        replay_rejected: 0,
         max_frontier: 0,
         timeout_ms: timeoutMs,
         compile_ms: compileMs,
@@ -3157,7 +3204,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             return ret;
         }
         : (acc, field, fn) => fn();
-    const seed = `solver:${game}:${levelIndex}`;
+    const seed = solverLevelSeed(game, levelIndex);
     // Error/warning strings accumulate globally and trip the MAX_ERRORS_FOR_REAL
     // "noping out" throw order-dependently across attempts; reset per attempt.
     if (typeof resetParserErrorState === 'function') {
@@ -3245,17 +3292,17 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 modeResult.generated++;
 
                 if (stepResult.solved) {
+                    let finalized = false;
                     if (SOLVER_DETAIL_TIMING) {
-                        timeBlock(modeResult, 'reconstruct_ms', () => {
-                            modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                            modeResult.solution_length = modeResult.solution.length;
-                        });
+                        finalized = timeBlock(modeResult, 'reconstruct_ms', () =>
+                            tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted)
+                        );
                     } else {
-                        modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                        modeResult.solution_length = modeResult.solution.length;
+                        finalized = tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted);
                     }
-                    modeResult.elapsed_ms = Date.now() - searchStarted;
-                    modeResult.status = 'solved';
+                    if (!finalized) {
+                        continue;
+                    }
                     return modeResult;
                 }
                 if (!stepResult.changed) {
@@ -3489,17 +3536,17 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 modeResult.generated++;
 
                 if (stepResult.solved) {
+                    let finalized = false;
                     if (SOLVER_DETAIL_TIMING) {
-                        timeBlock(modeResult, 'reconstruct_ms', () => {
-                            modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                            modeResult.solution_length = modeResult.solution.length;
-                        });
+                        finalized = timeBlock(modeResult, 'reconstruct_ms', () =>
+                            tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted)
+                        );
                     } else {
-                        modeResult.solution = reconstruct(nodes, entry.index, action.token);
-                        modeResult.solution_length = modeResult.solution.length;
+                        finalized = tryFinalizeSolvedModeResult(modeResult, nodes, entry.index, action, game, levelIndex, searchStarted);
                     }
-                    modeResult.elapsed_ms = Date.now() - searchStarted;
-                    modeResult.status = 'solved';
+                    if (!finalized) {
+                        continue;
+                    }
                     modeResult.strategy = `portfolio:${activeMode.name}`;
                     return modeResult;
                 }
@@ -4077,9 +4124,18 @@ function collectCorpusRunJobs(options) {
     return jobs;
 }
 
+let solverPuzzleScriptLoaded = false;
+
+function ensureSolverPuzzleScriptLoaded() {
+    if (!solverPuzzleScriptLoaded) {
+        loadPuzzleScript();
+        installSolverStepProfiler();
+        solverPuzzleScriptLoaded = true;
+    }
+}
+
 function runCorpus(options) {
-    loadPuzzleScript();
-    installSolverStepProfiler();
+    ensureSolverPuzzleScriptLoaded();
     const results = [];
     let attemptedLevels = 0;
     let jobs = collectCorpusRunJobs(options);
@@ -4437,8 +4493,27 @@ if (require.main === module) {
         });
 }
 
+function compileGameFile(filePath, options = {}) {
+    ensureSolverPuzzleScriptLoaded();
+    const abs = path.resolve(filePath);
+    const compiled = runGame(path.dirname(abs), abs, Object.assign({ quiet: true }, options));
+    if (Array.isArray(compiled)) {
+        const detail = compiled[0] && compiled[0].error ? compiled[0].error : 'compile_error';
+        throw new Error(detail);
+    }
+    return compiled;
+}
+
+function replaySolutionOnGameFile(filePath, levelIndex, solution, options = {}) {
+    const compiled = compileGameFile(filePath, options);
+    return replaySolutionOnCurrentCompiledState(compiled.game, levelIndex, solution);
+}
+
 module.exports = {
     parseArgs,
     runCorpus,
     totals,
+    compileGameFile,
+    replaySolutionOnCurrentCompiledState,
+    replaySolutionOnGameFile,
 };

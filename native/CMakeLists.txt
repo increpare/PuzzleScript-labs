@@ -543,6 +543,13 @@ add_test(
 )
 set_tests_properties(solver_timeout_curve_denominator_node PROPERTIES TIMEOUT 10)
 
+add_test(
+  NAME solver_timeout_curve_build_node
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_timeout_curve_build_node.js
+)
+set_tests_properties(solver_timeout_curve_build_node PROPERTIES TIMEOUT 10)
+
 if(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS)
   add_test(
     NAME puzzlescript_solver_js_coverage_full
@@ -822,6 +829,15 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
 )
 set_tests_properties(puzzlescript_generator_smoke PROPERTIES TIMEOUT 30)
+
+add_test(
+  NAME puzzlescript_generator_events_jsonl
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_generator_events_jsonl_node.js
+          $<TARGET_FILE:puzzlescript_generator>
+          ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(puzzlescript_generator_events_jsonl PROPERTIES TIMEOUT 30)
 
 add_test(
   NAME puzzlescript_rule_plan_parity

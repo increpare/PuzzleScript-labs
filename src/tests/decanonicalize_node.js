@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 const { canonicalizeSource, compileSemanticSource } = require('../canonicalize');
 const { decanonicalizeSemantic } = require('../decanonicalize');
@@ -701,6 +702,65 @@ assert.strictEqual(
     compileSemanticSource(playerInBackgroundRehydrated).errorCount,
     0,
     'decanonicalized player-in-background source should compile'
+);
+
+const aggregateToConcreteCanonical = {
+    format: 'puzzlescript-semantic-canonical-v1',
+    metadata: [
+        { key: 'title', value: 'Aggregate To Concrete' },
+    ],
+    collisionLayers: [
+        ['obj_2'],
+        ['obj_0', 'obj_1'],
+    ],
+    playerObjects: [],
+    backgroundObjects: ['obj_2'],
+    rules: [
+        {
+            direction: '',
+            late: false,
+            rigid: false,
+            randomRule: false,
+            groupNumber: 0,
+            lhs: [[[{ dir: '', objs: ['obj_0', 'obj_1'] }]]],
+            rhs: [[[{ dir: '', obj: 'obj_0' }]]],
+            commands: [],
+        },
+    ],
+    winConditions: [],
+    levels: [
+        {
+            type: 'map',
+            rows: [[['obj_2', 'obj_0']]],
+        },
+    ],
+};
+const aggregateToConcreteRehydrated = decanonicalizeSemantic(aggregateToConcreteCanonical);
+const aggregateToConcreteRules = aggregateToConcreteRehydrated.split('RULES')[1].split('WINCONDITIONS')[0];
+assert.ok(
+    /\[ set_0 \] -> \[ obj_0 \]/.test(aggregateToConcreteRules),
+    'aggregate lhs aliases should not collapse concrete rhs transformation targets'
+);
+
+const gapfillerSource = fs.readFileSync(path.join(__dirname, 'solver_tests', 'gapfiller.txt'), 'utf8');
+const gapfillerCanonical = canonicalizeSource(gapfillerSource, 'semantic', {
+    staticOptimizations: 'all',
+    sourcePath: 'gapfiller.txt',
+});
+const gapfillerRehydrated = decanonicalizeSemantic(gapfillerCanonical);
+const gapfillerLegend = gapfillerRehydrated.split('LEGEND')[1].split('SOUNDS')[0];
+const gapfillerWinSection = gapfillerRehydrated.split('WINCONDITIONS')[1].split('LEVELS')[0];
+assert.ok(
+    /set_0 = obj_1 or obj_2 or obj_3 or obj_4/.test(gapfillerLegend),
+    'gapfiller obstacle alias should retain the non-background win target set'
+);
+assert.ok(
+    /all obj_0 on set_0/.test(gapfillerWinSection),
+    'gapfiller ALL win conditions should keep an explicit obstacle target after cosmeticRules pruning'
+);
+assert.ok(
+    !/^\s*all\s+obj_\d+\s*$/m.test(gapfillerWinSection),
+    'gapfiller should not emit background-only plain ALL win text'
 );
 
 console.log('decanonicalize_node: ok');
