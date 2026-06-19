@@ -3042,7 +3042,9 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return {false, result};\n"
         << "    }\n"
         << "    const int32_t directionMask = compact_turn_input_direction_" << suffix << "(input);\n"
-        << "    const bool needsTurnStartSnapshot = probeOnly || compact_turn_needs_turn_start_snapshot_" << suffix << ";\n"
+        << "    const bool needsTurnStartSnapshot = probeOnly\n"
+        << "        || compact_turn_needs_unconditional_turn_start_snapshot_" << suffix << "\n"
+        << "        || (!options.solverMode && compact_turn_needs_command_turn_start_snapshot_" << suffix << ");\n"
         << "    std::vector<MaskWord> turnStartObjects;\n"
         << "    if (needsTurnStartSnapshot) {\n"
         << "        turnStartObjects = levelState.board.objects;\n"
@@ -3130,8 +3132,10 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
         << "    if (options.solverMode && commands.hasCancel) {\n"
-        << "        levelState.board.objects = turnStartObjects;\n"
-        << "        levelState.rng = turnStartRng;\n"
+        << "        if (needsTurnStartSnapshot) {\n"
+        << "            levelState.board.objects = turnStartObjects;\n"
+        << "            levelState.rng = turnStartRng;\n"
+        << "        }\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
@@ -3143,8 +3147,10 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return compact_turn_solver_discard_" << suffix << "(\"cancel\");\n"
         << "    }\n"
         << "    if (options.solverMode && commands.hasRestart) {\n"
-        << "        levelState.board.objects = turnStartObjects;\n"
-        << "        levelState.rng = turnStartRng;\n"
+        << "        if (needsTurnStartSnapshot) {\n"
+        << "            levelState.board.objects = turnStartObjects;\n"
+        << "            levelState.rng = turnStartRng;\n"
+        << "        }\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
@@ -3321,10 +3327,10 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "constexpr bool compact_turn_has_again_command_" << suffix << " = " << (hasRuleCommand(game, "again") ? "true" : "false") << ";\n"
         << "constexpr bool compact_turn_has_cancel_command_" << suffix << " = " << (hasRuleCommand(game, "cancel") ? "true" : "false") << ";\n"
         << "constexpr bool compact_turn_has_restart_command_" << suffix << " = " << (hasRuleCommand(game, "restart") ? "true" : "false") << ";\n"
-        << "constexpr bool compact_turn_needs_turn_start_snapshot_" << suffix << " = compact_turn_has_rigid_" << suffix
+        << "constexpr bool compact_turn_needs_unconditional_turn_start_snapshot_" << suffix << " = compact_turn_has_rigid_" << suffix
         << " || compact_turn_requires_player_movement_" << suffix
-        << " || compact_turn_has_again_command_" << suffix
-        << " || compact_turn_has_cancel_command_" << suffix
+        << " || compact_turn_has_again_command_" << suffix << ";\n"
+        << "constexpr bool compact_turn_needs_command_turn_start_snapshot_" << suffix << " = compact_turn_has_cancel_command_" << suffix
         << " || compact_turn_has_restart_command_" << suffix << ";\n"
         << "constexpr int32_t compact_turn_win_condition_count_" << suffix << " = " << game.winConditions.size() << ";\n\n";
 

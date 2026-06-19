@@ -231,3 +231,62 @@ Expected: output is suitable for the final user write-up.
 - [ ] **Step 3: Final status**
 
 Report changed files, before/after numbers, correctness/perf commands run, and any remaining bottlenecks.
+
+## Task 5: Follow-Up Solver Setup Cache Optimization
+
+- [x] **Step 1: Add a setup-specific red gate**
+
+Add a `compiledSetupMsMax` expectation for `gem soketeer.txt#21` and verify it fails before the solver setup optimization.
+
+- [x] **Step 2: Avoid solver-mode discard snapshots**
+
+Split compact-turn snapshot requirements so solver-mode `cancel` and `restart` discard outcomes do not force a turn-start object snapshot. Keep snapshots for non-solver command semantics, probes, rigid turns, player-movement requirements, and `again`.
+
+- [x] **Step 3: Reuse compact-turn solver scratch storage**
+
+Route native compact-turn solver attempts through the existing per-edge `childScratch.scratch` buffer, marking object-derived caches dirty before each parent-state run so generated kernels rebuild from the correct board while retaining vector capacity.
+
+- [x] **Step 4: Make late-rule perf expectation rate-based**
+
+Replace the total late-rule milliseconds guard for `Double-Entry Bookkeeping Simulator.txt#17` with a per-generated-state late-rule rate guard, since faster setup can generate more states before timeout.
+
+- [x] **Step 5: Verify focused perf gate**
+
+Run:
+
+```bash
+make compact_turn_codegen_perf_expectations
+```
+
+Expected: passes with `gem soketeer.txt#21` setup below the tightened threshold.
+
+- [x] **Step 6: Run native coverage/parity**
+
+Run:
+
+```bash
+make compact_turn_native_parity
+```
+
+Expected: passes for all native compact-turn corpus games.
+
+- [x] **Step 7: Run solver parity**
+
+Run:
+
+```bash
+make compact_turn_codegen_solver_parity
+```
+
+Expected: passes with no compact solver parity mismatches.
+
+- [x] **Step 8: Commit the follow-up optimization**
+
+Run:
+
+```bash
+git add native/src/compiler/compact_turn_codegen.cpp native/src/solver/main.cpp src/tests/compact_turn_codegen_perf_suite_node.js src/tests/compact_turn_codegen_perf_expectations.json docs/superpowers/plans/2026-06-19-compact-turn-codegen-pass2.md
+git commit -m "perf: reduce compact turn solver setup cost"
+```
+
+Expected: commit succeeds after all verification gates pass.
