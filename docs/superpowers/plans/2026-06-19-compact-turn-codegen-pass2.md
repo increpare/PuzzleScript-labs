@@ -196,7 +196,7 @@ Expected: commit includes only files actually changed.
 
 ## Task 4: Curve Validation And Write-Up
 
-- [ ] **Step 1: Run solver timeout curve validation**
+- [x] **Step 1: Run solver timeout curve validation**
 
 Run:
 
@@ -206,7 +206,7 @@ make solver_timeout_curve SOLVER_TIMEOUT_CURVE_MAX_MS=1000 SOLVER_TIMEOUT_CURVE_
 
 Expected: compiled portfolio and compiled HDA do not regress below interpreter counterparts at 1000ms.
 
-- [ ] **Step 2: Summarize before/after focused metrics**
+- [x] **Step 2: Summarize before/after focused metrics**
 
 Run:
 
