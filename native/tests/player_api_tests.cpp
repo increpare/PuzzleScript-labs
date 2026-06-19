@@ -76,6 +76,62 @@ LEVELS
 P.
 )";
 
+constexpr const char* kSnapshotSource = R"(title Native Snapshot API Test
+author Tests
+text_color #ffffff
+background_color #000000
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+Crate
+red
+11111
+11111
+11111
+11111
+11111
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+C = Crate
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+
+========
+LEVELS
+========
+
+.C
+P.
+)";
+
 struct CompileHandle {
     ps_compile_result* result = nullptr;
     ~CompileHandle() { ps_free_compile_result(result); }
@@ -198,7 +254,7 @@ void assertPersistentStateMatches(
 
 void runLayerCellSnapshotApiTest() {
     CompileHandle compiled;
-    require(ps_compile_source(kSource, std::strlen(kSource), &compiled.result), "snapshot api compile failed");
+    require(ps_compile_source(kSnapshotSource, std::strlen(kSnapshotSource), &compiled.result), "snapshot api compile failed");
     GameHandle gameHandle{ps_compile_result_game(compiled.result)};
     const ps_game* game = gameHandle.game;
     require(game != nullptr, "snapshot api compile produced no game");
@@ -213,7 +269,7 @@ void runLayerCellSnapshotApiTest() {
     ps_full_state_status_info status{};
     ps_full_state_status(session.state, &status);
     require(status.width == 2, "snapshot api expected width 2");
-    require(status.height == 1, "snapshot api expected height 1");
+    require(status.height == 2, "snapshot api expected height 2");
 
     const size_t required = ps_full_state_layer_cell_object_ids(session.state, nullptr, 0);
     require(required == static_cast<size_t>(layerCount * status.width * status.height), "snapshot api required size mismatch");
@@ -224,11 +280,49 @@ void runLayerCellSnapshotApiTest() {
 
     const int32_t playerId = findObjectIdByName(game, "player");
     require(playerId >= 0, "snapshot api did not find player object");
+    const int32_t crateId = findObjectIdByName(game, "crate");
+    require(crateId >= 0, "snapshot api did not find crate object");
+    const int32_t backgroundId = findObjectIdByName(game, "background");
+    require(backgroundId >= 0, "snapshot api did not find background object");
 
     ps_object_info playerInfo{};
     require(ps_game_object_info(game, playerId, &playerInfo), "snapshot api player info failed");
-    const size_t playerCellOffset = static_cast<size_t>(playerInfo.layer * status.width * status.height);
+    ps_object_info crateInfo{};
+    require(ps_game_object_info(game, crateId, &crateInfo), "snapshot api crate info failed");
+    ps_object_info backgroundInfo{};
+    require(ps_game_object_info(game, backgroundId, &backgroundInfo), "snapshot api background info failed");
+    require(playerInfo.layer == crateInfo.layer, "snapshot api expected player and crate on same layer");
+    require(playerInfo.layer != backgroundInfo.layer, "snapshot api expected object layer distinct from background");
+
+    const size_t cellCount = static_cast<size_t>(status.width * status.height);
+    const auto layerCellOffset = [&](int32_t layer, int32_t x, int32_t y) {
+        return static_cast<size_t>(layer) * cellCount
+            + static_cast<size_t>(y) * static_cast<size_t>(status.width)
+            + static_cast<size_t>(x);
+    };
+    const size_t backgroundLayerOffset = static_cast<size_t>(backgroundInfo.layer) * cellCount;
+    require(cells[backgroundLayerOffset + 0] == backgroundId, "snapshot api expected background at 0,0");
+    require(cells[backgroundLayerOffset + 1] == backgroundId, "snapshot api expected background at 1,0");
+    require(cells[backgroundLayerOffset + 2] == backgroundId, "snapshot api expected background at 0,1");
+    require(cells[backgroundLayerOffset + 3] == backgroundId, "snapshot api expected background at 1,1");
+    const size_t emptyTopLeftOffset = layerCellOffset(playerInfo.layer, 0, 0);
+    const size_t crateCellOffset = layerCellOffset(crateInfo.layer, 1, 0);
+    const size_t playerCellOffset = layerCellOffset(playerInfo.layer, 0, 1);
+    const size_t emptyBottomRightOffset = layerCellOffset(playerInfo.layer, 1, 1);
+    require(cells[emptyTopLeftOffset] == -1, "snapshot api expected empty object layer cell at 0,0");
+    require(cells[crateCellOffset] == crateId, "snapshot api expected crate at 1,0");
     require(cells[playerCellOffset] == playerId, "snapshot api expected player in first cell on player layer");
+    require(cells[emptyBottomRightOffset] == -1, "snapshot api expected empty object layer cell at 1,1");
+
+    const size_t partialCapacity = playerCellOffset + 1;
+    std::vector<int32_t> partial(required + 2, -777);
+    const size_t partialWritten = ps_full_state_layer_cell_object_ids(session.state, partial.data(), partialCapacity);
+    require(partialWritten == required, "snapshot api partial written size mismatch");
+    for (size_t index = 0; index < partialCapacity; ++index) {
+        require(partial[index] == cells[index], "snapshot api partial buffer prefix mismatch");
+    }
+    require(partial[partialCapacity] == -777, "snapshot api partial buffer wrote past capacity");
+    require(partial[partialCapacity + 1] == -777, "snapshot api partial buffer wrote past capacity sentinel");
 
     const int32_t glyphCount = ps_game_glyph_count(game);
     require(glyphCount > 0, "snapshot api expected glyphs");

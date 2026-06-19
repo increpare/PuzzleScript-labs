@@ -833,11 +833,15 @@ size_t ps_game_glyph_object_ids(const ps_game* game, int32_t glyph_index, int32_
             break;
         }
     }
-    if (glyphMaskOffset == puzzlescript::kNullMaskOffset) {
+    const size_t maskOffset = static_cast<size_t>(glyphMaskOffset);
+    const size_t wordCount = static_cast<size_t>(impl.wordCount);
+    if (glyphMaskOffset == puzzlescript::kNullMaskOffset
+        || maskOffset > impl.maskArena.size()
+        || wordCount > impl.maskArena.size() - maskOffset) {
         return 0;
     }
 
-    const puzzlescript::MaskWord* mask = impl.maskArena.data() + glyphMaskOffset;
+    const puzzlescript::MaskWord* mask = impl.maskArena.data() + maskOffset;
     size_t required = 0;
     for (int32_t objectId = 0; objectId < impl.objectCount; ++objectId) {
         const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
