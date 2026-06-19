@@ -18,25 +18,55 @@ done
 
 cmake_args=(-S "$REPO_ROOT" -B "$REPO_ROOT/build")
 if [[ "$(uname -s)" == "Darwin" ]]; then
+  desired_c_compiler="/usr/bin/clang"
+  desired_cxx_compiler="/usr/bin/clang++"
   deployment_target="${MACOSX_DEPLOYMENT_TARGET:-${MAC_OS_MIN_VERSION:-10.15}}"
+  desired_arches=""
   cmake_args+=(
-    "-DCMAKE_C_COMPILER=/usr/bin/clang"
-    "-DCMAKE_CXX_COMPILER=/usr/bin/clang++"
+    "-DCMAKE_C_COMPILER=$desired_c_compiler"
+    "-DCMAKE_CXX_COMPILER=$desired_cxx_compiler"
     "-DCMAKE_OSX_DEPLOYMENT_TARGET=$deployment_target"
   )
 
   if [[ -n "${ARCHS:-}" && "$ARCHS" != *'$('* ]]; then
-    cmake_arches="${ARCHS// /;}"
-    cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=$cmake_arches")
+    desired_arches="${ARCHS// /;}"
+    cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=$desired_arches")
   elif [[ -n "${NATIVE_ARCH_ACTUAL:-}" ]]; then
-    cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=$NATIVE_ARCH_ACTUAL")
+    desired_arches="$NATIVE_ARCH_ACTUAL"
+    cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=$desired_arches")
   fi
 fi
 
 cache_file="$REPO_ROOT/build/CMakeCache.txt"
-if [[ -f "$cache_file" ]] && grep -Eq 'scripts/osx/(cc|cxx)\.sh' "$cache_file"; then
-  rm -f "$cache_file"
-  rm -rf "$REPO_ROOT/build/CMakeFiles"
+if [[ -f "$cache_file" ]]; then
+  reset_cmake_cache=0
+
+  if grep -Eq 'scripts/osx/(cc|cxx)\.sh' "$cache_file"; then
+    reset_cmake_cache=1
+  fi
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    cache_c_compiler="$(sed -n 's/^CMAKE_C_COMPILER:[^=]*=//p' "$cache_file" | tail -n 1)"
+    cache_cxx_compiler="$(sed -n 's/^CMAKE_CXX_COMPILER:[^=]*=//p' "$cache_file" | tail -n 1)"
+    cache_arches="$(sed -n 's/^CMAKE_OSX_ARCHITECTURES:[^=]*=//p' "$cache_file" | tail -n 1)"
+
+    if [[ "$cache_c_compiler" != "$desired_c_compiler" ]]; then
+      reset_cmake_cache=1
+    fi
+
+    if [[ "$cache_cxx_compiler" != "$desired_cxx_compiler" ]]; then
+      reset_cmake_cache=1
+    fi
+
+    if [[ -n "$desired_arches" && "$cache_arches" != "$desired_arches" ]]; then
+      reset_cmake_cache=1
+    fi
+  fi
+
+  if [[ "$reset_cmake_cache" == "1" ]]; then
+    rm -f "$cache_file"
+    rm -rf "$REPO_ROOT/build/CMakeFiles"
+  fi
 fi
 
 cmake "${cmake_args[@]}"
