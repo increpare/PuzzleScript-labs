@@ -179,6 +179,7 @@ bool ps_full_state_advance_level(ps_full_state* state, ps_error** out_error);
 void ps_full_state_status(const ps_full_state* state, ps_full_state_status_info* out_status);
 const char* ps_full_state_message_text(const ps_full_state* state);
 bool ps_full_state_cell_has_object(const ps_full_state* state, int32_t x, int32_t y, int32_t object_id);
+size_t ps_full_state_layer_cell_object_ids(const ps_full_state* state, int32_t* output, size_t capacity);
 bool ps_full_state_first_player_position(const ps_full_state* state, int32_t* out_x, int32_t* out_y);
 uint64_t ps_full_state_hash64(const ps_full_state* state);
 ps_hash128 ps_full_state_hash128(const ps_full_state* state);
@@ -197,6 +198,10 @@ void ps_runtime_counters_snapshot(ps_runtime_counters* out_counters);
 
 int32_t ps_game_level_count(const ps_game* game);
 int32_t ps_game_object_count(const ps_game* game);
+int32_t ps_game_layer_count(const ps_game* game);
+int32_t ps_game_glyph_count(const ps_game* game);
+const char* ps_game_glyph_name(const ps_game* game, int32_t glyph_index);
+size_t ps_game_glyph_object_ids(const ps_game* game, int32_t glyph_index, int32_t* output, size_t capacity);
 uint32_t ps_game_word_count(const ps_game* game);
 const char* ps_game_foreground_color(const ps_game* game);
 const char* ps_game_background_color(const ps_game* game);
