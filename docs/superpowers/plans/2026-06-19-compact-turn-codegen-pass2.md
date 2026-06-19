@@ -290,3 +290,44 @@ git commit -m "perf: reduce compact turn solver setup cost"
 ```
 
 Expected: commit succeeds after all verification gates pass.
+
+## Task 6: Hybrid Replacement Fast-Path Noop Optimization
+
+- [x] **Step 1: Reject unconditional replacement-mask simplification**
+
+Tried simplifying replacement masks against LHS-known present/missing bits. `make compact_turn_codegen_perf_expectations` passed, but focused perf was mixed and did not reduce top-level replacement-attempt counters, so the experiment was backed out.
+
+- [x] **Step 2: Add noop-biased generated replacement helpers**
+
+Updated generated simple replacement fast paths so uncertain replacements first scan for the first changed mask word. Common noop attempts now skip before-state copies and writes; changed attempts still record exact before/after state before dirty-cache updates.
+
+- [x] **Step 3: Preserve eager behavior for guaranteed-changing replacements**
+
+Added a compile-time proof for replacements that must change a matched cell. Those calls use eager helper variants with the previous single-pass behavior, avoiding regressions on high-change cases such as `heroes_of_sokoban_3.txt#23`.
+
+- [x] **Step 4: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+make compact_turn_codegen_perf_suite
+```
+
+Latest no-rebuild focused sample:
+
+- `big dog and little dog.txt#11`: compiled `53.00us/generated` versus previous baseline about `53.47us/generated`.
+- `Double-Entry Bookkeeping Simulator.txt#17`: compiled `8.92us/generated` versus previous baseline about `9.35us/generated`.
+- `gem soketeer.txt#21`: compiled `14.27us/generated` versus previous baseline about `14.48us/generated`.
+- `heroes_of_sokoban_3.txt#23`: compiled `1.45us/generated`, preserving the previous high-change baseline.
+
+- [x] **Step 5: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Expected: native parity passes and solver parity reports `153/153` games with `0` oracle failures.
