@@ -658,6 +658,10 @@ Verification note: generated object write bookkeeping now computes `beforeObject
 
 Verification note: generated movement write bookkeeping now mirrors object writes: movement call sites pass before/after masks, and dirty row/column/board movement masks are marked only when a write removes movement bits. Add-only movement writes keep masks exact through OR updates. `make compact_turn_codegen_dirty_shape` first failed on the missing movement gating assertion, then passed. `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_expectations`, `make compact_tick_oracle_smoke`, and `make compact_turn_codegen_solver_parity` passed. The focused perf gate improved `Double-Entry Bookkeeping Simulator.txt#17` to `11.54us/generated` with late rules at `673.339ms`, `big dog and little dog.txt#11` to `59.04us/generated`, and `easyenigma.txt#11` to `25.74us/generated`. The full parity run reported `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, `compact_turn_oracle_failures=0`, and `compact_timeout_regressions=26`.
 
+- [x] Maintain exact object row/column/board mask counts for generated object writes.
+
+Verification note: `Scratch` now stores `objectRowCounts`, `objectColumnCounts`, and `objectBoardCounts`; generated object write bookkeeping updates those counts from before/after object masks and clears row/column/board object bits exactly when the last object of a kind is removed. This avoids the previous full object-mask rebuild for every removal while preserving a conservative fallback if scratch storage is unavailable or inconsistent. `make compact_turn_codegen_dirty_shape` first failed on the missing count-cache shape assertion, then passed after implementation. `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_expectations`, `make compact_tick_oracle_smoke`, `make compact_turn_codegen_solver_parity`, and `make compact_turn_native_parity` passed. After removing the now-dead generated `removedObjects` scan, the focused perf gate reported `Double-Entry Bookkeeping Simulator.txt#17` at `11.23us/generated` with late rules at `651.465ms`; `big dog and little dog.txt#11` at `57.06us/generated`; `easyenigma.txt#11` at `29.04us/generated`; and `Voitex Rasteriser 2.txt#1` at `4.03us/generated`. The full parity run reported `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, `compact_turn_oracle_failures=0`, and `compact_timeout_regressions=29`.
+
 ---
 
 ## Task 7: Full Acceptance Run
@@ -697,7 +701,7 @@ Acceptance:
 - `native=182`
 - `bridge=0`
 
-- [ ] Run correctness:
+- [x] Run correctness:
 
 ```sh
 make compact_tick_oracle_smoke

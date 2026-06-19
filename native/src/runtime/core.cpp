@@ -2346,6 +2346,9 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
         session.scratch.boardMask[static_cast<size_t>(word)] |= value;
     }
     if (clearedAny != 0 || changedAny) {
+        session.scratch.objectRowCounts.clear();
+        session.scratch.objectColumnCounts.clear();
+        session.scratch.objectBoardCounts.clear();
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyObjectRows.size())
             session.scratch.dirtyObjectRows[static_cast<size_t>(rowIndex)] = 1;
         if (static_cast<size_t>(columnIndex) < session.scratch.dirtyObjectColumns.size())

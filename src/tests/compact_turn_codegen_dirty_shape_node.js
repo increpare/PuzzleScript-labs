@@ -188,6 +188,24 @@ function main() {
     const objectCellIndexBody = functionBody(source, 'compact_turn_rebuild_object_cell_index_0');
     assertIncludes(objectCellIndexBody, 'objectCellBits.assign', 'object-cell index rebuild');
     assertIncludes(objectCellIndexBody, 'objectCellCounts.assign', 'object-cell index rebuild');
+    assertIncludes(source, 'scratch.objectRowCounts', 'object mask count cache');
+    assertIncludes(source, 'scratch.objectColumnCounts', 'object mask count cache');
+    assertIncludes(source, 'scratch.objectBoardCounts', 'object mask count cache');
+    assertIncludes(
+        objectDerivedBody,
+        'objectRowCounts.assign',
+        'object derived-state rebuild count cache',
+    );
+    assertIncludes(
+        objectDerivedBody,
+        'objectColumnCounts.assign',
+        'object derived-state rebuild count cache',
+    );
+    assertIncludes(
+        objectDerivedBody,
+        'objectBoardCounts.assign',
+        'object derived-state rebuild count cache',
+    );
     const prepareObjectCellIndexBody = functionBody(source, 'compact_turn_prepare_object_cell_index_0');
     assertIncludes(
         prepareObjectCellIndexBody,
@@ -202,13 +220,21 @@ function main() {
     assertIncludes(updateObjectCellIndexBody, '--scratch.objectCellCounts', 'object-cell index incremental update');
     assertIncludes(updateObjectCellIndexBody, '++scratch.objectCellCounts', 'object-cell index incremental update');
     const noteObjectBody = functionBody(source, 'compact_turn_note_object_cell_written_0');
+    assertIncludes(
+        noteObjectBody,
+        'compact_turn_update_object_mask_counts_0(dimensions, scratch, tileIndex, beforeObjects, afterObjects)',
+        'object write exact mask count update',
+    );
+    assertIncludes(
+        noteObjectBody,
+        'if (!updatedObjectMasks) {',
+        'object write exact mask count fallback',
+    );
     assertInOrder(
         noteObjectBody,
         [
-            'bool removedObjects = false;',
-            'const MaskWord removed = beforeObjects[word] & ~afterObjects[word];',
-            'removedObjects = removedObjects || removed != 0;',
-            'if (removedObjects) {',
+            'const bool updatedObjectMasks = compact_turn_update_object_mask_counts_0',
+            'if (!updatedObjectMasks) {',
             'scratch.dirtyObjectBoard = true;',
             'scratch.anyMasksDirty = true;',
             '}',

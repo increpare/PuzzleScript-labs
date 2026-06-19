@@ -532,6 +532,12 @@ struct Scratch {
     MaskVector rowAllMovementMasks;
     MaskVector columnAllMovementMasks;
     MaskVector boardMovementMask;
+    // Generated compact-turn code can maintain these counts to update
+    // row/column/board object masks exactly after removals, avoiding dirty
+    // row rescans in replacement-heavy kernels.
+    std::vector<uint32_t> objectRowCounts;
+    std::vector<uint32_t> objectColumnCounts;
+    std::vector<uint32_t> objectBoardCounts;
     // Per-object cell presence bitsets for anchored rule scans. Layout is
     // object-major: objectCellBits[objectId * cellWordCount + word].
     std::vector<MaskWordUnsigned> objectCellBits;
