@@ -27,6 +27,27 @@ function writeSpec(name, lines) {
   return specPath;
 }
 
+function writeGameWithMessageFirstLevel() {
+  const source = fs.readFileSync(gamePath, 'utf8');
+  const lines = source.split(/\r?\n/);
+  const levelsIndex = lines.findIndex((line) => line.trim().toLowerCase() === 'levels');
+  assert.ok(levelsIndex >= 0, 'smoke fixture should have a LEVELS section');
+  const nextSectionIndex = lines.findIndex((line, index) => {
+    return index > levelsIndex && line.trim().toLowerCase() !== 'levels' && /^[a-z]+$/i.test(line.trim());
+  });
+  const beforeLevels = lines.slice(0, levelsIndex + 1);
+  const afterLevels = nextSectionIndex >= 0 ? lines.slice(nextSectionIndex) : [];
+  const messageFirstPath = path.join(tempDir, 'message-first-game.txt');
+  fs.writeFileSync(messageFirstPath, [
+    ...beforeLevels,
+    'message intro',
+    '',
+    ...afterLevels,
+    '',
+  ].join('\n'));
+  return messageFirstPath;
+}
+
 const tests = [];
 
 function test(name, body) {
@@ -165,6 +186,31 @@ test('timed preset run does not crash during repeated solver searches', () => {
   ], 'timed preset regression');
   const timedJson = JSON.parse(result.stdout);
   assert.ok(timedJson.totals.samples_attempted > 0, 'timed run should attempt samples');
+});
+
+test('recipe init level is used when source levels start with a message', () => {
+  const messageFirstGamePath = writeGameWithMessageFirstLevel();
+  const smokeSpecPath = writeSpec('message-first-init.gen', [
+    ...initLevel,
+    '(GENERATION RULES)',
+    'choose 1 [ no wall ] -> [ player ]',
+    'choose 2 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]',
+    '',
+  ]);
+  const outPath = path.join(tempDir, 'message-first-init.json');
+  run([
+    messageFirstGamePath,
+    smokeSpecPath,
+    '--samples', '4',
+    '--seed', '17',
+    '--solver-timeout-ms', '50',
+    '--top-k', '2',
+    '--quiet',
+    '--json-out', outPath,
+  ], 'message-first init level');
+  const parsed = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+  assert.strictEqual(parsed.totals.samples_attempted, 4);
+  assert.ok(parsed.totals.valid_generated > 0, 'message-first source should still use the recipe init level');
 });
 
 test('square bracket sections are rejected', () => {

@@ -622,6 +622,13 @@ struct Spec {
     std::vector<std::string> ruleLines;
 };
 
+bool isSectionSeparator(const std::string& line) {
+    const std::string text = trim(line);
+    return !text.empty() && std::all_of(text.begin(), text.end(), [](char c) {
+        return c == '=';
+    });
+}
+
 Spec parseSpec(const std::string& text) {
     enum class Section { None, Init, Rules };
     Section section = Section::None;
@@ -661,7 +668,7 @@ std::string sourceWithInitLevel(const std::string& source, const std::vector<std
     for (size_t i = 0; i < lines.size(); ++i) {
         if (lowercase(trim(lines[i])) != "levels") continue;
         std::vector<std::string> out(lines.begin(), lines.begin() + static_cast<std::ptrdiff_t>(i + 1));
-        if (i + 1 < lines.size()) {
+        if (i + 1 < lines.size() && isSectionSeparator(lines[i + 1])) {
             out.push_back(lines[i + 1]);
         } else {
             out.push_back("=======");
