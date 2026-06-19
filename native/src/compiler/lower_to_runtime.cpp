@@ -1000,6 +1000,26 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         return mask;
     };
 
+    auto storeLegendMaskTable = [&](const auto& legends, std::vector<puzzlescript::Game::NamedMaskEntry>& table) {
+        table.clear();
+        table.reserve(legends.size());
+        for (const auto& [name, _] : legends) {
+            try {
+                std::set<std::string> visiting;
+                const puzzlescript::MaskVector mask = resolveMask(resolveMask, name, visiting);
+                if (!maskHasAnyBit(mask)) {
+                    continue;
+                }
+                table.push_back({name, storeMaskWords(*game, mask)});
+            } catch (...) {
+                // Keep lowering tolerant of malformed cyclic legend input.
+            }
+        }
+    };
+    storeLegendMaskTable(synonymOf, game->synonymMaskTable);
+    storeLegendMaskTable(aggregateOf, game->aggregateMaskTable);
+    storeLegendMaskTable(propertyOf, game->propertyMaskTable);
+
     // Player mask: prefer a concrete object named "player"; otherwise resolve
     // the legend key "player" (common: Player = Foo or Bar).
     {

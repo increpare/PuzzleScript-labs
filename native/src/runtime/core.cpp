@@ -6267,8 +6267,14 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         if (const auto objectMasks = gameObject.find("object_masks"); objectMasks != gameObject.end()) {
             game->objectMaskTable = parseNamedMaskTable(*game, objectMasks->second);
         }
+        if (const auto synonymMasks = gameObject.find("synonym_masks"); synonymMasks != gameObject.end()) {
+            game->synonymMaskTable = parseNamedMaskTable(*game, synonymMasks->second);
+        }
         if (const auto aggregateMasks = gameObject.find("aggregate_masks"); aggregateMasks != gameObject.end()) {
             game->aggregateMaskTable = parseNamedMaskTable(*game, aggregateMasks->second);
+        }
+        if (const auto propertyMasks = gameObject.find("property_masks"); propertyMasks != gameObject.end()) {
+            game->propertyMaskTable = parseNamedMaskTable(*game, propertyMasks->second);
         }
         if (const auto playerMask = gameObject.find("player_mask"); playerMask != gameObject.end()) {
             if (playerMask->second.isObject()) {

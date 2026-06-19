@@ -43,6 +43,12 @@ typedef enum ps_input {
     PS_INPUT_TICK = 5
 } ps_input;
 
+typedef enum ps_legend_kind {
+    PS_LEGEND_SYNONYM = 0,
+    PS_LEGEND_AGGREGATE = 1,
+    PS_LEGEND_PROPERTY = 2
+} ps_legend_kind;
+
 typedef enum ps_full_state_mode {
     PS_FULL_STATE_MODE_LEVEL = 0,
     PS_FULL_STATE_MODE_TITLE = 1,
@@ -202,6 +208,9 @@ int32_t ps_game_layer_count(const ps_game* game);
 int32_t ps_game_glyph_count(const ps_game* game);
 const char* ps_game_glyph_name(const ps_game* game, int32_t glyph_index);
 size_t ps_game_glyph_object_ids(const ps_game* game, int32_t glyph_index, int32_t* output, size_t capacity);
+int32_t ps_game_legend_count(const ps_game* game, ps_legend_kind kind);
+const char* ps_game_legend_name(const ps_game* game, ps_legend_kind kind, int32_t legend_index);
+size_t ps_game_legend_object_ids(const ps_game* game, ps_legend_kind kind, int32_t legend_index, int32_t* output, size_t capacity);
 uint32_t ps_game_word_count(const ps_game* game);
 const char* ps_game_foreground_color(const ps_game* game);
 const char* ps_game_background_color(const ps_game* game);

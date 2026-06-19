@@ -31,6 +31,17 @@ struct GlyphInfo {
     std::vector<int32_t> displayObjectIds;
 };
 
+enum class LegendKind {
+    Synonym,
+    Aggregate,
+    Property
+};
+
+struct LegendInfo {
+    std::string name;
+    std::vector<int32_t> displayObjectIds;
+};
+
 struct Status {
     ps_full_state_mode mode = PS_FULL_STATE_MODE_LEVEL;
     int32_t currentLevelIndex = 0;
@@ -65,6 +76,8 @@ public:
     int32_t layerCount() const;
     std::vector<ObjectInfo> objects() const;
     std::vector<GlyphInfo> glyphs() const;
+    std::vector<LegendInfo> legends(LegendKind kind) const;
+    std::string metadataValue(const std::string& key) const;
 
     bool createState();
     bool loadLevel(int32_t levelIndex);

@@ -111,6 +111,24 @@ void ensureNoObjectTexture() {
     colors::textures.push_back(texture);
 }
 
+bool applyPalette(Logger& logger) {
+    switchToDefaultPalette();
+
+    string paletteName = bridge.metadataValue("color_palette");
+    if (paletteName.empty()) {
+        paletteName = bridge.metadataValue("color_scheme");
+    }
+    if (paletteName.empty()) {
+        return true;
+    }
+    if (switchToPalette(paletteName)) {
+        return true;
+    }
+
+    logger.logError("Unknown color palette '" + paletteName + "'.", -1);
+    return false;
+}
+
 short textureForObject(const psbridge::ObjectInfo& object) {
     ensureNoObjectTexture();
 
@@ -185,34 +203,92 @@ vvvs makeStateFromGrid(const psbridge::LayerGrid& grid) {
     return state;
 }
 
-void addGlyphMetadata(Game& displayGame, const psbridge::GlyphInfo& glyph) {
-    if (glyph.glyph.empty()) {
-        return;
-    }
-
+vector<short> toDisplayObjectIds(const vector<int32_t>& displayObjectIds) {
     vector<short> objectIds;
-    objectIds.reserve(glyph.displayObjectIds.size());
-    for (const int32_t displayObjectId : glyph.displayObjectIds) {
+    objectIds.reserve(displayObjectIds.size());
+    for (const int32_t displayObjectId : displayObjectIds) {
         if (displayObjectId > 0) {
             objectIds.push_back(static_cast<short>(displayObjectId));
         }
     }
+    return objectIds;
+}
 
+void addSynonym(Game& displayGame, const string& name, short objectId) {
+    if (name.empty() || objectId <= 0) {
+        return;
+    }
+    displayGame.synonyms[name] = objectId;
+    displayGame.definedNames.insert(name);
+    if (actualStringDistance(name) == 1) {
+        displayGame.synsWithSingleCharName.push_back({name, objectId});
+    }
+}
+
+void addAggregate(Game& displayGame, const string& name, const vector<short>& objectIds) {
+    if (name.empty() || objectIds.empty()) {
+        return;
+    }
+    displayGame.aggregates[name] = objectIds;
+    displayGame.definedNames.insert(name);
+    if (actualStringDistance(name) == 1) {
+        displayGame.aggsWithSingleCharName.push_back({name, objectIds});
+    }
+}
+
+void addProperty(Game& displayGame, const string& name, const vector<short>& objectIds) {
+    if (name.empty() || objectIds.empty()) {
+        return;
+    }
+    displayGame.properties[name] = objectIds;
+    displayGame.definedNames.insert(name);
+}
+
+void addLegendMetadata(Game& displayGame, const psbridge::LegendInfo& legend, psbridge::LegendKind kind) {
+    const vector<short> objectIds = toDisplayObjectIds(legend.displayObjectIds);
     if (objectIds.empty()) {
         return;
     }
 
-    displayGame.definedNames.insert(glyph.glyph);
-    const bool isSingleCharGlyph = actualStringDistance(glyph.glyph) == 1;
-    if (objectIds.size() == 1) {
-        displayGame.synonyms[glyph.glyph] = objectIds.front();
-        if (isSingleCharGlyph) {
-            displayGame.synsWithSingleCharName.push_back({glyph.glyph, objectIds.front()});
+    switch (kind) {
+    case psbridge::LegendKind::Synonym:
+        addSynonym(displayGame, legend.name, objectIds.front());
+        break;
+    case psbridge::LegendKind::Aggregate:
+        addAggregate(displayGame, legend.name, objectIds);
+        break;
+    case psbridge::LegendKind::Property:
+        addProperty(displayGame, legend.name, objectIds);
+        break;
+    }
+}
+
+void recomputePlayerIndices(Game& displayGame) {
+    displayGame.playerIndices.clear();
+    const auto pushPlayer = [&](short objectId) {
+        if (objectId > 0 && static_cast<size_t>(objectId) < displayGame.objLayer.size()) {
+            displayGame.playerIndices.push_back({objectId, displayGame.objLayer[static_cast<size_t>(objectId)]});
         }
-    } else {
-        displayGame.aggregates[glyph.glyph] = objectIds;
-        if (isSingleCharGlyph) {
-            displayGame.aggsWithSingleCharName.push_back({glyph.glyph, objectIds});
+    };
+
+    const auto synonym = displayGame.synonyms.find("player");
+    if (synonym != displayGame.synonyms.end()) {
+        pushPlayer(synonym->second);
+        return;
+    }
+
+    const auto property = displayGame.properties.find("player");
+    if (property != displayGame.properties.end()) {
+        for (short objectId : property->second) {
+            pushPlayer(objectId);
+        }
+        return;
+    }
+
+    const auto aggregate = displayGame.aggregates.find("player");
+    if (aggregate != displayGame.aggregates.end()) {
+        for (short objectId : aggregate->second) {
+            pushPlayer(objectId);
         }
     }
 }
@@ -253,17 +329,23 @@ void refreshDisplayObjects(Game& displayGame) {
         displayGame.objTexture[displayId] = textureForObject(object);
         displayGame.objLayer[displayId] = static_cast<short>(object.layer);
 
-        displayGame.synonyms[object.name] = static_cast<short>(object.displayId);
-        displayGame.definedNames.insert(object.name);
-        if (object.name == "player") {
-            displayGame.playerIndices.push_back({static_cast<short>(object.displayId), static_cast<short>(object.layer)});
-        }
+        addSynonym(displayGame, object.name, static_cast<short>(object.displayId));
     }
 
-    const vector<psbridge::GlyphInfo> glyphs = bridge.glyphs();
-    for (const psbridge::GlyphInfo& glyph : glyphs) {
-        addGlyphMetadata(displayGame, glyph);
+    const vector<psbridge::LegendInfo> synonyms = bridge.legends(psbridge::LegendKind::Synonym);
+    for (const psbridge::LegendInfo& legend : synonyms) {
+        addLegendMetadata(displayGame, legend, psbridge::LegendKind::Synonym);
     }
+    const vector<psbridge::LegendInfo> aggregates = bridge.legends(psbridge::LegendKind::Aggregate);
+    for (const psbridge::LegendInfo& legend : aggregates) {
+        addLegendMetadata(displayGame, legend, psbridge::LegendKind::Aggregate);
+    }
+    const vector<psbridge::LegendInfo> properties = bridge.legends(psbridge::LegendKind::Property);
+    for (const psbridge::LegendInfo& legend : properties) {
+        addLegendMetadata(displayGame, legend, psbridge::LegendKind::Property);
+    }
+
+    recomputePlayerIndices(displayGame);
 }
 
 void refreshCurrentState(Game& displayGame) {
@@ -284,22 +366,28 @@ void logLastDiagnostic(Logger& logger) {
 } // namespace
 
 bool compileSourceLines(const vector<string>& sourceLines, Game& displayGame, Logger& logger) {
+    logger.reset();
     if (!bridge.compileSource(joinLines(sourceLines))) {
         logLastDiagnostic(logger);
         return false;
     }
 
-    refreshDisplayObjects(displayGame);
-    displayGame.levels.clear();
+    if (!applyPalette(logger)) {
+        return false;
+    }
+
+    Game stagedGame;
+    refreshDisplayObjects(stagedGame);
+    stagedGame.levels.clear();
 
     const int32_t levelCount = bridge.levelCount();
-    displayGame.levels.reserve(static_cast<size_t>(max(0, levelCount)));
+    stagedGame.levels.reserve(static_cast<size_t>(max(0, levelCount)));
     for (int32_t levelIndex = 0; levelIndex < levelCount; ++levelIndex) {
         if (!bridge.loadLevel(levelIndex)) {
             logLastDiagnostic(logger);
             return false;
         }
-        displayGame.levels.push_back(makeStateFromGrid(bridge.currentLayerGrid()));
+        stagedGame.levels.push_back(makeStateFromGrid(bridge.currentLayerGrid()));
     }
 
     if (levelCount > 0 && !bridge.loadLevel(0)) {
@@ -307,13 +395,15 @@ bool compileSourceLines(const vector<string>& sourceLines, Game& displayGame, Lo
         return false;
     }
 
-    refreshCurrentState(displayGame);
-    displayGame.undoStates.clear();
-    displayGame.beginStateAfterStationaryMove = displayGame.currentState;
+    refreshCurrentState(stagedGame);
+    stagedGame.undoStates.clear();
+    stagedGame.beginStateAfterStationaryMove = stagedGame.currentState;
+    displayGame = stagedGame;
     return true;
 }
 
 bool loadLevel(int levelIndex, Game& displayGame, Logger& logger) {
+    logger.reset();
     if (!bridge.loadLevel(levelIndex)) {
         logLastDiagnostic(logger);
         return false;
@@ -326,6 +416,7 @@ bool loadLevel(int levelIndex, Game& displayGame, Logger& logger) {
 }
 
 bool step(short moveDir, Game& displayGame, bool& won, Logger& logger) {
+    logger.reset();
     won = false;
     if (!bridge.step(psbridge::toNativeInput(moveDir), &won)) {
         logLastDiagnostic(logger);

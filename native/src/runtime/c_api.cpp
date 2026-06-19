@@ -805,6 +805,51 @@ int32_t ps_game_glyph_count(const ps_game* game) {
     return game && game->impl.information ? static_cast<int32_t>(game->impl.information->glyphOrder.size()) : 0;
 }
 
+static const std::vector<Game::NamedMaskEntry>* legendTableForKind(const Game& game, ps_legend_kind kind) {
+    switch (kind) {
+    case PS_LEGEND_SYNONYM:
+        return &game.synonymMaskTable;
+    case PS_LEGEND_AGGREGATE:
+        return &game.aggregateMaskTable;
+    case PS_LEGEND_PROPERTY:
+        return &game.propertyMaskTable;
+    default:
+        return nullptr;
+    }
+}
+
+static size_t writeObjectIdsFromMask(
+    const Game& impl,
+    puzzlescript::MaskOffset maskOffset,
+    int32_t* output,
+    size_t capacity
+) {
+    const size_t offset = static_cast<size_t>(maskOffset);
+    const size_t wordCount = static_cast<size_t>(impl.wordCount);
+    if (maskOffset == puzzlescript::kNullMaskOffset
+        || offset > impl.maskArena.size()
+        || wordCount > impl.maskArena.size() - offset) {
+        return 0;
+    }
+
+    const puzzlescript::MaskWord* mask = impl.maskArena.data() + offset;
+    size_t required = 0;
+    for (int32_t objectId = 0; objectId < impl.objectCount; ++objectId) {
+        const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word >= impl.wordCount) {
+            continue;
+        }
+        if ((mask[word] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) == 0) {
+            continue;
+        }
+        if (output && required < capacity) {
+            output[required] = objectId;
+        }
+        ++required;
+    }
+    return required;
+}
+
 const char* ps_game_glyph_name(const ps_game* game, int32_t glyph_index) {
     if (!game || !game->impl.information || glyph_index < 0) {
         return "";
@@ -833,30 +878,38 @@ size_t ps_game_glyph_object_ids(const ps_game* game, int32_t glyph_index, int32_
             break;
         }
     }
-    const size_t maskOffset = static_cast<size_t>(glyphMaskOffset);
-    const size_t wordCount = static_cast<size_t>(impl.wordCount);
-    if (glyphMaskOffset == puzzlescript::kNullMaskOffset
-        || maskOffset > impl.maskArena.size()
-        || wordCount > impl.maskArena.size() - maskOffset) {
+    return writeObjectIdsFromMask(impl, glyphMaskOffset, output, capacity);
+}
+
+int32_t ps_game_legend_count(const ps_game* game, ps_legend_kind kind) {
+    if (!game || !game->impl.information) {
         return 0;
     }
+    const std::vector<Game::NamedMaskEntry>* table = legendTableForKind(*game->impl.information, kind);
+    return table == nullptr ? 0 : static_cast<int32_t>(table->size());
+}
 
-    const puzzlescript::MaskWord* mask = impl.maskArena.data() + maskOffset;
-    size_t required = 0;
-    for (int32_t objectId = 0; objectId < impl.objectCount; ++objectId) {
-        const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
-        if (word >= impl.wordCount) {
-            continue;
-        }
-        if ((mask[word] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) == 0) {
-            continue;
-        }
-        if (output && required < capacity) {
-            output[required] = objectId;
-        }
-        ++required;
+const char* ps_game_legend_name(const ps_game* game, ps_legend_kind kind, int32_t legend_index) {
+    if (!game || !game->impl.information || legend_index < 0) {
+        return "";
     }
-    return required;
+    const std::vector<Game::NamedMaskEntry>* table = legendTableForKind(*game->impl.information, kind);
+    if (table == nullptr || static_cast<size_t>(legend_index) >= table->size()) {
+        return "";
+    }
+    return (*table)[static_cast<size_t>(legend_index)].name.c_str();
+}
+
+size_t ps_game_legend_object_ids(const ps_game* game, ps_legend_kind kind, int32_t legend_index, int32_t* output, size_t capacity) {
+    if (!game || !game->impl.information || legend_index < 0) {
+        return 0;
+    }
+    const Game& impl = *game->impl.information;
+    const std::vector<Game::NamedMaskEntry>* table = legendTableForKind(impl, kind);
+    if (table == nullptr || static_cast<size_t>(legend_index) >= table->size()) {
+        return 0;
+    }
+    return writeObjectIdsFromMask(impl, (*table)[static_cast<size_t>(legend_index)].offset, output, capacity);
 }
 
 uint32_t ps_game_word_count(const ps_game* game) {

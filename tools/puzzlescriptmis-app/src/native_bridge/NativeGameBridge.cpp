@@ -24,6 +24,18 @@ std::string displayGlyphName(const char* glyph) {
     return value;
 }
 
+ps_legend_kind toNativeLegendKind(LegendKind kind) {
+    switch (kind) {
+    case LegendKind::Synonym:
+        return PS_LEGEND_SYNONYM;
+    case LegendKind::Aggregate:
+        return PS_LEGEND_AGGREGATE;
+    case LegendKind::Property:
+        return PS_LEGEND_PROPERTY;
+    }
+    return PS_LEGEND_SYNONYM;
+}
+
 } // namespace
 
 NativeGameBridge::NativeGameBridge() = default;
@@ -164,6 +176,43 @@ std::vector<GlyphInfo> NativeGameBridge::glyphs() const {
         values.push_back(std::move(value));
     }
     return values;
+}
+
+std::vector<LegendInfo> NativeGameBridge::legends(LegendKind kind) const {
+    std::vector<LegendInfo> values;
+    if (!hasGame()) {
+        return values;
+    }
+
+    const ps_legend_kind nativeKind = toNativeLegendKind(kind);
+    const int32_t count = ps_game_legend_count(game(), nativeKind);
+    values.reserve(static_cast<size_t>(std::max(count, 0)));
+    for (int32_t legendIndex = 0; legendIndex < count; ++legendIndex) {
+        LegendInfo value;
+        value.name = safeString(ps_game_legend_name(game(), nativeKind, legendIndex));
+
+        const size_t required = ps_game_legend_object_ids(game(), nativeKind, legendIndex, nullptr, 0);
+        std::vector<int32_t> nativeIds(required, -1);
+        if (required > 0) {
+            const size_t written = ps_game_legend_object_ids(game(), nativeKind, legendIndex, nativeIds.data(), nativeIds.size());
+            nativeIds.resize(std::min(required, written));
+        }
+
+        value.displayObjectIds.reserve(nativeIds.size());
+        for (int32_t nativeId : nativeIds) {
+            value.displayObjectIds.push_back(toDisplayObjectId(nativeId));
+        }
+
+        values.push_back(std::move(value));
+    }
+    return values;
+}
+
+std::string NativeGameBridge::metadataValue(const std::string& key) const {
+    if (!hasGame()) {
+        return {};
+    }
+    return safeString(ps_game_metadata_value(game(), key.c_str()));
 }
 
 bool NativeGameBridge::createState() {

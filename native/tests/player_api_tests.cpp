@@ -1,4 +1,5 @@
 #include <cassert>
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -132,6 +133,65 @@ LEVELS
 P.
 )";
 
+constexpr const char* kLegendApiSource = R"(title Native Legend API Test
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Hero
+white
+11111
+11111
+11111
+11111
+11111
+
+Robot
+green
+00000
+00000
+00000
+00000
+00000
+
+Hat
+red
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+. = Background
+Alias = Hero
+Duo = Hero and Hat
+Player = Hero or Robot
+H = Hero
+
+================
+COLLISIONLAYERS
+================
+Background
+Hero, Robot, Hat
+
+=======
+LEVELS
+=======
+H.
+)";
+
 struct CompileHandle {
     ps_compile_result* result = nullptr;
     ~CompileHandle() { ps_free_compile_result(result); }
@@ -183,6 +243,40 @@ int32_t findObjectIdByName(const ps_game* game, const char* name) {
         }
     }
     return -1;
+}
+
+int32_t findLegendIndex(const ps_game* game, ps_legend_kind kind, const char* name) {
+    const int32_t legendCount = ps_game_legend_count(game, kind);
+    for (int32_t legendIndex = 0; legendIndex < legendCount; ++legendIndex) {
+        if (std::strcmp(ps_game_legend_name(game, kind, legendIndex), name) == 0) {
+            return legendIndex;
+        }
+    }
+    return -1;
+}
+
+std::vector<int32_t> legendObjectIds(const ps_game* game, ps_legend_kind kind, int32_t legendIndex) {
+    const size_t count = ps_game_legend_object_ids(game, kind, legendIndex, nullptr, 0);
+    std::vector<int32_t> ids(count, -1);
+    if (!ids.empty()) {
+        const size_t written = ps_game_legend_object_ids(game, kind, legendIndex, ids.data(), ids.size());
+        require(written == count, "legend api object id count changed between calls");
+    }
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
+void requireLegendObjects(
+    const ps_game* game,
+    ps_legend_kind kind,
+    const char* name,
+    std::vector<int32_t> expectedObjectIds
+) {
+    const int32_t legendIndex = findLegendIndex(game, kind, name);
+    require(legendIndex >= 0, "legend api expected named legend");
+    std::sort(expectedObjectIds.begin(), expectedObjectIds.end());
+    const std::vector<int32_t> actualObjectIds = legendObjectIds(game, kind, legendIndex);
+    require(actualObjectIds == expectedObjectIds, "legend api returned unexpected object ids");
 }
 
 void drainInterpreterSolverAgain(SessionHandle& session) {
@@ -339,6 +433,25 @@ void runLayerCellSnapshotApiTest() {
         }
     }
     require(sawPlayerGlyph, "snapshot api did not find player glyph");
+}
+
+void runLegendApiTest() {
+    CompileHandle compiled;
+    require(ps_compile_source(kLegendApiSource, std::strlen(kLegendApiSource), &compiled.result), "legend api compile failed");
+    GameHandle gameHandle{ps_compile_result_game(compiled.result)};
+    const ps_game* game = gameHandle.game;
+    require(game != nullptr, "legend api compile produced no game");
+
+    const int32_t heroId = findObjectIdByName(game, "hero");
+    const int32_t robotId = findObjectIdByName(game, "robot");
+    const int32_t hatId = findObjectIdByName(game, "hat");
+    require(heroId >= 0, "legend api expected hero object");
+    require(robotId >= 0, "legend api expected robot object");
+    require(hatId >= 0, "legend api expected hat object");
+
+    requireLegendObjects(game, PS_LEGEND_SYNONYM, "alias", {heroId});
+    requireLegendObjects(game, PS_LEGEND_AGGREGATE, "duo", {heroId, hatId});
+    requireLegendObjects(game, PS_LEGEND_PROPERTY, "player", {heroId, robotId});
 }
 
 void runCompiledCompactSolverFreshScratchRegression(const std::string& source) {
@@ -551,6 +664,7 @@ int main() {
         runCompiledCompactSolverPathRegression(compactSolverPathSource);
     }
     runLayerCellSnapshotApiTest();
+    runLegendApiTest();
 
     CompileHandle compiled;
     if (!ps_compile_source(kSource, std::strlen(kSource), &compiled.result)) {

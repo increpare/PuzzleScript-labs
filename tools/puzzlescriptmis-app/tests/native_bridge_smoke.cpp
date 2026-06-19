@@ -29,6 +29,13 @@ const psbridge::GlyphInfo* findGlyph(const std::vector<psbridge::GlyphInfo>& gly
     return it == glyphs.end() ? nullptr : &*it;
 }
 
+const psbridge::LegendInfo* findLegend(const std::vector<psbridge::LegendInfo>& legends, const std::string& legendName) {
+    const auto it = std::find_if(legends.begin(), legends.end(), [&](const psbridge::LegendInfo& legend) {
+        return legend.name == legendName;
+    });
+    return it == legends.end() ? nullptr : &*it;
+}
+
 bool hasNonEmptyCell(const psbridge::LayerGrid& grid) {
     return std::any_of(grid.displayObjectIds.begin(), grid.displayObjectIds.end(), [](int32_t displayId) {
         return displayId != 0;
@@ -60,17 +67,36 @@ white
 11111
 11111
 
+Robot
+green
+00000
+00000
+00000
+00000
+00000
+
+Hat
+red
+00000
+00000
+00000
+00000
+00000
+
 =======
 LEGEND
 =======
 . = Background
 P = Player
+Alias = Player
+Duo = Player and Hat
+Actor = Player or Robot
 
 ================
 COLLISIONLAYERS
 ================
 Background
-Player
+Player, Robot, Hat
 
 =======
 LEVELS
@@ -89,6 +115,10 @@ P.
     const psbridge::ObjectInfo* player = findObjectByName(objects, "player");
     require(player != nullptr, "expected player object info");
     require(player->displayId == player->nativeId + 1, "expected display id to be native id plus one");
+    const psbridge::ObjectInfo* robot = findObjectByName(objects, "robot");
+    require(robot != nullptr, "expected robot object info");
+    const psbridge::ObjectInfo* hat = findObjectByName(objects, "hat");
+    require(hat != nullptr, "expected hat object info");
 
     const auto glyphs = bridge.glyphs();
     const psbridge::GlyphInfo* playerGlyph = findGlyph(glyphs, "P");
@@ -97,6 +127,27 @@ P.
         std::find(playerGlyph->displayObjectIds.begin(), playerGlyph->displayObjectIds.end(), player->displayId)
             != playerGlyph->displayObjectIds.end(),
         "expected P glyph to include player display id");
+
+    const auto synonyms = bridge.legends(psbridge::LegendKind::Synonym);
+    const psbridge::LegendInfo* alias = findLegend(synonyms, "alias");
+    require(alias != nullptr, "expected alias synonym info");
+    require(alias->displayObjectIds.size() == 1 && alias->displayObjectIds[0] == player->displayId, "expected alias to map player");
+
+    const auto aggregates = bridge.legends(psbridge::LegendKind::Aggregate);
+    const psbridge::LegendInfo* duo = findLegend(aggregates, "duo");
+    require(duo != nullptr, "expected duo aggregate info");
+    require(
+        std::find(duo->displayObjectIds.begin(), duo->displayObjectIds.end(), player->displayId) != duo->displayObjectIds.end()
+            && std::find(duo->displayObjectIds.begin(), duo->displayObjectIds.end(), hat->displayId) != duo->displayObjectIds.end(),
+        "expected duo to include player and hat");
+
+    const auto properties = bridge.legends(psbridge::LegendKind::Property);
+    const psbridge::LegendInfo* actor = findLegend(properties, "actor");
+    require(actor != nullptr, "expected actor property info");
+    require(
+        std::find(actor->displayObjectIds.begin(), actor->displayObjectIds.end(), player->displayId) != actor->displayObjectIds.end()
+            && std::find(actor->displayObjectIds.begin(), actor->displayObjectIds.end(), robot->displayId) != actor->displayObjectIds.end(),
+        "expected actor to include player and robot");
 
     psbridge::LayerGrid grid = bridge.currentLayerGrid();
     require(grid.width == 2, "expected grid width 2");
