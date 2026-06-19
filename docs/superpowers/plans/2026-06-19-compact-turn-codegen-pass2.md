@@ -25,7 +25,7 @@
 
 ## Task 1: Fresh Baseline And Hotspot Selection
 
-- [ ] **Step 1: Verify branch and cleanliness**
+- [x] **Step 1: Verify branch and cleanliness**
 
 Run:
 
@@ -35,7 +35,7 @@ git status --short --branch
 
 Expected: branch is `codex/compact-turn-codegen-pass2` and no modified files except this spec/plan if they have not yet been committed.
 
-- [ ] **Step 2: Build current native tools**
+- [x] **Step 2: Build current native tools**
 
 Run:
 
@@ -45,7 +45,7 @@ make build
 
 Expected: build succeeds.
 
-- [ ] **Step 3: Run the focused perf suite**
+- [x] **Step 3: Run the focused perf suite**
 
 Run:
 
@@ -55,7 +55,7 @@ make compact_turn_codegen_perf_suite
 
 Expected: command succeeds and writes `build/compact-turn-codegen-perf-suite.json`.
 
-- [ ] **Step 4: Rank current hotspots**
+- [x] **Step 4: Rank current hotspots**
 
 Run:
 
@@ -81,7 +81,7 @@ for (const c of report.cases) {
 
 Expected: output identifies one dominant generic hotspot. Prefer a hotspot shared by at least two cases.
 
-- [ ] **Step 5: Commit the baseline plan artifacts**
+- [x] **Step 5: Commit the baseline plan artifacts**
 
 Run:
 
@@ -94,11 +94,11 @@ Expected: commit succeeds.
 
 ## Task 2: Add A Red Perf/Shape Gate
 
-- [ ] **Step 1: Choose the metric**
+- [x] **Step 1: Choose the metric**
 
 Use the Task 1 report to choose exactly one acceptance metric. The default choice is a `compiledUsPerGeneratedMax` or phase-specific max in `src/tests/compact_turn_codegen_perf_expectations.json` for the selected case. If phase-specific expectations are needed and unsupported, add one named expectation field to `src/tests/compact_turn_codegen_perf_suite_node.js`.
 
-- [ ] **Step 2: Add or tighten the expectation**
+- [x] **Step 2: Add or tighten the expectation**
 
 Edit `src/tests/compact_turn_codegen_perf_expectations.json` so the selected current baseline fails but the target is realistic. Example for a phase target:
 
@@ -111,7 +111,7 @@ Edit `src/tests/compact_turn_codegen_perf_expectations.json` so the selected cur
 
 The exact values must be based on Task 1 baseline output.
 
-- [ ] **Step 3: Verify RED**
+- [x] **Step 3: Verify RED**
 
 Run:
 
