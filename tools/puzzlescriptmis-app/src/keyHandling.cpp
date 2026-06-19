@@ -1,11 +1,11 @@
 #include "keyHandling.h"
 
-#include "engine.h"
 #include "game.h"
 #include "generation.h"
 #include "global.h"
+#include "logError.h"
+#include "native_bridge/NativeGameFacade.h"
 #include "recordandundo.h"
-#include "solver.h"
 #include "visualsandide.h"
 
 namespace keyHandling {
@@ -145,37 +145,12 @@ void executeKeys() {
             case KEY_DOWN:
             case KEY_ACTION:
                 if(gbl::mode == MODE_PLAYING) {
-                    //if there is a change add to undo map
                     short dir = key == KEY_UP ? UP_MOVE : key == KEY_DOWN ? DOWN_MOVE : key == KEY_LEFT ? LEFT_MOVE : key == KEY_RIGHT ? RIGHT_MOVE : ACTION_MOVE;
-                    bool winning = move(dir, gbl::currentGame);
-                    
+                    bool winning = false;
+                    nativebridge::step(dir, gbl::currentGame, winning, logger::levelEdit);
                     if(winning) {
-                        //find out the moves that let to the solution:
-                        deque<short> solutionMoves = gbl::currentGame.getCurrentMoves();
                         keyQueue.push({KEY_WIN,300});
-                        
-                        uint64_t solhash = gbl::currentGame.getHash(); HashVVV(gbl::currentGame.beginStateAfterStationaryMove, solhash);
-                        SolveInformation info;
-                        info.success = 1;
-                        info.solutionPath = solutionMoves;
-                        
-                        synchronized(solver::solutionMutex) {
-                            std::atomic_thread_fence(std::memory_order_seq_cst);
-                            if(solver::solutionDP.count(solhash) != 0) {
-                                // cout << "READ1 " << solver::solutionDP.at(solhash).shortestSolutionPath.size() << endl;
-                                info = mergeSolveInformation(solver::solutionDP.at(solhash), info);
-                                // cout << "SET1: " << info.shortestSolutionPath.size() << " " << solhash << endl;
-                                solver::solutionDP.at(solhash) = info;
-                                // cout << "RES1: " << info.shortestSolutionPath.size() << endl;
-                            } else {
-                                solver::solutionDP.insert({solhash,info});
-                            }
-                            std::atomic_thread_fence(std::memory_order_seq_cst);
-                        }
                     }
-                    
-                    //stopSolving(1);
-                    //move(STATIONARY_MOVE, gbl::currentGame);
                 }
                 
                 break;
@@ -189,72 +164,29 @@ void executeKeys() {
             break;
             case KEY_UNDO:
                 if(gbl::mode == MODE_PLAYING)
-                    undo(gbl::currentGame);
+                    nativebridge::undo(gbl::currentGame);
                 else if(gbl::mode == MODE_LEVEL_EDITOR || gbl::mode == MODE_EXPLOITATION) {
                     undoEditorState(gbl::record);
                 }
                 break;
             case KEY_RESTART:
                 if(gbl::mode == MODE_PLAYING) {
-                    if(gbl::currentGame.beginStateAfterStationaryMove == gbl::currentGame.currentState) {
-                        //gbl::mode = MODE_LEVEL_EDITOR;
+                    if(nativebridge::isAtRestartState(gbl::currentGame)) {
                         switchToLevel(gbl::currentGame.currentLevelIndex, gbl::currentGame);
                         switchToLeftEditor(editor::previousMenuMode,"switch_from_play_to_menu_wo_win");
                     } else {
-                        restart(gbl::currentGame);
+                        nativebridge::restart(gbl::currentGame);
                     }
                 }
                 else if(gbl::mode == MODE_LEVEL_EDITOR || gbl::mode == MODE_EXPLOITATION) {
                     switchToLevel(gbl::currentGame.currentLevelIndex, gbl::currentGame);
                     gbl::mode = MODE_PLAYING;
-                    //do a stationary move before starting:
-                    //gbl::currentGame.currentState = gbl::currentGame.levels[gbl::currentGame.currentLevelIndex];
-                    move(STATIONARY_MOVE, gbl::currentGame);
-                    if(gbl::currentGame.undoStates.size() > 0) gbl::currentGame.undoStates.pop_back();
-                    gbl::currentGame.beginStateAfterStationaryMove = gbl::currentGame.currentState;
                 }
             
                 break;
             case KEY_SOLVE:
                 if(gbl::mode == MODE_PLAYING) {
-                    //16255 steps A*
-                    //31677 steps (28.9s) heuristicSolver
-                    //253418 steps (243.293s) bfsSolver
-                    uint64_t solhash = gbl::currentGame.getHash(); HashVVV(gbl::currentGame.currentState, solhash);
-                    SolveInformation info;
-                    synchronized(solver::solutionMutex) {
-                        std::atomic_thread_fence(std::memory_order_seq_cst);
-                        if(solver::solutionDP.count(solhash) != 0) {
-                            info = solver::solutionDP.at(solhash);
-                        }
-                        std::atomic_thread_fence(std::memory_order_seq_cst);
-                    }
-                    
-                    if(info.success == 1) {
-                        cout << "Found solution in " << info.statesExploredAStar <<" steps ("<< info.timeAStar/(1000.*1000) <<"s): ";
-                        for(int i=0;i<info.solutionPath.size();++i) {
-                            string moveName = info.solutionPath[i] == UP_MOVE ? "UP" : info.solutionPath[i] == DOWN_MOVE ? "DOWN" : info.solutionPath[i] == LEFT_MOVE ? "LEFT" : info.solutionPath[i] == RIGHT_MOVE ? "RIGHT" : "ACTION";
-                            cout << moveName << (i+1 < info.solutionPath.size() ? "," : "");
-                        }
-                        cout << endl;
-                        
-                        for(short key : info.solutionPath) {
-                            if(key == UP_MOVE) keyQueue.push({KEY_UP,100});
-                            else if(key == DOWN_MOVE) keyQueue.push({KEY_DOWN,100});
-                            else if(key == LEFT_MOVE) keyQueue.push({KEY_LEFT,100});
-                            else if(key == RIGHT_MOVE) keyQueue.push({KEY_RIGHT,100});
-                            else if(key == ACTION_MOVE) keyQueue.push({KEY_ACTION,100});
-                            else {
-                                DEB("This should not happen...");
-                                exit(0);
-                            }
-                        }
-                    } else if(info.success == 2) {
-                        cout << "Timeout when searching for a solution." << endl;
-                    } else if(info.success == 0) {
-                        cout << "No solution possible." << endl;
-                    }
-                    
+                    // Native solve playback is not wired yet.
                 }
                 break;
             case KEY_PRINT:
@@ -295,4 +227,3 @@ void executeKeys() {
     }
     //std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() <<std::endl;
 }
-

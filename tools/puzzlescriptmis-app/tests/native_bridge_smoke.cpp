@@ -42,6 +42,13 @@ bool hasNonEmptyCell(const psbridge::LayerGrid& grid) {
     });
 }
 
+bool sameGrid(const psbridge::LayerGrid& lhs, const psbridge::LayerGrid& rhs) {
+    return lhs.layerCount == rhs.layerCount
+        && lhs.width == rhs.width
+        && lhs.height == rhs.height
+        && lhs.displayObjectIds == rhs.displayObjectIds;
+}
+
 } // namespace
 
 int main() {
@@ -156,7 +163,9 @@ P.
     require(hasNonEmptyCell(grid), "expected non-empty display ids in current grid");
 
     bool won = false;
-    require(bridge.step(PS_INPUT_RIGHT, &won), "expected right step to execute");
+    bool changed = false;
+    require(bridge.step(PS_INPUT_RIGHT, &won, &changed), "expected right step to execute");
+    require(changed, "expected right step to report a changed board");
 
     grid = bridge.currentLayerGrid();
     require(grid.width == 2, "expected grid width 2 after step");
@@ -168,6 +177,12 @@ P.
     require(status.height == 1, "expected status height 1 after step");
 
     require(bridge.undo(), "expected undo to succeed");
+    const psbridge::LayerGrid initialGrid = bridge.currentLayerGrid();
+    bool blockedWon = false;
+    bool blockedChanged = false;
+    require(bridge.step(PS_INPUT_LEFT, &blockedWon, &blockedChanged), "expected blocked left step to execute");
+    require(sameGrid(initialGrid, bridge.currentLayerGrid()), "expected blocked left step to leave the board unchanged");
+
     require(bridge.restart(), "expected restart to succeed");
 
     return 0;

@@ -12,7 +12,7 @@ bool loadLevel(int levelIndex, Game& displayGame, Logger& logger);
 bool step(short moveDir, Game& displayGame, bool& won, Logger& logger);
 bool undo(Game& displayGame);
 bool restart(Game& displayGame);
-bool canUndo();
+bool canUndo(const Game& displayGame);
 bool isAtRestartState(const Game& displayGame);
 string lastMessageText();
 

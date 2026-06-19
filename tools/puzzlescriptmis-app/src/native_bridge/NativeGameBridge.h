@@ -81,7 +81,7 @@ public:
 
     bool createState();
     bool loadLevel(int32_t levelIndex);
-    bool step(ps_input input, bool* outWon);
+    bool step(ps_input input, bool* outWon, bool* outChanged = nullptr);
     bool undo();
     bool restart();
 

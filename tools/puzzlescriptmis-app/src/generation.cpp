@@ -2,11 +2,8 @@
 
 //#include "ofxMSAmcts.h"
 
-#include "engine.h"
 #include "game.h"
 #include "global.h"
-#include "solver.h"
-#include "visualsandide.h"
 
 namespace generator {
     recursive_mutex generatorMutex;
@@ -122,6 +119,7 @@ namespace generator {
 
 
 
+#if 0
 static volatile std::atomic_bool requestGenerating(false);
 static Game cgame;
 static vector<vector<bool> > cmodifyTable;
@@ -267,46 +265,32 @@ static void generating() {
 static volatile bool stillGenerating = false;
 static int generatorCount = 1;
 static vector<thread> generatorThread;
-void startGenerating() {
-    //return; //uncomment this for debugging
-    cout << "start generating" << endl;
-    if(stillGenerating && cgame.getHash() == gbl::currentGame.getHash() && cmodifyTable == editor::modifyTable[gbl::currentGame.currentLevelIndex] && cgame.currentState == gbl::currentGame.currentState) return;
-    if(stillGenerating) stopGenerating();
-    stillGenerating = true;
-    
-    requestGenerating = true;
-    cgame = gbl::currentGame;
-    cmodifyTable = editor::modifyTable[gbl::currentGame.currentLevelIndex];
-    generatorCount = MAX(1,(int)thread::hardware_concurrency() - 1);
-    //Do the obligatory empty stationary move
-    generatorThread.resize(generatorCount);
-    for(int i=0; i<generatorThread.size();++i) {
-        generatorThread[i] = thread(generating);
+#endif
+
+static void resetGeneratorState() {
+    synchronized(generator::generatorMutex) {
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        const int levelIndex = gbl::currentGame.currentLevelIndex;
+        generator::counter = 0;
+        generator::solvedCounter = 0;
+        generator::unsolvableCounter = 0;
+        generator::timedoutCounter = 0;
+        generator::maxSolveTime = 0;
+        if(levelIndex >= 0 && static_cast<size_t>(levelIndex) < generator::generatorNeighborhood.size()) {
+            generator::generatorNeighborhood[levelIndex].clear();
+        }
+        std::atomic_thread_fence(std::memory_order_seq_cst);
     }
-    
-    //launch C++ thread
+}
+
+void startGenerating() {
+    resetGeneratorState();
 }
 
 void stopGenerating() {
-    cout << "stop generating" << endl;
-    requestGenerating = false;
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-    if(stillGenerating) {
-        for(size_t i=0;i<generatorThread.size();++i) {
-            generatorThread[i].join();
-        }
-    }
-    
-    if(!generator::generatorNeighborhood[gbl::currentGame.currentLevelIndex].empty()) {
-        generator::generatorNeighborhood[gbl::currentGame.currentLevelIndex].clear();
-        //the mouse needs to be set to false since clearing the generated levels skews the view and can lead to unintended mouse presses if not disabled
-        //gbl::isFirstMousePressed = false;
-        //gbl::isMousePressed = false;
-    }
-    stillGenerating = false;
-    //optionally join?
+    resetGeneratorState();
 }
 
 bool stillTransforming() {
-    return stillGenerating;
+    return false;
 }

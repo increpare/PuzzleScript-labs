@@ -11,7 +11,6 @@
 #include "objects.h"
 #include "recordandundo.h"
 #include "rules.h"
-#include "solver.h"
 #include "testCases.h"
 
 #ifndef compiledWithoutOpenframeworks
@@ -63,6 +62,18 @@ static pair<bool,bool> compileEditorSourceThroughNativeFacade() {
     logger::generator.logWarning("PuzzleScript+MIS generator/transform language is not wired to the native core yet.", -1);
 
     return {levelSuccess, false};
+}
+
+static string movesToAscii(const deque<short>& moves) {
+    string result;
+    for (short move : moves) {
+        if (move == UP_MOVE) result += "U";
+        else if (move == DOWN_MOVE) result += "D";
+        else if (move == LEFT_MOVE) result += "L";
+        else if (move == RIGHT_MOVE) result += "R";
+        else if (move == ACTION_MOVE) result += "A";
+    }
+    return result;
 }
 
 //store / load the IDE depending on the mode
@@ -792,139 +803,8 @@ void displayLevelEditor() {
 
 		string displayStrL, displayStrR = "";
 
-		string questionMarkStr = ofGetElapsedTimeMicros() % 750000 < 250000 ? ".  " : ofGetElapsedTimeMicros() % 750000 < 500000 ? ".. " : "...";
-
-		Game game_ = gbl::currentGame;
-		/*
-		uint64_t testhash1 = gbl::currentGame.getHash();
-		uint64_t testhash2 = INITIAL_HASH;
-		HashVVV(game_.beginStateAfterStationaryMove, testhash2);*/
-
-		uint64_t solhash = game_.getHash(); HashVVV(game_.beginStateAfterStationaryMove, solhash);
-		/*cout << "OKOK: " << solhash << " " << game_.getHash() << endl;
-		for(const auto & a : game_.beginStateAfterStationaryMove) {
-			for(const auto & b : a) {
-				for(const auto & c : b)
-					cout << c << " ";
-				cout << endl;
-			}
-		}*/
-		/*
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 0 0 0 0 0 0
-		 0 0 2 0 0 0
-		 0 0 0 0 0 0
-		 0 2 0 0 0 0
-		 0 0 0 0 0 0
-		 0 0 0 0 0 0
-		 0 0 0 0 0 0
-		 3 3 3 3 0 0
-		 3 0 0 3 0 0
-		 3 0 0 3 3 3
-		 3 5 4 0 0 3
-		 3 0 0 5 0 3
-		 3 0 0 3 3 3
-		 3 3 3 3 0 0
-
-		 vs.
-
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 1 1 1 1 1 1
-		 0 0 0 0 0 0
-		 0 0 2 0 0 0
-		 0 0 0 0 0 0
-		 0 2 0 0 0 0
-		 0 0 0 0 0 0
-		 0 0 0 0 0 0
-		 0 0 0 0 0 0
-		 3 3 3 3 0 0
-		 3 0 0 3 0 0
-		 3 0 0 3 3 3
-		 3 5 4 0 0 3
-		 3 0 0 5 0 3
-		 3 0 0 3 3 3
-		 3 3 3 3 0 0
-		 */
-		SolveInformation info;
-		bool found = false;
-		synchronized(solver::solutionMutex) {
-			std::atomic_thread_fence(std::memory_order_seq_cst);
-			if (solver::solutionDP.count(solhash) != 0) {
-				info = solver::solutionDP.at(solhash);
-				found = true;
-			}
-			std::atomic_thread_fence(std::memory_order_seq_cst);
-		}
-
-		//cerr << found << " " << info.heuristicSolver << " " << info.astarSolver
-        
-        if(info.success == 0) {
-            displayStrL = "Unsolvable!!!";
-        } else if(info.success == 2) {
-            if(info.layersWithoutSolution <= 1)
-                displayStrL = "No solution found yet" + questionMarkStr;
-            else
-                displayStrL = "No solution found within " + to_string(info.layersWithoutSolution) + " steps" + questionMarkStr;
-        } else {
-            if(info.shortestSolutionPath.size() != 0) {
-                displayStrL = "Shortest solution size: " + to_string(info.shortestSolutionPath.size() );
-            } else {
-                displayStrL = "Shortest solution size lies within "
-                + (info.layersWithoutSolution == -1 ? "1" : to_string(info.layersWithoutSolution))
-                + "-" + to_string(info.solutionPath.size() ) + " moves.";
-            }
-            
-            
-            int chooseMin = 0, numExplored = info.statesExploredBFS > -1 ? info.statesExploredBFS : 2147483647;
-            if(info.statesExploredHeuristic > -1 && info.statesExploredHeuristic < numExplored) {
-                numExplored = info.statesExploredHeuristic;
-                chooseMin = 1;
-            }
-            
-            if(info.statesExploredAStar > -1 && info.statesExploredAStar < numExplored) {
-                numExplored = info.statesExploredAStar;
-                chooseMin = 2;
-            }
-            
-            if(numExplored == 2147483647) displayStrR = "Difficulty " + questionMarkStr;
-            else if(chooseMin == 0) displayStrR = "Difficulty " + to_string(numExplored) +" (BFS)";
-            else if(chooseMin == 1) displayStrR = "Difficulty " + to_string(numExplored) +" (Greedy)";
-            else if(chooseMin == 2) displayStrR = "Difficulty " + to_string(numExplored) +" (AStar)";
-            
-            displayStrR = "Difficulty "
-            + (info.statesExploredHeuristic == -1 ? questionMarkStr : to_string(info.statesExploredHeuristic)) + " (Greedy) "
-            + (info.statesExploredAStar == -1 ? questionMarkStr : to_string(info.statesExploredAStar)) + " (AStar) "
-            + (info.statesExploredBFS == -1 ? questionMarkStr : to_string(info.statesExploredBFS)) + " (BFS) ";
-            /*
-             
-             ##########
-             ######..##
-             #.*..*..##
-             #.#..O#.##
-             #..O.#OP.#
-             ##*#.@...#
-             ##...#####
-             ##########
-             */
-            /*
-            0 = BFS, 1 = Greedy, 2 = AStar
-            displayStrR //add complexity metrics
-            ="Greedy: " + (info.statesExploredHeuristic == -1 ? questionMarkStr :to_string(info.statesExploredHeuristic))
-            + "     AStar: " + (info.statesExploredAStar == -1 ? questionMarkStr :to_string(info.statesExploredAStar))
-            + "     BFS: " + (info.statesExploredBFS == -1 ? questionMarkStr :to_string(info.statesExploredBFS));
-            */
-        }
+        displayStrL = "";
+        displayStrR = "";
         
     
         
@@ -1478,78 +1358,9 @@ void displayPlayMode() {
 	int heightButton = playFont.stringHeight("()") * 2;
 	int displaySize = MIN(ofGetHeight(), ofGetWidth());
 
-	string displayStrTop = "Current moves: ", displayStrBot, unmatchedStr, matchedStr, playerMoveStr, unmatchedStrASCII, matchedStrASCII, playerMoveStrASCII;
-
-	string questionMarkStr = ofGetElapsedTimeMicros() % 750000 < 250000 ? ".  " : ofGetElapsedTimeMicros() % 750000 < 500000 ? ".. " : "...";
-
-	uint64_t solhash = gbl::currentGame.getHash(); HashVVV(gbl::currentGame.beginStateAfterStationaryMove, solhash);
-	SolveInformation info;
-	synchronized(solver::solutionMutex) {
-		std::atomic_thread_fence(std::memory_order_seq_cst);
-		if (solver::solutionDP.count(solhash) != 0) {
-			info = solver::solutionDP.at(solhash);
-		}
-		std::atomic_thread_fence(std::memory_order_seq_cst);
-	}
-
-	deque<short> currentMoves = gbl::currentGame.getCurrentMoves();
-	/*
-#define addMoves(comp,toadd)\
-if     (comp == UP_MOVE    ) toadd += "↑";\
-else if(comp == DOWN_MOVE  ) toadd += "↓";\
-else if(comp == LEFT_MOVE  ) toadd += "←";\
-else if(comp == RIGHT_MOVE ) toadd += "→";\
-else if(comp == ACTION_MOVE) toadd += "A";\
-else assert(false);
-	*/
-#define addMovesASCII(comp,toadd)\
-if     (comp == UP_MOVE    ) toadd += "U";\
-else if(comp == DOWN_MOVE  ) toadd += "D";\
-else if(comp == LEFT_MOVE  ) toadd += "L";\
-else if(comp == RIGHT_MOVE ) toadd += "R";\
-else if(comp == ACTION_MOVE) toadd += "A";\
-else assert(false);
-#define addMoves(comp,toadd)\
-if (comp == UP_MOVE) toadd += "↑";\
-else if (comp == DOWN_MOVE) toadd += "↓";\
-else if (comp == LEFT_MOVE) toadd += "←";\
-else if (comp == RIGHT_MOVE) toadd += "→";\
-else if (comp == ACTION_MOVE) toadd += "A";\
-else assert(false);
-
-	for (short move : currentMoves) {
-		addMoves(move, playerMoveStr);
-        addMovesASCII(move, playerMoveStrASCII);
-	}
-
-	if (info.success == 0) {
-		displayStrBot = "Unsolvable!!!";
-	}
-	else if (info.success == 2) {
-		if (info.layersWithoutSolution <= 1)
-			displayStrBot = "No solution found yet" + questionMarkStr;
-		else
-			displayStrBot = "No solution found within " + to_string(info.layersWithoutSolution) + " steps" + questionMarkStr;
-	}
-	else {
-		if (info.shortestSolutionPath.size() != 0) {
-			displayStrBot = "Shortest solution: ";
-		}
-		else {
-			displayStrBot = "Shortest known solution: ";
-		}
-
-		//match until first string is matched
-		int solutionIt = 0;
-		for (;solutionIt < currentMoves.size() && solutionIt < info.solutionPath.size() && currentMoves[solutionIt] == info.solutionPath[solutionIt];++solutionIt) {
-			addMoves(currentMoves[solutionIt], matchedStr);
-            addMovesASCII(info.solutionPath[solutionIt], matchedStrASCII);
-		}
-		for (;solutionIt < info.solutionPath.size();++solutionIt) {
-			addMoves(info.solutionPath[solutionIt], unmatchedStr);
-            addMovesASCII(info.solutionPath[solutionIt], unmatchedStrASCII);
-		}
-	}
+	string displayStrTop = "Current moves: ";
+	string displayStrBot = "";
+	string playerMoveStrASCII = movesToAscii(gbl::currentGame.getCurrentMoves());
 
 
 	ofFill();
@@ -1560,14 +1371,7 @@ else assert(false);
 	ofSetColor(0, 0, 0xff);
 
 //#ifdef _WIN32
-	playFont.drawString(matchedStrASCII, x2, ofGetHeight() - (0 + 2. / 3) * heightButton + heightButton / 12.);
-	int x3 = x2 + playFont.stringWidth(matchedStrASCII + "_");
-	ofSetColor(0);
-	playFont.drawString(unmatchedStrASCII, x3, ofGetHeight() - (0 + 2. / 3) * heightButton + heightButton / 12.);
-	int xbot = x3 + playFont.stringWidth(unmatchedStrASCII + "_");
-	ofSetColor(0, 0, 0xff);
 	playFont.drawString(playerMoveStrASCII, x2, ofGetHeight() - (1 + 2. / 3) * heightButton + heightButton / 12.);
-	int xtop = x2 + playFont.stringWidth(playerMoveStrASCII + "_");
 /*
 #else
 	int x3 = x2 + arrowFont.stringWidth(matchedStr+"_");
@@ -1592,86 +1396,9 @@ else assert(false);
     }
 #endif
     */
-    
-    if(info.success == 1) { //Success
-        int widthButtonShowSolution = playFont.stringWidth("_Show solution_");
-        ofSetColor(colors::colorIDE_BACKGROUND);
-        if(ofGetAppPtr()->mouseX >= xbot && ofGetAppPtr()->mouseX <= xbot+widthButtonShowSolution
-           && ofGetAppPtr()->mouseY >= ofGetHeight() - (1+1./3) * heightButton && ofGetAppPtr()->mouseY <= ofGetHeight() - (0+1./3) * heightButton && keyHandling::keyQueue.empty()) {
-            ofSetColor(0x67,0x6A,0x71);
-            if(gbl::isFirstMousePressed) {
-                if(gbl::currentGame.currentState != gbl::currentGame.beginStateAfterStationaryMove)
-                    keyHandling::keyQueue.push({KEY_RESTART,100});
-                keyHandling::keyQueue.push({KEY_SOLVE,100});
-            }
-        }
-        ofDrawRectRounded(xbot, ofGetHeight() - (1+1./3) * heightButton, widthButtonShowSolution, heightButton, displaySize/200);
-        ofSetColor(0xff);
-        playFont.drawString(" Show solution ", xbot, ofGetHeight() - (0+2./3) * heightButton);
-    }
-    
-    uint64_t solhash2 = gbl::currentGame.getHash(); HashVVV(gbl::currentGame.currentState, solhash2);
-    SolveInformation infoCurrent;
-    synchronized(solver::solutionMutex) {
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-        if(solver::solutionDP.count(solhash2) != 0) {
-            infoCurrent = solver::solutionDP.at(solhash2);
-        }
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-    }
-    
-    static vvvs hasPressedSolveFromThisState = {};
-    if(info.success != 0 && infoCurrent.success == 2 && hasPressedSolveFromThisState != gbl::currentGame.currentState){
-        int widthButtonSolveFromHere = playFont.stringWidth("_Try solving from here_");
-        ofSetColor(colors::colorIDE_BACKGROUND);
-        if(ofGetAppPtr()->mouseX >= xtop && ofGetAppPtr()->mouseX <= xtop+widthButtonSolveFromHere
-           && ofGetAppPtr()->mouseY >= ofGetHeight() - (2+1./3) * heightButton && ofGetAppPtr()->mouseY <= ofGetHeight() - (1+1./3) * heightButton) {
-            ofSetColor(0x67,0x6A,0x71);
-            if(gbl::isFirstMousePressed) {
-                hasPressedSolveFromThisState = gbl::currentGame.currentState;
-                startSolving(1, gbl::currentGame.beginStateAfterStationaryMove, gbl::currentGame, currentMoves);
-            }
-        }
-        ofDrawRectRounded(xtop, ofGetHeight() - (2+1./3) * heightButton, widthButtonSolveFromHere, heightButton, displaySize/200);
-        
-        ofSetColor(0xff);
-        playFont.drawString(" Try solving from here ", xtop, ofGetHeight() - (1+2./3) * heightButton);
-    } else if(keyHandling::keyQueue.size() == 0 && info.success != 0) { //Equal show progress and if it's solvable solve it
-        if(infoCurrent.success == 1 ) {
-            string foundSolutionButtonTop = "";
-            if(infoCurrent.shortestSolutionPath.size() != 0) {
-                foundSolutionButtonTop = "Show shortest solution from here (L)";
-            } else {
-                foundSolutionButtonTop = "Show possible solution from here (L)";
-            }
-            int widthButtonSolutionButtonTop = playFont.stringWidth("_"+foundSolutionButtonTop+"_");
-            ofSetColor(colors::colorIDE_BACKGROUND);
-            if(ofGetAppPtr()->mouseX >= xtop && ofGetAppPtr()->mouseX <= xtop+widthButtonSolutionButtonTop
-               && ofGetAppPtr()->mouseY >= ofGetHeight() - (2+1./3) * heightButton && ofGetAppPtr()->mouseY <= ofGetHeight() - (1+1./3) * heightButton) {
-                ofSetColor(0x67,0x6A,0x71);
-                if(gbl::isFirstMousePressed) {
-                    keyHandling::keyQueue.push({KEY_SOLVE, 100});
-                }
-            }
-            ofDrawRectRounded(xtop, ofGetHeight() - (2+1./3) * heightButton, widthButtonSolutionButtonTop, heightButton, displaySize/200);
-            ofSetColor(0xff);
-            playFont.drawString(" "+foundSolutionButtonTop+" ", xtop, ofGetHeight() - (1+2./3) * heightButton);
-        } else {
-            string topSolveInformation = "";
-            if(infoCurrent.success == 0) {
-                topSolveInformation = "Unsolvable!!!";
-            } else if(infoCurrent.success == 2) {
-                if(infoCurrent.layersWithoutSolution <= 1)
-                    topSolveInformation = "No solution found yet" + questionMarkStr;
-                else
-                    topSolveInformation = "No solution found within " + to_string(infoCurrent.layersWithoutSolution) + " steps" + questionMarkStr;
-            }
-            ofSetColor(0x0);
-            playFont.drawString(topSolveInformation, xtop, ofGetHeight() - (1+2./3) * heightButton);
-        }
-    }
-    
-    int widthPlayButton = playFont.stringWidth(gbl::currentGame.beginStateAfterStationaryMove == gbl::currentGame.currentState ? "_Menu (R)_" : "_Restart (R)_");
+    const bool atRestartState = nativebridge::isAtRestartState(gbl::currentGame);
+    const bool canUndo = nativebridge::canUndo(gbl::currentGame);
+    int widthPlayButton = playFont.stringWidth(atRestartState ? "_Menu (R)_" : "_Restart (R)_");
     int widthUndoButton = playFont.stringWidth("_Undo (U)_");
     
     int xUndo = ofGetWidth() - heightButton/3. - widthUndoButton;
@@ -1688,11 +1415,11 @@ else assert(false);
     }
     ofDrawRectRounded(xPlay, heightButton/3., widthPlayButton, heightButton, displaySize/200);
     ofSetColor(0xff);
-    playFont.drawString(gbl::currentGame.beginStateAfterStationaryMove == gbl::currentGame.currentState ? " Menu (R) " : " Restart (R) ", xPlay, heightButton);
+    playFont.drawString(atRestartState ? " Menu (R) " : " Restart (R) ", xPlay, heightButton);
     
     ofSetColor(colors::colorLEVEL_EDITOR_BG);
-    if(gbl::currentGame.undoStates.size()<1) ofSetColor(0x55);
-    if(gbl::currentGame.undoStates.size()>=1 && ofGetAppPtr()->mouseX >= xUndo && ofGetAppPtr()->mouseX <= xUndo+widthUndoButton
+    if(!canUndo) ofSetColor(0x55);
+    if(canUndo && ofGetAppPtr()->mouseX >= xUndo && ofGetAppPtr()->mouseX <= xUndo+widthUndoButton
        && ofGetAppPtr()->mouseY >= heightButton/3. && ofGetAppPtr()->mouseY <= heightButton/3. + heightButton) {
         ofSetColor(0x67,0x6A,0x71);
         if(gbl::isFirstMousePressed && keyHandling::keyQueue.empty()) {

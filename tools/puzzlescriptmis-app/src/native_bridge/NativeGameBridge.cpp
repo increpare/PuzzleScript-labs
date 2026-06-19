@@ -251,9 +251,12 @@ bool NativeGameBridge::loadLevel(int32_t levelIndex) {
     return true;
 }
 
-bool NativeGameBridge::step(ps_input input, bool* outWon) {
+bool NativeGameBridge::step(ps_input input, bool* outWon, bool* outChanged) {
     if (outWon != nullptr) {
         *outWon = false;
+    }
+    if (outChanged != nullptr) {
+        *outChanged = false;
     }
     if (!state_) {
         setError("Cannot step without an active state");
@@ -263,6 +266,9 @@ bool NativeGameBridge::step(ps_input input, bool* outWon) {
     const ps_step_result result = ps_full_state_turn(state_.get(), input);
     if (outWon != nullptr) {
         *outWon = result.won;
+    }
+    if (outChanged != nullptr) {
+        *outChanged = result.changed;
     }
     lastDiagnostic_ = {};
     return true;

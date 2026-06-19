@@ -11,6 +11,7 @@ namespace {
 
 psbridge::NativeGameBridge bridge;
 vector<psbridge::ObjectInfo> cachedObjects;
+const short kRestartMove = static_cast<short>(0x0101010);
 
 string joinLines(const vector<string>& lines) {
     string source;
@@ -418,12 +419,17 @@ bool loadLevel(int levelIndex, Game& displayGame, Logger& logger) {
 bool step(short moveDir, Game& displayGame, bool& won, Logger& logger) {
     logger.reset();
     won = false;
-    if (!bridge.step(psbridge::toNativeInput(moveDir), &won)) {
+    bool changed = false;
+    const vvvs previousState = displayGame.currentState;
+    if (!bridge.step(psbridge::toNativeInput(moveDir), &won, &changed)) {
         logLastDiagnostic(logger);
         return false;
     }
 
     refreshCurrentState(displayGame);
+    if (changed && previousState != displayGame.currentState) {
+        displayGame.undoStates.push_back({previousState, moveDir});
+    }
     return true;
 }
 
@@ -432,21 +438,28 @@ bool undo(Game& displayGame) {
         return false;
     }
 
+    if (!displayGame.undoStates.empty()) {
+        displayGame.undoStates.pop_back();
+    }
     refreshCurrentState(displayGame);
     return true;
 }
 
 bool restart(Game& displayGame) {
+    const vvvs previousState = displayGame.currentState;
     if (!bridge.restart()) {
         return false;
     }
 
     refreshCurrentState(displayGame);
+    if (previousState != displayGame.currentState) {
+        displayGame.undoStates.push_back({previousState, kRestartMove});
+    }
     return true;
 }
 
-bool canUndo() {
-    return bridge.status().canUndo;
+bool canUndo(const Game& displayGame) {
+    return !displayGame.undoStates.empty();
 }
 
 bool isAtRestartState(const Game& displayGame) {
