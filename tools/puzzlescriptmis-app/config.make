@@ -148,8 +148,8 @@ export MAC_OS_CPP_VER = -std=c++17
 # PuzzleScript native core libraries built by scripts/build_native_deps.sh.
 PUZZLESCRIPT_ROOT = ../..
 PUZZLESCRIPT_BUILD = $(PUZZLESCRIPT_ROOT)/build/native
-PROJECT_INCLUDES += $(PUZZLESCRIPT_ROOT)/native/include
-PROJECT_INCLUDES += $(PUZZLESCRIPT_ROOT)/tools/puzzlescriptmis-app/src
+PROJECT_DEFINES += PUZZLESCRIPTMIS_APP_BUILD
+PROJECT_CFLAGS += -I$(PUZZLESCRIPT_ROOT)/native/include
 PROJECT_LDFLAGS += $(PUZZLESCRIPT_BUILD)/libpuzzlescript_compiler.a
 PROJECT_LDFLAGS += $(PUZZLESCRIPT_BUILD)/libpuzzlescript_native.a
 PROJECT_LDFLAGS += -pthread
