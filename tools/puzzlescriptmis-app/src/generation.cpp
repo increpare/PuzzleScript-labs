@@ -2,8 +2,11 @@
 
 //#include "ofxMSAmcts.h"
 
+#include "engine.h"
 #include "game.h"
 #include "global.h"
+#include "solver.h"
+#include "visualsandide.h"
 
 namespace generator {
     recursive_mutex generatorMutex;
@@ -119,7 +122,6 @@ namespace generator {
 
 
 
-#if 0
 static volatile std::atomic_bool requestGenerating(false);
 static Game cgame;
 static vector<vector<bool> > cmodifyTable;
@@ -265,7 +267,6 @@ static void generating() {
 static volatile bool stillGenerating = false;
 static int generatorCount = 1;
 static vector<thread> generatorThread;
-#endif
 
 static void resetGeneratorState() {
     synchronized(generator::generatorMutex) {
@@ -284,13 +285,58 @@ static void resetGeneratorState() {
 }
 
 void startGenerating() {
+    cout << "start generating" << endl;
+
+    const int levelIndex = gbl::currentGame.currentLevelIndex;
+    if(levelIndex < 0
+       || static_cast<size_t>(levelIndex) >= editor::modifyTable.size()
+       || static_cast<size_t>(levelIndex) >= generator::generatorNeighborhood.size()) {
+        resetGeneratorState();
+        return;
+    }
+
+    if(stillGenerating
+       && cgame.getHash() == gbl::currentGame.getHash()
+       && cmodifyTable == editor::modifyTable[levelIndex]
+       && cgame.currentState == gbl::currentGame.currentState) {
+        return;
+    }
+
+    if(stillGenerating) {
+        stopGenerating();
+    }
+
     resetGeneratorState();
+    stillGenerating = true;
+    requestGenerating = true;
+    cgame = gbl::currentGame;
+    cmodifyTable = editor::modifyTable[levelIndex];
+    generatorCount = MAX(1,(int)thread::hardware_concurrency() - 1);
+    generatorThread.clear();
+    generatorThread.resize(generatorCount);
+    for(size_t i=0; i<generatorThread.size(); ++i) {
+        generatorThread[i] = thread(generating);
+    }
 }
 
 void stopGenerating() {
+    cout << "stop generating" << endl;
+    requestGenerating = false;
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+
+    if(stillGenerating) {
+        for(size_t i=0;i<generatorThread.size();++i) {
+            if(generatorThread[i].joinable()) {
+                generatorThread[i].join();
+            }
+        }
+    }
+
+    generatorThread.clear();
+    stillGenerating = false;
     resetGeneratorState();
 }
 
 bool stillTransforming() {
-    return false;
+    return stillGenerating;
 }

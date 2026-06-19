@@ -77,6 +77,7 @@ extern istream& operator>>(istream& os, Game & g);
 //equal if two games share the same mechanics, but not necessarily the same generator.
 extern bool operator<(const Game & lgame, const Game & rgame);
 
+extern bool parseGameGeneratorLines(vector<string> generatorLines, Game & game, Logger & logger);
 extern pair<bool,bool> parseGame(vector<string> lines, vector<string> generatorLines, Game & game, Logger & levelEditLogger, Logger & generatorLogger);
 
 #endif /* game_h */

@@ -384,7 +384,24 @@ static bool parseGameLines(vector<string> lines, Game & game, Logger & logger) {
     return true;
 }
 
-static bool parseGameGeneratorLines(vector<string> generatorLines, Game & game, Logger & logger) {
+bool parseGameGeneratorLines(vector<string> generatorLines, Game & game, Logger & logger) {
+    logger.reset();
+
+    int commentLevel = 0;
+    for(int i=0;i<generatorLines.size();++i) {
+        for(int j=0;j<generatorLines[i].size();++j) {
+            if(generatorLines[i][j] == '(') {
+                commentLevel++;
+                generatorLines[i][j] = ' ';
+            }
+            else if(generatorLines[i][j] == ')' && commentLevel > 0) {
+                commentLevel--;
+                generatorLines[i][j] = ' ';
+            }
+            else if(commentLevel > 0) generatorLines[i][j] = ' ';
+        }
+    }
+
     //remove "generation"
     for(int i=0;i<generatorLines.size();++i) {
         string fstr = formatString(generatorLines[i]);
@@ -443,5 +460,4 @@ pair<bool,bool> parseGame(vector<string> lines, vector<string> generatorLines, G
     
     return make_pair( successParsingLines, successParsingGeneratorLines );
 }
-
 

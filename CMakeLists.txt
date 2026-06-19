@@ -29,4 +29,10 @@ if(PUZZLESCRIPT_BUILD_NATIVE)
     NAME puzzlescriptmis_native_bridge_smoke
     COMMAND puzzlescriptmis_native_bridge_smoke
   )
+
+  add_test(
+    NAME puzzlescriptmis_transformer_wiring_static
+    COMMAND ${NODE_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/puzzlescriptmis-app/tests/transformer_wiring_static_test.js
+  )
 endif()

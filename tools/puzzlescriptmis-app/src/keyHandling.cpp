@@ -221,6 +221,7 @@ void executeKeys() {
                     stopGenerating();
                     if(editor::successes.first && editor::successes.second) startGenerating();
                 }
+                break;
 
             default:;DEB("Unhandled key " + to_string(key));
         }

@@ -57,11 +57,9 @@ using namespace editor;
 
 static pair<bool,bool> compileEditorSourceThroughNativeFacade() {
     const bool levelSuccess = nativebridge::compileSourceLines(levelEditorString, gbl::currentGame, logger::levelEdit);
+    const bool generatorSuccess = levelSuccess && parseGameGeneratorLines(exploitationString, gbl::currentGame, logger::generator);
 
-    logger::generator.reset();
-    logger::generator.logWarning("PuzzleScript+MIS generator/transform language is not wired to the native core yet.", -1);
-
-    return {levelSuccess, false};
+    return {levelSuccess, generatorSuccess};
 }
 
 static string movesToAscii(const deque<short>& moves) {

@@ -674,7 +674,7 @@ vector<vvvs> generateStep(const vvvs & prevState, int maxStates, const Game & ga
         
         //figure out if the next rule is
         
-        if(r.groupNumber == ri && ri != game.rules.size() && game.generatorRules[ri].groupNumber == ri) {
+        if(r.groupNumber == ri && ri != game.generatorRules.size() && game.generatorRules[ri].groupNumber == ri) {
             groupStates = currentStates; // deep copy the current state.
             groupMoveState = currentMoveStates;
         }
@@ -722,7 +722,7 @@ vector<vvvs> generateStep(const vvvs & prevState, int maxStates, const Game & ga
         
         
         //In generate mode groups get handled differently.
-        if(!r.choose && r.groupNumber != ri && (ri+1 == game.rules.size() || r.groupNumber != game.rules[ri+1].groupNumber) && (groupStates != currentStates || groupMoveState != currentMoveStates)) {
+        if(!r.choose && r.groupNumber != ri && (ri+1 == game.generatorRules.size() || r.groupNumber != game.generatorRules[ri+1].groupNumber) && (groupStates != currentStates || groupMoveState != currentMoveStates)) {
             ri = r.groupNumber-1; // restart the iteration
             if(loopedRule != ri+1) {
                 loopedRule = ri+1;
