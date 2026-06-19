@@ -185,7 +185,20 @@ function main() {
         'compact_turn_rebuild_object_cell_index_0(dimensions, levelState, scratch)',
         'object-cell index prepare',
     );
+    const updateObjectCellIndexBody = functionBody(source, 'compact_turn_update_object_cell_index_0');
+    assertIncludes(updateObjectCellIndexBody, 'beforeObjects', 'object-cell index incremental update');
+    assertIncludes(updateObjectCellIndexBody, 'afterObjects', 'object-cell index incremental update');
+    assertIncludes(updateObjectCellIndexBody, 'removedBits', 'object-cell index incremental update');
+    assertIncludes(updateObjectCellIndexBody, 'addedBits', 'object-cell index incremental update');
+    assertIncludes(updateObjectCellIndexBody, '--scratch.objectCellCounts', 'object-cell index incremental update');
+    assertIncludes(updateObjectCellIndexBody, '++scratch.objectCellCounts', 'object-cell index incremental update');
     const noteObjectBody = functionBody(source, 'compact_turn_note_object_cell_written_0');
+    assertIncludes(
+        noteObjectBody,
+        'compact_turn_update_object_cell_index_0(dimensions, scratch, tileIndex, beforeObjects, afterObjects);',
+        'object write incremental object-cell index',
+    );
+    assertExcludes(noteObjectBody, 'scratch.objectCellIndexDirty = true;', 'object write incremental object-cell index');
     assertIncludes(noteObjectBody, 'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
     assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
     assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
@@ -238,6 +251,7 @@ function main() {
         'compact_turn_simple_replacement_fast_path_objects_0(',
         'object-only fast replacement',
     );
+    assertIncludes(objectOnlyApplyBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'MaskWord* fastObjects', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'fastMovements', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'compact_turn_cell_movements_0(scratch, applyTile_0)', 'object-only fast replacement');
