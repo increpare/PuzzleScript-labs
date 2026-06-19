@@ -143,6 +143,17 @@ typedef struct ps_runtime_counters {
     uint64_t compact_turn_bridge_materialize_ns;
     uint64_t compact_turn_bridge_turn_ns;
     uint64_t compact_turn_bridge_copyback_ns;
+    uint64_t compact_turn_rule_mask_precheck_passes;
+    uint64_t compact_turn_rule_mask_precheck_failures;
+    uint64_t compact_turn_rule_apply_calls;
+    uint64_t compact_turn_rule_apply_no_match;
+    uint64_t compact_turn_rule_apply_changed;
+    uint64_t compact_turn_rebuild_rule_derived_state_calls;
+    uint64_t compact_turn_rebuild_rule_derived_state_objects_dirty;
+    uint64_t compact_turn_rebuild_rule_derived_state_movements_dirty;
+    uint64_t compact_turn_simple_replacement_fast_path_calls;
+    uint64_t compact_turn_simple_replacement_fast_path_noops;
+    uint64_t compact_turn_simple_replacement_fast_path_changes;
 } ps_runtime_counters;
 
 bool ps_load_ir_json(const char* json_utf8, size_t json_size, ps_game** out_game, ps_error** out_error);

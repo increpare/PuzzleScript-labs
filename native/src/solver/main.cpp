@@ -4165,6 +4165,17 @@ int main(int argc, char** argv) {
                       << " compact_turn_bridge_materialize_ns=" << runtimeCounters.compact_turn_bridge_materialize_ns
                       << " compact_turn_bridge_turn_ns=" << runtimeCounters.compact_turn_bridge_turn_ns
                       << " compact_turn_bridge_copyback_ns=" << runtimeCounters.compact_turn_bridge_copyback_ns
+                      << " compact_turn_rule_mask_precheck_passes=" << runtimeCounters.compact_turn_rule_mask_precheck_passes
+                      << " compact_turn_rule_mask_precheck_failures=" << runtimeCounters.compact_turn_rule_mask_precheck_failures
+                      << " compact_turn_rule_apply_calls=" << runtimeCounters.compact_turn_rule_apply_calls
+                      << " compact_turn_rule_apply_no_match=" << runtimeCounters.compact_turn_rule_apply_no_match
+                      << " compact_turn_rule_apply_changed=" << runtimeCounters.compact_turn_rule_apply_changed
+                      << " compact_turn_rebuild_rule_derived_state_calls=" << runtimeCounters.compact_turn_rebuild_rule_derived_state_calls
+                      << " compact_turn_rebuild_rule_derived_state_objects_dirty=" << runtimeCounters.compact_turn_rebuild_rule_derived_state_objects_dirty
+                      << " compact_turn_rebuild_rule_derived_state_movements_dirty=" << runtimeCounters.compact_turn_rebuild_rule_derived_state_movements_dirty
+                      << " compact_turn_simple_replacement_fast_path_calls=" << runtimeCounters.compact_turn_simple_replacement_fast_path_calls
+                      << " compact_turn_simple_replacement_fast_path_noops=" << runtimeCounters.compact_turn_simple_replacement_fast_path_noops
+                      << " compact_turn_simple_replacement_fast_path_changes=" << runtimeCounters.compact_turn_simple_replacement_fast_path_changes
                       << " compact_turn_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnAttempts; })
                       << " compact_turn_hits=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnHits; })
                       << " compact_turn_native_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnNativeAttempts; })
