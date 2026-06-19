@@ -18,3 +18,8 @@ node_modules/
 /Testing/
 /tmp_*.js
 /.claude/worktrees
+/tools/puzzlescriptmis-app/bin/
+/tools/puzzlescriptmis-app/obj/
+/tools/puzzlescriptmis-app/.vscode/
+/tools/puzzlescriptmis-app/Debug/
+/tools/puzzlescriptmis-app/Release/
