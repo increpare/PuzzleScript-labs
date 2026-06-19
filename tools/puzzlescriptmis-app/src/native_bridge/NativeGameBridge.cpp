@@ -1,8 +1,11 @@
 #include "native_bridge/NativeGameBridge.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
+#include <deque>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 namespace psbridge {
@@ -14,6 +17,10 @@ std::string safeString(const char* value) {
 
 int32_t toDisplayObjectId(int32_t nativeId) {
     return nativeId < 0 ? 0 : nativeId + 1;
+}
+
+int32_t toNativeObjectId(int32_t displayId) {
+    return displayId <= 0 ? -1 : displayId - 1;
 }
 
 std::string displayGlyphName(const char* glyph) {
@@ -34,6 +41,33 @@ ps_legend_kind toNativeLegendKind(LegendKind kind) {
         return PS_LEGEND_PROPERTY;
     }
     return PS_LEGEND_SYNONYM;
+}
+
+std::vector<ps_input> playerSolveInputs() {
+    return {
+        PS_INPUT_UP,
+        PS_INPUT_LEFT,
+        PS_INPUT_DOWN,
+        PS_INPUT_RIGHT,
+        PS_INPUT_ACTION,
+    };
+}
+
+std::vector<ps_input> reconstructSolution(
+    const std::vector<int32_t>& parents,
+    const std::vector<ps_input>& parentInputs,
+    int32_t parentIndex,
+    ps_input finalInput
+) {
+    std::vector<ps_input> reversed;
+    reversed.push_back(finalInput);
+    for (int32_t cursor = parentIndex; cursor >= 0 && static_cast<size_t>(cursor) < parents.size(); cursor = parents[static_cast<size_t>(cursor)]) {
+        if (parents[static_cast<size_t>(cursor)] >= 0) {
+            reversed.push_back(parentInputs[static_cast<size_t>(cursor)]);
+        }
+    }
+    std::reverse(reversed.begin(), reversed.end());
+    return reversed;
 }
 
 } // namespace
@@ -344,6 +378,148 @@ LayerGrid NativeGameBridge::currentLayerGrid() const {
     }
 
     return grid;
+}
+
+NativeSolveResult NativeGameBridge::solveLayerGrid(const LayerGrid& grid, int64_t timeoutMs) const {
+    NativeSolveResult result;
+    const auto startedAt = std::chrono::steady_clock::now();
+    const auto deadline = startedAt + std::chrono::milliseconds(std::max<int64_t>(1, timeoutMs));
+
+    auto finish = [&](NativeSolveStatus status) {
+        result.status = status;
+        result.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - startedAt).count();
+        return result;
+    };
+
+    if (!hasGame()) {
+        result.error = "Cannot solve without a compiled game";
+        return finish(NativeSolveStatus::Error);
+    }
+    if (grid.width <= 0 || grid.height <= 0 || grid.layerCount != layerCount()) {
+        result.error = "Candidate grid dimensions do not match the compiled game";
+        return finish(NativeSolveStatus::Error);
+    }
+    const size_t expectedCells = static_cast<size_t>(grid.layerCount) * static_cast<size_t>(grid.width) * static_cast<size_t>(grid.height);
+    if (grid.displayObjectIds.size() != expectedCells) {
+        result.error = "Candidate grid cell count does not match its dimensions";
+        return finish(NativeSolveStatus::Error);
+    }
+
+    const int32_t levelIndex = state_ ? status().currentLevelIndex : 0;
+    std::vector<int32_t> nativeIds;
+    nativeIds.reserve(grid.displayObjectIds.size());
+    for (int32_t displayId : grid.displayObjectIds) {
+        nativeIds.push_back(toNativeObjectId(displayId));
+    }
+
+    ps_full_state* rawInitial = nullptr;
+    ps_error* rawError = nullptr;
+    if (!ps_full_state_create(game(), &rawInitial, &rawError)) {
+        ErrorPtr error(rawError);
+        result.error = error ? ps_error_message(error.get()) : "Failed to create native solver state";
+        return finish(NativeSolveStatus::Error);
+    }
+    StatePtr initial(rawInitial);
+    ps_full_state_set_unit_testing(initial.get(), true);
+    if (!ps_full_state_load_level(initial.get(), levelIndex, &rawError)) {
+        ErrorPtr error(rawError);
+        result.error = error ? ps_error_message(error.get()) : "Failed to load native solver level";
+        return finish(NativeSolveStatus::Error);
+    }
+    if (!ps_full_state_set_layer_cell_object_ids(initial.get(), nativeIds.data(), nativeIds.size(), &rawError)) {
+        ErrorPtr error(rawError);
+        result.error = error ? ps_error_message(error.get()) : "Failed to seed native solver state";
+        return finish(NativeSolveStatus::Error);
+    }
+
+    struct Node {
+        StatePtr state;
+        int32_t parent = -1;
+        ps_input input = PS_INPUT_UP;
+    };
+
+    std::vector<Node> nodes;
+    nodes.push_back(Node{std::move(initial), -1, PS_INPUT_UP});
+    std::deque<int32_t> frontier;
+    frontier.push_back(0);
+    std::unordered_set<uint64_t> visited;
+    visited.insert(ps_full_state_hash64(nodes[0].state.get()));
+
+    const std::vector<ps_input> inputs = playerSolveInputs();
+    while (!frontier.empty()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return finish(NativeSolveStatus::Timeout);
+        }
+
+        const int32_t nodeIndex = frontier.front();
+        frontier.pop_front();
+        if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= nodes.size()) {
+            continue;
+        }
+        ++result.expanded;
+
+        for (ps_input input : inputs) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                return finish(NativeSolveStatus::Timeout);
+            }
+
+            ps_full_state* rawChild = nullptr;
+            if (!ps_full_state_clone(nodes[static_cast<size_t>(nodeIndex)].state.get(), &rawChild, &rawError)) {
+                ErrorPtr error(rawError);
+                result.error = error ? ps_error_message(error.get()) : "Failed to clone native solver state";
+                return finish(NativeSolveStatus::Error);
+            }
+            StatePtr child(rawChild);
+            ps_step_result step = ps_full_state_turn_with_options(child.get(), input, true);
+            ++result.generated;
+
+            for (int pass = 0; pass < 500 && ps_full_state_pending_again(child.get()) && !step.won; ++pass) {
+                step = ps_full_state_turn_with_options(child.get(), PS_INPUT_TICK, true);
+            }
+            if (ps_full_state_pending_again(child.get())) {
+                result.error = "Native solver state did not settle pending again";
+                return finish(NativeSolveStatus::Error);
+            }
+
+            ps_full_state_status_info childStatus{};
+            ps_full_state_status(child.get(), &childStatus);
+            if (step.won || childStatus.current_level_index != levelIndex || childStatus.winning) {
+                result.solution = reconstructSolution(
+                    [&]() {
+                        std::vector<int32_t> parents;
+                        parents.reserve(nodes.size());
+                        for (const Node& node : nodes) {
+                            parents.push_back(node.parent);
+                        }
+                        return parents;
+                    }(),
+                    [&]() {
+                        std::vector<ps_input> parentInputs;
+                        parentInputs.reserve(nodes.size());
+                        for (const Node& node : nodes) {
+                            parentInputs.push_back(node.input);
+                        }
+                        return parentInputs;
+                    }(),
+                    nodeIndex,
+                    input);
+                return finish(NativeSolveStatus::Solved);
+            }
+            if (!step.changed || step.restarted) {
+                continue;
+            }
+
+            const uint64_t hash = ps_full_state_hash64(child.get());
+            if (!visited.insert(hash).second) {
+                continue;
+            }
+            nodes.push_back(Node{std::move(child), nodeIndex, input});
+            frontier.push_back(static_cast<int32_t>(nodes.size() - 1));
+        }
+    }
+
+    return finish(NativeSolveStatus::Exhausted);
 }
 
 const ps_game* NativeGameBridge::game() const {

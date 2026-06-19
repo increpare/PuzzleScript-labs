@@ -176,6 +176,14 @@ ps_step_result ps_full_state_turn(ps_full_state* state, ps_input input);
 // Solver/cosmetic suppression mode: disables non-solver-relevant outputs
 // (message/sfx) and ignores checkpoint.
 ps_step_result ps_full_state_turn_with_options(ps_full_state* state, ps_input input, bool solver_mode);
+// Replaces the active level board with one object id per layer/cell. The input
+// layout is layer-major, then row-major within each layer:
+// layer * width * height + y * width + x. Use -1 for an empty layer cell.
+bool ps_full_state_set_layer_cell_object_ids(
+    ps_full_state* state,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    ps_error** out_error);
 // Runs a linked generated compact turn backend as the primary executor.
 // `out_handled` is false when no generated compact backend is attached or the
 // backend declines the current state/input. This is intended for benchmark and

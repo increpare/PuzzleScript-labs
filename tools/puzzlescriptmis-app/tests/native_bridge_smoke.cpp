@@ -49,6 +49,76 @@ bool sameGrid(const psbridge::LayerGrid& lhs, const psbridge::LayerGrid& rhs) {
         && lhs.displayObjectIds == rhs.displayObjectIds;
 }
 
+void requireNativeCandidateSolving() {
+    const std::string source = R"(title native bridge candidate solving
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Target
+green
+
+Wall
+grey
+
+========
+LEGEND
+========
+. = Background
+P = Player and Background
+C = Crate and Background
+T = Target and Background
+# = Wall and Background
+
+================
+COLLISIONLAYERS
+================
+Background
+Target
+Player, Crate, Wall
+
+=====
+RULES
+=====
+[ > Player | Crate ] -> [ > Player | > Crate ]
+
+=============
+WINCONDITIONS
+=============
+All Target on Crate
+
+========
+LEVELS
+========
+PCT
+
+PC#T
+)";
+
+    psbridge::NativeGameBridge bridge;
+    require(bridge.compileSource(source), bridge.lastDiagnostic().message.c_str());
+    require(bridge.loadLevel(0), "expected solvable candidate level to load");
+    const psbridge::NativeSolveResult solved = bridge.solveLayerGrid(bridge.currentLayerGrid(), 1000);
+    require(solved.status == psbridge::NativeSolveStatus::Solved, "expected first candidate to solve");
+    require(solved.solution.size() == 1 && solved.solution[0] == PS_INPUT_RIGHT, "expected one right move solution");
+    require(solved.expanded > 0, "expected solved candidate difficulty work to be recorded");
+
+    require(bridge.loadLevel(1), "expected blocked candidate level to load");
+    const psbridge::NativeSolveResult blocked = bridge.solveLayerGrid(bridge.currentLayerGrid(), 1000);
+    require(blocked.status != psbridge::NativeSolveStatus::Solved, "blocked candidate must not be reported solved");
+    require(blocked.solution.empty(), "blocked candidate must not return a fake solution");
+}
+
 } // namespace
 
 int main() {
@@ -184,6 +254,7 @@ P.
     require(sameGrid(initialGrid, bridge.currentLayerGrid()), "expected blocked left step to leave the board unchanged");
 
     require(bridge.restart(), "expected restart to succeed");
+    requireNativeCandidateSolving();
 
     return 0;
 }

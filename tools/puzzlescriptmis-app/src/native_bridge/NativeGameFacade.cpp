@@ -6,10 +6,13 @@
 #include "native_bridge/NativeGameBridge.h"
 #include "stringUtilities.h"
 
+#include <mutex>
+
 namespace nativebridge {
 namespace {
 
 psbridge::NativeGameBridge bridge;
+std::recursive_mutex bridgeMutex;
 vector<psbridge::ObjectInfo> cachedObjects;
 const short kRestartMove = static_cast<short>(0x0101010);
 
@@ -215,6 +218,66 @@ vector<short> toDisplayObjectIds(const vector<int32_t>& displayObjectIds) {
     return objectIds;
 }
 
+short toEditorMove(ps_input input) {
+    switch (input) {
+    case PS_INPUT_UP:
+        return UP_MOVE;
+    case PS_INPUT_LEFT:
+        return LEFT_MOVE;
+    case PS_INPUT_DOWN:
+        return DOWN_MOVE;
+    case PS_INPUT_RIGHT:
+        return RIGHT_MOVE;
+    case PS_INPUT_ACTION:
+        return ACTION_MOVE;
+    case PS_INPUT_TICK:
+        return STATIONARY_MOVE;
+    }
+    return STATIONARY_MOVE;
+}
+
+CandidateSolveStatus toCandidateSolveStatus(psbridge::NativeSolveStatus status) {
+    switch (status) {
+    case psbridge::NativeSolveStatus::Solved:
+        return CandidateSolveStatus::Solved;
+    case psbridge::NativeSolveStatus::Exhausted:
+        return CandidateSolveStatus::Unsolvable;
+    case psbridge::NativeSolveStatus::Timeout:
+        return CandidateSolveStatus::Timeout;
+    case psbridge::NativeSolveStatus::Error:
+        return CandidateSolveStatus::Error;
+    }
+    return CandidateSolveStatus::Error;
+}
+
+psbridge::LayerGrid layerGridFromState(const vvvs& state) {
+    psbridge::LayerGrid grid;
+    grid.layerCount = static_cast<int32_t>(state.size());
+    if (state.empty()) {
+        return grid;
+    }
+    grid.height = static_cast<int32_t>(state[0].size());
+    if (state[0].empty()) {
+        return grid;
+    }
+    grid.width = static_cast<int32_t>(state[0][0].size());
+    grid.displayObjectIds.reserve(static_cast<size_t>(grid.layerCount) * static_cast<size_t>(grid.width) * static_cast<size_t>(grid.height));
+    for (int32_t layer = 0; layer < grid.layerCount; ++layer) {
+        for (int32_t y = 0; y < grid.height; ++y) {
+            for (int32_t x = 0; x < grid.width; ++x) {
+                int32_t displayId = 0;
+                if (static_cast<size_t>(layer) < state.size()
+                    && static_cast<size_t>(y) < state[static_cast<size_t>(layer)].size()
+                    && static_cast<size_t>(x) < state[static_cast<size_t>(layer)][static_cast<size_t>(y)].size()) {
+                    displayId = state[static_cast<size_t>(layer)][static_cast<size_t>(y)][static_cast<size_t>(x)];
+                }
+                grid.displayObjectIds.push_back(displayId);
+            }
+        }
+    }
+    return grid;
+}
+
 void addSynonym(Game& displayGame, const string& name, short objectId) {
     if (name.empty() || objectId <= 0) {
         return;
@@ -367,6 +430,7 @@ void logLastDiagnostic(Logger& logger) {
 } // namespace
 
 bool compileSourceLines(const vector<string>& sourceLines, Game& displayGame, Logger& logger) {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     logger.reset();
     if (!bridge.compileSource(joinLines(sourceLines))) {
         logLastDiagnostic(logger);
@@ -404,6 +468,7 @@ bool compileSourceLines(const vector<string>& sourceLines, Game& displayGame, Lo
 }
 
 bool loadLevel(int levelIndex, Game& displayGame, Logger& logger) {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     logger.reset();
     if (!bridge.loadLevel(levelIndex)) {
         logLastDiagnostic(logger);
@@ -417,6 +482,7 @@ bool loadLevel(int levelIndex, Game& displayGame, Logger& logger) {
 }
 
 bool step(short moveDir, Game& displayGame, bool& won, Logger& logger) {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     logger.reset();
     won = false;
     bool changed = false;
@@ -433,7 +499,24 @@ bool step(short moveDir, Game& displayGame, bool& won, Logger& logger) {
     return true;
 }
 
+CandidateSolveResult solveGeneratedState(const vvvs& state, long long timeoutMs) {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
+    const psbridge::NativeSolveResult nativeResult = bridge.solveLayerGrid(layerGridFromState(state), timeoutMs);
+    CandidateSolveResult result;
+    result.status = toCandidateSolveStatus(nativeResult.status);
+    result.expanded = static_cast<long long>(nativeResult.expanded);
+    result.generated = static_cast<long long>(nativeResult.generated);
+    result.elapsedMs = static_cast<long long>(nativeResult.elapsedMs);
+    result.error = nativeResult.error;
+    result.solution.reserve(nativeResult.solution.size());
+    for (ps_input input : nativeResult.solution) {
+        result.solution.push_back(toEditorMove(input));
+    }
+    return result;
+}
+
 bool undo(Game& displayGame) {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     if (!bridge.undo()) {
         return false;
     }
@@ -446,6 +529,7 @@ bool undo(Game& displayGame) {
 }
 
 bool restart(Game& displayGame) {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     const vvvs previousState = displayGame.currentState;
     if (!bridge.restart()) {
         return false;
@@ -467,6 +551,7 @@ bool isAtRestartState(const Game& displayGame) {
 }
 
 string lastMessageText() {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     return bridge.status().messageText;
 }
 

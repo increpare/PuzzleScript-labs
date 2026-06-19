@@ -331,6 +331,95 @@ ps_step_result ps_full_state_turn_with_options(ps_full_state* state, ps_input in
     return state->lastTurnResult.core;
 }
 
+bool ps_full_state_set_layer_cell_object_ids(
+    ps_full_state* state,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    ps_error** out_error
+) {
+    if (out_error) {
+        *out_error = nullptr;
+    }
+    if (!state || !state->impl || !state->impl->game || !layer_cell_object_ids) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("ps_full_state_set_layer_cell_object_ids received null input"));
+        }
+        return false;
+    }
+
+    FullState& impl = *state->impl;
+    const Game& game = *impl.game;
+    const int32_t width = currentLevelWidth(impl);
+    const int32_t height = currentLevelHeight(impl);
+    const int32_t layerCount = game.layerCount;
+    if (width <= 0 || height <= 0 || layerCount <= 0) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("Cannot seed a PuzzleScript state without an active rectangular level"));
+        }
+        return false;
+    }
+
+    const size_t required = static_cast<size_t>(layerCount) * static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (count != required) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("Layer cell object id count does not match the active level dimensions"));
+        }
+        return false;
+    }
+
+    const int32_t tileCount = width * height;
+    puzzlescript::MaskVector objects(static_cast<size_t>(tileCount * game.strideObject), 0);
+    for (int32_t layer = 0; layer < layerCount; ++layer) {
+        for (int32_t y = 0; y < height; ++y) {
+            for (int32_t x = 0; x < width; ++x) {
+                const size_t inputOffset = static_cast<size_t>(layer * width * height + y * width + x);
+                const int32_t objectId = layer_cell_object_ids[inputOffset];
+                if (objectId < 0) {
+                    continue;
+                }
+                if (objectId >= game.objectCount) {
+                    if (out_error) {
+                        *out_error = makeError(std::make_unique<Error>("Layer cell object id is outside the compiled game object table"));
+                    }
+                    return false;
+                }
+                const puzzlescript::ObjectDef& object = game.objectsById[static_cast<size_t>(objectId)];
+                if (object.layer != layer) {
+                    if (out_error) {
+                        *out_error = makeError(std::make_unique<Error>("Layer cell object id does not belong to the requested collision layer"));
+                    }
+                    return false;
+                }
+                const int32_t tileIndex = x * height + y;
+                const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+                const size_t objectOffset = static_cast<size_t>(tileIndex * game.strideObject + static_cast<int32_t>(word));
+                if (objectOffset < objects.size()) {
+                    objects[objectOffset] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+                }
+            }
+        }
+    }
+
+    puzzlescript::setPersistentBoardObjectsFromCellMajor(impl, objects);
+    impl.meta.restart.objects = objects;
+    impl.scratch.liveMovements.assign(static_cast<size_t>(tileCount * game.strideMovement), 0);
+    impl.scratch.rigidGroupIndexMasks.assign(impl.scratch.liveMovements.size(), 0);
+    impl.scratch.rigidMovementAppliedMasks.assign(impl.scratch.liveMovements.size(), 0);
+    impl.meta.undoStack.clear();
+    impl.meta.pendingAgain = false;
+    impl.meta.winning = false;
+
+    std::fill(impl.scratch.dirtyObjectRows.begin(), impl.scratch.dirtyObjectRows.end(), 1);
+    std::fill(impl.scratch.dirtyObjectColumns.begin(), impl.scratch.dirtyObjectColumns.end(), 1);
+    std::fill(impl.scratch.dirtyMovementRows.begin(), impl.scratch.dirtyMovementRows.end(), 1);
+    std::fill(impl.scratch.dirtyMovementColumns.begin(), impl.scratch.dirtyMovementColumns.end(), 1);
+    impl.scratch.dirtyObjectBoard = true;
+    impl.scratch.dirtyMovementBoard = true;
+    impl.scratch.objectCellIndexDirty = true;
+    impl.scratch.anyMasksDirty = true;
+    return true;
+}
+
 ps_step_result ps_full_state_turn_compiled_compact(
     ps_full_state* state,
     ps_input input,

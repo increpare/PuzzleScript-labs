@@ -5,7 +5,7 @@
 #include "engine.h"
 #include "game.h"
 #include "global.h"
-#include "solver.h"
+#include "native_bridge/NativeGameFacade.h"
 #include "visualsandide.h"
 
 namespace generator {
@@ -130,26 +130,11 @@ static void generating() {
     
     cerr << "START GENERATING THREAD" << endl;
 
-    int solverID = bestSolver(cgame.currentState, cgame);
-    
     chrono::steady_clock::time_point timeSinceLastImprovement = chrono::steady_clock::now();
     
     //default time
     long long timeToSolve = 100; //start with a tenth of a second
     long long statesForExploitation;
-    
-    
-    uint64_t solhash = gbl::currentGame.getHash(); HashVVV(gbl::currentGame.beginStateAfterStationaryMove, solhash);
-    synchronized(solver::solutionMutex) {
-        if(solver::solutionDP.count(solhash) != 0) {
-            SolveInformation inf = solver::solutionDP.at(solhash);
-            long long initialTime = -1;
-            if(inf.timeBFS>-1) initialTime = MAX(initialTime, inf.timeBFS);
-            if(inf.timeAStar>-1) initialTime = MAX(initialTime, inf.timeAStar);
-            if(inf.timeHeuristic>-1) initialTime = MAX(initialTime, inf.timeHeuristic);
-            if(initialTime != -1) timeToSolve = initialTime * 4;
-        }
-    }
     bool hasFoundAnyTransform = false;
     generator::counter = 0; generator::solvedCounter = 0, generator::unsolvableCounter = 0, generator::timedoutCounter = 0, generator::maxSolveTime = timeToSolve;
     vector<vvvs> unknownStack;
@@ -162,55 +147,23 @@ static void generating() {
             timeToSolve = MAX(timeToSolve, timePassedSinceLastImprovement/10);
             generator::maxSolveTime = timeToSolve;
         }
-        solverID = bestSolver(cgame.currentState, cgame); //update best known solver
-        
         
         /* maybe remove possibility of double match (think about this some more...) */
         vector<vvvs> newStates = generateStep(cgame.currentState, 1, cgame, cmodifyTable);
+        if(newStates.empty()) {
+            continue;
+        }
         //Do the obligatory stationary move
         moveAndChangeField(STATIONARY_MOVE, newStates[0], cgame);
 
         //TODO: only matched part
         //TODO: make sure newStates doesn't appear in current state
         
-        if(newStates.size() > 0) {
-            SolveInformation info;
-            // cgame.updateLevelState(newStates[0], cgame.currentLevelIndex);
-
-            if(solverID == 0)
-                info = bfsSolver(newStates[0], cgame, -1, timeToSolve, gbl::emptyMoves, true, requestGenerating);
-            else if(solverID == 1)
-                info = heuristicSolver(newStates[0], cgame, -1, timeToSolve, gbl::emptyMoves, true, requestGenerating);
-            else if(solverID == 2)
-                info = astarSolver(newStates[0], cgame, -1, timeToSolve, gbl::emptyMoves, true, requestGenerating);
-            
-            if(info.success == 1) {
-                long long timeItTook = LLONG_MAX;
-                timeItTook = MIN(timeItTook, info.timeBFS == -1 ? LLONG_MAX : info.timeBFS);
-                timeItTook = MIN(timeItTook, info.timeHeuristic == -1 ? LLONG_MAX : info.timeHeuristic);
-                timeItTook = MIN(timeItTook, info.timeAStar == -1 ? LLONG_MAX : info.timeAStar);
-                long long statesExplored = LLONG_MAX;
-                statesExplored = MIN(statesExplored, info.statesExploredBFS == -1 ? LLONG_MAX : info.statesExploredBFS);
-                statesExplored = MIN(statesExplored, info.statesExploredHeuristic == -1 ? LLONG_MAX : info.statesExploredHeuristic);
-                statesExplored = MIN(statesExplored, info.statesExploredAStar == -1 ? LLONG_MAX : info.statesExploredAStar);
-                if(statesExplored == LLONG_MAX || timeItTook == LLONG_MAX) continue;
-                if(info.statesExploredBFS == -1) {
-                    SolveInformation infoBFS = bfsSolver(newStates[0], cgame, statesExplored+6, -1, gbl::emptyMoves, false, requestGenerating);
-                    if(infoBFS.statesExploredBFS != -1)
-                        statesExplored = MIN(statesExplored, infoBFS.statesExploredBFS);
-                }
-                if(info.statesExploredHeuristic == -1) {
-                    SolveInformation infoGreedy = heuristicSolver(newStates[0], cgame, statesExplored+6, -1, gbl::emptyMoves, false, requestGenerating);
-                    if(infoGreedy.statesExploredHeuristic != -1)
-                        statesExplored = MIN(statesExplored, infoGreedy.statesExploredHeuristic);
-                }
-                if(info.statesExploredAStar == -1) {
-                    SolveInformation infoAStar = astarSolver(newStates[0], cgame, statesExplored+6, -1, gbl::emptyMoves, false, requestGenerating);
-                    if(infoAStar.statesExploredAStar != -1)
-                        statesExplored = MIN(statesExplored, infoAStar.statesExploredAStar);
-                }
-                if(statesExplored < 0) continue;
-                
+        {
+            nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(newStates[0], timeToSolve);
+            if(info.status == nativebridge::CandidateSolveStatus::Solved) {
+                long long timeItTook = MAX(1, info.elapsedMs);
+                long long statesExplored = MAX(1, info.expanded);
                 auto p = make_pair(-statesExplored, newStates[0] );
                 bool addTime = false;
                 synchronized(generator::generatorMutex) {
@@ -235,9 +188,9 @@ static void generating() {
                     generator::maxSolveTime = timeToSolve;
                     hasFoundAnyTransform = true;
                 }
-            } else if(info.success == 0) {
+            } else if(info.status == nativebridge::CandidateSolveStatus::Unsolvable) {
                 generator::unsolvableCounter++;
-            }else if(info.success == 2) {
+            } else if(info.status == nativebridge::CandidateSolveStatus::Timeout) {
                 generator::timedoutCounter++;
                 /* In case you also want to add the unsolved levels:
                 pair<long long, vvvs> p;
@@ -256,6 +209,11 @@ static void generating() {
                 }*/
                 //unknownStack.push_back(newStates[0]);
                 //cerr << "ended with timeout " << info.success << " " << hasFoundAnyTransform << " " << timeToSolve << endl;
+            } else {
+                generator::timedoutCounter++;
+                if(!info.error.empty()) {
+                    cerr << "native generator solve error: " << info.error << endl;
+                }
             }
         }
         

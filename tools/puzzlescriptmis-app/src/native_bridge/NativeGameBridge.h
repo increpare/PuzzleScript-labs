@@ -59,6 +59,22 @@ struct LayerGrid {
     std::vector<int32_t> displayObjectIds;
 };
 
+enum class NativeSolveStatus {
+    Solved,
+    Exhausted,
+    Timeout,
+    Error
+};
+
+struct NativeSolveResult {
+    NativeSolveStatus status = NativeSolveStatus::Error;
+    uint64_t expanded = 0;
+    uint64_t generated = 0;
+    int64_t elapsedMs = 0;
+    std::vector<ps_input> solution;
+    std::string error;
+};
+
 class NativeGameBridge {
 public:
     NativeGameBridge();
@@ -87,6 +103,7 @@ public:
 
     Status status() const;
     LayerGrid currentLayerGrid() const;
+    NativeSolveResult solveLayerGrid(const LayerGrid& grid, int64_t timeoutMs) const;
 
 private:
     struct CompileResultDeleter { void operator()(ps_compile_result* value) const { ps_free_compile_result(value); } };
