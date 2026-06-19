@@ -8,7 +8,7 @@
 #   The location of your root openFrameworks installation
 #       (default) OF_ROOT = ../../.. 
 ################################################################################
-OF_ROOT = ../../..
+# OF_ROOT = ../../..
 
 ################################################################################
 # PROJECT ROOT
@@ -144,3 +144,12 @@ OF_ROOT = ../../..
 # Uncomment/comment below to switch between C++11 and C++17 ( or newer ). On macOS C++17 needs 10.15 or above.
 export MAC_OS_MIN_VERSION = 10.15
 export MAC_OS_CPP_VER = -std=c++17
+
+# PuzzleScript native core libraries built by scripts/build_native_deps.sh.
+PUZZLESCRIPT_ROOT = ../..
+PUZZLESCRIPT_BUILD = $(PUZZLESCRIPT_ROOT)/build/native
+PROJECT_INCLUDES += $(PUZZLESCRIPT_ROOT)/native/include
+PROJECT_INCLUDES += $(PUZZLESCRIPT_ROOT)/tools/puzzlescriptmis-app/src
+PROJECT_LDFLAGS += $(PUZZLESCRIPT_BUILD)/libpuzzlescript_compiler.a
+PROJECT_LDFLAGS += $(PUZZLESCRIPT_BUILD)/libpuzzlescript_native.a
+PROJECT_LDFLAGS += -pthread
