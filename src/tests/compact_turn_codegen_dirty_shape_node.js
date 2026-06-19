@@ -66,6 +66,15 @@ function functionBody(source, name) {
     throw new Error(`unterminated generated function ${name}`);
 }
 
+function assertInOrder(text, needles, context) {
+    let offset = 0;
+    for (const needle of needles) {
+        const index = text.indexOf(needle, offset);
+        assert.notStrictEqual(index, -1, `missing ordered snippet in ${context}: ${needle}`);
+        offset = index + needle.length;
+    }
+}
+
 function compileFixture(compiler) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-compact-dirty-shape-'));
     const gamePath = path.join(tmpDir, 'dirty_shape.txt');
@@ -193,6 +202,19 @@ function main() {
     assertIncludes(updateObjectCellIndexBody, '--scratch.objectCellCounts', 'object-cell index incremental update');
     assertIncludes(updateObjectCellIndexBody, '++scratch.objectCellCounts', 'object-cell index incremental update');
     const noteObjectBody = functionBody(source, 'compact_turn_note_object_cell_written_0');
+    assertInOrder(
+        noteObjectBody,
+        [
+            'bool removedObjects = false;',
+            'const MaskWord removed = beforeObjects[word] & ~afterObjects[word];',
+            'removedObjects = removedObjects || removed != 0;',
+            'if (removedObjects) {',
+            'scratch.dirtyObjectBoard = true;',
+            'scratch.anyMasksDirty = true;',
+            '}',
+        ],
+        'object write add-only dirty mask gating',
+    );
     assertIncludes(
         noteObjectBody,
         'compact_turn_update_object_cell_index_0(dimensions, scratch, tileIndex, beforeObjects, afterObjects);',
