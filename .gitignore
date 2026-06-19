@@ -23,3 +23,6 @@ node_modules/
 /tools/puzzlescriptmis-app/.vscode/
 /tools/puzzlescriptmis-app/Debug/
 /tools/puzzlescriptmis-app/Release/
+/tools/puzzlescriptmis-app/OptimizationProfiles/*.profdata
+/tools/puzzlescriptmis-app/**/*.xcuserdata/
+/tools/puzzlescriptmis-app/*.vcxproj.user

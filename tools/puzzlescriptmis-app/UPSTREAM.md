@@ -10,10 +10,13 @@ Stephen has permission from the upstream author to use this code for this engine
 
 The vendored copy intentionally excludes packaged binaries and generated build output:
 
+- `.git/`
 - `bin/`
 - `obj/`
+- `bscwriteup3/build/`
+- `bscwriteup3/.texpadtmp/`
+- `bscwriteup3/.ttttex/`
 - `src/a.out`
 - `src/a.out.dSYM/`
-- temporary TeX build directories under `bscwriteup3/`
 
 The first milestone keeps the openFrameworks front-end and replaces the PuzzleScript parser/runtime path with PuzzleScript-labs native libraries.
