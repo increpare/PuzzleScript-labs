@@ -68,6 +68,9 @@ void markCompactBridgeFullStateDirty(FullState& session) {
     std::fill(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), 1);
     std::fill(session.scratch.dirtyMovementRows.begin(), session.scratch.dirtyMovementRows.end(), 1);
     std::fill(session.scratch.dirtyMovementColumns.begin(), session.scratch.dirtyMovementColumns.end(), 1);
+    session.scratch.objectRowCounts.clear();
+    session.scratch.objectColumnCounts.clear();
+    session.scratch.objectBoardCounts.clear();
     session.scratch.dirtyObjectBoard = true;
     session.scratch.dirtyMovementBoard = true;
     session.scratch.objectCellIndexDirty = true;

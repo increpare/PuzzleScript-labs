@@ -113,6 +113,17 @@ struct RuntimeCounterStorage {
     std::atomic<uint64_t> compactTurnBridgeMaterializeNs{0};
     std::atomic<uint64_t> compactTurnBridgeTurnNs{0};
     std::atomic<uint64_t> compactTurnBridgeCopybackNs{0};
+    std::atomic<uint64_t> compactTurnRuleMaskPrecheckPasses{0};
+    std::atomic<uint64_t> compactTurnRuleMaskPrecheckFailures{0};
+    std::atomic<uint64_t> compactTurnRuleApplyCalls{0};
+    std::atomic<uint64_t> compactTurnRuleApplyNoMatch{0};
+    std::atomic<uint64_t> compactTurnRuleApplyChanged{0};
+    std::atomic<uint64_t> compactTurnRebuildRuleDerivedStateCalls{0};
+    std::atomic<uint64_t> compactTurnRebuildRuleDerivedStateObjectsDirty{0};
+    std::atomic<uint64_t> compactTurnRebuildRuleDerivedStateMovementsDirty{0};
+    std::atomic<uint64_t> compactTurnSimpleReplacementFastPathCalls{0};
+    std::atomic<uint64_t> compactTurnSimpleReplacementFastPathNoops{0};
+    std::atomic<uint64_t> compactTurnSimpleReplacementFastPathChanges{0};
 };
 
 bool gRuntimeCountersEnabled = false;
@@ -2335,6 +2346,9 @@ void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWo
         session.scratch.boardMask[static_cast<size_t>(word)] |= value;
     }
     if (clearedAny != 0 || changedAny) {
+        session.scratch.objectRowCounts.clear();
+        session.scratch.objectColumnCounts.clear();
+        session.scratch.objectBoardCounts.clear();
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyObjectRows.size())
             session.scratch.dirtyObjectRows[static_cast<size_t>(rowIndex)] = 1;
         if (static_cast<size_t>(columnIndex) < session.scratch.dirtyObjectColumns.size())
@@ -7472,6 +7486,17 @@ void addRuntimeCounter(RuntimeCounterId id, uint64_t amount) {
         case RuntimeCounterId::CompactTurnBridgeMaterializeNs: addCounter(gRuntimeCounters.compactTurnBridgeMaterializeNs, amount); break;
         case RuntimeCounterId::CompactTurnBridgeTurnNs: addCounter(gRuntimeCounters.compactTurnBridgeTurnNs, amount); break;
         case RuntimeCounterId::CompactTurnBridgeCopybackNs: addCounter(gRuntimeCounters.compactTurnBridgeCopybackNs, amount); break;
+        case RuntimeCounterId::CompactTurnRuleMaskPrecheckPasses: addCounter(gRuntimeCounters.compactTurnRuleMaskPrecheckPasses, amount); break;
+        case RuntimeCounterId::CompactTurnRuleMaskPrecheckFailures: addCounter(gRuntimeCounters.compactTurnRuleMaskPrecheckFailures, amount); break;
+        case RuntimeCounterId::CompactTurnRuleApplyCalls: addCounter(gRuntimeCounters.compactTurnRuleApplyCalls, amount); break;
+        case RuntimeCounterId::CompactTurnRuleApplyNoMatch: addCounter(gRuntimeCounters.compactTurnRuleApplyNoMatch, amount); break;
+        case RuntimeCounterId::CompactTurnRuleApplyChanged: addCounter(gRuntimeCounters.compactTurnRuleApplyChanged, amount); break;
+        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateCalls: addCounter(gRuntimeCounters.compactTurnRebuildRuleDerivedStateCalls, amount); break;
+        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateObjectsDirty: addCounter(gRuntimeCounters.compactTurnRebuildRuleDerivedStateObjectsDirty, amount); break;
+        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateMovementsDirty: addCounter(gRuntimeCounters.compactTurnRebuildRuleDerivedStateMovementsDirty, amount); break;
+        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathCalls: addCounter(gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls, amount); break;
+        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathNoops: addCounter(gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops, amount); break;
+        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathChanges: addCounter(gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges, amount); break;
     }
 }
 
@@ -7509,6 +7534,17 @@ void resetRuntimeCounters() {
     gRuntimeCounters.compactTurnBridgeMaterializeNs.store(0, std::memory_order_relaxed);
     gRuntimeCounters.compactTurnBridgeTurnNs.store(0, std::memory_order_relaxed);
     gRuntimeCounters.compactTurnBridgeCopybackNs.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRuleMaskPrecheckPasses.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRuleMaskPrecheckFailures.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRuleApplyCalls.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRuleApplyNoMatch.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRuleApplyChanged.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRebuildRuleDerivedStateCalls.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRebuildRuleDerivedStateObjectsDirty.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnRebuildRuleDerivedStateMovementsDirty.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges.store(0, std::memory_order_relaxed);
 }
 
 ps_runtime_counters snapshotRuntimeCounters() {
@@ -7552,6 +7588,17 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.compact_turn_bridge_materialize_ns = gRuntimeCounters.compactTurnBridgeMaterializeNs.load(std::memory_order_relaxed);
     counters.compact_turn_bridge_turn_ns = gRuntimeCounters.compactTurnBridgeTurnNs.load(std::memory_order_relaxed);
     counters.compact_turn_bridge_copyback_ns = gRuntimeCounters.compactTurnBridgeCopybackNs.load(std::memory_order_relaxed);
+    counters.compact_turn_rule_mask_precheck_passes = gRuntimeCounters.compactTurnRuleMaskPrecheckPasses.load(std::memory_order_relaxed);
+    counters.compact_turn_rule_mask_precheck_failures = gRuntimeCounters.compactTurnRuleMaskPrecheckFailures.load(std::memory_order_relaxed);
+    counters.compact_turn_rule_apply_calls = gRuntimeCounters.compactTurnRuleApplyCalls.load(std::memory_order_relaxed);
+    counters.compact_turn_rule_apply_no_match = gRuntimeCounters.compactTurnRuleApplyNoMatch.load(std::memory_order_relaxed);
+    counters.compact_turn_rule_apply_changed = gRuntimeCounters.compactTurnRuleApplyChanged.load(std::memory_order_relaxed);
+    counters.compact_turn_rebuild_rule_derived_state_calls = gRuntimeCounters.compactTurnRebuildRuleDerivedStateCalls.load(std::memory_order_relaxed);
+    counters.compact_turn_rebuild_rule_derived_state_objects_dirty = gRuntimeCounters.compactTurnRebuildRuleDerivedStateObjectsDirty.load(std::memory_order_relaxed);
+    counters.compact_turn_rebuild_rule_derived_state_movements_dirty = gRuntimeCounters.compactTurnRebuildRuleDerivedStateMovementsDirty.load(std::memory_order_relaxed);
+    counters.compact_turn_simple_replacement_fast_path_calls = gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls.load(std::memory_order_relaxed);
+    counters.compact_turn_simple_replacement_fast_path_noops = gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops.load(std::memory_order_relaxed);
+    counters.compact_turn_simple_replacement_fast_path_changes = gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges.load(std::memory_order_relaxed);
     return counters;
 }
 
