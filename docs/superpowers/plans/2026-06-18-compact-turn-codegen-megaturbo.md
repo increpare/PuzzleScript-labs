@@ -685,7 +685,7 @@ Acceptance:
 
 Verification note: generated-state floors for `heroes_of_sokoban_3.txt#23` and `#16` were removed from `src/tests/compact_turn_codegen_perf_expectations.json` because both are timeout/frontier-sensitive and repeated runs showed the floor failing while `us/generated` and rule-apply counts clearly passed. The expectation gate now measures the stable codegen throughput signal for those cases.
 
-- [ ] Run native coverage:
+- [x] Run native coverage:
 
 ```sh
 build/native/puzzlescript_cpp compile-rules src/tests/solver_tests \
@@ -701,6 +701,8 @@ Acceptance:
 - `native=182`
 - `bridge=0`
 
+Verification note: `/tmp/solver_compact_turn_coverage.json` reports `compact_turn.sources=182`, `compact_turn.native_kernel_supported=182`, `compact_turn.interpreter_bridge_supported=0`, and no compact-turn misses.
+
 - [x] Run correctness:
 
 ```sh
@@ -715,7 +717,9 @@ Acceptance:
 - compact native unhandled count remains `0`;
 - timeout regressions do not increase relative to the latest checked-in baseline.
 
-- [ ] Run the broad curve:
+Verification note: final checks passed with `make compact_tick_oracle_smoke` (`cases=14`, `compact_turn_oracle_failures=0`), `make compact_turn_codegen_solver_parity` (`games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, `compact_turn_oracle_failures=0`, `compact_timeout_regressions=29`), and `make compact_turn_native_parity` (`native=182/182`).
+
+- [x] Run the broad curve:
 
 ```sh
 make solver_timeout_curve SOLVER_TIMEOUT_CURVE_MAX_MS=1000 SOLVER_TIMEOUT_CURVE_PROGRESS=quiet COMPILED_RULES_PERF=true
@@ -728,13 +732,17 @@ Acceptance:
 - canonical compiled portfolio and canonical compiled HDA remain ahead of canonical interpreter counterparts;
 - compact coverage is printed before compiled series and reports full native coverage.
 
-- [ ] Commit final validation artifacts if the perf suite writes tracked expectation updates. Do not commit generated build outputs.
+Verification note: `make solver_timeout_curve SOLVER_TIMEOUT_CURVE_MAX_MS=1000 SOLVER_TIMEOUT_CURVE_PROGRESS=quiet COMPILED_RULES_PERF=true` passed and wrote `build/solver-timeout-curve/solver_timeout_curve.csv` plus `.svg`. The printed coverage lines reported full compact native coverage for both corpora: raw callable/native `182/182`, bridge `0/182`; canonical callable/native `179/179`, bridge `0/179`. At `1000ms`, compiled portfolio solved `961` levels versus C++ interpreter portfolio `901`, and compiled HDA solved `1034` versus C++ interpreter HDA `995`. Canonical compiled portfolio solved `945` versus canonical interpreter portfolio `889`, and canonical compiled HDA solved `1008` versus canonical interpreter HDA `971`.
+
+- [x] Commit final validation artifacts if the perf suite writes tracked expectation updates. Do not commit generated build outputs.
 
 ```sh
 git status --short
 git add Makefile src/tests native
 git commit -m "perf: improve compact turn generated kernels"
 ```
+
+Verification note: no tracked generated outputs or expectation updates were produced by the acceptance run; only this plan/handoff record changed.
 
 ---
 
