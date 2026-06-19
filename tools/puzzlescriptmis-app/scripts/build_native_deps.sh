@@ -5,6 +5,55 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$APP_DIR/../.." && pwd)"
 
+find_cmake() {
+  local candidate
+
+  if [[ -n "${CMAKE:-}" ]]; then
+    if [[ -x "$CMAKE" ]]; then
+      printf '%s\n' "$CMAKE"
+      return 0
+    fi
+    if candidate="$(command -v "$CMAKE" 2>/dev/null)"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+
+  if candidate="$(command -v cmake 2>/dev/null)"; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  for candidate in \
+    /opt/homebrew/bin/cmake \
+    /usr/local/bin/cmake \
+    /Applications/CMake.app/Contents/bin/cmake
+  do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+if ! cmake_bin="$(find_cmake)"; then
+  cat >&2 <<'EOF'
+error: cmake not found.
+
+Install CMake, or set CMAKE to the full cmake executable path before building.
+Common macOS locations checked:
+  /opt/homebrew/bin/cmake
+  /usr/local/bin/cmake
+  /Applications/CMake.app/Contents/bin/cmake
+EOF
+  exit 127
+fi
+
+cmake_dir="$(cd "$(dirname "$cmake_bin")" && pwd)"
+export PATH="$cmake_dir:$PATH"
+
 # Xcode exports compiler wrappers and deployment targets for every Apple
 # platform. CMake only needs a clean macOS compiler environment here.
 for var_name in \
@@ -69,5 +118,5 @@ if [[ -f "$cache_file" ]]; then
   fi
 fi
 
-cmake "${cmake_args[@]}"
-cmake --build "$REPO_ROOT/build" --target puzzlescript_native puzzlescript_compiler
+"$cmake_bin" "${cmake_args[@]}"
+"$cmake_bin" --build "$REPO_ROOT/build" --target puzzlescript_native puzzlescript_compiler
