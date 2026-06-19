@@ -234,6 +234,8 @@ function main() {
         fastPathCallCount >= 2,
         `expected at least two generated simple replacement fast-path calls; actual=${fastPathCallCount}`,
     );
+    const objectFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_0');
+    assertIncludes(objectFastPathBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');
     assertIncludes(objectOnlyBody, 'scratch.dirtyObjectBoard = false;', 'object-only rule');
@@ -251,7 +253,6 @@ function main() {
         'compact_turn_simple_replacement_fast_path_objects_0(',
         'object-only fast replacement',
     );
-    assertIncludes(objectOnlyApplyBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'MaskWord* fastObjects', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'fastMovements', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'compact_turn_cell_movements_0(scratch, applyTile_0)', 'object-only fast replacement');
