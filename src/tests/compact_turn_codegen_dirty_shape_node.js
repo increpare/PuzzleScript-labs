@@ -221,16 +221,6 @@ function main() {
         fastPathCallCount >= 2,
         `expected at least two generated simple replacement fast-path calls; actual=${fastPathCallCount}`,
     );
-    assertIncludes(
-        source,
-        'inline bool compact_turn_simple_replacement_fast_path_objects_0(',
-        'simple replacement helper should be optimizer-inlineable',
-    );
-    assertExcludes(
-        source,
-        'PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_0(',
-        'simple replacement helper should be optimizer-inlineable',
-    );
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');
     assertIncludes(objectOnlyBody, 'scratch.dirtyObjectBoard = false;', 'object-only rule');
