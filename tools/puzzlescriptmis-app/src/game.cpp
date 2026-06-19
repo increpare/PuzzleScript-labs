@@ -2,14 +2,12 @@
 
 #include "collisionlayers.h"
 #include "colors.h"
-#include "engine.h"
 #include "global.h"
 #include "legend.h"
 #include "levels.h"
 #include "logError.h"
 #include "objects.h"
 #include "rules.h"
-#include "solver.h"
 #include "stringUtilities.h"
 #include "winconditions.h"
 
@@ -83,11 +81,8 @@ void Game::updateLevelState(vvvs newCurrentState, int index) {
         assert(currentState.size() != 0 && currentState[0].size() != 0);
         currentLevelHeight = currentState[0].size();
         currentLevelWidth = currentState[0][0].size();
-
-        moveAndChangeField(STATIONARY_MOVE, newCurrentState, *this);
-        beginStateAfterStationaryMove = newCurrentState;
+        beginStateAfterStationaryMove = currentState;
     }
-    startSolving(0, this->beginStateAfterStationaryMove, *this, gbl::emptyMoves);
 }
 
 uint64_t Game::getHash() const { //only includes the hash for the mechanics
@@ -448,6 +443,5 @@ pair<bool,bool> parseGame(vector<string> lines, vector<string> generatorLines, G
     
     return make_pair( successParsingLines, successParsingGeneratorLines );
 }
-
 
 

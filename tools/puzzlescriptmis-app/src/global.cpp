@@ -1,9 +1,9 @@
 #include "global.h"
 
-#include "engine.h"
 #include "game.h"
+#include "logError.h"
+#include "native_bridge/NativeGameFacade.h"
 #include "recordandundo.h"
-#include "solver.h"
 #include "visualsandide.h"
 
 namespace gbl {
@@ -22,20 +22,11 @@ namespace gbl {
 
 void switchToLevel(int level, Game & game) {
     cout << "SWITCHING TO LEVEL " << level << endl;
-    //first load up all the messages
-    game.currentLevelIndex = level;
-    game.currentState = game.levels[level];
-    game.currentLevelHeight = game.currentState[0].size();
-    game.currentLevelWidth = game.currentState[0][0].size();
-    
-    vvvs copyOfState = game.currentState;
-    moveAndChangeField(STATIONARY_MOVE, copyOfState, game);
-    game.beginStateAfterStationaryMove = copyOfState;
-    
-    game.undoStates.clear();
+    if(!nativebridge::loadLevel(level, game, logger::levelEdit)) {
+        return;
+    }
+
     game.currentMessageIndex = 0;
-    
-    startSolving(0, game.beginStateAfterStationaryMove, game, gbl::emptyMoves);
     
     /* TODO:
      if(game.currentMessageIndex < game.messages[level].size()) {

@@ -7,6 +7,7 @@
 #include "levels.h"
 #include "logError.h"
 #include "keyHandling.h"
+#include "native_bridge/NativeGameFacade.h"
 #include "objects.h"
 #include "recordandundo.h"
 #include "rules.h"
@@ -38,12 +39,6 @@ namespace editor {
     
     pair<bool,bool> successes; //first = levelEditor succesfully compiled, second = generator succesfully compiled
     
-    static vector<string> emptyExploitationString = {
-        "==========",
-        "TRANSFORM",
-        "==========",
-        "[] -> []"};
-    
     static pair<int,int> cursorPos = {0,0}, selectPos = {-1,-1};
     static float ideWidth = -1, prevIdeWidth = -2;
     static int ideLongestSentence = -1, prevIdeLongestSentence = -2;
@@ -57,9 +52,18 @@ namespace editor {
     static ofTrueTypeFont singleCharFont;
     
     static float prevScaleBlockSelection = -1;
-    
+
 }
 using namespace editor;
+
+static pair<bool,bool> compileEditorSourceThroughNativeFacade() {
+    const bool levelSuccess = nativebridge::compileSourceLines(levelEditorString, gbl::currentGame, logger::levelEdit);
+
+    logger::generator.reset();
+    logger::generator.logWarning("PuzzleScript+MIS generator/transform language is not wired to the native core yet.", -1);
+
+    return {levelSuccess, false};
+}
 
 //store / load the IDE depending on the mode
 static void refreshIDEStrings(MODE_TYPE oldmode, MODE_TYPE newmode) {
@@ -95,13 +99,13 @@ void initEditor(vector<string> ingame) {
         "[] -> []",
     };
     
-    successes = parseGame(levelEditorString, exploitationString, gbl::currentGame, logger::levelEdit, logger::generator);
+    successes = compileEditorSourceThroughNativeFacade();
     synchronized(generator::generatorMutex) {
         std::atomic_thread_fence(std::memory_order_seq_cst);
         generator::generatorNeighborhood.resize( gbl::currentGame.levels.size());
         std::atomic_thread_fence(std::memory_order_seq_cst);
     }
-    assert(successes.first && successes.second); //should always work, since it's the default initial game
+    assert(successes.first); //should always work, since it's the default initial game
     switchToLevel(0, gbl::currentGame);
     switchToLeftEditor(MODE_LEVEL_EDITOR, "init_push");
     
@@ -116,7 +120,6 @@ void switchToLeftEditor(MODE_TYPE newmode, const string reason) {
     assert(newmode == MODE_LEVEL_EDITOR || newmode == MODE_EXPLOITATION || newmode == MODE_INSPIRATION);
     refreshIDEStrings(gbl::mode, newmode); //rewrite leveleditorstring
     
-    bool restartGenerating = false;
     static Game oldGame = gbl::currentGame;
     //detects any changes to the game / editor or if there have been errors in the previous IDE build.
     if(gbl::record.editorHistory.size() == 0
@@ -129,12 +132,7 @@ void switchToLeftEditor(MODE_TYPE newmode, const string reason) {
         
         //RECOMPILE CURRENT GAME
         oldGame = gbl::currentGame;
-        successes = parseGame(levelEditorString, exploitationString, gbl::currentGame, logger::levelEdit, logger::generator);
-        if(successes.first && !successes.second && newmode != MODE_EXPLOITATION) {
-            exploitationString = emptyExploitationString;
-            successes = parseGame(levelEditorString, exploitationString, gbl::currentGame, logger::levelEdit, logger::generator);
-        }
-        if(successes.first && successes.second) restartGenerating = true;
+        successes = compileEditorSourceThroughNativeFacade();
     }
     //READJUST ERROR MSG FROM COMPILING AND CURSOR BASED ON ERROR
     ideLastErrorLine = gbl::mode == MODE_LEVEL_EDITOR ? logger::levelEdit.lastErrorLine : logger::generator.lastErrorLine;
@@ -148,7 +146,7 @@ void switchToLeftEditor(MODE_TYPE newmode, const string reason) {
         readjustIDEOffset();
     }
     
-    if((gbl::mode == MODE_LEVEL_EDITOR && !successes.first) || (gbl::mode == MODE_EXPLOITATION && !successes.second)) {
+    if(!successes.first) {
         gbl::currentGame = oldGame;
         switchToRightEditor(newmode); //didn't compile, go back to old ide
         //generator::generatorMutex.lock();
@@ -184,7 +182,6 @@ void switchToLeftEditor(MODE_TYPE newmode, const string reason) {
     activeIDE = false;
     
     pushEditorState(gbl::record, reason);
-    if(restartGenerating) startGenerating();
 }
 
 void switchToRightEditor(MODE_TYPE newmode) { //switch to IDE
@@ -1106,8 +1103,6 @@ void displayLevelEditor() {
                             gbl::currentGame.updateLevelState(newState, gbl::currentGame.currentLevelIndex);
                             
                             switchToLeftEditor(MODE_LEVEL_EDITOR, "level_editor_place");
-                            
-                            startGenerating();
                             //switchIDEStringAndMode(MODE_LEVEL_EDITOR);
                             //pushUndoLevelEditor("block edit");
                         }
@@ -1737,4 +1732,3 @@ void displayLevel(const vvvs & state, const Game & game, int offsetX, int offset
 }
 
 #endif
-
