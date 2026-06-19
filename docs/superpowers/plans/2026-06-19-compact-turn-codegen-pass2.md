@@ -121,7 +121,7 @@ make compact_turn_codegen_perf_expectations
 
 Expected: fails because the selected metric is above the new target.
 
-- [ ] **Step 4: Commit the failing perf gate**
+- [x] **Step 4: Commit the failing perf gate**
 
 Run:
 
@@ -134,7 +134,7 @@ Expected: commit records only the test/harness change.
 
 ## Task 3: Implement One Generic Codegen Optimization
 
-- [ ] **Step 1: Inspect generated-code source around the chosen hotspot**
+- [x] **Step 1: Inspect generated-code source around the chosen hotspot**
 
 Run targeted searches:
 
@@ -144,7 +144,7 @@ rg "rule_mask|simple_replacement|apply_rule|emit.*rule|compact_turn_count" nativ
 
 Expected: identify the exact emitter functions for the selected metric.
 
-- [ ] **Step 2: Implement the smallest optimization**
+- [x] **Step 2: Implement the smallest optimization**
 
 Modify `native/src/compiler/compact_turn_codegen.cpp` only at the relevant emitter/helper boundary. Keep the optimization generic, deterministic, and semantics-preserving. Preferred candidates are:
 
@@ -152,7 +152,7 @@ Modify `native/src/compiler/compact_turn_codegen.cpp` only at the relevant emitt
 - replacement-helper specialization for common no-op or fixed-cell update cases;
 - avoiding redundant derived-state rebuilds when the generated code can prove no relevant object or movement state changed.
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 Run:
 
@@ -162,7 +162,7 @@ make build
 
 Expected: build succeeds.
 
-- [ ] **Step 4: Verify GREEN on the focused perf gate**
+- [x] **Step 4: Verify GREEN on the focused perf gate**
 
 Run:
 
@@ -172,7 +172,7 @@ make compact_turn_codegen_perf_expectations
 
 Expected: passes or improves enough to justify adjusting the expectation to the stable achieved value.
 
-- [ ] **Step 5: Run correctness gates**
+- [x] **Step 5: Run correctness gates**
 
 Run:
 
@@ -183,7 +183,7 @@ make compact_turn_codegen_solver_parity
 
 Expected: both pass.
 
-- [ ] **Step 6: Commit the optimization**
+- [x] **Step 6: Commit the optimization**
 
 Run:
 

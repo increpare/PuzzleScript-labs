@@ -577,6 +577,7 @@ struct Scratch {
     MaskVector replacementDestroyedScratch;
     MaskVector replacementRigidMaskScratch;
     std::vector<int32_t> singleRowMatchScratch;
+    std::vector<std::vector<int32_t>> multiRowMatchScratch;
     std::map<std::string, int32_t> aggregateCaptures;
     std::map<std::string, std::optional<PropertyCapture>> propertyCaptures;
     MaskVector incrementalPriorObjects;
