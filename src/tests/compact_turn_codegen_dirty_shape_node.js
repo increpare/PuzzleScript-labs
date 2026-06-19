@@ -225,6 +225,19 @@ function main() {
     assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
     assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
     const noteMovementBody = functionBody(source, 'compact_turn_note_movement_cell_written_0');
+    assertInOrder(
+        noteMovementBody,
+        [
+            'bool removedMovements = false;',
+            'const MaskWord removed = beforeMovements[word] & ~afterMovements[word];',
+            'removedMovements = removedMovements || removed != 0;',
+            'if (removedMovements) {',
+            'scratch.dirtyMovementBoard = true;',
+            'scratch.anyMasksDirty = true;',
+            '}',
+        ],
+        'movement write add-only dirty mask gating',
+    );
     assertIncludes(noteMovementBody, 'scratch.rowMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
