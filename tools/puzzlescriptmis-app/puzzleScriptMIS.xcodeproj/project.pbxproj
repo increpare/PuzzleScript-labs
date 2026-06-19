@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		"0680044B-5AA5-44EF-8641-7BBF46EB7302" /* winconditions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "A547E0EF-844A-417E-BABF-549F6416D23B" /* winconditions.cpp */; };
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0011" /* NativeGameBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "0D1A701A-6E04-4A31-9E29-FB2E0D7F0013" /* NativeGameBridge.cpp */; };
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0012" /* NativeGameFacade.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */; };
 		"1ADB9C8E-4CD9-45A4-AFCC-0F5EB2F48A82" /* generation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "A1FE2530-2AE5-45CE-B53D-E3E8E65444DD" /* generation.cpp */; };
 		"1FA622B7-5C7A-41F7-8411-F7BEAAD77C6F" /* logError.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "6033FF70-585F-4052-A9F5-E9E03E24A6DE" /* logError.cpp */; };
 		"2DC6608D-3F25-4FDD-849C-FE6BDD8FF601" /* stringUtilities.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "704EF2B1-5E53-4307-8CA1-F84171CE586C" /* stringUtilities.cpp */; };
@@ -65,25 +67,29 @@
 
 /* Begin PBXFileReference section */
 		"09458147-142A-41C5-9ADB-21F6B43BCF76" /* engine.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = engine.h; path = src/engine.h; sourceTree = SOURCE_ROOT; };
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0013" /* NativeGameBridge.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = NativeGameBridge.cpp; path = src/native_bridge/NativeGameBridge.cpp; sourceTree = SOURCE_ROOT; };
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0014" /* NativeGameBridge.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = NativeGameBridge.h; path = src/native_bridge/NativeGameBridge.h; sourceTree = SOURCE_ROOT; };
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = NativeGameFacade.cpp; path = src/native_bridge/NativeGameFacade.cpp; sourceTree = SOURCE_ROOT; };
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0016" /* NativeGameFacade.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = NativeGameFacade.h; path = src/native_bridge/NativeGameFacade.h; sourceTree = SOURCE_ROOT; };
 		"0A5D3577-19E5-4927-BD17-5832922CD553" /* Info.plist */ = {isa = PBXFileReference; explicitFileType = file; fileEncoding = 4; name = Info.plist; path = src/a.out.dSYM/Contents/Info.plist; sourceTree = SOURCE_ROOT; };
 		"0F6ACA42-003A-45BC-B63D-37016CE7C62E" /* colors.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = colors.cpp; path = src/colors.cpp; sourceTree = SOURCE_ROOT; };
-		"130BD143-B7FB-44EE-A3D7-F7506D25C779" /* ofxGuiGroup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxGuiGroup.cpp; path = ../../../addons/ofxGui/src/ofxGuiGroup.cpp; sourceTree = SOURCE_ROOT; };
-		"15D2C66F-7653-4F3D-B6B5-F480705FB3EC" /* ofxToggle.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxToggle.h; path = ../../../addons/ofxGui/src/ofxToggle.h; sourceTree = SOURCE_ROOT; };
+		"130BD143-B7FB-44EE-A3D7-F7506D25C779" /* ofxGuiGroup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxGuiGroup.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxGuiGroup.cpp; sourceTree = SOURCE_ROOT; };
+		"15D2C66F-7653-4F3D-B6B5-F480705FB3EC" /* ofxToggle.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxToggle.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxToggle.h; sourceTree = SOURCE_ROOT; };
 		191CD6FA2847E21E0085CBB6 /* of.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = of.entitlements; sourceTree = "<group>"; };
-		191EF70929D778A400F35F26 /* openFrameworks */ = {isa = PBXFileReference; lastKnownFileType = folder; name = openFrameworks; path = ../../../libs/openFrameworks; sourceTree = SOURCE_ROOT; };
-		"1AF5D881-7041-4646-9D2C-DA67C3786B4A" /* ofxToggle.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxToggle.cpp; path = ../../../addons/ofxGui/src/ofxToggle.cpp; sourceTree = SOURCE_ROOT; };
+		191EF70929D778A400F35F26 /* openFrameworks */ = {isa = PBXFileReference; lastKnownFileType = folder; name = openFrameworks; path = ../../../of_v0.12.1_osx_release/libs/openFrameworks; sourceTree = SOURCE_ROOT; };
+		"1AF5D881-7041-4646-9D2C-DA67C3786B4A" /* ofxToggle.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxToggle.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxToggle.cpp; sourceTree = SOURCE_ROOT; };
 		"1B9940D7-8DC4-4739-AC7C-54CB604CD227" /* objects.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = objects.cpp; path = src/objects.cpp; sourceTree = SOURCE_ROOT; };
-		"20D8EB9E-8D44-4954-8E35-5239B190A172" /* ofxSlider.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxSlider.cpp; path = ../../../addons/ofxGui/src/ofxSlider.cpp; sourceTree = SOURCE_ROOT; };
+		"20D8EB9E-8D44-4954-8E35-5239B190A172" /* ofxSlider.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxSlider.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxSlider.cpp; sourceTree = SOURCE_ROOT; };
 		"214199FD-62FC-4688-A6E6-97740E696B15" /* winconditions.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = winconditions.h; path = src/winconditions.h; sourceTree = SOURCE_ROOT; };
 		"27A54884-3CBA-42DA-950D-E6310B92D6C0" /* core.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = core.h; path = src/utf8/core.h; sourceTree = SOURCE_ROOT; };
 		"2B9ABD76-192E-44DD-8FEC-9D076986F63E" /* solver.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = solver.h; path = src/solver.h; sourceTree = SOURCE_ROOT; };
-		"327DB0E5-EB82-4CB3-9EFB-125B489D54A7" /* ofxInputField.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxInputField.cpp; path = ../../../addons/ofxGui/src/ofxInputField.cpp; sourceTree = SOURCE_ROOT; };
+		"327DB0E5-EB82-4CB3-9EFB-125B489D54A7" /* ofxInputField.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxInputField.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxInputField.cpp; sourceTree = SOURCE_ROOT; };
 		"38FB762F-6F9D-4662-8CC5-E00707572E48" /* collisionlayers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = collisionlayers.cpp; path = src/collisionlayers.cpp; sourceTree = SOURCE_ROOT; };
 		"3D595343-8901-4797-A7EE-F94DBEB9B82A" /* legend.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = legend.h; path = src/legend.h; sourceTree = SOURCE_ROOT; };
-		"3DB55EBB-26C8-4C5C-BA1F-048592A73293" /* ofxButton.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxButton.h; path = ../../../addons/ofxGui/src/ofxButton.h; sourceTree = SOURCE_ROOT; };
+		"3DB55EBB-26C8-4C5C-BA1F-048592A73293" /* ofxButton.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxButton.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxButton.h; sourceTree = SOURCE_ROOT; };
 		"40C64D26-CA8F-48DC-949C-B41B0995CB8A" /* rules.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rules.cpp; path = src/rules.cpp; sourceTree = SOURCE_ROOT; };
 		"49F0F954-E017-4C16-9BD9-707A13E68224" /* TreeNodeT.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = TreeNodeT.h; path = src/mcts/TreeNodeT.h; sourceTree = SOURCE_ROOT; };
-		"49F1C830-720C-4893-A37F-049A00469401" /* ofxLabel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxLabel.cpp; path = ../../../addons/ofxGui/src/ofxLabel.cpp; sourceTree = SOURCE_ROOT; };
+		"49F1C830-720C-4893-A37F-049A00469401" /* ofxLabel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxLabel.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxLabel.cpp; sourceTree = SOURCE_ROOT; };
 		"4A99809A-0CA7-4C58-A8F0-84F97377B56C" /* macros.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = macros.h; path = src/macros.h; sourceTree = SOURCE_ROOT; };
 		"4AA2AA6D-B559-4883-9C36-52036BC797E2" /* engine.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = engine.cpp; path = src/engine.cpp; sourceTree = SOURCE_ROOT; };
 		"5993ADA1-DE83-4729-B1EA-2BA27C1558B3" /* a.out */ = {isa = PBXFileReference; explicitFileType = file; fileEncoding = 4; name = a.out; path = src/a.out.dSYM/Contents/Resources/DWARF/a.out; sourceTree = SOURCE_ROOT; };
@@ -94,23 +100,23 @@
 		"6033FF70-585F-4052-A9F5-E9E03E24A6DE" /* logError.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = logError.cpp; path = src/logError.cpp; sourceTree = SOURCE_ROOT; };
 		"64EC81B0-4FE7-4944-98D2-2BFA996D3718" /* generation.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = generation.h; path = src/generation.h; sourceTree = SOURCE_ROOT; };
 		"6531FBBC-49DB-4685-9C2B-20BDB4FBFE19" /* testCases.txt */ = {isa = PBXFileReference; explicitFileType = file; fileEncoding = 4; name = testCases.txt; path = src/testCases.txt; sourceTree = SOURCE_ROOT; };
-		"6B051584-7096-4E26-B99C-BD4DC82245E6" /* ofxBaseGui.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxBaseGui.h; path = ../../../addons/ofxGui/src/ofxBaseGui.h; sourceTree = SOURCE_ROOT; };
+		"6B051584-7096-4E26-B99C-BD4DC82245E6" /* ofxBaseGui.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxBaseGui.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxBaseGui.h; sourceTree = SOURCE_ROOT; };
 		"6BB2761C-C1C7-4190-AAD1-47F0B7DA9FED" /* recordandundo.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = recordandundo.h; path = src/recordandundo.h; sourceTree = SOURCE_ROOT; };
 		"6BC9C78E-2F69-4FE7-B447-DE7B74D635C7" /* recordandundo.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = recordandundo.cpp; path = src/recordandundo.cpp; sourceTree = SOURCE_ROOT; };
-		"6C0AC63C-7339-4B54-B9A1-34743043DB17" /* ofxGuiGroup.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxGuiGroup.h; path = ../../../addons/ofxGui/src/ofxGuiGroup.h; sourceTree = SOURCE_ROOT; };
+		"6C0AC63C-7339-4B54-B9A1-34743043DB17" /* ofxGuiGroup.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxGuiGroup.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxGuiGroup.h; sourceTree = SOURCE_ROOT; };
 		"6F2CB3D4-3965-4A2D-BB00-8C3E0546972B" /* testCases.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testCases.cpp; path = src/testCases.cpp; sourceTree = SOURCE_ROOT; };
 		"704EF2B1-5E53-4307-8CA1-F84171CE586C" /* stringUtilities.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = stringUtilities.cpp; path = src/stringUtilities.cpp; sourceTree = SOURCE_ROOT; };
 		"70944617-9848-4E59-BBB6-887965C07953" /* global.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = global.cpp; path = src/global.cpp; sourceTree = SOURCE_ROOT; };
 		"73E07D22-559E-446B-9FFA-BB3DF798FDFF" /* ofxMSAmcts.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxMSAmcts.h; path = src/mcts/ofxMSAmcts.h; sourceTree = SOURCE_ROOT; };
-		"8080CABF-C3BD-48B0-85E0-72497824C88F" /* ofxLabel.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxLabel.h; path = ../../../addons/ofxGui/src/ofxLabel.h; sourceTree = SOURCE_ROOT; };
+		"8080CABF-C3BD-48B0-85E0-72497824C88F" /* ofxLabel.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxLabel.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxLabel.h; sourceTree = SOURCE_ROOT; };
 		"81FDA788-4C67-4A92-A9BC-451D279122AB" /* colors.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = colors.h; path = src/colors.h; sourceTree = SOURCE_ROOT; };
-		"8566B88C-9A45-46B1-91AD-7AFC0D03FA20" /* ofxPanel.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxPanel.h; path = ../../../addons/ofxGui/src/ofxPanel.h; sourceTree = SOURCE_ROOT; };
+		"8566B88C-9A45-46B1-91AD-7AFC0D03FA20" /* ofxPanel.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxPanel.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxPanel.h; sourceTree = SOURCE_ROOT; };
 		"87514E39-D79A-4E4A-BD05-80ACBFE6792F" /* rules.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = rules.h; path = src/rules.h; sourceTree = SOURCE_ROOT; };
 		"8BA552DD-97FC-4109-85FA-015CCE59C1A6" /* checked.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = checked.h; path = src/utf8/checked.h; sourceTree = SOURCE_ROOT; };
 		"8E535EDB-537D-42DE-8B97-71562536FF90" /* levels.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = levels.h; path = src/levels.h; sourceTree = SOURCE_ROOT; };
 		"92B9B553-66B7-4D92-8455-037D9CA36600" /* game.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = game.h; path = src/game.h; sourceTree = SOURCE_ROOT; };
 		"948FD4DA-3361-4A44-BEEE-9BD39DF28672" /* compileWOOpenframeworks.command */ = {isa = PBXFileReference; explicitFileType = file; fileEncoding = 4; name = compileWOOpenframeworks.command; path = src/compileWOOpenframeworks.command; sourceTree = SOURCE_ROOT; };
-		"94DC6FCF-CDAB-4DBF-8E17-020FE4269CDD" /* ofxColorPicker.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxColorPicker.h; path = ../../../addons/ofxGui/src/ofxColorPicker.h; sourceTree = SOURCE_ROOT; };
+		"94DC6FCF-CDAB-4DBF-8E17-020FE4269CDD" /* ofxColorPicker.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxColorPicker.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxColorPicker.h; sourceTree = SOURCE_ROOT; };
 		"A18A435B-EE76-4FD4-B0A4-5EDB6D6705FD" /* unchecked.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = unchecked.h; path = src/utf8/unchecked.h; sourceTree = SOURCE_ROOT; };
 		"A1FE2530-2AE5-45CE-B53D-E3E8E65444DD" /* generation.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = generation.cpp; path = src/generation.cpp; sourceTree = SOURCE_ROOT; };
 		"A53F7745-6528-4409-96E6-CAFB2FEAE142" /* visualsandide.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = visualsandide.cpp; path = src/visualsandide.cpp; sourceTree = SOURCE_ROOT; };
@@ -119,20 +125,20 @@
 		"A837505B-26A0-4250-A217-048D569D7A57" /* levels.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = levels.cpp; path = src/levels.cpp; sourceTree = SOURCE_ROOT; };
 		A92E28F32BFB33A200C79443 /* puzzlescriptmis.profdata */ = {isa = PBXFileReference; lastKnownFileType = file; path = puzzlescriptmis.profdata; sourceTree = "<group>"; };
 		A92E28F52BFB357000C79443 /* data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = data; sourceTree = "<group>"; };
-		"AB41D11C-EBC8-411A-A5F3-3EFACFAB781A" /* ofxGui.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxGui.h; path = ../../../addons/ofxGui/src/ofxGui.h; sourceTree = SOURCE_ROOT; };
+		"AB41D11C-EBC8-411A-A5F3-3EFACFAB781A" /* ofxGui.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxGui.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxGui.h; sourceTree = SOURCE_ROOT; };
 		"B0B3D418-8174-49CC-A8D2-E426A1384DB7" /* objects.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = objects.h; path = src/objects.h; sourceTree = SOURCE_ROOT; };
 		"B694E32E-5C7E-4A5F-B067-E96E11669E7E" /* stringUtilities.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = stringUtilities.h; path = src/stringUtilities.h; sourceTree = SOURCE_ROOT; };
-		"B7F7CA83-8C86-4E2C-9B84-C7375AACF0CD" /* ofxButton.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxButton.cpp; path = ../../../addons/ofxGui/src/ofxButton.cpp; sourceTree = SOURCE_ROOT; };
+		"B7F7CA83-8C86-4E2C-9B84-C7375AACF0CD" /* ofxButton.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxButton.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxButton.cpp; sourceTree = SOURCE_ROOT; };
 		"B97DE928-0D79-4CA2-90E6-A473B2086F51" /* testCases.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = testCases.h; path = src/testCases.h; sourceTree = SOURCE_ROOT; };
 		"BE5F6D59-62CC-4C52-BC46-B47110F7E580" /* legend.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = legend.cpp; path = src/legend.cpp; sourceTree = SOURCE_ROOT; };
 		"C647529E-58B7-4DB2-ADA2-936C7AF39F71" /* solver.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = solver.cpp; path = src/solver.cpp; sourceTree = SOURCE_ROOT; };
 		"C6ECA752-1095-486A-8FA0-7E183FEAD992" /* logError.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = logError.h; path = src/logError.h; sourceTree = SOURCE_ROOT; };
-		"CA712899-7CE5-481B-AF45-7BDA6807D14C" /* ofxColorPicker.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxColorPicker.cpp; path = ../../../addons/ofxGui/src/ofxColorPicker.cpp; sourceTree = SOURCE_ROOT; };
+		"CA712899-7CE5-481B-AF45-7BDA6807D14C" /* ofxColorPicker.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxColorPicker.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxColorPicker.cpp; sourceTree = SOURCE_ROOT; };
 		"CE2310CE-61B3-4D2D-8EC2-8F3E9D6BD8AA" /* a.out */ = {isa = PBXFileReference; explicitFileType = file; fileEncoding = 4; name = a.out; path = src/a.out; sourceTree = SOURCE_ROOT; };
-		"D26DD06B-1AC3-428C-9BAD-BC0D581764BF" /* ofxSlider.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxSlider.h; path = ../../../addons/ofxGui/src/ofxSlider.h; sourceTree = SOURCE_ROOT; };
-		"D689BD6A-55EA-4ACE-A3EF-51AFAFE99E5F" /* ofxPanel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxPanel.cpp; path = ../../../addons/ofxGui/src/ofxPanel.cpp; sourceTree = SOURCE_ROOT; };
-		"DD236954-AF14-45B5-8170-0586E2DA1FC6" /* ofxSliderGroup.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxSliderGroup.h; path = ../../../addons/ofxGui/src/ofxSliderGroup.h; sourceTree = SOURCE_ROOT; };
-		"E41A52B5-967B-4FD4-9B68-A8AF994C3FA6" /* ofxInputField.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxInputField.h; path = ../../../addons/ofxGui/src/ofxInputField.h; sourceTree = SOURCE_ROOT; };
+		"D26DD06B-1AC3-428C-9BAD-BC0D581764BF" /* ofxSlider.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxSlider.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxSlider.h; sourceTree = SOURCE_ROOT; };
+		"D689BD6A-55EA-4ACE-A3EF-51AFAFE99E5F" /* ofxPanel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxPanel.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxPanel.cpp; sourceTree = SOURCE_ROOT; };
+		"DD236954-AF14-45B5-8170-0586E2DA1FC6" /* ofxSliderGroup.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxSliderGroup.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxSliderGroup.h; sourceTree = SOURCE_ROOT; };
+		"E41A52B5-967B-4FD4-9B68-A8AF994C3FA6" /* ofxInputField.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxInputField.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxInputField.h; sourceTree = SOURCE_ROOT; };
 		E4B69B5B0A3A1756003C02F2 /* puzzlescriptmisDebug.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = puzzlescriptmisDebug.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4B69E1D0A3A1BDC003C02F2 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = src/main.cpp; sourceTree = SOURCE_ROOT; };
 		E4B69E1E0A3A1BDC003C02F2 /* ofApp.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofApp.cpp; path = src/ofApp.cpp; sourceTree = SOURCE_ROOT; };
@@ -140,12 +146,12 @@
 		E4B6FCAD0C3E899E008CF71C /* openFrameworks-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "openFrameworks-Info.plist"; sourceTree = "<group>"; };
 		E4EB6923138AFD0F00A09F29 /* Project.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		"E5E8B1F0-9412-43FF-9D0B-7DB8E613D477" /* global.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = global.h; path = src/global.h; sourceTree = SOURCE_ROOT; };
-		"ED3E0EC1-0D34-41AB-9771-A71A9E5ECCF9" /* ofxGuiUtils.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxGuiUtils.h; path = ../../../addons/ofxGui/src/ofxGuiUtils.h; sourceTree = SOURCE_ROOT; };
+		"ED3E0EC1-0D34-41AB-9771-A71A9E5ECCF9" /* ofxGuiUtils.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = ofxGuiUtils.h; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxGuiUtils.h; sourceTree = SOURCE_ROOT; };
 		"EFA681A6-6671-477A-8C23-014A43B3832E" /* game.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = game.cpp; path = src/game.cpp; sourceTree = SOURCE_ROOT; };
 		"F1BA3631-DB1C-43F7-9B13-4074B89DBC73" /* IState.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = IState.h; path = src/mcts/IState.h; sourceTree = SOURCE_ROOT; };
 		"F2BD893B-ED7A-4249-B67C-E50B55C29561" /* keyHandling.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = keyHandling.cpp; path = src/keyHandling.cpp; sourceTree = SOURCE_ROOT; };
-		"F43ECAC2-07A8-4E4F-B27E-2C759B645573" /* ofxBaseGui.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxBaseGui.cpp; path = ../../../addons/ofxGui/src/ofxBaseGui.cpp; sourceTree = SOURCE_ROOT; };
-		"FD8CD062-C867-4D27-AAB7-3CDF5B731B64" /* ofxSliderGroup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxSliderGroup.cpp; path = ../../../addons/ofxGui/src/ofxSliderGroup.cpp; sourceTree = SOURCE_ROOT; };
+		"F43ECAC2-07A8-4E4F-B27E-2C759B645573" /* ofxBaseGui.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxBaseGui.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxBaseGui.cpp; sourceTree = SOURCE_ROOT; };
+		"FD8CD062-C867-4D27-AAB7-3CDF5B731B64" /* ofxSliderGroup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxSliderGroup.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxSliderGroup.cpp; sourceTree = SOURCE_ROOT; };
 		"FEF98860-3E7C-49A3-8533-367BF37B857C" /* keyHandling.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = keyHandling.h; path = src/keyHandling.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -160,6 +166,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0017" /* native_bridge */ = {
+			isa = PBXGroup;
+			children = (
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0013" /* NativeGameBridge.cpp */,
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0014" /* NativeGameBridge.h */,
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */,
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0016" /* NativeGameFacade.h */,
+			);
+			name = native_bridge;
+			path = src/native_bridge;
+			sourceTree = SOURCE_ROOT;
+		};
 		"0BB5F269-F8FF-497D-B110-D00315A50970" /* mcts */ = {
 			isa = PBXGroup;
 			children = (
@@ -218,7 +236,7 @@
 				"15D2C66F-7653-4F3D-B6B5-F480705FB3EC" /* ofxToggle.h */,
 			);
 			name = src;
-			path = ../../../addons/ofxGui/src;
+			path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src;
 			sourceTree = SOURCE_ROOT;
 		};
 		"5A85852E-7BB4-47E3-8495-9373EC76045B" /* DWARF */ = {
@@ -255,7 +273,7 @@
 				"BBD5BC79-97B7-4373-86A8-F57EE60A7F9A" /* ofxGui */,
 			);
 			name = addons;
-			path = ../../../addons;
+			path = ../../../of_v0.12.1_osx_release/addons;
 			sourceTree = "<group>";
 		};
 		"BBD5BC79-97B7-4373-86A8-F57EE60A7F9A" /* ofxGui */ = {
@@ -264,7 +282,7 @@
 				"28F87392-E06B-40F1-9646-EF74D3CE5A10" /* src */,
 			);
 			name = ofxGui;
-			path = ../../../addons/ofxGui;
+			path = ../../../of_v0.12.1_osx_release/addons/ofxGui;
 			sourceTree = SOURCE_ROOT;
 		};
 		"E28019F6-0E27-4579-9AF8-CC758FC695AA" /* Resources */ = {
@@ -324,6 +342,7 @@
 				"4A99809A-0CA7-4C58-A8F0-84F97377B56C" /* macros.h */,
 				"5F9EB609-28F7-4B0C-98FA-FAD6B65D0F4D" /* main2.cpp */,
 				"0BB5F269-F8FF-497D-B110-D00315A50970" /* mcts */,
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0017" /* native_bridge */,
 				"1B9940D7-8DC4-4739-AC7C-54CB604CD227" /* objects.cpp */,
 				"B0B3D418-8174-49CC-A8D2-E426A1384DB7" /* objects.h */,
 				"6BC9C78E-2F69-4FE7-B447-DE7B74D635C7" /* recordandundo.cpp */,
@@ -353,6 +372,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E4B69B5F0A3A1757003C02F2 /* Build configuration list for PBXNativeTarget "puzzlescriptmis" */;
 			buildPhases = (
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0018" /* Run Script - Build Native Core */,
 				E42962A92163ECCD00A6A9E2 /* Run Script — Compile OF */,
 				E4B69B580A3A1756003C02F2 /* Sources */,
 				E4B69B590A3A1756003C02F2 /* Frameworks */,
@@ -396,6 +416,22 @@
 /* End PBXProject section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0018" /* Run Script - Build Native Core */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Run Script - Build Native Core";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "echo \"Building PuzzleScript native core\"\n\"$PROJECT_DIR/scripts/build_native_deps.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		19B789C429E5AB4A0082E9B8 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -449,6 +485,8 @@
 				"940BF662-5D7E-4108-9A59-8C53E7789A95" /* legend.cpp in Sources */,
 				"F76CC2B1-C3D1-4123-BE1E-1BA579AC5B17" /* levels.cpp in Sources */,
 				"1FA622B7-5C7A-41F7-8411-F7BEAAD77C6F" /* logError.cpp in Sources */,
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0011" /* NativeGameBridge.cpp in Sources */,
+				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0012" /* NativeGameFacade.cpp in Sources */,
 				"6149AAD8-A2AD-4357-868B-948241100467" /* objects.cpp in Sources */,
 				"884144CC-DB43-4E81-BB6E-1AB8BBCEBD14" /* recordandundo.cpp in Sources */,
 				"F3424C73-EEA2-4098-80B1-23AD716D748B" /* rules.cpp in Sources */,
@@ -485,6 +523,7 @@
 				GCC_WARN_UNUSED_VARIABLE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(OF_CORE_HEADERS)",
+					../../native/include,
 					src,
 				);
 				OTHER_CPLUSPLUSFLAGS = "-D__MACOSX_CORE__";
@@ -501,6 +540,7 @@
 				GCC_UNROLL_LOOPS = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(OF_CORE_HEADERS)",
+					../../native/include,
 					src,
 				);
 				OTHER_CPLUSPLUSFLAGS = "-D__MACOSX_CORE__";
@@ -512,7 +552,7 @@
 			baseConfigurationReference = E4EB6923138AFD0F00A09F29 /* Project.xcconfig */;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD)";
-				CLANG_USE_OPTIMIZATION_PROFILE = YES;
+				CLANG_USE_OPTIMIZATION_PROFILE = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
@@ -528,7 +568,8 @@
 					src/a.out.dSYM/Contents/Resources/DWARF,
 					src/mcts,
 					src/utf8,
-					../../../addons/ofxGui/src,
+					../../native/include,
+					../../../of_v0.12.1_osx_release/addons/ofxGui/src,
 				);
 				INFOPLIST_KEY_CFBundleDisplayName = PuzzleScriptMIS;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -537,6 +578,8 @@
 					"$(OF_CORE_LIBS)",
 					"$(OF_CORE_FRAMEWORKS)",
 					"$(LIB_OF_DEBUG)",
+					../../build/native/libpuzzlescript_compiler.a,
+					../../build/native/libpuzzlescript_native.a,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = ch.dekeyser.puzzlescriptmisdebug;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -548,7 +591,7 @@
 			baseConfigurationReference = E4EB6923138AFD0F00A09F29 /* Project.xcconfig */;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD)";
-				CLANG_USE_OPTIMIZATION_PROFILE = YES;
+				CLANG_USE_OPTIMIZATION_PROFILE = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
@@ -563,7 +606,8 @@
 					src/a.out.dSYM/Contents/Resources/DWARF,
 					src/mcts,
 					src/utf8,
-					../../../addons/ofxGui/src,
+					../../native/include,
+					../../../of_v0.12.1_osx_release/addons/ofxGui/src,
 				);
 				INFOPLIST_KEY_CFBundleDisplayName = PuzzleScriptMIS;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -572,7 +616,9 @@
 				OTHER_LDFLAGS = (
 					"$(OF_CORE_LIBS)",
 					"$(OF_CORE_FRAMEWORKS)",
-					"$(LIB_OF)",
+					"$(LIB_OF_RELEASE)",
+					../../build/native/libpuzzlescript_compiler.a,
+					../../build/native/libpuzzlescript_native.a,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = ch.dekeyser.puzzlescriptmis;
 				PROVISIONING_PROFILE_SPECIFIER = "";
