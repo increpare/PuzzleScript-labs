@@ -208,6 +208,14 @@ bool anyMaskWordSet(const std::vector<MaskWord>& words) {
     });
 }
 
+size_t compactMaskBitCount(const std::vector<MaskWord>& words) {
+    size_t count = 0;
+    for (const MaskWord word : words) {
+        count += static_cast<size_t>(maskWordPopcount(static_cast<MaskWordUnsigned>(word)));
+    }
+    return count;
+}
+
 bool compactReplacementGuaranteedChangesMatchedCell(
     const Game& game,
     const Pattern& pattern,
@@ -1373,6 +1381,13 @@ void emitCompactFixedStartMatchCollection(
         out << indent << "bool usedAnchorScan = false;\n";
     }
     if (!movementAnchorGroups.empty()) {
+        const bool movementAnchorScansNeedSort = rule.direction > 2 || !std::all_of(
+            movementAnchorGroups.begin(),
+            movementAnchorGroups.end(),
+            [](const CompactMovementAnchorGroup& group) {
+                return compactMaskBitCount(group.movements) == 1;
+            }
+        );
         std::vector<int32_t> movementAnchorPatternIndexes;
         for (const CompactMovementAnchorGroup& group : movementAnchorGroups) {
             movementAnchorPatternIndexes.push_back(group.patternIndex);
@@ -1472,13 +1487,22 @@ void emitCompactFixedStartMatchCollection(
             << indent << "                        }\n"
             << indent << "                    }\n"
             << indent << "                }\n"
-            << indent << "            }\n"
-            << indent << "            compact_turn_sort_unique_start_matches_" << suffix << "(dimensions, horizontalScan, " << matchVectorName << ");\n"
-            << indent << "        }\n"
+            << indent << "            }\n";
+        if (movementAnchorScansNeedSort) {
+            out << indent << "            compact_turn_sort_unique_start_matches_" << suffix << "(dimensions, horizontalScan, " << matchVectorName << ");\n";
+        }
+        out << indent << "        }\n"
             << indent << "    }\n"
             << indent << "}\n";
     }
     if (!objectAnchorGroups.empty()) {
+        const bool objectAnchorScansNeedSort = rule.direction > 2 || !std::all_of(
+            objectAnchorGroups.begin(),
+            objectAnchorGroups.end(),
+            [](const CompactObjectAnchorGroup& group) {
+                return group.requiresAll;
+            }
+        );
         std::vector<int32_t> objectAnchorPatternIndexes;
         std::vector<int32_t> objectAnchorFirsts;
         std::vector<int32_t> objectAnchorCounts;
@@ -1603,9 +1627,11 @@ void emitCompactFixedStartMatchCollection(
             << indent << "                    }\n"
             << indent << "                }\n"
             << indent << "            }\n"
-            << indent << "            }\n"
-            << indent << "            compact_turn_sort_unique_start_matches_" << suffix << "(dimensions, horizontalScan, " << matchVectorName << ");\n"
-            << indent << "        }\n"
+            << indent << "            }\n";
+        if (objectAnchorScansNeedSort) {
+            out << indent << "            compact_turn_sort_unique_start_matches_" << suffix << "(dimensions, horizontalScan, " << matchVectorName << ");\n";
+        }
+        out << indent << "        }\n"
             << indent << "    }\n"
             << indent << "}\n";
     }

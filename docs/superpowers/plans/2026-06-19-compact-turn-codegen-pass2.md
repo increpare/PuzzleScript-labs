@@ -565,6 +565,61 @@ make compact_turn_codegen_solver_parity
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.
 
+## Task 15: Skip Sort For Unique Vertical Anchor Scans
+
+- [x] **Step 1: Add red generated-source guard**
+
+Added a dirty-shape fixture for a vertical two-cell rule:
+
+```puzzlescript
+down [ Player | no Crate ] -> [ Player | Crate ]
+```
+
+The fixture asserts that the anchored scan no longer emits `compact_turn_sort_unique_start_matches_0` before the fallback scanner. This failed before the codegen change.
+
+- [x] **Step 2: Prove when anchor scan order is already canonical**
+
+Added a compile-time mask bit counter and skipped the sort/dedupe call only when both conditions hold:
+
+- the generated fixed-row scan is vertical, where tile-index order already matches scan order;
+- the selected anchor can enumerate only one backing bitset, so duplicate starts cannot be produced.
+
+Horizontal scans still sort because their canonical order is row-major rather than tile-index order. Any-object anchors and multi-bit movement anchors still sort because they can append duplicate or out-of-order starts.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+The final no-rebuild sample:
+
+- `manic_ammo.txt#26`: `2.85us/generated` after Task 14 to `2.75us/generated`, about `1.04x` faster.
+- `Voitex Rasteriser 2.txt#1`: `2.05us/generated` to `2.05us/generated`, neutral.
+- `heroes_of_sokoban_3.txt#23`: `1.24us/generated` to `1.22us/generated`, about `1.02x` faster.
+- `heroes_of_sokoban_3.txt#16`: `1.52us/generated` to `1.52us/generated`, neutral.
+- `big dog and little dog.txt#11`: `18.84us/generated` to `18.77us/generated`, neutral/slightly faster.
+- `Double-Entry Bookkeeping Simulator.txt#17`: `6.70us/generated` to `6.49us/generated`, about `1.03x` faster.
+- `easyenigma.txt#11`: `17.87us/generated` to `17.95us/generated`, neutral/noisy.
+- `gem soketeer.txt#21`: `10.53us/generated` to `10.57us/generated`, neutral/noisy on the final sample; the prior no-rebuild sample was `10.48us/generated`.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+git diff --check
+make compact_turn_codegen_dirty_shape
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. Timeout regressions dropped to `17` on this run.
+
 ## Task 13: Elide Matched-Cell No-Op Replacements
 
 - [x] **Step 1: Add red generated-source guard**

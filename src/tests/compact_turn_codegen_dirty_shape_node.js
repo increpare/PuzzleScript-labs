@@ -295,6 +295,51 @@ function compileNoopReplacementFixture(compiler) {
     return compileSource(compiler, 'noop_replacement_shape', fixture, 'noop_replacement_shape');
 }
 
+function compileVerticalUniqueAnchorFixture(compiler) {
+    const fixture = [
+        'title vertical unique anchor shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Crate',
+        '',
+        '=======',
+        'RULES',
+        'down [ Player | no Crate ] -> [ Player | Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'vertical_unique_anchor_shape', fixture, 'vertical_unique_anchor_shape');
+}
+
 function assertIncludes(body, needle, context) {
     assert.ok(body.includes(needle), `${context}: expected generated body to include ${needle}`);
 }
@@ -522,6 +567,21 @@ function main() {
         noopReplacementApplyBody,
         'applyTile_1',
         'matched-cell no-op replacement elision keeps real replacement',
+    );
+
+    const verticalUniqueSource = compileVerticalUniqueAnchorFixture(options.compiler);
+    const verticalUniqueApplyBody = functionBody(verticalUniqueSource, 'ctr_0_e_0_0_apply');
+    const verticalUniqueFallbackScanIndex = verticalUniqueApplyBody.indexOf('if (!usedAnchorScan)');
+    assert.notStrictEqual(
+        verticalUniqueFallbackScanIndex,
+        -1,
+        'vertical unique anchor scan: expected anchored scan fallback',
+    );
+    const verticalUniqueAnchorScanBody = verticalUniqueApplyBody.slice(0, verticalUniqueFallbackScanIndex);
+    assertExcludes(
+        verticalUniqueAnchorScanBody,
+        'compact_turn_sort_unique_start_matches_0',
+        'vertical unique anchor scan',
     );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
