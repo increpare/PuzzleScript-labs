@@ -16,6 +16,28 @@ namespace keyHandling {
 }
 using namespace keyHandling;
 
+namespace {
+
+void enqueueSolutionMove(short move) {
+    if(move == UP_MOVE) keyQueue.push({KEY_UP,100});
+    else if(move == DOWN_MOVE) keyQueue.push({KEY_DOWN,100});
+    else if(move == LEFT_MOVE) keyQueue.push({KEY_LEFT,100});
+    else if(move == RIGHT_MOVE) keyQueue.push({KEY_RIGHT,100});
+    else if(move == ACTION_MOVE) keyQueue.push({KEY_ACTION,100});
+}
+
+const char* solveStatusName(nativebridge::CandidateSolveStatus status) {
+    switch(status) {
+        case nativebridge::CandidateSolveStatus::Solved: return "solved";
+        case nativebridge::CandidateSolveStatus::Unsolvable: return "unsolvable";
+        case nativebridge::CandidateSolveStatus::Timeout: return "timeout";
+        case nativebridge::CandidateSolveStatus::Error: return "error";
+    }
+    return "unknown";
+}
+
+} // namespace
+
 
 //map<KEY_TYPE, pair<long long,bool> > keyPressedDown;
 //map<KEY_TYPE, bool> timeWaitForRepress;
@@ -186,7 +208,24 @@ void executeKeys() {
                 break;
             case KEY_SOLVE:
                 if(gbl::mode == MODE_PLAYING) {
-                    // Native solve playback is not wired yet.
+                    nativebridge::CandidateSolveResult info =
+                        nativebridge::solveGeneratedState(gbl::currentGame.currentState, 1000);
+                    if(info.status == nativebridge::CandidateSolveStatus::Solved) {
+                        cout << "Found native solution in " << info.expanded << " expanded states ("
+                             << info.elapsedMs << "ms): ";
+                        for(int i=0;i<info.solution.size();++i) {
+                            string moveName = info.solution[i] == UP_MOVE ? "UP" : info.solution[i] == DOWN_MOVE ? "DOWN" : info.solution[i] == LEFT_MOVE ? "LEFT" : info.solution[i] == RIGHT_MOVE ? "RIGHT" : "ACTION";
+                            cout << moveName << (i+1 < info.solution.size() ? "," : "");
+                        }
+                        cout << endl;
+                        for(short move : info.solution) {
+                            enqueueSolutionMove(move);
+                        }
+                    } else {
+                        cout << "Native solution search " << solveStatusName(info.status);
+                        if(!info.error.empty()) cout << ": " << info.error;
+                        cout << endl;
+                    }
                 }
                 break;
             case KEY_PRINT:

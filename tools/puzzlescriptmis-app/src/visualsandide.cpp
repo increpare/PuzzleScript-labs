@@ -1394,6 +1394,22 @@ void displayPlayMode() {
     }
 #endif
     */
+    int widthShowSolutionButton = playFont.stringWidth("_Show solution (L)_");
+    int xShowSolution = heightButton / 3.;
+    int yShowSolution = ofGetHeight() - (1 + 1. / 3) * heightButton;
+    ofSetColor(colors::colorLEVEL_EDITOR_BG);
+    if(ofGetAppPtr()->mouseX >= xShowSolution && ofGetAppPtr()->mouseX <= xShowSolution + widthShowSolutionButton
+       && ofGetAppPtr()->mouseY >= yShowSolution && ofGetAppPtr()->mouseY <= yShowSolution + heightButton
+       && keyHandling::keyQueue.empty()) {
+        ofSetColor(0x67,0x6A,0x71);
+        if(gbl::isFirstMousePressed) {
+            keyHandling::keyQueue.push({KEY_SOLVE,0});
+        }
+    }
+    ofDrawRectRounded(xShowSolution, yShowSolution, widthShowSolutionButton, heightButton, displaySize/200);
+    ofSetColor(0xff);
+    playFont.drawString(" Show solution (L) ", xShowSolution, ofGetHeight() - (0 + 2. / 3) * heightButton);
+
     const bool atRestartState = nativebridge::isAtRestartState(gbl::currentGame);
     const bool canUndo = nativebridge::canUndo(gbl::currentGame);
     int widthPlayButton = playFont.stringWidth(atRestartState ? "_Menu (R)_" : "_Restart (R)_");

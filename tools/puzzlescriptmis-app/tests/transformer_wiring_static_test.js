@@ -10,6 +10,10 @@ const editorSource = fs.readFileSync(
   path.join(repoRoot, 'tools/puzzlescriptmis-app/src/visualsandide.cpp'),
   'utf8'
 );
+const keyHandlingSource = fs.readFileSync(
+  path.join(repoRoot, 'tools/puzzlescriptmis-app/src/keyHandling.cpp'),
+  'utf8'
+);
 
 function assert(condition, message) {
   if (!condition) {
@@ -30,4 +34,14 @@ assert(
 assert(
   !/#if\s+0\s*\nstatic\s+volatile\s+std::atomic_bool\s+requestGenerating/.test(generationSource),
   'transformer generation loop must not be compiled out'
+);
+
+assert(
+  !/Native solve playback is not wired yet/.test(keyHandlingSource),
+  'KEY_SOLVE must not be left as a native playback no-op'
+);
+
+assert(
+  /playFont\.drawString\(" Show solution/.test(editorSource),
+  'play screen must draw a Show solution button'
 );
