@@ -431,6 +431,94 @@ function compileVerticalUniqueAnchorFixture(compiler) {
     return compileSource(compiler, 'vertical_unique_anchor_shape', fixture, 'vertical_unique_anchor_shape');
 }
 
+function compileSpreadGroupFixture(compiler) {
+    const fixture = [
+        'title spread group shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'blue_raw',
+        'blue',
+        '',
+        'blue1',
+        'blue',
+        '',
+        'blue2',
+        'blue',
+        '',
+        'blue3',
+        'blue',
+        '',
+        'blue4',
+        'blue',
+        '',
+        'blue5',
+        'blue',
+        '',
+        'blue6',
+        'blue',
+        '',
+        'blue7',
+        'blue',
+        '',
+        'blue8',
+        'blue',
+        '',
+        'blue9',
+        'blue',
+        '',
+        'once',
+        'transparent',
+        '',
+        'counted',
+        'white',
+        '',
+        'counting',
+        'yellow',
+        '',
+        'deleting',
+        'yellow',
+        '',
+        'deleted',
+        'orange',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        '@ = counting and blue_raw',
+        '* = blue1',
+        'blue = blue_raw or blue1 or blue2 or blue3 or blue4 or blue5 or blue6 or blue7 or blue8 or blue9',
+        'blue_other = blue',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'once, counted',
+        'counting',
+        'deleted',
+        'Background',
+        'blue_raw, blue1, blue2, blue3, blue4, blue5, blue6, blue7, blue8, blue9',
+        'deleting',
+        '',
+        '=======',
+        'RULES',
+        'late [ counting blue no deleting | no counting blue_other no deleting ] -> [ counting blue | counting blue ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        '@*',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'spread_group_shape', fixture, 'spread_group_shape');
+}
+
 function assertIncludes(body, needle, context) {
     assert.ok(body.includes(needle), `${context}: expected generated body to include ${needle}`);
 }
@@ -827,6 +915,19 @@ function main() {
         verticalUniqueAnchorScanBody,
         'compact_turn_sort_unique_start_matches_0',
         'vertical unique anchor scan',
+    );
+
+    const spreadGroupSource = compileSpreadGroupFixture(options.compiler);
+    const spreadGroupApplyBody = functionBody(spreadGroupSource, 'ctg_0_l_0_apply');
+    assertIncludes(
+        spreadGroupApplyBody,
+        'compact_turn_apply_spread_group_0_0',
+        'property-expanded marker spread group fusion',
+    );
+    assertExcludes(
+        spreadGroupApplyBody,
+        'ctg_0_l_0_apply_chunk_0',
+        'property-expanded marker spread group fusion',
     );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
