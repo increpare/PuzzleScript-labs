@@ -113,12 +113,14 @@ private:
     struct CompilerResultDeleter { void operator()(ps_compiler_result* value) const { ps_compiler_result_free(value); } };
     struct GameDeleter { void operator()(const ps_game* value) const { ps_free_game(const_cast<ps_game*>(value)); } };
     struct StateDeleter { void operator()(ps_full_state* value) const { ps_full_state_destroy(value); } };
+    struct SolveResultDeleter { void operator()(ps_solve_result* value) const { ps_solve_result_free(value); } };
     struct ErrorDeleter { void operator()(ps_error* value) const { ps_free_error(value); } };
 
     using CompileResultPtr = std::unique_ptr<ps_compile_result, CompileResultDeleter>;
     using CompilerResultPtr = std::unique_ptr<ps_compiler_result, CompilerResultDeleter>;
     using GamePtr = std::unique_ptr<const ps_game, GameDeleter>;
     using StatePtr = std::unique_ptr<ps_full_state, StateDeleter>;
+    using SolveResultPtr = std::unique_ptr<ps_solve_result, SolveResultDeleter>;
     using ErrorPtr = std::unique_ptr<ps_error, ErrorDeleter>;
 
     const ps_game* game() const;
