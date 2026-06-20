@@ -1378,10 +1378,11 @@ void emitCompactFixedStartMatchCollection(
     std::string_view indent,
     std::string_view matchVectorName,
     std::string_view tilePrefix,
-    std::string_view failureReturnExpression = "false"
+    std::string_view failureReturnExpression = "false",
+    bool callerAlreadyCheckedRuleBoardMask = false
 ) {
     emitCompactFixedRowScanBounds(out, rule, row.size(), indent, failureReturnExpression);
-    if (rowMask.hasAnyRequiredMask) {
+    if (rowMask.hasAnyRequiredMask && !callerAlreadyCheckedRuleBoardMask) {
         out << indent << "if (!(" << compactBoardRequiredMaskExpression(rowMask) << ")) return " << failureReturnExpression << ";\n";
     }
 
@@ -2300,7 +2301,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             "    ",
             "matches",
             "tile_",
-            ruleApplyNoMatchExpr
+            ruleApplyNoMatchExpr,
+            !useInternalRulePrecheck
         );
         applyBody << "    if (matches.empty()) return " << ruleApplyNoMatchExpr << ";\n";
         emitCompactRuleCommandQueue(applyBody, commandQueueName);
@@ -2443,7 +2445,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 "        ",
                 "rowMatches",
                 "tile_" + std::to_string(rowIndex) + "_",
-                ruleApplyNoMatchExpr
+                ruleApplyNoMatchExpr,
+                false
             );
             applyBody << "        if (rowMatches.empty()) return " << ruleApplyNoMatchExpr << ";\n"
                       << "    }\n";

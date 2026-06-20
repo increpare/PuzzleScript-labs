@@ -254,6 +254,49 @@ function compileGroupPrecheckFixture(compiler) {
     return compileSource(compiler, 'group_precheck_shape', fixture, 'group_precheck_shape');
 }
 
+function compileExternalPrecheckedRuleFixture(compiler) {
+    const fixture = [
+        'title external prechecked rule shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'external_prechecked_rule_shape', fixture, 'external_prechecked_rule_shape');
+}
+
 function compileNoopReplacementFixture(compiler) {
     const fixture = [
         'title noop replacement shape',
@@ -727,6 +770,14 @@ function main() {
         groupPrecheckApplyBody,
         'compact_turn_count_rules_skipped_by_mask_0(4);',
         'multi-rule group all-fail skip aggregation',
+    );
+
+    const externalPrecheckedSource = compileExternalPrecheckedRuleFixture(options.compiler);
+    const externalPrecheckedApplyBody = functionBody(externalPrecheckedSource, 'ctr_0_e_0_0_apply');
+    assertExcludes(
+        externalPrecheckedApplyBody,
+        'scratch.boardMask',
+        'externally prechecked rule apply body',
     );
 
     const noopReplacementSource = compileNoopReplacementFixture(options.compiler);

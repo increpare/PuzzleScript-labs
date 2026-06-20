@@ -755,6 +755,12 @@ Verification note: no tracked generated outputs or expectation updates were prod
 - Keep runtime counters low-overhead. Prefer increment counters over per-rule timers so profiling does not become the bottleneck.
 - Keep codegen optimizations structural and generic. Do not add per-game names, corpus fingerprints, or solver-specific hacks.
 
+## Pass 2 Follow-Up
+
+- [x] Skip redundant board-mask prechecks inside externally prechecked single-row generated rule apply bodies.
+
+Verification note: added a generated-shape regression proving externally prechecked single-row apply bodies no longer read `scratch.boardMask`. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8`, `make compact_tick_oracle_smoke`, and `make compact_turn_codegen_solver_parity` passed. No-rebuild focused perf reruns showed the clearest wins in `Double-Entry Bookkeeping Simulator.txt#17` (`us/generated` down about `0.16`) and `big dog and little dog.txt#11` (`us/generated` down about `0.12`), with neutral/tiny movement elsewhere except the report-only `gem soketeer.txt#21`.
+
 ---
 
 ## Final Handoff
