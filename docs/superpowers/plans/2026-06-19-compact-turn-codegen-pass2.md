@@ -608,6 +608,62 @@ make compact_turn_codegen_solver_parity
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `17` timeout regressions.
 
+## Task 17: Combine Same-Word Inline Mask Checks
+
+- [x] **Step 1: Add red generated-source guard**
+
+Added a dirty-shape assertion for an inline pattern that needs both present and missing object facts from the same mask word. The guard asserts that generated code now shares one loaded word:
+
+```cpp
+const MaskWord tile_0_objects_word_0 = tile_0_objects[0];
+```
+
+This failed before the emitter change because present and missing checks loaded `tile_0_objects[0]` separately.
+
+- [x] **Step 2: Emit combined present/missing checks**
+
+Changed `emitCompactInlinePatternMatchTest` so object and movement masks combine same-word present and missing tests into one generated load and one branch:
+
+```cpp
+if (((word & required) != required) || ((word & forbidden) != 0)) matched = false;
+```
+
+Single-sided present-only and missing-only checks keep the previous direct generated form. This is a tiny generic codegen cleanup for no-match-heavy scans and preserves the matched-state gating from Task 16.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+The final no-rebuild sample versus Task 16 was neutral-to-slightly-positive:
+
+- `manic_ammo.txt#26`: `2.64us/generated` to `2.64us/generated`, neutral.
+- `Voitex Rasteriser 2.txt#1`: `1.97us/generated` to `1.98us/generated`, neutral/noisy.
+- `heroes_of_sokoban_3.txt#23`: `1.18us/generated` to `1.17us/generated`, slightly faster.
+- `heroes_of_sokoban_3.txt#16`: `1.45us/generated` to `1.46us/generated`, neutral/noisy.
+- `big dog and little dog.txt#11`: `18.48us/generated` to `18.42us/generated`, slightly faster.
+- `Double-Entry Bookkeeping Simulator.txt#17`: `6.17us/generated` to `6.14us/generated`, slightly faster.
+- `easyenigma.txt#11`: `17.16us/generated` to `17.19us/generated`, neutral/noisy.
+- `gem soketeer.txt#21`: `10.22us/generated` to `10.21us/generated`, neutral/slightly faster.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+git diff --check
+make compact_turn_codegen_dirty_shape
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `20` timeout regressions on this run.
+
 ## Task 15: Skip Sort For Unique Vertical Anchor Scans
 
 - [x] **Step 1: Add red generated-source guard**

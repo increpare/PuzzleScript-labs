@@ -1065,20 +1065,24 @@ void emitCompactInlinePatternMatchTest(
             << indent << "    const MaskWord* " << objectVar << " = compact_turn_cell_objects_" << suffix << "(levelState, " << tileIndexExpr << ");\n";
         for (size_t word = 0; word < objectsPresent.size(); ++word) {
             const MaskWord required = objectsPresent[word];
-            if (required == 0) {
+            const MaskWord forbidden = word < objectsMissing.size() ? objectsMissing[word] : 0;
+            if (required == 0 && forbidden == 0) {
                 continue;
             }
-            const std::string literal = compiledMaskWordLiteral(required);
-            out << indent << "    if (((" << objectVar << "[" << word << "] & " << literal << ") != "
-                << literal << ")) " << matchedFlagName << " = false;\n";
-        }
-        for (size_t word = 0; word < objectsMissing.size(); ++word) {
-            const MaskWord forbidden = objectsMissing[word];
-            if (forbidden == 0) {
-                continue;
+            const std::string requiredLiteral = compiledMaskWordLiteral(required);
+            const std::string forbiddenLiteral = compiledMaskWordLiteral(forbidden);
+            if (required != 0 && forbidden != 0) {
+                const std::string wordVar = objectVar + "_word_" + std::to_string(word);
+                out << indent << "    const MaskWord " << wordVar << " = " << objectVar << "[" << word << "];\n"
+                    << indent << "    if (((" << wordVar << " & " << requiredLiteral << ") != " << requiredLiteral
+                    << ") || ((" << wordVar << " & " << forbiddenLiteral << ") != 0)) " << matchedFlagName << " = false;\n";
+            } else if (required != 0) {
+                out << indent << "    if (((" << objectVar << "[" << word << "] & " << requiredLiteral << ") != "
+                    << requiredLiteral << ")) " << matchedFlagName << " = false;\n";
+            } else {
+                out << indent << "    if (((" << objectVar << "[" << word << "] & "
+                    << forbiddenLiteral << ") != 0)) " << matchedFlagName << " = false;\n";
             }
-            out << indent << "    if (((" << objectVar << "[" << word << "] & "
-                << compiledMaskWordLiteral(forbidden) << ") != 0)) " << matchedFlagName << " = false;\n";
         }
         out << indent << "}\n";
     }
@@ -1087,20 +1091,24 @@ void emitCompactInlinePatternMatchTest(
             << indent << "    const MaskWord* " << movementVar << " = compact_turn_cell_movements_" << suffix << "(scratch, " << tileIndexExpr << ");\n";
         for (size_t word = 0; word < movementsPresent.size(); ++word) {
             const MaskWord required = movementsPresent[word];
-            if (required == 0) {
+            const MaskWord forbidden = word < movementsMissing.size() ? movementsMissing[word] : 0;
+            if (required == 0 && forbidden == 0) {
                 continue;
             }
-            const std::string literal = compiledMaskWordLiteral(required);
-            out << indent << "    if (((" << movementVar << "[" << word << "] & " << literal << ") != "
-                << literal << ")) " << matchedFlagName << " = false;\n";
-        }
-        for (size_t word = 0; word < movementsMissing.size(); ++word) {
-            const MaskWord forbidden = movementsMissing[word];
-            if (forbidden == 0) {
-                continue;
+            const std::string requiredLiteral = compiledMaskWordLiteral(required);
+            const std::string forbiddenLiteral = compiledMaskWordLiteral(forbidden);
+            if (required != 0 && forbidden != 0) {
+                const std::string wordVar = movementVar + "_word_" + std::to_string(word);
+                out << indent << "    const MaskWord " << wordVar << " = " << movementVar << "[" << word << "];\n"
+                    << indent << "    if (((" << wordVar << " & " << requiredLiteral << ") != " << requiredLiteral
+                    << ") || ((" << wordVar << " & " << forbiddenLiteral << ") != 0)) " << matchedFlagName << " = false;\n";
+            } else if (required != 0) {
+                out << indent << "    if (((" << movementVar << "[" << word << "] & " << requiredLiteral << ") != "
+                    << requiredLiteral << ")) " << matchedFlagName << " = false;\n";
+            } else {
+                out << indent << "    if (((" << movementVar << "[" << word << "] & "
+                    << forbiddenLiteral << ") != 0)) " << matchedFlagName << " = false;\n";
             }
-            out << indent << "    if (((" << movementVar << "[" << word << "] & "
-                << compiledMaskWordLiteral(forbidden) << ") != 0)) " << matchedFlagName << " = false;\n";
         }
         out << indent << "}\n";
     }

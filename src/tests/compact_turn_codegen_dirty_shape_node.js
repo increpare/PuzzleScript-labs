@@ -551,6 +551,11 @@ function main() {
         'compact_turn_line_has_required_masks_0',
         'missing-object anchor scan preserves line precheck',
     );
+    assertIncludes(
+        missingAnchorScanBody,
+        'const MaskWord tile_0_objects_word_0 = tile_0_objects[0];',
+        'same-word present/missing object checks share one load',
+    );
 
     const groupPrecheckSource = compileGroupPrecheckFixture(options.compiler);
     const groupPrecheckApplyBody = functionBody(groupPrecheckSource, 'ctg_0_e_0_apply');
