@@ -509,6 +509,15 @@ function main() {
         'object-only fast replacement: expected anchored scan fallback',
     );
     const objectOnlyAnchorScanBody = objectOnlyApplyBody.slice(0, objectOnlyFallbackScanIndex);
+    assertInOrder(
+        objectOnlyAnchorScanBody,
+        [
+            'bool matched = true;',
+            'if (matched) {',
+            'const MaskWord* tile_0_objects',
+        ],
+        'inline pattern object loads are matched-gated',
+    );
     assertExcludes(
         objectOnlyAnchorScanBody,
         'compact_turn_line_has_required_masks_0',

@@ -1061,7 +1061,7 @@ void emitCompactInlinePatternMatchTest(
     const std::string objectVar = std::string(tileVariableName) + "_objects";
     const std::string movementVar = std::string(tileVariableName) + "_movements";
     if (needsObjects) {
-        out << indent << "{\n"
+        out << indent << "if (" << matchedFlagName << ") {\n"
             << indent << "    const MaskWord* " << objectVar << " = compact_turn_cell_objects_" << suffix << "(levelState, " << tileIndexExpr << ");\n";
         for (size_t word = 0; word < objectsPresent.size(); ++word) {
             const MaskWord required = objectsPresent[word];
@@ -1069,21 +1069,21 @@ void emitCompactInlinePatternMatchTest(
                 continue;
             }
             const std::string literal = compiledMaskWordLiteral(required);
-            out << indent << "    if (" << matchedFlagName << " && ((" << objectVar << "[" << word << "] & "
-                << literal << ") != " << literal << ")) " << matchedFlagName << " = false;\n";
+            out << indent << "    if (((" << objectVar << "[" << word << "] & " << literal << ") != "
+                << literal << ")) " << matchedFlagName << " = false;\n";
         }
         for (size_t word = 0; word < objectsMissing.size(); ++word) {
             const MaskWord forbidden = objectsMissing[word];
             if (forbidden == 0) {
                 continue;
             }
-            out << indent << "    if (" << matchedFlagName << " && ((" << objectVar << "[" << word << "] & "
+            out << indent << "    if (((" << objectVar << "[" << word << "] & "
                 << compiledMaskWordLiteral(forbidden) << ") != 0)) " << matchedFlagName << " = false;\n";
         }
         out << indent << "}\n";
     }
     if (needsMovements) {
-        out << indent << "{\n"
+        out << indent << "if (" << matchedFlagName << ") {\n"
             << indent << "    const MaskWord* " << movementVar << " = compact_turn_cell_movements_" << suffix << "(scratch, " << tileIndexExpr << ");\n";
         for (size_t word = 0; word < movementsPresent.size(); ++word) {
             const MaskWord required = movementsPresent[word];
@@ -1091,15 +1091,15 @@ void emitCompactInlinePatternMatchTest(
                 continue;
             }
             const std::string literal = compiledMaskWordLiteral(required);
-            out << indent << "    if (" << matchedFlagName << " && ((" << movementVar << "[" << word << "] & "
-                << literal << ") != " << literal << ")) " << matchedFlagName << " = false;\n";
+            out << indent << "    if (((" << movementVar << "[" << word << "] & " << literal << ") != "
+                << literal << ")) " << matchedFlagName << " = false;\n";
         }
         for (size_t word = 0; word < movementsMissing.size(); ++word) {
             const MaskWord forbidden = movementsMissing[word];
             if (forbidden == 0) {
                 continue;
             }
-            out << indent << "    if (" << matchedFlagName << " && ((" << movementVar << "[" << word << "] & "
+            out << indent << "    if (((" << movementVar << "[" << word << "] & "
                 << compiledMaskWordLiteral(forbidden) << ") != 0)) " << matchedFlagName << " = false;\n";
         }
         out << indent << "}\n";

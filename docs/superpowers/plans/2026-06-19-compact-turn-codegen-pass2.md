@@ -565,6 +565,49 @@ make compact_turn_codegen_solver_parity
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.
 
+## Task 16: Gate Inline Pattern Loads Behind Match State
+
+- [x] **Step 1: Add red generated-source guard**
+
+Added a dirty-shape assertion that inline pattern matching emits `if (matched) { ... compact_turn_cell_objects ... }` before loading object masks for a row candidate. This failed before the emitter change because generated inline checks loaded cell object/movement pointers even after an earlier pattern in the same row had already set `matched = false`.
+
+- [x] **Step 2: Guard generated object/movement pointer loads**
+
+Changed `emitCompactInlinePatternMatchTest` so generated object and movement mask blocks are wrapped in `if (matchedFlag)`. The individual mask checks no longer repeat `matchedFlag && ...`; instead the generated code skips the whole block once the row candidate has failed. This preserves semantics and avoids redundant cell pointer loads and mask tests on no-match-heavy anchored scans.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+The second no-rebuild sample versus Task 15:
+
+- `manic_ammo.txt#26`: `2.75us/generated` to `2.64us/generated`, about `1.04x` faster.
+- `Voitex Rasteriser 2.txt#1`: `2.05us/generated` to `1.97us/generated`, about `1.04x` faster.
+- `heroes_of_sokoban_3.txt#23`: `1.22us/generated` to `1.18us/generated`, about `1.03x` faster.
+- `heroes_of_sokoban_3.txt#16`: `1.52us/generated` to `1.45us/generated`, about `1.05x` faster.
+- `big dog and little dog.txt#11`: `18.77us/generated` to `18.48us/generated`, about `1.02x` faster.
+- `Double-Entry Bookkeeping Simulator.txt#17`: `6.49us/generated` to `6.17us/generated`, about `1.05x` faster.
+- `easyenigma.txt#11`: `17.95us/generated` to `17.16us/generated`, about `1.05x` faster.
+- `gem soketeer.txt#21`: `10.57us/generated` to `10.22us/generated`, about `1.03x` faster.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+git diff --check
+make compact_turn_codegen_dirty_shape
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `17` timeout regressions.
+
 ## Task 15: Skip Sort For Unique Vertical Anchor Scans
 
 - [x] **Step 1: Add red generated-source guard**
