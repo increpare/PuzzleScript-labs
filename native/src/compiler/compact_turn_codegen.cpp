@@ -80,6 +80,35 @@ int compactInputSpecializationSkipOpportunity(const std::vector<Rule>& group) {
     return opportunity;
 }
 
+bool compactCompileTimeDirectionDelta(int32_t direction, int32_t& dx, int32_t& dy) {
+    switch (direction) {
+        case 1:
+            dx = 0;
+            dy = -1;
+            return true;
+        case 2:
+            dx = 0;
+            dy = 1;
+            return true;
+        case 4:
+            dx = -1;
+            dy = 0;
+            return true;
+        case 8:
+            dx = 1;
+            dy = 0;
+            return true;
+        case 16:
+            dx = 0;
+            dy = 0;
+            return true;
+        default:
+            dx = 0;
+            dy = 0;
+            return false;
+    }
+}
+
 size_t compactLayerCoupledMovementTermCount(const Pattern& pattern) {
     size_t count = 0;
     for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
@@ -2316,15 +2345,19 @@ void emitCompactSpreadRuleAttempt(
     size_t sourcePatternIndex
 ) {
     const std::vector<Pattern>& row = rule.patterns[0];
+    int32_t spreadDx = 0;
+    int32_t spreadDy = 0;
+    if (!compactCompileTimeDirectionDelta(rule.direction, spreadDx, spreadDy)) {
+        throw std::logic_error("unsupported compact spread group direction");
+    }
     out << "        {\n"
-        << "            int32_t spreadDx = 0;\n"
-        << "            int32_t spreadDy = 0;\n"
-        << "            if (compact_turn_direction_delta_" << suffix << "(" << rule.direction << ", spreadDx, spreadDy)) {\n"
-        << "                const int32_t startX = sourceX - " << sourcePatternIndex << " * spreadDx;\n"
-        << "                const int32_t startY = sourceY - " << sourcePatternIndex << " * spreadDy;\n"
-        << "                if (compact_turn_in_bounds_" << suffix << "(dimensions, startX, startY)) {\n"
-        << "                    const int32_t startIndex = compact_turn_tile_index_" << suffix << "(dimensions, startX, startY);\n"
-        << "                    bool matched = true;\n";
+        << "            constexpr int32_t spreadDx = " << spreadDx << ";\n"
+        << "            constexpr int32_t spreadDy = " << spreadDy << ";\n"
+        << "            const int32_t startX = sourceX - " << sourcePatternIndex << " * spreadDx;\n"
+        << "            const int32_t startY = sourceY - " << sourcePatternIndex << " * spreadDy;\n"
+        << "            if (compact_turn_in_bounds_" << suffix << "(dimensions, startX, startY)) {\n"
+        << "                const int32_t startIndex = compact_turn_tile_index_" << suffix << "(dimensions, startX, startY);\n"
+        << "                bool matched = true;\n";
     for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
         const std::string tileName = "spreadTile_" + std::to_string(ruleIndex) + "_" + std::to_string(sourcePatternIndex) + "_" + std::to_string(patternIndex);
         emitCompactFixedTileAtDirection(
@@ -2365,21 +2398,16 @@ void emitCompactSpreadRuleAttempt(
                 << ") matched = false;\n";
         }
     }
-    out << "                    if (matched) {\n"
-        << "                        bool ruleChanged = false;\n";
+    out << "                if (matched) {\n"
+        << "                    bool ruleChanged = false;\n";
     for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
         const Pattern& pattern = row[patternIndex];
         if (!pattern.replacement.has_value()) {
             continue;
         }
         const std::string tileName = "spreadTile_" + std::to_string(ruleIndex) + "_" + std::to_string(sourcePatternIndex) + "_" + std::to_string(patternIndex);
-        const std::string beforeName = "spreadBeforeObjects_" + std::to_string(ruleIndex) + "_" + std::to_string(sourcePatternIndex) + "_" + std::to_string(patternIndex);
-        const std::string afterName = "spreadAfterObjects_" + std::to_string(ruleIndex) + "_" + std::to_string(sourcePatternIndex) + "_" + std::to_string(patternIndex);
-        const std::string changedName = "spreadActualChanged_" + std::to_string(ruleIndex) + "_" + std::to_string(sourcePatternIndex) + "_" + std::to_string(patternIndex);
-        out << "                        MaskWord " << beforeName << "[compact_turn_object_stride_" << suffix << "] = {};\n"
-            << "                        const MaskWord* " << beforeName << "Ptr = compact_turn_cell_objects_" << suffix << "(levelState, " << tileName << ");\n"
-            << "                        for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) " << beforeName << "[word] = " << beforeName << "Ptr[word];\n"
-            << "                        (void)" << compactPatternApplyCall(
+        const std::string changedName = "spreadChanged_" + std::to_string(ruleIndex) + "_" + std::to_string(sourcePatternIndex) + "_" + std::to_string(patternIndex);
+        out << "                    const bool " << changedName << " = " << compactPatternApplyCall(
                 game,
                 masks,
                 rule,
@@ -2396,20 +2424,14 @@ void emitCompactSpreadRuleAttempt(
                 compactAggregateCapturesExpr(rule),
                 compactAggregateCaptureCountExpr(rule)
             ) << ";\n"
-            << "                        const MaskWord* " << afterName << " = compact_turn_cell_objects_" << suffix << "(levelState, " << tileName << ");\n"
-            << "                        bool " << changedName << " = false;\n"
-            << "                        for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
-            << "                            if (" << beforeName << "[word] != " << afterName << "[word]) " << changedName << " = true;\n"
-            << "                        }\n"
-            << "                        if (" << changedName << ") {\n"
-            << "                            ruleChanged = true;\n"
-            << "                            pushTile(" << tileName << ");\n"
-            << "                        }\n";
+            << "                    if (" << changedName << ") {\n"
+            << "                        ruleChanged = true;\n"
+            << "                        pushTile(" << tileName << ");\n"
+            << "                    }\n";
     }
-    out << "                        if (ruleChanged) {\n"
-        << "                            changed = true;\n"
-        << "                            if (scratch.anyMasksDirty) (void)compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, true, false);\n"
-        << "                        }\n"
+    out << "                    if (ruleChanged) {\n"
+        << "                        changed = true;\n"
+        << "                        if (scratch.anyMasksDirty) (void)compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, true, false);\n"
         << "                    }\n"
         << "                }\n"
         << "            }\n"
@@ -2436,7 +2458,8 @@ std::string emitCompactSpreadGroupApplyFunction(
         << "    if (objectCellWordCount <= 0) return false;\n"
         << "    std::vector<int32_t>& queue = scratch.singleRowMatchScratch;\n"
         << "    queue.clear();\n"
-        << "    std::vector<uint8_t> queued(static_cast<size_t>(tileCount), 0);\n"
+        << "    std::vector<uint8_t>& queued = scratch.queuedTileScratch;\n"
+        << "    queued.assign(static_cast<size_t>(tileCount), 0);\n"
         << "    auto pushTile = [&](int32_t tileIndex) {\n"
         << "        if (tileIndex < 0 || tileIndex >= tileCount) return;\n"
         << "        uint8_t& queuedFlag = queued[static_cast<size_t>(tileIndex)];\n"

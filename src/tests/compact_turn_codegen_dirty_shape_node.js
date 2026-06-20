@@ -1012,6 +1012,32 @@ function main() {
         'ctg_0_l_0_apply_chunk_0',
         'property-expanded marker spread group fusion',
     );
+    const spreadGroupHelperBody = functionBody(spreadGroupSource, 'compact_turn_apply_spread_group_0_0');
+    assertExcludes(
+        spreadGroupHelperBody,
+        'spreadBeforeObjects',
+        'spread group uses replacement change result directly',
+    );
+    assertIncludes(
+        spreadGroupHelperBody,
+        'const bool spreadChanged_',
+        'spread group uses replacement change result directly',
+    );
+    assertExcludes(
+        spreadGroupHelperBody,
+        'compact_turn_direction_delta_0',
+        'spread group emits constant direction deltas',
+    );
+    assertIncludes(
+        spreadGroupHelperBody,
+        'std::vector<uint8_t>& queued = scratch.queuedTileScratch;',
+        'spread group reuses queued tile scratch',
+    );
+    assertExcludes(
+        spreadGroupHelperBody,
+        'std::vector<uint8_t> queued(',
+        'spread group reuses queued tile scratch',
+    );
 
     const inputSpecializationSource = compileInputSpecializationFixture(options.compiler);
     const inputSpecializationTurnBody = functionBody(inputSpecializationSource, 'compact_turn_execute_program_0');
