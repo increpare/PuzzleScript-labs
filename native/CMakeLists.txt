@@ -91,6 +91,7 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/hash.cpp
   src/runtime/json.cpp
   src/runtime/simd.cpp
+  src/solver/c_api.cpp
   third_party/simdjson/simdjson.cpp
 )
 

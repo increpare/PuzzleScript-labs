@@ -43,6 +43,48 @@ typedef enum ps_input {
     PS_INPUT_TICK = 5
 } ps_input;
 
+typedef enum ps_solve_status {
+    PS_SOLVE_STATUS_SOLVED = 0,
+    PS_SOLVE_STATUS_EXHAUSTED = 1,
+    PS_SOLVE_STATUS_TIMEOUT = 2,
+    PS_SOLVE_STATUS_ERROR = 3
+} ps_solve_status;
+
+typedef enum ps_solve_strategy {
+    PS_SOLVE_STRATEGY_PORTFOLIO = 0,
+    PS_SOLVE_STRATEGY_BFS = 1,
+    PS_SOLVE_STRATEGY_WEIGHTED_ASTAR = 2,
+    PS_SOLVE_STRATEGY_WEIGHTED_ASTAR_DEEP = 3,
+    PS_SOLVE_STRATEGY_GREEDY = 4
+} ps_solve_strategy;
+
+typedef struct ps_solve_options {
+    int64_t timeout_ms;
+    ps_solve_strategy strategy;
+    uint32_t portfolio_jobs;
+    bool exact_state_keys;
+    bool compact_node_storage;
+    bool full_node_storage;
+    bool compact_turn_oracle;
+    bool compact_turn_search;
+    int32_t astar_weight;
+} ps_solve_options;
+
+typedef struct ps_solve_result {
+    ps_solve_status status;
+    uint64_t expanded;
+    uint64_t generated;
+    uint64_t unique_states;
+    uint64_t duplicates;
+    uint64_t max_frontier;
+    int64_t elapsed_ms;
+    const ps_input* solution;
+    size_t solution_count;
+    const char* strategy;
+    const char* heuristic;
+    const char* error;
+} ps_solve_result;
+
 typedef enum ps_legend_kind {
     PS_LEGEND_SYNONYM = 0,
     PS_LEGEND_AGGREGATE = 1,
@@ -221,6 +263,17 @@ bool ps_benchmark_full_state_clone_hash(
 void ps_runtime_counters_set_enabled(bool enabled);
 void ps_runtime_counters_reset(void);
 void ps_runtime_counters_snapshot(ps_runtime_counters* out_counters);
+
+ps_solve_options ps_solve_default_options(void);
+bool ps_solve_level_layer_cell_object_ids(
+    const ps_game* game,
+    int32_t level_index,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    const ps_solve_options* options,
+    ps_solve_result** out_result,
+    ps_error** out_error);
+void ps_solve_result_free(ps_solve_result* result);
 
 int32_t ps_game_level_count(const ps_game* game);
 int32_t ps_game_object_count(const ps_game* game);
