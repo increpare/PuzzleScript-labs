@@ -228,7 +228,7 @@ for (const c of report.cases) {
 
 Expected: output is suitable for the final user write-up.
 
-- [ ] **Step 3: Final status**
+- [x] **Step 3: Final status**
 
 Report changed files, before/after numbers, correctness/perf commands run, and any remaining bottlenecks.
 
@@ -419,3 +419,47 @@ make compact_turn_codegen_solver_parity
 ```
 
 Solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`.
+
+## Task 9: Rarest Conjunctive Object-Anchor Scan
+
+- [x] **Step 1: Reject mixed fixed-row collector reuse**
+
+Tried reusing the row-collection helper from mixed fixed-row codegen. `make compact_turn_codegen_perf_expectations` failed on `Double-Entry Bookkeeping Simulator.txt#17`, with late-rule cost around `6.73us/generated` against the `6.00us/generated` guard, so the codegen refactor was backed out.
+
+- [x] **Step 2: Reject unconditional simple helper inlining**
+
+Tried making generated `compact_turn_simple_replacement_fast_path_*` helpers `inline`. The focused perf gate still failed on `Double-Entry Bookkeeping Simulator.txt#17`, with late-rule cost around `6.69us/generated`, so the experiment was backed out.
+
+- [x] **Step 3: Split object-anchor groups by semantics**
+
+Updated compact object-anchor metadata so fixed object requirements are marked as `requiresAll=true`, while `any` object alternatives are marked as `requiresAll=false`. This preserves `any` semantics while letting generated code treat conjunctive anchors as "all objects must be present in the same cell."
+
+- [x] **Step 4: Enumerate only the rarest object for conjunctive anchors**
+
+For `requiresAll` object-anchor groups, generated code now estimates the group by the minimum object-cell count and scans only the rarest object's indexed cells. For `any` groups, generated code keeps the existing summed estimate and enumerates every alternative, avoiding missed matches.
+
+- [x] **Step 5: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+```
+
+Latest focused sample:
+
+- `Double-Entry Bookkeeping Simulator.txt#17`: `8.53us/generated` after Task 8 to `7.27us/generated`, about `1.17x` faster; late rules were about `4.91us/generated`, below the `6.00` guard.
+- `gem soketeer.txt#21`: `11.83us/generated` after Task 8 to `10.47us/generated`, about `1.13x` faster.
+- `manic_ammo.txt#26`: effectively neutral at `3.41us/generated`.
+- `Voitex Rasteriser 2.txt#1`: effectively neutral at `2.06us/generated`.
+
+- [x] **Step 6: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_codegen_solver_parity
+make compact_turn_native_parity
+```
+
+Solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. Native parity passed with `native=182/182`.

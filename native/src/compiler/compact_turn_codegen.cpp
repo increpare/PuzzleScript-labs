@@ -1104,6 +1104,7 @@ void emitCompactFixedTileAtDirection(
 struct CompactObjectAnchorGroup {
     int32_t patternIndex = -1;
     std::vector<int32_t> objectIds;
+    bool requiresAll = false;
 };
 
 struct CompactMovementAnchorGroup {
@@ -1153,14 +1154,16 @@ std::vector<CompactObjectAnchorGroup> compactObjectAnchorGroupsForRow(const std:
         if (!pattern.objectAnchorIds.empty()) {
             groups.push_back(CompactObjectAnchorGroup{
                 patternIndex,
-                compactUniqueObjectIds(pattern.objectAnchorIds)
+                compactUniqueObjectIds(pattern.objectAnchorIds),
+                true
             });
         }
         for (const std::vector<int32_t>& anyObjectIds : pattern.anyObjectAnchorIds) {
             if (!anyObjectIds.empty()) {
                 groups.push_back(CompactObjectAnchorGroup{
                     patternIndex,
-                    compactUniqueObjectIds(anyObjectIds)
+                    compactUniqueObjectIds(anyObjectIds),
+                    false
                 });
             }
         }
@@ -1381,32 +1384,45 @@ void emitCompactFixedStartMatchCollection(
         std::vector<int32_t> objectAnchorFirsts;
         std::vector<int32_t> objectAnchorCounts;
         std::vector<int32_t> objectAnchorObjectIds;
+        std::vector<int32_t> objectAnchorRequiresAll;
         for (const CompactObjectAnchorGroup& group : objectAnchorGroups) {
             objectAnchorPatternIndexes.push_back(group.patternIndex);
             objectAnchorFirsts.push_back(static_cast<int32_t>(objectAnchorObjectIds.size()));
             objectAnchorCounts.push_back(static_cast<int32_t>(group.objectIds.size()));
+            objectAnchorRequiresAll.push_back(group.requiresAll ? 1 : 0);
             objectAnchorObjectIds.insert(objectAnchorObjectIds.end(), group.objectIds.begin(), group.objectIds.end());
         }
 
         emitIntArray("objectAnchorPatternIndexes", objectAnchorPatternIndexes);
         emitIntArray("objectAnchorFirsts", objectAnchorFirsts);
         emitIntArray("objectAnchorCounts", objectAnchorCounts);
+        emitIntArray("objectAnchorRequiresAll", objectAnchorRequiresAll);
         emitIntArray("objectAnchorObjectIds", objectAnchorObjectIds);
         out << indent << "if (!usedAnchorScan && compact_turn_prepare_object_cell_index_" << suffix << "(dimensions, levelState, scratch)) {\n"
             << indent << "    const int32_t objectCellWordCount = compact_turn_object_cell_word_count_" << suffix << "(dimensions);\n"
             << indent << "    int32_t objectAnchorGroup = -1;\n"
+            << indent << "    int32_t objectAnchorObjectOffset = -1;\n"
             << indent << "    uint64_t objectAnchorCellCount = 0;\n"
             << indent << "    for (int32_t groupIndex = 0; groupIndex < " << objectAnchorGroups.size() << "; ++groupIndex) {\n"
             << indent << "        uint64_t groupCellCount = 0;\n"
+            << indent << "        int32_t groupObjectOffset = -1;\n"
             << indent << "        for (int32_t offset = 0; offset < objectAnchorCounts[groupIndex]; ++offset) {\n"
             << indent << "            const int32_t objectId = objectAnchorObjectIds[objectAnchorFirsts[groupIndex] + offset];\n"
             << indent << "            if (objectId >= 0 && objectId < compact_turn_object_count_" << suffix
             << " && static_cast<size_t>(objectId) < scratch.objectCellCounts.size()) {\n"
-            << indent << "                groupCellCount += scratch.objectCellCounts[static_cast<size_t>(objectId)];\n"
+            << indent << "                const uint64_t objectCellCount = scratch.objectCellCounts[static_cast<size_t>(objectId)];\n"
+            << indent << "                if (objectAnchorRequiresAll[groupIndex] == 0) {\n"
+            << indent << "                    groupCellCount += objectCellCount;\n"
+            << indent << "                    groupObjectOffset = 0;\n"
+            << indent << "                } else if (groupObjectOffset < 0 || objectCellCount < groupCellCount) {\n"
+            << indent << "                    groupObjectOffset = offset;\n"
+            << indent << "                    groupCellCount = objectCellCount;\n"
+            << indent << "                }\n"
             << indent << "            }\n"
             << indent << "        }\n"
-            << indent << "        if (objectAnchorGroup < 0 || groupCellCount < objectAnchorCellCount) {\n"
+            << indent << "        if (groupObjectOffset >= 0 && (objectAnchorGroup < 0 || groupCellCount < objectAnchorCellCount)) {\n"
             << indent << "            objectAnchorGroup = groupIndex;\n"
+            << indent << "            objectAnchorObjectOffset = groupObjectOffset;\n"
             << indent << "            objectAnchorCellCount = groupCellCount;\n"
             << indent << "        }\n"
             << indent << "    }\n"
@@ -1419,37 +1435,39 @@ void emitCompactFixedStartMatchCollection(
             << indent << "        if (compact_turn_direction_delta_" << suffix << "(" << rule.direction << ", anchorDx, anchorDy)) {\n"
             << indent << "            usedAnchorScan = true;\n"
             << indent << "            const int32_t anchorPatternIndex = objectAnchorPatternIndexes[objectAnchorGroup];\n"
-            << indent << "            for (int32_t offset = 0; offset < objectAnchorCounts[objectAnchorGroup]; ++offset) {\n"
-            << indent << "                const int32_t objectId = objectAnchorObjectIds[objectAnchorFirsts[objectAnchorGroup] + offset];\n"
-            << indent << "                if (objectId < 0 || objectId >= compact_turn_object_count_" << suffix << ") continue;\n"
+            << indent << "            const int32_t objectOffsetBegin = objectAnchorRequiresAll[objectAnchorGroup] != 0 ? objectAnchorObjectOffset : 0;\n"
+            << indent << "            const int32_t objectOffsetEnd = objectAnchorRequiresAll[objectAnchorGroup] != 0 ? objectAnchorObjectOffset + 1 : objectAnchorCounts[objectAnchorGroup];\n"
+            << indent << "            for (int32_t offset = objectOffsetBegin; offset < objectOffsetEnd; ++offset) {\n"
+            << indent << "            const int32_t objectId = objectAnchorObjectIds[objectAnchorFirsts[objectAnchorGroup] + offset];\n"
+            << indent << "            if (objectId >= 0 && objectId < compact_turn_object_count_" << suffix << ") {\n"
             << indent << "                const size_t objectBase = static_cast<size_t>(objectId) * static_cast<size_t>(objectCellWordCount);\n"
-            << indent << "                if (objectBase + static_cast<size_t>(objectCellWordCount) > scratch.objectCellBits.size()) continue;\n"
-            << indent << "                for (int32_t wordIndex = 0; wordIndex < objectCellWordCount; ++wordIndex) {\n"
-            << indent << "                    MaskWordUnsigned bits = scratch.objectCellBits[objectBase + static_cast<size_t>(wordIndex)];\n"
-            << indent << "                    while (bits != 0) {\n"
-            << indent << "                        const int32_t bit = maskWordCountTrailingZeros(bits);\n"
-            << indent << "                        bits &= bits - 1;\n"
-            << indent << "                        const int32_t anchorTile = wordIndex * static_cast<int32_t>(kMaskWordBits) + bit;\n"
-            << indent << "                        if (anchorTile >= tileCount) continue;\n"
-            << indent << "                        const int32_t anchorX = anchorTile / dimensions.height;\n"
-            << indent << "                        const int32_t anchorY = anchorTile % dimensions.height;\n"
-            << indent << "                        const int32_t startX = anchorX - anchorPatternIndex * anchorDx;\n"
-            << indent << "                        const int32_t startY = anchorY - anchorPatternIndex * anchorDy;\n"
-            << indent << "                        if (!compact_turn_in_bounds_" << suffix << "(dimensions, startX, startY)) continue;\n"
-            << indent << "                        const int32_t secondary = horizontalScan ? startX : startY;\n"
-            << indent << "                        if (secondary < secondaryStart || secondary >= secondaryEnd) continue;\n"
-            << indent << "                        const int32_t primary = horizontalScan ? startY : startX;\n";
+            << indent << "                if (objectBase + static_cast<size_t>(objectCellWordCount) <= scratch.objectCellBits.size()) {\n"
+            << indent << "                    for (int32_t wordIndex = 0; wordIndex < objectCellWordCount; ++wordIndex) {\n"
+            << indent << "                        MaskWordUnsigned bits = scratch.objectCellBits[objectBase + static_cast<size_t>(wordIndex)];\n"
+            << indent << "                        while (bits != 0) {\n"
+            << indent << "                            const int32_t bit = maskWordCountTrailingZeros(bits);\n"
+            << indent << "                            bits &= bits - 1;\n"
+            << indent << "                            const int32_t anchorTile = wordIndex * static_cast<int32_t>(kMaskWordBits) + bit;\n"
+            << indent << "                            if (anchorTile >= tileCount) continue;\n"
+            << indent << "                            const int32_t anchorX = anchorTile / dimensions.height;\n"
+            << indent << "                            const int32_t anchorY = anchorTile % dimensions.height;\n"
+            << indent << "                            const int32_t startX = anchorX - anchorPatternIndex * anchorDx;\n"
+            << indent << "                            const int32_t startY = anchorY - anchorPatternIndex * anchorDy;\n"
+            << indent << "                            if (!compact_turn_in_bounds_" << suffix << "(dimensions, startX, startY)) continue;\n"
+            << indent << "                            const int32_t secondary = horizontalScan ? startX : startY;\n"
+            << indent << "                            if (secondary < secondaryStart || secondary >= secondaryEnd) continue;\n"
+            << indent << "                            const int32_t primary = horizontalScan ? startY : startX;\n";
         if (rowMask.hasAnyLinePrecondition) {
-            out << indent << "                        if (!compact_turn_line_has_required_masks_" << suffix
+            out << indent << "                            if (!compact_turn_line_has_required_masks_" << suffix
                 << "(dimensions, levelState, scratch, horizontalScan, primary, "
                 << rowMask.objectMaskName << ", " << rowMask.movementMaskName << ", "
                 << rowMask.missingObjectMaskName << ", " << rowMask.missingMovementMaskName << ", "
                 << rowMask.anyObjectMasksName << ", " << rowMask.anyObjectMaskCount << ", "
                 << rowMask.anyMovementMasksName << ", " << rowMask.anyMovementMaskCount << ")) continue;\n";
         }
-        out << indent << "                        compact_turn_count_candidate_cells_tested_" << suffix << "();\n"
-            << indent << "                        const int32_t startIndex = compact_turn_tile_index_" << suffix << "(dimensions, startX, startY);\n"
-            << indent << "                        bool matched = true;\n";
+        out << indent << "                            compact_turn_count_candidate_cells_tested_" << suffix << "();\n"
+            << indent << "                            const int32_t startIndex = compact_turn_tile_index_" << suffix << "(dimensions, startX, startY);\n"
+            << indent << "                            bool matched = true;\n";
         emitCompactFixedRowMatchTests(
             out,
             game,
@@ -1460,16 +1478,18 @@ void emitCompactFixedStartMatchCollection(
             groupIndex,
             ruleIndex,
             rowIndex,
-            std::string(indent) + "                        ",
+            std::string(indent) + "                            ",
             "startIndex",
             rule.direction,
             tilePrefix,
             "matched",
             "matched = false;"
         );
-        out << indent << "                        if (matched) " << matchVectorName << ".push_back(startIndex);\n"
+        out << indent << "                            if (matched) " << matchVectorName << ".push_back(startIndex);\n"
+            << indent << "                        }\n"
             << indent << "                    }\n"
             << indent << "                }\n"
+            << indent << "            }\n"
             << indent << "            }\n"
             << indent << "            compact_turn_sort_unique_start_matches_" << suffix << "(dimensions, horizontalScan, " << matchVectorName << ");\n"
             << indent << "        }\n"
@@ -2691,25 +2711,63 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             if (rule.ellipsisCount[rowIndex] == 0) {
                 const CompactRowMaskInfo rowMask = compactRowMaskInfo(game, masks, rule, rowIndex, suffix, phase, groupIndex, ruleIndex);
                 applyBody << "    std::vector<int32_t> matches_" << rowIndex << ";\n"
-                          << "    matches_" << rowIndex << ".reserve(static_cast<size_t>(tileCount));\n";
-                emitCompactFixedStartMatchCollection(
-                    applyBody,
-                    game,
-                    masks,
-                    rule,
-                    row,
-                    rowMask,
-                    suffix,
-                    phase,
-                    groupIndex,
-                    ruleIndex,
-                    rowIndex,
-                    "    ",
-                    "matches_" + std::to_string(rowIndex),
-                    "tile_" + std::to_string(rowIndex) + "_",
-                    ruleApplyNoMatchExpr
-                );
-                applyBody << "    if (matches_" << rowIndex << ".empty()) return " << ruleApplyNoMatchExpr << ";\n";
+                          << "    for (int32_t primary = 0; primary < primaryLimit; ++primary) {\n"
+                          << (rowMask.hasAnyLinePrecondition
+                              ? "        if (!compact_turn_line_has_required_masks_" + std::string(suffix)
+                                  + "(dimensions, levelState, scratch, horizontalScan, primary, "
+                                  + rowMask.objectMaskName + ", " + rowMask.movementMaskName + ", "
+                                  + rowMask.missingObjectMaskName + ", " + rowMask.missingMovementMaskName + ", "
+                                  + rowMask.anyObjectMasksName + ", " + std::to_string(rowMask.anyObjectMaskCount) + ", "
+                                  + rowMask.anyMovementMasksName + ", " + std::to_string(rowMask.anyMovementMaskCount) + ")) continue;\n"
+                              : std::string{})
+                          << "        const int32_t scanStep = horizontalScan ? dimensions.height : 1;\n"
+                          << "        int32_t startIndex = horizontalScan ? primary : primary * dimensions.height;\n"
+                          << "    for (int32_t secondary = 0; secondary < secondaryLimit; ++secondary, startIndex += scanStep) {\n"
+                          << "        bool matched = true;\n";
+                for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
+                    emitCompactFixedTileAtDirection(
+                        applyBody,
+                        "        ",
+                        suffix,
+                        "tile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex),
+                        "startIndex",
+                        rule.direction,
+                        static_cast<int32_t>(patternIndex),
+                        "matched = false;"
+                    );
+                    const std::string tileName = "tile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex);
+                    if (compactPatternCanInlineMatch(row[patternIndex])) {
+                        emitCompactInlinePatternMatchTest(
+                            applyBody,
+                            game,
+                            row[patternIndex],
+                            suffix,
+                            "        ",
+                            tileName,
+                            tileName,
+                            "matched"
+                        );
+                    } else {
+                        applyBody << "        if (matched && !"
+                                  << compactPatternMatchesCall(
+                                      game,
+                                      masks,
+                                      row[patternIndex],
+                                      suffix,
+                                      phase,
+                                      groupIndex,
+                                      ruleIndex,
+                                      rowIndex,
+                                      patternIndex,
+                                      tileName
+                                  )
+                                  << ") matched = false;\n";
+                    }
+                }
+                applyBody << "        if (matched) matches_" << rowIndex << ".push_back(startIndex);\n"
+                          << "    }\n"
+                          << "    }\n"
+                          << "    if (matches_" << rowIndex << ".empty()) return " << ruleApplyNoMatchExpr << ";\n";
             } else {
                 applyBody << "    std::vector<std::vector<int32_t>> matches_" << rowIndex << ";\n"
                           << "    if (!" << rowCollectNames[rowIndex] << "(dimensions, levelState, scratch, matches_" << rowIndex << ")) return " << ruleApplyNoMatchExpr << ";\n";
