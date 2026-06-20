@@ -380,6 +380,31 @@ LayerGrid NativeGameBridge::currentLayerGrid() const {
     return grid;
 }
 
+std::unique_ptr<NativeGameBridge> NativeGameBridge::createSolverBridge() const {
+    if (!hasGame()) {
+        return nullptr;
+    }
+
+    ps_game* rawGame = nullptr;
+    ps_error* rawError = nullptr;
+    if (!ps_game_clone(game(), &rawGame, &rawError)) {
+        ErrorPtr error(rawError);
+        return nullptr;
+    }
+
+    std::unique_ptr<NativeGameBridge> solverBridge(new NativeGameBridge());
+    solverBridge->game_.reset(rawGame);
+    if (!solverBridge->createState()) {
+        return nullptr;
+    }
+
+    const int32_t levelIndex = state_ ? status().currentLevelIndex : 0;
+    if (!solverBridge->loadLevel(levelIndex)) {
+        return nullptr;
+    }
+    return solverBridge;
+}
+
 NativeSolveResult NativeGameBridge::solveLayerGrid(const LayerGrid& grid, int64_t timeoutMs) const {
     NativeSolveResult result;
     const auto startedAt = std::chrono::steady_clock::now();

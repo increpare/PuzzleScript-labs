@@ -297,6 +297,27 @@ const ps_game* ps_compile_result_game(const ps_compile_result* result) {
     return wrapper;
 }
 
+bool ps_game_clone(const ps_game* game, ps_game** out_game, ps_error** out_error) {
+    if (out_error) {
+        *out_error = nullptr;
+    }
+    if (!out_game) {
+        return false;
+    }
+    *out_game = nullptr;
+    if (!game || !game->impl.information) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("ps_game_clone received null input"));
+        }
+        return false;
+    }
+
+    auto* wrapper = new ps_game();
+    wrapper->impl = game->impl;
+    *out_game = wrapper;
+    return true;
+}
+
 const ps_error* ps_compile_result_error(const ps_compile_result* result) {
     if (!result || !result->impl || !result->impl->error) {
         return nullptr;

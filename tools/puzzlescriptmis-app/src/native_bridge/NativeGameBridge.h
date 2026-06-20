@@ -103,6 +103,7 @@ public:
 
     Status status() const;
     LayerGrid currentLayerGrid() const;
+    std::unique_ptr<NativeGameBridge> createSolverBridge() const;
     NativeSolveResult solveLayerGrid(const LayerGrid& grid, int64_t timeoutMs) const;
 
 private:

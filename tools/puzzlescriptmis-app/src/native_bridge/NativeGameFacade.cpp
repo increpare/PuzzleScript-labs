@@ -250,6 +250,20 @@ CandidateSolveStatus toCandidateSolveStatus(psbridge::NativeSolveStatus status) 
     return CandidateSolveStatus::Error;
 }
 
+CandidateSolveResult nativeResultToCandidateSolveResult(const psbridge::NativeSolveResult& nativeResult) {
+    CandidateSolveResult result;
+    result.status = toCandidateSolveStatus(nativeResult.status);
+    result.expanded = static_cast<long long>(nativeResult.expanded);
+    result.generated = static_cast<long long>(nativeResult.generated);
+    result.elapsedMs = static_cast<long long>(nativeResult.elapsedMs);
+    result.error = nativeResult.error;
+    result.solution.reserve(nativeResult.solution.size());
+    for (ps_input input : nativeResult.solution) {
+        result.solution.push_back(toEditorMove(input));
+    }
+    return result;
+}
+
 psbridge::LayerGrid layerGridFromState(const vvvs& state) {
     psbridge::LayerGrid grid;
     grid.layerCount = static_cast<int32_t>(state.size());
@@ -429,6 +443,24 @@ void logLastDiagnostic(Logger& logger) {
 
 } // namespace
 
+class CandidateSolverContext {
+public:
+    explicit CandidateSolverContext(std::unique_ptr<psbridge::NativeGameBridge> bridge)
+        : bridge_(std::move(bridge)) {}
+
+    CandidateSolveResult solveGeneratedState(const vvvs& state, long long timeoutMs) {
+        if (!bridge_) {
+            CandidateSolveResult result;
+            result.error = "Native solver context is not initialized";
+            return result;
+        }
+        return nativeResultToCandidateSolveResult(bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs));
+    }
+
+private:
+    std::unique_ptr<psbridge::NativeGameBridge> bridge_;
+};
+
 bool compileSourceLines(const vector<string>& sourceLines, Game& displayGame, Logger& logger) {
     std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     logger.reset();
@@ -499,20 +531,23 @@ bool step(short moveDir, Game& displayGame, bool& won, Logger& logger) {
     return true;
 }
 
+std::shared_ptr<CandidateSolverContext> createCandidateSolverContext() {
+    std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
+    std::unique_ptr<psbridge::NativeGameBridge> solverBridge = bridge.createSolverBridge();
+    if (!solverBridge) {
+        return nullptr;
+    }
+    return std::make_shared<CandidateSolverContext>(std::move(solverBridge));
+}
+
+CandidateSolveResult solveGeneratedState(CandidateSolverContext& context, const vvvs& state, long long timeoutMs) {
+    return context.solveGeneratedState(state, timeoutMs);
+}
+
 CandidateSolveResult solveGeneratedState(const vvvs& state, long long timeoutMs) {
     std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     const psbridge::NativeSolveResult nativeResult = bridge.solveLayerGrid(layerGridFromState(state), timeoutMs);
-    CandidateSolveResult result;
-    result.status = toCandidateSolveStatus(nativeResult.status);
-    result.expanded = static_cast<long long>(nativeResult.expanded);
-    result.generated = static_cast<long long>(nativeResult.generated);
-    result.elapsedMs = static_cast<long long>(nativeResult.elapsedMs);
-    result.error = nativeResult.error;
-    result.solution.reserve(nativeResult.solution.size());
-    for (ps_input input : nativeResult.solution) {
-        result.solution.push_back(toEditorMove(input));
-    }
-    return result;
+    return nativeResultToCandidateSolveResult(nativeResult);
 }
 
 bool undo(Game& displayGame) {

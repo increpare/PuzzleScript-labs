@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -108,7 +109,8 @@ PC#T
     psbridge::NativeGameBridge bridge;
     require(bridge.compileSource(source), bridge.lastDiagnostic().message.c_str());
     require(bridge.loadLevel(0), "expected solvable candidate level to load");
-    const psbridge::NativeSolveResult solved = bridge.solveLayerGrid(bridge.currentLayerGrid(), 1000);
+    const psbridge::LayerGrid solvableGrid = bridge.currentLayerGrid();
+    const psbridge::NativeSolveResult solved = bridge.solveLayerGrid(solvableGrid, 1000);
     require(solved.status == psbridge::NativeSolveStatus::Solved, "expected first candidate to solve");
     require(solved.solution.size() == 1 && solved.solution[0] == PS_INPUT_RIGHT, "expected one right move solution");
     require(solved.expanded > 0, "expected solved candidate difficulty work to be recorded");
@@ -117,6 +119,24 @@ PC#T
     const psbridge::NativeSolveResult blocked = bridge.solveLayerGrid(bridge.currentLayerGrid(), 1000);
     require(blocked.status != psbridge::NativeSolveStatus::Solved, "blocked candidate must not be reported solved");
     require(blocked.solution.empty(), "blocked candidate must not return a fake solution");
+
+    require(bridge.loadLevel(0), "expected solvable candidate level to reload");
+    std::unique_ptr<psbridge::NativeGameBridge> solverA = bridge.createSolverBridge();
+    std::unique_ptr<psbridge::NativeGameBridge> solverB = bridge.createSolverBridge();
+    require(solverA != nullptr && solverB != nullptr, "expected independent native solver contexts");
+
+    psbridge::NativeSolveResult concurrentA;
+    psbridge::NativeSolveResult concurrentB;
+    std::thread threadA([&]() {
+        concurrentA = solverA->solveLayerGrid(solvableGrid, 1000);
+    });
+    std::thread threadB([&]() {
+        concurrentB = solverB->solveLayerGrid(solvableGrid, 1000);
+    });
+    threadA.join();
+    threadB.join();
+    require(concurrentA.status == psbridge::NativeSolveStatus::Solved, "expected first independent solver context to solve");
+    require(concurrentB.status == psbridge::NativeSolveStatus::Solved, "expected second independent solver context to solve");
 }
 
 } // namespace

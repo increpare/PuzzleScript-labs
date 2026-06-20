@@ -129,6 +129,11 @@ static void generating() {
     
     
     cerr << "START GENERATING THREAD" << endl;
+    std::shared_ptr<nativebridge::CandidateSolverContext> solverContext = nativebridge::createCandidateSolverContext();
+    if(!solverContext) {
+        cerr << "STOP GENERATING THREAD: failed to create native solver context" << endl;
+        return;
+    }
 
     chrono::steady_clock::time_point timeSinceLastImprovement = chrono::steady_clock::now();
     
@@ -160,7 +165,7 @@ static void generating() {
         //TODO: make sure newStates doesn't appear in current state
         
         {
-            nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(newStates[0], timeToSolve);
+            nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(*solverContext, newStates[0], timeToSolve);
             if(info.status == nativebridge::CandidateSolveStatus::Solved) {
                 long long timeItTook = MAX(1, info.elapsedMs);
                 long long statesExplored = MAX(1, info.expanded);
