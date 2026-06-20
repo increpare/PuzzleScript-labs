@@ -529,9 +529,21 @@ function main() {
         'object write incremental object-cell index',
     );
     assertExcludes(noteObjectBody, 'scratch.objectCellIndexDirty = true;', 'object write incremental object-cell index');
-    assertIncludes(noteObjectBody, 'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
-    assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
-    assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
+    assertExcludes(
+        noteObjectBody,
+        'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;',
+        'object write relies on exact mask counts',
+    );
+    assertExcludes(
+        noteObjectBody,
+        'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;',
+        'object write relies on exact mask counts',
+    );
+    assertExcludes(
+        noteObjectBody,
+        'scratch.boardMask[static_cast<size_t>(word)] |= value;',
+        'object write relies on exact mask counts',
+    );
     const noteMovementBody = functionBody(source, 'compact_turn_note_movement_cell_written_0');
     assertIncludes(noteMovementBody, 'scratch.liveMovementsClean = false;', 'movement write marks live movement storage dirty');
     assertInOrder(
@@ -592,7 +604,6 @@ function main() {
         'rule derived-state rebuild',
     );
     assertExcludes(ruleDerivedBody, 'compact_turn_rebuild_object_cell_index_0', 'rule derived-state rebuild');
-
     const fastPathCallCount = (source.match(/compact_turn_count_simple_replacement_fast_path_call_0\(\);/g) || []).length;
     assert.ok(
         fastPathCallCount >= 2,

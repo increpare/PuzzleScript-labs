@@ -4912,12 +4912,6 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        scratch.anyMasksDirty = true;\n"
         << "    }\n"
         << "    compact_turn_update_object_cell_index_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, afterObjects);\n"
-        << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
-        << "        const MaskWord value = afterObjects[word];\n"
-        << "        if constexpr (compact_turn_needs_object_row_masks_" << suffix << ") scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_" << suffix << " + word)] |= value;\n"
-        << "        if constexpr (compact_turn_needs_object_column_masks_" << suffix << ") scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_" << suffix << " + word)] |= value;\n"
-        << "        if constexpr (compact_turn_needs_object_board_mask_" << suffix << ") scratch.boardMask[static_cast<size_t>(word)] |= value;\n"
-        << "    }\n"
         << "}\n\n";
 
     out << "void compact_turn_note_movement_cell_written_" << suffix << "(LevelDimensions dimensions, Scratch& scratch, int32_t tileIndex, const MaskWord* beforeMovements, const MaskWord* afterMovements) {\n"
