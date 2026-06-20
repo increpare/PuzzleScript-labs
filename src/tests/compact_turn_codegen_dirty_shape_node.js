@@ -252,6 +252,49 @@ function compileGroupPrecheckFixture(compiler) {
     return compileSource(compiler, 'group_precheck_shape', fixture, 'group_precheck_shape');
 }
 
+function compileNoopReplacementFixture(compiler) {
+    const fixture = [
+        'title noop replacement shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate',
+        '',
+        '=======',
+        'RULES',
+        'right [ Player | no Crate ] -> [ Player | Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'noop_replacement_shape', fixture, 'noop_replacement_shape');
+}
+
 function assertIncludes(body, needle, context) {
     assert.ok(body.includes(needle), `${context}: expected generated body to include ${needle}`);
 }
@@ -464,6 +507,19 @@ function main() {
         groupPrecheckApplyBody,
         'compact_turn_count_rules_skipped_by_mask_0(4);',
         'multi-rule group all-fail skip aggregation',
+    );
+
+    const noopReplacementSource = compileNoopReplacementFixture(options.compiler);
+    const noopReplacementApplyBody = functionBody(noopReplacementSource, 'ctr_0_e_0_0_apply');
+    assertExcludes(
+        noopReplacementApplyBody,
+        'applyTile_0',
+        'matched-cell no-op replacement elision',
+    );
+    assertIncludes(
+        noopReplacementApplyBody,
+        'applyTile_1',
+        'matched-cell no-op replacement elision keeps real replacement',
     );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');

@@ -237,6 +237,37 @@ bool compactReplacementGuaranteedChangesMatchedCell(
     return false;
 }
 
+std::vector<MaskWord> compactObjectMissingWordsIncludingLayerExclusivity(
+    const Game& game,
+    const std::vector<MaskWord>& objectPresentWords,
+    const std::vector<MaskWord>& explicitObjectMissingWords
+) {
+    std::vector<MaskWord> objectMissingWords = explicitObjectMissingWords;
+    for (size_t objectId = 0; objectId < game.objectsById.size(); ++objectId) {
+        const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+        if (static_cast<size_t>(word) >= objectPresentWords.size()) {
+            continue;
+        }
+        const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+        if ((objectPresentWords[static_cast<size_t>(word)] & bit) == 0) {
+            continue;
+        }
+        const int32_t layer = game.objectsById[objectId].layer;
+        if (layer < 0 || static_cast<size_t>(layer) >= game.layerMaskOffsets.size()) {
+            continue;
+        }
+        const MaskOffset layerMaskOffset = game.layerMaskOffsets[static_cast<size_t>(layer)];
+        if (layerMaskOffset == kNullMaskOffset) {
+            continue;
+        }
+        const std::vector<MaskWord> layerMaskWords = compiledMaskWords(game, layerMaskOffset, game.wordCount);
+        for (size_t layerWord = 0; layerWord < objectMissingWords.size(); ++layerWord) {
+            objectMissingWords[layerWord] |= layerMaskWords[layerWord] & ~objectPresentWords[layerWord];
+        }
+    }
+    return objectMissingWords;
+}
+
 struct CompactSourceMaskNeeds {
     bool objectBoard = false;
     bool objectRows = false;
@@ -1681,6 +1712,56 @@ bool compactReplacementHasDynamicTerms(const Replacement& replacement) {
         || dynamic->rhsPropertyPreserveMask != kNullMaskOffset;
 }
 
+bool compactReplacementGuaranteedNoopOnMatchedCell(
+    const Game& game,
+    const Pattern& pattern,
+    const Replacement& replacement
+) {
+    if (compactReplacementHasDynamicTerms(replacement)) {
+        return false;
+    }
+
+    const std::vector<MaskWord> objectClearWords = compiledMaskWords(game, replacement.objectsClear, game.wordCount);
+    const std::vector<MaskWord> objectSetWords = compiledMaskWords(game, replacement.objectsSet, game.wordCount);
+    const std::vector<MaskWord> objectPresentWords = compiledMaskWords(game, pattern.objectsPresent, game.wordCount);
+    const std::vector<MaskWord> objectMissingWords = compactObjectMissingWordsIncludingLayerExclusivity(
+        game,
+        objectPresentWords,
+        compiledMaskWords(game, pattern.objectsMissing, game.wordCount)
+    );
+    for (size_t word = 0; word < objectClearWords.size(); ++word) {
+        const MaskWord objectSetNeeds = objectSetWords[word] & ~objectPresentWords[word];
+        const MaskWord objectClearOnly = objectClearWords[word] & ~objectSetWords[word];
+        const MaskWord objectClearNeeds = objectClearOnly & ~objectMissingWords[word];
+        if (objectSetNeeds != 0 || objectClearNeeds != 0) {
+            return false;
+        }
+    }
+
+    const std::vector<MaskWord> movementClearWords = compiledMaskWords(game, replacement.movementsClear, game.movementWordCount);
+    const std::vector<MaskWord> movementSetWords = compiledMaskWords(game, replacement.movementsSet, game.movementWordCount);
+    const std::vector<MaskWord> movementLayerWords = compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount);
+    const std::vector<MaskWord> movementPresentWords = compiledMaskWords(game, pattern.movementsPresent, game.movementWordCount);
+    const std::vector<MaskWord> movementMissingWords = compiledMaskWords(game, pattern.movementsMissing, game.movementWordCount);
+    for (size_t word = 0; word < movementClearWords.size(); ++word) {
+        const MaskWord movementClear = movementClearWords[word] | movementLayerWords[word];
+        const MaskWord movementSetNeeds = movementSetWords[word] & ~movementPresentWords[word];
+        const MaskWord movementClearOnly = movementClear & ~movementSetWords[word];
+        const MaskWord movementClearNeeds = movementClearOnly & ~movementMissingWords[word];
+        if (movementSetNeeds != 0 || movementClearNeeds != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool compactPatternReplacementGuaranteedNoopOnMatch(const Game& game, const Pattern& pattern) {
+    if (!pattern.replacement.has_value()) {
+        return false;
+    }
+    return compactReplacementGuaranteedNoopOnMatchedCell(game, pattern, *pattern.replacement);
+}
+
 bool compactPatternSimpleReplacementFastPathSupported(
     const Rule& rule,
     const Pattern& pattern,
@@ -2198,7 +2279,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             "            "
         );
         for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
-            if (!row[patternIndex].replacement.has_value()) {
+            if (!row[patternIndex].replacement.has_value()
+                || compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
                 continue;
             }
             emitCompactFixedTileAtDirection(
@@ -2365,7 +2447,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             const std::vector<Pattern>& row = rule.patterns[rowIndex];
             applyBody << "            const int32_t applyStartIndex_" << rowIndex << " = matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]];\n";
             for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
-                if (!row[patternIndex].replacement.has_value()) {
+                if (!row[patternIndex].replacement.has_value()
+                    || compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
                     continue;
                 }
                 emitCompactFixedTileAtDirection(
@@ -2480,7 +2563,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                     continue;
                 }
                 body << "    if (positionIndex >= match.size()) return changed;\n";
-                if (row[patternIndex].replacement.has_value()) {
+                if (row[patternIndex].replacement.has_value()
+                    && !compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
                     body << "    changed = "
                          << compactPatternApplyCall(
                              game,
@@ -2734,7 +2818,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 continue;
             }
             applyBody << "            if (positionIndex >= match.size()) break;\n";
-            if (row[patternIndex].replacement.has_value()) {
+            if (row[patternIndex].replacement.has_value()
+                && !compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
                 applyBody << "            changed = "
                           << compactPatternApplyCall(
                               game,
@@ -2938,7 +3023,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             if (rule.ellipsisCount[rowIndex] == 0) {
                 applyBody << "            const int32_t applyStartIndex_" << rowIndex << " = matches_" << rowIndex << "[tupleIndex[" << rowIndex << "]];\n";
                 for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
-                    if (!row[patternIndex].replacement.has_value()) {
+                    if (!row[patternIndex].replacement.has_value()
+                        || compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
                         continue;
                     }
                     emitCompactFixedTileAtDirection(

@@ -565,6 +565,59 @@ make compact_turn_codegen_solver_parity
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.
 
+## Task 13: Elide Matched-Cell No-Op Replacements
+
+- [x] **Step 1: Add red generated-source guard**
+
+Added a dirty-shape fixture for:
+
+```puzzlescript
+right [ Player | no Crate ] -> [ Player | Crate ]
+```
+
+The first RHS cell only preserves the already-matched `Player`; the second cell actually creates `Crate`. The guard asserts that the generated apply function no longer emits `applyTile_0`, while still emitting `applyTile_1`. This failed before the codegen change.
+
+- [x] **Step 2: Prove conservative no-op replacements**
+
+Added a static proof for replacements that cannot change a matched cell:
+
+- every object/movement set bit is already required-present by the LHS pattern;
+- every clear-only object/movement bit is already required-missing by the LHS pattern;
+- object missing facts include collision-layer exclusivity, so a matched `Player` proves same-layer `Crate` is absent;
+- dynamic, random, aggregate, and property-preserve replacements are not elided.
+
+All replacement emit paths now skip these proven no-op pattern replacements entirely, avoiding both tile-address generation and fast-path helper calls.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+make compact_turn_codegen_perf_expectations
+```
+
+The second no-rebuild sample:
+
+- `manic_ammo.txt#26`: `3.31us/generated` after Task 12 to `2.97us/generated`, about `1.11x` faster.
+- `gem soketeer.txt#21`: `10.60us/generated` after Task 12 to `10.52us/generated`, effectively neutral/slightly faster.
+- `Double-Entry Bookkeeping Simulator.txt#17`: `6.65us/generated` after Task 12 to `6.70us/generated`, effectively neutral.
+- `easyenigma.txt#11`: `18.10us/generated` after Task 12 to `18.08us/generated`, neutral.
+
+The counter effect is visible on replacement-heavy cases: `manic_ammo.txt#26` simple replacement fast-path calls dropped from about `281.9/generated` to `142.9/generated`, and no-ops from about `272.9/generated` to `133.9/generated`.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. Timeout regressions dropped from `19` to `17`.
+
 ## Task 12: Aggregate All-Failing Rulegroup Mask Prechecks
 
 - [x] **Step 1: Add red generated-source guard**
