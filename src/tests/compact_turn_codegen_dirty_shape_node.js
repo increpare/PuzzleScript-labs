@@ -777,6 +777,16 @@ function main() {
     assertIncludes(noteMovementBody, 'scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
     const executeProgramBody = functionBody(source, 'compact_turn_execute_program_0');
+    assertIncludes(
+        executeProgramBody,
+        'MaskVector* reusableTurnStartObjects = (!probeOnly && options.againPolicy == AgainPolicy::Drain) ? &scratch.turnStartObjectsScratch : nullptr;',
+        'drain-mode turn-start object snapshot reuse',
+    );
+    assertIncludes(
+        executeProgramBody,
+        'turnStartObjects = reusableTurnStartObjects;',
+        'drain-mode turn-start object snapshot pointer',
+    );
     assertIncludes(executeProgramBody, 'if (!scratch.liveMovementsClean) {', 'turn start skips redundant movement clear');
     const prepareStateBody = functionBody(source, 'compact_turn_prepare_state_0');
     assertIncludes(

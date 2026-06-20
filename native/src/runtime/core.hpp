@@ -586,6 +586,9 @@ struct Scratch {
     std::vector<int32_t> singleRowMatchScratch;
     std::vector<std::vector<int32_t>> multiRowMatchScratch;
     std::vector<uint8_t> queuedTileScratch;
+    // Reused by generated compact turns in drain-again mode to avoid
+    // allocating a fresh board snapshot for every solver edge.
+    MaskVector turnStartObjectsScratch;
     std::map<std::string, int32_t> aggregateCaptures;
     std::map<std::string, std::optional<PropertyCapture>> propertyCaptures;
     MaskVector incrementalPriorObjects;
