@@ -564,3 +564,55 @@ make compact_turn_codegen_solver_parity
 ```
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.
+
+## Task 12: Aggregate All-Failing Rulegroup Mask Prechecks
+
+- [x] **Step 1: Add red generated-source guard**
+
+Added a dirty-shape fixture with a four-rule non-random `+` group where every rule has a rule-mask precheck. The guard asserts that the group apply function emits aggregate `compact_turn_count_rule_mask_precheck_failure_0(4)` and `compact_turn_count_rules_skipped_by_mask_0(4)` calls. This failed before the emitter change.
+
+- [x] **Step 2: Emit an all-fail group gate**
+
+For non-random groups with at least four rules, when every rule has a mask precheck, codegen now emits one early group-level gate:
+
+```cpp
+if (!rule_0_precheck(scratch) && !rule_1_precheck(scratch) && ...) {
+    compact_turn_count_rules_visited_N(group_size);
+    compact_turn_count_rule_mask_precheck_failure_N(group_size);
+    compact_turn_count_rules_skipped_by_mask_N(group_size);
+    return false;
+}
+```
+
+The existing per-rule checks remain in place for cases where at least one rule might match, so this only changes the common all-fail path.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+make compact_turn_codegen_perf_expectations
+```
+
+The second no-rebuild sample showed the intended wins on mask-precheck-heavy games:
+
+- `Double-Entry Bookkeeping Simulator.txt#17`: `7.24us/generated` to `6.67us/generated`, about `1.09x` faster.
+- `easyenigma.txt#11`: `22.19us/generated` to `18.18us/generated`, about `1.22x` faster.
+- `heroes_of_sokoban_3.txt#23`: `1.45us/generated` to `1.24us/generated`, about `1.17x` faster.
+- `heroes_of_sokoban_3.txt#16`: `1.73us/generated` to `1.51us/generated`, about `1.15x` faster.
+- `gem soketeer.txt#21`: `10.76us/generated` to `10.57us/generated`, effectively neutral/slightly faster.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations
+make compact_turn_codegen_perf_expectations
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.

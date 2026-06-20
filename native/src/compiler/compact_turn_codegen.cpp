@@ -3196,6 +3196,30 @@ void emitCompactRulegroupFunctions(
             continue;
         }
         out << "    if (bannedGroups != nullptr && " << groupIndex << " < bannedGroups->size() && (*bannedGroups)[" << groupIndex << "]) return false;\n";
+        const bool canEmitAllFailMaskPrecheck = !groupIsRandom
+            && group.size() >= 4
+            && std::all_of(
+                ruleNames.begin(),
+                ruleNames.end(),
+                [](const CompactRuleGeneratedNames& names) {
+                    return names.hasMaskPrecheck;
+                }
+            );
+        if (canEmitAllFailMaskPrecheck) {
+            out << "    if (";
+            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
+                if (ruleIndex > 0) {
+                    out << " && ";
+                }
+                out << "!" << ruleNames[ruleIndex].precheckName << "(scratch)";
+            }
+            out << ") {\n"
+                << "        compact_turn_count_rules_visited_" << suffix << "(" << group.size() << ");\n"
+                << "        compact_turn_count_rule_mask_precheck_failure_" << suffix << "(" << group.size() << ");\n"
+                << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "(" << group.size() << ");\n"
+                << "        return false;\n"
+                << "    }\n";
+        }
         if (groupIsRandom) {
             out << "    struct Candidate {\n"
                 << "        size_t ruleIndex = 0;\n"

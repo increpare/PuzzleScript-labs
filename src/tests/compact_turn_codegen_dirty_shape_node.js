@@ -198,6 +198,60 @@ function compileMissingPrecheckFixture(compiler) {
     return compileSource(compiler, 'missing_precheck_shape', fixture, 'missing_precheck_shape');
 }
 
+function compileGroupPrecheckFixture(compiler) {
+    const fixture = [
+        'title group precheck shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        'Goal',
+        'green',
+        '',
+        'Wall',
+        'gray',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        'G = Goal',
+        '# = Wall',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate, Goal, Wall',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ Crate ]',
+        '+ [ Crate ] -> [ Goal ]',
+        '+ [ Goal ] -> [ Wall ]',
+        '+ [ Wall ] -> [ Player ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'group_precheck_shape', fixture, 'group_precheck_shape');
+}
+
 function assertIncludes(body, needle, context) {
     assert.ok(body.includes(needle), `${context}: expected generated body to include ${needle}`);
 }
@@ -397,6 +451,19 @@ function main() {
         missingAnchorScanBody,
         'compact_turn_line_has_required_masks_0',
         'missing-object anchor scan preserves line precheck',
+    );
+
+    const groupPrecheckSource = compileGroupPrecheckFixture(options.compiler);
+    const groupPrecheckApplyBody = functionBody(groupPrecheckSource, 'ctg_0_e_0_apply');
+    assertIncludes(
+        groupPrecheckApplyBody,
+        'compact_turn_count_rule_mask_precheck_failure_0(4);',
+        'multi-rule group all-fail precheck aggregation',
+    );
+    assertIncludes(
+        groupPrecheckApplyBody,
+        'compact_turn_count_rules_skipped_by_mask_0(4);',
+        'multi-rule group all-fail skip aggregation',
     );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
