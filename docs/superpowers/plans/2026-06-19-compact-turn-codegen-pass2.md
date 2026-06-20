@@ -374,3 +374,48 @@ make compact_turn_codegen_solver_parity
 ```
 
 Solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`.
+
+## Task 8: Inline Simple Pattern Preconditions
+
+- [x] **Step 1: Profile generated match call overhead**
+
+Focused generated-source inspection showed candidate-heavy rules still called the generic `compact_turn_pattern_matches_*` helper from fixed-row collection and still-match rechecks, even for plain cell patterns that only test constant present/missing object or movement masks.
+
+- [x] **Step 2: Inline simple pattern checks**
+
+Added a generated inline path for cell patterns with no `any` masks and no layer-coupled movement clauses. The emitter now writes direct cell object/movement mask tests into fixed-row collection, single-row still-match checks, multi-row tuple rechecks, and row-collection helpers, while keeping the generic helper for complex patterns.
+
+- [x] **Step 3: Skip empty object anchors**
+
+Updated object-anchor selection so a chosen zero-count anchor suppresses the fallback row scan, matching the movement-anchor behavior and avoiding pointless full-row work when a required anchor object is absent.
+
+- [x] **Step 4: Inline board mask prechecks**
+
+Generated rule and row board-mask prechecks now use constant mask expressions against `scratch.boardMask` / `scratch.boardMovementMask` instead of routing through the generic required-mask helper.
+
+- [x] **Step 5: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+```
+
+Latest focused sample versus the post-Task-7 sample:
+
+- `Double-Entry Bookkeeping Simulator.txt#17`: `8.91us/generated` to `8.53us/generated`, about `1.04x` faster.
+- `gem soketeer.txt#21`: `12.30us/generated` to `11.83us/generated`, about `1.04x` faster.
+- `big dog and little dog.txt#11`: `18.84us/generated` to `18.30us/generated`, about `1.03x` faster.
+- `Voitex Rasteriser 2.txt#1`: `2.17us/generated` to `2.00us/generated`, about `1.09x` faster.
+- `manic_ammo.txt#26`: `3.48us/generated` to `3.38us/generated`, about `1.03x` faster.
+
+- [x] **Step 6: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`.
