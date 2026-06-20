@@ -4834,7 +4834,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    }\n"
         << "}\n\n";
 
-    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_eager_" << suffix << "(\n"
+    out << "inline bool compact_turn_simple_replacement_fast_path_objects_eager_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    PersistentLevelState& levelState,\n"
         << "    Scratch& scratch,\n"
@@ -4866,7 +4866,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return false;\n"
         << "}\n\n";
 
-    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_movements_eager_" << suffix << "(\n"
+    out << "inline bool compact_turn_simple_replacement_fast_path_movements_eager_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    Scratch& scratch,\n"
         << "    int32_t tileIndex,\n"
@@ -4899,7 +4899,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return false;\n"
         << "}\n\n";
 
-    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_movements_eager_" << suffix << "(\n"
+    out << "inline bool compact_turn_simple_replacement_fast_path_objects_movements_eager_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    PersistentLevelState& levelState,\n"
         << "    Scratch& scratch,\n"
@@ -4948,7 +4948,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return false;\n"
         << "}\n\n";
 
-    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_" << suffix << "(\n"
+    out << "inline bool compact_turn_simple_replacement_fast_path_objects_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    PersistentLevelState& levelState,\n"
         << "    Scratch& scratch,\n"
@@ -4986,7 +4986,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return false;\n"
         << "}\n\n";
 
-    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_movements_" << suffix << "(\n"
+    out << "inline bool compact_turn_simple_replacement_fast_path_movements_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    Scratch& scratch,\n"
         << "    int32_t tileIndex,\n"
@@ -5026,7 +5026,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return false;\n"
         << "}\n\n";
 
-    out << "PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_movements_" << suffix << "(\n"
+    out << "inline bool compact_turn_simple_replacement_fast_path_objects_movements_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
         << "    PersistentLevelState& levelState,\n"
         << "    Scratch& scratch,\n"

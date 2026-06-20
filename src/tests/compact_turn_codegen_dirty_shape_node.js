@@ -442,6 +442,8 @@ function main() {
         `expected at least two generated simple replacement fast-path calls; actual=${fastPathCallCount}`,
     );
     const objectFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_0');
+    assertIncludes(source, 'inline bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
+    assertExcludes(source, 'PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
     assertIncludes(objectFastPathBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');

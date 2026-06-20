@@ -669,3 +669,54 @@ make compact_turn_codegen_solver_parity
 ```
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.
+
+## Task 14: Inline Simple Replacement Fast-Path Helpers
+
+- [x] **Step 1: Test generated helper shape**
+
+Added a dirty-shape assertion that object-only simple replacement helpers are emitted as normal `inline bool` functions, and are no longer emitted with `PS_COMPACT_TURN_NOINLINE`.
+
+- [x] **Step 2: Remove noinline from generated replacement helpers**
+
+Changed the six generated simple replacement fast-path helper families from forced noinline functions to inline helpers:
+
+- object-only, movement-only, and object+movement helpers;
+- eager guaranteed-changing variants for each of those helper families.
+
+This lets the native compiler inline the tiny helper bodies into hot generated rule application paths when profitable, especially in replacement-heavy games.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+The second no-rebuild sample:
+
+- `manic_ammo.txt#26`: `2.97us/generated` pre-inline to `2.85us/generated`, about `1.04x` faster.
+- `Voitex Rasteriser 2.txt#1`: `2.07us/generated` pre-inline to `2.05us/generated`, slightly faster.
+- `heroes_of_sokoban_3.txt#23`: `1.24us/generated` pre-inline to `1.24us/generated`, neutral.
+- `heroes_of_sokoban_3.txt#16`: `1.51us/generated` pre-inline to `1.52us/generated`, neutral/noisy.
+- `big dog and little dog.txt#11`: `18.70us/generated` pre-inline to `18.84us/generated`, effectively neutral/noisy.
+- `Double-Entry Bookkeeping Simulator.txt#17`: `6.70us/generated` pre-inline to `6.70us/generated`, neutral.
+- `easyenigma.txt#11`: `18.08us/generated` pre-inline to `17.87us/generated`, slightly faster.
+- `gem soketeer.txt#21`: `10.52us/generated` pre-inline to `10.53us/generated`, neutral.
+
+The first rebuilt sample was positive on six of eight focused cases; the second sample kept the aggregate change neutral-to-positive, so this is a small generic win rather than a targeted breakthrough.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+git diff --check
+make compact_turn_codegen_dirty_shape
+make compact_turn_native_parity
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.
