@@ -2563,7 +2563,7 @@ int32_t inputToDirectionMask(ps_input input) {
     }
 }
 
-bool inputSpecializationEnabled() {
+bool inputSpecializationEnabledInternal() {
     static const bool enabled = []() {
         const char* value = std::getenv("PUZZLESCRIPT_INPUT_SPECIALIZATION");
         return value == nullptr || std::strcmp(value, "0") != 0;
@@ -2571,7 +2571,7 @@ bool inputSpecializationEnabled() {
     return enabled;
 }
 
-uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask) {
+uint8_t inputSpecializationMaskForDirectionMaskInternal(int32_t directionMask) {
     switch (directionMask) {
         case 1: return 1u << PS_INPUT_UP;
         case 4: return 1u << PS_INPUT_LEFT;
@@ -5877,6 +5877,14 @@ void resetToPrepared(FullState& session) {
 }
 
 } // namespace
+
+bool inputSpecializationEnabled() {
+    return inputSpecializationEnabledInternal();
+}
+
+uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask) {
+    return inputSpecializationMaskForDirectionMaskInternal(directionMask);
+}
 
 void transposeCellMajorToObjectMajor(
     const Game& game,

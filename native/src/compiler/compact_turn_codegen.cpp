@@ -60,6 +60,26 @@ const PropertyBinding* compactPropertyBindingForName(const Rule& rule, const std
     return result;
 }
 
+int compactInputMaskBitCount(uint8_t mask) {
+    int count = 0;
+    while (mask != 0) {
+        count += ((mask & 1u) != 0) ? 1 : 0;
+        mask = static_cast<uint8_t>(mask >> 1u);
+    }
+    return count;
+}
+
+int compactInputSpecializationSkipOpportunity(const std::vector<Rule>& group) {
+    int opportunity = 0;
+    for (const Rule& rule : group) {
+        const uint8_t activeMask = static_cast<uint8_t>(rule.activeInputsMask & 0x3f);
+        if (activeMask != 0x3f) {
+            opportunity += 6 - compactInputMaskBitCount(activeMask);
+        }
+    }
+    return opportunity;
+}
+
 size_t compactLayerCoupledMovementTermCount(const Pattern& pattern) {
     size_t count = 0;
     for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
@@ -3623,6 +3643,26 @@ void emitCompactRulegroupFunctions(
         }
 
         const std::string groupPrefix = compactGroupPrefix(suffix, phase, groupIndex);
+        const uint8_t groupFirstActiveInputsMask = group.empty() ? 0x3f : group.front().activeInputsMask;
+        const bool groupHasInputSpecialization = std::any_of(
+            group.begin(),
+            group.end(),
+            [](const Rule& rule) {
+                return rule.activeInputsMask != 0x3f;
+            }
+        );
+        const bool groupUsesInputSpecialization =
+            groupHasInputSpecialization
+            && compactInputSpecializationSkipOpportunity(group) >= 3;
+        const bool groupHasUniformActiveInputsMask = std::all_of(
+            group.begin(),
+            group.end(),
+            [groupFirstActiveInputsMask](const Rule& rule) {
+                return rule.activeInputsMask == groupFirstActiveInputsMask;
+            }
+        );
+        const bool groupNeedsPerRuleInputGuard =
+            groupUsesInputSpecialization && !groupHasUniformActiveInputsMask;
         const CompactSpreadGroupShape spreadGroupShape = analyzeCompactSpreadGroupShape(game, group);
         if (spreadGroupShape.supported) {
             const std::string spreadApplyName = emitCompactSpreadGroupApplyFunction(
@@ -3637,7 +3677,15 @@ void emitCompactRulegroupFunctions(
             );
             out << "bool " << groupPrefix << "_apply(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands, std::vector<bool>* bannedGroups) {\n";
             out << "    if (bannedGroups != nullptr && " << groupIndex << " < bannedGroups->size() && (*bannedGroups)[" << groupIndex << "]) return false;\n"
-                << "    return " << spreadApplyName << "(dimensions, levelState, scratch, commands);\n"
+                << "    const bool useInputSpecialization = " << (groupUsesInputSpecialization ? "inputSpecializationEnabled()" : "false") << ";\n";
+            if (groupUsesInputSpecialization) {
+                out << "    if (useInputSpecialization && (static_cast<uint8_t>(" << static_cast<int32_t>(groupFirstActiveInputsMask)
+                    << ") & scratch.currentInputMask) == 0) {\n"
+                    << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "(" << group.size() << ");\n"
+                    << "        return false;\n"
+                    << "    }\n";
+            }
+            out << "    return " << spreadApplyName << "(dimensions, levelState, scratch, commands);\n"
                 << "}\n\n";
             continue;
         }
@@ -3646,7 +3694,7 @@ void emitCompactRulegroupFunctions(
             for (size_t chunkIndex = 0; chunkIndex < chunkCount; ++chunkIndex) {
                 out << "bool " << groupPrefix << "_apply_chunk_" << chunkIndex
                     << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix
-                    << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures);\n";
+                    << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures, bool useInputSpecialization, size_t activeGroupLength);\n";
             }
             out << "\n";
         }
@@ -3662,6 +3710,33 @@ void emitCompactRulegroupFunctions(
             continue;
         }
         out << "    if (bannedGroups != nullptr && " << groupIndex << " < bannedGroups->size() && (*bannedGroups)[" << groupIndex << "]) return false;\n";
+        if (!groupUsesInputSpecialization) {
+            out << "    constexpr bool useInputSpecialization = false;\n"
+                << "    constexpr size_t activeGroupLength = " << group.size() << ";\n";
+        } else if (groupHasUniformActiveInputsMask) {
+            out << "    const bool useInputSpecialization = inputSpecializationEnabled();\n"
+                << "    constexpr size_t activeGroupLength = " << group.size() << ";\n"
+                << "    if (useInputSpecialization && (static_cast<uint8_t>(" << static_cast<int32_t>(groupFirstActiveInputsMask)
+                << ") & scratch.currentInputMask) == 0) {\n"
+                << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "(" << group.size() << ");\n"
+                << "        return false;\n"
+                << "    }\n";
+        } else {
+            out << "    const bool useInputSpecialization = inputSpecializationEnabled();\n"
+                << "    const uint8_t currentInputMask = scratch.currentInputMask;\n"
+                << "    size_t activeGroupLength = " << group.size() << ";\n"
+                << "    if (useInputSpecialization) {\n"
+                << "        activeGroupLength = 0;\n";
+            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
+                out << "        if ((static_cast<uint8_t>(" << static_cast<int32_t>(group[ruleIndex].activeInputsMask)
+                    << ") & currentInputMask) != 0) ++activeGroupLength;\n";
+            }
+            out << "        if (activeGroupLength == 0) {\n"
+                << "            compact_turn_count_rules_skipped_by_mask_" << suffix << "(" << group.size() << ");\n"
+                << "            return false;\n"
+                << "        }\n"
+                << "    }\n";
+        }
         const bool canEmitAllFailMaskPrecheck = !groupIsRandom
             && group.size() >= 4
             && std::all_of(
@@ -3695,30 +3770,40 @@ void emitCompactRulegroupFunctions(
                 << "    std::vector<Candidate> candidates;\n";
             for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
                 const std::string rulePrefix = compactRulePrefix(suffix, phase, groupIndex, ruleIndex);
-                out << "    compact_turn_count_rules_visited_" << suffix << "();\n"
-                    << "    if (" << rulePrefix << "_collect_matches(dimensions, levelState, scratch, groupMatches[" << ruleIndex << "])) {\n"
-                    << "        bool hasMatchTuple = !groupMatches[" << ruleIndex << "].empty();\n"
-                    << "        for (const auto& rowMatches : groupMatches[" << ruleIndex << "]) {\n"
-                    << "            if (rowMatches.empty()) {\n"
-                    << "                hasMatchTuple = false;\n"
-                    << "                break;\n"
-                    << "            }\n"
-                    << "        }\n"
-                    << "        if (hasMatchTuple) {\n"
-                    << "            std::vector<size_t> tupleIndex(groupMatches[" << ruleIndex << "].size(), 0);\n"
-                    << "            while (true) {\n"
-                    << "                candidates.push_back(Candidate{" << ruleIndex << ", tupleIndex});\n"
-                    << "                size_t rowToIncrement = 0;\n"
-                    << "                while (rowToIncrement < groupMatches[" << ruleIndex << "].size()) {\n"
-                    << "                    ++tupleIndex[rowToIncrement];\n"
-                    << "                    if (tupleIndex[rowToIncrement] < groupMatches[" << ruleIndex << "][rowToIncrement].size()) break;\n"
-                    << "                    tupleIndex[rowToIncrement] = 0;\n"
-                    << "                    ++rowToIncrement;\n"
-                    << "                }\n"
-                    << "                if (rowToIncrement == groupMatches[" << ruleIndex << "].size()) break;\n"
-                    << "            }\n"
-                    << "        }\n"
-                    << "    }\n";
+                if (groupNeedsPerRuleInputGuard) {
+                    out << "    if (useInputSpecialization && (static_cast<uint8_t>(" << static_cast<int32_t>(group[ruleIndex].activeInputsMask)
+                        << ") & currentInputMask) == 0) {\n"
+                        << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "();\n"
+                        << "    } else {\n";
+                }
+                const std::string ruleIndent = groupNeedsPerRuleInputGuard ? "    " : "";
+                out << ruleIndent << "    compact_turn_count_rules_visited_" << suffix << "();\n"
+                    << ruleIndent << "    if (" << rulePrefix << "_collect_matches(dimensions, levelState, scratch, groupMatches[" << ruleIndex << "])) {\n"
+                    << ruleIndent << "        bool hasMatchTuple = !groupMatches[" << ruleIndex << "].empty();\n"
+                    << ruleIndent << "        for (const auto& rowMatches : groupMatches[" << ruleIndex << "]) {\n"
+                    << ruleIndent << "            if (rowMatches.empty()) {\n"
+                    << ruleIndent << "                hasMatchTuple = false;\n"
+                    << ruleIndent << "                break;\n"
+                    << ruleIndent << "            }\n"
+                    << ruleIndent << "        }\n"
+                    << ruleIndent << "        if (hasMatchTuple) {\n"
+                    << ruleIndent << "            std::vector<size_t> tupleIndex(groupMatches[" << ruleIndex << "].size(), 0);\n"
+                    << ruleIndent << "            while (true) {\n"
+                    << ruleIndent << "                candidates.push_back(Candidate{" << ruleIndex << ", tupleIndex});\n"
+                    << ruleIndent << "                size_t rowToIncrement = 0;\n"
+                    << ruleIndent << "                while (rowToIncrement < groupMatches[" << ruleIndex << "].size()) {\n"
+                    << ruleIndent << "                    ++tupleIndex[rowToIncrement];\n"
+                    << ruleIndent << "                    if (tupleIndex[rowToIncrement] < groupMatches[" << ruleIndex << "][rowToIncrement].size()) break;\n"
+                    << ruleIndent << "                    tupleIndex[rowToIncrement] = 0;\n"
+                    << ruleIndent << "                    ++rowToIncrement;\n"
+                    << ruleIndent << "                }\n"
+                    << ruleIndent << "                if (rowToIncrement == groupMatches[" << ruleIndex << "].size()) break;\n"
+                    << ruleIndent << "            }\n"
+                    << ruleIndent << "        }\n"
+                    << ruleIndent << "    }\n";
+                if (groupNeedsPerRuleInputGuard) {
+                    out << "    }\n";
+                }
             }
             out << "    if (candidates.empty()) return false;\n"
                 << "    const double randomValue = compact_turn_random_uniform_" << suffix << "(levelState.rng);\n"
@@ -3775,7 +3860,7 @@ void emitCompactRulegroupFunctions(
         const size_t chunkCount = (group.size() + kCompactRulegroupApplyChunkSize - 1) / kCompactRulegroupApplyChunkSize;
         for (size_t chunkIndex = 0; chunkIndex < chunkCount; ++chunkIndex) {
             out << "        if (" << groupPrefix << "_apply_chunk_" << chunkIndex
-                << "(dimensions, levelState, scratch, commands, madeChangeThisLoop, consecutiveFailures)) break;\n";
+                << "(dimensions, levelState, scratch, commands, madeChangeThisLoop, consecutiveFailures, useInputSpecialization, activeGroupLength)) break;\n";
         }
         out << "        hasChanges = hasChanges || madeChangeThisLoop;\n"
             << "    }\n"
@@ -3787,20 +3872,27 @@ void emitCompactRulegroupFunctions(
             const size_t lastRuleIndex = std::min(group.size(), firstRuleIndex + kCompactRulegroupApplyChunkSize);
             out << "bool " << groupPrefix << "_apply_chunk_" << chunkIndex
                 << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix
-                << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures) {\n";
+                << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures, bool useInputSpecialization, size_t activeGroupLength) {\n";
             for (size_t ruleIndex = firstRuleIndex; ruleIndex < lastRuleIndex; ++ruleIndex) {
                 const CompactRuleGeneratedNames& names = ruleNames[ruleIndex];
-                std::string ruleIndent = "    ";
-                out << "    compact_turn_count_rules_visited_" << suffix << "();\n";
-                if (names.hasMaskPrecheck) {
-                    out << "    if (!" << names.precheckName << "(scratch)) {\n"
-                        << "        compact_turn_count_rule_mask_precheck_failure_" << suffix << "();\n"
+                const std::string ruleBaseIndent = groupNeedsPerRuleInputGuard ? "        " : "    ";
+                std::string ruleIndent = ruleBaseIndent;
+                if (groupNeedsPerRuleInputGuard) {
+                    out << "    if (useInputSpecialization && (static_cast<uint8_t>(" << static_cast<int32_t>(group[ruleIndex].activeInputsMask)
+                        << ") & scratch.currentInputMask) == 0) {\n"
                         << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "();\n"
-                        << "        ++consecutiveFailures;\n"
-                        << "        if (consecutiveFailures == " << group.size() << ") return true;\n"
-                        << "    } else {\n"
-                        << "        compact_turn_count_rule_mask_precheck_pass_" << suffix << "();\n";
-                    ruleIndent = "        ";
+                        << "    } else {\n";
+                }
+                out << ruleBaseIndent << "compact_turn_count_rules_visited_" << suffix << "();\n";
+                if (names.hasMaskPrecheck) {
+                    out << ruleBaseIndent << "if (!" << names.precheckName << "(scratch)) {\n"
+                        << ruleBaseIndent << "    compact_turn_count_rule_mask_precheck_failure_" << suffix << "();\n"
+                        << ruleBaseIndent << "    compact_turn_count_rules_skipped_by_mask_" << suffix << "();\n"
+                        << ruleBaseIndent << "    ++consecutiveFailures;\n"
+                        << ruleBaseIndent << "    if (static_cast<size_t>(consecutiveFailures) == activeGroupLength) return true;\n"
+                        << ruleBaseIndent << "} else {\n"
+                        << ruleBaseIndent << "    compact_turn_count_rule_mask_precheck_pass_" << suffix << "();\n";
+                    ruleIndent = ruleBaseIndent + "    ";
                 }
                 if (names.writesObjects) {
                     out << ruleIndent << "scratch.dirtyObjectBoard = false;\n";
@@ -3832,9 +3924,12 @@ void emitCompactRulegroupFunctions(
                     << ruleIndent << "    consecutiveFailures = 0;\n"
                     << ruleIndent << "} else {\n"
                     << ruleIndent << "    ++consecutiveFailures;\n"
-                    << ruleIndent << "    if (consecutiveFailures == " << group.size() << ") return true;\n"
+                    << ruleIndent << "    if (static_cast<size_t>(consecutiveFailures) == activeGroupLength) return true;\n"
                     << ruleIndent << "}\n";
                 if (names.hasMaskPrecheck) {
+                    out << ruleBaseIndent << "}\n";
+                }
+                if (groupNeedsPerRuleInputGuard) {
                     out << "    }\n";
                 }
             }
@@ -3937,6 +4032,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return {false, result};\n"
         << "    }\n"
         << "    const int32_t directionMask = compact_turn_input_direction_" << suffix << "(input);\n"
+        << "    scratch.currentInputMask = inputSpecializationMaskForDirectionMask(directionMask);\n"
         << "    const bool needsTurnStartSnapshot = probeOnly\n"
         << "        || compact_turn_needs_unconditional_turn_start_snapshot_" << suffix << "\n"
         << "        || (!options.solverMode && compact_turn_needs_command_turn_start_snapshot_" << suffix << ");\n"

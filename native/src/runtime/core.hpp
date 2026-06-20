@@ -806,5 +806,7 @@ uint64_t runtimeCounterNowNs();
 void addRuntimeCounter(RuntimeCounterId id, uint64_t amount = 1);
 void resetRuntimeCounters();
 ps_runtime_counters snapshotRuntimeCounters();
+bool inputSpecializationEnabled();
+uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask);
 
 } // namespace puzzlescript

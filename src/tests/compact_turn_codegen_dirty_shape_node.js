@@ -519,6 +519,89 @@ function compileSpreadGroupFixture(compiler) {
     return compileSource(compiler, 'spread_group_shape', fixture, 'spread_group_shape');
 }
 
+function compileInputSpecializationFixture(compiler) {
+    const fixture = [
+        'title input specialization shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ > Player | no Crate ] -> [ > Player | Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'input_specialization_shape', fixture, 'input_specialization_shape');
+}
+
+function compileWeakInputSpecializationFixture(compiler) {
+    const fixture = [
+        'title weak input specialization shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        '',
+        '=======',
+        'RULES',
+        '[ moving Player ] -> [ stationary Player ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'weak_input_specialization_shape', fixture, 'weak_input_specialization_shape');
+}
+
 function assertIncludes(body, needle, context) {
     assert.ok(body.includes(needle), `${context}: expected generated body to include ${needle}`);
 }
@@ -928,6 +1011,40 @@ function main() {
         spreadGroupApplyBody,
         'ctg_0_l_0_apply_chunk_0',
         'property-expanded marker spread group fusion',
+    );
+
+    const inputSpecializationSource = compileInputSpecializationFixture(options.compiler);
+    const inputSpecializationTurnBody = functionBody(inputSpecializationSource, 'compact_turn_execute_program_0');
+    assertIncludes(
+        inputSpecializationTurnBody,
+        'scratch.currentInputMask = inputSpecializationMaskForDirectionMask(directionMask);',
+        'compact input specialization turn setup',
+    );
+    const inputSpecializationGroupBody = functionBody(inputSpecializationSource, 'ctg_0_e_0_apply');
+    assertIncludes(
+        inputSpecializationGroupBody,
+        'if ((static_cast<uint8_t>(',
+        'compact input specialization group skip',
+    );
+    const inputSpecializationChunkBody = functionBody(inputSpecializationSource, 'ctg_0_e_0_apply_chunk_0');
+    assertIncludes(
+        inputSpecializationChunkBody,
+        'scratch.currentInputMask',
+        'compact input specialization rule skip',
+    );
+
+    const weakInputSpecializationSource = compileWeakInputSpecializationFixture(options.compiler);
+    const weakInputSpecializationGroupBody = functionBody(weakInputSpecializationSource, 'ctg_0_e_0_apply');
+    assertExcludes(
+        weakInputSpecializationGroupBody,
+        'inputSpecializationEnabled()',
+        'weak single-rule input specialization skip',
+    );
+    const weakInputSpecializationChunkBody = functionBody(weakInputSpecializationSource, 'ctg_0_e_0_apply_chunk_0');
+    assertExcludes(
+        weakInputSpecializationChunkBody,
+        'scratch.currentInputMask',
+        'weak single-rule input specialization skip',
     );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
