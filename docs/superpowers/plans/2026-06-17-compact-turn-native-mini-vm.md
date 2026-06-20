@@ -1428,6 +1428,58 @@ Double-Entry Bookkeeping Simulator.txt#17 compiled us/generated=6.54 step_ms=872
 gem soketeer.txt#21 compiled us/generated=10.36 step_ms=575.909
 ```
 
+## Task 16: Second Instrumented Optimization Pass - Skip Disabled Runtime Counter Switches
+
+**Files:**
+- `native/src/runtime/core.cpp`
+
+- [x] **Step 1: Identify disabled-counter overhead in compiled turns**
+
+Observed: generated compact-turn native code calls `addRuntimeCounter(RuntimeCounterId::CompactTurnNativeCalls)` for each native compact turn. With runtime counters disabled, `addRuntimeCounter()` still entered the full `RuntimeCounterId` switch before `addCounter()` discovered counters were disabled.
+
+Expected: non-profile solver runs should pay one disabled branch, not the switch dispatch.
+
+- [x] **Step 2: Add a disabled fast path while preserving profile behavior**
+
+Change `addRuntimeCounter()` to return immediately when `gRuntimeCountersEnabled` is false, and use an unchecked atomic helper inside the switch when counters are enabled:
+
+```cpp
+if (!gRuntimeCountersEnabled) {
+    return;
+}
+```
+
+Expected: no behavior change for `--profile-runtime-counters`; small improvement for normal compiled solver runs.
+
+- [x] **Step 3: Validate with profiled and non-profiled runs**
+
+Run:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+cmake --build build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64 --target puzzlescript_solver -- -j8
+build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver src/tests/solver_tests --timeout-ms 1000 --jobs 1 --strategy portfolio --game manic_ammo.txt --level 26 --json --no-solutions --quiet --compact-node-storage --profile-runtime-counters
+git diff --check
+```
+
+Observed:
+
+```text
+compact_turn_codegen_perf_suite_node passed
+profile counter smoke emitted compact_turn_native_calls=49273 and compact_turn_unhandled=0
+git diff --check passed
+```
+
+Non-profile A/B sample, three runs per case, showed a small win on most sampled cases and near-neutral behavior on the rest:
+
+```text
+Voitex Rasteriser 2.txt#1 avg step_ms 547.9 -> 546.5
+heroes_of_sokoban_3.txt#23 avg step_ms 192.2 -> 191.5
+Double-Entry Bookkeeping Simulator.txt#17 avg step_ms 881.4 -> 881.0
+gem soketeer.txt#21 avg step_ms 556.4 -> 554.3
+manic_ammo.txt#26 was noise/neutral after warmup
+```
+
 ---
 
 ## Implementation Notes
