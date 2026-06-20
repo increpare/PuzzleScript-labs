@@ -758,8 +758,11 @@ Verification note: no tracked generated outputs or expectation updates were prod
 ## Pass 2 Follow-Up
 
 - [x] Skip redundant board-mask prechecks inside externally prechecked single-row generated rule apply bodies.
+- [x] Skip generated compact setup work when masks are already clean and storage is still sized correctly.
 
 Verification note: added a generated-shape regression proving externally prechecked single-row apply bodies no longer read `scratch.boardMask`. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8`, `make compact_tick_oracle_smoke`, and `make compact_turn_codegen_solver_parity` passed. No-rebuild focused perf reruns showed the clearest wins in `Double-Entry Bookkeeping Simulator.txt#17` (`us/generated` down about `0.16`) and `big dog and little dog.txt#11` (`us/generated` down about `0.12`), with neutral/tiny movement elsewhere except the report-only `gem soketeer.txt#21`.
+
+Verification note: added a generated-shape regression for the clean-mask setup fast path. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8`, `make compact_turn_codegen_regression_tests`, `make compact_tick_oracle_smoke`, `make compact_turn_codegen_solver_parity`, and `make compact_turn_native_parity` passed. Two no-rebuild focused perf reruns versus the previous accepted baseline improved average compiled `us/generated` by `0.095` and setup time by `1.19ms`; the largest per-case `us/generated` wins were `gem soketeer.txt#21` (`-0.280`), `big dog and little dog.txt#11` (`-0.219`), and `easyenigma.txt#11` (`-0.160`).
 
 ---
 

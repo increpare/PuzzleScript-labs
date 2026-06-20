@@ -558,6 +558,16 @@ function main() {
         'scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));',
         'single-row match scratch reserve happens once in compact setup',
     );
+    assertInOrder(
+        prepareStateBody,
+        [
+            'const bool masksStorageReady =',
+            'if (!scratch.anyMasksDirty && masksStorageReady) {',
+            'return true;',
+            'const auto noDirtyBytes =',
+        ],
+        'compact setup clean-mask fast path',
+    );
     const resolveMovementsBody = functionBody(source, 'compact_turn_resolve_movements_0');
     assertIncludes(resolveMovementsBody, 'scratch.liveMovementsClean = true;', 'movement resolution marks live movement storage clean');
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
