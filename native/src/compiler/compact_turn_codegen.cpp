@@ -461,6 +461,8 @@ struct CompactRowMaskInfo {
     std::string anyMovementMasksName = "nullptr";
     std::vector<MaskWord> objectMaskWords;
     std::vector<MaskWord> movementMaskWords;
+    std::vector<MaskWord> missingObjectMaskWords;
+    std::vector<MaskWord> missingMovementMaskWords;
     uint32_t anyObjectMaskCount = 0;
     uint32_t anyMovementMaskCount = 0;
     bool hasAnyRequiredMask = false;
@@ -487,6 +489,8 @@ CompactRowMaskInfo compactRuleMaskInfo(
         "nullptr",
         objectWords,
         movementWords,
+        {},
+        {},
         0,
         0,
         anyMaskWordSet(objectWords) || anyMaskWordSet(movementWords),
@@ -538,6 +542,8 @@ CompactRowMaskInfo compactRowMaskInfo(
         hasAnyMovements ? rowPrefix + "_any_movement_masks" : "nullptr",
         objectWords,
         movementWords,
+        missingObjectWords,
+        missingMovementWords,
         anyObjectSpan.count,
         anyMovementSpan.count,
         anyMaskWordSet(objectWords) || anyMaskWordSet(movementWords),
@@ -1105,6 +1111,7 @@ struct CompactObjectAnchorGroup {
     int32_t patternIndex = -1;
     std::vector<int32_t> objectIds;
     bool requiresAll = false;
+    bool coversPositiveLinePrecheck = false;
 };
 
 struct CompactMovementAnchorGroup {
@@ -1123,6 +1130,50 @@ void compactOrMaskWords(std::vector<MaskWord>& target, const std::vector<MaskWor
     for (size_t word = 0; word < count; ++word) {
         target[word] |= source[word];
     }
+}
+
+std::vector<MaskWord> compactObjectMaskForIds(const Game& game, const std::vector<int32_t>& objectIds) {
+    std::vector<MaskWord> mask(static_cast<size_t>(game.wordCount), 0);
+    for (const int32_t objectId : objectIds) {
+        if (objectId < 0) {
+            continue;
+        }
+        const uint32_t bitIndex = static_cast<uint32_t>(objectId);
+        const uint32_t word = maskWordIndex(bitIndex);
+        if (word >= mask.size()) {
+            continue;
+        }
+        mask[static_cast<size_t>(word)] |= maskBit(bitIndex);
+    }
+    return mask;
+}
+
+bool compactMaskWordsCoverAll(const std::vector<MaskWord>& required, const std::vector<MaskWord>& available) {
+    for (size_t word = 0; word < required.size(); ++word) {
+        const MaskWord availableWord = word < available.size() ? available[word] : 0;
+        if ((required[word] & ~availableWord) != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool compactObjectAnchorCoversPositiveLinePrecheck(
+    const Game& game,
+    const CompactRowMaskInfo& rowMask,
+    const CompactObjectAnchorGroup& group
+) {
+    if (anyMaskWordSet(rowMask.movementMaskWords)
+        || anyMaskWordSet(rowMask.missingObjectMaskWords)
+        || anyMaskWordSet(rowMask.missingMovementMaskWords)
+        || rowMask.anyObjectMaskCount > 0
+        || rowMask.anyMovementMaskCount > 0) {
+        return false;
+    }
+    return compactMaskWordsCoverAll(
+        rowMask.objectMaskWords,
+        compactObjectMaskForIds(game, group.objectIds)
+    );
 }
 
 std::vector<MaskWord> compactMovementAnchorMaskForPattern(const Game& game, const Pattern& pattern) {
@@ -1260,7 +1311,24 @@ void emitCompactFixedStartMatchCollection(
     }
 
     const std::vector<CompactMovementAnchorGroup> movementAnchorGroups = compactMovementAnchorGroupsForRow(game, row);
-    const std::vector<CompactObjectAnchorGroup> objectAnchorGroups = compactObjectAnchorGroupsForRow(row);
+    std::vector<CompactObjectAnchorGroup> objectAnchorGroups = compactObjectAnchorGroupsForRow(row);
+    for (CompactObjectAnchorGroup& group : objectAnchorGroups) {
+        group.coversPositiveLinePrecheck = compactObjectAnchorCoversPositiveLinePrecheck(game, rowMask, group);
+    }
+    const bool allObjectAnchorsCoverPositiveLinePrecheck = std::all_of(
+        objectAnchorGroups.begin(),
+        objectAnchorGroups.end(),
+        [](const CompactObjectAnchorGroup& group) {
+            return group.coversPositiveLinePrecheck;
+        }
+    );
+    const bool anyObjectAnchorCoversPositiveLinePrecheck = std::any_of(
+        objectAnchorGroups.begin(),
+        objectAnchorGroups.end(),
+        [](const CompactObjectAnchorGroup& group) {
+            return group.coversPositiveLinePrecheck;
+        }
+    );
     const bool hasAnchorGroups = !movementAnchorGroups.empty() || !objectAnchorGroups.empty();
     auto emitIntArray = [&](std::string_view name, const std::vector<int32_t>& values) {
         out << indent << "constexpr int32_t " << name << "[] = {";
@@ -1385,11 +1453,18 @@ void emitCompactFixedStartMatchCollection(
         std::vector<int32_t> objectAnchorCounts;
         std::vector<int32_t> objectAnchorObjectIds;
         std::vector<int32_t> objectAnchorRequiresAll;
+        std::vector<int32_t> objectAnchorCoversPositiveLinePrecheck;
+        const bool needsObjectAnchorLinePrecheckGuards = rowMask.hasAnyLinePrecondition
+            && !allObjectAnchorsCoverPositiveLinePrecheck
+            && anyObjectAnchorCoversPositiveLinePrecheck;
         for (const CompactObjectAnchorGroup& group : objectAnchorGroups) {
             objectAnchorPatternIndexes.push_back(group.patternIndex);
             objectAnchorFirsts.push_back(static_cast<int32_t>(objectAnchorObjectIds.size()));
             objectAnchorCounts.push_back(static_cast<int32_t>(group.objectIds.size()));
             objectAnchorRequiresAll.push_back(group.requiresAll ? 1 : 0);
+            if (needsObjectAnchorLinePrecheckGuards) {
+                objectAnchorCoversPositiveLinePrecheck.push_back(group.coversPositiveLinePrecheck ? 1 : 0);
+            }
             objectAnchorObjectIds.insert(objectAnchorObjectIds.end(), group.objectIds.begin(), group.objectIds.end());
         }
 
@@ -1397,6 +1472,9 @@ void emitCompactFixedStartMatchCollection(
         emitIntArray("objectAnchorFirsts", objectAnchorFirsts);
         emitIntArray("objectAnchorCounts", objectAnchorCounts);
         emitIntArray("objectAnchorRequiresAll", objectAnchorRequiresAll);
+        if (needsObjectAnchorLinePrecheckGuards) {
+            emitIntArray("objectAnchorCoversPositiveLinePrecheck", objectAnchorCoversPositiveLinePrecheck);
+        }
         emitIntArray("objectAnchorObjectIds", objectAnchorObjectIds);
         out << indent << "if (!usedAnchorScan && compact_turn_prepare_object_cell_index_" << suffix << "(dimensions, levelState, scratch)) {\n"
             << indent << "    const int32_t objectCellWordCount = compact_turn_object_cell_word_count_" << suffix << "(dimensions);\n"
@@ -1457,8 +1535,12 @@ void emitCompactFixedStartMatchCollection(
             << indent << "                            const int32_t secondary = horizontalScan ? startX : startY;\n"
             << indent << "                            if (secondary < secondaryStart || secondary >= secondaryEnd) continue;\n"
             << indent << "                            const int32_t primary = horizontalScan ? startY : startX;\n";
-        if (rowMask.hasAnyLinePrecondition) {
-            out << indent << "                            if (!compact_turn_line_has_required_masks_" << suffix
+        if (rowMask.hasAnyLinePrecondition && !allObjectAnchorsCoverPositiveLinePrecheck) {
+            out << indent << "                            if (";
+            if (needsObjectAnchorLinePrecheckGuards) {
+                out << "objectAnchorCoversPositiveLinePrecheck[objectAnchorGroup] == 0 && ";
+            }
+            out << "!compact_turn_line_has_required_masks_" << suffix
                 << "(dimensions, levelState, scratch, horizontalScan, primary, "
                 << rowMask.objectMaskName << ", " << rowMask.movementMaskName << ", "
                 << rowMask.missingObjectMaskName << ", " << rowMask.missingMovementMaskName << ", "

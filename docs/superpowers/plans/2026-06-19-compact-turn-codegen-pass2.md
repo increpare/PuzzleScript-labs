@@ -463,3 +463,51 @@ make compact_turn_native_parity
 ```
 
 Solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. Native parity passed with `native=182/182`.
+
+## Task 10: Covered Positive Line-Precheck Elision
+
+- [x] **Step 1: Update stale generated-source shape guard**
+
+The object-only dirty-shape fixture now emits an eager object helper after Task 6. Updated the generated-source assertion to accept either the eager or non-eager object helper spelling.
+
+- [x] **Step 2: Reject unsafe post-match recheck elision**
+
+Tried removing the non-random single-cell `matchIndex != 0` still-match recheck. The generated-source test passed and focused perf remained within expectations, but the sample was mixed: `Double-Entry Bookkeeping Simulator.txt#17`, `gem soketeer.txt#21`, and some `heroes_of_sokoban_3` cases got slightly worse. The production change was backed out.
+
+- [x] **Step 3: Add red shape guard for covered positive object anchors**
+
+Added a dirty-shape assertion that object-anchor scans omit `compact_turn_line_has_required_masks_*` when the selected positive object anchors already cover all positive object row preconditions. This failed before the codegen change.
+
+- [x] **Step 4: Add missing-precondition safety guard**
+
+The first implementation skipped too broadly and `make compact_turn_codegen_solver_parity SOLVER_COMPACT_PARITY_GAME=alternatey.txt` found `2` compact-turn oracle failures. Root cause: rows with missing object/movement line preconditions still need the row precheck even when positive object anchors are covered. Added `missingObjectMaskWords` and `missingMovementMaskWords` to `CompactRowMaskInfo`, and only elide the line precheck for pure positive-object row preconditions with no movement, missing, or `any` line requirements.
+
+- [x] **Step 5: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+```
+
+Latest focused sample:
+
+- `manic_ammo.txt#26`: compiled `3.46us/generated`.
+- `Voitex Rasteriser 2.txt#1`: compiled `2.06us/generated`.
+- `big dog and little dog.txt#11`: compiled `18.74us/generated`.
+- `Double-Entry Bookkeeping Simulator.txt#17`: compiled `7.31us/generated`.
+- `easyenigma.txt#11`: compiled `22.30us/generated`.
+- `gem soketeer.txt#21`: compiled `10.60us/generated`.
+
+- [x] **Step 6: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_solver_parity SOLVER_COMPACT_PARITY_GAME=alternatey.txt
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions, so this batch is correctness-clean but not a timeout-curve fix.

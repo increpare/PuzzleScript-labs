@@ -75,10 +75,37 @@ function assertInOrder(text, needles, context) {
     }
 }
 
-function compileFixture(compiler) {
+function compileSource(compiler, fixtureName, fixture, symbol) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-compact-dirty-shape-'));
-    const gamePath = path.join(tmpDir, 'dirty_shape.txt');
-    const cppPath = path.join(tmpDir, 'dirty_shape.cpp');
+    const gamePath = path.join(tmpDir, `${fixtureName}.txt`);
+    const cppPath = path.join(tmpDir, `${fixtureName}.cpp`);
+    fs.writeFileSync(gamePath, fixture);
+    const result = spawnSync(compiler, [
+        'compile-rules',
+        gamePath,
+        '--emit-cpp',
+        cppPath,
+        '--symbol',
+        symbol,
+        '--max-rows',
+        '1',
+        '--compact-turn-only',
+        '--compact-turn-mode=compiler',
+    ], {
+        encoding: 'utf8',
+        maxBuffer: 1024 * 1024 * 16,
+    });
+    if (result.status !== 0) {
+        throw new Error([
+            `compile-rules failed with status ${result.status}`,
+            result.stdout,
+            result.stderr,
+        ].join('\n'));
+    }
+    return fs.readFileSync(cppPath, 'utf8');
+}
+
+function compileFixture(compiler) {
     const fixture = [
         'title dirty shape',
         'author codex',
@@ -124,30 +151,51 @@ function compileFixture(compiler) {
         'P',
         '',
     ].join('\n');
-    fs.writeFileSync(gamePath, fixture);
-    const result = spawnSync(compiler, [
-        'compile-rules',
-        gamePath,
-        '--emit-cpp',
-        cppPath,
-        '--symbol',
-        'dirty_shape',
-        '--max-rows',
-        '1',
-        '--compact-turn-only',
-        '--compact-turn-mode=compiler',
-    ], {
-        encoding: 'utf8',
-        maxBuffer: 1024 * 1024 * 16,
-    });
-    if (result.status !== 0) {
-        throw new Error([
-            `compile-rules failed with status ${result.status}`,
-            result.stdout,
-            result.stderr,
-        ].join('\n'));
-    }
-    return fs.readFileSync(cppPath, 'utf8');
+    return compileSource(compiler, 'dirty_shape', fixture, 'dirty_shape');
+}
+
+function compileMissingPrecheckFixture(compiler) {
+    const fixture = [
+        'title missing precheck shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ Player no Crate ] -> [ Player Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'missing_precheck_shape', fixture, 'missing_precheck_shape');
 }
 
 function assertIncludes(body, needle, context) {
@@ -309,6 +357,18 @@ function main() {
     assertExcludes(objectOnlyBody, 'scratch.dirtyMovementBoard = false;', 'object-only rule');
     assertExcludes(objectOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object-only rule');
     const objectOnlyApplyBody = functionBody(source, 'ctr_0_e_0_0_apply');
+    const objectOnlyFallbackScanIndex = objectOnlyApplyBody.indexOf('if (!usedAnchorScan)');
+    assert.notStrictEqual(
+        objectOnlyFallbackScanIndex,
+        -1,
+        'object-only fast replacement: expected anchored scan fallback',
+    );
+    const objectOnlyAnchorScanBody = objectOnlyApplyBody.slice(0, objectOnlyFallbackScanIndex);
+    assertExcludes(
+        objectOnlyAnchorScanBody,
+        'compact_turn_line_has_required_masks_0',
+        'object-only anchor scan with covered positive line preconditions',
+    );
     assert.match(
         objectOnlyApplyBody,
         /compact_turn_simple_replacement_fast_path_objects(?:_eager)?_0\(/,
@@ -317,6 +377,26 @@ function main() {
     assertExcludes(objectOnlyApplyBody, 'MaskWord* fastObjects', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'fastMovements', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'compact_turn_cell_movements_0(scratch, applyTile_0)', 'object-only fast replacement');
+
+    const missingSource = compileMissingPrecheckFixture(options.compiler);
+    const missingApplyBody = functionBody(missingSource, 'ctr_0_e_0_0_apply');
+    assertIncludes(
+        missingApplyBody,
+        'compact_turn_prepare_object_cell_index_0',
+        'missing-object precheck fixture anchored scan',
+    );
+    const missingFallbackScanIndex = missingApplyBody.indexOf('if (!usedAnchorScan)');
+    assert.notStrictEqual(
+        missingFallbackScanIndex,
+        -1,
+        'missing-object precheck fixture: expected anchored scan fallback',
+    );
+    const missingAnchorScanBody = missingApplyBody.slice(0, missingFallbackScanIndex);
+    assertIncludes(
+        missingAnchorScanBody,
+        'compact_turn_line_has_required_masks_0',
+        'missing-object anchor scan preserves line precheck',
+    );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
     assertIncludes(objectAndMovementBody, 'scratch.dirtyObjectBoard = false;', 'object+movement rule');
