@@ -1588,6 +1588,68 @@ gem soketeer.txt#21 step_ms ~= 573.1 -> 573.9
 
 Follow-up: split `objects_movements_eager` by which side is proven to change. The combined helper is frequent, but only one side may be guaranteed, so it needs a separate proof/result shape rather than blindly removing both checks.
 
+## Task 19: Second Instrumented Optimization Pass - Remove Combined Eager No-Op Exit
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Keep per-side checks, remove impossible combined no-op branch**
+
+The combined object+movement eager helper is selected only when the matched cell is proven to change on at least one side. Its per-side `fastObjectsChanged` / `fastMovementsChanged` checks are still needed because the proof may only cover objects or only cover movements, but the final:
+
+```text
+if (fastObjectsChanged || fastMovementsChanged) { ... return true; }
+count noop; return false;
+```
+
+is redundant after the eager proof. Changed the helper to keep conditional `note_*_cell_written` calls for each side, then unconditionally count a fast-path change and return true.
+
+- [x] **Step 2: Add generated-shape coverage**
+
+Shape coverage now asserts that `compact_turn_simple_replacement_fast_path_objects_movements_eager_0`:
+
+```text
+keeps if (fastObjectsChanged)
+keeps if (fastMovementsChanged)
+omits if (fastObjectsChanged || fastMovementsChanged)
+omits compact_turn_count_simple_replacement_fast_path_noop_0()
+returns true
+```
+
+- [x] **Step 3: Validate with perf gate and repeat samples**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-combo-eager-rerun.json
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-combo-eager-rerun2.json
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape_node passed
+compact_turn_codegen_perf_suite_node passed
+```
+
+Compared with the Task 17 repeat sample, the combined helper cut is mixed but useful on the replacement-heavy compiled cases:
+
+```text
+Voitex Rasteriser 2.txt#1 step_ms ~= 559.4 -> 547.6
+heroes_of_sokoban_3.txt#16 step_ms ~= 553.7 -> 538.5
+Double-Entry Bookkeeping Simulator.txt#17 step_ms ~= 884.9 -> 872.2
+big dog and little dog.txt#11 step_ms ~= 795.9 -> 795.6
+manic_ammo.txt#26 step_ms ~= 136.0 -> 137.5
+heroes_of_sokoban_3.txt#23 step_ms ~= 211.7 -> 213.3
+easyenigma.txt#11 step_ms ~= 338.3 -> 344.4
+gem soketeer.txt#21 step_ms ~= 573.1 -> 574.7
+```
+
+Follow-up: if the setup-heavy regressions persist, split the combined eager helper into object-proven, movement-proven, and both-proven helpers so the unproven side can avoid unnecessary work while preserving the impossible-no-op proof.
+
 ---
 
 ## Implementation Notes

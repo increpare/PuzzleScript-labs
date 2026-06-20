@@ -4970,13 +4970,9 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    }\n"
         << "    if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
         << "    if (fastMovementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeMovements, fastMovements);\n"
-        << "    if (fastObjectsChanged || fastMovementsChanged) {\n"
-        << "        compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
-        << "        compact_turn_count_replacements_applied_" << suffix << "();\n"
-        << "        return true;\n"
-        << "    }\n"
-        << "    compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "();\n"
-        << "    return false;\n"
+        << "    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
+        << "    compact_turn_count_replacements_applied_" << suffix << "();\n"
+        << "    return true;\n"
         << "}\n\n";
 
     out << "inline bool compact_turn_simple_replacement_fast_path_objects_" << suffix << "(\n"

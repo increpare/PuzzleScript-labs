@@ -502,6 +502,7 @@ function main() {
     const objectFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_0');
     const objectEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_eager_0');
     const movementEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_movements_eager_0');
+    const combinedEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_0');
     assertIncludes(source, 'inline bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
     assertExcludes(source, 'PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
     assertIncludes(objectFastPathBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
@@ -523,6 +524,19 @@ function main() {
     );
     assertIncludes(movementEagerFastPathBody, 'fastMovements[word] = after;', 'eager movement-only fast replacement');
     assertIncludes(movementEagerFastPathBody, 'return true;', 'eager movement-only fast replacement');
+    assertIncludes(combinedEagerFastPathBody, 'if (fastObjectsChanged)', 'eager object+movement fast replacement');
+    assertIncludes(combinedEagerFastPathBody, 'if (fastMovementsChanged)', 'eager object+movement fast replacement');
+    assertExcludes(
+        combinedEagerFastPathBody,
+        'if (fastObjectsChanged || fastMovementsChanged)',
+        'eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'eager object+movement fast replacement',
+    );
+    assertIncludes(combinedEagerFastPathBody, 'return true;', 'eager object+movement fast replacement');
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');
     assertIncludes(objectOnlyBody, 'scratch.dirtyObjectBoard = false;', 'object-only rule');
