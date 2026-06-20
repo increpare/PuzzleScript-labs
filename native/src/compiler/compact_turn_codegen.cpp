@@ -2691,63 +2691,25 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             if (rule.ellipsisCount[rowIndex] == 0) {
                 const CompactRowMaskInfo rowMask = compactRowMaskInfo(game, masks, rule, rowIndex, suffix, phase, groupIndex, ruleIndex);
                 applyBody << "    std::vector<int32_t> matches_" << rowIndex << ";\n"
-                          << "    for (int32_t primary = 0; primary < primaryLimit; ++primary) {\n"
-                          << (rowMask.hasAnyLinePrecondition
-                              ? "        if (!compact_turn_line_has_required_masks_" + std::string(suffix)
-                                  + "(dimensions, levelState, scratch, horizontalScan, primary, "
-                                  + rowMask.objectMaskName + ", " + rowMask.movementMaskName + ", "
-                                  + rowMask.missingObjectMaskName + ", " + rowMask.missingMovementMaskName + ", "
-                                  + rowMask.anyObjectMasksName + ", " + std::to_string(rowMask.anyObjectMaskCount) + ", "
-                                  + rowMask.anyMovementMasksName + ", " + std::to_string(rowMask.anyMovementMaskCount) + ")) continue;\n"
-                              : std::string{})
-                          << "        const int32_t scanStep = horizontalScan ? dimensions.height : 1;\n"
-                          << "        int32_t startIndex = horizontalScan ? primary : primary * dimensions.height;\n"
-                          << "    for (int32_t secondary = 0; secondary < secondaryLimit; ++secondary, startIndex += scanStep) {\n"
-                          << "        bool matched = true;\n";
-                for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
-                    emitCompactFixedTileAtDirection(
-                        applyBody,
-                        "        ",
-                        suffix,
-                        "tile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex),
-                        "startIndex",
-                        rule.direction,
-                        static_cast<int32_t>(patternIndex),
-                        "matched = false;"
-                    );
-                    const std::string tileName = "tile_" + std::to_string(rowIndex) + "_" + std::to_string(patternIndex);
-                    if (compactPatternCanInlineMatch(row[patternIndex])) {
-                        emitCompactInlinePatternMatchTest(
-                            applyBody,
-                            game,
-                            row[patternIndex],
-                            suffix,
-                            "        ",
-                            tileName,
-                            tileName,
-                            "matched"
-                        );
-                    } else {
-                        applyBody << "        if (matched && !"
-                                  << compactPatternMatchesCall(
-                                      game,
-                                      masks,
-                                      row[patternIndex],
-                                      suffix,
-                                      phase,
-                                      groupIndex,
-                                      ruleIndex,
-                                      rowIndex,
-                                      patternIndex,
-                                      tileName
-                                  )
-                                  << ") matched = false;\n";
-                    }
-                }
-                applyBody << "        if (matched) matches_" << rowIndex << ".push_back(startIndex);\n"
-                          << "    }\n"
-                          << "    }\n"
-                          << "    if (matches_" << rowIndex << ".empty()) return " << ruleApplyNoMatchExpr << ";\n";
+                          << "    matches_" << rowIndex << ".reserve(static_cast<size_t>(tileCount));\n";
+                emitCompactFixedStartMatchCollection(
+                    applyBody,
+                    game,
+                    masks,
+                    rule,
+                    row,
+                    rowMask,
+                    suffix,
+                    phase,
+                    groupIndex,
+                    ruleIndex,
+                    rowIndex,
+                    "    ",
+                    "matches_" + std::to_string(rowIndex),
+                    "tile_" + std::to_string(rowIndex) + "_",
+                    ruleApplyNoMatchExpr
+                );
+                applyBody << "    if (matches_" << rowIndex << ".empty()) return " << ruleApplyNoMatchExpr << ";\n";
             } else {
                 applyBody << "    std::vector<std::vector<int32_t>> matches_" << rowIndex << ";\n"
                           << "    if (!" << rowCollectNames[rowIndex] << "(dimensions, levelState, scratch, matches_" << rowIndex << ")) return " << ruleApplyNoMatchExpr << ";\n";
