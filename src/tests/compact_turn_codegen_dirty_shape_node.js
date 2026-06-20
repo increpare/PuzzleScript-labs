@@ -297,6 +297,52 @@ function compileNoopReplacementFixture(compiler) {
     return compileSource(compiler, 'noop_replacement_shape', fixture, 'noop_replacement_shape');
 }
 
+function compileCombinedEagerSplitFixture(compiler) {
+    const fixture = [
+        'title combined eager split shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Goal',
+        'green',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'G = Goal',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Goal',
+        '',
+        '=======',
+        'RULES',
+        'right [ stationary Player ] -> [ > Player ]',
+        '[ > Player no Goal ] -> [ > Player Goal ]',
+        '[ > Player no Goal ] -> [ stationary Player Goal ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'combined_eager_split_shape', fixture, 'combined_eager_split_shape');
+}
+
 function compileVerticalUniqueAnchorFixture(compiler) {
     const fixture = [
         'title vertical unique anchor shape',
@@ -502,7 +548,9 @@ function main() {
     const objectFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_0');
     const objectEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_eager_0');
     const movementEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_movements_eager_0');
-    const combinedEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_0');
+    const combinedObjectEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_objects_0');
+    const combinedMovementEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_movements_0');
+    const combinedBothEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_both_0');
     assertIncludes(source, 'inline bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
     assertExcludes(source, 'PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
     assertIncludes(objectFastPathBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
@@ -524,19 +572,78 @@ function main() {
     );
     assertIncludes(movementEagerFastPathBody, 'fastMovements[word] = after;', 'eager movement-only fast replacement');
     assertIncludes(movementEagerFastPathBody, 'return true;', 'eager movement-only fast replacement');
-    assertIncludes(combinedEagerFastPathBody, 'if (fastObjectsChanged)', 'eager object+movement fast replacement');
-    assertIncludes(combinedEagerFastPathBody, 'if (fastMovementsChanged)', 'eager object+movement fast replacement');
+    assertExcludes(combinedObjectEagerFastPathBody, 'fastObjectsChanged', 'object-proven eager object+movement fast replacement');
+    assertIncludes(combinedObjectEagerFastPathBody, 'if (fastMovementsChanged)', 'object-proven eager object+movement fast replacement');
+    assertIncludes(
+        combinedObjectEagerFastPathBody,
+        'compact_turn_note_object_cell_written_0(dimensions, scratch, tileIndex, beforeObjects, fastObjects);',
+        'object-proven eager object+movement fast replacement',
+    );
+    assertIncludes(combinedMovementEagerFastPathBody, 'if (fastObjectsChanged)', 'movement-proven eager object+movement fast replacement');
+    assertExcludes(combinedMovementEagerFastPathBody, 'fastMovementsChanged', 'movement-proven eager object+movement fast replacement');
+    assertIncludes(
+        combinedMovementEagerFastPathBody,
+        'compact_turn_note_movement_cell_written_0(dimensions, scratch, tileIndex, beforeMovements, fastMovements);',
+        'movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(combinedBothEagerFastPathBody, 'fastObjectsChanged', 'object+movement-proven eager object+movement fast replacement');
+    assertExcludes(combinedBothEagerFastPathBody, 'fastMovementsChanged', 'object+movement-proven eager object+movement fast replacement');
+    assertExcludes(combinedBothEagerFastPathBody, 'before != after', 'object+movement-proven eager object+movement fast replacement');
     assertExcludes(
-        combinedEagerFastPathBody,
+        combinedObjectEagerFastPathBody,
         'if (fastObjectsChanged || fastMovementsChanged)',
-        'eager object+movement fast replacement',
+        'object-proven eager object+movement fast replacement',
     );
     assertExcludes(
-        combinedEagerFastPathBody,
-        'compact_turn_count_simple_replacement_fast_path_noop_0();',
-        'eager object+movement fast replacement',
+        combinedMovementEagerFastPathBody,
+        'if (fastObjectsChanged || fastMovementsChanged)',
+        'movement-proven eager object+movement fast replacement',
     );
-    assertIncludes(combinedEagerFastPathBody, 'return true;', 'eager object+movement fast replacement');
+    assertExcludes(
+        combinedBothEagerFastPathBody,
+        'if (fastObjectsChanged || fastMovementsChanged)',
+        'object+movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedObjectEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'object-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedMovementEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedBothEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'object+movement-proven eager object+movement fast replacement',
+    );
+    assertIncludes(combinedObjectEagerFastPathBody, 'return true;', 'object-proven eager object+movement fast replacement');
+    assertIncludes(combinedMovementEagerFastPathBody, 'return true;', 'movement-proven eager object+movement fast replacement');
+    assertIncludes(combinedBothEagerFastPathBody, 'return true;', 'object+movement-proven eager object+movement fast replacement');
+
+    const combinedSplitSource = compileCombinedEagerSplitFixture(options.compiler);
+    assertIncludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_movements_0(',
+        'movement-proven object+movement eager replacement call',
+    );
+    assertIncludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_objects_0(',
+        'object-proven object+movement eager replacement call',
+    );
+    assertIncludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_both_0(',
+        'object+movement-proven eager replacement call',
+    );
+    assertExcludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_0(',
+        'split object+movement eager replacement calls',
+    );
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');
     assertIncludes(objectOnlyBody, 'scratch.dirtyObjectBoard = false;', 'object-only rule');

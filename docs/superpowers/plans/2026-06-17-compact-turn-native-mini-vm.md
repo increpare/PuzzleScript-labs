@@ -1650,6 +1650,61 @@ gem soketeer.txt#21 step_ms ~= 573.1 -> 574.7
 
 Follow-up: if the setup-heavy regressions persist, split the combined eager helper into object-proven, movement-proven, and both-proven helpers so the unproven side can avoid unnecessary work while preserving the impossible-no-op proof.
 
+## Task 20: Second Instrumented Optimization Pass - Split Combined Eager Helpers By Proven Side
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Add per-side eager proof selection**
+
+Added `CompactReplacementGuaranteedChangeSides` so the generator can distinguish replacements proven to change objects, movements, or both on a matched cell. Object-only and movement-only calls still use the existing `_eager` helpers; object+movement calls now select one of:
+
+```text
+compact_turn_simple_replacement_fast_path_objects_movements_eager_objects_*
+compact_turn_simple_replacement_fast_path_objects_movements_eager_movements_*
+compact_turn_simple_replacement_fast_path_objects_movements_eager_both_*
+```
+
+- [x] **Step 2: Generate specialized combined eager helper bodies**
+
+The object-proven helper writes and notes objects branchlessly, while preserving the movement-side change check. The movement-proven helper does the inverse. The both-proven helper removes both `fast*Changed` flags and `before != after` checks.
+
+- [x] **Step 3: Add generated-shape coverage**
+
+`compact_turn_codegen_dirty_shape_node.js` now checks the three helper body shapes and adds a small fixture that proves the call selector emits movement-proven, object-proven, and both-proven combined eager calls.
+
+- [x] **Step 4: Validate with perf gate and repeat samples**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-split-combo-rerun.json
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-split-combo-rerun2.json
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape_node passed
+compact_turn_codegen_perf_suite_node passed
+```
+
+Repeat samples versus the Task 19 repeat sample were mostly small wins, with Voitex within noise:
+
+```text
+manic_ammo.txt#26 step_ms ~= 137.5 -> 135.3
+Voitex Rasteriser 2.txt#1 step_ms ~= 547.6 -> 546.0
+heroes_of_sokoban_3.txt#23 step_ms ~= 213.3 -> 211.7
+heroes_of_sokoban_3.txt#16 step_ms ~= 538.5 -> 534.1
+big dog and little dog.txt#11 step_ms ~= 795.6 -> 788.2
+Double-Entry Bookkeeping Simulator.txt#17 step_ms ~= 872.2 -> 869.1
+easyenigma.txt#11 step_ms ~= 344.4 -> 344.2
+gem soketeer.txt#21 step_ms ~= 574.7 -> 570.8
+```
+
 ---
 
 ## Implementation Notes

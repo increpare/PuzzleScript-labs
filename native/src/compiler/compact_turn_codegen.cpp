@@ -216,19 +216,31 @@ size_t compactMaskBitCount(const std::vector<MaskWord>& words) {
     return count;
 }
 
-bool compactReplacementGuaranteedChangesMatchedCell(
+struct CompactReplacementGuaranteedChangeSides {
+    bool objects = false;
+    bool movements = false;
+};
+
+CompactReplacementGuaranteedChangeSides compactReplacementGuaranteedChangeSidesOnMatchedCell(
     const Game& game,
     const Pattern& pattern,
     const Replacement& replacement
 ) {
+    CompactReplacementGuaranteedChangeSides result;
     const std::vector<MaskWord> objectClearWords = compiledMaskWords(game, replacement.objectsClear, game.wordCount);
     const std::vector<MaskWord> objectSetWords = compiledMaskWords(game, replacement.objectsSet, game.wordCount);
     const std::vector<MaskWord> objectPresentWords = compiledMaskWords(game, pattern.objectsPresent, game.wordCount);
     const std::vector<MaskWord> objectMissingWords = compiledMaskWords(game, pattern.objectsMissing, game.wordCount);
     for (size_t word = 0; word < objectClearWords.size(); ++word) {
         const MaskWord objectClearOnly = objectClearWords[word] & ~objectSetWords[word];
-        if ((objectClearOnly & objectPresentWords[word]) != 0) return true;
-        if ((objectSetWords[word] & objectMissingWords[word]) != 0) return true;
+        if ((objectClearOnly & objectPresentWords[word]) != 0) {
+            result.objects = true;
+            break;
+        }
+        if ((objectSetWords[word] & objectMissingWords[word]) != 0) {
+            result.objects = true;
+            break;
+        }
     }
 
     const std::vector<MaskWord> movementClearWords = compiledMaskWords(game, replacement.movementsClear, game.movementWordCount);
@@ -239,10 +251,26 @@ bool compactReplacementGuaranteedChangesMatchedCell(
     for (size_t word = 0; word < movementClearWords.size(); ++word) {
         const MaskWord movementClear = movementClearWords[word] | movementLayerWords[word];
         const MaskWord movementClearOnly = movementClear & ~movementSetWords[word];
-        if ((movementClearOnly & movementPresentWords[word]) != 0) return true;
-        if ((movementSetWords[word] & movementMissingWords[word]) != 0) return true;
+        if ((movementClearOnly & movementPresentWords[word]) != 0) {
+            result.movements = true;
+            break;
+        }
+        if ((movementSetWords[word] & movementMissingWords[word]) != 0) {
+            result.movements = true;
+            break;
+        }
     }
-    return false;
+    return result;
+}
+
+bool compactReplacementGuaranteedChangesMatchedCell(
+    const Game& game,
+    const Pattern& pattern,
+    const Replacement& replacement
+) {
+    const CompactReplacementGuaranteedChangeSides sides =
+        compactReplacementGuaranteedChangeSidesOnMatchedCell(game, pattern, replacement);
+    return sides.objects || sides.movements;
 }
 
 std::vector<MaskWord> compactObjectMissingWordsIncludingLayerExclusivity(
@@ -1835,12 +1863,20 @@ std::string compactPatternSimpleReplacementFastPathCall(
     const bool writesMovements = anyMaskWordSet(movementClearWords)
         || anyMaskWordSet(movementSetWords)
         || anyMaskWordSet(movementLayerWords);
-    const bool guaranteedChange =
-        compactReplacementGuaranteedChangesMatchedCell(game, pattern, replacement);
-    const char* helperVariant = guaranteedChange ? "_eager" : "";
+    const CompactReplacementGuaranteedChangeSides guaranteedChange =
+        compactReplacementGuaranteedChangeSidesOnMatchedCell(game, pattern, replacement);
+    const char* helperVariant = (guaranteedChange.objects || guaranteedChange.movements) ? "_eager" : "";
     std::ostringstream call;
     if (writesObjects && writesMovements) {
-        call << "compact_turn_simple_replacement_fast_path_objects_movements" << helperVariant << "_" << suffix
+        const char* combinedHelperVariant = "";
+        if (guaranteedChange.objects && guaranteedChange.movements) {
+            combinedHelperVariant = "_eager_both";
+        } else if (guaranteedChange.objects) {
+            combinedHelperVariant = "_eager_objects";
+        } else if (guaranteedChange.movements) {
+            combinedHelperVariant = "_eager_movements";
+        }
+        call << "compact_turn_simple_replacement_fast_path_objects_movements" << combinedHelperVariant << "_" << suffix
              << "(dimensions, levelState, scratch, " << tileIndexExpr
              << ", " << masks.name(objectClearWords)
              << ", " << masks.name(objectSetWords)
@@ -4930,50 +4966,86 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    return true;\n"
         << "}\n\n";
 
-    out << "inline bool compact_turn_simple_replacement_fast_path_objects_movements_eager_" << suffix << "(\n"
-        << "    LevelDimensions dimensions,\n"
-        << "    PersistentLevelState& levelState,\n"
-        << "    Scratch& scratch,\n"
-        << "    int32_t tileIndex,\n"
-        << "    const MaskWord* objectClearMask,\n"
-        << "    const MaskWord* objectSetMask,\n"
-        << "    const MaskWord* movementClearMask,\n"
-        << "    const MaskWord* movementSetMask,\n"
-        << "    const MaskWord* movementLayerMask\n"
-        << ") {\n"
-        << "    compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
-        << "    compact_turn_count_replacements_attempted_" << suffix << "();\n"
-        << "    bool fastObjectsChanged = false;\n"
-        << "    MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
-        << "    MaskWord beforeObjects[compact_turn_object_stride_" << suffix << "] = {};\n"
-        << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
-        << "        const MaskWord before = fastObjects[word];\n"
-        << "        beforeObjects[word] = before;\n"
-        << "        const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
-        << "        if (before != after) {\n"
-        << "            fastObjects[word] = after;\n"
-        << "            fastObjectsChanged = true;\n"
-        << "        }\n"
-        << "    }\n"
-        << "    bool fastMovementsChanged = false;\n"
-        << "    MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
-        << "    MaskWord beforeMovements[compact_turn_movement_stride_" << suffix << "] = {};\n"
-        << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
-        << "        const MaskWord before = fastMovements[word];\n"
-        << "        beforeMovements[word] = before;\n"
-        << "        const MaskWord clear = movementClearMask[word] | movementLayerMask[word];\n"
-        << "        const MaskWord after = (before & ~clear) | movementSetMask[word];\n"
-        << "        if (before != after) {\n"
-        << "            fastMovements[word] = after;\n"
-        << "            fastMovementsChanged = true;\n"
-        << "        }\n"
-        << "    }\n"
-        << "    if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
-        << "    if (fastMovementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeMovements, fastMovements);\n"
-        << "    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
-        << "    compact_turn_count_replacements_applied_" << suffix << "();\n"
-        << "    return true;\n"
-        << "}\n\n";
+    auto emitObjectsMovementsEagerHelper = [&](std::string_view variant, bool objectsGuaranteed, bool movementsGuaranteed) {
+        out << "inline bool compact_turn_simple_replacement_fast_path_objects_movements_eager" << variant << "_" << suffix << "(\n"
+            << "    LevelDimensions dimensions,\n"
+            << "    PersistentLevelState& levelState,\n"
+            << "    Scratch& scratch,\n"
+            << "    int32_t tileIndex,\n"
+            << "    const MaskWord* objectClearMask,\n"
+            << "    const MaskWord* objectSetMask,\n"
+            << "    const MaskWord* movementClearMask,\n"
+            << "    const MaskWord* movementSetMask,\n"
+            << "    const MaskWord* movementLayerMask\n"
+            << ") {\n"
+            << "    compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
+            << "    compact_turn_count_replacements_attempted_" << suffix << "();\n";
+        if (objectsGuaranteed) {
+            out << "    MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
+                << "    MaskWord beforeObjects[compact_turn_object_stride_" << suffix << "] = {};\n"
+                << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+                << "        const MaskWord before = fastObjects[word];\n"
+                << "        beforeObjects[word] = before;\n"
+                << "        const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
+                << "        fastObjects[word] = after;\n"
+                << "    }\n";
+        } else {
+            out << "    bool fastObjectsChanged = false;\n"
+                << "    MaskWord* fastObjects = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
+                << "    MaskWord beforeObjects[compact_turn_object_stride_" << suffix << "] = {};\n"
+                << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+                << "        const MaskWord before = fastObjects[word];\n"
+                << "        beforeObjects[word] = before;\n"
+                << "        const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
+                << "        if (before != after) {\n"
+                << "            fastObjects[word] = after;\n"
+                << "            fastObjectsChanged = true;\n"
+                << "        }\n"
+                << "    }\n";
+        }
+        if (movementsGuaranteed) {
+            out << "    MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+                << "    MaskWord beforeMovements[compact_turn_movement_stride_" << suffix << "] = {};\n"
+                << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+                << "        const MaskWord before = fastMovements[word];\n"
+                << "        beforeMovements[word] = before;\n"
+                << "        const MaskWord clear = movementClearMask[word] | movementLayerMask[word];\n"
+                << "        const MaskWord after = (before & ~clear) | movementSetMask[word];\n"
+                << "        fastMovements[word] = after;\n"
+                << "    }\n";
+        } else {
+            out << "    bool fastMovementsChanged = false;\n"
+                << "    MaskWord* fastMovements = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+                << "    MaskWord beforeMovements[compact_turn_movement_stride_" << suffix << "] = {};\n"
+                << "    for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+                << "        const MaskWord before = fastMovements[word];\n"
+                << "        beforeMovements[word] = before;\n"
+                << "        const MaskWord clear = movementClearMask[word] | movementLayerMask[word];\n"
+                << "        const MaskWord after = (before & ~clear) | movementSetMask[word];\n"
+                << "        if (before != after) {\n"
+                << "            fastMovements[word] = after;\n"
+                << "            fastMovementsChanged = true;\n"
+                << "        }\n"
+                << "    }\n";
+        }
+        if (objectsGuaranteed) {
+            out << "    compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n";
+        } else {
+            out << "    if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n";
+        }
+        if (movementsGuaranteed) {
+            out << "    compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeMovements, fastMovements);\n";
+        } else {
+            out << "    if (fastMovementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeMovements, fastMovements);\n";
+        }
+        out << "    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
+            << "    compact_turn_count_replacements_applied_" << suffix << "();\n"
+            << "    return true;\n"
+            << "}\n\n";
+    };
+    emitObjectsMovementsEagerHelper("_objects", true, false);
+    emitObjectsMovementsEagerHelper("_movements", false, true);
+    emitObjectsMovementsEagerHelper("_both", true, true);
 
     out << "inline bool compact_turn_simple_replacement_fast_path_objects_" << suffix << "(\n"
         << "    LevelDimensions dimensions,\n"
