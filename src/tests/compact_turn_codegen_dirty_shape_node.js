@@ -44,6 +44,8 @@ function functionBody(source, name) {
         `bool ${name}(`,
         `void ${name}(`,
         `int32_t ${name}(`,
+        `SpecializedCompactTurnOutcome ${name}(`,
+        `CompactTurnMovementOutcome_0 ${name}(`,
         `MaskWord* ${name}(`,
         `const MaskWord* ${name}(`,
     ];
@@ -442,6 +444,7 @@ function main() {
     assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
     assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
     const noteMovementBody = functionBody(source, 'compact_turn_note_movement_cell_written_0');
+    assertIncludes(noteMovementBody, 'scratch.liveMovementsClean = false;', 'movement write marks live movement storage dirty');
     assertInOrder(
         noteMovementBody,
         [
@@ -458,6 +461,10 @@ function main() {
     assertIncludes(noteMovementBody, 'scratch.rowMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
+    const executeProgramBody = functionBody(source, 'compact_turn_execute_program_0');
+    assertIncludes(executeProgramBody, 'if (!scratch.liveMovementsClean) {', 'turn start skips redundant movement clear');
+    const resolveMovementsBody = functionBody(source, 'compact_turn_resolve_movements_0');
+    assertIncludes(resolveMovementsBody, 'scratch.liveMovementsClean = true;', 'movement resolution marks live movement storage clean');
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
     assertIncludes(
         ruleDerivedBody,
@@ -523,10 +530,10 @@ function main() {
         'compact_turn_line_has_required_masks_0',
         'object-only anchor scan with covered positive line preconditions',
     );
-    assert.match(
+    assertIncludes(
         objectOnlyApplyBody,
-        /compact_turn_simple_replacement_fast_path_objects(?:_eager)?_0\(/,
-        'object-only fast replacement',
+        'compact_turn_simple_replacement_fast_path_objects_eager_0(',
+        'object-only layer-exclusive fast replacement is guaranteed to change',
     );
     assertExcludes(objectOnlyApplyBody, 'MaskWord* fastObjects', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'fastMovements', 'object-only fast replacement');

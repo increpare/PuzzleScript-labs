@@ -1328,6 +1328,106 @@ Curve: compiled >= interpreter at 1000ms for portfolio and HDA, raw and canonica
 Known risks: full timeout curve is long-running; remaining perf variance appears in non-failing compact timeout warnings, now 29 in solver parity
 ```
 
+## Task 15: Second Instrumented Optimization Pass - Skip Clean Movement Clears
+
+**Files:**
+- `native/src/runtime/core.hpp`
+- `native/src/runtime/core.cpp`
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Re-run compiled perf expectations for a fresh baseline**
+
+Run:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+Expected: current branch passes the expectation guard and gives enough per-case timing detail to judge small generic codegen/runtime changes.
+
+Observed baseline highlights:
+
+```text
+manic_ammo.txt#26 compiled us/generated=2.89 step_ms=142.319 setup_ms=16.944
+Voitex Rasteriser 2.txt#1 compiled us/generated=2.05 step_ms=566.550 setup_ms=103.466
+heroes_of_sokoban_3.txt#23 compiled us/generated=1.23 step_ms=216.894
+heroes_of_sokoban_3.txt#16 compiled us/generated=1.52 step_ms=557.421
+Double-Entry Bookkeeping Simulator.txt#17 compiled us/generated=6.57 step_ms=886.924
+gem soketeer.txt#21 compiled us/generated=10.63 step_ms=590.715
+```
+
+- [x] **Step 2: Add a generated-shape guard for clean movement clears**
+
+Extend `compact_turn_codegen_dirty_shape_node.js` so the emitted compact-turn code must:
+
+```text
+mark live movement storage dirty when generated code writes a movement cell
+skip the turn-start movement clear when storage is already known clean
+mark storage clean after generated movement resolution clears it
+```
+
+Expected: the shape test fails until the runtime/codegen clean flag is wired through generated movement writes and clears.
+
+- [x] **Step 3: Track clean `Scratch::liveMovements` storage**
+
+Add `Scratch::liveMovementsClean` and keep it coherent across runtime paths:
+
+```text
+movement writes set it false
+bulk movement clears set it true
+snapshot/probe restore preserves it
+level/restart/prepared resets set it true after zero initialization
+```
+
+Expected: generated compact-turn code can avoid redundant per-turn `liveMovements` and movement-mask clears without changing solver/game semantics.
+
+- [x] **Step 4: Emit the generated-code fast path**
+
+Change generated `compact_turn_execute_program_*` to guard the turn-start movement clear:
+
+```cpp
+if (!scratch.liveMovementsClean) {
+    std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);
+    compact_turn_clear_movement_masks_SUFFIX(scratch);
+    scratch.liveMovementsClean = true;
+}
+```
+
+Preserve the existing unconditional clear behavior for paths that canonicalize, restart, cancel, or otherwise intentionally reset movement state.
+
+- [x] **Step 5: Verify shape, performance, and correctness**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_tick_oracle_smoke compact_turn_codegen_solver_parity compact_turn_native_parity
+git diff --check
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape passed
+compact_turn_codegen_perf_expectations passed
+solver_smoke_assert passed cases=14 compact_turn_oracle_failures=0
+solver_compact_parity passed games=153/153 levels=2513 compact_turn_unhandled=0 compact_turn_oracle_failures=0
+compact_turn_native_parity_node passed native=182/182
+```
+
+Perf expectation highlights after the change:
+
+```text
+manic_ammo.txt#26 compiled us/generated=2.78 step_ms=137.194 setup_ms=16.302
+Voitex Rasteriser 2.txt#1 compiled us/generated=2.01 step_ms=549.089 setup_ms=101.007
+heroes_of_sokoban_3.txt#23 compiled us/generated=1.21 step_ms=214.802
+heroes_of_sokoban_3.txt#16 compiled us/generated=1.49 step_ms=539.264
+Double-Entry Bookkeeping Simulator.txt#17 compiled us/generated=6.54 step_ms=872.786
+gem soketeer.txt#21 compiled us/generated=10.36 step_ms=575.909
+```
+
 ---
 
 ## Implementation Notes

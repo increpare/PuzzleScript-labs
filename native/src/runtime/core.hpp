@@ -522,6 +522,7 @@ using Game = GameInformation;
 
 struct Scratch {
     MaskVector liveMovements;
+    bool liveMovementsClean = false;
     MaskVector rowMasks;
     MaskVector columnMasks;
     MaskVector rowAllMasks;

@@ -2462,6 +2462,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
         session.scratch.rowMovementMasks[rowBase + static_cast<size_t>(word)] |= value;
         session.scratch.boardMovementMask[static_cast<size_t>(word)] |= value;
     }
+    if (changedAny) {
+        session.scratch.liveMovementsClean = false;
+    }
     if (clearedAny != 0 || changedAny) {
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyMovementRows.size())
             session.scratch.dirtyMovementRows[static_cast<size_t>(rowIndex)] = 1;
@@ -2497,6 +2500,7 @@ void clearRigidState(FullState& session) {
 
 void clearMovementState(FullState& session) {
     std::fill(session.scratch.liveMovements.begin(), session.scratch.liveMovements.end(), 0);
+    session.scratch.liveMovementsClean = true;
     std::fill(session.scratch.rowMovementMasks.begin(), session.scratch.rowMovementMasks.end(), 0);
     std::fill(session.scratch.columnMovementMasks.begin(), session.scratch.columnMovementMasks.end(), 0);
     std::fill(session.scratch.boardMovementMask.begin(), session.scratch.boardMovementMask.end(), 0);
@@ -5641,8 +5645,14 @@ void restoreSnapshot(FullState& session, const UndoSnapshot& snapshot, bool rest
     }
     if (snapshot.liveMovements.empty()) {
         session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+        session.scratch.liveMovementsClean = true;
     } else {
         session.scratch.liveMovements = snapshot.liveMovements;
+        session.scratch.liveMovementsClean = std::none_of(
+            session.scratch.liveMovements.begin(),
+            session.scratch.liveMovements.end(),
+            [](MaskWord value) { return value != 0; }
+        );
     }
     if (snapshot.rigidGroupIndexMasks.empty()) {
         session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
@@ -5695,6 +5705,7 @@ void restoreRestartTarget(FullState& session) {
         setPersistentBoardObjectsFromCellMajor(session, session.meta.level.objects);
     }
     session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+    session.scratch.liveMovementsClean = true;
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
     session.meta.pendingAgain = false;
@@ -5794,6 +5805,7 @@ bool advanceToNextLevel(FullState& session) {
         session.meta.winning = false;
         if (session.meta.textMode) {
             session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+            session.scratch.liveMovementsClean = true;
             session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
             session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
             session.meta.pendingAgain = false;
@@ -5821,6 +5833,7 @@ bool advanceToNextLevel(FullState& session) {
     session.meta.messageText.clear();
     session.meta.winning = false;
     session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+    session.scratch.liveMovementsClean = true;
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
     session.meta.pendingAgain = false;
@@ -5837,6 +5850,7 @@ void resetToPrepared(FullState& session) {
     }
     setPersistentBoardObjectsFromCellMajor(session, session.meta.level.objects);
     session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+    session.scratch.liveMovementsClean = true;
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
     session.meta.undoStack.clear();
