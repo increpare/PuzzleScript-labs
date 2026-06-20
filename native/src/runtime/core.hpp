@@ -544,6 +544,12 @@ struct Scratch {
     std::vector<uint32_t> objectCellCounts;
     int32_t objectCellBitTileCount = 0;
     bool objectCellIndexDirty = true;
+    // Per-movement-bit cell presence bitsets for anchored generated scans.
+    // Layout is movement-bit-major: movementCellBits[movementBit * cellWordCount + word].
+    std::vector<MaskWordUnsigned> movementCellBits;
+    std::vector<uint32_t> movementCellCounts;
+    int32_t movementCellBitTileCount = 0;
+    bool movementCellIndexDirty = true;
     // Incremental rebuildMasks tracking: `setCellObjects`/`setCellMovements`
     // OR new bits into the row/column/board masks directly. When bits are
     // *cleared* (old & ~new != 0) we cannot undo the OR without re-scanning

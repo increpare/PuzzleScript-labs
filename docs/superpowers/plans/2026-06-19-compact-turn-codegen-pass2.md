@@ -331,3 +331,46 @@ make compact_turn_codegen_solver_parity
 ```
 
 Expected: native parity passes and solver parity reports `153/153` games with `0` oracle failures.
+
+## Task 7: Sparse Movement-Anchor Cell Index
+
+- [x] **Step 1: Identify the remaining movement-anchor scan hotspot**
+
+Focused profiling after Task 6 still showed movement-anchor-heavy rules paying full-board scans just to choose and iterate candidate cells. The clearest affected cases were `Voitex Rasteriser 2.txt#1` and `big dog and little dog.txt#11`.
+
+- [x] **Step 2: Add generated movement-bit cell indexes**
+
+Added `Scratch::movementCellBits` and `Scratch::movementCellCounts`, plus generated rebuild/prepare/update helpers. The index is movement-bit-major and is rebuilt lazily from `liveMovements` when dirty.
+
+- [x] **Step 3: Route movement-anchor matching through the sparse index**
+
+Updated fixed-row movement-anchor collection to choose anchors from movement-cell counts and iterate only indexed cells for selected movement bits. Generated movement writes update the index when possible and mark it dirty when broad invalidation is cheaper or safer.
+
+- [x] **Step 4: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+make compact_turn_codegen_perf_suite
+```
+
+Latest no-rebuild focused sample versus the post-Task-6 sample:
+
+- `Voitex Rasteriser 2.txt#1`: `3.50us/generated` to `2.07us/generated`, about `1.69x` faster.
+- `big dog and little dog.txt#11`: `53.00us/generated` to `18.91us/generated`, about `2.80x` faster.
+- `gem soketeer.txt#21`: `14.27us/generated` to `12.02us/generated`, about `1.19x` faster.
+- `manic_ammo.txt#26`: `3.81us/generated` to `3.43us/generated`, about `1.11x` faster.
+- `Double-Entry Bookkeeping Simulator.txt#17`: effectively neutral at about `9.02us/generated`.
+- `easyenigma.txt#1`: effectively neutral/slightly better at about `22.46us/generated`.
+
+- [x] **Step 5: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`.
