@@ -1,5 +1,6 @@
 #include "runtime/core.hpp"
 #include "runtime/compiled_rules.hpp"
+#include "runtime/c_api_internal.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -22,23 +23,6 @@ using puzzlescript::LoadedGame;
 using puzzlescript::kMaskWordBits;
 using puzzlescript::MaskWordUnsigned;
 using puzzlescript::RuntimeStepOptions;
-
-struct ps_game {
-    LoadedGame impl;
-};
-
-struct ps_full_state {
-    std::unique_ptr<FullState> impl;
-    puzzlescript::TurnResult lastTurnResult;
-};
-
-struct ps_compile_result {
-    std::unique_ptr<CompileResult> impl;
-};
-
-struct ps_error {
-    std::unique_ptr<Error> impl;
-};
 
 namespace {
 
