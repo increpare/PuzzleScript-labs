@@ -72,6 +72,8 @@ struct NativeSolveResult {
     uint64_t generated = 0;
     int64_t elapsedMs = 0;
     std::vector<ps_input> solution;
+    std::string strategy;
+    std::string heuristic;
     std::string error;
 };
 

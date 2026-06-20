@@ -114,6 +114,7 @@ PC#T
     require(solved.status == psbridge::NativeSolveStatus::Solved, "expected first candidate to solve");
     require(solved.solution.size() == 1 && solved.solution[0] == PS_INPUT_RIGHT, "expected one right move solution");
     require(solved.expanded > 0, "expected solved candidate difficulty work to be recorded");
+    require(solved.strategy == "portfolio", "expected generated candidate solve to use native portfolio strategy");
 
     require(bridge.loadLevel(1), "expected blocked candidate level to load");
     const psbridge::NativeSolveResult blocked = bridge.solveLayerGrid(bridge.currentLayerGrid(), 1000);
