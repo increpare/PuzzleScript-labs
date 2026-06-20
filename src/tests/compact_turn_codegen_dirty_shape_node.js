@@ -309,9 +309,9 @@ function main() {
     assertExcludes(objectOnlyBody, 'scratch.dirtyMovementBoard = false;', 'object-only rule');
     assertExcludes(objectOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object-only rule');
     const objectOnlyApplyBody = functionBody(source, 'ctr_0_e_0_0_apply');
-    assertIncludes(
+    assert.match(
         objectOnlyApplyBody,
-        'compact_turn_simple_replacement_fast_path_objects_0(',
+        /compact_turn_simple_replacement_fast_path_objects(?:_eager)?_0\(/,
         'object-only fast replacement',
     );
     assertExcludes(objectOnlyApplyBody, 'MaskWord* fastObjects', 'object-only fast replacement');
