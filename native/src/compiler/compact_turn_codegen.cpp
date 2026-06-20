@@ -306,6 +306,11 @@ struct CompactReplacementGuaranteedChangeSides {
     bool movements = false;
 };
 
+struct CompactReplacementGuaranteedNoopSides {
+    bool objects = false;
+    bool movements = false;
+};
+
 CompactReplacementGuaranteedChangeSides compactReplacementGuaranteedChangeSidesOnMatchedCell(
     const Game& game,
     const Pattern& pattern,
@@ -1860,13 +1865,14 @@ bool compactReplacementHasDynamicTerms(const Replacement& replacement) {
         || dynamic->rhsPropertyPreserveMask != kNullMaskOffset;
 }
 
-bool compactReplacementGuaranteedNoopOnMatchedCell(
+CompactReplacementGuaranteedNoopSides compactReplacementGuaranteedNoopSidesOnMatchedCell(
     const Game& game,
     const Pattern& pattern,
     const Replacement& replacement
 ) {
+    CompactReplacementGuaranteedNoopSides result;
     if (compactReplacementHasDynamicTerms(replacement)) {
-        return false;
+        return result;
     }
 
     const std::vector<MaskWord> objectClearWords = compiledMaskWords(game, replacement.objectsClear, game.wordCount);
@@ -1877,12 +1883,14 @@ bool compactReplacementGuaranteedNoopOnMatchedCell(
         objectPresentWords,
         compiledMaskWords(game, pattern.objectsMissing, game.wordCount)
     );
+    result.objects = true;
     for (size_t word = 0; word < objectClearWords.size(); ++word) {
         const MaskWord objectSetNeeds = objectSetWords[word] & ~objectPresentWords[word];
         const MaskWord objectClearOnly = objectClearWords[word] & ~objectSetWords[word];
         const MaskWord objectClearNeeds = objectClearOnly & ~objectMissingWords[word];
         if (objectSetNeeds != 0 || objectClearNeeds != 0) {
-            return false;
+            result.objects = false;
+            break;
         }
     }
 
@@ -1891,16 +1899,28 @@ bool compactReplacementGuaranteedNoopOnMatchedCell(
     const std::vector<MaskWord> movementLayerWords = compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount);
     const std::vector<MaskWord> movementPresentWords = compiledMaskWords(game, pattern.movementsPresent, game.movementWordCount);
     const std::vector<MaskWord> movementMissingWords = compiledMaskWords(game, pattern.movementsMissing, game.movementWordCount);
+    result.movements = true;
     for (size_t word = 0; word < movementClearWords.size(); ++word) {
         const MaskWord movementClear = movementClearWords[word] | movementLayerWords[word];
         const MaskWord movementSetNeeds = movementSetWords[word] & ~movementPresentWords[word];
         const MaskWord movementClearOnly = movementClear & ~movementSetWords[word];
         const MaskWord movementClearNeeds = movementClearOnly & ~movementMissingWords[word];
         if (movementSetNeeds != 0 || movementClearNeeds != 0) {
-            return false;
+            result.movements = false;
+            break;
         }
     }
-    return true;
+    return result;
+}
+
+bool compactReplacementGuaranteedNoopOnMatchedCell(
+    const Game& game,
+    const Pattern& pattern,
+    const Replacement& replacement
+) {
+    const CompactReplacementGuaranteedNoopSides sides =
+        compactReplacementGuaranteedNoopSidesOnMatchedCell(game, pattern, replacement);
+    return sides.objects && sides.movements;
 }
 
 bool compactPatternReplacementGuaranteedNoopOnMatch(const Game& game, const Pattern& pattern) {
@@ -1945,10 +1965,14 @@ std::string compactPatternSimpleReplacementFastPathCall(
     const std::vector<MaskWord> movementClearWords = compiledMaskWords(game, replacement.movementsClear, game.movementWordCount);
     const std::vector<MaskWord> movementSetWords = compiledMaskWords(game, replacement.movementsSet, game.movementWordCount);
     const std::vector<MaskWord> movementLayerWords = compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount);
-    const bool writesObjects = anyMaskWordSet(objectClearWords) || anyMaskWordSet(objectSetWords);
-    const bool writesMovements = anyMaskWordSet(movementClearWords)
+    const CompactReplacementGuaranteedNoopSides guaranteedNoop =
+        compactReplacementGuaranteedNoopSidesOnMatchedCell(game, pattern, replacement);
+    const bool writesObjects = !guaranteedNoop.objects
+        && (anyMaskWordSet(objectClearWords) || anyMaskWordSet(objectSetWords));
+    const bool writesMovements = !guaranteedNoop.movements
+        && (anyMaskWordSet(movementClearWords)
         || anyMaskWordSet(movementSetWords)
-        || anyMaskWordSet(movementLayerWords);
+        || anyMaskWordSet(movementLayerWords));
     const CompactReplacementGuaranteedChangeSides guaranteedChange =
         compactReplacementGuaranteedChangeSidesOnMatchedCell(game, pattern, replacement);
     const char* helperVariant = (guaranteedChange.objects || guaranteedChange.movements) ? "_eager" : "";

@@ -602,6 +602,49 @@ function compileWeakInputSpecializationFixture(compiler) {
     return compileSource(compiler, 'weak_input_specialization_shape', fixture, 'weak_input_specialization_shape');
 }
 
+function compileSideNoopReplacementFixture(compiler) {
+    const fixture = [
+        'title side noop replacement shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ > Player ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'side_noop_replacement_shape', fixture, 'side_noop_replacement_shape');
+}
+
 function assertIncludes(body, needle, context) {
     assert.ok(body.includes(needle), `${context}: expected generated body to include ${needle}`);
 }
@@ -861,8 +904,8 @@ function main() {
     const combinedSplitSource = compileCombinedEagerSplitFixture(options.compiler);
     assertIncludes(
         combinedSplitSource,
-        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_movements_0(',
-        'movement-proven object+movement eager replacement call',
+        'changed = compact_turn_simple_replacement_fast_path_movements_eager_0(',
+        'movement-proven object+movement eager replacement collapses to movement-only',
     );
     assertIncludes(
         combinedSplitSource,
@@ -1071,6 +1114,19 @@ function main() {
         weakInputSpecializationChunkBody,
         'scratch.currentInputMask',
         'weak single-rule input specialization skip',
+    );
+
+    const sideNoopReplacementSource = compileSideNoopReplacementFixture(options.compiler);
+    const sideNoopReplacementApplyBody = functionBody(sideNoopReplacementSource, 'ctr_0_e_0_0_apply');
+    assertIncludes(
+        sideNoopReplacementApplyBody,
+        'compact_turn_simple_replacement_fast_path_movements_0(',
+        'object-side no-op replacement uses movement-only helper',
+    );
+    assertExcludes(
+        sideNoopReplacementApplyBody,
+        'compact_turn_simple_replacement_fast_path_objects_movements_0(',
+        'object-side no-op replacement uses movement-only helper',
     );
 
     const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
