@@ -511,3 +511,56 @@ make compact_turn_codegen_solver_parity
 ```
 
 Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions, so this batch is correctness-clean but not a timeout-curve fix.
+
+## Task 11: Flatten Generated Rule-Mask Precheck Branches
+
+- [x] **Step 1: Add red generated-source guard**
+
+Added a dirty-shape assertion that generated non-random rulegroup chunks no longer contain the `bool precheckPassed_*` temporary used to bridge from a failed rule-mask precheck into a second branch. This failed before the emitter change.
+
+- [x] **Step 2: Emit direct precheck `if/else`**
+
+Changed non-random rulegroup chunk codegen from:
+
+```cpp
+bool precheckPassed_N = true;
+if (!rule_precheck(scratch)) { ... precheckPassed_N = false; }
+if (precheckPassed_N) { ... }
+```
+
+to a direct:
+
+```cpp
+if (!rule_precheck(scratch)) { ... } else { ... }
+```
+
+This removes one generated temporary and one generated branch from each hot rule-mask precheck site.
+
+- [x] **Step 3: Verify focused perf**
+
+Ran:
+
+```bash
+make compact_turn_codegen_perf_expectations
+make compact_turn_codegen_perf_expectations
+```
+
+The second no-rebuild sample was mixed but acceptable:
+
+- `manic_ammo.txt#26`: `3.37us/generated`.
+- `Double-Entry Bookkeeping Simulator.txt#17`: `7.24us/generated`.
+- `easyenigma.txt#11`: `22.19us/generated`.
+- `big dog and little dog.txt#11`: `18.76us/generated`.
+- `gem soketeer.txt#21`: `10.76us/generated`.
+
+- [x] **Step 4: Verify correctness**
+
+Ran:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_native_parity
+make compact_turn_codegen_solver_parity
+```
+
+Full solver parity passed with `games=153/153`, `levels=2513`, `compact_turn_unhandled=0`, and `compact_turn_oracle_failures=0`. It reported `19` timeout regressions.

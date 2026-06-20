@@ -3303,15 +3303,12 @@ void emitCompactRulegroupFunctions(
                 std::string ruleIndent = "    ";
                 out << "    compact_turn_count_rules_visited_" << suffix << "();\n";
                 if (names.hasMaskPrecheck) {
-                    out << "    bool precheckPassed_" << ruleIndex << " = true;\n"
-                        << "    if (!" << names.precheckName << "(scratch)) {\n"
+                    out << "    if (!" << names.precheckName << "(scratch)) {\n"
                         << "        compact_turn_count_rule_mask_precheck_failure_" << suffix << "();\n"
                         << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "();\n"
                         << "        ++consecutiveFailures;\n"
                         << "        if (consecutiveFailures == " << group.size() << ") return true;\n"
-                        << "        precheckPassed_" << ruleIndex << " = false;\n"
-                        << "    }\n"
-                        << "    if (precheckPassed_" << ruleIndex << ") {\n"
+                        << "    } else {\n"
                         << "        compact_turn_count_rule_mask_precheck_pass_" << suffix << "();\n";
                     ruleIndent = "        ";
                 }

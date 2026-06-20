@@ -230,6 +230,7 @@ function main() {
         /(?:static\s+)?constexpr bool \w+_writes_movements\s*=\s*false;/,
         'expected generated no-movement-write summary constant',
     );
+    assertExcludes(source, 'bool precheckPassed_', 'generated rule mask precheck branch');
     const objectDerivedBody = functionBody(source, 'compact_turn_rebuild_object_derived_state_0');
     assertExcludes(objectDerivedBody, 'objectCellBits.assign', 'object derived-state rebuild');
     assertExcludes(objectDerivedBody, 'objectCellCounts.assign', 'object derived-state rebuild');
