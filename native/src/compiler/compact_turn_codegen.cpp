@@ -2243,7 +2243,6 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                   << "    matches.clear();\n"
                   << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
                   << "    if (tileCount <= 0) return " << ruleApplyNoMatchExpr << ";\n"
-                  << "    matches.reserve(static_cast<size_t>(tileCount));\n"
                   << "    constexpr bool horizontalScan = " << (rule.direction > 2 ? "true" : "false") << ";\n"
                   << "    const int32_t primaryLimit = horizontalScan ? dimensions.height : dimensions.width;\n"
                   << "    const int32_t secondaryLimit = horizontalScan ? dimensions.width : dimensions.height;\n";
@@ -4738,6 +4737,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     out << "bool compact_turn_prepare_state_" << suffix << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch) {\n"
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    if (tileCount <= 0) return false;\n"
+        << "    scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));\n"
         << "    const size_t objectWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "    if (levelState.board.objects.size() != objectWords) return false;\n"
         << "    const size_t movementWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_movement_stride_" << suffix << ");\n"

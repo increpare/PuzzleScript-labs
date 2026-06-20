@@ -1480,6 +1480,51 @@ gem soketeer.txt#21 avg step_ms 556.4 -> 554.3
 manic_ammo.txt#26 was noise/neutral after warmup
 ```
 
+## Task 17: Second Instrumented Optimization Pass - Reserve Single-Row Match Scratch Once
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Identify repeated match scratch setup in generated rule apply**
+
+Observed: every generated inline single-row rule apply cleared `scratch.singleRowMatchScratch`, recomputed `tileCount`, and repeated `matches.reserve(tileCount)`. The vector is shared scratch storage for a whole compact turn, so repeated reserves only recheck capacity after the first successful setup.
+
+- [x] **Step 2: Move the reserve into compact-turn state preparation**
+
+Change generated `compact_turn_prepare_state_*()` to reserve `scratch.singleRowMatchScratch` once after validating `tileCount`, and remove the per-rule reserve from inline single-row apply bodies.
+
+Shape coverage now asserts both sides:
+
+```text
+compact_turn_prepare_state_0 contains scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));
+ctr_0_e_0_0_apply omits matches.reserve(static_cast<size_t>(tileCount));
+```
+
+- [x] **Step 3: Validate with perf gate and repeat samples**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+Observed: both passed.
+
+Repeat sample after the change, three profiled runs on the existing compiled solver, showed small but broad improvement:
+
+```text
+manic_ammo.txt#26 avg step_ms ~= 136.0
+Voitex Rasteriser 2.txt#1 avg step_ms ~= 559.4
+heroes_of_sokoban_3.txt#23 avg step_ms ~= 211.7
+heroes_of_sokoban_3.txt#16 avg step_ms ~= 553.7
+big dog and little dog.txt#11 avg step_ms ~= 795.9
+Double-Entry Bookkeeping Simulator.txt#17 avg step_ms ~= 884.9
+easyenigma.txt#11 avg step_ms ~= 338.3
+gem soketeer.txt#21 avg step_ms ~= 573.1
+```
+
 ---
 
 ## Implementation Notes

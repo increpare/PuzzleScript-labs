@@ -463,6 +463,12 @@ function main() {
     assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
     const executeProgramBody = functionBody(source, 'compact_turn_execute_program_0');
     assertIncludes(executeProgramBody, 'if (!scratch.liveMovementsClean) {', 'turn start skips redundant movement clear');
+    const prepareStateBody = functionBody(source, 'compact_turn_prepare_state_0');
+    assertIncludes(
+        prepareStateBody,
+        'scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));',
+        'single-row match scratch reserve happens once in compact setup',
+    );
     const resolveMovementsBody = functionBody(source, 'compact_turn_resolve_movements_0');
     assertIncludes(resolveMovementsBody, 'scratch.liveMovementsClean = true;', 'movement resolution marks live movement storage clean');
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
@@ -509,6 +515,11 @@ function main() {
     assertExcludes(objectOnlyBody, 'scratch.dirtyMovementBoard = false;', 'object-only rule');
     assertExcludes(objectOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object-only rule');
     const objectOnlyApplyBody = functionBody(source, 'ctr_0_e_0_0_apply');
+    assertExcludes(
+        objectOnlyApplyBody,
+        'matches.reserve(static_cast<size_t>(tileCount));',
+        'single-row rule apply does not repeat match scratch reserve',
+    );
     const objectOnlyFallbackScanIndex = objectOnlyApplyBody.indexOf('if (!usedAnchorScan)');
     assert.notStrictEqual(
         objectOnlyFallbackScanIndex,
