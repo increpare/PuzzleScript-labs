@@ -4,16 +4,21 @@ endif()
 if(NOT DEFINED PUZZLESCRIPT_NATIVE_ARCHIVE)
   message(FATAL_ERROR "PUZZLESCRIPT_NATIVE_ARCHIVE is required")
 endif()
-if(NOT DEFINED NM_EXECUTABLE)
-  message(FATAL_ERROR "NM_EXECUTABLE is required")
-endif()
-
 execute_process(
   COMMAND "${RUNTIME_STANDALONE_EXE}"
   RESULT_VARIABLE run_result
 )
 if(NOT run_result EQUAL 0)
   message(FATAL_ERROR "runtime_standalone_link executable failed with ${run_result}")
+endif()
+
+# The nm archive audit is a belt-and-suspenders guard against LTO discarding a
+# leaked-but-unused compiler symbol before the executable link would report it.
+# The link above is the primary guard, so when nm is unavailable (CMAKE_NM can
+# resolve empty on some toolchains) skip the audit instead of failing spuriously.
+if(NOT NM_EXECUTABLE)
+  message(STATUS "runtime_standalone_link: nm unavailable; skipping archive symbol audit")
+  return()
 endif()
 
 execute_process(
