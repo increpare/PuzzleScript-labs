@@ -311,6 +311,11 @@ struct CompactReplacementGuaranteedNoopSides {
     bool movements = false;
 };
 
+struct CompactRuleEffectiveWriteSummary {
+    bool objects = false;
+    bool movements = false;
+};
+
 CompactReplacementGuaranteedChangeSides compactReplacementGuaranteedChangeSidesOnMatchedCell(
     const Game& game,
     const Pattern& pattern,
@@ -1930,6 +1935,43 @@ bool compactPatternReplacementGuaranteedNoopOnMatch(const Game& game, const Patt
     return compactReplacementGuaranteedNoopOnMatchedCell(game, pattern, *pattern.replacement);
 }
 
+CompactRuleEffectiveWriteSummary compactRuleEffectiveWriteSummary(const Game& game, const Rule& rule) {
+    CompactRuleEffectiveWriteSummary summary;
+    if (!rule.hasWriteObjects && !rule.hasWriteMovements) {
+        return summary;
+    }
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (!pattern.replacement.has_value()) {
+                continue;
+            }
+            const Replacement& replacement = *pattern.replacement;
+            if (compactReplacementHasDynamicTerms(replacement)) {
+                summary.objects = summary.objects || rule.hasWriteObjects;
+                summary.movements = summary.movements || rule.hasWriteMovements;
+            } else {
+                const CompactReplacementGuaranteedNoopSides guaranteedNoop =
+                    compactReplacementGuaranteedNoopSidesOnMatchedCell(game, pattern, replacement);
+                if (!guaranteedNoop.objects) {
+                    summary.objects = summary.objects
+                        || anyMaskWordSet(compiledMaskWords(game, replacement.objectsClear, game.wordCount))
+                        || anyMaskWordSet(compiledMaskWords(game, replacement.objectsSet, game.wordCount));
+                }
+                if (!guaranteedNoop.movements) {
+                    summary.movements = summary.movements
+                        || anyMaskWordSet(compiledMaskWords(game, replacement.movementsClear, game.movementWordCount))
+                        || anyMaskWordSet(compiledMaskWords(game, replacement.movementsSet, game.movementWordCount))
+                        || anyMaskWordSet(compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount));
+                }
+            }
+            if ((summary.objects || !rule.hasWriteObjects) && (summary.movements || !rule.hasWriteMovements)) {
+                return summary;
+            }
+        }
+    }
+    return summary;
+}
+
 bool compactPatternSimpleReplacementFastPathSupported(
     const Rule& rule,
     const Pattern& pattern,
@@ -2547,14 +2589,14 @@ std::string emitCompactRulePrecheckFunction(
 std::pair<std::string, std::string> emitCompactRuleWriteSummaryConstants(
     std::ostream& out,
     std::string_view prefix,
-    const Rule& rule
+    const CompactRuleEffectiveWriteSummary& summary
 ) {
     const std::string writesObjectsName = std::string(prefix) + "_writes_objects";
     const std::string writesMovementsName = std::string(prefix) + "_writes_movements";
     out << "static constexpr bool " << writesObjectsName << " = "
-        << (rule.hasWriteObjects ? "true" : "false") << ";\n"
+        << (summary.objects ? "true" : "false") << ";\n"
         << "static constexpr bool " << writesMovementsName << " = "
-        << (rule.hasWriteMovements ? "true" : "false") << ";\n\n";
+        << (summary.movements ? "true" : "false") << ";\n\n";
     return {writesObjectsName, writesMovementsName};
 }
 
@@ -2616,7 +2658,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
 
     const CompactRowMaskInfo ruleMask = compactRuleMaskInfo(game, masks, rule);
     const std::string precheckName = emitCompactRulePrecheckFunction(out, prefix, suffix, ruleMask);
-    const auto [writesObjectsName, writesMovementsName] = emitCompactRuleWriteSummaryConstants(out, prefix, rule);
+    const CompactRuleEffectiveWriteSummary effectiveWrites = compactRuleEffectiveWriteSummary(game, rule);
+    const auto [writesObjectsName, writesMovementsName] = emitCompactRuleWriteSummaryConstants(out, prefix, effectiveWrites);
     const std::string ruleApplyNoMatchExpr = "compact_turn_count_rule_apply_result_" + std::string(suffix) + "(false)";
     const std::string ruleApplyChangedExpr = "compact_turn_count_rule_apply_result_" + std::string(suffix) + "(changed)";
     const bool useInternalRulePrecheck = precheckMode == CompactRulePrecheckMode::Internal;
@@ -2754,8 +2797,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
-            rule.hasWriteObjects,
-            rule.hasWriteMovements
+            effectiveWrites.objects,
+            effectiveWrites.movements
         );
     }
 
@@ -2933,8 +2976,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
-            rule.hasWriteObjects,
-            rule.hasWriteMovements
+            effectiveWrites.objects,
+            effectiveWrites.movements
         );
     }
 
@@ -3284,8 +3327,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
-            rule.hasWriteObjects,
-            rule.hasWriteMovements
+            effectiveWrites.objects,
+            effectiveWrites.movements
         );
     }
 
@@ -3525,8 +3568,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
-            rule.hasWriteObjects,
-            rule.hasWriteMovements
+            effectiveWrites.objects,
+            effectiveWrites.movements
         );
     }
 
@@ -3654,8 +3697,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         writesObjectsName,
         writesMovementsName,
         ruleMask.hasAnyRequiredMask,
-        rule.hasWriteObjects,
-        rule.hasWriteMovements
+        effectiveWrites.objects,
+        effectiveWrites.movements
     );
 }
 

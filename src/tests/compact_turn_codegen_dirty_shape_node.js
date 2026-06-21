@@ -1138,16 +1138,27 @@ function main() {
         'compact_turn_simple_replacement_fast_path_objects_movements_0(',
         'object-side no-op replacement uses movement-only helper',
     );
-
-    const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
-    assertIncludes(objectAndMovementBody, 'scratch.dirtyObjectBoard = false;', 'object+movement rule');
-    assertIncludes(objectAndMovementBody, 'scratch.dirtyMovementBoard = false;', 'object+movement rule');
-    assertIncludes(objectAndMovementBody, 'const bool changedObjects_0 = scratch.dirtyObjectBoard;', 'object+movement rule');
-    assertIncludes(objectAndMovementBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object+movement rule');
+    const sideNoopReplacementChunkBody = functionBody(sideNoopReplacementSource, 'ctg_0_e_0_apply_chunk_0');
+    assertExcludes(
+        sideNoopReplacementChunkBody,
+        'scratch.dirtyObjectBoard = false;',
+        'object-side no-op replacement is not dispatched as object-writing',
+    );
     assertIncludes(
-        objectAndMovementBody,
-        'compact_turn_rebuild_rule_derived_state_0(dimensions, levelState, scratch, changedObjects_0, changedMovements_0);',
-        'object+movement rule',
+        sideNoopReplacementChunkBody,
+        'scratch.dirtyMovementBoard = false;',
+        'object-side no-op replacement remains movement-writing',
+    );
+
+    const movementOnlyBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
+    assertExcludes(movementOnlyBody, 'scratch.dirtyObjectBoard = false;', 'movement-only effective write rule');
+    assertIncludes(movementOnlyBody, 'scratch.dirtyMovementBoard = false;', 'movement-only effective write rule');
+    assertExcludes(movementOnlyBody, 'const bool changedObjects_0 = scratch.dirtyObjectBoard;', 'movement-only effective write rule');
+    assertIncludes(movementOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'movement-only effective write rule');
+    assertIncludes(
+        movementOnlyBody,
+        'compact_turn_rebuild_rule_derived_state_0(dimensions, levelState, scratch, false, changedMovements_0);',
+        'movement-only effective write rule',
     );
 
     const noWriteBody = functionBody(source, 'ctg_0_e_2_apply_chunk_0');
