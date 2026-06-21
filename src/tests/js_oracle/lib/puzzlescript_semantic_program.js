@@ -1,5 +1,37 @@
 'use strict';
 
+function resolveLegendObjectIds(state, nameToId, name, visiting) {
+    if (name in nameToId) {
+        return [nameToId[name]];
+    }
+    if (visiting.has(name)) {
+        return [];
+    }
+    visiting.add(name);
+    let ids = [];
+    if (state.synonymsDict && name in state.synonymsDict) {
+        ids = ids.concat(resolveLegendObjectIds(state, nameToId, state.synonymsDict[name], visiting));
+    } else if (state.aggregatesDict && name in state.aggregatesDict) {
+        for (const member of state.aggregatesDict[name]) {
+            ids = ids.concat(resolveLegendObjectIds(state, nameToId, member, visiting));
+        }
+    } else if (state.propertiesDict && name in state.propertiesDict) {
+        for (const member of state.propertiesDict[name]) {
+            ids = ids.concat(resolveLegendObjectIds(state, nameToId, member, visiting));
+        }
+    }
+    visiting.delete(name);
+    return Array.from(new Set(ids)).sort((a, b) => a - b);
+}
+
+function legendList(state, nameToId, dict) {
+    return Object.keys(dict || {})
+        .map(function (name) {
+            return { name: name, object_ids: resolveLegendObjectIds(state, nameToId, name, new Set()) };
+        })
+        .sort(function (a, b) { return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
+}
+
 function buildSemanticProgramSnapshot(state) {
     const nameToId = {};
     for (let id = 0; id < state.idDict.length; id++) {
@@ -19,9 +51,15 @@ function buildSemanticProgramSnapshot(state) {
         });
     });
 
+    const legends = {
+        synonyms: legendList(state, nameToId, state.synonymsDict),
+        aggregates: legendList(state, nameToId, state.aggregatesDict),
+        properties: legendList(state, nameToId, state.propertiesDict),
+    };
+
     return {
         schema_version: 1,
-        semantic_program: { objects, collision_layers },
+        semantic_program: { objects, collision_layers, legends },
     };
 }
 

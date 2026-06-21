@@ -31,6 +31,67 @@ void appendJsonString(std::string& out, std::string_view value) {
     out += '"';
 }
 
+std::vector<int32_t> decodeMaskObjectIds(const puzzlescript::Game& game, puzzlescript::MaskOffset offset) {
+    std::vector<int32_t> ids;
+    if (offset == puzzlescript::kNullMaskOffset) {
+        return ids;
+    }
+    const size_t base = static_cast<size_t>(offset);
+    const size_t wordCount = static_cast<size_t>(game.wordCount);
+    if (base > game.maskArena.size() || wordCount > game.maskArena.size() - base) {
+        return ids;
+    }
+    const puzzlescript::MaskWord* mask = game.maskArena.data() + base;
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word >= game.wordCount) {
+            continue;
+        }
+        if ((mask[word] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) != 0) {
+            ids.push_back(objectId);  // ascending by construction
+        }
+    }
+    return ids;
+}
+
+std::vector<SemanticLegend> buildLegends(
+    const puzzlescript::Game& game,
+    const std::vector<puzzlescript::Game::NamedMaskEntry>& table
+) {
+    std::vector<SemanticLegend> legends;
+    legends.reserve(table.size());
+    for (const auto& entry : table) {
+        legends.push_back(SemanticLegend{entry.name, decodeMaskObjectIds(game, entry.offset)});
+    }
+    std::sort(
+        legends.begin(),
+        legends.end(),
+        [](const SemanticLegend& lhs, const SemanticLegend& rhs) {
+            return lhs.name < rhs.name;
+        });
+    return legends;
+}
+
+void appendLegendArray(std::string& out, const std::vector<SemanticLegend>& legends) {
+    out += '[';
+    for (size_t i = 0; i < legends.size(); ++i) {
+        if (i != 0) {
+            out += ',';
+        }
+        out += "{\"name\":";
+        appendJsonString(out, legends[i].name);
+        out += ",\"object_ids\":[";
+        for (size_t j = 0; j < legends[i].objectIds.size(); ++j) {
+            if (j != 0) {
+                out += ',';
+            }
+            out += std::to_string(legends[i].objectIds[j]);
+        }
+        out += "]}";
+    }
+    out += ']';
+}
+
 } // namespace
 
 SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
@@ -70,6 +131,10 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
         program.collisionLayers.push_back(std::move(ids));
     }
 
+    program.synonyms = buildLegends(game, game.synonymMaskTable);
+    program.aggregates = buildLegends(game, game.aggregateMaskTable);
+    program.properties = buildLegends(game, game.propertyMaskTable);
+
     return program;
 }
 
@@ -106,7 +171,13 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
         }
         out += ']';
     }
-    out += "]}}";
+    out += "],\"legends\":{\"synonyms\":";
+    appendLegendArray(out, program.synonyms);
+    out += ",\"aggregates\":";
+    appendLegendArray(out, program.aggregates);
+    out += ",\"properties\":";
+    appendLegendArray(out, program.properties);
+    out += "}}}";
     return out;
 }
 
