@@ -7,9 +7,9 @@
 #include <string_view>
 #include <vector>
 
-#include "compiler/static_analysis.hpp"
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
+#include "solver/static_analysis.hpp"
 
 namespace puzzlescript::solver {
 
@@ -176,11 +176,11 @@ public:
     HeuristicKind kind() const { return kind_; }
     bool staticAnalysisHintsUsed() const { return staticAnalysisHintsUsed_; }
     std::vector<std::string> staticObjectNames() const {
-        return puzzlescript::compiler::staticObjectNames(game_, staticObjects_);
+        return puzzlescript::solver::staticObjectNames(game_, staticObjects_);
     }
 
     std::vector<std::pair<std::string, std::vector<std::string>>> staticObjectBlockers() const {
-        return puzzlescript::compiler::staticObjectBlockers(
+        return puzzlescript::solver::staticObjectBlockers(
             game_,
             staticObjects_,
             staticWrittenObjects_,
@@ -762,7 +762,7 @@ private:
     }
 
     void buildStaticObjectMask() {
-        const auto analysis = puzzlescript::compiler::analyzeStaticObjects(game_);
+        const auto analysis = puzzlescript::solver::analyzeStaticObjects(game_);
         staticObjects_ = analysis.staticObjects;
         staticWrittenObjects_ = analysis.writtenObjects;
         staticMovementMentionedObjects_ = analysis.movementMentionedObjects;

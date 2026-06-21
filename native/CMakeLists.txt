@@ -76,11 +76,11 @@ set(PUZZLESCRIPT_COMPILER_SOURCES
   src/compiler/compiled_rules_codegen.cpp
   src/compiler/compile_diagnostics.cpp
   src/compiler/c_api.cpp
+  src/compiler/source_c_api.cpp
   src/compiler/diagnostic.cpp
   src/compiler/lower_to_runtime.cpp
   src/compiler/parser.cpp
   src/compiler/rule_text.cpp
-  src/compiler/static_analysis.cpp
   third_party/utf8proc/utf8proc.c
 )
 
@@ -92,6 +92,7 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/json.cpp
   src/runtime/simd.cpp
   src/solver/c_api.cpp
+  src/solver/static_analysis.cpp
   third_party/simdjson/simdjson.cpp
 )
 
@@ -126,6 +127,11 @@ target_compile_definitions(puzzlescript_compiler
     UTF8PROC_STATIC
     PS_MASK_WORD_BITS=${PS_MASK_WORD_BITS}
     $<$<BOOL:${PS_ENABLE_DEV_SERIALIZERS}>:PS_ENABLE_DEV_SERIALIZERS=1>
+)
+
+target_link_libraries(puzzlescript_compiler
+  PUBLIC
+    puzzlescript_native
 )
 
 set_source_files_properties(
@@ -477,6 +483,24 @@ add_test(
   NAME compiler_compact_turn_support
   COMMAND compiler_compact_turn_support
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(runtime_standalone_link
+  tests/runtime_standalone_link.cpp
+)
+
+target_link_libraries(runtime_standalone_link
+  PRIVATE
+    puzzlescript_native
+)
+
+add_test(
+  NAME runtime_standalone_link
+  COMMAND ${CMAKE_COMMAND}
+          -DRUNTIME_STANDALONE_EXE=$<TARGET_FILE:runtime_standalone_link>
+          -DPUZZLESCRIPT_NATIVE_ARCHIVE=$<TARGET_FILE:puzzlescript_native>
+          -DNM_EXECUTABLE=${CMAKE_NM}
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_standalone_link_check.cmake
 )
 
 if(TARGET PkgConfig::SDL2)

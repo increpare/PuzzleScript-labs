@@ -25,9 +25,11 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef PUZZLESCRIPT_SOLVER_C_API
 #include "compiler/diagnostic.hpp"
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
+#endif
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/core.hpp"
@@ -1607,6 +1609,7 @@ SolverEdgeStep stepSolverEdge(
     return edge;
 }
 
+#ifndef PUZZLESCRIPT_SOLVER_C_API
 puzzlescript::LoadedGame compileGame(
     const std::string& source,
     std::string& errorMessage
@@ -1628,6 +1631,7 @@ puzzlescript::LoadedGame compileGame(
         return {};
     }
 }
+#endif
 
 std::vector<std::string> reconstructSolution(const std::vector<Node>& nodes, uint32_t nodeIndex, ps_input finalInput, Timing& timing) {
     ScopedTimer timer(timing.reconstructNs);
@@ -4125,6 +4129,7 @@ void printJsonStringArray(std::ostream& out, const std::vector<std::string>& val
     out << "]";
 }
 
+#ifndef PUZZLESCRIPT_SOLVER_C_API
 void printStaticAnalysisDump(const Options& options) {
     std::optional<puzzlescript::json::Value> staticAnalysisRoot;
     if (!options.staticAnalysisHintsPath.empty()) {
@@ -4378,6 +4383,7 @@ std::vector<Result> runCorpus(const Options& options) {
     }
     return results;
 }
+#endif
 
 } // namespace
 

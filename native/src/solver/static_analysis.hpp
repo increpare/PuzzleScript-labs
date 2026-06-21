@@ -6,7 +6,7 @@
 
 #include "runtime/core.hpp"
 
-namespace puzzlescript::compiler {
+namespace puzzlescript::solver {
 
 struct StaticObjectAnalysis {
     MaskVector staticObjects;
@@ -28,4 +28,4 @@ std::vector<std::pair<std::string, std::vector<std::string>>> staticObjectBlocke
     const MaskVector& movementMentionedObjects
 );
 
-} // namespace puzzlescript::compiler
+} // namespace puzzlescript::solver

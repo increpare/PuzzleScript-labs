@@ -1,10 +1,10 @@
-#include "compiler/static_analysis.hpp"
+#include "solver/static_analysis.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
 
-namespace puzzlescript::compiler {
+namespace puzzlescript::solver {
 namespace {
 
 const MaskWord* maskPtr(const Game& game, MaskOffset offset) {
@@ -1405,4 +1405,4 @@ std::vector<std::pair<std::string, std::vector<std::string>>> staticObjectBlocke
     return blockersByObject;
 }
 
-} // namespace puzzlescript::compiler
+} // namespace puzzlescript::solver
