@@ -1,3 +1,7 @@
+// The native test targets build Release with -DNDEBUG, which would strip every
+// assert() in this file and make this test a vacuous no-op. Force assertions on.
+#undef NDEBUG
+
 #include <algorithm>
 #include <cassert>
 #include <fstream>
@@ -138,10 +142,12 @@ int main() {
     assert(json.find("\"quantifier\"") != std::string::npos);
     assert(json.find("\"metadata\"") != std::string::npos);
 
-    // normalizeMetadataHomepage must mirror JS formatHomePage exactly: strip the
-    // first "http://" then the first "https://". Order matters when both schemes
-    // appear (the corpus exercises this via midas.txt). Sokoban's homepage has no
-    // scheme, so cover the order-dependent case with an explicit fixture here.
+    // normalizeMetadataHomepage must mirror JS formatHomePage: strip the first
+    // "http://" then the first "https://". This fixture has both schemes (leading
+    // https://, mid-path http:// — like midas.txt) and checks both are removed.
+    // Sokoban's homepage has no scheme, so it alone wouldn't catch a regression
+    // that stripped neither. (Strip order is not observable for realistic inputs
+    // where the two schemes don't overlap, so this does not pin the order.)
     {
         const std::string homepageSource =
             "title T\n"

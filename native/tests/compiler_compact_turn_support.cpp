@@ -1,3 +1,4 @@
+#undef NDEBUG  // keep assert() live under the Release -DNDEBUG build
 #include <cassert>
 #include <cstdint>
 #include <fstream>
@@ -54,19 +55,6 @@ void expectNativeKernel(
     (void)label;
 }
 
-void expectCompilerBridge(
-    const puzzlescript::compiler::CompactTurnSupport& support,
-    const char* expectedNativeReason,
-    const char* label
-) {
-    assert(!support.nativeKernel() && label);
-    assert(support.usesInterpreterBridge() && label);
-    assert(support.supported() && label);
-    assert(support.statusReason == "interpreter_bridge" && label);
-    assert(support.nativeKernelStatusReason == expectedNativeReason && label);
-    (void)label;
-}
-
 void expectInterpreterBridge(
     const puzzlescript::compiler::CompactTurnSupport& support,
     const char* label
@@ -99,31 +87,22 @@ int main() {
 
     const puzzlescript::Game witchLifter =
         compileGameFromPath("src/tests/solver_tests/witch lifter.txt");
-    assert(!compactNativeTurnSupportForGame(witchLifter).nativeKernel());
-    assert(compactNativeTurnSupportForGame(witchLifter).statusReason == "aggregate_bindings");
-    expectCompilerBridge(
-        compactTurnSupportForGame(witchLifter, compilerMode),
-        "aggregate_bindings",
-        "witch lifter compiler bridge");
+    // Was a compiler bridge (aggregate_bindings); the compact-turn mini-VM
+    // (codegen-pass2) now emits a native kernel for it.
+    expectNativeKernel(compactNativeTurnSupportForGame(witchLifter), "witch lifter native");
+    expectNativeKernel(compactTurnSupportForGame(witchLifter, compilerMode), "witch lifter compiler");
 
     const puzzlescript::Game gemSoketeer =
         compileGameFromPath("src/tests/solver_tests/gem soketeer.txt");
-    assert(!compactNativeTurnSupportForGame(gemSoketeer).nativeKernel());
-    assert(compactNativeTurnSupportForGame(gemSoketeer).statusReason == "rule_loops");
-    expectCompilerBridge(
-        compactTurnSupportForGame(gemSoketeer, compilerMode),
-        "rule_loops",
-        "gem soketeer compiler bridge");
+    // Was a compiler bridge (rule_loops); now a native kernel (codegen-pass2).
+    expectNativeKernel(compactNativeTurnSupportForGame(gemSoketeer), "gem soketeer native");
+    expectNativeKernel(compactTurnSupportForGame(gemSoketeer, compilerMode), "gem soketeer compiler");
 
     const puzzlescript::Game alternatey =
         compileGameFromPath("src/tests/solver_tests/alternatey.txt");
-    assert(!compactNativeTurnSupportForGame(alternatey).nativeKernel());
-    assert(
-        compactNativeTurnSupportForGame(alternatey).statusReason == "transparent_object_compact_unsupported");
-    expectCompilerBridge(
-        compactTurnSupportForGame(alternatey, compilerMode),
-        "transparent_object_compact_unsupported",
-        "alternatey compiler bridge");
+    // Was a compiler bridge (transparent_object_compact_unsupported); now native (codegen-pass2).
+    expectNativeKernel(compactNativeTurnSupportForGame(alternatey), "alternatey native");
+    expectNativeKernel(compactTurnSupportForGame(alternatey, compilerMode), "alternatey compiler");
 
     const puzzlescript::Game heroes =
         compileGameFromPath("src/tests/solver_tests/heroes_of_sokoban_3.txt");
@@ -131,21 +110,15 @@ int main() {
 
     const puzzlescript::Game redRing =
         compileGameFromPath("src/tests/solver_tests/the red ring of immortality.txt");
-    assert(!compactNativeTurnSupportForGame(redRing).nativeKernel());
-    assert(compactNativeTurnSupportForGame(redRing).statusReason == "cancel_command");
-    expectCompilerBridge(
-        compactTurnSupportForGame(redRing, compilerMode),
-        "cancel_command",
-        "red ring compiler bridge");
+    // Was a compiler bridge (cancel_command); now a native kernel (codegen-pass2).
+    expectNativeKernel(compactNativeTurnSupportForGame(redRing), "red ring native");
+    expectNativeKernel(compactTurnSupportForGame(redRing, compilerMode), "red ring compiler");
 
     const puzzlescript::Game hairtug =
         compileGameFromPath("src/tests/solver_tests/hairtug.txt");
-    assert(!compactNativeTurnSupportForGame(hairtug).nativeKernel());
-    assert(compactNativeTurnSupportForGame(hairtug).statusReason == "cancel_command");
-    expectCompilerBridge(
-        compactTurnSupportForGame(hairtug, compilerMode),
-        "cancel_command",
-        "hairtug compiler bridge");
+    // Was a compiler bridge (cancel_command); now a native kernel (codegen-pass2).
+    expectNativeKernel(compactNativeTurnSupportForGame(hairtug), "hairtug native");
+    expectNativeKernel(compactTurnSupportForGame(hairtug, compilerMode), "hairtug compiler");
 
     std::cout << "compiler_compact_turn_support: ok\n";
     return 0;

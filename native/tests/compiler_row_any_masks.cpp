@@ -1,3 +1,4 @@
+#undef NDEBUG  // keep assert() live under the Release -DNDEBUG build
 #include <cassert>
 #include <cstdint>
 #include <iostream>
@@ -50,6 +51,10 @@ RULES
 
 [ Movable | Background ] -> [ Movable | Background ]
 
+==============
+WINCONDITIONS
+==============
+
 =======
 LEVELS
 =======
@@ -97,9 +102,10 @@ int main() {
     assert(rule.cellRowMasksCount == 1);
     assert(rule.cellRowAnyObjectMasks.size() == 1);
 
-    const int32_t playerId = objectIdByName(game, "Player");
-    const int32_t boxId = objectIdByName(game, "Box");
-    const int32_t backgroundId = objectIdByName(game, "Background");
+    // Object names are lowercased by the compiler; look them up as stored.
+    const int32_t playerId = objectIdByName(game, "player");
+    const int32_t boxId = objectIdByName(game, "box");
+    const int32_t backgroundId = objectIdByName(game, "background");
 
     const auto rowObjectMask = game.cellRowMaskOffsets[rule.cellRowMasksFirst];
     assert(maskHasObject(game, rowObjectMask, backgroundId));

@@ -1,3 +1,4 @@
+#undef NDEBUG  // keep assert() live under the Release -DNDEBUG build
 #include <cassert>
 #include <cstring>
 
