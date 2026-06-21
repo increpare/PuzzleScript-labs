@@ -1,3 +1,4 @@
+#undef NDEBUG  // keep assert() live under the Release -DNDEBUG build
 #include <cassert>
 #include <cstdint>
 #include <iostream>
@@ -49,6 +50,10 @@ RULES
 
 [ Player no Box ] -> [ Player ]
 
+==============
+WINCONDITIONS
+==============
+
 =======
 LEVELS
 =======
@@ -96,8 +101,9 @@ int main() {
     assert(rule.cellRowMissingObjectMasksCount == 1);
     assert(rule.cellRowMissingMovementMasksCount == 1);
 
-    const int32_t playerId = objectIdByName(game, "Player");
-    const int32_t boxId = objectIdByName(game, "Box");
+    // Object names are lowercased by the compiler; look them up as stored.
+    const int32_t playerId = objectIdByName(game, "player");
+    const int32_t boxId = objectIdByName(game, "box");
 
     const auto rowRequiredMask = game.cellRowMaskOffsets[rule.cellRowMasksFirst];
     assert(maskHasObject(game, rowRequiredMask, playerId));
@@ -105,8 +111,38 @@ int main() {
 
     const auto rowMissingMask = game.cellRowMissingObjectMaskOffsets[rule.cellRowMissingObjectMasksFirst];
     assert(!maskHasObject(game, rowMissingMask, playerId));
-    assert(maskHasObject(game, rowMissingMask, boxId));
-    assert(game.needsObjectLineAllMasks);
+
+    // `[ Player no Box ]` requires Box to be absent from the matched cell. The
+    // compiler can encode that exclusion two equivalent ways, and which one it
+    // picks depends on the collision-layer layout:
+    //
+    //   * Explicitly  — Box is recorded in the row missing-object mask.
+    //   * Implicitly  — a *different* object on Box's collision layer is required
+    //                   present. A layer holds at most one object per cell, so
+    //                   mandating another same-layer object already guarantees Box
+    //                   is absent; the compiler then drops the now-superfluous
+    //                   `no Box` (trimSuperfluousLhsNegations in
+    //                   lower_to_runtime.cpp). Player shares Box's layer here, so
+    //                   this is the path actually taken by this fixture.
+    //
+    // Both encodings correctly exclude Box, so assert the semantic property
+    // (Box is excluded) instead of pinning one internal representation.
+    const bool boxExplicitlyExcluded = maskHasObject(game, rowMissingMask, boxId);
+    const int32_t boxLayer = game.objectsById[static_cast<size_t>(boxId)].layer;
+    bool sameLayerOtherMandated = false;
+    for (const auto& object : game.objectsById) {
+        if (object.id != boxId && object.layer == boxLayer
+            && maskHasObject(game, rowRequiredMask, object.id)) {
+            sameLayerOtherMandated = true;
+            break;
+        }
+    }
+    assert(boxExplicitlyExcluded || sameLayerOtherMandated);
+
+    // needsObjectLineAllMasks is the game-wide flag that some rule kept an
+    // explicit missing-object requirement. It is set exactly when Box was
+    // excluded explicitly rather than implicitly via a same-layer mandate.
+    assert(game.needsObjectLineAllMasks == boxExplicitlyExcluded);
 
     return 0;
 }
