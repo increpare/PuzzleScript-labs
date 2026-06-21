@@ -919,6 +919,11 @@ add_test(
 )
 
 add_test(
+  NAME puzzlescript_cpp_semantic_program_diff_smoke
+  COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_semantic_program_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+)
+
+add_test(
   NAME puzzlescript_cpp_parser_diagnostics_diff_smoke
   COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_diagnostics_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
 )
