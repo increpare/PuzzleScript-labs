@@ -1,5 +1,6 @@
 #include <cassert>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -31,10 +32,17 @@ int main() {
 
     const auto program = puzzlescript::compiler::buildSemanticProgram(*loadedGame.information);
 
+    // sokoban_basic is a single-layer-conforming fixture: every object sits on
+    // exactly one collision layer (layer >= 0) and every name is unique. That
+    // invariant is the SemanticProgram contract's precondition (enforced over the
+    // corpus by semantic_program_parity_corpus_node.js), so these are deliberate
+    // conformance checks, not accidental assumptions about all games.
     assert(!program.objects.empty());
     assert(program.objects.front().id == 0);
+    std::set<std::string> seenNames;
     for (size_t i = 0; i < program.objects.size(); ++i) {
         assert(program.objects[i].layer >= 0);
+        assert(seenNames.insert(program.objects[i].name).second);  // single layer => unique name
         if (i > 0) {
             assert(program.objects[i].id > program.objects[i - 1].id);
         }

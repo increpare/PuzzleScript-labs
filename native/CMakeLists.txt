@@ -923,6 +923,18 @@ add_test(
   COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_semantic_program_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
 )
 
+# Corpus-wide JS<->C++ SemanticProgram parity. Asserts parity over every game
+# that satisfies the single-layer invariant and reports (does not silently drop)
+# the games that violate it.
+add_test(
+  NAME semantic_program_parity_corpus
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/semantic_program_parity_corpus_node.js
+          $<TARGET_FILE:puzzlescript_cpp>
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
+)
+set_tests_properties(semantic_program_parity_corpus PROPERTIES TIMEOUT 180)
+
 add_test(
   NAME puzzlescript_cpp_parser_diagnostics_diff_smoke
   COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_diagnostics_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
