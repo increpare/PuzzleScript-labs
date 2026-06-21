@@ -138,5 +138,36 @@ int main() {
     assert(json.find("\"quantifier\"") != std::string::npos);
     assert(json.find("\"metadata\"") != std::string::npos);
 
+    // normalizeMetadataHomepage must mirror JS formatHomePage exactly: strip the
+    // first "http://" then the first "https://". Order matters when both schemes
+    // appear (the corpus exercises this via midas.txt). Sokoban's homepage has no
+    // scheme, so cover the order-dependent case with an explicit fixture here.
+    {
+        const std::string homepageSource =
+            "title T\n"
+            "homepage https://web.archive.org/http://wanderlands.org/\n"
+            "\n"
+            "========\nOBJECTS\n========\n\n"
+            "Background\nblack\n\n"
+            "=======\nLEGEND\n=======\n\n"
+            ". = Background\n\n"
+            "=======\nSOUNDS\n=======\n\n"
+            "================\nCOLLISIONLAYERS\n================\n\n"
+            "Background\n\n"
+            "======\nRULES\n======\n\n"
+            "==============\nWINCONDITIONS\n==============\n\n"
+            "=======\nLEVELS\n=======\n\n"
+            ".\n";
+        puzzlescript::compiler::DiagnosticSink homepageDiagnostics;
+        const auto homepageState = puzzlescript::compiler::parseSource(homepageSource, homepageDiagnostics);
+        puzzlescript::LoadedGame homepageGame;
+        auto homepageError = puzzlescript::compiler::lowerToRuntimeGame(homepageState, homepageGame);
+        assert(!homepageError);
+        assert(homepageGame.information);
+        const auto homepageProgram = puzzlescript::compiler::buildSemanticProgram(*homepageGame.information);
+        assert(homepageProgram.metadata.count("homepage"));
+        assert(homepageProgram.metadata.at("homepage") == "web.archive.org/wanderlands.org/");
+    }
+
     return 0;
 }

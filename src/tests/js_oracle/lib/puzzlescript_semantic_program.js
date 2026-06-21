@@ -109,6 +109,12 @@ function buildSemanticProgramSnapshot(state) {
     const levels = levelList(state);
     const win_conditions = winConditionList(state);
 
+    // Keep this in sync with the C++ metadata projection in semantic_program.cpp.
+    // Two compiler.js passes rewrite metadata values: twiddleMetaData turns
+    // flickscreen/zoomscreen into coord arrays (excluded here and on the C++
+    // side), and formatHomePage strips the first http:// then https:// from
+    // homepage (so it is already normalized here; C++ mirrors that in
+    // normalizeMetadataHomepage). All other values are the raw parsed strings.
     const metadata = {};
     for (const key of Object.keys(state.metadata)) {
         if (key === 'flickscreen' || key === 'zoomscreen') {
