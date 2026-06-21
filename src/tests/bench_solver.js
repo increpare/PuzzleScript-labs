@@ -75,6 +75,9 @@ function summaryFromJson(json, label) {
         expanded: Number(t.expanded) || 0,
         step_ms: stepMs,
         heuristic_ms: Number(t.heuristic_ms) || 0,
+        heuristic_classify_ms: Number(t.heuristic_classify_ms) || 0,
+        heuristic_score_ms: Number(t.heuristic_score_ms) || 0,
+        expanded_per_solved: Number(t.expanded_per_solved) || 0,
         us_per_step: usPerStep,
         step_no_op: Number(t.step_no_op) || 0,
         step_changed: Number(t.step_changed) || 0,
@@ -124,7 +127,9 @@ function printSummaryRow(summary) {
     process.stdout.write(
         `bench_summary config=${summary.label} solved=${summary.solved}/${summary.levels} ` +
         `timeout=${summary.timeout} step_ms=${summary.step_ms.toFixed(3)} ` +
-        `heuristic_ms=${summary.heuristic_ms.toFixed(3)} generated=${summary.generated} ` +
+        `heuristic_ms=${summary.heuristic_ms.toFixed(3)} ` +
+        `expanded_per_solved=${summary.expanded_per_solved.toFixed(1)} ` +
+        `generated=${summary.generated} ` +
         `us_per_step=${summary.us_per_step.toFixed(2)} step_no_op_pct=${summary.step_no_op_pct.toFixed(1)}%\n`,
     );
 }
@@ -154,6 +159,15 @@ function main() {
 
     for (const summary of summaries) {
         printSummaryRow(summary);
+    }
+
+    if (summaries.length > 1) {
+        const ranked = summaries.slice().sort((a, b) => a.expanded_per_solved - b.expanded_per_solved);
+        process.stdout.write('bench_rank expanded_per_solved');
+        for (const row of ranked) {
+            process.stdout.write(` ${row.label}=${row.expanded_per_solved.toFixed(1)}`);
+        }
+        process.stdout.write('\n');
     }
 
     if (summaries.length === 2) {

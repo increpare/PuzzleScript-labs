@@ -871,6 +871,9 @@ PT
     assert.ok(profiledAction.results[0].step_profile_early_rules_ms > 0, 'step profiler should time early rules');
     assert.ok(profiledAction.results[0].step_profile_movement_ms > 0, 'step profiler should time movement resolution');
     assert.ok(profiledAction.results[0].step_profile_command_ms > 0, 'step profiler should time command queue processing');
+    assert.ok(profiledAction.results[0].step_profile_rule_match_ms > 0, 'step profiler should time rule matching');
+    assert.ok(profiledAction.totals.heuristic_score_ms > 0, 'heuristic score timing should be recorded');
+    assert.ok(Number.isFinite(profiledAction.totals.expanded_per_solved), 'expanded_per_solved should be present');
 
     const mlJson = execFileSync(
         process.execPath,

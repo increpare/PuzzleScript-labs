@@ -103,6 +103,11 @@ function main() {
         'step_profile_other_rules_ms',
         'step_profile_command_ms',
         'step_profile_win_ms',
+        'step_profile_rule_match_ms',
+        'step_profile_rule_apply_ms',
+        'heuristic_classify_ms',
+        'heuristic_score_ms',
+        'expanded_per_solved',
     ];
 
     const w = 28;

@@ -99,7 +99,10 @@ const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1'
 const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !== '0';
 
 let solverStepProfilingInstalled = false;
+let solverRuleMatchApplyInstalled = false;
 let currentSolverStepProfile = null;
+let solverTryApplyMatchMs = 0;
+let solverInTryApply = false;
 
 function recordSolverStepPhase(field, fn) {
     if (!SOLVER_STEP_PROFILE || !currentSolverStepProfile) {
@@ -136,6 +139,83 @@ function installSolverStepProfiler() {
     checkWin = function profiledCheckWin(...args) {
         return recordSolverStepPhase('step_profile_win_ms', () => originalCheckWin.apply(this, args));
     };
+    installSolverRuleMatchApplyProfiler();
+}
+
+function installSolverRuleMatchApplyProfiler() {
+    if (!SOLVER_STEP_PROFILE || solverRuleMatchApplyInstalled || typeof Rule === 'undefined') {
+        return;
+    }
+    solverRuleMatchApplyInstalled = true;
+    const originalGenerateFindMatches = Rule.prototype.generateFindMatchesFunction;
+    Rule.prototype.generateFindMatchesFunction = function () {
+        const fn = originalGenerateFindMatches.call(this);
+        return function solverProfiledFindMatches() {
+            if (!currentSolverStepProfile) {
+                return fn.apply(this, arguments);
+            }
+            const t0 = performance.now();
+            try {
+                return fn.apply(this, arguments);
+            } finally {
+                const elapsed = performance.now() - t0;
+                currentSolverStepProfile.step_profile_rule_match_ms += elapsed;
+                if (solverInTryApply) {
+                    solverTryApplyMatchMs += elapsed;
+                }
+            }
+        };
+    };
+    const originalTryApply = Rule.prototype.tryApply;
+    Rule.prototype.tryApply = function (level) {
+        if (!currentSolverStepProfile) {
+            return originalTryApply.call(this, level);
+        }
+        solverTryApplyMatchMs = 0;
+        solverInTryApply = true;
+        const t0 = performance.now();
+        try {
+            return originalTryApply.call(this, level);
+        } finally {
+            solverInTryApply = false;
+            const total = performance.now() - t0;
+            currentSolverStepProfile.step_profile_rule_apply_ms += Math.max(0, total - solverTryApplyMatchMs);
+        }
+    };
+}
+
+function recordHeuristicScoreMs(timingAcc, fn) {
+    if (!timingAcc || !SOLVER_DETAIL_TIMING) {
+        return fn();
+    }
+    const t0 = performance.now();
+    try {
+        return fn();
+    } finally {
+        timingAcc.heuristic_score_ms += performance.now() - t0;
+    }
+}
+
+function recordHeuristicClassifyMs(timingAcc, fn) {
+    if (!timingAcc || !SOLVER_DETAIL_TIMING) {
+        return fn();
+    }
+    const t0 = performance.now();
+    try {
+        return fn();
+    } finally {
+        timingAcc.heuristic_classify_ms += performance.now() - t0;
+    }
+}
+
+function invokeHeuristic(solverOps, modeResult) {
+    if (SOLVER_DETAIL_TIMING) {
+        const t0 = performance.now();
+        const ret = solverOps.heuristic(modeResult);
+        modeResult.heuristic_ms += performance.now() - t0;
+        return ret;
+    }
+    return solverOps.heuristic(null);
 }
 
 function installSolverResolveMovementProfiler(compiledState) {
@@ -2496,24 +2576,49 @@ function createSolverLevelSpecialization(options = {}) {
      * earlier `'all-on-dead-isolated'` default lacked. New SOME/NO specialized
      * adders (D4/D7 in JS_SOLVER_NEXT.md) will plug in here when they exist.
      */
-    function autoHeuristic() {
+    function buildAutoHeuristicBreakdown() {
+        const breakdown = [];
         const conditions = state.winconditions || [];
         if (conditions.length === 0) {
-            return winconditionDistanceHeuristic();
+            return ['wincondition-distance'];
         }
-        const base = allOnClearPathHeuristic();
+        breakdown.push('base:all-on-clear-path');
+        for (let i = 0; i < conditions.length; i++) {
+            const condition = conditions[i];
+            if (condition[0] !== 1 || isPlainCondition(condition)) {
+                breakdown.push(`cond${i}:passthrough`);
+            } else {
+                breakdown.push(`cond${i}:dead-position+region-isolation`);
+            }
+        }
+        return breakdown;
+    }
+    const autoHeuristicBreakdown = heuristicName === 'auto' ? buildAutoHeuristicBreakdown() : null;
+
+    function autoHeuristic(timingAcc) {
+        if (timingAcc && autoHeuristicBreakdown) {
+            timingAcc.heuristic_breakdown = autoHeuristicBreakdown;
+        }
+        const conditions = state.winconditions || [];
+        if (conditions.length === 0) {
+            return recordHeuristicScoreMs(timingAcc, () => winconditionDistanceHeuristic());
+        }
+        const base = recordHeuristicScoreMs(timingAcc, () => allOnClearPathHeuristic());
         if (base <= 0) {
             return base;
         }
-        let extra = 0;
-        for (let i = 0; i < conditions.length; i++) {
-            const condition = conditions[i];
-            if (condition[0] !== 1 || isPlainCondition(condition)) continue;
-            const unsatisfied = collectUnsatisfiedAllOnTiles(condition);
-            if (unsatisfied.length === 0) continue;
-            extra += deadPositionPenalty(unsatisfied, condition);
-            extra += regionIsolationPenalty(unsatisfied, condition);
-        }
+        const extra = recordHeuristicClassifyMs(timingAcc, () => {
+            let penalty = 0;
+            for (let i = 0; i < conditions.length; i++) {
+                const condition = conditions[i];
+                if (condition[0] !== 1 || isPlainCondition(condition)) continue;
+                const unsatisfied = collectUnsatisfiedAllOnTiles(condition);
+                if (unsatisfied.length === 0) continue;
+                penalty += deadPositionPenalty(unsatisfied, condition);
+                penalty += regionIsolationPenalty(unsatisfied, condition);
+            }
+            return penalty;
+        });
         return base + extra;
     }
 
@@ -2565,8 +2670,11 @@ function createSolverLevelSpecialization(options = {}) {
         'winconditions': allOnClearPathHeuristic,
     };
     const selectedHeuristic = HEURISTIC_FUNCTIONS[heuristicName] || allOnClearPathHeuristic;
-    function heuristic() {
-        return selectedHeuristic();
+    function heuristic(timingAcc) {
+        if (heuristicName === 'auto') {
+            return autoHeuristic(timingAcc);
+        }
+        return recordHeuristicScoreMs(timingAcc, selectedHeuristic);
     }
 
     function flagsForHash() {
@@ -3177,6 +3285,9 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         snapshot_ms: 0,
         step_ms: 0,
         heuristic_ms: 0,
+        heuristic_classify_ms: 0,
+        heuristic_score_ms: 0,
+        heuristic_breakdown: null,
         hash_ms: 0,
         queue_ms: 0,
         reconstruct_ms: 0,
@@ -3186,6 +3297,13 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         step_profile_other_rules_ms: 0,
         step_profile_command_ms: 0,
         step_profile_win_ms: 0,
+        step_profile_rule_match_ms: 0,
+        step_profile_rule_apply_ms: 0,
+        probe_dir_steps: 0,
+        probe_noops: 0,
+        probe_blocked: 0,
+        probe_blocked_changed: 0,
+        probe_blocked_noop: 0,
         hash_mode: null,
         snapshot_mode: null,
         strategy: null,
@@ -3259,7 +3377,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         const frontier = new MinHeap();
         let initialHeuristic = 0;
         if (mode !== 'bfs') {
-            initialHeuristic = timeBlock(modeResult, 'heuristic_ms', () => solverOps.heuristic());
+            initialHeuristic = invokeHeuristic(solverOps, modeResult);
         }
         frontier.push({ priority: priorityForMode(mode, 0, initialHeuristic, options.astarWeight || 2), tie: 0, index: 0 });
         modeResult.max_frontier = 1;
@@ -3348,9 +3466,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 }
                 let childHeuristic = 0;
                 if (mode !== 'bfs') {
-                    childHeuristic = SOLVER_DETAIL_TIMING
-                        ? timeBlock(modeResult, 'heuristic_ms', () => solverOps.heuristic())
-                        : solverOps.heuristic();
+                    childHeuristic = invokeHeuristic(solverOps, modeResult);
                 }
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'queue_ms', () => {
@@ -3394,7 +3510,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         });
         const initialHeuristics = new Float64Array(specs.length);
         for (let i = 0; i < specs.length; i++) {
-            initialHeuristics[i] = timeBlock(modeResult, 'heuristic_ms', () => specs[i].heuristic());
+            initialHeuristics[i] = invokeHeuristic(specs[i], modeResult);
         }
         const nodes = timeBlock(modeResult, 'snapshot_ms', () => [
             {
@@ -3589,9 +3705,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 // already visible to each — just call heuristic on each needed spec.
                 for (let i = 0; i < specs.length; i++) {
                     if (!heuristicNeeded[i]) continue;
-                    childHeuristics[i] = SOLVER_DETAIL_TIMING
-                        ? timeBlock(modeResult, 'heuristic_ms', () => specs[i].heuristic())
-                        : specs[i].heuristic();
+                    childHeuristics[i] = invokeHeuristic(specs[i], modeResult);
                 }
                 const snapshot = SOLVER_DETAIL_TIMING
                     ? timeBlock(modeResult, 'snapshot_ms', () => primarySpec.capture())
@@ -3673,6 +3787,8 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.step_no_op += lastResult.step_no_op || 0;
                 phaseResult.step_changed += lastResult.step_changed || 0;
                 phaseResult.heuristic_ms += lastResult.heuristic_ms;
+                phaseResult.heuristic_classify_ms += lastResult.heuristic_classify_ms || 0;
+                phaseResult.heuristic_score_ms += lastResult.heuristic_score_ms || 0;
                 phaseResult.step_ms += lastResult.step_ms;
                 phaseResult.hash_ms += lastResult.hash_ms;
                 phaseResult.queue_ms += lastResult.queue_ms;
@@ -3684,6 +3800,8 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.step_profile_other_rules_ms += lastResult.step_profile_other_rules_ms || 0;
                 phaseResult.step_profile_command_ms += lastResult.step_profile_command_ms || 0;
                 phaseResult.step_profile_win_ms += lastResult.step_profile_win_ms || 0;
+                phaseResult.step_profile_rule_match_ms += lastResult.step_profile_rule_match_ms || 0;
+                phaseResult.step_profile_rule_apply_ms += lastResult.step_profile_rule_apply_ms || 0;
             }
             lastResult = phaseResult;
             if (phaseResult.status === 'solved') {
@@ -3729,6 +3847,9 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         snapshot_ms: 0,
         step_ms: 0,
         heuristic_ms: 0,
+        heuristic_classify_ms: 0,
+        heuristic_score_ms: 0,
+        heuristic_breakdown: null,
         hash_ms: 0,
         queue_ms: 0,
         reconstruct_ms: 0,
@@ -3738,6 +3859,8 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         step_profile_other_rules_ms: 0,
         step_profile_command_ms: 0,
         step_profile_win_ms: 0,
+        step_profile_rule_match_ms: 0,
+        step_profile_rule_apply_ms: 0,
     };
 }
 
@@ -3846,7 +3969,12 @@ function runGame(root, file, options = {}) {
             static_optimization_removed_rules: staticOptimizationRemovedRules,
             load_ms: 0,
             clone_ms: 0,
+            snapshot_ms: 0,
             step_ms: 0,
+            heuristic_ms: 0,
+            heuristic_classify_ms: 0,
+            heuristic_score_ms: 0,
+            heuristic_breakdown: null,
             hash_ms: 0,
             queue_ms: 0,
             reconstruct_ms: 0,
@@ -3856,6 +3984,8 @@ function runGame(root, file, options = {}) {
             step_profile_other_rules_ms: 0,
             step_profile_command_ms: 0,
             step_profile_win_ms: 0,
+            step_profile_rule_match_ms: 0,
+            step_profile_rule_apply_ms: 0,
         }];
     }
     return {
@@ -4004,6 +4134,7 @@ function summarizeHuman(results) {
         summary.generated += result.generated;
     }
     summary.playable_levels = summary.solved + summary.timeout + summary.exhausted + summary.errors;
+    summary.expanded_per_solved = summary.expanded / (summary.solved + 1);
     return summary;
 }
 
@@ -4022,6 +4153,7 @@ function printHumanBlock(stream, label, summary, elapsedMs) {
     if (summary.errors > 0) {
         stream.write(`Errors: ${summary.errors}\n`);
     }
+    stream.write(`Expanded per solved: ${summary.expanded_per_solved.toFixed(1)}\n`);
 }
 
 function assertReplaySolved(label, game, levelIndex, solution, replay) {
@@ -4328,6 +4460,8 @@ function totals(results) {
         snapshot_ms: 0,
         step_ms: 0,
         heuristic_ms: 0,
+        heuristic_classify_ms: 0,
+        heuristic_score_ms: 0,
         hash_ms: 0,
         queue_ms: 0,
         reconstruct_ms: 0,
@@ -4337,6 +4471,14 @@ function totals(results) {
         step_profile_other_rules_ms: 0,
         step_profile_command_ms: 0,
         step_profile_win_ms: 0,
+        step_profile_rule_match_ms: 0,
+        step_profile_rule_apply_ms: 0,
+        expanded_per_solved: 0,
+        probe_dir_steps: 0,
+        probe_noops: 0,
+        probe_blocked: 0,
+        probe_blocked_changed: 0,
+        probe_blocked_noop: 0,
     };
     for (const result of results) {
         out.solved += result.status === 'solved' ? 1 : 0;
@@ -4371,6 +4513,8 @@ function totals(results) {
         out.snapshot_ms += result.snapshot_ms || 0;
         out.step_ms += result.step_ms || 0;
         out.heuristic_ms += result.heuristic_ms || 0;
+        out.heuristic_classify_ms += result.heuristic_classify_ms || 0;
+        out.heuristic_score_ms += result.heuristic_score_ms || 0;
         out.hash_ms += result.hash_ms || 0;
         out.queue_ms += result.queue_ms || 0;
         out.reconstruct_ms += result.reconstruct_ms || 0;
@@ -4380,7 +4524,15 @@ function totals(results) {
         out.step_profile_other_rules_ms += result.step_profile_other_rules_ms || 0;
         out.step_profile_command_ms += result.step_profile_command_ms || 0;
         out.step_profile_win_ms += result.step_profile_win_ms || 0;
+        out.step_profile_rule_match_ms += result.step_profile_rule_match_ms || 0;
+        out.step_profile_rule_apply_ms += result.step_profile_rule_apply_ms || 0;
+        out.probe_dir_steps += result.probe_dir_steps || 0;
+        out.probe_noops += result.probe_noops || 0;
+        out.probe_blocked += result.probe_blocked || 0;
+        out.probe_blocked_changed += result.probe_blocked_changed || 0;
+        out.probe_blocked_noop += result.probe_blocked_noop || 0;
     }
+    out.expanded_per_solved = out.expanded / (out.solved + 1);
     return out;
 }
 
