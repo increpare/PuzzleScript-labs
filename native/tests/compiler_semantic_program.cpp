@@ -121,6 +121,12 @@ int main() {
     assert((win.objectIds2 == std::vector<int32_t>{crateId}));
     assert(!win.aggregate1 && !win.aggregate2);
 
+    // Metadata: sokoban_basic declares title/author/homepage (no flickscreen).
+    assert(program.metadata.size() == 3);
+    assert(program.metadata.count("title") && program.metadata.at("title") == "Simple Block Pushing Game");
+    assert(program.metadata.count("author") && program.metadata.at("author") == "David Skinner");
+    assert(program.metadata.count("homepage") && program.metadata.at("homepage") == "www.puzzlescript.net");
+
     const std::string json = puzzlescript::compiler::serializeSemanticProgramJson(program);
     assert(json.find("\"semantic_program\"") != std::string::npos);
     assert(json.find("\"collision_layers\"") != std::string::npos);
@@ -130,6 +136,7 @@ int main() {
     assert(json.find("\"cells\"") != std::string::npos);
     assert(json.find("\"win_conditions\"") != std::string::npos);
     assert(json.find("\"quantifier\"") != std::string::npos);
+    assert(json.find("\"metadata\"") != std::string::npos);
 
     return 0;
 }

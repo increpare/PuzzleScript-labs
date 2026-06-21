@@ -109,9 +109,17 @@ function buildSemanticProgramSnapshot(state) {
     const levels = levelList(state);
     const win_conditions = winConditionList(state);
 
+    const metadata = {};
+    for (const key of Object.keys(state.metadata)) {
+        if (key === 'flickscreen' || key === 'zoomscreen') {
+            continue;
+        }
+        metadata[key] = state.metadata[key];
+    }
+
     return {
         schema_version: 1,
-        semantic_program: { objects, collision_layers, legends, levels, win_conditions },
+        semantic_program: { objects, collision_layers, legends, levels, win_conditions, metadata },
     };
 }
 

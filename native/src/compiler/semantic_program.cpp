@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <map>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
@@ -154,6 +155,32 @@ void appendWinConditionArray(std::string& out, const std::vector<SemanticWinCond
     out += ']';
 }
 
+std::string normalizeMetadataHomepage(std::string value) {
+    // Match JS formatHomePage: strip the first http://, then the first https://.
+    if (const size_t pos = value.find("http://"); pos != std::string::npos) {
+        value.erase(pos, 7);
+    }
+    if (const size_t pos = value.find("https://"); pos != std::string::npos) {
+        value.erase(pos, 8);
+    }
+    return value;
+}
+
+void appendMetadataObject(std::string& out, const std::map<std::string, std::string>& metadata) {
+    out += '{';
+    bool first = true;
+    for (const auto& [key, value] : metadata) {
+        if (!first) {
+            out += ',';
+        }
+        first = false;
+        appendJsonString(out, key);
+        out += ':';
+        appendJsonString(out, value);
+    }
+    out += '}';
+}
+
 } // namespace
 
 SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
@@ -233,6 +260,19 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
         program.winConditions.push_back(std::move(out));
     }
 
+    for (const auto& [key, value] : game.metadata.values) {
+        // flickscreen/zoomscreen are rewritten to coord arrays on the JS side
+        // (twiddleMetaData); exclude them so the resolved map stays parity-clean.
+        if (key == "flickscreen" || key == "zoomscreen") {
+            continue;
+        }
+        if (key == "homepage") {
+            program.metadata.emplace(key, normalizeMetadataHomepage(value));
+        } else {
+            program.metadata.emplace(key, value);
+        }
+    }
+
     return program;
 }
 
@@ -271,6 +311,8 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
     appendLevelArray(out, program.levels);
     out += ",\"win_conditions\":";
     appendWinConditionArray(out, program.winConditions);
+    out += ",\"metadata\":";
+    appendMetadataObject(out, program.metadata);
     out += "}}";
     return out;
 }

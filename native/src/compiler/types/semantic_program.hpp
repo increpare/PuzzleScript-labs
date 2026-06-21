@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -36,8 +37,9 @@ struct SemanticWinCondition {
 };
 
 // Current SemanticProgram contract: resolved object identity, collision layers,
-// resolved legends, resolved levels, and resolved win conditions. Extended in
-// later slices with rules and metadata. Serialized form is versioned via schemaVersion.
+// resolved legends, resolved levels, resolved win conditions, and resolved
+// metadata. Extended in later slices with rules and sounds. Serialized form is
+// versioned via schemaVersion.
 struct SemanticProgram {
     int32_t schemaVersion = 1;
     std::vector<SemanticObject> objects;
@@ -47,6 +49,7 @@ struct SemanticProgram {
     std::vector<SemanticLegend> properties;  // sorted by name
     std::vector<SemanticLevel> levels;
     std::vector<SemanticWinCondition> winConditions;  // source-declaration order
+    std::map<std::string, std::string> metadata;  // raw key->value, excludes flickscreen/zoomscreen
 };
 
 } // namespace puzzlescript::compiler
