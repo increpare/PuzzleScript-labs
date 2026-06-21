@@ -43,6 +43,54 @@ typedef enum ps_input {
     PS_INPUT_TICK = 5
 } ps_input;
 
+typedef enum ps_solve_status {
+    PS_SOLVE_STATUS_SOLVED = 0,
+    PS_SOLVE_STATUS_EXHAUSTED = 1,
+    PS_SOLVE_STATUS_TIMEOUT = 2,
+    PS_SOLVE_STATUS_ERROR = 3
+} ps_solve_status;
+
+typedef enum ps_solve_strategy {
+    PS_SOLVE_STRATEGY_PORTFOLIO = 0,
+    PS_SOLVE_STRATEGY_BFS = 1,
+    PS_SOLVE_STRATEGY_WEIGHTED_ASTAR = 2,
+    PS_SOLVE_STRATEGY_WEIGHTED_ASTAR_DEEP = 3,
+    PS_SOLVE_STRATEGY_GREEDY = 4
+} ps_solve_strategy;
+
+typedef struct ps_solve_options {
+    int64_t timeout_ms;
+    ps_solve_strategy strategy;
+    uint32_t portfolio_jobs;
+    bool exact_state_keys;
+    bool compact_node_storage;
+    bool full_node_storage;
+    bool compact_turn_oracle;
+    bool compact_turn_search;
+    int32_t astar_weight;
+} ps_solve_options;
+
+typedef struct ps_solve_result {
+    ps_solve_status status;
+    uint64_t expanded;
+    uint64_t generated;
+    uint64_t unique_states;
+    uint64_t duplicates;
+    uint64_t max_frontier;
+    int64_t elapsed_ms;
+    const ps_input* solution;
+    size_t solution_count;
+    const char* strategy;
+    const char* heuristic;
+    const char* error;
+} ps_solve_result;
+
+typedef enum ps_legend_kind {
+    PS_LEGEND_SYNONYM = 0,
+    PS_LEGEND_AGGREGATE = 1,
+    PS_LEGEND_PROPERTY = 2
+} ps_legend_kind;
+
 typedef enum ps_full_state_mode {
     PS_FULL_STATE_MODE_LEVEL = 0,
     PS_FULL_STATE_MODE_TITLE = 1,
@@ -153,6 +201,7 @@ typedef struct ps_runtime_counters {
 bool ps_load_ir_json(const char* json_utf8, size_t json_size, ps_game** out_game, ps_error** out_error);
 bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_result** out_result);
 const ps_game* ps_compile_result_game(const ps_compile_result* result);
+bool ps_game_clone(const ps_game* game, ps_game** out_game, ps_error** out_error);
 const ps_error* ps_compile_result_error(const ps_compile_result* result);
 void ps_free_compile_result(ps_compile_result* result);
 
@@ -170,6 +219,14 @@ ps_step_result ps_full_state_turn(ps_full_state* state, ps_input input);
 // Solver/cosmetic suppression mode: disables non-solver-relevant outputs
 // (message/sfx) and ignores checkpoint.
 ps_step_result ps_full_state_turn_with_options(ps_full_state* state, ps_input input, bool solver_mode);
+// Replaces the active level board with one object id per layer/cell. The input
+// layout is layer-major, then row-major within each layer:
+// layer * width * height + y * width + x. Use -1 for an empty layer cell.
+bool ps_full_state_set_layer_cell_object_ids(
+    ps_full_state* state,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    ps_error** out_error);
 // Runs a linked generated compact turn backend as the primary executor.
 // `out_handled` is false when no generated compact backend is attached or the
 // backend declines the current state/input. This is intended for benchmark and
@@ -190,6 +247,7 @@ bool ps_full_state_advance_level(ps_full_state* state, ps_error** out_error);
 void ps_full_state_status(const ps_full_state* state, ps_full_state_status_info* out_status);
 const char* ps_full_state_message_text(const ps_full_state* state);
 bool ps_full_state_cell_has_object(const ps_full_state* state, int32_t x, int32_t y, int32_t object_id);
+size_t ps_full_state_layer_cell_object_ids(const ps_full_state* state, int32_t* output, size_t capacity);
 bool ps_full_state_first_player_position(const ps_full_state* state, int32_t* out_x, int32_t* out_y);
 uint64_t ps_full_state_hash64(const ps_full_state* state);
 ps_hash128 ps_full_state_hash128(const ps_full_state* state);
@@ -206,8 +264,26 @@ void ps_runtime_counters_set_enabled(bool enabled);
 void ps_runtime_counters_reset(void);
 void ps_runtime_counters_snapshot(ps_runtime_counters* out_counters);
 
+ps_solve_options ps_solve_default_options(void);
+bool ps_solve_level_layer_cell_object_ids(
+    const ps_game* game,
+    int32_t level_index,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    const ps_solve_options* options,
+    ps_solve_result** out_result,
+    ps_error** out_error);
+void ps_solve_result_free(ps_solve_result* result);
+
 int32_t ps_game_level_count(const ps_game* game);
 int32_t ps_game_object_count(const ps_game* game);
+int32_t ps_game_layer_count(const ps_game* game);
+int32_t ps_game_glyph_count(const ps_game* game);
+const char* ps_game_glyph_name(const ps_game* game, int32_t glyph_index);
+size_t ps_game_glyph_object_ids(const ps_game* game, int32_t glyph_index, int32_t* output, size_t capacity);
+int32_t ps_game_legend_count(const ps_game* game, ps_legend_kind kind);
+const char* ps_game_legend_name(const ps_game* game, ps_legend_kind kind, int32_t legend_index);
+size_t ps_game_legend_object_ids(const ps_game* game, ps_legend_kind kind, int32_t legend_index, int32_t* output, size_t capacity);
 uint32_t ps_game_word_count(const ps_game* game);
 const char* ps_game_foreground_color(const ps_game* game);
 const char* ps_game_background_color(const ps_game* game);

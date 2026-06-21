@@ -1,10 +1,13 @@
 #include "runtime/core.hpp"
 #include "runtime/compiled_rules.hpp"
+#include "runtime/c_api_internal.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <set>
+#include <string>
 #include <vector>
 
  #include "compiler/lower_to_runtime.hpp"
@@ -21,23 +24,6 @@ using puzzlescript::kMaskWordBits;
 using puzzlescript::MaskWordUnsigned;
 using puzzlescript::RuntimeStepOptions;
 
-struct ps_game {
-    LoadedGame impl;
-};
-
-struct ps_full_state {
-    std::unique_ptr<FullState> impl;
-    puzzlescript::TurnResult lastTurnResult;
-};
-
-struct ps_compile_result {
-    std::unique_ptr<CompileResult> impl;
-};
-
-struct ps_error {
-    std::unique_ptr<Error> impl;
-};
-
 namespace {
 
 ps_error* makeError(std::unique_ptr<Error> error) {
@@ -53,6 +39,98 @@ char* duplicateString(const std::string& value) {
     char* buffer = new char[value.size() + 1];
     std::memcpy(buffer, value.c_str(), value.size() + 1);
     return buffer;
+}
+
+bool maskHasAnyBit(const std::vector<puzzlescript::MaskWord>& mask) {
+    return std::any_of(mask.begin(), mask.end(), [](puzzlescript::MaskWord word) {
+        return word != 0;
+    });
+}
+
+void setMaskBit(std::vector<puzzlescript::MaskWord>& mask, int32_t objectId) {
+    if (objectId < 0) {
+        return;
+    }
+    const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+    if (word >= mask.size()) {
+        return;
+    }
+    mask[static_cast<size_t>(word)] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+}
+
+void orMaskInto(std::vector<puzzlescript::MaskWord>& target, const std::vector<puzzlescript::MaskWord>& source) {
+    const size_t count = std::min(target.size(), source.size());
+    for (size_t index = 0; index < count; ++index) {
+        target[index] |= source[index];
+    }
+}
+
+puzzlescript::MaskOffset storeMaskWords(Game& game, const std::vector<puzzlescript::MaskWord>& words) {
+    const auto offset = static_cast<puzzlescript::MaskOffset>(game.maskArena.size());
+    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+    return offset;
+}
+
+std::vector<puzzlescript::MaskWord> resolveParserGlyphMask(
+    const Game& game,
+    const puzzlescript::compiler::ParserState& parserState,
+    const std::string& name,
+    std::set<std::string>& visiting
+) {
+    std::vector<puzzlescript::MaskWord> mask(static_cast<size_t>(game.wordCount), 0);
+    if (!visiting.insert(name).second) {
+        return mask;
+    }
+
+    if (parserState.objects.find(name) != parserState.objects.end()) {
+        for (const auto& object : game.objectsById) {
+            if (object.name == name) {
+                setMaskBit(mask, object.id);
+                break;
+            }
+        }
+        visiting.erase(name);
+        return mask;
+    }
+
+    for (const auto& entry : parserState.legendSynonyms) {
+        if (entry.name == name && !entry.items.empty()) {
+            mask = resolveParserGlyphMask(game, parserState, entry.items.front(), visiting);
+            visiting.erase(name);
+            return mask;
+        }
+    }
+
+    for (const auto& entry : parserState.legendAggregates) {
+        if (entry.name != name) {
+            continue;
+        }
+        for (const auto& item : entry.items) {
+            orMaskInto(mask, resolveParserGlyphMask(game, parserState, item, visiting));
+        }
+        visiting.erase(name);
+        return mask;
+    }
+
+    visiting.erase(name);
+    return mask;
+}
+
+void publishParserGlyphs(Game& game, const puzzlescript::compiler::ParserState& parserState) {
+    game.glyphOrder.clear();
+    game.glyphMaskTable.clear();
+    game.glyphOrder.reserve(parserState.abbrevNames.size());
+    game.glyphMaskTable.reserve(parserState.abbrevNames.size());
+
+    for (const std::string& name : parserState.abbrevNames) {
+        std::set<std::string> visiting;
+        std::vector<puzzlescript::MaskWord> mask = resolveParserGlyphMask(game, parserState, name, visiting);
+        if (!maskHasAnyBit(mask)) {
+            continue;
+        }
+        game.glyphOrder.push_back(name);
+        game.glyphMaskTable.push_back({name, storeMaskWords(game, mask)});
+    }
 }
 
 struct CompactOracleState {
@@ -178,6 +256,7 @@ bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_r
             return false;
         }
         if (loadedGame.information) {
+            publishParserGlyphs(*std::const_pointer_cast<Game>(loadedGame.information), state);
             puzzlescript::attachLinkedCompiledRules(
                 *std::const_pointer_cast<Game>(loadedGame.information),
                 source_utf8 == nullptr ? std::string_view{} : std::string_view(source_utf8, source_size)
@@ -200,6 +279,27 @@ const ps_game* ps_compile_result_game(const ps_compile_result* result) {
     auto* wrapper = new ps_game();
     wrapper->impl = result->impl->loadedGame;
     return wrapper;
+}
+
+bool ps_game_clone(const ps_game* game, ps_game** out_game, ps_error** out_error) {
+    if (out_error) {
+        *out_error = nullptr;
+    }
+    if (!out_game) {
+        return false;
+    }
+    *out_game = nullptr;
+    if (!game || !game->impl.information) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("ps_game_clone received null input"));
+        }
+        return false;
+    }
+
+    auto* wrapper = new ps_game();
+    wrapper->impl = game->impl;
+    *out_game = wrapper;
+    return true;
 }
 
 const ps_error* ps_compile_result_error(const ps_compile_result* result) {
@@ -234,6 +334,95 @@ ps_step_result ps_full_state_turn_with_options(ps_full_state* state, ps_input in
     }
     state->lastTurnResult = puzzlescript::turnResult(*state->impl, input, options);
     return state->lastTurnResult.core;
+}
+
+bool ps_full_state_set_layer_cell_object_ids(
+    ps_full_state* state,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    ps_error** out_error
+) {
+    if (out_error) {
+        *out_error = nullptr;
+    }
+    if (!state || !state->impl || !state->impl->game || !layer_cell_object_ids) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("ps_full_state_set_layer_cell_object_ids received null input"));
+        }
+        return false;
+    }
+
+    FullState& impl = *state->impl;
+    const Game& game = *impl.game;
+    const int32_t width = currentLevelWidth(impl);
+    const int32_t height = currentLevelHeight(impl);
+    const int32_t layerCount = game.layerCount;
+    if (width <= 0 || height <= 0 || layerCount <= 0) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("Cannot seed a PuzzleScript state without an active rectangular level"));
+        }
+        return false;
+    }
+
+    const size_t required = static_cast<size_t>(layerCount) * static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (count != required) {
+        if (out_error) {
+            *out_error = makeError(std::make_unique<Error>("Layer cell object id count does not match the active level dimensions"));
+        }
+        return false;
+    }
+
+    const int32_t tileCount = width * height;
+    puzzlescript::MaskVector objects(static_cast<size_t>(tileCount * game.strideObject), 0);
+    for (int32_t layer = 0; layer < layerCount; ++layer) {
+        for (int32_t y = 0; y < height; ++y) {
+            for (int32_t x = 0; x < width; ++x) {
+                const size_t inputOffset = static_cast<size_t>(layer * width * height + y * width + x);
+                const int32_t objectId = layer_cell_object_ids[inputOffset];
+                if (objectId < 0) {
+                    continue;
+                }
+                if (objectId >= game.objectCount) {
+                    if (out_error) {
+                        *out_error = makeError(std::make_unique<Error>("Layer cell object id is outside the compiled game object table"));
+                    }
+                    return false;
+                }
+                const puzzlescript::ObjectDef& object = game.objectsById[static_cast<size_t>(objectId)];
+                if (object.layer != layer) {
+                    if (out_error) {
+                        *out_error = makeError(std::make_unique<Error>("Layer cell object id does not belong to the requested collision layer"));
+                    }
+                    return false;
+                }
+                const int32_t tileIndex = x * height + y;
+                const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+                const size_t objectOffset = static_cast<size_t>(tileIndex * game.strideObject + static_cast<int32_t>(word));
+                if (objectOffset < objects.size()) {
+                    objects[objectOffset] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+                }
+            }
+        }
+    }
+
+    puzzlescript::setPersistentBoardObjectsFromCellMajor(impl, objects);
+    impl.meta.restart.objects = objects;
+    impl.scratch.liveMovements.assign(static_cast<size_t>(tileCount * game.strideMovement), 0);
+    impl.scratch.rigidGroupIndexMasks.assign(impl.scratch.liveMovements.size(), 0);
+    impl.scratch.rigidMovementAppliedMasks.assign(impl.scratch.liveMovements.size(), 0);
+    impl.meta.undoStack.clear();
+    impl.meta.pendingAgain = false;
+    impl.meta.winning = false;
+
+    std::fill(impl.scratch.dirtyObjectRows.begin(), impl.scratch.dirtyObjectRows.end(), 1);
+    std::fill(impl.scratch.dirtyObjectColumns.begin(), impl.scratch.dirtyObjectColumns.end(), 1);
+    std::fill(impl.scratch.dirtyMovementRows.begin(), impl.scratch.dirtyMovementRows.end(), 1);
+    std::fill(impl.scratch.dirtyMovementColumns.begin(), impl.scratch.dirtyMovementColumns.end(), 1);
+    impl.scratch.dirtyObjectBoard = true;
+    impl.scratch.dirtyMovementBoard = true;
+    impl.scratch.objectCellIndexDirty = true;
+    impl.scratch.anyMasksDirty = true;
+    return true;
 }
 
 ps_step_result ps_full_state_turn_compiled_compact(
@@ -521,6 +710,58 @@ bool ps_full_state_cell_has_object(const ps_full_state* state, int32_t x, int32_
     return (impl.levelState.board.objects[offset] & puzzlescript::maskBit(static_cast<uint32_t>(object_id))) != 0;
 }
 
+size_t ps_full_state_layer_cell_object_ids(const ps_full_state* state, int32_t* output, size_t capacity) {
+    if (!state || !state->impl || !state->impl->game) {
+        return 0;
+    }
+    const FullState& impl = *state->impl;
+    const int32_t width = currentLevelWidth(impl);
+    const int32_t height = currentLevelHeight(impl);
+    const int32_t layerCount = impl.game->layerCount;
+    if (width <= 0 || height <= 0 || layerCount <= 0) {
+        return 0;
+    }
+
+    const size_t required = static_cast<size_t>(layerCount) * static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (!output || capacity == 0) {
+        return required;
+    }
+
+    const size_t writable = std::min(required, capacity);
+    std::fill(output, output + writable, -1);
+
+    const int32_t tileCount = width * height;
+    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {
+        const int32_t x = tileIndex / height;
+        const int32_t y = tileIndex % height;
+        const size_t tileBase = static_cast<size_t>(tileIndex * impl.game->strideObject);
+
+        for (int32_t objectId = 0; objectId < impl.game->objectCount; ++objectId) {
+            const auto& object = impl.game->objectsById[static_cast<size_t>(objectId)];
+            if (object.layer < 0 || object.layer >= layerCount) {
+                continue;
+            }
+            const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+            if (word >= impl.game->wordCount) {
+                continue;
+            }
+            const size_t objectOffset = tileBase + word;
+            if (objectOffset >= impl.levelState.board.objects.size()) {
+                continue;
+            }
+            if ((impl.levelState.board.objects[objectOffset] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) == 0) {
+                continue;
+            }
+            const size_t outOffset = static_cast<size_t>(object.layer * width * height + y * width + x);
+            if (outOffset < writable) {
+                output[outOffset] = objectId;
+            }
+        }
+    }
+
+    return required;
+}
+
 bool ps_full_state_first_player_position(const ps_full_state* state, int32_t* out_x, int32_t* out_y) {
     if (out_x) {
         *out_x = 0;
@@ -648,6 +889,121 @@ int32_t ps_game_level_count(const ps_game* game) {
 
 int32_t ps_game_object_count(const ps_game* game) {
     return game && game->impl.information ? game->impl.information->objectCount : 0;
+}
+
+int32_t ps_game_layer_count(const ps_game* game) {
+    return game && game->impl.information ? game->impl.information->layerCount : 0;
+}
+
+int32_t ps_game_glyph_count(const ps_game* game) {
+    return game && game->impl.information ? static_cast<int32_t>(game->impl.information->glyphOrder.size()) : 0;
+}
+
+static const std::vector<Game::NamedMaskEntry>* legendTableForKind(const Game& game, ps_legend_kind kind) {
+    switch (kind) {
+    case PS_LEGEND_SYNONYM:
+        return &game.synonymMaskTable;
+    case PS_LEGEND_AGGREGATE:
+        return &game.aggregateMaskTable;
+    case PS_LEGEND_PROPERTY:
+        return &game.propertyMaskTable;
+    default:
+        return nullptr;
+    }
+}
+
+static size_t writeObjectIdsFromMask(
+    const Game& impl,
+    puzzlescript::MaskOffset maskOffset,
+    int32_t* output,
+    size_t capacity
+) {
+    const size_t offset = static_cast<size_t>(maskOffset);
+    const size_t wordCount = static_cast<size_t>(impl.wordCount);
+    if (maskOffset == puzzlescript::kNullMaskOffset
+        || offset > impl.maskArena.size()
+        || wordCount > impl.maskArena.size() - offset) {
+        return 0;
+    }
+
+    const puzzlescript::MaskWord* mask = impl.maskArena.data() + offset;
+    size_t required = 0;
+    for (int32_t objectId = 0; objectId < impl.objectCount; ++objectId) {
+        const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word >= impl.wordCount) {
+            continue;
+        }
+        if ((mask[word] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) == 0) {
+            continue;
+        }
+        if (output && required < capacity) {
+            output[required] = objectId;
+        }
+        ++required;
+    }
+    return required;
+}
+
+const char* ps_game_glyph_name(const ps_game* game, int32_t glyph_index) {
+    if (!game || !game->impl.information || glyph_index < 0) {
+        return "";
+    }
+    const auto& glyphs = game->impl.information->glyphOrder;
+    if (static_cast<size_t>(glyph_index) >= glyphs.size()) {
+        return "";
+    }
+    return glyphs[static_cast<size_t>(glyph_index)].c_str();
+}
+
+size_t ps_game_glyph_object_ids(const ps_game* game, int32_t glyph_index, int32_t* output, size_t capacity) {
+    if (!game || !game->impl.information || glyph_index < 0) {
+        return 0;
+    }
+    const Game& impl = *game->impl.information;
+    if (static_cast<size_t>(glyph_index) >= impl.glyphOrder.size()) {
+        return 0;
+    }
+
+    const std::string& glyph = impl.glyphOrder[static_cast<size_t>(glyph_index)];
+    puzzlescript::MaskOffset glyphMaskOffset = puzzlescript::kNullMaskOffset;
+    for (const auto& entry : impl.glyphMaskTable) {
+        if (entry.name == glyph) {
+            glyphMaskOffset = entry.offset;
+            break;
+        }
+    }
+    return writeObjectIdsFromMask(impl, glyphMaskOffset, output, capacity);
+}
+
+int32_t ps_game_legend_count(const ps_game* game, ps_legend_kind kind) {
+    if (!game || !game->impl.information) {
+        return 0;
+    }
+    const std::vector<Game::NamedMaskEntry>* table = legendTableForKind(*game->impl.information, kind);
+    return table == nullptr ? 0 : static_cast<int32_t>(table->size());
+}
+
+const char* ps_game_legend_name(const ps_game* game, ps_legend_kind kind, int32_t legend_index) {
+    if (!game || !game->impl.information || legend_index < 0) {
+        return "";
+    }
+    const std::vector<Game::NamedMaskEntry>* table = legendTableForKind(*game->impl.information, kind);
+    if (table == nullptr || static_cast<size_t>(legend_index) >= table->size()) {
+        return "";
+    }
+    return (*table)[static_cast<size_t>(legend_index)].name.c_str();
+}
+
+size_t ps_game_legend_object_ids(const ps_game* game, ps_legend_kind kind, int32_t legend_index, int32_t* output, size_t capacity) {
+    if (!game || !game->impl.information || legend_index < 0) {
+        return 0;
+    }
+    const Game& impl = *game->impl.information;
+    const std::vector<Game::NamedMaskEntry>* table = legendTableForKind(impl, kind);
+    if (table == nullptr || static_cast<size_t>(legend_index) >= table->size()) {
+        return 0;
+    }
+    return writeObjectIdsFromMask(impl, (*table)[static_cast<size_t>(legend_index)].offset, output, capacity);
 }
 
 uint32_t ps_game_word_count(const ps_game* game) {

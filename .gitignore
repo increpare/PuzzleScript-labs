@@ -18,3 +18,11 @@ node_modules/
 /Testing/
 /tmp_*.js
 /.claude/worktrees
+/tools/puzzlescriptmis-app/bin/
+/tools/puzzlescriptmis-app/obj/
+/tools/puzzlescriptmis-app/.vscode/
+/tools/puzzlescriptmis-app/Debug/
+/tools/puzzlescriptmis-app/Release/
+/tools/puzzlescriptmis-app/OptimizationProfiles/*.profdata
+/tools/puzzlescriptmis-app/**/xcuserdata/
+/tools/puzzlescriptmis-app/*.vcxproj.user

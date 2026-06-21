@@ -1,4 +1,5 @@
 #include <cassert>
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -6,6 +7,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
@@ -75,6 +77,121 @@ LEVELS
 P.
 )";
 
+constexpr const char* kSnapshotSource = R"(title Native Snapshot API Test
+author Tests
+text_color #ffffff
+background_color #000000
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+Crate
+red
+11111
+11111
+11111
+11111
+11111
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+C = Crate
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+
+========
+LEVELS
+========
+
+.C
+P.
+)";
+
+constexpr const char* kLegendApiSource = R"(title Native Legend API Test
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Hero
+white
+11111
+11111
+11111
+11111
+11111
+
+Robot
+green
+00000
+00000
+00000
+00000
+00000
+
+Hat
+red
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+. = Background
+Alias = Hero
+Duo = Hero and Hat
+Player = Hero or Robot
+H = Hero
+
+================
+COLLISIONLAYERS
+================
+Background
+Hero, Robot, Hat
+
+=======
+LEVELS
+=======
+H.
+)";
+
 struct CompileHandle {
     ps_compile_result* result = nullptr;
     ~CompileHandle() { ps_free_compile_result(result); }
@@ -109,6 +226,57 @@ std::string serializedState(const SessionHandle& session) {
     const std::string value = raw ? raw : "";
     ps_string_free(raw);
     return value;
+}
+
+struct GameHandle {
+    const ps_game* game = nullptr;
+    ~GameHandle() { ps_free_game(const_cast<ps_game*>(game)); }
+};
+
+int32_t findObjectIdByName(const ps_game* game, const char* name) {
+    const int32_t objectCount = ps_game_object_count(game);
+    for (int32_t objectId = 0; objectId < objectCount; ++objectId) {
+        ps_object_info info{};
+        require(ps_game_object_info(game, objectId, &info), "object info lookup failed");
+        if (std::strcmp(info.name, name) == 0) {
+            return objectId;
+        }
+    }
+    return -1;
+}
+
+int32_t findLegendIndex(const ps_game* game, ps_legend_kind kind, const char* name) {
+    const int32_t legendCount = ps_game_legend_count(game, kind);
+    for (int32_t legendIndex = 0; legendIndex < legendCount; ++legendIndex) {
+        if (std::strcmp(ps_game_legend_name(game, kind, legendIndex), name) == 0) {
+            return legendIndex;
+        }
+    }
+    return -1;
+}
+
+std::vector<int32_t> legendObjectIds(const ps_game* game, ps_legend_kind kind, int32_t legendIndex) {
+    const size_t count = ps_game_legend_object_ids(game, kind, legendIndex, nullptr, 0);
+    std::vector<int32_t> ids(count, -1);
+    if (!ids.empty()) {
+        const size_t written = ps_game_legend_object_ids(game, kind, legendIndex, ids.data(), ids.size());
+        require(written == count, "legend api object id count changed between calls");
+    }
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
+void requireLegendObjects(
+    const ps_game* game,
+    ps_legend_kind kind,
+    const char* name,
+    std::vector<int32_t> expectedObjectIds
+) {
+    const int32_t legendIndex = findLegendIndex(game, kind, name);
+    require(legendIndex >= 0, "legend api expected named legend");
+    std::sort(expectedObjectIds.begin(), expectedObjectIds.end());
+    const std::vector<int32_t> actualObjectIds = legendObjectIds(game, kind, legendIndex);
+    require(actualObjectIds == expectedObjectIds, "legend api returned unexpected object ids");
 }
 
 void drainInterpreterSolverAgain(SessionHandle& session) {
@@ -176,6 +344,114 @@ void assertPersistentStateMatches(
         std::cerr << "fresh-scratch compact solver rng mismatch after " << label << "\n";
         std::abort();
     }
+}
+
+void runLayerCellSnapshotApiTest() {
+    CompileHandle compiled;
+    require(ps_compile_source(kSnapshotSource, std::strlen(kSnapshotSource), &compiled.result), "snapshot api compile failed");
+    GameHandle gameHandle{ps_compile_result_game(compiled.result)};
+    const ps_game* game = gameHandle.game;
+    require(game != nullptr, "snapshot api compile produced no game");
+
+    const int32_t layerCount = ps_game_layer_count(game);
+    require(layerCount >= 2, "snapshot api expected at least two layers");
+
+    SessionHandle session;
+    ps_error* error = nullptr;
+    require(ps_full_state_create(game, &session.state, &error), "snapshot api state create failed");
+
+    ps_full_state_status_info status{};
+    ps_full_state_status(session.state, &status);
+    require(status.width == 2, "snapshot api expected width 2");
+    require(status.height == 2, "snapshot api expected height 2");
+
+    const size_t required = ps_full_state_layer_cell_object_ids(session.state, nullptr, 0);
+    require(required == static_cast<size_t>(layerCount * status.width * status.height), "snapshot api required size mismatch");
+
+    std::vector<int32_t> cells(required, -99);
+    const size_t written = ps_full_state_layer_cell_object_ids(session.state, cells.data(), cells.size());
+    require(written == required, "snapshot api written size mismatch");
+
+    const int32_t playerId = findObjectIdByName(game, "player");
+    require(playerId >= 0, "snapshot api did not find player object");
+    const int32_t crateId = findObjectIdByName(game, "crate");
+    require(crateId >= 0, "snapshot api did not find crate object");
+    const int32_t backgroundId = findObjectIdByName(game, "background");
+    require(backgroundId >= 0, "snapshot api did not find background object");
+
+    ps_object_info playerInfo{};
+    require(ps_game_object_info(game, playerId, &playerInfo), "snapshot api player info failed");
+    ps_object_info crateInfo{};
+    require(ps_game_object_info(game, crateId, &crateInfo), "snapshot api crate info failed");
+    ps_object_info backgroundInfo{};
+    require(ps_game_object_info(game, backgroundId, &backgroundInfo), "snapshot api background info failed");
+    require(playerInfo.layer == crateInfo.layer, "snapshot api expected player and crate on same layer");
+    require(playerInfo.layer != backgroundInfo.layer, "snapshot api expected object layer distinct from background");
+
+    const size_t cellCount = static_cast<size_t>(status.width * status.height);
+    const auto layerCellOffset = [&](int32_t layer, int32_t x, int32_t y) {
+        return static_cast<size_t>(layer) * cellCount
+            + static_cast<size_t>(y) * static_cast<size_t>(status.width)
+            + static_cast<size_t>(x);
+    };
+    const size_t backgroundLayerOffset = static_cast<size_t>(backgroundInfo.layer) * cellCount;
+    require(cells[backgroundLayerOffset + 0] == backgroundId, "snapshot api expected background at 0,0");
+    require(cells[backgroundLayerOffset + 1] == backgroundId, "snapshot api expected background at 1,0");
+    require(cells[backgroundLayerOffset + 2] == backgroundId, "snapshot api expected background at 0,1");
+    require(cells[backgroundLayerOffset + 3] == backgroundId, "snapshot api expected background at 1,1");
+    const size_t emptyTopLeftOffset = layerCellOffset(playerInfo.layer, 0, 0);
+    const size_t crateCellOffset = layerCellOffset(crateInfo.layer, 1, 0);
+    const size_t playerCellOffset = layerCellOffset(playerInfo.layer, 0, 1);
+    const size_t emptyBottomRightOffset = layerCellOffset(playerInfo.layer, 1, 1);
+    require(cells[emptyTopLeftOffset] == -1, "snapshot api expected empty object layer cell at 0,0");
+    require(cells[crateCellOffset] == crateId, "snapshot api expected crate at 1,0");
+    require(cells[playerCellOffset] == playerId, "snapshot api expected player in first cell on player layer");
+    require(cells[emptyBottomRightOffset] == -1, "snapshot api expected empty object layer cell at 1,1");
+
+    const size_t partialCapacity = playerCellOffset + 1;
+    std::vector<int32_t> partial(required + 2, -777);
+    const size_t partialWritten = ps_full_state_layer_cell_object_ids(session.state, partial.data(), partialCapacity);
+    require(partialWritten == required, "snapshot api partial written size mismatch");
+    for (size_t index = 0; index < partialCapacity; ++index) {
+        require(partial[index] == cells[index], "snapshot api partial buffer prefix mismatch");
+    }
+    require(partial[partialCapacity] == -777, "snapshot api partial buffer wrote past capacity");
+    require(partial[partialCapacity + 1] == -777, "snapshot api partial buffer wrote past capacity sentinel");
+
+    const int32_t glyphCount = ps_game_glyph_count(game);
+    require(glyphCount > 0, "snapshot api expected glyphs");
+    bool sawPlayerGlyph = false;
+    for (int32_t glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex) {
+        const char* glyph = ps_game_glyph_name(game, glyphIndex);
+        const size_t glyphRequired = ps_game_glyph_object_ids(game, glyphIndex, nullptr, 0);
+        std::vector<int32_t> glyphObjectIds(glyphRequired, -1);
+        ps_game_glyph_object_ids(game, glyphIndex, glyphObjectIds.data(), glyphObjectIds.size());
+        if (std::strcmp(glyph, "P") == 0 || std::strcmp(glyph, "p") == 0) {
+            sawPlayerGlyph = true;
+            require(glyphObjectIds.size() == 1, "snapshot api expected P glyph to map one object");
+            require(glyphObjectIds[0] == playerId, "snapshot api expected P glyph to map player");
+        }
+    }
+    require(sawPlayerGlyph, "snapshot api did not find player glyph");
+}
+
+void runLegendApiTest() {
+    CompileHandle compiled;
+    require(ps_compile_source(kLegendApiSource, std::strlen(kLegendApiSource), &compiled.result), "legend api compile failed");
+    GameHandle gameHandle{ps_compile_result_game(compiled.result)};
+    const ps_game* game = gameHandle.game;
+    require(game != nullptr, "legend api compile produced no game");
+
+    const int32_t heroId = findObjectIdByName(game, "hero");
+    const int32_t robotId = findObjectIdByName(game, "robot");
+    const int32_t hatId = findObjectIdByName(game, "hat");
+    require(heroId >= 0, "legend api expected hero object");
+    require(robotId >= 0, "legend api expected robot object");
+    require(hatId >= 0, "legend api expected hat object");
+
+    requireLegendObjects(game, PS_LEGEND_SYNONYM, "alias", {heroId});
+    requireLegendObjects(game, PS_LEGEND_AGGREGATE, "duo", {heroId, hatId});
+    requireLegendObjects(game, PS_LEGEND_PROPERTY, "player", {heroId, robotId});
 }
 
 void runCompiledCompactSolverFreshScratchRegression(const std::string& source) {
@@ -387,6 +663,8 @@ int main() {
     if (const char* compactSolverPathSource = std::getenv("PUZZLESCRIPT_COMPILED_COMPACT_SOLVER_PATH_SOURCE")) {
         runCompiledCompactSolverPathRegression(compactSolverPathSource);
     }
+    runLayerCellSnapshotApiTest();
+    runLegendApiTest();
 
     CompileHandle compiled;
     if (!ps_compile_source(kSource, std::strlen(kSource), &compiled.result)) {

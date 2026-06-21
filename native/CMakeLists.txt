@@ -21,10 +21,14 @@ endif()
 option(PS_ENABLE_LTO "Enable Release-build link-time optimization" ON)
 option(PS_ENABLE_LINK_DEDUP "Enable Darwin ld64 duplicate-code folding in Release builds" ON)
 option(PS_ENABLE_EXPORTED_SYMBOLS "Enable exported symbols from Release main executables on Darwin" ON)
+option(PS_ENABLE_MARCH_NATIVE "Enable -march=native in Release builds" ON)
+if(APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES ";")
+  set(PS_ENABLE_MARCH_NATIVE OFF)
+endif()
 add_compile_options(
     $<$<CONFIG:Release>:-O3>
     $<$<CONFIG:Release>:-DNDEBUG>
-    $<$<CONFIG:Release>:-march=native>
+    $<$<AND:$<CONFIG:Release>,$<BOOL:${PS_ENABLE_MARCH_NATIVE}>>:-march=native>
 )
 if(PS_ENABLE_LTO)
   add_compile_options($<$<CONFIG:Release>:-flto>)
@@ -87,6 +91,7 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/hash.cpp
   src/runtime/json.cpp
   src/runtime/simd.cpp
+  src/solver/c_api.cpp
   third_party/simdjson/simdjson.cpp
 )
 

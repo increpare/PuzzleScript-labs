@@ -486,7 +486,9 @@ struct GameInformation {
     struct NamedMaskEntry { std::string name; MaskOffset offset; };
     std::vector<NamedMaskEntry> glyphMaskTable;
     std::vector<NamedMaskEntry> objectMaskTable;
+    std::vector<NamedMaskEntry> synonymMaskTable;
     std::vector<NamedMaskEntry> aggregateMaskTable;
+    std::vector<NamedMaskEntry> propertyMaskTable;
 
     std::vector<ObjectDef> objectsById;
     std::vector<std::vector<std::string>> collisionLayers;

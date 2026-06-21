@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -33,6 +34,10 @@
 #include "runtime/json.hpp"
 #include "search/search_common.hpp"
 #include "solver/heuristics.hpp"
+
+#ifdef PUZZLESCRIPT_SOLVER_C_API
+#include "runtime/c_api_internal.hpp"
+#endif
 
 namespace {
 
@@ -1913,7 +1918,8 @@ Result runSearch(
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
-    const std::atomic_bool* cancelRequested = nullptr
+    const std::atomic_bool* cancelRequested = nullptr,
+    std::unique_ptr<FullState> initialOverride = nullptr
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -1931,8 +1937,8 @@ Result runSearch(
     result.astarWeight = astarWeight;
     result.timing.compileNs = compileNs;
 
-    std::unique_ptr<FullState> initial;
-    {
+    std::unique_ptr<FullState> initial = std::move(initialOverride);
+    if (!initial) {
         ScopedTimer timer(result.timing.loadNs);
         initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
     }
@@ -2214,7 +2220,8 @@ Result runAdaptivePortfolioSearch(
     bool compactTurnSearch,
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
-    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    std::unique_ptr<FullState> initialOverride = nullptr
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -2234,8 +2241,8 @@ Result runAdaptivePortfolioSearch(
     result.astarWeight = astarWeight;
     result.timing.compileNs = compileNs;
 
-    std::unique_ptr<FullState> initial;
-    {
+    std::unique_ptr<FullState> initial = std::move(initialOverride);
+    if (!initial) {
         ScopedTimer timer(result.timing.loadNs);
         initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
     }
@@ -3386,6 +3393,255 @@ Result solveLevel(
         staticAnalysisHints));
 }
 
+#ifdef PUZZLESCRIPT_SOLVER_C_API
+std::unique_ptr<FullState> createSeededSolverSession(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameName,
+    int32_t levelIndex,
+    const int32_t* layerCellObjectIds,
+    size_t count,
+    Result& result
+) {
+    std::unique_ptr<FullState> initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
+    if (!initial) {
+        return nullptr;
+    }
+    if (!layerCellObjectIds) {
+        result.status = "level_error";
+        result.error = "ps_solve_level_layer_cell_object_ids received null layer grid";
+        return nullptr;
+    }
+    if (!initial->game) {
+        result.status = "level_error";
+        result.error = "Seeded solver session has no compiled game";
+        return nullptr;
+    }
+
+    const Game& game = *initial->game;
+    const int32_t width = currentLevelWidth(*initial);
+    const int32_t height = currentLevelHeight(*initial);
+    const int32_t layerCount = game.layerCount;
+    if (width <= 0 || height <= 0 || layerCount <= 0) {
+        result.status = "level_error";
+        result.error = "Cannot seed a PuzzleScript solver state without an active rectangular level";
+        return nullptr;
+    }
+
+    const size_t required = static_cast<size_t>(layerCount)
+        * static_cast<size_t>(width)
+        * static_cast<size_t>(height);
+    if (count != required) {
+        result.status = "level_error";
+        result.error = "Layer cell object id count does not match the active level dimensions";
+        return nullptr;
+    }
+
+    const int32_t tileCount = width * height;
+    puzzlescript::MaskVector objects(static_cast<size_t>(tileCount * game.strideObject), 0);
+    for (int32_t layer = 0; layer < layerCount; ++layer) {
+        for (int32_t y = 0; y < height; ++y) {
+            for (int32_t x = 0; x < width; ++x) {
+                const size_t inputOffset = static_cast<size_t>(layer * width * height + y * width + x);
+                const int32_t objectId = layerCellObjectIds[inputOffset];
+                if (objectId < 0) {
+                    continue;
+                }
+                if (objectId >= game.objectCount) {
+                    result.status = "level_error";
+                    result.error = "Layer cell object id is outside the compiled game object table";
+                    return nullptr;
+                }
+                const puzzlescript::ObjectDef& object = game.objectsById[static_cast<size_t>(objectId)];
+                if (object.layer != layer) {
+                    result.status = "level_error";
+                    result.error = "Layer cell object id does not belong to the requested collision layer";
+                    return nullptr;
+                }
+                const int32_t tileIndex = x * height + y;
+                const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+                const size_t objectOffset = static_cast<size_t>(tileIndex * game.strideObject + static_cast<int32_t>(word));
+                if (objectOffset < objects.size()) {
+                    objects[objectOffset] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+                }
+            }
+        }
+    }
+
+    puzzlescript::setPersistentBoardObjectsFromCellMajor(*initial, objects);
+    initial->meta.restart.objects = objects;
+    initial->scratch.liveMovements.assign(static_cast<size_t>(tileCount * game.strideMovement), 0);
+    initial->scratch.rigidGroupIndexMasks.assign(initial->scratch.liveMovements.size(), 0);
+    initial->scratch.rigidMovementAppliedMasks.assign(initial->scratch.liveMovements.size(), 0);
+    initial->meta.undoStack.clear();
+    initial->meta.pendingAgain = false;
+    initial->meta.winning = false;
+
+    std::fill(initial->scratch.dirtyObjectRows.begin(), initial->scratch.dirtyObjectRows.end(), 1);
+    std::fill(initial->scratch.dirtyObjectColumns.begin(), initial->scratch.dirtyObjectColumns.end(), 1);
+    std::fill(initial->scratch.dirtyMovementRows.begin(), initial->scratch.dirtyMovementRows.end(), 1);
+    std::fill(initial->scratch.dirtyMovementColumns.begin(), initial->scratch.dirtyMovementColumns.end(), 1);
+    initial->scratch.dirtyObjectBoard = true;
+    initial->scratch.dirtyMovementBoard = true;
+    initial->scratch.objectCellIndexDirty = true;
+    initial->scratch.anyMasksDirty = true;
+
+    return initial;
+}
+
+Result solveSeededLevel(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameName,
+    int32_t levelIndex,
+    const int32_t* layerCellObjectIds,
+    size_t count,
+    int64_t timeoutMs,
+    Strategy strategy,
+    uint32_t workerId,
+    bool exactStateKeys,
+    bool compactNodeStorage,
+    bool fullNodeStorage,
+    bool compactTurnOracle,
+    bool compactTurnSearch,
+    int32_t astarWeight,
+    size_t portfolioJobs
+) {
+    const TimePoint searchStart = Clock::now();
+    const int64_t effectiveTimeoutMs = std::max<int64_t>(1, timeoutMs);
+    const TimePoint deadline = searchStart + std::chrono::milliseconds(effectiveTimeoutMs);
+    const bool effectiveCompactNodeStorage =
+        compactNodeStorage
+        || (strategy == Strategy::Portfolio && !fullNodeStorage);
+
+    auto finish = [&](Result result) {
+        result.strategy = result.status == "solved" ? result.strategy : strategyName(strategy);
+        result.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - searchStart).count();
+        return result;
+    };
+
+    Result loadResult;
+    loadResult.game = gameName;
+    loadResult.level = levelIndex;
+    loadResult.status = "level_error";
+    loadResult.strategy = strategyName(strategy);
+    loadResult.timeoutMs = effectiveTimeoutMs;
+    loadResult.workerId = workerId;
+    loadResult.astarWeight = astarWeight;
+    std::unique_ptr<FullState> initial = createSeededSolverSession(
+        loadedGame,
+        gameName,
+        levelIndex,
+        layerCellObjectIds,
+        count,
+        loadResult);
+    if (!initial) {
+        return finish(std::move(loadResult));
+    }
+
+    if (strategy == Strategy::Bfs) {
+        return finish(runSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            effectiveTimeoutMs,
+            0,
+            SearchMode::Bfs,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            compactTurnSearch,
+            astarWeight,
+            puzzlescript::solver::HeuristicKind::Auto,
+            nullptr,
+            nullptr,
+            std::move(initial)));
+    }
+    if (strategy == Strategy::WeightedAStar) {
+        return finish(runSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            effectiveTimeoutMs,
+            0,
+            SearchMode::WeightedAStar,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            compactTurnSearch,
+            astarWeight,
+            puzzlescript::solver::HeuristicKind::Auto,
+            nullptr,
+            nullptr,
+            std::move(initial)));
+    }
+    if (strategy == Strategy::WeightedAStarDeep) {
+        return finish(runSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            effectiveTimeoutMs,
+            0,
+            SearchMode::WeightedAStarDeep,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            compactTurnSearch,
+            astarWeight,
+            puzzlescript::solver::HeuristicKind::Auto,
+            nullptr,
+            nullptr,
+            std::move(initial)));
+    }
+    if (strategy == Strategy::Greedy) {
+        return finish(runSearch(
+            loadedGame,
+            gameName,
+            levelIndex,
+            effectiveTimeoutMs,
+            0,
+            SearchMode::Greedy,
+            deadline,
+            workerId,
+            exactStateKeys,
+            effectiveCompactNodeStorage,
+            compactTurnOracle,
+            compactTurnSearch,
+            astarWeight,
+            puzzlescript::solver::HeuristicKind::Auto,
+            nullptr,
+            nullptr,
+            std::move(initial)));
+    }
+
+    Result result = runAdaptivePortfolioSearch(
+        loadedGame,
+        gameName,
+        levelIndex,
+        effectiveTimeoutMs,
+        0,
+        deadline,
+        workerId,
+        exactStateKeys,
+        effectiveCompactNodeStorage,
+        compactTurnOracle,
+        compactTurnSearch,
+        astarWeight,
+        puzzlescript::solver::HeuristicKind::Auto,
+        nullptr,
+        std::move(initial));
+    result.portfolioJobs = static_cast<uint32_t>(std::max<size_t>(1, std::min<size_t>(
+        portfolioJobs,
+        static_cast<size_t>(std::numeric_limits<uint32_t>::max()))));
+    result.portfolioParallel = false;
+    return finish(std::move(result));
+}
+#endif
+
 std::string relativeGameName(const std::filesystem::path& root, const std::filesystem::path& gamePath) {
     if (std::filesystem::is_directory(root)) {
         return std::filesystem::relative(gamePath, root).generic_string();
@@ -4125,6 +4381,168 @@ std::vector<Result> runCorpus(const Options& options) {
 
 } // namespace
 
+#ifdef PUZZLESCRIPT_SOLVER_C_API
+namespace {
+
+ps_error* makeApiError(const std::string& message) {
+    auto* wrapper = new ps_error();
+    wrapper->impl = std::make_unique<puzzlescript::Error>(message);
+    return wrapper;
+}
+
+char* duplicateApiString(const std::string& value) {
+    char* buffer = new char[value.size() + 1];
+    std::memcpy(buffer, value.c_str(), value.size() + 1);
+    return buffer;
+}
+
+Strategy strategyFromApi(ps_solve_strategy strategy) {
+    switch (strategy) {
+        case PS_SOLVE_STRATEGY_BFS: return Strategy::Bfs;
+        case PS_SOLVE_STRATEGY_WEIGHTED_ASTAR: return Strategy::WeightedAStar;
+        case PS_SOLVE_STRATEGY_WEIGHTED_ASTAR_DEEP: return Strategy::WeightedAStarDeep;
+        case PS_SOLVE_STRATEGY_GREEDY: return Strategy::Greedy;
+        case PS_SOLVE_STRATEGY_PORTFOLIO:
+        default: return Strategy::Portfolio;
+    }
+}
+
+ps_solve_status solveStatusFromResult(const Result& result) {
+    if (result.status == "solved") {
+        return PS_SOLVE_STATUS_SOLVED;
+    }
+    if (result.status == "timeout" || result.status == "cancelled") {
+        return PS_SOLVE_STATUS_TIMEOUT;
+    }
+    if (result.status == "exhausted") {
+        return PS_SOLVE_STATUS_EXHAUSTED;
+    }
+    return PS_SOLVE_STATUS_ERROR;
+}
+
+ps_input inputFromName(const std::string& name) {
+    if (name == "up") {
+        return PS_INPUT_UP;
+    }
+    if (name == "left") {
+        return PS_INPUT_LEFT;
+    }
+    if (name == "down") {
+        return PS_INPUT_DOWN;
+    }
+    if (name == "right") {
+        return PS_INPUT_RIGHT;
+    }
+    if (name == "action") {
+        return PS_INPUT_ACTION;
+    }
+    return PS_INPUT_TICK;
+}
+
+ps_solve_result* makeApiSolveResult(const Result& result) {
+    auto* api = new ps_solve_result();
+    api->status = solveStatusFromResult(result);
+    api->expanded = result.expanded;
+    api->generated = result.generated;
+    api->unique_states = result.uniqueStates;
+    api->duplicates = result.duplicates;
+    api->max_frontier = result.maxFrontier;
+    api->elapsed_ms = result.elapsedMs;
+    api->solution_count = result.solution.size();
+    if (api->solution_count > 0) {
+        ps_input* solution = new ps_input[api->solution_count];
+        for (size_t index = 0; index < api->solution_count; ++index) {
+            solution[index] = inputFromName(result.solution[index]);
+        }
+        api->solution = solution;
+    } else {
+        api->solution = nullptr;
+    }
+    api->strategy = duplicateApiString(result.strategy);
+    api->heuristic = duplicateApiString(result.heuristic);
+    api->error = duplicateApiString(result.error);
+    return api;
+}
+
+} // namespace
+
+extern "C" ps_solve_options ps_solve_default_options(void) {
+    ps_solve_options options{};
+    options.timeout_ms = 1000;
+    options.strategy = PS_SOLVE_STRATEGY_PORTFOLIO;
+    options.portfolio_jobs = 1;
+    options.exact_state_keys = true;
+    options.compact_node_storage = false;
+    options.full_node_storage = false;
+    options.compact_turn_oracle = false;
+    options.compact_turn_search = true;
+    options.astar_weight = 2;
+    return options;
+}
+
+extern "C" bool ps_solve_level_layer_cell_object_ids(
+    const ps_game* game,
+    int32_t level_index,
+    const int32_t* layer_cell_object_ids,
+    size_t count,
+    const ps_solve_options* options,
+    ps_solve_result** out_result,
+    ps_error** out_error
+) {
+    if (out_error) {
+        *out_error = nullptr;
+    }
+    if (out_result) {
+        *out_result = nullptr;
+    }
+    if (!game || !out_result) {
+        if (out_error) {
+            *out_error = makeApiError("ps_solve_level_layer_cell_object_ids received null input");
+        }
+        return false;
+    }
+
+    ps_solve_options effective = options ? *options : ps_solve_default_options();
+    if (effective.timeout_ms <= 0) {
+        effective.timeout_ms = 1;
+    }
+    if (effective.portfolio_jobs == 0) {
+        effective.portfolio_jobs = 1;
+    }
+
+    Result result = solveSeededLevel(
+        game->impl,
+        "puzzlescriptmis",
+        level_index,
+        layer_cell_object_ids,
+        count,
+        effective.timeout_ms,
+        strategyFromApi(effective.strategy),
+        0,
+        effective.exact_state_keys,
+        effective.compact_node_storage,
+        effective.full_node_storage,
+        effective.compact_turn_oracle,
+        effective.compact_turn_search,
+        effective.astar_weight,
+        effective.portfolio_jobs);
+    *out_result = makeApiSolveResult(result);
+    return true;
+}
+
+extern "C" void ps_solve_result_free(ps_solve_result* result) {
+    if (!result) {
+        return;
+    }
+    delete[] const_cast<ps_input*>(result->solution);
+    delete[] const_cast<char*>(result->strategy);
+    delete[] const_cast<char*>(result->heuristic);
+    delete[] const_cast<char*>(result->error);
+    delete result;
+}
+#endif
+
+#ifndef PUZZLESCRIPT_SOLVER_NO_MAIN
 int main(int argc, char** argv) {
     try {
         const Options options = parseArgs(argc, argv);
@@ -4216,3 +4634,4 @@ int main(int argc, char** argv) {
         return 1;
     }
 }
+#endif
