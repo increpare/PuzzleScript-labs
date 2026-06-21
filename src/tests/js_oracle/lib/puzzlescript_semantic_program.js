@@ -57,6 +57,30 @@ function levelList(state) {
     });
 }
 
+function winConditionList(state) {
+    function decodeMask(mask, objectCount) {
+        const ids = [];
+        if (mask && mask.data) {
+            for (let id = 0; id < objectCount; id++) {
+                if ((mask.data[id >> 5] & (1 << (id & 31))) !== 0) {
+                    ids.push(id);
+                }
+            }
+        }
+        return ids;
+    }
+    const objectCount = state.idDict.length;
+    return state.winconditions.map(function (condition) {
+        return {
+            quantifier: condition[0],
+            object_ids_1: decodeMask(condition[1], objectCount),
+            aggregate_1: condition[4],
+            object_ids_2: decodeMask(condition[2], objectCount),
+            aggregate_2: condition[5],
+        };
+    });
+}
+
 function buildSemanticProgramSnapshot(state) {
     const nameToId = {};
     for (let id = 0; id < state.idDict.length; id++) {
@@ -83,10 +107,11 @@ function buildSemanticProgramSnapshot(state) {
     };
 
     const levels = levelList(state);
+    const win_conditions = winConditionList(state);
 
     return {
         schema_version: 1,
-        semantic_program: { objects, collision_layers, legends, levels },
+        semantic_program: { objects, collision_layers, legends, levels, win_conditions },
     };
 }
 

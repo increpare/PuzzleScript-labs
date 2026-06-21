@@ -31,6 +31,17 @@ void appendJsonString(std::string& out, std::string_view value) {
     out += '"';
 }
 
+void appendIntArray(std::string& out, const std::vector<int32_t>& values) {
+    out += '[';
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (i != 0) {
+            out += ',';
+        }
+        out += std::to_string(values[i]);
+    }
+    out += ']';
+}
+
 std::vector<int32_t> decodeMaskWordsObjectIds(
     const puzzlescript::MaskWord* mask,
     uint32_t wordCount,
@@ -99,14 +110,7 @@ void appendLevelArray(std::string& out, const std::vector<SemanticLevel>& levels
             if (c != 0) {
                 out += ',';
             }
-            out += '[';
-            for (size_t j = 0; j < level.cells[c].size(); ++j) {
-                if (j != 0) {
-                    out += ',';
-                }
-                out += std::to_string(level.cells[c][j]);
-            }
-            out += ']';
+            appendIntArray(out, level.cells[c]);
         }
         out += "]}";
     }
@@ -121,14 +125,31 @@ void appendLegendArray(std::string& out, const std::vector<SemanticLegend>& lege
         }
         out += "{\"name\":";
         appendJsonString(out, legends[i].name);
-        out += ",\"object_ids\":[";
-        for (size_t j = 0; j < legends[i].objectIds.size(); ++j) {
-            if (j != 0) {
-                out += ',';
-            }
-            out += std::to_string(legends[i].objectIds[j]);
+        out += ",\"object_ids\":";
+        appendIntArray(out, legends[i].objectIds);
+        out += "}";
+    }
+    out += ']';
+}
+
+void appendWinConditionArray(std::string& out, const std::vector<SemanticWinCondition>& conditions) {
+    out += '[';
+    for (size_t i = 0; i < conditions.size(); ++i) {
+        if (i != 0) {
+            out += ',';
         }
-        out += "]}";
+        const auto& condition = conditions[i];
+        out += "{\"quantifier\":";
+        out += std::to_string(condition.quantifier);
+        out += ",\"object_ids_1\":";
+        appendIntArray(out, condition.objectIds1);
+        out += ",\"aggregate_1\":";
+        out += condition.aggregate1 ? "true" : "false";
+        out += ",\"object_ids_2\":";
+        appendIntArray(out, condition.objectIds2);
+        out += ",\"aggregate_2\":";
+        out += condition.aggregate2 ? "true" : "false";
+        out += '}';
     }
     out += ']';
 }
@@ -201,6 +222,17 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
         program.levels.push_back(std::move(level));
     }
 
+    program.winConditions.reserve(game.winConditions.size());
+    for (const auto& condition : game.winConditions) {
+        SemanticWinCondition out;
+        out.quantifier = condition.quantifier;
+        out.objectIds1 = decodeMaskObjectIds(game, condition.filter1);
+        out.aggregate1 = condition.aggr1;
+        out.objectIds2 = decodeMaskObjectIds(game, condition.filter2);
+        out.aggregate2 = condition.aggr2;
+        program.winConditions.push_back(std::move(out));
+    }
+
     return program;
 }
 
@@ -227,15 +259,7 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
         if (i != 0) {
             out += ',';
         }
-        out += '[';
-        const auto& layer = program.collisionLayers[i];
-        for (size_t j = 0; j < layer.size(); ++j) {
-            if (j != 0) {
-                out += ',';
-            }
-            out += std::to_string(layer[j]);
-        }
-        out += ']';
+        appendIntArray(out, program.collisionLayers[i]);
     }
     out += "],\"legends\":{\"synonyms\":";
     appendLegendArray(out, program.synonyms);
@@ -245,6 +269,8 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
     appendLegendArray(out, program.properties);
     out += "},\"levels\":";
     appendLevelArray(out, program.levels);
+    out += ",\"win_conditions\":";
+    appendWinConditionArray(out, program.winConditions);
     out += "}}";
     return out;
 }

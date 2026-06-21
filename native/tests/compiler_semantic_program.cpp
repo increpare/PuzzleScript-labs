@@ -112,6 +112,15 @@ int main() {
         assert(playerCells == 1);
     }
 
+    // Win conditions: sokoban_basic has "all Target on Crate" => quantifier 1
+    // (all), filter1 = {target}, filter2 = {crate}, no aggregates.
+    assert(program.winConditions.size() == 1);
+    const auto& win = program.winConditions[0];
+    assert(win.quantifier == 1);
+    assert((win.objectIds1 == std::vector<int32_t>{targetId}));
+    assert((win.objectIds2 == std::vector<int32_t>{crateId}));
+    assert(!win.aggregate1 && !win.aggregate2);
+
     const std::string json = puzzlescript::compiler::serializeSemanticProgramJson(program);
     assert(json.find("\"semantic_program\"") != std::string::npos);
     assert(json.find("\"collision_layers\"") != std::string::npos);
@@ -119,6 +128,8 @@ int main() {
     assert(json.find("\"aggregates\"") != std::string::npos);
     assert(json.find("\"levels\"") != std::string::npos);
     assert(json.find("\"cells\"") != std::string::npos);
+    assert(json.find("\"win_conditions\"") != std::string::npos);
+    assert(json.find("\"quantifier\"") != std::string::npos);
 
     return 0;
 }

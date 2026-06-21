@@ -27,9 +27,17 @@ struct SemanticLevel {
     std::vector<std::vector<int32_t>> cells;
 };
 
+struct SemanticWinCondition {
+    int32_t quantifier = 0;            // -1 = no, 0 = some, 1 = all
+    std::vector<int32_t> objectIds1;   // sorted ascending
+    bool aggregate1 = false;
+    std::vector<int32_t> objectIds2;   // sorted; all objects when there is no "on Y" clause
+    bool aggregate2 = false;
+};
+
 // Current SemanticProgram contract: resolved object identity, collision layers,
-// resolved legends, and resolved levels. Extended in later slices with win
-// conditions, rules, and metadata. Serialized form is versioned via schemaVersion.
+// resolved legends, resolved levels, and resolved win conditions. Extended in
+// later slices with rules and metadata. Serialized form is versioned via schemaVersion.
 struct SemanticProgram {
     int32_t schemaVersion = 1;
     std::vector<SemanticObject> objects;
@@ -38,6 +46,7 @@ struct SemanticProgram {
     std::vector<SemanticLegend> aggregates;  // sorted by name
     std::vector<SemanticLegend> properties;  // sorted by name
     std::vector<SemanticLevel> levels;
+    std::vector<SemanticWinCondition> winConditions;  // source-declaration order
 };
 
 } // namespace puzzlescript::compiler
