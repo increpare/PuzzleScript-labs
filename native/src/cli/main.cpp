@@ -26,6 +26,7 @@
 #include "compiler/compiled_rules_codegen.hpp"
 #include "compiler/parser.hpp"
 #include "compiler/lower_to_runtime.hpp"
+#include "compiler/semantic_program.hpp"
 #include "runtime/json.hpp"
 #include "runtime/compiled_rules.hpp"
 #include "puzzlescript/compiler.h"
@@ -6501,12 +6502,15 @@ int compileSourceCommand(const std::string& sourcePath, int argc, char** argv) {
     bool emitParserState = false;
     bool emitDiagnostics = false;
     bool emitRuntimeIr = false;
+    bool emitSemanticProgram = false;
     for (int index = 0; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--emit-parser-state") {
             emitParserState = true;
         } else if (arg == "--emit-runtime-ir" || arg == "--emit-ir-json") {
             emitRuntimeIr = true;
+        } else if (arg == "--emit-semantic-program") {
+            emitSemanticProgram = true;
         } else if (arg == "--diagnostics" || arg == "--emit-diagnostics") {
             emitDiagnostics = true;
         } else {
@@ -6514,8 +6518,8 @@ int compileSourceCommand(const std::string& sourcePath, int argc, char** argv) {
         }
     }
 
-    if (!emitParserState && !emitDiagnostics && !emitRuntimeIr) {
-        std::cerr << "compile requires --diagnostics, --emit-parser-state, or --emit-ir-json.\n"
+    if (!emitParserState && !emitDiagnostics && !emitRuntimeIr && !emitSemanticProgram) {
+        std::cerr << "compile requires --diagnostics, --emit-parser-state, --emit-ir-json, or --emit-semantic-program.\n"
                   << "Try: puzzlescript_cpp compile " << sourcePath << " --diagnostics\n";
         return 1;
     }
@@ -6565,6 +6569,22 @@ int compileSourceCommand(const std::string& sourcePath, int argc, char** argv) {
         }
         puzzlescript::attachLinkedCompiledRules(*std::const_pointer_cast<puzzlescript::Game>(loadedGame.information), source);
         std::cout << serializeRuntimeGameDebugJson(loadedGame);
+    }
+
+    if (emitSemanticProgram) {
+        puzzlescript::compiler::DiagnosticSink diagnostics;
+        const auto parserState = puzzlescript::compiler::parseSource(source, diagnostics);
+        puzzlescript::LoadedGame loadedGame;
+        if (auto error = puzzlescript::compiler::lowerToRuntimeGame(parserState, loadedGame)) {
+            std::cerr << error->message << "\n";
+            return 1;
+        }
+        if (!loadedGame.information) {
+            std::cerr << "Failed to lower source to a runtime game.\n";
+            return 1;
+        }
+        const auto program = puzzlescript::compiler::buildSemanticProgram(*loadedGame.information);
+        std::cout << puzzlescript::compiler::serializeSemanticProgramJson(program) << "\n";
     }
 
     return 0;
@@ -6859,6 +6879,8 @@ void printMainHelp() {
         << "      Emit the canonical parser-state JSON used by parity tests.\n"
         << "  puzzlescript_cpp compile game.txt --emit-ir-json\n"
         << "      Emit the native lowered runtime game JSON used for JS-vs-C++ compiler diffs.\n"
+        << "  puzzlescript_cpp compile game.txt --emit-semantic-program\n"
+        << "      Emit the resolved SemanticProgram contract JSON used for JS-vs-C++ parity.\n"
         << "  puzzlescript_cpp specialize-rulegroups game.txt --emit-cpp build/compiled-rules/game.cpp\n"
         << "      Emit C++ specialized rulegroup kernels for build-time solver/generator specialization.\n"
         << "  puzzlescript_cpp test js-parity <generated-js-parity-data.json>\n"
@@ -6917,15 +6939,17 @@ void printRunHelp() {
 
 void printCompileHelp() {
     std::cout
-        << "Usage: puzzlescript_cpp compile game.txt [--diagnostics] [--emit-parser-state] [--emit-ir-json]\n\n"
+        << "Usage: puzzlescript_cpp compile game.txt [--diagnostics] [--emit-parser-state] [--emit-ir-json] [--emit-semantic-program]\n\n"
         << "Runs the C++ PuzzleScript compiler parser. Use --diagnostics for JS-compatible\n"
-        << "diagnostic text, --emit-parser-state for parser JSON, and --emit-ir-json for\n"
-        << "the lowered native runtime game JSON used to debug compiler parity before board\n"
-        << "simulation.\n\n"
+        << "diagnostic text, --emit-parser-state for parser JSON, --emit-ir-json for\n"
+        << "the lowered native runtime game JSON, and --emit-semantic-program for the\n"
+        << "resolved SemanticProgram contract JSON used to debug compiler parity before\n"
+        << "board simulation.\n\n"
         << "Examples:\n"
         << "  puzzlescript_cpp compile game.txt --diagnostics\n"
         << "  puzzlescript_cpp compile game.txt --emit-parser-state\n"
-        << "  puzzlescript_cpp compile game.txt --emit-ir-json\n";
+        << "  puzzlescript_cpp compile game.txt --emit-ir-json\n"
+        << "  puzzlescript_cpp compile game.txt --emit-semantic-program\n";
 }
 
 void printCompileRulesHelp() {

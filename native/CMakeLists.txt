@@ -908,6 +908,12 @@ add_test(
 set_tests_properties(puzzlescript_cpp_parser_state_smoke PROPERTIES PASS_REGULAR_EXPRESSION "\"parser_state\"")
 
 add_test(
+  NAME puzzlescript_cpp_semantic_program_smoke
+  COMMAND puzzlescript_cpp compile ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt --emit-semantic-program
+)
+set_tests_properties(puzzlescript_cpp_semantic_program_smoke PROPERTIES PASS_REGULAR_EXPRESSION "\"semantic_program\"")
+
+add_test(
   NAME puzzlescript_cpp_parser_state_diff_smoke
   COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_parser_state_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
 )
