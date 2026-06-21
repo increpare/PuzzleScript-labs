@@ -1,3 +1,4 @@
+#undef NDEBUG  // keep assert() live under the Release -DNDEBUG build
 #include <cassert>
 #include <algorithm>
 #include <cstdlib>
@@ -74,7 +75,7 @@ RULES
 LEVELS
 =======
 
-P.
+P..
 )";
 
 constexpr const char* kSnapshotSource = R"(title Native Snapshot API Test
@@ -713,8 +714,17 @@ int main() {
 
     const ps_step_result moveResult = ps_full_state_turn(session.state, PS_INPUT_RIGHT);
     assert(moveResult.changed);
-    assert(moveResult.audio_event_count == 1);
-    assert(moveResult.audio_events[0].seed == 222222);
+    // The right-move fires `[ > Player | Background ] -> [ Background | Player ] sfx0`.
+    // A rule-attached sfx is a UI/cosmetic sound: the JS engine plays it via
+    // tryPlaySimpleSound -> playSound(seed, /*ignore=*/true), which deliberately does
+    // NOT push the seed to soundHistory (src/js/sfxr.js, src/js/engine.js). soundHistory
+    // is exactly the channel the differential trace harness compares (native/src/cli/main.cpp
+    // checks audio_events only, never ui_audio_events). The native runtime mirrors JS by
+    // routing rule-command sfx through tryPlayCommandSound -> appendUiAudioEvent (uiAudio),
+    // so it surfaces on ui_audio_events, not the recorded audio_events channel.
+    assert(moveResult.audio_event_count == 0);
+    assert(moveResult.ui_audio_event_count == 1);
+    assert(moveResult.ui_audio_events[0].seed == 222222);
 
     // Solver mode: suppress message/sfx outputs and ignore checkpoint.
     // Move once (x=1), then ACTION would checkpoint+message; solver mode should do neither.
