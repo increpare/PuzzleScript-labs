@@ -81,6 +81,7 @@ set(PUZZLESCRIPT_COMPILER_SOURCES
   src/compiler/lower_to_runtime.cpp
   src/compiler/parser.cpp
   src/compiler/rule_text.cpp
+  src/compiler/semantic_program.cpp
   third_party/utf8proc/utf8proc.c
 )
 
@@ -377,6 +378,27 @@ target_include_directories(compiler_keyword_names
 add_test(
   NAME compiler_keyword_names
   COMMAND compiler_keyword_names
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(compiler_semantic_program
+  tests/compiler_semantic_program.cpp
+)
+
+target_link_libraries(compiler_semantic_program
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_semantic_program
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_semantic_program
+  COMMAND compiler_semantic_program
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
