@@ -3401,6 +3401,9 @@ function processInput(dir, dontDoWin, dontModify, skipAgainProbe) {
 			turnObjectsModified = true;
 		}
 		let shouldUndo = state.resolveMovements(level, bannedGroup);
+		if (skipAgainProbe && seedsToPlay_CanMove.length > 0) {
+			turnObjectsModified = true;
+		}
 
 		if (shouldUndo) {
 			rigidloop = true;
@@ -3612,7 +3615,7 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 		if (dontDoWin === undefined) {
 			dontDoWin = false;
 		}
-		checkWin(dontDoWin);
+		checkWin(dontDoWin, skipAgainProbe);
 	}
 
 	// If not winning, process checkpoints and AGAIN command.
@@ -3671,7 +3674,7 @@ function processCommandQueue(bak, dontModify, dontDoWin, inputDir, skipAgainProb
 	return modified;
 }
 
-function checkWin(dontDoWin) {
+function checkWin(dontDoWin, solverFastPath) {
 
 	if (levelEditorOpened) {
 		dontDoWin = true;
@@ -3690,6 +3693,12 @@ function checkWin(dontDoWin) {
 	}
 
 	if (state.winconditions.length === 0) {
+		return false;
+	}
+
+	// Solver harness sets skipAgainProbe; gameplay/editor omit it. Skip the
+	// full wincondition tile scan only on provably clean solver turns.
+	if (solverFastPath && !turnObjectsModified) {
 		return false;
 	}
 
