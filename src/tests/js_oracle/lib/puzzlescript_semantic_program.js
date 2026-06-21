@@ -32,6 +32,31 @@ function legendList(state, nameToId, dict) {
         .sort(function (a, b) { return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
 }
 
+function levelList(state) {
+    return state.levels.map(function (level) {
+        if (level.objects === undefined) {
+            return { is_message: true, message: level.message || '', width: 0, height: 0, cells: [] };
+        }
+        const width = level.width;
+        const height = level.height;
+        const stride = level.objects.length / (width * height);
+        const cells = [];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const base = (x * height + y) * stride;  // column-major
+                const ids = [];
+                for (let objectId = 0; objectId < state.idDict.length; objectId++) {
+                    if ((level.objects[base + (objectId >> 5)] & (1 << (objectId & 31))) !== 0) {
+                        ids.push(objectId);
+                    }
+                }
+                cells.push(ids);
+            }
+        }
+        return { is_message: false, message: '', width: width, height: height, cells: cells };
+    });
+}
+
 function buildSemanticProgramSnapshot(state) {
     const nameToId = {};
     for (let id = 0; id < state.idDict.length; id++) {
@@ -57,9 +82,11 @@ function buildSemanticProgramSnapshot(state) {
         properties: legendList(state, nameToId, state.propertiesDict),
     };
 
+    const levels = levelList(state);
+
     return {
         schema_version: 1,
-        semantic_program: { objects, collision_layers, legends },
+        semantic_program: { objects, collision_layers, legends, levels },
     };
 }
 

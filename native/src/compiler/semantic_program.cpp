@@ -31,20 +31,15 @@ void appendJsonString(std::string& out, std::string_view value) {
     out += '"';
 }
 
-std::vector<int32_t> decodeMaskObjectIds(const puzzlescript::Game& game, puzzlescript::MaskOffset offset) {
+std::vector<int32_t> decodeMaskWordsObjectIds(
+    const puzzlescript::MaskWord* mask,
+    uint32_t wordCount,
+    int32_t objectCount
+) {
     std::vector<int32_t> ids;
-    if (offset == puzzlescript::kNullMaskOffset) {
-        return ids;
-    }
-    const size_t base = static_cast<size_t>(offset);
-    const size_t wordCount = static_cast<size_t>(game.wordCount);
-    if (base > game.maskArena.size() || wordCount > game.maskArena.size() - base) {
-        return ids;
-    }
-    const puzzlescript::MaskWord* mask = game.maskArena.data() + base;
-    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+    for (int32_t objectId = 0; objectId < objectCount; ++objectId) {
         const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
-        if (word >= game.wordCount) {
+        if (word >= wordCount) {
             continue;
         }
         if ((mask[word] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) != 0) {
@@ -52,6 +47,18 @@ std::vector<int32_t> decodeMaskObjectIds(const puzzlescript::Game& game, puzzles
         }
     }
     return ids;
+}
+
+std::vector<int32_t> decodeMaskObjectIds(const puzzlescript::Game& game, puzzlescript::MaskOffset offset) {
+    if (offset == puzzlescript::kNullMaskOffset) {
+        return {};
+    }
+    const size_t base = static_cast<size_t>(offset);
+    const size_t wordCount = static_cast<size_t>(game.wordCount);
+    if (base > game.maskArena.size() || wordCount > game.maskArena.size() - base) {
+        return {};
+    }
+    return decodeMaskWordsObjectIds(game.maskArena.data() + base, game.wordCount, game.objectCount);
 }
 
 std::vector<SemanticLegend> buildLegends(
@@ -70,6 +77,40 @@ std::vector<SemanticLegend> buildLegends(
             return lhs.name < rhs.name;
         });
     return legends;
+}
+
+void appendLevelArray(std::string& out, const std::vector<SemanticLevel>& levels) {
+    out += '[';
+    for (size_t i = 0; i < levels.size(); ++i) {
+        if (i != 0) {
+            out += ',';
+        }
+        const auto& level = levels[i];
+        out += "{\"is_message\":";
+        out += level.isMessage ? "true" : "false";
+        out += ",\"message\":";
+        appendJsonString(out, level.message);
+        out += ",\"width\":";
+        out += std::to_string(level.width);
+        out += ",\"height\":";
+        out += std::to_string(level.height);
+        out += ",\"cells\":[";
+        for (size_t c = 0; c < level.cells.size(); ++c) {
+            if (c != 0) {
+                out += ',';
+            }
+            out += '[';
+            for (size_t j = 0; j < level.cells[c].size(); ++j) {
+                if (j != 0) {
+                    out += ',';
+                }
+                out += std::to_string(level.cells[c][j]);
+            }
+            out += ']';
+        }
+        out += "]}";
+    }
+    out += ']';
 }
 
 void appendLegendArray(std::string& out, const std::vector<SemanticLegend>& legends) {
@@ -135,6 +176,31 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
     program.aggregates = buildLegends(game, game.aggregateMaskTable);
     program.properties = buildLegends(game, game.propertyMaskTable);
 
+    program.levels.reserve(game.levels.size());
+    for (const auto& tmpl : game.levels) {
+        SemanticLevel level;
+        level.isMessage = tmpl.isMessage;
+        level.message = tmpl.message;
+        if (!tmpl.isMessage) {
+            level.width = tmpl.width;
+            level.height = tmpl.height;
+            level.cells.reserve(static_cast<size_t>(tmpl.width) * static_cast<size_t>(tmpl.height));
+            for (int32_t y = 0; y < tmpl.height; ++y) {
+                for (int32_t x = 0; x < tmpl.width; ++x) {
+                    const int32_t tileIndex = x * tmpl.height + y;  // column-major
+                    const size_t base = static_cast<size_t>(tileIndex) * static_cast<size_t>(game.strideObject);
+                    if (base + static_cast<size_t>(game.wordCount) <= tmpl.objects.size()) {
+                        level.cells.push_back(decodeMaskWordsObjectIds(
+                            tmpl.objects.data() + base, game.wordCount, game.objectCount));
+                    } else {
+                        level.cells.emplace_back();
+                    }
+                }
+            }
+        }
+        program.levels.push_back(std::move(level));
+    }
+
     return program;
 }
 
@@ -177,7 +243,9 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
     appendLegendArray(out, program.aggregates);
     out += ",\"properties\":";
     appendLegendArray(out, program.properties);
-    out += "}}}";
+    out += "},\"levels\":";
+    appendLevelArray(out, program.levels);
+    out += "}}";
     return out;
 }
 

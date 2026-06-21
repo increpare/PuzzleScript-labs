@@ -82,11 +82,43 @@ int main() {
     };
     assert(atLegend->objectIds == expectedAt);
 
+    // Resolved levels: sokoban_basic has 2 grid level templates (no messages),
+    // level 0 is 6x7. Background fill means every cell contains the background
+    // object, and each level has exactly one player cell.
+    assert(program.levels.size() == 2);
+
+    int32_t backgroundId = -1;
+    int32_t playerId = -1;
+    for (const auto& object : program.objects) {
+        if (object.name == "background") backgroundId = object.id;
+        if (object.name == "player") playerId = object.id;
+    }
+    assert(backgroundId >= 0 && playerId >= 0);
+
+    assert(!program.levels[0].isMessage);
+    assert(program.levels[0].width == 6);
+    assert(program.levels[0].height == 7);
+
+    for (const auto& level : program.levels) {
+        assert(!level.isMessage);
+        assert(level.cells.size() == static_cast<size_t>(level.width) * static_cast<size_t>(level.height));
+        int playerCells = 0;
+        for (const auto& cell : level.cells) {
+            assert(std::find(cell.begin(), cell.end(), backgroundId) != cell.end());
+            if (std::find(cell.begin(), cell.end(), playerId) != cell.end()) {
+                ++playerCells;
+            }
+        }
+        assert(playerCells == 1);
+    }
+
     const std::string json = puzzlescript::compiler::serializeSemanticProgramJson(program);
     assert(json.find("\"semantic_program\"") != std::string::npos);
     assert(json.find("\"collision_layers\"") != std::string::npos);
     assert(json.find("\"legends\"") != std::string::npos);
     assert(json.find("\"aggregates\"") != std::string::npos);
+    assert(json.find("\"levels\"") != std::string::npos);
+    assert(json.find("\"cells\"") != std::string::npos);
 
     return 0;
 }
