@@ -37,12 +37,9 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
     SemanticProgram program;
     program.schemaVersion = 1;
 
-    std::unordered_map<std::string, int32_t> nameToId;
     program.objects.reserve(game.objectsById.size());
-    nameToId.reserve(game.objectsById.size());
     for (const auto& object : game.objectsById) {
         program.objects.push_back(SemanticObject{object.id, object.name, object.layer});
-        nameToId.emplace(object.name, object.id);
     }
     std::sort(
         program.objects.begin(),
@@ -50,6 +47,17 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
         [](const SemanticObject& lhs, const SemanticObject& rhs) {
             return lhs.id < rhs.id;
         });
+
+    // Map collision-layer names to ids from the id-sorted objects with last-wins
+    // assignment, so a duplicate object name resolves to its highest id — matching
+    // the JS emitter, which iterates idDict ascending and overwrites. Duplicate
+    // names only arise for games that violate the single-layer-per-object
+    // invariant; conforming games have exactly one id per name and this is moot.
+    std::unordered_map<std::string, int32_t> nameToId;
+    nameToId.reserve(program.objects.size());
+    for (const auto& object : program.objects) {
+        nameToId[object.name] = object.id;
+    }
 
     program.collisionLayers.reserve(game.collisionLayers.size());
     for (const auto& layer : game.collisionLayers) {
