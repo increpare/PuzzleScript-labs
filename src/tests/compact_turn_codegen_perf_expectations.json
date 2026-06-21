@@ -2,6 +2,7 @@
   "heroes_of_sokoban_3.txt#23": { "compiledUsPerGeneratedMax": 4.3, "compiledRuleApplyCallsMax": 2000000 },
   "heroes_of_sokoban_3.txt#16": { "compiledUsPerGeneratedMax": 4.4, "compiledRuleApplyCallsMax": 2000000 },
   "big dog and little dog.txt#11": { "compiledUsPerGeneratedMax": 140.0, "compiledGeneratedMin": 6800 },
-  "Double-Entry Bookkeeping Simulator.txt#17": { "compiledUsPerGeneratedMax": 23.0, "compiledLateRulesMsMax": 700.0 },
-  "easyenigma.txt#11": { "compiledUsPerGeneratedMax": 50.0, "compiledGeneratedMin": 12000 }
+  "Double-Entry Bookkeeping Simulator.txt#17": { "compiledUsPerGeneratedMax": 23.0, "compiledLateRulesUsPerGeneratedMax": 6.0 },
+  "easyenigma.txt#11": { "compiledUsPerGeneratedMax": 50.0, "compiledGeneratedMin": 12000 },
+  "gem soketeer.txt#21": { "compiledSetupMsMax": 125.0 }
 }

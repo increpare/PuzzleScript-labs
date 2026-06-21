@@ -1328,6 +1328,383 @@ Curve: compiled >= interpreter at 1000ms for portfolio and HDA, raw and canonica
 Known risks: full timeout curve is long-running; remaining perf variance appears in non-failing compact timeout warnings, now 29 in solver parity
 ```
 
+## Task 15: Second Instrumented Optimization Pass - Skip Clean Movement Clears
+
+**Files:**
+- `native/src/runtime/core.hpp`
+- `native/src/runtime/core.cpp`
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Re-run compiled perf expectations for a fresh baseline**
+
+Run:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+Expected: current branch passes the expectation guard and gives enough per-case timing detail to judge small generic codegen/runtime changes.
+
+Observed baseline highlights:
+
+```text
+manic_ammo.txt#26 compiled us/generated=2.89 step_ms=142.319 setup_ms=16.944
+Voitex Rasteriser 2.txt#1 compiled us/generated=2.05 step_ms=566.550 setup_ms=103.466
+heroes_of_sokoban_3.txt#23 compiled us/generated=1.23 step_ms=216.894
+heroes_of_sokoban_3.txt#16 compiled us/generated=1.52 step_ms=557.421
+Double-Entry Bookkeeping Simulator.txt#17 compiled us/generated=6.57 step_ms=886.924
+gem soketeer.txt#21 compiled us/generated=10.63 step_ms=590.715
+```
+
+- [x] **Step 2: Add a generated-shape guard for clean movement clears**
+
+Extend `compact_turn_codegen_dirty_shape_node.js` so the emitted compact-turn code must:
+
+```text
+mark live movement storage dirty when generated code writes a movement cell
+skip the turn-start movement clear when storage is already known clean
+mark storage clean after generated movement resolution clears it
+```
+
+Expected: the shape test fails until the runtime/codegen clean flag is wired through generated movement writes and clears.
+
+- [x] **Step 3: Track clean `Scratch::liveMovements` storage**
+
+Add `Scratch::liveMovementsClean` and keep it coherent across runtime paths:
+
+```text
+movement writes set it false
+bulk movement clears set it true
+snapshot/probe restore preserves it
+level/restart/prepared resets set it true after zero initialization
+```
+
+Expected: generated compact-turn code can avoid redundant per-turn `liveMovements` and movement-mask clears without changing solver/game semantics.
+
+- [x] **Step 4: Emit the generated-code fast path**
+
+Change generated `compact_turn_execute_program_*` to guard the turn-start movement clear:
+
+```cpp
+if (!scratch.liveMovementsClean) {
+    std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);
+    compact_turn_clear_movement_masks_SUFFIX(scratch);
+    scratch.liveMovementsClean = true;
+}
+```
+
+Preserve the existing unconditional clear behavior for paths that canonicalize, restart, cancel, or otherwise intentionally reset movement state.
+
+- [x] **Step 5: Verify shape, performance, and correctness**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+make compact_tick_oracle_smoke compact_turn_codegen_solver_parity compact_turn_native_parity
+git diff --check
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape passed
+compact_turn_codegen_perf_expectations passed
+solver_smoke_assert passed cases=14 compact_turn_oracle_failures=0
+solver_compact_parity passed games=153/153 levels=2513 compact_turn_unhandled=0 compact_turn_oracle_failures=0
+compact_turn_native_parity_node passed native=182/182
+```
+
+Perf expectation highlights after the change:
+
+```text
+manic_ammo.txt#26 compiled us/generated=2.78 step_ms=137.194 setup_ms=16.302
+Voitex Rasteriser 2.txt#1 compiled us/generated=2.01 step_ms=549.089 setup_ms=101.007
+heroes_of_sokoban_3.txt#23 compiled us/generated=1.21 step_ms=214.802
+heroes_of_sokoban_3.txt#16 compiled us/generated=1.49 step_ms=539.264
+Double-Entry Bookkeeping Simulator.txt#17 compiled us/generated=6.54 step_ms=872.786
+gem soketeer.txt#21 compiled us/generated=10.36 step_ms=575.909
+```
+
+## Task 16: Second Instrumented Optimization Pass - Skip Disabled Runtime Counter Switches
+
+**Files:**
+- `native/src/runtime/core.cpp`
+
+- [x] **Step 1: Identify disabled-counter overhead in compiled turns**
+
+Observed: generated compact-turn native code calls `addRuntimeCounter(RuntimeCounterId::CompactTurnNativeCalls)` for each native compact turn. With runtime counters disabled, `addRuntimeCounter()` still entered the full `RuntimeCounterId` switch before `addCounter()` discovered counters were disabled.
+
+Expected: non-profile solver runs should pay one disabled branch, not the switch dispatch.
+
+- [x] **Step 2: Add a disabled fast path while preserving profile behavior**
+
+Change `addRuntimeCounter()` to return immediately when `gRuntimeCountersEnabled` is false, and use an unchecked atomic helper inside the switch when counters are enabled:
+
+```cpp
+if (!gRuntimeCountersEnabled) {
+    return;
+}
+```
+
+Expected: no behavior change for `--profile-runtime-counters`; small improvement for normal compiled solver runs.
+
+- [x] **Step 3: Validate with profiled and non-profiled runs**
+
+Run:
+
+```bash
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+cmake --build build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64 --target puzzlescript_solver -- -j8
+build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver src/tests/solver_tests --timeout-ms 1000 --jobs 1 --strategy portfolio --game manic_ammo.txt --level 26 --json --no-solutions --quiet --compact-node-storage --profile-runtime-counters
+git diff --check
+```
+
+Observed:
+
+```text
+compact_turn_codegen_perf_suite_node passed
+profile counter smoke emitted compact_turn_native_calls=49273 and compact_turn_unhandled=0
+git diff --check passed
+```
+
+Non-profile A/B sample, three runs per case, showed a small win on most sampled cases and near-neutral behavior on the rest:
+
+```text
+Voitex Rasteriser 2.txt#1 avg step_ms 547.9 -> 546.5
+heroes_of_sokoban_3.txt#23 avg step_ms 192.2 -> 191.5
+Double-Entry Bookkeeping Simulator.txt#17 avg step_ms 881.4 -> 881.0
+gem soketeer.txt#21 avg step_ms 556.4 -> 554.3
+manic_ammo.txt#26 was noise/neutral after warmup
+```
+
+## Task 17: Second Instrumented Optimization Pass - Reserve Single-Row Match Scratch Once
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Identify repeated match scratch setup in generated rule apply**
+
+Observed: every generated inline single-row rule apply cleared `scratch.singleRowMatchScratch`, recomputed `tileCount`, and repeated `matches.reserve(tileCount)`. The vector is shared scratch storage for a whole compact turn, so repeated reserves only recheck capacity after the first successful setup.
+
+- [x] **Step 2: Move the reserve into compact-turn state preparation**
+
+Change generated `compact_turn_prepare_state_*()` to reserve `scratch.singleRowMatchScratch` once after validating `tileCount`, and remove the per-rule reserve from inline single-row apply bodies.
+
+Shape coverage now asserts both sides:
+
+```text
+compact_turn_prepare_state_0 contains scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));
+ctr_0_e_0_0_apply omits matches.reserve(static_cast<size_t>(tileCount));
+```
+
+- [x] **Step 3: Validate with perf gate and repeat samples**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+```
+
+Observed: both passed.
+
+Repeat sample after the change, three profiled runs on the existing compiled solver, showed small but broad improvement:
+
+```text
+manic_ammo.txt#26 avg step_ms ~= 136.0
+Voitex Rasteriser 2.txt#1 avg step_ms ~= 559.4
+heroes_of_sokoban_3.txt#23 avg step_ms ~= 211.7
+heroes_of_sokoban_3.txt#16 avg step_ms ~= 553.7
+big dog and little dog.txt#11 avg step_ms ~= 795.9
+Double-Entry Bookkeeping Simulator.txt#17 avg step_ms ~= 884.9
+easyenigma.txt#11 avg step_ms ~= 338.3
+gem soketeer.txt#21 avg step_ms ~= 573.1
+```
+
+## Task 18: Second Instrumented Optimization Pass - Make Proven Eager Replacements Branchless
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Remove no-op checks from object-only and movement-only eager helpers**
+
+The simple-replacement call site already selects the `_eager` helper only when `compactReplacementGuaranteedChangesMatchedCell()` proves a matched cell must change. The generated object-only and movement-only eager helpers were still rechecking `before != after`, carrying a `fast*Changed` flag, and preserving a no-op branch that should be unreachable after a successful match.
+
+Changed those helpers to:
+
+```text
+copy the before words for dirty/index updates
+write the computed after words directly
+call the matching compact_turn_note_*_cell_written helper
+count one fast-path change and return true
+```
+
+- [x] **Step 2: Add generated-shape coverage**
+
+`compact_turn_codegen_dirty_shape_node.js` now asserts that eager object-only and movement-only helpers:
+
+```text
+omit fastObjectsChanged / fastMovementsChanged
+omit before != after
+omit compact_turn_count_simple_replacement_fast_path_noop_0()
+write fastObjects[word] = after / fastMovements[word] = after directly
+return true
+```
+
+- [x] **Step 3: Validate with perf gate and no-rebuild repeat**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-eager-rerun.json
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape_node passed
+compact_turn_codegen_perf_suite_node passed
+```
+
+No-rebuild rerun, compared with the Task 17 repeat sample, was a small win or neutral on the tracked cases:
+
+```text
+manic_ammo.txt#26 step_ms ~= 136.0 -> 134.4
+Voitex Rasteriser 2.txt#1 step_ms ~= 559.4 -> 557.1
+heroes_of_sokoban_3.txt#23 step_ms ~= 211.7 -> 205.6
+heroes_of_sokoban_3.txt#16 step_ms ~= 553.7 -> 557.6
+big dog and little dog.txt#11 step_ms ~= 795.9 -> 795.4
+Double-Entry Bookkeeping Simulator.txt#17 step_ms ~= 884.9 -> 884.8
+easyenigma.txt#11 step_ms ~= 338.3 -> 338.9
+gem soketeer.txt#21 step_ms ~= 573.1 -> 573.9
+```
+
+Follow-up: split `objects_movements_eager` by which side is proven to change. The combined helper is frequent, but only one side may be guaranteed, so it needs a separate proof/result shape rather than blindly removing both checks.
+
+## Task 19: Second Instrumented Optimization Pass - Remove Combined Eager No-Op Exit
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Keep per-side checks, remove impossible combined no-op branch**
+
+The combined object+movement eager helper is selected only when the matched cell is proven to change on at least one side. Its per-side `fastObjectsChanged` / `fastMovementsChanged` checks are still needed because the proof may only cover objects or only cover movements, but the final:
+
+```text
+if (fastObjectsChanged || fastMovementsChanged) { ... return true; }
+count noop; return false;
+```
+
+is redundant after the eager proof. Changed the helper to keep conditional `note_*_cell_written` calls for each side, then unconditionally count a fast-path change and return true.
+
+- [x] **Step 2: Add generated-shape coverage**
+
+Shape coverage now asserts that `compact_turn_simple_replacement_fast_path_objects_movements_eager_0`:
+
+```text
+keeps if (fastObjectsChanged)
+keeps if (fastMovementsChanged)
+omits if (fastObjectsChanged || fastMovementsChanged)
+omits compact_turn_count_simple_replacement_fast_path_noop_0()
+returns true
+```
+
+- [x] **Step 3: Validate with perf gate and repeat samples**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-combo-eager-rerun.json
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-combo-eager-rerun2.json
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape_node passed
+compact_turn_codegen_perf_suite_node passed
+```
+
+Compared with the Task 17 repeat sample, the combined helper cut is mixed but useful on the replacement-heavy compiled cases:
+
+```text
+Voitex Rasteriser 2.txt#1 step_ms ~= 559.4 -> 547.6
+heroes_of_sokoban_3.txt#16 step_ms ~= 553.7 -> 538.5
+Double-Entry Bookkeeping Simulator.txt#17 step_ms ~= 884.9 -> 872.2
+big dog and little dog.txt#11 step_ms ~= 795.9 -> 795.6
+manic_ammo.txt#26 step_ms ~= 136.0 -> 137.5
+heroes_of_sokoban_3.txt#23 step_ms ~= 211.7 -> 213.3
+easyenigma.txt#11 step_ms ~= 338.3 -> 344.4
+gem soketeer.txt#21 step_ms ~= 573.1 -> 574.7
+```
+
+Follow-up: if the setup-heavy regressions persist, split the combined eager helper into object-proven, movement-proven, and both-proven helpers so the unproven side can avoid unnecessary work while preserving the impossible-no-op proof.
+
+## Task 20: Second Instrumented Optimization Pass - Split Combined Eager Helpers By Proven Side
+
+**Files:**
+- `native/src/compiler/compact_turn_codegen.cpp`
+- `src/tests/compact_turn_codegen_dirty_shape_node.js`
+
+- [x] **Step 1: Add per-side eager proof selection**
+
+Added `CompactReplacementGuaranteedChangeSides` so the generator can distinguish replacements proven to change objects, movements, or both on a matched cell. Object-only and movement-only calls still use the existing `_eager` helpers; object+movement calls now select one of:
+
+```text
+compact_turn_simple_replacement_fast_path_objects_movements_eager_objects_*
+compact_turn_simple_replacement_fast_path_objects_movements_eager_movements_*
+compact_turn_simple_replacement_fast_path_objects_movements_eager_both_*
+```
+
+- [x] **Step 2: Generate specialized combined eager helper bodies**
+
+The object-proven helper writes and notes objects branchlessly, while preserving the movement-side change check. The movement-proven helper does the inverse. The both-proven helper removes both `fast*Changed` flags and `before != after` checks.
+
+- [x] **Step 3: Add generated-shape coverage**
+
+`compact_turn_codegen_dirty_shape_node.js` now checks the three helper body shapes and adds a small fixture that proves the call selector emits movement-proven, object-proven, and both-proven combined eager calls.
+
+- [x] **Step 4: Validate with perf gate and repeat samples**
+
+Run:
+
+```bash
+make compact_turn_codegen_dirty_shape
+make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-split-combo-rerun.json
+node src/tests/compact_turn_codegen_perf_suite_node.js --corpus src/tests/solver_tests --interpreter-solver build/native/puzzlescript_solver --compiled-solver build/compiled-rules-builds-Ninja/compact-turn-codegen-perf-11fccf93e41cffdf07895f19e3a6e2c3b9a5753eca362f01efe26b59088fbf64/native/puzzlescript_solver --timeout-ms 1000 --cases src/tests/compact_turn_codegen_perf_cases.json --expectations src/tests/compact_turn_codegen_perf_expectations.json --out /tmp/compact-turn-codegen-perf-split-combo-rerun2.json
+```
+
+Observed:
+
+```text
+compact_turn_codegen_dirty_shape_node passed
+compact_turn_codegen_perf_suite_node passed
+```
+
+Repeat samples versus the Task 19 repeat sample were mostly small wins, with Voitex within noise:
+
+```text
+manic_ammo.txt#26 step_ms ~= 137.5 -> 135.3
+Voitex Rasteriser 2.txt#1 step_ms ~= 547.6 -> 546.0
+heroes_of_sokoban_3.txt#23 step_ms ~= 213.3 -> 211.7
+heroes_of_sokoban_3.txt#16 step_ms ~= 538.5 -> 534.1
+big dog and little dog.txt#11 step_ms ~= 795.6 -> 788.2
+Double-Entry Bookkeeping Simulator.txt#17 step_ms ~= 872.2 -> 869.1
+easyenigma.txt#11 step_ms ~= 344.4 -> 344.2
+gem soketeer.txt#21 step_ms ~= 574.7 -> 570.8
+```
+
 ---
 
 ## Implementation Notes

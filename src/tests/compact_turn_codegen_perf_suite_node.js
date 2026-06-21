@@ -29,7 +29,9 @@ const REQUIRED_RUNTIME_COUNTER_KEYS = Object.freeze([
 const ALLOWED_EXPECTATION_FIELDS = Object.freeze([
     'compiledUsPerGeneratedMax',
     'compiledGeneratedMin',
+    'compiledSetupMsMax',
     'compiledLateRulesMsMax',
+    'compiledLateRulesUsPerGeneratedMax',
     'compiledRuleApplyCallsMax',
 ]);
 const CASE_THRESHOLD_FIELDS = Object.freeze([
@@ -451,9 +453,21 @@ function evaluateExpectations(testCase, row, expectations) {
             && !(compiled.generated >= expectation.compiledGeneratedMin)) {
         failures.push(metricFailure(key, 'compiledGenerated', compiled.generated, '<', expectation.compiledGeneratedMin));
     }
+    if (expectation.compiledSetupMsMax !== undefined
+            && !(compiled.compactTurnSetupMs <= expectation.compiledSetupMsMax)) {
+        failures.push(metricFailure(key, 'compiledSetupMs', compiled.compactTurnSetupMs, '>', expectation.compiledSetupMsMax));
+    }
     if (expectation.compiledLateRulesMsMax !== undefined
             && !(compiled.compactTurnLateRulesMs <= expectation.compiledLateRulesMsMax)) {
         failures.push(metricFailure(key, 'compiledLateRulesMs', compiled.compactTurnLateRulesMs, '>', expectation.compiledLateRulesMsMax));
+    }
+    if (expectation.compiledLateRulesUsPerGeneratedMax !== undefined) {
+        const lateRulesUsPerGenerated = compiled.generated > 0
+            ? (compiled.compactTurnLateRulesMs * 1000) / compiled.generated
+            : Infinity;
+        if (!(lateRulesUsPerGenerated <= expectation.compiledLateRulesUsPerGeneratedMax)) {
+            failures.push(metricFailure(key, 'compiledLateRulesUsPerGenerated', lateRulesUsPerGenerated, '>', expectation.compiledLateRulesUsPerGeneratedMax));
+        }
     }
     if (expectation.compiledRuleApplyCallsMax !== undefined
             && !(compiled.compactTurnRuleApplyCalls <= expectation.compiledRuleApplyCallsMax)) {
@@ -469,6 +483,7 @@ function printRow(row) {
         `${row.key} kind=${row.kind}`
         + ` interpreter generated=${i.generated} us/generated=${fmt(i.usPerGenerated, 2)} step_ms=${fmt(i.stepMs, 3)}`
         + ` compiled generated=${c.generated} us/generated=${fmt(c.usPerGenerated, 2)} step_ms=${fmt(c.stepMs, 3)}`
+        + ` setup_ms=${fmt(c.compactTurnSetupMs, 3)}`
         + ` late_rules_ms=${fmt(c.compactTurnLateRulesMs, 3)}`
     );
 }

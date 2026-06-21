@@ -755,6 +755,18 @@ Verification note: no tracked generated outputs or expectation updates were prod
 - Keep runtime counters low-overhead. Prefer increment counters over per-rule timers so profiling does not become the bottleneck.
 - Keep codegen optimizations structural and generic. Do not add per-game names, corpus fingerprints, or solver-specific hacks.
 
+## Pass 2 Follow-Up
+
+- [x] Skip redundant board-mask prechecks inside externally prechecked single-row generated rule apply bodies.
+- [x] Skip generated compact setup work when masks are already clean and storage is still sized correctly.
+- [x] Remove redundant object-mask OR updates after exact object mask/count maintenance.
+
+Verification note: added a generated-shape regression proving externally prechecked single-row apply bodies no longer read `scratch.boardMask`. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, `make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8`, `make compact_tick_oracle_smoke`, and `make compact_turn_codegen_solver_parity` passed. No-rebuild focused perf reruns showed the clearest wins in `Double-Entry Bookkeeping Simulator.txt#17` (`us/generated` down about `0.16`) and `big dog and little dog.txt#11` (`us/generated` down about `0.12`), with neutral/tiny movement elsewhere except the report-only `gem soketeer.txt#21`.
+
+Verification note: added a generated-shape regression for the clean-mask setup fast path. `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_perf_expectations COMPILED_RULES_BUILD_JOBS=8`, `make compact_turn_codegen_regression_tests`, `make compact_tick_oracle_smoke`, `make compact_turn_codegen_solver_parity`, and `make compact_turn_native_parity` passed. Two no-rebuild focused perf reruns versus the previous accepted baseline improved average compiled `us/generated` by `0.095` and setup time by `1.19ms`; the largest per-case `us/generated` wins were `gem soketeer.txt#21` (`-0.280`), `big dog and little dog.txt#11` (`-0.219`), and `easyenigma.txt#11` (`-0.160`).
+
+Verification note: object writes now rely on `compact_turn_update_object_mask_counts_*` for exact row/column/board mask maintenance and skip the formerly redundant post-write OR loop. The focused perf gate passed, and two no-rebuild reruns versus the clean-setup baseline improved every focused case by throughput: average compiled `us/generated` improved by `0.244`, with notable wins in `easyenigma.txt#11` (`-0.877`), `big dog and little dog.txt#11` (`-0.357`), and `Double-Entry Bookkeeping Simulator.txt#17` (`-0.314`). Correctness passed with `make compact_turn_codegen_dirty_shape`, `make compact_turn_codegen_regression_tests`, `make compact_tick_oracle_smoke`, `make compact_turn_codegen_solver_parity`, and `make compact_turn_native_parity`.
+
 ---
 
 ## Final Handoff

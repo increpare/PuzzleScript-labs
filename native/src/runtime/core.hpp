@@ -524,6 +524,7 @@ using Game = GameInformation;
 
 struct Scratch {
     MaskVector liveMovements;
+    bool liveMovementsClean = false;
     MaskVector rowMasks;
     MaskVector columnMasks;
     MaskVector rowAllMasks;
@@ -546,6 +547,12 @@ struct Scratch {
     std::vector<uint32_t> objectCellCounts;
     int32_t objectCellBitTileCount = 0;
     bool objectCellIndexDirty = true;
+    // Per-movement-bit cell presence bitsets for anchored generated scans.
+    // Layout is movement-bit-major: movementCellBits[movementBit * cellWordCount + word].
+    std::vector<MaskWordUnsigned> movementCellBits;
+    std::vector<uint32_t> movementCellCounts;
+    int32_t movementCellBitTileCount = 0;
+    bool movementCellIndexDirty = true;
     // Incremental rebuildMasks tracking: `setCellObjects`/`setCellMovements`
     // OR new bits into the row/column/board masks directly. When bits are
     // *cleared* (old & ~new != 0) we cannot undo the OR without re-scanning
@@ -579,6 +586,11 @@ struct Scratch {
     MaskVector replacementDestroyedScratch;
     MaskVector replacementRigidMaskScratch;
     std::vector<int32_t> singleRowMatchScratch;
+    std::vector<std::vector<int32_t>> multiRowMatchScratch;
+    std::vector<uint8_t> queuedTileScratch;
+    // Reused by generated compact turns in drain-again mode to avoid
+    // allocating a fresh board snapshot for every solver edge.
+    MaskVector turnStartObjectsScratch;
     std::map<std::string, int32_t> aggregateCaptures;
     std::map<std::string, std::optional<PropertyCapture>> propertyCaptures;
     MaskVector incrementalPriorObjects;
@@ -800,5 +812,7 @@ uint64_t runtimeCounterNowNs();
 void addRuntimeCounter(RuntimeCounterId id, uint64_t amount = 1);
 void resetRuntimeCounters();
 ps_runtime_counters snapshotRuntimeCounters();
+bool inputSpecializationEnabled();
+uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask);
 
 } // namespace puzzlescript

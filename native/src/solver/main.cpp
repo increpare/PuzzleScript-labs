@@ -1421,6 +1421,7 @@ std::string persistentLevelStateDiffSummary(const PersistentLevelState& lhs, con
 CompactTurnTryResult trySpecializedCompactTurn(
     const Game& game,
     const PersistentLevelState& parent,
+    puzzlescript::Scratch& scratch,
     ps_input input,
     LevelDimensions dimensions,
     int32_t currentLevelIndex,
@@ -1432,7 +1433,6 @@ CompactTurnTryResult trySpecializedCompactTurn(
     }
     result.attempted = true;
     result.state = parent;
-    puzzlescript::Scratch scratch;
     puzzlescript::SpecializedCompactTurnContext context{dimensions, currentLevelIndex};
     const puzzlescript::SpecializedCompactTurnOutcome outcome =
         game.specializedCompactTurn->step(game, result.state, scratch, context, input, options);
@@ -1441,6 +1441,14 @@ CompactTurnTryResult trySpecializedCompactTurn(
     result.discardReason = outcome.discardReason;
     result.stepResult = outcome.result;
     return result;
+}
+
+void prepareCompactTurnScratchForParent(puzzlescript::Scratch& scratch) {
+    std::fill(scratch.dirtyObjectRows.begin(), scratch.dirtyObjectRows.end(), 1);
+    std::fill(scratch.dirtyObjectColumns.begin(), scratch.dirtyObjectColumns.end(), 1);
+    scratch.dirtyObjectBoard = true;
+    scratch.anyMasksDirty = true;
+    scratch.objectCellIndexDirty = true;
 }
 
 SolverEdgeStep stepSolverEdge(
@@ -1481,9 +1489,11 @@ SolverEdgeStep stepSolverEdge(
                 }
                 {
                     ScopedTimer timer(result.timing.stepNs);
+                    prepareCompactTurnScratchForParent(childScratch.scratch);
                     edge.compactTurn = trySpecializedCompactTurn(
                         *game,
                         parentState,
+                        childScratch.scratch,
                         input,
                         LevelDimensions{width, height},
                         parentSession.meta.currentLevelIndex,

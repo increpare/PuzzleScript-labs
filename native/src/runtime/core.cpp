@@ -135,6 +135,10 @@ inline void addCounter(std::atomic<uint64_t>& counter, uint64_t amount = 1) {
     }
 }
 
+inline void addCounterUnchecked(std::atomic<uint64_t>& counter, uint64_t amount = 1) {
+    counter.fetch_add(amount, std::memory_order_relaxed);
+}
+
 bool debugEnvFlag(const char* name) {
     const char* value = std::getenv(name);
     return value != nullptr && value[0] != '\0' && std::string_view(value) != "0";
@@ -2462,6 +2466,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
         session.scratch.rowMovementMasks[rowBase + static_cast<size_t>(word)] |= value;
         session.scratch.boardMovementMask[static_cast<size_t>(word)] |= value;
     }
+    if (changedAny) {
+        session.scratch.liveMovementsClean = false;
+    }
     if (clearedAny != 0 || changedAny) {
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyMovementRows.size())
             session.scratch.dirtyMovementRows[static_cast<size_t>(rowIndex)] = 1;
@@ -2497,6 +2504,7 @@ void clearRigidState(FullState& session) {
 
 void clearMovementState(FullState& session) {
     std::fill(session.scratch.liveMovements.begin(), session.scratch.liveMovements.end(), 0);
+    session.scratch.liveMovementsClean = true;
     std::fill(session.scratch.rowMovementMasks.begin(), session.scratch.rowMovementMasks.end(), 0);
     std::fill(session.scratch.columnMovementMasks.begin(), session.scratch.columnMovementMasks.end(), 0);
     std::fill(session.scratch.boardMovementMask.begin(), session.scratch.boardMovementMask.end(), 0);
@@ -2555,7 +2563,7 @@ int32_t inputToDirectionMask(ps_input input) {
     }
 }
 
-bool inputSpecializationEnabled() {
+bool inputSpecializationEnabledInternal() {
     static const bool enabled = []() {
         const char* value = std::getenv("PUZZLESCRIPT_INPUT_SPECIALIZATION");
         return value == nullptr || std::strcmp(value, "0") != 0;
@@ -2563,7 +2571,7 @@ bool inputSpecializationEnabled() {
     return enabled;
 }
 
-uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask) {
+uint8_t inputSpecializationMaskForDirectionMaskInternal(int32_t directionMask) {
     switch (directionMask) {
         case 1: return 1u << PS_INPUT_UP;
         case 4: return 1u << PS_INPUT_LEFT;
@@ -5641,8 +5649,14 @@ void restoreSnapshot(FullState& session, const UndoSnapshot& snapshot, bool rest
     }
     if (snapshot.liveMovements.empty()) {
         session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+        session.scratch.liveMovementsClean = true;
     } else {
         session.scratch.liveMovements = snapshot.liveMovements;
+        session.scratch.liveMovementsClean = std::none_of(
+            session.scratch.liveMovements.begin(),
+            session.scratch.liveMovements.end(),
+            [](MaskWord value) { return value != 0; }
+        );
     }
     if (snapshot.rigidGroupIndexMasks.empty()) {
         session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
@@ -5695,6 +5709,7 @@ void restoreRestartTarget(FullState& session) {
         setPersistentBoardObjectsFromCellMajor(session, session.meta.level.objects);
     }
     session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+    session.scratch.liveMovementsClean = true;
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
     session.meta.pendingAgain = false;
@@ -5794,6 +5809,7 @@ bool advanceToNextLevel(FullState& session) {
         session.meta.winning = false;
         if (session.meta.textMode) {
             session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+            session.scratch.liveMovementsClean = true;
             session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
             session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
             session.meta.pendingAgain = false;
@@ -5821,6 +5837,7 @@ bool advanceToNextLevel(FullState& session) {
     session.meta.messageText.clear();
     session.meta.winning = false;
     session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+    session.scratch.liveMovementsClean = true;
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
     session.meta.pendingAgain = false;
@@ -5837,6 +5854,7 @@ void resetToPrepared(FullState& session) {
     }
     setPersistentBoardObjectsFromCellMajor(session, session.meta.level.objects);
     session.scratch.liveMovements.assign(static_cast<size_t>(currentLevelWidth(session) * currentLevelHeight(session) * session.game->strideMovement), 0);
+    session.scratch.liveMovementsClean = true;
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);
     session.meta.undoStack.clear();
@@ -5859,6 +5877,14 @@ void resetToPrepared(FullState& session) {
 }
 
 } // namespace
+
+bool inputSpecializationEnabled() {
+    return inputSpecializationEnabledInternal();
+}
+
+uint8_t inputSpecializationMaskForDirectionMask(int32_t directionMask) {
+    return inputSpecializationMaskForDirectionMaskInternal(directionMask);
+}
 
 void transposeCellMajorToObjectMajor(
     const Game& game,
@@ -7458,45 +7484,48 @@ uint64_t runtimeCounterNowNs() {
 }
 
 void addRuntimeCounter(RuntimeCounterId id, uint64_t amount) {
+    if (!gRuntimeCountersEnabled) {
+        return;
+    }
     switch (id) {
-        case RuntimeCounterId::RulesVisited: addCounter(gRuntimeCounters.rulesVisited, amount); break;
-        case RuntimeCounterId::RulesSkippedByMask: addCounter(gRuntimeCounters.rulesSkippedByMask, amount); break;
-        case RuntimeCounterId::CandidateCellsTested: addCounter(gRuntimeCounters.candidateCellsTested, amount); break;
-        case RuntimeCounterId::PatternTests: addCounter(gRuntimeCounters.patternTests, amount); break;
-        case RuntimeCounterId::PatternMatches: addCounter(gRuntimeCounters.patternMatches, amount); break;
-        case RuntimeCounterId::ReplacementsAttempted: addCounter(gRuntimeCounters.replacementsAttempted, amount); break;
-        case RuntimeCounterId::ReplacementsApplied: addCounter(gRuntimeCounters.replacementsApplied, amount); break;
-        case RuntimeCounterId::RowScans: addCounter(gRuntimeCounters.rowScans, amount); break;
-        case RuntimeCounterId::EllipsisScans: addCounter(gRuntimeCounters.ellipsisScans, amount); break;
-        case RuntimeCounterId::MaskRebuildCalls: addCounter(gRuntimeCounters.maskRebuildCalls, amount); break;
-        case RuntimeCounterId::MaskRebuildDirtyCalls: addCounter(gRuntimeCounters.maskRebuildDirtyCalls, amount); break;
-        case RuntimeCounterId::MaskRebuildRows: addCounter(gRuntimeCounters.maskRebuildRows, amount); break;
-        case RuntimeCounterId::MaskRebuildColumns: addCounter(gRuntimeCounters.maskRebuildColumns, amount); break;
-        case RuntimeCounterId::CompactTurnNativeCalls: addCounter(gRuntimeCounters.compactTurnNativeCalls, amount); break;
-        case RuntimeCounterId::CompactTurnBridgeCalls: addCounter(gRuntimeCounters.compactTurnBridgeCalls, amount); break;
-        case RuntimeCounterId::CompactTurnSetupNs: addCounter(gRuntimeCounters.compactTurnSetupNs, amount); break;
-        case RuntimeCounterId::CompactTurnEarlyRulesNs: addCounter(gRuntimeCounters.compactTurnEarlyRulesNs, amount); break;
-        case RuntimeCounterId::CompactTurnMovementNs: addCounter(gRuntimeCounters.compactTurnMovementNs, amount); break;
-        case RuntimeCounterId::CompactTurnLateRulesNs: addCounter(gRuntimeCounters.compactTurnLateRulesNs, amount); break;
-        case RuntimeCounterId::CompactTurnWinNs: addCounter(gRuntimeCounters.compactTurnWinNs, amount); break;
-        case RuntimeCounterId::CompactTurnCanonicalizeNs: addCounter(gRuntimeCounters.compactTurnCanonicalizeNs, amount); break;
-        case RuntimeCounterId::CompactTurnAgainProbeCalls: addCounter(gRuntimeCounters.compactTurnAgainProbeCalls, amount); break;
-        case RuntimeCounterId::CompactTurnAgainProbeNs: addCounter(gRuntimeCounters.compactTurnAgainProbeNs, amount); break;
-        case RuntimeCounterId::CompactTurnBridgeCreateNs: addCounter(gRuntimeCounters.compactTurnBridgeCreateNs, amount); break;
-        case RuntimeCounterId::CompactTurnBridgeMaterializeNs: addCounter(gRuntimeCounters.compactTurnBridgeMaterializeNs, amount); break;
-        case RuntimeCounterId::CompactTurnBridgeTurnNs: addCounter(gRuntimeCounters.compactTurnBridgeTurnNs, amount); break;
-        case RuntimeCounterId::CompactTurnBridgeCopybackNs: addCounter(gRuntimeCounters.compactTurnBridgeCopybackNs, amount); break;
-        case RuntimeCounterId::CompactTurnRuleMaskPrecheckPasses: addCounter(gRuntimeCounters.compactTurnRuleMaskPrecheckPasses, amount); break;
-        case RuntimeCounterId::CompactTurnRuleMaskPrecheckFailures: addCounter(gRuntimeCounters.compactTurnRuleMaskPrecheckFailures, amount); break;
-        case RuntimeCounterId::CompactTurnRuleApplyCalls: addCounter(gRuntimeCounters.compactTurnRuleApplyCalls, amount); break;
-        case RuntimeCounterId::CompactTurnRuleApplyNoMatch: addCounter(gRuntimeCounters.compactTurnRuleApplyNoMatch, amount); break;
-        case RuntimeCounterId::CompactTurnRuleApplyChanged: addCounter(gRuntimeCounters.compactTurnRuleApplyChanged, amount); break;
-        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateCalls: addCounter(gRuntimeCounters.compactTurnRebuildRuleDerivedStateCalls, amount); break;
-        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateObjectsDirty: addCounter(gRuntimeCounters.compactTurnRebuildRuleDerivedStateObjectsDirty, amount); break;
-        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateMovementsDirty: addCounter(gRuntimeCounters.compactTurnRebuildRuleDerivedStateMovementsDirty, amount); break;
-        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathCalls: addCounter(gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls, amount); break;
-        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathNoops: addCounter(gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops, amount); break;
-        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathChanges: addCounter(gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges, amount); break;
+        case RuntimeCounterId::RulesVisited: addCounterUnchecked(gRuntimeCounters.rulesVisited, amount); break;
+        case RuntimeCounterId::RulesSkippedByMask: addCounterUnchecked(gRuntimeCounters.rulesSkippedByMask, amount); break;
+        case RuntimeCounterId::CandidateCellsTested: addCounterUnchecked(gRuntimeCounters.candidateCellsTested, amount); break;
+        case RuntimeCounterId::PatternTests: addCounterUnchecked(gRuntimeCounters.patternTests, amount); break;
+        case RuntimeCounterId::PatternMatches: addCounterUnchecked(gRuntimeCounters.patternMatches, amount); break;
+        case RuntimeCounterId::ReplacementsAttempted: addCounterUnchecked(gRuntimeCounters.replacementsAttempted, amount); break;
+        case RuntimeCounterId::ReplacementsApplied: addCounterUnchecked(gRuntimeCounters.replacementsApplied, amount); break;
+        case RuntimeCounterId::RowScans: addCounterUnchecked(gRuntimeCounters.rowScans, amount); break;
+        case RuntimeCounterId::EllipsisScans: addCounterUnchecked(gRuntimeCounters.ellipsisScans, amount); break;
+        case RuntimeCounterId::MaskRebuildCalls: addCounterUnchecked(gRuntimeCounters.maskRebuildCalls, amount); break;
+        case RuntimeCounterId::MaskRebuildDirtyCalls: addCounterUnchecked(gRuntimeCounters.maskRebuildDirtyCalls, amount); break;
+        case RuntimeCounterId::MaskRebuildRows: addCounterUnchecked(gRuntimeCounters.maskRebuildRows, amount); break;
+        case RuntimeCounterId::MaskRebuildColumns: addCounterUnchecked(gRuntimeCounters.maskRebuildColumns, amount); break;
+        case RuntimeCounterId::CompactTurnNativeCalls: addCounterUnchecked(gRuntimeCounters.compactTurnNativeCalls, amount); break;
+        case RuntimeCounterId::CompactTurnBridgeCalls: addCounterUnchecked(gRuntimeCounters.compactTurnBridgeCalls, amount); break;
+        case RuntimeCounterId::CompactTurnSetupNs: addCounterUnchecked(gRuntimeCounters.compactTurnSetupNs, amount); break;
+        case RuntimeCounterId::CompactTurnEarlyRulesNs: addCounterUnchecked(gRuntimeCounters.compactTurnEarlyRulesNs, amount); break;
+        case RuntimeCounterId::CompactTurnMovementNs: addCounterUnchecked(gRuntimeCounters.compactTurnMovementNs, amount); break;
+        case RuntimeCounterId::CompactTurnLateRulesNs: addCounterUnchecked(gRuntimeCounters.compactTurnLateRulesNs, amount); break;
+        case RuntimeCounterId::CompactTurnWinNs: addCounterUnchecked(gRuntimeCounters.compactTurnWinNs, amount); break;
+        case RuntimeCounterId::CompactTurnCanonicalizeNs: addCounterUnchecked(gRuntimeCounters.compactTurnCanonicalizeNs, amount); break;
+        case RuntimeCounterId::CompactTurnAgainProbeCalls: addCounterUnchecked(gRuntimeCounters.compactTurnAgainProbeCalls, amount); break;
+        case RuntimeCounterId::CompactTurnAgainProbeNs: addCounterUnchecked(gRuntimeCounters.compactTurnAgainProbeNs, amount); break;
+        case RuntimeCounterId::CompactTurnBridgeCreateNs: addCounterUnchecked(gRuntimeCounters.compactTurnBridgeCreateNs, amount); break;
+        case RuntimeCounterId::CompactTurnBridgeMaterializeNs: addCounterUnchecked(gRuntimeCounters.compactTurnBridgeMaterializeNs, amount); break;
+        case RuntimeCounterId::CompactTurnBridgeTurnNs: addCounterUnchecked(gRuntimeCounters.compactTurnBridgeTurnNs, amount); break;
+        case RuntimeCounterId::CompactTurnBridgeCopybackNs: addCounterUnchecked(gRuntimeCounters.compactTurnBridgeCopybackNs, amount); break;
+        case RuntimeCounterId::CompactTurnRuleMaskPrecheckPasses: addCounterUnchecked(gRuntimeCounters.compactTurnRuleMaskPrecheckPasses, amount); break;
+        case RuntimeCounterId::CompactTurnRuleMaskPrecheckFailures: addCounterUnchecked(gRuntimeCounters.compactTurnRuleMaskPrecheckFailures, amount); break;
+        case RuntimeCounterId::CompactTurnRuleApplyCalls: addCounterUnchecked(gRuntimeCounters.compactTurnRuleApplyCalls, amount); break;
+        case RuntimeCounterId::CompactTurnRuleApplyNoMatch: addCounterUnchecked(gRuntimeCounters.compactTurnRuleApplyNoMatch, amount); break;
+        case RuntimeCounterId::CompactTurnRuleApplyChanged: addCounterUnchecked(gRuntimeCounters.compactTurnRuleApplyChanged, amount); break;
+        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateCalls: addCounterUnchecked(gRuntimeCounters.compactTurnRebuildRuleDerivedStateCalls, amount); break;
+        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateObjectsDirty: addCounterUnchecked(gRuntimeCounters.compactTurnRebuildRuleDerivedStateObjectsDirty, amount); break;
+        case RuntimeCounterId::CompactTurnRebuildRuleDerivedStateMovementsDirty: addCounterUnchecked(gRuntimeCounters.compactTurnRebuildRuleDerivedStateMovementsDirty, amount); break;
+        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathCalls: addCounterUnchecked(gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls, amount); break;
+        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathNoops: addCounterUnchecked(gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops, amount); break;
+        case RuntimeCounterId::CompactTurnSimpleReplacementFastPathChanges: addCounterUnchecked(gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges, amount); break;
     }
 }
 

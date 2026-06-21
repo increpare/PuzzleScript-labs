@@ -44,6 +44,8 @@ function functionBody(source, name) {
         `bool ${name}(`,
         `void ${name}(`,
         `int32_t ${name}(`,
+        `SpecializedCompactTurnOutcome ${name}(`,
+        `CompactTurnMovementOutcome_0 ${name}(`,
         `MaskWord* ${name}(`,
         `const MaskWord* ${name}(`,
     ];
@@ -75,10 +77,37 @@ function assertInOrder(text, needles, context) {
     }
 }
 
-function compileFixture(compiler) {
+function compileSource(compiler, fixtureName, fixture, symbol) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-compact-dirty-shape-'));
-    const gamePath = path.join(tmpDir, 'dirty_shape.txt');
-    const cppPath = path.join(tmpDir, 'dirty_shape.cpp');
+    const gamePath = path.join(tmpDir, `${fixtureName}.txt`);
+    const cppPath = path.join(tmpDir, `${fixtureName}.cpp`);
+    fs.writeFileSync(gamePath, fixture);
+    const result = spawnSync(compiler, [
+        'compile-rules',
+        gamePath,
+        '--emit-cpp',
+        cppPath,
+        '--symbol',
+        symbol,
+        '--max-rows',
+        '1',
+        '--compact-turn-only',
+        '--compact-turn-mode=compiler',
+    ], {
+        encoding: 'utf8',
+        maxBuffer: 1024 * 1024 * 16,
+    });
+    if (result.status !== 0) {
+        throw new Error([
+            `compile-rules failed with status ${result.status}`,
+            result.stdout,
+            result.stderr,
+        ].join('\n'));
+    }
+    return fs.readFileSync(cppPath, 'utf8');
+}
+
+function compileFixture(compiler) {
     const fixture = [
         'title dirty shape',
         'author codex',
@@ -124,30 +153,550 @@ function compileFixture(compiler) {
         'P',
         '',
     ].join('\n');
-    fs.writeFileSync(gamePath, fixture);
-    const result = spawnSync(compiler, [
-        'compile-rules',
-        gamePath,
-        '--emit-cpp',
-        cppPath,
-        '--symbol',
-        'dirty_shape',
-        '--max-rows',
-        '1',
-        '--compact-turn-only',
-        '--compact-turn-mode=compiler',
-    ], {
-        encoding: 'utf8',
-        maxBuffer: 1024 * 1024 * 16,
-    });
-    if (result.status !== 0) {
-        throw new Error([
-            `compile-rules failed with status ${result.status}`,
-            result.stdout,
-            result.stderr,
-        ].join('\n'));
-    }
-    return fs.readFileSync(cppPath, 'utf8');
+    return compileSource(compiler, 'dirty_shape', fixture, 'dirty_shape');
+}
+
+function compileMissingPrecheckFixture(compiler) {
+    const fixture = [
+        'title missing precheck shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ Player no Crate ] -> [ Player Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'missing_precheck_shape', fixture, 'missing_precheck_shape');
+}
+
+function compileGroupPrecheckFixture(compiler) {
+    const fixture = [
+        'title group precheck shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        'Goal',
+        'green',
+        '',
+        'Wall',
+        'gray',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        'G = Goal',
+        '# = Wall',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate, Goal, Wall',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ Crate ]',
+        '+ [ Crate ] -> [ Goal ]',
+        '+ [ Goal ] -> [ Wall ]',
+        '+ [ Wall ] -> [ Player ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'group_precheck_shape', fixture, 'group_precheck_shape');
+}
+
+function compileSharedPrecheckFixture(compiler) {
+    const fixture = [
+        'title shared precheck shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        'Goal',
+        'green',
+        '',
+        'Wall',
+        'gray',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        'G = Goal',
+        '# = Wall',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate, Goal, Wall',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ Crate ]',
+        '+ [ Player ] -> [ Goal ]',
+        '+ [ Player ] -> [ Wall ]',
+        '+ [ Player ] -> [ Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'shared_precheck_shape', fixture, 'shared_precheck_shape');
+}
+
+function compileExternalPrecheckedRuleFixture(compiler) {
+    const fixture = [
+        'title external prechecked rule shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'external_prechecked_rule_shape', fixture, 'external_prechecked_rule_shape');
+}
+
+function compileNoopReplacementFixture(compiler) {
+    const fixture = [
+        'title noop replacement shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate',
+        '',
+        '=======',
+        'RULES',
+        'right [ Player | no Crate ] -> [ Player | Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'noop_replacement_shape', fixture, 'noop_replacement_shape');
+}
+
+function compileCombinedEagerSplitFixture(compiler) {
+    const fixture = [
+        'title combined eager split shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Goal',
+        'green',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'G = Goal',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Goal',
+        '',
+        '=======',
+        'RULES',
+        'right [ stationary Player ] -> [ > Player ]',
+        '[ > Player no Goal ] -> [ > Player Goal ]',
+        '[ > Player no Goal ] -> [ stationary Player Goal ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'combined_eager_split_shape', fixture, 'combined_eager_split_shape');
+}
+
+function compileVerticalUniqueAnchorFixture(compiler) {
+    const fixture = [
+        'title vertical unique anchor shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Crate',
+        '',
+        '=======',
+        'RULES',
+        'down [ Player | no Crate ] -> [ Player | Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'vertical_unique_anchor_shape', fixture, 'vertical_unique_anchor_shape');
+}
+
+function compileSpreadGroupFixture(compiler) {
+    const fixture = [
+        'title spread group shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'blue_raw',
+        'blue',
+        '',
+        'blue1',
+        'blue',
+        '',
+        'blue2',
+        'blue',
+        '',
+        'blue3',
+        'blue',
+        '',
+        'blue4',
+        'blue',
+        '',
+        'blue5',
+        'blue',
+        '',
+        'blue6',
+        'blue',
+        '',
+        'blue7',
+        'blue',
+        '',
+        'blue8',
+        'blue',
+        '',
+        'blue9',
+        'blue',
+        '',
+        'once',
+        'transparent',
+        '',
+        'counted',
+        'white',
+        '',
+        'counting',
+        'yellow',
+        '',
+        'deleting',
+        'yellow',
+        '',
+        'deleted',
+        'orange',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        '@ = counting and blue_raw',
+        '* = blue1',
+        'blue = blue_raw or blue1 or blue2 or blue3 or blue4 or blue5 or blue6 or blue7 or blue8 or blue9',
+        'blue_other = blue',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'once, counted',
+        'counting',
+        'deleted',
+        'Background',
+        'blue_raw, blue1, blue2, blue3, blue4, blue5, blue6, blue7, blue8, blue9',
+        'deleting',
+        '',
+        '=======',
+        'RULES',
+        'late [ counting blue no deleting | no counting blue_other no deleting ] -> [ counting blue | counting blue ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        '@*',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'spread_group_shape', fixture, 'spread_group_shape');
+}
+
+function compileInputSpecializationFixture(compiler) {
+    const fixture = [
+        'title input specialization shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        'Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ > Player | no Crate ] -> [ > Player | Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P.',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'input_specialization_shape', fixture, 'input_specialization_shape');
+}
+
+function compileWeakInputSpecializationFixture(compiler) {
+    const fixture = [
+        'title weak input specialization shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player',
+        '',
+        '=======',
+        'RULES',
+        '[ moving Player ] -> [ stationary Player ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'weak_input_specialization_shape', fixture, 'weak_input_specialization_shape');
+}
+
+function compileSideNoopReplacementFixture(compiler) {
+    const fixture = [
+        'title side noop replacement shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ > Player ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'side_noop_replacement_shape', fixture, 'side_noop_replacement_shape');
 }
 
 function assertIncludes(body, needle, context) {
@@ -156,6 +705,10 @@ function assertIncludes(body, needle, context) {
 
 function assertExcludes(body, needle, context) {
     assert.ok(!body.includes(needle), `${context}: expected generated body not to include ${needle}`);
+}
+
+function countOccurrences(text, needle) {
+    return (text.match(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
 }
 
 function main() {
@@ -182,6 +735,7 @@ function main() {
         /(?:static\s+)?constexpr bool \w+_writes_movements\s*=\s*false;/,
         'expected generated no-movement-write summary constant',
     );
+    assertExcludes(source, 'bool precheckPassed_', 'generated rule mask precheck branch');
     const objectDerivedBody = functionBody(source, 'compact_turn_rebuild_object_derived_state_0');
     assertExcludes(objectDerivedBody, 'objectCellBits.assign', 'object derived-state rebuild');
     assertExcludes(objectDerivedBody, 'objectCellCounts.assign', 'object derived-state rebuild');
@@ -247,10 +801,23 @@ function main() {
         'object write incremental object-cell index',
     );
     assertExcludes(noteObjectBody, 'scratch.objectCellIndexDirty = true;', 'object write incremental object-cell index');
-    assertIncludes(noteObjectBody, 'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
-    assertIncludes(noteObjectBody, 'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;', 'object write conservative masks');
-    assertIncludes(noteObjectBody, 'scratch.boardMask[static_cast<size_t>(word)] |= value;', 'object write conservative masks');
+    assertExcludes(
+        noteObjectBody,
+        'scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_0 + word)] |= value;',
+        'object write relies on exact mask counts',
+    );
+    assertExcludes(
+        noteObjectBody,
+        'scratch.columnMasks[static_cast<size_t>(x * compact_turn_object_stride_0 + word)] |= value;',
+        'object write relies on exact mask counts',
+    );
+    assertExcludes(
+        noteObjectBody,
+        'scratch.boardMask[static_cast<size_t>(word)] |= value;',
+        'object write relies on exact mask counts',
+    );
     const noteMovementBody = functionBody(source, 'compact_turn_note_movement_cell_written_0');
+    assertIncludes(noteMovementBody, 'scratch.liveMovementsClean = false;', 'movement write marks live movement storage dirty');
     assertInOrder(
         noteMovementBody,
         [
@@ -267,6 +834,36 @@ function main() {
     assertIncludes(noteMovementBody, 'scratch.rowMovementMasks[static_cast<size_t>(y * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.columnMovementMasks[static_cast<size_t>(x * compact_turn_movement_stride_0 + word)] |= value;', 'movement write conservative masks');
     assertIncludes(noteMovementBody, 'scratch.boardMovementMask[static_cast<size_t>(word)] |= value;', 'movement write conservative masks');
+    const executeProgramBody = functionBody(source, 'compact_turn_execute_program_0');
+    assertIncludes(
+        executeProgramBody,
+        'MaskVector* reusableTurnStartObjects = (!probeOnly && options.againPolicy == AgainPolicy::Drain) ? &scratch.turnStartObjectsScratch : nullptr;',
+        'drain-mode turn-start object snapshot reuse',
+    );
+    assertIncludes(
+        executeProgramBody,
+        'turnStartObjects = reusableTurnStartObjects;',
+        'drain-mode turn-start object snapshot pointer',
+    );
+    assertIncludes(executeProgramBody, 'if (!scratch.liveMovementsClean) {', 'turn start skips redundant movement clear');
+    const prepareStateBody = functionBody(source, 'compact_turn_prepare_state_0');
+    assertIncludes(
+        prepareStateBody,
+        'scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));',
+        'single-row match scratch reserve happens once in compact setup',
+    );
+    assertInOrder(
+        prepareStateBody,
+        [
+            'const bool masksStorageReady =',
+            'if (!scratch.anyMasksDirty && masksStorageReady) {',
+            'return true;',
+            'const auto noDirtyBytes =',
+        ],
+        'compact setup clean-mask fast path',
+    );
+    const resolveMovementsBody = functionBody(source, 'compact_turn_resolve_movements_0');
+    assertIncludes(resolveMovementsBody, 'scratch.liveMovementsClean = true;', 'movement resolution marks live movement storage clean');
     const ruleDerivedBody = functionBody(source, 'compact_turn_rebuild_rule_derived_state_0');
     assertIncludes(
         ruleDerivedBody,
@@ -289,14 +886,110 @@ function main() {
         'rule derived-state rebuild',
     );
     assertExcludes(ruleDerivedBody, 'compact_turn_rebuild_object_cell_index_0', 'rule derived-state rebuild');
-
     const fastPathCallCount = (source.match(/compact_turn_count_simple_replacement_fast_path_call_0\(\);/g) || []).length;
     assert.ok(
         fastPathCallCount >= 2,
         `expected at least two generated simple replacement fast-path calls; actual=${fastPathCallCount}`,
     );
     const objectFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_0');
+    const objectEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_eager_0');
+    const movementEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_movements_eager_0');
+    const combinedObjectEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_objects_0');
+    const combinedMovementEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_movements_0');
+    const combinedBothEagerFastPathBody = functionBody(source, 'compact_turn_simple_replacement_fast_path_objects_movements_eager_both_0');
+    assertIncludes(source, 'inline bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
+    assertExcludes(source, 'PS_COMPACT_TURN_NOINLINE bool compact_turn_simple_replacement_fast_path_objects_0(', 'object-only fast replacement');
     assertIncludes(objectFastPathBody, 'MaskWord beforeObjects[compact_turn_object_stride_0] = {};', 'object-only fast replacement');
+    assertExcludes(objectEagerFastPathBody, 'fastObjectsChanged', 'eager object-only fast replacement');
+    assertExcludes(objectEagerFastPathBody, 'before != after', 'eager object-only fast replacement');
+    assertExcludes(
+        objectEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'eager object-only fast replacement',
+    );
+    assertIncludes(objectEagerFastPathBody, 'fastObjects[word] = after;', 'eager object-only fast replacement');
+    assertIncludes(objectEagerFastPathBody, 'return true;', 'eager object-only fast replacement');
+    assertExcludes(movementEagerFastPathBody, 'fastMovementsChanged', 'eager movement-only fast replacement');
+    assertExcludes(movementEagerFastPathBody, 'before != after', 'eager movement-only fast replacement');
+    assertExcludes(
+        movementEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'eager movement-only fast replacement',
+    );
+    assertIncludes(movementEagerFastPathBody, 'fastMovements[word] = after;', 'eager movement-only fast replacement');
+    assertIncludes(movementEagerFastPathBody, 'return true;', 'eager movement-only fast replacement');
+    assertExcludes(combinedObjectEagerFastPathBody, 'fastObjectsChanged', 'object-proven eager object+movement fast replacement');
+    assertIncludes(combinedObjectEagerFastPathBody, 'if (fastMovementsChanged)', 'object-proven eager object+movement fast replacement');
+    assertIncludes(
+        combinedObjectEagerFastPathBody,
+        'compact_turn_note_object_cell_written_0(dimensions, scratch, tileIndex, beforeObjects, fastObjects);',
+        'object-proven eager object+movement fast replacement',
+    );
+    assertIncludes(combinedMovementEagerFastPathBody, 'if (fastObjectsChanged)', 'movement-proven eager object+movement fast replacement');
+    assertExcludes(combinedMovementEagerFastPathBody, 'fastMovementsChanged', 'movement-proven eager object+movement fast replacement');
+    assertIncludes(
+        combinedMovementEagerFastPathBody,
+        'compact_turn_note_movement_cell_written_0(dimensions, scratch, tileIndex, beforeMovements, fastMovements);',
+        'movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(combinedBothEagerFastPathBody, 'fastObjectsChanged', 'object+movement-proven eager object+movement fast replacement');
+    assertExcludes(combinedBothEagerFastPathBody, 'fastMovementsChanged', 'object+movement-proven eager object+movement fast replacement');
+    assertExcludes(combinedBothEagerFastPathBody, 'before != after', 'object+movement-proven eager object+movement fast replacement');
+    assertExcludes(
+        combinedObjectEagerFastPathBody,
+        'if (fastObjectsChanged || fastMovementsChanged)',
+        'object-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedMovementEagerFastPathBody,
+        'if (fastObjectsChanged || fastMovementsChanged)',
+        'movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedBothEagerFastPathBody,
+        'if (fastObjectsChanged || fastMovementsChanged)',
+        'object+movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedObjectEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'object-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedMovementEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'movement-proven eager object+movement fast replacement',
+    );
+    assertExcludes(
+        combinedBothEagerFastPathBody,
+        'compact_turn_count_simple_replacement_fast_path_noop_0();',
+        'object+movement-proven eager object+movement fast replacement',
+    );
+    assertIncludes(combinedObjectEagerFastPathBody, 'return true;', 'object-proven eager object+movement fast replacement');
+    assertIncludes(combinedMovementEagerFastPathBody, 'return true;', 'movement-proven eager object+movement fast replacement');
+    assertIncludes(combinedBothEagerFastPathBody, 'return true;', 'object+movement-proven eager object+movement fast replacement');
+
+    const combinedSplitSource = compileCombinedEagerSplitFixture(options.compiler);
+    assertIncludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_movements_eager_0(',
+        'movement-proven object+movement eager replacement collapses to movement-only',
+    );
+    assertIncludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_objects_0(',
+        'object-proven object+movement eager replacement call',
+    );
+    assertIncludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_both_0(',
+        'object+movement-proven eager replacement call',
+    );
+    assertExcludes(
+        combinedSplitSource,
+        'changed = compact_turn_simple_replacement_fast_path_objects_movements_eager_0(',
+        'split object+movement eager replacement calls',
+    );
 
     const objectOnlyBody = functionBody(source, 'ctg_0_e_0_apply_chunk_0');
     assertIncludes(objectOnlyBody, 'scratch.dirtyObjectBoard = false;', 'object-only rule');
@@ -309,24 +1002,229 @@ function main() {
     assertExcludes(objectOnlyBody, 'scratch.dirtyMovementBoard = false;', 'object-only rule');
     assertExcludes(objectOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object-only rule');
     const objectOnlyApplyBody = functionBody(source, 'ctr_0_e_0_0_apply');
+    assertExcludes(
+        objectOnlyApplyBody,
+        'matches.reserve(static_cast<size_t>(tileCount));',
+        'single-row rule apply does not repeat match scratch reserve',
+    );
+    const objectOnlyFallbackScanIndex = objectOnlyApplyBody.indexOf('if (!usedAnchorScan)');
+    assert.notStrictEqual(
+        objectOnlyFallbackScanIndex,
+        -1,
+        'object-only fast replacement: expected anchored scan fallback',
+    );
+    const objectOnlyAnchorScanBody = objectOnlyApplyBody.slice(0, objectOnlyFallbackScanIndex);
+    assertInOrder(
+        objectOnlyAnchorScanBody,
+        [
+            'bool matched = true;',
+            'if (matched) {',
+            'const MaskWord* tile_0_objects',
+        ],
+        'inline pattern object loads are matched-gated',
+    );
+    assertExcludes(
+        objectOnlyAnchorScanBody,
+        'compact_turn_line_has_required_masks_0',
+        'object-only anchor scan with covered positive line preconditions',
+    );
     assertIncludes(
         objectOnlyApplyBody,
-        'compact_turn_simple_replacement_fast_path_objects_0(',
-        'object-only fast replacement',
+        'compact_turn_simple_replacement_fast_path_objects_eager_0(',
+        'object-only layer-exclusive fast replacement is guaranteed to change',
     );
     assertExcludes(objectOnlyApplyBody, 'MaskWord* fastObjects', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'fastMovements', 'object-only fast replacement');
     assertExcludes(objectOnlyApplyBody, 'compact_turn_cell_movements_0(scratch, applyTile_0)', 'object-only fast replacement');
 
-    const objectAndMovementBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
-    assertIncludes(objectAndMovementBody, 'scratch.dirtyObjectBoard = false;', 'object+movement rule');
-    assertIncludes(objectAndMovementBody, 'scratch.dirtyMovementBoard = false;', 'object+movement rule');
-    assertIncludes(objectAndMovementBody, 'const bool changedObjects_0 = scratch.dirtyObjectBoard;', 'object+movement rule');
-    assertIncludes(objectAndMovementBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'object+movement rule');
+    const missingSource = compileMissingPrecheckFixture(options.compiler);
+    const missingApplyBody = functionBody(missingSource, 'ctr_0_e_0_0_apply');
     assertIncludes(
-        objectAndMovementBody,
-        'compact_turn_rebuild_rule_derived_state_0(dimensions, levelState, scratch, changedObjects_0, changedMovements_0);',
-        'object+movement rule',
+        missingApplyBody,
+        'compact_turn_prepare_object_cell_index_0',
+        'missing-object precheck fixture anchored scan',
+    );
+    const missingFallbackScanIndex = missingApplyBody.indexOf('if (!usedAnchorScan)');
+    assert.notStrictEqual(
+        missingFallbackScanIndex,
+        -1,
+        'missing-object precheck fixture: expected anchored scan fallback',
+    );
+    const missingAnchorScanBody = missingApplyBody.slice(0, missingFallbackScanIndex);
+    assertIncludes(
+        missingAnchorScanBody,
+        'compact_turn_line_has_required_masks_0',
+        'missing-object anchor scan preserves line precheck',
+    );
+    assertIncludes(
+        missingAnchorScanBody,
+        'const MaskWord tile_0_objects_word_0 = tile_0_objects[0];',
+        'same-word present/missing object checks share one load',
+    );
+
+    const groupPrecheckSource = compileGroupPrecheckFixture(options.compiler);
+    const groupPrecheckApplyBody = functionBody(groupPrecheckSource, 'ctg_0_e_0_apply');
+    assertIncludes(
+        groupPrecheckApplyBody,
+        'compact_turn_count_rule_mask_precheck_failure_0(4);',
+        'multi-rule group all-fail precheck aggregation',
+    );
+    assertIncludes(
+        groupPrecheckApplyBody,
+        'compact_turn_count_rules_skipped_by_mask_0(4);',
+        'multi-rule group all-fail skip aggregation',
+    );
+
+    const sharedPrecheckSource = compileSharedPrecheckFixture(options.compiler);
+    const sharedPrecheckGroupBody = functionBody(sharedPrecheckSource, 'ctg_0_e_0_apply');
+    assert.strictEqual(
+        countOccurrences(sharedPrecheckGroupBody, '_precheck(scratch)'),
+        1,
+        'shared rule-mask all-fail precheck is deduplicated',
+    );
+
+    const externalPrecheckedSource = compileExternalPrecheckedRuleFixture(options.compiler);
+    const externalPrecheckedApplyBody = functionBody(externalPrecheckedSource, 'ctr_0_e_0_0_apply');
+    assertExcludes(
+        externalPrecheckedApplyBody,
+        'scratch.boardMask',
+        'externally prechecked rule apply body',
+    );
+
+    const noopReplacementSource = compileNoopReplacementFixture(options.compiler);
+    const noopReplacementApplyBody = functionBody(noopReplacementSource, 'ctr_0_e_0_0_apply');
+    assertExcludes(
+        noopReplacementApplyBody,
+        'applyTile_0',
+        'matched-cell no-op replacement elision',
+    );
+    assertIncludes(
+        noopReplacementApplyBody,
+        'applyTile_1',
+        'matched-cell no-op replacement elision keeps real replacement',
+    );
+
+    const verticalUniqueSource = compileVerticalUniqueAnchorFixture(options.compiler);
+    const verticalUniqueApplyBody = functionBody(verticalUniqueSource, 'ctr_0_e_0_0_apply');
+    const verticalUniqueFallbackScanIndex = verticalUniqueApplyBody.indexOf('if (!usedAnchorScan)');
+    assert.notStrictEqual(
+        verticalUniqueFallbackScanIndex,
+        -1,
+        'vertical unique anchor scan: expected anchored scan fallback',
+    );
+    const verticalUniqueAnchorScanBody = verticalUniqueApplyBody.slice(0, verticalUniqueFallbackScanIndex);
+    assertExcludes(
+        verticalUniqueAnchorScanBody,
+        'compact_turn_sort_unique_start_matches_0',
+        'vertical unique anchor scan',
+    );
+
+    const spreadGroupSource = compileSpreadGroupFixture(options.compiler);
+    const spreadGroupApplyBody = functionBody(spreadGroupSource, 'ctg_0_l_0_apply');
+    assertIncludes(
+        spreadGroupApplyBody,
+        'compact_turn_apply_spread_group_0_0',
+        'property-expanded marker spread group fusion',
+    );
+    assertExcludes(
+        spreadGroupApplyBody,
+        'ctg_0_l_0_apply_chunk_0',
+        'property-expanded marker spread group fusion',
+    );
+    const spreadGroupHelperBody = functionBody(spreadGroupSource, 'compact_turn_apply_spread_group_0_0');
+    assertExcludes(
+        spreadGroupHelperBody,
+        'spreadBeforeObjects',
+        'spread group uses replacement change result directly',
+    );
+    assertIncludes(
+        spreadGroupHelperBody,
+        'const bool spreadChanged_',
+        'spread group uses replacement change result directly',
+    );
+    assertExcludes(
+        spreadGroupHelperBody,
+        'compact_turn_direction_delta_0',
+        'spread group emits constant direction deltas',
+    );
+    assertIncludes(
+        spreadGroupHelperBody,
+        'std::vector<uint8_t>& queued = scratch.queuedTileScratch;',
+        'spread group reuses queued tile scratch',
+    );
+    assertExcludes(
+        spreadGroupHelperBody,
+        'std::vector<uint8_t> queued(',
+        'spread group reuses queued tile scratch',
+    );
+
+    const inputSpecializationSource = compileInputSpecializationFixture(options.compiler);
+    const inputSpecializationTurnBody = functionBody(inputSpecializationSource, 'compact_turn_execute_program_0');
+    assertIncludes(
+        inputSpecializationTurnBody,
+        'scratch.currentInputMask = inputSpecializationMaskForDirectionMask(directionMask);',
+        'compact input specialization turn setup',
+    );
+    const inputSpecializationGroupBody = functionBody(inputSpecializationSource, 'ctg_0_e_0_apply');
+    assertIncludes(
+        inputSpecializationGroupBody,
+        'if ((static_cast<uint8_t>(',
+        'compact input specialization group skip',
+    );
+    const inputSpecializationChunkBody = functionBody(inputSpecializationSource, 'ctg_0_e_0_apply_chunk_0');
+    assertIncludes(
+        inputSpecializationChunkBody,
+        'scratch.currentInputMask',
+        'compact input specialization rule skip',
+    );
+
+    const weakInputSpecializationSource = compileWeakInputSpecializationFixture(options.compiler);
+    const weakInputSpecializationGroupBody = functionBody(weakInputSpecializationSource, 'ctg_0_e_0_apply');
+    assertExcludes(
+        weakInputSpecializationGroupBody,
+        'inputSpecializationEnabled()',
+        'weak single-rule input specialization skip',
+    );
+    const weakInputSpecializationChunkBody = functionBody(weakInputSpecializationSource, 'ctg_0_e_0_apply_chunk_0');
+    assertExcludes(
+        weakInputSpecializationChunkBody,
+        'scratch.currentInputMask',
+        'weak single-rule input specialization skip',
+    );
+
+    const sideNoopReplacementSource = compileSideNoopReplacementFixture(options.compiler);
+    const sideNoopReplacementApplyBody = functionBody(sideNoopReplacementSource, 'ctr_0_e_0_0_apply');
+    assertIncludes(
+        sideNoopReplacementApplyBody,
+        'compact_turn_simple_replacement_fast_path_movements_0(',
+        'object-side no-op replacement uses movement-only helper',
+    );
+    assertExcludes(
+        sideNoopReplacementApplyBody,
+        'compact_turn_simple_replacement_fast_path_objects_movements_0(',
+        'object-side no-op replacement uses movement-only helper',
+    );
+    const sideNoopReplacementChunkBody = functionBody(sideNoopReplacementSource, 'ctg_0_e_0_apply_chunk_0');
+    assertExcludes(
+        sideNoopReplacementChunkBody,
+        'scratch.dirtyObjectBoard = false;',
+        'object-side no-op replacement is not dispatched as object-writing',
+    );
+    assertIncludes(
+        sideNoopReplacementChunkBody,
+        'scratch.dirtyMovementBoard = false;',
+        'object-side no-op replacement remains movement-writing',
+    );
+
+    const movementOnlyBody = functionBody(source, 'ctg_0_e_1_apply_chunk_0');
+    assertExcludes(movementOnlyBody, 'scratch.dirtyObjectBoard = false;', 'movement-only effective write rule');
+    assertIncludes(movementOnlyBody, 'scratch.dirtyMovementBoard = false;', 'movement-only effective write rule');
+    assertExcludes(movementOnlyBody, 'const bool changedObjects_0 = scratch.dirtyObjectBoard;', 'movement-only effective write rule');
+    assertIncludes(movementOnlyBody, 'const bool changedMovements_0 = scratch.dirtyMovementBoard;', 'movement-only effective write rule');
+    assertIncludes(
+        movementOnlyBody,
+        'compact_turn_rebuild_rule_derived_state_0(dimensions, levelState, scratch, false, changedMovements_0);',
+        'movement-only effective write rule',
     );
 
     const noWriteBody = functionBody(source, 'ctg_0_e_2_apply_chunk_0');
