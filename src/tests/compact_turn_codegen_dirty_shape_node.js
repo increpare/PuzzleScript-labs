@@ -254,6 +254,60 @@ function compileGroupPrecheckFixture(compiler) {
     return compileSource(compiler, 'group_precheck_shape', fixture, 'group_precheck_shape');
 }
 
+function compileSharedPrecheckFixture(compiler) {
+    const fixture = [
+        'title shared precheck shape',
+        'author codex',
+        '',
+        '========',
+        'OBJECTS',
+        '',
+        'Background',
+        'black',
+        '',
+        'Player',
+        'red',
+        '',
+        'Crate',
+        'blue',
+        '',
+        'Goal',
+        'green',
+        '',
+        'Wall',
+        'gray',
+        '',
+        '=======',
+        'LEGEND',
+        '. = Background',
+        'P = Player',
+        'C = Crate',
+        'G = Goal',
+        '# = Wall',
+        '',
+        '=======',
+        'COLLISIONLAYERS',
+        'Background',
+        'Player, Crate, Goal, Wall',
+        '',
+        '=======',
+        'RULES',
+        '[ Player ] -> [ Crate ]',
+        '+ [ Player ] -> [ Goal ]',
+        '+ [ Player ] -> [ Wall ]',
+        '+ [ Player ] -> [ Crate ]',
+        '',
+        '=======',
+        'WINCONDITIONS',
+        '',
+        '=======',
+        'LEVELS',
+        'P',
+        '',
+    ].join('\n');
+    return compileSource(compiler, 'shared_precheck_shape', fixture, 'shared_precheck_shape');
+}
+
 function compileExternalPrecheckedRuleFixture(compiler) {
     const fixture = [
         'title external prechecked rule shape',
@@ -653,6 +707,10 @@ function assertExcludes(body, needle, context) {
     assert.ok(!body.includes(needle), `${context}: expected generated body not to include ${needle}`);
 }
 
+function countOccurrences(text, needle) {
+    return (text.match(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+}
+
 function main() {
     const options = parseArgs(process.argv);
     const source = compileFixture(options.compiler);
@@ -1015,6 +1073,14 @@ function main() {
         groupPrecheckApplyBody,
         'compact_turn_count_rules_skipped_by_mask_0(4);',
         'multi-rule group all-fail skip aggregation',
+    );
+
+    const sharedPrecheckSource = compileSharedPrecheckFixture(options.compiler);
+    const sharedPrecheckGroupBody = functionBody(sharedPrecheckSource, 'ctg_0_e_0_apply');
+    assert.strictEqual(
+        countOccurrences(sharedPrecheckGroupBody, '_precheck(scratch)'),
+        1,
+        'shared rule-mask all-fail precheck is deduplicated',
     );
 
     const externalPrecheckedSource = compileExternalPrecheckedRuleFixture(options.compiler);

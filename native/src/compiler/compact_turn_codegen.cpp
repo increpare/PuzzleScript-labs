@@ -2286,6 +2286,7 @@ struct CompactRuleGeneratedNames {
     std::string applyName;
     std::string commandQueueName;
     std::string precheckName;
+    std::string precheckKey;
     std::string writesObjectsName;
     std::string writesMovementsName;
     bool hasMaskPrecheck = false;
@@ -2297,6 +2298,7 @@ CompactRuleGeneratedNames makeCompactRuleGeneratedNames(
     std::string applyName,
     std::string commandQueueName = {},
     std::string precheckName = {},
+    std::string precheckKey = {},
     std::string writesObjectsName = {},
     std::string writesMovementsName = {},
     bool hasMaskPrecheck = false,
@@ -2307,6 +2309,7 @@ CompactRuleGeneratedNames makeCompactRuleGeneratedNames(
         std::move(applyName),
         std::move(commandQueueName),
         std::move(precheckName),
+        std::move(precheckKey),
         std::move(writesObjectsName),
         std::move(writesMovementsName),
         hasMaskPrecheck,
@@ -2657,6 +2660,9 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     }
 
     const CompactRowMaskInfo ruleMask = compactRuleMaskInfo(game, masks, rule);
+    const std::string precheckKey = ruleMask.hasAnyRequiredMask
+        ? compactBoardRequiredMaskExpression(ruleMask)
+        : std::string{};
     const std::string precheckName = emitCompactRulePrecheckFunction(out, prefix, suffix, ruleMask);
     const CompactRuleEffectiveWriteSummary effectiveWrites = compactRuleEffectiveWriteSummary(game, rule);
     const auto [writesObjectsName, writesMovementsName] = emitCompactRuleWriteSummaryConstants(out, prefix, effectiveWrites);
@@ -2794,6 +2800,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             applyName,
             commandQueueName,
             precheckName,
+            precheckKey,
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
@@ -2973,6 +2980,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             applyName,
             commandQueueName,
             precheckName,
+            precheckKey,
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
@@ -3324,6 +3332,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             applyName,
             commandQueueName,
             precheckName,
+            precheckKey,
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
@@ -3565,6 +3574,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             applyName,
             commandQueueName,
             precheckName,
+            precheckKey,
             writesObjectsName,
             writesMovementsName,
             ruleMask.hasAnyRequiredMask,
@@ -3694,6 +3704,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         applyName,
         commandQueueName,
         precheckName,
+        precheckKey,
         writesObjectsName,
         writesMovementsName,
         ruleMask.hasAnyRequiredMask,
@@ -3837,11 +3848,26 @@ void emitCompactRulegroupFunctions(
                 }
             );
         if (canEmitAllFailMaskPrecheck) {
+            std::vector<size_t> uniquePrecheckRuleIndices;
+            for (size_t ruleIndex = 0; ruleIndex < ruleNames.size(); ++ruleIndex) {
+                const std::string& precheckKey = ruleNames[ruleIndex].precheckKey;
+                const bool alreadySeen = std::any_of(
+                    uniquePrecheckRuleIndices.begin(),
+                    uniquePrecheckRuleIndices.end(),
+                    [&](size_t seenRuleIndex) {
+                        return ruleNames[seenRuleIndex].precheckKey == precheckKey;
+                    }
+                );
+                if (!alreadySeen) {
+                    uniquePrecheckRuleIndices.push_back(ruleIndex);
+                }
+            }
             out << "    if (";
-            for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
-                if (ruleIndex > 0) {
+            for (size_t index = 0; index < uniquePrecheckRuleIndices.size(); ++index) {
+                if (index > 0) {
                     out << " && ";
                 }
+                const size_t ruleIndex = uniquePrecheckRuleIndices[index];
                 out << "!" << ruleNames[ruleIndex].precheckName << "(scratch)";
             }
             out << ") {\n"
