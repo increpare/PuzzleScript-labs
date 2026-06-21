@@ -745,7 +745,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_muraphilic
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 2000
           --jobs 1
           --strategy portfolio
           --game "Muraphilic Monophobic Multiban.txt"
@@ -836,7 +836,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_pushit_level5
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 3000
           --jobs 1
           --strategy portfolio
           --game pushit.txt

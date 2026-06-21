@@ -1273,7 +1273,6 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             continue;
         }
         auto arrowIt = tokens.end();
-        auto firstArrowIt = tokens.end();
         int32_t arrowSearchBracketDepth = 0;
         for (auto it = tokens.begin(); it != tokens.end(); ++it) {
             if (*it == "[") {
@@ -1285,19 +1284,13 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 continue;
             }
             if (*it == "->") {
-                if (firstArrowIt == tokens.end()) {
-                    firstArrowIt = it;
-                }
                 if (arrowSearchBracketDepth == 0) {
                     arrowIt = it;
                     break;
                 }
             }
         }
-        if (arrowIt == tokens.end()) {
-            arrowIt = firstArrowIt;
-        }
-        if (arrowIt == tokens.end()) {
+        if (std::find(tokens.begin(), tokens.end(), "->") == tokens.end()) {
             continue;
         }
 
@@ -1818,6 +1811,39 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         auto isLayerCoupledPropertyName = [&](const std::string& nameLower) {
             return propertyOf.find(nameLower) != propertyOf.end()
                 && propertiesSingleLayer.find(nameLower) == propertiesSingleLayer.end();
+        };
+        auto lhsHasOverlappingRequiredLayers = [&](const std::vector<ParsedRow>& rows) {
+            for (const auto& row : rows) {
+                for (const auto& cell : row) {
+                    if (cell.isEllipsis) {
+                        continue;
+                    }
+                    std::vector<uint8_t> usedLayers(static_cast<size_t>(game->layerCount), 0);
+                    for (const auto& item : cell.items) {
+                        if (item.dir == "no" || item.dir == "random") {
+                            continue;
+                        }
+                        std::optional<int32_t> layer;
+                        if (const auto objectIt = objectIdByName.find(item.name); objectIt != objectIdByName.end()) {
+                            layer = game->objectsById[static_cast<size_t>(objectIt->second)].layer;
+                        } else if (isLayerCoupledPropertyName(item.name)) {
+                            continue;
+                        } else if (const auto propertyLayerIt = propertiesSingleLayer.find(item.name);
+                                   propertyLayerIt != propertiesSingleLayer.end()) {
+                            layer = propertyLayerIt->second;
+                        }
+                        if (!layer.has_value() || *layer < 0 || *layer >= game->layerCount) {
+                            continue;
+                        }
+                        auto& used = usedLayers[static_cast<size_t>(*layer)];
+                        if (used != 0) {
+                            return true;
+                        }
+                        used = 1;
+                    }
+                }
+            }
+            return false;
         };
 
         auto cellHasNoTermOverlappingProperty = [&](const ParsedCell& cell, const std::string& propertyName) {
@@ -3308,6 +3334,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             std::vector<ParsedRow> variantRhsRowsExpanded = propChunk.second;
             if (!lateRule) {
                 makeSpawnedObjectsStationaryRows(variantLhsRowsExpanded, variantRhsRowsExpanded);
+            }
+            if (lhsHasOverlappingRequiredLayers(variantLhsRowsExpanded)) {
+                continue;
             }
 
         puzzlescript::Rule rule;
