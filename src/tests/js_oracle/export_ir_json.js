@@ -7,6 +7,7 @@ const path = require('path');
 const { loadPuzzleScript } = require('./lib/puzzlescript_node_env');
 const { buildCompiledIr } = require('./lib/puzzlescript_ir');
 const { buildParserStateSnapshot, collectParserPhaseDiagnostics } = require('./lib/puzzlescript_parser_snapshot');
+const { buildSemanticProgramSnapshot } = require('./lib/puzzlescript_semantic_program');
 
 function parseArgs(argv) {
     const result = {
@@ -48,7 +49,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-    console.error('Usage: node src/tests/js_oracle/export_ir_json.js <input.ps> [output.json] [--level N] [--seed seed] [--settle-again] [--snapshot-phase parser|parser-diagnostics]');
+    console.error('Usage: node src/tests/js_oracle/export_ir_json.js <input.ps> [output.json] [--level N] [--seed seed] [--settle-again] [--snapshot-phase parser|parser-diagnostics|semantic]');
 }
 
 function main() {
@@ -105,6 +106,18 @@ function main() {
     } finally {
         unitTesting = false;
         lazyFunctionGeneration = true;
+    }
+
+    if (options.snapshotPhase === 'semantic') {
+        const snapshot = buildSemanticProgramSnapshot(state);
+        const payload = JSON.stringify(snapshot, null, 2);
+        if (outputFile) {
+            fs.mkdirSync(path.dirname(outputFile), { recursive: true });
+            fs.writeFileSync(outputFile, `${payload}\n`, 'utf8');
+        } else {
+            process.stdout.write(`${payload}\n`);
+        }
+        return;
     }
 
     const document = {
