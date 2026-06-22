@@ -38,7 +38,7 @@ explicit difficulty-binning heuristic.
 ## Goals
 
 - A declarative, multi-block spec language extending `.gen` with: `dimensions`,
-  `take`, `weight` headers; a `prob P` per-cell rule; and a `choose N-M` count
+  `take` headers; a `prob P` per-cell rule; and a `choose N-M` count
   range.
 - Per-block generation: keep each block's `take` hardest **distinct** solvable
   boards, mined by repeated round-robin passes with a per-block inactivity
@@ -76,7 +76,6 @@ section and a rule section, separated by a blank line. Parenthetical
 ===
 dimensions: 3x2        # required — synthesize a 3-wide, 2-tall all-background grid
 take: 3                # optional (default 1) — keep the 3 hardest solvable boards
-weight: 2              # optional (default 1) — relative share of global effort
 name: tiny rooms       # optional — label used in output comments
 
 prob 0.3 [] -> [ wall ]                                    (~30% of cells become walls)
@@ -116,7 +115,7 @@ existing parser.
 
 - Split input into blocks on `===` lines.
 - Parse header `key: value` lines into a per-block config struct (`dimensions`,
-  `take`, `time`, `name`, `seed`).
+  `take`, `name`, `seed`).
 - Synthesize the init grid from `dimensions` (W×H of the game's background
   object) instead of requiring an `INIT LEVEL` ASCII block.
 - Extend the rule parser with `prob P` and the `choose N-M` range. `prob`
@@ -172,7 +171,9 @@ primitive the supplemental lanes need.
 
 Keeper ranking and the reported difficulty both use
 `min(expandedPortfolio, expandedGreedy, expandedWeightedAStar, expandedBfs)` over
-the lanes that solved.
+the lanes that solved. In the generator hot path, only the portfolio lane runs
+per sample; supplemental lanes run lazily when a candidate's portfolio expanded
+count beats the block's keeper admission bar (same pattern as MIS generation).
 
 The assessment's **per-board solver budget** (wall-clock `--solver-timeout-ms`,
 and the `max_expanded` cap that bounds it) is a **fixed** setting for the whole
@@ -197,9 +198,10 @@ keepers):
 - **Solution encoding:** reuse `compactSolution` (`up→U down→D left→L right→R
   action→A`), then group characters in **runs of 4 separated by spaces**. If the
   game has `noaction`, `A` never appears.
-- **Atomic incremental write:** after each new keeper is accepted (and on block
-  completion), re-render the full output game to a temp file and `rename()` over
-  the target. A kill at any point leaves a valid, playable game.
+- **Atomic incremental write:** after each new keeper is accepted, re-render the
+  full output game (debounced ~500ms; flushed on block boundary and shutdown) to a
+  temp file and `rename()` over the target. A kill at any point leaves a valid,
+  playable game.
 
 ### 5. CLI
 
@@ -214,7 +216,7 @@ puzzlescript_generator <game.txt> <spec.gen> --out <generated_game.txt> \
   latest atomic write is the result. On signal it finalizes the in-progress
   write and exits cleanly.
 - `--inactivity-start`: the initial per-block inactivity timeout `τ₀` (default
-  `1m`); doubles each pass. A block's `weight` scales its `τ₀`.
+  `1m`); doubles each pass.
 - `--solver-timeout-ms`: fixed per-board solver budget, independent of `τ` and
   unchanged across passes.
 - Existing flags (`--seed`, `--jobs`, `--dedupe-max`) carry over.
@@ -227,9 +229,11 @@ loop forever (until killed):
   for block b in file order:
      resume b
      until τ_b elapses with no improvement to b's kept set:
-        sample b ──solve(MIS four-lane, fixed --solver-timeout-ms)──> {solved | unsolved}
-        if solved and it improves b's kept set (new distinct, or harder than weakest keeper):
-           retain; re-render full game ──atomic rename──> <out>; reset b's idle timer
+        sample b ──portfolio solve (fixed --solver-timeout-ms)──> {solved | unsolved}
+        if solved and portfolio expanded beats admission bar:
+           four-lane supplemental assess ──> difficulty
+           if improves b's kept set (new distinct, or harder than weakest keeper):
+              retain; debounced re-render ──atomic rename──> <out>; reset b's idle timer
      τ_b *= 2 ;  save b's state ;  next block
 ```
 
@@ -291,8 +295,8 @@ loop forever (until killed):
 
 ## Approved Decisions
 
-- **Spec shape:** `===`-delimited blocks; per-block `dimensions` (axes, fixed),
-  `take`, optional `weight`; free knobs expressed as ranges (`prob P`,
+- **Spec shape:** `===`-delimited blocks (optional for a single block); per-block
+  `dimensions` (axes, fixed), `take`; free knobs expressed as ranges (`prob P`,
   `choose N-M`).
 - **Scheduling:** runs **until killed** (no time budget). Round-robin passes over
   blocks in file order; each block generates until its per-block **inactivity
@@ -314,8 +318,7 @@ loop forever (until killed):
 
 ## Open Questions (for spec review)
 
-- Initial inactivity timeout `τ₀` default (`1m`?), and whether the per-block
-  `weight` multiplier earns its keep for v1 or is over-engineering.
+- Initial inactivity timeout `τ₀` default (`1m`?).
 - Optional efficiency: retire (skip) a block that yields zero improvement across
   K consecutive passes, so the ever-growing `τ` isn't burned idling on a config
   that's genuinely exhausted.
