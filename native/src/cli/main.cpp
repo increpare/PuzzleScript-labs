@@ -4287,6 +4287,34 @@ std::string serializeRuntimeGameDebugJson(
                                     }
                                 }
                                 out << "]";
+                                out << ",\"inferred_property_bindings\":[";
+                                if (dynamic != nullptr) {
+                                    for (size_t bindingIndex = 0;
+                                         bindingIndex < dynamic->inferredPropertyBindings.size();
+                                         ++bindingIndex) {
+                                        if (bindingIndex != 0) out << ",";
+                                        const auto& binding = dynamic->inferredPropertyBindings[bindingIndex];
+                                        out << "{\"property_name\":"
+                                            << jsonStringLiteral(binding.propertyName)
+                                            << ",\"dir_mode\":" << binding.dirMode
+                                            << ",\"dir_mask\":" << binding.dirMask
+                                            << "}";
+                                    }
+                                }
+                                out << "]";
+                                out << ",\"inferred_property_sources\":[";
+                                if (dynamic != nullptr) {
+                                    for (size_t sourceIndex = 0;
+                                         sourceIndex < dynamic->inferredPropertySources.size();
+                                         ++sourceIndex) {
+                                        if (sourceIndex != 0) out << ",";
+                                        const auto& source = dynamic->inferredPropertySources[sourceIndex];
+                                        out << "{\"property_name\":"
+                                            << jsonStringLiteral(source.propertyName)
+                                            << "}";
+                                    }
+                                }
+                                out << "]";
                                 out << ",\"layer_coupled_movement_replacements\":";
                                 if (dynamic != nullptr) {
                                     appendLayerCoupledMovementTerms(out, game, dynamic->layerCoupledMovementReplacements);
