@@ -146,6 +146,17 @@ int main() {
     assert(sokRule.lhs.size() == 1 && sokRule.lhs[0].size() == 2);
     assert(sokRule.rhs.size() == 1 && sokRule.rhs[0].size() == 2);
 
+    // Slice 7b: the authored cell/term contents of sokoban's rule.
+    assert(sokRule.lhs[0][0].terms.size() == 1);
+    assert(sokRule.lhs[0][0].terms[0].name == "player");
+    assert(!sokRule.lhs[0][0].terms[0].dir.empty());   // "> Player" has a direction modifier
+    assert(sokRule.lhs[0][1].terms.size() == 1);
+    assert(sokRule.lhs[0][1].terms[0].name == "crate");
+    assert(sokRule.lhs[0][1].terms[0].dir.empty());    // bare "Crate"
+    assert(sokRule.rhs[0][0].terms[0].name == "player" && !sokRule.rhs[0][0].terms[0].dir.empty());
+    assert(sokRule.rhs[0][1].terms[0].name == "crate" && !sokRule.rhs[0][1].terms[0].dir.empty());
+    assert(!sokRule.lhs[0][0].ellipsis);
+
     const std::string json = puzzlescript::compiler::serializeSemanticProgramJson(program);
     assert(json.find("\"semantic_program\"") != std::string::npos);
     assert(json.find("\"collision_layers\"") != std::string::npos);
@@ -160,7 +171,8 @@ int main() {
     assert(json.find("\"events\"") != std::string::npos);
     assert(json.find("\"rules\"") != std::string::npos);
     assert(json.find("\"group_number\"") != std::string::npos);
-    assert(json.find("\"lhs_cell_term_counts\"") != std::string::npos);
+    assert(json.find("\"terms\"") != std::string::npos);
+    assert(json.find("\"ellipsis\"") != std::string::npos);
 
     // normalizeMetadataHomepage must mirror JS formatHomePage: strip the first
     // "http://" then the first "https://". This fixture has both schemes (leading

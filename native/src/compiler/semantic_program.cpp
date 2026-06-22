@@ -196,18 +196,34 @@ void appendSoundEventsObject(std::string& out, const std::map<std::string, int32
     out += '}';
 }
 
-void appendRowCounts(std::string& out, const std::vector<SemanticRow>& rows) {
+void appendRowTerms(std::string& out, const std::vector<SemanticRow>& rows) {
     out += '[';
     for (size_t r = 0; r < rows.size(); ++r) {
         if (r != 0) {
             out += ',';
         }
-        std::vector<int32_t> cellCounts;
-        cellCounts.reserve(rows[r].size());
-        for (const auto& cell : rows[r]) {
-            cellCounts.push_back(cell.ellipsis ? -1 : static_cast<int32_t>(cell.terms.size()));
+        out += '[';
+        for (size_t c = 0; c < rows[r].size(); ++c) {
+            if (c != 0) {
+                out += ',';
+            }
+            const auto& cell = rows[r][c];
+            out += "{\"ellipsis\":";
+            out += cell.ellipsis ? "true" : "false";
+            out += ",\"terms\":[";
+            for (size_t t = 0; t < cell.terms.size(); ++t) {
+                if (t != 0) {
+                    out += ',';
+                }
+                out += "{\"dir\":";
+                appendJsonString(out, cell.terms[t].dir);
+                out += ",\"name\":";
+                appendJsonString(out, cell.terms[t].name);
+                out += "}";
+            }
+            out += "]}";
         }
-        appendIntArray(out, cellCounts);
+        out += ']';
     }
     out += ']';
 }
@@ -236,10 +252,10 @@ void appendRuleArray(std::string& out, const std::vector<SemanticRule>& rules) {
         out += rule.late ? "true" : "false";
         out += ",\"group_number\":";
         out += std::to_string(rule.groupNumber);
-        out += ",\"lhs_cell_term_counts\":";
-        appendRowCounts(out, rule.lhs);
-        out += ",\"rhs_cell_term_counts\":";
-        appendRowCounts(out, rule.rhs);
+        out += ",\"lhs\":";
+        appendRowTerms(out, rule.lhs);
+        out += ",\"rhs\":";
+        appendRowTerms(out, rule.rhs);
         out += ",\"commands\":[";
         for (size_t c = 0; c < rule.commands.size(); ++c) {
             if (c != 0) {

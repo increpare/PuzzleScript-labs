@@ -82,10 +82,17 @@ function winConditionList(state) {
 }
 
 function ruleList(state) {
-    function rowCounts(rows) {
+    function rowTerms(rows) {
         return rows.map(function (row) {
             return row.map(function (cell) {
-                return (cell.length >= 2 && cell[0] === '...') ? -1 : cell.length / 2;
+                if (cell.length >= 2 && cell[0] === '...') {
+                    return { ellipsis: true, terms: [] };
+                }
+                const terms = [];
+                for (let i = 0; i < cell.length; i += 2) {
+                    terms.push({ dir: cell[i] || '', name: cell[i + 1] });
+                }
+                return { ellipsis: false, terms: terms };
             });
         });
     }
@@ -98,8 +105,8 @@ function ruleList(state) {
             random: !!rule.randomRule,
             late: !!rule.late,
             group_number: rule.groupNumber,
-            lhs_cell_term_counts: rowCounts(rule.lhs),
-            rhs_cell_term_counts: rowCounts(rule.rhs),
+            lhs: rowTerms(rule.lhs),
+            rhs: rowTerms(rule.rhs),
             commands: (rule.commands || []).map(function (cmd) {
                 return { name: cmd[0], argument: cmd.length > 1 ? String(cmd[1]) : '' };
             }),
