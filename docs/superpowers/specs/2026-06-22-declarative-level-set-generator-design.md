@@ -8,10 +8,11 @@ section is filled with generated, solver-verified levels. The spec is a list of
 `===`-delimited **blocks**; each block fixes a set of *axes* (e.g. dimensions,
 object counts) and exposes *free knobs* as ranges the sampler may wiggle to
 maximize difficulty. Within each block the tool keeps the `take` hardest
-solvable boards, scored by **MIS difficulty**. A single **global time budget**
-is spread across blocks by an **adaptive scheduler** that steers effort toward
-configs still yielding harder or new boards and backs off ones that have
-plateaued. Output is written **atomically
+solvable boards, scored by **MIS difficulty**. The tool **runs until the user
+kills it**, sweeping the blocks in repeated **passes**; within a pass each block
+generates until an **inactivity timeout** `τ` elapses with no improvement, and
+`τ` **doubles each pass** so the search grows ever more patient. Output is
+written **atomically
 and incrementally**, so a run killed at 4am still leaves a valid game containing
 whatever was found.
 
@@ -40,7 +41,10 @@ explicit difficulty-binning heuristic.
   `take`, `weight` headers; a `prob P` per-cell rule; and a `choose N-M` count
   range.
 - Per-block generation: keep each block's `take` hardest **distinct** solvable
-  boards, mined under a single global budget by an adaptive scheduler.
+  boards, mined by repeated round-robin passes with a per-block inactivity
+  timeout that doubles each pass.
+- Run unattended **until the user stops it** — no time budget; the latest atomic
+  write is always a usable game.
 - Rank and report difficulty using the **MIS four-lane metric** (min expanded
   across portfolio / Greedy / Weighted A\* / BFS), matching the MIS app.
 - Emit a **complete runnable game** to a specified output file: the input game's
@@ -87,7 +91,7 @@ choose 1 [ no wall no crate ] -> [ player ]
 |---|---|---|
 | `dimensions: WxH` | yes | board width × height; synthesizes a W×H grid filled with the game's background object |
 | `take: N` | no (default 1) | number of hardest distinct boards to keep from this block |
-| `weight: W` | no (default 1) | relative share of global effort; the scheduler biases allocation toward higher-weight blocks |
+| `weight: W` | no (default 1) | multiplier on this block's inactivity timeout (`τ₀ = base × W`), giving heavier blocks proportionally more persistence each pass |
 | `name: <text>` | no | human label echoed into the level comment |
 | `seed: N` | no | block seed for reproducibility; otherwise derived from the global `--seed` |
 
@@ -120,32 +124,42 @@ existing parser.
   produces a per-cell Bernoulli application step in `applyProgram`.
 - Parse human durations (`1h30m`) into milliseconds.
 
-### 2. Adaptive scheduling
+### 2. Scheduling: round-robin passes with a doubling inactivity timeout
 
-There is **one global time budget** (`--time`, e.g. `8h`). Blocks are not run
-sequentially to fixed budgets; instead an **adaptive scheduler** interleaves
-them, treating each block as a bandit arm and steering sampling effort toward
-blocks that are still productive.
+The tool **runs until the user kills it** — there is no time budget. Because the
+output is rewritten atomically after every improvement (§4), stopping it at any
+moment yields a valid game with the best levels found so far.
 
-Per block, the scheduler maintains:
+Generation proceeds in **passes** over the blocks **in file order**. Each block
+carries resumable state that is **saved between passes**: its kept set (top-`take`
+distinct boards), its RNG position, its dedupe set, and its current **inactivity
+timeout** `τ`.
 
-- its current **admission bar** — the `take`-th best difficulty kept so far (the
-  threshold a new board must beat to be retained), and
-- its set of **distinct keepers** (existing `hashLevel` dedupe), with **global**
-  dedupe across blocks so the final game has no repeated boards.
+A pass visits each block in turn and, for the current block:
 
-A block's **reward** is its recent rate of progress: raising the admission bar
-and/or admitting new distinct boards. Each scheduling round picks a block (a
-short sampling slice / batch of samples, using the existing `--jobs` worker
-parallelism within the slice) via a UCB/softmax policy over reward rate, scaled
-by the block's `weight`. Blocks whose reward decays to ~0 over a patience window
-are treated as **plateaued** and sampled only rarely thereafter; blocks still
-climbing receive most of the slices. The run ends when `--time` is exhausted or
-every block has plateaued.
+1. Resumes that block's generator and keeps sampling → solving → maybe retaining,
+   using the existing `--jobs` worker parallelism.
+2. A board is an **improvement** when it enters the block's kept set: a new
+   distinct board while `take` is unfilled, or a harder board displacing the
+   weakest keeper. Each improvement rewrites the output (§4) and **resets the
+   block's inactivity timer**.
+3. When `τ` elapses with **no improvement**, the block is done for this pass. Its
+   `τ` **doubles** (`1m → 2m → 4m → …`), its state is saved, and the sweep moves
+   to the next block.
 
-This reuses the existing sampling, solving, top-K, dedupe, and event machinery;
-the new piece is the scheduler that decides *which block to sample next* and
-*when to stop*, plus per-block (`take`) retention instead of one global top-K.
+After the last block the sweep loops back to the first — every block now more
+patient by one doubling — and repeats **forever** until killed. Dedupe is
+**global** across blocks, so the final game never repeats a board.
+
+This doubling inactivity timeout is the *only* deepening mechanism, and it
+governs **generation persistence only**: how long to keep rolling the dice on a
+block before moving on. It is deliberately **independent of the per-board solver
+timeout** (`--solver-timeout-ms`) — a fixed budget for solving one board that
+does **not** change between passes.
+
+Reuses the existing sampling, solving, dedupe, and event machinery; the new
+pieces are the pass loop with per-block `τ`, per-block (`take`) retention instead
+of one global top-K, and the resumable per-block state.
 
 ### 3. MIS difficulty (shared)
 
@@ -160,6 +174,11 @@ primitive the supplemental lanes need.
 Keeper ranking and the reported difficulty both use
 `min(expandedPortfolio, expandedGreedy, expandedWeightedAStar, expandedBfs)` over
 the lanes that solved.
+
+The assessment's **per-board solver budget** (wall-clock `--solver-timeout-ms`,
+and the `max_expanded` cap that bounds it) is a **fixed** setting for the whole
+run — it is *not* escalated by the scheduler. A board the assessment cannot solve
+within that budget is simply dropped (it never enters a kept set).
 
 ### 4. Output writer
 
@@ -187,36 +206,45 @@ keepers):
 
 ```
 puzzlescript_generator <game.txt> <spec.gen> --out <generated_game.txt> \
-    --time 8h [--seed N] [--solver-timeout-ms N] [--jobs auto|N]
+    [--inactivity-start 1m] [--solver-timeout-ms N] [--jobs auto|N] [--seed N]
 ```
 
 - `--out` is required (output is always a file, never stdout/in-place; the input
   game is never modified).
-- `--time` is the single **global** budget for the whole run, in human duration
-  (`8h`, `90m`, `45m30s`). An optional file-level `time:` header (before the
-  first block) may set it instead, keeping the run self-contained. The legacy
-  `--time-ms` is still accepted as a synonym.
-- Existing flags (`--seed`, `--jobs`, `--solver-timeout-ms`, `--dedupe-max`)
-  carry over.
+- **No time budget:** the process runs until killed (`SIGINT`/`SIGTERM`); the
+  latest atomic write is the result. On signal it finalizes the in-progress
+  write and exits cleanly.
+- `--inactivity-start`: the initial per-block inactivity timeout `τ₀` (default
+  `1m`); doubles each pass. A block's `weight` scales its `τ₀`.
+- `--solver-timeout-ms`: fixed per-board solver budget, independent of `τ` and
+  unchanged across passes.
+- Existing flags (`--seed`, `--jobs`, `--dedupe-max`) carry over.
 
 ## Data Flow
 
 ```
-spec file ──parse──> [block₁ … blockₙ]    (each: synth W×H init grid + program)
-loop until --time exhausted or all blocks plateaued:
-   scheduler picks block b   (UCB/softmax over reward rate × weight)
-   sample slice of b ──solve(MIS four-lane)──> difficulty, solution
-   if difficulty beats b's admission bar and board is globally distinct:
-       retain (update b's top-`take`); re-render full game ──atomic rename──> <out>
-   update b's reward (admission-bar lift + new-distinct rate)
+spec file ──parse──> [block₁ … blockₙ]   (each: synth W×H grid + program + state{kept, rng, dedupe, τ})
+loop forever (until killed):
+  for block b in file order:
+     resume b
+     until τ_b elapses with no improvement to b's kept set:
+        sample b ──solve(MIS four-lane, fixed --solver-timeout-ms)──> {solved | unsolved}
+        if solved and it improves b's kept set (new distinct, or harder than weakest keeper):
+           retain; re-render full game ──atomic rename──> <out>; reset b's idle timer
+     τ_b *= 2 ;  save b's state ;  next block
 ```
 
 ## Keeper Validity
 
-- A candidate is eligible only if the MIS solver **solves** it within
-  `--solver-timeout-ms` (a solution must exist to print).
-- Difficulty = four-lane min expanded.
-- Keep the `take` highest-difficulty **distinct** boards.
+- A candidate is eligible only if the MIS solver **solves** it within the fixed
+  `--solver-timeout-ms` (a solution must exist to print). Difficulty = four-lane
+  min expanded.
+- A candidate left **unsolved** within that budget (unsolvable, or simply too
+  slow) is dropped. The next pass's larger `τ` buys more *sampling attempts*, not
+  a larger solver budget — the two are independent.
+- Keep the `take` highest-difficulty **distinct** boards per block (global
+  dedupe across blocks). An **improvement** is a new distinct board while `take`
+  is unfilled, or one harder than the weakest current keeper.
 - Optional per-block `min-difficulty: N` floor to suppress trivial boards is a
   noted future knob, not required for v1 (hardest-N keeping already pushes
   trivial boards out unless nothing harder solved).
@@ -225,9 +253,12 @@ loop until --time exhausted or all blocks plateaued:
 
 - Spec parse error (bad header, malformed rule, bad duration) → fail fast with
   line number before any generation.
-- A block that produces no solvable board before the run ends → emit nothing for
-  that block, log a warning; other blocks are unaffected.
-- Unsolvable / timed-out samples are counted (existing counters) and skipped.
+- A block that has produced no solvable board yet simply contributes no levels to
+  the current output; it is retried every pass (with a larger `τ`).
+- Unsolved samples (unsolvable or over the solver timeout) are counted (existing
+  counters) and dropped.
+- **Signals:** on `SIGINT`/`SIGTERM`, finish the in-progress atomic write and
+  exit cleanly (0).
 - Output write failure (temp create / rename) → abort with a clear error rather
   than risk a truncated game file.
 
@@ -239,9 +270,9 @@ loop until --time exhausted or all blocks plateaued:
    over many samples); `choose N-M` always yields a count in `[N,M]`.
 3. **Difficulty parity:** generator's MIS difficulty for a fixed board equals the
    MIS app's for the same board (shared `difficulty` module).
-3b. **Scheduler:** a plateaued block stops consuming slices while an
-   actively-improving block keeps receiving them; `weight` biases allocation as
-   expected; the run halts at `--time`.
+3b. **Scheduler:** a block ends its pass after `τ` of no improvement and `τ`
+   doubles for the next pass; an improvement resets the idle timer; per-block
+   state (kept set, RNG, dedupe, `τ`) round-trips across passes.
 4. **Output validity (key test):** the produced game **compiles and runs** in the
    engine, and **each embedded solution actually solves its level** when
    replayed (the comment's input sequence wins the level).
@@ -264,12 +295,18 @@ loop until --time exhausted or all blocks plateaued:
 - **Spec shape:** `===`-delimited blocks; per-block `dimensions` (axes, fixed),
   `take`, optional `weight`; free knobs expressed as ranges (`prob P`,
   `choose N-M`).
-- **Budgeting:** one global `--time` budget spread by an adaptive bandit
-  scheduler (reward = admission-bar lift + new-distinct rate, scaled by
-  `weight`); plateaued blocks are backed off. No per-block time budgets.
+- **Scheduling:** runs **until killed** (no time budget). Round-robin passes over
+  blocks in file order; each block generates until its per-block **inactivity
+  timeout** `τ` elapses with no improvement, then `τ` **doubles** for the next
+  pass. Per-block state (kept set, RNG, dedupe, `τ`) is saved/restored between
+  passes.
+- **Solver timeout:** a fixed per-board budget (`--solver-timeout-ms`),
+  independent of `τ` and unchanged across passes.
 - **Diversity model:** author-enumerated blocks (manual cells); difficulty
   maximized within each cell; no auto-grid sweep.
 - **Difficulty metric:** MIS four-lane min, for both ranking and the comment.
+- **Ordering:** blocks in file order (author-controlled progression); within a
+  block, ascending difficulty (easy→hard).
 - **Output:** a complete game written to a required `--out` file (input game
   untouched); `LEVELS` replaced by generated levels; per-level difficulty +
   solution comments.
@@ -278,10 +315,8 @@ loop until --time exhausted or all blocks plateaued:
 
 ## Open Questions (for spec review)
 
-- Within-block ordering: ascending difficulty assumed — confirm you don't want
-  hardest-first or file-discovery order.
-- Plateau patience window: how long a block's reward stays ~0 before it is
-  parked (and how often a parked block is re-probed in case the search space is
-  just sparse, not exhausted). A starting default (e.g. park after N
-  no-improvement slices, re-probe occasionally) is fine to tune in
-  implementation.
+- Initial inactivity timeout `τ₀` default (`1m`?), and whether the per-block
+  `weight` multiplier earns its keep for v1 or is over-engineering.
+- Optional efficiency: retire (skip) a block that yields zero improvement across
+  K consecutive passes, so the ever-growing `τ` isn't burned idling on a config
+  that's genuinely exhausted.
