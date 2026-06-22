@@ -8,7 +8,10 @@ section is filled with generated, solver-verified levels. The spec is a list of
 `===`-delimited **blocks**; each block fixes a set of *axes* (e.g. dimensions,
 object counts) and exposes *free knobs* as ranges the sampler may wiggle to
 maximize difficulty. Within each block the tool keeps the `take` hardest
-solvable boards, scored by **MIS difficulty**. Output is written **atomically
+solvable boards, scored by **MIS difficulty**. A single **global time budget**
+is spread across blocks by an **adaptive scheduler** that steers effort toward
+configs still yielding harder or new boards and backs off ones that have
+plateaued. Output is written **atomically
 and incrementally**, so a run killed at 4am still leaves a valid game containing
 whatever was found.
 
@@ -34,10 +37,10 @@ explicit difficulty-binning heuristic.
 ## Goals
 
 - A declarative, multi-block spec language extending `.gen` with: `dimensions`,
-  `take`, `time` headers; a `prob P` per-cell rule; and a `choose N-M` count
+  `take`, `weight` headers; a `prob P` per-cell rule; and a `choose N-M` count
   range.
-- Per-block generation: run each block to its own `time` budget; keep its `take`
-  hardest **distinct** solvable boards.
+- Per-block generation: keep each block's `take` hardest **distinct** solvable
+  boards, mined under a single global budget by an adaptive scheduler.
 - Rank and report difficulty using the **MIS four-lane metric** (min expanded
   across portfolio / Greedy / Weighted A\* / BFS), matching the MIS app.
 - Emit a **complete runnable game** to a specified output file: the input game's
@@ -69,7 +72,7 @@ section and a rule section, separated by a blank line. Parenthetical
 ===
 dimensions: 3x2        # required — synthesize a 3-wide, 2-tall all-background grid
 take: 3                # optional (default 1) — keep the 3 hardest solvable boards
-time: 1h30m            # optional (default: --time-ms global) — budget for THIS block
+weight: 2              # optional (default 1) — relative share of global effort
 name: tiny rooms       # optional — label used in output comments
 
 prob 0.3 [] -> [ wall ]                                    (~30% of cells become walls)
@@ -84,7 +87,7 @@ choose 1 [ no wall no crate ] -> [ player ]
 |---|---|---|
 | `dimensions: WxH` | yes | board width × height; synthesizes a W×H grid filled with the game's background object |
 | `take: N` | no (default 1) | number of hardest distinct boards to keep from this block |
-| `time: <dur>` | no | per-block wall-clock budget; `1h30m`, `45m`, `90s` (h/m/s suffixes). Total run ≈ sum of block budgets |
+| `weight: W` | no (default 1) | relative share of global effort; the scheduler biases allocation toward higher-weight blocks |
 | `name: <text>` | no | human label echoed into the level comment |
 | `seed: N` | no | block seed for reproducibility; otherwise derived from the global `--seed` |
 
@@ -117,20 +120,32 @@ existing parser.
   produces a per-cell Bernoulli application step in `applyProgram`.
 - Parse human durations (`1h30m`) into milliseconds.
 
-### 2. Per-block orchestration
+### 2. Adaptive scheduling
 
-Run blocks **sequentially**. Each block:
+There is **one global time budget** (`--time`, e.g. `8h`). Blocks are not run
+sequentially to fixed budgets; instead an **adaptive scheduler** interleaves
+them, treating each block as a bandit arm and steering sampling effort toward
+blocks that are still productive.
 
-1. Builds its synthesized init grid and program.
-2. Samples for its `time` budget, using existing `--jobs` worker parallelism
-   *within* the block.
-3. Solves each sample with the shared MIS core; scores by MIS difficulty.
-4. Maintains a per-block top-`take` of **distinct** boards (existing `hashLevel`
-   dedupe), with **global** dedupe across blocks so the final game has no
-   repeated boards.
+Per block, the scheduler maintains:
 
-The existing top-K / dedupe / event machinery is reused; the change is that
-top-K is now per-block (`take`) and bounded by a per-block time budget.
+- its current **admission bar** — the `take`-th best difficulty kept so far (the
+  threshold a new board must beat to be retained), and
+- its set of **distinct keepers** (existing `hashLevel` dedupe), with **global**
+  dedupe across blocks so the final game has no repeated boards.
+
+A block's **reward** is its recent rate of progress: raising the admission bar
+and/or admitting new distinct boards. Each scheduling round picks a block (a
+short sampling slice / batch of samples, using the existing `--jobs` worker
+parallelism within the slice) via a UCB/softmax policy over reward rate, scaled
+by the block's `weight`. Blocks whose reward decays to ~0 over a patience window
+are treated as **plateaued** and sampled only rarely thereafter; blocks still
+climbing receive most of the slices. The run ends when `--time` is exhausted or
+every block has plateaued.
+
+This reuses the existing sampling, solving, top-K, dedupe, and event machinery;
+the new piece is the scheduler that decides *which block to sample next* and
+*when to stop*, plus per-block (`take`) retention instead of one global top-K.
 
 ### 3. MIS difficulty (shared)
 
@@ -172,25 +187,28 @@ keepers):
 
 ```
 puzzlescript_generator <game.txt> <spec.gen> --out <generated_game.txt> \
-    [--seed N] [--solver-timeout-ms N] [--jobs auto|N] [--time-ms N]
+    --time 8h [--seed N] [--solver-timeout-ms N] [--jobs auto|N]
 ```
 
 - `--out` is required (output is always a file, never stdout/in-place; the input
   game is never modified).
-- Per-block `time:` in the spec is authoritative for budget; `--time-ms` acts as
-  an optional global cap.
+- `--time` is the single **global** budget for the whole run, in human duration
+  (`8h`, `90m`, `45m30s`). An optional file-level `time:` header (before the
+  first block) may set it instead, keeping the run self-contained. The legacy
+  `--time-ms` is still accepted as a synonym.
 - Existing flags (`--seed`, `--jobs`, `--solver-timeout-ms`, `--dedupe-max`)
   carry over.
 
 ## Data Flow
 
 ```
-spec file ──parse──> [block₁ … blockₙ]
-for each block (sequential):
-   synth init grid ──sample(applyProgram)──> candidate board
-   candidate ──solve(MIS four-lane)──> difficulty, solution
-   keep top-`take` distinct (global dedupe)
-   on new keeper ──> re-render full game ──atomic rename──> <out>
+spec file ──parse──> [block₁ … blockₙ]    (each: synth W×H init grid + program)
+loop until --time exhausted or all blocks plateaued:
+   scheduler picks block b   (UCB/softmax over reward rate × weight)
+   sample slice of b ──solve(MIS four-lane)──> difficulty, solution
+   if difficulty beats b's admission bar and board is globally distinct:
+       retain (update b's top-`take`); re-render full game ──atomic rename──> <out>
+   update b's reward (admission-bar lift + new-distinct rate)
 ```
 
 ## Keeper Validity
@@ -207,8 +225,8 @@ for each block (sequential):
 
 - Spec parse error (bad header, malformed rule, bad duration) → fail fast with
   line number before any generation.
-- A block that produces no solvable board within its budget → emit nothing for
-  that block, log a warning, continue to the next block.
+- A block that produces no solvable board before the run ends → emit nothing for
+  that block, log a warning; other blocks are unaffected.
 - Unsolvable / timed-out samples are counted (existing counters) and skipped.
 - Output write failure (temp create / rename) → abort with a clear error rather
   than risk a truncated game file.
@@ -221,6 +239,9 @@ for each block (sequential):
    over many samples); `choose N-M` always yields a count in `[N,M]`.
 3. **Difficulty parity:** generator's MIS difficulty for a fixed board equals the
    MIS app's for the same board (shared `difficulty` module).
+3b. **Scheduler:** a plateaued block stops consuming slices while an
+   actively-improving block keeps receiving them; `weight` biases allocation as
+   expected; the run halts at `--time`.
 4. **Output validity (key test):** the produced game **compiles and runs** in the
    engine, and **each embedded solution actually solves its level** when
    replayed (the comment's input sequence wins the level).
@@ -241,7 +262,11 @@ for each block (sequential):
 ## Approved Decisions
 
 - **Spec shape:** `===`-delimited blocks; per-block `dimensions` (axes, fixed),
-  `take`, `time`; free knobs expressed as ranges (`prob P`, `choose N-M`).
+  `take`, optional `weight`; free knobs expressed as ranges (`prob P`,
+  `choose N-M`).
+- **Budgeting:** one global `--time` budget spread by an adaptive bandit
+  scheduler (reward = admission-bar lift + new-distinct rate, scaled by
+  `weight`); plateaued blocks are backed off. No per-block time budgets.
 - **Diversity model:** author-enumerated blocks (manual cells); difficulty
   maximized within each cell; no auto-grid sweep.
 - **Difficulty metric:** MIS four-lane min, for both ranking and the comment.
@@ -255,5 +280,8 @@ for each block (sequential):
 
 - Within-block ordering: ascending difficulty assumed — confirm you don't want
   hardest-first or file-discovery order.
-- Whether `--time-ms` global cap should hard-stop a run that exceeds the summed
-  block budgets, or only apply when a block omits `time:`.
+- Plateau patience window: how long a block's reward stays ~0 before it is
+  parked (and how often a parked block is re-probed in case the search space is
+  just sparse, not exhausted). A starting default (e.g. park after N
+  no-improvement slices, re-probe occasionally) is fine to tune in
+  implementation.
