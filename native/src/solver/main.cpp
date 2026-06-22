@@ -2037,13 +2037,13 @@ Result runSearch(
     }
     result.maxFrontier = 1;
 
+    // Greedy + MIS cost estimate runs as a permanent-close search: insertIfNew
+    // (below) refuses to re-enqueue an already-visited state, which mirrors the
+    // original PuzzleScript+MIS greedy closed set and keeps the expanded count
+    // comparable across runs.
     const bool greedyPermanentClose =
         mode == SearchMode::Greedy
         && heuristicKind == puzzlescript::solver::HeuristicKind::MisCostEstimate;
-    std::vector<uint8_t> expandedNodes;
-    if (greedyPermanentClose) {
-        expandedNodes.assign(nodes.size(), 0);
-    }
 
     uint64_t nextTie = 1;
     const auto inputs = solverInputsForGame(*game);
@@ -2080,16 +2080,10 @@ Result runSearch(
         uint32_t parentDepth = 0;
         {
             const Node& parentNode = nodes[entry.nodeIndex];
-            if (greedyPermanentClose) {
-                if (entry.nodeIndex >= expandedNodes.size()) {
-                    expandedNodes.resize(entry.nodeIndex + 1, 0);
-                }
-                if (expandedNodes[entry.nodeIndex]) {
-                    ++result.duplicates;
-                    continue;
-                }
-                expandedNodes[entry.nodeIndex] = 1;
-            } else {
+            // Permanent-close (greedy + MIS) never enqueues a state twice, so the
+            // popped node is always the only node for its state and a staleness
+            // check can never fire; skip the visited lookup entirely there.
+            if (!greedyPermanentClose) {
                 std::optional<uint32_t> best;
                 {
                     ScopedTimer timer(result.timing.visitedLookupNs);
@@ -2217,9 +2211,6 @@ Result runSearch(
                     nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                     recordPersistentLevelStateStorage(result.timing, nodes.back().state);
                 }
-                if (greedyPermanentClose) {
-                    expandedNodes.push_back(0);
-                }
             } else {
                 bool shouldStore = false;
                 {
@@ -2247,9 +2238,6 @@ Result runSearch(
                     ScopedTimer timer(result.timing.nodeStoreNs);
                     nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                     recordPersistentLevelStateStorage(result.timing, nodes.back().state);
-                }
-                if (greedyPermanentClose) {
-                    expandedNodes.push_back(0);
                 }
             }
             {
@@ -3699,7 +3687,7 @@ Result solveSeededLevel(
         compactTurnOracle,
         compactTurnSearch,
         astarWeight,
-        puzzlescript::solver::HeuristicKind::Auto,
+        heuristicKind,
         nullptr,
         std::move(initial));
     result.portfolioJobs = static_cast<uint32_t>(std::max<size_t>(1, std::min<size_t>(

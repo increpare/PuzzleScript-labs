@@ -95,7 +95,22 @@ public:
         const MaskWord* initialBoard,
         const StaticAnalysisHints* staticAnalysisHints = nullptr)
         : game_(game), width_(width), height_(height), kind_(kind) {
-        if (kind_ == HeuristicKind::Zero || kind_ == HeuristicKind::MisCostEstimate) {
+        if (kind_ == HeuristicKind::Zero) {
+            return;
+        }
+        if (kind_ == HeuristicKind::MisCostEstimate) {
+            // misCostEstimateScore only needs to know, per win condition, whether
+            // it had an explicit ON clause. Precompute that once here (via the
+            // all-objects mask) so the per-node score() call does not rebuild it;
+            // none of the player/distance/static machinery below applies.
+            buildAllObjectsMask();
+            const size_t conditionCount = game_.winConditions.size();
+            plain_.resize(conditionCount, false);
+            for (size_t index = 0; index < conditionCount; ++index) {
+                const MaskWord* filter2 =
+                    search::maskPtr(game_, game_.winConditions[index].filter2);
+                plain_[index] = isPlainFilter(filter2);
+            }
             return;
         }
         playerMask_ = search::maskPtr(game_, game_.playerMask);
@@ -198,7 +213,7 @@ public:
             return 0;
         }
         if (kind_ == HeuristicKind::MisCostEstimate) {
-            return misCostEstimateScore(game_, width_, height_, board);
+            return misCostEstimateScore(game_, width_, height_, board, plain_);
         }
         if (kind_ == HeuristicKind::AllOnMatching) {
             return allOnAssignmentScore(board, false);

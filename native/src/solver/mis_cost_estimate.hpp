@@ -10,12 +10,26 @@
 
 namespace puzzlescript::solver {
 
-// Port of PuzzleScript+MIS `costEstimateFromGoal` (tools/puzzlescriptmis-app/src/solver.cpp).
+// Port of PuzzleScript+MIS `costEstimateFromGoal`
+// (tools/puzzlescriptmis-app/src/solver.cpp), with three deliberate deviations:
+//   * Deterministic LHS order. The original shuffled `lindices` "to avoid skew";
+//     a search heuristic must be reproducible, so we keep natural tile order.
+//   * Empty-set guard on "some X on Y". The original added FLT_MAX into an int
+//     estimate when either side was absent; we add 0.
+//   * "all X on Y" LHS counts only unsatisfied cells (X && !Y) instead of every
+//     X cell (already-satisfied cells would otherwise compete for near targets).
+// These shift the absolute difficulty numbers slightly versus the pre-native
+// metric but preserve its shape (a distance-to-goal lower bound).
+//
+// `plainByCondition[i]` (whether win condition `i` had no explicit ON clause) is
+// precomputed once by the owning HeuristicContext and passed in, so this hot
+// per-node call does not rebuild an all-objects mask every time it runs.
 inline int32_t misCostEstimateScore(
     const Game& game,
     int32_t width,
     int32_t height,
-    const MaskWord* board) {
+    const MaskWord* board,
+    const std::vector<bool>& plainByCondition) {
     if (board == nullptr || game.winConditions.empty()) {
         return 0;
     }
@@ -33,37 +47,19 @@ inline int32_t misCostEstimateScore(
         return std::abs(tileX(left) - tileX(right)) + std::abs(tileY(left) - tileY(right));
     };
 
-    std::vector<MaskWord> allObjectsMask(game.wordCount, 0);
-    for (int32_t id = 0; id < game.objectCount; ++id) {
-        const uint32_t objectId = static_cast<uint32_t>(id);
-        const uint32_t word = maskWordIndex(objectId);
-        if (word < allObjectsMask.size()) {
-            allObjectsMask[word] |= maskBit(objectId);
-        }
-    }
-    auto isPlainFilter = [&](const MaskWord* filter) {
-        if (filter == nullptr) {
-            return false;
-        }
-        for (uint32_t word = 0; word < game.wordCount; ++word) {
-            if (filter[word] != allObjectsMask[word]) {
-                return false;
-            }
-        }
-        return true;
-    };
-
     std::vector<int32_t> lhsTiles;
     std::vector<int32_t> rhsTiles;
     std::vector<int32_t> lhsOrder;
 
-    for (const WinCondition& condition : game.winConditions) {
+    for (size_t conditionIndex = 0; conditionIndex < game.winConditions.size(); ++conditionIndex) {
+        const WinCondition& condition = game.winConditions[conditionIndex];
         const MaskWord* filter1 = search::maskPtr(game, condition.filter1);
         const MaskWord* filter2 = search::maskPtr(game, condition.filter2);
         if (filter1 == nullptr || filter2 == nullptr) {
             continue;
         }
-        const bool plain2 = isPlainFilter(filter2);
+        const bool plain2 = conditionIndex < plainByCondition.size()
+            && plainByCondition[conditionIndex];
 
         if (condition.quantifier == -1 && plain2) {
             for (int32_t tile = 0; tile < tileCount; ++tile) {
