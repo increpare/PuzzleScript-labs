@@ -12,6 +12,7 @@
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
 
+#include "puzzlescript/compiler.h"
 #include "puzzlescript/puzzlescript.h"
 
 #include <algorithm>

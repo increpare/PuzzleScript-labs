@@ -1,6 +1,7 @@
 #ifndef PUZZLESCRIPT_COMPILER_H
 #define PUZZLESCRIPT_COMPILER_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -8,6 +9,9 @@
 extern "C" {
 #endif
 
+typedef struct ps_game ps_game;
+typedef struct ps_error ps_error;
+typedef struct ps_compile_result ps_compile_result;
 typedef struct ps_compiler_result ps_compiler_result;
 
 typedef enum ps_diagnostic_severity {
@@ -34,6 +38,11 @@ size_t ps_compiler_result_parser_state_json(
     size_t out_buffer_capacity
 );
 void ps_compiler_result_free(ps_compiler_result* result);
+
+bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_result** out_result);
+const ps_game* ps_compile_result_game(const ps_compile_result* result);
+const ps_error* ps_compile_result_error(const ps_compile_result* result);
+void ps_free_compile_result(ps_compile_result* result);
 
 #ifdef __cplusplus
 }

@@ -11,7 +11,6 @@ extern "C" {
 
 typedef struct ps_game ps_game;
 typedef struct ps_full_state ps_full_state;
-typedef struct ps_compile_result ps_compile_result;
 typedef struct ps_error ps_error;
 typedef struct ps_level_view ps_level_view;
 
@@ -199,11 +198,7 @@ typedef struct ps_runtime_counters {
 } ps_runtime_counters;
 
 bool ps_load_ir_json(const char* json_utf8, size_t json_size, ps_game** out_game, ps_error** out_error);
-bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_result** out_result);
-const ps_game* ps_compile_result_game(const ps_compile_result* result);
 bool ps_game_clone(const ps_game* game, ps_game** out_game, ps_error** out_error);
-const ps_error* ps_compile_result_error(const ps_compile_result* result);
-void ps_free_compile_result(ps_compile_result* result);
 
 bool ps_full_state_create(const ps_game* game, ps_full_state** out_state, ps_error** out_error);
 bool ps_full_state_create_with_loaded_level_seed(
