@@ -91,7 +91,6 @@ choose 1 [ no wall no crate ] -> [ player ]
 |---|---|---|
 | `dimensions: WxH` | yes | board width × height; synthesizes a W×H grid filled with the game's background object |
 | `take: N` | no (default 1) | number of hardest distinct boards to keep from this block |
-| `weight: W` | no (default 1) | multiplier on this block's inactivity timeout (`τ₀ = base × W`), giving heavier blocks proportionally more persistence each pass |
 | `name: <text>` | no | human label echoed into the level comment |
 | `seed: N` | no | block seed for reproducibility; otherwise derived from the global `--seed` |
 
