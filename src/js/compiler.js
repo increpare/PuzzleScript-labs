@@ -621,6 +621,7 @@ function processRuleString(rule, state, curRules) {
     */
     let parsestate = 0;
     let directions = [];
+    let authoredDirections = [];
 
     let curcell = null; // [up, cat, down mouse]
     let curcellrow = []; // [  [up, cat]  [ down, mouse ] ]
@@ -681,6 +682,7 @@ function processRuleString(rule, state, curRules) {
                             logError('Two "+"s (the "append to previous rule group" symbol) applied to the same rule.', lineNumber);
                         }
                     } else if (token in directionaggregates) {
+                        authoredDirections.push(token);
                         directions = directions.concat(directionaggregates[token]);
                     } else if (token === 'late') {
                         late = true;
@@ -693,6 +695,7 @@ function processRuleString(rule, state, curRules) {
                         }
 
                     } else if (simpleAbsoluteDirections_set.has(token)) {
+                        authoredDirections.push(token);
                         directions.push(token);
                     } else if (simpleRelativeDirections_set.has(token)) {
                         logError('You cannot use relative directions (\"^v<>\") to indicate in which direction(s) a rule applies.  Use absolute directions indicators (Up, Down, Left, Right, Horizontal, or Vertical, for instance), or, if you want the rule to apply in all four directions, do not specify directions', lineNumber);
@@ -882,6 +885,7 @@ function processRuleString(rule, state, curRules) {
 
     let rule_line = {
         directions: directions,
+        authoredDirections: authoredDirections,
         lhs: lhs_cells,
         rhs: rhs_cells,
         lineNumber: lineNumber,
@@ -1133,6 +1137,37 @@ function rulesToArray(state) {
     state.loops = loops;
 
     checkSuperfluousCoincidences(state,rules);
+
+    // Pre-expansion authored rules for SemanticProgram parity (mirrors C++ capture).
+    {
+        const earlyGroupMap = {};
+        let earlyNextGroup = 0;
+        const lateGroupMap = {};
+        let lateNextGroup = 0;
+        state.semanticAuthoredRules = rules.map(function (rule) {
+            const groupMap = rule.late ? lateGroupMap : earlyGroupMap;
+            let nextGroup = rule.late ? lateNextGroup : earlyNextGroup;
+            if (groupMap[rule.groupNumber] === undefined) {
+                groupMap[rule.groupNumber] = nextGroup;
+                if (rule.late) {
+                    lateNextGroup = nextGroup + 1;
+                } else {
+                    earlyNextGroup = nextGroup + 1;
+                }
+            }
+            return {
+                lineNumber: rule.lineNumber,
+                authoredDirections: rule.authoredDirections,
+                rigid: rule.rigid,
+                randomRule: rule.randomRule,
+                late: rule.late,
+                groupNumber: groupMap[rule.groupNumber],
+                lhs: rule.lhs,
+                rhs: rule.rhs,
+                commands: rule.commands,
+            };
+        });
+    }
 
     //now expand out rules with multiple directions
     let rules2 = [];

@@ -6575,7 +6575,8 @@ int compileSourceCommand(const std::string& sourcePath, int argc, char** argv) {
         puzzlescript::compiler::DiagnosticSink diagnostics;
         const auto parserState = puzzlescript::compiler::parseSource(source, diagnostics);
         puzzlescript::LoadedGame loadedGame;
-        if (auto error = puzzlescript::compiler::lowerToRuntimeGame(parserState, loadedGame)) {
+        std::vector<puzzlescript::compiler::SemanticRule> authoredRules;
+        if (auto error = puzzlescript::compiler::lowerToRuntimeGame(parserState, loadedGame, &authoredRules)) {
             std::cerr << error->message << "\n";
             return 1;
         }
@@ -6583,7 +6584,7 @@ int compileSourceCommand(const std::string& sourcePath, int argc, char** argv) {
             std::cerr << "Failed to lower source to a runtime game.\n";
             return 1;
         }
-        const auto program = puzzlescript::compiler::buildSemanticProgram(*loadedGame.information);
+        const auto program = puzzlescript::compiler::buildSemanticProgram(*loadedGame.information, authoredRules);
         std::cout << puzzlescript::compiler::serializeSemanticProgramJson(program) << "\n";
     }
 

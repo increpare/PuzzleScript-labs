@@ -32,11 +32,12 @@ int main() {
     puzzlescript::compiler::DiagnosticSink diagnostics;
     const auto state = puzzlescript::compiler::parseSource(source, diagnostics);
     puzzlescript::LoadedGame loadedGame;
-    auto error = puzzlescript::compiler::lowerToRuntimeGame(state, loadedGame);
+    std::vector<puzzlescript::compiler::SemanticRule> authoredRules;
+    auto error = puzzlescript::compiler::lowerToRuntimeGame(state, loadedGame, &authoredRules);
     assert(!error);
     assert(loadedGame.information);
 
-    const auto program = puzzlescript::compiler::buildSemanticProgram(*loadedGame.information);
+    const auto program = puzzlescript::compiler::buildSemanticProgram(*loadedGame.information, authoredRules);
 
     // sokoban_basic is a single-layer-conforming fixture: every object sits on
     // exactly one collision layer (layer >= 0) and every name is unique. That
@@ -134,6 +135,17 @@ int main() {
     // Sounds: sokoban_basic has an empty SOUNDS section.
     assert(program.sounds.events.empty());
 
+    // Rules: sokoban_basic has exactly one authored rule, `[ > Player | Crate ] ->
+    // [ > Player | > Crate ]` — group 0, no modifiers/commands, one LHS row of 2
+    // cells and one RHS row of 2 cells.
+    assert(program.rules.size() == 1);
+    const auto& sokRule = program.rules[0];
+    assert(!sokRule.rigid && !sokRule.random && !sokRule.late);
+    assert(sokRule.groupNumber == 0);
+    assert(sokRule.commands.empty());
+    assert(sokRule.lhs.size() == 1 && sokRule.lhs[0].size() == 2);
+    assert(sokRule.rhs.size() == 1 && sokRule.rhs[0].size() == 2);
+
     const std::string json = puzzlescript::compiler::serializeSemanticProgramJson(program);
     assert(json.find("\"semantic_program\"") != std::string::npos);
     assert(json.find("\"collision_layers\"") != std::string::npos);
@@ -146,6 +158,9 @@ int main() {
     assert(json.find("\"metadata\"") != std::string::npos);
     assert(json.find("\"sounds\"") != std::string::npos);
     assert(json.find("\"events\"") != std::string::npos);
+    assert(json.find("\"rules\"") != std::string::npos);
+    assert(json.find("\"group_number\"") != std::string::npos);
+    assert(json.find("\"lhs_cell_term_counts\"") != std::string::npos);
 
     // normalizeMetadataHomepage must mirror JS formatHomePage: strip the first
     // "http://" then the first "https://". This fixture has both schemes (leading

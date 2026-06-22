@@ -81,6 +81,32 @@ function winConditionList(state) {
     });
 }
 
+function ruleList(state) {
+    function rowCounts(rows) {
+        return rows.map(function (row) {
+            return row.map(function (cell) {
+                return (cell.length >= 2 && cell[0] === '...') ? -1 : cell.length / 2;
+            });
+        });
+    }
+    const authoredRules = state.semanticAuthoredRules || [];
+    return authoredRules.map(function (rule) {
+        return {
+            line_number: rule.lineNumber,
+            directions: rule.authoredDirections,
+            rigid: !!rule.rigid,
+            random: !!rule.randomRule,
+            late: !!rule.late,
+            group_number: rule.groupNumber,
+            lhs_cell_term_counts: rowCounts(rule.lhs),
+            rhs_cell_term_counts: rowCounts(rule.rhs),
+            commands: (rule.commands || []).map(function (cmd) {
+                return { name: cmd[0], argument: cmd.length > 1 ? String(cmd[1]) : '' };
+            }),
+        };
+    });
+}
+
 function buildSemanticProgramSnapshot(state) {
     const nameToId = {};
     for (let id = 0; id < state.idDict.length; id++) {
@@ -128,10 +154,11 @@ function buildSemanticProgramSnapshot(state) {
         soundEvents[name] = parseInt(state.sfx_Events[name], 10);
     }
     const sounds = { events: soundEvents };
+    const rules = ruleList(state);
 
     return {
         schema_version: 1,
-        semantic_program: { objects, collision_layers, legends, levels, win_conditions, metadata, sounds },
+        semantic_program: { objects, collision_layers, legends, levels, win_conditions, metadata, sounds, rules },
     };
 }
 

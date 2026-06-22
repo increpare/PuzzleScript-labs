@@ -1,8 +1,10 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "compiler/types/parser_state.hpp"
+#include "compiler/types/semantic_program.hpp"
 #include "runtime/core.hpp"
 
 namespace puzzlescript::compiler {
@@ -14,7 +16,8 @@ namespace puzzlescript::compiler {
 // the existing JS test corpus can be used as a correctness gate.
 std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     const ParserState& state,
-    puzzlescript::LoadedGame& outGame
+    puzzlescript::LoadedGame& outGame,
+    std::vector<SemanticRule>* outAuthoredRules = nullptr
 );
 
 } // namespace puzzlescript::compiler

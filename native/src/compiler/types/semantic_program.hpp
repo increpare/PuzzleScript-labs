@@ -40,6 +40,35 @@ struct SemanticSounds {
     std::map<std::string, int32_t> events;  // sound-event name -> seed
 };
 
+struct SemanticTerm {
+    std::string dir;   // movement/direction modifier: "" | ">" | "<" | "^" | "v" | "moving" | "stationary" | "no" | "randomdir" | "action" | "up"/"down"/"left"/"right" | "horizontal"/"vertical" | "orthogonal" | "perpendicular" | "parallel"
+    std::string name;  // object/legend name, lowercased
+};
+
+struct SemanticCell {
+    bool ellipsis = false;            // "..." cell; terms is empty when true
+    std::vector<SemanticTerm> terms;
+};
+
+using SemanticRow = std::vector<SemanticCell>;  // one bracket [ ... ]
+
+struct SemanticRuleCommand {
+    std::string name;
+    std::string argument;  // "" when the command has no argument
+};
+
+struct SemanticRule {
+    int32_t lineNumber = 0;
+    std::vector<std::string> directions;  // as-written direction-prefix tokens (0+), e.g. {"horizontal"} or {"up"}
+    bool rigid = false;
+    bool random = false;
+    bool late = false;
+    int32_t groupNumber = 0;
+    std::vector<SemanticRow> lhs;
+    std::vector<SemanticRow> rhs;
+    std::vector<SemanticRuleCommand> commands;
+};
+
 // Current SemanticProgram contract: resolved object identity, collision layers,
 // resolved legends, resolved levels, resolved win conditions, resolved metadata,
 // and resolved global sound events. Object/movement sfx and rules remain
@@ -55,6 +84,7 @@ struct SemanticProgram {
     std::vector<SemanticWinCondition> winConditions;  // source-declaration order
     std::map<std::string, std::string> metadata;  // raw key->value, excludes flickscreen/zoomscreen
     SemanticSounds sounds;
+    std::vector<SemanticRule> rules;  // authored, pre-expansion; source-declaration order (early then late)
 };
 
 } // namespace puzzlescript::compiler

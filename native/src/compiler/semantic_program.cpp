@@ -196,9 +196,72 @@ void appendSoundEventsObject(std::string& out, const std::map<std::string, int32
     out += '}';
 }
 
+void appendRowCounts(std::string& out, const std::vector<SemanticRow>& rows) {
+    out += '[';
+    for (size_t r = 0; r < rows.size(); ++r) {
+        if (r != 0) {
+            out += ',';
+        }
+        std::vector<int32_t> cellCounts;
+        cellCounts.reserve(rows[r].size());
+        for (const auto& cell : rows[r]) {
+            cellCounts.push_back(cell.ellipsis ? -1 : static_cast<int32_t>(cell.terms.size()));
+        }
+        appendIntArray(out, cellCounts);
+    }
+    out += ']';
+}
+
+void appendRuleArray(std::string& out, const std::vector<SemanticRule>& rules) {
+    out += '[';
+    for (size_t i = 0; i < rules.size(); ++i) {
+        if (i != 0) {
+            out += ',';
+        }
+        const auto& rule = rules[i];
+        out += "{\"line_number\":";
+        out += std::to_string(rule.lineNumber);
+        out += ",\"directions\":[";
+        for (size_t d = 0; d < rule.directions.size(); ++d) {
+            if (d != 0) {
+                out += ',';
+            }
+            appendJsonString(out, rule.directions[d]);
+        }
+        out += "],\"rigid\":";
+        out += rule.rigid ? "true" : "false";
+        out += ",\"random\":";
+        out += rule.random ? "true" : "false";
+        out += ",\"late\":";
+        out += rule.late ? "true" : "false";
+        out += ",\"group_number\":";
+        out += std::to_string(rule.groupNumber);
+        out += ",\"lhs_cell_term_counts\":";
+        appendRowCounts(out, rule.lhs);
+        out += ",\"rhs_cell_term_counts\":";
+        appendRowCounts(out, rule.rhs);
+        out += ",\"commands\":[";
+        for (size_t c = 0; c < rule.commands.size(); ++c) {
+            if (c != 0) {
+                out += ',';
+            }
+            out += "{\"name\":";
+            appendJsonString(out, rule.commands[c].name);
+            out += ",\"argument\":";
+            appendJsonString(out, rule.commands[c].argument);
+            out += "}";
+        }
+        out += "]}";
+    }
+    out += ']';
+}
+
 } // namespace
 
-SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
+SemanticProgram buildSemanticProgram(
+    const puzzlescript::Game& game,
+    const std::vector<SemanticRule>& authoredRules
+) {
     SemanticProgram program;
     program.schemaVersion = 1;
 
@@ -290,6 +353,8 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
 
     program.sounds.events = game.sfxEvents;
 
+    program.rules = authoredRules;
+
     return program;
 }
 
@@ -332,7 +397,9 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
     appendMetadataObject(out, program.metadata);
     out += ",\"sounds\":{\"events\":";
     appendSoundEventsObject(out, program.sounds.events);
-    out += "}}}";
+    out += "},\"rules\":";
+    appendRuleArray(out, program.rules);
+    out += "}}";
     return out;
 }
 

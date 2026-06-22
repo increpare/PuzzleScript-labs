@@ -245,6 +245,48 @@ std::string takeRulePrefixBeforeComment(std::string_view line) {
     return prefix;
 }
 
+std::string trimAsciiWhitespace(std::string_view value) {
+    size_t start = 0;
+    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start]))) {
+        ++start;
+    }
+    size_t end = value.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1]))) {
+        --end;
+    }
+    return std::string(value.substr(start, end - start));
+}
+
+size_t findIndexAfterToken(
+    std::string_view lineLower,
+    const std::vector<std::string>& tokens,
+    size_t tokenIndex
+) {
+    size_t curIndex = 0;
+    for (size_t i = 0; i <= tokenIndex && i < tokens.size(); ++i) {
+        const auto pos = lineLower.find(tokens[i], curIndex);
+        if (pos == std::string_view::npos) {
+            return lineLower.size();
+        }
+        curIndex = pos + tokens[i].size();
+    }
+    return curIndex;
+}
+
+std::string messageTextFromRuleLine(
+    std::string_view mixedCaseLine,
+    std::string_view lowerLine,
+    const std::vector<std::string>& ruleTokens,
+    size_t messageTokenIndex
+) {
+    const size_t start = findIndexAfterToken(lowerLine, ruleTokens, messageTokenIndex);
+    std::string message = trimAsciiWhitespace(mixedCaseLine.substr(start));
+    if (message.empty()) {
+        message = " ";
+    }
+    return message;
+}
+
 int32_t dirMaskFromToken(std::string_view token) {
     if (token == "^") return 1;
     if (token == "up") return 1;
@@ -626,7 +668,8 @@ void attachInputSpecializationMasks(puzzlescript::Game& game) {
 
 std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     const ParserState& state,
-    puzzlescript::LoadedGame& outGame
+    puzzlescript::LoadedGame& outGame,
+    std::vector<SemanticRule>* outAuthoredRules
 ) {
     auto game = std::make_shared<puzzlescript::Game>();
     puzzlescript::MetaGameState initialMetaGameState;
@@ -1255,6 +1298,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     for (const auto& entry : state.rules) {
         const auto tokens = ruletext::tokenizeRuleLine(entry.rule);
         const auto mixedCaseTokens = ruletext::tokenizeRuleLine(takeRulePrefixBeforeComment(entry.mixedCase));
+        const std::string lowerMixedCaseLine = toLowerAsciiCopy(entry.mixedCase);
         if (tokens.empty()) {
             continue;
         }
@@ -1304,6 +1348,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         bool lateRule = false;
         bool sameGroup = false;
         std::vector<std::string> ruleDirections;
+        std::vector<std::string> authoredDirections;
         auto addDirectionAggregate = [&](const std::string& token) {
             if (token == "horizontal") {
                 ruleDirections.push_back("left");
@@ -1321,8 +1366,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         while (cursor < tokens.size() && tokens[cursor] != "[") {
             const std::string token = tokens[cursor];
             if (token == "up" || token == "down" || token == "left" || token == "right") {
+                authoredDirections.push_back(token);
                 ruleDirections.push_back(token);
             } else if (token == "horizontal" || token == "vertical" || token == "orthogonal") {
+                authoredDirections.push_back(token);
                 addDirectionAggregate(token);
             } else if (token == "rigid") {
                 rigidRule = true;
@@ -1433,21 +1480,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         puzzlescript::RuleCommand cmd;
                         cmd.name = nameNorm;
                         if (cmd.name == "message") {
-                            std::string message;
-                            for (size_t j = i + 1; j < end; ++j) {
-                                if (!message.empty()) {
-                                    message.push_back(' ');
-                                }
-                                if (mixedCaseTokens.size() == tokens.size()) {
-                                    message.append(mixedCaseTokens[j]);
-                                } else {
-                                    message.append(tokens[j]);
-                                }
-                            }
-                            if (message.empty()) {
-                                message = " ";
-                            }
-                            cmd.argument = message;
+                            cmd.argument = messageTextFromRuleLine(
+                                entry.mixedCase, lowerMixedCaseLine, tokens, i);
                             inlineCommandSink->push_back(std::move(cmd));
                             return rows;
                         }
@@ -1670,23 +1704,51 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 puzzlescript::RuleCommand command;
                 command.name = tokens[i];
                 if (command.name == "message") {
-                    std::string message;
-                    for (size_t j = i + 1; j < tokens.size(); ++j) {
-                        if (!message.empty()) {
-                            message.push_back(' ');
-                        }
-                        if (mixedCaseTokens.size() == tokens.size()) {
-                            message.append(mixedCaseTokens[j]);
-                        } else {
-                            message.append(tokens[j]);
-                        }
-                    }
-                    command.argument = message;
+                    command.argument = messageTextFromRuleLine(
+                        entry.mixedCase, lowerMixedCaseLine, tokens, i);
                     parsedCommands.push_back(std::move(command));
                     break;
                 }
                 parsedCommands.push_back(std::move(command));
             }
+        }
+
+        if (outAuthoredRules != nullptr) {
+            auto toSemanticRow = [](const std::vector<ParsedRow>& rows) {
+                std::vector<SemanticRow> out;
+                out.reserve(rows.size());
+                for (const auto& row : rows) {
+                    SemanticRow semRow;
+                    semRow.reserve(row.size());
+                    for (const auto& cell : row) {
+                        SemanticCell semCell;
+                        semCell.ellipsis = cell.isEllipsis;
+                        semCell.terms.reserve(cell.items.size());
+                        for (const auto& item : cell.items) {
+                            semCell.terms.push_back(SemanticTerm{item.dir, item.name});
+                        }
+                        semRow.push_back(std::move(semCell));
+                    }
+                    out.push_back(std::move(semRow));
+                }
+                return out;
+            };
+
+            SemanticRule authored;
+            authored.lineNumber = entry.lineNumber;
+            authored.directions = authoredDirections;
+            authored.rigid = rigidRule;
+            authored.random = randomRule;
+            authored.late = lateRule;
+            authored.groupNumber = static_cast<int32_t>(groups.size()) - 1;
+            authored.lhs = toSemanticRow(lhsRows);
+            authored.rhs = toSemanticRow(rhsRows);
+            authored.commands.reserve(parsedCommands.size());
+            for (const auto& cmd : parsedCommands) {
+                authored.commands.push_back(
+                    SemanticRuleCommand{cmd.name, cmd.argument.value_or(std::string{})});
+            }
+            outAuthoredRules->push_back(std::move(authored));
         }
 
         auto absolutizeDir = [](const std::string& forward, const std::string& dir) -> std::string {
