@@ -4,6 +4,9 @@
 
 #include <algorithm>
 #include <exception>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <thread>
 #include <utility>
 
@@ -30,6 +33,135 @@ uint64_t blockSeedFor(const BlockState& block, uint64_t globalSeed) {
     return splitmix64(globalSeed ^ (static_cast<uint64_t>(block.blockIndex) + 0x9e3779b97f4a7c15ULL));
 }
 
+std::string formatDurationMs(int64_t ms) {
+    if (ms % 1000 == 0) {
+        return std::to_string(ms / 1000) + "s";
+    }
+    if (ms % 60000 == 0) {
+        return std::to_string(ms / 60000) + "m";
+    }
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(1) << (static_cast<double>(ms) / 1000.0) << "s";
+    return out.str();
+}
+
+void logKeeperImprovement(std::ostream& out, const Keeper& keeper, size_t keeperCount, size_t take) {
+    out << "levelset_improved block=\"" << keeper.blockName << "\" "
+        << keeper.dimensionsLabel << " difficulty=" << keeper.difficulty
+        << " expanded=" << keeper.expandedPortfolio
+        << " seed=" << keeper.sampleSeed
+        << " keepers=" << keeperCount << "/" << take << "\n";
+}
+
+void logLevelSetStartup(
+    std::ostream& out,
+    const std::deque<BlockState>& blocks,
+    const LevelSetOptions& options) {
+    out << "levelset_start mode=" << options.modeLabel
+        << " blocks=" << blocks.size()
+        << " jobs=" << options.jobs
+        << " solver_timeout=" << formatDurationMs(options.solverTimeoutMs)
+        << " inactivity_start=" << formatDurationMs(options.inactivityStartMs)
+        << " seed=" << options.globalSeed;
+    if (!options.outPath.empty()) {
+        out << " output=" << options.outPath;
+    }
+    out << "\n";
+    for (const BlockState& block : blocks) {
+        out << "  block " << (block.blockIndex + 1) << "/" << blocks.size()
+            << " name=\"" << block.spec.header.name << "\" "
+            << dimensionsLabel(block.spec.header.width, block.spec.header.height)
+            << " take=" << block.spec.header.take << "\n";
+    }
+    out << "levelset_running (Ctrl+C to stop; searching for hardest solvable boards)\n";
+}
+
+void logBlockSearchStart(std::ostream& out, const BlockState& block, size_t blockCount, size_t passIndex) {
+    out << "levelset_search pass=" << passIndex
+        << " block=" << (block.blockIndex + 1) << "/" << blockCount
+        << " name=\"" << block.spec.header.name << "\" "
+        << dimensionsLabel(block.spec.header.width, block.spec.header.height)
+        << " inactivity_timeout=" << formatDurationMs(block.inactivityTimeoutMs)
+        << " samples_so_far=" << block.samplesAttempted.load(std::memory_order_relaxed)
+        << "\n";
+}
+
+void logBlockSearchIdle(
+    std::ostream& out,
+    const BlockState& block,
+    size_t blockCount,
+    size_t passIndex) {
+    int64_t bestDifficulty = -1;
+    int64_t bestExpanded = -1;
+    size_t keeperCount = 0;
+    {
+        std::lock_guard<std::mutex> lock(block.keeperMutex);
+        keeperCount = block.keepers.size();
+        if (!block.keepers.empty()) {
+            const Keeper& best = *std::max_element(
+                block.keepers.begin(),
+                block.keepers.end(),
+                keeperLessDifficulty);
+            bestDifficulty = best.difficulty;
+            bestExpanded = best.expandedPortfolio;
+        }
+    }
+    out << "levelset_idle pass=" << passIndex
+        << " block=" << (block.blockIndex + 1) << "/" << blockCount
+        << " name=\"" << block.spec.header.name << "\""
+        << " keepers=" << keeperCount << "/" << block.spec.header.take
+        << " best_difficulty=" << bestDifficulty
+        << " best_expanded=" << bestExpanded
+        << " samples=" << block.samplesAttempted.load(std::memory_order_relaxed)
+        << " next_inactivity_timeout=" << formatDurationMs(block.inactivityTimeoutMs)
+        << "\n";
+}
+
+void logLevelSetProgress(std::ostream& out, const std::deque<BlockState>& blocks, TimePoint start, size_t passIndex) {
+    const double elapsed = std::chrono::duration<double>(Clock::now() - start).count();
+    uint64_t totalSamples = 0;
+    size_t filledKeepers = 0;
+    size_t totalKeepers = 0;
+    for (const BlockState& block : blocks) {
+        totalSamples += block.samplesAttempted.load(std::memory_order_relaxed);
+        std::lock_guard<std::mutex> lock(block.keeperMutex);
+        filledKeepers += block.keepers.size();
+        totalKeepers += block.spec.header.take;
+    }
+    out << "levelset_progress elapsed_s=" << std::fixed << std::setprecision(1) << elapsed
+        << " pass=" << passIndex
+        << " blocks=" << blocks.size()
+        << " keepers=" << filledKeepers << "/" << totalKeepers
+        << " samples=" << totalSamples << "\n";
+    for (const BlockState& block : blocks) {
+        int64_t bestDifficulty = -1;
+        int64_t bestExpanded = -1;
+        size_t keeperCount = 0;
+        double idleSeconds = 0.0;
+        {
+            std::lock_guard<std::mutex> lock(block.keeperMutex);
+            keeperCount = block.keepers.size();
+            idleSeconds = std::chrono::duration<double>(Clock::now() - block.idleSince).count();
+            if (!block.keepers.empty()) {
+                const Keeper& best = *std::max_element(
+                    block.keepers.begin(),
+                    block.keepers.end(),
+                    keeperLessDifficulty);
+                bestDifficulty = best.difficulty;
+                bestExpanded = best.expandedPortfolio;
+            }
+        }
+        out << "  [" << std::setw(2) << (block.blockIndex + 1) << "/" << blocks.size() << "] "
+            << std::setw(16) << std::left << block.spec.header.name << std::right
+            << " " << dimensionsLabel(block.spec.header.width, block.spec.header.height)
+            << " keepers=" << keeperCount << "/" << block.spec.header.take
+            << " best=" << bestDifficulty
+            << " expanded=" << bestExpanded
+            << " samples=" << block.samplesAttempted.load(std::memory_order_relaxed)
+            << " idle_s=" << std::fixed << std::setprecision(1) << idleSeconds << "\n";
+    }
+}
+
 void workerMain(
     const puzzlescript::LoadedGame& loadedGame,
     BlockState& block,
@@ -42,6 +174,7 @@ void workerMain(
     const uint64_t blockSeed = blockSeedFor(block, options.globalSeed);
 
     while (!blockCancel.load(std::memory_order_relaxed)) {
+        block.samplesAttempted.fetch_add(1, std::memory_order_relaxed);
         const uint64_t sampleId = block.nextSampleId.fetch_add(1, std::memory_order_relaxed);
         const uint64_t sampleSeed = splitmix64(blockSeed ^ (sampleId + 0x9e3779b97f4a7c15ULL));
         Rng rng(sampleSeed);
@@ -106,6 +239,18 @@ void workerMain(
             }
         }
         if (improved) {
+            if (!options.quiet) {
+                std::lock_guard<std::mutex> lock(block.keeperMutex);
+                const Keeper& best = *std::max_element(
+                    block.keepers.begin(),
+                    block.keepers.end(),
+                    keeperLessDifficulty);
+                logKeeperImprovement(
+                    std::cerr,
+                    best,
+                    block.keepers.size(),
+                    block.spec.header.take);
+            }
             outputCoordinator.notifyImprovement(snapshotAllKeepers(allBlocks));
         }
     }
@@ -163,7 +308,11 @@ void runBlockUntilIdle(
     GlobalDedupe& dedupe,
     OutputCoordinator& outputCoordinator,
     const std::deque<BlockState>& allBlocks,
-    const LevelSetOptions& options) {
+    const LevelSetOptions& options,
+    size_t passIndex) {
+    if (!options.quiet) {
+        logBlockSearchStart(std::cerr, block, allBlocks.size(), passIndex);
+    }
     {
         std::lock_guard<std::mutex> lock(block.keeperMutex);
         block.idleSince = Clock::now();
@@ -204,6 +353,10 @@ void runBlockUntilIdle(
         worker.join();
     }
 
+    if (!options.quiet) {
+        logBlockSearchIdle(std::cerr, block, allBlocks.size(), passIndex);
+    }
+
     outputCoordinator.flush();
     block.inactivityTimeoutMs *= 2;
 }
@@ -223,16 +376,51 @@ void runLevelSetForever(
         block.inactivityTimeoutMs = options.inactivityStartMs;
     }
 
+    if (!options.quiet) {
+        logLevelSetStartup(std::cerr, blocks, options);
+    }
+
     outputCoordinator.notifyImprovement(snapshotAllKeepers(blocks));
     outputCoordinator.flush();
 
+    const TimePoint start = Clock::now();
+    std::atomic<size_t> passIndex{1};
+    std::atomic<bool> progressCancel{false};
+    std::thread progressThread;
+    if (!options.quiet) {
+        progressThread = std::thread([&]() {
+            while (!progressCancel.load(std::memory_order_relaxed)) {
+                if (options.cancel != nullptr && options.cancel->load(std::memory_order_relaxed)) {
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+                if (progressCancel.load(std::memory_order_relaxed)) {
+                    break;
+                }
+                logLevelSetProgress(std::cerr, blocks, start, passIndex.load(std::memory_order_relaxed));
+            }
+        });
+    }
+
     while (options.cancel == nullptr || !options.cancel->load(std::memory_order_relaxed)) {
+        const size_t currentPass = passIndex.load(std::memory_order_relaxed);
         for (BlockState& block : blocks) {
             if (options.cancel != nullptr && options.cancel->load(std::memory_order_relaxed)) {
                 break;
             }
-            runBlockUntilIdle(loadedGame, block, dedupe, outputCoordinator, blocks, options);
+            runBlockUntilIdle(loadedGame, block, dedupe, outputCoordinator, blocks, options, currentPass);
         }
+        passIndex.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    progressCancel.store(true, std::memory_order_relaxed);
+    if (progressThread.joinable()) {
+        progressThread.join();
+    }
+
+    if (!options.quiet) {
+        logLevelSetProgress(std::cerr, blocks, start, passIndex.load(std::memory_order_relaxed));
+        std::cerr << "levelset_stopped\n";
     }
 
     outputCoordinator.flush();

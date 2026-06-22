@@ -184,6 +184,7 @@ add_executable(puzzlescript_generator
   src/generator/level_rows.cpp
   src/generator/output_writer.cpp
   src/generator/spec_parser.cpp
+  src/generator/templatize.cpp
 )
 
 set(PS_COMPILED_RULES_SOURCE "" CACHE FILEPATH "Optional generated compiled-rules C++ source to link into solver/generator")
@@ -409,6 +410,30 @@ target_include_directories(generator_generation_rules
 add_test(
   NAME generator_generation_rules
   COMMAND generator_generation_rules
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_templatize
+  tests/generator_templatize.cpp
+  src/generator/generation_rules.cpp
+  src/generator/spec_parser.cpp
+  src/generator/templatize.cpp
+)
+
+target_link_libraries(generator_templatize
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_templatize
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_templatize
+  COMMAND generator_templatize
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
@@ -1004,6 +1029,16 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/generator_presets/sokoban_levelset_tiny.gen
 )
 set_tests_properties(puzzlescript_generator_levelset_smoke PROPERTIES TIMEOUT 60)
+
+add_test(
+  NAME puzzlescript_generator_remix_smoke
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_generator_remix_smoke.js
+          $<TARGET_FILE:puzzlescript_generator>
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(puzzlescript_generator_remix_smoke PROPERTIES TIMEOUT 90)
 
 add_test(
   NAME puzzlescript_generator_events_jsonl

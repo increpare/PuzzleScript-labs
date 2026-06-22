@@ -34,6 +34,7 @@ struct BlockState {
     std::vector<Keeper> keepers;
     mutable std::mutex keeperMutex;
     std::atomic<uint64_t> nextSampleId{0};
+    std::atomic<uint64_t> samplesAttempted{0};
     int64_t inactivityTimeoutMs = 60000;
     TimePoint idleSince{};
     size_t blockIndex = 0;
@@ -46,6 +47,9 @@ struct LevelSetOptions {
     size_t dedupeMax = 1000000;
     int64_t inactivityStartMs = 60000;
     std::atomic<bool>* cancel = nullptr;
+    bool quiet = false;
+    std::string modeLabel = "level-set";
+    std::string outPath;
 };
 
 bool tryInsertKeeper(BlockState& block, Keeper candidate);
@@ -58,7 +62,8 @@ void runBlockUntilIdle(
     GlobalDedupe& dedupe,
     OutputCoordinator& outputCoordinator,
     const std::deque<BlockState>& allBlocks,
-    const LevelSetOptions& options);
+    const LevelSetOptions& options,
+    size_t passIndex);
 
 void runLevelSetForever(
     const puzzlescript::LoadedGame& loadedGame,

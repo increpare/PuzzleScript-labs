@@ -39,6 +39,7 @@
 #include "generator/generation_rules.hpp"
 #include "generator/output_writer.hpp"
 #include "generator/spec_parser.hpp"
+#include "generator/templatize.hpp"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
@@ -67,7 +68,12 @@ using puzzlescript::generator::hashLevel;
 using puzzlescript::generator::LegacySpec;
 using puzzlescript::generator::parseLegacySpec;
 using puzzlescript::generator::parseLevelSetSpec;
+using puzzlescript::generator::serializeTemplatizedSpec;
 using puzzlescript::generator::splitmix64;
+using puzzlescript::generator::toBlockSpec;
+using puzzlescript::generator::templatizeGame;
+using puzzlescript::generator::TemplatizeOptions;
+using puzzlescript::generator::TemplatizedBlock;
 using puzzlescript::generator::BlockState;
 using puzzlescript::generator::LevelSetOptions;
 using puzzlescript::generator::OutputCoordinator;
@@ -87,6 +93,7 @@ struct Options {
     std::filesystem::path jsonOut;
     std::filesystem::path outPath;
     std::filesystem::path eventsJsonl;
+    std::filesystem::path templatizeOutPath;
     int64_t timeMs = 60000;
     int64_t inactivityStartMs = 60000;
     std::optional<uint64_t> samples;
@@ -97,6 +104,11 @@ struct Options {
     size_t topK = 50;
     size_t dedupeMax = 1000000;
     bool quiet = false;
+    bool templatize = false;
+    bool remix = false;
+    std::optional<int32_t> templatizeLevelIndex;
+    size_t templatizeTake = 1;
+    std::string templatizeNamePrefix = "level";
 };
 
 struct Candidate {
@@ -357,12 +369,21 @@ std::optional<SearchMode> parseSolverMode(const std::string& value) {
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    if (argc < 3) {
-        throw std::runtime_error("Usage: puzzlescript_generator <game.txt> <spec.gen> [--out PATH] [--inactivity-start DURATION] [--time-ms N] [--samples N] [--jobs auto|N] [--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] [--top-k N] [--dedupe-max N] [--events-jsonl PATH] [--json-out PATH] [--quiet]");
+    if (argc < 2) {
+        throw std::runtime_error(
+            "Usage: puzzlescript_generator <game.txt> [<spec.gen>] [--templatize] [--templatize-out PATH] "
+            "[--remix --out PATH] [--level-index N] [--templatize-take N] [--templatize-name-prefix TEXT] "
+            "[--out PATH] [--inactivity-start DURATION] [--time-ms N] [--samples N] [--jobs auto|N] "
+            "[--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] "
+            "[--top-k N] [--dedupe-max N] [--events-jsonl PATH] [--json-out PATH] [--quiet]");
     }
     options.gamePath = argv[1];
-    options.specPath = argv[2];
-    for (int index = 3; index < argc; ++index) {
+    int index = 2;
+    if (index < argc && argv[index][0] != '-') {
+        options.specPath = argv[index];
+        ++index;
+    }
+    for (; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--time-ms" && index + 1 < argc) {
             options.timeMs = std::max<int64_t>(1, std::stoll(argv[++index]));
@@ -389,11 +410,50 @@ Options parseArgs(int argc, char** argv) {
             options.outPath = argv[++index];
         } else if (arg == "--inactivity-start" && index + 1 < argc) {
             options.inactivityStartMs = parseDurationMs(argv[++index]);
+        } else if (arg == "--templatize") {
+            options.templatize = true;
+        } else if (arg == "--remix") {
+            options.remix = true;
+        } else if (arg == "--templatize-out" && index + 1 < argc) {
+            options.templatizeOutPath = argv[++index];
+        } else if (arg == "--level-index" && index + 1 < argc) {
+            options.templatizeLevelIndex = static_cast<int32_t>(std::stoll(argv[++index]));
+        } else if (arg == "--templatize-take" && index + 1 < argc) {
+            options.templatizeTake = std::max<size_t>(1, std::stoull(argv[++index]));
+        } else if (arg == "--templatize-name-prefix" && index + 1 < argc) {
+            options.templatizeNamePrefix = argv[++index];
         } else if (arg == "--quiet") {
             options.quiet = true;
         } else {
             throw std::runtime_error("Unsupported argument: " + arg);
         }
+    }
+    if (options.templatize && options.remix) {
+        throw std::runtime_error("Cannot combine --templatize with --remix");
+    }
+    if (options.remix) {
+        if (options.outPath.empty()) {
+            throw std::runtime_error("--remix requires --out PATH");
+        }
+        if (!options.specPath.empty()) {
+            throw std::runtime_error("--remix does not take a spec file; it templatizes the game automatically");
+        }
+        if (options.jobs == 0) {
+            options.jobs = autoJobCount();
+        }
+        return options;
+    }
+    if (options.templatize) {
+        if (options.templatizeOutPath.empty()) {
+            options.templatizeOutPath = "-";
+        }
+        return options;
+    }
+    if (options.specPath.empty()) {
+        throw std::runtime_error("Missing spec path; pass <spec.gen>, --templatize, or --remix --out");
+    }
+    if (options.jobs == 0) {
+        options.jobs = autoJobCount();
     }
     return options;
 }
@@ -1124,19 +1184,21 @@ std::string finalJson(const Options& options, const Game& game, SharedState& sha
     return out.str();
 }
 
-int runLevelSetMode(const Options& options, const std::string& gameSource, const std::string& specText) {
+int runLevelSetFromBlockSpecs(
+    const Options& options,
+    const std::string& gameSource,
+    puzzlescript::LoadedGame loadedGame,
+    puzzlescript::compiler::ParserState& parserState,
+    std::vector<puzzlescript::generator::BlockSpec> blockSpecs) {
     if (!options.jsonOut.empty()) {
         throw std::runtime_error("Cannot combine --out with --json-out");
     }
 
-    puzzlescript::compiler::ParserState parserState;
-    auto loadedGame = compileGame(gameSource, &parserState);
     const auto& game = loadedGame.information;
     if (game == nullptr) {
         throw std::runtime_error("Failed to compile game source");
     }
 
-    auto blockSpecs = parseLevelSetSpec(specText, *game);
     NameResolver resolver(*game, parserState);
     std::deque<BlockState> blocks;
     for (size_t blockIndex = 0; blockIndex < blockSpecs.size(); ++blockIndex) {
@@ -1164,6 +1226,9 @@ int runLevelSetMode(const Options& options, const std::string& gameSource, const
     levelSetOptions.dedupeMax = options.dedupeMax;
     levelSetOptions.inactivityStartMs = options.inactivityStartMs;
     levelSetOptions.cancel = &cancel;
+    levelSetOptions.quiet = options.quiet;
+    levelSetOptions.modeLabel = options.remix ? "remix" : "level-set";
+    levelSetOptions.outPath = options.outPath.string();
 
     runLevelSetForever(loadedGame, gameSource, blocks, outputCoordinator, levelSetOptions);
 
@@ -1173,12 +1238,74 @@ int runLevelSetMode(const Options& options, const std::string& gameSource, const
     return 0;
 }
 
+int runLevelSetMode(const Options& options, const std::string& gameSource, const std::string& specText) {
+    puzzlescript::compiler::ParserState parserState;
+    auto loadedGame = compileGame(gameSource, &parserState);
+    const auto& game = loadedGame.information;
+    if (game == nullptr) {
+        throw std::runtime_error("Failed to compile game source");
+    }
+
+    auto blockSpecs = parseLevelSetSpec(specText, *game);
+    return runLevelSetFromBlockSpecs(options, gameSource, std::move(loadedGame), parserState, std::move(blockSpecs));
+}
+
+int runRemixMode(const Options& options, const std::string& gameSource) {
+    puzzlescript::compiler::ParserState parserState;
+    auto loadedGame = compileGame(gameSource, &parserState);
+    const auto& game = loadedGame.information;
+    if (game == nullptr) {
+        throw std::runtime_error("Failed to compile game source");
+    }
+
+    TemplatizeOptions templatizeOptions;
+    templatizeOptions.take = 1;
+    templatizeOptions.globalSeed = options.seed;
+    templatizeOptions.namePrefix = options.templatizeNamePrefix;
+    const std::vector<TemplatizedBlock> templatizedBlocks = templatizeGame(*game, templatizeOptions);
+
+    std::vector<puzzlescript::generator::BlockSpec> blockSpecs;
+    blockSpecs.reserve(templatizedBlocks.size());
+    for (const TemplatizedBlock& block : templatizedBlocks) {
+        blockSpecs.push_back(toBlockSpec(*game, block));
+    }
+
+    return runLevelSetFromBlockSpecs(options, gameSource, std::move(loadedGame), parserState, std::move(blockSpecs));
+}
+
+int runTemplatizeMode(const Options& options, const std::string& gameSource) {
+    auto loadedGame = compileGame(gameSource);
+    const auto& game = loadedGame.information;
+    if (!game) {
+        throw std::runtime_error("Failed to compile game source");
+    }
+
+    TemplatizeOptions templatizeOptions;
+    templatizeOptions.take = options.templatizeTake;
+    templatizeOptions.levelIndex = options.templatizeLevelIndex;
+    templatizeOptions.namePrefix = options.templatizeNamePrefix;
+    const std::string spec = serializeTemplatizedSpec(templatizeGame(*game, templatizeOptions));
+
+    if (options.templatizeOutPath == "-") {
+        std::cout << spec;
+    } else {
+        writeFile(options.templatizeOutPath, spec);
+    }
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     try {
         Options options = parseArgs(argc, argv);
         const std::string gameSource = readFile(options.gamePath);
+        if (options.templatize) {
+            return runTemplatizeMode(options, gameSource);
+        }
+        if (options.remix) {
+            return runRemixMode(options, gameSource);
+        }
         const std::string specText = readFile(options.specPath);
         if (!options.outPath.empty()) {
             return runLevelSetMode(options, gameSource, specText);

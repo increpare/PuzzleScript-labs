@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator generator remix solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -84,6 +84,14 @@ GENERATOR_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 GENERATOR_GAME := $(word 1,$(GENERATOR_MAKE_ARGS))
 GENERATOR_SPEC := $(word 2,$(GENERATOR_MAKE_ARGS))
 GENERATOR_ARGS ?=
+REMIX_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+REMIX_IN := $(word 1,$(REMIX_MAKE_ARGS))
+REMIX_OUT := $(word 2,$(REMIX_MAKE_ARGS))
+REMIX_ARGS ?=
+REMIX_INACTIVITY_START ?= 1m
+REMIX_JOBS ?= auto
+REMIX_SEED ?= 1
+REMIX_SOLVER_TIMEOUT_MS ?= 500
 SOLVER_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 SOLVER_GAME := $(word 1,$(SOLVER_MAKE_ARGS))
 SOLVER_ARGS ?=
@@ -443,6 +451,9 @@ help:
 	@echo "  make generator game.txt spec.gen   Run generator on a PuzzleScript game/spec pair"
 	@echo "  make generator game.txt spec.gen SPECIALIZE=true"
 	@echo "                                     Run generator with linked compiled-rule kernels"
+	@echo "  make remix in.txt out.txt          Remix a game: hardest variant per level to out.txt"
+	@echo "  make remix in.txt out.txt REMIX_ARGS='--inactivity-start 30s'"
+	@echo "                                     Override remix generator options"
 	@echo "                                     Set COMPILED_RULES_MAX_ROWS=N for experimental multi-row kernels"
 	@echo "                                     Set COMPILED_RULES_LTO=true to re-enable LTO for specialized builds"
 	@echo "                                     Set COMPILED_RULES_LINK_DEDUP=true to re-enable Darwin link dedup"
@@ -616,6 +627,7 @@ help:
 	@echo "  build/native/puzzlescript_solver src/tests/solver_tests --timeout-ms $(SOLVER_TIMEOUT_MS) --jobs $(SOLVER_JOBS) --strategy $(SOLVER_STRATEGY) --solutions-dir $(SOLVER_SOLUTIONS_DIR)/native $(SOLVER_PROGRESS_ARGS) $(SOLVER_OUTPUT_ARGS)"
 	@echo "  make generator src/demo/sokoban_basic.txt src/tests/generator_presets/sokoban_room_scatter.gen"
 	@echo "  make generator src/demo/sokoban_basic.txt src/tests/generator_presets/sokoban_room_scatter.gen GENERATOR_ARGS='--time-ms 5000 --jobs auto --json-out build/generated/results.json'"
+	@echo "  make remix src/demo/sokoban_basic.txt build/remixed_sokoban.txt"
 
 $(CMAKE_CACHE): CMakeLists.txt native/CMakeLists.txt
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
@@ -681,6 +693,33 @@ ifeq ($(firstword $(MAKECMDGOALS)),generator)
 ifneq ($(strip $(GENERATOR_MAKE_ARGS)),)
 .PHONY: $(GENERATOR_MAKE_ARGS)
 $(eval $(GENERATOR_MAKE_ARGS):;@:)
+endif
+endif
+
+remix:
+	@if [ -z "$(REMIX_IN)" ] || [ -z "$(REMIX_OUT)" ]; then \
+		echo "Usage: make remix path/to/game.txt path/to/out.txt"; \
+		echo "       make remix path/to/game.txt path/to/out.txt REMIX_ARGS='--inactivity-start 30s --jobs 2'"; \
+		exit 2; \
+	fi
+	@if [ ! -f "$(REMIX_IN)" ]; then echo "Missing remix input game: $(REMIX_IN)"; exit 2; fi
+	@out_dir=$$(dirname "$(REMIX_OUT)"); \
+	if [ "$$out_dir" != "." ] && [ "$$out_dir" != "" ]; then mkdir -p "$$out_dir"; fi
+	@echo "==> remix $(REMIX_IN) -> $(REMIX_OUT)"
+	@echo "    inactivity=$(REMIX_INACTIVITY_START) solver_timeout=$(REMIX_SOLVER_TIMEOUT_MS) jobs=$(REMIX_JOBS) seed=$(REMIX_SEED)"
+	@echo "    runs until Ctrl+C; progress logged to stderr every 10s"
+	@$(MAKE) build_generator
+	@$(PUZZLESCRIPT_GENERATOR) "$(REMIX_IN)" --remix --out "$(REMIX_OUT)" \
+		--inactivity-start $(REMIX_INACTIVITY_START) \
+		--solver-timeout-ms $(REMIX_SOLVER_TIMEOUT_MS) \
+		--jobs $(REMIX_JOBS) \
+		--seed $(REMIX_SEED) \
+		$(REMIX_ARGS)
+
+ifeq ($(firstword $(MAKECMDGOALS)),remix)
+ifneq ($(strip $(REMIX_MAKE_ARGS)),)
+.PHONY: $(REMIX_MAKE_ARGS)
+$(eval $(REMIX_MAKE_ARGS):;@:)
 endif
 endif
 
