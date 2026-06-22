@@ -123,9 +123,15 @@ function buildSemanticProgramSnapshot(state) {
         metadata[key] = state.metadata[key];
     }
 
+    const soundEvents = {};
+    for (const name of Object.keys(state.sfx_Events || {})) {
+        soundEvents[name] = parseInt(state.sfx_Events[name], 10);
+    }
+    const sounds = { events: soundEvents };
+
     return {
         schema_version: 1,
-        semantic_program: { objects, collision_layers, legends, levels, win_conditions, metadata },
+        semantic_program: { objects, collision_layers, legends, levels, win_conditions, metadata, sounds },
     };
 }
 

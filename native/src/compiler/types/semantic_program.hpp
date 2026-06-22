@@ -36,10 +36,14 @@ struct SemanticWinCondition {
     bool aggregate2 = false;
 };
 
+struct SemanticSounds {
+    std::map<std::string, int32_t> events;  // sound-event name -> seed
+};
+
 // Current SemanticProgram contract: resolved object identity, collision layers,
-// resolved legends, resolved levels, resolved win conditions, and resolved
-// metadata. Extended in later slices with rules and sounds. Serialized form is
-// versioned via schemaVersion.
+// resolved legends, resolved levels, resolved win conditions, resolved metadata,
+// and resolved global sound events. Object/movement sfx and rules remain
+// deferred to later slices. Serialized form is versioned via schemaVersion.
 struct SemanticProgram {
     int32_t schemaVersion = 1;
     std::vector<SemanticObject> objects;
@@ -50,6 +54,7 @@ struct SemanticProgram {
     std::vector<SemanticLevel> levels;
     std::vector<SemanticWinCondition> winConditions;  // source-declaration order
     std::map<std::string, std::string> metadata;  // raw key->value, excludes flickscreen/zoomscreen
+    SemanticSounds sounds;
 };
 
 } // namespace puzzlescript::compiler

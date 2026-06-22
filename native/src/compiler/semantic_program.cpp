@@ -181,6 +181,21 @@ void appendMetadataObject(std::string& out, const std::map<std::string, std::str
     out += '}';
 }
 
+void appendSoundEventsObject(std::string& out, const std::map<std::string, int32_t>& events) {
+    out += '{';
+    bool first = true;
+    for (const auto& [name, seed] : events) {
+        if (!first) {
+            out += ',';
+        }
+        first = false;
+        appendJsonString(out, name);
+        out += ':';
+        out += std::to_string(seed);
+    }
+    out += '}';
+}
+
 } // namespace
 
 SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
@@ -273,6 +288,8 @@ SemanticProgram buildSemanticProgram(const puzzlescript::Game& game) {
         }
     }
 
+    program.sounds.events = game.sfxEvents;
+
     return program;
 }
 
@@ -313,7 +330,9 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
     appendWinConditionArray(out, program.winConditions);
     out += ",\"metadata\":";
     appendMetadataObject(out, program.metadata);
-    out += "}}";
+    out += ",\"sounds\":{\"events\":";
+    appendSoundEventsObject(out, program.sounds.events);
+    out += "}}}";
     return out;
 }
 

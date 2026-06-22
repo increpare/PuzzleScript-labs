@@ -131,6 +131,9 @@ int main() {
     assert(program.metadata.count("author") && program.metadata.at("author") == "David Skinner");
     assert(program.metadata.count("homepage") && program.metadata.at("homepage") == "www.puzzlescript.net");
 
+    // Sounds: sokoban_basic has an empty SOUNDS section.
+    assert(program.sounds.events.empty());
+
     const std::string json = puzzlescript::compiler::serializeSemanticProgramJson(program);
     assert(json.find("\"semantic_program\"") != std::string::npos);
     assert(json.find("\"collision_layers\"") != std::string::npos);
@@ -141,6 +144,8 @@ int main() {
     assert(json.find("\"win_conditions\"") != std::string::npos);
     assert(json.find("\"quantifier\"") != std::string::npos);
     assert(json.find("\"metadata\"") != std::string::npos);
+    assert(json.find("\"sounds\"") != std::string::npos);
+    assert(json.find("\"events\"") != std::string::npos);
 
     // normalizeMetadataHomepage must mirror JS formatHomePage: strip the first
     // "http://" then the first "https://". This fixture has both schemes (leading
@@ -173,6 +178,40 @@ int main() {
         const auto homepageProgram = puzzlescript::compiler::buildSemanticProgram(*homepageGame.information);
         assert(homepageProgram.metadata.count("homepage"));
         assert(homepageProgram.metadata.at("homepage") == "web.archive.org/wanderlands.org/");
+    }
+
+    // Sound events resolve name -> integer seed (sokoban declares no sounds, so
+    // cover the real mapping with an explicit fixture; JS stores seeds as
+    // strings, so the snapshot normalizes them to integers).
+    {
+        const std::string soundSource =
+            "title T\n"
+            "\n"
+            "========\nOBJECTS\n========\n\n"
+            "Background\nblack\n\n"
+            "Player\nblue\n\n"
+            "=======\nLEGEND\n=======\n\n"
+            ". = Background\n"
+            "P = Player\n\n"
+            "=======\nSOUNDS\n=======\n\n"
+            "sfx0 12345678\n"
+            "endlevel 87654321\n\n"
+            "================\nCOLLISIONLAYERS\n================\n\n"
+            "Background\nPlayer\n\n"
+            "======\nRULES\n======\n\n"
+            "==============\nWINCONDITIONS\n==============\n\n"
+            "=======\nLEVELS\n=======\n\n"
+            "P\n";
+        puzzlescript::compiler::DiagnosticSink soundDiagnostics;
+        const auto soundState = puzzlescript::compiler::parseSource(soundSource, soundDiagnostics);
+        puzzlescript::LoadedGame soundGame;
+        auto soundError = puzzlescript::compiler::lowerToRuntimeGame(soundState, soundGame);
+        assert(!soundError);
+        assert(soundGame.information);
+        const auto soundProgram = puzzlescript::compiler::buildSemanticProgram(*soundGame.information);
+        assert(soundProgram.sounds.events.size() == 2);
+        assert(soundProgram.sounds.events.count("sfx0") && soundProgram.sounds.events.at("sfx0") == 12345678);
+        assert(soundProgram.sounds.events.count("endlevel") && soundProgram.sounds.events.at("endlevel") == 87654321);
     }
 
     return 0;
