@@ -3570,6 +3570,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 std::vector<int32_t> layersUsedL(game->layerCount, 0);
                 // Movement-bitvec lanes where LHS had a *concrete* object (JS `objectlayers_l`).
                 puzzlescript::MaskVector lhsObjectLayersMovement(static_cast<size_t>(game->movementWordCount), 0);
+                std::vector<puzzlescript::InferredPropertySource> inferredPropertySources;
                 for (size_t itemIndex = 0; itemIndex < cell.items.size(); ++itemIndex) {
                     const auto& item = cell.items[itemIndex];
                     if (item.dir == "random") {
@@ -3603,6 +3604,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                 objectIdsFromMask(coupled.objectMask, game->objectCount));
                             if (!item.dir.empty() && !coupled.term.layers.empty()) {
                                 layerCoupledMovementMasks.push_back(std::move(coupled.term));
+                            }
+                            if (propertyCoalescingPlan.sinks.find(item.name)
+                                != propertyCoalescingPlan.sinks.end()) {
+                                inferredPropertySources.push_back({item.name});
                             }
                         } else {
                             const auto off = storeMaskWords(*game, mask);
@@ -3708,6 +3713,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         puzzlescript::MaskVector rhsObjectLayersMovement(static_cast<size_t>(game->movementWordCount), 0);
                         std::set<int32_t> aggregateInferenceLayers;
                         std::vector<puzzlescript::InferredAggregateBinding> inferredAggregateBindings;
+                        std::vector<puzzlescript::InferredPropertyBinding> inferredPropertyBindings;
                         std::vector<puzzlescript::LayerCoupledMovementReplacement> layerCoupledMovementReplacements;
 
                         auto markLayerClear = [&](int32_t layer) {
@@ -3925,6 +3931,43 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                                 game->objectsById[static_cast<size_t>(objIt->second)].layer;
                                             if (layer >= 0 && layer < game->layerCount) {
                                                 layersUsedR[static_cast<size_t>(layer)] = 1;
+                                            }
+                                        }
+                                    }
+                                    int32_t dirMode = 0;
+                                    int32_t dirMask = 0;
+                                    if (item.dir == "stationary") {
+                                        dirMode = 1;
+                                    } else if (!item.dir.empty()
+                                               && concreteDirsForAggregate(item.dir) == nullptr) {
+                                        const int32_t dm = dirMaskFromToken(item.dir);
+                                        if (dm != 0) {
+                                            dirMode = 2;
+                                            dirMask = dm;
+                                        }
+                                    }
+                                    puzzlescript::InferredPropertyBinding propertyBinding;
+                                    propertyBinding.propertyName = item.name;
+                                    propertyBinding.dirMode = dirMode;
+                                    propertyBinding.dirMask = dirMask;
+                                    inferredPropertyBindings.push_back(std::move(propertyBinding));
+                                    if (concreteDirsForAggregate(item.dir) != nullptr) {
+                                        const auto aggregateSinkIt =
+                                            aggregateCoalescingPlan.sinks.find(item.dir);
+                                        if (aggregateSinkIt != aggregateCoalescingPlan.sinks.end()) {
+                                            for (const AggregateSinkPosition& aggregateSink :
+                                                 aggregateSinkIt->second) {
+                                                if (aggregateSink.row == patternRowIndex
+                                                    && aggregateSink.cell == cellIndex
+                                                    && aggregateSink.propertyName == item.name
+                                                    && !aggregateSink.localProperty) {
+                                                    puzzlescript::InferredAggregateBinding binding;
+                                                    binding.aggregateName = item.dir;
+                                                    binding.propertyName = item.name;
+                                                    inferredAggregateBindings.push_back(
+                                                        std::move(binding));
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
@@ -4195,12 +4238,18 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                         repl.hasMovementsLayerMask = anyNonZero(movementsLayerMask);
                         const bool hasDynamicReplacement =
                             !inferredAggregateBindings.empty()
+                            || !inferredPropertyBindings.empty()
+                            || !inferredPropertySources.empty()
                             || !layerCoupledMovementReplacements.empty()
                             || anyNonZero(rhsPropertyPreserveMask);
                         if (hasDynamicReplacement) {
                             auto& dynamic = repl.ensureDynamic();
                             dynamic.inferredAggregateBindings =
                                 std::move(inferredAggregateBindings);
+                            dynamic.inferredPropertyBindings =
+                                std::move(inferredPropertyBindings);
+                            dynamic.inferredPropertySources =
+                                std::move(inferredPropertySources);
                             dynamic.layerCoupledMovementReplacements =
                                 std::move(layerCoupledMovementReplacements);
                             if (anyNonZero(rhsPropertyPreserveMask)) {
