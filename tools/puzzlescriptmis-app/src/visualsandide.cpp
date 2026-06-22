@@ -808,20 +808,33 @@ void displayLevelEditor() {
 
 		const float displayStrY = offsetY + heightOfGame + heightButton;
 
+		// Per-strategy difficulty lanes (Portfolio bound + standalone Greedy/WA*/BFS),
+		// built once so the centred right-hand string and the per-lane coloured draw
+		// below share a single source of truth and can't drift out of sync.
+		struct DifficultyLane {
+			long long expanded;
+			string text;
+		};
+		auto laneText = [](long long expanded) {
+			return expanded < 0 ? string("?") : to_string(expanded);
+		};
+		const vector<DifficultyLane> difficultyLanes = {
+			{info.expandedPortfolio, laneText(info.expandedPortfolio) + "Prt "},
+			{info.expandedGreedy, laneText(info.expandedGreedy) + "Grd "},
+			{info.expandedWeightedAStar, laneText(info.expandedWeightedAStar) + "WA* "},
+			{info.expandedBfs, laneText(info.expandedBfs) + "BFS"},
+		};
+
 		if (info.phase == levelSolve::Phase::Unsolvable) {
 			displayStrL = "Unsolvable!!!";
 		} else if (info.phase == levelSolve::Phase::Solved) {
 			const bool bfsConfirmedShortest = info.expandedBfs >= 0;
 			displayStrL = (bfsConfirmedShortest ? "Shortest solution size: " : "Solution size: ")
 				+ to_string(info.solutionLength);
-			auto laneText = [&](long long expanded) {
-				return expanded < 0 ? string("?") : to_string(expanded);
-			};
-			displayStrR = "Diff "
-				+ laneText(info.expandedPortfolio) + "Prt "
-				+ laneText(info.expandedGreedy) + "Grd "
-				+ laneText(info.expandedWeightedAStar) + "WA* "
-				+ laneText(info.expandedBfs) + "BFS";
+			displayStrR = "Diff ";
+			for (const DifficultyLane& lane : difficultyLanes) {
+				displayStrR += lane.text;
+			}
 		} else if (info.phase == levelSolve::Phase::Refining) {
 			displayStrL = info.solutionLength > 0
 				? "Solution size: " + to_string(info.solutionLength)
@@ -845,25 +858,12 @@ void displayLevelEditor() {
         const float rightStrX = offsetX + widthOfGame/2. + widthGenerateButton/2.
             + (widthOfGame/2. - widthGenerateButton/2. - buttonFont.stringWidth(displayStrR))/2.;
         if (info.phase == levelSolve::Phase::Solved && info.difficulty >= 0) {
-            auto laneText = [](long long expanded) {
-                return expanded < 0 ? string("?") : to_string(expanded);
-            };
-            struct DifficultyLane {
-                long long expanded;
-                string text;
-            };
-            const DifficultyLane lanes[] = {
-                {info.expandedPortfolio, laneText(info.expandedPortfolio) + "Prt "},
-                {info.expandedGreedy, laneText(info.expandedGreedy) + "Grd "},
-                {info.expandedWeightedAStar, laneText(info.expandedWeightedAStar) + "WA* "},
-                {info.expandedBfs, laneText(info.expandedBfs) + "BFS"},
-            };
             const ofColor lowestColor(0, 0x99, 0x22);
             float x = rightStrX;
             ofSetColor(0);
             buttonFont.drawString("Diff ", x, displayStrY);
             x += buttonFont.stringWidth("Diff ");
-            for (const DifficultyLane& lane : lanes) {
+            for (const DifficultyLane& lane : difficultyLanes) {
                 ofSetColor(lane.expanded >= 0 && lane.expanded == info.difficulty ? lowestColor : ofColor(0));
                 buttonFont.drawString(lane.text, x, displayStrY);
                 x += buttonFont.stringWidth(lane.text);
