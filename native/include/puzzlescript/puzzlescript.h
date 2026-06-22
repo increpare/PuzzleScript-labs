@@ -67,6 +67,7 @@ typedef struct ps_solve_options {
     bool compact_turn_oracle;
     bool compact_turn_search;
     int32_t astar_weight;
+    uint64_t max_expanded;
 } ps_solve_options;
 
 typedef struct ps_solve_result {

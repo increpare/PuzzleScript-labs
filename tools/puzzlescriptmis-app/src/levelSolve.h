@@ -10,6 +10,7 @@ namespace levelSolve {
 enum class Phase {
     Idle,
     Running,
+    Refining,
     Solved,
     Unsolvable
 };
@@ -17,7 +18,13 @@ enum class Phase {
 struct Snapshot {
     Phase phase = Phase::Idle;
     int solutionLength = -1;
+    long long difficulty = -1;
+    long long expandedPortfolio = -1;
+    long long expandedGreedy = -1;
+    long long expandedWeightedAStar = -1;
+    long long expandedBfs = -1;
     long long expanded = -1;
+    string difficultyAlgorithm;
     string algorithm;
     uint64_t stateHash = 0;
 };

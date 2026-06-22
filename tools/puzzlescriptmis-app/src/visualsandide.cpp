@@ -806,27 +806,32 @@ void displayLevelEditor() {
 		const uint64_t solhash = levelSolve::stateHash(gbl::currentGame, gbl::currentGame.beginStateAfterStationaryMove);
 		const levelSolve::Snapshot info = levelSolve::snapshot(solhash);
 
+		const float displayStrY = offsetY + heightOfGame + heightButton;
+
 		if (info.phase == levelSolve::Phase::Unsolvable) {
 			displayStrL = "Unsolvable!!!";
 		} else if (info.phase == levelSolve::Phase::Solved) {
-			// Only BFS is guaranteed optimal; the portfolio's greedy/weighted-A*
-			// strategies can return a non-shortest solution, so don't claim
-			// "shortest" unless BFS produced it.
-			displayStrL = (info.algorithm == "BFS" ? "Shortest solution size: " : "Solution size: ") + to_string(info.solutionLength);
-			displayStrR = "Difficulty " + to_string(info.expanded);
-			if (!info.algorithm.empty()) {
-				displayStrR += " (" + info.algorithm + ")";
-			}
+			const bool bfsConfirmedShortest = info.expandedBfs >= 0;
+			displayStrL = (bfsConfirmedShortest ? "Shortest solution size: " : "Solution size: ")
+				+ to_string(info.solutionLength);
+			auto laneText = [&](long long expanded) {
+				return expanded < 0 ? string("?") : to_string(expanded);
+			};
+			displayStrR = "Diff "
+				+ laneText(info.expandedPortfolio) + "Prt "
+				+ laneText(info.expandedGreedy) + "Grd "
+				+ laneText(info.expandedWeightedAStar) + "WA* "
+				+ laneText(info.expandedBfs) + "BFS";
+		} else if (info.phase == levelSolve::Phase::Refining) {
+			displayStrL = info.solutionLength > 0
+				? "Solution size: " + to_string(info.solutionLength)
+				: "No solution found yet" + questionMarkStr;
+			displayStrR = info.expandedPortfolio >= 0
+				? "Diff " + to_string(info.expandedPortfolio) + "P " + questionMarkStr
+				: string("Diff ") + questionMarkStr;
 		} else {
 			displayStrL = "No solution found yet" + questionMarkStr;
-			if (info.expanded > -1) {
-				displayStrR = "Difficulty " + to_string(info.expanded);
-				if (!info.algorithm.empty()) {
-					displayStrR += " (" + info.algorithm + ")";
-				}
-			} else {
-				displayStrR = "Difficulty " + questionMarkStr;
-			}
+			displayStrR = "Diff " + questionMarkStr;
 		}
         
     
@@ -835,8 +840,38 @@ void displayLevelEditor() {
 
         ofFill();
         ofSetColor(0);
-        buttonFont.drawString(displayStrL, offsetX + (widthOfGame/2. - widthGenerateButton/2. - buttonFont.stringWidth(displayStrL))/2., offsetY+heightOfGame+heightButton);
-        buttonFont.drawString(displayStrR, offsetX + widthOfGame/2. + widthGenerateButton/2. + (widthOfGame/2. - widthGenerateButton/2. - buttonFont.stringWidth(displayStrR))/2., offsetY+heightOfGame+heightButton);
+        buttonFont.drawString(displayStrL, offsetX + (widthOfGame/2. - widthGenerateButton/2. - buttonFont.stringWidth(displayStrL))/2., displayStrY);
+
+        const float rightStrX = offsetX + widthOfGame/2. + widthGenerateButton/2.
+            + (widthOfGame/2. - widthGenerateButton/2. - buttonFont.stringWidth(displayStrR))/2.;
+        if (info.phase == levelSolve::Phase::Solved && info.difficulty >= 0) {
+            auto laneText = [](long long expanded) {
+                return expanded < 0 ? string("?") : to_string(expanded);
+            };
+            struct DifficultyLane {
+                long long expanded;
+                string text;
+            };
+            const DifficultyLane lanes[] = {
+                {info.expandedPortfolio, laneText(info.expandedPortfolio) + "Prt "},
+                {info.expandedGreedy, laneText(info.expandedGreedy) + "Grd "},
+                {info.expandedWeightedAStar, laneText(info.expandedWeightedAStar) + "WA* "},
+                {info.expandedBfs, laneText(info.expandedBfs) + "BFS"},
+            };
+            const ofColor lowestColor(0, 0x99, 0x22);
+            float x = rightStrX;
+            ofSetColor(0);
+            buttonFont.drawString("Diff ", x, displayStrY);
+            x += buttonFont.stringWidth("Diff ");
+            for (const DifficultyLane& lane : lanes) {
+                ofSetColor(lane.expanded >= 0 && lane.expanded == info.difficulty ? lowestColor : ofColor(0));
+                buttonFont.drawString(lane.text, x, displayStrY);
+                x += buttonFont.stringWidth(lane.text);
+            }
+            ofSetColor(0);
+        } else {
+            buttonFont.drawString(displayStrR, rightStrX, displayStrY);
+        }
 
         
         ofSetColor(colors::colorIDE_BACKGROUND);
@@ -924,7 +959,7 @@ void displayLevelEditor() {
             }
             displayLevel(nlevel.second, gbl::currentGame, offsetX2, offsetY2, widthOfGame2, heightOfGame2-heightButton/2.,min_field_size);
             ofSetColor(0);
-            string complexityInfoStr = "Difficulty: " + to_string((long long) -nlevel.first );
+            string complexityInfoStr = "Diff: " + to_string((long long) -nlevel.first );
             buttonFont.drawString(complexityInfoStr, offsetX2 + (widthOfGame2 - buttonFont.stringWidth(complexityInfoStr))/2.,offsetY2+heightOfGame2);
             offsetX2 += widthChangeOfGame2;
         }

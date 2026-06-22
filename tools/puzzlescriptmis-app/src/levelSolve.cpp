@@ -1,6 +1,7 @@
 #include "levelSolve.h"
 
 #include "game.h"
+#include "native_bridge/DifficultyAssessment.h"
 #include "native_bridge/NativeGameFacade.h"
 
 #include <atomic>
@@ -24,16 +25,46 @@ string formatAlgorithmName(const string& strategy) {
     if (lower.find("greedy") != string::npos) {
         return "Greedy";
     }
+    if (lower.find("weighted") != string::npos && lower.find("astar") != string::npos) {
+        return "WeightedAStar";
+    }
     if (lower.find("astar") != string::npos || lower.find("a-star") != string::npos) {
-        return "AStar";
+        return "WeightedAStar";
     }
     if (lower.find("portfolio") != string::npos) {
         const size_t colon = lower.rfind(':');
         if (colon != string::npos && colon + 1 < lower.size()) {
             return formatAlgorithmName(lower.substr(colon + 1));
         }
+        return "Portfolio";
     }
     return strategy.empty() ? "Solver" : strategy;
+}
+
+Snapshot snapshotFromAssessment(
+    const nativebridge::DifficultyAssessmentResult& assessed,
+    uint64_t requestHash,
+    Phase phase) {
+    Snapshot next{};
+    next.phase = phase;
+    next.stateHash = requestHash;
+    next.solutionLength = static_cast<int>(assessed.solution.size());
+    next.algorithm = formatAlgorithmName(assessed.primaryStrategy);
+    next.expandedPortfolio = assessed.breakdown.expandedPortfolio;
+    next.expandedGreedy = assessed.breakdown.expandedGreedy;
+    next.expandedWeightedAStar = assessed.breakdown.expandedWeightedAStar;
+    next.expandedBfs = assessed.breakdown.expandedBfs;
+    next.difficulty = assessed.breakdown.difficulty;
+    next.difficultyAlgorithm = assessed.breakdown.difficultyAlgorithm;
+    next.expanded = next.difficulty;
+    return next;
+}
+
+Snapshot emptySnapshot(Phase phase, uint64_t requestHash) {
+    Snapshot next{};
+    next.phase = phase;
+    next.stateHash = requestHash;
+    return next;
 }
 
 recursive_mutex solveMutex;
@@ -51,7 +82,7 @@ void solvingLoop(uint64_t requestHash, vvvs state) {
     if (!context) {
         synchronized(solveMutex) {
             if (activeRequestHash.load() == requestHash) {
-                updateSnapshotLocked({Phase::Idle, -1, -1, "", requestHash});
+                updateSnapshotLocked(emptySnapshot(Phase::Idle, requestHash));
                 keepSolving.store(false, std::memory_order_relaxed);
             }
         }
@@ -60,64 +91,77 @@ void solvingLoop(uint64_t requestHash, vvvs state) {
 
     long long timeoutMs = 500;
     while (keepSolving.load(std::memory_order_relaxed) && activeRequestHash.load() == requestHash) {
-        const nativebridge::CandidateSolveResult result =
-            nativebridge::solveGeneratedState(*context, state, timeoutMs);
+        nativebridge::DifficultyAssessmentOptions options;
+        options.primaryTimeoutMs = timeoutMs;
+        options.runSupplemental = true;
+        options.supplementalTimeoutMs = 60000;
+
+        const nativebridge::DifficultyAssessmentResult assessed = nativebridge::assessDifficulty(
+            *context,
+            state,
+            options,
+            [&](nativebridge::DifficultyAssessmentStage stage, const nativebridge::DifficultyAssessmentResult& partial) {
+                if (!keepSolving.load(std::memory_order_relaxed) || activeRequestHash.load() != requestHash) {
+                    return;
+                }
+
+                synchronized(solveMutex) {
+                    if (activeRequestHash.load() != requestHash) {
+                        return;
+                    }
+
+                    Phase phase = Phase::Running;
+                    if (stage == nativebridge::DifficultyAssessmentStage::PrimaryComplete) {
+                        phase = Phase::Refining;
+                    } else if (stage == nativebridge::DifficultyAssessmentStage::Complete) {
+                        phase = partial.primaryStatus == nativebridge::CandidateSolveStatus::Solved
+                            ? Phase::Solved
+                            : activeSnapshot.phase;
+                    } else if (stage != nativebridge::DifficultyAssessmentStage::PrimaryComplete) {
+                        phase = Phase::Refining;
+                    }
+
+                    Snapshot next = snapshotFromAssessment(partial, requestHash, phase);
+                    if (partial.primaryStatus != nativebridge::CandidateSolveStatus::Solved
+                        && stage == nativebridge::DifficultyAssessmentStage::Complete) {
+                        next.phase = Phase::Running;
+                    }
+                    updateSnapshotLocked(next);
+                }
+            });
 
         synchronized(solveMutex) {
             if (activeRequestHash.load() != requestHash) {
                 break;
             }
 
-            Snapshot next = activeSnapshot;
-            next.stateHash = requestHash;
-            if (result.expanded > 0 && (next.expanded < 0 || result.expanded > next.expanded)) {
-                next.expanded = result.expanded;
-            }
-            if (!result.strategy.empty()) {
-                next.algorithm = formatAlgorithmName(result.strategy);
-            }
-
-            if (result.status == nativebridge::CandidateSolveStatus::Solved) {
-                next.phase = Phase::Solved;
-                next.solutionLength = static_cast<int>(result.solution.size());
-                if (next.expanded < 0) {
-                    next.expanded = MAX(1LL, result.expanded);
-                }
-                if (next.algorithm.empty()) {
-                    next.algorithm = formatAlgorithmName(result.strategy);
-                }
-                updateSnapshotLocked(next);
+            if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Solved) {
+                updateSnapshotLocked(snapshotFromAssessment(assessed, requestHash, Phase::Solved));
                 break;
             }
 
-            if (result.status == nativebridge::CandidateSolveStatus::Unsolvable) {
-                next.phase = Phase::Unsolvable;
-                updateSnapshotLocked(next);
+            if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Unsolvable) {
+                updateSnapshotLocked(emptySnapshot(Phase::Unsolvable, requestHash));
                 break;
             }
 
-            next.phase = Phase::Running;
-            updateSnapshotLocked(next);
-
-            if (result.status == nativebridge::CandidateSolveStatus::Error) {
-                if (!result.error.empty()) {
-                    cerr << "native level solve error: " << result.error << endl;
+            if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Error) {
+                if (!assessed.primaryError.empty()) {
+                    cerr << "native level solve error: " << assessed.primaryError << endl;
                 }
                 break;
             }
+
+            updateSnapshotLocked(snapshotFromAssessment(assessed, requestHash, Phase::Running));
         }
 
-        if (result.status == nativebridge::CandidateSolveStatus::Timeout) {
+        if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Timeout) {
             timeoutMs = MIN(timeoutMs * 2, 60000LL);
             continue;
         }
         break;
     }
 
-    // The search has finished (solved / unsolvable / error / superseded). If we
-    // are still the active request, clear the running flag so that a later
-    // requestSolve() for this same state is not mistaken for an in-flight solve
-    // and short-circuited.
     synchronized(solveMutex) {
         if (activeRequestHash.load() == requestHash) {
             keepSolving.store(false, std::memory_order_relaxed);
@@ -140,8 +184,6 @@ void requestSolve(const Game& game, const vvvs& state) {
 
     const uint64_t requestHash = stateHash(game, state);
 
-    // requestSolve()/stopSolve() are only ever called from the UI thread, so the
-    // two critical sections below cannot interleave with each other.
     thread previousThread;
     synchronized(solveMutex) {
         if (activeRequestHash.load() == requestHash && activeSnapshot.phase == Phase::Solved) {
@@ -151,10 +193,6 @@ void requestSolve(const Game& game, const vvvs& state) {
             return;
         }
 
-        // Signal the worker to stop and take ownership of its handle so we can join
-        // it *outside* solveMutex. The worker re-acquires solveMutex after every
-        // solve to publish its snapshot, so joining while holding the lock would
-        // deadlock.
         keepSolving.store(false, std::memory_order_relaxed);
         previousThread = std::move(solveThread);
     }
@@ -165,7 +203,7 @@ void requestSolve(const Game& game, const vvvs& state) {
 
     synchronized(solveMutex) {
         activeRequestHash.store(requestHash, std::memory_order_relaxed);
-        activeSnapshot = {Phase::Running, -1, -1, "", requestHash};
+        activeSnapshot = emptySnapshot(Phase::Running, requestHash);
         keepSolving.store(true, std::memory_order_relaxed);
         solveThread = thread(solvingLoop, requestHash, state);
     }
@@ -179,7 +217,6 @@ void stopSolve() {
         activeSnapshot = {};
         previousThread = std::move(solveThread);
     }
-    // Join outside the lock; the worker needs solveMutex to observe the stop and exit.
     if (previousThread.joinable()) {
         previousThread.join();
     }

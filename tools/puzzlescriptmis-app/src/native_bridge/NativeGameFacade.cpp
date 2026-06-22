@@ -4,6 +4,7 @@
 #include "game.h"
 #include "logError.h"
 #include "native_bridge/NativeGameBridge.h"
+#include "puzzlescript/puzzlescript.h"
 #include "stringUtilities.h"
 
 #include <mutex>
@@ -450,13 +451,18 @@ public:
     explicit CandidateSolverContext(std::unique_ptr<psbridge::NativeGameBridge> bridge)
         : bridge_(std::move(bridge)) {}
 
-    CandidateSolveResult solveGeneratedState(const vvvs& state, long long timeoutMs) {
+    CandidateSolveResult solveGeneratedState(
+        const vvvs& state,
+        long long timeoutMs,
+        ps_solve_strategy strategy = PS_SOLVE_STRATEGY_PORTFOLIO,
+        uint64_t maxExpanded = 0) {
         if (!bridge_) {
             CandidateSolveResult result;
             result.error = "Native solver context is not initialized";
             return result;
         }
-        return nativeResultToCandidateSolveResult(bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs));
+        return nativeResultToCandidateSolveResult(
+            bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs, strategy, maxExpanded));
     }
 
 private:
@@ -540,6 +546,15 @@ std::shared_ptr<CandidateSolverContext> createCandidateSolverContext() {
         return nullptr;
     }
     return std::make_shared<CandidateSolverContext>(std::move(solverBridge));
+}
+
+CandidateSolveResult solveGeneratedState(
+    CandidateSolverContext& context,
+    const vvvs& state,
+    long long timeoutMs,
+    ps_solve_strategy strategy,
+    uint64_t maxExpanded) {
+    return context.solveGeneratedState(state, timeoutMs, strategy, maxExpanded);
 }
 
 CandidateSolveResult solveGeneratedState(CandidateSolverContext& context, const vvvs& state, long long timeoutMs) {

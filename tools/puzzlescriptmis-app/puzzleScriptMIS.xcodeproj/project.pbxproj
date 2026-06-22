@@ -10,6 +10,7 @@
 		"0680044B-5AA5-44EF-8641-7BBF46EB7302" /* winconditions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "A547E0EF-844A-417E-BABF-549F6416D23B" /* winconditions.cpp */; };
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0011" /* NativeGameBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "0D1A701A-6E04-4A31-9E29-FB2E0D7F0013" /* NativeGameBridge.cpp */; };
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0012" /* NativeGameFacade.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */; };
+		"D1FF1C00-6E04-4A31-9E29-FB2E0D7F0021" /* DifficultyAssessment.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "D1FF1C00-6E04-4A31-9E29-FB2E0D7F0023" /* DifficultyAssessment.cpp */; };
 		"1ADB9C8E-4CD9-45A4-AFCC-0F5EB2F48A82" /* generation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "A1FE2530-2AE5-45CE-B53D-E3E8E65444DD" /* generation.cpp */; };
 		"1FA622B7-5C7A-41F7-8411-F7BEAAD77C6F" /* logError.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "6033FF70-585F-4052-A9F5-E9E03E24A6DE" /* logError.cpp */; };
 		"C1A2B3C4-D5E6-47F8-9012-3456789ABCDE" /* levelSolve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "C1A2B3C4-D5E6-47F8-9012-3456789ABCDF" /* levelSolve.cpp */; };
@@ -72,6 +73,8 @@
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0014" /* NativeGameBridge.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = NativeGameBridge.h; path = src/native_bridge/NativeGameBridge.h; sourceTree = SOURCE_ROOT; };
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = NativeGameFacade.cpp; path = src/native_bridge/NativeGameFacade.cpp; sourceTree = SOURCE_ROOT; };
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0016" /* NativeGameFacade.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = NativeGameFacade.h; path = src/native_bridge/NativeGameFacade.h; sourceTree = SOURCE_ROOT; };
+		"D1FF1C00-6E04-4A31-9E29-FB2E0D7F0023" /* DifficultyAssessment.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = DifficultyAssessment.cpp; path = src/native_bridge/DifficultyAssessment.cpp; sourceTree = SOURCE_ROOT; };
+		"D1FF1C00-6E04-4A31-9E29-FB2E0D7F0024" /* DifficultyAssessment.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = DifficultyAssessment.h; path = src/native_bridge/DifficultyAssessment.h; sourceTree = SOURCE_ROOT; };
 		"0A5D3577-19E5-4927-BD17-5832922CD553" /* Info.plist */ = {isa = PBXFileReference; explicitFileType = file; fileEncoding = 4; name = Info.plist; path = src/a.out.dSYM/Contents/Info.plist; sourceTree = SOURCE_ROOT; };
 		"0F6ACA42-003A-45BC-B63D-37016CE7C62E" /* colors.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = colors.cpp; path = src/colors.cpp; sourceTree = SOURCE_ROOT; };
 		"130BD143-B7FB-44EE-A3D7-F7506D25C779" /* ofxGuiGroup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxGuiGroup.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxGuiGroup.cpp; sourceTree = SOURCE_ROOT; };
@@ -172,6 +175,8 @@
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0017" /* native_bridge */ = {
 			isa = PBXGroup;
 			children = (
+				"D1FF1C00-6E04-4A31-9E29-FB2E0D7F0023" /* DifficultyAssessment.cpp */,
+				"D1FF1C00-6E04-4A31-9E29-FB2E0D7F0024" /* DifficultyAssessment.h */,
 				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0013" /* NativeGameBridge.cpp */,
 				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0014" /* NativeGameBridge.h */,
 				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */,
@@ -492,6 +497,7 @@
 				"F76CC2B1-C3D1-4123-BE1E-1BA579AC5B17" /* levels.cpp in Sources */,
 				"1FA622B7-5C7A-41F7-8411-F7BEAAD77C6F" /* logError.cpp in Sources */,
 				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0011" /* NativeGameBridge.cpp in Sources */,
+				"D1FF1C00-6E04-4A31-9E29-FB2E0D7F0021" /* DifficultyAssessment.cpp in Sources */,
 				"0D1A701A-6E04-4A31-9E29-FB2E0D7F0012" /* NativeGameFacade.cpp in Sources */,
 				"6149AAD8-A2AD-4357-868B-948241100467" /* objects.cpp in Sources */,
 				"884144CC-DB43-4E81-BB6E-1AB8BBCEBD14" /* recordandundo.cpp in Sources */,

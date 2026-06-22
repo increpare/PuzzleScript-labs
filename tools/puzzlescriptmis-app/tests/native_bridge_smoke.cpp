@@ -120,6 +120,13 @@ PC#T
     require(solved.expanded > 0, "expected solved candidate difficulty work to be recorded");
     require(startsWith(solved.strategy, "portfolio"), "expected generated candidate solve to use native portfolio strategy");
 
+    const psbridge::NativeSolveResult greedy = bridge.solveLayerGrid(solvableGrid, 5000, PS_SOLVE_STRATEGY_GREEDY);
+    require(greedy.status == psbridge::NativeSolveStatus::Solved, "expected greedy strategy to solve fixture");
+    require(greedy.strategy.find("greedy") != std::string::npos, "expected greedy strategy label");
+
+    const psbridge::NativeSolveResult capped = bridge.solveLayerGrid(solvableGrid, 5000, PS_SOLVE_STRATEGY_BFS, 1);
+    require(capped.expanded <= 1, "expected max_expanded cap to be respected");
+
     require(bridge.loadLevel(1), "expected blocked candidate level to load");
     const psbridge::NativeSolveResult blocked = bridge.solveLayerGrid(bridge.currentLayerGrid(), 1000);
     require(blocked.status != psbridge::NativeSolveStatus::Solved, "blocked candidate must not be reported solved");

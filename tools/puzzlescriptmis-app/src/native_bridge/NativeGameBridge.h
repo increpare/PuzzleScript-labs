@@ -106,7 +106,11 @@ public:
     Status status() const;
     LayerGrid currentLayerGrid() const;
     std::unique_ptr<NativeGameBridge> createSolverBridge() const;
-    NativeSolveResult solveLayerGrid(const LayerGrid& grid, int64_t timeoutMs) const;
+    NativeSolveResult solveLayerGrid(
+        const LayerGrid& grid,
+        int64_t timeoutMs,
+        ps_solve_strategy strategy = PS_SOLVE_STRATEGY_PORTFOLIO,
+        uint64_t maxExpanded = 0) const;
 
 private:
     struct CompileResultDeleter { void operator()(ps_compile_result* value) const { ps_free_compile_result(value); } };

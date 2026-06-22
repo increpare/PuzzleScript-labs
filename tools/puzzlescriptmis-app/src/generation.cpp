@@ -5,6 +5,7 @@
 #include "engine.h"
 #include "game.h"
 #include "global.h"
+#include "native_bridge/DifficultyAssessment.h"
 #include "native_bridge/NativeGameFacade.h"
 #include "visualsandide.h"
 
@@ -134,6 +135,14 @@ struct QueuedTimeout {
 static const size_t kMaxUnknownStack = 64;
 static const long long kMaxSolveTimeMs = 60000; //ceiling so a bad throughput estimate can't run away
 
+static bool shouldRunSupplemental(long long primaryExpanded, const set<pair<float,vvvs>>& neighborhood) {
+    if (neighborhood.size() < 4) {
+        return true;
+    }
+    const long long fourthPlace = -neighborhood.rbegin()->first;
+    return primaryExpanded >= fourthPlace;
+}
+
 static void publishMaxSolveTime(long long threadBudgetMs) {
     const int budgetMs = static_cast<int>(MIN(threadBudgetMs, static_cast<long long>(INT_MAX)));
     synchronized(generator::generatorMutex) {
@@ -197,30 +206,51 @@ static void generating() {
         
         {
             const long long budgetMs = timeToSolve;
-            nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(*solverContext, candidateState, timeToSolve);
+            nativebridge::DifficultyAssessmentOptions assessOptions;
+            assessOptions.primaryTimeoutMs = timeToSolve;
+            assessOptions.runSupplemental = false;
+            assessOptions.supplementalGate = [&](long long primaryExpanded) {
+                bool runSupplemental = false;
+                synchronized(generator::generatorMutex) {
+                    runSupplemental = shouldRunSupplemental(
+                        primaryExpanded,
+                        generator::generatorNeighborhood[cgame.currentLevelIndex]);
+                }
+                return runSupplemental;
+            };
 
-            // Update the throughput estimate from any run that actually searched
-            // (solved or timed-out both report states expanded over elapsed time).
-            if(info.expanded > 0 && info.elapsedMs > 0) {
-                const double sampleRate = static_cast<double>(info.expanded) / static_cast<double>(info.elapsedMs);
+            const nativebridge::DifficultyAssessmentResult assessed =
+                nativebridge::assessDifficulty(*solverContext, candidateState, assessOptions);
+
+            const long long primaryExpanded = MAX(0LL, assessed.primaryExpanded);
+            const long long primaryElapsedMs = MAX(0LL, assessed.primaryElapsedMs);
+
+            if (primaryExpanded > 0 && primaryElapsedMs > 0) {
+                const double sampleRate = static_cast<double>(primaryExpanded) / static_cast<double>(primaryElapsedMs);
                 expandedPerMs = (expandedPerMs <= 0.0) ? sampleRate : (0.8 * expandedPerMs + 0.2 * sampleRate);
             }
 
-            if(info.status == nativebridge::CandidateSolveStatus::Solved) {
-                long long timeItTook = MAX(1, info.elapsedMs);
-                long long statesExplored = MAX(1, info.expanded);
-                auto p = make_pair(-statesExplored, candidateState );
+            if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Solved) {
+                long long timeItTook = MAX(1, primaryElapsedMs);
                 bool addTime = false;
                 synchronized(generator::generatorMutex) {
                     std::atomic_thread_fence(std::memory_order_seq_cst);
-                    if(generator::generatorNeighborhood[cgame.currentLevelIndex].empty() || -statesExplored < generator::generatorNeighborhood[cgame.currentLevelIndex].rbegin()->first)
-                        addTime = true;
                     generator::solvedCounter++;
                     //a re-drilled candidate was already tallied as timed-out: move it across
                     if(haveCandidate && generator::timedoutCounter > 0) generator::timedoutCounter--;
-                    generator::generatorNeighborhood[cgame.currentLevelIndex].insert( p );
-                    if(generator::generatorNeighborhood[cgame.currentLevelIndex].size() > 4) {
-                        generator::generatorNeighborhood[cgame.currentLevelIndex].erase(    prev(generator::generatorNeighborhood[cgame.currentLevelIndex].end()) );
+
+                    if (assessed.supplementalRan && assessed.breakdown.difficulty >= 0) {
+                        const long long statesExplored = MAX(1LL, assessed.breakdown.difficulty);
+                        auto p = make_pair(-statesExplored, candidateState);
+                        if(generator::generatorNeighborhood[cgame.currentLevelIndex].empty()
+                           || -statesExplored < generator::generatorNeighborhood[cgame.currentLevelIndex].rbegin()->first) {
+                            addTime = true;
+                        }
+                        generator::generatorNeighborhood[cgame.currentLevelIndex].insert(p);
+                        if(generator::generatorNeighborhood[cgame.currentLevelIndex].size() > 4) {
+                            generator::generatorNeighborhood[cgame.currentLevelIndex].erase(
+                                prev(generator::generatorNeighborhood[cgame.currentLevelIndex].end()));
+                        }
                     }
                 }
                 if(addTime) {
@@ -230,6 +260,7 @@ static void generating() {
                     // via the smoothed throughput. Fall back to the old elapsed
                     // estimate until we have a throughput sample.
                     long long budgetFromStates = timeItTook*7;
+                    const long long statesExplored = MAX(1LL, assessed.breakdown.difficulty);
                     if(expandedPerMs > 0.0) {
                         const double targetMs = (statesExplored * 7.0) / expandedPerMs;
                         budgetFromStates = static_cast<long long>(MIN(targetMs, static_cast<double>(kMaxSolveTimeMs)));
@@ -243,11 +274,11 @@ static void generating() {
                     publishMaxSolveTime(timeToSolve);
                     hasFoundAnyTransform = true;
                 }
-            } else if(info.status == nativebridge::CandidateSolveStatus::Unsolvable) {
+            } else if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Unsolvable) {
                 generator::unsolvableCounter++;
                 //a re-drilled candidate was already tallied as timed-out: move it across
                 if(haveCandidate && generator::timedoutCounter > 0) generator::timedoutCounter--;
-            } else if(info.status == nativebridge::CandidateSolveStatus::Timeout) {
+            } else if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Timeout) {
                 if(!haveCandidate) generator::timedoutCounter++; //count each distinct candidate's timeout once
                 if(unknownStack.size() >= kMaxUnknownStack) {
                     unknownStack.erase(unknownStack.begin());
@@ -262,9 +293,11 @@ static void generating() {
                     publishMaxSolveTime(timeToSolve);
                 }
             } else {
-                if(!haveCandidate) generator::timedoutCounter++; //treat solver errors like time-outs, once per candidate
-                if(!info.error.empty()) {
-                    cerr << "native generator solve error: " << info.error << endl;
+                if (!haveCandidate) {
+                    generator::timedoutCounter++;
+                }
+                if (assessed.primaryStatus == nativebridge::CandidateSolveStatus::Error) {
+                    cerr << "native generator solve error during difficulty assessment" << endl;
                 }
             }
         }

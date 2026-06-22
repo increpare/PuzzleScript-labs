@@ -1923,7 +1923,8 @@ Result runSearch(
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
     const std::atomic_bool* cancelRequested = nullptr,
-    std::unique_ptr<FullState> initialOverride = nullptr
+    std::unique_ptr<FullState> initialOverride = nullptr,
+    uint64_t maxExpanded = 0
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
     Result result;
@@ -2068,6 +2069,10 @@ Result runSearch(
             parentDepth = parentNode.depth;
         }
         const FullState& parentSession = *parentSessionPtr;
+        if (maxExpanded > 0 && result.expanded >= maxExpanded) {
+            result.status = "timeout";
+            break;
+        }
         ++result.expanded;
 
         for (const ps_input input : inputs) {
@@ -3507,7 +3512,8 @@ Result solveSeededLevel(
     bool compactTurnOracle,
     bool compactTurnSearch,
     int32_t astarWeight,
-    size_t portfolioJobs
+    size_t portfolioJobs,
+    uint64_t maxExpanded = 0
 ) {
     const TimePoint searchStart = Clock::now();
     const int64_t effectiveTimeoutMs = std::max<int64_t>(1, timeoutMs);
@@ -3559,7 +3565,8 @@ Result solveSeededLevel(
             puzzlescript::solver::HeuristicKind::Auto,
             nullptr,
             nullptr,
-            std::move(initial)));
+            std::move(initial),
+            maxExpanded));
     }
     if (strategy == Strategy::WeightedAStar) {
         return finish(runSearch(
@@ -3579,7 +3586,8 @@ Result solveSeededLevel(
             puzzlescript::solver::HeuristicKind::Auto,
             nullptr,
             nullptr,
-            std::move(initial)));
+            std::move(initial),
+            maxExpanded));
     }
     if (strategy == Strategy::WeightedAStarDeep) {
         return finish(runSearch(
@@ -3599,7 +3607,8 @@ Result solveSeededLevel(
             puzzlescript::solver::HeuristicKind::Auto,
             nullptr,
             nullptr,
-            std::move(initial)));
+            std::move(initial),
+            maxExpanded));
     }
     if (strategy == Strategy::Greedy) {
         return finish(runSearch(
@@ -3619,7 +3628,8 @@ Result solveSeededLevel(
             puzzlescript::solver::HeuristicKind::Auto,
             nullptr,
             nullptr,
-            std::move(initial)));
+            std::move(initial),
+            maxExpanded));
     }
 
     Result result = runAdaptivePortfolioSearch(
@@ -4483,6 +4493,7 @@ extern "C" ps_solve_options ps_solve_default_options(void) {
     options.compact_turn_oracle = false;
     options.compact_turn_search = true;
     options.astar_weight = 2;
+    options.max_expanded = 0;
     return options;
 }
 
@@ -4531,7 +4542,8 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         effective.compact_turn_oracle,
         effective.compact_turn_search,
         effective.astar_weight,
-        effective.portfolio_jobs);
+        effective.portfolio_jobs,
+        effective.max_expanded);
     *out_result = makeApiSolveResult(result);
     return true;
 }

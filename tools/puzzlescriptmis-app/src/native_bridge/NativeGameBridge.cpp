@@ -375,7 +375,11 @@ std::unique_ptr<NativeGameBridge> NativeGameBridge::createSolverBridge() const {
     return solverBridge;
 }
 
-NativeSolveResult NativeGameBridge::solveLayerGrid(const LayerGrid& grid, int64_t timeoutMs) const {
+NativeSolveResult NativeGameBridge::solveLayerGrid(
+    const LayerGrid& grid,
+    int64_t timeoutMs,
+    ps_solve_strategy strategy,
+    uint64_t maxExpanded) const {
     NativeSolveResult result;
 
     if (!hasGame()) {
@@ -401,8 +405,9 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(const LayerGrid& grid, int64_
 
     ps_solve_options options = ps_solve_default_options();
     options.timeout_ms = std::max<int64_t>(1, timeoutMs);
-    options.strategy = PS_SOLVE_STRATEGY_PORTFOLIO;
+    options.strategy = strategy;
     options.portfolio_jobs = 1;
+    options.max_expanded = maxExpanded;
 
     ps_solve_result* rawSolveResult = nullptr;
     ps_error* rawError = nullptr;
@@ -415,12 +420,12 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(const LayerGrid& grid, int64_
             &rawSolveResult,
             &rawError)) {
         ErrorPtr error(rawError);
-        result.error = error ? ps_error_message(error.get()) : "Failed to run native portfolio solver";
+        result.error = error ? ps_error_message(error.get()) : "Failed to run native solver";
         return result;
     }
     SolveResultPtr solveResult(rawSolveResult);
     if (!solveResult) {
-        result.error = "Native portfolio solver returned no result";
+        result.error = "Native solver returned no result";
         return result;
     }
 
@@ -451,7 +456,7 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(const LayerGrid& grid, int64_
             solveResult->solution + solveResult->solution_count);
     }
     if (result.status == NativeSolveStatus::Error && result.error.empty()) {
-        result.error = "Native portfolio solver failed";
+        result.error = "Native solver failed";
     }
 
     return result;
