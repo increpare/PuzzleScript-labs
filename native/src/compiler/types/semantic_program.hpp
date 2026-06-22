@@ -36,8 +36,19 @@ struct SemanticWinCondition {
     bool aggregate2 = false;
 };
 
+struct SemanticSfxEntry {
+    std::vector<int32_t> objectIds;        // sorted ascending
+    std::vector<std::string> directions;   // sorted; movement/movement_failure only, else empty
+    int32_t layer = -1;                    // movement/movement_failure target layer; -1 otherwise
+    int32_t seed = 0;
+};
+
 struct SemanticSounds {
-    std::map<std::string, int32_t> events;  // sound-event name -> seed
+    std::map<std::string, int32_t> events;  // name -> seed
+    std::vector<SemanticSfxEntry> creation;
+    std::vector<SemanticSfxEntry> destruction;
+    std::vector<SemanticSfxEntry> movement;          // flattened layer-then-source order
+    std::vector<SemanticSfxEntry> movementFailure;
 };
 
 struct SemanticTerm {
@@ -71,8 +82,8 @@ struct SemanticRule {
 
 // Current SemanticProgram contract: resolved object identity, collision layers,
 // resolved legends, resolved levels, resolved win conditions, resolved metadata,
-// and resolved global sound events. Object/movement sfx and rules remain
-// deferred to later slices. Serialized form is versioned via schemaVersion.
+// resolved sounds (events + object/movement sfx), and authored rules.
+// Serialized form is versioned via schemaVersion.
 struct SemanticProgram {
     int32_t schemaVersion = 1;
     std::vector<SemanticObject> objects;

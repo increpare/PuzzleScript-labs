@@ -169,6 +169,8 @@ int main() {
     assert(json.find("\"metadata\"") != std::string::npos);
     assert(json.find("\"sounds\"") != std::string::npos);
     assert(json.find("\"events\"") != std::string::npos);
+    assert(json.find("\"creation\"") != std::string::npos);
+    assert(json.find("\"movement\"") != std::string::npos);
     assert(json.find("\"rules\"") != std::string::npos);
     assert(json.find("\"group_number\"") != std::string::npos);
     assert(json.find("\"terms\"") != std::string::npos);
@@ -239,6 +241,30 @@ int main() {
         assert(soundProgram.sounds.events.size() == 2);
         assert(soundProgram.sounds.events.count("sfx0") && soundProgram.sounds.events.at("sfx0") == 12345678);
         assert(soundProgram.sounds.events.count("endlevel") && soundProgram.sounds.events.at("endlevel") == 87654321);
+    }
+
+    {
+        const std::string sfxSource =
+            "title T\n\n========\nOBJECTS\n========\n\n"
+            "Background\nblack\n\nPlayer\nblue\n\nCrate\nbrown\n\n"
+            "=======\nLEGEND\n=======\n\n. = Background\nP = Player\n* = Crate\n\n"
+            "=======\nSOUNDS\n=======\n\nCrate create 11111111\nPlayer move up 22222222\n\n"
+            "================\nCOLLISIONLAYERS\n================\n\nBackground\nPlayer, Crate\n\n"
+            "======\nRULES\n======\n\n==============\nWINCONDITIONS\n==============\n\n"
+            "=======\nLEVELS\n=======\n\nP*\n";
+        puzzlescript::compiler::DiagnosticSink d;
+        const auto st = puzzlescript::compiler::parseSource(sfxSource, d);
+        puzzlescript::LoadedGame g;
+        assert(!puzzlescript::compiler::lowerToRuntimeGame(st, g));
+        assert(g.information);
+        const auto p = puzzlescript::compiler::buildSemanticProgram(*g.information);
+        assert(p.sounds.creation.size() == 1 && p.sounds.creation[0].seed == 11111111);
+        assert(p.sounds.creation[0].objectIds.size() == 1);   // crate
+        assert(p.sounds.creation[0].directions.empty() && p.sounds.creation[0].layer == -1);
+        assert(p.sounds.movement.size() == 1 && p.sounds.movement[0].seed == 22222222);
+        assert(p.sounds.movement[0].objectIds.size() == 1);   // player
+        assert((p.sounds.movement[0].directions == std::vector<std::string>{"up"}));
+        assert(p.sounds.movement[0].layer >= 0);
     }
 
     return 0;

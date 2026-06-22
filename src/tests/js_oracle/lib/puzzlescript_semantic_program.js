@@ -160,7 +160,41 @@ function buildSemanticProgramSnapshot(state) {
     for (const name of Object.keys(state.sfx_Events || {})) {
         soundEvents[name] = parseInt(state.sfx_Events[name], 10);
     }
-    const sounds = { events: soundEvents };
+    function decodeBitVec(mask, count) {
+        const ids = [];
+        if (mask && mask.data) {
+            for (let id = 0; id < count; id++) {
+                if ((mask.data[id >> 5] & (1 << (id & 31))) !== 0) ids.push(id);
+            }
+        }
+        return ids;
+    }
+    function sfxEntry(e) {
+        const names = ['up', 'down', 'left', 'right', 'action'];
+        const dirs = [];
+        const layer = (e.layer === undefined) ? -1 : e.layer;
+        if (layer >= 0 && e.directionMask && e.directionMask.data) {
+            for (let k = 0; k < 5; k++) {
+                const bit = 5 * layer + k;
+                if ((e.directionMask.data[bit >> 5] & (1 << (bit & 31))) !== 0) dirs.push(names[k]);
+            }
+        }
+        return {
+            object_ids: decodeBitVec(e.objectMask, state.idDict.length),
+            directions: dirs,
+            layer: layer,
+            seed: parseInt(e.seed, 10),
+        };
+    }
+    const sounds = {
+        events: soundEvents,
+        creation: (state.sfx_CreationMasks || []).map(sfxEntry),
+        destruction: (state.sfx_DestructionMasks || []).map(sfxEntry),
+        movement: (state.sfx_MovementMasks || []).reduce(function (acc, layerList) {
+            return acc.concat(layerList.map(sfxEntry));
+        }, []),
+        movement_failure: (state.sfx_MovementFailureMasks || []).map(sfxEntry),
+    };
     const rules = ruleList(state);
 
     return {

@@ -181,6 +181,89 @@ void appendMetadataObject(std::string& out, const std::map<std::string, std::str
     out += '}';
 }
 
+std::vector<std::string> decodeSfxDirections(
+    const puzzlescript::Game& game, puzzlescript::MaskOffset offset, uint32_t width, int32_t layer) {
+    std::vector<std::string> dirs;
+    if (offset == puzzlescript::kNullMaskOffset || layer < 0) {
+        return dirs;
+    }
+    const size_t base = static_cast<size_t>(offset);
+    if (base + width > game.maskArena.size()) {
+        return dirs;
+    }
+    const puzzlescript::MaskWord* mask = game.maskArena.data() + base;
+    static const char* kNames[5] = {"up", "down", "left", "right", "action"};
+    for (int32_t k = 0; k < 5; ++k) {
+        const uint32_t bit = static_cast<uint32_t>(5 * layer + k);
+        const uint32_t word = puzzlescript::maskWordIndex(bit);
+        if (word >= width) {
+            continue;
+        }
+        if ((mask[word] & puzzlescript::maskBit(bit)) != 0) {
+            dirs.push_back(kNames[k]);
+        }
+    }
+    return dirs;
+}
+
+int32_t deriveDirectionMaskLayer(
+    const puzzlescript::Game& game, puzzlescript::MaskOffset offset, uint32_t width) {
+    if (offset == puzzlescript::kNullMaskOffset || width == 0) {
+        return -1;
+    }
+    const size_t base = static_cast<size_t>(offset);
+    if (base + width > game.maskArena.size()) {
+        return -1;
+    }
+    const puzzlescript::MaskWord* mask = game.maskArena.data() + base;
+    for (uint32_t bit = 0; bit < width * 32; ++bit) {
+        const uint32_t word = puzzlescript::maskWordIndex(bit);
+        if (word >= width) {
+            continue;
+        }
+        if ((mask[word] & puzzlescript::maskBit(bit)) != 0) {
+            return static_cast<int32_t>(bit / 5);
+        }
+    }
+    return -1;
+}
+
+SemanticSfxEntry toSfxEntry(const puzzlescript::Game& game, const puzzlescript::SoundMaskEntry& e, int32_t layer) {
+    SemanticSfxEntry out;
+    out.objectIds = decodeMaskObjectIds(game, e.objectMask);
+    out.layer = layer;
+    out.seed = e.seed;
+    if (layer >= 0) {
+        out.directions = decodeSfxDirections(game, e.directionMask, e.directionMaskWidth, layer);
+    }
+    return out;
+}
+
+void appendSfxArray(std::string& out, const std::vector<SemanticSfxEntry>& entries) {
+    out += '[';
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (i != 0) {
+            out += ',';
+        }
+        const auto& e = entries[i];
+        out += "{\"object_ids\":";
+        appendIntArray(out, e.objectIds);
+        out += ",\"directions\":[";
+        for (size_t d = 0; d < e.directions.size(); ++d) {
+            if (d != 0) {
+                out += ',';
+            }
+            appendJsonString(out, e.directions[d]);
+        }
+        out += "],\"layer\":";
+        out += std::to_string(e.layer);
+        out += ",\"seed\":";
+        out += std::to_string(e.seed);
+        out += "}";
+    }
+    out += ']';
+}
+
 void appendSoundEventsObject(std::string& out, const std::map<std::string, int32_t>& events) {
     out += '{';
     bool first = true;
@@ -369,6 +452,22 @@ SemanticProgram buildSemanticProgram(
 
     program.sounds.events = game.sfxEvents;
 
+    for (const auto& e : game.sfxCreationMasks) {
+        program.sounds.creation.push_back(toSfxEntry(game, e, -1));
+    }
+    for (const auto& e : game.sfxDestructionMasks) {
+        program.sounds.destruction.push_back(toSfxEntry(game, e, -1));
+    }
+    for (int32_t layer = 0; layer < static_cast<int32_t>(game.sfxMovementMasks.size()); ++layer) {
+        for (const auto& e : game.sfxMovementMasks[static_cast<size_t>(layer)]) {
+            program.sounds.movement.push_back(toSfxEntry(game, e, layer));
+        }
+    }
+    for (const auto& e : game.sfxMovementFailureMasks) {
+        const int32_t layer = deriveDirectionMaskLayer(game, e.directionMask, e.directionMaskWidth);
+        program.sounds.movementFailure.push_back(toSfxEntry(game, e, layer));
+    }
+
     program.rules = authoredRules;
 
     return program;
@@ -413,6 +512,14 @@ std::string serializeSemanticProgramJson(const SemanticProgram& program) {
     appendMetadataObject(out, program.metadata);
     out += ",\"sounds\":{\"events\":";
     appendSoundEventsObject(out, program.sounds.events);
+    out += ",\"creation\":";
+    appendSfxArray(out, program.sounds.creation);
+    out += ",\"destruction\":";
+    appendSfxArray(out, program.sounds.destruction);
+    out += ",\"movement\":";
+    appendSfxArray(out, program.sounds.movement);
+    out += ",\"movement_failure\":";
+    appendSfxArray(out, program.sounds.movementFailure);
     out += "},\"rules\":";
     appendRuleArray(out, program.rules);
     out += "}}";
