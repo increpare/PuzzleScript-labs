@@ -132,6 +132,7 @@ struct QueuedTimeout {
 };
 
 static const size_t kMaxUnknownStack = 64;
+static const long long kMaxSolveTimeMs = 60000; //ceiling so a bad throughput estimate can't run away
 
 static void publishMaxSolveTime(long long threadBudgetMs) {
     const int budgetMs = static_cast<int>(MIN(threadBudgetMs, static_cast<long long>(INT_MAX)));
@@ -152,28 +153,25 @@ static void generating() {
         return;
     }
 
-    chrono::steady_clock::time_point timeSinceLastImprovement = chrono::steady_clock::now();
-    
     //default time
     long long timeToSolve = 100; //start with a tenth of a second
-    long long statesForExploitation;
     bool hasFoundAnyTransform = false;
+    // Difficulty is measured in states expanded (machine-independent), but the
+    // native solver only enforces a wall-clock budget. Keep a smoothed estimate
+    // of solver throughput (states expanded per ms) so an expanded-count target
+    // can be translated back into a time budget that doesn't drift with CPU load.
+    double expandedPerMs = 0.0;
     generator::counter = 0; generator::solvedCounter = 0, generator::unsolvableCounter = 0, generator::timedoutCounter = 0;
     publishMaxSolveTime(timeToSolve);
     vector<QueuedTimeout> unknownStack;
     while(requestGenerating) {
-        generator::counter++;
         //if(counter % 10 == 0) cerr << "generated " << counter << " levels." << endl;
-        if(!hasFoundAnyTransform) {
-            chrono::steady_clock::time_point ctime = chrono::steady_clock::now();
-            auto timePassedSinceLastImprovement = chrono::duration_cast<std::chrono::milliseconds>(ctime - timeSinceLastImprovement).count();
-            timeToSolve = MAX(timeToSolve, timePassedSinceLastImprovement/10);
-            publishMaxSolveTime(timeToSolve);
-        }
-        
+
         vvvs candidateState;
         bool haveCandidate = false;
-        for(size_t retryIndex = 0; retryIndex < unknownStack.size(); ++retryIndex) {
+        // Only re-drill queued time-outs once we have a transform and a real
+        // difficulty budget; before that, favour breadth (find any transform).
+        for(size_t retryIndex = 0; hasFoundAnyTransform && retryIndex < unknownStack.size(); ++retryIndex) {
             if(unknownStack[retryIndex].lastBudgetMs < timeToSolve) {
                 candidateState = unknownStack[retryIndex].state;
                 unknownStack.erase(unknownStack.begin() + static_cast<long>(retryIndex));
@@ -191,6 +189,7 @@ static void generating() {
             //Do the obligatory stationary move
             moveAndChangeField(STATIONARY_MOVE, newStates[0], cgame);
             candidateState = newStates[0];
+            generator::counter++; //count distinct generated candidates, not retries
         }
 
         //TODO: only matched part
@@ -199,6 +198,14 @@ static void generating() {
         {
             const long long budgetMs = timeToSolve;
             nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(*solverContext, candidateState, timeToSolve);
+
+            // Update the throughput estimate from any run that actually searched
+            // (solved or timed-out both report states expanded over elapsed time).
+            if(info.expanded > 0 && info.elapsedMs > 0) {
+                const double sampleRate = static_cast<double>(info.expanded) / static_cast<double>(info.elapsedMs);
+                expandedPerMs = (expandedPerMs <= 0.0) ? sampleRate : (0.8 * expandedPerMs + 0.2 * sampleRate);
+            }
+
             if(info.status == nativebridge::CandidateSolveStatus::Solved) {
                 long long timeItTook = MAX(1, info.elapsedMs);
                 long long statesExplored = MAX(1, info.expanded);
@@ -209,6 +216,8 @@ static void generating() {
                     if(generator::generatorNeighborhood[cgame.currentLevelIndex].empty() || -statesExplored < generator::generatorNeighborhood[cgame.currentLevelIndex].rbegin()->first)
                         addTime = true;
                     generator::solvedCounter++;
+                    //a re-drilled candidate was already tallied as timed-out: move it across
+                    if(haveCandidate && generator::timedoutCounter > 0) generator::timedoutCounter--;
                     generator::generatorNeighborhood[cgame.currentLevelIndex].insert( p );
                     if(generator::generatorNeighborhood[cgame.currentLevelIndex].size() > 4) {
                         generator::generatorNeighborhood[cgame.currentLevelIndex].erase(    prev(generator::generatorNeighborhood[cgame.currentLevelIndex].end()) );
@@ -216,26 +225,44 @@ static void generating() {
                 }
                 if(addTime) {
                     //cout << "alrighty " << timeToSolve << " " << timeItTook << endl;
-                    if(!hasFoundAnyTransform)
-                        timeToSolve = MAX(1000,timeItTook*7);
-                    else {
-                        timeToSolve = MAX(timeToSolve, timeItTook*7);
-                        //cerr << "time to solve: " <<  timeToSolve << endl;
+                    // Grow the budget toward the difficulty frontier measured in
+                    // states expanded (×7 headroom), translated to a time budget
+                    // via the smoothed throughput. Fall back to the old elapsed
+                    // estimate until we have a throughput sample.
+                    long long budgetFromStates = timeItTook*7;
+                    if(expandedPerMs > 0.0) {
+                        const double targetMs = (statesExplored * 7.0) / expandedPerMs;
+                        budgetFromStates = static_cast<long long>(MIN(targetMs, static_cast<double>(kMaxSolveTimeMs)));
                     }
-                    
+                    budgetFromStates = MAX(1LL, budgetFromStates);
+                    if(!hasFoundAnyTransform)
+                        timeToSolve = MAX(1000LL, budgetFromStates);
+                    else
+                        timeToSolve = MAX(timeToSolve, budgetFromStates);
+
                     publishMaxSolveTime(timeToSolve);
                     hasFoundAnyTransform = true;
                 }
             } else if(info.status == nativebridge::CandidateSolveStatus::Unsolvable) {
                 generator::unsolvableCounter++;
+                //a re-drilled candidate was already tallied as timed-out: move it across
+                if(haveCandidate && generator::timedoutCounter > 0) generator::timedoutCounter--;
             } else if(info.status == nativebridge::CandidateSolveStatus::Timeout) {
-                generator::timedoutCounter++;
+                if(!haveCandidate) generator::timedoutCounter++; //count each distinct candidate's timeout once
                 if(unknownStack.size() >= kMaxUnknownStack) {
                     unknownStack.erase(unknownStack.begin());
                 }
                 unknownStack.push_back({candidateState, budgetMs});
+                // Before the first transform there is no difficulty signal yet, so
+                // ramp the budget geometrically on time-outs (machine-independent,
+                // unlike the old wall-clock ramp) until something solves. We do not
+                // re-drill here, so generation keeps exploring new candidates.
+                if(!hasFoundAnyTransform) {
+                    timeToSolve = MIN(kMaxSolveTimeMs, timeToSolve*2);
+                    publishMaxSolveTime(timeToSolve);
+                }
             } else {
-                generator::timedoutCounter++;
+                if(!haveCandidate) generator::timedoutCounter++; //treat solver errors like time-outs, once per candidate
                 if(!info.error.empty()) {
                     cerr << "native generator solve error: " << info.error << endl;
                 }

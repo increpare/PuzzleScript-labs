@@ -809,7 +809,10 @@ void displayLevelEditor() {
 		if (info.phase == levelSolve::Phase::Unsolvable) {
 			displayStrL = "Unsolvable!!!";
 		} else if (info.phase == levelSolve::Phase::Solved) {
-			displayStrL = "Shortest solution size: " + to_string(info.solutionLength);
+			// Only BFS is guaranteed optimal; the portfolio's greedy/weighted-A*
+			// strategies can return a non-shortest solution, so don't claim
+			// "shortest" unless BFS produced it.
+			displayStrL = (info.algorithm == "BFS" ? "Shortest solution size: " : "Solution size: ") + to_string(info.solutionLength);
 			displayStrR = "Difficulty " + to_string(info.expanded);
 			if (!info.algorithm.empty()) {
 				displayStrR += " (" + info.algorithm + ")";

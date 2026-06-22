@@ -39,8 +39,7 @@ string formatAlgorithmName(const string& strategy) {
 recursive_mutex solveMutex;
 thread solveThread;
 atomic<bool> keepSolving(false);
-uint64_t activeRequestHash = 0;
-vvvs activeState;
+atomic<uint64_t> activeRequestHash{0};
 Snapshot activeSnapshot;
 
 void updateSnapshotLocked(const Snapshot& next) {
@@ -51,20 +50,21 @@ void solvingLoop(uint64_t requestHash, vvvs state) {
     shared_ptr<nativebridge::CandidateSolverContext> context = nativebridge::createCandidateSolverContext();
     if (!context) {
         synchronized(solveMutex) {
-            if (activeRequestHash == requestHash) {
+            if (activeRequestHash.load() == requestHash) {
                 updateSnapshotLocked({Phase::Idle, -1, -1, "", requestHash});
+                keepSolving.store(false, std::memory_order_relaxed);
             }
         }
         return;
     }
 
     long long timeoutMs = 500;
-    while (keepSolving.load(std::memory_order_relaxed) && activeRequestHash == requestHash) {
+    while (keepSolving.load(std::memory_order_relaxed) && activeRequestHash.load() == requestHash) {
         const nativebridge::CandidateSolveResult result =
             nativebridge::solveGeneratedState(*context, state, timeoutMs);
 
         synchronized(solveMutex) {
-            if (activeRequestHash != requestHash) {
+            if (activeRequestHash.load() != requestHash) {
                 break;
             }
 
@@ -113,6 +113,16 @@ void solvingLoop(uint64_t requestHash, vvvs state) {
         }
         break;
     }
+
+    // The search has finished (solved / unsolvable / error / superseded). If we
+    // are still the active request, clear the running flag so that a later
+    // requestSolve() for this same state is not mistaken for an in-flight solve
+    // and short-circuited.
+    synchronized(solveMutex) {
+        if (activeRequestHash.load() == requestHash) {
+            keepSolving.store(false, std::memory_order_relaxed);
+        }
+    }
 }
 
 } // namespace
@@ -130,36 +140,48 @@ void requestSolve(const Game& game, const vvvs& state) {
 
     const uint64_t requestHash = stateHash(game, state);
 
+    // requestSolve()/stopSolve() are only ever called from the UI thread, so the
+    // two critical sections below cannot interleave with each other.
+    thread previousThread;
     synchronized(solveMutex) {
-        if (activeRequestHash == requestHash && activeSnapshot.phase == Phase::Solved) {
+        if (activeRequestHash.load() == requestHash && activeSnapshot.phase == Phase::Solved) {
             return;
         }
-        if (activeRequestHash == requestHash && keepSolving.load(std::memory_order_relaxed)) {
+        if (activeRequestHash.load() == requestHash && keepSolving.load(std::memory_order_relaxed)) {
             return;
         }
 
+        // Signal the worker to stop and take ownership of its handle so we can join
+        // it *outside* solveMutex. The worker re-acquires solveMutex after every
+        // solve to publish its snapshot, so joining while holding the lock would
+        // deadlock.
         keepSolving.store(false, std::memory_order_relaxed);
-        if (solveThread.joinable()) {
-            solveThread.join();
-        }
+        previousThread = std::move(solveThread);
+    }
 
-        activeRequestHash = requestHash;
-        activeState = state;
+    if (previousThread.joinable()) {
+        previousThread.join();
+    }
+
+    synchronized(solveMutex) {
+        activeRequestHash.store(requestHash, std::memory_order_relaxed);
         activeSnapshot = {Phase::Running, -1, -1, "", requestHash};
         keepSolving.store(true, std::memory_order_relaxed);
-        solveThread = thread(solvingLoop, requestHash, activeState);
+        solveThread = thread(solvingLoop, requestHash, state);
     }
 }
 
 void stopSolve() {
+    thread previousThread;
     synchronized(solveMutex) {
         keepSolving.store(false, std::memory_order_relaxed);
-        if (solveThread.joinable()) {
-            solveThread.join();
-        }
-        activeRequestHash = 0;
+        activeRequestHash.store(0, std::memory_order_relaxed);
         activeSnapshot = {};
-        activeState.clear();
+        previousThread = std::move(solveThread);
+    }
+    // Join outside the lock; the worker needs solveMutex to observe the stop and exit.
+    if (previousThread.joinable()) {
+        previousThread.join();
     }
 }
 
