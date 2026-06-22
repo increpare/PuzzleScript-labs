@@ -125,6 +125,23 @@ namespace generator {
 static volatile std::atomic_bool requestGenerating(false);
 static Game cgame;
 static vector<vector<bool> > cmodifyTable;
+
+struct QueuedTimeout {
+    vvvs state;
+    long long lastBudgetMs;
+};
+
+static const size_t kMaxUnknownStack = 64;
+
+static void publishMaxSolveTime(long long threadBudgetMs) {
+    const int budgetMs = static_cast<int>(MIN(threadBudgetMs, static_cast<long long>(INT_MAX)));
+    synchronized(generator::generatorMutex) {
+        if(generator::maxSolveTime < budgetMs) {
+            generator::maxSolveTime = budgetMs;
+        }
+    }
+}
+
 static void generating() {
     
     
@@ -141,8 +158,9 @@ static void generating() {
     long long timeToSolve = 100; //start with a tenth of a second
     long long statesForExploitation;
     bool hasFoundAnyTransform = false;
-    generator::counter = 0; generator::solvedCounter = 0, generator::unsolvableCounter = 0, generator::timedoutCounter = 0, generator::maxSolveTime = timeToSolve;
-    vector<vvvs> unknownStack;
+    generator::counter = 0; generator::solvedCounter = 0, generator::unsolvableCounter = 0, generator::timedoutCounter = 0;
+    publishMaxSolveTime(timeToSolve);
+    vector<QueuedTimeout> unknownStack;
     while(requestGenerating) {
         generator::counter++;
         //if(counter % 10 == 0) cerr << "generated " << counter << " levels." << endl;
@@ -150,26 +168,41 @@ static void generating() {
             chrono::steady_clock::time_point ctime = chrono::steady_clock::now();
             auto timePassedSinceLastImprovement = chrono::duration_cast<std::chrono::milliseconds>(ctime - timeSinceLastImprovement).count();
             timeToSolve = MAX(timeToSolve, timePassedSinceLastImprovement/10);
-            generator::maxSolveTime = timeToSolve;
+            publishMaxSolveTime(timeToSolve);
         }
         
-        /* maybe remove possibility of double match (think about this some more...) */
-        vector<vvvs> newStates = generateStep(cgame.currentState, 1, cgame, cmodifyTable);
-        if(newStates.empty()) {
-            continue;
+        vvvs candidateState;
+        bool haveCandidate = false;
+        for(size_t retryIndex = 0; retryIndex < unknownStack.size(); ++retryIndex) {
+            if(unknownStack[retryIndex].lastBudgetMs < timeToSolve) {
+                candidateState = unknownStack[retryIndex].state;
+                unknownStack.erase(unknownStack.begin() + static_cast<long>(retryIndex));
+                haveCandidate = true;
+                break;
+            }
         }
-        //Do the obligatory stationary move
-        moveAndChangeField(STATIONARY_MOVE, newStates[0], cgame);
+        
+        if(!haveCandidate) {
+            /* maybe remove possibility of double match (think about this some more...) */
+            vector<vvvs> newStates = generateStep(cgame.currentState, 1, cgame, cmodifyTable);
+            if(newStates.empty()) {
+                continue;
+            }
+            //Do the obligatory stationary move
+            moveAndChangeField(STATIONARY_MOVE, newStates[0], cgame);
+            candidateState = newStates[0];
+        }
 
         //TODO: only matched part
         //TODO: make sure newStates doesn't appear in current state
         
         {
-            nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(*solverContext, newStates[0], timeToSolve);
+            const long long budgetMs = timeToSolve;
+            nativebridge::CandidateSolveResult info = nativebridge::solveGeneratedState(*solverContext, candidateState, timeToSolve);
             if(info.status == nativebridge::CandidateSolveStatus::Solved) {
                 long long timeItTook = MAX(1, info.elapsedMs);
                 long long statesExplored = MAX(1, info.expanded);
-                auto p = make_pair(-statesExplored, newStates[0] );
+                auto p = make_pair(-statesExplored, candidateState );
                 bool addTime = false;
                 synchronized(generator::generatorMutex) {
                     std::atomic_thread_fence(std::memory_order_seq_cst);
@@ -190,30 +223,17 @@ static void generating() {
                         //cerr << "time to solve: " <<  timeToSolve << endl;
                     }
                     
-                    generator::maxSolveTime = timeToSolve;
+                    publishMaxSolveTime(timeToSolve);
                     hasFoundAnyTransform = true;
                 }
             } else if(info.status == nativebridge::CandidateSolveStatus::Unsolvable) {
                 generator::unsolvableCounter++;
             } else if(info.status == nativebridge::CandidateSolveStatus::Timeout) {
                 generator::timedoutCounter++;
-                /* In case you also want to add the unsolved levels:
-                pair<long long, vvvs> p;
-                synchronized(generator::generatorMutex) {
-                    std::atomic_thread_fence(std::memory_order_seq_cst);
-                    if(generator::generatorNeighborhood[cgame.currentLevelIndex].size()==4 ) {
-                        auto it = generator::generatorNeighborhood[cgame.currentLevelIndex].begin();
-                        it++;
-                        long long last = it->first;
-                        p = make_pair(last, newStates[0] );
-                        generator::generatorNeighborhood[cgame.currentLevelIndex].insert( p );
-                        if(generator::generatorNeighborhood[cgame.currentLevelIndex].size() > 4) {
-                            generator::generatorNeighborhood[cgame.currentLevelIndex].erase(    prev(generator::generatorNeighborhood[cgame.currentLevelIndex].end()) );
-                        }
-                    }
-                }*/
-                //unknownStack.push_back(newStates[0]);
-                //cerr << "ended with timeout " << info.success << " " << hasFoundAnyTransform << " " << timeToSolve << endl;
+                if(unknownStack.size() >= kMaxUnknownStack) {
+                    unknownStack.erase(unknownStack.begin());
+                }
+                unknownStack.push_back({candidateState, budgetMs});
             } else {
                 generator::timedoutCounter++;
                 if(!info.error.empty()) {

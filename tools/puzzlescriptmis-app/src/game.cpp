@@ -3,6 +3,7 @@
 #include "collisionlayers.h"
 #include "colors.h"
 #include "global.h"
+#include "levelSolve.h"
 #include "legend.h"
 #include "levels.h"
 #include "logError.h"
@@ -82,6 +83,7 @@ void Game::updateLevelState(vvvs newCurrentState, int index) {
         currentLevelHeight = currentState[0].size();
         currentLevelWidth = currentState[0][0].size();
         beginStateAfterStationaryMove = currentState;
+        levelSolve::requestSolve(*this, beginStateAfterStationaryMove);
     }
 }
 

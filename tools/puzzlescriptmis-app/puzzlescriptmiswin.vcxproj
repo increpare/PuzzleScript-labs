@@ -183,6 +183,7 @@
     <ClCompile Include="src\generation.cpp" />
     <ClCompile Include="src\global.cpp" />
     <ClCompile Include="src\keyHandling.cpp" />
+    <ClCompile Include="src\levelSolve.cpp" />
     <ClCompile Include="src\legend.cpp" />
     <ClCompile Include="src\levels.cpp" />
     <ClCompile Include="src\logError.cpp" />
@@ -206,6 +207,7 @@
     <ClInclude Include="src\generation.h" />
     <ClInclude Include="src\global.h" />
     <ClInclude Include="src\keyHandling.h" />
+    <ClInclude Include="src\levelSolve.h" />
     <ClInclude Include="src\legend.h" />
     <ClInclude Include="src\levels.h" />
     <ClInclude Include="src\logError.h" />

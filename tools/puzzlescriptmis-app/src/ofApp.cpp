@@ -8,6 +8,7 @@
 #include "global.h"
 #include "generation.h"
 #include "keyHandling.h"
+#include "levelSolve.h"
 #include "solver.h"
 #include "testCases.h"
 #include "visualsandide.h"
@@ -169,6 +170,7 @@ void ofApp::exit() {
     stopSolving(0);
     //stop solver 2
     stopSolving(1);
+    levelSolve::stopSolve();
     //stop generating
     stopGenerating();
 }

@@ -1,6 +1,7 @@
 #include "global.h"
 
 #include "game.h"
+#include "levelSolve.h"
 #include "logError.h"
 #include "native_bridge/NativeGameFacade.h"
 #include "recordandundo.h"
@@ -27,6 +28,8 @@ void switchToLevel(int level, Game & game) {
     }
 
     game.currentMessageIndex = 0;
+
+    levelSolve::requestSolve(game, game.beginStateAfterStationaryMove);
     
     /* TODO:
      if(game.currentMessageIndex < game.messages[level].size()) {

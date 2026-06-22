@@ -12,6 +12,7 @@
 		"0D1A701A-6E04-4A31-9E29-FB2E0D7F0012" /* NativeGameFacade.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "0D1A701A-6E04-4A31-9E29-FB2E0D7F0015" /* NativeGameFacade.cpp */; };
 		"1ADB9C8E-4CD9-45A4-AFCC-0F5EB2F48A82" /* generation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "A1FE2530-2AE5-45CE-B53D-E3E8E65444DD" /* generation.cpp */; };
 		"1FA622B7-5C7A-41F7-8411-F7BEAAD77C6F" /* logError.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "6033FF70-585F-4052-A9F5-E9E03E24A6DE" /* logError.cpp */; };
+		"C1A2B3C4-D5E6-47F8-9012-3456789ABCDE" /* levelSolve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "C1A2B3C4-D5E6-47F8-9012-3456789ABCDF" /* levelSolve.cpp */; };
 		"2DC6608D-3F25-4FDD-849C-FE6BDD8FF601" /* stringUtilities.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "704EF2B1-5E53-4307-8CA1-F84171CE586C" /* stringUtilities.cpp */; };
 		"30CC4857-6071-4C1C-B18A-BFD714771B9E" /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "70944617-9848-4E59-BBB6-887965C07953" /* global.cpp */; };
 		"3C33A92E-B937-48DF-9A69-FFAA2CF0078D" /* ofxButton.cpp in Sources */ = {isa = PBXBuildFile; fileRef = "B7F7CA83-8C86-4E2C-9B84-C7375AACF0CD" /* ofxButton.cpp */; };
@@ -153,6 +154,8 @@
 		"F43ECAC2-07A8-4E4F-B27E-2C759B645573" /* ofxBaseGui.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxBaseGui.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxBaseGui.cpp; sourceTree = SOURCE_ROOT; };
 		"FD8CD062-C867-4D27-AAB7-3CDF5B731B64" /* ofxSliderGroup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = ofxSliderGroup.cpp; path = ../../../of_v0.12.1_osx_release/addons/ofxGui/src/ofxSliderGroup.cpp; sourceTree = SOURCE_ROOT; };
 		"FEF98860-3E7C-49A3-8533-367BF37B857C" /* keyHandling.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = keyHandling.h; path = src/keyHandling.h; sourceTree = SOURCE_ROOT; };
+		"C1A2B3C4-D5E6-47F8-9012-3456789ABCDF" /* levelSolve.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = levelSolve.cpp; path = src/levelSolve.cpp; sourceTree = SOURCE_ROOT; };
+		"C1A2B3C4-D5E6-47F8-9012-3456789ABCE0" /* levelSolve.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = levelSolve.h; path = src/levelSolve.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -333,6 +336,8 @@
 				"E5E8B1F0-9412-43FF-9D0B-7DB8E613D477" /* global.h */,
 				"F2BD893B-ED7A-4249-B67C-E50B55C29561" /* keyHandling.cpp */,
 				"FEF98860-3E7C-49A3-8533-367BF37B857C" /* keyHandling.h */,
+				"C1A2B3C4-D5E6-47F8-9012-3456789ABCDF" /* levelSolve.cpp */,
+				"C1A2B3C4-D5E6-47F8-9012-3456789ABCE0" /* levelSolve.h */,
 				"BE5F6D59-62CC-4C52-BC46-B47110F7E580" /* legend.cpp */,
 				"3D595343-8901-4797-A7EE-F94DBEB9B82A" /* legend.h */,
 				"A837505B-26A0-4250-A217-048D569D7A57" /* levels.cpp */,
@@ -482,6 +487,7 @@
 				"1ADB9C8E-4CD9-45A4-AFCC-0F5EB2F48A82" /* generation.cpp in Sources */,
 				"30CC4857-6071-4C1C-B18A-BFD714771B9E" /* global.cpp in Sources */,
 				"FBE6847A-1143-4299-83D4-8C1DD919B814" /* keyHandling.cpp in Sources */,
+				"C1A2B3C4-D5E6-47F8-9012-3456789ABCDE" /* levelSolve.cpp in Sources */,
 				"940BF662-5D7E-4108-9A59-8C53E7789A95" /* legend.cpp in Sources */,
 				"F76CC2B1-C3D1-4123-BE1E-1BA579AC5B17" /* levels.cpp in Sources */,
 				"1FA622B7-5C7A-41F7-8411-F7BEAAD77C6F" /* logError.cpp in Sources */,

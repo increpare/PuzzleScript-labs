@@ -7,6 +7,7 @@
 #include "levels.h"
 #include "logError.h"
 #include "keyHandling.h"
+#include "levelSolve.h"
 #include "native_bridge/NativeGameFacade.h"
 #include "objects.h"
 #include "recordandundo.h"
@@ -801,8 +802,29 @@ void displayLevelEditor() {
 
 		string displayStrL, displayStrR = "";
 
-        displayStrL = "";
-        displayStrR = "";
+		string questionMarkStr = ofGetElapsedTimeMicros() % 750000 < 250000 ? ".  " : ofGetElapsedTimeMicros() % 750000 < 500000 ? ".. " : "...";
+		const uint64_t solhash = levelSolve::stateHash(gbl::currentGame, gbl::currentGame.beginStateAfterStationaryMove);
+		const levelSolve::Snapshot info = levelSolve::snapshot(solhash);
+
+		if (info.phase == levelSolve::Phase::Unsolvable) {
+			displayStrL = "Unsolvable!!!";
+		} else if (info.phase == levelSolve::Phase::Solved) {
+			displayStrL = "Shortest solution size: " + to_string(info.solutionLength);
+			displayStrR = "Difficulty " + to_string(info.expanded);
+			if (!info.algorithm.empty()) {
+				displayStrR += " (" + info.algorithm + ")";
+			}
+		} else {
+			displayStrL = "No solution found yet" + questionMarkStr;
+			if (info.expanded > -1) {
+				displayStrR = "Difficulty " + to_string(info.expanded);
+				if (!info.algorithm.empty()) {
+					displayStrR += " (" + info.algorithm + ")";
+				}
+			} else {
+				displayStrR = "Difficulty " + questionMarkStr;
+			}
+		}
         
     
         

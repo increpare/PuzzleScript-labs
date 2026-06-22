@@ -256,6 +256,8 @@ CandidateSolveResult nativeResultToCandidateSolveResult(const psbridge::NativeSo
     result.expanded = static_cast<long long>(nativeResult.expanded);
     result.generated = static_cast<long long>(nativeResult.generated);
     result.elapsedMs = static_cast<long long>(nativeResult.elapsedMs);
+    result.strategy = nativeResult.strategy;
+    result.heuristic = nativeResult.heuristic;
     result.error = nativeResult.error;
     result.solution.reserve(nativeResult.solution.size());
     for (ps_input input : nativeResult.solution) {

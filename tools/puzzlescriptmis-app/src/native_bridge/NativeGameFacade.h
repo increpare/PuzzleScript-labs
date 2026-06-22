@@ -26,6 +26,8 @@ struct CandidateSolveResult {
     long long generated = 0;
     long long elapsedMs = 0;
     std::vector<short> solution;
+    std::string strategy;
+    std::string heuristic;
     std::string error;
 };
 
