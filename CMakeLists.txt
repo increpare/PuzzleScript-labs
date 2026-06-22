@@ -14,9 +14,12 @@ if(PUZZLESCRIPT_BUILD_NATIVE)
     tools/puzzlescriptmis-app/tests/native_bridge_smoke.cpp
   )
 
+  set_target_properties(puzzlescriptmis_native_bridge_smoke PROPERTIES CXX_STANDARD 17)
+
   target_include_directories(puzzlescriptmis_native_bridge_smoke
     PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/tools/puzzlescriptmis-app/src
+      ${CMAKE_CURRENT_SOURCE_DIR}/native/src
   )
 
   target_link_libraries(puzzlescriptmis_native_bridge_smoke

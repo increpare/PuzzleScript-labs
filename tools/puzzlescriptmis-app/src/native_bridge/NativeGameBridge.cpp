@@ -1,5 +1,7 @@
 #include "native_bridge/NativeGameBridge.h"
 
+#include "runtime/c_api_internal.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <string>
@@ -397,7 +399,6 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(
         return result;
     }
 
-    const int32_t levelIndex = state_ ? status().currentLevelIndex : 0;
     std::vector<int32_t> nativeIds;
     nativeIds.reserve(grid.displayObjectIds.size());
     for (int32_t displayId : grid.displayObjectIds) {
@@ -415,7 +416,8 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(
     ps_error* rawError = nullptr;
     if (!ps_solve_level_layer_cell_object_ids(
             game(),
-            levelIndex,
+            grid.width,
+            grid.height,
             nativeIds.data(),
             nativeIds.size(),
             &options,
@@ -466,6 +468,14 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(
 
 const ps_game* NativeGameBridge::game() const {
     return game_.get();
+}
+
+const puzzlescript::LoadedGame& NativeGameBridge::loadedGame() const {
+    static const puzzlescript::LoadedGame kEmpty;
+    if (!game_) {
+        return kEmpty;
+    }
+    return game_->impl;
 }
 
 void NativeGameBridge::setError(const char* message, int32_t line) {

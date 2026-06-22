@@ -3447,15 +3447,15 @@ Result solveLevel(
 std::unique_ptr<FullState> createSeededSolverSession(
     const puzzlescript::LoadedGame& loadedGame,
     const std::string& gameName,
-    int32_t levelIndex,
+    int32_t width,
+    int32_t height,
     const int32_t* layerCellObjectIds,
     size_t count,
     Result& result
 ) {
-    std::unique_ptr<FullState> initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
-    if (!initial) {
-        return nullptr;
-    }
+    const std::string seed = "solver:" + gameName + ":generated";
+    auto initial = puzzlescript::createFullStateWithLoadedLevelSeed(loadedGame, seed);
+    initial->meta.suppressRuleMessages = true;
     if (!layerCellObjectIds) {
         result.status = "level_error";
         result.error = "ps_solve_level_layer_cell_object_ids received null layer grid";
@@ -3468,12 +3468,10 @@ std::unique_ptr<FullState> createSeededSolverSession(
     }
 
     const Game& game = *initial->game;
-    const int32_t width = currentLevelWidth(*initial);
-    const int32_t height = currentLevelHeight(*initial);
     const int32_t layerCount = game.layerCount;
     if (width <= 0 || height <= 0 || layerCount <= 0) {
         result.status = "level_error";
-        result.error = "Cannot seed a PuzzleScript solver state without an active rectangular level";
+        result.error = "Cannot seed a PuzzleScript solver state without positive level dimensions";
         return nullptr;
     }
 
@@ -3482,7 +3480,7 @@ std::unique_ptr<FullState> createSeededSolverSession(
         * static_cast<size_t>(height);
     if (count != required) {
         result.status = "level_error";
-        result.error = "Layer cell object id count does not match the active level dimensions";
+        result.error = "Layer cell object id count does not match the requested level dimensions";
         return nullptr;
     }
 
@@ -3517,23 +3515,20 @@ std::unique_ptr<FullState> createSeededSolverSession(
         }
     }
 
-    puzzlescript::setPersistentBoardObjectsFromCellMajor(*initial, objects);
-    initial->meta.restart.objects = objects;
-    initial->scratch.liveMovements.assign(static_cast<size_t>(tileCount * game.strideMovement), 0);
-    initial->scratch.rigidGroupIndexMasks.assign(initial->scratch.liveMovements.size(), 0);
-    initial->scratch.rigidMovementAppliedMasks.assign(initial->scratch.liveMovements.size(), 0);
-    initial->meta.undoStack.clear();
-    initial->meta.pendingAgain = false;
-    initial->meta.winning = false;
-
-    std::fill(initial->scratch.dirtyObjectRows.begin(), initial->scratch.dirtyObjectRows.end(), 1);
-    std::fill(initial->scratch.dirtyObjectColumns.begin(), initial->scratch.dirtyObjectColumns.end(), 1);
-    std::fill(initial->scratch.dirtyMovementRows.begin(), initial->scratch.dirtyMovementRows.end(), 1);
-    std::fill(initial->scratch.dirtyMovementColumns.begin(), initial->scratch.dirtyMovementColumns.end(), 1);
-    initial->scratch.dirtyObjectBoard = true;
-    initial->scratch.dirtyMovementBoard = true;
-    initial->scratch.objectCellIndexDirty = true;
-    initial->scratch.anyMasksDirty = true;
+    puzzlescript::LevelTemplate levelTemplate;
+    levelTemplate.width = width;
+    levelTemplate.height = height;
+    levelTemplate.objects = std::move(objects);
+    puzzlescript::RuntimeStepOptions loadOptions;
+    loadOptions.playableUndo = false;
+    loadOptions.emitAudio = false;
+    loadOptions.solverMode = true;
+    loadOptions.againPolicy = puzzlescript::AgainPolicy::Yield;
+    if (auto error = puzzlescript::loadLevelTemplate(*initial, levelTemplate, 0, loadOptions)) {
+        result.status = "level_error";
+        result.error = error->message;
+        return nullptr;
+    }
 
     return initial;
 }
@@ -3541,7 +3536,8 @@ std::unique_ptr<FullState> createSeededSolverSession(
 Result solveSeededLevel(
     const puzzlescript::LoadedGame& loadedGame,
     const std::string& gameName,
-    int32_t levelIndex,
+    int32_t width,
+    int32_t height,
     const int32_t* layerCellObjectIds,
     size_t count,
     int64_t timeoutMs,
@@ -3572,7 +3568,7 @@ Result solveSeededLevel(
 
     Result loadResult;
     loadResult.game = gameName;
-    loadResult.level = levelIndex;
+    loadResult.level = 0;
     loadResult.status = "level_error";
     loadResult.strategy = strategyName(strategy);
     loadResult.timeoutMs = effectiveTimeoutMs;
@@ -3581,7 +3577,8 @@ Result solveSeededLevel(
     std::unique_ptr<FullState> initial = createSeededSolverSession(
         loadedGame,
         gameName,
-        levelIndex,
+        width,
+        height,
         layerCellObjectIds,
         count,
         loadResult);
@@ -3589,11 +3586,13 @@ Result solveSeededLevel(
         return finish(std::move(loadResult));
     }
 
+    constexpr int32_t generatedLevelIndex = 0;
+
     if (strategy == Strategy::Bfs) {
         return finish(runSearch(
             loadedGame,
             gameName,
-            levelIndex,
+            generatedLevelIndex,
             effectiveTimeoutMs,
             0,
             SearchMode::Bfs,
@@ -3614,7 +3613,7 @@ Result solveSeededLevel(
         return finish(runSearch(
             loadedGame,
             gameName,
-            levelIndex,
+            generatedLevelIndex,
             effectiveTimeoutMs,
             0,
             SearchMode::WeightedAStar,
@@ -3635,7 +3634,7 @@ Result solveSeededLevel(
         return finish(runSearch(
             loadedGame,
             gameName,
-            levelIndex,
+            generatedLevelIndex,
             effectiveTimeoutMs,
             0,
             SearchMode::WeightedAStarDeep,
@@ -3656,7 +3655,7 @@ Result solveSeededLevel(
         return finish(runSearch(
             loadedGame,
             gameName,
-            levelIndex,
+            generatedLevelIndex,
             effectiveTimeoutMs,
             0,
             SearchMode::Greedy,
@@ -3677,7 +3676,7 @@ Result solveSeededLevel(
     Result result = runAdaptivePortfolioSearch(
         loadedGame,
         gameName,
-        levelIndex,
+        generatedLevelIndex,
         effectiveTimeoutMs,
         0,
         deadline,
@@ -4551,7 +4550,8 @@ extern "C" ps_solve_options ps_solve_default_options(void) {
 
 extern "C" bool ps_solve_level_layer_cell_object_ids(
     const ps_game* game,
-    int32_t level_index,
+    int32_t width,
+    int32_t height,
     const int32_t* layer_cell_object_ids,
     size_t count,
     const ps_solve_options* options,
@@ -4582,7 +4582,8 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
     Result result = solveSeededLevel(
         game->impl,
         "puzzlescriptmis",
-        level_index,
+        width,
+        height,
         layer_cell_object_ids,
         count,
         effective.timeout_ms,

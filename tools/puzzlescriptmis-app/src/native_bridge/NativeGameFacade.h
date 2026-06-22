@@ -10,6 +10,11 @@
 struct Game;
 class Logger;
 
+namespace puzzlescript {
+struct LoadedGame;
+struct LevelTemplate;
+}
+
 namespace nativebridge {
 
 class CandidateSolverContext;
@@ -49,5 +54,8 @@ bool restart(Game& displayGame);
 bool canUndo(const Game& displayGame);
 bool isAtRestartState(const Game& displayGame);
 std::string lastMessageText();
+
+const puzzlescript::LoadedGame& candidateLoadedGame(const CandidateSolverContext& context);
+puzzlescript::LevelTemplate candidateLevelTemplate(const CandidateSolverContext& context, const vvvs& state);
 
 } // namespace nativebridge

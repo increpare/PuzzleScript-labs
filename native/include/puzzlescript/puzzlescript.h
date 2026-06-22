@@ -264,7 +264,8 @@ void ps_runtime_counters_snapshot(ps_runtime_counters* out_counters);
 ps_solve_options ps_solve_default_options(void);
 bool ps_solve_level_layer_cell_object_ids(
     const ps_game* game,
-    int32_t level_index,
+    int32_t width,
+    int32_t height,
     const int32_t* layer_cell_object_ids,
     size_t count,
     const ps_solve_options* options,

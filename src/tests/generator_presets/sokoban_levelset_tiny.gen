@@ -1,0 +1,16 @@
+dimensions: 3x2
+take: 1
+name: tiny
+seed: 42
+
+choose 1 [ no wall no crate ] -> [ player ]
+choose 1 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]
+===
+===
+dimensions: 4x3
+take: 1
+name: small
+seed: 43
+
+choose 1 [ no wall no crate ] -> [ player ]
+choose 1-2 [ no wall no player no crate ] [ no wall no player no target ] -> [ crate ] [ target ]

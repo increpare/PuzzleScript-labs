@@ -152,8 +152,12 @@ test('directional row patterns with pipe separators are accepted', () => runAcce
 
 test('generator preset fixtures run', () => {
   const presetDir = path.join(__dirname, 'generator_presets');
-  if (fs.existsSync(presetDir)) {
+    if (fs.existsSync(presetDir)) {
     for (const file of fs.readdirSync(presetDir).filter((name) => name.endsWith('.gen')).sort()) {
+      const presetSource = fs.readFileSync(path.join(presetDir, file), 'utf8');
+      if (/^\s*dimensions\s*:/im.test(presetSource) || /^\s*===/m.test(presetSource)) {
+        continue;
+      }
       const result = run([
         gamePath,
         path.join(presetDir, file),

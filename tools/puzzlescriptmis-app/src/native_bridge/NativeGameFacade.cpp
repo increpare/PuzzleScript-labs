@@ -5,6 +5,8 @@
 #include "logError.h"
 #include "native_bridge/NativeGameBridge.h"
 #include "puzzlescript/puzzlescript.h"
+#include "runtime/core.hpp"
+#include "search/difficulty.hpp"
 #include "stringUtilities.h"
 
 #include <mutex>
@@ -466,6 +468,35 @@ public:
             bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs, strategy, maxExpanded, solverHeuristic));
     }
 
+    const puzzlescript::LoadedGame& loadedGame() const {
+        static const puzzlescript::LoadedGame kEmpty;
+        if (!bridge_) {
+            return kEmpty;
+        }
+        return bridge_->loadedGame();
+    }
+
+    puzzlescript::LevelTemplate levelTemplateFromState(const vvvs& state) const {
+        if (!bridge_) {
+            return {};
+        }
+        const psbridge::LayerGrid grid = layerGridFromState(state);
+        const puzzlescript::LoadedGame& loaded = bridge_->loadedGame();
+        if (!loaded.information || grid.width <= 0 || grid.height <= 0) {
+            return {};
+        }
+        std::vector<int32_t> nativeIds;
+        nativeIds.reserve(grid.displayObjectIds.size());
+        for (int32_t displayId : grid.displayObjectIds) {
+            nativeIds.push_back(displayId <= 0 ? -1 : displayId - 1);
+        }
+        return puzzlescript::search::levelTemplateFromLayerCellObjectIds(
+            *loaded.information,
+            grid.width,
+            grid.height,
+            nativeIds);
+    }
+
 private:
     std::unique_ptr<psbridge::NativeGameBridge> bridge_;
 };
@@ -607,6 +638,14 @@ bool isAtRestartState(const Game& displayGame) {
 string lastMessageText() {
     std::lock_guard<std::recursive_mutex> lock(bridgeMutex);
     return bridge.status().messageText;
+}
+
+const puzzlescript::LoadedGame& candidateLoadedGame(const CandidateSolverContext& context) {
+    return context.loadedGame();
+}
+
+puzzlescript::LevelTemplate candidateLevelTemplate(const CandidateSolverContext& context, const vvvs& state) {
+    return context.levelTemplateFromState(state);
 }
 
 } // namespace nativebridge

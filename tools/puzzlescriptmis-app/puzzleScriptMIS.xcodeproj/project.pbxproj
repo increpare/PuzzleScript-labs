@@ -536,6 +536,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(OF_CORE_HEADERS)",
 					../../native/include,
+					../../native/src,
 					src,
 				);
 				OTHER_CPLUSPLUSFLAGS = "-D__MACOSX_CORE__";
@@ -553,6 +554,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(OF_CORE_HEADERS)",
 					../../native/include,
+					../../native/src,
 					src,
 				);
 				OTHER_CPLUSPLUSFLAGS = "-D__MACOSX_CORE__";

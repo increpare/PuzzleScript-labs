@@ -8,6 +8,10 @@
 #include "puzzlescript/compiler.h"
 #include "puzzlescript/puzzlescript.h"
 
+namespace puzzlescript {
+struct LoadedGame;
+}
+
 namespace psbridge {
 
 struct Diagnostic {
@@ -112,6 +116,8 @@ public:
         ps_solve_strategy strategy = PS_SOLVE_STRATEGY_PORTFOLIO,
         uint64_t maxExpanded = 0,
         const char* solverHeuristic = nullptr) const;
+
+    const puzzlescript::LoadedGame& loadedGame() const;
 
 private:
     struct CompileResultDeleter { void operator()(ps_compile_result* value) const { ps_free_compile_result(value); } };

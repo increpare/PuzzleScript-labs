@@ -1,0 +1,65 @@
+#pragma once
+
+#include "runtime/core.hpp"
+
+#include "puzzlescript/puzzlescript.h"
+
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <vector>
+
+namespace puzzlescript::search {
+
+struct DifficultyBreakdown {
+    int64_t expandedPortfolio = -1;
+    int64_t expandedGreedy = -1;
+    int64_t expandedWeightedAStar = -1;
+    int64_t expandedBfs = -1;
+    int64_t difficulty = -1;
+    std::string difficultyAlgorithm;
+};
+
+struct DifficultyOptions {
+    int64_t timeoutMs = 250;
+    bool runSupplemental = false;
+    std::function<bool(int64_t primaryExpanded)> supplementalGate;
+    int64_t supplementalCap = -1;
+    int64_t supplementalTimeoutMs = 60000;
+};
+
+enum class DifficultyStage {
+    PrimaryComplete,
+    GreedyComplete,
+    WeightedAStarComplete,
+    BfsComplete,
+    Complete
+};
+
+struct DifficultyResult {
+    bool solved = false;
+    bool supplementalRan = false;
+    std::vector<ps_input> solution;
+    DifficultyBreakdown breakdown;
+    int64_t primaryExpanded = 0;
+    int64_t primaryElapsedMs = 0;
+    std::string primaryStrategy;
+};
+
+using DifficultyProgressCallback = std::function<void(DifficultyStage stage, const DifficultyResult& partial)>;
+
+std::vector<int32_t> levelTemplateToLayerCellObjectIds(const Game& game, const LevelTemplate& level);
+
+LevelTemplate levelTemplateFromLayerCellObjectIds(
+    const Game& game,
+    int32_t width,
+    int32_t height,
+    const std::vector<int32_t>& layerGrid);
+
+DifficultyResult assessGeneratedLevelDifficulty(
+    const LoadedGame& loadedGame,
+    const LevelTemplate& level,
+    const DifficultyOptions& options,
+    DifficultyProgressCallback onProgress = {});
+
+} // namespace puzzlescript::search

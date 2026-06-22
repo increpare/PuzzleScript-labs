@@ -1,0 +1,70 @@
+#pragma once
+
+#include "generator/generation_rules.hpp"
+#include "generator/keeper.hpp"
+#include "generator/output_writer.hpp"
+#include "generator/spec_parser.hpp"
+#include "runtime/core.hpp"
+
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <deque>
+#include <mutex>
+#include <unordered_set>
+#include <vector>
+
+namespace puzzlescript::generator {
+
+using Clock = std::chrono::steady_clock;
+using TimePoint = Clock::time_point;
+
+struct GlobalDedupe {
+    std::array<std::mutex, 64> mutexes;
+    std::array<std::unordered_set<uint64_t>, 64> sets;
+    std::array<std::deque<uint64_t>, 64> order;
+};
+
+bool insertGlobalDedupe(GlobalDedupe& dedupe, uint64_t hash, size_t dedupeMax);
+
+struct BlockState {
+    BlockSpec spec;
+    GenerationProgram program;
+    std::vector<Keeper> keepers;
+    mutable std::mutex keeperMutex;
+    std::atomic<uint64_t> nextSampleId{0};
+    int64_t inactivityTimeoutMs = 60000;
+    TimePoint idleSince{};
+    size_t blockIndex = 0;
+};
+
+struct LevelSetOptions {
+    uint64_t globalSeed = 1;
+    size_t jobs = 1;
+    int64_t solverTimeoutMs = 250;
+    size_t dedupeMax = 1000000;
+    int64_t inactivityStartMs = 60000;
+    std::atomic<bool>* cancel = nullptr;
+};
+
+bool tryInsertKeeper(BlockState& block, Keeper candidate);
+
+std::vector<Keeper> snapshotAllKeepers(const std::deque<BlockState>& blocks);
+
+void runBlockUntilIdle(
+    const puzzlescript::LoadedGame& loadedGame,
+    BlockState& block,
+    GlobalDedupe& dedupe,
+    OutputCoordinator& outputCoordinator,
+    const std::deque<BlockState>& allBlocks,
+    const LevelSetOptions& options);
+
+void runLevelSetForever(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameSource,
+    std::deque<BlockState>& blocks,
+    OutputCoordinator& outputCoordinator,
+    const LevelSetOptions& options);
+
+} // namespace puzzlescript::generator

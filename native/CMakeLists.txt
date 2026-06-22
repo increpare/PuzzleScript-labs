@@ -80,6 +80,7 @@ set(PUZZLESCRIPT_COMPILER_SOURCES
   src/compiler/diagnostic.cpp
   src/compiler/lower_to_runtime.cpp
   src/compiler/parser.cpp
+  src/compiler/parser_glyphs.cpp
   src/compiler/rule_text.cpp
   src/compiler/semantic_program.cpp
   third_party/utf8proc/utf8proc.c
@@ -92,6 +93,7 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/hash.cpp
   src/runtime/json.cpp
   src/runtime/simd.cpp
+  src/search/difficulty.cpp
   src/solver/c_api.cpp
   src/solver/static_analysis.cpp
   third_party/simdjson/simdjson.cpp
@@ -176,6 +178,12 @@ add_executable(puzzlescript_solver
 
 add_executable(puzzlescript_generator
   src/generator/main.cpp
+  src/generator/block_scheduler.cpp
+  src/generator/duration_parse.cpp
+  src/generator/generation_rules.cpp
+  src/generator/level_rows.cpp
+  src/generator/output_writer.cpp
+  src/generator/spec_parser.cpp
 )
 
 set(PS_COMPILED_RULES_SOURCE "" CACHE FILEPATH "Optional generated compiled-rules C++ source to link into solver/generator")
@@ -378,6 +386,112 @@ target_include_directories(compiler_keyword_names
 add_test(
   NAME compiler_keyword_names
   COMMAND compiler_keyword_names
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_generation_rules
+  tests/generator_generation_rules.cpp
+  src/generator/generation_rules.cpp
+  src/generator/spec_parser.cpp
+)
+
+target_link_libraries(generator_generation_rules
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_generation_rules
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_generation_rules
+  COMMAND generator_generation_rules
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_difficulty_assessment
+  tests/generator_difficulty_assessment.cpp
+)
+
+target_link_libraries(generator_difficulty_assessment
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_difficulty_assessment
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_difficulty_assessment
+  COMMAND generator_difficulty_assessment
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_duration_parse
+  tests/generator_duration_parse.cpp
+  src/generator/duration_parse.cpp
+)
+
+target_include_directories(generator_duration_parse
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_duration_parse
+  COMMAND generator_duration_parse
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_spec_parser
+  tests/generator_spec_parser.cpp
+  src/generator/spec_parser.cpp
+)
+
+target_link_libraries(generator_spec_parser
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_spec_parser
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_spec_parser
+  COMMAND generator_spec_parser
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_block_keepers
+  tests/generator_block_keepers.cpp
+  src/generator/block_scheduler.cpp
+  src/generator/generation_rules.cpp
+  src/generator/spec_parser.cpp
+)
+
+target_link_libraries(generator_block_keepers
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_block_keepers
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_block_keepers
+  COMMAND generator_block_keepers
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
@@ -880,6 +994,16 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
 )
 set_tests_properties(puzzlescript_generator_smoke PROPERTIES TIMEOUT 30)
+
+add_test(
+  NAME puzzlescript_generator_levelset_smoke
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_generator_levelset_smoke.js
+          $<TARGET_FILE:puzzlescript_generator>
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/generator_presets/sokoban_levelset_tiny.gen
+)
+set_tests_properties(puzzlescript_generator_levelset_smoke PROPERTIES TIMEOUT 60)
 
 add_test(
   NAME puzzlescript_generator_events_jsonl

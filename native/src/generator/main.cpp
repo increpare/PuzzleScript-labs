@@ -33,7 +33,12 @@
 #include "compiler/diagnostic.hpp"
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
-#include "compiler/rule_text.hpp"
+#include "compiler/parser_glyphs.hpp"
+#include "generator/block_scheduler.hpp"
+#include "generator/duration_parse.hpp"
+#include "generator/generation_rules.hpp"
+#include "generator/output_writer.hpp"
+#include "generator/spec_parser.hpp"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
@@ -51,10 +56,23 @@ using puzzlescript::MaskWordUnsigned;
 using StateKey = puzzlescript::search::StateKey;
 using StateKeyHash = puzzlescript::search::StateKeyHash;
 using SearchMode = puzzlescript::search::SearchMode;
-using puzzlescript::search::anyBits;
-using puzzlescript::search::bitsSet;
 using puzzlescript::search::maskPtr;
 using puzzlescript::search::priorityFor;
+using puzzlescript::generator::GenerationProgram;
+using puzzlescript::generator::NameResolver;
+using puzzlescript::generator::Rng;
+using puzzlescript::generator::applyProgram;
+using puzzlescript::generator::compileGenerationProgram;
+using puzzlescript::generator::hashLevel;
+using puzzlescript::generator::LegacySpec;
+using puzzlescript::generator::parseLegacySpec;
+using puzzlescript::generator::parseLevelSetSpec;
+using puzzlescript::generator::splitmix64;
+using puzzlescript::generator::BlockState;
+using puzzlescript::generator::LevelSetOptions;
+using puzzlescript::generator::OutputCoordinator;
+using puzzlescript::generator::parseDurationMs;
+using puzzlescript::generator::runLevelSetForever;
 
 enum class SolveStatus {
     Exhausted,
@@ -67,8 +85,10 @@ struct Options {
     std::filesystem::path gamePath;
     std::filesystem::path specPath;
     std::filesystem::path jsonOut;
+    std::filesystem::path outPath;
     std::filesystem::path eventsJsonl;
     int64_t timeMs = 60000;
+    int64_t inactivityStartMs = 60000;
     std::optional<uint64_t> samples;
     size_t jobs = 0;
     uint64_t seed = 1;
@@ -77,48 +97,6 @@ struct Options {
     size_t topK = 50;
     size_t dedupeMax = 1000000;
     bool quiet = false;
-};
-
-struct PatternTerm {
-    MaskVector mask;
-    bool missing = false;
-    bool any = false;
-};
-
-struct ReplacementTerm {
-    MaskVector clearMask;
-    MaskVector setMask;
-};
-
-struct Slot {
-    std::vector<PatternTerm> terms;
-    std::vector<ReplacementTerm> replacements;
-};
-
-enum class Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-};
-
-struct PatternGroup {
-    std::vector<Slot> cells;
-};
-
-struct Alternative {
-    std::vector<PatternGroup> groups;
-    std::vector<Direction> directions;
-    double optionProbability = 1.0;
-};
-
-struct ChooseRule {
-    int32_t count = 0;
-    std::vector<Alternative> alternatives;
-};
-
-struct GenerationProgram {
-    std::vector<ChooseRule> rules;
 };
 
 struct Candidate {
@@ -239,10 +217,14 @@ void initializeEventsJsonl(const Options& options);
 void captureWorkerException(SharedState& shared);
 
 std::atomic<bool>* gCancelFlag = nullptr;
+OutputCoordinator* gOutputCoordinator = nullptr;
 
 void handleSignal(int) {
     if (gCancelFlag != nullptr) {
         gCancelFlag->store(true, std::memory_order_relaxed);
+    }
+    if (gOutputCoordinator != nullptr) {
+        gOutputCoordinator->flush();
     }
 }
 
@@ -376,7 +358,7 @@ Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
     if (argc < 3) {
-        throw std::runtime_error("Usage: puzzlescript_generator <game.txt> <spec.gen> [--time-ms N] [--samples N] [--jobs auto|N] [--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] [--top-k N] [--dedupe-max N] [--events-jsonl PATH] [--json-out PATH] [--quiet]");
+        throw std::runtime_error("Usage: puzzlescript_generator <game.txt> <spec.gen> [--out PATH] [--inactivity-start DURATION] [--time-ms N] [--samples N] [--jobs auto|N] [--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] [--top-k N] [--dedupe-max N] [--events-jsonl PATH] [--json-out PATH] [--quiet]");
     }
     options.gamePath = argv[1];
     options.specPath = argv[2];
@@ -403,6 +385,10 @@ Options parseArgs(int argc, char** argv) {
             options.eventsJsonl = argv[++index];
         } else if (arg == "--json-out" && index + 1 < argc) {
             options.jsonOut = argv[++index];
+        } else if (arg == "--out" && index + 1 < argc) {
+            options.outPath = argv[++index];
+        } else if (arg == "--inactivity-start" && index + 1 < argc) {
+            options.inactivityStartMs = parseDurationMs(argv[++index]);
         } else if (arg == "--quiet") {
             options.quiet = true;
         } else {
@@ -412,49 +398,12 @@ Options parseArgs(int argc, char** argv) {
     return options;
 }
 
-uint64_t splitmix64(uint64_t x) {
-    x += 0x9e3779b97f4a7c15ULL;
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
-    return x ^ (x >> 31);
-}
-
-struct Rng {
-    uint64_t state = 1;
-
-    explicit Rng(uint64_t seed) : state(seed == 0 ? 1 : seed) {}
-
-    uint64_t next() {
-        state = splitmix64(state);
-        return state;
-    }
-
-    size_t index(size_t n) {
-        return n == 0 ? 0 : static_cast<size_t>(next() % n);
-    }
-
-    double unit() {
-        return static_cast<double>(next() >> 11) * (1.0 / 9007199254740992.0);
-    }
-};
-
 bool betterCandidate(const Candidate& a, const Candidate& b) {
     if (a.score != b.score) return a.score > b.score;
     if (a.solutionLength != b.solutionLength) return a.solutionLength > b.solutionLength;
     if (a.expanded != b.expanded) return a.expanded > b.expanded;
     if (a.levelHash != b.levelHash) return a.levelHash < b.levelHash;
     return a.sampleId < b.sampleId;
-}
-
-MaskVector emptyMask(const Game& game) {
-    return MaskVector(static_cast<size_t>(game.wordCount), 0);
-}
-
-void setMaskBit(MaskVector& words, int32_t bitIndex) {
-    if (bitIndex < 0) return;
-    const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(bitIndex));
-    if (word >= words.size()) return;
-    words[word] |= puzzlescript::maskBit(static_cast<uint32_t>(bitIndex));
 }
 
 bool maskHasBit(const MaskVector& words, int32_t bitIndex) {
@@ -477,130 +426,6 @@ void orMaskOffset(MaskVector& target, const Game& game, puzzlescript::MaskOffset
     }
 }
 
-std::optional<puzzlescript::MaskOffset> lookupNamedMask(const std::vector<Game::NamedMaskEntry>& table, const std::string& name) {
-    auto it = std::lower_bound(table.begin(), table.end(), name,
-        [](const Game::NamedMaskEntry& entry, const std::string& n) { return entry.name < n; });
-    if (it == table.end() || it->name != name) return std::nullopt;
-    return it->offset;
-}
-
-struct NameResolver {
-    const Game& game;
-    std::map<std::string, int32_t> objectIdByName;
-    std::map<std::string, std::string> synonymOf;
-    std::map<std::string, std::vector<std::string>> aggregateOf;
-    std::map<std::string, std::vector<std::string>> propertyOf;
-    std::map<std::string, MaskVector> resolved;
-
-    NameResolver(const Game& game, const puzzlescript::compiler::ParserState& state)
-        : game(game) {
-        for (int32_t id = 0; id < static_cast<int32_t>(game.idDict.size()); ++id) {
-            objectIdByName[game.idDict[static_cast<size_t>(id)]] = id;
-        }
-        for (const auto& entry : state.legendSynonyms) {
-            if (!entry.items.empty()) synonymOf[lowercase(entry.name)] = lowercase(entry.items.front());
-        }
-        for (const auto& entry : state.legendAggregates) {
-            std::vector<std::string> items;
-            for (const auto& item : entry.items) items.push_back(lowercase(item));
-            aggregateOf[lowercase(entry.name)] = std::move(items);
-        }
-        for (const auto& entry : state.legendProperties) {
-            std::vector<std::string> items;
-            for (const auto& item : entry.items) items.push_back(lowercase(item));
-            propertyOf[lowercase(entry.name)] = std::move(items);
-        }
-        normalizeAliases();
-    }
-
-    void normalizeAliases() {
-        bool modified = true;
-        while (modified) {
-            modified = false;
-            for (auto& [_, value] : synonymOf) {
-                if (auto it = synonymOf.find(value); it != synonymOf.end()) {
-                    value = it->second;
-                    modified = true;
-                }
-            }
-            std::vector<std::string> propertyKeys;
-            for (const auto& [name, _] : propertyOf) propertyKeys.push_back(name);
-            for (const auto& name : propertyKeys) {
-                auto& values = propertyOf[name];
-                for (size_t i = 0; i < values.size(); ++i) {
-                    if (auto syn = synonymOf.find(values[i]); syn != synonymOf.end()) {
-                        values[i] = syn->second;
-                        modified = true;
-                    } else if (auto prop = propertyOf.find(values[i]); prop != propertyOf.end()) {
-                        values.erase(values.begin() + static_cast<std::ptrdiff_t>(i));
-                        for (const auto& item : prop->second) {
-                            if (std::find(values.begin(), values.end(), item) == values.end()) values.push_back(item);
-                        }
-                        modified = true;
-                        --i;
-                    }
-                }
-            }
-            std::vector<std::string> aggregateKeys;
-            for (const auto& [name, _] : aggregateOf) aggregateKeys.push_back(name);
-            for (const auto& name : aggregateKeys) {
-                auto& values = aggregateOf[name];
-                for (size_t i = 0; i < values.size(); ++i) {
-                    if (auto syn = synonymOf.find(values[i]); syn != synonymOf.end()) {
-                        values[i] = syn->second;
-                        modified = true;
-                    } else if (auto agg = aggregateOf.find(values[i]); agg != aggregateOf.end()) {
-                        values.erase(values.begin() + static_cast<std::ptrdiff_t>(i));
-                        for (const auto& item : agg->second) {
-                            if (std::find(values.begin(), values.end(), item) == values.end()) values.push_back(item);
-                        }
-                        modified = true;
-                        --i;
-                    }
-                }
-            }
-        }
-    }
-
-    MaskVector resolve(const std::string& rawName) {
-        const std::string name = lowercase(rawName);
-        std::set<std::string> visiting;
-        return resolveInner(name, visiting);
-    }
-
-    bool isProperty(const std::string& rawName) const {
-        return propertyOf.find(lowercase(rawName)) != propertyOf.end();
-    }
-
-    MaskVector resolveInner(const std::string& name, std::set<std::string>& visiting) {
-        if (auto cached = resolved.find(name); cached != resolved.end()) return cached->second;
-        if (!visiting.insert(name).second) {
-            throw std::runtime_error("Legend cycle detected at '" + name + "'");
-        }
-
-        MaskVector mask = emptyMask(game);
-        if (auto object = objectIdByName.find(name); object != objectIdByName.end()) {
-            setMaskBit(mask, object->second);
-        } else if (auto synonym = synonymOf.find(name); synonym != synonymOf.end()) {
-            mask = resolveInner(synonym->second, visiting);
-        } else if (auto aggregate = aggregateOf.find(name); aggregate != aggregateOf.end()) {
-            for (const auto& item : aggregate->second) orMask(mask, resolveInner(item, visiting));
-        } else if (auto property = propertyOf.find(name); property != propertyOf.end()) {
-            for (const auto& item : property->second) orMask(mask, resolveInner(item, visiting));
-        } else {
-            throw std::runtime_error("Unknown generation rule name: " + rawDisplay(name));
-        }
-
-        visiting.erase(name);
-        resolved.emplace(name, mask);
-        return mask;
-    }
-
-    std::string rawDisplay(const std::string& name) const {
-        return name;
-    }
-};
-
 puzzlescript::LoadedGame compileGame(const std::string& source, puzzlescript::compiler::ParserState* outState = nullptr) {
     puzzlescript::compiler::DiagnosticSink diagnostics;
     auto state = puzzlescript::compiler::parseSource(source, diagnostics);
@@ -609,6 +434,7 @@ puzzlescript::LoadedGame compileGame(const std::string& source, puzzlescript::co
         throw std::runtime_error(error->message);
     }
     if (loadedGame.information) {
+        puzzlescript::compiler::publishParserGlyphs(*std::const_pointer_cast<Game>(loadedGame.information), state);
         puzzlescript::attachLinkedCompiledRules(*std::const_pointer_cast<Game>(loadedGame.information), source);
     }
     if (outState != nullptr) {
@@ -617,50 +443,11 @@ puzzlescript::LoadedGame compileGame(const std::string& source, puzzlescript::co
     return loadedGame;
 }
 
-struct Spec {
-    std::vector<std::string> initRows;
-    std::vector<std::string> ruleLines;
-};
-
 bool isSectionSeparator(const std::string& line) {
     const std::string text = trim(line);
     return !text.empty() && std::all_of(text.begin(), text.end(), [](char c) {
         return c == '=';
     });
-}
-
-Spec parseSpec(const std::string& text) {
-    enum class Section { None, Init, Rules };
-    Section section = Section::None;
-    Spec spec;
-    for (const auto& rawLine : splitLines(text)) {
-        const std::string line = trim(rawLine);
-        const std::string lowered = lowercase(line);
-        if (lowered == "[ init level ]" || lowered == "[ generation rules ]") {
-            throw std::runtime_error("Generation spec sections must use (INIT LEVEL) and (GENERATION RULES), not square brackets");
-        }
-        if (lowered == "(init level)") {
-            section = Section::Init;
-            continue;
-        }
-        if (lowered == "(generation rules)") {
-            section = Section::Rules;
-            continue;
-        }
-        if (line.empty()) {
-            continue;
-        }
-        if (section == Section::Init) {
-            spec.initRows.push_back(line);
-        } else if (section == Section::Rules) {
-            spec.ruleLines.push_back(line);
-        } else {
-            throw std::runtime_error("Generation spec content found before (INIT LEVEL)");
-        }
-    }
-    if (spec.initRows.empty()) throw std::runtime_error("Generation spec is missing init level rows");
-    if (spec.ruleLines.empty()) throw std::runtime_error("Generation spec is missing generation rules");
-    return spec;
 }
 
 std::string sourceWithInitLevel(const std::string& source, const std::vector<std::string>& rows) {
@@ -681,366 +468,8 @@ std::string sourceWithInitLevel(const std::string& source, const std::vector<std
     throw std::runtime_error("PuzzleScript source has no LEVELS section");
 }
 
-std::vector<std::vector<std::string>> splitAlternatives(const std::vector<std::string>& tokens, size_t begin) {
-    return puzzlescript::compiler::ruletext::splitTopLevelOr(tokens, begin);
-}
-
-std::vector<std::vector<std::vector<std::string>>> parseBracketGroups(const std::vector<std::string>& tokens, size_t begin, size_t end) {
-    std::vector<std::vector<std::vector<std::string>>> groups;
-    for (auto row : puzzlescript::compiler::ruletext::parseBracketRows(tokens, begin, end, false)) {
-        groups.push_back(std::move(row.cells));
-    }
-    return groups;
-}
-
-int32_t objectLayerForBit(const Game& game, int32_t objectId) {
-    if (objectId < 0 || static_cast<size_t>(objectId) >= game.objectsById.size()) return -1;
-    return game.objectsById[static_cast<size_t>(objectId)].layer;
-}
-
-std::vector<int32_t> objectIdsFromMask(const Game& game, const MaskVector& mask) {
-    std::vector<int32_t> ids;
-    for (int32_t id = 0; id < game.objectCount; ++id) {
-        if (maskHasBit(mask, id)) ids.push_back(id);
-    }
-    return ids;
-}
-
-ReplacementTerm makeSetReplacement(const Game& game, const MaskVector& setMask) {
-    ReplacementTerm term;
-    term.setMask = setMask;
-    term.clearMask = emptyMask(game);
-    for (const int32_t objectId : objectIdsFromMask(game, setMask)) {
-        const int32_t layer = objectLayerForBit(game, objectId);
-        if (layer >= 0 && static_cast<size_t>(layer) < game.layerMaskOffsets.size()) {
-            orMaskOffset(term.clearMask, game, game.layerMaskOffsets[static_cast<size_t>(layer)]);
-        }
-    }
-    return term;
-}
-
-Slot compileSlot(const std::vector<std::string>& lhsCell, const std::vector<std::string>& rhsCell, const Game& game, NameResolver& resolver) {
-    Slot slot;
-    MaskVector matchedPresentMask = emptyMask(game);
-    for (size_t i = 0; i < lhsCell.size(); ++i) {
-        std::string token = lowercase(lhsCell[i]);
-        if (token == "random" || token == "randomdir" || token == "late" || token == "rigid" || token == "option") {
-            throw std::runtime_error("Unsupported V1 generation token in LHS: " + token);
-        }
-        bool missing = false;
-        if (token == "no") {
-            if (i + 1 >= lhsCell.size()) throw std::runtime_error("'no' must be followed by a name in generation rules");
-            missing = true;
-            token = lhsCell[++i];
-        }
-        PatternTerm term;
-        term.mask = resolver.resolve(token);
-        term.missing = missing;
-        term.any = !missing && resolver.isProperty(token);
-        if (!missing) {
-            orMask(matchedPresentMask, term.mask);
-        }
-        slot.terms.push_back(std::move(term));
-    }
-
-    if (rhsCell.empty()) {
-        ReplacementTerm term;
-        term.clearMask = std::move(matchedPresentMask);
-        term.setMask = emptyMask(game);
-        slot.replacements.push_back(std::move(term));
-        return slot;
-    }
-
-    for (size_t i = 0; i < rhsCell.size(); ++i) {
-        std::string token = lowercase(rhsCell[i]);
-        if (token == "random" || token == "randomdir" || token == "late" || token == "rigid" || token == "option") {
-            throw std::runtime_error("Unsupported V1 generation token in RHS: " + token);
-        }
-        if (token == "no") {
-            if (i + 1 >= rhsCell.size()) throw std::runtime_error("'no' must be followed by a name in generation rules");
-            ReplacementTerm term;
-            term.clearMask = resolver.resolve(rhsCell[++i]);
-            term.setMask = emptyMask(game);
-            slot.replacements.push_back(std::move(term));
-            continue;
-        }
-        slot.replacements.push_back(makeSetReplacement(game, resolver.resolve(token)));
-    }
-    return slot;
-}
-
-Alternative compileAlternative(const std::vector<std::string>& tokens, const Game& game, NameResolver& resolver) {
-    size_t cursor = 0;
-    std::vector<Direction> explicitDirections;
-    bool sawDirection = false;
-    double optionProbability = 1.0;
-    while (cursor < tokens.size() && tokens[cursor] != "[") {
-        const std::string token = lowercase(tokens[cursor]);
-        if (token == "up") {
-            explicitDirections = {Direction::Up};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "down") {
-            explicitDirections = {Direction::Down};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "left") {
-            explicitDirections = {Direction::Left};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "right") {
-            explicitDirections = {Direction::Right};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "horizontal") {
-            explicitDirections = {Direction::Left, Direction::Right};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "vertical") {
-            explicitDirections = {Direction::Up, Direction::Down};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "orthogonal") {
-            explicitDirections = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
-            sawDirection = true;
-            ++cursor;
-            continue;
-        }
-        if (token == "option") {
-            if (cursor + 1 >= tokens.size()) throw std::runtime_error("option must be followed by a probability");
-            optionProbability = std::stod(tokens[++cursor]);
-            if (optionProbability < 0.0 || optionProbability > 1.0) {
-                throw std::runtime_error("option probability must be between 0 and 1");
-            }
-            ++cursor;
-            continue;
-        }
-        throw std::runtime_error("Unsupported generation rule prefix: " + tokens[cursor]);
-    }
-    const size_t arrowIndex = puzzlescript::compiler::ruletext::findTopLevelArrow(tokens, cursor, tokens.size());
-    if (arrowIndex == tokens.size()) throw std::runtime_error("Generation rule alternative is missing ->");
-    const auto lhsGroups = parseBracketGroups(tokens, cursor, arrowIndex);
-    const auto rhsGroups = parseBracketGroups(tokens, arrowIndex + 1, tokens.size());
-    if (lhsGroups.empty()) throw std::runtime_error("Generation rule has no LHS cells");
-    if (lhsGroups.size() != rhsGroups.size()) {
-        throw std::runtime_error("Generation rule LHS/RHS must have the same number of bracket groups");
-    }
-    Alternative alternative;
-    alternative.optionProbability = optionProbability;
-    bool hasDirectionalRows = false;
-    for (size_t i = 0; i < lhsGroups.size(); ++i) {
-        if (lhsGroups[i].size() != rhsGroups[i].size()) {
-            throw std::runtime_error("Generation rule LHS/RHS row cells must have the same length");
-        }
-        PatternGroup group;
-        for (size_t cellIndex = 0; cellIndex < lhsGroups[i].size(); ++cellIndex) {
-            group.cells.push_back(compileSlot(lhsGroups[i][cellIndex], rhsGroups[i][cellIndex], game, resolver));
-        }
-        if (group.cells.size() > 1) hasDirectionalRows = true;
-        alternative.groups.push_back(std::move(group));
-    }
-    if (sawDirection) {
-        alternative.directions = std::move(explicitDirections);
-    } else if (hasDirectionalRows) {
-        alternative.directions = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
-    } else {
-        alternative.directions = {Direction::Right};
-    }
-    return alternative;
-}
-
-GenerationProgram compileGenerationProgram(const Spec& spec, const Game& game, NameResolver& resolver) {
-    GenerationProgram program;
-    for (const auto& line : spec.ruleLines) {
-        auto tokens = puzzlescript::compiler::ruletext::tokenizeRuleLine(lowercase(line));
-        if (tokens.empty()) continue;
-        if (tokens[0] == "choose") {
-            if (tokens.size() < 4) throw std::runtime_error("Malformed choose rule");
-            ChooseRule rule;
-            rule.count = std::stoi(tokens[1]);
-            if (rule.count < 0) throw std::runtime_error("choose count must be non-negative");
-            for (const auto& altTokens : splitAlternatives(tokens, 2)) {
-                rule.alternatives.push_back(compileAlternative(altTokens, game, resolver));
-            }
-            program.rules.push_back(std::move(rule));
-        } else if (tokens[0] == "or") {
-            if (program.rules.empty()) throw std::runtime_error("or generation rule must follow a choose rule");
-            for (const auto& altTokens : splitAlternatives(tokens, 1)) {
-                program.rules.back().alternatives.push_back(compileAlternative(altTokens, game, resolver));
-            }
-        } else if (tokens[0] == "option") {
-            ChooseRule rule;
-            rule.count = 1;
-            for (const auto& altTokens : splitAlternatives(tokens, 0)) {
-                rule.alternatives.push_back(compileAlternative(altTokens, game, resolver));
-            }
-            program.rules.push_back(std::move(rule));
-        } else {
-            throw std::runtime_error("Generation rules must start with choose, or, or option");
-        }
-    }
-    return program;
-}
-
 const MaskWord* cellPtr(const LevelTemplate& level, const Game& game, int32_t tileIndex) {
     return level.objects.data() + static_cast<size_t>(tileIndex * game.strideObject);
-}
-
-MaskWord* cellPtr(LevelTemplate& level, const Game& game, int32_t tileIndex) {
-    return level.objects.data() + static_cast<size_t>(tileIndex * game.strideObject);
-}
-
-bool matchesSlot(const Slot& slot, const LevelTemplate& level, const Game& game, int32_t tileIndex) {
-    const MaskWord* cell = cellPtr(level, game, tileIndex);
-    for (const auto& term : slot.terms) {
-        if (term.missing) {
-            if (anyBits(term.mask.data(), game.wordCount, cell, game.wordCount)) return false;
-        } else if (term.any) {
-            if (!anyBits(term.mask.data(), game.wordCount, cell, game.wordCount)) return false;
-        } else {
-            if (!bitsSet(term.mask.data(), game.wordCount, cell, game.wordCount)) return false;
-        }
-    }
-    return true;
-}
-
-void applySlot(const Slot& slot, LevelTemplate& level, const Game& game, int32_t tileIndex) {
-    MaskWord* cell = cellPtr(level, game, tileIndex);
-    for (const auto& replacement : slot.replacements) {
-        for (uint32_t w = 0; w < game.wordCount; ++w) {
-            cell[w] = (cell[w] & ~replacement.clearMask[w]) | replacement.setMask[w];
-        }
-    }
-}
-
-std::optional<int32_t> directedTile(const LevelTemplate& level, int32_t anchorTile, Direction direction, size_t distance) {
-    const int32_t x = anchorTile / level.height;
-    const int32_t y = anchorTile % level.height;
-    int32_t nx = x;
-    int32_t ny = y;
-    const int32_t step = static_cast<int32_t>(distance);
-    switch (direction) {
-        case Direction::Up: ny -= step; break;
-        case Direction::Down: ny += step; break;
-        case Direction::Left: nx -= step; break;
-        case Direction::Right: nx += step; break;
-    }
-    if (nx < 0 || nx >= level.width || ny < 0 || ny >= level.height) return std::nullopt;
-    return nx * level.height + ny;
-}
-
-bool matchesGroup(
-    const PatternGroup& group,
-    const LevelTemplate& level,
-    const Game& game,
-    int32_t anchorTile,
-    Direction direction,
-    const std::vector<int32_t>& reservedTiles
-) {
-    for (size_t cellIndex = 0; cellIndex < group.cells.size(); ++cellIndex) {
-        const auto tile = directedTile(level, anchorTile, direction, cellIndex);
-        if (!tile) return false;
-        if (std::find(reservedTiles.begin(), reservedTiles.end(), *tile) != reservedTiles.end()) return false;
-        if (!matchesSlot(group.cells[cellIndex], level, game, *tile)) return false;
-    }
-    return true;
-}
-
-void applyGroup(const PatternGroup& group, LevelTemplate& level, const Game& game, int32_t anchorTile, Direction direction) {
-    for (size_t cellIndex = 0; cellIndex < group.cells.size(); ++cellIndex) {
-        const auto tile = directedTile(level, anchorTile, direction, cellIndex);
-        if (tile) applySlot(group.cells[cellIndex], level, game, *tile);
-    }
-}
-
-bool chooseGroupsForDirection(
-    const Alternative& alternative,
-    const LevelTemplate& level,
-    const Game& game,
-    Direction direction,
-    Rng& rng,
-    std::vector<int32_t>& candidates,
-    std::vector<int32_t>& chosenAnchors,
-    std::vector<int32_t>& reservedTiles
-) {
-    const int32_t tileCount = level.width * level.height;
-    chosenAnchors.clear();
-    reservedTiles.clear();
-    for (const auto& group : alternative.groups) {
-        candidates.clear();
-        for (int32_t tile = 0; tile < tileCount; ++tile) {
-            if (matchesGroup(group, level, game, tile, direction, reservedTiles)) candidates.push_back(tile);
-        }
-        if (candidates.empty()) return false;
-        const int32_t anchor = candidates[rng.index(candidates.size())];
-        chosenAnchors.push_back(anchor);
-        for (size_t cellIndex = 0; cellIndex < group.cells.size(); ++cellIndex) {
-            const auto tile = directedTile(level, anchor, direction, cellIndex);
-            if (tile) reservedTiles.push_back(*tile);
-        }
-    }
-    return true;
-}
-
-bool applyProgram(const GenerationProgram& program, const LevelTemplate& init, const Game& game, Rng& rng, LevelTemplate& out) {
-    out = init;
-    std::vector<int32_t> candidates;
-    std::vector<int32_t> chosenAnchors;
-    std::vector<int32_t> reservedTiles;
-    for (const auto& rule : program.rules) {
-        for (int32_t iteration = 0; iteration < rule.count; ++iteration) {
-            if (rule.alternatives.empty()) return false;
-            const Alternative& alternative = rule.alternatives[rng.index(rule.alternatives.size())];
-            if (alternative.optionProbability < 1.0 && rng.unit() >= alternative.optionProbability) {
-                continue;
-            }
-            const auto& directions = alternative.directions;
-            const size_t directionCount = directions.empty() ? 0 : directions.size();
-            const size_t directionStart = directionCount == 0 ? 0 : rng.index(directionCount);
-            bool matched = false;
-            Direction direction = Direction::Right;
-            for (size_t attempt = 0; attempt < std::max<size_t>(1, directionCount); ++attempt) {
-                direction = directionCount == 0
-                    ? Direction::Right
-                    : directions[(directionStart + attempt) % directionCount];
-                if (chooseGroupsForDirection(alternative, out, game, direction, rng, candidates, chosenAnchors, reservedTiles)) {
-                    matched = true;
-                    break;
-                }
-            }
-            if (!matched) return false;
-            for (size_t groupIndex = 0; groupIndex < alternative.groups.size(); ++groupIndex) {
-                applyGroup(alternative.groups[groupIndex], out, game, chosenAnchors[groupIndex], direction);
-            }
-        }
-    }
-    return true;
-}
-
-uint64_t hashLevel(const LevelTemplate& level) {
-    uint64_t hash = 1469598103934665603ull;
-    auto append = [&](uint64_t value) {
-        hash ^= value;
-        hash *= 1099511628211ull;
-    };
-    append(static_cast<uint64_t>(static_cast<uint32_t>(level.width)));
-    append(static_cast<uint64_t>(static_cast<uint32_t>(level.height)));
-    for (const MaskWord word : level.objects) {
-        append(static_cast<uint64_t>(static_cast<MaskWordUnsigned>(word)));
-    }
-    return hash;
 }
 
 std::string inputName(ps_input input) {
@@ -1695,13 +1124,67 @@ std::string finalJson(const Options& options, const Game& game, SharedState& sha
     return out.str();
 }
 
+int runLevelSetMode(const Options& options, const std::string& gameSource, const std::string& specText) {
+    if (!options.jsonOut.empty()) {
+        throw std::runtime_error("Cannot combine --out with --json-out");
+    }
+
+    puzzlescript::compiler::ParserState parserState;
+    auto loadedGame = compileGame(gameSource, &parserState);
+    const auto& game = loadedGame.information;
+    if (game == nullptr) {
+        throw std::runtime_error("Failed to compile game source");
+    }
+
+    auto blockSpecs = parseLevelSetSpec(specText, *game);
+    NameResolver resolver(*game, parserState);
+    std::deque<BlockState> blocks;
+    for (size_t blockIndex = 0; blockIndex < blockSpecs.size(); ++blockIndex) {
+        blocks.emplace_back();
+        BlockState& block = blocks.back();
+        block.spec = std::move(blockSpecs[blockIndex]);
+        block.program = compileGenerationProgram(block.spec.ruleLines, *game, resolver);
+        block.blockIndex = blockIndex;
+        if (block.spec.header.name.empty()) {
+            block.spec.header.name = "block " + std::to_string(blockIndex + 1);
+        }
+    }
+
+    std::atomic<bool> cancel{false};
+    gCancelFlag = &cancel;
+    OutputCoordinator outputCoordinator(options.outPath, gameSource, *game);
+    gOutputCoordinator = &outputCoordinator;
+    std::signal(SIGINT, handleSignal);
+    std::signal(SIGTERM, handleSignal);
+
+    LevelSetOptions levelSetOptions;
+    levelSetOptions.globalSeed = options.seed;
+    levelSetOptions.jobs = options.jobs == 0 ? autoJobCount() : options.jobs;
+    levelSetOptions.solverTimeoutMs = options.solverTimeoutMs;
+    levelSetOptions.dedupeMax = options.dedupeMax;
+    levelSetOptions.inactivityStartMs = options.inactivityStartMs;
+    levelSetOptions.cancel = &cancel;
+
+    runLevelSetForever(loadedGame, gameSource, blocks, outputCoordinator, levelSetOptions);
+
+    outputCoordinator.flush();
+    gCancelFlag = nullptr;
+    gOutputCoordinator = nullptr;
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     try {
         Options options = parseArgs(argc, argv);
         const std::string gameSource = readFile(options.gamePath);
-        const Spec spec = parseSpec(readFile(options.specPath));
+        const std::string specText = readFile(options.specPath);
+        if (!options.outPath.empty()) {
+            return runLevelSetMode(options, gameSource, specText);
+        }
+
+        const LegacySpec spec = parseLegacySpec(specText);
         puzzlescript::compiler::ParserState parserState;
         const std::string initSource = sourceWithInitLevel(gameSource, spec.initRows);
         auto loadedGame = compileGame(initSource, &parserState);
@@ -1710,7 +1193,7 @@ int main(int argc, char** argv) {
             throw std::runtime_error("Compiled init level did not produce a playable level");
         }
         NameResolver resolver(*game, parserState);
-        const GenerationProgram program = compileGenerationProgram(spec, *game, resolver);
+        const GenerationProgram program = compileGenerationProgram(spec.ruleLines, *game, resolver);
         const SolverMetadata solverMetadata = buildSolverMetadata(*game);
         initializeEventsJsonl(options);
 
