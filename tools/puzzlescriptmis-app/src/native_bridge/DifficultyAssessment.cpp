@@ -5,6 +5,8 @@
 namespace nativebridge {
 namespace {
 
+constexpr const char* kMisGreedyHeuristic = "mis-cost-estimate";
+
 void updateDifficultyMin(DifficultyBreakdown& breakdown, long long expanded, const std::string& algorithm) {
     if (expanded < 0) {
         return;
@@ -20,8 +22,9 @@ CandidateSolveResult solveWithStrategy(
     const vvvs& state,
     long long timeoutMs,
     ps_solve_strategy strategy,
-    uint64_t maxExpanded) {
-    return solveGeneratedState(context, state, timeoutMs, strategy, maxExpanded);
+    uint64_t maxExpanded,
+    const char* solverHeuristic = nullptr) {
+    return solveGeneratedState(context, state, timeoutMs, strategy, maxExpanded, solverHeuristic);
 }
 
 void runSupplementalLane(
@@ -31,14 +34,16 @@ void runSupplementalLane(
     ps_solve_strategy strategy,
     long long& laneExpanded,
     DifficultyBreakdown& breakdown,
-    const std::string& algorithmLabel) {
+    const std::string& algorithmLabel,
+    const char* solverHeuristic = nullptr) {
     const uint64_t cap = static_cast<uint64_t>(MAX(0LL, options.supplementalCap));
     const CandidateSolveResult lane = solveWithStrategy(
         context,
         state,
         options.supplementalTimeoutMs,
         strategy,
-        cap);
+        cap,
+        solverHeuristic);
     if (lane.status == CandidateSolveStatus::Solved && lane.expanded >= 0) {
         laneExpanded = lane.expanded;
         updateDifficultyMin(breakdown, laneExpanded, algorithmLabel);
@@ -115,7 +120,8 @@ DifficultyAssessmentResult assessDifficulty(
         PS_SOLVE_STRATEGY_GREEDY,
         result.breakdown.expandedGreedy,
         result.breakdown,
-        "Greedy");
+        "Greedy",
+        kMisGreedyHeuristic);
     if (onProgress) {
         onProgress(DifficultyAssessmentStage::GreedyComplete, result);
     }

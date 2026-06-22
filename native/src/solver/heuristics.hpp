@@ -9,6 +9,7 @@
 
 #include "runtime/core.hpp"
 #include "search/search_common.hpp"
+#include "solver/mis_cost_estimate.hpp"
 #include "solver/static_analysis.hpp"
 
 namespace puzzlescript::solver {
@@ -20,6 +21,7 @@ enum class HeuristicKind {
     AllOnMatching,
     AllOnPlayer,
     NoPlayerDistance,
+    MisCostEstimate,
 };
 
 struct StaticAnalysisHints {
@@ -35,6 +37,7 @@ inline const char* heuristicName(HeuristicKind kind) {
         case HeuristicKind::AllOnMatching: return "all-on-matching";
         case HeuristicKind::AllOnPlayer: return "all-on-player";
         case HeuristicKind::NoPlayerDistance: return "no-player-distance";
+        case HeuristicKind::MisCostEstimate: return "mis-cost-estimate";
     }
     return "winconditions";
 }
@@ -57,6 +60,9 @@ inline std::optional<HeuristicKind> parseHeuristicName(std::string_view name) {
     }
     if (name == "no-player-distance") {
         return HeuristicKind::NoPlayerDistance;
+    }
+    if (name == "mis-cost-estimate") {
+        return HeuristicKind::MisCostEstimate;
     }
     return std::nullopt;
 }
@@ -89,7 +95,7 @@ public:
         const MaskWord* initialBoard,
         const StaticAnalysisHints* staticAnalysisHints = nullptr)
         : game_(game), width_(width), height_(height), kind_(kind) {
-        if (kind_ == HeuristicKind::Zero) {
+        if (kind_ == HeuristicKind::Zero || kind_ == HeuristicKind::MisCostEstimate) {
             return;
         }
         playerMask_ = search::maskPtr(game_, game_.playerMask);
@@ -190,6 +196,9 @@ public:
     int32_t score(const MaskWord* board) {
         if (kind_ == HeuristicKind::Zero || game_.winConditions.empty() || board == nullptr) {
             return 0;
+        }
+        if (kind_ == HeuristicKind::MisCostEstimate) {
+            return misCostEstimateScore(game_, width_, height_, board);
         }
         if (kind_ == HeuristicKind::AllOnMatching) {
             return allOnAssignmentScore(board, false);

@@ -56,6 +56,51 @@ namespace editor {
 }
 using namespace editor;
 
+struct IdeSnapshot {
+    vector<string> text;
+    pair<int,int> cursor;
+    pair<int,int> select;
+};
+
+static vector<IdeSnapshot> ideUndoStack;
+static vector<IdeSnapshot> ideRedoStack;
+static bool ideSuppressUndo = false;
+
+static IdeSnapshot captureIdeSnapshot() {
+    return { ideString, cursorPos, selectPos };
+}
+
+static void restoreIdeSnapshot(const IdeSnapshot& snapshot) {
+    ideString = snapshot.text;
+    cursorPos = snapshot.cursor;
+    selectPos = snapshot.select;
+}
+
+static void clearIdeUndoRedoStacks() {
+    ideUndoStack.clear();
+    ideRedoStack.clear();
+}
+
+static void pushIdeUndoSnapshot() {
+    if(ideSuppressUndo) return;
+    ideUndoStack.push_back(captureIdeSnapshot());
+    ideRedoStack.clear();
+}
+
+static void ideUndo() {
+    if(ideUndoStack.empty()) return;
+    ideRedoStack.push_back(captureIdeSnapshot());
+    restoreIdeSnapshot(ideUndoStack.back());
+    ideUndoStack.pop_back();
+}
+
+static void ideRedo() {
+    if(ideRedoStack.empty()) return;
+    ideUndoStack.push_back(captureIdeSnapshot());
+    restoreIdeSnapshot(ideRedoStack.back());
+    ideRedoStack.pop_back();
+}
+
 static pair<bool,bool> compileEditorSourceThroughNativeFacade() {
     const bool levelSuccess = nativebridge::compileSourceLines(levelEditorString, gbl::currentGame, logger::levelEdit);
     const bool generatorSuccess = levelSuccess && parseGameGeneratorLines(exploitationString, gbl::currentGame, logger::generator);
@@ -197,6 +242,7 @@ void switchToLeftEditor(MODE_TYPE newmode, const string reason) {
 void switchToRightEditor(MODE_TYPE newmode) { //switch to IDE
     assert(newmode == MODE_LEVEL_EDITOR || newmode == MODE_EXPLOITATION || newmode == MODE_INSPIRATION);
     
+    clearIdeUndoRedoStacks();
     activeIDE = true;
     selectedBlock = -1;
     selectedExploitationTool = -1;
@@ -828,9 +874,7 @@ void displayLevelEditor() {
 		if (info.phase == levelSolve::Phase::Unsolvable) {
 			displayStrL = "Unsolvable!!!";
 		} else if (info.phase == levelSolve::Phase::Solved) {
-			const bool bfsConfirmedShortest = info.expandedBfs >= 0;
-			displayStrL = (bfsConfirmedShortest ? "Shortest solution size: " : "Solution size: ")
-				+ to_string(info.solutionLength);
+			displayStrL = "Solution size: " + to_string(info.solutionLength);
 			displayStrR = "Diff ";
 			for (const DifficultyLane& lane : difficultyLanes) {
 				displayStrR += lane.text;
@@ -1059,10 +1103,22 @@ void displayLevelEditor() {
 
 void ideKeyPressed(int key, bool isSuperKey, bool isAltKey, bool isShiftKey) {
     cout << "key pressed " << key << " is super: " << isSuperKey << " is alt: "<< isAltKey << " is shift " << isShiftKey << endl;
+    if(isSuperKey && (key == 26 || key == 90 || key == 122)) {
+        if(isShiftKey) ideRedo();
+        else ideUndo();
+        return;
+    }
+    if(isSuperKey && key == 25) {
+        ideRedo();
+        return;
+    }
 	if (!isSuperKey && key >= 32 && key <= 256 && key != 127) {
-        if(selectPos != cursorPos)
+        if(selectPos != cursorPos) {
+            ideSuppressUndo = true;
             ideKeyPressed(OF_KEY_BACKSPACE, false, false, false);
-        
+            ideSuppressUndo = false;
+        }
+        pushIdeUndoSnapshot();
         ideString[cursorPos.first] = ideString[cursorPos.first].substr(0, cursorPos.second) + (char)key + ideString[cursorPos.first].substr(cursorPos.second);
         cursorPos.second++;
         selectPos = cursorPos;
@@ -1071,8 +1127,12 @@ void ideKeyPressed(int key, bool isSuperKey, bool isAltKey, bool isShiftKey) {
         switch(key) {
             case OF_KEY_RETURN: // enter macOS
             {
-                if(selectPos != cursorPos)
+                if(selectPos != cursorPos) {
+                    ideSuppressUndo = true;
                     ideKeyPressed(OF_KEY_BACKSPACE, false, false, false);
+                    ideSuppressUndo = false;
+                }
+                pushIdeUndoSnapshot();
                 string str1 = ideString[cursorPos.first].substr(0,cursorPos.second);
                 string str2 = ideString[cursorPos.first].substr(cursorPos.second);
                 
@@ -1083,6 +1143,7 @@ void ideKeyPressed(int key, bool isSuperKey, bool isAltKey, bool isShiftKey) {
             }
                 break;
             case OF_KEY_BACKSPACE: // backspace
+                pushIdeUndoSnapshot();
                 if(cursorPos != selectPos) {
                     auto minPos = MIN(cursorPos, selectPos);
                     auto maxPos = MAX(cursorPos, selectPos);
@@ -1117,6 +1178,7 @@ void ideKeyPressed(int key, bool isSuperKey, bool isAltKey, bool isShiftKey) {
                 break;
             case 46: // DELETE
             case OF_KEY_DEL:
+                pushIdeUndoSnapshot();
                 if(cursorPos != selectPos) {
                     auto minPos = MIN(cursorPos, selectPos);
                     auto maxPos = MAX(cursorPos, selectPos);
@@ -1318,11 +1380,15 @@ void ideKeyPressed(int key, bool isSuperKey, bool isAltKey, bool isShiftKey) {
             case 118: //paste macOS if command is pressed (i think 22 if control is pressed)
             {
                 string result = ofGetWindowPtr()->getClipboardString();
+                if(result.empty()) break;
+                pushIdeUndoSnapshot();
+                ideSuppressUndo = true;
                 for(unsigned char c : result) {
                     if(c != 10 && c < 32) continue;
                     if(c != 10) ideKeyPressed(c, false, false, false);
                     else ideKeyPressed(13, false, false, false);
                 }
+                ideSuppressUndo = false;
             }
             break;
 			case 3: //copy Windows if command is pressed

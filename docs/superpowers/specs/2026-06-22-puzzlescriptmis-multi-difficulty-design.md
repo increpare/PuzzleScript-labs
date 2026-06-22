@@ -2,18 +2,18 @@
 
 ## Summary
 
-Restore the original PuzzleScript+MIS difficulty metric: **states expanded to find a solution**, scored as the minimum across three **standalone** native search strategies — **Weighted A\***, **Greedy**, and **BFS**.
+Restore the original PuzzleScript+MIS difficulty metric: **states expanded to find a solution**, scored as the minimum across **four** native search lanes — the adaptive **portfolio** plus standalone **Weighted A\***, **Greedy**, and **BFS**.
 
 Use a **two-phase** model on a single worker thread:
 
-1. **Primary (solvability):** adaptive **portfolio** with `portfolio_jobs = 1` — fast interleaved search (wa2/wa3/wa8/greedy/bfs lanes, shared visited set).
-2. **Refinement (difficulty):** three dedicated strategy calls with `max_expanded = primaryExpanded + 6` to produce honest per-lane counts and `difficulty = min(...)`.
+1. **Primary (solvability + bound):** adaptive **portfolio** with `portfolio_jobs = 1` — fast interleaved search (wa2/wa3/wa8/greedy/bfs lanes, shared visited set). Its `expanded` count is the first difficulty lane and bounds the refinement work.
+2. **Refinement (difficulty):** three dedicated standalone strategy calls with `max_expanded = primaryExpanded + 6` to produce honest per-strategy counts.
 
-Portfolio `expanded` is **not** a valid difficulty score (it counts total interleaved work). It seeds the supplemental cap and throughput/budget estimates only.
+Final `difficulty = min(expandedPortfolio, expandedGreedy, expandedWeightedAStar, expandedBfs)` over the lanes that solved. The portfolio lane always solves (it gated entry to refinement), so it also seeds the supplemental cap / throughput estimates and serves as the fallback when every standalone lane hits the cap.
 
 ## Goals
 
-- Score difficulty as `min(expandedWeightedAStar, expandedGreedy, expandedBfs)` from **standalone** runs when supplemental refinement runs.
+- Score difficulty as `min(expandedPortfolio, expandedGreedy, expandedWeightedAStar, expandedBfs)` over the lanes that solved (portfolio bound + standalone trio when supplemental refinement runs).
 - Level UI: show per-strategy expanded counts (like pre-native MIS) plus headline min.
 - Generation: rank curated candidates by refined min when supplemental runs; otherwise fall back to portfolio `expanded` for ranking.
 - Primary solve: `PS_SOLVE_STRATEGY_PORTFOLIO` with `portfolio_jobs = 1` (adaptive single-thread portfolio — keep current MIS primary behavior).
@@ -22,7 +22,7 @@ Portfolio `expanded` is **not** a valid difficulty score (it counts total interl
 
 ## Non-Goals
 
-- Using portfolio aggregate `expanded` as the final difficulty metric.
+- Using portfolio aggregate `expanded` as the *sole* difficulty metric — it is the bounding lane in the four-way min, not a standalone score.
 - Parallel supplemental solvers or `portfolio_jobs > 1` inside MIS workers.
 - `weighted-astar-deep` or HDA as difficulty lanes.
 - Changing transformation language or curation count (still top 4).
@@ -33,8 +33,8 @@ Portfolio `expanded` is **not** a valid difficulty score (it counts total interl
 | Concern | Portfolio (jobs=1) | Standalone WA\* |
 |---|---|---|
 | Find solution under timeout | **Better** — interleaves greedy/BFS/weighted lanes | Single lane only |
-| Per-strategy expanded count | **No** — one shared `expanded` total | **Yes** |
-| Valid `min(Greedy, WA*, BFS)` | **No** | **Yes** (one strategy per run) |
+| Per-strategy expanded count | **No** — one shared `expanded` total (the bounding lane) | **Yes** |
+| Contributes a lane to `min(...)` | **Yes** — as the portfolio bound | **Yes** (one strategy per run) |
 
 Primary job is solvability; refinement job is measurement. Same split as old MIS (one solver first, then capped double-checks), except primary is portfolio instead of `bestSolver()`.
 
@@ -58,11 +58,12 @@ New shared helper: `tools/puzzlescriptmis-app/src/native_bridge/DifficultyAssess
 
 ```cpp
 struct DifficultyBreakdown {
+    long long expandedPortfolio = -1;    // portfolio bound (first lane)
     long long expandedWeightedAStar = -1;
     long long expandedGreedy = -1;
     long long expandedBfs = -1;
-    long long difficulty = -1;       // min of supplemental solved counts
-    std::string difficultyAlgorithm; // "WeightedAStar" | "Greedy" | "BFS"
+    long long difficulty = -1;       // min over the lanes that solved
+    std::string difficultyAlgorithm; // "Portfolio" | "WeightedAStar" | "Greedy" | "BFS"
 };
 
 struct DifficultyAssessmentOptions {
@@ -73,7 +74,7 @@ struct DifficultyAssessmentOptions {
 
 struct DifficultyAssessmentResult {
     CandidateSolveStatus primaryStatus;
-    long long primaryExpanded = 0;   // portfolio total — not a difficulty lane
+    long long primaryExpanded = 0;   // portfolio total — the first difficulty lane (breakdown.expandedPortfolio)
     std::string primaryStrategy;     // e.g. "portfolio:greedy"
     std::vector<short> solution;     // from portfolio primary
     DifficultyBreakdown breakdown;
@@ -85,12 +86,12 @@ struct DifficultyAssessmentResult {
 
 1. Run **portfolio** (`PS_SOLVE_STRATEGY_PORTFOLIO`, `portfolio_jobs = 1`), wall-clock timeout, no expansion cap.
 2. If not solved → return; no supplemental.
-3. Record `primaryExpanded`, `primaryStrategy`, portfolio solution.
-4. If `!runSupplemental` → set `breakdown.difficulty = primaryExpanded` (fallback for generation lazy skip); return.
+3. Record `primaryExpanded`, `primaryStrategy`, portfolio solution. Seed `breakdown.expandedPortfolio = primaryExpanded` and `difficulty = primaryExpanded` ("Portfolio").
+4. If `!runSupplemental` → return with the portfolio-only breakdown (lazy generation skip).
 5. `cap = options.supplementalCap >= 0 ? options.supplementalCap : (primaryExpanded + 6)`.
 6. Run standalone **Greedy**, **Weighted A\***, **BFS** (in any order) each with `max_expanded = cap` and generous wall-clock timeout.
-7. For each supplemental run that **solves** within cap, record its `expanded` in breakdown; update `difficulty = min(successful counts)`.
-8. If at least one supplemental solves, set `difficultyAlgorithm` to the argmin lane. If none solve within cap, fall back to `difficulty = primaryExpanded`.
+7. For each supplemental run that **solves** within cap, record its `expanded` in breakdown.
+8. `difficulty = min(expandedPortfolio, <each standalone lane that solved>)`; `difficultyAlgorithm` is the argmin lane. The portfolio lane always counts, so it is the natural fallback when every standalone lane hits the cap.
 
 Plumb `ps_solve_strategy` and `max_expanded` through `NativeGameBridge::solveLayerGrid(grid, timeoutMs, strategy, maxExpanded)`.
 
@@ -105,8 +106,9 @@ struct Snapshot {
     Phase phase;
     int solutionLength;
     long long difficulty;              // min (-1 if unknown)
-    long long expandedWeightedAStar;   // -1 until standalone run completes
-    long long expandedGreedy;
+    long long expandedPortfolio;       // portfolio bound (first lane)
+    long long expandedGreedy;          // -1 until standalone run completes
+    long long expandedWeightedAStar;
     long long expandedBfs;
     string difficultyAlgorithm;
     string algorithm;                  // primary portfolio lane label
@@ -120,13 +122,13 @@ Phases:
 2. **Refining** — standalone Greedy, WA\*, BFS (always after portfolio solve).
 3. **Solved** — final breakdown + min.
 
-Display (right side):
+Display (right side), lowest (winning) lane highlighted:
 
 ```text
-Difficulty 1234 (Greedy) 5678 (WeightedAStar) 9012 (BFS)
+Diff 2048Prt 1234Grd 5678WA* 9012BFS
 ```
 
-Use `...` for counts not yet computed. Solution length from portfolio primary; claim "Shortest solution size" only when standalone BFS ran and matches (or primary was `portfolio:bfs` and BFS supplemental confirms — prefer: only when BFS supplemental succeeds and is used for display path).
+Use `?` for counts not yet computed. Left side shows `Solution size: <n>` from the portfolio primary path. We do **not** claim it is shortest — the portfolio can return a non-optimal path even when the BFS lane confirms a shorter optimum exists, and the BFS lane's own path is not currently carried back.
 
 ### Generation (`generation.cpp`)
 
@@ -167,13 +169,13 @@ sequenceDiagram
 - Primary portfolio error → timeout/error for generation; error in level UI.
 - Supplemental timeout without solve within cap → lane stays `-1`; does not lower min.
 - Unsolvable primary → skip supplemental; `Unsolvable`.
-- All supplementals fail within cap → `difficulty = primaryExpanded` fallback.
+- All supplementals fail within cap → only the portfolio lane is populated, so the four-way `min` falls back to `difficulty = expandedPortfolio`.
 
 ## Testing
 
 1. Native: `max_expanded` stops at cap.
 2. Bridge: strategy parameter; portfolio primary still returns `portfolio:*` strategy label.
-3. Bridge: `assessDifficulty` with supplemental populates three standalone counts and correct min.
+3. Bridge: `assessDifficulty` with supplemental populates the portfolio lane plus three standalone counts and correct min.
 4. Generation: refined candidate ranks by min when supplemental runs.
 5. Smoke + MIS app build.
 
@@ -185,7 +187,7 @@ sequenceDiagram
 
 - **Orchestration:** Sequential calls — portfolio primary, then standalone trio.
 - **Primary solve:** Adaptive portfolio (`portfolio_jobs = 1`).
-- **Difficulty metric:** `min` of standalone Greedy / Weighted A\* / BFS expanded counts.
+- **Difficulty metric:** `min` over the lanes that solved — portfolio bound + standalone Greedy / Weighted A\* / BFS expanded counts.
 - **Generation supplemental gating:** Lazy — only when portfolio solve might affect top-4.
 - **Level UI supplemental:** Always run standalone trio after portfolio solve.
 - **State cap:** Native `max_expanded` on supplemental runs (`primaryExpanded + 6`).

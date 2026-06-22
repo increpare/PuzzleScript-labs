@@ -124,6 +124,15 @@ PC#T
     require(greedy.status == psbridge::NativeSolveStatus::Solved, "expected greedy strategy to solve fixture");
     require(greedy.strategy.find("greedy") != std::string::npos, "expected greedy strategy label");
 
+    const psbridge::NativeSolveResult misGreedy = bridge.solveLayerGrid(
+        solvableGrid,
+        5000,
+        PS_SOLVE_STRATEGY_GREEDY,
+        0,
+        "mis-cost-estimate");
+    require(misGreedy.status == psbridge::NativeSolveStatus::Solved, "expected MIS greedy heuristic to solve fixture");
+    require(misGreedy.heuristic == "mis-cost-estimate", "expected MIS greedy heuristic label");
+
     const psbridge::NativeSolveResult capped = bridge.solveLayerGrid(solvableGrid, 5000, PS_SOLVE_STRATEGY_BFS, 1);
     require(capped.expanded <= 1, "expected max_expanded cap to be respected");
 

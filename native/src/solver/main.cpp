@@ -743,7 +743,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance|mis-cost-estimate] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -1740,6 +1740,30 @@ public:
         return true;
     }
 
+    template <typename Nodes>
+    bool insertIfNew(
+        const StateKey& key,
+        const PersistentLevelState& state,
+        uint32_t depth,
+        uint32_t nodeIndex,
+        const Nodes& nodes
+    ) {
+        ensureCapacityForInsert();
+        size_t probes = 0;
+        const size_t slot = findSlot(key, state, nodes, probes);
+        recordInsert(probes);
+        Entry& entry = entries[slot];
+        if (entry.occupied) {
+            return false;
+        }
+        entry.key = key;
+        entry.depth = depth;
+        entry.nodeIndex = nodeIndex;
+        entry.occupied = true;
+        ++entryCount;
+        return true;
+    }
+
     size_t size() const {
         return entryCount;
     }
@@ -2013,6 +2037,14 @@ Result runSearch(
     }
     result.maxFrontier = 1;
 
+    const bool greedyPermanentClose =
+        mode == SearchMode::Greedy
+        && heuristicKind == puzzlescript::solver::HeuristicKind::MisCostEstimate;
+    std::vector<uint8_t> expandedNodes;
+    if (greedyPermanentClose) {
+        expandedNodes.assign(nodes.size(), 0);
+    }
+
     uint64_t nextTie = 1;
     const auto inputs = solverInputsForGame(*game);
     const bool copyRestartSnapshot = gameHasRuleCommand(*game, "restart");
@@ -2048,14 +2080,25 @@ Result runSearch(
         uint32_t parentDepth = 0;
         {
             const Node& parentNode = nodes[entry.nodeIndex];
-            std::optional<uint32_t> best;
-            {
-                ScopedTimer timer(result.timing.visitedLookupNs);
-                best = bestDepth.find(parentNode.key, parentNode.state, nodes);
-            }
-            if (best && *best < parentNode.depth) {
-                ++result.duplicates;
-                continue;
+            if (greedyPermanentClose) {
+                if (entry.nodeIndex >= expandedNodes.size()) {
+                    expandedNodes.resize(entry.nodeIndex + 1, 0);
+                }
+                if (expandedNodes[entry.nodeIndex]) {
+                    ++result.duplicates;
+                    continue;
+                }
+                expandedNodes[entry.nodeIndex] = 1;
+            } else {
+                std::optional<uint32_t> best;
+                {
+                    ScopedTimer timer(result.timing.visitedLookupNs);
+                    best = bestDepth.find(parentNode.key, parentNode.state, nodes);
+                }
+                if (best && *best < parentNode.depth) {
+                    ++result.duplicates;
+                    continue;
+                }
             }
 
             parentSessionPtr = parentNode.session.get();
@@ -2151,7 +2194,9 @@ Result runSearch(
                 bool shouldStore = false;
                 {
                     ScopedTimer timer(result.timing.visitedInsertNs);
-                    shouldStore = bestDepth.insertOrAssignIfBetter(key, childState, childDepth, childIndex, nodes);
+                    shouldStore = greedyPermanentClose
+                        ? bestDepth.insertIfNew(key, childState, childDepth, childIndex, nodes)
+                        : bestDepth.insertOrAssignIfBetter(key, childState, childDepth, childIndex, nodes);
                     result.uniqueStates = bestDepth.size();
                 }
                 if (!shouldStore) {
@@ -2172,11 +2217,16 @@ Result runSearch(
                     nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                     recordPersistentLevelStateStorage(result.timing, nodes.back().state);
                 }
+                if (greedyPermanentClose) {
+                    expandedNodes.push_back(0);
+                }
             } else {
                 bool shouldStore = false;
                 {
                     ScopedTimer timer(result.timing.visitedInsertNs);
-                    shouldStore = bestDepth.insertOrAssignIfBetter(key, childState, childDepth, 0, nodes);
+                    shouldStore = greedyPermanentClose
+                        ? bestDepth.insertIfNew(key, childState, childDepth, 0, nodes)
+                        : bestDepth.insertOrAssignIfBetter(key, childState, childDepth, 0, nodes);
                     result.uniqueStates = bestDepth.size();
                 }
                 if (!shouldStore) {
@@ -2197,6 +2247,9 @@ Result runSearch(
                     ScopedTimer timer(result.timing.nodeStoreNs);
                     nodes.push_back(Node{std::move(ownedChild), std::move(childState), key, static_cast<int32_t>(entry.nodeIndex), input, childDepth, childHeuristic});
                     recordPersistentLevelStateStorage(result.timing, nodes.back().state);
+                }
+                if (greedyPermanentClose) {
+                    expandedNodes.push_back(0);
                 }
             }
             {
@@ -3513,6 +3566,7 @@ Result solveSeededLevel(
     bool compactTurnSearch,
     int32_t astarWeight,
     size_t portfolioJobs,
+    puzzlescript::solver::HeuristicKind heuristicKind,
     uint64_t maxExpanded = 0
 ) {
     const TimePoint searchStart = Clock::now();
@@ -3583,7 +3637,7 @@ Result solveSeededLevel(
             compactTurnOracle,
             compactTurnSearch,
             astarWeight,
-            puzzlescript::solver::HeuristicKind::Auto,
+            heuristicKind,
             nullptr,
             nullptr,
             std::move(initial),
@@ -3604,7 +3658,7 @@ Result solveSeededLevel(
             compactTurnOracle,
             compactTurnSearch,
             astarWeight,
-            puzzlescript::solver::HeuristicKind::Auto,
+            heuristicKind,
             nullptr,
             nullptr,
             std::move(initial),
@@ -3625,7 +3679,7 @@ Result solveSeededLevel(
             compactTurnOracle,
             compactTurnSearch,
             astarWeight,
-            puzzlescript::solver::HeuristicKind::Auto,
+            heuristicKind,
             nullptr,
             nullptr,
             std::move(initial),
@@ -4423,6 +4477,15 @@ Strategy strategyFromApi(ps_solve_strategy strategy) {
     }
 }
 
+puzzlescript::solver::HeuristicKind heuristicKindFromApiOptions(const ps_solve_options& options) {
+    if (options.solver_heuristic == nullptr || options.solver_heuristic[0] == '\0') {
+        return puzzlescript::solver::HeuristicKind::Auto;
+    }
+    const std::optional<puzzlescript::solver::HeuristicKind> parsed =
+        puzzlescript::solver::parseHeuristicName(options.solver_heuristic);
+    return parsed.value_or(puzzlescript::solver::HeuristicKind::Auto);
+}
+
 ps_solve_status solveStatusFromResult(const Result& result) {
     if (result.status == "solved") {
         return PS_SOLVE_STATUS_SOLVED;
@@ -4494,6 +4557,7 @@ extern "C" ps_solve_options ps_solve_default_options(void) {
     options.compact_turn_search = true;
     options.astar_weight = 2;
     options.max_expanded = 0;
+    options.solver_heuristic = nullptr;
     return options;
 }
 
@@ -4543,6 +4607,7 @@ extern "C" bool ps_solve_level_layer_cell_object_ids(
         effective.compact_turn_search,
         effective.astar_weight,
         effective.portfolio_jobs,
+        heuristicKindFromApiOptions(effective),
         effective.max_expanded);
     *out_result = makeApiSolveResult(result);
     return true;

@@ -455,14 +455,15 @@ public:
         const vvvs& state,
         long long timeoutMs,
         ps_solve_strategy strategy = PS_SOLVE_STRATEGY_PORTFOLIO,
-        uint64_t maxExpanded = 0) {
+        uint64_t maxExpanded = 0,
+        const char* solverHeuristic = nullptr) {
         if (!bridge_) {
             CandidateSolveResult result;
             result.error = "Native solver context is not initialized";
             return result;
         }
         return nativeResultToCandidateSolveResult(
-            bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs, strategy, maxExpanded));
+            bridge_->solveLayerGrid(layerGridFromState(state), timeoutMs, strategy, maxExpanded, solverHeuristic));
     }
 
 private:
@@ -553,8 +554,9 @@ CandidateSolveResult solveGeneratedState(
     const vvvs& state,
     long long timeoutMs,
     ps_solve_strategy strategy,
-    uint64_t maxExpanded) {
-    return context.solveGeneratedState(state, timeoutMs, strategy, maxExpanded);
+    uint64_t maxExpanded,
+    const char* solverHeuristic) {
+    return context.solveGeneratedState(state, timeoutMs, strategy, maxExpanded, solverHeuristic);
 }
 
 CandidateSolveResult solveGeneratedState(CandidateSolverContext& context, const vvvs& state, long long timeoutMs) {

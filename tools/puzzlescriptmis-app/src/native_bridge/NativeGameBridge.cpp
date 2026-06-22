@@ -379,7 +379,8 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(
     const LayerGrid& grid,
     int64_t timeoutMs,
     ps_solve_strategy strategy,
-    uint64_t maxExpanded) const {
+    uint64_t maxExpanded,
+    const char* solverHeuristic) const {
     NativeSolveResult result;
 
     if (!hasGame()) {
@@ -408,6 +409,7 @@ NativeSolveResult NativeGameBridge::solveLayerGrid(
     options.strategy = strategy;
     options.portfolio_jobs = 1;
     options.max_expanded = maxExpanded;
+    options.solver_heuristic = solverHeuristic;
 
     ps_solve_result* rawSolveResult = nullptr;
     ps_error* rawError = nullptr;

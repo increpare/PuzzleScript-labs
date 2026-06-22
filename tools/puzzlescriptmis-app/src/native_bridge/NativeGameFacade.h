@@ -41,7 +41,8 @@ CandidateSolveResult solveGeneratedState(
     const std::vector<std::vector<std::vector<short> > >& state,
     long long timeoutMs,
     ps_solve_strategy strategy = PS_SOLVE_STRATEGY_PORTFOLIO,
-    uint64_t maxExpanded = 0);
+    uint64_t maxExpanded = 0,
+    const char* solverHeuristic = nullptr);
 CandidateSolveResult solveGeneratedState(const std::vector<std::vector<std::vector<short> > >& state, long long timeoutMs);
 bool undo(Game& displayGame);
 bool restart(Game& displayGame);
