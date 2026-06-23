@@ -708,7 +708,7 @@ remix:
 	if [ "$$out_dir" != "." ] && [ "$$out_dir" != "" ]; then mkdir -p "$$out_dir"; fi
 	@echo "==> remix $(REMIX_IN) -> $(REMIX_OUT)"
 	@echo "    inactivity=$(REMIX_INACTIVITY_START) solver_timeout=$(REMIX_SOLVER_TIMEOUT_MS) jobs=$(REMIX_JOBS) seed=$(REMIX_SEED)"
-	@echo "    runs until Ctrl+C; progress on stderr every 10s (quiet_s only while searching)"
+	@echo "    runs until Ctrl+C; compact progress on stderr every 10s"
 	@$(MAKE) build_generator
 	@$(PUZZLESCRIPT_GENERATOR) "$(REMIX_IN)" --remix --out "$(REMIX_OUT)" \
 		--inactivity-start $(REMIX_INACTIVITY_START) \

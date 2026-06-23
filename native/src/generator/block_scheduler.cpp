@@ -45,6 +45,48 @@ std::string formatDurationMs(int64_t ms) {
     return out.str();
 }
 
+std::string formatElapsedSeconds(double seconds) {
+    if (seconds >= 3600.0) {
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(1) << (seconds / 3600.0) << "h";
+        return out.str();
+    }
+    if (seconds >= 60.0) {
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(1) << (seconds / 60.0) << "m";
+        return out.str();
+    }
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(0) << seconds << "s";
+    return out.str();
+}
+
+std::string formatRate(double rate) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(rate >= 100.0 ? 0 : 1) << std::max(0.0, rate);
+    return out.str();
+}
+
+std::string formatCompactCount(uint64_t value) {
+    if (value >= 10000000) {
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(1) << (static_cast<double>(value) / 1000000.0) << "M";
+        return out.str();
+    }
+    if (value >= 10000) {
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(1) << (static_cast<double>(value) / 1000.0) << "k";
+        return out.str();
+    }
+    return std::to_string(value);
+}
+
+struct ProgressTickState {
+    TimePoint lastTick{};
+    uint64_t lastTotalSamples = 0;
+    bool initialized = false;
+};
+
 void logKeeperImprovement(std::ostream& out, const Keeper& keeper, size_t keeperCount, size_t take) {
     out << "levelset_improved block=\"" << keeper.blockName << "\" "
         << keeper.dimensionsLabel << " difficulty=" << keeper.difficulty
@@ -138,79 +180,118 @@ void logLevelSetProgress(
     const std::deque<BlockState>& blocks,
     TimePoint start,
     size_t passIndex,
-    int64_t solverTimeoutMs) {
-    const double elapsed = std::chrono::duration<double>(Clock::now() - start).count();
+    const LevelSetOptions& options,
+    ProgressTickState& tickState) {
+    const TimePoint now = Clock::now();
+    const double elapsed = std::chrono::duration<double>(now - start).count();
     uint64_t totalSamples = 0;
     size_t filledKeepers = 0;
     size_t totalKeepers = 0;
-    size_t searchingCount = 0;
-    size_t doneCount = 0;
+    size_t passDoneCount = 0;
     size_t exhaustedCount = 0;
+    const BlockState* activeBlock = nullptr;
     for (const BlockState& block : blocks) {
         totalSamples += block.samplesAttempted.load(std::memory_order_relaxed);
         if (block.passPhase == BlockState::PassPhase::Searching) {
-            ++searchingCount;
+            activeBlock = &block;
         } else if (block.passPhase == BlockState::PassPhase::Done) {
-            ++doneCount;
-        } else if (block.passPhase == BlockState::PassPhase::Exhausted) {
+            ++passDoneCount;
+        } else if (block.passPhase == BlockState::PassPhase::Exhausted || block.permanentlyExhausted) {
             ++exhaustedCount;
         }
         std::lock_guard<std::mutex> lock(block.keeperMutex);
         filledKeepers += block.keepers.size();
         totalKeepers += block.spec.header.take;
     }
-    out << "levelset_progress elapsed_s=" << std::fixed << std::setprecision(1) << elapsed
-        << " pass=" << passIndex
-        << " blocks=" << blocks.size()
-        << " keepers=" << filledKeepers << "/" << totalKeepers
-        << " searching=" << searchingCount
-        << " done=" << doneCount
-        << " exhausted=" << exhaustedCount
-        << " samples=" << totalSamples << "\n";
-    const TimePoint now = Clock::now();
-    for (const BlockState& block : blocks) {
+
+    double sampleRate = 0.0;
+    if (tickState.initialized) {
+        const double interval = std::chrono::duration<double>(now - tickState.lastTick).count();
+        if (interval > 0.0) {
+            sampleRate = static_cast<double>(totalSamples - tickState.lastTotalSamples) / interval;
+        }
+    }
+    tickState.lastTick = now;
+    tickState.lastTotalSamples = totalSamples;
+    tickState.initialized = true;
+
+    out << "levelset_progress elapsed=" << formatElapsedSeconds(elapsed)
+        << " pass=" << passIndex;
+    if (activeBlock != nullptr) {
         int64_t bestDifficulty = -1;
-        int64_t bestExpanded = -1;
-        size_t keeperCount = 0;
+        double quietSeconds = 0.0;
         {
-            std::lock_guard<std::mutex> lock(block.keeperMutex);
-            keeperCount = block.keepers.size();
-            if (!block.keepers.empty()) {
+            std::lock_guard<std::mutex> lock(activeBlock->keeperMutex);
+            quietSeconds = std::chrono::duration<double>(now - activeBlock->idleSince).count();
+            if (!activeBlock->keepers.empty()) {
                 const Keeper& best = *std::max_element(
-                    block.keepers.begin(),
-                    block.keepers.end(),
+                    activeBlock->keepers.begin(),
+                    activeBlock->keepers.end(),
                     keeperLessDifficulty);
                 bestDifficulty = best.difficulty;
-                bestExpanded = best.expandedPortfolio;
             }
         }
-        out << "  [" << std::setw(2) << (block.blockIndex + 1) << "/" << blocks.size() << "] "
-            << std::setw(16) << std::left << block.spec.header.name << std::right
-            << " " << dimensionsLabel(block.spec.header.width, block.spec.header.height)
-            << " keepers=" << keeperCount << "/" << block.spec.header.take
+        const uint64_t passSamples = activeBlock->samplesAttempted.load(std::memory_order_relaxed)
+            - activeBlock->samplesAtPassStart;
+        out << " active=" << (activeBlock->blockIndex + 1) << "/" << blocks.size()
+            << ":\"" << activeBlock->spec.header.name << "\" "
+            << dimensionsLabel(activeBlock->spec.header.width, activeBlock->spec.header.height)
             << " best=" << bestDifficulty
-            << " expanded=" << bestExpanded
-            << " samples=" << block.samplesAttempted.load(std::memory_order_relaxed);
-        switch (block.passPhase) {
-        case BlockState::PassPhase::Queued:
-            out << " status=queued";
-            break;
-        case BlockState::PassPhase::Searching: {
-            double quietSeconds = 0.0;
+            << " quiet=" << std::fixed << std::setprecision(0) << quietSeconds << "s"
+            << "/" << formatDurationMs(activeBlock->inactivityTimeoutMs)
+            << " pass_samples=" << formatCompactCount(passSamples);
+    } else {
+        out << " active=none";
+    }
+    out << " rate=" << formatRate(sampleRate) << "/s"
+        << " keepers=" << filledKeepers << "/" << totalKeepers
+        << " pass_done=" << passDoneCount
+        << " exhausted=" << exhaustedCount
+        << " solver_timeout=" << formatDurationMs(options.solverTimeoutMs)
+        << "\n";
+
+    if (options.exhaustPasses > 0) {
+        bool printedRetireHeader = false;
+        for (const BlockState& block : blocks) {
+            if (block.permanentlyExhausted || block.passesWithoutImprovement == 0) {
+                continue;
+            }
+            if (!printedRetireHeader) {
+                out << "  retire_soon:";
+                printedRetireHeader = true;
+            }
+            int64_t bestDifficulty = -1;
             {
                 std::lock_guard<std::mutex> lock(block.keeperMutex);
-                quietSeconds = std::chrono::duration<double>(now - block.idleSince).count();
+                if (!block.keepers.empty()) {
+                    const Keeper& best = *std::max_element(
+                        block.keepers.begin(),
+                        block.keepers.end(),
+                        keeperLessDifficulty);
+                    bestDifficulty = best.difficulty;
+                }
             }
-            out << " status=searching quiet_s=" << std::fixed << std::setprecision(1) << quietSeconds
-                << " solver_timeout_ms=" << solverTimeoutMs;
-            break;
+            out << " " << (block.blockIndex + 1) << ":\"" << block.spec.header.name << "\""
+                << " (" << block.passesWithoutImprovement << "/" << options.exhaustPasses
+                << " stagnant, best=" << bestDifficulty << ")";
         }
-        case BlockState::PassPhase::Done:
-            out << " status=done";
-            break;
-        case BlockState::PassPhase::Exhausted:
-            out << " status=exhausted passes_without_improvement=" << block.passesWithoutImprovement;
-            break;
+        if (printedRetireHeader) {
+            out << "\n";
+        }
+    }
+
+    if (exhaustedCount > 0) {
+        out << "  retired:";
+        bool first = true;
+        for (const BlockState& block : blocks) {
+            if (!block.permanentlyExhausted) {
+                continue;
+            }
+            if (!first) {
+                out << ',';
+            }
+            first = false;
+            out << " " << (block.blockIndex + 1) << ":\"" << block.spec.header.name << "\"";
         }
         out << "\n";
     }
@@ -423,6 +504,7 @@ void runBlockUntilIdle(
     }
 
     const BlockBestSnapshot passStart = snapshotBlockBest(block);
+    block.samplesAtPassStart = block.samplesAttempted.load(std::memory_order_relaxed);
     if (!options.quiet) {
         logBlockSearchStart(std::cerr, block, allBlocks.size(), passIndex);
     }
@@ -511,6 +593,7 @@ void runLevelSetForever(
     const TimePoint start = Clock::now();
     std::atomic<size_t> passIndex{1};
     std::atomic<bool> progressCancel{false};
+    ProgressTickState progressTick;
     std::thread progressThread;
     if (!options.quiet) {
         progressThread = std::thread([&]() {
@@ -527,7 +610,8 @@ void runLevelSetForever(
                     blocks,
                     start,
                     passIndex.load(std::memory_order_relaxed),
-                    options.solverTimeoutMs);
+                    options,
+                    progressTick);
             }
         });
     }
@@ -574,7 +658,8 @@ void runLevelSetForever(
             blocks,
             start,
             passIndex.load(std::memory_order_relaxed),
-            options.solverTimeoutMs);
+            options,
+            progressTick);
         std::cerr << "levelset_stopped\n";
     }
 

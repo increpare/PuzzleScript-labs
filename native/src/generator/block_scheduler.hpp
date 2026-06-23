@@ -35,6 +35,7 @@ struct BlockState {
     mutable std::mutex keeperMutex;
     std::atomic<uint64_t> nextSampleId{0};
     std::atomic<uint64_t> samplesAttempted{0};
+    uint64_t samplesAtPassStart = 0;
     int64_t inactivityTimeoutMs = 10000;
     TimePoint idleSince{};
     size_t blockIndex = 0;
