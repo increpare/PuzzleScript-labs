@@ -88,7 +88,7 @@ REMIX_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 REMIX_IN := $(word 1,$(REMIX_MAKE_ARGS))
 REMIX_OUT := $(word 2,$(REMIX_MAKE_ARGS))
 REMIX_ARGS ?=
-REMIX_INACTIVITY_START ?= 1m
+REMIX_INACTIVITY_START ?= 10s
 REMIX_JOBS ?= auto
 REMIX_SEED ?= 1
 REMIX_SOLVER_TIMEOUT_MS ?= 500
@@ -452,6 +452,7 @@ help:
 	@echo "  make generator game.txt spec.gen SPECIALIZE=true"
 	@echo "                                     Run generator with linked compiled-rule kernels"
 	@echo "  make remix in.txt out.txt          Remix a game: hardest variant per level to out.txt"
+	@echo "                                     Also writes out.template.txt beside the output"
 	@echo "  make remix in.txt out.txt REMIX_ARGS='--inactivity-start 30s'"
 	@echo "                                     Override remix generator options"
 	@echo "                                     Set COMPILED_RULES_MAX_ROWS=N for experimental multi-row kernels"
@@ -707,7 +708,7 @@ remix:
 	if [ "$$out_dir" != "." ] && [ "$$out_dir" != "" ]; then mkdir -p "$$out_dir"; fi
 	@echo "==> remix $(REMIX_IN) -> $(REMIX_OUT)"
 	@echo "    inactivity=$(REMIX_INACTIVITY_START) solver_timeout=$(REMIX_SOLVER_TIMEOUT_MS) jobs=$(REMIX_JOBS) seed=$(REMIX_SEED)"
-	@echo "    runs until Ctrl+C; progress logged to stderr every 10s"
+	@echo "    runs until Ctrl+C; progress on stderr every 10s (quiet_s only while searching)"
 	@$(MAKE) build_generator
 	@$(PUZZLESCRIPT_GENERATOR) "$(REMIX_IN)" --remix --out "$(REMIX_OUT)" \
 		--inactivity-start $(REMIX_INACTIVITY_START) \

@@ -50,35 +50,49 @@ bool isBackgroundGlyph(const Game& game, const MaskWord* glyphMask) {
     return game.backgroundId >= 0 && maskHasObjectId(glyphMask, game.wordCount, game.backgroundId);
 }
 
+int countMaskBits(const MaskWord* mask, uint32_t wordCount) {
+    int count = 0;
+    for (uint32_t index = 0; index < wordCount; ++index) {
+        MaskWord word = mask[index];
+        while (word != 0) {
+            count += static_cast<int>(word & 1u);
+            word >>= 1;
+        }
+    }
+    return count;
+}
+
 char glyphForCell(const Game& game, const LevelTemplate& level, int32_t tileIndex) {
     const MaskWord* cell = cellPtr(level, game, tileIndex);
-    for (const std::string& glyph : game.glyphOrder) {
-        if (glyph.empty()) {
-            continue;
+    char bestGlyph = '.';
+    int bestBits = -1;
+
+    auto considerGlyph = [&](const std::string& glyph, const MaskWord* glyphMask, bool skipBackground) {
+        if (glyph.empty() || glyphMask == nullptr) {
+            return;
         }
-        const MaskWord* glyphMask = glyphMaskForName(game, glyph);
-        if (glyphMask == nullptr || isBackgroundGlyph(game, glyphMask)) {
-            continue;
+        if (skipBackground && isBackgroundGlyph(game, glyphMask)) {
+            return;
         }
-        if (bitsSet(glyphMask, game.wordCount, cell, game.wordCount)) {
-            return glyph.front();
+        if (!bitsSet(glyphMask, game.wordCount, cell, game.wordCount)) {
+            return;
         }
-    }
+        const int bits = countMaskBits(glyphMask, game.wordCount);
+        if (bits > bestBits) {
+            bestBits = bits;
+            bestGlyph = glyph.front();
+        }
+    };
 
     for (const std::string& glyph : game.glyphOrder) {
-        if (glyph.empty()) {
-            continue;
-        }
-        const MaskWord* glyphMask = glyphMaskForName(game, glyph);
-        if (glyphMask == nullptr) {
-            continue;
-        }
-        if (bitsSet(glyphMask, game.wordCount, cell, game.wordCount)) {
-            return glyph.front();
+        considerGlyph(glyph, glyphMaskForName(game, glyph), true);
+    }
+    if (bestBits < 0) {
+        for (const std::string& glyph : game.glyphOrder) {
+            considerGlyph(glyph, glyphMaskForName(game, glyph), false);
         }
     }
-
-    return '.';
+    return bestBits < 0 ? '.' : bestGlyph;
 }
 
 char inputToCompactChar(ps_input input) {

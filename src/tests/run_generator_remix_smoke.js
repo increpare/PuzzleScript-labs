@@ -18,6 +18,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const gamePath = path.resolve(process.argv[3] || path.join(repoRoot, 'src/demo/sokoban_basic.txt'));
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'psgen-remix-smoke-'));
 const outPath = path.join(tempDir, 'remixed_game.txt');
+const templatePath = path.join(tempDir, 'remixed_game.template.txt');
 
 const COMPACT_TO_TOKEN = {
     U: 'up',
@@ -144,6 +145,13 @@ async function main() {
 
     const firstRun = await runGeneratorUntilStopped(commonArgs, 15000);
     assert.ok(fs.existsSync(outPath), 'remix should create --out file');
+    assert.ok(fs.existsSync(templatePath), 'remix should create .template.txt beside --out');
+    const templateSource = fs.readFileSync(templatePath, 'utf8');
+    assert.strictEqual(
+        (templateSource.match(/^dimensions:/gm) || []).length,
+        expectedPlayableLevels,
+        'template file should contain one block per playable level'
+    );
 
     let generatedSource = fs.readFileSync(outPath, 'utf8');
     let levels = parseGeneratedLevels(generatedSource);

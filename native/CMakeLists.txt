@@ -520,6 +520,55 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(generator_block_exhaustion
+  tests/generator_block_exhaustion.cpp
+  src/generator/block_scheduler.cpp
+  src/generator/generation_rules.cpp
+  src/generator/spec_parser.cpp
+)
+
+target_link_libraries(generator_block_exhaustion
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_block_exhaustion
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_block_exhaustion
+  COMMAND generator_block_exhaustion
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(generator_microban_stamp_repro
+  tests/generator_microban_stamp_repro.cpp
+  src/generator/templatize.cpp
+  src/generator/generation_rules.cpp
+  src/generator/spec_parser.cpp
+  src/generator/level_rows.cpp
+)
+
+target_link_libraries(generator_microban_stamp_repro
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(generator_microban_stamp_repro
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME generator_microban_stamp_repro
+  COMMAND generator_microban_stamp_repro
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 add_executable(compiler_semantic_program
   tests/compiler_semantic_program.cpp
 )

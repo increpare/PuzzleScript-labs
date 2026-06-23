@@ -103,6 +103,7 @@ struct Options {
     std::optional<SearchMode> solverMode;
     size_t topK = 50;
     size_t dedupeMax = 1000000;
+    size_t exhaustPasses = 3;
     bool quiet = false;
     bool templatize = false;
     bool remix = false;
@@ -261,6 +262,10 @@ void writeFile(const std::filesystem::path& path, const std::string& text) {
     stream << text;
 }
 
+std::filesystem::path remixTemplatePathFromOutput(const std::filesystem::path& outPath) {
+    return outPath.parent_path() / (outPath.stem().string() + ".template" + outPath.extension().string());
+}
+
 void initializeEventsJsonl(const Options& options) {
     if (options.eventsJsonl.empty()) {
         return;
@@ -373,7 +378,7 @@ Options parseArgs(int argc, char** argv) {
         throw std::runtime_error(
             "Usage: puzzlescript_generator <game.txt> [<spec.gen>] [--templatize] [--templatize-out PATH] "
             "[--remix --out PATH] [--level-index N] [--templatize-take N] [--templatize-name-prefix TEXT] "
-            "[--out PATH] [--inactivity-start DURATION] [--time-ms N] [--samples N] [--jobs auto|N] "
+            "[--out PATH] [--inactivity-start DURATION] [--exhaust-passes N] [--time-ms N] [--samples N] [--jobs auto|N] "
             "[--seed N] [--solver-timeout-ms N] [--solver-strategy portfolio|bfs|weighted-astar|greedy] "
             "[--top-k N] [--dedupe-max N] [--events-jsonl PATH] [--json-out PATH] [--quiet]");
     }
@@ -410,6 +415,8 @@ Options parseArgs(int argc, char** argv) {
             options.outPath = argv[++index];
         } else if (arg == "--inactivity-start" && index + 1 < argc) {
             options.inactivityStartMs = parseDurationMs(argv[++index]);
+        } else if (arg == "--exhaust-passes" && index + 1 < argc) {
+            options.exhaustPasses = static_cast<size_t>(std::stoull(argv[++index]));
         } else if (arg == "--templatize") {
             options.templatize = true;
         } else if (arg == "--remix") {
@@ -1225,6 +1232,7 @@ int runLevelSetFromBlockSpecs(
     levelSetOptions.solverTimeoutMs = options.solverTimeoutMs;
     levelSetOptions.dedupeMax = options.dedupeMax;
     levelSetOptions.inactivityStartMs = options.inactivityStartMs;
+    levelSetOptions.exhaustPasses = options.exhaustPasses;
     levelSetOptions.cancel = &cancel;
     levelSetOptions.quiet = options.quiet;
     levelSetOptions.modeLabel = options.remix ? "remix" : "level-set";
@@ -1263,6 +1271,12 @@ int runRemixMode(const Options& options, const std::string& gameSource) {
     templatizeOptions.globalSeed = options.seed;
     templatizeOptions.namePrefix = options.templatizeNamePrefix;
     const std::vector<TemplatizedBlock> templatizedBlocks = templatizeGame(*game, templatizeOptions);
+
+    const std::filesystem::path templatePath = remixTemplatePathFromOutput(options.outPath);
+    writeFile(templatePath, serializeTemplatizedSpec(templatizedBlocks));
+    if (!options.quiet) {
+        std::cerr << "remix_template " << templatePath.string() << "\n";
+    }
 
     std::vector<puzzlescript::generator::BlockSpec> blockSpecs;
     blockSpecs.reserve(templatizedBlocks.size());

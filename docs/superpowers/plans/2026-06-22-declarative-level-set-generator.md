@@ -309,7 +309,7 @@ struct BlockState {
     std::vector<Keeper> keepers;       // guarded by keeperMutex
     std::mutex keeperMutex;
     std::atomic<uint64_t> nextSampleId{0};
-    int64_t inactivityTimeoutMs = 60000;
+    int64_t inactivityTimeoutMs = 10000;
     TimePoint idleSince;               // updated under keeperMutex
     // NO shared Rng — workers derive sampleSeed per sample
 };
