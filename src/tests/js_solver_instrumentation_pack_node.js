@@ -81,6 +81,13 @@ const heuristicSplit = JSON.parse(execFileSync(
 assert.ok(heuristicSplit.totals.heuristic_score_ms > 0, 'heuristic score timing should be recorded');
 assert.ok(Number.isFinite(heuristicSplit.totals.expanded_per_solved), 'expanded_per_solved should be in totals');
 
+const adaptive = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(adaptive.results[0].adaptive_step_cost, true);
+
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-pack-'));
 execFileSync(
     process.execPath,

@@ -381,6 +381,7 @@ function parseArgs(argv) {
         solverOptPasses: null,
         solverOptParity: false,
         forceNoaction: false,
+        adaptiveStepCost: false,
         jobs: 1,
         shardIndex: null,
         shardCount: null,
@@ -455,6 +456,8 @@ function parseArgs(argv) {
             options.solverOptParity = true;
         } else if (arg === '--force-noaction') {
             options.forceNoaction = true;
+        } else if (arg === '--adaptive-step-cost') {
+            options.adaptiveStepCost = true;
         } else if (arg === '--help' || arg === '-h') {
             usage(0);
         } else if (options.corpusPath === null) {
@@ -471,9 +474,10 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
+        '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
@@ -3437,6 +3441,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         hash_mode: null,
         snapshot_mode: null,
         strategy: null,
+        adaptive_step_cost: false,
         heuristic: 'zero',
     };
 }
@@ -3483,6 +3488,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
         modeResult.load_ms = result.load_ms;
         modeResult.strategy = mode;
+        modeResult.adaptive_step_cost = !!options.adaptiveStepCost;
         modeResult.heuristic = mode === 'bfs' ? 'zero' : (options.solverHeuristic || DEFAULT_SOLVER_HEURISTIC);
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -3601,17 +3607,25 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 if (mode !== 'bfs') {
                     childHeuristic = invokeHeuristic(solverOps, modeResult);
                 }
+                let priorityMode = mode;
+                if (options.adaptiveStepCost
+                    && mode === 'weighted-astar'
+                    && modeResult.generated >= 64
+                    && modeResult.step_ms > 0
+                    && modeResult.step_ms / modeResult.generated > 0.2) {
+                    priorityMode = 'greedy';
+                }
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'queue_ms', () => {
                         frontier.push({
-                            priority: priorityForMode(mode, childDepth, childHeuristic, options.astarWeight || 2),
+                            priority: priorityForMode(priorityMode, childDepth, childHeuristic, options.astarWeight || 2),
                             tie: tie++,
                             index: childIndex,
                         });
                     });
                 } else {
                     frontier.push({
-                        priority: priorityForMode(mode, childDepth, childHeuristic, options.astarWeight || 2),
+                        priority: priorityForMode(priorityMode, childDepth, childHeuristic, options.astarWeight || 2),
                         tie: tie++,
                         index: childIndex,
                     });
