@@ -73,7 +73,7 @@ const nativeRun = {
         { game: 'hard.txt', level: 0, status: 'skipped_message', elapsed_ms: 0 },
         { game: 'hard.txt', level: 1, status: 'solved', elapsed_ms: 90, generated: 15, expanded: 4, step_ms: 4, heuristic_ms: 1 },
         { game: 'hard.txt', level: 2, status: 'solved', elapsed_ms: 300, generated: 900, expanded: 200, step_ms: 100, heuristic_ms: 10 },
-        { game: 'hard.txt', level: 3, status: 'timeout', elapsed_ms: 500, generated: 700, expanded: 250, step_ms: 10, heuristic_ms: 70 },
+        { game: 'hard.txt', level: 3, status: 'solved', elapsed_ms: 1500, generated: 700, expanded: 250, step_ms: 10, heuristic_ms: 70 },
     ],
 };
 
@@ -108,7 +108,7 @@ const triage = buildLevelTriage(jsRun, [{ label: 'native', run: nativeRun }]);
 assert.strictEqual(triage.length, 3);
 assert.strictEqual(triage.find((row) => row.level === 1).category, 'solved_under_500ms');
 assert.strictEqual(triage.find((row) => row.level === 2).category, 'js_missed_native_solved');
-assert.strictEqual(triage.find((row) => row.level === 3).category, 'high_heuristic_cost_timeout');
+assert.strictEqual(triage.find((row) => row.level === 3).category, 'js_missed_native_solved_after_500ms');
 assert.ok(triageToCsv(triage).includes('native:solved:300'));
 
 const jsPath = writeJson('js.json', jsRun);

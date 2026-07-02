@@ -202,14 +202,22 @@ function indexByKey(rows) {
     return map;
 }
 
+function nativeSolvedCategory(row, nativeMaps) {
+    let solvedAfter500 = false;
+    for (const map of nativeMaps) {
+        const native = map.get(rowKey(row));
+        if (!native || native.status !== 'solved') continue;
+        if (numeric(native, 'elapsed_ms') <= 500) return 'js_missed_native_solved';
+        solvedAfter500 = true;
+    }
+    return solvedAfter500 ? 'js_missed_native_solved_after_500ms' : null;
+}
+
 function triageCategory(row, nativeMaps) {
     if (row.status === 'solved' && numeric(row, 'elapsed_ms') <= 500) return 'solved_under_500ms';
     if (row.status === 'solved') return 'solved_after_500ms';
-    const nativeSolved = nativeMaps.some((map) => {
-        const native = map.get(rowKey(row));
-        return native && native.status === 'solved' && numeric(native, 'elapsed_ms') <= 500;
-    });
-    if (nativeSolved) return 'js_missed_native_solved';
+    const nativeCategory = nativeSolvedCategory(row, nativeMaps);
+    if (nativeCategory) return nativeCategory;
     const generated = numeric(row, 'generated');
     const stepMs = numeric(row, 'step_ms');
     const heuristicMs = numeric(row, 'heuristic_ms');
