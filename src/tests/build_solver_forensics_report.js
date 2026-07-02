@@ -415,7 +415,6 @@ function buildMarkdownReport({ gameName, jsSummaries, nativeSummaries, corpusSum
     lines.push('## Artifact Index');
     lines.push('');
     lines.push(table(['Label', 'Path', 'Freshness'], artifactIndex.map((row) => [row.label, `\`${row.path}\``, row.freshness || 'fresh'])));
-    lines.push('');
     return lines.join('\n');
 }
 
