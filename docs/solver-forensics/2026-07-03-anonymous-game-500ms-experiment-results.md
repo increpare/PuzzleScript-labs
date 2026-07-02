@@ -17,6 +17,7 @@ Game: `ANONYMOUS_BATCH_OLD_ce2474f62432e2a703bba3fb65f5b01f.txt`
 
 - Command: Task 4 Step 4 level-13 rule-hotspot run.
 - Level 13: status=timeout, generated=168, expanded=42.
+- Top-10 hotspot coverage: 8.403ms / 195.174ms match time and 12.099ms / 134.540ms apply time.
 
 | key | line | try_apply_calls | changed | match_ms | apply_ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -49,6 +50,7 @@ Game: `ANONYMOUS_BATCH_OLD_ce2474f62432e2a703bba3fb65f5b01f.txt`
 
 ## Decisions
 
-- P2 movement-aware prune: continue; hotspot evidence confirms repeated rule-loop work worth attacking with the movement-aware prune prototype.
+- P2 movement-aware prune: continue only as a scoped probe; X2 did not show concentrated rule hotspots, so uniform rule-loop cost, codegen (P4), and stride/compaction (P5) remain live explanations.
 - P3 adaptive strategy: continue as an explicit probe; long-run JS solved native-proved levels 3, 63, and 81, while levels 19 and 31 still timed out at 120000ms.
+- P6 again-settling reduction: defer; X3 measured only 2 again passes over 12,205 generated steps (0.000164 per generated step), far below the threshold for pursuing again-specific work.
 - Refresh corpus baseline before default changes: yes.
