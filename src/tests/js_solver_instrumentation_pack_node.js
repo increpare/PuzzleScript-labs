@@ -54,6 +54,25 @@ assert.ok(profiled.results[0].step_profile_rule_match_ms > 0, 'rule match profil
 assert.ok(profiled.results[0].step_profile_rule_apply_ms >= 0, 'rule apply profiler should accumulate time');
 assert.ok(profiled.results[0].step_profile_early_rules_ms > 0, 'early rules profiler should accumulate time');
 
+const hotspotProfiled = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions'],
+    {
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+        env: Object.assign({}, process.env, {
+            PUZZLESCRIPT_SOLVER_STEP_PROFILE: '1',
+            PUZZLESCRIPT_SOLVER_RULE_HOTSPOTS: '1',
+        }),
+    },
+));
+assert.ok(Array.isArray(hotspotProfiled.results[0].rule_hotspots), 'rule_hotspots should be an array');
+assert.ok(hotspotProfiled.results[0].rule_hotspots.length > 0, 'rule_hotspots should contain rows');
+assert.ok(
+    Number.isFinite(hotspotProfiled.results[0].rule_hotspots[0].try_apply_calls),
+    'rule hotspot try_apply_calls should be numeric',
+);
+
 const heuristicSplit = JSON.parse(execFileSync(
     process.execPath,
     [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions'],

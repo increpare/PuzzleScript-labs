@@ -95,6 +95,7 @@ const BEST_MANHATTAN_EMPTY_TARGETS_PENALTY = 128;
 /** When `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0`, skip `performance.now()` in the search hot loop (timing breakdown is zeroed; portfolio auto-lock uses step timing only when enabled). */
 const SOLVER_DETAIL_TIMING = process.env.PUZZLESCRIPT_SOLVER_DETAIL_TIMING !== '0';
 const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1';
+const SOLVER_RULE_HOTSPOTS = process.env.PUZZLESCRIPT_SOLVER_RULE_HOTSPOTS === '1';
 const SOLVER_AGAIN_PROFILE = process.env.PUZZLESCRIPT_SOLVER_AGAIN_PROFILE === '1';
 /** Reject search wins whose reconstructed input sequence does not replay from a fresh level load. */
 const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !== '0';
@@ -102,8 +103,91 @@ const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !
 let solverStepProfilingInstalled = false;
 let solverRuleMatchApplyInstalled = false;
 let currentSolverStepProfile = null;
+let currentSolverRuleHotspots = null;
 let solverTryApplyMatchMs = 0;
 let solverInTryApply = false;
+let solverRuleHotspotNextId = 1;
+
+function solverRuleDirectionName(direction) {
+    if (typeof dirMaskName !== 'undefined' && dirMaskName && Object.prototype.hasOwnProperty.call(dirMaskName, direction)) {
+        return dirMaskName[direction];
+    }
+    return String(direction);
+}
+
+function solverRuleHotspotKey(rule) {
+    if (!rule) {
+        return 'unknown';
+    }
+    if (rule._solverRuleHotspotKey) {
+        return rule._solverRuleHotspotKey;
+    }
+    const line = Number.isFinite(rule.lineNumber) ? rule.lineNumber : 'unknown';
+    const group = Number.isFinite(rule.groupNumber) ? rule.groupNumber : 'unknown';
+    const direction = solverRuleDirectionName(rule.direction);
+    const key = `line:${line}|group:${group}|direction:${direction}|rule:${solverRuleHotspotNextId++}`;
+    Object.defineProperty(rule, '_solverRuleHotspotKey', {
+        value: key,
+        configurable: true,
+    });
+    return key;
+}
+
+function solverRuleHotspotFor(rule) {
+    if (!SOLVER_RULE_HOTSPOTS || !currentSolverRuleHotspots || !rule) {
+        return null;
+    }
+    const key = solverRuleHotspotKey(rule);
+    let hotspot = currentSolverRuleHotspots.get(key);
+    if (!hotspot) {
+        hotspot = {
+            key,
+            line: Number.isFinite(rule.lineNumber) ? rule.lineNumber : null,
+            group: Number.isFinite(rule.groupNumber) ? rule.groupNumber : null,
+            direction: solverRuleDirectionName(rule.direction),
+            try_apply_calls: 0,
+            changed: 0,
+            match_ms: 0,
+            apply_ms: 0,
+        };
+        currentSolverRuleHotspots.set(key, hotspot);
+    }
+    return hotspot;
+}
+
+function finalizeRuleHotspots(modeResult) {
+    if (!modeResult) {
+        return modeResult;
+    }
+    if (!(modeResult._ruleHotspots instanceof Map)) {
+        if (!Array.isArray(modeResult.rule_hotspots)) {
+            modeResult.rule_hotspots = [];
+        }
+        delete modeResult._ruleHotspots;
+        return modeResult;
+    }
+    modeResult.rule_hotspots = Array.from(modeResult._ruleHotspots.values())
+        .sort((left, right) => {
+            const leftMs = left.match_ms + left.apply_ms;
+            const rightMs = right.match_ms + right.apply_ms;
+            if (rightMs !== leftMs) return rightMs - leftMs;
+            if (right.try_apply_calls !== left.try_apply_calls) return right.try_apply_calls - left.try_apply_calls;
+            return left.key < right.key ? -1 : (left.key > right.key ? 1 : 0);
+        })
+        .slice(0, 25)
+        .map((hotspot) => ({
+            key: hotspot.key,
+            line: hotspot.line,
+            group: hotspot.group,
+            direction: hotspot.direction,
+            try_apply_calls: hotspot.try_apply_calls,
+            changed: hotspot.changed,
+            match_ms: hotspot.match_ms,
+            apply_ms: hotspot.apply_ms,
+        }));
+    delete modeResult._ruleHotspots;
+    return modeResult;
+}
 
 function recordSolverStepPhase(field, fn) {
     if (!SOLVER_STEP_PROFILE || !currentSolverStepProfile) {
@@ -118,41 +202,45 @@ function recordSolverStepPhase(field, fn) {
 }
 
 function installSolverStepProfiler() {
-    if (!SOLVER_STEP_PROFILE || solverStepProfilingInstalled) {
+    if (!SOLVER_STEP_PROFILE && !SOLVER_RULE_HOTSPOTS) {
         return;
     }
-    solverStepProfilingInstalled = true;
-    const originalApplyRules = applyRules;
-    applyRules = function profiledApplyRules(rules, loopPoint, bannedGroup) {
-        let field = 'step_profile_other_rules_ms';
-        if (state && rules === state.rules) {
-            field = 'step_profile_early_rules_ms';
-        } else if (state && rules === state.lateRules) {
-            field = 'step_profile_late_rules_ms';
-        }
-        return recordSolverStepPhase(field, () => originalApplyRules(rules, loopPoint, bannedGroup));
-    };
-    const originalProcessCommandQueue = processCommandQueue;
-    processCommandQueue = function profiledProcessCommandQueue(...args) {
-        return recordSolverStepPhase('step_profile_command_ms', () => originalProcessCommandQueue.apply(this, args));
-    };
-    const originalCheckWin = checkWin;
-    checkWin = function profiledCheckWin(...args) {
-        return recordSolverStepPhase('step_profile_win_ms', () => originalCheckWin.apply(this, args));
-    };
+    if (SOLVER_STEP_PROFILE && !solverStepProfilingInstalled) {
+        solverStepProfilingInstalled = true;
+        const originalApplyRules = applyRules;
+        applyRules = function profiledApplyRules(rules, loopPoint, bannedGroup) {
+            let field = 'step_profile_other_rules_ms';
+            if (state && rules === state.rules) {
+                field = 'step_profile_early_rules_ms';
+            } else if (state && rules === state.lateRules) {
+                field = 'step_profile_late_rules_ms';
+            }
+            return recordSolverStepPhase(field, () => originalApplyRules(rules, loopPoint, bannedGroup));
+        };
+        const originalProcessCommandQueue = processCommandQueue;
+        processCommandQueue = function profiledProcessCommandQueue(...args) {
+            return recordSolverStepPhase('step_profile_command_ms', () => originalProcessCommandQueue.apply(this, args));
+        };
+        const originalCheckWin = checkWin;
+        checkWin = function profiledCheckWin(...args) {
+            return recordSolverStepPhase('step_profile_win_ms', () => originalCheckWin.apply(this, args));
+        };
+    }
     installSolverRuleMatchApplyProfiler();
 }
 
 function installSolverRuleMatchApplyProfiler() {
-    if (!SOLVER_STEP_PROFILE || solverRuleMatchApplyInstalled || typeof Rule === 'undefined') {
+    if ((!SOLVER_STEP_PROFILE && !SOLVER_RULE_HOTSPOTS) || solverRuleMatchApplyInstalled || typeof Rule === 'undefined') {
         return;
     }
     solverRuleMatchApplyInstalled = true;
     const originalGenerateFindMatches = Rule.prototype.generateFindMatchesFunction;
     Rule.prototype.generateFindMatchesFunction = function () {
+        const rule = this;
         const fn = originalGenerateFindMatches.call(this);
         return function solverProfiledFindMatches() {
-            if (!currentSolverStepProfile) {
+            const hotspot = solverRuleHotspotFor(rule);
+            if (!currentSolverStepProfile && !hotspot) {
                 return fn.apply(this, arguments);
             }
             const t0 = performance.now();
@@ -160,7 +248,12 @@ function installSolverRuleMatchApplyProfiler() {
                 return fn.apply(this, arguments);
             } finally {
                 const elapsed = performance.now() - t0;
-                currentSolverStepProfile.step_profile_rule_match_ms += elapsed;
+                if (currentSolverStepProfile) {
+                    currentSolverStepProfile.step_profile_rule_match_ms += elapsed;
+                }
+                if (hotspot) {
+                    hotspot.match_ms += elapsed;
+                }
                 if (solverInTryApply) {
                     solverTryApplyMatchMs += elapsed;
                 }
@@ -169,18 +262,34 @@ function installSolverRuleMatchApplyProfiler() {
     };
     const originalTryApply = Rule.prototype.tryApply;
     Rule.prototype.tryApply = function (level) {
-        if (!currentSolverStepProfile) {
+        const hotspot = solverRuleHotspotFor(this);
+        if (!currentSolverStepProfile && !hotspot) {
             return originalTryApply.call(this, level);
+        }
+        if (hotspot) {
+            hotspot.try_apply_calls++;
         }
         solverTryApplyMatchMs = 0;
         solverInTryApply = true;
         const t0 = performance.now();
+        let changed = false;
         try {
-            return originalTryApply.call(this, level);
+            const result = originalTryApply.call(this, level);
+            changed = Boolean(result);
+            return result;
         } finally {
             solverInTryApply = false;
             const total = performance.now() - t0;
-            currentSolverStepProfile.step_profile_rule_apply_ms += Math.max(0, total - solverTryApplyMatchMs);
+            const applyMs = Math.max(0, total - solverTryApplyMatchMs);
+            if (currentSolverStepProfile) {
+                currentSolverStepProfile.step_profile_rule_apply_ms += applyMs;
+            }
+            if (hotspot) {
+                hotspot.apply_ms += applyMs;
+                if (changed) {
+                    hotspot.changed++;
+                }
+            }
         }
     };
 }
@@ -2961,7 +3070,9 @@ function probeAllMoveTargetsBlocked(inputCode) {
 
 function stepSolverAction(action, stepProfile = null) {
     const previousStepProfile = currentSolverStepProfile;
+    const previousRuleHotspots = currentSolverRuleHotspots;
     currentSolverStepProfile = stepProfile;
+    currentSolverRuleHotspots = SOLVER_RULE_HOTSPOTS && stepProfile ? stepProfile._ruleHotspots : null;
     try {
         const beforeLevel = curlevel;
         const beforeTitle = titleScreen;
@@ -3004,6 +3115,7 @@ function stepSolverAction(action, stepProfile = null) {
         return { changed, solved };
     } finally {
         currentSolverStepProfile = previousStepProfile;
+        currentSolverRuleHotspots = previousRuleHotspots;
     }
 }
 
@@ -3212,6 +3324,9 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
     modeResult.heuristic = 'psplus-winconditions';
     modeResult.hash_mode = 'objects_toString';
     modeResult.snapshot_mode = 'objects_only';
+    if (SOLVER_RULE_HOTSPOTS) {
+        modeResult._ruleHotspots = new Map();
+    }
     if (!_o10) {
         throw new Error('PuzzleScriptPlus naive solver requires engine scratch cell _o10');
     }
@@ -3255,7 +3370,7 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
             modeResult.solution_length = 0;
         }
     }
-    return modeResult;
+    return finalizeRuleHotspots(modeResult);
 }
 
 function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
@@ -3313,6 +3428,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         step_profile_win_ms: 0,
         step_profile_rule_match_ms: 0,
         step_profile_rule_apply_ms: 0,
+        rule_hotspots: [],
         probe_dir_steps: 0,
         probe_noops: 0,
         probe_blocked: 0,
@@ -3368,6 +3484,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         modeResult.load_ms = result.load_ms;
         modeResult.strategy = mode;
         modeResult.heuristic = mode === 'bfs' ? 'zero' : (options.solverHeuristic || DEFAULT_SOLVER_HEURISTIC);
+        if (SOLVER_RULE_HOTSPOTS) {
+            modeResult._ruleHotspots = new Map();
+        }
         const solverOps = createSolverLevelSpecialization(options);
         modeResult.hash_mode = solverOps.hashMode;
         modeResult.snapshot_mode = solverOps.snapshotMode;
@@ -3435,7 +3554,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     if (!finalized) {
                         continue;
                     }
-                    return modeResult;
+                    return finalizeRuleHotspots(modeResult);
                 }
                 if (!stepResult.changed) {
                     modeResult.step_no_op++;
@@ -3503,7 +3622,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
         modeResult.solution_length = modeResult.solution.length;
         modeResult.elapsed_ms = Date.now() - searchStarted;
-        return modeResult;
+        return finalizeRuleHotspots(modeResult);
     };
 
     const runAdaptivePortfolio = (modeDeadline) => {
@@ -3511,6 +3630,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         modeResult.load_ms = result.load_ms;
         modeResult.strategy = 'portfolio';
         modeResult.heuristic = 'mixed';
+        if (SOLVER_RULE_HOTSPOTS) {
+            modeResult._ruleHotspots = new Map();
+        }
         const heuristicNames = Array.isArray(options.portfolioHeuristics) && options.portfolioHeuristics.length > 0
             ? options.portfolioHeuristics.slice()
             : [options.solverHeuristic || DEFAULT_SOLVER_HEURISTIC];
@@ -3678,7 +3800,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                         continue;
                     }
                     modeResult.strategy = `portfolio:${activeMode.name}`;
-                    return modeResult;
+                    return finalizeRuleHotspots(modeResult);
                 }
                 if (!stepResult.changed) {
                     modeResult.step_no_op++;
@@ -3766,7 +3888,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
         modeResult.solution_length = modeResult.solution.length;
         modeResult.elapsed_ms = Date.now() - searchStarted;
-        return modeResult;
+        return finalizeRuleHotspots(modeResult);
     };
 
     if (strategy === 'portfolio') {
@@ -3823,13 +3945,13 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             if (phaseResult.status === 'solved') {
                 options.solverHeuristic = originalHeuristic;
                 phaseResult.elapsed_ms = Date.now() - searchStarted;
-                return phaseResult;
+                return finalizeRuleHotspots(phaseResult);
             }
         }
         options.solverHeuristic = originalHeuristic;
         if (lastResult) {
             lastResult.elapsed_ms = Date.now() - searchStarted;
-            return lastResult;
+            return finalizeRuleHotspots(lastResult);
         }
         // Shouldn't reach here, but safe fallback.
         return runMode('weighted-astar', deadline);
@@ -3879,6 +4001,7 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         step_profile_win_ms: 0,
         step_profile_rule_match_ms: 0,
         step_profile_rule_apply_ms: 0,
+        rule_hotspots: [],
     };
 }
 
@@ -4006,6 +4129,7 @@ function runGame(root, file, options = {}) {
             step_profile_win_ms: 0,
             step_profile_rule_match_ms: 0,
             step_profile_rule_apply_ms: 0,
+            rule_hotspots: [],
         }];
     }
     return {
