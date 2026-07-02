@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace puzzlescript::generator {
 namespace {
@@ -106,7 +107,147 @@ char inputToCompactChar(ps_input input) {
     }
 }
 
+bool masksEqual(const MaskWord* lhs, const MaskWord* rhs, uint32_t wordCount) {
+    for (uint32_t index = 0; index < wordCount; ++index) {
+        if (lhs[index] != rhs[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isAllZeroMask(const MaskWord* cell, uint32_t wordCount) {
+    for (uint32_t index = 0; index < wordCount; ++index) {
+        if (cell[index] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool cellHasExactGlyph(const Game& game, const MaskWord* cell) {
+    if (isAllZeroMask(cell, game.wordCount)) {
+        return true;
+    }
+    for (const std::string& glyph : game.glyphOrder) {
+        const MaskWord* glyphMask = glyphMaskForName(game, glyph);
+        if (glyphMask == nullptr) {
+            continue;
+        }
+        if (masksEqual(glyphMask, cell, game.wordCount)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+MaskVector maskVectorFromCell(const MaskWord* cell, uint32_t wordCount) {
+    MaskVector mask(static_cast<size_t>(wordCount));
+    for (uint32_t index = 0; index < wordCount; ++index) {
+        mask[index] = cell[index];
+    }
+    return mask;
+}
+
+bool maskIsEmpty(const MaskVector& mask) {
+    return std::all_of(mask.begin(), mask.end(), [](MaskWord word) {
+        return word == 0;
+    });
+}
+
+std::vector<int32_t> objectIdsInMask(const Game& game, const MaskVector& mask) {
+    std::vector<int32_t> objectIds;
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word >= mask.size()) {
+            continue;
+        }
+        if ((mask[word] & puzzlescript::maskBit(static_cast<uint32_t>(objectId))) != 0) {
+            objectIds.push_back(objectId);
+        }
+    }
+    std::sort(objectIds.begin(), objectIds.end(), [&](int32_t lhs, int32_t rhs) {
+        return game.objectsById[static_cast<size_t>(lhs)].name
+            < game.objectsById[static_cast<size_t>(rhs)].name;
+    });
+    return objectIds;
+}
+
+std::string formatAggregateLegendRhs(const Game& game, const std::vector<int32_t>& objectIds) {
+    std::ostringstream rhs;
+    for (size_t index = 0; index < objectIds.size(); ++index) {
+        if (index > 0) {
+            rhs << " and ";
+        }
+        rhs << game.objectsById[static_cast<size_t>(objectIds[index])].name;
+    }
+    return rhs.str();
+}
+
+std::string pickUnusedGlyph(const Game& game) {
+    static constexpr const char* kGlyphPool =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?@%^*-_+=:;\"',.";
+    std::unordered_set<std::string> used(game.glyphOrder.begin(), game.glyphOrder.end());
+    for (const char* cursor = kGlyphPool; *cursor != '\0'; ++cursor) {
+        const std::string glyph(1, *cursor);
+        if (used.find(glyph) == used.end()) {
+            return glyph;
+        }
+    }
+    for (int32_t index = 0; index < 10000; ++index) {
+        const std::string glyph = "+g" + std::to_string(index);
+        if (used.find(glyph) == used.end()) {
+            return glyph;
+        }
+    }
+    throw std::runtime_error("No unused legend glyph characters remain");
+}
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
+    const auto offset = static_cast<MaskOffset>(game.maskArena.size());
+    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+    return offset;
+}
+
+bool maskVectorsEqual(const MaskVector& lhs, const MaskVector& rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+bool maskAlreadyRepresented(const Game& game, const MaskVector& mask) {
+    for (const std::string& glyph : game.glyphOrder) {
+        const MaskWord* glyphMask = glyphMaskForName(game, glyph);
+        if (glyphMask == nullptr) {
+            continue;
+        }
+        MaskVector existing = maskVectorFromCell(glyphMask, game.wordCount);
+        if (maskVectorsEqual(existing, mask)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
+
+bool canLosslesslySerializeLevel(const Game& game, const LevelTemplate& level) {
+    if (level.width <= 0 || level.height <= 0) {
+        return false;
+    }
+    const int32_t tileCount = level.width * level.height;
+    const size_t expectedWords = static_cast<size_t>(tileCount * game.strideObject);
+    if (level.objects.size() != expectedWords) {
+        return false;
+    }
+    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {
+        if (!cellHasExactGlyph(game, cellPtr(level, game, tileIndex))) {
+            return false;
+        }
+    }
+    return true;
+}
 
 std::vector<std::string> levelTemplateToRows(const Game& game, const LevelTemplate& level) {
     if (level.width <= 0 || level.height <= 0) {
@@ -125,6 +266,56 @@ std::vector<std::string> levelTemplateToRows(const Game& game, const LevelTempla
         rows.push_back(std::move(row));
     }
     return rows;
+}
+
+std::vector<SupplementalGlyph> ensureSupplementalGlyphs(Game& game, const LevelTemplate& level) {
+    if (level.width <= 0 || level.height <= 0) {
+        return {};
+    }
+
+    const int32_t tileCount = level.width * level.height;
+    const size_t expectedWords = static_cast<size_t>(tileCount * game.strideObject);
+    if (level.objects.size() != expectedWords) {
+        return {};
+    }
+
+    std::vector<MaskVector> missingMasks;
+    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {
+        const MaskWord* cell = cellPtr(level, game, tileIndex);
+        if (cellHasExactGlyph(game, cell)) {
+            continue;
+        }
+        MaskVector mask = maskVectorFromCell(cell, game.wordCount);
+        if (maskIsEmpty(mask)) {
+            continue;
+        }
+        if (maskAlreadyRepresented(game, mask)) {
+            continue;
+        }
+        if (std::any_of(missingMasks.begin(), missingMasks.end(), [&](const MaskVector& existing) {
+                return maskVectorsEqual(existing, mask);
+            })) {
+            continue;
+        }
+        missingMasks.push_back(std::move(mask));
+    }
+
+    std::vector<SupplementalGlyph> added;
+    added.reserve(missingMasks.size());
+    for (const MaskVector& mask : missingMasks) {
+        const std::vector<int32_t> objectIds = objectIdsInMask(game, mask);
+        if (objectIds.empty()) {
+            continue;
+        }
+        SupplementalGlyph entry;
+        entry.glyph = pickUnusedGlyph(game);
+        entry.legendLine = entry.glyph + " = " + formatAggregateLegendRhs(game, objectIds);
+        const MaskOffset offset = storeMaskWords(game, mask);
+        game.glyphOrder.push_back(entry.glyph);
+        game.glyphMaskTable.push_back({entry.glyph, offset});
+        added.push_back(std::move(entry));
+    }
+    return added;
 }
 
 std::string formatGroupedSolution(const std::vector<ps_input>& solution, bool includeAction) {

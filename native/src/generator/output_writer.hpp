@@ -1,6 +1,7 @@
 #pragma once
 
 #include "generator/keeper.hpp"
+#include "generator/level_rows.hpp"
 #include "runtime/core.hpp"
 
 #include <chrono>
@@ -13,6 +14,8 @@
 namespace puzzlescript::generator {
 
 std::string replaceLevelsSection(const std::string& source, const std::string& levelBody);
+
+std::string appendLegendEntries(const std::string& source, const std::vector<SupplementalGlyph>& glyphs);
 
 std::string renderGameWithLevels(
     const std::string& gameSource,

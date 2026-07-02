@@ -94,6 +94,7 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/json.cpp
   src/runtime/simd.cpp
   src/search/difficulty.cpp
+  src/search/simplify.cpp
   src/solver/c_api.cpp
   src/solver/static_analysis.cpp
   third_party/simdjson/simdjson.cpp
@@ -187,6 +188,12 @@ add_executable(puzzlescript_generator
   src/generator/templatize.cpp
 )
 
+add_executable(puzzlescript_simplify
+  src/simplify/main.cpp
+  src/generator/level_rows.cpp
+  src/generator/output_writer.cpp
+)
+
 set(PS_COMPILED_RULES_SOURCE "" CACHE FILEPATH "Optional generated compiled-rules C++ source to link into solver/generator")
 set(PS_COMPILED_RULES_SOURCES_FILE "" CACHE FILEPATH "Optional newline-delimited list of generated compiled-rules C++ sources")
 set(PS_COMPILED_RULES_OPT_LEVEL "" CACHE STRING "Optional Release optimization level for generated compiled-rules source: 0, 1, 2, 3, s, or z")
@@ -238,7 +245,19 @@ if(PS_COMPILED_RULES_SOURCES)
   target_sources(puzzlescript_cpp PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
   target_sources(puzzlescript_solver PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
   target_sources(puzzlescript_generator PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
+  target_sources(puzzlescript_simplify PRIVATE ${PS_COMPILED_RULES_SOURCE_ABS_LIST})
 endif()
+
+target_link_libraries(puzzlescript_simplify
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(puzzlescript_simplify
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
 target_link_libraries(puzzlescript_solver
   PRIVATE
@@ -455,6 +474,50 @@ target_include_directories(generator_difficulty_assessment
 add_test(
   NAME generator_difficulty_assessment
   COMMAND generator_difficulty_assessment
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(simplify_level
+  tests/simplify_level.cpp
+)
+
+target_link_libraries(simplify_level
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(simplify_level
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME simplify_level
+  COMMAND simplify_level
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(level_rows_supplemental_glyphs
+  tests/level_rows_supplemental_glyphs.cpp
+  src/generator/level_rows.cpp
+  src/generator/output_writer.cpp
+)
+
+target_link_libraries(level_rows_supplemental_glyphs
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(level_rows_supplemental_glyphs
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME level_rows_supplemental_glyphs
+  COMMAND level_rows_supplemental_glyphs
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
@@ -789,6 +852,13 @@ add_test(
 )
 set_tests_properties(solver_timeout_curve_build_node PROPERTIES TIMEOUT 10)
 
+add_test(
+  NAME solver_time_curve_single_game_make_node
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_time_curve_single_game_make_node.js
+)
+set_tests_properties(solver_time_curve_single_game_make_node PROPERTIES TIMEOUT 10)
+
 if(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS)
   add_test(
     NAME puzzlescript_solver_js_coverage_full
@@ -1088,6 +1158,16 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 set_tests_properties(puzzlescript_generator_remix_smoke PROPERTIES TIMEOUT 90)
+
+add_test(
+  NAME puzzlescript_simplify_smoke
+  COMMAND ${NODE_EXECUTABLE}
+          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_simplify_smoke.js
+          $<TARGET_FILE:puzzlescript_simplify>
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(puzzlescript_simplify_smoke PROPERTIES TIMEOUT 120)
 
 add_test(
   NAME puzzlescript_generator_events_jsonl

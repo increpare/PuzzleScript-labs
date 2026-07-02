@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 
 #include <fcntl.h>
@@ -81,6 +82,61 @@ std::string replaceLevelsSection(const std::string& source, const std::string& l
         return out.str();
     }
     throw std::runtime_error("PuzzleScript source has no LEVELS section");
+}
+
+std::string appendLegendEntries(const std::string& source, const std::vector<SupplementalGlyph>& glyphs) {
+    if (glyphs.empty()) {
+        return source;
+    }
+
+    std::vector<std::string> lines = splitLines(source);
+    size_t legendIndex = lines.size();
+    for (size_t index = 0; index < lines.size(); ++index) {
+        if (lowercase(trim(lines[index])) == "legend") {
+            legendIndex = index;
+            break;
+        }
+    }
+    if (legendIndex >= lines.size()) {
+        throw std::runtime_error("PuzzleScript source has no LEGEND section");
+    }
+
+    size_t insertAt = legendIndex + 1;
+    if (insertAt < lines.size() && isSectionSeparator(lines[insertAt])) {
+        ++insertAt;
+    }
+    while (insertAt < lines.size() && !trim(lines[insertAt]).empty()) {
+        ++insertAt;
+    }
+
+    std::vector<std::string> toInsert;
+    toInsert.reserve(glyphs.size());
+    std::unordered_set<std::string> seen;
+    for (const SupplementalGlyph& glyph : glyphs) {
+        if (!seen.insert(glyph.legendLine).second) {
+            continue;
+        }
+        if (source.find(glyph.legendLine) != std::string::npos) {
+            continue;
+        }
+        toInsert.push_back(glyph.legendLine);
+    }
+    if (toInsert.empty()) {
+        return source;
+    }
+
+    lines.insert(lines.begin() + static_cast<std::ptrdiff_t>(insertAt), toInsert.begin(), toInsert.end());
+    std::ostringstream out;
+    for (size_t index = 0; index < lines.size(); ++index) {
+        out << lines[index];
+        if (index + 1 < lines.size()) {
+            out << '\n';
+        }
+    }
+    if (!source.empty() && source.back() == '\n') {
+        out << '\n';
+    }
+    return out.str();
 }
 
 std::string renderGameWithLevels(

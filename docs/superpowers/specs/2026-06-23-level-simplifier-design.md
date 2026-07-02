@@ -1,6 +1,6 @@
 # Level Simplifier Design
 
-Status: design approved, pending implementation plan.
+Status: implemented.
 Date: 2026-06-23.
 Revision 2026-06-23 (performance pass): trace envelope now *classifies and
 batches* candidates instead of pruning them away; per-trial BFS gets an

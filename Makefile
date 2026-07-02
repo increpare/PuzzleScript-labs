@@ -15,10 +15,10 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator generator remix solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator build_simplify generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_regression_tests compact_turn_codegen_dirty_shape compact_turn_perf_regression compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -80,6 +80,7 @@ PUZZLESCRIPT_CPP := $(BUILD_DIR)/native/puzzlescript_cpp
 PUZZLESCRIPT_CPP_32 := $(BUILD_DIR_32)/native/puzzlescript_cpp
 PUZZLESCRIPT_SOLVER := $(BUILD_DIR)/native/puzzlescript_solver
 PUZZLESCRIPT_GENERATOR := $(BUILD_DIR)/native/puzzlescript_generator
+PUZZLESCRIPT_SIMPLIFY := $(BUILD_DIR)/native/puzzlescript_simplify
 GENERATOR_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 GENERATOR_GAME := $(word 1,$(GENERATOR_MAKE_ARGS))
 GENERATOR_SPEC := $(word 2,$(GENERATOR_MAKE_ARGS))
@@ -204,6 +205,24 @@ SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS ?= --compact-node-storage --job
 SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS ?= --compact-node-storage --strategy hda-weighted-astar --hda-jobs 8
 SOLVER_TIMEOUT_CURVE_PROGRESS ?= per-game
 SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS = $(if $(filter per-game,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--progress-per-game,$(if $(filter quiet,$(SOLVER_TIMEOUT_CURVE_PROGRESS)),--quiet,--progress-every $(SOLVER_TIMEOUT_CURVE_PROGRESS)))
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME := $(word 2,$(MAKECMDGOALS))
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE := $(notdir $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME))
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_STEM := $(basename $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE))
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_DEFAULT_OUT_DIR := $(BUILD_DIR)/solver-timeout-curve-$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_STEM)-$(SOLVER_TIMEOUT_CURVE_MAX_MS)ms
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_OUT_DIR := $(if $(filter file,$(origin SOLVER_TIMEOUT_CURVE_OUT_DIR)),$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_DEFAULT_OUT_DIR),$(SOLVER_TIMEOUT_CURVE_OUT_DIR))
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_CORPUS_DIR := $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_OUT_DIR)/input-corpus
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_OUT_DIR := $(if $(filter file,$(origin SOLVER_TIMEOUT_CURVE_OUT_DIR)),$(BUILD_DIR)/solver-timeout-curve-$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_STEM)-$(SOLVER_TIMEOUT_CURVE_MAX_MS)ms-hda-compiled,$(SOLVER_TIMEOUT_CURVE_OUT_DIR))
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_CORPUS_DIR := $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_OUT_DIR)/input-corpus
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_JSON := $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_OUT_DIR)/cpp-hda-weighted-astar-8-compiled.json
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_SVG := $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_OUT_DIR)/solver_timeout_curve.svg
+SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_CSV := $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_OUT_DIR)/solver_timeout_curve.csv
+ifneq ($(filter solver-time-curve-single-game solver-time-curve-single-game-hda-compiled,$(MAKECMDGOALS)),)
+ifneq ($(strip $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)),)
+.PHONY: $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)
+$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME):
+	@:
+endif
+endif
 SOLVER_MINE_CORPUS ?= src/tests/solver_tests
 SOLVER_MINE_TIMEOUTS_MS ?= 50,100,250,500
 SOLVER_MINE_STRATEGY ?= portfolio
@@ -445,6 +464,8 @@ help:
 	@echo "  make build                         Build build/native/puzzlescript_cpp (64-bit masks)"
 	@echo "  make build_solver                  Build build/native/puzzlescript_solver"
 	@echo "  make build_generator               Build build/native/puzzlescript_generator"
+	@echo "  make build_simplify                Build build/native/puzzlescript_simplify"
+	@echo "  make simplify IN=in.txt OUT=out.txt Post-process levels with puzzlescript-simplify"
 	@echo "  make solver game.txt               Run solver on a PuzzleScript game"
 	@echo "  make solver game.txt SPECIALIZE=true"
 	@echo "                                     Run solver with linked compiled-rule kernels"
@@ -571,6 +592,10 @@ help:
 	@echo "  make solver_tests_js               Run JavaScript comparison solver corpus"
 	@echo "  make solver_js_coverage_cpp        Fail if native misses any JS-solved corpus level"
 	@echo "  make solver_timeout_curve          Build Javascript + c++ cumulative solve chart (slow; includes canonical + compiled series)"
+	@echo "  make solver-time-curve-single-game game.txt"
+	@echo "                                     Build the same chart for one game file"
+	@echo "  make solver-time-curve-single-game-hda-compiled game.txt SOLVER_TIMEOUT_CURVE_MAX_MS=30000"
+	@echo "                                     Build only the compiled HDA x8 single-game chart"
 	@echo "  make solver_timeout_curve_replot   Re-render chart from saved JSON (does not re-run solvers)"
 	@echo "  make js_static_optimization_comparison_solver_smoke"
 	@echo "                                     JS solver smoke corpus: baseline vs --solver-opt all + totals diff"
@@ -652,6 +677,26 @@ build: $(CMAKE_CACHE)
 build_solver: $(PUZZLESCRIPT_SOLVER)
 
 build_generator: $(PUZZLESCRIPT_GENERATOR)
+
+$(PUZZLESCRIPT_SIMPLIFY): $(CMAKE_CACHE) $(PUZZLESCRIPT_SOLVER_REBUILD_INPUTS)
+	$(CMAKE) --build $(BUILD_DIR) --target puzzlescript_simplify
+
+build_simplify: $(PUZZLESCRIPT_SIMPLIFY)
+
+simplify:
+	@if [ -z "$(IN)" ] || [ -z "$(OUT)" ]; then \
+		echo "Usage: make simplify IN=path/to/game.txt OUT=path/to/out.txt"; \
+		exit 2; \
+	fi
+	@$(MAKE) build_simplify
+	@$(PUZZLESCRIPT_SIMPLIFY) "$(IN)" --out "$(OUT)" \
+		--simplify-timeout-ms $(or $(SIMPLIFY_TIMEOUT_MS),5000) \
+		--solver-timeout-ms $(or $(SOLVER_TIMEOUT_MS),2000)
+
+ifeq ($(firstword $(MAKECMDGOALS)),simplify)
+IN OUT:
+	@:
+endif
 
 generator:
 	@if [ -z "$(GENERATOR_GAME)" ] || [ -z "$(GENERATOR_SPEC)" ]; then \
@@ -1265,6 +1310,68 @@ solver_tests_cpp: $(SOLVER_TARGET_PREREQ)
 
 solver_tests_js:
 	$(NODE) src/tests/run_solver_tests_js.js src/tests/solver_tests --timeout-ms $(SOLVER_TIMEOUT_MS) --solutions-dir $(SOLVER_SOLUTIONS_DIR)/js $(SOLVER_PROGRESS_ARGS) $(SOLVER_OUTPUT_ARGS)
+
+solver-time-curve-single-game:
+	@if [ -z "$(strip $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME))" ]; then \
+		echo "Usage: make solver-time-curve-single-game path/to/game.txt [SOLVER_TIMEOUT_CURVE_MAX_MS=250]" >&2; \
+		exit 2; \
+	fi
+	@if [ ! -f "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)" ]; then \
+		echo "Missing game file: $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)" >&2; \
+		exit 2; \
+	fi
+	mkdir -p "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_CORPUS_DIR)"
+	cp "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)" "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_CORPUS_DIR)/$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE)"
+	$(MAKE) solver_timeout_curve \
+		SOLVER_TESTS_CORPUS="$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_CORPUS_DIR)" \
+		SOLVER_TIMEOUT_CURVE_OUT_DIR="$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_OUT_DIR)" \
+		SOLVER_TIMEOUT_CURVE_EXTRA_ARGS="$(strip $(SOLVER_TIMEOUT_CURVE_EXTRA_ARGS) --game $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE))" \
+		SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS="$(strip $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_ARGS) --game $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE))" \
+		SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS="$(strip $(SOLVER_TIMEOUT_CURVE_CPP_HDA_ARGS) --game $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE))" \
+		SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS="$(strip $(SOLVER_TIMEOUT_CURVE_CPP_PORTFOLIO_COMPILED_ARGS) --game $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE))" \
+		SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS="$(strip $(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS) --game $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE))"
+
+solver-time-curve-single-game-hda-compiled:
+	@if [ -z "$(strip $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME))" ]; then \
+		echo "Usage: make solver-time-curve-single-game-hda-compiled path/to/game.txt SOLVER_TIMEOUT_CURVE_MAX_MS=30000" >&2; \
+		exit 2; \
+	fi
+	@if [ ! -f "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)" ]; then \
+		echo "Missing game file: $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)" >&2; \
+		exit 2; \
+	fi
+	mkdir -p "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_CORPUS_DIR)"
+	cp "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME)" "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_CORPUS_DIR)/$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE)"
+	@set -e; \
+	mkdir -p "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_OUT_DIR)"; \
+	$(COMPILED_RULES_BOOTSTRAP_CPP); \
+	corpus_dir="$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_CORPUS_DIR)"; \
+	corpus_hash=$$(find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $$1}'); \
+	compiled_hash=$$({ find "$$corpus_dir" -type f -name '*.txt' -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 $(COMPILED_RULES_FINGERPRINT_INPUTS); printf '%s\n' "max_rows=$(COMPILED_RULES_MAX_ROWS)"; printf '%s\n' "compiled_rules_args=$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS)"; printf '%s\n' "compiled_rules_opt_level=$(SOLVER_TIMEOUT_CURVE_COMPILED_RULES_OPT_LEVEL)"; } | shasum -a 256 | awk '{print $$1}'); \
+	out_dir="$(COMPILED_RULES_ARTIFACT_ROOT)/solver-timeout-curve-$$compiled_hash"; \
+	build_dir="$(COMPILED_RULES_BUILD_ROOT)/solver-timeout-curve-$$compiled_hash"; \
+	out_cpp_dir="$$out_dir/sources"; \
+	sources_file="$$out_dir/sources.txt"; \
+	coverage_json="$$out_dir/coverage.json"; \
+	mkdir -p "$$out_dir"; \
+	$(call COMPILED_RULES_EMIT_SHARDED,$$out_dir,$$corpus_dir,solver_timeout_curve_hda_compiled_$$corpus_hash,$(SOLVER_TIMEOUT_CURVE_CPP_COMPILED_RULES_ARGS) --coverage-json "$$coverage_json"); \
+	$(NODE) -e 'const fs=require("fs"); const path=process.argv[1]; const j=JSON.parse(fs.readFileSync(path,"utf8")); const c=(j.aggregate&&j.aggregate.compact_turn)||{}; const sources=c.sources||0; const native=c.native_kernel_supported||0; const bridge=c.interpreter_bridge_supported||0; const callable=c.whole_turn_supported||0; const pct=n=>sources?((100*n/sources).toFixed(1)+"%"):"n/a"; console.log("  compact coverage hda-compiled: callable="+callable+"/"+sources+" native="+native+"/"+sources+" ("+pct(native)+") bridge="+bridge+"/"+sources+" json="+path);' "$$coverage_json"; \
+	$(call COMPILED_RULES_CONFIGURE,$$build_dir,-DPS_COMPILED_RULES_SOURCE= -DPS_COMPILED_RULES_SOURCES_FILE="$$PWD/$$sources_file" -DPS_COMPILED_RULES_OPT_LEVEL=$(SOLVER_TIMEOUT_CURVE_COMPILED_RULES_OPT_LEVEL)); \
+	$(CMAKE) --build "$$build_dir" $(COMPILED_RULES_BUILD_PARALLEL_ARG) --target puzzlescript_solver 1>&2; \
+	compiled_solver="$$build_dir/native/puzzlescript_solver"; \
+	echo ""; \
+	echo "solver-time-curve-single-game-hda-compiled corpus=$$corpus_dir max=$(SOLVER_TIMEOUT_CURVE_MAX_MS)ms step=$(SOLVER_TIMEOUT_CURVE_STEP_MS)ms"; \
+	echo "  solver -> $$compiled_solver"; \
+	echo "  JSON -> $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_JSON)"; \
+	echo "  chart -> $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_SVG)"; \
+	"$$compiled_solver" "$$corpus_dir" --timeout-ms $(SOLVER_TIMEOUT_CURVE_MAX_MS) $(strip $(SOLVER_TIMEOUT_CURVE_CPP_HDA_COMPILED_ARGS) --game $(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_BASE)) --json --no-solutions $(SOLVER_TIMEOUT_CURVE_PROGRESS_ARGS) > "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_JSON)"; \
+	$(NODE) src/tests/solver_timeout_curve.js \
+		--series "c++ hda-weighted-astar x8 compiled:$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_JSON)" \
+		--allow-smoke \
+		--max-ms $(SOLVER_TIMEOUT_CURVE_MAX_MS) \
+		--step-ms $(SOLVER_TIMEOUT_CURVE_STEP_MS) \
+		--out-svg "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_SVG)" \
+		--out-csv "$(SOLVER_TIMEOUT_CURVE_SINGLE_GAME_HDA_COMPILED_CSV)"
 
 solver_timeout_curve: build_solver
 	@set -e; \
