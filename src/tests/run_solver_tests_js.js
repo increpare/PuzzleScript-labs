@@ -95,6 +95,7 @@ const BEST_MANHATTAN_EMPTY_TARGETS_PENALTY = 128;
 /** When `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0`, skip `performance.now()` in the search hot loop (timing breakdown is zeroed; portfolio auto-lock uses step timing only when enabled). */
 const SOLVER_DETAIL_TIMING = process.env.PUZZLESCRIPT_SOLVER_DETAIL_TIMING !== '0';
 const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1';
+const SOLVER_AGAIN_PROFILE = process.env.PUZZLESCRIPT_SOLVER_AGAIN_PROFILE === '1';
 /** Reject search wins whose reconstructed input sequence does not replay from a fresh level load. */
 const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !== '0';
 
@@ -2898,13 +2899,21 @@ function hashCurrentState() {
     return crypto.createHash('sha1').update(payload).digest('hex');
 }
 
-function settleAgain() {
+function settleAgain(stepProfile = null) {
     // Some corpus games intentionally use `again` as animation. robot arm has
     // a reachable 3-cycle, so the cap is load-bearing for solver harnesses.
-    for (let pass = 0; pass < 500 && againing; pass++) {
+    let pass = 0;
+    for (; pass < 500 && againing; pass++) {
         againing = false;
+        if (SOLVER_AGAIN_PROFILE && stepProfile) {
+            stepProfile.process_input_calls++;
+        }
         processInput(-1, undefined, undefined, true);
     }
+    if (SOLVER_AGAIN_PROFILE && stepProfile) {
+        stepProfile.again_passes += pass;
+    }
+    return pass;
 }
 
 //PUZZLESCRIPT_SOLVER_NOOP_PROBE=1: measure (without acting on it) how a
@@ -2971,6 +2980,9 @@ function stepSolverAction(action, stepProfile = null) {
             }
             changed = true;
         } else {
+            if (SOLVER_AGAIN_PROFILE && stepProfile) {
+                stepProfile.process_input_calls++;
+            }
             changed = Boolean(processInput(action.input, undefined, undefined, true));
         }
         if (probeBlocked !== null) {
@@ -2987,7 +2999,7 @@ function stepSolverAction(action, stepProfile = null) {
                 }
             }
         }
-        settleAgain();
+        settleAgain(stepProfile);
         const solved = changed && (curlevel !== beforeLevel || (!beforeTitle && titleScreen));
         return { changed, solved };
     } finally {
@@ -3256,6 +3268,8 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         elapsed_ms: 0,
         expanded: 0,
         generated: 0,
+        process_input_calls: 0,
+        again_passes: 0,
         unique_states: 0,
         duplicates: 0,
         step_no_op: 0,
@@ -3783,6 +3797,8 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             if (lastResult) {
                 phaseResult.expanded += lastResult.expanded;
                 phaseResult.generated += lastResult.generated;
+                phaseResult.process_input_calls += lastResult.process_input_calls || 0;
+                phaseResult.again_passes += lastResult.again_passes || 0;
                 phaseResult.duplicates += lastResult.duplicates;
                 phaseResult.step_no_op += lastResult.step_no_op || 0;
                 phaseResult.step_changed += lastResult.step_changed || 0;
@@ -3833,6 +3849,8 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         elapsed_ms: 0,
         expanded: 0,
         generated: 0,
+        process_input_calls: 0,
+        again_passes: 0,
         unique_states: 0,
         duplicates: 0,
         step_no_op: 0,
@@ -3959,6 +3977,8 @@ function runGame(root, file, options = {}) {
             elapsed_ms: 0,
             expanded: 0,
             generated: 0,
+            process_input_calls: 0,
+            again_passes: 0,
             unique_states: 0,
             duplicates: 0,
             hash_collisions: 0,
@@ -4437,6 +4457,8 @@ function totals(results) {
         errors: 0,
         expanded: 0,
         generated: 0,
+        process_input_calls: 0,
+        again_passes: 0,
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
@@ -4488,6 +4510,8 @@ function totals(results) {
         out.errors += ['compile_error', 'level_error'].includes(result.status) ? 1 : 0;
         out.expanded += result.expanded;
         out.generated += result.generated;
+        out.process_input_calls += result.process_input_calls || 0;
+        out.again_passes += result.again_passes || 0;
         out.step_no_op += result.step_no_op || 0;
         out.step_changed += result.step_changed || 0;
         out.hash_collisions += result.hash_collisions || 0;

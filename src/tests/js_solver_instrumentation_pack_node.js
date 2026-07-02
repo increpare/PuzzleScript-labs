@@ -28,6 +28,19 @@ const baseline = JSON.parse(execFileSync(
 assert.strictEqual(baseline.results[0].status, 'solved');
 assert.ok(Array.isArray(baseline.results[0].heuristic_breakdown) || baseline.results[0].heuristic_breakdown === null);
 
+const againProfiled = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions'],
+    {
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+        env: Object.assign({}, process.env, { PUZZLESCRIPT_SOLVER_AGAIN_PROFILE: '1' }),
+    },
+));
+assert.ok(Number.isFinite(againProfiled.results[0].process_input_calls), 'process_input_calls should be numeric');
+assert.ok(Number.isFinite(againProfiled.results[0].again_passes), 'again_passes should be numeric');
+assert.ok(againProfiled.results[0].process_input_calls >= againProfiled.results[0].generated);
+
 const profiled = JSON.parse(execFileSync(
     process.execPath,
     [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions'],
