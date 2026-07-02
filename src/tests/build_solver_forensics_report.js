@@ -433,7 +433,9 @@ function buildReportArtifacts(options) {
     const extraJsEntries = [options.jsStepProfile, options.jsNoopProbe, options.jsCpuReady]
         .filter(Boolean)
         .map((entry) => loadEntry(entry, 'fresh'));
-    const nativeEntries = options.nativeSeries.map((entry) => loadEntry(entry, 'fresh'));
+    const nativeEntries = options.nativeSeries.map((entry) =>
+        loadEntry(entry, /historical/i.test(entry.label) ? 'historical' : 'fresh')
+    );
     const corpusEntries = options.corpusSeries.map((entry) => loadEntry(entry, entry.freshness));
     const jsSummaries = [...jsEntries, ...extraJsEntries].map((entry) => summarizeRun(entry.label, entry.run, entry.freshness));
     const nativeSummaries = nativeEntries.map((entry) => summarizeRun(entry.label, entry.run, entry.freshness));

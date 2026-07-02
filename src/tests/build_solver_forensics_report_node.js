@@ -127,11 +127,12 @@ const artifacts = buildReportArtifacts({
     jsStepProfile: null,
     jsNoopProbe: null,
     jsCpuReady: null,
-    nativeSeries: [{ label: 'native', path: nativePath }],
+    nativeSeries: [{ label: 'native historical', path: nativePath }],
     corpusSeries: [{ label: 'corpus JS', path: corpusPath, freshness: 'historical' }],
 });
 
 assert.strictEqual(artifacts.summary.game_name, 'hard.txt');
+assert.strictEqual(artifacts.summary.native_summaries[0].freshness, 'historical');
 assert.ok(fs.readFileSync(reportPath, 'utf8').includes('Open Hypothesis Space'));
 assert.ok(fs.readFileSync(reportPath, 'utf8').includes('JS Runtime Breakdown'));
 assert.ok(fs.readFileSync(reportPath, 'utf8').includes('corpus JS'));
