@@ -15,6 +15,7 @@ node_modules/
 /build-32-*
 *.o
 /.superpowers
+/.worktrees/
 /Testing/
 /tmp_*.js
 /.claude/worktrees
