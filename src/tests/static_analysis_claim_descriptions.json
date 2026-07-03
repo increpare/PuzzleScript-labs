@@ -356,7 +356,7 @@
     {
       "name": "win_relevance",
       "description": "Fixtures for solver-scoped win relevance facts.",
-      "specification": "Each win_relevance fixture projects the analyzer's win_relevance fact into source-located rule rows: direct or semantic root rules, backward-sliced relevant rules, and solver-active irrelevant rules. The analyzer fact also includes diagnostic wake_edges and relevance_edges; relevance_edges are the conservative dependencies used for the pruning-facing slice and include enabling writes plus writes that may disable or contradict another rule's reads.",
+      "specification": "Each win_relevance fixture projects the analyzer's win_relevance fact into source-located rule rows: direct or semantic root rules, backward-sliced relevant rules, and solver-active irrelevant rules. The analyzer fact also includes diagnostic wake_edges and relevance_edges; relevance_edges are the conservative dependencies used for the pruning-facing slice and include enabling writes plus object or movement writes that may disable or contradict another rule's reads.",
       "fields": [
         {
           "name": "schema",
@@ -420,7 +420,7 @@
           "name": "relevantRules",
           "type": "array",
           "description": "Rules retained by the backward relevance slice.",
-          "specification": "Contains root rules plus every rule that may enable or disable a currently relevant rule through the analyzer's conservative win-relevance dependency graph. The dependency graph keeps normal object-presence, object-absence, and movement enabling edges, and also includes object_present writes that may block no-object reads plus object_absent writes that may block object-present reads.",
+          "specification": "Contains root rules plus every rule that may enable or disable a currently relevant rule through the analyzer's conservative win-relevance dependency graph. The dependency graph keeps normal object-presence, object-absence, and movement enabling edges, and also includes object_present writes that may block no-object reads, object_absent writes that may block object-present reads, and same-object movement writes that may block movement reads.",
           "items": {
             "type": "object",
             "fields": [

@@ -2433,6 +2433,10 @@ function ruleMayEnableRule(writes, reads) {
     return reasons;
 }
 
+function movementWriteMayBlockRead(write, read) {
+    return write.object === read.object && !movementWriteMayEnableRead(write, read);
+}
+
 function setIntersects(left, right) {
     return Array.from(left).some(value => right.has(value));
 }
@@ -2444,6 +2448,9 @@ function ruleMayAffectRuleForWinRelevance(writes, reads) {
     }
     if (setIntersects(writes.object_absent, reads.object_present)) {
         reasons.push('object_absence_blocks_presence');
+    }
+    if (writes.movement.some(write => reads.movement.some(read => movementWriteMayBlockRead(write, read)))) {
+        reasons.push('movement_blocks_read');
     }
     return uniqueSorted(reasons);
 }
