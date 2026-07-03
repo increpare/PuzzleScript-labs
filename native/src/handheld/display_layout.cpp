@@ -17,6 +17,10 @@ int positiveOrOne(int value) {
     return std::max(1, value);
 }
 
+int drawMax(int minValue, int size, int levelSize) {
+    return std::min(minValue + size, levelSize);
+}
+
 } // namespace
 
 std::optional<ScreenSize> parseScreenSize(const char* value) {
@@ -58,24 +62,35 @@ Viewport computeViewport(
         ? level.flickscreen
         : level.zoomscreen;
     if (!screen.has_value()) {
-        return Viewport{"full", 0, 0, levelW, levelH};
+        return Viewport{"full", 0, 0, levelW, levelH, levelW, levelH};
     }
 
-    const int viewW = clampInt(screen->width, 1, levelW);
-    const int viewH = clampInt(screen->height, 1, levelH);
+    const int viewW = positiveOrOne(screen->width);
+    const int viewH = positiveOrOne(screen->height);
     const std::string mode = level.flickscreen.has_value() ? "flickscreen" : "zoomscreen";
 
     if (!player.has_value()) {
         if (previousViewport.has_value()) {
-            Viewport previous = *previousViewport;
-            previous.mode = mode;
-            previous.width = clampInt(previous.width, 1, viewW);
-            previous.height = clampInt(previous.height, 1, viewH);
-            previous.minX = clampInt(previous.minX, 0, levelW - previous.width);
-            previous.minY = clampInt(previous.minY, 0, levelH - previous.height);
-            return previous;
+            const int minX = clampInt(previousViewport->minX, 0, levelW);
+            const int minY = clampInt(previousViewport->minY, 0, levelH);
+            const int fallbackMaxX = drawMax(minX, viewW, levelW);
+            const int fallbackMaxY = drawMax(minY, viewH, levelH);
+            const int previousMaxX = previousViewport->maxX > previousViewport->minX
+                ? previousViewport->maxX
+                : fallbackMaxX;
+            const int previousMaxY = previousViewport->maxY > previousViewport->minY
+                ? previousViewport->maxY
+                : fallbackMaxY;
+            return Viewport{
+                mode,
+                minX,
+                minY,
+                viewW,
+                viewH,
+                clampInt(previousMaxX, minX, levelW),
+                clampInt(previousMaxY, minY, levelH)};
         }
-        return Viewport{mode, 0, 0, viewW, viewH};
+        return Viewport{mode, 0, 0, viewW, viewH, drawMax(0, viewW, levelW), drawMax(0, viewH, levelH)};
     }
 
     int minX = 0;
@@ -87,9 +102,11 @@ Viewport computeViewport(
         minX = player->x - (viewW / 2);
         minY = player->y - (viewH / 2);
     }
-    minX = clampInt(minX, 0, levelW - viewW);
-    minY = clampInt(minY, 0, levelH - viewH);
-    return Viewport{mode, minX, minY, viewW, viewH};
+    if (level.zoomscreen.has_value() && !level.flickscreen.has_value()) {
+        minX = clampInt(minX, 0, levelW - viewW);
+        minY = clampInt(minY, 0, levelH - viewH);
+    }
+    return Viewport{mode, minX, minY, viewW, viewH, drawMax(minX, viewW, levelW), drawMax(minY, viewH, levelH)};
 }
 
 FitResult computeFit(const DisplaySpec& display, const Viewport& viewport) {
@@ -115,6 +132,7 @@ FitResult computeFit(const DisplaySpec& display, const Viewport& viewport) {
     result.pixelHeight = viewH * result.tilePixels;
     result.offsetX = (displayW - result.pixelWidth) / 2;
     result.offsetY = (displayH - result.pixelHeight) / 2;
+    result.fits = result.pixelWidth <= displayW && result.pixelHeight <= displayH;
     return result;
 }
 

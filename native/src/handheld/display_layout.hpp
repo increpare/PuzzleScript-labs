@@ -29,12 +29,18 @@ struct LevelView {
     std::optional<ScreenSize> zoomscreen;
 };
 
+// `width`/`height` are the declared camera dimensions used for display fitting.
+// `minX`/`minY` are the camera/page origin. `maxX`/`maxY` are exclusive level
+// draw bounds clamped to the current level, matching PuzzleScript's mini/maxi
+// and minj/maxj rendering contract.
 struct Viewport {
     std::string mode = "full";
     int minX = 0;
     int minY = 0;
     int width = 0;
     int height = 0;
+    int maxX = 0;
+    int maxY = 0;
 };
 
 struct FitResult {
@@ -45,6 +51,7 @@ struct FitResult {
     int offsetX = 0;
     int offsetY = 0;
     bool degraded = false;
+    bool fits = true;
 };
 
 std::optional<ScreenSize> parseScreenSize(const char* value);
