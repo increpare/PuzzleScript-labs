@@ -48,9 +48,28 @@ Game: `ANONYMOUS_BATCH_OLD_ce2474f62432e2a703bba3fb65f5b01f.txt`
 | 63 | solved | 90584 | 15035 | 60137 | 20 |
 | 81 | solved | 92 | 10 | 37 | 10 |
 
+## X5 Movement-Aware Prune Prototype
+
+- Command: `PUZZLESCRIPT_INCREMENTAL_PRUNE=1 PUZZLESCRIPT_MOVEMENT_AWARE_PRUNE=1 node src/tests/run_tests_node.js`.
+- Result: 752 passed, 1 failed.
+- Failing simulation fixture: `Karamell`.
+- Root cause: Karamell's movement-propagation group still needs later fixpoint iterations after the line 448 rule writes movement. The relevant `readMovements` masks for lines 444 and 446 do not overlap that write mask, so the movement-aware guard pruned rules that still needed to run.
+- Decision: rejected/blocked as implemented. No movement-aware JSON artifact was generated, and no movement-aware prune code landed.
+
+## X6 Adaptive Step-Cost Probe
+
+- Artifact: `build/solver-forensics/anonymous-js-first-500ms/experiments/js-adaptive-step-cost-500ms.json`.
+- Solved count: 1/54 playable levels.
+- generated: 11721.
+- expanded: 2931.
+- step_ms: 25799.377940000082.
+- adaptive_step_cost_triggered: 2909.
+- Active/applicable results: 54 active rows recorded the probe field; 48 triggered at least once.
+- Decision: keep as an explicit probe only. Do not make it default without a refreshed corpus run showing flat-or-better solve count and reduced timeouts.
+
 ## Decisions
 
-- P2 movement-aware prune: continue only as a scoped probe; X2 did not show concentrated rule hotspots, so uniform rule-loop cost, codegen (P4), and stride/compaction (P5) remain live explanations.
-- P3 adaptive strategy: continue as an explicit probe; long-run JS solved native-proved levels 3, 63, and 81, while levels 19 and 31 still timed out at 120000ms.
+- P2 movement-aware prune: not accepted as implemented. The flagged simulation run failed `Karamell`, so the prototype is disproven until the movement dependency model accounts for propagation cases like lines 444/446 depending on later movement writes from line 448. X2 also did not show concentrated rule hotspots, so uniform rule-loop cost, codegen (P4), and stride/compaction (P5) remain live explanations.
+- P3 adaptive strategy: continue as an explicit probe; long-run JS solved native-proved levels 3, 63, and 81, while levels 19 and 31 still timed out at 120000ms. The adaptive step-cost probe solved 1 level with generated=11721, expanded=2931, step_ms=25799.377940000082, and adaptive_step_cost_triggered=2909.
 - P6 again-settling reduction: defer; X3 measured only 2 again passes over 12,205 generated steps (0.000164 per generated step), far below the threshold for pursuing again-specific work.
 - Refresh corpus baseline before default changes: yes.
