@@ -70,6 +70,13 @@ assert.ok(Array.isArray(hotspotProfiled.results[0].rule_hotspots), 'rule_hotspot
 assert.ok(hotspotProfiled.results[0].rule_hotspots.length > 0, 'rule_hotspots should include at least one rule');
 assert.ok(Number.isFinite(hotspotProfiled.results[0].rule_hotspots[0].try_apply_calls), 'hotspot calls should be numeric');
 
+const adaptive = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(adaptive.results[0].adaptive_step_cost, true);
+
 const heuristicSplit = JSON.parse(execFileSync(
     process.execPath,
     [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions'],
