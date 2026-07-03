@@ -109,6 +109,23 @@ const adaptiveUntimed = JSON.parse(execFileSync(
 assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost, false);
 assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost_triggered, 0);
 
+const adaptivePhaseSplit = JSON.parse(execFileSync(
+    process.execPath,
+    [
+        runner,
+        corpusDir,
+        '--game', 'push_goal.txt',
+        '--quiet',
+        '--json',
+        '--no-solutions',
+        '--strategy', 'phase-split',
+        '--portfolio-heuristics', 'auto,winconditions',
+        '--adaptive-step-cost',
+    ],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.ok(Number.isFinite(adaptivePhaseSplit.results[0].adaptive_step_cost_triggered));
+
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-pack-'));
 execFileSync(
     process.execPath,

@@ -3940,6 +3940,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.duplicates += lastResult.duplicates;
                 phaseResult.step_no_op += lastResult.step_no_op || 0;
                 phaseResult.step_changed += lastResult.step_changed || 0;
+                phaseResult.adaptive_step_cost_triggered += lastResult.adaptive_step_cost_triggered || 0;
                 phaseResult.heuristic_ms += lastResult.heuristic_ms;
                 phaseResult.heuristic_classify_ms += lastResult.heuristic_classify_ms || 0;
                 phaseResult.heuristic_score_ms += lastResult.heuristic_score_ms || 0;
