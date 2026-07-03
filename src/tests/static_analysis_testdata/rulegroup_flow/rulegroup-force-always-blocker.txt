@@ -19,9 +19,9 @@ green
 Alpha
 red
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
@@ -29,9 +29,9 @@ P = Player
 M = Marker
 A = Alpha
 
-=======
+========
 SOUNDS
-=======
+========
 
 ================
 COLLISIONLAYERS
