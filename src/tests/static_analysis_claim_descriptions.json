@@ -354,6 +354,117 @@
       ]
     },
     {
+      "name": "win_relevance",
+      "description": "Fixtures for solver-scoped win relevance facts.",
+      "specification": "Each win_relevance fixture projects the analyzer's win_relevance fact into source-located rule rows: direct or semantic root rules, backward-sliced relevant rules, and solver-active irrelevant rules.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "rootRules",
+          "type": "array",
+          "description": "Rules that seed the win relevance slice.",
+          "specification": "Contains rules that directly wake a win condition through winflow plus solver-visible semantic-command roots.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the root rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the root rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        },
+        {
+          "name": "semanticRootRules",
+          "type": "array",
+          "description": "Semantic-command rules that seed the win relevance slice.",
+          "specification": "Contains solver-visible rules whose commands include cancel, again, restart, win, or checkpoint.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the semantic root rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the semantic root rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        },
+        {
+          "name": "relevantRules",
+          "type": "array",
+          "description": "Rules retained by the backward relevance slice.",
+          "specification": "Contains root rules plus every rule that may wake a currently relevant rule through program_flow wake edges.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the relevant rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the relevant rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        },
+        {
+          "name": "irrelevantRules",
+          "type": "array",
+          "description": "Solver-active rules outside the backward relevance slice.",
+          "specification": "Contains solver_state_active rules that are not in relevantRules. This is analyzer-only evidence for future solver pruning and does not change runtime behavior.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the irrelevant rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the irrelevant rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "wincondition_tags",
       "description": "Fixtures for per-win-condition static-analysis tags.",
       "specification": "Each wincondition_tags fixture contains a winConditionTag array. Every row identifies one win condition by source line and exact source text, then asserts selected win-condition tags inside the row's tags object.",

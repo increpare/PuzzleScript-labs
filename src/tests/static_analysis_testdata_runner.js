@@ -537,6 +537,113 @@ function runWinflowDir(dirPath, claimDescriptions, log = process.stdout.write.bi
     }
 }
 
+function winRelevanceFactValue(report) {
+    const facts = (report.facts && report.facts.win_relevance) || [];
+    if (facts.length === 0) {
+        return {
+            rule_ids: [],
+            root_rule_ids: [],
+            relevant_rule_ids: [],
+            irrelevant_rule_ids: [],
+            semantic_root_rule_ids: [],
+        };
+    }
+    return facts[0].value;
+}
+
+function locatorsForRuleIds(ruleIds, byId, label) {
+    return (ruleIds || []).map(ruleId => {
+        const record = byId.get(ruleId);
+        assert.ok(record, `win_relevance ${label} rule id ${ruleId} not found in records`);
+        return ruleLocator(record);
+    }).sort(compareRuleLocators);
+}
+
+function buildWinRelevanceExpectations(source, report) {
+    const records = allRuleRecords(report, source);
+    assertRuleRecordsIdempotent(report.source.path, records);
+    const byId = recordById(records);
+    const value = winRelevanceFactValue(report);
+    return {
+        schema: FIXTURE_SCHEMA,
+        human_verified: false,
+        rootRules: locatorsForRuleIds(value.root_rule_ids, byId, 'root'),
+        semanticRootRules: locatorsForRuleIds(value.semantic_root_rule_ids, byId, 'semantic root'),
+        relevantRules: locatorsForRuleIds(value.relevant_rule_ids, byId, 'relevant'),
+        irrelevantRules: locatorsForRuleIds(value.irrelevant_rule_ids, byId, 'irrelevant'),
+    };
+}
+
+function validateRuleLocatorArray(filePath, label, rows) {
+    assert.ok(Array.isArray(rows), `${filePath}: ${label} must be an array`);
+    for (const [index, row] of rows.entries()) {
+        assert.ok(row && typeof row === 'object' && !Array.isArray(row), `${filePath}: ${label}[${index}] must be an object`);
+        assert.ok(Number.isInteger(row.line) && row.line > 0, `${filePath}: ${label}[${index}] missing positive integer line`);
+        assert.ok(typeof row.text === 'string' && row.text.length > 0, `${filePath}: ${label}[${index}] missing text`);
+    }
+}
+
+function validateWinRelevanceExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    validateRuleLocatorArray(filePath, 'rootRules', payload.rootRules);
+    validateRuleLocatorArray(filePath, 'semanticRootRules', payload.semanticRootRules);
+    validateRuleLocatorArray(filePath, 'relevantRules', payload.relevantRules);
+    validateRuleLocatorArray(filePath, 'irrelevantRules', payload.irrelevantRules);
+}
+
+function checkWinRelevanceFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'win_relevance'), payload);
+    validateWinRelevanceExpectationShape(jsonPath, payload);
+    const actual = buildWinRelevanceExpectations(source, report);
+    assert.deepStrictEqual(
+        actual.rootRules,
+        payload.rootRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: rootRules mismatch`
+    );
+    assert.deepStrictEqual(
+        actual.semanticRootRules,
+        payload.semanticRootRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: semanticRootRules mismatch`
+    );
+    assert.deepStrictEqual(
+        actual.relevantRules,
+        payload.relevantRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: relevantRules mismatch`
+    );
+    assert.deepStrictEqual(
+        actual.irrelevantRules,
+        payload.irrelevantRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: irrelevantRules mismatch`
+    );
+}
+
+function runWinRelevanceDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildWinRelevanceExpectations(source, report));
+            log(`generated static analysis testdata: win_relevance/${stem}.json (review before committing)\n`);
+        }
+        checkWinRelevanceFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 function allWinConditionRecords(report, source) {
     const sourceLines = source.split(/\r?\n/);
     return (report.ps_tagged && report.ps_tagged.winconditions || []).map(wincondition => {
@@ -1238,6 +1345,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const winflowDir = path.join(root, 'winflow');
     assert.ok(fs.existsSync(winflowDir), `${winflowDir}: missing winflow testdata directory`);
     runWinflowDir(winflowDir, claimDescriptions, options.log);
+    const winRelevanceDir = path.join(root, 'win_relevance');
+    assert.ok(fs.existsSync(winRelevanceDir), `${winRelevanceDir}: missing win_relevance testdata directory`);
+    runWinRelevanceDir(winRelevanceDir, claimDescriptions, options.log);
     const winConditionTagsDir = path.join(root, 'wincondition_tags');
     assert.ok(fs.existsSync(winConditionTagsDir), `${winConditionTagsDir}: missing wincondition_tags testdata directory`);
     runWinConditionTagsDir(winConditionTagsDir, claimDescriptions, options.log);
@@ -1274,6 +1384,7 @@ module.exports = {
     buildRulegroupFlowExpectations,
     buildRuntimeContractExpectations,
     buildWinConditionTagExpectations,
+    buildWinRelevanceExpectations,
     buildWinflowExpectations,
     deriveObjectTagValue,
     deriveRuleTagValue,
@@ -1294,5 +1405,6 @@ module.exports = {
     runRuntimeContractsDir,
     runStaticAnalysisTestdata,
     runWinConditionTagsDir,
+    runWinRelevanceDir,
     runWinflowDir,
 };

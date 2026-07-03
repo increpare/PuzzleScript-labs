@@ -551,6 +551,7 @@ function emptyFacts() {
         certified_wake_masks: [],
         program_flow: [],
         winflow: [],
+        win_relevance: [],
     };
 }
 
@@ -2599,6 +2600,60 @@ function deriveProgramFlowFacts(psTagged) {
     })];
 }
 
+function semanticRootRuleIds(rules) {
+    const ids = [];
+    for (const rule of rules) {
+        if ((rule.summary.semantic_commands || []).some(command => SEMANTIC_COMMANDS.has(command))) {
+            ids.push(rule.id);
+        }
+    }
+    return uniqueSorted(ids);
+}
+
+function backwardRelevantRuleIds(rootRuleIds, wakeEdges) {
+    const relevant = new Set(rootRuleIds);
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const edge of wakeEdges) {
+            if (!relevant.has(edge.to) || relevant.has(edge.from)) continue;
+            relevant.add(edge.from);
+            changed = true;
+        }
+    }
+    return uniqueSorted(relevant);
+}
+
+function deriveWinRelevanceFacts(psTagged) {
+    const entries = allRuleEntries(psTagged);
+    const rules = entries.map(entry => entry.rule);
+    const ruleIds = rules.map(rule => rule.id);
+    const programFlow = deriveProgramFlowFacts(psTagged)[0].value;
+    const winflow = deriveWinflowFacts(psTagged)[0].value;
+    const directWinRoots = uniqueSorted((winflow.wake_edges || []).map(edge => edge.from));
+    const semanticRoots = semanticRootRuleIds(rules);
+    const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots));
+    const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, programFlow.wake_edges || []);
+    const relevantSet = new Set(relevantRuleIds);
+    const irrelevantRuleIds = uniqueSorted(rules
+        .filter(rule => rule.tags.solver_state_active && !relevantSet.has(rule.id))
+        .map(rule => rule.id));
+    return [fact('win_relevance', 'win_relevance', 'proved', {
+        subjects: { rules: ruleIds },
+        value: {
+            rule_ids: ruleIds,
+            root_rule_ids: rootRuleIds,
+            relevant_rule_ids: relevantRuleIds,
+            irrelevant_rule_ids: irrelevantRuleIds,
+            wake_edges: programFlow.wake_edges || [],
+            win_wake_edges: winflow.wake_edges || [],
+            semantic_root_rule_ids: semanticRoots,
+        },
+        proof: ['backward_program_flow_slice_from_winflow_and_semantic_roots'],
+        evidence: relevantRuleIds,
+    })];
+}
+
 function factDerivers() {
     return {
         mergeability: deriveMergeabilityFacts,
@@ -2609,6 +2664,7 @@ function factDerivers() {
         certified_wake_masks: deriveCertifiedWakeMaskFacts,
         program_flow: deriveProgramFlowFacts,
         winflow: deriveWinflowFacts,
+        win_relevance: deriveWinRelevanceFacts,
     };
 }
 

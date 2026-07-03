@@ -1,0 +1,59 @@
+title Static Analysis Win Relevance Semantic
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+Deco
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+G = Goal
+D = Deco
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Deco
+
+=====
+RULES
+=====
+
+[ player ] -> [ player ] win
+[ goal ] -> [ no goal ]
+[ deco ] -> [ no deco ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Goal
+
+======
+LEVELS
+======
+
+PD.
