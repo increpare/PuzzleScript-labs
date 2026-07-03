@@ -55,6 +55,63 @@ function walkTxtFiles(root) {
     return out.sort((left, right) => left.localeCompare(right));
 }
 
+function trimLine(line) {
+    return line.trim();
+}
+
+function isDividerLine(line) {
+    const stripped = trimLine(line);
+    return stripped.length > 0 && /^=+$/.test(stripped);
+}
+
+function isCommentLine(line) {
+    const stripped = trimLine(line);
+    return stripped.length > 0 && stripped.startsWith('(');
+}
+
+function splitLines(source) {
+    const normalized = source.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    if (normalized.endsWith('\n')) {
+        return normalized.slice(0, -1).split('\n');
+    }
+    return normalized.length > 0 ? normalized.split('\n') : [''];
+}
+
+function findSourceLevels(source) {
+    const lines = splitLines(source);
+    const levels = [];
+    let index = lines.findIndex((line) => trimLine(line).toLowerCase() === 'levels');
+    if (index < 0) {
+        return levels;
+    }
+    index++;
+    let levelIndex = 0;
+    while (index < lines.length) {
+        const stripped = trimLine(lines[index]);
+        const lower = stripped.toLowerCase();
+        if (stripped.length === 0 || isDividerLine(lines[index]) || isCommentLine(lines[index])) {
+            index++;
+            continue;
+        }
+        if (lower === 'message' || lower.startsWith('message ')) {
+            levels.push({ level: levelIndex++, message: true });
+            index++;
+            continue;
+        }
+        levels.push({ level: levelIndex++, message: false });
+        index++;
+        while (index < lines.length && trimLine(lines[index]).length > 0) {
+            index++;
+        }
+    }
+    return levels;
+}
+
+function firstPlayableLevel(source) {
+    const playable = findSourceLevels(source).find((level) => !level.message);
+    return playable ? playable.level : 0;
+}
+
 function discoverGames(corpusPath) {
     return walkTxtFiles(corpusPath).map((gamePath) => {
         const game = path.relative(corpusPath, gamePath);
@@ -78,7 +135,7 @@ function seededOrder(items, seed, keyFn) {
 function targetForGame(entry, timeoutMs, reason) {
     return {
         game: entry.game,
-        level: 0,
+        level: firstPlayableLevel(entry.source),
         first_solved_timeout_ms: timeoutMs,
         selection_reason: reason,
     };

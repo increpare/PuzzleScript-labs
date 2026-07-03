@@ -16,6 +16,7 @@ function usage() {
     process.stderr.write([
         'Usage: node src/tests/run_js_solver_bench_pair.js <corpus_dir>',
         '  --store PATH --slice NAME [--runs N] [--out-dir DIR]',
+        '  [--slice-manifest PATH]',
         '  [--baseline-variant NAME] [--candidate-variant NAME]',
         '  [--metric NAME] [--noise-band N]',
         '  [--baseline-env KEY=VALUE ...] [--candidate-env KEY=VALUE ...]',
@@ -50,6 +51,7 @@ function parseArgs(argv) {
         corpus: path.resolve(args.shift()),
         store: null,
         slice: null,
+        sliceManifestPath: null,
         runs: 3,
         outDir: path.resolve('build/solver-bench-pairs'),
         baselineVariant: 'baseline',
@@ -71,6 +73,8 @@ function parseArgs(argv) {
             options.store = path.resolve(args[++index]);
         } else if (arg === '--slice' && index + 1 < args.length) {
             options.slice = args[++index];
+        } else if (arg === '--slice-manifest' && index + 1 < args.length) {
+            options.sliceManifestPath = path.resolve(args[++index]);
         } else if (arg === '--runs' && index + 1 < args.length) {
             options.runs = parsePositiveInt(args[++index], '--runs');
         } else if (arg === '--out-dir' && index + 1 < args.length) {
@@ -106,11 +110,32 @@ function parseArgs(argv) {
     return options;
 }
 
+function runnerArgsIncludeTimeout(args) {
+    return args.includes('--timeout-ms') || args.includes('--no-timeout');
+}
+
+function sliceManifestRunnerArgs(options) {
+    if (options.sliceManifestPath === null) {
+        return [];
+    }
+    const manifest = JSON.parse(fs.readFileSync(options.sliceManifestPath, 'utf8'));
+    if (!manifest || !Array.isArray(manifest.targets)) {
+        throw new Error(`--slice-manifest: expected targets[] in ${options.sliceManifestPath}`);
+    }
+    const args = ['--solver-focus-manifest', options.sliceManifestPath];
+    const timeoutMs = Number(manifest.timeout_ms);
+    if (Number.isFinite(timeoutMs) && timeoutMs > 0 && !runnerArgsIncludeTimeout(options.runnerArgs)) {
+        args.push('--timeout-ms', String(timeoutMs));
+    }
+    return args;
+}
+
 function runVariant(options, pairId, variant, variantArgs, variantEnv) {
     const artifactPath = path.join(options.outDir, `${pairId}-${variant}.json`);
     const argv = [
         RUNNER,
         options.corpus,
+        ...sliceManifestRunnerArgs(options),
         ...options.runnerArgs,
         ...variantArgs,
         '--bench-store', options.store,
@@ -165,4 +190,5 @@ if (require.main === module) {
 module.exports = {
     parseArgs,
     runPairs,
+    sliceManifestRunnerArgs,
 };

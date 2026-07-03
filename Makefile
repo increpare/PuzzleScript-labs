@@ -548,6 +548,7 @@ help:
 	@echo "  make solver_benchmark_slice_manifest"
 	@echo "                                     Materialize SOLVER_BENCH_SLICE into a reproducible manifest"
 	@echo "  make js_solver_bench_pair_smoke    Run baseline/candidate JS paired smoke into SOLVER_BENCH_STORE"
+	@echo "  make js_solver_bench_pair_slice    Run baseline/candidate JS paired SOLVER_BENCH_SLICE into SOLVER_BENCH_STORE"
 	@echo "  make solver_bench_summary          Print aggregate bench-store summary"
 	@echo "  make solver_bench_freshness        Check latest bench-store record freshness"
 	@echo "  make solver_instrumentation_pack   Build cross-strategy native solver evidence pack"
@@ -1696,12 +1697,15 @@ solver_focus_compact_codegen_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_
 solver_benchmark_targets: $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_MANIFEST)
 	$(NODE) src/tests/run_solver_level_benchmark.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_CORPUS) $(SOLVER_TARGET_BENCH_MANIFEST) --runs $(SOLVER_TARGET_BENCH_RUNS) --strategy $(SOLVER_TARGET_BENCH_STRATEGY) --out $(SOLVER_TARGET_BENCH_OUT) $(SOLVER_TARGET_BENCH_TIMEOUT_ARG)
 
-.PHONY: solver_benchmark_slice_manifest js_solver_bench_pair_smoke solver_bench_summary solver_bench_freshness
+.PHONY: solver_benchmark_slice_manifest js_solver_bench_pair_smoke js_solver_bench_pair_slice solver_bench_summary solver_bench_freshness
 solver_benchmark_slice_manifest:
 	$(NODE) src/tests/generate_solver_benchmark_slice_manifest.js "$(SOLVER_BENCH_SLICE)" --out "$(SOLVER_BENCH_SLICE_MANIFEST)"
 
 js_solver_bench_pair_smoke:
 	$(NODE) src/tests/run_js_solver_bench_pair.js src/tests/solver_smoke_tests --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)" --runs $(SOLVER_BENCH_PAIR_RUNS) --out-dir "$(SOLVER_BENCH_OUT_DIR)" --noise-band 1 --candidate-arg --adaptive-step-cost -- --game push_goal.txt --quiet --json --no-solutions
+
+js_solver_bench_pair_slice: solver_benchmark_slice_manifest
+	$(NODE) src/tests/run_js_solver_bench_pair.js "$(SOLVER_BENCH_CORPUS)" --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)" --runs $(SOLVER_BENCH_PAIR_RUNS) --out-dir "$(SOLVER_BENCH_OUT_DIR)" --slice-manifest "$(SOLVER_BENCH_SLICE_MANIFEST)" --noise-band 1 --candidate-arg --adaptive-step-cost -- --quiet --json --no-solutions
 
 solver_bench_summary:
 	$(NODE) src/tests/solver_bench_store_cli.js summary --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)"

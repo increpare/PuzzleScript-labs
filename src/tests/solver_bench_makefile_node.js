@@ -11,6 +11,7 @@ const makefile = fs.readFileSync(path.join(repoRoot, 'Makefile'), 'utf8');
 for (const target of [
     'solver_benchmark_slice_manifest',
     'js_solver_bench_pair_smoke',
+    'js_solver_bench_pair_slice',
     'solver_bench_summary',
     'solver_bench_freshness',
 ]) {
@@ -23,6 +24,9 @@ assert.ok(/^SOLVER_BENCH_PAIR_RUNS \?= 3$/m.test(makefile), 'missing SOLVER_BENC
 assert.ok(makefile.includes('--runs $(SOLVER_BENCH_PAIR_RUNS)'), 'pair smoke target should use paired-run count');
 assert.ok(makefile.includes('generate_solver_benchmark_slice_manifest.js'), 'slice target should call slice materializer');
 assert.ok(makefile.includes('run_js_solver_bench_pair.js'), 'pair target should call JS paired runner');
+assert.ok(/^js_solver_bench_pair_slice: solver_benchmark_slice_manifest$/m.test(makefile), 'slice pair target should depend on manifest generation');
+assert.ok(makefile.includes('$(SOLVER_BENCH_CORPUS)'), 'slice pair target should use the configured solver bench corpus');
+assert.ok(makefile.includes('--slice-manifest "$(SOLVER_BENCH_SLICE_MANIFEST)"'), 'slice pair target should pass the generated manifest');
 assert.ok(makefile.includes('solver_bench_store_cli.js summary'), 'summary target should call bench-store summary');
 assert.ok(makefile.includes('solver_bench_store_cli.js freshness'), 'freshness target should call bench-store freshness');
 

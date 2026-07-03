@@ -11,7 +11,7 @@
         "type": "seeded-game-sample",
         "target_games": 50,
         "seed": "2026-07-03-measurement-v1:smoke-50",
-        "stability": "Sort corpus game paths lexicographically, hash each relative path with the seed, and take the first 50. Store the expanded manifest path in each bench-store run artifact."
+        "stability": "Sort corpus game paths lexicographically, hash each relative path with the seed, take the first 50 games, and target each game's first non-message level. Store the expanded manifest path in each bench-store run artifact."
       }
     },
     {
@@ -24,7 +24,7 @@
         "target_levels": 200,
         "seed": "2026-07-03-measurement-v1:sokoban-skew-200",
         "mechanic_hints": ["crate", "box", "push", "sokoban", "wall", "target"],
-        "stability": "Prefer games whose source contains mechanic_hints, then fill from the seeded corpus order. Persist the expanded game/level manifest before running."
+        "stability": "Prefer games whose source contains mechanic_hints, then fill from the seeded corpus order, targeting each game's first non-message level. Persist the expanded game/level manifest before running."
       }
     },
     {
@@ -40,7 +40,7 @@
           "src/tests/solver_focus_long_group.json",
           "build/native/solver_corpus_manifest.json"
         ],
-        "stability": "Rank levels by the latest stored baseline elapsed/generated cost when available, otherwise use the checked-in focus group followed by seeded corpus order. Persist the expanded manifest before running."
+        "stability": "Rank levels by the latest stored baseline elapsed/generated cost when available, otherwise use the checked-in focus group followed by seeded corpus order targeting each fill game's first non-message level. Persist the expanded manifest before running."
       }
     }
   ]
