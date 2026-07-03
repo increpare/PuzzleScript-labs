@@ -1,16 +1,18 @@
 #undef NDEBUG
 #include <cassert>
-#include <iostream>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "handheld/report.hpp"
+#include "runtime/json.hpp"
 
 using puzzlescript::handheld::DisplaySpec;
 using puzzlescript::handheld::ReportOptions;
 using puzzlescript::handheld::SourceInput;
 using puzzlescript::handheld::buildReportForSources;
+using puzzlescript::json::Value;
 
 namespace {
 
@@ -20,11 +22,51 @@ void require(bool condition, const char* message) {
     }
 }
 
-void requireContains(std::string_view text, std::string_view fragment) {
-    if (text.find(fragment) == std::string_view::npos) {
-        std::cerr << "missing fragment: " << fragment << "\nreport: " << text << "\n";
-    }
-    require(text.find(fragment) != std::string_view::npos, "missing expected JSON fragment");
+const Value& requireField(const Value::Object& object, const char* key) {
+    const auto it = object.find(key);
+    require(it != object.end(), "missing JSON field");
+    return it->second;
+}
+
+const Value::Object& requireObject(const Value& value, const char* message) {
+    require(value.isObject(), message);
+    return value.asObject();
+}
+
+const Value::Array& requireArray(const Value& value, const char* message) {
+    require(value.isArray(), message);
+    return value.asArray();
+}
+
+std::string requireString(const Value::Object& object, const char* key) {
+    const Value& value = requireField(object, key);
+    require(value.isString(), "JSON field should be a string");
+    return value.asString();
+}
+
+int64_t requireInteger(const Value::Object& object, const char* key) {
+    const Value& value = requireField(object, key);
+    require(value.isInteger(), "JSON field should be an integer");
+    return value.asInteger();
+}
+
+bool requireBool(const Value::Object& object, const char* key) {
+    const Value& value = requireField(object, key);
+    require(value.isBool(), "JSON field should be a boolean");
+    return value.asBool();
+}
+
+const Value::Object& firstGameObject(const Value& root) {
+    const Value::Object& rootObject = requireObject(root, "report root should be an object");
+    const Value::Array& games = requireArray(requireField(rootObject, "games"), "games should be an array");
+    require(games.size() == 1, "smoke report should contain one game");
+    return requireObject(games[0], "game should be an object");
+}
+
+const Value::Object& firstLevelObject(const Value::Object& game) {
+    const Value::Array& levels = requireArray(requireField(game, "levels"), "levels should be an array");
+    require(!levels.empty(), "compiled game should report at least one level");
+    return requireObject(levels[0], "level should be an object");
 }
 
 std::string simpleSource() {
@@ -159,55 +201,96 @@ void reportsSimpleFullLevel() {
     const std::string report = buildReportForSources(
         {SourceInput{"simple.txt", simpleSource()}},
         ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& game = firstGameObject(root);
+    const Value::Object& level = firstLevelObject(game);
 
-    requireContains(report, R"JSON("source":"simple.txt")JSON");
-    requireContains(report, R"JSON("compile_ok":true)JSON");
-    requireContains(report, R"JSON("background_color":"#123456")JSON");
-    requireContains(report, R"JSON("mode":"full")JSON");
-    requireContains(report, R"JSON("board_width":3)JSON");
-    requireContains(report, R"JSON("board_height":2)JSON");
-    requireContains(report, R"JSON("tile_pixels":240)JSON");
-    requireContains(report, R"JSON("degraded":false)JSON");
+    require(requireString(game, "source") == "simple.txt", "simple source name");
+    require(requireBool(game, "compile_ok"), "simple source should compile");
+    require(requireString(game, "background_color") == "#123456", "simple background color");
+    requireObject(requireField(game, "metadata"), "metadata should be an object");
+    require(requireString(level, "mode") == "full", "simple viewport mode");
+    require(requireInteger(level, "board_width") == 3, "simple board width");
+    require(requireInteger(level, "board_height") == 2, "simple board height");
+    require(requireInteger(level, "viewport_x") == 0, "simple viewport x");
+    require(requireInteger(level, "viewport_y") == 0, "simple viewport y");
+    require(requireInteger(level, "viewport_width") == 3, "simple viewport width");
+    require(requireInteger(level, "viewport_height") == 2, "simple viewport height");
+    require(requireInteger(level, "viewport_max_x") == 3, "simple viewport max x");
+    require(requireInteger(level, "viewport_max_y") == 2, "simple viewport max y");
+    require(requireInteger(level, "tile_pixels") == 240, "simple tile pixels");
+    require(!requireBool(level, "degraded"), "simple fit should not be degraded");
+    require(requireBool(level, "fits"), "simple fit should fit");
 }
 
 void reportsFlickscreenMetadataAndViewport() {
     const std::string report = buildReportForSources(
         {SourceInput{"flick.txt", flickscreenSource()}},
         ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& game = firstGameObject(root);
+    const Value::Object& metadata = requireObject(requireField(game, "metadata"), "metadata should be an object");
+    const Value::Object& level = firstLevelObject(game);
 
-    requireContains(report, R"JSON("source":"flick.txt")JSON");
-    requireContains(report, R"JSON("compile_ok":true)JSON");
-    requireContains(report, R"JSON("metadata":{"flickscreen":"2x2")JSON");
-    requireContains(report, R"JSON("mode":"flickscreen")JSON");
-    requireContains(report, R"JSON("viewport_width":2)JSON");
-    requireContains(report, R"JSON("viewport_height":2)JSON");
-    requireContains(report, R"JSON("tile_pixels":240)JSON");
+    require(requireString(game, "source") == "flick.txt", "flick source name");
+    require(requireBool(game, "compile_ok"), "flick source should compile");
+    require(requireString(metadata, "flickscreen") == "2x2", "flickscreen metadata");
+    require(requireString(level, "mode") == "flickscreen", "flick viewport mode");
+    require(requireInteger(level, "board_width") == 4, "flick board width");
+    require(requireInteger(level, "board_height") == 4, "flick board height");
+    require(requireInteger(level, "viewport_x") == 2, "flick viewport x");
+    require(requireInteger(level, "viewport_y") == 2, "flick viewport y");
+    require(requireInteger(level, "viewport_width") == 2, "flick viewport width");
+    require(requireInteger(level, "viewport_height") == 2, "flick viewport height");
+    require(requireInteger(level, "viewport_max_x") == 4, "flick viewport max x");
+    require(requireInteger(level, "viewport_max_y") == 4, "flick viewport max y");
+    require(requireInteger(level, "tile_pixels") == 240, "flick tile pixels");
+    require(!requireBool(level, "degraded"), "flick fit should not be degraded");
+    require(requireBool(level, "fits"), "flick fit should fit");
 }
 
 void reportsFlickscreenEdgePageBounds() {
     const std::string report = buildReportForSources(
         {SourceInput{"edge.txt", edgeFlickscreenSource()}},
         ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& game = firstGameObject(root);
+    const Value::Object& level = firstLevelObject(game);
 
-    requireContains(report, R"JSON("source":"edge.txt")JSON");
-    requireContains(report, R"JSON("mode":"flickscreen")JSON");
-    requireContains(report, R"JSON("viewport_x":3)JSON");
-    requireContains(report, R"JSON("viewport_y":3)JSON");
-    requireContains(report, R"JSON("viewport_width":3)JSON");
-    requireContains(report, R"JSON("viewport_height":3)JSON");
-    requireContains(report, R"JSON("viewport_max_x":5)JSON");
-    requireContains(report, R"JSON("viewport_max_y":5)JSON");
-    requireContains(report, R"JSON("fits":true)JSON");
+    require(requireString(game, "source") == "edge.txt", "edge source name");
+    require(requireBool(game, "compile_ok"), "edge source should compile");
+    require(requireString(level, "mode") == "flickscreen", "edge viewport mode");
+    require(requireInteger(level, "board_width") == 5, "edge board width");
+    require(requireInteger(level, "board_height") == 5, "edge board height");
+    require(requireInteger(level, "viewport_x") == 3, "edge viewport x");
+    require(requireInteger(level, "viewport_y") == 3, "edge viewport y");
+    require(requireInteger(level, "viewport_width") == 3, "edge viewport width");
+    require(requireInteger(level, "viewport_height") == 3, "edge viewport height");
+    require(requireInteger(level, "viewport_max_x") == 5, "edge viewport max x");
+    require(requireInteger(level, "viewport_max_y") == 5, "edge viewport max y");
+    require(requireBool(level, "fits"), "edge fit should fit");
 }
 
 void reportsBrokenSourceDiagnostics() {
     const std::string report = buildReportForSources(
         {SourceInput{"broken.txt", brokenSource()}},
         ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& game = firstGameObject(root);
+    const Value::Array& diagnostics = requireArray(requireField(game, "diagnostics"), "diagnostics should be an array");
 
-    requireContains(report, R"JSON("source":"broken.txt")JSON");
-    requireContains(report, R"JSON("compile_ok":false)JSON");
-    requireContains(report, R"JSON("diagnostics":[)JSON");
+    require(requireString(game, "source") == "broken.txt", "broken source name");
+    require(!requireBool(game, "compile_ok"), "broken source should not compile");
+    require(!diagnostics.empty(), "broken source should report diagnostics");
+
+    bool foundErrorDiagnostic = false;
+    for (const Value& diagnosticValue : diagnostics) {
+        const Value::Object& diagnostic = requireObject(diagnosticValue, "diagnostic should be an object");
+        if (requireString(diagnostic, "severity") == "error" && !requireString(diagnostic, "message").empty()) {
+            foundErrorDiagnostic = true;
+        }
+    }
+    require(foundErrorDiagnostic, "broken source should include an error diagnostic with a message");
 }
 
 } // namespace

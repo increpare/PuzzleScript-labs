@@ -458,6 +458,51 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_test(
+  NAME handheld_report_cli_help
+  COMMAND puzzlescript_handheld_report --help
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_help
+  PROPERTIES PASS_REGULAR_EXPRESSION "Usage:"
+)
+
+add_test(
+  NAME handheld_report_cli_missing_source
+  COMMAND /bin/sh -c "output=\"$($<TARGET_FILE:puzzlescript_handheld_report> 2>&1)\"; status=$?; printf '%s\n' \"$output\"; test $status -ne 0 && printf '%s\n' \"$output\" | grep -q 'Usage:'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_missing_source
+  PROPERTIES PASS_REGULAR_EXPRESSION "Usage:"
+)
+
+add_test(
+  NAME handheld_report_cli_unknown_option
+  COMMAND /bin/sh -c "output=\"$($<TARGET_FILE:puzzlescript_handheld_report> --bogus 2>&1)\"; status=$?; printf '%s\n' \"$output\"; test $status -ne 0 && printf '%s\n' \"$output\" | grep -q 'unknown option'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_unknown_option
+  PROPERTIES PASS_REGULAR_EXPRESSION "unknown option"
+)
+
+add_test(
+  NAME handheld_report_cli_positional_sokoban
+  COMMAND puzzlescript_handheld_report --display 800x480 ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_positional_sokoban
+  PROPERTIES PASS_REGULAR_EXPRESSION "\"games\".*\"compile_ok\":true"
+)
+
+add_test(
+  NAME handheld_report_cli_source_sokoban
+  COMMAND puzzlescript_handheld_report --display 800x480 --source ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_source_sokoban
+  PROPERTIES PASS_REGULAR_EXPRESSION "\"games\".*\"compile_ok\":true"
+)
+
 add_executable(compiler_keyword_names
   tests/compiler_keyword_names.cpp
 )
