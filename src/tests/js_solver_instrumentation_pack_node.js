@@ -109,6 +109,18 @@ const adaptiveUntimed = JSON.parse(execFileSync(
 assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost, false);
 assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost_triggered, 0);
 
+const compileErrorDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-compile-error-'));
+fs.writeFileSync(path.join(compileErrorDir, 'bad.txt'), 'not puzzlescript at all\n');
+const compileErrorAdaptive = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, compileErrorDir, '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(compileErrorAdaptive.results[0].status, 'compile_error');
+assert.strictEqual(compileErrorAdaptive.results[0].adaptive_step_cost, false);
+assert.strictEqual(compileErrorAdaptive.results[0].adaptive_step_cost_triggered, 0);
+assert.strictEqual(compileErrorAdaptive.totals.adaptive_step_cost_triggered, 0);
+
 const adaptivePhaseSplit = JSON.parse(execFileSync(
     process.execPath,
     [

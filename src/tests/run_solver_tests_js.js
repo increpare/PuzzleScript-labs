@@ -3990,6 +3990,8 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         generated: 0,
         process_input_calls: 0,
         again_passes: 0,
+        adaptive_step_cost: false,
+        adaptive_step_cost_triggered: 0,
         unique_states: 0,
         duplicates: 0,
         step_no_op: 0,
@@ -4119,6 +4121,8 @@ function runGame(root, file, options = {}) {
             generated: 0,
             process_input_calls: 0,
             again_passes: 0,
+            adaptive_step_cost: false,
+            adaptive_step_cost_triggered: 0,
             unique_states: 0,
             duplicates: 0,
             hash_collisions: 0,
@@ -4600,6 +4604,7 @@ function totals(results) {
         generated: 0,
         process_input_calls: 0,
         again_passes: 0,
+        adaptive_step_cost_triggered: 0,
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
@@ -4653,6 +4658,7 @@ function totals(results) {
         out.generated += result.generated;
         out.process_input_calls += result.process_input_calls || 0;
         out.again_passes += result.again_passes || 0;
+        out.adaptive_step_cost_triggered += result.adaptive_step_cost_triggered || 0;
         out.step_no_op += result.step_no_op || 0;
         out.step_changed += result.step_changed || 0;
         out.hash_collisions += result.hash_collisions || 0;
