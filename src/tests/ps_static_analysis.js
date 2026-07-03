@@ -253,6 +253,10 @@ function termHasInputMovementRequirement(term) {
     return term.movement !== null && term.movement !== 'stationary';
 }
 
+function ruleHasEmptyLhs(rule) {
+    return rule.summary.lhs_terms.length === 0;
+}
+
 function summarizeRule(rule) {
     const lhsTerms = flattenTerms(rule.lhs);
     const rhsTerms = flattenTerms(rule.rhs);
@@ -328,6 +332,7 @@ function tagRule(rule) {
     rule.tags.movement_only = writesMovement && !objectMutating && !hasSemanticCommand;
     rule.tags.reads_action = rule.summary.lhs_movement.some(term => term.movement === 'action');
     rule.tags.has_again = rule.summary.semantic_commands.includes('again');
+    rule.tags.force_always_run = ruleHasEmptyLhs(rule);
     const hasNonInertEffect = objectMutating || writesMovement || hasSemanticCommand;
     rule.tags.solver_state_active = !rule.tags.inert_command_only && hasNonInertEffect;
     if (rule.rigid && hasNonInertEffect) {
