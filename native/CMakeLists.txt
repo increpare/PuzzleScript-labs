@@ -261,10 +261,31 @@ target_include_directories(puzzlescript_simplify
 
 add_library(puzzlescript_handheld STATIC
   src/handheld/display_layout.cpp
+  src/handheld/report.cpp
 )
 
 target_include_directories(puzzlescript_handheld
   PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(puzzlescript_handheld
+  PUBLIC
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+add_executable(puzzlescript_handheld_report
+  src/handheld/main.cpp
+)
+
+target_link_libraries(puzzlescript_handheld_report
+  PRIVATE
+    puzzlescript_handheld
+)
+
+target_include_directories(puzzlescript_handheld_report
+  PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
@@ -414,6 +435,26 @@ target_include_directories(handheld_display_layout
 add_test(
   NAME handheld_display_layout
   COMMAND handheld_display_layout
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(handheld_report_smoke
+  tests/handheld_report_smoke.cpp
+)
+
+target_link_libraries(handheld_report_smoke
+  PRIVATE
+    puzzlescript_handheld
+)
+
+target_include_directories(handheld_report_smoke
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME handheld_report_smoke
+  COMMAND handheld_report_smoke
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
