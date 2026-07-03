@@ -303,6 +303,9 @@ SOLVER_BENCH_PAIR_RUNS ?= 3
 SOLVER_BENCH_OUT_DIR ?= $(BUILD_DIR)/solver-bench/pairs/$(SOLVER_BENCH_SLICE)
 SOLVER_BENCH_FRESH_HOURS ?= 24
 SOLVER_BENCH_RETENTION_DAYS ?= 30
+SOLVER_BENCH_BASELINE_VARIANT ?= baseline
+SOLVER_BENCH_CANDIDATE_VARIANT ?= candidate
+SOLVER_BENCH_NOISE_BAND ?= 1
 GENERATOR_BENCH_GAME ?= src/demo/sokoban_basic.txt
 GENERATOR_BENCH_PRESETS_DIR ?= src/tests/generator_presets
 GENERATOR_BENCH_SAMPLES ?= 200
@@ -552,6 +555,7 @@ help:
 	@echo "  make js_solver_bench_pair_slice    Run baseline/candidate JS paired SOLVER_BENCH_SLICE into SOLVER_BENCH_STORE"
 	@echo "  make solver_bench_summary          Print aggregate bench-store summary"
 	@echo "  make solver_bench_freshness        Check latest bench-store record freshness"
+	@echo "  make solver_bench_compare          Compare baseline/candidate records with SOLVER_BENCH_NOISE_BAND"
 	@echo "  make solver_bench_retention_plan   Print dry-run build artifact retention plan"
 	@echo "  make solver_instrumentation_pack   Build cross-strategy native solver evidence pack"
 	@echo "  make solver_instrumentation_analysis"
@@ -1699,7 +1703,7 @@ solver_focus_compact_codegen_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_
 solver_benchmark_targets: $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_MANIFEST)
 	$(NODE) src/tests/run_solver_level_benchmark.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_CORPUS) $(SOLVER_TARGET_BENCH_MANIFEST) --runs $(SOLVER_TARGET_BENCH_RUNS) --strategy $(SOLVER_TARGET_BENCH_STRATEGY) --out $(SOLVER_TARGET_BENCH_OUT) $(SOLVER_TARGET_BENCH_TIMEOUT_ARG)
 
-.PHONY: solver_benchmark_slice_manifest js_solver_bench_pair_smoke js_solver_bench_pair_slice solver_bench_summary solver_bench_freshness solver_bench_retention_plan
+.PHONY: solver_benchmark_slice_manifest js_solver_bench_pair_smoke js_solver_bench_pair_slice solver_bench_summary solver_bench_freshness solver_bench_compare solver_bench_retention_plan
 solver_benchmark_slice_manifest:
 	$(NODE) src/tests/generate_solver_benchmark_slice_manifest.js "$(SOLVER_BENCH_SLICE)" --out "$(SOLVER_BENCH_SLICE_MANIFEST)"
 
@@ -1714,6 +1718,9 @@ solver_bench_summary:
 
 solver_bench_freshness:
 	$(NODE) src/tests/solver_bench_store_cli.js freshness --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)" --max-age-hours $(SOLVER_BENCH_FRESH_HOURS)
+
+solver_bench_compare:
+	$(NODE) src/tests/solver_bench_store_cli.js compare --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)" --baseline "$(SOLVER_BENCH_BASELINE_VARIANT)" --candidate "$(SOLVER_BENCH_CANDIDATE_VARIANT)" --noise-band $(SOLVER_BENCH_NOISE_BAND)
 
 solver_bench_retention_plan:
 	$(NODE) src/tests/solver_bench_store_cli.js retention-plan --store "$(SOLVER_BENCH_STORE)" --build-root "$(BUILD_DIR)" --max-age-days $(SOLVER_BENCH_RETENTION_DAYS)

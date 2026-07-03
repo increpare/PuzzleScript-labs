@@ -116,6 +116,8 @@ assert.deepStrictEqual(summary.variants, { baseline: 2, candidate: 2 });
 assert.strictEqual(summary.solved.mean, 2);
 assert.strictEqual(summary.solved.min, 1);
 assert.strictEqual(summary.solved.max, 3);
+assert.strictEqual(summary.skipped_message.count, 4);
+assert.strictEqual(summary.skipped_message.max, 0);
 
 const noisyComparison = comparePairedRuns(records, {
     benchmark_slice: 'smoke-50',

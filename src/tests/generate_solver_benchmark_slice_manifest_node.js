@@ -26,6 +26,7 @@ writeGame('plain-b.txt', 'title plain b\nobjects\nplayer\nrules\n[ > player ] ->
 writeGame('sokoban-c.txt', 'title sokoban c\nobjects\nbox\nrules\n[ > player | box ] -> [ > player | > box ]\nlevels\np.\n');
 writeGame('wall-d.txt', 'title wall d\nobjects\nwall\nrules\n[ > player | wall ] -> cancel\nlevels\np.\n');
 fs.writeFileSync(path.join(messageCorpusDir, 'message-first.txt'), 'title message first\nobjects\nplayer\nrules\n[ > player ] -> [ > player ]\nlevels\nmessage intro\np.\n');
+fs.writeFileSync(path.join(messageCorpusDir, 'comment-message-first.txt'), 'title comment message first\nobjects\nplayer\nrules\n[ > player ] -> [ > player ]\nlevels\n(multiline note\nmiddle (aside) still note\nstill note)\nmessage intro\np.\n');
 
 const rankingManifestPath = path.join(tmpRoot, 'ranked.json');
 fs.writeFileSync(rankingManifestPath, `${JSON.stringify({
@@ -85,7 +86,7 @@ fs.writeFileSync(registryPath, `${JSON.stringify({
             timeout_ms: 500,
             selection: {
                 type: 'seeded-game-sample',
-                target_games: 1,
+                target_games: 2,
                 seed: 'unit-message',
                 stability: 'unit test',
             },
@@ -118,9 +119,8 @@ assert.deepStrictEqual(ranked.targets.map((target) => `${target.game}#${target.l
 assert.strictEqual(ranked.targets[0].first_solved_timeout_ms, 700);
 
 const message = materializeSlice('message-test', { registry_path: registryPath, generated_at: '2026-07-03T00:00:00.000Z' });
-assert.deepStrictEqual(message.targets.map((target) => `${target.game}#${target.level}`), [
-    'message-first.txt#1',
-]);
+assert.strictEqual(message.targets.find((target) => target.game === 'message-first.txt').level, 1);
+assert.strictEqual(message.targets.find((target) => target.game === 'comment-message-first.txt').level, 1);
 
 const outPath = path.join(tmpRoot, 'out', 'smoke.json');
 writeSliceManifest(smoke, outPath);

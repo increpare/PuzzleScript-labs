@@ -13,6 +13,7 @@ const SUMMARY_FIELDS = [
     'solved',
     'timeout',
     'exhausted',
+    'skipped_message',
     'errors',
     'generated',
     'expanded',

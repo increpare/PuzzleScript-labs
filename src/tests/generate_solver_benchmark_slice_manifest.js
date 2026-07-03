@@ -69,6 +69,17 @@ function isCommentLine(line) {
     return stripped.length > 0 && stripped.startsWith('(');
 }
 
+function skipCommentBlock(lines, index) {
+    let current = index;
+    while (current < lines.length) {
+        if (trimLine(lines[current]).endsWith(')')) {
+            return current + 1;
+        }
+        current++;
+    }
+    return current;
+}
+
 function splitLines(source) {
     const normalized = source.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     if (normalized.endsWith('\n')) {
@@ -89,8 +100,12 @@ function findSourceLevels(source) {
     while (index < lines.length) {
         const stripped = trimLine(lines[index]);
         const lower = stripped.toLowerCase();
-        if (stripped.length === 0 || isDividerLine(lines[index]) || isCommentLine(lines[index])) {
+        if (stripped.length === 0 || isDividerLine(lines[index])) {
             index++;
+            continue;
+        }
+        if (isCommentLine(lines[index])) {
+            index = skipCommentBlock(lines, index);
             continue;
         }
         if (lower === 'message' || lower.startsWith('message ')) {
