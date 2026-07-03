@@ -623,3 +623,13 @@ The existing portfolio mode varies *priority formula* (`bfs`/`wa2`/`wa8`/
 - Add `--portfolio-heuristics auto,winconditions` (comma list) with sensible
   default (`auto,winconditions` once both are in tree). Cap at ~4 entries to
   bound frontier overhead.
+
+## 2026-07-03 anonymous-game 500ms probes
+
+- Static opt parity on `ANONYMOUS_BATCH_OLD_ce2474f62432e2a703bba3fb65f5b01f.txt`: solved=1/54 playable, step_ms=25651.4, generated=12381, removed_collision_layers=6, removed_cosmetic_objects=15, gated=no.
+- Again multiplier: process_input_calls=12083, generated=12081, again_passes=2. Not a meaningful multiplier for this game.
+- Level 13 hotspots: top key=1478:1478:8, line=1478, try_apply_calls=29000, changed=1, match_ms=3.3, apply_ms=6.2.
+- Guidance parity levels 3/19/31/63/81: 3:solved/expanded=4490/generated=17957/len=106; 19:timeout/expanded=21306/generated=85224; 31:timeout/expanded=19849/generated=79396; 63:solved/expanded=15035/generated=60137/len=20; 81:solved/expanded=10/generated=37/len=10.
+- Movement-aware prune probe: not landed. Smoke compare passed, but full 250ms solver corpus compare reported 47 regressions, mostly baseline-solved levels timing out with pruning on. An intermediate prototype also showed stationary/missing movement readers must not be pruned (`Karamell` caught this).
+- Adaptive step-cost probe: explicit only. Single-game 500ms run solved=1, step_ms=25782.4, generated=12261, `adaptive_step_cost=true`.
+- Decision: keep instrumentation and explicit probes; do not default runtime/search behavior from this batch without a fresh corpus win.

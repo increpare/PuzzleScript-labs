@@ -26,7 +26,7 @@ Generated artifacts live under `build/solver-forensics/anonymous-js-first-500ms/
 - 3. key=1477:1477:2, line=1477, try_apply_calls=28800, changed=0, match_ms=3.2, apply_ms=6.0.
 - 4. key=1475:1475:2, line=1475, try_apply_calls=28800, changed=0, match_ms=3.3, apply_ms=5.9.
 - 5. key=1439:1439:2, line=1439, try_apply_calls=18400, changed=0, match_ms=1.7, apply_ms=3.7.
-- Decision: continue P2; the hotspot profile shows many repeated unchanged rule attempts.
+- Decision: this justified trying P2, but the later paired solver comparison rejected the prototype for this batch.
 
 ## X3 Again Multiplier
 
@@ -47,6 +47,22 @@ Generated artifacts live under `build/solver-forensics/anonymous-js-first-500ms/
 - Level 63: status=solved, elapsed_ms=98943, expanded=15035, generated=60137, solution_length=20.
 - Level 81: status=solved, elapsed_ms=104, expanded=10, generated=37, solution_length=10.
 - Decision: level 3 supports the report's throughput diagnosis because JS expansion count is close to the cited native count. Levels 19 and 31 remain search-hard or throughput-hard enough to time out at 120s.
+
+## X5 Movement-Aware Prune
+
+- Smoke paired comparison: passed, levels=14, solved_off=9, solved_on=9.
+- Full solver corpus paired comparison at 250ms: failed with 47 reported regressions, mostly baseline-solved levels timing out with pruning on.
+- Semantic note: an intermediate prototype also exposed a `Karamell` regression until stationary/missing movement readers were excluded from the prune. The engine prototype was reverted after the full corpus performance gate still failed.
+- Decision: do not land the engine prune.
+
+## X6 Adaptive Step-Cost
+
+- Command: 500ms run with `--adaptive-step-cost`.
+- Solved: 1/54 playable levels.
+- Step ms: 25782.4.
+- Generated: 12261.
+- Result field: `adaptive_step_cost=true`.
+- Decision: keep as an explicit probe only; this single-game run did not improve solve count.
 
 ## Current Decision
 
