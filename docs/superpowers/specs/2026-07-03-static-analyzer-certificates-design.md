@@ -135,6 +135,13 @@ It emits one proved fact, `win_relevance`, whose value contains:
       "reasons": ["object_presence"]
     }
   ],
+  "relevance_edges": [
+    {
+      "from": "early_group_0_rule_0",
+      "to": "early_group_0_rule_1",
+      "reasons": ["object_presence"]
+    }
+  ],
   "win_wake_edges": [
     {
       "from": "early_group_0_rule_0",
@@ -151,15 +158,21 @@ The relevance algorithm:
 1. Start with root rules that directly wake a win condition through `winflow`.
 2. Add solver-visible semantic-command rules as roots: `cancel`, `again`,
    `restart`, `win`, and `checkpoint`.
-3. Walk backward through `program_flow` wake edges until no new predecessors are
-   found.
-4. Mark every solver-active rule outside that backward closure as
+3. Build conservative `relevance_edges` from the normal `program_flow` enabling
+   dependencies plus dependencies where a write may disable a later read:
+   object-present writes against `no` reads, object-absent writes against
+   object-present reads, and same-object movement writes against incompatible
+   movement reads.
+4. Walk backward through `relevance_edges` until no new predecessors are found.
+   Keep `wake_edges` in the fact as a diagnostic copy of the narrower
+   `program_flow` graph.
+5. Mark every solver-active rule outside that backward closure as
    `irrelevant_rule_ids`.
 
-The slice is intentionally an over-approximation. Existing `program_flow` is
-global and phase-insensitive, so it may keep more rules than strictly needed.
-That is safe for future solver pruning because false relevance only loses an
-optimization opportunity.
+The slice is intentionally an over-approximation. The conservative dependency
+graph is global and phase-insensitive, so it may keep more rules than strictly
+needed. That is safe for future solver pruning because false relevance only
+loses an optimization opportunity.
 
 ## Testing Strategy
 

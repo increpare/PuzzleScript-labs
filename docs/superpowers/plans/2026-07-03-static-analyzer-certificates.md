@@ -1367,10 +1367,11 @@ function deriveWinRelevanceFacts(psTagged) {
     const ruleIds = rules.map(rule => rule.id);
     const programFlow = deriveProgramFlowFacts(psTagged)[0].value;
     const winflow = deriveWinflowFacts(psTagged)[0].value;
+    const relevanceEdges = relevanceEdgesForRules(psTagged, rules);
     const directWinRoots = uniqueSorted((winflow.wake_edges || []).map(edge => edge.from));
     const semanticRoots = semanticRootRuleIds(rules);
     const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots));
-    const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, programFlow.wake_edges || []);
+    const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, relevanceEdges);
     const relevantSet = new Set(relevantRuleIds);
     const irrelevantRuleIds = uniqueSorted(rules
         .filter(rule => rule.tags.solver_state_active && !relevantSet.has(rule.id))
@@ -1384,13 +1385,19 @@ function deriveWinRelevanceFacts(psTagged) {
             irrelevant_rule_ids: irrelevantRuleIds,
             wake_edges: programFlow.wake_edges || [],
             win_wake_edges: winflow.wake_edges || [],
+            relevance_edges: relevanceEdges,
             semantic_root_rule_ids: semanticRoots,
         },
-        proof: ['backward_program_flow_slice_from_winflow_and_semantic_roots'],
+        proof: ['backward_relevance_slice_from_winflow_semantic_roots_and_conservative_dependencies'],
         evidence: relevantRuleIds,
     })];
 }
 ```
+
+The final `relevanceEdgesForRules()` helper should be conservative for future
+pruning: include normal enabling edges, plus object presence/absence writes and
+same-object movement writes that may disable a currently relevant rule's reads.
+Keep `wake_edges` as the narrower `program_flow` diagnostic graph.
 
 Update `emptyFacts()`:
 
