@@ -1,0 +1,36 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleWakeMasks": [
+    {
+      "rule_id": "early_group_0_rule_0",
+      "line": 46,
+      "text": "[ Player no Wall ] -> [ Player Marker ]",
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": ["Wall"],
+        "movement": []
+      },
+      "writes": {
+        "object_present": ["Marker"],
+        "object_absent": [],
+        "movement": ["Marker:stationary"]
+      }
+    },
+    {
+      "rule_id": "early_group_1_rule_0",
+      "line": 47,
+      "text": "[ Marker ] -> [ no Marker Crate ]",
+      "reads": {
+        "object_present": ["Marker"],
+        "object_absent": [],
+        "movement": []
+      },
+      "writes": {
+        "object_present": ["Crate"],
+        "object_absent": ["Marker"],
+        "movement": ["Crate:stationary"]
+      }
+    }
+  ]
+}

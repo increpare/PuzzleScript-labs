@@ -548,6 +548,7 @@ function emptyFacts() {
         count_layer_invariants: [],
         transient_boundary: [],
         rulegroup_flow: [],
+        certified_wake_masks: [],
         program_flow: [],
         winflow: [],
     };
@@ -1914,6 +1915,43 @@ function ruleFlowReads(rule) {
     return { object_present: objectPresent, object_absent: objectAbsent, movement };
 }
 
+function flowMovementKeys(movements) {
+    return uniqueSorted((movements || []).map(item => `${item.object}:${item.movement}`));
+}
+
+function flowSetValues(values) {
+    return uniqueSorted(values || []);
+}
+
+function ruleWakeMaskRecord(psTagged, rule) {
+    const reads = ruleFlowReads(rule);
+    const writes = ruleFlowWrites(psTagged, rule);
+    return {
+        rule_id: rule.id,
+        reads: {
+            object_present: flowSetValues(reads.object_present),
+            object_absent: flowSetValues(reads.object_absent),
+            movement: flowMovementKeys(reads.movement),
+        },
+        writes: {
+            object_present: flowSetValues(writes.object_present),
+            object_absent: flowSetValues(writes.object_absent),
+            movement: flowMovementKeys(writes.movement),
+        },
+    };
+}
+
+function deriveCertifiedWakeMaskFacts(psTagged) {
+    const rules = allRuleEntries(psTagged).map(entry => entry.rule);
+    const records = rules.map(rule => ruleWakeMaskRecord(psTagged, rule));
+    return [fact('certified_wake_masks', 'rule_wake_masks', 'proved', {
+        subjects: { rules: rules.map(rule => rule.id) },
+        value: { rules: records },
+        proof: ['rule_flow_reads_writes_exported'],
+        evidence: rules.map(rule => rule.id),
+    })];
+}
+
 function movementTermKeys(terms, excludedObjects = null) {
     const keys = new Set();
     for (const term of terms) {
@@ -2568,6 +2606,7 @@ function factDerivers() {
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,
+        certified_wake_masks: deriveCertifiedWakeMaskFacts,
         program_flow: deriveProgramFlowFacts,
         winflow: deriveWinflowFacts,
     };

@@ -630,6 +630,106 @@
       ]
     },
     {
+      "name": "certified_wake_masks",
+      "description": "Fixtures for analyzer-certified per-rule read/write wake masks.",
+      "specification": "Each certified_wake_masks fixture projects the rule_wake_masks fact into source-located rows. These are analyzer-level object and movement-key sets, not runtime bitvec masks.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "ruleWakeMasks",
+          "type": "array",
+          "description": "Per-rule certified wake mask rows.",
+          "specification": "Every row identifies one analyzed rule by rule_id, includes source line and text for readability, then asserts signed read and write sets.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "rule_id",
+                "type": "string",
+                "description": "Stable analyzer id of the compiled rule row under test.",
+                "specification": "Used as the primary identifier because one PuzzleScript source rule can expand to multiple analyzed rules on the same source line."
+              },
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the rule.",
+                "specification": "Readable source location for the compiled rule. Multiple analyzed rules may share the same source line."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the rule.",
+                "specification": "Readable source text for the compiled rule. Multiple analyzed rules may share the same source text."
+              },
+              {
+                "name": "reads",
+                "type": "object",
+                "description": "Objects and movements read by the rule LHS.",
+                "specification": "Contains object_present, object_absent, and movement string arrays. Movement entries use Object:movement.",
+                "fields": [
+                  {
+                    "name": "object_present",
+                    "type": "string[]",
+                    "description": "Concrete objects whose presence the rule may read.",
+                    "specification": "Sorted object display-name strings."
+                  },
+                  {
+                    "name": "object_absent",
+                    "type": "string[]",
+                    "description": "Concrete objects whose absence the rule may read.",
+                    "specification": "Sorted object display-name strings."
+                  },
+                  {
+                    "name": "movement",
+                    "type": "string[]",
+                    "description": "Concrete object movement states the rule may read.",
+                    "specification": "Sorted Object:movement strings."
+                  }
+                ]
+              },
+              {
+                "name": "writes",
+                "type": "object",
+                "description": "Objects and movements the rule RHS may write.",
+                "specification": "Contains object_present, object_absent, and movement string arrays. Movement entries use Object:movement and include stationary when movement clearing can wake stationary-sensitive reads.",
+                "fields": [
+                  {
+                    "name": "object_present",
+                    "type": "string[]",
+                    "description": "Concrete objects the rule may write present.",
+                    "specification": "Sorted object display-name strings."
+                  },
+                  {
+                    "name": "object_absent",
+                    "type": "string[]",
+                    "description": "Concrete objects the rule may write absent.",
+                    "specification": "Sorted object display-name strings."
+                  },
+                  {
+                    "name": "movement",
+                    "type": "string[]",
+                    "description": "Concrete object movement states the rule may write.",
+                    "specification": "Sorted Object:movement strings."
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "movement_action",
       "description": "Fixtures for action-key movement reachability and solver action-unnecessary proofs.",
       "specification": "Each movement_action fixture projects the report.facts.movement_action family into fields that are convenient to assert in testdata.",

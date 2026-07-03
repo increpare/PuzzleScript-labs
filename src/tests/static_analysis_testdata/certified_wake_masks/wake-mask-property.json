@@ -1,0 +1,81 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleWakeMasks": [
+    {
+      "rule_id": "early_group_0_rule_0",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": []
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": ["Door"],
+        "movement": []
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_1",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": []
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": ["Door"],
+        "movement": []
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_2",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": []
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": ["Door"],
+        "movement": []
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_3",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": []
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": ["Door"],
+        "movement": []
+      }
+    },
+    {
+      "rule_id": "early_group_1_rule_0",
+      "line": 47,
+      "text": "[ no Key ] -> [ RedKey ]",
+      "reads": {
+        "object_present": [],
+        "object_absent": ["BlueKey", "RedKey"],
+        "movement": []
+      },
+      "writes": {
+        "object_present": ["RedKey"],
+        "object_absent": [],
+        "movement": []
+      }
+    }
+  ]
+}

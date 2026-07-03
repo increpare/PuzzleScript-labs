@@ -1,0 +1,60 @@
+title Static Analysis Certified Wake Mask Object Polarity
+========
+OBJECTS
+========
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Wall
+gray
+
+Marker
+green
+========
+LEGEND
+========
+. = Background
+P = Player
+C = Crate
+W = Wall
+M = Marker
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Crate
+Wall
+Marker
+
+=====
+RULES
+=====
+
+[ Player no Wall ] -> [ Player Marker ]
+[ Marker ] -> [ no Marker Crate ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P.CW
+....

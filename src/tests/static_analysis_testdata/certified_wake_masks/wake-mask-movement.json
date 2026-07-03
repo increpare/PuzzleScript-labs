@@ -1,0 +1,96 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "ruleWakeMasks": [
+    {
+      "rule_id": "early_group_0_rule_0",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:up"]
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": ["Crate:moving", "Crate:up", "Player:stationary"]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_1",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:down"]
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": ["Crate:down", "Crate:moving", "Player:stationary"]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_2",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:left"]
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": ["Crate:left", "Crate:moving", "Player:stationary"]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_3",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:right"]
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": ["Crate:moving", "Crate:right", "Player:stationary"]
+      }
+    },
+    {
+      "rule_id": "early_group_1_rule_0",
+      "line": 37,
+      "text": "[ moving Crate ] -> [ Crate ]",
+      "reads": {
+        "object_present": ["Crate"],
+        "object_absent": [],
+        "movement": ["Crate:moving"]
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": ["Crate:stationary"]
+      }
+    },
+    {
+      "rule_id": "early_group_2_rule_0",
+      "line": 38,
+      "text": "[ randomdir Player ] -> [ randomdir Player ]",
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": [],
+        "movement": ["Player:randomdir"]
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": []
+      }
+    }
+  ]
+}

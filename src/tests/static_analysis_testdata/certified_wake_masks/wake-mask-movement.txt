@@ -1,0 +1,50 @@
+title Static Analysis Certified Wake Mask Movement
+========
+OBJECTS
+========
+Background
+black
+
+Player
+white
+
+Crate
+orange
+========
+LEGEND
+========
+. = Background
+P = Player
+C = Crate
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Crate
+
+=====
+RULES
+=====
+
+[ > Player | Crate ] -> [ Player | > Crate ]
+[ moving Crate ] -> [ Crate ]
+[ randomdir Player ] -> [ randomdir Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PC.
