@@ -50,7 +50,7 @@ Generated artifacts live under `build/solver-forensics/anonymous-js-first-500ms/
 
 ## Current Decision
 
-- Continue with P2 movement-aware prune behind an opt-in flag.
+- Do not land P2 movement-aware prune in this batch. A smoke comparison passed, but the 250ms full solver corpus paired comparison regressed many baseline-solved levels to timeout with pruning on.
 - Keep P3 adaptive strategy as an explicit probe, not a default.
 - Do not pursue P6 again-settling reduction for this game.
 - Refresh corpus JS before making corpus-level claims or defaulting any behavior.
