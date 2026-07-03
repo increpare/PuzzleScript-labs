@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "description": "Named benchmark slices for solver measurement. These definitions are intentionally small metadata records; expanded per-level manifests should be emitted as bench-store artifacts when a run is made.",
+  "slices": [
+    {
+      "name": "smoke-50",
+      "purpose": "Fast solver change detector for day-to-day work.",
+      "corpus": "src/tests/solver_tests",
+      "timeout_ms": 500,
+      "selection": {
+        "type": "seeded-game-sample",
+        "target_games": 50,
+        "seed": "2026-07-03-measurement-v1:smoke-50",
+        "stability": "Sort corpus game paths lexicographically, hash each relative path with the seed, and take the first 50. Store the expanded manifest path in each bench-store run artifact."
+      }
+    },
+    {
+      "name": "sokoban-skew-200",
+      "purpose": "Medium slice biased toward push/block mechanics where most solver regressions have historically shown up.",
+      "corpus": "src/tests/solver_tests",
+      "timeout_ms": 500,
+      "selection": {
+        "type": "seeded-mechanic-biased-level-sample",
+        "target_levels": 200,
+        "seed": "2026-07-03-measurement-v1:sokoban-skew-200",
+        "mechanic_hints": ["crate", "box", "push", "sokoban", "wall", "target"],
+        "stability": "Prefer games whose source contains mechanic_hints, then fill from the seeded corpus order. Persist the expanded game/level manifest before running."
+      }
+    },
+    {
+      "name": "hard-tail-300",
+      "purpose": "Slow-tail slice for throughput and search-order experiments that need more signal than the smoke slice.",
+      "corpus": "src/tests/solver_tests",
+      "timeout_ms": 500,
+      "selection": {
+        "type": "seeded-hard-tail-level-sample",
+        "target_levels": 300,
+        "seed": "2026-07-03-measurement-v1:hard-tail-300",
+        "source_rankings": [
+          "src/tests/solver_focus_long_group.json",
+          "build/native/solver_corpus_manifest.json"
+        ],
+        "stability": "Rank levels by the latest stored baseline elapsed/generated cost when available, otherwise use the checked-in focus group followed by seeded corpus order. Persist the expanded manifest before running."
+      }
+    }
+  ]
+}

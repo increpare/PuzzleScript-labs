@@ -207,7 +207,7 @@ Item status after the X-round:
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
 | T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |
-| Measurement layer (rec. 1) | **not started, highest leverage** | precedes everything |
+| Measurement layer (rec. 1) | started | JSONL bench store, paired compare, named slices, and dry-run retention planner landed in `src/tests/solver_bench_store*.js` |
 
 Dependency spine:
 
