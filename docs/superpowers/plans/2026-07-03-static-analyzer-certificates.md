@@ -277,9 +277,9 @@ gray
 Marker
 green
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
@@ -336,9 +336,9 @@ white
 Crate
 orange
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
@@ -397,9 +397,9 @@ blue
 Door
 brown
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
@@ -884,9 +884,9 @@ yellow
 Deco
 blue
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
@@ -945,9 +945,9 @@ green
 Deco
 blue
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
@@ -1007,9 +1007,9 @@ yellow
 Deco
 blue
 
-=======
+========
 LEGEND
-=======
+========
 
 . = Background
 P = Player
