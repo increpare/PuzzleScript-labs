@@ -12,6 +12,10 @@ if (process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === undefined) {
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const {
+    appendRunRecord,
+    createRunRecord,
+} = require('./solver_bench_store');
 
 const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 const staticAnalysis = require('./lib/solver_static_analysis');
@@ -385,6 +389,11 @@ function parseArgs(argv) {
         jobs: 1,
         shardIndex: null,
         shardCount: null,
+        benchStorePath: null,
+        benchSlice: null,
+        benchVariant: null,
+        benchPairId: null,
+        benchArtifactPath: null,
     };
     const args = argv.slice(2);
     for (let index = 0; index < args.length; index++) {
@@ -458,6 +467,16 @@ function parseArgs(argv) {
             options.forceNoaction = true;
         } else if (arg === '--adaptive-step-cost') {
             options.adaptiveStepCost = true;
+        } else if (arg === '--bench-store') {
+            options.benchStorePath = path.resolve(args[++index]);
+        } else if (arg === '--bench-slice') {
+            options.benchSlice = args[++index];
+        } else if (arg === '--bench-variant') {
+            options.benchVariant = args[++index];
+        } else if (arg === '--bench-pair-id') {
+            options.benchPairId = args[++index];
+        } else if (arg === '--bench-artifact') {
+            options.benchArtifactPath = path.resolve(args[++index]);
         } else if (arg === '--help' || arg === '-h') {
             usage(0);
         } else if (options.corpusPath === null) {
@@ -469,12 +488,18 @@ function parseArgs(argv) {
     if (!options.corpusPath) {
         usage(1);
     }
+    if (options.benchStorePath !== null && (!options.benchSlice || !options.benchVariant)) {
+        throw new Error('--bench-store requires --bench-slice and --bench-variant');
+    }
+    if (options.benchArtifactPath !== null && options.benchStorePath === null) {
+        throw new Error('--bench-artifact requires --bench-store');
+    }
     return options;
 }
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n' +
@@ -4732,6 +4757,16 @@ function printSolutionsLocation(options) {
     process.stdout.write(`Solutions: ${options.writeSolutions ? options.solutionsDir : 'disabled'}\n`);
 }
 
+function takesValueArg(arg) {
+    return [
+        '--bench-store',
+        '--bench-slice',
+        '--bench-variant',
+        '--bench-pair-id',
+        '--bench-artifact',
+    ].includes(arg);
+}
+
 //--jobs N: shard the game list across N child processes and merge their JSON
 //results. Solve counts at a fixed wall-clock timeout are NOT comparable with
 //serial runs when workers contend for cores - use parallel mode for
@@ -4742,6 +4777,10 @@ function runParallel(options) {
     const args = process.argv.slice(2);
     for (let index = 0; index < args.length; index++) {
         if (args[index] === '--jobs') {
+            index++;
+            continue;
+        }
+        if (takesValueArg(args[index])) {
             index++;
             continue;
         }
@@ -4778,19 +4817,72 @@ function runParallel(options) {
     });
 }
 
+function buildJsonPayload(results) {
+    const t = totals(results);
+    const payload = { results, totals: t };
+    const optNest = buildSolverOptimizationJsonTotals(t);
+    if (optNest) {
+        payload.totals.solver_optimization = optNest;
+    }
+    if (t.solver_optimization_gated) {
+        payload.totals.solver_optimization_gated = true;
+    }
+    return payload;
+}
+
+function benchStoreConfig(options) {
+    return {
+        runner: 'run_solver_tests_js',
+        corpus: options.corpusPath,
+        timeout_ms: options.timeoutMs,
+        strategy: options.strategy,
+        astar_weight: options.astarWeight,
+        solver_heuristic: options.solverHeuristic,
+        portfolio_bfs_ms: options.portfolioBfsMs,
+        portfolio_heuristics: options.portfolioHeuristics,
+        solver_focus_manifest: options.solverFocusManifest,
+        solver_static_hash: options.solverStaticHash,
+        solver_optimize_static: options.solverOptimizeStatic,
+        solver_opt_passes: options.solverOptPasses,
+        solver_opt_parity: options.solverOptParity,
+        force_noaction: options.forceNoaction,
+        adaptive_step_cost: options.adaptiveStepCost,
+        jobs: options.jobs,
+        filters: {
+            game: options.gameFilter,
+            level: options.levelFilter,
+        },
+    };
+}
+
+function appendBenchStore(options, payload) {
+    if (options.benchStorePath === null) {
+        return;
+    }
+    const artifacts = [];
+    if (options.benchArtifactPath !== null) {
+        fs.mkdirSync(path.dirname(options.benchArtifactPath), { recursive: true });
+        fs.writeFileSync(options.benchArtifactPath, `${JSON.stringify(payload, null, 2)}\n`);
+        artifacts.push(options.benchArtifactPath);
+    }
+    const record = createRunRecord(payload, {
+        benchmark_slice: options.benchSlice,
+        variant: options.benchVariant,
+        pair_id: options.benchPairId,
+        source_path: options.benchArtifactPath,
+        artifacts,
+        config: benchStoreConfig(options),
+    });
+    appendRunRecord(options.benchStorePath, record);
+}
+
 function emitResults(options, results) {
     if (options.json) {
-        const t = totals(results);
-        const payload = { results, totals: t };
-        const optNest = buildSolverOptimizationJsonTotals(t);
-        if (optNest) {
-            payload.totals.solver_optimization = optNest;
-        }
-        if (t.solver_optimization_gated) {
-            payload.totals.solver_optimization_gated = true;
-        }
+        const payload = buildJsonPayload(results);
+        appendBenchStore(options, payload);
         process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     } else if (options.summaryOnly) {
+        appendBenchStore(options, buildJsonPayload(results));
         const elapsedMs = results.reduce((sum, result) => sum + result.elapsed_ms, 0);
         printHumanBlock(process.stdout, 'Totals', summarizeHuman(results), elapsedMs);
         const optLine = formatSolverOptimizationHumanSuffixFromTotals(totals(results));
@@ -4799,6 +4891,7 @@ function emitResults(options, results) {
         }
         printSolutionsLocation(options);
     } else {
+        appendBenchStore(options, buildJsonPayload(results));
         printHuman(results);
         printSolutionsLocation(options);
     }

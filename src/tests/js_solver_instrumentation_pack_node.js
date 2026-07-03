@@ -109,6 +109,40 @@ const adaptiveUntimed = JSON.parse(execFileSync(
 assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost, false);
 assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost_triggered, 0);
 
+const benchStoreDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-bench-store-'));
+const benchStorePath = path.join(benchStoreDir, 'bench-store.jsonl');
+const benchArtifactPath = path.join(benchStoreDir, 'push-goal.json');
+execFileSync(
+    process.execPath,
+    [
+        runner,
+        corpusDir,
+        '--game', 'push_goal.txt',
+        '--quiet',
+        '--json',
+        '--no-solutions',
+        '--bench-store', benchStorePath,
+        '--bench-slice', 'smoke-50',
+        '--bench-variant', 'baseline',
+        '--bench-pair-id', 'pair-js-1',
+        '--bench-artifact', benchArtifactPath,
+    ],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+);
+const benchRecords = fs.readFileSync(benchStorePath, 'utf8')
+    .trim()
+    .split(/\n/)
+    .map((line) => JSON.parse(line));
+assert.strictEqual(benchRecords.length, 1);
+assert.strictEqual(benchRecords[0].benchmark_slice, 'smoke-50');
+assert.strictEqual(benchRecords[0].variant, 'baseline');
+assert.strictEqual(benchRecords[0].pair_id, 'pair-js-1');
+assert.strictEqual(benchRecords[0].totals.solved, 1);
+assert.strictEqual(benchRecords[0].results[0].game, 'push_goal.txt');
+assert.strictEqual(benchRecords[0].results[0].status, 'solved');
+assert.ok(benchRecords[0].artifacts.includes(path.resolve(benchArtifactPath)));
+assert.ok(fs.existsSync(benchArtifactPath), 'bench artifact JSON should be written');
+
 const compileErrorDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-compile-error-'));
 fs.writeFileSync(path.join(compileErrorDir, 'bad.txt'), 'not puzzlescript at all\n');
 const compileErrorAdaptive = JSON.parse(execFileSync(
