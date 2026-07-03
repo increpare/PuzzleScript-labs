@@ -3442,6 +3442,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         snapshot_mode: null,
         strategy: null,
         adaptive_step_cost: false,
+        adaptive_step_cost_triggered: 0,
         heuristic: 'zero',
     };
 }
@@ -3488,7 +3489,8 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
         modeResult.load_ms = result.load_ms;
         modeResult.strategy = mode;
-        modeResult.adaptive_step_cost = !!options.adaptiveStepCost;
+        const adaptiveStepCostActive = !!options.adaptiveStepCost && mode === 'weighted-astar' && SOLVER_DETAIL_TIMING;
+        modeResult.adaptive_step_cost = adaptiveStepCostActive;
         modeResult.heuristic = mode === 'bfs' ? 'zero' : (options.solverHeuristic || DEFAULT_SOLVER_HEURISTIC);
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -3608,12 +3610,12 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     childHeuristic = invokeHeuristic(solverOps, modeResult);
                 }
                 let priorityMode = mode;
-                if (options.adaptiveStepCost
-                    && mode === 'weighted-astar'
+                if (adaptiveStepCostActive
                     && modeResult.generated >= 64
                     && modeResult.step_ms > 0
                     && modeResult.step_ms / modeResult.generated > 0.2) {
                     priorityMode = 'greedy';
+                    modeResult.adaptive_step_cost_triggered++;
                 }
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'queue_ms', () => {

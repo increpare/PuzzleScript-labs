@@ -87,6 +87,27 @@ const adaptive = JSON.parse(execFileSync(
     { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
 ));
 assert.strictEqual(adaptive.results[0].adaptive_step_cost, true);
+assert.ok(Number.isFinite(adaptive.results[0].adaptive_step_cost_triggered));
+
+const adaptiveBfs = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--strategy', 'bfs', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(adaptiveBfs.results[0].adaptive_step_cost, false);
+assert.strictEqual(adaptiveBfs.results[0].adaptive_step_cost_triggered, 0);
+
+const adaptiveUntimed = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    {
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+        env: Object.assign({}, process.env, { PUZZLESCRIPT_SOLVER_DETAIL_TIMING: '0' }),
+    },
+));
+assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost, false);
+assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost_triggered, 0);
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-pack-'));
 execFileSync(
