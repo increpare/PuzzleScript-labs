@@ -91,6 +91,21 @@
         "object_absent": [],
         "movement": []
       }
+    },
+    {
+      "rule_id": "early_group_3_rule_0",
+      "line": 39,
+      "text": "[ Player ] -> [ randomdir Player ]",
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": [],
+        "movement": []
+      },
+      "writes": {
+        "object_present": [],
+        "object_absent": [],
+        "movement": ["Player:down", "Player:left", "Player:moving", "Player:randomdir", "Player:right", "Player:up"]
+      }
     }
   ]
 }

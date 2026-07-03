@@ -36,6 +36,7 @@ RULES
 [ > Player | Crate ] -> [ Player | > Crate ]
 [ moving Crate ] -> [ Crate ]
 [ randomdir Player ] -> [ randomdir Player ]
+[ Player ] -> [ randomdir Player ]
 
 =============
 WINCONDITIONS
