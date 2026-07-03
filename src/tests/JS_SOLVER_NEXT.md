@@ -40,6 +40,57 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **T3 / TX1 novelty tie-break — JS opt-in prototype landed.** The JS solver
+  accepts `--solver-novelty tiebreak`, tracks novelty-1 over object/cell atoms
+  with a per-search accumulator, and uses it only as a queue tie-break after
+  the primary BFS/greedy/WA*/portfolio priority. Focused coverage lives in
+  `solver_novelty_node.js`; smoke checks covered greedy and portfolio on
+  `solver_smoke_tests`.
+
+  TX1 paired full-corpus greedy runs at 500ms are weak-repeat-positive but
+  within the known solve-count noise band, so this is **not** a default
+  strategy claim. Artifacts:
+  `build/solver-forensics/tx1-novelty-greedy-500ms/`.
+  - r1: greedy baseline **664/2790** vs novelty **665/2790** (`+1`);
+    gained 11, lost 10; generated `17.30M -> 16.94M`; `step_ms`
+    `322209.194 -> 322268.446`.
+  - r2: greedy baseline **664/2790** vs novelty **668/2790** (`+4`);
+    gained 13, lost 9; generated `17.08M -> 17.05M`; `step_ms`
+    `323201.486 -> 321347.288`.
+  Decision: keep novelty as an opt-in orthogonal lane candidate for T7 /
+  future portfolios; do not spend time tuning novelty shape before trying T1,
+  T4, and T5.
+
+- **T1 / TX2 push-space prototype — JS opt-in lane started.** The JS solver
+  accepts `--strategy push-space`, computes the player's reachable region for
+  each state, and expands only walk-to-and-push macro actions. This is still a
+  manually-certified experiment lane, not a general solver replacement: it
+  currently requires exactly one player and treats all non-background,
+  non-player objects as blockers except static wincondition floor/target masks
+  whose collision layers are not movement-written by the compiled rules.
+
+  Focused coverage lives in `solver_push_space_node.js`: a synthetic
+  reachability fixture checks column-major flood fill/path reconstruction, a
+  blocker-mask fixture keeps movement-written crate layers blocking even for
+  `all target on crate`, and `push_goal.txt#0` is solved with the macro
+  solution `right,right` (`push_depth=1`). Smoke run evidence on
+  `solver_smoke_tests` at 1000ms: solved `push_goal.txt#0`,
+  `no_wall_push.txt#0`, and `push_pull.txt#3`; exhausted the other
+  non-message smoke levels; skipped message levels.
+
+  First TX2 focus probe artifacts:
+  `build/solver-forensics/tx2-push-space-focus/`. This intentionally broad
+  first-five-level slice of 20 obvious pusher games is **not** certified enough
+  to make push-space a default lane, but it gives useful attribution:
+  baseline **21/93** vs push-space **11/93** at 500ms (`-10`), while
+  push-space cuts expanded-per-solved **7491.6 -> 1160.6** and no-op share
+  **39.7% -> 15.7%**. It found two baseline timeouts with replay-verified
+  solutions: `flesh-handed hot casserole delivery bot.txt#4` (68 moves, 20
+  pushes, 3.4x move/push ratio) and `make way.txt#1` (28 moves, 5 pushes,
+  5.6x). Decision: keep TX2 alive as an orthogonal T7 lane candidate, but the
+  next pass needs a tighter walking-inertness/manual certification filter
+  before larger corpus claims.
+
 - **2026-07-03 anonymous-game 500ms probes — measured decisions.** These
   results are scoped to
   `ANONYMOUS_BATCH_OLD_ce2474f62432e2a703bba3fb65f5b01f.txt` and its
