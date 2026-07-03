@@ -1,4 +1,4 @@
-title Static Analysis Win Relevance Semantic
+title Static Analysis Win Relevance Blocker
 
 ========
 OBJECTS
@@ -13,6 +13,9 @@ white
 Goal
 yellow
 
+Blocker
+gray
+
 Deco
 blue
 
@@ -23,6 +26,7 @@ LEGEND
 . = Background
 P = Player
 G = Goal
+B = Blocker
 D = Deco
 
 ========
@@ -36,17 +40,16 @@ COLLISIONLAYERS
 Background
 Player
 Goal
+Blocker
 Deco
 
 =====
 RULES
 =====
 
-[ player ] -> [ player ] win
-[ goal ] -> [ no goal ]
+[ player ] -> [ player stationary blocker ]
+[ no blocker ] -> [ stationary goal ]
 [ deco ] -> [ no deco ]
-[ player ] ->  message hello
-[ player ] -> [ player ] again
 
 =============
 WINCONDITIONS

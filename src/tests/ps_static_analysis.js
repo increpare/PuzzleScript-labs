@@ -2433,6 +2433,21 @@ function ruleMayEnableRule(writes, reads) {
     return reasons;
 }
 
+function setIntersects(left, right) {
+    return Array.from(left).some(value => right.has(value));
+}
+
+function ruleMayAffectRuleForWinRelevance(writes, reads) {
+    const reasons = ruleMayEnableRule(writes, reads).slice();
+    if (setIntersects(writes.object_present, reads.object_absent)) {
+        reasons.push('object_presence_blocks_absence');
+    }
+    if (setIntersects(writes.object_absent, reads.object_present)) {
+        reasons.push('object_absence_blocks_presence');
+    }
+    return uniqueSorted(reasons);
+}
+
 function wakeEdgesForRules(psTagged, rules) {
     const reads = new Map(rules.map(rule => [rule.id, ruleFlowReads(rule)]));
     const writes = new Map(rules.map(rule => [rule.id, ruleFlowWrites(psTagged, rule)]));
@@ -2441,6 +2456,21 @@ function wakeEdgesForRules(psTagged, rules) {
         const fromWrites = writes.get(fromRule.id);
         for (const toRule of rules) {
             const reasons = ruleMayEnableRule(fromWrites, reads.get(toRule.id));
+            if (reasons.length === 0) continue;
+            edges.push({ from: fromRule.id, to: toRule.id, reasons });
+        }
+    }
+    return edges;
+}
+
+function relevanceEdgesForRules(psTagged, rules) {
+    const reads = new Map(rules.map(rule => [rule.id, ruleFlowReads(rule)]));
+    const writes = new Map(rules.map(rule => [rule.id, ruleFlowWrites(psTagged, rule)]));
+    const edges = [];
+    for (const fromRule of rules) {
+        const fromWrites = writes.get(fromRule.id);
+        for (const toRule of rules) {
+            const reasons = ruleMayAffectRuleForWinRelevance(fromWrites, reads.get(toRule.id));
             if (reasons.length === 0) continue;
             edges.push({ from: fromRule.id, to: toRule.id, reasons });
         }
@@ -2630,10 +2660,11 @@ function deriveWinRelevanceFacts(psTagged) {
     const ruleIds = rules.map(rule => rule.id);
     const programFlow = deriveProgramFlowFacts(psTagged)[0].value;
     const winflow = deriveWinflowFacts(psTagged)[0].value;
+    const relevanceEdges = relevanceEdgesForRules(psTagged, rules);
     const directWinRoots = uniqueSorted((winflow.wake_edges || []).map(edge => edge.from));
     const semanticRoots = semanticRootRuleIds(rules);
     const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots));
-    const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, programFlow.wake_edges || []);
+    const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, relevanceEdges);
     const relevantSet = new Set(relevantRuleIds);
     const irrelevantRuleIds = uniqueSorted(rules
         .filter(rule => rule.tags.solver_state_active && !relevantSet.has(rule.id))
@@ -2647,9 +2678,10 @@ function deriveWinRelevanceFacts(psTagged) {
             irrelevant_rule_ids: irrelevantRuleIds,
             wake_edges: programFlow.wake_edges || [],
             win_wake_edges: winflow.wake_edges || [],
+            relevance_edges: relevanceEdges,
             semantic_root_rule_ids: semanticRoots,
         },
-        proof: ['backward_program_flow_slice_from_winflow_and_semantic_roots'],
+        proof: ['backward_relevance_slice_from_winflow_semantic_roots_and_conservative_dependencies'],
         evidence: relevantRuleIds,
     })];
 }

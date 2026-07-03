@@ -9,12 +9,20 @@
     {
       "line": 45,
       "text": "[ player ] -> [ player ] win"
+    },
+    {
+      "line": 49,
+      "text": "[ player ] -> [ player ] again"
     }
   ],
   "semanticRootRules": [
     {
       "line": 45,
       "text": "[ player ] -> [ player ] win"
+    },
+    {
+      "line": 49,
+      "text": "[ player ] -> [ player ] again"
     }
   ],
   "relevantRules": [
@@ -25,6 +33,10 @@
     {
       "line": 46,
       "text": "[ goal ] -> [ no goal ]"
+    },
+    {
+      "line": 49,
+      "text": "[ player ] -> [ player ] again"
     }
   ],
   "irrelevantRules": [
