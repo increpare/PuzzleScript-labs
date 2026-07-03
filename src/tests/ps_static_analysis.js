@@ -2432,6 +2432,18 @@ function connectedComponents(ruleIds, edges) {
     );
 }
 
+function rulegroupSinglePassBlockers(group, interactionEdges, indexById) {
+    const blockers = [];
+    if (interactionEdges.some(edge => indexById.get(edge.to) <= indexById.get(edge.from))) {
+        blockers.push('earlier_rule_may_be_enabled');
+    }
+    if (group.random) blockers.push('random_rule_group');
+    if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
+    if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
+    if (group.rules.some(rule => rule.tags && rule.tags.force_always_run)) blockers.push('force_always_rule');
+    return uniqueSorted(blockers);
+}
+
 function deriveRulegroupFlowFacts(psTagged) {
     const results = [];
     for (const section of psTagged.rule_sections) {
@@ -2451,6 +2463,7 @@ function deriveRulegroupFlowFacts(psTagged) {
             }
             const components = connectedComponents(ruleIds, interactionEdges);
             const blockers = [];
+            const singlePassBlockers = rulegroupSinglePassBlockers(group, interactionEdges, indexById);
             if (components.length <= 1) blockers.push('single_component');
             if (group.random) blockers.push('random_rule_group');
             if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
@@ -2464,6 +2477,8 @@ function deriveRulegroupFlowFacts(psTagged) {
                     rerun_masks: rerunMasks,
                     components,
                     split_candidate: status === 'candidate',
+                    single_pass_safe: singlePassBlockers.length === 0,
+                    single_pass_blockers: singlePassBlockers,
                 },
                 proof: status === 'candidate' ? ['multiple_independent_rule_components'] : [],
                 blockers,

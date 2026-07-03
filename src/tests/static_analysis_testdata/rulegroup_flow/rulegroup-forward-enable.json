@@ -6,6 +6,8 @@
       "line": 55,
       "split_candidate": false,
       "components_count": 1,
+      "single_pass_safe": true,
+      "single_pass_blockers": [],
       "interactionEdges": [
         {
           "from_line": 55,

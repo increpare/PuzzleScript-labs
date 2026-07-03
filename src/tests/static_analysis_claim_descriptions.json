@@ -520,6 +520,18 @@
                 "specification": "A split candidate requires more than one component."
               },
               {
+                "name": "single_pass_safe",
+                "type": "boolean",
+                "description": "Whether this rule group has a conservative certificate that no rule application can enable itself or an earlier rule in the same group.",
+                "specification": "true only when the analyzer's intra-group wake graph has no self edge and no edge from a later rule to itself or an earlier rule, and when group-level blockers such as random rules, rigid rules, semantic commands, or static force-always behavior are absent. This is an analyzer certificate only; no runtime behavior changes when the field is true."
+              },
+              {
+                "name": "single_pass_blockers",
+                "type": "string[]",
+                "description": "Reasons this group is not certified single-pass-safe.",
+                "specification": "Known blockers include earlier_rule_may_be_enabled, random_rule_group, rigid_rule, semantic_command, and force_always_rule. A group with single_pass_safe true must have an empty blocker list."
+              },
+              {
                 "name": "blockers",
                 "type": "string[]",
                 "description": "Reasons this rule group is not a split candidate.",

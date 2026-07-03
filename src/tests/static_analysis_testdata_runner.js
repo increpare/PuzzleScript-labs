@@ -761,6 +761,8 @@ function buildRulegroupFlowExpectations(source, report) {
             line: group.source_line_min,
             split_candidate: value.split_candidate || false,
             components_count: (value.components || []).length,
+            single_pass_safe: !!value.single_pass_safe,
+            single_pass_blockers: (value.single_pass_blockers || []).slice().sort(),
             interactionEdges,
             rerunMasks,
             blockers: (fact.blockers || []).slice().sort(),
@@ -778,6 +780,12 @@ function validateRulegroupFlowExpectationShape(filePath, payload) {
         assert.ok(Number.isInteger(item.line) && item.line > 0, `${filePath}: rulegroupFlow[${index}] missing positive integer line`);
         assert.ok(typeof item.split_candidate === 'boolean', `${filePath}: rulegroupFlow[${index}].split_candidate must be boolean`);
         assert.ok(Number.isInteger(item.components_count) && item.components_count >= 0, `${filePath}: rulegroupFlow[${index}].components_count must be a non-negative integer`);
+        if (item.single_pass_safe !== undefined) {
+            assert.ok(typeof item.single_pass_safe === 'boolean', `${filePath}: rulegroupFlow[${index}].single_pass_safe must be boolean`);
+        }
+        if (item.single_pass_blockers !== undefined) {
+            assertStringArray(filePath, `rulegroupFlow[${index}].single_pass_blockers`, item.single_pass_blockers);
+        }
         assertStringArray(filePath, `rulegroupFlow[${index}].blockers`, item.blockers);
         if (item.interactionEdges !== undefined) {
             assert.ok(Array.isArray(item.interactionEdges), `${filePath}: rulegroupFlow[${index}].interactionEdges must be an array`);
@@ -827,6 +835,21 @@ function checkRulegroupFlowFixture(txtPath, jsonPath, claimDescriptions) {
         }
         assert.strictEqual(actualRow.split_candidate, expected.split_candidate, `${jsonPath}: group at line ${expected.line} split_candidate expected ${expected.split_candidate}, got ${actualRow.split_candidate}`);
         assert.strictEqual(actualRow.components_count, expected.components_count, `${jsonPath}: group at line ${expected.line} components_count expected ${expected.components_count}, got ${actualRow.components_count}`);
+        if (expected.single_pass_safe !== undefined) {
+            assert.strictEqual(
+                actualRow.single_pass_safe,
+                expected.single_pass_safe,
+                `${jsonPath}: group at line ${expected.line} single_pass_safe expected ${expected.single_pass_safe}, got ${actualRow.single_pass_safe}`
+            );
+        }
+        if (expected.single_pass_blockers !== undefined) {
+            assertSameStringSet(
+                jsonPath,
+                `group at line ${expected.line} single_pass_blockers`,
+                expected.single_pass_blockers,
+                actualRow.single_pass_blockers
+            );
+        }
         if (expected.interactionEdges !== undefined) {
             assert.deepStrictEqual(
                 actualRow.interactionEdges,

@@ -6,6 +6,8 @@
       "line": 49,
       "split_candidate": false,
       "components_count": 2,
+      "single_pass_safe": false,
+      "single_pass_blockers": ["semantic_command"],
       "blockers": ["semantic_command"]
     }
   ]

@@ -6,6 +6,8 @@
       "line": 55,
       "split_candidate": false,
       "components_count": 1,
+      "single_pass_safe": false,
+      "single_pass_blockers": ["earlier_rule_may_be_enabled"],
       "interactionEdges": [
         {
           "from_line": 56,
