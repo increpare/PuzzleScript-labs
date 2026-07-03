@@ -296,6 +296,12 @@ SOLVER_TARGET_BENCH_MANIFEST ?= $(SOLVER_PIPPABLE_MANIFEST)
 SOLVER_TARGET_BENCH_OUT ?= $(BUILD_DIR)/native/solver_target_benchmark.json
 SOLVER_TARGET_BENCH_TIMEOUT_MS ?=
 SOLVER_TARGET_BENCH_STRATEGY ?= $(SOLVER_MINE_STRATEGY)
+SOLVER_BENCH_STORE ?= $(BUILD_DIR)/solver-bench/store.jsonl
+SOLVER_BENCH_SLICE ?= smoke-50
+SOLVER_BENCH_SLICE_MANIFEST ?= $(BUILD_DIR)/solver-bench/$(SOLVER_BENCH_SLICE).json
+SOLVER_BENCH_PAIR_RUNS ?= 3
+SOLVER_BENCH_OUT_DIR ?= $(BUILD_DIR)/solver-bench/pairs/$(SOLVER_BENCH_SLICE)
+SOLVER_BENCH_FRESH_HOURS ?= 24
 GENERATOR_BENCH_GAME ?= src/demo/sokoban_basic.txt
 GENERATOR_BENCH_PRESETS_DIR ?= src/tests/generator_presets
 GENERATOR_BENCH_SAMPLES ?= 200
@@ -539,6 +545,11 @@ help:
 	@echo "  make solver_focus_compact_codegen_perf_report"
 	@echo "                                     Compare compiler-mode compact-node focus outputs with runtime counters"
 	@echo "  make solver_benchmark_targets      Benchmark mined solver targets repeatedly"
+	@echo "  make solver_benchmark_slice_manifest"
+	@echo "                                     Materialize SOLVER_BENCH_SLICE into a reproducible manifest"
+	@echo "  make js_solver_bench_pair_smoke    Run baseline/candidate JS paired smoke into SOLVER_BENCH_STORE"
+	@echo "  make solver_bench_summary          Print aggregate bench-store summary"
+	@echo "  make solver_bench_freshness        Check latest bench-store record freshness"
 	@echo "  make solver_instrumentation_pack   Build cross-strategy native solver evidence pack"
 	@echo "  make solver_instrumentation_analysis"
 	@echo "                                     Analyze instrumentation-pack strategy/static-tag results"
@@ -1682,6 +1693,19 @@ solver_focus_compact_codegen_perf_report: $(PUZZLESCRIPT_SOLVER) $(SOLVER_FOCUS_
 
 solver_benchmark_targets: $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_MANIFEST)
 	$(NODE) src/tests/run_solver_level_benchmark.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TARGET_BENCH_CORPUS) $(SOLVER_TARGET_BENCH_MANIFEST) --runs $(SOLVER_TARGET_BENCH_RUNS) --strategy $(SOLVER_TARGET_BENCH_STRATEGY) --out $(SOLVER_TARGET_BENCH_OUT) $(SOLVER_TARGET_BENCH_TIMEOUT_ARG)
+
+.PHONY: solver_benchmark_slice_manifest js_solver_bench_pair_smoke solver_bench_summary solver_bench_freshness
+solver_benchmark_slice_manifest:
+	$(NODE) src/tests/generate_solver_benchmark_slice_manifest.js "$(SOLVER_BENCH_SLICE)" --out "$(SOLVER_BENCH_SLICE_MANIFEST)"
+
+js_solver_bench_pair_smoke:
+	$(NODE) src/tests/run_js_solver_bench_pair.js src/tests/solver_smoke_tests --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)" --runs $(SOLVER_BENCH_PAIR_RUNS) --out-dir "$(SOLVER_BENCH_OUT_DIR)" --noise-band 1 --candidate-arg --adaptive-step-cost -- --game push_goal.txt --quiet --json --no-solutions
+
+solver_bench_summary:
+	$(NODE) src/tests/solver_bench_store_cli.js summary --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)"
+
+solver_bench_freshness:
+	$(NODE) src/tests/solver_bench_store_cli.js freshness --store "$(SOLVER_BENCH_STORE)" --slice "$(SOLVER_BENCH_SLICE)" --max-age-hours $(SOLVER_BENCH_FRESH_HOURS)
 
 solver_instrumentation_pack: $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_native_solver_instrumentation_pack.js \

@@ -60,6 +60,18 @@ Payoff: every subsequent experiment in every plan gets cheaper and its
 verdict becomes trustworthy. Without this, the project ships noise and
 rejects real wins in roughly equal measure.
 
+Implementation status (2026-07-03): the first measurement layer is now in
+place for JS and target-level solver benchmarks:
+
+- `src/tests/solver_bench_store*.js` provides append-only JSONL records,
+  paired comparison, summaries, latest-run queries, and freshness checks.
+- `src/tests/generate_solver_benchmark_slice_manifest.js` materializes named
+  deterministic slices from the checked-in slice definitions.
+- `src/tests/run_js_solver_bench_pair.js` runs baseline/candidate JS solver
+  pairs with shared pair IDs and stores both artifacts and bench-store records.
+- Make targets cover slice manifests, smoke paired runs, store summaries, and
+  freshness checks.
+
 ## 2. Recommendation: adopt the certificate architecture as policy
 
 One consistent empirical law across the whole review and today's results:
@@ -207,7 +219,7 @@ Item status after the X-round:
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
 | T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |
-| Measurement layer (rec. 1) | started | JSONL bench store, paired compare, named slices, and dry-run retention planner landed in `src/tests/solver_bench_store*.js` |
+| Measurement layer (rec. 1) | live foundation | JSONL bench store, deterministic slice materializer, JS paired-run executor, level-benchmark append hooks, freshness checks, and Makefile entry points are in `src/tests/solver_bench*`, `src/tests/generate_solver_benchmark_slice_manifest.js`, and `src/tests/run_js_solver_bench_pair.js` |
 
 Dependency spine:
 

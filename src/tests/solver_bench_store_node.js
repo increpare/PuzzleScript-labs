@@ -10,6 +10,8 @@ const {
     appendRunRecord,
     comparePairedRuns,
     createRunRecord,
+    freshnessReport,
+    latestRecords,
     loadBenchmarkSlices,
     planArtifactRetention,
     readRunRecords,
@@ -135,6 +137,32 @@ const decisiveComparison = comparePairedRuns(records, {
     noise_band: 0.5,
 });
 assert.strictEqual(decisiveComparison.verdict, 'candidate_better');
+
+const latestCandidate = latestRecords(records, {
+    benchmark_slice: 'smoke-50',
+    variant: 'candidate',
+    limit: 1,
+});
+assert.strictEqual(latestCandidate.length, 1);
+assert.strictEqual(latestCandidate[0].pair_id, 'pair-2');
+
+const freshReport = freshnessReport(records, {
+    benchmark_slice: 'smoke-50',
+    variant: 'candidate',
+    now: new Date('2026-07-03T00:45:00.000Z'),
+    max_age_hours: 1,
+});
+assert.strictEqual(freshReport.fresh, true);
+assert.strictEqual(freshReport.latest_record.pair_id, 'pair-2');
+
+const staleReport = freshnessReport(records, {
+    benchmark_slice: 'smoke-50',
+    variant: 'candidate',
+    now: new Date('2026-07-03T03:15:00.000Z'),
+    max_age_hours: 1,
+});
+assert.strictEqual(staleReport.fresh, false);
+assert.ok(staleReport.age_hours > 1);
 
 const slices = loadBenchmarkSlices(path.join(repoRoot, 'src/tests/solver_benchmark_slices.json'));
 assert.deepStrictEqual(slices.slices.map((slice) => slice.name), [

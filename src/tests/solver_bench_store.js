@@ -273,6 +273,44 @@ function summarizeRecords(records, filters = {}) {
     return summary;
 }
 
+function latestRecords(records, options = {}) {
+    const limit = Number.isFinite(Number(options.limit)) ? Math.max(1, Number(options.limit)) : 10;
+    return filterRecords(records, options)
+        .slice()
+        .sort((left, right) => {
+            const leftTime = Date.parse(left.recorded_at || '');
+            const rightTime = Date.parse(right.recorded_at || '');
+            return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
+        })
+        .slice(0, limit);
+}
+
+function freshnessReport(records, options = {}) {
+    const latest = latestRecords(records, Object.assign({}, options, { limit: 1 }))[0] || null;
+    const now = options.now || new Date();
+    const maxAgeHours = Number.isFinite(Number(options.max_age_hours)) ? Number(options.max_age_hours) : 24;
+    if (!latest) {
+        return {
+            schema_version: SCHEMA_VERSION,
+            fresh: false,
+            reason: 'missing',
+            max_age_hours: maxAgeHours,
+            age_hours: null,
+            latest_record: null,
+        };
+    }
+    const recordedAt = Date.parse(latest.recorded_at || '');
+    const ageHours = Number.isFinite(recordedAt) ? (now.getTime() - recordedAt) / (60 * 60 * 1000) : Infinity;
+    return {
+        schema_version: SCHEMA_VERSION,
+        fresh: ageHours <= maxAgeHours,
+        reason: ageHours <= maxAgeHours ? 'fresh' : 'stale',
+        max_age_hours: maxAgeHours,
+        age_hours: ageHours,
+        latest_record: latest,
+    };
+}
+
 function metricValue(record, metric) {
     if (record.totals && Number.isFinite(Number(record.totals[metric]))) {
         return Number(record.totals[metric]);
@@ -519,6 +557,8 @@ Object.assign(module.exports, {
     comparePairedRuns,
     createRunRecord,
     filterRecords,
+    freshnessReport,
+    latestRecords,
     loadBenchmarkSlices,
     planArtifactRetention,
     readRunRecords,

@@ -8,6 +8,8 @@ const {
     appendRunRecord,
     comparePairedRuns,
     createRunRecord,
+    freshnessReport,
+    latestRecords,
     planArtifactRetention,
     readRunRecords,
     summarizeRecords,
@@ -18,6 +20,8 @@ function usage() {
         'Usage:',
         '  node src/tests/solver_bench_store_cli.js append --store PATH --input RUN.json --slice NAME --variant NAME [--pair-id ID] [--config-json PATH] [--artifact PATH ...]',
         '  node src/tests/solver_bench_store_cli.js summary --store PATH [--slice NAME] [--variant NAME]',
+        '  node src/tests/solver_bench_store_cli.js latest --store PATH [--slice NAME] [--variant NAME] [--limit N]',
+        '  node src/tests/solver_bench_store_cli.js freshness --store PATH [--slice NAME] [--variant NAME] [--max-age-hours N]',
         '  node src/tests/solver_bench_store_cli.js compare --store PATH --slice NAME --baseline NAME --candidate NAME [--metric NAME] [--noise-band N]',
         '  node src/tests/solver_bench_store_cli.js retention-plan --store PATH --build-root PATH [--max-age-days N]',
     ].join('\n') + '\n');
@@ -62,6 +66,10 @@ function parseArgs(argv) {
             options.buildRoot = path.resolve(argv[++index]);
         } else if (arg === '--max-age-days' && index + 1 < argv.length) {
             options.maxAgeDays = Number(argv[++index]);
+        } else if (arg === '--max-age-hours' && index + 1 < argv.length) {
+            options.maxAgeHours = Number(argv[++index]);
+        } else if (arg === '--limit' && index + 1 < argv.length) {
+            options.limit = Number(argv[++index]);
         } else {
             throw new Error(`unsupported argument: ${arg}`);
         }
@@ -98,6 +106,24 @@ function main(argv = process.argv) {
         process.stdout.write(`${JSON.stringify(summarizeRecords(records, {
             benchmark_slice: options.slice || null,
             variant: options.variant || null,
+        }), null, 2)}\n`);
+        return 0;
+    }
+    if (options.command === 'latest') {
+        const records = readRunRecords(requireOption(options, 'store'));
+        process.stdout.write(`${JSON.stringify(latestRecords(records, {
+            benchmark_slice: options.slice || null,
+            variant: options.variant || null,
+            limit: Number.isFinite(options.limit) ? options.limit : 10,
+        }), null, 2)}\n`);
+        return 0;
+    }
+    if (options.command === 'freshness') {
+        const records = readRunRecords(requireOption(options, 'store'));
+        process.stdout.write(`${JSON.stringify(freshnessReport(records, {
+            benchmark_slice: options.slice || null,
+            variant: options.variant || null,
+            max_age_hours: Number.isFinite(options.maxAgeHours) ? options.maxAgeHours : 24,
         }), null, 2)}\n`);
         return 0;
     }
