@@ -67,15 +67,11 @@ const hotspotProfiled = JSON.parse(execFileSync(
     },
 ));
 assert.ok(Array.isArray(hotspotProfiled.results[0].rule_hotspots), 'rule_hotspots should be an array');
-assert.ok(hotspotProfiled.results[0].rule_hotspots.length > 0, 'rule_hotspots should include at least one rule');
-assert.ok(Number.isFinite(hotspotProfiled.results[0].rule_hotspots[0].try_apply_calls), 'hotspot calls should be numeric');
-
-const adaptive = JSON.parse(execFileSync(
-    process.execPath,
-    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
-    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
-));
-assert.strictEqual(adaptive.results[0].adaptive_step_cost, true);
+assert.ok(hotspotProfiled.results[0].rule_hotspots.length > 0, 'rule_hotspots should contain rows');
+assert.ok(
+    Number.isFinite(hotspotProfiled.results[0].rule_hotspots[0].try_apply_calls),
+    'rule hotspot try_apply_calls should be numeric',
+);
 
 const heuristicSplit = JSON.parse(execFileSync(
     process.execPath,
@@ -84,6 +80,63 @@ const heuristicSplit = JSON.parse(execFileSync(
 ));
 assert.ok(heuristicSplit.totals.heuristic_score_ms > 0, 'heuristic score timing should be recorded');
 assert.ok(Number.isFinite(heuristicSplit.totals.expanded_per_solved), 'expanded_per_solved should be in totals');
+
+const adaptive = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(adaptive.results[0].adaptive_step_cost, true);
+assert.ok(Number.isFinite(adaptive.results[0].adaptive_step_cost_triggered));
+
+const adaptiveBfs = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--strategy', 'bfs', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(adaptiveBfs.results[0].adaptive_step_cost, false);
+assert.strictEqual(adaptiveBfs.results[0].adaptive_step_cost_triggered, 0);
+
+const adaptiveUntimed = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, corpusDir, '--game', 'push_goal.txt', '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    {
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+        env: Object.assign({}, process.env, { PUZZLESCRIPT_SOLVER_DETAIL_TIMING: '0' }),
+    },
+));
+assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost, false);
+assert.strictEqual(adaptiveUntimed.results[0].adaptive_step_cost_triggered, 0);
+
+const compileErrorDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-compile-error-'));
+fs.writeFileSync(path.join(compileErrorDir, 'bad.txt'), 'not puzzlescript at all\n');
+const compileErrorAdaptive = JSON.parse(execFileSync(
+    process.execPath,
+    [runner, compileErrorDir, '--quiet', '--json', '--no-solutions', '--adaptive-step-cost'],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.strictEqual(compileErrorAdaptive.results[0].status, 'compile_error');
+assert.strictEqual(compileErrorAdaptive.results[0].adaptive_step_cost, false);
+assert.strictEqual(compileErrorAdaptive.results[0].adaptive_step_cost_triggered, 0);
+assert.strictEqual(compileErrorAdaptive.totals.adaptive_step_cost_triggered, 0);
+
+const adaptivePhaseSplit = JSON.parse(execFileSync(
+    process.execPath,
+    [
+        runner,
+        corpusDir,
+        '--game', 'push_goal.txt',
+        '--quiet',
+        '--json',
+        '--no-solutions',
+        '--strategy', 'phase-split',
+        '--portfolio-heuristics', 'auto,winconditions',
+        '--adaptive-step-cost',
+    ],
+    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+));
+assert.ok(Number.isFinite(adaptivePhaseSplit.results[0].adaptive_step_cost_triggered));
 
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'js-solver-pack-'));
 execFileSync(

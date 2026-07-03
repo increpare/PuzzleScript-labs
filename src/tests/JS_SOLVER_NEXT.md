@@ -40,6 +40,39 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **2026-07-03 anonymous-game 500ms probes — measured decisions.** These
+  results are scoped to
+  `ANONYMOUS_BATCH_OLD_ce2474f62432e2a703bba3fb65f5b01f.txt` and its
+  experiment artifacts under
+  `build/solver-forensics/anonymous-js-first-500ms/experiments/`.
+
+  - Static opt parity: solved=1, `step_ms=25653.4`,
+    `removed_collision_layers=6`, `removed_cosmetic_objects=15`, gated=no.
+    This is measured evidence, not a corpus-default decision.
+  - Again multiplier: `process_input_calls=12207`, generated=12205,
+    `again_passes=2`. Decision: defer P6 again-settling reduction.
+  - Level 13 hotspots: top key
+    `line:1188|group:1188|direction:right|rule:483`, line=1188. Hotspots were
+    diffuse: top-10 only covered about 8.4/195.2ms match time and
+    12.1/134.5ms apply time, so uniform rule-loop/codegen/stride explanations
+    remain live.
+  - Guidance parity levels 3/19/31/63/81:
+    3=solved/expanded=4490/generated=17957/length=106;
+    19=timeout/expanded=22047/generated=88188/length=0;
+    31=timeout/expanded=20508/generated=82032/length=0;
+    63=solved/expanded=15035/generated=60137/length=20;
+    81=solved/expanded=10/generated=37/length=10.
+  - Movement-aware prune: rejected/blocked by flagged simulation failure:
+    `PUZZLESCRIPT_INCREMENTAL_PRUNE=1 PUZZLESCRIPT_MOVEMENT_AWARE_PRUNE=1 node src/tests/run_tests_node.js`
+    produced 752 passed, 1 failed, with failing fixture `Karamell`. Root cause:
+    Karamell's movement-propagation group needs later iterations after line
+    448 writes movement, but the relevant `readMovements` masks for lines
+    444/446 do not overlap that write mask. No movement-aware JSON artifact was
+    generated and no code landed.
+  - Adaptive step-cost: solved=1, generated=11721, `step_ms=25799.4`,
+    `adaptive_step_cost_triggered=2909`. This remains explicit-probe only
+    unless a refreshed corpus run later proves it safe and useful as a default.
+
 - **E1 input-specialized rule sets — landed.** Engine compile now builds
   per-input active rule arrays from positive movement dependencies, and the
   solver can enable them with `PUZZLESCRIPT_INPUT_SPECIALIZATION=1`.
