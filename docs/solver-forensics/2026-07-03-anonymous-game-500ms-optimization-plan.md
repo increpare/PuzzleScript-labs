@@ -209,6 +209,148 @@ historical; refresh before claiming any corpus win.
   native configuration reaches 2/54; corpus solve count is the honest target,
   with this game as the step-cost canary.
 
+## Native C++ interpreter review (added 2026-07-03)
+
+The interpreter (`native/src/runtime/core.cpp`, ~7.6k lines) is the practical
+production path: game-agnostic, no per-game codegen/compile latency. It is
+already sophisticated — 64-bit mask words (object stride 4 / movement stride 9
+for this game vs 8/17 in JS), a mask arena, per-object cell bitboards with
+incremental maintenance (`objectCellBits` via `setObjectCellIndexBit`,
+core.cpp:2291), rarest-anchor scans, dirty-row/col mask rebuilds, runtime
+counters (`ps_runtime_counters_*`), input specialization (`activeInputsMask`),
+and specialized codegen backends as an optional fast tier. On this game it runs
+717µs/step vs compiled 62–77µs — a 10x gap that the items below attack without
+giving up game-agnosticism. Facts below are from code inspection; impact
+estimates are inferences pending the counter experiments (NX1).
+
+### Observed hot-path issues (facts, with code refs)
+
+- **F1 — `rebuildMasks` after every successful rule application.**
+  `applyRuleGroup` calls `rebuildMasks(session)` at group entry and after each
+  apply (core.cpp:5087, 5158). Rebuild is dirty-line-tracked (5300-5520), but
+  any *cleared* bit dirties the cell's whole row + column + board
+  (`setCellObjectsFromWords`, 2333-2362), and rebuilding a dirty line re-ORs
+  width×strideObject (and movement equivalents). On propagation-chain games
+  (this one: `blocked`/vertebra chains) this runs at fixpoint frequency —
+  O(chain × line-rescan). Counters exist to quantify: `maskRebuildCalls`,
+  `maskRebuildDirtyCalls`, `maskRebuildRows/Columns`.
+- **F2 — movement-anchor selection does full-grid scans and heap allocation
+  per call.** `chooseMovementRowAnchor` (3755-3802) allocates a `MaskVector`
+  per pattern per call and ORs together masks that are **state-independent**
+  (pattern movementsPresent + any + layer-coupled), then `movementOverlapCount`
+  (3721-3741) scans all tiles × strideMovement just to *count* selectivity.
+  The movement-anchored iteration itself also walks every tile
+  (3837-3846) rather than only moving tiles.
+- **F3 — incremental prune is movement-blind, same as JS.** The guard
+  (5108-5128) skips a rule only when `readMovementsZero &&
+  !readObjectsOverlapPrior`. `incrementalPriorMovements` is accumulated and
+  swapped (5152-5179) but never consulted. Identical shape to
+  `src/js/engine.js:3092` — the plan's P2 applies to both engines and should
+  land in both, cross-checked by the existing JS/native parity harness.
+- **F4 — per-cell match loops over all stride words.** `matchesPatternAt`
+  (always_inline) loops `objectWordCount` (4 here) and `movementWordCount`
+  (9 here) words per present/missing/any check, though a given pattern mask is
+  typically nonzero in one word.
+- **F5 — multi-row rules allocate per tryApply.** The single-row path uses
+  `session.scratch.singleRowMatchScratch` (4526), but the multi-row path
+  builds `std::vector<std::vector<RowMatch>>` + per-row vectors returned by
+  value (4620-4649). This game's 48 `[ start ] [ … ]` rules and the
+  `[ HeadX edgeX ] [ > Player ]` family hit the allocating path. Consistent
+  with the HDA profiling memory: **malloc ≈23% of time, cross-thread frees
+  limit HDA to ~45% scaling at 8 threads** (buffer-pool PR recovered only
+  ~2-4%). The fresh single-game data agrees: HDA x8 interpreter reports
+  1020µs/generated vs portfolio's 717µs (summary.json).
+- **F6 — board layout is cell-major, column-major** (`tileIndex = x*height+y`);
+  horizontal line scans stride by `height × words`. Rows of a 61-wide level
+  touch 61 scattered 104-byte cell records.
+- Good news already in place: `ruleCanPossiblyMatch` checks both board object
+  and movement masks (4439-4454); object anchors use O(1)
+  `objectCellCounts`; solver deadline checks are partially batched
+  (solver/main.cpp:3170 comment), compact node storage
+  (`PersistentLevelState`) and Zobrist hashing exist.
+
+### Native proposals, prioritized
+
+- **N1 — moving-tiles bitboard (low-level, likely largest single win).**
+  Maintain a tile bitboard "any movement bits set" updated in
+  `setCellMovements`, exactly analogous to `objectCellBits`. Then:
+  movement-anchor selectivity = popcount (kills `movementOverlapCount` grid
+  scans), and movement-anchored iteration walks set bits via ctz instead of
+  all tiles (3837). Most turns have few movers and movement rules are the
+  hottest class. Localized, low risk; validate with parity + sim suites.
+- **N2 — hoist static movement-anchor masks to lowering time (trivial).**
+  The per-pattern movement union in `chooseMovementRowAnchor` is
+  state-independent; precompute into `maskArena` at lowering, deleting the
+  per-call alloc + OR-building. Zero semantic risk.
+- **N3 — movement-aware incremental prune (= plan P2, both engines).**
+  Consult `incrementalPriorMovements` in the guard. Soundness caveats shared
+  with JS: clears must be covered by write masks; stationary/`no X`
+  requirements must be covered by read masks. Land JS+native together and
+  lean on the parity harness.
+- **N4 — cheapen or defer `rebuildMasks`.** Options, in rising ambition:
+  (a) rebuild once per fixpoint iteration instead of per application (audit
+  which same-iteration reads need freshness); (b) rebuild-on-read — only
+  rebuild a dirty line when a match actually consults it; (c) per-line
+  per-object-bit reference counts enabling O(changed-bits) decremental
+  updates (memory ≈ (height+width) × objectCount × 2B — tens of KB, fine).
+  Gate on F1 counter numbers first.
+- **N5 — sparse word iteration in `matchesPatternAt`.** Precompute per-mask
+  nonzero-word spans (first/last word or tiny word-id list); loop only those.
+  Near-free for stride-1 games, ~4-9x fewer word ops here. Also order pattern
+  checks by measured selectivity (missing checks are usually cheaper to fail).
+- **N6 — allocator work for the solver/HDA (metal).** Link mimalloc (or
+  jemalloc) and measure — cross-thread-free contention is its home turf; then
+  per-thread arenas/freelists for node `FullState`/`PersistentLevelState` if
+  needed. Scratch-ify the multi-row match vectors (F5) like
+  `singleRowMatchScratch`. Directly targets the measured 23% malloc + HDA
+  scaling ceiling.
+- **N7 — word-plane (SoA) board layout experiment (representation).** Store
+  objects as per-word planes (all tiles' word w contiguous). Pattern checks
+  touch only planes with nonzero masks → wide-stride games degrade to
+  ~stride-1 cost; `rebuildMasks` becomes long vectorizable runs. Bigger
+  refactor; prototype behind a compile-time flag like
+  `PS_INTERPRETER_OBJECT_CELL_INDEX` and let counters decide. Partially
+  overlaps N5 — do N5 first, it's 10x cheaper to build.
+- **N8 — feed solver-scoped static opts into the native compile (high-level).**
+  The JS passes (`src/tests/solver_static_opt.js`: inert/cosmetic/merge)
+  shrink object count, **collision layers** (→ both strides), and rule count.
+  Native compiles from source, so a source-to-source emit (or shared IR)
+  serves interpreter and codegen tiers alike. Check `native/src/simplify`
+  and `src/search/simplify.*` for existing scaffolding before building new.
+- **N9 — group dependency static analysis (high-level).** (a) Groups whose
+  writes cannot feed their own reads need no confirm pass: currently even a
+  single-fire group re-matches every rule once more to detect quiescence —
+  provable single-pass groups halve their match work. (b) The JS "A.2
+  outer-loop group skip" (wired, disabled; `engine.js:3154-3156`) has the same
+  native analog via cumulative changed masks — making it sound once benefits
+  both engines.
+- **N10 — solver-level hygiene.** Compact node storage default-on where
+  parity-clean; finish deadline-check batching (clock was 14% in the HDA
+  profile); keep detail timing off in production runs.
+
+### Native experiments
+
+- **NX1 — counter attribution run** (~1h): enable `ps_runtime_counters`, run
+  this game + a ~50-game corpus slice, dump `maskRebuildCalls/Rows`,
+  `candidateCellsTested`, `patternTests`, `rulesVisited/SkippedByMask`,
+  `specializedRulegroup*`. Success: a ranked cost attribution that picks
+  between N1/N4/N5/N7. This is the native analog of X2 and should precede any
+  build-out.
+- **NX2 — mimalloc link test** (~1h): relink solver with mimalloc, rerun HDA
+  x8 on this game + corpus slice. Success: HDA step_ms drops materially
+  (target: close part of the 45%→linear scaling gap). Failure: contention is
+  not allocator-internal → invest in arenas (N6b) instead.
+- **NX3 — N2 + N1 prototype** (~1 day): static anchor masks + moving-tiles
+  bitboard behind a flag; parity suite + `us_per_generated` on this game and
+  corpus slice. Expect this game to improve most (movement-heavy, big grids);
+  corpus-neutral is acceptable, corpus-negative is not.
+- **NX4 — N3 (P2) paired JS/native landing** (~1-2 days): same experiment
+  design as X5, plus native parity run.
+
+Sequencing note: NX1/NX2 slot into the existing week plan as Day-1/2 probes
+alongside X1-X4; N1/N2/N3 are the first-build tier; N4-N9 wait for counter
+evidence.
+
 ## Key numbers (for quick reference)
 
 | Measure | Value | Source |
