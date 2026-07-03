@@ -2,7 +2,9 @@
 
 #include "puzzlescript/compiler.h"
 #include "puzzlescript/puzzlescript.h"
+#include "runtime/json.hpp"
 
+#include <cctype>
 #include <fstream>
 #include <memory>
 #include <optional>
@@ -10,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace puzzlescript::handheld {
@@ -24,6 +27,11 @@ using GamePtr = std::unique_ptr<ps_game, decltype(&ps_free_game)>;
 struct GameReport {
     std::string json;
     bool passing = false;
+    bool compileOk = false;
+    bool sessionOk = false;
+    size_t degradedLevels = 0;
+    size_t fitFailures = 0;
+    size_t loadFailures = 0;
 };
 
 const char* severityName(ps_diagnostic_severity severity) {
@@ -60,6 +68,34 @@ std::string compileErrorMessage(const ps_compile_result* result) {
         }
     }
     return "source did not compile";
+}
+
+std::string linePrefix(const std::string& label, size_t lineNumber) {
+    return label + ":" + std::to_string(lineNumber) + ": ";
+}
+
+bool isWhitespaceOnly(std::string_view text) {
+    for (const unsigned char ch : text) {
+        if (!std::isspace(ch)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::string requiredStringField(
+    const puzzlescript::json::Value::Object& object,
+    const std::string& key,
+    const std::string& context) {
+    const auto it = object.find(key);
+    if (it == object.end()) {
+        throw std::runtime_error(context + "missing required string field '" + key + "'");
+    }
+    const puzzlescript::json::Value& value = it->second;
+    if (!value.isString()) {
+        throw std::runtime_error(context + "field '" + key + "' must be a string");
+    }
+    return value.asString();
 }
 
 void appendDiagnostics(std::ostringstream& out, const std::string& sourceText) {
@@ -133,10 +169,11 @@ void appendLevelReport(
     int32_t levelIndex,
     const ReportOptions& options,
     std::optional<Viewport>& previousViewport,
-    bool& passing) {
+    GameReport& report) {
     ps_error* rawError = nullptr;
     if (!ps_full_state_load_level(session, levelIndex, &rawError)) {
-        passing = false;
+        report.passing = false;
+        ++report.loadFailures;
         out << '{'
             << "\"index\":" << levelIndex << ','
             << "\"load_ok\":false,"
@@ -154,8 +191,13 @@ void appendLevelReport(
     previousViewport = viewport;
     const FitResult fit = computeFit(options.display, viewport);
 
-    if (fit.degraded || !fit.fits) {
-        passing = false;
+    if (fit.degraded) {
+        report.passing = false;
+        ++report.degradedLevels;
+    }
+    if (!fit.fits) {
+        report.passing = false;
+        ++report.fitFailures;
     }
 
     out << '{'
@@ -186,6 +228,7 @@ GameReport buildGameReport(
     const std::string& sourceText,
     const ReportOptions& options) {
     std::ostringstream out;
+    GameReport report;
     out << '{'
         << "\"source\":" << jsonEscape(sourceName) << ',';
 
@@ -197,7 +240,8 @@ GameReport buildGameReport(
             << "\"compile_error\":" << jsonEscape(compileErrorMessage(result.get())) << ',';
         appendDiagnostics(out, sourceText);
         out << '}';
-        return GameReport{out.str(), false};
+        report.json = out.str();
+        return report;
     }
 
     const ps_game* rawGame = ps_compile_result_game(result.get());
@@ -207,9 +251,11 @@ GameReport buildGameReport(
             << "\"compile_error\":" << jsonEscape(compileErrorMessage(result.get())) << ',';
         appendDiagnostics(out, sourceText);
         out << '}';
-        return GameReport{out.str(), false};
+        report.json = out.str();
+        return report;
     }
 
+    report.compileOk = true;
     out << "\"compile_ok\":true,"
         << "\"background_color\":" << jsonEscape(ps_game_background_color(game.get())) << ',';
     appendSelectedMetadata(out, game.get());
@@ -222,14 +268,16 @@ GameReport buildGameReport(
             << "\"session_error\":" << jsonEscape(errorMessage(rawError, "session creation failed")) << ','
             << "\"levels\":[]"
             << '}';
-        return GameReport{out.str(), false};
+        report.json = out.str();
+        return report;
     }
     FullStatePtr session(rawSession, ps_full_state_destroy);
 
+    report.sessionOk = true;
+    report.passing = true;
     out << "\"session_ok\":true,"
         << "\"levels\":[";
     bool firstLevel = true;
-    bool passing = true;
     std::optional<Viewport> previousViewport;
     const int32_t levelCount = ps_game_level_count(game.get());
     for (int32_t levelIndex = 0; levelIndex < levelCount; ++levelIndex) {
@@ -237,10 +285,11 @@ GameReport buildGameReport(
             out << ',';
         }
         firstLevel = false;
-        appendLevelReport(out, game.get(), session.get(), levelIndex, options, previousViewport, passing);
+        appendLevelReport(out, game.get(), session.get(), levelIndex, options, previousViewport, report);
     }
     out << "]}";
-    return GameReport{out.str(), passing};
+    report.json = out.str();
+    return report;
 }
 
 } // namespace
@@ -269,10 +318,27 @@ std::string buildReportForSources(
     const std::vector<SourceInput>& sources,
     const ReportOptions& options) {
     std::ostringstream out;
-    out << "{\"games\":[";
-    bool first = true;
+    std::vector<GameReport> reports;
+    reports.reserve(sources.size());
+    size_t compiledGames = 0;
+    size_t degradedLevels = 0;
     for (const SourceInput& source : sources) {
-        const GameReport report = buildGameReport(source.name, source.source, options);
+        GameReport report = buildGameReport(source.name, source.source, options);
+        if (report.compileOk) {
+            ++compiledGames;
+        }
+        degradedLevels += report.degradedLevels;
+        reports.push_back(std::move(report));
+    }
+
+    out << "{\"summary\":{"
+        << "\"game_count\":" << sources.size() << ','
+        << "\"compiled_games\":" << compiledGames << ','
+        << "\"compile_failures\":" << (sources.size() - compiledGames) << ','
+        << "\"degraded_levels\":" << degradedLevels
+        << "},\"games\":[";
+    bool first = true;
+    for (const GameReport& report : reports) {
         if (!options.includePassingGames && report.passing) {
             continue;
         }
@@ -284,6 +350,41 @@ std::string buildReportForSources(
     }
     out << "]}";
     return out.str();
+}
+
+std::vector<SourceInput> loadSourcesFromNdjsonText(
+    const std::string& label,
+    const std::string& ndjsonText) {
+    std::vector<SourceInput> sources;
+    std::istringstream input(ndjsonText);
+    std::string line;
+    size_t lineNumber = 0;
+    while (std::getline(input, line)) {
+        ++lineNumber;
+        if (isWhitespaceOnly(line)) {
+            continue;
+        }
+        const std::string context = linePrefix(label, lineNumber);
+        puzzlescript::json::Value value;
+        try {
+            value = puzzlescript::json::parse(line);
+        } catch (const std::exception& e) {
+            throw std::runtime_error(context + "invalid JSON: " + e.what());
+        }
+        if (!value.isObject()) {
+            throw std::runtime_error(context + "record must be a JSON object");
+        }
+        const puzzlescript::json::Value::Object& object = value.asObject();
+        sources.push_back(SourceInput{
+            requiredStringField(object, "name", context),
+            requiredStringField(object, "source", context),
+        });
+    }
+    return sources;
+}
+
+std::vector<SourceInput> loadSourcesFromNdjsonFile(const std::filesystem::path& path) {
+    return loadSourcesFromNdjsonText(path.string(), readTextFile(path));
 }
 
 } // namespace puzzlescript::handheld

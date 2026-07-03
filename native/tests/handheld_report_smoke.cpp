@@ -1,6 +1,7 @@
 #undef NDEBUG
 #include <cassert>
 #include <cstdint>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -12,6 +13,7 @@ using puzzlescript::handheld::DisplaySpec;
 using puzzlescript::handheld::ReportOptions;
 using puzzlescript::handheld::SourceInput;
 using puzzlescript::handheld::buildReportForSources;
+using puzzlescript::handheld::loadSourcesFromNdjsonText;
 using puzzlescript::json::Value;
 
 namespace {
@@ -54,6 +56,32 @@ bool requireBool(const Value::Object& object, const char* key) {
     const Value& value = requireField(object, key);
     require(value.isBool(), "JSON field should be a boolean");
     return value.asBool();
+}
+
+std::string jsonString(const std::string& value) {
+    std::ostringstream out;
+    out << '"';
+    for (const unsigned char ch : value) {
+        switch (ch) {
+            case '"': out << "\\\""; break;
+            case '\\': out << "\\\\"; break;
+            case '\b': out << "\\b"; break;
+            case '\f': out << "\\f"; break;
+            case '\n': out << "\\n"; break;
+            case '\r': out << "\\r"; break;
+            case '\t': out << "\\t"; break;
+            default:
+                if (ch < 0x20) {
+                    static constexpr char digits[] = "0123456789abcdef";
+                    out << "\\u00" << digits[ch >> 4] << digits[ch & 0x0f];
+                } else {
+                    out << static_cast<char>(ch);
+                }
+                break;
+        }
+    }
+    out << '"';
+    return out.str();
 }
 
 const Value::Object& firstGameObject(const Value& root) {
@@ -293,6 +321,33 @@ void reportsBrokenSourceDiagnostics() {
     require(foundErrorDiagnostic, "broken source should include an error diagnostic with a message");
 }
 
+void reportsCorpusSummary() {
+    const std::string ndjson =
+        "{ \"index\":0, \"name\":\"simple\", \"source\":" + jsonString(simpleSource()) + " }\n"
+        "{ \"index\":1, \"name\":\"broken\", \"source\":" + jsonString(brokenSource()) + " }\n";
+    const std::vector<SourceInput> sources = loadSourcesFromNdjsonText("inline.ndjson", ndjson);
+
+    require(sources.size() == 2, "corpus should load two sources");
+    require(sources[0].name == "simple", "first corpus source name");
+    require(sources[0].source == simpleSource(), "first corpus source text");
+    require(sources[1].name == "broken", "second corpus source name");
+    require(sources[1].source == brokenSource(), "second corpus source text");
+
+    const std::string report = buildReportForSources(
+        sources,
+        ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& rootObject = requireObject(root, "report root should be an object");
+    const Value::Object& summary = requireObject(requireField(rootObject, "summary"), "summary should be an object");
+    const Value::Array& games = requireArray(requireField(rootObject, "games"), "games should be an array");
+
+    require(requireInteger(summary, "game_count") == 2, "corpus summary game count");
+    require(requireInteger(summary, "compiled_games") == 1, "corpus summary compiled games");
+    require(requireInteger(summary, "compile_failures") == 1, "corpus summary compile failures");
+    require(requireInteger(summary, "degraded_levels") == 0, "corpus summary degraded levels");
+    require(games.size() == 2, "corpus report should include both games by default");
+}
+
 } // namespace
 
 int main() {
@@ -300,5 +355,6 @@ int main() {
     reportsFlickscreenMetadataAndViewport();
     reportsFlickscreenEdgePageBounds();
     reportsBrokenSourceDiagnostics();
+    reportsCorpusSummary();
     return 0;
 }

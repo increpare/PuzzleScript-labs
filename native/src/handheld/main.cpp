@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@ namespace {
 void printUsage(std::ostream& out) {
     out << "Usage:\n"
         << "  puzzlescript_handheld_report [--display WIDTHxHEIGHT] --source GAME.txt [--source GAME2.txt]\n"
+        << "  puzzlescript_handheld_report [--display WIDTHxHEIGHT] --corpus-ndjson bundle.ndjson\n"
         << "  puzzlescript_handheld_report [--display WIDTHxHEIGHT] GAME.txt [GAME2.txt]\n";
 }
 
@@ -24,6 +26,7 @@ int main(int argc, char** argv) {
     try {
         puzzlescript::handheld::ReportOptions options;
         std::vector<std::filesystem::path> paths;
+        std::vector<std::filesystem::path> corpusBundles;
 
         for (int index = 1; index < argc; ++index) {
             const std::string arg = argv[index] == nullptr ? "" : argv[index];
@@ -50,13 +53,20 @@ int main(int argc, char** argv) {
                 paths.emplace_back(argv[++index]);
                 continue;
             }
+            if (arg == "--corpus-ndjson") {
+                if (index + 1 >= argc) {
+                    throw std::runtime_error("--corpus-ndjson requires a file path");
+                }
+                corpusBundles.emplace_back(argv[++index]);
+                continue;
+            }
             if (!arg.empty() && arg[0] == '-') {
                 throw std::runtime_error("unknown option: " + arg);
             }
             paths.emplace_back(arg);
         }
 
-        if (paths.empty()) {
+        if (paths.empty() && corpusBundles.empty()) {
             printUsage(std::cerr);
             return 2;
         }
@@ -68,6 +78,14 @@ int main(int argc, char** argv) {
                 path.string(),
                 puzzlescript::handheld::readTextFile(path),
             });
+        }
+        for (const std::filesystem::path& path : corpusBundles) {
+            std::vector<puzzlescript::handheld::SourceInput> bundleSources =
+                puzzlescript::handheld::loadSourcesFromNdjsonFile(path);
+            sources.insert(
+                sources.end(),
+                std::make_move_iterator(bundleSources.begin()),
+                std::make_move_iterator(bundleSources.end()));
         }
 
         std::cout << puzzlescript::handheld::buildReportForSources(sources, options) << '\n';

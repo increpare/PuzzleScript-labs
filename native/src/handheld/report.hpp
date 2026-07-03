@@ -26,5 +26,9 @@ std::string buildReportForSourceText(
 std::string buildReportForSources(
     const std::vector<SourceInput>& sources,
     const ReportOptions& options);
+std::vector<SourceInput> loadSourcesFromNdjsonText(
+    const std::string& label,
+    const std::string& ndjsonText);
+std::vector<SourceInput> loadSourcesFromNdjsonFile(const std::filesystem::path& path);
 
 } // namespace puzzlescript::handheld
