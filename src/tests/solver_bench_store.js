@@ -92,8 +92,29 @@ function inferConfig(runJson, metadata) {
     };
 }
 
+function dominantStatus(statusCounts) {
+    const entries = Object.entries(statusCounts || {});
+    if (entries.length === 0) {
+        return 'unknown';
+    }
+    return entries.sort((left, right) => Number(right[1]) - Number(left[1]) || left[0].localeCompare(right[0]))[0][0];
+}
+
+function targetRows(runJson) {
+    if (!Array.isArray(runJson && runJson.targets)) {
+        return [];
+    }
+    return runJson.targets.map((target) => Object.assign({
+        game: target.game || '',
+        level: target.level,
+        status: dominantStatus(target.status_counts),
+        timeout_ms: target.timeout_ms,
+    }, target.median || {}));
+}
+
 function normalizeResults(runJson) {
-    return (Array.isArray(runJson && runJson.results) ? runJson.results : []).map((row) => {
+    const rows = Array.isArray(runJson && runJson.results) ? runJson.results : targetRows(runJson);
+    return rows.map((row) => {
         const out = {
             game: row.game || '',
             level: row.level,

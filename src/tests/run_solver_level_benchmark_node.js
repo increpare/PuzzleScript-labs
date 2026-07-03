@@ -63,6 +63,7 @@ fs.writeFileSync(manifestPath, `${JSON.stringify({
 }, null, 2)}\n`);
 
 const outPath = path.join(tmpDir, 'benchmark.json');
+const benchStorePath = path.join(tmpDir, 'bench-store.jsonl');
 const result = spawnSync(process.execPath, [
     path.join(rootDir, 'src/tests/run_solver_level_benchmark.js'),
     fakeSolverPath,
@@ -74,6 +75,14 @@ const result = spawnSync(process.execPath, [
     outPath,
     '--strategy',
     'portfolio',
+    '--bench-store',
+    benchStorePath,
+    '--bench-slice',
+    'smoke-50',
+    '--bench-variant',
+    'baseline',
+    '--bench-pair-id',
+    'pair-1',
 ], {
     cwd: rootDir,
     encoding: 'utf8',
@@ -90,5 +99,19 @@ assert.strictEqual(row.samples[0].portfolio_has_action_input, false);
 assert.strictEqual(row.median.portfolio_profile, 'balanced');
 assert.strictEqual(row.median.portfolio_rule_count, 4);
 assert.strictEqual(row.median.portfolio_has_again, true);
+
+const benchStoreRecords = fs.readFileSync(benchStorePath, 'utf8')
+    .trim()
+    .split(/\n/)
+    .map((line) => JSON.parse(line));
+assert.strictEqual(benchStoreRecords.length, 1);
+assert.strictEqual(benchStoreRecords[0].benchmark_slice, 'smoke-50');
+assert.strictEqual(benchStoreRecords[0].variant, 'baseline');
+assert.strictEqual(benchStoreRecords[0].pair_id, 'pair-1');
+assert.strictEqual(benchStoreRecords[0].totals.levels, 1);
+assert.strictEqual(benchStoreRecords[0].results[0].game, 'meta.txt');
+assert.strictEqual(benchStoreRecords[0].results[0].level, 0);
+assert.strictEqual(benchStoreRecords[0].results[0].status, 'timeout');
+assert.ok(benchStoreRecords[0].artifacts.includes(path.resolve(outPath)));
 
 console.log('run_solver_level_benchmark_node passed');

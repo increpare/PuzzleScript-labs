@@ -5,9 +5,13 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const {
+    appendRunRecord,
+    createRunRecord,
+} = require('./solver_bench_store');
 
 function usage() {
-    console.error('Usage: node src/tests/run_solver_level_benchmark.js <puzzlescript_solver> <solver_tests_dir> <manifest> [--runs N] [--out PATH] [--timeout-ms N] [--strategy NAME] [--jobs auto|N] [--game NAME] [--level N] [--profile-runtime-counters] [--solver-arg ARG ...]');
+    console.error('Usage: node src/tests/run_solver_level_benchmark.js <puzzlescript_solver> <solver_tests_dir> <manifest> [--runs N] [--out PATH] [--timeout-ms N] [--strategy NAME] [--jobs auto|N] [--game NAME] [--level N] [--profile-runtime-counters] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID]] [--solver-arg ARG ...]');
     process.exit(1);
 }
 
@@ -27,6 +31,10 @@ let gameFilter = null;
 let levelFilter = null;
 let profileRuntimeCounters = false;
 let jobs = 1;
+let benchStorePath = null;
+let benchSlice = null;
+let benchVariant = null;
+let benchPairId = null;
 const solverExtraArgs = [];
 
 function parsePositiveInt(value, label) {
@@ -68,11 +76,23 @@ for (let index = 3; index < args.length; index++) {
         levelFilter = parseNonNegativeInt(args[++index], '--level');
     } else if (arg === '--profile-runtime-counters') {
         profileRuntimeCounters = true;
+    } else if (arg === '--bench-store' && index + 1 < args.length) {
+        benchStorePath = path.resolve(args[++index]);
+    } else if (arg === '--bench-slice' && index + 1 < args.length) {
+        benchSlice = args[++index];
+    } else if (arg === '--bench-variant' && index + 1 < args.length) {
+        benchVariant = args[++index];
+    } else if (arg === '--bench-pair-id' && index + 1 < args.length) {
+        benchPairId = args[++index];
     } else if (arg === '--solver-arg' && index + 1 < args.length) {
         solverExtraArgs.push(args[++index]);
     } else {
         throw new Error(`Unsupported argument: ${arg}`);
     }
+}
+
+if (benchStorePath !== null && (!benchSlice || !benchVariant)) {
+    throw new Error('--bench-store requires --bench-slice and --bench-variant');
 }
 
 function median(values) {
@@ -426,6 +446,30 @@ async function main() {
 
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     fs.writeFileSync(outPath, `${JSON.stringify(output, null, 2)}\n`);
+    if (benchStorePath !== null) {
+        const record = createRunRecord(output, {
+            benchmark_slice: benchSlice,
+            variant: benchVariant,
+            pair_id: benchPairId,
+            source_path: outPath,
+            artifacts: [outPath, manifestPath],
+            config: {
+                runner: 'run_solver_level_benchmark',
+                solver: solverPath,
+                corpus: corpusPath,
+                manifest: manifestPath,
+                strategy,
+                jobs,
+                runs_per_target: runs,
+                timeout_override_ms: timeoutOverrideMs,
+                profile_runtime_counters: profileRuntimeCounters,
+                solver_extra_args: solverExtraArgs,
+                filters: output.filters,
+            },
+        });
+        appendRunRecord(benchStorePath, record);
+        process.stdout.write(`solver_target_benchmark appended_bench_store ${benchStorePath} slice=${benchSlice} variant=${benchVariant}\n`);
+    }
     process.stdout.write(
         `solver_target_benchmark summary targets=${summaries.length}` +
         ` runs=${runs}` +
