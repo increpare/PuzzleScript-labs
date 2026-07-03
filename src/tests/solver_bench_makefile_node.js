@@ -14,6 +14,7 @@ for (const target of [
     'js_solver_bench_pair_slice',
     'solver_bench_summary',
     'solver_bench_freshness',
+    'solver_bench_retention_plan',
 ]) {
     assert.ok(new RegExp(`^${target}:`, 'm').test(makefile), `missing Makefile target ${target}`);
 }
@@ -21,6 +22,7 @@ for (const target of [
 assert.ok(/^SOLVER_BENCH_STORE \?= /m.test(makefile), 'missing SOLVER_BENCH_STORE default');
 assert.ok(/^SOLVER_BENCH_SLICE \?= smoke-50$/m.test(makefile), 'missing SOLVER_BENCH_SLICE default');
 assert.ok(/^SOLVER_BENCH_PAIR_RUNS \?= 3$/m.test(makefile), 'missing SOLVER_BENCH_PAIR_RUNS default');
+assert.ok(/^SOLVER_BENCH_RETENTION_DAYS \?= 30$/m.test(makefile), 'missing SOLVER_BENCH_RETENTION_DAYS default');
 assert.ok(makefile.includes('--runs $(SOLVER_BENCH_PAIR_RUNS)'), 'pair smoke target should use paired-run count');
 assert.ok(makefile.includes('generate_solver_benchmark_slice_manifest.js'), 'slice target should call slice materializer');
 assert.ok(makefile.includes('run_js_solver_bench_pair.js'), 'pair target should call JS paired runner');
@@ -29,5 +31,7 @@ assert.ok(makefile.includes('$(SOLVER_BENCH_CORPUS)'), 'slice pair target should
 assert.ok(makefile.includes('--slice-manifest "$(SOLVER_BENCH_SLICE_MANIFEST)"'), 'slice pair target should pass the generated manifest');
 assert.ok(makefile.includes('solver_bench_store_cli.js summary'), 'summary target should call bench-store summary');
 assert.ok(makefile.includes('solver_bench_store_cli.js freshness'), 'freshness target should call bench-store freshness');
+assert.ok(makefile.includes('solver_bench_store_cli.js retention-plan'), 'retention target should call bench-store retention planner');
+assert.ok(makefile.includes('--max-age-days $(SOLVER_BENCH_RETENTION_DAYS)'), 'retention target should use retention-days default');
 
 console.log('solver_bench_makefile_node passed');
