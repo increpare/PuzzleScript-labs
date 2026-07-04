@@ -11,6 +11,24 @@ const INERT_COMMANDS = new Set(['message', 'sfx0', 'sfx1', 'sfx2', 'sfx3', 'sfx4
 const SEMANTIC_COMMANDS = new Set(['cancel', 'again', 'restart', 'win', 'checkpoint']);
 const DIRECTIONAL_MOVEMENTS = new Set(['up', 'down', 'left', 'right', 'moving', 'randomdir']);
 const CARDINAL_MOVEMENTS = ['up', 'down', 'left', 'right'];
+const MOVEMENT_BIT_MASKS = {
+    up: 0x01,
+    down: 0x02,
+    left: 0x04,
+    right: 0x08,
+    action: 0x10,
+};
+const MOVEMENT_AGGREGATE_BIT_MASKS = {
+    horizontal: MOVEMENT_BIT_MASKS.left | MOVEMENT_BIT_MASKS.right,
+    horizontal_par: MOVEMENT_BIT_MASKS.left | MOVEMENT_BIT_MASKS.right,
+    horizontal_perp: MOVEMENT_BIT_MASKS.left | MOVEMENT_BIT_MASKS.right,
+    vertical: MOVEMENT_BIT_MASKS.up | MOVEMENT_BIT_MASKS.down,
+    vertical_par: MOVEMENT_BIT_MASKS.up | MOVEMENT_BIT_MASKS.down,
+    vertical_perp: MOVEMENT_BIT_MASKS.up | MOVEMENT_BIT_MASKS.down,
+    moving: MOVEMENT_BIT_MASKS.up | MOVEMENT_BIT_MASKS.down | MOVEMENT_BIT_MASKS.left | MOVEMENT_BIT_MASKS.right | MOVEMENT_BIT_MASKS.action,
+    orthogonal: MOVEMENT_BIT_MASKS.up | MOVEMENT_BIT_MASKS.down | MOVEMENT_BIT_MASKS.left | MOVEMENT_BIT_MASKS.right,
+    randomdir: MOVEMENT_BIT_MASKS.up | MOVEMENT_BIT_MASKS.down | MOVEMENT_BIT_MASKS.left | MOVEMENT_BIT_MASKS.right,
+};
 const STATIC_INVALIDATING_MOVEMENT_AGGREGATES = new Set([
     'horizontal',
     'vertical',
@@ -542,6 +560,7 @@ function emptyFacts() {
         movement_action: [],
         count_layer_invariants: [],
         transient_boundary: [],
+        certified_wake_masks: [],
         rulegroup_flow: [],
         program_flow: [],
         winflow: [],
@@ -2366,6 +2385,183 @@ function tagRuleObjectTags(psTagged) {
     }
 }
 
+function objectMaskWordCount(psTagged) {
+    return Math.ceil(((psTagged.objects || []).length || 1) / 32) | 0;
+}
+
+function movementMaskWordCount(psTagged) {
+    return Math.ceil(((psTagged.collision_layers || []).length || 1) / 5) | 0;
+}
+
+function emptyWordMask(wordCount) {
+    return Array(wordCount).fill(0);
+}
+
+function setWordMaskBit(words, bitIndex) {
+    const wordIndex = bitIndex >> 5;
+    const innerIndex = bitIndex & 31;
+    if (wordIndex >= 0 && wordIndex < words.length) {
+        words[wordIndex] = (words[wordIndex] | (1 << innerIndex)) | 0;
+    }
+}
+
+function objectByName(psTagged, objectName) {
+    return (psTagged.objects || []).find(object => object.name === objectName) || null;
+}
+
+function objectMaskForNames(psTagged, objectNames) {
+    const words = emptyWordMask(objectMaskWordCount(psTagged));
+    for (const objectName of objectNames || []) {
+        const object = objectByName(psTagged, objectName);
+        if (object && Number.isInteger(object.id)) {
+            setWordMaskBit(words, object.id);
+        }
+    }
+    return words;
+}
+
+function movementBitsForName(movementName) {
+    if (Object.prototype.hasOwnProperty.call(MOVEMENT_BIT_MASKS, movementName)) {
+        return MOVEMENT_BIT_MASKS[movementName];
+    }
+    if (Object.prototype.hasOwnProperty.call(MOVEMENT_AGGREGATE_BIT_MASKS, movementName)) {
+        return MOVEMENT_AGGREGATE_BIT_MASKS[movementName];
+    }
+    if (movementName === 'stationary') {
+        return 0x1f;
+    }
+    return 0x1f;
+}
+
+function orMovementLayerBits(words, layerIndex, bitMask) {
+    for (let bit = 0; bit < 5; bit++) {
+        if ((bitMask & (1 << bit)) !== 0) {
+            setWordMaskBit(words, 5 * layerIndex + bit);
+        }
+    }
+}
+
+function movementMaskForEntries(psTagged, entries) {
+    const words = emptyWordMask(movementMaskWordCount(psTagged));
+    for (const entry of entries || []) {
+        const objectName = typeof entry === 'string' ? movementKeyObjectName(entry) : entry.object;
+        const movementName = typeof entry === 'string' ? movementKeyMovementName(entry) : entry.movement;
+        const layer = layerForObject(psTagged, objectName);
+        if (layer !== null) {
+            orMovementLayerBits(words, layer, movementBitsForName(movementName));
+        }
+    }
+    return words;
+}
+
+function movementMaskForObjectLayers(psTagged, objectNames) {
+    const words = emptyWordMask(movementMaskWordCount(psTagged));
+    for (const objectName of objectNames || []) {
+        const layer = layerForObject(psTagged, objectName);
+        if (layer !== null) {
+            orMovementLayerBits(words, layer, 0x1f);
+        }
+    }
+    return words;
+}
+
+function orWordMasks(left, right) {
+    const result = left.slice();
+    for (let index = 0; index < right.length; index++) {
+        result[index] = ((result[index] || 0) | right[index]) | 0;
+    }
+    return result;
+}
+
+function movementEntryKey(entry) {
+    return `${entry.object}:${entry.movement}`;
+}
+
+function splitReadMovements(reads) {
+    const present = [];
+    const absent = [];
+    for (const movement of reads.movement || []) {
+        if (movement.movement === 'stationary') {
+            absent.push(movement);
+        } else {
+            present.push(movement);
+        }
+    }
+    return { present, absent };
+}
+
+function certifiedWakeMaskForRule(psTagged, rule) {
+    const reads = ruleFlowReads(rule);
+    const writes = ruleFlowWrites(psTagged, rule);
+    const readMovements = splitReadMovements(reads);
+    const movementWrites = Array.from(ruleMovementWriteTags(psTagged, rule));
+    const movementSet = movementWrites
+        .filter(key => movementKeyMovementName(key) !== 'stationary');
+    const movementClear = uniqueSorted(Array.from(ruleMovementRemoveTags(rule)).concat(
+        movementWrites.filter(key => movementKeyMovementName(key) === 'stationary')
+    ));
+    const objectSet = uniqueSorted(writes.object_present);
+    const objectClear = uniqueSorted(writes.object_absent);
+    const movementWake = uniqueSorted((writes.movement || []).map(movementEntryKey));
+    const movementSetMask = movementMaskForEntries(psTagged, movementSet);
+    const movementClearMask = orWordMasks(
+        movementMaskForEntries(psTagged, movementClear),
+        movementMaskForObjectLayers(psTagged, objectSet.concat(objectClear))
+    );
+    const movementWakeMask = orWordMasks(
+        movementMaskForEntries(psTagged, movementWake),
+        movementClearMask
+    );
+
+    return {
+        bitvec_format: {
+            object_words: objectMaskWordCount(psTagged),
+            movement_words: movementMaskWordCount(psTagged),
+            movement_bits_per_layer: 5,
+            movement_bit_names: ['up', 'down', 'left', 'right', 'action'],
+        },
+        reads: {
+            object_present: uniqueSorted(reads.object_present),
+            object_absent: uniqueSorted(reads.object_absent),
+            movement: uniqueSorted((reads.movement || []).map(movementEntryKey)),
+            movement_present: uniqueSorted(readMovements.present.map(movementEntryKey)),
+            movement_absent: uniqueSorted(readMovements.absent.map(movementEntryKey)),
+        },
+        writes: {
+            object_set: objectSet,
+            object_clear: objectClear,
+            movement_wake: movementWake,
+            movement_set: uniqueSorted(movementSet),
+            movement_clear: movementClear,
+        },
+        masks: {
+            read_objects_present: objectMaskForNames(psTagged, reads.object_present),
+            read_objects_absent: objectMaskForNames(psTagged, reads.object_absent),
+            read_movements_present: movementMaskForEntries(psTagged, readMovements.present),
+            read_movements_absent: movementMaskForEntries(psTagged, readMovements.absent),
+            read_movements_wake: movementMaskForEntries(psTagged, reads.movement || []),
+            write_objects_set: objectMaskForNames(psTagged, objectSet),
+            write_objects_clear: objectMaskForNames(psTagged, objectClear),
+            write_movements_wake: movementWakeMask,
+            write_movements_set: movementSetMask,
+            write_movements_clear: movementClearMask,
+        },
+    };
+}
+
+function deriveCertifiedWakeMaskFacts(psTagged) {
+    const results = [];
+    for (const { rule } of allRuleEntries(psTagged)) {
+        results.push(fact('certified_wake_masks', `${rule.id}_wake_masks`, 'proved', {
+            subjects: { rules: [rule.id] },
+            value: certifiedWakeMaskForRule(psTagged, rule),
+            proof: ['rule_flow_reads_writes_with_polarity', 'engine_bitvec_masks_serialized'],
+            evidence: [rule.id],
+        }));
+    }
+    return results;
+}
+
 function movementWriteMayEnableRead(write, read) {
     if (write.object !== read.object) return false;
     if (write.movement === read.movement) return true;
@@ -2547,6 +2743,7 @@ function factDerivers() {
         movement_action: deriveMovementActionFacts,
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
+        certified_wake_masks: deriveCertifiedWakeMaskFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,
         program_flow: deriveProgramFlowFacts,
         winflow: deriveWinflowFacts,

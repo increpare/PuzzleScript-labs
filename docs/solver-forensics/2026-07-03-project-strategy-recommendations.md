@@ -119,6 +119,15 @@ Consequence of X5 specifically: **S1 is no longer one option among several —
 it is the only viable route to the pruning class of wins** (P2/N3/T2 all
 depend on it now).
 
+Implementation status (2026-07-04): S1 has started in the JS analyzer. The
+new `certified_wake_masks` fact family serializes per-rule read/write
+certificates with object-read polarity, movement-present vs stationary
+movement-absence reads, object set/clear writes, movement set/clear writes,
+and engine-shaped Int32 word masks using the runtime movement bit layout.
+Fixture coverage lives in `src/tests/static_analysis_testdata/certified_wake_masks/`.
+Runtime consumers are still intentionally gated until replay/fuzz contracts
+assert the certificate along traces.
+
 ## 3. Recommendation: aim the solver metrics at the generator
 
 The repo's trajectory (generator, remixer, block scheduler, difficulty
@@ -236,7 +245,7 @@ Item status after the X-round:
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
 | N1/N2 moving-tiles bitboard + static anchor masks | live, top priority | NX1/NX2 probes first |
 | N4-N7, N9 | gated on NX1 counters | |
-| S1/S2 certified masks + schedules | live, promoted | now the only route to pruning wins |
+| S1/S2 certified masks + schedules | S1 artifact started; S2 live | `certified_wake_masks` fact family landed for JS; runtime consumption still gated on contracts |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
 | T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |

@@ -298,6 +298,161 @@ function checkRuleFixture(txtPath, jsonPath, claimDescriptions) {
     }
 }
 
+const CERTIFIED_WAKE_MASK_LIST_FIELDS = [
+    'object_present',
+    'object_absent',
+    'movement',
+    'movement_present',
+    'movement_absent',
+    'object_set',
+    'object_clear',
+    'movement_wake',
+    'movement_set',
+    'movement_clear',
+];
+
+const CERTIFIED_WAKE_MASK_WORD_FIELDS = [
+    'read_objects_present',
+    'read_objects_absent',
+    'read_movements_present',
+    'read_movements_absent',
+    'read_movements_wake',
+    'write_objects_set',
+    'write_objects_clear',
+    'write_movements_wake',
+    'write_movements_set',
+    'write_movements_clear',
+];
+
+function certifiedWakeMaskFacts(report) {
+    return (report.facts && report.facts.certified_wake_masks) || [];
+}
+
+function buildCertifiedWakeMaskExpectations(source, report) {
+    const records = allRuleRecords(report, source);
+    assertRuleRecordsIdempotent(report.source.path, records);
+    const factsByRuleId = new Map(certifiedWakeMaskFacts(report).map(fact => [
+        fact.subjects && fact.subjects.rules && fact.subjects.rules[0],
+        fact,
+    ]));
+    return {
+        schema: FIXTURE_SCHEMA,
+        human_verified: false,
+        wakeMasks: records.map(record => {
+            const fact = factsByRuleId.get(record.rule.id);
+            assert.ok(fact, `${report.source.path}: missing certified_wake_masks fact for ${record.rule.id}`);
+            const value = fact.value || {};
+            return {
+                line: record.line,
+                text: record.text,
+                bitvec_format: value.bitvec_format,
+                reads: value.reads,
+                writes: value.writes,
+                masks: value.masks,
+            };
+        }),
+    };
+}
+
+function assertIntegerArray(filePath, label, value) {
+    assert.ok(Array.isArray(value), `${filePath}: ${label} must be an integer array`);
+    for (const [index, item] of value.entries()) {
+        assert.ok(Number.isInteger(item), `${filePath}: ${label}[${index}] must be an integer`);
+    }
+}
+
+function validateCertifiedWakeMaskExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(Array.isArray(payload.wakeMasks), `${filePath}: wakeMasks must be an array`);
+    for (const [index, item] of payload.wakeMasks.entries()) {
+        assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: wakeMasks[${index}] must be an object`);
+        assert.ok(Number.isInteger(item.line) && item.line > 0, `${filePath}: wakeMasks[${index}] missing positive integer line`);
+        assert.ok(typeof item.text === 'string' && item.text.length > 0, `${filePath}: wakeMasks[${index}] missing text`);
+        if (item.bitvec_format !== undefined) {
+            assert.ok(item.bitvec_format && typeof item.bitvec_format === 'object' && !Array.isArray(item.bitvec_format), `${filePath}: wakeMasks[${index}].bitvec_format must be an object`);
+            assert.ok(Number.isInteger(item.bitvec_format.object_words) && item.bitvec_format.object_words > 0, `${filePath}: wakeMasks[${index}].bitvec_format.object_words must be positive`);
+            assert.ok(Number.isInteger(item.bitvec_format.movement_words) && item.bitvec_format.movement_words > 0, `${filePath}: wakeMasks[${index}].bitvec_format.movement_words must be positive`);
+            assert.ok(Number.isInteger(item.bitvec_format.movement_bits_per_layer) && item.bitvec_format.movement_bits_per_layer === 5, `${filePath}: wakeMasks[${index}].bitvec_format.movement_bits_per_layer must be 5`);
+            assertStringArray(filePath, `wakeMasks[${index}].bitvec_format.movement_bit_names`, item.bitvec_format.movement_bit_names);
+        }
+        for (const sectionName of ['reads', 'writes']) {
+            if (item[sectionName] === undefined) continue;
+            assert.ok(item[sectionName] && typeof item[sectionName] === 'object' && !Array.isArray(item[sectionName]), `${filePath}: wakeMasks[${index}].${sectionName} must be an object`);
+            for (const fieldName of Object.keys(item[sectionName])) {
+                assert.ok(CERTIFIED_WAKE_MASK_LIST_FIELDS.includes(fieldName), `${filePath}: wakeMasks[${index}].${sectionName}.${fieldName} is not a certified wake mask list field`);
+                assertStringArray(filePath, `wakeMasks[${index}].${sectionName}.${fieldName}`, item[sectionName][fieldName]);
+            }
+        }
+        if (item.masks !== undefined) {
+            assert.ok(item.masks && typeof item.masks === 'object' && !Array.isArray(item.masks), `${filePath}: wakeMasks[${index}].masks must be an object`);
+            for (const fieldName of Object.keys(item.masks)) {
+                assert.ok(CERTIFIED_WAKE_MASK_WORD_FIELDS.includes(fieldName), `${filePath}: wakeMasks[${index}].masks.${fieldName} is not a certified wake mask word field`);
+                assertIntegerArray(filePath, `wakeMasks[${index}].masks.${fieldName}`, item.masks[fieldName]);
+            }
+        }
+    }
+}
+
+function checkOptionalSection(filePath, label, expected, actual, fieldNames, compareArrays) {
+    if (expected === undefined) return;
+    assert.ok(actual && typeof actual === 'object' && !Array.isArray(actual), `${filePath}: actual ${label} missing`);
+    for (const fieldName of Object.keys(expected)) {
+        assert.ok(fieldNames.includes(fieldName), `${filePath}: unsupported ${label}.${fieldName}`);
+        compareArrays(filePath, `${label}.${fieldName}`, expected[fieldName], actual[fieldName] || []);
+    }
+}
+
+function checkCertifiedWakeMaskFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'certified_wake_masks'), payload);
+    validateCertifiedWakeMaskExpectationShape(jsonPath, payload);
+    const actual = buildCertifiedWakeMaskExpectations(source, report);
+    const actualByKey = new Map(actual.wakeMasks.map(row => [`${row.line}\0${row.text}`, row]));
+    for (const expected of payload.wakeMasks) {
+        const actualRow = actualByKey.get(`${expected.line}\0${expected.text}`);
+        if (!actualRow) {
+            const available = Array.from(actualByKey.keys()).map(key => key.replace('\0', ' ')).join(', ');
+            assert.fail(`${jsonPath}: wakeMasks row line ${expected.line} ${expected.text} not found; available: ${available}`);
+        }
+        if (expected.bitvec_format !== undefined) {
+            assert.deepStrictEqual(actualRow.bitvec_format, expected.bitvec_format, `${jsonPath}: line ${expected.line} bitvec_format mismatch`);
+        }
+        checkOptionalSection(jsonPath, `line ${expected.line} reads`, expected.reads, actualRow.reads, CERTIFIED_WAKE_MASK_LIST_FIELDS, assertSameStringSet);
+        checkOptionalSection(jsonPath, `line ${expected.line} writes`, expected.writes, actualRow.writes, CERTIFIED_WAKE_MASK_LIST_FIELDS, assertSameStringSet);
+        checkOptionalSection(jsonPath, `line ${expected.line} masks`, expected.masks, actualRow.masks, CERTIFIED_WAKE_MASK_WORD_FIELDS, (filePath, label, left, right) => {
+            assert.deepStrictEqual(right, left, `${filePath}: ${label} mismatch`);
+        });
+    }
+}
+
+function runCertifiedWakeMasksDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildCertifiedWakeMaskExpectations(source, report));
+            log(`generated static analysis testdata: certified_wake_masks/${stem}.json (review before committing)\n`);
+        }
+        checkCertifiedWakeMaskFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 const REASON_VALUES = ['object_presence', 'object_absence', 'movement'];
 
 function programFlowFactValue(report) {
@@ -1114,6 +1269,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const ruleTagsDir = path.join(root, 'rule_tags');
     assert.ok(fs.existsSync(ruleTagsDir), `${ruleTagsDir}: missing rule_tags testdata directory`);
     runRuleTagsDir(ruleTagsDir, claimDescriptions, options.log);
+    const certifiedWakeMasksDir = path.join(root, 'certified_wake_masks');
+    assert.ok(fs.existsSync(certifiedWakeMasksDir), `${certifiedWakeMasksDir}: missing certified_wake_masks testdata directory`);
+    runCertifiedWakeMasksDir(certifiedWakeMasksDir, claimDescriptions, options.log);
     const programFlowDir = path.join(root, 'program_flow');
     assert.ok(fs.existsSync(programFlowDir), `${programFlowDir}: missing program_flow testdata directory`);
     runProgramFlowDir(programFlowDir, claimDescriptions, options.log);
@@ -1144,6 +1302,7 @@ if (require.main === module) {
 
 module.exports = {
     assertFixtureFieldsDocumented,
+    buildCertifiedWakeMaskExpectations,
     buildMergeabilityExpectations,
     buildMovementActionExpectations,
     buildObjectTagExpectations,
@@ -1162,6 +1321,7 @@ module.exports = {
     findWinConditionRecord,
     formatFixtureJson,
     loadClaimDescriptions,
+    runCertifiedWakeMasksDir,
     runMergeabilityDir,
     runMovementActionDir,
     runObjectTagsDir,

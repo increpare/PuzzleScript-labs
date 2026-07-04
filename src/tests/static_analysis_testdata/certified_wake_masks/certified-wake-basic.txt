@@ -1,0 +1,64 @@
+title Certified Wake Masks Basic
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Crate
+orange
+
+Marker
+green
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+# = Wall
+C = Crate
+M = Marker
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall, Crate
+Marker
+
+=====
+RULES
+=====
+
+[ player ] -> [ up player ]
+down [ no wall | up player ] -> [ crate | player ]
+[ stationary crate ] -> [ crate stationary marker ]
+[ marker ] -> [ no marker ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#M
+.C.

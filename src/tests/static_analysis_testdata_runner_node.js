@@ -8,6 +8,7 @@ const path = require('path');
 
 const {
     assertFixtureFieldsDocumented,
+    buildCertifiedWakeMaskExpectations,
     buildMovementActionExpectations,
     buildRuntimeContractExpectations,
     fixtureFieldsAtPath,
@@ -17,6 +18,7 @@ const {
     loadClaimDescriptions,
     runObjectTagsDir,
     runRuntimeContractsDir,
+    runCertifiedWakeMasksDir,
     runRuleTagsDir,
 } = require('./static_analysis_testdata_runner');
 const { analyzeSource } = require('./ps_static_analysis');
@@ -477,6 +479,49 @@ P#
         runRuleTagsDir(ruleTagsDir, claimDescriptions, message => rerunRuleLog.push(message));
         assert.deepStrictEqual(rerunRuleLog, []);
         assert.strictEqual(fs.readFileSync(ruleJsonPath, 'utf8'), curatedRuleText);
+
+        const certifiedWakeMasksDir = path.join(tmpRoot, 'certified_wake_masks');
+        fs.mkdirSync(certifiedWakeMasksDir, { recursive: true });
+        fs.writeFileSync(path.join(certifiedWakeMasksDir, 'tmp-wake.txt'), ruleTagSource, 'utf8');
+        const wakeReport = analyzeSource(ruleTagSource, { sourcePath: 'tmp-wake.txt' });
+        const wakePayload = buildCertifiedWakeMaskExpectations(ruleTagSource, wakeReport);
+        assert.strictEqual(wakePayload.schema, FIXTURE_SCHEMA);
+        assert.strictEqual(wakePayload.wakeMasks.length, 1);
+        assert.deepStrictEqual(wakePayload.wakeMasks[0].reads.object_present, ['Wall']);
+        assert.deepStrictEqual(wakePayload.wakeMasks[0].writes.object_clear, ['Wall']);
+        assert.deepStrictEqual(wakePayload.wakeMasks[0].masks.read_objects_present, [4]);
+        assert.deepStrictEqual(wakePayload.wakeMasks[0].masks.write_objects_clear, [4]);
+
+        const generatedWakeLog = [];
+        runCertifiedWakeMasksDir(certifiedWakeMasksDir, claimDescriptions, message => generatedWakeLog.push(message));
+        assert.deepStrictEqual(generatedWakeLog, ['generated static analysis testdata: certified_wake_masks/tmp-wake.json (review before committing)\n']);
+        const wakeJsonPath = path.join(certifiedWakeMasksDir, 'tmp-wake.json');
+        const generatedWakePayload = JSON.parse(fs.readFileSync(wakeJsonPath, 'utf8'));
+        assertGeneratedFixtureIsUnverified('certified_wake_masks/tmp-wake.json', generatedWakePayload);
+        assert.deepStrictEqual(generatedWakePayload.wakeMasks[0].masks.write_objects_clear, [4]);
+
+        const curatedWakePayload = {
+            schema: FIXTURE_SCHEMA,
+            human_verified: true,
+            wakeMasks: [
+                {
+                    line: 40,
+                    text: '[ wall ] -> [ ]',
+                    reads: {
+                        object_present: ['Wall'],
+                    },
+                    masks: {
+                        read_objects_present: [4],
+                    },
+                },
+            ],
+        };
+        writeJson(wakeJsonPath, curatedWakePayload);
+        const curatedWakeText = fs.readFileSync(wakeJsonPath, 'utf8');
+        const rerunWakeLog = [];
+        runCertifiedWakeMasksDir(certifiedWakeMasksDir, claimDescriptions, message => rerunWakeLog.push(message));
+        assert.deepStrictEqual(rerunWakeLog, []);
+        assert.strictEqual(fs.readFileSync(wakeJsonPath, 'utf8'), curatedWakeText);
 
         assert.throws(
             () => findRuleRecord('ambiguous-rule.json', [

@@ -118,6 +118,22 @@ Avoid names that describe the expected analyzer output. The object names should
 describe the specimen's layer/property structure, not whether a tag is expected
 to report an object as matched, absent, written, or erased.
 
+## Adding A Certified Wake-Mask Test
+
+1. Add a small whole-source `.txt` file under `certified_wake_masks/`.
+2. Run `make static_analysis_tests` (or `node src/tests/static_analysis_testdata_runner.js`).
+3. The runner will create the matching `.json` file. Each `wakeMasks` row lists
+   one rule by line/text and can assert readable `reads`/`writes` lists plus
+   engine-shaped Int32 word masks under `masks`.
+4. Keep the full generated row when the exact certificate is the point of the
+   test. For a focused fixture, delete unrelated fields and keep only the
+   polarity or mask entries that protect the behavior under test.
+
+Movement mask bits use the engine layout: five bits per collision layer in
+`up`, `down`, `left`, `right`, `action` order. A stationary read or write is
+serialized as a readable `Object:stationary` entry and as all five movement bits
+on that object's layer in the corresponding engine mask.
+
 ## Adding A Program-Flow Test
 
 1. Add a small whole-source `.txt` file under `program_flow/`.
