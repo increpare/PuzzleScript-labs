@@ -553,8 +553,42 @@ function planArtifactRetention(options = {}) {
     };
 }
 
+function applyArtifactRetention(plan) {
+    if (!plan || !Array.isArray(plan.remove)) {
+        throw new Error('invalid artifact retention plan');
+    }
+    const buildRoot = path.resolve(plan.build_root || 'build');
+    const removed = [];
+    const errors = [];
+    for (const entry of plan.remove) {
+        const entryPath = path.resolve(entry.path || '');
+        if (!pathContains(buildRoot, entryPath)) {
+            errors.push({ path: entryPath, error: 'outside_build_root' });
+            continue;
+        }
+        try {
+            if (fs.existsSync(entryPath)) {
+                fs.rmSync(entryPath, { recursive: true, force: false });
+            }
+            removed.push(Object.assign({}, entry, { path: entryPath }));
+        } catch (error) {
+            errors.push({
+                path: entryPath,
+                error: error && error.message ? error.message : String(error),
+            });
+        }
+    }
+    return {
+        schema_version: SCHEMA_VERSION,
+        build_root: buildRoot,
+        removed,
+        errors,
+    };
+}
+
 Object.assign(module.exports, {
     appendRunRecord,
+    applyArtifactRetention,
     comparePairedRuns,
     createRunRecord,
     filterRecords,

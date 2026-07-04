@@ -67,10 +67,14 @@ place for JS and target-level solver benchmarks:
   paired comparison, summaries, latest-run queries, and freshness checks.
 - `src/tests/generate_solver_benchmark_slice_manifest.js` materializes named
   deterministic slices from the checked-in slice definitions.
+- `src/tests/solver_benchmark_slice_health.js` materializes every named slice
+  and runs a cheap solver pass that fails on missing targets, message-level
+  targets, or compile/level errors.
 - `src/tests/run_js_solver_bench_pair.js` runs baseline/candidate JS solver
   pairs with shared pair IDs and stores both artifacts and bench-store records.
-- Make targets cover slice manifests, smoke paired runs, store summaries, and
-  freshness checks.
+- Make targets cover slice manifests, smoke paired runs, store summaries,
+  freshness checks, paired comparisons with a noise-band verdict, and explicit
+  dry-run/apply retention entry points.
 
 ## 2. Recommendation: adopt the certificate architecture as policy
 
@@ -219,7 +223,7 @@ Item status after the X-round:
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
 | T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |
-| Measurement layer (rec. 1) | live foundation | JSONL bench store, deterministic slice materializer, JS paired-run executor, level-benchmark append hooks, freshness checks, and Makefile entry points are in `src/tests/solver_bench*`, `src/tests/generate_solver_benchmark_slice_manifest.js`, and `src/tests/run_js_solver_bench_pair.js` |
+| Measurement layer (rec. 1) | live foundation | JSONL bench store, deterministic slice materializer, all-slice health gate, JS paired-run executor, level-benchmark append hooks, freshness/compare checks, retention plan/apply entry points, and Makefile wiring are in `src/tests/solver_bench*`, `src/tests/generate_solver_benchmark_slice_manifest.js`, `src/tests/solver_benchmark_slice_health.js`, and `src/tests/run_js_solver_bench_pair.js` |
 
 Dependency spine:
 

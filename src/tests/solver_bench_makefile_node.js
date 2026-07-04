@@ -15,7 +15,9 @@ for (const target of [
     'solver_bench_summary',
     'solver_bench_freshness',
     'solver_bench_compare',
+    'solver_benchmark_slice_health',
     'solver_bench_retention_plan',
+    'solver_bench_retention_apply',
 ]) {
     assert.ok(new RegExp(`^${target}:`, 'm').test(makefile), `missing Makefile target ${target}`);
 }
@@ -39,7 +41,10 @@ assert.ok(makefile.includes('solver_bench_store_cli.js compare'), 'compare targe
 assert.ok(makefile.includes('--baseline "$(SOLVER_BENCH_BASELINE_VARIANT)"'), 'compare target should use baseline variant default');
 assert.ok(makefile.includes('--candidate "$(SOLVER_BENCH_CANDIDATE_VARIANT)"'), 'compare target should use candidate variant default');
 assert.ok(makefile.includes('--noise-band $(SOLVER_BENCH_NOISE_BAND)'), 'compare target should use noise band default');
+assert.ok(makefile.includes('solver_benchmark_slice_health.js'), 'slice health target should call slice health checker');
+assert.ok(makefile.includes('--timeout-ms 1'), 'slice health target should use a cheap timeout');
 assert.ok(makefile.includes('solver_bench_store_cli.js retention-plan'), 'retention target should call bench-store retention planner');
+assert.ok(makefile.includes('solver_bench_store_cli.js retention-apply'), 'retention apply target should call bench-store retention apply');
 assert.ok(makefile.includes('--max-age-days $(SOLVER_BENCH_RETENTION_DAYS)'), 'retention target should use retention-days default');
 
 console.log('solver_bench_makefile_node passed');

@@ -6,6 +6,7 @@ const path = require('path');
 
 const {
     appendRunRecord,
+    applyArtifactRetention,
     comparePairedRuns,
     createRunRecord,
     freshnessReport,
@@ -24,6 +25,7 @@ function usage() {
         '  node src/tests/solver_bench_store_cli.js freshness --store PATH [--slice NAME] [--variant NAME] [--max-age-hours N]',
         '  node src/tests/solver_bench_store_cli.js compare --store PATH --slice NAME --baseline NAME --candidate NAME [--metric NAME] [--noise-band N]',
         '  node src/tests/solver_bench_store_cli.js retention-plan --store PATH --build-root PATH [--max-age-days N]',
+        '  node src/tests/solver_bench_store_cli.js retention-apply --store PATH --build-root PATH [--max-age-days N]',
     ].join('\n') + '\n');
 }
 
@@ -146,6 +148,16 @@ function main(argv = process.argv) {
             max_age_days: Number.isFinite(options.maxAgeDays) ? options.maxAgeDays : 30,
         }), null, 2)}\n`);
         return 0;
+    }
+    if (options.command === 'retention-apply') {
+        const records = readRunRecords(requireOption(options, 'store'));
+        const result = applyArtifactRetention(planArtifactRetention({
+            build_root: requireOption(options, 'buildRoot'),
+            records,
+            max_age_days: Number.isFinite(options.maxAgeDays) ? options.maxAgeDays : 30,
+        }));
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return result.errors.length === 0 ? 0 : 1;
     }
     throw new Error(`unsupported command: ${options.command}`);
 }

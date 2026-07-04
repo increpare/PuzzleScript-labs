@@ -8,6 +8,7 @@ const path = require('path');
 
 const {
     appendRunRecord,
+    applyArtifactRetention,
     comparePairedRuns,
     createRunRecord,
     freshnessReport,
@@ -196,5 +197,11 @@ const retention = planArtifactRetention({
 assert.ok(retention.remove.some((entry) => entry.path === oldUnreferenced));
 assert.ok(retention.keep.some((entry) => entry.path === recentUnreferenced && entry.reason === 'recent'));
 assert.ok(retention.keep.some((entry) => entry.path === referenced && entry.reason === 'referenced'));
+
+const appliedRetention = applyArtifactRetention(retention);
+assert.deepStrictEqual(appliedRetention.removed.map((entry) => entry.path), [oldUnreferenced]);
+assert.strictEqual(fs.existsSync(oldUnreferenced), false);
+assert.strictEqual(fs.existsSync(recentUnreferenced), true);
+assert.strictEqual(fs.existsSync(referenced), true);
 
 console.log('solver_bench_store_node passed');
