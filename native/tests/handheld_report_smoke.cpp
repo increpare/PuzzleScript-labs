@@ -31,6 +31,10 @@ const Value& requireField(const Value::Object& object, const char* key) {
     return it->second;
 }
 
+void requireMissingField(const Value::Object& object, const char* key) {
+    require(object.find(key) == object.end(), "JSON field should be absent");
+}
+
 const Value::Object& requireObject(const Value& value, const char* message) {
     require(value.isObject(), message);
     return value.asObject();
@@ -211,6 +215,36 @@ LEVELS
 .....
 .....
 ....P
+    )PS";
+}
+
+std::string messageLevelSource() {
+    return R"PS(
+title message level
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+LEGEND
+
+. = Background
+P = Player
+
+COLLISIONLAYERS
+
+Background
+Player
+
+LEVELS
+
+message hello handheld
+
+P
 )PS";
 }
 
@@ -321,6 +355,38 @@ void reportsFlickscreenEdgePageBounds() {
     require(requireBool(level, "fits"), "edge fit should fit");
 }
 
+void reportsMessageLevelsSeparatelyFromBoardFits() {
+    const std::string report = buildReportForSources(
+        {SourceInput{"message.txt", messageLevelSource()}},
+        ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& rootObject = requireObject(root, "report root should be an object");
+    const Value::Object& summary = requireObject(requireField(rootObject, "summary"), "summary should be an object");
+    const Value::Object& game = firstGameObject(root);
+    const Value::Array& levels = requireArray(requireField(game, "levels"), "levels should be an array");
+    require(levels.size() == 2, "message source should report message and board levels");
+
+    require(requireInteger(summary, "board_levels") == 1, "message summary board levels");
+    require(requireInteger(summary, "text_levels") == 1, "message summary text levels");
+    require(requireInteger(summary, "degraded_levels") == 0, "message source should not degrade board fits");
+
+    const Value::Object& messageLevel = requireObject(levels[0], "message level should be an object");
+    require(requireString(messageLevel, "kind") == "message", "message level kind");
+    require(requireString(messageLevel, "mode") == "message", "message level mode");
+    require(requireBool(messageLevel, "text_mode"), "message level should be text mode");
+    require(requireString(messageLevel, "message") == "hello handheld", "message text");
+    require(requireInteger(messageLevel, "terminal_width") == 34, "message terminal width");
+    require(requireInteger(messageLevel, "terminal_height") == 13, "message terminal height");
+    requireMissingField(messageLevel, "board_width");
+    requireMissingField(messageLevel, "tile_pixels");
+
+    const Value::Object& boardLevel = requireObject(levels[1], "board level should be an object");
+    require(requireString(boardLevel, "kind") == "board", "board level kind");
+    require(requireInteger(boardLevel, "board_width") > 0, "board level width should be positive");
+    require(requireInteger(boardLevel, "board_height") > 0, "board level height should be positive");
+    require(requireBool(boardLevel, "fits"), "board level should fit");
+}
+
 void reportsBrokenSourceDiagnostics() {
     const std::string report = buildReportForSources(
         {SourceInput{"broken.txt", brokenSource()}},
@@ -366,6 +432,8 @@ void reportsCorpusSummary() {
     require(requireInteger(summary, "game_count") == 2, "corpus summary game count");
     require(requireInteger(summary, "compiled_games") == 1, "corpus summary compiled games");
     require(requireInteger(summary, "compile_failures") == 1, "corpus summary compile failures");
+    require(requireInteger(summary, "board_levels") == 1, "corpus summary board levels");
+    require(requireInteger(summary, "text_levels") == 0, "corpus summary text levels");
     require(requireInteger(summary, "degraded_levels") == 0, "corpus summary degraded levels");
     require(games.size() == 2, "corpus report should include both games by default");
 }
@@ -418,6 +486,8 @@ void summaryCountsAllSourcesWhenPassingGamesAreFiltered() {
     require(requireInteger(summary, "game_count") == 2, "filtered summary game count");
     require(requireInteger(summary, "compiled_games") == 1, "filtered summary compiled games");
     require(requireInteger(summary, "compile_failures") == 1, "filtered summary compile failures");
+    require(requireInteger(summary, "board_levels") == 1, "filtered summary board levels");
+    require(requireInteger(summary, "text_levels") == 0, "filtered summary text levels");
     require(requireInteger(summary, "degraded_levels") == 0, "filtered summary degraded levels");
     require(games.size() == 1, "filtered report should include only failing games");
     const Value::Object& game = requireObject(games[0], "filtered game should be an object");
@@ -431,6 +501,7 @@ int main() {
     reportsSimpleFullLevel();
     reportsFlickscreenMetadataAndViewport();
     reportsFlickscreenEdgePageBounds();
+    reportsMessageLevelsSeparatelyFromBoardFits();
     reportsBrokenSourceDiagnostics();
     reportsCorpusSummary();
     rejectsMalformedCorpusRecords();

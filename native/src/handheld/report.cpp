@@ -28,6 +28,8 @@ struct GameReport {
     std::string json;
     bool passing = false;
     bool compileOk = false;
+    size_t boardLevels = 0;
+    size_t textLevels = 0;
     size_t degradedLevels = 0;
 };
 
@@ -159,6 +161,15 @@ std::optional<PlayerPosition> firstPlayerPosition(const ps_full_state* session) 
     return PlayerPosition{playerX, playerY};
 }
 
+const char* stateModeName(ps_full_state_mode mode) {
+    switch (mode) {
+        case PS_FULL_STATE_MODE_LEVEL: return "level";
+        case PS_FULL_STATE_MODE_TITLE: return "title";
+        case PS_FULL_STATE_MODE_MESSAGE: return "message";
+    }
+    return "unknown";
+}
+
 void appendLevelReport(
     std::ostringstream& out,
     const ps_game* game,
@@ -180,6 +191,22 @@ void appendLevelReport(
 
     ps_full_state_status_info status{};
     ps_full_state_status(session, &status);
+    if (status.text_mode || status.mode == PS_FULL_STATE_MODE_MESSAGE || status.mode == PS_FULL_STATE_MODE_TITLE) {
+        ++report.textLevels;
+        out << '{'
+            << "\"index\":" << levelIndex << ','
+            << "\"load_ok\":true,"
+            << "\"kind\":" << jsonEscape(stateModeName(status.mode)) << ','
+            << "\"mode\":" << jsonEscape(stateModeName(status.mode)) << ','
+            << "\"text_mode\":" << (status.text_mode ? "true" : "false") << ','
+            << "\"terminal_width\":34,"
+            << "\"terminal_height\":13,"
+            << "\"message\":" << jsonEscape(ps_full_state_message_text(session))
+            << '}';
+        return;
+    }
+
+    ++report.boardLevels;
     const auto flickscreen = parseScreenSize(ps_game_metadata_value(game, "flickscreen"));
     const auto zoomscreen = parseScreenSize(ps_game_metadata_value(game, "zoomscreen"));
     const LevelView level{status.width, status.height, flickscreen, zoomscreen};
@@ -198,6 +225,7 @@ void appendLevelReport(
     out << '{'
         << "\"index\":" << levelIndex << ','
         << "\"load_ok\":true,"
+        << "\"kind\":\"board\","
         << "\"mode\":" << jsonEscape(viewport.mode) << ','
         << "\"board_width\":" << status.width << ','
         << "\"board_height\":" << status.height << ','
@@ -315,12 +343,16 @@ std::string buildReportForSources(
     std::vector<GameReport> reports;
     reports.reserve(sources.size());
     size_t compiledGames = 0;
+    size_t boardLevels = 0;
+    size_t textLevels = 0;
     size_t degradedLevels = 0;
     for (const SourceInput& source : sources) {
         GameReport report = buildGameReport(source.name, source.source, options);
         if (report.compileOk) {
             ++compiledGames;
         }
+        boardLevels += report.boardLevels;
+        textLevels += report.textLevels;
         degradedLevels += report.degradedLevels;
         reports.push_back(std::move(report));
     }
@@ -329,6 +361,8 @@ std::string buildReportForSources(
         << "\"game_count\":" << sources.size() << ','
         << "\"compiled_games\":" << compiledGames << ','
         << "\"compile_failures\":" << (sources.size() - compiledGames) << ','
+        << "\"board_levels\":" << boardLevels << ','
+        << "\"text_levels\":" << textLevels << ','
         << "\"degraded_levels\":" << degradedLevels
         << "},\"games\":[";
     bool first = true;

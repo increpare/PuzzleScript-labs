@@ -69,11 +69,17 @@ handheld report ignores it. Blank lines are skipped.
 ## Report Contract
 
 `summary` counts all input sources. This includes games that compile, games that
-fail to compile, and levels that degrade during report generation.
+fail to compile, board levels checked for display fit, text/message levels, and
+board levels that degrade during report generation.
 
 API callers can set `includePassingGames=false` to omit passing game entries
 from the emitted `games` array. That filtering does not change `summary`;
 summary counters still describe every input source.
+
+Board level records use `kind:"board"` and contain `board_width`,
+`board_height`, viewport, and fit fields. Text/message records use
+`kind:"message"` and contain terminal dimensions and message text instead of
+board-fit fields, so they do not count as successful board fits.
 
 ## Viewport Semantics Checked
 
@@ -83,6 +89,7 @@ summary counters still describe every input source.
 - `zoomscreen`: use the declared viewport centered around the player and clamped
   to the level.
 - If both are declared, `flickscreen` precedes `zoomscreen`.
+- Text/message levels are reported separately from board levels.
 - Borders and background use the game background color. This keeps the report
   aligned with future glow and LED work.
 
