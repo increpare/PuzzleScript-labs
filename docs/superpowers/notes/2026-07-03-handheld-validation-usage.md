@@ -77,9 +77,10 @@ from the emitted `games` array. That filtering does not change `summary`;
 summary counters still describe every input source.
 
 Board level records use `kind:"board"` and contain `board_width`,
-`board_height`, viewport, and fit fields. Text/message records use
-`kind:"message"` and contain terminal dimensions and message text instead of
-board-fit fields, so they do not count as successful board fits.
+`board_height`, viewport, and fit fields. Text-screen records use
+`kind:"text"` with `mode:"message"` or `mode:"title"` and contain terminal
+dimensions and message text instead of board-fit fields, so they do not count
+as successful board fits.
 
 ## Viewport Semantics Checked
 

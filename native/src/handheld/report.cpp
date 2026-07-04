@@ -196,7 +196,7 @@ void appendLevelReport(
         out << '{'
             << "\"index\":" << levelIndex << ','
             << "\"load_ok\":true,"
-            << "\"kind\":" << jsonEscape(stateModeName(status.mode)) << ','
+            << "\"kind\":\"text\","
             << "\"mode\":" << jsonEscape(stateModeName(status.mode)) << ','
             << "\"text_mode\":" << (status.text_mode ? "true" : "false") << ','
             << "\"terminal_width\":34,"

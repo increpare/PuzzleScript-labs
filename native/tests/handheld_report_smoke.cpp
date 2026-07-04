@@ -1,6 +1,7 @@
 #undef NDEBUG
 #include <cassert>
 #include <cstdint>
+#include <cstdio>
 #include <exception>
 #include <sstream>
 #include <string>
@@ -21,6 +22,7 @@ namespace {
 
 void require(bool condition, const char* message) {
     if (!condition) {
+        std::fprintf(stderr, "%s\n", message);
         assert(false && message);
     }
 }
@@ -248,6 +250,44 @@ P
 )PS";
 }
 
+std::string titleAfterAgainWinSource() {
+    return R"PS(
+title title after again
+run_rules_on_level_start
+
+OBJECTS
+
+Background
+black
+
+Player
+white
+
+Marker
+red
+
+LEGEND
+
+. = Background
+P = Player
+M = Marker
+
+COLLISIONLAYERS
+
+Background
+Player, Marker
+
+RULES
+
+[ Player ] -> [ Marker ] again
+[ Marker ] -> win
+
+LEVELS
+
+P
+)PS";
+}
+
 std::string brokenSource() {
     return R"PS(
 title broken
@@ -371,7 +411,7 @@ void reportsMessageLevelsSeparatelyFromBoardFits() {
     require(requireInteger(summary, "degraded_levels") == 0, "message source should not degrade board fits");
 
     const Value::Object& messageLevel = requireObject(levels[0], "message level should be an object");
-    require(requireString(messageLevel, "kind") == "message", "message level kind");
+    require(requireString(messageLevel, "kind") == "text", "message level kind");
     require(requireString(messageLevel, "mode") == "message", "message level mode");
     require(requireBool(messageLevel, "text_mode"), "message level should be text mode");
     require(requireString(messageLevel, "message") == "hello handheld", "message text");
@@ -385,6 +425,34 @@ void reportsMessageLevelsSeparatelyFromBoardFits() {
     require(requireInteger(boardLevel, "board_width") > 0, "board level width should be positive");
     require(requireInteger(boardLevel, "board_height") > 0, "board level height should be positive");
     require(requireBool(boardLevel, "fits"), "board level should fit");
+}
+
+void reportsTitleScreensAsTextRecords() {
+    const std::string report = buildReportForSources(
+        {SourceInput{"title.txt", titleAfterAgainWinSource()}},
+        ReportOptions{DisplaySpec{800, 480, 5}, true});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& rootObject = requireObject(root, "report root should be an object");
+    const Value::Object& summary = requireObject(requireField(rootObject, "summary"), "summary should be an object");
+    const Value::Object& game = firstGameObject(root);
+    const Value::Array& levels = requireArray(requireField(game, "levels"), "levels should be an array");
+    require(levels.size() == 1, "title source should report one loaded level state");
+
+    require(requireInteger(summary, "board_levels") == 0, "title summary board levels");
+    require(requireInteger(summary, "text_levels") == 1, "title summary text levels");
+    require(requireInteger(summary, "degraded_levels") == 0, "title source should not degrade board fits");
+
+    const Value::Object& titleLevel = requireObject(levels[0], "title level should be an object");
+    require(requireString(titleLevel, "kind") == "text", "title level kind");
+    require(requireString(titleLevel, "mode") == "title", "title level mode");
+    require(requireBool(titleLevel, "text_mode"), "title level should be text mode");
+    require(requireString(titleLevel, "message").empty(), "title message text");
+    require(requireInteger(titleLevel, "terminal_width") == 34, "title terminal width");
+    require(requireInteger(titleLevel, "terminal_height") == 13, "title terminal height");
+    requireMissingField(titleLevel, "board_width");
+    requireMissingField(titleLevel, "board_height");
+    requireMissingField(titleLevel, "tile_pixels");
+    requireMissingField(titleLevel, "fits");
 }
 
 void reportsBrokenSourceDiagnostics() {
@@ -502,6 +570,7 @@ int main() {
     reportsFlickscreenMetadataAndViewport();
     reportsFlickscreenEdgePageBounds();
     reportsMessageLevelsSeparatelyFromBoardFits();
+    reportsTitleScreensAsTextRecords();
     reportsBrokenSourceDiagnostics();
     reportsCorpusSummary();
     rejectsMalformedCorpusRecords();
