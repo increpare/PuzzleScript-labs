@@ -1,6 +1,7 @@
 #undef NDEBUG
 #include <cassert>
 #include <cstdint>
+#include <exception>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -56,6 +57,27 @@ bool requireBool(const Value::Object& object, const char* key) {
     const Value& value = requireField(object, key);
     require(value.isBool(), "JSON field should be a boolean");
     return value.asBool();
+}
+
+void requireContains(const std::string& haystack, std::string_view needle, const char* message) {
+    require(haystack.find(std::string(needle)) != std::string::npos, message);
+}
+
+void requireNdjsonErrorContains(
+    const std::string& ndjsonText,
+    std::string_view label,
+    std::string_view line,
+    std::string_view expected) {
+    try {
+        (void)loadSourcesFromNdjsonText(std::string(label), ndjsonText);
+    } catch (const std::exception& e) {
+        const std::string message = e.what();
+        requireContains(message, label, "NDJSON error should include label");
+        requireContains(message, line, "NDJSON error should include line number");
+        requireContains(message, expected, "NDJSON error should include expected detail");
+        return;
+    }
+    require(false, "NDJSON input should throw");
 }
 
 std::string jsonString(const std::string& value) {
@@ -348,6 +370,61 @@ void reportsCorpusSummary() {
     require(games.size() == 2, "corpus report should include both games by default");
 }
 
+void rejectsMalformedCorpusRecords() {
+    requireNdjsonErrorContains(
+        "{ \"name\":\"simple\", \"source\":\"x\" }\n{",
+        "bad.ndjson",
+        ":2:",
+        "invalid JSON");
+    requireNdjsonErrorContains(
+        "[]\n",
+        "bad.ndjson",
+        ":1:",
+        "record must be a JSON object");
+    requireNdjsonErrorContains(
+        "{ \"source\":\"x\" }\n",
+        "bad.ndjson",
+        ":1:",
+        "name");
+    requireNdjsonErrorContains(
+        "{ \"name\":\"simple\" }\n",
+        "bad.ndjson",
+        ":1:",
+        "source");
+    requireNdjsonErrorContains(
+        "{ \"name\":7, \"source\":\"x\" }\n",
+        "bad.ndjson",
+        ":1:",
+        "name");
+    requireNdjsonErrorContains(
+        "{ \"name\":\"simple\", \"source\":false }\n",
+        "bad.ndjson",
+        ":1:",
+        "source");
+}
+
+void summaryCountsAllSourcesWhenPassingGamesAreFiltered() {
+    const std::string report = buildReportForSources(
+        {
+            SourceInput{"simple.txt", simpleSource()},
+            SourceInput{"broken.txt", brokenSource()},
+        },
+        ReportOptions{DisplaySpec{800, 480, 5}, false});
+    const Value root = puzzlescript::json::parse(report);
+    const Value::Object& rootObject = requireObject(root, "report root should be an object");
+    const Value::Object& summary = requireObject(requireField(rootObject, "summary"), "summary should be an object");
+    const Value::Array& games = requireArray(requireField(rootObject, "games"), "games should be an array");
+
+    require(requireInteger(summary, "game_count") == 2, "filtered summary game count");
+    require(requireInteger(summary, "compiled_games") == 1, "filtered summary compiled games");
+    require(requireInteger(summary, "compile_failures") == 1, "filtered summary compile failures");
+    require(requireInteger(summary, "degraded_levels") == 0, "filtered summary degraded levels");
+    require(games.size() == 1, "filtered report should include only failing games");
+    const Value::Object& game = requireObject(games[0], "filtered game should be an object");
+    require(requireString(game, "source") == "broken.txt", "filtered game source");
+    require(!requireBool(game, "compile_ok"), "filtered game should be the compile failure");
+}
+
 } // namespace
 
 int main() {
@@ -356,5 +433,7 @@ int main() {
     reportsFlickscreenEdgePageBounds();
     reportsBrokenSourceDiagnostics();
     reportsCorpusSummary();
+    rejectsMalformedCorpusRecords();
+    summaryCountsAllSourcesWhenPassingGamesAreFiltered();
     return 0;
 }

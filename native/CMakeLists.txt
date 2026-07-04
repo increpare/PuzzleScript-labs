@@ -503,6 +503,20 @@ set_tests_properties(handheld_report_cli_source_sokoban
   PROPERTIES PASS_REGULAR_EXPRESSION "\"games\".*\"compile_ok\":true"
 )
 
+set(HANDHELD_REPORT_CLI_CORPUS_NDJSON "${CMAKE_CURRENT_BINARY_DIR}/generated/handheld_report_cli_corpus.ndjson")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(WRITE "${HANDHELD_REPORT_CLI_CORPUS_NDJSON}"
+  "{\"index\":0,\"name\":\"simple\",\"source\":\"title simple\\n\\nOBJECTS\\nBackground\\nblack\\nPlayer\\nwhite\\n\\nLEGEND\\n. = Background\\nP = Player\\n\\nCOLLISIONLAYERS\\nBackground\\nPlayer\\n\\nLEVELS\\nP\\n\"}\n"
+)
+add_test(
+  NAME handheld_report_cli_corpus_ndjson
+  COMMAND puzzlescript_handheld_report --display 800x480 --corpus-ndjson ${HANDHELD_REPORT_CLI_CORPUS_NDJSON}
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_corpus_ndjson
+  PROPERTIES PASS_REGULAR_EXPRESSION "\"summary\".*\"game_count\":1.*\"compiled_games\":1.*\"games\""
+)
+
 add_executable(compiler_keyword_names
   tests/compiler_keyword_names.cpp
 )

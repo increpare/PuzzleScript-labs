@@ -28,10 +28,7 @@ struct GameReport {
     std::string json;
     bool passing = false;
     bool compileOk = false;
-    bool sessionOk = false;
     size_t degradedLevels = 0;
-    size_t fitFailures = 0;
-    size_t loadFailures = 0;
 };
 
 const char* severityName(ps_diagnostic_severity severity) {
@@ -173,7 +170,6 @@ void appendLevelReport(
     ps_error* rawError = nullptr;
     if (!ps_full_state_load_level(session, levelIndex, &rawError)) {
         report.passing = false;
-        ++report.loadFailures;
         out << '{'
             << "\"index\":" << levelIndex << ','
             << "\"load_ok\":false,"
@@ -197,7 +193,6 @@ void appendLevelReport(
     }
     if (!fit.fits) {
         report.passing = false;
-        ++report.fitFailures;
     }
 
     out << '{'
@@ -273,7 +268,6 @@ GameReport buildGameReport(
     }
     FullStatePtr session(rawSession, ps_full_state_destroy);
 
-    report.sessionOk = true;
     report.passing = true;
     out << "\"session_ok\":true,"
         << "\"levels\":[";
