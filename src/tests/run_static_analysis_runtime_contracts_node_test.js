@@ -51,6 +51,11 @@ assert.strictEqual(result.actionUnnecessaryProved, true, 'sokoban should prove a
 assert.strictEqual(result.tickNoopProved, true, 'sokoban should have no autonomous tick rules');
 assert.strictEqual(result.noAgainProved, true, 'sokoban should have no AGAIN rules');
 assert.strictEqual(result.noRandomProved, true, 'sokoban should have no random rules or random RHS objects');
+assert.ok(result.certifiedWakeMaskRuleCount > 0, 'sokoban should expose certified wake-mask rule contracts');
+assert.ok(
+    result.certifiedWakeMaskChecks >= result.certifiedWakeMaskRuleCount * 4,
+    'certified wake-mask checks should cover runtime read/write masks'
+);
 assert.ok(
     result.quantityBoundaryChecks > result.objectBoundaryChecks,
     'quantity checks should include movable constant-quantity objects'

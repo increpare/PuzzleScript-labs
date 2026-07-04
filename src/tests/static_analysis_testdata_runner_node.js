@@ -488,8 +488,10 @@ P#
         assert.strictEqual(wakePayload.schema, FIXTURE_SCHEMA);
         assert.strictEqual(wakePayload.wakeMasks.length, 1);
         assert.deepStrictEqual(wakePayload.wakeMasks[0].reads.object_present, ['Wall']);
+        assert.deepStrictEqual(wakePayload.wakeMasks[0].writes.object_wake, ['Wall']);
         assert.deepStrictEqual(wakePayload.wakeMasks[0].writes.object_clear, ['Wall']);
         assert.deepStrictEqual(wakePayload.wakeMasks[0].masks.read_objects_present, [4]);
+        assert.deepStrictEqual(wakePayload.wakeMasks[0].masks.write_objects_wake, [4]);
         assert.deepStrictEqual(wakePayload.wakeMasks[0].masks.write_objects_clear, [4]);
 
         const generatedWakeLog = [];
@@ -498,6 +500,7 @@ P#
         const wakeJsonPath = path.join(certifiedWakeMasksDir, 'tmp-wake.json');
         const generatedWakePayload = JSON.parse(fs.readFileSync(wakeJsonPath, 'utf8'));
         assertGeneratedFixtureIsUnverified('certified_wake_masks/tmp-wake.json', generatedWakePayload);
+        assert.deepStrictEqual(generatedWakePayload.wakeMasks[0].masks.write_objects_wake, [4]);
         assert.deepStrictEqual(generatedWakePayload.wakeMasks[0].masks.write_objects_clear, [4]);
 
         const curatedWakePayload = {

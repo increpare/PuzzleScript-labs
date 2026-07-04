@@ -2386,11 +2386,18 @@ function tagRuleObjectTags(psTagged) {
 }
 
 function objectMaskWordCount(psTagged) {
-    return Math.ceil(((psTagged.objects || []).length || 1) / 32) | 0;
+    const maxId = (psTagged.objects || []).reduce((maxValue, object) => {
+        return Number.isInteger(object.id) ? Math.max(maxValue, object.id) : maxValue;
+    }, -1);
+    return Math.ceil(Math.max(1, maxId + 1) / 32) | 0;
 }
 
 function movementMaskWordCount(psTagged) {
-    return Math.ceil(((psTagged.collision_layers || []).length || 1) / 5) | 0;
+    const maxLayer = (psTagged.collision_layers || []).reduce((maxValue, layer, index) => {
+        const layerIndex = Number.isInteger(layer.id) ? layer.id : index;
+        return Math.max(maxValue, layerIndex);
+    }, -1);
+    return Math.ceil(Math.max(1, maxLayer + 1) / 5) | 0;
 }
 
 function emptyWordMask(wordCount) {
@@ -2413,6 +2420,16 @@ function objectMaskForNames(psTagged, objectNames) {
     const words = emptyWordMask(objectMaskWordCount(psTagged));
     for (const objectName of objectNames || []) {
         const object = objectByName(psTagged, objectName);
+        if (object && Number.isInteger(object.id)) {
+            setWordMaskBit(words, object.id);
+        }
+    }
+    return words;
+}
+
+function fullObjectMask(psTagged) {
+    const words = emptyWordMask(objectMaskWordCount(psTagged));
+    for (const object of psTagged.objects || []) {
         if (object && Number.isInteger(object.id)) {
             setWordMaskBit(words, object.id);
         }
@@ -2454,6 +2471,15 @@ function movementMaskForEntries(psTagged, entries) {
     return words;
 }
 
+function fullMovementMask(psTagged) {
+    const words = emptyWordMask(movementMaskWordCount(psTagged));
+    for (const [index, layer] of (psTagged.collision_layers || []).entries()) {
+        const layerIndex = Number.isInteger(layer.id) ? layer.id : index;
+        orMovementLayerBits(words, layerIndex, 0x1f);
+    }
+    return words;
+}
+
 function movementMaskForObjectLayers(psTagged, objectNames) {
     const words = emptyWordMask(movementMaskWordCount(psTagged));
     for (const objectName of objectNames || []) {
@@ -2463,6 +2489,41 @@ function movementMaskForObjectLayers(psTagged, objectNames) {
         }
     }
     return words;
+}
+
+function objectNamesForMovementLayers(psTagged, entries) {
+    const names = new Set();
+    for (const entry of entries || []) {
+        const objectName = typeof entry === 'string' ? movementKeyObjectName(entry) : entry.object;
+        for (const layerObject of layerObjectsForObject(psTagged, objectName)) {
+            names.add(layerObject);
+        }
+    }
+    return names;
+}
+
+function objectNamesWithLayerSiblings(psTagged, objectNames) {
+    const names = new Set();
+    for (const objectName of objectNames || []) {
+        for (const layerObject of layerObjectsForObject(psTagged, objectName)) {
+            names.add(layerObject);
+        }
+    }
+    return names;
+}
+
+function rhsObjectNames(rule) {
+    const names = new Set();
+    for (const row of rule.rhs || []) {
+        for (const cell of row || []) {
+            for (const term of cell || []) {
+                if (term.kind === 'present' || term.kind === 'absent' || term.kind === 'random_object') {
+                    addValues(names, termObjects(term));
+                }
+            }
+        }
+    }
+    return names;
 }
 
 function orWordMasks(left, right) {
@@ -2503,15 +2564,25 @@ function certifiedWakeMaskForRule(psTagged, rule) {
     const objectSet = uniqueSorted(writes.object_present);
     const objectClear = uniqueSorted(writes.object_absent);
     const movementWake = uniqueSorted((writes.movement || []).map(movementEntryKey));
+    const rhsObjects = rhsObjectNames(rule);
+    const objectWake = uniqueSorted(new Set([
+        ...objectSet,
+        ...objectClear,
+        ...rhsObjects,
+        ...objectNamesWithLayerSiblings(psTagged, rhsObjects),
+        ...objectNamesForMovementLayers(psTagged, movementWake),
+    ]));
     const movementSetMask = movementMaskForEntries(psTagged, movementSet);
     const movementClearMask = orWordMasks(
         movementMaskForEntries(psTagged, movementClear),
-        movementMaskForObjectLayers(psTagged, objectSet.concat(objectClear))
+        movementMaskForObjectLayers(psTagged, objectWake)
     );
     const movementWakeMask = orWordMasks(
         movementMaskForEntries(psTagged, movementWake),
         movementClearMask
     );
+    const runtimeObjectCoverMask = fullObjectMask(psTagged);
+    const runtimeMovementCoverMask = fullMovementMask(psTagged);
 
     return {
         bitvec_format: {
@@ -2528,6 +2599,7 @@ function certifiedWakeMaskForRule(psTagged, rule) {
             movement_absent: uniqueSorted(readMovements.absent.map(movementEntryKey)),
         },
         writes: {
+            object_wake: objectWake,
             object_set: objectSet,
             object_clear: objectClear,
             movement_wake: movementWake,
@@ -2537,12 +2609,17 @@ function certifiedWakeMaskForRule(psTagged, rule) {
         masks: {
             read_objects_present: objectMaskForNames(psTagged, reads.object_present),
             read_objects_absent: objectMaskForNames(psTagged, reads.object_absent),
+            read_objects_wake: runtimeObjectCoverMask,
             read_movements_present: movementMaskForEntries(psTagged, readMovements.present),
             read_movements_absent: movementMaskForEntries(psTagged, readMovements.absent),
             read_movements_wake: movementMaskForEntries(psTagged, reads.movement || []),
+            runtime_read_movements_wake: runtimeMovementCoverMask,
+            write_objects_wake: objectMaskForNames(psTagged, objectWake),
+            runtime_write_objects_wake: runtimeObjectCoverMask,
             write_objects_set: objectMaskForNames(psTagged, objectSet),
             write_objects_clear: objectMaskForNames(psTagged, objectClear),
             write_movements_wake: movementWakeMask,
+            runtime_write_movements_wake: runtimeMovementCoverMask,
             write_movements_set: movementSetMask,
             write_movements_clear: movementClearMask,
         },
