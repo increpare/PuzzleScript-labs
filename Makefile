@@ -450,14 +450,6 @@ PUZZLESCRIPT_CPP_REBUILD_INPUTS := \
 	$(wildcard native/src/compiler/*.cpp) \
 	$(wildcard native/src/compiler/*.hpp) \
 	$(wildcard native/include/puzzlescript/*.h)
-PUZZLESCRIPT_HANDHELD_REPORT_REBUILD_INPUTS := \
-	$(wildcard native/src/handheld/*.cpp) \
-	$(wildcard native/src/handheld/*.hpp) \
-	$(wildcard native/src/runtime/*.cpp) \
-	$(wildcard native/src/runtime/*.hpp) \
-	$(wildcard native/src/compiler/*.cpp) \
-	$(wildcard native/src/compiler/*.hpp) \
-	$(wildcard native/include/puzzlescript/*.h)
 SOLVER_MINE_MAX_TARGETS_ARG := $(if $(SOLVER_MINE_MAX_TARGETS),--max-targets $(SOLVER_MINE_MAX_TARGETS),)
 SOLVER_TARGET_BENCH_TIMEOUT_ARG := $(if $(SOLVER_TARGET_BENCH_TIMEOUT_MS),--timeout-ms $(SOLVER_TARGET_BENCH_TIMEOUT_MS),)
 ifeq ($(SPECIALIZE),true)
@@ -695,14 +687,19 @@ $(PUZZLESCRIPT_SIMPLIFY): $(CMAKE_CACHE) $(PUZZLESCRIPT_SOLVER_REBUILD_INPUTS)
 
 build_simplify: $(PUZZLESCRIPT_SIMPLIFY)
 
-$(PUZZLESCRIPT_HANDHELD_REPORT): $(CMAKE_CACHE) $(PUZZLESCRIPT_HANDHELD_REPORT_REBUILD_INPUTS)
+$(PUZZLESCRIPT_HANDHELD_REPORT): $(CMAKE_CACHE) FORCE
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
 	$(CMAKE) --build $(BUILD_DIR) --target puzzlescript_handheld_report
 
-handheld_report: $(PUZZLESCRIPT_HANDHELD_REPORT)
+handheld_report:
+	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
+	$(CMAKE) --build $(BUILD_DIR) --target puzzlescript_handheld_report
 	$(NODE) scripts/build_parser_corpus_bundle.js testdata > $(HANDHELD_TESTDATA_BUNDLE)
 	$(PUZZLESCRIPT_HANDHELD_REPORT) --display 800x480 --corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) > $(HANDHELD_REPORT_JSON)
 	@echo "Wrote $(HANDHELD_REPORT_JSON)"
+
+.PHONY: FORCE
+FORCE:
 
 simplify:
 	@if [ -z "$(IN)" ] || [ -z "$(OUT)" ]; then \
