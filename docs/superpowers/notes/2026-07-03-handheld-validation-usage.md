@@ -4,6 +4,11 @@ The handheld validation report checks how PuzzleScript games fit on the target
 800x480 handheld display. It is a corpus-first sanity check for the display
 semantics in the handheld plan, especially level viewport selection and scaling.
 
+This report is intentionally display-only. It does not prove ESP32-P4 memory
+fit, rv32 portability, compile time, binary size, storage wear, audio synthesis,
+or battery behavior. Those are separate Track 0 / firmware validation gates in
+the handheld design spec.
+
 ## Build
 
 Use the root CMake build, not a nested native-only build:

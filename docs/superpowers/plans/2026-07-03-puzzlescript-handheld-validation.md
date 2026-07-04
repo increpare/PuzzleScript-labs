@@ -1372,7 +1372,9 @@ build/native/puzzlescript_handheld_report --display 800x480 --corpus-ndjson buil
 
 The `summary.degraded_levels` count is the first number to watch. A degraded
 level means the whole board is still shown, but it cannot fit at the native
-5-pixel PuzzleScript sprite cell size on an 800x480 display.
+5-pixel PuzzleScript sprite cell size on an 800x480 display. The host report
+keeps this as data for auditing; product firmware should treat such levels as
+too large for the display rather than silently fractional-downsampling them.
 
 ## Semantics Checked
 
@@ -1423,6 +1425,8 @@ git commit -m "docs: add handheld validation usage"
   - Background color is reported for future LED/glow work.
   - Compile failure reporting is covered by `handheld_report_smoke`.
 - Deferred to separate plans:
+  - Track 0 no-hardware feasibility: peak-memory audit, rv32/32-bit portability,
+    runtime binary-size budget, and compile-time measurements.
   - ESP32-P4 firmware shell and power states.
   - Library UI, cache format, saves, and USB mass-storage mode.
   - Audio, haptics, and RGB LED drivers.
