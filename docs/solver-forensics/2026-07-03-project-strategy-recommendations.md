@@ -72,9 +72,26 @@ place for JS and target-level solver benchmarks:
   targets, or compile/level errors.
 - `src/tests/run_js_solver_bench_pair.js` runs baseline/candidate JS solver
   pairs with shared pair IDs and stores both artifacts and bench-store records.
+  Pair IDs are batch-qualified and artifacts are written under batch-specific
+  directories so repeated runs remain append-only instead of overwriting older
+  evidence.
 - Make targets cover slice manifests, smoke paired runs, store summaries,
   freshness checks, paired comparisons with a noise-band verdict, and explicit
   dry-run/apply retention entry points.
+
+Seeded store status (2026-07-04, git `424304b1719b`, 3 paired JS runs per
+slice, baseline `weighted-astar` vs candidate `--adaptive-step-cost`, 500ms
+per target):
+
+| Slice | Targets | Baseline solved | Candidate solved | Mean delta | Verdict | Flips |
+| --- | ---: | --- | --- | ---: | --- | --- |
+| `smoke-50` | 50 | 31, 31, 31 | 31, 31, 31 | 0.00 | `inconclusive_noise_band` | 0 |
+| `sokoban-skew-200` | 184 | 102, 102, 102 | 99, 100, 100 | -2.33 | `candidate_worse` | 7 solved→timeout |
+| `hard-tail-300` | 184 | 102, 102, 103 | 100, 100, 101 | -2.00 | `candidate_worse` | 6 solved→timeout |
+
+All seeded records were fresh at capture time with `skipped_message=0` and
+`errors=0`. Retention dry-run kept the 18 referenced artifacts and removed
+nothing.
 
 ## 2. Recommendation: adopt the certificate architecture as policy
 
@@ -213,7 +230,7 @@ Item status after the X-round:
 | --- | --- | --- |
 | P1 static opts on hard game | done, no effect there | still valuable corpus-wide/for strides — remeasure on corpus |
 | P2 / N3 movement-aware prune | **rejected as implemented** | reroute through S1 certified masks |
-| P3 adaptive strategy | probe only | 706→703, inside noise band |
+| P3 adaptive strategy | rejected for current implementation | named slices: smoke 0, sokoban −2.33, hard-tail −2.00 solved; keep only as future redesign idea |
 | P4 JS codegen | design-doc only | superseded in priority by native path (rec. 4) |
 | P5 / N8 stride compaction | live | X1 suggests cosmetic-pass alone shrinks too little (6/82 layers) — S4 per-level universe is the stronger route |
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |

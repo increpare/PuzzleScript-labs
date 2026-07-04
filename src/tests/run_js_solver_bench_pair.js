@@ -16,7 +16,7 @@ function usage() {
     process.stderr.write([
         'Usage: node src/tests/run_js_solver_bench_pair.js <corpus_dir>',
         '  --store PATH --slice NAME [--runs N] [--out-dir DIR]',
-        '  [--slice-manifest PATH]',
+        '  [--slice-manifest PATH] [--batch-id ID]',
         '  [--baseline-variant NAME] [--candidate-variant NAME]',
         '  [--metric NAME] [--noise-band N]',
         '  [--baseline-env KEY=VALUE ...] [--candidate-env KEY=VALUE ...]',
@@ -41,6 +41,19 @@ function parseEnvAssignment(value, label) {
     return [value.slice(0, equalIndex), value.slice(equalIndex + 1)];
 }
 
+function defaultBatchId() {
+    const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 17);
+    return `${stamp}-${process.pid}`;
+}
+
+function sanitizeBatchId(value) {
+    const sanitized = String(value || '').replace(/[^A-Za-z0-9._-]/g, '_');
+    if (sanitized.length === 0) {
+        throw new Error('--batch-id must contain at least one file-safe character');
+    }
+    return sanitized;
+}
+
 function parseArgs(argv) {
     const args = argv.slice(2);
     if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
@@ -54,6 +67,7 @@ function parseArgs(argv) {
         sliceManifestPath: null,
         runs: 3,
         outDir: path.resolve('build/solver-bench-pairs'),
+        batchId: defaultBatchId(),
         baselineVariant: 'baseline',
         candidateVariant: 'candidate',
         metric: 'solved',
@@ -79,6 +93,8 @@ function parseArgs(argv) {
             options.runs = parsePositiveInt(args[++index], '--runs');
         } else if (arg === '--out-dir' && index + 1 < args.length) {
             options.outDir = path.resolve(args[++index]);
+        } else if (arg === '--batch-id' && index + 1 < args.length) {
+            options.batchId = sanitizeBatchId(args[++index]);
         } else if (arg === '--baseline-variant' && index + 1 < args.length) {
             options.baselineVariant = args[++index];
         } else if (arg === '--candidate-variant' && index + 1 < args.length) {
@@ -131,7 +147,8 @@ function sliceManifestRunnerArgs(options) {
 }
 
 function runVariant(options, pairId, variant, variantArgs, variantEnv) {
-    const artifactPath = path.join(options.outDir, `${pairId}-${variant}.json`);
+    const pairLabel = pairId.split(':').pop();
+    const artifactPath = path.join(options.outDir, options.batchId, `${pairLabel}-${variant}.json`);
     const argv = [
         RUNNER,
         options.corpus,
@@ -158,8 +175,9 @@ function runVariant(options, pairId, variant, variantArgs, variantEnv) {
 
 function runPairs(options) {
     fs.mkdirSync(options.outDir, { recursive: true });
+    options.batchId = sanitizeBatchId(options.batchId || defaultBatchId());
     for (let index = 0; index < options.runs; index++) {
-        const pairId = `pair-${index + 1}`;
+        const pairId = `${options.batchId}:pair-${index + 1}`;
         runVariant(options, pairId, options.baselineVariant, options.baselineArgs, options.baselineEnv);
         runVariant(options, pairId, options.candidateVariant, options.candidateArgs, options.candidateEnv);
     }
