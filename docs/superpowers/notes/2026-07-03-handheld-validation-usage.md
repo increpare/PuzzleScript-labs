@@ -44,6 +44,9 @@ report, and writes:
 build/handheld_report.json
 ```
 
+Set `BUILD_DIR=...` when invoking `make handheld_report` to change the binary,
+bundle, and JSON output locations together.
+
 Equivalent manual commands:
 
 ```bash

@@ -450,6 +450,14 @@ PUZZLESCRIPT_CPP_REBUILD_INPUTS := \
 	$(wildcard native/src/compiler/*.cpp) \
 	$(wildcard native/src/compiler/*.hpp) \
 	$(wildcard native/include/puzzlescript/*.h)
+PUZZLESCRIPT_HANDHELD_REPORT_REBUILD_INPUTS := \
+	$(wildcard native/src/handheld/*.cpp) \
+	$(wildcard native/src/handheld/*.hpp) \
+	$(wildcard native/src/runtime/*.cpp) \
+	$(wildcard native/src/runtime/*.hpp) \
+	$(wildcard native/src/compiler/*.cpp) \
+	$(wildcard native/src/compiler/*.hpp) \
+	$(wildcard native/include/puzzlescript/*.h)
 SOLVER_MINE_MAX_TARGETS_ARG := $(if $(SOLVER_MINE_MAX_TARGETS),--max-targets $(SOLVER_MINE_MAX_TARGETS),)
 SOLVER_TARGET_BENCH_TIMEOUT_ARG := $(if $(SOLVER_TARGET_BENCH_TIMEOUT_MS),--timeout-ms $(SOLVER_TARGET_BENCH_TIMEOUT_MS),)
 ifeq ($(SPECIALIZE),true)
@@ -468,7 +476,7 @@ help:
 	@echo "  make build_solver                  Build build/native/puzzlescript_solver"
 	@echo "  make build_generator               Build build/native/puzzlescript_generator"
 	@echo "  make build_simplify                Build build/native/puzzlescript_simplify"
-	@echo "  make handheld_report               Build 800x480 handheld display report for testdata corpus"
+	@echo "  make handheld_report               Build and write 800x480 handheld report for testdata corpus"
 	@echo "  make simplify IN=in.txt OUT=out.txt Post-process levels with puzzlescript-simplify"
 	@echo "  make solver game.txt               Run solver on a PuzzleScript game"
 	@echo "  make solver game.txt SPECIALIZE=true"
@@ -687,7 +695,7 @@ $(PUZZLESCRIPT_SIMPLIFY): $(CMAKE_CACHE) $(PUZZLESCRIPT_SOLVER_REBUILD_INPUTS)
 
 build_simplify: $(PUZZLESCRIPT_SIMPLIFY)
 
-$(PUZZLESCRIPT_HANDHELD_REPORT): $(CMAKE_CACHE) native/CMakeLists.txt native/src/handheld/display_layout.cpp native/src/handheld/display_layout.hpp native/src/handheld/report.cpp native/src/handheld/report.hpp native/src/handheld/main.cpp
+$(PUZZLESCRIPT_HANDHELD_REPORT): $(CMAKE_CACHE) $(PUZZLESCRIPT_HANDHELD_REPORT_REBUILD_INPUTS)
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
 	$(CMAKE) --build $(BUILD_DIR) --target puzzlescript_handheld_report
 
