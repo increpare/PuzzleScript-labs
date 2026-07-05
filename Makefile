@@ -85,6 +85,7 @@ PUZZLESCRIPT_HANDHELD_REPORT := $(BUILD_DIR)/native/puzzlescript_handheld_report
 HANDHELD_TESTDATA_BUNDLE := $(BUILD_DIR)/handheld_testdata.bundle.ndjson
 HANDHELD_REPORT_JSON := $(BUILD_DIR)/handheld_report.json
 HANDHELD_MEMORY_AUDIT_JSON := $(BUILD_DIR)/handheld_memory_audit.json
+HANDHELD_MEMORY_AUDIT_TMP := $(BUILD_DIR)/handheld_memory_audit_sources
 HANDHELD_MEMORY_CEILING_MB ?= 32
 GENERATOR_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 GENERATOR_GAME := $(word 1,$(GENERATOR_MAKE_ARGS))
@@ -729,6 +730,7 @@ handheld_memory_audit:
 		--binary $(PUZZLESCRIPT_CPP) \
 		--corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) \
 		--memory-ceiling-mb $(HANDHELD_MEMORY_CEILING_MB) \
+		--tmp-dir $(HANDHELD_MEMORY_AUDIT_TMP) \
 		--out $(HANDHELD_MEMORY_AUDIT_JSON)
 
 .PHONY: FORCE
