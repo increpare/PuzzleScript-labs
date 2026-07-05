@@ -1238,6 +1238,78 @@
       ]
     },
     {
+      "name": "linear_count_invariants",
+      "description": "Fixtures for object-count linear invariant facts.",
+      "specification": "Each linear_count_invariants fixture projects report.facts.linear_count_invariants into object-set rows. This first analyzer slice proves or rejects unit-coefficient object-count sums for concrete transform components: sum(count(object_i)) is preserved when every solver-active object-mutating rule has an exact known count delta whose sum over the component is zero, and rejected when a candidate component leaks count or is touched by an uncertain count-delta rule.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "linearCountInvariants",
+          "type": "array",
+          "description": "Linear count invariant expectation rows.",
+          "specification": "Each row is keyed by a sorted object set and asserts the analyzer's status, integer coefficient terms, and rejection blockers for that candidate component.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "objects",
+                "type": "string[]",
+                "description": "Objects in the candidate invariant component.",
+                "specification": "The runner sorts these names before matching the analyzed fact."
+              },
+              {
+                "name": "status",
+                "type": "enum",
+                "description": "Whether the linear invariant is proved or rejected.",
+                "specification": "proved means the analyzer proved the unit-coefficient sum is preserved by every solver-active object-mutating rule. rejected means the object set was a transform candidate but at least one rule may violate or obscure that preservation.",
+                "values": ["proved", "rejected"]
+              },
+              {
+                "name": "terms",
+                "type": "array",
+                "description": "Linear expression terms.",
+                "specification": "Each term contributes coefficient * count(object) to the invariant expression. This fixture family currently expects unit coefficients for every object in the set.",
+                "items": {
+                  "type": "object",
+                  "fields": [
+                    {
+                      "name": "object",
+                      "type": "string",
+                      "description": "Object display name in this expression term.",
+                      "specification": "Must name an object in the row's objects set."
+                    },
+                    {
+                      "name": "coefficient",
+                      "type": "integer",
+                      "description": "Integer coefficient for this object's count.",
+                      "specification": "The first implementation emits coefficient 1 for transform-component count sums."
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "blockers",
+                "type": "string[]",
+                "description": "Reasons this candidate invariant is rejected.",
+                "specification": "Known blockers include component_sum_delta_nonzero and unknown_count_delta_rule."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "runtime_contracts",
       "description": "Fixtures for runtime replay checks of static-analysis contracts.",
       "specification": "Each runtime_contracts fixture stores a PuzzleScript input replay, the expected final serialized level, and a selected expect object copied from runSimulationWithStaticChecks result fields.",
@@ -1379,6 +1451,12 @@
               "type": "integer",
               "description": "Runtime boundary checks performed for constant-quantity objects.",
               "specification": "Copied from result.quantityBoundaryChecks."
+            },
+            {
+              "name": "linearCountInvariantChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for proved linear count invariants.",
+              "specification": "Copied from result.linearCountInvariantChecks."
             },
             {
               "name": "temporaryBoundaryChecks",

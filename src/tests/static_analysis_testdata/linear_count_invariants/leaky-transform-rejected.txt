@@ -1,0 +1,57 @@
+title Static Analysis Linear Count Invariant Leaky Transform Rejected
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Alpha
+red
+
+Beta
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+A = Alpha
+B = Beta
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Alpha, Beta
+
+=====
+RULES
+=====
+
+[ Alpha ] -> [ Beta ]
+[ Beta ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PAB

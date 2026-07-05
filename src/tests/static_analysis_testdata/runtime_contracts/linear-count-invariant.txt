@@ -1,0 +1,54 @@
+title Static Analysis Runtime Linear Count Invariant
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Alpha
+red
+
+Beta
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+A = Alpha
+B = Beta
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Alpha, Beta
+
+=====
+RULES
+=====
+
+[ Alpha ] -> [ Beta ]
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+PAA

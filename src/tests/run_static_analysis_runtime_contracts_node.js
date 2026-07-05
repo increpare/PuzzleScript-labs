@@ -155,6 +155,7 @@ function emptyStaticContract(unavailableReason) {
         inertLayerIds: [],
         constantQuantityObjectNames: [],
         quantityContracts: [],
+        linearCountInvariants: [],
         temporaryObjectNames: [],
         neverAppearsObjectNames: [],
         perLevelObjectUniverseByLevel: new Map(),
@@ -183,6 +184,23 @@ function perLevelObjectUniverseByLevel(report) {
         byLevel.set(fact.value.level_index, (fact.value.unreachable_objects || []).slice());
     }
     return byLevel;
+}
+
+function linearCountInvariantContracts(report) {
+    const contracts = [];
+    for (const fact of (report.facts && report.facts.linear_count_invariants) || []) {
+        if (!fact || fact.status !== 'proved' || !fact.value) continue;
+        const terms = (fact.value.terms || [])
+            .filter(term => term && typeof term.object === 'string' && Number.isInteger(term.coefficient))
+            .map(term => ({ object: term.object, coefficient: term.coefficient }));
+        if (terms.length === 0) continue;
+        contracts.push({
+            id: fact.id || `linear_count_invariant_${contracts.length}`,
+            objects: (fact.value.objects || (fact.subjects && fact.subjects.objects) || terms.map(term => term.object)).slice(),
+            terms,
+        });
+    }
+    return contracts;
 }
 
 function addRuleTagObjects(rule, out) {
@@ -363,7 +381,7 @@ function staticContractForSource(source, testName) {
     const sourcePath = `testdata:${testName}`;
     const report = analyzeSource(source, {
         sourcePath,
-        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'per_level_object_universe', 'mergeability', 'winflow', 'certified_wake_masks'],
+        familyFilter: ['count_layer_invariants', 'linear_count_invariants', 'transient_boundary', 'movement_action', 'per_level_object_universe', 'mergeability', 'winflow', 'certified_wake_masks'],
     });
     const unavailableReason = expectedAnalysisUnavailable(report, testName, sourcePath);
     if (unavailableReason) {
@@ -404,6 +422,7 @@ function staticContractForSource(source, testName) {
             .filter(contract => contract.neverIncreases && contract.neverDecreases)
             .map(contract => contract.objectName),
         quantityContracts,
+        linearCountInvariants: linearCountInvariantContracts(report),
         temporaryObjectNames: objects
             .filter(object => object.tags && object.tags.temporary === true)
             .map(object => object.name),
@@ -529,6 +548,39 @@ function snapshotObjectCounts(objectNames) {
         snapshots.set(objectName, objectCountSnapshot(objectName));
     }
     return snapshots;
+}
+
+function linearCountInvariantValue(contract) {
+    return (contract.terms || []).reduce((sum, term) =>
+        sum + term.coefficient * objectCountSnapshot(term.object),
+    0);
+}
+
+function snapshotLinearCountInvariants(contracts) {
+    const snapshots = new Map();
+    if (!canSnapshotBoard()) return snapshots;
+    for (const contract of contracts) {
+        snapshots.set(contract.id, linearCountInvariantValue(contract));
+    }
+    return snapshots;
+}
+
+function firstLinearCountInvariantDifference(beforeValues, contracts) {
+    for (const contract of contracts) {
+        const before = beforeValues.get(contract.id);
+        if (before === undefined) continue;
+        const after = linearCountInvariantValue(contract);
+        if (after !== before) {
+            return {
+                id: contract.id,
+                objects: contract.objects,
+                terms: contract.terms,
+                before,
+                after,
+            };
+        }
+    }
+    return null;
 }
 
 function structuralObjectNames() {
@@ -1803,6 +1855,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const inertLayers = staticContract.inertLayerIds;
     const constantQuantityObjects = staticContract.constantQuantityObjectNames;
     const quantityContracts = staticContract.quantityContracts;
+    const linearCountInvariants = staticContract.linearCountInvariants;
     const temporaryObjects = staticContract.temporaryObjectNames;
     const neverAppearsObjects = staticContract.neverAppearsObjectNames;
     const perLevelObjectUniverse = staticContract.perLevelObjectUniverseByLevel;
@@ -1843,6 +1896,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let staticLayerBoundaryChecks = 0;
     let inertLayerBoundaryChecks = 0;
     let quantityBoundaryChecks = 0;
+    let linearCountInvariantChecks = 0;
     let temporaryBoundaryChecks = 0;
     let neverAppearsBoundaryChecks = 0;
     let perLevelObjectUniverseChecks = 0;
@@ -1901,6 +1955,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         let staticLayerSnapshots = snapshotLayers(staticLayers);
         let inertLayerSnapshots = snapshotLayers(inertLayers);
         let countSnapshots = snapshotObjectCounts(countedObjects);
+        let linearCountSnapshots = snapshotLinearCountInvariants(linearCountInvariants);
         const noRandomTrace = checkNoRandomReplay
             ? [replayBoundarySnapshot('initial')]
             : [];
@@ -2029,6 +2084,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 staticLayerSnapshots = snapshotLayers(staticLayers);
                 inertLayerSnapshots = snapshotLayers(inertLayers);
                 countSnapshots = snapshotObjectCounts(countedObjects);
+                linearCountSnapshots = snapshotLinearCountInvariants(linearCountInvariants);
                 winflowCache = winconditionTruthSnapshot();
                 continue;
             }
@@ -2081,6 +2137,19 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 ].join('\n'));
             }
 
+            const linearCountDiff = firstLinearCountInvariantDifference(linearCountSnapshots, linearCountInvariants);
+            if (linearCountDiff) {
+                throw new Error([
+                    `${testName}: linear count invariant violated`,
+                    `  input ${inputIndex}: ${tokenLabel(inputToken)}`,
+                    `  invariant: ${linearCountDiff.id}`,
+                    `  objects: ${JSON.stringify(linearCountDiff.objects)}`,
+                    `  terms: ${JSON.stringify(linearCountDiff.terms)}`,
+                    `  before: ${linearCountDiff.before}`,
+                    `  after: ${linearCountDiff.after}`,
+                ].join('\n'));
+            }
+
             const winflowCheck = checkWinflowCache(
                 testName,
                 `input ${inputIndex} ${tokenLabel(inputToken)}`,
@@ -2108,6 +2177,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             staticLayerBoundaryChecks += staticLayers.length;
             inertLayerBoundaryChecks += inertLayers.length;
             quantityBoundaryChecks += quantityClaimCount(quantityContracts);
+            linearCountInvariantChecks += linearCountInvariants.length;
             const boundaryIsTerminalWin = currentBoundaryIsTerminalWin();
             if (!boundaryIsTerminalWin && actionUnnecessaryProved) {
                 const restartBoundaryBeforeProbe = restartBoundaryTriggered;
@@ -2132,6 +2202,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 tickNoopBoundaryChecks++;
             }
             countSnapshots = snapshotObjectCounts(countedObjects);
+            linearCountSnapshots = snapshotLinearCountInvariants(linearCountInvariants);
             currentIdentity = nextIdentity;
         }
 
@@ -2303,6 +2374,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             layerBoundaryChecks: staticLayerBoundaryChecks,
             inertLayerBoundaryChecks,
             quantityBoundaryChecks,
+            linearCountInvariantChecks,
             temporaryBoundaryChecks,
             neverAppearsBoundaryChecks,
             perLevelObjectUniverseChecks,
@@ -2359,6 +2431,7 @@ function runAll(options = {}) {
     let casesWithStaticLayers = 0;
     let casesWithInertLayers = 0;
     let casesWithConstantQuantityObjects = 0;
+    let casesWithLinearCountInvariants = 0;
     let casesWithTemporaryObjects = 0;
     let casesWithNeverAppearsObjects = 0;
     let casesWithPerLevelObjectUniverse = 0;
@@ -2376,6 +2449,7 @@ function runAll(options = {}) {
     let staticLayerBoundaryChecks = 0;
     let inertLayerBoundaryChecks = 0;
     let quantityBoundaryChecks = 0;
+    let linearCountInvariantChecks = 0;
     let temporaryBoundaryChecks = 0;
     let neverAppearsBoundaryChecks = 0;
     let perLevelObjectUniverseChecks = 0;
@@ -2422,6 +2496,9 @@ function runAll(options = {}) {
             if (result.constantQuantityObjectCount > 0) {
                 casesWithConstantQuantityObjects++;
             }
+            if (result.linearCountInvariantChecks > 0) {
+                casesWithLinearCountInvariants++;
+            }
             if (result.temporaryObjectCount > 0) {
                 casesWithTemporaryObjects++;
             }
@@ -2465,6 +2542,7 @@ function runAll(options = {}) {
             staticLayerBoundaryChecks += result.staticLayerBoundaryChecks;
             inertLayerBoundaryChecks += result.inertLayerBoundaryChecks;
             quantityBoundaryChecks += result.quantityBoundaryChecks;
+            linearCountInvariantChecks += result.linearCountInvariantChecks;
             temporaryBoundaryChecks += result.temporaryBoundaryChecks;
             neverAppearsBoundaryChecks += result.neverAppearsBoundaryChecks;
             perLevelObjectUniverseChecks += result.perLevelObjectUniverseChecks;
@@ -2496,6 +2574,7 @@ function runAll(options = {}) {
         casesWithStaticLayers,
         casesWithInertLayers,
         casesWithConstantQuantityObjects,
+        casesWithLinearCountInvariants,
         casesWithTemporaryObjects,
         casesWithNeverAppearsObjects,
         casesWithPerLevelObjectUniverse,
@@ -2514,6 +2593,7 @@ function runAll(options = {}) {
         layerBoundaryChecks: staticLayerBoundaryChecks,
         inertLayerBoundaryChecks,
         quantityBoundaryChecks,
+        linearCountInvariantChecks,
         temporaryBoundaryChecks,
         neverAppearsBoundaryChecks,
         perLevelObjectUniverseChecks,
@@ -2551,7 +2631,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithPerLevelObjectUniverse} with per-level object universes, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.casesWithCertifiedWakeMasks} with certified wake masks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.perLevelObjectUniverseChecks} per-level object-universe checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.certifiedWakeMaskChecks} certified wake-mask checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithLinearCountInvariants} with linear count invariants, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithPerLevelObjectUniverse} with per-level object universes, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.casesWithCertifiedWakeMasks} with certified wake masks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.linearCountInvariantChecks} linear-count-invariant checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.perLevelObjectUniverseChecks} per-level object-universe checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.certifiedWakeMaskChecks} certified wake-mask checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }

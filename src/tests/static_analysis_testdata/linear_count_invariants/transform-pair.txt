@@ -1,0 +1,63 @@
+title Static Analysis Linear Count Invariant Transform Pair
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Alpha
+red
+
+Beta
+blue
+
+Marker
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+A = Alpha
+B = Beta
+M = Marker
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Alpha, Beta
+Marker
+
+=====
+RULES
+=====
+
+[ Alpha ] -> [ Beta ]
+[ Beta ] -> [ Alpha ]
+[ Player ] -> [ Player Marker ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PAB

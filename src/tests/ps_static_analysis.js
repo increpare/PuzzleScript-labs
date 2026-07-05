@@ -564,6 +564,7 @@ function emptyFacts() {
         mergeability: [],
         movement_action: [],
         per_level_object_universe: [],
+        linear_count_invariants: [],
         count_layer_invariants: [],
         transient_boundary: [],
         rulegroup_flow: [],
@@ -1338,6 +1339,188 @@ function ruleMayChangeObjectCount(psTagged, rule, objectName) {
 
 function incrementCount(map, objectName) {
     map.set(objectName, (map.get(objectName) || 0) + 1);
+}
+
+function addCountDelta(delta, objectName, amount) {
+    const next = (delta.get(objectName) || 0) + amount;
+    if (next === 0) {
+        delta.delete(objectName);
+    } else {
+        delta.set(objectName, next);
+    }
+}
+
+function concreteCellObjectsByLayer(psTagged, cell) {
+    const byLayer = new Map();
+    for (const term of cell || []) {
+        if (term.kind !== 'present' || !term.ref || term.ref.type !== 'object') {
+            return null;
+        }
+        const layer = layerForObject(psTagged, term.ref.name);
+        if (byLayer.has(layer)) {
+            return null;
+        }
+        byLayer.set(layer, term.ref.name);
+    }
+    return byLayer;
+}
+
+function exactRuleCountDelta(psTagged, rule) {
+    if (!rule.tags.solver_state_active || !rule.tags.object_mutating) return new Map();
+
+    const delta = new Map();
+    const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+        const lhsRow = rule.lhs[rowIndex] || [];
+        const rhsRow = rule.rhs[rowIndex] || [];
+        const cellCount = maxCellsInRows(lhsRow, rhsRow);
+        for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+            const lhsByLayer = concreteCellObjectsByLayer(psTagged, lhsRow[cellIndex] || []);
+            const rhsByLayer = concreteCellObjectsByLayer(psTagged, rhsRow[cellIndex] || []);
+            if (lhsByLayer === null || rhsByLayer === null) {
+                return null;
+            }
+
+            const layers = new Set(lhsByLayer.keys());
+            addValues(layers, rhsByLayer.keys());
+            for (const layer of layers) {
+                const lhsObject = lhsByLayer.get(layer) || null;
+                const rhsObject = rhsByLayer.get(layer) || null;
+                if (rhsObject !== null && lhsObject === null) {
+                    return null;
+                }
+                if (lhsObject !== null && rhsObject !== null && lhsObject !== rhsObject) {
+                    addCountDelta(delta, lhsObject, -1);
+                    addCountDelta(delta, rhsObject, 1);
+                } else if (lhsObject !== null && rhsObject === null) {
+                    addCountDelta(delta, lhsObject, -1);
+                }
+            }
+        }
+    }
+    return delta;
+}
+
+function exactDeltaTransformPair(delta) {
+    const entries = Array.from(delta.entries()).filter(([_objectName, amount]) => amount !== 0);
+    if (entries.length !== 2) return null;
+    const decrements = entries.filter(([_objectName, amount]) => amount === -1);
+    const increments = entries.filter(([_objectName, amount]) => amount === 1);
+    if (decrements.length !== 1 || increments.length !== 1) return null;
+    return [decrements[0][0], increments[0][0]];
+}
+
+function unionFindRoot(parents, objectName) {
+    let parent = parents.get(objectName);
+    if (parent === undefined) {
+        parents.set(objectName, objectName);
+        return objectName;
+    }
+    if (parent !== objectName) {
+        parent = unionFindRoot(parents, parent);
+        parents.set(objectName, parent);
+    }
+    return parent;
+}
+
+function unionFindUnion(parents, left, right) {
+    const leftRoot = unionFindRoot(parents, left);
+    const rightRoot = unionFindRoot(parents, right);
+    if (leftRoot !== rightRoot) {
+        parents.set(rightRoot, leftRoot);
+    }
+}
+
+function linearCountCandidateComponents(deltaByRuleId, activeRules) {
+    const parents = new Map();
+    const ruleIdsByEdge = new Map();
+    for (const rule of activeRules) {
+        const delta = deltaByRuleId.get(rule.id);
+        if (!delta) continue;
+        const pair = exactDeltaTransformPair(delta);
+        if (!pair) continue;
+        unionFindUnion(parents, pair[0], pair[1]);
+        const edgeKey = pair.slice().sort(compareNumericNames).join('\u0000');
+        if (!ruleIdsByEdge.has(edgeKey)) ruleIdsByEdge.set(edgeKey, []);
+        ruleIdsByEdge.get(edgeKey).push(rule.id);
+    }
+
+    const componentsByRoot = new Map();
+    for (const objectName of parents.keys()) {
+        const root = unionFindRoot(parents, objectName);
+        if (!componentsByRoot.has(root)) componentsByRoot.set(root, new Set());
+        componentsByRoot.get(root).add(objectName);
+    }
+
+    return Array.from(componentsByRoot.values())
+        .map(component => uniqueSorted(component))
+        .filter(component => component.length >= 2)
+        .map(component => {
+            const ruleIds = new Set();
+            for (let left = 0; left < component.length; left++) {
+                for (let right = left + 1; right < component.length; right++) {
+                    const edgeKey = [component[left], component[right]].sort(compareNumericNames).join('\u0000');
+                    addValues(ruleIds, ruleIdsByEdge.get(edgeKey) || []);
+                }
+            }
+            return { objects: component, transform_rule_ids: uniqueSorted(ruleIds) };
+        })
+        .sort((left, right) => left.objects.join('\u0000').localeCompare(right.objects.join('\u0000'), undefined, { numeric: true }));
+}
+
+function ruleWritesAnyObject(psTagged, rule, objects) {
+    const objectSet = new Set(objects);
+    for (const objectName of objectWriteNames(psTagged, rule)) {
+        if (objectSet.has(objectName)) return true;
+    }
+    return false;
+}
+
+function deriveLinearCountInvariantFacts(psTagged) {
+    const activeRules = allRuleEntries(psTagged).map(entry => entry.rule).filter(rule => rule.tags.solver_state_active);
+    const deltaByRuleId = new Map(activeRules.map(rule => [rule.id, exactRuleCountDelta(psTagged, rule)]));
+    const components = linearCountCandidateComponents(deltaByRuleId, activeRules);
+    const results = [];
+    for (const component of components) {
+        const componentSet = new Set(component.objects);
+        const blockers = [];
+        const evidence = new Set(component.transform_rule_ids);
+        for (const rule of activeRules) {
+            if (!rule.tags.object_mutating) continue;
+            const delta = deltaByRuleId.get(rule.id);
+            if (delta === null) {
+                if (ruleWritesAnyObject(psTagged, rule, component.objects)) {
+                    blockers.push('unknown_count_delta_rule');
+                    evidence.add(rule.id);
+                }
+                continue;
+            }
+            let componentDelta = 0;
+            for (const objectName of componentSet) {
+                componentDelta += delta.get(objectName) || 0;
+            }
+            if (componentDelta !== 0) {
+                blockers.push('component_sum_delta_nonzero');
+                evidence.add(rule.id);
+            }
+        }
+        const uniqueBlockers = uniqueSorted(blockers);
+        const terms = component.objects.map(objectName => ({ object: objectName, coefficient: 1 }));
+        const value = {
+            invariant: 'count_sum_preserved',
+            objects: component.objects,
+            terms,
+            transform_rule_ids: component.transform_rule_ids,
+        };
+        results.push(fact('linear_count_invariants', `count_sum_${component.objects.join('_')}_preserved`, uniqueBlockers.length === 0 ? 'proved' : 'rejected', {
+            subjects: { objects: component.objects },
+            value,
+            proof: uniqueBlockers.length === 0 ? ['exact_count_delta_component_sum_zero'] : [],
+            blockers: uniqueBlockers,
+            evidence: uniqueSorted(evidence),
+        }));
+    }
+    return results;
 }
 
 function ruleCountEffectObjects(psTagged, rule) {
@@ -3076,6 +3259,7 @@ function factDerivers() {
         mergeability: deriveMergeabilityFacts,
         movement_action: deriveMovementActionFacts,
         per_level_object_universe: derivePerLevelObjectUniverseFacts,
+        linear_count_invariants: deriveLinearCountInvariantFacts,
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,

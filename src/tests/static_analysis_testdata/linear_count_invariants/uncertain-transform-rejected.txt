@@ -1,0 +1,58 @@
+title Static Analysis Linear Count Invariant Uncertain Transform Rejected
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Alpha
+red
+
+Beta
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+A = Alpha
+B = Beta
+Thing = Alpha or Beta
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Alpha, Beta
+
+=====
+RULES
+=====
+
+[ Alpha ] -> [ Beta ]
+[ Thing ] -> [ random Thing ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PAB

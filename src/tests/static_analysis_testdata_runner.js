@@ -69,6 +69,7 @@ const RUNTIME_CONTRACT_EXPECT_FIELDS = [
     'staticLayerBoundaryChecks',
     'inertLayerBoundaryChecks',
     'quantityBoundaryChecks',
+    'linearCountInvariantChecks',
     'temporaryBoundaryChecks',
     'neverAppearsBoundaryChecks',
     'perLevelObjectUniverseChecks',
@@ -1437,6 +1438,90 @@ function runPerLevelObjectUniverseDir(dirPath, claimDescriptions, log = process.
     }
 }
 
+// ─── linear_count_invariants ─────────────────────────────────────────────────
+
+function linearCountInvariantFacts(report) {
+    return (report.facts && report.facts.linear_count_invariants) || [];
+}
+
+function buildLinearCountInvariantExpectations(report) {
+    const linearCountInvariants = linearCountInvariantFacts(report).map(fact => {
+        const value = fact.value || {};
+        return {
+            objects: (value.objects || (fact.subjects && fact.subjects.objects) || []).slice().sort(),
+            status: fact.status,
+            terms: (value.terms || []).map(term => ({
+                object: term.object,
+                coefficient: term.coefficient,
+            })).sort((left, right) => left.object.localeCompare(right.object, undefined, { numeric: true })),
+            blockers: (fact.blockers || []).slice().sort(),
+        };
+    }).sort((left, right) => left.objects.join('\u0000').localeCompare(right.objects.join('\u0000')));
+    return { schema: FIXTURE_SCHEMA, human_verified: false, linearCountInvariants };
+}
+
+function validateLinearCountInvariantExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(Array.isArray(payload.linearCountInvariants), `${filePath}: linearCountInvariants must be an array`);
+    for (const [index, item] of payload.linearCountInvariants.entries()) {
+        assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: linearCountInvariants[${index}] must be an object`);
+        assertStringArray(filePath, `linearCountInvariants[${index}].objects`, item.objects);
+        assert.ok(['proved', 'rejected'].includes(item.status), `${filePath}: linearCountInvariants[${index}].status must be proved or rejected`);
+        assert.ok(Array.isArray(item.terms), `${filePath}: linearCountInvariants[${index}].terms must be an array`);
+        for (const [termIndex, term] of item.terms.entries()) {
+            assert.ok(term && typeof term === 'object' && !Array.isArray(term), `${filePath}: linearCountInvariants[${index}].terms[${termIndex}] must be an object`);
+            assert.ok(typeof term.object === 'string' && term.object.length > 0, `${filePath}: linearCountInvariants[${index}].terms[${termIndex}].object must be a non-empty string`);
+            assert.ok(Number.isInteger(term.coefficient), `${filePath}: linearCountInvariants[${index}].terms[${termIndex}].coefficient must be an integer`);
+        }
+        assertStringArray(filePath, `linearCountInvariants[${index}].blockers`, item.blockers);
+    }
+}
+
+function checkLinearCountInvariantFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'linear_count_invariants'), payload);
+    validateLinearCountInvariantExpectationShape(jsonPath, payload);
+    const actual = buildLinearCountInvariantExpectations(report);
+    const actualByObjects = new Map(actual.linearCountInvariants.map(row => [row.objects.slice().sort().join('\u0000'), row]));
+    for (const expected of payload.linearCountInvariants) {
+        const key = expected.objects.slice().sort().join('\u0000');
+        const actualRow = actualByObjects.get(key);
+        if (!actualRow) {
+            const available = Array.from(actualByObjects.keys()).map(value => value.split('\u0000').join(', ')).join('; ');
+            assert.fail(`${jsonPath}: linearCountInvariants ${expected.objects.join(', ')} not found; available sets: ${available}`);
+        }
+        assert.strictEqual(actualRow.status, expected.status, `${jsonPath}: ${expected.objects.join(', ')} status mismatch`);
+        assert.deepStrictEqual(actualRow.terms, expected.terms, `${jsonPath}: ${expected.objects.join(', ')} terms mismatch`);
+        assertSameStringSet(jsonPath, `${expected.objects.join(', ')} blockers`, expected.blockers, actualRow.blockers);
+    }
+}
+
+function runLinearCountInvariantsDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildLinearCountInvariantExpectations(report));
+            log(`generated static analysis testdata: linear_count_invariants/${stem}.json (review before committing)\n`);
+        }
+        checkLinearCountInvariantFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 // ─── runtime_contracts ───────────────────────────────────────────────────────
 
 function normalizeRuntimeContractInputs(payload) {
@@ -1596,6 +1681,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const perLevelObjectUniverseDir = path.join(root, 'per_level_object_universe');
     assert.ok(fs.existsSync(perLevelObjectUniverseDir), `${perLevelObjectUniverseDir}: missing per_level_object_universe testdata directory`);
     runPerLevelObjectUniverseDir(perLevelObjectUniverseDir, claimDescriptions, options.log);
+    const linearCountInvariantsDir = path.join(root, 'linear_count_invariants');
+    assert.ok(fs.existsSync(linearCountInvariantsDir), `${linearCountInvariantsDir}: missing linear_count_invariants testdata directory`);
+    runLinearCountInvariantsDir(linearCountInvariantsDir, claimDescriptions, options.log);
     const runtimeContractsDir = path.join(root, 'runtime_contracts');
     assert.ok(fs.existsSync(runtimeContractsDir), `${runtimeContractsDir}: missing runtime_contracts testdata directory`);
     runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, options.log);
@@ -1609,6 +1697,7 @@ if (require.main === module) {
 module.exports = {
     assertFixtureFieldsDocumented,
     buildCertifiedWakeMaskExpectations,
+    buildLinearCountInvariantExpectations,
     buildMergeabilityExpectations,
     buildMovementActionExpectations,
     buildObjectTagExpectations,
@@ -1630,6 +1719,7 @@ module.exports = {
     formatFixtureJson,
     loadClaimDescriptions,
     runCertifiedWakeMasksDir,
+    runLinearCountInvariantsDir,
     runMergeabilityDir,
     runMovementActionDir,
     runObjectTagsDir,
