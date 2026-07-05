@@ -186,8 +186,18 @@ Do not redo these; they're in place and working:
   movement-anchor scans totaled 662643668 cells
   (337253328 overlap + 325390340 collection), with 1918405 anchored
   collections used. That is about 1340.272 movement-anchor scanned cells per
-  generated state, so N1 remains a live prototype candidate. Still run the
-  named benchmark-game sample before choosing between N1/N4/N5/N7.
+  generated state, so N1 remains a live prototype candidate. Follow-up
+  one-run interpreted native named benchmark-game samples over 54 playable
+  levels, artifacts `build/native/nx1-anonymous-game-portfolio-runtime-counters.json`
+  and `build/native/nx1-anonymous-game-hda8-runtime-counters.json`, make that
+  stronger: portfolio solved 1/54, timeout 53/54, `step_ms=24050.269`,
+  generated 25764 states, and scanned 2659392174 movement-anchor cells
+  (1877059286 overlap + 782332888 collection), about 103221.246 cells per
+  generated state. HDA x8 solved 1/54, timeout 53/54, generated 12900 states,
+  and scanned 1940187483 movement-anchor cells, about 150402.130 cells per
+  generated state. NX1 now picks N1/N2 as the first runtime prototype; N4/N5
+  remain live second-tier candidates, and NX2 still runs independently for
+  allocator/HDA scaling.
 - **NX2 — mimalloc link test** (~1h). Relink the solver with mimalloc, rerun
   HDA x8 on the benchmark game + corpus slice. Success: HDA step_ms drops
   materially (target: close part of the 45%→linear scaling gap). Failure:
