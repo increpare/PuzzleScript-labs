@@ -3721,6 +3721,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         certified_wake_prune_enabled: false,
         certified_wake_prune_installed: false,
         certified_wake_prune_abstained: false,
+        certified_wake_prune_abstain_reason: null,
         certified_wake_prune_runtime_rules: 0,
         certified_wake_prune_static_rules: 0,
         certified_wake_prune_mapped_rules: 0,
@@ -4543,6 +4544,7 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         certified_wake_prune_enabled: false,
         certified_wake_prune_installed: false,
         certified_wake_prune_abstained: false,
+        certified_wake_prune_abstain_reason: null,
         certified_wake_prune_runtime_rules: 0,
         certified_wake_prune_static_rules: 0,
         certified_wake_prune_mapped_rules: 0,
@@ -4620,6 +4622,7 @@ function attachCertifiedWakePruneTelemetry(result, telemetry) {
     result.certified_wake_prune_enabled = tel.enabled;
     result.certified_wake_prune_installed = tel.installed;
     result.certified_wake_prune_abstained = tel.abstained;
+    result.certified_wake_prune_abstain_reason = tel.abstain_reason || null;
     result.certified_wake_prune_runtime_rules = tel.runtime_rules || 0;
     result.certified_wake_prune_static_rules = tel.static_rules || 0;
     result.certified_wake_prune_mapped_rules = tel.mapped_rules || 0;
@@ -4751,6 +4754,66 @@ function recomputeRuleGroupIncrementalMasks(groups, strideObj, strideMov) {
         group.groupWriteObjects = groupWriteObjects;
         group.groupWriteMovements = groupWriteMovements;
         group.groupForceAlwaysRun = groupForceAlwaysRun;
+    }
+}
+
+function snapshotCertifiedWakeRuntimeState(groups) {
+    const ruleSnapshots = [];
+    const groupSnapshots = [];
+    for (const group of groups || []) {
+        groupSnapshots.push({
+            group,
+            groupReadObjects: group.groupReadObjects,
+            groupReadMovements: group.groupReadMovements,
+            groupWriteObjects: group.groupWriteObjects,
+            groupWriteMovements: group.groupWriteMovements,
+            groupForceAlwaysRun: group.groupForceAlwaysRun,
+            inputSpecializationUseful: group.inputSpecializationUseful,
+            inputSpecializedRuleSets: group.inputSpecializedRuleSets,
+        });
+        for (const rule of group || []) {
+            ruleSnapshots.push({
+                rule,
+                readObjects: rule.readObjects,
+                readMovements: rule.readMovements,
+                writeObjects: rule.writeObjects,
+                writeMovements: rule.writeMovements,
+                inputSpecReadMovementsPresent: rule.inputSpecReadMovementsPresent,
+                inputSpecWriteMovementsSet: rule.inputSpecWriteMovementsSet,
+                activeInputsMask: rule.activeInputsMask,
+                hadRuleId: Object.prototype.hasOwnProperty.call(rule, 'certifiedWakePruneRuleId'),
+                ruleId: rule.certifiedWakePruneRuleId,
+            });
+        }
+    }
+    return { ruleSnapshots, groupSnapshots };
+}
+
+function restoreCertifiedWakeRuntimeState(snapshot) {
+    for (const entry of (snapshot && snapshot.ruleSnapshots) || []) {
+        const rule = entry.rule;
+        rule.readObjects = entry.readObjects;
+        rule.readMovements = entry.readMovements;
+        rule.writeObjects = entry.writeObjects;
+        rule.writeMovements = entry.writeMovements;
+        rule.inputSpecReadMovementsPresent = entry.inputSpecReadMovementsPresent;
+        rule.inputSpecWriteMovementsSet = entry.inputSpecWriteMovementsSet;
+        rule.activeInputsMask = entry.activeInputsMask;
+        if (entry.hadRuleId) {
+            rule.certifiedWakePruneRuleId = entry.ruleId;
+        } else {
+            delete rule.certifiedWakePruneRuleId;
+        }
+    }
+    for (const entry of (snapshot && snapshot.groupSnapshots) || []) {
+        const group = entry.group;
+        group.groupReadObjects = entry.groupReadObjects;
+        group.groupReadMovements = entry.groupReadMovements;
+        group.groupWriteObjects = entry.groupWriteObjects;
+        group.groupWriteMovements = entry.groupWriteMovements;
+        group.groupForceAlwaysRun = entry.groupForceAlwaysRun;
+        group.inputSpecializationUseful = entry.inputSpecializationUseful;
+        group.inputSpecializedRuleSets = entry.inputSpecializedRuleSets;
     }
 }
 
@@ -4917,6 +4980,7 @@ function installCertifiedWakePruneMasks(staticAnalysisReport) {
         }
 
         const allGroups = [...(state.rules || []), ...(state.lateRules || [])];
+        const runtimeSnapshot = snapshotCertifiedWakeRuntimeState(allGroups);
         telemetry.rule_refs_before = countInputSpecializedRuleRefs(allGroups);
         for (const { mapping } of prepared) {
             telemetry.read_object_bits_before += bitVecPopcount(mapping.runtimeRule.readObjects);
@@ -4943,6 +5007,10 @@ function installCertifiedWakePruneMasks(staticAnalysisReport) {
         }
         telemetry.rule_refs_after = countInputSpecializedRuleRefs(allGroups);
         telemetry.rule_refs_removed = Math.max(0, telemetry.rule_refs_before - telemetry.rule_refs_after);
+        if (telemetry.rule_refs_removed <= 0) {
+            restoreCertifiedWakeRuntimeState(runtimeSnapshot);
+            return abstainCertifiedWakePrune(telemetry, 'no_rule_ref_reduction');
+        }
         telemetry.certified_rules = prepared.length;
         telemetry.installed = true;
         return telemetry;
@@ -5075,6 +5143,7 @@ function runGame(root, file, options = {}) {
             certified_wake_prune_enabled: certifiedWakePruneTelemetry.enabled,
             certified_wake_prune_installed: certifiedWakePruneTelemetry.installed,
             certified_wake_prune_abstained: certifiedWakePruneTelemetry.abstained,
+            certified_wake_prune_abstain_reason: certifiedWakePruneTelemetry.abstain_reason || null,
             certified_wake_prune_runtime_rules: certifiedWakePruneTelemetry.runtime_rules,
             certified_wake_prune_static_rules: certifiedWakePruneTelemetry.static_rules,
             certified_wake_prune_mapped_rules: certifiedWakePruneTelemetry.mapped_rules,

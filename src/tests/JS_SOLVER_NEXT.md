@@ -151,6 +151,20 @@ Reasonable next moves only with fresh evidence:
   use the counters to find where mask precision wins enough to offset overhead;
   do not promote to default.
 
+  Follow-up gate: the opt-in consumer now restores the original runtime masks
+  and abstains when installing certified masks removes **zero**
+  input-specialized rule refs; JSON output includes
+  `certified_wake_prune_abstain_reason`. Focused coverage asserts one
+  positive install and one `no_rule_ref_reduction` abstention. Fresh
+  `smoke-50` paired batch `20260705011540366-50845`: solves stayed identical
+  (**31 -> 31**, no flips) and installs dropped to **5/50** games
+  (**45/50** abstained; 44 no-ref-reduction, 1 incomplete mapping). The
+  installed subset still removed **505** input-rule refs and checked **12968**
+  runtime-cover masks, but remained slower: mean aggregate `step_ms` delta
+  **+235.454ms**, while expanded/generated work fell by about **-7757.7 /
+  -37709.7** per pair. Decision unchanged: useful measurement lane, not a
+  default pruning path yet.
+
 - **E1 input-specialized rule sets — landed.** Engine compile now builds
   per-input active rule arrays from positive movement dependencies, and the
   solver can enable them with `PUZZLESCRIPT_INPUT_SPECIALIZATION=1`.

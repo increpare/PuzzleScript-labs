@@ -8,9 +8,10 @@ const os = require('os');
 const path = require('path');
 
 const RUNNER = path.join(__dirname, 'run_solver_tests_js.js');
+const POSITIVE_SOURCE_PATH = path.join(__dirname, 'solver_tests', 'snortal.txt');
 
-const SOURCE = `
-title certified wake prune fixture
+const NO_BENEFIT_SOURCE = `
+title certified wake prune no benefit fixture
 author test
 
 ========
@@ -26,9 +27,6 @@ white
 Goal
 green
 
-Marker
-red
-
 =======
 LEGEND
 =======
@@ -36,7 +34,6 @@ LEGEND
 . = Background
 P = Player
 G = Goal
-M = Marker
 
 ======
 SOUNDS
@@ -49,14 +46,12 @@ COLLISIONLAYERS
 Background
 Goal
 Player
-Marker
 
 ======
 RULES
 ======
 
-[ Marker ] -> [ Marker ]
-[ ACTION Player ] -> [ ACTION Player Marker ]
+[ Player ] -> [ Player ]
 
 ==============
 WINCONDITIONS
@@ -71,10 +66,12 @@ LEVELS
 P.G
 `;
 
-function run() {
+function runSolverWithSources(sources) {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-certified-wake-prune-'));
     try {
-        fs.writeFileSync(path.join(tmp, 'fixture.txt'), SOURCE, 'utf8');
+        for (const [name, source] of Object.entries(sources)) {
+            fs.writeFileSync(path.join(tmp, name), source, 'utf8');
+        }
         const out = execFileSync(process.execPath, [
             RUNNER,
             tmp,
@@ -88,15 +85,38 @@ function run() {
             '--json',
             '--no-solutions',
         ], { encoding: 'utf8', maxBuffer: 1024 * 1024 * 64 });
-        const payload = JSON.parse(out);
-        assert.strictEqual(payload.totals.levels, 1);
-        assert.strictEqual(payload.totals.certified_wake_prune_enabled, true);
-        assert.strictEqual(payload.totals.certified_wake_prune_installed_games, 1);
-        assert.ok(payload.totals.certified_wake_prune_mapped_rules >= 2);
-        assert.ok(payload.results[0].certified_wake_prune_rule_refs_removed >= 0);
+        return JSON.parse(out);
     } finally {
         fs.rmSync(tmp, { recursive: true, force: true });
     }
+}
+
+function resultFor(payload, game) {
+    return (payload.results || []).find(row => row.game === game);
+}
+
+function run() {
+    const payload = runSolverWithSources({
+        'positive.txt': fs.readFileSync(POSITIVE_SOURCE_PATH, 'utf8'),
+        'no-benefit.txt': NO_BENEFIT_SOURCE,
+    });
+    assert.strictEqual(payload.totals.levels, 2);
+    assert.strictEqual(payload.totals.certified_wake_prune_enabled, true);
+    assert.strictEqual(payload.totals.certified_wake_prune_installed_games, 1);
+    assert.strictEqual(payload.totals.certified_wake_prune_abstained_games, 1);
+
+    const installed = resultFor(payload, 'positive.txt');
+    assert.ok(installed, 'fixture result should exist');
+    assert.strictEqual(installed.certified_wake_prune_installed, true);
+    assert.ok(installed.certified_wake_prune_mapped_rules >= 2);
+    assert.ok(installed.certified_wake_prune_rule_refs_removed > 0);
+
+    const noBenefit = resultFor(payload, 'no-benefit.txt');
+    assert.ok(noBenefit, 'no-benefit result should exist');
+    assert.strictEqual(noBenefit.certified_wake_prune_installed, false);
+    assert.strictEqual(noBenefit.certified_wake_prune_abstained, true);
+    assert.strictEqual(noBenefit.certified_wake_prune_abstain_reason, 'no_rule_ref_reduction');
+    assert.strictEqual(noBenefit.certified_wake_prune_rule_refs_removed, 0);
 }
 
 run();

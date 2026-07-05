@@ -131,7 +131,13 @@ certified semantic masks; `--solver-opt-parity` guards it. First `smoke-50`
 paired benchmark: solved count unchanged (**31 -> 31**, no status flips),
 49/50 games installed, 12968 cover checks, 505 input-rule refs removed, fewer
 expanded nodes, but about +0.49s `step_ms` over the slice. Keep it explicit
-until the counters identify a positive subset.
+until the counters identify a positive subset. Follow-up gating now abstains
+when installation removes zero input-specialized rule refs and emits the
+abstain reason in JSON. Batch `20260705011540366-50845` still had unchanged
+solves (**31 -> 31**) and no flips; installs fell to 5/50 games, but the slice
+remained slower by mean aggregate `step_ms` **+235.454ms** despite lower
+expanded/generated counts. This keeps S1 as a certified measurement/pruning
+probe, not a default runtime path.
 
 ## 3. Recommendation: aim the solver metrics at the generator
 
@@ -250,7 +256,7 @@ Item status after the X-round:
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
 | N1/N2 moving-tiles bitboard + static anchor masks | live, top priority | NX1/NX2 probes first |
 | N4-N7, N9 | gated on NX1 counters | |
-| S1/S2 certified masks + schedules | S1 guarded consumer live; S2 live | `certified_wake_masks` fact family landed for JS; `--certified-wake-prune` consumes it behind complete-mapping/runtime-cover gates and remains opt-in after smoke-50 step-time regression |
+| S1/S2 certified masks + schedules | S1 guarded consumer live; S2 live | `certified_wake_masks` fact family landed for JS; `--certified-wake-prune` consumes it behind complete-mapping/runtime-cover/no-ref-reduction gates and remains opt-in after smoke-50 step-time regression |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
 | T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |
