@@ -1522,6 +1522,82 @@ function runLinearCountInvariantsDir(dirPath, claimDescriptions, log = process.s
     }
 }
 
+// ─── mechanic_profile ────────────────────────────────────────────────────────
+
+function mechanicProfileFact(report) {
+    return ((report.facts && report.facts.mechanic_profile) || [])
+        .find(fact => fact && fact.id === 'mechanic_profile') || null;
+}
+
+function buildMechanicProfileExpectations(report) {
+    const value = (mechanicProfileFact(report) || {}).value || {};
+    const ruleSchemaCounts = Object.entries(value.rule_schema_counts || {})
+        .map(([schema, count]) => ({ schema, count }))
+        .sort((left, right) => left.schema.localeCompare(right.schema, undefined, { numeric: true }));
+    return {
+        schema: FIXTURE_SCHEMA,
+        human_verified: false,
+        mechanicProfile: {
+            schemas: (value.schemas || []).slice().sort(),
+            rule_schema_counts: ruleSchemaCounts,
+            blockers: (value.blockers || []).slice().sort(),
+        },
+    };
+}
+
+function validateMechanicProfileExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(payload.mechanicProfile && typeof payload.mechanicProfile === 'object' && !Array.isArray(payload.mechanicProfile), `${filePath}: mechanicProfile must be an object`);
+    assertStringArray(filePath, 'mechanicProfile.schemas', payload.mechanicProfile.schemas);
+    assert.ok(Array.isArray(payload.mechanicProfile.rule_schema_counts), `${filePath}: mechanicProfile.rule_schema_counts must be an array`);
+    for (const [index, row] of payload.mechanicProfile.rule_schema_counts.entries()) {
+        assert.ok(row && typeof row === 'object' && !Array.isArray(row), `${filePath}: mechanicProfile.rule_schema_counts[${index}] must be an object`);
+        assert.ok(typeof row.schema === 'string' && row.schema.length > 0, `${filePath}: mechanicProfile.rule_schema_counts[${index}].schema must be a non-empty string`);
+        assert.ok(Number.isInteger(row.count) && row.count >= 0, `${filePath}: mechanicProfile.rule_schema_counts[${index}].count must be a non-negative integer`);
+    }
+    assertStringArray(filePath, 'mechanicProfile.blockers', payload.mechanicProfile.blockers);
+}
+
+function checkMechanicProfileFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'mechanic_profile'), payload);
+    validateMechanicProfileExpectationShape(jsonPath, payload);
+    const actual = buildMechanicProfileExpectations(report);
+    assertSameStringSet(jsonPath, 'mechanicProfile.schemas', payload.mechanicProfile.schemas, actual.mechanicProfile.schemas);
+    assert.deepStrictEqual(
+        actual.mechanicProfile.rule_schema_counts,
+        payload.mechanicProfile.rule_schema_counts.slice().sort((left, right) => left.schema.localeCompare(right.schema, undefined, { numeric: true })),
+        `${jsonPath}: mechanicProfile.rule_schema_counts mismatch`
+    );
+    assertSameStringSet(jsonPath, 'mechanicProfile.blockers', payload.mechanicProfile.blockers, actual.mechanicProfile.blockers);
+}
+
+function runMechanicProfileDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildMechanicProfileExpectations(report));
+            log(`generated static analysis testdata: mechanic_profile/${stem}.json (review before committing)\n`);
+        }
+        checkMechanicProfileFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 // ─── runtime_contracts ───────────────────────────────────────────────────────
 
 function normalizeRuntimeContractInputs(payload) {
@@ -1684,6 +1760,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const linearCountInvariantsDir = path.join(root, 'linear_count_invariants');
     assert.ok(fs.existsSync(linearCountInvariantsDir), `${linearCountInvariantsDir}: missing linear_count_invariants testdata directory`);
     runLinearCountInvariantsDir(linearCountInvariantsDir, claimDescriptions, options.log);
+    const mechanicProfileDir = path.join(root, 'mechanic_profile');
+    assert.ok(fs.existsSync(mechanicProfileDir), `${mechanicProfileDir}: missing mechanic_profile testdata directory`);
+    runMechanicProfileDir(mechanicProfileDir, claimDescriptions, options.log);
     const runtimeContractsDir = path.join(root, 'runtime_contracts');
     assert.ok(fs.existsSync(runtimeContractsDir), `${runtimeContractsDir}: missing runtime_contracts testdata directory`);
     runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, options.log);
@@ -1698,6 +1777,7 @@ module.exports = {
     assertFixtureFieldsDocumented,
     buildCertifiedWakeMaskExpectations,
     buildLinearCountInvariantExpectations,
+    buildMechanicProfileExpectations,
     buildMergeabilityExpectations,
     buildMovementActionExpectations,
     buildObjectTagExpectations,
@@ -1720,6 +1800,7 @@ module.exports = {
     loadClaimDescriptions,
     runCertifiedWakeMasksDir,
     runLinearCountInvariantsDir,
+    runMechanicProfileDir,
     runMergeabilityDir,
     runMovementActionDir,
     runObjectTagsDir,

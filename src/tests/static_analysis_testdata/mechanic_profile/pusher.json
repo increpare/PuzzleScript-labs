@@ -1,0 +1,14 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "mechanicProfile": {
+    "schemas": ["pusher"],
+    "rule_schema_counts": [
+      {
+        "schema": "pusher",
+        "count": 4
+      }
+    ],
+    "blockers": []
+  }
+}

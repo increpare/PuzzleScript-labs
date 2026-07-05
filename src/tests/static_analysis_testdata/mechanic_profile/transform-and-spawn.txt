@@ -1,0 +1,60 @@
+title Static Analysis Mechanic Profile Transform And Spawn
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Alpha
+red
+
+Beta
+blue
+
+Marker
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+A = Alpha
+B = Beta
+M = Marker
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Alpha, Beta
+Marker
+
+=====
+RULES
+=====
+
+[ Alpha ] -> [ Beta ]
+[ Player ] -> [ Player Marker ]
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+PA.

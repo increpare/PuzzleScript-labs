@@ -1310,6 +1310,68 @@
       ]
     },
     {
+      "name": "mechanic_profile",
+      "description": "Fixtures for whole-game mechanic fingerprint facts.",
+      "specification": "Each mechanic_profile fixture projects the analyzer's mechanic_profile fact into a compact game-level row. This first S10 slice is descriptive, not a macro-safety certificate: schemas are syntactic fingerprints found in solver-active rules, and blockers record broad reasons the profile should not be promoted to a proved macro-eligible transport schema.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "mechanicProfile",
+          "type": "object",
+          "description": "Projected mechanic-profile summary.",
+          "specification": "Contains the sorted schema names observed in the source, per-schema rule counts, and game-level blockers that prevent treating the descriptive profile as a certified macro-safety contract.",
+          "fields": [
+            {
+              "name": "schemas",
+              "type": "string[]",
+              "description": "Mechanic schema fingerprints observed in solver-active rules.",
+              "specification": "Known first-slice schema names include transformer, spawner, and pusher."
+            },
+            {
+              "name": "rule_schema_counts",
+              "type": "array",
+              "description": "Number of analyzed rule instances carrying each schema fingerprint.",
+              "specification": "Counts are over compiled rule instances, so a direction-expanded source rule may contribute multiple rows.",
+              "items": {
+                "type": "object",
+                "fields": [
+                  {
+                    "name": "schema",
+                    "type": "string",
+                    "description": "Mechanic schema name.",
+                    "specification": "Must be one of the schema names reported in schemas."
+                  },
+                  {
+                    "name": "count",
+                    "type": "integer",
+                    "description": "Number of compiled rule instances with this schema.",
+                    "specification": "A non-negative integer count."
+                  }
+                ]
+              }
+            },
+            {
+              "name": "blockers",
+              "type": "string[]",
+              "description": "Reasons this profile is descriptive only.",
+              "specification": "Known blockers include random_mechanics, rigid_mechanics, autonomous_tick_rules, and uncategorized_solver_active_rules."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "runtime_contracts",
       "description": "Fixtures for runtime replay checks of static-analysis contracts.",
       "specification": "Each runtime_contracts fixture stores a PuzzleScript input replay, the expected final serialized level, and a selected expect object copied from runSimulationWithStaticChecks result fields.",

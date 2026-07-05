@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "mechanicProfile": {
+    "schemas": [],
+    "rule_schema_counts": [],
+    "blockers": ["uncategorized_solver_active_rules"]
+  }
+}

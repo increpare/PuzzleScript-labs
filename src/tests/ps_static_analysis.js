@@ -565,6 +565,7 @@ function emptyFacts() {
         movement_action: [],
         per_level_object_universe: [],
         linear_count_invariants: [],
+        mechanic_profile: [],
         count_layer_invariants: [],
         transient_boundary: [],
         rulegroup_flow: [],
@@ -1521,6 +1522,155 @@ function deriveLinearCountInvariantFacts(psTagged) {
         }));
     }
     return results;
+}
+
+function cellPlayerMovements(cell, players) {
+    const movements = new Set();
+    for (const term of cell || []) {
+        if (term.kind !== 'present' || !CARDINAL_MOVEMENTS.includes(term.movement)) continue;
+        if ((term.expanded_objects || []).some(objectName => players.has(objectName))) {
+            movements.add(term.movement);
+        }
+    }
+    return movements;
+}
+
+function cellPushableObjects(cell, players) {
+    const objects = new Set();
+    for (const term of cell || []) {
+        if (term.kind !== 'present' || term.movement !== null) continue;
+        for (const objectName of term.expanded_objects || []) {
+            if (!players.has(objectName)) objects.add(objectName);
+        }
+    }
+    return objects;
+}
+
+function cellWritesObjectMovement(cell, objectName, movement) {
+    return (cell || []).some(term =>
+        term.kind === 'present'
+        && term.movement === movement
+        && (term.expanded_objects || []).includes(objectName)
+    );
+}
+
+function adjacentCellsHavePusherSignature(playerCell, pushableCell, rhsPushableCell, players) {
+    const playerMovements = cellPlayerMovements(playerCell, players);
+    if (playerMovements.size === 0) return false;
+    const pushables = cellPushableObjects(pushableCell, players);
+    if (pushables.size === 0) return false;
+    for (const movement of playerMovements) {
+        for (const objectName of pushables) {
+            if (cellWritesObjectMovement(rhsPushableCell, objectName, movement)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function ruleHasPusherSignature(psTagged, rule) {
+    if (!rule.tags.solver_state_active || !rule.tags.writes_movement) return false;
+    const players = playerObjectNameSet(psTagged);
+    if (players.size === 0) return false;
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const lhsRow = rule.lhs[rowIndex] || [];
+        const rhsRow = rule.rhs[rowIndex] || [];
+        for (let cellIndex = 0; cellIndex + 1 < lhsRow.length; cellIndex++) {
+            if (adjacentCellsHavePusherSignature(
+                lhsRow[cellIndex],
+                lhsRow[cellIndex + 1],
+                rhsRow[cellIndex + 1] || [],
+                players
+            )) {
+                return true;
+            }
+            if (adjacentCellsHavePusherSignature(
+                lhsRow[cellIndex + 1],
+                lhsRow[cellIndex],
+                rhsRow[cellIndex] || [],
+                players
+            )) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function ruleMechanicSchemas(psTagged, rule) {
+    const schemas = new Set();
+    if (!rule.tags.solver_state_active) return schemas;
+
+    const exactDelta = exactRuleCountDelta(psTagged, rule);
+    const transformPair = exactDelta && exactDeltaTransformPair(exactDelta);
+    if (transformPair) {
+        schemas.add('transformer');
+    }
+
+    const countEffects = ruleCountEffectObjects(psTagged, rule);
+    if (!transformPair && countEffects.increases.size > 0) {
+        schemas.add('spawner');
+    }
+
+    if (ruleHasPusherSignature(psTagged, rule)) {
+        schemas.add('pusher');
+    }
+
+    return schemas;
+}
+
+function deriveMechanicProfileFacts(psTagged) {
+    const ruleSchemaCounts = new Map();
+    const ruleIdsBySchema = new Map();
+    const uncategorizedRuleIds = [];
+    for (const { rule } of allRuleEntries(psTagged)) {
+        if (!rule.tags.solver_state_active) continue;
+        const schemas = ruleMechanicSchemas(psTagged, rule);
+        if (schemas.size === 0) {
+            uncategorizedRuleIds.push(rule.id);
+            continue;
+        }
+        for (const schema of schemas) {
+            ruleSchemaCounts.set(schema, (ruleSchemaCounts.get(schema) || 0) + 1);
+            if (!ruleIdsBySchema.has(schema)) ruleIdsBySchema.set(schema, []);
+            ruleIdsBySchema.get(schema).push(rule.id);
+        }
+    }
+
+    const schemas = uniqueSorted(ruleSchemaCounts.keys());
+    const blockers = [];
+    if (psTagged.game.tags.has_random) blockers.push('random_mechanics');
+    if (psTagged.game.tags.has_rigid) blockers.push('rigid_mechanics');
+    if (psTagged.game.tags.has_autonomous_tick_rules) blockers.push('autonomous_tick_rules');
+    if (uncategorizedRuleIds.length > 0) blockers.push('uncategorized_solver_active_rules');
+
+    const ruleSchemaCountObject = {};
+    const ruleIdsBySchemaObject = {};
+    for (const schema of schemas) {
+        ruleSchemaCountObject[schema] = ruleSchemaCounts.get(schema);
+        ruleIdsBySchemaObject[schema] = uniqueSorted(ruleIdsBySchema.get(schema) || []);
+    }
+    psTagged.game.tags.mechanic_profile = {
+        schemas,
+        rule_schema_counts: ruleSchemaCountObject,
+        blockers: uniqueSorted(blockers),
+    };
+
+    return [fact('mechanic_profile', 'mechanic_profile', 'candidate', {
+        subjects: { rules: allRuleEntries(psTagged).map(entry => entry.rule.id) },
+        value: {
+            schemas,
+            rule_schema_counts: ruleSchemaCountObject,
+            rule_ids_by_schema: ruleIdsBySchemaObject,
+            blockers: uniqueSorted(blockers),
+            uncategorized_rule_ids: uniqueSorted(uncategorizedRuleIds),
+        },
+        proof: schemas.length > 0 ? ['syntactic_rule_mechanic_fingerprints'] : [],
+        blockers: uniqueSorted(blockers),
+        evidence: uniqueSorted(Object.values(ruleIdsBySchemaObject).flat().concat(uncategorizedRuleIds)),
+    })];
 }
 
 function ruleCountEffectObjects(psTagged, rule) {
@@ -3260,6 +3410,7 @@ function factDerivers() {
         movement_action: deriveMovementActionFacts,
         per_level_object_universe: derivePerLevelObjectUniverseFacts,
         linear_count_invariants: deriveLinearCountInvariantFacts,
+        mechanic_profile: deriveMechanicProfileFacts,
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,
