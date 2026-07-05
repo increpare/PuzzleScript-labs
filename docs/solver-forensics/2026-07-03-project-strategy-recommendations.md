@@ -164,7 +164,7 @@ through:
 - **Native interpreter** = production. Gets the N-series investment
   (N1/N2 moving-tiles bitboard + static anchor masks are the live
   candidates; NX1 smoke-50 + named-game attribution now points at N1/N2
-  first, and NX2 mimalloc is still unrun).
+  first, and NX2 mimalloc preload did not show an immediate win).
 - **Compiled tiers** = frozen calibration ceiling. No further investment
   unless the game-family story (rec. 3) creates a compile-cache use case.
 
@@ -245,7 +245,7 @@ Item status after the X-round:
 | P5 / N8 stride compaction | live | X1 suggests cosmetic-pass alone shrinks too little (6/82 layers) — S4 per-level universe is the stronger route |
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
 | N1/N2 moving-tiles bitboard + static anchor masks | live, top priority | NX1 smoke-50: 662643668 movement-anchor scanned cells over 494410 generated states; named game: 2659392174 over 25764 portfolio-generated states |
-| N4-N7, N9 | gated behind N1/N2 + NX2 | N4/N5 remain live, but movement-anchor scans now dominate enough to prototype N1/N2 first |
+| N4-N7, N9 | gated behind N1/N2 | N4/N5 remain live, but movement-anchor scans now dominate enough to prototype N1/N2 first; NX2 mimalloc preload was not a material HDA win |
 | S1/S2 certified masks + schedules | S1 artifact started; S2 live | `certified_wake_masks` fact family landed for JS; runtime consumption still gated on contracts |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |

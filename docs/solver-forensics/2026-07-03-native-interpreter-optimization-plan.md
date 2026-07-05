@@ -202,6 +202,20 @@ Do not redo these; they're in place and working:
   HDA x8 on the benchmark game + corpus slice. Success: HDA step_ms drops
   materially (target: close part of the 45%→linear scaling gap). Failure:
   contention is not allocator-internal → invest in arenas (N6b) instead.
+
+  Status update (2026-07-05): Homebrew mimalloc 3.3.2 preload was verified
+  with `DYLD_INSERT_LIBRARIES=/opt/homebrew/lib/libmimalloc.dylib`. One-run
+  HDA x8 pairs did not meet the material-drop success bar. Named benchmark
+  game artifacts `build/native/nx2-anonymous-game-hda8-default.json` and
+  `build/native/nx2-anonymous-game-hda8-mimalloc.json`: solved count stayed
+  1/54, median wall improved only 605.817ms → 595.140ms (-1.8%), and summed
+  `step_ms` moved 155499.410 → 156990.420 (+1.0%). `smoke-50` artifacts
+  `build/native/nx2-smoke-50-hda8-default.json` and
+  `build/native/nx2-smoke-50-hda8-mimalloc.json`: solved count moved 32/50 →
+  31/50, median wall 75.582ms → 84.350ms (+11.6%), and summed `step_ms`
+  76527.948 → 79019.961 (+3.3%). Treat NX2 as no immediate allocator win;
+  proceed with N1/N2, and only revisit allocator work with repeated runs or a
+  true linked-build comparison.
 - **NX3 — N2 + N1 prototype** (~1 day). Static anchor masks + moving-tiles
   bitboard behind a flag; parity suite + `us_per_generated` on the benchmark
   game and corpus slice. Expect the benchmark game to improve most
