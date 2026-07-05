@@ -877,6 +877,7 @@ static_analysis_tests:
 	$(NODE) src/tests/static_analysis_explorer_node.js
 	$(NODE) src/tests/static_analysis_explorer_runtime_smoke.js
 	$(NODE) src/tests/solver_static_opt_node.js
+	$(NODE) src/tests/solver_hash_projection_node.js
 	$(NODE) src/tests/analyze_solver_static_relationships_node.js
 	$(NODE) src/tests/static_tool_cli_hardening_node.js
 	$(NODE) src/tests/compare_solver_static_opt_runs_node.js

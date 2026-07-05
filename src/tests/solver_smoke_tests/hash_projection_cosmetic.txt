@@ -1,0 +1,54 @@
+title Solver Hash Projection Cosmetic
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Sparkle
+blue
+
+========
+LEGEND
+========
+
+P = Player
+T = Target
+S = Sparkle
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Target
+Sparkle
+
+=====
+RULES
+=====
+
+=============
+WINCONDITIONS
+=============
+
+All Player On Target
+
+======
+LEVELS
+======
+
+PTS
