@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "inputs": ["TICK"],
+  "expectedFinalLevel": "background player:0,background seedb:1,background:2,",
+  "expect": {
+    "perLevelObjectUniverseChecks": 5
+  }
+}

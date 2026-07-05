@@ -1,0 +1,221 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "wakeMasks": [
+    {
+      "rule_id": "early_group_0_rule_0",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["BlueKey", "Door", "RedKey"],
+        "object_set": [],
+        "object_clear": ["Door"],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [28],
+        "read_objects_absent": [0],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [1048575],
+        "write_objects_wake": [28],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [0],
+        "write_objects_clear": [16],
+        "write_movements_wake": [1047552],
+        "runtime_write_movements_wake": [1048575],
+        "write_movements_set": [0],
+        "write_movements_clear": [1047552]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_1",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["BlueKey", "Door", "RedKey"],
+        "object_set": [],
+        "object_clear": ["Door"],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [28],
+        "read_objects_absent": [0],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [1048575],
+        "write_objects_wake": [28],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [0],
+        "write_objects_clear": [16],
+        "write_movements_wake": [1047552],
+        "runtime_write_movements_wake": [1048575],
+        "write_movements_set": [0],
+        "write_movements_clear": [1047552]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_2",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["BlueKey", "Door", "RedKey"],
+        "object_set": [],
+        "object_clear": ["Door"],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [28],
+        "read_objects_absent": [0],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [1048575],
+        "write_objects_wake": [28],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [0],
+        "write_objects_clear": [16],
+        "write_movements_wake": [1047552],
+        "runtime_write_movements_wake": [1048575],
+        "write_movements_set": [0],
+        "write_movements_clear": [1047552]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_3",
+      "line": 46,
+      "text": "[ Key | Door ] -> [ Key | no Door ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["BlueKey", "Door", "RedKey"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["BlueKey", "Door", "RedKey"],
+        "object_set": [],
+        "object_clear": ["Door"],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [28],
+        "read_objects_absent": [0],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [1048575],
+        "write_objects_wake": [28],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [0],
+        "write_objects_clear": [16],
+        "write_movements_wake": [1047552],
+        "runtime_write_movements_wake": [1048575],
+        "write_movements_set": [0],
+        "write_movements_clear": [1047552]
+      }
+    },
+    {
+      "rule_id": "early_group_1_rule_0",
+      "line": 47,
+      "text": "[ no Key ] -> [ RedKey ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": [],
+        "object_absent": ["BlueKey", "RedKey"],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["BlueKey", "RedKey"],
+        "object_set": ["RedKey"],
+        "object_clear": [],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [0],
+        "read_objects_absent": [12],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [1048575],
+        "write_objects_wake": [12],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [4],
+        "write_objects_clear": [0],
+        "write_movements_wake": [31744],
+        "runtime_write_movements_wake": [1048575],
+        "write_movements_set": [0],
+        "write_movements_clear": [31744]
+      }
+    }
+  ]
+}

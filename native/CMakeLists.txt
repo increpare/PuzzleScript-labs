@@ -259,6 +259,36 @@ target_include_directories(puzzlescript_simplify
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+add_library(puzzlescript_handheld STATIC
+  src/handheld/display_layout.cpp
+  src/handheld/report.cpp
+)
+
+target_include_directories(puzzlescript_handheld
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(puzzlescript_handheld
+  PUBLIC
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+add_executable(puzzlescript_handheld_report
+  src/handheld/main.cpp
+)
+
+target_link_libraries(puzzlescript_handheld_report
+  PRIVATE
+    puzzlescript_handheld
+)
+
+target_include_directories(puzzlescript_handheld_report
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 target_link_libraries(puzzlescript_solver
   PRIVATE
     puzzlescript_native
@@ -386,6 +416,105 @@ add_dependencies(puzzlescript_cpp puzzlescript_cpp_player_api_tests)
 add_test(
   NAME puzzlescript_cpp_player_api_tests
   COMMAND puzzlescript_cpp_player_api_tests
+)
+
+add_executable(handheld_display_layout
+  tests/handheld_display_layout.cpp
+)
+
+target_link_libraries(handheld_display_layout
+  PRIVATE
+    puzzlescript_handheld
+)
+
+target_include_directories(handheld_display_layout
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME handheld_display_layout
+  COMMAND handheld_display_layout
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(handheld_report_smoke
+  tests/handheld_report_smoke.cpp
+)
+
+target_link_libraries(handheld_report_smoke
+  PRIVATE
+    puzzlescript_handheld
+)
+
+target_include_directories(handheld_report_smoke
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME handheld_report_smoke
+  COMMAND handheld_report_smoke
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_test(
+  NAME handheld_report_cli_help
+  COMMAND puzzlescript_handheld_report --help
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_help
+  PROPERTIES PASS_REGULAR_EXPRESSION "Usage:"
+)
+
+add_test(
+  NAME handheld_report_cli_missing_source
+  COMMAND /bin/sh -c "output=\"$($<TARGET_FILE:puzzlescript_handheld_report> 2>&1)\"; status=$?; printf '%s\n' \"$output\"; test $status -ne 0 && printf '%s\n' \"$output\" | grep -q 'Usage:'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_missing_source
+  PROPERTIES PASS_REGULAR_EXPRESSION "Usage:"
+)
+
+add_test(
+  NAME handheld_report_cli_unknown_option
+  COMMAND /bin/sh -c "output=\"$($<TARGET_FILE:puzzlescript_handheld_report> --bogus 2>&1)\"; status=$?; printf '%s\n' \"$output\"; test $status -ne 0 && printf '%s\n' \"$output\" | grep -q 'unknown option'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_unknown_option
+  PROPERTIES PASS_REGULAR_EXPRESSION "unknown option"
+)
+
+add_test(
+  NAME handheld_report_cli_positional_sokoban
+  COMMAND puzzlescript_handheld_report --display 800x480 ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_positional_sokoban
+  PROPERTIES PASS_REGULAR_EXPRESSION "\"games\".*\"compile_ok\":true"
+)
+
+add_test(
+  NAME handheld_report_cli_source_sokoban
+  COMMAND puzzlescript_handheld_report --display 800x480 --source ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_source_sokoban
+  PROPERTIES PASS_REGULAR_EXPRESSION "\"games\".*\"compile_ok\":true"
+)
+
+set(HANDHELD_REPORT_CLI_CORPUS_NDJSON "${CMAKE_CURRENT_BINARY_DIR}/generated/handheld_report_cli_corpus.ndjson")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(WRITE "${HANDHELD_REPORT_CLI_CORPUS_NDJSON}"
+  "{\"index\":0,\"name\":\"simple\",\"source\":\"title simple\\n\\nOBJECTS\\nBackground\\nblack\\nPlayer\\nwhite\\n\\nLEGEND\\n. = Background\\nP = Player\\n\\nCOLLISIONLAYERS\\nBackground\\nPlayer\\n\\nLEVELS\\nP\\n\"}\n"
+)
+add_test(
+  NAME handheld_report_cli_corpus_ndjson
+  COMMAND puzzlescript_handheld_report --display 800x480 --corpus-ndjson ${HANDHELD_REPORT_CLI_CORPUS_NDJSON}
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+set_tests_properties(handheld_report_cli_corpus_ndjson
+  PROPERTIES PASS_REGULAR_EXPRESSION "\"summary\".*\"game_count\":1.*\"compiled_games\":1.*\"games\""
 )
 
 add_executable(compiler_keyword_names

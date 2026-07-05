@@ -6,6 +6,18 @@
       "line": 55,
       "split_candidate": true,
       "components_count": 2,
+      "group_skip_mask": {
+        "skippable": true,
+        "blockers": [],
+        "reads": {
+          "object_present": ["Alpha", "Beta"],
+          "object_absent": [],
+          "object_wake": ["Alpha", "Beta"],
+          "movement": ["Alpha:right", "Alpha:stationary"],
+          "movement_present": ["Alpha:right"],
+          "movement_absent": ["Alpha:stationary"]
+        }
+      },
       "interactionEdges": [
         {
           "from_line": 55,

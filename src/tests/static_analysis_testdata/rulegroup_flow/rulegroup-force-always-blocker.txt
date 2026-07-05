@@ -1,0 +1,62 @@
+title Static Analysis Rulegroup Flow Force Always Blocker
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Marker
+green
+
+Alpha
+red
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+M = Marker
+A = Alpha
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+Marker
+Alpha
+
+=====
+RULES
+=====
+
+[] -> [ marker ]
++ [ player ] -> [ player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PA.

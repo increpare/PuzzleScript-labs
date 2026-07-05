@@ -1,0 +1,64 @@
+title Static Analysis Win Relevance Chain
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+Marker
+green
+
+Deco
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+G = Goal
+M = Marker
+D = Deco
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Marker
+Deco
+
+=====
+RULES
+=====
+
+[ player ] -> [ player stationary marker ]
+[ marker ] -> [ marker stationary goal ]
+[ deco ] -> [ no deco ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Goal
+
+======
+LEVELS
+======
+
+PD.

@@ -4,23 +4,23 @@
   "rulegroupFlow": [
     {
       "line": 49,
-      "split_candidate": false,
+      "split_candidate": true,
       "components_count": 2,
       "single_pass_safe": false,
-      "single_pass_blockers": ["semantic_command"],
+      "single_pass_blockers": ["force_always_rule"],
       "group_skip_mask": {
         "skippable": false,
-        "blockers": ["semantic_command"],
+        "blockers": ["force_always_rule"],
         "reads": {
-          "object_present": ["Alpha", "Crate"],
+          "object_present": ["Player"],
           "object_absent": [],
-          "object_wake": ["Alpha", "Crate"],
+          "object_wake": ["Player"],
           "movement": [],
           "movement_present": [],
           "movement_absent": []
         }
       },
-      "blockers": ["semantic_command"]
+      "blockers": []
     }
   ]
 }

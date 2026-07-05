@@ -1,0 +1,80 @@
+title Static Analysis Runtime Per Level Object Universe
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+SeedA
+red
+
+SeedB
+blue
+
+Key
+yellow
+
+Door
+brown
+
+Gem
+green
+
+Bonus
+purple
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+a = SeedA
+b = SeedB
+Activator = SeedA or SeedB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+SeedA
+SeedB
+Key
+Door
+Gem
+Bonus
+
+=====
+RULES
+=====
+
+[ SeedA ] -> [ SeedA Key ]
+[ Key ] -> [ Key Door ]
+[ SeedB ] -> [ SeedB Gem ]
+[ Activator ] -> [ Activator Bonus ]
+random [ Player ] -> [ Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+Pa.
+
+Pb.

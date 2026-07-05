@@ -1,0 +1,49 @@
+title Static Analysis Mechanic Profile Same Cell Movement Not Pusher
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+========
+LEGEND
+========
+
+. = Background
+X = Player and Crate
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Crate
+
+=====
+RULES
+=====
+
+[ > Player Crate ] -> [ > Player > Crate ]
+
+=============
+WINCONDITIONS
+=============
+
+======
+LEVELS
+======
+
+X.

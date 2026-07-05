@@ -1,0 +1,59 @@
+title Static Analysis Certified Wake Mask Property
+========
+OBJECTS
+========
+Background
+black
+
+Player
+white
+
+RedKey
+red
+
+BlueKey
+blue
+
+Door
+brown
+========
+LEGEND
+========
+. = Background
+P = Player
+R = RedKey
+B = BlueKey
+D = Door
+Key = RedKey or BlueKey
+
+======
+SOUNDS
+======
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+RedKey, BlueKey
+Door
+
+=====
+RULES
+=====
+
+[ Key | Door ] -> [ Key | no Door ]
+[ no Key ] -> [ RedKey ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PRD

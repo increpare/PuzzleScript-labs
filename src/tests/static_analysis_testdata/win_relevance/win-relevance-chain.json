@@ -1,0 +1,27 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "rootRules": [
+    {
+      "line": 51,
+      "text": "[ marker ] -> [ marker stationary goal ]"
+    }
+  ],
+  "semanticRootRules": [],
+  "relevantRules": [
+    {
+      "line": 50,
+      "text": "[ player ] -> [ player stationary marker ]"
+    },
+    {
+      "line": 51,
+      "text": "[ marker ] -> [ marker stationary goal ]"
+    }
+  ],
+  "irrelevantRules": [
+    {
+      "line": 52,
+      "text": "[ deco ] -> [ no deco ]"
+    }
+  ]
+}

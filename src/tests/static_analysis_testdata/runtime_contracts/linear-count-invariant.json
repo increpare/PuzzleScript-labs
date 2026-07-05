@@ -1,0 +1,9 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "inputs": ["TICK", "TICK"],
+  "expectedFinalLevel": "background player:0,background beta:1,1,\n",
+  "expect": {
+    "linearCountInvariantChecks": 2
+  }
+}

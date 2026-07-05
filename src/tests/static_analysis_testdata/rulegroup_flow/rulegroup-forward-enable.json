@@ -6,6 +6,20 @@
       "line": 55,
       "split_candidate": false,
       "components_count": 1,
+      "single_pass_safe": true,
+      "single_pass_blockers": [],
+      "group_skip_mask": {
+        "skippable": true,
+        "blockers": [],
+        "reads": {
+          "object_present": ["Alpha", "MarkerX"],
+          "object_absent": [],
+          "object_wake": ["Alpha", "MarkerX"],
+          "movement": [],
+          "movement_present": [],
+          "movement_absent": []
+        }
+      },
       "interactionEdges": [
         {
           "from_line": 55,

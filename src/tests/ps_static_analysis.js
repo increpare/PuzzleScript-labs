@@ -271,6 +271,10 @@ function termHasInputMovementRequirement(term) {
     return term.movement !== null && term.movement !== 'stationary';
 }
 
+function ruleHasEmptyLhs(rule) {
+    return rule.summary.lhs_terms.length === 0;
+}
+
 function summarizeRule(rule) {
     const lhsTerms = flattenTerms(rule.lhs);
     const rhsTerms = flattenTerms(rule.rhs);
@@ -346,6 +350,7 @@ function tagRule(rule) {
     rule.tags.movement_only = writesMovement && !objectMutating && !hasSemanticCommand;
     rule.tags.reads_action = rule.summary.lhs_movement.some(term => term.movement === 'action');
     rule.tags.has_again = rule.summary.semantic_commands.includes('again');
+    rule.tags.force_always_run = ruleHasEmptyLhs(rule);
     const hasNonInertEffect = objectMutating || writesMovement || hasSemanticCommand;
     rule.tags.solver_state_active = !rule.tags.inert_command_only && hasNonInertEffect;
     if (rule.rigid && hasNonInertEffect) {
@@ -558,12 +563,16 @@ function emptyFacts() {
     return {
         mergeability: [],
         movement_action: [],
+        per_level_object_universe: [],
+        linear_count_invariants: [],
+        mechanic_profile: [],
         count_layer_invariants: [],
         transient_boundary: [],
-        certified_wake_masks: [],
         rulegroup_flow: [],
+        certified_wake_masks: [],
         program_flow: [],
         winflow: [],
+        win_relevance: [],
     };
 }
 
@@ -1333,6 +1342,337 @@ function incrementCount(map, objectName) {
     map.set(objectName, (map.get(objectName) || 0) + 1);
 }
 
+function addCountDelta(delta, objectName, amount) {
+    const next = (delta.get(objectName) || 0) + amount;
+    if (next === 0) {
+        delta.delete(objectName);
+    } else {
+        delta.set(objectName, next);
+    }
+}
+
+function concreteCellObjectsByLayer(psTagged, cell) {
+    const byLayer = new Map();
+    for (const term of cell || []) {
+        if (term.kind !== 'present' || !term.ref || term.ref.type !== 'object') {
+            return null;
+        }
+        const layer = layerForObject(psTagged, term.ref.name);
+        if (byLayer.has(layer)) {
+            return null;
+        }
+        byLayer.set(layer, term.ref.name);
+    }
+    return byLayer;
+}
+
+function exactRuleCountDelta(psTagged, rule) {
+    if (!rule.tags.solver_state_active || !rule.tags.object_mutating) return new Map();
+
+    const delta = new Map();
+    const rowCount = Math.max(rule.lhs.length, rule.rhs.length);
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+        const lhsRow = rule.lhs[rowIndex] || [];
+        const rhsRow = rule.rhs[rowIndex] || [];
+        const cellCount = maxCellsInRows(lhsRow, rhsRow);
+        for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
+            const lhsByLayer = concreteCellObjectsByLayer(psTagged, lhsRow[cellIndex] || []);
+            const rhsByLayer = concreteCellObjectsByLayer(psTagged, rhsRow[cellIndex] || []);
+            if (lhsByLayer === null || rhsByLayer === null) {
+                return null;
+            }
+
+            const layers = new Set(lhsByLayer.keys());
+            addValues(layers, rhsByLayer.keys());
+            for (const layer of layers) {
+                const lhsObject = lhsByLayer.get(layer) || null;
+                const rhsObject = rhsByLayer.get(layer) || null;
+                if (rhsObject !== null && lhsObject === null) {
+                    return null;
+                }
+                if (lhsObject !== null && rhsObject !== null && lhsObject !== rhsObject) {
+                    addCountDelta(delta, lhsObject, -1);
+                    addCountDelta(delta, rhsObject, 1);
+                } else if (lhsObject !== null && rhsObject === null) {
+                    addCountDelta(delta, lhsObject, -1);
+                }
+            }
+        }
+    }
+    return delta;
+}
+
+function exactDeltaTransformPair(delta) {
+    const entries = Array.from(delta.entries()).filter(([_objectName, amount]) => amount !== 0);
+    if (entries.length !== 2) return null;
+    const decrements = entries.filter(([_objectName, amount]) => amount === -1);
+    const increments = entries.filter(([_objectName, amount]) => amount === 1);
+    if (decrements.length !== 1 || increments.length !== 1) return null;
+    return [decrements[0][0], increments[0][0]];
+}
+
+function unionFindRoot(parents, objectName) {
+    let parent = parents.get(objectName);
+    if (parent === undefined) {
+        parents.set(objectName, objectName);
+        return objectName;
+    }
+    if (parent !== objectName) {
+        parent = unionFindRoot(parents, parent);
+        parents.set(objectName, parent);
+    }
+    return parent;
+}
+
+function unionFindUnion(parents, left, right) {
+    const leftRoot = unionFindRoot(parents, left);
+    const rightRoot = unionFindRoot(parents, right);
+    if (leftRoot !== rightRoot) {
+        parents.set(rightRoot, leftRoot);
+    }
+}
+
+function linearCountCandidateComponents(deltaByRuleId, activeRules) {
+    const parents = new Map();
+    const ruleIdsByEdge = new Map();
+    for (const rule of activeRules) {
+        const delta = deltaByRuleId.get(rule.id);
+        if (!delta) continue;
+        const pair = exactDeltaTransformPair(delta);
+        if (!pair) continue;
+        unionFindUnion(parents, pair[0], pair[1]);
+        const edgeKey = pair.slice().sort(compareNumericNames).join('\u0000');
+        if (!ruleIdsByEdge.has(edgeKey)) ruleIdsByEdge.set(edgeKey, []);
+        ruleIdsByEdge.get(edgeKey).push(rule.id);
+    }
+
+    const componentsByRoot = new Map();
+    for (const objectName of parents.keys()) {
+        const root = unionFindRoot(parents, objectName);
+        if (!componentsByRoot.has(root)) componentsByRoot.set(root, new Set());
+        componentsByRoot.get(root).add(objectName);
+    }
+
+    return Array.from(componentsByRoot.values())
+        .map(component => uniqueSorted(component))
+        .filter(component => component.length >= 2)
+        .map(component => {
+            const ruleIds = new Set();
+            for (let left = 0; left < component.length; left++) {
+                for (let right = left + 1; right < component.length; right++) {
+                    const edgeKey = [component[left], component[right]].sort(compareNumericNames).join('\u0000');
+                    addValues(ruleIds, ruleIdsByEdge.get(edgeKey) || []);
+                }
+            }
+            return { objects: component, transform_rule_ids: uniqueSorted(ruleIds) };
+        })
+        .sort((left, right) => left.objects.join('\u0000').localeCompare(right.objects.join('\u0000'), undefined, { numeric: true }));
+}
+
+function ruleWritesAnyObject(psTagged, rule, objects) {
+    const objectSet = new Set(objects);
+    for (const objectName of objectWriteNames(psTagged, rule)) {
+        if (objectSet.has(objectName)) return true;
+    }
+    return false;
+}
+
+function deriveLinearCountInvariantFacts(psTagged) {
+    const activeRules = allRuleEntries(psTagged).map(entry => entry.rule).filter(rule => rule.tags.solver_state_active);
+    const deltaByRuleId = new Map(activeRules.map(rule => [rule.id, exactRuleCountDelta(psTagged, rule)]));
+    const components = linearCountCandidateComponents(deltaByRuleId, activeRules);
+    const results = [];
+    for (const component of components) {
+        const componentSet = new Set(component.objects);
+        const blockers = [];
+        const evidence = new Set(component.transform_rule_ids);
+        for (const rule of activeRules) {
+            if (!rule.tags.object_mutating) continue;
+            const delta = deltaByRuleId.get(rule.id);
+            if (delta === null) {
+                if (ruleWritesAnyObject(psTagged, rule, component.objects)) {
+                    blockers.push('unknown_count_delta_rule');
+                    evidence.add(rule.id);
+                }
+                continue;
+            }
+            let componentDelta = 0;
+            for (const objectName of componentSet) {
+                componentDelta += delta.get(objectName) || 0;
+            }
+            if (componentDelta !== 0) {
+                blockers.push('component_sum_delta_nonzero');
+                evidence.add(rule.id);
+            }
+        }
+        const uniqueBlockers = uniqueSorted(blockers);
+        const terms = component.objects.map(objectName => ({ object: objectName, coefficient: 1 }));
+        const value = {
+            invariant: 'count_sum_preserved',
+            objects: component.objects,
+            terms,
+            transform_rule_ids: component.transform_rule_ids,
+        };
+        results.push(fact('linear_count_invariants', `count_sum_${component.objects.join('_')}_preserved`, uniqueBlockers.length === 0 ? 'proved' : 'rejected', {
+            subjects: { objects: component.objects },
+            value,
+            proof: uniqueBlockers.length === 0 ? ['exact_count_delta_component_sum_zero'] : [],
+            blockers: uniqueBlockers,
+            evidence: uniqueSorted(evidence),
+        }));
+    }
+    return results;
+}
+
+function cellPlayerMovements(cell, players) {
+    const movements = new Set();
+    for (const term of cell || []) {
+        if (term.kind !== 'present' || !CARDINAL_MOVEMENTS.includes(term.movement)) continue;
+        if ((term.expanded_objects || []).some(objectName => players.has(objectName))) {
+            movements.add(term.movement);
+        }
+    }
+    return movements;
+}
+
+function cellPushableObjects(cell, players) {
+    const objects = new Set();
+    for (const term of cell || []) {
+        if (term.kind !== 'present' || term.movement !== null) continue;
+        for (const objectName of term.expanded_objects || []) {
+            if (!players.has(objectName)) objects.add(objectName);
+        }
+    }
+    return objects;
+}
+
+function cellWritesObjectMovement(cell, objectName, movement) {
+    return (cell || []).some(term =>
+        term.kind === 'present'
+        && term.movement === movement
+        && (term.expanded_objects || []).includes(objectName)
+    );
+}
+
+function adjacentCellsHavePusherSignature(playerCell, pushableCell, rhsPushableCell, players) {
+    const playerMovements = cellPlayerMovements(playerCell, players);
+    if (playerMovements.size === 0) return false;
+    const pushables = cellPushableObjects(pushableCell, players);
+    if (pushables.size === 0) return false;
+    for (const movement of playerMovements) {
+        for (const objectName of pushables) {
+            if (cellWritesObjectMovement(rhsPushableCell, objectName, movement)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function ruleHasPusherSignature(psTagged, rule) {
+    if (!rule.tags.solver_state_active || !rule.tags.writes_movement) return false;
+    const players = playerObjectNameSet(psTagged);
+    if (players.size === 0) return false;
+
+    for (let rowIndex = 0; rowIndex < rule.lhs.length; rowIndex++) {
+        const lhsRow = rule.lhs[rowIndex] || [];
+        const rhsRow = rule.rhs[rowIndex] || [];
+        for (let cellIndex = 0; cellIndex + 1 < lhsRow.length; cellIndex++) {
+            if (adjacentCellsHavePusherSignature(
+                lhsRow[cellIndex],
+                lhsRow[cellIndex + 1],
+                rhsRow[cellIndex + 1] || [],
+                players
+            )) {
+                return true;
+            }
+            if (adjacentCellsHavePusherSignature(
+                lhsRow[cellIndex + 1],
+                lhsRow[cellIndex],
+                rhsRow[cellIndex] || [],
+                players
+            )) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function ruleMechanicSchemas(psTagged, rule) {
+    const schemas = new Set();
+    if (!rule.tags.solver_state_active) return schemas;
+
+    const exactDelta = exactRuleCountDelta(psTagged, rule);
+    const transformPair = exactDelta && exactDeltaTransformPair(exactDelta);
+    if (transformPair) {
+        schemas.add('transformer');
+    }
+
+    const countEffects = ruleCountEffectObjects(psTagged, rule);
+    if (!transformPair && countEffects.increases.size > 0) {
+        schemas.add('spawner');
+    }
+
+    if (ruleHasPusherSignature(psTagged, rule)) {
+        schemas.add('pusher');
+    }
+
+    return schemas;
+}
+
+function deriveMechanicProfileFacts(psTagged) {
+    const ruleSchemaCounts = new Map();
+    const ruleIdsBySchema = new Map();
+    const uncategorizedRuleIds = [];
+    for (const { rule } of allRuleEntries(psTagged)) {
+        if (!rule.tags.solver_state_active) continue;
+        const schemas = ruleMechanicSchemas(psTagged, rule);
+        if (schemas.size === 0) {
+            uncategorizedRuleIds.push(rule.id);
+            continue;
+        }
+        for (const schema of schemas) {
+            ruleSchemaCounts.set(schema, (ruleSchemaCounts.get(schema) || 0) + 1);
+            if (!ruleIdsBySchema.has(schema)) ruleIdsBySchema.set(schema, []);
+            ruleIdsBySchema.get(schema).push(rule.id);
+        }
+    }
+
+    const schemas = uniqueSorted(ruleSchemaCounts.keys());
+    const blockers = [];
+    if (psTagged.game.tags.has_random) blockers.push('random_mechanics');
+    if (psTagged.game.tags.has_rigid) blockers.push('rigid_mechanics');
+    if (psTagged.game.tags.has_autonomous_tick_rules) blockers.push('autonomous_tick_rules');
+    if (uncategorizedRuleIds.length > 0) blockers.push('uncategorized_solver_active_rules');
+
+    const ruleSchemaCountObject = {};
+    const ruleIdsBySchemaObject = {};
+    for (const schema of schemas) {
+        ruleSchemaCountObject[schema] = ruleSchemaCounts.get(schema);
+        ruleIdsBySchemaObject[schema] = uniqueSorted(ruleIdsBySchema.get(schema) || []);
+    }
+    psTagged.game.tags.mechanic_profile = {
+        schemas,
+        rule_schema_counts: ruleSchemaCountObject,
+        blockers: uniqueSorted(blockers),
+    };
+
+    return [fact('mechanic_profile', 'mechanic_profile', 'candidate', {
+        subjects: { rules: allRuleEntries(psTagged).map(entry => entry.rule.id) },
+        value: {
+            schemas,
+            rule_schema_counts: ruleSchemaCountObject,
+            rule_ids_by_schema: ruleIdsBySchemaObject,
+            blockers: uniqueSorted(blockers),
+            uncategorized_rule_ids: uniqueSorted(uncategorizedRuleIds),
+        },
+        proof: schemas.length > 0 ? ['syntactic_rule_mechanic_fingerprints'] : [],
+        blockers: uniqueSorted(blockers),
+        evidence: uniqueSorted(Object.values(ruleIdsBySchemaObject).flat().concat(uncategorizedRuleIds)),
+    })];
+}
+
 function ruleCountEffectObjects(psTagged, rule) {
     const effects = {
         increases: new Set(),
@@ -1895,6 +2235,101 @@ function termObjects(term) {
 function termObjectsExcept(term, excludedObjects) {
     if (!excludedObjects || excludedObjects.size === 0) return termObjects(term);
     return termObjects(term).filter(objectName => !excludedObjects.has(objectName));
+}
+
+function objectSetTermKind(psTagged, term) {
+    if (!term || !term.ref || term.ref.type !== 'object_set') return null;
+    const source = term.ref.source;
+    const property = (psTagged.properties || []).find(item =>
+        item.name === source || item.canonical_name === source
+    );
+    return property ? property.kind : null;
+}
+
+function rulePositiveObjectRequirementAlternatives(psTagged, rule) {
+    const requirements = [];
+    for (const row of rule.lhs || []) {
+        for (const cell of row || []) {
+            const absentInCell = absentObjectSet(cell);
+            for (const term of cell || []) {
+                if (term.kind !== 'present') continue;
+                const objects = uniqueSorted(termObjectsExcept(term, absentInCell));
+                if (objects.length === 0) continue;
+                if (objectSetTermKind(psTagged, term) === 'aggregate') {
+                    for (const objectName of objects) requirements.push([objectName]);
+                } else {
+                    requirements.push(objects);
+                }
+            }
+        }
+    }
+    return requirements;
+}
+
+function ruleRequirementsReachable(requirements, reachableObjects) {
+    return requirements.every(alternatives =>
+        alternatives.some(objectName => reachableObjects.has(objectName))
+    );
+}
+
+function computeLevelObjectUniverse(psTagged, level) {
+    const initialObjects = new Set(level.objects_present || []);
+    const reachableObjects = new Set(initialObjects);
+    const creatorRuleIds = new Set();
+    const activeEntries = allRuleEntries(psTagged).filter(entry =>
+        entry.rule.tags.solver_state_active && entry.rule.tags.object_mutating
+    );
+    const ruleData = activeEntries.map(entry => ({
+        rule: entry.rule,
+        requirements: rulePositiveObjectRequirementAlternatives(psTagged, entry.rule),
+        writes: uniqueSorted(ruleFlowWrites(psTagged, entry.rule).object_present),
+    })).filter(entry => entry.writes.length > 0);
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const entry of ruleData) {
+            if (!ruleRequirementsReachable(entry.requirements, reachableObjects)) continue;
+            let added = false;
+            for (const objectName of entry.writes) {
+                if (reachableObjects.has(objectName)) continue;
+                reachableObjects.add(objectName);
+                changed = true;
+                added = true;
+            }
+            if (added) creatorRuleIds.add(entry.rule.id);
+        }
+    }
+
+    const allObjects = uniqueSorted((psTagged.objects || []).map(object => object.name));
+    const initial = uniqueSorted(initialObjects);
+    const reachable = uniqueSorted(reachableObjects);
+    const initialSet = new Set(initial);
+    return {
+        level_index: level.index,
+        initial_objects: initial,
+        reachable_objects: reachable,
+        created_objects: uniqueSorted(reachable.filter(objectName => !initialSet.has(objectName))),
+        unreachable_objects: uniqueSorted(allObjects.filter(objectName => !reachableObjects.has(objectName))),
+        creator_rule_ids: uniqueSorted(creatorRuleIds),
+    };
+}
+
+function derivePerLevelObjectUniverseFacts(psTagged) {
+    const results = [];
+    for (const level of psTagged.levels || []) {
+        if (level.kind !== 'level') continue;
+        const value = computeLevelObjectUniverse(psTagged, level);
+        level.tags.reachable_objects = value.reachable_objects.slice();
+        level.tags.unreachable_objects = value.unreachable_objects.slice();
+        results.push(fact('per_level_object_universe', `level_${level.index}_object_universe`, 'proved', {
+            subjects: { levels: [level.index] },
+            value,
+            proof: ['initial_level_objects', 'conservative_positive_requirement_creation_closure'],
+            evidence: value.creator_rule_ids,
+        }));
+    }
+    return results;
 }
 
 function movementExpansions(movement) {
@@ -2662,6 +3097,28 @@ function ruleMayEnableRule(writes, reads) {
     return reasons;
 }
 
+function movementWriteMayBlockRead(write, read) {
+    return write.object === read.object && !movementWriteMayEnableRead(write, read);
+}
+
+function setIntersects(left, right) {
+    return Array.from(left).some(value => right.has(value));
+}
+
+function ruleMayAffectRuleForWinRelevance(writes, reads) {
+    const reasons = ruleMayEnableRule(writes, reads).slice();
+    if (setIntersects(writes.object_present, reads.object_absent)) {
+        reasons.push('object_presence_blocks_absence');
+    }
+    if (setIntersects(writes.object_absent, reads.object_present)) {
+        reasons.push('object_absence_blocks_presence');
+    }
+    if (writes.movement.some(write => reads.movement.some(read => movementWriteMayBlockRead(write, read)))) {
+        reasons.push('movement_blocks_read');
+    }
+    return uniqueSorted(reasons);
+}
+
 function wakeEdgesForRules(psTagged, rules) {
     const reads = new Map(rules.map(rule => [rule.id, ruleFlowReads(rule)]));
     const writes = new Map(rules.map(rule => [rule.id, ruleFlowWrites(psTagged, rule)]));
@@ -2670,6 +3127,21 @@ function wakeEdgesForRules(psTagged, rules) {
         const fromWrites = writes.get(fromRule.id);
         for (const toRule of rules) {
             const reasons = ruleMayEnableRule(fromWrites, reads.get(toRule.id));
+            if (reasons.length === 0) continue;
+            edges.push({ from: fromRule.id, to: toRule.id, reasons });
+        }
+    }
+    return edges;
+}
+
+function relevanceEdgesForRules(psTagged, rules) {
+    const reads = new Map(rules.map(rule => [rule.id, ruleFlowReads(rule)]));
+    const writes = new Map(rules.map(rule => [rule.id, ruleFlowWrites(psTagged, rule)]));
+    const edges = [];
+    for (const fromRule of rules) {
+        const fromWrites = writes.get(fromRule.id);
+        for (const toRule of rules) {
+            const reasons = ruleMayAffectRuleForWinRelevance(fromWrites, reads.get(toRule.id));
             if (reasons.length === 0) continue;
             edges.push({ from: fromRule.id, to: toRule.id, reasons });
         }
@@ -2705,6 +3177,63 @@ function connectedComponents(ruleIds, edges) {
     );
 }
 
+function rulegroupSinglePassBlockers(group, interactionEdges, indexById) {
+    const blockers = [];
+    if (interactionEdges.some(edge => indexById.get(edge.to) <= indexById.get(edge.from))) {
+        blockers.push('earlier_rule_may_be_enabled');
+    }
+    if (group.random) blockers.push('random_rule_group');
+    if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
+    if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
+    if (group.rules.some(rule => rule.tags && rule.tags.force_always_run)) blockers.push('force_always_rule');
+    return uniqueSorted(blockers);
+}
+
+function rulegroupSkipMaskBlockers(group) {
+    const blockers = [];
+    if (group.random) blockers.push('random_rule_group');
+    if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
+    if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
+    if (group.rules.some(rule => rule.tags && rule.tags.force_always_run)) blockers.push('force_always_rule');
+    return uniqueSorted(blockers);
+}
+
+function groupSkipMaskForRules(psTagged, group, blockers) {
+    const objectPresent = new Set();
+    const objectAbsent = new Set();
+    const movement = [];
+    for (const rule of group.rules || []) {
+        const reads = ruleFlowReads(rule);
+        addValues(objectPresent, reads.object_present || []);
+        addValues(objectAbsent, reads.object_absent || []);
+        movement.push(...(reads.movement || []));
+    }
+    const objectWake = uniqueSorted(new Set([...objectPresent, ...objectAbsent]));
+    const readMovements = splitReadMovements({ movement });
+    return {
+        bitvec_format: {
+            object_words: objectMaskWordCount(psTagged),
+            movement_words: movementMaskWordCount(psTagged),
+            movement_bits_per_layer: 5,
+            movement_bit_names: ['up', 'down', 'left', 'right', 'action'],
+        },
+        skippable: blockers.length === 0,
+        blockers,
+        reads: {
+            object_present: uniqueSorted(objectPresent),
+            object_absent: uniqueSorted(objectAbsent),
+            object_wake: objectWake,
+            movement: uniqueSorted(movement.map(movementEntryKey)),
+            movement_present: uniqueSorted(readMovements.present.map(movementEntryKey)),
+            movement_absent: uniqueSorted(readMovements.absent.map(movementEntryKey)),
+        },
+        masks: {
+            read_objects_wake: objectMaskForNames(psTagged, objectWake),
+            read_movements_wake: movementMaskForEntries(psTagged, movement),
+        },
+    };
+}
+
 function deriveRulegroupFlowFacts(psTagged) {
     const results = [];
     for (const section of psTagged.rule_sections) {
@@ -2724,6 +3253,8 @@ function deriveRulegroupFlowFacts(psTagged) {
             }
             const components = connectedComponents(ruleIds, interactionEdges);
             const blockers = [];
+            const singlePassBlockers = rulegroupSinglePassBlockers(group, interactionEdges, indexById);
+            const groupSkipBlockers = rulegroupSkipMaskBlockers(group);
             if (components.length <= 1) blockers.push('single_component');
             if (group.random) blockers.push('random_rule_group');
             if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
@@ -2737,6 +3268,9 @@ function deriveRulegroupFlowFacts(psTagged) {
                     rerun_masks: rerunMasks,
                     components,
                     split_candidate: status === 'candidate',
+                    single_pass_safe: singlePassBlockers.length === 0,
+                    single_pass_blockers: singlePassBlockers,
+                    group_skip_mask: groupSkipMaskForRules(psTagged, group, groupSkipBlockers),
                 },
                 proof: status === 'candidate' ? ['multiple_independent_rule_components'] : [],
                 blockers,
@@ -2814,16 +3348,76 @@ function deriveProgramFlowFacts(psTagged) {
     })];
 }
 
+function semanticRootRuleIds(rules) {
+    const ids = [];
+    for (const rule of rules) {
+        if ((rule.summary.semantic_commands || []).some(command => SEMANTIC_COMMANDS.has(command))) {
+            ids.push(rule.id);
+        }
+    }
+    return uniqueSorted(ids);
+}
+
+function backwardRelevantRuleIds(rootRuleIds, wakeEdges) {
+    const relevant = new Set(rootRuleIds);
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const edge of wakeEdges) {
+            if (!relevant.has(edge.to) || relevant.has(edge.from)) continue;
+            relevant.add(edge.from);
+            changed = true;
+        }
+    }
+    return uniqueSorted(relevant);
+}
+
+function deriveWinRelevanceFacts(psTagged) {
+    const entries = allRuleEntries(psTagged);
+    const rules = entries.map(entry => entry.rule);
+    const ruleIds = rules.map(rule => rule.id);
+    const programFlow = deriveProgramFlowFacts(psTagged)[0].value;
+    const winflow = deriveWinflowFacts(psTagged)[0].value;
+    const relevanceEdges = relevanceEdgesForRules(psTagged, rules);
+    const directWinRoots = uniqueSorted((winflow.wake_edges || []).map(edge => edge.from));
+    const semanticRoots = semanticRootRuleIds(rules);
+    const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots));
+    const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, relevanceEdges);
+    const relevantSet = new Set(relevantRuleIds);
+    const irrelevantRuleIds = uniqueSorted(rules
+        .filter(rule => rule.tags.solver_state_active && !relevantSet.has(rule.id))
+        .map(rule => rule.id));
+    return [fact('win_relevance', 'win_relevance', 'proved', {
+        subjects: { rules: ruleIds },
+        value: {
+            rule_ids: ruleIds,
+            root_rule_ids: rootRuleIds,
+            relevant_rule_ids: relevantRuleIds,
+            irrelevant_rule_ids: irrelevantRuleIds,
+            wake_edges: programFlow.wake_edges || [],
+            win_wake_edges: winflow.wake_edges || [],
+            relevance_edges: relevanceEdges,
+            semantic_root_rule_ids: semanticRoots,
+        },
+        proof: ['backward_relevance_slice_from_winflow_semantic_roots_and_conservative_dependencies'],
+        evidence: relevantRuleIds,
+    })];
+}
+
 function factDerivers() {
     return {
         mergeability: deriveMergeabilityFacts,
         movement_action: deriveMovementActionFacts,
+        per_level_object_universe: derivePerLevelObjectUniverseFacts,
+        linear_count_invariants: deriveLinearCountInvariantFacts,
+        mechanic_profile: deriveMechanicProfileFacts,
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
-        certified_wake_masks: deriveCertifiedWakeMaskFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,
+        certified_wake_masks: deriveCertifiedWakeMaskFacts,
         program_flow: deriveProgramFlowFacts,
         winflow: deriveWinflowFacts,
+        win_relevance: deriveWinRelevanceFacts,
     };
 }
 

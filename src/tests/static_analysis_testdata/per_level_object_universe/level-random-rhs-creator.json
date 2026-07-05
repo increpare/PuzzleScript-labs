@@ -1,0 +1,20 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "levelObjectUniverse": [
+    {
+      "level": 0,
+      "initial_objects": ["Background", "Player", "Switch"],
+      "reachable_objects": ["Background", "Player", "Switch", "TokenA", "TokenB"],
+      "created_objects": ["TokenA", "TokenB"],
+      "unreachable_objects": ["Quiet"]
+    },
+    {
+      "level": 1,
+      "initial_objects": ["Background", "Player", "Quiet"],
+      "reachable_objects": ["Background", "Player", "Quiet"],
+      "created_objects": [],
+      "unreachable_objects": ["Switch", "TokenA", "TokenB"]
+    }
+  ]
+}

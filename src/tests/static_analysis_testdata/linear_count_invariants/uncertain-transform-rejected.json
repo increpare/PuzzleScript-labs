@@ -1,0 +1,21 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "linearCountInvariants": [
+    {
+      "objects": ["Alpha", "Beta"],
+      "status": "rejected",
+      "terms": [
+        {
+          "object": "Alpha",
+          "coefficient": 1
+        },
+        {
+          "object": "Beta",
+          "coefficient": 1
+        }
+      ],
+      "blockers": ["unknown_count_delta_rule"]
+    }
+  ]
+}

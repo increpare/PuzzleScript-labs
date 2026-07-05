@@ -236,6 +236,12 @@
             "type": "object",
             "fields": [
               {
+                "name": "rule_id",
+                "type": "string",
+                "description": "Stable analyzer id of the compiled rule row under test.",
+                "specification": "Optional for older fixtures when line and text are unique; required for direction-expanded rules that share source text."
+              },
+              {
                 "name": "line",
                 "type": "integer",
                 "description": "1-based source line of the rule.",
@@ -608,6 +614,117 @@
       ]
     },
     {
+      "name": "win_relevance",
+      "description": "Fixtures for solver-scoped win relevance facts.",
+      "specification": "Each win_relevance fixture projects the analyzer's win_relevance fact into source-located rule rows: direct or semantic root rules, backward-sliced relevant rules, and solver-active irrelevant rules. The analyzer fact also includes diagnostic wake_edges and relevance_edges; relevance_edges are the conservative dependencies used for the pruning-facing slice and include enabling writes plus object or movement writes that may disable or contradict another rule's reads.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "rootRules",
+          "type": "array",
+          "description": "Rules that seed the win relevance slice.",
+          "specification": "Contains rules that directly wake a win condition through winflow plus solver-visible semantic-command roots.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the root rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the root rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        },
+        {
+          "name": "semanticRootRules",
+          "type": "array",
+          "description": "Semantic-command rules that seed the win relevance slice.",
+          "specification": "Contains solver-visible rules whose commands include cancel, again, restart, win, or checkpoint.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the semantic root rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the semantic root rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        },
+        {
+          "name": "relevantRules",
+          "type": "array",
+          "description": "Rules retained by the backward relevance slice.",
+          "specification": "Contains root rules plus every rule that may enable or disable a currently relevant rule through the analyzer's conservative win-relevance dependency graph. The dependency graph keeps normal object-presence, object-absence, and movement enabling edges, and also includes object_present writes that may block no-object reads, object_absent writes that may block object-present reads, and same-object movement writes that may block movement reads.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the relevant rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the relevant rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        },
+        {
+          "name": "irrelevantRules",
+          "type": "array",
+          "description": "Solver-active rules outside the backward relevance slice.",
+          "specification": "Contains solver_state_active rules that are not in relevantRules after accounting for both enabling and disabling dependencies. This is analyzer-only evidence for future solver pruning and does not change runtime behavior.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the irrelevant rule.",
+                "specification": "Together with text, identifies one analyzed rule in the fixture source."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the irrelevant rule.",
+                "specification": "Used with line to identify the source rule."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "wincondition_tags",
       "description": "Fixtures for per-win-condition static-analysis tags.",
       "specification": "Each wincondition_tags fixture contains a winConditionTag array. Every row identifies one win condition by source line and exact source text, then asserts selected win-condition tags inside the row's tags object.",
@@ -774,6 +891,134 @@
                 "specification": "A split candidate requires more than one component."
               },
               {
+                "name": "single_pass_safe",
+                "type": "boolean",
+                "description": "Whether this rule group has a conservative certificate that no rule application can enable itself or an earlier rule in the same group.",
+                "specification": "true only when the analyzer's intra-group wake graph has no self edge and no edge from a later rule to itself or an earlier rule, and when group-level blockers such as random rules, rigid rules, semantic commands, or static force-always behavior are absent. This is an analyzer certificate only; no runtime behavior changes when the field is true."
+              },
+              {
+                "name": "single_pass_blockers",
+                "type": "string[]",
+                "description": "Reasons this group is not certified single-pass-safe.",
+                "specification": "Known blockers include earlier_rule_may_be_enabled, random_rule_group, rigid_rule, semantic_command, and force_always_rule. A group with single_pass_safe true must have an empty blocker list."
+              },
+              {
+                "name": "group_skip_mask",
+                "type": "object",
+                "description": "Analyzer-certified read mask for deciding whether a previously evaluated group can be skipped after later writes.",
+                "specification": "skippable is true only when blockers is empty. Known blockers include random_rule_group, rigid_rule, semantic_command, and force_always_rule. semantic_command includes again. reads contains readable object/movement read sets; masks contains optional engine-shaped Int32 word masks.",
+                "fields": [
+                  {
+                    "name": "bitvec_format",
+                    "type": "object",
+                    "description": "Engine bit-vector layout used by this group skip mask.",
+                    "specification": "Object masks use object ids. Movement masks use five bits per collision layer in up/down/left/right/action order.",
+                    "fields": [
+                      {
+                        "name": "object_words",
+                        "type": "integer",
+                        "description": "Number of Int32 words in object masks.",
+                        "specification": "Matches the engine STRIDE_OBJ for this analyzed game."
+                      },
+                      {
+                        "name": "movement_words",
+                        "type": "integer",
+                        "description": "Number of Int32 words in movement masks.",
+                        "specification": "Matches the engine STRIDE_MOV for this analyzed game."
+                      },
+                      {
+                        "name": "movement_bits_per_layer",
+                        "type": "integer",
+                        "description": "Movement bits allocated to each collision layer.",
+                        "specification": "Always 5 for the current engine format."
+                      },
+                      {
+                        "name": "movement_bit_names",
+                        "type": "string[]",
+                        "description": "Names of movement bits within each layer.",
+                        "specification": "Always up, down, left, right, action in bit order."
+                      }
+                    ]
+                  },
+                  {
+                    "name": "skippable",
+                    "type": "boolean",
+                    "description": "Whether this group is eligible for skip-mask consumption.",
+                    "specification": "false when blockers contains any semantic or control-flow condition that requires the group to run despite read-mask invalidation."
+                  },
+                  {
+                    "name": "blockers",
+                    "type": "string[]",
+                    "description": "Reasons this group is not eligible for skip-mask consumption.",
+                    "specification": "Known blockers include random_rule_group, rigid_rule, semantic_command, and force_always_rule."
+                  },
+                  {
+                    "name": "reads",
+                    "type": "object",
+                    "description": "Readable group read sets used to derive the skip mask.",
+                    "specification": "object_wake is the union of object_present and object_absent. movement includes all movement reads, with stationary represented in movement_absent.",
+                    "fields": [
+                      {
+                        "name": "object_present",
+                        "type": "string[]",
+                        "description": "Objects whose presence may be read by any rule in the group.",
+                        "specification": "Sorted object display-name strings."
+                      },
+                      {
+                        "name": "object_absent",
+                        "type": "string[]",
+                        "description": "Objects whose absence may be read by any rule in the group.",
+                        "specification": "Sorted object display-name strings."
+                      },
+                      {
+                        "name": "object_wake",
+                        "type": "string[]",
+                        "description": "Objects whose writes may invalidate the group's read assumptions.",
+                        "specification": "Sorted union of positive and negative object reads."
+                      },
+                      {
+                        "name": "movement",
+                        "type": "string[]",
+                        "description": "Object movement states read by any rule in the group.",
+                        "specification": "Sorted Object:movement strings."
+                      },
+                      {
+                        "name": "movement_present",
+                        "type": "string[]",
+                        "description": "Object movement bits that must be present for any rule in the group.",
+                        "specification": "Sorted Object:movement strings, excluding stationary."
+                      },
+                      {
+                        "name": "movement_absent",
+                        "type": "string[]",
+                        "description": "Object movement states read through absence by any rule in the group.",
+                        "specification": "Currently used for stationary reads."
+                      }
+                    ]
+                  },
+                  {
+                    "name": "masks",
+                    "type": "object",
+                    "description": "Engine-shaped Int32 word masks for group-skip invalidation.",
+                    "specification": "Consumers may skip a previously clean eligible group only when cumulative writes do not intersect these read wake masks.",
+                    "fields": [
+                      {
+                        "name": "read_objects_wake",
+                        "type": "integer[]",
+                        "description": "Object-mask words for object reads that can wake the group.",
+                        "specification": "Uses engine object id bits."
+                      },
+                      {
+                        "name": "read_movements_wake",
+                        "type": "integer[]",
+                        "description": "Movement-mask words for movement reads that can wake the group.",
+                        "specification": "Uses five movement bits per collision layer."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
                 "name": "blockers",
                 "type": "string[]",
                 "description": "Reasons this rule group is not a split candidate.",
@@ -933,6 +1178,200 @@
       ]
     },
     {
+      "name": "per_level_object_universe",
+      "description": "Fixtures for per-level reachable object universe facts.",
+      "specification": "Each per_level_object_universe fixture projects report.facts.per_level_object_universe into levelObjectUniverse rows. The analysis is a conservative creation closure: starting from objects present in a playable level, it repeatedly enables rules whose positive object requirements may be reachable and adds objects those rules may write present. Absence and movement requirements are intentionally ignored as blockers, so reachable_objects may over-approximate runtime reachability; unreachable_objects are the proved never-existing complement for that level.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "levelObjectUniverse",
+          "type": "array",
+          "description": "Per-playable-level object universe rows.",
+          "specification": "Each row is keyed by the source level index from ps_tagged.levels and asserts object sets from the conservative per-level creation closure.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "level",
+                "type": "integer",
+                "description": "Original ps_tagged level index.",
+                "specification": "Message levels are skipped; playable levels keep their original index."
+              },
+              {
+                "name": "initial_objects",
+                "type": "string[]",
+                "description": "Objects present in the level's initial board.",
+                "specification": "Copied from ps_tagged.levels[level].objects_present."
+              },
+              {
+                "name": "reachable_objects",
+                "type": "string[]",
+                "description": "Objects in the conservative per-level reachable universe.",
+                "specification": "The union of initial_objects and every object written present by a rule whose positive object requirements may be satisfied by already reachable objects."
+              },
+              {
+                "name": "created_objects",
+                "type": "string[]",
+                "description": "Objects added by the creation closure beyond the initial board.",
+                "specification": "Computed as reachable_objects minus initial_objects."
+              },
+              {
+                "name": "unreachable_objects",
+                "type": "string[]",
+                "description": "Objects proved never to exist in this level by the conservative closure.",
+                "specification": "Computed as all compiled objects minus reachable_objects. Because the closure over-approximates creation, this set is safe for future per-level DCE consumers."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "linear_count_invariants",
+      "description": "Fixtures for object-count linear invariant facts.",
+      "specification": "Each linear_count_invariants fixture projects report.facts.linear_count_invariants into object-set rows. This first analyzer slice proves or rejects unit-coefficient object-count sums for concrete transform components: sum(count(object_i)) is preserved when every solver-active object-mutating rule has an exact known count delta whose sum over the component is zero, and rejected when a candidate component leaks count or is touched by an uncertain count-delta rule.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "linearCountInvariants",
+          "type": "array",
+          "description": "Linear count invariant expectation rows.",
+          "specification": "Each row is keyed by a sorted object set and asserts the analyzer's status, integer coefficient terms, and rejection blockers for that candidate component.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "objects",
+                "type": "string[]",
+                "description": "Objects in the candidate invariant component.",
+                "specification": "The runner sorts these names before matching the analyzed fact."
+              },
+              {
+                "name": "status",
+                "type": "enum",
+                "description": "Whether the linear invariant is proved or rejected.",
+                "specification": "proved means the analyzer proved the unit-coefficient sum is preserved by every solver-active object-mutating rule. rejected means the object set was a transform candidate but at least one rule may violate or obscure that preservation.",
+                "values": ["proved", "rejected"]
+              },
+              {
+                "name": "terms",
+                "type": "array",
+                "description": "Linear expression terms.",
+                "specification": "Each term contributes coefficient * count(object) to the invariant expression. This fixture family currently expects unit coefficients for every object in the set.",
+                "items": {
+                  "type": "object",
+                  "fields": [
+                    {
+                      "name": "object",
+                      "type": "string",
+                      "description": "Object display name in this expression term.",
+                      "specification": "Must name an object in the row's objects set."
+                    },
+                    {
+                      "name": "coefficient",
+                      "type": "integer",
+                      "description": "Integer coefficient for this object's count.",
+                      "specification": "The first implementation emits coefficient 1 for transform-component count sums."
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "blockers",
+                "type": "string[]",
+                "description": "Reasons this candidate invariant is rejected.",
+                "specification": "Known blockers include component_sum_delta_nonzero and unknown_count_delta_rule."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "mechanic_profile",
+      "description": "Fixtures for whole-game mechanic fingerprint facts.",
+      "specification": "Each mechanic_profile fixture projects the analyzer's mechanic_profile fact into a compact game-level row. This first S10 slice is descriptive, not a macro-safety certificate: schemas are syntactic fingerprints found in solver-active rules, and blockers record broad reasons the profile should not be promoted to a proved macro-eligible transport schema.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "mechanicProfile",
+          "type": "object",
+          "description": "Projected mechanic-profile summary.",
+          "specification": "Contains the sorted schema names observed in the source, per-schema rule counts, and game-level blockers that prevent treating the descriptive profile as a certified macro-safety contract.",
+          "fields": [
+            {
+              "name": "schemas",
+              "type": "string[]",
+              "description": "Mechanic schema fingerprints observed in solver-active rules.",
+              "specification": "Known first-slice schema names include transformer, spawner, and pusher."
+            },
+            {
+              "name": "rule_schema_counts",
+              "type": "array",
+              "description": "Number of analyzed rule instances carrying each schema fingerprint.",
+              "specification": "Counts are over compiled rule instances, so a direction-expanded source rule may contribute multiple rows.",
+              "items": {
+                "type": "object",
+                "fields": [
+                  {
+                    "name": "schema",
+                    "type": "string",
+                    "description": "Mechanic schema name.",
+                    "specification": "Must be one of the schema names reported in schemas."
+                  },
+                  {
+                    "name": "count",
+                    "type": "integer",
+                    "description": "Number of compiled rule instances with this schema.",
+                    "specification": "A non-negative integer count."
+                  }
+                ]
+              }
+            },
+            {
+              "name": "blockers",
+              "type": "string[]",
+              "description": "Reasons this profile is descriptive only.",
+              "specification": "Known blockers include random_mechanics, rigid_mechanics, autonomous_tick_rules, and uncategorized_solver_active_rules."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "runtime_contracts",
       "description": "Fixtures for runtime replay checks of static-analysis contracts.",
       "specification": "Each runtime_contracts fixture stores a PuzzleScript input replay, the expected final serialized level, and a selected expect object copied from runSimulationWithStaticChecks result fields.",
@@ -1076,6 +1515,12 @@
               "specification": "Copied from result.quantityBoundaryChecks."
             },
             {
+              "name": "linearCountInvariantChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for proved linear count invariants.",
+              "specification": "Copied from result.linearCountInvariantChecks."
+            },
+            {
               "name": "temporaryBoundaryChecks",
               "type": "integer",
               "description": "Runtime boundary checks performed for temporary objects.",
@@ -1086,6 +1531,12 @@
               "type": "integer",
               "description": "Runtime boundary checks performed for never-appears objects.",
               "specification": "Copied from result.neverAppearsBoundaryChecks."
+            },
+            {
+              "name": "perLevelObjectUniverseChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for per-level unreachable objects.",
+              "specification": "Copied from result.perLevelObjectUniverseChecks."
             },
             {
               "name": "cosmeticProjectionChecks",

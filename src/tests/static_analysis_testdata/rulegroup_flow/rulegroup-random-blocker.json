@@ -6,6 +6,20 @@
       "line": 55,
       "split_candidate": false,
       "components_count": 2,
+      "single_pass_safe": false,
+      "single_pass_blockers": ["random_rule_group"],
+      "group_skip_mask": {
+        "skippable": false,
+        "blockers": ["random_rule_group"],
+        "reads": {
+          "object_present": ["Alpha", "Beta"],
+          "object_absent": [],
+          "object_wake": ["Alpha", "Beta"],
+          "movement": [],
+          "movement_present": [],
+          "movement_absent": []
+        }
+      },
       "interactionEdges": [],
       "rerunMasks": [
         {

@@ -69,8 +69,10 @@ const RUNTIME_CONTRACT_EXPECT_FIELDS = [
     'staticLayerBoundaryChecks',
     'inertLayerBoundaryChecks',
     'quantityBoundaryChecks',
+    'linearCountInvariantChecks',
     'temporaryBoundaryChecks',
     'neverAppearsBoundaryChecks',
+    'perLevelObjectUniverseChecks',
     'cosmeticProjectionChecks',
     'cosmeticRuleProjectionChecks',
     'cosmeticRuleOptimizerProjectionChecks',
@@ -338,7 +340,6 @@ function certifiedWakeMaskFacts(report) {
 
 function buildCertifiedWakeMaskExpectations(source, report) {
     const records = allRuleRecords(report, source);
-    assertRuleRecordsIdempotent(report.source.path, records);
     const factsByRuleId = new Map(certifiedWakeMaskFacts(report).map(fact => [
         fact.subjects && fact.subjects.rules && fact.subjects.rules[0],
         fact,
@@ -351,6 +352,7 @@ function buildCertifiedWakeMaskExpectations(source, report) {
             assert.ok(fact, `${report.source.path}: missing certified_wake_masks fact for ${record.rule.id}`);
             const value = fact.value || {};
             return {
+                rule_id: record.rule.id,
                 line: record.line,
                 text: record.text,
                 bitvec_format: value.bitvec_format,
@@ -374,6 +376,9 @@ function validateCertifiedWakeMaskExpectationShape(filePath, payload) {
     assert.ok(Array.isArray(payload.wakeMasks), `${filePath}: wakeMasks must be an array`);
     for (const [index, item] of payload.wakeMasks.entries()) {
         assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: wakeMasks[${index}] must be an object`);
+        if (item.rule_id !== undefined) {
+            assert.ok(typeof item.rule_id === 'string' && item.rule_id.length > 0, `${filePath}: wakeMasks[${index}].rule_id must be a non-empty string`);
+        }
         assert.ok(Number.isInteger(item.line) && item.line > 0, `${filePath}: wakeMasks[${index}] missing positive integer line`);
         assert.ok(typeof item.text === 'string' && item.text.length > 0, `${filePath}: wakeMasks[${index}] missing text`);
         if (item.bitvec_format !== undefined) {
@@ -418,12 +423,18 @@ function checkCertifiedWakeMaskFixture(txtPath, jsonPath, claimDescriptions) {
     assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'certified_wake_masks'), payload);
     validateCertifiedWakeMaskExpectationShape(jsonPath, payload);
     const actual = buildCertifiedWakeMaskExpectations(source, report);
+    const actualByRuleId = new Map(actual.wakeMasks.map(row => [row.rule_id, row]));
     const actualByKey = new Map(actual.wakeMasks.map(row => [`${row.line}\0${row.text}`, row]));
     for (const expected of payload.wakeMasks) {
-        const actualRow = actualByKey.get(`${expected.line}\0${expected.text}`);
+        const actualRow = expected.rule_id !== undefined
+            ? actualByRuleId.get(expected.rule_id)
+            : actualByKey.get(`${expected.line}\0${expected.text}`);
         if (!actualRow) {
             const available = Array.from(actualByKey.keys()).map(key => key.replace('\0', ' ')).join(', ');
-            assert.fail(`${jsonPath}: wakeMasks row line ${expected.line} ${expected.text} not found; available: ${available}`);
+            assert.fail(`${jsonPath}: wakeMasks row ${expected.rule_id || `line ${expected.line} ${expected.text}`} not found; available: ${available}`);
+        }
+        if (expected.rule_id !== undefined) {
+            assert.strictEqual(actualRow.rule_id, expected.rule_id, `${jsonPath}: line ${expected.line} rule_id mismatch`);
         }
         if (expected.bitvec_format !== undefined) {
             assert.deepStrictEqual(actualRow.bitvec_format, expected.bitvec_format, `${jsonPath}: line ${expected.line} bitvec_format mismatch`);
@@ -462,6 +473,20 @@ function runCertifiedWakeMasksDir(dirPath, claimDescriptions, log = process.stdo
 }
 
 const REASON_VALUES = ['object_presence', 'object_absence', 'movement'];
+
+const GROUP_SKIP_READ_FIELDS = [
+    'object_present',
+    'object_absent',
+    'object_wake',
+    'movement',
+    'movement_present',
+    'movement_absent',
+];
+
+const GROUP_SKIP_MASK_FIELDS = [
+    'read_objects_wake',
+    'read_movements_wake',
+];
 
 function programFlowFactValue(report) {
     const facts = (report.facts && report.facts.program_flow) || [];
@@ -700,6 +725,113 @@ function runWinflowDir(dirPath, claimDescriptions, log = process.stdout.write.bi
     }
 }
 
+function winRelevanceFactValue(report) {
+    const facts = (report.facts && report.facts.win_relevance) || [];
+    if (facts.length === 0) {
+        return {
+            rule_ids: [],
+            root_rule_ids: [],
+            relevant_rule_ids: [],
+            irrelevant_rule_ids: [],
+            semantic_root_rule_ids: [],
+        };
+    }
+    return facts[0].value;
+}
+
+function locatorsForRuleIds(ruleIds, byId, label) {
+    return (ruleIds || []).map(ruleId => {
+        const record = byId.get(ruleId);
+        assert.ok(record, `win_relevance ${label} rule id ${ruleId} not found in records`);
+        return ruleLocator(record);
+    }).sort(compareRuleLocators);
+}
+
+function buildWinRelevanceExpectations(source, report) {
+    const records = allRuleRecords(report, source);
+    assertRuleRecordsIdempotent(report.source.path, records);
+    const byId = recordById(records);
+    const value = winRelevanceFactValue(report);
+    return {
+        schema: FIXTURE_SCHEMA,
+        human_verified: false,
+        rootRules: locatorsForRuleIds(value.root_rule_ids, byId, 'root'),
+        semanticRootRules: locatorsForRuleIds(value.semantic_root_rule_ids, byId, 'semantic root'),
+        relevantRules: locatorsForRuleIds(value.relevant_rule_ids, byId, 'relevant'),
+        irrelevantRules: locatorsForRuleIds(value.irrelevant_rule_ids, byId, 'irrelevant'),
+    };
+}
+
+function validateRuleLocatorArray(filePath, label, rows) {
+    assert.ok(Array.isArray(rows), `${filePath}: ${label} must be an array`);
+    for (const [index, row] of rows.entries()) {
+        assert.ok(row && typeof row === 'object' && !Array.isArray(row), `${filePath}: ${label}[${index}] must be an object`);
+        assert.ok(Number.isInteger(row.line) && row.line > 0, `${filePath}: ${label}[${index}] missing positive integer line`);
+        assert.ok(typeof row.text === 'string' && row.text.length > 0, `${filePath}: ${label}[${index}] missing text`);
+    }
+}
+
+function validateWinRelevanceExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    validateRuleLocatorArray(filePath, 'rootRules', payload.rootRules);
+    validateRuleLocatorArray(filePath, 'semanticRootRules', payload.semanticRootRules);
+    validateRuleLocatorArray(filePath, 'relevantRules', payload.relevantRules);
+    validateRuleLocatorArray(filePath, 'irrelevantRules', payload.irrelevantRules);
+}
+
+function checkWinRelevanceFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'win_relevance'), payload);
+    validateWinRelevanceExpectationShape(jsonPath, payload);
+    const actual = buildWinRelevanceExpectations(source, report);
+    assert.deepStrictEqual(
+        actual.rootRules,
+        payload.rootRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: rootRules mismatch`
+    );
+    assert.deepStrictEqual(
+        actual.semanticRootRules,
+        payload.semanticRootRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: semanticRootRules mismatch`
+    );
+    assert.deepStrictEqual(
+        actual.relevantRules,
+        payload.relevantRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: relevantRules mismatch`
+    );
+    assert.deepStrictEqual(
+        actual.irrelevantRules,
+        payload.irrelevantRules.slice().sort(compareRuleLocators),
+        `${jsonPath}: irrelevantRules mismatch`
+    );
+}
+
+function runWinRelevanceDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildWinRelevanceExpectations(source, report));
+            log(`generated static analysis testdata: win_relevance/${stem}.json (review before committing)\n`);
+        }
+        checkWinRelevanceFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 function allWinConditionRecords(report, source) {
     const sourceLines = source.split(/\r?\n/);
     return (report.ps_tagged && report.ps_tagged.winconditions || []).map(wincondition => {
@@ -924,6 +1056,9 @@ function buildRulegroupFlowExpectations(source, report) {
             line: group.source_line_min,
             split_candidate: value.split_candidate || false,
             components_count: (value.components || []).length,
+            single_pass_safe: !!value.single_pass_safe,
+            single_pass_blockers: (value.single_pass_blockers || []).slice().sort(),
+            group_skip_mask: value.group_skip_mask || null,
             interactionEdges,
             rerunMasks,
             blockers: (fact.blockers || []).slice().sort(),
@@ -941,6 +1076,15 @@ function validateRulegroupFlowExpectationShape(filePath, payload) {
         assert.ok(Number.isInteger(item.line) && item.line > 0, `${filePath}: rulegroupFlow[${index}] missing positive integer line`);
         assert.ok(typeof item.split_candidate === 'boolean', `${filePath}: rulegroupFlow[${index}].split_candidate must be boolean`);
         assert.ok(Number.isInteger(item.components_count) && item.components_count >= 0, `${filePath}: rulegroupFlow[${index}].components_count must be a non-negative integer`);
+        if (item.single_pass_safe !== undefined) {
+            assert.ok(typeof item.single_pass_safe === 'boolean', `${filePath}: rulegroupFlow[${index}].single_pass_safe must be boolean`);
+        }
+        if (item.single_pass_blockers !== undefined) {
+            assertStringArray(filePath, `rulegroupFlow[${index}].single_pass_blockers`, item.single_pass_blockers);
+        }
+        if (item.group_skip_mask !== undefined) {
+            validateGroupSkipMaskShape(filePath, `rulegroupFlow[${index}].group_skip_mask`, item.group_skip_mask);
+        }
         assertStringArray(filePath, `rulegroupFlow[${index}].blockers`, item.blockers);
         if (item.interactionEdges !== undefined) {
             assert.ok(Array.isArray(item.interactionEdges), `${filePath}: rulegroupFlow[${index}].interactionEdges must be an array`);
@@ -973,6 +1117,50 @@ function validateRulegroupFlowExpectationShape(filePath, payload) {
     }
 }
 
+function validateGroupSkipMaskShape(filePath, label, value) {
+    assert.ok(value && typeof value === 'object' && !Array.isArray(value), `${filePath}: ${label} must be an object`);
+    if (value.bitvec_format !== undefined) {
+        assert.ok(value.bitvec_format && typeof value.bitvec_format === 'object' && !Array.isArray(value.bitvec_format), `${filePath}: ${label}.bitvec_format must be an object`);
+        assert.ok(Number.isInteger(value.bitvec_format.object_words) && value.bitvec_format.object_words > 0, `${filePath}: ${label}.bitvec_format.object_words must be positive`);
+        assert.ok(Number.isInteger(value.bitvec_format.movement_words) && value.bitvec_format.movement_words > 0, `${filePath}: ${label}.bitvec_format.movement_words must be positive`);
+        assert.ok(Number.isInteger(value.bitvec_format.movement_bits_per_layer) && value.bitvec_format.movement_bits_per_layer === 5, `${filePath}: ${label}.bitvec_format.movement_bits_per_layer must be 5`);
+        assertStringArray(filePath, `${label}.bitvec_format.movement_bit_names`, value.bitvec_format.movement_bit_names);
+    }
+    assert.ok(typeof value.skippable === 'boolean', `${filePath}: ${label}.skippable must be boolean`);
+    assertStringArray(filePath, `${label}.blockers`, value.blockers);
+    if (value.reads !== undefined) {
+        assert.ok(value.reads && typeof value.reads === 'object' && !Array.isArray(value.reads), `${filePath}: ${label}.reads must be an object`);
+        for (const fieldName of Object.keys(value.reads)) {
+            assert.ok(GROUP_SKIP_READ_FIELDS.includes(fieldName), `${filePath}: ${label}.reads.${fieldName} is not a group skip read field`);
+            assertStringArray(filePath, `${label}.reads.${fieldName}`, value.reads[fieldName]);
+        }
+    }
+    if (value.masks !== undefined) {
+        assert.ok(value.masks && typeof value.masks === 'object' && !Array.isArray(value.masks), `${filePath}: ${label}.masks must be an object`);
+        for (const fieldName of Object.keys(value.masks)) {
+            assert.ok(GROUP_SKIP_MASK_FIELDS.includes(fieldName), `${filePath}: ${label}.masks.${fieldName} is not a group skip mask field`);
+            assertIntegerArray(filePath, `${label}.masks.${fieldName}`, value.masks[fieldName]);
+        }
+    }
+}
+
+function checkGroupSkipMaskExpectation(filePath, label, expected, actual) {
+    assert.ok(actual && typeof actual === 'object' && !Array.isArray(actual), `${filePath}: ${label} actual group_skip_mask missing`);
+    if (expected.bitvec_format !== undefined) {
+        assert.deepStrictEqual(actual.bitvec_format, expected.bitvec_format, `${filePath}: ${label}.bitvec_format mismatch`);
+    }
+    assert.strictEqual(actual.skippable, expected.skippable, `${filePath}: ${label}.skippable mismatch`);
+    assertSameStringSet(filePath, `${label}.blockers`, expected.blockers, actual.blockers || []);
+    if (expected.reads !== undefined) {
+        checkOptionalSection(filePath, `${label}.reads`, expected.reads, actual.reads, GROUP_SKIP_READ_FIELDS, assertSameStringSet);
+    }
+    if (expected.masks !== undefined) {
+        checkOptionalSection(filePath, `${label}.masks`, expected.masks, actual.masks, GROUP_SKIP_MASK_FIELDS, (innerFilePath, innerLabel, left, right) => {
+            assert.deepStrictEqual(right, left, `${innerFilePath}: ${innerLabel} mismatch`);
+        });
+    }
+}
+
 function checkRulegroupFlowFixture(txtPath, jsonPath, claimDescriptions) {
     const source = fs.readFileSync(txtPath, 'utf8');
     const report = analyzeSource(source, { sourcePath: txtPath });
@@ -990,6 +1178,29 @@ function checkRulegroupFlowFixture(txtPath, jsonPath, claimDescriptions) {
         }
         assert.strictEqual(actualRow.split_candidate, expected.split_candidate, `${jsonPath}: group at line ${expected.line} split_candidate expected ${expected.split_candidate}, got ${actualRow.split_candidate}`);
         assert.strictEqual(actualRow.components_count, expected.components_count, `${jsonPath}: group at line ${expected.line} components_count expected ${expected.components_count}, got ${actualRow.components_count}`);
+        if (expected.single_pass_safe !== undefined) {
+            assert.strictEqual(
+                actualRow.single_pass_safe,
+                expected.single_pass_safe,
+                `${jsonPath}: group at line ${expected.line} single_pass_safe expected ${expected.single_pass_safe}, got ${actualRow.single_pass_safe}`
+            );
+        }
+        if (expected.single_pass_blockers !== undefined) {
+            assertSameStringSet(
+                jsonPath,
+                `group at line ${expected.line} single_pass_blockers`,
+                expected.single_pass_blockers,
+                actualRow.single_pass_blockers
+            );
+        }
+        if (expected.group_skip_mask !== undefined) {
+            checkGroupSkipMaskExpectation(
+                jsonPath,
+                `group at line ${expected.line} group_skip_mask`,
+                expected.group_skip_mask,
+                actualRow.group_skip_mask
+            );
+        }
         if (expected.interactionEdges !== undefined) {
             assert.deepStrictEqual(
                 actualRow.interactionEdges,
@@ -1145,6 +1356,248 @@ function runMovementActionDir(dirPath, claimDescriptions, log = process.stdout.w
     }
 }
 
+// ─── per_level_object_universe ───────────────────────────────────────────────
+
+function perLevelObjectUniverseFacts(report) {
+    return (report.facts && report.facts.per_level_object_universe) || [];
+}
+
+function buildPerLevelObjectUniverseExpectations(report) {
+    const levelObjectUniverse = perLevelObjectUniverseFacts(report).map(fact => {
+        const value = fact.value || {};
+        return {
+            level: value.level_index,
+            initial_objects: (value.initial_objects || []).slice().sort(),
+            reachable_objects: (value.reachable_objects || []).slice().sort(),
+            created_objects: (value.created_objects || []).slice().sort(),
+            unreachable_objects: (value.unreachable_objects || []).slice().sort(),
+        };
+    }).sort((left, right) => left.level - right.level);
+    return { schema: FIXTURE_SCHEMA, human_verified: false, levelObjectUniverse };
+}
+
+function validatePerLevelObjectUniverseExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(Array.isArray(payload.levelObjectUniverse), `${filePath}: levelObjectUniverse must be an array`);
+    for (const [index, item] of payload.levelObjectUniverse.entries()) {
+        assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: levelObjectUniverse[${index}] must be an object`);
+        assert.ok(Number.isInteger(item.level) && item.level >= 0, `${filePath}: levelObjectUniverse[${index}].level must be a non-negative integer`);
+        assertStringArray(filePath, `levelObjectUniverse[${index}].initial_objects`, item.initial_objects);
+        assertStringArray(filePath, `levelObjectUniverse[${index}].reachable_objects`, item.reachable_objects);
+        if (item.created_objects !== undefined) {
+            assertStringArray(filePath, `levelObjectUniverse[${index}].created_objects`, item.created_objects);
+        }
+        assertStringArray(filePath, `levelObjectUniverse[${index}].unreachable_objects`, item.unreachable_objects);
+    }
+}
+
+function checkPerLevelObjectUniverseFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'per_level_object_universe'), payload);
+    validatePerLevelObjectUniverseExpectationShape(jsonPath, payload);
+    const actual = buildPerLevelObjectUniverseExpectations(report);
+    const actualByLevel = new Map(actual.levelObjectUniverse.map(row => [row.level, row]));
+    for (const expected of payload.levelObjectUniverse) {
+        const actualRow = actualByLevel.get(expected.level);
+        if (!actualRow) {
+            const available = Array.from(actualByLevel.keys()).join(', ');
+            assert.fail(`${jsonPath}: levelObjectUniverse level ${expected.level} not found; available levels: ${available}`);
+        }
+        assertSameStringSet(jsonPath, `level ${expected.level} initial_objects`, expected.initial_objects, actualRow.initial_objects);
+        assertSameStringSet(jsonPath, `level ${expected.level} reachable_objects`, expected.reachable_objects, actualRow.reachable_objects);
+        if (expected.created_objects !== undefined) {
+            assertSameStringSet(jsonPath, `level ${expected.level} created_objects`, expected.created_objects, actualRow.created_objects);
+        }
+        assertSameStringSet(jsonPath, `level ${expected.level} unreachable_objects`, expected.unreachable_objects, actualRow.unreachable_objects);
+    }
+}
+
+function runPerLevelObjectUniverseDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildPerLevelObjectUniverseExpectations(report));
+            log(`generated static analysis testdata: per_level_object_universe/${stem}.json (review before committing)\n`);
+        }
+        checkPerLevelObjectUniverseFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
+// ─── linear_count_invariants ─────────────────────────────────────────────────
+
+function linearCountInvariantFacts(report) {
+    return (report.facts && report.facts.linear_count_invariants) || [];
+}
+
+function buildLinearCountInvariantExpectations(report) {
+    const linearCountInvariants = linearCountInvariantFacts(report).map(fact => {
+        const value = fact.value || {};
+        return {
+            objects: (value.objects || (fact.subjects && fact.subjects.objects) || []).slice().sort(),
+            status: fact.status,
+            terms: (value.terms || []).map(term => ({
+                object: term.object,
+                coefficient: term.coefficient,
+            })).sort((left, right) => left.object.localeCompare(right.object, undefined, { numeric: true })),
+            blockers: (fact.blockers || []).slice().sort(),
+        };
+    }).sort((left, right) => left.objects.join('\u0000').localeCompare(right.objects.join('\u0000')));
+    return { schema: FIXTURE_SCHEMA, human_verified: false, linearCountInvariants };
+}
+
+function validateLinearCountInvariantExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(Array.isArray(payload.linearCountInvariants), `${filePath}: linearCountInvariants must be an array`);
+    for (const [index, item] of payload.linearCountInvariants.entries()) {
+        assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: linearCountInvariants[${index}] must be an object`);
+        assertStringArray(filePath, `linearCountInvariants[${index}].objects`, item.objects);
+        assert.ok(['proved', 'rejected'].includes(item.status), `${filePath}: linearCountInvariants[${index}].status must be proved or rejected`);
+        assert.ok(Array.isArray(item.terms), `${filePath}: linearCountInvariants[${index}].terms must be an array`);
+        for (const [termIndex, term] of item.terms.entries()) {
+            assert.ok(term && typeof term === 'object' && !Array.isArray(term), `${filePath}: linearCountInvariants[${index}].terms[${termIndex}] must be an object`);
+            assert.ok(typeof term.object === 'string' && term.object.length > 0, `${filePath}: linearCountInvariants[${index}].terms[${termIndex}].object must be a non-empty string`);
+            assert.ok(Number.isInteger(term.coefficient), `${filePath}: linearCountInvariants[${index}].terms[${termIndex}].coefficient must be an integer`);
+        }
+        assertStringArray(filePath, `linearCountInvariants[${index}].blockers`, item.blockers);
+    }
+}
+
+function checkLinearCountInvariantFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'linear_count_invariants'), payload);
+    validateLinearCountInvariantExpectationShape(jsonPath, payload);
+    const actual = buildLinearCountInvariantExpectations(report);
+    const actualByObjects = new Map(actual.linearCountInvariants.map(row => [row.objects.slice().sort().join('\u0000'), row]));
+    for (const expected of payload.linearCountInvariants) {
+        const key = expected.objects.slice().sort().join('\u0000');
+        const actualRow = actualByObjects.get(key);
+        if (!actualRow) {
+            const available = Array.from(actualByObjects.keys()).map(value => value.split('\u0000').join(', ')).join('; ');
+            assert.fail(`${jsonPath}: linearCountInvariants ${expected.objects.join(', ')} not found; available sets: ${available}`);
+        }
+        assert.strictEqual(actualRow.status, expected.status, `${jsonPath}: ${expected.objects.join(', ')} status mismatch`);
+        assert.deepStrictEqual(actualRow.terms, expected.terms, `${jsonPath}: ${expected.objects.join(', ')} terms mismatch`);
+        assertSameStringSet(jsonPath, `${expected.objects.join(', ')} blockers`, expected.blockers, actualRow.blockers);
+    }
+}
+
+function runLinearCountInvariantsDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildLinearCountInvariantExpectations(report));
+            log(`generated static analysis testdata: linear_count_invariants/${stem}.json (review before committing)\n`);
+        }
+        checkLinearCountInvariantFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
+// ─── mechanic_profile ────────────────────────────────────────────────────────
+
+function mechanicProfileFact(report) {
+    return ((report.facts && report.facts.mechanic_profile) || [])
+        .find(fact => fact && fact.id === 'mechanic_profile') || null;
+}
+
+function buildMechanicProfileExpectations(report) {
+    const value = (mechanicProfileFact(report) || {}).value || {};
+    const ruleSchemaCounts = Object.entries(value.rule_schema_counts || {})
+        .map(([schema, count]) => ({ schema, count }))
+        .sort((left, right) => left.schema.localeCompare(right.schema, undefined, { numeric: true }));
+    return {
+        schema: FIXTURE_SCHEMA,
+        human_verified: false,
+        mechanicProfile: {
+            schemas: (value.schemas || []).slice().sort(),
+            rule_schema_counts: ruleSchemaCounts,
+            blockers: (value.blockers || []).slice().sort(),
+        },
+    };
+}
+
+function validateMechanicProfileExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(payload.mechanicProfile && typeof payload.mechanicProfile === 'object' && !Array.isArray(payload.mechanicProfile), `${filePath}: mechanicProfile must be an object`);
+    assertStringArray(filePath, 'mechanicProfile.schemas', payload.mechanicProfile.schemas);
+    assert.ok(Array.isArray(payload.mechanicProfile.rule_schema_counts), `${filePath}: mechanicProfile.rule_schema_counts must be an array`);
+    for (const [index, row] of payload.mechanicProfile.rule_schema_counts.entries()) {
+        assert.ok(row && typeof row === 'object' && !Array.isArray(row), `${filePath}: mechanicProfile.rule_schema_counts[${index}] must be an object`);
+        assert.ok(typeof row.schema === 'string' && row.schema.length > 0, `${filePath}: mechanicProfile.rule_schema_counts[${index}].schema must be a non-empty string`);
+        assert.ok(Number.isInteger(row.count) && row.count >= 0, `${filePath}: mechanicProfile.rule_schema_counts[${index}].count must be a non-negative integer`);
+    }
+    assertStringArray(filePath, 'mechanicProfile.blockers', payload.mechanicProfile.blockers);
+}
+
+function checkMechanicProfileFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'mechanic_profile'), payload);
+    validateMechanicProfileExpectationShape(jsonPath, payload);
+    const actual = buildMechanicProfileExpectations(report);
+    assertSameStringSet(jsonPath, 'mechanicProfile.schemas', payload.mechanicProfile.schemas, actual.mechanicProfile.schemas);
+    assert.deepStrictEqual(
+        actual.mechanicProfile.rule_schema_counts,
+        payload.mechanicProfile.rule_schema_counts.slice().sort((left, right) => left.schema.localeCompare(right.schema, undefined, { numeric: true })),
+        `${jsonPath}: mechanicProfile.rule_schema_counts mismatch`
+    );
+    assertSameStringSet(jsonPath, 'mechanicProfile.blockers', payload.mechanicProfile.blockers, actual.mechanicProfile.blockers);
+}
+
+function runMechanicProfileDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildMechanicProfileExpectations(report));
+            log(`generated static analysis testdata: mechanic_profile/${stem}.json (review before committing)\n`);
+        }
+        checkMechanicProfileFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 // ─── runtime_contracts ───────────────────────────────────────────────────────
 
 function normalizeRuntimeContractInputs(payload) {
@@ -1286,6 +1739,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const winflowDir = path.join(root, 'winflow');
     assert.ok(fs.existsSync(winflowDir), `${winflowDir}: missing winflow testdata directory`);
     runWinflowDir(winflowDir, claimDescriptions, options.log);
+    const winRelevanceDir = path.join(root, 'win_relevance');
+    assert.ok(fs.existsSync(winRelevanceDir), `${winRelevanceDir}: missing win_relevance testdata directory`);
+    runWinRelevanceDir(winRelevanceDir, claimDescriptions, options.log);
     const winConditionTagsDir = path.join(root, 'wincondition_tags');
     assert.ok(fs.existsSync(winConditionTagsDir), `${winConditionTagsDir}: missing wincondition_tags testdata directory`);
     runWinConditionTagsDir(winConditionTagsDir, claimDescriptions, options.log);
@@ -1298,6 +1754,15 @@ function runStaticAnalysisTestdata(options = {}) {
     const movementActionDir = path.join(root, 'movement_action');
     assert.ok(fs.existsSync(movementActionDir), `${movementActionDir}: missing movement_action testdata directory`);
     runMovementActionDir(movementActionDir, claimDescriptions, options.log);
+    const perLevelObjectUniverseDir = path.join(root, 'per_level_object_universe');
+    assert.ok(fs.existsSync(perLevelObjectUniverseDir), `${perLevelObjectUniverseDir}: missing per_level_object_universe testdata directory`);
+    runPerLevelObjectUniverseDir(perLevelObjectUniverseDir, claimDescriptions, options.log);
+    const linearCountInvariantsDir = path.join(root, 'linear_count_invariants');
+    assert.ok(fs.existsSync(linearCountInvariantsDir), `${linearCountInvariantsDir}: missing linear_count_invariants testdata directory`);
+    runLinearCountInvariantsDir(linearCountInvariantsDir, claimDescriptions, options.log);
+    const mechanicProfileDir = path.join(root, 'mechanic_profile');
+    assert.ok(fs.existsSync(mechanicProfileDir), `${mechanicProfileDir}: missing mechanic_profile testdata directory`);
+    runMechanicProfileDir(mechanicProfileDir, claimDescriptions, options.log);
     const runtimeContractsDir = path.join(root, 'runtime_contracts');
     assert.ok(fs.existsSync(runtimeContractsDir), `${runtimeContractsDir}: missing runtime_contracts testdata directory`);
     runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, options.log);
@@ -1311,14 +1776,18 @@ if (require.main === module) {
 module.exports = {
     assertFixtureFieldsDocumented,
     buildCertifiedWakeMaskExpectations,
+    buildLinearCountInvariantExpectations,
+    buildMechanicProfileExpectations,
     buildMergeabilityExpectations,
     buildMovementActionExpectations,
     buildObjectTagExpectations,
+    buildPerLevelObjectUniverseExpectations,
     buildProgramFlowExpectations,
     buildRuleTagExpectations,
     buildRulegroupFlowExpectations,
     buildRuntimeContractExpectations,
     buildWinConditionTagExpectations,
+    buildWinRelevanceExpectations,
     buildWinflowExpectations,
     deriveObjectTagValue,
     deriveRuleTagValue,
@@ -1330,14 +1799,18 @@ module.exports = {
     formatFixtureJson,
     loadClaimDescriptions,
     runCertifiedWakeMasksDir,
+    runLinearCountInvariantsDir,
+    runMechanicProfileDir,
     runMergeabilityDir,
     runMovementActionDir,
     runObjectTagsDir,
+    runPerLevelObjectUniverseDir,
     runProgramFlowDir,
     runRuleTagsDir,
     runRulegroupFlowDir,
     runRuntimeContractsDir,
     runStaticAnalysisTestdata,
     runWinConditionTagsDir,
+    runWinRelevanceDir,
     runWinflowDir,
 };

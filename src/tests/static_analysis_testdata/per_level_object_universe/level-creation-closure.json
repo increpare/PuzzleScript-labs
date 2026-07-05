@@ -1,0 +1,20 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "levelObjectUniverse": [
+    {
+      "level": 0,
+      "initial_objects": ["Background", "Player", "SeedA"],
+      "reachable_objects": ["Background", "Bonus", "Door", "Key", "Player", "SeedA"],
+      "created_objects": ["Bonus", "Door", "Key"],
+      "unreachable_objects": ["Gem", "SeedB"]
+    },
+    {
+      "level": 1,
+      "initial_objects": ["Background", "Player", "SeedB"],
+      "reachable_objects": ["Background", "Bonus", "Gem", "Player", "SeedB"],
+      "created_objects": ["Bonus", "Gem"],
+      "unreachable_objects": ["Door", "Key", "SeedA"]
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+title Static Analysis Win Relevance Blocker
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+Blocker
+gray
+
+Deco
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+G = Goal
+B = Blocker
+D = Deco
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Blocker
+Deco
+
+=====
+RULES
+=====
+
+[ player ] -> [ player stationary blocker ]
+[ no blocker ] -> [ stationary goal ]
+[ deco ] -> [ no deco ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Goal
+
+======
+LEVELS
+======
+
+PD.

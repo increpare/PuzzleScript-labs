@@ -1,0 +1,307 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "wakeMasks": [
+    {
+      "rule_id": "early_group_0_rule_0",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:up"],
+        "movement_present": ["Player:up"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Crate", "Player"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Crate:moving", "Crate:up", "Player:stationary"],
+        "movement_set": ["Crate:up"],
+        "movement_clear": ["Crate:action", "Crate:down", "Crate:left", "Crate:right", "Crate:stationary", "Player:stationary", "Player:up"]
+      },
+      "masks": {
+        "read_objects_present": [6],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [32],
+        "read_movements_absent": [0],
+        "read_movements_wake": [32],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [6],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [32736],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [1024],
+        "write_movements_clear": [32736]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_1",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:down"],
+        "movement_present": ["Player:down"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Crate", "Player"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Crate:down", "Crate:moving", "Player:stationary"],
+        "movement_set": ["Crate:down"],
+        "movement_clear": ["Crate:action", "Crate:left", "Crate:right", "Crate:stationary", "Crate:up", "Player:down", "Player:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [6],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [64],
+        "read_movements_absent": [0],
+        "read_movements_wake": [64],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [6],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [32736],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [2048],
+        "write_movements_clear": [32736]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_2",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:left"],
+        "movement_present": ["Player:left"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Crate", "Player"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Crate:left", "Crate:moving", "Player:stationary"],
+        "movement_set": ["Crate:left"],
+        "movement_clear": ["Crate:action", "Crate:down", "Crate:right", "Crate:stationary", "Crate:up", "Player:left", "Player:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [6],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [128],
+        "read_movements_absent": [0],
+        "read_movements_wake": [128],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [6],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [32736],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [4096],
+        "write_movements_clear": [32736]
+      }
+    },
+    {
+      "rule_id": "early_group_0_rule_3",
+      "line": 36,
+      "text": "[ > Player | Crate ] -> [ Player | > Crate ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Crate", "Player"],
+        "object_absent": [],
+        "movement": ["Player:right"],
+        "movement_present": ["Player:right"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Crate", "Player"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Crate:moving", "Crate:right", "Player:stationary"],
+        "movement_set": ["Crate:right"],
+        "movement_clear": ["Crate:action", "Crate:down", "Crate:left", "Crate:stationary", "Crate:up", "Player:right", "Player:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [6],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [256],
+        "read_movements_absent": [0],
+        "read_movements_wake": [256],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [6],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [32736],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [8192],
+        "write_movements_clear": [32736]
+      }
+    },
+    {
+      "rule_id": "early_group_1_rule_0",
+      "line": 37,
+      "text": "[ moving Crate ] -> [ Crate ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Crate"],
+        "object_absent": [],
+        "movement": ["Crate:moving"],
+        "movement_present": ["Crate:moving"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Crate"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Crate:stationary"],
+        "movement_set": [],
+        "movement_clear": ["Crate:moving", "Crate:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [4],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [31744],
+        "read_movements_absent": [0],
+        "read_movements_wake": [31744],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [4],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [31744],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [0],
+        "write_movements_clear": [31744]
+      }
+    },
+    {
+      "rule_id": "early_group_2_rule_0",
+      "line": 38,
+      "text": "[ randomdir Player ] -> [ randomdir Player ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": [],
+        "movement": ["Player:randomdir"],
+        "movement_present": ["Player:randomdir"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Player"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [2],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [480],
+        "read_movements_absent": [0],
+        "read_movements_wake": [480],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [2],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [992],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [0],
+        "write_movements_clear": [992]
+      }
+    },
+    {
+      "rule_id": "early_group_3_rule_0",
+      "line": 39,
+      "text": "[ Player ] -> [ randomdir Player ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_wake": ["Player"],
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Player:down", "Player:left", "Player:moving", "Player:randomdir", "Player:right", "Player:up"],
+        "movement_set": ["Player:down", "Player:left", "Player:right", "Player:up"],
+        "movement_clear": ["Player:action", "Player:down", "Player:left", "Player:right", "Player:stationary", "Player:up"]
+      },
+      "masks": {
+        "read_objects_present": [2],
+        "read_objects_absent": [0],
+        "read_objects_wake": [7],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [32767],
+        "write_objects_wake": [2],
+        "runtime_write_objects_wake": [7],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [992],
+        "runtime_write_movements_wake": [32767],
+        "write_movements_set": [480],
+        "write_movements_clear": [992]
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "rootRules": [
+    {
+      "line": 44,
+      "text": "[ player ] -> [ goal ]"
+    }
+  ],
+  "semanticRootRules": [],
+  "relevantRules": [
+    {
+      "line": 44,
+      "text": "[ player ] -> [ goal ]"
+    }
+  ],
+  "irrelevantRules": [
+    {
+      "line": 45,
+      "text": "[ deco ] -> [ no deco ]"
+    }
+  ]
+}

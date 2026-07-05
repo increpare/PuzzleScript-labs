@@ -1,0 +1,27 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "rootRules": [
+    {
+      "line": 46,
+      "text": "[ moving player ] -> [ stationary goal ]"
+    }
+  ],
+  "semanticRootRules": [],
+  "relevantRules": [
+    {
+      "line": 45,
+      "text": "[ moving player ] -> [ stationary player ]"
+    },
+    {
+      "line": 46,
+      "text": "[ moving player ] -> [ stationary goal ]"
+    }
+  ],
+  "irrelevantRules": [
+    {
+      "line": 47,
+      "text": "[ deco ] -> [ no deco ]"
+    }
+  ]
+}
