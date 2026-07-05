@@ -8,6 +8,8 @@ const path = require('path');
 
 const DEFAULT_MEMORY_CEILING_MB = 32;
 const DEFAULT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+const DEFAULT_TIMEOUT_MS = 120000;
+const VALID_TIME_FLAVORS = ['auto', 'darwin', 'gnu'];
 
 function bytesToMb(bytes) {
     if (bytes === null || bytes === undefined) {
@@ -151,6 +153,9 @@ function runMeasuredGame(source, options) {
     fs.mkdirSync(options.tmpDir, { recursive: true });
     const sourcePath = path.join(options.tmpDir, sourceFileName(source));
     fs.writeFileSync(sourcePath, source.source, 'utf8');
+    const spawnSync = options.spawnSync || childProcess.spawnSync;
+    const timeExecutable = options.timeExecutable || '/usr/bin/time';
+    const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
 
     const commandArgs = [
         ...timeArgs(options.timeFlavor),
@@ -162,11 +167,13 @@ function runMeasuredGame(source, options) {
     ];
 
     const startedAt = Date.now();
-    const result = childProcess.spawnSync('/usr/bin/time', commandArgs, {
+    const result = spawnSync(timeExecutable, commandArgs, {
         encoding: 'utf8',
         maxBuffer: options.maxBufferBytes,
+        timeout: timeoutMs,
     });
     const wallSeconds = (Date.now() - startedAt) / 1000;
+    const spawnError = result.error || null;
 
     let measurement = null;
     let parseError = null;
@@ -177,7 +184,7 @@ function runMeasuredGame(source, options) {
     }
 
     const exitCode = typeof result.status === 'number' ? result.status : null;
-    const ok = exitCode === 0 && result.signal === null && measurement !== null;
+    const ok = exitCode === 0 && result.signal === null && spawnError === null && measurement !== null;
     return {
         index: source.index,
         name: source.name,
@@ -190,15 +197,17 @@ function runMeasuredGame(source, options) {
         elapsed_seconds: measurement && measurement.realSeconds !== null ? measurement.realSeconds : wallSeconds,
         time_format: measurement ? measurement.format : options.timeFlavor,
         over_ceiling: measurement ? measurement.maxRssBytes > options.memoryCeilingBytes : false,
+        spawn_error: spawnError ? spawnError.message : null,
+        spawn_error_code: spawnError && spawnError.code ? spawnError.code : null,
         parse_error: parseError,
         stdout_tail: stderrTail(result.stdout),
         stderr_tail: stderrTail(result.stderr),
-        command: ['/usr/bin/time', ...commandArgs],
+        command: [timeExecutable, ...commandArgs],
     };
 }
 
 function summarizeResults(results, memoryCeilingBytes) {
-    const measured = results.filter((record) => record.ok && typeof record.peak_rss_bytes === 'number');
+    const measured = results.filter((record) => typeof record.peak_rss_bytes === 'number');
     const failures = results.filter((record) => !record.ok);
     const overCeiling = measured.filter((record) => record.peak_rss_bytes > memoryCeilingBytes);
     const sorted = measured
@@ -238,6 +247,7 @@ function parseArgs(argv) {
         memoryCeilingBytes: DEFAULT_MEMORY_CEILING_MB * 1024 * 1024,
         timeFlavor: 'auto',
         maxBufferBytes: DEFAULT_MAX_BUFFER_BYTES,
+        timeoutMs: DEFAULT_TIMEOUT_MS,
     };
 
     for (let index = 0; index < argv.length; index += 1) {
@@ -274,9 +284,19 @@ function parseArgs(argv) {
             options.timeFlavor = argv[++index];
             continue;
         }
+        if (arg === '--timeout-ms' && index + 1 < argv.length) {
+            options.timeoutMs = Number(argv[++index]);
+            continue;
+        }
         throw new Error(`unknown or incomplete option: ${arg}`);
     }
 
+    if (!VALID_TIME_FLAVORS.includes(options.timeFlavor)) {
+        throw new Error('--time-flavor must be one of auto, darwin, gnu');
+    }
+    if (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0) {
+        throw new Error('--timeout-ms must be a positive integer');
+    }
     if (!options.help && !options.corpusNdjson) {
         throw new Error('--corpus-ndjson is required');
     }
@@ -300,6 +320,7 @@ function printUsage(out) {
         '  --limit N                  measure only the first N corpus records',
         '  --memory-ceiling-mb N      embedded memory ceiling for outlier flags (default: 32)',
         '  --time-flavor auto|darwin|gnu',
+        '  --timeout-ms N             per-game timeout in milliseconds (default: 120000)',
         '',
     ].join('\n'));
 }
@@ -338,6 +359,7 @@ function runCli(argv) {
             binary: options.binary,
             corpus_ndjson: options.corpusNdjson,
             time_flavor: options.timeFlavor,
+            timeout_ms: options.timeoutMs,
         },
         summary: summarizeResults(results, options.memoryCeilingBytes),
         games: results,
@@ -365,6 +387,7 @@ module.exports = {
     bytesToMb,
     loadNdjsonCorpusText,
     parseClockSeconds,
+    parseArgs,
     parseTimeOutput,
     runMeasuredGame,
     sourceFileName,

@@ -2,8 +2,20 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const audit = require('./handheld_memory_audit');
+
+function withTempDir(callback) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'handheld-memory-audit-test-'));
+    try {
+        return callback(tmpDir);
+    } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+}
 
 function parsesDarwinTimeOutput() {
     const parsed = audit.parseTimeOutput([
@@ -129,6 +141,133 @@ function summarizesResultsAgainstCeiling() {
     assert.strictEqual(summary.top_peak_rss[1].name, 'small');
 }
 
+function summarizesFailedMeasuredRecordsAgainstCeiling() {
+    const ceiling = 32 * 1024 * 1024;
+    const summary = audit.summarizeResults(
+        [
+            {
+                index: 0,
+                name: 'small',
+                ok: true,
+                peak_rss_bytes: 4 * 1024 * 1024,
+                elapsed_seconds: 0.1,
+            },
+            {
+                index: 1,
+                name: 'failed-with-rss',
+                ok: false,
+                peak_rss_bytes: 110 * 1024 * 1024,
+                elapsed_seconds: 1.5,
+            },
+            {
+                index: 2,
+                name: 'failed-without-rss',
+                ok: false,
+                peak_rss_bytes: null,
+                elapsed_seconds: null,
+            },
+        ],
+        ceiling,
+    );
+
+    assert.strictEqual(summary.game_count, 3);
+    assert.strictEqual(summary.measured_games, 2);
+    assert.strictEqual(summary.failures, 2);
+    assert.strictEqual(summary.over_ceiling, 1);
+    assert.strictEqual(summary.max_peak_rss_bytes, 110 * 1024 * 1024);
+    assert.strictEqual(summary.max_peak_rss_mb, 110);
+    assert.strictEqual(summary.top_peak_rss[0].name, 'failed-with-rss');
+    assert.strictEqual(summary.top_peak_rss[0].over_ceiling, true);
+    assert.strictEqual(summary.top_peak_rss[1].name, 'small');
+}
+
+function runMeasuredGameRecordsSpawnErrors() {
+    withTempDir((tmpDir) => {
+        const spawnError = new Error('spawn failed');
+        spawnError.code = 'ENOENT';
+
+        const record = audit.runMeasuredGame(
+            { index: 4, name: 'missing binary', source: 'title missing' },
+            {
+                binary: 'missing-binary',
+                maxBufferBytes: 1024,
+                memoryCeilingBytes: 32 * 1024 * 1024,
+                timeFlavor: 'darwin',
+                timeoutMs: 120000,
+                tmpDir,
+                spawnSync: () => ({
+                    status: null,
+                    signal: null,
+                    stdout: '',
+                    stderr: '',
+                    error: spawnError,
+                }),
+                timeExecutable: '/fake/time',
+            },
+        );
+
+        assert.strictEqual(record.ok, false);
+        assert.strictEqual(record.spawn_error, 'spawn failed');
+        assert.strictEqual(record.spawn_error_code, 'ENOENT');
+    });
+}
+
+function runMeasuredGamePassesTimeoutToSpawnSync() {
+    withTempDir((tmpDir) => {
+        const calls = [];
+        const record = audit.runMeasuredGame(
+            { index: 5, name: 'demo', source: 'title demo' },
+            {
+                binary: 'puzzlescript_cpp',
+                maxBufferBytes: 2048,
+                memoryCeilingBytes: 32 * 1024 * 1024,
+                timeFlavor: 'darwin',
+                timeoutMs: 4242,
+                tmpDir,
+                spawnSync: (command, args, spawnOptions) => {
+                    calls.push({ command, args, spawnOptions });
+                    return {
+                        status: 0,
+                        signal: null,
+                        stdout: '',
+                        stderr: [
+                            '        0.02 real',
+                            '        0.01 user',
+                            '        0.00 sys',
+                            '      4096 maximum resident set size',
+                        ].join('\n'),
+                    };
+                },
+                timeExecutable: '/fake/time',
+            },
+        );
+
+        assert.strictEqual(record.ok, true);
+        assert.strictEqual(calls.length, 1);
+        assert.strictEqual(calls[0].command, '/fake/time');
+        assert.strictEqual(calls[0].spawnOptions.timeout, 4242);
+    });
+}
+
+function parsesCliTimeoutAndRejectsInvalidTimeFlavor() {
+    assert.throws(
+        () => audit.parseArgs(['--corpus-ndjson', 'corpus.ndjson', '--time-flavor', 'bsd']),
+        /--time-flavor must be one of auto, darwin, gnu/,
+    );
+
+    const options = audit.parseArgs([
+        '--corpus-ndjson',
+        'corpus.ndjson',
+        '--timeout-ms',
+        '5000',
+        '--time-flavor',
+        'gnu',
+    ]);
+
+    assert.strictEqual(options.timeoutMs, 5000);
+    assert.strictEqual(options.timeFlavor, 'gnu');
+}
+
 parsesDarwinTimeOutput();
 parsesGnuTimeOutput();
 rejectsMissingPeakRss();
@@ -136,3 +275,7 @@ loadsNdjsonCorpusText();
 rejectsMalformedNdjsonRecords();
 sanitizesSourceFileNames();
 summarizesResultsAgainstCeiling();
+summarizesFailedMeasuredRecordsAgainstCeiling();
+runMeasuredGameRecordsSpawnErrors();
+runMeasuredGamePassesTimeoutToSpawnSync();
+parsesCliTimeoutAndRejectsInvalidTimeFlavor();
