@@ -2760,6 +2760,51 @@ function rulegroupSinglePassBlockers(group, interactionEdges, indexById) {
     return uniqueSorted(blockers);
 }
 
+function rulegroupSkipMaskBlockers(group) {
+    const blockers = [];
+    if (group.random) blockers.push('random_rule_group');
+    if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
+    if (group.rules.some(rule => rule.summary.semantic_commands.length > 0)) blockers.push('semantic_command');
+    if (group.rules.some(rule => rule.tags && rule.tags.force_always_run)) blockers.push('force_always_rule');
+    return uniqueSorted(blockers);
+}
+
+function groupSkipMaskForRules(psTagged, group, blockers) {
+    const objectPresent = new Set();
+    const objectAbsent = new Set();
+    const movement = [];
+    for (const rule of group.rules || []) {
+        const reads = ruleFlowReads(rule);
+        addValues(objectPresent, reads.object_present || []);
+        addValues(objectAbsent, reads.object_absent || []);
+        movement.push(...(reads.movement || []));
+    }
+    const objectWake = uniqueSorted(new Set([...objectPresent, ...objectAbsent]));
+    const readMovements = splitReadMovements({ movement });
+    return {
+        bitvec_format: {
+            object_words: objectMaskWordCount(psTagged),
+            movement_words: movementMaskWordCount(psTagged),
+            movement_bits_per_layer: 5,
+            movement_bit_names: ['up', 'down', 'left', 'right', 'action'],
+        },
+        skippable: blockers.length === 0,
+        blockers,
+        reads: {
+            object_present: uniqueSorted(objectPresent),
+            object_absent: uniqueSorted(objectAbsent),
+            object_wake: objectWake,
+            movement: uniqueSorted(movement.map(movementEntryKey)),
+            movement_present: uniqueSorted(readMovements.present.map(movementEntryKey)),
+            movement_absent: uniqueSorted(readMovements.absent.map(movementEntryKey)),
+        },
+        masks: {
+            read_objects_wake: objectMaskForNames(psTagged, objectWake),
+            read_movements_wake: movementMaskForEntries(psTagged, movement),
+        },
+    };
+}
+
 function deriveRulegroupFlowFacts(psTagged) {
     const results = [];
     for (const section of psTagged.rule_sections) {
@@ -2780,6 +2825,7 @@ function deriveRulegroupFlowFacts(psTagged) {
             const components = connectedComponents(ruleIds, interactionEdges);
             const blockers = [];
             const singlePassBlockers = rulegroupSinglePassBlockers(group, interactionEdges, indexById);
+            const groupSkipBlockers = rulegroupSkipMaskBlockers(group);
             if (components.length <= 1) blockers.push('single_component');
             if (group.random) blockers.push('random_rule_group');
             if (group.rules.some(rule => rule.rigid)) blockers.push('rigid_rule');
@@ -2795,6 +2841,7 @@ function deriveRulegroupFlowFacts(psTagged) {
                     split_candidate: status === 'candidate',
                     single_pass_safe: singlePassBlockers.length === 0,
                     single_pass_blockers: singlePassBlockers,
+                    group_skip_mask: groupSkipMaskForRules(psTagged, group, groupSkipBlockers),
                 },
                 proof: status === 'candidate' ? ['multiple_independent_rule_components'] : [],
                 blockers,

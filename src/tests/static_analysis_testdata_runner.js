@@ -472,6 +472,20 @@ function runCertifiedWakeMasksDir(dirPath, claimDescriptions, log = process.stdo
 
 const REASON_VALUES = ['object_presence', 'object_absence', 'movement'];
 
+const GROUP_SKIP_READ_FIELDS = [
+    'object_present',
+    'object_absent',
+    'object_wake',
+    'movement',
+    'movement_present',
+    'movement_absent',
+];
+
+const GROUP_SKIP_MASK_FIELDS = [
+    'read_objects_wake',
+    'read_movements_wake',
+];
+
 function programFlowFactValue(report) {
     const facts = (report.facts && report.facts.program_flow) || [];
     if (facts.length === 0) return { rule_ids: [], wake_edges: [], again_rules: [], tick_restart_possible: false };
@@ -1042,6 +1056,7 @@ function buildRulegroupFlowExpectations(source, report) {
             components_count: (value.components || []).length,
             single_pass_safe: !!value.single_pass_safe,
             single_pass_blockers: (value.single_pass_blockers || []).slice().sort(),
+            group_skip_mask: value.group_skip_mask || null,
             interactionEdges,
             rerunMasks,
             blockers: (fact.blockers || []).slice().sort(),
@@ -1064,6 +1079,9 @@ function validateRulegroupFlowExpectationShape(filePath, payload) {
         }
         if (item.single_pass_blockers !== undefined) {
             assertStringArray(filePath, `rulegroupFlow[${index}].single_pass_blockers`, item.single_pass_blockers);
+        }
+        if (item.group_skip_mask !== undefined) {
+            validateGroupSkipMaskShape(filePath, `rulegroupFlow[${index}].group_skip_mask`, item.group_skip_mask);
         }
         assertStringArray(filePath, `rulegroupFlow[${index}].blockers`, item.blockers);
         if (item.interactionEdges !== undefined) {
@@ -1097,6 +1115,50 @@ function validateRulegroupFlowExpectationShape(filePath, payload) {
     }
 }
 
+function validateGroupSkipMaskShape(filePath, label, value) {
+    assert.ok(value && typeof value === 'object' && !Array.isArray(value), `${filePath}: ${label} must be an object`);
+    if (value.bitvec_format !== undefined) {
+        assert.ok(value.bitvec_format && typeof value.bitvec_format === 'object' && !Array.isArray(value.bitvec_format), `${filePath}: ${label}.bitvec_format must be an object`);
+        assert.ok(Number.isInteger(value.bitvec_format.object_words) && value.bitvec_format.object_words > 0, `${filePath}: ${label}.bitvec_format.object_words must be positive`);
+        assert.ok(Number.isInteger(value.bitvec_format.movement_words) && value.bitvec_format.movement_words > 0, `${filePath}: ${label}.bitvec_format.movement_words must be positive`);
+        assert.ok(Number.isInteger(value.bitvec_format.movement_bits_per_layer) && value.bitvec_format.movement_bits_per_layer === 5, `${filePath}: ${label}.bitvec_format.movement_bits_per_layer must be 5`);
+        assertStringArray(filePath, `${label}.bitvec_format.movement_bit_names`, value.bitvec_format.movement_bit_names);
+    }
+    assert.ok(typeof value.skippable === 'boolean', `${filePath}: ${label}.skippable must be boolean`);
+    assertStringArray(filePath, `${label}.blockers`, value.blockers);
+    if (value.reads !== undefined) {
+        assert.ok(value.reads && typeof value.reads === 'object' && !Array.isArray(value.reads), `${filePath}: ${label}.reads must be an object`);
+        for (const fieldName of Object.keys(value.reads)) {
+            assert.ok(GROUP_SKIP_READ_FIELDS.includes(fieldName), `${filePath}: ${label}.reads.${fieldName} is not a group skip read field`);
+            assertStringArray(filePath, `${label}.reads.${fieldName}`, value.reads[fieldName]);
+        }
+    }
+    if (value.masks !== undefined) {
+        assert.ok(value.masks && typeof value.masks === 'object' && !Array.isArray(value.masks), `${filePath}: ${label}.masks must be an object`);
+        for (const fieldName of Object.keys(value.masks)) {
+            assert.ok(GROUP_SKIP_MASK_FIELDS.includes(fieldName), `${filePath}: ${label}.masks.${fieldName} is not a group skip mask field`);
+            assertIntegerArray(filePath, `${label}.masks.${fieldName}`, value.masks[fieldName]);
+        }
+    }
+}
+
+function checkGroupSkipMaskExpectation(filePath, label, expected, actual) {
+    assert.ok(actual && typeof actual === 'object' && !Array.isArray(actual), `${filePath}: ${label} actual group_skip_mask missing`);
+    if (expected.bitvec_format !== undefined) {
+        assert.deepStrictEqual(actual.bitvec_format, expected.bitvec_format, `${filePath}: ${label}.bitvec_format mismatch`);
+    }
+    assert.strictEqual(actual.skippable, expected.skippable, `${filePath}: ${label}.skippable mismatch`);
+    assertSameStringSet(filePath, `${label}.blockers`, expected.blockers, actual.blockers || []);
+    if (expected.reads !== undefined) {
+        checkOptionalSection(filePath, `${label}.reads`, expected.reads, actual.reads, GROUP_SKIP_READ_FIELDS, assertSameStringSet);
+    }
+    if (expected.masks !== undefined) {
+        checkOptionalSection(filePath, `${label}.masks`, expected.masks, actual.masks, GROUP_SKIP_MASK_FIELDS, (innerFilePath, innerLabel, left, right) => {
+            assert.deepStrictEqual(right, left, `${innerFilePath}: ${innerLabel} mismatch`);
+        });
+    }
+}
+
 function checkRulegroupFlowFixture(txtPath, jsonPath, claimDescriptions) {
     const source = fs.readFileSync(txtPath, 'utf8');
     const report = analyzeSource(source, { sourcePath: txtPath });
@@ -1127,6 +1189,14 @@ function checkRulegroupFlowFixture(txtPath, jsonPath, claimDescriptions) {
                 `group at line ${expected.line} single_pass_blockers`,
                 expected.single_pass_blockers,
                 actualRow.single_pass_blockers
+            );
+        }
+        if (expected.group_skip_mask !== undefined) {
+            checkGroupSkipMaskExpectation(
+                jsonPath,
+                `group at line ${expected.line} group_skip_mask`,
+                expected.group_skip_mask,
+                actualRow.group_skip_mask
             );
         }
         if (expected.interactionEdges !== undefined) {

@@ -8,6 +8,18 @@
       "components_count": 2,
       "single_pass_safe": false,
       "single_pass_blockers": ["force_always_rule"],
+      "group_skip_mask": {
+        "skippable": false,
+        "blockers": ["force_always_rule"],
+        "reads": {
+          "object_present": ["Player"],
+          "object_absent": [],
+          "object_wake": ["Player"],
+          "movement": [],
+          "movement_present": [],
+          "movement_absent": []
+        }
+      },
       "blockers": []
     }
   ]

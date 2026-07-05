@@ -903,6 +903,122 @@
                 "specification": "Known blockers include earlier_rule_may_be_enabled, random_rule_group, rigid_rule, semantic_command, and force_always_rule. A group with single_pass_safe true must have an empty blocker list."
               },
               {
+                "name": "group_skip_mask",
+                "type": "object",
+                "description": "Analyzer-certified read mask for deciding whether a previously evaluated group can be skipped after later writes.",
+                "specification": "skippable is true only when blockers is empty. Known blockers include random_rule_group, rigid_rule, semantic_command, and force_always_rule. semantic_command includes again. reads contains readable object/movement read sets; masks contains optional engine-shaped Int32 word masks.",
+                "fields": [
+                  {
+                    "name": "bitvec_format",
+                    "type": "object",
+                    "description": "Engine bit-vector layout used by this group skip mask.",
+                    "specification": "Object masks use object ids. Movement masks use five bits per collision layer in up/down/left/right/action order.",
+                    "fields": [
+                      {
+                        "name": "object_words",
+                        "type": "integer",
+                        "description": "Number of Int32 words in object masks.",
+                        "specification": "Matches the engine STRIDE_OBJ for this analyzed game."
+                      },
+                      {
+                        "name": "movement_words",
+                        "type": "integer",
+                        "description": "Number of Int32 words in movement masks.",
+                        "specification": "Matches the engine STRIDE_MOV for this analyzed game."
+                      },
+                      {
+                        "name": "movement_bits_per_layer",
+                        "type": "integer",
+                        "description": "Movement bits allocated to each collision layer.",
+                        "specification": "Always 5 for the current engine format."
+                      },
+                      {
+                        "name": "movement_bit_names",
+                        "type": "string[]",
+                        "description": "Names of movement bits within each layer.",
+                        "specification": "Always up, down, left, right, action in bit order."
+                      }
+                    ]
+                  },
+                  {
+                    "name": "skippable",
+                    "type": "boolean",
+                    "description": "Whether this group is eligible for skip-mask consumption.",
+                    "specification": "false when blockers contains any semantic or control-flow condition that requires the group to run despite read-mask invalidation."
+                  },
+                  {
+                    "name": "blockers",
+                    "type": "string[]",
+                    "description": "Reasons this group is not eligible for skip-mask consumption.",
+                    "specification": "Known blockers include random_rule_group, rigid_rule, semantic_command, and force_always_rule."
+                  },
+                  {
+                    "name": "reads",
+                    "type": "object",
+                    "description": "Readable group read sets used to derive the skip mask.",
+                    "specification": "object_wake is the union of object_present and object_absent. movement includes all movement reads, with stationary represented in movement_absent.",
+                    "fields": [
+                      {
+                        "name": "object_present",
+                        "type": "string[]",
+                        "description": "Objects whose presence may be read by any rule in the group.",
+                        "specification": "Sorted object display-name strings."
+                      },
+                      {
+                        "name": "object_absent",
+                        "type": "string[]",
+                        "description": "Objects whose absence may be read by any rule in the group.",
+                        "specification": "Sorted object display-name strings."
+                      },
+                      {
+                        "name": "object_wake",
+                        "type": "string[]",
+                        "description": "Objects whose writes may invalidate the group's read assumptions.",
+                        "specification": "Sorted union of positive and negative object reads."
+                      },
+                      {
+                        "name": "movement",
+                        "type": "string[]",
+                        "description": "Object movement states read by any rule in the group.",
+                        "specification": "Sorted Object:movement strings."
+                      },
+                      {
+                        "name": "movement_present",
+                        "type": "string[]",
+                        "description": "Object movement bits that must be present for any rule in the group.",
+                        "specification": "Sorted Object:movement strings, excluding stationary."
+                      },
+                      {
+                        "name": "movement_absent",
+                        "type": "string[]",
+                        "description": "Object movement states read through absence by any rule in the group.",
+                        "specification": "Currently used for stationary reads."
+                      }
+                    ]
+                  },
+                  {
+                    "name": "masks",
+                    "type": "object",
+                    "description": "Engine-shaped Int32 word masks for group-skip invalidation.",
+                    "specification": "Consumers may skip a previously clean eligible group only when cumulative writes do not intersect these read wake masks.",
+                    "fields": [
+                      {
+                        "name": "read_objects_wake",
+                        "type": "integer[]",
+                        "description": "Object-mask words for object reads that can wake the group.",
+                        "specification": "Uses engine object id bits."
+                      },
+                      {
+                        "name": "read_movements_wake",
+                        "type": "integer[]",
+                        "description": "Movement-mask words for movement reads that can wake the group.",
+                        "specification": "Uses five movement bits per collision layer."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
                 "name": "blockers",
                 "type": "string[]",
                 "description": "Reasons this rule group is not a split candidate.",

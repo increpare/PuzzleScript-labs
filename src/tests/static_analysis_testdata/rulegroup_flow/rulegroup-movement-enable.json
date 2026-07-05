@@ -6,6 +6,28 @@
       "line": 55,
       "split_candidate": true,
       "components_count": 2,
+      "group_skip_mask": {
+        "bitvec_format": {
+          "object_words": 1,
+          "movement_words": 2,
+          "movement_bits_per_layer": 5,
+          "movement_bit_names": ["up", "down", "left", "right", "action"]
+        },
+        "skippable": true,
+        "blockers": [],
+        "reads": {
+          "object_present": ["Alpha", "Beta"],
+          "object_absent": [],
+          "object_wake": ["Alpha", "Beta"],
+          "movement": ["Alpha:right"],
+          "movement_present": ["Alpha:right"],
+          "movement_absent": []
+        },
+        "masks": {
+          "read_objects_wake": [12],
+          "read_movements_wake": [8192, 0]
+        }
+      },
       "interactionEdges": [
         {
           "from_line": 56,

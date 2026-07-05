@@ -8,6 +8,18 @@
       "components_count": 1,
       "single_pass_safe": false,
       "single_pass_blockers": ["earlier_rule_may_be_enabled"],
+      "group_skip_mask": {
+        "skippable": true,
+        "blockers": [],
+        "reads": {
+          "object_present": ["Alpha", "MarkerX"],
+          "object_absent": [],
+          "object_wake": ["Alpha", "MarkerX"],
+          "movement": [],
+          "movement_present": [],
+          "movement_absent": []
+        }
+      },
       "interactionEdges": [
         {
           "from_line": 56,
