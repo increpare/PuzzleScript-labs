@@ -1,0 +1,60 @@
+title Static Analysis Per Level Object Universe Negative Creator
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Wall
+brown
+
+Spark
+yellow
+
+Prize
+green
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+# = Wall
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Wall
+Spark
+Prize
+
+=====
+RULES
+=====
+
+[ no Wall ] -> [ no Wall Spark ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+P#.

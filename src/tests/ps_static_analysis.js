@@ -563,6 +563,7 @@ function emptyFacts() {
     return {
         mergeability: [],
         movement_action: [],
+        per_level_object_universe: [],
         count_layer_invariants: [],
         transient_boundary: [],
         rulegroup_flow: [],
@@ -1903,6 +1904,101 @@ function termObjectsExcept(term, excludedObjects) {
     return termObjects(term).filter(objectName => !excludedObjects.has(objectName));
 }
 
+function objectSetTermKind(psTagged, term) {
+    if (!term || !term.ref || term.ref.type !== 'object_set') return null;
+    const source = term.ref.source;
+    const property = (psTagged.properties || []).find(item =>
+        item.name === source || item.canonical_name === source
+    );
+    return property ? property.kind : null;
+}
+
+function rulePositiveObjectRequirementAlternatives(psTagged, rule) {
+    const requirements = [];
+    for (const row of rule.lhs || []) {
+        for (const cell of row || []) {
+            const absentInCell = absentObjectSet(cell);
+            for (const term of cell || []) {
+                if (term.kind !== 'present') continue;
+                const objects = uniqueSorted(termObjectsExcept(term, absentInCell));
+                if (objects.length === 0) continue;
+                if (objectSetTermKind(psTagged, term) === 'aggregate') {
+                    for (const objectName of objects) requirements.push([objectName]);
+                } else {
+                    requirements.push(objects);
+                }
+            }
+        }
+    }
+    return requirements;
+}
+
+function ruleRequirementsReachable(requirements, reachableObjects) {
+    return requirements.every(alternatives =>
+        alternatives.some(objectName => reachableObjects.has(objectName))
+    );
+}
+
+function computeLevelObjectUniverse(psTagged, level) {
+    const initialObjects = new Set(level.objects_present || []);
+    const reachableObjects = new Set(initialObjects);
+    const creatorRuleIds = new Set();
+    const activeEntries = allRuleEntries(psTagged).filter(entry =>
+        entry.rule.tags.solver_state_active && entry.rule.tags.object_mutating
+    );
+    const ruleData = activeEntries.map(entry => ({
+        rule: entry.rule,
+        requirements: rulePositiveObjectRequirementAlternatives(psTagged, entry.rule),
+        writes: uniqueSorted(ruleFlowWrites(psTagged, entry.rule).object_present),
+    })).filter(entry => entry.writes.length > 0);
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const entry of ruleData) {
+            if (!ruleRequirementsReachable(entry.requirements, reachableObjects)) continue;
+            let added = false;
+            for (const objectName of entry.writes) {
+                if (reachableObjects.has(objectName)) continue;
+                reachableObjects.add(objectName);
+                changed = true;
+                added = true;
+            }
+            if (added) creatorRuleIds.add(entry.rule.id);
+        }
+    }
+
+    const allObjects = uniqueSorted((psTagged.objects || []).map(object => object.name));
+    const initial = uniqueSorted(initialObjects);
+    const reachable = uniqueSorted(reachableObjects);
+    const initialSet = new Set(initial);
+    return {
+        level_index: level.index,
+        initial_objects: initial,
+        reachable_objects: reachable,
+        created_objects: uniqueSorted(reachable.filter(objectName => !initialSet.has(objectName))),
+        unreachable_objects: uniqueSorted(allObjects.filter(objectName => !reachableObjects.has(objectName))),
+        creator_rule_ids: uniqueSorted(creatorRuleIds),
+    };
+}
+
+function derivePerLevelObjectUniverseFacts(psTagged) {
+    const results = [];
+    for (const level of psTagged.levels || []) {
+        if (level.kind !== 'level') continue;
+        const value = computeLevelObjectUniverse(psTagged, level);
+        level.tags.reachable_objects = value.reachable_objects.slice();
+        level.tags.unreachable_objects = value.unreachable_objects.slice();
+        results.push(fact('per_level_object_universe', `level_${level.index}_object_universe`, 'proved', {
+            subjects: { levels: [level.index] },
+            value,
+            proof: ['initial_level_objects', 'conservative_positive_requirement_creation_closure'],
+            evidence: value.creator_rule_ids,
+        }));
+    }
+    return results;
+}
+
 function movementExpansions(movement) {
     if (movement === 'randomdir') return CARDINAL_MOVEMENTS.concat(['moving', 'randomdir']);
     if (CARDINAL_MOVEMENTS.includes(movement)) return [movement, 'moving'];
@@ -2979,6 +3075,7 @@ function factDerivers() {
     return {
         mergeability: deriveMergeabilityFacts,
         movement_action: deriveMovementActionFacts,
+        per_level_object_universe: derivePerLevelObjectUniverseFacts,
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,

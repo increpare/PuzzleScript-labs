@@ -157,6 +157,7 @@ function emptyStaticContract(unavailableReason) {
         quantityContracts: [],
         temporaryObjectNames: [],
         neverAppearsObjectNames: [],
+        perLevelObjectUniverseByLevel: new Map(),
         cosmeticObjectNames: [],
         cosmeticRuleSourceLines: [],
         optimizerCosmeticRuleSourceLines: [],
@@ -172,6 +173,16 @@ function emptyStaticContract(unavailableReason) {
         noRandomProved: false,
         unavailableReason,
     };
+}
+
+function perLevelObjectUniverseByLevel(report) {
+    const byLevel = new Map();
+    for (const fact of (report.facts && report.facts.per_level_object_universe) || []) {
+        if (!fact || fact.status !== 'proved' || !fact.value) continue;
+        if (!Number.isInteger(fact.value.level_index)) continue;
+        byLevel.set(fact.value.level_index, (fact.value.unreachable_objects || []).slice());
+    }
+    return byLevel;
 }
 
 function addRuleTagObjects(rule, out) {
@@ -352,7 +363,7 @@ function staticContractForSource(source, testName) {
     const sourcePath = `testdata:${testName}`;
     const report = analyzeSource(source, {
         sourcePath,
-        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'mergeability', 'winflow', 'certified_wake_masks'],
+        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'per_level_object_universe', 'mergeability', 'winflow', 'certified_wake_masks'],
     });
     const unavailableReason = expectedAnalysisUnavailable(report, testName, sourcePath);
     if (unavailableReason) {
@@ -399,6 +410,7 @@ function staticContractForSource(source, testName) {
         neverAppearsObjectNames: objects
             .filter(object => object.tags && object.tags.present_in_no_levels === true && object.tags.may_be_created === false)
             .map(object => object.name),
+        perLevelObjectUniverseByLevel: perLevelObjectUniverseByLevel(report),
         cosmeticObjectNames: objects
             .filter(object => object.tags && object.tags.cosmetic === true)
             .map(object => object.name),
@@ -948,6 +960,19 @@ function firstTemporaryPresence(objectNames) {
         }
     }
     return null;
+}
+
+function perLevelObjectUniverseNames(perLevelObjectUniverseByLevel) {
+    const identity = boardIdentity();
+    if (!identity.available || !Number.isInteger(identity.curlevel)) return [];
+    return perLevelObjectUniverseByLevel.get(identity.curlevel) || [];
+}
+
+function firstPerLevelObjectUniversePresence(perLevelObjectUniverseByLevel) {
+    const identity = boardIdentity();
+    const diff = firstTemporaryPresence(perLevelObjectUniverseNames(perLevelObjectUniverseByLevel));
+    if (!diff) return null;
+    return Object.assign({ level: identity.curlevel }, diff);
 }
 
 function quantityClaimCount(quantityContracts) {
@@ -1780,6 +1805,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const quantityContracts = staticContract.quantityContracts;
     const temporaryObjects = staticContract.temporaryObjectNames;
     const neverAppearsObjects = staticContract.neverAppearsObjectNames;
+    const perLevelObjectUniverse = staticContract.perLevelObjectUniverseByLevel;
     let cosmeticObjects = staticContract.cosmeticObjectNames;
     const cosmeticRuleSourceLines = staticContract.cosmeticRuleSourceLines;
     const optimizerCosmeticRuleSourceLines = staticContract.optimizerCosmeticRuleSourceLines;
@@ -1819,6 +1845,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     let quantityBoundaryChecks = 0;
     let temporaryBoundaryChecks = 0;
     let neverAppearsBoundaryChecks = 0;
+    let perLevelObjectUniverseChecks = 0;
     let actionUnnecessaryBoundaryChecks = 0;
     let tickNoopBoundaryChecks = 0;
     let noAgainBoundaryChecks = 0;
@@ -1899,6 +1926,17 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                 ].join('\n'));
             }
             neverAppearsBoundaryChecks += neverAppearsObjects.length;
+            const initialPerLevelUniverseDiff = firstPerLevelObjectUniversePresence(perLevelObjectUniverse);
+            if (initialPerLevelUniverseDiff) {
+                throw new Error([
+                    `${testName}: per-level unreachable object appeared at stable boundary`,
+                    '  boundary: initial',
+                    `  level: ${initialPerLevelUniverseDiff.level}`,
+                    `  object: ${initialPerLevelUniverseDiff.objectName}`,
+                    `  count: ${initialPerLevelUniverseDiff.count}`,
+                ].join('\n'));
+            }
+            perLevelObjectUniverseChecks += perLevelObjectUniverseNames(perLevelObjectUniverse).length;
         }
         const initialBoundaryIsTerminalWin = currentBoundaryIsTerminalWin();
         if (!initialBoundaryIsTerminalWin && actionUnnecessaryProved) {
@@ -1972,6 +2010,17 @@ function runSimulationWithStaticChecks(testName, dataarray) {
                     ].join('\n'));
                 }
                 neverAppearsBoundaryChecks += neverAppearsObjects.length;
+                const perLevelUniverseDiff = firstPerLevelObjectUniversePresence(perLevelObjectUniverse);
+                if (perLevelUniverseDiff) {
+                    throw new Error([
+                        `${testName}: per-level unreachable object appeared at stable boundary`,
+                        `  input ${inputIndex}: ${tokenLabel(inputToken)}`,
+                        `  level: ${perLevelUniverseDiff.level}`,
+                        `  object: ${perLevelUniverseDiff.objectName}`,
+                        `  count: ${perLevelUniverseDiff.count}`,
+                    ].join('\n'));
+                }
+                perLevelObjectUniverseChecks += perLevelObjectUniverseNames(perLevelObjectUniverse).length;
             }
 
             if (resetBoundary) {
@@ -2256,6 +2305,7 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             quantityBoundaryChecks,
             temporaryBoundaryChecks,
             neverAppearsBoundaryChecks,
+            perLevelObjectUniverseChecks,
             cosmeticObjectCount: cosmeticObjects.length,
             cosmeticProjectionChecks,
             cosmeticRuleProjectionChecks,
@@ -2311,6 +2361,7 @@ function runAll(options = {}) {
     let casesWithConstantQuantityObjects = 0;
     let casesWithTemporaryObjects = 0;
     let casesWithNeverAppearsObjects = 0;
+    let casesWithPerLevelObjectUniverse = 0;
     let casesWithCosmeticObjects = 0;
     let casesWithCosmeticRules = 0;
     let casesWithInertCommandRules = 0;
@@ -2327,6 +2378,7 @@ function runAll(options = {}) {
     let quantityBoundaryChecks = 0;
     let temporaryBoundaryChecks = 0;
     let neverAppearsBoundaryChecks = 0;
+    let perLevelObjectUniverseChecks = 0;
     let cosmeticProjectionChecks = 0;
     let cosmeticRuleProjectionChecks = 0;
     let cosmeticRuleOptimizerProjectionChecks = 0;
@@ -2376,6 +2428,9 @@ function runAll(options = {}) {
             if (result.neverAppearsObjectCount > 0) {
                 casesWithNeverAppearsObjects++;
             }
+            if (result.perLevelObjectUniverseChecks > 0) {
+                casesWithPerLevelObjectUniverse++;
+            }
             if (result.cosmeticObjectCount > 0) {
                 casesWithCosmeticObjects++;
             }
@@ -2412,6 +2467,7 @@ function runAll(options = {}) {
             quantityBoundaryChecks += result.quantityBoundaryChecks;
             temporaryBoundaryChecks += result.temporaryBoundaryChecks;
             neverAppearsBoundaryChecks += result.neverAppearsBoundaryChecks;
+            perLevelObjectUniverseChecks += result.perLevelObjectUniverseChecks;
             cosmeticProjectionChecks += result.cosmeticProjectionChecks;
             cosmeticRuleProjectionChecks += result.cosmeticRuleProjectionChecks;
             cosmeticRuleOptimizerProjectionChecks += result.cosmeticRuleOptimizerProjectionChecks;
@@ -2442,6 +2498,7 @@ function runAll(options = {}) {
         casesWithConstantQuantityObjects,
         casesWithTemporaryObjects,
         casesWithNeverAppearsObjects,
+        casesWithPerLevelObjectUniverse,
         casesWithCosmeticObjects,
         casesWithCosmeticRules,
         casesWithInertCommandRules,
@@ -2459,6 +2516,7 @@ function runAll(options = {}) {
         quantityBoundaryChecks,
         temporaryBoundaryChecks,
         neverAppearsBoundaryChecks,
+        perLevelObjectUniverseChecks,
         cosmeticProjectionChecks,
         cosmeticRuleProjectionChecks,
         cosmeticRuleOptimizerProjectionChecks,
@@ -2493,7 +2551,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.casesWithCertifiedWakeMasks} with certified wake masks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.certifiedWakeMaskChecks} certified wake-mask checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithPerLevelObjectUniverse} with per-level object universes, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.casesWithCertifiedWakeMasks} with certified wake masks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.perLevelObjectUniverseChecks} per-level object-universe checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.certifiedWakeMaskChecks} certified wake-mask checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }

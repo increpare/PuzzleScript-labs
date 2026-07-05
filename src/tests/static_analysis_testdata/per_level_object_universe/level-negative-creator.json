@@ -1,0 +1,13 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "levelObjectUniverse": [
+    {
+      "level": 0,
+      "initial_objects": ["Background", "Player", "Wall"],
+      "reachable_objects": ["Background", "Player", "Spark", "Wall"],
+      "created_objects": ["Spark"],
+      "unreachable_objects": ["Prize"]
+    }
+  ]
+}

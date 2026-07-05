@@ -1178,6 +1178,66 @@
       ]
     },
     {
+      "name": "per_level_object_universe",
+      "description": "Fixtures for per-level reachable object universe facts.",
+      "specification": "Each per_level_object_universe fixture projects report.facts.per_level_object_universe into levelObjectUniverse rows. The analysis is a conservative creation closure: starting from objects present in a playable level, it repeatedly enables rules whose positive object requirements may be reachable and adds objects those rules may write present. Absence and movement requirements are intentionally ignored as blockers, so reachable_objects may over-approximate runtime reachability; unreachable_objects are the proved never-existing complement for that level.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "levelObjectUniverse",
+          "type": "array",
+          "description": "Per-playable-level object universe rows.",
+          "specification": "Each row is keyed by the source level index from ps_tagged.levels and asserts object sets from the conservative per-level creation closure.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "level",
+                "type": "integer",
+                "description": "Original ps_tagged level index.",
+                "specification": "Message levels are skipped; playable levels keep their original index."
+              },
+              {
+                "name": "initial_objects",
+                "type": "string[]",
+                "description": "Objects present in the level's initial board.",
+                "specification": "Copied from ps_tagged.levels[level].objects_present."
+              },
+              {
+                "name": "reachable_objects",
+                "type": "string[]",
+                "description": "Objects in the conservative per-level reachable universe.",
+                "specification": "The union of initial_objects and every object written present by a rule whose positive object requirements may be satisfied by already reachable objects."
+              },
+              {
+                "name": "created_objects",
+                "type": "string[]",
+                "description": "Objects added by the creation closure beyond the initial board.",
+                "specification": "Computed as reachable_objects minus initial_objects."
+              },
+              {
+                "name": "unreachable_objects",
+                "type": "string[]",
+                "description": "Objects proved never to exist in this level by the conservative closure.",
+                "specification": "Computed as all compiled objects minus reachable_objects. Because the closure over-approximates creation, this set is safe for future per-level DCE consumers."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "runtime_contracts",
       "description": "Fixtures for runtime replay checks of static-analysis contracts.",
       "specification": "Each runtime_contracts fixture stores a PuzzleScript input replay, the expected final serialized level, and a selected expect object copied from runSimulationWithStaticChecks result fields.",
@@ -1331,6 +1391,12 @@
               "type": "integer",
               "description": "Runtime boundary checks performed for never-appears objects.",
               "specification": "Copied from result.neverAppearsBoundaryChecks."
+            },
+            {
+              "name": "perLevelObjectUniverseChecks",
+              "type": "integer",
+              "description": "Runtime boundary checks performed for per-level unreachable objects.",
+              "specification": "Copied from result.perLevelObjectUniverseChecks."
             },
             {
               "name": "cosmeticProjectionChecks",

@@ -71,6 +71,7 @@ const RUNTIME_CONTRACT_EXPECT_FIELDS = [
     'quantityBoundaryChecks',
     'temporaryBoundaryChecks',
     'neverAppearsBoundaryChecks',
+    'perLevelObjectUniverseChecks',
     'cosmeticProjectionChecks',
     'cosmeticRuleProjectionChecks',
     'cosmeticRuleOptimizerProjectionChecks',
@@ -1354,6 +1355,88 @@ function runMovementActionDir(dirPath, claimDescriptions, log = process.stdout.w
     }
 }
 
+// ─── per_level_object_universe ───────────────────────────────────────────────
+
+function perLevelObjectUniverseFacts(report) {
+    return (report.facts && report.facts.per_level_object_universe) || [];
+}
+
+function buildPerLevelObjectUniverseExpectations(report) {
+    const levelObjectUniverse = perLevelObjectUniverseFacts(report).map(fact => {
+        const value = fact.value || {};
+        return {
+            level: value.level_index,
+            initial_objects: (value.initial_objects || []).slice().sort(),
+            reachable_objects: (value.reachable_objects || []).slice().sort(),
+            created_objects: (value.created_objects || []).slice().sort(),
+            unreachable_objects: (value.unreachable_objects || []).slice().sort(),
+        };
+    }).sort((left, right) => left.level - right.level);
+    return { schema: FIXTURE_SCHEMA, human_verified: false, levelObjectUniverse };
+}
+
+function validatePerLevelObjectUniverseExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(Array.isArray(payload.levelObjectUniverse), `${filePath}: levelObjectUniverse must be an array`);
+    for (const [index, item] of payload.levelObjectUniverse.entries()) {
+        assert.ok(item && typeof item === 'object' && !Array.isArray(item), `${filePath}: levelObjectUniverse[${index}] must be an object`);
+        assert.ok(Number.isInteger(item.level) && item.level >= 0, `${filePath}: levelObjectUniverse[${index}].level must be a non-negative integer`);
+        assertStringArray(filePath, `levelObjectUniverse[${index}].initial_objects`, item.initial_objects);
+        assertStringArray(filePath, `levelObjectUniverse[${index}].reachable_objects`, item.reachable_objects);
+        if (item.created_objects !== undefined) {
+            assertStringArray(filePath, `levelObjectUniverse[${index}].created_objects`, item.created_objects);
+        }
+        assertStringArray(filePath, `levelObjectUniverse[${index}].unreachable_objects`, item.unreachable_objects);
+    }
+}
+
+function checkPerLevelObjectUniverseFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'per_level_object_universe'), payload);
+    validatePerLevelObjectUniverseExpectationShape(jsonPath, payload);
+    const actual = buildPerLevelObjectUniverseExpectations(report);
+    const actualByLevel = new Map(actual.levelObjectUniverse.map(row => [row.level, row]));
+    for (const expected of payload.levelObjectUniverse) {
+        const actualRow = actualByLevel.get(expected.level);
+        if (!actualRow) {
+            const available = Array.from(actualByLevel.keys()).join(', ');
+            assert.fail(`${jsonPath}: levelObjectUniverse level ${expected.level} not found; available levels: ${available}`);
+        }
+        assertSameStringSet(jsonPath, `level ${expected.level} initial_objects`, expected.initial_objects, actualRow.initial_objects);
+        assertSameStringSet(jsonPath, `level ${expected.level} reachable_objects`, expected.reachable_objects, actualRow.reachable_objects);
+        if (expected.created_objects !== undefined) {
+            assertSameStringSet(jsonPath, `level ${expected.level} created_objects`, expected.created_objects, actualRow.created_objects);
+        }
+        assertSameStringSet(jsonPath, `level ${expected.level} unreachable_objects`, expected.unreachable_objects, actualRow.unreachable_objects);
+    }
+}
+
+function runPerLevelObjectUniverseDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildPerLevelObjectUniverseExpectations(report));
+            log(`generated static analysis testdata: per_level_object_universe/${stem}.json (review before committing)\n`);
+        }
+        checkPerLevelObjectUniverseFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 // ─── runtime_contracts ───────────────────────────────────────────────────────
 
 function normalizeRuntimeContractInputs(payload) {
@@ -1510,6 +1593,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const movementActionDir = path.join(root, 'movement_action');
     assert.ok(fs.existsSync(movementActionDir), `${movementActionDir}: missing movement_action testdata directory`);
     runMovementActionDir(movementActionDir, claimDescriptions, options.log);
+    const perLevelObjectUniverseDir = path.join(root, 'per_level_object_universe');
+    assert.ok(fs.existsSync(perLevelObjectUniverseDir), `${perLevelObjectUniverseDir}: missing per_level_object_universe testdata directory`);
+    runPerLevelObjectUniverseDir(perLevelObjectUniverseDir, claimDescriptions, options.log);
     const runtimeContractsDir = path.join(root, 'runtime_contracts');
     assert.ok(fs.existsSync(runtimeContractsDir), `${runtimeContractsDir}: missing runtime_contracts testdata directory`);
     runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, options.log);
@@ -1526,6 +1612,7 @@ module.exports = {
     buildMergeabilityExpectations,
     buildMovementActionExpectations,
     buildObjectTagExpectations,
+    buildPerLevelObjectUniverseExpectations,
     buildProgramFlowExpectations,
     buildRuleTagExpectations,
     buildRulegroupFlowExpectations,
@@ -1546,6 +1633,7 @@ module.exports = {
     runMergeabilityDir,
     runMovementActionDir,
     runObjectTagsDir,
+    runPerLevelObjectUniverseDir,
     runProgramFlowDir,
     runRuleTagsDir,
     runRulegroupFlowDir,

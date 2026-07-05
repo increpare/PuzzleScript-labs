@@ -1,0 +1,79 @@
+title Static Analysis Per Level Object Universe Creation Closure
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+SeedA
+red
+
+SeedB
+blue
+
+Key
+yellow
+
+Door
+brown
+
+Gem
+green
+
+Bonus
+purple
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+a = SeedA
+b = SeedB
+Activator = SeedA or SeedB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+SeedA
+SeedB
+Key
+Door
+Gem
+Bonus
+
+=====
+RULES
+=====
+
+[ SeedA ] -> [ SeedA Key ]
+[ Key ] -> [ Key Door ]
+[ SeedB ] -> [ SeedB Gem ]
+[ Activator ] -> [ Activator Bonus ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+Pa.
+
+Pb.

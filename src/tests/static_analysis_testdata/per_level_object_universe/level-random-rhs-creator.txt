@@ -1,0 +1,68 @@
+title Static Analysis Per Level Object Universe Random Rhs Creator
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Switch
+orange
+
+Quiet
+gray
+
+TokenA
+red
+
+TokenB
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+S = Switch
+Q = Quiet
+Loot = TokenA or TokenB
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Switch
+Quiet
+TokenA
+TokenB
+
+=====
+RULES
+=====
+
+[ Switch ] -> [ Switch random Loot ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+PS.
+
+PQ.
