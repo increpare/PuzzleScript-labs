@@ -1,0 +1,11 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "solverHashProjection": {
+    "projected_objects": [],
+    "projected_layers": [],
+    "transient_objects": ["Alpha"],
+    "blockers": [],
+    "scope": "solver_hash_only"
+  }
+}

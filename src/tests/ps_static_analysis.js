@@ -566,6 +566,7 @@ function emptyFacts() {
         per_level_object_universe: [],
         linear_count_invariants: [],
         mechanic_profile: [],
+        solver_hash_projection: [],
         count_layer_invariants: [],
         transient_boundary: [],
         rulegroup_flow: [],
@@ -1670,6 +1671,58 @@ function deriveMechanicProfileFacts(psTagged) {
         proof: schemas.length > 0 ? ['syntactic_rule_mechanic_fingerprints'] : [],
         blockers: uniqueSorted(blockers),
         evidence: uniqueSorted(Object.values(ruleIdsBySchemaObject).flat().concat(uncategorizedRuleIds)),
+    })];
+}
+
+function roleObjectNameSet(psTagged, canonicalName) {
+    const role = String(canonicalName).toLowerCase();
+    const property = psTagged.properties.find(item =>
+        item.canonical_name === role || item.name.toLowerCase() === role
+    );
+    if (property) return new Set(property.members);
+    const object = psTagged.objects.find(item =>
+        item.canonical_name === role || item.name.toLowerCase() === role
+    );
+    return new Set(object ? [object.name] : []);
+}
+
+function backgroundObjectNameSet(psTagged) {
+    return roleObjectNameSet(psTagged, 'background');
+}
+
+function deriveSolverHashProjectionFacts(psTagged) {
+    const structuralObjects = new Set(playerObjectNameSet(psTagged));
+    addValues(structuralObjects, backgroundObjectNameSet(psTagged));
+    const projectedObjects = uniqueSorted((psTagged.objects || [])
+        .filter(object => object.tags && object.tags.cosmetic === true)
+        .map(object => object.name)
+        .filter(objectName => !structuralObjects.has(objectName)));
+    const projectedLayers = Array.from(new Set(projectedObjects
+        .map(objectName => layerForObject(psTagged, objectName))
+        .filter(layer => Number.isInteger(layer))))
+        .sort((left, right) => left - right);
+    const transientObjects = uniqueSorted((psTagged.objects || [])
+        .filter(object => transientBoundaryStatusForObject(psTagged, object.name).status === 'proved')
+        .map(object => object.name));
+    const blockers = [];
+    if (psTagged.game.tags.has_random) blockers.push('random_mechanics');
+    const value = {
+        projected_objects: projectedObjects,
+        projected_layers: projectedLayers,
+        transient_objects: transientObjects,
+        blockers: uniqueSorted(blockers),
+        scope: 'solver_hash_only',
+    };
+    const proof = [];
+    if (projectedObjects.length > 0) proof.push('cosmetic_objects_do_not_affect_win_relevant_behavior');
+    if (transientObjects.length > 0) proof.push('transient_objects_absent_at_stable_boundaries');
+    return [fact('solver_hash_projection', 'solver_hash_projection', 'candidate', {
+        subjects: { objects: uniqueSorted(projectedObjects.concat(transientObjects)), layers: projectedLayers },
+        value,
+        proof,
+        blockers: value.blockers,
+        evidence: uniqueSorted(projectedObjects.concat(transientObjects)),
+        tags: { solver_scoped: true },
     })];
 }
 
@@ -3411,6 +3464,7 @@ function factDerivers() {
         per_level_object_universe: derivePerLevelObjectUniverseFacts,
         linear_count_invariants: deriveLinearCountInvariantFacts,
         mechanic_profile: deriveMechanicProfileFacts,
+        solver_hash_projection: deriveSolverHashProjectionFacts,
         count_layer_invariants: deriveCountLayerInvariantFacts,
         transient_boundary: deriveTransientBoundaryFacts,
         rulegroup_flow: deriveRulegroupFlowFacts,

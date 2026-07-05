@@ -1,0 +1,58 @@
+title Static Analysis Solver Hash Projection Transient Object
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Crate
+orange
+
+Alpha
+red
+
+========
+LEGEND
+========
+
+P = Player
+C = Crate
+A = Alpha
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Crate, Alpha
+
+=====
+RULES
+=====
+
+[ Crate ] -> [ Alpha ]
+
+late [ Alpha ] -> [ ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+Some Crate
+
+======
+LEVELS
+======
+
+PC

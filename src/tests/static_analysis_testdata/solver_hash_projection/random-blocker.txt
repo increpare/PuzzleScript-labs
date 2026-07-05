@@ -1,0 +1,61 @@
+title Static Analysis Solver Hash Projection Random Blocker
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+Sparkle
+blue
+
+Dust
+green
+
+========
+LEGEND
+========
+
+P = Player
+G = Goal
+S = Sparkle
+Junk = Sparkle or Dust
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Sparkle, Dust
+
+=====
+RULES
+=====
+
+[ right Player | Goal ] -> [ | Player ]
+[ Sparkle ] -> [ random Junk ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player On Goal
+
+======
+LEVELS
+======
+
+PSG
