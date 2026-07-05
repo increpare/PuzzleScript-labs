@@ -2789,6 +2789,9 @@ void writeSimulationJsonSummary(
         << ",\"compact_turn_simple_replacement_fast_path_calls\":" << counters.compact_turn_simple_replacement_fast_path_calls
         << ",\"compact_turn_simple_replacement_fast_path_noops\":" << counters.compact_turn_simple_replacement_fast_path_noops
         << ",\"compact_turn_simple_replacement_fast_path_changes\":" << counters.compact_turn_simple_replacement_fast_path_changes
+        << ",\"movement_anchor_overlap_cells_scanned\":" << counters.movement_anchor_overlap_cells_scanned
+        << ",\"movement_anchor_collection_cells_scanned\":" << counters.movement_anchor_collection_cells_scanned
+        << ",\"movement_anchor_collections_used\":" << counters.movement_anchor_collections_used
         << "},\n";
     out << "  \"compact\": {"
         << "\"compact_turn_oracle_checks\":" << compactTurnOracleChecks
@@ -3295,6 +3298,9 @@ int simulationTestdataCommand(const std::filesystem::path& testdataPath, int arg
                   << " compact_turn_simple_replacement_fast_path_calls=" << counters.compact_turn_simple_replacement_fast_path_calls
                   << " compact_turn_simple_replacement_fast_path_noops=" << counters.compact_turn_simple_replacement_fast_path_noops
                   << " compact_turn_simple_replacement_fast_path_changes=" << counters.compact_turn_simple_replacement_fast_path_changes
+                  << " movement_anchor_overlap_cells_scanned=" << counters.movement_anchor_overlap_cells_scanned
+                  << " movement_anchor_collection_cells_scanned=" << counters.movement_anchor_collection_cells_scanned
+                  << " movement_anchor_collections_used=" << counters.movement_anchor_collections_used
                   << "\n";
     }
     if (options.topSlowCases > 0 && !cases.empty()) {

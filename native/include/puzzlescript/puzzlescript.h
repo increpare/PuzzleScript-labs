@@ -197,6 +197,9 @@ typedef struct ps_runtime_counters {
     uint64_t compact_turn_simple_replacement_fast_path_calls;
     uint64_t compact_turn_simple_replacement_fast_path_noops;
     uint64_t compact_turn_simple_replacement_fast_path_changes;
+    uint64_t movement_anchor_overlap_cells_scanned;
+    uint64_t movement_anchor_collection_cells_scanned;
+    uint64_t movement_anchor_collections_used;
 } ps_runtime_counters;
 
 bool ps_load_ir_json(const char* json_utf8, size_t json_size, ps_game** out_game, ps_error** out_error);

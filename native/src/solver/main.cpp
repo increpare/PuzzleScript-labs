@@ -4676,6 +4676,9 @@ int main(int argc, char** argv) {
                       << " compact_turn_simple_replacement_fast_path_calls=" << runtimeCounters.compact_turn_simple_replacement_fast_path_calls
                       << " compact_turn_simple_replacement_fast_path_noops=" << runtimeCounters.compact_turn_simple_replacement_fast_path_noops
                       << " compact_turn_simple_replacement_fast_path_changes=" << runtimeCounters.compact_turn_simple_replacement_fast_path_changes
+                      << " movement_anchor_overlap_cells_scanned=" << runtimeCounters.movement_anchor_overlap_cells_scanned
+                      << " movement_anchor_collection_cells_scanned=" << runtimeCounters.movement_anchor_collection_cells_scanned
+                      << " movement_anchor_collections_used=" << runtimeCounters.movement_anchor_collections_used
                       << " compact_turn_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnAttempts; })
                       << " compact_turn_hits=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnHits; })
                       << " compact_turn_native_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnNativeAttempts; })

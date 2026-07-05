@@ -805,6 +805,9 @@ enum class RuntimeCounterId {
     CompactTurnSimpleReplacementFastPathCalls,
     CompactTurnSimpleReplacementFastPathNoops,
     CompactTurnSimpleReplacementFastPathChanges,
+    MovementAnchorOverlapCellsScanned,
+    MovementAnchorCollectionCellsScanned,
+    MovementAnchorCollectionsUsed,
 };
 void setRuntimeCountersEnabled(bool enabled);
 bool runtimeCountersEnabled();

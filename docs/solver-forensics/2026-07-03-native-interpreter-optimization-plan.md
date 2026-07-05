@@ -172,6 +172,22 @@ Do not redo these; they're in place and working:
   `candidateCellsTested`, `patternTests`, `rulesVisited/SkippedByMask`,
   `specializedRulegroup*`. Success: a ranked cost attribution that picks
   between N1/N4/N5/N7. **This precedes any build-out.**
+
+  Status update (2026-07-05): runtime counters now include direct movement-
+  anchor scan attribution:
+  `movement_anchor_overlap_cells_scanned`,
+  `movement_anchor_collection_cells_scanned`, and
+  `movement_anchor_collections_used`. Focused coverage lives in
+  `src/tests/native_runtime_counters_node.js` via
+  `make native_runtime_counters_tests`. First one-run interpreted native
+  `smoke-50` sample, artifact
+  `build/native/nx1-smoke-50-runtime-counters.json`: solved 33/50, timeout
+  16/50, exhausted 1/50, `step_ms=8352.841`, generated 494410 states,
+  movement-anchor scans totaled 662643668 cells
+  (337253328 overlap + 325390340 collection), with 1918405 anchored
+  collections used. That is about 1340.272 movement-anchor scanned cells per
+  generated state, so N1 remains a live prototype candidate. Still run the
+  named benchmark-game sample before choosing between N1/N4/N5/N7.
 - **NX2 — mimalloc link test** (~1h). Relink the solver with mimalloc, rerun
   HDA x8 on the benchmark game + corpus slice. Success: HDA step_ms drops
   materially (target: close part of the 45%→linear scaling gap). Failure:

@@ -124,6 +124,9 @@ struct RuntimeCounterStorage {
     std::atomic<uint64_t> compactTurnSimpleReplacementFastPathCalls{0};
     std::atomic<uint64_t> compactTurnSimpleReplacementFastPathNoops{0};
     std::atomic<uint64_t> compactTurnSimpleReplacementFastPathChanges{0};
+    std::atomic<uint64_t> movementAnchorOverlapCellsScanned{0};
+    std::atomic<uint64_t> movementAnchorCollectionCellsScanned{0};
+    std::atomic<uint64_t> movementAnchorCollectionsUsed{0};
 };
 
 bool gRuntimeCountersEnabled = false;
@@ -3725,6 +3728,7 @@ uint64_t movementOverlapCount(const FullState& session, const MaskVector& requir
     const int32_t width = currentLevelWidth(session);
     const int32_t height = currentLevelHeight(session);
     const int32_t tileCount = width * height;
+    addCounter(gRuntimeCounters.movementAnchorOverlapCellsScanned, static_cast<uint64_t>(std::max(0, tileCount)));
     uint64_t count = 0;
     for (int32_t tile = 0; tile < tileCount; ++tile) {
         const MaskWord* movements =
@@ -3834,6 +3838,8 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
     const int32_t height = currentLevelHeight(session);
     const int32_t width = currentLevelWidth(session);
     const int32_t tileCount = width * height;
+    addCounter(gRuntimeCounters.movementAnchorCollectionsUsed);
+    addCounter(gRuntimeCounters.movementAnchorCollectionCellsScanned, static_cast<uint64_t>(std::max(0, tileCount)));
     for (int32_t anchorTile = 0; anchorTile < tileCount; ++anchorTile) {
         const MaskWord* movements =
             session.scratch.liveMovements.data() + static_cast<size_t>(anchorTile * session.game->strideMovement);
@@ -7526,6 +7532,9 @@ void addRuntimeCounter(RuntimeCounterId id, uint64_t amount) {
         case RuntimeCounterId::CompactTurnSimpleReplacementFastPathCalls: addCounterUnchecked(gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls, amount); break;
         case RuntimeCounterId::CompactTurnSimpleReplacementFastPathNoops: addCounterUnchecked(gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops, amount); break;
         case RuntimeCounterId::CompactTurnSimpleReplacementFastPathChanges: addCounterUnchecked(gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges, amount); break;
+        case RuntimeCounterId::MovementAnchorOverlapCellsScanned: addCounterUnchecked(gRuntimeCounters.movementAnchorOverlapCellsScanned, amount); break;
+        case RuntimeCounterId::MovementAnchorCollectionCellsScanned: addCounterUnchecked(gRuntimeCounters.movementAnchorCollectionCellsScanned, amount); break;
+        case RuntimeCounterId::MovementAnchorCollectionsUsed: addCounterUnchecked(gRuntimeCounters.movementAnchorCollectionsUsed, amount); break;
     }
 }
 
@@ -7574,6 +7583,9 @@ void resetRuntimeCounters() {
     gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls.store(0, std::memory_order_relaxed);
     gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops.store(0, std::memory_order_relaxed);
     gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.movementAnchorOverlapCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.movementAnchorCollectionCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.movementAnchorCollectionsUsed.store(0, std::memory_order_relaxed);
 }
 
 ps_runtime_counters snapshotRuntimeCounters() {
@@ -7628,6 +7640,9 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.compact_turn_simple_replacement_fast_path_calls = gRuntimeCounters.compactTurnSimpleReplacementFastPathCalls.load(std::memory_order_relaxed);
     counters.compact_turn_simple_replacement_fast_path_noops = gRuntimeCounters.compactTurnSimpleReplacementFastPathNoops.load(std::memory_order_relaxed);
     counters.compact_turn_simple_replacement_fast_path_changes = gRuntimeCounters.compactTurnSimpleReplacementFastPathChanges.load(std::memory_order_relaxed);
+    counters.movement_anchor_overlap_cells_scanned = gRuntimeCounters.movementAnchorOverlapCellsScanned.load(std::memory_order_relaxed);
+    counters.movement_anchor_collection_cells_scanned = gRuntimeCounters.movementAnchorCollectionCellsScanned.load(std::memory_order_relaxed);
+    counters.movement_anchor_collections_used = gRuntimeCounters.movementAnchorCollectionsUsed.load(std::memory_order_relaxed);
     return counters;
 }
 
