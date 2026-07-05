@@ -118,6 +118,18 @@ Do not redo these; they're in place and working:
   The per-pattern movement union in `chooseMovementRowAnchor` is
   state-independent; precompute into `maskArena` at lowering, deleting the
   per-call alloc + OR-building. Zero semantic risk.
+
+  Status update (2026-07-06): implemented as a prerequisite slice. Patterns
+  now carry `movementAnchorMask`/`hasMovementAnchorMask`; lowering and JSON IR
+  loading both precompute the union in `maskArena`, and runtime counters expose
+  `movement_anchor_runtime_mask_builds` so `make native_runtime_counters_tests`
+  asserts zero hot-path mask builds. One-run follow-up artifacts
+  `build/native/n2-smoke-50-runtime-counters.json` and
+  `build/native/n2-anonymous-game-portfolio-runtime-counters.json` were
+  behavior-neutral: same solved counts as NX1 (33/50 smoke, 1/54 named game),
+  named-game median wall 583.273ms → 584.370ms, and smoke-50 summed `step_ms`
+  8352.841 → 8224.644. N2 should stay, but the cost center remains the
+  full-grid scans; N1 is still the actual expected win.
 - **N3 — movement-aware incremental prune (both engines).**
   Consult `incrementalPriorMovements` in the guard (`core.cpp:5108-5128`).
   Soundness caveats: clears must be covered by write masks;

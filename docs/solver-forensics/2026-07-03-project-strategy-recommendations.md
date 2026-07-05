@@ -244,7 +244,7 @@ Item status after the X-round:
 | P4 JS codegen | design-doc only | superseded in priority by native path (rec. 4) |
 | P5 / N8 stride compaction | live | X1 suggests cosmetic-pass alone shrinks too little (6/82 layers) — S4 per-level universe is the stronger route |
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
-| N1/N2 moving-tiles bitboard + static anchor masks | live, top priority | NX1 smoke-50: 662643668 movement-anchor scanned cells over 494410 generated states; named game: 2659392174 over 25764 portfolio-generated states |
+| N1/N2 moving-tiles bitboard + static anchor masks | live, top priority | N2 mask hoist implemented as prerequisite; one-run solved counts unchanged, runtime mask builds now assert zero, and N1 remains the expected scan-cost win |
 | N4-N7, N9 | gated behind N1/N2 | N4/N5 remain live, but movement-anchor scans now dominate enough to prototype N1/N2 first; NX2 mimalloc preload was not a material HDA win |
 | S1/S2 certified masks + schedules | S1 artifact started; S2 live | `certified_wake_masks` fact family landed for JS; runtime consumption still gated on contracts |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |

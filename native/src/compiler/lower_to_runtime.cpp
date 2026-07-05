@@ -94,6 +94,31 @@ void orStoredMaskInto(
     }
 }
 
+puzzlescript::MaskVector computeMovementAnchorMask(
+    const puzzlescript::Game& game,
+    const puzzlescript::Pattern& pattern
+) {
+    puzzlescript::MaskVector result(static_cast<size_t>(game.movementWordCount), 0);
+    orStoredMaskInto(result, game, pattern.movementsPresent, game.movementWordCount);
+    for (uint32_t index = 0; index < pattern.anyMovementsCount; ++index) {
+        const size_t offsetIndex = static_cast<size_t>(pattern.anyMovementsFirst + index);
+        if (offsetIndex < game.anyMovementOffsets.size()) {
+            orStoredMaskInto(
+                result,
+                game,
+                game.anyMovementOffsets[offsetIndex],
+                game.movementWordCount);
+        }
+    }
+    for (const auto& coupled : pattern.layerCoupledMovementMasks) {
+        for (const auto& layerTerm : coupled.layers) {
+            orStoredMaskInto(result, game, layerTerm.movementsAny, game.movementWordCount);
+            orStoredMaskInto(result, game, layerTerm.movementsPresent, game.movementWordCount);
+        }
+    }
+    return result;
+}
+
 bool storedMaskAllZero(
     const puzzlescript::Game& game,
     puzzlescript::MaskOffset offset,
@@ -3694,6 +3719,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
                 pat.anyMovementsCount = static_cast<uint32_t>(anyMovementMasks.size());
                 pat.layerCoupledMovementMasks = std::move(layerCoupledMovementMasks);
+                const auto movementAnchorMask = computeMovementAnchorMask(*game, pat);
+                pat.hasMovementAnchorMask = maskHasAnyBit(movementAnchorMask);
+                pat.movementAnchorMask = storeMaskWords(*game, movementAnchorMask);
 
                 if (rhsRow && cellIndex < rhsRow->size()) {
                     const ParsedCell& rhsCell = (*rhsRow)[cellIndex];

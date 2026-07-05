@@ -4679,6 +4679,7 @@ int main(int argc, char** argv) {
                       << " movement_anchor_overlap_cells_scanned=" << runtimeCounters.movement_anchor_overlap_cells_scanned
                       << " movement_anchor_collection_cells_scanned=" << runtimeCounters.movement_anchor_collection_cells_scanned
                       << " movement_anchor_collections_used=" << runtimeCounters.movement_anchor_collections_used
+                      << " movement_anchor_runtime_mask_builds=" << runtimeCounters.movement_anchor_runtime_mask_builds
                       << " compact_turn_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnAttempts; })
                       << " compact_turn_hits=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnHits; })
                       << " compact_turn_native_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnNativeAttempts; })

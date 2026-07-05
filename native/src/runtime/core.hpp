@@ -320,6 +320,8 @@ struct Pattern {
     std::vector<int32_t> objectAnchorIds;
     std::vector<std::vector<int32_t>> anyObjectAnchorIds;
     std::vector<LayerCoupledMovementReplacement> layerCoupledMovementMasks;
+    MaskOffset movementAnchorMask = kNullMaskOffset;
+    bool hasMovementAnchorMask = false;
 
     std::optional<Replacement> replacement;
 };
@@ -808,6 +810,7 @@ enum class RuntimeCounterId {
     MovementAnchorOverlapCellsScanned,
     MovementAnchorCollectionCellsScanned,
     MovementAnchorCollectionsUsed,
+    MovementAnchorRuntimeMaskBuilds,
 };
 void setRuntimeCountersEnabled(bool enabled);
 bool runtimeCountersEnabled();

@@ -127,6 +127,7 @@ struct RuntimeCounterStorage {
     std::atomic<uint64_t> movementAnchorOverlapCellsScanned{0};
     std::atomic<uint64_t> movementAnchorCollectionCellsScanned{0};
     std::atomic<uint64_t> movementAnchorCollectionsUsed{0};
+    std::atomic<uint64_t> movementAnchorRuntimeMaskBuilds{0};
 };
 
 bool gRuntimeCountersEnabled = false;
@@ -1782,6 +1783,34 @@ void applyInferredPropertyBindingsMovements(
     }
 }
 
+void orArenaMaskInto(MaskVector& target, const Game& game, MaskOffset offset, uint32_t wordCount) {
+    const MaskWord* source = maskPtr(game, offset);
+    if (source == nullptr) {
+        return;
+    }
+    for (uint32_t word = 0; word < wordCount && word < target.size(); ++word) {
+        target[static_cast<size_t>(word)] |= source[word];
+    }
+}
+
+MaskVector computeMovementAnchorMask(const Game& game, const Pattern& pattern) {
+    MaskVector result(static_cast<size_t>(game.movementWordCount), 0);
+    orArenaMaskInto(result, game, pattern.movementsPresent, game.movementWordCount);
+    for (uint32_t index = 0; index < pattern.anyMovementsCount; ++index) {
+        const size_t offsetIndex = static_cast<size_t>(pattern.anyMovementsFirst + index);
+        if (offsetIndex < game.anyMovementOffsets.size()) {
+            orArenaMaskInto(result, game, game.anyMovementOffsets[offsetIndex], game.movementWordCount);
+        }
+    }
+    for (const auto& coupled : pattern.layerCoupledMovementMasks) {
+        for (const auto& layerTerm : coupled.layers) {
+            orArenaMaskInto(result, game, layerTerm.movementsAny, game.movementWordCount);
+            orArenaMaskInto(result, game, layerTerm.movementsPresent, game.movementWordCount);
+        }
+    }
+    return result;
+}
+
 Pattern parsePattern(Game& game, const json::Value& value) {
     const auto& object = value.asObject();
     Pattern pattern;
@@ -1829,6 +1858,10 @@ Pattern parsePattern(Game& game, const json::Value& value) {
         pattern.layerCoupledMovementMasks =
             parseLayerCoupledMovementReplacements(game, coupledMasks->second);
     }
+
+    const MaskVector movementAnchorMask = computeMovementAnchorMask(game, pattern);
+    pattern.hasMovementAnchorMask = anyBitsSet(movementAnchorMask);
+    pattern.movementAnchorMask = storeMaskWords(game, movementAnchorMask);
 
     if (const auto* replacement = value.find("replacement"); replacement && !replacement->isNull()) {
         pattern.replacement = parseReplacement(game, *replacement);
@@ -3513,7 +3546,7 @@ struct RowAnchor {
 
 struct MovementRowAnchor {
     int32_t patternIndex = -1;
-    MaskVector movements;
+    const MaskWord* movements = nullptr;
     uint32_t movementWords = 0;
     uint64_t cellCount = 0;
 };
@@ -3721,8 +3754,8 @@ std::optional<RowAnchor> chooseRowAnchor(const FullState& session, const std::ve
 #endif
 }
 
-uint64_t movementOverlapCount(const FullState& session, const MaskVector& requiredMovements) {
-    if (requiredMovements.empty() || session.scratch.liveMovements.empty()) {
+uint64_t movementOverlapCount(const FullState& session, const MaskWord* requiredMovements, uint32_t requiredMovementWords) {
+    if (requiredMovements == nullptr || requiredMovementWords == 0 || session.scratch.liveMovements.empty()) {
         return 0;
     }
     const int32_t width = currentLevelWidth(session);
@@ -3734,26 +3767,14 @@ uint64_t movementOverlapCount(const FullState& session, const MaskVector& requir
         const MaskWord* movements =
             session.scratch.liveMovements.data() + static_cast<size_t>(tile * session.game->strideMovement);
         if (anyBitsInCommon(
-                requiredMovements.data(),
-                requiredMovements.size(),
+                requiredMovements,
+                requiredMovementWords,
                 movements,
                 static_cast<size_t>(session.game->strideMovement))) {
             ++count;
         }
     }
     return count;
-}
-
-void orMaskWordsInto(MaskVector& target, const MaskWord* source, uint32_t wordCount) {
-    if (source == nullptr) {
-        return;
-    }
-    if (target.size() < wordCount) {
-        target.resize(static_cast<size_t>(wordCount), 0);
-    }
-    for (uint32_t word = 0; word < wordCount; ++word) {
-        target[static_cast<size_t>(word)] |= source[word];
-    }
 }
 
 std::optional<MovementRowAnchor> chooseMovementRowAnchor(const FullState& session, const std::vector<Pattern>& row) {
@@ -3766,37 +3787,18 @@ std::optional<MovementRowAnchor> chooseMovementRowAnchor(const FullState& sessio
         if (pattern.kind != Pattern::Kind::CellPattern) {
             continue;
         }
-        MaskVector movementMask(static_cast<size_t>(session.game->movementWordCount), 0);
-        orMaskWordsInto(movementMask, maskPtr(*session.game, pattern.movementsPresent), session.game->movementWordCount);
-        for (uint32_t i = 0; i < pattern.anyMovementsCount; ++i) {
-            const size_t offsetIndex = static_cast<size_t>(pattern.anyMovementsFirst + i);
-            if (offsetIndex < session.game->anyMovementOffsets.size()) {
-                orMaskWordsInto(
-                    movementMask,
-                    maskPtr(*session.game, session.game->anyMovementOffsets[offsetIndex]),
-                    session.game->movementWordCount);
-            }
-        }
-        for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
-            for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
-                orMaskWordsInto(
-                    movementMask,
-                    maskPtr(*session.game, layerTerm.movementsAny),
-                    session.game->movementWordCount);
-                orMaskWordsInto(
-                    movementMask,
-                    maskPtr(*session.game, layerTerm.movementsPresent),
-                    session.game->movementWordCount);
-            }
-        }
-        if (maskWordsAllZero(movementMask.data(), movementMask.size())) {
+        if (!pattern.hasMovementAnchorMask) {
             continue;
         }
-        const uint64_t count = movementOverlapCount(session, movementMask);
+        const MaskWord* movementMask = maskPtr(*session.game, pattern.movementAnchorMask);
+        const uint64_t count = movementOverlapCount(
+            session,
+            movementMask,
+            session.game->movementWordCount);
         if (!best.has_value() || count < best->cellCount) {
             best = MovementRowAnchor{
                 patternIndex,
-                std::move(movementMask),
+                movementMask,
                 session.game->movementWordCount,
                 count
             };
@@ -3844,7 +3846,7 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
         const MaskWord* movements =
             session.scratch.liveMovements.data() + static_cast<size_t>(anchorTile * session.game->strideMovement);
         if (!anyBitsInCommon(
-                anchor->movements.data(),
+                anchor->movements,
                 anchor->movementWords,
                 movements,
                 static_cast<size_t>(session.game->strideMovement))) {
@@ -7535,6 +7537,7 @@ void addRuntimeCounter(RuntimeCounterId id, uint64_t amount) {
         case RuntimeCounterId::MovementAnchorOverlapCellsScanned: addCounterUnchecked(gRuntimeCounters.movementAnchorOverlapCellsScanned, amount); break;
         case RuntimeCounterId::MovementAnchorCollectionCellsScanned: addCounterUnchecked(gRuntimeCounters.movementAnchorCollectionCellsScanned, amount); break;
         case RuntimeCounterId::MovementAnchorCollectionsUsed: addCounterUnchecked(gRuntimeCounters.movementAnchorCollectionsUsed, amount); break;
+        case RuntimeCounterId::MovementAnchorRuntimeMaskBuilds: addCounterUnchecked(gRuntimeCounters.movementAnchorRuntimeMaskBuilds, amount); break;
     }
 }
 
@@ -7586,6 +7589,7 @@ void resetRuntimeCounters() {
     gRuntimeCounters.movementAnchorOverlapCellsScanned.store(0, std::memory_order_relaxed);
     gRuntimeCounters.movementAnchorCollectionCellsScanned.store(0, std::memory_order_relaxed);
     gRuntimeCounters.movementAnchorCollectionsUsed.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.movementAnchorRuntimeMaskBuilds.store(0, std::memory_order_relaxed);
 }
 
 ps_runtime_counters snapshotRuntimeCounters() {
@@ -7643,6 +7647,7 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.movement_anchor_overlap_cells_scanned = gRuntimeCounters.movementAnchorOverlapCellsScanned.load(std::memory_order_relaxed);
     counters.movement_anchor_collection_cells_scanned = gRuntimeCounters.movementAnchorCollectionCellsScanned.load(std::memory_order_relaxed);
     counters.movement_anchor_collections_used = gRuntimeCounters.movementAnchorCollectionsUsed.load(std::memory_order_relaxed);
+    counters.movement_anchor_runtime_mask_builds = gRuntimeCounters.movementAnchorRuntimeMaskBuilds.load(std::memory_order_relaxed);
     return counters;
 }
 

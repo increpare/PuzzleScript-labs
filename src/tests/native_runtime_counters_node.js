@@ -15,6 +15,7 @@ const requiredKeys = [
     'movement_anchor_overlap_cells_scanned',
     'movement_anchor_collection_cells_scanned',
     'movement_anchor_collections_used',
+    'movement_anchor_runtime_mask_builds',
 ];
 
 function parseCounters(output) {
@@ -56,5 +57,6 @@ for (const key of requiredKeys) {
 assert.ok(counters.movement_anchor_overlap_cells_scanned > 0, 'expected movement anchor overlap scan attribution');
 assert.ok(counters.movement_anchor_collection_cells_scanned > 0, 'expected movement anchor collection scan attribution');
 assert.ok(counters.movement_anchor_collections_used > 0, 'expected movement anchor collection count');
+assert.strictEqual(counters.movement_anchor_runtime_mask_builds, 0, 'expected movement anchor masks to be precomputed');
 
 process.stdout.write('native_runtime_counters_node: ok\n');

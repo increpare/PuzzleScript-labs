@@ -2792,6 +2792,7 @@ void writeSimulationJsonSummary(
         << ",\"movement_anchor_overlap_cells_scanned\":" << counters.movement_anchor_overlap_cells_scanned
         << ",\"movement_anchor_collection_cells_scanned\":" << counters.movement_anchor_collection_cells_scanned
         << ",\"movement_anchor_collections_used\":" << counters.movement_anchor_collections_used
+        << ",\"movement_anchor_runtime_mask_builds\":" << counters.movement_anchor_runtime_mask_builds
         << "},\n";
     out << "  \"compact\": {"
         << "\"compact_turn_oracle_checks\":" << compactTurnOracleChecks
@@ -3301,6 +3302,7 @@ int simulationTestdataCommand(const std::filesystem::path& testdataPath, int arg
                   << " movement_anchor_overlap_cells_scanned=" << counters.movement_anchor_overlap_cells_scanned
                   << " movement_anchor_collection_cells_scanned=" << counters.movement_anchor_collection_cells_scanned
                   << " movement_anchor_collections_used=" << counters.movement_anchor_collections_used
+                  << " movement_anchor_runtime_mask_builds=" << counters.movement_anchor_runtime_mask_builds
                   << "\n";
     }
     if (options.topSlowCases > 0 && !cases.empty()) {
