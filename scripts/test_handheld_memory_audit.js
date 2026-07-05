@@ -2,6 +2,7 @@
 'use strict';
 
 const assert = require('assert');
+const childProcess = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -10,11 +11,238 @@ const audit = require('./handheld_memory_audit');
 
 function withTempDir(callback) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'handheld-memory-audit-test-'));
+    let result;
     try {
-        return callback(tmpDir);
-    } finally {
+        result = callback(tmpDir);
+    } catch (error) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
+        throw error;
     }
+    if (result && typeof result.then === 'function') {
+        return result.finally(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+    }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    return result;
+}
+
+function writeExecutableScript(filePath, body) {
+    fs.writeFileSync(filePath, `#!/usr/bin/env node\n${body}`, 'utf8');
+    fs.chmodSync(filePath, 0o755);
+}
+
+function writeFakeTimeScript(filePath) {
+    writeExecutableScript(filePath, `
+const childProcess = require('child_process');
+
+const args = process.argv.slice(2);
+if (args[0] === '-lp' && args[1] === 'true') {
+    process.stderr.write('        0.01 real\\n');
+    process.stderr.write('      1024 maximum resident set size\\n');
+    process.exit(0);
+}
+if (args[0] !== '-lp') {
+    process.stderr.write('unsupported fake time flavor\\n');
+    process.exit(2);
+}
+
+const command = args[1];
+const commandArgs = args.slice(2);
+const result = childProcess.spawnSync(command, commandArgs, { encoding: 'utf8' });
+if (result.stdout) {
+    process.stdout.write(result.stdout);
+}
+if (result.stderr) {
+    process.stderr.write(result.stderr);
+}
+if (process.env.FAKE_TIME_PARSE_FAILURE === '1') {
+    process.stderr.write('fake time omitted rss\\n');
+} else {
+    process.stderr.write('        0.05 real\\n');
+    process.stderr.write('   2097152 maximum resident set size\\n');
+}
+if (result.error) {
+    process.stderr.write(result.error.message + '\\n');
+    process.exit(127);
+}
+process.exit(typeof result.status === 'number' ? result.status : 1);
+`);
+}
+
+function writeFakeBinaryScript(filePath, status) {
+    writeExecutableScript(filePath, `
+const fs = require('fs');
+const args = process.argv.slice(2);
+if (args[0] !== 'run' || !args[1] || !fs.existsSync(args[1])) {
+    process.stderr.write('bad fake binary args: ' + JSON.stringify(args) + '\\n');
+    process.exit(64);
+}
+process.stdout.write('fake binary ran ' + args[1] + '\\n');
+process.exit(${status});
+`);
+}
+
+function writeCorpus(filePath, rows) {
+    fs.writeFileSync(
+        filePath,
+        rows.map((row) => `${JSON.stringify(row)}\n`).join(''),
+        'utf8',
+    );
+}
+
+function runCliProcess(args, options = {}) {
+    return childProcess.spawnSync(
+        process.execPath,
+        [path.join(__dirname, 'handheld_memory_audit.js'), ...args],
+        {
+            cwd: path.join(__dirname, '..'),
+            encoding: 'utf8',
+            env: { ...process.env, ...options.env },
+        },
+    );
+}
+
+function runCliProcessWritesSuccessfulOneGameReport() {
+    withTempDir((tmpDir) => {
+        const fakeTime = path.join(tmpDir, 'fake-time');
+        const fakeBinary = path.join(tmpDir, 'fake-puzzlescript-cpp');
+        const corpus = path.join(tmpDir, 'corpus.ndjson');
+        const out = path.join(tmpDir, 'report.json');
+        const sourceTmp = path.join(tmpDir, 'sources');
+        writeFakeTimeScript(fakeTime);
+        writeFakeBinaryScript(fakeBinary, 0);
+        writeCorpus(corpus, [
+            { index: 9, name: 'one game', source: 'title one game\nLEVELS\n.' },
+        ]);
+
+        const result = runCliProcess([
+            '--binary',
+            fakeBinary,
+            '--corpus-ndjson',
+            corpus,
+            '--out',
+            out,
+            '--tmp-dir',
+            sourceTmp,
+            '--time-executable',
+            fakeTime,
+            '--time-flavor',
+            'auto',
+        ]);
+
+        assert.strictEqual(result.status, 0, result.stderr);
+        const report = JSON.parse(fs.readFileSync(out, 'utf8'));
+        assert.strictEqual(report.summary.measured_games, 1);
+        assert.strictEqual(report.summary.failures, 0);
+        assert.strictEqual(report.command.binary, fakeBinary);
+        assert.strictEqual(report.command.corpus_ndjson, corpus);
+        assert.strictEqual(report.command.time_executable, fakeTime);
+        assert.strictEqual(report.command.time_flavor, 'darwin');
+        assert.strictEqual(report.games.length, 1);
+        assert.strictEqual(report.games[0].ok, true);
+        assert.deepStrictEqual(report.games[0].command.slice(0, 3), [fakeTime, '-lp', fakeBinary]);
+        assert.strictEqual(report.games[0].time_format, 'darwin');
+    });
+}
+
+function runCliProcessExitsNonzeroAndWritesFailureReportForBinaryFailure() {
+    withTempDir((tmpDir) => {
+        const fakeTime = path.join(tmpDir, 'fake-time');
+        const fakeBinary = path.join(tmpDir, 'fake-puzzlescript-cpp');
+        const corpus = path.join(tmpDir, 'corpus.ndjson');
+        const out = path.join(tmpDir, 'report.json');
+        writeFakeTimeScript(fakeTime);
+        writeFakeBinaryScript(fakeBinary, 7);
+        writeCorpus(corpus, [
+            { index: 0, name: 'failing game', source: 'title failing' },
+        ]);
+
+        const result = runCliProcess([
+            '--binary',
+            fakeBinary,
+            '--corpus-ndjson',
+            corpus,
+            '--out',
+            out,
+            '--tmp-dir',
+            path.join(tmpDir, 'sources'),
+            '--time-executable',
+            fakeTime,
+        ]);
+
+        assert.notStrictEqual(result.status, 0, result.stderr);
+        const report = JSON.parse(fs.readFileSync(out, 'utf8'));
+        assert.strictEqual(report.summary.measured_games, 1);
+        assert.strictEqual(report.summary.failures, 1);
+        assert.strictEqual(report.games[0].ok, false);
+        assert.strictEqual(report.games[0].exit_code, 7);
+    });
+}
+
+function runCliProcessExitsNonzeroAndWritesFailureReportForUnparseableTimeOutput() {
+    withTempDir((tmpDir) => {
+        const fakeTime = path.join(tmpDir, 'fake-time');
+        const fakeBinary = path.join(tmpDir, 'fake-puzzlescript-cpp');
+        const corpus = path.join(tmpDir, 'corpus.ndjson');
+        const out = path.join(tmpDir, 'report.json');
+        writeFakeTimeScript(fakeTime);
+        writeFakeBinaryScript(fakeBinary, 0);
+        writeCorpus(corpus, [
+            { index: 0, name: 'unmeasured game', source: 'title unmeasured' },
+        ]);
+
+        const result = runCliProcess([
+            '--binary',
+            fakeBinary,
+            '--corpus-ndjson',
+            corpus,
+            '--out',
+            out,
+            '--tmp-dir',
+            path.join(tmpDir, 'sources'),
+            '--time-executable',
+            fakeTime,
+        ], { env: { FAKE_TIME_PARSE_FAILURE: '1' } });
+
+        assert.notStrictEqual(result.status, 0, result.stderr);
+        const report = JSON.parse(fs.readFileSync(out, 'utf8'));
+        assert.strictEqual(report.summary.measured_games, 0);
+        assert.strictEqual(report.summary.failures, 1);
+        assert.strictEqual(report.games[0].ok, false);
+        assert.match(report.games[0].parse_error, /maximum resident set size/);
+    });
+}
+
+function runCliProcessExitsNonzeroAndWritesEmptyCorpusReport() {
+    withTempDir((tmpDir) => {
+        const fakeTime = path.join(tmpDir, 'fake-time');
+        const fakeBinary = path.join(tmpDir, 'fake-puzzlescript-cpp');
+        const corpus = path.join(tmpDir, 'empty.ndjson');
+        const out = path.join(tmpDir, 'report.json');
+        writeFakeTimeScript(fakeTime);
+        writeFakeBinaryScript(fakeBinary, 0);
+        writeCorpus(corpus, []);
+
+        const result = runCliProcess([
+            '--binary',
+            fakeBinary,
+            '--corpus-ndjson',
+            corpus,
+            '--out',
+            out,
+            '--tmp-dir',
+            path.join(tmpDir, 'sources'),
+            '--time-executable',
+            fakeTime,
+        ]);
+
+        assert.notStrictEqual(result.status, 0, result.stderr);
+        const report = JSON.parse(fs.readFileSync(out, 'utf8'));
+        assert.strictEqual(report.summary.game_count, 0);
+        assert.strictEqual(report.summary.measured_games, 0);
+        assert.strictEqual(report.summary.failures, 0);
+    });
 }
 
 function parsesDarwinTimeOutput() {
@@ -181,12 +409,12 @@ function summarizesFailedMeasuredRecordsAgainstCeiling() {
     assert.strictEqual(summary.top_peak_rss[1].name, 'small');
 }
 
-function runMeasuredGameRecordsSpawnErrors() {
-    withTempDir((tmpDir) => {
+async function runMeasuredGameRecordsSpawnErrors() {
+    return withTempDir((tmpDir) => {
         const spawnError = new Error('spawn failed');
         spawnError.code = 'ENOENT';
 
-        const record = audit.runMeasuredGame(
+        return audit.runMeasuredGame(
             { index: 4, name: 'missing binary', source: 'title missing' },
             {
                 binary: 'missing-binary',
@@ -195,7 +423,7 @@ function runMeasuredGameRecordsSpawnErrors() {
                 timeFlavor: 'darwin',
                 timeoutMs: 120000,
                 tmpDir,
-                spawnSync: () => ({
+                spawn: () => ({
                     status: null,
                     signal: null,
                     stdout: '',
@@ -204,18 +432,18 @@ function runMeasuredGameRecordsSpawnErrors() {
                 }),
                 timeExecutable: '/fake/time',
             },
-        );
-
-        assert.strictEqual(record.ok, false);
-        assert.strictEqual(record.spawn_error, 'spawn failed');
-        assert.strictEqual(record.spawn_error_code, 'ENOENT');
+        ).then((record) => {
+            assert.strictEqual(record.ok, false);
+            assert.strictEqual(record.spawn_error, 'spawn failed');
+            assert.strictEqual(record.spawn_error_code, 'ENOENT');
+        });
     });
 }
 
-function runMeasuredGamePassesTimeoutToSpawnSync() {
-    withTempDir((tmpDir) => {
+async function runMeasuredGamePassesTimeoutToSpawn() {
+    return withTempDir((tmpDir) => {
         const calls = [];
-        const record = audit.runMeasuredGame(
+        return audit.runMeasuredGame(
             { index: 5, name: 'demo', source: 'title demo' },
             {
                 binary: 'puzzlescript_cpp',
@@ -224,7 +452,7 @@ function runMeasuredGamePassesTimeoutToSpawnSync() {
                 timeFlavor: 'darwin',
                 timeoutMs: 4242,
                 tmpDir,
-                spawnSync: (command, args, spawnOptions) => {
+                spawn: (command, args, spawnOptions) => {
                     calls.push({ command, args, spawnOptions });
                     return {
                         status: 0,
@@ -240,12 +468,12 @@ function runMeasuredGamePassesTimeoutToSpawnSync() {
                 },
                 timeExecutable: '/fake/time',
             },
-        );
-
-        assert.strictEqual(record.ok, true);
-        assert.strictEqual(calls.length, 1);
-        assert.strictEqual(calls[0].command, '/fake/time');
-        assert.strictEqual(calls[0].spawnOptions.timeout, 4242);
+        ).then((record) => {
+            assert.strictEqual(record.ok, true);
+            assert.strictEqual(calls.length, 1);
+            assert.strictEqual(calls[0].command, '/fake/time');
+            assert.strictEqual(calls[0].spawnOptions.timeout, 4242);
+        });
     });
 }
 
@@ -262,20 +490,34 @@ function parsesCliTimeoutAndRejectsInvalidTimeFlavor() {
         '5000',
         '--time-flavor',
         'gnu',
+        '--time-executable',
+        '/fake/time',
     ]);
 
     assert.strictEqual(options.timeoutMs, 5000);
     assert.strictEqual(options.timeFlavor, 'gnu');
+    assert.strictEqual(options.timeExecutable, '/fake/time');
 }
 
-parsesDarwinTimeOutput();
-parsesGnuTimeOutput();
-rejectsMissingPeakRss();
-loadsNdjsonCorpusText();
-rejectsMalformedNdjsonRecords();
-sanitizesSourceFileNames();
-summarizesResultsAgainstCeiling();
-summarizesFailedMeasuredRecordsAgainstCeiling();
-runMeasuredGameRecordsSpawnErrors();
-runMeasuredGamePassesTimeoutToSpawnSync();
-parsesCliTimeoutAndRejectsInvalidTimeFlavor();
+async function main() {
+    parsesDarwinTimeOutput();
+    parsesGnuTimeOutput();
+    rejectsMissingPeakRss();
+    loadsNdjsonCorpusText();
+    rejectsMalformedNdjsonRecords();
+    sanitizesSourceFileNames();
+    summarizesResultsAgainstCeiling();
+    summarizesFailedMeasuredRecordsAgainstCeiling();
+    await runMeasuredGameRecordsSpawnErrors();
+    await runMeasuredGamePassesTimeoutToSpawn();
+    parsesCliTimeoutAndRejectsInvalidTimeFlavor();
+    runCliProcessWritesSuccessfulOneGameReport();
+    runCliProcessExitsNonzeroAndWritesFailureReportForBinaryFailure();
+    runCliProcessExitsNonzeroAndWritesFailureReportForUnparseableTimeOutput();
+    runCliProcessExitsNonzeroAndWritesEmptyCorpusReport();
+}
+
+main().catch((error) => {
+    process.stderr.write(`${error.stack || error}\n`);
+    process.exitCode = 1;
+});

@@ -9,6 +9,7 @@ const path = require('path');
 const DEFAULT_MEMORY_CEILING_MB = 32;
 const DEFAULT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 120000;
+const DEFAULT_TIME_EXECUTABLE = '/usr/bin/time';
 const VALID_TIME_FLAVORS = ['auto', 'darwin', 'gnu'];
 
 function bytesToMb(bytes) {
@@ -57,7 +58,7 @@ function parseTimeOutput(stderrText) {
         };
     }
 
-    throw new Error('could not parse maximum resident set size from /usr/bin/time output');
+    throw new Error('could not parse maximum resident set size from time output');
 }
 
 function requireStringField(object, key, context) {
@@ -120,23 +121,144 @@ function stderrTail(text, maxLines = 20, maxChars = 4000) {
     return lines.slice(lines.length - maxChars);
 }
 
-function supportedTimeFlavor(preferredFlavor) {
+function killProcessGroup(child, signal) {
+    if (!child || !child.pid) {
+        return;
+    }
+    if (process.platform !== 'win32') {
+        try {
+            process.kill(-child.pid, signal);
+            return;
+        } catch (error) {
+            if (error.code !== 'ESRCH') {
+                try {
+                    child.kill(signal);
+                } catch (_killError) {
+                    // Best-effort cleanup; close/error events still report the final state.
+                }
+            }
+            return;
+        }
+    }
+    try {
+        child.kill(signal);
+    } catch (_error) {
+        // Best-effort cleanup on Windows.
+    }
+}
+
+function spawnCaptured(command, args, options) {
+    const encoding = options.encoding || 'utf8';
+    const maxBuffer = options.maxBuffer || DEFAULT_MAX_BUFFER_BYTES;
+    const timeoutMs = options.timeout || DEFAULT_TIMEOUT_MS;
+
+    return new Promise((resolve) => {
+        const spawnOptions = {
+            cwd: options.cwd,
+            env: options.env,
+            detached: process.platform !== 'win32',
+            stdio: ['ignore', 'pipe', 'pipe'],
+            windowsHide: true,
+        };
+        const stdoutChunks = [];
+        const stderrChunks = [];
+        let stdoutLength = 0;
+        let stderrLength = 0;
+        let error = null;
+        let settled = false;
+        let timeout = null;
+        let forceKillTimeout = null;
+
+        function finish(status, signal) {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            if (timeout !== null) {
+                clearTimeout(timeout);
+            }
+            if (forceKillTimeout !== null) {
+                clearTimeout(forceKillTimeout);
+            }
+            resolve({
+                status,
+                signal,
+                stdout: Buffer.concat(stdoutChunks, stdoutLength).toString(encoding),
+                stderr: Buffer.concat(stderrChunks, stderrLength).toString(encoding),
+                error,
+            });
+        }
+
+        let child;
+        try {
+            child = childProcess.spawn(command, args, spawnOptions);
+        } catch (spawnError) {
+            error = spawnError;
+            finish(null, null);
+            return;
+        }
+
+        function appendChunk(chunks, streamName, chunk) {
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+            const currentLength = streamName === 'stdout' ? stdoutLength : stderrLength;
+            const available = maxBuffer - currentLength;
+            if (available > 0) {
+                chunks.push(buffer.length > available ? buffer.subarray(0, available) : buffer);
+                if (streamName === 'stdout') {
+                    stdoutLength += Math.min(buffer.length, available);
+                } else {
+                    stderrLength += Math.min(buffer.length, available);
+                }
+            }
+            if (buffer.length > available && error === null) {
+                error = new Error(`${streamName} maxBuffer length exceeded`);
+                error.code = 'ENOBUFS';
+                killProcessGroup(child, 'SIGTERM');
+            }
+        }
+
+        child.stdout.on('data', (chunk) => appendChunk(stdoutChunks, 'stdout', chunk));
+        child.stderr.on('data', (chunk) => appendChunk(stderrChunks, 'stderr', chunk));
+        child.on('error', (spawnError) => {
+            if (error === null) {
+                error = spawnError;
+            }
+        });
+        child.on('close', finish);
+
+        timeout = setTimeout(() => {
+            if (error === null) {
+                error = new Error(`spawn ${command} ETIMEDOUT`);
+                error.code = 'ETIMEDOUT';
+            }
+            killProcessGroup(child, 'SIGTERM');
+            forceKillTimeout = setTimeout(() => {
+                killProcessGroup(child, 'SIGKILL');
+            }, 1000);
+        }, timeoutMs);
+    });
+}
+
+async function supportedTimeFlavor(preferredFlavor, timeExecutable, spawnFn) {
     if (preferredFlavor && preferredFlavor !== 'auto') {
         return preferredFlavor;
     }
-    const darwinProbe = childProcess.spawnSync('/usr/bin/time', ['-lp', 'true'], {
+    const run = spawnFn || spawnCaptured;
+    const executable = timeExecutable || DEFAULT_TIME_EXECUTABLE;
+    const probeOptions = {
         encoding: 'utf8',
-    });
+        maxBuffer: 1024 * 1024,
+        timeout: 10000,
+    };
+    const darwinProbe = await run(executable, ['-lp', 'true'], probeOptions);
     if (darwinProbe.status === 0) {
         return 'darwin';
     }
-    const gnuProbe = childProcess.spawnSync('/usr/bin/time', ['-v', 'true'], {
-        encoding: 'utf8',
-    });
+    const gnuProbe = await run(executable, ['-v', 'true'], probeOptions);
     if (gnuProbe.status === 0) {
         return 'gnu';
     }
-    throw new Error('could not find a supported /usr/bin/time mode (-lp or -v)');
+    throw new Error(`could not find a supported time mode (-lp or -v) with ${executable}`);
 }
 
 function timeArgs(flavor) {
@@ -149,12 +271,12 @@ function timeArgs(flavor) {
     throw new Error(`unsupported time flavor: ${flavor}`);
 }
 
-function runMeasuredGame(source, options) {
+async function runMeasuredGame(source, options) {
     fs.mkdirSync(options.tmpDir, { recursive: true });
     const sourcePath = path.join(options.tmpDir, sourceFileName(source));
     fs.writeFileSync(sourcePath, source.source, 'utf8');
-    const spawnSync = options.spawnSync || childProcess.spawnSync;
-    const timeExecutable = options.timeExecutable || '/usr/bin/time';
+    const spawnFn = options.spawn || spawnCaptured;
+    const timeExecutable = options.timeExecutable || DEFAULT_TIME_EXECUTABLE;
     const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
 
     const commandArgs = [
@@ -167,7 +289,7 @@ function runMeasuredGame(source, options) {
     ];
 
     const startedAt = Date.now();
-    const result = spawnSync(timeExecutable, commandArgs, {
+    const result = await spawnFn(timeExecutable, commandArgs, {
         encoding: 'utf8',
         maxBuffer: options.maxBufferBytes,
         timeout: timeoutMs,
@@ -199,6 +321,8 @@ function runMeasuredGame(source, options) {
         over_ceiling: measurement ? measurement.maxRssBytes > options.memoryCeilingBytes : false,
         spawn_error: spawnError ? spawnError.message : null,
         spawn_error_code: spawnError && spawnError.code ? spawnError.code : null,
+        timed_out: spawnError && spawnError.code === 'ETIMEDOUT',
+        timeout_ms: timeoutMs,
         parse_error: parseError,
         stdout_tail: stderrTail(result.stdout),
         stderr_tail: stderrTail(result.stderr),
@@ -245,6 +369,7 @@ function parseArgs(argv) {
         tmpDir: path.join('build', 'handheld_memory_audit_sources'),
         limit: null,
         memoryCeilingBytes: DEFAULT_MEMORY_CEILING_MB * 1024 * 1024,
+        timeExecutable: DEFAULT_TIME_EXECUTABLE,
         timeFlavor: 'auto',
         maxBufferBytes: DEFAULT_MAX_BUFFER_BYTES,
         timeoutMs: DEFAULT_TIMEOUT_MS,
@@ -284,6 +409,10 @@ function parseArgs(argv) {
             options.timeFlavor = argv[++index];
             continue;
         }
+        if (arg === '--time-executable' && index + 1 < argv.length) {
+            options.timeExecutable = argv[++index];
+            continue;
+        }
         if (arg === '--timeout-ms' && index + 1 < argv.length) {
             options.timeoutMs = Number(argv[++index]);
             continue;
@@ -320,12 +449,13 @@ function printUsage(out) {
         '  --limit N                  measure only the first N corpus records',
         '  --memory-ceiling-mb N      embedded memory ceiling for outlier flags (default: 32)',
         '  --time-flavor auto|darwin|gnu',
+        '  --time-executable PATH     time executable wrapper (default: /usr/bin/time)',
         '  --timeout-ms N             per-game timeout in milliseconds (default: 120000)',
         '',
     ].join('\n'));
 }
 
-function runCli(argv) {
+async function runCli(argv) {
     const options = parseArgs(argv);
     if (options.help) {
         printUsage(process.stdout);
@@ -334,7 +464,7 @@ function runCli(argv) {
     if (!fs.existsSync(options.binary)) {
         throw new Error(`missing puzzlescript_cpp binary: ${options.binary}`);
     }
-    options.timeFlavor = supportedTimeFlavor(options.timeFlavor);
+    options.timeFlavor = await supportedTimeFlavor(options.timeFlavor, options.timeExecutable);
 
     let sources = loadNdjsonCorpusFile(options.corpusNdjson);
     if (options.limit !== null) {
@@ -345,7 +475,7 @@ function runCli(argv) {
     for (let index = 0; index < sources.length; index += 1) {
         const source = sources[index];
         process.stderr.write(`measuring ${index + 1}/${sources.length}: ${source.name}\n`);
-        results.push(runMeasuredGame(source, options));
+        results.push(await runMeasuredGame(source, options));
     }
 
     const report = {
@@ -358,6 +488,7 @@ function runCli(argv) {
         command: {
             binary: options.binary,
             corpus_ndjson: options.corpusNdjson,
+            time_executable: options.timeExecutable,
             time_flavor: options.timeFlavor,
             timeout_ms: options.timeoutMs,
         },
@@ -371,25 +502,31 @@ function runCli(argv) {
         `Wrote ${options.out}; max peak RSS ${report.summary.max_peak_rss_mb} MB; ` +
         `${report.summary.over_ceiling} over ${report.summary.memory_ceiling_mb} MB\n`,
     );
+    if (report.summary.failures > 0 || report.summary.measured_games === 0) {
+        return 1;
+    }
     return 0;
 }
 
 if (require.main === module) {
-    try {
-        process.exitCode = runCli(process.argv.slice(2));
-    } catch (error) {
+    runCli(process.argv.slice(2)).then((exitCode) => {
+        process.exitCode = exitCode;
+    }).catch((error) => {
         process.stderr.write(`handheld_memory_audit: ${error.message}\n`);
         process.exitCode = 1;
-    }
+    });
 }
 
 module.exports = {
     bytesToMb,
+    DEFAULT_TIME_EXECUTABLE,
     loadNdjsonCorpusText,
     parseClockSeconds,
     parseArgs,
     parseTimeOutput,
     runMeasuredGame,
+    spawnCaptured,
     sourceFileName,
     summarizeResults,
+    supportedTimeFlavor,
 };

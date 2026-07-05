@@ -28,6 +28,7 @@ node scripts/handheld_memory_audit.js \
   --binary build/native/puzzlescript_cpp \
   --corpus-ndjson build/handheld_testdata.bundle.ndjson \
   --limit 1 \
+  --time-executable /usr/bin/time \
   --out build/handheld_memory_audit_smoke.json
 jq '.summary' build/handheld_memory_audit_smoke.json
 ```
@@ -39,7 +40,13 @@ The measured command is:
 ```
 
 On GNU/Linux the script uses `/usr/bin/time -v` instead of `-lp`. The CLI also
-accepts `--timeout-ms` for a per-game wall-clock timeout; the default is 120000.
+accepts `--time-executable PATH` to use an approved wrapper or alternate time
+binary, and `--timeout-ms` for a per-game wall-clock timeout; the defaults are
+`/usr/bin/time` and 120000.
+
+Managed macOS or sandboxed environments may block `/usr/bin/time -lp` during
+flavor probing or measured runs. In those environments, run the audit outside
+the sandbox or pass an approved wrapper with `--time-executable`.
 
 ## Full Corpus
 
@@ -59,10 +66,17 @@ Override the ceiling with:
 make handheld_memory_audit HANDHELD_MEMORY_CEILING_MB=24
 ```
 
+Override the time executable with:
+
+```bash
+make handheld_memory_audit HANDHELD_MEMORY_TIME_EXECUTABLE=/path/to/time-wrapper
+```
+
 The Make target writes temporary source files under
 `build/handheld_memory_audit_sources` by passing that directory as `--tmp-dir`.
 If `BUILD_DIR` is overridden, the output JSON, NDJSON bundle, and temporary
-source directory move under that build directory together.
+source directory move under that build directory together. The Make variable
+`HANDHELD_MEMORY_TIME_EXECUTABLE` is passed through as `--time-executable`.
 
 ## Report Contract
 
@@ -70,7 +84,7 @@ The top-level JSON object contains:
 
 - `generated_at`: ISO timestamp for the audit run
 - `host`: platform, architecture, and release
-- `command`: binary, corpus bundle, and `/usr/bin/time` flavor
+- `command`: binary, corpus bundle, time executable, time flavor, and timeout
 - `summary`: aggregate counts and peak RSS outliers
 - `games`: one measurement record per input source
 
@@ -78,6 +92,11 @@ The top-level JSON object contains:
 PSRAM package size. `summary.over_ceiling` is the first Track 0 number to watch.
 Any over-ceiling game needs either runtime-load memory reduction or an explicit
 too-large-game decision before Track 1 hardware spending.
+
+The CLI exits nonzero when the corpus produces no measured games or when any
+measurement fails, and still writes the JSON report when it reaches report
+generation. `summary.over_ceiling` is a reported outlier count only; it does not
+by itself fail the process.
 
 Per-game `peak_rss_bytes` is host RSS, not embedded heap use. It is still useful
 for ranking outliers and proving whether the current native load path is in the
