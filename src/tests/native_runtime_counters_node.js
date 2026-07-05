@@ -54,7 +54,7 @@ assert.deepStrictEqual(missing, []);
 for (const key of requiredKeys) {
     assert.ok(Number.isFinite(counters[key]), `expected finite counter ${key}`);
 }
-assert.ok(counters.movement_anchor_overlap_cells_scanned > 0, 'expected movement anchor overlap scan attribution');
+assert.strictEqual(counters.movement_anchor_overlap_cells_scanned, 0, 'expected movement anchor overlap count to use the moving-cell index');
 assert.ok(counters.movement_anchor_collection_cells_scanned > 0, 'expected movement anchor collection scan attribution');
 assert.ok(counters.movement_anchor_collections_used > 0, 'expected movement anchor collection count');
 assert.strictEqual(counters.movement_anchor_runtime_mask_builds, 0, 'expected movement anchor masks to be precomputed');

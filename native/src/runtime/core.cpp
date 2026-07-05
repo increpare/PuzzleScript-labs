@@ -48,6 +48,8 @@ void markMovementLayerClear(MaskVector& movementsClear, int32_t layerIndex);
 void orMovementLayerClearMask(MaskVector& movementsClear, int32_t layerIndex);
 void setShiftedMask5(MaskVector& value, int32_t shift, int32_t bits);
 size_t objectCellWordCount(const FullState& session);
+size_t movementCellWordCount(const FullState& session);
+bool prepareMovementCellIndex(FullState& session);
 
 inline const MaskWord* maskPtr(const Game& game, MaskOffset offset);
 inline MaskVector arenaCopy(const Game& game, MaskOffset offset, uint32_t wordCount);
@@ -2199,6 +2201,14 @@ size_t objectCellWordCount(const FullState& session) {
     return static_cast<size_t>((tileCount + static_cast<int32_t>(kMaskWordBits) - 1) / static_cast<int32_t>(kMaskWordBits));
 }
 
+size_t movementCellWordCount(const FullState& session) {
+    return objectCellWordCount(session);
+}
+
+int32_t movementBitCount(const FullState& session) {
+    return session.game->strideMovement * static_cast<int32_t>(kMaskWordBits);
+}
+
 MaskWordUnsigned lowMaskWordBits(uint32_t bitCount) {
     if (bitCount >= kMaskWordBits) {
         return ~MaskWordUnsigned{0};
@@ -2359,6 +2369,67 @@ void setObjectCellIndexBit(FullState& session, int32_t objectId, int32_t tileInd
 #endif
 }
 
+void setMovementCellIndexBit(FullState& session, int32_t movementBit, int32_t tileIndex, bool present) {
+    const size_t cellWordCount = movementCellWordCount(session);
+    const int32_t bitCount = movementBitCount(session);
+    const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
+    if (movementBit < 0 || movementBit >= bitCount || tileIndex < 0 || tileIndex >= tileCount || cellWordCount == 0) {
+        return;
+    }
+    const size_t movementBase = static_cast<size_t>(movementBit) * cellWordCount;
+    const size_t bitWord = static_cast<size_t>(maskWordIndex(static_cast<uint32_t>(tileIndex)));
+    if (movementBase + bitWord >= session.scratch.movementCellBits.size()
+        || static_cast<size_t>(movementBit) >= session.scratch.movementCellCounts.size()
+        || session.scratch.movementCellBitTileCount != tileCount) {
+        session.scratch.movementCellIndexDirty = true;
+        return;
+    }
+    const MaskWordUnsigned bit = MaskWordUnsigned{1} << maskBitIndex(static_cast<uint32_t>(tileIndex));
+    const bool wasPresent = (session.scratch.movementCellBits[movementBase + bitWord] & bit) != 0;
+    if (present) {
+        session.scratch.movementCellBits[movementBase + bitWord] |= bit;
+        if (!wasPresent) {
+            ++session.scratch.movementCellCounts[static_cast<size_t>(movementBit)];
+        }
+    } else {
+        session.scratch.movementCellBits[movementBase + bitWord] &= ~bit;
+        if (wasPresent && session.scratch.movementCellCounts[static_cast<size_t>(movementBit)] > 0) {
+            --session.scratch.movementCellCounts[static_cast<size_t>(movementBit)];
+        } else if (wasPresent) {
+            session.scratch.movementCellIndexDirty = true;
+        }
+    }
+}
+
+void updateMovementCellIndexForWordChange(
+    FullState& session,
+    int32_t tileIndex,
+    int32_t wordIndex,
+    MaskWord before,
+    MaskWord after
+) {
+    MaskWordUnsigned removedBits = static_cast<MaskWordUnsigned>(before & ~after);
+    while (removedBits != 0) {
+        const int32_t bit = maskWordCountTrailingZeros(removedBits);
+        removedBits &= removedBits - 1;
+        setMovementCellIndexBit(
+            session,
+            wordIndex * static_cast<int32_t>(kMaskWordBits) + bit,
+            tileIndex,
+            false);
+    }
+    MaskWordUnsigned addedBits = static_cast<MaskWordUnsigned>(after & ~before);
+    while (addedBits != 0) {
+        const int32_t bit = maskWordCountTrailingZeros(addedBits);
+        addedBits &= addedBits - 1;
+        setMovementCellIndexBit(
+            session,
+            wordIndex * static_cast<int32_t>(kMaskWordBits) + bit,
+            tileIndex,
+            true);
+    }
+}
+
 void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWord* objects) {
     const int32_t stride = session.game->strideObject;
     const size_t base = static_cast<size_t>(tileIndex * stride);
@@ -2496,6 +2567,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
         const MaskWord oldValue = session.scratch.liveMovements[base + static_cast<size_t>(word)];
         const MaskWord value = movements[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
+        if (oldValue != value) {
+            updateMovementCellIndexForWordChange(session, tileIndex, word, oldValue, value);
+        }
         clearedAny |= (oldValue & ~value);
         session.scratch.liveMovements[base + static_cast<size_t>(word)] = value;
         session.scratch.columnMovementMasks[columnBase + static_cast<size_t>(word)] |= value;
@@ -2541,6 +2615,7 @@ void clearRigidState(FullState& session) {
 void clearMovementState(FullState& session) {
     std::fill(session.scratch.liveMovements.begin(), session.scratch.liveMovements.end(), 0);
     session.scratch.liveMovementsClean = true;
+    session.scratch.movementCellIndexDirty = true;
     std::fill(session.scratch.rowMovementMasks.begin(), session.scratch.rowMovementMasks.end(), 0);
     std::fill(session.scratch.columnMovementMasks.begin(), session.scratch.columnMovementMasks.end(), 0);
     std::fill(session.scratch.boardMovementMask.begin(), session.scratch.boardMovementMask.end(), 0);
@@ -3755,23 +3830,22 @@ std::optional<RowAnchor> chooseRowAnchor(const FullState& session, const std::ve
 }
 
 uint64_t movementOverlapCount(const FullState& session, const MaskWord* requiredMovements, uint32_t requiredMovementWords) {
-    if (requiredMovements == nullptr || requiredMovementWords == 0 || session.scratch.liveMovements.empty()) {
+    if (requiredMovements == nullptr || requiredMovementWords == 0) {
         return 0;
     }
-    const int32_t width = currentLevelWidth(session);
-    const int32_t height = currentLevelHeight(session);
-    const int32_t tileCount = width * height;
-    addCounter(gRuntimeCounters.movementAnchorOverlapCellsScanned, static_cast<uint64_t>(std::max(0, tileCount)));
     uint64_t count = 0;
-    for (int32_t tile = 0; tile < tileCount; ++tile) {
-        const MaskWord* movements =
-            session.scratch.liveMovements.data() + static_cast<size_t>(tile * session.game->strideMovement);
-        if (anyBitsInCommon(
-                requiredMovements,
-                requiredMovementWords,
-                movements,
-                static_cast<size_t>(session.game->strideMovement))) {
-            ++count;
+    const int32_t bitCount = movementBitCount(session);
+    for (uint32_t word = 0; word < requiredMovementWords; ++word) {
+        MaskWordUnsigned movementBits = static_cast<MaskWordUnsigned>(requiredMovements[word]);
+        while (movementBits != 0) {
+            const int32_t bit = maskWordCountTrailingZeros(movementBits);
+            movementBits &= movementBits - 1;
+            const int32_t movementBit = static_cast<int32_t>(word) * static_cast<int32_t>(kMaskWordBits) + bit;
+            if (movementBit >= 0
+                && movementBit < bitCount
+                && static_cast<size_t>(movementBit) < session.scratch.movementCellCounts.size()) {
+                count += session.scratch.movementCellCounts[static_cast<size_t>(movementBit)];
+            }
         }
     }
     return count;
@@ -3779,6 +3853,10 @@ uint64_t movementOverlapCount(const FullState& session, const MaskWord* required
 
 std::optional<MovementRowAnchor> chooseMovementRowAnchor(const FullState& session, const std::vector<Pattern>& row) {
     if (session.scratch.liveMovements.empty() || session.game->movementWordCount == 0) {
+        return std::nullopt;
+    }
+    FullState& mutableSession = const_cast<FullState&>(session);
+    if (!prepareMovementCellIndex(mutableSession)) {
         return std::nullopt;
     }
     std::optional<MovementRowAnchor> best;
@@ -3840,65 +3918,84 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
     const int32_t height = currentLevelHeight(session);
     const int32_t width = currentLevelWidth(session);
     const int32_t tileCount = width * height;
+    const int32_t bitCount = movementBitCount(session);
+    const size_t cellWordCount = movementCellWordCount(session);
     addCounter(gRuntimeCounters.movementAnchorCollectionsUsed);
-    addCounter(gRuntimeCounters.movementAnchorCollectionCellsScanned, static_cast<uint64_t>(std::max(0, tileCount)));
-    for (int32_t anchorTile = 0; anchorTile < tileCount; ++anchorTile) {
-        const MaskWord* movements =
-            session.scratch.liveMovements.data() + static_cast<size_t>(anchorTile * session.game->strideMovement);
-        if (!anyBitsInCommon(
-                anchor->movements,
-                anchor->movementWords,
-                movements,
-                static_cast<size_t>(session.game->strideMovement))) {
-            continue;
-        }
+    uint32_t anchorMovementBitCount = 0;
+    for (uint32_t word = 0; word < anchor->movementWords; ++word) {
+        MaskWordUnsigned movementBits = static_cast<MaskWordUnsigned>(anchor->movements[word]);
+        anchorMovementBitCount += static_cast<uint32_t>(maskWordPopcount(movementBits));
+        while (movementBits != 0) {
+            const int32_t movementMaskBit = maskWordCountTrailingZeros(movementBits);
+            movementBits &= movementBits - 1;
+            const int32_t movementBit = static_cast<int32_t>(word) * static_cast<int32_t>(kMaskWordBits) + movementMaskBit;
+            if (movementBit < 0 || movementBit >= bitCount) {
+                continue;
+            }
+            const size_t movementBase = static_cast<size_t>(movementBit) * cellWordCount;
+            if (movementBase + cellWordCount > session.scratch.movementCellBits.size()) {
+                continue;
+            }
+            for (size_t cellWord = 0; cellWord < cellWordCount; ++cellWord) {
+                MaskWordUnsigned cellBits = session.scratch.movementCellBits[movementBase + cellWord];
+                while (cellBits != 0) {
+                    const int32_t cellBit = maskWordCountTrailingZeros(cellBits);
+                    cellBits &= cellBits - 1;
+                    const int32_t anchorTile = static_cast<int32_t>(cellWord * kMaskWordBits + static_cast<size_t>(cellBit));
+                    if (anchorTile >= tileCount) {
+                        continue;
+                    }
+                    addCounter(gRuntimeCounters.movementAnchorCollectionCellsScanned);
 
-        const int32_t anchorX = anchorTile / height;
-        const int32_t anchorY = anchorTile % height;
-        const int32_t startX = anchorX - anchor->patternIndex * dx;
-        const int32_t startY = anchorY - anchor->patternIndex * dy;
-        if (startX < xmin || startX >= xmax || startY < ymin || startY >= ymax) {
-            continue;
-        }
+                    const int32_t anchorX = anchorTile / height;
+                    const int32_t anchorY = anchorTile % height;
+                    const int32_t startX = anchorX - anchor->patternIndex * dx;
+                    const int32_t startY = anchorY - anchor->patternIndex * dy;
+                    if (startX < xmin || startX >= xmax || startY < ymin || startY >= ymax) {
+                        continue;
+                    }
 
-        const MaskWord* lineObjects = horizontal
-            ? session.scratch.rowMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
-            : session.scratch.columnMasks.data() + static_cast<size_t>(startX * session.game->strideObject);
-        const MaskWord* lineMovements = horizontal
-            ? session.scratch.rowMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
-            : session.scratch.columnMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement);
-        const MaskWord* lineAllObjects = session.game->needsObjectLineAllMasks
-            ? (horizontal
-                ? session.scratch.rowAllMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
-                : session.scratch.columnAllMasks.data() + static_cast<size_t>(startX * session.game->strideObject))
-            : nullptr;
-        const MaskWord* lineAllMovements = session.game->needsMovementLineAllMasks
-            ? (horizontal
-                ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
-                : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement))
-            : nullptr;
-        if (!lineSatisfiesRowPreconditions(
-                session,
-                preconditions,
-                lineObjects,
-                static_cast<size_t>(session.game->strideObject),
-                lineMovements,
-                static_cast<size_t>(session.game->strideMovement),
-                lineAllObjects,
-                static_cast<size_t>(session.game->strideObject),
-                lineAllMovements,
-                static_cast<size_t>(session.game->strideMovement))) {
-            continue;
-        }
+                    const MaskWord* lineObjects = horizontal
+                        ? session.scratch.rowMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
+                        : session.scratch.columnMasks.data() + static_cast<size_t>(startX * session.game->strideObject);
+                    const MaskWord* lineMovements = horizontal
+                        ? session.scratch.rowMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
+                        : session.scratch.columnMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement);
+                    const MaskWord* lineAllObjects = session.game->needsObjectLineAllMasks
+                        ? (horizontal
+                            ? session.scratch.rowAllMasks.data() + static_cast<size_t>(startY * session.game->strideObject)
+                            : session.scratch.columnAllMasks.data() + static_cast<size_t>(startX * session.game->strideObject))
+                        : nullptr;
+                    const MaskWord* lineAllMovements = session.game->needsMovementLineAllMasks
+                        ? (horizontal
+                            ? session.scratch.rowAllMovementMasks.data() + static_cast<size_t>(startY * session.game->strideMovement)
+                            : session.scratch.columnAllMovementMasks.data() + static_cast<size_t>(startX * session.game->strideMovement))
+                        : nullptr;
+                    if (!lineSatisfiesRowPreconditions(
+                            session,
+                            preconditions,
+                            lineObjects,
+                            static_cast<size_t>(session.game->strideObject),
+                            lineMovements,
+                            static_cast<size_t>(session.game->strideMovement),
+                            lineAllObjects,
+                            static_cast<size_t>(session.game->strideObject),
+                            lineAllMovements,
+                            static_cast<size_t>(session.game->strideMovement))) {
+                        continue;
+                    }
 
-        addCounter(gRuntimeCounters.candidateCellsTested);
-        const int32_t startIndex = startX * height + startY;
-        if (rowStillMatchesAt(session, row, startIndex, delta)) {
-            matches.push_back(startIndex);
+                    addCounter(gRuntimeCounters.candidateCellsTested);
+                    const int32_t startIndex = startX * height + startY;
+                    if (rowStillMatchesAt(session, row, startIndex, delta)) {
+                        matches.push_back(startIndex);
+                    }
+                }
+            }
         }
     }
 
-    const bool needsSortAndUnique = horizontal;
+    const bool needsSortAndUnique = horizontal || anchorMovementBitCount > 1;
     if (needsSortAndUnique && matches.size() > 1) {
         std::sort(matches.begin(), matches.end(), [horizontal, height](int32_t lhs, int32_t rhs) {
             if (!horizontal) {
@@ -5299,6 +5396,70 @@ void rebuildObjectCellIndex(FullState& session) {
 #endif
 }
 
+bool rebuildMovementCellIndex(FullState& session) {
+    const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
+    const int32_t bitCount = movementBitCount(session);
+    const size_t cellWordCount = movementCellWordCount(session);
+    session.scratch.movementCellBitTileCount = tileCount;
+    session.scratch.movementCellBits.assign(
+        static_cast<size_t>(std::max(bitCount, 0)) * cellWordCount,
+        0);
+    session.scratch.movementCellCounts.assign(static_cast<size_t>(std::max(bitCount, 0)), 0);
+    if (tileCount <= 0 || bitCount <= 0 || cellWordCount == 0 || session.game->strideMovement <= 0) {
+        session.scratch.movementCellIndexDirty = false;
+        return true;
+    }
+    const size_t expectedMovementWords =
+        static_cast<size_t>(tileCount) * static_cast<size_t>(session.game->strideMovement);
+    if (session.scratch.liveMovements.size() != expectedMovementWords) {
+        session.scratch.movementCellIndexDirty = true;
+        return false;
+    }
+
+    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {
+        const size_t cellWord = static_cast<size_t>(tileIndex) >> kMaskWordShift;
+        const MaskWordUnsigned cellBit = static_cast<MaskWordUnsigned>(maskBit(static_cast<uint32_t>(tileIndex)));
+        const MaskWord* movements =
+            session.scratch.liveMovements.data()
+            + static_cast<size_t>(tileIndex) * static_cast<size_t>(session.game->strideMovement);
+        for (int32_t word = 0; word < session.game->strideMovement; ++word) {
+            MaskWordUnsigned movementBits = static_cast<MaskWordUnsigned>(movements[static_cast<size_t>(word)]);
+            while (movementBits != 0) {
+                const int32_t bit = maskWordCountTrailingZeros(movementBits);
+                movementBits &= movementBits - 1;
+                const int32_t movementBit = word * static_cast<int32_t>(kMaskWordBits) + bit;
+                if (movementBit < 0 || movementBit >= bitCount) {
+                    continue;
+                }
+                const size_t movementCellIndex =
+                    static_cast<size_t>(movementBit) * cellWordCount + cellWord;
+                if (movementCellIndex < session.scratch.movementCellBits.size()) {
+                    session.scratch.movementCellBits[movementCellIndex] |= cellBit;
+                }
+                if (static_cast<size_t>(movementBit) < session.scratch.movementCellCounts.size()) {
+                    ++session.scratch.movementCellCounts[static_cast<size_t>(movementBit)];
+                }
+            }
+        }
+    }
+    session.scratch.movementCellIndexDirty = false;
+    return true;
+}
+
+bool prepareMovementCellIndex(FullState& session) {
+    const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
+    const int32_t bitCount = movementBitCount(session);
+    const size_t cellWordCount = movementCellWordCount(session);
+    const size_t expectedWords = static_cast<size_t>(std::max(bitCount, 0)) * cellWordCount;
+    if (!session.scratch.movementCellIndexDirty
+        && session.scratch.movementCellBitTileCount == tileCount
+        && session.scratch.movementCellBits.size() == expectedWords
+        && session.scratch.movementCellCounts.size() == static_cast<size_t>(std::max(bitCount, 0))) {
+        return true;
+    }
+    return rebuildMovementCellIndex(session);
+}
+
 // Incremental rebuildMasks: setCellObjects/setCellMovements already OR new
 // bits into the row/col/board masks on the write path, so the only case a
 // rebuild is needed is when bits were *cleared*. The set-paths mark those
@@ -5389,6 +5550,7 @@ void rebuildMasks(FullState& session) {
 #if PS_INTERPRETER_OBJECT_CELL_INDEX
         session.scratch.objectCellIndexDirty = true;
 #endif
+        session.scratch.movementCellIndexDirty = true;
         session.scratch.anyMasksDirty = true;
     }
 
@@ -5633,6 +5795,7 @@ void markAllMasksDirty(FullState& session) {
     session.scratch.dirtyObjectBoard = true;
     session.scratch.dirtyMovementBoard = true;
     session.scratch.objectCellIndexDirty = true;
+    session.scratch.movementCellIndexDirty = true;
     session.scratch.anyMasksDirty = true;
 }
 
@@ -5644,6 +5807,7 @@ void markAllMovementMasksDirty(FullState& session) {
     std::fill(session.scratch.dirtyMovementRows.begin(), session.scratch.dirtyMovementRows.end(), 1);
     std::fill(session.scratch.dirtyMovementColumns.begin(), session.scratch.dirtyMovementColumns.end(), 1);
     session.scratch.dirtyMovementBoard = true;
+    session.scratch.movementCellIndexDirty = true;
     session.scratch.anyMasksDirty = true;
 }
 
@@ -6057,6 +6221,9 @@ void compiledRuleSetCellMovementsWord1(FullState& session, int32_t tileIndex, Ma
     const int32_t columnIndex = tileIndex / currentLevelHeight(session);
     const int32_t rowIndex = tileIndex % currentLevelHeight(session);
     const MaskWord oldValue = session.scratch.liveMovements[base];
+    if (oldValue != movements) {
+        updateMovementCellIndexForWordChange(session, tileIndex, 0, oldValue, movements);
+    }
 
     session.scratch.liveMovements[base] = movements;
     session.scratch.columnMovementMasks[static_cast<size_t>(columnIndex * stride)] |= movements;
