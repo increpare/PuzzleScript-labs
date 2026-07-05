@@ -75,6 +75,7 @@ assert.ok(report.facts.mergeability, 'report should include mergeability facts')
 assert.ok(report.facts.movement_action, 'report should include movement_action facts');
 assert.ok(report.facts.count_layer_invariants, 'report should include count_layer_invariants facts');
 assert.ok(report.facts.transient_boundary, 'report should include transient_boundary facts');
+assert.ok(report.facts.certified_wake_masks, 'report should include certified_wake_masks facts');
 assert.ok(report.facts.rulegroup_flow, 'report should include rulegroup_flow facts');
 assert.deepStrictEqual(
     report.ps_tagged.objects.map(object => object.name).sort(),

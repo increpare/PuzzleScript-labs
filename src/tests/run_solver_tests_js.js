@@ -12,6 +12,10 @@ if (process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === undefined) {
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const {
+    appendRunRecord,
+    createRunRecord,
+} = require('./solver_bench_store');
 
 const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 const staticAnalysis = require('./lib/solver_static_analysis');
@@ -72,12 +76,19 @@ const SOLVER_HEURISTICS = new Set([
     'no-plain-player',
     'auto',
 ]);
+const SOLVER_NOVELTY_MODES = new Set(['off', 'tiebreak']);
 const DIRECTION_ACTIONS = [
     { token: 'right', input: 3 },
     { token: 'up', input: 0 },
     { token: 'down', input: 2 },
     { token: 'left', input: 1 },
 ];
+const DIRECTION_TOKEN_DELTAS = {
+    right: [1, 0],
+    up: [0, -1],
+    down: [0, 1],
+    left: [-1, 0],
+};
 const ACTIONS_WITH_ACTION = DIRECTION_ACTIONS.concat([{ token: 'action', input: 4 }]);
 const PUSH_ACCESS_DIRECTIONS = [
     [1, 0],
@@ -95,8 +106,8 @@ const BEST_MANHATTAN_EMPTY_TARGETS_PENALTY = 128;
 /** When `PUZZLESCRIPT_SOLVER_DETAIL_TIMING=0`, skip `performance.now()` in the search hot loop (timing breakdown is zeroed; portfolio auto-lock uses step timing only when enabled). */
 const SOLVER_DETAIL_TIMING = process.env.PUZZLESCRIPT_SOLVER_DETAIL_TIMING !== '0';
 const SOLVER_STEP_PROFILE = process.env.PUZZLESCRIPT_SOLVER_STEP_PROFILE === '1';
-const SOLVER_AGAIN_PROFILE = process.env.PUZZLESCRIPT_SOLVER_AGAIN_PROFILE === '1';
 const SOLVER_RULE_HOTSPOTS = process.env.PUZZLESCRIPT_SOLVER_RULE_HOTSPOTS === '1';
+const SOLVER_AGAIN_PROFILE = process.env.PUZZLESCRIPT_SOLVER_AGAIN_PROFILE === '1';
 /** Reject search wins whose reconstructed input sequence does not replay from a fresh level load. */
 const VERIFY_SOLUTION_REPLAY = process.env.PUZZLESCRIPT_VERIFY_SOLUTION_REPLAY !== '0';
 
@@ -106,48 +117,85 @@ let currentSolverStepProfile = null;
 let currentSolverRuleHotspots = null;
 let solverTryApplyMatchMs = 0;
 let solverInTryApply = false;
+let solverRuleHotspotNextId = 1;
+
+function solverRuleDirectionName(direction) {
+    if (typeof dirMaskName !== 'undefined' && dirMaskName && Object.prototype.hasOwnProperty.call(dirMaskName, direction)) {
+        return dirMaskName[direction];
+    }
+    return String(direction);
+}
 
 function solverRuleHotspotKey(rule) {
-    const line = Number.isFinite(rule && rule.lineNumber) ? rule.lineNumber : -1;
-    const group = Number.isFinite(rule && rule.groupNumber) ? rule.groupNumber : -1;
-    const direction = rule && rule.direction !== undefined ? String(rule.direction) : '';
-    return `${line}:${group}:${direction}`;
+    if (!rule) {
+        return 'unknown';
+    }
+    if (rule._solverRuleHotspotKey) {
+        return rule._solverRuleHotspotKey;
+    }
+    const line = Number.isFinite(rule.lineNumber) ? rule.lineNumber : 'unknown';
+    const group = Number.isFinite(rule.groupNumber) ? rule.groupNumber : 'unknown';
+    const direction = solverRuleDirectionName(rule.direction);
+    const key = `line:${line}|group:${group}|direction:${direction}|rule:${solverRuleHotspotNextId++}`;
+    Object.defineProperty(rule, '_solverRuleHotspotKey', {
+        value: key,
+        configurable: true,
+    });
+    return key;
 }
 
 function solverRuleHotspotFor(rule) {
-    if (!SOLVER_RULE_HOTSPOTS || !currentSolverRuleHotspots) {
+    if (!SOLVER_RULE_HOTSPOTS || !currentSolverRuleHotspots || !rule) {
         return null;
     }
     const key = solverRuleHotspotKey(rule);
-    let row = currentSolverRuleHotspots.get(key);
-    if (!row) {
-        row = {
+    let hotspot = currentSolverRuleHotspots.get(key);
+    if (!hotspot) {
+        hotspot = {
             key,
-            line: Number.isFinite(rule && rule.lineNumber) ? rule.lineNumber : -1,
-            group: Number.isFinite(rule && rule.groupNumber) ? rule.groupNumber : -1,
-            direction: rule && rule.direction !== undefined ? String(rule.direction) : '',
+            line: Number.isFinite(rule.lineNumber) ? rule.lineNumber : null,
+            group: Number.isFinite(rule.groupNumber) ? rule.groupNumber : null,
+            direction: solverRuleDirectionName(rule.direction),
             try_apply_calls: 0,
             changed: 0,
             match_ms: 0,
             apply_ms: 0,
         };
-        currentSolverRuleHotspots.set(key, row);
+        currentSolverRuleHotspots.set(key, hotspot);
     }
-    return row;
+    return hotspot;
 }
 
 function finalizeRuleHotspots(modeResult) {
-    if (!SOLVER_RULE_HOTSPOTS || !modeResult || !modeResult._ruleHotspots) {
-        if (modeResult) modeResult.rule_hotspots = [];
+    if (!modeResult) {
+        return modeResult;
+    }
+    if (!(modeResult._ruleHotspots instanceof Map)) {
+        if (!Array.isArray(modeResult.rule_hotspots)) {
+            modeResult.rule_hotspots = [];
+        }
+        delete modeResult._ruleHotspots;
         return modeResult;
     }
     modeResult.rule_hotspots = Array.from(modeResult._ruleHotspots.values())
-        .sort((left, right) =>
-            (right.match_ms + right.apply_ms) - (left.match_ms + left.apply_ms)
-            || right.try_apply_calls - left.try_apply_calls
-            || left.key.localeCompare(right.key)
-        )
-        .slice(0, 25);
+        .sort((left, right) => {
+            const leftMs = left.match_ms + left.apply_ms;
+            const rightMs = right.match_ms + right.apply_ms;
+            if (rightMs !== leftMs) return rightMs - leftMs;
+            if (right.try_apply_calls !== left.try_apply_calls) return right.try_apply_calls - left.try_apply_calls;
+            return left.key < right.key ? -1 : (left.key > right.key ? 1 : 0);
+        })
+        .slice(0, 25)
+        .map((hotspot) => ({
+            key: hotspot.key,
+            line: hotspot.line,
+            group: hotspot.group,
+            direction: hotspot.direction,
+            try_apply_calls: hotspot.try_apply_calls,
+            changed: hotspot.changed,
+            match_ms: hotspot.match_ms,
+            apply_ms: hotspot.apply_ms,
+        }));
     delete modeResult._ruleHotspots;
     return modeResult;
 }
@@ -165,33 +213,35 @@ function recordSolverStepPhase(field, fn) {
 }
 
 function installSolverStepProfiler() {
-    if (!SOLVER_STEP_PROFILE || solverStepProfilingInstalled) {
+    if (!SOLVER_STEP_PROFILE && !SOLVER_RULE_HOTSPOTS) {
         return;
     }
-    solverStepProfilingInstalled = true;
-    const originalApplyRules = applyRules;
-    applyRules = function profiledApplyRules(rules, loopPoint, bannedGroup) {
-        let field = 'step_profile_other_rules_ms';
-        if (state && rules === state.rules) {
-            field = 'step_profile_early_rules_ms';
-        } else if (state && rules === state.lateRules) {
-            field = 'step_profile_late_rules_ms';
-        }
-        return recordSolverStepPhase(field, () => originalApplyRules(rules, loopPoint, bannedGroup));
-    };
-    const originalProcessCommandQueue = processCommandQueue;
-    processCommandQueue = function profiledProcessCommandQueue(...args) {
-        return recordSolverStepPhase('step_profile_command_ms', () => originalProcessCommandQueue.apply(this, args));
-    };
-    const originalCheckWin = checkWin;
-    checkWin = function profiledCheckWin(...args) {
-        return recordSolverStepPhase('step_profile_win_ms', () => originalCheckWin.apply(this, args));
-    };
+    if (SOLVER_STEP_PROFILE && !solverStepProfilingInstalled) {
+        solverStepProfilingInstalled = true;
+        const originalApplyRules = applyRules;
+        applyRules = function profiledApplyRules(rules, loopPoint, bannedGroup) {
+            let field = 'step_profile_other_rules_ms';
+            if (state && rules === state.rules) {
+                field = 'step_profile_early_rules_ms';
+            } else if (state && rules === state.lateRules) {
+                field = 'step_profile_late_rules_ms';
+            }
+            return recordSolverStepPhase(field, () => originalApplyRules(rules, loopPoint, bannedGroup));
+        };
+        const originalProcessCommandQueue = processCommandQueue;
+        processCommandQueue = function profiledProcessCommandQueue(...args) {
+            return recordSolverStepPhase('step_profile_command_ms', () => originalProcessCommandQueue.apply(this, args));
+        };
+        const originalCheckWin = checkWin;
+        checkWin = function profiledCheckWin(...args) {
+            return recordSolverStepPhase('step_profile_win_ms', () => originalCheckWin.apply(this, args));
+        };
+    }
     installSolverRuleMatchApplyProfiler();
 }
 
 function installSolverRuleMatchApplyProfiler() {
-    if (!SOLVER_STEP_PROFILE || solverRuleMatchApplyInstalled || typeof Rule === 'undefined') {
+    if ((!SOLVER_STEP_PROFILE && !SOLVER_RULE_HOTSPOTS) || solverRuleMatchApplyInstalled || typeof Rule === 'undefined') {
         return;
     }
     solverRuleMatchApplyInstalled = true;
@@ -200,7 +250,8 @@ function installSolverRuleMatchApplyProfiler() {
         const rule = this;
         const fn = originalGenerateFindMatches.call(this);
         return function solverProfiledFindMatches() {
-            if (!currentSolverStepProfile) {
+            const hotspot = solverRuleHotspotFor(rule);
+            if (!currentSolverStepProfile && !hotspot) {
                 return fn.apply(this, arguments);
             }
             const t0 = performance.now();
@@ -208,9 +259,12 @@ function installSolverRuleMatchApplyProfiler() {
                 return fn.apply(this, arguments);
             } finally {
                 const elapsed = performance.now() - t0;
-                currentSolverStepProfile.step_profile_rule_match_ms += elapsed;
-                const hotspot = solverRuleHotspotFor(rule);
-                if (hotspot) hotspot.match_ms += elapsed;
+                if (currentSolverStepProfile) {
+                    currentSolverStepProfile.step_profile_rule_match_ms += elapsed;
+                }
+                if (hotspot) {
+                    hotspot.match_ms += elapsed;
+                }
                 if (solverInTryApply) {
                     solverTryApplyMatchMs += elapsed;
                 }
@@ -219,26 +273,33 @@ function installSolverRuleMatchApplyProfiler() {
     };
     const originalTryApply = Rule.prototype.tryApply;
     Rule.prototype.tryApply = function (level) {
-        if (!currentSolverStepProfile) {
+        const hotspot = solverRuleHotspotFor(this);
+        if (!currentSolverStepProfile && !hotspot) {
             return originalTryApply.call(this, level);
         }
-        const hotspot = solverRuleHotspotFor(this);
-        if (hotspot) hotspot.try_apply_calls++;
+        if (hotspot) {
+            hotspot.try_apply_calls++;
+        }
         solverTryApplyMatchMs = 0;
         solverInTryApply = true;
         const t0 = performance.now();
         let changed = false;
         try {
-            changed = originalTryApply.call(this, level);
-            return changed;
+            const result = originalTryApply.call(this, level);
+            changed = Boolean(result);
+            return result;
         } finally {
             solverInTryApply = false;
             const total = performance.now() - t0;
             const applyMs = Math.max(0, total - solverTryApplyMatchMs);
-            currentSolverStepProfile.step_profile_rule_apply_ms += applyMs;
+            if (currentSolverStepProfile) {
+                currentSolverStepProfile.step_profile_rule_apply_ms += applyMs;
+            }
             if (hotspot) {
                 hotspot.apply_ms += applyMs;
-                if (changed) hotspot.changed++;
+                if (changed) {
+                    hotspot.changed++;
+                }
             }
         }
     };
@@ -314,6 +375,7 @@ function parseArgs(argv) {
         strategy: DEFAULT_STRATEGY,
         astarWeight: 2,
         solverHeuristic: DEFAULT_SOLVER_HEURISTIC,
+        solverNovelty: 'off',
         portfolioBfsMs: null,
         portfolioHeuristics: null,
         progressEvery: 25,
@@ -335,6 +397,11 @@ function parseArgs(argv) {
         jobs: 1,
         shardIndex: null,
         shardCount: null,
+        benchStorePath: null,
+        benchSlice: null,
+        benchVariant: null,
+        benchPairId: null,
+        benchArtifactPath: null,
     };
     const args = argv.slice(2);
     for (let index = 0; index < args.length; index++) {
@@ -351,7 +418,7 @@ function parseArgs(argv) {
             options.timeoutMs = null;
         } else if (arg === '--strategy') {
             options.strategy = args[++index];
-            if (!['portfolio', 'bfs', 'weighted-astar', 'greedy', 'phase-split', 'naive'].includes(options.strategy)) {
+            if (!['portfolio', 'bfs', 'weighted-astar', 'greedy', 'phase-split', 'naive', 'push-space'].includes(options.strategy)) {
                 throw new Error(`Unsupported strategy: ${options.strategy}`);
             }
         } else if (arg === '--astar-weight') {
@@ -360,6 +427,11 @@ function parseArgs(argv) {
             options.solverHeuristic = args[++index];
             if (!SOLVER_HEURISTICS.has(options.solverHeuristic)) {
                 throw new Error(`Unsupported solver heuristic: ${options.solverHeuristic}`);
+            }
+        } else if (arg === '--solver-novelty') {
+            options.solverNovelty = args[++index];
+            if (!SOLVER_NOVELTY_MODES.has(options.solverNovelty)) {
+                throw new Error(`Unsupported solver novelty mode: ${options.solverNovelty}`);
             }
         } else if (arg === '--portfolio-bfs-ms') {
             options.portfolioBfsMs = Math.max(1, Number.parseInt(args[++index], 10));
@@ -408,6 +480,16 @@ function parseArgs(argv) {
             options.forceNoaction = true;
         } else if (arg === '--adaptive-step-cost') {
             options.adaptiveStepCost = true;
+        } else if (arg === '--bench-store') {
+            options.benchStorePath = path.resolve(args[++index]);
+        } else if (arg === '--bench-slice') {
+            options.benchSlice = args[++index];
+        } else if (arg === '--bench-variant') {
+            options.benchVariant = args[++index];
+        } else if (arg === '--bench-pair-id') {
+            options.benchPairId = args[++index];
+        } else if (arg === '--bench-artifact') {
+            options.benchArtifactPath = path.resolve(args[++index]);
         } else if (arg === '--help' || arg === '-h') {
             usage(0);
         } else if (options.corpusPath === null) {
@@ -419,14 +501,23 @@ function parseArgs(argv) {
     if (!options.corpusPath) {
         usage(1);
     }
+    if (options.benchStorePath !== null && (!options.benchSlice || !options.benchVariant)) {
+        throw new Error('--bench-store requires --bench-slice and --bench-variant');
+    }
+    if (options.benchArtifactPath !== null && options.benchStorePath === null) {
+        throw new Error('--bench-artifact requires --bench-store');
+    }
     return options;
 }
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive] [--astar-weight N] [--solver-heuristic NAME] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
+        '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
+        '  --solver-novelty tiebreak: prefer states containing never-before-seen object/cell atoms when primary priorities tie.\n' +
+        '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
@@ -819,6 +910,232 @@ function priorityForPortfolioMode(mode, depth, heuristic, astarWeight) {
         return heuristic;
     }
     return depth;
+}
+
+function queueNoveltyRank(item) {
+    return item && item.novelty === 0 ? 0 : 1;
+}
+
+function compareSolverQueueItems(a, b) {
+    if (a.priority !== b.priority) {
+        return a.priority < b.priority ? -1 : 1;
+    }
+    const noveltyDelta = queueNoveltyRank(a) - queueNoveltyRank(b);
+    if (noveltyDelta !== 0) {
+        return noveltyDelta;
+    }
+    if (a.tie !== b.tie) {
+        return a.tie < b.tie ? -1 : 1;
+    }
+    return 0;
+}
+
+function solverQueueLess(a, b) {
+    return compareSolverQueueItems(a, b) < 0;
+}
+
+function createObjectNoveltyTracker(initialObjects) {
+    const seen = new Uint32Array(initialObjects.length);
+    seen.set(initialObjects);
+    return {
+        testAndRecord(objects) {
+            let hasNovelAtom = false;
+            for (let index = 0; index < objects.length; index++) {
+                const word = objects[index];
+                if ((word & ~seen[index]) !== 0) {
+                    hasNovelAtom = true;
+                }
+                seen[index] |= word;
+            }
+            return hasNovelAtom;
+        },
+    };
+}
+
+function createSolverNoveltyTracker(options) {
+    return options && options.solverNovelty === 'tiebreak'
+        ? createObjectNoveltyTracker(level.objects)
+        : null;
+}
+
+function wordsTouchMaskAt(objects, stride, tileIndex, maskWords) {
+    const offset = tileIndex * stride;
+    for (let word = 0; word < stride; word++) {
+        if ((objects[offset + word] & maskWords[word]) !== 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function movementBitsForLayer(movementMask, layer) {
+    if (!movementMask || !movementMask.data) {
+        return 0;
+    }
+    const bitOffset = 5 * layer;
+    const wordIndex = bitOffset >> 5;
+    const bitShift = bitOffset & 31;
+    if (wordIndex >= movementMask.data.length) {
+        return 0;
+    }
+    let bits = (movementMask.data[wordIndex] >>> bitShift) & 0x1f;
+    if (bitShift > 27 && wordIndex + 1 < movementMask.data.length) {
+        bits |= (movementMask.data[wordIndex + 1] << (32 - bitShift)) & 0x1f;
+    }
+    return bits & 0x1f;
+}
+
+function maskIntersectsWords(mask, words) {
+    if (!mask || !mask.data || !words) {
+        return false;
+    }
+    const length = Math.min(mask.data.length, words.length);
+    for (let word = 0; word < length; word++) {
+        if ((mask.data[word] & words[word]) !== 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function clearMaskWords(words, mask) {
+    if (!mask || !mask.data) {
+        return;
+    }
+    const length = Math.min(words.length, mask.data.length);
+    for (let word = 0; word < length; word++) {
+        words[word] &= ~(mask.data[word] | 0);
+    }
+}
+
+function collectMovementWrittenObjectWords(pushState, strideObj) {
+    const words = new Int32Array(strideObj);
+    const layerMasks = pushState.layerMasks || [];
+    const groups = [
+        ...(pushState.rules || []),
+        ...(pushState.lateRules || []),
+    ];
+    for (const group of groups) {
+        for (const rule of group || []) {
+            const movementMask = rule && rule.writeMovements;
+            if (!movementMask || !movementMask.data) {
+                continue;
+            }
+            for (let layer = 0; layer < layerMasks.length; layer++) {
+                if (movementBitsForLayer(movementMask, layer) === 0) {
+                    continue;
+                }
+                const layerMask = layerMasks[layer];
+                if (!layerMask || !layerMask.data) {
+                    continue;
+                }
+                const length = Math.min(strideObj, layerMask.data.length);
+                for (let word = 0; word < length; word++) {
+                    words[word] |= layerMask.data[word] | 0;
+                }
+            }
+        }
+    }
+    return words;
+}
+
+function createPushSpaceBlockingWords(pushState, strideObj) {
+    const blockingWords = new Int32Array(strideObj);
+    const allObjectsMask = pushState.objectMasks && pushState.objectMasks["\nall\n"];
+    if (allObjectsMask && allObjectsMask.data) {
+        const length = Math.min(strideObj, allObjectsMask.data.length);
+        for (let word = 0; word < length; word++) {
+            blockingWords[word] = allObjectsMask.data[word] | 0;
+        }
+    }
+
+    if (Number.isInteger(pushState.backgroundlayer) && pushState.layerMasks && pushState.layerMasks[pushState.backgroundlayer]) {
+        clearMaskWords(blockingWords, pushState.layerMasks[pushState.backgroundlayer]);
+    }
+    const playerMask = pushState.playerMask && pushState.playerMask[1];
+    clearMaskWords(blockingWords, playerMask);
+
+    const movementWrittenWords = collectMovementWrittenObjectWords(pushState, strideObj);
+    const clearStaticWinconditionMask = (mask) => {
+        if (!maskIntersectsWords(mask, movementWrittenWords)) {
+            clearMaskWords(blockingWords, mask);
+        }
+    };
+    for (const condition of pushState.winconditions || []) {
+        clearStaticWinconditionMask(condition[1]);
+        clearStaticWinconditionMask(condition[2]);
+    }
+
+    return blockingWords;
+}
+
+function computePushSpaceReachability({ objects, width, height, stride, startTiles, blockingLayerWords }) {
+    const tileCount = width * height;
+    const reachable = new Uint8Array(tileCount);
+    const parent = new Int32Array(tileCount);
+    const parentAction = new Int8Array(tileCount);
+    parent.fill(-1);
+    parentAction.fill(-1);
+
+    const queue = new Int32Array(tileCount);
+    let head = 0;
+    let tail = 0;
+    for (const start of startTiles || []) {
+        if (start < 0 || start >= tileCount || reachable[start]) {
+            continue;
+        }
+        reachable[start] = 1;
+        parent[start] = start;
+        queue[tail++] = start;
+    }
+
+    const actions = DIRECTION_ACTIONS;
+
+    while (head < tail) {
+        const current = queue[head++];
+        const x = (current / height) | 0;
+        const y = current % height;
+        for (let actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+            const action = actions[actionIndex];
+            const delta = DIRECTION_TOKEN_DELTAS[action.token];
+            const nx = x + delta[0];
+            const ny = y + delta[1];
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+                continue;
+            }
+            const next = nx * height + ny;
+            if (reachable[next]) {
+                continue;
+            }
+            if (wordsTouchMaskAt(objects, stride, next, blockingLayerWords)) {
+                continue;
+            }
+            reachable[next] = 1;
+            parent[next] = current;
+            parentAction[next] = actionIndex;
+            queue[tail++] = next;
+        }
+    }
+
+    return {
+        reachable,
+        pathTo(tileIndex) {
+            if (tileIndex < 0 || tileIndex >= tileCount || !reachable[tileIndex]) {
+                return null;
+            }
+            const reversed = [];
+            let cursor = tileIndex;
+            while (parent[cursor] !== cursor) {
+                const actionIndex = parentAction[cursor];
+                if (actionIndex < 0) {
+                    return null;
+                }
+                reversed.push(actions[actionIndex].token);
+                cursor = parent[cursor];
+            }
+            return reversed.reverse();
+        },
+    };
 }
 
 //Target-set versions for the distance-field caches live at module scope, NOT
@@ -2963,20 +3280,20 @@ function hashCurrentState() {
 }
 
 function settleAgain(stepProfile = null) {
-    let passes = 0;
     // Some corpus games intentionally use `again` as animation. robot arm has
     // a reachable 3-cycle, so the cap is load-bearing for solver harnesses.
-    for (; passes < 500 && againing; passes++) {
+    let pass = 0;
+    for (; pass < 500 && againing; pass++) {
         againing = false;
         if (SOLVER_AGAIN_PROFILE && stepProfile) {
-            stepProfile.process_input_calls = (stepProfile.process_input_calls || 0) + 1;
+            stepProfile.process_input_calls++;
         }
         processInput(-1, undefined, undefined, true);
     }
     if (SOLVER_AGAIN_PROFILE && stepProfile) {
-        stepProfile.again_passes = (stepProfile.again_passes || 0) + passes;
+        stepProfile.again_passes += pass;
     }
-    return passes;
+    return pass;
 }
 
 //PUZZLESCRIPT_SOLVER_NOOP_PROBE=1: measure (without acting on it) how a
@@ -3046,7 +3363,7 @@ function stepSolverAction(action, stepProfile = null) {
             changed = true;
         } else {
             if (SOLVER_AGAIN_PROFILE && stepProfile) {
-                stepProfile.process_input_calls = (stepProfile.process_input_calls || 0) + 1;
+                stepProfile.process_input_calls++;
             }
             changed = Boolean(processInput(action.input, undefined, undefined, true));
         }
@@ -3121,7 +3438,7 @@ class MinHeap {
     }
 
     less(a, b) {
-        return a.priority < b.priority || (a.priority === b.priority && a.tie < b.tie);
+        return solverQueueLess(a, b);
     }
 
     push(item) {
@@ -3131,7 +3448,7 @@ class MinHeap {
         while (index > 0) {
             const parent = (index - 1) >>> 1;
             const parentItem = items[parent];
-            if (!(item.priority < parentItem.priority || (item.priority === parentItem.priority && item.tie < parentItem.tie))) {
+            if (!this.less(item, parentItem)) {
                 break;
             }
             items[index] = parentItem;
@@ -3157,12 +3474,12 @@ class MinHeap {
                 let bestItem = items[best];
                 if (right < length) {
                     const rightItem = items[right];
-                    if (rightItem.priority < bestItem.priority || (rightItem.priority === bestItem.priority && rightItem.tie < bestItem.tie)) {
+                    if (this.less(rightItem, bestItem)) {
                         best = right;
                         bestItem = rightItem;
                     }
                 }
-                if (!(bestItem.priority < last.priority || (bestItem.priority === last.priority && bestItem.tie < last.tie))) {
+                if (!this.less(bestItem, last)) {
                     break;
                 }
                 items[index] = bestItem;
@@ -3241,6 +3558,19 @@ function reconstruct(nodes, index, finalToken) {
     return reversed.reverse();
 }
 
+function reconstructMacro(nodes, index, finalTokens) {
+    const chunks = [finalTokens];
+    let cursor = index;
+    while (cursor >= 0) {
+        const node = nodes[cursor];
+        if (node.parent >= 0 && Array.isArray(node.input)) {
+            chunks.push(node.input);
+        }
+        cursor = node.parent;
+    }
+    return chunks.reverse().flat();
+}
+
 function tryFinalizeSolvedModeResult(modeResult, nodes, parentIndex, action, game, levelIndex, searchStarted) {
     const solution = reconstruct(nodes, parentIndex, action.token);
     if (VERIFY_SOLUTION_REPLAY) {
@@ -3252,6 +3582,23 @@ function tryFinalizeSolvedModeResult(modeResult, nodes, parentIndex, action, gam
     }
     modeResult.solution = solution;
     modeResult.solution_length = solution.length;
+    modeResult.elapsed_ms = Date.now() - searchStarted;
+    modeResult.status = 'solved';
+    return true;
+}
+
+function tryFinalizeSolvedMacroResult(modeResult, nodes, parentIndex, tokens, pushDepth, game, levelIndex, searchStarted) {
+    const solution = reconstructMacro(nodes, parentIndex, tokens);
+    if (VERIFY_SOLUTION_REPLAY) {
+        const replay = replaySolutionOnCurrentCompiledState(game, levelIndex, solution);
+        if (replay.status !== 'solved') {
+            modeResult.replay_rejected = (modeResult.replay_rejected || 0) + 1;
+            return false;
+        }
+    }
+    modeResult.solution = solution;
+    modeResult.solution_length = solution.length;
+    modeResult.push_depth = pushDepth;
     modeResult.elapsed_ms = Date.now() - searchStarted;
     modeResult.status = 'solved';
     return true;
@@ -3281,6 +3628,9 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
     modeResult.heuristic = 'psplus-winconditions';
     modeResult.hash_mode = 'objects_toString';
     modeResult.snapshot_mode = 'objects_only';
+    if (SOLVER_RULE_HOTSPOTS) {
+        modeResult._ruleHotspots = new Map();
+    }
     if (!_o10) {
         throw new Error('PuzzleScriptPlus naive solver requires engine scratch cell _o10');
     }
@@ -3334,6 +3684,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         status: 'exhausted',
         solution: [],
         solution_length: 0,
+        push_depth: 0,
         elapsed_ms: 0,
         expanded: 0,
         generated: 0,
@@ -3391,8 +3742,9 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         hash_mode: null,
         snapshot_mode: null,
         strategy: null,
-        heuristic: 'zero',
         adaptive_step_cost: false,
+        adaptive_step_cost_triggered: 0,
+        heuristic: 'zero',
     };
 }
 
@@ -3441,14 +3793,16 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         }
         modeResult.load_ms = result.load_ms;
         modeResult.strategy = mode;
+        const adaptiveStepCostActive = !!options.adaptiveStepCost && mode === 'weighted-astar' && SOLVER_DETAIL_TIMING;
+        modeResult.adaptive_step_cost = adaptiveStepCostActive;
         modeResult.heuristic = mode === 'bfs' ? 'zero' : (options.solverHeuristic || DEFAULT_SOLVER_HEURISTIC);
-        modeResult.adaptive_step_cost = !!options.adaptiveStepCost;
         const solverOps = createSolverLevelSpecialization(options);
         modeResult.hash_mode = solverOps.hashMode;
         modeResult.snapshot_mode = solverOps.snapshotMode;
         timeBlock(modeResult, 'clone_ms', () => {
             solverOps.restore(initialSnapshot);
         });
+        const noveltyTracker = createSolverNoveltyTracker(options);
         const nodes = timeBlock(modeResult, 'snapshot_ms', () => [
             { snapshot: solverOps.capture(), parent: -1, input: null, depth: 0 },
         ]);
@@ -3468,7 +3822,12 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         if (mode !== 'bfs') {
             initialHeuristic = invokeHeuristic(solverOps, modeResult);
         }
-        frontier.push({ priority: priorityForMode(mode, 0, initialHeuristic, options.astarWeight || 2), tie: 0, index: 0 });
+        frontier.push({
+            priority: priorityForMode(mode, 0, initialHeuristic, options.astarWeight || 2),
+            novelty: noveltyTracker ? 1 : undefined,
+            tie: 0,
+            index: 0,
+        });
         modeResult.max_frontier = 1;
         let tie = 1;
         const actions = solverActionsForGame();
@@ -3553,22 +3912,26 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 } else {
                     modeResult.unique_states = bestDepth.size;
                 }
+                const novelty = noveltyTracker
+                    ? (noveltyTracker.testAndRecord(level.objects) ? 0 : 1)
+                    : undefined;
                 let childHeuristic = 0;
                 if (mode !== 'bfs') {
                     childHeuristic = invokeHeuristic(solverOps, modeResult);
                 }
                 let priorityMode = mode;
-                if (options.adaptiveStepCost
-                    && mode === 'weighted-astar'
+                if (adaptiveStepCostActive
                     && modeResult.generated >= 64
                     && modeResult.step_ms > 0
                     && modeResult.step_ms / modeResult.generated > 0.2) {
                     priorityMode = 'greedy';
+                    modeResult.adaptive_step_cost_triggered++;
                 }
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'queue_ms', () => {
                         frontier.push({
                             priority: priorityForMode(priorityMode, childDepth, childHeuristic, options.astarWeight || 2),
+                            novelty,
                             tie: tie++,
                             index: childIndex,
                         });
@@ -3576,11 +3939,204 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 } else {
                     frontier.push({
                         priority: priorityForMode(priorityMode, childDepth, childHeuristic, options.astarWeight || 2),
+                        novelty,
                         tie: tie++,
                         index: childIndex,
                     });
                 }
                 modeResult.max_frontier = Math.max(modeResult.max_frontier, frontier.length);
+            }
+        }
+
+        modeResult.solution_length = modeResult.solution.length;
+        modeResult.elapsed_ms = Date.now() - searchStarted;
+        return finalizeRuleHotspots(modeResult);
+    };
+
+    const runPushSpace = (modeDeadline) => {
+        const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        if (SOLVER_RULE_HOTSPOTS) {
+            modeResult._ruleHotspots = new Map();
+        }
+        modeResult.load_ms = result.load_ms;
+        modeResult.strategy = 'push-space';
+        modeResult.heuristic = 'push-macro-bfs';
+        const solverOps = createSolverLevelSpecialization(options);
+        modeResult.hash_mode = solverOps.hashMode;
+        modeResult.snapshot_mode = solverOps.snapshotMode;
+        timeBlock(modeResult, 'clone_ms', () => {
+            solverOps.restore(initialSnapshot);
+        });
+
+        const playerMask = state.playerMask && state.playerMask[1];
+        if (!playerMask || !playerMask.data) {
+            modeResult.status = 'exhausted';
+            modeResult.elapsed_ms = Date.now() - searchStarted;
+            return finalizeRuleHotspots(modeResult);
+        }
+        const blockingWords = createPushSpaceBlockingWords(state, STRIDE_OBJ);
+
+        const nodes = timeBlock(modeResult, 'snapshot_ms', () => [
+            { snapshot: solverOps.capture(), parent: -1, input: null, depth: 0 },
+        ]);
+        const visited = useHashBuckets ? new VisitedStateBuckets(nodes, solverOps) : null;
+        const bestDepth = useHashBuckets ? null : new Map();
+        timeBlock(modeResult, 'hash_ms', () => {
+            const initialHash = solverOps.hash();
+            if (useHashBuckets) {
+                visited.addInitial(initialHash, 0);
+            } else {
+                bestDepth.set(initialHash, 0);
+            }
+        });
+        modeResult.unique_states = useHashBuckets ? visited.size : bestDepth.size;
+
+        const frontier = new MinHeap();
+        frontier.push({ priority: 0, tie: 0, index: 0 });
+        modeResult.max_frontier = 1;
+        let tie = 1;
+
+        while (frontier.length > 0) {
+            if (Date.now() >= modeDeadline) {
+                modeResult.status = 'timeout';
+                break;
+            }
+            const entry = SOLVER_DETAIL_TIMING
+                ? timeBlock(modeResult, 'queue_ms', () => frontier.pop())
+                : frontier.pop();
+            const node = nodes[entry.index];
+            if (SOLVER_DETAIL_TIMING) {
+                timeBlock(modeResult, 'clone_ms', () => {
+                    solverOps.restore(node.snapshot);
+                });
+            } else {
+                solverOps.restore(node.snapshot);
+            }
+            const playerPositions = getPlayerPositions();
+            if (playerPositions.length !== 1) {
+                continue;
+            }
+            const reachable = computePushSpaceReachability({
+                objects: level.objects,
+                width: level.width,
+                height: level.height,
+                stride: STRIDE_OBJ,
+                startTiles: playerPositions,
+                blockingLayerWords: blockingWords,
+            });
+            modeResult.expanded++;
+
+            for (let standTile = 0; standTile < level.n_tiles; standTile++) {
+                if (!reachable.reachable[standTile]) {
+                    continue;
+                }
+                const standX = (standTile / level.height) | 0;
+                const standY = standTile % level.height;
+                for (const action of DIRECTION_ACTIONS) {
+                    const delta = DIRECTION_TOKEN_DELTAS[action.token];
+                    const targetX = standX + delta[0];
+                    const targetY = standY + delta[1];
+                    if (targetX < 0 || targetX >= level.width || targetY < 0 || targetY >= level.height) {
+                        continue;
+                    }
+                    const targetTile = targetX * level.height + targetY;
+                    if (!wordsTouchMaskAt(level.objects, STRIDE_OBJ, targetTile, blockingWords)) {
+                        continue;
+                    }
+                    const walkPath = reachable.pathTo(standTile);
+                    if (walkPath === null) {
+                        continue;
+                    }
+                    const macro = walkPath.concat(action.token);
+                    if (SOLVER_DETAIL_TIMING) {
+                        timeBlock(modeResult, 'clone_ms', () => {
+                            solverOps.restore(node.snapshot);
+                        });
+                    } else {
+                        solverOps.restore(node.snapshot);
+                    }
+
+                    let macroChanged = false;
+                    let failedMacro = false;
+                    for (let macroIndex = 0; macroIndex < macro.length; macroIndex++) {
+                        const macroAction = DIRECTION_ACTIONS.find(candidate => candidate.token === macro[macroIndex]);
+                        const stepResult = SOLVER_DETAIL_TIMING
+                            ? timeBlock(modeResult, 'step_ms', () => stepSolverAction(macroAction, modeResult))
+                            : stepSolverAction(macroAction, modeResult);
+                        modeResult.generated++;
+                        if (stepResult.solved) {
+                            const solvedTokens = macro.slice(0, macroIndex + 1);
+                            let finalized = false;
+                            if (SOLVER_DETAIL_TIMING) {
+                                finalized = timeBlock(modeResult, 'reconstruct_ms', () =>
+                                    tryFinalizeSolvedMacroResult(modeResult, nodes, entry.index, solvedTokens, node.depth + 1, game, levelIndex, searchStarted)
+                                );
+                            } else {
+                                finalized = tryFinalizeSolvedMacroResult(modeResult, nodes, entry.index, solvedTokens, node.depth + 1, game, levelIndex, searchStarted);
+                            }
+                            if (!finalized) {
+                                failedMacro = true;
+                                break;
+                            }
+                            return finalizeRuleHotspots(modeResult);
+                        }
+                        if (stepResult.changed) {
+                            modeResult.step_changed++;
+                            macroChanged = true;
+                        } else {
+                            modeResult.step_no_op++;
+                            failedMacro = true;
+                            break;
+                        }
+                    }
+                    if (failedMacro || !macroChanged) {
+                        continue;
+                    }
+
+                    const key = SOLVER_DETAIL_TIMING
+                        ? timeBlock(modeResult, 'hash_ms', () => solverOps.hash())
+                        : solverOps.hash();
+                    const childDepth = node.depth + 1;
+                    let visitedMatch = null;
+                    if (useHashBuckets) {
+                        visitedMatch = visited.find(key, childDepth);
+                        if (visitedMatch.duplicate) {
+                            modeResult.duplicates++;
+                            continue;
+                        }
+                    } else {
+                        if (bestDepth.has(key) && bestDepth.get(key) <= childDepth) {
+                            modeResult.duplicates++;
+                            continue;
+                        }
+                        bestDepth.set(key, childDepth);
+                    }
+                    const snapshot = SOLVER_DETAIL_TIMING
+                        ? timeBlock(modeResult, 'snapshot_ms', () => solverOps.capture())
+                        : solverOps.capture();
+                    nodes.push({
+                        snapshot,
+                        parent: entry.index,
+                        input: macro,
+                        depth: childDepth,
+                    });
+                    const childIndex = nodes.length - 1;
+                    if (useHashBuckets) {
+                        visited.record(key, childDepth, childIndex, visitedMatch.entry, visitedMatch.collided);
+                        modeResult.unique_states = visited.size;
+                        modeResult.hash_collisions = visited.collisions;
+                    } else {
+                        modeResult.unique_states = bestDepth.size;
+                    }
+                    if (SOLVER_DETAIL_TIMING) {
+                        timeBlock(modeResult, 'queue_ms', () => {
+                            frontier.push({ priority: childDepth, tie: tie++, index: childIndex });
+                        });
+                    } else {
+                        frontier.push({ priority: childDepth, tie: tie++, index: childIndex });
+                    }
+                    modeResult.max_frontier = Math.max(modeResult.max_frontier, frontier.length);
+                }
             }
         }
 
@@ -3597,6 +4153,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         modeResult.load_ms = result.load_ms;
         modeResult.strategy = 'portfolio';
         modeResult.heuristic = 'mixed';
+        if (SOLVER_RULE_HOTSPOTS) {
+            modeResult._ruleHotspots = new Map();
+        }
         const heuristicNames = Array.isArray(options.portfolioHeuristics) && options.portfolioHeuristics.length > 0
             ? options.portfolioHeuristics.slice()
             : [options.solverHeuristic || DEFAULT_SOLVER_HEURISTIC];
@@ -3608,6 +4167,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         timeBlock(modeResult, 'clone_ms', () => {
             primarySpec.restore(initialSnapshot);
         });
+        const noveltyTracker = createSolverNoveltyTracker(options);
         const initialHeuristics = new Float64Array(specs.length);
         for (let i = 0; i < specs.length; i++) {
             initialHeuristics[i] = invokeHeuristic(specs[i], modeResult);
@@ -3664,6 +4224,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         for (const mode of portfolioModes) {
             mode.heap.push({
                 priority: priorityForPortfolioMode(mode.priorityMode, 0, initialHeuristics[mode.heuristicIndex], portfolioAstarWeight),
+                novelty: noveltyTracker ? 1 : undefined,
                 tie: tie++,
                 index: 0,
             });
@@ -3825,11 +4386,15 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 } else {
                     modeResult.unique_states = bestDepth.size;
                 }
+                const novelty = noveltyTracker
+                    ? (noveltyTracker.testAndRecord(level.objects) ? 0 : 1)
+                    : undefined;
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'queue_ms', () => {
                         for (const mode of queueModes) {
                             mode.heap.push({
                                 priority: priorityForPortfolioMode(mode.priorityMode, childDepth, childHeuristics[mode.heuristicIndex], portfolioAstarWeight),
+                                novelty,
                                 tie: tie++,
                                 index: childIndex,
                             });
@@ -3840,6 +4405,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                     for (const mode of queueModes) {
                         mode.heap.push({
                             priority: priorityForPortfolioMode(mode.priorityMode, childDepth, childHeuristics[mode.heuristicIndex], portfolioAstarWeight),
+                            novelty,
                             tie: tie++,
                             index: childIndex,
                         });
@@ -3857,6 +4423,10 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     if (strategy === 'portfolio') {
         return runAdaptivePortfolio(deadline);
+    }
+
+    if (strategy === 'push-space') {
+        return runPushSpace(deadline);
     }
 
     if (strategy === 'phase-split') {
@@ -3883,11 +4453,12 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             if (lastResult) {
                 phaseResult.expanded += lastResult.expanded;
                 phaseResult.generated += lastResult.generated;
+                phaseResult.process_input_calls += lastResult.process_input_calls || 0;
+                phaseResult.again_passes += lastResult.again_passes || 0;
                 phaseResult.duplicates += lastResult.duplicates;
                 phaseResult.step_no_op += lastResult.step_no_op || 0;
                 phaseResult.step_changed += lastResult.step_changed || 0;
-                phaseResult.process_input_calls += lastResult.process_input_calls || 0;
-                phaseResult.again_passes += lastResult.again_passes || 0;
+                phaseResult.adaptive_step_cost_triggered += lastResult.adaptive_step_cost_triggered || 0;
                 phaseResult.heuristic_ms += lastResult.heuristic_ms;
                 phaseResult.heuristic_classify_ms += lastResult.heuristic_classify_ms || 0;
                 phaseResult.heuristic_score_ms += lastResult.heuristic_score_ms || 0;
@@ -3909,13 +4480,13 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             if (phaseResult.status === 'solved') {
                 options.solverHeuristic = originalHeuristic;
                 phaseResult.elapsed_ms = Date.now() - searchStarted;
-                return phaseResult;
+                return finalizeRuleHotspots(phaseResult);
             }
         }
         options.solverHeuristic = originalHeuristic;
         if (lastResult) {
             lastResult.elapsed_ms = Date.now() - searchStarted;
-            return lastResult;
+            return finalizeRuleHotspots(lastResult);
         }
         // Shouldn't reach here, but safe fallback.
         return runMode('weighted-astar', deadline);
@@ -3937,6 +4508,8 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         generated: 0,
         process_input_calls: 0,
         again_passes: 0,
+        adaptive_step_cost: false,
+        adaptive_step_cost_triggered: 0,
         unique_states: 0,
         duplicates: 0,
         step_no_op: 0,
@@ -3966,7 +4539,6 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         step_profile_rule_match_ms: 0,
         step_profile_rule_apply_ms: 0,
         rule_hotspots: [],
-        adaptive_step_cost: false,
     };
 }
 
@@ -4067,6 +4639,8 @@ function runGame(root, file, options = {}) {
             generated: 0,
             process_input_calls: 0,
             again_passes: 0,
+            adaptive_step_cost: false,
+            adaptive_step_cost_triggered: 0,
             unique_states: 0,
             duplicates: 0,
             hash_collisions: 0,
@@ -4095,7 +4669,6 @@ function runGame(root, file, options = {}) {
             step_profile_rule_match_ms: 0,
             step_profile_rule_apply_ms: 0,
             rule_hotspots: [],
-            adaptive_step_cost: false,
         }];
     }
     return {
@@ -4549,6 +5122,7 @@ function totals(results) {
         generated: 0,
         process_input_calls: 0,
         again_passes: 0,
+        adaptive_step_cost_triggered: 0,
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
@@ -4602,6 +5176,7 @@ function totals(results) {
         out.generated += result.generated;
         out.process_input_calls += result.process_input_calls || 0;
         out.again_passes += result.again_passes || 0;
+        out.adaptive_step_cost_triggered += result.adaptive_step_cost_triggered || 0;
         out.step_no_op += result.step_no_op || 0;
         out.step_changed += result.step_changed || 0;
         out.hash_collisions += result.hash_collisions || 0;
@@ -4668,6 +5243,16 @@ function printSolutionsLocation(options) {
     process.stdout.write(`Solutions: ${options.writeSolutions ? options.solutionsDir : 'disabled'}\n`);
 }
 
+function takesValueArg(arg) {
+    return [
+        '--bench-store',
+        '--bench-slice',
+        '--bench-variant',
+        '--bench-pair-id',
+        '--bench-artifact',
+    ].includes(arg);
+}
+
 //--jobs N: shard the game list across N child processes and merge their JSON
 //results. Solve counts at a fixed wall-clock timeout are NOT comparable with
 //serial runs when workers contend for cores - use parallel mode for
@@ -4678,6 +5263,10 @@ function runParallel(options) {
     const args = process.argv.slice(2);
     for (let index = 0; index < args.length; index++) {
         if (args[index] === '--jobs') {
+            index++;
+            continue;
+        }
+        if (takesValueArg(args[index])) {
             index++;
             continue;
         }
@@ -4714,19 +5303,72 @@ function runParallel(options) {
     });
 }
 
+function buildJsonPayload(results) {
+    const t = totals(results);
+    const payload = { results, totals: t };
+    const optNest = buildSolverOptimizationJsonTotals(t);
+    if (optNest) {
+        payload.totals.solver_optimization = optNest;
+    }
+    if (t.solver_optimization_gated) {
+        payload.totals.solver_optimization_gated = true;
+    }
+    return payload;
+}
+
+function benchStoreConfig(options) {
+    return {
+        runner: 'run_solver_tests_js',
+        corpus: options.corpusPath,
+        timeout_ms: options.timeoutMs,
+        strategy: options.strategy,
+        astar_weight: options.astarWeight,
+        solver_heuristic: options.solverHeuristic,
+        portfolio_bfs_ms: options.portfolioBfsMs,
+        portfolio_heuristics: options.portfolioHeuristics,
+        solver_focus_manifest: options.solverFocusManifest,
+        solver_static_hash: options.solverStaticHash,
+        solver_optimize_static: options.solverOptimizeStatic,
+        solver_opt_passes: options.solverOptPasses,
+        solver_opt_parity: options.solverOptParity,
+        force_noaction: options.forceNoaction,
+        adaptive_step_cost: options.adaptiveStepCost,
+        jobs: options.jobs,
+        filters: {
+            game: options.gameFilter,
+            level: options.levelFilter,
+        },
+    };
+}
+
+function appendBenchStore(options, payload) {
+    if (options.benchStorePath === null) {
+        return;
+    }
+    const artifacts = [];
+    if (options.benchArtifactPath !== null) {
+        fs.mkdirSync(path.dirname(options.benchArtifactPath), { recursive: true });
+        fs.writeFileSync(options.benchArtifactPath, `${JSON.stringify(payload, null, 2)}\n`);
+        artifacts.push(options.benchArtifactPath);
+    }
+    const record = createRunRecord(payload, {
+        benchmark_slice: options.benchSlice,
+        variant: options.benchVariant,
+        pair_id: options.benchPairId,
+        source_path: options.benchArtifactPath,
+        artifacts,
+        config: benchStoreConfig(options),
+    });
+    appendRunRecord(options.benchStorePath, record);
+}
+
 function emitResults(options, results) {
     if (options.json) {
-        const t = totals(results);
-        const payload = { results, totals: t };
-        const optNest = buildSolverOptimizationJsonTotals(t);
-        if (optNest) {
-            payload.totals.solver_optimization = optNest;
-        }
-        if (t.solver_optimization_gated) {
-            payload.totals.solver_optimization_gated = true;
-        }
+        const payload = buildJsonPayload(results);
+        appendBenchStore(options, payload);
         process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     } else if (options.summaryOnly) {
+        appendBenchStore(options, buildJsonPayload(results));
         const elapsedMs = results.reduce((sum, result) => sum + result.elapsed_ms, 0);
         printHumanBlock(process.stdout, 'Totals', summarizeHuman(results), elapsedMs);
         const optLine = formatSolverOptimizationHumanSuffixFromTotals(totals(results));
@@ -4735,6 +5377,7 @@ function emitResults(options, results) {
         }
         printSolutionsLocation(options);
     } else {
+        appendBenchStore(options, buildJsonPayload(results));
         printHuman(results);
         printSolutionsLocation(options);
     }
@@ -4782,4 +5425,10 @@ module.exports = {
     compileGameFile,
     replaySolutionOnCurrentCompiledState,
     replaySolutionOnGameFile,
+    __solverSearchInternals: {
+        compareSolverQueueItems,
+        createObjectNoveltyTracker,
+        createPushSpaceBlockingWords,
+        computePushSpaceReachability,
+    },
 };

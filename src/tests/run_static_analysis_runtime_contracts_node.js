@@ -163,6 +163,7 @@ function emptyStaticContract(unavailableReason) {
         inertCommandRuleSourceLines: [],
         mergeCandidatePairs: [],
         winflowFact: null,
+        certifiedWakeMaskFacts: [],
         staticAnalysisReport: null,
         referencedObjectNames: [],
         actionUnnecessaryProved: false,
@@ -351,7 +352,7 @@ function staticContractForSource(source, testName) {
     const sourcePath = `testdata:${testName}`;
     const report = analyzeSource(source, {
         sourcePath,
-        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'mergeability', 'winflow'],
+        familyFilter: ['count_layer_invariants', 'transient_boundary', 'movement_action', 'mergeability', 'winflow', 'certified_wake_masks'],
     });
     const unavailableReason = expectedAnalysisUnavailable(report, testName, sourcePath);
     if (unavailableReason) {
@@ -364,6 +365,8 @@ function staticContractForSource(source, testName) {
     const movementFacts = (report.facts && report.facts.movement_action) || [];
     const winflowFact = ((report.facts && report.facts.winflow) || [])
         .find(fact => fact && fact.id === 'winflow' && fact.status === 'proved') || null;
+    const certifiedWakeMaskFacts = ((report.facts && report.facts.certified_wake_masks) || [])
+        .filter(fact => fact && fact.status === 'proved');
     const referencedObjectNames = ruleReferencedObjectNames(report.ps_tagged);
     const contractCosmeticRuleLines = cosmeticRuleSourceLines(report.ps_tagged);
     const optimizerCosmeticRuleLines = Array.from(optimizerCosmeticRuleSourceLines(report))
@@ -404,6 +407,7 @@ function staticContractForSource(source, testName) {
         inertCommandRuleSourceLines: inertCommandRuleSourceLines(report.ps_tagged),
         mergeCandidatePairs: mergeabilityCandidatePairs(report),
         winflowFact,
+        certifiedWakeMaskFacts,
         staticAnalysisReport: report,
         referencedObjectNames,
         actionUnnecessaryProved: movementFacts.some(fact => fact.id === 'action_unnecessary' && fact.status === 'proved'),
@@ -1146,6 +1150,146 @@ function installWinflowRuleRecorder(staticAnalysisReport, appliedRuleIds) {
     };
 }
 
+function certifiedWakeMaskFactsByRuleId(facts) {
+    const byRuleId = new Map();
+    for (const fact of facts || []) {
+        const ruleId = fact && fact.subjects && fact.subjects.rules && fact.subjects.rules[0];
+        if (ruleId) byRuleId.set(ruleId, fact);
+    }
+    return byRuleId;
+}
+
+function bitVecFromWords(words, stride) {
+    const vec = new BitVec(stride);
+    const source = Array.isArray(words) ? words : [];
+    for (let index = 0; index < stride; index++) {
+        vec.data[index] = source[index] | 0;
+    }
+    return vec;
+}
+
+function bitVecOr(left, right, stride) {
+    const vec = new BitVec(stride);
+    for (let index = 0; index < stride; index++) {
+        vec.data[index] = ((left && left.data ? left.data[index] : 0) | (right && right.data ? right.data[index] : 0)) | 0;
+    }
+    return vec;
+}
+
+function bitVecSubsetOf(left, right) {
+    const leftData = left && left.data ? left.data : [];
+    const rightData = right && right.data ? right.data : [];
+    const length = Math.max(leftData.length, rightData.length);
+    for (let index = 0; index < length; index++) {
+        const leftWord = (leftData[index] || 0) >>> 0;
+        const rightWord = (rightData[index] || 0) >>> 0;
+        if (((leftWord & ~rightWord) >>> 0) !== 0) return false;
+    }
+    return true;
+}
+
+function firstMissingBitIndices(left, right) {
+    const missing = [];
+    const length = Math.max(
+        left && left.data ? left.data.length : 0,
+        right && right.data ? right.data.length : 0
+    );
+    for (let wordIndex = 0; wordIndex < length; wordIndex++) {
+        let word = (((left && left.data ? left.data[wordIndex] : 0) >>> 0)
+            & ~((right && right.data ? right.data[wordIndex] : 0) >>> 0)) >>> 0;
+        while (word !== 0 && missing.length < 8) {
+            const bit = Math.clz32(word & -word) ^ 31;
+            missing.push(wordIndex * 32 + bit);
+            word &= word - 1;
+        }
+    }
+    return missing;
+}
+
+function assertCertifiedMaskCovers(testName, ruleId, label, runtimeMask, certifiedMask) {
+    if (bitVecSubsetOf(runtimeMask, certifiedMask)) return 1;
+    throw new Error([
+        `${testName}: certified wake mask under-covers runtime mask`,
+        `  rule: ${ruleId}`,
+        `  mask: ${label}`,
+        `  missing bits: ${JSON.stringify(firstMissingBitIndices(runtimeMask, certifiedMask))}`,
+        `  runtime: ${JSON.stringify(Array.from((runtimeMask && runtimeMask.data) || []))}`,
+        `  certified: ${JSON.stringify(Array.from((certifiedMask && certifiedMask.data) || []))}`,
+    ].join('\n'));
+}
+
+function validateCertifiedWakeMasks(testName, staticAnalysisReport, certifiedWakeMaskFacts) {
+    const factsByRuleId = certifiedWakeMaskFactsByRuleId(certifiedWakeMaskFacts);
+    const staticGroups = staticRuleGroupsByRuntimePhase(staticAnalysisReport);
+    let runtimeRuleCount = 0;
+    let staticRuleCount = 0;
+    let mappedRuleCount = 0;
+    let certifiedRuleCount = 0;
+    let checks = 0;
+
+    function validatePhase(runtimeGroups, phaseGroups) {
+        runtimeRuleCount += (runtimeGroups || []).reduce((sum, group) => sum + group.length, 0);
+        staticRuleCount += (phaseGroups || []).reduce((sum, group) => sum + group.length, 0);
+        const groupCount = Math.min((runtimeGroups || []).length, (phaseGroups || []).length);
+        for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+            const runtimeGroup = runtimeGroups[groupIndex] || [];
+            const staticGroup = phaseGroups[groupIndex] || [];
+            const ruleCount = Math.min(runtimeGroup.length, staticGroup.length);
+            for (let ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++) {
+                const runtimeRule = runtimeGroup[ruleIndex];
+                const staticRule = staticGroup[ruleIndex];
+                if (!runtimeRule || !staticRule) continue;
+                mappedRuleCount++;
+                const fact = factsByRuleId.get(staticRule.id);
+                if (!fact) continue;
+                const value = fact.value || {};
+                const masks = value.masks || {};
+                const format = value.bitvec_format || {};
+                if (format.object_words !== STRIDE_OBJ || format.movement_words !== STRIDE_MOV) {
+                    throw new Error([
+                        `${testName}: certified wake mask word layout mismatch`,
+                        `  rule: ${staticRule.id}`,
+                        `  certified object_words=${format.object_words} movement_words=${format.movement_words}`,
+                        `  runtime STRIDE_OBJ=${STRIDE_OBJ} STRIDE_MOV=${STRIDE_MOV}`,
+                    ].join('\n'));
+                }
+                certifiedRuleCount++;
+                const certifiedReadObjects = bitVecOr(
+                    bitVecFromWords(masks.read_objects_present, STRIDE_OBJ),
+                    bitVecFromWords(masks.read_objects_absent, STRIDE_OBJ),
+                    STRIDE_OBJ
+                );
+                const certifiedWriteObjects = bitVecOr(
+                    bitVecFromWords(masks.write_objects_set, STRIDE_OBJ),
+                    bitVecFromWords(masks.write_objects_clear, STRIDE_OBJ),
+                    STRIDE_OBJ
+                );
+                checks += assertCertifiedMaskCovers(testName, staticRule.id, 'readObjects', runtimeRule.readObjects, masks.read_objects_wake
+                    ? bitVecFromWords(masks.read_objects_wake, STRIDE_OBJ)
+                    : certifiedReadObjects);
+                checks += assertCertifiedMaskCovers(testName, staticRule.id, 'readMovements', runtimeRule.readMovements, bitVecFromWords(masks.runtime_read_movements_wake || masks.read_movements_wake, STRIDE_MOV));
+                checks += assertCertifiedMaskCovers(testName, staticRule.id, 'writeObjects', runtimeRule.writeObjects, masks.runtime_write_objects_wake
+                    ? bitVecFromWords(masks.runtime_write_objects_wake, STRIDE_OBJ)
+                    : masks.write_objects_wake
+                    ? bitVecFromWords(masks.write_objects_wake, STRIDE_OBJ)
+                    : certifiedWriteObjects);
+                checks += assertCertifiedMaskCovers(testName, staticRule.id, 'writeMovements', runtimeRule.writeMovements, bitVecFromWords(masks.runtime_write_movements_wake || masks.write_movements_wake, STRIDE_MOV));
+            }
+        }
+    }
+
+    validatePhase(state.rules, staticGroups.early);
+    validatePhase(state.lateRules, staticGroups.late);
+    return {
+        checks,
+        certifiedRuleCount,
+        mappedRuleCount,
+        runtimeRuleCount,
+        staticRuleCount,
+        complete: runtimeRuleCount === staticRuleCount && mappedRuleCount === runtimeRuleCount,
+    };
+}
+
 function inputMayMoveWithoutRule(inputToken) {
     const normalizedInputToken = normalizeRuntimeInputToken(inputToken);
     return Number.isInteger(normalizedInputToken)
@@ -1648,6 +1792,9 @@ function runSimulationWithStaticChecks(testName, dataarray) {
     const winflowAppliedRuleIds = new Set();
     let winflowCache = [];
     let winflowRecorderComplete = false;
+    let certifiedWakeMaskRuleCount = 0;
+    let certifiedWakeMaskChecks = 0;
+    let certifiedWakeMaskRecorderComplete = false;
     const countedObjects = quantityObjectNames(quantityContracts);
     const actionUnnecessaryProved = staticContract.actionUnnecessaryProved;
     const tickNoopProved = staticContract.tickNoopProved;
@@ -1702,6 +1849,14 @@ function runSimulationWithStaticChecks(testName, dataarray) {
         mergeGroupCount = mergeAliases.groups;
         const winflowRecorder = installWinflowRuleRecorder(staticContract.staticAnalysisReport, winflowAppliedRuleIds);
         winflowRecorderComplete = winflowRecorder.complete;
+        const certifiedWakeMaskValidation = validateCertifiedWakeMasks(
+            testName,
+            staticContract.staticAnalysisReport,
+            staticContract.certifiedWakeMaskFacts
+        );
+        certifiedWakeMaskRuleCount = certifiedWakeMaskValidation.certifiedRuleCount;
+        certifiedWakeMaskChecks = certifiedWakeMaskValidation.checks;
+        certifiedWakeMaskRecorderComplete = certifiedWakeMaskValidation.complete;
         winflowCache = winconditionTruthSnapshot();
         if (noAgainProved) {
             noAgainBoundaryChecks++;
@@ -2120,6 +2275,9 @@ function runSimulationWithStaticChecks(testName, dataarray) {
             winflowWinconditionCount: winflowContract.winIds.length,
             winflowBoundaryChecks,
             winflowCleanWinconditionChecks,
+            certifiedWakeMaskRuleCount,
+            certifiedWakeMaskChecks,
+            certifiedWakeMaskRecorderComplete,
             analysisUnavailableReason: staticContract.unavailableReason,
         };
     } finally {
@@ -2162,6 +2320,7 @@ function runAll(options = {}) {
     let casesWithNoAgain = 0;
     let casesWithNoRandomReplayChecks = 0;
     let casesWithWinflowCleanChecks = 0;
+    let casesWithCertifiedWakeMasks = 0;
     let objectBoundaryChecks = 0;
     let staticLayerBoundaryChecks = 0;
     let inertLayerBoundaryChecks = 0;
@@ -2179,6 +2338,7 @@ function runAll(options = {}) {
     let noRandomReplayChecks = 0;
     let winflowBoundaryChecks = 0;
     let winflowCleanWinconditionChecks = 0;
+    let certifiedWakeMaskChecks = 0;
     let analysisUnavailableCount = 0;
     const entries = global.testdata.filter(entry => testMatchesFilter(entry[0], options.filter || null));
 
@@ -2243,6 +2403,9 @@ function runAll(options = {}) {
             if (result.winflowCleanWinconditionChecks > 0) {
                 casesWithWinflowCleanChecks++;
             }
+            if (result.certifiedWakeMaskRuleCount > 0) {
+                casesWithCertifiedWakeMasks++;
+            }
             objectBoundaryChecks += result.objectBoundaryChecks;
             staticLayerBoundaryChecks += result.staticLayerBoundaryChecks;
             inertLayerBoundaryChecks += result.inertLayerBoundaryChecks;
@@ -2260,6 +2423,7 @@ function runAll(options = {}) {
             noRandomReplayChecks += result.noRandomReplayChecks;
             winflowBoundaryChecks += result.winflowBoundaryChecks;
             winflowCleanWinconditionChecks += result.winflowCleanWinconditionChecks;
+            certifiedWakeMaskChecks += result.certifiedWakeMaskChecks;
             if (result.analysisUnavailableReason) {
                 analysisUnavailableCount++;
                 progressLog(options, `static_analysis_runtime_contracts:   static analysis unavailable: ${result.analysisUnavailableReason}`);
@@ -2287,6 +2451,7 @@ function runAll(options = {}) {
         casesWithNoAgain,
         casesWithNoRandomReplayChecks,
         casesWithWinflowCleanChecks,
+        casesWithCertifiedWakeMasks,
         objectBoundaryChecks,
         staticLayerBoundaryChecks,
         layerBoundaryChecks: staticLayerBoundaryChecks,
@@ -2305,6 +2470,7 @@ function runAll(options = {}) {
         noRandomReplayChecks,
         winflowBoundaryChecks,
         winflowCleanWinconditionChecks,
+        certifiedWakeMaskChecks,
         analysisUnavailableCount,
         failures,
     };
@@ -2327,7 +2493,7 @@ function main() {
     }
 
     console.log(
-        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
+        `static_analysis_runtime_contracts: ok (${result.caseCount} cases, ${result.analysisUnavailableCount} analysis-unavailable, ${result.casesWithStaticObjects} with static objects, ${result.casesWithStaticLayers} with static layers, ${result.casesWithInertLayers} with inert layers, ${result.casesWithConstantQuantityObjects} with constant-quantity objects, ${result.casesWithTemporaryObjects} with temporary objects, ${result.casesWithNeverAppearsObjects} with never-appears objects, ${result.casesWithCosmeticObjects} with projectable cosmetic objects, ${result.casesWithCosmeticRules} with cosmetic rules, ${result.casesWithInertCommandRules} with inert command rules, ${result.casesWithMergeAliases} with merge aliases, ${result.casesWithActionUnnecessary} with action-unnecessary, ${result.casesWithTickNoop} with tick-noop, ${result.casesWithNoAgain} with no-again, ${result.casesWithNoRandomReplayChecks} with no-random replay checks, ${result.casesWithWinflowCleanChecks} with winflow clean checks, ${result.casesWithCertifiedWakeMasks} with certified wake masks, ${result.objectBoundaryChecks} object-boundary checks, ${result.staticLayerBoundaryChecks} static-layer-boundary checks, ${result.inertLayerBoundaryChecks} inert-layer-boundary checks, ${result.quantityBoundaryChecks} quantity-boundary checks, ${result.temporaryBoundaryChecks} temporary-boundary checks, ${result.neverAppearsBoundaryChecks} never-appears-boundary checks, ${result.cosmeticProjectionChecks} cosmetic-projection checks, ${result.cosmeticRuleProjectionChecks} cosmetic-rule-projection checks, ${result.cosmeticRuleOptimizerProjectionChecks} cosmetic-rule-optimizer checks, ${result.inertCommandRuleSuppressionChecks} inert-command-rule-suppression checks, ${result.mergeProjectionChecks} merge-projection checks, ${result.winflowBoundaryChecks} winflow-boundary checks, ${result.winflowCleanWinconditionChecks} winflow-clean-wincondition checks, ${result.certifiedWakeMaskChecks} certified wake-mask checks, ${result.actionUnnecessaryBoundaryChecks} action-unnecessary-boundary checks, ${result.tickNoopBoundaryChecks} tick-noop-boundary checks, ${result.noAgainBoundaryChecks} no-again checks, ${result.noRandomReplayChecks} no-random replay checks)`
     );
     return 0;
 }

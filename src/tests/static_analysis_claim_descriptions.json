@@ -211,6 +211,260 @@
       ]
     },
     {
+      "name": "certified_wake_masks",
+      "description": "Fixtures for per-rule certified wake-mask artifacts.",
+      "specification": "Each certified_wake_masks fixture contains wakeMasks rows keyed by rule line and exact source text. Rows may assert readable polarity lists, engine-shaped Int32 word masks, or both.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "wakeMasks",
+          "type": "array",
+          "description": "Per-rule certified wake-mask rows.",
+          "specification": "Each row identifies one analyzed rule and may assert any subset of the generated S1 certificate.",
+          "items": {
+            "type": "object",
+            "fields": [
+              {
+                "name": "line",
+                "type": "integer",
+                "description": "1-based source line of the rule.",
+                "specification": "Together with text, this must identify exactly one analyzed rule."
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "description": "Trimmed source text of the rule.",
+                "specification": "The runner resolves this source-facing locator against analyzed rule records."
+              },
+              {
+                "name": "bitvec_format",
+                "type": "object",
+                "description": "Engine bit-vector layout used by this row's masks.",
+                "specification": "Object masks use object ids. Movement masks use five bits per collision layer in up/down/left/right/action order and the engine's movement word count.",
+                "fields": [
+                  {
+                    "name": "object_words",
+                    "type": "integer",
+                    "description": "Number of Int32 words in object masks.",
+                    "specification": "Matches the engine STRIDE_OBJ for this analyzed game."
+                  },
+                  {
+                    "name": "movement_words",
+                    "type": "integer",
+                    "description": "Number of Int32 words in movement masks.",
+                    "specification": "Matches the engine STRIDE_MOV for this analyzed game."
+                  },
+                  {
+                    "name": "movement_bits_per_layer",
+                    "type": "integer",
+                    "description": "Movement bits allocated to each collision layer.",
+                    "specification": "Always 5 for the current engine format."
+                  },
+                  {
+                    "name": "movement_bit_names",
+                    "type": "string[]",
+                    "description": "Names of movement bits within each layer.",
+                    "specification": "Always up, down, left, right, action in bit order."
+                  }
+                ]
+              },
+              {
+                "name": "reads",
+                "type": "object",
+                "description": "Readable read-side wake sets with polarity.",
+                "specification": "Object lists contain display names. Movement lists use Object:movement keys.",
+                "fields": [
+                  {
+                    "name": "object_present",
+                    "type": "string[]",
+                    "description": "Objects whose presence may be read by the rule.",
+                    "specification": "Derived from positive LHS terms after resolving object sets."
+                  },
+                  {
+                    "name": "object_absent",
+                    "type": "string[]",
+                    "description": "Objects whose absence may be read by the rule.",
+                    "specification": "Derived from negated LHS terms after resolving object sets."
+                  },
+                  {
+                    "name": "movement",
+                    "type": "string[]",
+                    "description": "All object movement reads.",
+                    "specification": "Includes both present-movement reads and stationary absence reads."
+                  },
+                  {
+                    "name": "movement_present",
+                    "type": "string[]",
+                    "description": "Object movement bits that must be present for the rule to match.",
+                    "specification": "Excludes stationary, which is represented as a movement absence."
+                  },
+                  {
+                    "name": "movement_absent",
+                    "type": "string[]",
+                    "description": "Object movement states read through absence.",
+                    "specification": "Currently used for Object:stationary, whose engine mask covers all five movement bits on the object's layer."
+                  }
+                ]
+              },
+              {
+                "name": "writes",
+                "type": "object",
+                "description": "Readable write-side wake sets.",
+                "specification": "Object lists contain display names. Movement lists use Object:movement keys; movement_wake includes analyzer wake expansions such as moving and stationary.",
+                "fields": [
+                  {
+                    "name": "object_wake",
+                    "type": "string[]",
+                    "description": "Objects whose runtime object-write wake bit may be dirtied by the rule.",
+                    "specification": "Conservative cover for the engine writeObjects mask, including semantic object writes, RHS object sinks with same-layer siblings, and objects sharing layers with movement writes."
+                  },
+                  {
+                    "name": "object_set",
+                    "type": "string[]",
+                    "description": "Objects written present by the rule.",
+                    "specification": "Derived from ruleFlowWrites object_present."
+                  },
+                  {
+                    "name": "object_clear",
+                    "type": "string[]",
+                    "description": "Objects written absent by the rule.",
+                    "specification": "Derived from ruleFlowWrites object_absent."
+                  },
+                  {
+                    "name": "movement_wake",
+                    "type": "string[]",
+                    "description": "Movement writes that may wake later reads.",
+                    "specification": "Derived from ruleFlowWrites movement entries, including stationary and aggregate-read wake expansions."
+                  },
+                  {
+                    "name": "movement_set",
+                    "type": "string[]",
+                    "description": "Movement bits explicitly set by the rule.",
+                    "specification": "Stationary is excluded because it is represented as a clear in the engine mask."
+                  },
+                  {
+                    "name": "movement_clear",
+                    "type": "string[]",
+                    "description": "Movement states cleared by the rule.",
+                    "specification": "Includes removed LHS movement matches and stationary writes."
+                  }
+                ]
+              },
+              {
+                "name": "masks",
+                "type": "object",
+                "description": "Engine-shaped Int32 word masks for the wake certificate.",
+                "specification": "Object mask words use object ids. Movement mask words use 5 * layer + movement-bit indexing and include conservative layer movement clears for object writes.",
+                "fields": [
+                  {
+                    "name": "read_objects_present",
+                    "type": "integer[]",
+                    "description": "Object-present read mask words.",
+                    "specification": "Intersects object-set writes that may make a positive LHS object term newly true."
+                  },
+                  {
+                    "name": "read_objects_absent",
+                    "type": "integer[]",
+                    "description": "Object-absence read mask words.",
+                    "specification": "Intersects object-clear writes that may make a negated LHS object term newly true."
+                  },
+                  {
+                    "name": "read_objects_wake",
+                    "type": "integer[]",
+                    "description": "Runtime object-read wake mask words.",
+                    "specification": "Conservative cover for the engine readObjects mask used by runtime rule scheduling."
+                  },
+                  {
+                    "name": "read_movements_present",
+                    "type": "integer[]",
+                    "description": "Movement-present read mask words.",
+                    "specification": "Contains movement bits that positive movement LHS terms inspect."
+                  },
+                  {
+                    "name": "read_movements_absent",
+                    "type": "integer[]",
+                    "description": "Movement-absence read mask words.",
+                    "specification": "Contains movement bits whose absence is inspected, currently all five layer bits for stationary reads."
+                  },
+                  {
+                    "name": "read_movements_wake",
+                    "type": "integer[]",
+                    "description": "Union of movement-present and movement-absence read mask words.",
+                    "specification": "This is the semantic movement-side read wake mask; runtime scheduler checks should use runtime_read_movements_wake."
+                  },
+                  {
+                    "name": "runtime_read_movements_wake",
+                    "type": "integer[]",
+                    "description": "Runtime movement-read wake mask words.",
+                    "specification": "Conservative cover for the engine readMovements mask used by runtime rule scheduling."
+                  },
+                  {
+                    "name": "write_objects_wake",
+                    "type": "integer[]",
+                    "description": "Object wake write mask words.",
+                    "specification": "Contains the writes.object_wake list in object-id mask form; runtime scheduler checks should use runtime_write_objects_wake."
+                  },
+                  {
+                    "name": "runtime_write_objects_wake",
+                    "type": "integer[]",
+                    "description": "Runtime object-write wake mask words.",
+                    "specification": "Conservative cover for the engine writeObjects mask used by runtime rule scheduling."
+                  },
+                  {
+                    "name": "write_objects_set",
+                    "type": "integer[]",
+                    "description": "Object-set write mask words.",
+                    "specification": "Contains objects written present by the rule."
+                  },
+                  {
+                    "name": "write_objects_clear",
+                    "type": "integer[]",
+                    "description": "Object-clear write mask words.",
+                    "specification": "Contains objects written absent by the rule."
+                  },
+                  {
+                    "name": "write_movements_wake",
+                    "type": "integer[]",
+                    "description": "Movement wake write mask words.",
+                    "specification": "Union of explicit wake movements and semantic movement dirtiness from object_wake layers; runtime scheduler checks should use runtime_write_movements_wake."
+                  },
+                  {
+                    "name": "runtime_write_movements_wake",
+                    "type": "integer[]",
+                    "description": "Runtime movement-write wake mask words.",
+                    "specification": "Conservative cover for the engine writeMovements mask used by runtime rule scheduling."
+                  },
+                  {
+                    "name": "write_movements_set",
+                    "type": "integer[]",
+                    "description": "Movement-set write mask words.",
+                    "specification": "Contains movement bits explicitly set by the rule."
+                  },
+                  {
+                    "name": "write_movements_clear",
+                    "type": "integer[]",
+                    "description": "Movement-clear write mask words.",
+                    "specification": "Contains movement bits explicitly cleared by the rule, plus all movement bits on layers touched by object writes."
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "program_flow",
       "description": "Fixtures for whole-program rule wake edges.",
       "specification": "Each program_flow fixture asserts the projected wake graph for one source program: which rule writes may enable which other rule reads, plus the rules that queue again.",
@@ -1015,6 +1269,12 @@
               "specification": "Copied from result.mergeAliasCount."
             },
             {
+              "name": "certifiedWakeMaskRuleCount",
+              "type": "integer",
+              "description": "Number of runtime rules with certified wake-mask facts checked by runtime replay.",
+              "specification": "Copied from result.certifiedWakeMaskRuleCount."
+            },
+            {
               "name": "objectBoundaryChecks",
               "type": "integer",
               "description": "Runtime boundary checks performed for static objects.",
@@ -1091,6 +1351,12 @@
               "type": "integer",
               "description": "Runtime checks for clean wincondition winflow facts.",
               "specification": "Copied from result.winflowCleanWinconditionChecks."
+            },
+            {
+              "name": "certifiedWakeMaskChecks",
+              "type": "integer",
+              "description": "Runtime subset checks performed against certified wake-mask facts.",
+              "specification": "Copied from result.certifiedWakeMaskChecks."
             },
             {
               "name": "actionUnnecessaryBoundaryChecks",

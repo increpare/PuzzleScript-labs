@@ -1,0 +1,150 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "wakeMasks": [
+    {
+      "line": 48,
+      "text": "[ player ] -> [ up player ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_set": [],
+        "object_clear": [],
+        "movement_wake": ["Player:moving", "Player:up"],
+        "movement_set": ["Player:up"],
+        "movement_clear": ["Player:action", "Player:down", "Player:left", "Player:right", "Player:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [2],
+        "read_objects_absent": [0],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "write_objects_set": [0],
+        "write_objects_clear": [0],
+        "write_movements_wake": [992],
+        "write_movements_set": [32],
+        "write_movements_clear": [992]
+      }
+    },
+    {
+      "line": 49,
+      "text": "down [ no wall | up player ] -> [ crate | player ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Player"],
+        "object_absent": ["Wall"],
+        "movement": ["Player:up"],
+        "movement_present": ["Player:up"],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_set": ["Crate"],
+        "object_clear": ["Player"],
+        "movement_wake": ["Player:stationary"],
+        "movement_set": [],
+        "movement_clear": ["Player:stationary", "Player:up"]
+      },
+      "masks": {
+        "read_objects_present": [2],
+        "read_objects_absent": [4],
+        "read_movements_present": [32],
+        "read_movements_absent": [0],
+        "read_movements_wake": [32],
+        "write_objects_set": [8],
+        "write_objects_clear": [2],
+        "write_movements_wake": [992],
+        "write_movements_set": [0],
+        "write_movements_clear": [992]
+      }
+    },
+    {
+      "line": 50,
+      "text": "[ stationary crate ] -> [ crate stationary marker ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Crate"],
+        "object_absent": [],
+        "movement": ["Crate:stationary"],
+        "movement_present": [],
+        "movement_absent": ["Crate:stationary"]
+      },
+      "writes": {
+        "object_set": ["Marker"],
+        "object_clear": [],
+        "movement_wake": ["Crate:stationary", "Marker:stationary"],
+        "movement_set": [],
+        "movement_clear": ["Crate:stationary", "Marker:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [8],
+        "read_objects_absent": [0],
+        "read_movements_present": [0],
+        "read_movements_absent": [992],
+        "read_movements_wake": [992],
+        "write_objects_set": [16],
+        "write_objects_clear": [0],
+        "write_movements_wake": [32736],
+        "write_movements_set": [0],
+        "write_movements_clear": [32736]
+      }
+    },
+    {
+      "line": 51,
+      "text": "[ marker ] -> [ no marker ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
+      "reads": {
+        "object_present": ["Marker"],
+        "object_absent": [],
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
+      },
+      "writes": {
+        "object_set": [],
+        "object_clear": ["Marker"],
+        "movement_wake": [],
+        "movement_set": [],
+        "movement_clear": []
+      },
+      "masks": {
+        "read_objects_present": [16],
+        "read_objects_absent": [0],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "write_objects_set": [0],
+        "write_objects_clear": [16],
+        "write_movements_wake": [31744],
+        "write_movements_set": [0],
+        "write_movements_clear": [31744]
+      }
+    }
+  ]
+}
