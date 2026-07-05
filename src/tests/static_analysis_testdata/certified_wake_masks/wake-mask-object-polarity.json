@@ -1,35 +1,91 @@
 {
   "schema": "ps-static-analysis-testdata-v1",
   "human_verified": false,
-  "ruleWakeMasks": [
+  "wakeMasks": [
     {
       "rule_id": "early_group_0_rule_0",
       "line": 46,
       "text": "[ Player no Wall ] -> [ Player Marker ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
       "reads": {
         "object_present": ["Player"],
         "object_absent": ["Wall"],
-        "movement": []
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
       },
       "writes": {
-        "object_present": ["Marker"],
-        "object_absent": [],
-        "movement": ["Marker:stationary"]
+        "object_wake": ["Marker", "Player"],
+        "object_set": ["Marker"],
+        "object_clear": [],
+        "movement_wake": ["Marker:stationary"],
+        "movement_set": [],
+        "movement_clear": ["Marker:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [2],
+        "read_objects_absent": [8],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [33554431],
+        "write_objects_wake": [18],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [16],
+        "write_objects_clear": [0],
+        "write_movements_wake": [32506848],
+        "runtime_write_movements_wake": [33554431],
+        "write_movements_set": [0],
+        "write_movements_clear": [32506848]
       }
     },
     {
       "rule_id": "early_group_1_rule_0",
       "line": 47,
       "text": "[ Marker ] -> [ no Marker Crate ]",
+      "bitvec_format": {
+        "object_words": 1,
+        "movement_words": 1,
+        "movement_bits_per_layer": 5,
+        "movement_bit_names": ["up", "down", "left", "right", "action"]
+      },
       "reads": {
         "object_present": ["Marker"],
         "object_absent": [],
-        "movement": []
+        "movement": [],
+        "movement_present": [],
+        "movement_absent": []
       },
       "writes": {
-        "object_present": ["Crate"],
-        "object_absent": ["Marker"],
-        "movement": ["Crate:stationary"]
+        "object_wake": ["Crate", "Marker"],
+        "object_set": ["Crate"],
+        "object_clear": ["Marker"],
+        "movement_wake": ["Crate:stationary"],
+        "movement_set": [],
+        "movement_clear": ["Crate:stationary"]
+      },
+      "masks": {
+        "read_objects_present": [16],
+        "read_objects_absent": [0],
+        "read_objects_wake": [31],
+        "read_movements_present": [0],
+        "read_movements_absent": [0],
+        "read_movements_wake": [0],
+        "runtime_read_movements_wake": [33554431],
+        "write_objects_wake": [20],
+        "runtime_write_objects_wake": [31],
+        "write_objects_set": [4],
+        "write_objects_clear": [16],
+        "write_movements_wake": [32537600],
+        "runtime_write_movements_wake": [33554431],
+        "write_movements_set": [0],
+        "write_movements_clear": [32537600]
       }
     }
   ]
