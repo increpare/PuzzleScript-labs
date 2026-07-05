@@ -70,9 +70,9 @@ function resultKey(result) {
 }
 
 function assertSmoke(json) {
-    if (json.totals.levels !== 14) throw new Error(`levels ${json.totals.levels}, expected 14`);
-    if (json.totals.solved !== 9) throw new Error(`solved ${json.totals.solved}, expected 9`);
-    if (json.totals.exhausted !== 1) throw new Error(`exhausted ${json.totals.exhausted}, expected 1`);
+    if (json.totals.levels !== 16) throw new Error(`levels ${json.totals.levels}, expected 16`);
+    if (json.totals.solved !== 10) throw new Error(`solved ${json.totals.solved}, expected 10`);
+    if (json.totals.exhausted !== 2) throw new Error(`exhausted ${json.totals.exhausted}, expected 2`);
     if (json.totals.skipped_message !== 4) throw new Error(`skipped ${json.totals.skipped_message}, expected 4`);
     if (json.totals.timeout !== 0) throw new Error(`timeout ${json.totals.timeout}, expected 0`);
     if (json.totals.errors !== 0) throw new Error(`errors ${json.totals.errors}, expected 0`);
@@ -86,6 +86,8 @@ function assertSmoke(json) {
     }
 
     const expected = new Map([
+        ['hash_projection_cosmetic.txt#0', { status: 'solved', solution: ['right'] }],
+        ['hash_projection_toggle.txt#0', { status: 'exhausted', solution: [] }],
         ['impossible.txt#0', { status: 'exhausted', solution: [] }],
         ['message_skip.txt#0', { status: 'skipped_message', solution: [] }],
         ['message_skip.txt#1', { status: 'solved', solution: ['right'] }],
@@ -133,4 +135,4 @@ if (compactTurnOracleChecks > 0 || compactTurnOracleFailures > 0 || requireCompa
     suffix += ` compact_turn_oracle_checks=${compactTurnOracleChecks}`;
     suffix += ` compact_turn_oracle_failures=${compactTurnOracleFailures}`;
 }
-process.stdout.write(`solver_smoke_assert passed cases=14${suffix}\n`);
+process.stdout.write(`solver_smoke_assert passed cases=16${suffix}\n`);

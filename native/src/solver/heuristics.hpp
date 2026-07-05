@@ -27,6 +27,9 @@ enum class HeuristicKind {
 struct StaticAnalysisHints {
     bool available = false;
     MaskVector staticObjects;
+    bool solverHashProjectionAvailable = false;
+    MaskVector solverHashProjectionObjects;
+    std::vector<std::string> solverHashProjectionBlockers;
 };
 
 inline const char* heuristicName(HeuristicKind kind) {

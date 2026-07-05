@@ -1289,6 +1289,7 @@ solver_search_mode_tests: $(SOLVER_TARGET_PREREQ)
 	$(NODE) src/tests/run_solver_search_modes_node.js $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_solver_hda_smoke_node.js $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_native_solver_heuristic_selection_node.js $(PUZZLESCRIPT_SOLVER)
+	$(NODE) src/tests/native_solver_hash_projection_node.js $(PUZZLESCRIPT_SOLVER)
 
 native_static_analysis_parity_tests: $(SOLVER_TARGET_PREREQ)
 	$(NODE) src/tests/run_native_static_analysis_parity_node.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TESTS_CORPUS)
