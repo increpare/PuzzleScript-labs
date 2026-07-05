@@ -392,6 +392,7 @@ function parseArgs(argv) {
         solverOptimizeStatic: false,
         solverOptPasses: null,
         solverOptParity: false,
+        certifiedWakePrune: false,
         forceNoaction: false,
         adaptiveStepCost: false,
         jobs: 1,
@@ -476,6 +477,8 @@ function parseArgs(argv) {
             options.solverOptPasses = parseSolverOptPassList(args[++index]);
         } else if (arg === '--solver-opt-parity') {
             options.solverOptParity = true;
+        } else if (arg === '--certified-wake-prune') {
+            options.certifiedWakePrune = true;
         } else if (arg === '--force-noaction') {
             options.forceNoaction = true;
         } else if (arg === '--adaptive-step-cost') {
@@ -512,7 +515,7 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--certified-wake-prune] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
@@ -521,6 +524,7 @@ function usage(exitCode) {
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
+        '  --certified-wake-prune: experimental, default-off solver prune using analyzer-certified wake masks; abstains unless every runtime rule maps to proved certified masks.\n' +
         '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n';
     (exitCode === 0 ? process.stdout : process.stderr).write(message);
@@ -3714,6 +3718,23 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         solver_opt_ms_merge: 0,
         solver_opt_ms_action: 0,
         solver_optimization_gated: false,
+        certified_wake_prune_enabled: false,
+        certified_wake_prune_installed: false,
+        certified_wake_prune_abstained: false,
+        certified_wake_prune_runtime_rules: 0,
+        certified_wake_prune_static_rules: 0,
+        certified_wake_prune_mapped_rules: 0,
+        certified_wake_prune_certified_rules: 0,
+        certified_wake_prune_certified_facts: 0,
+        certified_wake_prune_runtime_cover_checks: 0,
+        certified_wake_prune_rule_refs_before: 0,
+        certified_wake_prune_rule_refs_after: 0,
+        certified_wake_prune_rule_refs_removed: 0,
+        certified_wake_prune_read_object_bits_before: 0,
+        certified_wake_prune_read_object_bits_after: 0,
+        certified_wake_prune_write_object_bits_before: 0,
+        certified_wake_prune_write_object_bits_after: 0,
+        certified_wake_prune_ms: 0,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -4519,6 +4540,23 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         timeout_ms: timeoutMs,
         compile_ms: compileMs,
         static_analysis_ms: 0,
+        certified_wake_prune_enabled: false,
+        certified_wake_prune_installed: false,
+        certified_wake_prune_abstained: false,
+        certified_wake_prune_runtime_rules: 0,
+        certified_wake_prune_static_rules: 0,
+        certified_wake_prune_mapped_rules: 0,
+        certified_wake_prune_certified_rules: 0,
+        certified_wake_prune_certified_facts: 0,
+        certified_wake_prune_runtime_cover_checks: 0,
+        certified_wake_prune_rule_refs_before: 0,
+        certified_wake_prune_rule_refs_after: 0,
+        certified_wake_prune_rule_refs_removed: 0,
+        certified_wake_prune_read_object_bits_before: 0,
+        certified_wake_prune_read_object_bits_after: 0,
+        certified_wake_prune_write_object_bits_before: 0,
+        certified_wake_prune_write_object_bits_after: 0,
+        certified_wake_prune_ms: 0,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -4554,6 +4592,385 @@ function addNoactionMetadata(source) {
     return `noaction\n${source}`;
 }
 
+function createCertifiedWakePruneTelemetry(enabled = false) {
+    return {
+        enabled: enabled === true,
+        installed: false,
+        abstained: false,
+        abstain_reason: null,
+        runtime_rules: 0,
+        static_rules: 0,
+        mapped_rules: 0,
+        certified_rules: 0,
+        certified_facts: 0,
+        runtime_cover_checks: 0,
+        rule_refs_before: 0,
+        rule_refs_after: 0,
+        rule_refs_removed: 0,
+        read_object_bits_before: 0,
+        read_object_bits_after: 0,
+        write_object_bits_before: 0,
+        write_object_bits_after: 0,
+        ms: 0,
+    };
+}
+
+function attachCertifiedWakePruneTelemetry(result, telemetry) {
+    const tel = telemetry || createCertifiedWakePruneTelemetry(false);
+    result.certified_wake_prune_enabled = tel.enabled;
+    result.certified_wake_prune_installed = tel.installed;
+    result.certified_wake_prune_abstained = tel.abstained;
+    result.certified_wake_prune_runtime_rules = tel.runtime_rules || 0;
+    result.certified_wake_prune_static_rules = tel.static_rules || 0;
+    result.certified_wake_prune_mapped_rules = tel.mapped_rules || 0;
+    result.certified_wake_prune_certified_rules = tel.certified_rules || 0;
+    result.certified_wake_prune_certified_facts = tel.certified_facts || 0;
+    result.certified_wake_prune_runtime_cover_checks = tel.runtime_cover_checks || 0;
+    result.certified_wake_prune_rule_refs_before = tel.rule_refs_before || 0;
+    result.certified_wake_prune_rule_refs_after = tel.rule_refs_after || 0;
+    result.certified_wake_prune_rule_refs_removed = tel.rule_refs_removed || 0;
+    result.certified_wake_prune_read_object_bits_before = tel.read_object_bits_before || 0;
+    result.certified_wake_prune_read_object_bits_after = tel.read_object_bits_after || 0;
+    result.certified_wake_prune_write_object_bits_before = tel.write_object_bits_before || 0;
+    result.certified_wake_prune_write_object_bits_after = tel.write_object_bits_after || 0;
+    result.certified_wake_prune_ms = tel.ms || 0;
+    return result;
+}
+
+function abstainCertifiedWakePrune(telemetry, reason) {
+    telemetry.abstained = true;
+    telemetry.abstain_reason = reason;
+    return telemetry;
+}
+
+function staticRuleGroupsByRuntimePhase(staticAnalysisReport) {
+    const phases = { early: [], late: [] };
+    const sections = staticAnalysisReport
+        && staticAnalysisReport.ps_tagged
+        && staticAnalysisReport.ps_tagged.rule_sections;
+    for (const section of sections || []) {
+        const target = section.name === 'late' ? phases.late : phases.early;
+        for (const group of section.groups || []) {
+            target.push(group.rules || []);
+        }
+    }
+    return phases;
+}
+
+function certifiedWakeMaskFactsByRuleId(staticAnalysisReport) {
+    const byRuleId = new Map();
+    const facts = staticAnalysisReport
+        && staticAnalysisReport.facts
+        && staticAnalysisReport.facts.certified_wake_masks;
+    for (const fact of facts || []) {
+        if (!fact || fact.status !== 'proved') continue;
+        const ruleId = fact.subjects && fact.subjects.rules && fact.subjects.rules[0];
+        if (ruleId) byRuleId.set(ruleId, fact);
+    }
+    return byRuleId;
+}
+
+function bitVecFromCertifiedWords(words, stride) {
+    const vec = new BitVec(stride);
+    const source = Array.isArray(words) ? words : [];
+    for (let index = 0; index < stride; index++) {
+        vec.data[index] = source[index] | 0;
+    }
+    return vec;
+}
+
+function bitVecOrCertified(left, right, stride) {
+    const vec = new BitVec(stride);
+    for (let index = 0; index < stride; index++) {
+        vec.data[index] = (((left && left.data ? left.data[index] : 0) || 0)
+            | ((right && right.data ? right.data[index] : 0) || 0)) | 0;
+    }
+    return vec;
+}
+
+function bitVecSubsetOfCertified(left, right) {
+    const leftData = left && left.data ? left.data : [];
+    const rightData = right && right.data ? right.data : [];
+    const length = Math.max(leftData.length, rightData.length);
+    for (let index = 0; index < length; index++) {
+        const leftWord = (leftData[index] || 0) >>> 0;
+        const rightWord = (rightData[index] || 0) >>> 0;
+        if (((leftWord & ~rightWord) >>> 0) !== 0) return false;
+    }
+    return true;
+}
+
+function popcountWord32(word) {
+    let value = word >>> 0;
+    value = value - ((value >>> 1) & 0x55555555);
+    value = (value & 0x33333333) + ((value >>> 2) & 0x33333333);
+    return (((value + (value >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24;
+}
+
+function bitVecPopcount(vec) {
+    const data = vec && vec.data ? vec.data : [];
+    let count = 0;
+    for (let index = 0; index < data.length; index++) {
+        count += popcountWord32(data[index] || 0);
+    }
+    return count;
+}
+
+function countInputSpecializedRuleRefs(groups) {
+    let total = 0;
+    for (const group of groups || []) {
+        if (group && group.inputSpecializedRuleSets) {
+            for (let bit = 0; bit <= 5; bit++) {
+                total += ((group.inputSpecializedRuleSets[bit] || []).length) | 0;
+            }
+        } else {
+            total += ((group && group.length) || 0) * 6;
+        }
+    }
+    return total;
+}
+
+function recomputeRuleGroupIncrementalMasks(groups, strideObj, strideMov) {
+    for (const group of groups || []) {
+        const groupReadObjects = new BitVec(strideObj);
+        const groupReadMovements = new BitVec(strideMov);
+        const groupWriteObjects = new BitVec(strideObj);
+        const groupWriteMovements = new BitVec(strideMov);
+        let groupForceAlwaysRun = false;
+        for (const rule of group || []) {
+            groupReadObjects.ior(rule.readObjects);
+            groupReadMovements.ior(rule.readMovements);
+            groupWriteObjects.ior(rule.writeObjects);
+            groupWriteMovements.ior(rule.writeMovements);
+            if (rule.forceAlwaysRun || !rule.readMovements.iszero()) {
+                groupForceAlwaysRun = true;
+            }
+        }
+        group.groupReadObjects = groupReadObjects;
+        group.groupReadMovements = groupReadMovements;
+        group.groupWriteObjects = groupWriteObjects;
+        group.groupWriteMovements = groupWriteMovements;
+        group.groupForceAlwaysRun = groupForceAlwaysRun;
+    }
+}
+
+function runtimeCoverForCertifiedMask(masks, primary, fallbackA, fallbackB, stride) {
+    if (Array.isArray(masks[primary])) {
+        return bitVecFromCertifiedWords(masks[primary], stride);
+    }
+    const left = bitVecFromCertifiedWords(masks[fallbackA], stride);
+    if (!fallbackB) return left;
+    return bitVecOrCertified(left, bitVecFromCertifiedWords(masks[fallbackB], stride), stride);
+}
+
+function collectCertifiedWakePruneMappings(staticAnalysisReport, telemetry) {
+    const factsByRuleId = certifiedWakeMaskFactsByRuleId(staticAnalysisReport);
+    telemetry.certified_facts = factsByRuleId.size;
+    const staticGroups = staticRuleGroupsByRuntimePhase(staticAnalysisReport);
+    const mappings = [];
+    let complete = true;
+
+    function collectPhase(runtimeGroups, phaseGroups, phaseName) {
+        telemetry.runtime_rules += (runtimeGroups || []).reduce((sum, group) => sum + group.length, 0);
+        telemetry.static_rules += (phaseGroups || []).reduce((sum, group) => sum + group.length, 0);
+        if ((runtimeGroups || []).length !== (phaseGroups || []).length) {
+            complete = false;
+        }
+        const groupCount = Math.min((runtimeGroups || []).length, (phaseGroups || []).length);
+        for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+            const runtimeGroup = runtimeGroups[groupIndex] || [];
+            const staticGroup = phaseGroups[groupIndex] || [];
+            if (runtimeGroup.length !== staticGroup.length) {
+                complete = false;
+            }
+            const ruleCount = Math.min(runtimeGroup.length, staticGroup.length);
+            for (let ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++) {
+                const runtimeRule = runtimeGroup[ruleIndex];
+                const staticRule = staticGroup[ruleIndex];
+                if (!runtimeRule || !staticRule) {
+                    complete = false;
+                    continue;
+                }
+                telemetry.mapped_rules++;
+                const fact = factsByRuleId.get(staticRule.id);
+                if (!fact) {
+                    complete = false;
+                    continue;
+                }
+                mappings.push({ runtimeRule, staticRule, fact, phaseName, groupIndex, ruleIndex });
+            }
+        }
+    }
+
+    collectPhase(state.rules, staticGroups.early, 'early');
+    collectPhase(state.lateRules, staticGroups.late, 'late');
+    if (!complete || telemetry.mapped_rules !== telemetry.runtime_rules) {
+        return { mappings, complete: false };
+    }
+    return { mappings, complete: true };
+}
+
+function buildCertifiedWakePruneVectors(mapping, strideObj, strideMov) {
+    const value = mapping.fact.value || {};
+    const masks = value.masks || {};
+    const format = value.bitvec_format || {};
+    if (format.object_words !== strideObj || format.movement_words !== strideMov) {
+        throw new Error('layout_mismatch');
+    }
+
+    const readObjectsPresent = bitVecFromCertifiedWords(masks.read_objects_present, strideObj);
+    const readObjectsAbsent = bitVecFromCertifiedWords(masks.read_objects_absent, strideObj);
+    const readObjects = bitVecOrCertified(readObjectsPresent, readObjectsAbsent, strideObj);
+    const readMovements = bitVecFromCertifiedWords(masks.read_movements_wake, strideMov);
+    const writeObjects = runtimeCoverForCertifiedMask(
+        masks,
+        'write_objects_wake',
+        'write_objects_set',
+        'write_objects_clear',
+        strideObj
+    );
+    const writeMovements = bitVecFromCertifiedWords(masks.write_movements_wake, strideMov);
+    const inputSpecReadMovementsPresent = bitVecFromCertifiedWords(masks.read_movements_present, strideMov);
+    const inputSpecWriteMovementsSet = bitVecFromCertifiedWords(masks.write_movements_set, strideMov);
+
+    const readObjectsCover = runtimeCoverForCertifiedMask(
+        masks,
+        'read_objects_wake',
+        'read_objects_present',
+        'read_objects_absent',
+        strideObj
+    );
+    const readMovementsCover = runtimeCoverForCertifiedMask(
+        masks,
+        'runtime_read_movements_wake',
+        'read_movements_wake',
+        null,
+        strideMov
+    );
+    const writeObjectsCover = runtimeCoverForCertifiedMask(
+        masks,
+        'runtime_write_objects_wake',
+        'write_objects_wake',
+        null,
+        strideObj
+    );
+    const writeMovementsCover = runtimeCoverForCertifiedMask(
+        masks,
+        'runtime_write_movements_wake',
+        'write_movements_wake',
+        null,
+        strideMov
+    );
+
+    if (!bitVecSubsetOfCertified(mapping.runtimeRule.readObjects, readObjectsCover)) {
+        throw new Error('read_objects_under_cover');
+    }
+    if (!bitVecSubsetOfCertified(mapping.runtimeRule.readMovements, readMovementsCover)) {
+        throw new Error('read_movements_under_cover');
+    }
+    if (!bitVecSubsetOfCertified(mapping.runtimeRule.writeObjects, writeObjectsCover)) {
+        throw new Error('write_objects_under_cover');
+    }
+    if (!bitVecSubsetOfCertified(mapping.runtimeRule.writeMovements, writeMovementsCover)) {
+        throw new Error('write_movements_under_cover');
+    }
+
+    return {
+        readObjects,
+        readMovements,
+        writeObjects,
+        writeMovements,
+        inputSpecReadMovementsPresent,
+        inputSpecWriteMovementsSet,
+    };
+}
+
+function installCertifiedWakePruneMasks(staticAnalysisReport) {
+    const telemetry = createCertifiedWakePruneTelemetry(true);
+    const start = performance.now();
+    try {
+        if (!staticAnalysisReport || staticAnalysisReport.status !== 'ok') {
+            return abstainCertifiedWakePrune(telemetry, 'static_analysis_unavailable');
+        }
+        if (!state || typeof BitVec !== 'function') {
+            return abstainCertifiedWakePrune(telemetry, 'runtime_unavailable');
+        }
+        const { mappings, complete } = collectCertifiedWakePruneMappings(staticAnalysisReport, telemetry);
+        if (!complete) {
+            return abstainCertifiedWakePrune(telemetry, 'incomplete_rule_mapping');
+        }
+        if (mappings.length === 0 || telemetry.certified_facts < mappings.length) {
+            return abstainCertifiedWakePrune(telemetry, 'missing_certified_facts');
+        }
+
+        const prepared = [];
+        for (const mapping of mappings) {
+            try {
+                prepared.push({
+                    mapping,
+                    vectors: buildCertifiedWakePruneVectors(mapping, state.STRIDE_OBJ, state.STRIDE_MOV),
+                });
+                telemetry.runtime_cover_checks += 4;
+            } catch (error) {
+                return abstainCertifiedWakePrune(telemetry, error && error.message ? error.message : 'runtime_cover_failed');
+            }
+        }
+
+        const allGroups = [...(state.rules || []), ...(state.lateRules || [])];
+        telemetry.rule_refs_before = countInputSpecializedRuleRefs(allGroups);
+        for (const { mapping } of prepared) {
+            telemetry.read_object_bits_before += bitVecPopcount(mapping.runtimeRule.readObjects);
+            telemetry.write_object_bits_before += bitVecPopcount(mapping.runtimeRule.writeObjects);
+        }
+
+        for (const { mapping, vectors } of prepared) {
+            const rule = mapping.runtimeRule;
+            rule.certifiedWakePruneRuleId = mapping.staticRule.id;
+            rule.readObjects = vectors.readObjects;
+            rule.readMovements = vectors.readMovements;
+            rule.writeObjects = vectors.writeObjects;
+            rule.writeMovements = vectors.writeMovements;
+            rule.inputSpecReadMovementsPresent = vectors.inputSpecReadMovementsPresent;
+            rule.inputSpecWriteMovementsSet = vectors.inputSpecWriteMovementsSet;
+            telemetry.read_object_bits_after += bitVecPopcount(rule.readObjects);
+            telemetry.write_object_bits_after += bitVecPopcount(rule.writeObjects);
+        }
+
+        recomputeRuleGroupIncrementalMasks(state.rules, state.STRIDE_OBJ, state.STRIDE_MOV);
+        recomputeRuleGroupIncrementalMasks(state.lateRules, state.STRIDE_OBJ, state.STRIDE_MOV);
+        if (typeof attachInputSpecializationMasks === 'function') {
+            attachInputSpecializationMasks(state);
+        }
+        telemetry.rule_refs_after = countInputSpecializedRuleRefs(allGroups);
+        telemetry.rule_refs_removed = Math.max(0, telemetry.rule_refs_before - telemetry.rule_refs_after);
+        telemetry.certified_rules = prepared.length;
+        telemetry.installed = true;
+        return telemetry;
+    } finally {
+        telemetry.ms = performance.now() - start;
+    }
+}
+
+function compiledUsesCertifiedWakePrune(compiled) {
+    return !!(compiled
+        && compiled.certifiedWakePruneTelemetry
+        && compiled.certifiedWakePruneTelemetry.installed);
+}
+
+function runWithCompiledCertifiedWakePruneEnv(compiled, fn) {
+    const previous = process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE;
+    process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE = compiledUsesCertifiedWakePrune(compiled) ? '1' : '0';
+    try {
+        return fn();
+    } finally {
+        if (previous === undefined) {
+            delete process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE;
+        } else {
+            process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE = previous;
+        }
+    }
+}
+
 function runGame(root, file, options = {}) {
     const game = gameName(root, file);
     let source = fs.readFileSync(file, 'utf8');
@@ -4565,6 +4982,7 @@ function runGame(root, file, options = {}) {
     }
 
     const passes = resolveSolverPasses(options);
+    const certifiedWakePruneRequested = options.certifiedWakePrune && !options.solverOptParityBaseline;
     const needsStaticAnalysis = options.solverStaticHash
         || passes.inert
         || passes.cosmetic
@@ -4572,6 +4990,7 @@ function runGame(root, file, options = {}) {
         || passes.merge
         || passes.action
         || options.solverOptParity
+        || certifiedWakePruneRequested;
     const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
         || passes.inert
         || options.solverOptimizeStatic
@@ -4586,6 +5005,7 @@ function runGame(root, file, options = {}) {
             : [
                 options.solverStaticHash ? 'count_layer_invariants' : null,
                 passes.action ? 'movement_action' : null,
+                certifiedWakePruneRequested ? 'certified_wake_masks' : null,
             ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
             sourcePath: game,
@@ -4623,6 +5043,9 @@ function runGame(root, file, options = {}) {
         }
     }
     installSolverResolveMovementProfiler(state);
+    const certifiedWakePruneTelemetry = certifiedWakePruneRequested
+        ? installCertifiedWakePruneMasks(staticAnalysisReport)
+        : createCertifiedWakePruneTelemetry(false);
     const compileMs = performance.now() - compileStart;
     const telemetry = state && state.solverOptimizationTelemetry ? state.solverOptimizationTelemetry : null;
     const staticOptimizationRemovedRules = telemetry ? telemetry.removed_inert_rules : 0;
@@ -4649,6 +5072,23 @@ function runGame(root, file, options = {}) {
             compile_ms: compileMs,
             static_analysis_ms: staticAnalysisMs,
             static_optimization_removed_rules: staticOptimizationRemovedRules,
+            certified_wake_prune_enabled: certifiedWakePruneTelemetry.enabled,
+            certified_wake_prune_installed: certifiedWakePruneTelemetry.installed,
+            certified_wake_prune_abstained: certifiedWakePruneTelemetry.abstained,
+            certified_wake_prune_runtime_rules: certifiedWakePruneTelemetry.runtime_rules,
+            certified_wake_prune_static_rules: certifiedWakePruneTelemetry.static_rules,
+            certified_wake_prune_mapped_rules: certifiedWakePruneTelemetry.mapped_rules,
+            certified_wake_prune_certified_rules: certifiedWakePruneTelemetry.certified_rules,
+            certified_wake_prune_certified_facts: certifiedWakePruneTelemetry.certified_facts,
+            certified_wake_prune_runtime_cover_checks: certifiedWakePruneTelemetry.runtime_cover_checks,
+            certified_wake_prune_rule_refs_before: certifiedWakePruneTelemetry.rule_refs_before,
+            certified_wake_prune_rule_refs_after: certifiedWakePruneTelemetry.rule_refs_after,
+            certified_wake_prune_rule_refs_removed: certifiedWakePruneTelemetry.rule_refs_removed,
+            certified_wake_prune_read_object_bits_before: certifiedWakePruneTelemetry.read_object_bits_before,
+            certified_wake_prune_read_object_bits_after: certifiedWakePruneTelemetry.read_object_bits_after,
+            certified_wake_prune_write_object_bits_before: certifiedWakePruneTelemetry.write_object_bits_before,
+            certified_wake_prune_write_object_bits_after: certifiedWakePruneTelemetry.write_object_bits_after,
+            certified_wake_prune_ms: certifiedWakePruneTelemetry.ms,
             load_ms: 0,
             clone_ms: 0,
             snapshot_ms: 0,
@@ -4680,6 +5120,7 @@ function runGame(root, file, options = {}) {
         staticOptimizationRemovedRules,
         solverOptimizationTelemetry: telemetry,
         solverOptimizationGated,
+        certifiedWakePruneTelemetry,
     };
 }
 
@@ -4976,7 +5417,7 @@ function runCorpus(options) {
         }
         const passes = resolveSolverPasses(opts);
         let baselineByLevel = null;
-        if (opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action)) {
+        if (opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action || opts.certifiedWakePrune)) {
             const baselineOpts = Object.assign({}, opts, { solverOptParityBaseline: true });
             const compiledBaseline = runGame(opts.corpusPath, file, baselineOpts);
             if (!Array.isArray(compiledBaseline)) {
@@ -4991,10 +5432,12 @@ function runCorpus(options) {
                         if (typeof resetParserErrorState === 'function') {
                             resetParserErrorState();
                         }
-                        baselineResult = solveLevel(compiledBaseline.game, li, opts.timeoutMs, compiledBaseline.compileMs, {
-                            ...opts,
-                            staticAnalysisReport: compiledBaseline.staticAnalysisReport,
-                        });
+                        baselineResult = runWithCompiledCertifiedWakePruneEnv(compiledBaseline, () =>
+                            solveLevel(compiledBaseline.game, li, opts.timeoutMs, compiledBaseline.compileMs, {
+                                ...opts,
+                                staticAnalysisReport: compiledBaseline.staticAnalysisReport,
+                            })
+                        );
                     } catch (error) {
                         if (typeof resetParserErrorState === 'function') {
                             resetParserErrorState();
@@ -5037,10 +5480,12 @@ function runCorpus(options) {
                 if (typeof resetParserErrorState === 'function') {
                     resetParserErrorState();
                 }
-                result = solveLevel(compiled.game, levelIndex, opts.timeoutMs, compiled.compileMs, {
-                    ...opts,
-                    staticAnalysisReport: compiled.staticAnalysisReport,
-                });
+                result = runWithCompiledCertifiedWakePruneEnv(compiled, () =>
+                    solveLevel(compiled.game, levelIndex, opts.timeoutMs, compiled.compileMs, {
+                        ...opts,
+                        staticAnalysisReport: compiled.staticAnalysisReport,
+                    })
+                );
             } catch (error) {
                 const msg = error && error.message ? error.message : String(error);
                 if (msg.includes('solver_opt_parity')) {
@@ -5070,10 +5515,12 @@ function runCorpus(options) {
                     result.solver_opt_ms_merge = tel.ms_merge || 0;
                     result.solver_opt_ms_action = tel.ms_action || 0;
                 }
+                attachCertifiedWakePruneTelemetry(result, compiled.certifiedWakePruneTelemetry);
             } else {
                 result.compile_ms = 0;
                 result.static_analysis_ms = 0;
                 result.static_optimization_removed_rules = 0;
+                attachCertifiedWakePruneTelemetry(result, null);
             }
             if (compileGated) {
                 result.solver_optimization_gated = true;
@@ -5141,6 +5588,23 @@ function totals(results) {
         solver_opt_ms_merge: 0,
         solver_opt_ms_action: 0,
         solver_optimization_gated: false,
+        certified_wake_prune_enabled: false,
+        certified_wake_prune_installed_games: 0,
+        certified_wake_prune_abstained_games: 0,
+        certified_wake_prune_runtime_rules: 0,
+        certified_wake_prune_static_rules: 0,
+        certified_wake_prune_mapped_rules: 0,
+        certified_wake_prune_certified_rules: 0,
+        certified_wake_prune_certified_facts: 0,
+        certified_wake_prune_runtime_cover_checks: 0,
+        certified_wake_prune_rule_refs_before: 0,
+        certified_wake_prune_rule_refs_after: 0,
+        certified_wake_prune_rule_refs_removed: 0,
+        certified_wake_prune_read_object_bits_before: 0,
+        certified_wake_prune_read_object_bits_after: 0,
+        certified_wake_prune_write_object_bits_before: 0,
+        certified_wake_prune_write_object_bits_after: 0,
+        certified_wake_prune_ms: 0,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -5197,6 +5661,25 @@ function totals(results) {
         if (result.solver_optimization_gated) {
             out.solver_optimization_gated = true;
         }
+        if (result.certified_wake_prune_enabled) {
+            out.certified_wake_prune_enabled = true;
+        }
+        out.certified_wake_prune_installed_games += result.certified_wake_prune_installed ? 1 : 0;
+        out.certified_wake_prune_abstained_games += result.certified_wake_prune_abstained ? 1 : 0;
+        out.certified_wake_prune_runtime_rules += result.certified_wake_prune_runtime_rules || 0;
+        out.certified_wake_prune_static_rules += result.certified_wake_prune_static_rules || 0;
+        out.certified_wake_prune_mapped_rules += result.certified_wake_prune_mapped_rules || 0;
+        out.certified_wake_prune_certified_rules += result.certified_wake_prune_certified_rules || 0;
+        out.certified_wake_prune_certified_facts += result.certified_wake_prune_certified_facts || 0;
+        out.certified_wake_prune_runtime_cover_checks += result.certified_wake_prune_runtime_cover_checks || 0;
+        out.certified_wake_prune_rule_refs_before += result.certified_wake_prune_rule_refs_before || 0;
+        out.certified_wake_prune_rule_refs_after += result.certified_wake_prune_rule_refs_after || 0;
+        out.certified_wake_prune_rule_refs_removed += result.certified_wake_prune_rule_refs_removed || 0;
+        out.certified_wake_prune_read_object_bits_before += result.certified_wake_prune_read_object_bits_before || 0;
+        out.certified_wake_prune_read_object_bits_after += result.certified_wake_prune_read_object_bits_after || 0;
+        out.certified_wake_prune_write_object_bits_before += result.certified_wake_prune_write_object_bits_before || 0;
+        out.certified_wake_prune_write_object_bits_after += result.certified_wake_prune_write_object_bits_after || 0;
+        out.certified_wake_prune_ms += result.certified_wake_prune_ms || 0;
         out.load_ms += result.load_ms || 0;
         out.clone_ms += result.clone_ms || 0;
         out.snapshot_ms += result.snapshot_ms || 0;
@@ -5331,6 +5814,7 @@ function benchStoreConfig(options) {
         solver_optimize_static: options.solverOptimizeStatic,
         solver_opt_passes: options.solverOptPasses,
         solver_opt_parity: options.solverOptParity,
+        certified_wake_prune: options.certifiedWakePrune,
         force_noaction: options.forceNoaction,
         adaptive_step_cost: options.adaptiveStepCost,
         jobs: options.jobs,

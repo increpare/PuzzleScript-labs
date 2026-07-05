@@ -124,6 +124,33 @@ Reasonable next moves only with fresh evidence:
     `adaptive_step_cost_triggered=2909`. This remains explicit-probe only
     unless a refreshed corpus run later proves it safe and useful as a default.
 
+- **S1 / certified wake prune consumer — opt-in experiment landed, not a
+  default.** The JS solver accepts `--certified-wake-prune`, requests the
+  analyzer's `certified_wake_masks` fact family, requires complete
+  static-to-runtime rule mapping plus runtime-cover checks for every compiled
+  rule, then installs the certified semantic read/write masks and enables the
+  incremental prune only for certified compiled games. `--solver-opt-parity`
+  now also guards this lane.
+
+  Focused coverage lives in `certified_wake_prune_node.js`, and the full
+  `make static_analysis_tests` target includes it. Verification on 2026-07-05:
+  `make static_analysis_tests` passed, including 470 runtime-contract cases and
+  178864 certified wake-mask checks; solver smoke parity with
+  `--certified-wake-prune --solver-opt-parity` passed with 9 solved, 1
+  exhausted, 0 timeouts.
+
+  Paired measurement-foundation run:
+  `run_js_solver_bench_pair.js` on `smoke-50`, 3 pairs, candidate args
+  `--certified-wake-prune --solver-opt-parity`, batch
+  `20260704102349285-72979`. Solves were identical in all pairs
+  (**31 -> 31**, no status flips). Candidate installed on **49/50** games,
+  checked **12968** runtime-cover masks, and removed **505** input-rule refs.
+  It expanded fewer states (**~70.1k-71.5k -> ~63.4k-64.3k**) but worsened
+  total `step_ms` by about **+0.49s** over the slice
+  (`~8.34s-8.39s -> ~8.85s-8.86s`). Decision: keep as an explicit probe and
+  use the counters to find where mask precision wins enough to offset overhead;
+  do not promote to default.
+
 - **E1 input-specialized rule sets — landed.** Engine compile now builds
   per-input active rule arrays from positive movement dependencies, and the
   solver can enable them with `PUZZLESCRIPT_INPUT_SPECIALIZATION=1`.
