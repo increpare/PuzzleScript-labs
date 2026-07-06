@@ -1,6 +1,7 @@
 idf_component_register(
   SRCS
     "main.cpp"
+    "ps_instrumentation.cpp"
   INCLUDE_DIRS
     "."
 )
