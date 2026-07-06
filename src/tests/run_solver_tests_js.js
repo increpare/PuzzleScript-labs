@@ -522,7 +522,7 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action,win-relevance|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
@@ -531,7 +531,7 @@ function usage(exitCode) {
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  --solver-hash-projection: project certified solver_hash_projection object bits out of visited-state hashes. --solver-hash-projection-parity pairs each run with a baseline solve and replay check.\n' +
-        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
+        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, action, win-relevance, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
         '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n';
     (exitCode === 0 ? process.stdout : process.stderr).write(message);
@@ -3789,12 +3789,14 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
         removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         inserted_noaction_metadata: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
+        solver_opt_ms_win_relevance: 0,
         solver_opt_ms_merge: 0,
         solver_opt_ms_action: 0,
         solver_optimization_gated: false,
@@ -4619,6 +4621,22 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         timeout_ms: timeoutMs,
         compile_ms: compileMs,
         static_analysis_ms: 0,
+        static_optimization_removed_rules: 0,
+        removed_inert_rules: 0,
+        removed_cosmetic_objects: 0,
+        removed_collision_layers: 0,
+        removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
+        merged_object_aliases: 0,
+        merged_object_groups: 0,
+        inserted_noaction_metadata: 0,
+        solver_opt_ms_inert: 0,
+        solver_opt_ms_cosmetic: 0,
+        solver_opt_ms_cosmetic_rules: 0,
+        solver_opt_ms_win_relevance: 0,
+        solver_opt_ms_merge: 0,
+        solver_opt_ms_action: 0,
+        solver_optimization_gated: false,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -4672,6 +4690,7 @@ function runGame(root, file, options = {}) {
         || passes.cosmeticRules
         || passes.merge
         || passes.action
+        || passes.winRelevance
         || options.solverOptParity;
     const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
         || passes.inert
@@ -4688,6 +4707,7 @@ function runGame(root, file, options = {}) {
                 options.solverStaticHash ? 'count_layer_invariants' : null,
                 options.solverHashProjection ? 'solver_hash_projection' : null,
                 passes.action ? 'movement_action' : null,
+                passes.winRelevance ? 'win_relevance' : null,
             ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
             sourcePath: game,
@@ -4703,14 +4723,15 @@ function runGame(root, file, options = {}) {
     const solverOptimizationGated = passes.cosmetic !== hookPasses.cosmetic
         || passes.cosmeticRules !== hookPasses.cosmeticRules
         || passes.merge !== hookPasses.merge
-        || passes.action !== hookPasses.action;
+        || passes.action !== hookPasses.action
+        || passes.winRelevance !== hookPasses.winRelevance;
     if (!options.quiet && solverOptimizationGated) {
         const st = staticAnalysisReport && staticAnalysisReport.status ? staticAnalysisReport.status : 'none';
-        process.stderr.write(`solver_notice game=${game} static_analysis=${st} solver_opt_reduced_to_inert_only\n`);
+        process.stderr.write(`solver_notice game=${game} static_analysis=${st} solver_opt_gated\n`);
     }
     const inertLines = hookPasses.inert ? inertCommandOnlyRuleSourceLines(staticAnalysisReport) : new Set();
     const installOptimizerHook = typeof setPluginOptimizationHook === 'function'
-        && (hookPasses.cosmetic || hookPasses.merge || hookPasses.action || (hookPasses.inert && inertLines.size > 0));
+        && (hookPasses.cosmetic || hookPasses.merge || hookPasses.action || hookPasses.winRelevance || (hookPasses.inert && inertLines.size > 0));
     const optimizationHook = installOptimizerHook
         ? createSolverOptimizationHook(staticAnalysisReport, hookPasses)
         : null;
@@ -4751,6 +4772,21 @@ function runGame(root, file, options = {}) {
             compile_ms: compileMs,
             static_analysis_ms: staticAnalysisMs,
             static_optimization_removed_rules: staticOptimizationRemovedRules,
+            removed_inert_rules: telemetry ? telemetry.removed_inert_rules || 0 : 0,
+            removed_cosmetic_objects: telemetry ? telemetry.removed_cosmetic_objects || 0 : 0,
+            removed_collision_layers: telemetry ? telemetry.removed_collision_layers || 0 : 0,
+            removed_cosmetic_rules: telemetry ? telemetry.removed_cosmetic_rules || 0 : 0,
+            removed_win_irrelevant_rules: telemetry ? telemetry.removed_win_irrelevant_rules || 0 : 0,
+            merged_object_aliases: telemetry ? telemetry.merged_object_aliases || 0 : 0,
+            merged_object_groups: telemetry ? telemetry.merged_object_groups || 0 : 0,
+            inserted_noaction_metadata: telemetry ? telemetry.inserted_noaction_metadata || 0 : 0,
+            solver_opt_ms_inert: telemetry ? telemetry.ms_inert || 0 : 0,
+            solver_opt_ms_cosmetic: telemetry ? telemetry.ms_cosmetic || 0 : 0,
+            solver_opt_ms_cosmetic_rules: telemetry ? telemetry.ms_cosmetic_rules || 0 : 0,
+            solver_opt_ms_win_relevance: telemetry ? telemetry.ms_win_relevance || 0 : 0,
+            solver_opt_ms_merge: telemetry ? telemetry.ms_merge || 0 : 0,
+            solver_opt_ms_action: telemetry ? telemetry.ms_action || 0 : 0,
+            solver_optimization_gated: solverOptimizationGated,
             load_ms: 0,
             clone_ms: 0,
             snapshot_ms: 0,
@@ -5078,7 +5114,7 @@ function runCorpus(options) {
         }
         const passes = resolveSolverPasses(opts);
         let baselineByLevel = null;
-        const needsSolverOptParity = opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action);
+        const needsSolverOptParity = opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action || passes.winRelevance);
         const needsHashProjectionParity = opts.solverHashProjectionParity && opts.solverHashProjection;
         if (needsSolverOptParity || needsHashProjectionParity) {
             const baselineOpts = Object.assign({}, opts, {
@@ -5169,12 +5205,14 @@ function runCorpus(options) {
                     result.removed_cosmetic_objects = tel.removed_cosmetic_objects || 0;
                     result.removed_collision_layers = tel.removed_collision_layers || 0;
                     result.removed_cosmetic_rules = tel.removed_cosmetic_rules || 0;
+                    result.removed_win_irrelevant_rules = tel.removed_win_irrelevant_rules || 0;
                     result.merged_object_aliases = tel.merged_object_aliases || 0;
                     result.merged_object_groups = tel.merged_object_groups || 0;
                     result.inserted_noaction_metadata = tel.inserted_noaction_metadata || 0;
                     result.solver_opt_ms_inert = tel.ms_inert || 0;
                     result.solver_opt_ms_cosmetic = tel.ms_cosmetic || 0;
                     result.solver_opt_ms_cosmetic_rules = tel.ms_cosmetic_rules || 0;
+                    result.solver_opt_ms_win_relevance = tel.ms_win_relevance || 0;
                     result.solver_opt_ms_merge = tel.ms_merge || 0;
                     result.solver_opt_ms_action = tel.ms_action || 0;
                 }
@@ -5244,12 +5282,14 @@ function totals(results) {
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
         removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         inserted_noaction_metadata: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
+        solver_opt_ms_win_relevance: 0,
         solver_opt_ms_merge: 0,
         solver_opt_ms_action: 0,
         solver_optimization_gated: false,
@@ -5300,12 +5340,14 @@ function totals(results) {
         out.removed_cosmetic_objects += result.removed_cosmetic_objects || 0;
         out.removed_collision_layers += result.removed_collision_layers || 0;
         out.removed_cosmetic_rules += result.removed_cosmetic_rules || 0;
+        out.removed_win_irrelevant_rules += result.removed_win_irrelevant_rules || 0;
         out.merged_object_aliases += result.merged_object_aliases || 0;
         out.merged_object_groups += result.merged_object_groups || 0;
         out.inserted_noaction_metadata += result.inserted_noaction_metadata || 0;
         out.solver_opt_ms_inert += result.solver_opt_ms_inert || 0;
         out.solver_opt_ms_cosmetic += result.solver_opt_ms_cosmetic || 0;
         out.solver_opt_ms_cosmetic_rules += result.solver_opt_ms_cosmetic_rules || 0;
+        out.solver_opt_ms_win_relevance += result.solver_opt_ms_win_relevance || 0;
         out.solver_opt_ms_merge += result.solver_opt_ms_merge || 0;
         out.solver_opt_ms_action += result.solver_opt_ms_action || 0;
         if (result.solver_optimization_gated) {

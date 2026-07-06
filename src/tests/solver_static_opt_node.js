@@ -15,6 +15,7 @@ const {
     collectObjectNamesFromCompiledLevels,
     expandLegendRefsToConcreteObjectNames,
     effectiveSolverPassesForHook,
+    winRelevanceIrrelevantRuleSourceLines,
     buildSolverOptimizationJsonTotals,
     formatSolverOptimizationHumanSuffixFromTotals,
     isInertCommandOnlyCompiledRule,
@@ -75,29 +76,36 @@ function run() {
 
     assert.deepStrictEqual(
         effectiveSolverPassesForHook(null, { inert: true, cosmetic: true, cosmeticRules: true, merge: true }),
-        { inert: true, cosmetic: false, cosmeticRules: false, merge: false, action: false },
+        { inert: true, cosmetic: false, cosmeticRules: false, merge: false, action: false, winRelevance: false },
     );
     assert.deepStrictEqual(
         effectiveSolverPassesForHook({ status: 'compile_error' }, { inert: true, cosmetic: true, cosmeticRules: true, merge: true }),
-        { inert: true, cosmetic: false, cosmeticRules: false, merge: false, action: false },
+        { inert: true, cosmetic: false, cosmeticRules: false, merge: false, action: false, winRelevance: false },
     );
     assert.deepStrictEqual(
         effectiveSolverPassesForHook({ status: 'ok' }, { inert: false, cosmetic: true, cosmeticRules: true, merge: true }),
-        { inert: false, cosmetic: true, cosmeticRules: true, merge: true, action: false },
+        { inert: false, cosmetic: true, cosmeticRules: true, merge: true, action: false, winRelevance: false },
+    );
+    assert.deepStrictEqual(
+        effectiveSolverPassesForHook({ status: 'ok' }, { winRelevance: true }),
+        { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false, winRelevance: true },
     );
     const nest = buildSolverOptimizationJsonTotals({
         static_optimization_removed_rules: 1,
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
         removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 2,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         solver_opt_ms_inert: 0.01,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
+        solver_opt_ms_win_relevance: 0.02,
     });
     assert.strictEqual(nest.removed_inert_rules, 1);
+    assert.strictEqual(nest.removed_win_irrelevant_rules, 2);
     assert.ok(nest.ms_hook > 0);
 
     const nestGated = buildSolverOptimizationJsonTotals({
@@ -105,21 +113,101 @@ function run() {
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
         removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
         solver_opt_ms_merge: 0,
+        solver_opt_ms_win_relevance: 0,
         solver_optimization_gated: true,
     });
     assert.strictEqual(nestGated.gated, true);
     assert.ok(formatSolverOptimizationHumanSuffixFromTotals({ solver_optimization_gated: true }).includes('opt_gated=1'));
 
-    assert.deepStrictEqual(parseSolverOptPassList('all'), { inert: true, cosmetic: true, cosmeticRules: true, merge: true, action: true });
-    assert.deepStrictEqual(parseSolverOptPassList('inert,cosmetic'), { inert: true, cosmetic: true, cosmeticRules: false, merge: false, action: false });
-    assert.deepStrictEqual(parseSolverOptPassList('cosmetic-rules'), { inert: false, cosmetic: false, cosmeticRules: true, merge: false, action: false });
+    assert.deepStrictEqual(parseSolverOptPassList('all'), { inert: true, cosmetic: true, cosmeticRules: true, merge: true, action: true, winRelevance: true });
+    assert.deepStrictEqual(parseSolverOptPassList('inert,cosmetic'), { inert: true, cosmetic: true, cosmeticRules: false, merge: false, action: false, winRelevance: false });
+    assert.deepStrictEqual(parseSolverOptPassList('cosmetic-rules'), { inert: false, cosmetic: false, cosmeticRules: true, merge: false, action: false, winRelevance: false });
+    assert.deepStrictEqual(parseSolverOptPassList('win-relevance'), {
+        inert: false,
+        cosmetic: false,
+        cosmeticRules: false,
+        merge: false,
+        action: false,
+        winRelevance: true,
+    });
     assertThrows(() => parseSolverOptPassList('nope'), 'Unknown');
+
+    const winRelevanceReport = {
+        status: 'ok',
+        facts: {
+            win_relevance: [{
+                id: 'win_relevance',
+                status: 'proved',
+                value: {
+                    irrelevant_rule_ids: ['early_group_0_rule_1', 'late_group_0_rule_0'],
+                },
+            }],
+        },
+        ps_tagged: {
+            rule_sections: [
+                {
+                    groups: [
+                        { rules: [{ id: 'early_group_0_rule_0', source_line: 10 }] },
+                        { rules: [{ id: 'early_group_0_rule_1', source_line: 11 }] },
+                    ],
+                },
+                {
+                    groups: [
+                        { rules: [{ id: 'late_group_0_rule_0', source_line: 21 }] },
+                    ],
+                },
+            ],
+        },
+    };
+    assert.deepStrictEqual(
+        Array.from(winRelevanceIrrelevantRuleSourceLines(winRelevanceReport)).sort((left, right) => left - right),
+        [11, 21],
+        'win-relevance pass should resolve irrelevant rule ids to source lines',
+    );
+    assert.deepStrictEqual(
+        Array.from(winRelevanceIrrelevantRuleSourceLines({
+            status: 'ok',
+            facts: { win_relevance: [{ id: 'win_relevance', status: 'candidate', value: { irrelevant_rule_ids: ['x'] } }] },
+            ps_tagged: { rule_sections: [{ groups: [{ rules: [{ id: 'x', source_line: 9 }] }] }] },
+        })),
+        [],
+        'win-relevance pass should only consume proved facts',
+    );
+
+    const winRelevanceState = {
+        invalid: 0,
+        rules: [
+            { lineNumber: 10 },
+            { lineNumber: 11 },
+            { lineNumber: 12, randomRule: true },
+        ],
+        lateRules: [
+            { lineNumber: 21 },
+            { lineNumber: 22 },
+        ],
+    };
+    createSolverOptimizationHook(winRelevanceReport, { winRelevance: true })(winRelevanceState);
+    assert.deepStrictEqual(
+        winRelevanceState.rules.map(rule => rule.lineNumber),
+        [10, 12],
+        'win-relevance pass should drop irrelevant early rules by source line',
+    );
+    assert.deepStrictEqual(
+        winRelevanceState.lateRules.map(rule => rule.lineNumber),
+        [22],
+        'win-relevance pass should drop irrelevant late rules by source line',
+    );
+    assert.strictEqual(
+        winRelevanceState.solverOptimizationTelemetry.removed_win_irrelevant_rules,
+        2,
+    );
 
     const actionReport = {
         status: 'ok',
@@ -436,7 +524,7 @@ function run() {
     assert.strictEqual(merged.cosmeticRules, false);
 
     const baseline = resolveSolverPasses(Object.assign({}, opt, { solverOptParityBaseline: true }));
-    assert.deepStrictEqual(baseline, { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false });
+    assert.deepStrictEqual(baseline, { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false, winRelevance: false });
 
     loadPuzzleScript();
     const smokePath = path.join(__dirname, 'solver_smoke_tests', 'one_move.txt');
@@ -850,6 +938,35 @@ PT
     ));
     assert.strictEqual(actionForcedNoaction.results[0].status, 'solved');
     assert.strictEqual(actionBaseline.results[0].solution_length, actionForcedNoaction.results[0].solution_length);
+
+    const winRelevancePayload = JSON.parse(execFileSync(
+        process.execPath,
+        [
+            runner,
+            path.join(__dirname, 'static_analysis_testdata', 'win_relevance'),
+            '--game',
+            'win-relevance-direct.txt',
+            '--timeout-ms',
+            '1000',
+            '--quiet',
+            '--no-solutions',
+            '--solver-opt',
+            'win-relevance',
+            '--solver-opt-parity',
+            '--json',
+        ],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+    ));
+    assert.strictEqual(
+        winRelevancePayload.results[0].removed_win_irrelevant_rules,
+        1,
+        'win-relevance solver opt should remove the irrelevant fixture rule',
+    );
+    assert.strictEqual(
+        winRelevancePayload.totals.solver_optimization.removed_win_irrelevant_rules,
+        1,
+        'win-relevance removals should appear in nested solver optimization totals',
+    );
 
     const profiledAction = JSON.parse(execFileSync(
         process.execPath,
