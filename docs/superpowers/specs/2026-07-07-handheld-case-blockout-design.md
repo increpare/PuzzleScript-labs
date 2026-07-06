@@ -27,9 +27,15 @@ footprint.
 
 - Layout: split-side (handoff Candidate A). Comfort-first mandate; hands
   support the screen from both sides with the grip line at the center of
-  gravity. Candidate B (controls under) rejected as cantilevered and
-  wrist-flexing; Candidate C (center utility strip) rejected as front-face
-  clutter on a translucent shell.
+  gravity. Candidate B (controls under; effectively a DMG/Game Boy face
+  adapted to a landscape panel) rejected as cantilevered and wrist-flexing:
+  the DMG worked because its small near-square screen and low-mounted AA pack
+  kept mass at the grip line, while our 121 mm landscape module would sit
+  entirely above the gripping hands. Landscape handhelds since the GBA are
+  split-side for this reason. A DMG-style comparison blank remains in the
+  validation plan so this is confirmed by playtest, not just argument.
+  Candidate C (center utility strip) rejected as front-face clutter on a
+  translucent shell.
 - Right cluster: fan geometry. Action sits at the right thumb's resting point,
   Undo one inward flick away, Restart directly below Action. Undo is treated
   as the second-most-pressed button (Sokoban-style play is
@@ -109,7 +115,13 @@ Speaker grille: dot perforation centered at X 114 in the lower front band
 
 - Battery: split 1S pack, two roughly 36 x 56 x 10 mm cells paralleled,
   ~10 Wh total, one per grip bulge. Balances mass into the palms.
-- Main PCB: behind display center.
+- Main PCB: behind display center, within the 22 mm waist (lens ~3 mm +
+  display module ~6 mm + board stack ~5 mm, with margin). The Track 2 custom
+  PCB outline conforms to this case, not the other way around; the 7-inch
+  bring-up board is bench-only and is not expected to fit.
+- USB-C: assumed on a small riser/daughterboard (or a main-PCB arm) at the
+  top-left seam, since the main board is centered and the connector exits at
+  X ~68.
 - Speaker: O15-20 mm micro driver, 4-6 mm deep, front-firing on a bracket at
   bottom-center; sealed chamber ~15 cm3 extending rearward and up behind the
   display module.
@@ -155,7 +167,11 @@ Speaker grille: dot perforation centered at X 114 in the lower front band
    (move, move, action, undo, undo, restart, menu, repeat).
 5. Log thumb extension, grip changes, wrist angle, support-finger tension, and
    accidental presses. Test small, medium, and large hands if available.
-6. Feed measured corrections back into this spec before any CAD work.
+6. Cut a second, cheap DMG-style comparison blank (~160 x 145 mm,
+   controls-under per handoff Candidate B) with the same ballast placed above
+   the grip line, and run the same input loop, so the split-side choice is
+   confirmed empirically rather than by argument.
+7. Feed measured corrections back into this spec before any CAD work.
 
 ## Sources
 
