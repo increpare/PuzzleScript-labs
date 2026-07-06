@@ -5,6 +5,7 @@
 #include "soc/soc_caps.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
@@ -25,11 +26,37 @@ bool g_mounted = false;
 
 bool ends_with_txt(const char* name) {
     const std::string value(name == nullptr ? "" : name);
-    return value.size() >= 4 && value.substr(value.size() - 4) == ".txt";
+    if (value.size() < 4) {
+        return false;
+    }
+
+    const std::string suffix = value.substr(value.size() - 4);
+    return std::tolower(static_cast<unsigned char>(suffix[0])) == '.' &&
+           std::tolower(static_cast<unsigned char>(suffix[1])) == 't' &&
+           std::tolower(static_cast<unsigned char>(suffix[2])) == 'x' &&
+           std::tolower(static_cast<unsigned char>(suffix[3])) == 't';
 }
 
 std::string join_game_path(const char* basename) {
     return std::string(kSdGamesDir) + "/" + basename;
+}
+
+void clear_loaded_source(LoadedSource& out_source) {
+    out_source.name.clear();
+    out_source.text.clear();
+}
+
+bool is_valid_game_basename(const char* basename) {
+    if (basename == nullptr || basename[0] == '\0') {
+        return false;
+    }
+    if (std::strcmp(basename, ".") == 0 || std::strcmp(basename, "..") == 0) {
+        return false;
+    }
+    if (std::strchr(basename, '/') != nullptr || std::strchr(basename, '\\') != nullptr) {
+        return false;
+    }
+    return ends_with_txt(basename);
 }
 
 bool is_regular_game_file(const dirent* entry) {
@@ -110,6 +137,8 @@ std::vector<std::string> list_sd_games() {
 }
 
 esp_err_t read_text_file(const std::string& path, LoadedSource& out_source) {
+    clear_loaded_source(out_source);
+
     struct stat st {};
     if (stat(path.c_str(), &st) != 0) {
         return ESP_ERR_NOT_FOUND;
@@ -139,6 +168,8 @@ esp_err_t read_text_file(const std::string& path, LoadedSource& out_source) {
 }
 
 esp_err_t load_first_sd_game(LoadedSource& out_source) {
+    clear_loaded_source(out_source);
+
     const auto games = list_sd_games();
     if (games.empty()) {
         return ESP_ERR_NOT_FOUND;
@@ -147,7 +178,9 @@ esp_err_t load_first_sd_game(LoadedSource& out_source) {
 }
 
 esp_err_t load_named_sd_game(const char* basename, LoadedSource& out_source) {
-    if (basename == nullptr || std::strchr(basename, '/') != nullptr) {
+    clear_loaded_source(out_source);
+
+    if (!is_valid_game_basename(basename)) {
         return ESP_ERR_INVALID_ARG;
     }
     return read_text_file(join_game_path(basename), out_source);
