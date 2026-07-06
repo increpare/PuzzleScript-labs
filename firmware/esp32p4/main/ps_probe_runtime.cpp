@@ -162,7 +162,7 @@ void emit_compiler_diagnostic(const char* source_name, const ps_diagnostic& diag
         const EscapedJsonString escaped_severity(severity_name(diagnostic.severity));
         const EscapedJsonString escaped_message(diagnostic.message);
         ESP_LOGI(kTag,
-                 R"({"event":"diagnostic","source":"%s","severity":"%s","code":)" PRId32 R"(,"line":)" PRId32 R"(,"message":"%s"})",
+                 R"({"event":"diagnostic","source":"%s","severity":"%s","code":%)" PRId32 R"(,"line":%)" PRId32 R"(,"message":"%s"})",
                  escaped_source.c_str(),
                  escaped_severity.c_str(),
                  diagnostic.code,

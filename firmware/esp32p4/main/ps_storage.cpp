@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <utility>
 
+#include "driver/gpio.h"
 #include "driver/sdmmc_host.h"
 #include "esp_heap_caps.h"
 #include "esp_vfs_fat.h"
@@ -122,12 +123,12 @@ esp_err_t mount_sd_card() {
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
     slot_config.width = 4;
 #ifdef CONFIG_SOC_SDMMC_USE_GPIO_MATRIX
-    slot_config.clk = 43;
-    slot_config.cmd = 44;
-    slot_config.d0 = 39;
-    slot_config.d1 = 40;
-    slot_config.d2 = 41;
-    slot_config.d3 = 42;
+    slot_config.clk = GPIO_NUM_43;
+    slot_config.cmd = GPIO_NUM_44;
+    slot_config.d0 = GPIO_NUM_39;
+    slot_config.d1 = GPIO_NUM_40;
+    slot_config.d2 = GPIO_NUM_41;
+    slot_config.d3 = GPIO_NUM_42;
 #endif
     slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 

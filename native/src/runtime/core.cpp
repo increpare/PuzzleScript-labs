@@ -3902,14 +3902,14 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
         return std::nullopt;
     }
 
-    const int32_t validStartCount = std::max(0, xmax - xmin) * std::max(0, ymax - ymin);
+    const int32_t validStartCount = std::max(int32_t{0}, xmax - xmin) * std::max(int32_t{0}, ymax - ymin);
     if (validStartCount <= 0) {
         return false;
     }
     if (anchor->cellCount == 0) {
         return false;
     }
-    if (anchor->cellCount >= static_cast<uint64_t>(std::max(8, validStartCount))) {
+    if (anchor->cellCount >= static_cast<uint64_t>(std::max(int32_t{8}, validStartCount))) {
         return std::nullopt;
     }
 
@@ -4030,8 +4030,8 @@ bool collectAnchoredRowMatchesInto(
     }
 
     const bool horizontal = direction > 2;
-    const int32_t validStartCount = std::max(0, xmax - xmin) * std::max(0, ymax - ymin);
-    if (validStartCount <= 0 || anchor->cellCount >= static_cast<uint64_t>(std::max(8, validStartCount))) {
+    const int32_t validStartCount = std::max(int32_t{0}, xmax - xmin) * std::max(int32_t{0}, ymax - ymin);
+    if (validStartCount <= 0 || anchor->cellCount >= static_cast<uint64_t>(std::max(int32_t{8}, validStartCount))) {
         return false;
     }
     if (anchor->objectIds == nullptr || anchor->objectIds->empty()) {
@@ -4367,7 +4367,7 @@ std::vector<RowMatch> collectEllipsisRowMatches(
     const bool horizontal = direction > 2;
     const int32_t lineCount = horizontal ? currentLevelHeight(session) : currentLevelWidth(session);
     std::vector<uint8_t>& linePossible = session.scratch.ellipsisLinePossibleScratch;
-    linePossible.assign(static_cast<size_t>(std::max(lineCount, 0)), 0);
+    linePossible.assign(static_cast<size_t>(std::max(lineCount, int32_t{0})), 0);
     for (int32_t line = 0; line < lineCount; ++line) {
         const MaskWord* lineObjects = horizontal
             ? session.scratch.rowMasks.data() + static_cast<size_t>(line * session.game->strideObject)
@@ -4405,7 +4405,7 @@ std::vector<RowMatch> collectEllipsisRowMatches(
             case 2: return currentLevelHeight(session) - y;
             case 4: return x + 1;
             case 8: return currentLevelWidth(session) - x;
-            default: return 0;
+            default: return int32_t{0};
         }
     };
 
@@ -5371,15 +5371,15 @@ void rebuildObjectCellIndex(FullState& session) {
     const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
     const size_t cellWordCount = static_cast<size_t>((tileCount + static_cast<int32_t>(kMaskWordBits) - 1) / static_cast<int32_t>(kMaskWordBits));
     session.scratch.objectCellBitTileCount = tileCount;
-    const size_t expectedWords = static_cast<size_t>(std::max(objectCount, 0)) * cellWordCount;
+    const size_t expectedWords = static_cast<size_t>(std::max(objectCount, int32_t{0})) * cellWordCount;
     if (objectCount <= 0 || tileCount <= 0 || cellWordCount == 0) {
         session.scratch.objectCellBits.assign(expectedWords, 0);
-        session.scratch.objectCellCounts.assign(static_cast<size_t>(std::max(objectCount, 0)), 0);
+        session.scratch.objectCellCounts.assign(static_cast<size_t>(std::max(objectCount, int32_t{0})), 0);
         session.scratch.objectCellIndexDirty = false;
         return;
     }
 
-    const size_t expectedCellMajorWords = static_cast<size_t>(std::max(tileCount, 0) * session.game->strideObject);
+    const size_t expectedCellMajorWords = static_cast<size_t>(std::max(tileCount, int32_t{0}) * session.game->strideObject);
     if (session.levelState.board.objects.size() != expectedCellMajorWords) {
         session.scratch.objectCellIndexDirty = true;
         return;
@@ -5402,9 +5402,9 @@ bool rebuildMovementCellIndex(FullState& session) {
     const size_t cellWordCount = movementCellWordCount(session);
     session.scratch.movementCellBitTileCount = tileCount;
     session.scratch.movementCellBits.assign(
-        static_cast<size_t>(std::max(bitCount, 0)) * cellWordCount,
+        static_cast<size_t>(std::max(bitCount, int32_t{0})) * cellWordCount,
         0);
-    session.scratch.movementCellCounts.assign(static_cast<size_t>(std::max(bitCount, 0)), 0);
+    session.scratch.movementCellCounts.assign(static_cast<size_t>(std::max(bitCount, int32_t{0})), 0);
     if (tileCount <= 0 || bitCount <= 0 || cellWordCount == 0 || session.game->strideMovement <= 0) {
         session.scratch.movementCellIndexDirty = false;
         return true;
@@ -5450,11 +5450,11 @@ bool prepareMovementCellIndex(FullState& session) {
     const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
     const int32_t bitCount = movementBitCount(session);
     const size_t cellWordCount = movementCellWordCount(session);
-    const size_t expectedWords = static_cast<size_t>(std::max(bitCount, 0)) * cellWordCount;
+    const size_t expectedWords = static_cast<size_t>(std::max(bitCount, int32_t{0})) * cellWordCount;
     if (!session.scratch.movementCellIndexDirty
         && session.scratch.movementCellBitTileCount == tileCount
         && session.scratch.movementCellBits.size() == expectedWords
-        && session.scratch.movementCellCounts.size() == static_cast<size_t>(std::max(bitCount, 0))) {
+        && session.scratch.movementCellCounts.size() == static_cast<size_t>(std::max(bitCount, int32_t{0}))) {
         return true;
     }
     return rebuildMovementCellIndex(session);
@@ -6069,9 +6069,9 @@ void transposeCellMajorToObjectMajor(
     const int32_t tileCount = (width > 0 && height > 0) ? width * height : 0;
     const size_t cellWordCount = static_cast<size_t>((tileCount + static_cast<int32_t>(kMaskWordBits) - 1) / static_cast<int32_t>(kMaskWordBits));
     const int32_t objectCount = game.objectCount;
-    objectCellBits.assign(static_cast<size_t>(std::max(objectCount, 0)) * cellWordCount, 0);
+    objectCellBits.assign(static_cast<size_t>(std::max(objectCount, int32_t{0})) * cellWordCount, 0);
     if (objectCellCounts != nullptr) {
-        objectCellCounts->assign(static_cast<size_t>(std::max(objectCount, 0)), 0);
+        objectCellCounts->assign(static_cast<size_t>(std::max(objectCount, int32_t{0})), 0);
     }
     if (objectCount <= 0 || tileCount <= 0 || cellWordCount == 0 || game.strideObject <= 0) {
         return;

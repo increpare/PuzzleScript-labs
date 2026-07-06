@@ -1364,7 +1364,7 @@ void materializePersistentLevelStateIntoFullState(const PersistentLevelState& st
     } else {
         puzzlescript::clearPersistentBoardObjects(session);
     }
-    const size_t movementWordCount = static_cast<size_t>(std::max(tileCount, 0) * (session.game ? session.game->strideMovement : 0));
+    const size_t movementWordCount = static_cast<size_t>(std::max(tileCount, int32_t{0}) * (session.game ? session.game->strideMovement : 0));
     session.scratch.liveMovements.assign(movementWordCount, 0);
     session.scratch.rigidGroupIndexMasks.assign(session.scratch.liveMovements.size(), 0);
     session.scratch.rigidMovementAppliedMasks.assign(session.scratch.liveMovements.size(), 0);

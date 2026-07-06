@@ -50,6 +50,17 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
   -Wno-unused-parameter
   -Wno-sign-compare
 )
+
+set_source_files_properties(
+  "${PUZZLESCRIPT_NATIVE_DIR}/third_party/simdjson/simdjson.cpp"
+  "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/core.cpp"
+  "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/json.cpp"
+  PROPERTIES COMPILE_OPTIONS "-Wno-error=format")
+
+set_source_files_properties(
+  "${PUZZLESCRIPT_NATIVE_DIR}/third_party/utf8proc/utf8proc.c"
+  PROPERTIES COMPILE_OPTIONS "-w")
+
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
   UTF8PROC_STATIC
   PS_MASK_WORD_BITS=32

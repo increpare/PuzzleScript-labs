@@ -252,8 +252,8 @@ RenderResult render_level_to_native_framebuffer(
         const int boardY = targetY + fit.offsetY;
         const int minX = std::max(0, viewport.minX);
         const int minY = std::max(0, viewport.minY);
-        const int maxX = std::min(status.width, viewport.maxX);
-        const int maxY = std::min(status.height, viewport.maxY);
+        const int maxX = static_cast<int>(std::min(status.width, static_cast<int32_t>(viewport.maxX)));
+        const int maxY = static_cast<int>(std::min(status.height, static_cast<int32_t>(viewport.maxY)));
 
         for (int y = minY; y < maxY; ++y) {
             for (int x = minX; x < maxX; ++x) {

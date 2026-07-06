@@ -66,7 +66,12 @@ esp_err_t init_display() {
     }
 
     ESP_LOGI(kTag, "Create MIPI DSI bus");
-    esp_lcd_dsi_bus_config_t bus_config = EK79007_PANEL_BUS_DSI_2CH_CONFIG();
+    esp_lcd_dsi_bus_config_t bus_config = {
+        .bus_id = 0,
+        .num_data_lanes = 2,
+        .phy_clk_src = static_cast<mipi_dsi_phy_pllref_clock_source_t>(0),
+        .lane_bit_rate_mbps = 900,
+    };
     err = esp_lcd_new_dsi_bus(&bus_config, &g_dsi_bus);
     if (err != ESP_OK) {
         return cleanup_display_after_error(err);
