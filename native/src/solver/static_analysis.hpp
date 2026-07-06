@@ -14,7 +14,22 @@ struct StaticObjectAnalysis {
     MaskVector movementMentionedObjects;
 };
 
+struct SolverHashProjectionAnalysis {
+    MaskVector projectedObjects;
+    std::vector<int32_t> projectedLayers;
+    MaskVector transientObjects;
+    std::vector<std::string> blockers;
+    std::string scope = "solver_hash_only";
+};
+
 StaticObjectAnalysis analyzeStaticObjects(const Game& game);
+
+SolverHashProjectionAnalysis analyzeSolverHashProjection(const Game& game);
+
+std::vector<std::string> objectNamesForMask(
+    const Game& game,
+    const MaskVector& objects
+);
 
 std::vector<std::string> staticObjectNames(
     const Game& game,

@@ -18,7 +18,7 @@
 .PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_summarize generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
-	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
+	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
 	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_regression_tests compact_turn_codegen_dirty_shape compact_turn_perf_regression compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
@@ -627,6 +627,7 @@ help:
 	@echo "  make solver_tests_cpp              Run standalone native solver corpus"
 	@echo "  make solver_tests_cpp SPECIALIZE=true"
 	@echo "                                     Run standalone native solver corpus with compiled rules"
+	@echo "  make native_runtime_counters_tests Verify native solver runtime-counter schema"
 	@echo "  make solver_tests_js               Run JavaScript comparison solver corpus"
 	@echo "  make solver_js_coverage_cpp        Fail if native misses any JS-solved corpus level"
 	@echo "  make solver_timeout_curve          Build Javascript + c++ cumulative solve chart (slow; includes canonical + compiled series)"
@@ -919,6 +920,7 @@ static_analysis_tests:
 	$(NODE) src/tests/static_analysis_explorer_node.js
 	$(NODE) src/tests/static_analysis_explorer_runtime_smoke.js
 	$(NODE) src/tests/solver_static_opt_node.js
+	$(NODE) src/tests/solver_hash_projection_node.js
 	$(NODE) src/tests/analyze_solver_static_relationships_node.js
 	$(NODE) src/tests/static_tool_cli_hardening_node.js
 	$(NODE) src/tests/compare_solver_static_opt_runs_node.js
@@ -1051,6 +1053,9 @@ solver_smoke_tests: $(SOLVER_TARGET_PREREQ)
 	else \
 		$(NODE) src/tests/run_solver_smoke_assert.js $(PUZZLESCRIPT_SOLVER) src/tests/solver_smoke_tests --timeout-ms 1000; \
 	fi
+
+native_runtime_counters_tests: $(SOLVER_TARGET_PREREQ)
+	$(NODE) src/tests/native_runtime_counters_node.js $(PUZZLESCRIPT_SOLVER)
 
 compiled_tick_dispatch_smoke: specialized_full_turn_dispatch_smoke
 
@@ -1330,6 +1335,8 @@ solver_search_mode_tests: $(SOLVER_TARGET_PREREQ)
 	$(NODE) src/tests/run_solver_search_modes_node.js $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_solver_hda_smoke_node.js $(PUZZLESCRIPT_SOLVER)
 	$(NODE) src/tests/run_native_solver_heuristic_selection_node.js $(PUZZLESCRIPT_SOLVER)
+	$(NODE) src/tests/native_solver_hash_projection_node.js $(PUZZLESCRIPT_SOLVER)
+	$(NODE) src/tests/native_solver_win_relevance_node.js $(PUZZLESCRIPT_SOLVER)
 
 native_static_analysis_parity_tests: $(SOLVER_TARGET_PREREQ)
 	$(NODE) src/tests/run_native_static_analysis_parity_node.js $(PUZZLESCRIPT_SOLVER) $(SOLVER_TESTS_CORPUS)

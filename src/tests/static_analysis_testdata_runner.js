@@ -1598,6 +1598,89 @@ function runMechanicProfileDir(dirPath, claimDescriptions, log = process.stdout.
     }
 }
 
+// ─── solver_hash_projection ──────────────────────────────────────────────────
+
+function solverHashProjectionFact(report) {
+    return ((report.facts && report.facts.solver_hash_projection) || [])
+        .find(fact => fact && fact.id === 'solver_hash_projection') || null;
+}
+
+function buildSolverHashProjectionExpectations(report) {
+    const value = (solverHashProjectionFact(report) || {}).value || {};
+    return {
+        schema: FIXTURE_SCHEMA,
+        human_verified: false,
+        solverHashProjection: {
+            projected_objects: (value.projected_objects || []).slice().sort(),
+            projected_layers: (value.projected_layers || []).slice().sort((left, right) => left - right),
+            transient_objects: (value.transient_objects || []).slice().sort(),
+            blockers: (value.blockers || []).slice().sort(),
+            scope: value.scope || null,
+        },
+    };
+}
+
+function assertIntegerArray(filePath, label, value) {
+    assert.ok(Array.isArray(value), `${filePath}: ${label} expected value must be integer[]`);
+    assert.ok(value.every(item => Number.isInteger(item)), `${filePath}: ${label} expected value must be integer[]`);
+}
+
+function validateSolverHashProjectionExpectationShape(filePath, payload) {
+    assert.strictEqual(payload.schema, FIXTURE_SCHEMA, `${filePath}: unsupported fixture schema`);
+    assert.ok(payload.solverHashProjection && typeof payload.solverHashProjection === 'object' && !Array.isArray(payload.solverHashProjection), `${filePath}: solverHashProjection must be an object`);
+    assertStringArray(filePath, 'solverHashProjection.projected_objects', payload.solverHashProjection.projected_objects);
+    assertIntegerArray(filePath, 'solverHashProjection.projected_layers', payload.solverHashProjection.projected_layers);
+    assertStringArray(filePath, 'solverHashProjection.transient_objects', payload.solverHashProjection.transient_objects);
+    assertStringArray(filePath, 'solverHashProjection.blockers', payload.solverHashProjection.blockers);
+    assert.strictEqual(typeof payload.solverHashProjection.scope, 'string', `${filePath}: solverHashProjection.scope expected value must be string`);
+}
+
+function checkSolverHashProjectionFixture(txtPath, jsonPath, claimDescriptions) {
+    const source = fs.readFileSync(txtPath, 'utf8');
+    const report = analyzeSource(source, { sourcePath: txtPath });
+    assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+    const payload = readJson(jsonPath);
+    assertFixtureFieldsDocumented(jsonPath, fixtureSchemaByName(claimDescriptions, 'solver_hash_projection'), payload);
+    validateSolverHashProjectionExpectationShape(jsonPath, payload);
+    const actual = buildSolverHashProjectionExpectations(report);
+    assertSameStringSet(jsonPath, 'solverHashProjection.projected_objects', payload.solverHashProjection.projected_objects, actual.solverHashProjection.projected_objects);
+    assert.deepStrictEqual(
+        actual.solverHashProjection.projected_layers,
+        payload.solverHashProjection.projected_layers.slice().sort((left, right) => left - right),
+        `${jsonPath}: solverHashProjection.projected_layers mismatch`
+    );
+    assertSameStringSet(jsonPath, 'solverHashProjection.transient_objects', payload.solverHashProjection.transient_objects, actual.solverHashProjection.transient_objects);
+    assertSameStringSet(jsonPath, 'solverHashProjection.blockers', payload.solverHashProjection.blockers, actual.solverHashProjection.blockers);
+    assert.strictEqual(
+        actual.solverHashProjection.scope,
+        payload.solverHashProjection.scope,
+        `${jsonPath}: solverHashProjection.scope mismatch`
+    );
+}
+
+function runSolverHashProjectionDir(dirPath, claimDescriptions, log = process.stdout.write.bind(process.stdout)) {
+    const txtFiles = sortedFiles(dirPath, '.txt');
+    const jsonFiles = sortedFiles(dirPath, '.json');
+    const txtStems = new Set(txtFiles.map(name => path.basename(name, '.txt')));
+    const jsonStems = new Set(jsonFiles.map(name => path.basename(name, '.json')));
+    for (const stem of jsonStems) {
+        assert.ok(txtStems.has(stem), `${path.join(dirPath, `${stem}.json`)}: missing matching .txt`);
+    }
+    for (const txtName of txtFiles) {
+        const stem = path.basename(txtName, '.txt');
+        const txtPath = path.join(dirPath, txtName);
+        const jsonPath = path.join(dirPath, `${stem}.json`);
+        if (!fs.existsSync(jsonPath)) {
+            const source = fs.readFileSync(txtPath, 'utf8');
+            const report = analyzeSource(source, { sourcePath: txtPath });
+            assert.strictEqual(report.status, 'ok', `${txtPath}: static analysis status ${report.status}`);
+            writeJson(jsonPath, buildSolverHashProjectionExpectations(report));
+            log(`generated static analysis testdata: solver_hash_projection/${stem}.json (review before committing)\n`);
+        }
+        checkSolverHashProjectionFixture(txtPath, jsonPath, claimDescriptions);
+    }
+}
+
 // ─── runtime_contracts ───────────────────────────────────────────────────────
 
 function normalizeRuntimeContractInputs(payload) {
@@ -1763,6 +1846,9 @@ function runStaticAnalysisTestdata(options = {}) {
     const mechanicProfileDir = path.join(root, 'mechanic_profile');
     assert.ok(fs.existsSync(mechanicProfileDir), `${mechanicProfileDir}: missing mechanic_profile testdata directory`);
     runMechanicProfileDir(mechanicProfileDir, claimDescriptions, options.log);
+    const solverHashProjectionDir = path.join(root, 'solver_hash_projection');
+    assert.ok(fs.existsSync(solverHashProjectionDir), `${solverHashProjectionDir}: missing solver_hash_projection testdata directory`);
+    runSolverHashProjectionDir(solverHashProjectionDir, claimDescriptions, options.log);
     const runtimeContractsDir = path.join(root, 'runtime_contracts');
     assert.ok(fs.existsSync(runtimeContractsDir), `${runtimeContractsDir}: missing runtime_contracts testdata directory`);
     runRuntimeContractsDir(runtimeContractsDir, claimDescriptions, options.log);
@@ -1786,6 +1872,7 @@ module.exports = {
     buildRuleTagExpectations,
     buildRulegroupFlowExpectations,
     buildRuntimeContractExpectations,
+    buildSolverHashProjectionExpectations,
     buildWinConditionTagExpectations,
     buildWinRelevanceExpectations,
     buildWinflowExpectations,
@@ -1809,6 +1896,7 @@ module.exports = {
     runRuleTagsDir,
     runRulegroupFlowDir,
     runRuntimeContractsDir,
+    runSolverHashProjectionDir,
     runStaticAnalysisTestdata,
     runWinConditionTagsDir,
     runWinRelevanceDir,

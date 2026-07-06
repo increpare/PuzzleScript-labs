@@ -1,0 +1,61 @@
+title Static Analysis Skipped Overlap Clear
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Locked
+red
+
+Open
+blue
+
+Key
+yellow
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+O = Open
+K = Key
+Gate = Locked or Key
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Locked, Open
+Key
+Player
+
+=====
+RULES
+=====
+
+[ Gate Open ] -> [ Open ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player
+
+======
+LEVELS
+======
+
+POK

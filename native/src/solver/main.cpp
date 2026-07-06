@@ -23,6 +23,7 @@
 #include <string_view>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifndef PUZZLESCRIPT_SOLVER_C_API
@@ -50,6 +51,7 @@ using puzzlescript::Game;
 using puzzlescript::LevelDimensions;
 using puzzlescript::MaskWord;
 using puzzlescript::MaskWordUnsigned;
+using puzzlescript::MaskVector;
 using puzzlescript::PersistentLevelState;
 using StateKey = puzzlescript::search::StateKey;
 using StateKeyHash = puzzlescript::search::StateKeyHash;
@@ -116,6 +118,8 @@ struct Options {
     bool fullNodeStorage = false;
     bool compactTurnOracle = false;
     bool compactTurnSearch = true;
+    bool solverHashProjection = false;
+    bool solverOptWinRelevance = false;
     int32_t astarWeight = 2;
     puzzlescript::solver::HeuristicKind heuristicKind = puzzlescript::solver::HeuristicKind::Auto;
     std::filesystem::path staticAnalysisHintsPath;
@@ -124,6 +128,45 @@ struct Options {
 
 bool persistentLevelStatesEqual(const PersistentLevelState& lhs, const PersistentLevelState& rhs) {
     return lhs.board.objects == rhs.board.objects
+        && lhs.rng.s == rhs.rng.s
+        && lhs.rng.i == rhs.rng.i
+        && lhs.rng.j == rhs.rng.j
+        && lhs.rng.valid == rhs.rng.valid;
+}
+
+bool projectedBoardObjectsEqual(
+    const std::vector<MaskWord>& lhs,
+    const std::vector<MaskWord>& rhs,
+    const MaskVector* ignoredObjectBits
+) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    const bool useProjection =
+        ignoredObjectBits != nullptr
+        && !ignoredObjectBits->empty();
+    const size_t projectionStride = useProjection ? ignoredObjectBits->size() : 0;
+    for (size_t index = 0; index < lhs.size(); ++index) {
+        MaskWord lhsWord = lhs[index];
+        MaskWord rhsWord = rhs[index];
+        if (useProjection) {
+            const MaskWord keepMask = ~(*ignoredObjectBits)[index % projectionStride];
+            lhsWord &= keepMask;
+            rhsWord &= keepMask;
+        }
+        if (lhsWord != rhsWord) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool persistentLevelStatesEqualForVisited(
+    const PersistentLevelState& lhs,
+    const PersistentLevelState& rhs,
+    const MaskVector* ignoredObjectBits
+) {
+    return projectedBoardObjectsEqual(lhs.board.objects, rhs.board.objects, ignoredObjectBits)
         && lhs.rng.s == rhs.rng.s
         && lhs.rng.i == rhs.rng.i
         && lhs.rng.j == rhs.rng.j
@@ -253,6 +296,12 @@ struct Result {
     bool specializedFullTurnAttached = false;
     bool specializedCompactTurnAttached = false;
     bool compactNodeStorage = false;
+    bool exactStateKeys = true;
+    std::string hashMode = "exact_state";
+    uint64_t solverHashProjectionProjectedObjects = 0;
+    bool solverHashProjectionBlocked = false;
+    std::vector<std::string> solverHashProjectionBlockers;
+    uint64_t removedWinIrrelevantRules = 0;
     int32_t astarWeight = 2;
     std::string portfolioProfile;
     int32_t portfolioRuleCount = 0;
@@ -318,6 +367,7 @@ struct CompiledGame {
     puzzlescript::LoadedGame loadedGame;
     std::shared_ptr<const Game> game;
     puzzlescript::solver::StaticAnalysisHints staticAnalysisHints;
+    uint64_t removedWinIrrelevantRules = 0;
     int64_t compileNs = 0;
     std::optional<Result> compileError;
     size_t resultBegin = 0;
@@ -429,6 +479,88 @@ std::optional<std::string> optionalJsonStringField(
     return it->second.asString();
 }
 
+std::optional<int32_t> optionalJsonIntField(
+    const puzzlescript::json::Value::Object& object,
+    std::string_view key
+) {
+    const auto it = object.find(std::string(key));
+    if (it == object.end() || it->second.isNull()) {
+        return std::nullopt;
+    }
+    if (it->second.isInteger()) {
+        const int64_t value = it->second.asInteger();
+        if (value >= std::numeric_limits<int32_t>::min()
+            && value <= std::numeric_limits<int32_t>::max()) {
+            return static_cast<int32_t>(value);
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<std::string> optionalJsonStringArrayField(
+    const puzzlescript::json::Value::Object& object,
+    std::string_view key
+) {
+    std::vector<std::string> values;
+    const auto it = object.find(std::string(key));
+    if (it == object.end() || !it->second.isArray()) {
+        return values;
+    }
+    for (const puzzlescript::json::Value& item : it->second.asArray()) {
+        if (item.isString()) {
+            values.push_back(item.asString());
+        }
+    }
+    return values;
+}
+
+std::unordered_map<std::string, int32_t> ruleSourceLinesByStaticRuleId(
+    const puzzlescript::json::Value::Object& object
+) {
+    std::unordered_map<std::string, int32_t> byId;
+    const auto tagged = object.find("ps_tagged");
+    if (tagged == object.end() || !tagged->second.isObject()) {
+        return byId;
+    }
+    const auto& taggedObject = tagged->second.asObject();
+    const auto sections = taggedObject.find("rule_sections");
+    if (sections == taggedObject.end() || !sections->second.isArray()) {
+        return byId;
+    }
+    for (const puzzlescript::json::Value& sectionValue : sections->second.asArray()) {
+        if (!sectionValue.isObject()) {
+            continue;
+        }
+        const auto& sectionObject = sectionValue.asObject();
+        const auto groups = sectionObject.find("groups");
+        if (groups == sectionObject.end() || !groups->second.isArray()) {
+            continue;
+        }
+        for (const puzzlescript::json::Value& groupValue : groups->second.asArray()) {
+            if (!groupValue.isObject()) {
+                continue;
+            }
+            const auto& groupObject = groupValue.asObject();
+            const auto rules = groupObject.find("rules");
+            if (rules == groupObject.end() || !rules->second.isArray()) {
+                continue;
+            }
+            for (const puzzlescript::json::Value& ruleValue : rules->second.asArray()) {
+                if (!ruleValue.isObject()) {
+                    continue;
+                }
+                const auto& ruleObject = ruleValue.asObject();
+                const auto id = optionalJsonStringField(ruleObject, "id");
+                const auto sourceLine = optionalJsonIntField(ruleObject, "source_line");
+                if (id.has_value() && sourceLine.has_value()) {
+                    byId[*id] = *sourceLine;
+                }
+            }
+        }
+    }
+    return byId;
+}
+
 const puzzlescript::json::Value* findStaticAnalysisForGame(
     const puzzlescript::json::Value& root,
     const std::string& gameName
@@ -473,6 +605,14 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
         return hints;
     }
 
+    std::unordered_map<std::string, std::vector<int32_t>> objectIdsByName;
+    for (const puzzlescript::ObjectDef& objectDef : game.objectsById) {
+        if (objectDef.id < 0 || objectDef.layer < 0) {
+            continue;
+        }
+        objectIdsByName[lowercase(objectDef.name)].push_back(objectDef.id);
+    }
+
     const puzzlescript::json::Value* objectsValue = nullptr;
     if (const auto tagged = object.find("ps_tagged");
         tagged != object.end() && tagged->second.isObject()) {
@@ -488,53 +628,164 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
             objectsValue = &objects->second;
         }
     }
-    if (objectsValue == nullptr || !objectsValue->isArray()) {
-        return hints;
-    }
 
-    std::unordered_map<std::string, std::vector<int32_t>> objectIdsByName;
-    for (const puzzlescript::ObjectDef& objectDef : game.objectsById) {
-        if (objectDef.id < 0 || objectDef.layer < 0) {
-            continue;
-        }
-        objectIdsByName[lowercase(objectDef.name)].push_back(objectDef.id);
-    }
+    if (objectsValue != nullptr && objectsValue->isArray()) {
+        hints.staticObjects.assign(game.wordCount, 0);
+        hints.available = true;
+        for (const puzzlescript::json::Value& entryValue : objectsValue->asArray()) {
+            if (!entryValue.isObject()) {
+                continue;
+            }
+            const auto& entry = entryValue.asObject();
+            const auto tags = entry.find("tags");
+            if (tags == entry.end() || !tags->second.isObject()) {
+                continue;
+            }
+            const auto staticTag = optionalJsonBoolField(tags->second.asObject(), "static");
+            if (!staticTag.has_value() || !*staticTag) {
+                continue;
+            }
 
-    hints.staticObjects.assign(game.wordCount, 0);
-    hints.available = true;
-    for (const puzzlescript::json::Value& entryValue : objectsValue->asArray()) {
-        if (!entryValue.isObject()) {
-            continue;
-        }
-        const auto& entry = entryValue.asObject();
-        const auto tags = entry.find("tags");
-        if (tags == entry.end() || !tags->second.isObject()) {
-            continue;
-        }
-        const auto staticTag = optionalJsonBoolField(tags->second.asObject(), "static");
-        if (!staticTag.has_value() || !*staticTag) {
-            continue;
-        }
+            std::optional<std::string> objectName = optionalJsonStringField(entry, "canonical_name");
+            if (!objectName.has_value()) {
+                objectName = optionalJsonStringField(entry, "name");
+            }
+            if (!objectName.has_value()) {
+                continue;
+            }
 
-        std::optional<std::string> objectName = optionalJsonStringField(entry, "canonical_name");
-        if (!objectName.has_value()) {
-            objectName = optionalJsonStringField(entry, "name");
-        }
-        if (!objectName.has_value()) {
-            continue;
-        }
-
-        const auto ids = objectIdsByName.find(lowercase(*objectName));
-        if (ids == objectIdsByName.end()) {
-            continue;
-        }
-        for (const int32_t objectId : ids->second) {
-            const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
-            if (word < hints.staticObjects.size()) {
-                hints.staticObjects[word] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+            const auto ids = objectIdsByName.find(lowercase(*objectName));
+            if (ids == objectIdsByName.end()) {
+                continue;
+            }
+            for (const int32_t objectId : ids->second) {
+                const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+                if (word < hints.staticObjects.size()) {
+                    hints.staticObjects[word] |= puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+                }
             }
         }
     }
+
+    const auto facts = object.find("facts");
+    if (facts != object.end() && facts->second.isObject()) {
+        const auto& factsObject = facts->second.asObject();
+        const auto projectionFacts = factsObject.find("solver_hash_projection");
+        if (projectionFacts != factsObject.end() && projectionFacts->second.isArray()) {
+            for (const puzzlescript::json::Value& factValue : projectionFacts->second.asArray()) {
+                if (!factValue.isObject()) {
+                    continue;
+                }
+                const auto& factObject = factValue.asObject();
+                if (const auto factId = optionalJsonStringField(factObject, "id");
+                    factId.has_value() && *factId != "solver_hash_projection") {
+                    continue;
+                }
+                const auto valueIt = factObject.find("value");
+                if (valueIt == factObject.end() || !valueIt->second.isObject()) {
+                    continue;
+                }
+                const auto& valueObject = valueIt->second.asObject();
+                const auto scope = optionalJsonStringField(valueObject, "scope");
+                if (!scope.has_value() || *scope != "solver_hash_only") {
+                    continue;
+                }
+
+                hints.solverHashProjectionAvailable = true;
+                hints.solverHashProjectionObjects.assign(game.wordCount, 0);
+                hints.solverHashProjectionBlockers =
+                    optionalJsonStringArrayField(valueObject, "blockers");
+                if (hints.solverHashProjectionBlockers.empty()) {
+                    hints.solverHashProjectionBlockers =
+                        optionalJsonStringArrayField(factObject, "blockers");
+                }
+                if (!hints.solverHashProjectionBlockers.empty()) {
+                    break;
+                }
+
+                std::vector<std::string> projectedNames =
+                    optionalJsonStringArrayField(valueObject, "projected_objects");
+                const std::vector<std::string> transientNames =
+                    optionalJsonStringArrayField(valueObject, "transient_objects");
+                projectedNames.insert(projectedNames.end(), transientNames.begin(), transientNames.end());
+                for (const std::string& objectName : projectedNames) {
+                    const auto ids = objectIdsByName.find(lowercase(objectName));
+                    if (ids == objectIdsByName.end()) {
+                        continue;
+                    }
+                    for (const int32_t objectId : ids->second) {
+                        const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+                        if (word < hints.solverHashProjectionObjects.size()) {
+                            hints.solverHashProjectionObjects[word] |=
+                                puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        const auto winRelevanceFacts = factsObject.find("win_relevance");
+        if (winRelevanceFacts != factsObject.end() && winRelevanceFacts->second.isArray()) {
+            const std::unordered_map<std::string, int32_t> lineByRuleId =
+                ruleSourceLinesByStaticRuleId(object);
+            for (const puzzlescript::json::Value& factValue : winRelevanceFacts->second.asArray()) {
+                if (!factValue.isObject()) {
+                    continue;
+                }
+                const auto& factObject = factValue.asObject();
+                if (const auto factId = optionalJsonStringField(factObject, "id");
+                    factId.has_value() && *factId != "win_relevance") {
+                    continue;
+                }
+                const auto status = optionalJsonStringField(factObject, "status");
+                if (!status.has_value() || lowercase(*status) != "proved") {
+                    continue;
+                }
+                const auto valueIt = factObject.find("value");
+                if (valueIt == factObject.end() || !valueIt->second.isObject()) {
+                    continue;
+                }
+                const auto irrelevantRuleIds =
+                    optionalJsonStringArrayField(valueIt->second.asObject(), "irrelevant_rule_ids");
+                std::unordered_set<int32_t> uniqueLines;
+                for (const std::string& ruleId : irrelevantRuleIds) {
+                    const auto found = lineByRuleId.find(ruleId);
+                    if (found != lineByRuleId.end()) {
+                        uniqueLines.insert(found->second);
+                    }
+                }
+                hints.winRelevanceAvailable = true;
+                hints.winIrrelevantRuleSourceLines.assign(uniqueLines.begin(), uniqueLines.end());
+                std::sort(
+                    hints.winIrrelevantRuleSourceLines.begin(),
+                    hints.winIrrelevantRuleSourceLines.end());
+                break;
+            }
+        }
+    }
+    return hints;
+}
+
+puzzlescript::solver::StaticAnalysisHints deriveNativeStaticAnalysisHints(const Game& game) {
+    puzzlescript::solver::StaticAnalysisHints hints;
+
+    const puzzlescript::solver::StaticObjectAnalysis staticAnalysis =
+        puzzlescript::solver::analyzeStaticObjects(game);
+    hints.available = true;
+    hints.staticObjects = staticAnalysis.staticObjects;
+
+    const puzzlescript::solver::SolverHashProjectionAnalysis projection =
+        puzzlescript::solver::analyzeSolverHashProjection(game);
+    hints.solverHashProjectionAvailable = true;
+    hints.solverHashProjectionObjects = projection.projectedObjects;
+    const size_t n = std::min(
+        hints.solverHashProjectionObjects.size(),
+        projection.transientObjects.size());
+    for (size_t word = 0; word < n; ++word) {
+        hints.solverHashProjectionObjects[word] |= projection.transientObjects[word];
+    }
+    hints.solverHashProjectionBlockers = projection.blockers;
     return hints;
 }
 
@@ -677,6 +928,30 @@ Strategy parseStrategy(const std::string& value) {
     throw std::runtime_error("Unsupported strategy: " + value);
 }
 
+void enableSolverOptPasses(Options& options, const std::string& value) {
+    std::stringstream stream(value);
+    std::string part;
+    bool sawPass = false;
+    while (std::getline(stream, part, ',')) {
+        const std::string pass = lowercase(trim(part));
+        if (pass.empty()) {
+            continue;
+        }
+        sawPass = true;
+        if (pass == "all"
+            || pass == "win-relevance"
+            || pass == "win_relevance"
+            || pass == "winrelevance") {
+            options.solverOptWinRelevance = true;
+            continue;
+        }
+        throw std::runtime_error("Unsupported solver optimization pass: " + pass);
+    }
+    if (!sawPass) {
+        throw std::runtime_error("--solver-opt requires at least one pass name");
+    }
+}
+
 TimingMode parseTimingMode(const std::string& value) {
     if (value == "none") {
         return TimingMode::None;
@@ -743,7 +1018,7 @@ bool matchesGameFilter(const std::string& relativeName, const std::optional<std:
 Options parseArgs(int argc, char** argv) {
     Options options;
     options.jobs = 1;
-    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance|mis-cost-estimate] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--astar-weight N]";
+    constexpr const char* usage = "Usage: puzzlescript_solver <solver_tests_dir> [--timeout-ms N] [--jobs auto|N|1] [--hda-jobs auto|N|1] [--portfolio-jobs auto|N|1] [--strategy portfolio|bfs|weighted-astar|weighted-astar-deep|greedy|hda-weighted-astar] [--solver-heuristic zero|winconditions|auto|all-on-matching|all-on-player|no-player-distance|mis-cost-estimate] [--static-analysis-hints PATH] [--dump-static-analysis] [--timing none|summary|detailed] [--game NAME] [--level N] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--summary-only] [--quiet] [--json] [--profile-runtime-counters] [--require-specialized-full-turn] [--hash-state-keys] [--compact-node-storage] [--full-node-storage] [--compact-turn-oracle] [--solver-hash-projection] [--solver-opt win-relevance|all] [--astar-weight N]";
     if (argc < 2) {
         throw std::runtime_error(usage);
     }
@@ -851,6 +1126,14 @@ Options parseArgs(int argc, char** argv) {
             options.compactTurnOracle = true;
             continue;
         }
+        if (arg == "--solver-hash-projection") {
+            options.solverHashProjection = true;
+            continue;
+        }
+        if (arg == "--solver-opt" && index + 1 < argc) {
+            enableSolverOptPasses(options, argv[++index]);
+            continue;
+        }
         if (arg == "--no-compact-turn-search" || arg == "--compact-turn-search=never") {
             options.compactTurnSearch = false;
             continue;
@@ -906,11 +1189,129 @@ PersistentLevelState persistentLevelStateFromFullState(const FullState& session)
     return state;
 }
 
-StateKey persistentLevelStateKey(const PersistentLevelState& state, Timing& timing) {
+uint64_t maskPopcount(const MaskVector& mask) {
+    uint64_t count = 0;
+    for (MaskWord word : mask) {
+        count += static_cast<uint64_t>(
+            puzzlescript::maskWordPopcount(static_cast<MaskWordUnsigned>(word)));
+    }
+    return count;
+}
+
+const MaskVector* solverHashProjectionMask(
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool solverHashProjection
+) {
+    if (!solverHashProjection
+        || staticAnalysisHints == nullptr
+        || !staticAnalysisHints->solverHashProjectionAvailable
+        || !staticAnalysisHints->solverHashProjectionBlockers.empty()
+        || staticAnalysisHints->solverHashProjectionObjects.empty()) {
+        return nullptr;
+    }
+    return &staticAnalysisHints->solverHashProjectionObjects;
+}
+
+void attachSolverHashProjectionMetadata(
+    Result& result,
+    bool solverHashProjection,
+    const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool exactStateKeys
+) {
+    result.exactStateKeys = exactStateKeys;
+    result.hashMode = exactStateKeys ? "exact_state" : "hash_state_keys";
+    if (!solverHashProjection || staticAnalysisHints == nullptr) {
+        return;
+    }
+    if (staticAnalysisHints->solverHashProjectionAvailable) {
+        result.solverHashProjectionBlockers =
+            staticAnalysisHints->solverHashProjectionBlockers;
+        result.solverHashProjectionProjectedObjects =
+            staticAnalysisHints->solverHashProjectionBlockers.empty()
+                ? maskPopcount(staticAnalysisHints->solverHashProjectionObjects)
+                : 0;
+        result.solverHashProjectionBlocked =
+            !staticAnalysisHints->solverHashProjectionBlockers.empty()
+            && result.solverHashProjectionProjectedObjects == 0;
+    }
+    if (result.solverHashProjectionProjectedObjects > 0) {
+        result.hashMode += "_hash_projection"
+            + std::to_string(result.solverHashProjectionProjectedObjects);
+    }
+}
+
+uint64_t dropRulesBySourceLine(
+    std::vector<std::vector<puzzlescript::Rule>>& groups,
+    const std::unordered_set<int32_t>& sourceLines
+) {
+    uint64_t removed = 0;
+    if (sourceLines.empty()) {
+        return removed;
+    }
+    for (std::vector<puzzlescript::Rule>& group : groups) {
+        if (group.empty()) {
+            continue;
+        }
+        std::vector<puzzlescript::Rule> kept;
+        kept.reserve(group.size());
+        for (puzzlescript::Rule& rule : group) {
+            if (!rule.isRandom && sourceLines.find(rule.lineNumber) != sourceLines.end()) {
+                ++removed;
+                continue;
+            }
+            kept.push_back(std::move(rule));
+        }
+        group = std::move(kept);
+    }
+    return removed;
+}
+
+uint64_t applyWinRelevancePruning(
+    puzzlescript::LoadedGame& loadedGame,
+    const puzzlescript::solver::StaticAnalysisHints& hints,
+    bool enabled
+) {
+    if (!enabled
+        || !hints.winRelevanceAvailable
+        || hints.winIrrelevantRuleSourceLines.empty()
+        || !loadedGame.information) {
+        return 0;
+    }
+
+    auto prunedGame = std::make_shared<puzzlescript::Game>(*loadedGame.information);
+    const std::unordered_set<int32_t> sourceLines(
+        hints.winIrrelevantRuleSourceLines.begin(),
+        hints.winIrrelevantRuleSourceLines.end());
+    uint64_t removed = dropRulesBySourceLine(prunedGame->rules, sourceLines);
+    removed += dropRulesBySourceLine(prunedGame->lateRules, sourceLines);
+    if (removed == 0) {
+        return 0;
+    }
+
+    prunedGame->specializedRulegroups = nullptr;
+    prunedGame->specializedFullTurn = nullptr;
+    prunedGame->specializedCompactTurn = nullptr;
+    loadedGame.information = std::move(prunedGame);
+    return removed;
+}
+
+StateKey persistentLevelStateKey(
+    const PersistentLevelState& state,
+    Timing& timing,
+    const MaskVector* ignoredObjectBits = nullptr
+) {
     ScopedTimer timer(timing.hashNs);
     StateKey key{1469598103934665603ull, 7809847782465536322ull};
     puzzlescript::search::appendStateKeyValue(key, static_cast<uint64_t>(state.board.objects.size()));
-    for (puzzlescript::MaskWord word : state.board.objects) {
+    const bool useProjection =
+        ignoredObjectBits != nullptr
+        && !ignoredObjectBits->empty();
+    const size_t projectionStride = useProjection ? ignoredObjectBits->size() : 0;
+    for (size_t index = 0; index < state.board.objects.size(); ++index) {
+        puzzlescript::MaskWord word = state.board.objects[index];
+        if (useProjection) {
+            word &= ~(*ignoredObjectBits)[index % projectionStride];
+        }
         puzzlescript::search::appendStateKeyValue(key, static_cast<MaskWordUnsigned>(word));
     }
     puzzlescript::search::appendStateKeyValue(key, static_cast<uint64_t>(state.rng.s.size()));
@@ -1686,8 +2087,13 @@ bool solvedByStep(const ps_step_result& stepResult, const FullState& session, in
 
 class FlatBestDepth {
 public:
-    FlatBestDepth(Timing& timing, bool exactStateKeys)
-        : timing(timing), exactStateKeys(exactStateKeys) {}
+    FlatBestDepth(
+        Timing& timing,
+        bool exactStateKeys,
+        const MaskVector* ignoredObjectBits = nullptr)
+        : timing(timing),
+          exactStateKeys(exactStateKeys),
+          ignoredObjectBits(ignoredObjectBits) {}
 
     void reserve(size_t expected) {
         rehash(capacityForExpected(expected));
@@ -1831,7 +2237,10 @@ private:
                 if (!exactStateKeys) {
                     return slot;
                 }
-                if (persistentLevelStatesEqual(nodes[entry.nodeIndex].state, state)) {
+                if (persistentLevelStatesEqualForVisited(
+                        nodes[entry.nodeIndex].state,
+                        state,
+                        ignoredObjectBits)) {
                     return slot;
                 }
                 ++timing.visitedKeyCollisions;
@@ -1861,13 +2270,17 @@ private:
 
     Timing& timing;
     bool exactStateKeys = false;
+    const MaskVector* ignoredObjectBits = nullptr;
     std::vector<Entry> entries;
     size_t entryCount = 0;
 };
 
 struct HdaShard {
-    HdaShard(uint32_t shardId, bool exactStateKeys)
-        : shardId(shardId), bestDepth(timing, exactStateKeys) {}
+    HdaShard(
+        uint32_t shardId,
+        bool exactStateKeys,
+        const MaskVector* ignoredObjectBits = nullptr)
+        : shardId(shardId), bestDepth(timing, exactStateKeys, ignoredObjectBits) {}
 
     uint32_t shardId = 0;
     Timing timing;
@@ -1946,6 +2359,7 @@ Result runSearch(
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool solverHashProjection,
     const std::atomic_bool* cancelRequested = nullptr,
     std::unique_ptr<FullState> initialOverride = nullptr,
     uint64_t maxExpanded = 0
@@ -1965,6 +2379,13 @@ Result runSearch(
     result.compactNodeStorage = compactNodeStorage;
     result.astarWeight = astarWeight;
     result.timing.compileNs = compileNs;
+    const MaskVector* ignoredObjectBits =
+        solverHashProjectionMask(staticAnalysisHints, solverHashProjection);
+    attachSolverHashProjectionMetadata(
+        result,
+        solverHashProjection,
+        staticAnalysisHints,
+        exactStateKeys);
 
     std::unique_ptr<FullState> initial = std::move(initialOverride);
     if (!initial) {
@@ -1995,12 +2416,12 @@ Result runSearch(
     std::vector<Node> nodes;
     nodes.reserve(8192);
 
-    FlatBestDepth bestDepth(result.timing, exactStateKeys);
+    FlatBestDepth bestDepth(result.timing, exactStateKeys, ignoredObjectBits);
     bestDepth.reserve(16384);
     result.uniqueStates = 1;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
-    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing, ignoredObjectBits);
     puzzlescript::solver::HeuristicContext heuristicContext(
         *game,
         searchWidth,
@@ -2180,7 +2601,7 @@ Result runSearch(
             PersistentLevelState childState = edge.compactTurn.handled
                 ? std::move(edge.compactTurn.state)
                 : persistentLevelStateWithTiming(*edge.child, result.timing);
-            const StateKey key = persistentLevelStateKey(childState, result.timing);
+            const StateKey key = persistentLevelStateKey(childState, result.timing, ignoredObjectBits);
             const uint32_t childDepth = parentDepth + 1;
             uint32_t childIndex = static_cast<uint32_t>(nodes.size());
             int32_t childHeuristic = 0;
@@ -2271,6 +2692,7 @@ Result runAdaptivePortfolioSearch(
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool solverHashProjection,
     std::unique_ptr<FullState> initialOverride = nullptr
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
@@ -2290,6 +2712,13 @@ Result runAdaptivePortfolioSearch(
     result.compactNodeStorage = compactNodeStorage;
     result.astarWeight = astarWeight;
     result.timing.compileNs = compileNs;
+    const MaskVector* ignoredObjectBits =
+        solverHashProjectionMask(staticAnalysisHints, solverHashProjection);
+    attachSolverHashProjectionMetadata(
+        result,
+        solverHashProjection,
+        staticAnalysisHints,
+        exactStateKeys);
 
     std::unique_ptr<FullState> initial = std::move(initialOverride);
     if (!initial) {
@@ -2319,12 +2748,12 @@ Result runAdaptivePortfolioSearch(
     std::vector<uint8_t> expanded;
     expanded.reserve(8192);
 
-    FlatBestDepth bestDepth(result.timing, exactStateKeys);
+    FlatBestDepth bestDepth(result.timing, exactStateKeys, ignoredObjectBits);
     bestDepth.reserve(16384);
     result.uniqueStates = 1;
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
-    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing, ignoredObjectBits);
     puzzlescript::solver::HeuristicContext heuristicContext(
         *game,
         searchWidth,
@@ -2568,7 +2997,7 @@ Result runAdaptivePortfolioSearch(
             PersistentLevelState childState = edge.compactTurn.handled
                 ? std::move(edge.compactTurn.state)
                 : persistentLevelStateWithTiming(*edge.child, result.timing);
-            const StateKey key = persistentLevelStateKey(childState, result.timing);
+            const StateKey key = persistentLevelStateKey(childState, result.timing, ignoredObjectBits);
             const uint32_t childDepth = parentDepth + 1;
             uint32_t childIndex = static_cast<uint32_t>(nodes.size());
             bool shouldStore = false;
@@ -2824,6 +3253,7 @@ Result runParallelPortfolioSearch(
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool solverHashProjection,
     size_t portfolioJobs
 ) {
     const std::shared_ptr<const Game>& game = loadedGame.information;
@@ -2840,6 +3270,11 @@ Result runParallelPortfolioSearch(
     base.compactNodeStorage = compactNodeStorage;
     base.astarWeight = astarWeight;
     base.timing.compileNs = compileNs;
+    attachSolverHashProjectionMetadata(
+        base,
+        solverHashProjection,
+        staticAnalysisHints,
+        exactStateKeys);
 
     const PortfolioFeatures portfolioFeatures = analyzePortfolioFeatures(*game);
     const PortfolioProfile portfolioProfile = choosePortfolioProfile(portfolioFeatures);
@@ -2876,6 +3311,7 @@ Result runParallelPortfolioSearch(
             config.weight,
             heuristicKind,
             staticAnalysisHints,
+            solverHashProjection,
             &cancelRequested);
         applyPortfolioMetadata(laneResult, portfolioFeatures, portfolioProfile, heuristicKind);
         laneResult.portfolioJobs = static_cast<uint32_t>(laneCount);
@@ -2958,6 +3394,7 @@ Result runHashDistributedWeightedAStarSearch(
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool solverHashProjection,
     size_t hdaJobs
 ) {
     hdaJobs = std::max<size_t>(1, hdaJobs);
@@ -2981,6 +3418,13 @@ Result runHashDistributedWeightedAStarSearch(
         std::numeric_limits<uint32_t>::max()));
     result.hdaParallel = hdaJobs > 1;
     result.timing.compileNs = compileNs;
+    const MaskVector* ignoredObjectBits =
+        solverHashProjectionMask(staticAnalysisHints, solverHashProjection);
+    attachSolverHashProjectionMetadata(
+        result,
+        solverHashProjection,
+        staticAnalysisHints,
+        exactStateKeys);
 
     if (!compactNodeStorage) {
         result.status = "level_error";
@@ -3007,7 +3451,7 @@ Result runHashDistributedWeightedAStarSearch(
 
     PersistentLevelState initialState = persistentLevelStateWithTiming(*initial, result.timing);
     const std::vector<MaskWord> initialBoardObjects = initialState.board.objects;
-    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing);
+    const StateKey initialKey = persistentLevelStateKey(initialState, result.timing, ignoredObjectBits);
     puzzlescript::solver::HeuristicContext setupHeuristicContext(
         *game,
         searchWidth,
@@ -3027,7 +3471,10 @@ Result runHashDistributedWeightedAStarSearch(
     std::vector<std::unique_ptr<HdaShard>> shards;
     shards.reserve(hdaJobs);
     for (size_t shardIndex = 0; shardIndex < hdaJobs; ++shardIndex) {
-        auto shard = std::make_unique<HdaShard>(static_cast<uint32_t>(shardIndex), exactStateKeys);
+        auto shard = std::make_unique<HdaShard>(
+            static_cast<uint32_t>(shardIndex),
+            exactStateKeys,
+            ignoredObjectBits);
         shard->nodes.reserve(std::max<size_t>(16, 8192 / hdaJobs));
         shard->bestDepth.reserve(std::max<size_t>(16, 16384 / hdaJobs));
         shards.push_back(std::move(shard));
@@ -3237,7 +3684,7 @@ Result runHashDistributedWeightedAStarSearch(
                     ScopedTimer timer(shard.timing.stateCaptureNs);
                     fillPersistentLevelStateFromFullState(childState, childScratch);
                 }
-                const StateKey childKey = persistentLevelStateKey(childState, shard.timing);
+                const StateKey childKey = persistentLevelStateKey(childState, shard.timing, ignoredObjectBits);
                 const uint32_t childDepth = parentNode.depth + 1;
                 int32_t childHeuristic = 0;
                 {
@@ -3336,6 +3783,7 @@ Result solveLevel(
     int32_t astarWeight,
     puzzlescript::solver::HeuristicKind heuristicKind,
     const puzzlescript::solver::StaticAnalysisHints* staticAnalysisHints,
+    bool solverHashProjection,
     size_t portfolioJobs,
     size_t hdaJobs
 ) {
@@ -3353,16 +3801,16 @@ Result solveLevel(
     };
 
     if (strategy == Strategy::Bfs) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Bfs, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints, solverHashProjection));
     }
     if (strategy == Strategy::WeightedAStar) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStar, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints, solverHashProjection));
     }
     if (strategy == Strategy::WeightedAStarDeep) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::WeightedAStarDeep, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints, solverHashProjection));
     }
     if (strategy == Strategy::Greedy) {
-        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints));
+        return finish(runSearch(loadedGame, gameName, levelIndex, timeoutMs, compileNs, SearchMode::Greedy, deadline, workerId, exactStateKeys, effectiveCompactNodeStorage, compactTurnOracle, compactTurnSearch, astarWeight, heuristicKind, staticAnalysisHints, solverHashProjection));
     }
 
     if (strategy == Strategy::HdaWeightedAStar && hdaJobs <= 1) {
@@ -3381,7 +3829,8 @@ Result solveLevel(
             compactTurnSearch,
             astarWeight,
             heuristicKind,
-            staticAnalysisHints);
+            staticAnalysisHints,
+            solverHashProjection);
         result.strategy = "hda-weighted-astar";
         result.hdaJobs = 1;
         result.hdaParallel = false;
@@ -3404,6 +3853,7 @@ Result solveLevel(
             astarWeight,
             heuristicKind,
             staticAnalysisHints,
+            solverHashProjection,
             hdaJobs));
     }
 
@@ -3423,6 +3873,7 @@ Result solveLevel(
             astarWeight,
             heuristicKind,
             staticAnalysisHints,
+            solverHashProjection,
             portfolioJobs));
     }
 
@@ -3440,7 +3891,8 @@ Result solveLevel(
         compactTurnSearch,
         astarWeight,
         heuristicKind,
-        staticAnalysisHints));
+        staticAnalysisHints,
+        solverHashProjection));
 }
 
 #ifdef PUZZLESCRIPT_SOLVER_C_API
@@ -3605,6 +4057,7 @@ Result solveSeededLevel(
             astarWeight,
             puzzlescript::solver::HeuristicKind::Auto,
             nullptr,
+            false,
             nullptr,
             std::move(initial),
             maxExpanded));
@@ -3626,6 +4079,7 @@ Result solveSeededLevel(
             astarWeight,
             heuristicKind,
             nullptr,
+            false,
             nullptr,
             std::move(initial),
             maxExpanded));
@@ -3647,6 +4101,7 @@ Result solveSeededLevel(
             astarWeight,
             heuristicKind,
             nullptr,
+            false,
             nullptr,
             std::move(initial),
             maxExpanded));
@@ -3668,6 +4123,7 @@ Result solveSeededLevel(
             astarWeight,
             heuristicKind,
             nullptr,
+            false,
             nullptr,
             std::move(initial),
             maxExpanded));
@@ -3688,6 +4144,7 @@ Result solveSeededLevel(
         astarWeight,
         heuristicKind,
         nullptr,
+        false,
         std::move(initial));
     result.portfolioJobs = static_cast<uint32_t>(std::max<size_t>(1, std::min<size_t>(
         portfolioJobs,
@@ -3879,6 +4336,21 @@ void printJsonResult(const Result& result, std::ostream& out) {
     out << ",\"compiled_tick_attached\":" << (result.specializedFullTurnAttached ? "true" : "false");
     out << ",\"specialized_compact_turn_attached\":" << (result.specializedCompactTurnAttached ? "true" : "false");
     out << ",\"compact_node_storage\":" << (result.compactNodeStorage ? "true" : "false");
+    out << ",\"exact_state_keys\":" << (result.exactStateKeys ? "true" : "false");
+    out << ",\"hash_mode\":" << jsonString(result.hashMode);
+    out << ",\"solver_hash_projection_projected_objects\":"
+        << result.solverHashProjectionProjectedObjects;
+    out << ",\"solver_hash_projection_blocked\":"
+        << (result.solverHashProjectionBlocked ? "true" : "false");
+    out << ",\"solver_hash_projection_blockers\":[";
+    for (size_t index = 0; index < result.solverHashProjectionBlockers.size(); ++index) {
+        if (index > 0) {
+            out << ",";
+        }
+        out << jsonString(result.solverHashProjectionBlockers[index]);
+    }
+    out << "]";
+    out << ",\"removed_win_irrelevant_rules\":" << result.removedWinIrrelevantRules;
     out << ",\"astar_weight\":" << result.astarWeight;
     out << ",\"hda_jobs\":" << result.hdaJobs;
     out << ",\"hda_parallel\":" << (result.hdaParallel ? "true" : "false");
@@ -3968,6 +4440,9 @@ void printJson(const std::vector<Result>& results) {
     uint64_t hdaRemoteSends = 0;
     uint64_t hdaInboxDrains = 0;
     uint64_t hdaOwnerShardSolves = 0;
+    uint64_t solverHashProjectionProjectedObjects = 0;
+    bool solverHashProjectionBlocked = false;
+    uint64_t removedWinIrrelevantRules = 0;
     for (const auto& result : results) {
         solved += result.status == "solved";
         timeout += result.status == "timeout";
@@ -3989,6 +4464,10 @@ void printJson(const std::vector<Result>& results) {
         compactTurnUnsupported += result.compactTurnUnsupported;
         compactTurnOracleChecks += result.compactTurnOracleChecks;
         compactTurnOracleFailures += result.compactTurnOracleFailures;
+        solverHashProjectionProjectedObjects += result.solverHashProjectionProjectedObjects;
+        solverHashProjectionBlocked =
+            solverHashProjectionBlocked || result.solverHashProjectionBlocked;
+        removedWinIrrelevantRules += result.removedWinIrrelevantRules;
         timing.compileNs += result.timing.compileNs;
         timing.loadNs += result.timing.loadNs;
         timing.cloneNs += result.timing.cloneNs;
@@ -4045,6 +4524,16 @@ void printJson(const std::vector<Result>& results) {
     std::cout << ",\"compact_turn_unsupported\":" << compactTurnUnsupported;
     std::cout << ",\"compact_turn_oracle_checks\":" << compactTurnOracleChecks;
     std::cout << ",\"compact_turn_oracle_failures\":" << compactTurnOracleFailures;
+    std::cout << ",\"solver_hash_projection_projected_objects\":"
+              << solverHashProjectionProjectedObjects;
+    std::cout << ",\"solver_hash_projection_blocked\":"
+              << (solverHashProjectionBlocked ? "true" : "false");
+    std::cout << ",\"removed_win_irrelevant_rules\":"
+              << removedWinIrrelevantRules;
+    if (removedWinIrrelevantRules > 0) {
+        std::cout << ",\"solver_optimization\":{\"removed_win_irrelevant_rules\":"
+                  << removedWinIrrelevantRules << "}";
+    }
     std::cout << ",\"compile_ms\":" << ms(timing.compileNs);
     std::cout << ",\"load_ms\":" << ms(timing.loadNs);
     std::cout << ",\"clone_ms\":" << ms(timing.cloneNs);
@@ -4180,6 +4669,17 @@ void printJsonStringArray(std::ostream& out, const std::vector<std::string>& val
     out << "]";
 }
 
+void printJsonIntArray(std::ostream& out, const std::vector<int32_t>& values) {
+    out << "[";
+    for (size_t index = 0; index < values.size(); ++index) {
+        if (index > 0) {
+            out << ",";
+        }
+        out << values[index];
+    }
+    out << "]";
+}
+
 #ifndef PUZZLESCRIPT_SOLVER_C_API
 void printStaticAnalysisDump(const Options& options) {
     std::optional<puzzlescript::json::Value> staticAnalysisRoot;
@@ -4194,6 +4694,11 @@ void printStaticAnalysisDump(const Options& options) {
         std::string source;
         std::vector<std::string> staticObjects;
         std::vector<std::pair<std::string, std::vector<std::string>>> blockers;
+        std::vector<std::string> solverHashProjectionProjectedObjects;
+        std::vector<int32_t> solverHashProjectionProjectedLayers;
+        std::vector<std::string> solverHashProjectionTransientObjects;
+        std::vector<std::string> solverHashProjectionBlockers;
+        std::string solverHashProjectionScope = "solver_hash_only";
     };
 
     std::vector<Entry> entries;
@@ -4244,6 +4749,19 @@ void printStaticAnalysisDump(const Options& options) {
         entry.source = context.staticAnalysisHintsUsed() ? "js" : "native";
         entry.staticObjects = context.staticObjectNames();
         entry.blockers = context.staticObjectBlockers();
+        const puzzlescript::solver::SolverHashProjectionAnalysis projection =
+            puzzlescript::solver::analyzeSolverHashProjection(*loadedGame.information);
+        entry.solverHashProjectionProjectedObjects =
+            puzzlescript::solver::objectNamesForMask(
+                *loadedGame.information,
+                projection.projectedObjects);
+        entry.solverHashProjectionProjectedLayers = projection.projectedLayers;
+        entry.solverHashProjectionTransientObjects =
+            puzzlescript::solver::objectNamesForMask(
+                *loadedGame.information,
+                projection.transientObjects);
+        entry.solverHashProjectionBlockers = projection.blockers;
+        entry.solverHashProjectionScope = projection.scope;
         entries.push_back(std::move(entry));
     }
 
@@ -4270,6 +4788,21 @@ void printStaticAnalysisDump(const Options& options) {
             std::cout << "}";
         }
         std::cout << "]";
+        std::cout << ",\"facts\":{\"solver_hash_projection\":[{\"family\":\"solver_hash_projection\""
+                  << ",\"id\":\"solver_hash_projection\""
+                  << ",\"status\":\"candidate\""
+                  << ",\"value\":{\"projected_objects\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionProjectedObjects);
+        std::cout << ",\"projected_layers\":";
+        printJsonIntArray(std::cout, entry.solverHashProjectionProjectedLayers);
+        std::cout << ",\"transient_objects\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionTransientObjects);
+        std::cout << ",\"blockers\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionBlockers);
+        std::cout << ",\"scope\":" << jsonString(entry.solverHashProjectionScope)
+                  << "},\"blockers\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionBlockers);
+        std::cout << "}]}";
         std::cout << "}" << (index + 1 == entries.size() ? "\n" : ",\n");
     }
     std::cout << "  ]\n}\n";
@@ -4335,6 +4868,7 @@ std::vector<Result> runCorpus(const Options& options) {
             compiledGames.push_back(std::move(compiled));
             continue;
         }
+        compiled.staticAnalysisHints = deriveNativeStaticAnalysisHints(*compiled.game);
         if (staticAnalysisRoot.has_value()) {
             if (const puzzlescript::json::Value* analysis =
                     findStaticAnalysisForGame(*staticAnalysisRoot, gameName)) {
@@ -4342,6 +4876,11 @@ std::vector<Result> runCorpus(const Options& options) {
                     parseStaticAnalysisHintsForGame(*compiled.game, *analysis);
             }
         }
+        compiled.removedWinIrrelevantRules = applyWinRelevancePruning(
+            compiled.loadedGame,
+            compiled.staticAnalysisHints,
+            options.solverOptWinRelevance);
+        compiled.game = compiled.loadedGame.information;
 
         const int32_t levelCount = static_cast<int32_t>(compiled.game->levels.size());
         if (!options.quiet && !options.progressPerGame) {
@@ -4397,6 +4936,7 @@ std::vector<Result> runCorpus(const Options& options) {
                     options.astarWeight,
                     options.heuristicKind,
                     &compiled.staticAnalysisHints,
+                    options.solverHashProjection,
                     options.portfolioJobs,
                     options.hdaJobs
                 );
@@ -4423,6 +4963,12 @@ std::vector<Result> runCorpus(const Options& options) {
     }
 
     for (const CompiledGame& compiled : compiledGames) {
+        if (compiled.removedWinIrrelevantRules > 0) {
+            for (size_t index = compiled.resultBegin; index < compiled.resultEnd; ++index) {
+                results[index].removedWinIrrelevantRules = compiled.removedWinIrrelevantRules;
+                break;
+            }
+        }
         writeAnnotatedSolutions(options, compiled.name, compiled.source, results, compiled.resultBegin, compiled.resultEnd);
         if (!options.quiet && options.progressPerGame) {
             int64_t elapsedMs = 0;
@@ -4676,6 +5222,10 @@ int main(int argc, char** argv) {
                       << " compact_turn_simple_replacement_fast_path_calls=" << runtimeCounters.compact_turn_simple_replacement_fast_path_calls
                       << " compact_turn_simple_replacement_fast_path_noops=" << runtimeCounters.compact_turn_simple_replacement_fast_path_noops
                       << " compact_turn_simple_replacement_fast_path_changes=" << runtimeCounters.compact_turn_simple_replacement_fast_path_changes
+                      << " movement_anchor_overlap_cells_scanned=" << runtimeCounters.movement_anchor_overlap_cells_scanned
+                      << " movement_anchor_collection_cells_scanned=" << runtimeCounters.movement_anchor_collection_cells_scanned
+                      << " movement_anchor_collections_used=" << runtimeCounters.movement_anchor_collections_used
+                      << " movement_anchor_runtime_mask_builds=" << runtimeCounters.movement_anchor_runtime_mask_builds
                       << " compact_turn_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnAttempts; })
                       << " compact_turn_hits=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnHits; })
                       << " compact_turn_native_attempts=" << std::accumulate(results.begin(), results.end(), uint64_t{0}, [](uint64_t total, const Result& result) { return total + result.compactTurnNativeAttempts; })

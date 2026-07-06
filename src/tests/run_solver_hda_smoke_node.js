@@ -56,9 +56,9 @@ function runHdaSmoke(runIndex) {
     ], `hda weighted-astar run ${runIndex}`);
 }
 
-assert.strictEqual(serial.totals.levels, 14);
-assert.strictEqual(serial.totals.solved, 9);
-assert.strictEqual(serial.totals.exhausted, 1);
+assert.strictEqual(serial.totals.levels, 16);
+assert.strictEqual(serial.totals.solved, 10);
+assert.strictEqual(serial.totals.exhausted, 2);
 assert.strictEqual(serial.totals.skipped_message, 4);
 assert.strictEqual(serial.totals.timeout, 0);
 assert.strictEqual(serial.totals.errors, 0);

@@ -29,6 +29,7 @@ const {
     buildSolverOptimizationJsonTotals,
     inertCommandOnlyRuleSourceLines,
     parseSolverOptPassList,
+    runtimeObjectNameForStaticName,
 } = require('./solver_static_opt');
 const {
     createDistanceTable,
@@ -389,6 +390,8 @@ function parseArgs(argv) {
         solverFocusManifest: null,
         solverFocusLevelSet: null,
         solverStaticHash: false,
+        solverHashProjection: false,
+        solverHashProjectionParity: false,
         solverOptimizeStatic: false,
         solverOptPasses: null,
         solverOptParity: false,
@@ -470,6 +473,10 @@ function parseArgs(argv) {
             options.solverFocusManifest = path.resolve(args[++index]);
         } else if (arg === '--solver-static-hash') {
             options.solverStaticHash = true;
+        } else if (arg === '--solver-hash-projection') {
+            options.solverHashProjection = true;
+        } else if (arg === '--solver-hash-projection-parity') {
+            options.solverHashProjectionParity = true;
         } else if (arg === '--solver-optimize-static') {
             options.solverOptimizeStatic = true;
         } else if (arg === '--solver-opt') {
@@ -507,12 +514,15 @@ function parseArgs(argv) {
     if (options.benchArtifactPath !== null && options.benchStorePath === null) {
         throw new Error('--bench-artifact requires --bench-store');
     }
+    if (options.solverHashProjectionParity) {
+        options.solverHashProjection = true;
+    }
     return options;
 }
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action,win-relevance|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
@@ -520,7 +530,8 @@ function usage(exitCode) {
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
-        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
+        '  --solver-hash-projection: project certified solver_hash_projection object bits out of visited-state hashes. --solver-hash-projection-parity pairs each run with a baseline solve and replay check.\n' +
+        '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, action, win-relevance, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
         '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n';
     (exitCode === 0 ? process.stdout : process.stderr).write(message);
@@ -831,6 +842,58 @@ function createStaticHashObjectWords(report) {
         count++;
     }
     return { words, count };
+}
+
+function solverHashProjectionFact(report) {
+    return ((report && report.facts && report.facts.solver_hash_projection) || [])
+        .find(item => item && item.id === 'solver_hash_projection') || null;
+}
+
+function createSolverHashProjectionObjectWords(report, compiledState = state, strideObj = STRIDE_OBJ) {
+    const words = new Int32Array(strideObj);
+    const out = {
+        words,
+        count: 0,
+        blockers: [],
+    };
+    if (!report || report.status !== 'ok') return out;
+    const fact = solverHashProjectionFact(report);
+    const value = fact && fact.value;
+    if (!value || value.scope !== 'solver_hash_only') return out;
+    const blockers = Array.isArray(value.blockers) ? value.blockers.slice()
+        : (Array.isArray(fact.blockers) ? fact.blockers.slice() : []);
+    out.blockers = blockers;
+    if (blockers.length > 0) return out;
+    const names = new Set([
+        ...((Array.isArray(value.projected_objects) && value.projected_objects) || []),
+        ...((Array.isArray(value.transient_objects) && value.transient_objects) || []),
+    ]);
+    for (const staticName of names) {
+        const runtimeName = runtimeObjectNameForStaticName(compiledState, staticName);
+        const runtimeObject = runtimeName && compiledState.objects && compiledState.objects[runtimeName];
+        if (!runtimeObject || !Number.isInteger(runtimeObject.id)) continue;
+        const word = runtimeObject.id >> 5;
+        if (word < 0 || word >= words.length) continue;
+        const bit = 1 << (runtimeObject.id & 31);
+        if ((words[word] & bit) === 0) {
+            words[word] |= bit;
+            out.count++;
+        }
+    }
+    return out;
+}
+
+function combineIgnoredHashObjectWords(masks) {
+    const active = masks.filter(mask => mask && mask.count > 0 && mask.words);
+    if (active.length === 0) return null;
+    if (active.length === 1) return active[0].words;
+    const words = new Int32Array(active[0].words.length);
+    for (const mask of active) {
+        for (let index = 0; index < words.length; index++) {
+            words[index] |= mask.words[index] | 0;
+        }
+    }
+    return words;
 }
 
 function ruleUsesRandom(rule) {
@@ -1243,7 +1306,10 @@ function createSolverLevelSpecialization(options = {}) {
     const staticHash = options.solverStaticHash
         ? createStaticHashObjectWords(options.staticAnalysisReport)
         : { words: null, count: 0 };
-    const ignoredHashObjectWords = staticHash.count > 0 ? staticHash.words : null;
+    const hashProjection = options.solverHashProjection
+        ? createSolverHashProjectionObjectWords(options.staticAnalysisReport)
+        : { words: null, count: 0, blockers: [] };
+    const ignoredHashObjectWords = combineIgnoredHashObjectWords([staticHash, hashProjection]);
     const heuristicDistances = new Float64Array(level.n_tiles);
     const obstacleDistances = new Float64Array(level.n_tiles);
     const obstacleQueue = new Int32Array(level.n_tiles);
@@ -3221,13 +3287,29 @@ function createSolverLevelSpecialization(options = {}) {
         //with the snapshot copy), which set level.rowColMasksValid.
     }
 
+    function objectsMatchForVisited(snapshotObjects) {
+        if (!ignoredHashObjectWords) {
+            return int32ArraysEqual(level.objects, snapshotObjects);
+        }
+        if (!snapshotObjects || level.objects.length !== snapshotObjects.length) {
+            return false;
+        }
+        for (let index = 0; index < level.objects.length; index++) {
+            const ignored = ignoredHashObjectWords[index % ignoredHashObjectWords.length] | 0;
+            if (((level.objects[index] ^ snapshotObjects[index]) & ~ignored) !== 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function matchesSnapshot(snapshot) {
         return level &&
             level.objects &&
             level.objects.length === objectWordCount &&
             level.width === width &&
             level.height === height &&
-            int32ArraysEqual(level.objects, snapshot.objects) &&
+            objectsMatchForVisited(snapshot.objects) &&
             (!usesRandom || randomStateEqual(RandomGen && RandomGen._state, snapshot.random && snapshot.random.state)) &&
             curlevel === snapshot.curlevel &&
             titleScreen === snapshot.titleScreen &&
@@ -3250,7 +3332,9 @@ function createSolverLevelSpecialization(options = {}) {
         matchesSnapshot,
         heuristic,
         heuristicName,
-        hashMode: `${usesRandom ? 'incremental_zobrist_with_rng' : 'incremental_zobrist'}${ignoredHashObjectWords ? `_static${staticHash.count}` : ''}`,
+        hashMode: `${usesRandom ? 'incremental_zobrist_with_rng' : 'incremental_zobrist'}${staticHash.count > 0 ? `_static${staticHash.count}` : ''}${hashProjection.count > 0 ? `_hash_projection${hashProjection.count}` : ''}`,
+        hashProjectionCount: hashProjection.count || 0,
+        hashProjectionBlockers: hashProjection.blockers || [],
         snapshotMode: usesCheckpoint ? 'specialized_typed_array_checkpoint' : 'specialized_typed_array_no_undo',
     };
 }
@@ -3705,15 +3789,20 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
         removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         inserted_noaction_metadata: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
+        solver_opt_ms_win_relevance: 0,
         solver_opt_ms_merge: 0,
         solver_opt_ms_action: 0,
         solver_optimization_gated: false,
+        solver_hash_projection_projected_objects: 0,
+        solver_hash_projection_blocked: false,
+        solver_hash_projection_blockers: [],
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -3746,6 +3835,16 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         adaptive_step_cost_triggered: 0,
         heuristic: 'zero',
     };
+}
+
+function attachSolverHashProjectionMetrics(result, solverOps) {
+    const count = solverOps && solverOps.hashProjectionCount ? solverOps.hashProjectionCount : 0;
+    const blockers = solverOps && Array.isArray(solverOps.hashProjectionBlockers)
+        ? solverOps.hashProjectionBlockers
+        : [];
+    result.solver_hash_projection_projected_objects = count;
+    result.solver_hash_projection_blockers = blockers.slice();
+    result.solver_hash_projection_blocked = blockers.length > 0 && count === 0;
 }
 
 function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
@@ -3799,6 +3898,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         const solverOps = createSolverLevelSpecialization(options);
         modeResult.hash_mode = solverOps.hashMode;
         modeResult.snapshot_mode = solverOps.snapshotMode;
+        attachSolverHashProjectionMetrics(modeResult, solverOps);
         timeBlock(modeResult, 'clone_ms', () => {
             solverOps.restore(initialSnapshot);
         });
@@ -3964,6 +4064,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         const solverOps = createSolverLevelSpecialization(options);
         modeResult.hash_mode = solverOps.hashMode;
         modeResult.snapshot_mode = solverOps.snapshotMode;
+        attachSolverHashProjectionMetrics(modeResult, solverOps);
         timeBlock(modeResult, 'clone_ms', () => {
             solverOps.restore(initialSnapshot);
         });
@@ -4163,6 +4264,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         const primarySpec = specs[0];
         modeResult.hash_mode = primarySpec.hashMode;
         modeResult.snapshot_mode = primarySpec.snapshotMode;
+        attachSolverHashProjectionMetrics(modeResult, primarySpec);
         modeResult.heuristic = `mixed:${specs.map((s) => s.heuristicName).join('+')}`;
         timeBlock(modeResult, 'clone_ms', () => {
             primarySpec.restore(initialSnapshot);
@@ -4519,6 +4621,22 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         timeout_ms: timeoutMs,
         compile_ms: compileMs,
         static_analysis_ms: 0,
+        static_optimization_removed_rules: 0,
+        removed_inert_rules: 0,
+        removed_cosmetic_objects: 0,
+        removed_collision_layers: 0,
+        removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
+        merged_object_aliases: 0,
+        merged_object_groups: 0,
+        inserted_noaction_metadata: 0,
+        solver_opt_ms_inert: 0,
+        solver_opt_ms_cosmetic: 0,
+        solver_opt_ms_cosmetic_rules: 0,
+        solver_opt_ms_win_relevance: 0,
+        solver_opt_ms_merge: 0,
+        solver_opt_ms_action: 0,
+        solver_optimization_gated: false,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -4566,12 +4684,14 @@ function runGame(root, file, options = {}) {
 
     const passes = resolveSolverPasses(options);
     const needsStaticAnalysis = options.solverStaticHash
+        || options.solverHashProjection
         || passes.inert
         || passes.cosmetic
         || passes.cosmeticRules
         || passes.merge
         || passes.action
-        || options.solverOptParity
+        || passes.winRelevance
+        || options.solverOptParity;
     const useFullStaticFamilies = solverPassesNeedFullStaticReport(passes)
         || passes.inert
         || options.solverOptimizeStatic
@@ -4585,7 +4705,9 @@ function runGame(root, file, options = {}) {
             ? undefined
             : [
                 options.solverStaticHash ? 'count_layer_invariants' : null,
+                options.solverHashProjection ? 'solver_hash_projection' : null,
                 passes.action ? 'movement_action' : null,
+                passes.winRelevance ? 'win_relevance' : null,
             ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
             sourcePath: game,
@@ -4601,14 +4723,15 @@ function runGame(root, file, options = {}) {
     const solverOptimizationGated = passes.cosmetic !== hookPasses.cosmetic
         || passes.cosmeticRules !== hookPasses.cosmeticRules
         || passes.merge !== hookPasses.merge
-        || passes.action !== hookPasses.action;
+        || passes.action !== hookPasses.action
+        || passes.winRelevance !== hookPasses.winRelevance;
     if (!options.quiet && solverOptimizationGated) {
         const st = staticAnalysisReport && staticAnalysisReport.status ? staticAnalysisReport.status : 'none';
-        process.stderr.write(`solver_notice game=${game} static_analysis=${st} solver_opt_reduced_to_inert_only\n`);
+        process.stderr.write(`solver_notice game=${game} static_analysis=${st} solver_opt_gated\n`);
     }
     const inertLines = hookPasses.inert ? inertCommandOnlyRuleSourceLines(staticAnalysisReport) : new Set();
     const installOptimizerHook = typeof setPluginOptimizationHook === 'function'
-        && (hookPasses.cosmetic || hookPasses.merge || hookPasses.action || (hookPasses.inert && inertLines.size > 0));
+        && (hookPasses.cosmetic || hookPasses.merge || hookPasses.action || hookPasses.winRelevance || (hookPasses.inert && inertLines.size > 0));
     const optimizationHook = installOptimizerHook
         ? createSolverOptimizationHook(staticAnalysisReport, hookPasses)
         : null;
@@ -4649,6 +4772,21 @@ function runGame(root, file, options = {}) {
             compile_ms: compileMs,
             static_analysis_ms: staticAnalysisMs,
             static_optimization_removed_rules: staticOptimizationRemovedRules,
+            removed_inert_rules: telemetry ? telemetry.removed_inert_rules || 0 : 0,
+            removed_cosmetic_objects: telemetry ? telemetry.removed_cosmetic_objects || 0 : 0,
+            removed_collision_layers: telemetry ? telemetry.removed_collision_layers || 0 : 0,
+            removed_cosmetic_rules: telemetry ? telemetry.removed_cosmetic_rules || 0 : 0,
+            removed_win_irrelevant_rules: telemetry ? telemetry.removed_win_irrelevant_rules || 0 : 0,
+            merged_object_aliases: telemetry ? telemetry.merged_object_aliases || 0 : 0,
+            merged_object_groups: telemetry ? telemetry.merged_object_groups || 0 : 0,
+            inserted_noaction_metadata: telemetry ? telemetry.inserted_noaction_metadata || 0 : 0,
+            solver_opt_ms_inert: telemetry ? telemetry.ms_inert || 0 : 0,
+            solver_opt_ms_cosmetic: telemetry ? telemetry.ms_cosmetic || 0 : 0,
+            solver_opt_ms_cosmetic_rules: telemetry ? telemetry.ms_cosmetic_rules || 0 : 0,
+            solver_opt_ms_win_relevance: telemetry ? telemetry.ms_win_relevance || 0 : 0,
+            solver_opt_ms_merge: telemetry ? telemetry.ms_merge || 0 : 0,
+            solver_opt_ms_action: telemetry ? telemetry.ms_action || 0 : 0,
+            solver_optimization_gated: solverOptimizationGated,
             load_ms: 0,
             clone_ms: 0,
             snapshot_ms: 0,
@@ -4976,8 +5114,14 @@ function runCorpus(options) {
         }
         const passes = resolveSolverPasses(opts);
         let baselineByLevel = null;
-        if (opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action)) {
-            const baselineOpts = Object.assign({}, opts, { solverOptParityBaseline: true });
+        const needsSolverOptParity = opts.solverOptParity && (passes.inert || passes.cosmetic || passes.cosmeticRules || passes.merge || passes.action || passes.winRelevance);
+        const needsHashProjectionParity = opts.solverHashProjectionParity && opts.solverHashProjection;
+        if (needsSolverOptParity || needsHashProjectionParity) {
+            const baselineOpts = Object.assign({}, opts, {
+                solverOptParityBaseline: true,
+                solverHashProjection: false,
+                solverHashProjectionParity: false,
+            });
             const compiledBaseline = runGame(opts.corpusPath, file, baselineOpts);
             if (!Array.isArray(compiledBaseline)) {
                 baselineByLevel = [];
@@ -5061,12 +5205,14 @@ function runCorpus(options) {
                     result.removed_cosmetic_objects = tel.removed_cosmetic_objects || 0;
                     result.removed_collision_layers = tel.removed_collision_layers || 0;
                     result.removed_cosmetic_rules = tel.removed_cosmetic_rules || 0;
+                    result.removed_win_irrelevant_rules = tel.removed_win_irrelevant_rules || 0;
                     result.merged_object_aliases = tel.merged_object_aliases || 0;
                     result.merged_object_groups = tel.merged_object_groups || 0;
                     result.inserted_noaction_metadata = tel.inserted_noaction_metadata || 0;
                     result.solver_opt_ms_inert = tel.ms_inert || 0;
                     result.solver_opt_ms_cosmetic = tel.ms_cosmetic || 0;
                     result.solver_opt_ms_cosmetic_rules = tel.ms_cosmetic_rules || 0;
+                    result.solver_opt_ms_win_relevance = tel.ms_win_relevance || 0;
                     result.solver_opt_ms_merge = tel.ms_merge || 0;
                     result.solver_opt_ms_action = tel.ms_action || 0;
                 }
@@ -5091,7 +5237,11 @@ function runCorpus(options) {
                 .filter(row => row && row.level >= 0)
                 .map(row => [row.level, row]));
             assertSolverOptParityOnCurrentOptimized(baselineByLevel, optimizedByLevel, compiled.game);
-            const baselineOpts = Object.assign({}, opts, { solverOptParityBaseline: true });
+            const baselineOpts = Object.assign({}, opts, {
+                solverOptParityBaseline: true,
+                solverHashProjection: false,
+                solverHashProjectionParity: false,
+            });
             const compiledBaseline = runGame(opts.corpusPath, file, baselineOpts);
             if (Array.isArray(compiledBaseline)) {
                 throw new Error(`solver_opt_parity baseline compile failed game=${compiled.game}`);
@@ -5132,15 +5282,19 @@ function totals(results) {
         removed_cosmetic_objects: 0,
         removed_collision_layers: 0,
         removed_cosmetic_rules: 0,
+        removed_win_irrelevant_rules: 0,
         merged_object_aliases: 0,
         merged_object_groups: 0,
         inserted_noaction_metadata: 0,
         solver_opt_ms_inert: 0,
         solver_opt_ms_cosmetic: 0,
         solver_opt_ms_cosmetic_rules: 0,
+        solver_opt_ms_win_relevance: 0,
         solver_opt_ms_merge: 0,
         solver_opt_ms_action: 0,
         solver_optimization_gated: false,
+        solver_hash_projection_projected_objects: 0,
+        solver_hash_projection_blocked: false,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -5186,16 +5340,22 @@ function totals(results) {
         out.removed_cosmetic_objects += result.removed_cosmetic_objects || 0;
         out.removed_collision_layers += result.removed_collision_layers || 0;
         out.removed_cosmetic_rules += result.removed_cosmetic_rules || 0;
+        out.removed_win_irrelevant_rules += result.removed_win_irrelevant_rules || 0;
         out.merged_object_aliases += result.merged_object_aliases || 0;
         out.merged_object_groups += result.merged_object_groups || 0;
         out.inserted_noaction_metadata += result.inserted_noaction_metadata || 0;
         out.solver_opt_ms_inert += result.solver_opt_ms_inert || 0;
         out.solver_opt_ms_cosmetic += result.solver_opt_ms_cosmetic || 0;
         out.solver_opt_ms_cosmetic_rules += result.solver_opt_ms_cosmetic_rules || 0;
+        out.solver_opt_ms_win_relevance += result.solver_opt_ms_win_relevance || 0;
         out.solver_opt_ms_merge += result.solver_opt_ms_merge || 0;
         out.solver_opt_ms_action += result.solver_opt_ms_action || 0;
         if (result.solver_optimization_gated) {
             out.solver_optimization_gated = true;
+        }
+        out.solver_hash_projection_projected_objects += result.solver_hash_projection_projected_objects || 0;
+        if (result.solver_hash_projection_blocked) {
+            out.solver_hash_projection_blocked = true;
         }
         out.load_ms += result.load_ms || 0;
         out.clone_ms += result.clone_ms || 0;
@@ -5328,6 +5488,8 @@ function benchStoreConfig(options) {
         portfolio_heuristics: options.portfolioHeuristics,
         solver_focus_manifest: options.solverFocusManifest,
         solver_static_hash: options.solverStaticHash,
+        solver_hash_projection: options.solverHashProjection,
+        solver_hash_projection_parity: options.solverHashProjectionParity,
         solver_optimize_static: options.solverOptimizeStatic,
         solver_opt_passes: options.solverOptPasses,
         solver_opt_parity: options.solverOptParity,
@@ -5430,5 +5592,6 @@ module.exports = {
         createObjectNoveltyTracker,
         createPushSpaceBlockingWords,
         computePushSpaceReachability,
+        createSolverHashProjectionObjectWords,
     },
 };

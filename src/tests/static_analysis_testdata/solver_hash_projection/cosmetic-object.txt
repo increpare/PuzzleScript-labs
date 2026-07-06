@@ -1,0 +1,56 @@
+title Static Analysis Solver Hash Projection Cosmetic Object
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+Sparkle
+blue
+
+========
+LEGEND
+========
+
+P = Player
+G = Goal
+S = Sparkle
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+Sparkle
+
+=====
+RULES
+=====
+
+[ right Player | Goal ] -> [ | Player ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player On Goal
+
+======
+LEVELS
+======
+
+PSG

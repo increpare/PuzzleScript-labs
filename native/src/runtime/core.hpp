@@ -320,6 +320,8 @@ struct Pattern {
     std::vector<int32_t> objectAnchorIds;
     std::vector<std::vector<int32_t>> anyObjectAnchorIds;
     std::vector<LayerCoupledMovementReplacement> layerCoupledMovementMasks;
+    MaskOffset movementAnchorMask = kNullMaskOffset;
+    bool hasMovementAnchorMask = false;
 
     std::optional<Replacement> replacement;
 };
@@ -499,6 +501,13 @@ struct GameInformation {
 
     bool playerMaskAggregate = false;
     MaskOffset playerMask = kNullMaskOffset;  // object-width mask; null means no player
+    // Static-analysis-only facts recovered from source variants that JS keeps
+    // for flow analysis but the native runtime skips because they can never
+    // match at execution time.
+    MaskOffset staticAnalysisExtraWrittenObjects = kNullMaskOffset;
+    MaskOffset staticAnalysisExtraMovementMentionedObjects = kNullMaskOffset;
+    bool hasStaticAnalysisExtraWrittenObjects = false;
+    bool hasStaticAnalysisExtraMovementMentionedObjects = false;
     bool rigid = false;
     std::vector<bool> rigidGroups;
     std::vector<int32_t> rigidGroupIndexToGroupIndex;
@@ -805,6 +814,10 @@ enum class RuntimeCounterId {
     CompactTurnSimpleReplacementFastPathCalls,
     CompactTurnSimpleReplacementFastPathNoops,
     CompactTurnSimpleReplacementFastPathChanges,
+    MovementAnchorOverlapCellsScanned,
+    MovementAnchorCollectionCellsScanned,
+    MovementAnchorCollectionsUsed,
+    MovementAnchorRuntimeMaskBuilds,
 };
 void setRuntimeCountersEnabled(bool enabled);
 bool runtimeCountersEnabled();

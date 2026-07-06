@@ -114,10 +114,45 @@ Do not redo these; they're in place and working:
   all tiles (`core.cpp:3837`). Most turns have few movers and movement rules
   are the hottest class. Localized, low risk; validate with parity + sim
   suites.
+
+  Status update (2026-07-06): implemented in the native interpreter as
+  per-movement-bit cell bitsets plus counts in `Scratch`. Bulk movement resets
+  now invalidate the index; the hot cell-movement setters update it
+  incrementally; movement-anchor selectivity uses the counts; and anchored
+  collection iterates set moving-cell bits instead of every tile. Focused
+  coverage in `make native_runtime_counters_tests` now asserts
+  `movement_anchor_overlap_cells_scanned == 0`, with parity, determinism,
+  simulation, and build checks passing. One-run N2→N1 artifacts
+  `build/native/n2-smoke-50-runtime-counters.json` →
+  `build/native/n1-smoke-50-runtime-counters.json`: solved split unchanged
+  at 33/16/1, median wall 56.199ms → 39.217ms, generated states
+  534437 → 696620, summed `step_ms` 8224.644 → 7854.286, and movement-anchor
+  scanned cells 669138639 → 4920241 (overlap scans 340133191 → 0). Named
+  benchmark portfolio artifacts
+  `build/native/n2-anonymous-game-portfolio-runtime-counters.json` →
+  `build/native/n1-anonymous-game-portfolio-runtime-counters.json`: solved
+  split unchanged at 1/53, median wall 584.370ms → 566.028ms, generated
+  states 27171 → 69318, summed `step_ms` 24098.749 → 23992.879, and
+  movement-anchor scanned cells 2784656146 → 11592320 (overlap scans
+  1966073188 → 0). Treat this as a real scan-cost win, but still a one-run
+  timing sample; repeat-run bench store data is required before claiming a
+  stable solved-count or wall-time result.
 - **N2 — hoist static movement-anchor masks to lowering time (trivial).**
   The per-pattern movement union in `chooseMovementRowAnchor` is
   state-independent; precompute into `maskArena` at lowering, deleting the
   per-call alloc + OR-building. Zero semantic risk.
+
+  Status update (2026-07-06): implemented as a prerequisite slice. Patterns
+  now carry `movementAnchorMask`/`hasMovementAnchorMask`; lowering and JSON IR
+  loading both precompute the union in `maskArena`, and runtime counters expose
+  `movement_anchor_runtime_mask_builds` so `make native_runtime_counters_tests`
+  asserts zero hot-path mask builds. One-run follow-up artifacts
+  `build/native/n2-smoke-50-runtime-counters.json` and
+  `build/native/n2-anonymous-game-portfolio-runtime-counters.json` were
+  behavior-neutral: same solved counts as NX1 (33/50 smoke, 1/54 named game),
+  named-game median wall 583.273ms → 584.370ms, and smoke-50 summed `step_ms`
+  8352.841 → 8224.644. N2 should stay, but the cost center remains the
+  full-grid scans; N1 is still the actual expected win.
 - **N3 — movement-aware incremental prune (both engines).**
   Consult `incrementalPriorMovements` in the guard (`core.cpp:5108-5128`).
   Soundness caveats: clears must be covered by write masks;
@@ -172,15 +207,57 @@ Do not redo these; they're in place and working:
   `candidateCellsTested`, `patternTests`, `rulesVisited/SkippedByMask`,
   `specializedRulegroup*`. Success: a ranked cost attribution that picks
   between N1/N4/N5/N7. **This precedes any build-out.**
+
+  Status update (2026-07-05): runtime counters now include direct movement-
+  anchor scan attribution:
+  `movement_anchor_overlap_cells_scanned`,
+  `movement_anchor_collection_cells_scanned`, and
+  `movement_anchor_collections_used`. Focused coverage lives in
+  `src/tests/native_runtime_counters_node.js` via
+  `make native_runtime_counters_tests`. First one-run interpreted native
+  `smoke-50` sample, artifact
+  `build/native/nx1-smoke-50-runtime-counters.json`: solved 33/50, timeout
+  16/50, exhausted 1/50, `step_ms=8352.841`, generated 494410 states,
+  movement-anchor scans totaled 662643668 cells
+  (337253328 overlap + 325390340 collection), with 1918405 anchored
+  collections used. That is about 1340.272 movement-anchor scanned cells per
+  generated state, which selected N1 as the next runtime prototype. Follow-up
+  one-run interpreted native named benchmark-game samples over 54 playable
+  levels, artifacts `build/native/nx1-anonymous-game-portfolio-runtime-counters.json`
+  and `build/native/nx1-anonymous-game-hda8-runtime-counters.json`, make that
+  stronger: portfolio solved 1/54, timeout 53/54, `step_ms=24050.269`,
+  generated 25764 states, and scanned 2659392174 movement-anchor cells
+  (1877059286 overlap + 782332888 collection), about 103221.246 cells per
+  generated state. HDA x8 solved 1/54, timeout 53/54, generated 12900 states,
+  and scanned 1940187483 movement-anchor cells, about 150402.130 cells per
+  generated state. NX1 now picks N1/N2 as the first runtime prototype; N4/N5
+  remain live second-tier candidates, and NX2 still runs independently for
+  allocator/HDA scaling.
 - **NX2 — mimalloc link test** (~1h). Relink the solver with mimalloc, rerun
   HDA x8 on the benchmark game + corpus slice. Success: HDA step_ms drops
   materially (target: close part of the 45%→linear scaling gap). Failure:
   contention is not allocator-internal → invest in arenas (N6b) instead.
-- **NX3 — N2 + N1 prototype** (~1 day). Static anchor masks + moving-tiles
-  bitboard behind a flag; parity suite + `us_per_generated` on the benchmark
-  game and corpus slice. Expect the benchmark game to improve most
-  (movement-heavy, big grids); corpus-neutral is acceptable, corpus-negative
-  is not.
+
+  Status update (2026-07-05): Homebrew mimalloc 3.3.2 preload was verified
+  with `DYLD_INSERT_LIBRARIES=/opt/homebrew/lib/libmimalloc.dylib`. One-run
+  HDA x8 pairs did not meet the material-drop success bar. Named benchmark
+  game artifacts `build/native/nx2-anonymous-game-hda8-default.json` and
+  `build/native/nx2-anonymous-game-hda8-mimalloc.json`: solved count stayed
+  1/54, median wall improved only 605.817ms → 595.140ms (-1.8%), and summed
+  `step_ms` moved 155499.410 → 156990.420 (+1.0%). `smoke-50` artifacts
+  `build/native/nx2-smoke-50-hda8-default.json` and
+  `build/native/nx2-smoke-50-hda8-mimalloc.json`: solved count moved 32/50 →
+  31/50, median wall 75.582ms → 84.350ms (+11.6%), and summed `step_ms`
+  76527.948 → 79019.961 (+3.3%). Treat NX2 as no immediate allocator win; N2
+  and N1 have since proceeded, and allocator work should only be revisited
+  with repeated runs or a true linked-build comparison.
+- **NX3 — N2 + N1 prototype** (done, 2026-07-06). Static movement-anchor
+  masks and the moving-cell index are now in the native interpreter. The
+  one-run N1 data removes movement-anchor full-grid scans as the top direct
+  runtime tax without changing solved counts. Next runtime choices should be
+  driven by the new residual counters: N4 mask rebuild deferral/counting,
+  N5 sparse word iteration, and S1-backed N3 pruning are the obvious
+  candidates.
 - **NX4 — N3 paired JS/native landing** (~1-2 days). Same design as the JS
   plan's X5 (env-flagged guard extension, full sim fixtures, paired 250ms
   corpus compare), plus a native parity run.

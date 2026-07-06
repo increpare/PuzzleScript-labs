@@ -162,8 +162,10 @@ through:
 
 - **JS** = reference semantics + prototyping bench. Gets experiments first.
 - **Native interpreter** = production. Gets the N-series investment
-  (N1/N2 moving-tiles bitboard + static anchor masks are the live
-  candidates; NX1 counter attribution and NX2 mimalloc are still unrun).
+  (N2 static anchor masks and N1 moving-cell indexes are now implemented;
+  one-run attribution removes movement-anchor full-grid scans as the first
+  runtime bottleneck, and NX2 mimalloc preload did not show an immediate
+  win).
 - **Compiled tiers** = frozen calibration ceiling. No further investment
   unless the game-family story (rec. 3) creates a compile-cache use case.
 
@@ -243,8 +245,8 @@ Item status after the X-round:
 | P4 JS codegen | design-doc only | superseded in priority by native path (rec. 4) |
 | P5 / N8 stride compaction | live | X1 suggests cosmetic-pass alone shrinks too little (6/82 layers) — S4 per-level universe is the stronger route |
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
-| N1/N2 moving-tiles bitboard + static anchor masks | live, top priority | NX1/NX2 probes first |
-| N4-N7, N9 | gated on NX1 counters | |
+| N1/N2 moving-tiles bitboard + static anchor masks | done in native interpreter; repeat-run validation pending | N2 mask hoist keeps runtime mask builds at zero, and N1 drops one-run movement-anchor scanned cells from 669.1M→4.9M on smoke-50 and 2.78B→11.6M on the named portfolio with solved splits unchanged |
+| N4-N7, N9 | next runtime tier by residual counters | N4/N5 now move to the front of native runtime work; S1-backed N3 pruning remains live once certified contracts are consumed; NX2 mimalloc preload was not a material HDA win |
 | S1/S2 certified masks + schedules | S1 artifact started; S2 live | `certified_wake_masks` fact family landed for JS; runtime consumption still gated on contracts |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
@@ -261,7 +263,7 @@ S1 certified wake masks ──> P2/N3 pruning ──> T2 no-op oracle
 S2 group schedules      ──> N9 single-pass groups
 S4 per-level universe   ──> P5/N8 stride compaction (v2)
 S10 mechanic schemas    ──> T1 push-space, T6 deadlock pruning
-NX1/NX2 probes          ──> N1/N2 (then N4-N7 by counter evidence)
+NX1/NX2 probes          ──> N1/N2 done ──> N4/N5/N3 by counter evidence
 solved-corpus solutions ──> T4 intra-game transfer (no dependencies!)
 ```
 

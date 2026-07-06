@@ -1372,6 +1372,63 @@
       ]
     },
     {
+      "name": "solver_hash_projection",
+      "description": "Fixtures for solver-scoped hash projection masks.",
+      "specification": "Each solver_hash_projection fixture projects the analyzer's solver_hash_projection fact into a compact mask summary. This S15 slice packages already solver-scoped cosmetic and transient-boundary knowledge into a hash-projection candidate: projected_objects and their collision layers may be ignored by forward solver state deduplication, while transient_objects are absent at stable turn boundaries. The fact is not a runtime/undo contract.",
+      "fields": [
+        {
+          "name": "schema",
+          "type": "string",
+          "description": "Fixture format version.",
+          "specification": "Must be ps-static-analysis-testdata-v1."
+        },
+        {
+          "name": "human_verified",
+          "type": "boolean",
+          "description": "Whether a human has reviewed this fixture's assertions.",
+          "specification": "Human-owned metadata. Generated fixtures emit this field as false; set it to true only after manually checking the fixture's asserted expectations."
+        },
+        {
+          "name": "solverHashProjection",
+          "type": "object",
+          "description": "Projected solver hash mask summary.",
+          "specification": "Contains sorted projectable object names, their collision-layer ids, transient-boundary object names, and any blockers that keep the mask from being consumed automatically.",
+          "fields": [
+            {
+              "name": "projected_objects",
+              "type": "string[]",
+              "description": "Objects eligible to be projected out of forward solver hashes.",
+              "specification": "Derived from cosmetic objects after excluding structural roles such as Player and Background."
+            },
+            {
+              "name": "projected_layers",
+              "type": "integer[]",
+              "description": "Collision layers touched by projected_objects.",
+              "specification": "A solver consumer should also clear movement bits for these layers when forming the projected hash key."
+            },
+            {
+              "name": "transient_objects",
+              "type": "string[]",
+              "description": "Objects proved absent at stable turn boundaries.",
+              "specification": "Derived from the transient_boundary proof predicate; these objects are included as separate evidence for future boundary-state hash projection."
+            },
+            {
+              "name": "blockers",
+              "type": "string[]",
+              "description": "Reasons this mask should not be consumed automatically.",
+              "specification": "Known blockers include random_mechanics. The projection remains solver-scoped even without blockers and must not be consumed by undo-observing runtime traces."
+            },
+            {
+              "name": "scope",
+              "type": "string",
+              "description": "Safety boundary for consumers of this projection.",
+              "specification": "Must be solver_hash_only for this S15 slice; runtime replay, undo, and editor-visible state consumers must not use the projection mask."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "runtime_contracts",
       "description": "Fixtures for runtime replay checks of static-analysis contracts.",
       "specification": "Each runtime_contracts fixture stores a PuzzleScript input replay, the expected final serialized level, and a selected expect object copied from runSimulationWithStaticChecks result fields.",
