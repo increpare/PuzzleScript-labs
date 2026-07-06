@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
+#include <new>
 #include <string>
 #include <sys/stat.h>
 #include <utility>
@@ -45,8 +46,17 @@ bool ends_with_txt(const char* name) {
            std::tolower(static_cast<unsigned char>(suffix[3])) == 't';
 }
 
-std::string join_game_path(const char* basename) {
-    return std::string(kSdGamesDir) + "/" + basename;
+bool join_game_path(const char* basename, std::string& out_path) {
+    out_path.clear();
+    try {
+        out_path = kSdGamesDir;
+        out_path += "/";
+        out_path += basename;
+    } catch (const std::bad_alloc&) {
+        out_path.clear();
+        return false;
+    }
+    return true;
 }
 
 void clear_loaded_source(LoadedSource& out_source) {
@@ -79,7 +89,10 @@ bool is_regular_game_file(const dirent* entry) {
     }
 
     struct stat st {};
-    const std::string path = join_game_path(entry->d_name);
+    std::string path;
+    if (!join_game_path(entry->d_name, path)) {
+        return false;
+    }
     return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
 }
 
@@ -143,7 +156,11 @@ std::vector<std::string> list_sd_games() {
             if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < kListAllocationMinFreeBytes) {
                 break;
             }
-            names.emplace_back(entry->d_name);
+            try {
+                names.emplace_back(entry->d_name);
+            } catch (const std::bad_alloc&) {
+                break;
+            }
         }
     }
     closedir(dir);
@@ -174,15 +191,25 @@ esp_err_t read_text_file(const std::string& path, LoadedSource& out_source) {
         return ESP_FAIL;
     }
     std::string text;
-    text.resize(source_size);
+    try {
+        text.resize(source_size);
+    } catch (const std::bad_alloc&) {
+        fclose(file);
+        return ESP_ERR_NO_MEM;
+    }
     const std::size_t read = fread(text.data(), 1, text.size(), file);
     fclose(file);
     if (read != text.size()) {
         return ESP_FAIL;
     }
 
-    out_source.name = path;
-    out_source.text = std::move(text);
+    try {
+        out_source.name = path;
+        out_source.text = std::move(text);
+    } catch (const std::bad_alloc&) {
+        clear_loaded_source(out_source);
+        return ESP_ERR_NO_MEM;
+    }
     return ESP_OK;
 }
 
@@ -193,7 +220,11 @@ esp_err_t load_first_sd_game(LoadedSource& out_source) {
     if (games.empty()) {
         return ESP_ERR_NOT_FOUND;
     }
-    return read_text_file(join_game_path(games.front().c_str()), out_source);
+    std::string path;
+    if (!join_game_path(games.front().c_str(), path)) {
+        return ESP_ERR_NO_MEM;
+    }
+    return read_text_file(path, out_source);
 }
 
 esp_err_t load_named_sd_game(const char* basename, LoadedSource& out_source) {
@@ -202,7 +233,11 @@ esp_err_t load_named_sd_game(const char* basename, LoadedSource& out_source) {
     if (!is_valid_game_basename(basename)) {
         return ESP_ERR_INVALID_ARG;
     }
-    return read_text_file(join_game_path(basename), out_source);
+    std::string path;
+    if (!join_game_path(basename, path)) {
+        return ESP_ERR_NO_MEM;
+    }
+    return read_text_file(path, out_source);
 }
 
 } // namespace ps_probe
