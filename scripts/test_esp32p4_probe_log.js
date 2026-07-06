@@ -34,6 +34,16 @@ function sampleLogText() {
     ].join('\n');
 }
 
+function passingLogText() {
+    return [
+        'I (12) ps_probe: {"event":"boot","cores":2,"revision":1,"flash_bytes":33554432,"idf":"v5.4.1","reset_reason":1}',
+        'I (13) ps_probe: {"event":"phase","phase":"BOOT","status":"pass","detail":"boot_summary","elapsed_ms":1,"fb_mode":"none","fb_width":0,"fb_height":0,"fb_count":0,"fb_bpp":2}',
+        'I (14) ps_probe: {"event":"heap","phase":"BOOT","region":"internal","free":180000,"allocated":20000,"largest_free_block":110000,"minimum_free":170000}',
+        'I (15) ps_probe: {"event":"heap","phase":"BOOT","region":"spiram","free":32000000,"allocated":500000,"largest_free_block":31900000,"minimum_free":31800000}',
+        '',
+    ].join('\n');
+}
+
 function parsesEspIdfLogLines() {
     const parsed = probeLog.parseProbeLogText('sample.log', sampleLogText());
 
@@ -101,10 +111,57 @@ function runCliProcessWritesJsonReport() {
     });
 }
 
+function failOnFailureTurnsBadHardwareLogsIntoFailingGates() {
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        const outPath = path.join(tmpDir, 'summary.json');
+        fs.writeFileSync(logPath, sampleLogText(), 'utf8');
+
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [path.join(__dirname, 'esp32p4_probe_log.js'), '--log', logPath, '--out', outPath, '--fail-on-failure'],
+            {
+                cwd: path.join(__dirname, '..'),
+                encoding: 'utf8',
+            },
+        );
+
+        assert.strictEqual(result.status, 1, result.stderr);
+        const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        assert.strictEqual(report.summary.failed_phase_count, 1);
+        assert.strictEqual(report.summary.alloc_failures.length, 1);
+        assert.match(result.stderr, /probe log gate failed/);
+    });
+}
+
+function failOnFailureAcceptsCleanHardwareLogs() {
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        const outPath = path.join(tmpDir, 'summary.json');
+        fs.writeFileSync(logPath, passingLogText(), 'utf8');
+
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [path.join(__dirname, 'esp32p4_probe_log.js'), '--log', logPath, '--out', outPath, '--fail-on-failure'],
+            {
+                cwd: path.join(__dirname, '..'),
+                encoding: 'utf8',
+            },
+        );
+
+        assert.strictEqual(result.status, 0, result.stderr);
+        const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        assert.strictEqual(report.summary.failed_phase_count, 0);
+        assert.strictEqual(report.summary.alloc_failures.length, 0);
+    });
+}
+
 function main() {
     parsesEspIdfLogLines();
     summarizesPhaseHeapAndFailureEvents();
     runCliProcessWritesJsonReport();
+    failOnFailureTurnsBadHardwareLogsIntoFailingGates();
+    failOnFailureAcceptsCleanHardwareLogs();
 }
 
 main();

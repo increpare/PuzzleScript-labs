@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_summarize generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -92,6 +92,7 @@ IDF_PY ?= idf.py
 ESP32P4_PORT ?=
 ESP32P4_FIRMWARE_DIR := firmware/esp32p4
 ESP32P4_LOG ?=
+ESP32P4_CAPTURE_LOG ?= $(BUILD_DIR)/esp32p4-probe.log
 ESP32P4_LOG_SUMMARY_JSON ?= $(BUILD_DIR)/esp32p4_probe_log_summary.json
 GENERATOR_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 GENERATOR_GAME := $(word 1,$(GENERATOR_MAKE_ARGS))
@@ -492,7 +493,9 @@ help:
 	@echo "  make handheld_p4_probe_build       Build ESP32-P4 Waveshare board-probe firmware"
 	@echo "  make handheld_p4_probe_flash       Flash ESP32-P4 board-probe firmware (set ESP32P4_PORT=/dev/...)"
 	@echo "  make handheld_p4_probe_monitor     Monitor ESP32-P4 board-probe serial logs"
+	@echo "  make handheld_p4_probe_capture     Capture, summarize, and gate monitor logs"
 	@echo "  make handheld_p4_probe_summarize   Summarize captured ESP32-P4 probe log (set ESP32P4_LOG=...)"
+	@echo "  make handheld_p4_probe_check_log   Fail if captured ESP32-P4 probe log has failures"
 	@echo "  make simplify IN=in.txt OUT=out.txt Post-process levels with puzzlescript-simplify"
 	@echo "  make solver game.txt               Run solver on a PuzzleScript game"
 	@echo "  make solver game.txt SPECIALIZE=true"
@@ -757,9 +760,19 @@ handheld_p4_probe_monitor:
 	@if [ -z "$(ESP32P4_PORT)" ]; then echo "Set ESP32P4_PORT=/dev/cu.usbmodem..." >&2; exit 2; fi
 	cd $(ESP32P4_FIRMWARE_DIR) && $(IDF_PY) -p "$(ESP32P4_PORT)" monitor
 
+handheld_p4_probe_capture:
+	@if [ -z "$(ESP32P4_PORT)" ]; then echo "Set ESP32P4_PORT=/dev/cu.usbmodem..." >&2; exit 2; fi
+	@mkdir -p "$(dir $(abspath $(ESP32P4_CAPTURE_LOG)))"
+	cd $(ESP32P4_FIRMWARE_DIR) && $(IDF_PY) -p "$(ESP32P4_PORT)" monitor 2>&1 | tee "$(abspath $(ESP32P4_CAPTURE_LOG))"
+	$(NODE) scripts/esp32p4_probe_log.js --log "$(abspath $(ESP32P4_CAPTURE_LOG))" --out "$(ESP32P4_LOG_SUMMARY_JSON)" --fail-on-failure
+
 handheld_p4_probe_summarize:
 	@if [ -z "$(ESP32P4_LOG)" ]; then echo "Set ESP32P4_LOG=path/to/probe.log" >&2; exit 2; fi
 	$(NODE) scripts/esp32p4_probe_log.js --log "$(ESP32P4_LOG)" --out "$(ESP32P4_LOG_SUMMARY_JSON)"
+
+handheld_p4_probe_check_log:
+	@if [ -z "$(ESP32P4_LOG)" ]; then echo "Set ESP32P4_LOG=path/to/probe.log" >&2; exit 2; fi
+	$(NODE) scripts/esp32p4_probe_log.js --log "$(ESP32P4_LOG)" --out "$(ESP32P4_LOG_SUMMARY_JSON)" --fail-on-failure
 
 .PHONY: FORCE
 FORCE:

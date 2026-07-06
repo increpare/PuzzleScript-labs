@@ -28,6 +28,17 @@ make handheld_p4_probe_flash ESP32P4_PORT=/dev/cu.usbmodemXXXX
 make handheld_p4_probe_monitor ESP32P4_PORT=/dev/cu.usbmodemXXXX
 ```
 
+For a first bring-up run, capture monitor output and summarize it after the
+monitor exits:
+
+```bash
+make handheld_p4_probe_capture ESP32P4_PORT=/dev/cu.usbmodemXXXX
+```
+
+This writes the raw monitor log to `build/esp32p4-probe.log` by default and
+then writes the JSON summary to `build/esp32p4_probe_log_summary.json`. Override
+the raw log path with `ESP32P4_CAPTURE_LOG=...`.
+
 To summarize a captured monitor log, write the monitor output to a file and run:
 
 ```bash
@@ -36,6 +47,15 @@ make handheld_p4_probe_summarize ESP32P4_LOG=build/esp32p4-probe.log
 
 This writes `build/esp32p4_probe_log_summary.json` by default. Override the
 output path with `ESP32P4_LOG_SUMMARY_JSON=...`.
+
+To use the captured log as a pass/fail gate, run:
+
+```bash
+make handheld_p4_probe_check_log ESP32P4_LOG=build/esp32p4-probe.log
+```
+
+The gate exits nonzero if the log has malformed JSON, no boot event, failed
+phase events, or allocation failures.
 
 ## SD Card
 
@@ -94,3 +114,8 @@ ignores non-JSON driver chatter, and reports:
 - allocation failures
 - compiler diagnostics
 - malformed JSON lines that need firmware escaping fixes
+
+`handheld_p4_probe_check_log` and the post-monitor step in
+`handheld_p4_probe_capture` use the same parser with `--fail-on-failure`, so a
+first board run can produce both a readable JSON report and a shell-level
+pass/fail result.

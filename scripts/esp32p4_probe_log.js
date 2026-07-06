@@ -292,6 +292,7 @@ function summarizeEvents(events, parseErrors = []) {
 function parseArgs(argv) {
     const options = {
         help: false,
+        failOnFailure: false,
         log: null,
         out: path.join('build', 'esp32p4_probe_log_summary.json'),
     };
@@ -300,6 +301,8 @@ function parseArgs(argv) {
         const arg = argv[index];
         if (arg === '--help' || arg === '-h') {
             options.help = true;
+        } else if (arg === '--fail-on-failure') {
+            options.failOnFailure = true;
         } else if (arg === '--log') {
             index += 1;
             options.log = argv[index] || null;
@@ -329,8 +332,30 @@ function printUsage(stream) {
         'Options:',
         '  --log PATH    captured serial log to parse',
         '  --out PATH    JSON report path (default: build/esp32p4_probe_log_summary.json)',
+        '  --fail-on-failure',
+        '                exit nonzero if phases, allocations, parsing, or boot checks fail',
         '',
     ].join('\n'));
+}
+
+function gateFailureReasons(summary) {
+    const reasons = [];
+    if (summary.event_count === 0) {
+        reasons.push('no probe events');
+    }
+    if (summary.ignored_boot) {
+        reasons.push('missing boot event');
+    }
+    if (summary.parse_error_count > 0) {
+        reasons.push(`${summary.parse_error_count} parse error(s)`);
+    }
+    if (summary.failed_phase_count > 0) {
+        reasons.push(`${summary.failed_phase_count} failed phase(s)`);
+    }
+    if (summary.alloc_failures.length > 0) {
+        reasons.push(`${summary.alloc_failures.length} allocation failure(s)`);
+    }
+    return reasons;
 }
 
 function buildReport(options, parsed) {
@@ -343,6 +368,7 @@ function buildReport(options, parsed) {
         },
         command: {
             log: options.log,
+            fail_on_failure: options.failOnFailure,
         },
         summary: summarizeEvents(parsed.events, parsed.parse_errors),
         parse_errors: parsed.parse_errors,
@@ -366,6 +392,13 @@ function runCli(argv) {
         `${report.summary.failed_phase_count} failed phases, ` +
         `${report.summary.alloc_failures.length} allocation failures\n`,
     );
+    if (options.failOnFailure) {
+        const reasons = gateFailureReasons(report.summary);
+        if (reasons.length > 0) {
+            process.stderr.write(`probe log gate failed: ${reasons.join(', ')}\n`);
+            return 1;
+        }
+    }
     return report.summary.event_count > 0 ? 0 : 1;
 }
 
@@ -381,6 +414,7 @@ if (require.main === module) {
 module.exports = {
     bytesToMb,
     buildReport,
+    gateFailureReasons,
     parseArgs,
     parseProbeLogText,
     runCli,
