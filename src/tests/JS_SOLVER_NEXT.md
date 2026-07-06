@@ -120,6 +120,16 @@ Reasonable next moves only with fresh evidence:
     448 writes movement, but the relevant `readMovements` masks for lines
     444/446 do not overlap that write mask. No movement-aware JSON artifact was
     generated and no code landed.
+  - Certified wake-mask prune (2026-07-06): S1 `certified_wake_masks` can now
+    attach semantic movement read/write masks to JS runtime rules behind
+    `--solver-certified-wake-prune`; the flag also enables the incremental
+    prune loop it specializes. Correctness canaries cover the old Karamell
+    wake dependency, but smoke-50 performance is negative: default baseline vs
+    certified candidate `step_ms` 8355.9/8343.7 -> 9224.6/9203.7
+    (`build/solver-bench-certified-wake-prune/smoke-50-fixed-store.jsonl`),
+    and incremental-only vs certified was also worse, 9151.5/9150.9 ->
+    9184.8/9192.5 (`.../smoke-50-vs-incremental-store.jsonl`). Keep explicit
+    only; do not promote without a new counter/benchmark win.
   - Adaptive step-cost: solved=1, generated=11721, `step_ms=25799.4`,
     `adaptive_step_cost_triggered=2909`. This remains explicit-probe only
     unless a refreshed corpus run later proves it safe and useful as a default.
@@ -714,6 +724,6 @@ The existing portfolio mode varies *priority formula* (`bfs`/`wa2`/`wa8`/
 - Again multiplier: process_input_calls=12083, generated=12081, again_passes=2. Not a meaningful multiplier for this game.
 - Level 13 hotspots: top key=1478:1478:8, line=1478, try_apply_calls=29000, changed=1, match_ms=3.3, apply_ms=6.2.
 - Guidance parity levels 3/19/31/63/81: 3:solved/expanded=4490/generated=17957/len=106; 19:timeout/expanded=21306/generated=85224; 31:timeout/expanded=19849/generated=79396; 63:solved/expanded=15035/generated=60137/len=20; 81:solved/expanded=10/generated=37/len=10.
-- Movement-aware prune probe: not landed. Smoke compare passed, but full 250ms solver corpus compare reported 47 regressions, mostly baseline-solved levels timing out with pruning on. An intermediate prototype also showed stationary/missing movement readers must not be pruned (`Karamell` caught this).
+- Movement-aware prune probe: not landed. Smoke compare passed, but full 250ms solver corpus compare reported 47 regressions, mostly baseline-solved levels timing out with pruning on. An intermediate prototype also showed stationary/missing movement readers must not be pruned (`Karamell` caught this). A later S1-certified consumer path is correctness-gated behind `--solver-certified-wake-prune`, but smoke-50 step-time remeasurements were still negative; leave it explicit-only.
 - Adaptive step-cost probe: explicit only. Single-game 500ms run solved=1, step_ms=25782.4, generated=12261, `adaptive_step_cost=true`.
 - Decision: keep instrumentation and explicit probes; do not default runtime/search behavior from this batch without a fresh corpus win.

@@ -172,6 +172,12 @@ Do not redo these; they're in place and working:
   Soundness caveats: clears must be covered by write masks;
   stationary/`no X` requirements must be covered by read masks. Land JS
   (`engine.js:3092`) + native together; lean on the parity harness.
+  2026-07-06 JS S1-consumer note: `--solver-certified-wake-prune` attaches
+  certified semantic movement wake masks and passes the Karamell canary, but
+  smoke-50 remeasurements regressed (`step_ms` default 8355.9/8343.7 ->
+  certified 9224.6/9203.7; incremental-only 9151.5/9150.9 -> certified
+  9184.8/9192.5). Treat N3 as explicit experimental plumbing, not a default
+  runtime tier, until a narrower counter-backed site is identified.
 - **N4 — cheapen or defer `rebuildMasks`.** In rising ambition:
   (a) rebuild once per fixpoint iteration instead of per application (audit
   which same-iteration reads need freshness); (b) rebuild-on-read — only

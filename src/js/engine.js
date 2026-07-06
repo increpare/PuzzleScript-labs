@@ -3078,6 +3078,8 @@ function applyRuleGroup(ruleGroup) {
 
     _lastGroupWriteObjects.setZero();
     _lastGroupWriteMovements.setZero();
+    const CERTIFIED_WAKE_PRUNE = typeof process !== 'undefined' && process.env
+        && process.env.PUZZLESCRIPT_CERTIFIED_WAKE_PRUNE === '1';
 
     while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
         madeChangeThisLoop = false;
@@ -3089,9 +3091,17 @@ function applyRuleGroup(ruleGroup) {
             const rule = activeRuleGroup[ruleIndex];
             const PRUNE_INNER_LOOP = !(typeof process !== 'undefined' && process.env
                 && process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE === '0');
+            const useCertifiedWakeMasks = CERTIFIED_WAKE_PRUNE
+                && rule.hasCertifiedWakePruneMasks === true
+                && rule.certifiedReadMovements
+                && rule.certifiedWriteMovements;
+            const readMovements = useCertifiedWakeMasks ? rule.certifiedReadMovements : rule.readMovements;
+            const readMovementsCannotWake = useCertifiedWakeMasks
+                ? !readMovements.anyBitsInCommon(priorMovements)
+                : readMovements.iszero();
             if (PRUNE_INNER_LOOP
                 && !rule.forceAlwaysRun
-                && rule.readMovements.iszero()
+                && readMovementsCannotWake
                 && !rule.readObjects.anyBitsInCommon(priorObjects)) {
                 consecutiveFailures++;
                 if (consecutiveFailures === GROUP_LENGTH) break;
@@ -3100,10 +3110,11 @@ function applyRuleGroup(ruleGroup) {
             if (rule.tryApply(level)) {
                 madeChangeThisLoop = true;
                 consecutiveFailures = 0;
+                const writeMovements = useCertifiedWakeMasks ? rule.certifiedWriteMovements : rule.writeMovements;
                 nextObjects.ior(rule.writeObjects);
-                nextMovements.ior(rule.writeMovements);
+                nextMovements.ior(writeMovements);
                 _lastGroupWriteObjects.ior(rule.writeObjects);
-                _lastGroupWriteMovements.ior(rule.writeMovements);
+                _lastGroupWriteMovements.ior(writeMovements);
             } else {
                 consecutiveFailures++;
                 if (consecutiveFailures === GROUP_LENGTH) break;

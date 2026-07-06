@@ -19,6 +19,9 @@ const {
 
 const { loadPuzzleScript } = require('./js_oracle/lib/puzzlescript_node_env');
 const staticAnalysis = require('./lib/solver_static_analysis');
+const {
+    attachCertifiedWakeMasksToRuntimeRules,
+} = require('./lib/certified_wake_prune');
 const { analyzeSource } = require('./ps_static_analysis');
 const {
     resolveSolverPasses,
@@ -392,6 +395,7 @@ function parseArgs(argv) {
         solverStaticHash: false,
         solverHashProjection: false,
         solverHashProjectionParity: false,
+        solverCertifiedWakePrune: false,
         solverOptimizeStatic: false,
         solverOptPasses: null,
         solverOptParity: false,
@@ -477,6 +481,8 @@ function parseArgs(argv) {
             options.solverHashProjection = true;
         } else if (arg === '--solver-hash-projection-parity') {
             options.solverHashProjectionParity = true;
+        } else if (arg === '--solver-certified-wake-prune') {
+            options.solverCertifiedWakePrune = true;
         } else if (arg === '--solver-optimize-static') {
             options.solverOptimizeStatic = true;
         } else if (arg === '--solver-opt') {
@@ -522,7 +528,7 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-certified-wake-prune] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
@@ -531,6 +537,7 @@ function usage(exitCode) {
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  --solver-hash-projection: project certified solver_hash_projection object bits out of visited-state hashes. --solver-hash-projection-parity pairs each run with a baseline solve and replay check.\n' +
+        '  --solver-certified-wake-prune: opt into certified movement wake-mask pruning from static analysis facts.\n' +
         '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
         '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n';
@@ -3801,6 +3808,8 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         solver_hash_projection_projected_objects: 0,
         solver_hash_projection_blocked: false,
         solver_hash_projection_blockers: [],
+        certified_wake_prune_attached_rules: 0,
+        certified_wake_prune_complete: false,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -4667,6 +4676,7 @@ function runGame(root, file, options = {}) {
     const passes = resolveSolverPasses(options);
     const needsStaticAnalysis = options.solverStaticHash
         || options.solverHashProjection
+        || options.solverCertifiedWakePrune
         || passes.inert
         || passes.cosmetic
         || passes.cosmeticRules
@@ -4687,6 +4697,7 @@ function runGame(root, file, options = {}) {
             : [
                 options.solverStaticHash ? 'count_layer_invariants' : null,
                 options.solverHashProjection ? 'solver_hash_projection' : null,
+                options.solverCertifiedWakePrune ? 'certified_wake_masks' : null,
                 passes.action ? 'movement_action' : null,
             ].filter(Boolean);
         staticAnalysisReport = analyzeSource(source, {
@@ -4697,6 +4708,10 @@ function runGame(root, file, options = {}) {
     }
 
     const compileStart = performance.now();
+    if (options.solverCertifiedWakePrune) {
+        process.env.PUZZLESCRIPT_INCREMENTAL_PRUNE = '1';
+        process.env.PUZZLESCRIPT_CERTIFIED_WAKE_PRUNE = '1';
+    }
     unitTesting = true;
     lazyFunctionGeneration = false;
     const hookPasses = effectiveSolverPassesForHook(staticAnalysisReport, passes);
@@ -4723,6 +4738,17 @@ function runGame(root, file, options = {}) {
         if (typeof setPluginOptimizationHook === 'function') {
             setPluginOptimizationHook(null);
         }
+    }
+    let certifiedWakePruneAttachment = null;
+    if (options.solverCertifiedWakePrune) {
+        const certifiedWakeMaskFacts = staticAnalysisReport && staticAnalysisReport.facts
+            ? staticAnalysisReport.facts.certified_wake_masks
+            : null;
+        certifiedWakePruneAttachment = attachCertifiedWakeMasksToRuntimeRules(
+            state,
+            staticAnalysisReport,
+            certifiedWakeMaskFacts
+        );
     }
     installSolverResolveMovementProfiler(state);
     const compileMs = performance.now() - compileStart;
@@ -4751,6 +4777,8 @@ function runGame(root, file, options = {}) {
             compile_ms: compileMs,
             static_analysis_ms: staticAnalysisMs,
             static_optimization_removed_rules: staticOptimizationRemovedRules,
+            certified_wake_prune_attached_rules: 0,
+            certified_wake_prune_complete: false,
             load_ms: 0,
             clone_ms: 0,
             snapshot_ms: 0,
@@ -4780,6 +4808,7 @@ function runGame(root, file, options = {}) {
         staticAnalysisReport,
         staticAnalysisMs,
         staticOptimizationRemovedRules,
+        certifiedWakePruneAttachment,
         solverOptimizationTelemetry: telemetry,
         solverOptimizationGated,
     };
@@ -5178,10 +5207,18 @@ function runCorpus(options) {
                     result.solver_opt_ms_merge = tel.ms_merge || 0;
                     result.solver_opt_ms_action = tel.ms_action || 0;
                 }
+                if (compiled.certifiedWakePruneAttachment) {
+                    result.certified_wake_prune_attached_rules =
+                        compiled.certifiedWakePruneAttachment.attachedRuleCount || 0;
+                    result.certified_wake_prune_complete =
+                        compiled.certifiedWakePruneAttachment.complete === true;
+                }
             } else {
                 result.compile_ms = 0;
                 result.static_analysis_ms = 0;
                 result.static_optimization_removed_rules = 0;
+                result.certified_wake_prune_attached_rules = 0;
+                result.certified_wake_prune_complete = false;
             }
             if (compileGated) {
                 result.solver_optimization_gated = true;
@@ -5255,6 +5292,8 @@ function totals(results) {
         solver_optimization_gated: false,
         solver_hash_projection_projected_objects: 0,
         solver_hash_projection_blocked: false,
+        certified_wake_prune_attached_rules: 0,
+        certified_wake_prune_complete: false,
         load_ms: 0,
         clone_ms: 0,
         snapshot_ms: 0,
@@ -5312,6 +5351,10 @@ function totals(results) {
             out.solver_optimization_gated = true;
         }
         out.solver_hash_projection_projected_objects += result.solver_hash_projection_projected_objects || 0;
+        out.certified_wake_prune_attached_rules += result.certified_wake_prune_attached_rules || 0;
+        if (result.certified_wake_prune_complete) {
+            out.certified_wake_prune_complete = true;
+        }
         if (result.solver_hash_projection_blocked) {
             out.solver_hash_projection_blocked = true;
         }
@@ -5448,6 +5491,7 @@ function benchStoreConfig(options) {
         solver_static_hash: options.solverStaticHash,
         solver_hash_projection: options.solverHashProjection,
         solver_hash_projection_parity: options.solverHashProjectionParity,
+        solver_certified_wake_prune: options.solverCertifiedWakePrune,
         solver_optimize_static: options.solverOptimizeStatic,
         solver_opt_passes: options.solverOptPasses,
         solver_opt_parity: options.solverOptParity,

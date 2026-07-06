@@ -15,6 +15,13 @@ const {
 
 ensureRuntimeLoaded();
 
+let certifiedWakePrune = {};
+try {
+    certifiedWakePrune = require('./lib/certified_wake_prune');
+} catch (_error) {
+    certifiedWakePrune = {};
+}
+
 function loadStaticAnalysisFixtureSource(...parts) {
     return fs.readFileSync(path.join(__dirname, 'static_analysis_testdata', ...parts), 'utf8');
 }
@@ -83,6 +90,33 @@ assert.ok(
 assert.ok(
     result.noRandomReplayChecks > 0,
     'no-random checks should compare replay boundaries under an alternate seed'
+);
+
+const karamellSource = loadStaticAnalysisFixtureSource('..', 'solver_tests', 'karamell.txt');
+const karamellContract = staticContractForSource(karamellSource, 'karamell certified wake prune');
+if (typeof resetParserErrorState === 'function') {
+    resetParserErrorState();
+}
+compile(['loadLevel', 0], karamellSource, 'solver:karamell-certified-wake-prune:0');
+assert.strictEqual(
+    typeof certifiedWakePrune.attachCertifiedWakeMasksToRuntimeRules,
+    'function',
+    'certified wake-mask pruning should expose a runtime attachment helper'
+);
+const karamellAttach = certifiedWakePrune.attachCertifiedWakeMasksToRuntimeRules(
+    state,
+    karamellContract.staticAnalysisReport,
+    karamellContract.certifiedWakeMaskFacts
+);
+assert.ok(karamellAttach.complete, 'karamell certified wake-mask attachment should map every runtime rule');
+assert.ok(karamellAttach.attachedRuleCount > 0, 'karamell certified wake-mask attachment should attach runtime rules');
+assert.ok(
+    state.rules[21][0].certifiedReadMovements.anyBitsInCommon(state.rules[21][4].certifiedWriteMovements),
+    'karamell line 444 moving reader should be woken by line 448 directional propagation'
+);
+assert.ok(
+    state.rules[21][2].certifiedReadMovements.anyBitsInCommon(state.rules[21][4].certifiedWriteMovements),
+    'karamell line 446 moving reader should be woken by line 448 directional propagation'
 );
 
 const initialProbeSource = [

@@ -240,14 +240,14 @@ Item status after the X-round:
 | Item | Status | Note |
 | --- | --- | --- |
 | P1 static opts on hard game | done, no effect there | still valuable corpus-wide/for strides — remeasure on corpus |
-| P2 / N3 movement-aware prune | **rejected as implemented** | reroute through S1 certified masks |
+| P2 / N3 movement-aware prune | **rejected as default** | naive runtime masks failed on Karamell; S1-certified JS consumer path exists behind `--solver-certified-wake-prune`, but smoke-50 `step_ms` regressed 8355.9/8343.7 -> 9224.6/9203.7 vs default and 9151.5/9150.9 -> 9184.8/9192.5 vs incremental-only, so keep explicit-only until a narrower counter-proven site wins |
 | P3 adaptive strategy | rejected for current implementation | named slices: smoke 0, sokoban −2.33, hard-tail −2.00 solved; keep only as future redesign idea |
 | P4 JS codegen | design-doc only | superseded in priority by native path (rec. 4) |
 | P5 / N8 stride compaction | live | X1 suggests cosmetic-pass alone shrinks too little (6/82 layers) — S4 per-level universe is the stronger route |
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
 | N1/N2 moving-tiles bitboard + static anchor masks | done in native interpreter; repeat-run raw validation done | N2 mask hoist keeps runtime mask builds at zero; N1 drops one-run movement-anchor scanned cells from 669.1M→4.9M on smoke-50 and 2.78B→11.6M on the named portfolio, while raw 3-run throughput moves +6.4% on smoke-50 and +100.4% on the named portfolio with solved splits unchanged |
 | N4-N7, N9 | next runtime tier by residual per-step cost; N4a done, N4b/N5a rejected | N4a's add-only movement dirty guard is a small validated win (+2.0% smoke-50 and +1.7% named portfolio raw step-throughput vs N1, solved splits unchanged); N4b rebuild-on-read reduced the tiny `push_goal` dirty counter canary but regressed focus-50 median wall +20.3% in the stale-board version and +51.5% with exact board reads, so do not revive broad phase-boundary rebuild deferral; direct pattern-mask spans regressed (-4.0% smoke step-throughput vs N4a after trimming counter overhead). Next material runtime work should be N4c refcounted/decremental masks only with counter proof, or S1-backed N3 pruning once certified contracts are consumed |
-| S1/S2 certified masks + schedules | S1 artifact started; S2 live | `certified_wake_masks` fact family landed for JS; runtime consumption still gated on contracts |
+| S1/S2 certified masks + schedules | S1 artifact consumed experimentally; S2 live | `certified_wake_masks` fact family landed for JS and can attach runtime movement wake masks behind `--solver-certified-wake-prune`; the first consumer benchmark was negative, so the contract is useful but not a default optimization |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
 | T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |
