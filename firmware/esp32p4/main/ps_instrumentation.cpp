@@ -1,6 +1,7 @@
 #include "ps_instrumentation.hpp"
 
 #include <cinttypes>
+#include <cstddef>
 
 #include "esp_chip_info.h"
 #include "esp_err.h"
@@ -15,8 +16,63 @@ namespace ps_probe {
 namespace {
 
 constexpr const char* kTag = "ps_probe";
+constexpr size_t kJsonStringBufferBytes = 256;
 Phase g_active_phase = Phase::Boot;
 FramebufferPolicy g_framebuffer_policy{"none", 0, 0, 0, 2};
+
+class EscapedJsonString {
+public:
+    explicit EscapedJsonString(const char* value) {
+        append(value == nullptr ? "" : value);
+    }
+
+    const char* c_str() const {
+        return buffer_;
+    }
+
+private:
+    void append(const char* value) {
+        static constexpr char kHex[] = "0123456789ABCDEF";
+        size_t out = 0;
+        for (const unsigned char* cursor = reinterpret_cast<const unsigned char*>(value); *cursor != '\0'; ++cursor) {
+            const unsigned char ch = *cursor;
+            const char* replacement = nullptr;
+            size_t replacement_len = 0;
+            char control_escape[6]{'\\', 'u', '0', '0', kHex[ch >> 4], kHex[ch & 0x0f]};
+
+            switch (ch) {
+                case '"': replacement = "\\\""; replacement_len = 2; break;
+                case '\\': replacement = "\\\\"; replacement_len = 2; break;
+                case '\n': replacement = "\\n"; replacement_len = 2; break;
+                case '\r': replacement = "\\r"; replacement_len = 2; break;
+                case '\t': replacement = "\\t"; replacement_len = 2; break;
+                default:
+                    if (ch < 0x20) {
+                        replacement = control_escape;
+                        replacement_len = sizeof(control_escape);
+                    }
+                    break;
+            }
+
+            if (replacement != nullptr) {
+                if (out + replacement_len >= sizeof(buffer_)) {
+                    break;
+                }
+                for (size_t i = 0; i < replacement_len; ++i) {
+                    buffer_[out++] = replacement[i];
+                }
+            } else {
+                if (out + 1 >= sizeof(buffer_)) {
+                    break;
+                }
+                buffer_[out++] = static_cast<char>(ch);
+            }
+        }
+        buffer_[out] = '\0';
+    }
+
+    char buffer_[kJsonStringBufferBytes]{};
+};
 
 void append_heap(const char* name, uint32_t caps) {
     multi_heap_info_t info{};
@@ -35,12 +91,13 @@ void append_heap(const char* name, uint32_t caps) {
 }
 
 void alloc_failed_hook(size_t requested_size, uint32_t caps, const char* function_name) {
+    const EscapedJsonString escaped_function(function_name);
     ESP_EARLY_LOGE(kTag,
                    "{\"event\":\"alloc_failed\",\"phase\":\"%s\",\"requested\":%zu,\"caps\":%" PRIu32 ",\"function\":\"%s\"}",
                    phase_name(g_active_phase),
                    requested_size,
                    caps,
-                   function_name == nullptr ? "" : function_name);
+                   escaped_function.c_str());
 }
 
 } // namespace
@@ -84,13 +141,16 @@ void set_framebuffer_policy(const FramebufferPolicy& policy) {
 
 void emit_phase_result(Phase phase, const char* status, const char* detail, int64_t elapsed_ms) {
     set_active_phase(phase);
+    const EscapedJsonString escaped_status(status);
+    const EscapedJsonString escaped_detail(detail);
+    const EscapedJsonString escaped_fb_mode(g_framebuffer_policy.mode);
     ESP_LOGI(kTag,
              "{\"event\":\"phase\",\"phase\":\"%s\",\"status\":\"%s\",\"detail\":\"%s\",\"elapsed_ms\":%" PRId64 ",\"fb_mode\":\"%s\",\"fb_width\":%d,\"fb_height\":%d,\"fb_count\":%d,\"fb_bpp\":%d}",
              phase_name(phase),
-             status == nullptr ? "" : status,
-             detail == nullptr ? "" : detail,
+             escaped_status.c_str(),
+             escaped_detail.c_str(),
              elapsed_ms,
-             g_framebuffer_policy.mode == nullptr ? "" : g_framebuffer_policy.mode,
+             escaped_fb_mode.c_str(),
              g_framebuffer_policy.width,
              g_framebuffer_policy.height,
              g_framebuffer_policy.buffer_count,
@@ -105,15 +165,17 @@ void emit_boot_summary() {
     esp_chip_info(&chip);
     uint32_t flash_size = 0;
     const esp_err_t flash_probe = esp_flash_get_size(nullptr, &flash_size);
+    const EscapedJsonString escaped_flash_status(flash_probe == ESP_OK ? "ok" : esp_err_to_name(flash_probe));
+    const EscapedJsonString escaped_idf(esp_get_idf_version());
     ESP_LOGI(kTag,
              "{\"event\":\"boot\",\"cores\":%d,\"revision\":%d,\"flash_bytes\":%" PRIu32 ",\"flash_status\":\"%s\",\"target_width\":%d,\"target_height\":%d,\"idf\":\"%s\",\"reset_reason\":%d}",
              chip.cores,
              chip.revision,
              flash_size,
-             flash_probe == ESP_OK ? "ok" : esp_err_to_name(flash_probe),
+             escaped_flash_status.c_str(),
              kTargetWidth,
              kTargetHeight,
-             esp_get_idf_version(),
+             escaped_idf.c_str(),
              static_cast<int>(esp_reset_reason()));
 }
 
