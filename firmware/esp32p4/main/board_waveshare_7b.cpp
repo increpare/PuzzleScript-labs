@@ -21,11 +21,12 @@ esp_ldo_channel_handle_t g_mipi_ldo = nullptr;
 esp_lcd_dsi_bus_handle_t g_dsi_bus = nullptr;
 esp_lcd_panel_io_handle_t g_dbi_io = nullptr;
 esp_lcd_panel_handle_t g_panel = nullptr;
+bool g_display_initialized = false;
 
 } // namespace
 
 esp_err_t init_display() {
-    if (g_panel != nullptr) {
+    if (g_display_initialized) {
         return ESP_OK;
     }
 
@@ -60,9 +61,23 @@ esp_err_t init_display() {
         .vendor_config = &vendor_config,
     };
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_ek79007(g_dbi_io, &panel_config, &g_panel), kTag, "panel");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(g_panel), kTag, "panel_reset");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(g_panel), kTag, "panel_init");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(g_panel, true), kTag, "panel_on");
+
+    esp_err_t err = esp_lcd_panel_reset(g_panel);
+    if (err != ESP_OK) {
+        g_panel = nullptr;
+        return err;
+    }
+    err = esp_lcd_panel_init(g_panel);
+    if (err != ESP_OK) {
+        g_panel = nullptr;
+        return err;
+    }
+    err = esp_lcd_panel_disp_on_off(g_panel, true);
+    if (err != ESP_OK) {
+        g_panel = nullptr;
+        return err;
+    }
+    g_display_initialized = true;
     return ESP_OK;
 }
 
