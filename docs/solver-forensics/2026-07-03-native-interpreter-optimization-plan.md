@@ -205,6 +205,22 @@ Do not redo these; they're in place and working:
   generated states moved 1192 -> 1221 inside the same 500ms cap. This is a
   worthwhile cheap cleanup, but the remaining N4 variants need a larger
   mechanism than this setter guard.
+
+  Status update (2026-07-06): N4b rebuild-on-read was prototyped and backed
+  out. The first version deferred line cleanup and removed the post-movement
+  and end-of-turn rebuilds; it improved the tiny `push_goal` counter canary
+  from 12 -> 9 dirty rebuild calls, rows 20 -> 18, columns 74 -> 71, but stale
+  board masks weakened rule prechecks on the 50-target focus benchmark
+  (`/tmp/n4a_focus_benchmark_6af3.json` ->
+  `/tmp/n4b_focus_benchmark_6af3.json`): median wall 325.4ms -> 391.3ms
+  (+20.3%), median step 235.7ms -> 327.3ms (+38.8%), solved samples
+  215/250 -> 157/250. A refined version made board prechecks rebuild exact
+  dirty rows while leaving columns lazy; it regressed further
+  (`/tmp/n4b_board_focus_benchmark_6af3.json`): median wall 493.0ms (+51.5%)
+  and step 395.3ms (+67.7%), solved samples 140/250. Do not revive N4b's
+  broad phase-boundary rebuild deferral. If N4 continues, prefer N4c's
+  decremental/refcounted line masks or a narrower, counter-proven site that
+  preserves board-level pruning and does not add per-read overhead.
 - **N5 — sparse word iteration in `matchesPatternAt`.** Precompute per-mask
   nonzero-word spans (first/last word or tiny word-id list); loop only
   those. Near-free for stride-1 games, ~4-9x fewer word ops on wide games.
