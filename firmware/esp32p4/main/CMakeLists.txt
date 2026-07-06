@@ -34,9 +34,10 @@ idf_component_register(
     "${PUZZLESCRIPT_NATIVE_DIR}/src"
     "${PUZZLESCRIPT_NATIVE_DIR}/third_party/simdjson"
     "${PUZZLESCRIPT_NATIVE_DIR}/third_party/utf8proc"
+  # Basename-only fixture paths keep ESP-IDF _binary_* symbols stable for the runtime probe.
   EMBED_TXTFILES
-    "../../../src/demo/sokoban_basic.txt"
-    "embedded_games/broken_smoke.txt"
+    "sokoban_basic.txt"
+    "broken_smoke.txt"
 )
 
 target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_17)
