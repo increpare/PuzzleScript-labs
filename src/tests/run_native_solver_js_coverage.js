@@ -128,14 +128,53 @@ function staticHintObjectsFromReport(report) {
     }));
 }
 
+function stringArray(values) {
+    return Array.isArray(values)
+        ? values.filter((value) => typeof value === 'string')
+        : [];
+}
+
+function numberArray(values) {
+    return Array.isArray(values)
+        ? values.filter((value) => Number.isInteger(value))
+        : [];
+}
+
+function solverHashProjectionFactsFromReport(report) {
+    const facts = report && report.facts && Array.isArray(report.facts.solver_hash_projection)
+        ? report.facts.solver_hash_projection
+        : [];
+    return facts
+        .filter((fact) => fact && fact.id === 'solver_hash_projection' && fact.value)
+        .map((fact) => ({
+            id: 'solver_hash_projection',
+            status: fact.status || 'candidate',
+            value: {
+                projected_objects: stringArray(fact.value.projected_objects),
+                projected_layers: numberArray(fact.value.projected_layers),
+                transient_objects: stringArray(fact.value.transient_objects),
+                blockers: stringArray(fact.value.blockers),
+                scope: fact.value.scope || null,
+            },
+            blockers: stringArray(fact.blockers),
+        }));
+}
+
 function buildStaticAnalysisHintsManifest(corpusDir, analyze = analyzeFile) {
     const games = {};
     for (const filePath of discoverSolverGameFiles(corpusDir)) {
         const report = analyze(filePath, { sourcePath: filePath });
-        games[relativeGamePath(corpusDir, filePath)] = {
+        const gameEntry = {
             status: report && report.status === 'ok' ? 'ok' : 'compile_error',
             objects: staticHintObjectsFromReport(report),
         };
+        const solverHashProjection = solverHashProjectionFactsFromReport(report);
+        if (solverHashProjection.length > 0) {
+            gameEntry.facts = {
+                solver_hash_projection: solverHashProjection,
+            };
+        }
+        games[relativeGamePath(corpusDir, filePath)] = gameEntry;
     }
     return {
         schema: 'native-solver-static-analysis-hints-v1',
@@ -284,4 +323,5 @@ module.exports = {
     findJsSolvedNativeMisses,
     summarizeCoverage,
     resultKey,
+    solverHashProjectionFactsFromReport,
 };

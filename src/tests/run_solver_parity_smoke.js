@@ -61,6 +61,8 @@ function resultKey(result) {
 
 // Curated smoke corpus: original tiny set plus push/pull sokoban, NO-in-rule, SOME wincondition.
 const expected = new Map([
+    ['hash_projection_cosmetic.txt#0', { status: 'solved', solution: ['right'] }],
+    ['hash_projection_toggle.txt#0', { status: 'exhausted', solution: [] }],
     ['impossible.txt#0', { status: 'exhausted', solution: [] }],
     ['message_skip.txt#0', { status: 'skipped_message', solution: [] }],
     ['message_skip.txt#1', { status: 'solved', solution: ['right'] }],

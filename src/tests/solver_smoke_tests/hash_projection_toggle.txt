@@ -1,0 +1,56 @@
+title Solver Hash Projection Toggle
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Target
+yellow
+
+Sparkle
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player and Background
+T = Target and Background
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Player
+Sparkle
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ Player Sparkle ]
+
+=============
+WINCONDITIONS
+=============
+
+Some Player On Target
+
+======
+LEVELS
+======
+
+P.
