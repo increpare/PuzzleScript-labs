@@ -160,6 +160,41 @@ function solverHashProjectionFactsFromReport(report) {
         }));
 }
 
+function taggedRuleSectionsForWinRelevance(report) {
+    const sections = report && report.ps_tagged && Array.isArray(report.ps_tagged.rule_sections)
+        ? report.ps_tagged.rule_sections
+        : [];
+    return sections.map((section) => ({
+        groups: (Array.isArray(section.groups) ? section.groups : []).map((group) => ({
+            rules: (Array.isArray(group.rules) ? group.rules : [])
+                .filter((rule) => rule && typeof rule.id === 'string' && Number.isInteger(rule.source_line))
+                .map((rule) => ({
+                    id: rule.id,
+                    source_line: rule.source_line,
+                })),
+        })),
+    }));
+}
+
+function winRelevanceFactsFromReport(report) {
+    const facts = report && report.facts && Array.isArray(report.facts.win_relevance)
+        ? report.facts.win_relevance
+        : [];
+    return facts
+        .filter((fact) => fact && fact.id === 'win_relevance' && fact.value)
+        .map((fact) => ({
+            id: 'win_relevance',
+            status: fact.status || 'candidate',
+            value: {
+                rule_ids: stringArray(fact.value.rule_ids),
+                root_rule_ids: stringArray(fact.value.root_rule_ids),
+                semantic_root_rule_ids: stringArray(fact.value.semantic_root_rule_ids),
+                relevant_rule_ids: stringArray(fact.value.relevant_rule_ids),
+                irrelevant_rule_ids: stringArray(fact.value.irrelevant_rule_ids),
+            },
+        }));
+}
+
 function buildStaticAnalysisHintsManifest(corpusDir, analyze = analyzeFile) {
     const games = {};
     for (const filePath of discoverSolverGameFiles(corpusDir)) {
@@ -169,9 +204,17 @@ function buildStaticAnalysisHintsManifest(corpusDir, analyze = analyzeFile) {
             objects: staticHintObjectsFromReport(report),
         };
         const solverHashProjection = solverHashProjectionFactsFromReport(report);
+        const winRelevance = winRelevanceFactsFromReport(report);
         if (solverHashProjection.length > 0) {
             gameEntry.facts = {
                 solver_hash_projection: solverHashProjection,
+            };
+        }
+        if (winRelevance.length > 0) {
+            gameEntry.facts = gameEntry.facts || {};
+            gameEntry.facts.win_relevance = winRelevance;
+            gameEntry.ps_tagged = {
+                rule_sections: taggedRuleSectionsForWinRelevance(report),
             };
         }
         games[relativeGamePath(corpusDir, filePath)] = gameEntry;

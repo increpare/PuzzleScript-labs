@@ -30,6 +30,8 @@ struct StaticAnalysisHints {
     bool solverHashProjectionAvailable = false;
     MaskVector solverHashProjectionObjects;
     std::vector<std::string> solverHashProjectionBlockers;
+    bool winRelevanceAvailable = false;
+    std::vector<int32_t> winIrrelevantRuleSourceLines;
 };
 
 inline const char* heuristicName(HeuristicKind kind) {
