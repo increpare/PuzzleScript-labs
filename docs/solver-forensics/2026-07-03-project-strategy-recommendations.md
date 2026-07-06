@@ -245,8 +245,8 @@ Item status after the X-round:
 | P4 JS codegen | design-doc only | superseded in priority by native path (rec. 4) |
 | P5 / N8 stride compaction | live | X1 suggests cosmetic-pass alone shrinks too little (6/82 layers) — S4 per-level universe is the stronger route |
 | P6 again reduction | **dead** | X3: multiplier ≈ 0 |
-| N1/N2 moving-tiles bitboard + static anchor masks | done in native interpreter; repeat-run validation pending | N2 mask hoist keeps runtime mask builds at zero, and N1 drops one-run movement-anchor scanned cells from 669.1M→4.9M on smoke-50 and 2.78B→11.6M on the named portfolio with solved splits unchanged |
-| N4-N7, N9 | next runtime tier by residual counters | N4/N5 now move to the front of native runtime work; S1-backed N3 pruning remains live once certified contracts are consumed; NX2 mimalloc preload was not a material HDA win |
+| N1/N2 moving-tiles bitboard + static anchor masks | done in native interpreter; repeat-run raw validation done | N2 mask hoist keeps runtime mask builds at zero; N1 drops one-run movement-anchor scanned cells from 669.1M→4.9M on smoke-50 and 2.78B→11.6M on the named portfolio, while raw 3-run throughput moves +6.4% on smoke-50 and +100.4% on the named portfolio with solved splits unchanged |
+| N4-N7, N9 | next runtime tier by residual per-step cost; N4a done, N5a rejected | N4a's add-only movement dirty guard is a small validated win (+2.0% smoke-50 and +1.7% named portfolio raw step-throughput vs N1, solved splits unchanged); direct pattern-mask spans regressed (-4.0% smoke step-throughput vs N4a after trimming counter overhead), so the next material work should be N4b rebuild-on-read, with S1-backed N3 pruning still live once certified contracts are consumed |
 | S1/S2 certified masks + schedules | S1 artifact started; S2 live | `certified_wake_masks` fact family landed for JS; runtime consumption still gated on contracts |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |

@@ -12,6 +12,9 @@ const requiredKeys = [
     'candidate_cells_tested',
     'pattern_tests',
     'mask_rebuild_calls',
+    'mask_rebuild_dirty_calls',
+    'mask_rebuild_rows',
+    'mask_rebuild_columns',
     'movement_anchor_overlap_cells_scanned',
     'movement_anchor_collection_cells_scanned',
     'movement_anchor_collections_used',
@@ -54,9 +57,13 @@ assert.deepStrictEqual(missing, []);
 for (const key of requiredKeys) {
     assert.ok(Number.isFinite(counters[key]), `expected finite counter ${key}`);
 }
+
 assert.strictEqual(counters.movement_anchor_overlap_cells_scanned, 0, 'expected movement anchor overlap count to use the moving-cell index');
 assert.ok(counters.movement_anchor_collection_cells_scanned > 0, 'expected movement anchor collection scan attribution');
 assert.ok(counters.movement_anchor_collections_used > 0, 'expected movement anchor collection count');
 assert.strictEqual(counters.movement_anchor_runtime_mask_builds, 0, 'expected movement anchor masks to be precomputed');
+assert.ok(counters.mask_rebuild_dirty_calls < 13, 'expected add-only movement writes to avoid dirty mask rebuild calls');
+assert.ok(counters.mask_rebuild_rows < 21, 'expected add-only movement writes to avoid dirty row rebuilds');
+assert.ok(counters.mask_rebuild_columns < 75, 'expected add-only movement writes to avoid dirty column rebuilds');
 
 process.stdout.write('native_runtime_counters_node: ok\n');

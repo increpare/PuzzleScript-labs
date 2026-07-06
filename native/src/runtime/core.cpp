@@ -2579,7 +2579,9 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
     if (changedAny) {
         session.scratch.liveMovementsClean = false;
     }
-    if (clearedAny != 0 || changedAny) {
+    const bool needsDirtyMovementMasks =
+        clearedAny != 0 || (changedAny && session.game->needsMovementLineAllMasks);
+    if (needsDirtyMovementMasks) {
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyMovementRows.size())
             session.scratch.dirtyMovementRows[static_cast<size_t>(rowIndex)] = 1;
         if (static_cast<size_t>(columnIndex) < session.scratch.dirtyMovementColumns.size())
@@ -5461,11 +5463,12 @@ bool prepareMovementCellIndex(FullState& session) {
 }
 
 // Incremental rebuildMasks: setCellObjects/setCellMovements already OR new
-// bits into the row/col/board masks on the write path, so the only case a
-// rebuild is needed is when bits were *cleared*. The set-paths mark those
-// rows/columns dirty. This function rebuilds exactly the dirty slices from
-// scratch and leaves the rest untouched. On a clean session (anyMasksDirty
-// == false) this is a branch and return.
+// bits into the row/col/board masks on the write path, so dirty rebuilds are
+// only needed when bits were cleared, or when movement line-all masks must be
+// refreshed after movement changes. The set-paths mark those rows/columns
+// dirty. This function rebuilds exactly the dirty slices from scratch and
+// leaves the rest untouched. On a clean session (anyMasksDirty == false) this
+// is a branch and return.
 void rebuildMasks(FullState& session) {
     addCounter(gRuntimeCounters.maskRebuildCalls);
     const int32_t objectStride = session.game->strideObject;

@@ -137,6 +137,20 @@ Do not redo these; they're in place and working:
   1966073188 → 0). Treat this as a real scan-cost win, but still a one-run
   timing sample; repeat-run bench store data is required before claiming a
   stable solved-count or wall-time result.
+
+  Follow-up raw timing (2026-07-06, counters disabled, three runs per target,
+  artifacts `build/native/measure-raw-n2-smoke-50-runs3.json` →
+  `build/native/measure-raw-n1-smoke-50-runs3.json` and
+  `build/native/measure-raw-n2-anonymous-game-portfolio-runs3.json` →
+  `build/native/measure-raw-n1-anonymous-game-portfolio-runs3.json`) confirms
+  the win is mostly throughput, not immediate solved-count movement. `smoke-50`
+  kept the same 33/16/1 solved/timeout/exhausted split; summed target-median
+  throughput moved 86.570 → 92.141 generated states/ms (+6.4%), with median
+  wall 39.728ms → 38.822ms. The named movement-heavy portfolio kept the same
+  1/53 solved/timeout split; summed target-median throughput moved
+  1.463 → 2.932 generated states/ms (+100.4%), with median generated states
+  683 → 1192 inside the same 500ms cap. N4/N5 should now optimize the
+  remaining per-step cost rather than movement-anchor full-grid scans.
 - **N2 — hoist static movement-anchor masks to lowering time (trivial).**
   The per-pattern movement union in `chooseMovementRowAnchor` is
   state-independent; precompute into `maskArena` at lowering, deleting the
@@ -165,10 +179,49 @@ Do not redo these; they're in place and working:
   per-object-bit reference counts enabling O(changed-bits) decremental
   updates (memory ≈ (height+width) × objectCount × 2B — tens of KB, fine).
   Gate on F1 counter numbers first.
+
+  Status update (2026-07-06): landed N4a's conservative add-only movement
+  dirty guard in the generic movement word setter. Movement writes still OR
+  new bits directly into row/column/board movement masks, so games that do not
+  need movement line-all masks avoid the old dirty rebuild when no movement
+  bits were cleared. Games with missing-movement line prechecks keep the
+  previous dirty behavior because `clearMovementState()` leaves line-all masks
+  stale until rebuild. Focused counter coverage in
+  `make native_runtime_counters_tests` now asserts the `push_goal` canary drops
+  below the old dirty profile; observed counters moved
+  `mask_rebuild_dirty_calls` 13 -> 12, rows 21 -> 20, columns 75 -> 74.
+  Serial smoke/parity stayed green.
+
+  Raw timing against the N1 foundation (counters disabled, three runs per
+  target, artifacts `build/native/measure-raw-n1-smoke-50-runs3.json` ->
+  `build/native/measure-raw-n4a-smoke-50-runs3.json` and
+  `build/native/measure-raw-n1-anonymous-game-portfolio-runs3.json` ->
+  `build/native/measure-raw-n4a-anonymous-game-portfolio-runs3.json`) shows a
+  small per-step improvement with unchanged solved splits. `smoke-50` stayed at
+  33/16/1 solved/timeout/exhausted; summed target-median throughput moved
+  92.141 -> 93.975 generated states/ms (+2.0%), median wall 38.822ms ->
+  37.982ms. The named movement-heavy portfolio stayed at 1/53 solved/timeout;
+  throughput moved 2.932 -> 2.982 generated states/ms (+1.7%), and median
+  generated states moved 1192 -> 1221 inside the same 500ms cap. This is a
+  worthwhile cheap cleanup, but the remaining N4 variants need a larger
+  mechanism than this setter guard.
 - **N5 — sparse word iteration in `matchesPatternAt`.** Precompute per-mask
   nonzero-word spans (first/last word or tiny word-id list); loop only
   those. Near-free for stride-1 games, ~4-9x fewer word ops on wide games.
   Also order pattern checks by measured selectivity.
+
+  Status update (2026-07-06): a first N5a prototype for direct
+  `objectsPresent`/`objectsMissing`/`movementsPresent`/`movementsMissing`
+  spans was tried and backed out. The red/green counter fixture proved the
+  wide-mask loop reduction, but raw timing did not: after trimming the
+  counter overhead, `smoke-50` still regressed versus N4a
+  (`build/native/measure-raw-n4a-smoke-50-runs3.json` ->
+  `build/native/measure-raw-n5a-smoke-50-runs3.json`) from 93.975 -> 90.188
+  generated states/ms (-4.0%) with the same 33/16/1 solved split. An earlier
+  named-portfolio diagnostic run also regressed (-6.4% step-throughput), so
+  do not revive this exact direct-span shape. If N5 comes back, it needs a
+  lower-overhead representation and should target any-mask/layer-coupled hot
+  loops or measured wide-mask games specifically.
 - **N6 — allocator work for the solver/HDA (metal).** Link mimalloc (or
   jemalloc) and measure — cross-thread-free contention is its home turf;
   then per-thread arenas/freelists for node `FullState` /
