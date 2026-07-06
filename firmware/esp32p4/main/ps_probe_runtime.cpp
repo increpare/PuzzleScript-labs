@@ -151,14 +151,14 @@ void emit_compiler_diagnostic(const char* source_name, const ps_diagnostic& diag
         const EscapedJsonString escaped_severity(severity_name(diagnostic.severity));
         const EscapedJsonString escaped_message(diagnostic.message);
         ESP_LOGI(kTag,
-                 "{\"event\":\"compiler_diagnostic\",\"source\":\"%s\",\"severity\":\"%s\",\"code\":%" PRId32 ",\"line\":%" PRId32 ",\"message\":\"%s\"}",
+                 R"({"event":"diagnostic","source":"%s","severity":"%s","code":)" PRId32 R"(,"line":)" PRId32 R"(,"message":"%s"})",
                  escaped_source.c_str(),
                  escaped_severity.c_str(),
                  diagnostic.code,
                  diagnostic.line,
                  escaped_message.c_str());
     } catch (const std::bad_alloc&) {
-        emit_source_event("compiler_diagnostic", source_name, "fail", "diagnostic_alloc");
+        emit_source_event("diagnostic", source_name, "fail", "diagnostic_alloc");
     }
 }
 
