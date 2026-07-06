@@ -2,6 +2,7 @@ idf_component_register(
   SRCS
     "main.cpp"
     "board_waveshare_7b.cpp"
+    "ps_framebuffer.cpp"
     "ps_instrumentation.cpp"
   INCLUDE_DIRS
     "."
