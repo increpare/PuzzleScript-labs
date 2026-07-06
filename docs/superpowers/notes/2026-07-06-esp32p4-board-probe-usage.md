@@ -28,6 +28,15 @@ make handheld_p4_probe_flash ESP32P4_PORT=/dev/cu.usbmodemXXXX
 make handheld_p4_probe_monitor ESP32P4_PORT=/dev/cu.usbmodemXXXX
 ```
 
+To summarize a captured monitor log, write the monitor output to a file and run:
+
+```bash
+make handheld_p4_probe_summarize ESP32P4_LOG=build/esp32p4-probe.log
+```
+
+This writes `build/esp32p4_probe_log_summary.json` by default. Override the
+output path with `ESP32P4_LOG_SUMMARY_JSON=...`.
+
 ## SD Card
 
 Format a TF card as FAT and create:
@@ -71,3 +80,15 @@ LOAD_SOURCE_SD
 The first useful success run has `pass` for `BOOT`, `DISPLAY_INIT`,
 `COMPILE_SOURCE`, `CREATE_RUNTIME`, `LOAD_LEVEL`, and `RENDER_FRAME` for
 `embedded:sokoban_basic.txt`.
+
+## Log Summary
+
+The summary tool extracts JSON payloads from ESP-IDF-style monitor lines,
+ignores non-JSON driver chatter, and reports:
+
+- latest status and elapsed time for each phase
+- failed phase events
+- per-region heap minima and largest-free-block values
+- allocation failures
+- compiler diagnostics
+- malformed JSON lines that need firmware escaping fixes
