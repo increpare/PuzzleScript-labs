@@ -212,8 +212,14 @@ void run_input_trace(ps_full_state* state, const char* source_name) {
     try {
         (void)ps_full_state_turn(state, PS_INPUT_RIGHT);
         (void)ps_full_state_turn(state, PS_INPUT_DOWN);
-        (void)ps_full_state_undo(state);
-        (void)ps_full_state_restart(state);
+        if (!ps_full_state_undo(state)) {
+            emit_phase_result(Phase::RunInputTrace, "fail", "undo_failed", input_timer.elapsed_ms());
+            return;
+        }
+        if (!ps_full_state_restart(state)) {
+            emit_phase_result(Phase::RunInputTrace, "fail", "restart_failed", input_timer.elapsed_ms());
+            return;
+        }
     } catch (const std::bad_alloc&) {
         emit_phase_result(Phase::RunInputTrace, "fail", "input_trace_alloc", input_timer.elapsed_ms());
         return;
@@ -243,16 +249,15 @@ void run_source_probe(const SourceProbeInput& input, uint16_t* framebuffer) {
         }
         emit_phase_result(Phase::CompileSource, "pass", input.name, compile_timer.elapsed_ms());
 
+        PhaseTimer create_timer(Phase::CreateRuntime);
         GamePtr game;
         try {
             game.reset(ps_compile_result_game(compile_result.get()));
         } catch (const std::bad_alloc&) {
-            PhaseTimer create_timer(Phase::CreateRuntime);
             emit_phase_result(Phase::CreateRuntime, "fail", "game_alloc", create_timer.elapsed_ms());
             return;
         }
         if (!game) {
-            PhaseTimer create_timer(Phase::CreateRuntime);
             emit_phase_result(Phase::CreateRuntime, "fail", "game_unavailable", create_timer.elapsed_ms());
             return;
         }
@@ -260,7 +265,6 @@ void run_source_probe(const SourceProbeInput& input, uint16_t* framebuffer) {
         ps_full_state* raw_state = nullptr;
         ps_error* raw_error = nullptr;
         {
-            PhaseTimer create_timer(Phase::CreateRuntime);
             bool created = false;
             try {
                 created = ps_full_state_create(game.get(), &raw_state, &raw_error);
