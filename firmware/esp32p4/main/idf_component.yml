@@ -1,0 +1,6 @@
+version: 0.1.0
+targets:
+  - esp32p4
+dependencies:
+  idf: ">=5.3"
+  espressif/esp_lcd_ek79007: "*"
