@@ -2,6 +2,7 @@
 #include "probe_config.hpp"
 #include "ps_framebuffer.hpp"
 #include "ps_instrumentation.hpp"
+#include "ps_storage.hpp"
 
 #include "esp_err.h"
 #include "esp_heap_caps.h"
@@ -54,6 +55,21 @@ extern "C" void app_main(void) {
             ps_probe::emit_phase_result(Phase::DisplayInit, "pass", "target_800x480_diagnostic", display.elapsed_ms());
         } else {
             ps_probe::emit_phase_result(Phase::DisplayInit, "fail", esp_err_to_name(init), display.elapsed_ms());
+        }
+    }
+
+    {
+        PhaseTimer storage(Phase::StorageInit);
+        const esp_err_t mount = ps_probe::mount_sd_card();
+        if (mount == ESP_OK) {
+            const auto games = ps_probe::list_sd_games();
+            ps_probe::emit_phase_result(
+                Phase::StorageInit,
+                "pass",
+                games.empty() ? "mounted_no_games" : "mounted_games",
+                storage.elapsed_ms());
+        } else {
+            ps_probe::emit_phase_result(Phase::StorageInit, "fail", esp_err_to_name(mount), storage.elapsed_ms());
         }
     }
 }

@@ -4,6 +4,7 @@ idf_component_register(
     "board_waveshare_7b.cpp"
     "ps_framebuffer.cpp"
     "ps_instrumentation.cpp"
+    "ps_storage.cpp"
   INCLUDE_DIRS
     "."
 )
