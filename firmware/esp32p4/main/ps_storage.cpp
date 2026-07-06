@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "driver/sdmmc_host.h"
+#include "esp_heap_caps.h"
 #include "esp_vfs_fat.h"
 #include "sd_pwr_ctrl_by_on_chip_ldo.h"
 #include "sdmmc_cmd.h"
@@ -23,15 +24,22 @@ namespace {
 
 sdmmc_card_t* g_card = nullptr;
 bool g_mounted = false;
+inline constexpr std::size_t kMaxListedSdGames = 256;
+inline constexpr std::size_t kListAllocationMinFreeBytes = 8 * 1024;
+inline constexpr std::size_t kSourceAllocationHeadroomBytes = 16 * 1024;
 
 bool ends_with_txt(const char* name) {
-    const std::string value(name == nullptr ? "" : name);
-    if (value.size() < 4) {
+    if (name == nullptr) {
         return false;
     }
 
-    const std::string suffix = value.substr(value.size() - 4);
-    return std::tolower(static_cast<unsigned char>(suffix[0])) == '.' &&
+    const std::size_t length = std::strlen(name);
+    if (length < 4) {
+        return false;
+    }
+
+    const char* suffix = name + length - 4;
+    return suffix[0] == '.' &&
            std::tolower(static_cast<unsigned char>(suffix[1])) == 't' &&
            std::tolower(static_cast<unsigned char>(suffix[2])) == 'x' &&
            std::tolower(static_cast<unsigned char>(suffix[3])) == 't';
@@ -126,8 +134,15 @@ std::vector<std::string> list_sd_games() {
     if (dir == nullptr) {
         return names;
     }
-    while (dirent* entry = readdir(dir)) {
+    while (names.size() < kMaxListedSdGames) {
+        dirent* entry = readdir(dir);
+        if (entry == nullptr) {
+            break;
+        }
         if (is_regular_game_file(entry)) {
+            if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < kListAllocationMinFreeBytes) {
+                break;
+            }
             names.emplace_back(entry->d_name);
         }
     }
@@ -149,13 +164,17 @@ esp_err_t read_text_file(const std::string& path, LoadedSource& out_source) {
     if (st.st_size <= 0 || static_cast<std::size_t>(st.st_size) > kMaxSourceBytes) {
         return ESP_ERR_INVALID_SIZE;
     }
+    const std::size_t source_size = static_cast<std::size_t>(st.st_size);
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < source_size + kSourceAllocationHeadroomBytes) {
+        return ESP_ERR_NO_MEM;
+    }
 
     FILE* file = fopen(path.c_str(), "rb");
     if (file == nullptr) {
         return ESP_FAIL;
     }
     std::string text;
-    text.resize(static_cast<std::size_t>(st.st_size));
+    text.resize(source_size);
     const std::size_t read = fread(text.data(), 1, text.size(), file);
     fclose(file);
     if (read != text.size()) {
