@@ -2,6 +2,7 @@
 #include "probe_config.hpp"
 #include "ps_framebuffer.hpp"
 #include "ps_instrumentation.hpp"
+#include "ps_probe_runtime.hpp"
 #include "ps_storage.hpp"
 
 #include "esp_err.h"
@@ -72,4 +73,19 @@ extern "C" void app_main(void) {
             ps_probe::emit_phase_result(Phase::StorageInit, "fail", esp_err_to_name(mount), storage.elapsed_ms());
         }
     }
+
+    auto* probe_fb = static_cast<uint16_t*>(heap_caps_malloc(
+        ps_probe::kNativeFramebufferBytes,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (probe_fb == nullptr) {
+        ps_probe::emit_phase_result(Phase::RenderFrame, "fail", "probe_framebuffer_alloc", 0);
+        return;
+    }
+
+    ps_probe::set_framebuffer_policy({"target_800x480", ps_probe::kNativeWidth, ps_probe::kNativeHeight, 1, ps_probe::kRgb565BytesPerPixel});
+    ps_probe::run_embedded_sokoban_probe(probe_fb);
+    ps_probe::run_embedded_broken_probe();
+    ps_probe::run_sd_probe_if_available(probe_fb);
+    ps_probe::run_named_sd_probe_if_available("at-the-hedges-of-time.txt", probe_fb);
+    heap_caps_free(probe_fb);
 }

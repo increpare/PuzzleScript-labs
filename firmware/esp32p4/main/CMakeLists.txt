@@ -7,6 +7,7 @@ idf_component_register(
     "board_waveshare_7b.cpp"
     "ps_framebuffer.cpp"
     "ps_renderer.cpp"
+    "ps_probe_runtime.cpp"
     "ps_storage.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/handheld/display_layout.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/compiled_rules.cpp"
