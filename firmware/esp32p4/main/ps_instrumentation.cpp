@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <cstddef>
+#include <cstring>
 
 #include "esp_chip_info.h"
 #include "esp_err.h"
@@ -17,7 +18,9 @@ namespace {
 
 constexpr const char* kTag = "ps_probe";
 constexpr size_t kJsonStringBufferBytes = 256;
+constexpr size_t kActiveSourceBufferBytes = 256;
 Phase g_active_phase = Phase::Boot;
+char g_active_source[kActiveSourceBufferBytes]{};
 FramebufferPolicy g_framebuffer_policy{"none", 0, 0, 0, 2};
 
 class EscapedJsonString {
@@ -77,9 +80,11 @@ private:
 void append_heap(const char* name, uint32_t caps) {
     multi_heap_info_t info{};
     heap_caps_get_info(&info, caps);
+    const EscapedJsonString escaped_source(g_active_source);
     ESP_LOGI(kTag,
-             "{\"event\":\"heap\",\"phase\":\"%s\",\"region\":\"%s\",\"free\":%zu,\"allocated\":%zu,\"largest_free_block\":%zu,\"minimum_free\":%zu,\"allocated_blocks\":%zu,\"free_blocks\":%zu,\"total_blocks\":%zu}",
+             "{\"event\":\"heap\",\"phase\":\"%s\",\"source\":\"%s\",\"region\":\"%s\",\"free\":%zu,\"allocated\":%zu,\"largest_free_block\":%zu,\"minimum_free\":%zu,\"allocated_blocks\":%zu,\"free_blocks\":%zu,\"total_blocks\":%zu}",
              phase_name(g_active_phase),
+             escaped_source.c_str(),
              name,
              info.total_free_bytes,
              info.total_allocated_bytes,
@@ -91,10 +96,12 @@ void append_heap(const char* name, uint32_t caps) {
 }
 
 void alloc_failed_hook(size_t requested_size, uint32_t caps, const char* function_name) {
+    const EscapedJsonString escaped_source(g_active_source);
     const EscapedJsonString escaped_function(function_name);
     ESP_EARLY_LOGE(kTag,
-                   "{\"event\":\"alloc_failed\",\"phase\":\"%s\",\"requested\":%zu,\"caps\":%" PRIu32 ",\"function\":\"%s\"}",
+                   "{\"event\":\"alloc_failed\",\"phase\":\"%s\",\"source\":\"%s\",\"requested\":%zu,\"caps\":%" PRIu32 ",\"function\":\"%s\"}",
                    phase_name(g_active_phase),
+                   escaped_source.c_str(),
                    requested_size,
                    caps,
                    escaped_function.c_str());
@@ -135,6 +142,12 @@ void set_active_phase(Phase phase) {
     g_active_phase = phase;
 }
 
+void set_active_source(const char* source) {
+    const char* value = source == nullptr ? "" : source;
+    std::strncpy(g_active_source, value, sizeof(g_active_source) - 1);
+    g_active_source[sizeof(g_active_source) - 1] = '\0';
+}
+
 void set_framebuffer_policy(const FramebufferPolicy& policy) {
     g_framebuffer_policy = policy;
 }
@@ -142,11 +155,13 @@ void set_framebuffer_policy(const FramebufferPolicy& policy) {
 void emit_phase_result(Phase phase, const char* status, const char* detail, int64_t elapsed_ms) {
     set_active_phase(phase);
     const EscapedJsonString escaped_status(status);
+    const EscapedJsonString escaped_source(g_active_source);
     const EscapedJsonString escaped_detail(detail);
     const EscapedJsonString escaped_fb_mode(g_framebuffer_policy.mode);
     ESP_LOGI(kTag,
-             "{\"event\":\"phase\",\"phase\":\"%s\",\"status\":\"%s\",\"detail\":\"%s\",\"elapsed_ms\":%" PRId64 ",\"fb_mode\":\"%s\",\"fb_width\":%d,\"fb_height\":%d,\"fb_count\":%d,\"fb_bpp\":%d}",
+             "{\"event\":\"phase\",\"phase\":\"%s\",\"source\":\"%s\",\"status\":\"%s\",\"detail\":\"%s\",\"elapsed_ms\":%" PRId64 ",\"fb_mode\":\"%s\",\"fb_width\":%d,\"fb_height\":%d,\"fb_count\":%d,\"fb_bpp\":%d}",
              phase_name(phase),
+             escaped_source.c_str(),
              escaped_status.c_str(),
              escaped_detail.c_str(),
              elapsed_ms,

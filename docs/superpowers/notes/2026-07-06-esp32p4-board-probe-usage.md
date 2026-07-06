@@ -87,8 +87,10 @@ The summary tool extracts JSON payloads from ESP-IDF-style monitor lines,
 ignores non-JSON driver chatter, and reports:
 
 - latest status and elapsed time for each phase
+- source-grouped phase runs for game-specific probes
 - failed phase events
 - per-region heap minima and largest-free-block values
+- source-grouped heap samples when firmware logs include `source`
 - allocation failures
 - compiler diagnostics
 - malformed JSON lines that need firmware escaping fixes

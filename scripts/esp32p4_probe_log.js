@@ -140,8 +140,32 @@ function updateHeapStats(stats, event) {
     finalizeHeapStats(stats);
 }
 
+function sourceKey(event) {
+    return String(event.source || '');
+}
+
+function assignLatestPhase(container, event, phase, previous) {
+    container[phase] = {
+        line: event.log_line || event.line,
+        phase,
+        source: sourceKey(event),
+        status: event.status || '',
+        detail: event.detail || '',
+        elapsed_ms: asNumber(event.elapsed_ms),
+        fb_mode: event.fb_mode || '',
+        fb_width: asNumber(event.fb_width),
+        fb_height: asNumber(event.fb_height),
+        fb_count: asNumber(event.fb_count),
+        fb_bpp: asNumber(event.fb_bpp),
+        count: previous ? previous.count + 1 : 1,
+    };
+    return container[phase];
+}
+
 function summarizeEvents(events, parseErrors = []) {
     const phases = {};
+    const phasesBySource = {};
+    const phaseRuns = [];
     const failures = [];
     const diagnostics = [];
     const allocFailures = [];
@@ -149,6 +173,7 @@ function summarizeEvents(events, parseErrors = []) {
     const heap = {
         regions: {},
         by_phase: {},
+        by_source: {},
     };
     let boot = null;
     let phaseCount = 0;
@@ -163,26 +188,22 @@ function summarizeEvents(events, parseErrors = []) {
         if (event.event === 'phase') {
             phaseCount += 1;
             const phase = String(event.phase || 'UNKNOWN');
-            const previous = phases[phase];
-            phases[phase] = {
-                line: event.log_line || event.line,
-                phase,
-                status: event.status || '',
-                detail: event.detail || '',
-                elapsed_ms: asNumber(event.elapsed_ms),
-                fb_mode: event.fb_mode || '',
-                fb_width: asNumber(event.fb_width),
-                fb_height: asNumber(event.fb_height),
-                fb_count: asNumber(event.fb_count),
-                fb_bpp: asNumber(event.fb_bpp),
-                count: previous ? previous.count + 1 : 1,
-            };
+            const source = sourceKey(event);
+            const latest = assignLatestPhase(phases, event, phase, phases[phase]);
+            phaseRuns.push({ ...latest });
+            if (source !== '') {
+                if (!Object.prototype.hasOwnProperty.call(phasesBySource, source)) {
+                    phasesBySource[source] = {};
+                }
+                assignLatestPhase(phasesBySource[source], event, phase, phasesBySource[source][phase]);
+            }
             if (event.status !== 'pass') {
                 failedPhaseCount += 1;
                 failures.push({
                     line: event.log_line || event.line,
                     event: event.event,
                     phase,
+                    source,
                     status: event.status || '',
                     detail: event.detail || '',
                     elapsed_ms: asNumber(event.elapsed_ms),
@@ -194,11 +215,21 @@ function summarizeEvents(events, parseErrors = []) {
         if (event.event === 'heap') {
             const phase = String(event.phase || 'UNKNOWN');
             const region = String(event.region || 'unknown');
+            const source = sourceKey(event);
             if (!Object.prototype.hasOwnProperty.call(heap.by_phase, phase)) {
                 heap.by_phase[phase] = {};
             }
             updateHeapStats(ensureHeapStats(heap.regions, region), event);
             updateHeapStats(ensureHeapStats(heap.by_phase[phase], region), event);
+            if (source !== '') {
+                if (!Object.prototype.hasOwnProperty.call(heap.by_source, source)) {
+                    heap.by_source[source] = {};
+                }
+                if (!Object.prototype.hasOwnProperty.call(heap.by_source[source], phase)) {
+                    heap.by_source[source][phase] = {};
+                }
+                updateHeapStats(ensureHeapStats(heap.by_source[source][phase], region), event);
+            }
             continue;
         }
 
@@ -206,6 +237,7 @@ function summarizeEvents(events, parseErrors = []) {
             allocFailures.push({
                 line: event.log_line || event.line,
                 phase: event.phase || '',
+                source: sourceKey(event),
                 requested: asNumber(event.requested),
                 requested_mb: bytesToMb(event.requested),
                 caps: asNumber(event.caps),
@@ -247,6 +279,8 @@ function summarizeEvents(events, parseErrors = []) {
         phase_count: phaseCount,
         failed_phase_count: failedPhaseCount,
         phases,
+        phases_by_source: phasesBySource,
+        phase_runs: phaseRuns,
         failures,
         alloc_failures: allocFailures,
         diagnostics,

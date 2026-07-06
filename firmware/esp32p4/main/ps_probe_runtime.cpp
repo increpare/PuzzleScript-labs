@@ -68,6 +68,17 @@ using GamePtr = std::unique_ptr<const ps_game, GameDeleter>;
 using FullStatePtr = std::unique_ptr<ps_full_state, FullStateDeleter>;
 using ErrorPtr = std::unique_ptr<const ps_error, ErrorDeleter>;
 
+class ActiveSourceScope {
+public:
+    explicit ActiveSourceScope(const char* source) {
+        set_active_source(source);
+    }
+
+    ~ActiveSourceScope() {
+        set_active_source(nullptr);
+    }
+};
+
 class EscapedJsonString {
 public:
     explicit EscapedJsonString(const char* value) {
@@ -229,6 +240,7 @@ void run_input_trace(ps_full_state* state, const char* source_name) {
 }
 
 void run_source_probe(const SourceProbeInput& input, uint16_t* framebuffer) {
+    ActiveSourceScope source_scope(input.name);
     ps_compile_result* raw_compile_result = nullptr;
     {
         PhaseTimer compile_timer(Phase::CompileSource);
@@ -337,6 +349,7 @@ void run_source_probe(const SourceProbeInput& input, uint16_t* framebuffer) {
 }
 
 void emit_flash_load_pass(const char* name, std::size_t size) {
+    ActiveSourceScope source_scope(name);
     char detail[96]{};
     std::snprintf(detail, sizeof(detail), "%s:%zu", name == nullptr ? "" : name, size);
     PhaseTimer load_timer(Phase::LoadSourceFlash);
@@ -392,12 +405,14 @@ void run_sd_probe_if_available(uint16_t* framebuffer) {
             emit_phase_result(Phase::LoadSourceSd, "fail", esp_err_to_name(load), load_timer.elapsed_ms());
             return;
         }
+        ActiveSourceScope source_scope(source.name.c_str());
         emit_phase_result(Phase::LoadSourceSd, "pass", source.name.c_str(), load_timer.elapsed_ms());
     }
     run_loaded_sd_probe(source, framebuffer);
 }
 
 void run_named_sd_probe_if_available(const char* basename, uint16_t* framebuffer) {
+    ActiveSourceScope source_scope(basename);
     LoadedSource source;
     {
         PhaseTimer load_timer(Phase::LoadSourceSd);
@@ -406,6 +421,7 @@ void run_named_sd_probe_if_available(const char* basename, uint16_t* framebuffer
             emit_phase_result(Phase::LoadSourceSd, "fail", esp_err_to_name(load), load_timer.elapsed_ms());
             return;
         }
+        set_active_source(source.name.c_str());
         emit_phase_result(Phase::LoadSourceSd, "pass", source.name.c_str(), load_timer.elapsed_ms());
     }
     run_loaded_sd_probe(source, framebuffer);
