@@ -129,7 +129,7 @@ void fillRect(uint16_t* pixels, int left, int top, int width, int height, uint16
     }
 }
 
-uint16_t objectSolidColor(const ps_game* game, int32_t objectId, uint16_t background) {
+std::optional<uint16_t> objectRepresentativeColor(const ps_game* game, int32_t objectId) {
     for (int sy = 0; sy < kNativeSpritePixels; ++sy) {
         for (int sx = 0; sx < kNativeSpritePixels; ++sx) {
             const int32_t colorIndex = ps_game_object_sprite_value(game, objectId, sx, sy);
@@ -142,8 +142,7 @@ uint16_t objectSolidColor(const ps_game* game, int32_t objectId, uint16_t backgr
             }
         }
     }
-    const ParsedColor firstColor = parseRgb565Color(ps_game_object_color(game, objectId, 0));
-    return firstColor.transparent ? background : firstColor.value;
+    return std::nullopt;
 }
 
 bool checkedLayerCellCount(int width, int height, int layers, std::size_t* outCount) {
@@ -269,8 +268,11 @@ RenderResult render_level_to_native_framebuffer(
                             + static_cast<std::size_t>(x);
                         const int32_t objectId = layerCells[offset];
                         if (objectId >= 0) {
-                            color = objectSolidColor(game, objectId, backgroundColor);
-                            break;
+                            const std::optional<uint16_t> representative = objectRepresentativeColor(game, objectId);
+                            if (representative.has_value()) {
+                                color = *representative;
+                                break;
+                            }
                         }
                     }
                     fillRect(native_pixels, cellLeft, cellTop, fit.tilePixels, fit.tilePixels, color);

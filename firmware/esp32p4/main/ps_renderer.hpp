@@ -6,6 +6,8 @@
 namespace ps_probe {
 
 struct RenderResult {
+    // True when the framebuffer was filled, either with a rendered level frame
+    // or with a diagnostic fallback for text/invalid-board states.
     bool ok;
     int board_width;
     int board_height;
