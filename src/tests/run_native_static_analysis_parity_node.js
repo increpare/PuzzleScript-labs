@@ -32,6 +32,39 @@ function sortedStaticObjects(entry) {
         .sort();
 }
 
+function solverHashProjectionValue(entry) {
+    const facts = entry && entry.facts && Array.isArray(entry.facts.solver_hash_projection)
+        ? entry.facts.solver_hash_projection
+        : [];
+    const fact = facts.find((item) => item && item.id === 'solver_hash_projection');
+    return fact && fact.value ? fact.value : null;
+}
+
+function normalizeStringArray(values) {
+    return (Array.isArray(values) ? values : [])
+        .filter((value) => typeof value === 'string')
+        .map((value) => value.toLowerCase())
+        .sort();
+}
+
+function normalizeIntegerArray(values) {
+    return (Array.isArray(values) ? values : [])
+        .filter((value) => Number.isInteger(value))
+        .slice()
+        .sort((left, right) => left - right);
+}
+
+function normalizedSolverHashProjection(entry) {
+    const value = solverHashProjectionValue(entry) || {};
+    return {
+        projected_objects: normalizeStringArray(value.projected_objects),
+        projected_layers: normalizeIntegerArray(value.projected_layers),
+        transient_objects: normalizeStringArray(value.transient_objects),
+        blockers: normalizeStringArray(value.blockers),
+        scope: value.scope || null,
+    };
+}
+
 const manifest = buildStaticAnalysisHintsManifest(corpusDir);
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-static-analysis-parity-'));
 const hintsPath = path.join(tmpDir, 'static-analysis-hints.json');
@@ -91,6 +124,21 @@ for (const [game, entry] of Object.entries(manifest.games)) {
             js_only: jsOnly,
             native_only: nativeOnly,
         });
+    }
+
+    if (useNativeAnalysis && game.startsWith('solver_hash_projection/')) {
+        const expectedProjection = normalizedSolverHashProjection(entry);
+        const actualProjection = normalizedSolverHashProjection(nativeEntry);
+        try {
+            assert.deepStrictEqual(actualProjection, expectedProjection);
+        } catch (error) {
+            failures.push({
+                game,
+                reason: 'solver_hash_projection mismatch',
+                expected: expectedProjection,
+                actual: actualProjection,
+            });
+        }
     }
 }
 

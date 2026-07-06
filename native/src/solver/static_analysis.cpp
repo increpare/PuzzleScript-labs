@@ -744,6 +744,359 @@ void andMaskInto(MaskVector& dest, const MaskVector& src) {
     }
 }
 
+bool masksOverlap(const MaskWord* lhs, const MaskWord* rhs, uint32_t wordCount) {
+    if (lhs == nullptr || rhs == nullptr) {
+        return false;
+    }
+    for (uint32_t word = 0; word < wordCount; ++word) {
+        if ((lhs[word] & rhs[word]) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool maskVectorOverlapsPtr(
+    const MaskVector& lhs,
+    const MaskWord* rhs,
+    uint32_t wordCount) {
+    if (rhs == nullptr) {
+        return false;
+    }
+    const size_t n = std::min(lhs.size(), static_cast<size_t>(wordCount));
+    for (size_t word = 0; word < n; ++word) {
+        if ((lhs[word] & rhs[word]) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool maskVectorHasObject(const MaskVector& mask, int32_t objectId) {
+    if (objectId < 0) {
+        return false;
+    }
+    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+    return word < mask.size()
+        && (mask[static_cast<size_t>(word)] & maskBit(static_cast<uint32_t>(objectId))) != 0;
+}
+
+void addObjectToMask(const Game& game, int32_t objectId, MaskVector& mask) {
+    if (objectId < 0 || objectId >= game.objectCount) {
+        return;
+    }
+    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+    if (word < mask.size()) {
+        mask[static_cast<size_t>(word)] |= maskBit(static_cast<uint32_t>(objectId));
+    }
+}
+
+void addObjectsOnMovementLayers(
+    const Game& game,
+    const MaskWord* movements,
+    MaskVector& objects) {
+    if (movements == nullptr) {
+        return;
+    }
+    for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+        if (movementLayerBits(game, movements, layer) == 0) {
+            continue;
+        }
+        for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+            if (game.objectsById[static_cast<size_t>(objectId)].layer == layer) {
+                addObjectToMask(game, objectId, objects);
+            }
+        }
+    }
+}
+
+MaskVector ruleReadObjectsForCosmeticPropagation(const Game& game, const Rule& rule) {
+    MaskVector objects(game.wordCount, 0);
+    if (rule.hasReadObjects) {
+        orMaskPtrInto(objects, maskPtr(game, rule.readObjects), game.wordCount);
+    }
+    if (rule.hasReadMovements) {
+        addObjectsOnMovementLayers(game, maskPtr(game, rule.readMovements), objects);
+    }
+    return objects;
+}
+
+MaskVector ruleMovementWriteObjects(const Game& game, const Rule& rule) {
+    MaskVector objects(game.wordCount, 0);
+    if (rule.hasWriteMovements) {
+        addObjectsOnMovementLayers(game, maskPtr(game, rule.writeMovements), objects);
+    }
+    return objects;
+}
+
+bool ruleCanAffectObjectReadSet(
+    const Game& game,
+    const Rule& rule,
+    const MaskVector& readSet) {
+    if (readSet.empty()) {
+        return false;
+    }
+    if (rule.hasWriteObjects
+        && maskVectorOverlapsPtr(readSet, maskPtr(game, rule.writeObjects), game.wordCount)) {
+        return true;
+    }
+    const MaskVector movementTouchedObjects = ruleMovementWriteObjects(game, rule);
+    return masksOverlap(readSet.data(), movementTouchedObjects.data(), game.wordCount);
+}
+
+bool ruleHasNonCosmeticCommand(const Rule& rule) {
+    for (const RuleCommand& command : rule.commands) {
+        if (command.name == "again"
+            || command.name == "restart"
+            || command.name == "cancel"
+            || command.name == "win") {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool maskIsAllObjects(const Game& game, const MaskWord* mask) {
+    if (mask == nullptr) {
+        return false;
+    }
+    MaskVector allObjects(game.wordCount, 0);
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        addObjectToMask(game, objectId, allObjects);
+    }
+    for (uint32_t word = 0; word < game.wordCount; ++word) {
+        if (mask[word] != allObjects[static_cast<size_t>(word)]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void addWinConditionReadObjects(const Game& game, MaskVector& objects) {
+    for (const WinCondition& condition : game.winConditions) {
+        orMaskPtrInto(objects, maskPtr(game, condition.filter1), game.wordCount);
+        const MaskWord* filter2 = maskPtr(game, condition.filter2);
+        if (!maskIsAllObjects(game, filter2)) {
+            orMaskPtrInto(objects, filter2, game.wordCount);
+        }
+    }
+}
+
+bool gameHasRandomMechanics(const Game& game) {
+    auto visitRule = [&](const Rule& rule) {
+        if (rule.isRandom) {
+            return true;
+        }
+        for (const std::vector<Pattern>& row : rule.patterns) {
+            for (const Pattern& pattern : row) {
+                if (!pattern.replacement.has_value()) {
+                    continue;
+                }
+                const Replacement& replacement = *pattern.replacement;
+                if (replacement.hasRandomEntityMask || replacement.hasRandomDirMask) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    auto visitGroups = [&](const std::vector<std::vector<Rule>>& groups) {
+        for (const std::vector<Rule>& group : groups) {
+            for (const Rule& rule : group) {
+                if (visitRule(rule)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    return visitGroups(game.rules) || visitGroups(game.lateRules);
+}
+
+MaskVector deriveNonCosmeticObjects(const Game& game) {
+    struct RuleEntry {
+        const Rule* rule = nullptr;
+        bool nonCosmetic = false;
+    };
+
+    std::vector<RuleEntry> entries;
+    auto collectRules = [&](const std::vector<std::vector<Rule>>& groups) {
+        for (const std::vector<Rule>& group : groups) {
+            for (const Rule& rule : group) {
+                entries.push_back(RuleEntry{&rule, false});
+            }
+        }
+    };
+    collectRules(game.rules);
+    collectRules(game.lateRules);
+
+    MaskVector playerObjects(game.wordCount, 0);
+    orMaskPtrInto(playerObjects, maskPtr(game, game.playerMask), game.wordCount);
+
+    MaskVector winReadObjects(game.wordCount, 0);
+    addWinConditionReadObjects(game, winReadObjects);
+
+    std::vector<size_t> pending;
+    auto markNonCosmetic = [&](size_t index) {
+        if (entries[index].nonCosmetic) {
+            return;
+        }
+        entries[index].nonCosmetic = true;
+        pending.push_back(index);
+    };
+
+    for (size_t index = 0; index < entries.size(); ++index) {
+        const Rule& rule = *entries[index].rule;
+        if (ruleHasNonCosmeticCommand(rule)
+            || ruleCanAffectObjectReadSet(game, rule, playerObjects)) {
+            markNonCosmetic(index);
+        }
+    }
+    for (size_t index = 0; index < entries.size(); ++index) {
+        if (!entries[index].nonCosmetic
+            && ruleCanAffectObjectReadSet(game, *entries[index].rule, winReadObjects)) {
+            markNonCosmetic(index);
+        }
+    }
+
+    for (size_t pendingIndex = 0; pendingIndex < pending.size(); ++pendingIndex) {
+        const Rule& rule = *entries[pending[pendingIndex]].rule;
+        const MaskVector readObjects = ruleReadObjectsForCosmeticPropagation(game, rule);
+        if (!hasBits(readObjects.data(), game.wordCount)) {
+            continue;
+        }
+        for (size_t index = 0; index < entries.size(); ++index) {
+            if (!entries[index].nonCosmetic
+                && ruleCanAffectObjectReadSet(game, *entries[index].rule, readObjects)) {
+                markNonCosmetic(index);
+            }
+        }
+    }
+
+    MaskVector nonCosmeticObjects(game.wordCount, 0);
+    orMaskInto(nonCosmeticObjects, playerObjects);
+    orMaskInto(nonCosmeticObjects, winReadObjects);
+    for (const RuleEntry& entry : entries) {
+        if (!entry.nonCosmetic) {
+            continue;
+        }
+        const MaskVector readObjects =
+            ruleReadObjectsForCosmeticPropagation(game, *entry.rule);
+        orMaskInto(nonCosmeticObjects, readObjects);
+    }
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (size_t layer = 0; layer < game.layerMaskOffsets.size(); ++layer) {
+            const MaskWord* layerMask = maskPtr(game, game.layerMaskOffsets[layer]);
+            if (!maskVectorOverlapsPtr(nonCosmeticObjects, layerMask, game.wordCount)) {
+                continue;
+            }
+            for (uint32_t word = 0; word < game.wordCount; ++word) {
+                const MaskWord before = nonCosmeticObjects[static_cast<size_t>(word)];
+                nonCosmeticObjects[static_cast<size_t>(word)] |= layerMask[word];
+                changed = changed || before != nonCosmeticObjects[static_cast<size_t>(word)];
+            }
+        }
+    }
+
+    return nonCosmeticObjects;
+}
+
+bool objectAppearsInAnyInitialLevel(const Game& game, int32_t objectId) {
+    if (objectId < 0 || objectId >= game.objectCount) {
+        return false;
+    }
+    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+    if (word >= game.wordCount) {
+        return false;
+    }
+    const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+    for (const LevelTemplate& level : game.levels) {
+        if (level.isMessage || level.width <= 0 || level.height <= 0) {
+            continue;
+        }
+        const int32_t tileCount = level.width * level.height;
+        for (int32_t tile = 0; tile < tileCount; ++tile) {
+            const size_t index =
+                static_cast<size_t>(tile * game.strideObject) + static_cast<size_t>(word);
+            if (index < level.objects.size() && (level.objects[index] & bit) != 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ruleSetsObject(const Game& game, const Rule& rule, int32_t objectId) {
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (!pattern.replacement.has_value()) {
+                continue;
+            }
+            const Replacement& replacement = *pattern.replacement;
+            if (maskHasObject(game, maskPtr(game, replacement.objectsSet), objectId)
+                || (replacement.hasRandomEntityMask
+                    && maskHasObject(game, maskPtr(game, replacement.randomEntityMask), objectId))) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ruleClearsObject(const Game& game, const Rule& rule, int32_t objectId) {
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (!pattern.replacement.has_value()) {
+                continue;
+            }
+            const Replacement& replacement = *pattern.replacement;
+            if (maskHasObject(game, maskPtr(game, replacement.objectsClear), objectId)
+                && !maskHasObject(game, maskPtr(game, replacement.objectsSet), objectId)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool objectHasEarlyCreator(const Game& game, int32_t objectId) {
+    for (const std::vector<Rule>& group : game.rules) {
+        for (const Rule& rule : group) {
+            if (!rule.rigid && ruleSetsObject(game, rule, objectId)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool objectHasLateClearer(const Game& game, int32_t objectId) {
+    for (const std::vector<Rule>& group : game.lateRules) {
+        for (const Rule& rule : group) {
+            if (!rule.rigid && ruleClearsObject(game, rule, objectId)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool objectIsTransientAtStableBoundary(
+    const Game& game,
+    int32_t objectId,
+    const MaskVector& winReadObjects) {
+    return objectId >= 0
+        && objectId < game.objectCount
+        && game.objectsById[static_cast<size_t>(objectId)].layer >= 0
+        && !objectAppearsInAnyInitialLevel(game, objectId)
+        && !maskVectorHasObject(winReadObjects, objectId)
+        && objectHasEarlyCreator(game, objectId)
+        && objectHasLateClearer(game, objectId);
+}
+
 MaskVector inferredPropertyAliasMask(
     const Game& game,
     const Rule& rule,
@@ -1466,9 +1819,50 @@ StaticObjectAnalysis analyzeStaticObjects(const Game& game) {
     return analysis;
 }
 
-std::vector<std::string> staticObjectNames(
+SolverHashProjectionAnalysis analyzeSolverHashProjection(const Game& game) {
+    SolverHashProjectionAnalysis analysis;
+    analysis.projectedObjects.assign(game.wordCount, 0);
+    analysis.transientObjects.assign(game.wordCount, 0);
+
+    const MaskVector nonCosmeticObjects = deriveNonCosmeticObjects(game);
+    const MaskWord* playerMask = maskPtr(game, game.playerMask);
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        const ObjectDef& object = game.objectsById[static_cast<size_t>(objectId)];
+        if (object.layer < 0) {
+            continue;
+        }
+        if (objectId == game.backgroundId
+            || maskHasObject(game, playerMask, objectId)
+            || maskVectorHasObject(nonCosmeticObjects, objectId)) {
+            continue;
+        }
+        addObjectToMask(game, objectId, analysis.projectedObjects);
+        if (std::find(
+                analysis.projectedLayers.begin(),
+                analysis.projectedLayers.end(),
+                object.layer) == analysis.projectedLayers.end()) {
+            analysis.projectedLayers.push_back(object.layer);
+        }
+    }
+    std::sort(analysis.projectedLayers.begin(), analysis.projectedLayers.end());
+
+    MaskVector winReadObjects(game.wordCount, 0);
+    addWinConditionReadObjects(game, winReadObjects);
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        if (objectIsTransientAtStableBoundary(game, objectId, winReadObjects)) {
+            addObjectToMask(game, objectId, analysis.transientObjects);
+        }
+    }
+
+    if (gameHasRandomMechanics(game)) {
+        analysis.blockers.push_back("random_mechanics");
+    }
+    return analysis;
+}
+
+std::vector<std::string> objectNamesForMask(
     const Game& game,
-    const MaskVector& staticObjects) {
+    const MaskVector& objects) {
     std::vector<std::string> names;
     for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
         if (game.objectsById[static_cast<size_t>(objectId)].layer < 0) {
@@ -1476,13 +1870,19 @@ std::vector<std::string> staticObjectNames(
         }
         const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
         const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
-        if (word < staticObjects.size() && (staticObjects[word] & bit) != 0) {
+        if (word < objects.size() && (objects[word] & bit) != 0) {
             names.push_back(game.objectsById[static_cast<size_t>(objectId)].name);
         }
     }
     std::sort(names.begin(), names.end());
     names.erase(std::unique(names.begin(), names.end()), names.end());
     return names;
+}
+
+std::vector<std::string> staticObjectNames(
+    const Game& game,
+    const MaskVector& staticObjects) {
+    return objectNamesForMask(game, staticObjects);
 }
 
 std::vector<std::pair<std::string, std::vector<std::string>>> staticObjectBlockers(

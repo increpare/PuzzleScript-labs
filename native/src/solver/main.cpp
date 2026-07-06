@@ -659,6 +659,28 @@ puzzlescript::solver::StaticAnalysisHints parseStaticAnalysisHintsForGame(
     return hints;
 }
 
+puzzlescript::solver::StaticAnalysisHints deriveNativeStaticAnalysisHints(const Game& game) {
+    puzzlescript::solver::StaticAnalysisHints hints;
+
+    const puzzlescript::solver::StaticObjectAnalysis staticAnalysis =
+        puzzlescript::solver::analyzeStaticObjects(game);
+    hints.available = true;
+    hints.staticObjects = staticAnalysis.staticObjects;
+
+    const puzzlescript::solver::SolverHashProjectionAnalysis projection =
+        puzzlescript::solver::analyzeSolverHashProjection(game);
+    hints.solverHashProjectionAvailable = true;
+    hints.solverHashProjectionObjects = projection.projectedObjects;
+    const size_t n = std::min(
+        hints.solverHashProjectionObjects.size(),
+        projection.transientObjects.size());
+    for (size_t word = 0; word < n; ++word) {
+        hints.solverHashProjectionObjects[word] |= projection.transientObjects[word];
+    }
+    hints.solverHashProjectionBlockers = projection.blockers;
+    return hints;
+}
+
 bool startsWith(std::string_view value, std::string_view prefix) {
     return value.size() >= prefix.size() && value.substr(0, prefix.size()) == prefix;
 }
@@ -4447,6 +4469,17 @@ void printJsonStringArray(std::ostream& out, const std::vector<std::string>& val
     out << "]";
 }
 
+void printJsonIntArray(std::ostream& out, const std::vector<int32_t>& values) {
+    out << "[";
+    for (size_t index = 0; index < values.size(); ++index) {
+        if (index > 0) {
+            out << ",";
+        }
+        out << values[index];
+    }
+    out << "]";
+}
+
 #ifndef PUZZLESCRIPT_SOLVER_C_API
 void printStaticAnalysisDump(const Options& options) {
     std::optional<puzzlescript::json::Value> staticAnalysisRoot;
@@ -4461,6 +4494,11 @@ void printStaticAnalysisDump(const Options& options) {
         std::string source;
         std::vector<std::string> staticObjects;
         std::vector<std::pair<std::string, std::vector<std::string>>> blockers;
+        std::vector<std::string> solverHashProjectionProjectedObjects;
+        std::vector<int32_t> solverHashProjectionProjectedLayers;
+        std::vector<std::string> solverHashProjectionTransientObjects;
+        std::vector<std::string> solverHashProjectionBlockers;
+        std::string solverHashProjectionScope = "solver_hash_only";
     };
 
     std::vector<Entry> entries;
@@ -4511,6 +4549,19 @@ void printStaticAnalysisDump(const Options& options) {
         entry.source = context.staticAnalysisHintsUsed() ? "js" : "native";
         entry.staticObjects = context.staticObjectNames();
         entry.blockers = context.staticObjectBlockers();
+        const puzzlescript::solver::SolverHashProjectionAnalysis projection =
+            puzzlescript::solver::analyzeSolverHashProjection(*loadedGame.information);
+        entry.solverHashProjectionProjectedObjects =
+            puzzlescript::solver::objectNamesForMask(
+                *loadedGame.information,
+                projection.projectedObjects);
+        entry.solverHashProjectionProjectedLayers = projection.projectedLayers;
+        entry.solverHashProjectionTransientObjects =
+            puzzlescript::solver::objectNamesForMask(
+                *loadedGame.information,
+                projection.transientObjects);
+        entry.solverHashProjectionBlockers = projection.blockers;
+        entry.solverHashProjectionScope = projection.scope;
         entries.push_back(std::move(entry));
     }
 
@@ -4537,6 +4588,21 @@ void printStaticAnalysisDump(const Options& options) {
             std::cout << "}";
         }
         std::cout << "]";
+        std::cout << ",\"facts\":{\"solver_hash_projection\":[{\"family\":\"solver_hash_projection\""
+                  << ",\"id\":\"solver_hash_projection\""
+                  << ",\"status\":\"candidate\""
+                  << ",\"value\":{\"projected_objects\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionProjectedObjects);
+        std::cout << ",\"projected_layers\":";
+        printJsonIntArray(std::cout, entry.solverHashProjectionProjectedLayers);
+        std::cout << ",\"transient_objects\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionTransientObjects);
+        std::cout << ",\"blockers\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionBlockers);
+        std::cout << ",\"scope\":" << jsonString(entry.solverHashProjectionScope)
+                  << "},\"blockers\":";
+        printJsonStringArray(std::cout, entry.solverHashProjectionBlockers);
+        std::cout << "}]}";
         std::cout << "}" << (index + 1 == entries.size() ? "\n" : ",\n");
     }
     std::cout << "  ]\n}\n";
@@ -4602,6 +4668,7 @@ std::vector<Result> runCorpus(const Options& options) {
             compiledGames.push_back(std::move(compiled));
             continue;
         }
+        compiled.staticAnalysisHints = deriveNativeStaticAnalysisHints(*compiled.game);
         if (staticAnalysisRoot.has_value()) {
             if (const puzzlescript::json::Value* analysis =
                     findStaticAnalysisForGame(*staticAnalysisRoot, gameName)) {
