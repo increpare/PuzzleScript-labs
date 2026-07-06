@@ -82,7 +82,7 @@ Controls:
 
 | Control | Spec                          | Center (X, Y) |
 |---------|-------------------------------|---------------|
-| D-pad   | 26 mm cross, 8 mm arms        | (27, 52.5)    |
+| D-pad   | mascot cap, 34 mm tip-to-tip, 11 mm chevron arms | (27, 52.5) |
 | Action  | O16 mm, gently concave cap    | (202, 44)     |
 | Undo    | O12 mm, convex cap            | (187, 60)     |
 | Restart | O11 mm, convex cap            | (205, 67)     |
@@ -93,9 +93,13 @@ Cluster spacing (cap edge to cap edge): Action-Undo 7.9 mm, Undo-Restart
 assumed 7 mm until measured.
 
 Cap differentiation: Action concave (rest-and-press), Undo and Restart convex;
-distinct cap colors; icon plus word labels next to each button (undo arrow +
-UNDO, restart arrow + RESTART). Restart is a full-size honest button, never
-recessed, per the handoff. Final icon language is deferred to shell graphics.
+distinct cap colors. Undo and Restart caps stay plain -- color, size, and
+position differentiate them; any glyphs are a later owner art pass. Restart is
+a full-size honest button, never recessed, per the handoff.
+
+D-pad clearances at the 34 mm mascot cap: 9.5 mm to the lens edge, 14 mm to
+the Menu pill. Underneath the sculpted cap it remains a one-piece rocker on a
+pivot dome; four separated chevron keys were rejected for sokoban precision.
 
 Top edge (X along the same axis):
 
@@ -140,6 +144,46 @@ Speaker grille: dot perforation centered at X 114 in the lower front band
 - Translucent (smoky/frosted) material; internal routing, cable dressing, and
   PCB faces are visible product surfaces.
 
+## Identity (Hardware Iconography)
+
+Adopted 2026-07-07. The principle: parts are made out of PuzzleScript's visual
+vocabulary rather than decorated with it. Sources are real repo assets: the
+mascot (`src/images/mascot_*.png`, an orange creature ringed by four gray
+directional chevrons) and the Simple Block Pushing Game sprites
+(`src/demo/sokoban_basic.txt`).
+
+- D-pad cap sculpted as the mascot: four gray chevron arms around an orange
+  center hub carrying the molded face. The logo is the movement control.
+- Grip bulges carry the Wall sprite's running-bond brick pattern as shallow
+  molded relief (~0.4 mm, rounded edges) -- iconography that doubles as grip
+  texture, zero added parts.
+- The mascot is molded in relief on the inside face of the translucent rear
+  shell so the case LEDs rim-light it: visible when glowing, ghostly when off.
+- Speaker grille is a 5x5 hole grid, the PuzzleScript sprite unit.
+- Action, Undo, and Restart caps stay plain; glyph art, if any, is a later
+  owner art pass.
+- No hardware branding gates the wake path. What the software displays
+  (cold-boot status screen, library cursor, and all on-screen iconography) is
+  the software design's concern, not this spec's.
+
+## Considered And Rejected (Do Not Reopen Without New Evidence)
+
+- Undo scrub wheel / time crank: less ergonomic than a button for rapid
+  undo, the dominant case. Scrub/review value is achievable in firmware via
+  hold-to-rewind on the Undo button.
+- NFC game tiles / physical library: fiddly, losable, per-tile production and
+  permissions burden. Rejected as gimmicky.
+- Board-object / e-ink square form: fights the 800x480 display contract
+  (34x13 text screens are wide), color e-ink refresh remains unsatisfying, and
+  table play abandons the validated hand-support ergonomics.
+- Crate-shaped Action cap: pure sokoban never uses the action button.
+- X/Z/R keycap treatment: key bindings are labels, not iconography.
+- Boot splash on wake: contradicts instant-on. Only the rare cold-boot path
+  (dead battery, firmware update) may show a status screen, and its content is
+  a software decision.
+- Four separated D-pad chevron keys: worse pivot/diagonal control than a
+  one-piece rocker; the mascot reading lives in the cap sculpt only.
+
 ## Open Risks (Carry To Physical Testing)
 
 - Speaker: whether ~15 cm3 ported chamber is loud/full enough. Fallback:
@@ -151,6 +195,10 @@ Speaker grille: dot perforation centered at X 114 in the lower front band
 - Real battery pack dimensions and swelling clearance versus the 36 x 56 x 10
   assumption.
 - Button cap height, travel, force, and wobble in printed wells.
+- Mascot D-pad cap: chevron sculpt must not compromise rocker feel or corner
+  press accuracy; needs print-and-play iteration.
+- Wall-brick grip relief: depth/rounding must stay comfortable over a
+  20-minute session; start at 0.4 mm and adjust from mockups.
 - All display-module mechanical numbers are Waveshare-reference values until
   the final panel is chosen (handoff mounting assumptions apply).
 

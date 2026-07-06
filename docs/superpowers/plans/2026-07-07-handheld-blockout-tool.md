@@ -119,7 +119,8 @@ var BLOCKOUT_PRESETS = {
         name: "Split-side (approved 2026-07-07)",
         body: { w: 228, h: 105, r: 14, depthGrip: 31, depthWaist: 22 },
         screen: { cx: 114, cy: 52.5, lensW: 121, lensH: 77, visW: 109, visH: 65.8 },
-        dpad: { cx: 27, cy: 52.5, size: 26, arm: 8 },
+        // 34 mm mascot cap (chevron tip to tip), one-piece rocker underneath
+        dpad: { cx: 27, cy: 52.5, size: 34, arm: 11 },
         buttons: [
             { label: "ACTION", cx: 202, cy: 44, d: 16 },
             { label: "UNDO", cx: 187, cy: 60, d: 12 },
@@ -372,7 +373,7 @@ test("faceSvg draws body, lens, and d-pad at spec coordinates", function () {
     var svg = B.faceSvg(B.BLOCKOUT_PRESETS.split, { grid: true });
     assert.ok(svg.indexOf('viewBox="-12 -24 252 146"') !== -1, "viewBox");
     assert.ok(svg.indexOf('x="53.5" y="14" width="121" height="77"') !== -1, "lens rect");
-    assert.ok(svg.indexOf('x="14" y="48.5" width="26" height="8"') !== -1, "d-pad h-arm");
+    assert.ok(svg.indexOf('x="10" y="47" width="34" height="11"') !== -1, "d-pad h-arm");
     assert.ok(svg.indexOf('rotate(-20 27 90)') !== -1, "menu tilt");
     assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
 });
