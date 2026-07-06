@@ -38,6 +38,7 @@ extern "C" void app_main(void) {
                 ps_probe::emit_phase_result(Phase::DisplayInit, "fail", esp_err_to_name(native_draw), display.elapsed_ms());
                 return;
             }
+            ps_probe::emit_phase_result(Phase::DisplayInit, "pass", "native_1024x600_diagnostic", display.elapsed_ms());
 
             vTaskDelay(pdMS_TO_TICKS(1200));
             ps_probe::set_framebuffer_policy({"target_800x480", ps_probe::kNativeWidth, ps_probe::kNativeHeight, 1, ps_probe::kRgb565BytesPerPixel});
