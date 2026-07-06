@@ -6504,6 +6504,27 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
                 game->playerMask = storeMaskWords(*game, parseMaskVector(playerMask->second));
             }
         }
+        if (const auto extras = gameObject.find("static_analysis_extras");
+            extras != gameObject.end() && extras->second.isObject()) {
+            const auto& extrasObject = extras->second.asObject();
+            if (const auto written = extrasObject.find("written_objects");
+                written != extrasObject.end()) {
+                const auto words = parseMaskVector(written->second);
+                game->hasStaticAnalysisExtraWrittenObjects = anyBitsSet(words);
+                if (game->hasStaticAnalysisExtraWrittenObjects) {
+                    game->staticAnalysisExtraWrittenObjects = storeMaskWords(*game, words);
+                }
+            }
+            if (const auto movementMentioned = extrasObject.find("movement_mentioned_objects");
+                movementMentioned != extrasObject.end()) {
+                const auto words = parseMaskVector(movementMentioned->second);
+                game->hasStaticAnalysisExtraMovementMentionedObjects = anyBitsSet(words);
+                if (game->hasStaticAnalysisExtraMovementMentionedObjects) {
+                    game->staticAnalysisExtraMovementMentionedObjects =
+                        storeMaskWords(*game, words);
+                }
+            }
+        }
         if (const auto rigid = gameObject.find("rigid"); rigid != gameObject.end()) {
             game->rigid = toBool(rigid->second);
         }

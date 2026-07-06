@@ -501,6 +501,13 @@ struct GameInformation {
 
     bool playerMaskAggregate = false;
     MaskOffset playerMask = kNullMaskOffset;  // object-width mask; null means no player
+    // Static-analysis-only facts recovered from source variants that JS keeps
+    // for flow analysis but the native runtime skips because they can never
+    // match at execution time.
+    MaskOffset staticAnalysisExtraWrittenObjects = kNullMaskOffset;
+    MaskOffset staticAnalysisExtraMovementMentionedObjects = kNullMaskOffset;
+    bool hasStaticAnalysisExtraWrittenObjects = false;
+    bool hasStaticAnalysisExtraMovementMentionedObjects = false;
     bool rigid = false;
     std::vector<bool> rigidGroups;
     std::vector<int32_t> rigidGroupIndexToGroupIndex;

@@ -780,6 +780,15 @@ MaskVector propertyBindingAliasMask(const Game& game, const PropertyBinding& bin
     return aliases;
 }
 
+const PropertyBinding* findPropertyBinding(const Rule& rule, const std::string& propertyName) {
+    for (const PropertyBinding& binding : rule.propertyBindings) {
+        if (binding.propertyName == propertyName) {
+            return &binding;
+        }
+    }
+    return nullptr;
+}
+
 bool patternPreservesPropertyBindingAliases(
     const Game& game,
     const Pattern& pattern,
@@ -851,6 +860,70 @@ bool propertyBindingSourceHasReplacement(const Rule& rule, const PropertyBinding
             .replacement.has_value();
 }
 
+const Pattern* propertyBindingSourcePattern(const Rule& rule, const PropertyBinding& binding) {
+    if (binding.sourceRow < 0
+        || binding.sourceCell < 0
+        || static_cast<size_t>(binding.sourceRow) >= rule.patterns.size()
+        || static_cast<size_t>(binding.sourceCell)
+            >= rule.patterns[static_cast<size_t>(binding.sourceRow)].size()) {
+        return nullptr;
+    }
+    return &rule.patterns[static_cast<size_t>(binding.sourceRow)]
+        [static_cast<size_t>(binding.sourceCell)];
+}
+
+bool propertyBindingHasSinkAt(
+    const PropertyBinding& binding,
+    int32_t row,
+    int32_t cell) {
+    for (const PropertySink& sink : binding.sinks) {
+        if (sink.row == row && sink.cell == cell) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool replacementHasInferredPropertyBinding(
+    const Replacement& replacement,
+    const std::string& propertyName) {
+    if (replacement.dynamic == nullptr) {
+        return false;
+    }
+    for (const InferredPropertyBinding& binding :
+         replacement.dynamic->inferredPropertyBindings) {
+        if (binding.propertyName == propertyName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool replacementHasInferredPropertySource(
+    const Replacement& replacement,
+    const std::string& propertyName) {
+    if (replacement.dynamic == nullptr) {
+        return false;
+    }
+    for (const InferredPropertySource& source :
+         replacement.dynamic->inferredPropertySources) {
+        if (source.propertyName == propertyName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool propertyBindingSourceIsDynamicallyPreserved(
+    const PropertyBinding& binding,
+    const Pattern& sourcePattern) {
+    return sourcePattern.replacement.has_value()
+        && propertyBindingHasSinkAt(binding, binding.sourceRow, binding.sourceCell)
+        && replacementHasInferredPropertyBinding(
+            *sourcePattern.replacement,
+            binding.propertyName);
+}
+
 bool propertyBindingAliasWritesAreCoveredByCardinalMovement(const PropertyBinding& binding) {
     constexpr int32_t kCardinalMovementBits = 0x0f;
     constexpr int32_t kActionMovementBit = 0x10;
@@ -900,6 +973,30 @@ void addPropertyBindingSinkLayerOverwrites(
             aliases.data(),
             writtenObjects,
             rule.lineNumber);
+    }
+}
+
+void addPropertyBindingSourceClears(
+    const Game& game,
+    const Rule& rule,
+    const PropertyBinding& binding,
+    MaskVector& writtenObjects) {
+    const Pattern* sourcePattern = propertyBindingSourcePattern(rule, binding);
+    if (sourcePattern == nullptr
+        || !sourcePattern->replacement.has_value()
+        || !replacementHasInferredPropertySource(
+            *sourcePattern->replacement,
+            binding.propertyName)
+        || patternPreservesPropertyBindingAliases(game, *sourcePattern, binding)
+        || propertyBindingSourceIsDynamicallyPreserved(binding, *sourcePattern)) {
+        return;
+    }
+    for (const PropertyAlias& alias : binding.aliases) {
+        addObjectToWrittenObjects(
+            game,
+            alias.objectId,
+            writtenObjects,
+            "property-binding-source-clear");
     }
 }
 
@@ -1136,6 +1233,13 @@ void accumulateWrittenObjects(
                      replacement.dynamic->inferredPropertyBindings) {
                     MaskVector inferredAliases =
                         inferredPropertyAliasMask(game, rule, binding.propertyName);
+                    const PropertyBinding* propertyBinding =
+                        findPropertyBinding(rule, binding.propertyName);
+                    if (propertyBinding != nullptr
+                        && propertyBindingAliasWritesAreCoveredByCardinalMovement(
+                            *propertyBinding)) {
+                        andMaskInto(inferredAliases, objectsOriginatingMovement);
+                    }
                     addLayerOverwriteClearsToWrittenObjects(
                         game,
                         pattern,
@@ -1191,6 +1295,7 @@ void accumulateWrittenObjects(
         }
         addPropertyBindingSinkLayerOverwrites(
             game, rule, binding, objectsOriginatingMovement, rulePropertyBindingOverwriteObjects);
+        addPropertyBindingSourceClears(game, rule, binding, ruleWrittenObjects);
     }
     if (hasBits(ruleWrittenObjects.data(), game.wordCount)) {
         orMaskInto(ruleWrittenObjects, ruleLayerOverwriteObjects);
@@ -1324,6 +1429,18 @@ StaticObjectAnalysis analyzeStaticObjects(const Game& game) {
     };
     visitGroups(game.rules);
     visitGroups(game.lateRules);
+    if (game.hasStaticAnalysisExtraWrittenObjects) {
+        orMaskPtrInto(
+            analysis.writtenObjects,
+            maskPtr(game, game.staticAnalysisExtraWrittenObjects),
+            game.wordCount);
+    }
+    if (game.hasStaticAnalysisExtraMovementMentionedObjects) {
+        orMaskPtrInto(
+            analysis.movementMentionedObjects,
+            maskPtr(game, game.staticAnalysisExtraMovementMentionedObjects),
+            game.wordCount);
+    }
 
     const MaskWord* playerMask = maskPtr(game, game.playerMask);
     for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {

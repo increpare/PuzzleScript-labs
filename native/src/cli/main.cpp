@@ -4103,6 +4103,23 @@ std::string serializeRuntimeGameDebugJson(
     out << "    \"player_mask\": {\"aggregate\": " << (game.playerMaskAggregate ? "true" : "false") << ", \"mask\":";
     appendJsonMask(out, game, game.playerMask, game.wordCount);
     out << "},\n";
+    out << "    \"static_analysis_extras\": {\"written_objects\":";
+    appendJsonMask(
+        out,
+        game,
+        game.hasStaticAnalysisExtraWrittenObjects
+            ? game.staticAnalysisExtraWrittenObjects
+            : puzzlescript::kNullMaskOffset,
+        game.wordCount);
+    out << ",\"movement_mentioned_objects\":";
+    appendJsonMask(
+        out,
+        game,
+        game.hasStaticAnalysisExtraMovementMentionedObjects
+            ? game.staticAnalysisExtraMovementMentionedObjects
+            : puzzlescript::kNullMaskOffset,
+        game.wordCount);
+    out << "},\n";
 
     out << "    \"objects\": [";
     for (size_t idx = 0; idx < game.objectsById.size(); ++idx) {

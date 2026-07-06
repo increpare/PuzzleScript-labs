@@ -803,6 +803,26 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(static_analysis_runtime_ir_extras
+  tests/static_analysis_runtime_ir_extras.cpp
+)
+
+target_link_libraries(static_analysis_runtime_ir_extras
+  PRIVATE
+    puzzlescript_native
+)
+
+target_include_directories(static_analysis_runtime_ir_extras
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME static_analysis_runtime_ir_extras
+  COMMAND static_analysis_runtime_ir_extras
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 add_executable(compiler_row_any_masks
   tests/compiler_row_any_masks.cpp
 )
