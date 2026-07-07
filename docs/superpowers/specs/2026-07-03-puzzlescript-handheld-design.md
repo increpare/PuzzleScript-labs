@@ -103,6 +103,13 @@ The library includes:
 The first release can keep browsing simple, but it should feel curated. Search,
 tags, favorites, and screenshots can come later if they prove useful.
 
+Per-game status in the library is written in legend glyphs from the Simple
+Block Pushing Game (`src/demo/sokoban_basic.txt`) rather than generic icons:
+an unfinished game is `*` (crate), a completed game is `@` (crate on target),
+and the selection cursor is `P` (player). Anyone who has written PuzzleScript
+reads the library instantly; anyone who has not learns the legend by osmosis.
+(Adopted 2026-07-07.)
+
 The library owns cross-game browsing, recent games, and system settings. After a
 game is selected, the handheld should preserve the game's own 34x13 title
 screen and its "new game / continue" semantics rather than silently replacing
@@ -253,6 +260,19 @@ Audio is mono through a small speaker and class-D amplifier. The firmware uses
 the PuzzleScript sfxr-style sound events already present in the engine and
 should reuse or port the native player's sfxr synthesis path. The handheld must
 play both runtime-recorded audio events and cosmetic UI audio events.
+
+Each unit's serial number is a valid sfxr seed, and the device's per-unit wake
+chirp is that serial played through `generateFromSeed` (adopted 2026-07-07).
+The seed format in `src/js/sfxr.js`: `seed % 100` (mod 10) selects the
+generator family (0 pickupCoin, 1 laserShoot, 2 explosion, 3 powerUp,
+4 hitHurt, 5 jump, 6 blipSelect, 7 pushSound, 8 random, 9 birdSound) and
+`floor(seed / 100)` seeds the RNG. Serial assignment can therefore fix the
+last two digits to a pleasant family (for example `...06` for blipSelect)
+while the leading digits count units, giving every device a unique but
+in-family voice. Typing a unit's serial into the web editor's SOUNDS section
+reproduces its chirp. Constraints: `floor(serial / 100)` must stay below 2^31
+(the RNG takes a 32-bit integer), and the chirp obeys the global feedback/
+volume settings and never delays or gates the instant-on wake path.
 
 Haptics use a coin motor or LRA. Haptic events should be short and optional:
 undo, restart, win, blocked command, compile error, and menu selection are good
