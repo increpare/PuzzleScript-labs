@@ -14,7 +14,7 @@ if(PUZZLESCRIPT_BUILD_NATIVE)
     tools/puzzlescriptmis-app/tests/native_bridge_smoke.cpp
   )
 
-  set_target_properties(puzzlescriptmis_native_bridge_smoke PROPERTIES CXX_STANDARD 17)
+  set_target_properties(puzzlescriptmis_native_bridge_smoke PROPERTIES CXX_STANDARD 20)
 
   target_include_directories(puzzlescriptmis_native_bridge_smoke
     PRIVATE

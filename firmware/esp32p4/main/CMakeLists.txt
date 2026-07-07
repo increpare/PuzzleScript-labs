@@ -5,11 +5,18 @@ idf_component_register(
     "main.cpp"
     "ps_instrumentation.cpp"
     "board_waveshare_7b.cpp"
+    "board_touch.cpp"
     "ps_framebuffer.cpp"
     "ps_renderer.cpp"
     "ps_probe_runtime.cpp"
+    "ps_simulation_corpus.cpp"
     "ps_storage.cpp"
+    "ps_embedded_games.cpp"
+    "ps_touch_gestures.cpp"
+    "ps_ui_draw.cpp"
+    "ps_player.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/handheld/display_layout.cpp"
+    "${PUZZLESCRIPT_NATIVE_DIR}/src/simulation/corpus_runner.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/compiled_rules.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/c_api.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/core.cpp"
@@ -40,6 +47,9 @@ idf_component_register(
   EMBED_TXTFILES
     "sokoban_basic.txt"
     "broken_smoke.txt"
+    "games/microban.txt"
+    "games/push.txt"
+    "games/actiontest.txt"
 )
 
 target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_17)

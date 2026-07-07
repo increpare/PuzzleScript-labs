@@ -5,32 +5,38 @@
 #include <algorithm>
 #include <memory>
 
-extern "C" __attribute__((weak))
+#if defined(__GNUC__) || defined(__clang__)
+#define PS_WEAK_SYMBOL __attribute__((weak))
+#else
+#define PS_WEAK_SYMBOL
+#endif
+
+extern "C" PS_WEAK_SYMBOL
 const puzzlescript::SpecializedRulegroupsBackend* ps_specialized_rulegroups_find_backend(uint64_t) {
     return nullptr;
 }
 
-extern "C" __attribute__((weak))
+extern "C" PS_WEAK_SYMBOL
 const puzzlescript::SpecializedRulegroupsBackend* ps_compiled_rules_find_backend(uint64_t) {
     return nullptr;
 }
 
-extern "C" __attribute__((weak))
+extern "C" PS_WEAK_SYMBOL
 const puzzlescript::SpecializedFullTurnBackend* ps_specialized_full_turn_find_backend(uint64_t) {
     return nullptr;
 }
 
-extern "C" __attribute__((weak))
+extern "C" PS_WEAK_SYMBOL
 const puzzlescript::SpecializedFullTurnBackend* ps_compiled_tick_find_backend(uint64_t) {
     return nullptr;
 }
 
-extern "C" __attribute__((weak))
+extern "C" PS_WEAK_SYMBOL
 const puzzlescript::SpecializedCompactTurnBackend* ps_specialized_compact_turn_find_backend(uint64_t) {
     return nullptr;
 }
 
-extern "C" __attribute__((weak))
+extern "C" PS_WEAK_SYMBOL
 const puzzlescript::SpecializedCompactTurnBackend* ps_compiled_compact_tick_find_backend(uint64_t) {
     return nullptr;
 }

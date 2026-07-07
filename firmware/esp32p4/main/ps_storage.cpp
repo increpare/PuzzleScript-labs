@@ -26,6 +26,7 @@ namespace {
 
 sdmmc_card_t* g_card = nullptr;
 bool g_mounted = false;
+bool g_flash_storage_mounted = false;
 inline constexpr std::size_t kMaxListedSdGames = 256;
 inline constexpr std::size_t kListAllocationMinFreeBytes = 8 * 1024;
 inline constexpr std::size_t kSourceAllocationHeadroomBytes = 16 * 1024;
@@ -142,6 +143,24 @@ esp_err_t mount_sd_card() {
     return result;
 }
 
+esp_err_t mount_flash_storage() {
+    if (g_flash_storage_mounted) {
+        return ESP_OK;
+    }
+
+    esp_vfs_fat_mount_config_t mount_config = {};
+    mount_config.max_files = 8;
+    mount_config.format_if_mount_failed = false;
+    mount_config.allocation_unit_size = 16 * 1024;
+
+    const esp_err_t result = esp_vfs_fat_spiflash_mount_ro(
+        kFlashStorageMount,
+        "storage",
+        &mount_config);
+    g_flash_storage_mounted = result == ESP_OK;
+    return result;
+}
+
 std::vector<std::string> list_sd_games() {
     std::vector<std::string> names;
     DIR* dir = opendir(kSdGamesDir);
@@ -162,6 +181,37 @@ std::vector<std::string> list_sd_games() {
             } catch (const std::bad_alloc&) {
                 break;
             }
+        }
+    }
+    closedir(dir);
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+std::vector<std::string> list_flash_games() {
+    std::vector<std::string> names;
+    if (mount_flash_storage() != ESP_OK) {
+        return names;
+    }
+    DIR* dir = opendir(kFlashGamesDir);
+    if (dir == nullptr) {
+        return names;
+    }
+    while (names.size() < kMaxListedSdGames) {
+        dirent* entry = readdir(dir);
+        if (entry == nullptr) {
+            break;
+        }
+        if (!is_regular_game_file(entry)) {
+            continue;
+        }
+        if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < kListAllocationMinFreeBytes) {
+            break;
+        }
+        try {
+            names.emplace_back(entry->d_name);
+        } catch (const std::bad_alloc&) {
+            break;
         }
     }
     closedir(dir);

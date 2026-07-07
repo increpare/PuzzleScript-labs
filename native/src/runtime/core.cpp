@@ -2607,12 +2607,37 @@ void setCellRigidMovementAppliedMask(FullState& session, int32_t tileIndex, cons
     }
 }
 
+void ensureMovementMaskScratchShape(FullState& session) {
+    const int32_t movementStride = session.game->strideMovement;
+    const size_t rowMovementSize = static_cast<size_t>(std::max(currentLevelHeight(session), int32_t{0}) * movementStride);
+    const size_t columnMovementSize = static_cast<size_t>(std::max(currentLevelWidth(session), int32_t{0}) * movementStride);
+    const size_t boardMovementSize = static_cast<size_t>(std::max(movementStride, int32_t{0}));
+    if (session.scratch.rowMovementMasks.size() != rowMovementSize) {
+        session.scratch.rowMovementMasks.assign(rowMovementSize, 0);
+    }
+    if (session.scratch.columnMovementMasks.size() != columnMovementSize) {
+        session.scratch.columnMovementMasks.assign(columnMovementSize, 0);
+    }
+    if (session.scratch.boardMovementMask.size() != boardMovementSize) {
+        session.scratch.boardMovementMask.assign(boardMovementSize, 0);
+    }
+    const size_t rowCount = static_cast<size_t>(std::max(currentLevelHeight(session), int32_t{0}));
+    const size_t columnCount = static_cast<size_t>(std::max(currentLevelWidth(session), int32_t{0}));
+    if (session.scratch.dirtyMovementRows.size() != rowCount) {
+        session.scratch.dirtyMovementRows.assign(rowCount, 0);
+    }
+    if (session.scratch.dirtyMovementColumns.size() != columnCount) {
+        session.scratch.dirtyMovementColumns.assign(columnCount, 0);
+    }
+}
+
 void clearRigidState(FullState& session) {
     std::fill(session.scratch.rigidGroupIndexMasks.begin(), session.scratch.rigidGroupIndexMasks.end(), 0);
     std::fill(session.scratch.rigidMovementAppliedMasks.begin(), session.scratch.rigidMovementAppliedMasks.end(), 0);
 }
 
 void clearMovementState(FullState& session) {
+    ensureMovementMaskScratchShape(session);
     std::fill(session.scratch.liveMovements.begin(), session.scratch.liveMovements.end(), 0);
     session.scratch.liveMovementsClean = true;
     session.scratch.movementCellIndexDirty = true;
@@ -3099,7 +3124,7 @@ bool matchesAdvancedMovementPatternAt(
     return true;
 }
 
-inline __attribute__((always_inline)) bool matchesPatternAt(
+PS_ALWAYS_INLINE bool matchesPatternAt(
     const FullState& session,
     const Pattern& pattern,
     int32_t tileIndex

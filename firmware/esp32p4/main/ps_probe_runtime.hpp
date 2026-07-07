@@ -11,6 +11,7 @@ struct SourceProbeInput {
     const char* text;
     std::size_t size;
     bool render;
+    bool run_input_trace;
 };
 
 void run_embedded_sokoban_probe(uint16_t* framebuffer);

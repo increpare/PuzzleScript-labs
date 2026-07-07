@@ -1,0 +1,18 @@
+menu "PuzzleScript Player"
+
+config PS_PLAYER_APP
+    bool "Boot into interactive player (game library + touch play)"
+    default y
+    help
+        When enabled, the device boots into the touch game player instead of
+        the hardware probe or simulation corpus runner.
+
+config PS_SIMULATION_CORPUS_BOOT
+    bool "Prefer simulation corpus when CORPUS.NDJ is present"
+    default n
+    depends on !PS_PLAYER_APP
+    help
+        If a simulation corpus bundle exists on flash/SD, run it at boot and
+        skip the probe/player UI.
+
+endmenu

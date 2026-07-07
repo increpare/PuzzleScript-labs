@@ -2692,16 +2692,17 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 modified = false;
                 for (size_t i = 0; i < result.size(); ++i) {
                     bool shouldRemove = false;
-                    for (size_t j = 0; j < result[i].lhs.size(); ++j) {
-                        auto& currentRuleRow = result[i].lhs[j];
-                        for (size_t k = 0; k < currentRuleRow.size(); ++k) {
-                            const auto movings = getMovingsParsed(currentRuleRow[k]);
+                    // JS keeps `cur_rule = result[i]` for the whole split pass. Snapshot
+                    // before push_back — vector reallocation would invalidate references
+                    // into result[i].lhs rows/cells and cause nondeterministic splits.
+                    const WorkRule sourceRule = result[i];
+                    for (size_t j = 0; j < sourceRule.lhs.size(); ++j) {
+                        for (size_t k = 0; k < sourceRule.lhs[j].size(); ++k) {
+                            const auto movings = getMovingsParsed(sourceRule.lhs[j][k]);
                             if (movings.empty()) {
                                 continue;
                             }
 
-                            shouldRemove = true;
-                            modified = true;
                             const std::string& candName = movings[0].first;
                             const std::string& ambiguousDir = movings[0].second;
                             const auto* concreteDirs = concreteDirsForAggregate(ambiguousDir);
@@ -2709,9 +2710,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                 continue;
                             }
 
-                            const WorkRule baseRule = result[i];
+                            shouldRemove = true;
+                            modified = true;
                             for (const auto& concreteDirection : *concreteDirs) {
-                                WorkRule newRule = baseRule;
+                                WorkRule newRule = sourceRule;
                                 concretizeMovingInCell(newRule.lhs[j][k], ambiguousDir, candName, concreteDirection);
                                 if (!newRule.rhs.empty() && j < newRule.rhs.size() && k < newRule.rhs[j].size()) {
                                     concretizeMovingInCell(newRule.rhs[j][k], ambiguousDir, candName, concreteDirection);
@@ -2775,6 +2777,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
                 for (const auto& [ambiguousMovement, concreteMovement] : ambiguousMovementNames) {
                     if (concreteMovement == "INVALID") {
+                        continue;
+                    }
+                    if (safeAggregates.count(ambiguousMovement) != 0) {
                         continue;
                     }
                     for (auto& rhsRow : currentRule.rhs) {

@@ -19,6 +19,8 @@ const gamePath = path.resolve(process.argv[3] || path.join(repoRoot, 'src/demo/s
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'psgen-remix-smoke-'));
 const outPath = path.join(tempDir, 'remixed_game.txt');
 const templatePath = path.join(tempDir, 'remixed_game.template.txt');
+const solverTimeoutMs = process.env.PS_GENERATOR_SMOKE_SOLVER_TIMEOUT_MS || '2000';
+const timeScale = Number(process.env.PS_GENERATOR_SMOKE_TIME_SCALE || '1');
 
 const COMPACT_TO_TOKEN = {
     U: 'up',
@@ -138,12 +140,12 @@ async function main() {
         '--out', outPath,
         '--jobs', '1',
         '--seed', '11',
-        '--solver-timeout-ms', '2000',
+        '--solver-timeout-ms', solverTimeoutMs,
         '--inactivity-start', '500ms',
         '--dedupe-max', '4096',
     ];
 
-    const firstRun = await runGeneratorUntilStopped(commonArgs, 15000);
+    const firstRun = await runGeneratorUntilStopped(commonArgs, Math.ceil(15000 * timeScale));
     assert.ok(fs.existsSync(outPath), 'remix should create --out file');
     assert.ok(fs.existsSync(templatePath), 'remix should create .template.txt beside --out');
     const templateSource = fs.readFileSync(templatePath, 'utf8');
@@ -156,7 +158,7 @@ async function main() {
     let generatedSource = fs.readFileSync(outPath, 'utf8');
     let levels = parseGeneratedLevels(generatedSource);
     if (levels.length < expectedPlayableLevels) {
-        const secondRun = await runGeneratorUntilStopped(commonArgs, 25000);
+        const secondRun = await runGeneratorUntilStopped(commonArgs, Math.ceil(25000 * timeScale));
         assert.ok(
             secondRun.code === 0 || secondRun.signal === 'SIGTERM',
             `remix should exit cleanly on SIGTERM\nstdout:\n${secondRun.stdout}\nstderr:\n${secondRun.stderr}`

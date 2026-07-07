@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -13,6 +14,14 @@
 #include "runtime/json.hpp"
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/simd.hpp"
+
+#if defined(_MSC_VER)
+#define PS_ALWAYS_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+#define PS_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#define PS_ALWAYS_INLINE inline
+#endif
 
 namespace puzzlescript {
 
@@ -88,19 +97,11 @@ inline constexpr uint32_t movementBitShiftForLayer(uint32_t layerIndex) {
 }
 
 inline int32_t maskWordCountTrailingZeros(MaskWordUnsigned bits) {
-#if PS_MASK_WORD_BITS == 64
-    return __builtin_ctzll(bits);
-#else
-    return __builtin_ctz(bits);
-#endif
+    return static_cast<int32_t>(std::countr_zero(bits));
 }
 
 inline int32_t maskWordPopcount(MaskWordUnsigned bits) {
-#if PS_MASK_WORD_BITS == 64
-    return __builtin_popcountll(bits);
-#else
-    return __builtin_popcount(bits);
-#endif
+    return static_cast<int32_t>(std::popcount(bits));
 }
 
 struct MaskRef { const MaskWord* data; };

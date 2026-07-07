@@ -28,7 +28,11 @@
 #include <utility>
 #include <vector>
 
+#if defined(_WIN32)
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "compiler/diagnostic.hpp"
 #include "compiler/lower_to_runtime.hpp"
@@ -79,6 +83,14 @@ using puzzlescript::generator::LevelSetOptions;
 using puzzlescript::generator::OutputCoordinator;
 using puzzlescript::generator::parseDurationMs;
 using puzzlescript::generator::runLevelSetForever;
+
+bool stdoutIsTerminal() {
+#if defined(_WIN32)
+    return _isatty(_fileno(stdout)) != 0;
+#else
+    return isatty(STDOUT_FILENO) != 0;
+#endif
+}
 
 enum class SolveStatus {
     Exhausted,
@@ -1351,7 +1363,7 @@ int main(int argc, char** argv) {
             workers.emplace_back(workerMain, std::cref(options), std::cref(loadedGame), std::cref(solverMetadata), std::cref(program), std::cref(game->levels.front()), std::ref(shared), deadline);
         }
 
-        const bool dashboard = !options.quiet && isatty(STDOUT_FILENO);
+        const bool dashboard = !options.quiet && stdoutIsTerminal();
         TimePoint lastSparse = start;
         while (!shared.cancel.load(std::memory_order_relaxed)) {
             if (Clock::now() >= deadline) {

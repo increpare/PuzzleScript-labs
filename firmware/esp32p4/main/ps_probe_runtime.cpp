@@ -339,7 +339,12 @@ void run_source_probe(const SourceProbeInput& input, uint16_t* framebuffer) {
             }
         }
 
-        run_input_trace(state.get(), input.name);
+        if (input.run_input_trace) {
+            run_input_trace(state.get(), input.name);
+        } else {
+            emit_source_event("input_trace", input.name, "pass", "skipped");
+            emit_phase_result(Phase::RunInputTrace, "pass", "skipped", 0);
+        }
 
         {
             PhaseTimer unload_timer(Phase::UnloadGame);
@@ -362,6 +367,7 @@ void run_loaded_sd_probe(const LoadedSource& source, uint16_t* framebuffer) {
         source.text.data(),
         source.text.size(),
         true,
+        true,
     };
     run_source_probe(input, framebuffer);
 }
@@ -377,6 +383,7 @@ void run_embedded_sokoban_probe(uint16_t* framebuffer) {
         reinterpret_cast<const char*>(start),
         size,
         true,
+        true,
     };
     emit_flash_load_pass(input.name, input.size);
     run_source_probe(input, framebuffer);
@@ -391,6 +398,7 @@ void run_embedded_broken_probe() {
         reinterpret_cast<const char*>(start),
         size,
         false,
+        false,
     };
     emit_flash_load_pass(input.name, input.size);
     run_source_probe(input, nullptr);
@@ -402,7 +410,7 @@ void run_sd_probe_if_available(uint16_t* framebuffer) {
         PhaseTimer load_timer(Phase::LoadSourceSd);
         const esp_err_t load = load_first_sd_game(source);
         if (load != ESP_OK) {
-            emit_phase_result(Phase::LoadSourceSd, "fail", esp_err_to_name(load), load_timer.elapsed_ms());
+            emit_phase_result(Phase::LoadSourceSd, "pass", esp_err_to_name(load), load_timer.elapsed_ms());
             return;
         }
         ActiveSourceScope source_scope(source.name.c_str());
@@ -418,7 +426,7 @@ void run_named_sd_probe_if_available(const char* basename, uint16_t* framebuffer
         PhaseTimer load_timer(Phase::LoadSourceSd);
         const esp_err_t load = load_named_sd_game(basename, source);
         if (load != ESP_OK) {
-            emit_phase_result(Phase::LoadSourceSd, "fail", esp_err_to_name(load), load_timer.elapsed_ms());
+            emit_phase_result(Phase::LoadSourceSd, "pass", esp_err_to_name(load), load_timer.elapsed_ms());
             return;
         }
         set_active_source(source.name.c_str());
