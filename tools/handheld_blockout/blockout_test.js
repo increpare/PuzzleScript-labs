@@ -1,0 +1,48 @@
+"use strict";
+var assert = require("assert");
+var B = require("./blockout.js");
+
+var passed = 0;
+function test(name, fn) { fn(); passed++; console.log("ok - " + name); }
+
+test("card preset carries the approved spec coordinates", function () {
+    assert.deepStrictEqual(Object.keys(B.BLOCKOUT_PRESETS), ["card"]);
+    var c = B.BLOCKOUT_PRESETS.card;
+    assert.strictEqual(c.body.w, 100);
+    assert.strictEqual(c.body.h, 100);
+    assert.strictEqual(c.body.r, 9);
+    assert.strictEqual(c.body.depth, 9);
+    assert.strictEqual(c.screen.activeX, 6.8);
+    assert.strictEqual(c.screen.activeY, 7);
+    assert.strictEqual(c.screen.activeW, 86.4);
+    assert.strictEqual(c.screen.activeH, 51.8);
+    assert.strictEqual(c.dpad.cx, 22);
+    assert.strictEqual(c.dpad.cy, 76);
+    assert.strictEqual(c.dpad.size, 26);
+    assert.strictEqual(c.buttons[0].label, "ACTION");
+    assert.strictEqual(c.buttons[0].d, 14);
+    assert.strictEqual(c.buttons[1].cx, 67);
+    assert.strictEqual(c.buttons[2].cy, 91);
+    assert.strictEqual(c.menu.angle, -20);
+    assert.strictEqual(c.band.y0, 61);
+    assert.strictEqual(c.band.y1, 96);
+    assert.deepStrictEqual(c.zones[0], { label: "battery 2.5Wh", x: 38, y: 64, w: 32, h: 26 });
+    assert.strictEqual(c.topEdge.usbX, 25);
+    assert.strictEqual(c.rightEdge.volY, 18);
+});
+
+test("getParam and setParam address nested values by dot path", function () {
+    var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
+    assert.strictEqual(B.getParam(p, "buttons.1.cx"), 67);
+    B.setParam(p, "buttons.1.cx", 70);
+    assert.strictEqual(p.buttons[1].cx, 70);
+    assert.strictEqual(B.BLOCKOUT_PRESETS.card.buttons[1].cx, 67, "preset untouched");
+});
+
+test("fmt trims float noise", function () {
+    assert.strictEqual(B.fmt(0.1 + 0.2), "0.3");
+    assert.strictEqual(B.fmt(76 - 58.8 - 13), "4.2");
+    assert.strictEqual(B.fmt(100), "100");
+});
+
+console.log(passed + " tests passed");
