@@ -203,12 +203,6 @@ std::string pickUnusedGlyph(const Game& game) {
     throw std::runtime_error("No unused legend glyph characters remain");
 }
 
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    const auto offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
-}
-
 bool maskVectorsEqual(const MaskVector& lhs, const MaskVector& rhs) {
     if (lhs.size() != rhs.size()) {
         return false;

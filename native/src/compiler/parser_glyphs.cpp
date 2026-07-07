@@ -5,6 +5,9 @@
 #include <vector>
 
 namespace puzzlescript::compiler {
+
+using puzzlescript::storeMaskWords;
+
 namespace {
 
 bool maskHasAnyBit(const MaskVector& mask) {
@@ -29,12 +32,6 @@ void orMaskInto(MaskVector& target, const MaskVector& source) {
     for (size_t index = 0; index < count; ++index) {
         target[index] |= source[index];
     }
-}
-
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    const auto offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
 }
 
 MaskVector resolveParserGlyphMask(

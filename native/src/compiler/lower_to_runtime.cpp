@@ -17,6 +17,8 @@
 
 namespace puzzlescript::compiler {
 
+using puzzlescript::storeMaskWords;
+
 namespace {
 
 std::string toLowerAsciiCopy(std::string_view input) {
@@ -30,12 +32,6 @@ std::string toLowerAsciiCopy(std::string_view input) {
 
 uint32_t ceilDivU32(uint32_t a, uint32_t b) {
     return (a + b - 1) / b;
-}
-
-puzzlescript::MaskOffset storeMaskWords(puzzlescript::Game& game, const puzzlescript::MaskVector& words) {
-    const auto offset = static_cast<puzzlescript::MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
 }
 
 puzzlescript::MaskVector makeEmptyMask(uint32_t wordCount) {
@@ -5154,6 +5150,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         game->hasStaticAnalysisExtraMovementMentionedObjects = true;
     }
 
+    puzzlescript::clearMaskInternScratch(*game);
     outGame.information = std::move(game);
     outGame.initialMetaGameState = std::move(initialMetaGameState);
     return nullptr;

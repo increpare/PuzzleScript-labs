@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "runtime/hash.hpp"
@@ -527,9 +528,14 @@ struct GameInformation {
     const SpecializedRulegroupsBackend* specializedRulegroups = nullptr;
     const SpecializedFullTurnBackend* specializedFullTurn = nullptr;
     const SpecializedCompactTurnBackend* specializedCompactTurn = nullptr;
+    // Compile/load scratch for mask arena interning. Not serialized; cleared after lowering.
+    std::unordered_map<std::string, MaskOffset> maskInternScratch;
 };
 
 using Game = GameInformation;
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words);
+void clearMaskInternScratch(Game& game);
 
 struct Scratch {
     MaskVector liveMovements;

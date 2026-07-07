@@ -993,17 +993,6 @@ std::vector<int32_t> objectIdsFromMask(const MaskVector& words, int32_t objectCo
     return ids;
 }
 
-// ---- Game mask-arena helpers ----------------------------------------------
-// These append mask words into `game.maskArena` and return the offset (in
-// words) of the first element. Used during IR parsing to replace the old
-// std::vector<int32_t>-per-field layout with a single contiguous arena.
-
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
-}
-
 // Append `game.wordCount` zero words and return the offset. Used for fields
 // that are absent in the IR and need an all-zero mask at the arena's width.
 [[maybe_unused]] MaskOffset storeZeroMask(Game& game) {
@@ -6607,6 +6596,7 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         if (sourceHash.has_value()) {
             attachLinkedCompiledRules(*game, *sourceHash);
         }
+        clearMaskInternScratch(*game);
         outGame.information = std::move(game);
         return nullptr;
     } catch (const std::exception& error) {
@@ -7837,6 +7827,40 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.movement_anchor_collections_used = gRuntimeCounters.movementAnchorCollectionsUsed.load(std::memory_order_relaxed);
     counters.movement_anchor_runtime_mask_builds = gRuntimeCounters.movementAnchorRuntimeMaskBuilds.load(std::memory_order_relaxed);
     return counters;
+}
+
+namespace {
+
+std::string maskInternKey(const MaskVector& words) {
+    std::string key;
+    const uint32_t width = static_cast<uint32_t>(words.size());
+    key.reserve(sizeof(width) + words.size() * sizeof(MaskWord));
+    key.append(reinterpret_cast<const char*>(&width), sizeof(width));
+    for (MaskWord word : words) {
+        key.append(reinterpret_cast<const char*>(&word), sizeof(word));
+    }
+    return key;
+}
+
+} // namespace
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
+    if (words.empty()) {
+        return kNullMaskOffset;
+    }
+    const std::string key = maskInternKey(words);
+    if (const auto existing = game.maskInternScratch.find(key); existing != game.maskInternScratch.end()) {
+        return existing->second;
+    }
+    const MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
+    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+    game.maskInternScratch.emplace(key, offset);
+    return offset;
+}
+
+void clearMaskInternScratch(Game& game) {
+    game.maskInternScratch.clear();
+    game.maskInternScratch.rehash(0);
 }
 
 } // namespace puzzlescript
