@@ -51,4 +51,14 @@ test("renderTextScreenSvg sizes to the 34x13 grid and draws white pixels on blac
     assert.ok(t.svg.indexOf('fill="#ffffff"') !== -1, "white glyph pixels");
 });
 
+test("legibilitySheetSvg is A4 landscape 1:1 with all four blocks", function () {
+    var svg = L.legibilitySheetSvg();
+    assert.ok(svg.indexOf('width="297mm" height="210mm" viewBox="0 0 297 210"') !== -1, "A4 1:1");
+    assert.ok(svg.indexOf("exactly 100 mm") !== -1, "calibration bar");
+    assert.ok(svg.indexOf("p90 21x17 at 2.7 mm cells (4.0-inch card)") !== -1);
+    assert.ok(svg.indexOf("p90 21x17 at 3.4 mm cells (retired 5-inch, comparison)") !== -1);
+    assert.ok(svg.indexOf("median 11x9 at 5.4 mm cells (4.0-inch card)") !== -1);
+    assert.ok(svg.indexOf("34x13 text screen, 2.541 x 3.985 mm chars") !== -1);
+});
+
 console.log(passed + " tests passed");

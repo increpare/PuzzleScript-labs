@@ -162,9 +162,14 @@ function svgRect(x, y, w, h, r, stroke, fill, dash) {
         (dash ? ' stroke-dasharray="2,1.5"' : "") + "/>";
 }
 
+function escXml(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function svgText(x, y, size, s, anchor) {
     return '<text x="' + fmt(x) + '" y="' + fmt(y) + '" font-size="' + size +
-        '" font-family="sans-serif" fill="#444" text-anchor="' + (anchor || "middle") + '">' + s + "</text>";
+        '" font-family="sans-serif" fill="#444" text-anchor="' + (anchor || "middle") + '">' +
+        escXml(s) + "</text>";
 }
 
 function crosshair(cx, cy) {
@@ -203,7 +208,8 @@ function faceGroupSvg(params, opts) {
     if (opts.overlays) {
         params.zones.forEach(function (z) {
             out.push(svgRect(z.x, z.y, z.w, z.h, 1.5, "#c77", "none", true));
-            out.push(svgText(z.x + z.w / 2, z.y + z.h / 2 + 1, 2.4, z.label));
+            // Label above the zone's top edge so it never overprints the grille.
+            out.push(svgText(z.x + z.w / 2, z.y - 0.8, 2.2, z.label));
         });
     }
     return out.join("\n");
@@ -247,10 +253,12 @@ function sectionGroupSvg(params) {
         { y: 8.0, h: 1.0, label: "rear shell 1.0" }
     ];
     var out = [svgRect(0, 0, b.w, b.depth, 2, "#000", "none")];
-    layers.forEach(function (l) {
+    layers.forEach(function (l, i) {
         out.push('<line x1="0" y1="' + fmt(l.y) + '" x2="' + fmt(b.w) + '" y2="' + fmt(l.y) +
             '" stroke="#888" stroke-width="0.15"/>');
-        out.push(svgText(b.w + 3, l.y + l.h / 2 + 0.9, 2.2, l.label, "start"));
+        // Legend below the slab; side labels overprint at 1:1 scale.
+        out.push(svgText(0, b.depth + 8 + i * 3.5, 2.2,
+            fmt(l.y) + "-" + fmt(l.y + l.h) + " mm: " + l.label, "start"));
     });
     out.push(svgText(0, b.depth + 4, 2.2, "Z-stack section, 1:1", "start"));
     return out.join("\n");
@@ -294,15 +302,15 @@ function printSheetSvg(params) {
             '" y2="' + (14 + tick) + '"/>');
     }
     out.push("</g>");
-    out.push(svgText(212, 9.5, 3.2, "calibration: this bar must measure exactly 100 mm"));
+    out.push(svgText(212, 21.5, 3.2, "calibration: this bar must measure exactly 100 mm"));
     out.push('<g transform="translate(24,40)">' + faceGroupSvg(params, { grid: true, overlays: true }) + "</g>");
     out.push('<g transform="translate(160,45)">' + topEdgeGroupSvg(params) + "</g>");
     out.push('<g transform="translate(160,75)">' + rightEdgeGroupSvg(params) + "</g>");
     out.push('<g transform="translate(160,105)">' + sectionGroupSvg(params) + "</g>");
     var warnings = spacingWarnings(params);
-    out.push(svgText(160, 135, 3.2, "open geometry warnings (spec risks, expected):", "start"));
+    out.push(svgText(160, 152, 3.2, "open geometry warnings (spec risks, expected):", "start"));
     warnings.forEach(function (w, i) {
-        out.push(svgText(160, 140 + i * 4.5, 2.8, "- " + w, "start"));
+        out.push(svgText(160, 157 + i * 4.5, 2.8, "- " + w, "start"));
     });
     out.push("</svg>");
     return out.join("\n");

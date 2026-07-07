@@ -157,6 +157,43 @@ function renderTextScreenSvg(lines, cellW, cellH, font) {
     return { svg: out.join("\n"), w: cols * cellW, h: rows * cellH };
 }
 
+function caption(x, y, s) {
+    return '<text x="' + fmt(x) + '" y="' + fmt(y) + '" font-size="3" ' +
+        'font-family="sans-serif" fill="#444">' + s + "</text>";
+}
+
+function legibilitySheetSvg() {
+    var font = loadFont();
+    var p90card = renderLevelSvg(LEVEL_P90, 2.7);
+    var p90ref = renderLevelSvg(LEVEL_P90, 3.4);
+    var median = renderLevelSvg(LEVEL_MEDIAN, 5.4);
+    var text = renderTextScreenSvg(TITLE_LINES, 2.541, 3.985, font);
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">'];
+    out.push(caption(18, 10, "PuzzleScript Card legibility sheet — print at 100% scale, " +
+        "A4 landscape. View at handheld distance (~35 cm)."));
+    out.push('<g stroke="#000" stroke-width="0.3">');
+    out.push('<line x1="180" y1="14" x2="280" y2="14"/>');
+    for (var t = 0; t <= 100; t += 10) {
+        var tick = (t % 50 === 0) ? 3 : 1.5;
+        out.push('<line x1="' + (180 + t) + '" y1="' + (14 - tick) + '" x2="' + (180 + t) +
+            '" y2="' + (14 + tick) + '"/>');
+    }
+    out.push("</g>");
+    out.push(caption(180, 9.5, "calibration: this bar must measure exactly 100 mm"));
+    out.push(caption(18, 26, "p90 21x17 at 2.7 mm cells (4.0-inch card)"));
+    out.push('<g transform="translate(18,30)">' + p90card.svg + "</g>");
+    out.push(caption(95, 26, "p90 21x17 at 3.4 mm cells (retired 5-inch, comparison)"));
+    out.push('<g transform="translate(95,30)">' + p90ref.svg + "</g>");
+    out.push(caption(190, 26, "median 11x9 at 5.4 mm cells (4.0-inch card)"));
+    out.push('<g transform="translate(190,30)">' + median.svg + "</g>");
+    out.push(caption(18, 116, "34x13 text screen, 2.541 x 3.985 mm chars (4.0-inch card)"));
+    out.push('<g transform="translate(18,120)">' + text.svg + "</g>");
+    out.push(caption(18, 182, "levels are density proxies (real Simple Block Pushing Game " +
+        "sprites), not solvable puzzles"));
+    out.push("</svg>");
+    return out.join("\n");
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         PALETTE: PALETTE,
@@ -168,6 +205,7 @@ if (typeof module !== "undefined" && module.exports) {
         fmt: fmt,
         loadFont: loadFont,
         TITLE_LINES: TITLE_LINES,
-        renderTextScreenSvg: renderTextScreenSvg
+        renderTextScreenSvg: renderTextScreenSvg,
+        legibilitySheetSvg: legibilitySheetSvg
     };
 }
