@@ -72,7 +72,8 @@ Body:
 - Depth: 9 mm uniform. No grips, no bulges.
 - Full-face cover lens: one flat ~1 mm sheet (glass or acrylic) spanning the
   whole front, printed opaque on the underside except the screen window.
-- Estimated weight: ~85 g.
+- Estimated weight: ~90-100 g (panel module + PCB + cell + shells + lens;
+  verify with a BOM mass rollup before ballast is cut).
 
 Display:
 
@@ -86,18 +87,24 @@ Control band (Y ~61-96):
 
 | Control | Spec                                   | Center (X, Y) |
 |---------|----------------------------------------|---------------|
-| D-pad   | mascot cap, ~26 mm tip-to-tip          | (22, 78)      |
-| Action  | O14 mm, gently concave cap             | (81, 73)      |
-| Undo    | O10 mm, convex cap                     | (68, 84)      |
-| Restart | O10 mm, convex cap                     | (84, 89)      |
-| Menu    | ~11 x 4 mm pill, angled                | (22, 94)      |
+| D-pad   | mascot cap, ~26 mm tip-to-tip          | (22, 76)      |
+| Action  | O14 mm, gently concave cap             | (81, 72)      |
+| Undo    | O10 mm, convex cap                     | (67, 85)      |
+| Restart | O10 mm, convex cap                     | (84, 91)      |
+| Menu    | ~11 x 4 mm pill, angled                | (22, 95)      |
 
-The fan cluster carries over from the blockout spec at ~0.85 scale with its
-rationale intact: Action at the resting thumb, Undo one inward flick away as
-the second-most-pressed button, Restart below Action, full-size and honest.
-Cap-edge gaps are held at >= 7 mm and must not scale below that — thumbs did
-not shrink with the case. Cap coding unchanged: Action concave, Undo/Restart
+The fan cluster carries over from the blockout spec with its rationale
+intact: Action at the resting thumb, Undo one inward flick away as the
+second-most-pressed button, Restart below Action, full-size and honest. Cap
+diameters shrink to ~0.85 scale, but the spacing is re-solved rather than
+scaled, because cap-edge gaps must stay >= 7 mm — thumbs did not shrink with
+the case. Resulting gaps: Action-Undo 7.1 mm, Undo-Restart 8.0 mm,
+Action-Restart 7.2 mm. Cap coding unchanged: Action concave, Undo/Restart
 convex, distinct colors, no glyphs in v1.
+
+Clearances: the D-pad bottom tip to the Menu pill is only ~4 mm (the 5-inch
+blockout had 14 mm); accidental-press risk is flagged below. The Restart cap
+sits ~4 mm from the bottom face edge, inside the corner-radius arc.
 
 Edges:
 
@@ -211,6 +218,10 @@ splashes) remains binding.
   until a specific panel is chosen and probed.
 - Thumb reach-up ergonomics of controls-under on a light square card:
   argued from mass, must be confirmed by the playtest loop.
+- Menu-to-D-pad clearance is ~4 mm versus 14 mm on the 5-inch blockout;
+  watch for accidental Menu presses during rapid D-pad play in the mockup
+  loop, and be ready to move Menu to the band's bottom-left corner or
+  shrink the D-pad cap.
 - Mid-mount USB-C requires a PCB cutout and adds layout constraints near the
   FPC keep-out.
 - Battery swelling clearance and real pouch dimensions versus the
@@ -221,7 +232,7 @@ splashes) remains binding.
 1. Produce a 1:1 printable sheet of this face plan (companion to
    `2026-07-07-handheld-case-blockout-1to1.svg`, which is superseded with
    its spec) and verify at 100% scale.
-2. Build a 9 mm foam/cardboard card with dummy caps and ~85 g ballast
+2. Build a 9 mm foam/cardboard card with dummy caps and ~95 g ballast
    distributed per the band plan.
 3. Run the inherited playtest loop: 10-15 minutes of Sokoban-style input
    (move, move, action, undo, undo, restart, menu, repeat); log thumb
