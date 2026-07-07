@@ -283,7 +283,7 @@ function edgesSvg(params) {
 }
 
 function sectionSvg(params) {
-    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="600" viewBox="-12 -6 150 24">'];
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="600" viewBox="-12 -6 150 46">'];
     out.push(sectionGroupSvg(params));
     out.push("</svg>");
     return out.join("\n");

@@ -229,9 +229,13 @@ splashes) remains binding.
 
 ## Validation Plan
 
-1. Produce a 1:1 printable sheet of this face plan (companion to
-   `2026-07-07-handheld-case-blockout-1to1.svg`, which is superseded with
-   its spec) and verify at 100% scale.
+1. Print the committed 1:1 sheet at 100% scale and verify with the printed
+   calibration ruler:
+   `docs/superpowers/notes/2026-07-07-handheld-card-1to1.svg`
+   To test coordinate variations, use the parametric tool at
+   `tools/handheld_blockout/index.html` (Export 1:1 SVG). The legibility
+   sheet for validation step 4 is
+   `docs/superpowers/notes/2026-07-07-handheld-card-legibility.svg`.
 2. Build a 9 mm foam/cardboard card with dummy caps and ~95 g ballast
    distributed per the band plan.
 3. Run the inherited playtest loop: 10-15 minutes of Sokoban-style input
