@@ -7,7 +7,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 #include "runtime/hash.hpp"
@@ -112,6 +111,12 @@ struct MaskMut { MaskWord* data; };
 // "no mask assigned" (used for fields that are optional or vary per pattern).
 using MaskOffset = uint32_t;
 inline constexpr MaskOffset kNullMaskOffset = static_cast<uint32_t>(-1);
+
+struct MaskInternTable;
+enum class MaskInternSeed {
+    Empty,
+    ExistingArena,
+};
 
 struct ObjectDef {
     std::string name;
@@ -529,14 +534,24 @@ struct GameInformation {
     const SpecializedRulegroupsBackend* specializedRulegroups = nullptr;
     const SpecializedFullTurnBackend* specializedFullTurn = nullptr;
     const SpecializedCompactTurnBackend* specializedCompactTurn = nullptr;
-    // Compile/load scratch for mask arena interning. Not serialized; cleared after lowering.
-    std::unordered_map<std::string, MaskOffset> maskInternScratch;
 };
 
 using Game = GameInformation;
 
+class ScopedMaskInterner {
+public:
+    explicit ScopedMaskInterner(Game& game, MaskInternSeed seed = MaskInternSeed::Empty);
+    ~ScopedMaskInterner();
+
+    ScopedMaskInterner(const ScopedMaskInterner&) = delete;
+    ScopedMaskInterner& operator=(const ScopedMaskInterner&) = delete;
+
+private:
+    Game& game_;
+    std::unique_ptr<MaskInternTable> table_;
+};
+
 MaskOffset storeMaskWords(Game& game, const MaskVector& words);
-void clearMaskInternScratch(Game& game);
 
 struct Scratch {
     MaskVector liveMovements;

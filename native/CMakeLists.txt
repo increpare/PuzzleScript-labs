@@ -831,6 +831,27 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(compiler_mask_interning
+  tests/compiler_mask_interning.cpp
+)
+
+target_link_libraries(compiler_mask_interning
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_mask_interning
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_mask_interning
+  COMMAND compiler_mask_interning
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 add_executable(compiler_row_any_masks
   tests/compiler_row_any_masks.cpp
 )

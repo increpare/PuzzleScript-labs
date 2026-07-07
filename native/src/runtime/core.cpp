@@ -12,6 +12,7 @@
 #include <numeric>
 #include <sstream>
 #include <thread>
+#include <unordered_map>
 
 #include "simdjson.h" // vendored; will replace puzzlescript::json in Task 4
 #include "runtime/compiled_rules.hpp"
@@ -991,14 +992,6 @@ std::vector<int32_t> objectIdsFromMask(const MaskVector& words, int32_t objectCo
         }
     }
     return ids;
-}
-
-// Append `game.wordCount` zero words and return the offset. Used for fields
-// that are absent in the IR and need an all-zero mask at the arena's width.
-[[maybe_unused]] MaskOffset storeZeroMask(Game& game) {
-    MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), game.wordCount, 0);
-    return offset;
 }
 
 [[maybe_unused]] inline MaskRef maskAt(const Game& game, MaskOffset offset) {
@@ -6407,6 +6400,7 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         const auto& gameObject = gameValue.asObject();
 
         auto game = std::make_shared<Game>();
+        ScopedMaskInterner maskInterner(*game);
         game->schemaVersion = toInt(requireField(rootObject, "schema_version"));
 
         const auto& strides = requireField(gameObject, "strides").asObject();
@@ -6600,7 +6594,6 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         if (sourceHash.has_value()) {
             attachLinkedCompiledRules(*game, *sourceHash);
         }
-        clearMaskInternScratch(*game);
         outGame.information = std::move(game);
         return nullptr;
     } catch (const std::exception& error) {
@@ -7835,36 +7828,101 @@ ps_runtime_counters snapshotRuntimeCounters() {
 
 namespace {
 
-std::string maskInternKey(const MaskVector& words) {
+std::string maskInternKey(const MaskWord* words, size_t wordCount) {
     std::string key;
-    const uint32_t width = static_cast<uint32_t>(words.size());
-    key.reserve(sizeof(width) + words.size() * sizeof(MaskWord));
-    key.append(reinterpret_cast<const char*>(&width), sizeof(width));
-    for (MaskWord word : words) {
-        key.append(reinterpret_cast<const char*>(&word), sizeof(word));
+    const uint32_t width = static_cast<uint32_t>(wordCount);
+    key.resize(sizeof(width) + wordCount * sizeof(MaskWord));
+    std::memcpy(key.data(), &width, sizeof(width));
+    if (wordCount > 0) {
+        std::memcpy(key.data() + sizeof(width), words, wordCount * sizeof(MaskWord));
     }
     return key;
 }
 
+MaskInternTable* activeMaskInternTable(Game& game);
+
 } // namespace
 
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    if (words.empty()) {
-        return kNullMaskOffset;
+struct MaskInternTable {
+    Game* game = nullptr;
+    MaskInternTable* previous = nullptr;
+    std::unordered_map<std::string, MaskOffset> offsets;
+};
+
+namespace {
+
+thread_local MaskInternTable* gActiveMaskInternTable = nullptr;
+
+void seedMaskInternWidth(Game& game, MaskInternTable& table, uint32_t wordCount) {
+    if (wordCount == 0) {
+        return;
     }
-    const std::string key = maskInternKey(words);
-    if (const auto existing = game.maskInternScratch.find(key); existing != game.maskInternScratch.end()) {
-        return existing->second;
+    const size_t width = static_cast<size_t>(wordCount);
+    if (game.maskArena.size() < width) {
+        return;
     }
-    const MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    game.maskInternScratch.emplace(key, offset);
-    return offset;
+    for (size_t offset = 0; offset + width <= game.maskArena.size(); ++offset) {
+        table.offsets.try_emplace(
+            maskInternKey(game.maskArena.data() + offset, width),
+            static_cast<MaskOffset>(offset)
+        );
+    }
 }
 
-void clearMaskInternScratch(Game& game) {
-    game.maskInternScratch.clear();
-    game.maskInternScratch.rehash(0);
+MaskInternTable* activeMaskInternTable(Game& game) {
+    for (MaskInternTable* table = gActiveMaskInternTable; table != nullptr; table = table->previous) {
+        if (table->game == &game) {
+            return table;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+ScopedMaskInterner::ScopedMaskInterner(Game& game, MaskInternSeed seed)
+    : game_(game),
+      table_(std::make_unique<MaskInternTable>()) {
+    table_->game = &game_;
+    table_->previous = gActiveMaskInternTable;
+    gActiveMaskInternTable = table_.get();
+
+    if (seed == MaskInternSeed::ExistingArena) {
+        seedMaskInternWidth(game_, *table_, game_.wordCount);
+        if (game_.movementWordCount != game_.wordCount) {
+            seedMaskInternWidth(game_, *table_, game_.movementWordCount);
+        }
+    }
+}
+
+ScopedMaskInterner::~ScopedMaskInterner() {
+    if (gActiveMaskInternTable == table_.get()) {
+        gActiveMaskInternTable = table_->previous;
+        return;
+    }
+    for (MaskInternTable* table = gActiveMaskInternTable; table != nullptr; table = table->previous) {
+        if (table->previous == table_.get()) {
+            table->previous = table_->previous;
+            return;
+        }
+    }
+}
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
+    const MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
+    MaskInternTable* table = activeMaskInternTable(game);
+    if (table == nullptr) {
+        game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+        return offset;
+    }
+
+    std::string key = maskInternKey(words.data(), words.size());
+    if (const auto existing = table->offsets.find(key); existing != table->offsets.end()) {
+        return existing->second;
+    }
+    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+    table->offsets.emplace(std::move(key), offset);
+    return offset;
 }
 
 } // namespace puzzlescript

@@ -296,6 +296,7 @@ std::vector<SupplementalGlyph> ensureSupplementalGlyphs(Game& game, const LevelT
 
     std::vector<SupplementalGlyph> added;
     added.reserve(missingMasks.size());
+    ScopedMaskInterner maskInterner(game, MaskInternSeed::ExistingArena);
     for (const MaskVector& mask : missingMasks) {
         const std::vector<int32_t> objectIds = objectIdsInMask(game, mask);
         if (objectIds.empty()) {

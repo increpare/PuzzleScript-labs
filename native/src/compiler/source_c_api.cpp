@@ -11,7 +11,6 @@
 
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
-#include "compiler/parser_glyphs.hpp"
 
 #include "puzzlescript/compiler.h"
 #include "puzzlescript/puzzlescript.h"
@@ -47,7 +46,6 @@ bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_r
             return false;
         }
         if (loadedGame.information) {
-            puzzlescript::compiler::publishParserGlyphs(*std::const_pointer_cast<Game>(loadedGame.information), state);
             puzzlescript::attachLinkedCompiledRules(
                 *std::const_pointer_cast<Game>(loadedGame.information),
                 source_utf8 == nullptr ? std::string_view{} : std::string_view(source_utf8, source_size)

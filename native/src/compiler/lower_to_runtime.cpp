@@ -13,6 +13,7 @@
 
 #include <utf8proc.h>
 
+#include "compiler/parser_glyphs.hpp"
 #include "compiler/rule_text.hpp"
 
 namespace puzzlescript::compiler {
@@ -693,6 +694,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     std::vector<SemanticRule>* outAuthoredRules
 ) {
     auto game = std::make_shared<puzzlescript::Game>();
+    puzzlescript::ScopedMaskInterner maskInterner(*game);
     puzzlescript::MetaGameState initialMetaGameState;
     game->schemaVersion = 1;
 
@@ -5150,7 +5152,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         game->hasStaticAnalysisExtraMovementMentionedObjects = true;
     }
 
-    puzzlescript::clearMaskInternScratch(*game);
+    publishParserGlyphs(*game, state);
     outGame.information = std::move(game);
     outGame.initialMetaGameState = std::move(initialMetaGameState);
     return nullptr;
