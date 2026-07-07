@@ -281,6 +281,33 @@ function sectionSvg(params) {
     return out.join("\n");
 }
 
+function printSheetSvg(params) {
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">'];
+    out.push(GRID_DEF);
+    out.push(svgText(24, 10, 4.2, params.name +
+        " — blockout 1:1. Print at 100% scale, A4 landscape.", "start"));
+    out.push('<g stroke="#000" stroke-width="0.3">');
+    out.push('<line x1="162" y1="14" x2="262" y2="14"/>');
+    for (var t = 0; t <= 100; t += 10) {
+        var tick = (t % 50 === 0) ? 3 : 1.5;
+        out.push('<line x1="' + (162 + t) + '" y1="' + (14 - tick) + '" x2="' + (162 + t) +
+            '" y2="' + (14 + tick) + '"/>');
+    }
+    out.push("</g>");
+    out.push(svgText(212, 9.5, 3.2, "calibration: this bar must measure exactly 100 mm"));
+    out.push('<g transform="translate(24,40)">' + faceGroupSvg(params, { grid: true, overlays: true }) + "</g>");
+    out.push('<g transform="translate(160,45)">' + topEdgeGroupSvg(params) + "</g>");
+    out.push('<g transform="translate(160,75)">' + rightEdgeGroupSvg(params) + "</g>");
+    out.push('<g transform="translate(160,105)">' + sectionGroupSvg(params) + "</g>");
+    var warnings = spacingWarnings(params);
+    out.push(svgText(160, 135, 3.2, "open geometry warnings (spec risks, expected):", "start"));
+    warnings.forEach(function (w, i) {
+        out.push(svgText(160, 140 + i * 4.5, 2.8, "- " + w, "start"));
+    });
+    out.push("</svg>");
+    return out.join("\n");
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         BLOCKOUT_PRESETS: BLOCKOUT_PRESETS,
@@ -294,6 +321,7 @@ if (typeof module !== "undefined" && module.exports) {
         spacingWarnings: spacingWarnings,
         faceSvg: faceSvg,
         edgesSvg: edgesSvg,
-        sectionSvg: sectionSvg
+        sectionSvg: sectionSvg,
+        printSheetSvg: printSheetSvg
     };
 }

@@ -128,4 +128,18 @@ test("sectionSvg layer heights sum to the body depth", function () {
     assert.ok(svg.indexOf('height="9"') !== -1, "9 mm slab");
 });
 
+test("printSheetSvg is A4 landscape 1:1 with calibration bar", function () {
+    var svg = B.printSheetSvg(B.BLOCKOUT_PRESETS.card);
+    assert.ok(svg.indexOf('width="297mm" height="210mm" viewBox="0 0 297 210"') !== -1, "A4 1:1");
+    assert.ok(svg.indexOf('x1="162" y1="14" x2="262" y2="14"') !== -1, "100 mm bar");
+    assert.ok(svg.indexOf("exactly 100 mm") !== -1);
+    assert.ok(svg.indexOf('translate(24,40)') !== -1, "face placed");
+    assert.ok(svg.indexOf('translate(160,45)') !== -1, "top edge placed");
+});
+
+test("printSheetSvg lists the current spacing warnings", function () {
+    var svg = B.printSheetSvg(B.BLOCKOUT_PRESETS.card);
+    assert.ok(svg.indexOf("D-PAD-MENU gap 0.5 mm") !== -1, "warnings printed on sheet");
+});
+
 console.log(passed + " tests passed");
