@@ -153,6 +153,134 @@ function spacingWarnings(params) {
     return warnings;
 }
 
+var GRID_DEF = '<defs><pattern id="grid10" width="10" height="10" patternUnits="userSpaceOnUse">' +
+    '<path d="M 10 0 L 0 0 L 0 10" fill="none" stroke="#c8c8c8" stroke-width="0.12"/></pattern></defs>';
+
+function svgRect(x, y, w, h, r, stroke, fill, dash) {
+    return '<rect x="' + fmt(x) + '" y="' + fmt(y) + '" width="' + fmt(w) + '" height="' + fmt(h) +
+        '" rx="' + fmt(r) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="0.4"' +
+        (dash ? ' stroke-dasharray="2,1.5"' : "") + "/>";
+}
+
+function svgText(x, y, size, s, anchor) {
+    return '<text x="' + fmt(x) + '" y="' + fmt(y) + '" font-size="' + size +
+        '" font-family="sans-serif" fill="#444" text-anchor="' + (anchor || "middle") + '">' + s + "</text>";
+}
+
+function crosshair(cx, cy) {
+    return '<path d="M ' + fmt(cx - 2.5) + " " + fmt(cy) + " H " + fmt(cx + 2.5) +
+        " M " + fmt(cx) + " " + fmt(cy - 2.5) + " V " + fmt(cy + 2.5) +
+        '" stroke="#000" stroke-width="0.2" fill="none"/>';
+}
+
+function faceGroupSvg(params, opts) {
+    var b = params.body, s = params.screen;
+    var out = [svgRect(0, 0, b.w, b.h, b.r, "#000", opts.grid ? "url(#grid10)" : "none")];
+    out.push(svgRect(s.moduleX, s.moduleY, s.moduleW, s.moduleH, 1, "#999", "none", true));
+    out.push(svgRect(s.activeX, s.activeY, s.activeW, s.activeH, 0, "#000", "none"));
+    out.push('<line x1="0" y1="' + fmt(params.band.y0) + '" x2="' + fmt(b.w) + '" y2="' +
+        fmt(params.band.y0) + '" stroke="#999" stroke-width="0.2" stroke-dasharray="1.5,1.5"/>');
+    var d = params.dpad;
+    out.push(svgRect(d.cx - d.size / 2, d.cy - d.arm / 2, d.size, d.arm, 1.5, "#000", "none"));
+    out.push(svgRect(d.cx - d.arm / 2, d.cy - d.size / 2, d.arm, d.size, 1.5, "#000", "none"));
+    out.push(crosshair(d.cx, d.cy));
+    params.buttons.forEach(function (btn) {
+        out.push('<circle cx="' + fmt(btn.cx) + '" cy="' + fmt(btn.cy) + '" r="' + fmt(btn.d / 2) +
+            '" fill="none" stroke="#000" stroke-width="0.4"/>');
+        out.push(crosshair(btn.cx, btn.cy));
+        out.push(svgText(btn.cx, btn.cy + btn.d / 2 + 3, 2.4, btn.label + " Ø" + fmt(btn.d)));
+    });
+    var m = params.menu;
+    out.push('<g transform="rotate(' + fmt(m.angle) + " " + fmt(m.cx) + " " + fmt(m.cy) + ')">' +
+        svgRect(m.cx - m.w / 2, m.cy - m.h / 2, m.w, m.h, m.h / 2, "#000", "none") + "</g>");
+    var g = params.grille;
+    for (var gy = -2; gy <= 2; gy++) {
+        for (var gx = -2; gx <= 2; gx++) {
+            out.push('<circle cx="' + fmt(g.cx + gx * 2) + '" cy="' + fmt(g.cy + gy * 2) +
+                '" r="0.4" fill="none" stroke="#000" stroke-width="0.2"/>');
+        }
+    }
+    if (opts.overlays) {
+        params.zones.forEach(function (z) {
+            out.push(svgRect(z.x, z.y, z.w, z.h, 1.5, "#c77", "none", true));
+            out.push(svgText(z.x + z.w / 2, z.y + z.h / 2 + 1, 2.4, z.label));
+        });
+    }
+    return out.join("\n");
+}
+
+function topEdgeGroupSvg(params) {
+    var b = params.body, t = params.topEdge;
+    var out = [svgRect(0, 0, b.w, b.depth, 3, "#000", "none")];
+    out.push(svgRect(t.usbX - 4.5, (b.depth - 3.2) / 2, 9, 3.2, 1.6, "#000", "none"));
+    out.push(svgText(t.usbX, -1.5, 2.4, "USB-C"));
+    out.push(svgRect(t.pwrX - 5, (b.depth - 3) / 2, 10, 3, 1.5, "#000", "none"));
+    out.push(svgText(t.pwrX, -1.5, 2.4, "PWR"));
+    if (t.fpcKeepOut) {
+        for (var i = 0; i < 2; i++) {
+            out.push('<line x1="' + fmt(t.fpcKeepOut[i]) + '" y1="1" x2="' + fmt(t.fpcKeepOut[i]) +
+                '" y2="' + fmt(b.depth - 1) + '" stroke="#999" stroke-width="0.25" stroke-dasharray="1.5,1.5"/>');
+        }
+        out.push(svgText((t.fpcKeepOut[0] + t.fpcKeepOut[1]) / 2, -1.5, 2.4, "FPC keep-out"));
+    }
+    out.push(svgText(0, b.depth + 4, 2.2, "top edge", "start"));
+    return out.join("\n");
+}
+
+function rightEdgeGroupSvg(params) {
+    var b = params.body, e = params.rightEdge;
+    var out = [svgRect(0, 0, b.h, b.depth, 3, "#000", "none")];
+    out.push(svgRect(e.volY - 9, (b.depth - 3) / 2, 18, 3, 1.5, "#000", "none"));
+    out.push(svgText(e.volY, -1.5, 2.4, "VOL -/+"));
+    out.push(svgText(0, b.depth + 4, 2.2, "right edge (device top at left)", "start"));
+    return out.join("\n");
+}
+
+function sectionGroupSvg(params) {
+    // Z-stack side section, 1:1. X spans the card; Y is the 9 mm thickness.
+    var b = params.body;
+    var layers = [
+        { y: 0, h: 1.8, label: "front shell + lens 1.8" },
+        { y: 1.8, h: 1.0, label: "clearance 1.0" },
+        { y: 2.8, h: 4.0, label: "components on PCB face: battery 4.0 / panel 2.5" },
+        { y: 6.8, h: 1.2, label: "PCB 1.2" },
+        { y: 8.0, h: 1.0, label: "rear shell 1.0" }
+    ];
+    var out = [svgRect(0, 0, b.w, b.depth, 2, "#000", "none")];
+    layers.forEach(function (l) {
+        out.push('<line x1="0" y1="' + fmt(l.y) + '" x2="' + fmt(b.w) + '" y2="' + fmt(l.y) +
+            '" stroke="#888" stroke-width="0.15"/>');
+        out.push(svgText(b.w + 3, l.y + l.h / 2 + 0.9, 2.2, l.label, "start"));
+    });
+    out.push(svgText(0, b.depth + 4, 2.2, "Z-stack section, 1:1", "start"));
+    return out.join("\n");
+}
+
+function faceSvg(params, opts) {
+    opts = opts || {};
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + fmt(124 * (opts.scale || 4)) +
+        '" viewBox="-12 -12 124 124">'];
+    out.push(GRID_DEF);
+    out.push(faceGroupSvg(params, opts));
+    out.push("</svg>");
+    return out.join("\n");
+}
+
+function edgesSvg(params) {
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="496" viewBox="-12 -8 124 52">'];
+    out.push(topEdgeGroupSvg(params));
+    out.push('<g transform="translate(0,26)">' + rightEdgeGroupSvg(params) + "</g>");
+    out.push("</svg>");
+    return out.join("\n");
+}
+
+function sectionSvg(params) {
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="600" viewBox="-12 -6 150 24">'];
+    out.push(sectionGroupSvg(params));
+    out.push("</svg>");
+    return out.join("\n");
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         BLOCKOUT_PRESETS: BLOCKOUT_PRESETS,
@@ -163,6 +291,9 @@ if (typeof module !== "undefined" && module.exports) {
         circleGap: circleGap,
         rectCircleClearance: rectCircleClearance,
         rectRectOverlap: rectRectOverlap,
-        spacingWarnings: spacingWarnings
+        spacingWarnings: spacingWarnings,
+        faceSvg: faceSvg,
+        edgesSvg: edgesSvg,
+        sectionSvg: sectionSvg
     };
 }

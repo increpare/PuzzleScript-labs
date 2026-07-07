@@ -90,4 +90,42 @@ test("crowding the cluster produces a gap warning", function () {
         JSON.stringify(w));
 });
 
+test("faceSvg draws body, active area, module, and d-pad at spec coordinates", function () {
+    var svg = B.faceSvg(B.BLOCKOUT_PRESETS.card, { grid: true });
+    assert.ok(svg.indexOf('viewBox="-12 -12 124 124"') !== -1, "viewBox");
+    assert.ok(svg.indexOf('x="6.8" y="7" width="86.4" height="51.8"') !== -1, "active area");
+    assert.ok(svg.indexOf('x="4" y="3.5" width="92" height="59"') !== -1, "module outline");
+    assert.ok(svg.indexOf('x="9" y="71.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
+    assert.ok(svg.indexOf('rotate(-20 22 95)') !== -1, "menu tilt");
+    assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
+});
+
+test("faceSvg draws the 5x5 grille", function () {
+    var svg = B.faceSvg(B.BLOCKOUT_PRESETS.card, {});
+    var count = svg.split('r="0.4"').length - 1;
+    assert.strictEqual(count, 25, "25 grille dots");
+});
+
+test("faceSvg overlays draw internal zones only when asked", function () {
+    var withO = B.faceSvg(B.BLOCKOUT_PRESETS.card, { overlays: true });
+    assert.ok(withO.indexOf("battery 2.5Wh") !== -1);
+    var withoutO = B.faceSvg(B.BLOCKOUT_PRESETS.card, {});
+    assert.strictEqual(withoutO.indexOf("battery 2.5Wh"), -1);
+});
+
+test("edgesSvg draws USB-C, power, FPC keep-out, and volume", function () {
+    var svg = B.edgesSvg(B.BLOCKOUT_PRESETS.card);
+    assert.ok(svg.indexOf("USB-C") !== -1);
+    assert.ok(svg.indexOf("PWR") !== -1);
+    assert.ok(svg.indexOf("FPC") !== -1);
+    assert.ok(svg.indexOf("VOL") !== -1);
+});
+
+test("sectionSvg layer heights sum to the body depth", function () {
+    var svg = B.sectionSvg(B.BLOCKOUT_PRESETS.card);
+    assert.ok(svg.indexOf("front shell + lens 1.8") !== -1);
+    assert.ok(svg.indexOf("rear shell 1.0") !== -1);
+    assert.ok(svg.indexOf('height="9"') !== -1, "9 mm slab");
+});
+
 console.log(passed + " tests passed");
