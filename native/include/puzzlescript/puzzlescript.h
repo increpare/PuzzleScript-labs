@@ -203,6 +203,32 @@ typedef struct ps_runtime_counters {
     uint64_t movement_anchor_runtime_mask_builds;
 } ps_runtime_counters;
 
+typedef struct ps_game_layout_info {
+    int32_t object_count;
+    int32_t layer_count;
+    uint32_t word_count;
+    int32_t stride_object;
+    int32_t stride_movement;
+    uint64_t mask_arena_words;
+    uint64_t mask_arena_bytes;
+    uint64_t rule_count;
+    uint64_t late_rule_count;
+    uint64_t mask_slot_count;
+    uint64_t unique_mask_count;
+    double mask_arena_utilization;
+    uint64_t mask_reference_span_words;
+    double mask_reference_span_ratio;
+    int32_t first_board_level_index;
+    int32_t first_board_width;
+    int32_t first_board_height;
+    uint64_t board_objects_bytes;
+} ps_game_layout_info;
+
+typedef struct ps_locality_survey_info {
+    uint64_t mask_arena_accesses;
+    uint64_t mask_arena_unique_cache_lines;
+} ps_locality_survey_info;
+
 bool ps_load_ir_json(const char* json_utf8, size_t json_size, ps_game** out_game, ps_error** out_error);
 bool ps_game_clone(const ps_game* game, ps_game** out_game, ps_error** out_error);
 
@@ -287,6 +313,19 @@ int32_t ps_game_legend_count(const ps_game* game, ps_legend_kind kind);
 const char* ps_game_legend_name(const ps_game* game, ps_legend_kind kind, int32_t legend_index);
 size_t ps_game_legend_object_ids(const ps_game* game, ps_legend_kind kind, int32_t legend_index, int32_t* output, size_t capacity);
 uint32_t ps_game_word_count(const ps_game* game);
+int32_t ps_game_stride_object(const ps_game* game);
+int32_t ps_game_stride_movement(const ps_game* game);
+uint64_t ps_game_mask_arena_words(const ps_game* game);
+uint64_t ps_game_mask_arena_bytes(const ps_game* game);
+uint64_t ps_game_rule_count(const ps_game* game);
+uint64_t ps_game_late_rule_count(const ps_game* game);
+uint64_t ps_game_unique_mask_count(const ps_game* game);
+double ps_game_mask_arena_utilization(const ps_game* game);
+double ps_game_mask_reference_span_ratio(const ps_game* game);
+bool ps_game_layout_metrics(const ps_game* game, ps_game_layout_info* out_info);
+void ps_locality_survey_set_enabled(bool enabled);
+void ps_locality_survey_reset(void);
+bool ps_locality_survey_snapshot(ps_locality_survey_info* out_info);
 const char* ps_game_foreground_color(const ps_game* game);
 const char* ps_game_background_color(const ps_game* game);
 bool ps_game_has_metadata(const ps_game* game, const char* key_utf8);

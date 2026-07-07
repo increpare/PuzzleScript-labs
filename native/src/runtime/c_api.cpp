@@ -1,6 +1,8 @@
 #include "runtime/core.hpp"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/c_api_internal.hpp"
+#include "runtime/layout_metrics.hpp"
+#include "runtime/locality_survey.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -852,6 +854,109 @@ size_t ps_game_legend_object_ids(const ps_game* game, ps_legend_kind kind, int32
 
 uint32_t ps_game_word_count(const ps_game* game) {
     return game && game->impl.information ? game->impl.information->wordCount : 0;
+}
+
+int32_t ps_game_stride_object(const ps_game* game) {
+    return game && game->impl.information ? game->impl.information->strideObject : 0;
+}
+
+int32_t ps_game_stride_movement(const ps_game* game) {
+    return game && game->impl.information ? game->impl.information->strideMovement : 0;
+}
+
+uint64_t ps_game_mask_arena_words(const ps_game* game) {
+    return game && game->impl.information ? game->impl.information->maskArena.size() : 0;
+}
+
+uint64_t ps_game_mask_arena_bytes(const ps_game* game) {
+    return game && game->impl.information
+        ? game->impl.information->maskArena.size() * sizeof(puzzlescript::MaskWord)
+        : 0;
+}
+
+static uint64_t countRuleGroups(const std::vector<std::vector<puzzlescript::Rule>>& groups) {
+    uint64_t count = 0;
+    for (const std::vector<puzzlescript::Rule>& group : groups) {
+        count += group.size();
+    }
+    return count;
+}
+
+uint64_t ps_game_rule_count(const ps_game* game) {
+    return game && game->impl.information ? countRuleGroups(game->impl.information->rules) : 0;
+}
+
+uint64_t ps_game_late_rule_count(const ps_game* game) {
+    return game && game->impl.information ? countRuleGroups(game->impl.information->lateRules) : 0;
+}
+
+uint64_t ps_game_unique_mask_count(const ps_game* game) {
+    if (!game || !game->impl.information) {
+        return 0;
+    }
+    return computeGameLayoutMetrics(*game->impl.information).uniqueMaskCount;
+}
+
+double ps_game_mask_arena_utilization(const ps_game* game) {
+    if (!game || !game->impl.information) {
+        return 0.0;
+    }
+    return computeGameLayoutMetrics(*game->impl.information).maskArenaUtilization;
+}
+
+double ps_game_mask_reference_span_ratio(const ps_game* game) {
+    if (!game || !game->impl.information) {
+        return 0.0;
+    }
+    return computeGameLayoutMetrics(*game->impl.information).maskReferenceSpanRatio;
+}
+
+bool ps_game_layout_metrics(const ps_game* game, ps_game_layout_info* out_info) {
+    if (!out_info) {
+        return false;
+    }
+    *out_info = ps_game_layout_info{};
+    if (!game || !game->impl.information) {
+        return false;
+    }
+    const puzzlescript::GameLayoutMetrics metrics = computeGameLayoutMetrics(*game->impl.information);
+    out_info->object_count = metrics.objectCount;
+    out_info->layer_count = metrics.layerCount;
+    out_info->word_count = metrics.wordCount;
+    out_info->stride_object = metrics.strideObject;
+    out_info->stride_movement = metrics.strideMovement;
+    out_info->mask_arena_words = metrics.maskArenaWords;
+    out_info->mask_arena_bytes = metrics.maskArenaBytes;
+    out_info->rule_count = metrics.ruleCount;
+    out_info->late_rule_count = metrics.lateRuleCount;
+    out_info->mask_slot_count = metrics.maskSlotCount;
+    out_info->unique_mask_count = metrics.uniqueMaskCount;
+    out_info->mask_arena_utilization = metrics.maskArenaUtilization;
+    out_info->mask_reference_span_words = metrics.maskReferenceSpanWords;
+    out_info->mask_reference_span_ratio = metrics.maskReferenceSpanRatio;
+    out_info->first_board_level_index = metrics.firstBoardLevelIndex;
+    out_info->first_board_width = metrics.firstBoardWidth;
+    out_info->first_board_height = metrics.firstBoardHeight;
+    out_info->board_objects_bytes = metrics.boardObjectsBytes;
+    return true;
+}
+
+void ps_locality_survey_set_enabled(bool enabled) {
+    puzzlescript::setLocalitySurveyEnabled(enabled);
+}
+
+void ps_locality_survey_reset(void) {
+    puzzlescript::resetLocalitySurvey();
+}
+
+bool ps_locality_survey_snapshot(ps_locality_survey_info* out_info) {
+    if (!out_info) {
+        return false;
+    }
+    const puzzlescript::LocalitySurveySnapshot snapshot = puzzlescript::snapshotLocalitySurvey();
+    out_info->mask_arena_accesses = snapshot.maskArenaAccesses;
+    out_info->mask_arena_unique_cache_lines = snapshot.maskArenaUniqueCacheLines;
+    return true;
 }
 
 const char* ps_game_foreground_color(const ps_game* game) {

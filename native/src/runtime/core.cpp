@@ -1039,6 +1039,7 @@ inline bool arenaAnyBitsSet(const Game& game, MaskOffset offset, uint32_t wordCo
     if (offset == kNullMaskOffset) return false;
     const MaskWord* data = game.maskArena.data() + offset;
     for (uint32_t w = 0; w < wordCount; ++w) {
+        recordMaskArenaAccess(data + w);
         if (data[w] != 0) return true;
     }
     return false;
@@ -1047,7 +1048,10 @@ inline bool arenaAnyBitsSet(const Game& game, MaskOffset offset, uint32_t wordCo
 // Return a raw pointer to the first word of an arena-stored mask, or nullptr
 // if the offset is null.
 inline const MaskWord* maskPtr(const Game& game, MaskOffset offset) {
-    return offset == kNullMaskOffset ? nullptr : game.maskArena.data() + offset;
+    if (offset == kNullMaskOffset) return nullptr;
+    const MaskWord* ptr = game.maskArena.data() + offset;
+    recordMaskArenaAccess(ptr);
+    return ptr;
 }
 
 // Binary-search a sorted NamedMaskEntry table by name. Returns

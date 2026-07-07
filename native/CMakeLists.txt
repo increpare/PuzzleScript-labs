@@ -92,6 +92,8 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/core.cpp
   src/runtime/hash.cpp
   src/runtime/json.cpp
+  src/runtime/layout_metrics.cpp
+  src/runtime/locality_survey.cpp
   src/runtime/simd.cpp
   src/search/difficulty.cpp
   src/search/simplify.cpp
@@ -515,6 +517,12 @@ add_test(
 )
 set_tests_properties(handheld_report_cli_corpus_ndjson
   PROPERTIES PASS_REGULAR_EXPRESSION "\"summary\".*\"game_count\":1.*\"compiled_games\":1.*\"games\""
+)
+
+add_test(
+  NAME puzzlescript_cpp_layout_smoke
+  COMMAND /bin/sh -c "$<TARGET_FILE:puzzlescript_cpp> layout ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_smoke_tests/push_goal.txt | grep -q '\"mask_arena_bytes\"'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
 add_executable(compiler_keyword_names

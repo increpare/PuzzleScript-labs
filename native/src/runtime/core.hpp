@@ -12,6 +12,7 @@
 
 #include "runtime/hash.hpp"
 #include "runtime/json.hpp"
+#include "runtime/locality_survey.hpp"
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/simd.hpp"
 
