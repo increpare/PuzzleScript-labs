@@ -97,6 +97,8 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/core.cpp
   src/runtime/hash.cpp
   src/runtime/json.cpp
+  src/runtime/layout_metrics.cpp
+  src/runtime/locality_survey.cpp
   src/runtime/simd.cpp
   src/search/difficulty.cpp
   src/search/simplify.cpp
@@ -535,6 +537,12 @@ set_tests_properties(handheld_report_cli_corpus_ndjson
   PROPERTIES PASS_REGULAR_EXPRESSION "\"summary\".*\"game_count\":1.*\"compiled_games\":1.*\"games\""
 )
 
+add_test(
+  NAME puzzlescript_cpp_layout_smoke
+  COMMAND /bin/sh -c "$<TARGET_FILE:puzzlescript_cpp> layout ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_smoke_tests/push_goal.txt | grep -q '\"mask_arena_bytes\"'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 add_executable(compiler_keyword_names
   tests/compiler_keyword_names.cpp
 )
@@ -842,6 +850,27 @@ target_include_directories(static_analysis_runtime_ir_extras
 add_test(
   NAME static_analysis_runtime_ir_extras
   COMMAND static_analysis_runtime_ir_extras
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(compiler_mask_interning
+  tests/compiler_mask_interning.cpp
+)
+
+target_link_libraries(compiler_mask_interning
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_mask_interning
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_mask_interning
+  COMMAND compiler_mask_interning
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 

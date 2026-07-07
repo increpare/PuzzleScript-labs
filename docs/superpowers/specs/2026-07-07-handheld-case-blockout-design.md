@@ -166,6 +166,18 @@ directional chevrons) and the Simple Block Pushing Game sprites
 - Speaker grille is a 5x5 hole grid, the PuzzleScript sprite unit.
 - Action, Undo, and Restart caps stay plain; glyph art, if any, is a later
   owner art pass.
+- The PCB is an identity surface, not hidden internals: the translucent shell
+  makes routing, silkscreen, and copper visible product faces. Adopted
+  directions for the Track 2 board (detail design lives with the PCB work,
+  recorded here because the case exposes it): silkscreen sprite art drawn on
+  the 5x5 sprite grid, copper-pour sprite art where the fab allows, test pads
+  labeled with legend characters (`P`, `*`, `@`, `#`, `O`), board regions
+  titled as source sections (`==SOUNDS==` by the amp, `==LEVELS==` by
+  storage, `==RULES==` by the MCU), and the canonical push rule
+  `[ > Player | Crate ] -> [ > Player > Crate ]` silkscreened along a
+  visible trace run.
+- Grip LEDs sit on 5-dot sprite-unit rows where routing allows, so the glow
+  geometry itself is on the sprite grid.
 - No hardware branding gates the wake path. What the software displays
   (cold-boot status screen, library cursor, and all on-screen iconography) is
   the software design's concern, not this spec's.

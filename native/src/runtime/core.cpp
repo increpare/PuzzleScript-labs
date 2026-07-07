@@ -12,6 +12,7 @@
 #include <numeric>
 #include <sstream>
 #include <thread>
+#include <unordered_map>
 
 #include "simdjson.h" // vendored; will replace puzzlescript::json in Task 4
 #include "runtime/compiled_rules.hpp"
@@ -993,25 +994,6 @@ std::vector<int32_t> objectIdsFromMask(const MaskVector& words, int32_t objectCo
     return ids;
 }
 
-// ---- Game mask-arena helpers ----------------------------------------------
-// These append mask words into `game.maskArena` and return the offset (in
-// words) of the first element. Used during IR parsing to replace the old
-// std::vector<int32_t>-per-field layout with a single contiguous arena.
-
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
-}
-
-// Append `game.wordCount` zero words and return the offset. Used for fields
-// that are absent in the IR and need an all-zero mask at the arena's width.
-[[maybe_unused]] MaskOffset storeZeroMask(Game& game) {
-    MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), game.wordCount, 0);
-    return offset;
-}
-
 [[maybe_unused]] inline MaskRef maskAt(const Game& game, MaskOffset offset) {
     return MaskRef{ game.maskArena.data() + offset };
 }
@@ -1050,6 +1032,7 @@ inline bool arenaAnyBitsSet(const Game& game, MaskOffset offset, uint32_t wordCo
     if (offset == kNullMaskOffset) return false;
     const MaskWord* data = game.maskArena.data() + offset;
     for (uint32_t w = 0; w < wordCount; ++w) {
+        recordMaskArenaAccess(data + w);
         if (data[w] != 0) return true;
     }
     return false;
@@ -1058,7 +1041,10 @@ inline bool arenaAnyBitsSet(const Game& game, MaskOffset offset, uint32_t wordCo
 // Return a raw pointer to the first word of an arena-stored mask, or nullptr
 // if the offset is null.
 inline const MaskWord* maskPtr(const Game& game, MaskOffset offset) {
-    return offset == kNullMaskOffset ? nullptr : game.maskArena.data() + offset;
+    if (offset == kNullMaskOffset) return nullptr;
+    const MaskWord* ptr = game.maskArena.data() + offset;
+    recordMaskArenaAccess(ptr);
+    return ptr;
 }
 
 // Binary-search a sorted NamedMaskEntry table by name. Returns
@@ -6439,6 +6425,7 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         const auto& gameObject = gameValue.asObject();
 
         auto game = std::make_shared<Game>();
+        ScopedMaskInterner maskInterner(*game);
         game->schemaVersion = toInt(requireField(rootObject, "schema_version"));
 
         const auto& strides = requireField(gameObject, "strides").asObject();
@@ -7862,6 +7849,105 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.movement_anchor_collections_used = gRuntimeCounters.movementAnchorCollectionsUsed.load(std::memory_order_relaxed);
     counters.movement_anchor_runtime_mask_builds = gRuntimeCounters.movementAnchorRuntimeMaskBuilds.load(std::memory_order_relaxed);
     return counters;
+}
+
+namespace {
+
+std::string maskInternKey(const MaskWord* words, size_t wordCount) {
+    std::string key;
+    const uint32_t width = static_cast<uint32_t>(wordCount);
+    key.resize(sizeof(width) + wordCount * sizeof(MaskWord));
+    std::memcpy(key.data(), &width, sizeof(width));
+    if (wordCount > 0) {
+        std::memcpy(key.data() + sizeof(width), words, wordCount * sizeof(MaskWord));
+    }
+    return key;
+}
+
+MaskInternTable* activeMaskInternTable(Game& game);
+
+} // namespace
+
+struct MaskInternTable {
+    Game* game = nullptr;
+    MaskInternTable* previous = nullptr;
+    std::unordered_map<std::string, MaskOffset> offsets;
+};
+
+namespace {
+
+thread_local MaskInternTable* gActiveMaskInternTable = nullptr;
+
+void seedMaskInternWidth(Game& game, MaskInternTable& table, uint32_t wordCount) {
+    if (wordCount == 0) {
+        return;
+    }
+    const size_t width = static_cast<size_t>(wordCount);
+    if (game.maskArena.size() < width) {
+        return;
+    }
+    for (size_t offset = 0; offset + width <= game.maskArena.size(); ++offset) {
+        table.offsets.try_emplace(
+            maskInternKey(game.maskArena.data() + offset, width),
+            static_cast<MaskOffset>(offset)
+        );
+    }
+}
+
+MaskInternTable* activeMaskInternTable(Game& game) {
+    for (MaskInternTable* table = gActiveMaskInternTable; table != nullptr; table = table->previous) {
+        if (table->game == &game) {
+            return table;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+ScopedMaskInterner::ScopedMaskInterner(Game& game, MaskInternSeed seed)
+    : game_(game),
+      table_(std::make_unique<MaskInternTable>()) {
+    table_->game = &game_;
+    table_->previous = gActiveMaskInternTable;
+    gActiveMaskInternTable = table_.get();
+
+    if (seed == MaskInternSeed::ExistingArena) {
+        seedMaskInternWidth(game_, *table_, game_.wordCount);
+        if (game_.movementWordCount != game_.wordCount) {
+            seedMaskInternWidth(game_, *table_, game_.movementWordCount);
+        }
+    }
+}
+
+ScopedMaskInterner::~ScopedMaskInterner() {
+    if (gActiveMaskInternTable == table_.get()) {
+        gActiveMaskInternTable = table_->previous;
+        return;
+    }
+    for (MaskInternTable* table = gActiveMaskInternTable; table != nullptr; table = table->previous) {
+        if (table->previous == table_.get()) {
+            table->previous = table_->previous;
+            return;
+        }
+    }
+}
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
+    const MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
+    MaskInternTable* table = activeMaskInternTable(game);
+    if (table == nullptr) {
+        game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+        return offset;
+    }
+
+    std::string key = maskInternKey(words.data(), words.size());
+    if (const auto existing = table->offsets.find(key); existing != table->offsets.end()) {
+        return existing->second;
+    }
+    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+    table->offsets.emplace(std::move(key), offset);
+    return offset;
 }
 
 } // namespace puzzlescript

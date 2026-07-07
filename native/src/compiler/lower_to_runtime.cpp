@@ -13,9 +13,12 @@
 
 #include <utf8proc.h>
 
+#include "compiler/parser_glyphs.hpp"
 #include "compiler/rule_text.hpp"
 
 namespace puzzlescript::compiler {
+
+using puzzlescript::storeMaskWords;
 
 namespace {
 
@@ -30,12 +33,6 @@ std::string toLowerAsciiCopy(std::string_view input) {
 
 uint32_t ceilDivU32(uint32_t a, uint32_t b) {
     return (a + b - 1) / b;
-}
-
-puzzlescript::MaskOffset storeMaskWords(puzzlescript::Game& game, const puzzlescript::MaskVector& words) {
-    const auto offset = static_cast<puzzlescript::MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
 }
 
 puzzlescript::MaskVector makeEmptyMask(uint32_t wordCount) {
@@ -697,6 +694,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     std::vector<SemanticRule>* outAuthoredRules
 ) {
     auto game = std::make_shared<puzzlescript::Game>();
+    puzzlescript::ScopedMaskInterner maskInterner(*game);
     puzzlescript::MetaGameState initialMetaGameState;
     game->schemaVersion = 1;
 
@@ -5159,6 +5157,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         game->hasStaticAnalysisExtraMovementMentionedObjects = true;
     }
 
+    publishParserGlyphs(*game, state);
     outGame.information = std::move(game);
     outGame.initialMetaGameState = std::move(initialMetaGameState);
     return nullptr;

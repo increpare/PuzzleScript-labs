@@ -12,6 +12,7 @@
 
 #include "runtime/hash.hpp"
 #include "runtime/json.hpp"
+#include "runtime/locality_survey.hpp"
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/simd.hpp"
 
@@ -111,6 +112,12 @@ struct MaskMut { MaskWord* data; };
 // "no mask assigned" (used for fields that are optional or vary per pattern).
 using MaskOffset = uint32_t;
 inline constexpr MaskOffset kNullMaskOffset = static_cast<uint32_t>(-1);
+
+struct MaskInternTable;
+enum class MaskInternSeed {
+    Empty,
+    ExistingArena,
+};
 
 struct ObjectDef {
     std::string name;
@@ -531,6 +538,21 @@ struct GameInformation {
 };
 
 using Game = GameInformation;
+
+class ScopedMaskInterner {
+public:
+    explicit ScopedMaskInterner(Game& game, MaskInternSeed seed = MaskInternSeed::Empty);
+    ~ScopedMaskInterner();
+
+    ScopedMaskInterner(const ScopedMaskInterner&) = delete;
+    ScopedMaskInterner& operator=(const ScopedMaskInterner&) = delete;
+
+private:
+    Game& game_;
+    std::unique_ptr<MaskInternTable> table_;
+};
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words);
 
 struct Scratch {
     MaskVector liveMovements;

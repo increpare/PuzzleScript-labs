@@ -520,6 +520,7 @@ if (require.main === module) {
 module.exports = {
     bytesToMb,
     DEFAULT_TIME_EXECUTABLE,
+    loadNdjsonCorpusFile,
     loadNdjsonCorpusText,
     parseClockSeconds,
     parseArgs,

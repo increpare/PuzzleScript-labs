@@ -203,12 +203,6 @@ std::string pickUnusedGlyph(const Game& game) {
     throw std::runtime_error("No unused legend glyph characters remain");
 }
 
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    const auto offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
-}
-
 bool maskVectorsEqual(const MaskVector& lhs, const MaskVector& rhs) {
     if (lhs.size() != rhs.size()) {
         return false;
@@ -302,6 +296,7 @@ std::vector<SupplementalGlyph> ensureSupplementalGlyphs(Game& game, const LevelT
 
     std::vector<SupplementalGlyph> added;
     added.reserve(missingMasks.size());
+    ScopedMaskInterner maskInterner(game, MaskInternSeed::ExistingArena);
     for (const MaskVector& mask : missingMasks) {
         const std::vector<int32_t> objectIds = objectIdsInMask(game, mask);
         if (objectIds.empty()) {

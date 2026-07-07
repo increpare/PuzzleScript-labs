@@ -2,7 +2,6 @@
 
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
-#include "compiler/parser_glyphs.hpp"
 #include "generator/generation_rules.hpp"
 #include "generator/level_rows.hpp"
 #include "generator/templatize.hpp"
@@ -38,7 +37,6 @@ puzzlescript::LoadedGame loadGame(const std::string& source) {
     }
     if (loadedGame.information) {
         puzzlescript::attachLinkedCompiledRules(*std::const_pointer_cast<puzzlescript::Game>(loadedGame.information), source);
-        puzzlescript::compiler::publishParserGlyphs(*std::const_pointer_cast<puzzlescript::Game>(loadedGame.information), state);
     }
     return loadedGame;
 }

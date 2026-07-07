@@ -37,7 +37,6 @@
 #include "compiler/diagnostic.hpp"
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
-#include "compiler/parser_glyphs.hpp"
 #include "generator/block_scheduler.hpp"
 #include "generator/duration_parse.hpp"
 #include "generator/generation_rules.hpp"
@@ -513,7 +512,6 @@ puzzlescript::LoadedGame compileGame(const std::string& source, puzzlescript::co
         throw std::runtime_error(error->message);
     }
     if (loadedGame.information) {
-        puzzlescript::compiler::publishParserGlyphs(*std::const_pointer_cast<Game>(loadedGame.information), state);
         puzzlescript::attachLinkedCompiledRules(*std::const_pointer_cast<Game>(loadedGame.information), source);
     }
     if (outState != nullptr) {

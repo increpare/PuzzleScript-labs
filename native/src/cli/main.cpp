@@ -30,6 +30,8 @@
 #include "compiler/semantic_program.hpp"
 #include "runtime/json.hpp"
 #include "runtime/compiled_rules.hpp"
+#include "runtime/layout_metrics.hpp"
+#include "runtime/locality_survey.hpp"
 #include "puzzlescript/compiler.h"
 #include "puzzlescript/puzzlescript.h"
 
@@ -3495,6 +3497,101 @@ int compilationTestdataCommand(const std::filesystem::path& testdataPath, int ar
     std::cout << "cpp_compilation_tests_direct passed=" << passed << " failed=" << failed
               << " total=" << cases.size() << " elapsed_ms=" << elapsedMs << "\n";
     return failed == 0 ? 0 : 1;
+}
+
+int layoutSourceCommand(const std::string& sourcePath, int argc, char** argv) {
+    bool measureMaskAccess = false;
+    for (int index = 0; index < argc; ++index) {
+        const std::string arg = argv[index];
+        if (arg == "--measure-mask-access") {
+            measureMaskAccess = true;
+        } else {
+            std::cerr << "Unknown layout option: " << arg << "\n";
+            return 1;
+        }
+    }
+
+    ps_game* game = nullptr;
+    if (!loadGameFromSourceFile(sourcePath, &game)) {
+        return 1;
+    }
+
+    puzzlescript::GameLayoutMetrics metrics{};
+    ps_game_layout_info layoutInfo{};
+    if (!ps_game_layout_metrics(game, &layoutInfo)) {
+        std::cerr << "Failed to compute layout metrics for " << sourcePath << "\n";
+        ps_free_game(game);
+        return 1;
+    }
+    metrics.objectCount = layoutInfo.object_count;
+    metrics.layerCount = layoutInfo.layer_count;
+    metrics.wordCount = layoutInfo.word_count;
+    metrics.strideObject = layoutInfo.stride_object;
+    metrics.strideMovement = layoutInfo.stride_movement;
+    metrics.maskArenaWords = layoutInfo.mask_arena_words;
+    metrics.maskArenaBytes = layoutInfo.mask_arena_bytes;
+    metrics.ruleCount = layoutInfo.rule_count;
+    metrics.lateRuleCount = layoutInfo.late_rule_count;
+    metrics.maskSlotCount = layoutInfo.mask_slot_count;
+    metrics.uniqueMaskCount = layoutInfo.unique_mask_count;
+    metrics.maskArenaUtilization = layoutInfo.mask_arena_utilization;
+    metrics.maskReferenceSpanWords = layoutInfo.mask_reference_span_words;
+    metrics.maskReferenceSpanRatio = layoutInfo.mask_reference_span_ratio;
+
+    ps_full_state* rawSession = nullptr;
+    ps_error* rawError = nullptr;
+    if (ps_full_state_create(game, &rawSession, &rawError)) {
+        std::unique_ptr<ps_full_state, decltype(&ps_full_state_destroy)> session(rawSession, ps_full_state_destroy);
+        const int32_t levelCount = ps_game_level_count(game);
+        for (int32_t levelIndex = 0; levelIndex < levelCount; ++levelIndex) {
+            ps_error* loadError = nullptr;
+            if (!ps_full_state_load_level(session.get(), levelIndex, &loadError)) {
+                if (loadError) {
+                    ps_free_error(loadError);
+                }
+                continue;
+            }
+            ps_full_state_status_info status{};
+            ps_full_state_status(session.get(), &status);
+            if (status.text_mode
+                || status.mode == PS_FULL_STATE_MODE_MESSAGE
+                || status.mode == PS_FULL_STATE_MODE_TITLE) {
+                continue;
+            }
+            metrics.firstBoardLevelIndex = levelIndex;
+            metrics.firstBoardWidth = status.width;
+            metrics.firstBoardHeight = status.height;
+            const int64_t tileCount = static_cast<int64_t>(status.width) * static_cast<int64_t>(status.height);
+            metrics.boardObjectsBytes = static_cast<uint64_t>(
+                tileCount * metrics.strideObject * static_cast<int64_t>(sizeof(puzzlescript::MaskWord)));
+            break;
+        }
+
+        if (measureMaskAccess) {
+            ps_locality_survey_reset();
+            ps_locality_survey_set_enabled(true);
+            ps_step_result stepResult = ps_full_state_turn(session.get(), PS_INPUT_ACTION);
+            (void)stepResult;
+            ps_locality_survey_set_enabled(false);
+            ps_locality_survey_info survey{};
+            if (ps_locality_survey_snapshot(&survey)) {
+                std::cout << gameLayoutMetricsJson(metrics, sourcePath, true) << '\n';
+                std::cout
+                    << "locality_survey"
+                    << " mask_arena_accesses=" << survey.mask_arena_accesses
+                    << " mask_arena_unique_cache_lines=" << survey.mask_arena_unique_cache_lines
+                    << '\n';
+                ps_free_game(game);
+                return 0;
+            }
+        }
+    } else if (rawError) {
+        ps_free_error(rawError);
+    }
+
+    std::cout << gameLayoutMetricsJson(metrics, sourcePath, true) << '\n';
+    ps_free_game(game);
+    return 0;
 }
 
 int benchSourceCommand(const std::string& sourcePath, int argc, char** argv) {
@@ -7002,7 +7099,9 @@ void printMainHelp() {
         << "  puzzlescript_cpp test diagnostics-corpus src/tests/resources/errormessage_testdata.js\n"
         << "      Run the C++ compiler directly against the diagnostics corpus.\n"
         << "  puzzlescript_cpp bench game.txt --iterations 10000 --threads 4\n"
-        << "      Benchmark clone/hash/full-state operations for a source game.\n\n"
+        << "      Benchmark clone/hash/full-state operations for a source game.\n"
+        << "  puzzlescript_cpp layout game.txt [--measure-mask-access]\n"
+        << "      Emit structural memory-locality metrics for a compiled game.\n\n"
         << "  puzzlescript_cpp profile-simulations generated-js-parity-data.json --repeat 3\n"
         << "      Run a C++-only replay workload for profiler/hot-function analysis.\n\n"
         << "Project map:\n"
@@ -7194,6 +7293,9 @@ int main(int argc, char** argv) {
         }
         if (command == "bench") {
             return benchSourceCommand(path, argc - 3, argv + 3);
+        }
+        if (command == "layout") {
+            return layoutSourceCommand(path, argc - 3, argv + 3);
         }
         if (command == "compile") {
             return compileSourceCommand(path, argc - 3, argv + 3);

@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -23,7 +23,7 @@
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_regression_tests compact_turn_codegen_dirty_shape compact_turn_perf_regression compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
 	rule_plan_parity_tests \
-	profile_simulation_tests profile_simulation_tests_32 basic_test_suite_cpp basic_test_suite_js \
+	profile_simulation_tests profile_simulation_tests_32 profile_solver_tests locality_survey locality_survey_tests basic_test_suite_cpp basic_test_suite_js \
 	parser_corpus_errormessage_bundle parser_corpus_testdata_bundle clean clean-native \
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data
 
@@ -86,6 +86,8 @@ HANDHELD_TESTDATA_BUNDLE := $(BUILD_DIR)/handheld_testdata.bundle.ndjson
 HANDHELD_REPORT_JSON := $(BUILD_DIR)/handheld_report.json
 HANDHELD_MEMORY_AUDIT_JSON := $(BUILD_DIR)/handheld_memory_audit.json
 HANDHELD_MEMORY_AUDIT_TMP := $(BUILD_DIR)/handheld_memory_audit_sources
+LOCALITY_SURVEY_JSON := $(BUILD_DIR)/locality_survey.json
+LOCALITY_SURVEY_TMP := $(BUILD_DIR)/locality_survey_sources
 HANDHELD_MEMORY_CEILING_MB ?= 32
 HANDHELD_MEMORY_TIME_EXECUTABLE ?= /usr/bin/time
 IDF_PY ?= idf.py
@@ -490,6 +492,8 @@ help:
 	@echo "  make build_simplify                Build build/native/puzzlescript_simplify"
 	@echo "  make handheld_report               Build and write 800x480 handheld report for testdata corpus"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
+	@echo "  make locality_survey               Emit structural memory-locality metrics for handheld + focus games"
+	@echo "  make profile_solver_tests          Profile native solver smoke workload (PROFILE_MODE=counters for PMU)"
 	@echo "  make handheld_p4_probe_build       Build ESP32-P4 Waveshare board-probe firmware"
 	@echo "  make handheld_p4_probe_flash       Flash ESP32-P4 board-probe firmware (set ESP32P4_PORT=/dev/...)"
 	@echo "  make handheld_p4_probe_monitor     Monitor ESP32-P4 board-probe serial logs"
@@ -747,6 +751,22 @@ handheld_memory_audit:
 		--time-executable $(HANDHELD_MEMORY_TIME_EXECUTABLE) \
 		--tmp-dir $(HANDHELD_MEMORY_AUDIT_TMP) \
 		--out $(HANDHELD_MEMORY_AUDIT_JSON)
+
+locality_survey:
+	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
+	$(CMAKE) --build $(BUILD_DIR) --target puzzlescript_cpp
+	$(NODE) scripts/build_parser_corpus_bundle.js testdata > $(HANDHELD_TESTDATA_BUNDLE)
+	$(NODE) scripts/locality_survey.js \
+		--binary $(PUZZLESCRIPT_CPP) \
+		--corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) \
+		--solver-focus-manifest src/tests/solver_focus_group.json \
+		--solver-corpus-dir src/tests/solver_tests \
+		--tmp-dir $(LOCALITY_SURVEY_TMP) \
+		--out $(LOCALITY_SURVEY_JSON)
+	@echo "Wrote $(LOCALITY_SURVEY_JSON)"
+
+locality_survey_tests:
+	$(NODE) src/tests/locality_survey_node.js
 
 handheld_p4_probe_build:
 	cd $(ESP32P4_FIRMWARE_DIR) && $(IDF_PY) set-target esp32p4
@@ -1963,6 +1983,9 @@ compilation_tests: compilation_tests_js compilation_tests_cpp
 
 profile_simulation_tests: build
 	src/tests/profile_native_trace_suite.sh
+
+profile_solver_tests: build_solver
+	PROFILE_WORKLOAD=solver src/tests/profile_native_trace_suite.sh
 
 profile_simulation_tests_32: build_32
 	PUZZLESCRIPT_CPP="$(abspath $(PUZZLESCRIPT_CPP_32))" \
