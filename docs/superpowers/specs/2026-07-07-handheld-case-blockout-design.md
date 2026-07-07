@@ -1,6 +1,10 @@
 # PuzzleScript Handheld Case Blockout Design
 
-Status: approved concept blockout, pre-hardware.
+Status: superseded by
+`docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md` (form
+factor pivot to the compact card). Fan-cluster logic, hardware identity, and
+validation method are inherited there; the 5-inch split-side geometry is
+retired.
 Date: 2026-07-07.
 
 ## Summary
