@@ -45,4 +45,49 @@ test("fmt trims float noise", function () {
     assert.strictEqual(B.fmt(100), "100");
 });
 
+test("circleGap measures edge-to-edge distance", function () {
+    assert.strictEqual(B.circleGap(0, 0, 5, 20, 0, 5), 10);
+});
+
+test("rectCircleClearance measures circle edge to rect edge", function () {
+    assert.strictEqual(B.rectCircleClearance(10, 10, 20, 20, 0, 10, 4), 6);
+    assert.strictEqual(B.rectCircleClearance(10, 10, 20, 20, 15, 15, 4), -4);
+});
+
+test("rectRectOverlap reports minimal penetration depth", function () {
+    assert.strictEqual(B.rectRectOverlap(
+        { x: 0, y: 0, w: 10, h: 10 }, { x: 8, y: 0, w: 10, h: 10 }), 2);
+    assert.strictEqual(B.rectRectOverlap(
+        { x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 10, h: 10 }), 0);
+});
+
+test("card preset reports exactly the spec's known conflicts", function () {
+    assert.deepStrictEqual(B.spacingWarnings(B.BLOCKOUT_PRESETS.card), [
+        "D-PAD-MENU gap 0.5 mm (< 7 mm)",
+        "D-PAD is 4.2 mm from the lens (< 5 mm)",
+        "UNDO switch footprint overlaps the battery 2.5Wh zone",
+        "battery 2.5Wh overlaps speaker by 2.5 mm",
+        "speaker extends 2.5 mm below the control band"
+    ]);
+});
+
+test("shrinking the battery clears the Undo overlap", function () {
+    var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
+    B.setParam(p, "zones.0.w", 24); // battery spans X 38-62, clear of Undo cap edge at 62
+    assert.deepStrictEqual(B.spacingWarnings(p), [
+        "D-PAD-MENU gap 0.5 mm (< 7 mm)",
+        "D-PAD is 4.2 mm from the lens (< 5 mm)",
+        "battery 2.5Wh overlaps speaker by 2.5 mm",
+        "speaker extends 2.5 mm below the control band"
+    ]);
+});
+
+test("crowding the cluster produces a gap warning", function () {
+    var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
+    B.setParam(p, "buttons.1.cx", 76);
+    var w = B.spacingWarnings(p);
+    assert.ok(w.some(function (msg) { return msg.indexOf("ACTION-UNDO gap") === 0; }),
+        JSON.stringify(w));
+});
+
 console.log(passed + " tests passed");
