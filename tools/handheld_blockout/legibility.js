@@ -1,5 +1,8 @@
 "use strict";
 
+var fs = require("fs");
+var path = require("path");
+
 // Legibility-sheet renderer for the PuzzleScript Card spec.
 // Sprites: Simple Block Pushing Game (src/demo/sokoban_basic.txt).
 // Colors: arnecolors palette (src/js/colors.js).
@@ -100,6 +103,60 @@ function renderLevelSvg(rows, cellMm) {
     return { svg: out.join("\n"), w: rows[0].length * cellMm, h: rows.length * cellMm };
 }
 
+function loadFont() {
+    var p = path.join(__dirname, "..", "..", "src", "js", "font.js");
+    var src = fs.readFileSync(p, "utf8");
+    return new Function(src + "\n;return font;")();
+}
+
+// Representative title screen (approximates the engine's 34x13 terminal).
+var TITLE_LINES = [
+    "",
+    "",
+    "",
+    "    simple block pushing game",
+    "",
+    "         by david skinner",
+    "",
+    "       www.puzzlescript.net",
+    "",
+    "",
+    "    arrow keys to move, x to act",
+    "      z to undo, r to restart",
+    ""
+];
+
+function renderTextScreenSvg(lines, cellW, cellH, font) {
+    var cols = 34, rows = 13;
+    var out = ['<rect x="0" y="0" width="' + fmt(cols * cellW) + '" height="' +
+        fmt(rows * cellH) + '" fill="#000000"/>'];
+    var pw = cellW / 5, ph = cellH / 12;
+    for (var r = 0; r < rows; r++) {
+        var line = lines[r] || "";
+        for (var c = 0; c < cols; c++) {
+            var ch = line.charAt(c);
+            if (!ch || ch === " ") {
+                continue;
+            }
+            var glyph = font[ch] || font[ch.toLowerCase()];
+            if (!glyph) {
+                continue;
+            }
+            var g = glyph.trim().split("\n");
+            for (var y = 0; y < g.length; y++) {
+                for (var x = 0; x < 5; x++) {
+                    if (g[y].charAt(x) === "1") {
+                        out.push('<rect x="' + fmt(c * cellW + x * pw) + '" y="' +
+                            fmt(r * cellH + y * ph) + '" width="' + fmt(pw) + '" height="' +
+                            fmt(ph) + '" fill="#ffffff"/>');
+                    }
+                }
+            }
+        }
+    }
+    return { svg: out.join("\n"), w: cols * cellW, h: rows * cellH };
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
         PALETTE: PALETTE,
@@ -108,6 +165,9 @@ if (typeof module !== "undefined" && module.exports) {
         LEVEL_P90: LEVEL_P90,
         LEVEL_MEDIAN: LEVEL_MEDIAN,
         renderLevelSvg: renderLevelSvg,
-        fmt: fmt
+        fmt: fmt,
+        loadFont: loadFont,
+        TITLE_LINES: TITLE_LINES,
+        renderTextScreenSvg: renderTextScreenSvg
     };
 }

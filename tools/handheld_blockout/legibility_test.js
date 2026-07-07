@@ -30,4 +30,25 @@ test("renderLevelSvg emits per-pixel rects at true scale", function () {
     assert.ok(r.svg.indexOf("#1d57f7") !== -1, "player blue");
 });
 
+test("loadFont returns 5x12 bitmap glyphs from src/js/font.js", function () {
+    var font = L.loadFont();
+    var rows = font.a.trim().split("\n");
+    assert.strictEqual(rows.length, 12);
+    assert.strictEqual(rows[0].length, 5);
+});
+
+test("TITLE_LINES fits the 34x13 terminal", function () {
+    assert.strictEqual(L.TITLE_LINES.length, 13);
+    L.TITLE_LINES.forEach(function (line) { assert.ok(line.length <= 34); });
+});
+
+test("renderTextScreenSvg sizes to the 34x13 grid and draws white pixels on black", function () {
+    var font = L.loadFont();
+    var t = L.renderTextScreenSvg(["hi"], 2.541, 3.985, font);
+    assert.ok(Math.abs(t.w - 34 * 2.541) < 1e-9);
+    assert.ok(Math.abs(t.h - 13 * 3.985) < 1e-9);
+    assert.ok(t.svg.indexOf('fill="#000000"') !== -1, "black background");
+    assert.ok(t.svg.indexOf('fill="#ffffff"') !== -1, "white glyph pixels");
+});
+
 console.log(passed + " tests passed");
