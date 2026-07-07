@@ -163,11 +163,13 @@ function caption(x, y, s) {
 }
 
 function legibilitySheetSvg() {
+    // 4.3-inch 800x480: 0.119 mm/px -> 25 px tiles = 2.97 mm; text cells
+    // 95/34 x 54/13 mm. The 5-inch block stays for A/B comparison.
     var font = loadFont();
-    var p90card = renderLevelSvg(LEVEL_P90, 2.7);
+    var p90card = renderLevelSvg(LEVEL_P90, 2.97);
     var p90ref = renderLevelSvg(LEVEL_P90, 3.4);
-    var median = renderLevelSvg(LEVEL_MEDIAN, 5.4);
-    var text = renderTextScreenSvg(TITLE_LINES, 2.541, 3.985, font);
+    var median = renderLevelSvg(LEVEL_MEDIAN, 5.94);
+    var text = renderTextScreenSvg(TITLE_LINES, 2.794, 4.154, font);
     var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">'];
     out.push(caption(18, 10, "PuzzleScript Card legibility sheet — print at 100% scale, " +
         "A4 landscape. View at handheld distance (~35 cm)."));
@@ -180,13 +182,13 @@ function legibilitySheetSvg() {
     }
     out.push("</g>");
     out.push(caption(180, 9.5, "calibration: this bar must measure exactly 100 mm"));
-    out.push(caption(18, 26, "p90 21x17 at 2.7 mm cells (4.0-inch card)"));
+    out.push(caption(18, 26, "p90 21x17 at 3.0 mm cells (4.3-inch card)"));
     out.push('<g transform="translate(18,30)">' + p90card.svg + "</g>");
     out.push(caption(95, 26, "p90 21x17 at 3.4 mm cells (retired 5-inch, comparison)"));
     out.push('<g transform="translate(95,30)">' + p90ref.svg + "</g>");
-    out.push(caption(190, 26, "median 11x9 at 5.4 mm cells (4.0-inch card)"));
+    out.push(caption(190, 26, "median 11x9 at 5.9 mm cells (4.3-inch card)"));
     out.push('<g transform="translate(190,30)">' + median.svg + "</g>");
-    out.push(caption(18, 116, "34x13 text screen, 2.541 x 3.985 mm chars (4.0-inch card)"));
+    out.push(caption(18, 116, "34x13 text screen, 2.794 x 4.154 mm chars (4.3-inch card)"));
     out.push('<g transform="translate(18,120)">' + text.svg + "</g>");
     out.push(caption(18, 182, "levels are density proxies (real Simple Block Pushing Game " +
         "sprites), not solvable puzzles"));

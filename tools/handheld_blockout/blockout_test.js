@@ -5,38 +5,39 @@ var B = require("./blockout.js");
 var passed = 0;
 function test(name, fn) { fn(); passed++; console.log("ok - " + name); }
 
-test("card preset carries the approved spec coordinates", function () {
+test("card preset carries the amended spec coordinates", function () {
     assert.deepStrictEqual(Object.keys(B.BLOCKOUT_PRESETS), ["card"]);
     var c = B.BLOCKOUT_PRESETS.card;
-    assert.strictEqual(c.body.w, 100);
-    assert.strictEqual(c.body.h, 100);
+    assert.strictEqual(c.body.w, 108);
+    assert.strictEqual(c.body.h, 102);
     assert.strictEqual(c.body.r, 9);
     assert.strictEqual(c.body.depth, 9);
-    assert.strictEqual(c.screen.activeX, 6.8);
+    assert.strictEqual(c.screen.activeX, 6.5);
     assert.strictEqual(c.screen.activeY, 7);
-    assert.strictEqual(c.screen.activeW, 86.4);
-    assert.strictEqual(c.screen.activeH, 51.8);
+    assert.strictEqual(c.screen.activeW, 95);
+    assert.strictEqual(c.screen.activeH, 54);
     assert.strictEqual(c.dpad.cx, 22);
-    assert.strictEqual(c.dpad.cy, 76);
+    assert.strictEqual(c.dpad.cy, 78);
     assert.strictEqual(c.dpad.size, 26);
     assert.strictEqual(c.buttons[0].label, "ACTION");
     assert.strictEqual(c.buttons[0].d, 14);
-    assert.strictEqual(c.buttons[1].cx, 67);
-    assert.strictEqual(c.buttons[2].cy, 91);
+    assert.strictEqual(c.buttons[1].cx, 75);
+    assert.strictEqual(c.buttons[2].cy, 93);
     assert.strictEqual(c.menu.angle, -20);
-    assert.strictEqual(c.band.y0, 61);
-    assert.strictEqual(c.band.y1, 96);
-    assert.deepStrictEqual(c.zones[0], { label: "battery 2.5Wh", x: 38, y: 64, w: 32, h: 26 });
+    assert.strictEqual(c.band.y0, 63);
+    assert.strictEqual(c.band.y1, 98);
+    assert.deepStrictEqual(c.zones[0], { label: "battery 2.5Wh", x: 37, y: 64, w: 32, h: 30 });
+    assert.deepStrictEqual(c.piezo, { cx: 53, cy: 90, d: 18 });
     assert.strictEqual(c.topEdge.usbX, 25);
     assert.strictEqual(c.rightEdge.volY, 18);
 });
 
 test("getParam and setParam address nested values by dot path", function () {
     var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
-    assert.strictEqual(B.getParam(p, "buttons.1.cx"), 67);
+    assert.strictEqual(B.getParam(p, "buttons.1.cx"), 75);
     B.setParam(p, "buttons.1.cx", 70);
     assert.strictEqual(p.buttons[1].cx, 70);
-    assert.strictEqual(B.BLOCKOUT_PRESETS.card.buttons[1].cx, 67, "preset untouched");
+    assert.strictEqual(B.BLOCKOUT_PRESETS.card.buttons[1].cx, 75, "preset untouched");
 });
 
 test("fmt trims float noise", function () {
@@ -61,30 +62,26 @@ test("rectRectOverlap reports minimal penetration depth", function () {
         { x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 10, h: 10 }), 0);
 });
 
-test("card preset reports exactly the spec's known conflicts", function () {
+test("amended card preset carries only the two D-pad circle-model warnings", function () {
     assert.deepStrictEqual(B.spacingWarnings(B.BLOCKOUT_PRESETS.card), [
         "D-PAD-MENU gap 0.5 mm (< 7 mm)",
-        "D-PAD is 4.2 mm from the lens (< 5 mm)",
-        "UNDO switch footprint overlaps the battery 2.5Wh zone",
-        "battery 2.5Wh overlaps speaker by 2.5 mm",
-        "speaker extends 2.5 mm below the control band"
+        "D-PAD is 4 mm from the lens (< 5 mm)"
     ]);
 });
 
-test("shrinking the battery clears the Undo overlap", function () {
+test("widening the battery into the Undo cap produces an overlap warning", function () {
     var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
-    B.setParam(p, "zones.0.w", 24); // battery spans X 38-62, clear of Undo cap edge at 62
+    B.setParam(p, "zones.0.w", 40); // battery spans X 37-77, under the Undo cap at (75, 87)
     assert.deepStrictEqual(B.spacingWarnings(p), [
         "D-PAD-MENU gap 0.5 mm (< 7 mm)",
-        "D-PAD is 4.2 mm from the lens (< 5 mm)",
-        "battery 2.5Wh overlaps speaker by 2.5 mm",
-        "speaker extends 2.5 mm below the control band"
+        "D-PAD is 4 mm from the lens (< 5 mm)",
+        "UNDO switch footprint overlaps the battery 2.5Wh zone"
     ]);
 });
 
 test("crowding the cluster produces a gap warning", function () {
     var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
-    B.setParam(p, "buttons.1.cx", 76);
+    B.setParam(p, "buttons.1.cx", 84);
     var w = B.spacingWarnings(p);
     assert.ok(w.some(function (msg) { return msg.indexOf("ACTION-UNDO gap") === 0; }),
         JSON.stringify(w));
@@ -92,12 +89,17 @@ test("crowding the cluster produces a gap warning", function () {
 
 test("faceSvg draws body, active area, module, and d-pad at spec coordinates", function () {
     var svg = B.faceSvg(B.BLOCKOUT_PRESETS.card, { grid: true });
-    assert.ok(svg.indexOf('viewBox="-12 -12 124 124"') !== -1, "viewBox");
-    assert.ok(svg.indexOf('x="6.8" y="7" width="86.4" height="51.8"') !== -1, "active area");
-    assert.ok(svg.indexOf('x="4" y="3.5" width="92" height="59"') !== -1, "module outline");
-    assert.ok(svg.indexOf('x="9" y="71.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
-    assert.ok(svg.indexOf('rotate(-20 22 95)') !== -1, "menu tilt");
+    assert.ok(svg.indexOf('viewBox="-12 -12 132 126"') !== -1, "viewBox");
+    assert.ok(svg.indexOf('x="6.5" y="7" width="95" height="54"') !== -1, "active area");
+    assert.ok(svg.indexOf('x="3.5" y="3.5" width="101" height="61"') !== -1, "module outline");
+    assert.ok(svg.indexOf('x="9" y="73.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
+    assert.ok(svg.indexOf('rotate(-20 22 97)') !== -1, "menu tilt");
     assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
+});
+
+test("faceSvg overlays draw the piezo in the shell layer", function () {
+    var svg = B.faceSvg(B.BLOCKOUT_PRESETS.card, { overlays: true });
+    assert.ok(svg.indexOf("piezo (shell layer)") !== -1);
 });
 
 test("faceSvg draws the 5x5 grille", function () {

@@ -1,14 +1,16 @@
 # PuzzleScript Card: Compact Handheld Design
 
 Status: approved concept, pre-hardware. Supersedes the 5-inch form factor.
-Date: 2026-07-07.
+Date: 2026-07-07. Amended 2026-07-08: display grown to 4.3-inch 800x480 and
+body to 108 x 102 mm to resolve the control-band packing conflicts surfaced
+by the blockout tool; speaker changed to a piezo disc under the battery.
 
 ## Summary
 
 This spec pivots the PuzzleScript handheld from the 5-inch comfort-first
-split-side body to a radically compact card: a ~100 x 100 x 9 mm translucent
-square (Playdate-proportioned) with a 4.0-inch 800x480 IPS display up top and
-a DMG-style control band below. The ESP32-P4 (32 MB PSRAM), the on-device
+split-side body to a radically compact card: a ~108 x 102 x 9 mm translucent
+near-square card (Playdate-proportioned) with a 4.3-inch 800x480 IPS display
+up top and a DMG-style control band below. The ESP32-P4 (32 MB PSRAM), the on-device
 compilation model, the library/product contract, and the entire 800x480
 display contract from the parent design carry over verbatim. The device is
 built on a single-sided-PCB architecture (every component on the front face of
@@ -33,13 +35,16 @@ are reference-class until a specific panel is chosen.
   (1.5-1.8 inch panel) was rejected: at that scale p90 corpus levels drop
   below ~2 mm cells and the whole-level contract dies of illegibility, not of
   pixels.
-- Display: 4.0-inch 800x480 IPS, DSI. Chosen over 3.5-inch 480x320 SPI
-  because it keeps the entire validated display contract — the handheld
+- Display: 4.3-inch 800x480 IPS, DSI (amended 2026-07-08 from 4.0-inch).
+  Same resolution, so the entire validated display contract — the handheld
   report's 0 degraded fits at 800x480, the integer x5 scaler, the 34x13 text
-  screens — with zero renderer or corpus re-validation, and it reuses the
-  ESP32-P4 DSI bring-up work already underway. Physical cells shrink ~24%
-  linearly versus the 5-inch: p90 (21x17) levels get ~2.7 mm cells, median
-  (11x9) levels ~5.4 mm, text chars ~2.5 mm wide. All readable.
+  screens — carries over with zero renderer or corpus re-validation, and the
+  ESP32-P4 DSI bring-up work is reused. 4.3-inch is the commodity
+  Raspberry-Pi-class panel size, so sourcing improves over 4.0-inch. The
+  extra ~8 mm of card width lands almost entirely in the control band's
+  battery gap, which is what resolves the battery/Undo overlap. Physical
+  cells: p90 (21x17) levels get ~3.0 mm cells, median (11x9) levels ~5.9 mm,
+  text chars ~2.8 mm wide. All readable.
 - Product fit: the card replaces the 5-inch device. Everything is
   pre-hardware, so the pivot costs documentation only. One device, one PCB,
   one case; "radically compact + ESP32-P4" is the product identity.
@@ -49,13 +54,24 @@ are reference-class until a specific panel is chosen.
   were both considered; 9 mm with honest battery numbers won.
 - Layout: controls under the screen (DMG/Playdate style), not beside.
   Controls-under was rejected for the 5-inch because its 121 mm module mass
-  sat above the gripping hands; at ~85 g total that argument is void. The
-  square card is a one-hand-cradle / two-thumb object. This must still be
+  sat above the gripping hands; at ~100 g total that argument is void. The
+  near-square card is a one-hand-cradle / two-thumb object. This must still be
   confirmed by playtest, not argument (see Validation).
-- Battery contract: ~3 h play, phone-style charging, play-while-charging
+- Battery contract: ~2.5-3 h play, phone-style charging, play-while-charging
   supported. This deliberately replaces the parent spec's 6-8 h target, which
-  was written for the larger device. Growing the card to ~100x110 (5-6 h) or
-  11 mm (10 h+) were considered and declined to keep the pure square card.
+  was written for the larger device. The 4.3-inch amendment plus the piezo
+  speaker restores the full-width battery strip (~32 x 30 x 4 mm, ~2.5 Wh)
+  that the original 4.0-inch band could not actually hold. Growing the card
+  further or going to 11 mm (10 h+) were considered and declined to keep the
+  thin card.
+- Speaker: piezo disc glued to the front shell under the battery zone,
+  firing through the front 5x5 grille (amended 2026-07-08). A dynamic micro
+  driver's footprint competes with the battery for band area regardless of
+  which shell it fires through, while a ~0.5 mm piezo lives in the shell
+  clearance layer in front of the battery at zero footprint cost.
+  PuzzleScript's sfxr-style blips are a forgiving piezo load. Documented
+  fallback if the piezo sounds too weak: a 15 x 11 mm dynamic driver below a
+  shortened (~22 mm) battery, costing ~0.7 Wh.
 - MCU: ESP32-P4 with 32 MB in-package PSRAM, unchanged. The P4 was never the
   size constraint: no radio, small module, and the 4-inch panel still wants
   the DSI path the firmware already targets. Track 0 gates from the parent
@@ -68,30 +84,30 @@ face, X rightward, Y downward.
 
 Body:
 
-- Face outline: 100 x 100 mm, corner radius ~9 mm.
+- Face outline: 108 x 102 mm, corner radius ~9 mm.
 - Depth: 9 mm uniform. No grips, no bulges.
 - Full-face cover lens: one flat ~1 mm sheet (glass or acrylic) spanning the
   whole front, printed opaque on the underside except the screen window.
-- Estimated weight: ~90-100 g (panel module + PCB + cell + shells + lens;
+- Estimated weight: ~95-105 g (panel module + PCB + cell + shells + lens;
   verify with a BOM mass rollup before ballast is cut).
 
 Display:
 
-- 4.0-inch 800x480 IPS, active area reference 86.4 x 51.8 mm (0.108 mm/px),
+- 4.3-inch 800x480 IPS, active area reference 95 x 54 mm (0.119 mm/px),
   centered horizontally with a ~7 mm top margin: active area spans
-  X 6.8-93.2, Y 7-58.8.
-- Module outline reference ~92 x 59 mm — nearly full card width, so the side
-  margins beside the screen are keep-out.
+  X 6.5-101.5, Y 7-61.
+- Module outline reference ~101 x 61 mm — nearly full card width, so the
+  side margins beside the screen are keep-out.
 
-Control band (Y ~61-96):
+Control band (Y ~63-98):
 
 | Control | Spec                                   | Center (X, Y) |
 |---------|----------------------------------------|---------------|
-| D-pad   | mascot cap, ~26 mm tip-to-tip          | (22, 76)      |
-| Action  | O14 mm, gently concave cap             | (81, 72)      |
-| Undo    | O10 mm, convex cap                     | (67, 85)      |
-| Restart | O10 mm, convex cap                     | (84, 91)      |
-| Menu    | ~11 x 4 mm pill, angled                | (22, 95)      |
+| D-pad   | mascot cap, ~26 mm tip-to-tip          | (22, 78)      |
+| Action  | O14 mm, gently concave cap             | (89, 74)      |
+| Undo    | O10 mm, convex cap                     | (75, 87)      |
+| Restart | O10 mm, convex cap                     | (92, 93)      |
+| Menu    | ~11 x 4 mm pill, angled                | (22, 97)      |
 
 The fan cluster carries over from the blockout spec with its rationale
 intact: Action at the resting thumb, Undo one inward flick away as the
@@ -116,18 +132,19 @@ Edges:
 - Bottom and left edges clean. microSD internal, service-only; USB mass
   storage is the user-facing file path.
 
-Speaker grille: 5x5 hole grid at bottom-center of the band (~X 50, Y ~93).
+Speaker grille: 5x5 hole grid over the piezo disc in the battery field
+(~X 53, Y ~90).
 
 ## Architecture: Single-Sided PCB
 
-One ~96 x 96 mm PCB spans the card. Every component mounts on the front side:
+One ~104 x 98 mm PCB spans the card. Every component mounts on the front side:
 
 - panel, framed over the PCB, DSI FPC folded back to its connector
 - battery pouch cell (band gap, see below)
 - low-profile tact switches under sculpted caps; D-pad is a one-piece rocker
   on a shallow pivot dome
 - mid-mount USB-C
-- ESP32-P4 module, charger/fuel-gauge PMIC, class-D amp
+- ESP32-P4 module, charger/fuel-gauge PMIC, piezo driver circuit
 - haptic LRA at the right edge of the band near the cluster
 - RGB LEDs firing sideways into the translucent shell walls
 
@@ -138,34 +155,37 @@ Debug pads (JTAG/UART/boot/reset) live on the PCB back.
 Z-stack budget: front shell + lens ~1.8, component/panel plane ~2.5-3.0,
 PCB 1.2, rear shell 1.0, remainder clearances → ~9 mm.
 
-## The Contested Band (Battery / Speaker / Haptics)
+## The Band (Battery / Piezo / Haptics)
 
-The gap between the D-pad field and the cluster field is ~32 mm wide and is
-the tightest real estate in the device. Packing order:
+The gap between the D-pad field and the Undo cap is ~35 mm wide (X ~35-70)
+after the 4.3-inch amendment, and is the tightest real estate in the device.
+Packing:
 
-- Battery: pouch cell ~32 x 26 x 4 mm, ~2.5 Wh, upper part of the gap. The
+- Battery: pouch cell ~32 x 30 x 4 mm, ~2.5 Wh, at X 37-69, Y 64-94. The
   cell cannot sit under the panel (occupied) or under buttons (switches need
   the PCB face), so face area is the battery budget.
-- Speaker: micro dynamic driver ~15 x 11 x 3 mm below the battery,
-  front-firing through the 5x5 grille. Chamber volume is ~1-2 cm3 at best;
-  if the dynamic driver sounds starved, the documented fallback is a piezo —
-  PuzzleScript's sfxr-style blips are a forgiving load for one.
-- LRA: right edge of the band, near the cluster.
+- Piezo: ~O16-20 x 0.5 mm disc glued to the inside of the front shell in the
+  clearance layer, in front of the battery, under the 5x5 grille at
+  (~53, 90). It occupies no PCB face area.
+- LRA: right edge of the band near the cluster (~X 96, Y 78).
 
-The exact partition is settled in PCB layout, not in this spec, and is a
-named open risk.
+The 2026-07-08 amendment resolved the original battery/Undo and
+battery/speaker overlaps (the 2026-07-07 zones were drawn verbatim and
+collided; the blockout tool's warning list documented this). Fallback if the
+piezo is too weak: 15 x 11 mm dynamic driver below a battery shortened to
+~22 mm (~1.8 Wh). Fine partition is still settled in PCB layout.
 
 ## Power
 
-- Play budget ~0.9 W: display ~0.55 W dominant, ESP32-P4 ~0.2 W average with
-  idle-between-moves, remainder small. Parent-spec power disciplines (redraw
-  only on change, dim in menus, LP core owns button scan and wake) apply
-  unchanged.
-- ~2.5 Wh → ~2.5-3 h play. Charge ~1 h at 5 V / 1.5 A. Play-while-charging
+- Play budget ~1.0 W: display ~0.65 W dominant (4.3-inch), ESP32-P4 ~0.2 W
+  average with idle-between-moves, remainder small. Parent-spec power
+  disciplines (redraw only on change, dim in menus, LP core owns button scan
+  and wake) apply unchanged.
+- ~2.5 Wh → ~2.5 h play. Charge ~1 h at 5 V / 1.5 A. Play-while-charging
   supported.
 - Sleep on power-pill tap or idle timeout; instant-on wake preserved.
-- The 3 h figure leans on the ~0.55 W display estimate; measuring the real
-  backlight draw of the chosen panel is a required validation step.
+- The runtime figure leans on the ~0.65 W display estimate; measuring the
+  real backlight draw of the chosen panel is a required validation step.
 
 ## What Carries Over Unchanged
 
@@ -187,6 +207,13 @@ splashes) remains binding.
 
 ## Considered And Rejected (This Spec)
 
+- 4.0-inch 800x480 (the original 2026-07-07 choice): amended to 4.3-inch
+  after the blockout tool showed the 100 mm-wide band cannot hold the specced
+  battery beside the Undo switch (usable gap ~27 mm vs the 32 mm battery).
+  Same resolution, more commodity panel class, better cell legibility.
+- Dynamic speaker in the band (front- or rear-firing): the driver's PCB
+  footprint competes with the battery for band area regardless of which
+  shell it fires through. Kept only as the documented piezo fallback.
 - True Arduboy card (85 x 54 mm, 1.5-1.8 inch panel): breaks the whole-level
   contract physically (p90 cells < 2 mm) or the color identity (mono OLED).
 - 3.5-inch 480x320 SPI panel: simpler electronics, but forks the display
@@ -208,12 +235,13 @@ splashes) remains binding.
 
 - D-pad rocker dome depth at 9 mm: shallow pivot may hurt diagonal/corner
   press feel, and the mascot cap sculpt compounds it. Print-and-play early.
-- Band packing: battery vs speaker vs LRA in the ~32 mm gap is zero-sum;
-  the 2.5 Wh figure shrinks if the speaker or LRA needs more room.
-- Structural stiffness: a 100 x 100 x 9 card can flex and creak. Plan:
+- Piezo loudness and timbre versus a dynamic driver: validate early with the
+  actual sfxr sound set on a bench piezo against the printed shell. Fallback
+  (dynamic driver, shorter battery) is documented in the band section.
+- Structural stiffness: a 108 x 102 x 9 card can flex and creak. Plan:
   lens bonded to the front shell, PCB as a structural member. Verify
   physically.
-- Panel sourcing: all 4.0-inch 800x480 numbers (active area, module outline,
+- Panel sourcing: all 4.3-inch 800x480 numbers (active area, module outline,
   FPC exit, DSI timing on the ESP32-P4, backlight draw) are reference-class
   until a specific panel is chosen and probed.
 - Thumb reach-up ergonomics of controls-under on a light square card:
@@ -225,7 +253,7 @@ splashes) remains binding.
 - Mid-mount USB-C requires a PCB cutout and adds layout constraints near the
   FPC keep-out.
 - Battery swelling clearance and real pouch dimensions versus the
-  32 x 26 x 4 assumption.
+  32 x 30 x 4 assumption; swelling now presses against the piezo shim.
 
 ## Validation Plan
 
@@ -236,15 +264,15 @@ splashes) remains binding.
    `tools/handheld_blockout/index.html` (Export 1:1 SVG). The legibility
    sheet for validation step 4 is
    `docs/superpowers/notes/2026-07-07-handheld-card-legibility.svg`.
-2. Build a 9 mm foam/cardboard card with dummy caps and ~95 g ballast
+2. Build a 9 mm foam/cardboard card with dummy caps and ~100 g ballast
    distributed per the band plan.
 3. Run the inherited playtest loop: 10-15 minutes of Sokoban-style input
    (move, move, action, undo, undo, restart, menu, repeat); log thumb
    extension, cradle vs two-hand grip, wrist angle, accidental presses;
    small/medium/large hands if available.
-4. Print p90 and median levels at 2.7 mm / 5.4 mm cells and a 34x13 text
-   screen at 2.5 mm chars; confirm legibility at handheld reading distance.
-5. Choose a specific 4.0-inch 800x480 panel; measure backlight draw at play
+4. Print p90 and median levels at 3.0 mm / 5.9 mm cells and a 34x13 text
+   screen at ~2.8 mm chars; confirm legibility at handheld reading distance.
+5. Choose a specific 4.3-inch 800x480 panel; measure backlight draw at play
    brightness and re-run the battery arithmetic before PCB layout.
 6. Corpus-first software validation and hardware measurement lists from the
    parent spec apply unchanged, with the battery-runtime acceptance target

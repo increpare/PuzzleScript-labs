@@ -3,34 +3,36 @@
 // Parametric blockout model for the PuzzleScript Card handheld.
 // Coordinates are millimeters from the top-left corner of the front face.
 // Spec: docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md
-// The card preset reproduces the spec verbatim, including its known
-// conflicts (Menu clearance, battery/Undo overlap, speaker band overrun).
-// Those conflicts are supposed to appear as warnings; do not tune them away.
+// (as amended 2026-07-08: 4.3-inch panel, 108 x 102 body, piezo speaker).
+// The two remaining D-pad warnings are known circle-model conservatisms the
+// spec carries as open risks; do not tune them away.
 
 var BLOCKOUT_PRESETS = {
     card: {
-        name: "PuzzleScript Card (approved 2026-07-07)",
-        body: { w: 100, h: 100, r: 9, depth: 9 },
+        name: "PuzzleScript Card 4.3in (amended 2026-07-08)",
+        body: { w: 108, h: 102, r: 9, depth: 9 },
         screen: {
-            activeX: 6.8, activeY: 7, activeW: 86.4, activeH: 51.8,
-            moduleX: 4, moduleY: 3.5, moduleW: 92, moduleH: 59
+            activeX: 6.5, activeY: 7, activeW: 95, activeH: 54,
+            moduleX: 3.5, moduleY: 3.5, moduleW: 101, moduleH: 61
         },
         // 26 mm mascot cap (chevron tip to tip), one-piece rocker underneath
-        dpad: { cx: 22, cy: 76, size: 26, arm: 8.5 },
+        dpad: { cx: 22, cy: 78, size: 26, arm: 8.5 },
         buttons: [
-            { label: "ACTION", cx: 81, cy: 72, d: 14 },
-            { label: "UNDO", cx: 67, cy: 85, d: 10 },
-            { label: "RESTART", cx: 84, cy: 91, d: 10 }
+            { label: "ACTION", cx: 89, cy: 74, d: 14 },
+            { label: "UNDO", cx: 75, cy: 87, d: 10 },
+            { label: "RESTART", cx: 92, cy: 93, d: 10 }
         ],
-        menu: { cx: 22, cy: 95, w: 11, h: 4, angle: -20 },
-        band: { y0: 61, y1: 96 },
+        menu: { cx: 22, cy: 97, w: 11, h: 4, angle: -20 },
+        band: { y0: 63, y1: 98 },
         zones: [
-            { label: "battery 2.5Wh", x: 38, y: 64, w: 32, h: 26 },
-            { label: "speaker", x: 42.5, y: 87.5, w: 15, h: 11 },
-            { label: "LRA", x: 90, y: 76, w: 8, h: 8 }
+            { label: "battery 2.5Wh", x: 37, y: 64, w: 32, h: 30 },
+            { label: "LRA", x: 96, y: 78, w: 8, h: 8 }
         ],
-        grille: { cx: 50, cy: 93 },
-        topEdge: { usbX: 25, pwrX: 88, fpcKeepOut: [38, 66] },
+        // Piezo disc sits in the shell clearance layer in front of the
+        // battery — different Z layer, so it is drawn but not zone-checked.
+        piezo: { cx: 53, cy: 90, d: 18 },
+        grille: { cx: 53, cy: 90 },
+        topEdge: { usbX: 25, pwrX: 95, fpcKeepOut: [42, 70] },
         rightEdge: { volY: 18 }
     }
 };
@@ -211,6 +213,12 @@ function faceGroupSvg(params, opts) {
             // Label above the zone's top edge so it never overprints the grille.
             out.push(svgText(z.x + z.w / 2, z.y - 0.8, 2.2, z.label));
         });
+        if (params.piezo) {
+            var p = params.piezo;
+            out.push('<circle cx="' + fmt(p.cx) + '" cy="' + fmt(p.cy) + '" r="' + fmt(p.d / 2) +
+                '" fill="none" stroke="#77c" stroke-width="0.3" stroke-dasharray="1,1"/>');
+            out.push(svgText(p.cx, p.cy + p.d / 2 + 2.4, 2.2, "piezo (shell layer)"));
+        }
     }
     return out.join("\n");
 }
@@ -266,8 +274,9 @@ function sectionGroupSvg(params) {
 
 function faceSvg(params, opts) {
     opts = opts || {};
-    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + fmt(124 * (opts.scale || 4)) +
-        '" viewBox="-12 -12 124 124">'];
+    var vw = params.body.w + 24, vh = params.body.h + 24;
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + fmt(vw * (opts.scale || 4)) +
+        '" viewBox="-12 -12 ' + fmt(vw) + " " + fmt(vh) + '">'];
     out.push(GRID_DEF);
     out.push(faceGroupSvg(params, opts));
     out.push("</svg>");
@@ -275,7 +284,9 @@ function faceSvg(params, opts) {
 }
 
 function edgesSvg(params) {
-    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="496" viewBox="-12 -8 124 52">'];
+    var vw = Math.max(params.body.w, params.body.h) + 24;
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + fmt(vw * 4) +
+        '" viewBox="-12 -8 ' + fmt(vw) + ' 52">'];
     out.push(topEdgeGroupSvg(params));
     out.push('<g transform="translate(0,26)">' + rightEdgeGroupSvg(params) + "</g>");
     out.push("</svg>");
