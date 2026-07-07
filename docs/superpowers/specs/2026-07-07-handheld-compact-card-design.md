@@ -3,7 +3,9 @@
 Status: approved concept, pre-hardware. Supersedes the 5-inch form factor.
 Date: 2026-07-07. Amended 2026-07-08: display grown to 4.3-inch 800x480 and
 body to 108 x 102 mm to resolve the control-band packing conflicts surfaced
-by the blockout tool; speaker changed to a piezo disc under the battery.
+by the blockout tool; speaker changed to a piezo disc under the battery;
+Menu pill moved off the D-pad's down-press axis, rightward against the
+battery boundary.
 
 ## Summary
 
@@ -107,7 +109,7 @@ Control band (Y ~63-98):
 | Action  | O14 mm, gently concave cap             | (89, 74)      |
 | Undo    | O10 mm, convex cap                     | (75, 87)      |
 | Restart | O10 mm, convex cap                     | (92, 93)      |
-| Menu    | ~11 x 4 mm pill, angled                | (22, 97)      |
+| Menu    | ~11 x 4 mm pill, angled                | (30.5, 97)    |
 
 The fan cluster carries over from the blockout spec with its rationale
 intact: Action at the resting thumb, Undo one inward flick away as the
@@ -118,9 +120,13 @@ the case. Resulting gaps: Action-Undo 7.1 mm, Undo-Restart 8.0 mm,
 Action-Restart 7.2 mm. Cap coding unchanged: Action concave, Undo/Restart
 convex, distinct colors, no glyphs in v1.
 
-Clearances: the D-pad bottom tip to the Menu pill is only ~4 mm (the 5-inch
-blockout had 14 mm); accidental-press risk is flagged below. The Restart cap
-sits ~4 mm from the bottom face edge, inside the corner-radius arc.
+Clearances: the Menu pill sits right of the D-pad's down chevron (moved
+2026-07-08 so it is not on the down-press axis), with its rotated footprint
+~0.7 mm clear of the battery zone boundary at X 37; the circle-model
+D-pad-to-Menu gap is ~2.3 mm. A left-edge Menu was considered and rejected
+(that edge is palm-contact in the cradle grip); a top-edge shoulder position
+remains a fallback if the mockup still shows accidental presses. The Restart
+cap sits ~4 mm from the bottom face edge, inside the corner-radius arc.
 
 Edges:
 
@@ -246,10 +252,10 @@ splashes) remains binding.
   until a specific panel is chosen and probed.
 - Thumb reach-up ergonomics of controls-under on a light square card:
   argued from mass, must be confirmed by the playtest loop.
-- Menu-to-D-pad clearance is ~4 mm versus 14 mm on the 5-inch blockout;
-  watch for accidental Menu presses during rapid D-pad play in the mockup
-  loop, and be ready to move Menu to the band's bottom-left corner or
-  shrink the D-pad cap.
+- Menu is no longer on the D-pad's down-press axis (2026-07-08) but still
+  sits ~2-4 mm from the D-pad field; verify accidental Menu presses during
+  rapid D-pad play in the mockup loop. Fallback: top-edge shoulder position
+  at the left corner, shape-coded against Power.
 - Mid-mount USB-C requires a PCB cutout and adds layout constraints near the
   FPC keep-out.
 - Battery swelling clearance and real pouch dimensions versus the

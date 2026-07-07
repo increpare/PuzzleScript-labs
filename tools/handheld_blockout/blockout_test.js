@@ -64,7 +64,7 @@ test("rectRectOverlap reports minimal penetration depth", function () {
 
 test("amended card preset carries only the two D-pad circle-model warnings", function () {
     assert.deepStrictEqual(B.spacingWarnings(B.BLOCKOUT_PRESETS.card), [
-        "D-PAD-MENU gap 0.5 mm (< 7 mm)",
+        "D-PAD-MENU gap 2.315 mm (< 7 mm)",
         "D-PAD is 4 mm from the lens (< 5 mm)"
     ]);
 });
@@ -73,7 +73,7 @@ test("widening the battery into the Undo cap produces an overlap warning", funct
     var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
     B.setParam(p, "zones.0.w", 40); // battery spans X 37-77, under the Undo cap at (75, 87)
     assert.deepStrictEqual(B.spacingWarnings(p), [
-        "D-PAD-MENU gap 0.5 mm (< 7 mm)",
+        "D-PAD-MENU gap 2.315 mm (< 7 mm)",
         "D-PAD is 4 mm from the lens (< 5 mm)",
         "UNDO switch footprint overlaps the battery 2.5Wh zone"
     ]);
@@ -93,7 +93,7 @@ test("faceSvg draws body, active area, module, and d-pad at spec coordinates", f
     assert.ok(svg.indexOf('x="6.5" y="7" width="95" height="54"') !== -1, "active area");
     assert.ok(svg.indexOf('x="3.5" y="3.5" width="101" height="61"') !== -1, "module outline");
     assert.ok(svg.indexOf('x="9" y="73.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
-    assert.ok(svg.indexOf('rotate(-20 22 97)') !== -1, "menu tilt");
+    assert.ok(svg.indexOf('rotate(-20 30.5 97)') !== -1, "menu tilt");
     assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
 });
 
@@ -141,7 +141,7 @@ test("printSheetSvg is A4 landscape 1:1 with calibration bar", function () {
 
 test("printSheetSvg lists the current spacing warnings", function () {
     var svg = B.printSheetSvg(B.BLOCKOUT_PRESETS.card);
-    assert.ok(svg.indexOf("D-PAD-MENU gap 0.5 mm") !== -1, "warnings printed on sheet");
+    assert.ok(svg.indexOf("D-PAD-MENU gap 2.315 mm") !== -1, "warnings printed on sheet");
 });
 
 console.log(passed + " tests passed");

@@ -22,7 +22,9 @@ var BLOCKOUT_PRESETS = {
             { label: "UNDO", cx: 75, cy: 87, d: 10 },
             { label: "RESTART", cx: 92, cy: 93, d: 10 }
         ],
-        menu: { cx: 22, cy: 97, w: 11, h: 4, angle: -20 },
+        // Right of the down chevron (off the down-press axis), rotated
+        // footprint ~0.7 mm clear of the battery zone at X 37.
+        menu: { cx: 30.5, cy: 97, w: 11, h: 4, angle: -20 },
         band: { y0: 63, y1: 98 },
         zones: [
             { label: "battery 2.5Wh", x: 37, y: 64, w: 32, h: 30 },
