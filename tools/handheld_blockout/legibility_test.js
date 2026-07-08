@@ -51,6 +51,29 @@ test("renderTextScreenSvg sizes to the 34x13 grid and draws white pixels on blac
     assert.ok(t.svg.indexOf('fill="#ffffff"') !== -1, "white glyph pixels");
 });
 
+test("filled text layout uses the full 800x480 grid on a handheld display", function () {
+    var layout = L.computeFilledTextLayout(800, 480);
+    assert.strictEqual(layout.cellW, 23);
+    assert.strictEqual(layout.cellH, 36);
+    assert.strictEqual(layout.gridW, 782);
+    assert.strictEqual(layout.gridH, 468);
+    assert.strictEqual(layout.glyphScaleX, 4);
+    assert.strictEqual(layout.glyphScaleY, 3);
+});
+
+test("integer text layout matches the old scale-2 firmware sizing", function () {
+    var layout = L.computeIntegerTextLayout(800, 480);
+    assert.strictEqual(layout.scale, 2);
+    assert.strictEqual(layout.gridW, 408);
+    assert.strictEqual(layout.gridH, 338);
+});
+
+test("textStretchCompareSvg renders before/after panels", function () {
+    var svg = L.textStretchCompareSvg(800, 480);
+    assert.ok(svg.indexOf("Before: integer scale 2") !== -1);
+    assert.ok(svg.indexOf("After: fill-to-fit") !== -1);
+});
+
 test("legibilitySheetSvg is A4 landscape 1:1 with all four blocks", function () {
     var svg = L.legibilitySheetSvg();
     assert.ok(svg.indexOf('width="297mm" height="210mm" viewBox="0 0 297 210"') !== -1, "A4 1:1");

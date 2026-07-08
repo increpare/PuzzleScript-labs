@@ -19,3 +19,12 @@ Run the logic tests with:
 
     node tools/handheld_blockout/blockout_test.js
     node tools/handheld_blockout/legibility_test.js
+    node tools/handheld_blockout/export_pcb_layout_test.js
+
+Export PCB mechanical layers (outline, keep-outs, switch/connector anchors) for KiCad:
+
+    make handheld_pcb_export
+    # or: node tools/handheld_blockout/export_pcb_layout.js
+
+Output: `hardware/card/mechanical/layout.json` and `layout.svg`. See
+`hardware/card/README.md`.

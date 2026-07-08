@@ -3,12 +3,12 @@
 Date: 2026-07-08. Audience: whoever executes the Track 2 custom PCB for the
 PuzzleScript Card handheld. Read the spec first:
 `docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md`
-(as amended 2026-07-08: 4.3-inch panel, 108 x 102 x 9 mm body, piezo
+(as amended 2026-07-08b: 4.3-inch WS24773 no-touch panel, 120 x 110 x 9 mm body,
 speaker, Menu off the down axis).
 
 ## What this board is
 
-A single PCB (~104 x 98 mm) spanning a 9 mm-thick card. Everything mounts on
+A single PCB (~116 x 106 mm) spanning a 9 mm-thick card. Everything mounts on
 the FRONT side; the PCB back (routing, silkscreen, test pads) is a visible
 product surface behind a translucent rear shell. Architecture and Z-stack are
 in the spec ("Architecture: Single-Sided PCB" section). The device: ESP32-P4
@@ -26,24 +26,31 @@ Waveshare **43H-800480 / 4.3-DSI-A, QLED variant, WITHOUT touch**.
 - Our side is therefore just: 15-pin FFC connector + two DSI data pairs +
   clock pair + 3V3. No backlight boost on our board.
 
-**BLOCKING CHECK before layout:** Waveshare lists 112.4 x 75.1 x 7.33 mm for
-this family's outline — wider than the 108 mm card and most of the 9 mm
-Z-stack. Get the 2D drawing for the exact no-touch QLED variant, and measure
-a physical unit. If the outline/thickness is real for our variant, the case
-spec must grow first (update the spec + `tools/handheld_blockout` preset
-before any board work). Active area (95.54 x 54.36) already matches the spec
-reference.
+**Display mechanical (WS24773 no-touch):** Waveshare lists two outlines for the
+43H-800480 family:
 
-## First design decision (open)
+| Outline | Size (mm) | SKU |
+|---------|-----------|-----|
+| **Display module** (use this) | **105.42 × 67.07 × 2.9** | WS24773 no-touch |
+| Touch stack | 112.40 × 75.10 × 5.0 | touch variants |
 
-Chip-down vs module for the ESP32-P4:
+Active area **95.04 × 53.86 mm** → blockout lens **95 × 54**, centered in the
+display module (X 12.5–107.5, Y 10–64). The earlier **112.4 × 75.1** figure
+is the touch assembly; using it for the no-touch panel drew a false ~18 mm
+"bezel" under the glass.
 
-- **Module/SoM that exposes DSI** (e.g., the module Waveshare's P4 boards are
-  built on): recommended for the first spin. Costs height/area, removes BGA
-  fanout and PSRAM risk. Must be the **32 MB in-package PSRAM** variant —
-  16 MB is bring-up fallback only (parent spec).
-- **Chip-down ESP32-P4NRW32** (BGA, 32 MB in-package): slimmest, hardest.
-  Only if the first spin's height doesn't fit the 9 mm stack.
+**Case:** body **120 × 110 × 9 mm**; control band Y 72–105 clears the 67 mm
+display module. Re-print 1:1 sheet before re-approving on paper.
+
+Our side is still just: 15-pin FFC connector + two DSI data pairs +
+clock pair + 3V3. No backlight boost on our board.
+
+## First design decision (locked spin 1)
+
+**ESP32-P4-Module-32MB** (Waveshare, 25 × 25 mm castellated) reflowed onto the card
+PCB — not a NANO/dev-kit carrier. See `hardware/card/BLOCK_DIAGRAM.md`.
+
+Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if 9 mm Z-stack requires it.
 
 ## Rest of the BOM (blocks)
 
@@ -68,11 +75,17 @@ Chip-down vs module for the ESP32-P4:
 `tools/handheld_blockout/blockout.js` — the `card` preset holds every
 front-face coordinate in mm (buttons, Menu, band, battery keep-out, grille,
 piezo, USB-C X, power X, volume Y, FPC keep-out). Do not re-derive from the
-spec by hand; export from the preset so PCB and case cannot drift. The
-intended workflow (not yet built): a small exporter that emits board outline,
-placement anchors, keep-outs, and mounting holes into KiCad via pcbnew
-Python. `node tools/handheld_blockout/blockout_test.js` must stay green after
-any preset change.
+spec by hand; export from the preset so PCB and case cannot drift. Run:
+
+```bash
+make handheld_pcb_export          # writes hardware/card/mechanical/layout.{json,svg}
+make handheld_blockout_tests      # blockout + export regression
+```
+
+Implementation: `tools/handheld_blockout/pcb_layout.js`,
+`export_pcb_layout.js`. KiCad pcbnew import (optional next step):
+`hardware/scripts/apply_mechanical_to_kicad.py`. `blockout_test.js` must stay
+green after any preset change.
 
 ## Recommended toolchain
 
@@ -89,18 +102,21 @@ any preset change.
 
 ## Work order
 
-1. Resolve the display mechanical check (blocking; may change the case).
-2. Bench bring-up in parallel: wire the panel to the existing ESP32-P4 dev
-   board (same 15-pin DSI as the current `firmware/esp32p4` targets),
-   validate init, and **measure real backlight draw** — the ~2.5 h battery
-   claim rests on the ~0.65 W display estimate.
-3. Decide module vs chip-down.
-4. Block diagram + pin budget doc; review against the spec.
-5. Schematic-as-code + checks; review.
-6. Layout: scripted mechanical pass, then interactive routing; DRC + STEP
-   vs case check.
-7. First spin order (JLC assembly), bring-up checklist, feed measured
-   corrections back into the spec.
+1. ~~Resolve the display mechanical check~~ — **done:** no-touch envelope
+   **105.42 × 67.07 mm**; case **120 × 110 mm** in spec + blockout.
+2. ~~Bench / datasheet assumptions~~ — **confirmed 2026-07-08 by owner:** WS24773
+   no-touch outline, ~0.65 W display budget, hx8394-class DSI path, 15-pin FFC
+   are accepted for schematic/layout. Optional physical backlight measure at
+   first hardware still recommended.
+3. ~~Decide module vs chip-down~~ — **done:** Waveshare **ESP32-P4-Module-32MB**
+   for spin 1.
+4. ~~Block diagram + pin budget~~ — **done:**
+   `hardware/card/BLOCK_DIAGRAM.md`, `PIN_BUDGET.md`, `schematic/blocks.json`.
+5. ~~Schematic connectivity~~ — **done:** `connectivity.json` + **KiCad generator**
+   (`generate_kicad.js` → 9 sheets + PCB outline). User opens `card.kicad_pro`;
+   assign footprints + route in KiCad (see `hardware/card/OPEN.md`).
+6. Layout: route DSI, DRC, STEP vs case; JLC order.
+7. First spin bring-up checklist.
 
 ## Context and references
 
@@ -109,9 +125,9 @@ any preset change.
   `docs/superpowers/specs/2026-07-03-puzzlescript-handheld-design.md`
 - Blockout tool + committed 1:1/legibility sheets:
   `tools/handheld_blockout/README.md`, `docs/superpowers/notes/2026-07-07-handheld-card-*.svg`
-- Validation status: 1:1 sheet printed and approved on paper (2026-07-08).
-  Foam mockup, playtest, and piezo bench test still pending — their findings
-  may adjust placements before layout freezes.
+- Validation status: **120 × 110 blockout + 1:1 sheet approved 2026-07-08**
+  (owner). Datasheet power/mechanical assumptions confirmed same date. Foam
+  mockup, playtest, and piezo bench test still pending.
 - Panel pages: https://www.waveshare.com/43h-800480-ips.htm ,
   https://www.waveshare.com/wiki/43H-800480-IPS ,
   https://www.waveshare.com/4.3inch-dsi-qled.htm

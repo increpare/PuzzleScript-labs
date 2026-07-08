@@ -5,31 +5,42 @@ var B = require("./blockout.js");
 var passed = 0;
 function test(name, fn) { fn(); passed++; console.log("ok - " + name); }
 
-test("card preset carries the amended spec coordinates", function () {
+test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.deepStrictEqual(Object.keys(B.BLOCKOUT_PRESETS), ["card"]);
     var c = B.BLOCKOUT_PRESETS.card;
-    assert.strictEqual(c.body.w, 108);
-    assert.strictEqual(c.body.h, 102);
+    assert.strictEqual(c.body.w, 120);
+    assert.strictEqual(c.body.h, 110);
     assert.strictEqual(c.body.r, 9);
     assert.strictEqual(c.body.depth, 9);
-    assert.strictEqual(c.screen.activeX, 6.5);
-    assert.strictEqual(c.screen.activeY, 7);
+    assert.strictEqual(c.screen.moduleW, 105.42);
+    assert.strictEqual(c.screen.moduleH, 67.07);
+    assert.strictEqual(c.screen.activeX, 12.5);
+    assert.strictEqual(c.screen.activeY, 10);
     assert.strictEqual(c.screen.activeW, 95);
     assert.strictEqual(c.screen.activeH, 54);
     assert.strictEqual(c.dpad.cx, 22);
-    assert.strictEqual(c.dpad.cy, 78);
+    assert.strictEqual(c.dpad.cy, 87);
     assert.strictEqual(c.dpad.size, 26);
     assert.strictEqual(c.buttons[0].label, "ACTION");
     assert.strictEqual(c.buttons[0].d, 14);
     assert.strictEqual(c.buttons[1].cx, 75);
-    assert.strictEqual(c.buttons[2].cy, 93);
+    assert.strictEqual(c.buttons[2].cy, 102);
     assert.strictEqual(c.menu.angle, -20);
-    assert.strictEqual(c.band.y0, 63);
-    assert.strictEqual(c.band.y1, 98);
-    assert.deepStrictEqual(c.zones[0], { label: "battery 2.5Wh", x: 37, y: 64, w: 32, h: 30 });
-    assert.deepStrictEqual(c.piezo, { cx: 53, cy: 90, d: 18 });
+    assert.strictEqual(c.band.y0, 72);
+    assert.strictEqual(c.band.y1, 105);
+    assert.deepStrictEqual(c.zones[0], { label: "battery 2.5Wh", x: 37, y: 73, w: 32, h: 30 });
+    assert.deepStrictEqual(c.piezo, { cx: 53, cy: 99, d: 18 });
     assert.strictEqual(c.topEdge.usbX, 25);
+    assert.strictEqual(c.topEdge.pwrX, 113);
     assert.strictEqual(c.rightEdge.volY, 18);
+});
+
+test("active area is centered in the display module outline", function () {
+    var s = B.BLOCKOUT_PRESETS.card.screen;
+    var mx = (s.moduleW - s.activeW) / 2;
+    var my = (s.moduleH - s.activeH) / 2;
+    assert.ok(Math.abs(s.activeX - (s.moduleX + mx)) < 0.05);
+    assert.ok(Math.abs(s.activeY - (s.moduleY + my)) < 0.05);
 });
 
 test("getParam and setParam address nested values by dot path", function () {
@@ -62,19 +73,17 @@ test("rectRectOverlap reports minimal penetration depth", function () {
         { x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 10, h: 10 }), 0);
 });
 
-test("amended card preset carries only the two D-pad circle-model warnings", function () {
+test("amended card preset carries only the D-pad circle-model warnings", function () {
     assert.deepStrictEqual(B.spacingWarnings(B.BLOCKOUT_PRESETS.card), [
-        "D-PAD-MENU gap 2.315 mm (< 7 mm)",
-        "D-PAD is 4 mm from the lens (< 5 mm)"
+        "D-PAD-MENU gap 2.315 mm (< 7 mm)"
     ]);
 });
 
 test("widening the battery into the Undo cap produces an overlap warning", function () {
     var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
-    B.setParam(p, "zones.0.w", 40); // battery spans X 37-77, under the Undo cap at (75, 87)
+    B.setParam(p, "zones.0.w", 40);
     assert.deepStrictEqual(B.spacingWarnings(p), [
         "D-PAD-MENU gap 2.315 mm (< 7 mm)",
-        "D-PAD is 4 mm from the lens (< 5 mm)",
         "UNDO switch footprint overlaps the battery 2.5Wh zone"
     ]);
 });
@@ -89,11 +98,11 @@ test("crowding the cluster produces a gap warning", function () {
 
 test("faceSvg draws body, active area, module, and d-pad at spec coordinates", function () {
     var svg = B.faceSvg(B.BLOCKOUT_PRESETS.card, { grid: true });
-    assert.ok(svg.indexOf('viewBox="-12 -12 132 126"') !== -1, "viewBox");
-    assert.ok(svg.indexOf('x="6.5" y="7" width="95" height="54"') !== -1, "active area");
-    assert.ok(svg.indexOf('x="3.5" y="3.5" width="101" height="61"') !== -1, "module outline");
-    assert.ok(svg.indexOf('x="9" y="73.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
-    assert.ok(svg.indexOf('rotate(-20 30.5 97)') !== -1, "menu tilt");
+    assert.ok(svg.indexOf('viewBox="-12 -12 144 134"') !== -1, "viewBox");
+    assert.ok(svg.indexOf('x="12.5" y="10" width="95" height="54"') !== -1, "active area");
+    assert.ok(svg.indexOf('x="7.29" y="3.5" width="105.42" height="67.07"') !== -1, "module outline");
+    assert.ok(svg.indexOf('x="9" y="82.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
+    assert.ok(svg.indexOf('rotate(-20 30.5 106)') !== -1, "menu tilt");
     assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
 });
 

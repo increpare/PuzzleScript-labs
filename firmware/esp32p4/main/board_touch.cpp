@@ -1,21 +1,18 @@
 #include "board_touch.hpp"
 
+#include "board_i2c.hpp"
 #include "esp_lcd_touch.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
-#include "driver/i2c_master.h"
 #include "driver/gpio.h"
 
 namespace ps_probe::board {
 namespace {
 
 constexpr const char* kTag = "board_touch";
-constexpr gpio_num_t kTouchSda = GPIO_NUM_7;
-constexpr gpio_num_t kTouchScl = GPIO_NUM_8;
 constexpr int kTouchWidth = 1024;
 constexpr int kTouchHeight = 600;
 
-i2c_master_bus_handle_t g_i2c_bus = nullptr;
 esp_lcd_touch_handle_t g_touch = nullptr;
 bool g_touch_initialized = false;
 
@@ -26,21 +23,8 @@ esp_err_t init_touch() {
         return ESP_OK;
     }
 
-    i2c_master_bus_config_t bus_config = {
-        .i2c_port = I2C_NUM_0,
-        .sda_io_num = kTouchSda,
-        .scl_io_num = kTouchScl,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .intr_priority = 0,
-        .trans_queue_depth = 0,
-        .flags = {
-            .enable_internal_pullup = 1,
-        },
-    };
-    esp_err_t err = i2c_new_master_bus(&bus_config, &g_i2c_bus);
+    esp_err_t err = init_i2c();
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "i2c_new_master_bus failed: %s", esp_err_to_name(err));
         return err;
     }
 
@@ -55,7 +39,7 @@ esp_err_t init_touch() {
             .disable_control_phase = 1,
         },
     };
-    err = esp_lcd_new_panel_io_i2c(g_i2c_bus, &io_config, &io_handle);
+    err = esp_lcd_new_panel_io_i2c(i2c_bus(), &io_config, &io_handle);
     if (err != ESP_OK) {
         ESP_LOGE(kTag, "esp_lcd_new_panel_io_i2c failed: %s", esp_err_to_name(err));
         return err;

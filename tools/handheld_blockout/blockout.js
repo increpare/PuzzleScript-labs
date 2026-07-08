@@ -3,38 +3,35 @@
 // Parametric blockout model for the PuzzleScript Card handheld.
 // Coordinates are millimeters from the top-left corner of the front face.
 // Spec: docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md
-// (as amended 2026-07-08: 4.3-inch panel, 108 x 102 body, piezo speaker).
+// Amended 2026-07-08b: body 120 x 118 mm for WS24773 module (112.4 x 75.1 mm).
 // The two remaining D-pad warnings are known circle-model conservatisms the
 // spec carries as open risks; do not tune them away.
 
 var BLOCKOUT_PRESETS = {
     card: {
-        name: "PuzzleScript Card 4.3in (amended 2026-07-08)",
-        body: { w: 108, h: 102, r: 9, depth: 9 },
+        name: "PuzzleScript Card 4.3in (WS24773 no-touch, 120x110)",
+        body: { w: 120, h: 110, r: 9, depth: 9 },
         screen: {
-            activeX: 6.5, activeY: 7, activeW: 95, activeH: 54,
-            moduleX: 3.5, moduleY: 3.5, moduleW: 101, moduleH: 61
+            // Waveshare "Display Dimensions" for 43H-800480 no-touch (not the
+            // 112.4 x 75.1 touch-stack outline). Active area centered in module.
+            activeX: 12.5, activeY: 10, activeW: 95, activeH: 54,
+            moduleX: 7.29, moduleY: 3.5, moduleW: 105.42, moduleH: 67.07
         },
-        // 26 mm mascot cap (chevron tip to tip), one-piece rocker underneath
-        dpad: { cx: 22, cy: 78, size: 26, arm: 8.5 },
+        dpad: { cx: 22, cy: 87, size: 26, arm: 8.5 },
         buttons: [
-            { label: "ACTION", cx: 89, cy: 74, d: 14 },
-            { label: "UNDO", cx: 75, cy: 87, d: 10 },
-            { label: "RESTART", cx: 92, cy: 93, d: 10 }
+            { label: "ACTION", cx: 89, cy: 83, d: 14 },
+            { label: "UNDO", cx: 75, cy: 96, d: 10 },
+            { label: "RESTART", cx: 92, cy: 102, d: 10 }
         ],
-        // Right of the down chevron (off the down-press axis), rotated
-        // footprint ~0.7 mm clear of the battery zone at X 37.
-        menu: { cx: 30.5, cy: 97, w: 11, h: 4, angle: -20 },
-        band: { y0: 63, y1: 98 },
+        menu: { cx: 30.5, cy: 106, w: 11, h: 4, angle: -20 },
+        band: { y0: 72, y1: 105 },
         zones: [
-            { label: "battery 2.5Wh", x: 37, y: 64, w: 32, h: 30 },
-            { label: "LRA", x: 96, y: 78, w: 8, h: 8 }
+            { label: "battery 2.5Wh", x: 37, y: 73, w: 32, h: 30 },
+            { label: "LRA", x: 96, y: 87, w: 8, h: 8 }
         ],
-        // Piezo disc sits in the shell clearance layer in front of the
-        // battery — different Z layer, so it is drawn but not zone-checked.
-        piezo: { cx: 53, cy: 90, d: 18 },
-        grille: { cx: 53, cy: 90 },
-        topEdge: { usbX: 25, pwrX: 95, fpcKeepOut: [42, 70] },
+        piezo: { cx: 53, cy: 99, d: 18 },
+        grille: { cx: 53, cy: 99 },
+        topEdge: { usbX: 25, pwrX: 113, fpcKeepOut: [47, 73] },
         rightEdge: { volY: 18 }
     }
 };

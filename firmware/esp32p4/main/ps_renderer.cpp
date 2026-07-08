@@ -172,7 +172,23 @@ bool checkedLayerCellCount(int width, int height, int layers, std::size_t* outCo
     return true;
 }
 
+uint16_t parse_game_color_rgb565(const char* color, uint16_t fallback) {
+    const ParsedColor parsed = parseRgb565Color(color);
+    if (color == nullptr || *color == '\0' || parsed.transparent) {
+        return fallback;
+    }
+    return parsed.value;
+}
+
 } // namespace
+
+uint16_t game_background_rgb565(const ps_game* game) {
+    return parse_game_color_rgb565(ps_game_background_color(game), rgb565(0, 0, 0));
+}
+
+uint16_t game_foreground_rgb565(const ps_game* game) {
+    return parse_game_color_rgb565(ps_game_foreground_color(game), rgb565(255, 255, 255));
+}
 
 RenderResult render_level_to_native_framebuffer(
     const ps_game* game,
@@ -236,17 +252,14 @@ RenderResult render_level_to_native_framebuffer(
             return result;
         }
 
-        const ParsedColor background = parseRgb565Color(ps_game_background_color(game));
-        const uint16_t backgroundColor = background.transparent ? rgb565(0, 0, 0) : background.value;
-        const uint16_t borderColor = rgb565(0, 0, 0);
+        const uint16_t backgroundColor = game_background_rgb565(game);
         std::fill(
             native_pixels,
             native_pixels + static_cast<std::size_t>(kNativeWidth) * static_cast<std::size_t>(kNativeHeight),
-            borderColor);
+            backgroundColor);
 
         const int targetX = (kNativeWidth - kTargetWidth) / 2;
         const int targetY = (kNativeHeight - kTargetHeight) / 2;
-        fillRect(native_pixels, targetX, targetY, kTargetWidth, kTargetHeight, backgroundColor);
 
         const int boardX = targetX + fit.offsetX;
         const int boardY = targetY + fit.offsetY;

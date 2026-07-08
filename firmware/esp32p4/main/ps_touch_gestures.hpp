@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <vector>
 
 #include "puzzlescript/puzzlescript.h"
@@ -31,14 +30,24 @@ struct TouchGestureEvent {
 class TouchGestureInput {
 public:
     void reset();
+    void set_repeat_interval_ms(int interval_ms);
     void on_touch_frame(int x, int y, int touch_count, bool touching);
     std::vector<TouchGestureEvent> drain_events();
 
 private:
+    void begin_repeat(PlayerAction action, int x, int y);
+    void maybe_emit_repeat(int x, int y);
     bool try_emit_swipe(int x, int y);
+
     bool touching_ = false;
     bool may_swipe_ = false;
     bool gestured_ = false;
+    bool repeating_ = false;
+    PlayerAction repeat_action_ = PlayerAction::Action;
+    int repeat_origin_x_ = 0;
+    int repeat_origin_y_ = 0;
+    int repeat_interval_ms_ = 150;
+    int64_t last_repeat_ms_ = 0;
     int start_x_ = 0;
     int start_y_ = 0;
     int last_x_ = 0;

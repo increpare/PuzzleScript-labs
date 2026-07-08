@@ -1,4 +1,8 @@
+#if CONFIG_PS_BOARD_CARD
+#include "board_card.hpp"
+#else
 #include "board_waveshare_7b.hpp"
+#endif
 #include "probe_config.hpp"
 #include "ps_framebuffer.hpp"
 #include "ps_instrumentation.hpp"

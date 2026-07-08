@@ -1,0 +1,27 @@
+{
+  "name": "puzzlescript-card-tscircuit",
+  "version": "1.0.0",
+  "description": "A tscircuit component package",
+  "main": "index.tsx",
+  "keywords": [
+    "tscircuit",
+    "circuit",
+    "pcb",
+    "electronics"
+  ],
+  "scripts": {
+    "dev": "bun ./node_modules/tscircuit/cli.mjs dev index.circuit.tsx",
+    "build": "bun ./node_modules/tscircuit/cli.mjs build index.circuit.tsx",
+    "export": "bun ./node_modules/tscircuit/cli.mjs export index.circuit.tsx -f pcb-svg -o dist/card-pcb.svg && bun ./node_modules/tscircuit/cli.mjs export index.circuit.tsx -f schematic-svg -o dist/card-schematic.svg && bun ./node_modules/tscircuit/cli.mjs export index.circuit.tsx -f readable-netlist -o dist/card.netlist && node export_layout_preview.js",
+    "snapshot": "bun ./node_modules/tscircuit/cli.mjs snapshot",
+    "test": "node build_test.js",
+    "start": "bun ./node_modules/tscircuit/cli.mjs dev index.circuit.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "tscircuit": "^0.0.2015",
+    "tsx": "^4.23.0",
+    "typescript": "^5.0.0"
+  }
+}

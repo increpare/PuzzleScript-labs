@@ -64,6 +64,38 @@ PlayerAction direction_to_action(int direction) {
 
 } // namespace
 
+void TouchGestureInput::set_repeat_interval_ms(int interval_ms) {
+    repeat_interval_ms_ = std::max(50, interval_ms);
+}
+
+void TouchGestureInput::begin_repeat(PlayerAction action, int x, int y) {
+    repeating_ = true;
+    repeat_action_ = action;
+    repeat_origin_x_ = x;
+    repeat_origin_y_ = y;
+    last_repeat_ms_ = now_ms();
+}
+
+void TouchGestureInput::maybe_emit_repeat(int x, int y) {
+    if (!repeating_) {
+        return;
+    }
+    if (cardinal_distance(repeat_origin_x_, repeat_origin_y_, x, y) >= kSwipeDistancePx) {
+        repeat_origin_x_ = x;
+        repeat_origin_y_ = y;
+        const int direction = dominant_direction(x - start_x_, y - start_y_);
+        if (direction >= 0) {
+            repeat_action_ = direction_to_action(direction);
+        }
+    }
+    const int64_t now = now_ms();
+    if (now - last_repeat_ms_ < repeat_interval_ms_) {
+        return;
+    }
+    pending_.push_back(TouchGestureEvent{repeat_action_, 0, x, y});
+    last_repeat_ms_ = now;
+}
+
 bool TouchGestureInput::try_emit_swipe(int x, int y) {
     if (!may_swipe_) {
         return false;
@@ -91,7 +123,9 @@ bool TouchGestureInput::try_emit_swipe(int x, int y) {
     }
 
     if (touch_count_ == 1) {
-        pending_.push_back(TouchGestureEvent{direction_to_action(direction), 0, x, y});
+        const PlayerAction action = direction_to_action(direction);
+        pending_.push_back(TouchGestureEvent{action, 0, x, y});
+        begin_repeat(action, x, y);
     } else if (touch_count_ >= 2) {
         pending_.push_back(TouchGestureEvent{PlayerAction::OpenMenu, 0, x, y});
     }
@@ -102,6 +136,7 @@ void TouchGestureInput::reset() {
     touching_ = false;
     may_swipe_ = false;
     gestured_ = false;
+    repeating_ = false;
     swipe_direction_ = -1;
     swipe_distance_ = 0;
     pending_.clear();
@@ -124,6 +159,7 @@ void TouchGestureInput::on_touch_frame(int x, int y, int touch_count, bool touch
         touching_ = false;
         may_swipe_ = false;
         gestured_ = false;
+        repeating_ = false;
         swipe_direction_ = -1;
         swipe_distance_ = 0;
         return;
@@ -151,7 +187,11 @@ void TouchGestureInput::on_touch_frame(int x, int y, int touch_count, bool touch
 
     last_x_ = x;
     last_y_ = y;
-    if (gestured_ || !may_swipe_) {
+    if (gestured_) {
+        maybe_emit_repeat(x, y);
+        return;
+    }
+    if (!may_swipe_) {
         return;
     }
 

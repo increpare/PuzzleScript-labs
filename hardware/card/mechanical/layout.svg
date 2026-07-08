@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512px" viewBox="0 0 128 118">
+<rect x="0" y="0" width="128" height="118" fill="#f6f6f0"/>
+<g transform="translate(4,4)">
+<path d="M 9 2 H 111 A 7 7 0 0 1 118 9 V 101 A 7 7 0 0 1 111 108 H 9 A 7 7 0 0 1 2 101 V 9 A 7 7 0 0 1 9 2 Z" fill="none" stroke="#c00" stroke-width="0.35"/>
+<text x="2" y="-1.5" font-size="2.2" font-family="sans-serif" fill="#c00">Edge.Cuts (PCB outline)</text>
+<rect x="7.29" y="3.5" width="105.42" height="67.07" fill="none" stroke="#f80" stroke-width="0.25" stroke-dasharray="1.2,0.8"/>
+<text x="60" y="2.9" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#f80">display_module</text>
+<rect x="12.5" y="10" width="95" height="54" fill="none" stroke="#88a" stroke-width="0.25"/>
+<text x="60" y="9.4" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#88a">display_active</text>
+<rect x="37" y="73" width="32" height="30" fill="none" stroke="#f80" stroke-width="0.25" stroke-dasharray="1.2,0.8"/>
+<text x="53" y="72.4" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#f80">battery</text>
+<rect x="47" y="0" width="26" height="72" fill="none" stroke="#f80" stroke-width="0.25" stroke-dasharray="1.2,0.8"/>
+<text x="60" y="-0.6" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#f80">fpc_top_keepout</text>
+<rect x="0" y="72" width="120" height="33" fill="none" stroke="#88a" stroke-width="0.25"/>
+<text x="60" y="71.4" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#88a">control_band</text>
+<circle cx="22" cy="78.25" r="0.8" fill="#000"/>
+<text x="22" y="77.05" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_DPAD_UP</text>
+<circle cx="22" cy="95.75" r="0.8" fill="#000"/>
+<text x="22" y="94.55" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_DPAD_DOWN</text>
+<circle cx="13.25" cy="87" r="0.8" fill="#000"/>
+<text x="13.25" y="85.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_DPAD_LEFT</text>
+<circle cx="30.75" cy="87" r="0.8" fill="#000"/>
+<text x="30.75" y="85.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_DPAD_RIGHT</text>
+<circle cx="89" cy="83" r="0.8" fill="#000"/>
+<text x="89" y="81.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_ACTION</text>
+<circle cx="75" cy="96" r="0.8" fill="#000"/>
+<text x="75" y="94.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_UNDO</text>
+<circle cx="92" cy="102" r="0.8" fill="#000"/>
+<text x="92" y="100.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_RESTART</text>
+<circle cx="30.5" cy="106" r="0.8" fill="#000"/>
+<text x="30.5" y="104.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_MENU</text>
+<circle cx="60" cy="3.5" r="0.8" fill="#000"/>
+<text x="60" y="2.3" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">CONN_DSI_FFC</text>
+<circle cx="25" cy="2" r="0.8" fill="#000"/>
+<text x="25" y="0.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">CONN_USB_C_MID</text>
+<circle cx="113" cy="3.5" r="0.8" fill="#000"/>
+<text x="113" y="2.3" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_POWER</text>
+<circle cx="118.5" cy="18" r="0.8" fill="#000"/>
+<text x="118.5" y="16.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_VOLUME</text>
+<circle cx="100" cy="91" r="0.8" fill="#000"/>
+<text x="100" y="89.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">ACT_LRA</text>
+<circle cx="53" cy="99" r="0.8" fill="#000"/>
+<text x="53" y="97.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">PAD_PIEZO</text>
+<circle cx="5" cy="5" r="1.1" fill="none" stroke="#060" stroke-width="0.3"/>
+<circle cx="115" cy="5" r="1.1" fill="none" stroke="#060" stroke-width="0.3"/>
+<circle cx="5" cy="105" r="1.1" fill="none" stroke="#060" stroke-width="0.3"/>
+<circle cx="115" cy="105" r="1.1" fill="none" stroke="#060" stroke-width="0.3"/>
+</g>
+<text x="4" y="117" font-size="2" font-family="sans-serif" fill="#444">PuzzleScript Card 4.3in (WS24773 no-touch, 120x110) — mechanical export for KiCad</text>
+</svg>

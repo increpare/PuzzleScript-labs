@@ -4,8 +4,10 @@ idf_component_register(
   SRCS
     "main.cpp"
     "ps_instrumentation.cpp"
-    "board_waveshare_7b.cpp"
+    "board_i2c.cpp"
+    "board_audio.cpp"
     "board_touch.cpp"
+    "board_buttons.cpp"
     "ps_framebuffer.cpp"
     "ps_renderer.cpp"
     "ps_probe_runtime.cpp"
@@ -14,7 +16,12 @@ idf_component_register(
     "ps_embedded_games.cpp"
     "ps_touch_gestures.cpp"
     "ps_ui_draw.cpp"
+    "ps_dot_font.cpp"
+    "ps_text_screen.cpp"
+    "ps_player_save.cpp"
+    "ps_audio.cpp"
     "ps_player.cpp"
+    "${PUZZLESCRIPT_NATIVE_DIR}/src/player/sfxr.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/handheld/display_layout.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/simulation/corpus_runner.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/compiled_rules.cpp"
@@ -23,6 +30,7 @@ idf_component_register(
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/hash.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/json.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/simd.cpp"
+    "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/locality_survey.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/third_party/simdjson/simdjson.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/compiler/compact_turn_codegen.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/compiler/compact_turn_program.cpp"
@@ -50,6 +58,21 @@ idf_component_register(
     "games/microban.txt"
     "games/push.txt"
     "games/actiontest.txt"
+    "../../../src/js/font.js"
+  REQUIRES
+    spi_flash
+    nvs_flash
+    fatfs
+    vfs
+    esp_timer
+    espressif__esp_lcd_ek79007
+    espressif__esp_lcd_touch_gt911
+  PRIV_REQUIRES
+    espressif__esp_codec_dev
+    esp_driver_i2s
+    esp_driver_gpio
+    esp_driver_i2c
+    esp_driver_sdmmc
 )
 
 target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_17)
@@ -76,3 +99,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
   PS_MASK_WORD_BITS=32
   PS_INTERPRETER_OBJECT_CELL_INDEX=1
 )
+
+if(CONFIG_PS_BOARD_CARD)
+  target_sources(${COMPONENT_LIB} PRIVATE "board_card.cpp")
+else()
+  target_sources(${COMPONENT_LIB} PRIVATE "board_waveshare_7b.cpp")
+endif()

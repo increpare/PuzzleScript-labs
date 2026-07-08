@@ -1,6 +1,11 @@
 #include "ps_probe_runtime.hpp"
 
+#include "sdkconfig.h"
+#if CONFIG_PS_BOARD_CARD
+#include "board_card.hpp"
+#else
 #include "board_waveshare_7b.hpp"
+#endif
 #include "probe_config.hpp"
 #include "ps_instrumentation.hpp"
 #include "ps_renderer.hpp"

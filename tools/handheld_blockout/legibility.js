@@ -157,6 +157,116 @@ function renderTextScreenSvg(lines, cellW, cellH, font) {
     return { svg: out.join("\n"), w: cols * cellW, h: rows * cellH };
 }
 
+var TERMINAL_COLS = 34;
+var TERMINAL_ROWS = 13;
+var GLYPH_COLS = 5;
+var GLYPH_ROWS = 12;
+
+function computeFilledTextLayout(displayWidthPx, displayHeightPx) {
+    var cellW = Math.max(1, Math.floor(displayWidthPx / TERMINAL_COLS));
+    var cellH = Math.max(1, Math.floor(displayHeightPx / TERMINAL_ROWS));
+    var glyphScaleX = Math.max(1, Math.floor(cellW / GLYPH_COLS));
+    var glyphScaleY = Math.max(1, Math.floor(cellH / GLYPH_ROWS));
+    var glyphW = GLYPH_COLS * glyphScaleX;
+    var glyphH = GLYPH_ROWS * glyphScaleY;
+    return {
+        cellW: cellW,
+        cellH: cellH,
+        x0: Math.floor((displayWidthPx - cellW * TERMINAL_COLS) / 2),
+        y0: Math.floor((displayHeightPx - cellH * TERMINAL_ROWS) / 2),
+        glyphScaleX: glyphScaleX,
+        glyphScaleY: glyphScaleY,
+        glyphPadX: Math.floor((cellW - glyphW) / 2),
+        glyphPadY: Math.floor((cellH - glyphH) / 2),
+        gridW: cellW * TERMINAL_COLS,
+        gridH: cellH * TERMINAL_ROWS
+    };
+}
+
+function computeIntegerTextLayout(displayWidthPx, displayHeightPx) {
+    var cellUnitW = 6;
+    var cellUnitH = 13;
+    var scale = Math.max(
+        1,
+        Math.min(
+            Math.floor(displayWidthPx / (TERMINAL_COLS * cellUnitW)),
+            Math.floor(displayHeightPx / (TERMINAL_ROWS * cellUnitH))));
+    var cellW = cellUnitW * scale;
+    var cellH = cellUnitH * scale;
+    return {
+        cellW: cellW,
+        cellH: cellH,
+        x0: Math.floor((displayWidthPx - cellW * TERMINAL_COLS) / 2),
+        y0: Math.floor((displayHeightPx - cellH * TERMINAL_ROWS) / 2),
+        glyphScaleX: scale,
+        glyphScaleY: scale,
+        glyphPadX: scale,
+        glyphPadY: Math.floor((cellH - GLYPH_ROWS * scale) / 2),
+        gridW: cellW * TERMINAL_COLS,
+        gridH: cellH * TERMINAL_ROWS,
+        scale: scale
+    };
+}
+
+function renderTextScreenInDisplaySvg(lines, displayWidthPx, displayHeightPx, font, layout) {
+    var out = ['<rect x="0" y="0" width="' + displayWidthPx + '" height="' +
+        displayHeightPx + '" fill="#000000"/>'];
+    for (var r = 0; r < TERMINAL_ROWS; r++) {
+        var line = lines[r] || "";
+        for (var c = 0; c < TERMINAL_COLS; c++) {
+            var ch = line.charAt(c);
+            if (!ch || ch === " ") {
+                continue;
+            }
+            var glyph = font[ch] || font[ch.toLowerCase()];
+            if (!glyph) {
+                continue;
+            }
+            var g = glyph.trim().split("\n");
+            var baseX = layout.x0 + c * layout.cellW + layout.glyphPadX;
+            var baseY = layout.y0 + r * layout.cellH + layout.glyphPadY;
+            for (var y = 0; y < g.length; y++) {
+                for (var x = 0; x < GLYPH_COLS; x++) {
+                    if (g[y].charAt(x) === "1") {
+                        out.push('<rect x="' + (baseX + x * layout.glyphScaleX) + '" y="' +
+                            (baseY + y * layout.glyphScaleY) + '" width="' + layout.glyphScaleX +
+                            '" height="' + layout.glyphScaleY + '" fill="#ffffff"/>');
+                    }
+                }
+            }
+        }
+    }
+    return {
+        svg: out.join("\n"),
+        w: displayWidthPx,
+        h: displayHeightPx,
+        layout: layout
+    };
+}
+
+function textStretchCompareSvg(displayWidthPx, displayHeightPx) {
+    var font = loadFont();
+    var oldLayout = computeIntegerTextLayout(displayWidthPx, displayHeightPx);
+    var newLayout = computeFilledTextLayout(displayWidthPx, displayHeightPx);
+    var oldRender = renderTextScreenInDisplaySvg(TITLE_LINES, displayWidthPx, displayHeightPx, font, oldLayout);
+    var newRender = renderTextScreenInDisplaySvg(TITLE_LINES, displayWidthPx, displayHeightPx, font, newLayout);
+    var gap = 40;
+    var totalW = displayWidthPx * 2 + gap;
+    var totalH = displayHeightPx + 80;
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + totalW +
+        '" height="' + totalH + '" viewBox="0 0 ' + totalW + ' ' + totalH + '">'];
+    out.push('<rect x="0" y="0" width="' + totalW + '" height="' + totalH + '" fill="#f4f4f4"/>');
+    out.push('<text x="10" y="24" font-family="sans-serif" font-size="16" fill="#222">Before: integer scale ' +
+        oldLayout.scale + " (" + oldLayout.gridW + "x" + oldLayout.gridH + " px grid)</text>");
+    out.push('<g transform="translate(10,32)">' + oldRender.svg + "</g>");
+    out.push('<text x="' + (displayWidthPx + gap + 10) + '" y="24" font-family="sans-serif" font-size="16" fill="#222">' +
+        "After: fill-to-fit (" + newLayout.gridW + "x" + newLayout.gridH + " px grid, " +
+        newLayout.cellW + "x" + newLayout.cellH + " px cells)</text>");
+    out.push('<g transform="translate(' + (displayWidthPx + gap + 10) + ',32)">' + newRender.svg + "</g>");
+    out.push("</svg>");
+    return out.join("\n");
+}
+
 function caption(x, y, s) {
     return '<text x="' + fmt(x) + '" y="' + fmt(y) + '" font-size="3" ' +
         'font-family="sans-serif" fill="#444">' + s + "</text>";
@@ -208,6 +318,10 @@ if (typeof module !== "undefined" && module.exports) {
         loadFont: loadFont,
         TITLE_LINES: TITLE_LINES,
         renderTextScreenSvg: renderTextScreenSvg,
+        computeFilledTextLayout: computeFilledTextLayout,
+        computeIntegerTextLayout: computeIntegerTextLayout,
+        renderTextScreenInDisplaySvg: renderTextScreenInDisplaySvg,
+        textStretchCompareSvg: textStretchCompareSvg,
         legibilitySheetSvg: legibilitySheetSvg
     };
 }

@@ -5,12 +5,14 @@ Date: 2026-07-07. Amended 2026-07-08: display grown to 4.3-inch 800x480 and
 body to 108 x 102 mm to resolve the control-band packing conflicts surfaced
 by the blockout tool; speaker changed to a piezo disc under the battery;
 Menu pill moved off the D-pad's down-press axis, rightward against the
-battery boundary.
+battery boundary. Amended 2026-07-08b: body grown to **120 x 110 mm** after
+confirming the Waveshare WS24773 **no-touch display envelope** (105.42 x
+67.07 mm — not the 112.4 x 75.1 mm touch-stack outline).
 
 ## Summary
 
 This spec pivots the PuzzleScript handheld from the 5-inch comfort-first
-split-side body to a radically compact card: a ~108 x 102 x 9 mm translucent
+split-side body to a radically compact card: a ~120 x 110 x 9 mm translucent
 near-square card (Playdate-proportioned) with a 4.3-inch 800x480 IPS display
 up top and a DMG-style control band below. The ESP32-P4 (32 MB PSRAM), the on-device
 compilation model, the library/product contract, and the entire 800x480
@@ -86,7 +88,7 @@ face, X rightward, Y downward.
 
 Body:
 
-- Face outline: 108 x 102 mm, corner radius ~9 mm.
+- Face outline: 120 x 110 mm, corner radius ~9 mm.
 - Depth: 9 mm uniform. No grips, no bulges.
 - Full-face cover lens: one flat ~1 mm sheet (glass or acrylic) spanning the
   whole front, printed opaque on the underside except the screen window.
@@ -95,21 +97,22 @@ Body:
 
 Display:
 
-- 4.3-inch 800x480 IPS, active area reference 95 x 54 mm (0.119 mm/px),
-  centered horizontally with a ~7 mm top margin: active area spans
-  X 6.5-101.5, Y 7-61.
-- Module outline reference ~101 x 61 mm — nearly full card width, so the
-  side margins beside the screen are keep-out.
+- 4.3-inch 800x480 IPS (Waveshare WS24773 QLED no-touch), active area
+  reference 95 x 54 mm (0.119 mm/px), centered in the display module:
+  active area spans X 12.5-107.5, Y 10-64.
+- Display module outline **105.42 x 67.07 x 2.9 mm** (Waveshare "Display
+  Dimensions" for 43H-800480 no-touch). The **112.4 x 75.1 mm** outline is
+  the touch-stack SKU — do not use it for the no-touch blockout.
 
-Control band (Y ~63-98):
+Control band (Y ~72-105):
 
 | Control | Spec                                   | Center (X, Y) |
 |---------|----------------------------------------|---------------|
-| D-pad   | mascot cap, ~26 mm tip-to-tip          | (22, 78)      |
-| Action  | O14 mm, gently concave cap             | (89, 74)      |
-| Undo    | O10 mm, convex cap                     | (75, 87)      |
-| Restart | O10 mm, convex cap                     | (92, 93)      |
-| Menu    | ~11 x 4 mm pill, angled                | (30.5, 97)    |
+| D-pad   | mascot cap, ~26 mm tip-to-tip          | (22, 87)      |
+| Action  | O14 mm, gently concave cap             | (89, 83)      |
+| Undo    | O10 mm, convex cap                     | (75, 96)      |
+| Restart | O10 mm, convex cap                     | (92, 102)     |
+| Menu    | ~11 x 4 mm pill, angled                | (30.5, 106)   |
 
 The fan cluster carries over from the blockout spec with its rationale
 intact: Action at the resting thumb, Undo one inward flick away as the
@@ -139,11 +142,11 @@ Edges:
   storage is the user-facing file path.
 
 Speaker grille: 5x5 hole grid over the piezo disc in the battery field
-(~X 53, Y ~90).
+(~X 53, Y ~99).
 
 ## Architecture: Single-Sided PCB
 
-One ~104 x 98 mm PCB spans the card. Every component mounts on the front side:
+One ~116 x 106 mm PCB spans the card. Every component mounts on the front side:
 
 - panel, framed over the PCB, DSI FPC folded back to its connector
 - battery pouch cell (band gap, see below)
@@ -167,13 +170,13 @@ The gap between the D-pad field and the Undo cap is ~35 mm wide (X ~35-70)
 after the 4.3-inch amendment, and is the tightest real estate in the device.
 Packing:
 
-- Battery: pouch cell ~32 x 30 x 4 mm, ~2.5 Wh, at X 37-69, Y 64-94. The
+- Battery: pouch cell ~32 x 30 x 4 mm, ~2.5 Wh, at X 37-69, Y 73-103. The
   cell cannot sit under the panel (occupied) or under buttons (switches need
   the PCB face), so face area is the battery budget.
 - Piezo: ~O16-20 x 0.5 mm disc glued to the inside of the front shell in the
   clearance layer, in front of the battery, under the 5x5 grille at
-  (~53, 90). It occupies no PCB face area.
-- LRA: right edge of the band near the cluster (~X 96, Y 78).
+  (~53, 99). It occupies no PCB face area.
+- LRA: right edge of the band near the cluster (~X 96, Y 87).
 
 The 2026-07-08 amendment resolved the original battery/Undo and
 battery/speaker overlaps (the 2026-07-07 zones were drawn verbatim and
@@ -244,12 +247,13 @@ splashes) remains binding.
 - Piezo loudness and timbre versus a dynamic driver: validate early with the
   actual sfxr sound set on a bench piezo against the printed shell. Fallback
   (dynamic driver, shorter battery) is documented in the band section.
-- Structural stiffness: a 108 x 102 x 9 card can flex and creak. Plan:
+- Structural stiffness: a 120 x 110 x 9 card can flex and creak. Plan:
   lens bonded to the front shell, PCB as a structural member. Verify
   physically.
-- Panel sourcing: all 4.3-inch 800x480 numbers (active area, module outline,
-  FPC exit, DSI timing on the ESP32-P4, backlight draw) are reference-class
-  until a specific panel is chosen and probed.
+- Panel sourcing: WS24773 / 43H-800480 QLED no-touch chosen; **105.42 × 67.07 mm**
+  display envelope and ~0.65 W backlight budget **confirmed 2026-07-08** from
+  Waveshare datasheet (owner sign-off). Optional caliper/backlight measure when
+  parts arrive.
 - Thumb reach-up ergonomics of controls-under on a light square card:
   argued from mass, must be confirmed by the playtest loop.
 - Menu is no longer on the D-pad's down-press axis (2026-07-08) but still

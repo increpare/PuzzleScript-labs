@@ -22,4 +22,7 @@ RenderResult render_level_to_native_framebuffer(
     int native_width,
     int native_height);
 
+uint16_t game_background_rgb565(const ps_game* game);
+uint16_t game_foreground_rgb565(const ps_game* game);
+
 } // namespace ps_probe
