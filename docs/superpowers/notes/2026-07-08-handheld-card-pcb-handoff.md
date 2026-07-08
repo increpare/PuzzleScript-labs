@@ -19,7 +19,7 @@ A single two-sided PCB (~116 x 106 mm) inside the 120 x 110 mm card body. The
 FRONT side is mechanically fixed by the display, controls, USB-C, FFC, edge
 switches, piezo grille, and LRA feel. The BACK side is flexible except for mass
 placement: one rear pouch sits low/centered, ESP32-P4 sits above it, and the
-charger/gauge/buck cluster stays near the pouch tabs. The device: ESP32-P4
+charger/gauge/buck-boost cluster stays near the pouch tabs. The device: ESP32-P4
 handheld running the native PuzzleScript runtime, DSI display, D-pad + 3
 buttons + Menu, USB-C (charge + mass storage), battery, piezo audio, LRA haptic,
 RGB case LEDs, microSD (internal, service-only).
@@ -69,7 +69,7 @@ Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if the Z-stack requires
   for one low, wide rear pouch cell. The blockout reserves a 58 x 30 mm rear
   pocket; pick a real stocked pouch before committing tabs, connector, or pocket
   depth. Battery-safe shutdown per parent spec.
-- 3V3 buck (display + system), sized for display ~400 mA + P4 bursts.
+- 3V3 buck-boost (display + system), sized for display ~400 mA + P4 bursts.
 - Piezo disc (~O16-20 mm, in the shell layer, wired to pads) + drive circuit
   (transistor push-pull minimum; small boost/H-bridge if bench test says it
   is too quiet).

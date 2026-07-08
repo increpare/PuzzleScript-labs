@@ -6,9 +6,22 @@ var path = require("path");
 
 var CARD_DIR = path.join(__dirname, "..");
 var SCHEMATIC_DIR = __dirname;
+var uuidCounter = 0;
 
 function uuid() {
-    return crypto.randomUUID();
+    uuidCounter++;
+    var hex = crypto.createHash("sha1")
+        .update("pscard-kicad:" + uuidCounter)
+        .digest("hex")
+        .slice(0, 32);
+    var variant = ((parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16);
+    return [
+        hex.slice(0, 8),
+        hex.slice(8, 12),
+        "4" + hex.slice(13, 16),
+        variant + hex.slice(17, 20),
+        hex.slice(20, 32)
+    ].join("-");
 }
 
 function esc(s) {
@@ -428,6 +441,7 @@ function buildProject() {
 }
 
 function generateAll() {
+    uuidCounter = 0;
     var model = loadJson(path.join(SCHEMATIC_DIR, "connectivity.json"));
     var layout = loadJson(path.join(CARD_DIR, "mechanical", "layout.json"));
     var sheetsDir = path.join(SCHEMATIC_DIR, "sheets");

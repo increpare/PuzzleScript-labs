@@ -21,7 +21,7 @@ flowchart TB
     subgraph power [Power block]
         CHG[1S charger + power path]
         GAUGE[Fuel gauge I2C]
-        BUCK[3V3 buck]
+        BUCK[3V3 buck-boost]
         CELL[LiPo pouch 1S]
     end
 
@@ -71,7 +71,7 @@ USB-C VBUS (5 V) ──┬──► Charger IC (e.g. BQ24075-class)
                    │         │
 1S LiPo (3.0–4.2 V)┘         ├──► SYS rail (~3.3–5 V switched)
                              │         │
-                             │         ├──► 3V3 buck (~1 A cont., ≥500 mA display headroom)
+                             │         ├──► 3V3 buck-boost (~1 A cont., >=500 mA display headroom)
                              │         │         ├──► ESP32-P4-Module (ESP_3V3 ×2, ESP_EN)
                              │         │         ├──► Logic, I2C, SD, LEDs, piezo driver
                              │         │         └──► Panel 3V3 (FFC pin 14 + local bulk)
@@ -96,7 +96,7 @@ Budget (from spec, owner-confirmed):
 | **U1** | Compute | P4 + C6 WiFi, 32 MB flash, 32 MB PSRAM | **Waveshare ESP32-P4-Module-32MB** |
 | **U2** | Charger | 1S linear/switch charger, power path, ship mode | TI BQ24075 or BQ25895-class |
 | **U3** | Fuel gauge | SOC %, alert | MAX17048 / CW2015 |
-| **U4** | Buck | 3V3 @ ≥1 A | TI TPS62135 / MP2359 / SY8089 |
+| **U4** | Buck-boost | Regulated 3V3 from 1S LiPo | TI TPS63070 baseline / TPS63802 alternate |
 | **J1** | USB-C | Mid-mount, USB 2.0, 5 V charge | CUI / Korean Hrop 16-pin mid-mount |
 | **J2** | Battery | One rear 1S pouch, low/centered; pads or low-profile connector after cell choice | Real stocked pouch + tabs/connector verified before layout |
 | **J3** | DSI FFC | 15-pin 1.0 mm, top edge | Molex 505110-1510 class |
@@ -110,7 +110,7 @@ Budget (from spec, owner-confirmed):
 
 1. **MIPI DSI** — 100 Ω diff, length-matched, short, 4-layer reference plane.
 2. **USB D+/D−** — 90 Ω diff, direct module USB pins to USB-C.
-3. **3V3 high-current** — wide pours to FFC + module; bulk caps at FFC, module, buck.
+3. **3V3 high-current** — wide pours to FFC + module; bulk caps at FFC, module, buck-boost.
 4. **I2C** — fuel gauge + DRV2605 on one bus, pull-ups near module.
 5. **Everything else** — GPIO switches, SD, piezo, RGB.
 

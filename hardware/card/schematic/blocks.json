@@ -12,10 +12,10 @@
       "nets_out": ["+3V3", "GND", "BAT+", "VBUS_IN", "SYS", "ESP_EN"],
       "parts": [
         { "ref": "J1", "kind": "USB-C-mid-mount", "role": "charge + USB-2-OTG" },
-        { "ref": "J2", "kind": "battery-connector", "role": "1S pouch" },
-        { "ref": "U2", "kind": "charger-power-path", "candidates": ["BQ24075", "BQ25895"] },
-        { "ref": "U3", "kind": "fuel-gauge-i2c", "candidates": ["MAX17048"] },
-        { "ref": "U4", "kind": "buck-3v3", "candidates": ["TPS62135", "MP2359"] }
+        { "ref": "J2", "kind": "battery-pouch-envelope", "role": "1S pouch, 503048/603048 family" },
+        { "ref": "U2", "kind": "charger-power-path", "selected": "BQ24075RGTR", "candidates": ["BQ24075", "BQ25188"] },
+        { "ref": "U3", "kind": "fuel-gauge-i2c", "selected": "MAX17048G+T10", "candidates": ["MAX17048"] },
+        { "ref": "U4", "kind": "buck-boost-3v3", "selected": "TPS63070", "candidates": ["TPS63070", "TPS63802"] }
       ]
     },
     {
@@ -41,11 +41,11 @@
       "name": "Controls",
       "nets_in": ["+3V3", "GND", "GPIO_*"],
       "parts": [
-        { "ref": "SW1-4", "kind": "tact", "role": "dpad" },
-        { "ref": "SW5-7", "kind": "tact", "role": "action-undo-restart" },
-        { "ref": "SW8", "kind": "tact", "role": "menu" },
-        { "ref": "SW9", "kind": "edge", "role": "power" },
-        { "ref": "SW10", "kind": "rocker", "role": "volume" }
+        { "ref": "SW1-4", "kind": "C&K-KMR2-tact", "selected": "KMR211NG LFS", "role": "dpad" },
+        { "ref": "SW5-7", "kind": "C&K-KMR2-tact", "selected": "KMR211NG LFS", "role": "action-undo-restart" },
+        { "ref": "SW8", "kind": "C&K-KMR2-tact", "selected": "KMR211NG LFS", "role": "menu" },
+        { "ref": "SW9", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "power" },
+        { "ref": "SW10", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "volume" }
       ]
     },
     {

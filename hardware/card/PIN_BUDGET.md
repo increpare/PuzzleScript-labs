@@ -25,7 +25,7 @@ Standard Pi DSI mapping (WS24773 no-touch uses DSI + power; I2C pins NC).
 | 11 | NC | No touch ID |
 | 12 | NC | |
 | 13 | GND | |
-| 14 | +3V3_PANEL | 3V3 buck (≥400 mA path) |
+| 14 | +3V3_PANEL | 3V3 buck-boost (>=400 mA path) |
 | 15 | GND | |
 
 ### J1 — USB-C (mid-mount, USB 2.0 + charge)
@@ -94,7 +94,7 @@ microSD socket. Service-only; acceptable for v1.
 
 | Net | Module pin | Card connection |
 |-----|------------|-----------------|
-| `ESP_3V3` | 85, 86 | 3V3 buck, local 10 µF + 0.1 µF |
+| `ESP_3V3` | 85, 86 | 3V3 buck-boost, local 10 uF + 0.1 uF |
 | `GND` | multiple | Solid plane |
 | `ESP_EN` | 87 | Power-path load switch + pull-up; power pill ORs wake |
 | `BOOT` | 62 (GPIO35) | Test pad + optional button |

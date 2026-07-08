@@ -18,6 +18,17 @@ test("generateAll writes kicad project files", function () {
     assert.ok(fs.existsSync(path.join(__dirname, "sheets", "power.kicad_sch")));
 });
 
+test("generateAll is deterministic", function () {
+    gen.generateAll();
+    var root1 = fs.readFileSync(path.join(CARD, "card.kicad_sch"), "utf8");
+    var power1 = fs.readFileSync(path.join(__dirname, "sheets", "power.kicad_sch"), "utf8");
+    gen.generateAll();
+    var root2 = fs.readFileSync(path.join(CARD, "card.kicad_sch"), "utf8");
+    var power2 = fs.readFileSync(path.join(__dirname, "sheets", "power.kicad_sch"), "utf8");
+    assert.strictEqual(root2, root1);
+    assert.strictEqual(power2, power1);
+});
+
 test("power sheet contains U2 and global +3V3 label", function () {
     var svg = fs.readFileSync(path.join(__dirname, "sheets", "power.kicad_sch"), "utf8");
     assert.ok(svg.indexOf("(kicad_sch") !== -1);

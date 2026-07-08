@@ -53,7 +53,7 @@ mass.
 | Side | Fixed / Preferred Contents |
 |------|----------------------------|
 | Front/player side | Display outline and lens, D-pad, Action, Undo, Restart, Menu, top USB-C, DSI FFC, edge power/volume controls, piezo grille |
-| Back/service side | One large pouch cell low and centered, ESP32-P4 module above pouch, charger/gauge/buck near pouch tabs, debug pads, service-only storage if it fits better there |
+| Back/service side | One large pouch cell low and centered, ESP32-P4 module above pouch, charger/gauge/buck-boost near pouch tabs, debug pads, service-only storage if it fits better there |
 
 The battery should sit low and centered in the hand grip/base area. This keeps
 the heaviest part where the device is held and avoids the split-cell wiring and
@@ -114,7 +114,7 @@ The reset workflow should be:
 1. Update the mechanical blockout first: one rear pouch, ESP above pouch,
    retired split-cell keep-outs, piezo retained and clear of controls.
 2. Verify real components before schematic/layout: pouch, USB-C, FFC, charger,
-   gauge, buck, switches, microSD, haptic, and piezo pads.
+   gauge, buck-boost, switches, microSD, haptic, and piezo pads.
 3. Keep nets in `hardware/card/schematic/connectivity.json` and regenerate the
    KiCad project when connectivity changes.
 4. Use `hardware/card/mechanical/layout.json` / `layout.svg` as the placement

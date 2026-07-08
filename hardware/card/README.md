@@ -27,6 +27,7 @@ make handheld_pcb_export          # if make available
 
 ## Docs
 
+- [COMPONENT_SELECTION.md](COMPONENT_SELECTION.md) - spin 1 part choices and sourcing gates
 - [OPEN.md](OPEN.md) — install KiCad, open project (for humans)
 - [BLOCK_DIAGRAM.md](BLOCK_DIAGRAM.md) — architecture
 - [PIN_BUDGET.md](PIN_BUDGET.md) — GPIO / connector pinouts

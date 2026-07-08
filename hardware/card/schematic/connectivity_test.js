@@ -18,7 +18,7 @@ test("DSI differential pairs exist", function () {
     assert.ok(byNet.DSI_CLK_P && byNet.DSI_CLK_N);
 });
 
-test("power tree connects charger buck and module", function () {
+test("power tree connects charger buck-boost and module", function () {
     var byNet = V.buildNetMap(V.model);
     var p33 = byNet["+3V3"].map(function (n) { return n[0]; });
     assert.ok(p33.indexOf("U4") !== -1);
