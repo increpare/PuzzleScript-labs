@@ -1,15 +1,15 @@
 # PuzzleScript Card - PCB Reset Design
 
 Date: 2026-07-08. Status: proposed reset. Supersedes the split-cell
-tscircuit layout experiment from
+code-generated layout experiment from
 `2026-07-08-handheld-card-two-sided-design.md` for the next PCB pass.
 
 ## Decision Summary
 
-The current tscircuit PCB should be treated as a failed layout experiment, not
-as a board to patch. It exposed useful constraints, but its component choices,
-split-cell assumption, through-hole/connectors, and autorouter-driven placement
-are not a good starting point for an EasyEDA/KiCad layout.
+The current generated PCB attempt should be treated as a failed layout
+experiment, not as a board to patch. It exposed useful constraints, but its
+component choices, split-cell assumption, through-hole/connectors, and generated
+placement are not a good starting point for an EasyEDA/KiCad layout.
 
 Spin reset decisions:
 
@@ -22,8 +22,8 @@ Spin reset decisions:
   tests prove the piezo is not good enough.
 - Prefer SMT/JLC-assembly-friendly parts. Avoid through-hole connectors unless
   the mechanical or service constraint genuinely requires them.
-- Use tscircuit as a source-of-truth/preview aid only where it helps; do the
-  real layout handoff in KiCad/EasyEDA Pro.
+- Use the blockout export, connectivity JSON, and KiCad/EasyEDA Pro for the
+  next figuring-out loop.
 
 ## Goals
 
@@ -38,7 +38,7 @@ Spin reset decisions:
 
 ## Non-Goals
 
-- Do not salvage the existing tscircuit autorouted placement.
+- Do not salvage the existing generated placement.
 - Do not pursue a dynamic speaker unless piezo testing fails.
 - Do not lock exact commodity part numbers in this reset spec; verify stocked
   parts before schematic/layout implementation.
@@ -109,21 +109,18 @@ explicit trade against battery volume and enclosure simplicity, not the default.
 
 ## Tooling Approach
 
-The tscircuit/Bun approach is not doomed, but it is the wrong center of gravity
-for the final layout. The reset workflow should be:
+The reset workflow should be:
 
 1. Update the mechanical blockout first: one rear pouch, ESP above pouch,
-   retired split-cell keep-outs, piezo retained.
+   retired split-cell keep-outs, piezo retained and clear of controls.
 2. Verify real components before schematic/layout: pouch, USB-C, FFC, charger,
    gauge, buck, switches, microSD, haptic, and piezo pads.
-3. Generate or maintain a clean schematic/netlist with production-friendly
-   footprints.
-4. Export/import to KiCad or EasyEDA Pro as the human layout starting point.
-5. Hand-route the constrained routes and use the editor DRC as the fabrication
-   authority.
-
-tscircuit can still be useful for netlist checks, previews, and BOM intent, but
-the autorouter should not be trusted to solve this dense handheld layout.
+3. Keep nets in `hardware/card/schematic/connectivity.json` and regenerate the
+   KiCad project when connectivity changes.
+4. Use `hardware/card/mechanical/layout.json` / `layout.svg` as the placement
+   contract for EasyEDA Pro or KiCad.
+5. Place real stocked footprints, hand-route the constrained routes, and use the
+   editor DRC/ERC as the fabrication authority.
 
 ## Validation
 
@@ -146,4 +143,3 @@ Before implementation is considered ready:
 - Final power-path IC choice after checking assembly stock and thermal limits.
 - Whether haptic motor placement should be tuned for feel after the battery
   mass is fixed.
-

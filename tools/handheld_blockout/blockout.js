@@ -9,8 +9,10 @@
 
 var BLOCKOUT_PRESETS = {
     card: {
-        name: "PuzzleScript Card 4.3in (WS24773 no-touch, 120x110)",
-        body: { w: 120, h: 110, r: 9, depth: 9 },
+        name: "PuzzleScript Card 4.3in (WS24773 no-touch, reset one-pouch)",
+        body: { w: 120, h: 110, r: 9, depth: 11.5 },
+        depthProfile: { display: 8, band: 11.5 },
+        architecture: "two_sided",
         screen: {
             // Waveshare "Display Dimensions" for 43H-800480 no-touch (not the
             // 112.4 x 75.1 touch-stack outline). Active area centered in module.
@@ -23,14 +25,18 @@ var BLOCKOUT_PRESETS = {
             { label: "UNDO", cx: 75, cy: 96, d: 10 },
             { label: "RESTART", cx: 92, cy: 102, d: 10 }
         ],
-        menu: { cx: 30.5, cy: 106, w: 11, h: 4, angle: -20 },
+        menu: { cx: 58, cy: 101, w: 11, h: 4, angle: -20 },
         band: { y0: 72, y1: 105 },
         zones: [
-            { label: "battery 2.5Wh", x: 37, y: 73, w: 32, h: 30 },
-            { label: "LRA", x: 96, y: 87, w: 8, h: 8 }
+            { label: "LRA", x: 96, y: 87, w: 8, h: 8, face: "front" }
         ],
-        piezo: { cx: 53, cy: 99, d: 18 },
-        grille: { cx: 53, cy: 99 },
+        backZones: [
+            { label: "BAT_1S_POUCH", x: 31, y: 73, w: 58, h: 30, role: "battery" },
+            { label: "ESP32-P4 module", x: 47.5, y: 43, w: 25, h: 25, role: "compute" },
+            { label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power" }
+        ],
+        piezo: { cx: 60, cy: 86, d: 18 },
+        grille: { cx: 60, cy: 86 },
         topEdge: { usbX: 25, pwrX: 113, fpcKeepOut: [47, 73] },
         rightEdge: { volY: 18 }
     }
@@ -141,6 +147,17 @@ function spacingWarnings(params) {
             }
         }
     }
+    if (params.backZones) {
+        for (i = 0; i < params.backZones.length; i++) {
+            for (j = i + 1; j < params.backZones.length; j++) {
+                depth = rectRectOverlap(params.backZones[i], params.backZones[j]);
+                if (depth > 0) {
+                    warnings.push(params.backZones[i].label + " overlaps " +
+                        params.backZones[j].label + " by " + fmt(depth) + " mm");
+                }
+            }
+        }
+    }
     params.zones.forEach(function (z) {
         if (z.y < params.band.y0) {
             warnings.push(z.label + " extends " + fmt(params.band.y0 - z.y) +
@@ -209,9 +226,14 @@ function faceGroupSvg(params, opts) {
     if (opts.overlays) {
         params.zones.forEach(function (z) {
             out.push(svgRect(z.x, z.y, z.w, z.h, 1.5, "#c77", "none", true));
-            // Label above the zone's top edge so it never overprints the grille.
             out.push(svgText(z.x + z.w / 2, z.y - 0.8, 2.2, z.label));
         });
+        if (params.backZones) {
+            params.backZones.forEach(function (z) {
+                out.push(svgRect(z.x, z.y, z.w, z.h, 1.5, "#77c", "none", true));
+                out.push(svgText(z.x + z.w / 2, z.y + z.h + 2.2, 2, z.label + " (back)"));
+            });
+        }
         if (params.piezo) {
             var p = params.piezo;
             out.push('<circle cx="' + fmt(p.cx) + '" cy="' + fmt(p.cy) + '" r="' + fmt(p.d / 2) +
@@ -250,24 +272,39 @@ function rightEdgeGroupSvg(params) {
 }
 
 function sectionGroupSvg(params) {
-    // Z-stack side section, 1:1. X spans the card; Y is the 9 mm thickness.
     var b = params.body;
-    var layers = [
-        { y: 0, h: 1.8, label: "front shell + lens 1.8" },
-        { y: 1.8, h: 1.0, label: "clearance 1.0" },
-        { y: 2.8, h: 4.0, label: "components on PCB face: battery 4.0 / panel 2.5" },
-        { y: 6.8, h: 1.2, label: "PCB 1.2" },
-        { y: 8.0, h: 1.0, label: "rear shell 1.0" }
-    ];
-    var out = [svgRect(0, 0, b.w, b.depth, 2, "#000", "none")];
+    var dp = params.depthProfile;
+    var slabH = dp ? dp.band : b.depth;
+    var layers;
+    if (dp) {
+        layers = [
+            { y: 0, h: 1.5, label: "front shell + caps 1.5" },
+            { y: 1.5, h: 2.5, label: "tact + piezo driver (PCB top)" },
+            { y: 4.0, h: 1.2, label: "PCB 1.2" },
+            { y: 5.2, h: 2.0, label: "back components: ESP + PMIC" },
+            { y: 7.2, h: 3.0, label: "rear pouch pocket" },
+            { y: 10.2, h: 1.3, label: "rear shell floor 1.3" }
+        ];
+    } else {
+        layers = [
+            { y: 0, h: 1.8, label: "front shell + lens 1.8" },
+            { y: 1.8, h: 1.0, label: "clearance 1.0" },
+            { y: 2.8, h: 4.0, label: "components on PCB face: battery 4.0 / panel 2.5" },
+            { y: 6.8, h: 1.2, label: "PCB 1.2" },
+            { y: 8.0, h: 1.0, label: "rear shell 1.0" }
+        ];
+    }
+    var out = [svgRect(0, 0, b.w, slabH, 2, "#000", "none")];
     layers.forEach(function (l, i) {
         out.push('<line x1="0" y1="' + fmt(l.y) + '" x2="' + fmt(b.w) + '" y2="' + fmt(l.y) +
             '" stroke="#888" stroke-width="0.15"/>');
-        // Legend below the slab; side labels overprint at 1:1 scale.
-        out.push(svgText(0, b.depth + 8 + i * 3.5, 2.2,
+        out.push(svgText(0, slabH + 8 + i * 3.5, 2.2,
             fmt(l.y) + "-" + fmt(l.y + l.h) + " mm: " + l.label, "start"));
     });
-    out.push(svgText(0, b.depth + 4, 2.2, "Z-stack section, 1:1", "start"));
+    var title = dp
+        ? "Z-stack band section ~" + dp.band + " mm (display zone ~" + dp.display + " mm)"
+        : "Z-stack section, 1:1";
+    out.push(svgText(0, slabH + 4, 2.2, title, "start"));
     return out.join("\n");
 }
 

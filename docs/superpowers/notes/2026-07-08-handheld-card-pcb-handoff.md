@@ -2,19 +2,27 @@
 
 Date: 2026-07-08. Audience: whoever executes the Track 2 custom PCB for the
 PuzzleScript Card handheld. Read the spec first:
-`docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md`
-(as amended 2026-07-08b: 4.3-inch WS24773 no-touch panel, 120 x 110 x 9 mm body,
-speaker, Menu off the down axis).
+`docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`
+(reset baseline: 4.3-inch WS24773 no-touch panel, 120 x 110 mm body, stepped
+~8 mm display zone / ~11.5 mm control and rear-pocket band, piezo audio, Menu
+off the down axis).
+
+**PCB reset (2026-07-08d):** the split-cell generated layout is retired for the
+next PCB pass. Use one rear 1S pouch low/centered, put ESP32-P4 above it, keep
+piezo for spin 1, and use `hardware/card/mechanical/layout.json` as the layout
+starting point. See
+`docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`.
 
 ## What this board is
 
-A single PCB (~116 x 106 mm) spanning a 9 mm-thick card. Everything mounts on
-the FRONT side; the PCB back (routing, silkscreen, test pads) is a visible
-product surface behind a translucent rear shell. Architecture and Z-stack are
-in the spec ("Architecture: Single-Sided PCB" section). The device: ESP32-P4
+A single two-sided PCB (~116 x 106 mm) inside the 120 x 110 mm card body. The
+FRONT side is mechanically fixed by the display, controls, USB-C, FFC, edge
+switches, piezo grille, and LRA feel. The BACK side is flexible except for mass
+placement: one rear pouch sits low/centered, ESP32-P4 sits above it, and the
+charger/gauge/buck cluster stays near the pouch tabs. The device: ESP32-P4
 handheld running the native PuzzleScript runtime, DSI display, D-pad + 3
-buttons + Menu, USB-C (charge + mass storage), battery, piezo audio, LRA
-haptic, RGB case LEDs, microSD (internal, service-only).
+buttons + Menu, USB-C (charge + mass storage), battery, piezo audio, LRA haptic,
+RGB case LEDs, microSD (internal, service-only).
 
 ## Display (chosen part)
 
@@ -39,8 +47,9 @@ display module (X 12.5–107.5, Y 10–64). The earlier **112.4 × 75.1** figure
 is the touch assembly; using it for the no-touch panel drew a false ~18 mm
 "bezel" under the glass.
 
-**Case:** body **120 × 110 × 9 mm**; control band Y 72–105 clears the 67 mm
-display module. Re-print 1:1 sheet before re-approving on paper.
+**Case:** body **120 x 110 mm**; stepped depth is about 8 mm at the display zone
+and 11.5 mm through the control/rear-pocket band. Control band Y 72-105 clears
+the 67 mm display module. Re-print 1:1 sheet before re-approving on paper.
 
 Our side is still just: 15-pin FFC connector + two DSI data pairs +
 clock pair + 3V3. No backlight boost on our board.
@@ -50,15 +59,16 @@ clock pair + 3V3. No backlight boost on our board.
 **ESP32-P4-Module-32MB** (Waveshare, 25 × 25 mm castellated) reflowed onto the card
 PCB — not a NANO/dev-kit carrier. See `hardware/card/BLOCK_DIAGRAM.md`.
 
-Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if 9 mm Z-stack requires it.
+Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if the Z-stack requires it.
 
 ## Rest of the BOM (blocks)
 
 - USB-C **mid-mount** receptacle (a 3.3 mm-tall topside part does not fit the
   stack): charge + USB 2.0 OTG for mass-storage mode.
 - 1S charger + power path + fuel gauge (e.g., BQ2407x-class + MAX17048-class)
-  for the ~32 x 30 x 4 mm, ~2.5 Wh pouch cell. Battery-safe shutdown per
-  parent spec.
+  for one low, wide rear pouch cell. The blockout reserves a 58 x 30 mm rear
+  pocket; pick a real stocked pouch before committing tabs, connector, or pocket
+  depth. Battery-safe shutdown per parent spec.
 - 3V3 buck (display + system), sized for display ~400 mA + P4 bursts.
 - Piezo disc (~O16-20 mm, in the shell layer, wired to pads) + drive circuit
   (transistor push-pull minimum; small boost/H-bridge if bench test says it
@@ -72,10 +82,11 @@ Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if 9 mm Z-stack require
 
 ## Placement source of truth
 
-`tools/handheld_blockout/blockout.js` — the `card` preset holds every
-front-face coordinate in mm (buttons, Menu, band, battery keep-out, grille,
-piezo, USB-C X, power X, volume Y, FPC keep-out). Do not re-derive from the
-spec by hand; export from the preset so PCB and case cannot drift. Run:
+`tools/handheld_blockout/blockout.js` - the `card` preset holds every
+front-face coordinate in mm (buttons, Menu, band, grille, piezo, USB-C X, power
+X, volume Y, FPC keep-out) plus back-side keep-outs for the pouch, ESP module,
+and PMIC cluster. Do not re-derive from the spec by hand; export from the preset
+so PCB and case cannot drift. Run:
 
 ```bash
 make handheld_pcb_export          # writes hardware/card/mechanical/layout.{json,svg}
@@ -89,16 +100,18 @@ green after any preset change.
 
 ## Recommended toolchain
 
-1. **Schematic as code**: SKiDL (Python -> KiCad netlist) or atopile, in a
-   new `hardware/` directory. Headless design checks (every net driven,
-   decoupling per rail) run like the blockout tests.
-2. **KiCad 8+** for layout. Script the mechanical layer (outline, placement,
-   keep-outs, mounting holes) from the blockout preset; hand-route the DSI
-   pairs: 100 ohm differential, short, length-matched, 4-layer JLC stackup.
-   Everything else is relaxed low-speed routing.
-3. **Headless verification**: `kicad-cli` ERC/DRC in a test script; 3D export
+1. **Mechanical handoff first**: start EasyEDA Pro or KiCad from
+   `hardware/card/mechanical/layout.json` and `layout.svg`.
+2. **Connectivity JSON**: keep nets and block wiring in
+   `hardware/card/schematic/connectivity.json`, then regenerate the KiCad
+   project when connectivity changes.
+3. **KiCad/EasyEDA layout**: assign real JLC/LCSC footprints, place from the
+   mechanical anchors, hand-route the DSI pairs first (100 ohm differential,
+   short, length-matched, 4-layer JLC stackup). Everything else is relaxed
+   low-speed routing.
+4. **Headless verification**: `kicad-cli` ERC/DRC in a test script; 3D export
    (STEP) to check against the case blockout.
-4. **Output**: gerbers + JLCPCB assembly BOM/CPL; prefer JLC-stocked parts.
+5. **Output**: gerbers + JLCPCB assembly BOM/CPL; prefer JLC-stocked parts.
 
 ## Work order
 
@@ -120,7 +133,10 @@ green after any preset change.
 
 ## Context and references
 
-- Spec (canonical): `docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md`
+- Reset spec (canonical for this pass):
+  `docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`
+- Earlier compact-card spec:
+  `docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md`
 - Parent design (contracts, firmware plan, power discipline):
   `docs/superpowers/specs/2026-07-03-puzzlescript-handheld-design.md`
 - Blockout tool + committed 1:1/legibility sheets:

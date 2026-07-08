@@ -33,6 +33,14 @@ function dpadSwitchCenters(dpad) {
     ];
 }
 
+function keepoutIdForBackZone(z, i) {
+    var base = String(z.label || ("back_" + i))
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    return "back_" + (base || String(i));
+}
+
 function buildPcbLayout(params, options) {
     options = options || {};
     var inset = options.pcbInset != null ? options.pcbInset : DEFAULT_PCB_INSET;
@@ -48,6 +56,9 @@ function buildPcbLayout(params, options) {
     var t = params.topEdge;
     var fpcX0 = t.fpcKeepOut[0];
     var fpcX1 = t.fpcKeepOut[1];
+
+    var lraZone = params.zones.filter(function (z) { return z.label === "LRA"; })[0] ||
+        { x: 96, y: 87, w: 8, h: 8 };
 
     var anchors = dpadSwitchCenters(params.dpad).concat(
         params.buttons.map(function (btn) {
@@ -87,8 +98,8 @@ function buildPcbLayout(params, options) {
             note: "right-edge volume rocker"
         }, {
             id: "ACT_LRA",
-            x: params.zones[1].x + params.zones[1].w / 2,
-            y: params.zones[1].y + params.zones[1].h / 2
+            x: lraZone.x + lraZone.w / 2,
+            y: lraZone.y + lraZone.h / 2
         }, {
             id: "PAD_PIEZO",
             x: params.piezo.cx,
@@ -112,6 +123,8 @@ function buildPcbLayout(params, options) {
             name: params.name,
             source: "tools/handheld_blockout/blockout.js",
             coordinateSystem: "body_top_left_y_down_mm",
+            architecture: params.architecture || "single_sided",
+            depthProfile: params.depthProfile || null,
             kicadImportNote: "Flip Y when placing in KiCad (Y-up): kicad_y = pcb.h - (y - pcb.y) - pcb.y ... use body.h or pcb origin helper below",
             pcbInset: inset
         },
@@ -136,14 +149,6 @@ function buildPcbLayout(params, options) {
                 h: s.activeH,
                 note: "visible lens opening"
             }, {
-                id: "battery",
-                layer: "keepout",
-                x: params.zones[0].x,
-                y: params.zones[0].y,
-                w: params.zones[0].w,
-                h: params.zones[0].h,
-                note: params.zones[0].label
-            }, {
                 id: "fpc_top_keepout",
                 layer: "keepout",
                 x: fpcX0,
@@ -158,9 +163,20 @@ function buildPcbLayout(params, options) {
                 y: params.band.y0,
                 w: b.w,
                 h: params.band.y1 - params.band.y0,
-                note: "switch + battery band"
+                note: "front: switches + piezo; back: one pouch low, ESP/PMIC above"
             }
-        ],
+        ].concat((params.backZones || []).map(function (z, i) {
+            return {
+                id: keepoutIdForBackZone(z, i),
+                layer: "back",
+                x: z.x,
+                y: z.y,
+                w: z.w,
+                h: z.h,
+                role: z.role || "service",
+                note: z.label + " (PCB bottom / rear pocket)"
+            };
+        })),
         anchors: anchors,
         mountingHoles: mountingHoles
     };
@@ -193,8 +209,8 @@ function layoutToSvg(layout, opts) {
     out.push('<text x="2" y="-1.5" font-size="2.2" font-family="sans-serif" fill="#c00">Edge.Cuts (PCB outline)</text>');
 
     layout.keepouts.forEach(function (k) {
-        var stroke = k.layer === "keepout" ? "#f80" : "#88a";
-        var dash = k.layer === "keepout" ? ' stroke-dasharray="1.2,0.8"' : "";
+        var stroke = k.layer === "keepout" ? "#f80" : (k.layer === "back" ? "#08c" : "#88a");
+        var dash = k.layer === "keepout" || k.layer === "back" ? ' stroke-dasharray="1.2,0.8"' : "";
         out.push('<rect x="' + k.x + '" y="' + k.y + '" width="' + k.w + '" height="' + k.h +
             '" fill="none" stroke="' + stroke + '" stroke-width="0.25"' + dash + "/>");
         out.push('<text x="' + (k.x + k.w / 2) + '" y="' + (k.y - 0.6) +
@@ -227,6 +243,7 @@ if (typeof module !== "undefined" && module.exports) {
         DEFAULT_PCB_INSET: DEFAULT_PCB_INSET,
         roundedRectPath: roundedRectPath,
         dpadSwitchCenters: dpadSwitchCenters,
+        keepoutIdForBackZone: keepoutIdForBackZone,
         buildPcbLayout: buildPcbLayout,
         toKicadY: toKicadY,
         layoutToJson: layoutToJson,

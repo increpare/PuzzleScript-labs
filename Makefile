@@ -496,7 +496,6 @@ help:
 	@echo "  make handheld_pcb_export           Export card PCB outline/anchors to hardware/card/mechanical/"
 	@echo "  make handheld_card_schematic_tests Run card schematic connectivity tests"
 	@echo "  make handheld_card_kicad            Generate KiCad schematics + PCB outline"
-	@echo "  make handheld_card_tscircuit        Build Card tscircuit prototype + tests"
 	@echo "  make locality_survey               Emit structural memory-locality metrics for handheld + focus games"
 	@echo "  make profile_solver_tests          Profile native solver smoke workload (PROFILE_MODE=counters for PMU)"
 	@echo "  make handheld_p4_probe_build       Build ESP32-P4 Waveshare board-probe firmware"
@@ -773,9 +772,6 @@ handheld_card_schematic_tests:
 handheld_card_kicad:
 	$(NODE) hardware/card/schematic/generate_kicad.js
 	$(NODE) hardware/card/schematic/generate_kicad_test.js
-
-handheld_card_tscircuit:
-	cd hardware/card/tscircuit && bun install && bun run test
 
 locality_survey:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64

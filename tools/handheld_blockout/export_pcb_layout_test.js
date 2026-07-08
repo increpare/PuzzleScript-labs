@@ -37,16 +37,39 @@ test("layout includes DSI FFC anchor in fpc keep-out span", function () {
     assert.ok(ffc.x < blockout.BLOCKOUT_PRESETS.card.topEdge.fpcKeepOut[1]);
 });
 
-test("layout lists display module and battery keep-outs", function () {
+test("layout exports the centered raised piezo pad anchor", function () {
+    var layout = pcb.buildPcbLayout(blockout.BLOCKOUT_PRESETS.card);
+    var piezo = layout.anchors.filter(function (a) { return a.id === "PAD_PIEZO"; })[0];
+    assert.deepStrictEqual(
+        { x: piezo.x, y: piezo.y, d: piezo.d },
+        { x: 60, y: 86, d: 18 }
+    );
+});
+
+test("layout includes semantic back-side battery, ESP, and PMIC keep-outs", function () {
     var layout = pcb.buildPcbLayout(blockout.BLOCKOUT_PRESETS.card);
     var ids = layout.keepouts.map(function (k) { return k.id; });
     assert.ok(ids.indexOf("display_module") !== -1);
-    assert.ok(ids.indexOf("battery") !== -1);
-    var battery = layout.keepouts.filter(function (k) { return k.id === "battery"; })[0];
+    assert.strictEqual(ids.indexOf("battery"), -1);
+    assert.ok(ids.indexOf("back_bat_1s_pouch") !== -1);
+    assert.ok(ids.indexOf("back_esp32_p4_module") !== -1);
+    assert.ok(ids.indexOf("back_pmic_cluster") !== -1);
+    var battery = layout.keepouts.filter(function (k) { return k.id === "back_bat_1s_pouch"; })[0];
+    assert.strictEqual(battery.layer, "back");
+    assert.strictEqual(battery.role, "battery");
     assert.deepStrictEqual(
         { x: battery.x, y: battery.y, w: battery.w, h: battery.h },
-        { x: 37, y: 73, w: 32, h: 30 }
+        { x: 31, y: 73, w: 58, h: 30 }
     );
+    var esp = layout.keepouts.filter(function (k) { return k.id === "back_esp32_p4_module"; })[0];
+    assert.strictEqual(esp.layer, "back");
+    assert.strictEqual(esp.role, "compute");
+    assert.deepStrictEqual(
+        { x: esp.x, y: esp.y, w: esp.w, h: esp.h },
+        { x: 47.5, y: 43, w: 25, h: 25 }
+    );
+    var pmic = layout.keepouts.filter(function (k) { return k.id === "back_pmic_cluster"; })[0];
+    assert.strictEqual(pmic.role, "power");
 });
 
 test("layoutToSvg draws edge cuts and anchor labels", function () {

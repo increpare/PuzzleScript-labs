@@ -7,7 +7,10 @@ by the blockout tool; speaker changed to a piezo disc under the battery;
 Menu pill moved off the D-pad's down-press axis, rightward against the
 battery boundary. Amended 2026-07-08b: body grown to **120 x 110 mm** after
 confirming the Waveshare WS24773 **no-touch display envelope** (105.42 x
-67.07 mm — not the 112.4 x 75.1 mm touch-stack outline).
+67.07 mm — not the 112.4 x 75.1 mm touch-stack outline). Superseded for the
+next PCB pass by
+`docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md` (stepped body,
+one rear pouch, ESP above pouch, central Menu).
 
 ## Summary
 
@@ -145,6 +148,11 @@ Speaker grille: 5x5 hole grid over the piezo disc in the battery field
 (~X 53, Y ~99).
 
 ## Architecture: Single-Sided PCB
+
+> **Superseded for the PCB reset** by
+> `docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`
+> (two-sided PCB, stepped body, one rear pouch). Retained below as spin 1
+> history.
 
 One ~116 x 106 mm PCB spans the card. Every component mounts on the front side:
 

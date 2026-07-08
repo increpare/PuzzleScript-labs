@@ -8,10 +8,14 @@ function test(name, fn) { fn(); passed++; console.log("ok - " + name); }
 test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.deepStrictEqual(Object.keys(B.BLOCKOUT_PRESETS), ["card"]);
     var c = B.BLOCKOUT_PRESETS.card;
+    assert.strictEqual(c.name, "PuzzleScript Card 4.3in (WS24773 no-touch, reset one-pouch)");
     assert.strictEqual(c.body.w, 120);
     assert.strictEqual(c.body.h, 110);
     assert.strictEqual(c.body.r, 9);
-    assert.strictEqual(c.body.depth, 9);
+    assert.strictEqual(c.body.depth, 11.5);
+    assert.strictEqual(c.depthProfile.display, 8);
+    assert.strictEqual(c.depthProfile.band, 11.5);
+    assert.strictEqual(c.architecture, "two_sided");
     assert.strictEqual(c.screen.moduleW, 105.42);
     assert.strictEqual(c.screen.moduleH, 67.07);
     assert.strictEqual(c.screen.activeX, 12.5);
@@ -25,11 +29,26 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.buttons[0].d, 14);
     assert.strictEqual(c.buttons[1].cx, 75);
     assert.strictEqual(c.buttons[2].cy, 102);
+    assert.strictEqual(c.menu.cx, 58);
+    assert.strictEqual(c.menu.cy, 101);
     assert.strictEqual(c.menu.angle, -20);
     assert.strictEqual(c.band.y0, 72);
     assert.strictEqual(c.band.y1, 105);
-    assert.deepStrictEqual(c.zones[0], { label: "battery 2.5Wh", x: 37, y: 73, w: 32, h: 30 });
-    assert.deepStrictEqual(c.piezo, { cx: 53, cy: 99, d: 18 });
+    assert.deepStrictEqual(c.zones[0], { label: "LRA", x: 96, y: 87, w: 8, h: 8, face: "front" });
+    assert.strictEqual(c.backZones.length, 3);
+    assert.deepStrictEqual(c.backZones[0], {
+        label: "BAT_1S_POUCH", x: 31, y: 73, w: 58, h: 30, role: "battery"
+    });
+    assert.deepStrictEqual(c.backZones[1], {
+        label: "ESP32-P4 module", x: 47.5, y: 43, w: 25, h: 25, role: "compute"
+    });
+    assert.deepStrictEqual(c.backZones[2], {
+        label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power"
+    });
+    assert.ok(c.backZones[1].y + c.backZones[1].h < c.backZones[0].y);
+    assert.strictEqual(c.backZones.some(function (z) { return z.label.indexOf("BAT_L") !== -1; }), false);
+    assert.strictEqual(c.backZones.some(function (z) { return z.label.indexOf("BAT_R") !== -1; }), false);
+    assert.deepStrictEqual(c.piezo, { cx: 60, cy: 86, d: 18 });
     assert.strictEqual(c.topEdge.usbX, 25);
     assert.strictEqual(c.topEdge.pwrX, 113);
     assert.strictEqual(c.rightEdge.volY, 18);
@@ -73,19 +92,40 @@ test("rectRectOverlap reports minimal penetration depth", function () {
         { x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 0, w: 10, h: 10 }), 0);
 });
 
-test("amended card preset carries only the D-pad circle-model warnings", function () {
-    assert.deepStrictEqual(B.spacingWarnings(B.BLOCKOUT_PRESETS.card), [
-        "D-PAD-MENU gap 2.315 mm (< 7 mm)"
-    ]);
+test("reset one-pouch preset has no front-face spacing warnings", function () {
+    assert.deepStrictEqual(B.spacingWarnings(B.BLOCKOUT_PRESETS.card), []);
 });
 
-test("widening the battery into the Undo cap produces an overlap warning", function () {
+test("centered piezo shell pad clears the menu cap", function () {
+    var c = B.BLOCKOUT_PRESETS.card;
+    var menuProxyR = Math.max(c.menu.w, c.menu.h) / 2;
+    var gap = B.circleGap(c.piezo.cx, c.piezo.cy, c.piezo.d / 2,
+        c.menu.cx, c.menu.cy, menuProxyR);
+    assert.strictEqual(c.piezo.cx, c.body.w / 2);
+    assert.strictEqual(c.piezo.cy, 86);
+    assert.deepStrictEqual(c.grille, { cx: c.piezo.cx, cy: c.piezo.cy });
+    assert.ok(gap >= 0.5, "piezo/menu gap " + B.fmt(gap) + " mm");
+});
+
+test("reset back-side mass layout keeps one pouch low with compute above it", function () {
+    var c = B.BLOCKOUT_PRESETS.card;
+    var pouch = c.backZones.filter(function (z) { return z.role === "battery"; })[0];
+    var esp = c.backZones.filter(function (z) { return z.role === "compute"; })[0];
+    var pmic = c.backZones.filter(function (z) { return z.role === "power"; })[0];
+    assert.ok(pouch.x < c.body.w / 2 && pouch.x + pouch.w > c.body.w / 2);
+    assert.ok(pouch.y > c.band.y0);
+    assert.ok(esp.y + esp.h < pouch.y);
+    assert.ok(pmic.y + pmic.h < pouch.y);
+    assert.strictEqual(c.backZones.filter(function (z) { return z.role === "battery"; }).length, 1);
+});
+
+test("raising the rear pouch into the ESP keep-out produces an overlap warning", function () {
     var p = B.cloneParams(B.BLOCKOUT_PRESETS.card);
-    B.setParam(p, "zones.0.w", 40);
-    assert.deepStrictEqual(B.spacingWarnings(p), [
-        "D-PAD-MENU gap 2.315 mm (< 7 mm)",
-        "UNDO switch footprint overlaps the battery 2.5Wh zone"
-    ]);
+    B.setParam(p, "backZones.0.y", 64);
+    var w = B.spacingWarnings(p);
+    assert.ok(w.some(function (msg) {
+        return msg.indexOf("BAT_1S_POUCH") !== -1 && msg.indexOf("ESP32-P4") !== -1;
+    }), JSON.stringify(w));
 });
 
 test("crowding the cluster produces a gap warning", function () {
@@ -102,7 +142,7 @@ test("faceSvg draws body, active area, module, and d-pad at spec coordinates", f
     assert.ok(svg.indexOf('x="12.5" y="10" width="95" height="54"') !== -1, "active area");
     assert.ok(svg.indexOf('x="7.29" y="3.5" width="105.42" height="67.07"') !== -1, "module outline");
     assert.ok(svg.indexOf('x="9" y="82.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
-    assert.ok(svg.indexOf('rotate(-20 30.5 106)') !== -1, "menu tilt");
+    assert.ok(svg.indexOf('rotate(-20 58 101)') !== -1, "menu tilt");
     assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
 });
 
@@ -119,9 +159,14 @@ test("faceSvg draws the 5x5 grille", function () {
 
 test("faceSvg overlays draw internal zones only when asked", function () {
     var withO = B.faceSvg(B.BLOCKOUT_PRESETS.card, { overlays: true });
-    assert.ok(withO.indexOf("battery 2.5Wh") !== -1);
+    assert.ok(withO.indexOf("LRA") !== -1);
+    assert.ok(withO.indexOf("BAT_1S_POUCH") !== -1);
+    assert.ok(withO.indexOf("ESP32-P4 module") !== -1);
+    assert.ok(withO.indexOf("PMIC cluster") !== -1);
     var withoutO = B.faceSvg(B.BLOCKOUT_PRESETS.card, {});
-    assert.strictEqual(withoutO.indexOf("battery 2.5Wh"), -1);
+    assert.strictEqual(withoutO.indexOf("BAT_1S_POUCH"), -1);
+    assert.strictEqual(withoutO.indexOf("ESP32-P4 module"), -1);
+    assert.strictEqual(withoutO.indexOf("PMIC cluster"), -1);
 });
 
 test("edgesSvg draws USB-C, power, FPC keep-out, and volume", function () {
@@ -132,11 +177,12 @@ test("edgesSvg draws USB-C, power, FPC keep-out, and volume", function () {
     assert.ok(svg.indexOf("VOL") !== -1);
 });
 
-test("sectionSvg layer heights sum to the body depth", function () {
+test("sectionSvg layer heights use stepped reset profile", function () {
     var svg = B.sectionSvg(B.BLOCKOUT_PRESETS.card);
-    assert.ok(svg.indexOf("front shell + lens 1.8") !== -1);
-    assert.ok(svg.indexOf("rear shell 1.0") !== -1);
-    assert.ok(svg.indexOf('height="9"') !== -1, "9 mm slab");
+    assert.ok(svg.indexOf("front shell + caps 1.5") !== -1);
+    assert.ok(svg.indexOf("back components: ESP + PMIC") !== -1);
+    assert.ok(svg.indexOf("rear pouch pocket") !== -1);
+    assert.ok(svg.indexOf('height="11.5"') !== -1, "11.5 mm band slab");
 });
 
 test("printSheetSvg is A4 landscape 1:1 with calibration bar", function () {
@@ -148,9 +194,9 @@ test("printSheetSvg is A4 landscape 1:1 with calibration bar", function () {
     assert.ok(svg.indexOf('translate(160,45)') !== -1, "top edge placed");
 });
 
-test("printSheetSvg lists the current spacing warnings", function () {
+test("printSheetSvg lists spacing warnings when present", function () {
     var svg = B.printSheetSvg(B.BLOCKOUT_PRESETS.card);
-    assert.ok(svg.indexOf("D-PAD-MENU gap 2.315 mm") !== -1, "warnings printed on sheet");
+    assert.ok(svg.indexOf("open geometry warnings") !== -1, "warnings section on sheet");
 });
 
 console.log(passed + " tests passed");

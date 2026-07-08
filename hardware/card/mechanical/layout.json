@@ -1,8 +1,13 @@
 {
   "meta": {
-    "name": "PuzzleScript Card 4.3in (WS24773 no-touch, 120x110)",
+    "name": "PuzzleScript Card 4.3in (WS24773 no-touch, reset one-pouch)",
     "source": "tools/handheld_blockout/blockout.js",
     "coordinateSystem": "body_top_left_y_down_mm",
+    "architecture": "two_sided",
+    "depthProfile": {
+      "display": 8,
+      "band": 11.5
+    },
     "kicadImportNote": "Flip Y when placing in KiCad (Y-up): kicad_y = pcb.h - (y - pcb.y) - pcb.y ... use body.h or pcb origin helper below",
     "pcbInset": 2
   },
@@ -12,7 +17,7 @@
     "w": 120,
     "h": 110,
     "r": 9,
-    "depth": 9
+    "depth": 11.5
   },
   "pcb": {
     "x": 2,
@@ -42,15 +47,6 @@
       "note": "visible lens opening"
     },
     {
-      "id": "battery",
-      "layer": "keepout",
-      "x": 37,
-      "y": 73,
-      "w": 32,
-      "h": 30,
-      "note": "battery 2.5Wh"
-    },
-    {
       "id": "fpc_top_keepout",
       "layer": "keepout",
       "x": 47,
@@ -66,7 +62,37 @@
       "y": 72,
       "w": 120,
       "h": 33,
-      "note": "switch + battery band"
+      "note": "front: switches + piezo; back: one pouch low, ESP/PMIC above"
+    },
+    {
+      "id": "back_bat_1s_pouch",
+      "layer": "back",
+      "x": 31,
+      "y": 73,
+      "w": 58,
+      "h": 30,
+      "role": "battery",
+      "note": "BAT_1S_POUCH (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_esp32_p4_module",
+      "layer": "back",
+      "x": 47.5,
+      "y": 43,
+      "w": 25,
+      "h": 25,
+      "role": "compute",
+      "note": "ESP32-P4 module (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_pmic_cluster",
+      "layer": "back",
+      "x": 76,
+      "y": 57,
+      "w": 22,
+      "h": 11,
+      "role": "power",
+      "note": "PMIC cluster (PCB bottom / rear pocket)"
     }
   ],
   "anchors": [
@@ -110,8 +136,8 @@
     },
     {
       "id": "SW_MENU",
-      "x": 30.5,
-      "y": 106,
+      "x": 58,
+      "y": 101,
       "w": 11,
       "h": 4,
       "angle": -20
@@ -147,8 +173,8 @@
     },
     {
       "id": "PAD_PIEZO",
-      "x": 53,
-      "y": 99,
+      "x": 60,
+      "y": 86,
       "d": 18,
       "note": "shell-layer piezo; wire to these pads only"
     }

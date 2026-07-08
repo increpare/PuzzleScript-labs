@@ -1,7 +1,10 @@
 # PuzzleScript Card — block diagram
 
-Status: spin 1 architecture (2026-07-08). Custom **116 × 106 mm** PCB; not a dev-kit
-carrier. Mechanical anchors: `mechanical/layout.json`.
+Status: PCB reset baseline (2026-07-08). Custom **116 x 106 mm** two-sided
+PCB; not a dev-kit carrier. Mechanical anchors: `mechanical/layout.json`.
+The reset baseline uses **one large rear 1S pouch**, low and centered, with the
+ESP32-P4 module above it and the power cluster near the pouch tabs. See
+`docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`.
 
 ## System overview
 
@@ -86,7 +89,7 @@ Budget (from spec, owner-confirmed):
 | P4 module | ~200 mA avg bursts | Compile/redraw peaks higher, short duty |
 | Rest | &lt;50 mA | SD, I2C, haptics, LEDs |
 
-## Block inventory (spin 1)
+## Block inventory (reset baseline)
 
 | ID | Block | Function | Candidate parts (JLC-friendly) |
 |----|-------|----------|--------------------------------|
@@ -95,7 +98,7 @@ Budget (from spec, owner-confirmed):
 | **U3** | Fuel gauge | SOC %, alert | MAX17048 / CW2015 |
 | **U4** | Buck | 3V3 @ ≥1 A | TI TPS62135 / MP2359 / SY8089 |
 | **J1** | USB-C | Mid-mount, USB 2.0, 5 V charge | CUI / Korean Hrop 16-pin mid-mount |
-| **J2** | Battery | 2-pin JST-PH or pouch tabs | — |
+| **J2** | Battery | One rear 1S pouch, low/centered; pads or low-profile connector after cell choice | Real stocked pouch + tabs/connector verified before layout |
 | **J3** | DSI FFC | 15-pin 1.0 mm, top edge | Molex 505110-1510 class |
 | **J4** | microSD | Push-push, internal | — |
 | **U5** | Haptic | I2C LRA driver | DRV2605L |
