@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
-#include <new>
+#include <unordered_map>
 #include <string>
 #include <sys/stat.h>
 #include <utility>
@@ -26,7 +26,10 @@ namespace {
 
 sdmmc_card_t* g_card = nullptr;
 bool g_mounted = false;
-inline constexpr std::size_t kMaxListedSdGames = 256;
+bool g_flash_storage_mounted = false;
+std::unordered_map<std::string, std::string> g_flash_title_catalog;
+bool g_flash_title_catalog_loaded = false;
+inline constexpr std::size_t kMaxListedSdGames = 512;
 inline constexpr std::size_t kListAllocationMinFreeBytes = 8 * 1024;
 inline constexpr std::size_t kSourceAllocationHeadroomBytes = 16 * 1024;
 
@@ -97,6 +100,61 @@ bool is_regular_game_file(const dirent* entry) {
     return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
 }
 
+bool is_catalog_filename(const char* basename) {
+    if (basename == nullptr) {
+        return false;
+    }
+    return std::strcmp(basename, "_CATALOG.TXT") == 0 || std::strcmp(basename, "_catalog.txt") == 0;
+}
+
+void load_flash_title_catalog_once() {
+    if (g_flash_title_catalog_loaded) {
+        return;
+    }
+    g_flash_title_catalog_loaded = true;
+    g_flash_title_catalog.clear();
+
+    if (mount_flash_storage() != ESP_OK) {
+        return;
+    }
+
+    LoadedSource catalog;
+    const std::string catalog_path = std::string(kFlashGamesDir) + "/_CATALOG.TXT";
+    if (read_text_file(catalog_path, catalog) != ESP_OK) {
+        return;
+    }
+
+    std::size_t line_start = 0;
+    while (line_start < catalog.text.size()) {
+        std::size_t line_end = catalog.text.find('\n', line_start);
+        if (line_end == std::string::npos) {
+            line_end = catalog.text.size();
+        }
+        std::string line = catalog.text.substr(line_start, line_end - line_start);
+        line_start = line_end + 1;
+        while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' ')) {
+            line.pop_back();
+        }
+        if (line.empty()) {
+            continue;
+        }
+        const std::size_t split = line.find('|');
+        if (split == std::string::npos) {
+            continue;
+        }
+        std::string filename = line.substr(0, split);
+        std::string title = line.substr(split + 1);
+        if (filename.empty() || title.empty()) {
+            continue;
+        }
+        try {
+            g_flash_title_catalog.emplace(std::move(filename), std::move(title));
+        } catch (const std::bad_alloc&) {
+            break;
+        }
+    }
+}
+
 } // namespace
 
 esp_err_t mount_sd_card() {
@@ -142,6 +200,24 @@ esp_err_t mount_sd_card() {
     return result;
 }
 
+esp_err_t mount_flash_storage() {
+    if (g_flash_storage_mounted) {
+        return ESP_OK;
+    }
+
+    esp_vfs_fat_mount_config_t mount_config = {};
+    mount_config.max_files = 8;
+    mount_config.format_if_mount_failed = false;
+    mount_config.allocation_unit_size = 16 * 1024;
+
+    const esp_err_t result = esp_vfs_fat_spiflash_mount_ro(
+        kFlashStorageMount,
+        "storage",
+        &mount_config);
+    g_flash_storage_mounted = result == ESP_OK;
+    return result;
+}
+
 std::vector<std::string> list_sd_games() {
     std::vector<std::string> names;
     DIR* dir = opendir(kSdGamesDir);
@@ -162,6 +238,37 @@ std::vector<std::string> list_sd_games() {
             } catch (const std::bad_alloc&) {
                 break;
             }
+        }
+    }
+    closedir(dir);
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+std::vector<std::string> list_flash_games() {
+    std::vector<std::string> names;
+    if (mount_flash_storage() != ESP_OK) {
+        return names;
+    }
+    DIR* dir = opendir(kFlashGamesDir);
+    if (dir == nullptr) {
+        return names;
+    }
+    while (names.size() < kMaxListedSdGames) {
+        dirent* entry = readdir(dir);
+        if (entry == nullptr) {
+            break;
+        }
+        if (!is_regular_game_file(entry) || is_catalog_filename(entry->d_name)) {
+            continue;
+        }
+        if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < kListAllocationMinFreeBytes) {
+            break;
+        }
+        try {
+            names.emplace_back(entry->d_name);
+        } catch (const std::bad_alloc&) {
+            break;
         }
     }
     closedir(dir);
@@ -239,6 +346,11 @@ esp_err_t load_named_sd_game(const char* basename, LoadedSource& out_source) {
         return ESP_ERR_NO_MEM;
     }
     return read_text_file(path, out_source);
+}
+
+const std::unordered_map<std::string, std::string>& flash_game_title_catalog() {
+    load_flash_title_catalog_once();
+    return g_flash_title_catalog;
 }
 
 } // namespace ps_probe

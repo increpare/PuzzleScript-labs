@@ -16,6 +16,7 @@ enum class Phase : uint8_t {
     RunInputTrace,
     UnloadGame,
     LoadSourceSd,
+    SimulationCorpus,
 };
 
 struct FramebufferPolicy {
@@ -43,5 +44,6 @@ void set_active_source(const char* source);
 void set_framebuffer_policy(const FramebufferPolicy& policy);
 void emit_phase_result(Phase phase, const char* status, const char* detail, int64_t elapsed_ms);
 void emit_boot_summary();
+void emit_json_event(const char* json);
 
 } // namespace ps_probe

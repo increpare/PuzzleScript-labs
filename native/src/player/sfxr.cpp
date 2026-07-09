@@ -344,7 +344,7 @@ Params generateParamsFromSeed(int32_t seed) {
     return result;
 }
 
-std::vector<float> generateSamples(const Params& ps, int32_t seed) {
+std::vector<float> generateSamples(const Params& ps, int32_t seed, int upsampleFactor) {
     auto noiseRng = Rng("noise-" + std::to_string(seed));
     auto randNoise = [&]() { return noiseRng.frnd(2.0) - 1.0; };
 
@@ -415,8 +415,6 @@ std::vector<float> generateSamples(const Params& ps, int32_t seed) {
     if (ps.p_repeat_speed == 0.0) rep_limit = 0;
     const double gain = std::exp(ps.sound_vol) - 1.0;
     const int summands = static_cast<int>(std::floor(44100.0 / static_cast<double>(kJsSampleRate)));
-    const bool browserUpsample = kJsSampleRate < kBrowserMinSampleRate;
-    const int upsampleFactor = browserUpsample ? 4 : 1;
     const int buffer_length = std::max(1, static_cast<int>(std::ceil(static_cast<double>(env_total_length) / static_cast<double>(summands))) * upsampleFactor + upsampleFactor);
     std::vector<float> buffer;
     buffer.reserve(static_cast<size_t>(buffer_length));
@@ -529,11 +527,11 @@ std::vector<float> generateSamples(const Params& ps, int32_t seed) {
     return buffer;
 }
 
-void applyBrowserLowpassFilters(std::vector<float>& samples) {
-    if (samples.empty()) {
+void applyLowpassFilters(std::vector<float>& samples, int sampleRate, double cutoffHz) {
+    if (samples.empty() || sampleRate <= 0 || cutoffHz <= 0.0) {
         return;
     }
-    const double omega = 2.0 * kPi * 1600.0 / static_cast<double>(kBrowserMinSampleRate);
+    const double omega = 2.0 * kPi * cutoffHz / static_cast<double>(sampleRate);
     const double sn = std::sin(omega);
     const double cs = std::cos(omega);
     const double alpha = sn / 2.0;
@@ -587,8 +585,10 @@ std::vector<float> resample(const std::vector<float>& input, int inputRate, int 
 
 std::vector<float> generateSfxrFromSeed(int32_t seed, int outputSampleRate) {
     const Params params = generateParamsFromSeed(seed);
-    auto samples = generateSamples(params, seed);
-    applyBrowserLowpassFilters(samples);
+    const bool browserUpsample = kJsSampleRate < kBrowserMinSampleRate;
+    const int upsampleFactor = browserUpsample ? 4 : 1;
+    auto samples = generateSamples(params, seed, upsampleFactor);
+    applyLowpassFilters(samples, kBrowserMinSampleRate, 1600.0);
     return resample(samples, kBrowserMinSampleRate, outputSampleRate);
 }
 

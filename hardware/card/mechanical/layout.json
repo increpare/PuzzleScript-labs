@@ -1,0 +1,236 @@
+{
+  "meta": {
+    "name": "PuzzleScript Card 4.3in (WS24773 no-touch, reset one-pouch)",
+    "source": "tools/handheld_blockout/blockout.js",
+    "coordinateSystem": "body_top_left_y_down_mm",
+    "architecture": "two_sided",
+    "depthProfile": {
+      "display": 9.5,
+      "band": 11.5
+    },
+    "kicadImportNote": "Flip Y when placing in KiCad (Y-up): kicad_y = pcb.h - (y - pcb.y) - pcb.y ... use body.h or pcb origin helper below",
+    "pcbInset": 2
+  },
+  "body": {
+    "x": 0,
+    "y": 0,
+    "w": 120,
+    "h": 110,
+    "r": 9,
+    "depth": 11.5
+  },
+  "pcb": {
+    "x": 2,
+    "y": 2,
+    "w": 116,
+    "h": 106,
+    "r": 7
+  },
+  "edgeCutsPath": "M 9 2 H 111 A 7 7 0 0 1 118 9 V 101 A 7 7 0 0 1 111 108 H 9 A 7 7 0 0 1 2 101 V 9 A 7 7 0 0 1 9 2 Z",
+  "keepouts": [
+    {
+      "id": "display_module",
+      "layer": "front",
+      "side": "front",
+      "x": 7.29,
+      "y": 3.5,
+      "w": 105.42,
+      "h": 67.07,
+      "note": "front display stack envelope; rear parts here require Z-stack clearance"
+    },
+    {
+      "id": "display_active",
+      "layer": "user",
+      "side": "front",
+      "x": 12.5,
+      "y": 10,
+      "w": 95,
+      "h": 54,
+      "note": "visible lens opening"
+    },
+    {
+      "id": "fpc_top_keepout",
+      "layer": "front",
+      "side": "front",
+      "x": 47,
+      "y": 0,
+      "w": 26,
+      "h": 72,
+      "note": "front-side no-tall-parts zone under display FPC fold"
+    },
+    {
+      "id": "control_band",
+      "layer": "user",
+      "x": 0,
+      "y": 72,
+      "w": 120,
+      "h": 33,
+      "note": "front: switches + piezo; back: one pouch low, ESP/PMIC above"
+    },
+    {
+      "id": "dpad_support",
+      "layer": "mechanical",
+      "side": "front",
+      "x": 8,
+      "y": 73,
+      "w": 28,
+      "h": 28,
+      "role": "standoff_pad",
+      "note": "DPAD_SUPPORT shell support/standoff pad"
+    },
+    {
+      "id": "action_support",
+      "layer": "mechanical",
+      "side": "front",
+      "x": 70,
+      "y": 77,
+      "w": 30,
+      "h": 30,
+      "role": "standoff_pad",
+      "note": "ACTION_SUPPORT shell support/standoff pad"
+    },
+    {
+      "id": "back_bat_1s_pouch",
+      "layer": "back",
+      "side": "back",
+      "x": 31,
+      "y": 73,
+      "w": 58,
+      "h": 30,
+      "role": "battery",
+      "note": "BAT_1S_POUCH (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_esp32_p4_module",
+      "layer": "back",
+      "side": "back",
+      "x": 47.5,
+      "y": 43,
+      "w": 25,
+      "h": 25,
+      "role": "compute",
+      "note": "ESP32-P4 module (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_pmic_cluster",
+      "layer": "back",
+      "side": "back",
+      "x": 76,
+      "y": 57,
+      "w": 22,
+      "h": 11,
+      "role": "power",
+      "note": "PMIC cluster (PCB bottom / rear pocket)"
+    }
+  ],
+  "anchors": [
+    {
+      "id": "SW_DPAD_UP",
+      "x": 22,
+      "y": 78.25
+    },
+    {
+      "id": "SW_DPAD_DOWN",
+      "x": 22,
+      "y": 95.75
+    },
+    {
+      "id": "SW_DPAD_LEFT",
+      "x": 13.25,
+      "y": 87
+    },
+    {
+      "id": "SW_DPAD_RIGHT",
+      "x": 30.75,
+      "y": 87
+    },
+    {
+      "id": "SW_ACTION",
+      "x": 89,
+      "y": 83,
+      "padD": 14
+    },
+    {
+      "id": "SW_UNDO",
+      "x": 75,
+      "y": 96,
+      "padD": 10
+    },
+    {
+      "id": "SW_RESTART",
+      "x": 92,
+      "y": 102,
+      "padD": 10
+    },
+    {
+      "id": "SW_MENU",
+      "x": 58,
+      "y": 101,
+      "w": 11,
+      "h": 4,
+      "angle": -20
+    },
+    {
+      "id": "CONN_DSI_FFC",
+      "x": 60,
+      "y": 3.5,
+      "note": "15-pin 1.0 mm FFC, top edge; align with fpcKeepOut"
+    },
+    {
+      "id": "CONN_USB_C_MID",
+      "x": 25,
+      "y": 2,
+      "note": "mid-mount USB-C on top edge (Z handled in case)"
+    },
+    {
+      "id": "SW_POWER",
+      "x": 106,
+      "y": 3.5,
+      "note": "top-edge power pill"
+    },
+    {
+      "id": "SW_VOLUME",
+      "x": 118.5,
+      "y": 18,
+      "note": "right-edge volume rocker"
+    },
+    {
+      "id": "ACT_LRA",
+      "x": 100,
+      "y": 91
+    },
+    {
+      "id": "PAD_PIEZO",
+      "x": 60,
+      "y": 86,
+      "d": 18,
+      "note": "shell-layer piezo; wire to these pads only"
+    }
+  ],
+  "mountingHoles": [
+    {
+      "id": "MH_TL",
+      "x": 7,
+      "y": 7,
+      "d": 2.2
+    },
+    {
+      "id": "MH_TR",
+      "x": 113,
+      "y": 7,
+      "d": 2.2
+    },
+    {
+      "id": "MH_BL",
+      "x": 7,
+      "y": 103,
+      "d": 2.2
+    },
+    {
+      "id": "MH_BR",
+      "x": 113,
+      "y": 103,
+      "d": 2.2
+    }
+  ]
+}

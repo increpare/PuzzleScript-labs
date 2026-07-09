@@ -13,12 +13,16 @@
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 namespace {
 
 std::string readFile(const char* path) {
     std::ifstream in(path);
+    if (!in) {
+        throw std::runtime_error(std::string("Unable to read fixture: ") + path);
+    }
     std::stringstream buffer;
     buffer << in.rdbuf();
     return buffer.str();
@@ -75,16 +79,9 @@ std::map<int32_t, int32_t> countObjects(const puzzlescript::Game& game, const pu
 } // namespace
 
 int main() {
-    const std::string source = readFile("tmp/microban_shrunk.txt");
+    const std::string source = readFile("src/demo/microban.txt");
     const puzzlescript::LoadedGame loaded = loadGame(source);
     const auto& game = *loaded.information;
-
-    puzzlescript::generator::TemplatizeOptions options;
-    options.take = 1;
-    options.globalSeed = 1;
-    const auto blocks = puzzlescript::generator::templatizeGame(game, options);
-    assert(!blocks.empty());
-    const auto& block = blocks.front();
 
     size_t sourceLevelIndex = 0;
     for (; sourceLevelIndex < game.levels.size(); ++sourceLevelIndex) {
@@ -93,6 +90,14 @@ int main() {
         }
     }
     assert(sourceLevelIndex < game.levels.size());
+
+    puzzlescript::generator::TemplatizeOptions options;
+    options.take = 1;
+    options.globalSeed = 1;
+    options.levelIndex = static_cast<int32_t>(sourceLevelIndex);
+    const auto blocks = puzzlescript::generator::templatizeGame(game, options);
+    assert(!blocks.empty());
+    const auto& block = blocks.front();
 
     puzzlescript::compiler::DiagnosticSink diagnostics;
     const auto parserState = puzzlescript::compiler::parseSource(source, diagnostics);

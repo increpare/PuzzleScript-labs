@@ -11,7 +11,11 @@
 #include <utility>
 
 #include <fcntl.h>
+#if defined(_WIN32)
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 namespace puzzlescript::generator {
 namespace {
@@ -57,6 +61,30 @@ bool isSectionSeparator(const std::string& line) {
 
 bool includeActionInput(const Game& game) {
     return game.metadata.values.find("noaction") == game.metadata.values.end();
+}
+
+int openForSync(const std::filesystem::path& path) {
+#if defined(_WIN32)
+    return _wopen(path.wstring().c_str(), _O_RDWR | _O_BINARY);
+#else
+    return ::open(path.c_str(), O_RDONLY);
+#endif
+}
+
+int syncFile(int fd) {
+#if defined(_WIN32)
+    return _commit(fd);
+#else
+    return ::fsync(fd);
+#endif
+}
+
+int closeFile(int fd) {
+#if defined(_WIN32)
+    return _close(fd);
+#else
+    return ::close(fd);
+#endif
 }
 
 } // namespace
@@ -175,15 +203,15 @@ void writeGameAtomically(const std::filesystem::path& path, const std::string& c
         }
     }
 
-    const int fd = ::open(tempPath.c_str(), O_RDONLY);
+    const int fd = openForSync(tempPath);
     if (fd < 0) {
         throw std::runtime_error("Failed to open temp output file for fsync: " + tempPath.string());
     }
-    if (::fsync(fd) != 0) {
-        ::close(fd);
+    if (syncFile(fd) != 0) {
+        closeFile(fd);
         throw std::runtime_error("Failed to fsync temp output file: " + tempPath.string());
     }
-    ::close(fd);
+    closeFile(fd);
 
     std::error_code renameError;
     std::filesystem::rename(tempPath, path, renameError);

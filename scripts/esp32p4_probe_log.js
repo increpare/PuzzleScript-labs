@@ -12,50 +12,124 @@ function bytesToMb(bytes) {
     return Math.round((Number(bytes) / (1024 * 1024)) * 100) / 100;
 }
 
+const CAPTURE_BAUD_MARKER_RE = /--- baud \d+ ---/g;
+
+function extractJsonText(line) {
+    const jsonStart = line.indexOf('{');
+    if (jsonStart < 0) {
+        return null;
+    }
+    return line.slice(jsonStart).trim();
+}
+
+function tryParseProbeJson(jsonText) {
+    if (!jsonText) {
+        return null;
+    }
+    try {
+        const record = JSON.parse(jsonText);
+        if (record !== null && !Array.isArray(record) && typeof record === 'object') {
+            return record;
+        }
+    } catch (error) {
+        return null;
+    }
+    return null;
+}
+
+function isContinuationLine(line) {
+    const trimmed = line.trimStart();
+    if (!trimmed) {
+        return false;
+    }
+    if (/^I \(\d+\)/.test(trimmed)) {
+        return false;
+    }
+    return /^[":,\d\}]/.test(trimmed);
+}
+
+function normalizeProbeLogLines(text) {
+    const cleaned = String(text).replace(CAPTURE_BAUD_MARKER_RE, '');
+    const rawLines = cleaned.split(/\r?\n/);
+    const assembled = [];
+    let pending = null;
+    let pendingLineNumber = null;
+
+    for (let index = 0; index < rawLines.length; index += 1) {
+        const line = rawLines[index].replace(/\r$/, '');
+        if (!line.trim()) {
+            continue;
+        }
+
+        if (pending !== null) {
+            pending += line;
+            if (tryParseProbeJson(extractJsonText(pending))) {
+                assembled.push({ line: pendingLineNumber, text: pending });
+                pending = null;
+                pendingLineNumber = null;
+            }
+            continue;
+        }
+
+        if (isContinuationLine(line)) {
+            continue;
+        }
+
+        const jsonText = extractJsonText(line);
+        if (!jsonText) {
+            continue;
+        }
+
+        if (tryParseProbeJson(jsonText)) {
+            assembled.push({ line: index + 1, text: line });
+        } else {
+            pending = line;
+            pendingLineNumber = index + 1;
+        }
+    }
+
+    if (pending !== null) {
+        assembled.push({ line: pendingLineNumber, text: pending, incomplete: true });
+    }
+
+    return assembled;
+}
+
 function parseProbeLogText(label, text) {
     const events = [];
     const parseErrors = [];
-    let ignoredLines = 0;
-    const lines = String(text).split(/\r?\n/);
+    const lines = normalizeProbeLogLines(text);
+    const rawLineCount = String(text).split(/\r?\n/).filter((line) => line.trim() !== '').length;
+    const ignoredLines = Math.max(0, rawLineCount - lines.length);
 
-    for (let index = 0; index < lines.length; index += 1) {
-        const rawLine = lines[index];
-        const lineNumber = index + 1;
-        if (rawLine.trim() === '') {
-            continue;
-        }
-
-        const jsonStart = rawLine.indexOf('{');
-        if (jsonStart < 0) {
-            ignoredLines += 1;
-            continue;
-        }
-
-        const jsonText = rawLine.slice(jsonStart).trim();
-        try {
-            const record = JSON.parse(jsonText);
-            if (record !== null && !Array.isArray(record) && typeof record === 'object') {
-                const event = { ...record, log_line: lineNumber };
-                if (!Object.prototype.hasOwnProperty.call(record, 'line')) {
-                    event.line = lineNumber;
-                }
-                events.push(event);
-            } else {
-                parseErrors.push({
-                    label,
-                    line: lineNumber,
-                    message: 'invalid JSON: record must be an object',
-                    text: rawLine,
-                });
+    for (const entry of lines) {
+        const { line: lineNumber, text: rawLine, incomplete = false } = entry;
+        const jsonText = extractJsonText(rawLine);
+        const record = tryParseProbeJson(jsonText);
+        if (record) {
+            const event = { ...record, log_line: lineNumber };
+            if (!Object.prototype.hasOwnProperty.call(record, 'line')) {
+                event.line = lineNumber;
             }
-        } catch (error) {
-            parseErrors.push({
-                label,
-                line: lineNumber,
-                message: `invalid JSON: ${error.message}`,
-                text: rawLine,
-            });
+            events.push(event);
+            continue;
         }
+
+        let message = 'invalid JSON: record must be an object';
+        if (incomplete && jsonText) {
+            try {
+                JSON.parse(jsonText);
+            } catch (error) {
+                message = `invalid JSON: ${error.message}`;
+            }
+        }
+
+        parseErrors.push({
+            label,
+            line: lineNumber,
+            message,
+            text: rawLine,
+        });
     }
 
     return {
@@ -176,12 +250,18 @@ function summarizeEvents(events, parseErrors = []) {
         by_source: {},
     };
     let boot = null;
+    let simulationCorpusSummary = null;
     let phaseCount = 0;
     let failedPhaseCount = 0;
 
     for (const event of events) {
         if (event.event === 'boot' && boot === null) {
             boot = event;
+            continue;
+        }
+
+        if (event.event === 'simulation_corpus_summary' && simulationCorpusSummary === null) {
+            simulationCorpusSummary = event;
             continue;
         }
 
@@ -276,6 +356,7 @@ function summarizeEvents(events, parseErrors = []) {
         parse_error_count: parseErrors.length,
         ignored_boot: boot === null,
         boot,
+        simulation_corpus_summary: simulationCorpusSummary,
         phase_count: phaseCount,
         failed_phase_count: failedPhaseCount,
         phases,
@@ -415,6 +496,7 @@ module.exports = {
     bytesToMb,
     buildReport,
     gateFailureReasons,
+    normalizeProbeLogLines,
     parseArgs,
     parseProbeLogText,
     runCli,

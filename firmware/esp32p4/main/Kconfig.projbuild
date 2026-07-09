@@ -1,0 +1,36 @@
+menu "PuzzleScript Player"
+
+choice PS_BOARD_TARGET
+    prompt "Target board"
+    default PS_BOARD_WAVESHARE_7B
+    help
+        Select the hardware board target for GPIO, display, and audio pinout.
+
+config PS_BOARD_WAVESHARE_7B
+    bool "Waveshare ESP32-P4-WIFI6-Touch-LCD-7B (dev kit)"
+    help
+        Default bring-up board with 7\" MIPI touch panel and ES8311 audio.
+
+config PS_BOARD_CARD
+    bool "PuzzleScript Card (custom handheld PCB)"
+    help
+        Card spin 1 pinout from hardware/card/schematic/connectivity.json.
+
+endchoice
+
+config PS_PLAYER_APP
+    bool "Boot into interactive player (game library + touch play)"
+    default y
+    help
+        When enabled, the device boots into the touch game player instead of
+        the hardware probe or simulation corpus runner.
+
+config PS_SIMULATION_CORPUS_BOOT
+    bool "Prefer simulation corpus when CORPUS.NDJ is present"
+    default n
+    depends on !PS_PLAYER_APP
+    help
+        If a simulation corpus bundle exists on flash/SD, run it at boot and
+        skip the probe/player UI.
+
+endmenu

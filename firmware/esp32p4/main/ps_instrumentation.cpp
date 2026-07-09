@@ -96,15 +96,13 @@ void append_heap(const char* name, uint32_t caps) {
 }
 
 void alloc_failed_hook(size_t requested_size, uint32_t caps, const char* function_name) {
-    const EscapedJsonString escaped_source(g_active_source);
-    const EscapedJsonString escaped_function(function_name);
-    ESP_EARLY_LOGE(kTag,
-                   "{\"event\":\"alloc_failed\",\"phase\":\"%s\",\"source\":\"%s\",\"requested\":%zu,\"caps\":%" PRIu32 ",\"function\":\"%s\"}",
-                   phase_name(g_active_phase),
-                   escaped_source.c_str(),
-                   requested_size,
-                   caps,
-                   escaped_function.c_str());
+    ESP_EARLY_LOGE(
+        kTag,
+        "alloc_failed phase=%s requested=%lu caps=%" PRIu32 " fn=%s",
+        phase_name(g_active_phase),
+        static_cast<unsigned long>(requested_size),
+        caps,
+        function_name != nullptr ? function_name : "?");
 }
 
 } // namespace
@@ -130,6 +128,7 @@ const char* phase_name(Phase phase) {
         case Phase::RunInputTrace: return "RUN_INPUT_TRACE";
         case Phase::UnloadGame: return "UNLOAD_GAME";
         case Phase::LoadSourceSd: return "LOAD_SOURCE_SD";
+        case Phase::SimulationCorpus: return "SIMULATION_CORPUS";
     }
     return "UNKNOWN";
 }
@@ -192,6 +191,13 @@ void emit_boot_summary() {
              kTargetHeight,
              escaped_idf.c_str(),
              static_cast<int>(esp_reset_reason()));
+}
+
+void emit_json_event(const char* json) {
+    if (json == nullptr) {
+        return;
+    }
+    ESP_LOGI(kTag, "%s", json);
 }
 
 } // namespace ps_probe

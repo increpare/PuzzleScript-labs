@@ -156,9 +156,32 @@ function failOnFailureAcceptsCleanHardwareLogs() {
     });
 }
 
+function fragmentedCaptureLogText() {
+    return [
+        'I (2419) ps_probe: {"event":"heap","phase":"COMPILE_SOURCE","source":"embedded:sokoban_basic.txt","region":"8bit","free":31499711,"allocated":2556584,"largest_free_block":30932992,"minimum_free":31487127,"allocated_blocks":2--- baud 115200 ---',
+        '10,"free_blocks":51,"total_blocks":261}',
+        'I (2502) ps_probe: {"event":"heap","phase"--- baud 115200 ---',
+        ':"RUN_INPUT_TRACE","source":"embedded:sokoban_basic.txt","region":"8bit","free":31494211,"allocated":2561916,"largest_free_block":30932992,"minimum_free":31487127,"allocated_blocks":252,"free_blocks":29,"total_blocks":281}',
+        '',
+    ].join('\n');
+}
+
+function reassemblesFragmentedSerialCaptureLines() {
+    const parsed = probeLog.parseProbeLogText('fragmented.log', fragmentedCaptureLogText());
+
+    assert.strictEqual(parsed.parse_errors.length, 0);
+    assert.strictEqual(parsed.events.length, 2);
+    assert.strictEqual(parsed.events[0].event, 'heap');
+    assert.strictEqual(parsed.events[0].phase, 'COMPILE_SOURCE');
+    assert.strictEqual(parsed.events[0].allocated_blocks, 210);
+    assert.strictEqual(parsed.events[1].phase, 'RUN_INPUT_TRACE');
+    assert.strictEqual(parsed.events[1].allocated_blocks, 252);
+}
+
 function main() {
     parsesEspIdfLogLines();
     summarizesPhaseHeapAndFailureEvents();
+    reassemblesFragmentedSerialCaptureLines();
     runCliProcessWritesJsonReport();
     failOnFailureTurnsBadHardwareLogsIntoFailingGates();
     failOnFailureAcceptsCleanHardwareLogs();

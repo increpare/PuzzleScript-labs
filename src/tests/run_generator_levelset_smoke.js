@@ -19,6 +19,8 @@ const gamePath = path.resolve(process.argv[3] || path.join(repoRoot, 'src/demo/s
 const specPath = path.resolve(process.argv[4] || path.join(__dirname, 'generator_presets/sokoban_levelset_tiny.gen'));
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'psgen-levelset-smoke-'));
 const outPath = path.join(tempDir, 'generated_game.txt');
+const solverTimeoutMs = process.env.PS_GENERATOR_SMOKE_SOLVER_TIMEOUT_MS || '2000';
+const timeScale = Number(process.env.PS_GENERATOR_SMOKE_TIME_SCALE || '1');
 
 const COMPACT_TO_TOKEN = {
     U: 'up',
@@ -127,18 +129,18 @@ async function main() {
         '--out', outPath,
         '--jobs', '1',
         '--seed', '7',
-    '--solver-timeout-ms', '2000',
+    '--solver-timeout-ms', solverTimeoutMs,
     '--inactivity-start', '500ms',
         '--dedupe-max', '4096',
     ];
 
-  const firstRun = await runGeneratorUntilStopped(commonArgs, 12000);
+  const firstRun = await runGeneratorUntilStopped(commonArgs, Math.ceil(12000 * timeScale));
   assert.ok(fs.existsSync(outPath), 'generator should create --out file');
 
   let generatedSource = fs.readFileSync(outPath, 'utf8');
   let levels = parseGeneratedLevels(generatedSource);
   if (levels.length === 0) {
-    const secondRun = await runGeneratorUntilStopped(commonArgs, 20000);
+    const secondRun = await runGeneratorUntilStopped(commonArgs, Math.ceil(20000 * timeScale));
     assert.ok(
       secondRun.code === 0 || secondRun.signal === 'SIGTERM',
       `generator should exit cleanly on SIGTERM\nstdout:\n${secondRun.stdout}\nstderr:\n${secondRun.stderr}`
@@ -172,7 +174,7 @@ async function main() {
         '--seed', '9',
     ], { stdio: 'ignore' });
 
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await new Promise((resolve) => setTimeout(resolve, Math.ceil(2500 * timeScale)));
     crashRun.kill('SIGTERM');
     await new Promise((resolve) => {
         crashRun.on('close', resolve);

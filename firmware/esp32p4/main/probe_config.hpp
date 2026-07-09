@@ -16,6 +16,11 @@ inline constexpr std::size_t kTargetFramebufferBytes =
     static_cast<std::size_t>(kTargetWidth) * kTargetHeight * kRgb565BytesPerPixel;
 inline constexpr const char* kSdMountPoint = "/sdcard";
 inline constexpr const char* kSdGamesDir = "/sdcard/games";
+inline constexpr const char* kSdCorpusDir = "/sdcard/corpus";
+inline constexpr const char* kSdSimulationCorpusBundle = "/sdcard/corpus/CORPUS.NDJ";
+inline constexpr const char* kFlashStorageMount = "/storage";
+inline constexpr const char* kFlashSimulationCorpusBundle = "/storage/CORPUS.NDJ";
+inline constexpr const char* kFlashGamesDir = "/storage/GAMES";
 inline constexpr std::size_t kMaxSourceBytes = 1024 * 1024;
 
 } // namespace ps_probe

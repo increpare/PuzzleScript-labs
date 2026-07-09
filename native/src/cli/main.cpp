@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -88,6 +89,38 @@ std::optional<std::string> findArgValue(const std::vector<std::string>& args, co
 #ifndef PS_EXPORT_TRACE_SCRIPT
 #define PS_EXPORT_TRACE_SCRIPT "src/tests/js_oracle/export_execution_trace.js"
 #endif
+
+int setEnvVar(const char* name, const char* value) {
+#if defined(_WIN32)
+    return _putenv_s(name, value);
+#else
+    return setenv(name, value, 1);
+#endif
+}
+
+int unsetEnvVar(const char* name) {
+#if defined(_WIN32)
+    return _putenv_s(name, "");
+#else
+    return unsetenv(name);
+#endif
+}
+
+FILE* openProcessPipe(const char* command, const char* mode) {
+#if defined(_WIN32)
+    return _popen(command, mode);
+#else
+    return popen(command, mode);
+#endif
+}
+
+int closeProcessPipe(FILE* pipe) {
+#if defined(_WIN32)
+    return _pclose(pipe);
+#else
+    return pclose(pipe);
+#endif
+}
 
 std::string readFile(const std::filesystem::path& path) {
     std::ifstream stream(path, std::ios::binary);
@@ -237,7 +270,7 @@ struct ScopedEnvSilence {
             const char* value = std::getenv(name.c_str());
             if (value) {
                 values.emplace_back(value);
-                unsetenv(name.c_str());
+                unsetEnvVar(name.c_str());
             } else {
                 values.emplace_back(std::nullopt);
             }
@@ -249,9 +282,9 @@ struct ScopedEnvSilence {
             const auto& name = names[index];
             const auto& value = values[index];
             if (value.has_value()) {
-                setenv(name.c_str(), value->c_str(), 1);
+                setEnvVar(name.c_str(), value->c_str());
             } else {
-                unsetenv(name.c_str());
+                unsetEnvVar(name.c_str());
             }
         }
     }
@@ -781,6 +814,18 @@ struct PsGameCache {
 };
 
 std::string shellEscape(const std::string& value) {
+#if defined(_WIN32)
+    std::string escaped = "\"";
+    for (const char ch : value) {
+        if (ch == '"') {
+            escaped += "\\\"";
+        } else {
+            escaped.push_back(ch);
+        }
+    }
+    escaped.push_back('"');
+    return escaped;
+#else
     std::string escaped = "'";
     for (const char ch : value) {
         if (ch == '\'') {
@@ -791,6 +836,16 @@ std::string shellEscape(const std::string& value) {
     }
     escaped.push_back('\'');
     return escaped;
+#endif
+}
+
+std::string shellEscapeCommandExecutable(const std::string& value) {
+#if defined(_WIN32)
+    if (value.find_first_of(" \t\r\n\"&|<>^") == std::string::npos) {
+        return value;
+    }
+#endif
+    return shellEscape(value);
 }
 
 std::string runNodeScriptAndCaptureStdout(
@@ -799,7 +854,7 @@ std::string runNodeScriptAndCaptureStdout(
     const std::vector<std::string>& args
 ) {
     std::ostringstream command;
-    command << shellEscape(PS_NODE_EXECUTABLE) << " "
+    command << shellEscapeCommandExecutable(PS_NODE_EXECUTABLE) << " "
             << shellEscape(scriptPath) << " "
             << shellEscape(sourcePath.string());
     for (const auto& arg : args) {
@@ -808,14 +863,17 @@ std::string runNodeScriptAndCaptureStdout(
 
     std::string output;
     std::array<char, 4096> buffer{};
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.str().c_str(), "r"), pclose);
+    std::unique_ptr<FILE, decltype(&closeProcessPipe)> pipe(
+        openProcessPipe(command.str().c_str(), "r"),
+        closeProcessPipe
+    );
     if (!pipe) {
         throw std::runtime_error("Failed to launch JS IR exporter");
     }
     while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
         output.append(buffer.data());
     }
-    const int status = pclose(pipe.release());
+    const int status = closeProcessPipe(pipe.release());
     if (status != 0) {
         throw std::runtime_error("JS IR exporter failed");
     }

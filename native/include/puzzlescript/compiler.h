@@ -40,7 +40,7 @@ size_t ps_compiler_result_parser_state_json(
 void ps_compiler_result_free(ps_compiler_result* result);
 
 bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_result** out_result);
-const ps_game* ps_compile_result_game(const ps_compile_result* result);
+const ps_game* ps_compile_result_game(ps_compile_result* result);
 const ps_error* ps_compile_result_error(const ps_compile_result* result);
 void ps_free_compile_result(ps_compile_result* result);
 

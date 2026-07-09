@@ -61,12 +61,12 @@ bool ps_compile_source(const char* source_utf8, size_t source_size, ps_compile_r
     }
 }
 
-const ps_game* ps_compile_result_game(const ps_compile_result* result) {
+const ps_game* ps_compile_result_game(ps_compile_result* result) {
     if (!result || !result->impl || !result->impl->loadedGame.information) {
         return nullptr;
     }
     auto* wrapper = new ps_game();
-    wrapper->impl = result->impl->loadedGame;
+    wrapper->impl = std::move(result->impl->loadedGame);
     return wrapper;
 }
 

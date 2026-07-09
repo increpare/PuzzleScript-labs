@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PuzzleScript Card Blockout</title>
+<style>
+    body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
+    #panel { width: 300px; overflow-y: auto; padding: 12px; border-right: 1px solid #ccc;
+             flex-shrink: 0; }
+    #view { flex: 1; overflow: auto; padding: 12px; background: #f6f6f6; }
+    #view svg { display: block; max-width: 100%; height: auto; background: #fff;
+                border: 1px solid #ddd; margin-bottom: 12px; }
+    fieldset { border: 1px solid #ddd; margin: 0 0 8px 0; padding: 6px 8px; }
+    legend { font-size: 12px; font-weight: bold; }
+    label { display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; margin: 2px 0; }
+    input[type=number] { width: 70px; }
+    #warnings { color: #b00; font-size: 12px; white-space: pre-line; margin: 8px 0; }
+    #warnings:empty::before { content: "no spacing warnings"; color: #080; }
+    .rowctl { margin: 0 0 8px 0; font-size: 13px; }
+    button { font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="panel">
+    <div class="rowctl">
+        <label>mm grid <input type="checkbox" id="grid" checked></label>
+        <label>internal zones <input type="checkbox" id="overlays" checked></label>
+    </div>
+    <div class="rowctl">
+        <button id="reset">Reset to spec</button>
+        <button id="export">Export 1:1 SVG</button>
+    </div>
+    <div id="warnings"></div>
+    <div id="fields"></div>
+</div>
+<div id="view"></div>
+<script src="blockout.js"></script>
+<script>
+"use strict";
+
+var FIELD_GROUPS = [
+    { title: "Body", fields: [["body.w", "width"], ["body.h", "height"],
+        ["body.r", "corner radius"], ["body.depth", "depth"]] },
+    { title: "Screen", fields: [["screen.activeX", "active X"], ["screen.activeY", "active Y"],
+        ["screen.activeW", "active width"], ["screen.activeH", "active height"],
+        ["screen.moduleX", "module X"], ["screen.moduleY", "module Y"],
+        ["screen.moduleW", "module width"], ["screen.moduleH", "module height"]] },
+    { title: "D-pad", fields: [["dpad.cx", "center X"], ["dpad.cy", "center Y"],
+        ["dpad.spacing", "dome spacing"], ["dpad.openingD", "opening dia"]] },
+    { title: "Action", fields: [["buttons.0.cx", "center X"], ["buttons.0.cy", "center Y"],
+        ["buttons.0.d", "diameter"]] },
+    { title: "Undo", fields: [["buttons.1.cx", "center X"], ["buttons.1.cy", "center Y"],
+        ["buttons.1.d", "diameter"]] },
+    { title: "Restart", fields: [["buttons.2.cx", "center X"], ["buttons.2.cy", "center Y"],
+        ["buttons.2.d", "diameter"]] },
+    { title: "Menu", fields: [["menu.cx", "center X"], ["menu.cy", "center Y"],
+        ["menu.w", "width"], ["menu.h", "height"], ["menu.angle", "angle (deg)"]] },
+    { title: "Band", fields: [["band.y0", "top Y"], ["band.y1", "bottom Y"]] },
+    { title: "Grille", fields: [["grille.cx", "center X"], ["grille.cy", "center Y"]] },
+    { title: "Top edge", fields: [["topEdge.usbX", "USB-C X"], ["topEdge.pwrX", "power X"]] },
+    { title: "Right edge", fields: [["rightEdge.volY", "volume Y"]] }
+];
+
+var current = cloneParams(BLOCKOUT_PRESETS.card);
+
+function render() {
+    var opts = {
+        grid: document.getElementById("grid").checked,
+        overlays: document.getElementById("overlays").checked
+    };
+    document.getElementById("view").innerHTML =
+        faceSvg(current, opts) + edgesSvg(current) + sectionSvg(current);
+    document.getElementById("warnings").textContent = spacingWarnings(current).join("\n");
+}
+
+function addField(fs, path, name) {
+    var label = document.createElement("label");
+    label.textContent = name + " ";
+    var input = document.createElement("input");
+    input.type = "number";
+    input.step = "0.5";
+    input.value = getParam(current, path);
+    input.addEventListener("input", function () {
+        var v = parseFloat(input.value);
+        if (!isNaN(v)) {
+            setParam(current, path, v);
+            render();
+        }
+    });
+    label.appendChild(input);
+    fs.appendChild(label);
+}
+
+function buildFields() {
+    var container = document.getElementById("fields");
+    container.innerHTML = "";
+    FIELD_GROUPS.forEach(function (group) {
+        var fs = document.createElement("fieldset");
+        var lg = document.createElement("legend");
+        lg.textContent = group.title;
+        fs.appendChild(lg);
+        group.fields.forEach(function (f) {
+            addField(fs, f[0], f[1]);
+        });
+        container.appendChild(fs);
+    });
+    current.zones.forEach(function (z, i) {
+        var fs = document.createElement("fieldset");
+        var lg = document.createElement("legend");
+        lg.textContent = "Zone: " + z.label;
+        fs.appendChild(lg);
+        addField(fs, "zones." + i + ".x", "x");
+        addField(fs, "zones." + i + ".y", "y");
+        addField(fs, "zones." + i + ".w", "width");
+        addField(fs, "zones." + i + ".h", "height");
+        container.appendChild(fs);
+    });
+}
+
+function reset() {
+    current = cloneParams(BLOCKOUT_PRESETS.card);
+    buildFields();
+    render();
+}
+
+document.getElementById("reset").addEventListener("click", reset);
+document.getElementById("grid").addEventListener("change", render);
+document.getElementById("overlays").addEventListener("change", render);
+document.getElementById("export").addEventListener("click", function () {
+    var blob = new Blob([printSheetSvg(current)], { type: "image/svg+xml" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "handheld-card-1to1.svg";
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
+buildFields();
+render();
+</script>
+</body>
+</html>

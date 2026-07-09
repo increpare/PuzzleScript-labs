@@ -85,7 +85,7 @@ esp_err_t init_display() {
     }
 
     ESP_LOGI(kTag, "Create EK79007 panel");
-    esp_lcd_dpi_panel_config_t dpi_config = EK79007_1024_600_PANEL_60HZ_CONFIG(LCD_COLOR_PIXEL_FORMAT_RGB565);
+    esp_lcd_dpi_panel_config_t dpi_config = EK79007_1024_600_PANEL_60HZ_CONFIG_CF(LCD_COLOR_FMT_RGB565);
     ek79007_vendor_config_t vendor_config = {
         .mipi_config = {
             .dsi_bus = g_dsi_bus,
@@ -94,9 +94,10 @@ esp_err_t init_display() {
         },
     };
     const esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = kPanelResetGpio,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .data_endian = LCD_RGB_DATA_ENDIAN_BIG,
         .bits_per_pixel = 16,
+        .reset_gpio_num = static_cast<gpio_num_t>(kPanelResetGpio),
         .vendor_config = &vendor_config,
     };
     err = esp_lcd_new_panel_ek79007(g_dbi_io, &panel_config, &g_panel);
@@ -109,10 +110,6 @@ esp_err_t init_display() {
         return cleanup_display_after_error(err);
     }
     err = esp_lcd_panel_init(g_panel);
-    if (err != ESP_OK) {
-        return cleanup_display_after_error(err);
-    }
-    err = esp_lcd_panel_disp_on_off(g_panel, true);
     if (err != ESP_OK) {
         return cleanup_display_after_error(err);
     }

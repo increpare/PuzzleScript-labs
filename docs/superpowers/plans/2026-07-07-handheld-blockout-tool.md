@@ -1,5 +1,10 @@
 # Handheld Case Parametric Blockout Tool Implementation Plan
 
+> **Superseded 2026-07-07 (never executed):** the 5-inch form factor was
+> retired by `docs/superpowers/specs/2026-07-07-handheld-compact-card-design.md`.
+> The card equivalent of this tool is implemented by
+> `docs/superpowers/plans/2026-07-07-handheld-card-validation-artifacts.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A local, no-build HTML page for tweaking the PuzzleScript handheld case blockout parametrically, with layout presets, a millimeter grid, spacing warnings, and printable 1:1 SVG export.
