@@ -24,12 +24,12 @@ function roundedRectPath(x, y, w, h, r) {
 }
 
 function dpadSwitchCenters(dpad) {
-    var offset = dpad.size / 2 - dpad.arm / 2;
+    var offset = dpad.spacing != null ? dpad.spacing / 2 : dpad.size / 2 - dpad.arm / 2;
     return [
-        { id: "SW_DPAD_UP", x: dpad.cx, y: dpad.cy - offset },
-        { id: "SW_DPAD_DOWN", x: dpad.cx, y: dpad.cy + offset },
-        { id: "SW_DPAD_LEFT", x: dpad.cx - offset, y: dpad.cy },
-        { id: "SW_DPAD_RIGHT", x: dpad.cx + offset, y: dpad.cy }
+        { id: "SW_DPAD_UP", x: dpad.cx, y: dpad.cy - offset, part: dpad.switch },
+        { id: "SW_DPAD_DOWN", x: dpad.cx, y: dpad.cy + offset, part: dpad.switch },
+        { id: "SW_DPAD_LEFT", x: dpad.cx - offset, y: dpad.cy, part: dpad.switch },
+        { id: "SW_DPAD_RIGHT", x: dpad.cx + offset, y: dpad.cy, part: dpad.switch }
     ];
 }
 

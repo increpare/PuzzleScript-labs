@@ -43,9 +43,9 @@
       "name": "Controls",
       "nets_in": ["+3V3", "GND", "GPIO_*"],
       "parts": [
-        { "ref": "SW1-4", "kind": "C&K-KMR2-tact", "selected": "KMR211NG LFS", "role": "dpad" },
-        { "ref": "SW5-7", "kind": "C&K-KMR2-tact", "selected": "KMR211NG LFS", "role": "action-undo-restart" },
-        { "ref": "SW8", "kind": "C&K-KMR2-tact", "selected": "KMR211NG LFS", "role": "menu" },
+        { "ref": "SW1-4", "kind": "E-Switch-TL3315-dome-tact", "selected": "TL3315NF160Q-class", "role": "separate dpad buttons" },
+        { "ref": "SW5-7", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "role": "action-undo-restart" },
+        { "ref": "SW8", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "role": "menu" },
         { "ref": "SW9", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "power" },
         { "ref": "SW10", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "volume" }
       ]

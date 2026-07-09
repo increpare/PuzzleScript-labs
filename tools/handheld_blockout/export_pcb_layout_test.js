@@ -20,11 +20,12 @@ test("buildPcbLayout derives 116x106 PCB from 120x110 body", function () {
     assert.strictEqual(layout.pcb.y, 2);
 });
 
-test("dpadSwitchCenters place four switches on the rocker arms", function () {
+test("dpadSwitchCenters place four separate dome switches on the candidate diamond", function () {
     var centers = pcb.dpadSwitchCenters(blockout.BLOCKOUT_PRESETS.card.dpad);
     assert.strictEqual(centers.length, 4);
     assert.strictEqual(centers[0].id, "SW_DPAD_UP");
     assert.strictEqual(centers[0].y, 78.25);
+    assert.strictEqual(centers[0].part, "TL3315NF160Q-class");
     assert.strictEqual(centers[2].id, "SW_DPAD_LEFT");
     assert.strictEqual(centers[2].x, 13.25);
 });
@@ -62,6 +63,12 @@ test("layout includes semantic back-side battery, ESP, and PMIC keep-outs", func
     var fpc = layout.keepouts.filter(function (k) { return k.id === "fpc_top_keepout"; })[0];
     assert.strictEqual(fpc.layer, "front");
     assert.strictEqual(fpc.side, "front");
+    var dpadSupport = layout.keepouts.filter(function (k) { return k.id === "dpad_support"; })[0];
+    assert.strictEqual(dpadSupport.role, "center_standoff_pad");
+    assert.deepStrictEqual(
+        { x: dpadSupport.x, y: dpadSupport.y, w: dpadSupport.w, h: dpadSupport.h },
+        { x: 18, y: 83, w: 8, h: 8 }
+    );
     var battery = layout.keepouts.filter(function (k) { return k.id === "back_bat_1s_pouch"; })[0];
     assert.strictEqual(battery.layer, "back");
     assert.strictEqual(battery.side, "back");

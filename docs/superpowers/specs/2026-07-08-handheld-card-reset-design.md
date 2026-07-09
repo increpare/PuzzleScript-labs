@@ -16,6 +16,8 @@ Spin reset decisions:
 - Keep the 120 x 110 mm card body and 116 x 106 mm PCB envelope.
 - Keep the front/player side mechanically anchored: display, controls, USB-C,
   FFC, volume/power controls, and speaker grille.
+- Use four separate TL3315-class dome tacts for the D-pad, Arduboy-style, not a
+  one-piece rocker.
 - Use one large rear 1S pouch cell, low and centered in the grip/base region.
   Use a 4 mm-class 403048 pouch as the default unless a thicker rear-shell
   recess or thicker band is validated.
@@ -55,7 +57,7 @@ mass.
 
 | Side | Fixed / Preferred Contents |
 |------|----------------------------|
-| Front/player side | Display outline and lens, D-pad, Action, Undo, Restart, Menu, top USB-C, DSI FFC, edge power/volume controls, piezo grille, shell support pads under the button clusters |
+| Front/player side | Display outline and lens, four separate dome D-pad buttons, Action, Undo, Restart, Menu, top USB-C, DSI FFC, edge power/volume controls, piezo grille, shell support pads under the button clusters |
 | Back/service side | One 403048-class pouch cell low and centered, ESP32-P4 module above pouch, charger/gauge/buck-boost/panel-switch/latch near pouch tabs, debug pads, service-only storage if it fits better there |
 
 The battery should sit low and centered in the hand grip/base area. This keeps
@@ -106,6 +108,11 @@ long-press latch-off and ESP_EN. The power pill, D-pad down, and Action should
 land on LP GPIOs so deep-sleep wake is possible without treating the power
 button as a full reset.
 
+The D-pad uses four separate TL3315-class dome tacts. The current blockout keeps
+the previous switch centers as a first 17.5 mm spacing candidate, but the final
+spacing must be chosen from 1:1 print tests. The freed D-pad center becomes a
+small shell support/standoff pad to reduce board flex under button presses.
+
 Routing priority:
 
 1. DSI pairs from ESP32-P4 to the FFC.
@@ -147,6 +154,8 @@ The reset workflow should be:
 Before implementation is considered ready:
 
 - Mechanical blockout shows no front control/display conflicts.
+- D-pad blockout shows four separate TL3315-class openings, center support, and
+  a selected spacing from the 1:1 print workflow.
 - Back blockout shows one pouch, ESP, power cluster, and support-pad
   clearances. Mounting holes must clear the rounded PCB corners; the current
   baseline uses about 7 mm body-frame centers, not the old 5 mm breakout-prone

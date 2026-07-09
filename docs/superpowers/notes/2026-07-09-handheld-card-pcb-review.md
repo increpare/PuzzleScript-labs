@@ -170,3 +170,46 @@ regenerating KiCad, DSI-first routing order, DNP-friendly conservatism — is
 genuinely better discipline than most spin-1 hobby boards. Fix the corner
 holes, close the two Z-stacks on paper, and design the enable-logic sub-sheet
 before footprint import, and this is in good shape to route.
+
+## Addendum 2026-07-09 — D-pad direction resolved
+
+Follow-up discussion with the owner explored, then discarded, a Game Boy
+DMG-style conductive-membrane D-pad (exposed interdigitated PCB contacts +
+silicone carbon pills). To-scale mockup:
+https://claude.ai/code/artifact/c72e31c8-1198-419e-938c-ba0a9d9832f0
+
+**Rejected on Z grounds.** The membrane stack needs ~5.6 mm shell-face-to-PCB
+(shell 2.0 + clearance + ~3.2 mm silicone dome) vs ~4.1 mm for the KMR2 +
+plunger plan — it worsens flag #2 by another ~1.5 mm. It is technology from a
+32 mm-thick device. The mockup stays useful as a documented spin-2 feel
+experiment only if the tact route disappoints.
+
+**Adopted direction: Arduboy-style four separate dome buttons.** The Arduboy
+(85 × 54 × 5 mm, owner-endorsed button feel) uses E-Switch **TL3315**-class
+metal-dome tacts (4.5 × 4.5 × 1.2 mm, 0.25 mm travel, 160 gf snap dome) with
+four *separate* direction buttons in a diamond — no shared cross cap, no
+pivot. That architecture is the spin-1 D-pad baseline:
+
+- **Switch candidate:** TL3315NF160Q-class dome tact replaces KMR2 for the
+  D-pad (and is worth evaluating for Action/Undo/Restart/Menu too) — ~0.7 mm
+  shorter than KMR2, which relaxes flag #2, with Arduboy-proven feel.
+  Thinnest of all options considered: ~2.5–3 mm face-to-PCB.
+- **Mechanics:** four round shell holes; each button is the switch actuator
+  through the hole or a minimal loose cap. No rocker molding, no pivot
+  tolerances. Feel depends on a tight stack (near-zero cap-to-actuator gap,
+  snug hole guidance) and a stiff board.
+- **Spacing is the open tuning variable.** Current anchors at r8.75
+  (17.5 mm across) were sized for a 26 mm one-piece rocker; capless
+  separates likely want Arduboy-tighter spacing so the thumb rests over the
+  diamond center and rocks without lifting. Verify with the 1:1 print-sheet
+  workflow (two or three candidate spacings) before changing the blockout.
+- **Blockout deltas:** 26 mm rocker circle → four Ø6–8 mm openings; move
+  `DPAD_SUPPORT` boss to the diamond center — the freed center is the ideal
+  anti-flex support point (resolves flag #5 for the D-pad region).
+- **Electrical:** zero change — same four `SW_DPAD_*` nets and GPIOs. Add
+  opposite-direction lockout (ignore or last-wins) in firmware; PuzzleScript
+  is 4-way only, so diagonals are a non-issue by design.
+
+The handoff BOM line "4× D-pad under one-piece rocker" and the
+COMPONENT_SELECTION KMR2 baseline for SW1–SW4 are superseded by this
+addendum pending the spacing test.

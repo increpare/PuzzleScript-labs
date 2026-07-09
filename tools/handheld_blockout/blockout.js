@@ -19,7 +19,19 @@ var BLOCKOUT_PRESETS = {
             activeX: 12.5, activeY: 10, activeW: 95, activeH: 54,
             moduleX: 7.29, moduleY: 3.5, moduleW: 105.42, moduleH: 67.07
         },
-        dpad: { cx: 22, cy: 87, size: 26, arm: 8.5 },
+        dpad: {
+            cx: 22,
+            cy: 87,
+            size: 26,
+            arm: 8.5,
+            style: "separate_dome",
+            switch: "TL3315NF160Q-class",
+            spacing: 17.5,
+            openingD: 7,
+            switchD: 4.5,
+            switchH: 1.2,
+            note: "Arduboy-style four separate dome buttons; spacing is candidate pending 1:1 test"
+        },
         buttons: [
             { label: "ACTION", cx: 89, cy: 83, d: 14 },
             { label: "UNDO", cx: 75, cy: 96, d: 10 },
@@ -31,7 +43,7 @@ var BLOCKOUT_PRESETS = {
             { label: "LRA", x: 96, y: 87, w: 8, h: 8, face: "front" }
         ],
         supports: [
-            { label: "DPAD_SUPPORT", x: 8, y: 73, w: 28, h: 28, face: "front", role: "standoff_pad" },
+            { label: "DPAD_SUPPORT", x: 18, y: 83, w: 8, h: 8, face: "front", role: "center_standoff_pad" },
             { label: "ACTION_SUPPORT", x: 70, y: 77, w: 30, h: 30, face: "front", role: "standoff_pad" }
         ],
         backZones: [
@@ -88,6 +100,27 @@ function circleGap(ax, ay, ar, bx, by, br) {
     return Math.sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by)) - ar - br;
 }
 
+function dpadOffset(dpad) {
+    return dpad.spacing != null ? dpad.spacing / 2 : dpad.size / 2 - dpad.arm / 2;
+}
+
+function dpadOuterRadius(dpad) {
+    if (dpad.style === "separate_dome") {
+        return dpadOffset(dpad) + dpad.openingD / 2;
+    }
+    return dpad.size / 2;
+}
+
+function dpadButtonCenters(dpad) {
+    var offset = dpadOffset(dpad);
+    return [
+        { label: "DPAD_UP", cx: dpad.cx, cy: dpad.cy - offset },
+        { label: "DPAD_DOWN", cx: dpad.cx, cy: dpad.cy + offset },
+        { label: "DPAD_LEFT", cx: dpad.cx - offset, cy: dpad.cy },
+        { label: "DPAD_RIGHT", cx: dpad.cx + offset, cy: dpad.cy }
+    ];
+}
+
 function rectCircleClearance(rx, ry, rw, rh, cx, cy, r) {
     var dx = Math.max(rx - cx, 0, cx - (rx + rw));
     var dy = Math.max(ry - cy, 0, cy - (ry + rh));
@@ -102,7 +135,7 @@ function rectRectOverlap(a, b) {
 
 function spacingWarnings(params) {
     var warnings = [];
-    var circles = [{ label: "D-PAD", cx: params.dpad.cx, cy: params.dpad.cy, r: params.dpad.size / 2 }];
+    var circles = [{ label: "D-PAD", cx: params.dpad.cx, cy: params.dpad.cy, r: dpadOuterRadius(params.dpad) }];
     params.buttons.forEach(function (b) {
         circles.push({ label: b.label, cx: b.cx, cy: b.cy, r: b.d / 2 });
     });
@@ -216,9 +249,20 @@ function faceGroupSvg(params, opts) {
     out.push('<line x1="0" y1="' + fmt(params.band.y0) + '" x2="' + fmt(b.w) + '" y2="' +
         fmt(params.band.y0) + '" stroke="#999" stroke-width="0.2" stroke-dasharray="1.5,1.5"/>');
     var d = params.dpad;
-    out.push(svgRect(d.cx - d.size / 2, d.cy - d.arm / 2, d.size, d.arm, 1.5, "#000", "none"));
-    out.push(svgRect(d.cx - d.arm / 2, d.cy - d.size / 2, d.arm, d.size, 1.5, "#000", "none"));
-    out.push(crosshair(d.cx, d.cy));
+    if (d.style === "separate_dome") {
+        dpadButtonCenters(d).forEach(function (btn) {
+            out.push('<circle cx="' + fmt(btn.cx) + '" cy="' + fmt(btn.cy) + '" r="' +
+                fmt(d.openingD / 2) + '" fill="none" stroke="#000" stroke-width="0.4"/>');
+            out.push(crosshair(btn.cx, btn.cy));
+        });
+        out.push(crosshair(d.cx, d.cy));
+        out.push(svgText(d.cx, d.cy + dpadOuterRadius(d) + 3, 2.2,
+            "TL3315 dome d-pad, spacing " + fmt(d.spacing)));
+    } else {
+        out.push(svgRect(d.cx - d.size / 2, d.cy - d.arm / 2, d.size, d.arm, 1.5, "#000", "none"));
+        out.push(svgRect(d.cx - d.arm / 2, d.cy - d.size / 2, d.arm, d.size, 1.5, "#000", "none"));
+        out.push(crosshair(d.cx, d.cy));
+    }
     params.buttons.forEach(function (btn) {
         out.push('<circle cx="' + fmt(btn.cx) + '" cy="' + fmt(btn.cy) + '" r="' + fmt(btn.d / 2) +
             '" fill="none" stroke="#000" stroke-width="0.4"/>');
@@ -296,12 +340,12 @@ function sectionGroupSvg(params) {
     var layers;
     if (dp) {
         layers = [
-            { y: 0, h: 1.7, label: "front shell + cap travel 1.7" },
-            { y: 1.7, h: 1.9, label: "KMR2 tact 1.9" },
-            { y: 3.6, h: 1.2, label: "PCB 1.2" },
-            { y: 4.8, h: 4.0, label: "403048 pouch baseline 4.0" },
-            { y: 8.8, h: 0.5, label: "pouch swelling allowance 0.5" },
-            { y: 9.3, h: 1.2, label: "rear shell floor 1.2" }
+            { y: 0, h: 1.5, label: "front shell + button guidance 1.5" },
+            { y: 1.5, h: 1.2, label: "TL3315 dome tact 1.2" },
+            { y: 2.7, h: 1.2, label: "PCB 1.2" },
+            { y: 3.9, h: 4.0, label: "403048 pouch baseline 4.0" },
+            { y: 7.9, h: 0.5, label: "pouch swelling allowance 0.5" },
+            { y: 8.4, h: 1.2, label: "rear shell floor 1.2" }
         ];
     } else {
         layers = [
@@ -389,6 +433,9 @@ if (typeof module !== "undefined" && module.exports) {
         setParam: setParam,
         fmt: fmt,
         circleGap: circleGap,
+        dpadOffset: dpadOffset,
+        dpadOuterRadius: dpadOuterRadius,
+        dpadButtonCenters: dpadButtonCenters,
         rectCircleClearance: rectCircleClearance,
         rectRectOverlap: rectRectOverlap,
         spacingWarnings: spacingWarnings,

@@ -48,6 +48,17 @@ test("all eight gameplay switches reach U1", function () {
     });
 });
 
+test("dpad switches use TL3315-class separate dome tacts", function () {
+    var byRef = {};
+    V.model.components.forEach(function (c) { byRef[c.ref] = c; });
+    ["SW1", "SW2", "SW3", "SW4"].forEach(function (ref) {
+        assert.strictEqual(byRef[ref].value, "TL3315NF160Q-class", ref);
+    });
+    ["SW5", "SW6", "SW7", "SW8"].forEach(function (ref) {
+        assert.strictEqual(byRef[ref].value, "KMR211NG", ref);
+    });
+});
+
 test("exportKicadNetlist includes U1 and DSI nets", function () {
     var netlist = V.exportKicadNetlist(V.model);
     assert.ok(netlist.indexOf("(ref U1)") !== -1);

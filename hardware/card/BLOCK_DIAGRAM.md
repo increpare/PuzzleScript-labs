@@ -36,7 +36,7 @@ flowchart TB
     end
 
     subgraph io [Controls + UX]
-        SW[8x tact + 2x edge switches]
+        SW[4x D-pad dome + face/edge switches]
         RGB[Side RGB LEDs]
         LRA[DRV2605 + LRA]
         PZ_DRV[Piezo driver]
@@ -112,7 +112,9 @@ Budget (from spec, owner-confirmed):
 | **J4** | microSD | Push-push, internal | — |
 | **U5** | Haptic | I2C LRA driver | DRV2605L |
 | **Q1/U8/R7** | Piezo | Simple transistor drive plus DNP boost/H-bridge escape path | SOT23 BJT + DNP driver + 0R return link |
-| **SW*** | Switches | 4× D-pad + Action/Undo/Restart/Menu + edge | 4.3×4.3×2.5 mm tact |
+| **SW1-SW4** | D-pad | Four separate direction buttons | TL3315NF160Q-class 4.5 x 4.5 x 1.2 mm dome tact |
+| **SW5-SW8** | Face/Menu | Action/Undo/Restart/Menu | KMR2 baseline, TL3315 face-button check pending |
+| **SW9-SW10** | Edge switches | Power + volume | Panasonic EVP-AKE31A class |
 | **D*** | RGB | Side-firing into shell | 3× 3227 or 2835 side LED |
 
 ## Signal priorities (layout order)

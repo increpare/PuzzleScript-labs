@@ -85,6 +85,10 @@ Active-low switches to GND with 10 kΩ pull-up to 3V3 unless LP wake requires ot
 the LP-capable GPIO bank so short-press wake can preserve state. If module pin
 availability forces a move, keep these three signals in the LP bank.
 
+**D-pad switch stack:** `SW_DPAD_*` are four separate TL3315-class dome tacts,
+not a one-piece rocker. Firmware must ignore or otherwise resolve opposite
+direction pairs (`UP+DOWN`, `LEFT+RIGHT`) before emitting gameplay input.
+
 ## SDMMC (microSD)
 
 **Spin 1 (locked in `schematic/connectivity.json`): SPI** on GPIO46–49 → internal

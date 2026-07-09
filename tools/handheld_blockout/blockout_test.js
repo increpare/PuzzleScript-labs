@@ -25,6 +25,11 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.dpad.cx, 22);
     assert.strictEqual(c.dpad.cy, 87);
     assert.strictEqual(c.dpad.size, 26);
+    assert.strictEqual(c.dpad.style, "separate_dome");
+    assert.strictEqual(c.dpad.switch, "TL3315NF160Q-class");
+    assert.strictEqual(c.dpad.spacing, 17.5);
+    assert.strictEqual(c.dpad.openingD, 7);
+    assert.strictEqual(c.dpad.switchH, 1.2);
     assert.strictEqual(c.buttons[0].label, "ACTION");
     assert.strictEqual(c.buttons[0].d, 14);
     assert.strictEqual(c.buttons[1].cx, 75);
@@ -38,6 +43,8 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.backZones.length, 3);
     assert.deepStrictEqual(c.supports.map(function (z) { return z.label; }),
         ["DPAD_SUPPORT", "ACTION_SUPPORT"]);
+    assert.deepStrictEqual(c.supports[0],
+        { label: "DPAD_SUPPORT", x: 18, y: 83, w: 8, h: 8, face: "front", role: "center_standoff_pad" });
     assert.strictEqual(c.backZones[0].label, "BAT_1S_POUCH");
     assert.strictEqual(c.backZones[0].x, 31);
     assert.strictEqual(c.backZones[0].y, 73);
@@ -84,6 +91,18 @@ test("fmt trims float noise", function () {
 
 test("circleGap measures edge-to-edge distance", function () {
     assert.strictEqual(B.circleGap(0, 0, 5, 20, 0, 5), 10);
+});
+
+test("dpad helpers describe separate dome button envelope", function () {
+    var d = B.BLOCKOUT_PRESETS.card.dpad;
+    assert.strictEqual(B.dpadOffset(d), 8.75);
+    assert.strictEqual(B.dpadOuterRadius(d), 12.25);
+    assert.deepStrictEqual(B.dpadButtonCenters(d), [
+        { label: "DPAD_UP", cx: 22, cy: 78.25 },
+        { label: "DPAD_DOWN", cx: 22, cy: 95.75 },
+        { label: "DPAD_LEFT", cx: 13.25, cy: 87 },
+        { label: "DPAD_RIGHT", cx: 30.75, cy: 87 }
+    ]);
 });
 
 test("rectCircleClearance measures circle edge to rect edge", function () {
@@ -147,7 +166,9 @@ test("faceSvg draws body, active area, module, and d-pad at spec coordinates", f
     assert.ok(svg.indexOf('viewBox="-12 -12 144 134"') !== -1, "viewBox");
     assert.ok(svg.indexOf('x="12.5" y="10" width="95" height="54"') !== -1, "active area");
     assert.ok(svg.indexOf('x="7.29" y="3.5" width="105.42" height="67.07"') !== -1, "module outline");
-    assert.ok(svg.indexOf('x="9" y="82.75" width="26" height="8.5"') !== -1, "d-pad h-arm");
+    assert.ok(svg.indexOf('cx="22" cy="78.25" r="3.5"') !== -1, "d-pad up dome");
+    assert.ok(svg.indexOf('cx="13.25" cy="87" r="3.5"') !== -1, "d-pad left dome");
+    assert.ok(svg.indexOf("TL3315 dome d-pad") !== -1, "d-pad label");
     assert.ok(svg.indexOf('rotate(-20 58 101)') !== -1, "menu tilt");
     assert.ok(svg.indexOf('url(#grid10)') !== -1, "grid fill on");
 });
@@ -186,8 +207,8 @@ test("edgesSvg draws USB-C, power, FPC keep-out, and volume", function () {
 
 test("sectionSvg layer heights use stepped reset profile", function () {
     var svg = B.sectionSvg(B.BLOCKOUT_PRESETS.card);
-    assert.ok(svg.indexOf("front shell + cap travel 1.7") !== -1);
-    assert.ok(svg.indexOf("KMR2 tact 1.9") !== -1);
+    assert.ok(svg.indexOf("front shell + button guidance 1.5") !== -1);
+    assert.ok(svg.indexOf("TL3315 dome tact 1.2") !== -1);
     assert.ok(svg.indexOf("403048 pouch baseline 4.0") !== -1);
     assert.ok(svg.indexOf('height="11.5"') !== -1, "11.5 mm band slab");
 });

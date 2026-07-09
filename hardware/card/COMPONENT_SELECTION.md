@@ -36,12 +36,16 @@ the display envelope.
 
 ## Z-Stack Decision
 
-The 11.5 mm control/battery band does not close with a 5-6 mm pouch, KMR2
-tacts, PCB, shell, and swelling allowance all stacked on top of one another.
+The 11.5 mm control/battery band does not close with a 5-6 mm pouch, a tall
+front switch stack, PCB, shell, and swelling allowance all stacked on top of one another.
 For the current enclosure budget, the baseline cell is therefore a 4 mm-class
 `403048` pouch in the same 58 x 30 mm rear pocket. A `503048` or `603048` cell
 is still acceptable only if the rear shell gets a measured recess/pocket or the
 band thickness increases.
+
+The D-pad switch decision now helps this stack: the spin-1 D-pad uses
+TL3315-class 1.2 mm dome tacts instead of 1.9 mm KMR2 tacts under a rocker,
+saving about 0.7 mm in the most sensitive front-control stack.
 
 The display zone is now treated as a 9.5 mm stack target, not an 8 mm promise.
 That gives the 2.9 mm panel, PCB, rear ESP32-P4 module, rear shell, and normal
@@ -63,8 +67,9 @@ panel/case section before routing.
 | 3V3 regulator | TI TPS63070RNM family | 3 x 2.5 mm QFN buck-boost | Baseline | Replaces the old TPS62135 buck placeholder. |
 | Panel load switch | TPS22918/TPS22919 class | Small WLCSP/SON load switch | Baseline | U6 gates `+3V3_PANEL` so sleep current is not dominated by the display module. |
 | Power latch / enable | LTC2954/MAX16054-class pushbutton controller | Small SMT controller, exact part pending | Required before layout | U7 owns long-press latch-off/SYSOFF and drives ESP_EN. Do not route spin 1 before this topology is chosen. |
-| Front controls SW1-SW8 | C&K KMR211NG LFS | Low-profile SMT tact under guided plungers | Baseline from report | Good spin-1 COTS clicky option. Use one switch family for D-pad, Action, Undo, Restart, and Menu if it fits. |
-| Front-control fallback | Omron B3U-1000P | Ultra-small SMT tact | Fallback | Use only where the KMR2 footprint or actuator height does not fit. |
+| D-pad SW1-SW4 | E-Switch TL3315NF160Q class | 4.5 x 4.5 x 1.2 mm SMT dome tact | Baseline | Arduboy-style four separate direction buttons, no rocker/pivot. Current 17.5 mm diamond spacing is only a print-test candidate. |
+| Action / Undo / Restart / Menu SW5-SW8 | C&K KMR211NG LFS, evaluate TL3315NF160Q class | Low-profile SMT tact or dome tact | Candidate split | KMR2 remains a known clicky option for larger caps; TL3315 may unify feel and reduce stack if the face-button ergonomics work. |
+| Front-control fallback | Omron B3U-1000P | Ultra-small SMT tact | Fallback | Use only where the preferred footprint or actuator height does not fit. |
 | Edge power / volume | Panasonic EVP-AKE31A | IP67 side-push SMT tact | Baseline from report | Better edge-control feel/durability than generic side tacts. |
 | Edge-control fallback | Panasonic EVQ-P7A01P | Side-operational SMT tact | Fallback | Cheaper and well documented, but higher force and lower cycle rating than EVP-AK. |
 | Haptic driver | TI DRV2605L | VSSOP-10 preferred for hand assembly/debug, DSBGA only if needed | Baseline | I2C LRA/ERM driver with library and auto-resonance support. |
@@ -82,17 +87,31 @@ card. A membrane stack would require custom carbon contacts, silicone geometry,
 cap travel tuning, and tighter case iteration before the electronics layout can
 settle.
 
-For spin 1, use COTS SMT tact switches under guided caps/plungers. The report's
-`C&K KMR2`, `Omron B3U`, and Panasonic side-switch recommendations map cleanly
-to our current mechanical plan. PuzzleScript's core movement is strictly 4-way,
-so tact-D-pad diagonal weakness is much less relevant than it would be for
-Nintendo-style 8-way play. Membrane input remains a later feel-improvement
-experiment, not the first routing baseline.
+For spin 1, use COTS SMT switches, but not a one-piece tact D-pad rocker. The
+owner-approved direction is Arduboy-style: four separate TL3315-class dome tacts
+in a diamond, each exposed through its own small round shell opening or a
+minimal loose cap. This avoids membrane stack height, rocker pivot tolerances,
+and the old mushy-board-flex problem. PuzzleScript movement is strictly 4-way,
+so diagonal feel is a firmware filtering problem rather than a mechanical
+feature requirement.
+
+The old membrane idea remains a spin-2 feel experiment only. The old KMR2 D-pad
+baseline is superseded for SW1-SW4. KMR2 remains useful for Action/Undo/Restart
+and Menu until a TL3315 face-button mockup proves the smaller dome style also
+feels right there.
 
 ## Placement Consequences
 
-- `SW1`-`SW8`: place on the front at the mechanical anchors in
-  `mechanical/layout.json`.
+- `SW1`-`SW4`: place TL3315-class dome tacts on the four separate D-pad anchors
+  in `mechanical/layout.json`. Keep the current 17.5 mm diamond only as the
+  first spacing candidate; print two or three tighter variants before final
+  footprint placement.
+- `SW5`-`SW8`: place Action, Undo, Restart, and Menu on the front at the
+  mechanical anchors in `mechanical/layout.json`; decide KMR2 vs TL3315 after
+  the face-button fit/feel check.
+- `DPAD_SUPPORT`: keep the central D-pad shell support/standoff pad in the freed
+  diamond center. It should stiffen the board without interfering with the four
+  dome switch openings.
 - `SW9`, `SW10A`, `SW10B`: place at the top/right edge anchors; confirm actuator
   direction against the case before routing.
 - `J3`: place at `CONN_DSI_FFC`; route DSI before anything else.
@@ -120,7 +139,9 @@ experiment, not the first routing baseline.
 - USB-C mid-mount part height, board cutout, shell opening, display overlap, and
   assembly support.
 - EasyEDA/JLC availability and assembly tier for every selected SMT part.
-- KMR2 actuator height against printed caps and shell travel.
+- TL3315 D-pad actuator height, shell opening diameter, capless/loose-cap feel,
+  and diamond spacing from the 1:1 print workflow.
+- KMR2 vs TL3315 choice for Action/Undo/Restart/Menu.
 - Whether the LRA should be wired, spring-contacted, or glued with service loops.
 
 ## Source Notes

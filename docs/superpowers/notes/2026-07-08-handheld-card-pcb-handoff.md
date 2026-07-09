@@ -81,19 +81,20 @@ Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if the Z-stack requires
   (transistor drive minimum; include DNP boost/H-bridge footprints and a 0R
   return link so a quiet piezo is bench rework, not a PCB respin).
 - LRA + driver (DRV2605-class) at the right edge of the band.
-- Low-profile tact switches: 4x D-pad (under one-piece rocker), Action, Undo,
-  Restart, Menu; edge switches for Power pill and Volume rocker (top/right
-  edges per spec).
+- Low-profile switches: 4x TL3315-class separate dome D-pad buttons in a
+  diamond (no one-piece rocker), Action, Undo, Restart, Menu; edge switches for
+  Power pill and Volume rocker (top/right edges per spec). Face/Menu switches
+  can stay KMR2 until the TL3315 face-button feel check says otherwise.
 - Side-firing RGB LEDs into the translucent shell walls.
 - microSD socket (internal), debug pads on PCB back (JTAG/UART/boot/reset).
 
 ## Placement source of truth
 
 `tools/handheld_blockout/blockout.js` - the `card` preset holds every
-front-face coordinate in mm (buttons, Menu, band, grille, piezo, USB-C X, power
-X, volume Y, FPC keep-out) plus back-side keep-outs for the pouch, ESP module,
-and PMIC cluster. Do not re-derive from the spec by hand; export from the preset
-so PCB and case cannot drift. Run:
+front-face coordinate in mm (buttons, candidate D-pad dome spacing, Menu, band,
+grille, piezo, USB-C X, power X, volume Y, FPC keep-out) plus back-side
+keep-outs for the pouch, ESP module, and PMIC cluster. Do not re-derive from
+the spec by hand; export from the preset so PCB and case cannot drift. Run:
 
 ```bash
 make handheld_pcb_export          # writes hardware/card/mechanical/layout.{json,svg}
