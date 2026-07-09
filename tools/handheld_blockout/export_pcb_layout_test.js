@@ -50,12 +50,21 @@ test("layout includes semantic back-side battery, ESP, and PMIC keep-outs", func
     var layout = pcb.buildPcbLayout(blockout.BLOCKOUT_PRESETS.card);
     var ids = layout.keepouts.map(function (k) { return k.id; });
     assert.ok(ids.indexOf("display_module") !== -1);
+    assert.ok(ids.indexOf("dpad_support") !== -1);
+    assert.ok(ids.indexOf("action_support") !== -1);
     assert.strictEqual(ids.indexOf("battery"), -1);
     assert.ok(ids.indexOf("back_bat_1s_pouch") !== -1);
     assert.ok(ids.indexOf("back_esp32_p4_module") !== -1);
     assert.ok(ids.indexOf("back_pmic_cluster") !== -1);
+    var display = layout.keepouts.filter(function (k) { return k.id === "display_module"; })[0];
+    assert.strictEqual(display.layer, "front");
+    assert.strictEqual(display.side, "front");
+    var fpc = layout.keepouts.filter(function (k) { return k.id === "fpc_top_keepout"; })[0];
+    assert.strictEqual(fpc.layer, "front");
+    assert.strictEqual(fpc.side, "front");
     var battery = layout.keepouts.filter(function (k) { return k.id === "back_bat_1s_pouch"; })[0];
     assert.strictEqual(battery.layer, "back");
+    assert.strictEqual(battery.side, "back");
     assert.strictEqual(battery.role, "battery");
     assert.deepStrictEqual(
         { x: battery.x, y: battery.y, w: battery.w, h: battery.h },
@@ -70,6 +79,19 @@ test("layout includes semantic back-side battery, ESP, and PMIC keep-outs", func
     );
     var pmic = layout.keepouts.filter(function (k) { return k.id === "back_pmic_cluster"; })[0];
     assert.strictEqual(pmic.role, "power");
+});
+
+test("mounting holes clear rounded PCB corners", function () {
+    var layout = pcb.buildPcbLayout(blockout.BLOCKOUT_PRESETS.card);
+    assert.deepStrictEqual(
+        layout.mountingHoles.map(function (h) { return [h.x, h.y]; }),
+        [[7, 7], [113, 7], [7, 103], [113, 103]]
+    );
+    var cornerCenter = { x: layout.pcb.x + layout.pcb.r, y: layout.pcb.y + layout.pcb.r };
+    var hole = layout.mountingHoles[0];
+    var centerDistance = Math.sqrt(
+        Math.pow(hole.x - cornerCenter.x, 2) + Math.pow(hole.y - cornerCenter.y, 2));
+    assert.ok(centerDistance + hole.d / 2 < layout.pcb.r, "hole stays inside rounded corner");
 });
 
 test("layoutToSvg draws edge cuts and anchor labels", function () {

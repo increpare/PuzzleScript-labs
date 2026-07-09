@@ -18,11 +18,17 @@ private:
     bool repeatable_action(PlayerAction action) const;
     void emit_edge(PlayerAction action);
     void maybe_emit_repeat();
+    void begin_restart_hold();
+    void cancel_restart_hold();
+    void maybe_emit_restart_hold();
 
     int repeat_interval_ms_ = 150;
     int64_t last_repeat_ms_ = 0;
+    int64_t restart_press_ms_ = 0;
     PlayerAction held_action_ = PlayerAction::Action;
     bool holding_repeatable_ = false;
+    bool holding_restart_ = false;
+    bool restart_fired_ = false;
     uint32_t stable_mask_ = 0;
     uint32_t last_raw_mask_ = 0;
     int debounce_count_ = 0;

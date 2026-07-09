@@ -10,16 +10,19 @@ namespace ps_probe::board::card_pins {
 inline constexpr int kI2cSda = 26;
 inline constexpr int kI2cScl = 27;
 
+// Wake-capable controls on LP GPIOs (active-low, 10k pull-up)
+inline constexpr int kSwPower = 8;
+inline constexpr int kSwDpadDown = 9;
+inline constexpr int kSwAction = 10;
+inline constexpr int kPanelEn = 11;
+
 // D-pad + face buttons (active-low, 10k pull-up)
 inline constexpr int kSwDpadUp = 28;
-inline constexpr int kSwDpadDown = 29;
 inline constexpr int kSwDpadLeft = 30;
 inline constexpr int kSwDpadRight = 31;
-inline constexpr int kSwAction = 32;
 inline constexpr int kSwUndo = 33;
 inline constexpr int kSwRestart = 34;
 inline constexpr int kSwMenu = 37;
-inline constexpr int kSwPower = 38;
 
 // Volume rocker
 inline constexpr int kVolUp = 39;

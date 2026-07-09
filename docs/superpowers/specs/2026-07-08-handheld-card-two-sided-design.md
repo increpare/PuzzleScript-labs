@@ -1,6 +1,10 @@
 # PuzzleScript Card — Two-Sided / Stepped Body (Spin 1.5)
 
-Date: 2026-07-08. Status: **proposed** — replaces the single-sided
+Date: 2026-07-08. Status: **superseded / archival** — replaced by
+`2026-07-08-handheld-card-reset-design.md` for the next PCB pass. Keep this
+only as history for why two-sided placement was introduced.
+
+Original status: **proposed** — replaces the single-sided
 "everything on front" constraint from spin 1 for the next prototype iteration.
 Parent spec: `2026-07-07-handheld-compact-card-design.md`.
 
@@ -156,8 +160,10 @@ Display zone omits cell + module height → **~8 mm** achievable.
 
 ## Software / firmware
 
-No GPIO map changes. `board_card_pins.hpp` remains valid. Board bring-up order
-unchanged.
+Archival note: this proposal assumed no GPIO map changes. The later reset
+design intentionally moves Power, D-pad Down, Action, and panel enable into
+the LP-capable GPIO bank; use `PIN_BUDGET.md` and `board_card_pins.hpp` as
+the current source of truth.
 
 ## Validation
 
@@ -165,9 +171,9 @@ unchanged.
    metadata, split battery zones (back), new Menu anchor, remove front battery
    keep-out.
 2. Regenerate `hardware/card/mechanical/layout.json`.
-3. Update `hardware/card/tscircuit/index.circuit.tsx` — `layer="bottom"` on U1,
-   PMIC; relocate Menu; remove front battery keep-out rect.
-4. `blockout_test.js` + `build_test.js` green.
+3. Historical implementation note: this was originally intended to update the
+   retired generated PCB experiment. Do not use that path for the reset board.
+4. `blockout_test.js` + `export_pcb_layout_test.js` green.
 5. Export STEP / 1:1 SVG; print case blockout; verify cap gaps and band thickness.
 6. First PCB: DRC + DSI length check; assemble; measure backlight + runtime.
 
@@ -187,8 +193,6 @@ unchanged.
   amendment pointer (do not silently delete single-sided history).
 - `tools/handheld_blockout/blockout.js`
 - `hardware/card/mechanical/layout.json` (generated)
-- `hardware/card/tscircuit/index.circuit.tsx`
-- `hardware/card/tscircuit/export_layout_preview.js`
 - `hardware/card/BLOCK_DIAGRAM.md`
 - `docs/superpowers/notes/2026-07-08-handheld-card-pcb-handoff.md`
 

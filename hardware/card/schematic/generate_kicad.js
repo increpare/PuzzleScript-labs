@@ -320,6 +320,19 @@ function bodyYToKicad(y, bodyH) {
     return bodyH - y;
 }
 
+function keepoutDrawingLayer(keepout) {
+    if (keepout.layer === "back") {
+        return "Eco2.User";
+    }
+    if (keepout.layer === "mechanical") {
+        return "Dwgs.User";
+    }
+    if (keepout.layer === "user") {
+        return "Cmts.User";
+    }
+    return "Eco1.User";
+}
+
 function pathToGrLines(svgPath, bodyH) {
     var lines = [];
     var tokens = svgPath.replace(/([MHVAZ])/g, " $1 ").trim().split(/\s+/);
@@ -395,13 +408,14 @@ function buildPcb(layout, model) {
             "    (effects (font (size 1 1) (thickness 0.15)) (justify center)) (uuid \"" + uuid() + "\"))");
     });
     layout.keepouts.forEach(function (k) {
-        if (k.layer !== "keepout") {
-            return;
-        }
+        var layer = keepoutDrawingLayer(k);
         var x = k.x;
         var y = bodyYToKicad(k.y + k.h, bodyH);
         lines.push("  (gr_rect (start " + x + " " + y + ") (end " + (x + k.w) + " " + (y + k.h) +
-            ") (stroke (width 0.12) (type dash)) (fill none) (layer \"Eco1.User\") (uuid \"" + uuid() + "\"))");
+            ") (stroke (width 0.12) (type dash)) (fill none) (layer \"" + layer + "\") (uuid \"" + uuid() + "\"))");
+        lines.push("  (gr_text \"" + esc(k.id) + "\" (at " + (x + k.w / 2) + " " +
+            (bodyYToKicad(k.y, bodyH) + 1.5) + " 0) (layer \"" + layer + "\")",
+            "    (effects (font (size 1 1) (thickness 0.12)) (justify center)) (uuid \"" + uuid() + "\"))");
     });
     lines.push(")");
     return lines.join("\n") + "\n";

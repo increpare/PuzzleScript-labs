@@ -109,7 +109,7 @@ function buildPcbLayout(params, options) {
         }]
     );
 
-    var holeInset = options.mountingHoleInset != null ? options.mountingHoleInset : 3;
+    var holeInset = options.mountingHoleInset != null ? options.mountingHoleInset : 5;
     var holeD = options.mountingHoleD != null ? options.mountingHoleD : 2.2;
     var mountingHoles = [
         { id: "MH_TL", x: pcb.x + holeInset, y: pcb.y + holeInset, d: holeD },
@@ -117,6 +117,32 @@ function buildPcbLayout(params, options) {
         { id: "MH_BL", x: pcb.x + holeInset, y: pcb.y + pcb.h - holeInset, d: holeD },
         { id: "MH_BR", x: pcb.x + pcb.w - holeInset, y: pcb.y + pcb.h - holeInset, d: holeD }
     ];
+    var supportKeepouts = (params.supports || []).map(function (z) {
+        return {
+            id: String(z.label).toLowerCase(),
+            layer: "mechanical",
+            side: z.face || "front",
+            x: z.x,
+            y: z.y,
+            w: z.w,
+            h: z.h,
+            role: z.role || "support",
+            note: z.label + " shell support/standoff pad"
+        };
+    });
+    var backKeepouts = (params.backZones || []).map(function (z, i) {
+        return {
+            id: keepoutIdForBackZone(z, i),
+            layer: "back",
+            side: "back",
+            x: z.x,
+            y: z.y,
+            w: z.w,
+            h: z.h,
+            role: z.role || "service",
+            note: z.label + " (PCB bottom / rear pocket)"
+        };
+    });
 
     return {
         meta: {
@@ -134,15 +160,17 @@ function buildPcbLayout(params, options) {
         keepouts: [
             {
                 id: "display_module",
-                layer: "keepout",
+                layer: "front",
+                side: "front",
                 x: s.moduleX,
                 y: s.moduleY,
                 w: s.moduleW,
                 h: s.moduleH,
-                note: "display stack / optional PCB window"
+                note: "front display stack envelope; rear parts here require Z-stack clearance"
             }, {
                 id: "display_active",
                 layer: "user",
+                side: "front",
                 x: s.activeX,
                 y: s.activeY,
                 w: s.activeW,
@@ -150,12 +178,13 @@ function buildPcbLayout(params, options) {
                 note: "visible lens opening"
             }, {
                 id: "fpc_top_keepout",
-                layer: "keepout",
+                layer: "front",
+                side: "front",
                 x: fpcX0,
                 y: 0,
                 w: fpcX1 - fpcX0,
                 h: params.band.y0,
-                note: "no tall parts under display FPC fold"
+                note: "front-side no-tall-parts zone under display FPC fold"
             }, {
                 id: "control_band",
                 layer: "user",
@@ -165,18 +194,7 @@ function buildPcbLayout(params, options) {
                 h: params.band.y1 - params.band.y0,
                 note: "front: switches + piezo; back: one pouch low, ESP/PMIC above"
             }
-        ].concat((params.backZones || []).map(function (z, i) {
-            return {
-                id: keepoutIdForBackZone(z, i),
-                layer: "back",
-                x: z.x,
-                y: z.y,
-                w: z.w,
-                h: z.h,
-                role: z.role || "service",
-                note: z.label + " (PCB bottom / rear pocket)"
-            };
-        })),
+        ].concat(supportKeepouts).concat(backKeepouts),
         anchors: anchors,
         mountingHoles: mountingHoles
     };
@@ -209,8 +227,10 @@ function layoutToSvg(layout, opts) {
     out.push('<text x="2" y="-1.5" font-size="2.2" font-family="sans-serif" fill="#c00">Edge.Cuts (PCB outline)</text>');
 
     layout.keepouts.forEach(function (k) {
-        var stroke = k.layer === "keepout" ? "#f80" : (k.layer === "back" ? "#08c" : "#88a");
-        var dash = k.layer === "keepout" || k.layer === "back" ? ' stroke-dasharray="1.2,0.8"' : "";
+        var stroke = k.layer === "front" ? "#f80" :
+            (k.layer === "back" ? "#08c" : (k.layer === "mechanical" ? "#090" : "#88a"));
+        var dash = k.layer === "front" || k.layer === "back" || k.layer === "mechanical" ?
+            ' stroke-dasharray="1.2,0.8"' : "";
         out.push('<rect x="' + k.x + '" y="' + k.y + '" width="' + k.w + '" height="' + k.h +
             '" fill="none" stroke="' + stroke + '" stroke-width="0.25"' + dash + "/>");
         out.push('<text x="' + (k.x + k.w / 2) + '" y="' + (k.y - 0.6) +

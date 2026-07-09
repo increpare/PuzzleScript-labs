@@ -1,8 +1,9 @@
 # PuzzleScript Card — pin budget
 
-Spin 1: **ESP32-P4-Module-32MB** on custom card PCB. GPIO numbers are **P4 HP GPIO**
-unless noted. Final assignment is subject to schematic ERC and module pin availability;
-this doc is the planning baseline.
+Spin 1: **ESP32-P4-Module-32MB** on custom card PCB. GPIO numbers are P4 GPIO
+unless noted. GPIO8-GPIO11 are reserved for wake/sleep-critical controls in the
+LP-capable bank; final assignment is subject to schematic ERC and module pin
+availability.
 
 ## Connector pinouts
 
@@ -25,7 +26,7 @@ Standard Pi DSI mapping (WS24773 no-touch uses DSI + power; I2C pins NC).
 | 11 | NC | No touch ID |
 | 12 | NC | |
 | 13 | GND | |
-| 14 | +3V3_PANEL | 3V3 buck-boost (>=400 mA path) |
+| 14 | +3V3_PANEL | Switched 3V3 panel rail from U6 load switch (>=400 mA path) |
 | 15 | GND | |
 
 ### J1 — USB-C (mid-mount, USB 2.0 + charge)
@@ -62,15 +63,16 @@ Active-low switches to GND with 10 kΩ pull-up to 3V3 unless LP wake requires ot
 
 | Signal | Candidate GPIO | Module pin | Physical control |
 |--------|----------------|------------|------------------|
+| `SW_POWER` | GPIO8 | LP bank, verify module pin | Top-edge pill; also power-latch PB input |
+| `SW_DPAD_DOWN` | GPIO9 | LP bank, verify module pin | D-pad wake input |
+| `SW_ACTION` | GPIO10 | LP bank, verify module pin | Action wake input |
+| `PANEL_EN` | GPIO11 | LP bank, verify module pin | Enables U6 panel load switch |
 | `SW_DPAD_UP` | GPIO28 | 55 | D-pad |
-| `SW_DPAD_DOWN` | GPIO29 | 56 | D-pad |
 | `SW_DPAD_LEFT` | GPIO30 | 57 | D-pad |
 | `SW_DPAD_RIGHT` | GPIO31 | 58 | D-pad |
-| `SW_ACTION` | GPIO32 | 59 | Action cap |
 | `SW_UNDO` | GPIO33 | 60 | Undo cap |
 | `SW_RESTART` | GPIO34 | 61 | Restart cap |
 | `SW_MENU` | GPIO37 | 64 | Menu pill |
-| `SW_POWER` | GPIO38 | 65 | Top-edge pill (hold = sleep) |
 | `VOL_UP` | GPIO39 | 67 | Volume rocker leg |
 | `VOL_DOWN` | GPIO40 | 68 | Volume rocker leg |
 | `PIEZO_PWM` | GPIO41 | 69 | Piezo driver (LEDC) |
@@ -79,8 +81,9 @@ Active-low switches to GND with 10 kΩ pull-up to 3V3 unless LP wake requires ot
 | `LED_B` | GPIO44 | 72 | Case RGB |
 | `GAUGE_ALERT` | GPIO45 | 73 | MAX17048 ALRT (optional) |
 
-**LP wake:** Assign at least D-pad down + Action to LP-capable inputs for sleep wake
-(verify in ESP32-P4 TRM); may require moving two switches to GPIO2–13 bank.
+**LP wake:** `SW_POWER`, `SW_DPAD_DOWN`, and `SW_ACTION` are intentionally on
+the LP-capable GPIO bank so short-press wake can preserve state. If module pin
+availability forces a move, keep these three signals in the LP bank.
 
 ## SDMMC (microSD)
 
@@ -96,7 +99,7 @@ microSD socket. Service-only; acceptable for v1.
 |-----|------------|-----------------|
 | `ESP_3V3` | 85, 86 | 3V3 buck-boost, local 10 uF + 0.1 uF |
 | `GND` | multiple | Solid plane |
-| `ESP_EN` | 87 | Power-path load switch + pull-up; power pill ORs wake |
+| `ESP_EN` | 87 | Driven by U7 power-latch / enable controller, not directly by the pill |
 | `BOOT` | 62 (GPIO35) | Test pad + optional button |
 | `BOOT_EN` | 63 (GPIO36) | 10 kΩ pull-up 3V3 |
 | `VBAT` | 84 | Optional tie to BAT+ for LP domain (per module wiki) |
@@ -113,14 +116,16 @@ microSD socket. Service-only; acceptable for v1.
 ## Power / enable logic (draft)
 
 ```
-Power pill (momentary/latching TBD):
-  - Short press: toggle SYS_EN or GPIO wake from deep sleep
-  - Long press: force shutdown via fuel gauge / GPIO
+Power pill:
+  - Short press: GPIO8 wake from deep sleep when rails are already latched on
+  - Long press: U7 power-latch/SYSOFF path forces safe shutdown
 
-ESP_EN: held high when system on; PMIC or load switch can drop for ship mode
+ESP_EN: held high by U7 when system is on; U7 can drop ESP_EN / assert SYSOFF
+for latch-off. +3V3_PANEL is separately gated by U6 for sleep.
 ```
 
-Exact logic is a schematic sub-sheet (`power/enable_logic`); must satisfy parent spec
+Exact U7 topology is still a schematic sub-sheet (`power/enable_logic`); it
+must be designed before footprint import and must satisfy parent spec
 battery-safe shutdown.
 
 ## Firmware mapping note
@@ -130,11 +135,13 @@ battery-safe shutdown.
 - **Waveshare 7B** (default) — `board_waveshare_7b.cpp`
 - **PuzzleScript Card** — `board_card_pins.hpp` + `board_card.cpp` (`CONFIG_PS_BOARD_CARD`)
 
-Card GPIO table matches the map above; buttons use GPIO28–34 and GPIO37.
+Card GPIO table matches the map above; wake buttons use GPIO8-GPIO10, gameplay
+buttons also use GPIO28, GPIO30-GPIO34, and GPIO37.
 
 ## Checklist before schematic capture
 
 - [ ] Confirm SDIO pin mux vs GPIO map in ESP-IDF for ESP32-P4
 - [ ] Pick exact charger IC (ship mode + power path)
-- [ ] Verify mid-mount USB-C footprint height in 9 mm Z-stack
+- [ ] Verify mid-mount USB-C footprint height in the 9.5 mm display-zone Z-stack
+- [ ] Verify U7 power-latch/SYSOFF topology before importing final footprints
 - [ ] Run `make handheld_pcb_export` and place J3 at `CONN_DSI_FFC` anchor

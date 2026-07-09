@@ -48,8 +48,11 @@ function validateConnectivity(model) {
     if (!byNet["+3V3"] || refsOnNet(byNet, "+3V3").indexOf("U1") === -1) {
         errors.push("U1 not on +3V3");
     }
-    if (!byNet["+3V3"] || refsOnNet(byNet, "+3V3").indexOf("J3") === -1) {
-        errors.push("panel FFC not on +3V3");
+    if (!byNet["+3V3_PANEL"] || refsOnNet(byNet, "+3V3_PANEL").indexOf("J3") === -1) {
+        errors.push("panel FFC not on switched +3V3_PANEL");
+    }
+    if (!byNet["PANEL_EN"] || refsOnNet(byNet, "PANEL_EN").indexOf("U6") === -1) {
+        errors.push("panel load switch missing PANEL_EN");
     }
     if (!byNet["DSI_D0_P"] || refsOnNet(byNet, "DSI_D0_P").indexOf("U1") === -1) {
         errors.push("DSI not routed to U1");

@@ -5,7 +5,7 @@
     "coordinateSystem": "body_top_left_y_down_mm",
     "architecture": "two_sided",
     "depthProfile": {
-      "display": 8,
+      "display": 9.5,
       "band": 11.5
     },
     "kicadImportNote": "Flip Y when placing in KiCad (Y-up): kicad_y = pcb.h - (y - pcb.y) - pcb.y ... use body.h or pcb origin helper below",
@@ -30,16 +30,18 @@
   "keepouts": [
     {
       "id": "display_module",
-      "layer": "keepout",
+      "layer": "front",
+      "side": "front",
       "x": 7.29,
       "y": 3.5,
       "w": 105.42,
       "h": 67.07,
-      "note": "display stack / optional PCB window"
+      "note": "front display stack envelope; rear parts here require Z-stack clearance"
     },
     {
       "id": "display_active",
       "layer": "user",
+      "side": "front",
       "x": 12.5,
       "y": 10,
       "w": 95,
@@ -48,12 +50,13 @@
     },
     {
       "id": "fpc_top_keepout",
-      "layer": "keepout",
+      "layer": "front",
+      "side": "front",
       "x": 47,
       "y": 0,
       "w": 26,
       "h": 72,
-      "note": "no tall parts under display FPC fold"
+      "note": "front-side no-tall-parts zone under display FPC fold"
     },
     {
       "id": "control_band",
@@ -65,8 +68,31 @@
       "note": "front: switches + piezo; back: one pouch low, ESP/PMIC above"
     },
     {
+      "id": "dpad_support",
+      "layer": "mechanical",
+      "side": "front",
+      "x": 8,
+      "y": 73,
+      "w": 28,
+      "h": 28,
+      "role": "standoff_pad",
+      "note": "DPAD_SUPPORT shell support/standoff pad"
+    },
+    {
+      "id": "action_support",
+      "layer": "mechanical",
+      "side": "front",
+      "x": 70,
+      "y": 77,
+      "w": 30,
+      "h": 30,
+      "role": "standoff_pad",
+      "note": "ACTION_SUPPORT shell support/standoff pad"
+    },
+    {
       "id": "back_bat_1s_pouch",
       "layer": "back",
+      "side": "back",
       "x": 31,
       "y": 73,
       "w": 58,
@@ -77,6 +103,7 @@
     {
       "id": "back_esp32_p4_module",
       "layer": "back",
+      "side": "back",
       "x": 47.5,
       "y": 43,
       "w": 25,
@@ -87,6 +114,7 @@
     {
       "id": "back_pmic_cluster",
       "layer": "back",
+      "side": "back",
       "x": 76,
       "y": 57,
       "w": 22,
@@ -156,7 +184,7 @@
     },
     {
       "id": "SW_POWER",
-      "x": 113,
+      "x": 106,
       "y": 3.5,
       "note": "top-edge power pill"
     },
@@ -182,26 +210,26 @@
   "mountingHoles": [
     {
       "id": "MH_TL",
-      "x": 5,
-      "y": 5,
+      "x": 7,
+      "y": 7,
       "d": 2.2
     },
     {
       "id": "MH_TR",
-      "x": 115,
-      "y": 5,
+      "x": 113,
+      "y": 7,
       "d": 2.2
     },
     {
       "id": "MH_BL",
-      "x": 5,
-      "y": 105,
+      "x": 7,
+      "y": 103,
       "d": 2.2
     },
     {
       "id": "MH_BR",
-      "x": 115,
-      "y": 105,
+      "x": 113,
+      "y": 103,
       "d": 2.2
     }
   ]

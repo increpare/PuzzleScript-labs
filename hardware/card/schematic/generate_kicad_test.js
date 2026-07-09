@@ -48,6 +48,16 @@ test("pcb contains Edge.Cuts and anchor silk", function () {
     assert.ok(pcb.indexOf("CONN_DSI_FFC") !== -1);
 });
 
+test("pcb carries front back and mechanical keepout labels", function () {
+    var pcb = fs.readFileSync(path.join(CARD, "card.kicad_pcb"), "utf8");
+    assert.ok(pcb.indexOf("display_module") !== -1);
+    assert.ok(pcb.indexOf("back_bat_1s_pouch") !== -1);
+    assert.ok(pcb.indexOf("dpad_support") !== -1);
+    assert.ok(pcb.indexOf("Eco1.User") !== -1);
+    assert.ok(pcb.indexOf("Eco2.User") !== -1);
+    assert.ok(pcb.indexOf("Dwgs.User") !== -1);
+});
+
 test("root sheet uses valid KiCad fill syntax", function () {
     var root = fs.readFileSync(path.join(CARD, "card.kicad_sch"), "utf8");
     assert.ok(root.indexOf("(fill (type none))") !== -1);

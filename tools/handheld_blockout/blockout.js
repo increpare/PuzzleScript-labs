@@ -11,7 +11,7 @@ var BLOCKOUT_PRESETS = {
     card: {
         name: "PuzzleScript Card 4.3in (WS24773 no-touch, reset one-pouch)",
         body: { w: 120, h: 110, r: 9, depth: 11.5 },
-        depthProfile: { display: 8, band: 11.5 },
+        depthProfile: { display: 9.5, band: 11.5 },
         architecture: "two_sided",
         screen: {
             // Waveshare "Display Dimensions" for 43H-800480 no-touch (not the
@@ -30,14 +30,26 @@ var BLOCKOUT_PRESETS = {
         zones: [
             { label: "LRA", x: 96, y: 87, w: 8, h: 8, face: "front" }
         ],
+        supports: [
+            { label: "DPAD_SUPPORT", x: 8, y: 73, w: 28, h: 28, face: "front", role: "standoff_pad" },
+            { label: "ACTION_SUPPORT", x: 70, y: 77, w: 30, h: 30, face: "front", role: "standoff_pad" }
+        ],
         backZones: [
-            { label: "BAT_1S_POUCH", x: 31, y: 73, w: 58, h: 30, role: "battery" },
+            {
+                label: "BAT_1S_POUCH",
+                x: 31,
+                y: 73,
+                w: 58,
+                h: 30,
+                role: "battery",
+                cell: "403048-class baseline; 503048/603048 needs rear-shell recess"
+            },
             { label: "ESP32-P4 module", x: 47.5, y: 43, w: 25, h: 25, role: "compute" },
             { label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power" }
         ],
         piezo: { cx: 60, cy: 86, d: 18 },
         grille: { cx: 60, cy: 86 },
-        topEdge: { usbX: 25, pwrX: 113, fpcKeepOut: [47, 73] },
+        topEdge: { usbX: 25, pwrX: 106, fpcKeepOut: [47, 73] },
         rightEdge: { volY: 18 }
     }
 };
@@ -234,6 +246,12 @@ function faceGroupSvg(params, opts) {
                 out.push(svgText(z.x + z.w / 2, z.y + z.h + 2.2, 2, z.label + " (back)"));
             });
         }
+        if (params.supports) {
+            params.supports.forEach(function (z) {
+                out.push(svgRect(z.x, z.y, z.w, z.h, 1.5, "#090", "none", true));
+                out.push(svgText(z.x + z.w / 2, z.y + z.h + 2.2, 2, z.label));
+            });
+        }
         if (params.piezo) {
             var p = params.piezo;
             out.push('<circle cx="' + fmt(p.cx) + '" cy="' + fmt(p.cy) + '" r="' + fmt(p.d / 2) +
@@ -278,12 +296,12 @@ function sectionGroupSvg(params) {
     var layers;
     if (dp) {
         layers = [
-            { y: 0, h: 1.5, label: "front shell + caps 1.5" },
-            { y: 1.5, h: 2.5, label: "tact + piezo driver (PCB top)" },
-            { y: 4.0, h: 1.2, label: "PCB 1.2" },
-            { y: 5.2, h: 2.0, label: "back components: ESP + PMIC" },
-            { y: 7.2, h: 3.0, label: "rear pouch pocket" },
-            { y: 10.2, h: 1.3, label: "rear shell floor 1.3" }
+            { y: 0, h: 1.7, label: "front shell + cap travel 1.7" },
+            { y: 1.7, h: 1.9, label: "KMR2 tact 1.9" },
+            { y: 3.6, h: 1.2, label: "PCB 1.2" },
+            { y: 4.8, h: 4.0, label: "403048 pouch baseline 4.0" },
+            { y: 8.8, h: 0.5, label: "pouch swelling allowance 0.5" },
+            { y: 9.3, h: 1.2, label: "rear shell floor 1.2" }
         ];
     } else {
         layers = [

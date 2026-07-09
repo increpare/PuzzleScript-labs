@@ -4,7 +4,7 @@ Date: 2026-07-08. Audience: whoever executes the Track 2 custom PCB for the
 PuzzleScript Card handheld. Read the spec first:
 `docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`
 (reset baseline: 4.3-inch WS24773 no-touch panel, 120 x 110 mm body, stepped
-~8 mm display zone / ~11.5 mm control and rear-pocket band, piezo audio, Menu
+~9.5 mm display zone / ~11.5 mm control and rear-pocket band, piezo audio, Menu
 off the down axis).
 
 **PCB reset (2026-07-08d):** the split-cell generated layout is retired for the
@@ -47,9 +47,11 @@ display module (X 12.5–107.5, Y 10–64). The earlier **112.4 × 75.1** figure
 is the touch assembly; using it for the no-touch panel drew a false ~18 mm
 "bezel" under the glass.
 
-**Case:** body **120 x 110 mm**; stepped depth is about 8 mm at the display zone
-and 11.5 mm through the control/rear-pocket band. Control band Y 72-105 clears
-the 67 mm display module. Re-print 1:1 sheet before re-approving on paper.
+**Case:** body **120 x 110 mm**; stepped depth target is now about 9.5 mm at
+the display zone and 11.5 mm through the control/rear-pocket band. The old
+8 mm display-zone promise did not include panel + PCB + rear module + shell
+clearance. Control band Y 72-105 clears the 67 mm display module. Re-print 1:1
+sheet and close both Z-stacks before re-approving on paper.
 
 Our side is still just: 15-pin FFC connector + two DSI data pairs +
 clock pair + 3V3. No backlight boost on our board.
@@ -65,14 +67,19 @@ Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if the Z-stack requires
 
 - USB-C **mid-mount** receptacle (a 3.3 mm-tall topside part does not fit the
   stack): charge + USB 2.0 OTG for mass-storage mode.
-- 1S charger + power path + fuel gauge (e.g., BQ2407x-class + MAX17048-class)
+- 1S linear charger + power path + fuel gauge (BQ24075 + MAX17048 class)
   for one low, wide rear pouch cell. The blockout reserves a 58 x 30 mm rear
-  pocket; pick a real stocked pouch before committing tabs, connector, or pocket
-  depth. Battery-safe shutdown per parent spec.
-- 3V3 buck-boost (display + system), sized for display ~400 mA + P4 bursts.
+  pocket; the baseline is a 4 mm-class 403048 pouch. A 503048/603048 cell only
+  fits if the rear shell gets a measured recess or the band grows. Set charger
+  current conservatively around 0.5 C until sealed-case thermals are measured.
+- Pushbutton latch / SYSOFF block before footprint import. The power pill goes
+  to an LP GPIO for wake and to U7 for long-press latch-off; U7 drives ESP_EN
+  and the charger SYSOFF path.
+- 3V3 buck-boost (display + system), sized for display ~400 mA + P4 bursts,
+  plus a panel load switch that creates switched `+3V3_PANEL`.
 - Piezo disc (~O16-20 mm, in the shell layer, wired to pads) + drive circuit
-  (transistor push-pull minimum; small boost/H-bridge if bench test says it
-  is too quiet).
+  (transistor drive minimum; include DNP boost/H-bridge footprints and a 0R
+  return link so a quiet piezo is bench rework, not a PCB respin).
 - LRA + driver (DRV2605-class) at the right edge of the band.
 - Low-profile tact switches: 4x D-pad (under one-piece rocker), Action, Undo,
   Restart, Menu; edge switches for Power pill and Volume rocker (top/right
@@ -125,11 +132,15 @@ green after any preset change.
    for spin 1.
 4. ~~Block diagram + pin budget~~ — **done:**
    `hardware/card/BLOCK_DIAGRAM.md`, `PIN_BUDGET.md`, `schematic/blocks.json`.
-5. ~~Schematic connectivity~~ — **done:** `connectivity.json` + **KiCad generator**
-   (`generate_kicad.js` → 9 sheets + PCB outline). User opens `card.kicad_pro`;
-   assign footprints + route in KiCad (see `hardware/card/OPEN.md`).
-6. Layout: route DSI, DRC, STEP vs case; JLC order.
-7. First spin bring-up checklist.
+5. Schematic connectivity reset: `connectivity.json` + **KiCad generator**
+   (`generate_kicad.js` -> sheets + PCB outline). Current deltas to keep:
+   403048 pouch baseline, LP wake GPIOs, `+3V3_PANEL` through U6, U7 latch /
+   SYSOFF, and DNP piezo boost/H-bridge.
+6. Pre-route gates: exact U7 latch topology, BQ24075 ISET/thermal target,
+   battery supplier/recess decision, USB-C/display section, and 9.5 mm display
+   stack. Do not assign final footprints until these are closed.
+7. Layout: route DSI, DRC, STEP vs case; JLC order.
+8. First spin bring-up checklist.
 
 ## Context and references
 

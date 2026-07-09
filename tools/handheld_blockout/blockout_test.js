@@ -13,7 +13,7 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.body.h, 110);
     assert.strictEqual(c.body.r, 9);
     assert.strictEqual(c.body.depth, 11.5);
-    assert.strictEqual(c.depthProfile.display, 8);
+    assert.strictEqual(c.depthProfile.display, 9.5);
     assert.strictEqual(c.depthProfile.band, 11.5);
     assert.strictEqual(c.architecture, "two_sided");
     assert.strictEqual(c.screen.moduleW, 105.42);
@@ -36,9 +36,15 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.band.y1, 105);
     assert.deepStrictEqual(c.zones[0], { label: "LRA", x: 96, y: 87, w: 8, h: 8, face: "front" });
     assert.strictEqual(c.backZones.length, 3);
-    assert.deepStrictEqual(c.backZones[0], {
-        label: "BAT_1S_POUCH", x: 31, y: 73, w: 58, h: 30, role: "battery"
-    });
+    assert.deepStrictEqual(c.supports.map(function (z) { return z.label; }),
+        ["DPAD_SUPPORT", "ACTION_SUPPORT"]);
+    assert.strictEqual(c.backZones[0].label, "BAT_1S_POUCH");
+    assert.strictEqual(c.backZones[0].x, 31);
+    assert.strictEqual(c.backZones[0].y, 73);
+    assert.strictEqual(c.backZones[0].w, 58);
+    assert.strictEqual(c.backZones[0].h, 30);
+    assert.strictEqual(c.backZones[0].role, "battery");
+    assert.ok(c.backZones[0].cell.indexOf("403048-class") !== -1);
     assert.deepStrictEqual(c.backZones[1], {
         label: "ESP32-P4 module", x: 47.5, y: 43, w: 25, h: 25, role: "compute"
     });
@@ -50,7 +56,7 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.backZones.some(function (z) { return z.label.indexOf("BAT_R") !== -1; }), false);
     assert.deepStrictEqual(c.piezo, { cx: 60, cy: 86, d: 18 });
     assert.strictEqual(c.topEdge.usbX, 25);
-    assert.strictEqual(c.topEdge.pwrX, 113);
+    assert.strictEqual(c.topEdge.pwrX, 106);
     assert.strictEqual(c.rightEdge.volY, 18);
 });
 
@@ -163,6 +169,7 @@ test("faceSvg overlays draw internal zones only when asked", function () {
     assert.ok(withO.indexOf("BAT_1S_POUCH") !== -1);
     assert.ok(withO.indexOf("ESP32-P4 module") !== -1);
     assert.ok(withO.indexOf("PMIC cluster") !== -1);
+    assert.ok(withO.indexOf("DPAD_SUPPORT") !== -1);
     var withoutO = B.faceSvg(B.BLOCKOUT_PRESETS.card, {});
     assert.strictEqual(withoutO.indexOf("BAT_1S_POUCH"), -1);
     assert.strictEqual(withoutO.indexOf("ESP32-P4 module"), -1);
@@ -179,9 +186,9 @@ test("edgesSvg draws USB-C, power, FPC keep-out, and volume", function () {
 
 test("sectionSvg layer heights use stepped reset profile", function () {
     var svg = B.sectionSvg(B.BLOCKOUT_PRESETS.card);
-    assert.ok(svg.indexOf("front shell + caps 1.5") !== -1);
-    assert.ok(svg.indexOf("back components: ESP + PMIC") !== -1);
-    assert.ok(svg.indexOf("rear pouch pocket") !== -1);
+    assert.ok(svg.indexOf("front shell + cap travel 1.7") !== -1);
+    assert.ok(svg.indexOf("KMR2 tact 1.9") !== -1);
+    assert.ok(svg.indexOf("403048 pouch baseline 4.0") !== -1);
     assert.ok(svg.indexOf('height="11.5"') !== -1, "11.5 mm band slab");
 });
 

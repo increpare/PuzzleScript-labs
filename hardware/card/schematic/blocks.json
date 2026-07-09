@@ -9,13 +9,15 @@
     {
       "id": "power",
       "name": "Power",
-      "nets_out": ["+3V3", "GND", "BAT+", "VBUS_IN", "SYS", "ESP_EN"],
+      "nets_out": ["+3V3", "+3V3_PANEL", "GND", "BAT+", "VBUS_IN", "SYS", "ESP_EN", "PANEL_EN"],
       "parts": [
         { "ref": "J1", "kind": "USB-C-mid-mount", "role": "charge + USB-2-OTG" },
-        { "ref": "J2", "kind": "battery-pouch-envelope", "role": "1S pouch, 503048/603048 family" },
+        { "ref": "J2", "kind": "battery-pouch-envelope", "role": "1S pouch, 403048 baseline; thicker cells need recess" },
         { "ref": "U2", "kind": "charger-power-path", "selected": "BQ24075RGTR", "candidates": ["BQ24075", "BQ25188"] },
         { "ref": "U3", "kind": "fuel-gauge-i2c", "selected": "MAX17048G+T10", "candidates": ["MAX17048"] },
-        { "ref": "U4", "kind": "buck-boost-3v3", "selected": "TPS63070", "candidates": ["TPS63070", "TPS63802"] }
+        { "ref": "U4", "kind": "buck-boost-3v3", "selected": "TPS63070", "candidates": ["TPS63070", "TPS63802"] },
+        { "ref": "U6", "kind": "panel-load-switch", "role": "gate panel 3V3 for sleep", "candidates": ["TPS22918", "TPS22919"] },
+        { "ref": "U7", "kind": "pushbutton-power-latch", "role": "real latch-off / SYSOFF control", "candidates": ["LTC2954", "MAX16054"] }
       ]
     },
     {
@@ -30,7 +32,7 @@
     {
       "id": "display",
       "name": "Display",
-      "nets_in": ["+3V3", "GND", "DSI_D0_P", "DSI_D0_N", "DSI_D1_P", "DSI_D1_N", "DSI_CLK_P", "DSI_CLK_N"],
+      "nets_in": ["+3V3_PANEL", "GND", "DSI_D0_P", "DSI_D0_N", "DSI_D1_P", "DSI_D1_N", "DSI_CLK_P", "DSI_CLK_N"],
       "parts": [
         { "ref": "J3", "kind": "FFC-15-1.0mm", "role": "WS24773 DSI panel" }
       ],
@@ -57,10 +59,12 @@
     {
       "id": "audio",
       "name": "Audio",
-      "nets_in": ["PIEZO_PWM", "GND"],
+      "nets_in": ["PIEZO_PWM", "PIEZO_OUT", "PIEZO_RET", "+3V3", "GND"],
       "parts": [
         { "ref": "Q1", "kind": "npn", "role": "piezo-drive" },
-        { "ref": "JP1", "kind": "wire-pads", "role": "shell-piezo" }
+        { "ref": "JP1", "kind": "wire-pads", "role": "shell-piezo" },
+        { "ref": "U8", "kind": "piezo-boost-hbridge-dnp", "role": "rework path if 3V3 drive is too quiet" },
+        { "ref": "R7", "kind": "0R-link", "role": "single-ended piezo return link" }
       ]
     },
     {

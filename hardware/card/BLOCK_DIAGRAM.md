@@ -19,9 +19,11 @@ flowchart TB
     end
 
     subgraph power [Power block]
+        LATCH[Pushbutton latch / SYSOFF]
         CHG[1S charger + power path]
         GAUGE[Fuel gauge I2C]
         BUCK[3V3 buck-boost]
+        PANEL_SW[Panel load switch]
         CELL[LiPo pouch 1S]
     end
 
@@ -46,9 +48,13 @@ flowchart TB
 
     USBC --> CHG
     CELL --> CHG
+    PWR --> LATCH
+    LATCH --> CHG
+    LATCH --> MOD
     CHG --> BUCK
     BUCK --> MOD
-    BUCK --> PANEL
+    BUCK --> PANEL_SW
+    PANEL_SW --> PANEL
     GAUGE --> CELL
     MOD --> GAUGE
     MOD --> FFC
@@ -60,7 +66,6 @@ flowchart TB
     PZ_DRV --> PIEZO_PADS
     MOD --> SD
     MOD --> USBC
-    PWR --> CHG
     VOL --> MOD
 ```
 
@@ -74,11 +79,13 @@ USB-C VBUS (5 V) ──┬──► Charger IC (e.g. BQ24075-class)
                              │         ├──► 3V3 buck-boost (~1 A cont., >=500 mA display headroom)
                              │         │         ├──► ESP32-P4-Module (ESP_3V3 ×2, ESP_EN)
                              │         │         ├──► Logic, I2C, SD, LEDs, piezo driver
-                             │         │         └──► Panel 3V3 (FFC pin 14 + local bulk)
+                             │         │         └──► Panel load switch ──► +3V3_PANEL (FFC pin 14 + local bulk)
                              │         │
                              │         └──► (optional) charge-path load when USB present
                              │
                              └──► Fuel gauge sense (I2C, cell voltage/current)
+
+Power pill ──► U7 pushbutton latch / SYSOFF block ──► ESP_EN + charger SYSOFF
 ```
 
 Budget (from spec, owner-confirmed):
@@ -94,15 +101,17 @@ Budget (from spec, owner-confirmed):
 | ID | Block | Function | Candidate parts (JLC-friendly) |
 |----|-------|----------|--------------------------------|
 | **U1** | Compute | P4 + C6 WiFi, 32 MB flash, 32 MB PSRAM | **Waveshare ESP32-P4-Module-32MB** |
-| **U2** | Charger | 1S linear/switch charger, power path, ship mode | TI BQ24075 or BQ25895-class |
+| **U2** | Charger | 1S linear charger, power path, SYSOFF | TI BQ24075 baseline |
 | **U3** | Fuel gauge | SOC %, alert | MAX17048 / CW2015 |
 | **U4** | Buck-boost | Regulated 3V3 from 1S LiPo | TI TPS63070 baseline / TPS63802 alternate |
+| **U6** | Panel load switch | Gate display 3V3 in sleep | TPS22918 / TPS22919 class |
+| **U7** | Power latch | Pushbutton latch-off, ESP_EN, charger SYSOFF | LTC2954 / MAX16054 class, exact topology pending |
 | **J1** | USB-C | Mid-mount, USB 2.0, 5 V charge | CUI / Korean Hrop 16-pin mid-mount |
-| **J2** | Battery | One rear 1S pouch, low/centered; pads or low-profile connector after cell choice | Real stocked pouch + tabs/connector verified before layout |
+| **J2** | Battery | One rear 1S pouch, low/centered; pads or low-profile connector after cell choice | 403048-class baseline; 503048/603048 only with rear recess/thicker band |
 | **J3** | DSI FFC | 15-pin 1.0 mm, top edge | Molex 505110-1510 class |
 | **J4** | microSD | Push-push, internal | — |
 | **U5** | Haptic | I2C LRA driver | DRV2605L |
-| **Q1–Q2** | Piezo | Push-pull or half-bridge | SOT23 BJT + passives |
+| **Q1/U8/R7** | Piezo | Simple transistor drive plus DNP boost/H-bridge escape path | SOT23 BJT + DNP driver + 0R return link |
 | **SW*** | Switches | 4× D-pad + Action/Undo/Restart/Menu + edge | 4.3×4.3×2.5 mm tact |
 | **D*** | RGB | Side-firing into shell | 3× 3227 or 2835 side LED |
 

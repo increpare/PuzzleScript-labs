@@ -16,6 +16,7 @@ namespace {
 
 constexpr const char* kTag = "board_buttons";
 constexpr int kDebounceSamples = 3;
+constexpr int kRestartHoldMs = 650;
 
 struct ButtonDef {
     gpio_num_t gpio;
@@ -107,8 +108,10 @@ esp_err_t ButtonInput::init() {
     last_raw_mask_ = stable_mask_;
     debounce_count_ = 0;
     holding_repeatable_ = false;
+    holding_restart_ = false;
+    restart_fired_ = false;
 #if CONFIG_PS_BOARD_CARD
-    ESP_LOGI(kTag, "card buttons ready (GPIO 28-34,37 active-low)");
+    ESP_LOGI(kTag, "card buttons ready (GPIO 9-10,28,30-34,37 active-low)");
 #else
     ESP_LOGI(kTag, "breadboard buttons ready (GPIO 28-32,34,35,49 active-low)");
 #endif
@@ -143,6 +146,30 @@ void ButtonInput::maybe_emit_repeat() {
     last_repeat_ms_ = now;
 }
 
+void ButtonInput::begin_restart_hold() {
+    holding_restart_ = true;
+    restart_fired_ = false;
+    restart_press_ms_ = now_ms();
+    held_action_ = PlayerAction::Restart;
+    holding_repeatable_ = false;
+}
+
+void ButtonInput::cancel_restart_hold() {
+    holding_restart_ = false;
+    restart_fired_ = false;
+}
+
+void ButtonInput::maybe_emit_restart_hold() {
+    if (!holding_restart_ || restart_fired_) {
+        return;
+    }
+    if (now_ms() - restart_press_ms_ < kRestartHoldMs) {
+        return;
+    }
+    emit_edge(PlayerAction::Restart);
+    restart_fired_ = true;
+}
+
 void ButtonInput::poll() {
     const uint32_t raw = read_raw_mask();
     if (raw == last_raw_mask_) {
@@ -164,6 +191,7 @@ void ButtonInput::poll() {
 
     if (stable_mask_ == previous) {
         maybe_emit_repeat();
+        maybe_emit_restart_hold();
         return;
     }
 
@@ -172,31 +200,42 @@ void ButtonInput::poll() {
 
     if (!was_pressed && is_pressed) {
         const PlayerAction action = action_from_mask(stable_mask_);
-        emit_edge(action);
-        if (repeatable_action(action)) {
-            holding_repeatable_ = true;
-            held_action_ = action;
-            last_repeat_ms_ = now_ms();
+        if (action == PlayerAction::Restart) {
+            begin_restart_hold();
         } else {
-            holding_repeatable_ = false;
+            cancel_restart_hold();
+            emit_edge(action);
+            if (repeatable_action(action)) {
+                holding_repeatable_ = true;
+                held_action_ = action;
+                last_repeat_ms_ = now_ms();
+            } else {
+                holding_repeatable_ = false;
+            }
         }
         return;
     }
 
     if (was_pressed && !is_pressed) {
         holding_repeatable_ = false;
+        cancel_restart_hold();
         return;
     }
 
     if (was_pressed && is_pressed && stable_mask_ != previous) {
-        const PlayerAction action = action_from_mask(stable_mask_);
-        emit_edge(action);
-        holding_repeatable_ = repeatable_action(action);
-        held_action_ = action;
-        last_repeat_ms_ = now_ms();
+        held_action_ = action_from_mask(stable_mask_);
+        if (held_action_ == PlayerAction::Restart) {
+            begin_restart_hold();
+        } else {
+            cancel_restart_hold();
+            emit_edge(held_action_);
+            holding_repeatable_ = repeatable_action(held_action_);
+            last_repeat_ms_ = now_ms();
+        }
     }
 
     maybe_emit_repeat();
+    maybe_emit_restart_hold();
 }
 
 std::vector<TouchGestureEvent> ButtonInput::drain_events() {
