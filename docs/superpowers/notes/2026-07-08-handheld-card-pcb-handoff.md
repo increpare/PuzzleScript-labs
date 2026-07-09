@@ -191,3 +191,19 @@ a pre-route gate. Back-side compute keep-out is now a 20 × 20 mm chip-down
 cluster (same centroid as the old module keep-out). BOM must spec the **X**
 silicon revision; plain ESP32-P4NRW32 is EOL/NRND. Canonical description:
 `docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md`.
+
+## Addendum 2026-07-09c — USB-C moved to the PCB back; battery spec locked
+
+The mid-mount USB-C is **superseded** (owner decision): J1 is now a standard
+16-pin SMD receptacle (HRO TYPE-C-31-M-12 class, JLC basic part) mounted on
+the **back** of the PCB at the top edge, inside the new `USB_C_BACK`
+keep-out. The rear shell gets a local ~1 mm bump there
+(`depthProfile.usbBump` ≈ 10.5 mm). This removes the board notch, the
+display-gap interaction, and the last open item in the display-zone Z-stack;
+the earlier "a 3.3 mm-tall topside part does not fit the stack" note applied
+to a front-side part under the display, which no longer exists.
+
+Battery is specified by **requirements, not SKU** (see COMPONENT_SELECTION
+"Battery Requirements"): 403048 class ≤ 4.3 mm max incl. PCM, built-in
+protection, wired leads + JST-SH/PH-class connector, SKU picked at order
+time from measured samples.

@@ -6,7 +6,8 @@
     "architecture": "two_sided",
     "depthProfile": {
       "display": 9.5,
-      "band": 11.5
+      "band": 11.5,
+      "usbBump": 10.5
     },
     "kicadImportNote": "Flip Y when placing in KiCad (Y-up): kicad_y = pcb.h - (y - pcb.y) - pcb.y ... use body.h or pcb origin helper below",
     "pcbInset": 2
@@ -121,6 +122,17 @@
       "h": 11,
       "role": "power",
       "note": "PMIC cluster (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_usb_c_back",
+      "layer": "back",
+      "side": "back",
+      "x": 18,
+      "y": 2,
+      "w": 14,
+      "h": 9,
+      "role": "connector",
+      "note": "USB_C_BACK (PCB bottom / rear pocket)"
     }
   ],
   "anchors": [
@@ -181,10 +193,10 @@
       "note": "15-pin 1.0 mm FFC, top edge; align with fpcKeepOut"
     },
     {
-      "id": "CONN_USB_C_MID",
+      "id": "CONN_USB_C_BACK",
       "x": 25,
       "y": 2,
-      "note": "mid-mount USB-C on top edge (Z handled in case)"
+      "note": "back-mounted SMD USB-C on top edge (rear shell has local bump)"
     },
     {
       "id": "SW_PWR_SLIDE",

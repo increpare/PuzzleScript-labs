@@ -82,10 +82,10 @@ function buildPcbLayout(params, options) {
             y: pcb.y + 1.5,
             note: "15-pin 1.0 mm FFC, top edge; align with fpcKeepOut"
         }, {
-            id: "CONN_USB_C_MID",
+            id: "CONN_USB_C_BACK",
             x: t.usbX,
             y: pcb.y,
-            note: "mid-mount USB-C on top edge (Z handled in case)"
+            note: "back-mounted SMD USB-C on top edge (rear shell has local bump)"
         }, {
             id: "SW_PWR_SLIDE",
             x: t.pwrX,

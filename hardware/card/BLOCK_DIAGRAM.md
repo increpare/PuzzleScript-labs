@@ -11,7 +11,7 @@ ESP32-P4 chip-down cluster above it and the power cluster near the pouch tabs. S
 ```mermaid
 flowchart TB
     subgraph edge [Edge / user]
-        USBC[USB-C mid-mount]
+        USBC[USB-C back-mount, top edge]
         PWR[Power slide switch]
         VOL[Volume rocker]
         FFC[DSI FFC 15-pin]
@@ -107,7 +107,7 @@ Budget (from spec, owner-confirmed):
 | **U4** | Buck-boost | Regulated 3V3 from 1S LiPo | TI TPS63070 baseline / TPS63802 alternate |
 | **U6** | Panel load switch | Gate display 3V3 in sleep | TPS22918 / TPS22919 class |
 | **D4/R8** | Charge LED | Charging indicator, works with power off | 0603 LED from VBUS via charger CHG pin |
-| **J1** | USB-C | Mid-mount, USB 2.0, 5 V charge | CUI / Korean Hrop 16-pin mid-mount |
+| **J1** | USB-C | On PCB back at top edge (rear shell bump), USB 2.0, 5 V charge | HRO TYPE-C-31-M-12 class (JLC basic) |
 | **J2** | Battery | One rear 1S pouch, low/centered; pads or low-profile connector after cell choice | 403048-class baseline; 503048/603048 only with rear recess/thicker band |
 | **J3** | DSI FFC | 15-pin 1.0 mm, top edge | Molex 505110-1510 class |
 | **J4** | microSD | Push-push, internal | — |

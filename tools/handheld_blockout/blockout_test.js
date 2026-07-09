@@ -40,7 +40,7 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.band.y0, 72);
     assert.strictEqual(c.band.y1, 105);
     assert.deepStrictEqual(c.zones[0], { label: "LRA", x: 96, y: 87, w: 8, h: 8, face: "front" });
-    assert.strictEqual(c.backZones.length, 3);
+    assert.strictEqual(c.backZones.length, 4);
     assert.deepStrictEqual(c.supports.map(function (z) { return z.label; }),
         ["DPAD_SUPPORT", "ACTION_SUPPORT"]);
     assert.deepStrictEqual(c.supports[0],
@@ -57,6 +57,9 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     });
     assert.deepStrictEqual(c.backZones[2], {
         label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power"
+    });
+    assert.deepStrictEqual(c.backZones[3], {
+        label: "USB_C_BACK", x: 18, y: 2, w: 14, h: 9, role: "connector"
     });
     assert.ok(c.backZones[1].y + c.backZones[1].h < c.backZones[0].y);
     assert.strictEqual(c.backZones.some(function (z) { return z.label.indexOf("BAT_L") !== -1; }), false);

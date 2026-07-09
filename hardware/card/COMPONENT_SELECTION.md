@@ -51,9 +51,9 @@ The display zone is now treated as a 9.5 mm stack target, not an 8 mm promise.
 That gives the 2.9 mm panel, PCB, rear chip-down ESP32-P4 cluster (~1 mm),
 rear shell, and normal clearances a comfortable path (~8.2 mm on paper — the
 chip-down decision is what closed this stack; the 3.3 mm-tall module did not
-fit). The USB-C body and display carrier overlap in plan
-view, so the exact mid-mount connector footprint must be checked against the
-panel/case section before routing.
+fit). The USB-C moved to the PCB back (2026-07-09), so it no longer competes
+with the display for front-side depth; its ~3.2 mm body is absorbed by a
+local rear-shell bump at the top edge (`depthProfile.usbBump`, ~10.5 mm).
 
 ## Selected Parts
 
@@ -63,8 +63,8 @@ panel/case section before routing.
 | Compute support | 32 MB QSPI NOR flash, 40 MHz crystal, DC-DC inductor + decoupling | Per Espressif reference design | Required at capture | Copy the reference schematic part-for-part; flash voltage domain must match VDD_SPI. |
 | Display assembly | Waveshare 43H-800480 / 4.3-DSI-A no-touch | External module, 15-pin 1.0 mm DSI FFC | Locked | Keep current 105.42 x 67.07 mm module blockout. |
 | DSI connector | 15-pin 1.0 mm right-angle FFC, Hirose FH12-15S-1SH(55) class | SMT FFC/FPC connector | Selected, verify contact side | Must match the Waveshare/Raspberry-Pi-style DSI cable orientation before routing. |
-| USB-C | 16-pin USB-C 2.0 mid-mount receptacle, HRO/Korean Hrop mid-mount class | SMT/mid-mount with shell stakes | Selected class, exact footprint pending | The case cutout and board notch must match the exact EasyEDA/KiCad footprint. |
-| Battery | One 1S LiPo pouch in the 58 x 30 mm rear pocket | `403048` class baseline; tabs/leads toward PMIC cluster | Envelope locked, supplier pending | `503048`/`603048` only if rear-shell recess or thicker band is validated. Prefer welded tabs or low-profile lead exit over a tall JST on the active PCB area. |
+| USB-C | 16-pin USB-C 2.0 receptacle, HRO TYPE-C-31-M-12 class (JLC basic part) | Standard SMD, mounted on **PCB back**, top edge | Selected 2026-07-09 | Replaces the mid-mount: no board notch, no display-gap constraint, cheapest/most-stocked connector there is. Rear shell gets a local ~1 mm bump at the top edge (`depthProfile.usbBump`). |
+| Battery | One 1S LiPo pouch in the 58 x 30 mm rear pocket | `403048` class baseline; wired leads + small connector toward PMIC cluster | Requirements locked (below), SKU at order time | `503048`/`603048` only if rear-shell recess or thicker band is validated. |
 | Charger / power path | TI BQ24075RGTR | 3 x 3 mm VQFN-16 | Baseline | Standalone 1S linear charger with power path and SYSOFF. Set ISET conservatively around 0.5 C unless thermal testing proves the sealed card can dissipate more. |
 | Fuel gauge | MAX17048G+T10 | 2 x 2 mm TDFN-8, not WLP | Baseline | Simple 1S I2C gauge, no sense resistor. |
 | 3V3 regulator | TI TPS63070RNM family | 3 x 2.5 mm QFN buck-boost | Baseline | Replaces the old TPS62135 buck placeholder. |
@@ -82,6 +82,26 @@ panel/case section before routing.
 | microSD | Low-profile SMT microSD socket | Internal/service-only | Candidate | Not mechanically sacred; pick the easiest stocked footprint during layout. |
 | Debug | Bare test pads | 1.27/2.0 mm pad grid on back | Locked approach | No through-hole debug connector in spin 1. |
 | RGB case LEDs | Side-firing SMT RGB LEDs | 2020/3227 side-view class | Candidate | Choose from stocked EasyEDA/JLC parts when the shell light-pipe geometry is final. |
+
+## Battery Requirements (locked 2026-07-09; SKU chosen at order time)
+
+403048-class pouches are commodity parts; the PCB and case depend on these
+requirements, not on a specific listing:
+
+- **Envelope:** 403048 class. Max thickness **≤ 4.3 mm including PCM and
+  tolerance** (the Z-stack budgets 4.0 nominal + 0.5 swelling). Fits the
+  58 × 30 mm rear pocket with length margin.
+- **Protection (PCM) built in** — required; it is the deep-discharge
+  backstop for the slide-switch power model. Overcurrent limit comfortably
+  above ~0.7 A worst-case draw (any stock PCM qualifies).
+- **Termination: wired leads + small connector** (JST-SH/PH class) toward
+  the PMIC cluster. Hand-installed after reflow, replaceable; no welded-tab
+  hot-bar process for spin 1.
+- **Capacity:** whatever an honest 403048 gives (~500–600 mAh ≈ 2 h at the
+  ~1 W budget). If runtime disappoints, the fix is the rear-recess/503048
+  case discussion — pads and pocket don't change.
+- **At order time:** buy 3–5 cells from at least two suppliers, measure real
+  thickness, use the best; set BQ24075 ISET ≈ 0.5 C for the measured cell.
 
 ## Controls Decision From The Research Report
 
@@ -121,8 +141,9 @@ feels right there.
 - `SW10A`, `SW10B`: place at the right-edge volume anchor; confirm actuator
   direction against the case before routing.
 - `J3`: place at `CONN_DSI_FFC`; route DSI before anything else.
-- `J1`: place at `CONN_USB_C_MID`; confirm mid-mount geometry against shell
-  opening before finalizing edge cuts.
+- `J1`: place on the PCB back at `CONN_USB_C_BACK` inside the `USB_C_BACK`
+  keep-out; confirm the shell port opening and rear bump against the exact
+  footprint.
 - `J2` / pouch: keep the rear 58 x 30 mm keep-out sacred. Route BAT+/GND to
   charger/gauge with short, wide paths.
 - `U4`: place near U2/J2 in the PMIC cluster. Treat it as a noisy switching
@@ -146,8 +167,8 @@ feels right there.
 - Exact power slide switch part (height, travel, knob) against the top-edge
   case section, and BQ24075 ISET/thermal target.
 - DSI FFC contact side and cable exit direction with the actual Waveshare panel.
-- USB-C mid-mount part height, board cutout, shell opening, display overlap, and
-  assembly support.
+- USB-C back-mount footprint vs the shell port opening and the rear-bump
+  geometry (no display interaction anymore).
 - EasyEDA/JLC availability and assembly tier for every selected SMT part.
 - TL3315 D-pad actuator height, shell opening diameter, capless/loose-cap feel,
   and diamond spacing from the 1:1 print workflow.

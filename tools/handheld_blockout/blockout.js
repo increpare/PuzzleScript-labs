@@ -11,7 +11,9 @@ var BLOCKOUT_PRESETS = {
     card: {
         name: "PuzzleScript Card 4.3in (WS24773 no-touch, reset one-pouch)",
         body: { w: 120, h: 110, r: 9, depth: 11.5 },
-        depthProfile: { display: 9.5, band: 11.5 },
+        // usbBump: local rear bulge at the top edge for the back-mounted
+        // USB-C body (PCB back ~5.7 + connector 3.2 + clearance + shell).
+        depthProfile: { display: 9.5, band: 11.5, usbBump: 10.5 },
         architecture: "two_sided",
         screen: {
             // Waveshare "Display Dimensions" for 43H-800480 no-touch (not the
@@ -60,7 +62,10 @@ var BLOCKOUT_PRESETS = {
             // DC-DC inductor), ~1 mm tall — closes the 9.5 mm display stack.
             // See docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md
             { label: "ESP32-P4 chip-down", x: 50, y: 45.5, w: 20, h: 20, role: "compute" },
-            { label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power" }
+            { label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power" },
+            // Back-mounted SMD USB-C (TYPE-C-31-M-12 class, ~3.2 mm tall)
+            // at the top edge; the rear shell gets a local bump here.
+            { label: "USB_C_BACK", x: 18, y: 2, w: 14, h: 9, role: "connector" }
         ],
         piezo: { cx: 60, cy: 86, d: 18 },
         grille: { cx: 60, cy: 86 },

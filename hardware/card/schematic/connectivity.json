@@ -23,7 +23,7 @@
     { "id": "debug", "file": "sheets/debug.kicad_sch", "title": "Debug" }
   ],
   "components": [
-    { "ref": "J1", "sheet": "power", "value": "USB-C-mid", "footprint": "TBD" },
+    { "ref": "J1", "sheet": "power", "value": "USB-C-16P-SMD-back", "footprint": "TYPE-C-31-M-12-class", "note": "mounted on PCB back, top edge; rear shell has a local bump" },
     { "ref": "J2", "sheet": "power", "value": "1S-Pouch-403048", "footprint": "TBD" },
     { "ref": "U2", "sheet": "power", "value": "BQ24075RGTR", "footprint": "TBD" },
     { "ref": "U3", "sheet": "power", "value": "MAX17048G+T10", "footprint": "TBD" },

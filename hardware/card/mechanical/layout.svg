@@ -21,6 +21,8 @@
 <text x="60" y="44.9" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#08c">back_esp32_p4_chip_down</text>
 <rect x="76" y="57" width="22" height="11" fill="none" stroke="#08c" stroke-width="0.25" stroke-dasharray="1.2,0.8"/>
 <text x="87" y="56.4" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#08c">back_pmic_cluster</text>
+<rect x="18" y="2" width="14" height="9" fill="none" stroke="#08c" stroke-width="0.25" stroke-dasharray="1.2,0.8"/>
+<text x="25" y="1.4" font-size="1.8" text-anchor="middle" font-family="sans-serif" fill="#08c">back_usb_c_back</text>
 <circle cx="22" cy="78.25" r="0.8" fill="#000"/>
 <text x="22" y="77.05" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_DPAD_UP</text>
 <circle cx="22" cy="95.75" r="0.8" fill="#000"/>
@@ -40,7 +42,7 @@
 <circle cx="60" cy="3.5" r="0.8" fill="#000"/>
 <text x="60" y="2.3" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">CONN_DSI_FFC</text>
 <circle cx="25" cy="2" r="0.8" fill="#000"/>
-<text x="25" y="0.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">CONN_USB_C_MID</text>
+<text x="25" y="0.8" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">CONN_USB_C_BACK</text>
 <circle cx="106" cy="3.5" r="0.8" fill="#000"/>
 <text x="106" y="2.3" font-size="1.6" text-anchor="middle" font-family="sans-serif" fill="#222">SW_PWR_SLIDE</text>
 <circle cx="118.5" cy="18" r="0.8" fill="#000"/>

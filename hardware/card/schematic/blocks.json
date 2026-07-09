@@ -11,7 +11,7 @@
       "name": "Power",
       "nets_out": ["+3V3", "+3V3_PANEL", "GND", "BAT+", "VBUS_IN", "SYS", "ESP_EN", "PANEL_EN"],
       "parts": [
-        { "ref": "J1", "kind": "USB-C-mid-mount", "role": "charge + USB-2-OTG" },
+        { "ref": "J1", "kind": "USB-C-16P-SMD-back-mount", "role": "charge + USB-2-OTG; PCB back, top edge, rear shell bump" },
         { "ref": "J2", "kind": "battery-pouch-envelope", "role": "1S pouch, 403048 baseline; thicker cells need recess" },
         { "ref": "U2", "kind": "charger-power-path", "selected": "BQ24075RGTR", "candidates": ["BQ24075", "BQ25188"] },
         { "ref": "U3", "kind": "fuel-gauge-i2c", "selected": "MAX17048G+T10", "candidates": ["MAX17048"] },

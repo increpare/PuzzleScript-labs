@@ -33,7 +33,7 @@ Standard Pi DSI mapping (WS24773 no-touch uses DSI + power; I2C pins NC).
 | 14 | +3V3_PANEL | Switched 3V3 panel rail from U6 load switch (>=400 mA path) |
 | 15 | GND | |
 
-### J1 — USB-C (mid-mount, USB 2.0 + charge)
+### J1 — USB-C (back-mounted SMD, top edge, USB 2.0 + charge)
 
 | Function | Net | Source |
 |----------|-----|--------|
@@ -161,6 +161,6 @@ buttons also use GPIO28, GPIO30-GPIO34, and GPIO37.
 - [ ] Confirm SDIO pin mux vs GPIO map in ESP-IDF for ESP32-P4
 - [ ] Copy the Espressif chip-down reference schematic (crystal, flash domain, DC-DC inductor/feedback, straps, decoupling) and confirm the ESP32-P4NRW32**X** part number + JLC stock
 - [ ] Pick exact charger IC (power path; ship mode not required with slide switch)
-- [ ] Verify mid-mount USB-C footprint height in the 9.5 mm display-zone Z-stack
+- [ ] Verify back-mount USB-C footprint vs shell port opening and rear-bump section
 - [ ] Pick exact power slide switch part (JS102000SAQN / SSSS8 class) and verify knob/slot geometry on the 1:1 sheet
 - [ ] Run `make handheld_pcb_export` and place J3 at `CONN_DSI_FFC` anchor
