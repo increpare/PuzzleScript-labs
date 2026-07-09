@@ -71,11 +71,11 @@
       "id": "dpad_support",
       "layer": "mechanical",
       "side": "front",
-      "x": 8,
-      "y": 73,
-      "w": 28,
-      "h": 28,
-      "role": "standoff_pad",
+      "x": 18,
+      "y": 83,
+      "w": 8,
+      "h": 8,
+      "role": "center_standoff_pad",
       "note": "DPAD_SUPPORT shell support/standoff pad"
     },
     {
@@ -127,22 +127,26 @@
     {
       "id": "SW_DPAD_UP",
       "x": 22,
-      "y": 78.25
+      "y": 78.25,
+      "part": "TL3315NF160Q-class"
     },
     {
       "id": "SW_DPAD_DOWN",
       "x": 22,
-      "y": 95.75
+      "y": 95.75,
+      "part": "TL3315NF160Q-class"
     },
     {
       "id": "SW_DPAD_LEFT",
       "x": 13.25,
-      "y": 87
+      "y": 87,
+      "part": "TL3315NF160Q-class"
     },
     {
       "id": "SW_DPAD_RIGHT",
       "x": 30.75,
-      "y": 87
+      "y": 87,
+      "part": "TL3315NF160Q-class"
     },
     {
       "id": "SW_ACTION",
@@ -183,10 +187,10 @@
       "note": "mid-mount USB-C on top edge (Z handled in case)"
     },
     {
-      "id": "SW_POWER",
+      "id": "SW_PWR_SLIDE",
       "x": 106,
       "y": 3.5,
-      "note": "top-edge power pill"
+      "note": "top-edge power slide switch (SPDT, gates 3V3 buck-boost EN)"
     },
     {
       "id": "SW_VOLUME",

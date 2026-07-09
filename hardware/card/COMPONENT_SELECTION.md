@@ -66,11 +66,12 @@ panel/case section before routing.
 | Fuel gauge | MAX17048G+T10 | 2 x 2 mm TDFN-8, not WLP | Baseline | Simple 1S I2C gauge, no sense resistor. |
 | 3V3 regulator | TI TPS63070RNM family | 3 x 2.5 mm QFN buck-boost | Baseline | Replaces the old TPS62135 buck placeholder. |
 | Panel load switch | TPS22918/TPS22919 class | Small WLCSP/SON load switch | Baseline | U6 gates `+3V3_PANEL` so sleep current is not dominated by the display module. |
-| Power latch / enable | LTC2954/MAX16054-class pushbutton controller | Small SMT controller, exact part pending | Required before layout | U7 owns long-press latch-off/SYSOFF and drives ESP_EN. Do not route spin 1 before this topology is chosen. |
+| Power switch | SPDT slide switch, C&K JS102000SAQN / ALPS SSSS8 class | Right-angle SMD slide, top edge | Selected class, exact part pending | Gates TPS63070 EN (signal-level, no load current). Replaces the U7 latch IC entirely — see `docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md`. |
+| Charge LED | 0603 LED + 1 kΩ from VBUS via BQ24075 `CHG` | 0603 + 0402 | Baseline | Shows charging with the power switch off; needs a light path in the shell. |
 | D-pad SW1-SW4 | E-Switch TL3315NF160Q class | 4.5 x 4.5 x 1.2 mm SMT dome tact | Baseline | Arduboy-style four separate direction buttons, no rocker/pivot. Current 17.5 mm diamond spacing is only a print-test candidate. |
 | Action / Undo / Restart / Menu SW5-SW8 | C&K KMR211NG LFS, evaluate TL3315NF160Q class | Low-profile SMT tact or dome tact | Candidate split | KMR2 remains a known clicky option for larger caps; TL3315 may unify feel and reduce stack if the face-button ergonomics work. |
 | Front-control fallback | Omron B3U-1000P | Ultra-small SMT tact | Fallback | Use only where the preferred footprint or actuator height does not fit. |
-| Edge power / volume | Panasonic EVP-AKE31A | IP67 side-push SMT tact | Baseline from report | Better edge-control feel/durability than generic side tacts. |
+| Edge volume | Panasonic EVP-AKE31A | IP67 side-push SMT tact | Baseline from report | Better edge-control feel/durability than generic side tacts. Power is now a slide switch, not an EVP-AK pill. |
 | Edge-control fallback | Panasonic EVQ-P7A01P | Side-operational SMT tact | Fallback | Cheaper and well documented, but higher force and lower cycle rating than EVP-AK. |
 | Haptic driver | TI DRV2605L | VSSOP-10 preferred for hand assembly/debug, DSBGA only if needed | Baseline | I2C LRA/ERM driver with library and auto-resonance support. |
 | Haptic actuator | Coin LRA, about 10 mm diameter, 3 mm class | Wire pads or SMT spring pads | Envelope selected, supplier pending | Tune location after battery mass is fixed. |
@@ -112,7 +113,9 @@ feels right there.
 - `DPAD_SUPPORT`: keep the central D-pad shell support/standoff pad in the freed
   diamond center. It should stiffen the board without interfering with the four
   dome switch openings.
-- `SW9`, `SW10A`, `SW10B`: place at the top/right edge anchors; confirm actuator
+- `SW9`: power slide switch at the top-edge `SW_PWR_SLIDE` anchor; verify knob
+  travel and case slot on the 1:1 sheet (the anchor sits near the corner arc).
+- `SW10A`, `SW10B`: place at the right-edge volume anchor; confirm actuator
   direction against the case before routing.
 - `J3`: place at `CONN_DSI_FFC`; route DSI before anything else.
 - `J1`: place at `CONN_USB_C_MID`; confirm mid-mount geometry against shell
@@ -123,8 +126,8 @@ feels right there.
   supply and keep it away from the DSI pairs.
 - `U6`: place close to the display FFC bulk capacitor and keep `+3V3_PANEL`
   separated from always-on logic where practical.
-- `U7`: finish the enable/latch sub-sheet before footprints are imported. The
-  power pill goes to both GPIO8 and the latch controller PB input.
+- `D4`/`R8`: place the charge LED where the shell can give it a light path,
+  near the charger; it runs from VBUS so it works with the power switch off.
 - `U8`/`R7`: keep the DNP piezo boost/H-bridge option physically near the piezo
   pads and simple transistor driver.
 
@@ -134,7 +137,8 @@ feels right there.
   circuit, tab/lead exit, and connector/pad style.
 - Whether the enclosure stays with a 4 mm-class pouch or adds a rear recess for
   a thicker `503048`/`603048` pouch.
-- U7 latch controller topology and BQ24075 ISET/thermal target.
+- Exact power slide switch part (height, travel, knob) against the top-edge
+  case section, and BQ24075 ISET/thermal target.
 - DSI FFC contact side and cable exit direction with the actual Waveshare panel.
 - USB-C mid-mount part height, board cutout, shell opening, display overlap, and
   assembly support.

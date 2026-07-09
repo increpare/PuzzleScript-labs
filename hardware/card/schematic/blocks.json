@@ -2,7 +2,7 @@
   "meta": {
     "project": "PuzzleScript Card",
     "revision": "spin1-draft",
-    "date": "2026-07-08",
+    "date": "2026-07-09",
     "mcu": "Waveshare ESP32-P4-Module-32MB"
   },
   "blocks": [
@@ -17,7 +17,8 @@
         { "ref": "U3", "kind": "fuel-gauge-i2c", "selected": "MAX17048G+T10", "candidates": ["MAX17048"] },
         { "ref": "U4", "kind": "buck-boost-3v3", "selected": "TPS63070", "candidates": ["TPS63070", "TPS63802"] },
         { "ref": "U6", "kind": "panel-load-switch", "role": "gate panel 3V3 for sleep", "candidates": ["TPS22918", "TPS22919"] },
-        { "ref": "U7", "kind": "pushbutton-power-latch", "role": "real latch-off / SYSOFF control", "candidates": ["LTC2954", "MAX16054"] }
+        { "ref": "SW9", "kind": "spdt-slide-switch", "role": "power on/off; gates U4 EN, hard off, no latch IC", "candidates": ["JS102000SAQN", "SSSS811101"] },
+        { "ref": "D4", "kind": "charge-led", "role": "lit from VBUS via charger CHG pin; works with switch off" }
       ]
     },
     {
@@ -46,7 +47,6 @@
         { "ref": "SW1-4", "kind": "E-Switch-TL3315-dome-tact", "selected": "TL3315NF160Q-class", "role": "separate dpad buttons" },
         { "ref": "SW5-7", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "role": "action-undo-restart" },
         { "ref": "SW8", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "role": "menu" },
-        { "ref": "SW9", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "power" },
         { "ref": "SW10", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "volume" }
       ]
     },

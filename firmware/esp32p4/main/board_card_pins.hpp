@@ -10,8 +10,10 @@ namespace ps_probe::board::card_pins {
 inline constexpr int kI2cSda = 26;
 inline constexpr int kI2cScl = 27;
 
-// Wake-capable controls on LP GPIOs (active-low, 10k pull-up)
-inline constexpr int kSwPower = 8;
+// Wake-capable controls on LP GPIOs (active-low, 10k pull-up).
+// GPIO8 is spare: power is a physical slide switch gating the 3V3 regulator
+// (hard off), not a GPIO. See
+// docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md.
 inline constexpr int kSwDpadDown = 9;
 inline constexpr int kSwAction = 10;
 inline constexpr int kPanelEn = 11;

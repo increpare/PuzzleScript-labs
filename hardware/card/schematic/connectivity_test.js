@@ -32,13 +32,28 @@ test("power tree connects charger buck-boost and module", function () {
 
 test("wake and sleep-control nets are on the planned control parts", function () {
     var byNet = V.buildNetMap(V.model);
-    assert.ok(byNet.SW_POWER.some(function (n) { return n[0] === "U1" && n[1] === "GPIO8"; }));
     assert.ok(byNet.SW_DPAD_DOWN.some(function (n) { return n[0] === "U1" && n[1] === "GPIO9"; }));
     assert.ok(byNet.SW_ACTION.some(function (n) { return n[0] === "U1" && n[1] === "GPIO10"; }));
     assert.ok(byNet.PANEL_EN.some(function (n) { return n[0] === "U1" && n[1] === "GPIO11"; }));
-    assert.ok(byNet.SW_POWER.some(function (n) { return n[0] === "U7"; }));
     assert.ok(byNet.PANEL_EN.some(function (n) { return n[0] === "U6"; }));
-    assert.ok(byNet.SYSOFF.some(function (n) { return n[0] === "U2"; }));
+});
+
+test("power slide switch gates the buck-boost, no latch IC", function () {
+    var byNet = V.buildNetMap(V.model);
+    assert.ok(byNet.PWR_EN.some(function (n) { return n[0] === "SW9" && n[1] === "C"; }));
+    assert.ok(byNet.PWR_EN.some(function (n) { return n[0] === "U4" && n[1] === "EN"; }));
+    assert.ok(byNet.SYS.some(function (n) { return n[0] === "SW9" && n[1] === "A"; }));
+    assert.ok(byNet.GND.some(function (n) { return n[0] === "SW9" && n[1] === "B"; }));
+    assert.ok(byNet.GND.some(function (n) { return n[0] === "U2" && n[1] === "SYSOFF"; }));
+    assert.ok(!byNet.SW_POWER, "SW_POWER net should be gone");
+    assert.ok(!V.model.components.some(function (c) { return c.ref === "U7"; }), "U7 latch should be deleted");
+});
+
+test("charge LED is powered from VBUS through charger CHG pin", function () {
+    var byNet = V.buildNetMap(V.model);
+    assert.ok(byNet.VBUS_IN.some(function (n) { return n[0] === "R8"; }));
+    assert.ok(byNet.CHG_LED.some(function (n) { return n[0] === "D4" && n[1] === "A"; }));
+    assert.ok(byNet.CHG_STAT.some(function (n) { return n[0] === "U2" && n[1] === "CHG"; }));
 });
 
 test("all eight gameplay switches reach U1", function () {

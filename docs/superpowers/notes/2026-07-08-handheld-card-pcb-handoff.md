@@ -159,3 +159,16 @@ green after any preset change.
 - Panel pages: https://www.waveshare.com/43h-800480-ips.htm ,
   https://www.waveshare.com/wiki/43H-800480-IPS ,
   https://www.waveshare.com/4.3inch-dsi-qled.htm
+
+## Addendum 2026-07-09 — power latch replaced by a slide switch
+
+The "pushbutton latch / SYSOFF block" (U7) and the top-edge power pill are
+**superseded**. Spin 1 uses a physical SPDT slide switch on the top edge that
+gates the TPS63070 `EN` pin: ON = system runs, OFF = hard off (µA-class
+drain). There is no latch IC, `SYSOFF` ties inactive, `ESP_EN` is a pull-up
+plus test pad, GPIO8 is freed, and a charge LED on the BQ24075 `CHG` pin
+(powered from VBUS) indicates charging while off. Deep sleep is demoted to an
+optional idle battery-saver (D-pad-down/Action stay on LP GPIOs for wake).
+This closes the "exact U7 latch topology" pre-route gate in the work order.
+Canonical description:
+`docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md`.

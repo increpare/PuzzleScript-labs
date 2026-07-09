@@ -87,10 +87,10 @@ function buildPcbLayout(params, options) {
             y: pcb.y,
             note: "mid-mount USB-C on top edge (Z handled in case)"
         }, {
-            id: "SW_POWER",
+            id: "SW_PWR_SLIDE",
             x: t.pwrX,
             y: pcb.y + 1.5,
-            note: "top-edge power pill"
+            note: "top-edge power slide switch (SPDT, gates 3V3 buck-boost EN)"
         }, {
             id: "SW_VOLUME",
             x: b.w - 1.5,

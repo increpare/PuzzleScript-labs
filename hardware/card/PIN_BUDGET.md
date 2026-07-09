@@ -1,9 +1,11 @@
 # PuzzleScript Card — pin budget
 
 Spin 1: **ESP32-P4-Module-32MB** on custom card PCB. GPIO numbers are P4 GPIO
-unless noted. GPIO8-GPIO11 are reserved for wake/sleep-critical controls in the
-LP-capable bank; final assignment is subject to schematic ERC and module pin
-availability.
+unless noted. GPIO9-GPIO11 are reserved for wake/sleep-critical controls in the
+LP-capable bank (GPIO8 is a spare LP pin since the power pill was replaced by a
+slide switch, see
+`docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md`);
+final assignment is subject to schematic ERC and module pin availability.
 
 ## Connector pinouts
 
@@ -63,7 +65,7 @@ Active-low switches to GND with 10 kΩ pull-up to 3V3 unless LP wake requires ot
 
 | Signal | Candidate GPIO | Module pin | Physical control |
 |--------|----------------|------------|------------------|
-| `SW_POWER` | GPIO8 | LP bank, verify module pin | Top-edge pill; also power-latch PB input |
+| (spare, LP bank) | GPIO8 | LP bank | Freed by power slide switch; keep for future LP use |
 | `SW_DPAD_DOWN` | GPIO9 | LP bank, verify module pin | D-pad wake input |
 | `SW_ACTION` | GPIO10 | LP bank, verify module pin | Action wake input |
 | `PANEL_EN` | GPIO11 | LP bank, verify module pin | Enables U6 panel load switch |
@@ -81,9 +83,10 @@ Active-low switches to GND with 10 kΩ pull-up to 3V3 unless LP wake requires ot
 | `LED_B` | GPIO44 | 72 | Case RGB |
 | `GAUGE_ALERT` | GPIO45 | 73 | MAX17048 ALRT (optional) |
 
-**LP wake:** `SW_POWER`, `SW_DPAD_DOWN`, and `SW_ACTION` are intentionally on
-the LP-capable GPIO bank so short-press wake can preserve state. If module pin
-availability forces a move, keep these three signals in the LP bank.
+**LP wake:** `SW_DPAD_DOWN` and `SW_ACTION` are intentionally on the LP-capable
+GPIO bank so idle deep sleep can wake on input. This is an optional
+battery-saver, not the power model: on/off is a physical slide switch. If
+module pin availability forces a move, keep these two signals in the LP bank.
 
 **D-pad switch stack:** `SW_DPAD_*` are four separate TL3315-class dome tacts,
 not a one-piece rocker. Firmware must ignore or otherwise resolve opposite
@@ -103,7 +106,7 @@ microSD socket. Service-only; acceptable for v1.
 |-----|------------|-----------------|
 | `ESP_3V3` | 85, 86 | 3V3 buck-boost, local 10 uF + 0.1 uF |
 | `GND` | multiple | Solid plane |
-| `ESP_EN` | 87 | Driven by U7 power-latch / enable controller, not directly by the pill |
+| `ESP_EN` | 87 | 10 kΩ pull-up to 3V3 (R5) + TP4 test pad; no latch IC — power is controlled by the slide switch on U4 EN |
 | `BOOT` | 62 (GPIO35) | Test pad + optional button |
 | `BOOT_EN` | 63 (GPIO36) | 10 kΩ pull-up 3V3 |
 | `VBAT` | 84 | Optional tie to BAT+ for LP domain (per module wiki) |
@@ -117,20 +120,22 @@ microSD socket. Service-only; acceptable for v1.
 | C6 UART/JTAG 4–14 | Leave NC unless debug harness |
 | Antenna pad | Keep-out on back shell; optional IPEX not in v1 |
 
-## Power / enable logic (draft)
+## Power / enable logic (decided 2026-07-09)
 
 ```
-Power pill:
-  - Short press: GPIO8 wake from deep sleep when rails are already latched on
-  - Long press: U7 power-latch/SYSOFF path forces safe shutdown
+Power slide switch (SW9, top edge, SPDT):
+  - ON:  U4 (TPS63070) EN pulled to SYS  -> 3V3 up, system runs
+  - OFF: U4 EN pulled to GND             -> hard off (µA-class battery drain)
 
-ESP_EN: held high by U7 when system is on; U7 can drop ESP_EN / assert SYSOFF
-for latch-off. +3V3_PANEL is separately gated by U6 for sleep.
+Charging: BQ24075 is upstream of the switch, so charge works while off.
+D4 charge LED is lit from VBUS through the charger's open-drain CHG pin.
+U2 SYSOFF is tied to GND (inactive). ESP_EN is just a pull-up + test pad.
++3V3_PANEL is separately gated by U6 for idle sleep.
 ```
 
-Exact U7 topology is still a schematic sub-sheet (`power/enable_logic`); it
-must be designed before footprint import and must satisfy parent spec
-battery-safe shutdown.
+There is no U7 latch IC. Hard off is the normal off; idle deep sleep (waking
+on `SW_DPAD_DOWN`/`SW_ACTION`) is an optional battery-saver while switched on.
+See `docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md`.
 
 ## Firmware mapping note
 
@@ -139,13 +144,13 @@ battery-safe shutdown.
 - **Waveshare 7B** (default) — `board_waveshare_7b.cpp`
 - **PuzzleScript Card** — `board_card_pins.hpp` + `board_card.cpp` (`CONFIG_PS_BOARD_CARD`)
 
-Card GPIO table matches the map above; wake buttons use GPIO8-GPIO10, gameplay
+Card GPIO table matches the map above; wake buttons use GPIO9-GPIO10, gameplay
 buttons also use GPIO28, GPIO30-GPIO34, and GPIO37.
 
 ## Checklist before schematic capture
 
 - [ ] Confirm SDIO pin mux vs GPIO map in ESP-IDF for ESP32-P4
-- [ ] Pick exact charger IC (ship mode + power path)
+- [ ] Pick exact charger IC (power path; ship mode not required with slide switch)
 - [ ] Verify mid-mount USB-C footprint height in the 9.5 mm display-zone Z-stack
-- [ ] Verify U7 power-latch/SYSOFF topology before importing final footprints
+- [ ] Pick exact power slide switch part (JS102000SAQN / SSSS8 class) and verify knob/slot geometry on the 1:1 sheet
 - [ ] Run `make handheld_pcb_export` and place J3 at `CONN_DSI_FFC` anchor

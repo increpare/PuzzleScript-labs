@@ -61,6 +61,8 @@ var BLOCKOUT_PRESETS = {
         ],
         piezo: { cx: 60, cy: 86, d: 18 },
         grille: { cx: 60, cy: 86 },
+        // pwrX: power slide switch (SPDT, hard off), not a momentary pill —
+        // see docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md
         topEdge: { usbX: 25, pwrX: 106, fpcKeepOut: [47, 73] },
         rightEdge: { volY: 18 }
     }
@@ -312,7 +314,7 @@ function topEdgeGroupSvg(params) {
     out.push(svgRect(t.usbX - 4.5, (b.depth - 3.2) / 2, 9, 3.2, 1.6, "#000", "none"));
     out.push(svgText(t.usbX, -1.5, 2.4, "USB-C"));
     out.push(svgRect(t.pwrX - 5, (b.depth - 3) / 2, 10, 3, 1.5, "#000", "none"));
-    out.push(svgText(t.pwrX, -1.5, 2.4, "PWR"));
+    out.push(svgText(t.pwrX, -1.5, 2.4, "PWR SLIDE"));
     if (t.fpcKeepOut) {
         for (var i = 0; i < 2; i++) {
             out.push('<line x1="' + fmt(t.fpcKeepOut[i]) + '" y1="1" x2="' + fmt(t.fpcKeepOut[i]) +
