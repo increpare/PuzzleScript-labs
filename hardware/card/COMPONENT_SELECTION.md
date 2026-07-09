@@ -12,7 +12,7 @@ different.
 - Prefer SMT parts that can be placed by the PCB assembler.
 - Lock player-facing or mass-critical parts first: display FFC, USB-C, buttons,
   edge controls, battery, haptic, piezo pads, and support pads.
-- Let non-player-facing parts move during routing: ESP module, storage, charger,
+- Let non-player-facing parts move during routing: ESP chip cluster, storage, charger,
   gauge, regulator, passives, and debug pads.
 - Do not use through-hole parts unless there is a real mechanical reason.
 - Do not treat live stock as permanent. Re-check EasyEDA/JLC/LCSC before final
@@ -48,8 +48,10 @@ TL3315-class 1.2 mm dome tacts instead of 1.9 mm KMR2 tacts under a rocker,
 saving about 0.7 mm in the most sensitive front-control stack.
 
 The display zone is now treated as a 9.5 mm stack target, not an 8 mm promise.
-That gives the 2.9 mm panel, PCB, rear ESP32-P4 module, rear shell, and normal
-clearances a plausible path. The USB-C body and display carrier overlap in plan
+That gives the 2.9 mm panel, PCB, rear chip-down ESP32-P4 cluster (~1 mm),
+rear shell, and normal clearances a comfortable path (~8.2 mm on paper — the
+chip-down decision is what closed this stack; the 3.3 mm-tall module did not
+fit). The USB-C body and display carrier overlap in plan
 view, so the exact mid-mount connector footprint must be checked against the
 panel/case section before routing.
 
@@ -57,7 +59,8 @@ panel/case section before routing.
 
 | Block | Spin 1 pick | Package / footprint direction | Status | Notes |
 |---|---|---|---|---|
-| Compute | Waveshare ESP32-P4-Module-32MB | 25 x 25 mm castellated module | Locked | Already selected. Place on back above battery, with antenna keep-out. |
+| Compute | ESP32-P4NRW32X chip-down | QFN104 10 x 10 mm, 0.35 mm pitch, 0.9 mm tall | Locked 2026-07-09 | Replaces the Waveshare module (3.3 mm tall — broke the display Z-stack; radio unused). Must be the X revision; plain NRW32 is EOL. See `docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md`. |
+| Compute support | 32 MB QSPI NOR flash, 40 MHz crystal, DC-DC inductor + decoupling | Per Espressif reference design | Required at capture | Copy the reference schematic part-for-part; flash voltage domain must match VDD_SPI. |
 | Display assembly | Waveshare 43H-800480 / 4.3-DSI-A no-touch | External module, 15-pin 1.0 mm DSI FFC | Locked | Keep current 105.42 x 67.07 mm module blockout. |
 | DSI connector | 15-pin 1.0 mm right-angle FFC, Hirose FH12-15S-1SH(55) class | SMT FFC/FPC connector | Selected, verify contact side | Must match the Waveshare/Raspberry-Pi-style DSI cable orientation before routing. |
 | USB-C | 16-pin USB-C 2.0 mid-mount receptacle, HRO/Korean Hrop mid-mount class | SMT/mid-mount with shell stakes | Selected class, exact footprint pending | The case cutout and board notch must match the exact EasyEDA/KiCad footprint. |
@@ -133,6 +136,9 @@ feels right there.
 
 ## Must Verify Before PCB Routing Is Called Ready
 
+- ESP32-P4NRW32**X** availability at JLC/LCSC and the copied Espressif
+  reference schematic (crystal, flash voltage domain, DC-DC inductor,
+  straps) reviewed part-for-part.
 - Exact pouch supplier, nominal thickness, swelling allowance, protection
   circuit, tab/lead exit, and connector/pad style.
 - Whether the enclosure stays with a 4 mm-class pouch or adds a rear recess for

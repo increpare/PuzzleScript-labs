@@ -101,15 +101,15 @@
       "note": "BAT_1S_POUCH (PCB bottom / rear pocket)"
     },
     {
-      "id": "back_esp32_p4_module",
+      "id": "back_esp32_p4_chip_down",
       "layer": "back",
       "side": "back",
-      "x": 47.5,
-      "y": 43,
-      "w": 25,
-      "h": 25,
+      "x": 50,
+      "y": 45.5,
+      "w": 20,
+      "h": 20,
       "role": "compute",
-      "note": "ESP32-P4 module (PCB bottom / rear pocket)"
+      "note": "ESP32-P4 chip-down (PCB bottom / rear pocket)"
     },
     {
       "id": "back_pmic_cluster",

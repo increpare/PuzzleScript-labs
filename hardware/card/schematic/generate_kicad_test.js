@@ -36,9 +36,9 @@ test("power sheet contains U2 and global +3V3 label", function () {
     assert.ok(svg.indexOf("global_label \"+3V3\"") !== -1);
 });
 
-test("compute sheet contains ESP32 module", function () {
+test("compute sheet contains ESP32 chip", function () {
     var svg = fs.readFileSync(path.join(__dirname, "sheets", "compute.kicad_sch"), "utf8");
-    assert.ok(svg.indexOf("ESP32-P4-Module-32MB") !== -1);
+    assert.ok(svg.indexOf("ESP32-P4NRW32X") !== -1);
     assert.ok(svg.indexOf("global_label \"USB_DP\"") !== -1);
 });
 

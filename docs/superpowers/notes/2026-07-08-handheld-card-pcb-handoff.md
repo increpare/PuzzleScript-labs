@@ -172,3 +172,22 @@ optional idle battery-saver (D-pad-down/Action stay on LP GPIOs for wake).
 This closes the "exact U7 latch topology" pre-route gate in the work order.
 Canonical description:
 `docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md`.
+
+## Addendum 2026-07-09b — chip-down compute, no WiFi; display Z-stack closed
+
+The "ESP32-P4-Module-32MB for spin 1" decision (work-order item 3) is
+**reversed**. The module measures 25 × 25 × **3.3 mm**, which puts the
+display-zone stack at ~10.5 mm against the 9.5 mm budget — it does not
+close. Spin 1 instead solders the bare **ESP32-P4NRW32X** (QFN104 10 × 10,
+0.35 mm pitch, 0.9 mm tall) plus its support parts (QSPI NOR flash, 40 MHz
+crystal, DC-DC inductor — copied from the Espressif reference design). The
+card has **no radio**: owner confirmed WiFi is not needed for this board
+generation.
+
+Z-stack status after this change: **band ~10.2 mm vs 11.5 (closes, TL3315 +
+403048 did it); display zone ~8.2 mm vs 9.5 (closes)**. The remaining
+display-zone unknown is the mid-mount USB-C protrusion vs the panel — still
+a pre-route gate. Back-side compute keep-out is now a 20 × 20 mm chip-down
+cluster (same centroid as the old module keep-out). BOM must spec the **X**
+silicon revision; plain ESP32-P4NRW32 is EOL/NRND. Canonical description:
+`docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md`.

@@ -56,7 +56,10 @@ var BLOCKOUT_PRESETS = {
                 role: "battery",
                 cell: "403048-class baseline; 503048/603048 needs rear-shell recess"
             },
-            { label: "ESP32-P4 module", x: 47.5, y: 43, w: 25, h: 25, role: "compute" },
+            // Chip-down ESP32-P4NRW32X cluster (QFN104 + flash + crystal +
+            // DC-DC inductor), ~1 mm tall — closes the 9.5 mm display stack.
+            // See docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md
+            { label: "ESP32-P4 chip-down", x: 50, y: 45.5, w: 20, h: 20, role: "compute" },
             { label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power" }
         ],
         piezo: { cx: 60, cy: 86, d: 18 },

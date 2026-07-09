@@ -74,6 +74,17 @@ test("dpad switches use TL3315-class separate dome tacts", function () {
     });
 });
 
+test("chip-down compute has flash, crystal, and DC-DC support parts", function () {
+    var byRef = {};
+    V.model.components.forEach(function (c) { byRef[c.ref] = c; });
+    assert.strictEqual(byRef.U1.value, "ESP32-P4NRW32X");
+    assert.ok(byRef.U9 && byRef.X1 && byRef.L1, "support parts present");
+    var byNet = V.buildNetMap(V.model);
+    assert.ok(byNet.FLASH_CLK.some(function (n) { return n[0] === "U9"; }));
+    assert.ok(byNet.XTAL_IN.some(function (n) { return n[0] === "X1"; }));
+    assert.ok(byNet.DCDC_FB.some(function (n) { return n[0] === "L1"; }));
+});
+
 test("exportKicadNetlist includes U1 and DSI nets", function () {
     var netlist = V.exportKicadNetlist(V.model);
     assert.ok(netlist.indexOf("(ref U1)") !== -1);

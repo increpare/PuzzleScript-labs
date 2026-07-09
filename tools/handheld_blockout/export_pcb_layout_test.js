@@ -55,7 +55,7 @@ test("layout includes semantic back-side battery, ESP, and PMIC keep-outs", func
     assert.ok(ids.indexOf("action_support") !== -1);
     assert.strictEqual(ids.indexOf("battery"), -1);
     assert.ok(ids.indexOf("back_bat_1s_pouch") !== -1);
-    assert.ok(ids.indexOf("back_esp32_p4_module") !== -1);
+    assert.ok(ids.indexOf("back_esp32_p4_chip_down") !== -1);
     assert.ok(ids.indexOf("back_pmic_cluster") !== -1);
     var display = layout.keepouts.filter(function (k) { return k.id === "display_module"; })[0];
     assert.strictEqual(display.layer, "front");
@@ -77,12 +77,12 @@ test("layout includes semantic back-side battery, ESP, and PMIC keep-outs", func
         { x: battery.x, y: battery.y, w: battery.w, h: battery.h },
         { x: 31, y: 73, w: 58, h: 30 }
     );
-    var esp = layout.keepouts.filter(function (k) { return k.id === "back_esp32_p4_module"; })[0];
+    var esp = layout.keepouts.filter(function (k) { return k.id === "back_esp32_p4_chip_down"; })[0];
     assert.strictEqual(esp.layer, "back");
     assert.strictEqual(esp.role, "compute");
     assert.deepStrictEqual(
         { x: esp.x, y: esp.y, w: esp.w, h: esp.h },
-        { x: 47.5, y: 43, w: 25, h: 25 }
+        { x: 50, y: 45.5, w: 20, h: 20 }
     );
     var pmic = layout.keepouts.filter(function (k) { return k.id === "back_pmic_cluster"; })[0];
     assert.strictEqual(pmic.role, "power");

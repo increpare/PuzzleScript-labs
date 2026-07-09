@@ -53,7 +53,7 @@ test("card preset carries the WS24773 no-touch display envelope", function () {
     assert.strictEqual(c.backZones[0].role, "battery");
     assert.ok(c.backZones[0].cell.indexOf("403048-class") !== -1);
     assert.deepStrictEqual(c.backZones[1], {
-        label: "ESP32-P4 module", x: 47.5, y: 43, w: 25, h: 25, role: "compute"
+        label: "ESP32-P4 chip-down", x: 50, y: 45.5, w: 20, h: 20, role: "compute"
     });
     assert.deepStrictEqual(c.backZones[2], {
         label: "PMIC cluster", x: 76, y: 57, w: 22, h: 11, role: "power"
@@ -188,12 +188,12 @@ test("faceSvg overlays draw internal zones only when asked", function () {
     var withO = B.faceSvg(B.BLOCKOUT_PRESETS.card, { overlays: true });
     assert.ok(withO.indexOf("LRA") !== -1);
     assert.ok(withO.indexOf("BAT_1S_POUCH") !== -1);
-    assert.ok(withO.indexOf("ESP32-P4 module") !== -1);
+    assert.ok(withO.indexOf("ESP32-P4 chip-down") !== -1);
     assert.ok(withO.indexOf("PMIC cluster") !== -1);
     assert.ok(withO.indexOf("DPAD_SUPPORT") !== -1);
     var withoutO = B.faceSvg(B.BLOCKOUT_PRESETS.card, {});
     assert.strictEqual(withoutO.indexOf("BAT_1S_POUCH"), -1);
-    assert.strictEqual(withoutO.indexOf("ESP32-P4 module"), -1);
+    assert.strictEqual(withoutO.indexOf("ESP32-P4 chip-down"), -1);
     assert.strictEqual(withoutO.indexOf("PMIC cluster"), -1);
 });
 

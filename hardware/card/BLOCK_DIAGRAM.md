@@ -3,7 +3,7 @@
 Status: PCB reset baseline (2026-07-08). Custom **116 x 106 mm** two-sided
 PCB; not a dev-kit carrier. Mechanical anchors: `mechanical/layout.json`.
 The reset baseline uses **one large rear 1S pouch**, low and centered, with the
-ESP32-P4 module above it and the power cluster near the pouch tabs. See
+ESP32-P4 chip-down cluster above it and the power cluster near the pouch tabs. See
 `docs/superpowers/specs/2026-07-08-handheld-card-reset-design.md`.
 
 ## System overview
@@ -28,7 +28,7 @@ flowchart TB
     end
 
     subgraph compute [Compute block]
-        MOD[ESP32-P4-Module-32MB<br/>25x25 castellated]
+        MOD[ESP32-P4NRW32X chip-down<br/>QFN104 + flash + crystal + DCDC L]
     end
 
     subgraph display [Display block]
@@ -76,7 +76,7 @@ USB-C VBUS (5 V) ──┬──► Charger IC (e.g. BQ24075-class; CHG pin ─�
 1S LiPo (3.0–4.2 V)┘         ├──► SYS rail (~3.3–5 V switched)
                              │         │
                              │         ├──► 3V3 buck-boost (~1 A cont., >=500 mA display headroom)
-                             │         │         ├──► ESP32-P4-Module (ESP_3V3 ×2; ESP_EN = pull-up + test pad)
+                             │         │         ├──► ESP32-P4 chip + flash + crystal (ESP_EN = pull-up + test pad)
                              │         │         ├──► Logic, I2C, SD, LEDs, piezo driver
                              │         │         └──► Panel load switch ──► +3V3_PANEL (FFC pin 14 + local bulk)
                              │         │
@@ -92,15 +92,16 @@ Budget (from spec, owner-confirmed):
 
 | Rail | Budget | Notes |
 |------|--------|-------|
-| Panel 3V3 | ~400 mA peak | Backlight on module; no boost on card |
-| P4 module | ~200 mA avg bursts | Compile/redraw peaks higher, short duty |
+| Panel 3V3 | ~400 mA peak | Backlight on display assembly; no boost on card |
+| P4 chip | ~200 mA avg bursts | Compile/redraw peaks higher, short duty |
 | Rest | &lt;50 mA | SD, I2C, haptics, LEDs |
 
 ## Block inventory (reset baseline)
 
 | ID | Block | Function | Candidate parts (JLC-friendly) |
 |----|-------|----------|--------------------------------|
-| **U1** | Compute | P4 + C6 WiFi, 32 MB flash, 32 MB PSRAM | **Waveshare ESP32-P4-Module-32MB** |
+| **U1** | Compute | ESP32-P4, 32 MB in-package PSRAM, no radio | **ESP32-P4NRW32X** chip-down (QFN104 10×10, 0.9 mm) |
+| **U9/X1/L1** | Compute support | 32 MB QSPI NOR flash, 40 MHz crystal, DC-DC inductor | Per Espressif chip-down reference design |
 | **U2** | Charger | 1S linear charger, power path, SYSOFF | TI BQ24075 baseline |
 | **U3** | Fuel gauge | SOC %, alert | MAX17048 / CW2015 |
 | **U4** | Buck-boost | Regulated 3V3 from 1S LiPo | TI TPS63070 baseline / TPS63802 alternate |
@@ -121,26 +122,34 @@ Budget (from spec, owner-confirmed):
 ## Signal priorities (layout order)
 
 1. **MIPI DSI** — 100 Ω diff, length-matched, short, 4-layer reference plane.
-2. **USB D+/D−** — 90 Ω diff, direct module USB pins to USB-C.
-3. **3V3 high-current** — wide pours to FFC + module; bulk caps at FFC, module, buck-boost.
-4. **I2C** — fuel gauge + DRV2605 on one bus, pull-ups near module.
+2. **USB D+/D−** — 90 Ω diff, direct chip USB PHY pins to USB-C.
+3. **3V3 high-current** — wide pours to FFC + chip cluster; bulk caps at FFC, chip, buck-boost.
+4. **I2C** — fuel gauge + DRV2605 on one bus, pull-ups near the chip.
 5. **Everything else** — GPIO switches, SD, piezo, RGB.
 
-## Compute choice (locked spin 1)
+## Compute choice (revised 2026-07-09: chip-down)
 
-**ESP32-P4-Module-32MB** (Waveshare), not chip-down, not a NANO dev board.
+**ESP32-P4NRW32X soldered directly to the card PCB.** The Waveshare module
+(25 × 25 × 3.3 mm) is retired: its height broke the 9.5 mm display-zone
+Z-stack, and its pre-certified C6 radio would ship dark (owner confirmed no
+WiFi for this board generation). See
+`docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md`.
 
-- 25 × 25 mm, 1 mm castellated edge — reflow onto card PCB.
-- DSI lanes broken out on module pins 34–39 — route to FFC only.
-- USB HS on pins 48–49 — route to USB-C.
-- WiFi via C6 co-processor (not required for v1 gameplay; antenna keep-out on back).
-
-Chip-down ESP32-P4NRW32 remains a spin-2 slimming option if Z-stack demands it.
+- QFN104, 10 × 10 mm, 0.35 mm pitch, 0.9 mm tall — display-zone stack closes
+  at ~8.2 mm with margin.
+- We own the support circuitry: QSPI NOR flash, 40 MHz crystal, internal
+  DC-DC inductor/feedback, straps — copied from the Espressif reference
+  design (their dev boards are chip-down with public schematics).
+- No radio, no antenna, no RF keep-out. Wireless would require a new spin in
+  any case.
+- BOM must spec the **X** revision (v3.x silicon); the plain NRW32 is
+  EOL/NRND.
 
 ## Debug / test (back of PCB)
 
-Test pads (no connector in v1): UART TX/RX, EN, BOOT, 3V3, GND, optional JTAG strapped
-to module C6 or P4 debug pins per firmware needs.
+Test pads (no connector in v1): UART TX/RX, EN, BOOT, 3V3, GND, optional JTAG
+on the P4 debug pins per firmware needs. Chip-down bring-up adds crystal,
+flash-boot, and DC-DC rail checks before any peripheral work.
 
 ## Related files
 

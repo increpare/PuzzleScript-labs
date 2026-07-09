@@ -30,10 +30,10 @@ inline constexpr int kSwMenu = 37;
 inline constexpr int kVolUp = 39;
 inline constexpr int kVolDown = 40;
 
-// Module control
-inline constexpr int kBoot = 35;      // GPIO35 / module pin 62
-inline constexpr int kBootEn = 36;    // GPIO36 / module pin 63
-inline constexpr int kEspEn = -1;     // ESP_EN is module pin 87 (not HP GPIO)
+// Chip control (chip-down ESP32-P4NRW32X; strap set verified at capture)
+inline constexpr int kBoot = 35;      // GPIO35 boot strap
+inline constexpr int kBootEn = 36;    // GPIO36
+inline constexpr int kEspEn = -1;     // EN pin (pull-up + test pad, not a GPIO)
 
 // Piezo + case RGB + gauge alert
 inline constexpr int kPiezoPwm = 41;
@@ -52,7 +52,7 @@ inline constexpr int kSdMiso = 49;
 inline constexpr int kUartTx = 50;
 inline constexpr int kUartRx = 51;
 
-// USB (module pins 48–49 per PIN_BUDGET; native USB PHY)
+// USB (native USB PHY)
 inline constexpr int kUsbDm = 48;
 inline constexpr int kUsbDp = 49;
 
