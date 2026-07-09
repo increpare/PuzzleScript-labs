@@ -6,7 +6,12 @@ var path = require("path");
 
 var CARD_DIR = path.join(__dirname, "..");
 var SCHEMATIC_DIR = __dirname;
+var REPO_ROOT = path.join(__dirname, "..", "..", "..");
+var boardPreview = require(path.join(REPO_ROOT, "tools", "handheld_blockout", "board_preview.js"));
 var uuidCounter = 0;
+var PCB_DRC_CLEARANCE_MM = 0.6;
+var PCB_TEXT_DRC_CLEARANCE_MM = 2.0;
+var EDGE_ARC_SEGMENTS = 6;
 
 function uuid() {
     uuidCounter++;
@@ -187,7 +192,7 @@ function symbolInstance(comp, atX, atY, projectPath) {
     var id = uuid();
     var lib = symbolLibId(comp);
     var rot = 0;
-    return [
+    var lines = [
         "  (symbol (lib_id \"" + lib + "\") (at " + atX + " " + atY + " " + rot + ") (unit 1)",
         "    (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)",
         "    (uuid \"" + id + "\")",
@@ -198,10 +203,19 @@ function symbolInstance(comp, atX, atY, projectPath) {
         "    (property \"Footprint\" \"" + esc(comp.footprint) + "\" (at " + atX + " " + atY + " 0)",
         "      (effects (font (size 1.27 1.27)) hide))",
         "    (property \"Datasheet\" \"~\" (at " + atX + " " + atY + " 0)",
-        "      (effects (font (size 1.27 1.27)) hide))",
+        "      (effects (font (size 1.27 1.27)) hide))"
+    ];
+    if (comp.gate) {
+        lines.push(
+            "    (property \"Gate\" \"" + esc(comp.gate) + "\" (at " + atX + " " + atY + " 0)",
+            "      (effects (font (size 1.27 1.27)) hide))"
+        );
+    }
+    lines.push(
         "    (instances (project \"card\" (path \"" + projectPath + "\" (reference \"" + esc(comp.ref) + "\") (unit 1))))",
         "  )"
-    ].join("\n");
+    );
+    return lines.join("\n");
 }
 
 function localLabel(net, x, y, rot) {
@@ -333,6 +347,516 @@ function keepoutDrawingLayer(keepout) {
     return "Eco1.User";
 }
 
+function fmt(n) {
+    var out = Number(n).toFixed(3).replace(/\.?0+$/, "");
+    return out === "-0" ? "0" : out;
+}
+
+function clamp(n, min, max) {
+    if (min > max) {
+        return n;
+    }
+    return Math.max(min, Math.min(max, n));
+}
+
+function pcbBounds(layout, bodyH) {
+    return {
+        minX: layout.pcb.x,
+        maxX: layout.pcb.x + layout.pcb.w,
+        minY: bodyYToKicad(layout.pcb.y + layout.pcb.h, bodyH),
+        maxY: bodyYToKicad(layout.pcb.y, bodyH)
+    };
+}
+
+function safeTextPosition(x, y, bounds, text, size) {
+    var fontSize = size || 1;
+    var halfW = String(text || "").length * fontSize * 0.33;
+    var halfH = fontSize * 0.5;
+    return {
+        x: clamp(x, bounds.minX + PCB_TEXT_DRC_CLEARANCE_MM + halfW, bounds.maxX - PCB_TEXT_DRC_CLEARANCE_MM - halfW),
+        y: clamp(y, bounds.minY + PCB_TEXT_DRC_CLEARANCE_MM + halfH, bounds.maxY - PCB_TEXT_DRC_CLEARANCE_MM - halfH)
+    };
+}
+
+function safeFootprintPosition(component, bodyH, bounds, w, h) {
+    return {
+        x: clamp(component.cx, bounds.minX + PCB_DRC_CLEARANCE_MM + w / 2, bounds.maxX - PCB_DRC_CLEARANCE_MM - w / 2),
+        y: clamp(bodyYToKicad(component.cy, bodyH), bounds.minY + PCB_DRC_CLEARANCE_MM + h / 2, bounds.maxY - PCB_DRC_CLEARANCE_MM - h / 2)
+    };
+}
+
+function enumeratePcbNets(model) {
+    var nets = [""];
+    var byName = { "": 0 };
+    model.connections.forEach(function (conn) {
+        if (Object.prototype.hasOwnProperty.call(byName, conn.net)) {
+            return;
+        }
+        byName[conn.net] = nets.length;
+        nets.push(conn.net);
+    });
+    return { nets: nets, byName: byName };
+}
+
+function pinSortKey(pin) {
+    if (/^\d+$/.test(pin)) {
+        return "0:" + ("0000" + pin).slice(-5);
+    }
+    return "1:" + pin;
+}
+
+function componentPadMap(model) {
+    var byRef = {};
+    model.connections.forEach(function (conn) {
+        conn.nodes.forEach(function (node) {
+            var ref = node[0];
+            if (!byRef[ref]) {
+                byRef[ref] = [];
+            }
+            byRef[ref].push({ pin: node[1], net: conn.net });
+        });
+    });
+    Object.keys(byRef).forEach(function (ref) {
+        byRef[ref].sort(function (a, b) {
+            return pinSortKey(a.pin).localeCompare(pinSortKey(b.pin));
+        });
+    });
+    return byRef;
+}
+
+function padPosition(index, total, w, h) {
+    if (total <= 1) {
+        return { x: 0, y: 0 };
+    }
+    var topCount = Math.ceil(total / 2);
+    var isTop = index < topCount;
+    var sideIndex = isTop ? index : index - topCount;
+    var sideCount = isTop ? topCount : total - topCount;
+    var x = sideCount === 1 ? 0 : -w / 2 + (sideIndex + 0.5) * (w / sideCount);
+    return {
+        x: x,
+        y: isTop ? -h / 2 : h / 2
+    };
+}
+
+function padSize(component, padCount) {
+    if (padCount > 12) {
+        return 0.42;
+    }
+    if (component.w < 2 || component.h < 1) {
+        return 0.36;
+    }
+    return 0.55;
+}
+
+function footprintIsOpen(component) {
+    var footprint = component.footprint || "";
+    return !!component.gate || footprint === "" || footprint === "TBD" || footprint.indexOf("TBD") !== -1;
+}
+
+function completePads(pads, pins) {
+    var byPin = {};
+    pads.forEach(function (pad) {
+        byPin[pad.pin] = pad;
+    });
+    return pins.map(function (pin) {
+        return byPin[pin] || { pin: pin, net: "" };
+    });
+}
+
+function fitProfile(component) {
+    var footprint = component.footprint || "";
+    if (component.ref.indexOf("TP") === 0 || footprint === "TestPoint") {
+        return {
+            source: "TestPoint_Pad_D1.5mm",
+            shape: "circle",
+            bodyW: 1.5,
+            bodyH: 1.5,
+            padMode: "testpoint"
+        };
+    }
+    if (footprint === "0402") {
+        return {
+            source: "R_0402_1005Metric",
+            bodyW: 1.0,
+            bodyH: 0.5,
+            padMode: "two-terminal",
+            padPins: ["1", "2"],
+            padOffset: 0.45,
+            padW: 0.45,
+            padH: 0.55
+        };
+    }
+    if (footprint === "0603") {
+        return {
+            source: component.ref.charAt(0) === "D" ? "LED_0603_1608Metric" : "C_0603_1608Metric",
+            bodyW: 1.6,
+            bodyH: 0.8,
+            padMode: "two-terminal",
+            padPins: component.ref.charAt(0) === "D" ? ["A", "K"] : ["1", "2"],
+            padOffset: 0.75,
+            padW: 0.75,
+            padH: 0.95
+        };
+    }
+    if (footprint === "EVPAK-side-push-3.9x2.9") {
+        return {
+            source: "Panasonic_EVPAK_side_push_3.9x2.9",
+            bodyW: 3.9,
+            bodyH: 2.9,
+            padMode: "two-terminal",
+            padPins: ["1", "2"],
+            padOffset: 1.35,
+            padW: 0.8,
+            padH: 1.1
+        };
+    }
+    if (footprint === "SOT23") {
+        return {
+            source: "SOT-23_logical",
+            bodyW: 3.0,
+            bodyH: 3.0,
+            padMode: "sot23",
+            padW: 0.65,
+            padH: 0.9
+        };
+    }
+    return {
+        source: footprint,
+        bodyW: component.w,
+        bodyH: component.h,
+        padMode: "perimeter"
+    };
+}
+
+function padNetId(netByName, net) {
+    if (Object.prototype.hasOwnProperty.call(netByName, net)) {
+        return netByName[net];
+    }
+    return 0;
+}
+
+function footprintProperty(name, value, x, y, layer, size, thickness, hide) {
+    return "    (property \"" + esc(name) + "\" \"" + esc(value) + "\" (at " + fmt(x) + " " + fmt(y) + " 0) (layer \"" + layer + "\")" +
+        (hide ? " (hide yes)" : "") +
+        "\n      (uuid \"" + uuid() + "\")" +
+        "\n      (effects (font (size " + fmt(size) + " " + fmt(size) + ")" +
+        (thickness ? " (thickness " + fmt(thickness) + ")" : "") + ")))";
+}
+
+function padLine(pad, spec, layers, netByName) {
+    return "    (pad \"" + esc(pad.pin) + "\" smd " + spec.shape + " (at " + fmt(spec.x) + " " + fmt(spec.y) + " 0) (size " + fmt(spec.w) + " " + fmt(spec.h) + ")" +
+        "\n      (layers \"" + layers.copper + "\" \"" + layers.paste + "\" \"" + layers.mask + "\") (net " + padNetId(netByName, pad.net) + " \"" + esc(pad.net) + "\") (pinfunction \"" + esc(pad.pin) + "\") (pintype \"passive\") (uuid \"" + uuid() + "\"))";
+}
+
+function fitPadSpecs(component, pads, profile) {
+    var sourcePads = pads;
+    if (profile.padPins) {
+        sourcePads = completePads(pads, profile.padPins);
+    }
+    if (profile.padMode === "testpoint") {
+        return completePads(pads, ["1"]).map(function (pad) {
+            return {
+                pad: pad,
+                spec: { shape: "circle", x: 0, y: 0, w: 1.5, h: 1.5 }
+            };
+        });
+    }
+    if (profile.padMode === "two-terminal") {
+        return sourcePads.map(function (pad, i) {
+            return {
+                pad: pad,
+                spec: {
+                    shape: "rect",
+                    x: i === 0 ? -profile.padOffset : profile.padOffset,
+                    y: 0,
+                    w: profile.padW,
+                    h: profile.padH
+                }
+            };
+        });
+    }
+    if (profile.padMode === "sot23") {
+        var positions = [
+            { x: -0.95, y: 0.95 },
+            { x: 0.95, y: 0.95 },
+            { x: 0, y: -0.95 }
+        ];
+        return sourcePads.map(function (pad, i) {
+            var pos = positions[i] || padPosition(i, sourcePads.length, profile.bodyW, profile.bodyH);
+            return {
+                pad: pad,
+                spec: { shape: "rect", x: pos.x, y: pos.y, w: profile.padW, h: profile.padH }
+            };
+        });
+    }
+    return sourcePads.map(function (pad, i) {
+        var pos = padPosition(i, sourcePads.length, profile.bodyW, profile.bodyH);
+        var pSize = padSize(component, sourcePads.length);
+        return {
+            pad: pad,
+            spec: { shape: "rect", x: pos.x, y: pos.y, w: pSize, h: pSize }
+        };
+    });
+}
+
+function fitFootprint(component, pads, netByName, bodyH, bounds) {
+    var sidePrefix = component.side === "back" ? "B" : "F";
+    var copperLayer = sidePrefix + ".Cu";
+    var pasteLayer = sidePrefix + ".Paste";
+    var maskLayer = sidePrefix + ".Mask";
+    var silkLayer = sidePrefix + ".SilkS";
+    var fabLayer = sidePrefix + ".Fab";
+    var profile = fitProfile(component);
+    var w = profile.bodyW;
+    var h = profile.bodyH;
+    var pos = safeFootprintPosition(component, bodyH, bounds, w, h);
+    var x = pos.x;
+    var y = pos.y;
+    var lines = [
+        "  (footprint \"PSCard:Fit_" + esc(component.ref) + "\" (layer \"" + copperLayer + "\")",
+        "    (uuid \"" + uuid() + "\")",
+        "    (at " + fmt(x) + " " + fmt(y) + " 0)",
+        footprintProperty("Reference", component.ref, 0, -h / 2 - 1.2, silkLayer, 0.9, 0.12, false),
+        footprintProperty("Value", component.value, 0, h / 2 + 1.2, fabLayer, 0.7, 0.1, false),
+        footprintProperty("Datasheet", "", 0, 0, "F.Fab", 1.27, 0, true),
+        footprintProperty("Description", "", 0, 0, "F.Fab", 1.27, 0, true),
+        "    (attr smd)",
+        "    (duplicate_pad_numbers_are_jumpers no)",
+        "    (fp_text user \"fit/package locked\" (at 0 0 0) (layer \"Cmts.User\")",
+        "      (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid \"" + uuid() + "\"))",
+        "    (fp_text user \"source footprint: " + esc(profile.source) + "\" (at 0 " + fmt(h / 2 + 2.4) + " 0) (layer \"Cmts.User\")",
+        "      (effects (font (size 0.65 0.65) (thickness 0.1))) (uuid \"" + uuid() + "\"))"
+    ];
+    if (profile.shape === "circle" || component.shape === "circle") {
+        lines.push("    (fp_circle (center 0 0) (end " + fmt(w / 2) + " 0) (stroke (width 0.12) (type solid)) (fill no) (layer \"" + fabLayer + "\") (uuid \"" + uuid() + "\"))");
+    } else {
+        lines.push("    (fp_rect (start " + fmt(-w / 2) + " " + fmt(-h / 2) + ") (end " + fmt(w / 2) + " " + fmt(h / 2) + ") (stroke (width 0.12) (type solid)) (fill no) (layer \"" + fabLayer + "\") (uuid \"" + uuid() + "\"))");
+    }
+    fitPadSpecs(component, pads, profile).forEach(function (entry) {
+        lines.push(padLine(entry.pad, entry.spec, {
+            copper: copperLayer,
+            paste: pasteLayer,
+            mask: maskLayer
+        }, netByName));
+    });
+    lines.push("    (embedded_fonts no)");
+    lines.push("  )");
+    return lines.join("\n");
+}
+
+function previewFootprint(component, pads, netByName, bodyH, bounds) {
+    var sidePrefix = component.side === "back" ? "B" : "F";
+    var copperLayer = sidePrefix + ".Cu";
+    var pasteLayer = sidePrefix + ".Paste";
+    var maskLayer = sidePrefix + ".Mask";
+    var silkLayer = sidePrefix + ".SilkS";
+    var fabLayer = sidePrefix + ".Fab";
+    var w = component.w;
+    var h = component.h;
+    var pos = safeFootprintPosition(component, bodyH, bounds, w, h);
+    var x = pos.x;
+    var y = pos.y;
+    var pSize = padSize(component, pads.length);
+    var lines = [
+        "  (footprint \"PSCard:Preview_" + esc(component.ref) + "\" (layer \"" + copperLayer + "\")",
+        "    (uuid \"" + uuid() + "\")",
+        "    (at " + fmt(x) + " " + fmt(y) + " 0)",
+        footprintProperty("Reference", component.ref, 0, -h / 2 - 1.2, silkLayer, 0.9, 0.12, false),
+        footprintProperty("Value", component.value, 0, h / 2 + 1.2, fabLayer, 0.7, 0.1, false),
+        footprintProperty("Datasheet", "", 0, 0, "F.Fab", 1.27, 0, true),
+        footprintProperty("Description", "", 0, 0, "F.Fab", 1.27, 0, true),
+        "    (attr smd)",
+        "    (duplicate_pad_numbers_are_jumpers no)",
+        "    (fp_text user \"layout placeholder\" (at 0 0 0) (layer \"Cmts.User\")",
+        "      (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid \"" + uuid() + "\"))"
+    ];
+    if (component.shape === "circle") {
+        lines.push("    (fp_circle (center 0 0) (end " + fmt(w / 2) + " 0) (stroke (width 0.12) (type solid)) (fill no) (layer \"" + fabLayer + "\") (uuid \"" + uuid() + "\"))");
+    } else {
+        lines.push("    (fp_rect (start " + fmt(-w / 2) + " " + fmt(-h / 2) + ") (end " + fmt(w / 2) + " " + fmt(h / 2) + ") (stroke (width 0.12) (type solid)) (fill no) (layer \"" + fabLayer + "\") (uuid \"" + uuid() + "\"))");
+    }
+    if (component.gate) {
+        lines.push("    (fp_text user \"" + esc(component.gate) + "\" (at 0 " + fmt(h / 2 + 2.4) + " 0) (layer \"Cmts.User\")",
+            "      (effects (font (size 0.65 0.65) (thickness 0.1))) (uuid \"" + uuid() + "\"))");
+    }
+    pads.forEach(function (pad, i) {
+        var pos = padPosition(i, pads.length, w, h);
+        lines.push(padLine(pad, {
+            shape: "rect",
+            x: pos.x,
+            y: pos.y,
+            w: pSize,
+            h: pSize
+        }, {
+            copper: copperLayer,
+            paste: pasteLayer,
+            mask: maskLayer
+        }, netByName));
+    });
+    lines.push("    (embedded_fonts no)");
+    lines.push("  )");
+    return lines.join("\n");
+}
+
+function componentPadCenters(component, pads, bodyH, bounds) {
+    var w;
+    var h;
+    var entries;
+    if (footprintIsOpen(component)) {
+        w = component.w;
+        h = component.h;
+        entries = pads.map(function (pad, i) {
+            var pos = padPosition(i, pads.length, w, h);
+            return {
+                pad: pad,
+                spec: { x: pos.x, y: pos.y }
+            };
+        });
+    } else {
+        var profile = fitProfile(component);
+        w = profile.bodyW;
+        h = profile.bodyH;
+        entries = fitPadSpecs(component, pads, profile);
+    }
+    var placed = safeFootprintPosition(component, bodyH, bounds, w, h);
+    var sidePrefix = component.side === "back" ? "B" : "F";
+    var centers = {};
+    entries.forEach(function (entry) {
+        centers[entry.pad.pin] = {
+            x: Number((placed.x + entry.spec.x).toFixed(3)),
+            y: Number((placed.y + entry.spec.y).toFixed(3)),
+            layer: sidePrefix + ".Cu"
+        };
+    });
+    return centers;
+}
+
+function placedPadCenters(placement, padMap, bodyH, bounds) {
+    var byRef = {};
+    placement.components.forEach(function (component) {
+        byRef[component.ref] = componentPadCenters(component, padMap[component.ref] || [], bodyH, bounds);
+    });
+    return byRef;
+}
+
+function routeWidth(net) {
+    if (net === "+3V3" || net === "+3V3_PANEL" || net === "VBUS_IN" || net === "BAT+" || net === "SYS") {
+        return 0.45;
+    }
+    if (net.indexOf("DSI_") === 0 || net.indexOf("USB_") === 0) {
+        return 0.14;
+    }
+    return 0.18;
+}
+
+function segmentLine(start, end, layer, netId, width) {
+    if (start.x === end.x && start.y === end.y) {
+        return null;
+    }
+    return "  (segment (start " + fmt(start.x) + " " + fmt(start.y) + ") (end " + fmt(end.x) + " " + fmt(end.y) +
+        ") (width " + fmt(width) + ") (layer \"" + layer + "\") (net " + netId + ") (uuid \"" + uuid() + "\"))";
+}
+
+function viaLine(point, netId) {
+    return "  (via (at " + fmt(point.x) + " " + fmt(point.y) +
+        ") (size 0.8) (drill 0.4) (layers \"F.Cu\" \"B.Cu\") (net " + netId + ") (uuid \"" + uuid() + "\"))";
+}
+
+function routeCopperForPair(root, dest, netId, net, routeIndex) {
+    var points = boardPreview.routePoints(root, dest, routeIndex);
+    if (points.length < 2) {
+        return [];
+    }
+    var lines = [];
+    var viaIndex = root.layer === dest.layer ? -1 : Math.min(1, points.length - 1);
+    if (viaIndex !== -1) {
+        lines.push(viaLine(points[viaIndex], netId));
+    }
+    for (var i = 0; i < points.length - 1; i++) {
+        var layer = root.layer;
+        if (root.layer !== dest.layer && i >= viaIndex) {
+            layer = dest.layer;
+        }
+        var line = segmentLine(points[i], points[i + 1], layer, netId, routeWidth(net));
+        if (line) {
+            lines.push(line);
+        }
+    }
+    return lines;
+}
+
+function buildRouteCopper(model, placement, padMap, netByName, bodyH, bounds) {
+    var centers = placedPadCenters(placement, padMap, bodyH, bounds);
+    var lines = [];
+    var routeIndex = 0;
+    model.connections.forEach(function (conn) {
+        if (!boardPreview.isGeneratedRouteNet(conn.net)) {
+            return;
+        }
+        var nodes = [];
+        var seen = {};
+        conn.nodes.forEach(function (node) {
+            var ref = node[0];
+            var pin = node[1];
+            var key = ref + "\0" + pin;
+            if (seen[key] || !centers[ref] || !centers[ref][pin]) {
+                return;
+            }
+            seen[key] = true;
+            nodes.push(centers[ref][pin]);
+        });
+        if (nodes.length < 2) {
+            return;
+        }
+        var root = nodes[0];
+        var netId = padNetId(netByName, conn.net);
+        nodes.slice(1).forEach(function (dest) {
+            routeCopperForPair(root, dest, netId, conn.net, routeIndex).forEach(function (line) {
+                lines.push(line);
+            });
+            routeIndex++;
+        });
+    });
+    return lines;
+}
+
+function guideLine(start, end, bodyH) {
+    return "  (gr_line (start " + fmt(start.x) + " " + fmt(bodyYToKicad(start.y, bodyH)) +
+        ") (end " + fmt(end.x) + " " + fmt(bodyYToKicad(end.y, bodyH)) +
+        ") (stroke (width 0.12) (type dash)) (layer \"Cmts.User\") (uuid \"" + uuid() + "\"))";
+}
+
+function buildGuidePolyline(points, bodyH) {
+    var lines = [];
+    for (var i = 0; i < points.length - 1; i++) {
+        lines.push(guideLine(points[i], points[i + 1], bodyH));
+    }
+    return lines;
+}
+
+function buildDsiRouteGuides(model, placement, bodyH, bounds) {
+    var plan = boardPreview.buildDsiRoutePlan(model, placement.byRef);
+    if (!plan) {
+        return [];
+    }
+    var lines = [];
+    var title = safeTextPosition(60, bodyYToKicad(32, bodyH), bounds, "DSI route intent", 0.9);
+    lines.push("  (gr_text \"DSI route intent: first-pass copper; still blocked by GATE-DSI-FFC-CONTACT\" (at " +
+        fmt(title.x) + " " + fmt(title.y) + " 0) (layer \"Cmts.User\")",
+        "    (effects (font (size 0.9 0.9) (thickness 0.12))) (uuid \"" + uuid() + "\"))");
+    plan.pairs.forEach(function (pair) {
+        buildGuidePolyline(pair.pPoints, bodyH).forEach(function (line) { lines.push(line); });
+        buildGuidePolyline(pair.nPoints, bodyH).forEach(function (line) { lines.push(line); });
+        var labelPoint = pair.pPoints[Math.floor(pair.pPoints.length / 2)];
+        var label = safeTextPosition(labelPoint.x, bodyYToKicad(labelPoint.y, bodyH), bounds, pair.name + " route intent", 0.7);
+        lines.push("  (gr_text \"" + esc(pair.name + " route intent") + "\" (at " + fmt(label.x) + " " + fmt(label.y) +
+            " 0) (layer \"Cmts.User\")",
+            "    (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid \"" + uuid() + "\"))");
+    });
+    return lines;
+}
+
 function pathToGrLines(svgPath, bodyH) {
     var lines = [];
     var tokens = svgPath.replace(/([MHVAZ])/g, " $1 ").trim().split(/\s+/);
@@ -357,9 +881,39 @@ function pathToGrLines(svgPath, bodyH) {
             lines.push([cx, cy, cx, ny]);
             cy = ny;
         } else if (cmd === "A") {
-            i += 5;
-            cx = parseFloat(tokens[i++]);
-            cy = parseFloat(tokens[i++]);
+            var rx = parseFloat(tokens[i++]);
+            var ry = parseFloat(tokens[i++]);
+            i += 2;
+            var sweep = parseFloat(tokens[i++]);
+            var ax = parseFloat(tokens[i++]);
+            var ay = parseFloat(tokens[i++]);
+            var dx = ax - cx;
+            var dy = ay - cy;
+            var center = dx * dy >= 0 ? { x: cx, y: ay } : { x: ax, y: cy };
+            var startAngle = Math.atan2(cy - center.y, cx - center.x);
+            var endAngle = Math.atan2(ay - center.y, ax - center.x);
+            if (sweep) {
+                while (endAngle <= startAngle) {
+                    endAngle += Math.PI * 2;
+                }
+            } else {
+                while (endAngle >= startAngle) {
+                    endAngle -= Math.PI * 2;
+                }
+            }
+            var lastX = cx;
+            var lastY = cy;
+            for (var step = 1; step <= EDGE_ARC_SEGMENTS; step++) {
+                var t = step / EDGE_ARC_SEGMENTS;
+                var angle = startAngle + (endAngle - startAngle) * t;
+                var px = center.x + rx * Math.cos(angle);
+                var py = center.y + ry * Math.sin(angle);
+                lines.push([lastX, lastY, px, py]);
+                lastX = px;
+                lastY = py;
+            }
+            cx = ax;
+            cy = ay;
         } else if (cmd === "Z") {
             if (cx !== sx || cy !== sy) {
                 lines.push([cx, cy, sx, sy]);
@@ -369,53 +923,86 @@ function pathToGrLines(svgPath, bodyH) {
         }
     }
     return lines.map(function (seg) {
-        return "  (gr_line (start " + seg[0] + " " + bodyYToKicad(seg[1], bodyH) +
-            ") (end " + seg[2] + " " + bodyYToKicad(seg[3], bodyH) +
-            ") (stroke (width 0.1) (type default)) (layer \"Edge.Cuts\") (uuid \"" + uuid() + "\"))";
+        return "  (gr_line (start " + fmt(seg[0]) + " " + fmt(bodyYToKicad(seg[1], bodyH)) +
+            ") (end " + fmt(seg[2]) + " " + fmt(bodyYToKicad(seg[3], bodyH)) +
+            ") (stroke (width 0.1) (type solid)) (layer \"Edge.Cuts\") (uuid \"" + uuid() + "\"))";
     });
 }
 
 function buildPcb(layout, model) {
     var bodyH = layout.body.h;
+    var bounds = pcbBounds(layout, bodyH);
     var edgeLines = pathToGrLines(layout.edgeCutsPath, bodyH);
+    var placement = boardPreview.buildPlacementMap(layout, model);
+    var padMap = componentPadMap(model);
+    var pcbNets = enumeratePcbNets(model);
     var lines = [
         "(kicad_pcb (version 20241229) (generator \"PuzzleScript generate_kicad.js\") (generator_version \"1.0\")",
         "  (general (thickness 1.2) (legacy_teardrops no))",
         "  (paper \"A4\")",
         "  (layers",
-        "    (0 \"F.Cu\" signal) (2 \"B.Cu\" signal) (1 \"In1.Cu\" signal) (3 \"In2.Cu\" signal)",
-        "    (31 \"B.Adhes\" user) (33 \"F.Adhes\" user) (35 \"F.Paste\" user) (36 \"B.Paste\" user)",
-        "    (37 \"F.SilkS\" user) (38 \"B.SilkS\" user) (39 \"F.Mask\" user) (40 \"B.Mask\" user)",
-        "    (41 \"Dwgs.User\" user) (42 \"Cmts.User\" user) (43 \"Eco1.User\" user) (44 \"Eco2.User\" user)",
-        "    (45 \"Edge.Cuts\" user) (46 \"Margin\" user) (47 \"F.CrtYd\" user) (48 \"B.CrtYd\" user)",
-        "    (49 \"F.Fab\" user) (50 \"B.Fab\" user)",
+        "    (0 \"F.Cu\" signal) (4 \"In1.Cu\" signal) (6 \"In2.Cu\" signal) (2 \"B.Cu\" signal)",
+        "    (9 \"F.Adhes\" user \"F.Adhesive\") (11 \"B.Adhes\" user \"B.Adhesive\")",
+        "    (13 \"F.Paste\" user) (15 \"B.Paste\" user)",
+        "    (5 \"F.SilkS\" user \"F.Silkscreen\") (7 \"B.SilkS\" user \"B.Silkscreen\")",
+        "    (1 \"F.Mask\" user) (3 \"B.Mask\" user)",
+        "    (17 \"Dwgs.User\" user \"User.Drawings\") (19 \"Cmts.User\" user \"User.Comments\")",
+        "    (21 \"Eco1.User\" user \"User.Eco1\") (23 \"Eco2.User\" user \"User.Eco2\")",
+        "    (25 \"Edge.Cuts\" user) (27 \"Margin\" user)",
+        "    (31 \"F.CrtYd\" user \"F.Courtyard\") (29 \"B.CrtYd\" user \"B.Courtyard\")",
+        "    (35 \"F.Fab\" user) (33 \"B.Fab\" user)",
         "  )",
-        "  (setup (stackup (layer \"F.Cu\" (type \"copper\") (thickness 0.035))",
-        "    (layer \"In1.Cu\" (type \"copper\") (thickness 0.035)) (layer \"In2.Cu\" (type \"copper\") (thickness 0.035))",
-        "    (layer \"B.Cu\" (type \"copper\") (thickness 0.035)) (layer \"F.SilkS\" (type \"Bottom Silk Screen\"))",
-        "    (copper_finish \"None\") (dielectric_constraints no)))",
-        "  (net 0 \"\")",
-        "  (net 1 \"+3V3\")",
-        "  (net 2 \"GND\")"
+        "  (setup (stackup",
+        "    (layer \"F.SilkS\" (type \"Top Silk Screen\") (color \"White\"))",
+        "    (layer \"F.Paste\" (type \"Top Solder Paste\"))",
+        "    (layer \"F.Mask\" (type \"Top Solder Mask\") (color \"Green\") (thickness 0.01))",
+        "    (layer \"F.Cu\" (type \"copper\") (thickness 0.035))",
+        "    (layer \"dielectric 1\" (type \"core\") (thickness 0.2) (material \"FR4\") (epsilon_r 4.5) (loss_tangent 0.02))",
+        "    (layer \"In1.Cu\" (type \"copper\") (thickness 0.035))",
+        "    (layer \"dielectric 2\" (type \"core\") (thickness 0.75) (material \"FR4\") (epsilon_r 4.5) (loss_tangent 0.02))",
+        "    (layer \"In2.Cu\" (type \"copper\") (thickness 0.035))",
+        "    (layer \"dielectric 3\" (type \"core\") (thickness 0.2) (material \"FR4\") (epsilon_r 4.5) (loss_tangent 0.02))",
+        "    (layer \"B.Cu\" (type \"copper\") (thickness 0.035))",
+        "    (layer \"B.Mask\" (type \"Bottom Solder Mask\") (color \"Green\") (thickness 0.01))",
+        "    (layer \"B.Paste\" (type \"Bottom Solder Paste\"))",
+        "    (layer \"B.SilkS\" (type \"Bottom Silk Screen\") (color \"White\"))",
+        "    (copper_finish \"None\") (dielectric_constraints no)))"
     ];
+    pcbNets.nets.forEach(function (net, i) {
+        lines.push("  (net " + i + " \"" + esc(net) + "\")");
+    });
     edgeLines.forEach(function (l) { lines.push(l); });
     layout.anchors.forEach(function (a) {
         var kx = a.x;
         var ky = bodyYToKicad(a.y, bodyH);
+        var label = safeTextPosition(kx, ky + 1.5, bounds, a.id, 1);
         lines.push("  (gr_circle (center " + kx + " " + ky + ") (end " + (kx + 0.5) + " " + ky +
-            ") (stroke (width 0.12) (type default)) (fill none) (layer \"F.Fab\") (uuid \"" + uuid() + "\"))");
-        lines.push("  (gr_text \"" + esc(a.id) + "\" (at " + kx + " " + (ky + 1.5) + " 0) (layer \"F.SilkS\")",
-            "    (effects (font (size 1 1) (thickness 0.15)) (justify center)) (uuid \"" + uuid() + "\"))");
+            ") (stroke (width 0.12) (type solid)) (fill no) (layer \"F.Fab\") (uuid \"" + uuid() + "\"))");
+        lines.push("  (gr_text \"" + esc(a.id) + "\" (at " + fmt(label.x) + " " + fmt(label.y) + " 0) (layer \"F.SilkS\")",
+            "    (effects (font (size 1 1) (thickness 0.15))) (uuid \"" + uuid() + "\"))");
     });
     layout.keepouts.forEach(function (k) {
         var layer = keepoutDrawingLayer(k);
         var x = k.x;
         var y = bodyYToKicad(k.y + k.h, bodyH);
+        var label = safeTextPosition(x + k.w / 2, bodyYToKicad(k.y, bodyH) + 1.5, bounds, k.id, 1);
         lines.push("  (gr_rect (start " + x + " " + y + ") (end " + (x + k.w) + " " + (y + k.h) +
-            ") (stroke (width 0.12) (type dash)) (fill none) (layer \"" + layer + "\") (uuid \"" + uuid() + "\"))");
-        lines.push("  (gr_text \"" + esc(k.id) + "\" (at " + (x + k.w / 2) + " " +
-            (bodyYToKicad(k.y, bodyH) + 1.5) + " 0) (layer \"" + layer + "\")",
-            "    (effects (font (size 1 1) (thickness 0.12)) (justify center)) (uuid \"" + uuid() + "\"))");
+            ") (stroke (width 0.12) (type dash)) (fill no) (layer \"" + layer + "\") (uuid \"" + uuid() + "\"))");
+        lines.push("  (gr_text \"" + esc(k.id) + "\" (at " + fmt(label.x) + " " + fmt(label.y) + " 0) (layer \"" + layer + "\")",
+            "    (effects (font (size 1 1) (thickness 0.12))) (uuid \"" + uuid() + "\"))");
+    });
+    buildDsiRouteGuides(model, placement, bodyH, bounds).forEach(function (l) {
+        lines.push(l);
+    });
+    buildRouteCopper(model, placement, padMap, pcbNets.byName, bodyH, bounds).forEach(function (l) {
+        lines.push(l);
+    });
+    placement.components.forEach(function (component) {
+        if (footprintIsOpen(component)) {
+            lines.push(previewFootprint(component, padMap[component.ref] || [], pcbNets.byName, bodyH, bounds));
+        } else {
+            lines.push(fitFootprint(component, padMap[component.ref] || [], pcbNets.byName, bodyH, bounds));
+        }
     });
     lines.push(")");
     return lines.join("\n") + "\n";

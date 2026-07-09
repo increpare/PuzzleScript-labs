@@ -1,6 +1,8 @@
 "use strict";
 
 var assert = require("assert");
+var fs = require("fs");
+var path = require("path");
 var V = require("./validate_connectivity.js");
 
 var passed = 0;
@@ -18,7 +20,50 @@ test("DSI differential pairs exist", function () {
     assert.ok(byNet.DSI_CLK_P && byNet.DSI_CLK_N);
 });
 
-test("power tree connects charger buck-boost and module", function () {
+test("DSI panel interface locks Waveshare pinout but not card-end contact orientation", function () {
+    var iface = V.model.dsiPanelInterface;
+    assert.ok(iface, "connectivity should carry DSI panel evidence");
+    assert.strictEqual(iface.panel, "Waveshare 43H-800480-IPS no-touch");
+    assert.strictEqual(iface.connector, "15-pin 1.0 mm Raspberry-Pi-style DSI FFC");
+    assert.deepStrictEqual(iface.pinout.map(function (pin) {
+        return [pin.pin, pin.net];
+    }), [
+        [1, "GND"],
+        [2, "DSI_D1_N"],
+        [3, "DSI_D1_P"],
+        [4, "GND"],
+        [5, "DSI_CLK_N"],
+        [6, "DSI_CLK_P"],
+        [7, "GND"],
+        [8, "DSI_D0_N"],
+        [9, "DSI_D0_P"],
+        [10, "GND"],
+        [11, "NC_SCL0"],
+        [12, "NC_SDA0"],
+        [13, "GND"],
+        [14, "+3V3_PANEL"],
+        [15, "+3V3_PANEL"]
+    ]);
+    assert.ok(iface.orientation.known.some(function (item) {
+        return item.indexOf("screen-side cable gold finger faces upward") !== -1;
+    }));
+    assert.ok(iface.orientation.mustCheckBeforeRouting.some(function (item) {
+        return item.indexOf("same-side or opposite-side 15-pin cable") !== -1;
+    }));
+    assert.strictEqual(iface.orientation.gate, "GATE-DSI-FFC-CONTACT");
+});
+
+test("DSI panel interface records same-side cable as a layout assumption", function () {
+    var iface = V.model.dsiPanelInterface;
+    assert.strictEqual(iface.orientation.assumedCableParity, "same-side");
+    assert.strictEqual(iface.orientation.assumptionStatus, "assumed-for-layout");
+    assert.ok(iface.orientation.workingAssumption.indexOf("Same-side 15-pin FFC cable assumed") !== -1);
+    assert.ok(iface.orientation.mustCheckBeforeRouting.some(function (item) {
+        return item.indexOf("Confirm the same-side 15-pin cable assumption") !== -1;
+    }));
+});
+
+test("power tree connects charger buck-boost and chip-down compute", function () {
     var byNet = V.buildNetMap(V.model);
     var p33 = byNet["+3V3"].map(function (n) { return n[0]; });
     assert.ok(p33.indexOf("U4") !== -1);
@@ -26,6 +71,10 @@ test("power tree connects charger buck-boost and module", function () {
     var panel33 = byNet["+3V3_PANEL"].map(function (n) { return n[0]; });
     assert.ok(panel33.indexOf("U6") !== -1);
     assert.ok(panel33.indexOf("J3") !== -1);
+    assert.ok(byNet["+3V3_PANEL"].some(function (n) { return n[0] === "J3" && n[1] === "14"; }));
+    assert.ok(byNet["+3V3_PANEL"].some(function (n) { return n[0] === "J3" && n[1] === "15"; }));
+    assert.ok(!byNet.GND.some(function (n) { return n[0] === "J3" && n[1] === "15"; }),
+        "Waveshare 43H-800480-IPS pin 15 is 3V3, not GND");
     assert.ok(byNet.VBUS_IN.some(function (n) { return n[0] === "J1"; }));
     assert.ok(byNet["BAT+"].some(function (n) { return n[0] === "J2"; }));
 });
@@ -83,6 +132,92 @@ test("chip-down compute has flash, crystal, and DC-DC support parts", function (
     assert.ok(byNet.FLASH_CLK.some(function (n) { return n[0] === "U9"; }));
     assert.ok(byNet.XTAL_IN.some(function (n) { return n[0] === "X1"; }));
     assert.ok(byNet.DCDC_FB.some(function (n) { return n[0] === "L1"; }));
+});
+
+test("hardware docs and block inventory describe chip-down spin 1", function () {
+    var blocks = JSON.parse(fs.readFileSync(path.join(__dirname, "blocks.json"), "utf8"));
+    var readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+    var netlist = fs.readFileSync(path.join(__dirname, "..", "card.net"), "utf8");
+    assert.strictEqual(blocks.meta.mcu, "ESP32-P4NRW32X chip-down");
+    assert.ok(readme.indexOf("ESP32-P4NRW32X") !== -1, "README should name the chip-down MCU");
+    assert.strictEqual(readme.indexOf("ESP32-P4-Module-32MB"), -1, "README should not name the superseded module");
+    assert.ok(netlist.indexOf("ESP32-P4NRW32X") !== -1, "card.net should name the chip-down MCU");
+    assert.ok(netlist.indexOf("HRO-TYPE-C-31-M-12") !== -1, "card.net should name the locked USB-C connector");
+    assert.ok(netlist.indexOf("Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12") !== -1,
+        "card.net should name the locked USB-C footprint");
+    assert.strictEqual(netlist.indexOf("ESP32-P4-Module-32MB"), -1, "card.net should not name the superseded module");
+    assert.strictEqual(netlist.indexOf("(ref U7)"), -1, "card.net should not contain the removed U7 latch");
+    assert.strictEqual(netlist.indexOf("USB-C-mid"), -1, "card.net should not contain the superseded USB-C placement");
+});
+
+test("DSI panel handoff doc gives a physical closeout checklist", function () {
+    var doc = fs.readFileSync(path.join(__dirname, "..", "DSI_PANEL_INTERFACE.md"), "utf8");
+    var budget = fs.readFileSync(path.join(__dirname, "..", "PIN_BUDGET.md"), "utf8");
+    assert.ok(doc.indexOf("Waveshare 43H-800480-IPS no-touch") !== -1);
+    assert.ok(doc.indexOf("same-side or opposite-side 15-pin cable") !== -1);
+    assert.ok(doc.indexOf("Working assumption: same-side 15-pin FFC cable") !== -1);
+    assert.ok(doc.indexOf("card-end photo") !== -1);
+    assert.ok(doc.indexOf("Do not close GATE-DSI-FFC-CONTACT") !== -1);
+    assert.ok(budget.indexOf("| 15 | +3V3_PANEL |") !== -1,
+        "PIN_BUDGET should show Waveshare pin 15 as 3V3, not ground");
+    assert.strictEqual(budget.indexOf("| 15 | GND |"), -1,
+        "PIN_BUDGET should not leave the old pin 15 ground mapping behind");
+});
+
+test("package-locked parts carry footprint directions for import", function () {
+    var byRef = {};
+    V.model.components.forEach(function (c) { byRef[c.ref] = c; });
+    assert.strictEqual(byRef.J1.value, "HRO-TYPE-C-31-M-12");
+    assert.strictEqual(byRef.J1.footprint, "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12");
+    assert.strictEqual(byRef.J1.gate, undefined);
+    assert.strictEqual(byRef.U2.footprint, "VQFN-16-RGT-3x3");
+    assert.strictEqual(byRef.U3.footprint, "LFCSP-8-2x2");
+    assert.strictEqual(byRef.U4.footprint, "VQFN-HR-15-RNM-3x2.5");
+    assert.strictEqual(byRef.U6.value, "TPS22919DCK");
+    assert.strictEqual(byRef.U6.footprint, "SOT-SC70-6-DCK-2x2.1");
+    assert.strictEqual(byRef.U5.value, "DRV2605LDGS");
+    assert.strictEqual(byRef.U5.footprint, "VSSOP-10-DGS-3x4.9");
+    assert.strictEqual(byRef.J3.footprint, "FFC-15-1.0mm-right-angle-contact-TBD");
+});
+
+test("footprint matrix keeps open import gates explicit", function () {
+    var matrix = fs.readFileSync(path.join(__dirname, "..", "FOOTPRINT_LOCK_MATRIX.md"), "utf8");
+    var openGates = matrix.split("## Open Gate IDs")[1].split("## Closed Gate IDs")[0];
+    [
+        "GATE-ESP32-P4-REF-CAPTURE",
+        "GATE-DSI-FFC-CONTACT",
+        "GATE-DPAD-MOCKUP",
+        "GATE-FACE-BUTTON-FEEL",
+        "GATE-POWER-SLIDE-SLOT",
+        "GATE-BATTERY-SAMPLE",
+        "GATE-LRA-MOUNT",
+        "GATE-PIEZO-DRIVE-REVIEW",
+        "GATE-MICROSD-FOOTPRINT",
+        "GATE-CASE-LED-LIGHTPIPE"
+    ].forEach(function (gate) {
+        assert.ok(openGates.indexOf(gate) !== -1, "missing open footprint gate " + gate);
+    });
+    assert.strictEqual(openGates.indexOf("GATE-USB-C-BACK-FOOTPRINT"), -1,
+        "USB-C footprint gate should no longer be open");
+    assert.ok(matrix.indexOf("GATE-USB-C-BACK-FOOTPRINT") !== -1,
+        "matrix should keep the closed USB-C gate audit trail");
+});
+
+test("connectivity components carry their blocking gate ids", function () {
+    var byRef = {};
+    V.model.components.forEach(function (c) { byRef[c.ref] = c; });
+    assert.strictEqual(byRef.U9.gate, "GATE-ESP32-P4-REF-CAPTURE");
+    assert.strictEqual(byRef.X1.gate, "GATE-ESP32-P4-REF-CAPTURE");
+    assert.strictEqual(byRef.L1.gate, "GATE-ESP32-P4-REF-CAPTURE");
+    assert.strictEqual(byRef.J3.gate, "GATE-DSI-FFC-CONTACT");
+    assert.strictEqual(byRef.SW1.gate, "GATE-DPAD-MOCKUP");
+    assert.strictEqual(byRef.SW5.gate, "GATE-FACE-BUTTON-FEEL");
+    assert.strictEqual(byRef.SW9.gate, "GATE-POWER-SLIDE-SLOT");
+    assert.strictEqual(byRef.J2.gate, "GATE-BATTERY-SAMPLE");
+    assert.strictEqual(byRef.B1.gate, "GATE-LRA-MOUNT");
+    assert.strictEqual(byRef.U8.gate, "GATE-PIEZO-DRIVE-REVIEW");
+    assert.strictEqual(byRef.J4.gate, "GATE-MICROSD-FOOTPRINT");
+    assert.strictEqual(byRef.D1.gate, "GATE-CASE-LED-LIGHTPIPE");
 });
 
 test("exportKicadNetlist includes U1 and DSI nets", function () {

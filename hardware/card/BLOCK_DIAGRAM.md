@@ -92,7 +92,7 @@ Budget (from spec, owner-confirmed):
 
 | Rail | Budget | Notes |
 |------|--------|-------|
-| Panel 3V3 | ~400 mA peak | Backlight on display assembly; no boost on card |
+| Panel 3V3 | ~400 mA peak | Backlight on display assembly; no boost on card; feeds FFC pins 14 and 15 |
 | P4 chip | ~200 mA avg bursts | Compile/redraw peaks higher, short duty |
 | Rest | &lt;50 mA | SD, I2C, haptics, LEDs |
 
@@ -107,9 +107,9 @@ Budget (from spec, owner-confirmed):
 | **U4** | Buck-boost | Regulated 3V3 from 1S LiPo | TI TPS63070 baseline / TPS63802 alternate |
 | **U6** | Panel load switch | Gate display 3V3 in sleep | TPS22918 / TPS22919 class |
 | **D4/R8** | Charge LED | Charging indicator, works with power off | 0603 LED from VBUS via charger CHG pin |
-| **J1** | USB-C | On PCB back at top edge (rear shell bump), USB 2.0, 5 V charge | HRO TYPE-C-31-M-12 class (JLC basic) |
+| **J1** | USB-C | On PCB back at top edge (rear shell bump), USB 2.0, 5 V charge | HRO TYPE-C-31-M-12 / `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` |
 | **J2** | Battery | One rear 1S pouch, low/centered; pads or low-profile connector after cell choice | 403048-class baseline; 503048/603048 only with rear recess/thicker band |
-| **J3** | DSI FFC | 15-pin 1.0 mm, top edge | Molex 505110-1510 class |
+| **J3** | DSI FFC | 15-pin 1.0 mm, top edge; Waveshare pins 14/15 are 3V3 | Molex 505110-1510 / FH12 class; exact top/bottom contact orientation still gated by `DSI_PANEL_INTERFACE.md` |
 | **J4** | microSD | Push-push, internal | — |
 | **U5** | Haptic | I2C LRA driver | DRV2605L |
 | **Q1/U8/R7** | Piezo | Simple transistor drive plus DNP boost/H-bridge escape path | SOT23 BJT + DNP driver + 0R return link |

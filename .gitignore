@@ -3,6 +3,10 @@ build/
 build-mask64/
 **/.DS_Store
 
+hardware/card/**/.history/
+hardware/card/**/*.kicad_prl
+hardware/card/**/*.lck
+
 *.swp
 src - Kopie
 

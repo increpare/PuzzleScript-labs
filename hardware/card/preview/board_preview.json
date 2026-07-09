@@ -1,0 +1,3310 @@
+{
+  "status": "first-pass-route-preview",
+  "note": "Generated first-pass copper traces for all currently visible ratsnest nets; review high-speed, power, and gated footprints before fabrication.",
+  "board": {
+    "x": 2,
+    "y": 2,
+    "w": 116,
+    "h": 106,
+    "r": 7
+  },
+  "edgeCutsPath": "M 9 2 H 111 A 7 7 0 0 1 118 9 V 101 A 7 7 0 0 1 111 108 H 9 A 7 7 0 0 1 2 101 V 9 A 7 7 0 0 1 9 2 Z",
+  "keepouts": [
+    {
+      "id": "display_module",
+      "layer": "front",
+      "side": "front",
+      "x": 7.29,
+      "y": 3.5,
+      "w": 105.42,
+      "h": 67.07,
+      "note": "front display stack envelope; rear parts here require Z-stack clearance"
+    },
+    {
+      "id": "display_active",
+      "layer": "user",
+      "side": "front",
+      "x": 12.5,
+      "y": 10,
+      "w": 95,
+      "h": 54,
+      "note": "visible lens opening"
+    },
+    {
+      "id": "fpc_top_keepout",
+      "layer": "front",
+      "side": "front",
+      "x": 47,
+      "y": 0,
+      "w": 26,
+      "h": 72,
+      "note": "front-side no-tall-parts zone under display FPC fold"
+    },
+    {
+      "id": "control_band",
+      "layer": "user",
+      "x": 0,
+      "y": 72,
+      "w": 120,
+      "h": 33,
+      "note": "front: switches + piezo; back: one pouch low, ESP/PMIC above"
+    },
+    {
+      "id": "dpad_support",
+      "layer": "mechanical",
+      "side": "front",
+      "x": 18,
+      "y": 83,
+      "w": 8,
+      "h": 8,
+      "role": "center_standoff_pad",
+      "note": "DPAD_SUPPORT shell support/standoff pad"
+    },
+    {
+      "id": "action_support",
+      "layer": "mechanical",
+      "side": "front",
+      "x": 70,
+      "y": 77,
+      "w": 30,
+      "h": 30,
+      "role": "standoff_pad",
+      "note": "ACTION_SUPPORT shell support/standoff pad"
+    },
+    {
+      "id": "back_bat_1s_pouch",
+      "layer": "back",
+      "side": "back",
+      "x": 31,
+      "y": 73,
+      "w": 58,
+      "h": 30,
+      "role": "battery",
+      "note": "BAT_1S_POUCH (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_esp32_p4_chip_down",
+      "layer": "back",
+      "side": "back",
+      "x": 50,
+      "y": 45.5,
+      "w": 20,
+      "h": 20,
+      "role": "compute",
+      "note": "ESP32-P4 chip-down (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_pmic_cluster",
+      "layer": "back",
+      "side": "back",
+      "x": 76,
+      "y": 57,
+      "w": 22,
+      "h": 11,
+      "role": "power",
+      "note": "PMIC cluster (PCB bottom / rear pocket)"
+    },
+    {
+      "id": "back_usb_c_back",
+      "layer": "back",
+      "side": "back",
+      "x": 18,
+      "y": 2,
+      "w": 14,
+      "h": 9,
+      "role": "connector",
+      "note": "USB_C_BACK (PCB bottom / rear pocket)"
+    }
+  ],
+  "mountingHoles": [
+    {
+      "id": "MH_TL",
+      "x": 7,
+      "y": 7,
+      "d": 2.2
+    },
+    {
+      "id": "MH_TR",
+      "x": 113,
+      "y": 7,
+      "d": 2.2
+    },
+    {
+      "id": "MH_BL",
+      "x": 7,
+      "y": 103,
+      "d": 2.2
+    },
+    {
+      "id": "MH_BR",
+      "x": 113,
+      "y": 103,
+      "d": 2.2
+    }
+  ],
+  "components": [
+    {
+      "ref": "J1",
+      "value": "HRO-TYPE-C-31-M-12",
+      "sheet": "power",
+      "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 18,
+      "y": 2,
+      "w": 14,
+      "h": 9,
+      "cx": 25,
+      "cy": 6.5,
+      "source": "anchor:CONN_USB_C_BACK"
+    },
+    {
+      "ref": "J2",
+      "value": "1S-Pouch-403048",
+      "sheet": "power",
+      "footprint": "TBD",
+      "gate": "GATE-BATTERY-SAMPLE",
+      "side": "back",
+      "shape": "rect",
+      "x": 79,
+      "y": 74,
+      "w": 8,
+      "h": 4,
+      "cx": 83,
+      "cy": 76,
+      "source": "keepout:back_bat_1s_pouch"
+    },
+    {
+      "ref": "U1",
+      "value": "ESP32-P4NRW32X",
+      "sheet": "compute",
+      "footprint": "QFN104-10x10-P0.35",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 55,
+      "y": 50.5,
+      "w": 10,
+      "h": 10,
+      "cx": 60,
+      "cy": 55.5,
+      "source": "keepout:back_esp32_p4_chip_down"
+    },
+    {
+      "ref": "U9",
+      "value": "QSPI-NOR-32MB",
+      "sheet": "compute",
+      "footprint": "TBD",
+      "gate": "GATE-ESP32-P4-REF-CAPTURE",
+      "side": "back",
+      "shape": "rect",
+      "x": 65,
+      "y": 48.5,
+      "w": 6,
+      "h": 5,
+      "cx": 68,
+      "cy": 51,
+      "source": "keepout:back_esp32_p4_chip_down"
+    },
+    {
+      "ref": "X1",
+      "value": "40MHz-crystal",
+      "sheet": "compute",
+      "footprint": "TBD",
+      "gate": "GATE-ESP32-P4-REF-CAPTURE",
+      "side": "back",
+      "shape": "rect",
+      "x": 51.4,
+      "y": 48.75,
+      "w": 3.2,
+      "h": 2.5,
+      "cx": 53,
+      "cy": 50,
+      "source": "keepout:back_esp32_p4_chip_down"
+    },
+    {
+      "ref": "L1",
+      "value": "DCDC-inductor",
+      "sheet": "compute",
+      "footprint": "TBD",
+      "gate": "GATE-ESP32-P4-REF-CAPTURE",
+      "side": "back",
+      "shape": "rect",
+      "x": 65.5,
+      "y": 59.5,
+      "w": 3,
+      "h": 3,
+      "cx": 67,
+      "cy": 61,
+      "source": "keepout:back_esp32_p4_chip_down"
+    },
+    {
+      "ref": "U2",
+      "value": "BQ24075RGTR",
+      "sheet": "power",
+      "footprint": "VQFN-16-RGT-3x3",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 79.5,
+      "y": 59,
+      "w": 3,
+      "h": 3,
+      "cx": 81,
+      "cy": 60.5,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "U3",
+      "value": "MAX17048G+T10",
+      "sheet": "power",
+      "footprint": "LFCSP-8-2x2",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 84.5,
+      "y": 59,
+      "w": 2,
+      "h": 2,
+      "cx": 85.5,
+      "cy": 60,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "U4",
+      "value": "TPS63070",
+      "sheet": "power",
+      "footprint": "VQFN-HR-15-RNM-3x2.5",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 90,
+      "y": 59.25,
+      "w": 3,
+      "h": 2.5,
+      "cx": 91.5,
+      "cy": 60.5,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "U6",
+      "value": "TPS22919DCK",
+      "sheet": "power",
+      "footprint": "SOT-SC70-6-DCK-2x2.1",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 94,
+      "y": 64.45,
+      "w": 2,
+      "h": 2.1,
+      "cx": 95,
+      "cy": 65.5,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "D4",
+      "value": "LED-CHG",
+      "sheet": "power",
+      "footprint": "0603",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 78.2,
+      "y": 65.6,
+      "w": 1.6,
+      "h": 0.8,
+      "cx": 79,
+      "cy": 66,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "R8",
+      "value": "1k",
+      "sheet": "power",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 81,
+      "y": 65.75,
+      "w": 1,
+      "h": 0.5,
+      "cx": 81.5,
+      "cy": 66,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "C1",
+      "value": "10u",
+      "sheet": "power",
+      "footprint": "0603",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 88.2,
+      "y": 65.6,
+      "w": 1.6,
+      "h": 0.8,
+      "cx": 89,
+      "cy": 66,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "C2",
+      "value": "10u",
+      "sheet": "power",
+      "footprint": "0603",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 91.2,
+      "y": 65.6,
+      "w": 1.6,
+      "h": 0.8,
+      "cx": 92,
+      "cy": 66,
+      "source": "keepout:back_pmic_cluster"
+    },
+    {
+      "ref": "J3",
+      "value": "FFC-15-1.0-FH12-class",
+      "sheet": "display",
+      "footprint": "FFC-15-1.0mm-right-angle-contact-TBD",
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "side": "front",
+      "shape": "rect",
+      "x": 49,
+      "y": 3.5,
+      "w": 22,
+      "h": 5,
+      "cx": 60,
+      "cy": 6,
+      "source": "anchor:CONN_DSI_FFC"
+    },
+    {
+      "ref": "J4",
+      "value": "microSD",
+      "sheet": "storage",
+      "footprint": "TBD",
+      "gate": "GATE-MICROSD-FOOTPRINT",
+      "side": "back",
+      "shape": "rect",
+      "x": 78.5,
+      "y": 43.5,
+      "w": 15,
+      "h": 14,
+      "cx": 86,
+      "cy": 50.5,
+      "source": "cluster:storage"
+    },
+    {
+      "ref": "SW1",
+      "value": "TL3315NF160Q-class",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-DPAD-MOCKUP",
+      "side": "front",
+      "shape": "rect",
+      "x": 19.7,
+      "y": 76.85,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 22,
+      "cy": 78.25,
+      "source": "anchor:SW_DPAD_UP"
+    },
+    {
+      "ref": "SW2",
+      "value": "TL3315NF160Q-class",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-DPAD-MOCKUP",
+      "side": "front",
+      "shape": "rect",
+      "x": 19.7,
+      "y": 94.35,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 22,
+      "cy": 95.75,
+      "source": "anchor:SW_DPAD_DOWN"
+    },
+    {
+      "ref": "SW3",
+      "value": "TL3315NF160Q-class",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-DPAD-MOCKUP",
+      "side": "front",
+      "shape": "rect",
+      "x": 10.95,
+      "y": 85.6,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 13.25,
+      "cy": 87,
+      "source": "anchor:SW_DPAD_LEFT"
+    },
+    {
+      "ref": "SW4",
+      "value": "TL3315NF160Q-class",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-DPAD-MOCKUP",
+      "side": "front",
+      "shape": "rect",
+      "x": 28.45,
+      "y": 85.6,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 30.75,
+      "cy": 87,
+      "source": "anchor:SW_DPAD_RIGHT"
+    },
+    {
+      "ref": "SW5",
+      "value": "KMR211NG",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-FACE-BUTTON-FEEL",
+      "side": "front",
+      "shape": "rect",
+      "x": 86.7,
+      "y": 81.6,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 89,
+      "cy": 83,
+      "source": "anchor:SW_ACTION"
+    },
+    {
+      "ref": "SW6",
+      "value": "KMR211NG",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-FACE-BUTTON-FEEL",
+      "side": "front",
+      "shape": "rect",
+      "x": 72.7,
+      "y": 94.6,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 75,
+      "cy": 96,
+      "source": "anchor:SW_UNDO"
+    },
+    {
+      "ref": "SW7",
+      "value": "KMR211NG",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-FACE-BUTTON-FEEL",
+      "side": "front",
+      "shape": "rect",
+      "x": 89.7,
+      "y": 100.6,
+      "w": 4.6,
+      "h": 2.8,
+      "cx": 92,
+      "cy": 102,
+      "source": "anchor:SW_RESTART"
+    },
+    {
+      "ref": "SW8",
+      "value": "KMR211NG",
+      "sheet": "controls",
+      "footprint": "TBD",
+      "gate": "GATE-FACE-BUTTON-FEEL",
+      "side": "front",
+      "shape": "rect",
+      "x": 52.5,
+      "y": 99,
+      "w": 11,
+      "h": 4,
+      "cx": 58,
+      "cy": 101,
+      "source": "anchor:SW_MENU"
+    },
+    {
+      "ref": "SW9",
+      "value": "SlideSwitch-SPDT-JS102000-class",
+      "sheet": "power",
+      "footprint": "TBD",
+      "gate": "GATE-POWER-SLIDE-SLOT",
+      "side": "front",
+      "shape": "rect",
+      "x": 102,
+      "y": 3.5,
+      "w": 8,
+      "h": 3.2,
+      "cx": 106,
+      "cy": 5.1,
+      "source": "anchor:SW_PWR_SLIDE"
+    },
+    {
+      "ref": "SW10A",
+      "value": "EVP-AKE31A",
+      "sheet": "controls",
+      "footprint": "EVPAK-side-push-3.9x2.9",
+      "gate": null,
+      "side": "front",
+      "shape": "rect",
+      "x": 114.05,
+      "y": 14.35,
+      "w": 3.9,
+      "h": 2.9,
+      "cx": 116,
+      "cy": 15.8,
+      "source": "anchor:SW_VOLUME"
+    },
+    {
+      "ref": "SW10B",
+      "value": "EVP-AKE31A",
+      "sheet": "controls",
+      "footprint": "EVPAK-side-push-3.9x2.9",
+      "gate": null,
+      "side": "front",
+      "shape": "rect",
+      "x": 114.05,
+      "y": 18.75,
+      "w": 3.9,
+      "h": 2.9,
+      "cx": 116,
+      "cy": 20.2,
+      "source": "anchor:SW_VOLUME"
+    },
+    {
+      "ref": "B1",
+      "value": "Coin-LRA-10mm",
+      "sheet": "haptic",
+      "footprint": "TBD",
+      "gate": "GATE-LRA-MOUNT",
+      "side": "back",
+      "shape": "circle",
+      "x": 95,
+      "y": 86,
+      "w": 10,
+      "h": 10,
+      "cx": 100,
+      "cy": 91,
+      "source": "anchor:ACT_LRA"
+    },
+    {
+      "ref": "JP1",
+      "value": "PiezoPads",
+      "sheet": "audio",
+      "footprint": "TBD",
+      "gate": "GATE-PIEZO-DRIVE-REVIEW",
+      "side": "back",
+      "shape": "rect",
+      "x": 54,
+      "y": 84.5,
+      "w": 12,
+      "h": 3,
+      "cx": 60,
+      "cy": 86,
+      "source": "anchor:PAD_PIEZO"
+    },
+    {
+      "ref": "Q1",
+      "value": "NPN",
+      "sheet": "audio",
+      "footprint": "SOT23",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 48.5,
+      "y": 78.5,
+      "w": 3,
+      "h": 3,
+      "cx": 50,
+      "cy": 80,
+      "source": "cluster:piezo"
+    },
+    {
+      "ref": "U8",
+      "value": "PiezoHBridge-DNP",
+      "sheet": "audio",
+      "footprint": "TBD",
+      "gate": "GATE-PIEZO-DRIVE-REVIEW",
+      "side": "back",
+      "shape": "rect",
+      "x": 67.5,
+      "y": 77.5,
+      "w": 5,
+      "h": 5,
+      "cx": 70,
+      "cy": 80,
+      "source": "cluster:piezo"
+    },
+    {
+      "ref": "R7",
+      "value": "0R",
+      "sheet": "audio",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 62.5,
+      "y": 80.75,
+      "w": 1,
+      "h": 0.5,
+      "cx": 63,
+      "cy": 81,
+      "source": "cluster:piezo"
+    },
+    {
+      "ref": "U5",
+      "value": "DRV2605LDGS",
+      "sheet": "haptic",
+      "footprint": "VSSOP-10-DGS-3x4.9",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 86.5,
+      "y": 85.55,
+      "w": 3,
+      "h": 4.9,
+      "cx": 88,
+      "cy": 88,
+      "source": "cluster:haptic"
+    },
+    {
+      "ref": "D1",
+      "value": "LED-R",
+      "sheet": "led",
+      "footprint": "TBD",
+      "gate": "GATE-CASE-LED-LIGHTPIPE",
+      "side": "front",
+      "shape": "rect",
+      "x": 2.4,
+      "y": 41,
+      "w": 3.2,
+      "h": 2,
+      "cx": 4,
+      "cy": 42,
+      "source": "edge:case-led"
+    },
+    {
+      "ref": "D2",
+      "value": "LED-G",
+      "sheet": "led",
+      "footprint": "TBD",
+      "gate": "GATE-CASE-LED-LIGHTPIPE",
+      "side": "front",
+      "shape": "rect",
+      "x": 2.4,
+      "y": 47,
+      "w": 3.2,
+      "h": 2,
+      "cx": 4,
+      "cy": 48,
+      "source": "edge:case-led"
+    },
+    {
+      "ref": "D3",
+      "value": "LED-B",
+      "sheet": "led",
+      "footprint": "TBD",
+      "gate": "GATE-CASE-LED-LIGHTPIPE",
+      "side": "front",
+      "shape": "rect",
+      "x": 2.4,
+      "y": 53,
+      "w": 3.2,
+      "h": 2,
+      "cx": 4,
+      "cy": 54,
+      "source": "edge:case-led"
+    },
+    {
+      "ref": "R1",
+      "value": "5.1k",
+      "sheet": "power",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 34.5,
+      "y": 6.75,
+      "w": 1,
+      "h": 0.5,
+      "cx": 35,
+      "cy": 7,
+      "source": "cluster:usb"
+    },
+    {
+      "ref": "R2",
+      "value": "5.1k",
+      "sheet": "power",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 34.5,
+      "y": 9.75,
+      "w": 1,
+      "h": 0.5,
+      "cx": 35,
+      "cy": 10,
+      "source": "cluster:usb"
+    },
+    {
+      "ref": "R3",
+      "value": "4.7k",
+      "sheet": "compute",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 50.5,
+      "y": 63.25,
+      "w": 1,
+      "h": 0.5,
+      "cx": 51,
+      "cy": 63.5,
+      "source": "cluster:i2c"
+    },
+    {
+      "ref": "R4",
+      "value": "4.7k",
+      "sheet": "compute",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 52.5,
+      "y": 63.25,
+      "w": 1,
+      "h": 0.5,
+      "cx": 53,
+      "cy": 63.5,
+      "source": "cluster:i2c"
+    },
+    {
+      "ref": "R5",
+      "value": "10k",
+      "sheet": "compute",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 50.5,
+      "y": 60.25,
+      "w": 1,
+      "h": 0.5,
+      "cx": 51,
+      "cy": 60.5,
+      "source": "cluster:en-boot"
+    },
+    {
+      "ref": "R6",
+      "value": "10k",
+      "sheet": "compute",
+      "footprint": "0402",
+      "gate": null,
+      "side": "back",
+      "shape": "rect",
+      "x": 52.5,
+      "y": 60.25,
+      "w": 1,
+      "h": 0.5,
+      "cx": 53,
+      "cy": 60.5,
+      "source": "cluster:en-boot"
+    },
+    {
+      "ref": "R10",
+      "value": "10k",
+      "sheet": "controls",
+      "footprint": "0402",
+      "gate": null,
+      "side": "front",
+      "shape": "rect",
+      "x": 31.5,
+      "y": 74,
+      "w": 1,
+      "h": 0.5,
+      "cx": 32,
+      "cy": 74.25,
+      "source": "cluster:controls"
+    },
+    {
+      "ref": "C3",
+      "value": "10u",
+      "sheet": "display",
+      "footprint": "0603",
+      "gate": null,
+      "side": "front",
+      "shape": "rect",
+      "x": 73.2,
+      "y": 8.1,
+      "w": 1.6,
+      "h": 0.8,
+      "cx": 74,
+      "cy": 8.5,
+      "source": "cluster:panel-bulk"
+    },
+    {
+      "ref": "TP1",
+      "value": "UART_TX",
+      "sheet": "debug",
+      "footprint": "TestPoint",
+      "gate": null,
+      "side": "back",
+      "shape": "circle",
+      "x": 101.25,
+      "y": 65.25,
+      "w": 1.5,
+      "h": 1.5,
+      "cx": 102,
+      "cy": 66,
+      "source": "cluster:debug"
+    },
+    {
+      "ref": "TP2",
+      "value": "UART_RX",
+      "sheet": "debug",
+      "footprint": "TestPoint",
+      "gate": null,
+      "side": "back",
+      "shape": "circle",
+      "x": 105.25,
+      "y": 65.25,
+      "w": 1.5,
+      "h": 1.5,
+      "cx": 106,
+      "cy": 66,
+      "source": "cluster:debug"
+    },
+    {
+      "ref": "TP3",
+      "value": "BOOT",
+      "sheet": "debug",
+      "footprint": "TestPoint",
+      "gate": null,
+      "side": "back",
+      "shape": "circle",
+      "x": 109.25,
+      "y": 65.25,
+      "w": 1.5,
+      "h": 1.5,
+      "cx": 110,
+      "cy": 66,
+      "source": "cluster:debug"
+    },
+    {
+      "ref": "TP4",
+      "value": "EN",
+      "sheet": "debug",
+      "footprint": "TestPoint",
+      "gate": null,
+      "side": "back",
+      "shape": "circle",
+      "x": 113.25,
+      "y": 65.25,
+      "w": 1.5,
+      "h": 1.5,
+      "cx": 114,
+      "cy": 66,
+      "source": "cluster:debug"
+    }
+  ],
+  "traces": [
+    {
+      "net": "VBUS_IN",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "J1",
+      "to": "U2",
+      "points": [
+        {
+          "x": 33.12,
+          "y": 7.744
+        },
+        {
+          "x": 32.12,
+          "y": 9.144
+        },
+        {
+          "x": 32.12,
+          "y": 59.522
+        },
+        {
+          "x": 79.26,
+          "y": 60.922
+        }
+      ]
+    },
+    {
+      "net": "VBUS_IN",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "J1",
+      "to": "R8",
+      "points": [
+        {
+          "x": 23.56,
+          "y": 11.72
+        },
+        {
+          "x": 25.18,
+          "y": 13.1
+        },
+        {
+          "x": 80.307,
+          "y": 13.1
+        },
+        {
+          "x": 81.927,
+          "y": 65.6
+        }
+      ]
+    },
+    {
+      "net": "BAT+",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "J2",
+      "to": "U2",
+      "points": [
+        {
+          "x": 83.086,
+          "y": 73.68
+        },
+        {
+          "x": 81.326,
+          "y": 71.84
+        },
+        {
+          "x": 81.326,
+          "y": 64.08
+        },
+        {
+          "x": 81.36,
+          "y": 62.24
+        }
+      ]
+    },
+    {
+      "net": "BAT+",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "J2",
+      "to": "U3",
+      "points": [
+        {
+          "x": 81.867,
+          "y": 73.68
+        },
+        {
+          "x": 84.007,
+          "y": 71.62
+        },
+        {
+          "x": 84.007,
+          "y": 63.22
+        },
+        {
+          "x": 85.949,
+          "y": 61.16
+        }
+      ]
+    },
+    {
+      "net": "SYS",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U2",
+      "to": "U4",
+      "points": [
+        {
+          "x": 82.74,
+          "y": 60.597
+        },
+        {
+          "x": 84.14,
+          "y": 58.077
+        },
+        {
+          "x": 88.36,
+          "y": 58.077
+        },
+        {
+          "x": 89.76,
+          "y": 60.587
+        }
+      ]
+    },
+    {
+      "net": "SYS",
+      "className": "power",
+      "family": "power",
+      "side": "front",
+      "from": "U2",
+      "to": "SW9",
+      "points": [
+        {
+          "x": 82.019,
+          "y": 58.76
+        },
+        {
+          "x": 84.919,
+          "y": 57.14
+        },
+        {
+          "x": 84.919,
+          "y": 8.576
+        },
+        {
+          "x": 104.798,
+          "y": 6.956
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "U6",
+      "points": [
+        {
+          "x": 90.269,
+          "y": 61.95
+        },
+        {
+          "x": 92.109,
+          "y": 58.67
+        },
+        {
+          "x": 93.519,
+          "y": 58.67
+        },
+        {
+          "x": 95.359,
+          "y": 64.282
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "U8",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 61.231
+        },
+        {
+          "x": 93.42,
+          "y": 63.291
+        },
+        {
+          "x": 93.42,
+          "y": 79.332
+        },
+        {
+          "x": 72.9,
+          "y": 81.392
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "C1",
+      "points": [
+        {
+          "x": 90.308,
+          "y": 61.95
+        },
+        {
+          "x": 86.268,
+          "y": 63.35
+        },
+        {
+          "x": 86.268,
+          "y": 64.05
+        },
+        {
+          "x": 89.422,
+          "y": 65.45
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "C2",
+      "points": [
+        {
+          "x": 92.152,
+          "y": 61.95
+        },
+        {
+          "x": 96.572,
+          "y": 63.57
+        },
+        {
+          "x": 96.572,
+          "y": 63.83
+        },
+        {
+          "x": 92.275,
+          "y": 65.45
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "U1",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 59.522
+        },
+        {
+          "x": 87.92,
+          "y": 54.722
+        },
+        {
+          "x": 67.64,
+          "y": 54.722
+        },
+        {
+          "x": 65.8,
+          "y": 51.777
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "U9",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 60.723
+        },
+        {
+          "x": 87.7,
+          "y": 65.903
+        },
+        {
+          "x": 73.54,
+          "y": 65.903
+        },
+        {
+          "x": 71.48,
+          "y": 52.922
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "U3",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 60.751
+        },
+        {
+          "x": 88.36,
+          "y": 55.191
+        },
+        {
+          "x": 88.06,
+          "y": 55.191
+        },
+        {
+          "x": 86.66,
+          "y": 60.523
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "U5",
+      "points": [
+        {
+          "x": 92.532,
+          "y": 61.95
+        },
+        {
+          "x": 98.472,
+          "y": 63.57
+        },
+        {
+          "x": 98.472,
+          "y": 83.538
+        },
+        {
+          "x": 89.2,
+          "y": 85.158
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "J4",
+      "points": [
+        {
+          "x": 91.527,
+          "y": 59.05
+        },
+        {
+          "x": 89.687,
+          "y": 52.73
+        },
+        {
+          "x": 85.277,
+          "y": 52.73
+        },
+        {
+          "x": 83.437,
+          "y": 58.62
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "R3",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 59.47
+        },
+        {
+          "x": 87.7,
+          "y": 66.17
+        },
+        {
+          "x": 53.71,
+          "y": 66.17
+        },
+        {
+          "x": 51.65,
+          "y": 63.324
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "R4",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 60.301
+        },
+        {
+          "x": 88.36,
+          "y": 53.221
+        },
+        {
+          "x": 55.05,
+          "y": 53.221
+        },
+        {
+          "x": 53.65,
+          "y": 63.649
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "R5",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 61.381
+        },
+        {
+          "x": 88.14,
+          "y": 68.841
+        },
+        {
+          "x": 53.27,
+          "y": 68.841
+        },
+        {
+          "x": 51.65,
+          "y": 60.681
+        }
+      ]
+    },
+    {
+      "net": "+3V3",
+      "className": "power",
+      "family": "power",
+      "side": "back",
+      "from": "U4",
+      "to": "R6",
+      "points": [
+        {
+          "x": 89.76,
+          "y": 60.86
+        },
+        {
+          "x": 87.92,
+          "y": 53.02
+        },
+        {
+          "x": 55.49,
+          "y": 53.02
+        },
+        {
+          "x": 53.65,
+          "y": 60.713
+        }
+      ]
+    },
+    {
+      "net": "+3V3_PANEL",
+      "className": "power",
+      "family": "power",
+      "side": "front",
+      "from": "U6",
+      "to": "J3",
+      "points": [
+        {
+          "x": 95.738,
+          "y": 64.282
+        },
+        {
+          "x": 87.518,
+          "y": 62.222
+        },
+        {
+          "x": 87.518,
+          "y": 10.96
+        },
+        {
+          "x": 52.604,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "+3V3_PANEL",
+      "className": "power",
+      "family": "power",
+      "side": "front",
+      "from": "U6",
+      "to": "J3",
+      "points": [
+        {
+          "x": 95.43,
+          "y": 64.282
+        },
+        {
+          "x": 86.83,
+          "y": 62.882
+        },
+        {
+          "x": 86.83,
+          "y": 10.3
+        },
+        {
+          "x": 62.945,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "+3V3_PANEL",
+      "className": "power",
+      "family": "power",
+      "side": "front",
+      "from": "U6",
+      "to": "C3",
+      "points": [
+        {
+          "x": 95.51,
+          "y": 64.282
+        },
+        {
+          "x": 86.53,
+          "y": 62.662
+        },
+        {
+          "x": 86.53,
+          "y": 10.67
+        },
+        {
+          "x": 74.18,
+          "y": 9.05
+        }
+      ]
+    },
+    {
+      "net": "USB_CC1",
+      "className": "usb",
+      "family": "usb",
+      "side": "back",
+      "from": "J1",
+      "to": "R1",
+      "points": [
+        {
+          "x": 33.12,
+          "y": 4.784
+        },
+        {
+          "x": 23.76,
+          "y": 6.624
+        },
+        {
+          "x": 23.76,
+          "y": 5.21
+        },
+        {
+          "x": 34.35,
+          "y": 7.05
+        }
+      ]
+    },
+    {
+      "net": "USB_CC2",
+      "className": "usb",
+      "family": "usb",
+      "side": "back",
+      "from": "J1",
+      "to": "R2",
+      "points": [
+        {
+          "x": 33.12,
+          "y": 4.218
+        },
+        {
+          "x": 42.86,
+          "y": 6.278
+        },
+        {
+          "x": 42.86,
+          "y": 8.119
+        },
+        {
+          "x": 34.35,
+          "y": 10.179
+        }
+      ]
+    },
+    {
+      "net": "USB_DP",
+      "className": "usb",
+      "family": "usb",
+      "side": "back",
+      "from": "J1",
+      "to": "U1",
+      "points": [
+        {
+          "x": 28.814,
+          "y": 11.72
+        },
+        {
+          "x": 18.694,
+          "y": 13.12
+        },
+        {
+          "x": 18.694,
+          "y": 48.3
+        },
+        {
+          "x": 57.568,
+          "y": 49.7
+        }
+      ]
+    },
+    {
+      "net": "USB_DM",
+      "className": "usb",
+      "family": "usb",
+      "side": "back",
+      "from": "J1",
+      "to": "U1",
+      "points": [
+        {
+          "x": 30.08,
+          "y": 11.72
+        },
+        {
+          "x": 40.58,
+          "y": 13.34
+        },
+        {
+          "x": 40.58,
+          "y": 48.08
+        },
+        {
+          "x": 57.138,
+          "y": 49.7
+        }
+      ]
+    },
+    {
+      "net": "I2C_SDA",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U3",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 59.473
+        },
+        {
+          "x": 67.64,
+          "y": 48.593
+        },
+        {
+          "x": 82.5,
+          "y": 48.593
+        },
+        {
+          "x": 84.34,
+          "y": 59.681
+        }
+      ]
+    },
+    {
+      "net": "I2C_SDA",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U5",
+      "points": [
+        {
+          "x": 56.285,
+          "y": 61.3
+        },
+        {
+          "x": 58.345,
+          "y": 72.56
+        },
+        {
+          "x": 87.204,
+          "y": 72.56
+        },
+        {
+          "x": 89.264,
+          "y": 85.158
+        }
+      ]
+    },
+    {
+      "net": "I2C_SDA",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "R3",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 59.309
+        },
+        {
+          "x": 42.56,
+          "y": 60.709
+        },
+        {
+          "x": 42.56,
+          "y": 62.257
+        },
+        {
+          "x": 51.65,
+          "y": 63.657
+        }
+      ]
+    },
+    {
+      "net": "I2C_SCL",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U3",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 55.401
+        },
+        {
+          "x": 67.42,
+          "y": 67.421
+        },
+        {
+          "x": 82.72,
+          "y": 67.421
+        },
+        {
+          "x": 84.34,
+          "y": 59.619
+        }
+      ]
+    },
+    {
+      "net": "I2C_SCL",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U5",
+      "points": [
+        {
+          "x": 57.215,
+          "y": 61.3
+        },
+        {
+          "x": 59.055,
+          "y": 60.22
+        },
+        {
+          "x": 86.44,
+          "y": 60.22
+        },
+        {
+          "x": 88.28,
+          "y": 85.158
+        }
+      ]
+    },
+    {
+      "net": "I2C_SCL",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "R4",
+      "points": [
+        {
+          "x": 56.965,
+          "y": 61.3
+        },
+        {
+          "x": 54.905,
+          "y": 62.76
+        },
+        {
+          "x": 54.929,
+          "y": 62.76
+        },
+        {
+          "x": 52.869,
+          "y": 63.1
+        }
+      ]
+    },
+    {
+      "net": "ESP_EN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "TP4",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 59.378
+        },
+        {
+          "x": 67.2,
+          "y": 57.538
+        },
+        {
+          "x": 111.7,
+          "y": 57.538
+        },
+        {
+          "x": 113.1,
+          "y": 66.006
+        }
+      ]
+    },
+    {
+      "net": "ESP_EN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "R5",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 56.167
+        },
+        {
+          "x": 56.42,
+          "y": 57.787
+        },
+        {
+          "x": 56.42,
+          "y": 59.037
+        },
+        {
+          "x": 51.65,
+          "y": 60.657
+        }
+      ]
+    },
+    {
+      "net": "PWR_EN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "SW9",
+      "to": "U4",
+      "points": [
+        {
+          "x": 109.089,
+          "y": 6.956
+        },
+        {
+          "x": 106.489,
+          "y": 8.796
+        },
+        {
+          "x": 106.489,
+          "y": 57.21
+        },
+        {
+          "x": 92.762,
+          "y": 59.05
+        }
+      ]
+    },
+    {
+      "net": "CHG_LED",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "R8",
+      "to": "D4",
+      "points": [
+        {
+          "x": 80.85,
+          "y": 65.879
+        },
+        {
+          "x": 78.79,
+          "y": 68.859
+        },
+        {
+          "x": 82.01,
+          "y": 68.859
+        },
+        {
+          "x": 79.95,
+          "y": 65.871
+        }
+      ]
+    },
+    {
+      "net": "CHG_STAT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "D4",
+      "to": "U2",
+      "points": [
+        {
+          "x": 78.457,
+          "y": 65.45
+        },
+        {
+          "x": 75.097,
+          "y": 64.05
+        },
+        {
+          "x": 75.097,
+          "y": 63.64
+        },
+        {
+          "x": 81.164,
+          "y": 62.24
+        }
+      ]
+    },
+    {
+      "net": "PANEL_EN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U6",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 56.417
+        },
+        {
+          "x": 67.42,
+          "y": 60.157
+        },
+        {
+          "x": 92.22,
+          "y": 60.157
+        },
+        {
+          "x": 93.84,
+          "y": 65.767
+        }
+      ]
+    },
+    {
+      "net": "BOOT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "TP3",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 55.341
+        },
+        {
+          "x": 67.64,
+          "y": 51.221
+        },
+        {
+          "x": 107.26,
+          "y": 51.221
+        },
+        {
+          "x": 109.1,
+          "y": 65.732
+        }
+      ]
+    },
+    {
+      "net": "BOOT_EN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "R6",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 59.568
+        },
+        {
+          "x": 58.7,
+          "y": 61.628
+        },
+        {
+          "x": 58.7,
+          "y": 58.414
+        },
+        {
+          "x": 53.65,
+          "y": 60.474
+        }
+      ]
+    },
+    {
+      "net": "DSI_D1_N",
+      "className": "dsi",
+      "family": "dsi",
+      "side": "front",
+      "from": "U1",
+      "to": "J3",
+      "points": [
+        {
+          "x": 59.488,
+          "y": 49.7
+        },
+        {
+          "x": 54.608,
+          "y": 48.3
+        },
+        {
+          "x": 54.608,
+          "y": 10.3
+        },
+        {
+          "x": 52.604,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "DSI_D1_P",
+      "className": "dsi",
+      "family": "dsi",
+      "side": "front",
+      "from": "U1",
+      "to": "J3",
+      "points": [
+        {
+          "x": 56.32,
+          "y": 49.7
+        },
+        {
+          "x": 61.58,
+          "y": 48.08
+        },
+        {
+          "x": 61.58,
+          "y": 10.52
+        },
+        {
+          "x": 66.827,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "DSI_CLK_N",
+      "className": "dsi",
+      "family": "dsi",
+      "side": "front",
+      "from": "U1",
+      "to": "J3",
+      "points": [
+        {
+          "x": 62.725,
+          "y": 49.7
+        },
+        {
+          "x": 57.085,
+          "y": 47.86
+        },
+        {
+          "x": 57.085,
+          "y": 10.74
+        },
+        {
+          "x": 54.271,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "DSI_CLK_P",
+      "className": "dsi",
+      "family": "dsi",
+      "side": "front",
+      "from": "U1",
+      "to": "J3",
+      "points": [
+        {
+          "x": 61.571,
+          "y": 49.7
+        },
+        {
+          "x": 67.591,
+          "y": 47.64
+        },
+        {
+          "x": 67.591,
+          "y": 10.96
+        },
+        {
+          "x": 62.775,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "DSI_D0_N",
+      "className": "dsi",
+      "family": "dsi",
+      "side": "front",
+      "from": "U1",
+      "to": "J3",
+      "points": [
+        {
+          "x": 61.39,
+          "y": 49.7
+        },
+        {
+          "x": 54.99,
+          "y": 48.3
+        },
+        {
+          "x": 54.99,
+          "y": 10.3
+        },
+        {
+          "x": 65.407,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "DSI_D0_P",
+      "className": "dsi",
+      "family": "dsi",
+      "side": "front",
+      "from": "U1",
+      "to": "J3",
+      "points": [
+        {
+          "x": 60.495,
+          "y": 49.7
+        },
+        {
+          "x": 67.275,
+          "y": 48.08
+        },
+        {
+          "x": 67.275,
+          "y": 10.52
+        },
+        {
+          "x": 65.237,
+          "y": 8.9
+        }
+      ]
+    },
+    {
+      "net": "SW_DPAD_UP",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW1",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 51.562
+        },
+        {
+          "x": 52.36,
+          "y": 44.402
+        },
+        {
+          "x": 26.508,
+          "y": 44.402
+        },
+        {
+          "x": 24.668,
+          "y": 77.868
+        }
+      ]
+    },
+    {
+      "net": "SW_DPAD_UP",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "R10",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 54.428
+        },
+        {
+          "x": 52.14,
+          "y": 61.968
+        },
+        {
+          "x": 34.71,
+          "y": 61.968
+        },
+        {
+          "x": 32.65,
+          "y": 74.456
+        }
+      ]
+    },
+    {
+      "net": "SW_DPAD_DOWN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW2",
+      "points": [
+        {
+          "x": 62.225,
+          "y": 61.3
+        },
+        {
+          "x": 60.825,
+          "y": 53.38
+        },
+        {
+          "x": 24.855,
+          "y": 53.38
+        },
+        {
+          "x": 23.455,
+          "y": 94.126
+        }
+      ]
+    },
+    {
+      "net": "SW_DPAD_LEFT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW3",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 53.981
+        },
+        {
+          "x": 52.58,
+          "y": 62.281
+        },
+        {
+          "x": 17.538,
+          "y": 62.281
+        },
+        {
+          "x": 15.918,
+          "y": 86.763
+        }
+      ]
+    },
+    {
+      "net": "SW_DPAD_RIGHT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW4",
+      "points": [
+        {
+          "x": 60.702,
+          "y": 61.3
+        },
+        {
+          "x": 58.862,
+          "y": 52.62
+        },
+        {
+          "x": 32.818,
+          "y": 52.62
+        },
+        {
+          "x": 30.978,
+          "y": 85.376
+        }
+      ]
+    },
+    {
+      "net": "SW_ACTION",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW5",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 54.928
+        },
+        {
+          "x": 74.86,
+          "y": 56.988
+        },
+        {
+          "x": 74.86,
+          "y": 80.293
+        },
+        {
+          "x": 86.332,
+          "y": 82.353
+        }
+      ]
+    },
+    {
+      "net": "SW_UNDO",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW6",
+      "points": [
+        {
+          "x": 58.205,
+          "y": 61.3
+        },
+        {
+          "x": 48.765,
+          "y": 62.7
+        },
+        {
+          "x": 48.765,
+          "y": 92.976
+        },
+        {
+          "x": 73.382,
+          "y": 94.376
+        }
+      ]
+    },
+    {
+      "net": "SW_RESTART",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW7",
+      "points": [
+        {
+          "x": 61.933,
+          "y": 61.3
+        },
+        {
+          "x": 71.753,
+          "y": 62.92
+        },
+        {
+          "x": 71.753,
+          "y": 98.756
+        },
+        {
+          "x": 92.026,
+          "y": 100.376
+        }
+      ]
+    },
+    {
+      "net": "SW_MENU",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW8",
+      "points": [
+        {
+          "x": 62.776,
+          "y": 61.3
+        },
+        {
+          "x": 52.576,
+          "y": 63.14
+        },
+        {
+          "x": 52.576,
+          "y": 96.84
+        },
+        {
+          "x": 53.725,
+          "y": 98.68
+        }
+      ]
+    },
+    {
+      "net": "VOL_UP",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW10A",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 52.595
+        },
+        {
+          "x": 67.86,
+          "y": 63.175
+        },
+        {
+          "x": 111.678,
+          "y": 63.175
+        },
+        {
+          "x": 113.738,
+          "y": 15.107
+        }
+      ]
+    },
+    {
+      "net": "VOL_DOWN",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "SW10B",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 55.341
+        },
+        {
+          "x": 67.2,
+          "y": 44.381
+        },
+        {
+          "x": 112.338,
+          "y": 44.381
+        },
+        {
+          "x": 113.738,
+          "y": 20.666
+        }
+      ]
+    },
+    {
+      "net": "PIEZO_PWM",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "Q1",
+      "points": [
+        {
+          "x": 57.336,
+          "y": 61.3
+        },
+        {
+          "x": 68.676,
+          "y": 62.92
+        },
+        {
+          "x": 68.676,
+          "y": 76.64
+        },
+        {
+          "x": 49.552,
+          "y": 78.26
+        }
+      ]
+    },
+    {
+      "net": "PIEZO_PWM",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U8",
+      "points": [
+        {
+          "x": 61.408,
+          "y": 61.3
+        },
+        {
+          "x": 49.688,
+          "y": 63.14
+        },
+        {
+          "x": 49.688,
+          "y": 75.26
+        },
+        {
+          "x": 68.044,
+          "y": 77.1
+        }
+      ]
+    },
+    {
+      "net": "PIEZO_OUT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "Q1",
+      "to": "JP1",
+      "points": [
+        {
+          "x": 51.74,
+          "y": 79.196
+        },
+        {
+          "x": 63.84,
+          "y": 81.256
+        },
+        {
+          "x": 63.84,
+          "y": 82.797
+        },
+        {
+          "x": 53.04,
+          "y": 84.857
+        }
+      ]
+    },
+    {
+      "net": "PIEZO_OUT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "Q1",
+      "to": "U8",
+      "points": [
+        {
+          "x": 51.74,
+          "y": 79.472
+        },
+        {
+          "x": 53.14,
+          "y": 78.312
+        },
+        {
+          "x": 65.7,
+          "y": 78.312
+        },
+        {
+          "x": 67.1,
+          "y": 81.022
+        }
+      ]
+    },
+    {
+      "net": "PIEZO_RET",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "JP1",
+      "to": "U8",
+      "points": [
+        {
+          "x": 66.96,
+          "y": 84.862
+        },
+        {
+          "x": 68.5,
+          "y": 83.242
+        },
+        {
+          "x": 68.5,
+          "y": 81.867
+        },
+        {
+          "x": 67.1,
+          "y": 80.247
+        }
+      ]
+    },
+    {
+      "net": "PIEZO_RET",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "JP1",
+      "to": "R7",
+      "points": [
+        {
+          "x": 61.111,
+          "y": 84.26
+        },
+        {
+          "x": 59.191,
+          "y": 82.42
+        },
+        {
+          "x": 59.191,
+          "y": 83.24
+        },
+        {
+          "x": 63.276,
+          "y": 81.4
+        }
+      ]
+    },
+    {
+      "net": "LED_R",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "D1",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 55.565
+        },
+        {
+          "x": 52.14,
+          "y": 57.865
+        },
+        {
+          "x": 7.916,
+          "y": 57.865
+        },
+        {
+          "x": 5.856,
+          "y": 42.29
+        }
+      ]
+    },
+    {
+      "net": "LED_G",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "D2",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 56.296
+        },
+        {
+          "x": 52.8,
+          "y": 53.616
+        },
+        {
+          "x": 7.256,
+          "y": 53.616
+        },
+        {
+          "x": 5.856,
+          "y": 48.526
+        }
+      ]
+    },
+    {
+      "net": "LED_B",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "front",
+      "from": "U1",
+      "to": "D3",
+      "points": [
+        {
+          "x": 54.2,
+          "y": 58.147
+        },
+        {
+          "x": 52.58,
+          "y": 61.207
+        },
+        {
+          "x": 7.476,
+          "y": 61.207
+        },
+        {
+          "x": 5.856,
+          "y": 54.49
+        }
+      ]
+    },
+    {
+      "net": "GAUGE_ALERT",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "U3",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 51.536
+        },
+        {
+          "x": 67.64,
+          "y": 48.096
+        },
+        {
+          "x": 82.5,
+          "y": 48.096
+        },
+        {
+          "x": 84.34,
+          "y": 60.817
+        }
+      ]
+    },
+    {
+      "net": "SD_SPI_CS",
+      "className": "signal",
+      "family": "storage",
+      "side": "back",
+      "from": "U1",
+      "to": "J4",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 52.698
+        },
+        {
+          "x": 67.86,
+          "y": 56.518
+        },
+        {
+          "x": 75.24,
+          "y": 56.518
+        },
+        {
+          "x": 77.3,
+          "y": 47.144
+        }
+      ]
+    },
+    {
+      "net": "SD_SPI_CLK",
+      "className": "signal",
+      "family": "storage",
+      "side": "back",
+      "from": "U1",
+      "to": "J4",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 51.76
+        },
+        {
+          "x": 67.2,
+          "y": 47.56
+        },
+        {
+          "x": 75.9,
+          "y": 47.56
+        },
+        {
+          "x": 77.3,
+          "y": 49.361
+        }
+      ]
+    },
+    {
+      "net": "SD_SPI_MOSI",
+      "className": "signal",
+      "family": "storage",
+      "side": "back",
+      "from": "U1",
+      "to": "J4",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 52.173
+        },
+        {
+          "x": 67.42,
+          "y": 56.753
+        },
+        {
+          "x": 75.68,
+          "y": 56.753
+        },
+        {
+          "x": 77.3,
+          "y": 54.134
+        }
+      ]
+    },
+    {
+      "net": "SD_SPI_MISO",
+      "className": "signal",
+      "family": "storage",
+      "side": "back",
+      "from": "U1",
+      "to": "J4",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 57.235
+        },
+        {
+          "x": 60.84,
+          "y": 55.395
+        },
+        {
+          "x": 60.84,
+          "y": 47.043
+        },
+        {
+          "x": 77.3,
+          "y": 45.203
+        }
+      ]
+    },
+    {
+      "net": "UART_TX",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "TP1",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 51.553
+        },
+        {
+          "x": 67.86,
+          "y": 56.893
+        },
+        {
+          "x": 99.04,
+          "y": 56.893
+        },
+        {
+          "x": 101.1,
+          "y": 65.408
+        }
+      ]
+    },
+    {
+      "net": "UART_RX",
+      "className": "signal",
+      "family": "low-speed",
+      "side": "back",
+      "from": "U1",
+      "to": "TP2",
+      "points": [
+        {
+          "x": 65.8,
+          "y": 55.237
+        },
+        {
+          "x": 67.2,
+          "y": 49.517
+        },
+        {
+          "x": 103.7,
+          "y": 49.517
+        },
+        {
+          "x": 105.1,
+          "y": 66.289
+        }
+      ]
+    }
+  ],
+  "airwires": [],
+  "routeStatus": [
+    {
+      "family": "Low-speed",
+      "status": "routed-first-pass",
+      "routes": 37,
+      "airwires": 0,
+      "nets": [
+        "BOOT",
+        "BOOT_EN",
+        "CHG_LED",
+        "CHG_STAT",
+        "ESP_EN",
+        "GAUGE_ALERT",
+        "I2C_SCL",
+        "I2C_SDA",
+        "LED_B",
+        "LED_G",
+        "LED_R",
+        "PANEL_EN",
+        "PIEZO_OUT",
+        "PIEZO_PWM",
+        "PIEZO_RET",
+        "PWR_EN",
+        "SW_ACTION",
+        "SW_DPAD_DOWN",
+        "SW_DPAD_LEFT",
+        "SW_DPAD_RIGHT",
+        "SW_DPAD_UP",
+        "SW_MENU",
+        "SW_RESTART",
+        "SW_UNDO",
+        "UART_RX",
+        "UART_TX",
+        "VOL_DOWN",
+        "VOL_UP"
+      ],
+      "gate": null,
+      "note": "Generated copper routes for controls, LEDs, piezo, I2C, enable/status, and debug nets."
+    },
+    {
+      "family": "DSI",
+      "status": "routed-assumption-gated",
+      "routes": 6,
+      "airwires": 0,
+      "nets": [
+        "DSI_CLK_N",
+        "DSI_CLK_P",
+        "DSI_D0_N",
+        "DSI_D0_P",
+        "DSI_D1_N",
+        "DSI_D1_P"
+      ],
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "note": "First-pass DSI copper follows the same-side FFC assumption; physical contact side, latch side, cable exit, and pin 1 still need the real panel/cable check before fabrication."
+    },
+    {
+      "family": "USB",
+      "status": "routed-first-pass-review",
+      "routes": 4,
+      "airwires": 0,
+      "nets": [
+        "USB_CC1",
+        "USB_CC2",
+        "USB_DM",
+        "USB_DP"
+      ],
+      "gate": null,
+      "note": "USB 2.0 and CC lines now have first-pass copper; they still need connector-adjacent cleanup and impedance review."
+    },
+    {
+      "family": "Power",
+      "status": "routed-first-pass-review",
+      "routes": 22,
+      "airwires": 0,
+      "nets": [
+        "+3V3",
+        "+3V3_PANEL",
+        "BAT+",
+        "SYS",
+        "VBUS_IN"
+      ],
+      "gate": null,
+      "note": "Power nets now have first-pass copper; replace/refine with planes, pours, thermal/current review, and compact charger/buck-boost loops before fabrication."
+    },
+    {
+      "family": "Storage",
+      "status": "routed-first-pass-gated",
+      "routes": 4,
+      "airwires": 0,
+      "nets": [
+        "SD_SPI_CLK",
+        "SD_SPI_CS",
+        "SD_SPI_MISO",
+        "SD_SPI_MOSI"
+      ],
+      "gate": "GATE-MICROSD-FOOTPRINT",
+      "note": "microSD has first-pass copper; final routing still waits on the exact socket footprint and service-socket placement."
+    }
+  ],
+  "dsiRoutePlan": {
+    "status": "routed-assumption-gated",
+    "gate": "GATE-DSI-FFC-CONTACT",
+    "targetDifferentialImpedance": "100 ohm",
+    "note": "First-pass copper follows this route intent. Confirm card-end contact side, latch side, cable exit, and pin 1 on the selected J3 footprint before fabrication.",
+    "pairs": [
+      {
+        "name": "DSI_D1",
+        "p": "DSI_D1_P",
+        "n": "DSI_D1_N",
+        "from": "U1",
+        "to": "J3",
+        "targetDifferentialImpedance": "100 ohm",
+        "pPoints": [
+          {
+            "x": 57.63,
+            "y": 50.5
+          },
+          {
+            "x": 57.63,
+            "y": 29.5
+          },
+          {
+            "x": 57.63,
+            "y": 8.5
+          }
+        ],
+        "nPoints": [
+          {
+            "x": 57.17,
+            "y": 50.5
+          },
+          {
+            "x": 57.17,
+            "y": 29.5
+          },
+          {
+            "x": 57.17,
+            "y": 8.5
+          }
+        ]
+      },
+      {
+        "name": "DSI_CLK",
+        "p": "DSI_CLK_P",
+        "n": "DSI_CLK_N",
+        "from": "U1",
+        "to": "J3",
+        "targetDifferentialImpedance": "100 ohm",
+        "pPoints": [
+          {
+            "x": 60.23,
+            "y": 50.5
+          },
+          {
+            "x": 60.23,
+            "y": 29.5
+          },
+          {
+            "x": 60.23,
+            "y": 8.5
+          }
+        ],
+        "nPoints": [
+          {
+            "x": 59.77,
+            "y": 50.5
+          },
+          {
+            "x": 59.77,
+            "y": 29.5
+          },
+          {
+            "x": 59.77,
+            "y": 8.5
+          }
+        ]
+      },
+      {
+        "name": "DSI_D0",
+        "p": "DSI_D0_P",
+        "n": "DSI_D0_N",
+        "from": "U1",
+        "to": "J3",
+        "targetDifferentialImpedance": "100 ohm",
+        "pPoints": [
+          {
+            "x": 62.83,
+            "y": 50.5
+          },
+          {
+            "x": 62.83,
+            "y": 29.5
+          },
+          {
+            "x": 62.83,
+            "y": 8.5
+          }
+        ],
+        "nPoints": [
+          {
+            "x": 62.37,
+            "y": 50.5
+          },
+          {
+            "x": 62.37,
+            "y": 29.5
+          },
+          {
+            "x": 62.37,
+            "y": 8.5
+          }
+        ]
+      }
+    ]
+  },
+  "openGates": [
+    {
+      "gate": "GATE-BATTERY-SAMPLE",
+      "refs": [
+        "J2"
+      ],
+      "sheets": [
+        "power"
+      ]
+    },
+    {
+      "gate": "GATE-CASE-LED-LIGHTPIPE",
+      "refs": [
+        "D1",
+        "D2",
+        "D3"
+      ],
+      "sheets": [
+        "led"
+      ]
+    },
+    {
+      "gate": "GATE-DPAD-MOCKUP",
+      "refs": [
+        "SW1",
+        "SW2",
+        "SW3",
+        "SW4"
+      ],
+      "sheets": [
+        "controls"
+      ]
+    },
+    {
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "refs": [
+        "J3"
+      ],
+      "sheets": [
+        "display"
+      ]
+    },
+    {
+      "gate": "GATE-ESP32-P4-REF-CAPTURE",
+      "refs": [
+        "L1",
+        "U9",
+        "X1"
+      ],
+      "sheets": [
+        "compute"
+      ]
+    },
+    {
+      "gate": "GATE-FACE-BUTTON-FEEL",
+      "refs": [
+        "SW5",
+        "SW6",
+        "SW7",
+        "SW8"
+      ],
+      "sheets": [
+        "controls"
+      ]
+    },
+    {
+      "gate": "GATE-LRA-MOUNT",
+      "refs": [
+        "B1"
+      ],
+      "sheets": [
+        "haptic"
+      ]
+    },
+    {
+      "gate": "GATE-MICROSD-FOOTPRINT",
+      "refs": [
+        "J4"
+      ],
+      "sheets": [
+        "storage"
+      ]
+    },
+    {
+      "gate": "GATE-PIEZO-DRIVE-REVIEW",
+      "refs": [
+        "JP1",
+        "U8"
+      ],
+      "sheets": [
+        "audio"
+      ]
+    },
+    {
+      "gate": "GATE-POWER-SLIDE-SLOT",
+      "refs": [
+        "SW9"
+      ],
+      "sheets": [
+        "power"
+      ]
+    }
+  ],
+  "gateEvidence": [
+    {
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "status": "open",
+      "summary": "Waveshare electrical pinout is captured and same-side FFC is assumed for layout planning; physical FFC orientation is still blocked.",
+      "confirmed": [
+        "Waveshare wiki defines J3 pins 14 and 15 are 3V3.",
+        "Waveshare wiki defines J3 pins 1, 4, 7, 10, and 13 as GND.",
+        "Waveshare wiki maps DSI lanes to pins 2-3, 5-6, and 8-9.",
+        "Waveshare wiki says the screen-side cable gold finger faces upward.",
+        "Waveshare product page says the no-touch 43H-800480-IPS package includes two 15-pin FPC cables."
+      ],
+      "missing": [
+        "Confirm the same-side 15-pin cable assumption against the shipped FFC.",
+        "Actual card-end contact side: whether the shipped cable is same-side or opposite-side.",
+        "Card-end photo of exposed contacts with the panel in the intended shell fold.",
+        "Connector latch side and whether the cable exits toward or away from the display fold.",
+        "Pin-1 orientation on the custom PCB connector footprint.",
+        "Physical check against the received panel/cable before DSI routing."
+      ],
+      "sources": [
+        {
+          "label": "Waveshare 43H-800480-IPS wiki",
+          "url": "https://www.waveshare.com/wiki/43H-800480-IPS"
+        },
+        {
+          "label": "Waveshare 43H-800480-IPS product page",
+          "url": "https://www.waveshare.com/43h-800480-ips.htm"
+        },
+        {
+          "label": "Waveshare 43H-800480-IPS STEP drawing",
+          "url": "https://files.waveshare.com/upload/c/cd/43h-800480-IPS.zip"
+        }
+      ]
+    }
+  ],
+  "dsiPanelInterface": {
+    "panel": "Waveshare 43H-800480-IPS no-touch",
+    "connector": "15-pin 1.0 mm Raspberry-Pi-style DSI FFC",
+    "power": "Display assembly is powered from switched +3V3_PANEL on pins 14 and 15; no display boost converter is on the card.",
+    "pinout": [
+      {
+        "pin": 1,
+        "label": "GND",
+        "net": "GND",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 2,
+        "label": "DSI1_DN1",
+        "net": "DSI_D1_N",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 3,
+        "label": "DSI1_DP1",
+        "net": "DSI_D1_P",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 4,
+        "label": "GND",
+        "net": "GND",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 5,
+        "label": "DSI1_CN",
+        "net": "DSI_CLK_N",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 6,
+        "label": "DSI1_CP",
+        "net": "DSI_CLK_P",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 7,
+        "label": "GND",
+        "net": "GND",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 8,
+        "label": "DSI1_DN0",
+        "net": "DSI_D0_N",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 9,
+        "label": "DSI1_DP0",
+        "net": "DSI_D0_P",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 10,
+        "label": "GND",
+        "net": "GND",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 11,
+        "label": "SCL0",
+        "net": "NC_SCL0",
+        "source": "Waveshare wiki; no-touch card does not route touch I2C"
+      },
+      {
+        "pin": 12,
+        "label": "SDA0",
+        "net": "NC_SDA0",
+        "source": "Waveshare wiki; no-touch card does not route touch I2C"
+      },
+      {
+        "pin": 13,
+        "label": "GND",
+        "net": "GND",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 14,
+        "label": "3V3",
+        "net": "+3V3_PANEL",
+        "source": "Waveshare wiki"
+      },
+      {
+        "pin": 15,
+        "label": "3V3",
+        "net": "+3V3_PANEL",
+        "source": "Waveshare wiki"
+      }
+    ],
+    "orientation": {
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "assumedCableParity": "same-side",
+      "assumptionStatus": "assumed-for-layout",
+      "workingAssumption": "Same-side 15-pin FFC cable assumed for layout planning; do not close the gate until verified on the shipped cable.",
+      "known": [
+        "Waveshare wiki says the screen-side cable gold finger faces upward.",
+        "Waveshare product photos show a hinged FFC connector on the display board.",
+        "Waveshare provides an official 43H-800480-IPS STEP drawing; it confirms the mechanical envelope but does not identify the shipped cable contact parity at the card end."
+      ],
+      "mustCheckBeforeRouting": [
+        "Confirm the same-side 15-pin cable assumption against the shipped FFC before PCB order.",
+        "Lay the shipped FFC flat and determine whether it is a same-side or opposite-side 15-pin cable.",
+        "Take a card-end photo of the exposed contacts with the panel in the intended shell fold.",
+        "Select J3 top-contact or bottom-contact orientation so the exposed card-end contacts face the connector contacts without twisting the cable.",
+        "Mark pin 1 on the PCB silkscreen and verify it against the connector footprint before routing."
+      ],
+      "doNotCloseUntil": "Do not close GATE-DSI-FFC-CONTACT until the actual panel/cable check proves card-end contact side, latch side, cable exit direction, and pin-1 orientation."
+    },
+    "routing": {
+      "order": "Route DSI before power loops, USB, controls, storage, audio, haptic, and LEDs.",
+      "impedance": "Target 100 ohm differential on a 4-layer board with a continuous reference plane.",
+      "placement": "Keep J3 at the top-edge CONN_DSI_FFC anchor, place C3 close to pins 14/15, and keep buck-boost hot loops away from the DSI pairs."
+    },
+    "sources": [
+      {
+        "label": "Waveshare 43H-800480-IPS wiki",
+        "url": "https://www.waveshare.com/wiki/43H-800480-IPS"
+      },
+      {
+        "label": "Waveshare 43H-800480-IPS product page",
+        "url": "https://www.waveshare.com/43h-800480-ips.htm"
+      },
+      {
+        "label": "Waveshare 43H-800480-IPS STEP drawing",
+        "url": "https://files.waveshare.com/upload/c/cd/43h-800480-IPS.zip"
+      }
+    ]
+  },
+  "routedTraceCount": 73,
+  "source": {
+    "layout": "hardware/card/mechanical/layout.json",
+    "connectivity": "hardware/card/schematic/connectivity.json"
+  }
+}

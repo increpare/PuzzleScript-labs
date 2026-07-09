@@ -3,7 +3,7 @@
     "project": "PuzzleScript Card",
     "revision": "spin1-draft",
     "date": "2026-07-09",
-    "mcu": "Waveshare ESP32-P4-Module-32MB"
+    "mcu": "ESP32-P4NRW32X chip-down"
   },
   "blocks": [
     {
@@ -11,13 +11,13 @@
       "name": "Power",
       "nets_out": ["+3V3", "+3V3_PANEL", "GND", "BAT+", "VBUS_IN", "SYS", "ESP_EN", "PANEL_EN"],
       "parts": [
-        { "ref": "J1", "kind": "USB-C-16P-SMD-back-mount", "role": "charge + USB-2-OTG; PCB back, top edge, rear shell bump" },
-        { "ref": "J2", "kind": "battery-pouch-envelope", "role": "1S pouch, 403048 baseline; thicker cells need recess" },
-        { "ref": "U2", "kind": "charger-power-path", "selected": "BQ24075RGTR", "candidates": ["BQ24075", "BQ25188"] },
-        { "ref": "U3", "kind": "fuel-gauge-i2c", "selected": "MAX17048G+T10", "candidates": ["MAX17048"] },
-        { "ref": "U4", "kind": "buck-boost-3v3", "selected": "TPS63070", "candidates": ["TPS63070", "TPS63802"] },
-        { "ref": "U6", "kind": "panel-load-switch", "role": "gate panel 3V3 for sleep", "candidates": ["TPS22918", "TPS22919"] },
-        { "ref": "SW9", "kind": "spdt-slide-switch", "role": "power on/off; gates U4 EN, hard off, no latch IC", "candidates": ["JS102000SAQN", "SSSS811101"] },
+        { "ref": "J1", "kind": "HRO-TYPE-C-31-M-12", "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", "role": "charge + USB-2-OTG; PCB back, top edge, rear shell bump; stock recheck before order" },
+        { "ref": "J2", "kind": "battery-pouch-envelope", "gate": "GATE-BATTERY-SAMPLE", "role": "1S pouch, 403048 baseline; thicker cells need recess" },
+        { "ref": "U2", "kind": "charger-power-path", "selected": "BQ24075RGTR", "footprint": "VQFN-16-RGT-3x3", "candidates": ["BQ24075", "BQ25188"] },
+        { "ref": "U3", "kind": "fuel-gauge-i2c", "selected": "MAX17048G+T10", "footprint": "LFCSP-8-2x2", "candidates": ["MAX17048"] },
+        { "ref": "U4", "kind": "buck-boost-3v3", "selected": "TPS63070", "footprint": "VQFN-HR-15-RNM-3x2.5", "candidates": ["TPS63070", "TPS63802"] },
+        { "ref": "U6", "kind": "panel-load-switch", "selected": "TPS22919DCK", "footprint": "SOT-SC70-6-DCK-2x2.1", "role": "gate panel 3V3 for sleep", "candidates": ["TPS22918", "TPS22919"] },
+        { "ref": "SW9", "kind": "spdt-slide-switch", "gate": "GATE-POWER-SLIDE-SLOT", "role": "power on/off; gates U4 EN, hard off, no latch IC", "candidates": ["JS102000SAQN", "SSSS811101"] },
         { "ref": "D4", "kind": "charge-led", "role": "lit from VBUS via charger CHG pin; works with switch off" }
       ]
     },
@@ -28,9 +28,9 @@
       "nets_out": ["DSI_*", "USB_DP", "USB_DM", "I2C_SDA", "I2C_SCL", "GPIO_*"],
       "parts": [
         { "ref": "U1", "kind": "ESP32-P4NRW32X", "footprint": "QFN104-10x10-P0.35", "note": "chip-down, no radio; copy Espressif reference design" },
-        { "ref": "U9", "kind": "qspi-nor-flash-32mb", "role": "boot/app flash (VDD_SPI domain per reference design)" },
-        { "ref": "X1", "kind": "crystal-40mhz", "role": "main clock" },
-        { "ref": "L1", "kind": "dcdc-inductor", "role": "P4 internal DC-DC support" }
+        { "ref": "U9", "kind": "qspi-nor-flash-32mb", "gate": "GATE-ESP32-P4-REF-CAPTURE", "role": "boot/app flash (VDD_SPI domain per reference design)" },
+        { "ref": "X1", "kind": "crystal-40mhz", "gate": "GATE-ESP32-P4-REF-CAPTURE", "role": "main clock" },
+        { "ref": "L1", "kind": "dcdc-inductor", "gate": "GATE-ESP32-P4-REF-CAPTURE", "role": "P4 internal DC-DC support" }
       ]
     },
     {
@@ -38,7 +38,7 @@
       "name": "Display",
       "nets_in": ["+3V3_PANEL", "GND", "DSI_D0_P", "DSI_D0_N", "DSI_D1_P", "DSI_D1_N", "DSI_CLK_P", "DSI_CLK_N"],
       "parts": [
-        { "ref": "J3", "kind": "FFC-15-1.0mm", "role": "WS24773 DSI panel" }
+        { "ref": "J3", "kind": "FFC-15-1.0mm", "footprint": "right-angle contact-side TBD", "gate": "GATE-DSI-FFC-CONTACT", "role": "WS24773 DSI panel" }
       ],
       "rules": ["100-ohm-diff", "length-match-pairs", "4-layer"]
     },
@@ -47,9 +47,9 @@
       "name": "Controls",
       "nets_in": ["+3V3", "GND", "GPIO_*"],
       "parts": [
-        { "ref": "SW1-4", "kind": "E-Switch-TL3315-dome-tact", "selected": "TL3315NF160Q-class", "role": "separate dpad buttons" },
-        { "ref": "SW5-7", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "role": "action-undo-restart" },
-        { "ref": "SW8", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "role": "menu" },
+        { "ref": "SW1-4", "kind": "E-Switch-TL3315-dome-tact", "selected": "TL3315NF160Q-class", "gate": "GATE-DPAD-MOCKUP", "role": "separate dpad buttons" },
+        { "ref": "SW5-7", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "gate": "GATE-FACE-BUTTON-FEEL", "role": "action-undo-restart" },
+        { "ref": "SW8", "kind": "low-profile-smt-tact", "selected": "KMR211NG LFS", "alternate": "TL3315NF160Q-class", "gate": "GATE-FACE-BUTTON-FEEL", "role": "menu" },
         { "ref": "SW10", "kind": "Panasonic-EVP-AK-side-tact", "selected": "EVP-AKE31A", "role": "volume" }
       ]
     },
@@ -57,7 +57,7 @@
       "id": "storage",
       "name": "Storage",
       "nets_in": ["+3V3", "GND", "SDIO_or_SPI"],
-      "parts": [{ "ref": "J4", "kind": "microSD", "role": "internal-service" }]
+      "parts": [{ "ref": "J4", "kind": "microSD", "gate": "GATE-MICROSD-FOOTPRINT", "role": "internal-service" }]
     },
     {
       "id": "audio",
@@ -65,8 +65,8 @@
       "nets_in": ["PIEZO_PWM", "PIEZO_OUT", "PIEZO_RET", "+3V3", "GND"],
       "parts": [
         { "ref": "Q1", "kind": "npn", "role": "piezo-drive" },
-        { "ref": "JP1", "kind": "wire-pads", "role": "shell-piezo" },
-        { "ref": "U8", "kind": "piezo-boost-hbridge-dnp", "role": "rework path if 3V3 drive is too quiet" },
+        { "ref": "JP1", "kind": "wire-pads", "gate": "GATE-PIEZO-DRIVE-REVIEW", "role": "shell-piezo" },
+        { "ref": "U8", "kind": "piezo-boost-hbridge-dnp", "gate": "GATE-PIEZO-DRIVE-REVIEW", "role": "rework path if 3V3 drive is too quiet" },
         { "ref": "R7", "kind": "0R-link", "role": "single-ended piezo return link" }
       ]
     },
@@ -75,15 +75,15 @@
       "name": "Haptic",
       "nets_in": ["I2C_SDA", "I2C_SCL", "+3V3", "GND"],
       "parts": [
-        { "ref": "U5", "kind": "DRV2605L", "role": "lra-driver" },
-        { "ref": "B1", "kind": "LRA", "role": "haptic-actuator" }
+        { "ref": "U5", "kind": "DRV2605LDGS", "footprint": "VSSOP-10-DGS-3x4.9", "role": "lra-driver" },
+        { "ref": "B1", "kind": "LRA", "gate": "GATE-LRA-MOUNT", "role": "haptic-actuator" }
       ]
     },
     {
       "id": "led",
       "name": "Case RGB",
       "nets_in": ["LED_R", "LED_G", "LED_B", "GND"],
-      "parts": [{ "ref": "D1-3", "kind": "side-rgb", "role": "shell-light-pipe" }]
+      "parts": [{ "ref": "D1-3", "kind": "side-rgb", "gate": "GATE-CASE-LED-LIGHTPIPE", "role": "shell-light-pipe" }]
     },
     {
       "id": "debug",
