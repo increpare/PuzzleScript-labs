@@ -2,7 +2,10 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const {
     createSiblingMarkovPriorStore,
 } = require('./lib/solver_sibling_markov_prior');
@@ -92,5 +95,111 @@ assert.strictEqual(cold.sibling_prior_training_levels, 0);
 assert.strictEqual(cold.sibling_prior_contexts, 0);
 assert.strictEqual(cold.sibling_prior_ordered_expansions, 0);
 assert.strictEqual(cold.sibling_prior_fallback_expansions, 0);
+
+const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'solver-sibling-prior-'));
+const fixtureGame = 'action_prior.txt';
+const fixtureSource = `title action prior fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+${'======='}
+LEGEND
+${'======='}
+
+. = Background
+P = Player and Background
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Goal
+
+=====
+RULES
+=====
+
+[ action Player ] -> [ Player Goal ]
+
+=============
+WINCONDITIONS
+=============
+
+all Player on Goal
+
+======
+LEVELS
+======
+
+P
+`;
+const fixturePriorPath = path.join(fixtureDir, 'training.json');
+const malformedPriorPath = path.join(fixtureDir, 'malformed.json');
+fs.writeFileSync(path.join(fixtureDir, fixtureGame), fixtureSource);
+fs.writeFileSync(fixturePriorPath, JSON.stringify({
+    results: [
+        { game: fixtureGame, level: 1, status: 'solved', solution: ['action', 'right'] },
+    ],
+}));
+fs.writeFileSync(malformedPriorPath, '{}');
+
+function runFixture(extraArgs = []) {
+    return spawnSync(process.execPath, [
+        path.join(__dirname, 'run_solver_tests_js.js'),
+        fixtureDir,
+        '--game', fixtureGame,
+        '--level', '0',
+        '--strategy', 'bfs',
+        '--timeout-ms', '1000',
+        '--no-solutions',
+        '--quiet',
+        '--json',
+        ...extraArgs,
+    ], {
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+    });
+}
+
+try {
+    const baselineRun = runFixture();
+    assert.strictEqual(baselineRun.status, 0, baselineRun.stderr);
+    const baseline = JSON.parse(baselineRun.stdout).results[0];
+    const warmRun = runFixture(['--solver-sibling-priors', fixturePriorPath]);
+    assert.strictEqual(warmRun.status, 0, warmRun.stderr);
+    const warm = JSON.parse(warmRun.stdout).results[0];
+
+    assert.strictEqual(baseline.status, 'solved', JSON.stringify(baseline));
+    assert.deepStrictEqual(baseline.solution, ['action']);
+    assert.strictEqual(warm.status, 'solved');
+    assert.deepStrictEqual(warm.solution, ['action']);
+    assert(warm.generated < baseline.generated, 'action prior should try the winning input earlier');
+    assert.strictEqual(warm.sibling_prior_enabled, true);
+    assert.strictEqual(warm.sibling_prior_training_levels, 1);
+    assert(warm.sibling_prior_ordered_expansions > 0);
+
+    const malformedRun = runFixture(['--solver-sibling-priors', malformedPriorPath]);
+    assert.notStrictEqual(malformedRun.status, 0);
+    assert.match(malformedRun.stderr, /expected top-level results array/);
+} finally {
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
+}
 
 console.log('solver_sibling_markov_prior_node passed');

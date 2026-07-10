@@ -3983,9 +3983,36 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     }
 
     const initialSnapshot = createSolverLevelSpecialization(options).capture();
+    const baselineActions = solverActionsForGame();
+    const siblingPrior = strategy !== 'push-space' && options.solverSiblingPriorStore
+        ? options.solverSiblingPriorStore.forTarget(game, levelIndex, baselineActions)
+        : null;
+
+    const attachSiblingPriorTelemetry = (modeResult) => {
+        modeResult.sibling_prior_enabled = siblingPrior !== null;
+        modeResult.sibling_prior_training_records_ignored = options.solverSiblingPriorStore
+            ? options.solverSiblingPriorStore.ignoredRecords
+            : 0;
+        modeResult.sibling_prior_training_levels = siblingPrior ? siblingPrior.trainingLevels : 0;
+        modeResult.sibling_prior_contexts = siblingPrior ? siblingPrior.contextCount : 0;
+    };
+
+    const actionsForNode = (modeResult, node) => {
+        if (!siblingPrior) {
+            return baselineActions;
+        }
+        const ordered = siblingPrior.actionsFor(node.input);
+        if (ordered) {
+            modeResult.sibling_prior_ordered_expansions++;
+            return ordered;
+        }
+        modeResult.sibling_prior_fallback_expansions++;
+        return baselineActions;
+    };
 
     const runMode = (mode, modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        attachSiblingPriorTelemetry(modeResult);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4030,8 +4057,6 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         });
         modeResult.max_frontier = 1;
         let tie = 1;
-        const actions = solverActionsForGame();
-
         while (frontier.length > 0) {
             if (Date.now() >= modeDeadline) {
                 modeResult.status = 'timeout';
@@ -4043,6 +4068,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             const node = nodes[entry.index];
             modeResult.expanded++;
 
+            const actions = actionsForNode(modeResult, node);
             for (const action of actions) {
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'clone_ms', () => {
@@ -4349,6 +4375,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runAdaptivePortfolio = (modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        attachSiblingPriorTelemetry(modeResult);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4435,7 +4462,6 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         }
         let totalFrontier = portfolioModes.length;
         modeResult.max_frontier = totalFrontier;
-        const actions = solverActionsForGame();
         let modeIndex = 0;
         let activeMode = portfolioModes[0];
         let sliceExpansionsLeft = activeMode.expansionSlice;
@@ -4502,6 +4528,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 }
             }
 
+            const actions = actionsForNode(modeResult, node);
             for (const action of actions) {
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'clone_ms', () => {
