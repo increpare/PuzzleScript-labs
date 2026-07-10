@@ -130,6 +130,17 @@ Reasonable next moves only with fresh evidence:
     and incremental-only vs certified was also worse, 9151.5/9150.9 ->
     9184.8/9192.5 (`.../smoke-50-vs-incremental-store.jsonl`). Keep explicit
     only; do not promote without a new counter/benchmark win.
+  - Certified wake-mask counter pass (2026-07-07): added
+    `--solver-wake-prune-counters` / `PUZZLESCRIPT_WAKE_PRUNE_COUNTERS=1`.
+    On smoke-50, incremental-only and certified both solved 31/50 with 18
+    timeouts and 1 exhausted, and both skipped only 1.59% of rule checks.
+    Certified did 7,867,745 movement-overlap probes for 124,794 skips; 98.41%
+    of rule checks still reached `tryApply`. Artifacts:
+    `build/solver-bench-certified-wake-prune/smoke-50-incremental-counters.json`
+    and `build/solver-bench-certified-wake-prune/smoke-50-certified-counters.json`.
+    This explains the negative timing: broad S1-backed N3 pays overlap cost
+    almost everywhere for too few avoided calls. Only revisit at a narrower
+    site with a much higher measured skip rate.
   - Adaptive step-cost: solved=1, generated=11721, `step_ms=25799.4`,
     `adaptive_step_cost_triggered=2909`. This remains explicit-probe only
     unless a refreshed corpus run later proves it safe and useful as a default.

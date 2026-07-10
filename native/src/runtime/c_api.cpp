@@ -262,6 +262,9 @@ bool ps_full_state_set_layer_cell_object_ids(
     std::fill(impl.scratch.dirtyObjectColumns.begin(), impl.scratch.dirtyObjectColumns.end(), 1);
     std::fill(impl.scratch.dirtyMovementRows.begin(), impl.scratch.dirtyMovementRows.end(), 1);
     std::fill(impl.scratch.dirtyMovementColumns.begin(), impl.scratch.dirtyMovementColumns.end(), 1);
+    impl.scratch.objectRowCounts.clear();
+    impl.scratch.objectColumnCounts.clear();
+    impl.scratch.objectBoardCounts.clear();
     impl.scratch.dirtyObjectBoard = true;
     impl.scratch.dirtyMovementBoard = true;
     impl.scratch.objectCellIndexDirty = true;

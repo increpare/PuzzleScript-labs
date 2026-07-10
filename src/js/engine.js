@@ -2987,6 +2987,60 @@ function applyRandomRuleGroup(level, ruleGroup) {
 let _lastGroupWriteObjects = null;
 let _lastGroupWriteMovements = null;
 
+const WAKE_PRUNE_COUNTER_FIELDS = [
+    'apply_rule_group_calls',
+    'apply_rule_group_loops',
+    'rule_checks',
+    'certified_rule_checks',
+    'uncertified_rule_checks',
+    'movement_zero_checks',
+    'certified_movement_overlap_checks',
+    'certified_movement_overlap_hits',
+    'object_overlap_checks',
+    'object_overlap_hits',
+    'try_apply_calls',
+    'certified_try_apply_calls',
+    'rule_changes',
+    'certified_rule_changes',
+    'skips',
+    'certified_skips',
+    'skip_loop_breaks',
+    'try_fail_loop_breaks',
+    'certified_write_updates',
+    'uncertified_write_updates',
+];
+let _wakePruneCounters = null;
+
+function createWakePruneCounterRecord() {
+    const counters = {};
+    for (let i = 0; i < WAKE_PRUNE_COUNTER_FIELDS.length; i++) {
+        counters[WAKE_PRUNE_COUNTER_FIELDS[i]] = 0;
+    }
+    return counters;
+}
+
+function wakePruneCountersEnabled() {
+    return typeof process !== 'undefined' && process.env
+        && process.env.PUZZLESCRIPT_WAKE_PRUNE_COUNTERS === '1';
+}
+
+function resetWakePruneCounters() {
+    _wakePruneCounters = createWakePruneCounterRecord();
+    return _wakePruneCounters;
+}
+
+function getWakePruneCounters() {
+    if (_wakePruneCounters === null) {
+        resetWakePruneCounters();
+    }
+    const snapshot = {};
+    for (let i = 0; i < WAKE_PRUNE_COUNTER_FIELDS.length; i++) {
+        const field = WAKE_PRUNE_COUNTER_FIELDS[i];
+        snapshot[field] = _wakePruneCounters[field] || 0;
+    }
+    return snapshot;
+}
+
 function inputSpecializedRuleGroup(ruleGroup) {
     return inputSpecializationActive
         && ruleGroup.inputSpecializationUseful === true
@@ -3080,12 +3134,19 @@ function applyRuleGroup(ruleGroup) {
     _lastGroupWriteMovements.setZero();
     const CERTIFIED_WAKE_PRUNE = typeof process !== 'undefined' && process.env
         && process.env.PUZZLESCRIPT_CERTIFIED_WAKE_PRUNE === '1';
+    const wakePruneCounters = wakePruneCountersEnabled() ? (_wakePruneCounters || resetWakePruneCounters()) : null;
+    if (wakePruneCounters) {
+        wakePruneCounters.apply_rule_group_calls++;
+    }
 
     while (madeChangeThisLoop && loopcount++ < MAX_LOOP_COUNT) {
         madeChangeThisLoop = false;
         nextObjects.setZero();
         nextMovements.setZero();
         let consecutiveFailures = 0;
+        if (wakePruneCounters) {
+            wakePruneCounters.apply_rule_group_loops++;
+        }
 
         for (let ruleIndex = 0; ruleIndex < GROUP_LENGTH; ruleIndex++) {
             const rule = activeRuleGroup[ruleIndex];
@@ -3096,28 +3157,85 @@ function applyRuleGroup(ruleGroup) {
                 && rule.certifiedReadMovements
                 && rule.certifiedWriteMovements;
             const readMovements = useCertifiedWakeMasks ? rule.certifiedReadMovements : rule.readMovements;
-            const readMovementsCannotWake = useCertifiedWakeMasks
-                ? !readMovements.anyBitsInCommon(priorMovements)
-                : readMovements.iszero();
-            if (PRUNE_INNER_LOOP
-                && !rule.forceAlwaysRun
-                && readMovementsCannotWake
-                && !rule.readObjects.anyBitsInCommon(priorObjects)) {
+            let readMovementsCannotWake;
+            if (wakePruneCounters) {
+                wakePruneCounters.rule_checks++;
+                if (useCertifiedWakeMasks) {
+                    wakePruneCounters.certified_rule_checks++;
+                    wakePruneCounters.certified_movement_overlap_checks++;
+                    const movementWake = readMovements.anyBitsInCommon(priorMovements);
+                    if (movementWake) {
+                        wakePruneCounters.certified_movement_overlap_hits++;
+                    }
+                    readMovementsCannotWake = !movementWake;
+                } else {
+                    wakePruneCounters.uncertified_rule_checks++;
+                    wakePruneCounters.movement_zero_checks++;
+                    readMovementsCannotWake = readMovements.iszero();
+                }
+            } else {
+                readMovementsCannotWake = useCertifiedWakeMasks
+                    ? !readMovements.anyBitsInCommon(priorMovements)
+                    : readMovements.iszero();
+            }
+            let skipRule = false;
+            if (PRUNE_INNER_LOOP && !rule.forceAlwaysRun && readMovementsCannotWake) {
+                const objectWake = rule.readObjects.anyBitsInCommon(priorObjects);
+                if (wakePruneCounters) {
+                    wakePruneCounters.object_overlap_checks++;
+                    if (objectWake) {
+                        wakePruneCounters.object_overlap_hits++;
+                    }
+                }
+                skipRule = !objectWake;
+            }
+            if (skipRule) {
+                if (wakePruneCounters) {
+                    wakePruneCounters.skips++;
+                    if (useCertifiedWakeMasks) {
+                        wakePruneCounters.certified_skips++;
+                    }
+                }
                 consecutiveFailures++;
-                if (consecutiveFailures === GROUP_LENGTH) break;
+                if (consecutiveFailures === GROUP_LENGTH) {
+                    if (wakePruneCounters) {
+                        wakePruneCounters.skip_loop_breaks++;
+                    }
+                    break;
+                }
                 continue;
+            }
+            if (wakePruneCounters) {
+                wakePruneCounters.try_apply_calls++;
+                if (useCertifiedWakeMasks) {
+                    wakePruneCounters.certified_try_apply_calls++;
+                }
             }
             if (rule.tryApply(level)) {
                 madeChangeThisLoop = true;
                 consecutiveFailures = 0;
                 const writeMovements = useCertifiedWakeMasks ? rule.certifiedWriteMovements : rule.writeMovements;
+                if (wakePruneCounters) {
+                    wakePruneCounters.rule_changes++;
+                    if (useCertifiedWakeMasks) {
+                        wakePruneCounters.certified_rule_changes++;
+                        wakePruneCounters.certified_write_updates++;
+                    } else {
+                        wakePruneCounters.uncertified_write_updates++;
+                    }
+                }
                 nextObjects.ior(rule.writeObjects);
                 nextMovements.ior(writeMovements);
                 _lastGroupWriteObjects.ior(rule.writeObjects);
                 _lastGroupWriteMovements.ior(writeMovements);
             } else {
                 consecutiveFailures++;
-                if (consecutiveFailures === GROUP_LENGTH) break;
+                if (consecutiveFailures === GROUP_LENGTH) {
+                    if (wakePruneCounters) {
+                        wakePruneCounters.try_fail_loop_breaks++;
+                    }
+                    break;
+                }
             }
         }
 

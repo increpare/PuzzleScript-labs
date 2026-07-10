@@ -42,6 +42,28 @@ const {
 
 const DEFAULT_STRATEGY = 'weighted-astar';
 const DEFAULT_SOLVER_HEURISTIC = 'auto';
+const WAKE_PRUNE_COUNTER_FIELDS = [
+    'apply_rule_group_calls',
+    'apply_rule_group_loops',
+    'rule_checks',
+    'certified_rule_checks',
+    'uncertified_rule_checks',
+    'movement_zero_checks',
+    'certified_movement_overlap_checks',
+    'certified_movement_overlap_hits',
+    'object_overlap_checks',
+    'object_overlap_hits',
+    'try_apply_calls',
+    'certified_try_apply_calls',
+    'rule_changes',
+    'certified_rule_changes',
+    'skips',
+    'certified_skips',
+    'skip_loop_breaks',
+    'try_fail_loop_breaks',
+    'certified_write_updates',
+    'uncertified_write_updates',
+];
 const SOLVER_HEURISTICS = new Set([
     'zero',
     'winconditions',
@@ -170,10 +192,55 @@ function solverRuleHotspotFor(rule) {
     return hotspot;
 }
 
+function zeroWakePruneCounterFields(target) {
+    for (const field of WAKE_PRUNE_COUNTER_FIELDS) {
+        target[field] = 0;
+    }
+    return target;
+}
+
+function solverWakePruneCountersEnabled() {
+    return typeof process !== 'undefined' && process.env
+        && process.env.PUZZLESCRIPT_WAKE_PRUNE_COUNTERS === '1';
+}
+
+function resetSolverWakePruneCountersForMode() {
+    if (!solverWakePruneCountersEnabled()) {
+        return;
+    }
+    if (typeof resetWakePruneCounters === 'function') {
+        resetWakePruneCounters();
+    }
+}
+
+function attachWakePruneCounters(modeResult) {
+    if (modeResult._wakePruneCountersAttached === true) {
+        return modeResult;
+    }
+    zeroWakePruneCounterFields(modeResult);
+    if (!solverWakePruneCountersEnabled() || typeof getWakePruneCounters !== 'function') {
+        Object.defineProperty(modeResult, '_wakePruneCountersAttached', {
+            value: true,
+            configurable: true,
+        });
+        return modeResult;
+    }
+    const counters = getWakePruneCounters();
+    for (const field of WAKE_PRUNE_COUNTER_FIELDS) {
+        modeResult[field] = counters[field] || 0;
+    }
+    Object.defineProperty(modeResult, '_wakePruneCountersAttached', {
+        value: true,
+        configurable: true,
+    });
+    return modeResult;
+}
+
 function finalizeRuleHotspots(modeResult) {
     if (!modeResult) {
         return modeResult;
     }
+    attachWakePruneCounters(modeResult);
     if (!(modeResult._ruleHotspots instanceof Map)) {
         if (!Array.isArray(modeResult.rule_hotspots)) {
             modeResult.rule_hotspots = [];
@@ -396,6 +463,7 @@ function parseArgs(argv) {
         solverHashProjection: false,
         solverHashProjectionParity: false,
         solverCertifiedWakePrune: false,
+        solverWakePruneCounters: false,
         solverOptimizeStatic: false,
         solverOptPasses: null,
         solverOptParity: false,
@@ -483,6 +551,8 @@ function parseArgs(argv) {
             options.solverHashProjectionParity = true;
         } else if (arg === '--solver-certified-wake-prune') {
             options.solverCertifiedWakePrune = true;
+        } else if (arg === '--solver-wake-prune-counters' || arg === '--solver-certified-wake-prune-counters') {
+            options.solverWakePruneCounters = true;
         } else if (arg === '--solver-optimize-static') {
             options.solverOptimizeStatic = true;
         } else if (arg === '--solver-opt') {
@@ -528,7 +598,7 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-certified-wake-prune] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-certified-wake-prune] [--solver-wake-prune-counters] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
@@ -538,6 +608,7 @@ function usage(exitCode) {
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
         '  --solver-hash-projection: project certified solver_hash_projection object bits out of visited-state hashes. --solver-hash-projection-parity pairs each run with a baseline solve and replay check.\n' +
         '  --solver-certified-wake-prune: opt into certified movement wake-mask pruning from static analysis facts.\n' +
+        '  --solver-wake-prune-counters: copy opt-in incremental/certified wake-prune counters into solver JSON and bench-store rows.\n' +
         '  Static solver optimizations (off by default): --solver-optimize-static enables inert-command-only rule pruning. --solver-opt selects passes (inert, cosmetic, cosmetic-rules, merge, or all). --solver-opt-parity re-solves each level without optimizations first and fails on status/solution mismatch vs optimized compile.\n' +
         '  --force-noaction injects noaction metadata before compiling, for A/B candidate vetting.\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n';
@@ -3711,6 +3782,7 @@ function restoreNaiveObjectsSnapshot(snapshot) {
 
 function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, result, searchStarted, deadline) {
     const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+    resetSolverWakePruneCountersForMode();
     if (SOLVER_RULE_HOTSPOTS) {
         modeResult._ruleHotspots = new Map();
     }
@@ -3769,7 +3841,7 @@ function runNaivePsPlusSolver(game, levelIndex, timeoutMs, compileMs, options, r
 }
 
 function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
-    return {
+    const result = {
         game,
         level: levelIndex,
         status: 'exhausted',
@@ -3842,6 +3914,7 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         adaptive_step_cost_triggered: 0,
         heuristic: 'zero',
     };
+    return zeroWakePruneCounterFields(result);
 }
 
 function attachSolverHashProjectionMetrics(result, solverOps) {
@@ -3856,6 +3929,9 @@ function attachSolverHashProjectionMetrics(result, solverOps) {
 
 function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     const result = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+    if (options.solverWakePruneCounters) {
+        process.env.PUZZLESCRIPT_WAKE_PRUNE_COUNTERS = '1';
+    }
     const useHashBuckets = process.env.PUZZLESCRIPT_DISABLE_HASH_BUCKETS !== '1';
     const timeBlock = SOLVER_DETAIL_TIMING
         ? (acc, field, fn) => {
@@ -3894,6 +3970,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runMode = (mode, modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
         }
@@ -4062,6 +4139,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runPushSpace = (modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
         }
@@ -4255,6 +4333,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runAdaptivePortfolio = (modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
+        resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
         }
@@ -4584,6 +4663,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 phaseResult.step_profile_win_ms += lastResult.step_profile_win_ms || 0;
                 phaseResult.step_profile_rule_match_ms += lastResult.step_profile_rule_match_ms || 0;
                 phaseResult.step_profile_rule_apply_ms += lastResult.step_profile_rule_apply_ms || 0;
+                for (const field of WAKE_PRUNE_COUNTER_FIELDS) {
+                    phaseResult[field] += lastResult[field] || 0;
+                }
             }
             lastResult = phaseResult;
             if (phaseResult.status === 'solved') {
@@ -4605,7 +4687,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 }
 
 function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
-    return {
+    const result = {
         game,
         level: levelIndex,
         status: 'level_error',
@@ -4649,6 +4731,7 @@ function levelErrorResult(game, levelIndex, timeoutMs, compileMs, error) {
         step_profile_rule_apply_ms: 0,
         rule_hotspots: [],
     };
+    return zeroWakePruneCounterFields(result);
 }
 
 function sourceHasNoaction(source) {
@@ -4755,7 +4838,7 @@ function runGame(root, file, options = {}) {
     const telemetry = state && state.solverOptimizationTelemetry ? state.solverOptimizationTelemetry : null;
     const staticOptimizationRemovedRules = telemetry ? telemetry.removed_inert_rules : 0;
     if (errorCount > 0) {
-        return [{
+        const result = {
             game,
             level: -1,
             status: 'compile_error',
@@ -4799,7 +4882,8 @@ function runGame(root, file, options = {}) {
             step_profile_rule_match_ms: 0,
             step_profile_rule_apply_ms: 0,
             rule_hotspots: [],
-        }];
+        };
+        return [zeroWakePruneCounterFields(result)];
     }
     return {
         game,
@@ -5319,6 +5403,7 @@ function totals(results) {
         probe_blocked_changed: 0,
         probe_blocked_noop: 0,
     };
+    zeroWakePruneCounterFields(out);
     for (const result of results) {
         out.solved += result.status === 'solved' ? 1 : 0;
         out.timeout += result.status === 'timeout' ? 1 : 0;
@@ -5381,6 +5466,9 @@ function totals(results) {
         out.probe_blocked += result.probe_blocked || 0;
         out.probe_blocked_changed += result.probe_blocked_changed || 0;
         out.probe_blocked_noop += result.probe_blocked_noop || 0;
+        for (const field of WAKE_PRUNE_COUNTER_FIELDS) {
+            out[field] += result[field] || 0;
+        }
     }
     out.expanded_per_solved = out.expanded / (out.solved + 1);
     return out;
@@ -5492,6 +5580,7 @@ function benchStoreConfig(options) {
         solver_hash_projection: options.solverHashProjection,
         solver_hash_projection_parity: options.solverHashProjectionParity,
         solver_certified_wake_prune: options.solverCertifiedWakePrune,
+        solver_wake_prune_counters: options.solverWakePruneCounters,
         solver_optimize_static: options.solverOptimizeStatic,
         solver_opt_passes: options.solverOptPasses,
         solver_opt_parity: options.solverOptParity,

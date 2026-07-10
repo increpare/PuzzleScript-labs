@@ -95,6 +95,32 @@ struct RuntimeCounterStorage {
     std::atomic<uint64_t> maskRebuildDirtyCalls{0};
     std::atomic<uint64_t> maskRebuildRows{0};
     std::atomic<uint64_t> maskRebuildColumns{0};
+    std::atomic<uint64_t> maskRebuildObjectRows{0};
+    std::atomic<uint64_t> maskRebuildObjectColumns{0};
+    std::atomic<uint64_t> maskRebuildMovementRows{0};
+    std::atomic<uint64_t> maskRebuildMovementColumns{0};
+    std::atomic<uint64_t> maskRebuildObjectRowCellsScanned{0};
+    std::atomic<uint64_t> maskRebuildObjectColumnCellsScanned{0};
+    std::atomic<uint64_t> maskRebuildMovementRowCellsScanned{0};
+    std::atomic<uint64_t> maskRebuildMovementColumnCellsScanned{0};
+    std::atomic<uint64_t> maskRebuildObjectCountFullRebuilds{0};
+    std::atomic<uint64_t> maskRebuildObjectCountFullRebuildCellsScanned{0};
+    std::atomic<uint64_t> maskRebuildObjectCountIndexRebuilds{0};
+    std::atomic<uint64_t> maskRebuildObjectCountIndexBitsVisited{0};
+    std::atomic<uint64_t> maskDirtyObjectCellsChanged{0};
+    std::atomic<uint64_t> maskDirtyObjectBitsChanged{0};
+    std::atomic<uint64_t> maskDirtyObjectBitsCleared{0};
+    std::atomic<uint64_t> maskDirtyObjectMarks{0};
+    std::atomic<uint64_t> maskDirtyObjectAddOnlyMarks{0};
+    std::atomic<uint64_t> maskDirtyObjectClearMarks{0};
+    std::atomic<uint64_t> maskDirtyObjectRefcountBitUpdates{0};
+    std::atomic<uint64_t> maskDirtyObjectRefcountFallbacks{0};
+    std::atomic<uint64_t> maskDirtyMovementCellsChanged{0};
+    std::atomic<uint64_t> maskDirtyMovementBitsChanged{0};
+    std::atomic<uint64_t> maskDirtyMovementBitsCleared{0};
+    std::atomic<uint64_t> maskDirtyMovementMarks{0};
+    std::atomic<uint64_t> maskDirtyMovementClearMarks{0};
+    std::atomic<uint64_t> maskDirtyMovementLineAllMarks{0};
     std::atomic<uint64_t> specializedRulegroupAttempts{0};
     std::atomic<uint64_t> specializedRulegroupHits{0};
     std::atomic<uint64_t> specializedRulegroupFallbacks{0};
@@ -2430,42 +2456,373 @@ void updateMovementCellIndexForWordChange(
     }
 }
 
+enum class N4cObjectRefcountMode {
+    Automatic,
+    Disabled,
+    Forced,
+};
+
+bool n4cObjectRefcountMasksEnabled(const FullState& session) {
+    static const N4cObjectRefcountMode mode = []() {
+        const char* value = std::getenv("PUZZLESCRIPT_N4C_OBJECT_REFCOUNT_MASKS");
+        if (value == nullptr || value[0] == '\0' || std::strcmp(value, "auto") == 0) {
+            return N4cObjectRefcountMode::Automatic;
+        }
+        if (std::strcmp(value, "1") == 0) {
+            return N4cObjectRefcountMode::Forced;
+        }
+        return N4cObjectRefcountMode::Disabled;
+    }();
+    if (mode == N4cObjectRefcountMode::Forced) {
+        return true;
+    }
+    return mode == N4cObjectRefcountMode::Automatic
+        && session.game != nullptr
+        && session.game->wordCount >= 3;
+}
+
+void clearObjectMaskCountCaches(Scratch& scratch) {
+    scratch.objectRowCounts.clear();
+    scratch.objectColumnCounts.clear();
+    scratch.objectBoardCounts.clear();
+}
+
+bool objectMaskCountCachesReady(const FullState& session, int32_t width, int32_t height) {
+    if (session.game == nullptr || width <= 0 || height <= 0 || session.game->objectCount < 0) {
+        return false;
+    }
+    const size_t objectCount = static_cast<size_t>(session.game->objectCount);
+    return session.scratch.objectRowCounts.size() == static_cast<size_t>(height) * objectCount
+        && session.scratch.objectColumnCounts.size() == static_cast<size_t>(width) * objectCount
+        && !session.scratch.objectCellIndexDirty
+        && session.scratch.objectCellBitTileCount == width * height
+        && session.scratch.objectCellCounts.size() == objectCount;
+}
+
+bool updateObjectMaskCountsForBit(
+    FullState& session,
+    int32_t rowIndex,
+    int32_t columnIndex,
+    int32_t objectId,
+    bool presentAfter,
+    int32_t width,
+    int32_t height
+) {
+    if (objectId < 0 || session.game == nullptr || objectId >= session.game->objectCount) {
+        return true;
+    }
+    const int32_t objectStride = session.game->strideObject;
+    const size_t objectCount = static_cast<size_t>(session.game->objectCount);
+    const size_t objectIndex = static_cast<size_t>(objectId);
+    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+    if (word >= static_cast<uint32_t>(objectStride)
+        || static_cast<size_t>(rowIndex) >= static_cast<size_t>(height)
+        || static_cast<size_t>(columnIndex) >= static_cast<size_t>(width)
+        || !objectMaskCountCachesReady(session, width, height)) {
+        return false;
+    }
+
+    const size_t rowCountIndex = static_cast<size_t>(rowIndex) * objectCount + objectIndex;
+    const size_t columnCountIndex = static_cast<size_t>(columnIndex) * objectCount + objectIndex;
+    const size_t rowMaskIndex = static_cast<size_t>(rowIndex * objectStride + static_cast<int32_t>(word));
+    const size_t columnMaskIndex = static_cast<size_t>(columnIndex * objectStride + static_cast<int32_t>(word));
+    if (rowMaskIndex >= session.scratch.rowMasks.size()
+        || columnMaskIndex >= session.scratch.columnMasks.size()
+        || static_cast<size_t>(word) >= session.scratch.boardMask.size()) {
+        return false;
+    }
+
+    const MaskWord bit = maskBit(static_cast<uint32_t>(objectId));
+    MaskWord* rowAll = nullptr;
+    MaskWord* columnAll = nullptr;
+    if (session.game->needsObjectLineAllMasks) {
+        if (rowMaskIndex >= session.scratch.rowAllMasks.size()
+            || columnMaskIndex >= session.scratch.columnAllMasks.size()) {
+            return false;
+        }
+        rowAll = session.scratch.rowAllMasks.data() + rowMaskIndex;
+        columnAll = session.scratch.columnAllMasks.data() + columnMaskIndex;
+    }
+
+    uint32_t& rowCount = session.scratch.objectRowCounts[rowCountIndex];
+    uint32_t& columnCount = session.scratch.objectColumnCounts[columnCountIndex];
+    const uint32_t boardCount = session.scratch.objectCellCounts[objectIndex];
+    if (presentAfter) {
+        if (boardCount == 0) return false;
+        if (rowCount == 0) session.scratch.rowMasks[rowMaskIndex] |= bit;
+        if (columnCount == 0) session.scratch.columnMasks[columnMaskIndex] |= bit;
+        if (boardCount == 1) session.scratch.boardMask[static_cast<size_t>(word)] |= bit;
+        ++rowCount;
+        ++columnCount;
+        if (rowAll != nullptr && rowCount == static_cast<uint32_t>(width)) *rowAll |= bit;
+        if (columnAll != nullptr && columnCount == static_cast<uint32_t>(height)) *columnAll |= bit;
+        return true;
+    }
+
+    if (rowCount == 0 || columnCount == 0) {
+        return false;
+    }
+    if (rowAll != nullptr && rowCount == static_cast<uint32_t>(width)) *rowAll &= ~bit;
+    if (columnAll != nullptr && columnCount == static_cast<uint32_t>(height)) *columnAll &= ~bit;
+    --rowCount;
+    --columnCount;
+    if (rowCount == 0) session.scratch.rowMasks[rowMaskIndex] &= ~bit;
+    if (columnCount == 0) session.scratch.columnMasks[columnMaskIndex] &= ~bit;
+    if (boardCount == 0) session.scratch.boardMask[static_cast<size_t>(word)] &= ~bit;
+    return true;
+}
+
+bool rebuildObjectMaskCountsAndMasks(FullState& session, int32_t width, int32_t height) {
+    if (session.game == nullptr || width <= 0 || height <= 0 || session.game->objectCount < 0) {
+        clearObjectMaskCountCaches(session.scratch);
+        return false;
+    }
+    const int32_t objectStride = session.game->strideObject;
+    const int32_t objectCountValue = session.game->objectCount;
+    const size_t objectCount = static_cast<size_t>(objectCountValue);
+    const size_t rowObjectSize = static_cast<size_t>(height * objectStride);
+    const size_t columnObjectSize = static_cast<size_t>(width * objectStride);
+    if (session.scratch.rowMasks.size() != rowObjectSize
+        || session.scratch.columnMasks.size() != columnObjectSize
+        || session.scratch.boardMask.size() != static_cast<size_t>(objectStride)) {
+        return false;
+    }
+
+    addCounter(gRuntimeCounters.maskRebuildObjectCountFullRebuilds);
+    addCounter(
+        gRuntimeCounters.maskRebuildObjectCountFullRebuildCellsScanned,
+        static_cast<uint64_t>(width) * static_cast<uint64_t>(height));
+    session.scratch.objectRowCounts.assign(static_cast<size_t>(height) * objectCount, 0);
+    session.scratch.objectColumnCounts.assign(static_cast<size_t>(width) * objectCount, 0);
+    session.scratch.objectBoardCounts.assign(objectCount, 0);
+    std::fill(session.scratch.rowMasks.begin(), session.scratch.rowMasks.end(), 0);
+    std::fill(session.scratch.columnMasks.begin(), session.scratch.columnMasks.end(), 0);
+    std::fill(session.scratch.boardMask.begin(), session.scratch.boardMask.end(), 0);
+    if (session.game->needsObjectLineAllMasks) {
+        if (session.scratch.rowAllMasks.size() != rowObjectSize
+            || session.scratch.columnAllMasks.size() != columnObjectSize) {
+            clearObjectMaskCountCaches(session.scratch);
+            return false;
+        }
+        std::fill(session.scratch.rowAllMasks.begin(), session.scratch.rowAllMasks.end(), 0);
+        std::fill(session.scratch.columnAllMasks.begin(), session.scratch.columnAllMasks.end(), 0);
+    }
+
+    for (int32_t tileIndex = 0; tileIndex < width * height; ++tileIndex) {
+        const int32_t x = tileIndex / height;
+        const int32_t y = tileIndex % height;
+        const MaskWord* cell = getCellObjectsPtr(session, tileIndex);
+        for (int32_t word = 0; word < objectStride; ++word) {
+            const MaskWord value = cell[word];
+            session.scratch.rowMasks[static_cast<size_t>(y * objectStride + word)] |= value;
+            session.scratch.columnMasks[static_cast<size_t>(x * objectStride + word)] |= value;
+            session.scratch.boardMask[static_cast<size_t>(word)] |= value;
+            MaskWordUnsigned objectBits = static_cast<MaskWordUnsigned>(value);
+            while (objectBits != 0) {
+                const int32_t bit = maskWordCountTrailingZeros(objectBits);
+                objectBits &= objectBits - 1;
+                const int32_t objectId = word * static_cast<int32_t>(kMaskWordBits) + bit;
+                if (objectId < 0 || objectId >= objectCountValue) continue;
+                const size_t objectIndex = static_cast<size_t>(objectId);
+                ++session.scratch.objectRowCounts[static_cast<size_t>(y) * objectCount + objectIndex];
+                ++session.scratch.objectColumnCounts[static_cast<size_t>(x) * objectCount + objectIndex];
+                ++session.scratch.objectBoardCounts[objectIndex];
+            }
+        }
+    }
+
+    if (session.game->needsObjectLineAllMasks) {
+        for (int32_t y = 0; y < height; ++y) {
+            for (int32_t objectId = 0; objectId < objectCountValue; ++objectId) {
+                const size_t objectIndex = static_cast<size_t>(objectId);
+                if (session.scratch.objectRowCounts[static_cast<size_t>(y) * objectCount + objectIndex] == static_cast<uint32_t>(width)) {
+                    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+                    session.scratch.rowAllMasks[static_cast<size_t>(y * objectStride + static_cast<int32_t>(word))] |= maskBit(static_cast<uint32_t>(objectId));
+                }
+            }
+        }
+        for (int32_t x = 0; x < width; ++x) {
+            for (int32_t objectId = 0; objectId < objectCountValue; ++objectId) {
+                const size_t objectIndex = static_cast<size_t>(objectId);
+                if (session.scratch.objectColumnCounts[static_cast<size_t>(x) * objectCount + objectIndex] == static_cast<uint32_t>(height)) {
+                    const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+                    session.scratch.columnAllMasks[static_cast<size_t>(x * objectStride + static_cast<int32_t>(word))] |= maskBit(static_cast<uint32_t>(objectId));
+                }
+            }
+        }
+    }
+
+    std::fill(session.scratch.dirtyObjectRows.begin(), session.scratch.dirtyObjectRows.end(), 0);
+    std::fill(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), 0);
+    session.scratch.dirtyObjectBoard = false;
+    return true;
+}
+
+bool rebuildObjectMaskCountsAndMasksFromIndex(FullState& session, int32_t width, int32_t height) {
+    if (session.game == nullptr || width <= 0 || height <= 0 || session.game->objectCount < 0) {
+        return false;
+    }
+    const int32_t objectStride = session.game->strideObject;
+    const int32_t objectCountValue = session.game->objectCount;
+    const int32_t tileCount = width * height;
+    const size_t objectCount = static_cast<size_t>(objectCountValue);
+    const size_t cellWordCount = objectCellWordCount(session);
+    const size_t rowObjectSize = static_cast<size_t>(height * objectStride);
+    const size_t columnObjectSize = static_cast<size_t>(width * objectStride);
+    if (session.scratch.objectCellIndexDirty
+        || session.scratch.objectCellBitTileCount != tileCount
+        || session.scratch.objectCellBits.size() != objectCount * cellWordCount
+        || session.scratch.objectCellCounts.size() != objectCount
+        || session.scratch.rowMasks.size() != rowObjectSize
+        || session.scratch.columnMasks.size() != columnObjectSize
+        || session.scratch.boardMask.size() != static_cast<size_t>(objectStride)) {
+        return false;
+    }
+    if (session.game->needsObjectLineAllMasks
+        && (session.scratch.rowAllMasks.size() != rowObjectSize
+            || session.scratch.columnAllMasks.size() != columnObjectSize)) {
+        return false;
+    }
+
+    addCounter(gRuntimeCounters.maskRebuildObjectCountIndexRebuilds);
+    session.scratch.objectRowCounts.assign(static_cast<size_t>(height) * objectCount, 0);
+    session.scratch.objectColumnCounts.assign(static_cast<size_t>(width) * objectCount, 0);
+    session.scratch.objectBoardCounts.clear();
+    std::fill(session.scratch.rowMasks.begin(), session.scratch.rowMasks.end(), 0);
+    std::fill(session.scratch.columnMasks.begin(), session.scratch.columnMasks.end(), 0);
+    std::fill(session.scratch.boardMask.begin(), session.scratch.boardMask.end(), 0);
+    if (session.game->needsObjectLineAllMasks) {
+        std::fill(session.scratch.rowAllMasks.begin(), session.scratch.rowAllMasks.end(), 0);
+        std::fill(session.scratch.columnAllMasks.begin(), session.scratch.columnAllMasks.end(), 0);
+    }
+
+    uint64_t bitsVisited = 0;
+    for (int32_t objectId = 0; objectId < objectCountValue; ++objectId) {
+        const size_t objectIndex = static_cast<size_t>(objectId);
+        const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+        const MaskWord objectBit = maskBit(static_cast<uint32_t>(objectId));
+        if (session.scratch.objectCellCounts[objectIndex] != 0) {
+            session.scratch.boardMask[static_cast<size_t>(word)] |= objectBit;
+        }
+        const size_t cellBase = objectIndex * cellWordCount;
+        for (size_t cellWord = 0; cellWord < cellWordCount; ++cellWord) {
+            MaskWordUnsigned cells = session.scratch.objectCellBits[cellBase + cellWord];
+            bitsVisited += static_cast<uint64_t>(maskWordPopcount(cells));
+            while (cells != 0) {
+                const int32_t bit = maskWordCountTrailingZeros(cells);
+                cells &= cells - 1;
+                const int32_t tileIndex = static_cast<int32_t>(cellWord * kMaskWordBits) + bit;
+                if (tileIndex >= tileCount) continue;
+                const int32_t columnIndex = tileIndex / height;
+                const int32_t rowIndex = tileIndex - columnIndex * height;
+                const size_t rowCountIndex = static_cast<size_t>(rowIndex) * objectCount + objectIndex;
+                const size_t columnCountIndex = static_cast<size_t>(columnIndex) * objectCount + objectIndex;
+                uint32_t& rowCount = session.scratch.objectRowCounts[rowCountIndex];
+                uint32_t& columnCount = session.scratch.objectColumnCounts[columnCountIndex];
+                ++rowCount;
+                ++columnCount;
+                if (rowCount == 1) {
+                    session.scratch.rowMasks[static_cast<size_t>(rowIndex * objectStride + static_cast<int32_t>(word))] |= objectBit;
+                }
+                if (columnCount == 1) {
+                    session.scratch.columnMasks[static_cast<size_t>(columnIndex * objectStride + static_cast<int32_t>(word))] |= objectBit;
+                }
+                if (session.game->needsObjectLineAllMasks) {
+                    if (rowCount == static_cast<uint32_t>(width)) {
+                        session.scratch.rowAllMasks[static_cast<size_t>(rowIndex * objectStride + static_cast<int32_t>(word))] |= objectBit;
+                    }
+                    if (columnCount == static_cast<uint32_t>(height)) {
+                        session.scratch.columnAllMasks[static_cast<size_t>(columnIndex * objectStride + static_cast<int32_t>(word))] |= objectBit;
+                    }
+                }
+            }
+        }
+    }
+    addCounter(gRuntimeCounters.maskRebuildObjectCountIndexBitsVisited, bitsVisited);
+
+    std::fill(session.scratch.dirtyObjectRows.begin(), session.scratch.dirtyObjectRows.end(), 0);
+    std::fill(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), 0);
+    session.scratch.dirtyObjectBoard = false;
+    return true;
+}
+
 void setCellObjectsFromWords(FullState& session, int32_t tileIndex, const MaskWord* objects) {
     const int32_t stride = session.game->strideObject;
     const size_t base = static_cast<size_t>(tileIndex * stride);
-    const int32_t columnIndex = tileIndex / currentLevelHeight(session);
-    const int32_t rowIndex = tileIndex % currentLevelHeight(session);
+    const int32_t height = currentLevelHeight(session);
+    const int32_t width = currentLevelWidth(session);
+    const int32_t columnIndex = tileIndex / height;
+    const int32_t rowIndex = tileIndex % height;
     const size_t columnBase = static_cast<size_t>(columnIndex * stride);
     const size_t rowBase = static_cast<size_t>(rowIndex * stride);
     MaskWord clearedAny = 0;
     bool changedAny = false;
+    uint64_t changedBitCount = 0;
+    uint64_t clearedBitCount = 0;
+    const bool objectRefcountMasksAttempted =
+        n4cObjectRefcountMasksEnabled(session) && objectMaskCountCachesReady(session, width, height);
+    bool objectRefcountMasksExact = objectRefcountMasksAttempted;
     for (int32_t word = 0; word < stride; ++word) {
         const MaskWord oldValue = session.levelState.board.objects[base + static_cast<size_t>(word)];
         const MaskWord value = objects[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
-        MaskWordUnsigned changedBits = static_cast<MaskWordUnsigned>(oldValue ^ value);
+        const MaskWordUnsigned changedWordBits = static_cast<MaskWordUnsigned>(oldValue ^ value);
+        const MaskWordUnsigned clearedWordBits = static_cast<MaskWordUnsigned>(oldValue & ~value);
+        if (gRuntimeCountersEnabled) {
+            changedBitCount += static_cast<uint64_t>(maskWordPopcount(changedWordBits));
+            clearedBitCount += static_cast<uint64_t>(maskWordPopcount(clearedWordBits));
+        }
+        MaskWordUnsigned changedBits = changedWordBits;
         while (changedBits != 0) {
             const int32_t bit = maskWordCountTrailingZeros(changedBits);
             const int32_t objectId = word * static_cast<int32_t>(kMaskWordBits) + bit;
-            setObjectCellIndexBit(session, objectId, tileIndex, (static_cast<MaskWordUnsigned>(value) & (MaskWordUnsigned{1} << bit)) != 0);
+            const bool presentAfter = (static_cast<MaskWordUnsigned>(value) & (MaskWordUnsigned{1} << bit)) != 0;
+            setObjectCellIndexBit(session, objectId, tileIndex, presentAfter);
+            if (objectRefcountMasksExact) {
+                if (updateObjectMaskCountsForBit(session, rowIndex, columnIndex, objectId, presentAfter, width, height)) {
+                    addCounter(gRuntimeCounters.maskDirtyObjectRefcountBitUpdates);
+                } else {
+                    objectRefcountMasksExact = false;
+                }
+            }
             changedBits &= changedBits - 1;
         }
-        clearedAny |= (oldValue & ~value);
+        clearedAny |= static_cast<MaskWord>(clearedWordBits);
         session.levelState.board.objects[base + static_cast<size_t>(word)] = value;
-        session.scratch.columnMasks[columnBase + static_cast<size_t>(word)] |= value;
-        session.scratch.rowMasks[rowBase + static_cast<size_t>(word)] |= value;
-        session.scratch.boardMask[static_cast<size_t>(word)] |= value;
+        if (!objectRefcountMasksAttempted) {
+            session.scratch.columnMasks[columnBase + static_cast<size_t>(word)] |= value;
+            session.scratch.rowMasks[rowBase + static_cast<size_t>(word)] |= value;
+            session.scratch.boardMask[static_cast<size_t>(word)] |= value;
+        }
+    }
+    if (objectRefcountMasksAttempted && !objectRefcountMasksExact) {
+        addCounter(gRuntimeCounters.maskDirtyObjectRefcountFallbacks);
+        for (int32_t word = 0; word < stride; ++word) {
+            const MaskWord value = objects[static_cast<size_t>(word)];
+            session.scratch.columnMasks[columnBase + static_cast<size_t>(word)] |= value;
+            session.scratch.rowMasks[rowBase + static_cast<size_t>(word)] |= value;
+            session.scratch.boardMask[static_cast<size_t>(word)] |= value;
+        }
     }
     if (clearedAny != 0 || changedAny) {
-        session.scratch.objectRowCounts.clear();
-        session.scratch.objectColumnCounts.clear();
-        session.scratch.objectBoardCounts.clear();
-        if (static_cast<size_t>(rowIndex) < session.scratch.dirtyObjectRows.size())
-            session.scratch.dirtyObjectRows[static_cast<size_t>(rowIndex)] = 1;
-        if (static_cast<size_t>(columnIndex) < session.scratch.dirtyObjectColumns.size())
-            session.scratch.dirtyObjectColumns[static_cast<size_t>(columnIndex)] = 1;
-        session.scratch.dirtyObjectBoard = true;
-        session.scratch.anyMasksDirty = true;
+        addCounter(gRuntimeCounters.maskDirtyObjectCellsChanged);
+        addCounter(gRuntimeCounters.maskDirtyObjectBitsChanged, changedBitCount);
+        addCounter(gRuntimeCounters.maskDirtyObjectBitsCleared, clearedBitCount);
+        addCounter(gRuntimeCounters.maskDirtyObjectMarks);
+        if (clearedAny != 0) {
+            addCounter(gRuntimeCounters.maskDirtyObjectClearMarks);
+        } else {
+            addCounter(gRuntimeCounters.maskDirtyObjectAddOnlyMarks);
+        }
+        if (!objectRefcountMasksExact) {
+            clearObjectMaskCountCaches(session.scratch);
+            if (static_cast<size_t>(rowIndex) < session.scratch.dirtyObjectRows.size())
+                session.scratch.dirtyObjectRows[static_cast<size_t>(rowIndex)] = 1;
+            if (static_cast<size_t>(columnIndex) < session.scratch.dirtyObjectColumns.size())
+                session.scratch.dirtyObjectColumns[static_cast<size_t>(columnIndex)] = 1;
+            session.scratch.dirtyObjectBoard = true;
+            session.scratch.anyMasksDirty = true;
+        }
     }
 }
 
@@ -2563,25 +2920,42 @@ void setCellMovementsFromWords(FullState& session, int32_t tileIndex, const Mask
     const size_t rowBase = static_cast<size_t>(rowIndex * stride);
     MaskWord clearedAny = 0;
     bool changedAny = false;
+    uint64_t changedBitCount = 0;
+    uint64_t clearedBitCount = 0;
     for (int32_t word = 0; word < stride; ++word) {
         const MaskWord oldValue = session.scratch.liveMovements[base + static_cast<size_t>(word)];
         const MaskWord value = movements[static_cast<size_t>(word)];
         changedAny = changedAny || oldValue != value;
+        const MaskWordUnsigned changedWordBits = static_cast<MaskWordUnsigned>(oldValue ^ value);
+        const MaskWordUnsigned clearedWordBits = static_cast<MaskWordUnsigned>(oldValue & ~value);
+        if (gRuntimeCountersEnabled) {
+            changedBitCount += static_cast<uint64_t>(maskWordPopcount(changedWordBits));
+            clearedBitCount += static_cast<uint64_t>(maskWordPopcount(clearedWordBits));
+        }
         if (oldValue != value) {
             updateMovementCellIndexForWordChange(session, tileIndex, word, oldValue, value);
         }
-        clearedAny |= (oldValue & ~value);
+        clearedAny |= static_cast<MaskWord>(clearedWordBits);
         session.scratch.liveMovements[base + static_cast<size_t>(word)] = value;
         session.scratch.columnMovementMasks[columnBase + static_cast<size_t>(word)] |= value;
         session.scratch.rowMovementMasks[rowBase + static_cast<size_t>(word)] |= value;
         session.scratch.boardMovementMask[static_cast<size_t>(word)] |= value;
     }
     if (changedAny) {
+        addCounter(gRuntimeCounters.maskDirtyMovementCellsChanged);
+        addCounter(gRuntimeCounters.maskDirtyMovementBitsChanged, changedBitCount);
+        addCounter(gRuntimeCounters.maskDirtyMovementBitsCleared, clearedBitCount);
         session.scratch.liveMovementsClean = false;
     }
     const bool needsDirtyMovementMasks =
         clearedAny != 0 || (changedAny && session.game->needsMovementLineAllMasks);
     if (needsDirtyMovementMasks) {
+        addCounter(gRuntimeCounters.maskDirtyMovementMarks);
+        if (clearedAny != 0) {
+            addCounter(gRuntimeCounters.maskDirtyMovementClearMarks);
+        } else {
+            addCounter(gRuntimeCounters.maskDirtyMovementLineAllMarks);
+        }
         if (static_cast<size_t>(rowIndex) < session.scratch.dirtyMovementRows.size())
             session.scratch.dirtyMovementRows[static_cast<size_t>(rowIndex)] = 1;
         if (static_cast<size_t>(columnIndex) < session.scratch.dirtyMovementColumns.size())
@@ -5570,12 +5944,22 @@ void rebuildMasks(FullState& session) {
         return;
     }
     addCounter(gRuntimeCounters.maskRebuildDirtyCalls);
+    const bool objectMasksDirty = session.scratch.dirtyObjectBoard
+        || std::any_of(session.scratch.dirtyObjectRows.begin(), session.scratch.dirtyObjectRows.end(), [](uint8_t value) { return value != 0; })
+        || std::any_of(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), [](uint8_t value) { return value != 0; });
+    if (n4cObjectRefcountMasksEnabled(session) && objectMasksDirty) {
+        if (!rebuildObjectMaskCountsAndMasksFromIndex(session, width, height)) {
+            (void)rebuildObjectMaskCountsAndMasks(session, width, height);
+        }
+    }
 
     // ---- Object masks ---------------------------------------------------
     // Rebuild each dirty row: zero its slice, then OR every tile in that row.
     for (int32_t y = 0; y < height; ++y) {
         if (!session.scratch.dirtyObjectRows[static_cast<size_t>(y)]) continue;
         addCounter(gRuntimeCounters.maskRebuildRows);
+        addCounter(gRuntimeCounters.maskRebuildObjectRows);
+        addCounter(gRuntimeCounters.maskRebuildObjectRowCellsScanned, static_cast<uint64_t>(width));
         MaskWord* rowStart = session.scratch.rowMasks.data() + static_cast<size_t>(y * objectStride);
         std::fill(rowStart, rowStart + objectStride, 0);
         MaskWord* rowAllStart = needsObjectLineAllMasks
@@ -5599,6 +5983,8 @@ void rebuildMasks(FullState& session) {
     for (int32_t x = 0; x < width; ++x) {
         if (!session.scratch.dirtyObjectColumns[static_cast<size_t>(x)]) continue;
         addCounter(gRuntimeCounters.maskRebuildColumns);
+        addCounter(gRuntimeCounters.maskRebuildObjectColumns);
+        addCounter(gRuntimeCounters.maskRebuildObjectColumnCellsScanned, static_cast<uint64_t>(height));
         MaskWord* colStart = session.scratch.columnMasks.data() + static_cast<size_t>(x * objectStride);
         std::fill(colStart, colStart + objectStride, 0);
         MaskWord* columnAllStart = needsObjectLineAllMasks
@@ -5635,6 +6021,8 @@ void rebuildMasks(FullState& session) {
     for (int32_t y = 0; y < height; ++y) {
         if (!session.scratch.dirtyMovementRows[static_cast<size_t>(y)]) continue;
         addCounter(gRuntimeCounters.maskRebuildRows);
+        addCounter(gRuntimeCounters.maskRebuildMovementRows);
+        addCounter(gRuntimeCounters.maskRebuildMovementRowCellsScanned, static_cast<uint64_t>(width));
         MaskWord* rowStart = session.scratch.rowMovementMasks.data() + static_cast<size_t>(y * movementStride);
         std::fill(rowStart, rowStart + movementStride, 0);
         MaskWord* rowAllStart = needsMovementLineAllMasks
@@ -5658,6 +6046,8 @@ void rebuildMasks(FullState& session) {
     for (int32_t x = 0; x < width; ++x) {
         if (!session.scratch.dirtyMovementColumns[static_cast<size_t>(x)]) continue;
         addCounter(gRuntimeCounters.maskRebuildColumns);
+        addCounter(gRuntimeCounters.maskRebuildMovementColumns);
+        addCounter(gRuntimeCounters.maskRebuildMovementColumnCellsScanned, static_cast<uint64_t>(height));
         MaskWord* colStart = session.scratch.columnMovementMasks.data() + static_cast<size_t>(x * movementStride);
         std::fill(colStart, colStart + movementStride, 0);
         MaskWord* columnAllStart = needsMovementLineAllMasks
@@ -5795,6 +6185,7 @@ void markAllMasksDirty(FullState& session) {
     std::fill(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), 1);
     std::fill(session.scratch.dirtyMovementRows.begin(), session.scratch.dirtyMovementRows.end(), 1);
     std::fill(session.scratch.dirtyMovementColumns.begin(), session.scratch.dirtyMovementColumns.end(), 1);
+    clearObjectMaskCountCaches(session.scratch);
     session.scratch.dirtyObjectBoard = true;
     session.scratch.dirtyMovementBoard = true;
     session.scratch.objectCellIndexDirty = true;
@@ -7725,6 +8116,32 @@ void resetRuntimeCounters() {
     gRuntimeCounters.maskRebuildDirtyCalls.store(0, std::memory_order_relaxed);
     gRuntimeCounters.maskRebuildRows.store(0, std::memory_order_relaxed);
     gRuntimeCounters.maskRebuildColumns.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectRows.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectColumns.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildMovementRows.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildMovementColumns.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectRowCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectColumnCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildMovementRowCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildMovementColumnCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectCountFullRebuilds.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectCountFullRebuildCellsScanned.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectCountIndexRebuilds.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskRebuildObjectCountIndexBitsVisited.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectCellsChanged.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectBitsChanged.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectBitsCleared.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectMarks.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectAddOnlyMarks.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectClearMarks.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectRefcountBitUpdates.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyObjectRefcountFallbacks.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyMovementCellsChanged.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyMovementBitsChanged.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyMovementBitsCleared.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyMovementMarks.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyMovementClearMarks.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.maskDirtyMovementLineAllMarks.store(0, std::memory_order_relaxed);
     gRuntimeCounters.specializedRulegroupAttempts.store(0, std::memory_order_relaxed);
     gRuntimeCounters.specializedRulegroupHits.store(0, std::memory_order_relaxed);
     gRuntimeCounters.specializedRulegroupFallbacks.store(0, std::memory_order_relaxed);
@@ -7777,6 +8194,32 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.mask_rebuild_dirty_calls = gRuntimeCounters.maskRebuildDirtyCalls.load(std::memory_order_relaxed);
     counters.mask_rebuild_rows = gRuntimeCounters.maskRebuildRows.load(std::memory_order_relaxed);
     counters.mask_rebuild_columns = gRuntimeCounters.maskRebuildColumns.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_rows = gRuntimeCounters.maskRebuildObjectRows.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_columns = gRuntimeCounters.maskRebuildObjectColumns.load(std::memory_order_relaxed);
+    counters.mask_rebuild_movement_rows = gRuntimeCounters.maskRebuildMovementRows.load(std::memory_order_relaxed);
+    counters.mask_rebuild_movement_columns = gRuntimeCounters.maskRebuildMovementColumns.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_row_cells_scanned = gRuntimeCounters.maskRebuildObjectRowCellsScanned.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_column_cells_scanned = gRuntimeCounters.maskRebuildObjectColumnCellsScanned.load(std::memory_order_relaxed);
+    counters.mask_rebuild_movement_row_cells_scanned = gRuntimeCounters.maskRebuildMovementRowCellsScanned.load(std::memory_order_relaxed);
+    counters.mask_rebuild_movement_column_cells_scanned = gRuntimeCounters.maskRebuildMovementColumnCellsScanned.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_count_full_rebuilds = gRuntimeCounters.maskRebuildObjectCountFullRebuilds.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_count_full_rebuild_cells_scanned = gRuntimeCounters.maskRebuildObjectCountFullRebuildCellsScanned.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_count_index_rebuilds = gRuntimeCounters.maskRebuildObjectCountIndexRebuilds.load(std::memory_order_relaxed);
+    counters.mask_rebuild_object_count_index_bits_visited = gRuntimeCounters.maskRebuildObjectCountIndexBitsVisited.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_cells_changed = gRuntimeCounters.maskDirtyObjectCellsChanged.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_bits_changed = gRuntimeCounters.maskDirtyObjectBitsChanged.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_bits_cleared = gRuntimeCounters.maskDirtyObjectBitsCleared.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_marks = gRuntimeCounters.maskDirtyObjectMarks.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_add_only_marks = gRuntimeCounters.maskDirtyObjectAddOnlyMarks.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_clear_marks = gRuntimeCounters.maskDirtyObjectClearMarks.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_refcount_bit_updates = gRuntimeCounters.maskDirtyObjectRefcountBitUpdates.load(std::memory_order_relaxed);
+    counters.mask_dirty_object_refcount_fallbacks = gRuntimeCounters.maskDirtyObjectRefcountFallbacks.load(std::memory_order_relaxed);
+    counters.mask_dirty_movement_cells_changed = gRuntimeCounters.maskDirtyMovementCellsChanged.load(std::memory_order_relaxed);
+    counters.mask_dirty_movement_bits_changed = gRuntimeCounters.maskDirtyMovementBitsChanged.load(std::memory_order_relaxed);
+    counters.mask_dirty_movement_bits_cleared = gRuntimeCounters.maskDirtyMovementBitsCleared.load(std::memory_order_relaxed);
+    counters.mask_dirty_movement_marks = gRuntimeCounters.maskDirtyMovementMarks.load(std::memory_order_relaxed);
+    counters.mask_dirty_movement_clear_marks = gRuntimeCounters.maskDirtyMovementClearMarks.load(std::memory_order_relaxed);
+    counters.mask_dirty_movement_line_all_marks = gRuntimeCounters.maskDirtyMovementLineAllMarks.load(std::memory_order_relaxed);
     counters.specialized_rulegroup_attempts = gRuntimeCounters.specializedRulegroupAttempts.load(std::memory_order_relaxed);
     counters.specialized_rulegroup_hits = gRuntimeCounters.specializedRulegroupHits.load(std::memory_order_relaxed);
     counters.specialized_rulegroup_fallbacks = gRuntimeCounters.specializedRulegroupFallbacks.load(std::memory_order_relaxed);

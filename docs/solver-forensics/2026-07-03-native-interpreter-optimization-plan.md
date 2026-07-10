@@ -178,6 +178,10 @@ Do not redo these; they're in place and working:
   certified 9224.6/9203.7; incremental-only 9151.5/9150.9 -> certified
   9184.8/9192.5). Treat N3 as explicit experimental plumbing, not a default
   runtime tier, until a narrower counter-backed site is identified.
+  2026-07-07 JS counter note: `--solver-wake-prune-counters` shows broad
+  smoke-50 certified pruning skips only 124,794 / 7,867,745 rule checks
+  (1.59%) while 98.41% still reach `tryApply`; the S1 path pays movement
+  overlap cost nearly everywhere for too few avoided calls.
 - **N4 — cheapen or defer `rebuildMasks`.** In rising ambition:
   (a) rebuild once per fixpoint iteration instead of per application (audit
   which same-iteration reads need freshness); (b) rebuild-on-read — only
@@ -227,6 +231,48 @@ Do not redo these; they're in place and working:
   broad phase-boundary rebuild deferral. If N4 continues, prefer N4c's
   decremental/refcounted line masks or a narrower, counter-proven site that
   preserves board-level pruning and does not add per-read overhead.
+
+  Status update (2026-07-07): N4c exact object refcount masks were prototyped
+  behind `PUZZLESCRIPT_N4C_OBJECT_REFCOUNT_MASKS=1`, with counters left on
+  the default path for attribution. The opt-in path seeds per-object row,
+  column, and board counts from the current board, then applies exact
+  O(changed-bits) updates from `setCellObjectsFromWords`; all count caches are
+  invalidated across materialization, compact-turn bridge, level replacement,
+  and bulk mask-dirty paths. The `push_goal` counter canary now checks that
+  N4c removes object row/column rebuilds, performs incremental refcount
+  updates, and reports zero fallbacks. On the paired one-run `smoke-50`
+  profile with runtime counters enabled, median wall was effectively flat
+  (`39.451ms` baseline -> `39.548ms` N4c), while object scan attribution moved
+  from 389.4M row/column scan cells to 96.4M full count-cache seed scan cells
+  (-75.3%). The non-timeout paired subset was similar: object scan cells
+  27.3M -> 8.5M (-68.9%), median step `2.936ms` -> `3.114ms`. This proves the
+  decremental mask machinery is exact and structurally reduces line scans, but
+  first seed shape was not a default speedup.
+
+  Follow-up (2026-07-10): the cheaper N4c seed now reuses the object-major cell
+  index that materialized solver edges already build, and reuses that index's
+  exact board totals instead of maintaining a duplicate board-count vector.
+  The counter-profile smoke run reports zero secondary full-board seed scans,
+  159.1M compact object-index bits visited, 17.7M incremental refcount updates,
+  and zero fallbacks. Three-run raw smoke-50 measurements kept the same
+  33/16/1 solved/timeout/exhausted split. The original board-seed N4c regressed
+  generated-state throughput 92.102 -> 89.550 states/ms (-2.77%); indexed
+  seeding recovered to 92.893 states/ms. An A/N4c/A reverse-order control put
+  the baseline midpoint at 92.464 states/ms, so the final candidate is only
+  +0.46%; timeout throughput is +0.56%, while fixed-work solved step time is
+  0.37% slower when forced across every game.
+
+  The preserved wide-stride portfolio changes that decision for a bounded
+  default: on its four-object-word game, indexed N4c moved raw three-run
+  throughput from 2.892 -> 2.989 generated states/ms (+3.36%) with the same
+  1/53 solved/timeout split. The 184-game checked corpus contains 176 one-word,
+  six two-word, and two three-word games. N4c was neutral on the measured
+  two-word smoke target, while a nine-run `=0`/automatic comparison on the
+  three-word smoke target moved median `step_ms` 1.037 -> 0.963 (-7.2%). N4c
+  therefore enables automatically when `Game::wordCount >= 3`; set
+  `PUZZLESCRIPT_N4C_OBJECT_REFCOUNT_MASKS=0` for an explicit baseline or `=1`
+  to force the diagnostic path on narrower games. The next broad interpreter
+  representation experiment is N7.
 - **N5 — sparse word iteration in `matchesPatternAt`.** Precompute per-mask
   nonzero-word spans (first/last word or tiny word-id list); loop only
   those. Near-free for stride-1 games, ~4-9x fewer word ops on wide games.
@@ -257,6 +303,21 @@ Do not redo these; they're in place and working:
   refactor; prototype behind a compile-time flag like
   `PS_INTERPRETER_OBJECT_CELL_INDEX` and let counters decide. Overlaps N5 —
   do N5 first, it's 10x cheaper to build.
+
+  Preflight (2026-07-10): temporary direct object-mask word counters measured
+  186.8M checks on smoke-50, of which only 78.2K (0.04%) inspected a zero mask
+  word. On the four-word portfolio they measured 1.057B checks, including
+  496.9M zero-mask checks (47.0%), or 2.17 direct object-word checks per
+  pattern test. Artifacts are
+  `build/native/n7-preflight-smoke-50-runtime-counters.json` and
+  `build/native/n7-preflight-anonymous-game-portfolio-runtime-counters.json`.
+  This supports a wide-only N7 experiment and rejects a broad sparse-word
+  consumer. The counters themselves were backed out: an always-inline
+  profiled/unprofiled template split regressed smoke throughput 5.2%, a single
+  body with per-word runtime counter branches regressed 4.1%, and a cold
+  noinline profiled body still regressed 3.6%. If this attribution must be
+  repeated, make it a compile-time profiling build; do not add runtime-selectable
+  branches or duplicate matcher bodies to the default binary.
 - **N8 — feed solver-scoped static opts into the native compile
   (high-level).** The JS passes (`src/tests/solver_static_opt.js`:
   inert/cosmetic/merge) shrink object count, **collision layers** (→ both

@@ -1129,6 +1129,9 @@ void clearMaterializedSolverMaskCaches(FullState& session) {
     session.scratch.dirtyObjectColumns.clear();
     session.scratch.dirtyMovementRows.clear();
     session.scratch.dirtyMovementColumns.clear();
+    session.scratch.objectRowCounts.clear();
+    session.scratch.objectColumnCounts.clear();
+    session.scratch.objectBoardCounts.clear();
 }
 
 void markMaterializedFullStateDirty(FullState& session) {
@@ -1136,6 +1139,9 @@ void markMaterializedFullStateDirty(FullState& session) {
     std::fill(session.scratch.dirtyObjectColumns.begin(), session.scratch.dirtyObjectColumns.end(), 1);
     std::fill(session.scratch.dirtyMovementRows.begin(), session.scratch.dirtyMovementRows.end(), 1);
     std::fill(session.scratch.dirtyMovementColumns.begin(), session.scratch.dirtyMovementColumns.end(), 1);
+    session.scratch.objectRowCounts.clear();
+    session.scratch.objectColumnCounts.clear();
+    session.scratch.objectBoardCounts.clear();
     session.scratch.dirtyObjectBoard = true;
     session.scratch.dirtyMovementBoard = true;
     session.scratch.objectCellIndexDirty = true;
@@ -1636,6 +1642,9 @@ CompactTurnTryResult trySpecializedCompactTurn(
 void prepareCompactTurnScratchForParent(puzzlescript::Scratch& scratch) {
     std::fill(scratch.dirtyObjectRows.begin(), scratch.dirtyObjectRows.end(), 1);
     std::fill(scratch.dirtyObjectColumns.begin(), scratch.dirtyObjectColumns.end(), 1);
+    scratch.objectRowCounts.clear();
+    scratch.objectColumnCounts.clear();
+    scratch.objectBoardCounts.clear();
     scratch.dirtyObjectBoard = true;
     scratch.anyMasksDirty = true;
     scratch.objectCellIndexDirty = true;
@@ -4913,6 +4922,32 @@ int main(int argc, char** argv) {
                       << " mask_rebuild_dirty_calls=" << runtimeCounters.mask_rebuild_dirty_calls
                       << " mask_rebuild_rows=" << runtimeCounters.mask_rebuild_rows
                       << " mask_rebuild_columns=" << runtimeCounters.mask_rebuild_columns
+                      << " mask_rebuild_object_rows=" << runtimeCounters.mask_rebuild_object_rows
+                      << " mask_rebuild_object_columns=" << runtimeCounters.mask_rebuild_object_columns
+                      << " mask_rebuild_movement_rows=" << runtimeCounters.mask_rebuild_movement_rows
+                      << " mask_rebuild_movement_columns=" << runtimeCounters.mask_rebuild_movement_columns
+                      << " mask_rebuild_object_row_cells_scanned=" << runtimeCounters.mask_rebuild_object_row_cells_scanned
+                      << " mask_rebuild_object_column_cells_scanned=" << runtimeCounters.mask_rebuild_object_column_cells_scanned
+                      << " mask_rebuild_movement_row_cells_scanned=" << runtimeCounters.mask_rebuild_movement_row_cells_scanned
+                      << " mask_rebuild_movement_column_cells_scanned=" << runtimeCounters.mask_rebuild_movement_column_cells_scanned
+                      << " mask_rebuild_object_count_full_rebuilds=" << runtimeCounters.mask_rebuild_object_count_full_rebuilds
+                      << " mask_rebuild_object_count_full_rebuild_cells_scanned=" << runtimeCounters.mask_rebuild_object_count_full_rebuild_cells_scanned
+                      << " mask_rebuild_object_count_index_rebuilds=" << runtimeCounters.mask_rebuild_object_count_index_rebuilds
+                      << " mask_rebuild_object_count_index_bits_visited=" << runtimeCounters.mask_rebuild_object_count_index_bits_visited
+                      << " mask_dirty_object_cells_changed=" << runtimeCounters.mask_dirty_object_cells_changed
+                      << " mask_dirty_object_bits_changed=" << runtimeCounters.mask_dirty_object_bits_changed
+                      << " mask_dirty_object_bits_cleared=" << runtimeCounters.mask_dirty_object_bits_cleared
+                      << " mask_dirty_object_marks=" << runtimeCounters.mask_dirty_object_marks
+                      << " mask_dirty_object_add_only_marks=" << runtimeCounters.mask_dirty_object_add_only_marks
+                      << " mask_dirty_object_clear_marks=" << runtimeCounters.mask_dirty_object_clear_marks
+                      << " mask_dirty_object_refcount_bit_updates=" << runtimeCounters.mask_dirty_object_refcount_bit_updates
+                      << " mask_dirty_object_refcount_fallbacks=" << runtimeCounters.mask_dirty_object_refcount_fallbacks
+                      << " mask_dirty_movement_cells_changed=" << runtimeCounters.mask_dirty_movement_cells_changed
+                      << " mask_dirty_movement_bits_changed=" << runtimeCounters.mask_dirty_movement_bits_changed
+                      << " mask_dirty_movement_bits_cleared=" << runtimeCounters.mask_dirty_movement_bits_cleared
+                      << " mask_dirty_movement_marks=" << runtimeCounters.mask_dirty_movement_marks
+                      << " mask_dirty_movement_clear_marks=" << runtimeCounters.mask_dirty_movement_clear_marks
+                      << " mask_dirty_movement_line_all_marks=" << runtimeCounters.mask_dirty_movement_line_all_marks
                       << " specialized_rulegroup_attempts=" << runtimeCounters.specialized_rulegroup_attempts
                       << " specialized_rulegroup_hits=" << runtimeCounters.specialized_rulegroup_hits
                       << " specialized_rulegroup_fallbacks=" << runtimeCounters.specialized_rulegroup_fallbacks

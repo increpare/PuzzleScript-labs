@@ -2758,6 +2758,32 @@ void writeSimulationJsonSummary(
         << ",\"mask_rebuild_dirty_calls\":" << counters.mask_rebuild_dirty_calls
         << ",\"mask_rebuild_rows\":" << counters.mask_rebuild_rows
         << ",\"mask_rebuild_columns\":" << counters.mask_rebuild_columns
+        << ",\"mask_rebuild_object_rows\":" << counters.mask_rebuild_object_rows
+        << ",\"mask_rebuild_object_columns\":" << counters.mask_rebuild_object_columns
+        << ",\"mask_rebuild_movement_rows\":" << counters.mask_rebuild_movement_rows
+        << ",\"mask_rebuild_movement_columns\":" << counters.mask_rebuild_movement_columns
+        << ",\"mask_rebuild_object_row_cells_scanned\":" << counters.mask_rebuild_object_row_cells_scanned
+        << ",\"mask_rebuild_object_column_cells_scanned\":" << counters.mask_rebuild_object_column_cells_scanned
+        << ",\"mask_rebuild_movement_row_cells_scanned\":" << counters.mask_rebuild_movement_row_cells_scanned
+        << ",\"mask_rebuild_movement_column_cells_scanned\":" << counters.mask_rebuild_movement_column_cells_scanned
+        << ",\"mask_rebuild_object_count_full_rebuilds\":" << counters.mask_rebuild_object_count_full_rebuilds
+        << ",\"mask_rebuild_object_count_full_rebuild_cells_scanned\":" << counters.mask_rebuild_object_count_full_rebuild_cells_scanned
+        << ",\"mask_rebuild_object_count_index_rebuilds\":" << counters.mask_rebuild_object_count_index_rebuilds
+        << ",\"mask_rebuild_object_count_index_bits_visited\":" << counters.mask_rebuild_object_count_index_bits_visited
+        << ",\"mask_dirty_object_cells_changed\":" << counters.mask_dirty_object_cells_changed
+        << ",\"mask_dirty_object_bits_changed\":" << counters.mask_dirty_object_bits_changed
+        << ",\"mask_dirty_object_bits_cleared\":" << counters.mask_dirty_object_bits_cleared
+        << ",\"mask_dirty_object_marks\":" << counters.mask_dirty_object_marks
+        << ",\"mask_dirty_object_add_only_marks\":" << counters.mask_dirty_object_add_only_marks
+        << ",\"mask_dirty_object_clear_marks\":" << counters.mask_dirty_object_clear_marks
+        << ",\"mask_dirty_object_refcount_bit_updates\":" << counters.mask_dirty_object_refcount_bit_updates
+        << ",\"mask_dirty_object_refcount_fallbacks\":" << counters.mask_dirty_object_refcount_fallbacks
+        << ",\"mask_dirty_movement_cells_changed\":" << counters.mask_dirty_movement_cells_changed
+        << ",\"mask_dirty_movement_bits_changed\":" << counters.mask_dirty_movement_bits_changed
+        << ",\"mask_dirty_movement_bits_cleared\":" << counters.mask_dirty_movement_bits_cleared
+        << ",\"mask_dirty_movement_marks\":" << counters.mask_dirty_movement_marks
+        << ",\"mask_dirty_movement_clear_marks\":" << counters.mask_dirty_movement_clear_marks
+        << ",\"mask_dirty_movement_line_all_marks\":" << counters.mask_dirty_movement_line_all_marks
         << ",\"specialized_rulegroup_attempts\":" << counters.specialized_rulegroup_attempts
         << ",\"specialized_rulegroup_hits\":" << counters.specialized_rulegroup_hits
         << ",\"specialized_rulegroup_fallbacks\":" << counters.specialized_rulegroup_fallbacks
