@@ -243,6 +243,17 @@ IDs `S1…` for reference from other plans.
   keeping indirect enablement (a "useless" rule may unblock a relevant one —
   the wake edges capture exactly this). Soundness: solver-scoped parity runs
   (status/solution equality), same as existing passes.
+
+  Status update (2026-07-10): the JS and native solver consumers are live
+  behind explicit `win-relevance` options. A native smoke run exposed a proof
+  gap not represented by rule def-use edges: movement writers can change
+  spatial relationships through engine movement resolution even when their
+  written marker is absent from the win condition. The fact now includes all
+  `writes_movement` rules as conservative roots and publishes
+  `movement_root_rule_ids`. A real-game native regression canary and JS
+  smoke parity/replay pass with this repair. The repaired native smoke result
+  removes 235 rules across 17/50 games and improves generated-state throughput
+  +26.9%, but remains opt-in pending full-corpus parity.
 - **S13 — Landmarks.** From the win conditions, regress through the wake
   graph: facts (object reaches a target class, rule R must fire at least once)
   that hold on *every* solution. Even the cheap "rule landmarks" version

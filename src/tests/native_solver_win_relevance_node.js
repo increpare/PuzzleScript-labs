@@ -33,12 +33,12 @@ assert.ok(
 );
 fs.writeFileSync(hintsPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-function runNative(extraArgs = [], runHintsPath = hintsPath) {
+function runNative(extraArgs = [], runHintsPath = hintsPath, run = {}) {
     const hintArgs = runHintsPath ? ['--static-analysis-hints', runHintsPath] : [];
     const result = spawnSync(solverPath, [
-        corpusDir,
-        '--game', gameName,
-        '--level', '0',
+        run.corpusDir || corpusDir,
+        '--game', run.gameName || gameName,
+        '--level', String(run.level === undefined ? 0 : run.level),
         '--timeout-ms', '1000',
         '--jobs', '1',
         '--strategy', 'bfs',
@@ -107,5 +107,36 @@ assert.strictEqual(
     'native win-relevance pass should be inert until JS win_relevance hints are supplied'
 );
 assert.strictEqual(noHintsOptimizedPayload.totals.removed_win_irrelevant_rules, 0);
+
+const movementGameName = 'the red ring of immortality.txt';
+const movementCorpusDir = path.join(tmpDir, 'movement-corpus');
+const movementHintsPath = path.join(tmpDir, 'movement-static-analysis-hints.json');
+fs.mkdirSync(movementCorpusDir);
+fs.copyFileSync(
+    path.join(rootDir, 'src/tests/solver_tests', movementGameName),
+    path.join(movementCorpusDir, movementGameName)
+);
+const movementManifest = buildStaticAnalysisHintsManifest(movementCorpusDir);
+const movementFact = movementManifest.games[movementGameName].facts.win_relevance[0];
+assert.ok(
+    Array.isArray(movementFact.value.movement_root_rule_ids)
+        && movementFact.value.movement_root_rule_ids.some(ruleId => ruleId.startsWith('early_group_9_rule_')),
+    'native hints should preserve the analyzer movement roots behind the relevance slice'
+);
+fs.writeFileSync(movementHintsPath, `${JSON.stringify(movementManifest, null, 2)}\n`);
+const movementRun = {
+    corpusDir: movementCorpusDir,
+    gameName: movementGameName,
+    level: 1,
+};
+const movementBaseline = onlyResult(runNative([], movementHintsPath, movementRun));
+const movementOptimized = onlyResult(runNative(
+    ['--solver-opt', 'win-relevance'],
+    movementHintsPath,
+    movementRun
+));
+assert.strictEqual(movementBaseline.status, 'solved');
+assert.strictEqual(movementOptimized.status, movementBaseline.status);
+assert.deepStrictEqual(movementOptimized.solution, movementBaseline.solution);
 
 process.stdout.write('native_solver_win_relevance_node: ok\n');

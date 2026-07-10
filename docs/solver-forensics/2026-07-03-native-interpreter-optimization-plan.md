@@ -357,6 +357,36 @@ Do not redo these; they're in place and working:
   source-to-source emit (or shared IR) serves interpreter and codegen tiers
   alike. Check `native/src/simplify` and `native/src/search/simplify.*` for
   existing scaffolding before building new.
+
+  Status update (2026-07-10): the first native N8 consumer now applies the JS
+  analyzer's S12 `win_relevance` certificate behind explicit
+  `--solver-opt win-relevance`, pruning runtime rules by certified source
+  line. Broad smoke measurement caught an unsound first certificate: movement
+  marker propagation could be outside ordinary rule/win def-use edges while
+  still being essential to movement resolution. `the red ring of immortality`
+  went solved -> exhausted when its marker rule was removed. The analyzer now
+  conservatively treats every movement-writing rule as a win-relevance root;
+  the native canary copies that real game into an isolated corpus and requires
+  baseline/optimized status and solution parity.
+
+  With that repair, three-run smoke-50 keeps the exact 99 solved / 48 timeout /
+  3 exhausted sample split. Seventeen of 50 games retain removals (235 static
+  rule instances), and aggregate generated-state throughput rises 88.39 ->
+  112.17 states/ms (+26.9%). Artifacts are
+  `build/native/measure-raw-n8-win-relevance-baseline-smoke-50-runs3.json` and
+  `build/native/measure-raw-n8-win-relevance-movement-roots-smoke-50-runs3.json`.
+  The benchmark runner starts one solver process per target, so optimized wall
+  time includes reparsing the 184-game external hint manifest 50 times and is
+  not representative of a normal corpus process, which loads it once. The
+  four-word 54-target one-run pair also preserves the 1 solved / 53 timeout
+  split; 37 rules are removed and aggregate throughput rises 2.991 -> 3.485
+  states/ms (+16.5%), artifacts
+  `build/native/measure-raw-n8-win-relevance-baseline-anonymous-game-portfolio-run1.json`
+  and
+  `build/native/measure-raw-n8-win-relevance-optimized-anonymous-game-portfolio-run1.json`.
+  JS smoke parity/replay also passes with the repaired fact. Keep this opt-in
+  until a full-corpus native baseline/optimized parity run passes; then solve
+  hint delivery/amortization before considering default promotion.
 - **N9 — group dependency static analysis (high-level).**
   (a) Groups whose writes cannot feed their own reads need no confirm pass:
   currently even a single-fire group re-matches every rule once more to

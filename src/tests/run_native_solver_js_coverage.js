@@ -189,6 +189,7 @@ function winRelevanceFactsFromReport(report) {
                 rule_ids: stringArray(fact.value.rule_ids),
                 root_rule_ids: stringArray(fact.value.root_rule_ids),
                 semantic_root_rule_ids: stringArray(fact.value.semantic_root_rule_ids),
+                movement_root_rule_ids: stringArray(fact.value.movement_root_rule_ids),
                 relevant_rule_ids: stringArray(fact.value.relevant_rule_ids),
                 irrelevant_rule_ids: stringArray(fact.value.irrelevant_rule_ids),
             },

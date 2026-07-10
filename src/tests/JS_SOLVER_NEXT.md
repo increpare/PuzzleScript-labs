@@ -40,6 +40,16 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **S12 win-relevance movement-root repair.** Native smoke measurement of the
+  new `--solver-opt win-relevance` consumer found a real proof gap: a movement
+  marker rule classified outside ordinary win def-use was still essential to
+  moving the player, changing a solved level to exhausted. The analyzer now
+  roots every `writes_movement` rule, and the native canary covers the failing
+  game directly. JS smoke parity/replay passes after the repair. Native
+  smoke-50 keeps the 99 solved / 48 timeout / 3 exhausted three-run sample
+  split while aggregate generated-state throughput moves 88.39 -> 112.17
+  states/ms (+26.9%); keep opt-in pending full-corpus native parity.
+
 - **T3 / TX1 novelty tie-break — JS opt-in prototype landed.** The JS solver
   accepts `--solver-novelty tiebreak`, tracks novelty-1 over object/cell atoms
   with a per-search accumulator, and uses it only as a queue tie-break after

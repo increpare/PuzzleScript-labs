@@ -3411,6 +3411,12 @@ function semanticRootRuleIds(rules) {
     return uniqueSorted(ids);
 }
 
+function movementRootRuleIds(rules) {
+    return uniqueSorted(rules
+        .filter(rule => rule.tags.writes_movement)
+        .map(rule => rule.id));
+}
+
 function backwardRelevantRuleIds(rootRuleIds, wakeEdges) {
     const relevant = new Set(rootRuleIds);
     let changed = true;
@@ -3434,7 +3440,11 @@ function deriveWinRelevanceFacts(psTagged) {
     const relevanceEdges = relevanceEdgesForRules(psTagged, rules);
     const directWinRoots = uniqueSorted((winflow.wake_edges || []).map(edge => edge.from));
     const semanticRoots = semanticRootRuleIds(rules);
-    const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots));
+    // Movement resolution changes object positions and spatial relationships
+    // outside the ordinary object def-use graph. Keep every movement writer as
+    // a root until those engine-level dependencies are modeled explicitly.
+    const movementRoots = movementRootRuleIds(rules);
+    const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots, movementRoots));
     const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, relevanceEdges);
     const relevantSet = new Set(relevantRuleIds);
     const irrelevantRuleIds = uniqueSorted(rules
@@ -3451,8 +3461,9 @@ function deriveWinRelevanceFacts(psTagged) {
             win_wake_edges: winflow.wake_edges || [],
             relevance_edges: relevanceEdges,
             semantic_root_rule_ids: semanticRoots,
+            movement_root_rule_ids: movementRoots,
         },
-        proof: ['backward_relevance_slice_from_winflow_semantic_roots_and_conservative_dependencies'],
+        proof: ['backward_relevance_slice_from_winflow_semantic_movement_roots_and_conservative_dependencies'],
         evidence: relevantRuleIds,
     })];
 }
