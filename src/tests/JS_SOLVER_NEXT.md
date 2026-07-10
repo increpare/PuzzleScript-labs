@@ -40,6 +40,18 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **N9a / S2 certified single-pass native consumer rejected.** Static
+  preflight found 733 / 1,540 multi-rule groups (47.6%) already certified by
+  `rulegroup_flow.single_pass_safe`. New native counters measured terminal
+  no-change confirmations at 4.115M / 37.965M smoke-50 rule visits (10.84%)
+  and 7.045M / 393.294M four-word visits (1.79%). The opt-in prototype removed
+  1.76M smoke confirmation visits and kept the exact 33/16/1 counter-run split,
+  but three-run raw throughput moved 87.007 -> 86.861 states/ms (-0.17%) with
+  identical 99/48/3 samples. A nine-run high-confirmation target improved only
+  about 1.8% versus an A/B/A midpoint. Consumer and hint transport backed out;
+  counters retained. Rule-visit count is not a useful proxy for rule-visit cost
+  here.
+
 - **S12 win-relevance engine-root repairs and full audit.** Native measurement of the
   new `--solver-opt win-relevance` consumer found a real proof gap: a movement
   marker rule classified outside ordinary win def-use was still essential to

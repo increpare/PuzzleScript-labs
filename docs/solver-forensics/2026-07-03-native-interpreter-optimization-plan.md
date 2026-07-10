@@ -416,6 +416,21 @@ Do not redo these; they're in place and working:
   (b) The JS "A.2 outer-loop group skip" (wired, disabled;
   `engine.js:3154-3156`) has the same native analog via cumulative changed
   masks — making it sound once benefits both engines.
+
+  Status update (2026-07-10): N9a's native single-pass consumer was
+  prototyped from the existing S2 `single_pass_safe` facts and backed out.
+  Corpus preflight found 733 / 1,540 multi-rule groups (47.6%), covering
+  3,761 expanded rule instances, already certified. New behavior-neutral
+  counters show terminal no-change confirmation passes account for 4.115M /
+  37.965M smoke-50 rule visits (10.84%, 2.191M passes), but only 7.045M /
+  393.294M visits (1.79%) on the four-word portfolio. The consumer reduced
+  smoke confirmation visits to 2.353M with the exact 33/16/1 one-run split,
+  yet three-run raw throughput was neutral/slightly negative: 87.007 ->
+  86.861 generated states/ms (-0.17%), with the exact 99/48/3 sample split.
+  Even the highest-confirmation smoke target improved only about 1.8% against
+  an A/B/A nine-run baseline midpoint. Keep the four counters; do not revive
+  the consumer or native S2 hint transport without evidence that the avoided
+  confirmation work itself is expensive rather than merely numerous.
 - **N10 — solver-level hygiene.** Compact node storage default-on where
   parity-clean; finish deadline-check batching (clock was 14% in the HDA
   profile); keep detail timing off in production runs.

@@ -114,6 +114,16 @@ IDs `S1…` for reference from other plans.
   set *and* it has no forceAlwaysRun/command/again semantics. Moving the
   proof from engine heuristics into audited facts is what makes it safe to
   enable. Difficulty: low-medium. Soundness: same contract pattern as S1.
+
+  Native consumer result (2026-07-10): `single_pass_safe` was already broad
+  enough to certify 733 / 1,540 multi-rule corpus groups, but breadth did not
+  imply cost. Terminal confirmation work was 10.84% of smoke-50 rule visits;
+  an opt-in native consumer removed 1.76M confirmation visits while preserving
+  the exact status split, yet aggregate raw throughput moved -0.17%. The
+  four-word portfolio exposed only 1.79% addressable visits. The consumer and
+  native hint transport were backed out; behavior-neutral confirmation-pass
+  counters remain. Keep S2 as analysis/explorer data, not an engine consumer,
+  unless a future profile identifies expensive certified groups specifically.
 - **S3 — Direction-instance reachability.** Rules expand ×4 directions at
   compile time; many instances are dead (they require a movement
   object×direction combination nothing can ever produce). The
