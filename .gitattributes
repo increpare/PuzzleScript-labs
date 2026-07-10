@@ -11,6 +11,9 @@ src/standalone_inlined.txt linguist-generated
 bin/** linguist-generated
 build/** linguist-generated
 
+# Firmware fixture is byte-copied PuzzleScript source for ESP-IDF embedding.
+firmware/esp32p4/main/sokoban_basic.txt conflict-marker-size=32 -whitespace
+
 # Vendored dependencies.
 native/third_party/** linguist-vendored
 node_modules/** linguist-vendored

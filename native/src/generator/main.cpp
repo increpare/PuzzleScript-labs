@@ -28,12 +28,15 @@
 #include <utility>
 #include <vector>
 
+#if defined(_WIN32)
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "compiler/diagnostic.hpp"
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
-#include "compiler/parser_glyphs.hpp"
 #include "generator/block_scheduler.hpp"
 #include "generator/duration_parse.hpp"
 #include "generator/generation_rules.hpp"
@@ -79,6 +82,14 @@ using puzzlescript::generator::LevelSetOptions;
 using puzzlescript::generator::OutputCoordinator;
 using puzzlescript::generator::parseDurationMs;
 using puzzlescript::generator::runLevelSetForever;
+
+bool stdoutIsTerminal() {
+#if defined(_WIN32)
+    return _isatty(_fileno(stdout)) != 0;
+#else
+    return isatty(STDOUT_FILENO) != 0;
+#endif
+}
 
 enum class SolveStatus {
     Exhausted,
@@ -501,7 +512,6 @@ puzzlescript::LoadedGame compileGame(const std::string& source, puzzlescript::co
         throw std::runtime_error(error->message);
     }
     if (loadedGame.information) {
-        puzzlescript::compiler::publishParserGlyphs(*std::const_pointer_cast<Game>(loadedGame.information), state);
         puzzlescript::attachLinkedCompiledRules(*std::const_pointer_cast<Game>(loadedGame.information), source);
     }
     if (outState != nullptr) {
@@ -1351,7 +1361,7 @@ int main(int argc, char** argv) {
             workers.emplace_back(workerMain, std::cref(options), std::cref(loadedGame), std::cref(solverMetadata), std::cref(program), std::cref(game->levels.front()), std::ref(shared), deadline);
         }
 
-        const bool dashboard = !options.quiet && isatty(STDOUT_FILENO);
+        const bool dashboard = !options.quiet && stdoutIsTerminal();
         TimePoint lastSparse = start;
         while (!shared.cancel.load(std::memory_order_relaxed)) {
             if (Clock::now() >= deadline) {

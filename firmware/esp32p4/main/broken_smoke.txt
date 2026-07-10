@@ -1,0 +1,16 @@
+title Broken Probe Smoke
+
+OBJECTS
+Player
+red
+11111
+11111
+11111
+11111
+11111
+
+RULES
+[ Player ->
+
+LEVELS
+Player

@@ -12,6 +12,7 @@
 #include <numeric>
 #include <sstream>
 #include <thread>
+#include <unordered_map>
 
 #include "simdjson.h" // vendored; will replace puzzlescript::json in Task 4
 #include "runtime/compiled_rules.hpp"
@@ -1019,25 +1020,6 @@ std::vector<int32_t> objectIdsFromMask(const MaskVector& words, int32_t objectCo
     return ids;
 }
 
-// ---- Game mask-arena helpers ----------------------------------------------
-// These append mask words into `game.maskArena` and return the offset (in
-// words) of the first element. Used during IR parsing to replace the old
-// std::vector<int32_t>-per-field layout with a single contiguous arena.
-
-MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
-    MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
-}
-
-// Append `game.wordCount` zero words and return the offset. Used for fields
-// that are absent in the IR and need an all-zero mask at the arena's width.
-[[maybe_unused]] MaskOffset storeZeroMask(Game& game) {
-    MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), game.wordCount, 0);
-    return offset;
-}
-
 [[maybe_unused]] inline MaskRef maskAt(const Game& game, MaskOffset offset) {
     return MaskRef{ game.maskArena.data() + offset };
 }
@@ -1076,6 +1058,7 @@ inline bool arenaAnyBitsSet(const Game& game, MaskOffset offset, uint32_t wordCo
     if (offset == kNullMaskOffset) return false;
     const MaskWord* data = game.maskArena.data() + offset;
     for (uint32_t w = 0; w < wordCount; ++w) {
+        recordMaskArenaAccess(data + w);
         if (data[w] != 0) return true;
     }
     return false;
@@ -1084,7 +1067,10 @@ inline bool arenaAnyBitsSet(const Game& game, MaskOffset offset, uint32_t wordCo
 // Return a raw pointer to the first word of an arena-stored mask, or nullptr
 // if the offset is null.
 inline const MaskWord* maskPtr(const Game& game, MaskOffset offset) {
-    return offset == kNullMaskOffset ? nullptr : game.maskArena.data() + offset;
+    if (offset == kNullMaskOffset) return nullptr;
+    const MaskWord* ptr = game.maskArena.data() + offset;
+    recordMaskArenaAccess(ptr);
+    return ptr;
 }
 
 // Binary-search a sorted NamedMaskEntry table by name. Returns
@@ -2983,12 +2969,37 @@ void setCellRigidMovementAppliedMask(FullState& session, int32_t tileIndex, cons
     }
 }
 
+void ensureMovementMaskScratchShape(FullState& session) {
+    const int32_t movementStride = session.game->strideMovement;
+    const size_t rowMovementSize = static_cast<size_t>(std::max(currentLevelHeight(session), int32_t{0}) * movementStride);
+    const size_t columnMovementSize = static_cast<size_t>(std::max(currentLevelWidth(session), int32_t{0}) * movementStride);
+    const size_t boardMovementSize = static_cast<size_t>(std::max(movementStride, int32_t{0}));
+    if (session.scratch.rowMovementMasks.size() != rowMovementSize) {
+        session.scratch.rowMovementMasks.assign(rowMovementSize, 0);
+    }
+    if (session.scratch.columnMovementMasks.size() != columnMovementSize) {
+        session.scratch.columnMovementMasks.assign(columnMovementSize, 0);
+    }
+    if (session.scratch.boardMovementMask.size() != boardMovementSize) {
+        session.scratch.boardMovementMask.assign(boardMovementSize, 0);
+    }
+    const size_t rowCount = static_cast<size_t>(std::max(currentLevelHeight(session), int32_t{0}));
+    const size_t columnCount = static_cast<size_t>(std::max(currentLevelWidth(session), int32_t{0}));
+    if (session.scratch.dirtyMovementRows.size() != rowCount) {
+        session.scratch.dirtyMovementRows.assign(rowCount, 0);
+    }
+    if (session.scratch.dirtyMovementColumns.size() != columnCount) {
+        session.scratch.dirtyMovementColumns.assign(columnCount, 0);
+    }
+}
+
 void clearRigidState(FullState& session) {
     std::fill(session.scratch.rigidGroupIndexMasks.begin(), session.scratch.rigidGroupIndexMasks.end(), 0);
     std::fill(session.scratch.rigidMovementAppliedMasks.begin(), session.scratch.rigidMovementAppliedMasks.end(), 0);
 }
 
 void clearMovementState(FullState& session) {
+    ensureMovementMaskScratchShape(session);
     std::fill(session.scratch.liveMovements.begin(), session.scratch.liveMovements.end(), 0);
     session.scratch.liveMovementsClean = true;
     session.scratch.movementCellIndexDirty = true;
@@ -3475,7 +3486,7 @@ bool matchesAdvancedMovementPatternAt(
     return true;
 }
 
-inline __attribute__((always_inline)) bool matchesPatternAt(
+PS_ALWAYS_INLINE bool matchesPatternAt(
     const FullState& session,
     const Pattern& pattern,
     int32_t tileIndex
@@ -4278,14 +4289,14 @@ std::optional<bool> collectMovementAnchoredRowMatchesInto(
         return std::nullopt;
     }
 
-    const int32_t validStartCount = std::max(0, xmax - xmin) * std::max(0, ymax - ymin);
+    const int32_t validStartCount = std::max(int32_t{0}, xmax - xmin) * std::max(int32_t{0}, ymax - ymin);
     if (validStartCount <= 0) {
         return false;
     }
     if (anchor->cellCount == 0) {
         return false;
     }
-    if (anchor->cellCount >= static_cast<uint64_t>(std::max(8, validStartCount))) {
+    if (anchor->cellCount >= static_cast<uint64_t>(std::max(int32_t{8}, validStartCount))) {
         return std::nullopt;
     }
 
@@ -4406,8 +4417,8 @@ bool collectAnchoredRowMatchesInto(
     }
 
     const bool horizontal = direction > 2;
-    const int32_t validStartCount = std::max(0, xmax - xmin) * std::max(0, ymax - ymin);
-    if (validStartCount <= 0 || anchor->cellCount >= static_cast<uint64_t>(std::max(8, validStartCount))) {
+    const int32_t validStartCount = std::max(int32_t{0}, xmax - xmin) * std::max(int32_t{0}, ymax - ymin);
+    if (validStartCount <= 0 || anchor->cellCount >= static_cast<uint64_t>(std::max(int32_t{8}, validStartCount))) {
         return false;
     }
     if (anchor->objectIds == nullptr || anchor->objectIds->empty()) {
@@ -4743,7 +4754,7 @@ std::vector<RowMatch> collectEllipsisRowMatches(
     const bool horizontal = direction > 2;
     const int32_t lineCount = horizontal ? currentLevelHeight(session) : currentLevelWidth(session);
     std::vector<uint8_t>& linePossible = session.scratch.ellipsisLinePossibleScratch;
-    linePossible.assign(static_cast<size_t>(std::max(lineCount, 0)), 0);
+    linePossible.assign(static_cast<size_t>(std::max(lineCount, int32_t{0})), 0);
     for (int32_t line = 0; line < lineCount; ++line) {
         const MaskWord* lineObjects = horizontal
             ? session.scratch.rowMasks.data() + static_cast<size_t>(line * session.game->strideObject)
@@ -4781,7 +4792,7 @@ std::vector<RowMatch> collectEllipsisRowMatches(
             case 2: return currentLevelHeight(session) - y;
             case 4: return x + 1;
             case 8: return currentLevelWidth(session) - x;
-            default: return 0;
+            default: return int32_t{0};
         }
     };
 
@@ -5747,15 +5758,15 @@ void rebuildObjectCellIndex(FullState& session) {
     const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
     const size_t cellWordCount = static_cast<size_t>((tileCount + static_cast<int32_t>(kMaskWordBits) - 1) / static_cast<int32_t>(kMaskWordBits));
     session.scratch.objectCellBitTileCount = tileCount;
-    const size_t expectedWords = static_cast<size_t>(std::max(objectCount, 0)) * cellWordCount;
+    const size_t expectedWords = static_cast<size_t>(std::max(objectCount, int32_t{0})) * cellWordCount;
     if (objectCount <= 0 || tileCount <= 0 || cellWordCount == 0) {
         session.scratch.objectCellBits.assign(expectedWords, 0);
-        session.scratch.objectCellCounts.assign(static_cast<size_t>(std::max(objectCount, 0)), 0);
+        session.scratch.objectCellCounts.assign(static_cast<size_t>(std::max(objectCount, int32_t{0})), 0);
         session.scratch.objectCellIndexDirty = false;
         return;
     }
 
-    const size_t expectedCellMajorWords = static_cast<size_t>(std::max(tileCount, 0) * session.game->strideObject);
+    const size_t expectedCellMajorWords = static_cast<size_t>(std::max(tileCount, int32_t{0}) * session.game->strideObject);
     if (session.levelState.board.objects.size() != expectedCellMajorWords) {
         session.scratch.objectCellIndexDirty = true;
         return;
@@ -5778,9 +5789,9 @@ bool rebuildMovementCellIndex(FullState& session) {
     const size_t cellWordCount = movementCellWordCount(session);
     session.scratch.movementCellBitTileCount = tileCount;
     session.scratch.movementCellBits.assign(
-        static_cast<size_t>(std::max(bitCount, 0)) * cellWordCount,
+        static_cast<size_t>(std::max(bitCount, int32_t{0})) * cellWordCount,
         0);
-    session.scratch.movementCellCounts.assign(static_cast<size_t>(std::max(bitCount, 0)), 0);
+    session.scratch.movementCellCounts.assign(static_cast<size_t>(std::max(bitCount, int32_t{0})), 0);
     if (tileCount <= 0 || bitCount <= 0 || cellWordCount == 0 || session.game->strideMovement <= 0) {
         session.scratch.movementCellIndexDirty = false;
         return true;
@@ -5826,11 +5837,11 @@ bool prepareMovementCellIndex(FullState& session) {
     const int32_t tileCount = currentLevelWidth(session) * currentLevelHeight(session);
     const int32_t bitCount = movementBitCount(session);
     const size_t cellWordCount = movementCellWordCount(session);
-    const size_t expectedWords = static_cast<size_t>(std::max(bitCount, 0)) * cellWordCount;
+    const size_t expectedWords = static_cast<size_t>(std::max(bitCount, int32_t{0})) * cellWordCount;
     if (!session.scratch.movementCellIndexDirty
         && session.scratch.movementCellBitTileCount == tileCount
         && session.scratch.movementCellBits.size() == expectedWords
-        && session.scratch.movementCellCounts.size() == static_cast<size_t>(std::max(bitCount, 0))) {
+        && session.scratch.movementCellCounts.size() == static_cast<size_t>(std::max(bitCount, int32_t{0}))) {
         return true;
     }
     return rebuildMovementCellIndex(session);
@@ -6463,9 +6474,9 @@ void transposeCellMajorToObjectMajor(
     const int32_t tileCount = (width > 0 && height > 0) ? width * height : 0;
     const size_t cellWordCount = static_cast<size_t>((tileCount + static_cast<int32_t>(kMaskWordBits) - 1) / static_cast<int32_t>(kMaskWordBits));
     const int32_t objectCount = game.objectCount;
-    objectCellBits.assign(static_cast<size_t>(std::max(objectCount, 0)) * cellWordCount, 0);
+    objectCellBits.assign(static_cast<size_t>(std::max(objectCount, int32_t{0})) * cellWordCount, 0);
     if (objectCellCounts != nullptr) {
-        objectCellCounts->assign(static_cast<size_t>(std::max(objectCount, 0)), 0);
+        objectCellCounts->assign(static_cast<size_t>(std::max(objectCount, int32_t{0})), 0);
     }
     if (objectCount <= 0 || tileCount <= 0 || cellWordCount == 0 || game.strideObject <= 0) {
         return;
@@ -6808,6 +6819,7 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
         const auto& gameObject = gameValue.asObject();
 
         auto game = std::make_shared<Game>();
+        ScopedMaskInterner maskInterner(*game);
         game->schemaVersion = toInt(requireField(rootObject, "schema_version"));
 
         const auto& strides = requireField(gameObject, "strides").asObject();
@@ -6896,6 +6908,27 @@ std::unique_ptr<Error> loadGameFromJson(std::string_view jsonText, LoadedGame& o
                 }
             } else {
                 game->playerMask = storeMaskWords(*game, parseMaskVector(playerMask->second));
+            }
+        }
+        if (const auto extras = gameObject.find("static_analysis_extras");
+            extras != gameObject.end() && extras->second.isObject()) {
+            const auto& extrasObject = extras->second.asObject();
+            if (const auto written = extrasObject.find("written_objects");
+                written != extrasObject.end()) {
+                const auto words = parseMaskVector(written->second);
+                game->hasStaticAnalysisExtraWrittenObjects = anyBitsSet(words);
+                if (game->hasStaticAnalysisExtraWrittenObjects) {
+                    game->staticAnalysisExtraWrittenObjects = storeMaskWords(*game, words);
+                }
+            }
+            if (const auto movementMentioned = extrasObject.find("movement_mentioned_objects");
+                movementMentioned != extrasObject.end()) {
+                const auto words = parseMaskVector(movementMentioned->second);
+                game->hasStaticAnalysisExtraMovementMentionedObjects = anyBitsSet(words);
+                if (game->hasStaticAnalysisExtraMovementMentionedObjects) {
+                    game->staticAnalysisExtraMovementMentionedObjects =
+                        storeMaskWords(*game, words);
+                }
             }
         }
         if (const auto rigid = gameObject.find("rigid"); rigid != gameObject.end()) {
@@ -8262,6 +8295,105 @@ ps_runtime_counters snapshotRuntimeCounters() {
     counters.movement_anchor_collections_used = gRuntimeCounters.movementAnchorCollectionsUsed.load(std::memory_order_relaxed);
     counters.movement_anchor_runtime_mask_builds = gRuntimeCounters.movementAnchorRuntimeMaskBuilds.load(std::memory_order_relaxed);
     return counters;
+}
+
+namespace {
+
+std::string maskInternKey(const MaskWord* words, size_t wordCount) {
+    std::string key;
+    const uint32_t width = static_cast<uint32_t>(wordCount);
+    key.resize(sizeof(width) + wordCount * sizeof(MaskWord));
+    std::memcpy(key.data(), &width, sizeof(width));
+    if (wordCount > 0) {
+        std::memcpy(key.data() + sizeof(width), words, wordCount * sizeof(MaskWord));
+    }
+    return key;
+}
+
+MaskInternTable* activeMaskInternTable(Game& game);
+
+} // namespace
+
+struct MaskInternTable {
+    Game* game = nullptr;
+    MaskInternTable* previous = nullptr;
+    std::unordered_map<std::string, MaskOffset> offsets;
+};
+
+namespace {
+
+thread_local MaskInternTable* gActiveMaskInternTable = nullptr;
+
+void seedMaskInternWidth(Game& game, MaskInternTable& table, uint32_t wordCount) {
+    if (wordCount == 0) {
+        return;
+    }
+    const size_t width = static_cast<size_t>(wordCount);
+    if (game.maskArena.size() < width) {
+        return;
+    }
+    for (size_t offset = 0; offset + width <= game.maskArena.size(); ++offset) {
+        table.offsets.try_emplace(
+            maskInternKey(game.maskArena.data() + offset, width),
+            static_cast<MaskOffset>(offset)
+        );
+    }
+}
+
+MaskInternTable* activeMaskInternTable(Game& game) {
+    for (MaskInternTable* table = gActiveMaskInternTable; table != nullptr; table = table->previous) {
+        if (table->game == &game) {
+            return table;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+ScopedMaskInterner::ScopedMaskInterner(Game& game, MaskInternSeed seed)
+    : game_(game),
+      table_(std::make_unique<MaskInternTable>()) {
+    table_->game = &game_;
+    table_->previous = gActiveMaskInternTable;
+    gActiveMaskInternTable = table_.get();
+
+    if (seed == MaskInternSeed::ExistingArena) {
+        seedMaskInternWidth(game_, *table_, game_.wordCount);
+        if (game_.movementWordCount != game_.wordCount) {
+            seedMaskInternWidth(game_, *table_, game_.movementWordCount);
+        }
+    }
+}
+
+ScopedMaskInterner::~ScopedMaskInterner() {
+    if (gActiveMaskInternTable == table_.get()) {
+        gActiveMaskInternTable = table_->previous;
+        return;
+    }
+    for (MaskInternTable* table = gActiveMaskInternTable; table != nullptr; table = table->previous) {
+        if (table->previous == table_.get()) {
+            table->previous = table_->previous;
+            return;
+        }
+    }
+}
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words) {
+    const MaskOffset offset = static_cast<MaskOffset>(game.maskArena.size());
+    MaskInternTable* table = activeMaskInternTable(game);
+    if (table == nullptr) {
+        game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+        return offset;
+    }
+
+    std::string key = maskInternKey(words.data(), words.size());
+    if (const auto existing = table->offsets.find(key); existing != table->offsets.end()) {
+        return existing->second;
+    }
+    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
+    table->offsets.emplace(std::move(key), offset);
+    return offset;
 }
 
 } // namespace puzzlescript

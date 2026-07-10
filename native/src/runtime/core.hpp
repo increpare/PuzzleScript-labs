@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -11,8 +12,17 @@
 
 #include "runtime/hash.hpp"
 #include "runtime/json.hpp"
+#include "runtime/locality_survey.hpp"
 #include "puzzlescript/puzzlescript.h"
 #include "runtime/simd.hpp"
+
+#if defined(_MSC_VER)
+#define PS_ALWAYS_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+#define PS_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#define PS_ALWAYS_INLINE inline
+#endif
 
 namespace puzzlescript {
 
@@ -88,19 +98,11 @@ inline constexpr uint32_t movementBitShiftForLayer(uint32_t layerIndex) {
 }
 
 inline int32_t maskWordCountTrailingZeros(MaskWordUnsigned bits) {
-#if PS_MASK_WORD_BITS == 64
-    return __builtin_ctzll(bits);
-#else
-    return __builtin_ctz(bits);
-#endif
+    return static_cast<int32_t>(std::countr_zero(bits));
 }
 
 inline int32_t maskWordPopcount(MaskWordUnsigned bits) {
-#if PS_MASK_WORD_BITS == 64
-    return __builtin_popcountll(bits);
-#else
-    return __builtin_popcount(bits);
-#endif
+    return static_cast<int32_t>(std::popcount(bits));
 }
 
 struct MaskRef { const MaskWord* data; };
@@ -110,6 +112,12 @@ struct MaskMut { MaskWord* data; };
 // "no mask assigned" (used for fields that are optional or vary per pattern).
 using MaskOffset = uint32_t;
 inline constexpr MaskOffset kNullMaskOffset = static_cast<uint32_t>(-1);
+
+struct MaskInternTable;
+enum class MaskInternSeed {
+    Empty,
+    ExistingArena,
+};
 
 struct ObjectDef {
     std::string name;
@@ -501,6 +509,13 @@ struct GameInformation {
 
     bool playerMaskAggregate = false;
     MaskOffset playerMask = kNullMaskOffset;  // object-width mask; null means no player
+    // Static-analysis-only facts recovered from source variants that JS keeps
+    // for flow analysis but the native runtime skips because they can never
+    // match at execution time.
+    MaskOffset staticAnalysisExtraWrittenObjects = kNullMaskOffset;
+    MaskOffset staticAnalysisExtraMovementMentionedObjects = kNullMaskOffset;
+    bool hasStaticAnalysisExtraWrittenObjects = false;
+    bool hasStaticAnalysisExtraMovementMentionedObjects = false;
     bool rigid = false;
     std::vector<bool> rigidGroups;
     std::vector<int32_t> rigidGroupIndexToGroupIndex;
@@ -523,6 +538,21 @@ struct GameInformation {
 };
 
 using Game = GameInformation;
+
+class ScopedMaskInterner {
+public:
+    explicit ScopedMaskInterner(Game& game, MaskInternSeed seed = MaskInternSeed::Empty);
+    ~ScopedMaskInterner();
+
+    ScopedMaskInterner(const ScopedMaskInterner&) = delete;
+    ScopedMaskInterner& operator=(const ScopedMaskInterner&) = delete;
+
+private:
+    Game& game_;
+    std::unique_ptr<MaskInternTable> table_;
+};
+
+MaskOffset storeMaskWords(Game& game, const MaskVector& words);
 
 struct Scratch {
     MaskVector liveMovements;

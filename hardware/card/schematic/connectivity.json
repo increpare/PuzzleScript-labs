@@ -1,0 +1,243 @@
+{
+  "meta": {
+    "project": "PuzzleScript Card",
+    "revision": "spin1-connectivity",
+    "date": "2026-07-09",
+    "jlc_catalog": "jlc_catalog.json",
+    "power_control": "slide switch SW9 gates U4 EN; no latch IC (see docs/superpowers/specs/2026-07-09-handheld-card-power-switch-design.md)",
+    "mcu": "ESP32-P4NRW32X chip-down (QFN104, no radio; see docs/superpowers/specs/2026-07-09-handheld-card-chip-down-design.md)",
+    "storage": "microSD via SPI (service-only; SDIO deferred)",
+    "source_docs": [
+      "PIN_BUDGET.md",
+      "BLOCK_DIAGRAM.md"
+    ]
+  },
+  "sheets": [
+    { "id": "power", "file": "sheets/power.kicad_sch", "title": "Power" },
+    { "id": "compute", "file": "sheets/compute.kicad_sch", "title": "Compute" },
+    { "id": "display", "file": "sheets/display.kicad_sch", "title": "Display" },
+    { "id": "controls", "file": "sheets/controls.kicad_sch", "title": "Controls" },
+    { "id": "storage", "file": "sheets/storage.kicad_sch", "title": "Storage" },
+    { "id": "audio", "file": "sheets/audio.kicad_sch", "title": "Audio" },
+    { "id": "haptic", "file": "sheets/haptic.kicad_sch", "title": "Haptic" },
+    { "id": "led", "file": "sheets/led.kicad_sch", "title": "Case RGB" },
+    { "id": "debug", "file": "sheets/debug.kicad_sch", "title": "Debug" }
+  ],
+  "components": [
+    { "ref": "J1", "sheet": "power", "value": "HRO-TYPE-C-31-M-12", "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", "note": "mounted on PCB back, top edge; rear shell has a local bump; re-check JLC/EasyEDA stock before order" },
+    { "ref": "J2", "sheet": "power", "value": "1S-Pouch-403048", "footprint": "TBD", "gate": "GATE-BATTERY-SAMPLE" },
+    { "ref": "U2", "sheet": "power", "value": "BQ24075RGTR", "footprint": "VQFN-16-RGT-3x3" },
+    { "ref": "U3", "sheet": "power", "value": "MAX17048G+T10", "footprint": "LFCSP-8-2x2" },
+    { "ref": "U4", "sheet": "power", "value": "TPS63070", "footprint": "VQFN-HR-15-RNM-3x2.5" },
+    { "ref": "U6", "sheet": "power", "value": "TPS22919DCK", "footprint": "SOT-SC70-6-DCK-2x2.1" },
+    { "ref": "U1", "sheet": "compute", "value": "ESP32-P4NRW32X", "footprint": "QFN104-10x10-P0.35" },
+    { "ref": "U9", "sheet": "compute", "value": "QSPI-NOR-32MB", "footprint": "TBD", "gate": "GATE-ESP32-P4-REF-CAPTURE", "note": "voltage/part per Espressif chip-down reference design (VDD_SPI domain)" },
+    { "ref": "X1", "sheet": "compute", "value": "40MHz-crystal", "footprint": "TBD", "gate": "GATE-ESP32-P4-REF-CAPTURE" },
+    { "ref": "L1", "sheet": "compute", "value": "2.2uH", "footprint": "TBD", "gate": "GATE-ESP32-P4-REF-CAPTURE", "note": "P4 internal DC-DC; Espressif ref uses 2.2uH 20% 2A" },
+    { "ref": "J3", "sheet": "display", "value": "FFC-15-1.0-FH12-class", "footprint": "FFC-15-1.0mm-right-angle-contact-TBD", "gate": "GATE-DSI-FFC-CONTACT" },
+    { "ref": "J4", "sheet": "storage", "value": "microSD", "footprint": "TBD", "gate": "GATE-MICROSD-FOOTPRINT" },
+    { "ref": "U5", "sheet": "haptic", "value": "DRV2605LDGS", "footprint": "VSSOP-10-DGS-3x4.9" },
+    { "ref": "B1", "sheet": "haptic", "value": "Coin-LRA-10mm", "footprint": "TBD", "gate": "GATE-LRA-MOUNT" },
+    { "ref": "Q1", "sheet": "audio", "value": "NPN", "footprint": "SOT23" },
+    { "ref": "JP1", "sheet": "audio", "value": "PiezoPads", "footprint": "TBD", "gate": "GATE-PIEZO-DRIVE-REVIEW" },
+    { "ref": "U8", "sheet": "audio", "value": "PiezoHBridge-DNP", "footprint": "TBD", "gate": "GATE-PIEZO-DRIVE-REVIEW" },
+    { "ref": "SW1", "sheet": "controls", "value": "TL3315NF160Q-class", "footprint": "TBD", "gate": "GATE-DPAD-MOCKUP" },
+    { "ref": "SW2", "sheet": "controls", "value": "TL3315NF160Q-class", "footprint": "TBD", "gate": "GATE-DPAD-MOCKUP" },
+    { "ref": "SW3", "sheet": "controls", "value": "TL3315NF160Q-class", "footprint": "TBD", "gate": "GATE-DPAD-MOCKUP" },
+    { "ref": "SW4", "sheet": "controls", "value": "TL3315NF160Q-class", "footprint": "TBD", "gate": "GATE-DPAD-MOCKUP" },
+    { "ref": "SW5", "sheet": "controls", "value": "KMR211NG", "footprint": "TBD", "gate": "GATE-FACE-BUTTON-FEEL" },
+    { "ref": "SW6", "sheet": "controls", "value": "KMR211NG", "footprint": "TBD", "gate": "GATE-FACE-BUTTON-FEEL" },
+    { "ref": "SW7", "sheet": "controls", "value": "KMR211NG", "footprint": "TBD", "gate": "GATE-FACE-BUTTON-FEEL" },
+    { "ref": "SW8", "sheet": "controls", "value": "KMR211NG", "footprint": "TBD", "gate": "GATE-FACE-BUTTON-FEEL" },
+    { "ref": "SW9", "sheet": "power", "value": "SlideSwitch-SPDT-JS102000-class", "footprint": "TBD", "gate": "GATE-POWER-SLIDE-SLOT", "note": "top-edge power slide; gates U4 EN, no load current" },
+    { "ref": "SW10A", "sheet": "controls", "value": "EVP-AKE31A", "footprint": "EVPAK-side-push-3.9x2.9" },
+    { "ref": "SW10B", "sheet": "controls", "value": "EVP-AKE31A", "footprint": "EVPAK-side-push-3.9x2.9" },
+    { "ref": "D1", "sheet": "led", "value": "LED-R", "footprint": "TBD", "gate": "GATE-CASE-LED-LIGHTPIPE" },
+    { "ref": "D2", "sheet": "led", "value": "LED-G", "footprint": "TBD", "gate": "GATE-CASE-LED-LIGHTPIPE" },
+    { "ref": "D3", "sheet": "led", "value": "LED-B", "footprint": "TBD", "gate": "GATE-CASE-LED-LIGHTPIPE" },
+    { "ref": "D4", "sheet": "power", "value": "LED-CHG", "footprint": "0603", "note": "charge status; lit from VBUS via BQ24075 open-drain CHG, works with power switch off" },
+    { "ref": "R8", "sheet": "power", "value": "1k", "footprint": "0402" },
+    { "ref": "R1", "sheet": "power", "value": "5.1k", "footprint": "0402" },
+    { "ref": "R2", "sheet": "power", "value": "5.1k", "footprint": "0402" },
+    { "ref": "R3", "sheet": "compute", "value": "4.7k", "footprint": "0402" },
+    { "ref": "R4", "sheet": "compute", "value": "4.7k", "footprint": "0402" },
+    { "ref": "R5", "sheet": "compute", "value": "10k", "footprint": "0402" },
+    { "ref": "R6", "sheet": "compute", "value": "10k", "footprint": "0402" },
+    { "ref": "R7", "sheet": "audio", "value": "0R", "footprint": "0402" },
+    { "ref": "R10", "sheet": "controls", "value": "10k", "footprint": "0402", "note": "pull-up array start" },
+    { "ref": "C1", "sheet": "power", "value": "10u", "footprint": "0603" },
+    { "ref": "C2", "sheet": "power", "value": "10u", "footprint": "0603" },
+    { "ref": "C3", "sheet": "display", "value": "10u", "footprint": "0603" },
+    { "ref": "TP1", "sheet": "debug", "value": "UART_TX", "footprint": "TestPoint" },
+    { "ref": "TP2", "sheet": "debug", "value": "UART_RX", "footprint": "TestPoint" },
+    { "ref": "TP3", "sheet": "debug", "value": "BOOT", "footprint": "TestPoint" },
+    { "ref": "TP4", "sheet": "debug", "value": "EN", "footprint": "TestPoint" }
+  ],
+  "connections": [
+    { "net": "VBUS_IN", "nodes": [["J1", "VBUS"], ["U2", "IN"], ["R8", "1"]] },
+    { "net": "BAT+", "nodes": [["J2", "1"], ["U2", "BAT"], ["U3", "CELL"]] },
+    { "net": "SYS", "nodes": [["U2", "OUT"], ["U4", "VIN"], ["SW9", "A"]] },
+    { "net": "+3V3", "nodes": [
+      ["U4", "VOUT"], ["U6", "IN"], ["U8", "VDD"], ["C1", "1"], ["C2", "1"],
+      ["U1", "VDD_3V3"], ["U9", "VCC"], ["U3", "VCC"], ["U5", "VDD"],
+      ["J4", "VDD"], ["R3", "1"], ["R4", "1"], ["R5", "1"], ["R6", "1"]
+    ]},
+    { "net": "+3V3_PANEL", "nodes": [["U6", "OUT"], ["J3", "14"], ["J3", "15"], ["C3", "1"]] },
+    { "net": "GND", "nodes": [
+      ["J1", "GND"], ["J1", "SHIELD"], ["J2", "2"], ["U2", "GND"], ["U2", "SYSOFF"], ["U3", "GND"],
+      ["U4", "GND"], ["U6", "GND"], ["U8", "GND"], ["U1", "GND"], ["U5", "GND"], ["J3", "1"], ["J3", "4"],
+      ["J3", "7"], ["J3", "10"], ["J3", "13"], ["J4", "VSS"],
+      ["U9", "GND"], ["X1", "GND"],
+      ["C1", "2"], ["C2", "2"], ["C3", "2"], ["R1", "2"], ["R2", "2"],
+      ["Q1", "E"], ["R7", "2"], ["B1", "2"],
+      ["SW1", "2"], ["SW2", "2"], ["SW3", "2"], ["SW4", "2"], ["SW5", "2"],
+      ["SW6", "2"], ["SW7", "2"], ["SW8", "2"], ["SW9", "B"], ["SW10A", "2"], ["SW10B", "2"],
+      ["D1", "K"], ["D2", "K"], ["D3", "K"]
+    ]},
+    { "net": "USB_CC1", "nodes": [["J1", "CC1"], ["R1", "1"]] },
+    { "net": "USB_CC2", "nodes": [["J1", "CC2"], ["R2", "1"]] },
+    { "net": "USB_DP", "nodes": [["J1", "D+"], ["U1", "USB_DP"]] },
+    { "net": "USB_DM", "nodes": [["J1", "D-"], ["U1", "USB_DM"]] },
+    { "net": "I2C_SDA", "nodes": [["U1", "GPIO26"], ["U3", "SDA"], ["U5", "SDA"], ["R3", "2"]] },
+    { "net": "I2C_SCL", "nodes": [["U1", "GPIO27"], ["U3", "SCL"], ["U5", "SCL"], ["R4", "2"]] },
+    { "net": "ESP_EN", "nodes": [["U1", "EN"], ["TP4", "1"], ["R5", "2"]] },
+    { "net": "XTAL_IN", "nodes": [["U1", "XTAL_P"], ["X1", "1"]] },
+    { "net": "XTAL_OUT", "nodes": [["U1", "XTAL_N"], ["X1", "2"]] },
+    { "net": "FLASH_CLK", "nodes": [["U1", "SPI_CLK"], ["U9", "CLK"]] },
+    { "net": "FLASH_CS", "nodes": [["U1", "SPI_CS"], ["U9", "CS"]] },
+    { "net": "FLASH_D0", "nodes": [["U1", "SPI_D0"], ["U9", "D0"]] },
+    { "net": "FLASH_D1", "nodes": [["U1", "SPI_D1"], ["U9", "D1"]] },
+    { "net": "FLASH_D2", "nodes": [["U1", "SPI_D2"], ["U9", "D2"]] },
+    { "net": "FLASH_D3", "nodes": [["U1", "SPI_D3"], ["U9", "D3"]] },
+    { "net": "DCDC_L", "nodes": [["U1", "VDD_DCDC"], ["L1", "1"]] },
+    { "net": "DCDC_FB", "nodes": [["U1", "FB_DCDC"], ["L1", "2"]] },
+    { "net": "PWR_EN", "nodes": [["SW9", "C"], ["U4", "EN"]] },
+    { "net": "CHG_LED", "nodes": [["R8", "2"], ["D4", "A"]] },
+    { "net": "CHG_STAT", "nodes": [["D4", "K"], ["U2", "CHG"]] },
+    { "net": "PANEL_EN", "nodes": [["U1", "GPIO11"], ["U6", "ON"]] },
+    { "net": "BOOT", "nodes": [["U1", "GPIO35"], ["TP3", "1"]] },
+    { "net": "BOOT_EN", "nodes": [["U1", "GPIO36"], ["R6", "2"]] },
+    { "net": "DSI_D1_N", "nodes": [["U1", "DSI_DATAN1"], ["J3", "2"]] },
+    { "net": "DSI_D1_P", "nodes": [["U1", "DSI_DATAP1"], ["J3", "3"]] },
+    { "net": "DSI_CLK_N", "nodes": [["U1", "DSI_CLKN"], ["J3", "5"]] },
+    { "net": "DSI_CLK_P", "nodes": [["U1", "DSI_CLKP"], ["J3", "6"]] },
+    { "net": "DSI_D0_N", "nodes": [["U1", "DSI_DATAN0"], ["J3", "8"]] },
+    { "net": "DSI_D0_P", "nodes": [["U1", "DSI_DATAP0"], ["J3", "9"]] },
+    { "net": "SW_DPAD_UP", "nodes": [["U1", "GPIO28"], ["SW1", "1"], ["R10", "1"]] },
+    { "net": "SW_DPAD_DOWN", "nodes": [["U1", "GPIO9"], ["SW2", "1"]] },
+    { "net": "SW_DPAD_LEFT", "nodes": [["U1", "GPIO30"], ["SW3", "1"]] },
+    { "net": "SW_DPAD_RIGHT", "nodes": [["U1", "GPIO31"], ["SW4", "1"]] },
+    { "net": "SW_ACTION", "nodes": [["U1", "GPIO10"], ["SW5", "1"]] },
+    { "net": "SW_UNDO", "nodes": [["U1", "GPIO33"], ["SW6", "1"]] },
+    { "net": "SW_RESTART", "nodes": [["U1", "GPIO34"], ["SW7", "1"]] },
+    { "net": "SW_MENU", "nodes": [["U1", "GPIO37"], ["SW8", "1"]] },
+    { "net": "VOL_UP", "nodes": [["U1", "GPIO39"], ["SW10A", "1"]] },
+    { "net": "VOL_DOWN", "nodes": [["U1", "GPIO40"], ["SW10B", "1"]] },
+    { "net": "PIEZO_PWM", "nodes": [["U1", "GPIO41"], ["Q1", "B"], ["U8", "IN"]] },
+    { "net": "PIEZO_OUT", "nodes": [["Q1", "C"], ["JP1", "1"], ["U8", "OUTP"]] },
+    { "net": "PIEZO_RET", "nodes": [["JP1", "2"], ["U8", "OUTN"], ["R7", "1"]] },
+    { "net": "LED_R", "nodes": [["U1", "GPIO42"], ["D1", "A"]] },
+    { "net": "LED_G", "nodes": [["U1", "GPIO43"], ["D2", "A"]] },
+    { "net": "LED_B", "nodes": [["U1", "GPIO44"], ["D3", "A"]] },
+    { "net": "GAUGE_ALERT", "nodes": [["U1", "GPIO45"], ["U3", "ALRT"]] },
+    { "net": "SD_SPI_CS", "nodes": [["U1", "GPIO46"], ["J4", "CS"]] },
+    { "net": "SD_SPI_CLK", "nodes": [["U1", "GPIO47"], ["J4", "CLK"]] },
+    { "net": "SD_SPI_MOSI", "nodes": [["U1", "GPIO48"], ["J4", "DI"]] },
+    { "net": "SD_SPI_MISO", "nodes": [["U1", "GPIO49"], ["J4", "DO"]] },
+    { "net": "UART_TX", "nodes": [["U1", "GPIO50"], ["TP1", "1"]] },
+    { "net": "UART_RX", "nodes": [["U1", "GPIO51"], ["TP2", "1"]] }
+  ],
+  "dsiPanelInterface": {
+    "panel": "Waveshare 43H-800480-IPS no-touch",
+    "connector": "15-pin 1.0 mm Raspberry-Pi-style DSI FFC",
+    "power": "Display assembly is powered from switched +3V3_PANEL on pins 14 and 15; no display boost converter is on the card.",
+    "pinout": [
+      { "pin": 1, "label": "GND", "net": "GND", "source": "Waveshare wiki" },
+      { "pin": 2, "label": "DSI1_DN1", "net": "DSI_D1_N", "source": "Waveshare wiki" },
+      { "pin": 3, "label": "DSI1_DP1", "net": "DSI_D1_P", "source": "Waveshare wiki" },
+      { "pin": 4, "label": "GND", "net": "GND", "source": "Waveshare wiki" },
+      { "pin": 5, "label": "DSI1_CN", "net": "DSI_CLK_N", "source": "Waveshare wiki" },
+      { "pin": 6, "label": "DSI1_CP", "net": "DSI_CLK_P", "source": "Waveshare wiki" },
+      { "pin": 7, "label": "GND", "net": "GND", "source": "Waveshare wiki" },
+      { "pin": 8, "label": "DSI1_DN0", "net": "DSI_D0_N", "source": "Waveshare wiki" },
+      { "pin": 9, "label": "DSI1_DP0", "net": "DSI_D0_P", "source": "Waveshare wiki" },
+      { "pin": 10, "label": "GND", "net": "GND", "source": "Waveshare wiki" },
+      { "pin": 11, "label": "SCL0", "net": "NC_SCL0", "source": "Waveshare wiki; no-touch card does not route touch I2C" },
+      { "pin": 12, "label": "SDA0", "net": "NC_SDA0", "source": "Waveshare wiki; no-touch card does not route touch I2C" },
+      { "pin": 13, "label": "GND", "net": "GND", "source": "Waveshare wiki" },
+      { "pin": 14, "label": "3V3", "net": "+3V3_PANEL", "source": "Waveshare wiki" },
+      { "pin": 15, "label": "3V3", "net": "+3V3_PANEL", "source": "Waveshare wiki" }
+    ],
+    "orientation": {
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "assumedCableParity": "same-side",
+      "assumptionStatus": "assumed-for-layout",
+      "workingAssumption": "Same-side 15-pin FFC cable assumed for layout planning; do not close the gate until verified on the shipped cable.",
+      "known": [
+        "Waveshare wiki says the screen-side cable gold finger faces upward.",
+        "Waveshare product photos show a hinged FFC connector on the display board.",
+        "Waveshare provides an official 43H-800480-IPS STEP drawing; it confirms the mechanical envelope but does not identify the shipped cable contact parity at the card end."
+      ],
+      "mustCheckBeforeRouting": [
+        "Confirm the same-side 15-pin cable assumption against the shipped FFC before PCB order.",
+        "Lay the shipped FFC flat and determine whether it is a same-side or opposite-side 15-pin cable.",
+        "Take a card-end photo of the exposed contacts with the panel in the intended shell fold.",
+        "Select J3 top-contact or bottom-contact orientation so the exposed card-end contacts face the connector contacts without twisting the cable.",
+        "Mark pin 1 on the PCB silkscreen and verify it against the connector footprint before routing."
+      ],
+      "doNotCloseUntil": "Do not close GATE-DSI-FFC-CONTACT until the actual panel/cable check proves card-end contact side, latch side, cable exit direction, and pin-1 orientation."
+    },
+    "routing": {
+      "order": "Route DSI before power loops, USB, controls, storage, audio, haptic, and LEDs.",
+      "impedance": "Target 100 ohm differential on a 4-layer board with a continuous reference plane.",
+      "placement": "Keep J3 at the top-edge CONN_DSI_FFC anchor, place C3 close to pins 14/15, and keep buck-boost hot loops away from the DSI pairs."
+    },
+    "sources": [
+      { "label": "Waveshare 43H-800480-IPS wiki", "url": "https://www.waveshare.com/wiki/43H-800480-IPS" },
+      { "label": "Waveshare 43H-800480-IPS product page", "url": "https://www.waveshare.com/43h-800480-ips.htm" },
+      { "label": "Waveshare 43H-800480-IPS STEP drawing", "url": "https://files.waveshare.com/upload/c/cd/43h-800480-IPS.zip" }
+    ]
+  },
+  "gateEvidence": [
+    {
+      "gate": "GATE-DSI-FFC-CONTACT",
+      "status": "open",
+      "summary": "Waveshare electrical pinout is captured and same-side FFC is assumed for layout planning; physical FFC orientation is still blocked.",
+      "confirmed": [
+        "Waveshare wiki defines J3 pins 14 and 15 are 3V3.",
+        "Waveshare wiki defines J3 pins 1, 4, 7, 10, and 13 as GND.",
+        "Waveshare wiki maps DSI lanes to pins 2-3, 5-6, and 8-9.",
+        "Waveshare wiki says the screen-side cable gold finger faces upward.",
+        "Waveshare product page says the no-touch 43H-800480-IPS package includes two 15-pin FPC cables."
+      ],
+      "missing": [
+        "Confirm the same-side 15-pin cable assumption against the shipped FFC.",
+        "Actual card-end contact side: whether the shipped cable is same-side or opposite-side.",
+        "Card-end photo of exposed contacts with the panel in the intended shell fold.",
+        "Connector latch side and whether the cable exits toward or away from the display fold.",
+        "Pin-1 orientation on the custom PCB connector footprint.",
+        "Physical check against the received panel/cable before DSI routing."
+      ],
+      "sources": [
+        { "label": "Waveshare 43H-800480-IPS wiki", "url": "https://www.waveshare.com/wiki/43H-800480-IPS" },
+        { "label": "Waveshare 43H-800480-IPS product page", "url": "https://www.waveshare.com/43h-800480-ips.htm" },
+        { "label": "Waveshare 43H-800480-IPS STEP drawing", "url": "https://files.waveshare.com/upload/c/cd/43h-800480-IPS.zip" }
+      ]
+    }
+  ],
+  "requirements": {
+    "differential_nets": [
+      ["DSI_D0_P", "DSI_D0_N"],
+      ["DSI_D1_P", "DSI_D1_N"],
+      ["DSI_CLK_P", "DSI_CLK_N"],
+      ["USB_DP", "USB_DM"]
+    ],
+    "power_nets": ["+3V3", "+3V3_PANEL", "SYS", "VBUS_IN", "BAT+"],
+    "must_connect": [
+      ["U1", "DSI_DATAP0"],
+      ["J3", "14"],
+      ["U4", "VOUT"],
+      ["J1", "VBUS"]
+    ]
+  }
+}

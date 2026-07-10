@@ -1,0 +1,75 @@
+{
+  "switches": [
+    {
+      "ref": "SW1",
+      "label": "UP",
+      "net": "GPIO28_UP",
+      "gpio": 28,
+      "x": 22,
+      "y": 78.25
+    },
+    {
+      "ref": "SW2",
+      "label": "DOWN",
+      "net": "GPIO29_DOWN",
+      "gpio": 29,
+      "x": 22,
+      "y": 95.75
+    },
+    {
+      "ref": "SW3",
+      "label": "LEFT",
+      "net": "GPIO30_LEFT",
+      "gpio": 30,
+      "x": 13.25,
+      "y": 87
+    },
+    {
+      "ref": "SW4",
+      "label": "RIGHT",
+      "net": "GPIO31_RIGHT",
+      "gpio": 31,
+      "x": 30.75,
+      "y": 87
+    },
+    {
+      "ref": "SW5",
+      "label": "ACTION",
+      "net": "GPIO32_ACTION",
+      "gpio": 32,
+      "x": 89,
+      "y": 83
+    },
+    {
+      "ref": "SW6",
+      "label": "UNDO",
+      "net": "GPIO34_UNDO",
+      "gpio": 34,
+      "x": 75,
+      "y": 96
+    },
+    {
+      "ref": "SW7",
+      "label": "RESTART",
+      "net": "GPIO35_RESTART",
+      "gpio": 35,
+      "x": 92,
+      "y": 102
+    },
+    {
+      "ref": "SW8",
+      "label": "MENU",
+      "net": "GPIO49_MENU",
+      "gpio": 49,
+      "x": 58,
+      "y": 101
+    }
+  ],
+  "outline": {
+    "x0": 7.25,
+    "y0": 64.25,
+    "w": 90.75,
+    "h": 43.75,
+    "cx": 52.625
+  }
+}

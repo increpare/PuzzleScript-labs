@@ -521,8 +521,10 @@ UTF8PROC_DLLEXPORT utf8proc_ssize_t utf8proc_decompose_char(utf8proc_int32_t uc,
   }
   if (options & UTF8PROC_CHARBOUND) {
     utf8proc_bool boundary;
+    utf8proc_int32_t grapheme_state = last_boundclass == NULL ? 0 : (utf8proc_int32_t)*last_boundclass;
     boundary = grapheme_break_extended(0, property->boundclass, 0, property->indic_conjunct_break,
-                                       last_boundclass);
+                                       &grapheme_state);
+    if (last_boundclass != NULL) *last_boundclass = (int)grapheme_state;
     if (boundary) {
       if (bufsize >= 1) dst[0] = -1; /* sentinel value for grapheme break */
       if (bufsize >= 2) dst[1] = uc;

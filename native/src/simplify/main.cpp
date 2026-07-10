@@ -1,6 +1,5 @@
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
-#include "compiler/parser_glyphs.hpp"
 #include "generator/level_rows.hpp"
 #include "generator/output_writer.hpp"
 #include "runtime/compiled_rules.hpp"
@@ -153,8 +152,6 @@ puzzlescript::LoadedGame compileGame(const std::string& source) {
         throw std::runtime_error(error->message);
     }
     if (loadedGame.information) {
-        puzzlescript::compiler::publishParserGlyphs(
-            *std::const_pointer_cast<puzzlescript::Game>(loadedGame.information), state);
         puzzlescript::attachLinkedCompiledRules(
             *std::const_pointer_cast<puzzlescript::Game>(loadedGame.information), source);
     }

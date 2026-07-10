@@ -4688,7 +4688,7 @@ inline padded_string_view pad_with_reserve(std::string& s) noexcept {
 #include <climits>
 #include <cwchar>
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(ESP_PLATFORM)
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -5064,6 +5064,19 @@ inline bool padded_string_builder::reserve(size_t additional) noexcept {
 
 
 #ifndef _WIN32
+#ifdef ESP_PLATFORM
+simdjson_inline padded_memory_map::padded_memory_map(const char *) noexcept {}
+
+simdjson_inline padded_memory_map::~padded_memory_map() noexcept {}
+
+simdjson_inline simdjson::padded_string_view padded_memory_map::view() const noexcept simdjson_lifetime_bound {
+  return simdjson::padded_string_view();
+}
+
+simdjson_inline bool padded_memory_map::is_valid() const noexcept {
+  return false;
+}
+#else
 simdjson_inline padded_memory_map::padded_memory_map(const char *filename) noexcept {
 
     int fd = open(filename, O_RDONLY);
@@ -5111,6 +5124,7 @@ simdjson_inline simdjson::padded_string_view padded_memory_map::view() const noe
 simdjson_inline bool padded_memory_map::is_valid() const noexcept {
   return data != nullptr;
 }
+#endif // ESP_PLATFORM
 #endif // _WIN32
 
 } // namespace simdjson

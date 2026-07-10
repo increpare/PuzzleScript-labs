@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "card")(type "KiCad")(uri "${KIPRJMOD}/card.kicad_sch")(options "")(descr "Embedded hierarchical schematic symbols"))
+)

@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+  <!-- PuzzleScript handheld case blockout, 1:1 scale on A4 landscape.
+       Print at 100% (no fit-to-page) and verify the calibration ruler. -->
+  <defs>
+    <pattern id="grid10" width="10" height="10" patternUnits="userSpaceOnUse" x="34.5" y="22">
+      <path d="M 10 0 L 0 0 L 0 10" fill="none" stroke="#c8c8c8" stroke-width="0.12"/>
+    </pattern>
+  </defs>
+
+  <text x="34.5" y="8" font-size="4.2" font-family="sans-serif" fill="#000">PuzzleScript handheld — case blockout 1:1 (2026-07-07). Print at 100% scale, A4 landscape.</text>
+
+  <!-- calibration ruler: 100 mm -->
+  <g stroke="#000" stroke-width="0.3">
+    <line x1="162" y1="14" x2="262" y2="14"/>
+    <line x1="162" y1="11" x2="162" y2="17"/>
+    <line x1="172" y1="12.5" x2="172" y2="15.5"/>
+    <line x1="182" y1="12.5" x2="182" y2="15.5"/>
+    <line x1="192" y1="12.5" x2="192" y2="15.5"/>
+    <line x1="202" y1="12.5" x2="202" y2="15.5"/>
+    <line x1="212" y1="11" x2="212" y2="17"/>
+    <line x1="222" y1="12.5" x2="222" y2="15.5"/>
+    <line x1="232" y1="12.5" x2="232" y2="15.5"/>
+    <line x1="242" y1="12.5" x2="242" y2="15.5"/>
+    <line x1="252" y1="12.5" x2="252" y2="15.5"/>
+    <line x1="262" y1="11" x2="262" y2="17"/>
+  </g>
+  <text x="212" y="9.5" font-size="3.2" font-family="sans-serif" fill="#000" text-anchor="middle">calibration: this bar must measure exactly 100 mm</text>
+
+  <!-- ===================== FRONT FACE (origin 34.5, 22) ===================== -->
+  <rect x="34.5" y="22" width="228" height="105" rx="14" fill="url(#grid10)" stroke="#000" stroke-width="0.5"/>
+
+  <!-- display lens + visible area -->
+  <rect x="88" y="36" width="121" height="77" rx="2" fill="none" stroke="#000" stroke-width="0.4"/>
+  <rect x="94" y="41.6" width="109" height="65.8" fill="none" stroke="#666" stroke-width="0.25" stroke-dasharray="2,1.5"/>
+  <text x="148.5" y="76" font-size="4" font-family="sans-serif" fill="#888" text-anchor="middle">display lens 121 x 77 (dashed: visible 109 x 65.8)</text>
+
+  <!-- D-pad, center (27, 52.5) face-local = (61.5, 74.5) -->
+  <rect x="44.5" y="69" width="34" height="11" rx="1.5" fill="none" stroke="#000" stroke-width="0.4"/>
+  <rect x="56" y="57.5" width="11" height="34" rx="1.5" fill="none" stroke="#000" stroke-width="0.4"/>
+  <g stroke="#000" stroke-width="0.2">
+    <line x1="59" y1="74.5" x2="64" y2="74.5"/><line x1="61.5" y1="72" x2="61.5" y2="77"/>
+  </g>
+  <text x="61.5" y="96" font-size="3" font-family="sans-serif" fill="#444" text-anchor="middle">D-pad 34 mascot cap, ctr (27, 52.5)</text>
+
+  <!-- Action O16, center (202,44) -> (236.5, 66) -->
+  <circle cx="236.5" cy="66" r="8" fill="none" stroke="#000" stroke-width="0.4"/>
+  <g stroke="#000" stroke-width="0.2">
+    <line x1="234" y1="66" x2="239" y2="66"/><line x1="236.5" y1="63.5" x2="236.5" y2="68.5"/>
+  </g>
+  <text x="248" y="61" font-size="3" font-family="sans-serif" fill="#444">ACTION</text>
+  <text x="248" y="65" font-size="3" font-family="sans-serif" fill="#444">O16 (202, 44)</text>
+
+  <!-- Undo O12, center (187,60) -> (221.5, 82) -->
+  <circle cx="221.5" cy="82" r="6" fill="none" stroke="#000" stroke-width="0.4"/>
+  <g stroke="#000" stroke-width="0.2">
+    <line x1="219" y1="82" x2="224" y2="82"/><line x1="221.5" y1="79.5" x2="221.5" y2="84.5"/>
+  </g>
+  <text x="211" y="92" font-size="3" font-family="sans-serif" fill="#444">UNDO O12 (187, 60)</text>
+
+  <!-- Restart O11, center (205,67) -> (239.5, 89) -->
+  <circle cx="239.5" cy="89" r="5.5" fill="none" stroke="#000" stroke-width="0.4"/>
+  <g stroke="#000" stroke-width="0.2">
+    <line x1="237" y1="89" x2="242" y2="89"/><line x1="239.5" y1="86.5" x2="239.5" y2="91.5"/>
+  </g>
+  <text x="248" y="93" font-size="3" font-family="sans-serif" fill="#444">RESTART</text>
+  <text x="248" y="97" font-size="3" font-family="sans-serif" fill="#444">O11 (205, 67)</text>
+
+  <!-- Menu pill, center (27,90) -> (61.5, 112), -20 deg -->
+  <g transform="rotate(-20 61.5 112)">
+    <rect x="55" y="109.75" width="13" height="4.5" rx="2.25" fill="none" stroke="#000" stroke-width="0.4"/>
+  </g>
+  <text x="61.5" y="122" font-size="3" font-family="sans-serif" fill="#444" text-anchor="middle">MENU pill (27, 90)</text>
+
+  <!-- speaker grille zone -->
+  <g fill="#000">
+    <circle cx="138.5" cy="117" r="0.7"/><circle cx="142.5" cy="117" r="0.7"/><circle cx="146.5" cy="117" r="0.7"/><circle cx="150.5" cy="117" r="0.7"/><circle cx="154.5" cy="117" r="0.7"/><circle cx="158.5" cy="117" r="0.7"/>
+    <circle cx="140.5" cy="120" r="0.7"/><circle cx="144.5" cy="120" r="0.7"/><circle cx="148.5" cy="120" r="0.7"/><circle cx="152.5" cy="120" r="0.7"/><circle cx="156.5" cy="120" r="0.7"/>
+  </g>
+  <text x="171" y="120" font-size="3" font-family="sans-serif" fill="#444">speaker grille</text>
+
+  <!-- face dimensions -->
+  <text x="148.5" y="20" font-size="3.4" font-family="sans-serif" fill="#000" text-anchor="middle">front face 228 x 105, corner r14 — grid 10 mm</text>
+
+  <!-- ===================== PROFILE SECTION (origin 34.5, 140) ===================== -->
+  <g transform="translate(34.5, 140)">
+    <path d="M 4 0 L 224 0 Q 228 0 228 4 L 228 12 Q 225 31 201 31 Q 170 31 148 22 L 80 22 Q 58 31 27 31 Q 3 31 0 12 L 0 4 Q 0 0 4 0 Z" fill="none" stroke="#000" stroke-width="0.5"/>
+    <text x="27" y="20" font-size="3.6" font-family="sans-serif" fill="#444" text-anchor="middle">31</text>
+    <text x="114" y="16" font-size="3.6" font-family="sans-serif" fill="#444" text-anchor="middle">22</text>
+    <text x="201" y="20" font-size="3.6" font-family="sans-serif" fill="#444" text-anchor="middle">31</text>
+  </g>
+  <text x="34.5" y="137.5" font-size="3.4" font-family="sans-serif" fill="#000">profile section through control line, 1:1 (front face at top) — use as foam-core stack template</text>
+
+  <!-- ===================== TOP EDGE (origin 34.5, 183) ===================== -->
+  <g transform="translate(34.5, 183)">
+    <rect x="0" y="0" width="228" height="11" rx="4" fill="none" stroke="#000" stroke-width="0.5"/>
+    <rect x="18" y="3.25" width="10" height="4.5" rx="2.25" fill="none" stroke="#000" stroke-width="0.4"/>
+    <rect x="63" y="3" width="10" height="5" rx="2.5" fill="none" stroke="#000" stroke-width="0.4"/>
+    <rect x="192" y="3.5" width="18" height="4" rx="2" fill="none" stroke="#000" stroke-width="0.4"/>
+    <line x1="108" y1="1.5" x2="108" y2="9.5" stroke="#999" stroke-width="0.25" stroke-dasharray="1.5,1.5"/>
+    <line x1="140" y1="1.5" x2="140" y2="9.5" stroke="#999" stroke-width="0.25" stroke-dasharray="1.5,1.5"/>
+  </g>
+  <text x="57.5" y="181" font-size="3" font-family="sans-serif" fill="#444" text-anchor="middle">PWR @23</text>
+  <text x="102.5" y="181" font-size="3" font-family="sans-serif" fill="#444" text-anchor="middle">USB-C @68</text>
+  <text x="158.5" y="181" font-size="3" font-family="sans-serif" fill="#444" text-anchor="middle">FPC keep-out</text>
+  <text x="235.5" y="181" font-size="3" font-family="sans-serif" fill="#444" text-anchor="middle">VOL @201</text>
+  <text x="34.5" y="203" font-size="3.4" font-family="sans-serif" fill="#000">top edge, 1:1. Spec: docs/superpowers/specs/2026-07-07-handheld-case-blockout-design.md</text>
+</svg>

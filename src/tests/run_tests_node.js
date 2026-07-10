@@ -213,14 +213,20 @@ for (const file of sourceFiles) {
 }
 
 // Load test framework and test data into the same script scope
+const testdataPath = process.env.PUZZLESCRIPT_TESTDATA
+    ? path.resolve(process.env.PUZZLESCRIPT_TESTDATA)
+    : path.join(srcDir, 'tests/resources/testdata.js');
 const extras = [
     'tests/resources/testingFrameWork.js',
-    'tests/resources/testdata.js',
-    'tests/resources/errormessage_testdata.js',
 ];
 for (const file of extras) {
     const code = fs.readFileSync(path.join(srcDir, file), 'utf8');
     allCode += `\n// ---- ${file} ----\n${code}\n`;
+}
+allCode += `\n// ---- testdata ----\n${fs.readFileSync(testdataPath, 'utf8')}\n`;
+if (!process.env.PUZZLESCRIPT_TESTDATA) {
+    const errormessagePath = path.join(srcDir, 'tests/resources/errormessage_testdata.js');
+    allCode += `\n// ---- errormessage_testdata ----\n${fs.readFileSync(errormessagePath, 'utf8')}\n`;
 }
 
 vm.runInThisContext(allCode, { filename: 'combined_sources.js' });
@@ -350,7 +356,7 @@ function runOnePass() {
     const simMs = compilationOnly ? 0 : performance.now() - simStart;
 
     let errMs = 0;
-    if (!simOnly) {
+    if (!simOnly && global.errormessage_testdata) {
         const errStart = performance.now();
         const errTotal = global.errormessage_testdata.length;
         for (let i = 0; i < errTotal; i++) {
@@ -382,7 +388,7 @@ function runOnePass() {
 }
 
 const simTotal = global.testdata.length;
-const errTotal = global.errormessage_testdata.length;
+const errTotal = global.errormessage_testdata ? global.errormessage_testdata.length : 0;
 if (compilationOnly) {
     _origLog(`Running ${errTotal} compilation error tests...`);
 } else if (simOnly) {

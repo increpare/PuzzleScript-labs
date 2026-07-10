@@ -12,6 +12,8 @@ if (process.argv.length < 4) {
 const generatorPath = path.resolve(process.argv[2]);
 const gamePath = path.resolve(process.argv[3]);
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'psgen-smoke-'));
+const solverTimeoutMs = process.env.PS_GENERATOR_SMOKE_SOLVER_TIMEOUT_MS || '50';
+const shortSolverTimeoutMs = process.env.PS_GENERATOR_SMOKE_SHORT_SOLVER_TIMEOUT_MS || '20';
 
 function run(args, label, expectedStatus = 0) {
   const result = spawnSync(generatorPath, args, { encoding: 'utf8' });
@@ -81,7 +83,7 @@ test('fixed sample output is deterministic across job counts', () => {
     smokeSpecPath,
     '--samples', '20',
     '--seed', '7',
-    '--solver-timeout-ms', '50',
+    '--solver-timeout-ms', solverTimeoutMs,
     '--top-k', '5',
     '--quiet',
   ];
@@ -124,7 +126,7 @@ function runAcceptedSpec(name, ruleLines) {
     specPath,
     '--samples', '4',
     '--seed', '11',
-    '--solver-timeout-ms', '50',
+    '--solver-timeout-ms', solverTimeoutMs,
     '--top-k', '2',
     '--quiet',
     '--json-out', outPath,
@@ -163,7 +165,7 @@ test('generator preset fixtures run', () => {
         path.join(presetDir, file),
         '--samples', '8',
         '--seed', '11',
-        '--solver-timeout-ms', '20',
+        '--solver-timeout-ms', shortSolverTimeoutMs,
         '--top-k', '3',
         '--jobs', '1',
         '--quiet',
@@ -207,7 +209,7 @@ test('recipe init level is used when source levels start with a message', () => 
     smokeSpecPath,
     '--samples', '4',
     '--seed', '17',
-    '--solver-timeout-ms', '50',
+    '--solver-timeout-ms', solverTimeoutMs,
     '--top-k', '2',
     '--quiet',
     '--json-out', outPath,

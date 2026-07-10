@@ -127,7 +127,9 @@ inline const MaskWord* maskPtr(const Game& game, MaskOffset offset) {
     if (offset == kNullMaskOffset || offset >= game.maskArena.size()) {
         return nullptr;
     }
-    return game.maskArena.data() + offset;
+    const MaskWord* ptr = game.maskArena.data() + offset;
+    recordMaskArenaAccess(ptr);
+    return ptr;
 }
 
 inline const MaskWord* cellObjects(const FullState& session, int32_t tileIndex) {

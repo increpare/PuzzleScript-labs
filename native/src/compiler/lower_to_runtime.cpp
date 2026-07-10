@@ -13,9 +13,12 @@
 
 #include <utf8proc.h>
 
+#include "compiler/parser_glyphs.hpp"
 #include "compiler/rule_text.hpp"
 
 namespace puzzlescript::compiler {
+
+using puzzlescript::storeMaskWords;
 
 namespace {
 
@@ -30,12 +33,6 @@ std::string toLowerAsciiCopy(std::string_view input) {
 
 uint32_t ceilDivU32(uint32_t a, uint32_t b) {
     return (a + b - 1) / b;
-}
-
-puzzlescript::MaskOffset storeMaskWords(puzzlescript::Game& game, const puzzlescript::MaskVector& words) {
-    const auto offset = static_cast<puzzlescript::MaskOffset>(game.maskArena.size());
-    game.maskArena.insert(game.maskArena.end(), words.begin(), words.end());
-    return offset;
 }
 
 puzzlescript::MaskVector makeEmptyMask(uint32_t wordCount) {
@@ -697,6 +694,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     std::vector<SemanticRule>* outAuthoredRules
 ) {
     auto game = std::make_shared<puzzlescript::Game>();
+    puzzlescript::ScopedMaskInterner maskInterner(*game);
     puzzlescript::MetaGameState initialMetaGameState;
     game->schemaVersion = 1;
 
@@ -749,6 +747,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     game->wordCount = static_cast<uint32_t>(game->strideObject);
     game->strideMovement = static_cast<int32_t>(puzzlescript::movementStrideWordCount(static_cast<uint32_t>(game->layerCount)));
     game->movementWordCount = static_cast<uint32_t>(game->strideMovement);
+    puzzlescript::MaskVector staticAnalysisExtraWrittenObjects(static_cast<size_t>(game->wordCount), 0);
+    puzzlescript::MaskVector staticAnalysisExtraMovementMentionedObjects(static_cast<size_t>(game->wordCount), 0);
 
     game->objectsById.resize(static_cast<size_t>(game->objectCount));
 
@@ -1353,7 +1353,11 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 continue;
             }
             if (*it == "->") {
-                if (arrowSearchBracketDepth == 0) {
+                // parser.js is tolerant of an accidental extra opening bracket
+                // before the LHS (`[[ A ] -> [ B ]`): the arrow still separates
+                // the rewrite, and the inner cells are kept. Treat a depth of
+                // one as top-level for that compatibility case.
+                if (arrowSearchBracketDepth <= 1) {
                     arrowIt = it;
                     break;
                 }
@@ -1932,6 +1936,186 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             }
             return false;
         };
+        auto markStaticAnalysisExtraObject = [&](puzzlescript::MaskVector& target, int32_t objectId) {
+            if (objectId < 0 || objectId >= game->objectCount) {
+                return;
+            }
+            const uint32_t word = puzzlescript::maskWordIndex(static_cast<uint32_t>(objectId));
+            if (word < target.size()) {
+                target[static_cast<size_t>(word)] |=
+                    puzzlescript::maskBit(static_cast<uint32_t>(objectId));
+            }
+        };
+        auto markStaticAnalysisExtraMask = [&](puzzlescript::MaskVector& target,
+                                               const puzzlescript::MaskVector& mask) {
+            for (int32_t objectId = 0; objectId < game->objectCount; ++objectId) {
+                if (maskHasBit(mask, objectId)) {
+                    markStaticAnalysisExtraObject(target, objectId);
+                }
+            }
+        };
+        auto movementDirInvalidatesStaticObject = [&](const std::string& dir) {
+            return !dir.empty()
+                && dir != "stationary"
+                && dir != "action"
+                && dir != "no"
+                && dir != "random";
+        };
+        auto objectCanCoexistWithRequiredObjects =
+            [&](int32_t objectId, const std::set<int32_t>& requiredObjects) {
+                if (objectId < 0 || objectId >= game->objectCount) {
+                    return true;
+                }
+                const int32_t objectLayer =
+                    game->objectsById[static_cast<size_t>(objectId)].layer;
+                for (const int32_t requiredId : requiredObjects) {
+                    if (requiredId == objectId
+                        || requiredId < 0
+                        || requiredId >= game->objectCount) {
+                        continue;
+                    }
+                    if (game->objectsById[static_cast<size_t>(requiredId)].layer
+                        == objectLayer) {
+                        return false;
+                    }
+                }
+                return true;
+        };
+        auto cellCanPreserveObject = [&](const ParsedCell& cell, int32_t objectId) {
+            if (objectId < 0 || objectId >= game->objectCount) {
+                return false;
+            }
+            for (const ParsedItem& item : cell.items) {
+                if (item.dir == "no" || item.dir == "random") {
+                    continue;
+                }
+                std::set<std::string> visiting;
+                const auto mask = resolveMask(resolveMask, item.name, visiting);
+                if (maskHasBit(mask, objectId)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        auto markSkippedVariantClearedObjects =
+            [&](const ParsedCell* lhsCell, const ParsedCell* rhsCell) {
+                if (lhsCell == nullptr
+                    || lhsCell->isEllipsis
+                    || rhsCell == nullptr
+                    || rhsCell->isEllipsis) {
+                    return;
+                }
+                for (const ParsedItem& item : lhsCell->items) {
+                    if (item.dir == "no" || item.dir == "random") {
+                        continue;
+                    }
+                    std::set<std::string> visiting;
+                    const auto mask = resolveMask(resolveMask, item.name, visiting);
+                    for (int32_t objectId = 0; objectId < game->objectCount; ++objectId) {
+                        if (maskHasBit(mask, objectId)
+                            && !cellCanPreserveObject(*rhsCell, objectId)) {
+                            markStaticAnalysisExtraObject(
+                                staticAnalysisExtraWrittenObjects,
+                                objectId);
+                        }
+                    }
+                }
+            };
+        auto collectSkippedVariantStaticAnalysisFacts =
+            [&](const std::vector<ParsedRow>& lhs, const std::vector<ParsedRow>& rhs) {
+                const size_t rowCount = std::max(lhs.size(), rhs.size());
+                for (size_t rowIndex = 0; rowIndex < rowCount; ++rowIndex) {
+                    const ParsedRow* lhsRow = rowIndex < lhs.size() ? &lhs[rowIndex] : nullptr;
+                    const ParsedRow* rhsRow = rowIndex < rhs.size() ? &rhs[rowIndex] : nullptr;
+                    const size_t cellCount = std::max(
+                        lhsRow != nullptr ? lhsRow->size() : size_t{0},
+                        rhsRow != nullptr ? rhsRow->size() : size_t{0});
+                    for (size_t cellIndex = 0; cellIndex < cellCount; ++cellIndex) {
+                        const ParsedCell* lhsCell =
+                            lhsRow != nullptr && cellIndex < lhsRow->size()
+                                ? &(*lhsRow)[cellIndex]
+                                : nullptr;
+                        const ParsedCell* rhsCell =
+                            rhsRow != nullptr && cellIndex < rhsRow->size()
+                                ? &(*rhsRow)[cellIndex]
+                                : nullptr;
+                        markSkippedVariantClearedObjects(lhsCell, rhsCell);
+                        if (rhsCell == nullptr || rhsCell->isEllipsis) {
+                            continue;
+                        }
+                        std::set<int32_t> rhsConcreteRequiredObjects;
+                        for (const ParsedItem& item : rhsCell->items) {
+                            if (item.dir == "no" || item.dir == "random") {
+                                continue;
+                            }
+                            if (const auto objectIt = objectIdByName.find(item.name);
+                                objectIt != objectIdByName.end()) {
+                                rhsConcreteRequiredObjects.insert(objectIt->second);
+                            }
+                        }
+                        std::set<int32_t> lhsConcreteObjects;
+                        if (lhsCell != nullptr && !lhsCell->isEllipsis) {
+                            for (const ParsedItem& item : lhsCell->items) {
+                                if (item.dir == "no" || item.dir == "random") {
+                                    continue;
+                                }
+                                if (const auto objectIt = objectIdByName.find(item.name);
+                                    objectIt != objectIdByName.end()) {
+                                    lhsConcreteObjects.insert(objectIt->second);
+                                }
+                            }
+                        }
+                        for (const ParsedItem& item : rhsCell->items) {
+                            if (item.dir == "no") {
+                                std::set<std::string> visiting;
+                                markStaticAnalysisExtraMask(
+                                    staticAnalysisExtraWrittenObjects,
+                                    resolveMask(resolveMask, item.name, visiting));
+                                continue;
+                            }
+                            std::set<std::string> visiting;
+                            const auto mask = resolveMask(resolveMask, item.name, visiting);
+                            const auto objectIt = objectIdByName.find(item.name);
+                            if (objectIt != objectIdByName.end()) {
+                                const int32_t objectId = objectIt->second;
+                                if (item.dir == "random"
+                                    || lhsConcreteObjects.count(objectId) == 0) {
+                                    markStaticAnalysisExtraObject(
+                                        staticAnalysisExtraWrittenObjects,
+                                        objectId);
+                                }
+                                if (movementDirInvalidatesStaticObject(item.dir)) {
+                                    if (objectCanCoexistWithRequiredObjects(
+                                            objectId,
+                                            rhsConcreteRequiredObjects)) {
+                                        markStaticAnalysisExtraObject(
+                                            staticAnalysisExtraMovementMentionedObjects,
+                                            objectId);
+                                    }
+                                }
+                                continue;
+                            }
+                            if (item.dir == "random") {
+                                markStaticAnalysisExtraMask(
+                                    staticAnalysisExtraWrittenObjects,
+                                    mask);
+                            }
+                            if (movementDirInvalidatesStaticObject(item.dir)) {
+                                for (int32_t objectId = 0; objectId < game->objectCount; ++objectId) {
+                                    if (maskHasBit(mask, objectId)
+                                        && objectCanCoexistWithRequiredObjects(
+                                            objectId,
+                                            rhsConcreteRequiredObjects)) {
+                                        markStaticAnalysisExtraObject(
+                                            staticAnalysisExtraMovementMentionedObjects,
+                                            objectId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
 
         auto cellHasNoTermOverlappingProperty = [&](const ParsedCell& cell, const std::string& propertyName) {
             std::set<std::string> visiting;
@@ -2506,16 +2690,17 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 modified = false;
                 for (size_t i = 0; i < result.size(); ++i) {
                     bool shouldRemove = false;
-                    for (size_t j = 0; j < result[i].lhs.size(); ++j) {
-                        auto& currentRuleRow = result[i].lhs[j];
-                        for (size_t k = 0; k < currentRuleRow.size(); ++k) {
-                            const auto movings = getMovingsParsed(currentRuleRow[k]);
+                    // JS keeps `cur_rule = result[i]` for the whole split pass. Snapshot
+                    // before push_back — vector reallocation would invalidate references
+                    // into result[i].lhs rows/cells and cause nondeterministic splits.
+                    const WorkRule sourceRule = result[i];
+                    for (size_t j = 0; j < sourceRule.lhs.size(); ++j) {
+                        for (size_t k = 0; k < sourceRule.lhs[j].size(); ++k) {
+                            const auto movings = getMovingsParsed(sourceRule.lhs[j][k]);
                             if (movings.empty()) {
                                 continue;
                             }
 
-                            shouldRemove = true;
-                            modified = true;
                             const std::string& candName = movings[0].first;
                             const std::string& ambiguousDir = movings[0].second;
                             const auto* concreteDirs = concreteDirsForAggregate(ambiguousDir);
@@ -2523,9 +2708,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                                 continue;
                             }
 
-                            const WorkRule baseRule = result[i];
+                            shouldRemove = true;
+                            modified = true;
                             for (const auto& concreteDirection : *concreteDirs) {
-                                WorkRule newRule = baseRule;
+                                WorkRule newRule = sourceRule;
                                 concretizeMovingInCell(newRule.lhs[j][k], ambiguousDir, candName, concreteDirection);
                                 if (!newRule.rhs.empty() && j < newRule.rhs.size() && k < newRule.rhs[j].size()) {
                                     concretizeMovingInCell(newRule.rhs[j][k], ambiguousDir, candName, concreteDirection);
@@ -2589,6 +2775,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 }
                 for (const auto& [ambiguousMovement, concreteMovement] : ambiguousMovementNames) {
                     if (concreteMovement == "INVALID") {
+                        continue;
+                    }
+                    if (safeAggregates.count(ambiguousMovement) != 0) {
                         continue;
                     }
                     for (auto& rhsRow : currentRule.rhs) {
@@ -3423,6 +3612,9 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                 makeSpawnedObjectsStationaryRows(variantLhsRowsExpanded, variantRhsRowsExpanded);
             }
             if (lhsHasOverlappingRequiredLayers(variantLhsRowsExpanded)) {
+                collectSkippedVariantStaticAnalysisFacts(
+                    variantLhsRowsExpanded,
+                    variantRhsRowsExpanded);
                 continue;
             }
 
@@ -3826,7 +4018,8 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             return true;
                         };
                         auto sameAsUnmovedLhsProperty = [&](const ParsedItem& rhsItem) {
-                            if (rhsItem.dir == "no"
+                            if ((rhsItem.dir != "" && rhsItem.dir != "stationary")
+                                || rhsItem.dir == "no"
                                 || rhsItem.dir == "random"
                                 || propertyOf.find(rhsItem.name) == propertyOf.end()) {
                                 return false;
@@ -3834,8 +4027,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             std::set<std::string> rhsVisiting;
                             const auto rhsMask = resolveMask(resolveMask, rhsItem.name, rhsVisiting);
                             for (const auto& lhsItem : cell.items) {
-                                if (!lhsItem.dir.empty()
-                                    || lhsItem.dir == "no"
+                                if (lhsItem.dir == "no"
                                     || lhsItem.dir == "random"
                                     || propertyOf.find(lhsItem.name) == propertyOf.end()) {
                                     continue;
@@ -3867,7 +4059,7 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
                             }
                         }
                         for (const auto& rhsItem : rhsCell.items) {
-                            if (!rhsItem.dir.empty()
+                            if ((rhsItem.dir != "" && rhsItem.dir != "stationary")
                                 || propertyOf.find(rhsItem.name) == propertyOf.end()
                                 || !sameAsUnmovedLhsProperty(rhsItem)) {
                                 continue;
@@ -4949,6 +5141,23 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
         }
     }
 
+    auto maskHasAnyBit = [](const puzzlescript::MaskVector& words) {
+        return std::any_of(words.begin(), words.end(), [](puzzlescript::MaskWord word) {
+            return word != 0;
+        });
+    };
+    if (maskHasAnyBit(staticAnalysisExtraWrittenObjects)) {
+        game->staticAnalysisExtraWrittenObjects =
+            storeMaskWords(*game, staticAnalysisExtraWrittenObjects);
+        game->hasStaticAnalysisExtraWrittenObjects = true;
+    }
+    if (maskHasAnyBit(staticAnalysisExtraMovementMentionedObjects)) {
+        game->staticAnalysisExtraMovementMentionedObjects =
+            storeMaskWords(*game, staticAnalysisExtraMovementMentionedObjects);
+        game->hasStaticAnalysisExtraMovementMentionedObjects = true;
+    }
+
+    publishParserGlyphs(*game, state);
     outGame.information = std::move(game);
     outGame.initialMetaGameState = std::move(initialMetaGameState);
     return nullptr;

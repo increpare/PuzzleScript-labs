@@ -25,6 +25,7 @@ fs.writeFileSync(hintsPath, `${JSON.stringify(buildStaticAnalysisHintsManifest(c
 fs.writeFileSync(blockerHintsPath, `${JSON.stringify(buildStaticAnalysisHintsManifest(blockerCorpusDir), null, 2)}\n`);
 
 function runNative(game, extraArgs = [], runCorpusDir = corpusDir, runHintsPath = hintsPath) {
+    const hintArgs = runHintsPath ? ['--static-analysis-hints', runHintsPath] : [];
     const result = spawnSync(solverPath, [
         runCorpusDir,
         '--game', game,
@@ -32,7 +33,7 @@ function runNative(game, extraArgs = [], runCorpusDir = corpusDir, runHintsPath 
         '--timeout-ms', '1000',
         '--jobs', '1',
         '--strategy', 'bfs',
-        '--static-analysis-hints', runHintsPath,
+        ...hintArgs,
         '--no-solutions',
         '--quiet',
         '--json',
@@ -68,6 +69,23 @@ assert.strictEqual(cosmeticProjected.solver_hash_projection_blocked, false);
 assert.ok(
     cosmeticProjected.hash_mode.includes('hash_projection'),
     `expected hash_mode to mention hash_projection, got ${cosmeticProjected.hash_mode}`
+);
+
+const cosmeticProjectedNativeFacts = onlyResult(runNative(
+    'hash_projection_cosmetic.txt',
+    ['--solver-hash-projection'],
+    corpusDir,
+    null
+));
+assert.strictEqual(cosmeticProjectedNativeFacts.status, cosmeticBaseline.status);
+assert.ok(
+    cosmeticProjectedNativeFacts.solver_hash_projection_projected_objects >= 1,
+    'native projection run should consume native-produced projection facts without JS hints'
+);
+assert.strictEqual(cosmeticProjectedNativeFacts.solver_hash_projection_blocked, false);
+assert.ok(
+    cosmeticProjectedNativeFacts.hash_mode.includes('hash_projection'),
+    `expected no-hints hash_mode to mention hash_projection, got ${cosmeticProjectedNativeFacts.hash_mode}`
 );
 
 const toggleBaseline = onlyResult(runNative('hash_projection_toggle.txt'));

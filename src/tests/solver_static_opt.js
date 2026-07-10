@@ -3,7 +3,7 @@
 /**
  * Solver-only static optimizations for compiled PuzzleScript state.
  *
- * Five independent passes, all opt-in via createSolverOptimizationHook(report, passes):
+ * Six independent passes, all opt-in via createSolverOptimizationHook(report, passes):
  *
  *   inert    — drop rules whose only effect is firing a sound or showing a
  *              message (sfx0..sfx10, message). These can't change game state,
@@ -19,6 +19,8 @@
  *              input is unnecessary for the solver/generator. Game-facing
  *              callers can request stricter insertion that avoids changing
  *              action inputs with direction-covered in-game effects.
+ *   winRelevance — drop solver-active rules outside the proved win_relevance
+ *              backward slice. This is solver-only and parity-gated by callers.
  *
  * Hook timing: pluginOptimizationHook fires from compiler.js loadFile() after
  * rule compilation but before generateSoundData / processWinConditions. Cosmetic
@@ -44,12 +46,14 @@ const TELEMETRY_KEYS = [
     'removed_cosmetic_objects',
     'removed_collision_layers',
     'removed_cosmetic_rules',
+    'removed_win_irrelevant_rules',
     'merged_object_aliases',
     'merged_object_groups',
     'inserted_noaction_metadata',
     'ms_inert',
     'ms_cosmetic',
     'ms_cosmetic_rules',
+    'ms_win_relevance',
     'ms_merge',
     'ms_action',
 ];
@@ -841,6 +845,53 @@ function dropSolverCosmeticRules(state, sourceLines) {
     return main.removed + late.removed;
 }
 
+// ---------- Win relevance rule pass ----------
+
+function winRelevanceFact(report) {
+    const facts = report && report.facts && report.facts.win_relevance;
+    if (!Array.isArray(facts)) return null;
+    return facts.find(fact => fact && fact.id === 'win_relevance') || null;
+}
+
+function ruleSourceLinesByStaticRuleId(report) {
+    const byId = new Map();
+    const sections = report && report.ps_tagged && report.ps_tagged.rule_sections;
+    if (!Array.isArray(sections)) return byId;
+    for (const section of sections) {
+        for (const group of (section && section.groups) || []) {
+            for (const rule of (group && group.rules) || []) {
+                if (rule && typeof rule.id === 'string' && Number.isFinite(rule.source_line)) {
+                    byId.set(rule.id, rule.source_line);
+                }
+            }
+        }
+    }
+    return byId;
+}
+
+function winRelevanceIrrelevantRuleSourceLines(report) {
+    const lines = new Set();
+    const fact = winRelevanceFact(report);
+    const value = fact && fact.value;
+    if (!fact || fact.status !== 'proved' || !value || !Array.isArray(value.irrelevant_rule_ids)) {
+        return lines;
+    }
+    const byId = ruleSourceLinesByStaticRuleId(report);
+    for (const ruleId of value.irrelevant_rule_ids) {
+        const line = byId.get(ruleId);
+        if (Number.isFinite(line)) lines.add(line);
+    }
+    return lines;
+}
+
+function dropSolverWinIrrelevantRules(state, sourceLines) {
+    const main = dropRulesBySourceLineFrom(state.rules, sourceLines);
+    state.rules = main.kept;
+    const late = dropRulesBySourceLineFrom(state.lateRules, sourceLines);
+    state.lateRules = late.kept;
+    return main.removed + late.removed;
+}
+
 // ---------- Cosmetic pass ----------
 
 function collectCosmeticNames(report) {
@@ -1097,6 +1148,14 @@ function createSolverOptimizationHook(staticAnalysisReport, passes, options = {}
             }
             telemetry.ms_cosmetic_rules += nowFn() - t0;
         }
+        if (p.winRelevance) {
+            const t0 = nowFn();
+            const lines = winRelevanceIrrelevantRuleSourceLines(staticAnalysisReport);
+            if (lines.size > 0) {
+                telemetry.removed_win_irrelevant_rules += dropSolverWinIrrelevantRules(compiledState, lines);
+            }
+            telemetry.ms_win_relevance += nowFn() - t0;
+        }
         if (p.cosmetic) {
             const t0 = nowFn();
             passCosmeticPrune(compiledState, staticAnalysisReport, telemetry);
@@ -1118,16 +1177,23 @@ function createSolverOptimizationHook(staticAnalysisReport, passes, options = {}
 
 // ---------- CLI / pass-list parsing ----------
 
+function emptySolverPasses() {
+    return { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false, winRelevance: false };
+}
+
 function parseSolverOptPassList(arg) {
-    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
+    const passes = emptySolverPasses();
     const aliases = {
         cosmeticrules: 'cosmeticRules',
         'cosmetic-rules': 'cosmeticRules',
         cosmetic_rules: 'cosmeticRules',
+        winrelevance: 'winRelevance',
+        'win-relevance': 'winRelevance',
+        win_relevance: 'winRelevance',
     };
     const parts = String(arg || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     if (parts.includes('all')) {
-        passes.inert = passes.cosmetic = passes.cosmeticRules = passes.merge = passes.action = true;
+        passes.inert = passes.cosmetic = passes.cosmeticRules = passes.merge = passes.action = passes.winRelevance = true;
         return passes;
     }
     for (const p of parts) {
@@ -1140,9 +1206,9 @@ function parseSolverOptPassList(arg) {
 
 function resolveSolverPasses(options) {
     if (options.solverOptParityBaseline) {
-        return { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
+        return emptySolverPasses();
     }
-    const passes = { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
+    const passes = emptySolverPasses();
     if (options.solverOptPasses) Object.assign(passes, options.solverOptPasses);
     if (options.solverOptimizeStatic) passes.inert = true;
     return passes;
@@ -1153,7 +1219,7 @@ function solverPassesNeedFullStaticReport(passes) {
 }
 
 function effectiveSolverPassesForHook(staticAnalysisReport, passes) {
-    const p = passes || { inert: false, cosmetic: false, cosmeticRules: false, merge: false, action: false };
+    const p = passes || emptySolverPasses();
     const reportOk = !!(staticAnalysisReport && staticAnalysisReport.status === 'ok');
     return {
         inert: !!p.inert,
@@ -1161,6 +1227,7 @@ function effectiveSolverPassesForHook(staticAnalysisReport, passes) {
         cosmeticRules: !!p.cosmeticRules && reportOk,
         merge: !!p.merge && reportOk,
         action: !!p.action && reportOk,
+        winRelevance: !!p.winRelevance && reportOk,
     };
 }
 
@@ -1174,6 +1241,7 @@ const FORMATTER_FIELDS = [
     ['removed_cosmetic_objects',          'cosmetic_objs'],
     ['removed_collision_layers',          'empty_layers'],
     ['removed_cosmetic_rules',            'cosmetic_rules'],
+    ['removed_win_irrelevant_rules',      'win_irrelevant_rules'],
     ['merged_object_aliases',             'merge_aliases'],
     ['merged_object_groups',              'merge_groups'],
     ['inserted_noaction_metadata',         'noaction'],
@@ -1182,6 +1250,7 @@ const FORMATTER_MS_FIELDS = [
     ['solver_opt_ms_inert',          'opt_ms_inert'],
     ['solver_opt_ms_cosmetic',       'opt_ms_cosmetic'],
     ['solver_opt_ms_cosmetic_rules', 'opt_ms_cosmetic_rules'],
+    ['solver_opt_ms_win_relevance',  'opt_ms_win_relevance'],
     ['solver_opt_ms_merge',          'opt_ms_merge'],
     ['solver_opt_ms_action',         'opt_ms_action'],
 ];
@@ -1190,6 +1259,7 @@ function totalHookMs(t) {
     return (t.solver_opt_ms_inert || 0)
         + (t.solver_opt_ms_cosmetic || 0)
         + (t.solver_opt_ms_cosmetic_rules || 0)
+        + (t.solver_opt_ms_win_relevance || 0)
         + (t.solver_opt_ms_merge || 0)
         + (t.solver_opt_ms_action || 0);
 }
@@ -1215,17 +1285,19 @@ function buildSolverOptimizationJsonTotals(t) {
     const removedCos = t.removed_cosmetic_objects || 0;
     const removedLayers = t.removed_collision_layers || 0;
     const removedCosRules = t.removed_cosmetic_rules || 0;
+    const removedWinIrrelevant = t.removed_win_irrelevant_rules || 0;
     const mergedAliases = t.merged_object_aliases || 0;
     const mergedGroups = t.merged_object_groups || 0;
     const noaction = t.inserted_noaction_metadata || 0;
     const msInert = t.solver_opt_ms_inert || 0;
     const msCos = t.solver_opt_ms_cosmetic || 0;
     const msCosRules = t.solver_opt_ms_cosmetic_rules || 0;
+    const msWinRelevance = t.solver_opt_ms_win_relevance || 0;
     const msMrg = t.solver_opt_ms_merge || 0;
     const msAction = t.solver_opt_ms_action || 0;
-    const hookMs = msInert + msCos + msCosRules + msMrg + msAction;
+    const hookMs = msInert + msCos + msCosRules + msWinRelevance + msMrg + msAction;
     const gated = !!t.solver_optimization_gated;
-    if (removedInert + removedCos + removedLayers + removedCosRules + mergedAliases + mergedGroups + noaction + hookMs === 0 && !gated) {
+    if (removedInert + removedCos + removedLayers + removedCosRules + removedWinIrrelevant + mergedAliases + mergedGroups + noaction + hookMs === 0 && !gated) {
         return null;
     }
     const out = {
@@ -1233,12 +1305,14 @@ function buildSolverOptimizationJsonTotals(t) {
         removed_cosmetic_objects: removedCos,
         removed_collision_layers: removedLayers,
         removed_cosmetic_rules: removedCosRules,
+        removed_win_irrelevant_rules: removedWinIrrelevant,
         merged_object_aliases: mergedAliases,
         merged_object_groups: mergedGroups,
         inserted_noaction_metadata: noaction,
         ms_inert: msInert,
         ms_cosmetic: msCos,
         ms_cosmetic_rules: msCosRules,
+        ms_win_relevance: msWinRelevance,
         ms_merge: msMrg,
         ms_action: msAction,
         ms_hook: hookMs,
@@ -1256,6 +1330,7 @@ module.exports = {
     cosmeticRuleSourceLines,
     isCosmeticRuleOptimizationEligible,
     dropSolverCosmeticRules,
+    winRelevanceIrrelevantRuleSourceLines,
     mergeabilityCandidatePairs,
     mergeMutationObjectNames,
     actionUnnecessaryProved,

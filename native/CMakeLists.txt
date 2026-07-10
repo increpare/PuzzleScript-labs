@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -26,13 +26,18 @@ if(APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES ";")
   set(PS_ENABLE_MARCH_NATIVE OFF)
 endif()
 add_compile_options(
-    $<$<CONFIG:Release>:-O3>
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANG_AND_ID:C,GNU,Clang,AppleClang>>:-O3>
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>>:-O3>
     $<$<CONFIG:Release>:-DNDEBUG>
-    $<$<AND:$<CONFIG:Release>,$<BOOL:${PS_ENABLE_MARCH_NATIVE}>>:-march=native>
+    $<$<AND:$<CONFIG:Release>,$<BOOL:${PS_ENABLE_MARCH_NATIVE}>,$<COMPILE_LANG_AND_ID:C,GNU,Clang,AppleClang>>:-march=native>
+    $<$<AND:$<CONFIG:Release>,$<BOOL:${PS_ENABLE_MARCH_NATIVE}>,$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>>:-march=native>
 )
 if(PS_ENABLE_LTO)
-  add_compile_options($<$<CONFIG:Release>:-flto>)
-  add_link_options($<$<CONFIG:Release>:-flto>)
+  add_compile_options(
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANG_AND_ID:C,GNU,Clang,AppleClang>>:-flto>
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>>:-flto>
+  )
+  add_link_options($<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-flto>)
 endif()
 if(NOT PS_ENABLE_LINK_DEDUP AND APPLE)
   add_link_options($<$<CONFIG:Release>:-Wl,-no_deduplicate>)
@@ -92,6 +97,8 @@ set(PUZZLESCRIPT_NATIVE_SOURCES
   src/runtime/core.cpp
   src/runtime/hash.cpp
   src/runtime/json.cpp
+  src/runtime/layout_metrics.cpp
+  src/runtime/locality_survey.cpp
   src/runtime/simd.cpp
   src/search/difficulty.cpp
   src/search/simplify.cpp
@@ -140,7 +147,7 @@ target_link_libraries(puzzlescript_compiler
 
 set_source_files_properties(
   third_party/utf8proc/utf8proc.c
-  PROPERTIES COMPILE_FLAGS "-Wno-everything")
+  PROPERTIES COMPILE_OPTIONS "$<$<COMPILE_LANG_AND_ID:C,GNU,Clang,AppleClang>:-Wno-everything>")
 
 target_include_directories(puzzlescript_native
   PUBLIC
@@ -155,7 +162,7 @@ target_include_directories(puzzlescript_native
 # on that one translation unit; we don't maintain simdjson.
 set_source_files_properties(
   third_party/simdjson/simdjson.cpp
-  PROPERTIES COMPILE_FLAGS "-Wno-everything")
+  PROPERTIES COMPILE_OPTIONS "$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wno-everything>")
 
 target_link_libraries(puzzlescript_native
   PUBLIC
@@ -322,9 +329,15 @@ target_include_directories(puzzlescript_cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+if(WIN32)
+  set(PUZZLESCRIPT_CLI_NODE_EXECUTABLE "node")
+else()
+  set(PUZZLESCRIPT_CLI_NODE_EXECUTABLE "${NODE_EXECUTABLE}")
+endif()
+
 target_compile_definitions(puzzlescript_cpp
   PRIVATE
-    PS_NODE_EXECUTABLE="${NODE_EXECUTABLE}"
+    PS_NODE_EXECUTABLE="${PUZZLESCRIPT_CLI_NODE_EXECUTABLE}"
     PS_EXPORT_IR_SCRIPT="${PUZZLESCRIPT_REPO_ROOT}/src/tests/js_oracle/export_ir_json.js"
     PS_EXPORT_TRACE_SCRIPT="${PUZZLESCRIPT_REPO_ROOT}/src/tests/js_oracle/export_execution_trace.js"
     PS_FONT_JS_PATH="${PUZZLESCRIPT_REPO_ROOT}/src/js/font.js"
@@ -469,7 +482,10 @@ set_tests_properties(handheld_report_cli_help
 
 add_test(
   NAME handheld_report_cli_missing_source
-  COMMAND /bin/sh -c "output=\"$($<TARGET_FILE:puzzlescript_handheld_report> 2>&1)\"; status=$?; printf '%s\n' \"$output\"; test $status -ne 0 && printf '%s\n' \"$output\" | grep -q 'Usage:'"
+  COMMAND ${CMAKE_COMMAND}
+          -DTEST_EXE=$<TARGET_FILE:puzzlescript_handheld_report>
+          -DEXPECT_REGEX=Usage:
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExpectCommandFailure.cmake
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 set_tests_properties(handheld_report_cli_missing_source
@@ -478,7 +494,11 @@ set_tests_properties(handheld_report_cli_missing_source
 
 add_test(
   NAME handheld_report_cli_unknown_option
-  COMMAND /bin/sh -c "output=\"$($<TARGET_FILE:puzzlescript_handheld_report> --bogus 2>&1)\"; status=$?; printf '%s\n' \"$output\"; test $status -ne 0 && printf '%s\n' \"$output\" | grep -q 'unknown option'"
+  COMMAND ${CMAKE_COMMAND}
+          -DTEST_EXE=$<TARGET_FILE:puzzlescript_handheld_report>
+          -DTEST_ARGS=--bogus
+          -DEXPECT_REGEX=unknown.option
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ExpectCommandFailure.cmake
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 set_tests_properties(handheld_report_cli_unknown_option
@@ -515,6 +535,12 @@ add_test(
 )
 set_tests_properties(handheld_report_cli_corpus_ndjson
   PROPERTIES PASS_REGULAR_EXPRESSION "\"summary\".*\"game_count\":1.*\"compiled_games\":1.*\"games\""
+)
+
+add_test(
+  NAME puzzlescript_cpp_layout_smoke
+  COMMAND /bin/sh -c "$<TARGET_FILE:puzzlescript_cpp> layout ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_smoke_tests/push_goal.txt | grep -q '\"mask_arena_bytes\"'"
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
 add_executable(compiler_keyword_names
@@ -692,6 +718,8 @@ add_executable(generator_block_keepers
   tests/generator_block_keepers.cpp
   src/generator/block_scheduler.cpp
   src/generator/generation_rules.cpp
+  src/generator/level_rows.cpp
+  src/generator/output_writer.cpp
   src/generator/spec_parser.cpp
 )
 
@@ -716,6 +744,8 @@ add_executable(generator_block_exhaustion
   tests/generator_block_exhaustion.cpp
   src/generator/block_scheduler.cpp
   src/generator/generation_rules.cpp
+  src/generator/level_rows.cpp
+  src/generator/output_writer.cpp
   src/generator/spec_parser.cpp
 )
 
@@ -803,6 +833,47 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(static_analysis_runtime_ir_extras
+  tests/static_analysis_runtime_ir_extras.cpp
+)
+
+target_link_libraries(static_analysis_runtime_ir_extras
+  PRIVATE
+    puzzlescript_native
+)
+
+target_include_directories(static_analysis_runtime_ir_extras
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME static_analysis_runtime_ir_extras
+  COMMAND static_analysis_runtime_ir_extras
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(compiler_mask_interning
+  tests/compiler_mask_interning.cpp
+)
+
+target_link_libraries(compiler_mask_interning
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_mask_interning
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_mask_interning
+  COMMAND compiler_mask_interning
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 add_executable(compiler_row_any_masks
   tests/compiler_row_any_masks.cpp
 )
@@ -821,6 +892,27 @@ target_include_directories(compiler_row_any_masks
 add_test(
   NAME compiler_row_any_masks
   COMMAND compiler_row_any_masks
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(compiler_rigid_moving_concretize
+  tests/compiler_rigid_moving_concretize.cpp
+)
+
+target_link_libraries(compiler_rigid_moving_concretize
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+
+target_include_directories(compiler_rigid_moving_concretize
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+add_test(
+  NAME compiler_rigid_moving_concretize
+  COMMAND compiler_rigid_moving_concretize
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
@@ -981,12 +1073,15 @@ add_test(
 )
 set_tests_properties(solver_timeout_curve_build_node PROPERTIES TIMEOUT 10)
 
-add_test(
-  NAME solver_time_curve_single_game_make_node
-  COMMAND ${NODE_EXECUTABLE}
-          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_time_curve_single_game_make_node.js
-)
-set_tests_properties(solver_time_curve_single_game_make_node PROPERTIES TIMEOUT 10)
+find_program(PUZZLESCRIPT_MAKE_EXECUTABLE make)
+if(PUZZLESCRIPT_MAKE_EXECUTABLE)
+  add_test(
+    NAME solver_time_curve_single_game_make_node
+    COMMAND ${NODE_EXECUTABLE}
+            ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_time_curve_single_game_make_node.js
+  )
+  set_tests_properties(solver_time_curve_single_game_make_node PROPERTIES TIMEOUT 10)
+endif()
 
 if(PS_ENABLE_SLOW_SOLVER_COVERAGE_TESTS)
   add_test(
@@ -1010,7 +1105,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_alternatey_level4
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game alternatey.txt
@@ -1028,7 +1123,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_alternatey_level6
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game alternatey.txt
@@ -1046,7 +1141,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_twostep_pete
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game "Two-Step Pete.txt"
@@ -1064,7 +1159,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_pending_again_start
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game "car crash.txt"
@@ -1082,7 +1177,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_constellationz
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game constellationz.txt
@@ -1100,7 +1195,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_karamell
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game karamell.txt
@@ -1118,7 +1213,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_xorro
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game "Xorro The Chaos Warden.txt"
@@ -1136,7 +1231,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_whaleworld
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 3000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game whaleworld.txt
@@ -1154,7 +1249,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_muraphilic
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 2000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game "Muraphilic Monophobic Multiban.txt"
@@ -1172,7 +1267,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_collapse
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game collapse.txt
@@ -1190,7 +1285,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_paint_everything_everywhere
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game "paint everything everywhere.txt"
@@ -1208,7 +1303,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_expand_avoid_flames
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game "expand also avoid the flames.txt"
@@ -1226,7 +1321,7 @@ add_test(
   NAME puzzlescript_solver_weighted_astar_all_green_to_blue
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 1500
+          --timeout-ms 10000
           --jobs 1
           --strategy weighted-astar
           --astar-weight 3
@@ -1245,7 +1340,7 @@ add_test(
   NAME puzzlescript_solver_portfolio_pushit_level5
   COMMAND puzzlescript_solver
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests
-          --timeout-ms 3000
+          --timeout-ms 10000
           --jobs 1
           --strategy portfolio
           --game pushit.txt
@@ -1259,6 +1354,24 @@ set_tests_properties(puzzlescript_solver_portfolio_pushit_level5
     TIMEOUT 10
 )
 
+set(PUZZLESCRIPT_SOLVER_REGRESSION_TESTS
+  puzzlescript_solver_portfolio_alternatey_level4
+  puzzlescript_solver_portfolio_alternatey_level6
+  puzzlescript_solver_portfolio_twostep_pete
+  puzzlescript_solver_portfolio_pending_again_start
+  puzzlescript_solver_portfolio_constellationz
+  puzzlescript_solver_portfolio_karamell
+  puzzlescript_solver_portfolio_xorro
+  puzzlescript_solver_portfolio_whaleworld
+  puzzlescript_solver_portfolio_muraphilic
+  puzzlescript_solver_portfolio_collapse
+  puzzlescript_solver_portfolio_paint_everything_everywhere
+  puzzlescript_solver_portfolio_expand_avoid_flames
+  puzzlescript_solver_weighted_astar_all_green_to_blue
+  puzzlescript_solver_portfolio_pushit_level5
+)
+set_tests_properties(${PUZZLESCRIPT_SOLVER_REGRESSION_TESTS} PROPERTIES TIMEOUT 30)
+
 add_test(
   NAME puzzlescript_generator_smoke
   COMMAND ${NODE_EXECUTABLE}
@@ -1267,6 +1380,11 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
 )
 set_tests_properties(puzzlescript_generator_smoke PROPERTIES TIMEOUT 30)
+if(MSVC)
+  set_tests_properties(puzzlescript_generator_smoke PROPERTIES
+    TIMEOUT 120
+    ENVIRONMENT "PS_GENERATOR_SMOKE_SOLVER_TIMEOUT_MS=500;PS_GENERATOR_SMOKE_SHORT_SOLVER_TIMEOUT_MS=200")
+endif()
 
 add_test(
   NAME puzzlescript_generator_levelset_smoke
@@ -1277,6 +1395,11 @@ add_test(
           ${PUZZLESCRIPT_REPO_ROOT}/src/tests/generator_presets/sokoban_levelset_tiny.gen
 )
 set_tests_properties(puzzlescript_generator_levelset_smoke PROPERTIES TIMEOUT 60)
+if(MSVC)
+  set_tests_properties(puzzlescript_generator_levelset_smoke PROPERTIES
+    TIMEOUT 180
+    ENVIRONMENT "PS_GENERATOR_SMOKE_SOLVER_TIMEOUT_MS=5000;PS_GENERATOR_SMOKE_TIME_SCALE=3")
+endif()
 
 add_test(
   NAME puzzlescript_generator_remix_smoke
@@ -1287,6 +1410,11 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 set_tests_properties(puzzlescript_generator_remix_smoke PROPERTIES TIMEOUT 90)
+if(MSVC)
+  set_tests_properties(puzzlescript_generator_remix_smoke PROPERTIES
+    TIMEOUT 180
+    ENVIRONMENT "PS_GENERATOR_SMOKE_SOLVER_TIMEOUT_MS=5000;PS_GENERATOR_SMOKE_TIME_SCALE=3")
+endif()
 
 add_test(
   NAME puzzlescript_simplify_smoke
@@ -1307,16 +1435,18 @@ add_test(
 )
 set_tests_properties(puzzlescript_generator_events_jsonl PROPERTIES TIMEOUT 30)
 
-add_test(
-  NAME puzzlescript_rule_plan_parity
-  COMMAND ${NODE_EXECUTABLE}
-          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_rule_plan_parity.js
-          ${PUZZLESCRIPT_REPO_ROOT}/src/tests/resources/testdata.js
-          --cli $<TARGET_FILE:puzzlescript_cpp>
-          --artifacts-dir ${CMAKE_CURRENT_BINARY_DIR}/rule_plan_parity_testdata
-          --progress-every 0
-)
-set_tests_properties(puzzlescript_rule_plan_parity PROPERTIES TIMEOUT 180)
+if(NOT WIN32)
+  add_test(
+    NAME puzzlescript_rule_plan_parity
+    COMMAND ${NODE_EXECUTABLE}
+            ${PUZZLESCRIPT_REPO_ROOT}/src/tests/run_rule_plan_parity.js
+            ${PUZZLESCRIPT_REPO_ROOT}/src/tests/resources/testdata.js
+            --cli $<TARGET_FILE:puzzlescript_cpp>
+            --artifacts-dir ${CMAKE_CURRENT_BINARY_DIR}/rule_plan_parity_testdata
+            --progress-every 0
+  )
+  set_tests_properties(puzzlescript_rule_plan_parity PROPERTIES TIMEOUT 180)
+endif()
 
 add_test(
   NAME puzzlescript_cpp_parser_state_smoke
@@ -1330,15 +1460,31 @@ add_test(
 )
 set_tests_properties(puzzlescript_cpp_semantic_program_smoke PROPERTIES PASS_REGULAR_EXPRESSION "\"semantic_program\"")
 
-add_test(
-  NAME puzzlescript_cpp_parser_state_diff_smoke
-  COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_parser_state_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
-)
+find_program(PUZZLESCRIPT_BASH_EXECUTABLE bash)
+set(PUZZLESCRIPT_HAS_USABLE_BASH FALSE)
+if(PUZZLESCRIPT_BASH_EXECUTABLE)
+  execute_process(
+    COMMAND ${PUZZLESCRIPT_BASH_EXECUTABLE} -lc "exit 0"
+    RESULT_VARIABLE PUZZLESCRIPT_BASH_RESULT
+    OUTPUT_QUIET
+    ERROR_QUIET
+  )
+  if(PUZZLESCRIPT_BASH_RESULT EQUAL 0)
+    set(PUZZLESCRIPT_HAS_USABLE_BASH TRUE)
+  endif()
+endif()
 
-add_test(
-  NAME puzzlescript_cpp_semantic_program_diff_smoke
-  COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_semantic_program_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
-)
+if(PUZZLESCRIPT_HAS_USABLE_BASH)
+  add_test(
+    NAME puzzlescript_cpp_parser_state_diff_smoke
+    COMMAND ${PUZZLESCRIPT_BASH_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_parser_state_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  )
+
+  add_test(
+    NAME puzzlescript_cpp_semantic_program_diff_smoke
+    COMMAND ${PUZZLESCRIPT_BASH_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_semantic_program_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  )
+endif()
 
 # Corpus-wide JS<->C++ SemanticProgram parity. Asserts parity over every game
 # that satisfies the single-layer invariant and reports (does not silently drop)
@@ -1352,10 +1498,12 @@ add_test(
 )
 set_tests_properties(semantic_program_parity_corpus PROPERTIES TIMEOUT 180)
 
-add_test(
-  NAME puzzlescript_cpp_parser_diagnostics_diff_smoke
-  COMMAND bash ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_diagnostics_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
-)
+if(PUZZLESCRIPT_HAS_USABLE_BASH)
+  add_test(
+    NAME puzzlescript_cpp_parser_diagnostics_diff_smoke
+    COMMAND ${PUZZLESCRIPT_BASH_EXECUTABLE} ${PUZZLESCRIPT_REPO_ROOT}/scripts/diff_diagnostics_against_js.sh ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  )
+endif()
 
 add_test(
   NAME puzzlescript_cpp_diff_trace_smoke

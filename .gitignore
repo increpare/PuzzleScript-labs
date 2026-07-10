@@ -3,6 +3,10 @@ build/
 build-mask64/
 **/.DS_Store
 
+hardware/card/**/.history/
+hardware/card/**/*.kicad_prl
+hardware/card/**/*.lck
+
 *.swp
 src - Kopie
 
@@ -28,3 +32,6 @@ node_modules/
 /tools/puzzlescriptmis-app/**/xcuserdata/
 /tools/puzzlescriptmis-app/*.vcxproj.user
 /tmp
+
+/firmware/esp32p4/managed_components/
+/firmware/esp32p4/sdkconfig.old

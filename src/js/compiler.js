@@ -3196,6 +3196,7 @@ function rulesToMask(state) {
                         // binding, so it reserves explicitly and gates errors on concrete
                         // writes. Order-independent.
                         if (object_dir !== 'no') {
+                            const excludedLayers = buildLayerCoupledExcludedLayers(state, cell_l, i);
                             const memberNames = state.propertiesDict[object_name] || [object_name];
                             // Layers already flagged by THIS term, so two of its own members
                             // sharing a layer (only one is chosen at runtime) aren't
@@ -3205,6 +3206,7 @@ function rulesToMask(state) {
                                 const memberObj = state.objects[memberName];
                                 if (!memberObj) continue;
                                 const memberLayer = memberObj.layer | 0;
+                                if (excludedLayers[memberLayer]) continue;
                                 if (newConcreteWriteLayers_r.has(memberLayer) &&
                                     !reservedByThisTerm.has(memberLayer) &&
                                     !rule.hasOwnProperty('discard')) {

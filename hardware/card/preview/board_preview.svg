@@ -1,0 +1,324 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660px" viewBox="0 0 132 138">
+<rect x="0" y="0" width="132" height="138" fill="#f7f5ef"/>
+<text x="6" y="5" font-size="3.2" font-family="Arial, sans-serif" font-weight="700" fill="#222">PuzzleScript Card - FIRST-PASS ROUTE PREVIEW</text>
+<text x="6" y="9" font-size="2.1" font-family="Arial, sans-serif" fill="#555">generated first-pass copper traces - routed copper tracks: 73</text>
+<g transform="translate(6,12)">
+<path d="M 9 2 H 111 A 7 7 0 0 1 118 9 V 101 A 7 7 0 0 1 111 108 H 9 A 7 7 0 0 1 2 101 V 9 A 7 7 0 0 1 9 2 Z" fill="#fbfbf6" stroke="#111" stroke-width="0.35"/>
+<rect class="keepout keepout-front" data-layer="keepouts" x="7.29" y="3.5" width="105.42" height="67.07" fill="none" stroke="#e6aa57" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-user" data-layer="keepouts" x="12.5" y="10" width="95" height="54" fill="none" stroke="#9a9a9a" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-front" data-layer="keepouts" x="47" y="0" width="26" height="72" fill="none" stroke="#e6aa57" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-user" data-layer="keepouts" x="0" y="72" width="120" height="33" fill="none" stroke="#9a9a9a" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-mechanical" data-layer="keepouts" x="18" y="83" width="8" height="8" fill="none" stroke="#9a9a9a" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-mechanical" data-layer="keepouts" x="70" y="77" width="30" height="30" fill="none" stroke="#9a9a9a" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-back" data-layer="keepouts" x="31" y="73" width="58" height="30" fill="none" stroke="#7bb4d8" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-back" data-layer="keepouts" x="50" y="45.5" width="20" height="20" fill="none" stroke="#7bb4d8" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-back" data-layer="keepouts" x="76" y="57" width="22" height="11" fill="none" stroke="#7bb4d8" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<rect class="keepout keepout-back" data-layer="keepouts" x="18" y="2" width="14" height="9" fill="none" stroke="#7bb4d8" stroke-width="0.18" stroke-dasharray="1.3,0.9"/>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="VBUS_IN" points="33.12,7.744 32.12,9.144 32.12,59.522 79.26,60.922" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>VBUS_IN J1 to U2</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="VBUS_IN" points="23.56,11.72 25.18,13.1 80.307,13.1 81.927,65.6" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>VBUS_IN J1 to R8</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="BAT+" points="83.086,73.68 81.326,71.84 81.326,64.08 81.36,62.24" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>BAT+ J2 to U2</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="BAT+" points="81.867,73.68 84.007,71.62 84.007,63.22 85.949,61.16" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>BAT+ J2 to U3</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="SYS" points="82.74,60.597 84.14,58.077 88.36,58.077 89.76,60.587" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SYS U2 to U4</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="front" data-net="SYS" points="82.019,58.76 84.919,57.14 84.919,8.576 104.798,6.956" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SYS U2 to SW9</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="90.269,61.95 92.109,58.67 93.519,58.67 95.359,64.282" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to U6</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,61.231 93.42,63.291 93.42,79.332 72.9,81.392" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to U8</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="90.308,61.95 86.268,63.35 86.268,64.05 89.422,65.45" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to C1</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="92.152,61.95 96.572,63.57 96.572,63.83 92.275,65.45" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to C2</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,59.522 87.92,54.722 67.64,54.722 65.8,51.777" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to U1</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,60.723 87.7,65.903 73.54,65.903 71.48,52.922" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to U9</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,60.751 88.36,55.191 88.06,55.191 86.66,60.523" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to U3</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="92.532,61.95 98.472,63.57 98.472,83.538 89.2,85.158" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to U5</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="91.527,59.05 89.687,52.73 85.277,52.73 83.437,58.62" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to J4</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,59.47 87.7,66.17 53.71,66.17 51.65,63.324" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to R3</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,60.301 88.36,53.221 55.05,53.221 53.65,63.649" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to R4</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,61.381 88.14,68.841 53.27,68.841 51.65,60.681" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to R5</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="back" data-net="+3V3" points="89.76,60.86 87.92,53.02 55.49,53.02 53.65,60.713" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3 U4 to R6</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="front" data-net="+3V3_PANEL" points="95.738,64.282 87.518,62.222 87.518,10.96 52.604,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3_PANEL U6 to J3</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="front" data-net="+3V3_PANEL" points="95.43,64.282 86.83,62.882 86.83,10.3 62.945,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3_PANEL U6 to J3</title></polyline>
+<polyline class="trace power trace-power" data-layer="traces" data-family="power" data-side="front" data-net="+3V3_PANEL" points="95.51,64.282 86.53,62.662 86.53,10.67 74.18,9.05" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>+3V3_PANEL U6 to C3</title></polyline>
+<polyline class="trace usb trace-usb" data-layer="traces" data-family="usb" data-side="back" data-net="USB_CC1" points="33.12,4.784 23.76,6.624 23.76,5.21 34.35,7.05" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>USB_CC1 J1 to R1</title></polyline>
+<polyline class="trace usb trace-usb" data-layer="traces" data-family="usb" data-side="back" data-net="USB_CC2" points="33.12,4.218 42.86,6.278 42.86,8.119 34.35,10.179" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>USB_CC2 J1 to R2</title></polyline>
+<polyline class="trace usb trace-usb" data-layer="traces" data-family="usb" data-side="back" data-net="USB_DP" points="28.814,11.72 18.694,13.12 18.694,48.3 57.568,49.7" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>USB_DP J1 to U1</title></polyline>
+<polyline class="trace usb trace-usb" data-layer="traces" data-family="usb" data-side="back" data-net="USB_DM" points="30.08,11.72 40.58,13.34 40.58,48.08 57.138,49.7" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>USB_DM J1 to U1</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="I2C_SDA" points="65.8,59.473 67.64,48.593 82.5,48.593 84.34,59.681" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>I2C_SDA U1 to U3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="I2C_SDA" points="56.285,61.3 58.345,72.56 87.204,72.56 89.264,85.158" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>I2C_SDA U1 to U5</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="I2C_SDA" points="54.2,59.309 42.56,60.709 42.56,62.257 51.65,63.657" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>I2C_SDA U1 to R3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="I2C_SCL" points="65.8,55.401 67.42,67.421 82.72,67.421 84.34,59.619" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>I2C_SCL U1 to U3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="I2C_SCL" points="57.215,61.3 59.055,60.22 86.44,60.22 88.28,85.158" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>I2C_SCL U1 to U5</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="I2C_SCL" points="56.965,61.3 54.905,62.76 54.929,62.76 52.869,63.1" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>I2C_SCL U1 to R4</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="ESP_EN" points="65.8,59.378 67.2,57.538 111.7,57.538 113.1,66.006" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>ESP_EN U1 to TP4</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="ESP_EN" points="54.2,56.167 56.42,57.787 56.42,59.037 51.65,60.657" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>ESP_EN U1 to R5</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="PWR_EN" points="109.089,6.956 106.489,8.796 106.489,57.21 92.762,59.05" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PWR_EN SW9 to U4</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="CHG_LED" points="80.85,65.879 78.79,68.859 82.01,68.859 79.95,65.871" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>CHG_LED R8 to D4</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="CHG_STAT" points="78.457,65.45 75.097,64.05 75.097,63.64 81.164,62.24" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>CHG_STAT D4 to U2</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PANEL_EN" points="65.8,56.417 67.42,60.157 92.22,60.157 93.84,65.767" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PANEL_EN U1 to U6</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="BOOT" points="65.8,55.341 67.64,51.221 107.26,51.221 109.1,65.732" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>BOOT U1 to TP3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="BOOT_EN" points="54.2,59.568 58.7,61.628 58.7,58.414 53.65,60.474" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>BOOT_EN U1 to R6</title></polyline>
+<polyline class="trace dsi trace-dsi" data-layer="traces" data-family="dsi" data-side="front" data-net="DSI_D1_N" points="59.488,49.7 54.608,48.3 54.608,10.3 52.604,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>DSI_D1_N U1 to J3</title></polyline>
+<polyline class="trace dsi trace-dsi" data-layer="traces" data-family="dsi" data-side="front" data-net="DSI_D1_P" points="56.32,49.7 61.58,48.08 61.58,10.52 66.827,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>DSI_D1_P U1 to J3</title></polyline>
+<polyline class="trace dsi trace-dsi" data-layer="traces" data-family="dsi" data-side="front" data-net="DSI_CLK_N" points="62.725,49.7 57.085,47.86 57.085,10.74 54.271,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>DSI_CLK_N U1 to J3</title></polyline>
+<polyline class="trace dsi trace-dsi" data-layer="traces" data-family="dsi" data-side="front" data-net="DSI_CLK_P" points="61.571,49.7 67.591,47.64 67.591,10.96 62.775,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>DSI_CLK_P U1 to J3</title></polyline>
+<polyline class="trace dsi trace-dsi" data-layer="traces" data-family="dsi" data-side="front" data-net="DSI_D0_N" points="61.39,49.7 54.99,48.3 54.99,10.3 65.407,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>DSI_D0_N U1 to J3</title></polyline>
+<polyline class="trace dsi trace-dsi" data-layer="traces" data-family="dsi" data-side="front" data-net="DSI_D0_P" points="60.495,49.7 67.275,48.08 67.275,10.52 65.237,8.9" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>DSI_D0_P U1 to J3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_DPAD_UP" points="54.2,51.562 52.36,44.402 26.508,44.402 24.668,77.868" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_DPAD_UP U1 to SW1</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_DPAD_UP" points="54.2,54.428 52.14,61.968 34.71,61.968 32.65,74.456" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_DPAD_UP U1 to R10</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_DPAD_DOWN" points="62.225,61.3 60.825,53.38 24.855,53.38 23.455,94.126" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_DPAD_DOWN U1 to SW2</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_DPAD_LEFT" points="54.2,53.981 52.58,62.281 17.538,62.281 15.918,86.763" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_DPAD_LEFT U1 to SW3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_DPAD_RIGHT" points="60.702,61.3 58.862,52.62 32.818,52.62 30.978,85.376" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_DPAD_RIGHT U1 to SW4</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_ACTION" points="65.8,54.928 74.86,56.988 74.86,80.293 86.332,82.353" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_ACTION U1 to SW5</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_UNDO" points="58.205,61.3 48.765,62.7 48.765,92.976 73.382,94.376" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_UNDO U1 to SW6</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_RESTART" points="61.933,61.3 71.753,62.92 71.753,98.756 92.026,100.376" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_RESTART U1 to SW7</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="SW_MENU" points="62.776,61.3 52.576,63.14 52.576,96.84 53.725,98.68" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SW_MENU U1 to SW8</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="VOL_UP" points="65.8,52.595 67.86,63.175 111.678,63.175 113.738,15.107" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>VOL_UP U1 to SW10A</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="VOL_DOWN" points="65.8,55.341 67.2,44.381 112.338,44.381 113.738,20.666" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>VOL_DOWN U1 to SW10B</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PIEZO_PWM" points="57.336,61.3 68.676,62.92 68.676,76.64 49.552,78.26" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PIEZO_PWM U1 to Q1</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PIEZO_PWM" points="61.408,61.3 49.688,63.14 49.688,75.26 68.044,77.1" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PIEZO_PWM U1 to U8</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PIEZO_OUT" points="51.74,79.196 63.84,81.256 63.84,82.797 53.04,84.857" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PIEZO_OUT Q1 to JP1</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PIEZO_OUT" points="51.74,79.472 53.14,78.312 65.7,78.312 67.1,81.022" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PIEZO_OUT Q1 to U8</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PIEZO_RET" points="66.96,84.862 68.5,83.242 68.5,81.867 67.1,80.247" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PIEZO_RET JP1 to U8</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="PIEZO_RET" points="61.111,84.26 59.191,82.42 59.191,83.24 63.276,81.4" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>PIEZO_RET JP1 to R7</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="LED_R" points="54.2,55.565 52.14,57.865 7.916,57.865 5.856,42.29" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>LED_R U1 to D1</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="LED_G" points="54.2,56.296 52.8,53.616 7.256,53.616 5.856,48.526" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>LED_G U1 to D2</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="front" data-net="LED_B" points="54.2,58.147 52.58,61.207 7.476,61.207 5.856,54.49" fill="none" stroke="#138a63" stroke-width="0.24" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>LED_B U1 to D3</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="GAUGE_ALERT" points="65.8,51.536 67.64,48.096 82.5,48.096 84.34,60.817" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>GAUGE_ALERT U1 to U3</title></polyline>
+<polyline class="trace signal trace-storage" data-layer="traces" data-family="storage" data-side="back" data-net="SD_SPI_CS" points="65.8,52.698 67.86,56.518 75.24,56.518 77.3,47.144" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SD_SPI_CS U1 to J4</title></polyline>
+<polyline class="trace signal trace-storage" data-layer="traces" data-family="storage" data-side="back" data-net="SD_SPI_CLK" points="65.8,51.76 67.2,47.56 75.9,47.56 77.3,49.361" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SD_SPI_CLK U1 to J4</title></polyline>
+<polyline class="trace signal trace-storage" data-layer="traces" data-family="storage" data-side="back" data-net="SD_SPI_MOSI" points="65.8,52.173 67.42,56.753 75.68,56.753 77.3,54.134" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SD_SPI_MOSI U1 to J4</title></polyline>
+<polyline class="trace signal trace-storage" data-layer="traces" data-family="storage" data-side="back" data-net="SD_SPI_MISO" points="65.8,57.235 60.84,55.395 60.84,47.043 77.3,45.203" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>SD_SPI_MISO U1 to J4</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="UART_TX" points="65.8,51.553 67.86,56.893 99.04,56.893 101.1,65.408" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>UART_TX U1 to TP1</title></polyline>
+<polyline class="trace signal trace-low-speed" data-layer="traces" data-family="low-speed" data-side="back" data-net="UART_RX" points="65.8,55.237 67.2,49.517 103.7,49.517 105.1,66.289" fill="none" stroke="#2457a6" stroke-width="0.22" stroke-linecap="round" stroke-linejoin="round" opacity="0.86"><title>UART_RX U1 to TP2</title></polyline>
+<polyline class="dsi-plan" data-layer="dsi-plan" data-net="DSI_D1_P" points="57.63,50.5 57.63,29.5 57.63,8.5" fill="none" stroke="#d95f02" stroke-width="0.18" stroke-dasharray="0.8,0.45" opacity="0.75"><title>DSI_D1_P DSI_D1 route intent</title></polyline>
+<polyline class="dsi-plan" data-layer="dsi-plan" data-net="DSI_D1_N" points="57.17,50.5 57.17,29.5 57.17,8.5" fill="none" stroke="#d95f02" stroke-width="0.18" stroke-dasharray="0.8,0.45" opacity="0.75"><title>DSI_D1_N DSI_D1 route intent</title></polyline>
+<text class="dsi-plan-label" data-layer="dsi-plan" x="57.63" y="29.5" font-size="1.25" text-anchor="middle" font-family="Arial, sans-serif" fill="#a34400">DSI_D1</text>
+<polyline class="dsi-plan" data-layer="dsi-plan" data-net="DSI_CLK_P" points="60.23,50.5 60.23,29.5 60.23,8.5" fill="none" stroke="#d95f02" stroke-width="0.18" stroke-dasharray="0.8,0.45" opacity="0.75"><title>DSI_CLK_P DSI_CLK route intent</title></polyline>
+<polyline class="dsi-plan" data-layer="dsi-plan" data-net="DSI_CLK_N" points="59.77,50.5 59.77,29.5 59.77,8.5" fill="none" stroke="#d95f02" stroke-width="0.18" stroke-dasharray="0.8,0.45" opacity="0.75"><title>DSI_CLK_N DSI_CLK route intent</title></polyline>
+<text class="dsi-plan-label" data-layer="dsi-plan" x="60.23" y="29.5" font-size="1.25" text-anchor="middle" font-family="Arial, sans-serif" fill="#a34400">DSI_CLK</text>
+<polyline class="dsi-plan" data-layer="dsi-plan" data-net="DSI_D0_P" points="62.83,50.5 62.83,29.5 62.83,8.5" fill="none" stroke="#d95f02" stroke-width="0.18" stroke-dasharray="0.8,0.45" opacity="0.75"><title>DSI_D0_P DSI_D0 route intent</title></polyline>
+<polyline class="dsi-plan" data-layer="dsi-plan" data-net="DSI_D0_N" points="62.37,50.5 62.37,29.5 62.37,8.5" fill="none" stroke="#d95f02" stroke-width="0.18" stroke-dasharray="0.8,0.45" opacity="0.75"><title>DSI_D0_N DSI_D0 route intent</title></polyline>
+<text class="dsi-plan-label" data-layer="dsi-plan" x="62.83" y="29.5" font-size="1.25" text-anchor="middle" font-family="Arial, sans-serif" fill="#a34400">DSI_D0</text>
+<g class="component back" data-layer="back">
+<rect x="18" y="2" width="14" height="9" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="25" y="7.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">J1</text>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="79" y="74" width="8" height="4" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="83" y="76.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">J2</text>
+<title>J2 1S-Pouch-403048 GATE-BATTERY-SAMPLE</title>
+</g>
+<g class="component back" data-layer="back">
+<rect x="55" y="50.5" width="10" height="10" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="60" y="56.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U1</text>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="65" y="48.5" width="6" height="5" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="68" y="51.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U9</text>
+<title>U9 QSPI-NOR-32MB GATE-ESP32-P4-REF-CAPTURE</title>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="51.4" y="48.75" width="3.2" height="2.5" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="53" y="50.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">X1</text>
+<title>X1 40MHz-crystal GATE-ESP32-P4-REF-CAPTURE</title>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="65.5" y="59.5" width="3" height="3" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="67" y="61.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">L1</text>
+<title>L1 DCDC-inductor GATE-ESP32-P4-REF-CAPTURE</title>
+</g>
+<g class="component back" data-layer="back">
+<rect x="79.5" y="59" width="3" height="3" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="81" y="61.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U2</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="84.5" y="59" width="2" height="2" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="85.5" y="60.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U3</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="90" y="59.25" width="3" height="2.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="91.5" y="61.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U4</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="94" y="64.45" width="2" height="2.1" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="95" y="66.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U6</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="78.2" y="65.6" width="1.6" height="0.8" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="79" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">D4</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="81" y="65.75" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="81.5" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R8</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="88.2" y="65.6" width="1.6" height="0.8" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="89" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">C1</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="91.2" y="65.6" width="1.6" height="0.8" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="92" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">C2</text>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="49" y="3.5" width="22" height="5" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="60" y="6.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">J3</text>
+<title>J3 FFC-15-1.0-FH12-class GATE-DSI-FFC-CONTACT</title>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="78.5" y="43.5" width="15" height="14" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="86" y="51.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">J4</text>
+<title>J4 microSD GATE-MICROSD-FOOTPRINT</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="19.7" y="76.85" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="22" y="78.8" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW1</text>
+<title>SW1 TL3315NF160Q-class GATE-DPAD-MOCKUP</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="19.7" y="94.35" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="22" y="96.3" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW2</text>
+<title>SW2 TL3315NF160Q-class GATE-DPAD-MOCKUP</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="10.95" y="85.6" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="13.25" y="87.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW3</text>
+<title>SW3 TL3315NF160Q-class GATE-DPAD-MOCKUP</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="28.45" y="85.6" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="30.75" y="87.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW4</text>
+<title>SW4 TL3315NF160Q-class GATE-DPAD-MOCKUP</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="86.7" y="81.6" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="89" y="83.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW5</text>
+<title>SW5 KMR211NG GATE-FACE-BUTTON-FEEL</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="72.7" y="94.6" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="75" y="96.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW6</text>
+<title>SW6 KMR211NG GATE-FACE-BUTTON-FEEL</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="89.7" y="100.6" width="4.6" height="2.8" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="92" y="102.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW7</text>
+<title>SW7 KMR211NG GATE-FACE-BUTTON-FEEL</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="52.5" y="99" width="11" height="4" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="58" y="101.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW8</text>
+<title>SW8 KMR211NG GATE-FACE-BUTTON-FEEL</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="102" y="3.5" width="8" height="3.2" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="106" y="5.6499999999999995" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW9</text>
+<title>SW9 SlideSwitch-SPDT-JS102000-class GATE-POWER-SLIDE-SLOT</title>
+</g>
+<g class="component front" data-layer="front">
+<rect x="114.05" y="14.35" width="3.9" height="2.9" rx="0.5" fill="#ffe0a8" stroke="#24485f" stroke-width="0.35"/>
+<text x="116" y="16.35" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW10A</text>
+</g>
+<g class="component front" data-layer="front">
+<rect x="114.05" y="18.75" width="3.9" height="2.9" rx="0.5" fill="#ffe0a8" stroke="#24485f" stroke-width="0.35"/>
+<text x="116" y="20.75" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">SW10B</text>
+</g>
+<g class="component back gated" data-layer="back">
+<ellipse cx="100" cy="91" rx="5" ry="5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="100" y="91.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">B1</text>
+<title>B1 Coin-LRA-10mm GATE-LRA-MOUNT</title>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="54" y="84.5" width="12" height="3" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="60" y="86.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">JP1</text>
+<title>JP1 PiezoPads GATE-PIEZO-DRIVE-REVIEW</title>
+</g>
+<g class="component back" data-layer="back">
+<rect x="48.5" y="78.5" width="3" height="3" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="50" y="80.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">Q1</text>
+</g>
+<g class="component back gated" data-layer="back">
+<rect x="67.5" y="77.5" width="5" height="5" rx="0.5" fill="#b8d8ee" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="70" y="80.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U8</text>
+<title>U8 PiezoHBridge-DNP GATE-PIEZO-DRIVE-REVIEW</title>
+</g>
+<g class="component back" data-layer="back">
+<rect x="62.5" y="80.75" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="63" y="81.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R7</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="86.5" y="85.55" width="3" height="4.9" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="88" y="88.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">U5</text>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="2.4" y="41" width="3.2" height="2" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="4" y="42.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">D1</text>
+<title>D1 LED-R GATE-CASE-LED-LIGHTPIPE</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="2.4" y="47" width="3.2" height="2" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="4" y="48.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">D2</text>
+<title>D2 LED-G GATE-CASE-LED-LIGHTPIPE</title>
+</g>
+<g class="component front gated" data-layer="front">
+<rect x="2.4" y="53" width="3.2" height="2" rx="0.5" fill="#ffe0a8" stroke="#c83a2d" stroke-width="0.35" stroke-dasharray="1.2,0.6"/>
+<text x="4" y="54.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">D3</text>
+<title>D3 LED-B GATE-CASE-LED-LIGHTPIPE</title>
+</g>
+<g class="component back" data-layer="back">
+<rect x="34.5" y="6.75" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="35" y="7.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R1</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="34.5" y="9.75" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="35" y="10.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R2</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="50.5" y="63.25" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="51" y="64.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R3</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="52.5" y="63.25" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="53" y="64.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R4</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="50.5" y="60.25" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="51" y="61.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R5</text>
+</g>
+<g class="component back" data-layer="back">
+<rect x="52.5" y="60.25" width="1" height="0.5" rx="0.5" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="53" y="61.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R6</text>
+</g>
+<g class="component front" data-layer="front">
+<rect x="31.5" y="74" width="1" height="0.5" rx="0.5" fill="#ffe0a8" stroke="#24485f" stroke-width="0.35"/>
+<text x="32" y="74.8" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">R10</text>
+</g>
+<g class="component front" data-layer="front">
+<rect x="73.2" y="8.1" width="1.6" height="0.8" rx="0.5" fill="#ffe0a8" stroke="#24485f" stroke-width="0.35"/>
+<text x="74" y="9.05" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">C3</text>
+</g>
+<g class="component back" data-layer="back">
+<ellipse cx="102" cy="66" rx="0.75" ry="0.75" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="102" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">TP1</text>
+</g>
+<g class="component back" data-layer="back">
+<ellipse cx="106" cy="66" rx="0.75" ry="0.75" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="106" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">TP2</text>
+</g>
+<g class="component back" data-layer="back">
+<ellipse cx="110" cy="66" rx="0.75" ry="0.75" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="110" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">TP3</text>
+</g>
+<g class="component back" data-layer="back">
+<ellipse cx="114" cy="66" rx="0.75" ry="0.75" fill="#b8d8ee" stroke="#24485f" stroke-width="0.35"/>
+<text x="114" y="66.55" font-size="1.8" text-anchor="middle" font-family="Arial, sans-serif" fill="#111">TP4</text>
+</g>
+<circle class="mounting-hole" cx="7" cy="7" r="1.1" fill="#f7f5ef" stroke="#333" stroke-width="0.25"/>
+<circle class="mounting-hole" cx="113" cy="7" r="1.1" fill="#f7f5ef" stroke="#333" stroke-width="0.25"/>
+<circle class="mounting-hole" cx="7" cy="103" r="1.1" fill="#f7f5ef" stroke="#333" stroke-width="0.25"/>
+<circle class="mounting-hole" cx="113" cy="103" r="1.1" fill="#f7f5ef" stroke="#333" stroke-width="0.25"/>
+</g>
+<g transform="translate(6,126)" font-family="Arial, sans-serif" font-size="2.1" fill="#333">
+<rect x="0" y="-3" width="4" height="2.4" fill="#ffe0a8" stroke="#24485f"/><text x="5" y="-1">front packages</text>
+<rect x="33" y="-3" width="4" height="2.4" fill="#b8d8ee" stroke="#24485f"/><text x="38" y="-1">back packages</text>
+<line x1="66" y1="-2" x2="74" y2="-2" stroke="#138a63" stroke-width="0.24"/><text x="76" y="-1">trace</text>
+<line x1="92" y1="-2" x2="100" y2="-2" stroke="#d95f02" stroke-width="0.28" stroke-dasharray="1.2,0.7"/><text x="102" y="-1">DSI airwire</text>
+<text x="0" y="4">Gate-marked packages use dashed red outlines. Open SVG title tooltips show gate IDs for unresolved parts.</text>
+</g>
+</svg>
