@@ -318,6 +318,38 @@ Do not redo these; they're in place and working:
   noinline profiled body still regressed 3.6%. If this attribution must be
   repeated, make it a compile-time profiling build; do not add runtime-selectable
   branches or duplicate matcher bodies to the default binary.
+
+  Prototype result (2026-07-10): a compile-time-only N7 candidate kept the
+  cell-major board canonical and maintained a derived word-major object plane
+  for 3-64-word games. Direct pattern terms used precomputed nonzero-word
+  metadata; the refined version stored present/missing words as 64-bit masks
+  and any-object word masks in one game-level table, avoiding per-pattern heap
+  vectors. A generated four-word canary caught an important lifecycle bug:
+  reusable solver child states copied `board.objects` directly, so a first
+  sibling's plane writes could leak into the next sibling. Routing that copy
+  through the derived-cache invalidation boundary restored baseline/candidate
+  solution parity. The canary, compile flag, and runtime prototype were removed
+  after measurement along with that N7-only invalidation change.
+
+  The refined candidate is rejected. On the 54-target four-word portfolio,
+  baseline/candidate kept the same 1 solved / 53 timeout target split across
+  three runs, but aggregate generated-state throughput fell from 3.152 to
+  2.935 states/ms (-6.9%); median generated work at the 500ms deadline fell
+  1360 -> 1269, median wall rose 634.3 -> 640.8ms, and total materialization
+  time rose 50.8 -> 58.7ms (+15.5%). Artifacts are
+  `build/native/measure-raw-n7-baseline-anonymous-game-portfolio-runs3.json`
+  and
+  `build/native/measure-raw-n7-word-mask-planes-anonymous-game-portfolio-runs3.json`.
+  Smoke-50 was noise-level (+0.6% aggregate states/ms, identical 99 solved / 48
+  timeout / 3 exhausted samples), artifacts
+  `build/native/measure-raw-n7-baseline-smoke-50-runs3.json` and
+  `build/native/measure-raw-n7-word-mask-planes-smoke-50-runs3.json`.
+  The per-cell matcher benefits from the canonical cell's adjacent words in one
+  cache line; sparse plane lookups replace cheap zero-word arithmetic with
+  indirection and worse locality. Do not revive this per-cell SoA shape. N7 is
+  only worth revisiting with a plane-wise matcher that batches many tiles per
+  word (or a generated kernel that can vectorize that scan); otherwise move to
+  the narrower counter-proven S1/N3 consumer or N8.
 - **N8 — feed solver-scoped static opts into the native compile
   (high-level).** The JS passes (`src/tests/solver_static_opt.js`:
   inert/cosmetic/merge) shrink object count, **collision layers** (→ both
