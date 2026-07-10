@@ -2,9 +2,14 @@
 'use strict';
 
 const assert = require('assert');
+const path = require('path');
 const {
     createSiblingMarkovPriorStore,
 } = require('./lib/solver_sibling_markov_prior');
+const {
+    parseArgs,
+    runCorpus,
+} = require('./run_solver_tests_js');
 
 const actions = ['right', 'up', 'down', 'left', 'action']
     .map((token, input) => ({ token, input }));
@@ -52,5 +57,40 @@ assert.throws(
     /duplicate solved training record dup\.txt#0/
 );
 assert.throws(() => createSiblingMarkovPriorStore({}), /expected top-level results array/);
+
+const smokeCorpus = path.join(__dirname, 'solver_smoke_tests');
+const trainingPath = path.join(__dirname, 'training.json');
+const parsed = parseArgs([
+    'node',
+    'run_solver_tests_js.js',
+    smokeCorpus,
+    '--solver-sibling-priors',
+    trainingPath,
+]);
+assert.strictEqual(parsed.solverSiblingPriorsPath, trainingPath);
+
+const coldResults = runCorpus(parseArgs([
+    'node',
+    'run_solver_tests_js.js',
+    smokeCorpus,
+    '--game',
+    'one_move.txt',
+    '--level',
+    '0',
+    '--strategy',
+    'bfs',
+    '--timeout-ms',
+    '1000',
+    '--no-solutions',
+    '--quiet',
+]));
+assert.strictEqual(coldResults.length, 1);
+const cold = coldResults[0];
+assert.strictEqual(cold.sibling_prior_enabled, false);
+assert.strictEqual(cold.sibling_prior_training_records_ignored, 0);
+assert.strictEqual(cold.sibling_prior_training_levels, 0);
+assert.strictEqual(cold.sibling_prior_contexts, 0);
+assert.strictEqual(cold.sibling_prior_ordered_expansions, 0);
+assert.strictEqual(cold.sibling_prior_fallback_expansions, 0);
 
 console.log('solver_sibling_markov_prior_node passed');
