@@ -8,6 +8,12 @@
 4. Storage: route after selecting the exact microSD footprint.
 5. Low-speed controls, LEDs, haptic, and piezo can be routed last.
 
+## EasyEDA Library Association
+
+Each schematic symbol and PCB footprint carries an `LCSC` property when a JLC part is mapped.
+Footprint names use the EasyEDA package string (`easyeda:...`) from `jlc_catalog.json`.
+If EasyEDA does not auto-match a gated candidate part, search by LCSC number manually and replace the footprint.
+
 ## DSI Physical Gate
 
 The schematic pinout is captured, but the card-end contact orientation is still gated.

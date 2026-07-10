@@ -135,10 +135,10 @@ function footprintBlock(pcb, ref) {
         refText = pcb.indexOf(marker);
     }
     assert.ok(refText !== -1, "missing footprint reference " + ref);
-    var start = pcb.lastIndexOf("\n  (footprint \"PSCard:", refText);
+    var start = pcb.lastIndexOf("\n  (footprint \"", refText);
     assert.ok(start !== -1, "missing footprint " + ref);
     start += 1;
-    var next = pcb.indexOf('\n  (footprint "PSCard:', start + 1);
+    var next = pcb.indexOf('\n  (footprint "', start + 1);
     if (next === -1) {
         next = pcb.indexOf("\n)", start);
     }
@@ -164,30 +164,31 @@ function segmentCountForNet(pcb, name) {
 test("pcb contains placed generated footprints for all components", function () {
     gen.generateAll();
     var pcb = fs.readFileSync(path.join(CARD, "card.kicad_pcb"), "utf8");
-    var footprints = pcb.match(/\(footprint "PSCard:(Preview|Fit)_/g) || [];
+    var footprints = pcb.match(/\(footprint "/g) || [];
     assert.strictEqual(footprints.length, 48);
     assert.ok(footprintBlock(pcb, "J3").indexOf('(property "Reference" "J3"') !== -1);
     assert.ok(footprintBlock(pcb, "U1").indexOf('(layer "B.Cu")') !== -1);
     assert.ok(footprintBlock(pcb, "SW1").indexOf('(layer "F.Cu")') !== -1);
-    assert.ok(pcb.indexOf("layout placeholder") !== -1);
+    assert.ok(pcb.indexOf('(property "LCSC"') !== -1);
 });
 
-test("pcb promotes package locked parts to fit footprints", function () {
+test("pcb uses EasyEDA footprint names for JLC-mapped parts", function () {
     gen.generateAll();
     var pcb = fs.readFileSync(path.join(CARD, "card.kicad_pcb"), "utf8");
-    assert.strictEqual((pcb.match(/\(footprint "PSCard:Fit_/g) || []).length, 27);
-    assert.strictEqual((pcb.match(/layout placeholder/g) || []).length, 21);
-    assert.ok(footprintBlock(pcb, "R1").indexOf('(footprint "PSCard:Fit_R1"') !== -1);
-    assert.ok(footprintBlock(pcb, "C1").indexOf('(footprint "PSCard:Fit_C1"') !== -1);
-    assert.ok(footprintBlock(pcb, "D4").indexOf('(footprint "PSCard:Fit_D4"') !== -1);
-    assert.ok(footprintBlock(pcb, "TP1").indexOf('(footprint "PSCard:Fit_TP1"') !== -1);
-    assert.ok(footprintBlock(pcb, "J1").indexOf('(footprint "PSCard:Fit_J1"') !== -1);
-    assert.ok(footprintBlock(pcb, "U2").indexOf('(footprint "PSCard:Fit_U2"') !== -1);
-    assert.ok(footprintBlock(pcb, "SW10A").indexOf('(footprint "PSCard:Fit_SW10A"') !== -1);
-    assert.ok(footprintBlock(pcb, "J3").indexOf('(footprint "PSCard:Preview_J3"') !== -1);
-    assert.ok(footprintBlock(pcb, "J2").indexOf('(footprint "PSCard:Preview_J2"') !== -1);
-    assert.ok(footprintBlock(pcb, "SW5").indexOf('(footprint "PSCard:Preview_SW5"') !== -1);
-    assert.ok(footprintBlock(pcb, "J3").indexOf("GATE-DSI-FFC-CONTACT") !== -1);
+    assert.ok(footprintBlock(pcb, "R1").indexOf('(footprint "easyeda:R0402"') !== -1);
+    assert.ok(footprintBlock(pcb, "C1").indexOf('(footprint "easyeda:C0603"') !== -1);
+    assert.ok(footprintBlock(pcb, "D4").indexOf('(footprint "easyeda:LED0603-RD"') !== -1);
+    assert.ok(footprintBlock(pcb, "TP1").indexOf('(footprint "easyeda:TestPoint_Pad_D1.5mm"') !== -1);
+    assert.ok(footprintBlock(pcb, "J1").indexOf('(footprint "easyeda:USB-C-SMD_TYPE-C-16PIN-2MD-073"') !== -1);
+    assert.ok(footprintBlock(pcb, "U2").indexOf('(footprint "easyeda:QFN-16_L3.0-W3.0-P0.50-TL-EP1.7"') !== -1);
+    assert.ok(footprintBlock(pcb, "SW10A").indexOf('(footprint "easyeda:SW-SMD_2P-L3.9-W2.9-P1.90-LS2.8-BR"') !== -1);
+    assert.ok(footprintBlock(pcb, "J3").indexOf('(footprint "easyeda:FPC-SMD_FH12-15S-0.5SH-55"') !== -1);
+    assert.ok(footprintBlock(pcb, "J2").indexOf('(footprint "easyeda:CONN-SMD_SM02B-SRSS-TB"') !== -1);
+    assert.ok(footprintBlock(pcb, "SW5").indexOf('(footprint "easyeda:SW-SMD_4P-L6.0-W6.0-P4.50-LS6.5-TL"') !== -1);
+    assert.ok(footprintBlock(pcb, "X1").indexOf('(property "LCSC" "C9010"') !== -1);
+    assert.ok(footprintBlock(pcb, "L1").indexOf('(footprint "easyeda:IND-SMD_L4.0-W4.0_HPC4018BM"') !== -1);
+    assert.ok(footprintBlock(pcb, "L1").indexOf('(property "LCSC" "C692155"') !== -1);
+    assert.strictEqual((pcb.match(/\(footprint "PSCard:/g) || []).length, 0);
 });
 
 test("pcb emits first-pass copper segments for all visible ratsnest families", function () {
@@ -219,6 +220,8 @@ test("pcb footprints use KiCad 10 property and pad metadata", function () {
     var j1 = footprintBlock(pcb, "J1");
     assert.ok(j1.indexOf('(property "Reference" "J1"') !== -1);
     assert.ok(j1.indexOf('(property "Value" "HRO-TYPE-C-31-M-12"') !== -1);
+    assert.ok(j1.indexOf('(property "MPN" "TYPE-C 16PIN 2MD(073)"') !== -1);
+    assert.ok(j1.indexOf('(property "LCSC" "C2765186"') !== -1);
     assert.ok(j1.indexOf("(duplicate_pad_numbers_are_jumpers no)") !== -1);
     assert.ok(j1.indexOf("(embedded_fonts no)") !== -1);
     assert.ok(j1.match(/\(pad "CC1" smd rect[\s\S]*\(uuid "[^"]+"\)/));
@@ -269,6 +272,14 @@ test("sub-sheets keep global_label properties inside the label", function () {
     var storage = fs.readFileSync(path.join(__dirname, "sheets", "storage.kicad_sch"), "utf8");
     assert.ok(storage.indexOf("(property \"Intersheetrefs\"") !== -1);
     assert.ok(!storage.match(/\(uuid "[^"]+"\)\)\s*\n\s*\(property "Intersheetrefs"/));
+});
+
+test("generated sheets expose LCSC properties for mapped parts", function () {
+    var power = fs.readFileSync(path.join(__dirname, "sheets", "power.kicad_sch"), "utf8");
+    var compute = fs.readFileSync(path.join(__dirname, "sheets", "compute.kicad_sch"), "utf8");
+    assert.ok(power.indexOf("(property \"LCSC\" \"C15464\"") !== -1);
+    assert.ok(compute.indexOf("(property \"LCSC\" \"C22387510\"") !== -1);
+    assert.ok(compute.indexOf("(property \"LCSC\" \"C9010\"") !== -1);
 });
 
 test("generated sheets expose open gate ids as symbol properties", function () {

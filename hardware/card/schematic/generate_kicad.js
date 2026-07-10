@@ -8,6 +8,7 @@ var CARD_DIR = path.join(__dirname, "..");
 var SCHEMATIC_DIR = __dirname;
 var REPO_ROOT = path.join(__dirname, "..", "..", "..");
 var boardPreview = require(path.join(REPO_ROOT, "tools", "handheld_blockout", "board_preview.js"));
+var jlcParts = require("./jlc_parts.js");
 var uuidCounter = 0;
 var PCB_DRC_CLEARANCE_MM = 0.6;
 var PCB_TEXT_DRC_CLEARANCE_MM = 2.0;
@@ -192,6 +193,7 @@ function symbolInstance(comp, atX, atY, projectPath) {
     var id = uuid();
     var lib = symbolLibId(comp);
     var rot = 0;
+    var footprintName = comp.easyeda_footprint || comp.footprint || "";
     var lines = [
         "  (symbol (lib_id \"" + lib + "\") (at " + atX + " " + atY + " " + rot + ") (unit 1)",
         "    (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)",
@@ -200,7 +202,7 @@ function symbolInstance(comp, atX, atY, projectPath) {
         "      (effects (font (size 1.27 1.27))))",
         "    (property \"Value\" \"" + esc(comp.value) + "\" (at " + atX + " " + (atY + 6) + " 0)",
         "      (effects (font (size 1.27 1.27))))",
-        "    (property \"Footprint\" \"" + esc(comp.footprint) + "\" (at " + atX + " " + atY + " 0)",
+        "    (property \"Footprint\" \"" + esc(footprintName) + "\" (at " + atX + " " + atY + " 0)",
         "      (effects (font (size 1.27 1.27)) hide))",
         "    (property \"Datasheet\" \"~\" (at " + atX + " " + atY + " 0)",
         "      (effects (font (size 1.27 1.27)) hide))"
@@ -208,6 +210,18 @@ function symbolInstance(comp, atX, atY, projectPath) {
     if (comp.gate) {
         lines.push(
             "    (property \"Gate\" \"" + esc(comp.gate) + "\" (at " + atX + " " + atY + " 0)",
+            "      (effects (font (size 1.27 1.27)) hide))"
+        );
+    }
+    if (comp.lcsc) {
+        lines.push(
+            "    (property \"LCSC\" \"" + esc(comp.lcsc) + "\" (at " + atX + " " + atY + " 0)",
+            "      (effects (font (size 1.27 1.27)) hide))"
+        );
+    }
+    if (comp.mpn) {
+        lines.push(
+            "    (property \"MPN\" \"" + esc(comp.mpn) + "\" (at " + atX + " " + atY + " 0)",
             "      (effects (font (size 1.27 1.27)) hide))"
         );
     }
@@ -450,8 +464,11 @@ function padSize(component, padCount) {
 }
 
 function footprintIsOpen(component) {
-    var footprint = component.footprint || "";
-    return !!component.gate || footprint === "" || footprint === "TBD" || footprint.indexOf("TBD") !== -1;
+    return jlcParts.footprintIsOpen(component);
+}
+
+function footprintLibraryName(component) {
+    return jlcParts.footprintLibraryName(component);
 }
 
 function completePads(pads, pins) {
@@ -600,6 +617,20 @@ function fitPadSpecs(component, pads, profile) {
     });
 }
 
+function jlcFootprintProperties(component, fabLayer, h) {
+    var lines = [];
+    if (component.lcsc) {
+        lines.push(footprintProperty("LCSC", component.lcsc, 0, 0, fabLayer, 1.27, 0, true));
+    }
+    if (component.mpn) {
+        lines.push(footprintProperty("MPN", component.mpn, 0, 0, fabLayer, 1.27, 0, true));
+    }
+    if (component.jlc_status) {
+        lines.push(footprintProperty("JLC_Status", component.jlc_status, 0, h / 2 + 3.6, "Cmts.User", 0.65, 0.1, false));
+    }
+    return lines;
+}
+
 function fitFootprint(component, pads, netByName, bodyH, bounds) {
     var sidePrefix = component.side === "back" ? "B" : "F";
     var copperLayer = sidePrefix + ".Cu";
@@ -614,20 +645,25 @@ function fitFootprint(component, pads, netByName, bodyH, bounds) {
     var x = pos.x;
     var y = pos.y;
     var lines = [
-        "  (footprint \"PSCard:Fit_" + esc(component.ref) + "\" (layer \"" + copperLayer + "\")",
+        "  (footprint \"" + esc(footprintLibraryName(component)) + "\" (layer \"" + copperLayer + "\")",
         "    (uuid \"" + uuid() + "\")",
         "    (at " + fmt(x) + " " + fmt(y) + " 0)",
         footprintProperty("Reference", component.ref, 0, -h / 2 - 1.2, silkLayer, 0.9, 0.12, false),
         footprintProperty("Value", component.value, 0, h / 2 + 1.2, fabLayer, 0.7, 0.1, false),
         footprintProperty("Datasheet", "", 0, 0, "F.Fab", 1.27, 0, true),
-        footprintProperty("Description", "", 0, 0, "F.Fab", 1.27, 0, true),
+        footprintProperty("Description", "", 0, 0, "F.Fab", 1.27, 0, true)
+    ];
+    jlcFootprintProperties(component, fabLayer, h).forEach(function (line) {
+        lines.push(line);
+    });
+    lines.push(
         "    (attr smd)",
         "    (duplicate_pad_numbers_are_jumpers no)",
-        "    (fp_text user \"fit/package locked\" (at 0 0 0) (layer \"Cmts.User\")",
+        "    (fp_text user \"JLC footprint anchor\" (at 0 0 0) (layer \"Cmts.User\")",
         "      (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid \"" + uuid() + "\"))",
         "    (fp_text user \"source footprint: " + esc(profile.source) + "\" (at 0 " + fmt(h / 2 + 2.4) + " 0) (layer \"Cmts.User\")",
         "      (effects (font (size 0.65 0.65) (thickness 0.1))) (uuid \"" + uuid() + "\"))"
-    ];
+    );
     if (profile.shape === "circle" || component.shape === "circle") {
         lines.push("    (fp_circle (center 0 0) (end " + fmt(w / 2) + " 0) (stroke (width 0.12) (type solid)) (fill no) (layer \"" + fabLayer + "\") (uuid \"" + uuid() + "\"))");
     } else {
@@ -659,18 +695,23 @@ function previewFootprint(component, pads, netByName, bodyH, bounds) {
     var y = pos.y;
     var pSize = padSize(component, pads.length);
     var lines = [
-        "  (footprint \"PSCard:Preview_" + esc(component.ref) + "\" (layer \"" + copperLayer + "\")",
+        "  (footprint \"" + esc(footprintLibraryName(component)) + "\" (layer \"" + copperLayer + "\")",
         "    (uuid \"" + uuid() + "\")",
         "    (at " + fmt(x) + " " + fmt(y) + " 0)",
         footprintProperty("Reference", component.ref, 0, -h / 2 - 1.2, silkLayer, 0.9, 0.12, false),
         footprintProperty("Value", component.value, 0, h / 2 + 1.2, fabLayer, 0.7, 0.1, false),
         footprintProperty("Datasheet", "", 0, 0, "F.Fab", 1.27, 0, true),
-        footprintProperty("Description", "", 0, 0, "F.Fab", 1.27, 0, true),
+        footprintProperty("Description", "", 0, 0, "F.Fab", 1.27, 0, true)
+    ];
+    jlcFootprintProperties(component, fabLayer, h).forEach(function (line) {
+        lines.push(line);
+    });
+    lines.push(
         "    (attr smd)",
         "    (duplicate_pad_numbers_are_jumpers no)",
         "    (fp_text user \"layout placeholder\" (at 0 0 0) (layer \"Cmts.User\")",
         "      (effects (font (size 0.7 0.7) (thickness 0.1))) (uuid \"" + uuid() + "\"))"
-    ];
+    );
     if (component.shape === "circle") {
         lines.push("    (fp_circle (center 0 0) (end " + fmt(w / 2) + " 0) (stroke (width 0.12) (type solid)) (fill no) (layer \"" + fabLayer + "\") (uuid \"" + uuid() + "\"))");
     } else {
@@ -1043,7 +1084,8 @@ function buildProject() {
 
 function generateAll() {
     uuidCounter = 0;
-    var model = loadJson(path.join(SCHEMATIC_DIR, "connectivity.json"));
+    var applied = jlcParts.applyCatalog(loadJson(path.join(SCHEMATIC_DIR, "connectivity.json")));
+    var model = applied.model;
     var layout = loadJson(path.join(CARD_DIR, "mechanical", "layout.json"));
     var sheetsDir = path.join(SCHEMATIC_DIR, "sheets");
     fs.mkdirSync(sheetsDir, { recursive: true });
@@ -1057,14 +1099,21 @@ function generateAll() {
     fs.writeFileSync(path.join(CARD_DIR, "card.kicad_sch"), buildRootSheet(model), "utf8");
     fs.writeFileSync(path.join(CARD_DIR, "card.kicad_pcb"), buildPcb(layout, model), "utf8");
     fs.writeFileSync(path.join(CARD_DIR, "card.kicad_pro"), buildProject(), "utf8");
+    fs.writeFileSync(path.join(CARD_DIR, "bom_jlc.csv"), jlcParts.bomCsv(model), "utf8");
 
     return {
         sheets: model.sheets.length,
-        components: model.components.length
+        components: model.components.length,
+        jlc: jlcParts.catalogSummary(applied.catalog)
     };
 }
 
-module.exports = { generateAll: generateAll, buildSheet: buildSheet };
+module.exports = {
+    generateAll: generateAll,
+    buildSheet: buildSheet,
+    footprintLibraryName: footprintLibraryName,
+    footprintIsOpen: footprintIsOpen
+};
 
 if (require.main === module) {
     var info = generateAll();

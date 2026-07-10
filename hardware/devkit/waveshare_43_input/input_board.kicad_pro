@@ -1,0 +1,39 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1,
+        "copper_line_width": 0.2,
+        "copper_text_size_h": 1.5,
+        "copper_text_size_v": 1.5,
+        "other_line_width": 0.15,
+        "other_text_size_h": 1,
+        "other_text_size_v": 1
+      },
+      "rules": {
+        "min_clearance": 0.2,
+        "min_track_width": 0.15,
+        "min_via_diameter": 0.5,
+        "min_via_drill": 0.3
+      }
+    },
+    "layer_presets": []
+  },
+  "boards": [
+    {
+      "name": "input_board.kicad_pcb"
+    }
+  ],
+  "schematic": {
+    "sheets": [
+      {
+        "name": "input_board.kicad_sch",
+        "uuid": "9c681e41-fe4e-4514-b7c6-4c3528fb5f0f"
+      }
+    ]
+  },
+  "meta": {
+    "filename": "input_board.kicad_pro",
+    "version": 1
+  }
+}

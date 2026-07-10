@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -498,6 +498,7 @@ help:
 	@echo "  make handheld_card_easyeda_handoff Export EasyEDA handoff package"
 	@echo "  make handheld_card_schematic_tests Run card schematic connectivity tests"
 	@echo "  make handheld_card_kicad            Generate KiCad schematics + PCB outline"
+	@echo "  make handheld_devkit_input_kicad    Waveshare 4.3 input daughterboard (KiCad)"
 	@echo "  make locality_survey               Emit structural memory-locality metrics for handheld + focus games"
 	@echo "  make profile_solver_tests          Profile native solver smoke workload (PROFILE_MODE=counters for PMU)"
 	@echo "  make handheld_p4_probe_build       Build ESP32-P4 Waveshare board-probe firmware"
@@ -782,7 +783,12 @@ handheld_card_schematic_tests:
 handheld_card_kicad:
 	$(NODE) hardware/card/schematic/validate_connectivity.js export-netlist
 	$(NODE) hardware/card/schematic/generate_kicad.js
+	$(NODE) hardware/card/schematic/jlc_parts_test.js
 	$(NODE) hardware/card/schematic/generate_kicad_test.js
+
+handheld_devkit_input_kicad:
+	$(NODE) hardware/devkit/waveshare_43_input/generate_kicad.js
+	$(NODE) hardware/devkit/waveshare_43_input/generate_kicad_test.js
 
 locality_survey:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64

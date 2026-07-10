@@ -41,7 +41,7 @@
       (footprint TBD)
       (sheet compute)))
     (comp (ref L1)
-      (value DCDC-inductor)
+      (value 2.2uH)
       (footprint TBD)
       (sheet compute)))
     (comp (ref J3)

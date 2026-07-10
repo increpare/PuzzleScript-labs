@@ -77,22 +77,49 @@ function readJson(file) {
     return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-function packageReadme(previewJson) {
+function packageReadme(previewJson, jlcSummary) {
     return [
         "# EasyEDA Handoff - PuzzleScript Card",
         "",
-        "This package is for manual PCB routing in EasyEDA Pro or another EDA editor.",
-        "It keeps the current outline, footprint placeholders, pad nets, schematic sheets,",
-        "mechanical references, and routing notes, but the import board is intentionally",
-        "unrouted so the generated trace spaghetti is not treated as layout work.",
+        "This package is for manual PCB routing in EasyEDA Pro. It ships a full KiCad project",
+        "with JLC/LCSC part numbers, EasyEDA footprint names, schematic sheets, placement anchors,",
+        "and an unrouted PCB.",
         "",
-        "## Start Here",
+        "**Important:** EasyEDA Pro's KiCad importer brings in placement, nets, and custom fields,",
+        "but it does **not** auto-link parts to EasyEDA's LCSC library. That linking only happens",
+        "when you place parts from EasyEDA's own library panel. The `LCSC` / `MPN` fields here are",
+        "for procurement (JLCPCB BOM export from KiCad) and as a lookup table while you associate",
+        "parts in EasyEDA — not for automatic import-time matching.",
         "",
-        "1. Import `import/card_easyeda_unrouted.kicad_pcb` into EasyEDA Pro.",
-        "2. Use `import/card.net` and `import/schematic/connectivity.json` as net references if needed.",
-        "3. Keep `mechanical/layout.svg` open while placing final footprints.",
-        "4. Use `reference/board_preview.html` only as a visual progress/reference artifact.",
+        "## Start Here (EasyEDA Pro)",
+        "",
+        "1. **Import the full KiCad project**: `import/card.kicad_pro` (File → Import → KiCad).",
+        "2. **Associate LCSC parts** (required, not automatic):",
+        "   - Open **Left panel → Device Standardization** for flagged mismatches.",
+        "   - Or **Tools → Device Manager**: select a component, choose **Assign LCSC Part**,",
+        "     and search by the `LCSC` column from `import/bom_jlc.csv` (e.g. `C2765186`), not",
+        "     by the generic KiCad value string.",
+        "   - There are **" + jlcSummary.uniqueLcsc + " unique LCSC parts** for " +
+            jlcSummary.designators + " designators — group identical values in",
+        "     Device Manager so each LCSC number only needs to be assigned once per part type.",
+        "3. Cross-check `import/bom_jlc.csv` and `import/schematic/jlc_catalog.json`.",
+        "4. Keep `mechanical/layout.svg` open while verifying footprint placement.",
         "5. Route manually in this order: DSI, USB, power, storage, then low-speed controls/audio/haptics/LEDs.",
+        "",
+        "### Skip EasyEDA association entirely?",
+        "",
+        "If the goal is JLCPCB assembly rather than EasyEDA routing, you can stay in KiCad:",
+        "pull real symbols/footprints with [easyeda2kicad](https://github.com/uPesy/easyeda2kicad.py)",
+        "using the LCSC numbers in `bom_jlc.csv`, route in KiCad, and order with the JLCPCB",
+        "Fabrication Toolkit. The LCSC fields are already in the right shape for that path.",
+        "",
+        "## JLC Catalog Coverage",
+        "",
+        "- Locked parts: " + jlcSummary.locked,
+        "- Candidate parts (gate still open): " + jlcSummary.candidate,
+        "- Open / off-board: " + jlcSummary.open,
+        "",
+        "Re-check LCSC stock and assembly tier immediately before ordering.",
         "",
         "## Current Generated Route Reference",
         "",
@@ -110,10 +137,11 @@ function packageReadme(previewJson) {
         "- `GATE-MICROSD-FOOTPRINT`: pick the actual internal service socket footprint before final SD routing.",
         "- `GATE-POWER-SLIDE-SLOT`: check switch travel/slot and OFF/ON orientation in the shell.",
         "- `GATE-BATTERY-SAMPLE`: measure protected 403048-class cells before final battery connector placement.",
+        "- `GATE-ESP32-P4-REF-CAPTURE`: verify crystal load caps, flash voltage domain, and P4 DC-DC inductor against Espressif reference.",
         "",
         "## Contents",
         "",
-        "- `import/`: clean KiCad board/project/schematic/netlist files for import.",
+        "- `import/`: KiCad project, JLC BOM, catalog JSON, schematic sheets, netlist.",
         "- `mechanical/`: layout JSON/SVG exported from the blockout tool.",
         "- `reference/`: generated preview HTML/SVG/JSON and routed-reference KiCad PCB.",
         "- `docs/`: gate, DSI, component, and pin-budget notes.",
@@ -138,6 +166,12 @@ function routingNotes() {
         "4. Storage: route after selecting the exact microSD footprint.",
         "5. Low-speed controls, LEDs, haptic, and piezo can be routed last.",
         "",
+        "## EasyEDA Library Association",
+        "",
+        "Each schematic symbol and PCB footprint carries an `LCSC` property when a JLC part is mapped.",
+        "Footprint names use the EasyEDA package string (`easyeda:...`) from `jlc_catalog.json`.",
+        "If EasyEDA does not auto-match a gated candidate part, search by LCSC number manually and replace the footprint.",
+        "",
         "## DSI Physical Gate",
         "",
         "The schematic pinout is captured, but the card-end contact orientation is still gated.",
@@ -151,6 +185,24 @@ function routingNotes() {
     ].join("\n");
 }
 
+function fpLibTable() {
+    return [
+        "(fp_lib_table",
+        "  (version 7)",
+        "  (lib (name \"easyeda\")(type \"KiCad\")(uri \"${KIPRJMOD}/easyeda.pretty\")(options \"\")(descr \"EasyEDA/JLC footprint names referenced by LCSC catalog\"))",
+        ")"
+    ].join("\n") + "\n";
+}
+
+function symLibTable() {
+    return [
+        "(sym_lib_table",
+        "  (version 7)",
+        "  (lib (name \"card\")(type \"KiCad\")(uri \"${KIPRJMOD}/card.kicad_sch\")(options \"\")(descr \"Embedded hierarchical schematic symbols\"))",
+        ")"
+    ].join("\n") + "\n";
+}
+
 function exportPackage(outDir) {
     var cardDir = path.join(REPO_ROOT, "hardware", "card");
     var importDir = path.join(outDir, "import");
@@ -161,11 +213,16 @@ function exportPackage(outDir) {
 
     var pcbText = fs.readFileSync(path.join(cardDir, "card.kicad_pcb"), "utf8");
     writeText(path.join(importDir, "card_easyeda_unrouted.kicad_pcb"), stripGeneratedCopper(pcbText));
+    copyFile(path.join(cardDir, "card.kicad_pcb"), path.join(importDir, "card.kicad_pcb"));
     copyFile(path.join(cardDir, "card.kicad_pro"), path.join(importDir, "card.kicad_pro"));
     copyFile(path.join(cardDir, "card.kicad_sch"), path.join(importDir, "card.kicad_sch"));
     copyFile(path.join(cardDir, "card.net"), path.join(importDir, "card.net"));
+    copyIfExists(path.join(cardDir, "bom_jlc.csv"), path.join(importDir, "bom_jlc.csv"));
+    copyIfExists(path.join(cardDir, "schematic", "jlc_catalog.json"), path.join(importDir, "schematic", "jlc_catalog.json"));
     copyIfExists(path.join(cardDir, "schematic", "connectivity.json"), path.join(importDir, "schematic", "connectivity.json"));
     copyDirFiles(path.join(cardDir, "schematic", "sheets"), path.join(importDir, "schematic", "sheets"), ".kicad_sch");
+    writeText(path.join(importDir, "fp-lib-table"), fpLibTable());
+    writeText(path.join(importDir, "sym-lib-table"), symLibTable());
 
     copyFile(path.join(cardDir, "mechanical", "layout.json"), path.join(mechanicalDir, "layout.json"));
     copyFile(path.join(cardDir, "mechanical", "layout.svg"), path.join(mechanicalDir, "layout.svg"));
@@ -186,13 +243,35 @@ function exportPackage(outDir) {
     });
 
     var previewJson = readJson(path.join(cardDir, "preview", "board_preview.json"));
-    writeText(path.join(outDir, "README.md"), packageReadme(previewJson));
+    var jlcSummary = readJson(path.join(cardDir, "schematic", "jlc_catalog.json"));
+    var jlcParts = jlcSummary.parts;
+    var lcscSet = {};
+    Object.keys(jlcParts).forEach(function (ref) {
+        var lcsc = jlcParts[ref].lcsc;
+        if (lcsc) {
+            lcscSet[lcsc] = true;
+        }
+    });
+    writeText(path.join(outDir, "README.md"), packageReadme(previewJson, {
+        locked: Object.keys(jlcParts).filter(function (ref) {
+            return jlcParts[ref].status === "locked";
+        }).length,
+        candidate: Object.keys(jlcParts).filter(function (ref) {
+            return jlcParts[ref].status === "candidate";
+        }).length,
+        open: Object.keys(jlcParts).filter(function (ref) {
+            return jlcParts[ref].status === "open";
+        }).length,
+        uniqueLcsc: Object.keys(lcscSet).length,
+        designators: Object.keys(jlcParts).length
+    }));
     writeText(path.join(outDir, "ROUTING_NOTES.md"), routingNotes());
 
     return {
         outDir: outDir,
         unroutedPcb: path.join(importDir, "card_easyeda_unrouted.kicad_pcb"),
-        routedReference: path.join(referenceDir, "card_routed_reference.kicad_pcb")
+        routedReference: path.join(referenceDir, "card_routed_reference.kicad_pcb"),
+        kicadProject: path.join(importDir, "card.kicad_pro")
     };
 }
 
@@ -201,8 +280,10 @@ function main() {
     var info = exportPackage(args.outDir);
     var unrouted = fs.readFileSync(info.unroutedPcb, "utf8");
     console.log("Wrote " + info.outDir);
+    console.log("KiCad project: " + info.kicadProject);
     console.log("Unrouted import PCB: " + (unrouted.match(/\(segment /g) || []).length + " segments, " +
         (unrouted.match(/\(via /g) || []).length + " vias");
+    console.log("LCSC-tagged footprints: " + (unrouted.match(/\(property "LCSC"/g) || []).length);
 }
 
 if (require.main === module) {

@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "board": "Waveshare ESP32-P4-WIFI6-Touch-LCD-4.3",
+    "docs": "https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-4.3",
+    "firmware": "firmware/esp32p4/main/board_buttons.cpp (PS_BOARD_WAVESHARE_7B / default)",
+    "note": "Active-low switches to GND. Firmware enables internal pull-ups. Connect with dupont wires from J1 to the 40-pin expansion header on the same GPIO numbers you used on breadboard."
+  },
+  "header_j1": [
+    { "pin": 1, "net": "GND", "gpio": null, "label": "GND" },
+    { "pin": 2, "net": "GPIO28_UP", "gpio": 28, "label": "D-pad Up" },
+    { "pin": 3, "net": "GPIO29_DOWN", "gpio": 29, "label": "D-pad Down" },
+    { "pin": 4, "net": "GPIO30_LEFT", "gpio": 30, "label": "D-pad Left" },
+    { "pin": 5, "net": "GPIO31_RIGHT", "gpio": 31, "label": "D-pad Right" },
+    { "pin": 6, "net": "GPIO32_ACTION", "gpio": 32, "label": "Action" },
+    { "pin": 7, "net": "GPIO34_UNDO", "gpio": 34, "label": "Undo" },
+    { "pin": 8, "net": "GPIO35_RESTART", "gpio": 35, "label": "Restart (hold in firmware)" },
+    { "pin": 9, "net": "GPIO49_MENU", "gpio": 49, "label": "Menu" },
+    { "pin": 10, "net": "GND", "gpio": null, "label": "GND" }
+  ],
+  "avoid_gpios": [7, 8, 9, 10, 11, 12, 13, 53],
+  "avoid_reason": "GPIO7/8 I2C (codec/touch), GPIO9-13 audio, GPIO53 amp enable — per Waveshare 4.3 docs"
+}

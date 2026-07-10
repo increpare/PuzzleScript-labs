@@ -26,7 +26,7 @@ test("stripGeneratedCopper removes only routed copper records", function () {
     assert.strictEqual(stripped.indexOf("(segment "), -1);
     assert.strictEqual(stripped.indexOf("(via "), -1);
     assert.ok(stripped.indexOf("(net 1 \"A\")") !== -1);
-    assert.ok(stripped.indexOf("(footprint \"PSCard:X\")") !== -1);
+    assert.ok(stripped.indexOf("(footprint \"easyeda:") !== -1 || stripped.indexOf("(footprint \"PSCard:") !== -1);
 });
 
 test("exportPackage writes EasyEDA handoff with clean import and routed reference", function () {
@@ -47,7 +47,10 @@ test("exportPackage writes EasyEDA handoff with clean import and routed referenc
     assert.ok(fs.existsSync(path.join(tmp, "reference", "board_preview.html")));
     assert.ok(fs.existsSync(path.join(tmp, "docs", "DSI_PANEL_INTERFACE.md")));
     assert.ok(fs.existsSync(path.join(tmp, "ROUTING_NOTES.md")));
-    assert.ok(readme.indexOf("Import `import/card_easyeda_unrouted.kicad_pcb`") !== -1);
+    assert.ok(readme.indexOf("Import the full KiCad project") !== -1);
+    assert.ok(fs.existsSync(path.join(tmp, "import", "bom_jlc.csv")));
+    assert.ok(fs.existsSync(path.join(tmp, "import", "schematic", "jlc_catalog.json")));
+    assert.ok(fs.existsSync(path.join(tmp, "import", "fp-lib-table")));
     assert.ok(readme.indexOf("Do not order from this package") !== -1);
     assert.strictEqual(info.unroutedPcb, path.join(tmp, "import", "card_easyeda_unrouted.kicad_pcb"));
 });

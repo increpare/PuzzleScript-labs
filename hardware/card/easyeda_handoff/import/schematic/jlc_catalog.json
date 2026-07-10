@@ -1,0 +1,312 @@
+{
+  "meta": {
+    "description": "JLC/LCSC part mapping for EasyEDA auto-association. Re-check stock before order.",
+    "footprint_source": "EasyEDA package names from LCSC EDA models (2026-07-09).",
+    "refresh": "node hardware/card/schematic/refresh_jlc_packages.js"
+  },
+  "parts": {
+    "J1": {
+      "lcsc": "C2765186",
+      "mpn": "TYPE-C 16PIN 2MD(073)",
+      "easyeda_footprint": "USB-C-SMD_TYPE-C-16PIN-2MD-073",
+      "status": "locked"
+    },
+    "J2": {
+      "lcsc": "C160404",
+      "mpn": "SM02B-SRSS-TB(LF)(SN)",
+      "easyeda_footprint": "CONN-SMD_SM02B-SRSS-TB",
+      "status": "candidate",
+      "note": "JST-SH 1.0 mm 2-pin; confirm against measured pouch leads (GATE-BATTERY-SAMPLE)"
+    },
+    "U2": {
+      "lcsc": "C15464",
+      "mpn": "BQ24075RGTR",
+      "easyeda_footprint": "QFN-16_L3.0-W3.0-P0.50-TL-EP1.7",
+      "status": "locked"
+    },
+    "U3": {
+      "lcsc": "C2682616",
+      "mpn": "MAX17048G+T10",
+      "easyeda_footprint": "TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2",
+      "status": "locked"
+    },
+    "U4": {
+      "lcsc": "C964639",
+      "mpn": "TPS63070RNMT",
+      "easyeda_footprint": "VQFN-HR-15_L3.0-W2.5-P0.50-BL_TPS63070RNMR",
+      "status": "locked"
+    },
+    "U6": {
+      "lcsc": "C2149796",
+      "mpn": "TPS22919DCKR",
+      "easyeda_footprint": "SC-70-6_L2.2-W1.3-P0.65-LS2.1-BR",
+      "status": "locked"
+    },
+    "U1": {
+      "lcsc": "C22387510",
+      "mpn": "ESP32-P4NRW32",
+      "easyeda_footprint": "QFN-104_L10.0-W10.0-P0.35-TL-EP7.5",
+      "status": "locked",
+      "note": "JLC lists NRW32; design target is NRW32X — verify silicon revision at order"
+    },
+    "U9": {
+      "lcsc": "C97522",
+      "mpn": "W25Q256JVEIQ",
+      "easyeda_footprint": "WSON-8_L8.0-W6.10-P1.27-BL-EP",
+      "status": "candidate",
+      "note": "32 MB QSPI NOR; confirm Espressif ref-design voltage domain (GATE-ESP32-P4-REF-CAPTURE)"
+    },
+    "X1": {
+      "lcsc": "C9010",
+      "mpn": "X322540MPB4SI",
+      "easyeda_footprint": "SMD3225-4P",
+      "status": "candidate",
+      "note": "40 MHz 15 pF 3225; match load caps to Espressif ref (GATE-ESP32-P4-REF-CAPTURE)"
+    },
+    "L1": {
+      "lcsc": "C692155",
+      "mpn": "HPC4018BM-2R2M",
+      "easyeda_footprint": "IND-SMD_L4.0-W4.0_HPC4018BM",
+      "status": "candidate",
+      "note": "2.2uH 2A 4x4 per Espressif P4 HP-DCDC ref (2.2uH 20% 2A); verify against ref schematic (GATE-ESP32-P4-REF-CAPTURE)"
+    },
+    "J3": {
+      "lcsc": "C2832207",
+      "mpn": "FH12-15S-0.5SH(55)",
+      "easyeda_footprint": "FPC-SMD_FH12-15S-0.5SH-55",
+      "status": "candidate",
+      "note": "15-pin 1.0 mm class FFC; contact side still gated (GATE-DSI-FFC-CONTACT)"
+    },
+    "J4": {
+      "lcsc": "C113206",
+      "mpn": "TF-015",
+      "easyeda_footprint": "TF-015",
+      "status": "candidate",
+      "note": "Low-profile microSD; confirm height vs enclosure (GATE-MICROSD-FOOTPRINT)"
+    },
+    "U5": {
+      "lcsc": "C527464",
+      "mpn": "DRV2605LDGSR",
+      "easyeda_footprint": "VSSOP-10_L3.0-W3.0-P0.50-LS4.9-BL",
+      "status": "locked",
+      "note": "LDGSR tape variant; same VSSOP-10 package as LDGS"
+    },
+    "B1": {
+      "lcsc": "C2759984",
+      "mpn": "LCM1027A2445F",
+      "easyeda_footprint": "VIBRATING-MOTOR-SMD_WELDING",
+      "status": "candidate",
+      "note": "Coin LRA class actuator placeholder; confirm size/mount (GATE-LRA-MOUNT)"
+    },
+    "Q1": {
+      "lcsc": "C94514",
+      "mpn": "MMBT3904-7-F",
+      "easyeda_footprint": "SOT-23_L2.9-W1.6-P1.90-LS2.8-BR",
+      "status": "locked"
+    },
+    "JP1": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "open",
+      "note": "Piezo wire pads only (GATE-PIEZO-DRIVE-REVIEW)"
+    },
+    "U8": {
+      "lcsc": "C510550",
+      "mpn": "PAM8904EGPR",
+      "easyeda_footprint": "W-QFN2020-12_L2.0-W2.0-P0.40-TL-EP0.9",
+      "status": "candidate",
+      "note": "DNP piezo boost/H-bridge option footprint (GATE-PIEZO-DRIVE-REVIEW)"
+    },
+    "SW1": {
+      "lcsc": "C2886877",
+      "mpn": "TL3315NF160Q",
+      "easyeda_footprint": "SW-SMD_4P-L4.5-W4.5-P3.00-LS4.5-TL",
+      "status": "candidate",
+      "note": "D-pad dome tact (GATE-DPAD-MOCKUP)"
+    },
+    "SW2": {
+      "lcsc": "C2886877",
+      "mpn": "TL3315NF160Q",
+      "easyeda_footprint": "SW-SMD_4P-L4.5-W4.5-P3.00-LS4.5-TL",
+      "status": "candidate"
+    },
+    "SW3": {
+      "lcsc": "C2886877",
+      "mpn": "TL3315NF160Q",
+      "easyeda_footprint": "SW-SMD_4P-L4.5-W4.5-P3.00-LS4.5-TL",
+      "status": "candidate"
+    },
+    "SW4": {
+      "lcsc": "C2886877",
+      "mpn": "TL3315NF160Q",
+      "easyeda_footprint": "SW-SMD_4P-L4.5-W4.5-P3.00-LS4.5-TL",
+      "status": "candidate"
+    },
+    "SW5": {
+      "lcsc": "C318438",
+      "mpn": "KMR211NG LFS",
+      "easyeda_footprint": "SW-SMD_4P-L6.0-W6.0-P4.50-LS6.5-TL",
+      "status": "candidate",
+      "note": "Face button placeholder (GATE-FACE-BUTTON-FEEL)"
+    },
+    "SW6": {
+      "lcsc": "C318438",
+      "mpn": "KMR211NG LFS",
+      "easyeda_footprint": "SW-SMD_4P-L6.0-W6.0-P4.50-LS6.5-TL",
+      "status": "candidate"
+    },
+    "SW7": {
+      "lcsc": "C318438",
+      "mpn": "KMR211NG LFS",
+      "easyeda_footprint": "SW-SMD_4P-L6.0-W6.0-P4.50-LS6.5-TL",
+      "status": "candidate"
+    },
+    "SW8": {
+      "lcsc": "C318438",
+      "mpn": "KMR211NG LFS",
+      "easyeda_footprint": "SW-SMD_4P-L6.0-W6.0-P4.50-LS6.5-TL",
+      "status": "candidate"
+    },
+    "SW9": {
+      "lcsc": "C431544",
+      "mpn": "JS102011SAQN",
+      "easyeda_footprint": "SW-SMD_6P-L7.0-W3.5-P1.27-LS4.5-TL",
+      "status": "candidate",
+      "note": "SPDT slide switch class (GATE-POWER-SLIDE-SLOT)"
+    },
+    "SW10A": {
+      "lcsc": "C569760",
+      "mpn": "EVPAKE31A",
+      "easyeda_footprint": "SW-SMD_2P-L3.9-W2.9-P1.90-LS2.8-BR",
+      "status": "locked"
+    },
+    "SW10B": {
+      "lcsc": "C569760",
+      "mpn": "EVPAKE31A",
+      "easyeda_footprint": "SW-SMD_2P-L3.9-W2.9-P1.90-LS2.8-BR",
+      "status": "locked"
+    },
+    "D1": {
+      "lcsc": "C72043",
+      "mpn": "19-217/GHC-YR1S2/3T",
+      "easyeda_footprint": "LED0603-RD",
+      "status": "candidate",
+      "note": "Case LED placeholder until side-firing part chosen (GATE-CASE-LED-LIGHTPIPE)"
+    },
+    "D2": {
+      "lcsc": "C2290",
+      "mpn": "19-217/GCT-CB2C6SG1/3T",
+      "easyeda_footprint": "LED0603-GN",
+      "status": "candidate"
+    },
+    "D3": {
+      "lcsc": "C72041",
+      "mpn": "19-217/BHC-ZL1M2RY/3T",
+      "easyeda_footprint": "LED0603-FD_BLUE",
+      "status": "candidate"
+    },
+    "D4": {
+      "lcsc": "C72043",
+      "mpn": "19-217/GHC-YR1S2/3T",
+      "easyeda_footprint": "LED0603-RD",
+      "status": "locked"
+    },
+    "R8": {
+      "lcsc": "C11702",
+      "mpn": "0402WGF1001TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R1": {
+      "lcsc": "C25905",
+      "mpn": "0402WGF5101TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R2": {
+      "lcsc": "C25905",
+      "mpn": "0402WGF5101TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R3": {
+      "lcsc": "C25900",
+      "mpn": "0402WGF4701TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R4": {
+      "lcsc": "C25900",
+      "mpn": "0402WGF4701TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R5": {
+      "lcsc": "C25744",
+      "mpn": "0402WGF1002TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R6": {
+      "lcsc": "C25744",
+      "mpn": "0402WGF1002TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R7": {
+      "lcsc": "C17168",
+      "mpn": "0402WGF0000TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "R10": {
+      "lcsc": "C25744",
+      "mpn": "0402WGF1002TCE",
+      "easyeda_footprint": "R0402",
+      "status": "locked"
+    },
+    "C1": {
+      "lcsc": "C19702",
+      "mpn": "CL10A106KP8NNNC",
+      "easyeda_footprint": "C0603",
+      "status": "locked"
+    },
+    "C2": {
+      "lcsc": "C19702",
+      "mpn": "CL10A106KP8NNNC",
+      "easyeda_footprint": "C0603",
+      "status": "locked"
+    },
+    "C3": {
+      "lcsc": "C19702",
+      "mpn": "CL10A106KP8NNNC",
+      "easyeda_footprint": "C0603",
+      "status": "locked"
+    },
+    "TP1": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "locked"
+    },
+    "TP2": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "locked"
+    },
+    "TP3": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "locked"
+    },
+    "TP4": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "locked"
+    }
+  }
+}

@@ -26,18 +26,23 @@ make handheld_card_kicad
 | Artifact | Contents |
 |----------|----------|
 | `card.kicad_sch` | Root hierarchical sheet |
-| `schematic/sheets/*.kicad_sch` | Nine functional sheets with symbols + net labels |
-| `card.kicad_pcb` | Board outline (116×106 mm), keep-outs, anchor markers |
+| `schematic/sheets/*.kicad_sch` | Nine functional sheets with symbols + net labels + LCSC fields |
+| `card.kicad_pcb` | Board outline, keep-outs, EasyEDA footprint names, pad nets |
+| `schematic/jlc_catalog.json` | LCSC numbers + EasyEDA package names (merged at generation) |
+| `bom_jlc.csv` | JLC BOM with LCSC per designator |
 | Symbols | **Embedded** in each file — no external library setup required |
 
 ## What KiCad still needs (normal for any board)
 
 These steps require the KiCad GUI once footprints are chosen:
 
-1. **Assign footprints** — Tools → Assign Footprints (JLC/LCSC part numbers).
-2. **Update PCB from schematic** — transfers netlist to the board.
-3. **Route traces** — especially DSI diff pairs (or order JLC with your gerbers + BOM).
-4. **DRC / ERC** — catch missing connections.
+1. **Review JLC mapping** — edit `schematic/jlc_catalog.json` (LCSC + EasyEDA footprint names), then `make handheld_card_kicad`.
+2. **Assign any remaining footprints** — gated parts may still need manual library confirmation in EasyEDA.
+3. **Update PCB from schematic** — transfers netlist to the board.
+4. **Route traces** — especially DSI diff pairs (or order JLC with your gerbers + BOM).
+5. **DRC / ERC** — catch missing connections.
+
+For EasyEDA Pro, import the full handoff project from `hardware/card/easyeda_handoff/import/card.kicad_pro` (see that package's README). KiCad import gives placement and nets only — you must associate LCSC parts manually in Device Manager / Device Standardization using `bom_jlc.csv`.
 
 For spin 1 you can also hand the **BOM + netlist** (`card.net`) to a layout contractor.
 
