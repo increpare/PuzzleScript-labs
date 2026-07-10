@@ -3417,6 +3417,22 @@ function movementRootRuleIds(rules) {
         .map(rule => rule.id));
 }
 
+function movementCollisionRootRuleIds(psTagged, rules) {
+    const moverLayers = new Set(Array.from(psTagged.objects_originating_movement || [])
+        .map(objectName => layerForObject(psTagged, objectName))
+        .filter(layer => layer !== null));
+    const movementLayerObjects = new Set((psTagged.objects || [])
+        .filter(object => moverLayers.has(object.layer))
+        .map(object => object.name));
+    return uniqueSorted(rules
+        .filter(rule => {
+            const writes = ruleFlowWrites(psTagged, rule);
+            return Array.from(writes.object_present).some(objectName => movementLayerObjects.has(objectName))
+                || Array.from(writes.object_absent).some(objectName => movementLayerObjects.has(objectName));
+        })
+        .map(rule => rule.id));
+}
+
 function backwardRelevantRuleIds(rootRuleIds, wakeEdges) {
     const relevant = new Set(rootRuleIds);
     let changed = true;
@@ -3444,7 +3460,15 @@ function deriveWinRelevanceFacts(psTagged) {
     // outside the ordinary object def-use graph. Keep every movement writer as
     // a root until those engine-level dependencies are modeled explicitly.
     const movementRoots = movementRootRuleIds(rules);
-    const rootRuleIds = uniqueSorted(directWinRoots.concat(semanticRoots, movementRoots));
+    // Collision occupancy is another implicit movement-resolver read: a rule
+    // that creates or removes an object on any mover layer can open or close a
+    // route even when no PuzzleScript rule reads that object directly.
+    const movementCollisionRoots = movementCollisionRootRuleIds(psTagged, rules);
+    const rootRuleIds = uniqueSorted(directWinRoots.concat(
+        semanticRoots,
+        movementRoots,
+        movementCollisionRoots
+    ));
     const relevantRuleIds = backwardRelevantRuleIds(rootRuleIds, relevanceEdges);
     const relevantSet = new Set(relevantRuleIds);
     const irrelevantRuleIds = uniqueSorted(rules
@@ -3462,8 +3486,9 @@ function deriveWinRelevanceFacts(psTagged) {
             relevance_edges: relevanceEdges,
             semantic_root_rule_ids: semanticRoots,
             movement_root_rule_ids: movementRoots,
+            movement_collision_root_rule_ids: movementCollisionRoots,
         },
-        proof: ['backward_relevance_slice_from_winflow_semantic_movement_roots_and_conservative_dependencies'],
+        proof: ['backward_relevance_slice_from_winflow_semantic_movement_collision_roots_and_conservative_dependencies'],
         evidence: relevantRuleIds,
     })];
 }

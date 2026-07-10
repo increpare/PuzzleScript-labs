@@ -248,12 +248,16 @@ IDs `S1…` for reference from other plans.
   behind explicit `win-relevance` options. A native smoke run exposed a proof
   gap not represented by rule def-use edges: movement writers can change
   spatial relationships through engine movement resolution even when their
-  written marker is absent from the win condition. The fact now includes all
-  `writes_movement` rules as conservative roots and publishes
-  `movement_root_rule_ids`. A real-game native regression canary and JS
-  smoke parity/replay pass with this repair. The repaired native smoke result
-  removes 235 rules across 17/50 games and improves generated-state throughput
-  +26.9%, but remains opt-in pending full-corpus parity.
+  written marker is absent from the win condition. Full-corpus audit then
+  found the sibling gap: object writes on a mover's collision layer can open
+  or close routes without any explicit rule read. The fact now keeps both
+  classes as conservative roots and publishes `movement_root_rule_ids` plus
+  `movement_collision_root_rule_ids`. Real-game native canaries cover both
+  failures. Corrected smoke removes 234 rules across 17/50 games and improves
+  generated-state throughput +26.6%; the full corpus removes 684 rules,
+  improves throughput +6.2%, and all 747 optimized solutions replay. Keep
+  opt-in because one audited target has a severe but replay-valid search-order
+  regression and native hint delivery is still external.
 - **S13 — Landmarks.** From the win conditions, regress through the wake
   graph: facts (object reaches a target class, rule R must fire at least once)
   that hold on *every* solution. Even the cheap "rule landmarks" version

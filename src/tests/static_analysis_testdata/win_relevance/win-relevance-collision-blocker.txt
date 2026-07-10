@@ -1,0 +1,67 @@
+title Static Analysis Win Relevance Collision Blocker
+
+========
+OBJECTS
+========
+
+Background
+black
+
+Player
+white
+
+Goal
+yellow
+
+Door
+gray
+
+Switch
+red
+
+Deco
+blue
+
+========
+LEGEND
+========
+
+. = Background
+P = Player
+G = Goal
+Q = Door
+S = Switch
+D = Deco
+
+========
+SOUNDS
+========
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Door
+Goal
+Switch
+Deco
+
+=====
+RULES
+=====
+
+right [ switch | door ] -> [ switch | no door ]
+[ deco ] -> [ no deco ]
+
+=============
+WINCONDITIONS
+=============
+
+All Player on Goal
+
+======
+LEVELS
+======
+
+PSQGD

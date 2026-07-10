@@ -1,0 +1,23 @@
+{
+  "schema": "ps-static-analysis-testdata-v1",
+  "human_verified": false,
+  "rootRules": [
+    {
+      "line": 54,
+      "text": "right [ switch | door ] -> [ switch | no door ]"
+    }
+  ],
+  "semanticRootRules": [],
+  "relevantRules": [
+    {
+      "line": 54,
+      "text": "right [ switch | door ] -> [ switch | no door ]"
+    }
+  ],
+  "irrelevantRules": [
+    {
+      "line": 55,
+      "text": "[ deco ] -> [ no deco ]"
+    }
+  ]
+}

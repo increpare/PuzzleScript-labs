@@ -39,9 +39,9 @@ function runNative(extraArgs = [], runHintsPath = hintsPath, run = {}) {
         run.corpusDir || corpusDir,
         '--game', run.gameName || gameName,
         '--level', String(run.level === undefined ? 0 : run.level),
-        '--timeout-ms', '1000',
+        '--timeout-ms', String(run.timeoutMs === undefined ? 1000 : run.timeoutMs),
         '--jobs', '1',
-        '--strategy', 'bfs',
+        '--strategy', run.strategy || 'bfs',
         ...hintArgs,
         '--no-solutions',
         '--quiet',
@@ -138,5 +138,50 @@ const movementOptimized = onlyResult(runNative(
 assert.strictEqual(movementBaseline.status, 'solved');
 assert.strictEqual(movementOptimized.status, movementBaseline.status);
 assert.deepStrictEqual(movementOptimized.solution, movementBaseline.solution);
+
+const collisionGameName = 'pupush.txt';
+const collisionCorpusDir = path.join(tmpDir, 'collision-corpus');
+const collisionHintsPath = path.join(tmpDir, 'collision-static-analysis-hints.json');
+fs.mkdirSync(collisionCorpusDir);
+fs.copyFileSync(
+    path.join(rootDir, 'src/tests/solver_tests', collisionGameName),
+    path.join(collisionCorpusDir, collisionGameName)
+);
+const collisionManifest = buildStaticAnalysisHintsManifest(collisionCorpusDir);
+const collisionGame = collisionManifest.games[collisionGameName];
+const collisionFact = collisionGame.facts.win_relevance[0];
+const collisionRootIds = new Set(collisionFact.value.movement_collision_root_rule_ids);
+const collisionRootLines = collisionGame.ps_tagged.rule_sections.flatMap(section =>
+    section.groups.flatMap(group => group.rules
+        .filter(rule => collisionRootIds.has(rule.id))
+        .map(rule => rule.source_line))
+);
+assert.ok(
+    collisionRootLines.includes(230),
+    'door removal must remain a root because doors occupy player movement layers'
+);
+fs.writeFileSync(collisionHintsPath, `${JSON.stringify(collisionManifest, null, 2)}\n`);
+const collisionRun = {
+    corpusDir: collisionCorpusDir,
+    gameName: collisionGameName,
+    level: 1,
+    timeoutMs: 500,
+};
+const collisionBaseline = onlyResult(runNative([], collisionHintsPath, collisionRun));
+const collisionOptimized = onlyResult(runNative(
+    ['--solver-opt', 'win-relevance'],
+    collisionHintsPath,
+    collisionRun
+));
+assert.notStrictEqual(collisionBaseline.status, 'exhausted');
+assert.notStrictEqual(
+    collisionOptimized.status,
+    'exhausted',
+    'pruning must not falsely exhaust the game after removing its door-opening rules'
+);
+if (collisionBaseline.status === 'solved' && collisionOptimized.status === 'solved') {
+    assert.deepStrictEqual(collisionOptimized.solution, collisionBaseline.solution);
+}
+assert.strictEqual(collisionOptimized.removed_win_irrelevant_rules, 5);
 
 process.stdout.write('native_solver_win_relevance_node: ok\n');

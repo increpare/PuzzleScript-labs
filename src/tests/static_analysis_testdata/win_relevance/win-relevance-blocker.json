@@ -3,6 +3,10 @@
   "human_verified": false,
   "rootRules": [
     {
+      "line": 50,
+      "text": "[ player ] -> [ player stationary blocker ]"
+    },
+    {
       "line": 51,
       "text": "[ no blocker ] -> [ stationary goal ]"
     }

@@ -369,12 +369,21 @@ Do not redo these; they're in place and working:
   the native canary copies that real game into an isolated corpus and requires
   baseline/optimized status and solution parity.
 
-  With that repair, three-run smoke-50 keeps the exact 99 solved / 48 timeout /
-  3 exhausted sample split. Seventeen of 50 games retain removals (235 static
-  rule instances), and aggregate generated-state throughput rises 88.39 ->
-  112.17 states/ms (+26.9%). Artifacts are
+  With that repair, three-run smoke-50 kept the exact 99 solved / 48 timeout /
+  3 exhausted sample split. The subsequent full-corpus audit exposed a second
+  engine-level dependency: object writers on a mover's collision layer can
+  open or close routes even when no rule reads those objects. In `pupush`, the
+  first slice removed the door-opening rules and changed a baseline timeout
+  into a false optimized exhaustion. The analyzer now also roots every rule
+  whose object writes touch a collision layer containing a player or any
+  rule-originated mover, publishing `movement_collision_root_rule_ids`.
+
+  The corrected three-run smoke-50 pair still keeps 99 solved / 48 timeout /
+  3 exhausted samples. Seventeen of 50 games retain removals (234 static rule
+  instances), and aggregate generated-state throughput rises 88.39 -> 111.92
+  states/ms (+26.6%). Artifacts are
   `build/native/measure-raw-n8-win-relevance-baseline-smoke-50-runs3.json` and
-  `build/native/measure-raw-n8-win-relevance-movement-roots-smoke-50-runs3.json`.
+  `build/native/measure-raw-n8-win-relevance-collision-roots-smoke-50-runs3.json`.
   The benchmark runner starts one solver process per target, so optimized wall
   time includes reparsing the 184-game external hint manifest 50 times and is
   not representative of a normal corpus process, which loads it once. The
@@ -384,9 +393,22 @@ Do not redo these; they're in place and working:
   `build/native/measure-raw-n8-win-relevance-baseline-anonymous-game-portfolio-run1.json`
   and
   `build/native/measure-raw-n8-win-relevance-optimized-anonymous-game-portfolio-run1.json`.
-  JS smoke parity/replay also passes with the repaired fact. Keep this opt-in
-  until a full-corpus native baseline/optimized parity run passes; then solve
-  hint delivery/amortization before considering default promotion.
+  JS smoke parity/replay also passes with the repaired fact.
+
+  Full-corpus native audit at 250ms, portfolio, eight jobs:
+  `build/native/n8-full-baseline-250ms.json` ->
+  `build/native/n8-full-optimized-collision-roots-250ms.json` keeps errors at
+  zero and exhausted levels equal at 7, moves solved/timeout 743/596 ->
+  747/592, removes 684 rules, and improves aggregate generated-state
+  throughput 81.40 -> 86.47 states/ms (+6.2%). All 747 optimized solutions
+  replay on the canonical JS runtime. Of nine baseline solves lost at the
+  noisy 250ms/eight-job boundary, eight recover under a single-job 5s replay;
+  the remaining target is a valid but severe state-hash/tie-break regression
+  (the optimized JS solver finds the same-length solution in about 4.75s, and
+  strict baseline-on-optimized replay passes). Decision: keep N8 explicit.
+  The proof is now parity-clean on the audited solutions, but default promotion
+  still needs practical hint delivery plus repeated paired full-corpus evidence
+  and a policy for fixed-budget search-order regressions.
 - **N9 — group dependency static analysis (high-level).**
   (a) Groups whose writes cannot feed their own reads need no confirm pass:
   currently even a single-fire group re-matches every rule once more to

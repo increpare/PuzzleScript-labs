@@ -3,6 +3,10 @@
   "human_verified": false,
   "rootRules": [
     {
+      "line": 45,
+      "text": "[ moving player ] -> [ stationary player ]"
+    },
+    {
       "line": 46,
       "text": "[ moving player ] -> [ stationary goal ]"
     }
