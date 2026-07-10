@@ -801,6 +801,10 @@ std::unique_ptr<Error> benchmarkCloneHash(const FullState& state, uint32_t itera
 enum class RuntimeCounterId {
     RulesVisited,
     RulesSkippedByMask,
+    RuleGroupInvocations,
+    RuleGroupPasses,
+    RuleGroupConfirmationPasses,
+    RuleGroupConfirmationRuleVisits,
     CandidateCellsTested,
     PatternTests,
     PatternMatches,

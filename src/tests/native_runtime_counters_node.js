@@ -10,6 +10,10 @@ const corpus = path.join(__dirname, 'solver_smoke_tests');
 const wideCorpus = path.join(__dirname, 'solver_tests');
 const requiredKeys = [
     'rules_visited',
+    'rule_group_invocations',
+    'rule_group_passes',
+    'rule_group_confirmation_passes',
+    'rule_group_confirmation_rule_visits',
     'candidate_cells_tested',
     'pattern_tests',
     'mask_rebuild_calls',
@@ -95,6 +99,17 @@ for (const key of requiredKeys) {
     assert.ok(Number.isFinite(counters[key]), `expected finite counter ${key}`);
 }
 
+assert.ok(counters.rule_group_invocations > 0, 'expected interpreted rule-group invocations');
+assert.ok(counters.rule_group_passes >= counters.rule_group_invocations, 'expected at least one pass per group invocation');
+assert.ok(counters.rule_group_confirmation_passes > 0, 'expected terminal no-change confirmation passes');
+assert.ok(
+    counters.rule_group_confirmation_rule_visits >= counters.rule_group_confirmation_passes,
+    'expected each confirmation pass to visit at least one rule'
+);
+assert.ok(
+    counters.rule_group_confirmation_rule_visits <= counters.rules_visited,
+    'expected confirmation visits to be a subset of all rule visits'
+);
 assert.strictEqual(counters.movement_anchor_overlap_cells_scanned, 0, 'expected movement anchor overlap count to use the moving-cell index');
 assert.ok(counters.movement_anchor_collection_cells_scanned > 0, 'expected movement anchor collection scan attribution');
 assert.ok(counters.movement_anchor_collections_used > 0, 'expected movement anchor collection count');

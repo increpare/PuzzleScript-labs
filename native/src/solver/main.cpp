@@ -5189,6 +5189,10 @@ int main(int argc, char** argv) {
             std::cerr << "solver_runtime_counters"
                       << " rules_visited=" << runtimeCounters.rules_visited
                       << " rules_skipped_by_mask=" << runtimeCounters.rules_skipped_by_mask
+                      << " rule_group_invocations=" << runtimeCounters.rule_group_invocations
+                      << " rule_group_passes=" << runtimeCounters.rule_group_passes
+                      << " rule_group_confirmation_passes=" << runtimeCounters.rule_group_confirmation_passes
+                      << " rule_group_confirmation_rule_visits=" << runtimeCounters.rule_group_confirmation_rule_visits
                       << " candidate_cells_tested=" << runtimeCounters.candidate_cells_tested
                       << " pattern_tests=" << runtimeCounters.pattern_tests
                       << " pattern_matches=" << runtimeCounters.pattern_matches

@@ -149,6 +149,10 @@ typedef struct ps_benchmark_result {
 typedef struct ps_runtime_counters {
     uint64_t rules_visited;
     uint64_t rules_skipped_by_mask;
+    uint64_t rule_group_invocations;
+    uint64_t rule_group_passes;
+    uint64_t rule_group_confirmation_passes;
+    uint64_t rule_group_confirmation_rule_visits;
     uint64_t candidate_cells_tested;
     uint64_t pattern_tests;
     uint64_t pattern_matches;

@@ -85,6 +85,10 @@ struct ExecuteTurnOptions {
 struct RuntimeCounterStorage {
     std::atomic<uint64_t> rulesVisited{0};
     std::atomic<uint64_t> rulesSkippedByMask{0};
+    std::atomic<uint64_t> ruleGroupInvocations{0};
+    std::atomic<uint64_t> ruleGroupPasses{0};
+    std::atomic<uint64_t> ruleGroupConfirmationPasses{0};
+    std::atomic<uint64_t> ruleGroupConfirmationRuleVisits{0};
     std::atomic<uint64_t> candidateCellsTested{0};
     std::atomic<uint64_t> patternTests{0};
     std::atomic<uint64_t> patternMatches{0};
@@ -5575,10 +5579,13 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
     bool hasChanges = false;
     bool madeChange = true;
     int loopCount = 0;
+    addCounter(gRuntimeCounters.ruleGroupInvocations);
     session.scratch.incrementalPriorAllOnes = true;
     rebuildMasks(session);
     while (madeChange && loopCount++ < 200) {
+        addCounter(gRuntimeCounters.ruleGroupPasses);
         madeChange = false;
+        uint64_t rulesVisitedThisPass = 0;
         session.scratch.incrementalNextObjects.assign(objectWordCount, 0);
         session.scratch.incrementalNextMovements.assign(movementWordCount, 0);
         size_t consecutiveFailures = 0;
@@ -5597,6 +5604,7 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
                 continue;
             }
             addCounter(gRuntimeCounters.rulesVisited);
+            ++rulesVisitedThisPass;
             if (useIncrementalPrune && !rule.forceAlwaysRun) {
                 const MaskWord* readMovements = rule.hasReadMovements
                     ? maskPtr(game, rule.readMovements)
@@ -5654,6 +5662,11 @@ bool applyRuleGroup(FullState& session, const std::vector<Rule>& group, CommandS
                     break;
                 }
             }
+        }
+
+        if (hasChanges && !madeChange) {
+            addCounter(gRuntimeCounters.ruleGroupConfirmationPasses);
+            addCounter(gRuntimeCounters.ruleGroupConfirmationRuleVisits, rulesVisitedThisPass);
         }
 
         if (madeChange) {
@@ -8092,6 +8105,10 @@ void addRuntimeCounter(RuntimeCounterId id, uint64_t amount) {
     switch (id) {
         case RuntimeCounterId::RulesVisited: addCounterUnchecked(gRuntimeCounters.rulesVisited, amount); break;
         case RuntimeCounterId::RulesSkippedByMask: addCounterUnchecked(gRuntimeCounters.rulesSkippedByMask, amount); break;
+        case RuntimeCounterId::RuleGroupInvocations: addCounterUnchecked(gRuntimeCounters.ruleGroupInvocations, amount); break;
+        case RuntimeCounterId::RuleGroupPasses: addCounterUnchecked(gRuntimeCounters.ruleGroupPasses, amount); break;
+        case RuntimeCounterId::RuleGroupConfirmationPasses: addCounterUnchecked(gRuntimeCounters.ruleGroupConfirmationPasses, amount); break;
+        case RuntimeCounterId::RuleGroupConfirmationRuleVisits: addCounterUnchecked(gRuntimeCounters.ruleGroupConfirmationRuleVisits, amount); break;
         case RuntimeCounterId::CandidateCellsTested: addCounterUnchecked(gRuntimeCounters.candidateCellsTested, amount); break;
         case RuntimeCounterId::PatternTests: addCounterUnchecked(gRuntimeCounters.patternTests, amount); break;
         case RuntimeCounterId::PatternMatches: addCounterUnchecked(gRuntimeCounters.patternMatches, amount); break;
@@ -8138,6 +8155,10 @@ void addRuntimeCounter(RuntimeCounterId id, uint64_t amount) {
 void resetRuntimeCounters() {
     gRuntimeCounters.rulesVisited.store(0, std::memory_order_relaxed);
     gRuntimeCounters.rulesSkippedByMask.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.ruleGroupInvocations.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.ruleGroupPasses.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.ruleGroupConfirmationPasses.store(0, std::memory_order_relaxed);
+    gRuntimeCounters.ruleGroupConfirmationRuleVisits.store(0, std::memory_order_relaxed);
     gRuntimeCounters.candidateCellsTested.store(0, std::memory_order_relaxed);
     gRuntimeCounters.patternTests.store(0, std::memory_order_relaxed);
     gRuntimeCounters.patternMatches.store(0, std::memory_order_relaxed);
@@ -8216,6 +8237,10 @@ ps_runtime_counters snapshotRuntimeCounters() {
     ps_runtime_counters counters{};
     counters.rules_visited = gRuntimeCounters.rulesVisited.load(std::memory_order_relaxed);
     counters.rules_skipped_by_mask = gRuntimeCounters.rulesSkippedByMask.load(std::memory_order_relaxed);
+    counters.rule_group_invocations = gRuntimeCounters.ruleGroupInvocations.load(std::memory_order_relaxed);
+    counters.rule_group_passes = gRuntimeCounters.ruleGroupPasses.load(std::memory_order_relaxed);
+    counters.rule_group_confirmation_passes = gRuntimeCounters.ruleGroupConfirmationPasses.load(std::memory_order_relaxed);
+    counters.rule_group_confirmation_rule_visits = gRuntimeCounters.ruleGroupConfirmationRuleVisits.load(std::memory_order_relaxed);
     counters.candidate_cells_tested = gRuntimeCounters.candidateCellsTested.load(std::memory_order_relaxed);
     counters.pattern_tests = gRuntimeCounters.patternTests.load(std::memory_order_relaxed);
     counters.pattern_matches = gRuntimeCounters.patternMatches.load(std::memory_order_relaxed);
