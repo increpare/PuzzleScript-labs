@@ -1,4 +1,4 @@
-# JS Sibling Bigram Priors Design
+# JS Sibling-Solution Markov Prior Design
 
 Date: 2026-07-11
 Status: approved design
@@ -6,9 +6,9 @@ Roadmap item: T4 / TX3 sibling move-ordering priors
 
 ## Objective
 
-Test whether solutions from other levels in the same PuzzleScript game can
-improve JS solver search order without changing search completeness, state
-semantics, or the default solver configuration.
+Measure whether an explicit warm-start cache of solutions from other levels in
+the same PuzzleScript game can improve JS solver input order without changing
+search completeness, state semantics, or the default solver configuration.
 
 The experiment consumes a prior solver-results JSON artifact and reorders each
 expanded node's existing actions using input bigram counts learned from solved
@@ -18,6 +18,11 @@ prior.
 This is an opt-in experiment. A positive result can justify a later online
 per-game curriculum; a negative result should be recorded and the runtime
 consumer removed.
+
+This experiment measures family-conditioned transfer, not a general cold-start
+solver improvement. Any benchmark result must be labeled warm-start, and cold
+and warm solve counts must remain separate. The likely product consumer, if the
+signal survives, is a generator evaluating a batch of related level variants.
 
 ## Evidence
 
@@ -99,6 +104,11 @@ For every target `(game, level)`:
 Recognized tokens are `up`, `left`, `down`, `right`, and `action`. A solution
 containing an unrecognized token is ignored as a training sample rather than
 partially consumed.
+
+`action` is a first-class transition token, not a non-movement special case. It
+may be learned after the start context or any other input, may itself be the
+context for the next prediction, and participates in ordering exactly like the
+four directional inputs.
 
 No prior is attached when the target has no usable solved sibling.
 
