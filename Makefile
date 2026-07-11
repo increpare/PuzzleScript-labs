@@ -990,8 +990,6 @@ ctest: build build_solver build_generator
 tests_js:
 	PUZZLESCRIPT_SKIP_AUXILIARY_TESTS=1 $(NODE) src/tests/run_tests_node.js
 	$(NODE) src/tests/compiler_keyword_names_node.js
-	$(NODE) src/tests/solver_sibling_markov_prior_node.js
-	$(NODE) src/tests/build_solver_sibling_prior_focus_manifest_node.js
 	$(NODE) src/tests/solver_novelty_node.js
 	$(NODE) src/tests/solver_push_space_node.js
 	$(NODE) src/tests/solver_random_replay_node.js

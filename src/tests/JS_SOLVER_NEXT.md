@@ -40,6 +40,34 @@ Reasonable next moves only with fresh evidence:
 
 ## Status / progress log
 
+- **T4 / TX3 sibling-solution Markov prior rejected for the general solver.**
+  The experiment was explicitly a warm-start cache: a prior solver JSON supplied
+  solved sibling levels, and each target excluded its own solution. `action` was
+  a first-class transition and context alongside the four directions. An
+  offline leave-one-level-out audit over 18,727 solution inputs found that
+  sibling bigrams predicted the next solution input 40.2% of the time versus
+  29.3% for the fixed first direction, enough signal to justify the consumer
+  probe but not a cold-start solver claim.
+
+  The deterministic preflight selected 1,019 playable targets from 99 games
+  containing both solved and unsolved training levels. The warm model activated
+  on 996 targets and supplied a learned context for 98.36% / 98.43% of expanded
+  nodes. Two serial 500ms cold/warm portfolio pairs produced **530 -> 530** and
+  **532 -> 527** solves. Pair 1 gained/lost 7/7; pair 2 gained/lost 4/9. On
+  common timeouts, generated work moved +0.74% and -0.19%, so there was no
+  repeatable work reduction behind the solve swaps. All 530 and 527 warm solves
+  passed the solver's built-in replay check (`replay_rejected=0`). Artifacts:
+  `build/solver-bench/tx3-sibling-markov-pairs/20260710235050793-72950/`,
+  `build/solver-bench/tx3-sibling-markov-store.jsonl`, and
+  `build/solver-bench/tx3-sibling-markov-mixed-games.json`; training source:
+  `build/native/n8-full-baseline-250ms.json`.
+
+  Decision: the graduation gate failed, so the CLI consumer, model helper,
+  telemetry, and slice builder were backed out. This result covers hand-authored
+  sibling levels only. Generator variants share deliberate ancestry and remain
+  a separate hypothesis: test an online cache scoped to one generated family,
+  reset it between families, and report cold and warm throughput separately.
+
 - **N9a / S2 certified single-pass native consumer rejected.** Static
   preflight found 733 / 1,540 multi-rule groups (47.6%) already certified by
   `rulegroup_flow.single_pass_safe`. New native counters measured terminal

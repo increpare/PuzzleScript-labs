@@ -251,7 +251,7 @@ Item status after the X-round:
 | S1/S2 certified masks + schedules | S1 artifact consumed experimentally; S2 live | `certified_wake_masks` fact family landed for JS and can attach runtime movement wake masks behind `--solver-certified-wake-prune`; the first consumer benchmark was negative, and the counter pass shows broad runtime use has too little skip yield, so the contract is useful but not a default optimization |
 | S4 per-level object universe | live | promoted by X1's weak cosmetic result |
 | S9/S10 invariants + schemas | live | unblock T1/T6 |
-| T1-T4, T7 | live | TX1 (novelty) and TX3 (sibling priors) are the cheapest probes |
+| T1-T4, T7 | live; TX3 general-solver form rejected | TX1 novelty remains an opt-in lane. TX3's explicit warm-start sibling Markov model was active on 996/1,019 mixed-game targets with ~98.4% context coverage, but two serial 500ms pairs moved solves 530 -> 530 and 532 -> 527 while common-timeout generated work was +0.74% and -0.19%; consumer backed out. Related generator variants remain a separate family-scoped online-transfer hypothesis, not a general solver claim |
 | Measurement layer (rec. 1) | live foundation | JSONL bench store, deterministic slice materializer, all-slice health gate, JS paired-run executor, level-benchmark append hooks, freshness/compare checks, retention plan/apply entry points, and Makefile wiring are in `src/tests/solver_bench*`, `src/tests/generate_solver_benchmark_slice_manifest.js`, `src/tests/solver_benchmark_slice_health.js`, and `src/tests/run_js_solver_bench_pair.js` |
 
 Dependency spine:

@@ -22,9 +22,6 @@ const staticAnalysis = require('./lib/solver_static_analysis');
 const {
     attachCertifiedWakeMasksToRuntimeRules,
 } = require('./lib/certified_wake_prune');
-const {
-    createSiblingMarkovPriorStore,
-} = require('./lib/solver_sibling_markov_prior');
 const { analyzeSource } = require('./ps_static_analysis');
 const {
     resolveSolverPasses,
@@ -450,8 +447,6 @@ function parseArgs(argv) {
         astarWeight: 2,
         solverHeuristic: DEFAULT_SOLVER_HEURISTIC,
         solverNovelty: 'off',
-        solverSiblingPriorsPath: null,
-        solverSiblingPriorStore: null,
         portfolioBfsMs: null,
         portfolioHeuristics: null,
         progressEvery: 25,
@@ -513,8 +508,6 @@ function parseArgs(argv) {
             if (!SOLVER_NOVELTY_MODES.has(options.solverNovelty)) {
                 throw new Error(`Unsupported solver novelty mode: ${options.solverNovelty}`);
             }
-        } else if (arg === '--solver-sibling-priors') {
-            options.solverSiblingPriorsPath = path.resolve(args[++index]);
         } else if (arg === '--portfolio-bfs-ms') {
             options.portfolioBfsMs = Math.max(1, Number.parseInt(args[++index], 10));
         } else if (arg === '--portfolio-heuristics') {
@@ -605,12 +598,11 @@ function parseArgs(argv) {
 
 function usage(exitCode) {
     const message =
-        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--solver-sibling-priors PATH] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-certified-wake-prune] [--solver-wake-prune-counters] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action,win-relevance|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
+        'Usage: node src/tests/run_solver_tests_js.js <solver_tests_dir> [--timeout-ms N|--no-timeout] [--strategy portfolio|bfs|weighted-astar|greedy|phase-split|naive|push-space] [--astar-weight N] [--solver-heuristic NAME] [--solver-novelty off|tiebreak] [--portfolio-bfs-ms N] [--portfolio-heuristics NAME[,NAME...]] [--solutions-dir DIR] [--no-solutions] [--progress-every N] [--progress-per-game] [--game NAME] [--level N] [--solver-focus-manifest PATH] [--solver-static-hash] [--solver-hash-projection] [--solver-hash-projection-parity] [--solver-certified-wake-prune] [--solver-wake-prune-counters] [--solver-optimize-static] [--solver-opt inert,cosmetic,cosmetic-rules,merge,action,win-relevance|all] [--solver-opt-parity] [--force-noaction] [--adaptive-step-cost] [--bench-store PATH --bench-slice NAME --bench-variant NAME [--bench-pair-id ID] [--bench-artifact PATH]] [--summary-only] [--quiet] [--json]\n' +
         '  --strategy naive: PuzzleScriptPlus-style best-first search (wincondition distance score, objects-only snapshots).\n' +
         '  --strategy push-space: experimental push macro BFS for manually certified walking-inert pusher games.\n' +
         '  --astar-weight N (default 2): weighted-astar and portfolio; portfolio wa8 uses 4xN (default 8).\n' +
         '  --solver-novelty tiebreak: prefer states containing never-before-seen object/cell atoms when primary priorities tie.\n' +
-        '  --solver-sibling-priors PATH: opt into warm-start input ordering from solved sibling levels in a prior solver-results JSON artifact.\n' +
         '  --adaptive-step-cost: after a small timing probe, bias expensive-step levels toward greedy search.\n' +
         '  --portfolio-heuristics: comma-separated heuristic list for portfolio and phase-split strategies.\n' +
         '  --solver-focus-manifest: only run (game, level) pairs listed in the JSON manifest targets (corpus dir must contain those .txt files). Ignores --game/--level when set.\n' +
@@ -3923,12 +3915,6 @@ function createSolverResult(game, levelIndex, timeoutMs, compileMs) {
         adaptive_step_cost: false,
         adaptive_step_cost_triggered: 0,
         heuristic: 'zero',
-        sibling_prior_enabled: false,
-        sibling_prior_training_records_ignored: 0,
-        sibling_prior_training_levels: 0,
-        sibling_prior_contexts: 0,
-        sibling_prior_ordered_expansions: 0,
-        sibling_prior_fallback_expansions: 0,
     };
     return zeroWakePruneCounterFields(result);
 }
@@ -3983,36 +3969,9 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
     }
 
     const initialSnapshot = createSolverLevelSpecialization(options).capture();
-    const baselineActions = solverActionsForGame();
-    const siblingPrior = strategy !== 'push-space' && options.solverSiblingPriorStore
-        ? options.solverSiblingPriorStore.forTarget(game, levelIndex, baselineActions)
-        : null;
-
-    const attachSiblingPriorTelemetry = (modeResult) => {
-        modeResult.sibling_prior_enabled = siblingPrior !== null;
-        modeResult.sibling_prior_training_records_ignored = options.solverSiblingPriorStore
-            ? options.solverSiblingPriorStore.ignoredRecords
-            : 0;
-        modeResult.sibling_prior_training_levels = siblingPrior ? siblingPrior.trainingLevels : 0;
-        modeResult.sibling_prior_contexts = siblingPrior ? siblingPrior.contextCount : 0;
-    };
-
-    const actionsForNode = (modeResult, node) => {
-        if (!siblingPrior) {
-            return baselineActions;
-        }
-        const ordered = siblingPrior.actionsFor(node.input);
-        if (ordered) {
-            modeResult.sibling_prior_ordered_expansions++;
-            return ordered;
-        }
-        modeResult.sibling_prior_fallback_expansions++;
-        return baselineActions;
-    };
 
     const runMode = (mode, modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
-        attachSiblingPriorTelemetry(modeResult);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4057,6 +4016,8 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         });
         modeResult.max_frontier = 1;
         let tie = 1;
+        const actions = solverActionsForGame();
+
         while (frontier.length > 0) {
             if (Date.now() >= modeDeadline) {
                 modeResult.status = 'timeout';
@@ -4068,7 +4029,6 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
             const node = nodes[entry.index];
             modeResult.expanded++;
 
-            const actions = actionsForNode(modeResult, node);
             for (const action of actions) {
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'clone_ms', () => {
@@ -4375,7 +4335,6 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
 
     const runAdaptivePortfolio = (modeDeadline) => {
         const modeResult = createSolverResult(game, levelIndex, timeoutMs, compileMs);
-        attachSiblingPriorTelemetry(modeResult);
         resetSolverWakePruneCountersForMode();
         if (SOLVER_RULE_HOTSPOTS) {
             modeResult._ruleHotspots = new Map();
@@ -4462,6 +4421,7 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
         }
         let totalFrontier = portfolioModes.length;
         modeResult.max_frontier = totalFrontier;
+        const actions = solverActionsForGame();
         let modeIndex = 0;
         let activeMode = portfolioModes[0];
         let sliceExpansionsLeft = activeMode.expansionSlice;
@@ -4528,7 +4488,6 @@ function solveLevel(game, levelIndex, timeoutMs, compileMs, options = {}) {
                 }
             }
 
-            const actions = actionsForNode(modeResult, node);
             for (const action of actions) {
                 if (SOLVER_DETAIL_TIMING) {
                     timeBlock(modeResult, 'clone_ms', () => {
@@ -5241,22 +5200,8 @@ function ensureSolverPuzzleScriptLoaded() {
     }
 }
 
-function prepareSiblingMarkovPriors(options) {
-    if (options.solverSiblingPriorsPath === null || options.solverSiblingPriorStore) {
-        return;
-    }
-    let payload;
-    try {
-        payload = JSON.parse(fs.readFileSync(options.solverSiblingPriorsPath, 'utf8'));
-    } catch (error) {
-        throw new Error(`solver sibling priors: could not read ${options.solverSiblingPriorsPath}: ${error.message}`);
-    }
-    options.solverSiblingPriorStore = createSiblingMarkovPriorStore(payload);
-}
-
 function runCorpus(options) {
     ensureSolverPuzzleScriptLoaded();
-    prepareSiblingMarkovPriors(options);
     const results = [];
     let attemptedLevels = 0;
     let jobs = collectCorpusRunJobs(options);
@@ -5449,12 +5394,6 @@ function totals(results) {
         process_input_calls: 0,
         again_passes: 0,
         adaptive_step_cost_triggered: 0,
-        sibling_prior_enabled: false,
-        sibling_prior_training_records_ignored: 0,
-        sibling_prior_training_levels: 0,
-        sibling_prior_contexts: 0,
-        sibling_prior_ordered_expansions: 0,
-        sibling_prior_fallback_expansions: 0,
         step_no_op: 0,
         step_changed: 0,
         hash_collisions: 0,
@@ -5516,14 +5455,6 @@ function totals(results) {
         out.process_input_calls += result.process_input_calls || 0;
         out.again_passes += result.again_passes || 0;
         out.adaptive_step_cost_triggered += result.adaptive_step_cost_triggered || 0;
-        if (result.sibling_prior_enabled) {
-            out.sibling_prior_enabled = true;
-        }
-        out.sibling_prior_training_records_ignored += result.sibling_prior_training_records_ignored || 0;
-        out.sibling_prior_training_levels += result.sibling_prior_training_levels || 0;
-        out.sibling_prior_contexts += result.sibling_prior_contexts || 0;
-        out.sibling_prior_ordered_expansions += result.sibling_prior_ordered_expansions || 0;
-        out.sibling_prior_fallback_expansions += result.sibling_prior_fallback_expansions || 0;
         out.step_no_op += result.step_no_op || 0;
         out.step_changed += result.step_changed || 0;
         out.hash_collisions += result.hash_collisions || 0;
@@ -5684,7 +5615,6 @@ function benchStoreConfig(options) {
         strategy: options.strategy,
         astar_weight: options.astarWeight,
         solver_heuristic: options.solverHeuristic,
-        solver_sibling_priors: options.solverSiblingPriorsPath,
         portfolio_bfs_ms: options.portfolioBfsMs,
         portfolio_heuristics: options.portfolioHeuristics,
         solver_focus_manifest: options.solverFocusManifest,
