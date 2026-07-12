@@ -3,6 +3,7 @@ set(PUZZLESCRIPT_NATIVE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../native")
 idf_component_register(
   SRCS
     "main.cpp"
+    "probe_log.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/c_api.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/compiled_rules.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/core.cpp"
