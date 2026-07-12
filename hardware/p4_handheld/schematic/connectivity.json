@@ -187,6 +187,21 @@
       "sheet": "compute",
       "value": "10k",
       "footprint": "0402"
+    },
+    {
+      "ref": "J3",
+      "sheet": "display",
+      "value": "FFC-15-1.0-FH12-class",
+      "footprint": "FPC-SMD_FH12-15S-0.5SH-55-class-TBD",
+      "gate": "GATE-PANEL-FFC-CONTACT",
+      "note": "Waveshare 2.8inch DSI LCD; contact orientation checked against real cable before layout"
+    },
+    {
+      "ref": "C3",
+      "sheet": "display",
+      "value": "10u",
+      "footprint": "0603",
+      "note": "panel rail bulk at FFC"
     }
   ],
   "connections": [
@@ -300,6 +315,14 @@
         [
           "C3",
           "1"
+        ],
+        [
+          "J3",
+          "14"
+        ],
+        [
+          "J3",
+          "15"
         ]
       ]
     },
@@ -369,6 +392,30 @@
         [
           "X1",
           "GND"
+        ],
+        [
+          "J3",
+          "1"
+        ],
+        [
+          "J3",
+          "4"
+        ],
+        [
+          "J3",
+          "7"
+        ],
+        [
+          "J3",
+          "10"
+        ],
+        [
+          "J3",
+          "13"
+        ],
+        [
+          "C3",
+          "2"
         ]
       ]
     },
@@ -477,6 +524,10 @@
         [
           "R3",
           "2"
+        ],
+        [
+          "J3",
+          "12"
         ]
       ]
     },
@@ -494,6 +545,10 @@
         [
           "R4",
           "2"
+        ],
+        [
+          "J3",
+          "11"
         ]
       ]
     },
@@ -695,6 +750,84 @@
           "2"
         ]
       ]
+    },
+    {
+      "net": "DSI_D1_N",
+      "nodes": [
+        [
+          "U1",
+          "DSI_DATAN1"
+        ],
+        [
+          "J3",
+          "2"
+        ]
+      ]
+    },
+    {
+      "net": "DSI_D1_P",
+      "nodes": [
+        [
+          "U1",
+          "DSI_DATAP1"
+        ],
+        [
+          "J3",
+          "3"
+        ]
+      ]
+    },
+    {
+      "net": "DSI_CLK_N",
+      "nodes": [
+        [
+          "U1",
+          "DSI_CLKN"
+        ],
+        [
+          "J3",
+          "5"
+        ]
+      ]
+    },
+    {
+      "net": "DSI_CLK_P",
+      "nodes": [
+        [
+          "U1",
+          "DSI_CLKP"
+        ],
+        [
+          "J3",
+          "6"
+        ]
+      ]
+    },
+    {
+      "net": "DSI_D0_N",
+      "nodes": [
+        [
+          "U1",
+          "DSI_DATAN0"
+        ],
+        [
+          "J3",
+          "8"
+        ]
+      ]
+    },
+    {
+      "net": "DSI_D0_P",
+      "nodes": [
+        [
+          "U1",
+          "DSI_DATAP0"
+        ],
+        [
+          "J3",
+          "9"
+        ]
+      ]
     }
   ],
   "requirements": {
@@ -702,6 +835,18 @@
       [
         "USB_DP",
         "USB_DM"
+      ],
+      [
+        "DSI_D0_P",
+        "DSI_D0_N"
+      ],
+      [
+        "DSI_D1_P",
+        "DSI_D1_N"
+      ],
+      [
+        "DSI_CLK_P",
+        "DSI_CLK_N"
       ]
     ],
     "power_nets": [
@@ -712,5 +857,87 @@
       "BAT+"
     ],
     "must_connect": []
+  },
+  "panelInterface": {
+    "panel": "Waveshare 2.8inch DSI LCD (480x640, GT911 touch)",
+    "connector": "15-pin 1.0 mm Raspberry-Pi-style DSI FFC",
+    "driver": "waveshare/esp_lcd_dsi (ESP-IDF component, tested on ESP32-P4); touch esp_lcd_touch_gt911, polling",
+    "backlight": "integrated on panel, controlled over FFC I2C at 0x45; no board-side backlight parts",
+    "pinout": [
+      {
+        "pin": 1,
+        "net": "GND"
+      },
+      {
+        "pin": 2,
+        "net": "DSI_D1_N"
+      },
+      {
+        "pin": 3,
+        "net": "DSI_D1_P"
+      },
+      {
+        "pin": 4,
+        "net": "GND"
+      },
+      {
+        "pin": 5,
+        "net": "DSI_CLK_N"
+      },
+      {
+        "pin": 6,
+        "net": "DSI_CLK_P"
+      },
+      {
+        "pin": 7,
+        "net": "GND"
+      },
+      {
+        "pin": 8,
+        "net": "DSI_D0_N"
+      },
+      {
+        "pin": 9,
+        "net": "DSI_D0_P"
+      },
+      {
+        "pin": 10,
+        "net": "GND"
+      },
+      {
+        "pin": 11,
+        "net": "I2C_SCL"
+      },
+      {
+        "pin": 12,
+        "net": "I2C_SDA"
+      },
+      {
+        "pin": 13,
+        "net": "GND"
+      },
+      {
+        "pin": 14,
+        "net": "+3V3_PANEL"
+      },
+      {
+        "pin": 15,
+        "net": "+3V3_PANEL"
+      }
+    ],
+    "orientation": {
+      "known": [
+        "panel-side connector and cable family match the Raspberry-Pi DSI display convention",
+        "PANEL_RESEARCH.md records the frozen interface facts and sources"
+      ],
+      "mustCheckBeforeRouting": [
+        "confirm same-side or opposite-side 15-pin cable against a real Waveshare 2.8inch DSI cable",
+        "confirm board-end FFC contact orientation (top/bottom) before layout"
+      ],
+      "assumedCableParity": "same-side",
+      "assumptionStatus": "assumed-for-layout",
+      "workingAssumption": "Same-side 15-pin FFC cable assumed until a physical sample is measured",
+      "gate": "GATE-PANEL-FFC-CONTACT"
+    }
   }
 }
