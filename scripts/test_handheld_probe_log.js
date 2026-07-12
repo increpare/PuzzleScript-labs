@@ -7,10 +7,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const probeLog = require('./esp32p4_probe_log');
+const probeLog = require('./handheld_probe_log');
 
 function withTempDir(callback) {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'esp32p4-probe-log-test-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'handheld-probe-log-test-'));
     try {
         return callback(tmpDir);
     } finally {
@@ -94,7 +94,7 @@ function runCliProcessWritesJsonReport() {
 
         const result = childProcess.spawnSync(
             process.execPath,
-            [path.join(__dirname, 'esp32p4_probe_log.js'), '--log', logPath, '--out', outPath],
+            [path.join(__dirname, 'handheld_probe_log.js'), '--log', logPath, '--out', outPath],
             {
                 cwd: path.join(__dirname, '..'),
                 encoding: 'utf8',
@@ -119,7 +119,7 @@ function failOnFailureTurnsBadHardwareLogsIntoFailingGates() {
 
         const result = childProcess.spawnSync(
             process.execPath,
-            [path.join(__dirname, 'esp32p4_probe_log.js'), '--log', logPath, '--out', outPath, '--fail-on-failure'],
+            [path.join(__dirname, 'handheld_probe_log.js'), '--log', logPath, '--out', outPath, '--fail-on-failure'],
             {
                 cwd: path.join(__dirname, '..'),
                 encoding: 'utf8',
@@ -142,7 +142,7 @@ function failOnFailureAcceptsCleanHardwareLogs() {
 
         const result = childProcess.spawnSync(
             process.execPath,
-            [path.join(__dirname, 'esp32p4_probe_log.js'), '--log', logPath, '--out', outPath, '--fail-on-failure'],
+            [path.join(__dirname, 'handheld_probe_log.js'), '--log', logPath, '--out', outPath, '--fail-on-failure'],
             {
                 cwd: path.join(__dirname, '..'),
                 encoding: 'utf8',
@@ -153,6 +153,99 @@ function failOnFailureAcceptsCleanHardwareLogs() {
         const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
         assert.strictEqual(report.summary.failed_phase_count, 0);
         assert.strictEqual(report.summary.alloc_failures.length, 0);
+    });
+}
+
+function parsesRepeatableGateRequirements() {
+    const options = probeLog.parseArgs([
+        '--log',
+        'probe.log',
+        '--require-phase',
+        'BOOT',
+        '--require-heap-region',
+        'internal',
+        '--require-phase',
+        'LOAD_IR',
+        '--require-heap-region',
+        'spiram',
+    ]);
+
+    assert.strictEqual(options.out, path.join('build', 'handheld_probe_log_summary.json'));
+    assert.deepStrictEqual(options.requiredPhases, ['BOOT', 'LOAD_IR']);
+    assert.deepStrictEqual(options.requiredHeapRegions, ['internal', 'spiram']);
+    assert.throws(
+        () => probeLog.parseArgs(['--log', 'probe.log', '--require-phase']),
+        /missing value for --require-phase/,
+    );
+    assert.throws(
+        () => probeLog.parseArgs(['--log', 'probe.log', '--require-heap-region']),
+        /missing value for --require-heap-region/,
+    );
+    assert.throws(
+        () => probeLog.parseArgs(['--log', 'probe.log', '--require-phase', '--fail-on-failure']),
+        /missing value for --require-phase/,
+    );
+    assert.throws(
+        () => probeLog.parseArgs(['--log', 'probe.log', '--require-heap-region', '--fail-on-failure']),
+        /missing value for --require-heap-region/,
+    );
+}
+
+function acceptsPocketCardBootRecord() {
+    const text = [
+        'I (12) ps_probe: {"event":"boot","target":"esp32s3","board":"ES3C28P","cores":2,"flash_bytes":16777216}',
+        'I (13) ps_probe: {"event":"phase","phase":"BOOT","status":"pass","detail":"boot_summary","elapsed_ms":1,"fb_mode":"none","fb_width":0,"fb_height":0,"fb_count":0,"fb_bpp":2}',
+        'I (14) ps_probe: {"event":"heap","phase":"BOOT","region":"internal","free":180000,"allocated":20000,"largest_free_block":110000,"minimum_free":170000}',
+        'I (15) ps_probe: {"event":"heap","phase":"BOOT","region":"spiram","free":7000000,"allocated":500000,"largest_free_block":6900000,"minimum_free":6800000}',
+        '',
+    ].join('\n');
+    const parsed = probeLog.parseProbeLogText('pocket.log', text);
+    const summary = probeLog.summarizeEvents(parsed.events, parsed.parse_errors);
+
+    assert.strictEqual(summary.boot.target, 'esp32s3');
+    assert.strictEqual(summary.boot.board, 'ES3C28P');
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary, ['BOOT'], ['internal', 'spiram']),
+        [],
+    );
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary, ['BOOT', 'LOAD_IR'], ['internal', 'spiram']),
+        ['missing passing LOAD_IR phase'],
+    );
+}
+
+function failOnFailureRejectsMissingRequiredRecords() {
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        const outPath = path.join(tmpDir, 'summary.json');
+        fs.writeFileSync(logPath, passingLogText(), 'utf8');
+
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [
+                path.join(__dirname, 'handheld_probe_log.js'),
+                '--log',
+                logPath,
+                '--out',
+                outPath,
+                '--fail-on-failure',
+                '--require-phase',
+                'LOAD_IR',
+                '--require-heap-region',
+                'dma',
+            ],
+            {
+                cwd: path.join(__dirname, '..'),
+                encoding: 'utf8',
+            },
+        );
+
+        assert.strictEqual(result.status, 1, result.stderr);
+        const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        assert.deepStrictEqual(report.command.required_phases, ['LOAD_IR']);
+        assert.deepStrictEqual(report.command.required_heap_regions, ['dma']);
+        assert.match(result.stderr, /missing passing LOAD_IR phase/);
+        assert.match(result.stderr, /missing dma heap sample/);
     });
 }
 
@@ -182,9 +275,12 @@ function main() {
     parsesEspIdfLogLines();
     summarizesPhaseHeapAndFailureEvents();
     reassemblesFragmentedSerialCaptureLines();
+    parsesRepeatableGateRequirements();
+    acceptsPocketCardBootRecord();
     runCliProcessWritesJsonReport();
     failOnFailureTurnsBadHardwareLogsIntoFailingGates();
     failOnFailureAcceptsCleanHardwareLogs();
+    failOnFailureRejectsMissingRequiredRecords();
 }
 
 main();

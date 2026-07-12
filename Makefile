@@ -834,15 +834,15 @@ handheld_p4_probe_capture:
 	@if [ -z "$(ESP32P4_PORT)" ]; then echo "Set ESP32P4_PORT=/dev/cu.usbmodem..." >&2; exit 2; fi
 	@mkdir -p "$(dir $(abspath $(ESP32P4_CAPTURE_LOG)))"
 	cd $(ESP32P4_FIRMWARE_DIR) && $(IDF_PY) -p "$(ESP32P4_PORT)" monitor 2>&1 | tee "$(abspath $(ESP32P4_CAPTURE_LOG))"
-	$(NODE) scripts/esp32p4_probe_log.js --log "$(abspath $(ESP32P4_CAPTURE_LOG))" --out "$(ESP32P4_LOG_SUMMARY_JSON)" --fail-on-failure
+	$(NODE) scripts/handheld_probe_log.js --log "$(abspath $(ESP32P4_CAPTURE_LOG))" --out "$(ESP32P4_LOG_SUMMARY_JSON)" --fail-on-failure
 
 handheld_p4_probe_summarize:
 	@if [ -z "$(ESP32P4_LOG)" ]; then echo "Set ESP32P4_LOG=path/to/probe.log" >&2; exit 2; fi
-	$(NODE) scripts/esp32p4_probe_log.js --log "$(ESP32P4_LOG)" --out "$(ESP32P4_LOG_SUMMARY_JSON)"
+	$(NODE) scripts/handheld_probe_log.js --log "$(ESP32P4_LOG)" --out "$(ESP32P4_LOG_SUMMARY_JSON)"
 
 handheld_p4_probe_check_log:
 	@if [ -z "$(ESP32P4_LOG)" ]; then echo "Set ESP32P4_LOG=path/to/probe.log" >&2; exit 2; fi
-	$(NODE) scripts/esp32p4_probe_log.js --log "$(ESP32P4_LOG)" --out "$(ESP32P4_LOG_SUMMARY_JSON)" --fail-on-failure
+	$(NODE) scripts/handheld_probe_log.js --log "$(ESP32P4_LOG)" --out "$(ESP32P4_LOG_SUMMARY_JSON)" --fail-on-failure
 
 .PHONY: FORCE
 FORCE:
