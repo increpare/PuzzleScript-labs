@@ -109,6 +109,7 @@ the Task 12 gate review re-walks this table with PANEL_RESEARCH numbers.
 | J1 | USB-C | USB 2.0 + 5 V charge | HRO TYPE-C-31-M-12 class |
 | J2 | Battery | protected 1S connector | gated: GATE-BATTERY-SAMPLE |
 | J3 | Panel FFC | 15-pin 1.0 mm RPi-style DSI | FH12-15S class; gated: GATE-PANEL-FFC-CONTACT |
+| J3B | Bare-panel FPC (DNP) | thin-product hedge + DNP backlight boost | added at layout; gated: GATE-PANEL-STACK — see PANEL_RESEARCH.md §Dual-footprint |
 | J4 | microSD | push-push, 4-bit SDMMC | gated: GATE-MICROSD-FOOTPRINT |
 | J5 | Speaker | 2-pin, hand-attached speaker | gated: GATE-SPEAKER-SELECT |
 | SW1–SW4 | Navigation | four-way + center (center diagnostics-only) | gated: GATE-BUTTON-COUPON |

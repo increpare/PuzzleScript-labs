@@ -1,6 +1,14 @@
-# DSI panel research — five-check gate
+# DSI panel research — five-check gate (+ mechanical check added 2026-07-12)
 
 Date: 2026-07-12. Spec: `docs/superpowers/specs/2026-07-12-p4-handheld-circuit-design.md`
+
+> **Owner review (2026-07-12) added a sixth check the original gate missed:**
+> **mechanical stack.** The RPi-style DSI products are *assemblies* — panel
+> glass plus a rear adapter PCB carrying the bridge and I2C controller — and
+> the original five checks never measured that stack. Status and the
+> resulting dual-footprint hedge are recorded below; the assemblies also
+> carry a bonded touch layer the product doesn't use (accepted only as the
+> protective cover glass, same trade the pocket card makes on the ES3C28P).
 
 ## Candidates
 
@@ -62,16 +70,20 @@ The primary panel is natively portrait 480×640; landscape 640×480 is exactly
 over at doubled integer scales. Rotation happens on the P4 (PPA/framebuffer
 rotation) — a software-phase cost, recorded there, not a circuit blocker.
 
-## Decision
+## Decision (revised 2026-07-12 after owner review)
 
-**Primary: Waveshare 2.8inch DSI LCD** — the only candidate that passes all
-five checks at pocket scale, with a vendor-maintained ESP-IDF driver proven
-on ESP32-P4 hardware and a bonded-glass stack that removes a separate cover
-lens, mirroring the ES3C28P rationale.
+**Bring-up vehicle and electrical primary: Waveshare 2.8inch DSI LCD** —
+passes checks 1–5 with a vendor-maintained ESP-IDF driver proven on
+ESP32-P4 hardware; check 6 (mechanical stack) is OPEN pending a measured
+sample. Firmware development runs on it via the P4-NANO devkit regardless
+of the product-panel outcome.
 
-**Fallback: Waveshare 4inch DSI LCD** — identical electrical contract and
-driver path; switches are confined to DPI timing values and mechanical size,
-so the schematic survives a fallback swap unchanged.
+**Thin-product path: bare MIPI-DSI panel** via the J3B DNP footprint, if a
+sample passes all six checks. The Waveshare 2.8" then remains dev-bench
+hardware.
+
+**Supply fallback: Waveshare 4inch DSI LCD** — identical electrical
+contract and driver path; de-risks supply, not thickness.
 
 ## Frozen interface facts (consumed by display sheet + power budget)
 
@@ -88,6 +100,49 @@ so the schematic survives a fallback swap unchanged.
   firmware
 - Reset/enable lines: none on the FFC beyond rail switching; panel power
   cycle = panel reset (via PANEL_EN on the load switch)
+
+## Check 6: mechanical stack — OPEN (`GATE-PANEL-STACK`)
+
+Not measured yet, and not resolvable from Waveshare's published pages. On
+arrival of the ordered sample (see `bom/ORDER_LIST.md`), measure with
+calipers and record here:
+
+- total assembly thickness: glass top surface → tallest rear component
+- adapter-PCB outline vs glass outline (overhang matters for the bezel)
+- FFC exit position and bend clearance
+
+The pocket-class body ceiling from the pocket-card spec is 12 mm; the
+ES3C28P precedent burned 10.6 mm on its display stack. If this assembly
+measures materially worse, the thin-product path switches to a bare panel
+(below) and the assembly remains the bring-up vehicle only.
+
+## Dual-footprint decision (2026-07-12, owner-approved direction)
+
+To keep panel uncertainty from forcing a board respin, the layout phase
+carries **both** display attachment options on the one board:
+
+1. **J3** — 15-pin 1.0 mm RPi-style DSI FFC (this document's frozen pinout);
+   the proven bring-up path, validated on the P4-NANO devkit.
+2. **J3B (DNP)** — FPC footprint for the selected bare MIPI-DSI panel, plus a
+   **DNP backlight-boost stage** (the bare panel's LED string needs board
+   drive; the assembly's does not). Populated only if a bare panel passes
+   checks 1–6.
+
+DSI pairs, I2C, and the switched panel rail are shared by both connectors;
+the hedge costs one footprint and a DNP boost, not a second architecture.
+This mirrors the card design's DNP piezo-driver escape-path pattern.
+
+## Bare-panel candidate slots (fill on sample arrival)
+
+Ordering criteria (from `bom/ORDER_LIST.md`): 2.8–3.4", ~480×640, MIPI-DSI
+1–2 lanes, bare FPC with published pinout, named controller with an esp_lcd
+driver (ST7701S-class preferred), ~1.5–2.5 mm glass. Record per sample:
+controller, lanes, FPC pins/pitch, measured thickness, init source,
+verdict against all six checks.
+
+| Sample | Controller | Lanes | FPC | Thickness | Verdict |
+|---|---|---|---|---|---|
+| (pending order) | | | | | |
 
 | Pin | Net |
 |---|---|
