@@ -142,7 +142,7 @@ verdict against all six checks.
 
 | Sample | Controller | Lanes | FPC | Thickness | Verdict |
 |---|---|---|---|---|---|
-| (pending order) | | | | | |
+| D280FPC930C-B, 2.8" 480×640, ~€6.49 ([AliExpress 1005007531981349](https://www.aliexpress.com/item/1005007531981349.html)) | ST7701S — official `espressif/esp_lcd_st7701` + Nicolai-Electronics P4 DSI component exist | 2 (MIPI) **pending seller confirmation** — ST7701S is dual-mode (DSI vs RGB+SPI); confirm this flex is DSI-strapped before relying on it | pending datasheet | pending sample | candidate; ask seller for datasheet: interface config, FPC pinout/pitch, backlight Vf/If, rails, reset |
 
 | Pin | Net |
 |---|---|
