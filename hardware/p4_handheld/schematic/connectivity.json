@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "project": "PuzzleScript P4 Handheld",
+    "revision": "circuit-phase-0",
+    "date": "2026-07-12",
+    "jlc_catalog": "jlc_catalog.json",
+    "power_control": "slide switch gates buck-boost EN; charging works with switch off",
+    "mcu": "ESP32-P4NRW32X chip-down (QFN104, no radio)",
+    "storage": "microSD via SDMMC (cartridge library is the primary user path)",
+    "source_docs": ["PIN_BUDGET.md", "BLOCK_DIAGRAM.md", "PANEL_RESEARCH.md"]
+  },
+  "sheets": [
+    { "id": "power", "file": "sheets/power.kicad_sch", "title": "Power" },
+    { "id": "compute", "file": "sheets/compute.kicad_sch", "title": "Compute" },
+    { "id": "display", "file": "sheets/display.kicad_sch", "title": "Display" },
+    { "id": "controls", "file": "sheets/controls.kicad_sch", "title": "Controls" },
+    { "id": "storage", "file": "sheets/storage.kicad_sch", "title": "Storage" },
+    { "id": "audio", "file": "sheets/audio.kicad_sch", "title": "Audio" },
+    { "id": "debug", "file": "sheets/debug.kicad_sch", "title": "Debug" }
+  ],
+  "components": [],
+  "connections": [],
+  "requirements": {
+    "differential_nets": [],
+    "power_nets": [],
+    "must_connect": []
+  }
+}
