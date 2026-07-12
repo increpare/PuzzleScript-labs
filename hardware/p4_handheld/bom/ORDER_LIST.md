@@ -14,9 +14,19 @@ order time — the point is that the whole basket is under ~$100.
 
 ## Panels
 
+**Week-0, already on hand:** the owner's **Waveshare 4.3inch DSI capacitive
+touch display** — the very panel the retired card design targeted
+(`hardware/card/DSI_PANEL_INTERFACE.md` has its pinout locked; identical
+15-pin contract to our J3). It is *not* in the `esp_lcd_dsi` tested table,
+but the driver is generic (RPi-convention I2C `0x45` power/backlight + per-
+panel DPI timings, which for the 4.3" are public in its RPi dtoverlay), so
+bring-up is "add a timing entry and try." Panel size is irrelevant to most
+of the firmware phase. If it balks, nothing is lost — the 2.8" below covers
+it.
+
 | Item | Qty | ~Price | Why |
 |---|---|---|---|
-| Waveshare **2.8inch DSI LCD** (the DSI one, not the DPI variant) | 1–2 | ~$25 ea | Primary panel; plugs straight into the P4-NANO. On arrival: measure the full assembly stack (glass + adapter PCB) with calipers and record it in PANEL_RESEARCH.md — this closes the thickness check. |
+| Waveshare **2.8inch DSI LCD** (the DSI one, not the DPI variant) | 1 | ~$27–30 **direct from waveshare.com or their AliExpress store** — EU resellers charge ~€65; don't | Product-path panel: its measured assembly stack closes `GATE-PANEL-STACK`, and its tested driver entry is the proven timing. Not urgent for firmware start thanks to the on-hand 4.3". |
 | Bare MIPI-DSI panel candidates | 2–3 | ~$8–15 ea | The thin-product hedge. Search AliExpress/Panelook for: 2.8–3.4", 480×640 or similar, **MIPI DSI 1–2 lane**, bare FPC (no adapter board), controller named in the listing (ST7701S-class preferred — esp_lcd driver exists). Only buy listings that publish the FPC pinout or datasheet. On arrival: thickness, FPC pin count/pitch, and whether the controller/init is documented. |
 
 ## Button coupon parts (feeds GATE-BUTTON-COUPON, same basket)
