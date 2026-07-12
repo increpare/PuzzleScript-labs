@@ -84,14 +84,15 @@ test("every gated component exposes its gate id as a symbol property", function 
     });
 });
 
-test("bom csv has a row per component", function () {
+test("bom csv lists every LCSC-mapped component (JLC PnP order file)", function () {
     gen.generateAll();
     var csv = fs.readFileSync(path.join(BOARD, "bom", "bom_jlc.csv"), "utf8");
-    var lines = csv.trim().split("\n");
-    assert.ok(lines.length >= 1, "header row expected");
-    var m = model();
-    m.components.forEach(function (c) {
-        assert.ok(csv.indexOf(c.ref) !== -1, c.ref + " missing from BOM csv");
+    var catalog = JSON.parse(fs.readFileSync(path.join(__dirname, "jlc_catalog.json"), "utf8"));
+    model().components.forEach(function (c) {
+        var entry = catalog.parts[c.ref];
+        if (entry && entry.lcsc) {
+            assert.ok(csv.indexOf(c.ref + ",") !== -1, c.ref + " missing from BOM csv");
+        }
     });
 });
 

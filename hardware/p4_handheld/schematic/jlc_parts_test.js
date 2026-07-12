@@ -34,12 +34,14 @@ test("footprintLibraryName uses easyeda namespace when mapped", function () {
     });
 });
 
-test("bomCsv has the JLC header and one row per component", function () {
+test("bomCsv has the JLC header and one row per LCSC-mapped component", function () {
     var applied = jlc.applyCatalog(V.model);
     var csv = jlc.bomCsv(applied.model);
     assert.ok(csv.indexOf("Designator,Value,MPN,LCSC") === 0);
     applied.model.components.forEach(function (comp) {
-        assert.ok(csv.indexOf(comp.ref + ",") !== -1, comp.ref + " missing from BOM csv");
+        if (comp.lcsc) {
+            assert.ok(csv.indexOf(comp.ref + ",") !== -1, comp.ref + " missing from BOM csv");
+        }
     });
 });
 
