@@ -12,8 +12,6 @@ extern const uint8_t embedded_ir_end[] asm("_binary_sokoban_basic_ir_json_end");
 namespace pocket_card {
 namespace {
 
-constexpr std::size_t kExpectedIrSize = 40664;
-
 void emit_failure(Phase phase, const char* controlled_detail, int64_t started, ps_error* error = nullptr) {
     emit_phase(phase, "fail", controlled_detail, now_ms() - started);
     if (error != nullptr) {
@@ -46,11 +44,13 @@ void run_runtime_probe() {
     ps_error* error = nullptr;
 
     int64_t started = now_ms();
-    const std::size_t ir_size = static_cast<std::size_t>(embedded_ir_end - embedded_ir_start);
-    if (ir_size != kExpectedIrSize) {
+    const std::uintptr_t start_address = reinterpret_cast<std::uintptr_t>(embedded_ir_start);
+    const std::uintptr_t end_address = reinterpret_cast<std::uintptr_t>(embedded_ir_end);
+    if (!(end_address > start_address)) {
         emit_failure(Phase::LoadIr, "load_ir_failed", started);
         return;
     }
+    const std::size_t ir_size = static_cast<std::size_t>(end_address - start_address);
     try {
         if (!ps_load_ir_json(reinterpret_cast<const char*>(embedded_ir_start), ir_size, &game, &error)) {
             emit_failure(Phase::LoadIr, "load_ir_failed", started, error);
