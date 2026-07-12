@@ -142,7 +142,33 @@ verdict against all six checks.
 
 | Sample | Controller | Lanes | FPC | Thickness | Verdict |
 |---|---|---|---|---|---|
-| D280FPC930C-B, 2.8" 480×640, ~€6.49 ([AliExpress 1005007531981349](https://www.aliexpress.com/item/1005007531981349.html)) | ST7701S — official `espressif/esp_lcd_st7701` + Nicolai-Electronics P4 DSI component exist | 2 (MIPI) **pending seller confirmation** — ST7701S is dual-mode (DSI vs RGB+SPI); confirm this flex is DSI-strapped before relying on it | pending datasheet | pending sample | candidate; ask seller for datasheet: interface config, FPC pinout/pitch, backlight Vf/If, rails, reset |
+| D280FPC930C-B, 2.8" 480×640, ~€6.49 ([AliExpress 1005007531981349](https://www.aliexpress.com/item/1005007531981349.html)) | ST7701S — official `espressif/esp_lcd_st7701` + Nicolai-Electronics P4 DSI component exist | **2 (MIPI) confirmed** from vendor pinout table — but the listing sells an RGB variant of the same glass too; **order must specify the MIPI version** | 40-pin, pitch TBC (expect 0.5 mm) — pinout below | pending sample | strong candidate; remaining: backlight Vf/If, FPC pitch, thickness, init sequence on sample |
+
+### D280FPC930C-B MIPI variant pinout (from vendor table, 2026-07-12)
+
+| Pin | Symbol | Function |
+|---|---|---|
+| 1 | LEDA | backlight anode |
+| 2 | LEDK | backlight cathode |
+| 3 | VDD | 2.8–3.3 V supply |
+| 4 | GND | |
+| 5/6 | D0N/D0P | MIPI DSI data lane 0 |
+| 7 | GND | |
+| 8/9 | CLKN/CLKP | MIPI DSI clock |
+| 10 | GND | |
+| 11/12 | D1N/D1P | MIPI DSI data lane 1 |
+| 13–33 | GND | |
+| 34 | RESET | panel reset (J3B gets a GPIO for this, unlike the 15-pin path) |
+| 35–37 | GND | |
+| 38 | VDD | 2.8–3.3 V supply |
+| 39 | GND | |
+| 40 | NC | |
+
+Notes: single VDD rail — runs from `+3V3_PANEL` directly; no touch layer;
+backlight is a bare LEDA/LEDK string — if Vf ≤ 3.2 V (single LED) the DNP
+boost can be replaced by a FET + PWM from the panel rail; decide when the
+spec/sample answers Vf/If. The matching RGB-variant pinout exists on the
+same listing — do not order it.
 
 | Pin | Net |
 |---|---|
