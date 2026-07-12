@@ -76,10 +76,60 @@ Walking the tree with PANEL_RESEARCH numbers:
 4. ERC-clean required the generator drawing-engine rewrite described above —
    the plan had assumed connectivity-level fixes would suffice.
 
-## What the next phase (layout) picks up
+## HANDOFF — state and next actions (updated 2026-07-12, post owner review)
 
-- Re-add PCB generation to the pipeline (deleted here by design).
-- Resolve `GATE-PANEL-FFC-CONTACT` with a physical cable sample.
-- Button coupon (`GATE-BUTTON-COUPON`) before freezing switch footprints.
-- U1 silicon-revision confirmation or consignment plan execution.
-- Measured panel current → final power budget.
+This section is the single pickup point for the next session/phase.
+
+### What changed after the gate review
+
+The owner review reopened the panel decision on mechanics and cost:
+
+- Added **check 6 / `GATE-PANEL-STACK`** (mechanical stack was never measured)
+  and the **dual-footprint hedge**: J3 (15-pin FFC, proven) + J3B (DNP bare-
+  panel FPC + DNP backlight boost). See `PANEL_RESEARCH.md` §Dual-footprint.
+- Bare-panel candidate found and pinout-confirmed: **D280FPC930C-B** 2.8"
+  480×640 ST7701S, 2-lane MIPI, 40-pin FPC, ~€6.49 — order the **MIPI
+  variant** only. Pinout table in `PANEL_RESEARCH.md`.
+- The Waveshare 2.8" assembly is demoted to bring-up vehicle / stack-
+  measurement sample; buy direct (~$27), never EU resellers (~€65).
+- **Kill criterion agreed:** if no bare panel passes all six checks, a custom
+  board + thick display assembly is strictly worse than the ES3C28P pocket
+  card — this track then closes as a documented negative result.
+
+### Immediate actions (no dependencies)
+
+1. Place the `bom/ORDER_LIST.md` basket: P4-NANO devkit, 1× Waveshare 2.8"
+   DSI (direct), 2–3× D280FPC930C-B **MIPI variant**, button-coupon switches,
+   FFC connectors + both cable parities, audio dev parts.
+2. Open the JLC ticket on U1: does C22387510 ship NRW32**X** (v3.x) silicon?
+   (`bom/AVAILABILITY.md`.)
+
+### On parts arrival (parallel tracks)
+
+- **Firmware (starts first, on devkit):** DSI bring-up — try the on-hand
+  Waveshare **4.3"** touch display first via a custom timing entry in
+  `waveshare/esp_lcd_dsi` (timings from its RPi dtoverlay; not in the tested
+  table, cheap experiment). Then renderer, SD cartridge flow, input, I2S.
+- **Panels:** calipers on the 2.8" assembly (closes `GATE-PANEL-STACK` for
+  the assembly path); D280 sample → thickness, FPC pitch, backlight Vf/If,
+  init via `esp_lcd_st7701`. Fill the candidate table in `PANEL_RESEARCH.md`.
+  If backlight Vf ≤ ~3.2 V, the DNP boost becomes FET + PWM.
+- **Buttons:** coupon feel-test (`GATE-BUTTON-COUPON`); FFC cable parity
+  measurement closes `GATE-PANEL-FFC-CONTACT`.
+
+### Layout phase (after panel verdict)
+
+- Re-add PCB generation to the pipeline (deleted this phase by design;
+  the card's `buildPcb`/`board_preview` code is the reference).
+- Both display footprints on one board per the hedge; panel verdict decides
+  stuffing, not the spin.
+- Measured panel current → final power budget (re-walk the table above).
+- Freeze switch footprints from the coupon winner.
+
+### Key files
+
+- `schematic/connectivity.json` — net source of truth (edit → test → regen)
+- `PANEL_RESEARCH.md` — panel gate, candidates, dual-footprint decision
+- `bom/ORDER_LIST.md` — the week-1 basket
+- `bom/AVAILABILITY.md` — per-line sourcing incl. the U1 revision contingency
+- `PIN_BUDGET.md` — GPIO map (buttons deliberately off strap pins GPIO34–38)
