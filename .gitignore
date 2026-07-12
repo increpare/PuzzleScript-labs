@@ -35,3 +35,7 @@ node_modules/
 
 /firmware/esp32p4/managed_components/
 /firmware/esp32p4/sdkconfig.old
+
+/firmware/pocket_card/managed_components/
+/firmware/pocket_card/sdkconfig
+/firmware/pocket_card/sdkconfig.old

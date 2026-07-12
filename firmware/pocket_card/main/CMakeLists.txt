@@ -16,6 +16,8 @@ idf_component_register(
     "${PUZZLESCRIPT_NATIVE_DIR}/include"
     "${PUZZLESCRIPT_NATIVE_DIR}/src"
     "${PUZZLESCRIPT_NATIVE_DIR}/third_party/simdjson"
+  # Binary embedding keeps _end - _start equal to the JSON byte length.
+  # Text embedding appends a NUL that the explicit-length runtime parser must not see.
   EMBED_FILES
     "sokoban_basic.ir.json"
   REQUIRES
