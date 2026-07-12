@@ -109,4 +109,30 @@ test("panel rail feeds FFC pins 14 and 15, and touch I2C rides the FFC", functio
     assert.ok(byNet.I2C_SDA.some(function (n) { return n[0] === "J3" && n[1] === "12"; }));
 });
 
+var BTN_NETS = ["BTN_UP", "BTN_DOWN", "BTN_LEFT", "BTN_RIGHT", "BTN_NAV_CENTER",
+    "BTN_UNDO", "BTN_ACTION", "BTN_RESTART", "BTN_MENU", "BTN_VOL_UP", "BTN_VOL_DOWN"];
+
+test("all 11 buttons reach U1 directly, active-low, no expander", function () {
+    var byNet = V.buildNetMap(V.model);
+    BTN_NETS.forEach(function (net) {
+        assert.ok(byNet[net], net + " missing");
+        assert.ok(byNet[net].some(function (n) { return n[0] === "U1"; }), net + " not on U1");
+    });
+    assert.ok(!V.model.components.some(function (c) { return /MCP23017/.test(c.value); }));
+});
+
+test("no button lands on a P4 strap pin", function () {
+    var straps = V.model.strapPins;
+    assert.ok(Array.isArray(straps) && straps.length > 0,
+        "connectivity must carry strapPins transcribed from PIN_BUDGET.md");
+    var byNet = V.buildNetMap(V.model);
+    BTN_NETS.forEach(function (net) {
+        byNet[net].forEach(function (n) {
+            if (n[0] === "U1") {
+                assert.strictEqual(straps.indexOf(n[1]), -1, net + " uses strap pin " + n[1]);
+            }
+        });
+    });
+});
+
 console.log(passed + " tests passed");

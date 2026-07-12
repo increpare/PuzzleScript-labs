@@ -47,7 +47,7 @@
       "mpn": "ESP32-P4NRW32",
       "easyeda_footprint": "QFN-104_L10.0-W10.0-P0.35-TL-EP7.5",
       "status": "locked",
-      "note": "JLC lists NRW32; design target is NRW32X — verify silicon revision at order"
+      "note": "JLC lists NRW32; design target is NRW32X \u2014 verify silicon revision at order"
     },
     "U9": {
       "lcsc": "C97522",
@@ -307,6 +307,13 @@
       "mpn": null,
       "easyeda_footprint": "TestPoint_Pad_D1.5mm",
       "status": "locked"
+    },
+    "SW11": {
+      "lcsc": "C2886877",
+      "mpn": "TL3315NF160Q",
+      "easyeda_footprint": "SW-SMD_4P-L4.5-W4.5-P3.00-LS4.5-TL",
+      "status": "candidate",
+      "note": "nav-center contact; part follows GATE-BUTTON-COUPON winner"
     }
   }
 }

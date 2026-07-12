@@ -202,6 +202,85 @@
       "value": "10u",
       "footprint": "0603",
       "note": "panel rail bulk at FFC"
+    },
+    {
+      "ref": "SW1",
+      "sheet": "controls",
+      "value": "NavSwitch-Up",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON",
+      "note": "navigation direction contact; SKRH-class 5-way or dome per coupon"
+    },
+    {
+      "ref": "SW2",
+      "sheet": "controls",
+      "value": "NavSwitch-Down",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW3",
+      "sheet": "controls",
+      "value": "NavSwitch-Left",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW4",
+      "sheet": "controls",
+      "value": "NavSwitch-Right",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW11",
+      "sheet": "controls",
+      "value": "NavSwitch-Center",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON",
+      "note": "center contact, diagnostics only; merges into the nav part if a 5-way switch wins the coupon"
+    },
+    {
+      "ref": "SW5",
+      "sheet": "controls",
+      "value": "Btn-Undo",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW6",
+      "sheet": "controls",
+      "value": "Btn-Action",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW7",
+      "sheet": "controls",
+      "value": "Btn-Restart",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW8",
+      "sheet": "controls",
+      "value": "Btn-Menu",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW10A",
+      "sheet": "controls",
+      "value": "Btn-VolUp",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "SW10B",
+      "sheet": "controls",
+      "value": "Btn-VolDown",
+      "footprint": "TBD",
+      "gate": "GATE-BUTTON-COUPON"
     }
   ],
   "connections": [
@@ -415,6 +494,50 @@
         ],
         [
           "C3",
+          "2"
+        ],
+        [
+          "SW1",
+          "2"
+        ],
+        [
+          "SW2",
+          "2"
+        ],
+        [
+          "SW3",
+          "2"
+        ],
+        [
+          "SW4",
+          "2"
+        ],
+        [
+          "SW11",
+          "2"
+        ],
+        [
+          "SW5",
+          "2"
+        ],
+        [
+          "SW6",
+          "2"
+        ],
+        [
+          "SW7",
+          "2"
+        ],
+        [
+          "SW8",
+          "2"
+        ],
+        [
+          "SW10A",
+          "2"
+        ],
+        [
+          "SW10B",
           "2"
         ]
       ]
@@ -828,6 +951,149 @@
           "9"
         ]
       ]
+    },
+    {
+      "net": "BTN_UP",
+      "nodes": [
+        [
+          "U1",
+          "GPIO2"
+        ],
+        [
+          "SW1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_DOWN",
+      "nodes": [
+        [
+          "U1",
+          "GPIO3"
+        ],
+        [
+          "SW2",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_LEFT",
+      "nodes": [
+        [
+          "U1",
+          "GPIO4"
+        ],
+        [
+          "SW3",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_RIGHT",
+      "nodes": [
+        [
+          "U1",
+          "GPIO5"
+        ],
+        [
+          "SW4",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_ACTION",
+      "nodes": [
+        [
+          "U1",
+          "GPIO6"
+        ],
+        [
+          "SW6",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_UNDO",
+      "nodes": [
+        [
+          "U1",
+          "GPIO14"
+        ],
+        [
+          "SW5",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_NAV_CENTER",
+      "nodes": [
+        [
+          "U1",
+          "GPIO24"
+        ],
+        [
+          "SW11",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_RESTART",
+      "nodes": [
+        [
+          "U1",
+          "GPIO20"
+        ],
+        [
+          "SW7",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_MENU",
+      "nodes": [
+        [
+          "U1",
+          "GPIO21"
+        ],
+        [
+          "SW8",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_VOL_UP",
+      "nodes": [
+        [
+          "U1",
+          "GPIO22"
+        ],
+        [
+          "SW10A",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "BTN_VOL_DOWN",
+      "nodes": [
+        [
+          "U1",
+          "GPIO23"
+        ],
+        [
+          "SW10B",
+          "1"
+        ]
+      ]
     }
   ],
   "requirements": {
@@ -939,5 +1205,12 @@
       "workingAssumption": "Same-side 15-pin FFC cable assumed until a physical sample is measured",
       "gate": "GATE-PANEL-FFC-CONTACT"
     }
-  }
+  },
+  "strapPins": [
+    "GPIO34",
+    "GPIO35",
+    "GPIO36",
+    "GPIO37",
+    "GPIO38"
+  ]
 }
