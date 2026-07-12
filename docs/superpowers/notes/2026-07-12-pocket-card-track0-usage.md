@@ -23,13 +23,20 @@ source "$HOME/esp/esp-idf/export.sh"
 make pocket_card_probe_build
 ```
 
-The firmware must link only the native runtime. This check must print no paths:
+The firmware must link only the native runtime. Check the linker map with:
 
 ```bash
-rg '/src/compiler/' firmware/pocket_card/build/puzzlescript_pocket_card_probe.map
+make pocket_card_probe_check_map
 ```
 
+The check succeeds silently when the map contains no compiler source paths. If
+compiler sources are present, it prints the matches and an error, then its
+recipe exits 1 (`make` reports `Error 1`). A missing or unreadable map exits 2.
+Set `POCKET_CARD_MAP` to check a map at a different path.
+
 ## Flash and capture
+
+On macOS, detect the serial device and capture the probe log with:
 
 ```bash
 ls /dev/cu.usbmodem*
@@ -38,7 +45,10 @@ make pocket_card_probe_flash
 make pocket_card_probe_capture
 ```
 
-Replace the example port with the device path printed by `ls`.
+Replace the example port with the device path printed by `ls`. Linux devices
+are commonly named `/dev/ttyACM*`, while Windows devices are named `COMx` such
+as `COM3`. On every platform, assign the detected device to `POCKET_CARD_PORT`
+before running the flash, monitor, or capture target.
 
 Stop the ESP-IDF monitor with Ctrl-]. The capture gate requires passing
 `BOOT`, `LOAD_IR`, `CREATE_RUNTIME`, `LOAD_LEVEL`, `INPUT_TRACE`, and `UNLOAD`

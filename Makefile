@@ -15,7 +15,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log pocket_card_contract_tests pocket_card_fixture pocket_card_probe_build pocket_card_probe_flash pocket_card_probe_monitor pocket_card_probe_capture pocket_card_probe_summarize pocket_card_probe_check_log generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
+.PHONY: help build build_32 build_solver build_generator build_simplify handheld_report handheld_memory_audit handheld_blockout_tests handheld_pcb_export handheld_card_preview handheld_card_easyeda_handoff handheld_card_schematic_tests handheld_card_kicad handheld_devkit_input_kicad locality_survey handheld_p4_probe_build handheld_p4_probe_flash handheld_p4_probe_monitor handheld_p4_probe_capture handheld_p4_probe_summarize handheld_p4_probe_check_log pocket_card_contract_tests pocket_card_fixture pocket_card_probe_build pocket_card_probe_flash pocket_card_probe_monitor pocket_card_probe_capture pocket_card_probe_summarize pocket_card_probe_check_log pocket_card_probe_check_map generator remix simplify solver run ctest tests all_tests_thorough js_parity_tests tests_js static_analysis_tests static_analysis_runtime_contracts static_analysis_performance_tests static_analysis_explorer static_analysis_fuzz static_analysis_consistency_giant static_analysis_corpus_audit_giant canonicalization_fuzz canonicalizer_giant_corpus compile_exception_corpus compile_exception_corpus_nodupes fuzz_corpus_batch fuzz_corpus_batch_giant fuzz_corpus_batch_single fuzz_corpus_batch_parallel simulation_tests_js simulation_tests_js_profile simulation_tests_js_profile_breakdown compilation_tests_js performance_testpage \
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
@@ -101,6 +101,17 @@ POCKET_CARD_FIRMWARE_DIR := firmware/pocket_card
 POCKET_CARD_LOG ?=
 POCKET_CARD_CAPTURE_LOG ?= $(BUILD_DIR)/pocket-card-probe.log
 POCKET_CARD_LOG_SUMMARY_JSON ?= $(BUILD_DIR)/pocket_card_probe_log_summary.json
+POCKET_CARD_MAP ?= firmware/pocket_card/build/puzzlescript_pocket_card_probe.map
+POCKET_CARD_PROBE_GATE_ARGS = \
+	--require-phase BOOT \
+	--require-phase LOAD_IR \
+	--require-phase CREATE_RUNTIME \
+	--require-phase LOAD_LEVEL \
+	--require-phase INPUT_TRACE \
+	--require-phase UNLOAD \
+	--require-heap-region internal \
+	--require-heap-region spiram \
+	--fail-on-failure
 GENERATOR_MAKE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 GENERATOR_GAME := $(word 1,$(GENERATOR_MAKE_ARGS))
 GENERATOR_SPEC := $(word 2,$(GENERATOR_MAKE_ARGS))
@@ -515,6 +526,13 @@ help:
 	@echo "  make handheld_p4_probe_capture     Capture, summarize, and gate monitor logs"
 	@echo "  make handheld_p4_probe_summarize   Summarize captured ESP32-P4 probe log (set ESP32P4_LOG=...)"
 	@echo "  make handheld_p4_probe_check_log   Fail if captured ESP32-P4 probe log has failures"
+	@echo "  make pocket_card_probe_build       Build Pocket Card ESP32-S3 runtime probe firmware"
+	@echo "  make pocket_card_probe_flash       Flash Pocket Card probe (set POCKET_CARD_PORT=...)"
+	@echo "  make pocket_card_probe_monitor     Monitor Pocket Card serial logs"
+	@echo "  make pocket_card_probe_capture     Capture and gate Pocket Card serial logs"
+	@echo "  make pocket_card_probe_check_log   Gate an existing log (set POCKET_CARD_LOG=...)"
+	@echo "  make pocket_card_probe_check_map   Verify the Pocket Card map excludes compiler sources"
+	@echo "                                     Usage: docs/superpowers/notes/2026-07-12-pocket-card-track0-usage.md"
 	@echo "  make simplify IN=in.txt OUT=out.txt Post-process levels with puzzlescript-simplify"
 	@echo "  make solver game.txt               Run solver on a PuzzleScript game"
 	@echo "  make solver game.txt SPECIALIZE=true"
@@ -836,20 +854,25 @@ pocket_card_probe_monitor:
 
 pocket_card_probe_capture:
 	@if [ -z "$(POCKET_CARD_PORT)" ]; then echo "Set POCKET_CARD_PORT to the detected serial device" >&2; exit 2; fi
-	@mkdir -p "$(dir $(abspath $(POCKET_CARD_CAPTURE_LOG)))"
-	cd $(POCKET_CARD_FIRMWARE_DIR) && $(IDF_PY) -p "$(POCKET_CARD_PORT)" monitor 2>&1 | tee "$(abspath $(POCKET_CARD_CAPTURE_LOG))"
-	$(NODE) scripts/handheld_probe_log.js \
-		--log "$(abspath $(POCKET_CARD_CAPTURE_LOG))" \
+	@capture_log="$(POCKET_CARD_CAPTURE_LOG)"; \
+		capture_dir=$$(dirname -- "$$capture_log"); \
+		capture_base=$$(basename -- "$$capture_log"); \
+		mkdir -p "$$capture_dir" || exit $$?; \
+		capture_dir=$$(cd "$$capture_dir" && pwd) || exit $$?; \
+		capture_log="$$capture_dir/$$capture_base"; \
+		/bin/bash -o pipefail -c \
+			'cd -- "$$1" && "$$2" -p "$$3" monitor 2>&1 | tee "$$4"' \
+			pocket-card-monitor \
+			"$(POCKET_CARD_FIRMWARE_DIR)" \
+			"$(IDF_PY)" \
+			"$(POCKET_CARD_PORT)" \
+			"$$capture_log"; \
+		monitor_status=$$?; \
+		if [ "$$monitor_status" -ne 0 ]; then exit "$$monitor_status"; fi; \
+		$(NODE) scripts/handheld_probe_log.js \
+		--log "$$capture_log" \
 		--out "$(POCKET_CARD_LOG_SUMMARY_JSON)" \
-		--require-phase BOOT \
-		--require-phase LOAD_IR \
-		--require-phase CREATE_RUNTIME \
-		--require-phase LOAD_LEVEL \
-		--require-phase INPUT_TRACE \
-		--require-phase UNLOAD \
-		--require-heap-region internal \
-		--require-heap-region spiram \
-		--fail-on-failure
+		$(POCKET_CARD_PROBE_GATE_ARGS)
 
 pocket_card_probe_summarize:
 	@if [ -z "$(POCKET_CARD_LOG)" ]; then echo "Set POCKET_CARD_LOG=path/to/probe.log" >&2; exit 2; fi
@@ -862,15 +885,14 @@ pocket_card_probe_check_log:
 	$(NODE) scripts/handheld_probe_log.js \
 		--log "$(POCKET_CARD_LOG)" \
 		--out "$(POCKET_CARD_LOG_SUMMARY_JSON)" \
-		--require-phase BOOT \
-		--require-phase LOAD_IR \
-		--require-phase CREATE_RUNTIME \
-		--require-phase LOAD_LEVEL \
-		--require-phase INPUT_TRACE \
-		--require-phase UNLOAD \
-		--require-heap-region internal \
-		--require-heap-region spiram \
-		--fail-on-failure
+		$(POCKET_CARD_PROBE_GATE_ARGS)
+
+pocket_card_probe_check_map:
+	@if [ ! -r "$(POCKET_CARD_MAP)" ]; then echo "Pocket Card map is not readable: $(POCKET_CARD_MAP)" >&2; exit 2; fi
+	@rg '/src/compiler/' -- "$(POCKET_CARD_MAP)"; status=$$?; \
+		if [ "$$status" -eq 0 ]; then echo "Pocket Card map contains compiler sources" >&2; exit 1; fi; \
+		if [ "$$status" -eq 1 ]; then exit 0; fi; \
+		exit "$$status"
 
 handheld_p4_probe_build:
 	cd $(ESP32P4_FIRMWARE_DIR) && $(IDF_PY) set-target esp32p4
