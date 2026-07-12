@@ -82,6 +82,11 @@ int main(int argc, char** argv) {
         return fail("player position after undo is not (2,3)", game, state);
     }
 
+    (void)ps_full_state_turn(state, PS_INPUT_RIGHT);
+    if (!hasPlayerAt(state, 3, 3)) {
+        return fail("player position before restart is not (3,3)", game, state);
+    }
+
     if (!ps_full_state_restart(state)) {
         return fail("restart failed", game, state);
     }

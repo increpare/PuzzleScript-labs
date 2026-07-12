@@ -97,10 +97,63 @@ try {
 	assert.throws(
 		() => buildFixture(
 			{binary: 'compiler-bin', source: 'game.txt', out},
+			() => ({status: null, signal: 'SIGKILL', stdout: '', stderr: 'killed loudly\n'})
+		),
+		/compiler terminated by SIGKILL: killed loudly/
+	);
+
+	assert.throws(
+		() => buildFixture(
+			{binary: 'compiler-bin', source: 'game.txt', out},
 			() => ({status: null, stdout: '', stderr: '', error: new Error('spawn ENOENT')})
 		),
 		/failed to run compiler-bin: spawn ENOENT/
 	);
+
+	const compilerSuccess = () => ({
+		status: 0,
+		stdout: JSON.stringify(compilerValue),
+		stderr: '',
+	});
+	const previousFixture = 'previous fixture bytes\n';
+
+	const writeFailureDir = path.join(tempDir, 'write-failure');
+	const writeFailureOut = path.join(writeFailureDir, 'game.ir.json');
+	fs.mkdirSync(writeFailureDir);
+	fs.writeFileSync(writeFailureOut, previousFixture);
+	const writeFailureFs = Object.create(fs);
+	writeFailureFs.writeFileSync = () => {
+		throw new Error('injected write failure');
+	};
+	assert.throws(
+		() => buildFixture(
+			{binary: 'compiler-bin', source: 'game.txt', out: writeFailureOut},
+			compilerSuccess,
+			writeFailureFs
+		),
+		/injected write failure/
+	);
+	assert.strictEqual(fs.readFileSync(writeFailureOut, 'utf8'), previousFixture);
+	assert.deepStrictEqual(fs.readdirSync(writeFailureDir), ['game.ir.json']);
+
+	const renameFailureDir = path.join(tempDir, 'rename-failure');
+	const renameFailureOut = path.join(renameFailureDir, 'game.ir.json');
+	fs.mkdirSync(renameFailureDir);
+	fs.writeFileSync(renameFailureOut, previousFixture);
+	const renameFailureFs = Object.create(fs);
+	renameFailureFs.renameSync = () => {
+		throw new Error('injected rename failure');
+	};
+	assert.throws(
+		() => buildFixture(
+			{binary: 'compiler-bin', source: 'game.txt', out: renameFailureOut},
+			compilerSuccess,
+			renameFailureFs
+		),
+		/injected rename failure/
+	);
+	assert.strictEqual(fs.readFileSync(renameFailureOut, 'utf8'), previousFixture);
+	assert.deepStrictEqual(fs.readdirSync(renameFailureDir), ['game.ir.json']);
 } finally {
 	fs.rmSync(tempDir, {recursive: true, force: true});
 }

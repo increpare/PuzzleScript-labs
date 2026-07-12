@@ -61,7 +61,7 @@ function validateIrText(text) {
 	return value;
 }
 
-function buildFixture(options, spawn = childProcess.spawnSync) {
+function buildFixture(options, spawn = childProcess.spawnSync, filesystem = fs) {
 	const result = spawn(
 		options.binary,
 		['compile', options.source, '--emit-ir-json'],
@@ -70,15 +70,32 @@ function buildFixture(options, spawn = childProcess.spawnSync) {
 	if (result.error) {
 		throw new Error(`failed to run ${options.binary}: ${result.error.message}`);
 	}
+	const stderr = typeof result.stderr === 'string' ? result.stderr.trim() : '';
+	const detail = stderr ? `: ${stderr}` : '';
+	if (result.signal) {
+		throw new Error(`compiler terminated by ${result.signal}${detail}`);
+	}
 	if (result.status !== 0) {
-		const stderr = typeof result.stderr === 'string' ? result.stderr.trim() : '';
-		const detail = stderr ? `: ${stderr}` : '';
 		throw new Error(`compiler exited with status ${String(result.status)}${detail}`);
 	}
 
 	const value = validateIrText(result.stdout);
-	fs.mkdirSync(path.dirname(options.out), {recursive: true});
-	fs.writeFileSync(options.out, JSON.stringify(value, null, 2) + '\n');
+	const outputDirectory = path.dirname(options.out);
+	const normalizedText = JSON.stringify(value, null, 2) + '\n';
+	filesystem.mkdirSync(outputDirectory, {recursive: true});
+	let temporaryDirectory;
+	try {
+		temporaryDirectory = filesystem.mkdtempSync(
+			path.join(outputDirectory, `.${path.basename(options.out)}.tmp-`)
+		);
+		const temporaryPath = path.join(temporaryDirectory, 'fixture.ir.json');
+		filesystem.writeFileSync(temporaryPath, normalizedText);
+		filesystem.renameSync(temporaryPath, options.out);
+	} finally {
+		if (temporaryDirectory !== undefined) {
+			filesystem.rmSync(temporaryDirectory, {recursive: true, force: true});
+		}
+	}
 	return value;
 }
 
