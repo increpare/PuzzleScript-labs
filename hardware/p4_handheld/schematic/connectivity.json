@@ -18,11 +18,41 @@
     { "id": "audio", "file": "sheets/audio.kicad_sch", "title": "Audio" },
     { "id": "debug", "file": "sheets/debug.kicad_sch", "title": "Debug" }
   ],
-  "components": [],
-  "connections": [],
+  "components": [
+    { "ref": "J1", "sheet": "power", "value": "HRO-TYPE-C-31-M-12", "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", "note": "USB 2.0 + 5 V charge; re-check JLC/EasyEDA stock before order" },
+    { "ref": "J2", "sheet": "power", "value": "1S-Protected-LiPo", "footprint": "TBD", "gate": "GATE-BATTERY-SAMPLE", "note": "cell selected at mechanical phase; connector + protection assumptions only" },
+    { "ref": "U2", "sheet": "power", "value": "BQ24075RGTR", "footprint": "VQFN-16-RGT-3x3" },
+    { "ref": "U3", "sheet": "power", "value": "MAX17048G+T10", "footprint": "LFCSP-8-2x2" },
+    { "ref": "U4", "sheet": "power", "value": "TPS63070", "footprint": "VQFN-HR-15-RNM-3x2.5" },
+    { "ref": "U6", "sheet": "power", "value": "TPS22919DCK", "footprint": "SOT-SC70-6-DCK-2x2.1" },
+    { "ref": "SW9", "sheet": "power", "value": "SlideSwitch-SPDT-JS102000-class", "footprint": "TBD", "gate": "GATE-POWER-SLIDE-SLOT", "note": "gates U4 EN via PWR_EN; no load current; hard off" },
+    { "ref": "D4", "sheet": "power", "value": "LED-CHG", "footprint": "0603", "note": "lit from VBUS via BQ24075 open-drain CHG; works with switch off" },
+    { "ref": "R8", "sheet": "power", "value": "1k", "footprint": "0402" },
+    { "ref": "R1", "sheet": "power", "value": "5.1k", "footprint": "0402" },
+    { "ref": "R2", "sheet": "power", "value": "5.1k", "footprint": "0402" },
+    { "ref": "C1", "sheet": "power", "value": "10u", "footprint": "0603" },
+    { "ref": "C2", "sheet": "power", "value": "10u", "footprint": "0603" }
+  ],
+  "connections": [
+    { "net": "VBUS_IN", "nodes": [["J1", "VBUS"], ["U2", "IN"], ["R8", "1"]] },
+    { "net": "BAT+", "nodes": [["J2", "1"], ["U2", "BAT"], ["U3", "CELL"]] },
+    { "net": "SYS", "nodes": [["U2", "OUT"], ["U4", "VIN"], ["SW9", "A"]] },
+    { "net": "+3V3", "nodes": [["U4", "VOUT"], ["U6", "IN"], ["C1", "1"], ["C2", "1"], ["U3", "VCC"]] },
+    { "net": "+3V3_PANEL", "nodes": [["U6", "OUT"], ["C3", "1"]] },
+    { "net": "GND", "nodes": [["J1", "GND"], ["J1", "SHIELD"], ["J2", "2"], ["U2", "GND"], ["U2", "SYSOFF"], ["U3", "GND"], ["U4", "GND"], ["U6", "GND"], ["C1", "2"], ["C2", "2"], ["R1", "2"], ["R2", "2"], ["SW9", "B"]] },
+    { "net": "USB_CC1", "nodes": [["J1", "CC1"], ["R1", "1"]] },
+    { "net": "USB_CC2", "nodes": [["J1", "CC2"], ["R2", "1"]] },
+    { "net": "PWR_EN", "nodes": [["SW9", "C"], ["U4", "EN"]] },
+    { "net": "CHG_LED", "nodes": [["R8", "2"], ["D4", "A"]] },
+    { "net": "CHG_STAT", "nodes": [["D4", "K"], ["U2", "CHG"]] },
+    { "net": "PANEL_EN", "nodes": [["U6", "ON"], ["U1", "GPIO15"]] },
+    { "net": "GAUGE_ALERT", "nodes": [["U3", "ALRT"], ["U1", "GPIO25"]] },
+    { "net": "I2C_SDA", "nodes": [["U3", "SDA"], ["U1", "GPIO7"], ["R3", "2"]] },
+    { "net": "I2C_SCL", "nodes": [["U3", "SCL"], ["U1", "GPIO8"], ["R4", "2"]] }
+  ],
   "requirements": {
     "differential_nets": [],
-    "power_nets": [],
+    "power_nets": ["+3V3", "+3V3_PANEL", "SYS", "VBUS_IN", "BAT+"],
     "must_connect": []
   }
 }
