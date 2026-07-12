@@ -316,12 +316,18 @@
       "note": "nav-center contact; part follows GATE-BUTTON-COUPON winner"
     },
     "U7": {
+      "lcsc": "C910544",
+      "mpn": "MAX98357AETE+T",
+      "easyeda_footprint": "TQFN-16_L3.0-W3.0-P0.50-EP",
       "status": "candidate",
-      "note": "MAX98357A I2S mono amp; LCSC id locked at BOM gate"
+      "note": "I2S mono class-D; alternate JLC listing C20745475; stock fluctuates - pre-order if empty"
     },
     "J5": {
+      "lcsc": "C160404",
+      "mpn": "SM02B-SRSS-TB(LF)(SN)",
+      "easyeda_footprint": "CONN-SMD_SM02B-SRSS-TB",
       "status": "candidate",
-      "note": "2-pin speaker connector; hand-attached line, part follows GATE-SPEAKER-SELECT"
+      "note": "JST-SH 2-pin for hand-attached speaker; final part follows GATE-SPEAKER-SELECT"
     },
     "TP5": {
       "lcsc": null,
