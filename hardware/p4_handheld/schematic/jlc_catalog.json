@@ -314,6 +314,48 @@
       "easyeda_footprint": "SW-SMD_4P-L4.5-W4.5-P3.00-LS4.5-TL",
       "status": "candidate",
       "note": "nav-center contact; part follows GATE-BUTTON-COUPON winner"
+    },
+    "U7": {
+      "status": "candidate",
+      "note": "MAX98357A I2S mono amp; LCSC id locked at BOM gate"
+    },
+    "J5": {
+      "status": "candidate",
+      "note": "2-pin speaker connector; hand-attached line, part follows GATE-SPEAKER-SELECT"
+    },
+    "TP5": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "candidate",
+      "note": "spare GPIO16 pad"
+    },
+    "TP6": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "candidate",
+      "note": "spare GPIO17 pad"
+    },
+    "TP7": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "candidate",
+      "note": "spare GPIO18 pad"
+    },
+    "TP8": {
+      "lcsc": null,
+      "mpn": null,
+      "easyeda_footprint": "TestPoint_Pad_D1.5mm",
+      "status": "candidate",
+      "note": "spare GPIO19 pad"
+    },
+    "C4": {
+      "lcsc": "C19702",
+      "mpn": "CL10A106KP8NNNC",
+      "easyeda_footprint": "C0603",
+      "status": "locked"
     }
   }
 }

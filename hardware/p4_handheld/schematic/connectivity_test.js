@@ -135,4 +135,33 @@ test("no button lands on a P4 strap pin", function () {
     });
 });
 
+test("audio: I2S amp with shutdown control and speaker connector", function () {
+    var byNet = V.buildNetMap(V.model);
+    ["I2S_BCLK", "I2S_LRCLK", "I2S_DIN"].forEach(function (net) {
+        assert.ok(byNet[net].some(function (n) { return n[0] === "U1"; }), net);
+        assert.ok(byNet[net].some(function (n) { return n[0] === "U7"; }), net);
+    });
+    assert.ok(byNet.AMP_SD_MODE.some(function (n) { return n[0] === "U1"; }), "true-mute control");
+    assert.ok(byNet["SPK+"].some(function (n) { return n[0] === "J5"; }));
+    assert.ok(byNet["SPK-"].some(function (n) { return n[0] === "J5"; }));
+});
+
+test("storage: microSD on SDMMC nets", function () {
+    var byNet = V.buildNetMap(V.model);
+    ["SD_CLK", "SD_CMD", "SD_D0", "SD_D1", "SD_D2", "SD_D3"].forEach(function (net) {
+        assert.ok(byNet[net].some(function (n) { return n[0] === "J4"; }), net);
+        assert.ok(byNet[net].some(function (n) { return n[0] === "U1"; }), net);
+    });
+});
+
+test("debug: UART, EN, BOOT and spare-GPIO test pads present", function () {
+    var tps = V.model.components.filter(function (c) { return c.sheet === "debug"; });
+    assert.ok(tps.length >= 8, "expected TP1-TP4 plus at least four spare-GPIO pads, got " + tps.length);
+    var byNet = V.buildNetMap(V.model);
+    assert.ok(byNet.UART_TX.some(function (n) { return n[0] === "TP1"; }));
+    assert.ok(byNet.UART_RX.some(function (n) { return n[0] === "TP2"; }));
+    assert.ok(byNet.BOOT.some(function (n) { return n[0] === "TP3"; }));
+    assert.ok(byNet.ESP_EN.some(function (n) { return n[0] === "TP4"; }));
+});
+
 console.log(passed + " tests passed");

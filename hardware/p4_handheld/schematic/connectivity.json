@@ -281,6 +281,84 @@
       "value": "Btn-VolDown",
       "footprint": "TBD",
       "gate": "GATE-BUTTON-COUPON"
+    },
+    {
+      "ref": "U7",
+      "sheet": "audio",
+      "value": "MAX98357A",
+      "footprint": "TQFN-16-EP-3x3-TBD",
+      "note": "I2S mono class-D; gain pin at datasheet default; exact variant locked at BOM gate"
+    },
+    {
+      "ref": "J5",
+      "sheet": "audio",
+      "value": "Speaker-2pin",
+      "footprint": "TBD",
+      "gate": "GATE-SPEAKER-SELECT",
+      "note": "hand-attached dynamic speaker"
+    },
+    {
+      "ref": "C4",
+      "sheet": "audio",
+      "value": "10u",
+      "footprint": "0603",
+      "note": "amp supply bulk"
+    },
+    {
+      "ref": "J4",
+      "sheet": "storage",
+      "value": "microSD-pushpush",
+      "footprint": "TBD",
+      "gate": "GATE-MICROSD-FOOTPRINT",
+      "note": "4-bit SDMMC on GPIO39-44 (P4-NANO-proven slot)"
+    },
+    {
+      "ref": "TP1",
+      "sheet": "debug",
+      "value": "UART_TX",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP2",
+      "sheet": "debug",
+      "value": "UART_RX",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP3",
+      "sheet": "debug",
+      "value": "BOOT",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP4",
+      "sheet": "debug",
+      "value": "EN",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP5",
+      "sheet": "debug",
+      "value": "SPARE_GPIO16",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP6",
+      "sheet": "debug",
+      "value": "SPARE_GPIO17",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP7",
+      "sheet": "debug",
+      "value": "SPARE_GPIO18",
+      "footprint": "TestPoint"
+    },
+    {
+      "ref": "TP8",
+      "sheet": "debug",
+      "value": "SPARE_GPIO19",
+      "footprint": "TestPoint"
     }
   ],
   "connections": [
@@ -381,6 +459,18 @@
         [
           "R6",
           "1"
+        ],
+        [
+          "U7",
+          "VDD"
+        ],
+        [
+          "C4",
+          "1"
+        ],
+        [
+          "J4",
+          "VDD"
         ]
       ]
     },
@@ -539,6 +629,18 @@
         [
           "SW10B",
           "2"
+        ],
+        [
+          "U7",
+          "GND"
+        ],
+        [
+          "C4",
+          "2"
+        ],
+        [
+          "J4",
+          "VSS"
         ]
       ]
     },
@@ -1091,6 +1193,240 @@
         ],
         [
           "SW10B",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "I2S_BCLK",
+      "nodes": [
+        [
+          "U1",
+          "GPIO12"
+        ],
+        [
+          "U7",
+          "BCLK"
+        ]
+      ]
+    },
+    {
+      "net": "I2S_LRCLK",
+      "nodes": [
+        [
+          "U1",
+          "GPIO10"
+        ],
+        [
+          "U7",
+          "LRC"
+        ]
+      ]
+    },
+    {
+      "net": "I2S_DIN",
+      "nodes": [
+        [
+          "U1",
+          "GPIO9"
+        ],
+        [
+          "U7",
+          "DIN"
+        ]
+      ]
+    },
+    {
+      "net": "AMP_SD_MODE",
+      "nodes": [
+        [
+          "U1",
+          "GPIO13"
+        ],
+        [
+          "U7",
+          "SD_MODE"
+        ]
+      ]
+    },
+    {
+      "net": "SPK+",
+      "nodes": [
+        [
+          "U7",
+          "OUTP"
+        ],
+        [
+          "J5",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "SPK-",
+      "nodes": [
+        [
+          "U7",
+          "OUTN"
+        ],
+        [
+          "J5",
+          "2"
+        ]
+      ]
+    },
+    {
+      "net": "SD_D0",
+      "nodes": [
+        [
+          "U1",
+          "GPIO39"
+        ],
+        [
+          "J4",
+          "D0"
+        ]
+      ]
+    },
+    {
+      "net": "SD_D1",
+      "nodes": [
+        [
+          "U1",
+          "GPIO40"
+        ],
+        [
+          "J4",
+          "D1"
+        ]
+      ]
+    },
+    {
+      "net": "SD_D2",
+      "nodes": [
+        [
+          "U1",
+          "GPIO41"
+        ],
+        [
+          "J4",
+          "D2"
+        ]
+      ]
+    },
+    {
+      "net": "SD_D3",
+      "nodes": [
+        [
+          "U1",
+          "GPIO42"
+        ],
+        [
+          "J4",
+          "D3"
+        ]
+      ]
+    },
+    {
+      "net": "SD_CLK",
+      "nodes": [
+        [
+          "U1",
+          "GPIO43"
+        ],
+        [
+          "J4",
+          "CLK"
+        ]
+      ]
+    },
+    {
+      "net": "SD_CMD",
+      "nodes": [
+        [
+          "U1",
+          "GPIO44"
+        ],
+        [
+          "J4",
+          "CMD"
+        ]
+      ]
+    },
+    {
+      "net": "UART_TX",
+      "nodes": [
+        [
+          "U1",
+          "GPIO37"
+        ],
+        [
+          "TP1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "UART_RX",
+      "nodes": [
+        [
+          "U1",
+          "GPIO38"
+        ],
+        [
+          "TP2",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "SPARE_GPIO16",
+      "nodes": [
+        [
+          "U1",
+          "GPIO16"
+        ],
+        [
+          "TP5",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "SPARE_GPIO17",
+      "nodes": [
+        [
+          "U1",
+          "GPIO17"
+        ],
+        [
+          "TP6",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "SPARE_GPIO18",
+      "nodes": [
+        [
+          "U1",
+          "GPIO18"
+        ],
+        [
+          "TP7",
+          "1"
+        ]
+      ]
+    },
+    {
+      "net": "SPARE_GPIO19",
+      "nodes": [
+        [
+          "U1",
+          "GPIO19"
+        ],
+        [
+          "TP8",
           "1"
         ]
       ]
