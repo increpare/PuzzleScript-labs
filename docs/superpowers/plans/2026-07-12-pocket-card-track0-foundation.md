@@ -128,6 +128,7 @@ assert.deepStrictEqual(contract.i2c, {
     scl: 15,
     addresses: { audio_codec: 0x18, controls: 0x20, touch: 0x38 },
 });
+assert.deepStrictEqual(contract.touch, { reset: 18, interrupt: 17 });
 assert.deepStrictEqual(contract.audio, {
     amp_enable: 1, mclk: 4, bclk: 5, data_out: 6, lrclk: 7, data_in: 8,
 });
@@ -138,7 +139,7 @@ assert.strictEqual(contract.battery_adc, 9);
 assert.deepStrictEqual(contract.expansion_gpio, [2, 3, 14, 21]);
 assert.deepStrictEqual(contract.reserved, {
     boot: 0, rgb: 42, usb_d_minus: 19, usb_d_plus: 20,
-    uart_rx: 43, uart_tx: 44,
+    uart_rx: 44, uart_tx: 43,
 });
 assert.strictEqual(contract.controls_interrupt_gpio, 2);
 assert.strictEqual(contract.release_touch_enabled, false);
@@ -154,6 +155,7 @@ for (const [name, value] of Object.entries(contract.display)) {
 for (const [name, value] of Object.entries(contract.audio)) addUse(`audio.${name}`, value);
 for (const [name, value] of Object.entries(contract.sdmmc)) addUse(`sdmmc.${name}`, value);
 for (const [name, value] of Object.entries(contract.reserved)) addUse(`reserved.${name}`, value);
+for (const [name, value] of Object.entries(contract.touch)) addUse(`touch.${name}`, value);
 addUse('i2c.sda', contract.i2c.sda);
 addUse('i2c.scl', contract.i2c.scl);
 addUse('battery_adc', contract.battery_adc);
@@ -213,6 +215,10 @@ Create `hardware/pocket_card/es3c28p_pin_contract.json`:
       "touch": 56
     }
   },
+  "touch": {
+    "reset": 18,
+    "interrupt": 17
+  },
   "audio": {
     "amp_enable": 1,
     "mclk": 4,
@@ -237,8 +243,8 @@ Create `hardware/pocket_card/es3c28p_pin_contract.json`:
     "rgb": 42,
     "usb_d_minus": 19,
     "usb_d_plus": 20,
-    "uart_rx": 43,
-    "uart_tx": 44
+    "uart_rx": 44,
+    "uart_tx": 43
   },
   "release_touch_enabled": false
 }
