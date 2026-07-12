@@ -2,7 +2,7 @@
   (version 20250114)
   (generator "PuzzleScript generate_kicad.js")
   (generator_version "1.0")
-  (uuid "d947feaf-c674-432d-a35b-a0214c65a182")
+  (uuid "4d90025d-fee6-4e22-bd1d-dd9210812e86")
   (paper "A4")
   (title_block
     (title "PuzzleScript Card — storage")

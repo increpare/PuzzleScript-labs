@@ -42,4 +42,24 @@ test("charge LED works with power off (fed from VBUS via charger CHG)", function
     assert.ok(byNet.VBUS_IN.some(function (n) { return n[0] === "R8"; }));
 });
 
+test("compute cluster: P4 + flash + crystal + DCDC L on 3V3", function () {
+    var comps = {};
+    V.model.components.forEach(function (c) { comps[c.ref] = c; });
+    assert.strictEqual(comps.U1.value, "ESP32-P4NRW32X");
+    assert.strictEqual(comps.U1.sheet, "compute");
+    assert.ok(comps.U9 && comps.X1 && comps.L1);
+    var byNet = V.buildNetMap(V.model);
+    assert.ok(byNet["+3V3"].some(function (n) { return n[0] === "U1"; }));
+    assert.ok(byNet.ESP_EN.some(function (n) { return n[0] === "U1"; }));
+});
+
+test("USB is a differential pair from J1 to U1", function () {
+    var byNet = V.buildNetMap(V.model);
+    assert.ok(byNet.USB_DP.some(function (n) { return n[0] === "J1"; }));
+    assert.ok(byNet.USB_DP.some(function (n) { return n[0] === "U1"; }));
+    assert.ok(byNet.USB_DM.some(function (n) { return n[0] === "U1"; }));
+    var pairs = V.model.requirements.differential_nets.map(function (p) { return p.join("/"); });
+    assert.ok(pairs.indexOf("USB_DP/USB_DM") !== -1);
+});
+
 console.log(passed + " tests passed");

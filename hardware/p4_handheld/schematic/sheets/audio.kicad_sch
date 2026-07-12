@@ -2,7 +2,7 @@
   (version 20250114)
   (generator "PuzzleScript generate_kicad.js")
   (generator_version "1.0")
-  (uuid "9f8f76d8-5622-44f0-8f37-b9c529553e60")
+  (uuid "b8da2e88-71e9-4a48-8e1a-f858780929b2")
   (paper "A4")
   (title_block
     (title "PuzzleScript Card — audio")
