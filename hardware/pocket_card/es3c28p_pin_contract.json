@@ -22,6 +22,10 @@
       "touch": 56
     }
   },
+  "touch": {
+    "reset": 18,
+    "interrupt": 17
+  },
   "audio": {
     "amp_enable": 1,
     "mclk": 4,
@@ -51,8 +55,8 @@
     "rgb": 42,
     "usb_d_minus": 19,
     "usb_d_plus": 20,
-    "uart_rx": 43,
-    "uart_tx": 44
+    "uart_rx": 44,
+    "uart_tx": 43
   },
   "release_touch_enabled": false
 }

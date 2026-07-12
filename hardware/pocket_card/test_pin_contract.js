@@ -31,6 +31,10 @@ const expectedContract = {
       touch: 0x38,
     },
   },
+  touch: {
+    reset: 18,
+    interrupt: 17,
+  },
   audio: {
     amp_enable: 1,
     mclk: 4,
@@ -55,8 +59,8 @@ const expectedContract = {
     rgb: 42,
     usb_d_minus: 19,
     usb_d_plus: 20,
-    uart_rx: 43,
-    uart_tx: 44,
+    uart_rx: 44,
+    uart_tx: 43,
   },
   release_touch_enabled: false,
 };
@@ -76,6 +80,7 @@ const gpioResources = [
   ...Object.entries(contract.audio).map(([name, gpio]) => [`audio.${name}`, gpio]),
   ...Object.entries(contract.sdmmc).map(([name, gpio]) => [`sdmmc.${name}`, gpio]),
   ...Object.entries(contract.reserved).map(([name, gpio]) => [`reserved.${name}`, gpio]),
+  ...Object.entries(contract.touch).map(([name, gpio]) => [`touch.${name}`, gpio]),
   ["i2c.sda", contract.i2c.sda],
   ["i2c.scl", contract.i2c.scl],
   ["battery_adc", contract.battery_adc],
