@@ -530,6 +530,7 @@ help:
 	@echo "  make pocket_card_probe_flash       Flash Pocket Card probe (set POCKET_CARD_PORT=...)"
 	@echo "  make pocket_card_probe_monitor     Monitor Pocket Card serial logs"
 	@echo "  make pocket_card_probe_capture     Capture and gate Pocket Card serial logs"
+	@echo "  make pocket_card_probe_summarize   Summarize captured Pocket Card probe log (set POCKET_CARD_LOG=...)"
 	@echo "  make pocket_card_probe_check_log   Gate an existing log (set POCKET_CARD_LOG=...)"
 	@echo "  make pocket_card_probe_check_map   Verify the Pocket Card map excludes compiler sources"
 	@echo "                                     Usage: docs/superpowers/notes/2026-07-12-pocket-card-track0-usage.md"

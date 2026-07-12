@@ -55,6 +55,17 @@ Stop the ESP-IDF monitor with Ctrl-]. The capture gate requires passing
 phases, no allocation or parse errors, and samples from both the internal and
 SPIRAM heap regions.
 
+## Offline log
+
+```bash
+make pocket_card_probe_summarize POCKET_CARD_LOG=path/to/probe.log
+make pocket_card_probe_check_log POCKET_CARD_LOG=path/to/probe.log
+```
+
+The summarize target writes a JSON report without enforcing capture
+completeness. The check-log target applies the full six-phase and two-heap
+capture gate.
+
 Track 0 is complete only after the host tests and firmware build pass and one
 physical ES3C28P capture passes the serial-log gate. Display, storage, audio,
 battery, touch-controller discovery, and MCP23017 work belong to the next plan.
