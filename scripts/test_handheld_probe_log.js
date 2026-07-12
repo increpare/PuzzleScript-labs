@@ -10,6 +10,15 @@ const path = require('path');
 const probeLog = require('./handheld_probe_log');
 const compatibilityProbeLog = require('./esp32p4_probe_log');
 
+const REQUIRED_CAPTURE_PHASES = [
+    'BOOT',
+    'LOAD_IR',
+    'CREATE_RUNTIME',
+    'LOAD_LEVEL',
+    'INPUT_TRACE',
+    'UNLOAD',
+];
+
 function withTempDir(callback) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'handheld-probe-log-test-'));
     try {
@@ -43,6 +52,19 @@ function passingLogText() {
         'I (15) ps_probe: {"event":"heap","phase":"BOOT","region":"spiram","free":32000000,"allocated":500000,"largest_free_block":31900000,"minimum_free":31800000}',
         '',
     ].join('\n');
+}
+
+function malformedCompleteLogText() {
+    const lines = [
+        'I (12) ps_probe: {"event":"boot","target":"esp32s3","board":"ES3C28P"}',
+    ];
+    for (const [index, phase] of REQUIRED_CAPTURE_PHASES.entries()) {
+        lines.push(`I (${20 + index}) ps_probe: {"event":"phase","phase":"${phase}","status":"pass"}`);
+    }
+    lines.push('I (30) ps_probe: {"event":"heap","phase":"UNLOAD","region":"internal"}');
+    lines.push('I (31) ps_probe: {"event":"heap","phase":"UNLOAD","region":"spiram"}');
+    lines.push('');
+    return lines.join('\n');
 }
 
 function parsesEspIdfLogLines() {
@@ -234,20 +256,70 @@ function esp32p4CompatibilityWrapperUsesGenericParser() {
     assert.strictEqual(compatibilityProbeLog, probeLog);
     assert.strictEqual(compatibilityProbeLog.gateFailureReasons, probeLog.gateFailureReasons);
 
-    const result = childProcess.spawnSync(
-        process.execPath,
-        [path.join(__dirname, 'esp32p4_probe_log.js'), '--help'],
-        {
-            cwd: path.join(__dirname, '..'),
-            encoding: 'utf8',
-        },
-    );
+    for (const helpArg of ['--help', '-h']) {
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [path.join(__dirname, 'esp32p4_probe_log.js'), helpArg],
+            {
+                cwd: path.join(__dirname, '..'),
+                encoding: 'utf8',
+            },
+        );
 
-    assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(
-        result.stdout,
-        /^Usage: node scripts\/handheld_probe_log\.js --log probe\.log /,
-    );
+        assert.strictEqual(result.status, 0, result.stderr);
+        assert.match(
+            result.stdout,
+            /^Usage: node scripts\/esp32p4_probe_log\.js --log probe\.log \[--out build\/esp32p4_probe_log_summary\.json\]/,
+        );
+        assert.match(result.stdout, /Summarizes ESP32-P4 board-probe JSON-lines captured from serial monitor output\./);
+        assert.match(result.stdout, /default: build\/esp32p4_probe_log_summary\.json/);
+        assert.match(result.stdout, /--require-phase NAME/);
+        assert.match(result.stdout, /--require-heap-region NAME/);
+        assert.doesNotMatch(result.stdout, /handheld_probe_log/);
+    }
+}
+
+function esp32p4CompatibilityWrapperPreservesLegacyOutputDefault() {
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        const legacyOutPath = path.join(tmpDir, 'build', 'esp32p4_probe_log_summary.json');
+        const genericOutPath = path.join(tmpDir, 'build', 'handheld_probe_log_summary.json');
+        fs.writeFileSync(logPath, passingLogText(), 'utf8');
+
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [path.join(__dirname, 'esp32p4_probe_log.js'), '--log', logPath],
+            { cwd: tmpDir, encoding: 'utf8' },
+        );
+
+        assert.strictEqual(result.status, 0, result.stderr);
+        assert.strictEqual(fs.existsSync(legacyOutPath), true);
+        assert.strictEqual(fs.existsSync(genericOutPath), false);
+        assert.match(result.stderr, /build[/\\]esp32p4_probe_log_summary\.json/);
+    });
+
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        const explicitOutPath = path.join(tmpDir, 'custom', 'p4-summary.json');
+        const legacyOutPath = path.join(tmpDir, 'build', 'esp32p4_probe_log_summary.json');
+        fs.writeFileSync(logPath, passingLogText(), 'utf8');
+
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [
+                path.join(__dirname, 'esp32p4_probe_log.js'),
+                '--log',
+                logPath,
+                '--out',
+                explicitOutPath,
+            ],
+            { cwd: tmpDir, encoding: 'utf8' },
+        );
+
+        assert.strictEqual(result.status, 0, result.stderr);
+        assert.strictEqual(fs.existsSync(explicitOutPath), true);
+        assert.strictEqual(fs.existsSync(legacyOutPath), false);
+    });
 }
 
 function acceptsPocketCardBootRecord() {
@@ -288,6 +360,117 @@ function rejectsInheritedAndInvalidHeapRegionSamples() {
         probeLog.gateFailureReasons(summary, [], ['string_count', 'infinite_count']),
         ['missing string_count heap sample', 'missing infinite_count heap sample'],
     );
+}
+
+function rejectsMalformedHeapMeasurements() {
+    const validMeasurements = {
+        free: 100,
+        allocated: 20,
+        largest_free_block: 80,
+        minimum_free: 90,
+    };
+    const malformedEvents = [
+        { event: 'heap', line: 2, phase: 'BOOT', region: 'missing', ...validMeasurements },
+        { event: 'heap', line: 3, phase: 'BOOT', region: 'null', ...validMeasurements, allocated: null },
+        { event: 'heap', line: 4, phase: 'BOOT', region: 'string', ...validMeasurements, largest_free_block: '80' },
+        { event: 'heap', line: 5, phase: 'BOOT', region: 'boolean', ...validMeasurements, minimum_free: false },
+        { event: 'heap', line: 6, phase: 'BOOT', region: 'nan', ...validMeasurements, free: NaN },
+        { event: 'heap', line: 7, phase: 'BOOT', region: 'infinity', ...validMeasurements, allocated: Infinity },
+        { event: 'heap', line: 8, phase: 'BOOT', region: 'negative', ...validMeasurements, minimum_free: -1 },
+    ];
+    delete malformedEvents[0].free;
+
+    const summary = probeLog.summarizeEvents([{ event: 'boot', line: 1 }, ...malformedEvents]);
+
+    assert.strictEqual(summary.malformed_heap_record_count, 7);
+    assert.deepStrictEqual(summary.heap.regions, {});
+    assert.deepStrictEqual(summary.heap.by_phase, {});
+    assert.deepStrictEqual(summary.heap.by_source, {});
+    assert.deepStrictEqual(summary.malformed_heap_records, [
+        { line: 2, phase: 'BOOT', region: 'missing', missing_fields: ['free'], invalid_fields: [] },
+        { line: 3, phase: 'BOOT', region: 'null', missing_fields: [], invalid_fields: ['allocated'] },
+        { line: 4, phase: 'BOOT', region: 'string', missing_fields: [], invalid_fields: ['largest_free_block'] },
+        { line: 5, phase: 'BOOT', region: 'boolean', missing_fields: [], invalid_fields: ['minimum_free'] },
+        { line: 6, phase: 'BOOT', region: 'nan', missing_fields: [], invalid_fields: ['free'] },
+        { line: 7, phase: 'BOOT', region: 'infinity', missing_fields: [], invalid_fields: ['allocated'] },
+        { line: 8, phase: 'BOOT', region: 'negative', missing_fields: [], invalid_fields: ['minimum_free'] },
+    ]);
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary),
+        ['7 malformed heap record(s)'],
+    );
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary, [], ['missing']),
+        ['7 malformed heap record(s)', 'missing missing heap sample'],
+    );
+
+    const mixedSummary = probeLog.summarizeEvents([
+        { event: 'boot', line: 1 },
+        { event: 'heap', line: 2, phase: 'BOOT', region: 'mixed', ...validMeasurements },
+        { event: 'heap', line: 3, phase: 'BOOT', region: 'mixed' },
+    ]);
+    assert.strictEqual(mixedSummary.heap.regions.mixed.samples, 1);
+    assert.strictEqual(mixedSummary.malformed_heap_record_count, 1);
+}
+
+function acceptsZeroHeapMeasurements() {
+    const summary = probeLog.summarizeEvents([
+        { event: 'boot', line: 1 },
+        {
+            event: 'heap',
+            line: 2,
+            phase: 'BOOT',
+            region: 'zero',
+            free: 0,
+            allocated: 0,
+            largest_free_block: 0,
+            minimum_free: 0,
+        },
+    ]);
+
+    assert.strictEqual(summary.malformed_heap_record_count, 0);
+    assert.strictEqual(summary.heap.regions.zero.samples, 1);
+    assert.strictEqual(summary.heap.regions.zero.free, 0);
+    assert.deepStrictEqual(probeLog.gateFailureReasons(summary, [], ['zero']), []);
+}
+
+function malformedHeapRecordsCannotSatisfyCompleteCaptureGate() {
+    const parsed = probeLog.parseProbeLogText('malformed-complete.log', malformedCompleteLogText());
+    const summary = probeLog.summarizeEvents(parsed.events, parsed.parse_errors);
+
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary, REQUIRED_CAPTURE_PHASES, ['internal', 'spiram']),
+        [
+            '2 malformed heap record(s)',
+            'missing internal heap sample',
+            'missing spiram heap sample',
+        ],
+    );
+
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        const outPath = path.join(tmpDir, 'summary.json');
+        fs.writeFileSync(logPath, malformedCompleteLogText(), 'utf8');
+        const args = [path.join(__dirname, 'handheld_probe_log.js'), '--log', logPath, '--out', outPath];
+        for (const phase of REQUIRED_CAPTURE_PHASES) {
+            args.push('--require-phase', phase);
+        }
+        args.push('--require-heap-region', 'internal', '--require-heap-region', 'spiram');
+
+        const result = childProcess.spawnSync(process.execPath, args, {
+            cwd: path.join(__dirname, '..'),
+            encoding: 'utf8',
+        });
+
+        assert.strictEqual(result.status, 1, result.stderr);
+        const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        assert.strictEqual(report.summary.malformed_heap_record_count, 2);
+        assert.strictEqual(report.summary.malformed_heap_records.length, 2);
+        assert.deepStrictEqual(report.summary.heap.regions, {});
+        assert.match(result.stderr, /2 malformed heap record\(s\)/);
+        assert.match(result.stderr, /missing internal heap sample/);
+        assert.match(result.stderr, /missing spiram heap sample/);
+    });
 }
 
 function requirementsRejectMissingRecordsWithoutExplicitFailureFlag() {
@@ -355,8 +538,12 @@ function main() {
     rejectsOptionLikeValuesConsistently();
     malformedCliOrderingCannotFalsePass();
     esp32p4CompatibilityWrapperUsesGenericParser();
+    esp32p4CompatibilityWrapperPreservesLegacyOutputDefault();
     acceptsPocketCardBootRecord();
     rejectsInheritedAndInvalidHeapRegionSamples();
+    rejectsMalformedHeapMeasurements();
+    acceptsZeroHeapMeasurements();
+    malformedHeapRecordsCannotSatisfyCompleteCaptureGate();
     runCliProcessWritesJsonReport();
     failOnFailureTurnsBadHardwareLogsIntoFailingGates();
     failOnFailureAcceptsCleanHardwareLogs();

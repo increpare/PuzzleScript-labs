@@ -214,6 +214,29 @@ function updateHeapStats(stats, event) {
     finalizeHeapStats(stats);
 }
 
+const HEAP_MEASUREMENT_FIELDS = [
+    'free',
+    'allocated',
+    'largest_free_block',
+    'minimum_free',
+];
+
+function validateHeapMeasurements(event) {
+    const missingFields = [];
+    const invalidFields = [];
+    for (const field of HEAP_MEASUREMENT_FIELDS) {
+        if (!Object.prototype.hasOwnProperty.call(event, field)) {
+            missingFields.push(field);
+            continue;
+        }
+        const value = event[field];
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+            invalidFields.push(field);
+        }
+    }
+    return { missingFields, invalidFields };
+}
+
 function sourceKey(event) {
     return String(event.source || '');
 }
@@ -243,6 +266,7 @@ function summarizeEvents(events, parseErrors = []) {
     const failures = [];
     const diagnostics = [];
     const allocFailures = [];
+    const malformedHeapRecords = [];
     const sourceEvents = [];
     const heap = {
         regions: {},
@@ -296,6 +320,17 @@ function summarizeEvents(events, parseErrors = []) {
             const phase = String(event.phase || 'UNKNOWN');
             const region = String(event.region || 'unknown');
             const source = sourceKey(event);
+            const validation = validateHeapMeasurements(event);
+            if (validation.missingFields.length > 0 || validation.invalidFields.length > 0) {
+                malformedHeapRecords.push({
+                    line: event.log_line ?? event.line ?? null,
+                    phase,
+                    region,
+                    missing_fields: validation.missingFields,
+                    invalid_fields: validation.invalidFields,
+                });
+                continue;
+            }
             if (!Object.prototype.hasOwnProperty.call(heap.by_phase, phase)) {
                 heap.by_phase[phase] = {};
             }
@@ -364,6 +399,8 @@ function summarizeEvents(events, parseErrors = []) {
         phase_runs: phaseRuns,
         failures,
         alloc_failures: allocFailures,
+        malformed_heap_record_count: malformedHeapRecords.length,
+        malformed_heap_records: malformedHeapRecords,
         diagnostics,
         source_events: sourceEvents,
         heap,
@@ -459,6 +496,9 @@ function gateFailureReasons(summary, requiredPhases = [], requiredHeapRegions = 
     }
     if (summary.alloc_failures.length > 0) {
         reasons.push(`${summary.alloc_failures.length} allocation failure(s)`);
+    }
+    if (summary.malformed_heap_record_count > 0) {
+        reasons.push(`${summary.malformed_heap_record_count} malformed heap record(s)`);
     }
     for (const phase of requiredPhases) {
         if (!summary.phases[phase] || summary.phases[phase].status !== 'pass') {
