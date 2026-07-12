@@ -30,6 +30,8 @@ void emit_heap(Phase phase, const char* region, uint32_t caps) {
         info.minimum_free_bytes);
 }
 
+// With CONFIG_HEAP_PLACE_FUNCTION_INTO_FLASH, Pocket Card forbids heap/heap-trace calls while cache is disabled;
+// this callback and function_name are therefore only accessed while flash is available.
 void allocation_failed(size_t requested, uint32_t caps, const char* function_name) {
     ESP_EARLY_LOGE(
         kTag,
