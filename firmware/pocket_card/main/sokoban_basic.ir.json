@@ -1,0 +1,1707 @@
+{
+  "schema_version": 1,
+  "document": {
+    "command": [
+      "loadLevel",
+      0
+    ],
+    "error_count": 0,
+    "errors": [],
+    "input_file": "",
+    "random_seed": ""
+  },
+  "game": {
+    "strides": {
+      "object": 1,
+      "movement": 1,
+      "layers": 3
+    },
+    "object_count": 5,
+    "colors": {
+      "foreground": "#FFFFFF",
+      "background": "#000000"
+    },
+    "background": {
+      "id": 0,
+      "layer": 0
+    },
+    "metadata_pairs": [
+      "title",
+      "Simple Block Pushing Game",
+      "author",
+      "David Skinner",
+      "homepage",
+      "www.puzzlescript.net"
+    ],
+    "metadata_map": {
+      "author": "David Skinner",
+      "homepage": "www.puzzlescript.net",
+      "title": "Simple Block Pushing Game"
+    },
+    "metadata_lines": {
+      "author": 2,
+      "homepage": 3,
+      "title": 1
+    },
+    "id_dict": [
+      "background",
+      "target",
+      "player",
+      "wall",
+      "crate"
+    ],
+    "collision_layers": [
+      [
+        "background"
+      ],
+      [
+        "target"
+      ],
+      [
+        "player",
+        "wall",
+        "crate"
+      ]
+    ],
+    "layer_masks": [
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        28
+      ]
+    ],
+    "player_mask": {
+      "aggregate": false,
+      "mask": [
+        4
+      ]
+    },
+    "static_analysis_extras": {
+      "written_objects": [
+        0
+      ],
+      "movement_mentioned_objects": [
+        0
+      ]
+    },
+    "objects": [
+      {
+        "name": "background",
+        "id": 0,
+        "layer": 0,
+        "colors": [
+          "lightgreen",
+          "green"
+        ],
+        "spritematrix": [
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      {
+        "name": "target",
+        "id": 1,
+        "layer": 1,
+        "colors": [
+          "darkblue"
+        ],
+        "spritematrix": [
+          [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+          ],
+          [
+            -1,
+            0,
+            0,
+            0,
+            -1
+          ],
+          [
+            -1,
+            0,
+            -1,
+            0,
+            -1
+          ],
+          [
+            -1,
+            0,
+            0,
+            0,
+            -1
+          ],
+          [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+          ]
+        ]
+      },
+      {
+        "name": "player",
+        "id": 2,
+        "layer": 2,
+        "colors": [
+          "black",
+          "orange",
+          "white",
+          "blue"
+        ],
+        "spritematrix": [
+          [
+            -1,
+            0,
+            0,
+            0,
+            -1
+          ],
+          [
+            -1,
+            1,
+            1,
+            1,
+            -1
+          ],
+          [
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          [
+            -1,
+            3,
+            3,
+            3,
+            -1
+          ],
+          [
+            -1,
+            3,
+            -1,
+            3,
+            -1
+          ]
+        ]
+      },
+      {
+        "name": "wall",
+        "id": 3,
+        "layer": 2,
+        "colors": [
+          "brown",
+          "darkbrown"
+        ],
+        "spritematrix": [
+          [
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            1,
+            0
+          ]
+        ]
+      },
+      {
+        "name": "crate",
+        "id": 4,
+        "layer": 2,
+        "colors": [
+          "orange"
+        ],
+        "spritematrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            -1,
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    ],
+    "levels": [
+      {
+        "kind": "level",
+        "line_number": 90,
+        "width": 6,
+        "height": 7,
+        "layer_count": 3,
+        "objects": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          1,
+          1,
+          19,
+          1,
+          1,
+          9,
+          9,
+          3,
+          1,
+          5,
+          1,
+          1,
+          9,
+          9,
+          9,
+          9,
+          1,
+          17,
+          9,
+          9,
+          1,
+          1,
+          9,
+          1,
+          1,
+          9,
+          1,
+          1,
+          1,
+          9,
+          9,
+          9,
+          9,
+          1
+        ]
+      },
+      {
+        "kind": "level",
+        "line_number": 98,
+        "width": 6,
+        "height": 7,
+        "layer_count": 3,
+        "objects": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          1,
+          1,
+          1,
+          1,
+          1,
+          9,
+          9,
+          1,
+          9,
+          17,
+          3,
+          1,
+          9,
+          9,
+          1,
+          5,
+          19,
+          19,
+          1,
+          9,
+          9,
+          1,
+          1,
+          1,
+          1,
+          1,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ]
+      }
+    ],
+    "rules": [
+      [
+        {
+          "direction": 2,
+          "has_replacements": true,
+          "line_number": 78,
+          "group_number": 78,
+          "rigid": false,
+          "is_random": false,
+          "ellipsis_count": [
+            0
+          ],
+          "commands": [],
+          "aggregate_bindings": [],
+          "property_bindings": [],
+          "cell_row_masks": [
+            [
+              20
+            ]
+          ],
+          "cell_row_masks_movements": [
+            [
+              1024
+            ]
+          ],
+          "rule_mask": [
+            20
+          ],
+          "patterns": [
+            [
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  16
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  0
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    16
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    1024
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              },
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  4
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  1024
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    4
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    1024
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              }
+            ]
+          ]
+        },
+        {
+          "direction": 2,
+          "has_replacements": true,
+          "line_number": 78,
+          "group_number": 78,
+          "rigid": false,
+          "is_random": false,
+          "ellipsis_count": [
+            0
+          ],
+          "commands": [],
+          "aggregate_bindings": [],
+          "property_bindings": [],
+          "cell_row_masks": [
+            [
+              20
+            ]
+          ],
+          "cell_row_masks_movements": [
+            [
+              2048
+            ]
+          ],
+          "rule_mask": [
+            20
+          ],
+          "patterns": [
+            [
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  4
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  2048
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    4
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    2048
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              },
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  16
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  0
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    16
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    2048
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              }
+            ]
+          ]
+        },
+        {
+          "direction": 8,
+          "has_replacements": true,
+          "line_number": 78,
+          "group_number": 78,
+          "rigid": false,
+          "is_random": false,
+          "ellipsis_count": [
+            0
+          ],
+          "commands": [],
+          "aggregate_bindings": [],
+          "property_bindings": [],
+          "cell_row_masks": [
+            [
+              20
+            ]
+          ],
+          "cell_row_masks_movements": [
+            [
+              4096
+            ]
+          ],
+          "rule_mask": [
+            20
+          ],
+          "patterns": [
+            [
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  16
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  0
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    16
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    4096
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              },
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  4
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  4096
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    4
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    4096
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              }
+            ]
+          ]
+        },
+        {
+          "direction": 8,
+          "has_replacements": true,
+          "line_number": 78,
+          "group_number": 78,
+          "rigid": false,
+          "is_random": false,
+          "ellipsis_count": [
+            0
+          ],
+          "commands": [],
+          "aggregate_bindings": [],
+          "property_bindings": [],
+          "cell_row_masks": [
+            [
+              20
+            ]
+          ],
+          "cell_row_masks_movements": [
+            [
+              8192
+            ]
+          ],
+          "rule_mask": [
+            20
+          ],
+          "patterns": [
+            [
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  4
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  8192
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    4
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    8192
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              },
+              {
+                "kind": "cell_pattern",
+                "objects_present": [
+                  16
+                ],
+                "objects_missing": [
+                  0
+                ],
+                "movements_present": [
+                  0
+                ],
+                "movements_missing": [
+                  0
+                ],
+                "any_objects_present": [],
+                "any_movements_present": [],
+                "layer_coupled_movement_masks": [],
+                "replacement": {
+                  "objects_clear": [
+                    28
+                  ],
+                  "objects_set": [
+                    16
+                  ],
+                  "movements_clear": [
+                    0
+                  ],
+                  "movements_set": [
+                    8192
+                  ],
+                  "movements_layer_mask": [
+                    31744
+                  ],
+                  "random_entity_mask": [
+                    0
+                  ],
+                  "random_dir_mask": [
+                    0
+                  ],
+                  "inferred_aggregate_bindings": [],
+                  "inferred_property_bindings": [],
+                  "inferred_property_sources": [],
+                  "layer_coupled_movement_replacements": [],
+                  "rhs_property_preserve_mask": []
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    ],
+    "late_rules": [],
+    "rule_plan_v1": {
+      "schema_version": 1,
+      "rules": [
+        [
+          {
+            "rule_index": 0,
+            "group_index": 0,
+            "late": false,
+            "direction": 2,
+            "line_number": 78,
+            "group_number": 78,
+            "rigid": false,
+            "is_random": false,
+            "has_replacements": true,
+            "has_ellipsis": false,
+            "row_count": 1,
+            "has_commands": false,
+            "command_names": [],
+            "simple_deterministic_row_rule": true,
+            "delta_hint": {
+              "dx": 0,
+              "dy": 1
+            },
+            "rule_object_ids": [
+              2,
+              4
+            ],
+            "rule_movement_bits": [
+              [
+                2,
+                0
+              ]
+            ],
+            "rows": [
+              {
+                "row_index": 0,
+                "ellipsis_count": 0,
+                "object_ids": [
+                  2,
+                  4
+                ],
+                "movement_bits": [
+                  [
+                    2,
+                    0
+                  ]
+                ],
+                "concrete_anchor_object_ids": [
+                  2,
+                  4
+                ],
+                "any_anchor_object_ids": [],
+                "concrete_cell_count": 2,
+                "min_concrete_suffix": 2,
+                "scan_order": "x_major"
+              }
+            ],
+            "replacements": [
+              {
+                "row_index": 0,
+                "cell_index": 0,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  4
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    0
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              },
+              {
+                "row_index": 0,
+                "cell_index": 1,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  2
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    0
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "rule_index": 1,
+            "group_index": 0,
+            "late": false,
+            "direction": 2,
+            "line_number": 78,
+            "group_number": 78,
+            "rigid": false,
+            "is_random": false,
+            "has_replacements": true,
+            "has_ellipsis": false,
+            "row_count": 1,
+            "has_commands": false,
+            "command_names": [],
+            "simple_deterministic_row_rule": true,
+            "delta_hint": {
+              "dx": 0,
+              "dy": 1
+            },
+            "rule_object_ids": [
+              2,
+              4
+            ],
+            "rule_movement_bits": [
+              [
+                2,
+                1
+              ]
+            ],
+            "rows": [
+              {
+                "row_index": 0,
+                "ellipsis_count": 0,
+                "object_ids": [
+                  2,
+                  4
+                ],
+                "movement_bits": [
+                  [
+                    2,
+                    1
+                  ]
+                ],
+                "concrete_anchor_object_ids": [
+                  2,
+                  4
+                ],
+                "any_anchor_object_ids": [],
+                "concrete_cell_count": 2,
+                "min_concrete_suffix": 2,
+                "scan_order": "x_major"
+              }
+            ],
+            "replacements": [
+              {
+                "row_index": 0,
+                "cell_index": 0,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  2
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    1
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              },
+              {
+                "row_index": 0,
+                "cell_index": 1,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  4
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    1
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "rule_index": 2,
+            "group_index": 0,
+            "late": false,
+            "direction": 8,
+            "line_number": 78,
+            "group_number": 78,
+            "rigid": false,
+            "is_random": false,
+            "has_replacements": true,
+            "has_ellipsis": false,
+            "row_count": 1,
+            "has_commands": false,
+            "command_names": [],
+            "simple_deterministic_row_rule": true,
+            "delta_hint": {
+              "dx": 1,
+              "dy": 0
+            },
+            "rule_object_ids": [
+              2,
+              4
+            ],
+            "rule_movement_bits": [
+              [
+                2,
+                2
+              ]
+            ],
+            "rows": [
+              {
+                "row_index": 0,
+                "ellipsis_count": 0,
+                "object_ids": [
+                  2,
+                  4
+                ],
+                "movement_bits": [
+                  [
+                    2,
+                    2
+                  ]
+                ],
+                "concrete_anchor_object_ids": [
+                  2,
+                  4
+                ],
+                "any_anchor_object_ids": [],
+                "concrete_cell_count": 2,
+                "min_concrete_suffix": 2,
+                "scan_order": "x_major"
+              }
+            ],
+            "replacements": [
+              {
+                "row_index": 0,
+                "cell_index": 0,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  4
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    2
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              },
+              {
+                "row_index": 0,
+                "cell_index": 1,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  2
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    2
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "rule_index": 3,
+            "group_index": 0,
+            "late": false,
+            "direction": 8,
+            "line_number": 78,
+            "group_number": 78,
+            "rigid": false,
+            "is_random": false,
+            "has_replacements": true,
+            "has_ellipsis": false,
+            "row_count": 1,
+            "has_commands": false,
+            "command_names": [],
+            "simple_deterministic_row_rule": true,
+            "delta_hint": {
+              "dx": 1,
+              "dy": 0
+            },
+            "rule_object_ids": [
+              2,
+              4
+            ],
+            "rule_movement_bits": [
+              [
+                2,
+                3
+              ]
+            ],
+            "rows": [
+              {
+                "row_index": 0,
+                "ellipsis_count": 0,
+                "object_ids": [
+                  2,
+                  4
+                ],
+                "movement_bits": [
+                  [
+                    2,
+                    3
+                  ]
+                ],
+                "concrete_anchor_object_ids": [
+                  2,
+                  4
+                ],
+                "any_anchor_object_ids": [],
+                "concrete_cell_count": 2,
+                "min_concrete_suffix": 2,
+                "scan_order": "x_major"
+              }
+            ],
+            "replacements": [
+              {
+                "row_index": 0,
+                "cell_index": 0,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  2
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    3
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              },
+              {
+                "row_index": 0,
+                "cell_index": 1,
+                "touches_objects": true,
+                "touches_movements": true,
+                "touches_movements_layer": true,
+                "touches_random": false,
+                "touches_random_entity": false,
+                "touches_random_dir": false,
+                "touches_rigid": false,
+                "simple_direct_mask": true,
+                "objects_clear_ids": [
+                  2,
+                  3,
+                  4
+                ],
+                "objects_set_ids": [
+                  4
+                ],
+                "movements_clear_bits": [],
+                "movements_set_bits": [
+                  [
+                    2,
+                    3
+                  ]
+                ],
+                "movements_layer_bits": [
+                  [
+                    2,
+                    0
+                  ],
+                  [
+                    2,
+                    1
+                  ],
+                  [
+                    2,
+                    2
+                  ],
+                  [
+                    2,
+                    3
+                  ],
+                  [
+                    2,
+                    4
+                  ]
+                ],
+                "random_dir_bits": [],
+                "random_entity_object_ids": [],
+                "random_entity_choices": [],
+                "random_dir_layers": [],
+                "movement_layers": [
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      ],
+      "late_rules": []
+    },
+    "winconditions": [
+      {
+        "quantifier": 1,
+        "filter1": [
+          2
+        ],
+        "filter2": [
+          16
+        ],
+        "line_number": 84,
+        "aggr1": false,
+        "aggr2": false
+      }
+    ],
+    "sfx_events": {},
+    "sfx_creation_masks": [],
+    "sfx_destruction_masks": [],
+    "sfx_movement_masks": [
+      [],
+      [],
+      [
+        {
+          "objectMask": [
+            16
+          ],
+          "directionMask": [
+            15360
+          ],
+          "seed": 36772507
+        }
+      ]
+    ],
+    "sfx_movement_failure_masks": [],
+    "loop_point": {},
+    "late_loop_point": {}
+  },
+  "prepared_session": {
+    "current_level_index": 0,
+    "current_level_target": null,
+    "title_screen": false,
+    "text_mode": false,
+    "title_mode": 0,
+    "title_selection": 0,
+    "title_selected": false,
+    "message_selected": false,
+    "winning": false,
+    "loaded_level_seed": "native",
+    "random_state": null,
+    "old_flickscreen_dat": [],
+    "level": {
+      "kind": "level",
+      "line_number": 90,
+      "width": 6,
+      "height": 7,
+      "layer_count": 3,
+      "objects": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        1,
+        1,
+        19,
+        1,
+        1,
+        9,
+        9,
+        3,
+        1,
+        5,
+        1,
+        1,
+        9,
+        9,
+        9,
+        9,
+        1,
+        17,
+        9,
+        9,
+        1,
+        1,
+        9,
+        1,
+        1,
+        9,
+        1,
+        1,
+        1,
+        9,
+        9,
+        9,
+        9,
+        1
+      ]
+    },
+    "serialized_level": "",
+    "restart_target": null
+  }
+}

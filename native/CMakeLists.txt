@@ -997,6 +997,16 @@ add_test(
           -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_standalone_link_check.cmake
 )
 
+add_executable(pocket_card_runtime_fixture
+  tests/pocket_card_runtime_fixture.cpp
+)
+target_link_libraries(pocket_card_runtime_fixture PRIVATE puzzlescript_native)
+add_test(
+  NAME pocket_card_runtime_fixture
+  COMMAND pocket_card_runtime_fixture
+          ${PUZZLESCRIPT_REPO_ROOT}/firmware/pocket_card/main/sokoban_basic.ir.json
+)
+
 if(TARGET PkgConfig::SDL2)
   add_test(
     NAME puzzlescript_cpp_player_sdl_dummy_smoke
