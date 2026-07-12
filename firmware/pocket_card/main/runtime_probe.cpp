@@ -114,9 +114,7 @@ void run_runtime_probe() {
             }
         }
     } catch (...) {
-        if (input_failure == nullptr) {
-            input_failure = "right_down_position_failed";
-        }
+        input_failure = "input_trace_exception";
     }
 
     if (input_failure != nullptr) {
