@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "PSP4H")(type "KiCad")(uri "${KIPRJMOD}/PSP4H.kicad_sym")(options "")(descr "Generated from connectivity.json"))
+)
