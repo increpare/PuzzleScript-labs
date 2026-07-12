@@ -7,57 +7,61 @@ assert.ok(fs.existsSync(contractPath), `missing pin contract: ${contractPath}`);
 
 const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
-assert.strictEqual(contract.module, "ES3C28P");
-assert.strictEqual(contract.target, "esp32s3");
-assert.deepStrictEqual(contract.display, {
-  controller: "ILI9341V",
-  cs: 10,
-  dc: 46,
-  sck: 12,
-  mosi: 11,
-  miso: 13,
-  backlight: 45,
-  reset: "CHIP_PU",
-  width: 320,
-  height: 240,
-});
-assert.deepStrictEqual(contract.i2c, {
-  sda: 16,
-  scl: 15,
-  addresses: {
-    audio_codec: 0x18,
-    controls: 0x20,
-    touch: 0x38,
+const expectedContract = {
+  module: "ES3C28P",
+  target: "esp32s3",
+  display: {
+    controller: "ILI9341V",
+    cs: 10,
+    dc: 46,
+    sck: 12,
+    mosi: 11,
+    miso: 13,
+    backlight: 45,
+    reset: "CHIP_PU",
+    width: 320,
+    height: 240,
   },
-});
-assert.deepStrictEqual(contract.audio, {
-  amp_enable: 1,
-  mclk: 4,
-  bclk: 5,
-  data_out: 6,
-  lrclk: 7,
-  data_in: 8,
-});
-assert.deepStrictEqual(contract.sdmmc, {
-  clk: 38,
-  cmd: 40,
-  data0: 39,
-  data1: 41,
-  data2: 48,
-  data3: 47,
-});
-assert.strictEqual(contract.battery_adc, 9);
-assert.deepStrictEqual(contract.expansion_gpio, [2, 3, 14, 21]);
-assert.strictEqual(contract.controls_interrupt_gpio, 2);
-assert.deepStrictEqual(contract.reserved, {
-  boot: 0,
-  rgb: 42,
-  usb_d_minus: 19,
-  usb_d_plus: 20,
-  uart_rx: 43,
-  uart_tx: 44,
-});
-assert.strictEqual(contract.release_touch_enabled, false);
+  i2c: {
+    sda: 16,
+    scl: 15,
+    addresses: {
+      audio_codec: 0x18,
+      controls: 0x20,
+      touch: 0x38,
+    },
+  },
+  audio: {
+    amp_enable: 1,
+    mclk: 4,
+    bclk: 5,
+    data_out: 6,
+    lrclk: 7,
+    data_in: 8,
+  },
+  sdmmc: {
+    clk: 38,
+    cmd: 40,
+    data0: 39,
+    data1: 41,
+    data2: 48,
+    data3: 47,
+  },
+  battery_adc: 9,
+  expansion_gpio: [2, 3, 14, 21],
+  controls_interrupt_gpio: 2,
+  reserved: {
+    boot: 0,
+    rgb: 42,
+    usb_d_minus: 19,
+    usb_d_plus: 20,
+    uart_rx: 43,
+    uart_tx: 44,
+  },
+  release_touch_enabled: false,
+};
+
+assert.deepStrictEqual(contract, expectedContract);
 
 assert.ok(
   contract.expansion_gpio.includes(contract.controls_interrupt_gpio),
