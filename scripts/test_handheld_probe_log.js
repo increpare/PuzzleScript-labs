@@ -8,6 +8,7 @@ const os = require('os');
 const path = require('path');
 
 const probeLog = require('./handheld_probe_log');
+const compatibilityProbeLog = require('./esp32p4_probe_log');
 
 function withTempDir(callback) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'handheld-probe-log-test-'));
@@ -104,6 +105,7 @@ function runCliProcessWritesJsonReport() {
         assert.strictEqual(result.status, 0, result.stderr);
         const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
         assert.strictEqual(report.command.log, logPath);
+        assert.strictEqual(report.command.fail_on_failure, false);
         assert.strictEqual(report.summary.event_count, 8);
         assert.strictEqual(report.summary.failed_phase_count, 1);
         assert.strictEqual(report.events.length, 8);
@@ -171,6 +173,7 @@ function parsesRepeatableGateRequirements() {
     ]);
 
     assert.strictEqual(options.out, path.join('build', 'handheld_probe_log_summary.json'));
+    assert.strictEqual(options.failOnFailure, true);
     assert.deepStrictEqual(options.requiredPhases, ['BOOT', 'LOAD_IR']);
     assert.deepStrictEqual(options.requiredHeapRegions, ['internal', 'spiram']);
     assert.throws(
@@ -188,6 +191,62 @@ function parsesRepeatableGateRequirements() {
     assert.throws(
         () => probeLog.parseArgs(['--log', 'probe.log', '--require-heap-region', '--fail-on-failure']),
         /missing value for --require-heap-region/,
+    );
+}
+
+function rejectsOptionLikeValuesConsistently() {
+    const cases = [
+        [['--log', '--out', 'x'], 'missing value for --log'],
+        [['--out', '--fail-on-failure'], 'missing value for --out'],
+        [['--log', 'probe.log', '--require-phase', '--out'], 'missing value for --require-phase'],
+        [['--log', 'probe.log', '--require-heap-region', '--log'], 'missing value for --require-heap-region'],
+    ];
+
+    for (const [argv, expectedMessage] of cases) {
+        assert.throws(
+            () => probeLog.parseArgs(argv),
+            (error) => error.message === expectedMessage,
+        );
+    }
+}
+
+function malformedCliOrderingCannotFalsePass() {
+    withTempDir((tmpDir) => {
+        const logPath = path.join(tmpDir, 'probe.log');
+        fs.writeFileSync(logPath, passingLogText(), 'utf8');
+
+        const result = childProcess.spawnSync(
+            process.execPath,
+            [path.join(__dirname, 'handheld_probe_log.js'), '--log', logPath, '--out', '--help'],
+            {
+                cwd: tmpDir,
+                encoding: 'utf8',
+            },
+        );
+
+        assert.strictEqual(result.status, 1, result.stderr);
+        assert.strictEqual(result.stderr, 'handheld_probe_log: missing value for --out\n');
+        assert.strictEqual(fs.existsSync(path.join(tmpDir, '--help')), false);
+    });
+}
+
+function esp32p4CompatibilityWrapperUsesGenericParser() {
+    assert.strictEqual(compatibilityProbeLog, probeLog);
+    assert.strictEqual(compatibilityProbeLog.gateFailureReasons, probeLog.gateFailureReasons);
+
+    const result = childProcess.spawnSync(
+        process.execPath,
+        [path.join(__dirname, 'esp32p4_probe_log.js'), '--help'],
+        {
+            cwd: path.join(__dirname, '..'),
+            encoding: 'utf8',
+        },
+    );
+
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.match(
+        result.stdout,
+        /^Usage: node scripts\/handheld_probe_log\.js --log probe\.log /,
     );
 }
 
@@ -214,7 +273,24 @@ function acceptsPocketCardBootRecord() {
     );
 }
 
-function failOnFailureRejectsMissingRequiredRecords() {
+function rejectsInheritedAndInvalidHeapRegionSamples() {
+    const parsed = probeLog.parseProbeLogText('passing.log', passingLogText());
+    const summary = probeLog.summarizeEvents(parsed.events, parsed.parse_errors);
+
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary, [], ['constructor', 'toString']),
+        ['missing constructor heap sample', 'missing toString heap sample'],
+    );
+
+    summary.heap.regions.string_count = { samples: '1' };
+    summary.heap.regions.infinite_count = { samples: Infinity };
+    assert.deepStrictEqual(
+        probeLog.gateFailureReasons(summary, [], ['string_count', 'infinite_count']),
+        ['missing string_count heap sample', 'missing infinite_count heap sample'],
+    );
+}
+
+function requirementsRejectMissingRecordsWithoutExplicitFailureFlag() {
     withTempDir((tmpDir) => {
         const logPath = path.join(tmpDir, 'probe.log');
         const outPath = path.join(tmpDir, 'summary.json');
@@ -228,7 +304,6 @@ function failOnFailureRejectsMissingRequiredRecords() {
                 logPath,
                 '--out',
                 outPath,
-                '--fail-on-failure',
                 '--require-phase',
                 'LOAD_IR',
                 '--require-heap-region',
@@ -242,6 +317,7 @@ function failOnFailureRejectsMissingRequiredRecords() {
 
         assert.strictEqual(result.status, 1, result.stderr);
         const report = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        assert.strictEqual(report.command.fail_on_failure, true);
         assert.deepStrictEqual(report.command.required_phases, ['LOAD_IR']);
         assert.deepStrictEqual(report.command.required_heap_regions, ['dma']);
         assert.match(result.stderr, /missing passing LOAD_IR phase/);
@@ -276,11 +352,15 @@ function main() {
     summarizesPhaseHeapAndFailureEvents();
     reassemblesFragmentedSerialCaptureLines();
     parsesRepeatableGateRequirements();
+    rejectsOptionLikeValuesConsistently();
+    malformedCliOrderingCannotFalsePass();
+    esp32p4CompatibilityWrapperUsesGenericParser();
     acceptsPocketCardBootRecord();
+    rejectsInheritedAndInvalidHeapRegionSamples();
     runCliProcessWritesJsonReport();
     failOnFailureTurnsBadHardwareLogsIntoFailingGates();
     failOnFailureAcceptsCleanHardwareLogs();
-    failOnFailureRejectsMissingRequiredRecords();
+    requirementsRejectMissingRecordsWithoutExplicitFailureFlag();
 }
 
 main();

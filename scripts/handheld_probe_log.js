@@ -370,6 +370,14 @@ function summarizeEvents(events, parseErrors = []) {
     };
 }
 
+function optionValue(argv, index, option) {
+    const value = argv[index + 1];
+    if (!value || value.startsWith('-')) {
+        throw new Error(`missing value for ${option}`);
+    }
+    return value;
+}
+
 function parseArgs(argv) {
     const options = {
         help: false,
@@ -387,28 +395,25 @@ function parseArgs(argv) {
         } else if (arg === '--fail-on-failure') {
             options.failOnFailure = true;
         } else if (arg === '--log') {
+            options.log = optionValue(argv, index, arg);
             index += 1;
-            options.log = argv[index] || null;
         } else if (arg === '--out') {
+            options.out = optionValue(argv, index, arg);
             index += 1;
-            options.out = argv[index] || null;
         } else if (arg === '--require-phase') {
+            options.requiredPhases.push(optionValue(argv, index, arg));
             index += 1;
-            if (!argv[index] || argv[index].startsWith('--')) {
-                throw new Error('missing value for --require-phase');
-            }
-            options.requiredPhases.push(argv[index]);
         } else if (arg === '--require-heap-region') {
+            options.requiredHeapRegions.push(optionValue(argv, index, arg));
             index += 1;
-            if (!argv[index] || argv[index].startsWith('--')) {
-                throw new Error('missing value for --require-heap-region');
-            }
-            options.requiredHeapRegions.push(argv[index]);
         } else {
             throw new Error(`unknown argument: ${arg}`);
         }
     }
 
+    if (options.requiredPhases.length > 0 || options.requiredHeapRegions.length > 0) {
+        options.failOnFailure = true;
+    }
     if (!options.help && !options.log) {
         throw new Error('missing required --log PATH');
     }
@@ -431,6 +436,7 @@ function printUsage(stream) {
         '                                require a passing phase; repeat for each required phase',
         '  --require-heap-region NAME',
         '                                require at least one heap sample; repeat for each region',
+        '  Specifying either requirement option enables the failure gate.',
         '  --fail-on-failure',
         '                                exit nonzero if phases, allocations, parsing, or boot checks fail',
         '',
@@ -460,8 +466,9 @@ function gateFailureReasons(summary, requiredPhases = [], requiredHeapRegions = 
         }
     }
     for (const region of requiredHeapRegions) {
-        const stats = summary.heap.regions[region];
-        if (!stats || stats.samples < 1) {
+        const hasRegion = Object.prototype.hasOwnProperty.call(summary.heap.regions, region);
+        const stats = hasRegion ? summary.heap.regions[region] : null;
+        if (!stats || !Number.isFinite(stats.samples) || stats.samples < 1) {
             reasons.push(`missing ${region} heap sample`);
         }
     }
