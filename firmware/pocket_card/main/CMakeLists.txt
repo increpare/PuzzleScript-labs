@@ -4,6 +4,7 @@ idf_component_register(
   SRCS
     "main.cpp"
     "probe_log.cpp"
+    "runtime_probe.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/c_api.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/compiled_rules.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/core.cpp"
