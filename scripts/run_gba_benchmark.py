@@ -26,6 +26,34 @@ LOG_RESULT = re.compile(
     r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8})",
     re.IGNORECASE,
 )
+PHASE_RESULT = re.compile(
+    r"PS_GBA_PHASE,([0-9a-f]{8}),([0-9a-f]{16}),([0-9a-f]{16}),"
+    r"([0-9a-f]{16}),([0-9a-f]{16}),([0-9a-f]{16}),([0-9a-f]{16})",
+    re.IGNORECASE,
+)
+ALLOCATION_RESULT = re.compile(
+    r"PS_GBA_ALLOC,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8})",
+    re.IGNORECASE,
+)
+PROGRESS_RESULT = re.compile(
+    r"PS_GBA_PROGRESS,([0-9a-f]{8}),([0-9a-f]{8})",
+    re.IGNORECASE,
+)
+PROGRESS_MAGIC = 0x47505350
+PROGRESS_OFFSET = 0x80
+PROGRESS_STRUCT = struct.Struct("<III")
+
+PROGRESS_STAGES = {
+    1: "setup",
+    2: "early_rules",
+    3: "movement",
+    4: "late_rules",
+    5: "win",
+    6: "complete",
+}
 
 
 def default_mgba() -> Path | None:
@@ -109,11 +137,72 @@ def read_log_result(path: Path) -> dict[str, int | float | bool | str] | None:
         text = path.read_text(encoding="utf-8", errors="replace")
     except (FileNotFoundError, PermissionError, OSError):
         return None
-    match = LOG_RESULT.search(text)
-    if match is None:
+    benchmark_match = LOG_RESULT.search(text)
+    if benchmark_match is None:
         return None
-    values = [int(value, 16) for value in match.groups()]
-    return make_result(*values)
+    values = [int(value, 16) for value in benchmark_match.groups()]
+    result = make_result(*values)
+    if result is None:
+        return None
+    phase_match = PHASE_RESULT.search(text)
+    if phase_match is not None:
+        phase_values = [int(value, 16) for value in phase_match.groups()]
+        if phase_values[0] == 1:
+            for name, cycles in zip(
+                ("setup", "early_rules", "movement", "late_rules", "win", "canonicalize"),
+                phase_values[1:],
+            ):
+                result[f"phase_{name}_cycles"] = cycles
+                result[f"phase_{name}_ms"] = cycles * 1000 / GBA_HZ
+    allocation_match = ALLOCATION_RESULT.search(text)
+    if allocation_match is not None:
+        allocation_values = [int(value, 16) for value in allocation_match.groups()]
+        if allocation_values[0] == 1:
+            names = (
+                "allocation_calls",
+                "allocation_bytes",
+                "deallocation_calls",
+                "heap_growth_bytes",
+                "rules_visited",
+                "candidate_cells_tested",
+                "replacements_attempted",
+                "replacements_applied",
+                "row_scans",
+                "ellipsis_scans",
+                "progress_stage",
+                "progress_detail",
+            )
+            result.update(zip(names, allocation_values[1:]))
+            stage = allocation_values[-2]
+            detail = allocation_values[-1]
+            result["progress_stage_name"] = PROGRESS_STAGES.get(stage, "unknown")
+            result["progress_group"] = detail >> 16
+            result["progress_rule"] = detail & 0xFFFF
+    return result
+
+
+def read_last_progress(path: Path) -> tuple[int, int] | None:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    matches = list(PROGRESS_RESULT.finditer(text))
+    if not matches:
+        return None
+    return tuple(int(value, 16) for value in matches[-1].groups())
+
+
+def read_sram_progress(path: Path) -> tuple[int, int] | None:
+    try:
+        data = path.read_bytes()
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    if len(data) < PROGRESS_OFFSET + PROGRESS_STRUCT.size:
+        return None
+    magic, stage, detail = PROGRESS_STRUCT.unpack_from(data, PROGRESS_OFFSET)
+    if magic != PROGRESS_MAGIC:
+        return None
+    return stage, detail
 
 
 def main() -> int:
@@ -122,6 +211,7 @@ def main() -> int:
     parser.add_argument("--mgba", type=Path, default=default_mgba())
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--log", type=Path, help="copy the raw mGBA log here, including on timeout")
     args = parser.parse_args()
     if not args.rom.is_file():
         parser.error(f"ROM not found: {args.rom}")
@@ -172,8 +262,21 @@ def main() -> int:
                     except subprocess.TimeoutExpired:
                         process.kill()
                         process.wait()
+        if args.log:
+            args.log.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(log, args.log)
         if result is None:
-            raise RuntimeError(f"benchmark did not finish within {args.timeout:g} seconds")
+            progress = read_last_progress(log) or read_sram_progress(save)
+            if progress is None:
+                raise RuntimeError(f"benchmark did not finish within {args.timeout:g} seconds")
+            stage, detail = progress
+            stage_name = PROGRESS_STAGES.get(stage, "unknown")
+            group = detail >> 16
+            rule = detail & 0xFFFF
+            raise RuntimeError(
+                f"benchmark did not finish within {args.timeout:g} seconds; "
+                f"last progress stage={stage_name}({stage}) group={group} rule={rule}"
+            )
 
     encoded = json.dumps(result, indent=2) + "\n"
     if args.out:

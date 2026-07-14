@@ -11,12 +11,20 @@
 #define PS_GBA_RENDER_SET_BITS 1
 #endif
 
+#ifndef PS_GBA_RENDER_PACKED_BLIT
+#define PS_GBA_RENDER_PACKED_BLIT 1
+#endif
+
 #ifndef PS_GBA_PERF_ITERATIONS
 #define PS_GBA_PERF_ITERATIONS 16
 #endif
 
 #ifndef PS_GBA_PERF_RENDER_ONLY
 #define PS_GBA_PERF_RENDER_ONLY 0
+#endif
+
+#ifndef PS_GBA_PERF_TELEMETRY
+#define PS_GBA_PERF_TELEMETRY 0
 #endif
 
 #if defined(PS_GBA_PERF_BENCHMARK) && PS_GBA_ENABLE_AUDIO
@@ -29,6 +37,7 @@
 #endif
 
 #include "generated_game.hpp"
+#include "gba/perf_telemetry.hpp"
 #include "puzzlescript/gba.h"
 
 #include <cstddef>
@@ -236,6 +245,47 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step,
         *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
     }
 }
+
+#if PS_GBA_PERF_TELEMETRY
+void writeBenchmarkTelemetry(const ps_gba_perf_snapshot& telemetry) {
+    auto& debugEnable = *reinterpret_cast<volatile uint16_t*>(0x04fff780);
+    debugEnable = 0xc0de;
+    if (debugEnable != 0x1dea) return;
+
+    char* output = reinterpret_cast<char*>(0x04fff600);
+    char* cursor = output;
+    const char phasePrefix[] = "PS_GBA_PHASE,";
+    for (char ch : phasePrefix) if (ch != '\0') *cursor++ = ch;
+    appendHex(cursor, 1, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.setup_cycles, 16); *cursor++ = ',';
+    appendHex(cursor, telemetry.early_rules_cycles, 16); *cursor++ = ',';
+    appendHex(cursor, telemetry.movement_cycles, 16); *cursor++ = ',';
+    appendHex(cursor, telemetry.late_rules_cycles, 16); *cursor++ = ',';
+    appendHex(cursor, telemetry.win_cycles, 16); *cursor++ = ',';
+    appendHex(cursor, telemetry.canonicalize_cycles, 16);
+    *cursor = '\0';
+    *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
+
+    cursor = output;
+    const char allocationPrefix[] = "PS_GBA_ALLOC,";
+    for (char ch : allocationPrefix) if (ch != '\0') *cursor++ = ch;
+    appendHex(cursor, 1, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.allocation_calls, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.allocation_bytes, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.deallocation_calls, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.heap_growth_bytes, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.rules_visited, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.candidate_cells_tested, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.replacements_attempted, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.replacements_applied, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.row_scans, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.ellipsis_scans, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.progress_stage, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.progress_detail, 8);
+    *cursor = '\0';
+    *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
+}
+#endif
 #endif
 
 uint8_t paletteIndex(uint16_t color) {
@@ -401,6 +451,61 @@ void compositeObject(uint8_t* composite, const ps_gba_object& object) {
     }
 }
 
+void __attribute__((section(".iwram"), long_call))
+writePackedRow(int x, int y, const uint8_t* colors, int width) {
+    int pixel = y * PS_GBA_SCREEN_WIDTH + x;
+    int source = 0;
+    volatile uint16_t* destination = hiddenFrame() + (pixel >> 1);
+    if ((pixel & 1) != 0) {
+        *destination = static_cast<uint16_t>((*destination & 0x00ffU)
+            | (static_cast<uint16_t>(colors[source++]) << 8U));
+        ++destination;
+        --width;
+    }
+    while (width >= 2) {
+        *destination++ = static_cast<uint16_t>(colors[source]
+            | (static_cast<uint16_t>(colors[source + 1]) << 8U));
+        source += 2;
+        width -= 2;
+    }
+    if (width != 0) {
+        *destination = static_cast<uint16_t>((*destination & 0xff00U) | colors[source]);
+    }
+}
+
+void blitCompositeTile(int x, int y, int tile, const uint8_t* composite) {
+    static constexpr uint8_t kDownscaleMap[5][4] = {
+        {0, 0, 0, 0},
+        {0, 0, 0, 0},
+        {0, 2, 0, 0},
+        {0, 1, 3, 0},
+        {0, 1, 2, 3},
+    };
+    uint8_t row[PS_GBA_SCREEN_HEIGHT];
+    if (tile >= kSpriteSize) {
+        const int scale = tile / kSpriteSize;
+        for (int sourceY = 0; sourceY < kSpriteSize; ++sourceY) {
+            int destinationX = 0;
+            for (int sourceX = 0; sourceX < kSpriteSize; ++sourceX) {
+                const uint8_t color = composite[sourceY * kSpriteSize + sourceX];
+                for (int repeat = 0; repeat < scale; ++repeat) row[destinationX++] = color;
+            }
+            for (int repeat = 0; repeat < scale; ++repeat) {
+                writePackedRow(x, y + sourceY * scale + repeat, row, tile);
+            }
+        }
+        return;
+    }
+    for (int destinationY = 0; destinationY < tile; ++destinationY) {
+        const int sourceY = kDownscaleMap[tile][destinationY];
+        for (int destinationX = 0; destinationX < tile; ++destinationX) {
+            const int sourceX = kDownscaleMap[tile][destinationX];
+            row[destinationX] = composite[sourceY * kSpriteSize + sourceX];
+        }
+        writePackedRow(x, y + destinationY, row, tile);
+    }
+}
+
 void drawBoard(ps_gba_session* session, const ps_gba_status& status) {
     const ps_gba_game_view* game = ps_gba_game(session);
     const uint32_t* board = ps_gba_board_words(session);
@@ -466,6 +571,9 @@ void drawBoard(ps_gba_session* session, const ps_gba_status& status) {
             compositeObject(composite, game->objects[objectId]);
         }
 #endif
+#if PS_GBA_RENDER_PACKED_BLIT
+        blitCompositeTile(originX + x * tile, originY + y * tile, tile, composite);
+#else
         if (tile >= kSpriteSize) {
             const int scale = tile / kSpriteSize;
             for (int sy = 0; sy < kSpriteSize; ++sy) for (int sx = 0; sx < kSpriteSize; ++sx) {
@@ -480,6 +588,7 @@ void drawBoard(ps_gba_session* session, const ps_gba_status& status) {
                     composite[sy * kSpriteSize + sx]);
             }
         }
+#endif
     }
 }
 
@@ -534,20 +643,35 @@ uint32_t hiddenFrameHash() {
     // state, while level loading itself remains outside the timed region.
     ps_gba_load_level(session, level);
 #if !PS_GBA_PERF_RENDER_ONLY
+#if PS_GBA_PERF_TELEMETRY
+    ps_gba_perf_snapshot warmupTelemetry{};
+    ps_gba_perf_begin();
+#endif
     (void)ps_gba_step(session, PS_INPUT_RIGHT);
+#if PS_GBA_PERF_TELEMETRY
+    ps_gba_perf_end(&warmupTelemetry);
+#endif
 #endif
     render(session);
 
     BenchmarkSamples stepSamples{};
     BenchmarkSamples renderSamples{};
+    ps_gba_perf_snapshot telemetry{};
 #if PS_GBA_PERF_RENDER_ONLY
     stepSamples.minimum = 0;
 #else
     for (uint32_t iteration = 0; iteration < kBenchmarkIterations; ++iteration) {
         ps_gba_load_level(session, level);
+#if PS_GBA_PERF_TELEMETRY
+        if (iteration == 0) ps_gba_perf_begin();
+#endif
         benchmarkTimerStart();
         (void)ps_gba_step(session, PS_INPUT_RIGHT);
-        stepSamples.add(benchmarkTimerStop());
+        const uint32_t stepCycles = benchmarkTimerStop();
+#if PS_GBA_PERF_TELEMETRY
+        if (iteration == 0) ps_gba_perf_end(&telemetry);
+#endif
+        stepSamples.add(stepCycles);
     }
 #endif
     ps_gba_load_level(session, level);
@@ -556,6 +680,9 @@ uint32_t hiddenFrameHash() {
         render(session);
         renderSamples.add(benchmarkTimerStop());
     }
+#if PS_GBA_PERF_TELEMETRY
+    writeBenchmarkTelemetry(telemetry);
+#endif
     writeBenchmarkResult(level, stepSamples, renderSamples, hiddenFrameHash());
     while (true) VBlankIntrWait();
 }
@@ -616,6 +743,9 @@ int main() {
     *reinterpret_cast<volatile uint16_t*>(kWaitControl) = kWaitStandard;
 #endif
     irqInit();
+#if PS_GBA_PERF_TELEMETRY
+    irqSet(IRQ_VBLANK, ps_gba_perf_vblank);
+#endif
     irqEnable(IRQ_VBLANK);
     *reinterpret_cast<volatile uint16_t*>(kDisplayControl) = kDisplayMode4Bg2;
     auto* palette = reinterpret_cast<volatile uint16_t*>(kPalette);

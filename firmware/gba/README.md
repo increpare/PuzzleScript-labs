@@ -82,6 +82,9 @@ hardware measurements. Benchmark mode is absent from ordinary ROMs.
 rule-step timing for pathological renderer stress cases. `RENDER_SET_BITS=0`
 restores the old cells-times-all-objects renderer for an A/B baseline; normal
 ROMs enumerate only the object bits present in each cell.
+`RENDER_PACKED_BLIT=0` restores the old per-pixel/per-rectangle rasterizer;
+normal ROMs pack two Mode 4 pixels per halfword and keep the hot row writer in
+IWRAM.
 
 To inspect an export without invoking `mmutil`:
 

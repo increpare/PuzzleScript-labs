@@ -3920,7 +3920,11 @@ void emitCompactRulegroupFunctions(
                         << "    } else {\n";
                 }
                 const std::string ruleIndent = groupNeedsPerRuleInputGuard ? "    " : "";
-                out << ruleIndent << "    compact_turn_count_rules_visited_" << suffix << "();\n"
+                out << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+                    << ruleIndent << "    ps_gba_perf_progress(" << (phase == "early" ? 2 : 4) << ", "
+                    << ((static_cast<uint32_t>(groupIndex) << 16U) | static_cast<uint32_t>(ruleIndex)) << "U);\n"
+                    << "#endif\n"
+                    << ruleIndent << "    compact_turn_count_rules_visited_" << suffix << "();\n"
                     << ruleIndent << "    if (" << rulePrefix << "_collect_matches(dimensions, levelState, scratch, groupMatches[" << ruleIndex << "])) {\n"
                     << ruleIndent << "        bool hasMatchTuple = !groupMatches[" << ruleIndex << "].empty();\n"
                     << ruleIndent << "        for (const auto& rowMatches : groupMatches[" << ruleIndex << "]) {\n"
@@ -4026,6 +4030,10 @@ void emitCompactRulegroupFunctions(
                         << "        compact_turn_count_rules_skipped_by_mask_" << suffix << "();\n"
                         << "    } else {\n";
                 }
+                out << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+                    << ruleBaseIndent << "ps_gba_perf_progress(" << (phase == "early" ? 2 : 4) << ", "
+                    << ((static_cast<uint32_t>(groupIndex) << 16U) | static_cast<uint32_t>(ruleIndex)) << "U);\n"
+                    << "#endif\n";
                 out << ruleBaseIndent << "compact_turn_count_rules_visited_" << suffix << "();\n";
                 if (names.hasMaskPrecheck) {
                     out << ruleBaseIndent << "if (!" << names.precheckName << "(scratch)) {\n"
@@ -4107,6 +4115,10 @@ void emitCompactRulegroupFunctions(
             << "    int32_t groupIndex = 0;\n"
             << "    constexpr int32_t groupCount = " << groups.size() << ";\n"
             << "    while (groupIndex < groupCount) {\n"
+            << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+            << "        ps_gba_perf_progress(" << (phase == "early" ? 2 : 4)
+            << ", (static_cast<uint32_t>(groupIndex) << 16U) | 0xffffU);\n"
+            << "#endif\n"
             << "        bool groupChanged = false;\n"
             << "        switch (groupIndex) {\n";
         for (size_t groupIndex = 0; groupIndex < groups.size(); ++groupIndex) {
@@ -4158,6 +4170,9 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
     out << "    if (outHasAgain != nullptr) {\n"
         << "        *outHasAgain = false;\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, 0);\n"
+        << "#endif\n"
         << "    const bool profileCompactTurn = !probeOnly && runtimeCountersEnabled();\n"
         << "    uint64_t profileMarkNs = profileCompactTurn ? runtimeCounterNowNs() : 0;\n"
         << "    auto addProfileNs = [&](RuntimeCounterId id) {\n"
@@ -4174,6 +4189,10 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        addProfileNs(RuntimeCounterId::CompactTurnSetupNs);\n"
         << "        return {false, result};\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    const uint32_t perfSetupProbeBit = probeOnly ? 0x80000000U : 0U;\n"
+        << "    ps_gba_perf_progress(1, perfSetupProbeBit | 9U);\n"
+        << "#endif\n"
         << "    const int32_t directionMask = compact_turn_input_direction_" << suffix << "(input);\n"
         << "    scratch.currentInputMask = inputSpecializationMaskForDirectionMask(directionMask);\n"
         << "    const bool needsTurnStartSnapshot = probeOnly\n"
@@ -4184,13 +4203,16 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    MaskVector* reusableTurnStartObjects = (!probeOnly && options.againPolicy == AgainPolicy::Drain) ? &scratch.turnStartObjectsScratch : nullptr;\n"
         << "    if (needsTurnStartSnapshot) {\n"
         << "        if (reusableTurnStartObjects != nullptr) {\n"
-        << "            *reusableTurnStartObjects = levelState.board.objects;\n"
+        << "            compact_turn_copy_board_objects_" << suffix << "(levelState, *reusableTurnStartObjects);\n"
         << "            turnStartObjects = reusableTurnStartObjects;\n"
         << "        } else {\n"
-        << "            localTurnStartObjects = levelState.board.objects;\n"
+        << "            compact_turn_copy_board_objects_" << suffix << "(levelState, localTurnStartObjects);\n"
         << "            turnStartObjects = &localTurnStartObjects;\n"
         << "        }\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, perfSetupProbeBit | 10U);\n"
+        << "#endif\n"
         << "    std::vector<MaskWord> turnStartMovements;\n"
         << "    bool turnStartLiveMovementsClean = false;\n"
         << "    std::vector<MaskWord> turnStartRigidGroupIndexMasks;\n"
@@ -4203,10 +4225,16 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "            turnStartRigidMovementAppliedMasks = scratch.rigidMovementAppliedMasks;\n"
         << "        }\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, perfSetupProbeBit | 11U);\n"
+        << "#endif\n"
         << "    std::vector<int32_t> startPlayerPositions;\n"
         << "    if (directionMask != 0 && compact_turn_requires_player_movement_" << suffix << ") {\n"
         << "        startPlayerPositions = compact_turn_collect_player_positions_" << suffix << "(dimensions, levelState);\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, perfSetupProbeBit | 12U);\n"
+        << "#endif\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnSetupNs);\n"
         << "    // Semantic compact turn compiler skeleton:\n"
         << "    // 1. validate level dimensions and persistent board storage\n"
@@ -4220,22 +4248,37 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    while (true) {\n"
         << "        commands = CompactTurnCommands_" << suffix << "{};\n"
         << "        if (rigidLoopCount > 0 && needsTurnStartSnapshot) {\n"
-        << "            levelState.board.objects = *turnStartObjects;\n"
+        << "            compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        }\n"
         << "        if (!scratch.liveMovementsClean) {\n"
         << "            std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "            compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "            scratch.liveMovementsClean = true;\n"
         << "        }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, perfSetupProbeBit | 13U);\n"
+        << "#endif\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
         << "            std::fill(scratch.rigidGroupIndexMasks.begin(), scratch.rigidGroupIndexMasks.end(), 0);\n"
         << "            std::fill(scratch.rigidMovementAppliedMasks.begin(), scratch.rigidMovementAppliedMasks.end(), 0);\n"
         << "        }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, perfSetupProbeBit | 14U);\n"
+        << "#endif\n"
         << "        seededInput = compact_turn_seed_player_movements_" << suffix << "(dimensions, levelState, scratch, directionMask);\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, perfSetupProbeBit | 15U);\n"
+        << "#endif\n"
         << "        if (seededInput) (void)compact_turn_rebuild_movement_derived_state_" << suffix << "(dimensions, scratch);\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(2, (static_cast<uint32_t>(rigidLoopCount) << 16U) | 0xffffU);\n"
+        << "#endif\n"
         << "        const bool ruleChangedThisPass = compact_turn_apply_early_rules_" << suffix << "(dimensions, levelState, scratch, commands, &bannedGroups);\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnEarlyRulesNs);\n"
         << "    // 4. apply early rulegroups\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(3, static_cast<uint32_t>(rigidLoopCount));\n"
+        << "#endif\n"
         << "        const CompactTurnMovementOutcome_" << suffix << " movementOutcome = compact_turn_resolve_movements_" << suffix << "(dimensions, levelState, scratch, &bannedGroups);\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnMovementNs);\n"
         << "    // 5. resolve movement\n"
@@ -4248,9 +4291,12 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        if (moved) compact_turn_rebuild_rule_derived_state_" << suffix << "(dimensions, levelState, scratch, true, false);\n"
         << "        break;\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(4, 0xffffU);\n"
+        << "#endif\n"
         << "    const bool lateRuleChanged = compact_turn_apply_late_rules_" << suffix << "(dimensions, levelState, scratch, commands, nullptr);\n"
         << "    const bool modified = needsTurnStartSnapshot\n"
-        << "        ? levelState.board.objects != *turnStartObjects\n"
+        << "        ? compact_turn_board_objects_differ_" << suffix << "(levelState, *turnStartObjects)\n"
         << "        : (ruleChanged || moved || lateRuleChanged);\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnLateRulesNs);\n"
         << "    // 6. apply late rulegroups\n"
@@ -4259,7 +4305,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        result.changed = commands.hasCancel\n"
         << "            ? commands.commandCount > 1\n"
         << "            : (modified || commands.hasWin || commands.hasRestart);\n"
-        << "        levelState.board.objects = *turnStartObjects;\n"
+        << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        scratch.liveMovements = turnStartMovements;\n"
         << "        scratch.liveMovementsClean = turnStartLiveMovementsClean;\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
@@ -4275,7 +4321,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return {true, result};\n"
         << "    }\n"
         << "    if (!startPlayerPositions.empty() && !compact_turn_any_start_player_moved_" << suffix << "(levelState, startPlayerPositions)) {\n"
-        << "        levelState.board.objects = *turnStartObjects;\n"
+        << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -4284,7 +4330,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    }\n"
         << "    if (options.solverMode && commands.hasCancel) {\n"
         << "        if (needsTurnStartSnapshot) {\n"
-        << "            levelState.board.objects = *turnStartObjects;\n"
+        << "            compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        }\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
@@ -4299,7 +4345,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    }\n"
         << "    if (!options.ignoreRestartCommand && options.solverMode && commands.hasRestart) {\n"
         << "        if (needsTurnStartSnapshot) {\n"
-        << "            levelState.board.objects = *turnStartObjects;\n"
+        << "            compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        }\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
@@ -4313,7 +4359,10 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return compact_turn_solver_discard_" << suffix << "(\"restart\");\n"
         << "    }\n"
         << "    if (commands.hasCancel) {\n"
-        << "        levelState.board.objects = *turnStartObjects;\n"
+        << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
+        << "        (void)compact_turn_rebuild_object_derived_state_" << suffix << "(dimensions, levelState, scratch);\n"
+        << "        scratch.objectCellIndexDirty = true;\n"
+        << "        compact_turn_refresh_any_masks_dirty_" << suffix << "(scratch);\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -4329,7 +4378,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
         << "    if (!options.ignoreRestartCommand && commands.hasRestart) {\n"
-        << "        levelState.board.objects = *turnStartObjects;\n"
+        << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -4346,6 +4395,9 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(5, 0);\n"
+        << "#endif\n"
         << "    const bool won = !options.ignoreWin && (commands.hasWin || compact_turn_evaluate_win_" << suffix << "(dimensions, levelState));\n"
         << "    const bool transitioned = won;\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnWinNs);\n"
@@ -4392,6 +4444,9 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    }\n"
         << "    compact_turn_emit_outputs_" << suffix << "(commands, true);\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(6, 0);\n"
+        << "#endif\n"
         << "    return {true, result, false, commands.hasCheckpoint};\n";
 }
 
@@ -4455,9 +4510,65 @@ std::string sourceSuffix(size_t sourceIndex) {
     return std::to_string(sourceIndex);
 }
 
-void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sourceIndex) {
+void emitCompactTurnAccessLayer(
+    std::ostream& out,
+    const Game& game,
+    size_t sourceIndex,
+    const CompactCodegenOptions& options
+) {
     const std::string suffix = sourceSuffix(sourceIndex);
     const CompactSourceMaskNeeds maskNeeds = compactSourceMaskNeeds(game);
+    if (options.externalBoardStorage) {
+        out << "MaskWord* compact_turn_external_board_objects_" << suffix << " = nullptr;\n"
+            << "size_t compact_turn_external_board_object_count_" << suffix << " = 0;\n"
+            << "void compact_turn_attach_external_board_" << suffix << "(MaskWord* objects, size_t count) {\n"
+            << "    compact_turn_external_board_objects_" << suffix << " = objects;\n"
+            << "    compact_turn_external_board_object_count_" << suffix << " = count;\n"
+            << "}\n\n";
+    }
+    out << "MaskWord* compact_turn_board_objects_data_" << suffix << "(PersistentLevelState& levelState) {\n";
+    if (options.externalBoardStorage) {
+        out << "    (void)levelState;\n"
+            << "    return compact_turn_external_board_objects_" << suffix << ";\n";
+    } else {
+        out << "    return levelState.board.objects.data();\n";
+    }
+    out << "}\n\n"
+        << "const MaskWord* compact_turn_board_objects_data_" << suffix << "(const PersistentLevelState& levelState) {\n";
+    if (options.externalBoardStorage) {
+        out << "    (void)levelState;\n"
+            << "    return compact_turn_external_board_objects_" << suffix << ";\n";
+    } else {
+        out << "    return levelState.board.objects.data();\n";
+    }
+    out << "}\n\n"
+        << "size_t compact_turn_board_objects_size_" << suffix << "(const PersistentLevelState& levelState) {\n";
+    if (options.externalBoardStorage) {
+        out << "    (void)levelState;\n"
+            << "    return compact_turn_external_board_object_count_" << suffix << ";\n";
+    } else {
+        out << "    return levelState.board.objects.size();\n";
+    }
+    out << "}\n\n"
+        << "void compact_turn_copy_board_objects_" << suffix << "(const PersistentLevelState& levelState, MaskVector& destination) {\n"
+        << "    const size_t count = compact_turn_board_objects_size_" << suffix << "(levelState);\n"
+        << "    if (count == 0) { destination.clear(); return; }\n"
+        << "    const MaskWord* source = compact_turn_board_objects_data_" << suffix << "(levelState);\n"
+        << "    destination.assign(source, source + count);\n"
+        << "}\n\n"
+        << "void compact_turn_restore_board_objects_" << suffix << "(PersistentLevelState& levelState, const MaskVector& source) {\n"
+        << "    const size_t count = compact_turn_board_objects_size_" << suffix << "(levelState);\n"
+        << "    if (source.size() != count) return;\n"
+        << "    MaskWord* destination = compact_turn_board_objects_data_" << suffix << "(levelState);\n"
+        << "    for (size_t index = 0; index < count; ++index) destination[index] = source[index];\n"
+        << "}\n\n"
+        << "bool compact_turn_board_objects_differ_" << suffix << "(const PersistentLevelState& levelState, const MaskVector& other) {\n"
+        << "    const size_t count = compact_turn_board_objects_size_" << suffix << "(levelState);\n"
+        << "    if (other.size() != count) return true;\n"
+        << "    const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState);\n"
+        << "    for (size_t index = 0; index < count; ++index) if (objects[index] != other[index]) return true;\n"
+        << "    return false;\n"
+        << "}\n\n";
     out << "constexpr int32_t compact_turn_object_stride_" << suffix << " = " << game.strideObject << ";\n"
         << "constexpr int32_t compact_turn_movement_stride_" << suffix << " = " << game.strideMovement << ";\n"
         << "constexpr int32_t compact_turn_object_count_" << suffix << " = " << game.objectCount << ";\n"
@@ -4814,7 +4925,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    if (tileCount <= 0) return false;\n"
         << "    const size_t objectWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
-        << "    if (levelState.board.objects.size() != objectWords) return false;\n"
+        << "    if (compact_turn_board_objects_size_" << suffix << "(levelState) != objectWords) return false;\n"
         << "    const size_t rowObjectWords = static_cast<size_t>(dimensions.height) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "    const size_t columnObjectWords = static_cast<size_t>(dimensions.width) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "    const size_t objectCount = static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0}));\n"
@@ -4832,7 +4943,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {\n"
         << "        const int32_t x = tileIndex / dimensions.height;\n"
         << "        const int32_t y = tileIndex % dimensions.height;\n"
-        << "        const MaskWord* objects = levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "        const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "        for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
         << "            const MaskWord value = objects[word];\n"
         << "            if constexpr (compact_turn_needs_object_row_masks_" << suffix << ") scratch.rowMasks[static_cast<size_t>(y * compact_turn_object_stride_" << suffix << " + word)] |= value;\n"
@@ -4860,7 +4971,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    if (tileCount <= 0) return false;\n"
         << "    const size_t objectWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
-        << "    if (levelState.board.objects.size() != objectWords) return false;\n"
+        << "    if (compact_turn_board_objects_size_" << suffix << "(levelState) != objectWords) return false;\n"
         << "    const int32_t objectCellWordCount = compact_turn_object_cell_word_count_" << suffix << "(dimensions);\n"
         << "    scratch.objectCellBitTileCount = tileCount;\n"
         << "    scratch.objectCellBits.assign(static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0})) * static_cast<size_t>(objectCellWordCount), 0);\n"
@@ -4868,7 +4979,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {\n"
         << "        const int32_t cellWord = tileIndex >> static_cast<int32_t>(kMaskWordShift);\n"
         << "        const MaskWordUnsigned cellBit = static_cast<MaskWordUnsigned>(maskBit(static_cast<uint32_t>(tileIndex)));\n"
-        << "        const MaskWord* objects = levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "        const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "        for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
         << "            const MaskWord value = objects[word];\n"
         << "            MaskWordUnsigned objectBits = static_cast<MaskWordUnsigned>(value);\n"
@@ -5033,7 +5144,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    if (tileCount <= 0) return false;\n"
         << "    const size_t objectWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
-        << "    if (levelState.board.objects.size() != objectWords) return false;\n"
+        << "    if (compact_turn_board_objects_size_" << suffix << "(levelState) != objectWords) return false;\n"
         << "    const size_t rowObjectWords = static_cast<size_t>(dimensions.height) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "    const size_t columnObjectWords = static_cast<size_t>(dimensions.width) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "    const size_t objectCount = static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0}));\n"
@@ -5063,7 +5174,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "            if (rowAllStart != nullptr) std::fill(rowAllStart, rowAllStart + compact_turn_object_stride_" << suffix << ", static_cast<MaskWord>(~MaskWordUnsigned{0}));\n"
         << "            for (int32_t x = 0; x < dimensions.width; ++x) {\n"
         << "                const int32_t tileIndex = compact_turn_tile_index_" << suffix << "(dimensions, x, y);\n"
-        << "                const MaskWord* objects = levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "                const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "                for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
         << "                    if (rowStart != nullptr) rowStart[word] |= objects[word];\n"
         << "                    if (rowAllStart != nullptr) rowAllStart[word] &= objects[word];\n"
@@ -5083,7 +5194,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "            if (columnAllStart != nullptr) std::fill(columnAllStart, columnAllStart + compact_turn_object_stride_" << suffix << ", static_cast<MaskWord>(~MaskWordUnsigned{0}));\n"
         << "            for (int32_t y = 0; y < dimensions.height; ++y) {\n"
         << "                const int32_t tileIndex = compact_turn_tile_index_" << suffix << "(dimensions, x, y);\n"
-        << "                const MaskWord* objects = levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "                const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "                for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
         << "                    if (columnStart != nullptr) columnStart[word] |= objects[word];\n"
         << "                    if (columnAllStart != nullptr) columnAllStart[word] &= objects[word];\n"
@@ -5104,7 +5215,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "                }\n"
         << "            } else {\n"
         << "                for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {\n"
-        << "                    const MaskWord* objects = levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "                    const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "                    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) scratch.boardMask[static_cast<size_t>(word)] |= objects[word];\n"
         << "                }\n"
         << "            }\n"
@@ -5355,10 +5466,16 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     out << "bool compact_turn_prepare_state_" << suffix << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch) {\n"
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    if (tileCount <= 0) return false;\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, 1);\n"
+        << "#endif\n"
         << "    scratch.singleRowMatchScratch.reserve(static_cast<size_t>(tileCount));\n"
         << "    const size_t objectWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
-        << "    if (levelState.board.objects.size() != objectWords) return false;\n"
+        << "    if (compact_turn_board_objects_size_" << suffix << "(levelState) != objectWords) return false;\n"
         << "    const size_t movementWords = static_cast<size_t>(tileCount) * static_cast<size_t>(compact_turn_movement_stride_" << suffix << ");\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, 2);\n"
+        << "#endif\n"
         << "    if (scratch.liveMovements.size() != movementWords) {\n"
         << "        scratch.liveMovements.assign(movementWords, 0);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -5388,6 +5505,9 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        && (!compact_turn_needs_movement_row_all_masks_" << suffix << " || scratch.rowAllMovementMasks.size() == rowMovementWords)\n"
         << "        && (!compact_turn_needs_movement_column_all_masks_" << suffix << " || scratch.columnAllMovementMasks.size() == columnMovementWords)\n"
         << "        && (!compact_turn_needs_movement_board_mask_" << suffix << " || scratch.boardMovementMask.size() == static_cast<size_t>(compact_turn_movement_stride_" << suffix << "));\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, 3);\n"
+        << "#endif\n"
         << "    if (!scratch.anyMasksDirty && masksStorageReady) {\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
         << "            if (scratch.rigidGroupIndexMasks.size() != movementWords) scratch.rigidGroupIndexMasks.assign(movementWords, 0);\n"
@@ -5423,7 +5543,13 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        && objectBoardReady\n"
         << "        && objectCountCachesReady;\n"
         << "    if (!objectMasksReady) {\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, 4);\n"
+        << "#endif\n"
         << "        if (!compact_turn_rebuild_object_derived_state_" << suffix << "(dimensions, levelState, scratch)) return false;\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, 5);\n"
+        << "#endif\n"
         << "    }\n"
         << "    const bool movementRowsReady = !compact_turn_needs_movement_row_masks_" << suffix << "\n"
         << "        || (scratch.rowMovementMasks.size() == rowMovementWords\n"
@@ -5446,7 +5572,13 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        && movementColumnAllReady\n"
         << "        && movementBoardReady;\n"
         << "    if (!movementMasksReady) {\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, 6);\n"
+        << "#endif\n"
         << "        if (!compact_turn_rebuild_movement_derived_state_" << suffix << "(dimensions, scratch)) return false;\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "        ps_gba_perf_progress(1, 7);\n"
+        << "#endif\n"
         << "    }\n"
         << "    scratch.anyMasksDirty = !compact_turn_needs_object_row_masks_" << suffix << "\n"
         << "        || !compact_turn_needs_object_column_masks_" << suffix << "\n"
@@ -5458,15 +5590,18 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "        if (scratch.rigidGroupIndexMasks.size() != movementWords) scratch.rigidGroupIndexMasks.assign(movementWords, 0);\n"
         << "        if (scratch.rigidMovementAppliedMasks.size() != movementWords) scratch.rigidMovementAppliedMasks.assign(movementWords, 0);\n"
         << "    }\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_progress(1, 8);\n"
+        << "#endif\n"
         << "    return true;\n"
         << "}\n\n";
 
     out << "MaskWord* compact_turn_cell_objects_" << suffix << "(PersistentLevelState& levelState, int32_t tileIndex) {\n"
-        << "    return levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "    return compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "}\n\n";
 
     out << "const MaskWord* compact_turn_cell_objects_" << suffix << "(const PersistentLevelState& levelState, int32_t tileIndex) {\n"
-        << "    return levelState.board.objects.data() + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
+        << "    return compact_turn_board_objects_data_" << suffix << "(levelState) + static_cast<size_t>(tileIndex) * static_cast<size_t>(compact_turn_object_stride_" << suffix << ");\n"
         << "}\n\n";
 
     out << "MaskWord* compact_turn_cell_movements_" << suffix << "(Scratch& scratch, int32_t tileIndex) {\n"
@@ -6505,7 +6640,7 @@ void emitCompactTurnBackend(
             << " has_restart=" << (program.hasRestart ? "true" : "false")
             << " has_rule_loops=" << (program.hasRuleLoops ? "true" : "false")
             << "\n";
-        emitCompactTurnAccessLayer(out, game, sourceIndex);
+        emitCompactTurnAccessLayer(out, game, sourceIndex, options);
         out << "SpecializedCompactTurnOutcome compact_turn_execute_program_" << suffix << "(\n"
             << "    LevelDimensions dimensions,\n"
             << "    int32_t currentLevelIndex,\n"

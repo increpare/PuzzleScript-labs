@@ -95,6 +95,20 @@ int main() {
         "small games retain the full 32-snapshot undo ring");
     require(manifest.find("\"soundbank_generated\": false") != std::string::npos, "no-mmutil mode is explicit");
     const std::string generatedBefore = readFile(first.generatedSourcePath);
+    const std::string generatedRules = readFile(first.generatedRulesPath);
+    require(generatedRules.find("compact_turn_attach_external_board_0") != std::string::npos,
+        "generated kernel attaches the session board as non-owning storage");
+    require(generatedRules.find("levelState.board.objects.resize(boardWordCount)") == std::string::npos,
+        "generated kernel does not allocate an owning board per turn");
+    require(generatedRules.find("memcpy(boardWords, levelState.board.objects.data()") == std::string::npos,
+        "generated kernel does not copy its board back after every turn");
+    require(generatedRules.find(
+        "if (commands.hasCancel) {\n"
+        "        compact_turn_restore_board_objects_0(levelState, *turnStartObjects);\n"
+        "        (void)compact_turn_rebuild_object_derived_state_0(dimensions, levelState, scratch);\n"
+        "        scratch.objectCellIndexDirty = true;\n"
+        "        compact_turn_refresh_any_masks_dirty_0(scratch);") != std::string::npos,
+        "cancel rollback refreshes the generated kernel's board-derived caches");
     require(readFile(first.generatedHeaderPath).find("PS_GBA_GENERATED_SESSION_BYTES") != std::string::npos,
         "generated header sizes the fixed session arena for this game");
     require(generatedBefore.find("alignas(4) const uint8_t kObject0Pixels[]") != std::string::npos,

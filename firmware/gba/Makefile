@@ -16,8 +16,10 @@ AUTOTEST_LEVEL_START ?= 0
 PERF_BENCHMARK      ?= 0
 PERF_ITERATIONS     ?= 16
 PERF_RENDER_ONLY    ?= 0
+PERF_TELEMETRY      ?= 0
 ROM_PREFETCH        ?= 1
 RENDER_SET_BITS     ?= 1
+RENDER_PACKED_BLIT  ?= 1
 TITLE_IMAGE         ?=
 TITLE_IMAGE_ARG     := $(if $(strip $(TITLE_IMAGE)),--title-image "$(TITLE_IMAGE)",)
 
@@ -38,6 +40,9 @@ endif
 ifneq ($(filter 1 yes true on,$(PERF_RENDER_ONLY)),)
 CFLAGS      += -DPS_GBA_PERF_RENDER_ONLY=1
 endif
+ifneq ($(filter 1 yes true on,$(PERF_TELEMETRY)),)
+CFLAGS      += -DPS_GBA_PERF_TELEMETRY=1
+endif
 ifneq ($(filter 1 yes true on,$(ROM_PREFETCH)),)
 CFLAGS      += -DPS_GBA_ROM_PREFETCH=1
 else
@@ -47,6 +52,11 @@ ifneq ($(filter 1 yes true on,$(RENDER_SET_BITS)),)
 CFLAGS      += -DPS_GBA_RENDER_SET_BITS=1
 else
 CFLAGS      += -DPS_GBA_RENDER_SET_BITS=0
+endif
+ifneq ($(filter 1 yes true on,$(RENDER_PACKED_BLIT)),)
+CFLAGS      += -DPS_GBA_RENDER_PACKED_BLIT=1
+else
+CFLAGS      += -DPS_GBA_RENDER_PACKED_BLIT=0
 endif
 CFLAGS      += $(INCLUDE)
 CXXFLAGS    := $(CFLAGS) -std=gnu++20 -fno-exceptions -fno-rtti \
