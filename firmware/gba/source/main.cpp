@@ -7,6 +7,18 @@
 #define PS_GBA_ROM_PREFETCH 1
 #endif
 
+#ifndef PS_GBA_RENDER_SET_BITS
+#define PS_GBA_RENDER_SET_BITS 1
+#endif
+
+#ifndef PS_GBA_PERF_ITERATIONS
+#define PS_GBA_PERF_ITERATIONS 16
+#endif
+
+#ifndef PS_GBA_PERF_RENDER_ONLY
+#define PS_GBA_PERF_RENDER_ONLY 0
+#endif
+
 #if defined(PS_GBA_PERF_BENCHMARK) && PS_GBA_ENABLE_AUDIO
 #error "PS_GBA_PERF_BENCHMARK reserves hardware timers 2 and 3; build with AUDIO=0"
 #endif
@@ -97,8 +109,9 @@ void writeAutotestResult(uint32_t result) {
 
 #if defined(PS_GBA_PERF_BENCHMARK)
 constexpr uint32_t kBenchmarkMagic = 0x46505350U; // "PSPF"
-constexpr uint16_t kBenchmarkVersion = 1;
-constexpr uint32_t kBenchmarkIterations = 16;
+constexpr uint16_t kBenchmarkVersion = 2;
+constexpr uint32_t kBenchmarkIterations = PS_GBA_PERF_ITERATIONS;
+static_assert(kBenchmarkIterations > 0);
 constexpr uint32_t kCyclesPerFrame = 280896;
 constexpr uintptr_t kTimer2Data = 0x04000108;
 constexpr uintptr_t kTimer2Control = 0x0400010a;
@@ -171,7 +184,8 @@ uint16_t firstBoardLevel() {
     return level;
 }
 
-void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step, const BenchmarkSamples& renderSamples) {
+void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step,
+    const BenchmarkSamples& renderSamples, uint32_t framebufferHash) {
     // Keep the magic zero until every other field is committed. The host only
     // accepts records whose magic and version are complete.
     writeSram32(0, 0);
@@ -189,6 +203,7 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step, const Be
     writeSram32(52, renderSamples.minimum);
     writeSram32(56, renderSamples.maximum);
     writeSram32(60, kCyclesPerFrame);
+    writeSram32(64, framebufferHash);
     writeSram32(0, kBenchmarkMagic);
 
     // mGBA's debug-register protocol gives the automated runner an immediate
@@ -215,7 +230,8 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step, const Be
         appendHex(cursor, renderSamples.total, 16); *cursor++ = ',';
         appendHex(cursor, renderSamples.minimum, 8); *cursor++ = ',';
         appendHex(cursor, renderSamples.maximum, 8); *cursor++ = ',';
-        appendHex(cursor, kCyclesPerFrame, 8);
+        appendHex(cursor, kCyclesPerFrame, 8); *cursor++ = ',';
+        appendHex(cursor, framebufferHash, 8);
         *cursor = '\0';
         *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
     }
@@ -363,7 +379,32 @@ bool parseViewport(const char* value, int* width, int* height) {
     return true;
 }
 
+void compositeObject(uint8_t* composite, const ps_gba_object& object) {
+    if (object.sprite_width == 0 || object.sprite_height == 0) return;
+    if (object.sprite_width == kSpriteSize && object.sprite_height == kSpriteSize) {
+        for (int pixel = 0; pixel < kSpriteSize * kSpriteSize; ++pixel) {
+            if ((object.transparent_pixels & (uint32_t{1} << pixel)) == 0) {
+                composite[pixel] = object.sprite_pixels[pixel];
+            }
+        }
+        return;
+    }
+    for (int sy = 0; sy < kSpriteSize; ++sy) {
+        const int sourceY = sy * object.sprite_height / kSpriteSize;
+        for (int sx = 0; sx < kSpriteSize; ++sx) {
+            const int sourceX = sx * object.sprite_width / kSpriteSize;
+            const int sourcePixel = sourceY * object.sprite_width + sourceX;
+            if ((object.transparent_pixels & (uint32_t{1} << sourcePixel)) == 0) {
+                composite[sy * kSpriteSize + sx] = object.sprite_pixels[sourcePixel];
+            }
+        }
+    }
+}
+
 void drawBoard(ps_gba_session* session, const ps_gba_status& status) {
+    const ps_gba_game_view* game = ps_gba_game(session);
+    const uint32_t* board = ps_gba_board_words(session);
+    if (game == nullptr || board == nullptr) return;
     int viewWidth = status.width;
     int viewHeight = status.height;
     int minX = 0;
@@ -401,29 +442,30 @@ void drawBoard(ps_gba_session* session, const ps_gba_status& status) {
     for (int y = 0; y < viewHeight; ++y) for (int x = 0; x < viewWidth; ++x) {
         uint8_t composite[kSpriteSize * kSpriteSize];
         for (uint8_t& pixel : composite) pixel = background;
-        for (uint16_t objectId = 0; objectId < ps_gba_generated_game.object_count; ++objectId) {
-            if (!ps_gba_cell_has_object(session, minX + x, minY + y, objectId)) continue;
-            const ps_gba_object& object = ps_gba_generated_game.objects[objectId];
-            if (object.sprite_width == 0 || object.sprite_height == 0) continue;
-            if (object.sprite_width == kSpriteSize && object.sprite_height == kSpriteSize) {
-                for (int pixel = 0; pixel < kSpriteSize * kSpriteSize; ++pixel) {
-                    if ((object.transparent_pixels & (uint32_t{1} << pixel)) == 0) {
-                        composite[pixel] = object.sprite_pixels[pixel];
+#if PS_GBA_RENDER_SET_BITS
+        const int boardX = minX + x;
+        const int boardY = minY + y;
+        if (boardX >= 0 && boardY >= 0 && boardX < status.width && boardY < status.height) {
+            const size_t cell = static_cast<size_t>(boardX) * status.height + static_cast<size_t>(boardY);
+            const uint32_t* cellWords = board + cell * game->object_word_count;
+            for (uint16_t wordIndex = 0; wordIndex < game->object_word_count; ++wordIndex) {
+                uint32_t present = cellWords[wordIndex];
+                while (present != 0) {
+                    const uint32_t bit = static_cast<uint32_t>(__builtin_ctz(present));
+                    const uint32_t objectId = static_cast<uint32_t>(wordIndex) * 32U + bit;
+                    if (objectId < game->object_count) {
+                        compositeObject(composite, game->objects[objectId]);
                     }
-                }
-            } else {
-                for (int sy = 0; sy < kSpriteSize; ++sy) {
-                    const int sourceY = sy * object.sprite_height / kSpriteSize;
-                    for (int sx = 0; sx < kSpriteSize; ++sx) {
-                        const int sourceX = sx * object.sprite_width / kSpriteSize;
-                        const int sourcePixel = sourceY * object.sprite_width + sourceX;
-                        if ((object.transparent_pixels & (uint32_t{1} << sourcePixel)) == 0) {
-                            composite[sy * kSpriteSize + sx] = object.sprite_pixels[sourcePixel];
-                        }
-                    }
+                    present &= present - 1U;
                 }
             }
         }
+#else
+        for (uint16_t objectId = 0; objectId < ps_gba_generated_game.object_count; ++objectId) {
+            if (!ps_gba_cell_has_object(session, minX + x, minY + y, objectId)) continue;
+            compositeObject(composite, game->objects[objectId]);
+        }
+#endif
         if (tile >= kSpriteSize) {
             const int scale = tile / kSpriteSize;
             for (int sy = 0; sy < kSpriteSize; ++sy) for (int sx = 0; sx < kSpriteSize; ++sx) {
@@ -467,34 +509,54 @@ void render(ps_gba_session* session) {
 }
 
 #if defined(PS_GBA_PERF_BENCHMARK)
+uint32_t hiddenFrameHash() {
+    uint32_t hash = 2166136261U;
+    const volatile uint16_t* frame = hiddenFrame();
+    constexpr size_t kHalfwordCount = PS_GBA_SCREEN_WIDTH * PS_GBA_SCREEN_HEIGHT / 2;
+    for (size_t index = 0; index < kHalfwordCount; ++index) {
+        const uint16_t pixels = frame[index];
+        hash = (hash ^ static_cast<uint8_t>(pixels)) * 16777619U;
+        hash = (hash ^ static_cast<uint8_t>(pixels >> 8U)) * 16777619U;
+    }
+    return hash;
+}
+#endif
+
+#if defined(PS_GBA_PERF_BENCHMARK)
 [[noreturn]] void runPerformanceBenchmark(ps_gba_session* session) {
     const uint16_t level = firstBoardLevel();
     if (level >= ps_gba_generated_game.level_count) {
-        writeBenchmarkResult(level, {}, {});
+        writeBenchmarkResult(level, {}, {}, 0);
         while (true) VBlankIntrWait();
     }
 
     // Warm both paths once. Every measured step starts from the same level
     // state, while level loading itself remains outside the timed region.
     ps_gba_load_level(session, level);
+#if !PS_GBA_PERF_RENDER_ONLY
     (void)ps_gba_step(session, PS_INPUT_RIGHT);
+#endif
     render(session);
 
     BenchmarkSamples stepSamples{};
     BenchmarkSamples renderSamples{};
+#if PS_GBA_PERF_RENDER_ONLY
+    stepSamples.minimum = 0;
+#else
     for (uint32_t iteration = 0; iteration < kBenchmarkIterations; ++iteration) {
         ps_gba_load_level(session, level);
         benchmarkTimerStart();
         (void)ps_gba_step(session, PS_INPUT_RIGHT);
         stepSamples.add(benchmarkTimerStop());
     }
+#endif
     ps_gba_load_level(session, level);
     for (uint32_t iteration = 0; iteration < kBenchmarkIterations; ++iteration) {
         benchmarkTimerStart();
         render(session);
         renderSamples.add(benchmarkTimerStop());
     }
-    writeBenchmarkResult(level, stepSamples, renderSamples);
+    writeBenchmarkResult(level, stepSamples, renderSamples, hiddenFrameHash());
     while (true) VBlankIntrWait();
 }
 #endif

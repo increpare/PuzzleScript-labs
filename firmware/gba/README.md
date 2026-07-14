@@ -54,10 +54,11 @@ from cartridge ROM.
 ## Cycle benchmark
 
 An opt-in benchmark ROM measures one right-input step and one complete Mode 4
-redraw with cascaded GBA hardware timers. It runs 16 samples from a repeatable
-level state and reports averages, minima, and maxima in CPU cycles, milliseconds,
-and 59.7 Hz frame periods. Benchmark ROMs reserve timers 2 and 3 and therefore
-must be built with audio disabled.
+redraw with cascaded GBA hardware timers. It runs 16 samples by default from a
+repeatable level state and reports averages, minima, and maxima in CPU cycles,
+milliseconds, and 59.7 Hz frame periods. It also reports a framebuffer hash so
+renderer A/B tests can verify pixel-identical output. Benchmark ROMs reserve
+timers 2 and 3 and therefore must be built with audio disabled.
 
 Build and run one from the repository root with:
 
@@ -76,6 +77,11 @@ no-prefetch baseline, add `ROM_PREFETCH=0`; normal builds use
 `ROM_PREFETCH=1`. The runner uses mGBA's debug-register protocol for immediate
 headless results while also writing the same versioned record to SRAM for real
 hardware measurements. Benchmark mode is absent from ordinary ROMs.
+
+`PERF_ITERATIONS=N` changes the sample count, and `PERF_RENDER_ONLY=1` skips
+rule-step timing for pathological renderer stress cases. `RENDER_SET_BITS=0`
+restores the old cells-times-all-objects renderer for an A/B baseline; normal
+ROMs enumerate only the object bits present in each cell.
 
 To inspect an export without invoking `mmutil`:
 

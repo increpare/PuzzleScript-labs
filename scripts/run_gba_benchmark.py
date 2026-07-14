@@ -16,14 +16,14 @@ import time
 
 
 MAGIC = 0x46505350  # "PSPF"
-VERSION = 1
-RESULT = struct.Struct("<IHHQHHIIQIIQIII")
+VERSION = 2
+RESULT = struct.Struct("<IHHQHHIIQIIQIIII")
 GBA_HZ = 16_777_216
 LOG_RESULT = re.compile(
     r"PS_GBA_BENCH,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16}),"
     r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16}),"
     r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16}),([0-9a-f]{8}),"
-    r"([0-9a-f]{8}),([0-9a-f]{8})",
+    r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8})",
     re.IGNORECASE,
 )
 
@@ -50,7 +50,8 @@ def make_result(
     render_min: int,
     render_max: int,
     cycles_per_frame: int,
-) -> dict[str, int | float | bool] | None:
+    framebuffer_hash: int,
+) -> dict[str, int | float | bool | str] | None:
     if version != VERSION or iterations == 0 or cycles_per_frame == 0:
         return None
     step_average = step_total / iterations
@@ -71,10 +72,11 @@ def make_result(
         "render_cycles_max": render_max,
         "render_ms_average": render_average * 1000 / GBA_HZ,
         "render_frames_average": render_average / cycles_per_frame,
+        "framebuffer_hash": f"{framebuffer_hash:08x}",
     }
 
 
-def read_sram_result(path: Path) -> dict[str, int | float | bool] | None:
+def read_sram_result(path: Path) -> dict[str, int | float | bool | str] | None:
     try:
         data = path.read_bytes()
     except (FileNotFoundError, PermissionError, OSError):
@@ -98,10 +100,11 @@ def read_sram_result(path: Path) -> dict[str, int | float | bool] | None:
         fields[12],
         fields[13],
         fields[14],
+        fields[15],
     )
 
 
-def read_log_result(path: Path) -> dict[str, int | float | bool] | None:
+def read_log_result(path: Path) -> dict[str, int | float | bool | str] | None:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except (FileNotFoundError, PermissionError, OSError):

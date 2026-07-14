@@ -14,7 +14,10 @@ PUZZLESCRIPT_CPP    ?= ../../build-32/native/Release/puzzlescript_cpp.exe
 AUDIO               ?= 0
 AUTOTEST_LEVEL_START ?= 0
 PERF_BENCHMARK      ?= 0
+PERF_ITERATIONS     ?= 16
+PERF_RENDER_ONLY    ?= 0
 ROM_PREFETCH        ?= 1
+RENDER_SET_BITS     ?= 1
 TITLE_IMAGE         ?=
 TITLE_IMAGE_ARG     := $(if $(strip $(TITLE_IMAGE)),--title-image "$(TITLE_IMAGE)",)
 
@@ -30,12 +33,20 @@ ifneq ($(filter 1 yes true on,$(AUTOTEST_LEVEL_START)),)
 CFLAGS      += -DPS_GBA_AUTOTEST_LEVEL_START=1
 endif
 ifneq ($(filter 1 yes true on,$(PERF_BENCHMARK)),)
-CFLAGS      += -DPS_GBA_PERF_BENCHMARK=1
+CFLAGS      += -DPS_GBA_PERF_BENCHMARK=1 -DPS_GBA_PERF_ITERATIONS=$(PERF_ITERATIONS)
+endif
+ifneq ($(filter 1 yes true on,$(PERF_RENDER_ONLY)),)
+CFLAGS      += -DPS_GBA_PERF_RENDER_ONLY=1
 endif
 ifneq ($(filter 1 yes true on,$(ROM_PREFETCH)),)
 CFLAGS      += -DPS_GBA_ROM_PREFETCH=1
 else
 CFLAGS      += -DPS_GBA_ROM_PREFETCH=0
+endif
+ifneq ($(filter 1 yes true on,$(RENDER_SET_BITS)),)
+CFLAGS      += -DPS_GBA_RENDER_SET_BITS=1
+else
+CFLAGS      += -DPS_GBA_RENDER_SET_BITS=0
 endif
 CFLAGS      += $(INCLUDE)
 CXXFLAGS    := $(CFLAGS) -std=gnu++20 -fno-exceptions -fno-rtti \
