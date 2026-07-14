@@ -76,6 +76,7 @@ int fail(const ReplayContext& context, std::string_view phase, std::string_view 
     if (object >= 0) std::cout << ",\"object\":" << object;
     std::cout << ",\"native_won\":" << (context.nativeWon ? "true" : "false")
               << ",\"gba_won\":" << (context.gbaWon ? "true" : "false")
+              << ",\"total_again_ticks\":" << context.totalAgainTicks
               << "}\n";
     return 1;
 }

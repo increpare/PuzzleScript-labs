@@ -1,10 +1,24 @@
 menu "PuzzleScript Pocket Card"
 
+choice POCKET_CARD_APP_MODE
+    prompt "Application mode"
+    default POCKET_CARD_PLAYER_APP
+
 config POCKET_CARD_MCP23017_BENCH
-    bool "Run MCP23017 breadboard bench test instead of runtime probe"
-    default n
+    bool "MCP23017 breadboard bench test"
     help
-        When enabled, app_main scans the ES3C28P I2C bus, probes the MCP23017
-        at 0x20, and prints button state on the serial console.
+        Scan I2C and print MCP23017 button transitions on the serial console.
+
+config POCKET_CARD_RUNTIME_PROBE
+    bool "Track 0 runtime probe"
+    help
+        Load the embedded IR fixture and run the automated runtime smoke trace.
+
+config POCKET_CARD_PLAYER_APP
+    bool "Interactive player (display + MCP23017 controls)"
+    help
+        Boot into the Pocket Card player with ILI9341 rendering and physical buttons.
+
+endchoice
 
 endmenu

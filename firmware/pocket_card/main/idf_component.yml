@@ -4,3 +4,4 @@ targets:
 dependencies:
   idf: ">=5.4,<6.0"
   espressif/led_strip: "^3.0.0"
+  espressif/esp_lcd_ili9341: "^2.0.0"

@@ -433,6 +433,8 @@ int main() {
         scanKeys();
         const uint16_t hit = keysDown();
         const uint16_t held = static_cast<uint16_t>(keysHeld() & kDirectionKeys);
+        ps_gba_status frameStatus{};
+        ps_gba_status_get(session, &frameStatus);
         bool dirty = false;
         if ((hit & KEY_START) != 0) {
             session = ps_gba_session_init(gSessionArena, sizeof(gSessionArena), &ps_gba_generated_game);
@@ -444,7 +446,7 @@ int main() {
         } else if ((hit & KEY_R) != 0) {
             dirty = ps_gba_restart(session);
             if (dirty) playNamed("restart");
-        } else if ((hit & KEY_A) != 0) {
+        } else if ((hit & KEY_A) != 0 && !frameStatus.pending_again) {
             ps_gba_status status{};
             ps_gba_status_get(session, &status);
             ps_step_result result{};
@@ -458,7 +460,7 @@ int main() {
                 playEvents(result);
                 if (status.mode == PS_FULL_STATE_MODE_TITLE && dirty) playNamed("startgame");
             }
-        } else {
+        } else if (!frameStatus.pending_again) {
             if (held == previousHeld && held != 0) ++heldFrames;
             else heldFrames = 0;
             previousHeld = held;
@@ -470,6 +472,12 @@ int main() {
                 playEvents(result);
                 if (result.won) playNamed("endlevel");
             }
+        } else {
+            // PuzzleScript's `again` chain is one logical player turn.  Do not
+            // let a held-key repeat or action replace its pending tick; resume
+            // normal input immediately after the chain drains.
+            heldFrames = 0;
+            previousHeld = 0;
         }
         ps_gba_status tickStatus{};
         ps_gba_status_get(session, &tickStatus);

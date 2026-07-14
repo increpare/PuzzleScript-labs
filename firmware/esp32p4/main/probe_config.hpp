@@ -6,15 +6,22 @@
 
 namespace ps_probe {
 
-#if CONFIG_PS_BOARD_P4_NANO
+#if defined(CONFIG_POCKET_CARD_PLAYER_APP) || defined(CONFIG_POCKET_CARD_MCP23017_BENCH) || defined(CONFIG_POCKET_CARD_RUNTIME_PROBE)
+inline constexpr int kNativeWidth = 320;
+inline constexpr int kNativeHeight = 240;
+inline constexpr int kTargetWidth = 320;
+inline constexpr int kTargetHeight = 240;
+#elif CONFIG_PS_BOARD_P4_NANO
 inline constexpr int kNativeWidth = 800;
 inline constexpr int kNativeHeight = 480;
+inline constexpr int kTargetWidth = 800;
+inline constexpr int kTargetHeight = 480;
 #else
 inline constexpr int kNativeWidth = 1024;
 inline constexpr int kNativeHeight = 600;
-#endif
 inline constexpr int kTargetWidth = 800;
 inline constexpr int kTargetHeight = 480;
+#endif
 inline constexpr int kRgb565BytesPerPixel = 2;
 inline constexpr std::size_t kNativeFramebufferBytes =
     static_cast<std::size_t>(kNativeWidth) * kNativeHeight * kRgb565BytesPerPixel;

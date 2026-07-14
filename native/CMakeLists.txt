@@ -617,6 +617,48 @@ target_compile_definitions(puzzlescript_gba_atlas_smoke PRIVATE
 )
 add_test(NAME puzzlescript_gba_atlas_smoke COMMAND puzzlescript_gba_atlas_smoke)
 
+set(GBA_COLLAPSE_AGAIN_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_collapse_again)
+set(GBA_COLLAPSE_AGAIN_SMOKE_SOURCE ${GBA_COLLAPSE_AGAIN_SMOKE_DIR}/generated_game.cpp)
+set(GBA_COLLAPSE_AGAIN_SMOKE_HEADER ${GBA_COLLAPSE_AGAIN_SMOKE_DIR}/generated_game.hpp)
+set(GBA_COLLAPSE_AGAIN_SMOKE_RULES ${GBA_COLLAPSE_AGAIN_SMOKE_DIR}/generated_rules.cpp)
+set(GBA_COLLAPSE_AGAIN_SMOKE_MANIFEST ${GBA_COLLAPSE_AGAIN_SMOKE_DIR}/gba_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBA_COLLAPSE_AGAIN_SMOKE_SOURCE}
+    ${GBA_COLLAPSE_AGAIN_SMOKE_HEADER}
+    ${GBA_COLLAPSE_AGAIN_SMOKE_RULES}
+    ${GBA_COLLAPSE_AGAIN_SMOKE_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gba
+          "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/collapse.txt"
+          --out ${GBA_COLLAPSE_AGAIN_SMOKE_DIR}
+          --no-mmutil
+  DEPENDS
+    puzzlescript_cpp
+    "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/collapse.txt"
+  VERBATIM
+)
+set_source_files_properties(
+  ${GBA_COLLAPSE_AGAIN_SMOKE_SOURCE}
+  ${GBA_COLLAPSE_AGAIN_SMOKE_RULES}
+  PROPERTIES GENERATED TRUE
+)
+add_executable(puzzlescript_gba_collapse_again_smoke
+  tests/gba_collapse_again_smoke.cpp
+  ${GBA_COLLAPSE_AGAIN_SMOKE_SOURCE}
+  ${GBA_COLLAPSE_AGAIN_SMOKE_RULES}
+  src/gba/rule_runtime_stubs.cpp
+)
+target_include_directories(puzzlescript_gba_collapse_again_smoke PRIVATE
+  ${GBA_COLLAPSE_AGAIN_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gba_collapse_again_smoke PRIVATE puzzlescript_gba_core)
+target_compile_definitions(puzzlescript_gba_collapse_again_smoke PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=1
+)
+add_test(NAME puzzlescript_gba_collapse_again_smoke COMMAND puzzlescript_gba_collapse_again_smoke)
+
 # A generated export can be linked into this desktop-only executable to replay
 # native-solver solutions against the exact 32-bit game representation used by
 # the GBA ROM.  The PowerShell corpus harness changes this directory per game,

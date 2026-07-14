@@ -1,7 +1,8 @@
 param(
     [string]$Corpus = "src\tests\solver_tests",
     [string]$OutputDirectory = "build\gba\solver-tests\roms\all-abi5",
-    [switch]$Rebuild
+    [switch]$Rebuild,
+    [switch]$Resume
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +26,29 @@ New-Item -ItemType Directory -Force -Path $romDirectory, $logDirectory | Out-Nul
 $sources = @(Get-ChildItem -LiteralPath $corpusPath -File -Filter "*.txt" | Sort-Object FullName)
 $records = [System.Collections.Generic.List[object]]::new()
 $started = [DateTimeOffset]::UtcNow
+$completedIndices = [System.Collections.Generic.HashSet[int]]::new()
+
+if ($Resume -and (Test-Path -LiteralPath $reportPath)) {
+    $priorReport = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+    if ($priorReport.format -ne "puzzlescript-gba-rom-build-v1") {
+        throw "Cannot resume unrecognized report format: $($priorReport.format)"
+    }
+    if ([IO.Path]::GetFullPath($priorReport.corpus) -ne [IO.Path]::GetFullPath($corpusPath)) {
+        throw "Cannot resume report for a different corpus: $($priorReport.corpus)"
+    }
+    if ($priorReport.started_utc) {
+        $started = [DateTimeOffset]::Parse($priorReport.started_utc)
+    }
+    foreach ($record in @($priorReport.games)) {
+        $recordIndex = [int]$record.index
+        $recordRom = if ($record.rom) { Join-Path $repo $record.rom } else { $null }
+        $validRecord = $record.success -and $recordRom -and (Test-Path -LiteralPath $recordRom)
+        if ($validRecord -and $completedIndices.Add($recordIndex)) {
+            $records.Add($record)
+        }
+    }
+    Write-Host ("Resuming after {0}/{1} successful ROMs" -f $records.Count, $sources.Count)
+}
 
 function Write-Report([bool]$complete) {
     $successful = @($records | Where-Object success).Count
@@ -47,6 +71,8 @@ function Write-Report([bool]$complete) {
 }
 
 for ($index = 0; $index -lt $sources.Count; ++$index) {
+    if ($Resume -and $completedIndices.Contains($index)) { continue }
+
     $source = $sources[$index]
     $slug = ($source.BaseName.ToLowerInvariant() -replace "[^a-z0-9]+", "-").Trim("-")
     if ([string]::IsNullOrWhiteSpace($slug)) { $slug = "game" }
@@ -54,7 +80,7 @@ for ($index = 0; $index -lt $sources.Count; ++$index) {
     $romPath = Join-Path $romDirectory ($baseName + ".gba")
     $logPath = Join-Path $logDirectory ($baseName + ".log")
 
-    if (-not $Rebuild -and (Test-Path -LiteralPath $romPath)) {
+    if (-not $Rebuild -and -not $Resume -and (Test-Path -LiteralPath $romPath)) {
         $rom = Get-Item -LiteralPath $romPath
         $records.Add([pscustomobject][ordered]@{
             index = $index

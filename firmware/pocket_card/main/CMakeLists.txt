@@ -1,12 +1,24 @@
 set(PUZZLESCRIPT_NATIVE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../native")
+set(ESP32P4_MAIN_DIR "${CMAKE_CURRENT_LIST_DIR}/../../esp32p4/main")
 
 idf_component_register(
   SRCS
     "ambient_led.cpp"
-    "main.cpp"
+    "board_display.cpp"
+    "controls_input.cpp"
+    "mcp23017.cpp"
     "mcp23017_bench.cpp"
+    "main.cpp"
+    "pocket_player.cpp"
     "probe_log.cpp"
     "runtime_probe.cpp"
+    "${ESP32P4_MAIN_DIR}/ps_dot_font.cpp"
+    "${ESP32P4_MAIN_DIR}/ps_framebuffer.cpp"
+    "${ESP32P4_MAIN_DIR}/ps_renderer.cpp"
+    "${ESP32P4_MAIN_DIR}/ps_text_screen.cpp"
+    "${ESP32P4_MAIN_DIR}/ps_touch_gestures.cpp"
+    "${ESP32P4_MAIN_DIR}/ps_ui_draw.cpp"
+    "${PUZZLESCRIPT_NATIVE_DIR}/src/handheld/display_layout.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/c_api.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/compiled_rules.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/core.cpp"
@@ -17,15 +29,17 @@ idf_component_register(
     "${PUZZLESCRIPT_NATIVE_DIR}/third_party/simdjson/simdjson.cpp"
   INCLUDE_DIRS
     "."
+    "${ESP32P4_MAIN_DIR}"
     "${PUZZLESCRIPT_NATIVE_DIR}/include"
     "${PUZZLESCRIPT_NATIVE_DIR}/src"
     "${PUZZLESCRIPT_NATIVE_DIR}/third_party/simdjson"
-  # Binary embedding keeps _end - _start equal to the JSON byte length.
-  # Text embedding appends a NUL that the explicit-length runtime parser must not see.
   EMBED_FILES
     "sokoban_basic.ir.json"
+  EMBED_TXTFILES
+    "../../../src/js/font.js"
   REQUIRES
     driver
+    esp_lcd
     esp_timer
     led_strip
     spi_flash

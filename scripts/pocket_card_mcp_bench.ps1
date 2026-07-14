@@ -83,11 +83,12 @@ try {
     Ensure-EspIdf
     Push-Location $firmwareDir
     try {
-        if (-not (Select-String -Path "sdkconfig" -Pattern 'CONFIG_POCKET_CARD_MCP23017_BENCH=y' -Quiet -ErrorAction SilentlyContinue)) {
-            Write-Host "==> Enabling MCP23017 bench mode in sdkconfig"
+        if (-not (Test-Path -LiteralPath "sdkconfig") -or
+            -not (Select-String -Path "sdkconfig" -Pattern 'CONFIG_POCKET_CARD_(MCP23017_BENCH|RUNTIME_PROBE|PLAYER_APP)=y' -Quiet -ErrorAction SilentlyContinue)) {
+            Write-Host "==> Applying Pocket Card sdkconfig defaults"
             idf.py reconfigure | Out-Null
         }
-        Write-Host "==> Build MCP23017 bench firmware"
+        Write-Host "==> Build Pocket Card firmware"
         idf.py build
         if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)" }
 
