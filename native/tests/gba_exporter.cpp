@@ -102,6 +102,10 @@ int main() {
         "generated kernel does not allocate an owning board per turn");
     require(generatedRules.find("memcpy(boardWords, levelState.board.objects.data()") == std::string::npos,
         "generated kernel does not copy its board back after every turn");
+    require(generatedRules.find("#if defined(PS_GBA_PERF_TELEMETRY)") != std::string::npos
+            && generatedRules.find("ps_gba_perf_progress(1, 1)") != std::string::npos
+            && generatedRules.find("ps_gba_perf_progress(2,") != std::string::npos,
+        "generated kernel exposes opt-in setup and rule progress telemetry");
     require(generatedRules.find(
         "if (commands.hasCancel) {\n"
         "        compact_turn_restore_board_objects_0(levelState, *turnStartObjects);\n"

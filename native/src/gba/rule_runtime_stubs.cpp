@@ -36,6 +36,7 @@ uintptr_t gHeapBaseline = 0;
 uintptr_t gHeapHighWater = 0;
 uint32_t gProgressStage = 0;
 uint32_t gProgressDetail = 0;
+uint32_t gProgressHeartbeatFrames = 0;
 
 uint32_t timerCycles() {
     uint32_t highBefore = *reinterpret_cast<volatile uint16_t*>(kTimer3Data);
@@ -183,6 +184,7 @@ extern "C" void ps_gba_perf_begin() {
     gHeapHighWater = gHeapBaseline;
     gProgressStage = 0;
     gProgressDetail = 0;
+    gProgressHeartbeatFrames = 0;
     gTelemetryEnabled = true;
     writeProgressSram(0, 0);
 #endif
@@ -223,6 +225,7 @@ extern "C" void ps_gba_perf_progress(uint32_t stage, uint32_t detail) {
     if (!gTelemetryEnabled) return;
     gProgressStage = stage;
     gProgressDetail = detail;
+    gProgressHeartbeatFrames = 0;
     writeProgressSram(stage, detail);
 #else
     (void)stage;
@@ -232,6 +235,9 @@ extern "C" void ps_gba_perf_progress(uint32_t stage, uint32_t detail) {
 
 extern "C" void ps_gba_perf_vblank() {
 #if PS_GBA_PERF_TELEMETRY
-    if (gTelemetryEnabled && gProgressStage != 0) logProgress(gProgressStage, gProgressDetail);
+    if (gTelemetryEnabled && gProgressStage != 0 && ++gProgressHeartbeatFrames >= 60) {
+        gProgressHeartbeatFrames = 0;
+        logProgress(gProgressStage, gProgressDetail);
+    }
 #endif
 }

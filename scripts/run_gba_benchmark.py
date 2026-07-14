@@ -55,6 +55,51 @@ PROGRESS_STAGES = {
     6: "complete",
 }
 
+SETUP_PROGRESS_DETAILS = {
+    0: "enter",
+    1: "match_scratch_reserve",
+    2: "movement_storage",
+    3: "cache_ready_check",
+    4: "object_cache_rebuild",
+    5: "object_cache_rebuilt",
+    6: "movement_cache_rebuild",
+    7: "movement_cache_rebuilt",
+    8: "scratch_ready",
+    9: "turn_snapshot",
+    10: "turn_snapshot_copied",
+    11: "probe_snapshot_copied",
+    12: "player_positions_collected",
+    13: "movement_scratch_cleared",
+    14: "rigid_scratch_cleared",
+    15: "input_seeded",
+}
+
+
+def add_progress_fields(result: dict, stage: int, detail: int) -> None:
+    result["progress_stage"] = stage
+    result["progress_detail"] = detail
+    result["progress_stage_name"] = PROGRESS_STAGES.get(stage, "unknown")
+    if stage == 1:
+        result["progress_probe"] = bool(detail & 0x80000000)
+        setup_detail = detail & 0x7FFFFFFF
+        result["progress_setup_detail"] = setup_detail
+        result["progress_setup_detail_name"] = SETUP_PROGRESS_DETAILS.get(setup_detail, "unknown")
+    elif stage in (2, 4):
+        result["progress_group"] = detail >> 16
+        result["progress_rule"] = detail & 0xFFFF
+
+
+def describe_progress(stage: int, detail: int) -> str:
+    stage_name = PROGRESS_STAGES.get(stage, "unknown")
+    if stage == 1:
+        probe = bool(detail & 0x80000000)
+        setup_detail = detail & 0x7FFFFFFF
+        detail_name = SETUP_PROGRESS_DETAILS.get(setup_detail, "unknown")
+        return f"stage={stage_name}({stage}) detail={detail_name}({setup_detail}) probe={str(probe).lower()}"
+    if stage in (2, 4):
+        return f"stage={stage_name}({stage}) group={detail >> 16} rule={detail & 0xFFFF}"
+    return f"stage={stage_name}({stage}) detail={detail}"
+
 
 def default_mgba() -> Path | None:
     executable = shutil.which("mgba-sdl") or shutil.which("mgba-sdl.exe")
@@ -175,9 +220,7 @@ def read_log_result(path: Path) -> dict[str, int | float | bool | str] | None:
             result.update(zip(names, allocation_values[1:]))
             stage = allocation_values[-2]
             detail = allocation_values[-1]
-            result["progress_stage_name"] = PROGRESS_STAGES.get(stage, "unknown")
-            result["progress_group"] = detail >> 16
-            result["progress_rule"] = detail & 0xFFFF
+            add_progress_fields(result, stage, detail)
     return result
 
 
@@ -270,12 +313,9 @@ def main() -> int:
             if progress is None:
                 raise RuntimeError(f"benchmark did not finish within {args.timeout:g} seconds")
             stage, detail = progress
-            stage_name = PROGRESS_STAGES.get(stage, "unknown")
-            group = detail >> 16
-            rule = detail & 0xFFFF
             raise RuntimeError(
                 f"benchmark did not finish within {args.timeout:g} seconds; "
-                f"last progress stage={stage_name}({stage}) group={group} rule={rule}"
+                f"last progress {describe_progress(stage, detail)}"
             )
 
     encoded = json.dumps(result, indent=2) + "\n"

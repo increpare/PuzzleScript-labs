@@ -86,6 +86,25 @@ ROMs enumerate only the object bits present in each cell.
 normal ROMs pack two Mode 4 pixels per halfword and keep the hot row writer in
 IWRAM.
 
+For a one-sample phase and allocation profile, add `PERF_TELEMETRY=1`:
+
+```sh
+make clean
+make PERF_BENCHMARK=1 PERF_TELEMETRY=1 PERF_ITERATIONS=1 AUDIO=0 \
+  GAME=../../src/tests/solver_tests/zokoban.txt
+python ../../scripts/run_gba_benchmark.py puzzlescript_gba.gba \
+  --log ../../build/gba/perf/zokoban-mgba.log \
+  --out ../../build/gba/perf/zokoban-telemetry.json
+```
+
+Telemetry reports setup, early-rule, movement, late-rule, win, and
+canonicalization cycles, plus allocation/free counts, requested bytes, heap
+growth, rules visited, candidate cells, replacements, and scan counts. A
+VBlank heartbeat records the current phase in mGBA's log and SRAM, so a timed
+out ROM identifies its last setup checkpoint or generated group/rule. This
+instrumentation and its global allocation wrappers are absent unless
+`PERF_TELEMETRY=1` is explicitly selected.
+
 To inspect an export without invoking `mmutil`:
 
 ```sh
@@ -104,9 +123,9 @@ snapshots; oversized boards receive the largest nonzero undo ring that fits the
 160 KiB session ceiling.
 
 The generated kernel still uses libstdc++ containers for transient rule-match
-scratch. It is linked without the compiler, JSON, solver, SDL, filesystem, or
-threading, but replacing those transient allocations with a bounded EWRAM
-scratch allocator remains a hardware-hardening task.
+scratch and turn snapshots. It is linked without the compiler, JSON, solver,
+SDL, filesystem, or threading, but replacing those transient allocations with
+bounded, reusable EWRAM storage remains a hardware-hardening task.
 
 Controls are D-pad to move, A to start/continue/action, B to undo, R to restart,
 and Start to return to the title. Progress is stored as a source-hashed,
