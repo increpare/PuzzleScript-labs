@@ -4,7 +4,7 @@
 
 namespace pocket_card {
 
-enum class Phase : uint8_t { Boot, LoadIr, CreateRuntime, LoadLevel, InputTrace, Unload };
+enum class Phase : uint8_t { Boot, LoadIr, CreateRuntime, LoadLevel, AmbientLed, InputTrace, Unload };
 
 int64_t now_ms();
 const char* phase_name(Phase phase);

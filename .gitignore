@@ -39,3 +39,10 @@ node_modules/
 /firmware/pocket_card/managed_components/
 /firmware/pocket_card/sdkconfig
 /firmware/pocket_card/sdkconfig.old
+.idf-path.local
+
+/firmware/gba/build/
+/firmware/gba/generated/
+/firmware/gba/*.elf
+/firmware/gba/*.gba
+/firmware/gba/*.map

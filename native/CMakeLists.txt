@@ -69,6 +69,7 @@ endif()
 
 set(PUZZLESCRIPT_NATIVE_PUBLIC_HEADERS
   include/puzzlescript/puzzlescript.h
+  include/puzzlescript/gba.h
 )
 
 set(PUZZLESCRIPT_COMPILER_PUBLIC_HEADERS
@@ -123,6 +124,45 @@ option(PS_INTERPRETER_OBJECT_CELL_INDEX "Maintain per-object cell index for anch
 add_library(puzzlescript_compiler STATIC
   ${PUZZLESCRIPT_COMPILER_PUBLIC_HEADERS}
   ${PUZZLESCRIPT_COMPILER_SOURCES}
+)
+
+# Freestanding-friendly GBA state/runtime. This target intentionally does not
+# link the desktop runtime, compiler, JSON loader, solver, SDL, or Threads.
+add_library(puzzlescript_gba_core STATIC
+  include/puzzlescript/gba.h
+  src/gba/core.cpp
+)
+target_include_directories(puzzlescript_gba_core
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_definitions(puzzlescript_gba_core PUBLIC PS_MASK_WORD_BITS=32)
+target_compile_options(puzzlescript_gba_core PRIVATE
+  $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-ffreestanding>
+  $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-fno-exceptions>
+  $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-fno-rtti>
+  $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/GR->
+)
+
+# Host-side exporter: native compilation and rule codegen happen here; only the
+# generated POD data and compact runtime are intended for the cartridge.
+add_library(puzzlescript_gba_exporter STATIC
+  src/gba/exporter.cpp
+  src/gba/exporter.hpp
+  src/player/sfxr.cpp
+  src/player/sfxr.hpp
+)
+  target_include_directories(puzzlescript_gba_exporter
+    PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/src
+      ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+  )
+target_link_libraries(puzzlescript_gba_exporter
+  PUBLIC
+    puzzlescript_compiler
+    puzzlescript_native
 )
 
 target_include_directories(puzzlescript_compiler
@@ -322,6 +362,7 @@ target_link_libraries(puzzlescript_cpp
   PRIVATE
     puzzlescript_native
     puzzlescript_compiler
+    puzzlescript_gba_exporter
 )
 
 target_include_directories(puzzlescript_cpp
@@ -429,6 +470,207 @@ add_dependencies(puzzlescript_cpp puzzlescript_cpp_player_api_tests)
 add_test(
   NAME puzzlescript_cpp_player_api_tests
   COMMAND puzzlescript_cpp_player_api_tests
+)
+
+add_executable(puzzlescript_gba_core_tests
+  tests/gba_core.cpp
+)
+target_link_libraries(puzzlescript_gba_core_tests PRIVATE puzzlescript_gba_core)
+add_test(NAME puzzlescript_gba_core_tests COMMAND puzzlescript_gba_core_tests)
+
+add_executable(puzzlescript_gba_exporter_tests
+  tests/gba_exporter.cpp
+)
+target_include_directories(puzzlescript_gba_exporter_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_compile_definitions(puzzlescript_gba_exporter_tests PRIVATE PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}")
+target_link_libraries(puzzlescript_gba_exporter_tests PRIVATE puzzlescript_gba_exporter)
+add_test(
+  NAME puzzlescript_gba_exporter_tests
+  COMMAND puzzlescript_gba_exporter_tests
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+set(GBA_GENERATED_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_sokoban)
+set(GBA_GENERATED_SMOKE_SOURCE ${GBA_GENERATED_SMOKE_DIR}/generated_game.cpp)
+set(GBA_GENERATED_SMOKE_HEADER ${GBA_GENERATED_SMOKE_DIR}/generated_game.hpp)
+set(GBA_GENERATED_SMOKE_RULES ${GBA_GENERATED_SMOKE_DIR}/generated_rules.cpp)
+set(GBA_GENERATED_SMOKE_MANIFEST ${GBA_GENERATED_SMOKE_DIR}/gba_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBA_GENERATED_SMOKE_SOURCE}
+    ${GBA_GENERATED_SMOKE_HEADER}
+    ${GBA_GENERATED_SMOKE_RULES}
+    ${GBA_GENERATED_SMOKE_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gba
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+          --out ${GBA_GENERATED_SMOKE_DIR}
+          --no-mmutil
+  DEPENDS
+    puzzlescript_cpp
+    ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  VERBATIM
+)
+set_source_files_properties(
+  ${GBA_GENERATED_SMOKE_SOURCE}
+  ${GBA_GENERATED_SMOKE_RULES}
+  PROPERTIES GENERATED TRUE
+)
+
+add_executable(puzzlescript_gba_generated_smoke
+  tests/gba_generated_smoke.cpp
+  ${GBA_GENERATED_SMOKE_SOURCE}
+  ${GBA_GENERATED_SMOKE_RULES}
+  src/gba/rule_runtime_stubs.cpp
+)
+target_include_directories(puzzlescript_gba_generated_smoke PRIVATE
+  ${GBA_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gba_generated_smoke PRIVATE puzzlescript_gba_core)
+target_compile_definitions(puzzlescript_gba_generated_smoke PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=1
+)
+add_test(NAME puzzlescript_gba_generated_smoke COMMAND puzzlescript_gba_generated_smoke)
+
+set(GBA_ACORN_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_acorn)
+set(GBA_ACORN_SMOKE_SOURCE ${GBA_ACORN_SMOKE_DIR}/generated_game.cpp)
+set(GBA_ACORN_SMOKE_HEADER ${GBA_ACORN_SMOKE_DIR}/generated_game.hpp)
+set(GBA_ACORN_SMOKE_RULES ${GBA_ACORN_SMOKE_DIR}/generated_rules.cpp)
+set(GBA_ACORN_SMOKE_MANIFEST ${GBA_ACORN_SMOKE_DIR}/gba_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBA_ACORN_SMOKE_SOURCE}
+    ${GBA_ACORN_SMOKE_HEADER}
+    ${GBA_ACORN_SMOKE_RULES}
+    ${GBA_ACORN_SMOKE_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gba
+          "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/Acorn Scorchery Paradise.txt"
+          --out ${GBA_ACORN_SMOKE_DIR}
+          --no-mmutil
+  DEPENDS
+    puzzlescript_cpp
+    "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/Acorn Scorchery Paradise.txt"
+  VERBATIM
+)
+set_source_files_properties(
+  ${GBA_ACORN_SMOKE_SOURCE}
+  ${GBA_ACORN_SMOKE_RULES}
+  PROPERTIES GENERATED TRUE
+)
+add_executable(puzzlescript_gba_acorn_smoke
+  tests/gba_acorn_smoke.cpp
+  ${GBA_ACORN_SMOKE_SOURCE}
+  ${GBA_ACORN_SMOKE_RULES}
+  src/gba/rule_runtime_stubs.cpp
+)
+target_include_directories(puzzlescript_gba_acorn_smoke PRIVATE
+  ${GBA_ACORN_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gba_acorn_smoke PRIVATE puzzlescript_gba_core)
+target_compile_definitions(puzzlescript_gba_acorn_smoke PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=1
+)
+add_test(NAME puzzlescript_gba_acorn_smoke COMMAND puzzlescript_gba_acorn_smoke)
+
+set(GBA_ATLAS_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_atlas)
+set(GBA_ATLAS_SMOKE_SOURCE ${GBA_ATLAS_SMOKE_DIR}/generated_game.cpp)
+set(GBA_ATLAS_SMOKE_HEADER ${GBA_ATLAS_SMOKE_DIR}/generated_game.hpp)
+set(GBA_ATLAS_SMOKE_RULES ${GBA_ATLAS_SMOKE_DIR}/generated_rules.cpp)
+set(GBA_ATLAS_SMOKE_MANIFEST ${GBA_ATLAS_SMOKE_DIR}/gba_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBA_ATLAS_SMOKE_SOURCE}
+    ${GBA_ATLAS_SMOKE_HEADER}
+    ${GBA_ATLAS_SMOKE_RULES}
+    ${GBA_ATLAS_SMOKE_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gba
+          "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/atlas shrank.txt"
+          --out ${GBA_ATLAS_SMOKE_DIR}
+          --no-mmutil
+  DEPENDS
+    puzzlescript_cpp
+    "${PUZZLESCRIPT_REPO_ROOT}/src/tests/solver_tests/atlas shrank.txt"
+  VERBATIM
+)
+set_source_files_properties(
+  ${GBA_ATLAS_SMOKE_SOURCE}
+  ${GBA_ATLAS_SMOKE_RULES}
+  PROPERTIES GENERATED TRUE
+)
+add_executable(puzzlescript_gba_atlas_smoke
+  tests/gba_atlas_smoke.cpp
+  ${GBA_ATLAS_SMOKE_SOURCE}
+  ${GBA_ATLAS_SMOKE_RULES}
+  src/gba/rule_runtime_stubs.cpp
+)
+target_include_directories(puzzlescript_gba_atlas_smoke PRIVATE
+  ${GBA_ATLAS_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gba_atlas_smoke PRIVATE puzzlescript_gba_core)
+target_compile_definitions(puzzlescript_gba_atlas_smoke PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=1
+)
+add_test(NAME puzzlescript_gba_atlas_smoke COMMAND puzzlescript_gba_atlas_smoke)
+
+# A generated export can be linked into this desktop-only executable to replay
+# native-solver solutions against the exact 32-bit game representation used by
+# the GBA ROM.  The PowerShell corpus harness changes this directory per game,
+# reconfigures this one target, and records the first state divergence.
+set(PS_GBA_PARITY_EXPORT_DIR "" CACHE PATH
+  "Directory containing generated_game.cpp/generated_rules.cpp for GBA parity replay")
+if(PS_GBA_PARITY_EXPORT_DIR)
+  get_filename_component(PS_GBA_PARITY_EXPORT_DIR_ABS "${PS_GBA_PARITY_EXPORT_DIR}" ABSOLUTE)
+  foreach(PS_GBA_PARITY_FILE generated_game.hpp generated_game.cpp generated_rules.cpp)
+    if(NOT EXISTS "${PS_GBA_PARITY_EXPORT_DIR_ABS}/${PS_GBA_PARITY_FILE}")
+      message(FATAL_ERROR
+        "PS_GBA_PARITY_EXPORT_DIR is missing ${PS_GBA_PARITY_FILE}: ${PS_GBA_PARITY_EXPORT_DIR_ABS}")
+    endif()
+  endforeach()
+
+  add_library(puzzlescript_gba_parity_generated OBJECT
+    "${PS_GBA_PARITY_EXPORT_DIR_ABS}/generated_game.cpp"
+    "${PS_GBA_PARITY_EXPORT_DIR_ABS}/generated_rules.cpp"
+  )
+  target_include_directories(puzzlescript_gba_parity_generated PRIVATE
+    "${PS_GBA_PARITY_EXPORT_DIR_ABS}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+  )
+  target_compile_definitions(puzzlescript_gba_parity_generated PRIVATE
+    PS_MASK_WORD_BITS=32
+    PS_INTERPRETER_OBJECT_CELL_INDEX=1
+  )
+
+  add_executable(puzzlescript_gba_solution_replay
+    tests/gba_solution_replay.cpp
+    $<TARGET_OBJECTS:puzzlescript_gba_parity_generated>
+  )
+  target_include_directories(puzzlescript_gba_solution_replay PRIVATE
+    "${PS_GBA_PARITY_EXPORT_DIR_ABS}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+  )
+  target_link_libraries(puzzlescript_gba_solution_replay PRIVATE
+    puzzlescript_gba_core
+    puzzlescript_compiler
+    puzzlescript_native
+  )
+endif()
+
+# Compile the emitted compact-turn artifact independently as well as linking it
+# into the generated-game smoke test.
+add_library(puzzlescript_gba_generated_rules_smoke OBJECT ${GBA_GENERATED_SMOKE_RULES})
+target_include_directories(puzzlescript_gba_generated_rules_smoke PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_definitions(puzzlescript_gba_generated_rules_smoke PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=$<BOOL:${PS_INTERPRETER_OBJECT_CELL_INDEX}>
 )
 
 add_executable(handheld_display_layout
@@ -1005,6 +1247,17 @@ add_test(
   NAME pocket_card_runtime_fixture
   COMMAND pocket_card_runtime_fixture
           ${PUZZLESCRIPT_REPO_ROOT}/firmware/pocket_card/main/sokoban_basic.ir.json
+)
+
+add_executable(ambient_light_policy_tests
+  tests/ambient_light_policy_tests.cpp
+)
+target_include_directories(ambient_light_policy_tests PRIVATE
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/pocket_card/main
+)
+add_test(
+  NAME ambient_light_policy_tests
+  COMMAND ambient_light_policy_tests
 )
 
 if(TARGET PkgConfig::SDL2)

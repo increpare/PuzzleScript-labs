@@ -2,11 +2,17 @@
 
 #include <cstddef>
 #include <cstdint>
+#include "sdkconfig.h"
 
 namespace ps_probe {
 
+#if CONFIG_PS_BOARD_P4_NANO
+inline constexpr int kNativeWidth = 800;
+inline constexpr int kNativeHeight = 480;
+#else
 inline constexpr int kNativeWidth = 1024;
 inline constexpr int kNativeHeight = 600;
+#endif
 inline constexpr int kTargetWidth = 800;
 inline constexpr int kTargetHeight = 480;
 inline constexpr int kRgb565BytesPerPixel = 2;

@@ -57,6 +57,8 @@ const char* phase_name(Phase phase) {
         return "CREATE_RUNTIME";
     case Phase::LoadLevel:
         return "LOAD_LEVEL";
+    case Phase::AmbientLed:
+        return "AMBIENT_LED";
     case Phase::InputTrace:
         return "INPUT_TRACE";
     case Phase::Unload:

@@ -726,6 +726,10 @@ struct TurnOptions {
     // ignore non-solver-relevant commands like checkpoint.
     bool solverMode = false;
     AgainPolicy againPolicy = AgainPolicy::Yield;
+    // Level-start rules use normal rule evaluation but suppress terminal
+    // restart/win commands, matching PuzzleScript's load-level semantics.
+    bool ignoreRestartCommand = false;
+    bool ignoreWin = false;
 };
 
 using RuntimeStepOptions = TurnOptions;

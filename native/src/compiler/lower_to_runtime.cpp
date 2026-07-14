@@ -691,7 +691,8 @@ void attachInputSpecializationMasks(puzzlescript::Game& game) {
 std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     const ParserState& state,
     puzzlescript::LoadedGame& outGame,
-    std::vector<SemanticRule>* outAuthoredRules
+    std::vector<SemanticRule>* outAuthoredRules,
+    LowerToRuntimeOptions options
 ) {
     auto game = std::make_shared<puzzlescript::Game>();
     puzzlescript::ScopedMaskInterner maskInterner(*game);
@@ -3595,9 +3596,10 @@ std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
             aggregateCoalescingPlan.safe,
             aggregateCoalescingPlan.safePropertyAttachments);
         for (const auto& movingVariant : movingVariants) {
-            const PropertyCoalescingPlan propertyCoalescingPlan =
-                computePropertyCoalescingPlan(
-                    movingVariant.first, movingVariant.second, aggregateCoalescingPlan);
+            const PropertyCoalescingPlan propertyCoalescingPlan = options.coalesceProperties
+                ? computePropertyCoalescingPlan(
+                    movingVariant.first, movingVariant.second, aggregateCoalescingPlan)
+                : PropertyCoalescingPlan{};
             const PropertyConcreteResult propertyConcreteResult =
                 expandConcretizePropertyRows(
                     movingVariant.first,

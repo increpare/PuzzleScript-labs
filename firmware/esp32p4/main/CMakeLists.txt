@@ -66,6 +66,7 @@ idf_component_register(
     vfs
     esp_timer
     espressif__esp_lcd_ek79007
+    waveshare__esp_lcd_dsi
     espressif__esp_lcd_touch_gt911
   PRIV_REQUIRES
     espressif__esp_codec_dev
@@ -102,6 +103,8 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
 
 if(CONFIG_PS_BOARD_CARD)
   target_sources(${COMPONENT_LIB} PRIVATE "board_card.cpp")
+elseif(CONFIG_PS_BOARD_P4_NANO)
+  target_sources(${COMPONENT_LIB} PRIVATE "board_p4_nano.cpp")
 else()
   target_sources(${COMPONENT_LIB} PRIVATE "board_waveshare_7b.cpp")
 endif()

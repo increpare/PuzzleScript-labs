@@ -1,0 +1,10 @@
+menu "PuzzleScript Pocket Card"
+
+config POCKET_CARD_MCP23017_BENCH
+    bool "Run MCP23017 breadboard bench test instead of runtime probe"
+    default n
+    help
+        When enabled, app_main scans the ES3C28P I2C bus, probes the MCP23017
+        at 0x20, and prints button state on the serial console.
+
+endmenu

@@ -9,6 +9,12 @@
 
 namespace puzzlescript::compiler {
 
+struct LowerToRuntimeOptions {
+    // Generated compact kernels currently operate on concrete object masks.
+    // Host runtimes may coalesce property aliases and resolve them dynamically.
+    bool coalesceProperties = true;
+};
+
 // Lower a parsed PuzzleScript program into a runnable native runtime Game.
 //
 // This is the missing “native compiler” stage: ParserState -> runtime::Game.
@@ -17,7 +23,8 @@ namespace puzzlescript::compiler {
 std::unique_ptr<puzzlescript::Error> lowerToRuntimeGame(
     const ParserState& state,
     puzzlescript::LoadedGame& outGame,
-    std::vector<SemanticRule>* outAuthoredRules = nullptr
+    std::vector<SemanticRule>* outAuthoredRules = nullptr,
+    LowerToRuntimeOptions options = {}
 );
 
 } // namespace puzzlescript::compiler

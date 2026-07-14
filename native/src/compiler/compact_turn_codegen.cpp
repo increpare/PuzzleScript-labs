@@ -1947,8 +1947,29 @@ CompactRuleEffectiveWriteSummary compactRuleEffectiveWriteSummary(const Game& ga
             }
             const Replacement& replacement = *pattern.replacement;
             if (compactReplacementHasDynamicTerms(replacement)) {
-                summary.objects = summary.objects || rule.hasWriteObjects;
-                summary.movements = summary.movements || rule.hasWriteMovements;
+                // Runtime write masks do not include every write performed by
+                // captured property/aggregate replacements.  In particular,
+                // `[ > property | ... ] -> [ | property ]` can move the
+                // captured object while hasWriteObjects is false.  Treat the
+                // dynamic terms themselves as writes so the generated kernel
+                // refreshes its board masks and object-cell index before the
+                // next rule group.
+                const ReplacementDynamic* dynamic = replacement.dynamic.get();
+                summary.objects = summary.objects
+                    || replacement.hasRandomEntityMask
+                    || (dynamic != nullptr
+                        && (!dynamic->inferredAggregateBindings.empty()
+                            || !dynamic->inferredPropertyBindings.empty()
+                            || !dynamic->inferredPropertySources.empty()
+                            || dynamic->rhsPropertyPreserveMask != kNullMaskOffset))
+                    || anyMaskWordSet(compiledMaskWords(game, replacement.objectsClear, game.wordCount))
+                    || anyMaskWordSet(compiledMaskWords(game, replacement.objectsSet, game.wordCount));
+                summary.movements = summary.movements
+                    || replacement.hasRandomDirMask
+                    || (dynamic != nullptr && !dynamic->layerCoupledMovementReplacements.empty())
+                    || anyMaskWordSet(compiledMaskWords(game, replacement.movementsClear, game.movementWordCount))
+                    || anyMaskWordSet(compiledMaskWords(game, replacement.movementsSet, game.movementWordCount))
+                    || anyMaskWordSet(compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount));
             } else {
                 const CompactReplacementGuaranteedNoopSides guaranteedNoop =
                     compactReplacementGuaranteedNoopSidesOnMatchedCell(game, pattern, replacement);
@@ -2260,18 +2281,23 @@ std::string emitCompactRuleCommandFunction(
                 body << "    if (!commands.hasMessage) {\n"
                      << "        ++commands.commandCount;\n"
                      << "        commands.hasMessage = true;\n"
+                     << "        commands.messageHasText = true;\n"
                      << "        // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
                      << "        commands.messageText = " << cppStringLiteral(*command.argument) << ";\n"
                      << "    }\n";
             } else {
                 body << "    if (!commands.hasMessage) ++commands.commandCount;\n"
-                     << "    // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
-                     << "    commands.hasMessage = true;\n";
+                 << "    // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
+                 << "    commands.hasMessage = true;\n"
+                 << "    commands.messageHasText = false;\n"
+                 << "    commands.messageText = nullptr;\n";
             }
         } else if (command.name.rfind("sfx", 0) == 0) {
             body << "    ++commands.commandCount;\n"
                  << "    // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
-                 << "    // Sound effects are command output only; board/search state is unaffected.\n";
+                 << "    // Sound effects are command output only; board/search state is unaffected.\n"
+                 << "    if (commands.soundCount < 4) commands.soundNames[commands.soundCount++] = "
+                 << cppStringLiteral(command.name) << ";\n";
         } else {
             body << "    static_assert(false, \"compact turn compiler command queue emitted unsupported command\");\n";
         }
@@ -2617,6 +2643,7 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
     CompactRulePrecheckMode precheckMode
 ) {
     const std::string prefix = compactRulePrefix(suffix, phase, groupIndex, ruleIndex);
+    out << "// source rule line " << rule.lineNumber << "\n";
     const int32_t rigidGroupIndex = (rule.rigid
         && rule.groupNumber >= 0
         && static_cast<size_t>(rule.groupNumber) < game.groupNumberToRigidGroupIndex.size())
@@ -4164,7 +4191,6 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "            turnStartObjects = &localTurnStartObjects;\n"
         << "        }\n"
         << "    }\n"
-        << "    const RandomState turnStartRng = levelState.rng;\n"
         << "    std::vector<MaskWord> turnStartMovements;\n"
         << "    bool turnStartLiveMovementsClean = false;\n"
         << "    std::vector<MaskWord> turnStartRigidGroupIndexMasks;\n"
@@ -4195,7 +4221,6 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        commands = CompactTurnCommands_" << suffix << "{};\n"
         << "        if (rigidLoopCount > 0 && needsTurnStartSnapshot) {\n"
         << "            levelState.board.objects = *turnStartObjects;\n"
-        << "            levelState.rng = turnStartRng;\n"
         << "        }\n"
         << "        if (!scratch.liveMovementsClean) {\n"
         << "            std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
@@ -4241,12 +4266,16 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "            scratch.rigidGroupIndexMasks = turnStartRigidGroupIndexMasks;\n"
         << "            scratch.rigidMovementAppliedMasks = turnStartRigidMovementAppliedMasks;\n"
         << "        }\n"
+        << "        (void)compact_turn_rebuild_object_derived_state_" << suffix << "(dimensions, levelState, scratch);\n"
+        << "        (void)compact_turn_rebuild_movement_derived_state_" << suffix << "(dimensions, scratch);\n"
+        << "        scratch.objectCellIndexDirty = true;\n"
+        << "        scratch.movementCellIndexDirty = true;\n"
+        << "        compact_turn_refresh_any_masks_dirty_" << suffix << "(scratch);\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result};\n"
         << "    }\n"
         << "    if (!startPlayerPositions.empty() && !compact_turn_any_start_player_moved_" << suffix << "(levelState, startPlayerPositions)) {\n"
         << "        levelState.board.objects = *turnStartObjects;\n"
-        << "        levelState.rng = turnStartRng;\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -4256,7 +4285,6 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    if (options.solverMode && commands.hasCancel) {\n"
         << "        if (needsTurnStartSnapshot) {\n"
         << "            levelState.board.objects = *turnStartObjects;\n"
-        << "            levelState.rng = turnStartRng;\n"
         << "        }\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
@@ -4269,10 +4297,9 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return compact_turn_solver_discard_" << suffix << "(\"cancel\");\n"
         << "    }\n"
-        << "    if (options.solverMode && commands.hasRestart) {\n"
+        << "    if (!options.ignoreRestartCommand && options.solverMode && commands.hasRestart) {\n"
         << "        if (needsTurnStartSnapshot) {\n"
         << "            levelState.board.objects = *turnStartObjects;\n"
-        << "            levelState.rng = turnStartRng;\n"
         << "        }\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
@@ -4287,7 +4314,6 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    }\n"
         << "    if (commands.hasCancel) {\n"
         << "        levelState.board.objects = *turnStartObjects;\n"
-        << "        levelState.rng = turnStartRng;\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -4302,9 +4328,8 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
-        << "    if (commands.hasRestart) {\n"
+        << "    if (!options.ignoreRestartCommand && commands.hasRestart) {\n"
         << "        levelState.board.objects = *turnStartObjects;\n"
-        << "        levelState.rng = turnStartRng;\n"
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
@@ -4317,10 +4342,11 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        }\n"
         << "        result.changed = commands.any;\n"
         << "        result.restarted = true;\n"
+        << "        compact_turn_emit_outputs_" << suffix << "(commands, false);\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
-        << "    const bool won = commands.hasWin || compact_turn_evaluate_win_" << suffix << "(dimensions, levelState);\n"
+        << "    const bool won = !options.ignoreWin && (commands.hasWin || compact_turn_evaluate_win_" << suffix << "(dimensions, levelState));\n"
         << "    const bool transitioned = won;\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnWinNs);\n"
         << "    // 8. evaluate win conditions\n"
@@ -4364,6 +4390,7 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "        }\n"
         << "        *outHasAgain = scheduleAgain;\n"
         << "    }\n"
+        << "    compact_turn_emit_outputs_" << suffix << "(commands, true);\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "    return {true, result, false, commands.hasCheckpoint};\n";
 }
@@ -4547,6 +4574,12 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
     emitMaskArray(out, "compact_turn_player_mask_" + suffix, playerMask);
 
     out << "constexpr int32_t compact_turn_rigid_group_index_to_group_index_" << suffix << "[] = {";
+    if (game.rigidGroupIndexToGroupIndex.empty()) {
+        // Standard C++ forbids zero-length arrays (MSVC diagnoses the previous
+        // `[] = {}` spelling). Keep the logical count at zero and emit an
+        // unreachable sentinel so generated kernels remain cross-toolchain.
+        out << "0";
+    }
     for (size_t index = 0; index < game.rigidGroupIndexToGroupIndex.size(); ++index) {
         if (index > 0) out << ", ";
         out << game.rigidGroupIndexToGroupIndex[index];
@@ -4622,8 +4655,26 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    bool hasRestart = false;\n"
         << "    bool hasWin = false;\n"
         << "    bool hasMessage = false;\n"
-        << "    std::string messageText;\n"
+        << "    bool messageHasText = false;\n"
+        << "    const char* messageText = nullptr;\n"
+        << "    uint8_t soundCount = 0;\n"
+        << "    const char* soundNames[4]{};\n"
         << "};\n\n";
+
+    out << "void compact_turn_emit_outputs_" << suffix << "(const CompactTurnCommands_" << suffix
+        << "& commands, bool allowMessage) {\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "    if (allowMessage && commands.hasMessage) {\n"
+        << "        compactTurnOutputMessage(commands.messageHasText ? commands.messageText : nullptr);\n"
+        << "    }\n"
+        << "    for (uint8_t index = 0; index < commands.soundCount; ++index) {\n"
+        << "        compactTurnOutputSound(commands.soundNames[index]);\n"
+        << "    }\n"
+        << "#else\n"
+        << "    (void)commands;\n"
+        << "    (void)allowMessage;\n"
+        << "#endif\n"
+        << "}\n\n";
 
     out << "SpecializedCompactTurnOutcome compact_turn_solver_discard_" << suffix << "(const char* reason) {\n"
         << "    SpecializedCompactTurnOutcome outcome;\n"
@@ -6115,7 +6166,7 @@ void emitCompactTurnAccessLayer(std::ostream& out, const Game& game, size_t sour
         << "    for (size_t randomLayerIndex = 0; randomLayerIndex < randomDirLayerCount; ++randomLayerIndex) {\n"
         << "        const int32_t layer = randomDirLayers[randomLayerIndex];\n"
         << "        const double randomValue = compact_turn_random_uniform_" << suffix << "(levelState.rng);\n"
-        << "        const int32_t randomDir = std::min(3, static_cast<int32_t>(randomValue * 4.0));\n"
+        << "        const int32_t randomDir = std::min(int32_t{3}, static_cast<int32_t>(randomValue * 4.0));\n"
         << "        const int32_t beforeBits = compact_turn_layer_bits_" << suffix << "(movementsSet, layer);\n"
         << "        compact_turn_set_layer_bits_" << suffix << "(movementsSet, layer, beforeBits | (1 << randomDir));\n"
         << "    }\n"

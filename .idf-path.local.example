@@ -1,0 +1,3 @@
+# Copy to .idf-path.local (gitignored) if the script cannot find ESP-IDF automatically.
+# One line: the folder that contains export.ps1 and idf.py
+C:\Espressif\frameworks\esp-idf-v5.4.4

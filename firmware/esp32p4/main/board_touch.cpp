@@ -1,17 +1,19 @@
 #include "board_touch.hpp"
 
 #include "board_i2c.hpp"
+#include "probe_config.hpp"
 #include "esp_lcd_touch.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
+#include "sdkconfig.h"
 
 namespace ps_probe::board {
 namespace {
 
 constexpr const char* kTag = "board_touch";
-constexpr int kTouchWidth = 1024;
-constexpr int kTouchHeight = 600;
+constexpr int kTouchWidth = ps_probe::kNativeWidth;
+constexpr int kTouchHeight = ps_probe::kNativeHeight;
 
 esp_lcd_touch_handle_t g_touch = nullptr;
 bool g_touch_initialized = false;
@@ -19,6 +21,10 @@ bool g_touch_initialized = false;
 } // namespace
 
 esp_err_t init_touch() {
+#if CONFIG_PS_BOARD_P4_NANO
+    ESP_LOGW(kTag, "4.3\" panel uses Goodix touch; GT911 driver skipped on P4-NANO bring-up");
+    return ESP_ERR_NOT_SUPPORTED;
+#else
     if (g_touch_initialized) {
         return ESP_OK;
     }
@@ -77,6 +83,7 @@ esp_err_t init_touch() {
     g_touch_initialized = true;
     ESP_LOGI(kTag, "GT911 touch ready (%dx%d)", kTouchWidth, kTouchHeight);
     return ESP_OK;
+#endif
 }
 
 bool poll_touch(int& out_x, int& out_y, int& out_touch_count) {

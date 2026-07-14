@@ -36,7 +36,18 @@ Set `POCKET_CARD_MAP` to check a map at a different path.
 
 ## Flash and capture
 
-On macOS, detect the serial device and capture the probe log with:
+On Windows, build and flash in one command from PowerShell (repo root):
+
+```powershell
+$env:POCKET_CARD_PORT = "COM3"   # set once per session
+.\scripts\pocket_card_probe.ps1
+```
+
+Or pass the port inline: `.\scripts\pocket_card_probe.ps1 -Port COM3 -Monitor`
+
+Build only (no flash): `.\scripts\pocket_card_probe.ps1 -BuildOnly`
+
+On macOS/Linux, detect the serial device and capture the probe log with:
 
 ```bash
 ls /dev/cu.usbmodem*
@@ -51,9 +62,9 @@ as `COM3`. On every platform, assign the detected device to `POCKET_CARD_PORT`
 before running the flash, monitor, or capture target.
 
 Stop the ESP-IDF monitor with Ctrl-]. The capture gate requires passing
-`BOOT`, `LOAD_IR`, `CREATE_RUNTIME`, `LOAD_LEVEL`, `INPUT_TRACE`, and `UNLOAD`
-phases, no allocation or parse errors, and samples from both the internal and
-SPIRAM heap regions.
+`BOOT`, `LOAD_IR`, `CREATE_RUNTIME`, `LOAD_LEVEL`, `AMBIENT_LED`,
+`INPUT_TRACE`, and `UNLOAD` phases, no allocation or parse errors, and samples
+from both the internal and SPIRAM heap regions.
 
 ## Offline log
 

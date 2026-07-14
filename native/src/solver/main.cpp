@@ -2090,6 +2090,67 @@ std::unique_ptr<FullState> createLoadedSession(
     return session;
 }
 
+std::optional<ps_input> solutionInputFromName(const std::string& name) {
+    if (name == "up") return PS_INPUT_UP;
+    if (name == "left") return PS_INPUT_LEFT;
+    if (name == "down") return PS_INPUT_DOWN;
+    if (name == "right") return PS_INPUT_RIGHT;
+    if (name == "action") return PS_INPUT_ACTION;
+    if (name == "tick") return PS_INPUT_TICK;
+    return std::nullopt;
+}
+
+bool replaySolutionInPlayerRuntime(
+    const puzzlescript::LoadedGame& loadedGame,
+    const std::string& gameName,
+    int32_t levelIndex,
+    const std::vector<std::string>& solution,
+    bool& solvedDuringLoad,
+    std::string& error
+) {
+    solvedDuringLoad = false;
+    const std::string seed = "solver:" + gameName + ":" + std::to_string(levelIndex);
+    auto session = puzzlescript::createFullStateWithLoadedLevelSeed(loadedGame, seed);
+    if (!session) {
+        error = "could not create replay session";
+        return false;
+    }
+
+    // Rule messages are presentation pauses, not solver inputs. Suppressing them
+    // is equivalent to the parity runner acknowledging each message before it
+    // continues with the next gameplay input.
+    session->meta.suppressRuleMessages = true;
+    puzzlescript::RuntimeStepOptions options;
+    options.playableUndo = false;
+    options.emitAudio = false;
+    options.solverMode = false;
+    options.againPolicy = puzzlescript::AgainPolicy::Drain;
+    if (auto loadError = puzzlescript::loadLevel(*session, levelIndex, options)) {
+        error = "level load failed during replay: " + loadError->message;
+        return false;
+    }
+    if (session->meta.currentLevelIndex != levelIndex) {
+        solvedDuringLoad = true;
+        return true;
+    }
+
+    for (size_t index = 0; index < solution.size(); ++index) {
+        const std::optional<ps_input> input = solutionInputFromName(solution[index]);
+        if (!input) {
+            error = "unknown solution input at step " + std::to_string(index)
+                + ": " + solution[index];
+            return false;
+        }
+        const ps_step_result stepResult = puzzlescript::turn(*session, *input, options);
+        if (stepResult.won || session->meta.currentLevelIndex != levelIndex) {
+            return true;
+        }
+    }
+
+    error = "normal runtime did not win after " + std::to_string(solution.size()) + " inputs";
+    return false;
+}
+
 bool solvedByStep(const ps_step_result& stepResult, const FullState& session, int32_t levelIndex) {
     return stepResult.won || session.meta.currentLevelIndex != levelIndex;
 }
@@ -3804,6 +3865,21 @@ Result solveLevel(
         || (strategy == Strategy::Portfolio && !fullNodeStorage);
 
     auto finish = [&](Result result) {
+        if (result.status == "solved") {
+            std::string replayError;
+            bool solvedDuringLoad = false;
+            if (!replaySolutionInPlayerRuntime(
+                    loadedGame, gameName, levelIndex, result.solution,
+                    solvedDuringLoad, replayError)) {
+                result.status = "level_error";
+                result.error = "solver produced a non-replayable solution: " + replayError;
+                result.solution.clear();
+            } else if (solvedDuringLoad) {
+                // Startup rules/again processing completed this board before a
+                // player input.  Report the canonical zero-input solution.
+                result.solution.clear();
+            }
+        }
         result.strategy = result.status == "solved" ? result.strategy : strategyName(strategy);
         result.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - searchStart).count();
         return result;

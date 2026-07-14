@@ -28,6 +28,7 @@
 #include "compiler/parser.hpp"
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/semantic_program.hpp"
+#include "gba/exporter.hpp"
 #include "runtime/json.hpp"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/layout_metrics.hpp"
@@ -7098,6 +7099,37 @@ int testFixturesCommand(const std::string& manifestPath, int argc, char** argv) 
     return (preparedOk && traceOk) ? 0 : 1;
 }
 
+int exportGbaCommand(const std::string& sourcePath, int argc, char** argv) {
+    puzzlescript::gba::ExportOptions options;
+    options.sourcePath = sourcePath;
+    for (int index = 0; index < argc; ++index) {
+        const std::string arg = argv[index];
+        if (arg == "--out" && index + 1 < argc) {
+            options.outputDirectory = argv[++index];
+        } else if (arg == "--title-image" && index + 1 < argc) {
+            options.titleImagePath = argv[++index];
+        } else if (arg == "--mmutil" && index + 1 < argc) {
+            options.mmutilExecutable = argv[++index];
+        } else if (arg == "--no-mmutil") {
+            options.runMmutil = false;
+        } else {
+            throw std::runtime_error("Unsupported export-gba argument: " + arg);
+        }
+    }
+    if (options.outputDirectory.empty()) {
+        throw std::runtime_error("export-gba requires --out DIR");
+    }
+    const puzzlescript::gba::ExportResult result = puzzlescript::gba::exportGame(options);
+    std::cout << "GBA export complete\n"
+              << "  manifest: " << result.manifestPath.string() << "\n"
+              << "  game data: " << result.generatedSourcePath.string() << "\n"
+              << "  rules: " << result.generatedRulesPath.string() << "\n";
+    if (result.soundbankGenerated) {
+        std::cout << "  soundbank: " << result.soundbankPath.string() << "\n";
+    }
+    return 0;
+}
+
 void printMainHelp() {
     std::cout
         << "puzzlescript_cpp: C++ PuzzleScript compiler, runtime, test runner, and SDL player\n\n"
@@ -7118,6 +7150,8 @@ void printMainHelp() {
         << "      Emit the resolved SemanticProgram contract JSON used for JS-vs-C++ parity.\n"
         << "  puzzlescript_cpp specialize-rulegroups game.txt --emit-cpp build/compiled-rules/game.cpp\n"
         << "      Emit C++ specialized rulegroup kernels for build-time solver/generator specialization.\n"
+        << "  puzzlescript_cpp export-gba game.txt --out build/gba/game\n"
+        << "      Export ROM-backed game data, compact rules, SFX, and a GBA compatibility manifest.\n"
         << "  puzzlescript_cpp test js-parity <generated-js-parity-data.json>\n"
         << "      Check saved replay cases generated from the original JavaScript test suite.\n"
         << "  puzzlescript_cpp test simulation-corpus src/tests/resources/testdata.js\n"
@@ -7151,6 +7185,7 @@ void printMainHelp() {
         << "  puzzlescript_cpp help run\n"
         << "  puzzlescript_cpp help compile\n"
         << "  puzzlescript_cpp help specialize-rulegroups\n"
+        << "  puzzlescript_cpp help export-gba\n"
         << "  puzzlescript_cpp help test\n"
         << "  puzzlescript_cpp help profile\n"
         << "  puzzlescript_cpp help bench\n";
@@ -7209,6 +7244,19 @@ void printCompileRulesHelp() {
         << "  puzzlescript_cpp compile-rules src/tests/solver_tests --emit-cpp-dir build/compiled-rules/solver-tests --emit-sources-list build/compiled-rules/solver-tests.txt\n"
         << "  puzzlescript_cpp compile-rules src/tests/resources/testdata.js --stats-only --max-rows 8 --coverage-json build/compiled-rules/coverage.json\n"
         << "  make generator src/demo/sokoban_basic.txt src/tests/generator_presets/sokoban_room_scatter.gen SPECIALIZE=true\n";
+}
+
+void printExportGbaHelp() {
+    std::cout
+        << "Usage: puzzlescript_cpp export-gba game.txt --out DIR [--title-image IMAGE] [--mmutil PATH] [--no-mmutil]\n\n"
+        << "Compiles a single PuzzleScript game into ROM-backed GBA data, emits the native\n"
+        << "compact-turn source and deduplicated 16 kHz WAV effects, validates Mode 4 and\n"
+        << "memory limits, and invokes mmutil unless --no-mmutil is supplied. --title-image\n"
+        << "accepts common host image formats; the first frame is nearest-neighbour fitted\n"
+        << "inside 240x160 and shares the game's Mode 4 palette.\n\n"
+        << "The ROM links the game's generated native compact-turn kernel; compatibility is\n"
+        << "determined by compiler support and GBA display/ROM/RAM limits, never object names\n"
+        << "or a guessed game genre. Oversized boards retain the largest undo ring that fits.\n";
 }
 
 void printTestHelp() {
@@ -7274,6 +7322,8 @@ void printHelpTopic(const std::string& topic) {
         printCompileHelp();
     } else if (topic == "compile-rules" || topic == "specialize-rulegroups") {
         printCompileRulesHelp();
+    } else if (topic == "export-gba") {
+        printExportGbaHelp();
     } else if (topic == "test") {
         printTestHelp();
     } else if (topic == "profile" || topic == "profile-simulations") {
@@ -7328,6 +7378,9 @@ int main(int argc, char** argv) {
         }
         if (command == "compile-rules" || command == "specialize-rulegroups") {
             return compileRulesCommand(path, argc - 3, argv + 3);
+        }
+        if (command == "export-gba") {
+            return exportGbaCommand(path, argc - 3, argv + 3);
         }
         if (command == "play") {
 #ifdef PS_HAVE_SDL2

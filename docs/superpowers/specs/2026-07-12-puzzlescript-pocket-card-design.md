@@ -18,7 +18,9 @@ cannot silently leak into this design.
 This spec covers the product architecture, mechanical arrangement, controls,
 power, audio, storage, firmware boundaries, failure behavior, and validation
 gates for a reproducible batch of 5-20 units. It does not freeze decorative
-artwork or select a battery or final button part before physical validation.
+artwork or final button parts before physical validation. The battery is a
+protected **503450** 1S LiPo pouch; fit, connector polarity, and the four-hour
+runtime gate are still confirmed on measured hardware before batch procurement.
 
 ## Product intent
 
@@ -145,15 +147,16 @@ cavity; their depths do not add:
 
 - upper zone: 86 x 50 mm ES3C28P, landscape
 - lower zone: controller PCB across roughly 80 x 36-40 mm
-- behind the controller: provisional 4-5 mm LiPo area around 50 x 34 mm
+- behind the controller: **503450** protected 1S LiPo (~50 x 34 x 5 mm,
+  typically ~900-1200 mAh depending on vendor)
 - beside the battery: small speaker and connectors
 
 All switches, the MCP23017, and controller passives face forward into the
 button-guide cavity. The battery-facing rear of the controller PCB remains
-component-free and flat. A protected 1S LiPo is selected only after measured
-sample hardware, midframe bosses, connector bends, insulation, and swelling
-allowance are modeled. Exact capacity is not inferred from a nominal pouch
-code; the selected cell must meet the four-hour runtime gate.
+component-free and flat. Mechanical CAD and the midframe must accommodate the
+503450 with insulation, connector bend radius, and swelling allowance. Vendor
+capacity ratings are not trusted without the four-hour runtime gate on a
+completed pilot.
 
 ## Control hierarchy and layout
 
@@ -163,21 +166,24 @@ necessary but intentionally unimportant.
 
 The visual and ergonomic hierarchy is therefore:
 
-1. **Primary:** four-way navigation puck and Undo, with comparable prominence
-2. **Secondary:** Action and Restart, smaller but plainly accessible
+1. **Primary:** four separate direction buttons and Undo
+2. **Secondary:** Action, paired beside Undo as a companion control; Restart
+   nearby but slightly smaller and more recessive
 3. **Tertiary:** Back/Menu, small and visually recessive
 4. **Edge controls:** Volume Up, Volume Down, and the physical power switch
 
-The navigation device is a four-direction switch with a center contact. The
-center contact is wired for diagnostics but ignored during gameplay. Action is
-a separate physical button. Firmware filtering cannot distinguish a genuine
-center press from a center-only mechanical misfire, so center-as-Action is not
-allowed.
+Movement uses four independent physical buttons (Up, Down, Left, Right), not a
+single five-way navigation switch. PuzzleScript play depends on rapid, discrete,
+often alternating direction presses; separate contacts give cleaner actuation,
+faster repeat, and no cross-axis ambiguity. The direction cluster is a compact
+four-button cardinal cross with no center button.
 
-The leading navigation candidate is the ALPS SKRH family or an equivalent
-current-production five-way navigation switch. A short, broad thumb puck makes
-the tiny actuator comfortable without creating a long lever arm. The exact
-switch and puck geometry are selected by the button-coupon gate.
+Beside the direction cluster, Undo and Action form a companion pair: Undo leads,
+Action sits immediately adjacent at comparable thumb reach. Restart stays in the
+same local control group but is visually and mechanically subordinated (smaller
+cap, lighter labeling, or slightly more recessed). Each button gets its own
+guided cap, switch, and hard stop. The exact switch type, grouping geometry, and
+cap sizes are selected by the button-coupon gate.
 
 ### Button load path
 
@@ -190,9 +196,8 @@ structural member.
 - Switches receive only short, nearly axial actuation.
 - The controller PCB is replaceable without replacing the decorative face.
 
-This is especially important for the navigation puck, where normal use applies
-deliberate side force. Switch locating bosses and solder tabs are helpful but
-do not replace the guided-cap load path.
+Switch locating bosses and solder tabs are helpful but do not replace the
+guided-cap load path.
 
 ### Button mechanism gate
 
@@ -201,8 +206,9 @@ controller PCB footprint is frozen, a small coupon tests:
 
 - at least one low-profile SMD tact option
 - stainless snap domes on suitable PCB contact pads
-- the chosen navigation switch with multiple short puck geometries
-- separate Action, Undo, Restart, and Menu caps
+- the four direction buttons with candidate cap geometries
+- the Undo/Action companion pair and nearby Restart, with candidate cap sizes
+- separate Menu cap
 
 Custom silicone tooling is excluded for 5-20 units. An existing silicone
 membrane is considered only if its geometry happens to fit without compromising
@@ -225,14 +231,13 @@ Provisional input allocation:
 | PA1 | Down |
 | PA2 | Left |
 | PA3 | Right |
-| PA4 | Navigation center, diagnostics only |
+| PA4 | Action |
 | PA5 | Undo |
-| PA6 | Action |
+| PA6 | Back/Menu |
 | PA7 | Restart |
-| PB0 | Back/Menu |
-| PB1 | Volume Up |
-| PB2 | Volume Down |
-| PB3-PB7 | spare inputs/test points |
+| PB0 | Volume Up |
+| PB1 | Volume Down |
+| PB2-PB7 | spare inputs/test points |
 
 Inputs are active-low to ground with pull-ups. Interrupt-on-change drives one
 ESP32-S3 GPIO. Firmware reads both ports in one transaction and applies a
@@ -259,15 +264,22 @@ enable and supported charging while off. The ES3C28P's integrated charger is
 retained without board modification.
 
 The firmware reads the module's battery-voltage ADC. At the critical threshold
-it warns the player, commits a save, disables audio/backlight, and enters deep
-sleep before the protected cell reaches its hardware cutoff.
+it warns the player, commits a save, disables audio, backlight, and ambient
+LED, and enters deep sleep before the protected cell reaches its hardware
+cutoff.
 
-The protected 1S LiPo must:
+The selected cell is a protected **503450** 1S LiPo (~50 x 34 x 5 mm). It
+must:
 
 - fit the measured lower cavity with insulation and swelling allowance
-- use the correct connector polarity for the ES3C28P
+- use the correct connector polarity for the ES3C28P (verify against the module
+  schematic before wiring)
 - support at least four hours at default brightness in the completed device
 - remain within safe temperature during charging and play-while-charging
+
+If a particular 503450 SKU fails fit or runtime on measured hardware, revise
+the midframe or substitute another protected 503450 from ordinary distributor
+stock; do not change pouch code without updating this spec.
 
 ## Audio
 
@@ -278,6 +290,19 @@ lower cavity beside the battery rather than stacking behind the display.
 Volume Up and Volume Down are edge buttons read through the MCP23017. Firmware
 stores volume in persistent settings, supports mute, and disables the amplifier
 when silent. The onboard microphone is unused in release firmware.
+
+## Ambient light
+
+The ES3C28P's onboard RGB LED acts as a single ambient light that mirrors the
+current game's background color at approximately half brightness. When the
+background is black the LED is fully off, so a dark game keeps a dark device.
+The LED can be disabled in persistent settings and is turned off at the
+critical-battery threshold along with the backlight.
+
+The light must read as an intentional soft glow, not a status-light leak. The
+measured sample determines the light path — a small diffusing aperture or light
+pipe in the rear decorative PCB, or edge diffusion through the midframe — and
+the chosen treatment is validated with the plain mechanical PCBs in stage 2.
 
 ## Storage and cartridge flow
 
@@ -302,8 +327,9 @@ crashing. A missing or unreadable microSD falls back to the built-in library.
 ## Firmware architecture
 
 Firmware is a small ESP-IDF application, not Arduino application glue, LVGL,
-a browser, or a phone-like shell. Wi-Fi, Bluetooth, microphone, touch, and RGB
-LED services are disabled by default. No network setup or account state exists.
+a browser, or a phone-like shell. Wi-Fi, Bluetooth, microphone, and touch
+services are disabled by default; the onboard RGB LED is used only by the
+ambient-light service. No network setup or account state exists.
 
 Subsystem boundaries:
 
@@ -316,9 +342,12 @@ Subsystem boundaries:
 - **Renderer:** draws nearest-neighbor RGB565 into a 320 x 240 framebuffer and
   transfers dirty rectangles directly to the ILI9341 over SPI.
 - **Input service:** converts MCP23017 interrupts into debounced semantic button
-  events and ignores navigation-center during gameplay.
+  events.
 - **Audio service:** synthesizes/plays game effects through the onboard codec
   and applies stored volume.
+- **Ambient-light service:** drives the onboard RGB LED with the current game's
+  background color at half brightness, off for black backgrounds and when
+  disabled in settings.
 - **Persistence service:** owns settings, progress, save integrity, and
   cartridge IDs.
 - **Library UI:** lists valid cartridges and built-in games without exposing a
@@ -375,7 +404,8 @@ Acquire two ES3C28P modules. On the bench:
 
 - confirm measured board, touch-stack, connector, and rear-component envelopes
 - run the vendor display example before custom firmware
-- validate microSD, speaker, charging, battery ADC, USB, and backlight PWM
+- validate microSD, speaker, charging, battery ADC, USB, backlight PWM, and
+  the onboard RGB LED
 - validate MCP23017 coexistence with the touch controller and audio codec
 - run the native runtime against representative small and large cartridges
 - record internal SRAM and PSRAM high-water marks
@@ -400,7 +430,8 @@ Build two visually finished devices and require:
   games
 - representative large games with at least 25% PSRAM headroom, at least 64 KiB
   free internal SRAM, and a largest free internal block of at least 32 KiB
-- at least four hours of play at default brightness and volume
+- at least four hours of play at default brightness and volume with the
+  ambient LED active
 - stable temperature during extended play and play-while-charging
 - repeated hard-power cuts without loss of the last valid save
 - graceful missing/corrupt SD and cartridge behavior
@@ -417,14 +448,15 @@ CAD. Once the pilot revision passes, purchase all display modules for the
 revision.
 
 The controller expander, standard passives, connectors, switches, protected
-LiPo, speaker, and PCB fabrication must be available from ordinary
+503450 LiPo, speaker, and PCB fabrication must be available from ordinary
 manufacturer/distributor channels. No custom silicone tooling, chip-down ESP32
 assembly, fine-pitch BGA/QFN bring-up, or custom display bonding is allowed.
 
 Deferred selections are resolved by explicit gates:
 
-- navigation and secondary switch parts: button-coupon winner
-- battery: measured fit plus four-hour runtime and temperature tests
+- direction and secondary switch parts: button-coupon winner
+- battery (503450): measured fit plus four-hour runtime and temperature tests
+  before batch LiPo purchase
 - exact body depth: measured ES3C28P and pilot stack, maximum 12 mm
 - final art and finish: after plain mechanical PCB validation
 
@@ -435,7 +467,8 @@ Deferred selections are resolved by explicit gates:
 - touch-driven release navigation
 - on-device PuzzleScript source compilation or editing
 - Wi-Fi/Bluetooth accounts, OTA, or cloud library services
-- haptics, RGB case lighting, camera/microphone features
+- haptics and camera/microphone features
+- decorative lighting beyond the single onboard ambient LED
 - custom molded silicone controls
 - a custom charger, regulator, audio codec, or chip-down ESP32 board
 - a separate protective display window on the ES3C28P
@@ -446,5 +479,4 @@ Deferred selections are resolved by explicit gates:
 - [ES3C28P/ES3N28P specification and outline drawings](https://www.lcdwiki.com/res/ES3C28P/ES3C28P_ES2N28P_Specification_V1.0.pdf)
 - [ES3C28P/ES3N28P schematic](https://www.lcdwiki.com/res/ES3C28P/2.8inch_ESP32-S3_Display_Schematic.pdf)
 - [Microchip MCP23017 product documentation](https://www.microchip.com/en-us/product/mcp23017)
-- [ALPS SKRH navigation-switch reference](https://tech.alpsalpine.com/e/products/detail/SKRHACE010/)
 - [JLCPCB standard fabrication capabilities](https://jlcpcb.com/capabilities/pcb-capabilities/)

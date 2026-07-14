@@ -2,14 +2,20 @@ menu "PuzzleScript Player"
 
 choice PS_BOARD_TARGET
     prompt "Target board"
-    default PS_BOARD_WAVESHARE_7B
+    default PS_BOARD_P4_NANO
     help
         Select the hardware board target for GPIO, display, and audio pinout.
+
+config PS_BOARD_P4_NANO
+    bool "Waveshare ESP32-P4-NANO + external DSI panel"
+    help
+        P4-NANO devkit with a Raspberry-Pi-style Waveshare DSI panel
+        (default: 4.3\" 800x480 capacitive touch).
 
 config PS_BOARD_WAVESHARE_7B
     bool "Waveshare ESP32-P4-WIFI6-Touch-LCD-7B (dev kit)"
     help
-        Default bring-up board with 7\" MIPI touch panel and ES8311 audio.
+        Integrated 7\" MIPI touch panel (1024x600 EK79007) and ES8311 audio.
 
 config PS_BOARD_CARD
     bool "PuzzleScript Card (custom handheld PCB)"

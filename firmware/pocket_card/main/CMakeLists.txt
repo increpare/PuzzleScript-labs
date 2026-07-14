@@ -2,7 +2,9 @@ set(PUZZLESCRIPT_NATIVE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../native")
 
 idf_component_register(
   SRCS
+    "ambient_led.cpp"
     "main.cpp"
+    "mcp23017_bench.cpp"
     "probe_log.cpp"
     "runtime_probe.cpp"
     "${PUZZLESCRIPT_NATIVE_DIR}/src/runtime/c_api.cpp"
@@ -23,7 +25,9 @@ idf_component_register(
   EMBED_FILES
     "sokoban_basic.ir.json"
   REQUIRES
+    driver
     esp_timer
+    led_strip
     spi_flash
 )
 

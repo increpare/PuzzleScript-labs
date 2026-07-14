@@ -2,7 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "ambient_led.hpp"
 #include "probe_log.hpp"
 #include "puzzlescript/puzzlescript.h"
 
@@ -92,6 +94,30 @@ void run_runtime_probe() {
     }
     emit_phase(Phase::LoadLevel, "pass", "level_0", now_ms() - started);
 
+    // Ambient light per the pocket-card spec: the RGB LED mirrors the game's
+    // background color at half brightness, off for black.
+    started = now_ms();
+    const char* background_color = ps_game_background_color(game);
+    const AmbientColor ambient = ambient_color_for_background(background_color);
+    const char* ambient_failure = nullptr;
+    if (ambient_led_init() != ESP_OK) {
+        ambient_failure = "ambient_init_failed";
+    } else if (std::strcmp(background_color, "#000000") == 0 && !ambient.is_off()) {
+        ambient_failure = "black_background_not_off";
+    } else if (ambient_led_apply_background(background_color) != ESP_OK) {
+        ambient_failure = "ambient_apply_failed";
+    }
+
+    if (ambient_failure != nullptr) {
+        emit_phase(Phase::AmbientLed, "fail", ambient_failure, now_ms() - started);
+    } else {
+        emit_phase(
+            Phase::AmbientLed,
+            "pass",
+            ambient.is_off() ? "ambient_off" : "ambient_on",
+            now_ms() - started);
+    }
+
     started = now_ms();
     const char* input_failure = nullptr;
     try {
@@ -124,6 +150,7 @@ void run_runtime_probe() {
     }
 
     started = now_ms();
+    (void)ambient_led_off();
     free_runtime(state, game);
     emit_phase(Phase::Unload, "pass", "runtime_freed", now_ms() - started);
 }

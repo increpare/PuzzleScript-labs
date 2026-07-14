@@ -3,6 +3,8 @@
 #include "sdkconfig.h"
 #if CONFIG_PS_BOARD_CARD
 #include "board_card.hpp"
+#elif CONFIG_PS_BOARD_P4_NANO
+#include "board_p4_nano.hpp"
 #else
 #include "board_waveshare_7b.hpp"
 #endif

@@ -27,6 +27,8 @@
 	parser_corpus_errormessage_bundle parser_corpus_testdata_bundle clean clean-native \
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data
 
+.PHONY: gba gba_export gba_preflight
+
 NODE ?= node
 CMAKE ?= cmake
 BUILD_DIR ?= build
@@ -82,6 +84,9 @@ PUZZLESCRIPT_SOLVER := $(BUILD_DIR)/native/puzzlescript_solver
 PUZZLESCRIPT_GENERATOR := $(BUILD_DIR)/native/puzzlescript_generator
 PUZZLESCRIPT_SIMPLIFY := $(BUILD_DIR)/native/puzzlescript_simplify
 PUZZLESCRIPT_HANDHELD_REPORT := $(BUILD_DIR)/native/puzzlescript_handheld_report
+GBA_GAME ?= src/demo/sokoban_basic.txt
+GBA_EXPORT_DIR ?= $(BUILD_DIR)/gba/$(basename $(notdir $(GBA_GAME)))
+GBA_PREFLIGHT_JSON ?= $(BUILD_DIR)/gba/preflight.json
 HANDHELD_TESTDATA_BUNDLE := $(BUILD_DIR)/handheld_testdata.bundle.ndjson
 HANDHELD_REPORT_JSON := $(BUILD_DIR)/handheld_report.json
 HANDHELD_MEMORY_AUDIT_JSON := $(BUILD_DIR)/handheld_memory_audit.json
@@ -107,6 +112,7 @@ POCKET_CARD_PROBE_GATE_ARGS = \
 	--require-phase LOAD_IR \
 	--require-phase CREATE_RUNTIME \
 	--require-phase LOAD_LEVEL \
+	--require-phase AMBIENT_LED \
 	--require-phase INPUT_TRACE \
 	--require-phase UNLOAD \
 	--require-heap-region internal \
@@ -507,6 +513,9 @@ help:
 	@echo "  make build_generator               Build build/native/puzzlescript_generator"
 	@echo "  make build_simplify                Build build/native/puzzlescript_simplify"
 	@echo "  make handheld_report               Build and write 800x480 handheld report for testdata corpus"
+	@echo "  make gba                           Export GBA assets and build one ROM (set GBA_GAME=...)"
+	@echo "  make gba_export                    Export GBA data/SFX without requiring devkitARM"
+	@echo "  make gba_preflight                 Report GBA compatibility across the testdata corpus"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
 	@echo "  make handheld_pcb_export           Export card PCB outline/anchors to hardware/card/mechanical/"
@@ -527,6 +536,7 @@ help:
 	@echo "  make handheld_p4_probe_summarize   Summarize captured ESP32-P4 probe log (set ESP32P4_LOG=...)"
 	@echo "  make handheld_p4_probe_check_log   Fail if captured ESP32-P4 probe log has failures"
 	@echo "  make pocket_card_probe_build       Build Pocket Card ESP32-S3 runtime probe firmware"
+	@echo "  .\\scripts\\pocket_card_probe.ps1   Windows: build + flash in one command (-Port COM3)"
 	@echo "  make pocket_card_probe_flash       Flash Pocket Card probe (set POCKET_CARD_PORT=...)"
 	@echo "  make pocket_card_probe_monitor     Monitor Pocket Card serial logs"
 	@echo "  make pocket_card_probe_capture     Capture and gate Pocket Card serial logs"
@@ -774,6 +784,16 @@ handheld_report:
 	$(PUZZLESCRIPT_HANDHELD_REPORT) --display 800x480 --corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) > $(HANDHELD_REPORT_JSON)
 	@echo "Wrote $(HANDHELD_REPORT_JSON)"
 
+gba_export: $(PUZZLESCRIPT_CPP)
+	$(PUZZLESCRIPT_CPP) export-gba $(GBA_GAME) --out $(GBA_EXPORT_DIR) --no-mmutil
+
+gba: $(PUZZLESCRIPT_CPP)
+	$(MAKE) -C firmware/gba GAME=$(abspath $(GBA_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP))
+
+gba_preflight: $(PUZZLESCRIPT_CPP)
+	$(NODE) scripts/build_parser_corpus_bundle.js testdata > $(HANDHELD_TESTDATA_BUNDLE)
+	$(NODE) scripts/gba_preflight.js --compiler $(PUZZLESCRIPT_CPP) --corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) --out $(GBA_PREFLIGHT_JSON) --tmp-dir $(BUILD_DIR)/gba/preflight-tmp
+
 handheld_memory_audit:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
 	$(CMAKE) --build $(BUILD_DIR) --target puzzlescript_cpp
@@ -830,10 +850,11 @@ locality_survey:
 locality_survey_tests:
 	$(NODE) src/tests/locality_survey_node.js
 
-pocket_card_contract_tests:
+pocket_card_contract_tests: build
 	$(NODE) hardware/pocket_card/test_pin_contract.js
 	$(NODE) scripts/test_build_pocket_card_fixture.js
 	$(NODE) scripts/test_handheld_probe_log.js
+	ctest --test-dir $(BUILD_DIR) --output-on-failure -R '^ambient_light_policy_tests$$'
 
 pocket_card_fixture: $(PUZZLESCRIPT_CPP)
 	$(NODE) scripts/build_pocket_card_fixture.js \
