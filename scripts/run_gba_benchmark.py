@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run an instrumented PuzzleScript GBA ROM in mGBA and read its SRAM timings."""
+"""Run an instrumented PuzzleScript GBA ROM and read its cycle timings."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import struct
 import subprocess
@@ -18,6 +19,13 @@ MAGIC = 0x46505350  # "PSPF"
 VERSION = 1
 RESULT = struct.Struct("<IHHQHHIIQIIQIII")
 GBA_HZ = 16_777_216
+LOG_RESULT = re.compile(
+    r"PS_GBA_BENCH,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16}),([0-9a-f]{8}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8})",
+    re.IGNORECASE,
+)
 
 
 def default_mgba() -> Path | None:
@@ -28,33 +36,23 @@ def default_mgba() -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def read_result(path: Path) -> dict[str, int | float | bool] | None:
-    try:
-        data = path.read_bytes()
-    except (FileNotFoundError, PermissionError, OSError):
+def make_result(
+    version: int,
+    flags: int,
+    source_hash: int,
+    level: int,
+    iterations: int,
+    waitcnt: int,
+    step_total: int,
+    step_min: int,
+    step_max: int,
+    render_total: int,
+    render_min: int,
+    render_max: int,
+    cycles_per_frame: int,
+) -> dict[str, int | float | bool] | None:
+    if version != VERSION or iterations == 0 or cycles_per_frame == 0:
         return None
-    if len(data) < RESULT.size:
-        return None
-    fields = RESULT.unpack_from(data)
-    if fields[0] != MAGIC or fields[1] != VERSION:
-        return None
-    (
-        _magic,
-        _version,
-        flags,
-        source_hash,
-        level,
-        _reserved,
-        iterations,
-        waitcnt,
-        step_total,
-        step_min,
-        step_max,
-        render_total,
-        render_min,
-        render_max,
-        cycles_per_frame,
-    ) = fields
     step_average = step_total / iterations
     render_average = render_total / iterations
     return {
@@ -76,6 +74,45 @@ def read_result(path: Path) -> dict[str, int | float | bool] | None:
     }
 
 
+def read_sram_result(path: Path) -> dict[str, int | float | bool] | None:
+    try:
+        data = path.read_bytes()
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    if len(data) < RESULT.size:
+        return None
+    fields = RESULT.unpack_from(data)
+    if fields[0] != MAGIC:
+        return None
+    return make_result(
+        fields[1],
+        fields[2],
+        fields[3],
+        fields[4],
+        fields[6],
+        fields[7],
+        fields[8],
+        fields[9],
+        fields[10],
+        fields[11],
+        fields[12],
+        fields[13],
+        fields[14],
+    )
+
+
+def read_log_result(path: Path) -> dict[str, int | float | bool] | None:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+    match = LOG_RESULT.search(text)
+    if match is None:
+        return None
+    values = [int(value, 16) for value in match.groups()]
+    return make_result(*values)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("rom", type=Path)
@@ -92,42 +129,46 @@ def main() -> int:
         directory = Path(temporary)
         rom = directory / "benchmark.gba"
         save = rom.with_suffix(".sav")
+        log = directory / "benchmark.log"
         shutil.copyfile(args.rom, rom)
         environment = os.environ.copy()
         environment["SDL_VIDEODRIVER"] = "dummy"
         environment["SDL_AUDIODRIVER"] = "dummy"
         creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-        process = subprocess.Popen(
-            [
-                str(args.mgba),
-                "-C", "mute=1",
-                "-C", "audioSync=0",
-                "-C", "videoSync=0",
-                str(rom),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            env=environment,
-            creationflags=creationflags,
-        )
-        result = None
-        deadline = time.monotonic() + args.timeout
-        try:
-            while time.monotonic() < deadline:
-                result = read_result(save)
-                if result is not None:
-                    break
-                if process.poll() is not None:
-                    raise RuntimeError(f"mGBA exited before producing a result (exit {process.returncode})")
-                time.sleep(0.05)
-        finally:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+        with log.open("wb") as output:
+            process = subprocess.Popen(
+                [
+                    str(args.mgba),
+                    "-l", "127",
+                    "-C", "mute=1",
+                    "-C", "audioSync=0",
+                    "-C", "videoSync=0",
+                    str(rom),
+                ],
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                env=environment,
+                creationflags=creationflags,
+            )
+            result = None
+            deadline = time.monotonic() + args.timeout
+            try:
+                while time.monotonic() < deadline:
+                    output.flush()
+                    result = read_log_result(log) or read_sram_result(save)
+                    if result is not None:
+                        break
+                    if process.poll() is not None:
+                        raise RuntimeError(f"mGBA exited before producing a result (exit {process.returncode})")
+                    time.sleep(0.05)
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
         if result is None:
             raise RuntimeError(f"benchmark did not finish within {args.timeout:g} seconds")
 

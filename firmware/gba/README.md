@@ -47,6 +47,36 @@ The default Windows host compiler path is
 `puzzlescript_gba.gba` plus a linker map checked against the ROM, EWRAM, and
 IWRAM limits.
 
+The firmware enables the GBA Game Pak prefetch buffer and standard safe wait
+states by default. This matters for the generated rule kernels, which execute
+from cartridge ROM.
+
+## Cycle benchmark
+
+An opt-in benchmark ROM measures one right-input step and one complete Mode 4
+redraw with cascaded GBA hardware timers. It runs 16 samples from a repeatable
+level state and reports averages, minima, and maxima in CPU cycles, milliseconds,
+and 59.7 Hz frame periods. Benchmark ROMs reserve timers 2 and 3 and therefore
+must be built with audio disabled.
+
+Build and run one from the repository root with:
+
+```sh
+cd firmware/gba
+make clean
+make PERF_BENCHMARK=1 AUDIO=0 GAME=../../src/tests/solver_tests/zokoban.txt
+cd ../..
+python scripts/run_gba_benchmark.py firmware/gba/puzzlescript_gba.gba \
+  --out build/gba/perf/zokoban.json
+```
+
+`make clean` is required when changing benchmark compiler switches because Make
+does not track command-line flag changes as object dependencies. To reproduce a
+no-prefetch baseline, add `ROM_PREFETCH=0`; normal builds use
+`ROM_PREFETCH=1`. The runner uses mGBA's debug-register protocol for immediate
+headless results while also writing the same versioned record to SRAM for real
+hardware measurements. Benchmark mode is absent from ordinary ROMs.
+
 To inspect an export without invoking `mmutil`:
 
 ```sh

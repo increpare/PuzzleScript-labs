@@ -7,6 +7,10 @@
 #define PS_GBA_ROM_PREFETCH 1
 #endif
 
+#if defined(PS_GBA_PERF_BENCHMARK) && PS_GBA_ENABLE_AUDIO
+#error "PS_GBA_PERF_BENCHMARK reserves hardware timers 2 and 3; build with AUDIO=0"
+#endif
+
 #if PS_GBA_ENABLE_AUDIO
 #include <maxmod.h>
 #include "soundbank_bin.h"
@@ -139,6 +143,13 @@ void writeSram64(size_t offset, uint64_t value) {
     }
 }
 
+void appendHex(char*& destination, uint64_t value, unsigned digits) {
+    static constexpr char kHex[] = "0123456789abcdef";
+    for (unsigned digit = digits; digit > 0; --digit) {
+        *destination++ = kHex[(value >> ((digit - 1U) * 4U)) & 0x0fU];
+    }
+}
+
 struct BenchmarkSamples {
     uint64_t total = 0;
     uint32_t minimum = 0xffffffffU;
@@ -179,6 +190,35 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step, const Be
     writeSram32(56, renderSamples.maximum);
     writeSram32(60, kCyclesPerFrame);
     writeSram32(0, kBenchmarkMagic);
+
+    // mGBA's debug-register protocol gives the automated runner an immediate
+    // result without depending on emulator save-file flush timing. Real
+    // hardware ignores it and still retains the SRAM record above.
+    auto& debugEnable = *reinterpret_cast<volatile uint16_t*>(0x04fff780);
+    debugEnable = 0xc0de;
+    if (debugEnable == 0x1dea) {
+        char* output = reinterpret_cast<char*>(0x04fff600);
+        char* cursor = output;
+        const char prefix[] = "PS_GBA_BENCH,";
+        for (char ch : prefix) {
+            if (ch != '\0') *cursor++ = ch;
+        }
+        appendHex(cursor, kBenchmarkVersion, 8); *cursor++ = ',';
+        appendHex(cursor, PS_GBA_ROM_PREFETCH ? 1U : 0U, 8); *cursor++ = ',';
+        appendHex(cursor, ps_gba_generated_game.source_hash, 16); *cursor++ = ',';
+        appendHex(cursor, level, 8); *cursor++ = ',';
+        appendHex(cursor, kBenchmarkIterations, 8); *cursor++ = ',';
+        appendHex(cursor, *reinterpret_cast<volatile uint16_t*>(kWaitControl), 8); *cursor++ = ',';
+        appendHex(cursor, step.total, 16); *cursor++ = ',';
+        appendHex(cursor, step.minimum, 8); *cursor++ = ',';
+        appendHex(cursor, step.maximum, 8); *cursor++ = ',';
+        appendHex(cursor, renderSamples.total, 16); *cursor++ = ',';
+        appendHex(cursor, renderSamples.minimum, 8); *cursor++ = ',';
+        appendHex(cursor, renderSamples.maximum, 8); *cursor++ = ',';
+        appendHex(cursor, kCyclesPerFrame, 8);
+        *cursor = '\0';
+        *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
+    }
 }
 #endif
 
