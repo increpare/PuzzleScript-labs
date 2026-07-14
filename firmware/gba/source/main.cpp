@@ -3,6 +3,10 @@
 #define PS_GBA_ENABLE_AUDIO 0
 #endif
 
+#ifndef PS_GBA_ROM_PREFETCH
+#define PS_GBA_ROM_PREFETCH 1
+#endif
+
 #if PS_GBA_ENABLE_AUDIO
 #include <maxmod.h>
 #include "soundbank_bin.h"
@@ -22,6 +26,8 @@ constexpr uintptr_t kVram = 0x06000000;
 constexpr uintptr_t kPalette = 0x05000000;
 constexpr uintptr_t kSram = 0x0e000000;
 constexpr uintptr_t kDisplayControl = 0x04000000;
+constexpr uintptr_t kWaitControl = 0x04000204;
+constexpr uint16_t kWaitStandard = 0x4317;
 constexpr size_t kMode4PageBytes = 0xA000;
 constexpr uint16_t kDisplayMode4Bg2 = 4U | (1U << 10U);
 constexpr uint16_t kDisplayPage = 1U << 4U;
@@ -82,6 +88,97 @@ void writeAutotestResult(uint32_t result) {
     for (size_t index = 0; index < sizeof(result); ++index) {
         destination[index] = static_cast<uint8_t>(result >> (index * 8U));
     }
+}
+#endif
+
+#if defined(PS_GBA_PERF_BENCHMARK)
+constexpr uint32_t kBenchmarkMagic = 0x46505350U; // "PSPF"
+constexpr uint16_t kBenchmarkVersion = 1;
+constexpr uint32_t kBenchmarkIterations = 16;
+constexpr uint32_t kCyclesPerFrame = 280896;
+constexpr uintptr_t kTimer2Data = 0x04000108;
+constexpr uintptr_t kTimer2Control = 0x0400010a;
+constexpr uintptr_t kTimer3Data = 0x0400010c;
+constexpr uintptr_t kTimer3Control = 0x0400010e;
+constexpr uint16_t kTimerEnable = 0x0080;
+constexpr uint16_t kTimerCascade = 0x0004;
+
+void benchmarkTimerStart() {
+    *reinterpret_cast<volatile uint16_t*>(kTimer2Control) = 0;
+    *reinterpret_cast<volatile uint16_t*>(kTimer3Control) = 0;
+    *reinterpret_cast<volatile uint16_t*>(kTimer2Data) = 0;
+    *reinterpret_cast<volatile uint16_t*>(kTimer3Data) = 0;
+    *reinterpret_cast<volatile uint16_t*>(kTimer3Control) = kTimerEnable | kTimerCascade;
+    *reinterpret_cast<volatile uint16_t*>(kTimer2Control) = kTimerEnable;
+}
+
+uint32_t benchmarkTimerStop() {
+    *reinterpret_cast<volatile uint16_t*>(kTimer2Control) = 0;
+    const uint32_t high = *reinterpret_cast<volatile uint16_t*>(kTimer3Data);
+    const uint32_t low = *reinterpret_cast<volatile uint16_t*>(kTimer2Data);
+    return (high << 16U) | low;
+}
+
+void writeSram16(size_t offset, uint16_t value) {
+    auto* destination = reinterpret_cast<volatile uint8_t*>(kSram + offset);
+    destination[0] = static_cast<uint8_t>(value);
+    destination[1] = static_cast<uint8_t>(value >> 8U);
+}
+
+void writeSram32(size_t offset, uint32_t value) {
+    auto* destination = reinterpret_cast<volatile uint8_t*>(kSram + offset);
+    for (size_t index = 0; index < 4; ++index) {
+        destination[index] = static_cast<uint8_t>(value >> (index * 8U));
+    }
+}
+
+void writeSram64(size_t offset, uint64_t value) {
+    auto* destination = reinterpret_cast<volatile uint8_t*>(kSram + offset);
+    for (size_t index = 0; index < 8; ++index) {
+        destination[index] = static_cast<uint8_t>(value >> (index * 8U));
+    }
+}
+
+struct BenchmarkSamples {
+    uint64_t total = 0;
+    uint32_t minimum = 0xffffffffU;
+    uint32_t maximum = 0;
+
+    void add(uint32_t cycles) {
+        total += cycles;
+        if (cycles < minimum) minimum = cycles;
+        if (cycles > maximum) maximum = cycles;
+    }
+};
+
+uint16_t firstBoardLevel() {
+    uint16_t level = 0;
+    while (level < ps_gba_generated_game.level_count
+        && ps_gba_generated_game.levels[level].kind != PS_GBA_LEVEL_BOARD) {
+        ++level;
+    }
+    return level;
+}
+
+void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step, const BenchmarkSamples& renderSamples) {
+    // Keep the magic zero until every other field is committed. The host only
+    // accepts records whose magic and version are complete.
+    writeSram32(0, 0);
+    writeSram16(4, kBenchmarkVersion);
+    writeSram16(6, PS_GBA_ROM_PREFETCH ? 1U : 0U);
+    writeSram64(8, ps_gba_generated_game.source_hash);
+    writeSram16(16, level);
+    writeSram16(18, 0);
+    writeSram32(20, kBenchmarkIterations);
+    writeSram32(24, *reinterpret_cast<volatile uint16_t*>(kWaitControl));
+    writeSram64(28, step.total);
+    writeSram32(36, step.minimum);
+    writeSram32(40, step.maximum);
+    writeSram64(44, renderSamples.total);
+    writeSram32(52, renderSamples.minimum);
+    writeSram32(56, renderSamples.maximum);
+    writeSram32(60, kCyclesPerFrame);
+    writeSram32(0, kBenchmarkMagic);
 }
 #endif
 
@@ -329,6 +426,39 @@ void render(ps_gba_session* session) {
     }
 }
 
+#if defined(PS_GBA_PERF_BENCHMARK)
+[[noreturn]] void runPerformanceBenchmark(ps_gba_session* session) {
+    const uint16_t level = firstBoardLevel();
+    if (level >= ps_gba_generated_game.level_count) {
+        writeBenchmarkResult(level, {}, {});
+        while (true) VBlankIntrWait();
+    }
+
+    // Warm both paths once. Every measured step starts from the same level
+    // state, while level loading itself remains outside the timed region.
+    ps_gba_load_level(session, level);
+    (void)ps_gba_step(session, PS_INPUT_RIGHT);
+    render(session);
+
+    BenchmarkSamples stepSamples{};
+    BenchmarkSamples renderSamples{};
+    for (uint32_t iteration = 0; iteration < kBenchmarkIterations; ++iteration) {
+        ps_gba_load_level(session, level);
+        benchmarkTimerStart();
+        (void)ps_gba_step(session, PS_INPUT_RIGHT);
+        stepSamples.add(benchmarkTimerStop());
+    }
+    ps_gba_load_level(session, level);
+    for (uint32_t iteration = 0; iteration < kBenchmarkIterations; ++iteration) {
+        benchmarkTimerStart();
+        render(session);
+        renderSamples.add(benchmarkTimerStop());
+    }
+    writeBenchmarkResult(level, stepSamples, renderSamples);
+    while (true) VBlankIntrWait();
+}
+#endif
+
 void playEvents(const ps_step_result& result) {
 #if PS_GBA_ENABLE_AUDIO
     for (size_t event = 0; event < result.audio_event_count; ++event) {
@@ -378,6 +508,11 @@ uint16_t intervalFrames(const char* metadataKey, uint16_t fallback) {
 
 int main() {
     __asm__ volatile("" : : "r"(kSramSignature));
+#if PS_GBA_ROM_PREFETCH
+    // Use the standard safe SRAM timings, 3/1-cycle WS0 ROM access, and the
+    // Game Pak prefetch buffer. Generated rule kernels execute from WS0 ROM.
+    *reinterpret_cast<volatile uint16_t*>(kWaitControl) = kWaitStandard;
+#endif
     irqInit();
     irqEnable(IRQ_VBLANK);
     *reinterpret_cast<volatile uint16_t*>(kDisplayControl) = kDisplayMode4Bg2;
@@ -390,6 +525,9 @@ int main() {
 
     ps_gba_session* session = ps_gba_session_init(gSessionArena, sizeof(gSessionArena), &ps_gba_generated_game);
     if (session == nullptr) while (true) VBlankIntrWait();
+#if defined(PS_GBA_PERF_BENCHMARK)
+    runPerformanceBenchmark(session);
+#endif
 #if defined(PS_GBA_AUTOTEST_LEVEL_START)
     writeAutotestResult(1U);
     uint16_t autotestLevel = 0;
