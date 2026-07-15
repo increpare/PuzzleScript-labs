@@ -93,11 +93,35 @@ int main() {
     require(manifest.find("\"sound_seed_count\": 1") != std::string::npos, "sound seeds are deduplicated");
     require(manifest.find("\"undo_capacity\": 32") != std::string::npos,
         "small games retain the full 32-snapshot undo ring");
+    require(manifest.find("\"kernel_snapshot_bytes\": 336") != std::string::npos,
+        "manifest accounts for two fixed board-sized kernel snapshots");
+    require(manifest.find("\"object_cell_index_bytes\": 60") != std::string::npos,
+        "manifest accounts for the fixed object-to-cell index and counts");
+    require(manifest.find("\"object_cell_index_enabled\": true") != std::string::npos,
+        "manifest records that the representative game uses the fixed object index");
     require(manifest.find("\"soundbank_generated\": false") != std::string::npos, "no-mmutil mode is explicit");
     const std::string generatedBefore = readFile(first.generatedSourcePath);
     const std::string generatedRules = readFile(first.generatedRulesPath);
     require(generatedRules.find("compact_turn_attach_external_board_0") != std::string::npos,
         "generated kernel attaches the session board as non-owning storage");
+    require(generatedRules.find("compact_turn_attach_external_snapshots_0") != std::string::npos,
+        "generated kernel attaches fixed session-backed turn and again snapshots");
+    require(generatedRules.find("compact_turn_attach_external_object_cell_index_0") != std::string::npos,
+        "generated kernel attaches a fixed session-backed object-to-cell index");
+    require(generatedRules.find("compact_turn_enable_movement_cell_index_0 = false") != std::string::npos,
+        "generated GBA kernels avoid the optional heap-backed movement-cell index");
+    require(generatedRules.find("if (!usedAnchorScan && !compact_turn_enable_movement_cell_index_0)") != std::string::npos,
+        "generated GBA kernels use the zero-allocation movement-anchor fallback");
+    require(generatedRules.find("if (!turnStartLiveMovementsClean) turnStartMovements = scratch.liveMovements") != std::string::npos,
+        "again probes do not copy an already-clean movement board");
+    require(generatedRules.find("scratch.objectCellBits.assign") == std::string::npos
+            && generatedRules.find("scratch.objectCellCounts.assign") == std::string::npos,
+        "generated GBA object-cell indexes do not allocate owning vectors");
+    require(generatedRules.find("MaskVector localTurnStartObjects") == std::string::npos,
+        "generated GBA turns do not allocate local owning board snapshots");
+    require(generatedRules.find("if (resetScratch) puzzlescript::resetScratchForLevel(scratch)") != std::string::npos
+            && generatedRules.find("scratch = puzzlescript::Scratch{}") == std::string::npos,
+        "generated GBA scratch resets retain reusable vector capacity");
     require(generatedRules.find("levelState.board.objects.resize(boardWordCount)") == std::string::npos,
         "generated kernel does not allocate an owning board per turn");
     require(generatedRules.find("memcpy(boardWords, levelState.board.objects.data()") == std::string::npos,

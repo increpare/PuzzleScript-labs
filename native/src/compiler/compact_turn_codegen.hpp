@@ -13,6 +13,10 @@ namespace puzzlescript::compiler {
 struct CompactCodegenOptions {
     bool interpreterMode = false;
     bool externalBoardStorage = false;
+    bool externalSnapshotStorage = false;
+    bool externalObjectCellIndexStorage = false;
+    bool enableObjectCellIndex = true;
+    bool enableMovementCellIndex = true;
 };
 
 enum class CompactTurnBackendKind {

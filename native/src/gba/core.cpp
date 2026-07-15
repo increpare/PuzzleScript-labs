@@ -13,6 +13,10 @@ struct ps_gba_session {
     uint32_t maxWordCount = 0;
     uint32_t* board = nullptr;
     uint32_t* restart = nullptr;
+    uint32_t* turnSnapshot = nullptr;
+    uint32_t* probeSnapshot = nullptr;
+    uint32_t* objectCellIndex = nullptr;
+    uint32_t objectCellIndexWordCapacity = 0;
     uint32_t* undo = nullptr;
     ps_gba_rng_state rng{};
     ps_gba_rng_state restartRng{};
@@ -131,7 +135,10 @@ void runRulesOnLevelStart(ps_gba_session* session) {
     if (session == nullptr || session->mode != PS_FULL_STATE_MODE_LEVEL
         || !hasMetadata(session->game, "run_rules_on_level_start")) return;
     const ps_gba_kernel_result kernel = session->game->turn_kernel(
-        session->board, session->activeWordCount, session->width, session->height,
+        session->board, session->activeWordCount,
+        session->turnSnapshot, session->probeSnapshot, session->maxWordCount,
+        session->objectCellIndex, session->objectCellIndexWordCapacity,
+        session->width, session->height,
         session->currentLevel, PS_INPUT_TICK, &session->rng, session->resetKernelScratch, true);
     session->resetKernelScratch = false;
     if (kernel.handled && !kernel.discard) applyKernelOutputs(session, kernel);
@@ -229,8 +236,9 @@ size_t ps_gba_session_required_bytes(const ps_gba_game_view* game) {
     if (game == nullptr || game->object_word_count == 0 || game->max_level_cells == 0) return 0;
     const size_t words = static_cast<size_t>(game->max_level_cells) * game->object_word_count;
     if (game->undo_capacity == 0 || game->undo_capacity > PS_GBA_UNDO_CAPACITY) return 0;
-    const size_t stateCopies = 2U + game->undo_capacity;
-    const size_t boardBytes = words * stateCopies * sizeof(uint32_t);
+    const size_t stateCopies = 4U + game->undo_capacity;
+    const size_t storageWords = words * stateCopies + game->object_cell_index_word_count;
+    const size_t boardBytes = storageWords * sizeof(uint32_t);
     const size_t rngOffset = alignUp(
         alignUp(sizeof(ps_gba_session), alignof(uint32_t)) + boardBytes,
         alignof(ps_gba_rng_state));
@@ -248,13 +256,17 @@ ps_gba_session* ps_gba_session_init(void* arena, size_t arenaSize, const ps_gba_
     auto* session = new (arena) ps_gba_session();
     session->game = game;
     session->maxWordCount = static_cast<uint32_t>(game->max_level_cells) * game->object_word_count;
+    session->objectCellIndexWordCapacity = game->object_cell_index_word_count;
     const size_t storageOffset = alignUp(sizeof(ps_gba_session), alignof(uint32_t));
     auto* storage = reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(arena) + storageOffset);
     session->board = storage;
     session->restart = storage + session->maxWordCount;
-    session->undo = session->restart + session->maxWordCount;
-    const size_t boardBytes = static_cast<size_t>(session->maxWordCount)
-        * (2U + game->undo_capacity) * sizeof(uint32_t);
+    session->turnSnapshot = session->restart + session->maxWordCount;
+    session->probeSnapshot = session->turnSnapshot + session->maxWordCount;
+    session->objectCellIndex = session->probeSnapshot + session->maxWordCount;
+    session->undo = session->objectCellIndex + session->objectCellIndexWordCapacity;
+    const size_t boardBytes = (static_cast<size_t>(session->maxWordCount)
+        * (4U + game->undo_capacity) + session->objectCellIndexWordCapacity) * sizeof(uint32_t);
     const size_t rngOffset = alignUp(storageOffset + boardBytes, alignof(ps_gba_rng_state));
     session->undoRng = reinterpret_cast<ps_gba_rng_state*>(reinterpret_cast<uint8_t*>(arena) + rngOffset);
     std::memset(storage, 0, required - storageOffset);
@@ -298,7 +310,10 @@ ps_step_result ps_gba_step(ps_gba_session* session, ps_input input) {
     const bool recordsUndo = input != PS_INPUT_TICK && !session->game->no_undo;
     if (recordsUndo) pushUndo(session);
     const ps_gba_kernel_result kernel = session->game->turn_kernel(
-        session->board, session->activeWordCount, session->width, session->height,
+        session->board, session->activeWordCount,
+        session->turnSnapshot, session->probeSnapshot, session->maxWordCount,
+        session->objectCellIndex, session->objectCellIndexWordCapacity,
+        session->width, session->height,
         session->currentLevel, input, &session->rng, session->resetKernelScratch, false);
     session->resetKernelScratch = false;
     if (!kernel.handled || kernel.discard) {

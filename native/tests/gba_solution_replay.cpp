@@ -307,10 +307,16 @@ std::string resetKernelDiagnostic(const ReplayContext& context, ps_input input) 
     const size_t wordCount = static_cast<size_t>(status.width)
         * static_cast<size_t>(status.height) * game->object_word_count;
     std::vector<uint32_t> copy(board, board + wordCount);
+    std::vector<uint32_t> turnSnapshot(wordCount);
+    std::vector<uint32_t> probeSnapshot(wordCount);
+    std::vector<uint32_t> objectCellIndex(
+        std::max<uint32_t>(1U, game->object_cell_index_word_count));
     ps_gba_rng_state rng{};
     ps_gba_random_state_get(context.gba, &rng);
     const ps_gba_kernel_result probe = game->turn_kernel(
         copy.data(), static_cast<uint32_t>(copy.size()),
+        turnSnapshot.data(), probeSnapshot.data(), static_cast<uint32_t>(wordCount),
+        objectCellIndex.data(), static_cast<uint32_t>(objectCellIndex.size()),
         static_cast<uint16_t>(status.width), static_cast<uint16_t>(status.height),
         static_cast<uint16_t>(status.current_level), input, &rng, true, false);
     return "; reset-kernel handled=" + std::to_string(probe.handled)

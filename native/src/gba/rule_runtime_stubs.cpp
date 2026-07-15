@@ -37,6 +37,23 @@ uintptr_t gHeapHighWater = 0;
 uint32_t gProgressStage = 0;
 uint32_t gProgressDetail = 0;
 uint32_t gProgressHeartbeatFrames = 0;
+constexpr size_t kPerfGroupSlots = 32;
+struct PerfGroupStat {
+    uint64_t cycles = 0;
+    uint32_t calls = 0;
+    uint32_t sourceLine = 0;
+    uint16_t group = 0;
+    uint8_t phase = 0;
+    uint8_t probe = 0;
+};
+#if defined(__GNUC__) && defined(__arm__)
+PerfGroupStat gPerfGroups[kPerfGroupSlots] __attribute__((section(".ewram"))) {};
+#else
+PerfGroupStat gPerfGroups[kPerfGroupSlots]{};
+#endif
+bool gPerfProbe = false;
+uint64_t gPerfRebuildCycles = 0;
+uint32_t gPerfRebuildCalls = 0;
 
 uint32_t timerCycles() {
     uint32_t highBefore = *reinterpret_cast<volatile uint16_t*>(kTimer3Data);
@@ -66,6 +83,25 @@ void logProgress(uint32_t stage, uint32_t detail) {
     appendHex(cursor, stage);
     *cursor++ = ',';
     appendHex(cursor, detail);
+    *cursor = '\0';
+    *reinterpret_cast<volatile uint16_t*>(kMgbaDebugFlags) = 0x102;
+}
+
+void logGroup(uint32_t probe, uint32_t phase, uint32_t group, const PerfGroupStat& stat) {
+    auto& debugEnable = *reinterpret_cast<volatile uint16_t*>(kMgbaDebugEnable);
+    debugEnable = 0xc0de;
+    if (debugEnable != 0x1dea) return;
+    char* cursor = reinterpret_cast<char*>(kMgbaDebugBuffer);
+    const char prefix[] = "PS_GBA_GROUP,";
+    for (char ch : prefix) if (ch != '\0') *cursor++ = ch;
+    appendHex(cursor, 1); *cursor++ = ',';
+    appendHex(cursor, probe); *cursor++ = ',';
+    appendHex(cursor, phase); *cursor++ = ',';
+    appendHex(cursor, group); *cursor++ = ',';
+    appendHex(cursor, stat.sourceLine); *cursor++ = ',';
+    appendHex(cursor, stat.calls); *cursor++ = ',';
+    appendHex(cursor, static_cast<uint32_t>(stat.cycles >> 32U));
+    appendHex(cursor, static_cast<uint32_t>(stat.cycles));
     *cursor = '\0';
     *reinterpret_cast<volatile uint16_t*>(kMgbaDebugFlags) = 0x102;
 }
@@ -185,6 +221,10 @@ extern "C" void ps_gba_perf_begin() {
     gProgressStage = 0;
     gProgressDetail = 0;
     gProgressHeartbeatFrames = 0;
+    for (auto& group : gPerfGroups) group = PerfGroupStat{};
+    gPerfProbe = false;
+    gPerfRebuildCycles = 0;
+    gPerfRebuildCalls = 0;
     gTelemetryEnabled = true;
     writeProgressSram(0, 0);
 #endif
@@ -201,6 +241,10 @@ extern "C" void ps_gba_perf_end(ps_gba_perf_snapshot* snapshot) {
     snapshot->late_rules_cycles = gRuntimeCounters[static_cast<size_t>(puzzlescript::RuntimeCounterId::CompactTurnLateRulesNs)];
     snapshot->win_cycles = gRuntimeCounters[static_cast<size_t>(puzzlescript::RuntimeCounterId::CompactTurnWinNs)];
     snapshot->canonicalize_cycles = gRuntimeCounters[static_cast<size_t>(puzzlescript::RuntimeCounterId::CompactTurnCanonicalizeNs)];
+    snapshot->again_probe_cycles = gRuntimeCounters[static_cast<size_t>(puzzlescript::RuntimeCounterId::CompactTurnAgainProbeNs)];
+    snapshot->again_probe_calls = counter32(puzzlescript::RuntimeCounterId::CompactTurnAgainProbeCalls);
+    snapshot->rebuild_cycles = gPerfRebuildCycles;
+    snapshot->rebuild_calls = gPerfRebuildCalls;
     snapshot->allocation_calls = gAllocationCalls;
     snapshot->allocation_bytes = gAllocationBytes;
     snapshot->deallocation_calls = gDeallocationCalls;
@@ -238,6 +282,84 @@ extern "C" void ps_gba_perf_vblank() {
     if (gTelemetryEnabled && gProgressStage != 0 && ++gProgressHeartbeatFrames >= 60) {
         gProgressHeartbeatFrames = 0;
         logProgress(gProgressStage, gProgressDetail);
+    }
+#endif
+}
+
+extern "C" void ps_gba_perf_set_probe(bool probe) {
+#if PS_GBA_PERF_TELEMETRY
+    gPerfProbe = probe;
+#else
+    (void)probe;
+#endif
+}
+
+extern "C" uint32_t ps_gba_perf_group_begin() {
+#if PS_GBA_PERF_TELEMETRY
+    return gTelemetryEnabled ? timerCycles() : 0;
+#else
+    return 0;
+#endif
+}
+
+extern "C" uint32_t ps_gba_perf_rebuild_begin() {
+#if PS_GBA_PERF_TELEMETRY
+    return gTelemetryEnabled ? timerCycles() : 0;
+#else
+    return 0;
+#endif
+}
+
+extern "C" void ps_gba_perf_rebuild_end(uint32_t startCycles) {
+#if PS_GBA_PERF_TELEMETRY
+    if (!gTelemetryEnabled || startCycles == 0) return;
+    gPerfRebuildCycles += static_cast<uint32_t>(timerCycles() - startCycles);
+    ++gPerfRebuildCalls;
+#else
+    (void)startCycles;
+#endif
+}
+
+extern "C" void ps_gba_perf_group_end(
+    uint32_t phase, uint32_t group, uint32_t sourceLine, uint32_t startCycles) {
+#if PS_GBA_PERF_TELEMETRY
+    if (!gTelemetryEnabled || startCycles == 0 || group > 0xffffU) return;
+    const uint32_t elapsed = static_cast<uint32_t>(timerCycles() - startCycles);
+    const uint8_t probe = gPerfProbe ? 1U : 0U;
+    PerfGroupStat* stat = nullptr;
+    PerfGroupStat* smallest = &gPerfGroups[0];
+    for (auto& candidate : gPerfGroups) {
+        if (candidate.calls != 0 && candidate.probe == probe
+            && candidate.phase == phase && candidate.group == group) {
+            stat = &candidate;
+            break;
+        }
+        if (candidate.calls == 0) {
+            stat = &candidate;
+            break;
+        }
+        if (candidate.cycles < smallest->cycles) smallest = &candidate;
+    }
+    if (stat == nullptr) {
+        if (elapsed <= smallest->cycles) return;
+        stat = smallest;
+        *stat = PerfGroupStat{};
+    }
+    stat->cycles += elapsed;
+    ++stat->calls;
+    stat->sourceLine = sourceLine;
+    stat->group = static_cast<uint16_t>(group);
+    stat->phase = static_cast<uint8_t>(phase);
+    stat->probe = probe;
+#else
+    (void)phase; (void)group; (void)sourceLine; (void)startCycles;
+#endif
+}
+
+extern "C" void ps_gba_perf_write_group_log() {
+#if PS_GBA_PERF_TELEMETRY
+    for (const PerfGroupStat& stat : gPerfGroups) {
+        if (stat.calls != 0) logGroup(stat.probe, stat.phase, stat.group, stat);
     }
 #endif
 }

@@ -31,6 +31,19 @@ PHASE_RESULT = re.compile(
     r"([0-9a-f]{16}),([0-9a-f]{16}),([0-9a-f]{16}),([0-9a-f]{16})",
     re.IGNORECASE,
 )
+AGAIN_RESULT = re.compile(
+    r"PS_GBA_AGAIN,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16})",
+    re.IGNORECASE,
+)
+REBUILD_RESULT = re.compile(
+    r"PS_GBA_REBUILD,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16})",
+    re.IGNORECASE,
+)
+GROUP_RESULT = re.compile(
+    r"PS_GBA_GROUP,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),"
+    r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{16})",
+    re.IGNORECASE,
+)
 ALLOCATION_RESULT = re.compile(
     r"PS_GBA_ALLOC,([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),"
     r"([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),([0-9a-f]{8}),"
@@ -134,6 +147,7 @@ def make_result(
         "level": level,
         "iterations": iterations,
         "prefetch": bool(flags & 1),
+        "reload_level_each_iteration": bool(flags & 2),
         "waitcnt": waitcnt,
         "step_cycles_average": step_average,
         "step_cycles_min": step_min,
@@ -199,6 +213,37 @@ def read_log_result(path: Path) -> dict[str, int | float | bool | str] | None:
             ):
                 result[f"phase_{name}_cycles"] = cycles
                 result[f"phase_{name}_ms"] = cycles * 1000 / GBA_HZ
+    again_match = AGAIN_RESULT.search(text)
+    if again_match is not None:
+        again_values = [int(value, 16) for value in again_match.groups()]
+        if again_values[0] == 1:
+            result["again_probe_calls"] = again_values[1]
+            result["again_probe_cycles"] = again_values[2]
+            result["again_probe_ms"] = again_values[2] * 1000 / GBA_HZ
+    rebuild_match = REBUILD_RESULT.search(text)
+    if rebuild_match is not None:
+        rebuild_values = [int(value, 16) for value in rebuild_match.groups()]
+        if rebuild_values[0] == 1:
+            result["rebuild_calls"] = rebuild_values[1]
+            result["rebuild_cycles"] = rebuild_values[2]
+            result["rebuild_ms"] = rebuild_values[2] * 1000 / GBA_HZ
+    group_rows = []
+    for group_match in GROUP_RESULT.finditer(text):
+        values = [int(value, 16) for value in group_match.groups()]
+        if values[0] != 1:
+            continue
+        _, probe, phase, group, source_line, calls, cycles = values
+        group_rows.append({
+            "probe": bool(probe),
+            "phase": "late" if phase == 4 else "early",
+            "group": group,
+            "source_line": source_line,
+            "calls": calls,
+            "cycles": cycles,
+            "ms": cycles * 1000 / GBA_HZ,
+        })
+    if group_rows:
+        result["rule_groups"] = sorted(group_rows, key=lambda row: row["cycles"], reverse=True)
     allocation_match = ALLOCATION_RESULT.search(text)
     if allocation_match is not None:
         allocation_values = [int(value, 16) for value in allocation_match.groups()]

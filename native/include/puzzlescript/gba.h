@@ -14,7 +14,7 @@ extern "C" {
 #define PS_GBA_SCREEN_WIDTH 240
 #define PS_GBA_SCREEN_HEIGHT 160
 #define PS_GBA_UNDO_CAPACITY 32
-#define PS_GBA_GAME_ABI_VERSION 5
+#define PS_GBA_GAME_ABI_VERSION 8
 #define PS_GBA_MAX_SPRITE_PIXELS 32
 
 typedef enum ps_gba_level_kind {
@@ -51,6 +51,11 @@ typedef struct ps_gba_kernel_result {
 typedef ps_gba_kernel_result (*ps_gba_turn_kernel)(
     uint32_t* board_words,
     uint32_t board_word_count,
+    uint32_t* turn_snapshot_words,
+    uint32_t* probe_snapshot_words,
+    uint32_t snapshot_word_capacity,
+    uint32_t* object_cell_index_words,
+    uint32_t object_cell_index_word_capacity,
     uint16_t width,
     uint16_t height,
     uint16_t level_index,
@@ -103,6 +108,7 @@ typedef struct ps_gba_game_view {
     const ps_gba_object* objects;
     uint16_t level_count;
     uint16_t max_level_cells;
+    uint32_t object_cell_index_word_count;
     uint8_t undo_capacity;
     const ps_gba_level* levels;
     uint16_t metadata_count;

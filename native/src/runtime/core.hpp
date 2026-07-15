@@ -637,6 +637,74 @@ struct Scratch {
     SimdBackend backend = SimdBackend::Scalar;
 };
 
+// Invalidate all level-derived state without releasing reusable vector
+// storage. Embedded callers reset scratch at level/restart/undo boundaries;
+// retaining capacity avoids repeating a large burst of heap traffic on the
+// first rule turn after each boundary.
+inline void resetScratchForLevel(Scratch& scratch) {
+    scratch.liveMovements.clear();
+    scratch.liveMovementsClean = false;
+    scratch.rowMasks.clear();
+    scratch.columnMasks.clear();
+    scratch.rowAllMasks.clear();
+    scratch.columnAllMasks.clear();
+    scratch.boardMask.clear();
+    scratch.rowMovementMasks.clear();
+    scratch.columnMovementMasks.clear();
+    scratch.rowAllMovementMasks.clear();
+    scratch.columnAllMovementMasks.clear();
+    scratch.boardMovementMask.clear();
+    scratch.objectRowCounts.clear();
+    scratch.objectColumnCounts.clear();
+    scratch.objectBoardCounts.clear();
+    scratch.objectCellBits.clear();
+    scratch.objectCellCounts.clear();
+    scratch.objectCellBitTileCount = 0;
+    scratch.objectCellIndexDirty = true;
+    scratch.movementCellBits.clear();
+    scratch.movementCellCounts.clear();
+    scratch.movementCellBitTileCount = 0;
+    scratch.movementCellIndexDirty = true;
+    scratch.dirtyObjectRows.clear();
+    scratch.dirtyObjectColumns.clear();
+    scratch.dirtyMovementRows.clear();
+    scratch.dirtyMovementColumns.clear();
+    scratch.dirtyObjectBoard = true;
+    scratch.dirtyMovementBoard = true;
+    scratch.anyMasksDirty = true;
+    scratch.rigidGroupIndexMasks.clear();
+    scratch.rigidMovementAppliedMasks.clear();
+    scratch.pendingCreateMask.clear();
+    scratch.pendingDestroyMask.clear();
+    scratch.replacementObjectsClearScratch.clear();
+    scratch.replacementObjectsSetScratch.clear();
+    scratch.replacementMovementsClearScratch.clear();
+    scratch.replacementMovementsSetScratch.clear();
+    scratch.replacementObjectsScratch.clear();
+    scratch.replacementMovementsScratch.clear();
+    scratch.replacementOldObjectsScratch.clear();
+    scratch.replacementOldMovementsScratch.clear();
+    scratch.replacementCreatedScratch.clear();
+    scratch.replacementDestroyedScratch.clear();
+    scratch.replacementRigidMaskScratch.clear();
+    scratch.singleRowMatchScratch.clear();
+    for (auto& row : scratch.multiRowMatchScratch) row.clear();
+    scratch.queuedTileScratch.clear();
+    scratch.turnStartObjectsScratch.clear();
+    scratch.aggregateCaptures.clear();
+    scratch.propertyCaptures.clear();
+    scratch.incrementalPriorObjects.clear();
+    scratch.incrementalPriorMovements.clear();
+    scratch.incrementalNextObjects.clear();
+    scratch.incrementalNextMovements.clear();
+    scratch.incrementalPriorAllOnes = true;
+    scratch.currentInputMask = 0x3f;
+    scratch.ellipsisLinePossibleScratch.clear();
+    scratch.ellipsisMinConcreteSuffixScratch.clear();
+    scratch.ellipsisPositionsScratch.clear();
+    scratch.backend = SimdBackend::Scalar;
+}
+
 struct UndoSnapshot {
     MetaGameState meta;
     PersistentLevelState levelState;

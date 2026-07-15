@@ -1,6 +1,7 @@
 #include "generated_game.hpp"
 #include "puzzlescript/gba.h"
 
+#include <algorithm>
 #include <cstring>
 #include <cstdint>
 #include <cstdlib>
@@ -58,8 +59,15 @@ int main() {
             * ps_gba_generated_game.object_word_count);
     ps_gba_rng_state probeRng{};
     for (int index = 0; index < 256; ++index) probeRng.s[index] = static_cast<uint8_t>(index);
+    std::vector<uint32_t> probeTurnSnapshot(probeBoard.size());
+    std::vector<uint32_t> probeAgainSnapshot(probeBoard.size());
+    std::vector<uint32_t> probeObjectCellIndex(
+        std::max<uint32_t>(1U, ps_gba_generated_game.object_cell_index_word_count));
     const ps_gba_kernel_result probe = ps_gba_generated_game.turn_kernel(
-        probeBoard.data(), static_cast<uint32_t>(probeBoard.size()), status.width, status.height,
+        probeBoard.data(), static_cast<uint32_t>(probeBoard.size()),
+        probeTurnSnapshot.data(), probeAgainSnapshot.data(), static_cast<uint32_t>(probeBoard.size()),
+        probeObjectCellIndex.data(), static_cast<uint32_t>(probeObjectCellIndex.size()),
+        status.width, status.height,
         status.current_level, PS_INPUT_RIGHT, &probeRng, true, false);
     if (!probe.handled || !probe.changed || probe.won
         || (probeBoard[static_cast<size_t>(2) * status.height + 1] & (uint32_t{1} << target)) == 0) {

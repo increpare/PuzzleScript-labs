@@ -17,6 +17,7 @@ PERF_BENCHMARK      ?= 0
 PERF_ITERATIONS     ?= 16
 PERF_RENDER_ONLY    ?= 0
 PERF_TELEMETRY      ?= 0
+PERF_RELOAD_LEVEL   ?= 1
 ROM_PREFETCH        ?= 1
 RENDER_SET_BITS     ?= 1
 RENDER_PACKED_BLIT  ?= 1
@@ -42,6 +43,11 @@ CFLAGS      += -DPS_GBA_PERF_RENDER_ONLY=1
 endif
 ifneq ($(filter 1 yes true on,$(PERF_TELEMETRY)),)
 CFLAGS      += -DPS_GBA_PERF_TELEMETRY=1
+endif
+ifneq ($(filter 1 yes true on,$(PERF_RELOAD_LEVEL)),)
+CFLAGS      += -DPS_GBA_PERF_RELOAD_LEVEL=1
+else
+CFLAGS      += -DPS_GBA_PERF_RELOAD_LEVEL=0
 endif
 ifneq ($(filter 1 yes true on,$(ROM_PREFETCH)),)
 CFLAGS      += -DPS_GBA_ROM_PREFETCH=1

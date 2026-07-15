@@ -1512,6 +1512,7 @@ void emitCompactFixedStartMatchCollection(
     if (hasAnchorGroups) {
         out << indent << "bool usedAnchorScan = false;\n";
     }
+    std::string movementFallbackSource;
     if (!movementAnchorGroups.empty()) {
         const bool movementAnchorScansNeedSort = rule.direction > 2 || !std::all_of(
             movementAnchorGroups.begin(),
@@ -1626,6 +1627,98 @@ void emitCompactFixedStartMatchCollection(
         out << indent << "        }\n"
             << indent << "    }\n"
             << indent << "}\n";
+
+        // The full movement-bit-to-cell index is too large for some embedded games.
+        // When it is disabled, scan the compact live movement board once to choose a
+        // sparse anchor, then test only the cells containing that movement. This uses
+        // no additional session memory and still leaves dense patterns to the object
+        // anchor or ordinary row-scan fallbacks below.
+        std::ostringstream movementFallbackOut;
+        movementFallbackOut << indent << "if (!usedAnchorScan && !compact_turn_enable_movement_cell_index_" << suffix << ") {\n"
+            << indent << "    int32_t movementAnchorGroup = -1;\n"
+            << indent << "    uint64_t movementAnchorCellCount = 0;\n"
+            << indent << "    for (int32_t groupIndex = 0; groupIndex < " << movementAnchorGroups.size() << "; ++groupIndex) {\n"
+            << indent << "        uint64_t groupCellCount = 0;\n"
+            << indent << "        for (int32_t anchorTile = 0; anchorTile < tileCount; ++anchorTile) {\n"
+            << indent << "            const MaskWord* cellMovements = compact_turn_cell_movements_" << suffix << "(scratch, anchorTile);\n"
+            << indent << "            bool hasMovementAnchor = false;\n"
+            << indent << "            for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+            << indent << "                if ((cellMovements[word] & movementAnchorMasks[groupIndex][word]) != 0) {\n"
+            << indent << "                    hasMovementAnchor = true;\n"
+            << indent << "                    break;\n"
+            << indent << "                }\n"
+            << indent << "            }\n"
+            << indent << "            if (hasMovementAnchor) ++groupCellCount;\n"
+            << indent << "        }\n"
+            << indent << "        if (movementAnchorGroup < 0 || groupCellCount < movementAnchorCellCount) {\n"
+            << indent << "            movementAnchorGroup = groupIndex;\n"
+            << indent << "            movementAnchorCellCount = groupCellCount;\n"
+            << indent << "        }\n"
+            << indent << "    }\n"
+            << indent << "    const uint64_t validStartCount = static_cast<uint64_t>(primaryLimit) * static_cast<uint64_t>(secondarySpan);\n"
+            << indent << "    if (movementAnchorGroup >= 0 && movementAnchorCellCount == 0) {\n"
+            << indent << "        usedAnchorScan = true;\n"
+            << indent << "    } else if (movementAnchorGroup >= 0 && movementAnchorCellCount < std::max<uint64_t>(8, validStartCount)) {\n"
+            << indent << "        int32_t anchorDx = 0;\n"
+            << indent << "        int32_t anchorDy = 0;\n"
+            << indent << "        if (compact_turn_direction_delta_" << suffix << "(" << rule.direction << ", anchorDx, anchorDy)) {\n"
+            << indent << "            usedAnchorScan = true;\n"
+            << indent << "            const int32_t anchorPatternIndex = movementAnchorPatternIndexes[movementAnchorGroup];\n"
+            << indent << "            for (int32_t anchorTile = 0; anchorTile < tileCount; ++anchorTile) {\n"
+            << indent << "                const MaskWord* cellMovements = compact_turn_cell_movements_" << suffix << "(scratch, anchorTile);\n"
+            << indent << "                bool hasMovementAnchor = false;\n"
+            << indent << "                for (int32_t word = 0; word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+            << indent << "                    if ((cellMovements[word] & movementAnchorMasks[movementAnchorGroup][word]) != 0) {\n"
+            << indent << "                        hasMovementAnchor = true;\n"
+            << indent << "                        break;\n"
+            << indent << "                    }\n"
+            << indent << "                }\n"
+            << indent << "                if (!hasMovementAnchor) continue;\n"
+            << indent << "                const int32_t anchorX = anchorTile / dimensions.height;\n"
+            << indent << "                const int32_t anchorY = anchorTile % dimensions.height;\n"
+            << indent << "                const int32_t startX = anchorX - anchorPatternIndex * anchorDx;\n"
+            << indent << "                const int32_t startY = anchorY - anchorPatternIndex * anchorDy;\n"
+            << indent << "                if (!compact_turn_in_bounds_" << suffix << "(dimensions, startX, startY)) continue;\n"
+            << indent << "                const int32_t secondary = horizontalScan ? startX : startY;\n"
+            << indent << "                if (secondary < secondaryStart || secondary >= secondaryEnd) continue;\n"
+            << indent << "                const int32_t primary = horizontalScan ? startY : startX;\n";
+        if (rowMask.hasAnyLinePrecondition) {
+            movementFallbackOut << indent << "                if (!compact_turn_line_has_required_masks_" << suffix
+                << "(dimensions, levelState, scratch, horizontalScan, primary, "
+                << rowMask.objectMaskName << ", " << rowMask.movementMaskName << ", "
+                << rowMask.missingObjectMaskName << ", " << rowMask.missingMovementMaskName << ", "
+                << rowMask.anyObjectMasksName << ", " << rowMask.anyObjectMaskCount << ", "
+                << rowMask.anyMovementMasksName << ", " << rowMask.anyMovementMaskCount << ")) continue;\n";
+        }
+        movementFallbackOut << indent << "                compact_turn_count_candidate_cells_tested_" << suffix << "();\n"
+            << indent << "                const int32_t startIndex = compact_turn_tile_index_" << suffix << "(dimensions, startX, startY);\n"
+            << indent << "                bool matched = true;\n";
+        emitCompactFixedRowMatchTests(
+            movementFallbackOut,
+            game,
+            masks,
+            row,
+            suffix,
+            phase,
+            groupIndex,
+            ruleIndex,
+            rowIndex,
+            std::string(indent) + "                ",
+            "startIndex",
+            rule.direction,
+            tilePrefix,
+            "matched",
+            "matched = false;"
+        );
+        movementFallbackOut << indent << "                if (matched) " << matchVectorName << ".push_back(startIndex);\n"
+            << indent << "            }\n";
+        if (movementAnchorScansNeedSort) {
+            movementFallbackOut << indent << "            compact_turn_sort_unique_start_matches_" << suffix << "(dimensions, horizontalScan, " << matchVectorName << ");\n";
+        }
+        movementFallbackOut << indent << "        }\n"
+            << indent << "    }\n"
+            << indent << "}\n";
+        movementFallbackSource = movementFallbackOut.str();
     }
     if (!objectAnchorGroups.empty()) {
         const bool objectAnchorScansNeedSort = rule.direction > 2 || !std::all_of(
@@ -1674,8 +1767,8 @@ void emitCompactFixedStartMatchCollection(
             << indent << "        for (int32_t offset = 0; offset < objectAnchorCounts[groupIndex]; ++offset) {\n"
             << indent << "            const int32_t objectId = objectAnchorObjectIds[objectAnchorFirsts[groupIndex] + offset];\n"
             << indent << "            if (objectId >= 0 && objectId < compact_turn_object_count_" << suffix
-            << " && static_cast<size_t>(objectId) < scratch.objectCellCounts.size()) {\n"
-            << indent << "                const uint64_t objectCellCount = scratch.objectCellCounts[static_cast<size_t>(objectId)];\n"
+            << " && static_cast<size_t>(objectId) < compact_turn_object_cell_counts_" << suffix << "(scratch).size()) {\n"
+            << indent << "                const uint64_t objectCellCount = compact_turn_object_cell_counts_" << suffix << "(scratch)[static_cast<size_t>(objectId)];\n"
             << indent << "                if (objectAnchorRequiresAll[groupIndex] == 0) {\n"
             << indent << "                    groupCellCount += objectCellCount;\n"
             << indent << "                    groupObjectOffset = 0;\n"
@@ -1706,9 +1799,9 @@ void emitCompactFixedStartMatchCollection(
             << indent << "            const int32_t objectId = objectAnchorObjectIds[objectAnchorFirsts[objectAnchorGroup] + offset];\n"
             << indent << "            if (objectId >= 0 && objectId < compact_turn_object_count_" << suffix << ") {\n"
             << indent << "                const size_t objectBase = static_cast<size_t>(objectId) * static_cast<size_t>(objectCellWordCount);\n"
-            << indent << "                if (objectBase + static_cast<size_t>(objectCellWordCount) <= scratch.objectCellBits.size()) {\n"
+            << indent << "                if (objectBase + static_cast<size_t>(objectCellWordCount) <= compact_turn_object_cell_bits_" << suffix << "(scratch).size()) {\n"
             << indent << "                    for (int32_t wordIndex = 0; wordIndex < objectCellWordCount; ++wordIndex) {\n"
-            << indent << "                        MaskWordUnsigned bits = scratch.objectCellBits[objectBase + static_cast<size_t>(wordIndex)];\n"
+            << indent << "                        MaskWordUnsigned bits = compact_turn_object_cell_bits_" << suffix << "(scratch)[objectBase + static_cast<size_t>(wordIndex)];\n"
             << indent << "                        while (bits != 0) {\n"
             << indent << "                            const int32_t bit = maskWordCountTrailingZeros(bits);\n"
             << indent << "                            bits &= bits - 1;\n"
@@ -1767,6 +1860,8 @@ void emitCompactFixedStartMatchCollection(
             << indent << "    }\n"
             << indent << "}\n";
     }
+
+    out << movementFallbackSource;
 
     if (hasAnchorGroups) {
         out << indent << "if (!usedAnchorScan) {\n";
@@ -2005,14 +2100,24 @@ bool compactPatternSimpleReplacementFastPathSupported(
     if (rigidGroupIndex > 0) {
         return false;
     }
-    if (!rule.aggregateBindings.empty()) {
-        return false;
-    }
     if (rowIndex < rule.ellipsisCount.size() && rule.ellipsisCount[rowIndex] != 0) {
         return false;
     }
     const Replacement& replacement = *pattern.replacement;
-    return !compactReplacementHasDynamicTerms(replacement);
+    if (replacement.hasRandomEntityMask || replacement.hasRandomDirMask) {
+        return false;
+    }
+    const ReplacementDynamic* dynamic = replacement.dynamic.get();
+    if (dynamic == nullptr) {
+        return true;
+    }
+    // Property aliases and RHS property preservation are already lowered into
+    // this specialized pattern's static clear/set masks. The emitted generic
+    // apply helper only performs runtime work for coupled movement and inferred
+    // aggregate captures, so those are the only dynamic terms that block the
+    // direct replacement helpers here.
+    return dynamic->layerCoupledMovementReplacements.empty()
+        && dynamic->inferredAggregateBindings.empty();
 }
 
 std::string compactPatternSimpleReplacementFastPathCall(
@@ -2565,9 +2670,9 @@ std::string emitCompactSpreadGroupApplyFunction(
         << "    const int32_t seedObjectId = " << shape.seedObjectId << ";\n"
         << "    const size_t seedBase = static_cast<size_t>(seedObjectId) * static_cast<size_t>(objectCellWordCount);\n"
         << "    if (seedObjectId < 0 || seedObjectId >= compact_turn_object_count_" << suffix << "\n"
-        << "        || seedBase + static_cast<size_t>(objectCellWordCount) > scratch.objectCellBits.size()) return false;\n"
+        << "        || seedBase + static_cast<size_t>(objectCellWordCount) > compact_turn_object_cell_bits_" << suffix << "(scratch).size()) return false;\n"
         << "    for (int32_t wordIndex = 0; wordIndex < objectCellWordCount; ++wordIndex) {\n"
-        << "        MaskWordUnsigned bits = scratch.objectCellBits[seedBase + static_cast<size_t>(wordIndex)];\n"
+        << "        MaskWordUnsigned bits = compact_turn_object_cell_bits_" << suffix << "(scratch)[seedBase + static_cast<size_t>(wordIndex)];\n"
         << "        while (bits != 0) {\n"
         << "            const int32_t bit = maskWordCountTrailingZeros(bits);\n"
         << "            bits &= bits - 1;\n"
@@ -3905,12 +4010,10 @@ void emitCompactRulegroupFunctions(
                 << "    }\n";
         }
         if (groupIsRandom) {
-            out << "    struct Candidate {\n"
-                << "        size_t ruleIndex = 0;\n"
-                << "        std::vector<size_t> tupleIndex;\n"
-                << "    };\n"
-                << "    std::vector<std::vector<std::vector<std::vector<int32_t>>>> groupMatches(" << group.size() << ");\n"
-                << "    std::vector<Candidate> candidates;\n";
+            out << "    std::vector<std::vector<std::vector<std::vector<int32_t>>>> groupMatches(" << group.size() << ");\n"
+                << "    std::array<uint64_t, " << group.size() << "> ruleCandidateCounts{};\n"
+                << "    uint64_t totalCandidateCount = 0;\n"
+                << "    constexpr uint64_t maxCandidateCount = static_cast<uint64_t>(~uint64_t{0});\n";
             for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
                 const std::string rulePrefix = compactRulePrefix(suffix, phase, groupIndex, ruleIndex);
                 if (groupNeedsPerRuleInputGuard) {
@@ -3934,29 +4037,38 @@ void emitCompactRulegroupFunctions(
                     << ruleIndent << "            }\n"
                     << ruleIndent << "        }\n"
                     << ruleIndent << "        if (hasMatchTuple) {\n"
-                    << ruleIndent << "            std::vector<size_t> tupleIndex(groupMatches[" << ruleIndex << "].size(), 0);\n"
-                    << ruleIndent << "            while (true) {\n"
-                    << ruleIndent << "                candidates.push_back(Candidate{" << ruleIndex << ", tupleIndex});\n"
-                    << ruleIndent << "                size_t rowToIncrement = 0;\n"
-                    << ruleIndent << "                while (rowToIncrement < groupMatches[" << ruleIndex << "].size()) {\n"
-                    << ruleIndent << "                    ++tupleIndex[rowToIncrement];\n"
-                    << ruleIndent << "                    if (tupleIndex[rowToIncrement] < groupMatches[" << ruleIndex << "][rowToIncrement].size()) break;\n"
-                    << ruleIndent << "                    tupleIndex[rowToIncrement] = 0;\n"
-                    << ruleIndent << "                    ++rowToIncrement;\n"
-                    << ruleIndent << "                }\n"
-                    << ruleIndent << "                if (rowToIncrement == groupMatches[" << ruleIndex << "].size()) break;\n"
+                    << ruleIndent << "            uint64_t candidateCount = 1;\n"
+                    << ruleIndent << "            for (const auto& rowMatches : groupMatches[" << ruleIndex << "]) {\n"
+                    << ruleIndent << "                const uint64_t rowCount = static_cast<uint64_t>(rowMatches.size());\n"
+                    << ruleIndent << "                candidateCount = candidateCount > maxCandidateCount / rowCount\n"
+                    << ruleIndent << "                    ? maxCandidateCount : candidateCount * rowCount;\n"
                     << ruleIndent << "            }\n"
+                    << ruleIndent << "            ruleCandidateCounts[" << ruleIndex << "] = candidateCount;\n"
+                    << ruleIndent << "            totalCandidateCount = totalCandidateCount > maxCandidateCount - candidateCount\n"
+                    << ruleIndent << "                ? maxCandidateCount : totalCandidateCount + candidateCount;\n"
                     << ruleIndent << "        }\n"
                     << ruleIndent << "    }\n";
                 if (groupNeedsPerRuleInputGuard) {
                     out << "    }\n";
                 }
             }
-            out << "    if (candidates.empty()) return false;\n"
+            out << "    if (totalCandidateCount == 0) return false;\n"
                 << "    const double randomValue = compact_turn_random_uniform_" << suffix << "(levelState.rng);\n"
-                << "    const size_t chosenIndex = std::min(candidates.size() - 1, static_cast<size_t>(randomValue * static_cast<double>(candidates.size())));\n"
-                << "    const Candidate& chosen = candidates[chosenIndex];\n"
-                << "    switch (chosen.ruleIndex) {\n";
+                << "    uint64_t chosenTuple = std::min(totalCandidateCount - 1, static_cast<uint64_t>(randomValue * static_cast<double>(totalCandidateCount)));\n"
+                << "    size_t chosenRuleIndex = 0;\n"
+                << "    while (chosenRuleIndex < ruleCandidateCounts.size() && chosenTuple >= ruleCandidateCounts[chosenRuleIndex]) {\n"
+                << "        chosenTuple -= ruleCandidateCounts[chosenRuleIndex];\n"
+                << "        ++chosenRuleIndex;\n"
+                << "    }\n"
+                << "    if (chosenRuleIndex >= groupMatches.size()) return false;\n"
+                << "    std::vector<size_t> chosenTupleIndex(groupMatches[chosenRuleIndex].size(), 0);\n"
+                << "    for (size_t rowIndex = 0; rowIndex < chosenTupleIndex.size(); ++rowIndex) {\n"
+                << "        const size_t rowCount = groupMatches[chosenRuleIndex][rowIndex].size();\n"
+                << "        if (rowCount == 0) return false;\n"
+                << "        chosenTupleIndex[rowIndex] = static_cast<size_t>(chosenTuple % rowCount);\n"
+                << "        chosenTuple /= rowCount;\n"
+                << "    }\n"
+                << "    switch (chosenRuleIndex) {\n";
             for (size_t ruleIndex = 0; ruleIndex < group.size(); ++ruleIndex) {
                 const std::string rulePrefix = compactRulePrefix(suffix, phase, groupIndex, ruleIndex);
                 const CompactRuleGeneratedNames& names = ruleNames[ruleIndex];
@@ -3972,7 +4084,7 @@ void emitCompactRulegroupFunctions(
                     out << "            scratch.dirtyMovementBoard = false;\n";
                 }
                 out << "            compact_turn_count_rule_apply_call_" << suffix << "();\n"
-                    << "            const bool changed = " << rulePrefix << "_apply_tuple(dimensions, levelState, scratch, groupMatches[" << ruleIndex << "], chosen.tupleIndex);\n";
+                    << "            const bool changed = " << rulePrefix << "_apply_tuple(dimensions, levelState, scratch, groupMatches[" << ruleIndex << "], chosenTupleIndex);\n";
                 if (names.writesObjects) {
                     out << "            const bool changedObjects = scratch.dirtyObjectBoard;\n";
                 }
@@ -4022,6 +4134,9 @@ void emitCompactRulegroupFunctions(
                 << "& commands, bool& madeChangeThisLoop, int32_t& consecutiveFailures, bool useInputSpecialization, size_t activeGroupLength) {\n";
             for (size_t ruleIndex = firstRuleIndex; ruleIndex < lastRuleIndex; ++ruleIndex) {
                 const CompactRuleGeneratedNames& names = ruleNames[ruleIndex];
+                const bool ruleCanCancel = std::any_of(
+                    group[ruleIndex].commands.begin(), group[ruleIndex].commands.end(),
+                    [](const RuleCommand& command) { return command.name == "cancel"; });
                 const std::string ruleBaseIndent = groupNeedsPerRuleInputGuard ? "        " : "    ";
                 std::string ruleIndent = ruleBaseIndent;
                 if (groupNeedsPerRuleInputGuard) {
@@ -4051,6 +4166,9 @@ void emitCompactRulegroupFunctions(
                 if (names.writesMovements) {
                     out << ruleIndent << "scratch.dirtyMovementBoard = false;\n";
                 }
+                if (ruleCanCancel) {
+                    out << ruleIndent << "const bool hadCancel_" << ruleIndex << " = commands.hasCancel;\n";
+                }
                 out << ruleIndent << "compact_turn_count_rule_apply_call_" << suffix << "();\n"
                     << ruleIndent << "const bool changed_" << ruleIndex << " = " << names.applyName
                     << "(dimensions, levelState, scratch, commands);\n";
@@ -4077,6 +4195,9 @@ void emitCompactRulegroupFunctions(
                     << ruleIndent << "    ++consecutiveFailures;\n"
                     << ruleIndent << "    if (static_cast<size_t>(consecutiveFailures) == activeGroupLength) return true;\n"
                     << ruleIndent << "}\n";
+                if (ruleCanCancel) {
+                    out << ruleIndent << "if (!hadCancel_" << ruleIndex << " && commands.hasCancel) return true;\n";
+                }
                 if (names.hasMaskPrecheck) {
                     out << ruleBaseIndent << "}\n";
                 }
@@ -4122,10 +4243,18 @@ void emitCompactRulegroupFunctions(
             << "        bool groupChanged = false;\n"
             << "        switch (groupIndex) {\n";
         for (size_t groupIndex = 0; groupIndex < groups.size(); ++groupIndex) {
-            out << "            case " << groupIndex << ":\n"
+            out << "            case " << groupIndex << ": {\n"
+                << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+                << "                const uint32_t perfGroupStart = ps_gba_perf_group_begin();\n"
+                << "#endif\n"
                 << "                groupChanged = " << compactGroupPrefix(suffix, phase, groupIndex)
                 << "_apply(dimensions, levelState, scratch, commands, bannedGroups);\n"
+                << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+                << "                ps_gba_perf_group_end(" << (phase == "early" ? 2 : 4) << "U, "
+                << groupIndex << "U, " << groups[groupIndex].front().lineNumber << "U, perfGroupStart);\n"
+                << "#endif\n"
                 << "                break;\n";
+            out << "            }\n";
         }
         out << "            default:\n"
             << "                break;\n"
@@ -4166,11 +4295,16 @@ void emitCompactTurnUnsupportedBody(std::ostream& out) {
         << "    return {false, {}};\n";
 }
 
-void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffix) {
+void emitCompactTurnCompilerSingleBody(
+    std::ostream& out,
+    std::string_view suffix,
+    const CompactCodegenOptions& codegenOptions
+) {
     out << "    if (outHasAgain != nullptr) {\n"
         << "        *outHasAgain = false;\n"
         << "    }\n"
         << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_set_probe(probeOnly);\n"
         << "    ps_gba_perf_progress(1, 0);\n"
         << "#endif\n"
         << "    const bool profileCompactTurn = !probeOnly && runtimeCountersEnabled();\n"
@@ -4198,9 +4332,16 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    const bool needsTurnStartSnapshot = probeOnly\n"
         << "        || compact_turn_needs_unconditional_turn_start_snapshot_" << suffix << "\n"
         << "        || (!options.solverMode && compact_turn_needs_command_turn_start_snapshot_" << suffix << ");\n"
-        << "    MaskVector localTurnStartObjects;\n"
-        << "    MaskVector* turnStartObjects = nullptr;\n"
-        << "    MaskVector* reusableTurnStartObjects = (!probeOnly && options.againPolicy == AgainPolicy::Drain) ? &scratch.turnStartObjectsScratch : nullptr;\n"
+        << "    CompactTurnBoardSnapshot_" << suffix << " localTurnStartObjects;\n";
+    if (codegenOptions.externalSnapshotStorage) {
+        out << "    localTurnStartObjects.attach(\n"
+            << "        probeOnly ? compact_turn_external_probe_snapshot_" << suffix << " : compact_turn_external_turn_snapshot_" << suffix << ",\n"
+            << "        compact_turn_external_snapshot_capacity_" << suffix << ");\n"
+            << "    CompactTurnBoardSnapshot_" << suffix << "* reusableTurnStartObjects = nullptr;\n";
+    } else {
+        out << "    CompactTurnBoardSnapshot_" << suffix << "* reusableTurnStartObjects = (!probeOnly && options.againPolicy == AgainPolicy::Drain) ? &scratch.turnStartObjectsScratch : nullptr;\n";
+    }
+    out << "    CompactTurnBoardSnapshot_" << suffix << "* turnStartObjects = nullptr;\n"
         << "    if (needsTurnStartSnapshot) {\n"
         << "        if (reusableTurnStartObjects != nullptr) {\n"
         << "            compact_turn_copy_board_objects_" << suffix << "(levelState, *reusableTurnStartObjects);\n"
@@ -4218,8 +4359,8 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "    std::vector<MaskWord> turnStartRigidGroupIndexMasks;\n"
         << "    std::vector<MaskWord> turnStartRigidMovementAppliedMasks;\n"
         << "    if (probeOnly) {\n"
-        << "        turnStartMovements = scratch.liveMovements;\n"
         << "        turnStartLiveMovementsClean = scratch.liveMovementsClean;\n"
+        << "        if (!turnStartLiveMovementsClean) turnStartMovements = scratch.liveMovements;\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
         << "            turnStartRigidGroupIndexMasks = scratch.rigidGroupIndexMasks;\n"
         << "            turnStartRigidMovementAppliedMasks = scratch.rigidMovementAppliedMasks;\n"
@@ -4306,7 +4447,12 @@ void emitCompactTurnCompilerSingleBody(std::ostream& out, std::string_view suffi
         << "            ? commands.commandCount > 1\n"
         << "            : (modified || commands.hasWin || commands.hasRestart);\n"
         << "        compact_turn_restore_board_objects_" << suffix << "(levelState, *turnStartObjects);\n"
-        << "        scratch.liveMovements = turnStartMovements;\n"
+        << "        if (turnStartLiveMovementsClean) {\n"
+        << "            std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
+        << "            compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
+        << "        } else {\n"
+        << "            scratch.liveMovements = turnStartMovements;\n"
+        << "        }\n"
         << "        scratch.liveMovementsClean = turnStartLiveMovementsClean;\n"
         << "        if (compact_turn_has_rigid_" << suffix << ") {\n"
         << "            scratch.rigidGroupIndexMasks = turnStartRigidGroupIndexMasks;\n"
@@ -4526,6 +4672,77 @@ void emitCompactTurnAccessLayer(
             << "    compact_turn_external_board_object_count_" << suffix << " = count;\n"
             << "}\n\n";
     }
+    if (options.externalSnapshotStorage) {
+        out << "MaskWord* compact_turn_external_turn_snapshot_" << suffix << " = nullptr;\n"
+            << "MaskWord* compact_turn_external_probe_snapshot_" << suffix << " = nullptr;\n"
+            << "size_t compact_turn_external_snapshot_capacity_" << suffix << " = 0;\n"
+            << "void compact_turn_attach_external_snapshots_" << suffix << "(\n"
+            << "    MaskWord* turnSnapshot, MaskWord* probeSnapshot, size_t capacity) {\n"
+            << "    compact_turn_external_turn_snapshot_" << suffix << " = turnSnapshot;\n"
+            << "    compact_turn_external_probe_snapshot_" << suffix << " = probeSnapshot;\n"
+            << "    compact_turn_external_snapshot_capacity_" << suffix << " = capacity;\n"
+            << "}\n\n"
+            << "class CompactTurnBoardSnapshot_" << suffix << " {\n"
+            << "public:\n"
+            << "    void attach(MaskWord* storage, size_t capacity) {\n"
+            << "        storage_ = storage; capacity_ = capacity; size_ = 0;\n"
+            << "    }\n"
+            << "    void clear() { size_ = 0; }\n"
+            << "    void assign(const MaskWord* begin, const MaskWord* end) {\n"
+            << "        const size_t count = static_cast<size_t>(end - begin);\n"
+            << "        if (storage_ == nullptr || count > capacity_) { size_ = 0; return; }\n"
+            << "        for (size_t index = 0; index < count; ++index) storage_[index] = begin[index];\n"
+            << "        size_ = count;\n"
+            << "    }\n"
+            << "    size_t size() const { return size_; }\n"
+            << "    const MaskWord& operator[](size_t index) const { return storage_[index]; }\n"
+            << "private:\n"
+            << "    MaskWord* storage_ = nullptr;\n"
+            << "    size_t capacity_ = 0;\n"
+            << "    size_t size_ = 0;\n"
+            << "};\n\n";
+    } else {
+        out << "using CompactTurnBoardSnapshot_" << suffix << " = MaskVector;\n\n";
+    }
+    if (options.externalObjectCellIndexStorage) {
+        out << "template <typename T> class CompactTurnExternalVector_" << suffix << " {\n"
+            << "public:\n"
+            << "    void attach(T* storage, size_t capacity) { storage_ = storage; capacity_ = capacity; if (size_ > capacity_) size_ = 0; }\n"
+            << "    void assign(size_t count, T value) {\n"
+            << "        if (storage_ == nullptr || count > capacity_) { size_ = 0; return; }\n"
+            << "        for (size_t index = 0; index < count; ++index) storage_[index] = value;\n"
+            << "        size_ = count;\n"
+            << "    }\n"
+            << "    size_t size() const { return size_; }\n"
+            << "    T& operator[](size_t index) { return storage_[index]; }\n"
+            << "    const T& operator[](size_t index) const { return storage_[index]; }\n"
+            << "private:\n"
+            << "    T* storage_ = nullptr;\n"
+            << "    size_t capacity_ = 0;\n"
+            << "    size_t size_ = 0;\n"
+            << "};\n"
+            << "CompactTurnExternalVector_" << suffix << "<MaskWordUnsigned> compact_turn_external_object_cell_bits_" << suffix << ";\n"
+            << "CompactTurnExternalVector_" << suffix << "<uint32_t> compact_turn_external_object_cell_counts_" << suffix << ";\n"
+            << "void compact_turn_attach_external_object_cell_index_" << suffix << "(uint32_t* storage, size_t capacity, size_t countCapacity) {\n"
+            << "    if (storage == nullptr || capacity < countCapacity) {\n"
+            << "        compact_turn_external_object_cell_bits_" << suffix << ".attach(nullptr, 0);\n"
+            << "        compact_turn_external_object_cell_counts_" << suffix << ".attach(nullptr, 0);\n"
+            << "        return;\n"
+            << "    }\n"
+            << "    const size_t bitCapacity = capacity - countCapacity;\n"
+            << "    compact_turn_external_object_cell_bits_" << suffix << ".attach(reinterpret_cast<MaskWordUnsigned*>(storage), bitCapacity);\n"
+            << "    compact_turn_external_object_cell_counts_" << suffix << ".attach(storage + bitCapacity, countCapacity);\n"
+            << "}\n"
+            << "auto& compact_turn_object_cell_bits_" << suffix << "(Scratch& scratch) { (void)scratch; return compact_turn_external_object_cell_bits_" << suffix << "; }\n"
+            << "const auto& compact_turn_object_cell_bits_" << suffix << "(const Scratch& scratch) { (void)scratch; return compact_turn_external_object_cell_bits_" << suffix << "; }\n"
+            << "auto& compact_turn_object_cell_counts_" << suffix << "(Scratch& scratch) { (void)scratch; return compact_turn_external_object_cell_counts_" << suffix << "; }\n"
+            << "const auto& compact_turn_object_cell_counts_" << suffix << "(const Scratch& scratch) { (void)scratch; return compact_turn_external_object_cell_counts_" << suffix << "; }\n\n";
+    } else {
+        out << "auto& compact_turn_object_cell_bits_" << suffix << "(Scratch& scratch) { return scratch.objectCellBits; }\n"
+            << "const auto& compact_turn_object_cell_bits_" << suffix << "(const Scratch& scratch) { return scratch.objectCellBits; }\n"
+            << "auto& compact_turn_object_cell_counts_" << suffix << "(Scratch& scratch) { return scratch.objectCellCounts; }\n"
+            << "const auto& compact_turn_object_cell_counts_" << suffix << "(const Scratch& scratch) { return scratch.objectCellCounts; }\n\n";
+    }
     out << "MaskWord* compact_turn_board_objects_data_" << suffix << "(PersistentLevelState& levelState) {\n";
     if (options.externalBoardStorage) {
         out << "    (void)levelState;\n"
@@ -4550,19 +4767,19 @@ void emitCompactTurnAccessLayer(
         out << "    return levelState.board.objects.size();\n";
     }
     out << "}\n\n"
-        << "void compact_turn_copy_board_objects_" << suffix << "(const PersistentLevelState& levelState, MaskVector& destination) {\n"
+        << "void compact_turn_copy_board_objects_" << suffix << "(const PersistentLevelState& levelState, CompactTurnBoardSnapshot_" << suffix << "& destination) {\n"
         << "    const size_t count = compact_turn_board_objects_size_" << suffix << "(levelState);\n"
         << "    if (count == 0) { destination.clear(); return; }\n"
         << "    const MaskWord* source = compact_turn_board_objects_data_" << suffix << "(levelState);\n"
         << "    destination.assign(source, source + count);\n"
         << "}\n\n"
-        << "void compact_turn_restore_board_objects_" << suffix << "(PersistentLevelState& levelState, const MaskVector& source) {\n"
+        << "void compact_turn_restore_board_objects_" << suffix << "(PersistentLevelState& levelState, const CompactTurnBoardSnapshot_" << suffix << "& source) {\n"
         << "    const size_t count = compact_turn_board_objects_size_" << suffix << "(levelState);\n"
         << "    if (source.size() != count) return;\n"
         << "    MaskWord* destination = compact_turn_board_objects_data_" << suffix << "(levelState);\n"
         << "    for (size_t index = 0; index < count; ++index) destination[index] = source[index];\n"
         << "}\n\n"
-        << "bool compact_turn_board_objects_differ_" << suffix << "(const PersistentLevelState& levelState, const MaskVector& other) {\n"
+        << "bool compact_turn_board_objects_differ_" << suffix << "(const PersistentLevelState& levelState, const CompactTurnBoardSnapshot_" << suffix << "& other) {\n"
         << "    const size_t count = compact_turn_board_objects_size_" << suffix << "(levelState);\n"
         << "    if (other.size() != count) return true;\n"
         << "    const MaskWord* objects = compact_turn_board_objects_data_" << suffix << "(levelState);\n"
@@ -4571,6 +4788,10 @@ void emitCompactTurnAccessLayer(
         << "}\n\n";
     out << "constexpr int32_t compact_turn_object_stride_" << suffix << " = " << game.strideObject << ";\n"
         << "constexpr int32_t compact_turn_movement_stride_" << suffix << " = " << game.strideMovement << ";\n"
+        << "constexpr bool compact_turn_enable_object_cell_index_" << suffix << " = "
+        << (options.enableObjectCellIndex ? "true" : "false") << ";\n"
+        << "constexpr bool compact_turn_enable_movement_cell_index_" << suffix << " = "
+        << (options.enableMovementCellIndex ? "true" : "false") << ";\n"
         << "constexpr int32_t compact_turn_object_count_" << suffix << " = " << game.objectCount << ";\n"
         << "constexpr int32_t compact_turn_layer_count_" << suffix << " = " << game.layerCount << ";\n"
         << "constexpr bool compact_turn_needs_object_board_mask_" << suffix << " = " << (maskNeeds.objectBoard ? "true" : "false") << ";\n"
@@ -4974,8 +5195,8 @@ void emitCompactTurnAccessLayer(
         << "    if (compact_turn_board_objects_size_" << suffix << "(levelState) != objectWords) return false;\n"
         << "    const int32_t objectCellWordCount = compact_turn_object_cell_word_count_" << suffix << "(dimensions);\n"
         << "    scratch.objectCellBitTileCount = tileCount;\n"
-        << "    scratch.objectCellBits.assign(static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0})) * static_cast<size_t>(objectCellWordCount), 0);\n"
-        << "    scratch.objectCellCounts.assign(static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0})), 0);\n"
+        << "    compact_turn_object_cell_bits_" << suffix << "(scratch).assign(static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0})) * static_cast<size_t>(objectCellWordCount), 0);\n"
+        << "    compact_turn_object_cell_counts_" << suffix << "(scratch).assign(static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0})), 0);\n"
         << "    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {\n"
         << "        const int32_t cellWord = tileIndex >> static_cast<int32_t>(kMaskWordShift);\n"
         << "        const MaskWordUnsigned cellBit = static_cast<MaskWordUnsigned>(maskBit(static_cast<uint32_t>(tileIndex)));\n"
@@ -4989,8 +5210,8 @@ void emitCompactTurnAccessLayer(
         << "                const int32_t objectId = word * static_cast<int32_t>(kMaskWordBits) + bit;\n"
         << "                if (objectId < 0 || objectId >= compact_turn_object_count_" << suffix << ") continue;\n"
         << "                const size_t objectCellIndex = static_cast<size_t>(objectId) * static_cast<size_t>(objectCellWordCount) + static_cast<size_t>(cellWord);\n"
-        << "                if (objectCellIndex < scratch.objectCellBits.size()) scratch.objectCellBits[objectCellIndex] |= cellBit;\n"
-        << "                if (static_cast<size_t>(objectId) < scratch.objectCellCounts.size()) ++scratch.objectCellCounts[static_cast<size_t>(objectId)];\n"
+        << "                if (objectCellIndex < compact_turn_object_cell_bits_" << suffix << "(scratch).size()) compact_turn_object_cell_bits_" << suffix << "(scratch)[objectCellIndex] |= cellBit;\n"
+        << "                if (static_cast<size_t>(objectId) < compact_turn_object_cell_counts_" << suffix << "(scratch).size()) ++compact_turn_object_cell_counts_" << suffix << "(scratch)[static_cast<size_t>(objectId)];\n"
         << "            }\n"
         << "        }\n"
         << "    }\n"
@@ -5034,6 +5255,7 @@ void emitCompactTurnAccessLayer(
         << "}\n\n";
 
     out << "bool compact_turn_prepare_movement_cell_index_" << suffix << "(LevelDimensions dimensions, Scratch& scratch) {\n"
+        << "    if constexpr (!compact_turn_enable_movement_cell_index_" << suffix << ") { (void)dimensions; (void)scratch; return false; }\n"
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    const int32_t movementCellWordCount = compact_turn_movement_cell_word_count_" << suffix << "(dimensions);\n"
         << "    const int32_t movementBitCount = compact_turn_movement_stride_" << suffix << " * static_cast<int32_t>(kMaskWordBits);\n"
@@ -5313,21 +5535,28 @@ void emitCompactTurnAccessLayer(
         << "    bool writesObjects,\n"
         << "    bool writesMovements\n"
         << ") {\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    const uint32_t perfRebuildStart = ps_gba_perf_rebuild_begin();\n"
+        << "#endif\n"
         << "    compact_turn_count_rebuild_rule_derived_state_call_" << suffix << "();\n"
         << "    if (writesObjects) compact_turn_count_rebuild_rule_derived_state_objects_dirty_" << suffix << "();\n"
         << "    if (writesMovements) compact_turn_count_rebuild_rule_derived_state_movements_dirty_" << suffix << "();\n"
         << "    if (writesObjects) (void)compact_turn_rebuild_dirty_object_derived_state_" << suffix << "(dimensions, levelState, scratch);\n"
         << "    if (writesMovements) (void)compact_turn_rebuild_dirty_movement_derived_state_" << suffix << "(dimensions, scratch);\n"
+        << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+        << "    ps_gba_perf_rebuild_end(perfRebuildStart);\n"
+        << "#endif\n"
         << "}\n\n";
 
     out << "bool compact_turn_prepare_object_cell_index_" << suffix << "(LevelDimensions dimensions, const PersistentLevelState& levelState, Scratch& scratch) {\n"
+        << "    if constexpr (!compact_turn_enable_object_cell_index_" << suffix << ") { (void)dimensions; (void)levelState; (void)scratch; return false; }\n"
         << "    const int32_t tileCount = compact_turn_tile_count_" << suffix << "(dimensions);\n"
         << "    const int32_t objectCellWordCount = compact_turn_object_cell_word_count_" << suffix << "(dimensions);\n"
         << "    const size_t expectedWords = static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0})) * static_cast<size_t>(objectCellWordCount);\n"
         << "    if (!scratch.objectCellIndexDirty\n"
         << "        && scratch.objectCellBitTileCount == tileCount\n"
-        << "        && scratch.objectCellBits.size() == expectedWords\n"
-        << "        && scratch.objectCellCounts.size() == static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0}))) {\n"
+        << "        && compact_turn_object_cell_bits_" << suffix << "(scratch).size() == expectedWords\n"
+        << "        && compact_turn_object_cell_counts_" << suffix << "(scratch).size() == static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0}))) {\n"
         << "        return true;\n"
         << "    }\n"
         << "    return compact_turn_rebuild_object_cell_index_" << suffix << "(dimensions, levelState, scratch);\n"
@@ -5340,8 +5569,8 @@ void emitCompactTurnAccessLayer(
         << "    if (tileIndex < 0 || tileIndex >= tileCount || beforeObjects == nullptr || afterObjects == nullptr\n"
         << "        || scratch.objectCellIndexDirty\n"
         << "        || scratch.objectCellBitTileCount != tileCount\n"
-        << "        || scratch.objectCellBits.size() != expectedWords\n"
-        << "        || scratch.objectCellCounts.size() != static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0}))\n"
+        << "        || compact_turn_object_cell_bits_" << suffix << "(scratch).size() != expectedWords\n"
+        << "        || compact_turn_object_cell_counts_" << suffix << "(scratch).size() != static_cast<size_t>(std::max(compact_turn_object_count_" << suffix << ", int32_t{0}))\n"
         << "        || objectCellWordCount <= 0) {\n"
         << "        scratch.objectCellIndexDirty = true;\n"
         << "        return;\n"
@@ -5356,12 +5585,12 @@ void emitCompactTurnAccessLayer(
         << "            const int32_t objectId = word * static_cast<int32_t>(kMaskWordBits) + bit;\n"
         << "            if (objectId < 0 || objectId >= compact_turn_object_count_" << suffix << ") continue;\n"
         << "            const size_t objectCellIndex = static_cast<size_t>(objectId) * static_cast<size_t>(objectCellWordCount) + static_cast<size_t>(cellWord);\n"
-        << "            if (objectCellIndex >= scratch.objectCellBits.size() || static_cast<size_t>(objectId) >= scratch.objectCellCounts.size()) {\n"
+        << "            if (objectCellIndex >= compact_turn_object_cell_bits_" << suffix << "(scratch).size() || static_cast<size_t>(objectId) >= compact_turn_object_cell_counts_" << suffix << "(scratch).size()) {\n"
         << "                scratch.objectCellIndexDirty = true;\n"
         << "                return;\n"
         << "            }\n"
-        << "            scratch.objectCellBits[objectCellIndex] &= ~cellBit;\n"
-        << "            if (scratch.objectCellCounts[static_cast<size_t>(objectId)] > 0) --scratch.objectCellCounts[static_cast<size_t>(objectId)];\n"
+        << "            compact_turn_object_cell_bits_" << suffix << "(scratch)[objectCellIndex] &= ~cellBit;\n"
+        << "            if (compact_turn_object_cell_counts_" << suffix << "(scratch)[static_cast<size_t>(objectId)] > 0) --compact_turn_object_cell_counts_" << suffix << "(scratch)[static_cast<size_t>(objectId)];\n"
         << "            else {\n"
         << "                scratch.objectCellIndexDirty = true;\n"
         << "                return;\n"
@@ -5374,12 +5603,12 @@ void emitCompactTurnAccessLayer(
         << "            const int32_t objectId = word * static_cast<int32_t>(kMaskWordBits) + bit;\n"
         << "            if (objectId < 0 || objectId >= compact_turn_object_count_" << suffix << ") continue;\n"
         << "            const size_t objectCellIndex = static_cast<size_t>(objectId) * static_cast<size_t>(objectCellWordCount) + static_cast<size_t>(cellWord);\n"
-        << "            if (objectCellIndex >= scratch.objectCellBits.size() || static_cast<size_t>(objectId) >= scratch.objectCellCounts.size()) {\n"
+        << "            if (objectCellIndex >= compact_turn_object_cell_bits_" << suffix << "(scratch).size() || static_cast<size_t>(objectId) >= compact_turn_object_cell_counts_" << suffix << "(scratch).size()) {\n"
         << "                scratch.objectCellIndexDirty = true;\n"
         << "                return;\n"
         << "            }\n"
-        << "            scratch.objectCellBits[objectCellIndex] |= cellBit;\n"
-        << "            ++scratch.objectCellCounts[static_cast<size_t>(objectId)];\n"
+        << "            compact_turn_object_cell_bits_" << suffix << "(scratch)[objectCellIndex] |= cellBit;\n"
+        << "            ++compact_turn_object_cell_counts_" << suffix << "(scratch)[static_cast<size_t>(objectId)];\n"
         << "        }\n"
         << "    }\n"
         << "}\n\n";
@@ -6651,7 +6880,7 @@ void emitCompactTurnBackend(
             << "    bool* outHasAgain,\n"
             << "    bool probeOnly\n"
             << ") {\n";
-        emitCompactTurnCompilerSingleBody(out, suffix);
+        emitCompactTurnCompilerSingleBody(out, suffix, options);
         out << "}\n\n";
         out << "SpecializedCompactTurnOutcome specialized_compact_turn_core_" << sourceIndex << "(\n"
             << "    LevelDimensions dimensions,\n"

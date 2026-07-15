@@ -18,8 +18,13 @@ void require(bool condition, const char* message) {
     }
 }
 
-ps_gba_kernel_result testKernel(uint32_t* board, uint32_t, uint16_t width, uint16_t height,
+ps_gba_kernel_result testKernel(uint32_t* board, uint32_t boardWordCount,
+    uint32_t* turnSnapshot, uint32_t* probeSnapshot, uint32_t snapshotWordCapacity,
+    uint32_t* objectCellIndex, uint32_t objectCellIndexWordCapacity,
+    uint16_t width, uint16_t height,
     uint16_t, ps_input input, ps_gba_rng_state*, bool, bool levelStart) {
+    if (turnSnapshot == nullptr || probeSnapshot == nullptr || snapshotWordCapacity < boardWordCount
+        || objectCellIndex == nullptr || objectCellIndexWordCapacity < 5) return {};
     if (levelStart) {
         board[0] |= uint32_t{1} << 31U;
         return {true, true, true, true, true, false, false, false};
@@ -53,7 +58,8 @@ ps_gba_kernel_result testKernel(uint32_t* board, uint32_t, uint16_t width, uint1
     return {true, true, won, false, won, false, false, false};
 }
 
-ps_gba_kernel_result commandOnlyWinKernel(uint32_t*, uint32_t, uint16_t, uint16_t,
+ps_gba_kernel_result commandOnlyWinKernel(uint32_t*, uint32_t,
+    uint32_t*, uint32_t*, uint32_t, uint32_t*, uint32_t, uint16_t, uint16_t,
     uint16_t, ps_input input, ps_gba_rng_state*, bool, bool levelStart) {
     if (levelStart) return {true, false, false, false, false, false, false, false};
     if (input == PS_INPUT_ACTION) return {true, false, true, false, false, false, false, false};
@@ -84,7 +90,7 @@ int main() {
     static const ps_gba_metadata metadata[] = {{"run_rules_on_level_start", "true"}};
     static const ps_gba_game_view game = {
         PS_GBA_GAME_ABI_VERSION, 1234, "test", "", 1, 0, 2, palette,
-        5, 1, objects, 2, 21, 2, levels, 1, metadata, 0, nullptr,
+        5, 1, objects, 2, 21, 10, 2, levels, 1, metadata, 0, nullptr,
         PS_GBA_RUNTIME_GENERATED_COMPACT, playerMask, testKernel, false, false, false,
     };
 

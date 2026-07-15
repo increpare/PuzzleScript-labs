@@ -27,6 +27,10 @@
 #define PS_GBA_PERF_TELEMETRY 0
 #endif
 
+#ifndef PS_GBA_PERF_RELOAD_LEVEL
+#define PS_GBA_PERF_RELOAD_LEVEL 1
+#endif
+
 #if defined(PS_GBA_PERF_BENCHMARK) && PS_GBA_ENABLE_AUDIO
 #error "PS_GBA_PERF_BENCHMARK reserves hardware timers 2 and 3; build with AUDIO=0"
 #endif
@@ -121,6 +125,8 @@ constexpr uint32_t kBenchmarkMagic = 0x46505350U; // "PSPF"
 constexpr uint16_t kBenchmarkVersion = 2;
 constexpr uint32_t kBenchmarkIterations = PS_GBA_PERF_ITERATIONS;
 static_assert(kBenchmarkIterations > 0);
+constexpr uint16_t kBenchmarkFlags = (PS_GBA_ROM_PREFETCH ? 1U : 0U)
+    | (PS_GBA_PERF_RELOAD_LEVEL ? 2U : 0U);
 constexpr uint32_t kCyclesPerFrame = 280896;
 constexpr uintptr_t kTimer2Data = 0x04000108;
 constexpr uintptr_t kTimer2Control = 0x0400010a;
@@ -199,7 +205,7 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step,
     // accepts records whose magic and version are complete.
     writeSram32(0, 0);
     writeSram16(4, kBenchmarkVersion);
-    writeSram16(6, PS_GBA_ROM_PREFETCH ? 1U : 0U);
+    writeSram16(6, kBenchmarkFlags);
     writeSram64(8, ps_gba_generated_game.source_hash);
     writeSram16(16, level);
     writeSram16(18, 0);
@@ -228,7 +234,7 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step,
             if (ch != '\0') *cursor++ = ch;
         }
         appendHex(cursor, kBenchmarkVersion, 8); *cursor++ = ',';
-        appendHex(cursor, PS_GBA_ROM_PREFETCH ? 1U : 0U, 8); *cursor++ = ',';
+        appendHex(cursor, kBenchmarkFlags, 8); *cursor++ = ',';
         appendHex(cursor, ps_gba_generated_game.source_hash, 16); *cursor++ = ',';
         appendHex(cursor, level, 8); *cursor++ = ',';
         appendHex(cursor, kBenchmarkIterations, 8); *cursor++ = ',';
@@ -248,6 +254,7 @@ void writeBenchmarkResult(uint16_t level, const BenchmarkSamples& step,
 
 #if PS_GBA_PERF_TELEMETRY
 void writeBenchmarkTelemetry(const ps_gba_perf_snapshot& telemetry) {
+    ps_gba_perf_write_group_log();
     auto& debugEnable = *reinterpret_cast<volatile uint16_t*>(0x04fff780);
     debugEnable = 0xc0de;
     if (debugEnable != 0x1dea) return;
@@ -263,6 +270,24 @@ void writeBenchmarkTelemetry(const ps_gba_perf_snapshot& telemetry) {
     appendHex(cursor, telemetry.late_rules_cycles, 16); *cursor++ = ',';
     appendHex(cursor, telemetry.win_cycles, 16); *cursor++ = ',';
     appendHex(cursor, telemetry.canonicalize_cycles, 16);
+    *cursor = '\0';
+    *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
+
+    cursor = output;
+    const char againPrefix[] = "PS_GBA_AGAIN,";
+    for (char ch : againPrefix) if (ch != '\0') *cursor++ = ch;
+    appendHex(cursor, 1, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.again_probe_calls, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.again_probe_cycles, 16);
+    *cursor = '\0';
+    *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
+
+    cursor = output;
+    const char rebuildPrefix[] = "PS_GBA_REBUILD,";
+    for (char ch : rebuildPrefix) if (ch != '\0') *cursor++ = ch;
+    appendHex(cursor, 1, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.rebuild_calls, 8); *cursor++ = ',';
+    appendHex(cursor, telemetry.rebuild_cycles, 16);
     *cursor = '\0';
     *reinterpret_cast<volatile uint16_t*>(0x04fff700) = 0x102;
 
@@ -639,8 +664,9 @@ uint32_t hiddenFrameHash() {
         while (true) VBlankIntrWait();
     }
 
-    // Warm both paths once. Every measured step starts from the same level
-    // state, while level loading itself remains outside the timed region.
+    // Warm both paths once. By default every measured step starts from the
+    // same level state. PERF_RELOAD_LEVEL=0 instead measures consecutive,
+    // already-warm inputs, matching normal play after the first turn.
     ps_gba_load_level(session, level);
 #if !PS_GBA_PERF_RENDER_ONLY
 #if PS_GBA_PERF_TELEMETRY
@@ -661,7 +687,9 @@ uint32_t hiddenFrameHash() {
     stepSamples.minimum = 0;
 #else
     for (uint32_t iteration = 0; iteration < kBenchmarkIterations; ++iteration) {
+#if PS_GBA_PERF_RELOAD_LEVEL
         ps_gba_load_level(session, level);
+#endif
 #if PS_GBA_PERF_TELEMETRY
         if (iteration == 0) ps_gba_perf_begin();
 #endif

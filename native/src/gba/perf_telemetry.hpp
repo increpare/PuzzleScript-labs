@@ -9,6 +9,10 @@ struct ps_gba_perf_snapshot {
     uint64_t late_rules_cycles = 0;
     uint64_t win_cycles = 0;
     uint64_t canonicalize_cycles = 0;
+    uint64_t again_probe_cycles = 0;
+    uint32_t again_probe_calls = 0;
+    uint64_t rebuild_cycles = 0;
+    uint32_t rebuild_calls = 0;
     uint32_t allocation_calls = 0;
     uint32_t allocation_bytes = 0;
     uint32_t deallocation_calls = 0;
@@ -27,3 +31,10 @@ extern "C" void ps_gba_perf_begin();
 extern "C" void ps_gba_perf_end(ps_gba_perf_snapshot* snapshot);
 extern "C" void ps_gba_perf_progress(uint32_t stage, uint32_t detail);
 extern "C" void ps_gba_perf_vblank();
+extern "C" void ps_gba_perf_set_probe(bool probe);
+extern "C" uint32_t ps_gba_perf_group_begin();
+extern "C" void ps_gba_perf_group_end(
+    uint32_t phase, uint32_t group, uint32_t sourceLine, uint32_t startCycles);
+extern "C" uint32_t ps_gba_perf_rebuild_begin();
+extern "C" void ps_gba_perf_rebuild_end(uint32_t startCycles);
+extern "C" void ps_gba_perf_write_group_log();

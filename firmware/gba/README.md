@@ -84,7 +84,9 @@ restores the old cells-times-all-objects renderer for an A/B baseline; normal
 ROMs enumerate only the object bits present in each cell.
 `RENDER_PACKED_BLIT=0` restores the old per-pixel/per-rectangle rasterizer;
 normal ROMs pack two Mode 4 pixels per halfword and keep the hot row writer in
-IWRAM.
+IWRAM. `PERF_RELOAD_LEVEL=0` measures consecutive inputs against a warm
+session; the default reloads the level before every measured input for a
+repeatable cold-path comparison.
 
 For a one-sample phase and allocation profile, add `PERF_TELEMETRY=1`:
 
@@ -98,7 +100,9 @@ python ../../scripts/run_gba_benchmark.py puzzlescript_gba.gba \
 ```
 
 Telemetry reports setup, early-rule, movement, late-rule, win, and
-canonicalization cycles, plus allocation/free counts, requested bytes, heap
+canonicalization cycles, synchronous `again` probe time, derived-state rebuild
+time, and the hottest generated rule groups split between the real turn and
+the probe. It also includes allocation/free counts, requested bytes, heap
 growth, rules visited, candidate cells, replacements, and scan counts. A
 VBlank heartbeat records the current phase in mGBA's log and SRAM, so a timed
 out ROM identifies its last setup checkpoint or generated group/rule. This
@@ -122,10 +126,17 @@ currently exports all 184 games that fit 240x160. Small games retain 32 undo
 snapshots; oversized boards receive the largest nonzero undo ring that fits the
 160 KiB session ceiling.
 
-The generated kernel still uses libstdc++ containers for transient rule-match
-scratch and turn snapshots. It is linked without the compiler, JSON, solver,
-SDL, filesystem, or threading, but replacing those transient allocations with
-bounded, reusable EWRAM storage remains a hardware-hardening task.
+Turn-start and `again`-probe board snapshots are fixed, non-owning buffers in
+the session arena. The object-to-cell rule index also uses fixed arena storage
+when it fits alongside at least one undo snapshot; oversized games disable that
+optional cache and fall back to board scans. The exporter includes these
+buffers in its RAM estimate and reduces the undo-ring depth for large boards
+when necessary. GBA kernels disable the optional movement-to-cell index and
+fall back to object anchors or board scans, avoiding another board-sized heap
+allocation. The generated kernel still uses libstdc++ containers for transient
+rule-match scratch. It is linked without the compiler, JSON, solver, SDL,
+filesystem, or threading, but moving the remaining allocations into bounded,
+reusable EWRAM storage remains a hardware-hardening task.
 
 Controls are D-pad to move, A to start/continue/action, B to undo, R to restart,
 and Start to return to the title. Progress is stored as a source-hashed,
