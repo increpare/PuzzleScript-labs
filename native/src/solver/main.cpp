@@ -2081,11 +2081,21 @@ std::unique_ptr<FullState> createLoadedSession(
     loadOptions.playableUndo = false;
     loadOptions.emitAudio = false;
     loadOptions.solverMode = true;
-    loadOptions.againPolicy = puzzlescript::AgainPolicy::Yield;
+    // Search from the same fully-settled level-start state that the player API
+    // exposes. Otherwise random/again games can produce solutions that cannot
+    // be replayed by the desktop or GBA player.
+    loadOptions.againPolicy = puzzlescript::AgainPolicy::Drain;
     if (auto error = puzzlescript::loadLevel(*session, levelIndex, loadOptions)) {
         result.status = "level_error";
         result.error = error->message;
         return nullptr;
+    }
+    if (session->meta.currentLevelIndex != levelIndex) {
+        // Startup rules and their drained `again` chain completed the requested
+        // board before any player input. Preserve the advanced session so the
+        // normal replay validator can confirm the zero-input solution.
+        result.status = "solved";
+        result.solution.clear();
     }
     return session;
 }
@@ -2465,6 +2475,9 @@ Result runSearch(
     if (!initial) {
         return result;
     }
+    if (result.status == "solved") {
+        return result;
+    }
     if (initial->meta.textMode || initial->meta.level.isMessage) {
         result.status = "skipped_message";
         return result;
@@ -2796,6 +2809,9 @@ Result runAdaptivePortfolioSearch(
         initial = createLoadedSession(loadedGame, gameName, levelIndex, result);
     }
     if (!initial) {
+        return result;
+    }
+    if (result.status == "solved") {
         return result;
     }
     if (initial->meta.textMode || initial->meta.level.isMessage) {
@@ -3510,6 +3526,9 @@ Result runHashDistributedWeightedAStarSearch(
     if (!initial) {
         return result;
     }
+    if (result.status == "solved") {
+        return result;
+    }
     if (initial->meta.textMode || initial->meta.level.isMessage) {
         result.status = "skipped_message";
         return result;
@@ -3873,6 +3892,13 @@ Result solveLevel(
                     solvedDuringLoad, replayError)) {
                 result.status = "level_error";
                 result.error = "solver produced a non-replayable solution: " + replayError;
+                if (!result.solution.empty()) {
+                    result.error += " path=";
+                    for (size_t index = 0; index < result.solution.size(); ++index) {
+                        if (index > 0) result.error += ",";
+                        result.error += result.solution[index];
+                    }
+                }
                 result.solution.clear();
             } else if (solvedDuringLoad) {
                 // Startup rules/again processing completed this board before a
@@ -4060,7 +4086,7 @@ std::unique_ptr<FullState> createSeededSolverSession(
     loadOptions.playableUndo = false;
     loadOptions.emitAudio = false;
     loadOptions.solverMode = true;
-    loadOptions.againPolicy = puzzlescript::AgainPolicy::Yield;
+    loadOptions.againPolicy = puzzlescript::AgainPolicy::Drain;
     if (auto error = puzzlescript::loadLevelTemplate(*initial, levelTemplate, 0, loadOptions)) {
         result.status = "level_error";
         result.error = error->message;

@@ -783,7 +783,13 @@ ps_step_result tick(FullState& state);
 void settlePendingAgain(FullState& state);
 
 enum class AgainPolicy {
+    // Probe a prospective tick and yield only when it would visibly change the
+    // state. This is the desktop player's historical behavior.
     Yield,
+    // Yield immediately when an `again` command changed the current turn. The
+    // caller executes the prospective tick later and can discard a no-op tick.
+    Defer,
+    // Execute all pending `again` ticks before returning to the caller.
     Drain,
 };
 

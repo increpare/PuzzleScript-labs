@@ -474,6 +474,27 @@ std::string emitGeneratedSource(
     return out.str();
 }
 
+bool gameUsesRandomRuleSemantics(const Game& game) {
+    const auto groupsUseRandom = [](const std::vector<std::vector<Rule>>& groups) {
+        for (const auto& group : groups) {
+            for (const Rule& rule : group) {
+                if (rule.isRandom) return true;
+                for (const auto& row : rule.patterns) {
+                    for (const Pattern& pattern : row) {
+                        if (!pattern.replacement.has_value()) continue;
+                        const Replacement& replacement = *pattern.replacement;
+                        if (replacement.hasRandomEntityMask || replacement.hasRandomDirMask) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    };
+    return groupsUseRandom(game.rules) || groupsUseRandom(game.lateRules);
+}
+
 std::string emitRules(const Game& game, const std::filesystem::path& sourcePath, uint64_t sourceHash,
     bool enableObjectCellIndex) {
     std::ostringstream out;
@@ -544,7 +565,12 @@ std::string emitRules(const Game& game, const std::filesystem::path& sourcePath,
         << "    levelState.rng.i = rng->i; levelState.rng.j = rng->j; levelState.rng.valid = rng->valid;\n"
         << "    puzzlescript::RuntimeStepOptions options{};\n"
         << "    options.playableUndo = false; options.emitAudio = false; options.solverMode = false;\n"
-        << "    options.againPolicy = puzzlescript::AgainPolicy::Yield;\n"
+        // The desktop runtime's historical `again` probe restores the board but
+        // deliberately leaves RNG consumption in place. Skipping it changes the
+        // behavior of random+again games. Non-random games can safely defer the
+        // tick and avoid doing the prospective turn twice.
+        << "    options.againPolicy = puzzlescript::AgainPolicy::"
+        << (gameUsesRandomRuleSemantics(game) ? "Yield" : "Defer") << ";\n"
         << "    options.ignoreRestartCommand = levelStart; options.ignoreWin = levelStart;\n"
         << "    const auto outcome = specialized_compact_turn_core_0(\n"
         << "        puzzlescript::LevelDimensions{width, height}, levelIndex, levelState, scratch, input, options);\n"

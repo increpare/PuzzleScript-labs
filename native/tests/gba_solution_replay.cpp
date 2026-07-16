@@ -229,24 +229,6 @@ bool statesEqual(const ReplayContext& context, std::string& reason,
         return false;
     }
     if (nativeStatus.mode != PS_FULL_STATE_MODE_LEVEL) return true;
-    const auto& nativeRng = context.native->impl->levelState.rng;
-    ps_gba_rng_state gbaRng{};
-    ps_gba_random_state_get(context.gba, &gbaRng);
-    if (nativeRng.valid != gbaRng.valid || nativeRng.i != gbaRng.i || nativeRng.j != gbaRng.j) {
-        reason = "random state cursor differs: native=(" + std::to_string(nativeRng.valid)
-            + "," + std::to_string(nativeRng.i) + "," + std::to_string(nativeRng.j)
-            + ") gba=(" + std::to_string(gbaRng.valid) + "," + std::to_string(gbaRng.i)
-            + "," + std::to_string(gbaRng.j) + ")";
-        return false;
-    }
-    for (size_t index = 0; index < nativeRng.s.size(); ++index) {
-        if (nativeRng.s[index] != gbaRng.s[index]) {
-            reason = "random state table differs at byte " + std::to_string(index)
-                + ": native=" + std::to_string(nativeRng.s[index])
-                + " gba=" + std::to_string(gbaRng.s[index]);
-            return false;
-        }
-    }
     if (nativeStatus.width != gbaStatus.width || nativeStatus.height != gbaStatus.height) {
         reason = "dimensions differ: native=" + std::to_string(nativeStatus.width) + "x"
             + std::to_string(nativeStatus.height) + " gba=" + std::to_string(gbaStatus.width)
@@ -284,6 +266,27 @@ bool statesEqual(const ReplayContext& context, std::string& reason,
             + differenceSummary.str();
         if (differenceCount > 16) reason += "; ...";
         return false;
+    }
+    // Report board differences before RNG differences. A different random cursor is
+    // often a consequence of an earlier rule-semantic divergence, and the cells
+    // identify that primary fault much more directly.
+    const auto& nativeRng = context.native->impl->levelState.rng;
+    ps_gba_rng_state gbaRng{};
+    ps_gba_random_state_get(context.gba, &gbaRng);
+    if (nativeRng.valid != gbaRng.valid || nativeRng.i != gbaRng.i || nativeRng.j != gbaRng.j) {
+        reason = "random state cursor differs: native=(" + std::to_string(nativeRng.valid)
+            + "," + std::to_string(nativeRng.i) + "," + std::to_string(nativeRng.j)
+            + ") gba=(" + std::to_string(gbaRng.valid) + "," + std::to_string(gbaRng.i)
+            + "," + std::to_string(gbaRng.j) + ")";
+        return false;
+    }
+    for (size_t index = 0; index < nativeRng.s.size(); ++index) {
+        if (nativeRng.s[index] != gbaRng.s[index]) {
+            reason = "random state table differs at byte " + std::to_string(index)
+                + ": native=" + std::to_string(nativeRng.s[index])
+                + " gba=" + std::to_string(gbaRng.s[index]);
+            return false;
+        }
     }
     return true;
 }
@@ -373,9 +376,13 @@ bool settleTurnAgain(ReplayContext& context, std::string& reason,
 
 int main(int argc, char** argv) {
     ReplayContext context;
-    if (argc != 4) {
+    if (argc != 4 && argc != 5) {
         return fail(context, "arguments",
-            "usage: puzzlescript_gba_solution_replay GAME.txt LEVEL comma-separated-inputs");
+            "usage: puzzlescript_gba_solution_replay GAME.txt LEVEL comma-separated-inputs [--allow-incomplete]");
+    }
+    const bool allowIncomplete = argc == 5 && std::strcmp(argv[4], "--allow-incomplete") == 0;
+    if (argc == 5 && !allowIncomplete) {
+        return fail(context, "arguments", "unknown fourth argument");
     }
     try {
         context.level = std::stoi(argv[2]);
@@ -512,11 +519,15 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (!context.nativeWon) return fail(context, "complete", "native replay did not win");
-    if (!context.gbaWon) return fail(context, "complete", "GBA replay did not win");
+    if (!context.nativeWon && !allowIncomplete) return fail(context, "complete", "native replay did not win");
+    if (!context.gbaWon && !allowIncomplete) return fail(context, "complete", "GBA replay did not win");
+    if (context.nativeWon != context.gbaWon) {
+        return fail(context, "complete", "only one runtime completed the level");
+    }
     std::cout << "{\"status\":\"pass\",\"level\":" << context.level
               << ",\"inputs\":" << inputs.size()
               << ",\"startup_won\":false"
+              << ",\"completed\":" << (context.nativeWon ? "true" : "false")
               << ",\"again_ticks\":" << context.totalAgainTicks
               << ",\"message_confirms\":" << context.messageConfirms
               << ",\"audio_mismatches\":" << context.audioMismatchCount;

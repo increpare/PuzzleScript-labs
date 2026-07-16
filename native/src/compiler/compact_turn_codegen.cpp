@@ -1965,16 +1965,49 @@ bool compactReplacementHasDynamicTerms(const Replacement& replacement) {
         || dynamic->rhsPropertyPreserveMask != kNullMaskOffset;
 }
 
-CompactReplacementGuaranteedNoopSides compactReplacementGuaranteedNoopSidesOnMatchedCell(
+std::vector<MaskWord> compactMovementMissingWordsIncludingSingleDirectionExclusivity(
+    const Game& game,
+    const std::vector<MaskWord>& movementPresentWords,
+    const std::vector<MaskWord>& explicitMovementMissingWords
+) {
+    std::vector<MaskWord> movementMissingWords = explicitMovementMissingWords;
+    for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+        const uint32_t firstBit = static_cast<uint32_t>(layer * 5);
+        int32_t presentBits = 0;
+        for (uint32_t directionBit = 0; directionBit < 5; ++directionBit) {
+            const uint32_t bitIndex = firstBit + directionBit;
+            const uint32_t word = maskWordIndex(bitIndex);
+            if (static_cast<size_t>(word) < movementPresentWords.size()
+                && (movementPresentWords[static_cast<size_t>(word)] & maskBit(bitIndex)) != 0) {
+                presentBits |= 1 << directionBit;
+            }
+        }
+        if (maskWordPopcount(static_cast<MaskWordUnsigned>(presentBits)) != 1) {
+            continue;
+        }
+        // Static compact replacements clear a movement layer before setting
+        // one concrete direction. Direction aggregates are specialized before
+        // code generation, so a matched concrete direction excludes the other
+        // four bits on that layer throughout this fast path.
+        for (uint32_t directionBit = 0; directionBit < 5; ++directionBit) {
+            if ((presentBits & (1 << directionBit)) != 0) continue;
+            const uint32_t bitIndex = firstBit + directionBit;
+            const uint32_t word = maskWordIndex(bitIndex);
+            if (static_cast<size_t>(word) < movementMissingWords.size()) {
+                movementMissingWords[static_cast<size_t>(word)] |= maskBit(bitIndex);
+            }
+        }
+    }
+    return movementMissingWords;
+}
+
+CompactReplacementGuaranteedNoopSides compactStaticReplacementGuaranteedNoopSidesOnMatchedCell(
     const Game& game,
     const Pattern& pattern,
-    const Replacement& replacement
+    const Replacement& replacement,
+    bool assumeSingleDirectionPerLayer
 ) {
     CompactReplacementGuaranteedNoopSides result;
-    if (compactReplacementHasDynamicTerms(replacement)) {
-        return result;
-    }
-
     const std::vector<MaskWord> objectClearWords = compiledMaskWords(game, replacement.objectsClear, game.wordCount);
     const std::vector<MaskWord> objectSetWords = compiledMaskWords(game, replacement.objectsSet, game.wordCount);
     const std::vector<MaskWord> objectPresentWords = compiledMaskWords(game, pattern.objectsPresent, game.wordCount);
@@ -1998,7 +2031,14 @@ CompactReplacementGuaranteedNoopSides compactReplacementGuaranteedNoopSidesOnMat
     const std::vector<MaskWord> movementSetWords = compiledMaskWords(game, replacement.movementsSet, game.movementWordCount);
     const std::vector<MaskWord> movementLayerWords = compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount);
     const std::vector<MaskWord> movementPresentWords = compiledMaskWords(game, pattern.movementsPresent, game.movementWordCount);
-    const std::vector<MaskWord> movementMissingWords = compiledMaskWords(game, pattern.movementsMissing, game.movementWordCount);
+    std::vector<MaskWord> movementMissingWords = compiledMaskWords(game, pattern.movementsMissing, game.movementWordCount);
+    if (assumeSingleDirectionPerLayer) {
+        movementMissingWords = compactMovementMissingWordsIncludingSingleDirectionExclusivity(
+            game,
+            movementPresentWords,
+            movementMissingWords
+        );
+    }
     result.movements = true;
     for (size_t word = 0; word < movementClearWords.size(); ++word) {
         const MaskWord movementClear = movementClearWords[word] | movementLayerWords[word];
@@ -2011,6 +2051,22 @@ CompactReplacementGuaranteedNoopSides compactReplacementGuaranteedNoopSidesOnMat
         }
     }
     return result;
+}
+
+CompactReplacementGuaranteedNoopSides compactReplacementGuaranteedNoopSidesOnMatchedCell(
+    const Game& game,
+    const Pattern& pattern,
+    const Replacement& replacement
+) {
+    if (compactReplacementHasDynamicTerms(replacement)) {
+        return {};
+    }
+    return compactStaticReplacementGuaranteedNoopSidesOnMatchedCell(
+        game,
+        pattern,
+        replacement,
+        false
+    );
 }
 
 bool compactReplacementGuaranteedNoopOnMatchedCell(
@@ -2120,6 +2176,32 @@ bool compactPatternSimpleReplacementFastPathSupported(
         && dynamic->inferredAggregateBindings.empty();
 }
 
+bool compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+    const Game& game,
+    const Rule& rule,
+    const Pattern& pattern,
+    size_t rowIndex,
+    int32_t rigidGroupIndex
+) {
+    if (!pattern.replacement.has_value()) {
+        return false;
+    }
+    if (compactPatternReplacementGuaranteedNoopOnMatch(game, pattern)) {
+        return true;
+    }
+    if (!compactPatternSimpleReplacementFastPathSupported(rule, pattern, rowIndex, rigidGroupIndex)) {
+        return false;
+    }
+    const CompactReplacementGuaranteedNoopSides staticNoop =
+        compactStaticReplacementGuaranteedNoopSidesOnMatchedCell(
+            game,
+            pattern,
+            *pattern.replacement,
+            true
+        );
+    return staticNoop.objects && staticNoop.movements;
+}
+
 std::string compactPatternSimpleReplacementFastPathCall(
     const Game& game,
     const CompactMaskConstantEmitter& masks,
@@ -2133,8 +2215,17 @@ std::string compactPatternSimpleReplacementFastPathCall(
     const std::vector<MaskWord> movementClearWords = compiledMaskWords(game, replacement.movementsClear, game.movementWordCount);
     const std::vector<MaskWord> movementSetWords = compiledMaskWords(game, replacement.movementsSet, game.movementWordCount);
     const std::vector<MaskWord> movementLayerWords = compiledMaskWords(game, replacement.movementsLayerMask, game.movementWordCount);
+    // compactPatternSimpleReplacementFastPathSupported has already rejected
+    // random, rigid, coupled-movement, and aggregate-captured replacements.
+    // Property aliases and RHS preservation are represented by these static
+    // masks, so they must not hide sides that are provably unchanged.
     const CompactReplacementGuaranteedNoopSides guaranteedNoop =
-        compactReplacementGuaranteedNoopSidesOnMatchedCell(game, pattern, replacement);
+        compactStaticReplacementGuaranteedNoopSidesOnMatchedCell(
+            game,
+            pattern,
+            replacement,
+            true
+        );
     const bool writesObjects = !guaranteedNoop.objects
         && (anyMaskWordSet(objectClearWords) || anyMaskWordSet(objectSetWords));
     const bool writesMovements = !guaranteedNoop.movements
@@ -2181,18 +2272,7 @@ std::string compactPatternSimpleReplacementFastPathCall(
              << ")";
         return call.str();
     }
-    call << "([&]() {\n"
-         << "                compact_turn_count_simple_replacement_fast_path_call_" << suffix << "();\n"
-         << "                compact_turn_count_replacements_attempted_" << suffix << "();\n"
-         << "                const bool fastChanged = false;\n"
-         << "                if (fastChanged) {\n"
-         << "                    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
-         << "                    compact_turn_count_replacements_applied_" << suffix << "();\n"
-         << "                } else {\n"
-         << "                    compact_turn_count_simple_replacement_fast_path_noop_" << suffix << "();\n"
-         << "                }\n"
-         << "                return fastChanged;\n"
-         << "            }())";
+    call << "false";
     return call.str();
 }
 
@@ -2889,7 +2969,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         );
         for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
             if (!row[patternIndex].replacement.has_value()
-                || compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
+                || compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+                    game, rule, row[patternIndex], rowIndex, rigidGroupIndex)) {
                 continue;
             }
             emitCompactFixedTileAtDirection(
@@ -2949,6 +3030,30 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
         });
     if (inlineMultiRowStartMatches) {
         const std::string commandQueueName = emitCompactRuleCommandFunction(out, functions, rule, prefix, suffix);
+        std::optional<std::pair<size_t, size_t>> staticChangeDriver;
+        bool staticChangeGuardSupported = rule.commands.empty() && rigidGroupIndex == 0;
+        if (staticChangeGuardSupported) {
+            for (size_t rowIndex = 0; rowIndex < rule.patterns.size(); ++rowIndex) {
+                const std::vector<Pattern>& row = rule.patterns[rowIndex];
+                for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
+                    const Pattern& pattern = row[patternIndex];
+                    if (!pattern.replacement.has_value()
+                        || compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+                            game, rule, pattern, rowIndex, rigidGroupIndex)) {
+                        continue;
+                    }
+                    if (staticChangeDriver.has_value()
+                        || !compactPatternSimpleReplacementFastPathSupported(
+                            rule, pattern, rowIndex, rigidGroupIndex)) {
+                        staticChangeGuardSupported = false;
+                        break;
+                    }
+                    staticChangeDriver = std::make_pair(rowIndex, patternIndex);
+                }
+                if (!staticChangeGuardSupported) break;
+            }
+        }
+        if (!staticChangeGuardSupported) staticChangeDriver.reset();
         std::ostringstream applyBody;
         applyBody << "(LevelDimensions dimensions, PersistentLevelState& levelState, Scratch& scratch, CompactTurnCommands_" << suffix << "& commands) {\n";
         emitCompactAggregateBindingComment(applyBody, rule);
@@ -3041,6 +3146,41 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 }
             }
         }
+        if (staticChangeDriver.has_value()) {
+            const size_t driverRowIndex = staticChangeDriver->first;
+            const size_t driverPatternIndex = staticChangeDriver->second;
+            const Replacement& driverReplacement =
+                *rule.patterns[driverRowIndex][driverPatternIndex].replacement;
+            applyBody << "            if (stillMatches) {\n"
+                      << "                const MaskWord* changeObjects = compact_turn_cell_objects_" << suffix
+                      << "(levelState, tile_" << driverRowIndex << "_" << driverPatternIndex << ");\n"
+                      << "                const MaskWord* changeMovements = compact_turn_cell_movements_" << suffix
+                      << "(scratch, tile_" << driverRowIndex << "_" << driverPatternIndex << ");\n"
+                      << "                bool replacementWouldChange = false;\n"
+                      << "                for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
+                      << "                    const MaskWord before = changeObjects[word];\n"
+                      << "                    const MaskWord after = (before & ~("
+                      << compactMaskName(masks, game, driverReplacement.objectsClear, game.wordCount)
+                      << ")[word]) | ("
+                      << compactMaskName(masks, game, driverReplacement.objectsSet, game.wordCount)
+                      << ")[word];\n"
+                      << "                    if (before != after) { replacementWouldChange = true; break; }\n"
+                      << "                }\n"
+                      << "                for (int32_t word = 0; !replacementWouldChange && word < compact_turn_movement_stride_" << suffix << "; ++word) {\n"
+                      << "                    const MaskWord before = changeMovements[word];\n"
+                      << "                    const MaskWord clear = ("
+                      << compactMaskName(masks, game, driverReplacement.movementsClear, game.movementWordCount)
+                      << ")[word] | ("
+                      << compactMaskName(masks, game, driverReplacement.movementsLayerMask, game.movementWordCount)
+                      << ")[word];\n"
+                      << "                    const MaskWord after = (before & ~clear) | ("
+                      << compactMaskName(masks, game, driverReplacement.movementsSet, game.movementWordCount)
+                      << ")[word];\n"
+                      << "                    if (before != after) replacementWouldChange = true;\n"
+                      << "                }\n"
+                      << "                if (!replacementWouldChange) stillMatches = false;\n"
+                      << "            }\n";
+        }
         applyBody << "        }\n"
                   << "        if (stillMatches) {\n";
         {
@@ -3059,7 +3199,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             applyBody << "            const int32_t applyStartIndex_" << rowIndex << " = matches[" << rowIndex << "][tupleIndex[" << rowIndex << "]];\n";
             for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
                 if (!row[patternIndex].replacement.has_value()
-                    || compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
+                    || compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+                        game, rule, row[patternIndex], rowIndex, rigidGroupIndex)) {
                     continue;
                 }
                 emitCompactFixedTileAtDirection(
@@ -3176,7 +3317,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 }
                 body << "    if (positionIndex >= match.size()) return changed;\n";
                 if (row[patternIndex].replacement.has_value()
-                    && !compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
+                    && !compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+                        game, rule, row[patternIndex], rowIndex, rigidGroupIndex)) {
                     body << "    changed = "
                          << compactPatternApplyCall(
                              game,
@@ -3431,7 +3573,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
             }
             applyBody << "            if (positionIndex >= match.size()) break;\n";
             if (row[patternIndex].replacement.has_value()
-                && !compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
+                && !compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+                    game, rule, row[patternIndex], rowIndex, rigidGroupIndex)) {
                 applyBody << "            changed = "
                           << compactPatternApplyCall(
                               game,
@@ -3637,7 +3780,8 @@ CompactRuleGeneratedNames emitCompactRuleFunction(
                 applyBody << "            const int32_t applyStartIndex_" << rowIndex << " = matches_" << rowIndex << "[tupleIndex[" << rowIndex << "]];\n";
                 for (size_t patternIndex = 0; patternIndex < row.size(); ++patternIndex) {
                     if (!row[patternIndex].replacement.has_value()
-                        || compactPatternReplacementGuaranteedNoopOnMatch(game, row[patternIndex])) {
+                        || compactPatternGeneratedReplacementGuaranteedNoopOnMatch(
+                            game, rule, row[patternIndex], rowIndex, rigidGroupIndex)) {
                         continue;
                     }
                     emitCompactFixedTileAtDirection(
@@ -4169,9 +4313,17 @@ void emitCompactRulegroupFunctions(
                 if (ruleCanCancel) {
                     out << ruleIndent << "const bool hadCancel_" << ruleIndex << " = commands.hasCancel;\n";
                 }
-                out << ruleIndent << "compact_turn_count_rule_apply_call_" << suffix << "();\n"
+                out << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+                    << ruleIndent << "const uint32_t perfRuleStart_" << ruleIndex << " = ps_gba_perf_group_begin();\n"
+                    << "#endif\n"
+                    << ruleIndent << "compact_turn_count_rule_apply_call_" << suffix << "();\n"
                     << ruleIndent << "const bool changed_" << ruleIndex << " = " << names.applyName
                     << "(dimensions, levelState, scratch, commands);\n";
+                out << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
+                    << ruleIndent << "ps_gba_perf_group_end(" << (phase == "early" ? 3 : 5) << "U, "
+                    << ((static_cast<uint32_t>(groupIndex) << 8U) | static_cast<uint32_t>(ruleIndex))
+                    << "U, " << group[ruleIndex].lineNumber << "U, perfRuleStart_" << ruleIndex << ");\n"
+                    << "#endif\n";
                 if (names.writesObjects) {
                     out << ruleIndent << "const bool changedObjects_" << ruleIndex << " = scratch.dirtyObjectBoard;\n";
                 }
@@ -4555,7 +4707,7 @@ void emitCompactTurnCompilerSingleBody(
         << "    if (outHasAgain != nullptr) {\n"
         << "        bool scheduleAgain = false;\n"
         << "        if (commands.hasAgain && modified && !won) {\n"
-        << "            if (options.againPolicy == AgainPolicy::Drain) {\n"
+        << "            if (options.againPolicy != AgainPolicy::Yield) {\n"
         << "                scheduleAgain = true;\n"
         << "            } else {\n"
         << "                uint64_t againProbeStartNs = 0;\n"

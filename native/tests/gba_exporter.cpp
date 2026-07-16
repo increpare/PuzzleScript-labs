@@ -114,6 +114,8 @@ int main() {
         "generated GBA kernels use the zero-allocation movement-anchor fallback");
     require(generatedRules.find("if (!turnStartLiveMovementsClean) turnStartMovements = scratch.liveMovements") != std::string::npos,
         "again probes do not copy an already-clean movement board");
+    require(generatedRules.find("options.againPolicy = puzzlescript::AgainPolicy::Defer") != std::string::npos,
+        "generated GBA kernels defer again ticks instead of probing them synchronously");
     require(generatedRules.find("scratch.objectCellBits.assign") == std::string::npos
             && generatedRules.find("scratch.objectCellCounts.assign") == std::string::npos,
         "generated GBA object-cell indexes do not allocate owning vectors");
@@ -153,6 +155,29 @@ int main() {
         "manifest records the generated-kernel ABI version");
     const auto second = puzzlescript::gba::exportGame(options);
     require(generatedBefore == readFile(second.generatedSourcePath), "export is deterministic");
+
+    const std::filesystem::path randomAgainOutput =
+        root / "build" / "native" / "gba_random_again_test_output";
+    std::filesystem::remove_all(randomAgainOutput);
+    puzzlescript::gba::ExportOptions randomAgainOptions = options;
+    randomAgainOptions.sourcePath = root / "src" / "demo" / "againexample.txt";
+    randomAgainOptions.outputDirectory = randomAgainOutput;
+    const auto randomAgainResult = puzzlescript::gba::exportGame(randomAgainOptions);
+    const std::string randomAgainRules = readFile(randomAgainResult.generatedRulesPath);
+    require(randomAgainRules.find("options.againPolicy = puzzlescript::AgainPolicy::Yield") != std::string::npos,
+        "random GBA games retain RNG-consuming again probes for desktop compatibility");
+
+    const std::filesystem::path propertyNoopOutput =
+        root / "build" / "native" / "gba_property_noop_test_output";
+    std::filesystem::remove_all(propertyNoopOutput);
+    puzzlescript::gba::ExportOptions propertyNoopOptions = options;
+    propertyNoopOptions.sourcePath = root / "src" / "tests" / "static_analysis_testdata"
+        / "object_tags" / "static-preserved-property-movement-noop.txt";
+    propertyNoopOptions.outputDirectory = propertyNoopOutput;
+    const auto propertyNoopResult = puzzlescript::gba::exportGame(propertyNoopOptions);
+    const std::string propertyNoopRules = readFile(propertyNoopResult.generatedRulesPath);
+    require(propertyNoopRules.find("changed = compact_turn_simple_replacement_fast_path_movements_0") == std::string::npos,
+        "static property-preserving movement replacements emit no redundant write helper");
 
     const std::filesystem::path titleOutput = root / "build" / "native" / "gba_exporter_title_test_output";
     std::filesystem::remove_all(titleOutput);

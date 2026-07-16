@@ -3009,6 +3009,8 @@ void clearMovementState(FullState& session) {
     session.scratch.movementCellIndexDirty = true;
     std::fill(session.scratch.rowMovementMasks.begin(), session.scratch.rowMovementMasks.end(), 0);
     std::fill(session.scratch.columnMovementMasks.begin(), session.scratch.columnMovementMasks.end(), 0);
+    std::fill(session.scratch.rowAllMovementMasks.begin(), session.scratch.rowAllMovementMasks.end(), 0);
+    std::fill(session.scratch.columnAllMovementMasks.begin(), session.scratch.columnAllMovementMasks.end(), 0);
     std::fill(session.scratch.boardMovementMask.begin(), session.scratch.boardMovementMask.end(), 0);
     std::fill(session.scratch.dirtyMovementRows.begin(), session.scratch.dirtyMovementRows.end(), 0);
     std::fill(session.scratch.dirtyMovementColumns.begin(), session.scratch.dirtyMovementColumns.end(), 0);

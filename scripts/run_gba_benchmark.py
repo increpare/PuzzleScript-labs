@@ -233,15 +233,20 @@ def read_log_result(path: Path) -> dict[str, int | float | bool | str] | None:
         if values[0] != 1:
             continue
         _, probe, phase, group, source_line, calls, cycles = values
-        group_rows.append({
+        kind = "rule" if phase in (3, 5) else "group"
+        row = {
             "probe": bool(probe),
-            "phase": "late" if phase == 4 else "early",
-            "group": group,
+            "phase": "late" if phase in (4, 5) else "early",
+            "kind": kind,
+            "group": group >> 8 if kind == "rule" else group,
             "source_line": source_line,
             "calls": calls,
             "cycles": cycles,
             "ms": cycles * 1000 / GBA_HZ,
-        })
+        }
+        if kind == "rule":
+            row["rule"] = group & 0xFF
+        group_rows.append(row)
     if group_rows:
         result["rule_groups"] = sorted(group_rows, key=lambda row: row["cycles"], reverse=True)
     allocation_match = ALLOCATION_RESULT.search(text)
