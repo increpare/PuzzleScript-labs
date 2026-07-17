@@ -26,6 +26,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace puzzlescript::gba {
@@ -248,6 +249,34 @@ bool maskHasObject(const Game& game, MaskOffset offset, int objectId) {
         & static_cast<MaskWordUnsigned>(maskBit(static_cast<uint32_t>(objectId)))) != 0;
 }
 
+uint32_t gbaMaskWord(const Game& game, MaskOffset offset, uint32_t word) {
+    if (offset == kNullMaskOffset
+        || static_cast<size_t>(offset) + word >= game.maskArena.size()) {
+        return 0;
+    }
+    return static_cast<uint32_t>(static_cast<MaskWordUnsigned>(
+        game.maskArena[static_cast<size_t>(offset) + word]));
+}
+
+std::string gbaMaskOverlapExpression(
+    const Game& game,
+    MaskOffset offset,
+    uint32_t wordCount,
+    std::string_view valueExpression
+) {
+    std::ostringstream expression;
+    bool wroteTerm = false;
+    for (uint32_t word = 0; word < wordCount; ++word) {
+        const uint32_t mask = gbaMaskWord(game, offset, word);
+        if (mask == 0) continue;
+        if (wroteTerm) expression << " || ";
+        expression << "((static_cast<uint32_t>(" << valueExpression << "[" << word
+            << "]) & 0x" << std::hex << mask << std::dec << "U) != 0U)";
+        wroteTerm = true;
+    }
+    return wroteTerm ? "(" + expression.str() + ")" : "false";
+}
+
 std::vector<int> parseScreenSize(const Game& game) {
     const auto findValue = [&](const char* key) -> std::string {
         const auto found = game.metadata.values.find(key);
@@ -363,7 +392,7 @@ std::string emitGeneratedSource(
     const std::vector<PackedObject>& objects,
     const std::vector<PackedLevel>& levels,
     const std::vector<std::pair<std::string, std::string>>& metadata,
-    const std::vector<std::pair<int32_t, std::string>>& sounds,
+    const std::vector<std::tuple<int32_t, std::string, uint16_t>>& sounds,
     size_t maxCells,
     size_t objectCellIndexWordCount,
     uint8_t undoCapacity) {
@@ -440,8 +469,8 @@ std::string emitGeneratedSource(
     }
     if (!sounds.empty()) {
         out << "const ps_gba_sound kSounds[] = {\n";
-        for (size_t index = 0; index < sounds.size(); ++index) {
-            out << "    {" << cppString(sounds[index].second) << ", " << sounds[index].first << ", " << index << "},\n";
+        for (const auto& [seed, name, sampleId] : sounds) {
+            out << "    {" << cppString(name) << ", " << seed << ", " << sampleId << "},\n";
         }
         out << "};\n\n";
     }
@@ -504,18 +533,105 @@ std::string emitRules(const Game& game, const std::filesystem::path& sourcePath,
         << "#include \"puzzlescript/gba.h\"\n#include \"gba/perf_telemetry.hpp\"\n#include \"runtime/compiled_rules.hpp\"\n\nnamespace {\nusing namespace puzzlescript;\n"
         << "const char* ps_gba_pending_message = nullptr;\n"
         << "char ps_gba_pending_message_storage[1024]{};\n"
-        << "const char* ps_gba_pending_sounds[4]{};\n"
-        << "uint8_t ps_gba_pending_sound_count = 0;\n"
+        << "ps_audio_event ps_gba_pending_audio[PS_GBA_MAX_AUDIO_EVENTS]{};\n"
+        << "uint8_t ps_gba_pending_audio_count = 0;\n"
+        << "ps_audio_event ps_gba_pending_ui_audio[PS_GBA_MAX_AUDIO_EVENTS]{};\n"
+        << "uint8_t ps_gba_pending_ui_audio_count = 0;\n"
+        << "MaskWord ps_gba_pending_created[" << game.wordCount << "]{};\n"
+        << "MaskWord ps_gba_pending_destroyed[" << game.wordCount << "]{};\n"
+        << "uint8_t ps_gba_audio_suppression_depth = 0;\n"
         << "puzzlescript::PersistentLevelState ps_gba_level_state;\n"
         << "puzzlescript::Scratch ps_gba_scratch;\n"
+        << "void compactTurnAppendAudio(int32_t seed, const char* kind, bool ui) {\n"
+        << "    if (ps_gba_audio_suppression_depth != 0) return;\n"
+        << "    ps_audio_event* events = ui ? ps_gba_pending_ui_audio : ps_gba_pending_audio;\n"
+        << "    uint8_t& count = ui ? ps_gba_pending_ui_audio_count : ps_gba_pending_audio_count;\n"
+        << "    if (!ui && (std::strcmp(kind, \"canmove\") == 0 || std::strcmp(kind, \"cantmove\") == 0)) {\n"
+        << "        for (uint8_t index = 0; index < count; ++index) {\n"
+        << "            if (events[index].seed == seed && std::strcmp(events[index].kind, kind) == 0) return;\n"
+        << "        }\n"
+        << "    }\n"
+        << "    if (count < PS_GBA_MAX_AUDIO_EVENTS) events[count++] = ps_audio_event{seed, kind};\n"
+        << "}\n"
+        << "void compactTurnPushAudioSuppression() { if (ps_gba_audio_suppression_depth != 0xffU) ++ps_gba_audio_suppression_depth; }\n"
+        << "void compactTurnPopAudioSuppression() { if (ps_gba_audio_suppression_depth != 0) --ps_gba_audio_suppression_depth; }\n"
+        << "void compactTurnClearAudioKind(const char* kind) {\n"
+        << "    uint8_t output = 0;\n"
+        << "    for (uint8_t index = 0; index < ps_gba_pending_audio_count; ++index) {\n"
+        << "        if (std::strcmp(ps_gba_pending_audio[index].kind, kind) != 0) ps_gba_pending_audio[output++] = ps_gba_pending_audio[index];\n"
+        << "    }\n"
+        << "    ps_gba_pending_audio_count = output;\n"
+        << "}\n"
+        << "void compactTurnDiscardGameplayAudio() {\n"
+        << "    ps_gba_pending_audio_count = 0;\n"
+        << "    std::fill(std::begin(ps_gba_pending_created), std::end(ps_gba_pending_created), 0);\n"
+        << "    std::fill(std::begin(ps_gba_pending_destroyed), std::end(ps_gba_pending_destroyed), 0);\n"
+        << "}\n"
+        << "void compactTurnOutputSound(const char* name) {\n"
+        << "    if (name == nullptr) return;\n";
+    for (const auto& [name, seed] : game.sfxEvents) {
+        out << "    if (std::strcmp(name, " << cppString(name) << ") == 0) { compactTurnAppendAudio("
+            << seed << ", \"sfx\", true); return; }\n";
+    }
+    out << "}\n"
+        << "void compactTurnOutputSimpleSound(const char* name) {\n"
+        << "    if (name == nullptr) return;\n";
+    for (const auto& [name, seed] : game.sfxEvents) {
+        out << "    if (std::strcmp(name, " << cppString(name) << ") == 0) { compactTurnAppendAudio("
+            << seed << ", \"ui\", true); return; }\n";
+    }
+    out << "}\n"
         << "void compactTurnOutputMessage(const char* message) {\n"
         << "    if (message == nullptr) { ps_gba_pending_message = nullptr; return; }\n"
         << "    std::strncpy(ps_gba_pending_message_storage, message, sizeof(ps_gba_pending_message_storage) - 1);\n"
         << "    ps_gba_pending_message_storage[sizeof(ps_gba_pending_message_storage) - 1] = '\\0';\n"
         << "    ps_gba_pending_message = ps_gba_pending_message_storage;\n"
+        << "    compactTurnOutputSimpleSound(\"showmessage\");\n"
         << "}\n"
-        << "void compactTurnOutputSound(const char* name) {\n"
-        << "    if (ps_gba_pending_sound_count < 4) ps_gba_pending_sounds[ps_gba_pending_sound_count++] = name;\n"
+        << "void compactTurnAccumulateReplacementAudio(const MaskWord* before, const MaskWord* after, size_t wordCount) {\n"
+        << "    if (ps_gba_audio_suppression_depth != 0) return;\n"
+        << "    const size_t count = std::min(wordCount, static_cast<size_t>(" << game.wordCount << "));\n"
+        << "    for (size_t word = 0; word < count; ++word) {\n"
+        << "        ps_gba_pending_created[word] |= after[word] & ~before[word];\n"
+        << "        ps_gba_pending_destroyed[word] |= before[word] & ~after[word];\n"
+        << "    }\n"
+        << "}\n"
+        << "void compactTurnOutputMovementAudio(const MaskWord* objects, int32_t layer, int32_t directionMask) {\n"
+        << "    if (objects == nullptr || ps_gba_audio_suppression_depth != 0) return;\n";
+    for (size_t layer = 0; layer < game.sfxMovementMasks.size(); ++layer) {
+        for (const SoundMaskEntry& entry : game.sfxMovementMasks[layer]) {
+            const uint32_t directionWord = movementWordIndexForLayer(static_cast<uint32_t>(layer));
+            const uint32_t directionShift = movementBitShiftForLayer(static_cast<uint32_t>(layer));
+            const uint32_t directionBits = directionWord < entry.directionMaskWidth
+                ? ((gbaMaskWord(game, entry.directionMask, directionWord) >> directionShift) & 0x1fU)
+                : 0U;
+            if (directionBits == 0) continue;
+            out << "    if (layer == " << layer << " && (directionMask & " << directionBits << ") != 0 && "
+                << gbaMaskOverlapExpression(game, entry.objectMask, game.wordCount, "objects")
+                << ") compactTurnAppendAudio(" << entry.seed << ", \"canmove\", false);\n";
+        }
+    }
+    out << "}\n"
+        << "void compactTurnOutputMovementFailureAudio(const MaskWord* objects, const MaskWord* movements) {\n"
+        << "    if (objects == nullptr || movements == nullptr || ps_gba_audio_suppression_depth != 0) return;\n";
+    for (const SoundMaskEntry& entry : game.sfxMovementFailureMasks) {
+        out << "    if (" << gbaMaskOverlapExpression(game, entry.objectMask, game.wordCount, "objects")
+            << " && " << gbaMaskOverlapExpression(game, entry.directionMask,
+                std::min(entry.directionMaskWidth, game.movementWordCount), "movements")
+            << ") compactTurnAppendAudio(" << entry.seed << ", \"cantmove\", false);\n";
+    }
+    out << "}\n"
+        << "void compactTurnFlushMaskAudio() {\n";
+    for (const SoundMaskEntry& entry : game.sfxCreationMasks) {
+        out << "    if (" << gbaMaskOverlapExpression(game, entry.objectMask, game.wordCount, "ps_gba_pending_created")
+            << ") compactTurnAppendAudio(" << entry.seed << ", \"create\", false);\n";
+    }
+    for (const SoundMaskEntry& entry : game.sfxDestructionMasks) {
+        out << "    if (" << gbaMaskOverlapExpression(game, entry.objectMask, game.wordCount, "ps_gba_pending_destroyed")
+            << ") compactTurnAppendAudio(" << entry.seed << ", \"destroy\", false);\n";
+    }
+    out << "    std::fill(std::begin(ps_gba_pending_created), std::end(ps_gba_pending_created), 0);\n"
+        << "    std::fill(std::begin(ps_gba_pending_destroyed), std::end(ps_gba_pending_destroyed), 0);\n"
         << "}\n\n";
     std::ostringstream kernel;
     compiler::CompactCodegenOptions codegenOptions{};
@@ -551,7 +667,10 @@ std::string emitRules(const Game& game, const std::filesystem::path& sourcePath,
             << "    if (boardWords == nullptr || turnSnapshotWords == nullptr || probeSnapshotWords == nullptr\n"
             << "        || boardWordCount > snapshotWordCapacity || rng == nullptr) return ps_gba_kernel_result{};\n";
     }
-    out << "    ps_gba_pending_message = nullptr; ps_gba_pending_sound_count = 0;\n"
+    out << "    ps_gba_pending_message = nullptr;\n"
+        << "    ps_gba_pending_audio_count = 0; ps_gba_pending_ui_audio_count = 0; ps_gba_audio_suppression_depth = 0;\n"
+        << "    std::fill(std::begin(ps_gba_pending_created), std::end(ps_gba_pending_created), 0);\n"
+        << "    std::fill(std::begin(ps_gba_pending_destroyed), std::end(ps_gba_pending_destroyed), 0);\n"
         << "    if (resetScratch) puzzlescript::resetScratchForLevel(scratch);\n"
         << "    compact_turn_attach_external_board_0(reinterpret_cast<puzzlescript::MaskWord*>(boardWords), boardWordCount);\n"
         << "    compact_turn_attach_external_snapshots_0(\n"
@@ -564,7 +683,7 @@ std::string emitRules(const Game& game, const std::filesystem::path& sourcePath,
     out << "    std::memcpy(levelState.rng.s.data(), rng->s, sizeof(rng->s));\n"
         << "    levelState.rng.i = rng->i; levelState.rng.j = rng->j; levelState.rng.valid = rng->valid;\n"
         << "    puzzlescript::RuntimeStepOptions options{};\n"
-        << "    options.playableUndo = false; options.emitAudio = false; options.solverMode = false;\n"
+        << "    options.playableUndo = false; options.emitAudio = true; options.solverMode = false;\n"
         // The desktop runtime's historical `again` probe restores the board but
         // deliberately leaves RNG consumption in place. Skipping it changes the
         // behavior of random+again games. Non-random games can safely defer the
@@ -581,8 +700,23 @@ std::string emitRules(const Game& game, const std::filesystem::path& sourcePath,
         << "    result.won = outcome.result.won; result.restarted = outcome.result.restarted;\n"
         << "    result.transitioned = outcome.result.transitioned; result.pending_again = outcome.pendingAgain;\n"
         << "    result.checkpoint = outcome.hasCheckpoint; result.discard = outcome.discard;\n"
-        << "    result.message = ps_gba_pending_message; result.sound_count = ps_gba_pending_sound_count;\n"
-        << "    for (uint8_t index = 0; index < result.sound_count; ++index) result.sound_names[index] = ps_gba_pending_sounds[index];\n"
+        << "    for (uint8_t index = 1; index < ps_gba_pending_audio_count; ++index) {\n"
+        << "        const ps_audio_event value = ps_gba_pending_audio[index];\n"
+        << "        const auto priority = [](const char* kind) {\n"
+        << "            return std::strcmp(kind, \"cantmove\") == 0 ? 0 : std::strcmp(kind, \"canmove\") == 0 ? 1\n"
+        << "                : std::strcmp(kind, \"create\") == 0 ? 2 : std::strcmp(kind, \"destroy\") == 0 ? 3 : 4;\n"
+        << "        };\n"
+        << "        uint8_t position = index;\n"
+        << "        while (position > 0 && priority(value.kind) < priority(ps_gba_pending_audio[position - 1].kind)) {\n"
+        << "            ps_gba_pending_audio[position] = ps_gba_pending_audio[position - 1]; --position;\n"
+        << "        }\n"
+        << "        ps_gba_pending_audio[position] = value;\n"
+        << "    }\n"
+        << "    result.message = ps_gba_pending_message;\n"
+        << "    result.audio_event_count = ps_gba_pending_audio_count;\n"
+        << "    result.audio_events = ps_gba_pending_audio_count == 0 ? nullptr : ps_gba_pending_audio;\n"
+        << "    result.ui_audio_event_count = ps_gba_pending_ui_audio_count;\n"
+        << "    result.ui_audio_events = ps_gba_pending_ui_audio_count == 0 ? nullptr : ps_gba_pending_ui_audio;\n"
         << "    if (levelStart) { result.won = false; result.restarted = false; result.transitioned = false; }\n"
         << "    return result;\n"
         << "}\n";
@@ -793,23 +927,40 @@ ExportResult exportGame(const ExportOptions& options) {
     if (ewramBytes > kEwramLimit) throw std::runtime_error("Estimated GBA EWRAM exceeds 224 KiB");
 
     std::vector<std::pair<std::string, std::string>> metadata(game.metadata.values.begin(), game.metadata.values.end());
-    std::map<int32_t, std::string> seedNames;
-    for (const auto& [name, seed] : game.sfxEvents) seedNames.emplace(seed, name);
+    std::set<int32_t> soundSeeds;
+    for (const auto& [name, seed] : game.sfxEvents) {
+        (void)name;
+        soundSeeds.insert(seed);
+    }
     const auto collectEntries = [&](const auto& entries) {
-        for (const SoundMaskEntry& entry : entries) seedNames.emplace(entry.seed, "seed_" + std::to_string(entry.seed));
+        for (const SoundMaskEntry& entry : entries) soundSeeds.insert(entry.seed);
     };
     collectEntries(game.sfxCreationMasks);
     collectEntries(game.sfxDestructionMasks);
     collectEntries(game.sfxMovementFailureMasks);
     for (const auto& entries : game.sfxMovementMasks) collectEntries(entries);
-    std::vector<std::pair<int32_t, std::string>> sounds(seedNames.begin(), seedNames.end());
+    std::map<int32_t, uint16_t> sampleIds;
+    uint16_t nextSampleId = 0;
+    for (int32_t seed : soundSeeds) sampleIds.emplace(seed, nextSampleId++);
+
+    std::vector<std::tuple<int32_t, std::string, uint16_t>> sounds;
+    std::set<int32_t> namedSeeds;
+    sounds.reserve(game.sfxEvents.size() + soundSeeds.size());
+    for (const auto& [name, seed] : game.sfxEvents) {
+        sounds.emplace_back(seed, name, sampleIds.at(seed));
+        namedSeeds.insert(seed);
+    }
+    for (int32_t seed : soundSeeds) {
+        if (!namedSeeds.count(seed)) {
+            sounds.emplace_back(seed, "seed_" + std::to_string(seed), sampleIds.at(seed));
+        }
+    }
 
     std::filesystem::create_directories(options.outputDirectory);
     const std::filesystem::path audioDirectory = options.outputDirectory / "audio";
     std::vector<std::filesystem::path> wavPaths;
     size_t audioBytes = 0;
-    for (const auto& [seed, name] : sounds) {
-        (void)name;
+    for (int32_t seed : soundSeeds) {
         const auto samples = player::generateSfxrFromSeed(seed, kSampleRate);
         const auto path = audioDirectory / ("seed_" + std::to_string(seed) + ".wav");
         writeWav(path, makeGbaSafePcm(samples));
@@ -870,7 +1021,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"title_image_source\": " << jsonString(options.titleImagePath.generic_string()) << ",\n"
         << "  \"title_image_width\": " << (titleImagePixels.empty() ? 0 : PS_GBA_SCREEN_WIDTH) << ",\n"
         << "  \"title_image_height\": " << (titleImagePixels.empty() ? 0 : PS_GBA_SCREEN_HEIGHT) << ",\n"
-        << "  \"sound_seed_count\": " << sounds.size() << ",\n"
+        << "  \"sound_seed_count\": " << soundSeeds.size() << ",\n"
+        << "  \"sound_alias_count\": " << sounds.size() << ",\n"
         << "  \"degraded_level_count\": " << degradedLevels << ",\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
         << "  \"kernel_snapshot_bytes\": " << kernelSnapshotBytes << ",\n"

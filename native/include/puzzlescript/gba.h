@@ -14,8 +14,9 @@ extern "C" {
 #define PS_GBA_SCREEN_WIDTH 240
 #define PS_GBA_SCREEN_HEIGHT 160
 #define PS_GBA_UNDO_CAPACITY 32
-#define PS_GBA_GAME_ABI_VERSION 8
+#define PS_GBA_GAME_ABI_VERSION 9
 #define PS_GBA_MAX_SPRITE_PIXELS 32
+#define PS_GBA_MAX_AUDIO_EVENTS 32
 
 typedef enum ps_gba_level_kind {
     PS_GBA_LEVEL_BOARD = 0,
@@ -44,8 +45,10 @@ typedef struct ps_gba_kernel_result {
     bool checkpoint;
     bool discard;
     const char* message;
-    uint8_t sound_count;
-    const char* sound_names[4];
+    uint8_t audio_event_count;
+    const ps_audio_event* audio_events;
+    uint8_t ui_audio_event_count;
+    const ps_audio_event* ui_audio_events;
 } ps_gba_kernel_result;
 
 typedef ps_gba_kernel_result (*ps_gba_turn_kernel)(

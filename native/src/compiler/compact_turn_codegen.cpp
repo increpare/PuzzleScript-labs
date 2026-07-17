@@ -2478,11 +2478,19 @@ std::string emitCompactRuleCommandFunction(
                  << "    commands.messageText = nullptr;\n";
             }
         } else if (command.name.rfind("sfx", 0) == 0) {
-            body << "    ++commands.commandCount;\n"
+            body << "    {\n"
+                 << "        bool soundAlreadyQueued = false;\n"
+                 << "        for (uint8_t soundIndex = 0; soundIndex < commands.soundCount; ++soundIndex) {\n"
+                 << "            if (std::string_view(commands.soundNames[soundIndex]) == std::string_view("
+                 << cppStringLiteral(command.name) << ")) { soundAlreadyQueued = true; break; }\n"
+                 << "        }\n"
                  << "    // Solver policy treats this command as output-only; player policy handles visible effects outside compact solver search.\n"
                  << "    // Sound effects are command output only; board/search state is unaffected.\n"
-                 << "    if (commands.soundCount < 4) commands.soundNames[commands.soundCount++] = "
-                 << cppStringLiteral(command.name) << ";\n";
+                 << "        if (!soundAlreadyQueued && commands.soundCount < 16) {\n"
+                 << "            ++commands.commandCount;\n"
+                 << "            commands.soundNames[commands.soundCount++] = " << cppStringLiteral(command.name) << ";\n"
+                 << "        }\n"
+                 << "    }\n";
         } else {
             body << "    static_assert(false, \"compact turn compiler command queue emitted unsupported command\");\n";
         }
@@ -4576,6 +4584,9 @@ void emitCompactTurnCompilerSingleBody(
         << "        addProfileNs(RuntimeCounterId::CompactTurnMovementNs);\n"
         << "    // 5. resolve movement\n"
         << "        if (movementOutcome.shouldUndo && rigidLoopCount < 49) {\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "            compactTurnClearAudioKind(\"canmove\");\n"
+        << "#endif\n"
         << "            ++rigidLoopCount;\n"
         << "            continue;\n"
         << "        }\n"
@@ -4623,6 +4634,9 @@ void emitCompactTurnCompilerSingleBody(
         << "        std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "        compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "        scratch.liveMovementsClean = true;\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "        compactTurnDiscardGameplayAudio();\n"
+        << "#endif\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
@@ -4671,6 +4685,10 @@ void emitCompactTurnCompilerSingleBody(
         << "        if (outHasAgain != nullptr) {\n"
         << "            *outHasAgain = false;\n"
         << "        }\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "        compactTurnDiscardGameplayAudio();\n"
+        << "        compactTurnOutputSimpleSound(\"cancel\");\n"
+        << "#endif\n"
         << "        result.changed = commands.any;\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
@@ -4689,7 +4707,13 @@ void emitCompactTurnCompilerSingleBody(
         << "        }\n"
         << "        result.changed = commands.any;\n"
         << "        result.restarted = true;\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "        compactTurnFlushMaskAudio();\n"
+        << "#endif\n"
         << "        compact_turn_emit_outputs_" << suffix << "(commands, false);\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "        compactTurnOutputSimpleSound(\"restart\");\n"
+        << "#endif\n"
         << "        addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "        return {true, result, false, commands.hasCheckpoint};\n"
         << "    }\n"
@@ -4717,6 +4741,9 @@ void emitCompactTurnCompilerSingleBody(
         << "                    addRuntimeCounter(RuntimeCounterId::CompactTurnAgainProbeCalls);\n"
         << "                    againProbeStartNs = nowNs;\n"
         << "                }\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "                compactTurnPushAudioSuppression();\n"
+        << "#endif\n"
         << "                const SpecializedCompactTurnOutcome probeOutcome = compact_turn_execute_program_" << suffix << "(\n"
         << "                    dimensions,\n"
         << "                    currentLevelIndex,\n"
@@ -4727,6 +4754,9 @@ void emitCompactTurnCompilerSingleBody(
         << "                    nullptr,\n"
         << "                    true\n"
         << "                );\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "                compactTurnPopAudioSuppression();\n"
+        << "#endif\n"
         << "                if (profileCompactTurn) {\n"
         << "                    const uint64_t nowNs = runtimeCounterNowNs();\n"
         << "                    addRuntimeCounter(RuntimeCounterId::CompactTurnAgainProbeNs, nowNs - againProbeStartNs);\n"
@@ -4740,6 +4770,9 @@ void emitCompactTurnCompilerSingleBody(
         << "        }\n"
         << "        *outHasAgain = scheduleAgain;\n"
         << "    }\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "    compactTurnFlushMaskAudio();\n"
+        << "#endif\n"
         << "    compact_turn_emit_outputs_" << suffix << "(commands, true);\n"
         << "    addProfileNs(RuntimeCounterId::CompactTurnCanonicalizeNs);\n"
         << "#if defined(PS_GBA_PERF_TELEMETRY)\n"
@@ -5142,7 +5175,7 @@ void emitCompactTurnAccessLayer(
         << "    bool messageHasText = false;\n"
         << "    const char* messageText = nullptr;\n"
         << "    uint8_t soundCount = 0;\n"
-        << "    const char* soundNames[4]{};\n"
+        << "    const char* soundNames[16]{};\n"
         << "};\n\n";
 
     out << "void compact_turn_emit_outputs_" << suffix << "(const CompactTurnCommands_" << suffix
@@ -6009,6 +6042,13 @@ void emitCompactTurnAccessLayer(
         << "    compact_turn_update_object_cell_index_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, afterObjects);\n"
         << "}\n\n";
 
+    out << "void compact_turn_note_replacement_object_cell_written_" << suffix << "(LevelDimensions dimensions, Scratch& scratch, int32_t tileIndex, const MaskWord* beforeObjects, const MaskWord* afterObjects) {\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "    compactTurnAccumulateReplacementAudio(beforeObjects, afterObjects, compact_turn_object_stride_" << suffix << ");\n"
+        << "#endif\n"
+        << "    compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, afterObjects);\n"
+        << "}\n\n";
+
     out << "void compact_turn_note_movement_cell_written_" << suffix << "(LevelDimensions dimensions, Scratch& scratch, int32_t tileIndex, const MaskWord* beforeMovements, const MaskWord* afterMovements) {\n"
         << "    const int32_t x = tileIndex / dimensions.height;\n"
         << "    const int32_t y = tileIndex % dimensions.height;\n"
@@ -6051,7 +6091,7 @@ void emitCompactTurnAccessLayer(
         << "        const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
         << "        fastObjects[word] = after;\n"
         << "    }\n"
-        << "    compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
+        << "    compact_turn_note_replacement_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
         << "    compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
         << "    compact_turn_count_replacements_applied_" << suffix << "();\n"
         << "    return true;\n"
@@ -6145,9 +6185,9 @@ void emitCompactTurnAccessLayer(
                 << "    }\n";
         }
         if (objectsGuaranteed) {
-            out << "    compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n";
+            out << "    compact_turn_note_replacement_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n";
         } else {
-            out << "    if (fastObjectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n";
+            out << "    if (fastObjectsChanged) compact_turn_note_replacement_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n";
         }
         if (movementsGuaranteed) {
             out << "    compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeMovements, fastMovements);\n";
@@ -6192,7 +6232,7 @@ void emitCompactTurnAccessLayer(
         << "            const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
         << "            if (before != after) fastObjects[word] = after;\n"
         << "        }\n"
-        << "        compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
+        << "        compact_turn_note_replacement_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
         << "        compact_turn_count_simple_replacement_fast_path_change_" << suffix << "();\n"
         << "        compact_turn_count_replacements_applied_" << suffix << "();\n"
         << "        return true;\n"
@@ -6284,7 +6324,7 @@ void emitCompactTurnAccessLayer(
         << "            const MaskWord after = (before & ~objectClearMask[word]) | objectSetMask[word];\n"
         << "            if (before != after) fastObjects[word] = after;\n"
         << "        }\n"
-        << "        compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
+        << "        compact_turn_note_replacement_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, fastObjects);\n"
         << "    }\n"
         << "    if (firstChangedMovementWord >= 0) {\n"
         << "        MaskWord beforeMovements[compact_turn_movement_stride_" << suffix << "] = {};\n"
@@ -6731,7 +6771,7 @@ void emitCompactTurnAccessLayer(
         << "        movements[word] = after;\n"
         << "        movementsChanged = movementsChanged || before != after;\n"
         << "    }\n"
-        << "    if (objectsChanged) compact_turn_note_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, objects);\n"
+        << "    if (objectsChanged) compact_turn_note_replacement_object_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeObjects, objects);\n"
         << "    if (movementsChanged) compact_turn_note_movement_cell_written_" << suffix << "(dimensions, scratch, tileIndex, beforeMovements, movements);\n"
         << "    if (rigidGroupIndex > 0) {\n"
         << "        MaskWord rigidMask[compact_turn_movement_stride_" << suffix << "] = {};\n"
@@ -6856,6 +6896,9 @@ void emitCompactTurnAccessLayer(
         << "    if (targetIndex == tileIndex) return true;\n"
         << "    MaskWord* source = compact_turn_cell_objects_" << suffix << "(levelState, tileIndex);\n"
         << "    MaskWord* target = compact_turn_cell_objects_" << suffix << "(levelState, targetIndex);\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "    compactTurnOutputMovementAudio(source, layer, directionMask);\n"
+        << "#endif\n"
         << "    MaskWord sourceBeforeObjects[compact_turn_object_stride_" << suffix << "] = {};\n"
         << "    MaskWord targetBeforeObjects[compact_turn_object_stride_" << suffix << "] = {};\n"
         << "    for (int32_t word = 0; word < compact_turn_object_stride_" << suffix << "; ++word) {\n"
@@ -6988,6 +7031,13 @@ void emitCompactTurnAccessLayer(
         << "            }\n"
         << "        }\n"
         << "    }\n"
+        << "#if defined(PS_COMPACT_TURN_OUTPUT_HOOKS)\n"
+        << "    for (int32_t tileIndex = 0; tileIndex < tileCount; ++tileIndex) {\n"
+        << "        const MaskWord* movementMask = compact_turn_cell_movements_" << suffix << "(scratch, tileIndex);\n"
+        << "        if (!compact_turn_mask_overlaps_" << suffix << "(movementMask, movementMask, compact_turn_movement_stride_" << suffix << ")) continue;\n"
+        << "        compactTurnOutputMovementFailureAudio(compact_turn_cell_objects_" << suffix << "(levelState, tileIndex), movementMask);\n"
+        << "    }\n"
+        << "#endif\n"
         << "    std::fill(scratch.liveMovements.begin(), scratch.liveMovements.end(), 0);\n"
         << "    compact_turn_clear_movement_masks_" << suffix << "(scratch);\n"
         << "    scratch.liveMovementsClean = true;\n"

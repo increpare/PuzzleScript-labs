@@ -3,6 +3,10 @@
 #define PS_GBA_ENABLE_AUDIO 0
 #endif
 
+#ifndef PS_GBA_EFFECTS_VOLUME
+#define PS_GBA_EFFECTS_VOLUME 128
+#endif
+
 #ifndef PS_GBA_ROM_PREFETCH
 #define PS_GBA_ROM_PREFETCH 1
 #endif
@@ -37,6 +41,7 @@
 
 #if PS_GBA_ENABLE_AUDIO
 #include <maxmod.h>
+#include "soundbank.h"
 #include "soundbank_bin.h"
 #endif
 
@@ -718,14 +723,20 @@ uint32_t hiddenFrameHash() {
 
 void playEvents(const ps_step_result& result) {
 #if PS_GBA_ENABLE_AUDIO
-    for (size_t event = 0; event < result.audio_event_count; ++event) {
-        for (uint16_t sound = 0; sound < ps_gba_generated_game.sound_count; ++sound) {
-            if (ps_gba_generated_game.sounds[sound].seed == result.audio_events[event].seed) {
-                mmEffect(ps_gba_generated_game.sounds[sound].sample_id);
-                break;
+    const auto play = [](const ps_audio_event* events, size_t eventCount) {
+        if (events == nullptr || eventCount > PS_GBA_MAX_AUDIO_EVENTS) return;
+        for (size_t event = 0; event < eventCount; ++event) {
+            for (uint16_t sound = 0; sound < ps_gba_generated_game.sound_count; ++sound) {
+                if (ps_gba_generated_game.sounds[sound].seed == events[event].seed) {
+                    const uint16_t sampleId = ps_gba_generated_game.sounds[sound].sample_id;
+                    if (sampleId < MSL_NSAMPS) mmEffect(sampleId);
+                    break;
+                }
             }
         }
-    }
+    };
+    play(result.audio_events, result.audio_event_count);
+    play(result.ui_audio_events, result.ui_audio_event_count);
 #else
     (void)result;
 #endif
@@ -735,7 +746,8 @@ void playNamed(const char* name) {
 #if PS_GBA_ENABLE_AUDIO
     for (uint16_t sound = 0; sound < ps_gba_generated_game.sound_count; ++sound) {
         if (std::strcmp(ps_gba_generated_game.sounds[sound].name, name) == 0) {
-            mmEffect(ps_gba_generated_game.sounds[sound].sample_id);
+            const uint16_t sampleId = ps_gba_generated_game.sounds[sound].sample_id;
+            if (sampleId < MSL_NSAMPS) mmEffect(sampleId);
             return;
         }
     }
@@ -771,7 +783,11 @@ int main() {
     *reinterpret_cast<volatile uint16_t*>(kWaitControl) = kWaitStandard;
 #endif
     irqInit();
-#if PS_GBA_PERF_TELEMETRY
+#if PS_GBA_ENABLE_AUDIO
+    // Maxmod owns the VBlank IRQ so it can restart its Direct Sound DMA every
+    // frame.  Missing this handler produces stale-buffer bursts/screeches.
+    irqSet(IRQ_VBLANK, mmVBlank);
+#elif PS_GBA_PERF_TELEMETRY
     irqSet(IRQ_VBLANK, ps_gba_perf_vblank);
 #endif
     irqEnable(IRQ_VBLANK);
@@ -779,8 +795,14 @@ int main() {
     auto* palette = reinterpret_cast<volatile uint16_t*>(kPalette);
     for (uint16_t index = 0; index < ps_gba_generated_game.palette_count; ++index) palette[index] = ps_gba_generated_game.palette[index];
 #if PS_GBA_ENABLE_AUDIO
+    static_assert(PS_GBA_EFFECTS_VOLUME >= 0 && PS_GBA_EFFECTS_VOLUME <= 1024,
+        "PS_GBA_EFFECTS_VOLUME must be in Maxmod's 0..1024 range");
     mmInitDefault(reinterpret_cast<mm_addr>(const_cast<uint8_t*>(soundbank_bin)), 8);
-    mmSetEffectsVolume(128);
+    mmSetEffectsVolume(PS_GBA_EFFECTS_VOLUME);
+#if PS_GBA_PERF_TELEMETRY
+    // Maxmod remains the IRQ owner and calls the optional telemetry hook.
+    mmSetVBlankHandler(reinterpret_cast<void*>(ps_gba_perf_vblank));
+#endif
 #endif
 
     ps_gba_session* session = ps_gba_session_init(gSessionArena, sizeof(gSessionArena), &ps_gba_generated_game);

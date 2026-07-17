@@ -553,8 +553,11 @@ struct SessionSnapshot {
 
 struct SimulationFixtureEntry {
     std::string name;
+    std::optional<std::string> source;
     std::filesystem::path irFile;
     std::optional<std::filesystem::path> traceFile;
+    int32_t targetLevel = 0;
+    std::optional<std::string> randomSeed;
     std::string initialSerializedLevel;
 };
 
@@ -660,7 +663,12 @@ std::vector<SimulationFixtureEntry> parseSimulationFixtureManifest(
         const auto& object = fixtureValue.asObject();
         SimulationFixtureEntry fixture;
         fixture.name = requireField(object, "name").asString();
+        fixture.source = optionalStringField(object, "source");
         fixture.irFile = manifestDir / requireField(object, "ir_file").asString();
+        if (const auto targetLevel = optionalIntField(object, "target_level"); targetLevel.has_value()) {
+            fixture.targetLevel = *targetLevel;
+        }
+        fixture.randomSeed = optionalStringField(object, "random_seed");
         fixture.initialSerializedLevel = requireField(object, "initial_serialized_level").asString();
         if (const auto traceFile = optionalStringField(object, "trace_file"); traceFile.has_value()) {
             fixture.traceFile = manifestDir / *traceFile;
@@ -1263,16 +1271,28 @@ int diffTraceCommand(const std::string& irPath, const std::string& tracePath) {
     return result;
 }
 
-int checkTraceAgainstSnapshots(ps_game* game, const TraceFile& traceFile, std::ostream& errorStream, bool printSuccessSummary) {
+int checkTraceAgainstSnapshots(
+    ps_game* game,
+    const TraceFile& traceFile,
+    std::ostream& errorStream,
+    bool printSuccessSummary,
+    const std::optional<std::string>& loadedLevelSeed = std::nullopt,
+    const std::optional<int32_t>& levelToLoad = std::nullopt
+) {
     ps_full_state* session = nullptr;
     ps_error* error = nullptr;
-    if (!ps_full_state_create(game, &session, &error)) {
+    if (!sessionCreateForGame(game, loadedLevelSeed, &session, &error)) {
         errorStream << ps_error_message(error) << "\n";
         ps_free_error(error);
         return 1;
     }
     std::unique_ptr<ps_full_state, decltype(&ps_full_state_destroy)> sessionHolder(session, ps_full_state_destroy);
     ps_full_state_set_unit_testing(session, true);
+    if (levelToLoad.has_value() && !ps_full_state_load_level(session, *levelToLoad, &error)) {
+        errorStream << ps_error_message(error) << "\n";
+        ps_free_error(error);
+        return 1;
+    }
 
     const auto& snapshots = traceFile.snapshots;
     if (snapshots.empty()) {
@@ -1402,12 +1422,14 @@ bool runPreparedSerializedLevelCheck(
     bool quiet,
     bool profileTimers,
     int64_t& profileSessionCreateUs,
-    int64_t& profileSerializePreparedUs
+    int64_t& profileSerializePreparedUs,
+    const std::optional<std::string>& loadedLevelSeed = std::nullopt,
+    const std::optional<int32_t>& levelToLoad = std::nullopt
 ) {
     ps_full_state* session = nullptr;
     ps_error* error = nullptr;
     const auto sessionStart = std::chrono::steady_clock::now();
-    if (!ps_full_state_create(game, &session, &error)) {
+    if (!sessionCreateForGame(game, loadedLevelSeed, &session, &error)) {
         if (!quiet) {
             std::cerr << name << ": " << ps_error_message(error) << "\n";
         }
@@ -1423,6 +1445,14 @@ bool runPreparedSerializedLevelCheck(
         profileSessionCreateUs += std::chrono::duration_cast<std::chrono::microseconds>(
                                        std::chrono::steady_clock::now() - sessionStart)
                                        .count();
+    }
+    if (levelToLoad.has_value() && !ps_full_state_load_level(session, *levelToLoad, &error)) {
+        if (!quiet) {
+            std::cerr << name << ": " << ps_error_message(error) << "\n";
+        }
+        ps_free_error(error);
+        ps_full_state_destroy(session);
+        return false;
     }
 
     const auto serializeStart = std::chrono::steady_clock::now();
@@ -1448,6 +1478,7 @@ bool runPreparedSerializedLevelCheck(
 int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** argv) {
     bool quiet = false;
     bool allowFailures = false;
+    bool nativeCompile = false;
     bool profileTimers = false;
     size_t progressEvery = 0;
 
@@ -1457,6 +1488,8 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
             quiet = true;
         } else if (arg == "--allow-failures") {
             allowFailures = true;
+        } else if (arg == "--native-compile") {
+            nativeCompile = true;
         } else if (arg == "--profile-timers") {
             profileTimers = true;
         } else if (arg == "--progress-every" && argIndex + 1 < argc) {
@@ -1495,9 +1528,19 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
             const auto& irPath = fixture.irFile;
             const bool hasTrace = fixture.traceFile.has_value();
 
-            const bool gameCached = cache.has(irPath);
+            const bool gameCached = !nativeCompile && cache.has(irPath);
             const auto gameAcquireStart = std::chrono::steady_clock::now();
-            ps_game* game = cache.acquire(irPath);
+            std::unique_ptr<ps_game, decltype(&ps_free_game)> sourceGame(nullptr, ps_free_game);
+            ps_game* game = nullptr;
+            if (nativeCompile) {
+                ps_game* rawGame = nullptr;
+                if (fixture.source.has_value() && loadGameFromSourceText(*fixture.source, &rawGame)) {
+                    sourceGame.reset(rawGame);
+                    game = rawGame;
+                }
+            } else {
+                game = cache.acquire(irPath);
+            }
             const auto gameAcquireUs = std::chrono::duration_cast<std::chrono::microseconds>(
                                            std::chrono::steady_clock::now() - gameAcquireStart)
                                            .count();
@@ -1517,7 +1560,7 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
                     ++traceFailed;
                 }
                 if (!quiet) {
-                    std::cerr << name << ": failed to load IR\n";
+                    std::cerr << name << (nativeCompile ? ": failed to compile source\n" : ": failed to load IR\n");
                 }
                 if (hasTrace) {
                     ++traceChecked;
@@ -1533,6 +1576,11 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
                 continue;
             }
 
+            const std::optional<std::string> loadedLevelSeed =
+                nativeCompile ? fixture.randomSeed : std::nullopt;
+            const std::optional<int32_t> levelToLoad =
+                nativeCompile ? std::optional<int32_t>{fixture.targetLevel} : std::nullopt;
+
             if (runPreparedSerializedLevelCheck(
                     game,
                     fixture.initialSerializedLevel,
@@ -1540,7 +1588,9 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
                     quiet,
                     profileTimers,
                     profilePreparedSessionUs,
-                    profilePreparedSerializeUs
+                    profilePreparedSerializeUs,
+                    loadedLevelSeed,
+                    levelToLoad
                 )) {
                 ++preparedPassed;
             } else {
@@ -1584,7 +1634,8 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
 
             std::ostringstream fastErrors;
             const auto fastCheckStart = std::chrono::steady_clock::now();
-            const int fastResult = checkTraceAgainstSnapshots(game, traceFile, fastErrors, false);
+            const int fastResult = checkTraceAgainstSnapshots(
+                game, traceFile, fastErrors, false, loadedLevelSeed, levelToLoad);
             if (profileTimers) {
                 profileFastCheckUs += std::chrono::duration_cast<std::chrono::microseconds>(
                                           std::chrono::steady_clock::now() - fastCheckStart)
@@ -1605,7 +1656,8 @@ int checkTraceSweepCommand(const std::string& manifestPath, int argc, char** arg
                 ++traceDetailedRuns;
                 const auto detailedStarted = std::chrono::steady_clock::now();
                 std::ostringstream diffErrors;
-                const int detailedResult = diffTraceAgainstSnapshots(game, traceFile.snapshots, diffErrors, false);
+                const int detailedResult = diffTraceAgainstSnapshots(
+                    game, traceFile.snapshots, diffErrors, false, loadedLevelSeed, levelToLoad);
                 if (profileTimers) {
                     profileDiffUs += std::chrono::duration_cast<std::chrono::microseconds>(
                                          std::chrono::steady_clock::now() - detailedStarted)

@@ -13,6 +13,7 @@ function parseArgs(argv) {
         timeoutMs: 45000,
         progressEvery: 1,
         allowFailures: false,
+        nativeCompile: false,
         quiet: false,
     };
 
@@ -29,6 +30,8 @@ function parseArgs(argv) {
             result.progressEvery = Number.parseInt(args[++index], 10);
         } else if (arg === '--allow-failures') {
             result.allowFailures = true;
+        } else if (arg === '--native-compile') {
+            result.nativeCompile = true;
         } else if (arg === '--quiet') {
             result.quiet = true;
         } else if (result.manifestPath === null) {
@@ -86,6 +89,9 @@ function main() {
     }
     if (options.allowFailures) {
         sweepArgs.push('--allow-failures');
+    }
+    if (options.nativeCompile) {
+        sweepArgs.push('--native-compile');
     }
     if (options.quiet) {
         sweepArgs.push('--quiet');

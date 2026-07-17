@@ -31,6 +31,8 @@ struct ReplayContext {
     int32_t againTick = -1;
     int32_t messageConfirms = 0;
     int32_t totalAgainTicks = 0;
+    size_t audioEventCount = 0;
+    size_t uiAudioEventCount = 0;
     int32_t audioMismatchCount = 0;
     std::string firstAudioMismatch;
     bool nativeWon = false;
@@ -77,7 +79,12 @@ int fail(const ReplayContext& context, std::string_view phase, std::string_view 
     std::cout << ",\"native_won\":" << (context.nativeWon ? "true" : "false")
               << ",\"gba_won\":" << (context.gbaWon ? "true" : "false")
               << ",\"total_again_ticks\":" << context.totalAgainTicks
-              << "}\n";
+              << ",\"audio_mismatches\":" << context.audioMismatchCount;
+    if (!context.firstAudioMismatch.empty()) {
+        std::cout << ",\"first_audio_mismatch\":\""
+                  << jsonEscape(context.firstAudioMismatch) << "\"";
+    }
+    std::cout << "}\n";
     return 1;
 }
 
@@ -199,6 +206,8 @@ bool audioResultsEqual(const ps_step_result& nativeResult, const ps_step_result&
 
 void recordAudioMismatch(ReplayContext& context, const ps_step_result& nativeResult,
     const ps_step_result& gbaResult, std::string_view phase) {
+    context.audioEventCount += gbaResult.audio_event_count;
+    context.uiAudioEventCount += gbaResult.ui_audio_event_count;
     std::string mismatch;
     if (audioResultsEqual(nativeResult, gbaResult, mismatch)) return;
     ++context.audioMismatchCount;
@@ -467,11 +476,16 @@ int main(int argc, char** argv) {
         return fail(context, "initial", "only one runtime completed the level during startup");
     }
     if (nativeStartupWon && gbaStartupWon) {
+        if (context.audioMismatchCount != 0) {
+            return fail(context, "audio", context.firstAudioMismatch);
+        }
         std::cout << "{\"status\":\"pass\",\"level\":" << context.level
                   << ",\"inputs\":0,\"solver_inputs\":" << inputs.size()
                   << ",\"startup_won\":true"
                   << ",\"again_ticks\":" << context.totalAgainTicks
                   << ",\"message_confirms\":0"
+                  << ",\"audio_events\":" << context.audioEventCount
+                  << ",\"ui_audio_events\":" << context.uiAudioEventCount
                   << ",\"audio_mismatches\":" << context.audioMismatchCount;
         if (!context.firstAudioMismatch.empty()) {
             std::cout << ",\"first_audio_mismatch\":\""
@@ -524,12 +538,17 @@ int main(int argc, char** argv) {
     if (context.nativeWon != context.gbaWon) {
         return fail(context, "complete", "only one runtime completed the level");
     }
+    if (context.audioMismatchCount != 0) {
+        return fail(context, "audio", context.firstAudioMismatch);
+    }
     std::cout << "{\"status\":\"pass\",\"level\":" << context.level
               << ",\"inputs\":" << inputs.size()
               << ",\"startup_won\":false"
               << ",\"completed\":" << (context.nativeWon ? "true" : "false")
               << ",\"again_ticks\":" << context.totalAgainTicks
               << ",\"message_confirms\":" << context.messageConfirms
+              << ",\"audio_events\":" << context.audioEventCount
+              << ",\"ui_audio_events\":" << context.uiAudioEventCount
               << ",\"audio_mismatches\":" << context.audioMismatchCount;
     if (!context.firstAudioMismatch.empty()) {
         std::cout << ",\"first_audio_mismatch\":\""

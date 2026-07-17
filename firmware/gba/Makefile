@@ -12,6 +12,7 @@ INCLUDES            := generated ../../native/include ../../native/src
 GAME                ?= ../../src/demo/sokoban_basic.txt
 PUZZLESCRIPT_CPP    ?= ../../build-32/native/Release/puzzlescript_cpp.exe
 AUDIO               ?= 0
+AUDIO_VOLUME        ?= 128
 AUTOTEST_LEVEL_START ?= 0
 PERF_BENCHMARK      ?= 0
 PERF_ITERATIONS     ?= 16
@@ -28,7 +29,7 @@ ARCH        := -mthumb -mthumb-interwork
 CFLAGS      := -g -Wall -Wextra -O2 $(ARCH) -ffunction-sections -fdata-sections
 CFLAGS      += -DPS_MASK_WORD_BITS=32 -DPS_INTERPRETER_OBJECT_CELL_INDEX=1
 ifneq ($(filter 1 yes true on,$(AUDIO)),)
-CFLAGS      += -DPS_GBA_ENABLE_AUDIO=1
+CFLAGS      += -DPS_GBA_ENABLE_AUDIO=1 -DPS_GBA_EFFECTS_VOLUME=$(AUDIO_VOLUME)
 else
 CFLAGS      += -DPS_GBA_ENABLE_AUDIO=0
 endif

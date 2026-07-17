@@ -58,6 +58,15 @@ void writePpm(const std::filesystem::path& path, int width, int height,
 
 int main() {
     const std::filesystem::path root = PS_REPO_ROOT;
+    const std::string gbaPlatformSource = readFile(root / "firmware" / "gba" / "source" / "main.cpp");
+    require(gbaPlatformSource.find("irqSet(IRQ_VBLANK, mmVBlank)") != std::string::npos,
+        "audio builds install Maxmod's mandatory VBlank DMA handler");
+    require(gbaPlatformSource.find("mmSetVBlankHandler(reinterpret_cast<void*>(ps_gba_perf_vblank))")
+            != std::string::npos,
+        "audio performance telemetry chains through Maxmod's VBlank handler");
+    require(gbaPlatformSource.find("eventCount > PS_GBA_MAX_AUDIO_EVENTS") != std::string::npos
+            && gbaPlatformSource.find("sampleId < MSL_NSAMPS") != std::string::npos,
+        "firmware rejects corrupt audio queues and out-of-range sample IDs");
     const std::filesystem::path output = root / "build" / "native" / "gba_exporter_test_output";
     std::filesystem::remove_all(output);
 
@@ -91,6 +100,8 @@ int main() {
         "manifest records the generated compact runtime");
     require(manifest.find("\"palette_count\": 9") != std::string::npos, "BGR555 palette is deduplicated");
     require(manifest.find("\"sound_seed_count\": 1") != std::string::npos, "sound seeds are deduplicated");
+    require(manifest.find("\"sound_alias_count\": 1") != std::string::npos,
+        "manifest records the retained sound-name aliases");
     require(manifest.find("\"undo_capacity\": 32") != std::string::npos,
         "small games retain the full 32-snapshot undo ring");
     require(manifest.find("\"kernel_snapshot_bytes\": 336") != std::string::npos,
@@ -155,6 +166,22 @@ int main() {
         "manifest records the generated-kernel ABI version");
     const auto second = puzzlescript::gba::exportGame(options);
     require(generatedBefore == readFile(second.generatedSourcePath), "export is deterministic");
+
+    const std::filesystem::path audioAliasOutput = root / "build" / "native" / "gba_audio_alias_test_output";
+    std::filesystem::remove_all(audioAliasOutput);
+    puzzlescript::gba::ExportOptions audioAliasOptions = options;
+    audioAliasOptions.sourcePath = root / "native" / "tests" / "gba_audio_parity.txt";
+    audioAliasOptions.outputDirectory = audioAliasOutput;
+    const auto audioAliasResult = puzzlescript::gba::exportGame(audioAliasOptions);
+    const std::string audioAliasManifest = readFile(audioAliasResult.manifestPath);
+    const std::string audioAliasSource = readFile(audioAliasResult.generatedSourcePath);
+    require(audioAliasManifest.find("\"sound_seed_count\": 9") != std::string::npos,
+        "shared SFX seeds synthesize one sample");
+    require(audioAliasManifest.find("\"sound_alias_count\": 10") != std::string::npos,
+        "shared SFX seeds retain every named alias");
+    require(audioAliasSource.find("{\"sfx0\", 555555, 4}") != std::string::npos
+            && audioAliasSource.find("{\"sfx1\", 555555, 4}") != std::string::npos,
+        "shared SFX aliases point at the same Maxmod sample ID");
 
     const std::filesystem::path randomAgainOutput =
         root / "build" / "native" / "gba_random_again_test_output";

@@ -1,0 +1,90 @@
+title GBA Audio Parity
+author Tests
+text_color white
+background_color black
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+.000.
+.0.0.
+.000.
+..0..
+..0..
+
+Wall
+grey
+00000
+00000
+00000
+00000
+00000
+
+Token
+yellow
+..0..
+.000.
+00000
+.000.
+..0..
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+# = Wall
+
+======
+SOUNDS
+======
+
+Player move right 111111
+Player cantmove left 222222
+Token create 333333
+Token destroy 444444
+sfx0 555555
+sfx1 555555
+showmessage 666666
+closemessage 777777
+cancel 888888
+restart 999999
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall
+Token
+
+======
+RULES
+======
+
+[ > Player | Background ] -> [ > Player | Background Token ] sfx0
+[ Action Player Token ] -> [ Player ] message Audio parity
+up [ up Player ] -> [ Player ] cancel
+down [ down Player ] -> [ Player ] restart
+
+================
+WINCONDITIONS
+================
+
+=======
+LEVELS
+=======
+
+#P.

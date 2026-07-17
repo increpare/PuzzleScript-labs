@@ -28,9 +28,9 @@ struct ps_gba_session {
     bool resetKernelScratch = true;
     bool ruleMessage = false;
     const char* message = nullptr;
-    ps_audio_event audio[4]{};
+    ps_audio_event audio[PS_GBA_MAX_AUDIO_EVENTS]{};
     size_t audioCount = 0;
-    ps_audio_event uiAudio[4]{};
+    ps_audio_event uiAudio[PS_GBA_MAX_AUDIO_EVENTS]{};
     size_t uiAudioCount = 0;
 };
 
@@ -96,13 +96,24 @@ void clearStepEvents(ps_gba_session* session) {
     session->uiAudioCount = 0;
 }
 
-void emitNamedUiAudio(ps_gba_session* session, const char* name) {
+void emitNamedUiAudio(ps_gba_session* session, const char* name, const char* kind) {
     if (name == nullptr || session->uiAudioCount >= (sizeof(session->uiAudio) / sizeof(session->uiAudio[0]))) return;
     for (uint16_t sound = 0; sound < session->game->sound_count; ++sound) {
         if (std::strcmp(session->game->sounds[sound].name, name) == 0) {
-            session->uiAudio[session->uiAudioCount++] = ps_audio_event{session->game->sounds[sound].seed, "sfx"};
+            session->uiAudio[session->uiAudioCount++] = ps_audio_event{session->game->sounds[sound].seed, kind};
             return;
         }
+    }
+}
+
+void copyKernelAudio(ps_gba_session* session, const ps_gba_kernel_result& kernel) {
+    const size_t audioCapacity = sizeof(session->audio) / sizeof(session->audio[0]);
+    const size_t uiAudioCapacity = sizeof(session->uiAudio) / sizeof(session->uiAudio[0]);
+    for (uint8_t index = 0; index < kernel.audio_event_count && session->audioCount < audioCapacity; ++index) {
+        session->audio[session->audioCount++] = kernel.audio_events[index];
+    }
+    for (uint8_t index = 0; index < kernel.ui_audio_event_count && session->uiAudioCount < uiAudioCapacity; ++index) {
+        session->uiAudio[session->uiAudioCount++] = kernel.ui_audio_events[index];
     }
 }
 
@@ -115,9 +126,7 @@ bool hasMetadata(const ps_gba_game_view* game, const char* key) {
 }
 
 void applyKernelOutputs(ps_gba_session* session, const ps_gba_kernel_result& kernel) {
-    for (uint8_t sound = 0; sound < kernel.sound_count; ++sound) {
-        emitNamedUiAudio(session, kernel.sound_names[sound]);
-    }
+    copyKernelAudio(session, kernel);
     session->pendingAgain = kernel.pending_again;
     if (kernel.checkpoint) {
         std::memcpy(session->restart, session->board, session->activeWordCount * sizeof(uint32_t));
@@ -297,9 +306,13 @@ ps_step_result ps_gba_step(ps_gba_session* session, ps_input input) {
                 session->mode = PS_FULL_STATE_MODE_LEVEL;
                 session->message = nullptr;
                 session->ruleMessage = false;
+                emitNamedUiAudio(session, "closemessage", "ui");
                 return makeResult(session, true, false, true, false);
             }
-            if (advanceLevel(session)) return makeResult(session, true, false, true, false);
+            if (advanceLevel(session)) {
+                emitNamedUiAudio(session, "closemessage", "ui");
+                return makeResult(session, true, false, true, false);
+            }
         }
         return makeResult(session, false, false, false, false);
     }
@@ -321,7 +334,7 @@ ps_step_result ps_gba_step(ps_gba_session* session, ps_input input) {
         session->pendingAgain = false;
         return makeResult(session, false, false, false, false);
     }
-    for (uint8_t sound = 0; sound < kernel.sound_count; ++sound) emitNamedUiAudio(session, kernel.sound_names[sound]);
+    copyKernelAudio(session, kernel);
     if (recordsUndo && !kernel.changed) discardLatestUndo(session);
 
     bool transitioned = false;

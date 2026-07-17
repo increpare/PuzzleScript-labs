@@ -1,6 +1,6 @@
 param(
     [string]$Corpus = "src/tests/solver_tests",
-    [string]$BuildDir = "build",
+    [string]$BuildDir = "build-32",
     [string]$ExporterBuildDir = "build-32",
     [string]$OutputDir = "build/gba/solver-parity",
     [int]$TimeoutMs = 1000,
@@ -52,11 +52,15 @@ New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 $solver = Join-Path $buildPath "native/Release/puzzlescript_solver.exe"
 $exporter = Join-Path $exportBuildPath "native/Release/puzzlescript_cpp.exe"
 $replay = Join-Path $buildPath "native/Release/puzzlescript_gba_solution_replay.exe"
-$cmakeCommand = Get-Command cmake.exe -ErrorAction SilentlyContinue
-$cmake = if ($cmakeCommand) { $cmakeCommand.Source } else { "" }
-if (!$cmake) {
-    $cacheEntry = Select-String -Path (Join-Path $buildPath "CMakeCache.txt") -Pattern '^CMAKE_COMMAND:INTERNAL=(.+)$' | Select-Object -First 1
+$cmake = ""
+$cachePath = Join-Path $buildPath "CMakeCache.txt"
+if (Test-Path $cachePath) {
+    $cacheEntry = Select-String -Path $cachePath -Pattern '^CMAKE_COMMAND:INTERNAL=(.+)$' | Select-Object -First 1
     if ($cacheEntry) { $cmake = $cacheEntry.Matches[0].Groups[1].Value }
+}
+if (!$cmake) {
+    $cmakeCommand = Get-Command cmake.exe -ErrorAction SilentlyContinue
+    if ($cmakeCommand) { $cmake = $cmakeCommand.Source }
 }
 if (!(Test-Path $solver) -or !(Test-Path $exporter)) {
     throw "Build the Release puzzlescript_solver and puzzlescript_cpp targets first."
@@ -85,6 +89,9 @@ if ($Game) {
     $solved = @($solved | Where-Object { [string]$_.game -like "*$Game*" })
 }
 Write-Host "Native solver found $($solved.Count) solved board levels."
+if ($solved.Count -eq 0) {
+    throw "No solved board levels matched the requested corpus/game; refusing a false-green parity report."
+}
 
 $parityResults = [System.Collections.Generic.List[object]]::new()
 $groups = @($solved | Group-Object game)
@@ -151,8 +158,7 @@ $failed = @($parityResults | Where-Object { $_.status -eq "fail" }).Count
 $exportFailed = @($parityResults | Where-Object { $_.status -eq "export_failed" }).Count
 $runnerErrors = @($parityResults | Where-Object { $_.status -eq "runner_error" }).Count
 $audioMismatchLevels = @($parityResults | Where-Object {
-    ($_.status -eq "pass") -and
-        ($_.detail -is [pscustomobject]) -and
+    ($_.detail -is [pscustomobject]) -and
         ([int]$_.detail.audio_mismatches -gt 0)
 }).Count
 $report = [ordered]@{
@@ -162,7 +168,7 @@ $report = [ordered]@{
     solver_jobs = $Jobs
     game_filter = $Game
     solver_report = $solverReportPath
-    verification = "gameplay gate: exact native-player/GBA state, level transitions, step flags, again ticks, RNG, and messages; audio events are compared and reported separately"
+    verification = "hard gate: exact native-player/GBA state, level transitions, step flags, again ticks, RNG, messages, and ordered gameplay/UI audio events"
     solver_totals = $solverData.totals
     parity_totals = [ordered]@{
         attempted = $parityResults.Count
@@ -170,7 +176,7 @@ $report = [ordered]@{
         failed = $failed
         export_failed = $exportFailed
         runner_errors = $runnerErrors
-        audio_matched = $passed - $audioMismatchLevels
+        audio_matched = $passed
         audio_mismatch = $audioMismatchLevels
     }
     results = $parityResults
@@ -204,8 +210,7 @@ $failuresPath = Join-Path $outputPath "parity-failures.csv"
 }) | Export-Csv -NoTypeInformation -Encoding UTF8 -LiteralPath $failuresPath
 $audioMismatchPath = Join-Path $outputPath "audio-mismatches.csv"
 @($parityResults | Where-Object {
-    ($_.status -eq "pass") -and
-        ($_.detail -is [pscustomobject]) -and
+    ($_.detail -is [pscustomobject]) -and
         ([int]$_.detail.audio_mismatches -gt 0)
 } | ForEach-Object {
     [pscustomobject]@{
@@ -216,7 +221,7 @@ $audioMismatchPath = Join-Path $outputPath "audio-mismatches.csv"
     }
 }) | Export-Csv -NoTypeInformation -Encoding UTF8 -LiteralPath $audioMismatchPath
 Write-Host "Parity: $passed passed, $failed diverged, $exportFailed could not export, $runnerErrors runner errors."
-Write-Host "Audio events: $($passed - $audioMismatchLevels) levels matched, $audioMismatchLevels levels had mismatches."
+Write-Host "Audio events: $passed passing levels matched, $audioMismatchLevels levels had hard-gate mismatches."
 Write-Host "Report: $reportPath"
 Write-Host "Verified levels: $verifiedPath"
 Write-Host "Failures: $failuresPath"

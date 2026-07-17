@@ -105,6 +105,7 @@ function compileSimulationFixture(testEntry, outputDir) {
     return {
         id: fixtureId,
         name,
+        source,
         ir_file: irRelativePath.replace(/\\/g, '/'),
         trace_file: traceRelativePath.replace(/\\/g, '/'),
         target_level: targetLevel,

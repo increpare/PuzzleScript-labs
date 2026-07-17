@@ -2,7 +2,7 @@
 #   make build             Build build/native/puzzlescript_cpp.
 #   make run game.txt      Build and play a PuzzleScript source file.
 #   make ctest             Run fast C++ smoke/unit tests registered with CMake.
-#   make js_parity_tests   Run C++ against the original JS test corpus.
+#   make js_parity_tests   Run both C++ mask widths against the original JS test corpus.
 #   make rule_plan_parity_tests
 #                           Compare JS/native game.rule_plan_v1 for simulation-corpus games.
 #   make simulation_tests  Run JS simulation tests and direct C++ simulation tests.
@@ -19,7 +19,7 @@
 	simulation_tests_cpp compilation_tests_cpp simulation_tests compilation_tests simulation_corpus_interpreter_benchmark simulation_corpus_compiled_rulegroups_benchmark simulation_corpus_compiled_compact_benchmark simulation_corpus_perf_report simulation_corpus_perf_report_quick \
 	simulation_tests_cpp_32 compilation_tests_cpp_32 \
 	solver_tests_cpp solver_tests_js solver_tests solver_timeout_curve solver-time-curve-single-game solver-time-curve-single-game-hda-compiled solver_timeout_curve_replot solver_js_coverage_cpp solver_smoke_tests native_runtime_counters_tests solver_search_mode_tests solver_determinism_tests solver_parity_smoke solver_portfolio_regression_tests native_static_analysis_parity_tests native_static_analysis_native_parity_tests native_static_analysis_fallback_parity_tests native_static_analysis_fallback_soundness_tests solver_compact_parity_smoke solver_compact_parity solver_benchmark solver_mine_pippable solver_focus_mine solver_focus_manifest_check solver_focus_benchmark solver_focus_compare solver_focus_compact_compare solver_focus_compact_codegen_compare solver_corpus_manifest solver_corpus_compact_codegen_compare solver_focus_perf_report solver_focus_compact_perf_report solver_focus_compact_codegen_perf_report solver_benchmark_targets solver_instrumentation_pack solver_instrumentation_analysis solver_instrumentation_analysis_tests js_static_optimization_comparison_solver_smoke js_static_optimization_comparison_solver_focus solver_canonical_replay solver_canonical_replay_long canonical_roundtrip_replay static_optimizer_page generator_smoke_tests generator_benchmark \
-	simulation_tests_cpp_js_parity compilation_tests_cpp_direct \
+	simulation_tests_cpp_js_parity simulation_tests_cpp_js_parity_64 simulation_tests_cpp_js_parity_32 compilation_tests_cpp_direct \
 	compiled_rules_simulation_suite_coverage compiled_rules_coverage_shape_smoke specialized_full_turn_dispatch_smoke compiled_tick_dispatch_smoke compact_turn_oracle_smoke compact_turn_simulation_tests compact_turn_coverage compact_turn_codegen_coverage compact_turn_native_parity compact_turn_codegen_bringup compact_turn_codegen_solver_parity compact_turn_codegen_regression_tests compact_turn_codegen_dirty_shape compact_turn_perf_regression compact_turn_codegen_solver_command_api compact_turn_codegen_frontier compact_turn_codegen_testdata_one compact_tick_oracle_smoke compact_tick_simulation_tests compact_tick_coverage \
 	compact_turn_codegen_selected_tests compact_turn_codegen_simulation_tests \
 	rule_plan_parity_tests \
@@ -27,10 +27,11 @@
 	parser_corpus_errormessage_bundle parser_corpus_testdata_bundle clean clean-native \
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data
 
-.PHONY: gba gba_export gba_preflight
+.PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
 
 NODE ?= node
 CMAKE ?= cmake
+NATIVE_TEST_CONFIG ?= Debug
 BUILD_DIR ?= build
 BUILD_DIR_32 ?= build-32
 PERFORMANCE_TESTPAGE_OUT ?= $(BUILD_DIR)/performance-testpage
@@ -516,6 +517,7 @@ help:
 	@echo "  make gba                           Export GBA assets and build one ROM (set GBA_GAME=...)"
 	@echo "  make gba_export                    Export GBA data/SFX without requiring devkitARM"
 	@echo "  make gba_preflight                 Report GBA compatibility across the testdata corpus"
+	@echo "  make gba_generated_replay_tests    Compare fixed native/GBA solution replays end to end"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
 	@echo "  make handheld_pcb_export           Export card PCB outline/anchors to hardware/card/mechanical/"
@@ -569,7 +571,7 @@ help:
 	@echo "  make build_32                      Build JS-style 32-bit-mask executable into build-32"
 	@echo "  make run path/to/game.txt          Build and play a PuzzleScript game"
 	@echo "  make ctest                         Run fast C++ smoke/unit tests"
-	@echo "  make js_parity_tests               Run 32-bit C++ against the original JS test corpus"
+	@echo "  make js_parity_tests               Run 64- and 32-bit C++ against the original JS corpus"
 	@echo "  make rule_plan_parity_tests        Compare JS/native game.rule_plan_v1 for simulation games"
 	@echo "  make simulation_tests              Run JS sim tests, then mirrored C++ sim parity"
 	@echo "  make simulation_corpus_perf_report Benchmark interpreter vs compiled-rulegroups vs compiled compact on testdata.js"
@@ -1094,8 +1096,15 @@ configure-native: $(CMAKE_CACHE)
 
 build-native: build
 
+gba_generated_replay_build: build_32
+	$(CMAKE) --build $(BUILD_DIR_32) --config $(NATIVE_TEST_CONFIG) --target puzzlescript_gba_generated_solution_replay
+	$(CMAKE) --build $(BUILD_DIR_32) --config $(NATIVE_TEST_CONFIG) --target puzzlescript_gba_audio_parity_replay
+
+gba_generated_replay_tests: gba_generated_replay_build
+	ctest --test-dir $(BUILD_DIR_32) -C $(NATIVE_TEST_CONFIG) --output-on-failure -R "^puzzlescript_gba_(generated_solution_replay_|audio_parity_replay$$)"
+
 ctest: build build_solver build_generator
-	ctest --test-dir $(BUILD_DIR) --output-on-failure
+	ctest --test-dir $(BUILD_DIR) -C $(NATIVE_TEST_CONFIG) --output-on-failure
 
 tests_js:
 	PUZZLESCRIPT_SKIP_AUXILIARY_TESTS=1 $(NODE) src/tests/run_tests_node.js
@@ -2108,8 +2117,13 @@ compiled_rules_coverage_shape_smoke: build
 	$(PUZZLESCRIPT_CPP) compile-rules src/tests/solver_smoke_tests --stats-only --max-rows 1 --coverage-json "$$out"; \
 	$(NODE) src/tests/assert_compiled_rules_coverage_shape.js "$$out"
 
-simulation_tests_cpp_js_parity: build_32 $(JS_PARITY_MANIFEST)
+simulation_tests_cpp_js_parity_64: build $(JS_PARITY_MANIFEST)
+	$(NODE) src/tests/run_native_trace_suite.js $(JS_PARITY_MANIFEST) --cli $(PUZZLESCRIPT_CPP) --native-compile --progress-every 1 --timeout-ms 45000
+
+simulation_tests_cpp_js_parity_32: build_32 $(JS_PARITY_MANIFEST)
 	$(NODE) src/tests/run_native_trace_suite.js $(JS_PARITY_MANIFEST) --cli $(PUZZLESCRIPT_CPP_32) --progress-every 1 --timeout-ms 45000
+
+simulation_tests_cpp_js_parity: simulation_tests_cpp_js_parity_64 simulation_tests_cpp_js_parity_32
 
 $(ERRORMESSAGE_PARSER_BUNDLE): $(PARSER_CORPUS_BUNDLE_INPUTS) $(JS_PARITY_INPUTS)
 	mkdir -p "$(BUILD_DIR)"
@@ -2132,7 +2146,7 @@ compilation_tests_cpp_32: build_32
 compilation_tests_cpp_direct: build
 	$(PUZZLESCRIPT_CPP) test diagnostics-corpus src/tests/resources/errormessage_testdata.js --progress-every 50
 
-js_parity_tests: simulation_tests_cpp_js_parity compilation_tests_cpp_32
+js_parity_tests: simulation_tests_cpp_js_parity compilation_tests_cpp compilation_tests_cpp_32
 
 rule_plan_parity_tests: build
 	$(NODE) src/tests/run_rule_plan_parity.js src/tests/resources/testdata.js --cli $(PUZZLESCRIPT_CPP) --artifacts-dir $(BUILD_DIR)/native/rule_plan_parity_testdata
@@ -2152,7 +2166,7 @@ profile_simulation_tests_32: build_32
 	PROFILE_STATS_OUT="$(abspath $(BUILD_DIR_32))/profile_stats.txt" \
 	src/tests/profile_native_trace_suite.sh
 
-tests: ctest js_parity_tests
+tests: ctest js_parity_tests gba_generated_replay_tests
 
 all_tests_thorough:
 	$(MAKE) tests

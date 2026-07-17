@@ -136,7 +136,7 @@ target_include_directories(puzzlescript_gba_core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_compile_definitions(puzzlescript_gba_core PUBLIC PS_MASK_WORD_BITS=32)
+target_compile_definitions(puzzlescript_gba_core PRIVATE PS_MASK_WORD_BITS=32)
 target_compile_options(puzzlescript_gba_core PRIVATE
   $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-ffreestanding>
   $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-fno-exceptions>
@@ -533,6 +533,120 @@ target_compile_definitions(puzzlescript_gba_generated_smoke PRIVATE
 )
 add_test(NAME puzzlescript_gba_generated_smoke COMMAND puzzlescript_gba_generated_smoke)
 
+# Replay fixed native-solver solutions through both the ordinary native runtime
+# and the generated GBA representation. Keep the entire executable on 32-bit
+# mask words: mixing the generated 32-bit private runtime types with a 64-bit
+# native runtime in one process violates their C++ ABI even though both expose
+# width-neutral C APIs.
+if(PS_MASK_WORD_BITS STREQUAL "32")
+add_library(puzzlescript_gba_generated_solution_data OBJECT
+  ${GBA_GENERATED_SMOKE_SOURCE}
+  ${GBA_GENERATED_SMOKE_RULES}
+)
+target_include_directories(puzzlescript_gba_generated_solution_data PRIVATE
+  ${GBA_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_definitions(puzzlescript_gba_generated_solution_data PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=1
+)
+add_executable(puzzlescript_gba_generated_solution_replay
+  tests/gba_solution_replay.cpp
+  $<TARGET_OBJECTS:puzzlescript_gba_generated_solution_data>
+)
+target_include_directories(puzzlescript_gba_generated_solution_replay PRIVATE
+  ${GBA_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gba_generated_solution_replay PRIVATE
+  puzzlescript_gba_core
+  puzzlescript_compiler
+  puzzlescript_native
+)
+add_test(
+  NAME puzzlescript_gba_generated_solution_replay_level_0
+  COMMAND puzzlescript_gba_generated_solution_replay
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+          0
+          down,left,up,right,right,right,down,left,up,left,left,down,down,right,up,left,up,right,up,up,left,down,right,down,down,right,right,up,left,down,left,up,up
+)
+add_test(
+  NAME puzzlescript_gba_generated_solution_replay_level_1
+  COMMAND puzzlescript_gba_generated_solution_replay
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+          1
+          right,down,down,left,right,up,up,left,down,up,up,left,left,down,down,right
+)
+set_tests_properties(
+  puzzlescript_gba_generated_solution_replay_level_0
+  puzzlescript_gba_generated_solution_replay_level_1
+  PROPERTIES TIMEOUT 30
+)
+
+set(GBA_AUDIO_PARITY_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_audio_parity)
+set(GBA_AUDIO_PARITY_SOURCE ${GBA_AUDIO_PARITY_DIR}/generated_game.cpp)
+set(GBA_AUDIO_PARITY_HEADER ${GBA_AUDIO_PARITY_DIR}/generated_game.hpp)
+set(GBA_AUDIO_PARITY_RULES ${GBA_AUDIO_PARITY_DIR}/generated_rules.cpp)
+set(GBA_AUDIO_PARITY_MANIFEST ${GBA_AUDIO_PARITY_DIR}/gba_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBA_AUDIO_PARITY_SOURCE}
+    ${GBA_AUDIO_PARITY_HEADER}
+    ${GBA_AUDIO_PARITY_RULES}
+    ${GBA_AUDIO_PARITY_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gba
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/gba_audio_parity.txt
+          --out ${GBA_AUDIO_PARITY_DIR}
+          --no-mmutil
+  DEPENDS
+    puzzlescript_cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/gba_audio_parity.txt
+  VERBATIM
+)
+set_source_files_properties(
+  ${GBA_AUDIO_PARITY_SOURCE}
+  ${GBA_AUDIO_PARITY_RULES}
+  PROPERTIES GENERATED TRUE
+)
+add_library(puzzlescript_gba_audio_parity_data OBJECT
+  ${GBA_AUDIO_PARITY_SOURCE}
+  ${GBA_AUDIO_PARITY_RULES}
+)
+target_include_directories(puzzlescript_gba_audio_parity_data PRIVATE
+  ${GBA_AUDIO_PARITY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_definitions(puzzlescript_gba_audio_parity_data PRIVATE
+  PS_MASK_WORD_BITS=32
+  PS_INTERPRETER_OBJECT_CELL_INDEX=1
+)
+add_executable(puzzlescript_gba_audio_parity_replay
+  tests/gba_solution_replay.cpp
+  $<TARGET_OBJECTS:puzzlescript_gba_audio_parity_data>
+)
+target_include_directories(puzzlescript_gba_audio_parity_replay PRIVATE
+  ${GBA_AUDIO_PARITY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gba_audio_parity_replay PRIVATE
+  puzzlescript_gba_core
+  puzzlescript_compiler
+  puzzlescript_native
+)
+add_test(
+  NAME puzzlescript_gba_audio_parity_replay
+  COMMAND puzzlescript_gba_audio_parity_replay
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/gba_audio_parity.txt
+          0
+          left,right,action,up,up,down
+          --allow-incomplete
+)
+set_tests_properties(puzzlescript_gba_audio_parity_replay PROPERTIES TIMEOUT 30)
+endif()
+
 set(GBA_ACORN_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_acorn)
 set(GBA_ACORN_SMOKE_SOURCE ${GBA_ACORN_SMOKE_DIR}/generated_game.cpp)
 set(GBA_ACORN_SMOKE_HEADER ${GBA_ACORN_SMOKE_DIR}/generated_game.hpp)
@@ -665,6 +779,10 @@ add_test(NAME puzzlescript_gba_collapse_again_smoke COMMAND puzzlescript_gba_col
 # reconfigures this one target, and records the first state divergence.
 set(PS_GBA_PARITY_EXPORT_DIR "" CACHE PATH
   "Directory containing generated_game.cpp/generated_rules.cpp for GBA parity replay")
+if(PS_GBA_PARITY_EXPORT_DIR AND NOT PS_MASK_WORD_BITS STREQUAL "32")
+  message(FATAL_ERROR
+    "PS_GBA_PARITY_EXPORT_DIR requires PS_MASK_WORD_BITS=32 so the native and generated runtimes share one C++ ABI")
+endif()
 if(PS_GBA_PARITY_EXPORT_DIR)
   get_filename_component(PS_GBA_PARITY_EXPORT_DIR_ABS "${PS_GBA_PARITY_EXPORT_DIR}" ABSOLUTE)
   foreach(PS_GBA_PARITY_FILE generated_game.hpp generated_game.cpp generated_rules.cpp)
