@@ -54,7 +54,7 @@ extern "C" {
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 360
-#define PS_GBC_GAME_ABI_VERSION 3
+#define PS_GBC_GAME_ABI_VERSION 4
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 128
 

@@ -312,10 +312,6 @@ static void showText(const char* message, bool title) {
     DISPLAY_ON;
 }
 
-static bool objectPixelTransparent(const ps_gbc_object* object, uint8_t pixel) {
-    return (object->transparent_pixels & ((uint64_t)1U << pixel)) != 0U;
-}
-
 uint8_t composeTile(uint32_t objects) {
     uint8_t layer;
     uint8_t target_palette = 0U;
@@ -324,24 +320,16 @@ uint8_t composeTile(uint32_t objects) {
         uint8_t object_id;
         for (object_id = 0U; object_id < ps_gbc_generated_game.object_count; ++object_id) {
             const ps_gbc_object* object;
-            uint8_t y;
+            uint8_t pixel;
             bool drew = false;
             if ((objects & ((uint32_t)1U << object_id)) == 0U) continue;
             object = &ps_gbc_generated_game.objects[object_id];
             if (object->layer != layer) continue;
-            for (y = 0U; y < 8U; ++y) {
-                uint8_t x;
-                const uint8_t source_y = (uint8_t)(((uint16_t)y * object->sprite_height) >> 3U);
-                for (x = 0U; x < 8U; ++x) {
-                    const uint8_t source_x =
-                        (uint8_t)(((uint16_t)x * object->sprite_width) >> 3U);
-                    const uint8_t source_pixel =
-                        (uint8_t)(source_y * object->sprite_width + source_x);
-                    if (objectPixelTransparent(object, source_pixel)) continue;
-                    gSourcePixels[(uint8_t)(y * 8U + x)] =
-                        (uint8_t)(object->palette * 4U + object->sprite_pixels[source_pixel]);
-                    drew = true;
-                }
+            for (pixel = 0U; pixel < 64U; ++pixel) {
+                const uint8_t source = object->sprite_pixels[pixel];
+                if (source == 0xffU) continue;
+                gSourcePixels[pixel] = source;
+                drew = true;
             }
             if (drew) target_palette = object->palette;
         }

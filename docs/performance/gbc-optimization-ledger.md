@@ -143,3 +143,36 @@ the shipping Sokoban autotest adds 163 fixed-bank bytes (15880 to 16043) and
 remains comfortably valid: Dollyban uses 8672 of 16384 bank-1 bytes. The normal
 and phase-probed benchmark images use 16227 and 16311 fixed-bank bytes,
 respectively.
+
+### 3. Preconverted 8x8 sprites — retained
+
+Revision under test: working tree after `85731317`.
+
+The exporter now scales every source sprite to the hardware 8x8 shape, expands
+its palette indexes, and writes transparent pixels as a byte sentinel. The GBC
+compositor copies those prepared bytes directly instead of doing coordinate
+multiplication, source lookup, palette expansion, and 64-bit transparency tests
+for every output pixel. This representation change increments the GBC game ABI
+from 3 to 4.
+
+| Case | Render ticks/frame | Render delta | Full composition delta | Game-bank delta |
+| --- | ---: | ---: | ---: | ---: |
+| sokoban | 562.250 | -50.745% | -79.134% | +195 B |
+| large_board | 637.750 | -47.607% | -79.179% | +234 B |
+| rule_heavy | 626.000 | -48.200% | -75.802% | +312 B |
+| object_heavy | 3682.500 | -52.175% | -56.105% | +780 B |
+| two_movement_lanes | 763.750 | -42.929% | -58.441% | +663 B |
+
+Logic time, session RAM, static WRAM, and snapshot SRAM are unchanged in all
+five cases. Forced-full Sokoban redraw improves from 144321.500 to 30805.250
+ticks/frame (-78.655%).
+
+The common compositor shrinks the fixed bank by 391 bytes. For the shipping
+Sokoban autotest, fixed-bank usage falls from 16043 to 15652 while expanded
+sprite data grows bank 1 from 1928 to 2123 bytes: a net 196-byte linked-content
+reduction. The largest compatible generated-data case, Dollyban, remains valid
+at 8984/16384 bank-1 bytes and 14597 fixed-bank bytes.
+
+The separately phase-probed Sokoban ROM remains valid. Its whole-turn result is
+741.359 ticks versus 727.305 without probes, so measurement overhead remains
+1.932% (+14.055 ticks/turn).

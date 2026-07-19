@@ -761,13 +761,15 @@ ExportResult exportGame(const ExportOptions& options) {
             movementLayout.collisionToMovement[static_cast<size_t>(sourceObject.layer)];
         object.movementLayer = movementLayer < 0
             ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
-        object.width = static_cast<uint8_t>(width);
-        object.height = static_cast<uint8_t>(height);
+        object.width = 8U;
+        object.height = 8U;
         object.palette = paletteIndex;
+        std::vector<uint8_t> sourcePixels;
+        uint64_t sourceTransparentPixels = 0U;
         for (const auto& row : sourceObject.sprite) {
             if (row.size() != width) throw std::runtime_error("GBC requires rectangular object sprites");
             for (const int32_t colorIndex : row) {
-                const size_t pixel = object.pixels.size();
+                const size_t pixel = sourcePixels.size();
                 bool transparent = colorIndex < 0;
                 uint16_t color = backgroundColor;
                 if (!transparent) {
@@ -777,8 +779,24 @@ ExportResult exportGame(const ExportOptions& options) {
                     transparent = transparentColors[static_cast<size_t>(colorIndex)];
                     color = sourceColors[static_cast<size_t>(colorIndex)];
                 }
-                if (transparent) object.transparentPixels |= uint64_t{1} << pixel;
-                object.pixels.push_back(nearestColor(palettes[paletteIndex], color));
+                if (transparent) sourceTransparentPixels |= uint64_t{1} << pixel;
+                sourcePixels.push_back(static_cast<uint8_t>(
+                    paletteIndex * 4U + nearestColor(palettes[paletteIndex], color)));
+            }
+        }
+        object.pixels.resize(64U);
+        for (uint8_t y = 0U; y < 8U; ++y) {
+            const size_t sourceY = (static_cast<size_t>(y) * height) >> 3U;
+            for (uint8_t x = 0U; x < 8U; ++x) {
+                const size_t sourceX = (static_cast<size_t>(x) * width) >> 3U;
+                const size_t sourcePixel = sourceY * width + sourceX;
+                const uint8_t pixel = static_cast<uint8_t>(y * 8U + x);
+                if ((sourceTransparentPixels & (uint64_t{1} << sourcePixel)) != 0U) {
+                    object.transparentPixels |= uint64_t{1} << pixel;
+                    object.pixels[pixel] = 0xffU;
+                } else {
+                    object.pixels[pixel] = sourcePixels[sourcePixel];
+                }
             }
         }
         objects.push_back(std::move(object));
