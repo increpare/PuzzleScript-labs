@@ -32,11 +32,11 @@ def map_usage(path: Path) -> tuple[int, int, int]:
         address = int(address_text, 16)
         size = int(size_text, 16)
         if name.startswith("_HEADER") or (0 < address < 0x4000):
-            fixed_rom_high = max(fixed_rom_high, min(address + size, 0x4000))
+            fixed_rom_high = max(fixed_rom_high, address + size)
         if name == "_CODE_1":
             game_bank_bytes = max(game_bank_bytes, size)
         if 0xC000 <= address < 0xE000:
-            static_wram_high = max(static_wram_high, min(address + size, 0xE000))
+            static_wram_high = max(static_wram_high, address + size)
     return fixed_rom_high, game_bank_bytes, static_wram_high - 0xC000
 
 
