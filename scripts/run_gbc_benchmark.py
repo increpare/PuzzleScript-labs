@@ -18,6 +18,8 @@ PERF_MAGIC = 0x46434250
 PERF_RECORD = struct.Struct("<IHHIBBBB")
 PERF_PHASE_MAGIC = 0x32434250
 PERF_PHASE_RECORD = struct.Struct("<IHHHH7I6I")
+PERF_INTERACTION_MAGIC = 0x49434250
+PERF_INTERACTION_RECORD = struct.Struct("<I5I")
 PERF_PHASE_NAMES = (
     "snapshot",
     "setup",
@@ -31,6 +33,7 @@ SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 PERF_OFFSET = 16
 PERF_PHASE_OFFSET = 32
+PERF_INTERACTION_OFFSET = 96
 
 
 def default_mgba() -> Path | None:
@@ -121,6 +124,17 @@ def run_once(emulator: Path, source_rom: Path, timeout: float) -> dict[str, int]
             )
         phase_ticks = phase_values[: len(PERF_PHASE_NAMES)]
         render_values = phase_values[len(PERF_PHASE_NAMES) :]
+        interaction_offset = SRAM_BANK * SRAM_BANK_SIZE + PERF_INTERACTION_OFFSET
+        if len(data) < interaction_offset + PERF_INTERACTION_RECORD.size:
+            raise RuntimeError(f"interaction benchmark record missing for {source_rom}")
+        interaction_record = PERF_INTERACTION_RECORD.unpack_from(
+            data, interaction_offset
+        )
+        if interaction_record[0] != PERF_INTERACTION_MAGIC:
+            raise RuntimeError(
+                "invalid interaction benchmark record "
+                f"magic=0x{interaction_record[0]:08x}"
+            )
         return {
             "iterations": iterations,
             "ticks": ticks,
@@ -136,6 +150,18 @@ def run_once(emulator: Path, source_rom: Path, timeout: float) -> dict[str, int]
             "map_upload_ticks": render_values[3],
             "palette_upload_ticks": render_values[4],
             "repeated_text_ticks": render_values[5],
+            "interaction_ticks": dict(
+                zip(
+                    (
+                        "initial_render",
+                        "walk_logic",
+                        "walk_render",
+                        "push_logic",
+                        "push_render",
+                    ),
+                    interaction_record[1:],
+                )
+            ),
         }
 
 
@@ -196,6 +222,13 @@ def main() -> int:
         f"palette_upload={palette_upload_ticks_per_frame:.3f} "
         f"repeated_text={record['repeated_text_ticks']}"
     )
+    print(
+        "gbc-interaction "
+        + " ".join(
+            f"{name}={ticks}({ticks / 4096.0:.6f}s)"
+            for name, ticks in record["interaction_ticks"].items()
+        )
+    )
     if args.json_out is not None:
         output = {
             "format": "puzzlescript-gbc-benchmark-v2",
@@ -213,6 +246,10 @@ def main() -> int:
                 "tile_upload_ticks_per_frame": tile_upload_ticks_per_frame,
                 "map_upload_ticks_per_frame": map_upload_ticks_per_frame,
                 "palette_upload_ticks_per_frame": palette_upload_ticks_per_frame,
+                **{
+                    f"{name}_ticks": ticks
+                    for name, ticks in record["interaction_ticks"].items()
+                },
             },
         }
         args.json_out.parent.mkdir(parents=True, exist_ok=True)

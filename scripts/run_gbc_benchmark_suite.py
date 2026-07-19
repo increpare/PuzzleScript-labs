@@ -67,6 +67,10 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             record["palette_upload_ticks"] / render_iterations
         ),
         "repeated_text_ticks": record["repeated_text_ticks"],
+        **{
+            f"{name}_ticks": ticks
+            for name, ticks in record["interaction_ticks"].items()
+        },
     }
 
 
@@ -89,6 +93,11 @@ def compare_case(
         "map_upload_ticks_per_frame",
         "palette_upload_ticks_per_frame",
         "repeated_text_ticks",
+        "initial_render_ticks",
+        "walk_logic_ticks",
+        "walk_render_ticks",
+        "push_logic_ticks",
+        "push_render_ticks",
     ):
         if name not in baseline["derived"] or name not in candidate["derived"]:
             continue
