@@ -67,6 +67,15 @@ int main() {
     require(gbaPlatformSource.find("eventCount > PS_GBA_MAX_AUDIO_EVENTS") != std::string::npos
             && gbaPlatformSource.find("sampleId < MSL_NSAMPS") != std::string::npos,
         "firmware rejects corrupt audio queues and out-of-range sample IDs");
+    const std::string gbaMakefile = readFile(root / "firmware" / "gba" / "Makefile");
+    require(gbaMakefile.find(
+                "BINFILES    := $(if $(filter 1 yes true on,$(AUDIO)),soundbank.bin,)")
+            != std::string::npos,
+        "muted firmware builds cannot link a stale soundbank from another game");
+    require(gbaMakefile.find(
+                "$(if $(filter 1 yes true on,$(AUDIO)),,--no-mmutil)")
+            != std::string::npos,
+        "muted firmware exports skip unnecessary Maxmod conversion");
     const std::filesystem::path output = root / "build" / "native" / "gba_exporter_test_output";
     std::filesystem::remove_all(output);
 
