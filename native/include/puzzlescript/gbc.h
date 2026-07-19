@@ -63,6 +63,17 @@ typedef enum ps_gbc_level_kind {
     PS_GBC_LEVEL_MESSAGE = 1
 } ps_gbc_level_kind;
 
+typedef enum ps_gbc_perf_phase {
+    PS_GBC_PERF_SNAPSHOT = 0,
+    PS_GBC_PERF_SETUP = 1,
+    PS_GBC_PERF_EARLY_RULES = 2,
+    PS_GBC_PERF_MOVEMENT = 3,
+    PS_GBC_PERF_LATE_RULES = 4,
+    PS_GBC_PERF_COMMANDS = 5,
+    PS_GBC_PERF_WIN = 6,
+    PS_GBC_PERF_PHASE_COUNT = 7
+} ps_gbc_perf_phase;
+
 enum {
     PS_GBC_PATTERN_OBJECTS_PRESENT = 1U << 0,
     PS_GBC_PATTERN_OBJECTS_MISSING = 1U << 1,

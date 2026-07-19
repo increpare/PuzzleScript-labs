@@ -14,7 +14,9 @@
 #define AUTOTEST_MAGIC 0x54434250UL
 #define RENDER_AUTOTEST_MAGIC 0x52434250UL
 #define PERF_MAGIC 0x46434250UL
+#define PERF_PHASE_MAGIC 0x32434250UL
 #define PERF_ITERATIONS 128U
+#define PERF_RENDER_ITERATIONS 4U
 
 #if defined(PS_GBC_PERF_BENCH)
 /*
@@ -36,9 +38,69 @@ static ps_gbc_session* gSession;
 static bool gTitleScreen;
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
+static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
+static uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
+static bool gPerfPhaseEnabled;
 
 static void perfTimerInterrupt(void) {
     ++gPerfTimerOverflows;
+}
+
+static uint32_t perfTimerTicks(void) {
+    uint16_t overflows;
+    uint8_t timer;
+    disable_interrupts();
+    overflows = gPerfTimerOverflows;
+    timer = TIMA_REG;
+    if ((IF_REG & TIM_IFLAG) != 0U) {
+        ++overflows;
+        timer = TIMA_REG;
+    }
+    enable_interrupts();
+    return ((uint32_t)overflows << 8U) | timer;
+}
+
+static void perfTimerInitialize(void) {
+    disable_interrupts();
+    add_TIM(perfTimerInterrupt);
+    set_interrupts(TIM_IFLAG);
+    TMA_REG = 0U;
+}
+
+static void perfTimerStart(void) {
+    disable_interrupts();
+    gPerfTimerOverflows = 0U;
+    TIMA_REG = 0U;
+    IF_REG &= (uint8_t)~TIM_IFLAG;
+    TAC_REG = (uint8_t)(TACF_START | TACF_4KHZ);
+    enable_interrupts();
+}
+
+static uint32_t perfTimerStop(void) {
+    uint32_t ticks;
+    disable_interrupts();
+    TAC_REG = TACF_STOP;
+    ticks = ((uint32_t)gPerfTimerOverflows << 8U) | TIMA_REG;
+    if ((IF_REG & TIM_IFLAG) != 0U) ticks += 256U;
+    return ticks;
+}
+
+static void perfTimerShutdown(void) {
+    disable_interrupts();
+    TAC_REG = TACF_STOP;
+    set_interrupts(0U);
+}
+
+void ps_gbc_perf_phase_begin(uint8_t phase) {
+    if (gPerfPhaseEnabled && phase < PS_GBC_PERF_PHASE_COUNT) {
+        gPerfPhaseStart[phase] = perfTimerTicks();
+    }
+}
+
+void ps_gbc_perf_phase_end(uint8_t phase) {
+    if (gPerfPhaseEnabled && phase < PS_GBC_PERF_PHASE_COUNT) {
+        gPerfPhaseTicks[phase] += perfTimerTicks() - gPerfPhaseStart[phase];
+    }
 }
 #endif
 
@@ -431,35 +493,156 @@ static uint16_t countPaletteMismatches(
 }
 #endif
 
+#if defined(PS_GBC_PERF_BENCH)
+static bool perfLoadFirstBoard(void) {
+    uint16_t level;
+    for (level = 0U; level < ps_gbc_generated_game.level_count; ++level) {
+        if (ps_gbc_generated_game.levels[level].kind == PS_GBC_LEVEL_BOARD) {
+            return ps_gbc_load_level(gSession, level);
+        }
+    }
+    return false;
+}
+
+static void perfComposeBoard(void) {
+    ps_gbc_status status;
+    uint8_t offset_x;
+    uint8_t offset_y;
+    uint8_t screen_y;
+    ps_gbc_status_get(gSession, &status);
+    if (status.mode != PS_FULL_STATE_MODE_LEVEL) return;
+    offset_x = (uint8_t)((20U - status.width) / 2U);
+    offset_y = (uint8_t)((18U - status.height) / 2U);
+    for (screen_y = 0U; screen_y < 18U; ++screen_y) {
+        uint8_t screen_x;
+        for (screen_x = 0U; screen_x < 20U; ++screen_x) {
+            const uint16_t screen_cell = (uint16_t)screen_y * 20U + screen_x;
+            uint32_t objects = ps_gbc_generated_game.background_mask;
+            if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
+                && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
+                objects = ps_gbc_cell_objects(
+                    gSession,
+                    (int16_t)(screen_x - offset_x),
+                    (int16_t)(screen_y - offset_y));
+            }
+            gTileMap[screen_cell] = composeTile(objects);
+        }
+    }
+}
+
+static uint32_t perfMeasureRender(void) {
+    uint32_t ticks = 0U;
+    uint8_t iteration;
+    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
+        (void)ps_gbc_step(
+            gSession,
+            (iteration & 1U) == 0U ? PS_INPUT_RIGHT : PS_INPUT_LEFT);
+        perfTimerStart();
+        renderBoard();
+        ticks += perfTimerStop();
+    }
+    return ticks;
+}
+
+static uint32_t perfMeasureComposition(void) {
+    uint8_t iteration;
+    uint32_t ticks;
+    perfTimerStart();
+    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
+        perfComposeBoard();
+    }
+    ticks = perfTimerStop();
+    return ticks;
+}
+
+static uint32_t perfMeasureTileUpload(void) {
+    uint8_t iteration;
+    uint32_t ticks;
+    DISPLAY_OFF;
+    perfTimerStart();
+    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
+        uint16_t screen_cell;
+        for (screen_cell = 0U; screen_cell < SCREEN_TILES; ++screen_cell) {
+            VBK_REG = screen_cell >= 256U ? VBK_BANK_1 : VBK_BANK_0;
+            set_bkg_data((uint8_t)screen_cell, 1U, gTileBytes);
+        }
+    }
+    ticks = perfTimerStop();
+    VBK_REG = VBK_BANK_0;
+    DISPLAY_ON;
+    return ticks;
+}
+
+static uint32_t perfMeasureMapUpload(void) {
+    uint8_t iteration;
+    uint32_t ticks;
+    DISPLAY_OFF;
+    perfTimerStart();
+    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
+        VBK_REG = VBK_BANK_0;
+        set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
+        VBK_REG = VBK_BANK_1;
+        set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
+    }
+    ticks = perfTimerStop();
+    VBK_REG = VBK_BANK_0;
+    DISPLAY_ON;
+    return ticks;
+}
+
+static uint32_t perfMeasurePaletteUpload(void) {
+    uint8_t iteration;
+    uint32_t ticks;
+    DISPLAY_OFF;
+    perfTimerStart();
+    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
+        set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
+    }
+    ticks = perfTimerStop();
+    DISPLAY_ON;
+    return ticks;
+}
+#endif
+
 static void runAutotest(void) {
     int16_t initial_x = -1;
     int16_t initial_y = -1;
     int16_t final_x = -1;
     int16_t final_y = -1;
     ps_step_result result;
-    (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
 #if defined(PS_GBC_PERF_BENCH)
     {
         uint16_t iteration;
         uint32_t timer_ticks;
-        disable_interrupts();
-        add_TIM(perfTimerInterrupt);
-        set_interrupts(TIM_IFLAG);
-        gPerfTimerOverflows = 0U;
-        TMA_REG = 0U;
-        TIMA_REG = 0U;
-        TAC_REG = (uint8_t)(TACF_START | TACF_4KHZ);
-        enable_interrupts();
+        uint32_t render_ticks;
+        uint32_t composition_ticks;
+        uint32_t tile_upload_ticks;
+        uint32_t map_upload_ticks;
+        uint32_t palette_upload_ticks;
+        uint8_t phase;
+        if (!perfLoadFirstBoard()) {
+            showText("BENCHMARK ERROR", false);
+            for (;;) vsync();
+        }
+        (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
+        memset(gPerfPhaseTicks, 0, sizeof(gPerfPhaseTicks));
+        gPerfPhaseEnabled = true;
+        perfTimerInitialize();
+        perfTimerStart();
         for (iteration = 0U; iteration < PERF_ITERATIONS; ++iteration) {
             result = ps_gbc_step(
                 gSession,
                 (iteration & 1U) == 0U ? PS_INPUT_RIGHT : PS_INPUT_LEFT);
         }
-        TAC_REG = TACF_STOP;
-        disable_interrupts();
-        timer_ticks = ((uint32_t)gPerfTimerOverflows << 8U) | TIMA_REG;
-        set_interrupts(0U);
+        timer_ticks = perfTimerStop();
+        gPerfPhaseEnabled = false;
         (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
+        render_ticks = perfMeasureRender();
+        composition_ticks = perfMeasureComposition();
+        tile_upload_ticks = perfMeasureTileUpload();
+        map_upload_ticks = perfMeasureMapUpload();
+        palette_upload_ticks = perfMeasurePaletteUpload();
+        perfTimerShutdown();
         ENABLE_RAM_MBC5;
         SWITCH_RAM_MBC5(3U);
         writeSram32(16U, 0U);
@@ -474,6 +657,22 @@ static void runAutotest(void) {
         writeSram8(30U, ps_gbc_generated_game.movement_bytes_per_cell);
 #endif
         writeSram8(31U, result.changed ? 1U : 0U);
+        writeSram32(32U, 0U);
+        writeSram16(36U, 1U);
+        writeSram16(38U, PERF_ITERATIONS);
+        writeSram16(40U, PERF_RENDER_ITERATIONS);
+        writeSram16(42U, PS_GBC_PERF_PHASE_COUNT);
+        for (phase = 0U; phase < PS_GBC_PERF_PHASE_COUNT; ++phase) {
+            writeSram32(
+                (uint16_t)(44U + (uint16_t)phase * 4U),
+                gPerfPhaseTicks[phase]);
+        }
+        writeSram32(72U, render_ticks);
+        writeSram32(76U, composition_ticks);
+        writeSram32(80U, tile_upload_ticks);
+        writeSram32(84U, map_upload_ticks);
+        writeSram32(88U, palette_upload_ticks);
+        writeSram32(32U, PERF_PHASE_MAGIC);
         writeSram32(16U, PERF_MAGIC);
         DISABLE_RAM_MBC5;
     }
@@ -489,6 +688,7 @@ static void runAutotest(void) {
     uint16_t board_map_mismatches;
     uint16_t board_attribute_mismatches;
     uint16_t board_palette_mismatches;
+    (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
     showText(ps_gbc_generated_game.title, true);
     DISPLAY_OFF;
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));

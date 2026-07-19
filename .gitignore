@@ -11,6 +11,7 @@ hardware/card/**/*.lck
 src - Kopie
 
 node_modules/
+__pycache__/
 .claude/worktrees/happy-mestorf/
 /src/demo_canonical
 /src/demo_rehydrated

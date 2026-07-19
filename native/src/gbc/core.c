@@ -9,6 +9,16 @@
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
+#if defined(PS_GBC_PERF_PHASES)
+extern void ps_gbc_perf_phase_begin(uint8_t phase);
+extern void ps_gbc_perf_phase_end(uint8_t phase);
+#define PS_GBC_PERF_BEGIN(phase) ps_gbc_perf_phase_begin((uint8_t)(phase))
+#define PS_GBC_PERF_END(phase) ps_gbc_perf_phase_end((uint8_t)(phase))
+#else
+#define PS_GBC_PERF_BEGIN(phase) ((void)(phase))
+#define PS_GBC_PERF_END(phase) ((void)(phase))
+#endif
+
 typedef struct ps_gbc_commands {
     uint8_t flags;
     const char* message;
@@ -652,30 +662,48 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     if (input == PS_INPUT_ACTION && session->game->no_action) direction = 0U;
     if (input == PS_INPUT_TICK && !session->pending_again) direction = 0U;
     cells = (uint16_t)(session->width * session->height);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_SNAPSHOT);
     if (!session->snapshots.write(
             session->snapshots.context,
             (uint8_t)session->undo_head,
             session->board,
-            cells)) return result;
+            cells)) {
+        PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
+        return result;
+    }
+    PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_SETUP);
     memset(session->movements, 0, ps_gbc_movement_bytes(session->game));
     session->pending_again = false;
     seeded = ps_gbc_seed_player_movement(session, direction);
+    PS_GBC_PERF_END(PS_GBC_PERF_SETUP);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
     early_changed = ps_gbc_apply_groups(
         session, session->game->early_groups, session->game->early_group_count, &commands);
+    PS_GBC_PERF_END(PS_GBC_PERF_EARLY_RULES);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_MOVEMENT);
     moved = ps_gbc_resolve_movements(session);
+    PS_GBC_PERF_END(PS_GBC_PERF_MOVEMENT);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_LATE_RULES);
     late_changed = ps_gbc_apply_groups(
         session, session->game->late_groups, session->game->late_group_count, &commands);
+    PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
     changed = seeded || early_changed || moved || late_changed;
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_COMMANDS);
     if ((commands.flags & PS_GBC_COMMAND_CANCEL) != 0U) {
         (void)session->snapshots.read(
             session->snapshots.context,
             (uint8_t)session->undo_head,
             session->board,
             cells);
+        PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
         return result;
     }
     if ((commands.flags & PS_GBC_COMMAND_RESTART) != 0U && !session->game->no_restart) {
-        if (!ps_gbc_restart(session)) return result;
+        if (!ps_gbc_restart(session)) {
+            PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
+            return result;
+        }
         changed = true;
         result.restarted = true;
     }
@@ -687,6 +715,8 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
             session->board,
             cells);
     }
+    PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_WIN);
     result.changed = changed;
     if ((commands.flags & PS_GBC_COMMAND_MESSAGE) != 0U) {
         session->mode = (uint8_t)PS_FULL_STATE_MODE_MESSAGE;
@@ -698,6 +728,7 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     } else if ((commands.flags & PS_GBC_COMMAND_AGAIN) != 0U && changed) {
         session->pending_again = true;
     }
+    PS_GBC_PERF_END(PS_GBC_PERF_WIN);
     return result;
 }
 

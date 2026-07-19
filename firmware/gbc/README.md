@@ -33,6 +33,11 @@ python ../../scripts/run_gbc_benchmark.py puzzlescript_gbc_autotest-perf-compact
 
 make AUTOTEST=1 PERF_BENCH=1 PERF_WIDE=1
 python ../../scripts/run_gbc_benchmark.py puzzlescript_gbc_autotest-perf-wide.gb
+
+# Add phase probes when diagnosing the whole-turn result. Keep them disabled
+# for headline timing because the probes themselves have a measurable cost.
+make AUTOTEST=1 PERF_BENCH=1 PERF_WIDE=0 PERF_PHASES=1
+python ../../scripts/run_gbc_benchmark.py puzzlescript_gbc_autotest-perf-compact-phases.gb
 ```
 
 Both ROMs reserve the same benchmark arena, so the comparison isolates
@@ -40,6 +45,22 @@ movement clearing and access width rather than changing the surrounding WRAM
 layout. `PERF_WIDE` is a benchmark-only compatibility path; normal exports
 always use the compact width selected by static analysis and compile a
 width-specialized accessor for the exported game.
+
+The representative optimization suite builds five fixed shapes (small,
+large-board, rule-heavy, object-heavy, and two-movement-lane), requires
+deterministic counters across independent emulator boots, and can compare a
+candidate with a saved JSON baseline:
+
+```sh
+python ../../scripts/run_gbc_benchmark_suite.py \
+  --repository ../.. --label working --runs 3 \
+  --out ../../build-gbc-release/benchmarks/working.json
+
+python ../../scripts/run_gbc_benchmark_suite.py \
+  --repository ../.. --label candidate --runs 3 \
+  --baseline ../../docs/performance/gbc-baseline.json \
+  --out ../../build-gbc-release/benchmarks/candidate.json
+```
 
 Controls:
 

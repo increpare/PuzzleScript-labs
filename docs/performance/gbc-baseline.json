@@ -1,0 +1,320 @@
+{
+  "cases": [
+    {
+      "derived": {
+        "composition_ticks_per_frame": 143522.5,
+        "map_upload_ticks_per_frame": 98.5,
+        "palette_upload_ticks_per_frame": 4.25,
+        "phase_ticks_per_turn": {
+          "commands": 0.0,
+          "early_rules": 0.0,
+          "late_rules": 0.0,
+          "movement": 0.0,
+          "setup": 0.0,
+          "snapshot": 0.0,
+          "win": 0.0
+        },
+        "render_ticks_per_frame": 144243.25,
+        "ticks_per_turn": 726.53125,
+        "tile_upload_ticks_per_frame": 548.25
+      },
+      "memory": {
+        "benchmark_fixed_rom_bytes": 16048,
+        "benchmark_generated_rom_bank_bytes": 1394,
+        "benchmark_static_wram_bytes": 2477,
+        "estimated_game_rom_bank_bytes": 1494,
+        "estimated_session_bytes": 347,
+        "snapshot_sram_bytes": 840
+      },
+      "name": "sokoban",
+      "record": {
+        "changed": 1,
+        "composition_ticks": 574090,
+        "iterations": 128,
+        "map_upload_ticks": 394,
+        "maximum": 0,
+        "minimum": 0,
+        "palette_upload_ticks": 17,
+        "phase_ticks": {
+          "commands": 0,
+          "early_rules": 0,
+          "late_rules": 0,
+          "movement": 0,
+          "setup": 0,
+          "snapshot": 0,
+          "win": 0
+        },
+        "render_iterations": 4,
+        "render_ticks": 576973,
+        "ticks": 92996,
+        "tile_upload_ticks": 2193,
+        "width": 1
+      },
+      "shape": {
+        "collision_layers": 3,
+        "max_level_cells": 42,
+        "movement_bytes_per_cell": 1,
+        "movement_layers": 1,
+        "objects": 5,
+        "patterns": 8,
+        "rules": 4
+      },
+      "source": "src/demo/sokoban_basic.txt",
+      "source_hash": 3682235775
+    },
+    {
+      "derived": {
+        "composition_ticks_per_frame": 148585.0,
+        "map_upload_ticks_per_frame": 98.5,
+        "palette_upload_ticks_per_frame": 4.25,
+        "phase_ticks_per_turn": {
+          "commands": 0.0,
+          "early_rules": 0.0,
+          "late_rules": 0.0,
+          "movement": 0.0,
+          "setup": 0.0,
+          "snapshot": 0.0,
+          "win": 0.0
+        },
+        "render_ticks_per_frame": 149350.25,
+        "ticks_per_turn": 2898.3671875,
+        "tile_upload_ticks_per_frame": 548.25
+      },
+      "memory": {
+        "benchmark_fixed_rom_bytes": 16048,
+        "benchmark_generated_rom_bank_bytes": 3487,
+        "benchmark_static_wram_bytes": 3338,
+        "estimated_game_rom_bank_bytes": 3797,
+        "estimated_session_bytes": 1208,
+        "snapshot_sram_bytes": 4200
+      },
+      "name": "large_board",
+      "record": {
+        "changed": 1,
+        "composition_ticks": 594340,
+        "iterations": 128,
+        "map_upload_ticks": 394,
+        "maximum": 0,
+        "minimum": 0,
+        "palette_upload_ticks": 17,
+        "phase_ticks": {
+          "commands": 0,
+          "early_rules": 0,
+          "late_rules": 0,
+          "movement": 0,
+          "setup": 0,
+          "snapshot": 0,
+          "win": 0
+        },
+        "render_iterations": 4,
+        "render_ticks": 597401,
+        "ticks": 370991,
+        "tile_upload_ticks": 2193,
+        "width": 1
+      },
+      "shape": {
+        "collision_layers": 3,
+        "max_level_cells": 210,
+        "movement_bytes_per_cell": 1,
+        "movement_layers": 1,
+        "objects": 6,
+        "patterns": 24,
+        "rules": 8
+      },
+      "source": "src/tests/good_games/pushit.txt",
+      "source_hash": 2111771270
+    },
+    {
+      "derived": {
+        "composition_ticks_per_frame": 149773.25,
+        "map_upload_ticks_per_frame": 98.25,
+        "palette_upload_ticks_per_frame": 4.0,
+        "phase_ticks_per_turn": {
+          "commands": 0.0,
+          "early_rules": 0.0,
+          "late_rules": 0.0,
+          "movement": 0.0,
+          "setup": 0.0,
+          "snapshot": 0.0,
+          "win": 0.0
+        },
+        "render_ticks_per_frame": 150466.5,
+        "ticks_per_turn": 8761.0078125,
+        "tile_upload_ticks_per_frame": 548.0
+      },
+      "memory": {
+        "benchmark_fixed_rom_bytes": 16048,
+        "benchmark_generated_rom_bank_bytes": 7425,
+        "benchmark_static_wram_bytes": 2882,
+        "estimated_game_rom_bank_bytes": 8617,
+        "estimated_session_bytes": 752,
+        "snapshot_sram_bytes": 2420
+      },
+      "name": "rule_heavy",
+      "record": {
+        "changed": 1,
+        "composition_ticks": 599093,
+        "iterations": 128,
+        "map_upload_ticks": 393,
+        "maximum": 0,
+        "minimum": 0,
+        "palette_upload_ticks": 16,
+        "phase_ticks": {
+          "commands": 0,
+          "early_rules": 0,
+          "late_rules": 0,
+          "movement": 0,
+          "setup": 0,
+          "snapshot": 0,
+          "win": 0
+        },
+        "render_iterations": 4,
+        "render_ticks": 601866,
+        "ticks": 1121409,
+        "tile_upload_ticks": 2192,
+        "width": 1
+      },
+      "shape": {
+        "collision_layers": 6,
+        "max_level_cells": 121,
+        "movement_bytes_per_cell": 1,
+        "movement_layers": 1,
+        "objects": 8,
+        "patterns": 126,
+        "rules": 62
+      },
+      "source": "src/tests/good_games/Xorro The Chaos Warden.txt",
+      "source_hash": 1082369393
+    },
+    {
+      "derived": {
+        "composition_ticks_per_frame": 216670.5,
+        "map_upload_ticks_per_frame": 98.5,
+        "palette_upload_ticks_per_frame": 4.0,
+        "phase_ticks_per_turn": {
+          "commands": 0.0,
+          "early_rules": 0.0,
+          "late_rules": 0.0,
+          "movement": 0.0,
+          "setup": 0.0,
+          "snapshot": 0.0,
+          "win": 0.0
+        },
+        "render_ticks_per_frame": 217342.5,
+        "ticks_per_turn": 14468.4453125,
+        "tile_upload_ticks_per_frame": 548.25
+      },
+      "memory": {
+        "benchmark_fixed_rom_bytes": 16048,
+        "benchmark_generated_rom_bank_bytes": 4842,
+        "benchmark_static_wram_bytes": 2630,
+        "estimated_game_rom_bank_bytes": 5670,
+        "estimated_session_bytes": 500,
+        "snapshot_sram_bytes": 1440
+      },
+      "name": "object_heavy",
+      "record": {
+        "changed": 1,
+        "composition_ticks": 866682,
+        "iterations": 128,
+        "map_upload_ticks": 394,
+        "maximum": 0,
+        "minimum": 0,
+        "palette_upload_ticks": 16,
+        "phase_ticks": {
+          "commands": 0,
+          "early_rules": 0,
+          "late_rules": 0,
+          "movement": 0,
+          "setup": 0,
+          "snapshot": 0,
+          "win": 0
+        },
+        "render_iterations": 4,
+        "render_ticks": 869370,
+        "ticks": 1851961,
+        "tile_upload_ticks": 2193,
+        "width": 1
+      },
+      "shape": {
+        "collision_layers": 12,
+        "max_level_cells": 72,
+        "movement_bytes_per_cell": 1,
+        "movement_layers": 1,
+        "objects": 20,
+        "patterns": 62,
+        "rules": 33
+      },
+      "source": "src/tests/good_games/slot machine.txt",
+      "source_hash": 1212554944
+    },
+    {
+      "derived": {
+        "composition_ticks_per_frame": 179003.0,
+        "map_upload_ticks_per_frame": 98.5,
+        "palette_upload_ticks_per_frame": 4.0,
+        "phase_ticks_per_turn": {
+          "commands": 0.0,
+          "early_rules": 0.0,
+          "late_rules": 0.0,
+          "movement": 0.0,
+          "setup": 0.0,
+          "snapshot": 0.0,
+          "win": 0.0
+        },
+        "render_ticks_per_frame": 179742.0,
+        "ticks_per_turn": 10582.0625,
+        "tile_upload_ticks_per_frame": 548.0
+      },
+      "memory": {
+        "benchmark_fixed_rom_bytes": 16062,
+        "benchmark_generated_rom_bank_bytes": 4817,
+        "benchmark_static_wram_bytes": 3003,
+        "estimated_game_rom_bank_bytes": 5601,
+        "estimated_session_bytes": 873,
+        "snapshot_sram_bytes": 2420
+      },
+      "name": "two_movement_lanes",
+      "record": {
+        "changed": 1,
+        "composition_ticks": 716012,
+        "iterations": 128,
+        "map_upload_ticks": 394,
+        "maximum": 0,
+        "minimum": 0,
+        "palette_upload_ticks": 16,
+        "phase_ticks": {
+          "commands": 0,
+          "early_rules": 0,
+          "late_rules": 0,
+          "movement": 0,
+          "setup": 0,
+          "snapshot": 0,
+          "win": 0
+        },
+        "render_iterations": 4,
+        "render_ticks": 718968,
+        "ticks": 1354504,
+        "tile_upload_ticks": 2192,
+        "width": 2
+      },
+      "shape": {
+        "collision_layers": 11,
+        "max_level_cells": 121,
+        "movement_bytes_per_cell": 2,
+        "movement_layers": 2,
+        "objects": 17,
+        "patterns": 61,
+        "rules": 37
+      },
+      "source": "src/tests/good_games/Voitex Rasteriser.txt",
+      "source_hash": 2778125235
+    }
+  ],
+  "dirty": true,
+  "format": "puzzlescript-gbc-benchmark-suite-v1",
+  "label": "baseline-80ad5a59",
+  "phase_probes": false,
+  "revision": "80ad5a59d75582095cb585dcd47d0d90926d3783",
+  "runs": 3
+}
