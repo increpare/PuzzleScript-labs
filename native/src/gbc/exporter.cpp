@@ -807,18 +807,37 @@ ExportResult exportGame(const ExportOptions& options) {
                     paletteIndex * 4U + nearestColor(palettes[paletteIndex], color)));
             }
         }
-        object.pixels.resize(64U);
-        for (uint8_t y = 0U; y < 8U; ++y) {
-            const size_t sourceY = (static_cast<size_t>(y) * height) >> 3U;
-            for (uint8_t x = 0U; x < 8U; ++x) {
-                const size_t sourceX = (static_cast<size_t>(x) * width) >> 3U;
-                const size_t sourcePixel = sourceY * width + sourceX;
-                const uint8_t pixel = static_cast<uint8_t>(y * 8U + x);
-                if ((sourceTransparentPixels & (uint64_t{1} << sourcePixel)) != 0U) {
-                    object.transparentPixels |= uint64_t{1} << pixel;
-                    object.pixels[pixel] = 0xffU;
-                } else {
-                    object.pixels[pixel] = sourcePixels[sourcePixel];
+        object.pixels.assign(64U, 0xffU);
+        object.transparentPixels = std::numeric_limits<uint64_t>::max();
+        const bool fillTile =
+            game.backgroundId >= 0
+            && static_cast<size_t>(game.backgroundId) == objects.size();
+        if (fillTile) {
+            for (uint8_t y = 0U; y < 8U; ++y) {
+                const size_t sourceY = (static_cast<size_t>(y) * height) >> 3U;
+                for (uint8_t x = 0U; x < 8U; ++x) {
+                    const size_t sourceX = (static_cast<size_t>(x) * width) >> 3U;
+                    const size_t sourcePixel = sourceY * width + sourceX;
+                    const uint8_t pixel = static_cast<uint8_t>(y * 8U + x);
+                    if ((sourceTransparentPixels & (uint64_t{1} << sourcePixel)) == 0U) {
+                        object.transparentPixels &= ~(uint64_t{1} << pixel);
+                        object.pixels[pixel] = sourcePixels[sourcePixel];
+                    }
+                }
+            }
+        } else {
+            const uint8_t offsetX = static_cast<uint8_t>((8U - width) / 2U);
+            const uint8_t offsetY = static_cast<uint8_t>((8U - height) / 2U);
+            for (uint8_t sourceY = 0U; sourceY < height; ++sourceY) {
+                for (uint8_t sourceX = 0U; sourceX < width; ++sourceX) {
+                    const size_t sourcePixel =
+                        static_cast<size_t>(sourceY) * width + sourceX;
+                    const uint8_t pixel = static_cast<uint8_t>(
+                        (sourceY + offsetY) * 8U + sourceX + offsetX);
+                    if ((sourceTransparentPixels & (uint64_t{1} << sourcePixel)) == 0U) {
+                        object.transparentPixels &= ~(uint64_t{1} << pixel);
+                        object.pixels[pixel] = sourcePixels[sourcePixel];
+                    }
                 }
             }
         }

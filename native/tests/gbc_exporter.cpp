@@ -87,7 +87,12 @@ int main() {
     require(
         source.find("{\"background\", 0U, 255U, 8U, 8U") != std::string::npos
             && source.find("255U, 255U, 255U") != std::string::npos,
-        "generated sprites are pre-scaled to 8x8 with byte transparency");
+        "generated sprites use an 8x8 hardware container with byte transparency");
+    require(
+        source.find(
+            "static const uint8_t kObject2Pixels[] = {255U, 255U, 255U, 255U, "
+            "255U, 255U, 255U, 255U, 255U, 255U, 8U, 8U, 8U") != std::string::npos,
+        "non-background 5x5 sprites retain uniform source pixels in a centred 8x8 tile");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");
