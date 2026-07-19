@@ -80,4 +80,37 @@ The machine-readable baseline is
 
 ## Results
 
-No optimization experiments have been run yet.
+### 1. Dirty-cell rendering — retained
+
+Revision under test: working tree after `3127c71a`.
+
+The runtime keeps one dirty bit per maximum board cell. Rule replacements mark
+cells only when their object masks change; movement marks its source and target;
+load, restart, and undo mark the whole board. The renderer still performs a
+full first/level-transition redraw, but normal turns only recompose and upload
+marked board cells. Palette and full map uploads remain unchanged for a later
+isolated experiment.
+
+| Case | Logic ticks/turn | Logic delta | Render ticks/frame | Render delta | Session delta |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| sokoban | 727.305 | +0.106% | 1275.750 | -99.116% | +6 B |
+| large_board | 2899.180 | +0.028% | 1328.000 | -99.111% | +27 B |
+| rule_heavy | 8763.648 | +0.030% | 1358.250 | -99.097% | +16 B |
+| object_heavy | 14575.820 | +0.742% | 33196.500 | -84.726% | +9 B |
+| two_movement_lanes | 10582.836 | +0.007% | 1574.250 | -99.124% | +16 B |
+
+Isolated full-board composition remains effectively unchanged, as expected:
+143521.500 ticks/frame for Sokoban versus 143522.500 at baseline. This confirms
+that the gain comes from avoiding unchanged work rather than accidentally
+changing the composition workload.
+
+The bitset costs 1–45 bytes depending on maximum board size. The non-performance
+Sokoban autotest cartridge grows from 15242 to 15880 fixed-bank bytes (+638,
++4.19%), from 1328 to 1336 static WRAM bytes (+8), and from 347 to 353 session
+bytes (+6); its generated game bank and snapshot SRAM are unchanged.
+
+Benchmark-only measurement routines were moved from the nearly full fixed bank
+into generated-data bank 1. This does not affect shipping cartridges. It keeps
+the instrumented fixed bank valid at 16084 bytes and leaves the phase-probed
+variant valid at 16168 bytes. Therefore benchmark-bank linked-size deltas are
+not used as shipping-code metrics for this experiment.

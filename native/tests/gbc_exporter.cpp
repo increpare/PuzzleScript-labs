@@ -70,7 +70,7 @@ int main() {
     const std::string source = readFile(first.generatedSourcePath);
     require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
         "generated data declares its switchable ROM bank");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 347U") != std::string::npos,
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 353U") != std::string::npos,
         "generated header exposes the compact exact bounded arena");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
@@ -214,8 +214,10 @@ int main() {
     const std::string firmware = readFile(root / "firmware" / "gbc" / "source" / "main.c");
     require(firmware.find("SWITCH_RAM_MBC5(SNAPSHOT_RAM_BANK)") != std::string::npos,
         "firmware stores snapshots in a dedicated SRAM bank");
-    require(firmware.find("VBK_REG = screen_cell >= 256U ? VBK_BANK_1 : VBK_BANK_0")
-            != std::string::npos,
+    require(
+        firmware.find("const uint8_t tile_bank = (uint8_t)(screen_cell >> 8U)")
+                != std::string::npos
+            && firmware.find("VBK_REG = tile_bank") != std::string::npos,
         "renderer uses both CGB tile-pattern banks for all 360 screen cells");
     require(firmware.find("cpu_fast()") != std::string::npos,
         "firmware enables CGB double-speed mode");

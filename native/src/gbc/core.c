@@ -29,6 +29,7 @@ struct ps_gbc_session {
     uint32_t* board;
     uint8_t* movements;
     uint8_t* match_bits;
+    uint8_t* dirty_bits;
     ps_gbc_snapshot_io snapshots;
     uint16_t width;
     uint16_t height;
@@ -72,6 +73,18 @@ static uint8_t ps_gbc_movement_width(const ps_gbc_game_view* game) {
 
 static size_t ps_gbc_movement_bytes(const ps_gbc_game_view* game) {
     return (size_t)game->max_level_cells * ps_gbc_movement_width(game);
+}
+
+static size_t ps_gbc_cell_bitset_bytes(const ps_gbc_game_view* game) {
+    return ((size_t)game->max_level_cells + 7U) / 8U;
+}
+
+static void ps_gbc_mark_dirty(ps_gbc_session* session, uint16_t cell) {
+    session->dirty_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));
+}
+
+static void ps_gbc_mark_all_dirty(ps_gbc_session* session) {
+    memset(session->dirty_bits, 0xff, ps_gbc_cell_bitset_bytes(session->game));
 }
 
 static uint32_t ps_gbc_movement_get(const ps_gbc_session* session, uint16_t cell) {
@@ -177,7 +190,7 @@ size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game) {
     result = ps_gbc_align4(sizeof(ps_gbc_session));
     result += board_bytes;
     result += movement_bytes;
-    result += ((size_t)game->max_level_cells + 7U) / 8U;
+    result += ps_gbc_cell_bitset_bytes(game) * 2U;
     return result + 3U;
 }
 
@@ -206,6 +219,7 @@ static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     session->message = NULL;
     session->checkpoint_valid = false;
     ps_gbc_clear_transient(session);
+    ps_gbc_mark_all_dirty(session);
     return true;
 }
 
@@ -221,6 +235,7 @@ bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index) {
         session->mode = (uint8_t)PS_FULL_STATE_MODE_MESSAGE;
         session->message = level->message;
         ps_gbc_clear_transient(session);
+        ps_gbc_clear_dirty_cells(session);
         return true;
     }
     return ps_gbc_load_board(session, level_index);
@@ -255,6 +270,8 @@ ps_gbc_session* ps_gbc_session_init(
     session->movements = cursor;
     cursor += movement_bytes;
     session->match_bits = cursor;
+    cursor += ps_gbc_cell_bitset_bytes(game);
+    session->dirty_bits = cursor;
     if (!ps_gbc_load_level(session, 0U)) return NULL;
     return session;
 }
@@ -356,6 +373,7 @@ static bool ps_gbc_apply_replacement(
     next_movements = (movements & ~pattern->movements_clear) | pattern->movements_set;
     session->board[cell] = next_objects;
     ps_gbc_movement_set(session, cell, next_movements);
+    if (next_objects != objects) ps_gbc_mark_dirty(session, cell);
     return next_objects != objects || next_movements != movements;
 }
 
@@ -535,6 +553,8 @@ static bool ps_gbc_resolve_movements(ps_gbc_session* session) {
                 }
                 session->board[cell] &= ~session->game->layer_masks[collision_layer];
                 session->board[target] |= moving;
+                ps_gbc_mark_dirty(session, cell);
+                ps_gbc_mark_dirty(session, target);
                 movement &= ~((uint32_t)0x1fU << (5U * layer));
                 ps_gbc_movement_set(session, cell, movement);
                 moved_pass = true;
@@ -606,6 +626,7 @@ bool ps_gbc_undo(ps_gbc_session* session) {
             cells)) return false;
     --session->undo_count;
     session->pending_again = false;
+    ps_gbc_mark_all_dirty(session);
     return true;
 }
 
@@ -626,6 +647,7 @@ bool ps_gbc_restart(ps_gbc_session* session) {
         memcpy(session->board, level->cells, (size_t)cells * sizeof(uint32_t));
     }
     ps_gbc_clear_transient(session);
+    ps_gbc_mark_all_dirty(session);
     return true;
 }
 
@@ -752,6 +774,15 @@ uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y
         return 0U;
     }
     return session->board[(uint16_t)x * session->height + (uint16_t)y];
+}
+
+const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session) {
+    return session == NULL ? NULL : session->dirty_bits;
+}
+
+void ps_gbc_clear_dirty_cells(ps_gbc_session* session) {
+    if (session == NULL) return;
+    memset(session->dirty_bits, 0, ps_gbc_cell_bitset_bytes(session->game));
 }
 
 bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y) {

@@ -29,7 +29,8 @@ ifneq ($(filter 1 yes true on,$(PERF_PHASES)),)
 CFLAGS += -DPS_GBC_PERF_PHASES=1
 endif
 LDFLAGS := -msm83:gb -Wm-yC -Wm-yt0x1B -Wm-yo8 -Wm-ya4 -Wm-ynPUZZLESCRIPT -Wl-m
-OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o
+PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,)
+OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o $(PERF_OBJECTS)
 
 .PHONY: all export clean check-size
 
@@ -49,6 +50,9 @@ $(BUILD)/core.o: ../../native/src/gbc/core.c ../../native/include/puzzlescript/g
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(TARGET).gb: $(OBJECTS)

@@ -88,6 +88,11 @@ static int require_true(bool condition, const char* message) {
     return 1;
 }
 
+static bool cell_dirty(const ps_gbc_session* session, uint16_t cell) {
+    const uint8_t* dirty = ps_gbc_dirty_cells(session);
+    return dirty != NULL && (dirty[cell >> 3U] & (uint8_t)(1U << (cell & 7U))) != 0U;
+}
+
 static bool snapshot_read(void* context, uint8_t slot, uint32_t* cells, uint16_t cell_count) {
     const uint32_t* snapshots = (const uint32_t*)context;
     memcpy(cells, snapshots + (size_t)slot * kGame.max_level_cells,
@@ -211,16 +216,33 @@ int main(void) {
     memset(arena, 0xcc, bytes);
     session = ps_gbc_session_init(arena, bytes, &kGame, &snapshot_io);
     failed |= require_true(session != NULL, "session initialization failed");
+    failed |= require_true(
+        cell_dirty(session, 0U) && cell_dirty(session, 1U)
+            && cell_dirty(session, 2U) && cell_dirty(session, 3U),
+        "initial board was not marked dirty");
+    ps_gbc_clear_dirty_cells(session);
+    failed |= require_true(
+        !cell_dirty(session, 0U) && !cell_dirty(session, 1U)
+            && !cell_dirty(session, 2U) && !cell_dirty(session, 3U),
+        "dirty board did not clear");
     failed |= require_true(ps_gbc_cell_objects(session, 0, 0) == 5U, "initial player cell differs");
     result = ps_gbc_step(session, PS_INPUT_RIGHT);
     failed |= require_true(result.changed, "push turn did not change the board");
     failed |= require_true(result.won, "push turn did not satisfy the win condition");
     failed |= require_true((ps_gbc_cell_objects(session, 1, 0) & 4U) != 0U, "player did not move");
     failed |= require_true((ps_gbc_cell_objects(session, 2, 0) & 8U) != 0U, "crate did not move");
+    failed |= require_true(
+        cell_dirty(session, 0U) && cell_dirty(session, 1U)
+            && cell_dirty(session, 2U) && !cell_dirty(session, 3U),
+        "changed board cells were not tracked exactly");
     ps_gbc_status_get(session, &status);
     failed |= require_true(status.completed, "last level did not complete");
     failed |= require_true(ps_gbc_undo(session), "undo snapshot was not retained");
     failed |= require_true(ps_gbc_cell_objects(session, 0, 0) == 5U, "undo did not restore the board");
+    failed |= require_true(
+        cell_dirty(session, 0U) && cell_dirty(session, 1U)
+            && cell_dirty(session, 2U) && cell_dirty(session, 3U),
+        "undo did not mark the board dirty");
     three_lane_arena = malloc(three_lane_bytes);
     six_lane_arena = malloc(six_lane_bytes);
     failed |= require_true(three_lane_arena != NULL && six_lane_arena != NULL,

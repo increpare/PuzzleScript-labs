@@ -231,6 +231,8 @@ bool ps_gbc_undo(ps_gbc_session* session);
 bool ps_gbc_restart(ps_gbc_session* session);
 void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status);
 uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y);
+const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session);
+void ps_gbc_clear_dirty_cells(ps_gbc_session* session);
 bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y);
 const uint32_t* ps_gbc_board(const ps_gbc_session* session);
 const ps_gbc_game_view* ps_gbc_game(const ps_gbc_session* session);

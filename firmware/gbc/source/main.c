@@ -3,6 +3,9 @@
 
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
+#if defined(PS_GBC_PERF_BENCH)
+#include "benchmark.h"
+#endif
 
 #include <string.h>
 
@@ -17,6 +20,7 @@
 #define PERF_PHASE_MAGIC 0x32434250UL
 #define PERF_ITERATIONS 128U
 #define PERF_RENDER_ITERATIONS 4U
+#define NO_RENDERED_LEVEL 0xffffU
 
 #if defined(PS_GBC_PERF_BENCH)
 /*
@@ -30,12 +34,13 @@ static uint8_t gSessionArena[
 #else
 static uint8_t gSessionArena[PS_GBC_GENERATED_SESSION_BYTES];
 #endif
-static uint8_t gTileBytes[16];
-static uint8_t gTileMap[SCREEN_TILES];
-static uint8_t gAttributes[SCREEN_TILES];
+uint8_t gTileBytes[16];
+uint8_t gTileMap[SCREEN_TILES];
+uint8_t gAttributes[SCREEN_TILES];
 static uint8_t gSourcePixels[64];
-static ps_gbc_session* gSession;
+ps_gbc_session* gSession;
 static bool gTitleScreen;
+static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
@@ -67,7 +72,7 @@ static void perfTimerInitialize(void) {
     TMA_REG = 0U;
 }
 
-static void perfTimerStart(void) {
+void perfTimerStart(void) {
     disable_interrupts();
     gPerfTimerOverflows = 0U;
     TIMA_REG = 0U;
@@ -76,7 +81,7 @@ static void perfTimerStart(void) {
     enable_interrupts();
 }
 
-static uint32_t perfTimerStop(void) {
+uint32_t perfTimerStop(void) {
     uint32_t ticks;
     disable_interrupts();
     TAC_REG = TACF_STOP;
@@ -278,6 +283,7 @@ static void drawTextLine(const char* text, uint8_t row) {
 static void showText(const char* message, bool title) {
     uint8_t row = title ? 5U : 2U;
     const char* cursor = message;
+    gRenderedLevel = NO_RENDERED_LEVEL;
     DISPLAY_OFF;
     set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
     clearTextMap();
@@ -310,7 +316,7 @@ static bool objectPixelTransparent(const ps_gbc_object* object, uint8_t pixel) {
     return (object->transparent_pixels & ((uint64_t)1U << pixel)) != 0U;
 }
 
-static uint8_t composeTile(uint32_t objects) {
+uint8_t composeTile(uint32_t objects) {
     uint8_t layer;
     uint8_t target_palette = 0U;
     memset(gSourcePixels, 0, sizeof(gSourcePixels));
@@ -359,11 +365,21 @@ static uint8_t composeTile(uint32_t objects) {
     return target_palette;
 }
 
-static void renderBoard(void) {
+static void renderCell(uint16_t screen_cell, uint32_t objects) {
+    const uint8_t palette = composeTile(objects);
+    const uint8_t tile_bank = (uint8_t)(screen_cell >> 8U);
+    VBK_REG = tile_bank;
+    set_bkg_data((uint8_t)screen_cell, 1U, gTileBytes);
+    gTileMap[screen_cell] = (uint8_t)screen_cell;
+    gAttributes[screen_cell] =
+        (uint8_t)(palette | (tile_bank != 0U ? ATTR_TILE_BANK : 0U));
+}
+
+void renderBoard(void) {
     ps_gbc_status status;
-    uint8_t screen_y;
     uint8_t offset_x;
     uint8_t offset_y;
+    bool full_render;
     ps_gbc_status_get(gSession, &status);
     if (status.mode != PS_FULL_STATE_MODE_LEVEL) {
         showText(status.message == NULL ? "" : status.message, false);
@@ -371,27 +387,43 @@ static void renderBoard(void) {
     }
     offset_x = (uint8_t)((20U - status.width) / 2U);
     offset_y = (uint8_t)((18U - status.height) / 2U);
+    full_render = gRenderedLevel != status.current_level;
     DISPLAY_OFF;
     set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
-    for (screen_y = 0U; screen_y < 18U; ++screen_y) {
-        uint8_t screen_x;
-        for (screen_x = 0U; screen_x < 20U; ++screen_x) {
-            const uint16_t screen_cell = (uint16_t)screen_y * 20U + screen_x;
-            uint32_t objects = ps_gbc_generated_game.background_mask;
-            uint8_t palette;
-            if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
-                && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
-                objects = ps_gbc_cell_objects(
-                    gSession,
-                    (int16_t)(screen_x - offset_x),
-                    (int16_t)(screen_y - offset_y));
+    if (full_render) {
+        uint8_t screen_y;
+        for (screen_y = 0U; screen_y < 18U; ++screen_y) {
+            uint8_t screen_x;
+            for (screen_x = 0U; screen_x < 20U; ++screen_x) {
+                const uint16_t screen_cell = (uint16_t)screen_y * 20U + screen_x;
+                uint32_t objects = ps_gbc_generated_game.background_mask;
+                if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
+                    && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
+                    objects = ps_gbc_cell_objects(
+                        gSession,
+                        (int16_t)(screen_x - offset_x),
+                        (int16_t)(screen_y - offset_y));
+                }
+                renderCell(screen_cell, objects);
             }
-            palette = composeTile(objects);
-            VBK_REG = screen_cell >= 256U ? VBK_BANK_1 : VBK_BANK_0;
-            set_bkg_data((uint8_t)screen_cell, 1U, gTileBytes);
-            gTileMap[screen_cell] = (uint8_t)screen_cell;
-            gAttributes[screen_cell] =
-                (uint8_t)(palette | (screen_cell >= 256U ? ATTR_TILE_BANK : 0U));
+        }
+    } else {
+        const uint8_t* dirty = ps_gbc_dirty_cells(gSession);
+        uint16_t board_cell = 0U;
+        uint16_t board_x;
+        for (board_x = 0U; board_x < status.width; ++board_x) {
+            uint16_t board_y;
+            for (board_y = 0U; board_y < status.height; ++board_y, ++board_cell) {
+                uint16_t screen_cell;
+                if ((dirty[board_cell >> 3U]
+                        & (uint8_t)(1U << (board_cell & 7U))) == 0U) continue;
+                screen_cell = (uint16_t)(board_y + offset_y) * 20U
+                    + (uint16_t)(board_x + offset_x);
+                renderCell(
+                    screen_cell,
+                    ps_gbc_cell_objects(
+                        gSession, (int16_t)board_x, (int16_t)board_y));
+            }
         }
     }
     VBK_REG = VBK_BANK_0;
@@ -399,6 +431,8 @@ static void renderBoard(void) {
     VBK_REG = VBK_BANK_1;
     set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
     VBK_REG = VBK_BANK_0;
+    ps_gbc_clear_dirty_cells(gSession);
+    gRenderedLevel = status.current_level;
     DISPLAY_ON;
 }
 
@@ -490,117 +524,6 @@ static uint16_t countPaletteMismatches(
         }
     }
     return mismatches;
-}
-#endif
-
-#if defined(PS_GBC_PERF_BENCH)
-static bool perfLoadFirstBoard(void) {
-    uint16_t level;
-    for (level = 0U; level < ps_gbc_generated_game.level_count; ++level) {
-        if (ps_gbc_generated_game.levels[level].kind == PS_GBC_LEVEL_BOARD) {
-            return ps_gbc_load_level(gSession, level);
-        }
-    }
-    return false;
-}
-
-static void perfComposeBoard(void) {
-    ps_gbc_status status;
-    uint8_t offset_x;
-    uint8_t offset_y;
-    uint8_t screen_y;
-    ps_gbc_status_get(gSession, &status);
-    if (status.mode != PS_FULL_STATE_MODE_LEVEL) return;
-    offset_x = (uint8_t)((20U - status.width) / 2U);
-    offset_y = (uint8_t)((18U - status.height) / 2U);
-    for (screen_y = 0U; screen_y < 18U; ++screen_y) {
-        uint8_t screen_x;
-        for (screen_x = 0U; screen_x < 20U; ++screen_x) {
-            const uint16_t screen_cell = (uint16_t)screen_y * 20U + screen_x;
-            uint32_t objects = ps_gbc_generated_game.background_mask;
-            if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
-                && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
-                objects = ps_gbc_cell_objects(
-                    gSession,
-                    (int16_t)(screen_x - offset_x),
-                    (int16_t)(screen_y - offset_y));
-            }
-            gTileMap[screen_cell] = composeTile(objects);
-        }
-    }
-}
-
-static uint32_t perfMeasureRender(void) {
-    uint32_t ticks = 0U;
-    uint8_t iteration;
-    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        (void)ps_gbc_step(
-            gSession,
-            (iteration & 1U) == 0U ? PS_INPUT_RIGHT : PS_INPUT_LEFT);
-        perfTimerStart();
-        renderBoard();
-        ticks += perfTimerStop();
-    }
-    return ticks;
-}
-
-static uint32_t perfMeasureComposition(void) {
-    uint8_t iteration;
-    uint32_t ticks;
-    perfTimerStart();
-    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        perfComposeBoard();
-    }
-    ticks = perfTimerStop();
-    return ticks;
-}
-
-static uint32_t perfMeasureTileUpload(void) {
-    uint8_t iteration;
-    uint32_t ticks;
-    DISPLAY_OFF;
-    perfTimerStart();
-    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        uint16_t screen_cell;
-        for (screen_cell = 0U; screen_cell < SCREEN_TILES; ++screen_cell) {
-            VBK_REG = screen_cell >= 256U ? VBK_BANK_1 : VBK_BANK_0;
-            set_bkg_data((uint8_t)screen_cell, 1U, gTileBytes);
-        }
-    }
-    ticks = perfTimerStop();
-    VBK_REG = VBK_BANK_0;
-    DISPLAY_ON;
-    return ticks;
-}
-
-static uint32_t perfMeasureMapUpload(void) {
-    uint8_t iteration;
-    uint32_t ticks;
-    DISPLAY_OFF;
-    perfTimerStart();
-    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        VBK_REG = VBK_BANK_0;
-        set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
-        VBK_REG = VBK_BANK_1;
-        set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
-    }
-    ticks = perfTimerStop();
-    VBK_REG = VBK_BANK_0;
-    DISPLAY_ON;
-    return ticks;
-}
-
-static uint32_t perfMeasurePaletteUpload(void) {
-    uint8_t iteration;
-    uint32_t ticks;
-    DISPLAY_OFF;
-    perfTimerStart();
-    for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
-    }
-    ticks = perfTimerStop();
-    DISPLAY_ON;
-    return ticks;
 }
 #endif
 
