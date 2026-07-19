@@ -17,7 +17,7 @@ import time
 PERF_MAGIC = 0x46434250
 PERF_RECORD = struct.Struct("<IHHIBBBB")
 PERF_PHASE_MAGIC = 0x32434250
-PERF_PHASE_RECORD = struct.Struct("<IHHHH7I5I")
+PERF_PHASE_RECORD = struct.Struct("<IHHHH7I6I")
 PERF_PHASE_NAMES = (
     "snapshot",
     "setup",
@@ -135,6 +135,7 @@ def run_once(emulator: Path, source_rom: Path, timeout: float) -> dict[str, int]
             "tile_upload_ticks": render_values[2],
             "map_upload_ticks": render_values[3],
             "palette_upload_ticks": render_values[4],
+            "repeated_text_ticks": render_values[5],
         }
 
 
@@ -192,7 +193,8 @@ def main() -> int:
         f"composition={composition_ticks_per_frame:.3f} "
         f"tile_upload={tile_upload_ticks_per_frame:.3f} "
         f"map_upload={map_upload_ticks_per_frame:.3f} "
-        f"palette_upload={palette_upload_ticks_per_frame:.3f}"
+        f"palette_upload={palette_upload_ticks_per_frame:.3f} "
+        f"repeated_text={record['repeated_text_ticks']}"
     )
     if args.json_out is not None:
         output = {

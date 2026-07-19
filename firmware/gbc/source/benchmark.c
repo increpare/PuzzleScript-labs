@@ -118,3 +118,12 @@ uint32_t perfMeasurePaletteUpload(void) BANKED {
     DISPLAY_ON;
     return ticks;
 }
+
+uint32_t perfMeasureRepeatedText(void) BANKED {
+    uint32_t ticks;
+    showText(ps_gbc_generated_game.title, true);
+    perfTimerStart();
+    showText(ps_gbc_generated_game.title, true);
+    ticks = perfTimerStop();
+    return ticks;
+}

@@ -66,6 +66,7 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
         "palette_upload_ticks_per_frame": (
             record["palette_upload_ticks"] / render_iterations
         ),
+        "repeated_text_ticks": record["repeated_text_ticks"],
     }
 
 
@@ -87,7 +88,10 @@ def compare_case(
         "tile_upload_ticks_per_frame",
         "map_upload_ticks_per_frame",
         "palette_upload_ticks_per_frame",
+        "repeated_text_ticks",
     ):
+        if name not in baseline["derived"] or name not in candidate["derived"]:
+            continue
         before = float(baseline["derived"][name])
         after = float(candidate["derived"][name])
         metrics[name] = {

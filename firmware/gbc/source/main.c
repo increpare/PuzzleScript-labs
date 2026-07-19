@@ -21,6 +21,9 @@
 #define PERF_ITERATIONS 128U
 #define PERF_RENDER_ITERATIONS 4U
 #define NO_RENDERED_LEVEL 0xffffU
+#define VRAM_STATE_UNKNOWN 0U
+#define VRAM_STATE_TEXT 1U
+#define VRAM_STATE_BOARD 2U
 
 #if defined(PS_GBC_PERF_BENCH)
 /*
@@ -41,6 +44,7 @@ uint8_t gSourcePixels[64];
 ps_gbc_session* gSession;
 static bool gTitleScreen;
 static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
+static uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
@@ -280,14 +284,16 @@ static void drawTextLine(const char* text, uint8_t row) {
     }
 }
 
-static void showText(const char* message, bool title) {
+void showText(const char* message, bool title) {
     uint8_t row = title ? 5U : 2U;
     const char* cursor = message;
     gRenderedLevel = NO_RENDERED_LEVEL;
     DISPLAY_OFF;
-    set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
+    if (gVramState != VRAM_STATE_TEXT) {
+        set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
+        loadFont();
+    }
     clearTextMap();
-    loadFont();
     if (title) {
         drawTextLine(message, row);
         drawTextLine("PRESS A", (uint8_t)(row + 4U));
@@ -309,6 +315,7 @@ static void showText(const char* message, bool title) {
     VBK_REG = VBK_BANK_1;
     set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
     VBK_REG = VBK_BANK_0;
+    gVramState = VRAM_STATE_TEXT;
     DISPLAY_ON;
 }
 
@@ -373,7 +380,9 @@ void renderBoard(void) {
     offset_y = (uint8_t)((18U - status.height) / 2U);
     full_render = gRenderedLevel != status.current_level;
     DISPLAY_OFF;
-    set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
+    if (gVramState != VRAM_STATE_BOARD) {
+        set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
+    }
     if (full_render) {
         uint8_t screen_y;
         for (screen_y = 0U; screen_y < 18U; ++screen_y) {
@@ -397,10 +406,17 @@ void renderBoard(void) {
             uint16_t board_y;
             for (board_y = 0U; board_y < status.height; ++board_y, ++board_cell) {
                 uint16_t screen_cell;
+                uint8_t previous_tile;
+                uint8_t previous_attributes;
+                uint8_t screen_x;
+                uint8_t screen_y;
                 if ((dirty[board_cell >> 3U]
                         & (uint8_t)(1U << (board_cell & 7U))) == 0U) continue;
-                screen_cell = (uint16_t)(board_y + offset_y) * 20U
-                    + (uint16_t)(board_x + offset_x);
+                screen_x = (uint8_t)(board_x + offset_x);
+                screen_y = (uint8_t)(board_y + offset_y);
+                screen_cell = (uint16_t)screen_y * 20U + screen_x;
+                previous_tile = gTileMap[screen_cell];
+                previous_attributes = gAttributes[screen_cell];
                 if (!ps_gbc_reuse_matching_tile(
                         board,
                         dirty,
@@ -415,16 +431,27 @@ void renderBoard(void) {
                         ps_gbc_find_free_tile(screen_cell),
                         board[board_cell]);
                 }
+                if (gTileMap[screen_cell] != previous_tile) {
+                    VBK_REG = VBK_BANK_0;
+                    set_bkg_tile_xy(screen_x, screen_y, gTileMap[screen_cell]);
+                }
+                if (gAttributes[screen_cell] != previous_attributes) {
+                    VBK_REG = VBK_BANK_1;
+                    set_bkg_tile_xy(screen_x, screen_y, gAttributes[screen_cell]);
+                }
             }
         }
     }
-    VBK_REG = VBK_BANK_0;
-    set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
-    VBK_REG = VBK_BANK_1;
-    set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
+    if (full_render) {
+        VBK_REG = VBK_BANK_0;
+        set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
+        VBK_REG = VBK_BANK_1;
+        set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
+    }
     VBK_REG = VBK_BANK_0;
     ps_gbc_clear_dirty_cells(gSession);
     gRenderedLevel = status.current_level;
+    gVramState = VRAM_STATE_BOARD;
     DISPLAY_ON;
 }
 
@@ -534,6 +561,7 @@ static void runAutotest(void) {
         uint32_t tile_upload_ticks;
         uint32_t map_upload_ticks;
         uint32_t palette_upload_ticks;
+        uint32_t repeated_text_ticks;
         uint8_t phase;
         if (!perfLoadFirstBoard()) {
             showText("BENCHMARK ERROR", false);
@@ -557,6 +585,7 @@ static void runAutotest(void) {
         tile_upload_ticks = perfMeasureTileUpload();
         map_upload_ticks = perfMeasureMapUpload();
         palette_upload_ticks = perfMeasurePaletteUpload();
+        repeated_text_ticks = perfMeasureRepeatedText();
         perfTimerShutdown();
         ENABLE_RAM_MBC5;
         SWITCH_RAM_MBC5(3U);
@@ -587,6 +616,7 @@ static void runAutotest(void) {
         writeSram32(80U, tile_upload_ticks);
         writeSram32(84U, map_upload_ticks);
         writeSram32(88U, palette_upload_ticks);
+        writeSram32(92U, repeated_text_ticks);
         writeSram32(32U, PERF_PHASE_MAGIC);
         writeSram32(16U, PERF_MAGIC);
         DISABLE_RAM_MBC5;

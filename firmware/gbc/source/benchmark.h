@@ -14,6 +14,7 @@ void perfTimerStart(void);
 uint32_t perfTimerStop(void);
 uint8_t composeTile(uint32_t objects);
 void renderBoard(void);
+void showText(const char* message, bool title);
 
 bool perfLoadFirstBoard(void) BANKED;
 uint32_t perfMeasureRender(void) BANKED;
@@ -21,5 +22,6 @@ uint32_t perfMeasureComposition(void) BANKED;
 uint32_t perfMeasureTileUpload(void) BANKED;
 uint32_t perfMeasureMapUpload(void) BANKED;
 uint32_t perfMeasurePaletteUpload(void) BANKED;
+uint32_t perfMeasureRepeatedText(void) BANKED;
 
 #endif

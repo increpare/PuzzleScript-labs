@@ -12,7 +12,7 @@ messages include the headline speed and memory deltas.
 - Repetitions: three complete emulator boots; every counter must be identical.
 - Logic sample: 128 alternating right/left turns on the first board level.
 - Rendering sample: four frames, plus isolated composition, tile upload,
-  tile-map upload, and palette upload loops.
+  tile-map upload, palette upload, and repeated text-screen timings.
 - Memory: exporter session/SRAM/game-bank estimates plus linked benchmark ROM
   map usage.
 - Correctness gate: focused GBC tests and mGBA render smoke for every experiment;
@@ -176,3 +176,33 @@ at 8984/16384 bank-1 bytes and 14597 fixed-bank bytes.
 The separately phase-probed Sokoban ROM remains valid. Its whole-turn result is
 741.359 ticks versus 727.305 without probes, so measurement overhead remains
 1.932% (+14.055 ticks/turn).
+
+### 4. Stable palette, map, and font uploads — retained
+
+Revision under test: working tree after `86216d65`.
+
+The firmware now tracks whether VRAM contains board or text assets. Consecutive
+board frames retain their palettes, consecutive text screens retain their
+palette and font, and dirty board frames update only tile-map entries whose
+tile or attribute byte changed. First renders, level transitions, and
+text-to-board transitions retain full-map uploads.
+
+| Case | Render ticks/frame | Delta from preconverted sprites | Logic delta |
+| --- | ---: | ---: | ---: |
+| sokoban | 465.000 | -17.297% | 0.000000% |
+| large_board | 545.500 | -14.465% | -0.000539% |
+| rule_heavy | 529.250 | -15.455% | +0.000178% |
+| object_heavy | 3605.000 | -2.105% | -0.000107% |
+| two_movement_lanes | 671.000 | -12.144% | -0.000295% |
+
+An identically repeated Sokoban title screen improves from 696 to 255 ticks
+(-63.362%). The forced-full-redraw control changes from 30805.250 to 30801.500
+ticks/frame (-0.012%), confirming that the normal-frame gain comes from stable
+uploads. The phase-probed ROM remains valid at 741.352 logic ticks/turn and
+464.000 render ticks/frame.
+
+The state marker costs one byte of static WRAM. The shipping Sokoban cartridge
+grows by 180 fixed-bank bytes (15652 to 15832), while its generated bank,
+353-byte session, and 840-byte snapshots are unchanged. Dollyban remains valid
+at 14777 fixed-bank bytes, 8984/16384 generated-bank bytes, and 1693 static
+WRAM bytes.
