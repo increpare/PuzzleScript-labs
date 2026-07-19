@@ -4,31 +4,36 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint32_t* gSnapshots;
+static uint8_t* gSnapshots;
 
-static bool snapshot_read(void* context, uint8_t slot, uint32_t* cells, uint16_t cell_count) {
+static bool snapshot_read(void* context, uint8_t slot, void* data, uint16_t byte_count) {
     const ps_gbc_game_view* game = (const ps_gbc_game_view*)context;
-    memcpy(cells, gSnapshots + (size_t)slot * game->max_level_cells,
-        (size_t)cell_count * sizeof(uint32_t));
+    memcpy(
+        data,
+        gSnapshots + (size_t)slot * game->max_level_cells * game->object_bytes_per_cell,
+        byte_count);
     return true;
 }
 
 static bool snapshot_write(
     void* context,
     uint8_t slot,
-    const uint32_t* cells,
-    uint16_t cell_count
+    const void* data,
+    uint16_t byte_count
 ) {
     const ps_gbc_game_view* game = (const ps_gbc_game_view*)context;
-    memcpy(gSnapshots + (size_t)slot * game->max_level_cells, cells,
-        (size_t)cell_count * sizeof(uint32_t));
+    memcpy(
+        gSnapshots + (size_t)slot * game->max_level_cells * game->object_bytes_per_cell,
+        data,
+        byte_count);
     return true;
 }
 
 int main(void) {
     uint8_t* arena = (uint8_t*)malloc(PS_GBC_GENERATED_SESSION_BYTES);
-    const size_t snapshot_cells = (size_t)(ps_gbc_generated_game.undo_capacity + 1U)
-        * ps_gbc_generated_game.max_level_cells;
+    const size_t snapshot_bytes = (size_t)(ps_gbc_generated_game.undo_capacity + 1U)
+        * ps_gbc_generated_game.max_level_cells
+        * ps_gbc_generated_game.object_bytes_per_cell;
     const ps_gbc_snapshot_io snapshot_io = {
         (void*)&ps_gbc_generated_game,
         snapshot_read,
@@ -38,7 +43,7 @@ int main(void) {
     int16_t x = -1;
     int16_t y = -1;
     ps_step_result result;
-    gSnapshots = (uint32_t*)calloc(snapshot_cells, sizeof(uint32_t));
+    gSnapshots = (uint8_t*)calloc(snapshot_bytes, 1U);
     if (arena == NULL || gSnapshots == NULL) {
         fprintf(stderr, "generated GBC arena allocation failed\n");
         free(gSnapshots);

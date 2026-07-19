@@ -59,25 +59,31 @@ int main() {
         "manifest culls static collision layers from movement storage");
     require(manifest.find("\"movement_bytes_per_cell\": 1") != std::string::npos,
         "manifest selects byte-wide movement cells for one live lane");
+    require(manifest.find("\"object_bytes_per_cell\": 1") != std::string::npos,
+        "manifest selects byte-wide object cells for five objects");
     require(manifest.find("\"board_cells\": 360") != std::string::npos,
         "manifest advertises the hardware board ceiling");
     require(manifest.find("\"session_bytes\": 4096") != std::string::npos,
         "manifest advertises the contiguous WRAM ceiling");
-    require(manifest.find("\"snapshot_sram_bytes\": 840") != std::string::npos,
+    require(manifest.find("\"snapshot_sram_bytes\": 210") != std::string::npos,
         "manifest budgets four undo states and a checkpoint in SRAM");
 
     const std::string header = readFile(first.generatedHeaderPath);
     const std::string source = readFile(first.generatedSourcePath);
     require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
         "generated data declares its switchable ROM bank");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 353U") != std::string::npos,
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 229U") != std::string::npos,
         "generated header exposes the compact exact bounded arena");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
+    require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,
+        "generated header exposes the compile-time object cell width");
     require(source.find("#pragma bank 1") != std::string::npos,
         "generated data is linked outside fixed ROM bank zero");
     require(source.find("static const ps_gbc_pattern kPatterns[]") != std::string::npos,
         "lowered fixed patterns are emitted as C data");
+    require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
+        "level object masks use the selected byte-wide storage");
     require(
         source.find("{\"background\", 0U, 255U, 8U, 8U") != std::string::npos
             && source.find("255U, 255U, 255U") != std::string::npos,
@@ -153,6 +159,9 @@ int main() {
     require(maxCollisionManifest.find("\"movement_layer_count\": 1")
             != std::string::npos,
         "31 dormant layers do not inflate movement storage");
+    require(maxCollisionManifest.find("\"object_bytes_per_cell\": 4")
+            != std::string::npos,
+        "the 32-object boundary retains 32-bit object cells");
 
     puzzlescript::gbc::ExportOptions threeMovers;
     threeMovers.sourcePath =

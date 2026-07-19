@@ -269,6 +269,9 @@ def main() -> int:
                 "movement_bytes_per_cell": int(
                     manifest["movement_bytes_per_cell"]
                 ),
+                "object_bytes_per_cell": int(
+                    manifest["object_bytes_per_cell"]
+                ),
                 "max_level_cells": int(manifest["max_level_cells"]),
                 "rules": int(manifest["rule_count"]),
                 "patterns": int(manifest["pattern_count"]),

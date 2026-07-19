@@ -26,7 +26,7 @@ typedef struct ps_gbc_commands {
 
 struct ps_gbc_session {
     const ps_gbc_game_view* game;
-    uint32_t* board;
+    uint8_t* board;
     uint8_t* movements;
     uint8_t* match_bits;
     uint8_t* dirty_bits;
@@ -58,8 +58,17 @@ static uint8_t* ps_gbc_align_pointer(uint8_t* value) {
     return (uint8_t*)address;
 }
 
+static uint8_t ps_gbc_object_width(const ps_gbc_game_view* game) {
+#if defined(PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL)
+    (void)game;
+    return PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL;
+#else
+    return game->object_bytes_per_cell;
+#endif
+}
+
 static size_t ps_gbc_board_bytes(const ps_gbc_game_view* game) {
-    return (size_t)game->max_level_cells * sizeof(uint32_t);
+    return (size_t)game->max_level_cells * ps_gbc_object_width(game);
 }
 
 static uint8_t ps_gbc_movement_width(const ps_gbc_game_view* game) {
@@ -78,6 +87,44 @@ static size_t ps_gbc_movement_bytes(const ps_gbc_game_view* game) {
 static size_t ps_gbc_cell_bitset_bytes(const ps_gbc_game_view* game) {
     return ((size_t)game->max_level_cells + 7U) / 8U;
 }
+
+/*
+ * Generated cartridges specialize board access at preprocessing time. Keep
+ * the host-library fallback dynamic so one test binary can exercise all widths.
+ */
+#if defined(PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL)
+#if PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 1U
+#define ps_gbc_board_get(session, cell) ((session)->board[(cell)])
+#define ps_gbc_board_set(session, cell, objects) \
+    ((session)->board[(cell)] = (uint8_t)(objects))
+#elif PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 2U
+#define ps_gbc_board_get(session, cell) (((const uint16_t*)(session)->board)[(cell)])
+#define ps_gbc_board_set(session, cell, objects) \
+    (((uint16_t*)(session)->board)[(cell)] = (uint16_t)(objects))
+#else
+#define ps_gbc_board_get(session, cell) (((const uint32_t*)(session)->board)[(cell)])
+#define ps_gbc_board_set(session, cell, objects) \
+    (((uint32_t*)(session)->board)[(cell)] = (objects))
+#endif
+#else
+static uint32_t ps_gbc_board_get(const ps_gbc_session* session, uint16_t cell) {
+    const uint8_t width = ps_gbc_object_width(session->game);
+    if (width == 1U) return session->board[cell];
+    if (width == 2U) return ((const uint16_t*)session->board)[cell];
+    return ((const uint32_t*)session->board)[cell];
+}
+
+static void ps_gbc_board_set(ps_gbc_session* session, uint16_t cell, uint32_t objects) {
+    const uint8_t width = ps_gbc_object_width(session->game);
+    if (width == 1U) {
+        session->board[cell] = (uint8_t)objects;
+    } else if (width == 2U) {
+        ((uint16_t*)session->board)[cell] = (uint16_t)objects;
+    } else {
+        ((uint32_t*)session->board)[cell] = objects;
+    }
+}
+#endif
 
 static void ps_gbc_mark_dirty(ps_gbc_session* session, uint16_t cell) {
     session->dirty_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));
@@ -134,6 +181,10 @@ static bool ps_gbc_game_valid(const ps_gbc_game_view* game) {
     uint8_t object_id;
     if (game == NULL || game->abi_version != PS_GBC_GAME_ABI_VERSION) return false;
     if (game->object_count == 0U || game->object_count > PS_GBC_MAX_OBJECTS) return false;
+    if ((game->object_count <= 8U && game->object_bytes_per_cell != 1U)
+        || (game->object_count >= 9U && game->object_count <= 16U
+            && game->object_bytes_per_cell != 2U)
+        || (game->object_count >= 17U && game->object_bytes_per_cell != 4U)) return false;
     if (game->layer_count == 0U || game->layer_count > PS_GBC_MAX_COLLISION_LAYERS) return false;
     if (game->movement_layer_count == 0U
         || game->movement_layer_count > PS_GBC_MAX_MOVEMENT_LAYERS) return false;
@@ -189,6 +240,7 @@ size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game) {
     movement_bytes = ps_gbc_movement_bytes(game);
     result = ps_gbc_align4(sizeof(ps_gbc_session));
     result += board_bytes;
+    result = ps_gbc_align4(result);
     result += movement_bytes;
     result += ps_gbc_cell_bitset_bytes(game) * 2U;
     return result + 3U;
@@ -208,7 +260,7 @@ static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     if (level->kind != PS_GBC_LEVEL_BOARD || level->cells == NULL) return false;
     cells = (size_t)level->width * (size_t)level->height;
     if (cells == 0U || cells > session->game->max_level_cells) return false;
-    bytes = cells * sizeof(uint32_t);
+    bytes = cells * ps_gbc_object_width(session->game);
     memcpy(session->board, level->cells, bytes);
     if (bytes < ps_gbc_board_bytes(session->game)) {
         memset((uint8_t*)session->board + bytes, 0, ps_gbc_board_bytes(session->game) - bytes);
@@ -265,8 +317,9 @@ ps_gbc_session* ps_gbc_session_init(
     movement_bytes = ps_gbc_movement_bytes(game);
     session->game = game;
     session->snapshots = *snapshots;
-    session->board = (uint32_t*)cursor;
+    session->board = cursor;
     cursor += board_bytes;
+    cursor = ps_gbc_align_pointer(cursor);
     session->movements = cursor;
     cursor += movement_bytes;
     session->match_bits = cursor;
@@ -291,7 +344,7 @@ static bool ps_gbc_pattern_matches(
     const ps_gbc_pattern* pattern,
     uint16_t cell
 ) {
-    const uint32_t objects = session->board[cell];
+    const uint32_t objects = ps_gbc_board_get(session, cell);
     const uint32_t movements = ps_gbc_movement_get(session, cell);
     if ((pattern->flags & PS_GBC_PATTERN_NEVER_MATCH) != 0U) return false;
     if ((pattern->flags & PS_GBC_PATTERN_OBJECTS_PRESENT) != 0U
@@ -364,14 +417,14 @@ static bool ps_gbc_apply_replacement(
     uint32_t next_objects;
     uint32_t next_movements;
     if ((pattern->flags & PS_GBC_PATTERN_HAS_REPLACEMENT) == 0U) return false;
-    objects = session->board[cell];
+    objects = ps_gbc_board_get(session, cell);
     movements = ps_gbc_movement_get(session, cell);
     next_objects = (objects & ~pattern->objects_clear) | pattern->objects_set;
     if ((pattern->flags & PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS) != 0U) {
         movements &= ~pattern->movement_layer_mask;
     }
     next_movements = (movements & ~pattern->movements_clear) | pattern->movements_set;
-    session->board[cell] = next_objects;
+    ps_gbc_board_set(session, cell, next_objects);
     ps_gbc_movement_set(session, cell, next_movements);
     if (next_objects != objects) ps_gbc_mark_dirty(session, cell);
     return next_objects != objects || next_movements != movements;
@@ -471,7 +524,7 @@ static bool ps_gbc_seed_player_movement(ps_gbc_session* session, uint8_t directi
     bool seeded = false;
     if (direction == 0U || session->game->player_mask == 0U) return false;
     for (cell = 0U; cell < cells; ++cell) {
-        uint32_t players = session->board[cell] & session->game->player_mask;
+        uint32_t players = ps_gbc_board_get(session, cell) & session->game->player_mask;
         uint8_t object_id = 0U;
         while (players != 0U) {
             if ((players & 1U) != 0U) {
@@ -543,16 +596,22 @@ static bool ps_gbc_resolve_movements(ps_gbc_session* session) {
                 if (target_x < 0 || target_x >= (int16_t)session->width
                     || target_y < 0 || target_y >= (int16_t)session->height) continue;
                 target = (uint16_t)(target_x * session->height + target_y);
-                if ((session->board[target]
-                        & session->game->layer_masks[collision_layer]) != 0U) continue;
-                moving = session->board[cell] & session->game->layer_masks[collision_layer];
+                const uint32_t target_objects = ps_gbc_board_get(session, target);
+                const uint32_t source_objects = ps_gbc_board_get(session, cell);
+                if ((target_objects & session->game->layer_masks[collision_layer]) != 0U) {
+                    continue;
+                }
+                moving = source_objects & session->game->layer_masks[collision_layer];
                 if (moving == 0U) {
                     movement &= ~((uint32_t)0x1fU << (5U * layer));
                     ps_gbc_movement_set(session, cell, movement);
                     continue;
                 }
-                session->board[cell] &= ~session->game->layer_masks[collision_layer];
-                session->board[target] |= moving;
+                ps_gbc_board_set(
+                    session,
+                    cell,
+                    source_objects & ~session->game->layer_masks[collision_layer]);
+                ps_gbc_board_set(session, target, target_objects | moving);
                 ps_gbc_mark_dirty(session, cell);
                 ps_gbc_mark_dirty(session, target);
                 movement &= ~((uint32_t)0x1fU << (5U * layer));
@@ -585,9 +644,13 @@ static bool ps_gbc_won(const ps_gbc_session* session) {
         if (condition->quantifier == 0) passed = false;
         for (cell = 0U; cell < cells; ++cell) {
             const bool first = ps_gbc_filter_matches(
-                condition->filter1, condition->aggregate_filter1 != 0U, session->board[cell]);
+                condition->filter1,
+                condition->aggregate_filter1 != 0U,
+                ps_gbc_board_get(session, cell));
             const bool second = ps_gbc_filter_matches(
-                condition->filter2, condition->aggregate_filter2 != 0U, session->board[cell]);
+                condition->filter2,
+                condition->aggregate_filter2 != 0U,
+                ps_gbc_board_get(session, cell));
             if (condition->quantifier == -1 && first && second) {
                 passed = false;
                 break;
@@ -613,17 +676,19 @@ static void ps_gbc_commit_undo(ps_gbc_session* session) {
 
 bool ps_gbc_undo(ps_gbc_session* session) {
     uint16_t cells;
+    uint16_t bytes;
     if (session == NULL || session->mode != PS_FULL_STATE_MODE_LEVEL
         || session->game->no_undo || session->undo_count == 0U) return false;
     session->undo_head = (uint16_t)(
         (session->undo_head + session->game->undo_capacity - 1U)
         % session->game->undo_capacity);
     cells = (uint16_t)(session->width * session->height);
+    bytes = (uint16_t)(cells * ps_gbc_object_width(session->game));
     if (!session->snapshots.read(
             session->snapshots.context,
             (uint8_t)session->undo_head,
             session->board,
-            cells)) return false;
+            bytes)) return false;
     --session->undo_count;
     session->pending_again = false;
     ps_gbc_mark_all_dirty(session);
@@ -633,18 +698,20 @@ bool ps_gbc_undo(ps_gbc_session* session) {
 bool ps_gbc_restart(ps_gbc_session* session) {
     const ps_gbc_level* level;
     uint16_t cells;
+    uint16_t bytes;
     if (session == NULL || session->mode != PS_FULL_STATE_MODE_LEVEL
         || session->game->no_restart) return false;
     cells = (uint16_t)(session->width * session->height);
+    bytes = (uint16_t)(cells * ps_gbc_object_width(session->game));
     if (session->checkpoint_valid) {
         if (!session->snapshots.read(
                 session->snapshots.context,
                 session->game->undo_capacity,
                 session->board,
-                cells)) return false;
+                bytes)) return false;
     } else {
         level = &session->game->levels[session->current_level];
-        memcpy(session->board, level->cells, (size_t)cells * sizeof(uint32_t));
+        memcpy(session->board, level->cells, bytes);
     }
     ps_gbc_clear_transient(session);
     ps_gbc_mark_all_dirty(session);
@@ -670,6 +737,7 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     bool changed;
     bool seeded;
     uint16_t cells;
+    uint16_t board_bytes;
     memset(&result, 0, sizeof(result));
     memset(&commands, 0, sizeof(commands));
     if (session == NULL || session->completed) return result;
@@ -684,12 +752,13 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     if (input == PS_INPUT_ACTION && session->game->no_action) direction = 0U;
     if (input == PS_INPUT_TICK && !session->pending_again) direction = 0U;
     cells = (uint16_t)(session->width * session->height);
+    board_bytes = (uint16_t)(cells * ps_gbc_object_width(session->game));
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_SNAPSHOT);
     if (!session->snapshots.write(
             session->snapshots.context,
             (uint8_t)session->undo_head,
             session->board,
-            cells)) {
+            board_bytes)) {
         PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
         return result;
     }
@@ -717,7 +786,7 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
             session->snapshots.context,
             (uint8_t)session->undo_head,
             session->board,
-            cells);
+            board_bytes);
         PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
         return result;
     }
@@ -735,7 +804,7 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
             session->snapshots.context,
             session->game->undo_capacity,
             session->board,
-            cells);
+            board_bytes);
     }
     PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_WIN);
@@ -773,7 +842,9 @@ uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y
         || x < 0 || y < 0 || x >= (int16_t)session->width || y >= (int16_t)session->height) {
         return 0U;
     }
-    return session->board[(uint16_t)x * session->height + (uint16_t)y];
+    return ps_gbc_board_get(
+        session,
+        (uint16_t)x * session->height + (uint16_t)y);
 }
 
 const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session) {
@@ -792,7 +863,7 @@ bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int
         || session->mode != PS_FULL_STATE_MODE_LEVEL) return false;
     cells = (uint16_t)(session->width * session->height);
     for (cell = 0U; cell < cells; ++cell) {
-        if ((session->board[cell] & session->game->player_mask) != 0U) {
+        if ((ps_gbc_board_get(session, cell) & session->game->player_mask) != 0U) {
             *x = (int16_t)(cell / session->height);
             *y = (int16_t)(cell % session->height);
             return true;
@@ -801,7 +872,7 @@ bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int
     return false;
 }
 
-const uint32_t* ps_gbc_board(const ps_gbc_session* session) {
+const void* ps_gbc_board(const ps_gbc_session* session) {
     return session == NULL ? NULL : session->board;
 }
 

@@ -56,7 +56,7 @@ $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_
 $(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h | $(BUILD)
+$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(TARGET).gb: $(OBJECTS)

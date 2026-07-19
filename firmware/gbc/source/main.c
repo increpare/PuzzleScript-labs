@@ -158,12 +158,12 @@ static uint16_t saveChecksum(const SaveRecord* save) {
     return hash;
 }
 
-static bool snapshotRead(void* context, uint8_t slot, uint32_t* cells, uint16_t cell_count) {
+static bool snapshotRead(void* context, uint8_t slot, void* data, uint16_t byte_count) {
     volatile const uint8_t* source;
-    uint8_t* destination = (uint8_t*)cells;
-    uint16_t byte_count = (uint16_t)(cell_count * sizeof(uint32_t));
+    uint8_t* destination = (uint8_t*)data;
     uint16_t offset = (uint16_t)((uint16_t)slot
-        * ps_gbc_generated_game.max_level_cells * sizeof(uint32_t));
+        * ps_gbc_generated_game.max_level_cells
+        * PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL);
     uint16_t index;
     (void)context;
     ENABLE_RAM_MBC5;
@@ -177,14 +177,14 @@ static bool snapshotRead(void* context, uint8_t slot, uint32_t* cells, uint16_t 
 static bool snapshotWrite(
     void* context,
     uint8_t slot,
-    const uint32_t* cells,
-    uint16_t cell_count
+    const void* data,
+    uint16_t byte_count
 ) {
     volatile uint8_t* destination;
-    const uint8_t* source = (const uint8_t*)cells;
-    uint16_t byte_count = (uint16_t)(cell_count * sizeof(uint32_t));
+    const uint8_t* source = (const uint8_t*)data;
     uint16_t offset = (uint16_t)((uint16_t)slot
-        * ps_gbc_generated_game.max_level_cells * sizeof(uint32_t));
+        * ps_gbc_generated_game.max_level_cells
+        * PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL);
     uint16_t index;
     (void)context;
     ENABLE_RAM_MBC5;
@@ -360,9 +360,17 @@ uint8_t composeTile(uint32_t objects) {
     return target_palette;
 }
 
+#if PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 1U
+#define BOARD_OBJECTS(board, cell) (((const uint8_t*)(board))[(cell)])
+#elif PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 2U
+#define BOARD_OBJECTS(board, cell) (((const uint16_t*)(board))[(cell)])
+#else
+#define BOARD_OBJECTS(board, cell) (((const uint32_t*)(board))[(cell)])
+#endif
+
 void renderBoard(void) {
     ps_gbc_status status;
-    const uint32_t* board;
+    const void* board;
     const uint8_t* dirty;
     uint16_t cells;
     uint8_t offset_x;
@@ -392,9 +400,10 @@ void renderBoard(void) {
                 uint32_t objects = ps_gbc_generated_game.background_mask;
                 if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
                     && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
-                    objects = board[
+                    objects = BOARD_OBJECTS(
+                        board,
                         (uint16_t)(screen_x - offset_x) * status.height
-                        + (uint16_t)(screen_y - offset_y)];
+                            + (uint16_t)(screen_y - offset_y));
                 }
                 ps_gbc_render_cell(screen_cell, screen_cell, objects);
             }
@@ -429,7 +438,7 @@ void renderBoard(void) {
                     ps_gbc_render_cell(
                         screen_cell,
                         ps_gbc_find_free_tile(screen_cell),
-                        board[board_cell]);
+                        BOARD_OBJECTS(board, board_cell));
                 }
                 if (gTileMap[screen_cell] != previous_tile) {
                     VBK_REG = VBK_BANK_0;

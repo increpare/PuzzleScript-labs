@@ -6,7 +6,7 @@
 #include "puzzlescript/gbc.h"
 
 bool ps_gbc_reuse_matching_tile(
-    const uint32_t* board,
+    const void* board,
     const uint8_t* dirty,
     uint16_t cell_count,
     uint16_t current_cell,

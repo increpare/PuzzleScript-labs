@@ -54,7 +54,7 @@ extern "C" {
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 360
-#define PS_GBC_GAME_ABI_VERSION 4
+#define PS_GBC_GAME_ABI_VERSION 5
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 128
 
@@ -143,7 +143,7 @@ typedef struct ps_gbc_level {
     ps_gbc_level_kind kind;
     uint16_t width;
     uint16_t height;
-    const uint32_t* cells;
+    const void* cells;
     const char* message;
 } ps_gbc_level;
 
@@ -156,6 +156,7 @@ typedef struct ps_gbc_game_view {
     uint8_t layer_count;
     uint8_t movement_layer_count;
     uint8_t movement_bytes_per_cell;
+    uint8_t object_bytes_per_cell;
     uint8_t undo_capacity;
     uint8_t viewport_width;
     uint8_t viewport_height;
@@ -190,15 +191,15 @@ typedef struct ps_gbc_session ps_gbc_session;
 typedef bool (*ps_gbc_snapshot_read)(
     void* context,
     uint8_t slot,
-    uint32_t* cells,
-    uint16_t cell_count
+    void* data,
+    uint16_t byte_count
 );
 
 typedef bool (*ps_gbc_snapshot_write)(
     void* context,
     uint8_t slot,
-    const uint32_t* cells,
-    uint16_t cell_count
+    const void* data,
+    uint16_t byte_count
 );
 
 typedef struct ps_gbc_snapshot_io {
@@ -234,7 +235,7 @@ uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y
 const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session);
 void ps_gbc_clear_dirty_cells(ps_gbc_session* session);
 bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y);
-const uint32_t* ps_gbc_board(const ps_gbc_session* session);
+const void* ps_gbc_board(const ps_gbc_session* session);
 const ps_gbc_game_view* ps_gbc_game(const ps_gbc_session* session);
 
 #ifdef __cplusplus

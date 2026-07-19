@@ -96,6 +96,12 @@ those layers to compact movement lanes. Layers that can never move consume no
 movement lane. One live lane uses one byte per board cell, two or three lanes
 use two bytes, and four to six lanes use four bytes.
 
+Object masks are also stored at the narrowest safe width. Games with up to
+eight objects use one byte per live or saved board cell, games with nine to
+sixteen use two bytes, and games with seventeen to thirty-two retain four
+bytes. The same width is used for generated level tables, live WRAM, and SRAM
+undo/checkpoint snapshots; rule masks remain 32-bit.
+
 The hot board, compact movement plane, and match-bitset state stays below 4 KiB
 of normal WRAM. Board snapshots live in cartridge SRAM because CGB extra WRAM
 is exposed through a banked 4 KiB window rather than as one contiguous C

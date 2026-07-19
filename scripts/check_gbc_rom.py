@@ -59,7 +59,10 @@ def main() -> int:
     collision_layers = int(manifest["collision_layer_count"])
     movement_layers = int(manifest["movement_layer_count"])
     movement_bytes = int(manifest["movement_bytes_per_cell"])
+    object_count = int(manifest["object_count"])
+    object_bytes = int(manifest["object_bytes_per_cell"])
     expected_movement_bytes = 1 if movement_layers <= 1 else 2 if movement_layers <= 3 else 4
+    expected_object_bytes = 1 if object_count <= 8 else 2 if object_count <= 16 else 4
     checks = [
         ("CGB-only header flag", rom[0x143] == 0xC0, f"0x{rom[0x143]:02x}"),
         ("MBC5+RAM+battery type", rom[0x147] == 0x1B, f"0x{rom[0x147]:02x}"),
@@ -79,6 +82,11 @@ def main() -> int:
             "movement bytes per cell",
             movement_bytes == expected_movement_bytes,
             str(movement_bytes),
+        ),
+        (
+            "object bytes per cell",
+            object_bytes == expected_object_bytes,
+            str(object_bytes),
         ),
         (
             "WRAM session",

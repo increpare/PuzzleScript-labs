@@ -2,6 +2,7 @@
 
 #include <gb/gb.h>
 
+#include "generated_game.h"
 #include "tile_cache.h"
 
 #include <string.h>
@@ -15,8 +16,16 @@ extern uint8_t gSourcePixels[64];
 extern uint8_t gTileBytes[16];
 extern uint8_t composeTile(uint32_t objects);
 
+#if PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 1U
+#define BOARD_OBJECTS(board, cell) (((const uint8_t*)(board))[(cell)])
+#elif PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 2U
+#define BOARD_OBJECTS(board, cell) (((const uint16_t*)(board))[(cell)])
+#else
+#define BOARD_OBJECTS(board, cell) (((const uint32_t*)(board))[(cell)])
+#endif
+
 bool ps_gbc_reuse_matching_tile(
-    const uint32_t* board,
+    const void* board,
     const uint8_t* dirty,
     uint16_t cell_count,
     uint16_t current_cell,
@@ -26,8 +35,11 @@ bool ps_gbc_reuse_matching_tile(
     uint8_t offset_y
 ) BANKED {
     uint16_t candidate;
+    const uint32_t current_objects = BOARD_OBJECTS(board, current_cell);
     for (candidate = 0U; candidate < cell_count; ++candidate) {
-        if (candidate == current_cell || board[candidate] != board[current_cell]) continue;
+        if (candidate == current_cell || BOARD_OBJECTS(board, candidate) != current_objects) {
+            continue;
+        }
         if (candidate < current_cell
             || (dirty[candidate >> 3U]
                 & (uint8_t)(1U << (candidate & 7U))) == 0U) {

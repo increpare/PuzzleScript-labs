@@ -4,24 +4,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint32_t* g_snapshots;
+static uint8_t* g_snapshots;
 
-static bool snapshot_read(void* context, uint8_t slot, uint32_t* cells, uint16_t count) {
+static bool snapshot_read(void* context, uint8_t slot, void* data, uint16_t byte_count) {
     const ps_gbc_game_view* game = (const ps_gbc_game_view*)context;
-    memcpy(cells, g_snapshots + (size_t)slot * game->max_level_cells,
-        (size_t)count * sizeof(uint32_t));
+    memcpy(
+        data,
+        g_snapshots + (size_t)slot * game->max_level_cells * game->object_bytes_per_cell,
+        byte_count);
     return true;
 }
 
 static bool snapshot_write(
     void* context,
     uint8_t slot,
-    const uint32_t* cells,
-    uint16_t count
+    const void* data,
+    uint16_t byte_count
 ) {
     const ps_gbc_game_view* game = (const ps_gbc_game_view*)context;
-    memcpy(g_snapshots + (size_t)slot * game->max_level_cells, cells,
-        (size_t)count * sizeof(uint32_t));
+    memcpy(
+        g_snapshots + (size_t)slot * game->max_level_cells * game->object_bytes_per_cell,
+        data,
+        byte_count);
     return true;
 }
 
@@ -30,9 +34,10 @@ int main(void) {
     ps_gbc_session* session;
     ps_step_result result;
     ps_gbc_snapshot_io snapshots;
-    const size_t snapshot_cells =
+    const size_t snapshot_bytes =
         (size_t)(ps_gbc_generated_game.undo_capacity + 1U)
-        * ps_gbc_generated_game.max_level_cells;
+        * ps_gbc_generated_game.max_level_cells
+        * ps_gbc_generated_game.object_bytes_per_cell;
     if (ps_gbc_generated_game.layer_count != 4U
         || ps_gbc_generated_game.movement_layer_count != 2U
         || ps_gbc_generated_game.movement_bytes_per_cell != 2U
@@ -42,7 +47,7 @@ int main(void) {
         return 1;
     }
     arena = (uint8_t*)malloc(PS_GBC_GENERATED_SESSION_BYTES);
-    g_snapshots = (uint32_t*)calloc(snapshot_cells, sizeof(uint32_t));
+    g_snapshots = (uint8_t*)calloc(snapshot_bytes, 1U);
     if (arena == NULL || g_snapshots == NULL) {
         free(g_snapshots);
         free(arena);

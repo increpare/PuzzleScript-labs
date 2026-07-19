@@ -206,3 +206,37 @@ grows by 180 fixed-bank bytes (15652 to 15832), while its generated bank,
 353-byte session, and 840-byte snapshots are unchanged. Dollyban remains valid
 at 14777 fixed-bank bytes, 8984/16384 generated-bank bytes, and 1693 static
 WRAM bytes.
+
+### 5. Narrow 8/16/32-bit object storage — retained
+
+Revision under test: working tree after `73198a59`.
+
+The exporter selects one object-mask byte for up to eight objects, two bytes for
+nine to sixteen, and four bytes for seventeen to thirty-two. Generated level
+tables, the live board, and raw SRAM snapshots all share that width; rule masks
+remain 32-bit. Generated builds use preprocessing-time direct loads/stores,
+while the generic host library validates and dispatches the width dynamically.
+The object-storage ABI changes from 4 to 5.
+
+| Case | Objects / width | Logic ticks/turn | Logic delta | Render delta | Session delta | Snapshot delta | Game-bank estimate delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| sokoban | 5 / 1 B | 649.719 | -10.668% | -15.323% | -124 B | -630 B | -252 B |
+| large_board | 6 / 1 B | 2655.688 | -8.398% | -9.991% | -628 B | -3150 B | -1233 B |
+| rule_heavy | 8 / 1 B | 8253.070 | -5.826% | -16.816% | -360 B | -1815 B | -801 B |
+| object_heavy | 20 / 4 B | 14576.094 | +0.001983% | -0.027739% | 0 B | 0 B | 0 B |
+| two_movement_lanes | 17 / 4 B | 10583.070 | +0.002510% | -0.037258% | 0 B | 0 B | 0 B |
+
+The phase-probed Sokoban result attributes the largest gains to snapshot writes
+(50.078 to 14.313 ticks, -71.420%), player setup (45.141 to 36.891,
+-18.276%), early rules (533.836 to 505.820, -5.248%), and win checks (42.266
+to 37.117, -12.181%). The instrumented whole turn is 663.766 ticks; probe
+overhead rises to 2.162% because the underlying turn is faster.
+
+The shipping Sokoban cartridge shrinks by 334 fixed-bank bytes and 320
+generated-bank bytes. Static WRAM falls from 1337 to 1213 bytes, its session
+from 353 to 229 bytes, and its five snapshots from 840 to 210 SRAM bytes.
+Dollyban benefits more from compact level tables: its generated bank falls from
+8984 to 5163 bytes (-3821), session from 709 to 381 bytes, snapshots from 2200
+to 550 bytes, and fixed bank from 14777 to 14443 bytes. A separate nine-object
+cartridge exercised the two-byte GBDK path and passed ROM validation and the
+mGBA movement/undo/render smoke.

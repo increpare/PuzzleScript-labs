@@ -27,18 +27,24 @@ std::string readFile(const std::filesystem::path& path) {
 
 struct SnapshotMemory {
     uint16_t stride = 0;
-    std::vector<uint32_t> cells;
+    std::vector<uint8_t> cells;
 };
 
-bool snapshotRead(void* context, uint8_t slot, uint32_t* cells, uint16_t count) {
+bool snapshotRead(void* context, uint8_t slot, void* data, uint16_t byteCount) {
     const auto& memory = *static_cast<const SnapshotMemory*>(context);
-    std::copy_n(memory.cells.data() + static_cast<size_t>(slot) * memory.stride, count, cells);
+    std::copy_n(
+        memory.cells.data() + static_cast<size_t>(slot) * memory.stride,
+        byteCount,
+        static_cast<uint8_t*>(data));
     return true;
 }
 
-bool snapshotWrite(void* context, uint8_t slot, const uint32_t* cells, uint16_t count) {
+bool snapshotWrite(void* context, uint8_t slot, const void* data, uint16_t byteCount) {
     auto& memory = *static_cast<SnapshotMemory*>(context);
-    std::copy_n(cells, count, memory.cells.data() + static_cast<size_t>(slot) * memory.stride);
+    std::copy_n(
+        static_cast<const uint8_t*>(data),
+        byteCount,
+        memory.cells.data() + static_cast<size_t>(slot) * memory.stride);
     return true;
 }
 
@@ -105,7 +111,9 @@ int main() {
 
     std::vector<uint8_t> arena(PS_GBC_GENERATED_SESSION_BYTES);
     SnapshotMemory memory;
-    memory.stride = ps_gbc_generated_game.max_level_cells;
+    memory.stride = static_cast<uint16_t>(
+        ps_gbc_generated_game.max_level_cells
+        * ps_gbc_generated_game.object_bytes_per_cell);
     memory.cells.resize(
         static_cast<size_t>(ps_gbc_generated_game.undo_capacity + 1U) * memory.stride);
     const ps_gbc_snapshot_io snapshots{
