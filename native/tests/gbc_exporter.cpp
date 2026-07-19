@@ -93,6 +93,13 @@ int main() {
             "static const uint8_t kObject2Pixels[] = {255U, 255U, 255U, 255U, "
             "255U, 255U, 255U, 255U, 255U, 255U, 8U, 8U, 8U") != std::string::npos,
         "non-background 5x5 sprites retain uniform source pixels in a centred 8x8 tile");
+    require(
+        source.find(
+            "static const uint16_t kBackgroundPalettes[] = {4916U, 3624U, 0U, 0U, "
+            "6275U, 4916U, 3624U, 0U, 0U, 6717U, 32767U, 31043U, "
+            "4500U, 5353U, 6275U, 4916U, 6717U, 6275U, 4916U, 3624U")
+            != std::string::npos,
+        "top-object palettes preserve colours from visible lower collision layers");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");

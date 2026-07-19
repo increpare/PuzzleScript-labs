@@ -748,10 +748,26 @@ ExportResult exportGame(const ExportOptions& options) {
                 opaqueColors.push_back(sourceColors[index]);
             }
         }
+        std::vector<uint16_t> compositeColors = opaqueColors;
+        for (int32_t lowerLayer = sourceObject.layer - 1; lowerLayer >= 0; --lowerLayer) {
+            for (const ObjectDef& lowerObject : game.objectsById) {
+                if (lowerObject.layer != lowerLayer) continue;
+                for (const std::string& value : lowerObject.colors) {
+                    const Rgb color = parseColor(value);
+                    const uint16_t packed = toBgr555(color);
+                    if (!color.transparent
+                        && std::find(
+                            compositeColors.begin(), compositeColors.end(), packed)
+                            == compositeColors.end()) {
+                        compositeColors.push_back(packed);
+                    }
+                }
+            }
+        }
         std::array<uint16_t, 4> candidate{};
         candidate.fill(backgroundColor);
-        size_t destination = opaqueColors.size() >= 4U ? 0U : 1U;
-        for (const uint16_t color : opaqueColors) {
+        size_t destination = 0U;
+        for (const uint16_t color : compositeColors) {
             if (destination >= 4U) break;
             candidate[destination++] = color;
         }
@@ -768,7 +784,7 @@ ExportResult exportGame(const ExportOptions& options) {
             paletteIndex = 0U;
             for (uint8_t index = 0U; index < 8U; ++index) {
                 uint32_t score = 0U;
-                for (const uint16_t color : opaqueColors) {
+                for (const uint16_t color : compositeColors) {
                     score += colorDistance(palettes[index][nearestColor(palettes[index], color)], color);
                 }
                 if (score < bestScore) {
