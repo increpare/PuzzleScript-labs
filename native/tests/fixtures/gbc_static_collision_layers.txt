@@ -1,0 +1,76 @@
+title GBC Static Collision Layer Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Dust1
+red
+0
+
+Dust2
+green
+0
+
+Dust3
+blue
+0
+
+Dust4
+yellow
+0
+
+Dust5
+purple
+0
+
+Player
+white
+0
+
+Wall
+grey
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Dust1 and Dust2 and Dust4 and Dust5 and Player
+# = Background and Wall
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Dust1
+Dust2
+Dust3
+Dust4
+Dust5
+Player, Wall
+
+======
+RULES
+======
+
+right [ > Dust1 ] -> [ ]
+right [ stationary Dust2 ] -> [ Dust2 Dust3 ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player on Wall
+
+=======
+LEVELS
+=======
+
+P.#

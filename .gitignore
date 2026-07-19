@@ -17,6 +17,8 @@ node_modules/
 /Launch_ps_cli_2026-04-22_19.03.09_B5D2FB0F.trace
 /build-32
 /build-32-*
+/build-gbc-*
+/.codex_tmp/
 *.o
 /.superpowers
 /.worktrees/
@@ -46,3 +48,15 @@ node_modules/
 /firmware/gba/*.elf
 /firmware/gba/*.gba
 /firmware/gba/*.map
+
+/firmware/gbc/build/
+/firmware/gbc/build-autotest/
+/firmware/gbc/build*-perf-*/
+/firmware/gbc/generated/
+/firmware/gbc/*.gb
+/firmware/gbc/*.ihx
+/firmware/gbc/*.map
+/firmware/gbc/*.noi
+/firmware/gbc/*.sym
+/firmware/gbc/*.sav
+/firmware/gbc/.smoke-run/

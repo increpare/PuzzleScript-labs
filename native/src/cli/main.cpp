@@ -29,6 +29,7 @@
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/semantic_program.hpp"
 #include "gba/exporter.hpp"
+#include "gbc/exporter.hpp"
 #include "runtime/json.hpp"
 #include "runtime/compiled_rules.hpp"
 #include "runtime/layout_metrics.hpp"
@@ -7182,6 +7183,27 @@ int exportGbaCommand(const std::string& sourcePath, int argc, char** argv) {
     return 0;
 }
 
+int exportGbcCommand(const std::string& sourcePath, int argc, char** argv) {
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath = sourcePath;
+    for (int index = 0; index < argc; ++index) {
+        const std::string arg = argv[index];
+        if (arg == "--out" && index + 1 < argc) {
+            options.outputDirectory = argv[++index];
+        } else {
+            throw std::runtime_error("Unsupported export-gbc argument: " + arg);
+        }
+    }
+    if (options.outputDirectory.empty()) {
+        throw std::runtime_error("export-gbc requires --out DIR");
+    }
+    const puzzlescript::gbc::ExportResult result = puzzlescript::gbc::exportGame(options);
+    std::cout << "GBC export complete\n"
+              << "  manifest: " << result.manifestPath.string() << "\n"
+              << "  game data: " << result.generatedSourcePath.string() << "\n";
+    return 0;
+}
+
 void printMainHelp() {
     std::cout
         << "puzzlescript_cpp: C++ PuzzleScript compiler, runtime, test runner, and SDL player\n\n"
@@ -7204,6 +7226,8 @@ void printMainHelp() {
         << "      Emit C++ specialized rulegroup kernels for build-time solver/generator specialization.\n"
         << "  puzzlescript_cpp export-gba game.txt --out build/gba/game\n"
         << "      Export ROM-backed game data, compact rules, SFX, and a GBA compatibility manifest.\n"
+        << "  puzzlescript_cpp export-gbc game.txt --out build/gbc/game\n"
+        << "      Export bounded CGB game data and the fixed-memory C cartridge runtime contract.\n"
         << "  puzzlescript_cpp test js-parity <generated-js-parity-data.json>\n"
         << "      Check saved replay cases generated from the original JavaScript test suite.\n"
         << "  puzzlescript_cpp test simulation-corpus src/tests/resources/testdata.js\n"
@@ -7311,6 +7335,17 @@ void printExportGbaHelp() {
         << "or a guessed game genre. Oversized boards retain the largest undo ring that fits.\n";
 }
 
+void printExportGbcHelp() {
+    std::cout
+        << "Usage: puzzlescript_cpp export-gbc game.txt --out DIR\n\n"
+        << "Compiles one PuzzleScript game for the Color Game Boy target. The v1 profile\n"
+        << "supports at most 32 objects/collision layers, 6 movement-capable layers,\n"
+        << "a 20x18 (360-cell) board, and a RAM-budgeted 1-4 entry undo ring. Static\n"
+        << "analysis removes dormant layers from compact movement storage. It accepts fixed,\n"
+        << "single-row rules and fails with a source line when a rule requires unsupported\n"
+        << "rigid, random, ellipsis, multi-row, or dynamic-binding semantics.\n";
+}
+
 void printTestHelp() {
     std::cout
         << "Usage: puzzlescript_cpp test js-parity generated-js-parity-data.json [options]\n"
@@ -7376,6 +7411,8 @@ void printHelpTopic(const std::string& topic) {
         printCompileRulesHelp();
     } else if (topic == "export-gba") {
         printExportGbaHelp();
+    } else if (topic == "export-gbc") {
+        printExportGbcHelp();
     } else if (topic == "test") {
         printTestHelp();
     } else if (topic == "profile" || topic == "profile-simulations") {
@@ -7433,6 +7470,9 @@ int main(int argc, char** argv) {
         }
         if (command == "export-gba") {
             return exportGbaCommand(path, argc - 3, argv + 3);
+        }
+        if (command == "export-gbc") {
+            return exportGbcCommand(path, argc - 3, argv + 3);
         }
         if (command == "play") {
 #ifdef PS_HAVE_SDL2

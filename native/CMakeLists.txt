@@ -70,6 +70,7 @@ endif()
 set(PUZZLESCRIPT_NATIVE_PUBLIC_HEADERS
   include/puzzlescript/puzzlescript.h
   include/puzzlescript/gba.h
+  include/puzzlescript/gbc.h
 )
 
 set(PUZZLESCRIPT_COMPILER_PUBLIC_HEADERS
@@ -144,6 +145,23 @@ target_compile_options(puzzlescript_gba_core PRIVATE
   $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/GR->
 )
 
+# Fixed-memory CGB runtime shared by host tests and the GBDK cartridge build.
+add_library(puzzlescript_gbc_core STATIC
+  include/puzzlescript/gbc.h
+  src/gbc/core.c
+)
+target_include_directories(puzzlescript_gbc_core
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+set_target_properties(puzzlescript_gbc_core PROPERTIES
+  C_STANDARD 11
+  C_STANDARD_REQUIRED ON
+)
+target_compile_options(puzzlescript_gbc_core PRIVATE
+  $<$<COMPILE_LANG_AND_ID:C,GNU,Clang,AppleClang>:-ffreestanding>
+)
+
 # Host-side exporter: native compilation and rule codegen happen here; only the
 # generated POD data and compact runtime are intended for the cartridge.
 add_library(puzzlescript_gba_exporter STATIC
@@ -160,6 +178,22 @@ add_library(puzzlescript_gba_exporter STATIC
       ${CMAKE_CURRENT_SOURCE_DIR}/third_party
   )
 target_link_libraries(puzzlescript_gba_exporter
+  PUBLIC
+    puzzlescript_compiler
+    puzzlescript_native
+)
+
+add_library(puzzlescript_gbc_exporter STATIC
+  src/gbc/exporter.cpp
+  src/gbc/exporter.hpp
+)
+target_include_directories(puzzlescript_gbc_exporter
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(puzzlescript_gbc_exporter
   PUBLIC
     puzzlescript_compiler
     puzzlescript_native
@@ -363,6 +397,7 @@ target_link_libraries(puzzlescript_cpp
     puzzlescript_native
     puzzlescript_compiler
     puzzlescript_gba_exporter
+    puzzlescript_gbc_exporter
 )
 
 target_include_directories(puzzlescript_cpp
@@ -478,6 +513,12 @@ add_executable(puzzlescript_gba_core_tests
 target_link_libraries(puzzlescript_gba_core_tests PRIVATE puzzlescript_gba_core)
 add_test(NAME puzzlescript_gba_core_tests COMMAND puzzlescript_gba_core_tests)
 
+add_executable(puzzlescript_gbc_core_tests
+  tests/gbc_core.c
+)
+target_link_libraries(puzzlescript_gbc_core_tests PRIVATE puzzlescript_gbc_core)
+add_test(NAME puzzlescript_gbc_core_tests COMMAND puzzlescript_gbc_core_tests)
+
 add_executable(puzzlescript_gba_exporter_tests
   tests/gba_exporter.cpp
 )
@@ -487,6 +528,18 @@ target_link_libraries(puzzlescript_gba_exporter_tests PRIVATE puzzlescript_gba_e
 add_test(
   NAME puzzlescript_gba_exporter_tests
   COMMAND puzzlescript_gba_exporter_tests
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(puzzlescript_gbc_exporter_tests
+  tests/gbc_exporter.cpp
+)
+target_include_directories(puzzlescript_gbc_exporter_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_compile_definitions(puzzlescript_gbc_exporter_tests PRIVATE PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}")
+target_link_libraries(puzzlescript_gbc_exporter_tests PRIVATE puzzlescript_gbc_exporter)
+add_test(
+  NAME puzzlescript_gbc_exporter_tests
+  COMMAND puzzlescript_gbc_exporter_tests
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
@@ -532,6 +585,123 @@ target_compile_definitions(puzzlescript_gba_generated_smoke PRIVATE
   PS_INTERPRETER_OBJECT_CELL_INDEX=1
 )
 add_test(NAME puzzlescript_gba_generated_smoke COMMAND puzzlescript_gba_generated_smoke)
+
+set(GBC_GENERATED_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_sokoban)
+set(GBC_GENERATED_SMOKE_SOURCE ${GBC_GENERATED_SMOKE_DIR}/generated_game.c)
+set(GBC_GENERATED_SMOKE_HEADER ${GBC_GENERATED_SMOKE_DIR}/generated_game.h)
+set(GBC_GENERATED_SMOKE_MANIFEST ${GBC_GENERATED_SMOKE_DIR}/gbc_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBC_GENERATED_SMOKE_SOURCE}
+    ${GBC_GENERATED_SMOKE_HEADER}
+    ${GBC_GENERATED_SMOKE_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+          --out ${GBC_GENERATED_SMOKE_DIR}
+  DEPENDS
+    puzzlescript_cpp
+    ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_generated_smoke
+  tests/gbc_generated_smoke.c
+  ${GBC_GENERATED_SMOKE_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_generated_smoke PRIVATE
+  ${GBC_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(puzzlescript_gbc_generated_smoke PRIVATE puzzlescript_gbc_core)
+add_test(NAME puzzlescript_gbc_generated_smoke COMMAND puzzlescript_gbc_generated_smoke)
+
+add_executable(puzzlescript_gbc_parity_smoke
+  tests/gbc_parity_smoke.cpp
+  ${GBC_GENERATED_SMOKE_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_parity_smoke PRIVATE
+  ${GBC_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_definitions(puzzlescript_gbc_parity_smoke PRIVATE
+  PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+)
+target_link_libraries(puzzlescript_gbc_parity_smoke PRIVATE
+  puzzlescript_gbc_core
+  puzzlescript_native
+  puzzlescript_compiler
+)
+add_test(NAME puzzlescript_gbc_parity_smoke COMMAND puzzlescript_gbc_parity_smoke)
+
+set(GBC_STATIC_LAYERS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_static_layers)
+set(GBC_STATIC_LAYERS_SOURCE ${GBC_STATIC_LAYERS_DIR}/generated_game.c)
+set(GBC_STATIC_LAYERS_HEADER ${GBC_STATIC_LAYERS_DIR}/generated_game.h)
+set(GBC_STATIC_LAYERS_MANIFEST ${GBC_STATIC_LAYERS_DIR}/gbc_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBC_STATIC_LAYERS_SOURCE}
+    ${GBC_STATIC_LAYERS_HEADER}
+    ${GBC_STATIC_LAYERS_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_static_collision_layers.txt
+          --out ${GBC_STATIC_LAYERS_DIR}
+  DEPENDS
+    puzzlescript_cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_static_collision_layers.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_static_layers_parity
+  tests/gbc_static_layers_parity.cpp
+  ${GBC_STATIC_LAYERS_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_static_layers_parity PRIVATE
+  ${GBC_STATIC_LAYERS_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_definitions(puzzlescript_gbc_static_layers_parity PRIVATE
+  PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+)
+target_link_libraries(puzzlescript_gbc_static_layers_parity PRIVATE
+  puzzlescript_gbc_core
+  puzzlescript_native
+  puzzlescript_compiler
+)
+add_test(
+  NAME puzzlescript_gbc_static_layers_parity
+  COMMAND puzzlescript_gbc_static_layers_parity
+)
+
+set(GBC_ACTION_MOVEMENT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_action_movement)
+set(GBC_ACTION_MOVEMENT_SOURCE ${GBC_ACTION_MOVEMENT_DIR}/generated_game.c)
+set(GBC_ACTION_MOVEMENT_HEADER ${GBC_ACTION_MOVEMENT_DIR}/generated_game.h)
+set(GBC_ACTION_MOVEMENT_MANIFEST ${GBC_ACTION_MOVEMENT_DIR}/gbc_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBC_ACTION_MOVEMENT_SOURCE}
+    ${GBC_ACTION_MOVEMENT_HEADER}
+    ${GBC_ACTION_MOVEMENT_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_action_movement_layer.txt
+          --out ${GBC_ACTION_MOVEMENT_DIR}
+  DEPENDS
+    puzzlescript_cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_action_movement_layer.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_action_movement_smoke
+  tests/gbc_action_movement_smoke.c
+  ${GBC_ACTION_MOVEMENT_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_action_movement_smoke PRIVATE
+  ${GBC_ACTION_MOVEMENT_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(puzzlescript_gbc_action_movement_smoke PRIVATE
+  puzzlescript_gbc_core
+)
+add_test(
+  NAME puzzlescript_gbc_action_movement_smoke
+  COMMAND puzzlescript_gbc_action_movement_smoke
+)
 
 # Replay fixed native-solver solutions through both the ordinary native runtime
 # and the generated GBA representation. Keep the entire executable on 32-bit
@@ -1255,6 +1425,28 @@ target_include_directories(static_analysis_runtime_ir_extras
 add_test(
   NAME static_analysis_runtime_ir_extras
   COMMAND static_analysis_runtime_ir_extras
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
+add_executable(movement_layer_analysis
+  tests/movement_layer_analysis.cpp
+)
+target_link_libraries(movement_layer_analysis
+  PRIVATE
+    puzzlescript_native
+    puzzlescript_compiler
+)
+target_include_directories(movement_layer_analysis
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_definitions(movement_layer_analysis
+  PRIVATE
+    PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+)
+add_test(
+  NAME movement_layer_analysis
+  COMMAND movement_layer_analysis
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
