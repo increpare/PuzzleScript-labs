@@ -240,3 +240,81 @@ Dollyban benefits more from compact level tables: its generated bank falls from
 to 550 bytes, and fixed bank from 14777 to 14443 bytes. A separate nine-object
 cartridge exercised the two-byte GBDK path and passed ROM validation and the
 mGBA movement/undo/render smoke.
+
+### Playtest correction: native-sized sprites — retained
+
+Revision: `19271dba`.
+
+The 8x8 Game Boy hardware tile is now a container rather than a scaling target.
+Non-background PuzzleScript sprites keep one hardware pixel per source pixel
+and are centred in the tile. The designated background remains full-bleed so
+the board does not acquire gaps between cells.
+
+Sokoban logic is unchanged at 649.719 ticks/turn. Dirty rendering improves from
+393.750 to 391.000 ticks/frame (-0.70%) and full composition improves from
+29945.0 to 29847.5 ticks/frame (-0.33%). Linked fixed ROM, generated ROM, WRAM,
+session RAM, and SRAM are unchanged. The exporter test asserts the centred 5x5
+layout and the mGBA render/movement smoke passes.
+
+### Playtest correction: lower-layer palette colours — retained
+
+Revision: `a99b8f9a`.
+
+Transparency was already represented and layers were already composed from
+bottom to top, but the final tile always used only the top object's palette.
+Lower-layer pixels survived composition and were then quantized away. Object
+palettes now prioritize the object's colours followed by successively lower
+collision layers.
+
+Microban's crate-on-goal composite now contains all four exact hardware colours:
+16 orange crate pixels, 8 dark-blue target pixels, and the two background
+greens. Logic remains 649.719 ticks/turn, rendering remains 391.000 ticks/frame,
+and every ROM/WRAM/SRAM metric is unchanged.
+
+### 6. Stable movement-rule convergence — retained
+
+Revisions: benchmark `40a754dd`, fix `21ba75f6`.
+
+The interaction probe measures initial rendering and a deterministic
+walk-down/push-right sequence on the first Sokoban board. It exposed an
+idempotence bug in movement replacements: the new movement mask was compared
+with a locally cleared intermediate mask instead of the original cell. A
+stable push rule therefore reported a change for all 200 safety-bound passes.
+
+| Metric | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Push logic | 113413 ticks / 27.689 s | 1315 ticks / 0.321 s | -98.84% |
+| Push render | 700 ticks / 0.171 s | 740 ticks / 0.181 s | +5.71% |
+| Complete push response | 114113 ticks / 27.860 s | 2055 ticks / 0.502 s | -98.20% |
+| Ordinary walk logic | 651 ticks | 651 ticks | 0% |
+
+The rule-heavy suite improves from 8253.070 to 7498.766 ticks/turn (-9.14%).
+Three ordinary-turn controls are unchanged; the object-heavy control is
++0.123%. Shipping Sokoban fixed ROM grows by 17 bytes, while generated ROM,
+WRAM, session RAM, and SRAM are unchanged. All 88 native CTests and the mGBA
+render/movement smoke pass.
+
+### 7. Full-render object-mask tile cache — retained
+
+Revision: `8c6ba611`.
+
+First renders and text-to-board transitions formerly composed and uploaded 360
+unique hardware tiles while the LCD was off, even when nearly every cell was a
+duplicate. The bank-1 renderer now caches the first 16 object masks and reuses
+their tile and attribute entries. All 33 compatible games use at most 9
+distinct masks in an initial level; additional masks retain a correct uncached
+fallback.
+
+| Case | Initial render before | Initial render after | Delta | Normal render delta |
+| --- | ---: | ---: | ---: | ---: |
+| sokoban | 30734 ticks / 7.503 s | 1261 ticks / 0.308 s | -95.90% | -20.33% |
+| large_board | 31621 ticks / 7.720 s | 1196 ticks / 0.292 s | -96.22% | -16.53% |
+| rule_heavy | 37100 ticks / 9.058 s | 1224 ticks / 0.299 s | -96.70% | -19.54% |
+| object_heavy | 95077 ticks / 23.212 s | 2072 ticks / 0.506 s | -97.82% | -10.88% |
+| two_movement_lanes | 75208 ticks / 18.361 s | 1116 ticks / 0.272 s | -98.52% | -12.30% |
+
+Logic changes by no more than +0.0012%. Shipping Sokoban moves 207 bytes out of
+fixed bank and adds 445 bytes to bank 1, for a net 238 ROM bytes. The cache
+costs 80 bytes of static WRAM; session RAM and SRAM are unchanged. All five
+benchmark cartridges link within their real bank limits and the mGBA
+hardware-state smoke passes.
