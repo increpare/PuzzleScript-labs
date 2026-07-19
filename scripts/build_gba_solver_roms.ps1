@@ -1,6 +1,9 @@
 param(
     [string]$Corpus = "src\tests\solver_tests",
-    [string]$OutputDirectory = "build\gba\solver-tests\roms\all-abi5",
+    [string]$OutputDirectory = "",
+    [switch]$Audio,
+    [ValidateRange(0, 1024)]
+    [int]$AudioVolume = 128,
     [switch]$Rebuild,
     [switch]$Resume
 )
@@ -11,8 +14,20 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $corpusPath = (Resolve-Path (Join-Path $repo $Corpus)).Path
 $compiler = (Resolve-Path (Join-Path $repo "build-32\native\Release\puzzlescript_cpp.exe")).Path
 $firmware = Join-Path $repo "firmware\gba"
+$generatedDirectory = Join-Path $firmware "generated"
+$manifestPath = Join-Path $generatedDirectory "gba_manifest.json"
 $make = "C:\devkitPro\msys2\usr\bin\make.exe"
 if (-not (Test-Path -LiteralPath $make)) { throw "devkitPro make not found: $make" }
+$shell = "C:/devkitPro/msys2/usr/bin/sh.exe"
+
+$abiHeader = Get-Content -LiteralPath (Join-Path $repo "native\include\puzzlescript\gba.h")
+$abiMatch = [regex]::Match(($abiHeader -join "`n"), '#define\s+PS_GBA_GAME_ABI_VERSION\s+(\d+)')
+if (-not $abiMatch.Success) { throw "Could not determine PS_GBA_GAME_ABI_VERSION" }
+$abiVersion = [int]$abiMatch.Groups[1].Value
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    $suffix = if ($Audio) { "audio" } else { "muted" }
+    $OutputDirectory = "build\gba\solver-tests\roms\all-abi$abiVersion-$suffix"
+}
 
 $env:DEVKITPRO = "C:/devkitPro"
 $env:DEVKITARM = "C:/devkitPro/devkitARM"
@@ -30,7 +45,7 @@ $completedIndices = [System.Collections.Generic.HashSet[int]]::new()
 
 if ($Resume -and (Test-Path -LiteralPath $reportPath)) {
     $priorReport = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
-    if ($priorReport.format -ne "puzzlescript-gba-rom-build-v1") {
+    if ($priorReport.format -ne "puzzlescript-gba-rom-build-v2") {
         throw "Cannot resume unrecognized report format: $($priorReport.format)"
     }
     if ([IO.Path]::GetFullPath($priorReport.corpus) -ne [IO.Path]::GetFullPath($corpusPath)) {
@@ -53,8 +68,11 @@ if ($Resume -and (Test-Path -LiteralPath $reportPath)) {
 function Write-Report([bool]$complete) {
     $successful = @($records | Where-Object success).Count
     $report = [ordered]@{
-        format = "puzzlescript-gba-rom-build-v1"
+        format = "puzzlescript-gba-rom-build-v2"
         corpus = $corpusPath
+        abi_version = $abiVersion
+        audio_requested = [bool]$Audio
+        audio_volume = $AudioVolume
         complete = $complete
         started_utc = $started.ToString("o")
         updated_utc = [DateTimeOffset]::UtcNow.ToString("o")
@@ -64,6 +82,8 @@ function Write-Report([bool]$complete) {
             successful = $successful
             failed = $records.Count - $successful
             remaining = $sources.Count - $records.Count
+            audio_enabled = @($records | Where-Object audio_enabled).Count
+            silent = @($records | Where-Object { $_.success -and -not $_.audio_enabled }).Count
         }
         games = $records
     }
@@ -101,14 +121,38 @@ for ($index = 0; $index -lt $sources.Count; ++$index) {
     $stopwatch = [Diagnostics.Stopwatch]::StartNew()
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    $buildOutput = (& $make -C $firmware "GAME=$($source.FullName)" "PUZZLESCRIPT_CPP=$compiler" AUDIO=0 all 2>&1 | Out-String)
-    $exitCode = $LASTEXITCODE
+    $preflightOutput = (& $compiler export-gba $source.FullName --out $generatedDirectory --no-mmutil 2>&1 | Out-String)
+    $preflightExitCode = $LASTEXITCODE
+    $soundSeedCount = 0
+    $audioEnabled = $false
+    if ($preflightExitCode -eq 0 -and (Test-Path -LiteralPath $manifestPath)) {
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $soundSeedCount = [int]$manifest.sound_seed_count
+        $audioEnabled = [bool]$Audio -and $soundSeedCount -gt 0
+    }
+    $audioFlag = if ($audioEnabled) { 1 } else { 0 }
+    $buildOutput = ""
+    $exitCode = $preflightExitCode
+    if ($preflightExitCode -eq 0) {
+        $firmwareBuild = if ($audioEnabled) { "build-batch-audio" } else { "build-batch-muted" }
+        $firmwareTarget = if ($audioEnabled) { "puzzlescript_gba_batch_audio" } else { "puzzlescript_gba_batch_muted" }
+        $buildOutput = (& $make "SHELL=$shell" -C $firmware "GAME=$($source.FullName)" `
+            "PUZZLESCRIPT_CPP=$compiler" "AUDIO=$audioFlag" "AUDIO_VOLUME=$AudioVolume" `
+            "BUILD=$firmwareBuild" "TARGET=$firmwareTarget" all 2>&1 | Out-String)
+        $exitCode = $LASTEXITCODE
+    }
     $ErrorActionPreference = $previousErrorActionPreference
     $stopwatch.Stop()
-    $buildOutput | Set-Content -LiteralPath $logPath -Encoding UTF8
+    (($preflightOutput.TrimEnd(), $buildOutput.TrimEnd()) -join "`n") |
+        Set-Content -LiteralPath $logPath -Encoding UTF8
 
-    if ($exitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $firmware "puzzlescript_gba.gba"))) {
-        Copy-Item -LiteralPath (Join-Path $firmware "puzzlescript_gba.gba") -Destination $romPath -Force
+    $builtRomPath = if ($audioEnabled) {
+        Join-Path $firmware "puzzlescript_gba_batch_audio.gba"
+    } else {
+        Join-Path $firmware "puzzlescript_gba_batch_muted.gba"
+    }
+    if ($exitCode -eq 0 -and (Test-Path -LiteralPath $builtRomPath)) {
+        Copy-Item -LiteralPath $builtRomPath -Destination $romPath -Force
         $rom = Get-Item -LiteralPath $romPath
         $records.Add([pscustomobject][ordered]@{
             index = $index
@@ -116,6 +160,9 @@ for ($index = 0; $index -lt $sources.Count; ++$index) {
             source = $source.FullName.Substring($repo.Length + 1)
             success = $true
             reused = $false
+            audio_enabled = $audioEnabled
+            sound_seed_count = $soundSeedCount
+            audio_volume = if ($audioEnabled) { $AudioVolume } else { 0 }
             seconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 3)
             rom = $rom.FullName.Substring($repo.Length + 1)
             rom_bytes = $rom.Length
@@ -129,8 +176,15 @@ for ($index = 0; $index -lt $sources.Count; ++$index) {
             source = $source.FullName.Substring($repo.Length + 1)
             success = $false
             reused = $false
+            audio_enabled = $audioEnabled
+            sound_seed_count = $soundSeedCount
+            audio_volume = if ($audioEnabled) { $AudioVolume } else { 0 }
             seconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 3)
-            error = $tail
+            error = if ($preflightExitCode -ne 0) {
+                (($preflightOutput -split "`r?`n") | Where-Object { $_.Trim() } | Select-Object -Last 12) -join "`n"
+            } else {
+                $tail
+            }
             log = $logPath.Substring($repo.Length + 1)
         })
     }

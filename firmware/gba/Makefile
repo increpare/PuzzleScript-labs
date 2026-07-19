@@ -78,7 +78,7 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 CPPFILES    := main.cpp core.cpp rule_runtime_stubs.cpp generated_game.cpp generated_rules.cpp
 CFILES      :=
 SFILES      :=
-BINFILES    := soundbank.bin
+BINFILES    := $(if $(filter 1 yes true on,$(AUDIO)),soundbank.bin,)
 
 export OUTPUT       := $(CURDIR)/$(TARGET)
 export VPATH        := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) $(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -98,7 +98,8 @@ all: export $(BUILD)
 
 export:
 	@mkdir -p generated
-	"$(PUZZLESCRIPT_CPP)" export-gba "$(GAME)" --out generated $(TITLE_IMAGE_ARG)
+	"$(PUZZLESCRIPT_CPP)" export-gba "$(GAME)" --out generated $(TITLE_IMAGE_ARG) \
+		$(if $(filter 1 yes true on,$(AUDIO)),,--no-mmutil)
 
 $(BUILD): export
 	@mkdir -p $@
