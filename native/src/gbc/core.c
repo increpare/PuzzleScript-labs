@@ -414,11 +414,13 @@ static bool ps_gbc_apply_replacement(
 ) {
     uint32_t objects;
     uint32_t movements;
+    uint32_t original_movements;
     uint32_t next_objects;
     uint32_t next_movements;
     if ((pattern->flags & PS_GBC_PATTERN_HAS_REPLACEMENT) == 0U) return false;
     objects = ps_gbc_board_get(session, cell);
     movements = ps_gbc_movement_get(session, cell);
+    original_movements = movements;
     next_objects = (objects & ~pattern->objects_clear) | pattern->objects_set;
     if ((pattern->flags & PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS) != 0U) {
         movements &= ~pattern->movement_layer_mask;
@@ -427,7 +429,7 @@ static bool ps_gbc_apply_replacement(
     ps_gbc_board_set(session, cell, next_objects);
     ps_gbc_movement_set(session, cell, next_movements);
     if (next_objects != objects) ps_gbc_mark_dirty(session, cell);
-    return next_objects != objects || next_movements != movements;
+    return next_objects != objects || next_movements != original_movements;
 }
 
 static bool ps_gbc_apply_rule(

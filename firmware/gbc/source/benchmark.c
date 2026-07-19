@@ -127,3 +127,29 @@ uint32_t perfMeasureRepeatedText(void) BANKED {
     ticks = perfTimerStop();
     return ticks;
 }
+
+void perfMeasureInteraction(perf_interaction* result) BANKED {
+    if (!perfLoadFirstBoard()) {
+        result->initial_render_ticks = 0U;
+        result->walk_logic_ticks = 0U;
+        result->walk_render_ticks = 0U;
+        result->push_logic_ticks = 0U;
+        result->push_render_ticks = 0U;
+        return;
+    }
+    perfTimerStart();
+    renderBoard();
+    result->initial_render_ticks = perfTimerStop();
+    perfTimerStart();
+    (void)ps_gbc_step(gSession, PS_INPUT_DOWN);
+    result->walk_logic_ticks = perfTimerStop();
+    perfTimerStart();
+    renderBoard();
+    result->walk_render_ticks = perfTimerStop();
+    perfTimerStart();
+    (void)ps_gbc_step(gSession, PS_INPUT_RIGHT);
+    result->push_logic_ticks = perfTimerStop();
+    perfTimerStart();
+    renderBoard();
+    result->push_render_ticks = perfTimerStop();
+}

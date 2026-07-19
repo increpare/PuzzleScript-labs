@@ -572,11 +572,7 @@ static void runAutotest(void) {
         uint32_t map_upload_ticks;
         uint32_t palette_upload_ticks;
         uint32_t repeated_text_ticks;
-        uint32_t initial_render_ticks;
-        uint32_t walk_logic_ticks;
-        uint32_t walk_render_ticks;
-        uint32_t push_logic_ticks;
-        uint32_t push_render_ticks;
+        perf_interaction interaction;
         uint8_t phase;
         if (!perfLoadFirstBoard()) {
             showText("BENCHMARK ERROR", false);
@@ -601,25 +597,7 @@ static void runAutotest(void) {
         map_upload_ticks = perfMeasureMapUpload();
         palette_upload_ticks = perfMeasurePaletteUpload();
         repeated_text_ticks = perfMeasureRepeatedText();
-        if (!perfLoadFirstBoard()) {
-            showText("BENCHMARK ERROR", false);
-            for (;;) vsync();
-        }
-        perfTimerStart();
-        renderBoard();
-        initial_render_ticks = perfTimerStop();
-        perfTimerStart();
-        (void)ps_gbc_step(gSession, PS_INPUT_DOWN);
-        walk_logic_ticks = perfTimerStop();
-        perfTimerStart();
-        renderBoard();
-        walk_render_ticks = perfTimerStop();
-        perfTimerStart();
-        result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
-        push_logic_ticks = perfTimerStop();
-        perfTimerStart();
-        renderBoard();
-        push_render_ticks = perfTimerStop();
+        perfMeasureInteraction(&interaction);
         perfTimerShutdown();
         ENABLE_RAM_MBC5;
         SWITCH_RAM_MBC5(3U);
@@ -651,11 +629,11 @@ static void runAutotest(void) {
         writeSram32(84U, map_upload_ticks);
         writeSram32(88U, palette_upload_ticks);
         writeSram32(92U, repeated_text_ticks);
-        writeSram32(100U, initial_render_ticks);
-        writeSram32(104U, walk_logic_ticks);
-        writeSram32(108U, walk_render_ticks);
-        writeSram32(112U, push_logic_ticks);
-        writeSram32(116U, push_render_ticks);
+        writeSram32(100U, interaction.initial_render_ticks);
+        writeSram32(104U, interaction.walk_logic_ticks);
+        writeSram32(108U, interaction.walk_render_ticks);
+        writeSram32(112U, interaction.push_logic_ticks);
+        writeSram32(116U, interaction.push_render_ticks);
         writeSram32(96U, PERF_INTERACTION_MAGIC);
         writeSram32(32U, PERF_PHASE_MAGIC);
         writeSram32(16U, PERF_MAGIC);
