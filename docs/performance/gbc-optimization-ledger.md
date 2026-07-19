@@ -114,3 +114,32 @@ into generated-data bank 1. This does not affect shipping cartridges. It keeps
 the instrumented fixed bank valid at 16084 bytes and leaves the phase-probed
 variant valid at 16168 bytes. Therefore benchmark-bank linked-size deltas are
 not used as shipping-code metrics for this experiment.
+
+### 2. Composite-tile deduplication — retained
+
+Revision under test: working tree after `0c9d0e98`.
+
+Dirty cells first look for an unchanged or already-updated board cell with the
+same object mask. When one exists, the renderer points the cell at that
+already-correct CGB tile instead of recomposing and uploading identical pixels.
+A zero-RAM occupancy scan provides copy-on-write tile slots when no match
+exists. First and level-transition redraws retain the unique-tile layout.
+
+| Case | Render ticks/frame | Delta from dirty cells | Logic delta | Session delta |
+| --- | ---: | ---: | ---: | ---: |
+| sokoban | 1141.500 | -10.523% | 0.000% | 0 B |
+| large_board | 1217.250 | -8.340% | 0.000% | 0 B |
+| rule_heavy | 1208.500 | -11.025% | 0.000% | 0 B |
+| object_heavy | 7700.000 | -76.805% | 0.000% | 0 B |
+| two_movement_lanes | 1338.250 | -14.991% | 0.000% | 0 B |
+
+A forced-full-redraw Sokoban build measures 144321.500 ticks/frame versus
+144243.250 before the rendering optimizations (+0.054%), so title and level
+transition cost is effectively unchanged.
+
+The optimization adds no WRAM or session memory. Relative to dirty rendering,
+the shipping Sokoban autotest adds 163 fixed-bank bytes (15880 to 16043) and
+534 bank-1 bytes (1394 to 1928). The largest compatible generated-data case
+remains comfortably valid: Dollyban uses 8672 of 16384 bank-1 bytes. The normal
+and phase-probed benchmark images use 16227 and 16311 fixed-bank bytes,
+respectively.

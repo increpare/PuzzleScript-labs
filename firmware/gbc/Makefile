@@ -30,7 +30,8 @@ CFLAGS += -DPS_GBC_PERF_PHASES=1
 endif
 LDFLAGS := -msm83:gb -Wm-yC -Wm-yt0x1B -Wm-yo8 -Wm-ya4 -Wm-ynPUZZLESCRIPT -Wl-m
 PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,)
-OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o $(PERF_OBJECTS)
+OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
+	$(BUILD)/tile_cache.o $(PERF_OBJECTS)
 
 .PHONY: all export clean check-size
 
@@ -53,6 +54,9 @@ $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h $(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(TARGET).gb: $(OBJECTS)

@@ -211,11 +211,13 @@ int main() {
     }
     require(rejectedRigid, "rigid games are rejected with an explicit structural diagnostic");
 
-    const std::string firmware = readFile(root / "firmware" / "gbc" / "source" / "main.c");
+    const std::string firmware =
+        readFile(root / "firmware" / "gbc" / "source" / "main.c")
+        + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");
     require(firmware.find("SWITCH_RAM_MBC5(SNAPSHOT_RAM_BANK)") != std::string::npos,
         "firmware stores snapshots in a dedicated SRAM bank");
     require(
-        firmware.find("const uint8_t tile_bank = (uint8_t)(screen_cell >> 8U)")
+        firmware.find("const uint8_t tile_bank = (uint8_t)(tile >> 8U)")
                 != std::string::npos
             && firmware.find("VBK_REG = tile_bank") != std::string::npos,
         "renderer uses both CGB tile-pattern banks for all 360 screen cells");

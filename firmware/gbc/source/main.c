@@ -3,6 +3,7 @@
 
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
+#include "tile_cache.h"
 #if defined(PS_GBC_PERF_BENCH)
 #include "benchmark.h"
 #endif
@@ -13,7 +14,6 @@
 #define SNAPSHOT_RAM_BANK 1U
 #define SAVE_MAGIC 0x43424750UL
 #define SAVE_VERSION 1U
-#define ATTR_TILE_BANK 0x08U
 #define AUTOTEST_MAGIC 0x54434250UL
 #define RENDER_AUTOTEST_MAGIC 0x52434250UL
 #define PERF_MAGIC 0x46434250UL
@@ -37,7 +37,7 @@ static uint8_t gSessionArena[PS_GBC_GENERATED_SESSION_BYTES];
 uint8_t gTileBytes[16];
 uint8_t gTileMap[SCREEN_TILES];
 uint8_t gAttributes[SCREEN_TILES];
-static uint8_t gSourcePixels[64];
+uint8_t gSourcePixels[64];
 ps_gbc_session* gSession;
 static bool gTitleScreen;
 static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
@@ -365,18 +365,11 @@ uint8_t composeTile(uint32_t objects) {
     return target_palette;
 }
 
-static void renderCell(uint16_t screen_cell, uint32_t objects) {
-    const uint8_t palette = composeTile(objects);
-    const uint8_t tile_bank = (uint8_t)(screen_cell >> 8U);
-    VBK_REG = tile_bank;
-    set_bkg_data((uint8_t)screen_cell, 1U, gTileBytes);
-    gTileMap[screen_cell] = (uint8_t)screen_cell;
-    gAttributes[screen_cell] =
-        (uint8_t)(palette | (tile_bank != 0U ? ATTR_TILE_BANK : 0U));
-}
-
 void renderBoard(void) {
     ps_gbc_status status;
+    const uint32_t* board;
+    const uint8_t* dirty;
+    uint16_t cells;
     uint8_t offset_x;
     uint8_t offset_y;
     bool full_render;
@@ -385,6 +378,9 @@ void renderBoard(void) {
         showText(status.message == NULL ? "" : status.message, false);
         return;
     }
+    board = ps_gbc_board(gSession);
+    dirty = ps_gbc_dirty_cells(gSession);
+    cells = (uint16_t)(status.width * status.height);
     offset_x = (uint8_t)((20U - status.width) / 2U);
     offset_y = (uint8_t)((18U - status.height) / 2U);
     full_render = gRenderedLevel != status.current_level;
@@ -399,16 +395,14 @@ void renderBoard(void) {
                 uint32_t objects = ps_gbc_generated_game.background_mask;
                 if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
                     && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
-                    objects = ps_gbc_cell_objects(
-                        gSession,
-                        (int16_t)(screen_x - offset_x),
-                        (int16_t)(screen_y - offset_y));
+                    objects = board[
+                        (uint16_t)(screen_x - offset_x) * status.height
+                        + (uint16_t)(screen_y - offset_y)];
                 }
-                renderCell(screen_cell, objects);
+                ps_gbc_render_cell(screen_cell, screen_cell, objects);
             }
         }
     } else {
-        const uint8_t* dirty = ps_gbc_dirty_cells(gSession);
         uint16_t board_cell = 0U;
         uint16_t board_x;
         for (board_x = 0U; board_x < status.width; ++board_x) {
@@ -419,10 +413,20 @@ void renderBoard(void) {
                         & (uint8_t)(1U << (board_cell & 7U))) == 0U) continue;
                 screen_cell = (uint16_t)(board_y + offset_y) * 20U
                     + (uint16_t)(board_x + offset_x);
-                renderCell(
-                    screen_cell,
-                    ps_gbc_cell_objects(
-                        gSession, (int16_t)board_x, (int16_t)board_y));
+                if (!ps_gbc_reuse_matching_tile(
+                        board,
+                        dirty,
+                        cells,
+                        board_cell,
+                        screen_cell,
+                        status.height,
+                        offset_x,
+                        offset_y)) {
+                    ps_gbc_render_cell(
+                        screen_cell,
+                        ps_gbc_find_free_tile(screen_cell),
+                        board[board_cell]);
+                }
             }
         }
     }
