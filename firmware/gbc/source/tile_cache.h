@@ -15,6 +15,13 @@ bool ps_gbc_reuse_matching_tile(
     uint8_t offset_x,
     uint8_t offset_y
 ) BANKED;
+void ps_gbc_render_full_board(
+    const void* board,
+    uint16_t board_width,
+    uint16_t board_height,
+    uint8_t offset_x,
+    uint8_t offset_y
+) BANKED;
 uint16_t ps_gbc_find_free_tile(uint16_t screen_cell) BANKED;
 void ps_gbc_render_cell(uint16_t screen_cell, uint16_t tile, uint32_t objects) BANKED;
 

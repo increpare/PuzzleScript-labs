@@ -393,22 +393,8 @@ void renderBoard(void) {
         set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
     }
     if (full_render) {
-        uint8_t screen_y;
-        for (screen_y = 0U; screen_y < 18U; ++screen_y) {
-            uint8_t screen_x;
-            for (screen_x = 0U; screen_x < 20U; ++screen_x) {
-                const uint16_t screen_cell = (uint16_t)screen_y * 20U + screen_x;
-                uint32_t objects = ps_gbc_generated_game.background_mask;
-                if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
-                    && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
-                    objects = BOARD_OBJECTS(
-                        board,
-                        (uint16_t)(screen_x - offset_x) * status.height
-                            + (uint16_t)(screen_y - offset_y));
-                }
-                ps_gbc_render_cell(screen_cell, screen_cell, objects);
-            }
-        }
+        ps_gbc_render_full_board(
+            board, status.width, status.height, offset_x, offset_y);
     } else {
         uint16_t board_cell = 0U;
         uint16_t board_x;
