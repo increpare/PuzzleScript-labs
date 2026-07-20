@@ -1,0 +1,86 @@
+title GBC Audio Probe
+author PuzzleScript C++ tests
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Target
+green
+.....
+.000.
+.0.0.
+.000.
+.....
+
+Player
+white
+.....
+.000.
+.000.
+.000.
+.....
+
+Crate
+orange
+00000
+0...0
+0...0
+0...0
+00000
+
+========
+LEGEND
+========
+
+. = Background
+P = Background and Player
+O = Background and Crate
+@ = Background and Target
+* = Background and Crate and Target
+
+========
+SOUNDS
+========
+
+startgame 11111110
+endlevel 12345670
+sfx0 22222221
+Crate move right 33333332
+Crate cantmove right 44444443
+Target create 55555554
+Crate destroy 66666665
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Target
+Player, Crate
+
+======
+RULES
+======
+
+[ > Player | Crate ] -> [ > Player | > Crate ] sfx0
+
+==============
+WINCONDITIONS
+==============
+
+all Target on Crate
+
+========
+LEVELS
+========
+
+PO@

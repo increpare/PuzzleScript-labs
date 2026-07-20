@@ -15,7 +15,6 @@ extern uint8_t gTileMap[SCREEN_TILES];
 extern uint8_t gAttributes[SCREEN_TILES];
 extern uint8_t gSourcePixels[64];
 extern uint8_t gTileBytes[64];
-extern uint8_t composeTile(uint32_t objects);
 #if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
 extern uint16_t gTileUploadMismatches;
 #endif
@@ -29,6 +28,51 @@ static uint32_t gCompositionMasks[PS_GBC_CACHE_COMPOSITIONS];
 static uint8_t gCompositionPalettes[PS_GBC_CACHE_COMPOSITIONS];
 static uint8_t gCompositionCount;
 static uint8_t gReadbackTile[16];
+
+uint8_t composeTile(uint32_t objects) {
+    uint8_t layer;
+    uint8_t target_palette = 0U;
+    memset(gSourcePixels, 0, sizeof(gSourcePixels));
+    for (layer = 0U; layer < ps_gbc_generated_game.layer_count; ++layer) {
+        uint8_t object_id;
+        for (object_id = 0U;
+             object_id < ps_gbc_generated_game.object_count;
+             ++object_id) {
+            const ps_gbc_object* object;
+            uint8_t source_y;
+            bool drew = false;
+            if ((objects & ((uint32_t)1U << object_id)) == 0U) continue;
+            object = &ps_gbc_generated_game.objects[object_id];
+            if (object->layer != layer) continue;
+            for (source_y = 0U; source_y < object->sprite_height; ++source_y) {
+                uint8_t source_x;
+                const uint8_t destination_y = (uint8_t)(
+                    source_y
+                    + (ps_gbc_generated_game.cell_height
+                        - object->sprite_height) / 2U);
+                for (source_x = 0U;
+                     source_x < object->sprite_width;
+                     ++source_x) {
+                    const uint8_t source = object->sprite_pixels[
+                        (uint8_t)(
+                            source_y * object->sprite_width + source_x)];
+                    const uint8_t destination_x = (uint8_t)(
+                        source_x
+                        + (ps_gbc_generated_game.cell_width
+                            - object->sprite_width) / 2U);
+                    if (source == 0xffU) continue;
+                    gSourcePixels[
+                        (uint8_t)(
+                            destination_y * ps_gbc_generated_game.cell_width
+                            + destination_x)] = source;
+                    drew = true;
+                }
+            }
+            if (drew) target_palette = object->palette;
+        }
+    }
+    return target_palette;
+}
 
 #if PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 1U
 #define BOARD_OBJECTS(board, cell) (((const uint8_t*)(board))[(cell)])

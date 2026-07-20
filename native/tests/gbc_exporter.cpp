@@ -75,12 +75,18 @@ int main() {
         manifest.find("\"run_rules_on_level_start\": false")
             != std::string::npos,
         "manifest records the absence of a level-start rule pass");
+    require(
+        manifest.find("\"audio_supported\": true") != std::string::npos
+            && manifest.find("\"sound_seed_count\": 1") != std::string::npos
+            && manifest.find("\"sound_mask_count\": 1") != std::string::npos
+            && manifest.find("\"audio\"") == std::string::npos,
+        "manifest records compact cartridge audio instead of omitting it");
 
     const std::string header = readFile(first.generatedHeaderPath);
     const std::string source = readFile(first.generatedSourcePath);
     require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
         "generated data declares its switchable ROM bank");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 229U") != std::string::npos,
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 357U") != std::string::npos,
         "generated header exposes the compact exact bounded arena");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
@@ -124,12 +130,52 @@ int main() {
         "generated data omits packed-cell palette and phase heuristics");
     require(source.find("kMovementCollisionLayers[] = {2U}") != std::string::npos,
         "the moving Sokoban layer is remapped to compact lane zero");
+    require(
+        source.find("static const int32_t kSoundSeeds[] = {36772507}")
+                != std::string::npos
+            && source.find("static const ps_gbc_sound_mask kMovementSounds[]")
+                != std::string::npos,
+        "movement sound seeds and masks are emitted as compact cartridge data");
     require(source.find("const ps_gbc_game_view ps_gbc_generated_game") != std::string::npos,
         "generated C exports the cartridge ABI root");
 
     const auto second = puzzlescript::gbc::exportGame(options);
     require(readFile(first.generatedSourcePath) == readFile(second.generatedSourcePath),
         "repeated exports are deterministic");
+
+    puzzlescript::gbc::ExportOptions audioOptions;
+    audioOptions.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_audio.txt";
+    audioOptions.outputDirectory = output / "audio";
+    const auto audioResult = puzzlescript::gbc::exportGame(audioOptions);
+    const std::string audioManifest = readFile(audioResult.manifestPath);
+    const std::string audioSource = readFile(audioResult.generatedSourcePath);
+    require(
+        audioManifest.find("\"sound_seed_count\": 7") != std::string::npos
+            && audioManifest.find("\"rule_sound_reference_count\": 4")
+                != std::string::npos
+            && audioManifest.find("\"sound_mask_count\": 4")
+                != std::string::npos,
+        "audio fixture reports named, rule, and mask sound data");
+    require(
+        audioSource.find(
+            "kNamedSoundIds[] = {255U, 255U, 255U, 0U, 255U, "
+            "255U, 1U, 255U, 255U, 255U}")
+                != std::string::npos
+            && audioSource.find("kRuleSoundIds[] = {6U, 6U, 6U, 6U}")
+                != std::string::npos
+            && audioSource.find("kCreationSounds[]") != std::string::npos
+            && audioSource.find("kDestructionSounds[]") != std::string::npos
+            && audioSource.find("kMovementFailureSounds[]") != std::string::npos,
+        "audio fixture emits compact named, rule, and trigger tables");
+    require(
+        readFile(audioResult.generatedHeaderPath).find(
+            "PS_GBC_GENERATED_SOUND_COUNT 7U")
+                != std::string::npos
+            && readFile(audioResult.generatedHeaderPath).find(
+                "PS_GBC_GENERATED_RULE_SOUND_COUNT 4U")
+                != std::string::npos,
+        "audio fixture emits sound-count specialization constants");
 
     const std::string minimalPrefix =
         "title GBC Fixed Cell Limits\n\n"

@@ -81,6 +81,8 @@ struct PackedRule {
     uint8_t patternCount = 0;
     uint8_t direction = 0;
     uint8_t commands = 0;
+    uint8_t firstSound = 0;
+    uint8_t soundCount = 0;
     std::string message;
 };
 
@@ -94,6 +96,26 @@ struct MovementLayout {
     std::vector<int8_t> collisionToMovement;
     std::vector<uint8_t> movementToCollision;
     uint8_t bytesPerCell = 1U;
+};
+
+struct PackedSoundMask {
+    uint32_t objectMask = 0U;
+    uint32_t movementMask = 0U;
+    uint8_t soundId = PS_GBC_NO_SOUND;
+};
+
+struct PackedAudio {
+    std::vector<int32_t> seeds;
+    std::array<uint8_t, PS_GBC_NAMED_SOUND_COUNT> namedSoundIds{};
+    std::vector<uint8_t> ruleSoundIds;
+    std::vector<PackedSoundMask> creationSounds;
+    std::vector<PackedSoundMask> destructionSounds;
+    std::vector<PackedSoundMask> movementSounds;
+    std::vector<PackedSoundMask> movementFailureSounds;
+
+    PackedAudio() {
+        namedSoundIds.fill(PS_GBC_NO_SOUND);
+    }
 };
 
 std::string readFile(const std::filesystem::path& path) {
@@ -385,7 +407,19 @@ void validateRule(const Rule& rule, bool late) {
     (void)late;
 }
 
-uint8_t commandFlags(const Rule& rule, std::string& message, bool& ignoredAudio) {
+uint8_t soundId(PackedAudio& audio, int32_t seed) {
+    const auto found = std::find(audio.seeds.begin(), audio.seeds.end(), seed);
+    if (found != audio.seeds.end()) {
+        return static_cast<uint8_t>(std::distance(audio.seeds.begin(), found));
+    }
+    if (audio.seeds.size() >= PS_GBC_NO_SOUND) {
+        throw std::runtime_error("GBC export supports at most 255 distinct sound seeds");
+    }
+    audio.seeds.push_back(seed);
+    return static_cast<uint8_t>(audio.seeds.size() - 1U);
+}
+
+uint8_t commandFlags(const Game& game, const Rule& rule, std::string& message, PackedAudio& audio) {
     uint8_t flags = 0;
     for (const RuleCommand& command : rule.commands) {
         if (command.name == "again") flags |= PS_GBC_COMMAND_AGAIN;
@@ -397,7 +431,14 @@ uint8_t commandFlags(const Rule& rule, std::string& message, bool& ignoredAudio)
             flags |= PS_GBC_COMMAND_MESSAGE;
             message = command.argument.value_or("");
         } else if (command.name.rfind("sfx", 0) == 0) {
-            ignoredAudio = true;
+            const auto event = game.sfxEvents.find(command.name);
+            if (event != game.sfxEvents.end()) {
+                if (audio.ruleSoundIds.size() >= PS_GBC_NO_SOUND) {
+                    throw std::runtime_error(
+                        "GBC export supports at most 255 rule sound commands");
+                }
+                audio.ruleSoundIds.push_back(soundId(audio, event->second));
+            }
         } else {
             throw std::runtime_error(
                 "GBC export rejects unsupported command '" + command.name
@@ -459,7 +500,7 @@ void packGroups(
     std::vector<PackedPattern>& patterns,
     std::vector<PackedRule>& rules,
     std::vector<PackedGroup>& groups,
-    bool& ignoredAudio,
+    PackedAudio& audio,
     const MovementLayout& movementLayout
 ) {
     for (size_t groupIndex = 0; groupIndex < sourceGroups.size(); ++groupIndex) {
@@ -494,7 +535,10 @@ void packGroups(
             rule.firstPattern = static_cast<uint16_t>(patterns.size());
             rule.patternCount = static_cast<uint8_t>(sourceRule.patterns.front().size());
             rule.direction = static_cast<uint8_t>(sourceRule.direction);
-            rule.commands = commandFlags(sourceRule, rule.message, ignoredAudio);
+            rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
+            rule.commands = commandFlags(game, sourceRule, rule.message, audio);
+            rule.soundCount = static_cast<uint8_t>(
+                audio.ruleSoundIds.size() - rule.firstSound);
             for (const Pattern& pattern : sourceRule.patterns.front()) {
                 patterns.push_back(packPattern(game, pattern, movementLayout));
             }
@@ -504,12 +548,67 @@ void packGroups(
     }
 }
 
+PackedAudio packAudio(const Game& game, const MovementLayout& movementLayout) {
+    static constexpr std::array<const char*, PS_GBC_NAMED_SOUND_COUNT> kNames{
+        "cancel",
+        "closemessage",
+        "endgame",
+        "endlevel",
+        "restart",
+        "showmessage",
+        "startgame",
+        "startlevel",
+        "titlescreen",
+        "undo",
+    };
+    PackedAudio audio;
+    for (size_t index = 0U; index < kNames.size(); ++index) {
+        const auto event = game.sfxEvents.find(kNames[index]);
+        if (event != game.sfxEvents.end()) {
+            audio.namedSoundIds[index] = soundId(audio, event->second);
+        }
+    }
+    const auto appendMask = [&](std::vector<PackedSoundMask>& destination,
+                                const SoundMaskEntry& source,
+                                bool movement) {
+        const uint32_t movementMask = movement
+            ? repackMovementMask(game, source.directionMask, movementLayout)
+            : 0U;
+        if (movement && movementMask == 0U) return;
+        if (destination.size() >= UINT8_MAX) {
+            throw std::runtime_error(
+                "GBC export supports at most 255 entries in each sound mask table");
+        }
+        destination.push_back(PackedSoundMask{
+            maskWord(game, source.objectMask),
+            movementMask,
+            soundId(audio, source.seed),
+        });
+    };
+    for (const SoundMaskEntry& entry : game.sfxCreationMasks) {
+        appendMask(audio.creationSounds, entry, false);
+    }
+    for (const SoundMaskEntry& entry : game.sfxDestructionMasks) {
+        appendMask(audio.destructionSounds, entry, false);
+    }
+    for (const auto& layerEntries : game.sfxMovementMasks) {
+        for (const SoundMaskEntry& entry : layerEntries) {
+            appendMask(audio.movementSounds, entry, true);
+        }
+    }
+    for (const SoundMaskEntry& entry : game.sfxMovementFailureMasks) {
+        appendMask(audio.movementFailureSounds, entry, true);
+    }
+    return audio;
+}
+
 std::string emitHeader(
     size_t sessionBytes,
     uint8_t movementBytesPerCell,
     uint8_t objectBytesPerCellValue,
     uint8_t cellWidth,
-    uint8_t cellHeight
+    uint8_t cellHeight,
+    const PackedAudio& audio
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -525,6 +624,18 @@ std::string emitHeader(
         << static_cast<unsigned int>(cellHeight) << "U\n\n"
         << "#define PS_GBC_GENERATED_CELL_PIXELS "
         << static_cast<unsigned int>(cellWidth * cellHeight) << "U\n\n"
+        << "#define PS_GBC_GENERATED_SOUND_COUNT "
+        << audio.seeds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_RULE_SOUND_COUNT "
+        << audio.ruleSoundIds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_CREATION_SOUND_COUNT "
+        << audio.creationSounds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_DESTRUCTION_SOUND_COUNT "
+        << audio.destructionSounds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_MOVEMENT_SOUND_COUNT "
+        << audio.movementSounds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_MOVEMENT_FAILURE_SOUND_COUNT "
+        << audio.movementFailureSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
         << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
@@ -565,6 +676,7 @@ std::string emitSource(
     const std::vector<PackedRule>& rules,
     const std::vector<PackedGroup>& earlyGroups,
     const std::vector<PackedGroup>& lateGroups,
+    const PackedAudio& audio,
     uint8_t viewportWidth,
     uint8_t viewportHeight,
     uint8_t cellWidth,
@@ -591,6 +703,26 @@ std::string emitSource(
     emitUnsignedArray(out, "uint32_t", "kLayerMasks", layerMasks, "U");
     emitUnsignedArray(out, "uint8_t", "kMovementCollisionLayers",
         movementLayout.movementToCollision, "U");
+    emitUnsignedArray(out, "int32_t", "kSoundSeeds", audio.seeds);
+    emitUnsignedArray(out, "uint8_t", "kNamedSoundIds",
+        std::vector<uint8_t>(
+            audio.namedSoundIds.begin(), audio.namedSoundIds.end()), "U");
+    emitUnsignedArray(out, "uint8_t", "kRuleSoundIds", audio.ruleSoundIds, "U");
+    const auto emitSoundMasks = [&](const char* name,
+                                    const std::vector<PackedSoundMask>& entries) {
+        out << "static const ps_gbc_sound_mask " << name << "[] = {\n";
+        if (entries.empty()) out << "    {0},\n";
+        for (const PackedSoundMask& entry : entries) {
+            out << "    {0x" << std::hex << entry.objectMask
+                << "U, 0x" << entry.movementMask << "U, " << std::dec
+                << static_cast<unsigned int>(entry.soundId) << "U},\n";
+        }
+        out << "};\n";
+    };
+    emitSoundMasks("kCreationSounds", audio.creationSounds);
+    emitSoundMasks("kDestructionSounds", audio.destructionSounds);
+    emitSoundMasks("kMovementSounds", audio.movementSounds);
+    emitSoundMasks("kMovementFailureSounds", audio.movementFailureSounds);
     out << "\n";
     for (size_t index = 0; index < objects.size(); ++index) {
         emitUnsignedArray(out, "uint8_t", ("kObject" + std::to_string(index) + "Pixels").c_str(),
@@ -646,6 +778,8 @@ std::string emitSource(
             << static_cast<unsigned int>(rule.patternCount) << "U, "
             << static_cast<unsigned int>(rule.direction) << "U, "
             << static_cast<unsigned int>(rule.commands) << "U, "
+            << static_cast<unsigned int>(rule.firstSound) << "U, "
+            << static_cast<unsigned int>(rule.soundCount) << "U, "
             << (rule.message.empty() ? "NULL" : escapedString(rule.message)) << "},\n";
     }
     out << "};\n\n";
@@ -688,10 +822,18 @@ std::string emitSource(
         << "U, " << rules.size() << "U,\n"
         << "    " << earlyGroups.size() << "U, " << lateGroups.size() << "U, "
         << game.winConditions.size() << "U,\n"
+        << "    " << audio.seeds.size() << "U, " << audio.ruleSoundIds.size()
+        << "U, " << audio.creationSounds.size() << "U, "
+        << audio.destructionSounds.size() << "U, "
+        << audio.movementSounds.size() << "U, "
+        << audio.movementFailureSounds.size() << "U,\n"
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
            "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
-        << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, kUiPalette,\n"
+        << "    kWinConditions, kSoundSeeds, kNamedSoundIds, kRuleSoundIds,\n"
+        << "    kCreationSounds, kDestructionSounds, kMovementSounds, "
+           "kMovementFailureSounds,\n"
+        << "    kBackgroundPalettes, kPaletteRemap, kUiPalette,\n"
         << "    "
         << (game.metadata.values.count("run_rules_on_level_start")
                 ? "true" : "false")
@@ -981,17 +1123,13 @@ ExportResult exportGame(const ExportOptions& options) {
     std::vector<PackedRule> rules;
     std::vector<PackedGroup> earlyGroups;
     std::vector<PackedGroup> lateGroups;
-    bool ignoredAudio = !game.sfxEvents.empty() || !game.sfxCreationMasks.empty()
-        || !game.sfxDestructionMasks.empty() || !game.sfxMovementFailureMasks.empty();
-    for (const auto& entries : game.sfxMovementMasks) {
-        ignoredAudio = ignoredAudio || !entries.empty();
-    }
+    PackedAudio audio = packAudio(game, movementLayout);
     packGroups(
         game, game.rules, game.loopPoint, false, patterns, rules, earlyGroups,
-        ignoredAudio, movementLayout);
+        audio, movementLayout);
     packGroups(
         game, game.lateRules, game.lateLoopPoint, true, patterns, rules, lateGroups,
-        ignoredAudio, movementLayout);
+        audio, movementLayout);
     if (patterns.size() > UINT16_MAX || rules.size() > UINT16_MAX) {
         throw std::runtime_error("GBC rule data exceeds 16-bit table indexes");
     }
@@ -1027,6 +1165,12 @@ ExportResult exportGame(const ExportOptions& options) {
     estimatedGameBankBytes += (earlyGroups.size() + lateGroups.size())
         * sizeof(ps_gbc_rule_group);
     estimatedGameBankBytes += game.winConditions.size() * sizeof(ps_gbc_win_condition);
+    estimatedGameBankBytes += audio.seeds.size() * sizeof(int32_t)
+        + audio.namedSoundIds.size()
+        + audio.ruleSoundIds.size()
+        + (audio.creationSounds.size() + audio.destructionSounds.size()
+            + audio.movementSounds.size() + audio.movementFailureSounds.size())
+            * sizeof(ps_gbc_sound_mask);
     estimatedGameBankBytes += metadataValue(game, "title", "PuzzleScript Game").size() + 1U;
     estimatedGameBankBytes += metadataValue(game, "author", "").size() + 1U;
     if (estimatedGameBankBytes > kGeneratedRomBankLimit) {
@@ -1044,10 +1188,11 @@ ExportResult exportGame(const ExportOptions& options) {
             movementLayout.bytesPerCell,
             objectCellBytes,
             cellWidth,
-            cellHeight));
+            cellHeight,
+            audio));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
-        patterns, rules, earlyGroups, lateGroups, static_cast<uint8_t>(viewportWidth),
+        patterns, rules, earlyGroups, lateGroups, audio, static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
@@ -1093,20 +1238,22 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
         << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
-        << "  \"audio_omitted\": " << (ignoredAudio ? "true" : "false") << ",\n"
+        << "  \"audio_supported\": true,\n"
+        << "  \"sound_seed_count\": " << audio.seeds.size() << ",\n"
+        << "  \"rule_sound_reference_count\": " << audio.ruleSoundIds.size() << ",\n"
+        << "  \"sound_mask_count\": "
+        << (audio.creationSounds.size() + audio.destructionSounds.size()
+            + audio.movementSounds.size() + audio.movementFailureSounds.size())
+        << ",\n"
         << "  \"snapshot_sram_bytes\": "
         << static_cast<size_t>(maxCells) * objectCellBytes * (undoCapacity + 1U) << ",\n"
         << "  \"limits\": {\"objects\": 32, \"collision_layers\": 32, "
            "\"movement_layers\": 6, \"viewport_width\": 10, "
            "\"viewport_height\": 9, \"board_cells\": 90, \"session_bytes\": 4096},\n"
         << "  \"unsupported\": [\"rigid\", \"random\", \"ellipsis\", \"multi_row\", "
-           "\"dynamic_bindings\", \"aggregate_player\", \"audio\"],\n"
+           "\"dynamic_bindings\", \"aggregate_player\"],\n"
         << "  \"diagnostics\": [";
     bool wroteDiagnostic = false;
-    if (ignoredAudio) {
-        manifest << "\"sound declarations are omitted by the v1 cartridge runtime\"";
-        wroteDiagnostic = true;
-    }
     if (!culledLevelIndices.empty()) {
         if (wroteDiagnostic) manifest << ", ";
         manifest << jsonString(

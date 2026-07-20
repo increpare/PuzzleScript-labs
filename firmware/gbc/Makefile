@@ -35,8 +35,10 @@ CFLAGS += -DPS_GBC_PERF_PHASES=1
 endif
 LDFLAGS := -msm83:gb -Wm-yC -Wm-yt0x1B -Wm-yo8 -Wm-ya4 -Wm-ynPUZZLESCRIPT -Wl-m
 PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,)
+AUTOTEST_OBJECTS := $(if $(filter 1 yes true on,$(AUTOTEST)),$(BUILD)/autotest.o,)
 OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
-	$(BUILD)/text.o $(BUILD)/tile_cache.o $(PERF_OBJECTS)
+	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
+	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
 
 .PHONY: all export clean check-size
 
@@ -49,13 +51,19 @@ export:
 $(BUILD):
 	@mkdir -p $(BUILD)
 
-$(BUILD)/main.o: source/main.c source/text.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/main.o: source/main.c source/audio.h source/text.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/core.o: ../../native/src/gbc/core.c ../../native/include/puzzlescript/gbc.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/audio.o: source/audio.c source/audio.h $(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/text.o: source/text.c source/text.h $(GENERATED)/generated_game.h | $(BUILD)

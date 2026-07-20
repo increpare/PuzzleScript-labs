@@ -15,13 +15,16 @@ import time
 
 MAGIC = 0x54434250
 RENDER_MAGIC = 0x52434250
+AUDIO_MAGIC = 0x41434250
 FRAME_DUMP_MAGIC = 0x46474250
 VERSION = 1
 RECORD = struct.Struct("<IHBBBBBBI")
 RENDER_RECORD = struct.Struct("<I19H")
+AUDIO_RECORD = struct.Struct("<IHBBHI7B")
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 RENDER_OFFSET = 16
+AUDIO_OFFSET = 128
 FRAME_DUMP_BANK = 2
 TITLE_FRAME_DUMP_BANK = 0
 MESSAGE_FRAME_DUMP_BANK = 1
@@ -155,6 +158,9 @@ def main() -> int:
     parser.add_argument("--expect-final", type=coordinate, default=(3, 3))
     parser.add_argument("--expect-changed", type=int, choices=(0, 1), default=1)
     parser.add_argument("--expect-won", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--expect-game-audio", type=int)
+    parser.add_argument("--expect-ui-audio", type=int)
+    parser.add_argument("--expect-last-seed", type=int)
     parser.add_argument("--expect-cell", type=coordinate, default=(16, 16))
     parser.add_argument("--skip-step-check", action="store_true")
     parser.add_argument("--logic-only", action="store_true")
@@ -236,12 +242,81 @@ def main() -> int:
                 "right-step result differs: "
                 f"position={final_x},{final_y} changed={changed} won={won}"
             )
+        expect_audio = (
+            args.expect_game_audio is not None
+            or args.expect_ui_audio is not None
+            or args.expect_last_seed is not None
+        )
+        audio_summary = ""
+        if expect_audio:
+            audio_offset = offset + AUDIO_OFFSET
+            if len(data) < audio_offset + AUDIO_RECORD.size:
+                raise SystemExit("audio autotest record is truncated")
+            (
+                audio_magic,
+                audio_version,
+                game_audio,
+                ui_audio,
+                play_count,
+                last_seed,
+                nr52,
+                nr50,
+                nr51,
+                nr12,
+                nr22,
+                nr42,
+                nr43,
+            ) = AUDIO_RECORD.unpack_from(data, audio_offset)
+            if audio_magic != AUDIO_MAGIC or audio_version != VERSION:
+                raise SystemExit(
+                    "audio autotest record missing: "
+                    f"magic=0x{audio_magic:08x} version={audio_version}"
+                )
+            if (
+                args.expect_game_audio is not None
+                and game_audio != args.expect_game_audio
+            ):
+                raise SystemExit(
+                    f"gameplay audio count differs: {game_audio}"
+                )
+            if (
+                args.expect_ui_audio is not None
+                and ui_audio != args.expect_ui_audio
+            ):
+                raise SystemExit(f"UI audio count differs: {ui_audio}")
+            if (
+                args.expect_last_seed is not None
+                and last_seed != args.expect_last_seed
+            ):
+                raise SystemExit(f"last played seed differs: {last_seed}")
+            if play_count != game_audio + ui_audio:
+                raise SystemExit(
+                    "not every exported event reached the APU driver: "
+                    f"events={game_audio + ui_audio} plays={play_count}"
+                )
+            if (
+                (nr52 & 0x80) == 0
+                or nr50 != 0x77
+                or nr51 != 0xBB
+                or (nr12 | nr22 | nr42) == 0
+            ):
+                raise SystemExit(
+                    "APU register probe differs: "
+                    f"NR52=0x{nr52:02x} NR50=0x{nr50:02x} "
+                    f"NR51=0x{nr51:02x} envelopes="
+                    f"{nr12:02x}/{nr22:02x}/{nr42:02x} "
+                    f"NR43=0x{nr43:02x}"
+                )
+            audio_summary = (
+                f" audio={game_audio}+{ui_audio} plays={play_count}"
+                f" last_seed={last_seed} apu=0x{nr52:02x}"
+            )
         if args.logic_only:
             print(
                 "gbc-smoke logic-only ok "
                 f"source_hash=0x{source_hash:08x} "
                 f"player={initial_x},{initial_y}->{final_x},{final_y} "
-                f"changed={changed} won={won}"
+                f"changed={changed} won={won}{audio_summary}"
             )
             return 0
         render_record = RENDER_RECORD.unpack_from(data, offset + RENDER_OFFSET)
@@ -431,6 +506,7 @@ def main() -> int:
             f"quartets={unique_quartets} "
             f"dedicated_cells={dedicated_cells} "
             f"bank1_cells={second_bank_cells}"
+            f"{audio_summary}"
         )
     return 0
 

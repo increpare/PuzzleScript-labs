@@ -236,6 +236,7 @@ def main() -> int:
             f"GBDK_HOME={gbdk_home.as_posix()}",
             f"PUZZLESCRIPT_CPP={compiler.as_posix()}",
             f"PYTHON={Path(sys.executable).as_posix()}",
+            "EXPORT_GBC_FLAGS=--cull-oversize-levels",
         ]
         process = subprocess.run(
             command,

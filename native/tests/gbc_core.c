@@ -35,7 +35,7 @@ static const ps_gbc_pattern kPatterns[] = {
     },
 };
 static const ps_gbc_rule kRules[] = {
-    {0U, 2U, 8U, 0U, NULL},
+    {0U, 2U, 8U, 0U, 0U, 0U, NULL},
 };
 static const ps_gbc_rule_group kGroups[] = {
     {0U, 1U, -1},
@@ -53,6 +53,8 @@ static const ps_gbc_rule kLevelStartRules[] = {
         1U,
         1U,
         PS_GBC_COMMAND_AGAIN | PS_GBC_COMMAND_RESTART | PS_GBC_COMMAND_WIN,
+        0U,
+        0U,
         NULL
     },
 };
@@ -65,6 +67,32 @@ static const ps_gbc_win_condition kWinConditions[] = {
 static const uint16_t kPalettes[32] = {0U};
 static const uint8_t kRemap[256] = {0U};
 static const uint16_t kUiPalette[4] = {0U, 32767U, 32767U, 32767U};
+static const uint8_t kNamedSoundIds[PS_GBC_NAMED_SOUND_COUNT] = {
+    PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND,
+    PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND,
+    PS_GBC_NO_SOUND, PS_GBC_NO_SOUND
+};
+static const int32_t kAudioSeeds[] = {
+    1001, 1002, 1003, 1004, 1005, 1006
+};
+static const uint8_t kAudioRuleSoundIds[] = {0U};
+static const uint8_t kAudioNamedSoundIds[PS_GBC_NAMED_SOUND_COUNT] = {
+    5U, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND,
+    PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND, PS_GBC_NO_SOUND,
+    PS_GBC_NO_SOUND, PS_GBC_NO_SOUND
+};
+static const ps_gbc_sound_mask kAudioMovementSounds[] = {
+    {8U, 8U, 1U},
+};
+static const ps_gbc_sound_mask kAudioMovementFailureSounds[] = {
+    {4U, 4U, 2U},
+};
+static const ps_gbc_sound_mask kAudioCreationSounds[] = {
+    {2U, 0U, 3U},
+};
+static const ps_gbc_sound_mask kAudioDestructionSounds[] = {
+    {8U, 0U, 4U},
+};
 static const ps_gbc_game_view kGame = {
     PS_GBC_GAME_ABI_VERSION,
     1234U,
@@ -87,6 +115,12 @@ static const ps_gbc_game_view kGame = {
     1U,
     0U,
     1U,
+    0U,
+    0U,
+    0U,
+    0U,
+    0U,
+    0U,
     4U,
     1U,
     kLayerMasks,
@@ -98,6 +132,13 @@ static const ps_gbc_game_view kGame = {
     kGroups,
     NULL,
     kWinConditions,
+    NULL,
+    kNamedSoundIds,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
     kPalettes,
     kRemap,
     kUiPalette,
@@ -111,6 +152,25 @@ static int require_true(bool condition, const char* message) {
     if (condition) return 0;
     fprintf(stderr, "gbc_core: %s\n", message);
     return 1;
+}
+
+static bool has_audio_event(
+    const ps_step_result* result,
+    bool ui,
+    int32_t seed,
+    const char* kind
+) {
+    const ps_audio_event* events =
+        ui ? result->ui_audio_events : result->audio_events;
+    const size_t count =
+        ui ? result->ui_audio_event_count : result->audio_event_count;
+    size_t index;
+    for (index = 0U; index < count; ++index) {
+        if (events[index].seed == seed
+            && events[index].kind != NULL
+            && strcmp(events[index].kind, kind) == 0) return true;
+    }
+    return false;
 }
 
 static bool cell_dirty(const ps_gbc_session* session, uint16_t cell) {
@@ -445,6 +505,98 @@ int main(void) {
                     && (ps_gbc_cell_objects(six_lane_session, 2, 0) & 8U) != 0U,
                 "movement in the high four-byte lane did not resolve");
         }
+    }
+    {
+        ps_gbc_rule audio_rules[1];
+        ps_gbc_pattern create_destroy_patterns[2];
+        ps_gbc_game_view audio_game = kGame;
+        snapshot_store audio_snapshots = {{0U}, 4U};
+        const ps_gbc_snapshot_io audio_snapshot_io = {
+            &audio_snapshots,
+            snapshot_read,
+            snapshot_write
+        };
+        size_t audio_bytes;
+        void* audio_arena;
+        ps_gbc_session* audio_session;
+        memcpy(audio_rules, kRules, sizeof(audio_rules));
+        audio_rules[0].first_sound = 0U;
+        audio_rules[0].sound_count = 1U;
+        audio_game.rules = audio_rules;
+        audio_game.sound_count = 6U;
+        audio_game.rule_sound_count = 1U;
+        audio_game.movement_sound_count = 1U;
+        audio_game.movement_failure_sound_count = 1U;
+        audio_game.sound_seeds = kAudioSeeds;
+        audio_game.named_sound_ids = kAudioNamedSoundIds;
+        audio_game.rule_sound_ids = kAudioRuleSoundIds;
+        audio_game.movement_sounds = kAudioMovementSounds;
+        audio_game.movement_failure_sounds = kAudioMovementFailureSounds;
+        audio_bytes = ps_gbc_session_required_bytes(&audio_game);
+        audio_arena = malloc(audio_bytes);
+        audio_session = ps_gbc_session_init(
+            audio_arena, audio_bytes, &audio_game, &audio_snapshot_io);
+        failed |= require_true(audio_session != NULL,
+            "audio session initialization failed");
+        if (audio_session != NULL) {
+            result = ps_gbc_step(audio_session, PS_INPUT_RIGHT);
+            failed |= require_true(
+                result.audio_event_count == 1U
+                    && has_audio_event(&result, false, 1002, "canmove")
+                    && result.ui_audio_event_count == 1U
+                    && has_audio_event(&result, true, 1001, "sfx"),
+                "rule and successful-movement audio were not emitted");
+        }
+        free(audio_arena);
+
+        memset(&audio_snapshots, 0, sizeof(audio_snapshots));
+        audio_arena = malloc(audio_bytes);
+        audio_session = ps_gbc_session_init(
+            audio_arena, audio_bytes, &audio_game, &audio_snapshot_io);
+        if (audio_session != NULL) {
+            result = ps_gbc_step(audio_session, PS_INPUT_LEFT);
+            failed |= require_true(
+                result.audio_event_count == 1U
+                    && has_audio_event(&result, false, 1003, "cantmove"),
+                "failed-movement audio was not emitted");
+        }
+        free(audio_arena);
+
+        audio_rules[0].commands = PS_GBC_COMMAND_CANCEL;
+        memset(&audio_snapshots, 0, sizeof(audio_snapshots));
+        audio_arena = malloc(audio_bytes);
+        audio_session = ps_gbc_session_init(
+            audio_arena, audio_bytes, &audio_game, &audio_snapshot_io);
+        if (audio_session != NULL) {
+            result = ps_gbc_step(audio_session, PS_INPUT_RIGHT);
+            failed |= require_true(
+                result.audio_event_count == 0U
+                    && result.ui_audio_event_count == 1U
+                    && has_audio_event(&result, true, 1006, "ui"),
+                "cancel did not discard gameplay/rule audio and emit its UI cue");
+        }
+        free(audio_arena);
+
+        audio_rules[0].commands = 0U;
+        memcpy(create_destroy_patterns, kPatterns, sizeof(create_destroy_patterns));
+        create_destroy_patterns[1].objects_set = 2U;
+        audio_game.patterns = create_destroy_patterns;
+        audio_game.creation_sound_count = 1U;
+        audio_game.destruction_sound_count = 1U;
+        audio_game.creation_sounds = kAudioCreationSounds;
+        audio_game.destruction_sounds = kAudioDestructionSounds;
+        memset(&audio_snapshots, 0, sizeof(audio_snapshots));
+        audio_arena = malloc(audio_bytes);
+        audio_session = ps_gbc_session_init(
+            audio_arena, audio_bytes, &audio_game, &audio_snapshot_io);
+        if (audio_session != NULL) {
+            result = ps_gbc_step(audio_session, PS_INPUT_RIGHT);
+            failed |= require_true(
+                has_audio_event(&result, false, 1004, "create")
+                    && has_audio_event(&result, false, 1005, "destroy"),
+                "create and destroy audio were not accumulated across replacements");
+        }
+        free(audio_arena);
     }
     free(six_lane_arena);
     free(three_lane_arena);

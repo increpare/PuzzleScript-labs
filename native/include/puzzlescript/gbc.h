@@ -10,7 +10,6 @@
 #else
 typedef struct ps_audio_event {
     int32_t seed;
-    const char* kind;
 } ps_audio_event;
 
 typedef enum ps_input {
@@ -56,11 +55,13 @@ extern "C" {
 #define PS_GBC_MAX_COLLISION_LAYERS 32
 #define PS_GBC_MAX_MOVEMENT_LAYERS 6
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
+#define PS_GBC_NO_SOUND 0xffU
+#define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 10
+#define PS_GBC_GAME_ABI_VERSION 11
 /* Exporters reserve this much for the private session struct and alignment. */
-#define PS_GBC_SESSION_OVERHEAD_BUDGET 128
+#define PS_GBC_SESSION_OVERHEAD_BUDGET 256
 
 typedef enum ps_gbc_level_kind {
     PS_GBC_LEVEL_BOARD = 0,
@@ -77,6 +78,20 @@ typedef enum ps_gbc_perf_phase {
     PS_GBC_PERF_WIN = 6,
     PS_GBC_PERF_PHASE_COUNT = 7
 } ps_gbc_perf_phase;
+
+typedef enum ps_gbc_named_sound {
+    PS_GBC_SOUND_CANCEL = 0,
+    PS_GBC_SOUND_CLOSEMESSAGE = 1,
+    PS_GBC_SOUND_ENDGAME = 2,
+    PS_GBC_SOUND_ENDLEVEL = 3,
+    PS_GBC_SOUND_RESTART = 4,
+    PS_GBC_SOUND_SHOWMESSAGE = 5,
+    PS_GBC_SOUND_STARTGAME = 6,
+    PS_GBC_SOUND_STARTLEVEL = 7,
+    PS_GBC_SOUND_TITLESCREEN = 8,
+    PS_GBC_SOUND_UNDO = 9,
+    PS_GBC_NAMED_SOUND_COUNT = 10
+} ps_gbc_named_sound;
 
 enum {
     PS_GBC_PATTERN_OBJECTS_PRESENT = 1U << 0,
@@ -115,6 +130,8 @@ typedef struct ps_gbc_rule {
     uint8_t pattern_count;
     uint8_t direction;
     uint8_t commands;
+    uint8_t first_sound;
+    uint8_t sound_count;
     const char* message;
 } ps_gbc_rule;
 
@@ -151,6 +168,12 @@ typedef struct ps_gbc_level {
     const char* message;
 } ps_gbc_level;
 
+typedef struct ps_gbc_sound_mask {
+    uint32_t object_mask;
+    uint32_t movement_mask;
+    uint8_t sound_id;
+} ps_gbc_sound_mask;
+
 typedef struct ps_gbc_game_view {
     uint16_t abi_version;
     uint32_t source_hash;
@@ -173,6 +196,12 @@ typedef struct ps_gbc_game_view {
     uint16_t early_group_count;
     uint16_t late_group_count;
     uint16_t win_condition_count;
+    uint8_t sound_count;
+    uint8_t rule_sound_count;
+    uint8_t creation_sound_count;
+    uint8_t destruction_sound_count;
+    uint8_t movement_sound_count;
+    uint8_t movement_failure_sound_count;
     uint32_t player_mask;
     uint32_t background_mask;
     const uint32_t* layer_masks;
@@ -184,6 +213,13 @@ typedef struct ps_gbc_game_view {
     const ps_gbc_rule_group* early_groups;
     const ps_gbc_rule_group* late_groups;
     const ps_gbc_win_condition* win_conditions;
+    const int32_t* sound_seeds;
+    const uint8_t* named_sound_ids;
+    const uint8_t* rule_sound_ids;
+    const ps_gbc_sound_mask* creation_sounds;
+    const ps_gbc_sound_mask* destruction_sounds;
+    const ps_gbc_sound_mask* movement_sounds;
+    const ps_gbc_sound_mask* movement_failure_sounds;
     const uint16_t* background_palettes;
     const uint8_t* palette_remap;
     const uint16_t* ui_palette;

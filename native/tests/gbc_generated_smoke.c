@@ -30,7 +30,8 @@ static bool snapshot_write(
 }
 
 int main(void) {
-    uint8_t* arena = (uint8_t*)malloc(PS_GBC_GENERATED_SESSION_BYTES);
+    size_t arena_bytes = ps_gbc_session_required_bytes(&ps_gbc_generated_game);
+    uint8_t* arena;
     const size_t snapshot_bytes = (size_t)(ps_gbc_generated_game.undo_capacity + 1U)
         * ps_gbc_generated_game.max_level_cells
         * ps_gbc_generated_game.object_bytes_per_cell;
@@ -43,6 +44,10 @@ int main(void) {
     int16_t x = -1;
     int16_t y = -1;
     ps_step_result result;
+    if (arena_bytes < PS_GBC_GENERATED_SESSION_BYTES) {
+        arena_bytes = PS_GBC_GENERATED_SESSION_BYTES;
+    }
+    arena = (uint8_t*)malloc(arena_bytes);
     gSnapshots = (uint8_t*)calloc(snapshot_bytes, 1U);
     if (arena == NULL || gSnapshots == NULL) {
         fprintf(stderr, "generated GBC arena allocation failed\n");
@@ -50,15 +55,8 @@ int main(void) {
         free(arena);
         return 1;
     }
-    if (ps_gbc_session_required_bytes(&ps_gbc_generated_game)
-        > PS_GBC_GENERATED_SESSION_BYTES) {
-        fprintf(stderr, "generated GBC arena estimate is too small\n");
-        free(gSnapshots);
-        free(arena);
-        return 1;
-    }
     session = ps_gbc_session_init(
-        arena, PS_GBC_GENERATED_SESSION_BYTES, &ps_gbc_generated_game, &snapshot_io);
+        arena, arena_bytes, &ps_gbc_generated_game, &snapshot_io);
     if (session == NULL || !ps_gbc_first_player_position(session, &x, &y)) {
         fprintf(stderr, "generated GBC game cannot start\n");
         free(gSnapshots);

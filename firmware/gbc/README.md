@@ -84,7 +84,7 @@ The first hardware profile deliberately favors predictable memory use:
 - up to four undo states;
 - one 16 KiB switchable ROM bank for generated game data;
 - no rigid, random, ellipsis, multi-row, dynamic-binding, aggregate-player,
-  title-image, or audio support yet.
+  or title-image support yet.
 
 Compatibility is based only on compiled structures and memory budgets. Object
 names and guessed game genres are never consulted. `export-gbc` reports the
@@ -107,6 +107,15 @@ The hot board, compact movement plane, and match-bitset state stays below 4 KiB
 of normal WRAM. Board snapshots live in cartridge SRAM because CGB extra WRAM
 is exposed through a banked 4 KiB window rather than as one contiguous C
 address range.
+
+Sound declarations are exported as a deduplicated seed table plus one-byte
+references. Rule `sfx` commands, `move`, `cantmove`, `create`, `destroy`, and
+the standard UI events are supported. The firmware maps each deterministic
+PuzzleScript/SFXR seed to short pulse or noise envelopes on the Game Boy APU;
+this preserves event identity and audible variation without storing PCM
+samples. A turn can return up to eight gameplay and eight UI events, and an
+export can contain up to 255 distinct seeds or entries in any one sound-mask
+table.
 
 Rendering uses the CGB background tile hardware as a 20x18 tile framebuffer.
 Each logical 10x9 cell owns an aligned 2x2 quartet of hardware tiles. A source

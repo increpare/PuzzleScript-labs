@@ -112,7 +112,9 @@ int main() {
         ps_free_game(nativeGame);
         return 1;
     }
-    std::vector<uint8_t> arena(PS_GBC_GENERATED_SESSION_BYTES);
+    std::vector<uint8_t> arena(std::max<size_t>(
+        PS_GBC_GENERATED_SESSION_BYTES,
+        ps_gbc_session_required_bytes(&ps_gbc_generated_game)));
     SnapshotMemory snapshotMemory;
     snapshotMemory.stride = static_cast<uint16_t>(
         ps_gbc_generated_game.max_level_cells

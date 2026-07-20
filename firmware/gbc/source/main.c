@@ -1,6 +1,7 @@
 #include <gb/cgb.h>
 #include <gb/gb.h>
 
+#include "audio.h"
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
@@ -47,14 +48,14 @@ static bool gTitleScreen;
 uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
-static uint16_t gDisplayBlankCount;
+uint16_t gDisplayBlankCount;
 uint16_t gTileUploadMismatches;
 #endif
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
-static uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
-static bool gPerfPhaseEnabled;
+uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
+bool gPerfPhaseEnabled;
 
 static void perfTimerInterrupt(void) {
     ++gPerfTimerOverflows;
@@ -74,7 +75,7 @@ static uint32_t perfTimerTicks(void) {
     return ((uint32_t)overflows << 8U) | timer;
 }
 
-static void perfTimerInitialize(void) {
+void perfTimerInitialize(void) {
     disable_interrupts();
     add_TIM(perfTimerInterrupt);
     set_interrupts(TIM_IFLAG);
@@ -99,7 +100,7 @@ uint32_t perfTimerStop(void) {
     return ticks;
 }
 
-static void perfTimerShutdown(void) {
+void perfTimerShutdown(void) {
     disable_interrupts();
     TAC_REG = TACF_STOP;
     set_interrupts(0U);
@@ -215,44 +216,6 @@ static void writeSave(uint16_t level) {
     DISABLE_RAM_MBC5;
 }
 
-uint8_t composeTile(uint32_t objects) {
-    uint8_t layer;
-    uint8_t target_palette = 0U;
-    memset(gSourcePixels, 0, sizeof(gSourcePixels));
-    for (layer = 0U; layer < ps_gbc_generated_game.layer_count; ++layer) {
-        uint8_t object_id;
-        for (object_id = 0U; object_id < ps_gbc_generated_game.object_count; ++object_id) {
-            const ps_gbc_object* object;
-            uint8_t source_y;
-            bool drew = false;
-            if ((objects & ((uint32_t)1U << object_id)) == 0U) continue;
-            object = &ps_gbc_generated_game.objects[object_id];
-            if (object->layer != layer) continue;
-            for (source_y = 0U; source_y < object->sprite_height; ++source_y) {
-                uint8_t source_x;
-                const uint8_t destination_y = (uint8_t)(
-                    source_y
-                    + (ps_gbc_generated_game.cell_height - object->sprite_height) / 2U);
-                for (source_x = 0U; source_x < object->sprite_width; ++source_x) {
-                    const uint8_t source = object->sprite_pixels[
-                        (uint8_t)(source_y * object->sprite_width + source_x)];
-                    const uint8_t destination_x = (uint8_t)(
-                        source_x
-                        + (ps_gbc_generated_game.cell_width - object->sprite_width) / 2U);
-                    if (source == 0xffU) continue;
-                    gSourcePixels[
-                        (uint8_t)(
-                            destination_y * ps_gbc_generated_game.cell_width
-                            + destination_x)] = source;
-                    drew = true;
-                }
-            }
-            if (drew) target_palette = object->palette;
-        }
-    }
-    return target_palette;
-}
-
 void renderBoard(void) {
     ps_gbc_status status;
     const void* board;
@@ -306,17 +269,34 @@ static void saveCurrentLevel(void) {
     writeSave(status.current_level);
 }
 
-#if defined(PS_GBC_AUTOTEST)
-static void writeSram8(uint16_t offset, uint8_t value) {
+static void playStepAudio(const ps_step_result* result) {
+    ps_gbc_status status;
+    audioPlayEvents(result);
+    if (result->won) audioPlayNamed(PS_GBC_SOUND_ENDLEVEL);
+    if (!result->transitioned && !result->won) return;
+    ps_gbc_status_get(gSession, &status);
+    if (status.completed) {
+        audioPlayNamed(PS_GBC_SOUND_ENDGAME);
+    } else if (result->transitioned) {
+        audioPlayNamed(
+            status.mode == PS_FULL_STATE_MODE_MESSAGE
+                ? PS_GBC_SOUND_SHOWMESSAGE
+                : PS_GBC_SOUND_STARTLEVEL);
+    }
+}
+
+#if defined(PS_GBC_AUTOTEST) && defined(PS_GBC_AUTOTEST_IN_MAIN)
+#pragma bank 1
+static void writeSram8(uint16_t offset, uint8_t value) BANKED {
     *((volatile uint8_t*)(0xa000U + offset)) = value;
 }
 
-static void writeSram16(uint16_t offset, uint16_t value) {
+static void writeSram16(uint16_t offset, uint16_t value) BANKED {
     writeSram8(offset, (uint8_t)value);
     writeSram8((uint16_t)(offset + 1U), (uint8_t)(value >> 8U));
 }
 
-static void writeSram32(uint16_t offset, uint32_t value) {
+static void writeSram32(uint16_t offset, uint32_t value) BANKED {
     uint8_t index;
     for (index = 0U; index < 4U; ++index) {
         writeSram8((uint16_t)(offset + index), (uint8_t)(value >> (index * 8U)));
@@ -325,7 +305,7 @@ static void writeSram32(uint16_t offset, uint32_t value) {
 
 #if !defined(PS_GBC_PERF_BENCH) \
     && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
-static uint16_t countNonzero(const uint8_t* data, uint16_t size) {
+static uint16_t countNonzero(const uint8_t* data, uint16_t size) BANKED {
     uint16_t count = 0U;
     while (size-- != 0U) {
         if (*data++ != 0U) ++count;
@@ -333,7 +313,7 @@ static uint16_t countNonzero(const uint8_t* data, uint16_t size) {
     return count;
 }
 
-static uint16_t countVramNonzero(uint8_t bank, uint16_t size) {
+static uint16_t countVramNonzero(uint8_t bank, uint16_t size) BANKED {
     volatile const uint8_t* data = (volatile const uint8_t*)0x8000U;
     uint16_t count = 0U;
     VBK_REG = bank;
@@ -344,7 +324,10 @@ static uint16_t countVramNonzero(uint8_t bank, uint16_t size) {
     return count;
 }
 
-static uint16_t countHardwareMapMismatches(const uint8_t* expected, uint8_t bank) {
+static uint16_t countHardwareMapMismatches(
+    const uint8_t* expected,
+    uint8_t bank
+) BANKED {
     volatile const uint8_t* tile_map =
         (volatile const uint8_t*)((LCDC_REG & LCDCF_BG9C00) != 0U ? 0x9c00U : 0x9800U);
     uint16_t mismatches = 0U;
@@ -362,7 +345,7 @@ static uint16_t countHardwareMapMismatches(const uint8_t* expected, uint8_t bank
     return mismatches;
 }
 
-static uint16_t readBkgPaletteColor(uint8_t palette, uint8_t color) {
+static uint16_t readBkgPaletteColor(uint8_t palette, uint8_t color) BANKED {
     const uint8_t index = (uint8_t)(palette * 8U + color * 2U);
     uint8_t low;
     uint8_t high;
@@ -373,7 +356,7 @@ static uint16_t readBkgPaletteColor(uint8_t palette, uint8_t color) {
     return (uint16_t)low | ((uint16_t)high << 8U);
 }
 
-static void dumpFrameToSram(uint8_t bank) {
+static void dumpFrameToSram(uint8_t bank) BANKED {
     volatile uint8_t* destination;
     uint16_t offset = 0U;
     uint16_t screen_cell;
@@ -424,7 +407,8 @@ static void dumpFrameToSram(uint8_t bank) {
 static uint16_t countPaletteMismatches(
     const uint16_t* expected,
     uint8_t first_palette,
-    uint8_t palette_count) {
+    uint8_t palette_count
+) BANKED {
     uint16_t mismatches = 0U;
     uint8_t palette;
     for (palette = 0U; palette < palette_count; ++palette) {
@@ -440,7 +424,7 @@ static uint16_t countPaletteMismatches(
 }
 #endif
 
-static void runAutotest(void) {
+static void runAutotest(void) BANKED {
     int16_t initial_x = -1;
     int16_t initial_y = -1;
     int16_t final_x = -1;
@@ -652,6 +636,11 @@ static void runAutotest(void) {
     DISABLE_RAM_MBC5;
     for (;;) vsync();
 }
+#pragma bank 0
+#endif
+
+#if defined(PS_GBC_AUTOTEST)
+void runAutotest(void) BANKED;
 #endif
 
 void main(void) {
@@ -660,6 +649,7 @@ void main(void) {
     uint8_t previous_keys = 0U;
     SWITCH_ROM_MBC5(PS_GBC_GENERATED_ROM_BANK);
     if (_cpu == CGB_TYPE) cpu_fast();
+    audioInitialize();
     gSession = ps_gbc_session_init(
         gSessionArena,
         sizeof(gSessionArena),
@@ -676,6 +666,7 @@ void main(void) {
 #endif
     gTitleScreen = true;
     showText(ps_gbc_generated_game.title, true);
+    audioPlayNamed(PS_GBC_SOUND_TITLESCREEN);
     for (;;) {
         const uint8_t keys = joypad();
         const uint8_t pressed = (uint8_t)(keys & (uint8_t)~previous_keys);
@@ -686,6 +677,11 @@ void main(void) {
         if (gTitleScreen) {
             if ((pressed & (J_A | J_START)) != 0U) {
                 gTitleScreen = false;
+                audioPlayNamed(PS_GBC_SOUND_STARTGAME);
+                audioPlayNamed(
+                    status.mode == PS_FULL_STATE_MODE_MESSAGE
+                        ? PS_GBC_SOUND_SHOWMESSAGE
+                        : PS_GBC_SOUND_STARTLEVEL);
                 renderBoard();
             }
         } else if (status.completed) {
@@ -694,16 +690,20 @@ void main(void) {
         } else if ((pressed & J_START) != 0U) {
             gTitleScreen = true;
             showText(ps_gbc_generated_game.title, true);
+            audioPlayNamed(PS_GBC_SOUND_TITLESCREEN);
         } else if (status.mode == PS_FULL_STATE_MODE_MESSAGE) {
             if ((pressed & J_A) != 0U) {
                 const ps_step_result result = ps_gbc_step(gSession, PS_INPUT_ACTION);
+                playStepAudio(&result);
                 if (result.transitioned) saveCurrentLevel();
                 redraw = true;
             }
         } else if ((pressed & J_B) != 0U) {
             redraw = ps_gbc_undo(gSession);
+            if (redraw) audioPlayNamed(PS_GBC_SOUND_UNDO);
         } else if ((pressed & J_SELECT) != 0U) {
             redraw = ps_gbc_restart(gSession);
+            if (redraw) audioPlayNamed(PS_GBC_SOUND_RESTART);
         } else {
             ps_input input = PS_INPUT_TICK;
             bool has_input = status.pending_again;
@@ -714,6 +714,7 @@ void main(void) {
             else if ((pressed & J_A) != 0U) { input = PS_INPUT_ACTION; has_input = true; }
             if (has_input) {
                 const ps_step_result result = ps_gbc_step(gSession, input);
+                playStepAudio(&result);
                 if (result.transitioned || result.won) saveCurrentLevel();
                 redraw = result.changed || result.transitioned || result.won;
             }

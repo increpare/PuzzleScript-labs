@@ -9,6 +9,48 @@
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
+#if !defined(PS_GBC_GENERATED_SOUND_COUNT) \
+    || PS_GBC_GENERATED_SOUND_COUNT != 0U
+#define PS_GBC_HAS_AUDIO 1
+#else
+#define PS_GBC_HAS_AUDIO 0
+#endif
+
+#if !defined(PS_GBC_GENERATED_CREATION_SOUND_COUNT) \
+    || PS_GBC_GENERATED_CREATION_SOUND_COUNT != 0U
+#define PS_GBC_HAS_CREATION_AUDIO 1
+#else
+#define PS_GBC_HAS_CREATION_AUDIO 0
+#endif
+
+#if !defined(PS_GBC_GENERATED_DESTRUCTION_SOUND_COUNT) \
+    || PS_GBC_GENERATED_DESTRUCTION_SOUND_COUNT != 0U
+#define PS_GBC_HAS_DESTRUCTION_AUDIO 1
+#else
+#define PS_GBC_HAS_DESTRUCTION_AUDIO 0
+#endif
+
+#if !defined(PS_GBC_GENERATED_MOVEMENT_SOUND_COUNT) \
+    || PS_GBC_GENERATED_MOVEMENT_SOUND_COUNT != 0U
+#define PS_GBC_HAS_MOVEMENT_AUDIO 1
+#else
+#define PS_GBC_HAS_MOVEMENT_AUDIO 0
+#endif
+
+#if !defined(PS_GBC_GENERATED_MOVEMENT_FAILURE_SOUND_COUNT) \
+    || PS_GBC_GENERATED_MOVEMENT_FAILURE_SOUND_COUNT != 0U
+#define PS_GBC_HAS_MOVEMENT_FAILURE_AUDIO 1
+#else
+#define PS_GBC_HAS_MOVEMENT_FAILURE_AUDIO 0
+#endif
+
+#if !defined(PS_GBC_GENERATED_RULE_SOUND_COUNT) \
+    || PS_GBC_GENERATED_RULE_SOUND_COUNT != 0U
+#define PS_GBC_HAS_RULE_AUDIO 1
+#else
+#define PS_GBC_HAS_RULE_AUDIO 0
+#endif
+
 #if defined(PS_GBC_PERF_PHASES)
 extern void ps_gbc_perf_phase_begin(uint8_t phase);
 extern void ps_gbc_perf_phase_end(uint8_t phase);
@@ -23,6 +65,15 @@ typedef struct ps_gbc_commands {
     uint8_t flags;
     const char* message;
 } ps_gbc_commands;
+
+enum {
+    PS_GBC_AUDIO_CANTMOVE = 0U,
+    PS_GBC_AUDIO_CANMOVE = 1U,
+    PS_GBC_AUDIO_CREATE = 2U,
+    PS_GBC_AUDIO_DESTROY = 3U,
+    PS_GBC_AUDIO_SFX = 4U,
+    PS_GBC_AUDIO_UI = 5U
+};
 
 struct ps_gbc_session {
     const ps_gbc_game_view* game;
@@ -40,13 +91,116 @@ struct ps_gbc_session {
     bool checkpoint_valid;
     bool pending_again;
     bool completed;
+    bool suppress_audio;
+    uint8_t audio_count;
+    uint8_t ui_audio_count;
+#if !defined(PS_GBC_FREESTANDING)
+    uint8_t audio_kinds[PS_GBC_MAX_AUDIO_EVENTS];
+#endif
+    ps_audio_event audio_events[PS_GBC_MAX_AUDIO_EVENTS];
+    ps_audio_event ui_audio_events[PS_GBC_MAX_AUDIO_EVENTS];
+    uint32_t created_objects;
+    uint32_t destroyed_objects;
     const char* message;
 };
 
+#if defined(PS_GBC_FREESTANDING)
 _Static_assert(
     sizeof(struct ps_gbc_session) <= PS_GBC_SESSION_OVERHEAD_BUDGET,
     "PS_GBC_SESSION_OVERHEAD_BUDGET is too small"
 );
+#endif
+
+#if !defined(PS_GBC_FREESTANDING)
+static const char kAudioKindCantmove[] = "cantmove";
+static const char kAudioKindCanmove[] = "canmove";
+static const char kAudioKindCreate[] = "create";
+static const char kAudioKindDestroy[] = "destroy";
+static const char kAudioKindSfx[] = "sfx";
+static const char kAudioKindUi[] = "ui";
+#endif
+
+#if !defined(PS_GBC_FREESTANDING)
+static const char* ps_gbc_audio_kind_name(uint8_t kind) {
+    switch (kind) {
+        case PS_GBC_AUDIO_CANTMOVE: return kAudioKindCantmove;
+        case PS_GBC_AUDIO_CANMOVE: return kAudioKindCanmove;
+        case PS_GBC_AUDIO_CREATE: return kAudioKindCreate;
+        case PS_GBC_AUDIO_DESTROY: return kAudioKindDestroy;
+        case PS_GBC_AUDIO_SFX: return kAudioKindSfx;
+        default: return kAudioKindUi;
+    }
+}
+#endif
+
+#if PS_GBC_HAS_AUDIO
+static void ps_gbc_audio_append(
+    ps_gbc_session* session,
+    uint8_t sound_id,
+    uint8_t kind,
+    bool ui
+) {
+    ps_audio_event* events;
+    uint8_t* count;
+    uint8_t index;
+    int32_t seed;
+    if (session->suppress_audio || sound_id == PS_GBC_NO_SOUND
+        || sound_id >= session->game->sound_count) return;
+    seed = session->game->sound_seeds[sound_id];
+    events = ui ? session->ui_audio_events : session->audio_events;
+    count = ui ? &session->ui_audio_count : &session->audio_count;
+#if defined(PS_GBC_FREESTANDING)
+    /*
+     * Seed identity is all the hardware player observes. Deduplicating it
+     * directly avoids retaining the host-only event categories in scarce
+     * WRAM and fixed-bank code.
+     */
+    (void)kind;
+    for (index = 0U; index < *count; ++index) {
+        if (events[index].seed == seed) return;
+    }
+#else
+    if (ui || kind == PS_GBC_AUDIO_CANMOVE || kind == PS_GBC_AUDIO_CANTMOVE) {
+        for (index = 0U; index < *count; ++index) {
+            if (events[index].seed == seed
+                && (ui || session->audio_kinds[index] == kind)) return;
+        }
+    }
+#endif
+    if (*count >= PS_GBC_MAX_AUDIO_EVENTS) return;
+    events[*count].seed = seed;
+#if !defined(PS_GBC_FREESTANDING)
+    events[*count].kind = ps_gbc_audio_kind_name(kind);
+#endif
+#if !defined(PS_GBC_FREESTANDING)
+    if (!ui) session->audio_kinds[*count] = kind;
+#endif
+    ++*count;
+}
+
+static void ps_gbc_audio_append_named(
+    ps_gbc_session* session,
+    ps_gbc_named_sound sound
+) {
+    if (session->game->named_sound_ids == NULL
+        || sound >= PS_GBC_NAMED_SOUND_COUNT) return;
+    ps_gbc_audio_append(
+        session, session->game->named_sound_ids[sound], PS_GBC_AUDIO_UI, true);
+}
+
+static void ps_gbc_audio_result(
+    ps_gbc_session* session,
+    ps_step_result* result
+) {
+    result->audio_event_count = session->audio_count;
+    result->audio_events =
+        session->audio_count == 0U ? NULL : session->audio_events;
+    result->ui_audio_event_count = session->ui_audio_count;
+    result->ui_audio_events =
+        session->ui_audio_count == 0U ? NULL : session->ui_audio_events;
+}
+#endif
+
 
 static size_t ps_gbc_align4(size_t value) {
     return (value + 3U) & ~(size_t)3U;
@@ -226,6 +380,15 @@ static bool ps_gbc_game_valid(const ps_gbc_game_view* game) {
     if (game->early_group_count != 0U && game->early_groups == NULL) return false;
     if (game->late_group_count != 0U && game->late_groups == NULL) return false;
     if (game->win_condition_count != 0U && game->win_conditions == NULL) return false;
+    if (game->sound_count != 0U && game->sound_seeds == NULL) return false;
+    if (game->named_sound_ids == NULL) return false;
+    if (game->rule_sound_count != 0U && game->rule_sound_ids == NULL) return false;
+    if (game->creation_sound_count != 0U && game->creation_sounds == NULL) return false;
+    if (game->destruction_sound_count != 0U
+        && game->destruction_sounds == NULL) return false;
+    if (game->movement_sound_count != 0U && game->movement_sounds == NULL) return false;
+    if (game->movement_failure_sound_count != 0U
+        && game->movement_failure_sounds == NULL) return false;
     if (game->background_palettes == NULL || game->palette_remap == NULL
         || game->ui_palette == NULL) return false;
     return true;
@@ -425,6 +588,16 @@ static bool ps_gbc_apply_replacement(
     movements = ps_gbc_movement_get(session, cell);
     original_movements = movements;
     next_objects = (objects & ~pattern->objects_clear) | pattern->objects_set;
+#if PS_GBC_HAS_CREATION_AUDIO
+    if (!session->suppress_audio) {
+        session->created_objects |= next_objects & ~objects;
+    }
+#endif
+#if PS_GBC_HAS_DESTRUCTION_AUDIO
+    if (!session->suppress_audio) {
+        session->destroyed_objects |= objects & ~next_objects;
+    }
+#endif
     if ((pattern->flags & PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS) != 0U) {
         movements &= ~pattern->movement_layer_mask;
     }
@@ -448,6 +621,21 @@ static bool ps_gbc_apply_rule(
     if (match_count == 0U) return false;
     commands->flags |= rule->commands;
     if ((rule->commands & PS_GBC_COMMAND_MESSAGE) != 0U) commands->message = rule->message;
+#if PS_GBC_HAS_RULE_AUDIO
+    if (rule->sound_count != 0U && session->game->rule_sound_ids != NULL) {
+        uint8_t sound_index;
+        for (sound_index = 0U; sound_index < rule->sound_count; ++sound_index) {
+            const uint16_t reference =
+                (uint16_t)rule->first_sound + sound_index;
+            if (reference >= session->game->rule_sound_count) break;
+            ps_gbc_audio_append(
+                session,
+                session->game->rule_sound_ids[reference],
+                PS_GBC_AUDIO_SFX,
+                true);
+        }
+    }
+#endif
     for (start = 0U; start < (uint16_t)(session->width * session->height); ++start) {
         uint8_t pattern_index;
         if ((session->match_bits[start >> 3U] & (uint8_t)(1U << (start & 7U))) == 0U) {
@@ -562,6 +750,28 @@ static void ps_gbc_direction_delta(uint8_t direction, int8_t* dx, int8_t* dy) {
     else if (direction == 8U) *dx = 1;
 }
 
+#if PS_GBC_HAS_CREATION_AUDIO || PS_GBC_HAS_DESTRUCTION_AUDIO \
+    || PS_GBC_HAS_MOVEMENT_AUDIO || PS_GBC_HAS_MOVEMENT_FAILURE_AUDIO
+static void ps_gbc_audio_mask_matches(
+    ps_gbc_session* session,
+    const ps_gbc_sound_mask* entries,
+    uint8_t count,
+    uint32_t objects,
+    uint32_t movements,
+    uint8_t kind
+) {
+    uint8_t index;
+    if (session->suppress_audio || entries == NULL || objects == 0U) return;
+    for (index = 0U; index < count; ++index) {
+        const ps_gbc_sound_mask* entry = &entries[index];
+        if ((objects & entry->object_mask) == 0U) continue;
+        if (entry->movement_mask != 0U
+            && (movements & entry->movement_mask) == 0U) continue;
+        ps_gbc_audio_append(session, entry->sound_id, kind, false);
+    }
+}
+#endif
+
 static bool ps_gbc_resolve_movements(ps_gbc_session* session) {
     uint16_t cell;
     const uint16_t cells = (uint16_t)(session->width * session->height);
@@ -612,6 +822,17 @@ static bool ps_gbc_resolve_movements(ps_gbc_session* session) {
                     ps_gbc_movement_set(session, cell, movement);
                     continue;
                 }
+#if PS_GBC_HAS_MOVEMENT_AUDIO
+                if (session->game->movement_sound_count != 0U) {
+                    ps_gbc_audio_mask_matches(
+                        session,
+                        session->game->movement_sounds,
+                        session->game->movement_sound_count,
+                        source_objects,
+                        (uint32_t)direction << (5U * layer),
+                        PS_GBC_AUDIO_CANMOVE);
+                }
+#endif
                 ps_gbc_board_set(
                     session,
                     cell,
@@ -626,6 +847,21 @@ static bool ps_gbc_resolve_movements(ps_gbc_session* session) {
             }
         }
     }
+#if PS_GBC_HAS_MOVEMENT_FAILURE_AUDIO
+    if (session->game->movement_failure_sound_count != 0U) {
+        for (cell = 0U; cell < cells; ++cell) {
+            const uint32_t movement = ps_gbc_movement_get(session, cell);
+            if (movement == 0U) continue;
+            ps_gbc_audio_mask_matches(
+                session,
+                session->game->movement_failure_sounds,
+                session->game->movement_failure_sound_count,
+                ps_gbc_board_get(session, cell),
+                movement,
+                PS_GBC_AUDIO_CANTMOVE);
+        }
+    }
+#endif
     memset(session->movements, 0, ps_gbc_movement_bytes(session->game));
     return moved_any;
 }
@@ -769,7 +1005,6 @@ static void ps_gbc_finish_turn(
     bool level_start,
     ps_step_result* result
 ) {
-    memset(result, 0, sizeof(*result));
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_COMMANDS);
     if ((commands->flags & PS_GBC_COMMAND_CANCEL) != 0U) {
         (void)session->snapshots.read(
@@ -777,9 +1012,41 @@ static void ps_gbc_finish_turn(
             (uint8_t)session->undo_head,
             session->board,
             board_bytes);
+#if PS_GBC_HAS_AUDIO
+        session->audio_count = 0U;
+        session->ui_audio_count = 0U;
+        session->created_objects = 0U;
+        session->destroyed_objects = 0U;
+        if (!level_start) {
+            ps_gbc_audio_append_named(session, PS_GBC_SOUND_CANCEL);
+            ps_gbc_audio_result(session, result);
+        }
+#endif
         PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
         return;
     }
+#if PS_GBC_HAS_CREATION_AUDIO
+    if (session->game->creation_sound_count != 0U) {
+        ps_gbc_audio_mask_matches(
+            session,
+            session->game->creation_sounds,
+            session->game->creation_sound_count,
+            session->created_objects,
+            0U,
+            PS_GBC_AUDIO_CREATE);
+    }
+#endif
+#if PS_GBC_HAS_DESTRUCTION_AUDIO
+    if (session->game->destruction_sound_count != 0U) {
+        ps_gbc_audio_mask_matches(
+            session,
+            session->game->destruction_sounds,
+            session->game->destruction_sound_count,
+            session->destroyed_objects,
+            0U,
+            PS_GBC_AUDIO_DESTROY);
+    }
+#endif
     if (!level_start
         && (commands->flags & PS_GBC_COMMAND_RESTART) != 0U
         && !session->game->no_restart) {
@@ -789,6 +1056,9 @@ static void ps_gbc_finish_turn(
         }
         changed = true;
         result->restarted = true;
+#if PS_GBC_HAS_AUDIO
+        ps_gbc_audio_append_named(session, PS_GBC_SOUND_RESTART);
+#endif
     }
     if (changed && !result->restarted && !level_start) {
         ps_gbc_commit_undo(session);
@@ -807,6 +1077,9 @@ static void ps_gbc_finish_turn(
         session->mode = (uint8_t)PS_FULL_STATE_MODE_MESSAGE;
         session->message = commands->message;
         session->pending_again = false;
+#if PS_GBC_HAS_AUDIO
+        ps_gbc_audio_append_named(session, PS_GBC_SOUND_SHOWMESSAGE);
+#endif
     }
     if (!level_start
         && ((commands->flags & PS_GBC_COMMAND_WIN) != 0U
@@ -819,6 +1092,9 @@ static void ps_gbc_finish_turn(
         session->pending_again = true;
     }
     PS_GBC_PERF_END(PS_GBC_PERF_WIN);
+#if PS_GBC_HAS_AUDIO
+    if (!level_start) ps_gbc_audio_result(session, result);
+#endif
 }
 
 ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
@@ -831,10 +1107,20 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     memset(&result, 0, sizeof(result));
     memset(&commands, 0, sizeof(commands));
     if (session == NULL || session->completed) return result;
+#if PS_GBC_HAS_AUDIO
+    session->audio_count = 0U;
+    session->ui_audio_count = 0U;
+    session->created_objects = 0U;
+    session->destroyed_objects = 0U;
+#endif
     if (session->mode == PS_FULL_STATE_MODE_MESSAGE) {
         if (input != PS_INPUT_TICK) {
             result.transitioned = ps_gbc_advance(session);
             result.changed = result.transitioned;
+#if PS_GBC_HAS_AUDIO
+            ps_gbc_audio_append_named(session, PS_GBC_SOUND_CLOSEMESSAGE);
+            ps_gbc_audio_result(session, &result);
+#endif
         }
         return result;
     }
@@ -871,6 +1157,7 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
         return;
     }
     memset(&commands, 0, sizeof(commands));
+    memset(&ignored, 0, sizeof(ignored));
     cells = (uint16_t)(session->width * session->height);
     board_bytes = (uint16_t)(cells * ps_gbc_object_width(session->game));
     if (!session->snapshots.write(
@@ -880,9 +1167,15 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
             board_bytes)) {
         return;
     }
+#if PS_GBC_HAS_AUDIO
+    session->suppress_audio = true;
+#endif
     changed = ps_gbc_apply_turn_phases(session, 0U, &commands);
     ps_gbc_finish_turn(
         session, &commands, changed, board_bytes, true, &ignored);
+#if PS_GBC_HAS_AUDIO
+    session->suppress_audio = false;
+#endif
 }
 
 void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status) {
