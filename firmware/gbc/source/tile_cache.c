@@ -16,7 +16,7 @@ extern uint8_t gAttributes[SCREEN_TILES];
 extern uint8_t gSourcePixels[64];
 extern uint8_t gTileBytes[64];
 extern uint8_t composeTile(uint32_t objects);
-#if defined(PS_GBC_AUTOTEST)
+#if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
 extern uint16_t gTileUploadMismatches;
 #endif
 
@@ -75,7 +75,9 @@ static void uploadQuartet(uint16_t base_tile) {
         const uint16_t tile = base_tile + part;
         VBK_REG = (uint8_t)(tile >> 8U);
         set_bkg_data((uint8_t)tile, 1U, gTileBytes + (uint8_t)(part << 4U));
-#if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_PERF_BENCH)
+#if defined(PS_GBC_AUTOTEST) \
+    && !defined(PS_GBC_PERF_BENCH) \
+    && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
         get_bkg_data((uint8_t)tile, 1U, gReadbackTile);
         if (memcmp(
                 gReadbackTile,

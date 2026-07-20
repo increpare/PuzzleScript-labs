@@ -54,6 +54,7 @@ def main() -> int:
     parser.add_argument("--expect-won", type=int, choices=(0, 1), default=0)
     parser.add_argument("--expect-cell", type=coordinate, default=(16, 16))
     parser.add_argument("--skip-step-check", action="store_true")
+    parser.add_argument("--logic-only", action="store_true")
     parser.add_argument("--frame-out", type=Path)
     parser.add_argument("--frame-scale", type=int, default=1)
     parser.add_argument("--require-dedicated-tiles", action="store_true")
@@ -128,6 +129,14 @@ def main() -> int:
                 "right-step result differs: "
                 f"position={final_x},{final_y} changed={changed} won={won}"
             )
+        if args.logic_only:
+            print(
+                "gbc-smoke logic-only ok "
+                f"source_hash=0x{source_hash:08x} "
+                f"player={initial_x},{initial_y}->{final_x},{final_y} "
+                f"changed={changed} won={won}"
+            )
+            return 0
         render_record = RENDER_RECORD.unpack_from(data, offset + RENDER_OFFSET)
         (
             render_magic,

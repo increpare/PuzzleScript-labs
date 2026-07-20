@@ -48,7 +48,7 @@ ps_gbc_session* gSession;
 static bool gTitleScreen;
 static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 static uint8_t gVramState = VRAM_STATE_UNKNOWN;
-#if defined(PS_GBC_AUTOTEST)
+#if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
 static uint16_t gDisplayBlankCount;
 uint16_t gTileUploadMismatches;
 #endif
@@ -129,7 +129,7 @@ typedef struct SaveRecord {
 } SaveRecord;
 
 static void displayOffForFullRewrite(void) {
-#if defined(PS_GBC_AUTOTEST)
+#if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
     ++gDisplayBlankCount;
 #endif
     DISPLAY_OFF;
@@ -441,7 +441,8 @@ static void writeSram32(uint16_t offset, uint32_t value) {
     }
 }
 
-#if !defined(PS_GBC_PERF_BENCH)
+#if !defined(PS_GBC_PERF_BENCH) \
+    && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
 static uint16_t countNonzero(const uint8_t* data, uint16_t size) {
     uint16_t count = 0U;
     while (size-- != 0U) {
@@ -640,6 +641,22 @@ static void runAutotest(void) {
         writeSram32(16U, PERF_MAGIC);
         DISABLE_RAM_MBC5;
     }
+#elif defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
+    {
+        uint16_t first_board;
+        for (first_board = 0U;
+             first_board < ps_gbc_generated_game.level_count;
+             ++first_board) {
+            if (ps_gbc_generated_game.levels[first_board].kind
+                == PS_GBC_LEVEL_BOARD) {
+                (void)ps_gbc_load_level(gSession, first_board);
+                break;
+            }
+        }
+        (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
+        result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
+        (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
+    }
 #else
     uint16_t title_map_nonzero;
     uint16_t title_tile_nonzero;
@@ -721,7 +738,8 @@ static void runAutotest(void) {
     writeSram8(10U, result.changed ? 1U : 0U);
     writeSram8(11U, result.won ? 1U : 0U);
     writeSram32(12U, ps_gbc_generated_game.source_hash);
-#if !defined(PS_GBC_PERF_BENCH)
+#if !defined(PS_GBC_PERF_BENCH) \
+    && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
     writeSram32(16U, 0U);
     writeSram16(20U, 1U);
     writeSram16(22U, title_map_nonzero);

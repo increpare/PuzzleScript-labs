@@ -475,3 +475,11 @@ before and after: the corrected build starts from the rule-transformed board,
 whereas the old build rendered the raw level. The instrumented fixture still
 fits the fixed ROM bank at 16328/16384 bytes (56 bytes spare). All 89 native
 CTest targets and all 753 JS tests pass.
+
+All seven production cartridges pass header, link-map, hash, manifest, and
+memory-limit checks. Five also pass the complete mGBA render-and-logic probe.
+The two largest generated games cannot link that roughly 2 KiB probe alongside
+the full runtime, so Short Adventure and Slot Machine use a lighter
+coordinate/change/win SRAM probe instead; both pass in mGBA at 14956 and 15149
+fixed-bank bytes respectively. The standalone startup fixture retains the full
+renderer probe and directly proves the metadata-induced pre-input state.

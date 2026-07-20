@@ -1,6 +1,7 @@
 GBDK_HOME          ?= $(GBDK)
 LCC                := $(GBDK_HOME)/bin/lcc
 AUTOTEST           ?= 0
+AUTOTEST_LOGIC_ONLY ?= 0
 PERF_BENCH         ?= 0
 PERF_WIDE          ?= 0
 PERF_PHASES        ?= 0
@@ -18,6 +19,9 @@ CFLAGS += -DPS_GBC_GENERATED_BUILD=1
 CFLAGS += -Wf--max-allocs-per-node50000
 ifneq ($(filter 1 yes true on,$(AUTOTEST)),)
 CFLAGS += -DPS_GBC_AUTOTEST=1
+endif
+ifneq ($(filter 1 yes true on,$(AUTOTEST_LOGIC_ONLY)),)
+CFLAGS += -DPS_GBC_AUTOTEST_LOGIC_ONLY=1
 endif
 ifneq ($(filter 1 yes true on,$(PERF_BENCH)),)
 CFLAGS += -DPS_GBC_PERF_BENCH=1
