@@ -23,8 +23,12 @@ SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 RENDER_OFFSET = 16
 FRAME_DUMP_BANK = 2
+TITLE_FRAME_DUMP_BANK = 0
+MESSAGE_FRAME_DUMP_BANK = 1
 FRAME_DUMP_HEADER = struct.Struct("<IHH")
 SCREEN_TILES = 20 * 18
+FRAME_HORIZONTAL_TILE = 38
+FRAME_VERTICAL_TILE = 39
 
 
 def coordinate(value: str) -> tuple[int, int]:
@@ -43,6 +47,105 @@ def default_mgba() -> Path | None:
     return candidate if candidate.is_file() else None
 
 
+def read_frame_dump(
+    data: bytes, bank: int
+) -> tuple[bytes, bytes, bytes, tuple[int, ...]]:
+    frame_offset = bank * SRAM_BANK_SIZE
+    frame_magic, frame_version, frame_tiles = FRAME_DUMP_HEADER.unpack_from(
+        data, frame_offset
+    )
+    if (
+        frame_magic != FRAME_DUMP_MAGIC
+        or frame_version != VERSION
+        or frame_tiles != SCREEN_TILES
+    ):
+        raise SystemExit(
+            "frame dump record missing: "
+            f"bank={bank} magic=0x{frame_magic:08x} "
+            f"version={frame_version} tiles={frame_tiles}"
+        )
+    cursor = frame_offset + FRAME_DUMP_HEADER.size
+    tile_map = data[cursor : cursor + SCREEN_TILES]
+    cursor += SCREEN_TILES
+    attributes = data[cursor : cursor + SCREEN_TILES]
+    cursor += SCREEN_TILES
+    tile_data = data[cursor : cursor + SCREEN_TILES * 16]
+    cursor += SCREEN_TILES * 16
+    palettes = struct.unpack_from("<32H", data, cursor)
+    return tile_map, attributes, tile_data, palettes
+
+
+def save_frame_image(
+    frame: tuple[bytes, bytes, bytes, tuple[int, ...]],
+    output: Path,
+    scale: int,
+) -> None:
+    from PIL import Image
+
+    _, attributes, tile_data, palettes = frame
+    image = Image.new("RGB", (160, 144))
+    pixels = image.load()
+    for screen_tile in range(SCREEN_TILES):
+        tile_x = screen_tile % 20
+        tile_y = screen_tile // 20
+        palette = attributes[screen_tile] & 0x07
+        pattern = tile_data[screen_tile * 16 : (screen_tile + 1) * 16]
+        for pixel_y in range(8):
+            low = pattern[pixel_y * 2]
+            high = pattern[pixel_y * 2 + 1]
+            for pixel_x in range(8):
+                shift = 7 - pixel_x
+                color_index = (
+                    ((low >> shift) & 1)
+                    | (((high >> shift) & 1) << 1)
+                )
+                color = palettes[palette * 4 + color_index]
+                pixels[tile_x * 8 + pixel_x, tile_y * 8 + pixel_y] = (
+                    (color & 0x1F) * 255 // 31,
+                    ((color >> 5) & 0x1F) * 255 // 31,
+                    ((color >> 10) & 0x1F) * 255 // 31,
+                )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if scale != 1:
+        image = image.resize(
+            (160 * scale, 144 * scale),
+            Image.Resampling.NEAREST,
+        )
+    image.save(output)
+
+
+def glyph_tiles(text: str) -> bytes:
+    punctuation = {
+        ".": 37,
+        "-": 38,
+        ":": 39,
+        "!": 40,
+        "?": 41,
+        ",": 42,
+        "'": 43,
+        "/": 44,
+        "[": 45,
+        "]": 46,
+    }
+    return bytes(
+        ord(character) - ord("A") + 1
+        if "A" <= character <= "Z"
+        else punctuation.get(character, 0)
+        for character in text
+    )
+
+
+def frame_border_mismatches(tile_map: bytes) -> int:
+    mismatches = 0
+    for column in range(2, 18):
+        mismatches += tile_map[20 + column] != FRAME_HORIZONTAL_TILE
+        mismatches += tile_map[320 + column] != FRAME_HORIZONTAL_TILE
+    for row in range(2, 16):
+        mismatches += tile_map[row * 20 + 1] != FRAME_VERTICAL_TILE
+        mismatches += tile_map[row * 20 + 18] != FRAME_VERTICAL_TILE
+    return mismatches
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("rom", type=Path)
@@ -56,6 +159,8 @@ def main() -> int:
     parser.add_argument("--skip-step-check", action="store_true")
     parser.add_argument("--logic-only", action="store_true")
     parser.add_argument("--frame-out", type=Path)
+    parser.add_argument("--title-frame-out", type=Path)
+    parser.add_argument("--message-frame-out", type=Path)
     parser.add_argument("--frame-scale", type=int, default=1)
     parser.add_argument("--require-dedicated-tiles", action="store_true")
     parser.add_argument("--require-second-vram-bank", action="store_true")
@@ -63,6 +168,8 @@ def main() -> int:
     unique_quartets = 0
     dedicated_cells = 0
     second_bank_cells = 0
+    if args.frame_scale < 1:
+        raise SystemExit("--frame-scale must be at least 1")
     emulator = args.mgba or default_mgba()
     if emulator is None or not emulator.is_file():
         raise SystemExit("mGBA SDL executable was not found")
@@ -219,28 +326,50 @@ def main() -> int:
                 "VRAM tile upload readback differs: "
                 f"mismatches={tile_upload_mismatches}"
             )
-        if args.frame_out is not None:
-            from PIL import Image
-
-            frame_offset = FRAME_DUMP_BANK * SRAM_BANK_SIZE
-            frame_magic, frame_version, frame_tiles = FRAME_DUMP_HEADER.unpack_from(
-                data, frame_offset
+        title_frame = read_frame_dump(data, TITLE_FRAME_DUMP_BANK)
+        title_tile_map, title_attributes, _, _ = title_frame
+        frame_mismatches = frame_border_mismatches(title_tile_map)
+        masthead = glyph_tiles("PUZZLESCRIPT")
+        prompt = glyph_tiles("PRESS A")
+        if (
+            frame_mismatches != 0
+            or any(title_attributes)
+            or title_tile_map[3 * 20 + 4 : 3 * 20 + 16] != masthead
+            or title_tile_map[15 * 20 + 6 : 15 * 20 + 13] != prompt
+        ):
+            raise SystemExit(
+                "title layout differs: "
+                f"frame={frame_mismatches} attributes={sum(bool(value) for value in title_attributes)} "
+                f"masthead={title_tile_map[3 * 20 + 4 : 3 * 20 + 16] == masthead} "
+                f"prompt={title_tile_map[15 * 20 + 6 : 15 * 20 + 13] == prompt}"
             )
-            if (
-                frame_magic != FRAME_DUMP_MAGIC
-                or frame_version != VERSION
-                or frame_tiles != SCREEN_TILES
-            ):
-                raise SystemExit(
-                    "frame dump record missing: "
-                    f"magic=0x{frame_magic:08x} version={frame_version} "
-                    f"tiles={frame_tiles}"
-                )
-            cursor = frame_offset + FRAME_DUMP_HEADER.size
-            tile_map = data[cursor : cursor + SCREEN_TILES]
-            cursor += SCREEN_TILES
-            attributes = data[cursor : cursor + SCREEN_TILES]
-            cursor += SCREEN_TILES
+        if args.title_frame_out is not None:
+            save_frame_image(title_frame, args.title_frame_out, args.frame_scale)
+        message_frame = read_frame_dump(data, MESSAGE_FRAME_DUMP_BANK)
+        message_tile_map, message_attributes, _, _ = message_frame
+        message_frame_mismatches = frame_border_mismatches(message_tile_map)
+        message_line_1 = glyph_tiles("VERTEX DISPENSER")
+        message_line_2 = glyph_tiles("/ [OK]?")
+        if (
+            message_frame_mismatches != 0
+            or any(message_attributes)
+            or message_tile_map[3 * 20 + 2 : 3 * 20 + 18] != message_line_1
+            or message_tile_map[4 * 20 + 6 : 4 * 20 + 13] != message_line_2
+            or message_tile_map[15 * 20 + 6 : 15 * 20 + 13] != prompt
+        ):
+            raise SystemExit(
+                "message layout differs: "
+                f"frame={message_frame_mismatches} "
+                f"attributes={sum(bool(value) for value in message_attributes)} "
+                f"line1={message_tile_map[3 * 20 + 2 : 3 * 20 + 18] == message_line_1} "
+                f"line2={message_tile_map[4 * 20 + 6 : 4 * 20 + 13] == message_line_2} "
+                f"prompt={message_tile_map[15 * 20 + 6 : 15 * 20 + 13] == prompt}"
+            )
+        if args.message_frame_out is not None:
+            save_frame_image(message_frame, args.message_frame_out, args.frame_scale)
+        if args.frame_out is not None:
+            board_frame = read_frame_dump(data, FRAME_DUMP_BANK)
+            tile_map, attributes, _, _ = board_frame
             mapping_mismatches = 0
             quartet_bases = set()
             for logical_y in range(9):
@@ -288,40 +417,7 @@ def main() -> int:
                 raise SystemExit(
                     "frame did not exercise logical cells in VRAM pattern bank 1"
                 )
-            tile_data = data[cursor : cursor + SCREEN_TILES * 16]
-            cursor += SCREEN_TILES * 16
-            palettes = struct.unpack_from("<32H", data, cursor)
-            image = Image.new("RGB", (160, 144))
-            pixels = image.load()
-            for screen_tile in range(SCREEN_TILES):
-                tile_x = screen_tile % 20
-                tile_y = screen_tile // 20
-                palette = attributes[screen_tile] & 0x07
-                pattern = tile_data[screen_tile * 16 : (screen_tile + 1) * 16]
-                for pixel_y in range(8):
-                    low = pattern[pixel_y * 2]
-                    high = pattern[pixel_y * 2 + 1]
-                    for pixel_x in range(8):
-                        shift = 7 - pixel_x
-                        color_index = (
-                            ((low >> shift) & 1)
-                            | (((high >> shift) & 1) << 1)
-                        )
-                        color = palettes[palette * 4 + color_index]
-                        pixels[tile_x * 8 + pixel_x, tile_y * 8 + pixel_y] = (
-                            (color & 0x1F) * 255 // 31,
-                            ((color >> 5) & 0x1F) * 255 // 31,
-                            ((color >> 10) & 0x1F) * 255 // 31,
-                        )
-            args.frame_out.parent.mkdir(parents=True, exist_ok=True)
-            if args.frame_scale < 1:
-                raise SystemExit("--frame-scale must be at least 1")
-            if args.frame_scale != 1:
-                image = image.resize(
-                    (160 * args.frame_scale, 144 * args.frame_scale),
-                    Image.Resampling.NEAREST,
-                )
-            image.save(args.frame_out)
+            save_frame_image(board_frame, args.frame_out, args.frame_scale)
         print(
             "gbc-smoke ok "
             f"source_hash=0x{source_hash:08x} "

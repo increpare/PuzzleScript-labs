@@ -4,6 +4,7 @@
 #include <gb/gb.h>
 
 #include "puzzlescript/gbc.h"
+#include "text.h"
 
 extern uint8_t gTileBytes[64];
 extern uint8_t gTileMap[
@@ -24,7 +25,6 @@ void perfTimerStart(void);
 uint32_t perfTimerStop(void);
 uint8_t composeTile(uint32_t objects);
 void renderBoard(void);
-void showText(const char* message, bool title);
 
 bool perfLoadFirstBoard(void) BANKED;
 uint32_t perfMeasureRender(void) BANKED;

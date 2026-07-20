@@ -3,6 +3,7 @@
 
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
+#include "text.h"
 #include "tile_cache.h"
 #if defined(PS_GBC_PERF_BENCH)
 #include "benchmark.h"
@@ -24,9 +25,6 @@
 #define PERF_ITERATIONS 128U
 #define PERF_RENDER_ITERATIONS 4U
 #define NO_RENDERED_LEVEL 0xffffU
-#define VRAM_STATE_UNKNOWN 0U
-#define VRAM_STATE_TEXT 1U
-#define VRAM_STATE_BOARD 2U
 
 #if defined(PS_GBC_PERF_BENCH)
 /*
@@ -46,8 +44,8 @@ uint8_t gAttributes[SCREEN_TILES];
 uint8_t gSourcePixels[64];
 ps_gbc_session* gSession;
 static bool gTitleScreen;
-static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
-static uint8_t gVramState = VRAM_STATE_UNKNOWN;
+uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
+uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
 static uint16_t gDisplayBlankCount;
 uint16_t gTileUploadMismatches;
@@ -128,39 +126,12 @@ typedef struct SaveRecord {
     uint16_t checksum;
 } SaveRecord;
 
-static void displayOffForFullRewrite(void) {
+void displayOffForFullRewrite(void) {
 #if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
     ++gDisplayBlankCount;
 #endif
     DISPLAY_OFF;
 }
-
-/*
- * Five-column, seven-row glyphs for A-Z, 0-9, '.', '-', ':', and '!'.
- * Each byte is one vertical column, least-significant bit at the top.
- */
-static const uint8_t kGlyphs[40][5] = {
-    {0x7e,0x11,0x11,0x11,0x7e}, {0x7f,0x49,0x49,0x49,0x36},
-    {0x3e,0x41,0x41,0x41,0x22}, {0x7f,0x41,0x41,0x22,0x1c},
-    {0x7f,0x49,0x49,0x49,0x41}, {0x7f,0x09,0x09,0x09,0x01},
-    {0x3e,0x41,0x49,0x49,0x7a}, {0x7f,0x08,0x08,0x08,0x7f},
-    {0x00,0x41,0x7f,0x41,0x00}, {0x20,0x40,0x41,0x3f,0x01},
-    {0x7f,0x08,0x14,0x22,0x41}, {0x7f,0x40,0x40,0x40,0x40},
-    {0x7f,0x02,0x0c,0x02,0x7f}, {0x7f,0x04,0x08,0x10,0x7f},
-    {0x3e,0x41,0x41,0x41,0x3e}, {0x7f,0x09,0x09,0x09,0x06},
-    {0x3e,0x41,0x51,0x21,0x5e}, {0x7f,0x09,0x19,0x29,0x46},
-    {0x46,0x49,0x49,0x49,0x31}, {0x01,0x01,0x7f,0x01,0x01},
-    {0x3f,0x40,0x40,0x40,0x3f}, {0x1f,0x20,0x40,0x20,0x1f},
-    {0x3f,0x40,0x38,0x40,0x3f}, {0x63,0x14,0x08,0x14,0x63},
-    {0x07,0x08,0x70,0x08,0x07}, {0x61,0x51,0x49,0x45,0x43},
-    {0x3e,0x51,0x49,0x45,0x3e}, {0x00,0x42,0x7f,0x40,0x00},
-    {0x62,0x51,0x49,0x49,0x46}, {0x22,0x41,0x49,0x49,0x36},
-    {0x18,0x14,0x12,0x7f,0x10}, {0x2f,0x49,0x49,0x49,0x31},
-    {0x3e,0x49,0x49,0x49,0x32}, {0x01,0x71,0x09,0x05,0x03},
-    {0x36,0x49,0x49,0x49,0x36}, {0x26,0x49,0x49,0x49,0x3e},
-    {0x00,0x60,0x60,0x00,0x00}, {0x08,0x08,0x08,0x08,0x08},
-    {0x00,0x36,0x36,0x00,0x00}, {0x00,0x00,0x5f,0x00,0x00}
-};
 
 static uint16_t saveChecksum(const SaveRecord* save) {
     const uint8_t* bytes = (const uint8_t*)save;
@@ -242,95 +213,6 @@ static void writeSave(uint16_t level) {
     destination = (volatile uint8_t*)0xa000U;
     for (index = 0U; index < sizeof(save); ++index) destination[index] = source[index];
     DISABLE_RAM_MBC5;
-}
-
-static uint8_t glyphIndex(char ch) {
-    if (ch >= 'a' && ch <= 'z') ch = (char)(ch - ('a' - 'A'));
-    if (ch >= 'A' && ch <= 'Z') return (uint8_t)(1U + ch - 'A');
-    if (ch >= '0' && ch <= '9') return (uint8_t)(27U + ch - '0');
-    if (ch == '.') return 37U;
-    if (ch == '-') return 38U;
-    if (ch == ':') return 39U;
-    if (ch == '!') return 40U;
-    return 0U;
-}
-
-static void loadFont(void) {
-    uint8_t glyph;
-    uint8_t tile[16];
-    uint8_t blank[16];
-    memset(blank, 0, sizeof(blank));
-    VBK_REG = VBK_BANK_0;
-    set_bkg_data(0U, 1U, blank);
-    for (glyph = 0U; glyph < 40U; ++glyph) {
-        uint8_t row;
-        for (row = 0U; row < 8U; ++row) {
-            uint8_t bits = 0U;
-            uint8_t column;
-            if (row < 7U) {
-                for (column = 0U; column < 5U; ++column) {
-                    if ((kGlyphs[glyph][column] & (uint8_t)(1U << row)) != 0U) {
-                        bits |= (uint8_t)(1U << (6U - column));
-                    }
-                }
-            }
-            tile[row * 2U] = bits;
-            tile[row * 2U + 1U] = bits;
-        }
-        set_bkg_data((uint8_t)(glyph + 1U), 1U, tile);
-    }
-}
-
-static void clearTextMap(void) {
-    memset(gTileMap, 0, sizeof(gTileMap));
-    memset(gAttributes, 0, sizeof(gAttributes));
-}
-
-static void drawTextLine(const char* text, uint8_t row) {
-    uint8_t length = 0U;
-    uint8_t column;
-    while (text[length] != '\0' && text[length] != '\n' && length < 20U) ++length;
-    column = (uint8_t)((20U - length) / 2U);
-    while (*text != '\0' && *text != '\n' && column < 20U) {
-        gTileMap[(uint16_t)row * 20U + column] = glyphIndex(*text);
-        ++text;
-        ++column;
-    }
-}
-
-void showText(const char* message, bool title) {
-    uint8_t row = title ? 5U : 2U;
-    const char* cursor = message;
-    gRenderedLevel = NO_RENDERED_LEVEL;
-    displayOffForFullRewrite();
-    if (gVramState != VRAM_STATE_TEXT) {
-        set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
-        loadFont();
-    }
-    clearTextMap();
-    if (title) {
-        drawTextLine(message, row);
-        drawTextLine("PRESS A", (uint8_t)(row + 4U));
-    } else {
-        while (*cursor != '\0' && row < 16U) {
-            char line[21];
-            uint8_t length = 0U;
-            while (*cursor == ' ' || *cursor == '\n') ++cursor;
-            while (*cursor != '\0' && *cursor != '\n' && length < 20U) {
-                line[length++] = *cursor++;
-            }
-            line[length] = '\0';
-            drawTextLine(line, row++);
-        }
-        drawTextLine("PRESS A", 17U);
-    }
-    VBK_REG = VBK_BANK_0;
-    set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
-    VBK_REG = VBK_BANK_1;
-    set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
-    VBK_REG = VBK_BANK_0;
-    gVramState = VRAM_STATE_TEXT;
-    DISPLAY_ON;
 }
 
 uint8_t composeTile(uint32_t objects) {
@@ -491,13 +373,13 @@ static uint16_t readBkgPaletteColor(uint8_t palette, uint8_t color) {
     return (uint16_t)low | ((uint16_t)high << 8U);
 }
 
-static void dumpFrameToSram(void) {
+static void dumpFrameToSram(uint8_t bank) {
     volatile uint8_t* destination;
     uint16_t offset = 0U;
     uint16_t screen_cell;
     DISPLAY_OFF;
     ENABLE_RAM_MBC5;
-    SWITCH_RAM_MBC5(2U);
+    SWITCH_RAM_MBC5(bank);
     destination = (volatile uint8_t*)0xa000U;
 #define WRITE_FRAME_BYTE(value) destination[offset++] = (uint8_t)(value)
     WRITE_FRAME_BYTE(FRAME_DUMP_MAGIC);
@@ -691,13 +573,15 @@ static void runAutotest(void) {
     showText(ps_gbc_generated_game.title, true);
     DISPLAY_OFF;
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));
-    title_tile_nonzero = countVramNonzero(VBK_BANK_0, 41U * 16U);
+    title_tile_nonzero =
+        countVramNonzero(VBK_BANK_0, TEXT_TILE_COUNT * 16U);
     title_palette_mismatches =
         countPaletteMismatches(ps_gbc_generated_game.ui_palette, 0U, 1U);
     title_background = readBkgPaletteColor(0U, 0U);
     title_foreground = readBkgPaletteColor(0U, 3U);
     title_map_mismatches = countHardwareMapMismatches(gTileMap, VBK_BANK_0);
     DISPLAY_ON;
+    dumpFrameToSram(0U);
     renderBoard();
     DISPLAY_OFF;
     board_tile_nonzero =
@@ -719,13 +603,15 @@ static void runAutotest(void) {
     incremental_blank_count =
         (uint16_t)(gDisplayBlankCount - incremental_blank_count);
     incremental_lcd_on = (LCDC_REG & LCDCF_ON) != 0U ? 1U : 0U;
-    dumpFrameToSram();
+    dumpFrameToSram(2U);
     ps_gbc_status_get(gSession, &render_status);
     cell_width = PS_GBC_RENDERED_CELL_WIDTH;
     cell_height = PS_GBC_RENDERED_CELL_HEIGHT;
     board_pixel_width = (uint16_t)(render_status.width * cell_width);
     board_pixel_height = (uint16_t)(render_status.height * cell_height);
     tile_upload_mismatches = gTileUploadMismatches;
+    showText("VERTEX DISPENSER / [OK]?", false);
+    dumpFrameToSram(1U);
 #endif
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(3U);
