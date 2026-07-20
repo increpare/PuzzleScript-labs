@@ -19,6 +19,7 @@
 #define PERF_MAGIC 0x46434250UL
 #define PERF_PHASE_MAGIC 0x32434250UL
 #define PERF_INTERACTION_MAGIC 0x49434250UL
+#define FRAME_DUMP_MAGIC 0x46474250UL
 #define PERF_ITERATIONS 128U
 #define PERF_RENDER_ITERATIONS 4U
 #define NO_RENDERED_LEVEL 0xffffU
@@ -48,6 +49,7 @@ static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 static uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_AUTOTEST)
 static uint16_t gDisplayBlankCount;
+uint16_t gTileUploadMismatches;
 #endif
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
@@ -338,54 +340,42 @@ uint8_t composeTile(uint32_t objects) {
         uint8_t object_id;
         for (object_id = 0U; object_id < ps_gbc_generated_game.object_count; ++object_id) {
             const ps_gbc_object* object;
-            uint8_t pixel;
+            uint8_t source_y;
             bool drew = false;
             if ((objects & ((uint32_t)1U << object_id)) == 0U) continue;
             object = &ps_gbc_generated_game.objects[object_id];
             if (object->layer != layer) continue;
-            for (pixel = 0U; pixel < 64U; ++pixel) {
-                const uint8_t source = object->sprite_pixels[pixel];
-                if (source == 0xffU) continue;
-                gSourcePixels[pixel] = source;
-                drew = true;
+            for (source_y = 0U; source_y < object->sprite_height; ++source_y) {
+                uint8_t source_x;
+                const uint8_t destination_y = (uint8_t)(
+                    source_y
+                    + (ps_gbc_generated_game.cell_height - object->sprite_height) / 2U);
+                for (source_x = 0U; source_x < object->sprite_width; ++source_x) {
+                    const uint8_t source = object->sprite_pixels[
+                        (uint8_t)(source_y * object->sprite_width + source_x)];
+                    const uint8_t destination_x = (uint8_t)(
+                        source_x
+                        + (ps_gbc_generated_game.cell_width - object->sprite_width) / 2U);
+                    if (source == 0xffU) continue;
+                    gSourcePixels[
+                        (uint8_t)(
+                            destination_y * ps_gbc_generated_game.cell_width
+                            + destination_x)] = source;
+                    drew = true;
+                }
             }
             if (drew) target_palette = object->palette;
-        }
-    }
-    {
-        uint8_t y;
-        for (y = 0U; y < 8U; ++y) {
-            uint8_t low = 0U;
-            uint8_t high = 0U;
-            uint8_t x;
-            for (x = 0U; x < 8U; ++x) {
-                const uint8_t color = ps_gbc_generated_game.palette_remap[
-                    (uint16_t)target_palette * 32U + gSourcePixels[(uint8_t)(y * 8U + x)]];
-                low |= (uint8_t)((color & 1U) << (7U - x));
-                high |= (uint8_t)(((color >> 1U) & 1U) << (7U - x));
-            }
-            gTileBytes[y * 2U] = low;
-            gTileBytes[y * 2U + 1U] = high;
         }
     }
     return target_palette;
 }
 
-#if PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 1U
-#define BOARD_OBJECTS(board, cell) (((const uint8_t*)(board))[(cell)])
-#elif PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 2U
-#define BOARD_OBJECTS(board, cell) (((const uint16_t*)(board))[(cell)])
-#else
-#define BOARD_OBJECTS(board, cell) (((const uint32_t*)(board))[(cell)])
-#endif
-
 void renderBoard(void) {
     ps_gbc_status status;
     const void* board;
     const uint8_t* dirty;
-    uint16_t cells;
-    uint8_t offset_x;
-    uint8_t offset_y;
+    uint8_t origin_x;
+    uint8_t origin_y;
     bool full_render;
     ps_gbc_status_get(gSession, &status);
     if (status.mode != PS_FULL_STATE_MODE_LEVEL) {
@@ -394,61 +384,31 @@ void renderBoard(void) {
     }
     board = ps_gbc_board(gSession);
     dirty = ps_gbc_dirty_cells(gSession);
-    cells = (uint16_t)(status.width * status.height);
-    offset_x = (uint8_t)((20U - status.width) / 2U);
-    offset_y = (uint8_t)((18U - status.height) / 2U);
+    origin_x = (uint8_t)(
+        (PS_GBC_SCREEN_WIDTH
+            - status.width * ps_gbc_generated_game.cell_width) / 2U);
+    origin_y = (uint8_t)(
+        (PS_GBC_SCREEN_HEIGHT
+            - status.height * ps_gbc_generated_game.cell_height) / 2U);
     full_render = gRenderedLevel != status.current_level;
-    if (full_render) displayOffForFullRewrite();
-    if (gVramState != VRAM_STATE_BOARD) {
-        set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
+    if (full_render && gVramState == VRAM_STATE_BOARD) {
+        showText("LOADING", false);
     }
     if (full_render) {
         ps_gbc_render_full_board(
-            board, status.width, status.height, offset_x, offset_y);
+            board, status.width, status.height, origin_x, origin_y);
     } else {
-        uint16_t board_cell = 0U;
-        uint16_t board_x;
-        for (board_x = 0U; board_x < status.width; ++board_x) {
-            uint16_t board_y;
-            for (board_y = 0U; board_y < status.height; ++board_y, ++board_cell) {
-                uint16_t screen_cell;
-                uint8_t previous_tile;
-                uint8_t previous_attributes;
-                uint8_t screen_x;
-                uint8_t screen_y;
-                if ((dirty[board_cell >> 3U]
-                        & (uint8_t)(1U << (board_cell & 7U))) == 0U) continue;
-                screen_x = (uint8_t)(board_x + offset_x);
-                screen_y = (uint8_t)(board_y + offset_y);
-                screen_cell = (uint16_t)screen_y * 20U + screen_x;
-                previous_tile = gTileMap[screen_cell];
-                previous_attributes = gAttributes[screen_cell];
-                if (!ps_gbc_reuse_matching_tile(
-                        board,
-                        dirty,
-                        cells,
-                        board_cell,
-                        screen_cell,
-                        status.height,
-                        offset_x,
-                        offset_y)) {
-                    ps_gbc_render_cell(
-                        screen_cell,
-                        ps_gbc_find_free_tile(screen_cell),
-                        BOARD_OBJECTS(board, board_cell));
-                }
-                if (gTileMap[screen_cell] != previous_tile) {
-                    VBK_REG = VBK_BANK_0;
-                    set_bkg_tile_xy(screen_x, screen_y, gTileMap[screen_cell]);
-                }
-                if (gAttributes[screen_cell] != previous_attributes) {
-                    VBK_REG = VBK_BANK_1;
-                    set_bkg_tile_xy(screen_x, screen_y, gAttributes[screen_cell]);
-                }
-            }
-        }
+        ps_gbc_render_dirty_board(
+            board,
+            dirty,
+            status.width,
+            status.height,
+            origin_x,
+            origin_y);
     }
     if (full_render) {
+        displayOffForFullRewrite();
+        set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
         VBK_REG = VBK_BANK_0;
         set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
         VBK_REG = VBK_BANK_1;
@@ -531,6 +491,54 @@ static uint16_t readBkgPaletteColor(uint8_t palette, uint8_t color) {
     BCPS_REG = (uint8_t)(index + 1U);
     high = BCPD_REG;
     return (uint16_t)low | ((uint16_t)high << 8U);
+}
+
+static void dumpFrameToSram(void) {
+    volatile uint8_t* destination;
+    uint16_t offset = 0U;
+    uint16_t screen_cell;
+    DISPLAY_OFF;
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(2U);
+    destination = (volatile uint8_t*)0xa000U;
+#define WRITE_FRAME_BYTE(value) destination[offset++] = (uint8_t)(value)
+    WRITE_FRAME_BYTE(FRAME_DUMP_MAGIC);
+    WRITE_FRAME_BYTE(FRAME_DUMP_MAGIC >> 8U);
+    WRITE_FRAME_BYTE(FRAME_DUMP_MAGIC >> 16U);
+    WRITE_FRAME_BYTE(FRAME_DUMP_MAGIC >> 24U);
+    WRITE_FRAME_BYTE(1U);
+    WRITE_FRAME_BYTE(0U);
+    WRITE_FRAME_BYTE(SCREEN_TILES);
+    WRITE_FRAME_BYTE(SCREEN_TILES >> 8U);
+    for (screen_cell = 0U; screen_cell < SCREEN_TILES; ++screen_cell) {
+        WRITE_FRAME_BYTE(gTileMap[screen_cell]);
+    }
+    for (screen_cell = 0U; screen_cell < SCREEN_TILES; ++screen_cell) {
+        WRITE_FRAME_BYTE(gAttributes[screen_cell]);
+    }
+    for (screen_cell = 0U; screen_cell < SCREEN_TILES; ++screen_cell) {
+        const uint8_t tile = gTileMap[screen_cell];
+        volatile const uint8_t* source;
+        uint8_t byte;
+        VBK_REG = (gAttributes[screen_cell] & 0x08U) != 0U
+            ? VBK_BANK_1 : VBK_BANK_0;
+        source = (volatile const uint8_t*)(
+            (tile < 128U ? 0x9000U : 0x8000U)
+            + (uint16_t)tile * 16U);
+        for (byte = 0U; byte < 16U; ++byte) {
+            WRITE_FRAME_BYTE(source[byte]);
+        }
+    }
+    for (screen_cell = 0U; screen_cell < 32U; ++screen_cell) {
+        const uint16_t color =
+            readBkgPaletteColor((uint8_t)(screen_cell >> 2U), (uint8_t)(screen_cell & 3U));
+        WRITE_FRAME_BYTE(color);
+        WRITE_FRAME_BYTE(color >> 8U);
+    }
+#undef WRITE_FRAME_BYTE
+    DISABLE_RAM_MBC5;
+    VBK_REG = VBK_BANK_0;
+    DISPLAY_ON;
 }
 
 static uint16_t countPaletteMismatches(
@@ -649,6 +657,12 @@ static void runAutotest(void) {
     uint16_t board_palette_mismatches;
     uint16_t incremental_blank_count;
     uint16_t incremental_lcd_on;
+    uint16_t cell_width;
+    uint16_t cell_height;
+    uint16_t board_pixel_width;
+    uint16_t board_pixel_height;
+    uint16_t tile_upload_mismatches;
+    ps_gbc_status render_status;
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
     showText(ps_gbc_generated_game.title, true);
     DISPLAY_OFF;
@@ -664,7 +678,9 @@ static void runAutotest(void) {
     DISPLAY_OFF;
     board_tile_nonzero =
         (uint16_t)(countVramNonzero(VBK_BANK_0, 256U * 16U)
-            + countVramNonzero(VBK_BANK_1, (SCREEN_TILES - 256U) * 16U));
+            + countVramNonzero(
+                VBK_BANK_1,
+                (SCREEN_TILES + PS_GBC_BOARD_TILE_OFFSET - 256U) * 16U));
     board_attributes_nonzero = countNonzero(gAttributes, sizeof(gAttributes));
     board_map_mismatches = countHardwareMapMismatches(gTileMap, VBK_BANK_0);
     board_attribute_mismatches =
@@ -679,6 +695,13 @@ static void runAutotest(void) {
     incremental_blank_count =
         (uint16_t)(gDisplayBlankCount - incremental_blank_count);
     incremental_lcd_on = (LCDC_REG & LCDCF_ON) != 0U ? 1U : 0U;
+    dumpFrameToSram();
+    ps_gbc_status_get(gSession, &render_status);
+    cell_width = ps_gbc_generated_game.cell_width;
+    cell_height = ps_gbc_generated_game.cell_height;
+    board_pixel_width = (uint16_t)(render_status.width * cell_width);
+    board_pixel_height = (uint16_t)(render_status.height * cell_height);
+    tile_upload_mismatches = gTileUploadMismatches;
 #endif
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(3U);
@@ -707,6 +730,11 @@ static void runAutotest(void) {
     writeSram16(42U, board_palette_mismatches);
     writeSram16(44U, incremental_blank_count);
     writeSram16(46U, incremental_lcd_on);
+    writeSram16(48U, cell_width);
+    writeSram16(50U, cell_height);
+    writeSram16(52U, board_pixel_width);
+    writeSram16(54U, board_pixel_height);
+    writeSram16(56U, tile_upload_mismatches);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(0U, AUTOTEST_MAGIC);

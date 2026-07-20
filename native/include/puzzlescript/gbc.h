@@ -54,7 +54,7 @@ extern "C" {
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 360
-#define PS_GBC_GAME_ABI_VERSION 5
+#define PS_GBC_GAME_ABI_VERSION 7
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 128
 
@@ -160,6 +160,8 @@ typedef struct ps_gbc_game_view {
     uint8_t undo_capacity;
     uint8_t viewport_width;
     uint8_t viewport_height;
+    uint8_t cell_width;
+    uint8_t cell_height;
     uint16_t level_count;
     uint16_t max_level_cells;
     uint16_t pattern_count;
@@ -180,6 +182,9 @@ typedef struct ps_gbc_game_view {
     const ps_gbc_win_condition* win_conditions;
     const uint16_t* background_palettes;
     const uint8_t* palette_remap;
+    const uint8_t* palette_priorities;
+    uint8_t background_palette;
+    const uint8_t* background_phase_tiles;
     const uint16_t* ui_palette;
     bool no_action;
     bool no_undo;

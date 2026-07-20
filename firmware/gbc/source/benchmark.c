@@ -40,7 +40,8 @@ static void perfComposeBoard(void) {
                     (int16_t)(screen_x - offset_x),
                     (int16_t)(screen_y - offset_y));
             }
-            gTileMap[screen_cell] = composeTile(objects);
+            (void)screen_cell;
+            (void)composeTile(objects);
         }
     }
 }

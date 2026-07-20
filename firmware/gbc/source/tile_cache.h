@@ -5,24 +5,26 @@
 
 #include "puzzlescript/gbc.h"
 
-bool ps_gbc_reuse_matching_tile(
-    const void* board,
-    const uint8_t* dirty,
-    uint16_t cell_count,
-    uint16_t current_cell,
-    uint16_t screen_cell,
-    uint16_t board_height,
-    uint8_t offset_x,
-    uint8_t offset_y
-) BANKED;
+#define PS_GBC_BACKGROUND_TILE_OFFSET 64U
+#define PS_GBC_BACKGROUND_PHASE_TILES \
+    (PS_GBC_GENERATED_CELL_WIDTH * PS_GBC_GENERATED_CELL_HEIGHT)
+#define PS_GBC_BOARD_TILE_OFFSET \
+    (PS_GBC_BACKGROUND_TILE_OFFSET + PS_GBC_BACKGROUND_PHASE_TILES)
+
 void ps_gbc_render_full_board(
     const void* board,
     uint16_t board_width,
     uint16_t board_height,
-    uint8_t offset_x,
-    uint8_t offset_y
+    uint8_t origin_x,
+    uint8_t origin_y
 ) BANKED;
-uint16_t ps_gbc_find_free_tile(uint16_t screen_cell) BANKED;
-void ps_gbc_render_cell(uint16_t screen_cell, uint16_t tile, uint32_t objects) BANKED;
+void ps_gbc_render_dirty_board(
+    const void* board,
+    const uint8_t* dirty,
+    uint16_t board_width,
+    uint16_t board_height,
+    uint8_t origin_x,
+    uint8_t origin_y
+) BANKED;
 
 #endif

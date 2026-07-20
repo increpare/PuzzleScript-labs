@@ -78,6 +78,11 @@ int main() {
         "generated header exposes the compile-time movement cell width");
     require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time object cell width");
+    require(
+        header.find("PS_GBC_GENERATED_CELL_WIDTH 5U") != std::string::npos
+            && header.find("PS_GBC_GENERATED_CELL_HEIGHT 5U") != std::string::npos
+            && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos,
+        "generated header preserves the native PuzzleScript cell dimensions");
     require(source.find("#pragma bank 1") != std::string::npos,
         "generated data is linked outside fixed ROM bank zero");
     require(source.find("static const ps_gbc_pattern kPatterns[]") != std::string::npos,
@@ -85,24 +90,34 @@ int main() {
     require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
         "level object masks use the selected byte-wide storage");
     require(
-        source.find("{\"background\", 0U, 255U, 8U, 8U") != std::string::npos
+        source.find("{\"background\", 0U, 255U, 5U, 5U") != std::string::npos
             && source.find("255U, 255U, 255U") != std::string::npos,
-        "generated sprites use an 8x8 hardware container with byte transparency");
+        "generated sprites retain native dimensions and byte transparency");
     require(
         source.find(
-            "static const uint8_t kObject2Pixels[] = {255U, 255U, 255U, 255U, "
-            "255U, 255U, 255U, 255U, 255U, 255U, 8U, 8U, 8U") != std::string::npos,
-        "non-background 5x5 sprites retain uniform source pixels in a centred 8x8 tile");
+            "static const uint8_t kObject3Pixels[] = {12U, 12U, 12U, 13U, 12U")
+            != std::string::npos,
+        "5x5 sprite arrays are emitted without 8x8 padding or resampling");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {4916U, 3624U, 0U, 0U, "
             "6275U, 4916U, 3624U, 0U, 0U, 6717U, 32767U, 31043U, "
-            "4500U, 5353U, 6275U, 4916U, 6717U, 6275U, 4916U, 3624U")
+            "4500U, 5353U, 4916U, 3624U, 6717U, 6275U, 4916U, 3624U")
             != std::string::npos,
-        "top-object palettes preserve colours from visible lower collision layers");
+        "transparent palettes preserve visible lower layers while opaque palettes "
+        "retain neighboring background colours");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");
+    require(
+        source.find(
+            "static const uint8_t kPalettePriorities[] = {1U, 2U, 3U, 3U, 3U")
+            != std::string::npos,
+        "generated palettes retain visible collision-layer priority");
+    require(
+        source.find("static const uint8_t kBackgroundPhaseTiles[] = {")
+            != std::string::npos,
+        "generated game precomputes native-cell background phases");
     require(source.find("kMovementCollisionLayers[] = {2U}") != std::string::npos,
         "the moving Sokoban layer is remapped to compact lane zero");
     require(source.find("const ps_gbc_game_view ps_gbc_generated_game") != std::string::npos,
@@ -242,7 +257,7 @@ int main() {
     require(firmware.find("SWITCH_RAM_MBC5(SNAPSHOT_RAM_BANK)") != std::string::npos,
         "firmware stores snapshots in a dedicated SRAM bank");
     require(
-        firmware.find("const uint8_t tile_bank = (uint8_t)(tile >> 8U)")
+        firmware.find("tile_bank = (uint8_t)(tile >> 8U)")
                 != std::string::npos
             && firmware.find("VBK_REG = tile_bank") != std::string::npos,
         "renderer uses both CGB tile-pattern banks for all 360 screen cells");

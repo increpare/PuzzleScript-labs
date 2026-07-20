@@ -333,3 +333,38 @@ improves from 311.5 to 288.0 ticks/frame (-7.54%); walk rendering improves from
 Initial rendering is unchanged at 1261 ticks. Shipping fixed ROM grows by
 8 bytes (14253 to 14261); static WRAM, generated ROM, session RAM, and SRAM are
 unchanged.
+
+### Playtest correction: native-size packed cells — retained
+
+The GBC background hardware still uses 8x8 tiles, but those tiles now act as a
+packed framebuffer. PuzzleScript cells retain their native dimensions (5x5 in
+the Sokoban fixtures), can cross hardware-tile boundaries, and are never
+resampled. Native sprite bytes also remain compact in generated ROM. Dirty
+logical cells mark only the physical tiles they intersect.
+
+The renderer precomputes the repeating background phases, clips native-cell
+blits to each physical tile, and bounds dirty traversal to the board rectangle.
+This brought the first correct packed prototype down from 166065 ticks
+(40.543 s) to 4337 ticks (1.059 s). The current title or a loading message
+remains visible while a full board is prepared; the LCD is blanked only for the
+final palette/tile-map handoff.
+
+| Sokoban interaction | Stretched 8x8 | Native 5x5 | Delta |
+| --- | ---: | ---: | ---: |
+| Ordinary walk render | 287 ticks / 0.070 s | 266 ticks / 0.065 s | -7.32% |
+| Crate-push render | 536 ticks / 0.131 s | 430 ticks / 0.105 s | -19.78% |
+| Complete push response | 1851 ticks / 0.452 s | 1746 ticks / 0.426 s | -5.67% |
+| Initial board preparation | 1261 ticks / 0.308 s | 4337 ticks / 1.059 s | +243.93% |
+
+Across the five benchmark games, logic changes by at most 0.0012%. Ordinary
+render probes range from -14.49% to +15.86% in four cases; Sokoban's synthetic
+alternating probe is +53.93%, while its measured walk and push interactions
+both improve as shown above. Complete push latency ranges from -2.27% to +3.40%
+outside Sokoban.
+
+For the benchmark Sokoban cartridge, fixed ROM falls by 293 bytes, bank 1 grows
+by 2182 bytes, and static WRAM grows by 504 bytes. The conservative generated
+game-data estimate grows by 213 bytes; session RAM and snapshot SRAM are
+unchanged. The mGBA hardware-state smoke verifies a 5x5 cell pitch, a 30x35
+pixel board, exact reserved-tile mapping, palette state, VRAM upload readback,
+and zero LCD blanking transitions during an incremental move.

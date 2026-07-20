@@ -507,7 +507,9 @@ void packGroups(
 std::string emitHeader(
     size_t sessionBytes,
     uint8_t movementBytesPerCell,
-    uint8_t objectBytesPerCellValue
+    uint8_t objectBytesPerCellValue,
+    uint8_t cellWidth,
+    uint8_t cellHeight
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -517,6 +519,12 @@ std::string emitHeader(
         << static_cast<unsigned int>(movementBytesPerCell) << "U\n\n"
         << "#define PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL "
         << static_cast<unsigned int>(objectBytesPerCellValue) << "U\n\n"
+        << "#define PS_GBC_GENERATED_CELL_WIDTH "
+        << static_cast<unsigned int>(cellWidth) << "U\n\n"
+        << "#define PS_GBC_GENERATED_CELL_HEIGHT "
+        << static_cast<unsigned int>(cellHeight) << "U\n\n"
+        << "#define PS_GBC_GENERATED_CELL_PIXELS "
+        << static_cast<unsigned int>(cellWidth * cellHeight) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
         << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
@@ -559,6 +567,8 @@ std::string emitSource(
     const std::vector<PackedGroup>& lateGroups,
     uint8_t viewportWidth,
     uint8_t viewportHeight,
+    uint8_t cellWidth,
+    uint8_t cellHeight,
     uint16_t maxCells,
     uint8_t undoCapacity,
     uint8_t objectBytesPerCellValue
@@ -574,6 +584,65 @@ std::string emitSource(
     emitUnsignedArray(out, "uint16_t", "kBackgroundPalettes", flatPalettes, "U");
     emitUnsignedArray(out, "uint8_t", "kPaletteRemap",
         std::vector<uint8_t>(remap.begin(), remap.end()), "U");
+    std::array<uint8_t, 8> palettePriorities{};
+    for (const PackedObject& object : objects) {
+        palettePriorities[object.palette] = std::max(
+            palettePriorities[object.palette],
+            static_cast<uint8_t>(object.layer + 1U));
+    }
+    emitUnsignedArray(out, "uint8_t", "kPalettePriorities",
+        std::vector<uint8_t>(palettePriorities.begin(), palettePriorities.end()), "U");
+    uint8_t backgroundPalette = 0U;
+    std::vector<uint8_t> backgroundCell(
+        static_cast<size_t>(cellWidth) * cellHeight,
+        0U);
+    if (game.backgroundId >= 0
+        && static_cast<size_t>(game.backgroundId) < objects.size()) {
+        const PackedObject& background =
+            objects[static_cast<size_t>(game.backgroundId)];
+        const uint8_t offsetX = static_cast<uint8_t>((cellWidth - background.width) / 2U);
+        const uint8_t offsetY = static_cast<uint8_t>((cellHeight - background.height) / 2U);
+        backgroundPalette = background.palette;
+        for (uint8_t y = 0U; y < background.height; ++y) {
+            for (uint8_t x = 0U; x < background.width; ++x) {
+                const uint8_t source =
+                    background.pixels[static_cast<size_t>(y) * background.width + x];
+                if (source != 0xffU) {
+                    backgroundCell[
+                        static_cast<size_t>(y + offsetY) * cellWidth + x + offsetX] =
+                        source;
+                }
+            }
+        }
+    }
+    std::vector<uint8_t> backgroundPhaseTiles;
+    backgroundPhaseTiles.reserve(
+        static_cast<size_t>(cellWidth) * cellHeight * 16U);
+    for (uint8_t phaseY = 0U; phaseY < cellHeight; ++phaseY) {
+        for (uint8_t phaseX = 0U; phaseX < cellWidth; ++phaseX) {
+            for (uint8_t y = 0U; y < 8U; ++y) {
+                uint8_t low = 0U;
+                uint8_t high = 0U;
+                for (uint8_t x = 0U; x < 8U; ++x) {
+                    const uint8_t source = backgroundCell[
+                        static_cast<size_t>((phaseY + y) % cellHeight) * cellWidth
+                        + (phaseX + x) % cellWidth];
+                    const uint8_t color =
+                        remap[static_cast<size_t>(backgroundPalette) * 32U + source];
+                    low |= static_cast<uint8_t>((color & 1U) << (7U - x));
+                    high |= static_cast<uint8_t>(((color >> 1U) & 1U) << (7U - x));
+                }
+                backgroundPhaseTiles.push_back(low);
+                backgroundPhaseTiles.push_back(high);
+            }
+        }
+    }
+    emitUnsignedArray(
+        out,
+        "uint8_t",
+        "kBackgroundPhaseTiles",
+        backgroundPhaseTiles,
+        "U");
     emitUnsignedArray(out, "uint16_t", "kUiPalette",
         std::vector<uint16_t>(uiPalette.begin(), uiPalette.end()), "U");
     std::vector<uint32_t> layerMasks;
@@ -671,7 +740,9 @@ std::string emitSource(
         << static_cast<unsigned int>(objectBytesPerCellValue) << "U, "
         << static_cast<unsigned int>(undoCapacity) << "U, "
         << static_cast<unsigned int>(viewportWidth) << "U, "
-        << static_cast<unsigned int>(viewportHeight) << "U,\n"
+        << static_cast<unsigned int>(viewportHeight) << "U, "
+        << static_cast<unsigned int>(cellWidth) << "U, "
+        << static_cast<unsigned int>(cellHeight) << "U,\n"
         << "    " << levels.size() << "U, " << maxCells << "U, " << patterns.size()
         << "U, " << rules.size() << "U,\n"
         << "    " << earlyGroups.size() << "U, " << lateGroups.size() << "U, "
@@ -679,7 +750,9 @@ std::string emitSource(
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
            "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
-        << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, kUiPalette,\n"
+        << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, "
+           "kPalettePriorities, " << static_cast<unsigned int>(backgroundPalette)
+        << "U, kBackgroundPhaseTiles, kUiPalette,\n"
         << "    " << (game.metadata.values.count("noaction") ? "true" : "false") << ", "
         << (game.metadata.values.count("noundo") ? "true" : "false") << ", "
         << (game.metadata.values.count("norestart") ? "true" : "false") << "\n"
@@ -724,6 +797,8 @@ ExportResult exportGame(const ExportOptions& options) {
     for (auto& palette : palettes) palette.fill(backgroundColor);
     std::vector<std::array<uint16_t, 4>> usedPalettes;
     std::vector<PackedObject> objects;
+    uint8_t cellWidth = 1U;
+    uint8_t cellHeight = 1U;
     objects.reserve(game.objectsById.size());
     for (const ObjectDef& sourceObject : game.objectsById) {
         if (sourceObject.layer < 0 || sourceObject.layer >= game.layerCount) {
@@ -734,6 +809,8 @@ ExportResult exportGame(const ExportOptions& options) {
         if (width == 0U || height == 0U || width > 8U || height > 8U) {
             throw std::runtime_error("GBC object sprites must be between 1x1 and 8x8 pixels");
         }
+        cellWidth = std::max(cellWidth, static_cast<uint8_t>(width));
+        cellHeight = std::max(cellHeight, static_cast<uint8_t>(height));
         std::vector<uint16_t> sourceColors;
         std::vector<bool> transparentColors;
         for (const std::string& value : sourceObject.colors) {
@@ -748,21 +825,45 @@ ExportResult exportGame(const ExportOptions& options) {
                 opaqueColors.push_back(sourceColors[index]);
             }
         }
-        std::vector<uint16_t> compositeColors = opaqueColors;
-        for (int32_t lowerLayer = sourceObject.layer - 1; lowerLayer >= 0; --lowerLayer) {
-            for (const ObjectDef& lowerObject : game.objectsById) {
-                if (lowerObject.layer != lowerLayer) continue;
-                for (const std::string& value : lowerObject.colors) {
-                    const Rgb color = parseColor(value);
-                    const uint16_t packed = toBgr555(color);
-                    if (!color.transparent
-                        && std::find(
-                            compositeColors.begin(), compositeColors.end(), packed)
-                            == compositeColors.end()) {
-                        compositeColors.push_back(packed);
-                    }
+        bool hasTransparentPixels = false;
+        for (const auto& row : sourceObject.sprite) {
+            for (const int32_t colorIndex : row) {
+                if (colorIndex < 0
+                    || (static_cast<size_t>(colorIndex) < transparentColors.size()
+                        && transparentColors[static_cast<size_t>(colorIndex)])) {
+                    hasTransparentPixels = true;
                 }
             }
+        }
+        std::vector<uint16_t> compositeColors = opaqueColors;
+        const auto appendObjectColors = [&](const ObjectDef& lowerObject) {
+            for (const std::string& value : lowerObject.colors) {
+                const Rgb color = parseColor(value);
+                const uint16_t packed = toBgr555(color);
+                if (!color.transparent
+                    && std::find(
+                        compositeColors.begin(), compositeColors.end(), packed)
+                        == compositeColors.end()) {
+                    compositeColors.push_back(packed);
+                }
+            }
+        };
+        if (hasTransparentPixels) {
+            for (int32_t lowerLayer = sourceObject.layer - 1; lowerLayer >= 0; --lowerLayer) {
+                for (size_t lowerId = 0; lowerId < game.objectsById.size(); ++lowerId) {
+                    const ObjectDef& lowerObject = game.objectsById[lowerId];
+                    if (lowerObject.layer != lowerLayer
+                        || static_cast<int32_t>(lowerId) == game.backgroundId) {
+                        continue;
+                    }
+                    appendObjectColors(lowerObject);
+                }
+            }
+        }
+        if (game.backgroundId >= 0
+            && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
+            && static_cast<size_t>(game.backgroundId) != objects.size()) {
+            appendObjectColors(game.objectsById[static_cast<size_t>(game.backgroundId)]);
         }
         std::array<uint16_t, 4> candidate{};
         candidate.fill(backgroundColor);
@@ -800,8 +901,8 @@ ExportResult exportGame(const ExportOptions& options) {
             movementLayout.collisionToMovement[static_cast<size_t>(sourceObject.layer)];
         object.movementLayer = movementLayer < 0
             ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
-        object.width = 8U;
-        object.height = 8U;
+        object.width = static_cast<uint8_t>(width);
+        object.height = static_cast<uint8_t>(height);
         object.palette = paletteIndex;
         std::vector<uint8_t> sourcePixels;
         uint64_t sourceTransparentPixels = 0U;
@@ -823,38 +924,11 @@ ExportResult exportGame(const ExportOptions& options) {
                     paletteIndex * 4U + nearestColor(palettes[paletteIndex], color)));
             }
         }
-        object.pixels.assign(64U, 0xffU);
-        object.transparentPixels = std::numeric_limits<uint64_t>::max();
-        const bool fillTile =
-            game.backgroundId >= 0
-            && static_cast<size_t>(game.backgroundId) == objects.size();
-        if (fillTile) {
-            for (uint8_t y = 0U; y < 8U; ++y) {
-                const size_t sourceY = (static_cast<size_t>(y) * height) >> 3U;
-                for (uint8_t x = 0U; x < 8U; ++x) {
-                    const size_t sourceX = (static_cast<size_t>(x) * width) >> 3U;
-                    const size_t sourcePixel = sourceY * width + sourceX;
-                    const uint8_t pixel = static_cast<uint8_t>(y * 8U + x);
-                    if ((sourceTransparentPixels & (uint64_t{1} << sourcePixel)) == 0U) {
-                        object.transparentPixels &= ~(uint64_t{1} << pixel);
-                        object.pixels[pixel] = sourcePixels[sourcePixel];
-                    }
-                }
-            }
-        } else {
-            const uint8_t offsetX = static_cast<uint8_t>((8U - width) / 2U);
-            const uint8_t offsetY = static_cast<uint8_t>((8U - height) / 2U);
-            for (uint8_t sourceY = 0U; sourceY < height; ++sourceY) {
-                for (uint8_t sourceX = 0U; sourceX < width; ++sourceX) {
-                    const size_t sourcePixel =
-                        static_cast<size_t>(sourceY) * width + sourceX;
-                    const uint8_t pixel = static_cast<uint8_t>(
-                        (sourceY + offsetY) * 8U + sourceX + offsetX);
-                    if ((sourceTransparentPixels & (uint64_t{1} << sourcePixel)) == 0U) {
-                        object.transparentPixels &= ~(uint64_t{1} << pixel);
-                        object.pixels[pixel] = sourcePixels[sourcePixel];
-                    }
-                }
+        object.pixels = std::move(sourcePixels);
+        object.transparentPixels = sourceTransparentPixels;
+        for (size_t pixel = 0; pixel < object.pixels.size(); ++pixel) {
+            if ((sourceTransparentPixels & (uint64_t{1} << pixel)) != 0U) {
+                object.pixels[pixel] = 0xffU;
             }
         }
         objects.push_back(std::move(object));
@@ -946,7 +1020,8 @@ ExportResult exportGame(const ExportOptions& options) {
     if (sessionBytes > kSessionLimit) {
         throw std::runtime_error("GBC hot session cannot fit in the 4 KiB WRAM budget");
     }
-    size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U
+    size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U + 8U
+        + static_cast<size_t>(cellWidth) * cellHeight * 16U
         + game.layerMaskOffsets.size() * sizeof(uint32_t)
         + movementLayout.movementToCollision.size();
     estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_object);
@@ -976,11 +1051,17 @@ ExportResult exportGame(const ExportOptions& options) {
     result.generatedSourcePath = options.outputDirectory / "generated_game.c";
     result.manifestPath = options.outputDirectory / "gbc_manifest.json";
     writeFileIfChanged(result.generatedHeaderPath,
-        emitHeader(sessionBytes, movementLayout.bytesPerCell, objectCellBytes));
+        emitHeader(
+            sessionBytes,
+            movementLayout.bytesPerCell,
+            objectCellBytes,
+            cellWidth,
+            cellHeight));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
         patterns, rules, earlyGroups, lateGroups, static_cast<uint8_t>(viewportWidth),
-        static_cast<uint8_t>(viewportHeight), maxCells, undoCapacity, objectCellBytes));
+        static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
+        maxCells, undoCapacity, objectCellBytes));
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
     std::ostringstream manifest;
     manifest << "{\n"
@@ -1000,6 +1081,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"max_level_cells\": " << maxCells << ",\n"
         << "  \"viewport_width\": " << viewportWidth << ",\n"
         << "  \"viewport_height\": " << viewportHeight << ",\n"
+        << "  \"cell_width\": " << static_cast<unsigned int>(cellWidth) << ",\n"
+        << "  \"cell_height\": " << static_cast<unsigned int>(cellHeight) << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
