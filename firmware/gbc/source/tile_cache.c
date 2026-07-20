@@ -19,6 +19,8 @@ extern uint8_t gTileBytes[16];
 extern uint8_t composeTile(uint32_t objects);
 #if defined(PS_GBC_AUTOTEST)
 extern uint16_t gTileUploadMismatches;
+extern uint16_t gPaletteRemapMismatches;
+extern uint16_t gBackgroundRemapMismatches;
 #endif
 
 static uint32_t gCompositionMasks[COMPOSITION_CACHE_CAPACITY];
@@ -61,7 +63,10 @@ static const uint8_t* compositionForObjects(uint32_t objects) {
     return gSourcePixels;
 }
 
-static uint8_t selectPhysicalPalette(const uint8_t* counts) {
+static uint8_t selectPhysicalPalette(
+    const uint8_t* counts,
+    uint8_t exact_candidates
+) {
     uint8_t palette;
     uint8_t best_palette = 0U;
     uint8_t best_priority = 0U;
@@ -76,6 +81,14 @@ static uint8_t selectPhysicalPalette(const uint8_t* counts) {
             best_priority = priority;
             best_count = counts[palette];
             best_palette = palette;
+        }
+    }
+    if (exact_candidates != 0U
+        && (exact_candidates & (uint8_t)(1U << best_palette)) == 0U) {
+        for (palette = 0U; palette < 8U; ++palette) {
+            if ((exact_candidates & (uint8_t)(1U << palette)) != 0U) {
+                return palette;
+            }
         }
     }
     return best_palette;
@@ -153,6 +166,7 @@ static void renderPhysicalTile(
             (overlap_y0 - board_y0) / PS_GBC_GENERATED_CELL_HEIGHT);
         const uint8_t last_board_y = (uint8_t)(
             (overlap_y1 - board_y0 - 1U) / PS_GBC_GENERATED_CELL_HEIGHT);
+        uint8_t exact_candidates = 0xffU;
         uint8_t board_x;
         if (!full_board_tile) {
             const uint8_t* background =
@@ -226,7 +240,34 @@ static void renderPhysicalTile(
                 }
             }
         }
-        palette = selectPhysicalPalette(palette_counts);
+        {
+            uint8_t pixel;
+            for (pixel = 0U; pixel < 64U; ++pixel) {
+                exact_candidates &=
+                    ps_gbc_generated_game.exact_palette_candidates[
+                        gPhysicalPixels[pixel]];
+            }
+        }
+        palette = selectPhysicalPalette(palette_counts, exact_candidates);
+#if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_PERF_BENCH)
+        {
+            uint8_t pixel;
+            for (pixel = 0U; pixel < 64U; ++pixel) {
+                const uint8_t source = gPhysicalPixels[pixel];
+                const uint8_t target = ps_gbc_generated_game.palette_remap[
+                    ((uint16_t)palette << 5U) + source];
+                if (ps_gbc_generated_game.background_palettes[source]
+                    != ps_gbc_generated_game.background_palettes[
+                        (uint8_t)(palette * 4U + target)]) {
+                    ++gPaletteRemapMismatches;
+                    if ((source >> 2U)
+                        == ps_gbc_generated_game.background_palette) {
+                        ++gBackgroundRemapMismatches;
+                    }
+                }
+            }
+        }
+#endif
         encodePhysicalTile(palette);
         tile = screen_cell + PS_GBC_BOARD_TILE_OFFSET;
         upload_tile = true;

@@ -18,7 +18,7 @@ RENDER_MAGIC = 0x52434250
 FRAME_DUMP_MAGIC = 0x46474250
 VERSION = 1
 RECORD = struct.Struct("<IHBBBBBBI")
-RENDER_RECORD = struct.Struct("<I19H")
+RENDER_RECORD = struct.Struct("<I21H")
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 RENDER_OFFSET = 16
@@ -53,8 +53,10 @@ def main() -> int:
     parser.add_argument("--expect-changed", type=int, choices=(0, 1), default=1)
     parser.add_argument("--expect-won", type=int, choices=(0, 1), default=0)
     parser.add_argument("--expect-cell", type=coordinate, default=(5, 5))
+    parser.add_argument("--skip-step-check", action="store_true")
     parser.add_argument("--frame-out", type=Path)
     parser.add_argument("--frame-scale", type=int, default=1)
+    parser.add_argument("--require-exact-palette", action="store_true")
     args = parser.parse_args()
     emulator = args.mgba or default_mgba()
     if emulator is None or not emulator.is_file():
@@ -108,11 +110,16 @@ def main() -> int:
             raise SystemExit(
                 f"autotest record missing: magic=0x{magic:08x} version={version}"
             )
-        if (initial_x, initial_y) != args.expect_initial:
+        if not args.skip_step_check and (initial_x, initial_y) != args.expect_initial:
             raise SystemExit(f"initial player position differs: {initial_x},{initial_y}")
-        if ((final_x, final_y) != args.expect_final
-            or changed != args.expect_changed
-            or won != args.expect_won):
+        if (
+            not args.skip_step_check
+            and (
+                (final_x, final_y) != args.expect_final
+                or changed != args.expect_changed
+                or won != args.expect_won
+            )
+        ):
             raise SystemExit(
                 "right-step result differs: "
                 f"position={final_x},{final_y} changed={changed} won={won}"
@@ -139,6 +146,8 @@ def main() -> int:
             board_pixel_width,
             board_pixel_height,
             tile_upload_mismatches,
+            palette_remap_mismatches,
+            background_remap_mismatches,
         ) = render_record
         if render_magic != RENDER_MAGIC or render_version != VERSION:
             raise SystemExit(
@@ -198,6 +207,16 @@ def main() -> int:
             raise SystemExit(
                 "VRAM tile upload readback differs: "
                 f"mismatches={tile_upload_mismatches}"
+            )
+        if background_remap_mismatches != 0:
+            raise SystemExit(
+                "packed-cell palette selection changed background colours: "
+                f"mismatches={background_remap_mismatches}"
+            )
+        if palette_remap_mismatches != 0 and args.require_exact_palette:
+            raise SystemExit(
+                "packed cells lost exact colours across a hardware tile: "
+                f"mismatches={palette_remap_mismatches}"
             )
         if args.frame_out is not None:
             from PIL import Image
@@ -299,7 +318,9 @@ def main() -> int:
             f"title_tiles={title_map_nonzero}/{title_tile_nonzero} "
             f"board_tiles={board_tile_nonzero} "
             f"cell={cell_width}x{cell_height} "
-            f"board_pixels={board_pixel_width}x{board_pixel_height}"
+            f"board_pixels={board_pixel_width}x{board_pixel_height} "
+            f"palette_remaps={palette_remap_mismatches} "
+            f"background_remaps={background_remap_mismatches}"
         )
     return 0
 

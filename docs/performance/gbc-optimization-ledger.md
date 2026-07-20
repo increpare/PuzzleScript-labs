@@ -368,3 +368,29 @@ game-data estimate grows by 213 bytes; session RAM and snapshot SRAM are
 unchanged. The mGBA hardware-state smoke verifies a 5x5 cell pitch, a 30x35
 pixel board, exact reserved-tile mapping, palette state, VRAM upload readback,
 and zero LCD blanking transitions during an incremental move.
+
+### Playtest correction: background-first packed palettes — retained
+
+A native 5x5 cell can share one physical 8x8 tile with several neighboring
+cells, but GBC background tiles still have only four colours. Preserving every
+colour in a transparent four-colour sprite displaced the two-colour floor and
+created a visible halo. Generated object palettes now reserve the background
+colours first, then object colours, then visible lower-layer colours when
+capacity remains. Crates still retain their target colour because their
+one-colour sprite, target, and two-colour floor fit exactly; over-budget
+multi-colour sprites lose decorative detail instead of corrupting transparency.
+
+The exporter also emits a 32-byte exact-colour candidate table. The renderer
+uses it to select a hardware palette that preserves every source colour when
+one exists. Instrumented mGBA probes count both all remaps and background-only
+remaps. Sokoban falls from 153 total remapped pixels to 48, with zero background
+remaps. Dollyban, Slot Machine, and Recondite Star Sector Sigma also report zero
+background remaps across 3-, 5-, 12-, and 4-layer fixtures respectively.
+
+Across five performance cartridges, palette selection adds 6.81% to 8.61% to
+the isolated dirty-render probe and 3.90% to 7.91% to initial preparation;
+logic changes by at most 0.0001%. Sokoban walk rendering is 287 ticks
+(0.070 s), equal to the old stretched renderer, and push rendering is 461 ticks
+(0.113 s), 13.99% faster than the old 536-tick result. The change adds 126
+linked bank-1 bytes, 32 estimated game-data bytes, and 4 static WRAM bytes;
+fixed ROM, session RAM, and snapshot SRAM are unchanged.

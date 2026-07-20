@@ -50,6 +50,8 @@ static uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_AUTOTEST)
 static uint16_t gDisplayBlankCount;
 uint16_t gTileUploadMismatches;
+uint16_t gPaletteRemapMismatches;
+uint16_t gBackgroundRemapMismatches;
 #endif
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
@@ -662,7 +664,19 @@ static void runAutotest(void) {
     uint16_t board_pixel_width;
     uint16_t board_pixel_height;
     uint16_t tile_upload_mismatches;
+    uint16_t palette_remap_mismatches;
+    uint16_t background_remap_mismatches;
+    uint16_t first_board;
     ps_gbc_status render_status;
+    for (first_board = 0U;
+         first_board < ps_gbc_generated_game.level_count;
+         ++first_board) {
+        if (ps_gbc_generated_game.levels[first_board].kind
+            == PS_GBC_LEVEL_BOARD) {
+            (void)ps_gbc_load_level(gSession, first_board);
+            break;
+        }
+    }
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
     showText(ps_gbc_generated_game.title, true);
     DISPLAY_OFF;
@@ -702,6 +716,8 @@ static void runAutotest(void) {
     board_pixel_width = (uint16_t)(render_status.width * cell_width);
     board_pixel_height = (uint16_t)(render_status.height * cell_height);
     tile_upload_mismatches = gTileUploadMismatches;
+    palette_remap_mismatches = gPaletteRemapMismatches;
+    background_remap_mismatches = gBackgroundRemapMismatches;
 #endif
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(3U);
@@ -735,6 +751,8 @@ static void runAutotest(void) {
     writeSram16(52U, board_pixel_width);
     writeSram16(54U, board_pixel_height);
     writeSram16(56U, tile_upload_mismatches);
+    writeSram16(58U, palette_remap_mismatches);
+    writeSram16(60U, background_remap_mismatches);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(0U, AUTOTEST_MAGIC);

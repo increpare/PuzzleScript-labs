@@ -95,17 +95,17 @@ int main() {
         "generated sprites retain native dimensions and byte transparency");
     require(
         source.find(
-            "static const uint8_t kObject3Pixels[] = {12U, 12U, 12U, 13U, 12U")
+            "static const uint8_t kObject3Pixels[] = {14U, 14U, 14U, 15U, 14U")
             != std::string::npos,
         "5x5 sprite arrays are emitted without 8x8 padding or resampling");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {4916U, 3624U, 0U, 0U, "
-            "6275U, 4916U, 3624U, 0U, 0U, 6717U, 32767U, 31043U, "
-            "4500U, 5353U, 4916U, 3624U, 6717U, 6275U, 4916U, 3624U")
+            "4916U, 3624U, 6275U, 0U, 4916U, 3624U, 0U, 6717U, "
+            "4916U, 3624U, 4500U, 5353U, 4916U, 3624U, 6717U, 6275U")
             != std::string::npos,
-        "transparent palettes preserve visible lower layers while opaque palettes "
-        "retain neighboring background colours");
+        "object palettes reserve neighboring background colours and retain "
+        "visible lower layers when capacity permits");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");
@@ -114,6 +114,10 @@ int main() {
             "static const uint8_t kPalettePriorities[] = {1U, 2U, 3U, 3U, 3U")
             != std::string::npos,
         "generated palettes retain visible collision-layer priority");
+    require(
+        source.find("static const uint8_t kExactPaletteCandidates[] = {")
+            != std::string::npos,
+        "generated palettes expose exact cross-cell remap candidates");
     require(
         source.find("static const uint8_t kBackgroundPhaseTiles[] = {")
             != std::string::npos,

@@ -54,7 +54,7 @@ extern "C" {
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 360
-#define PS_GBC_GAME_ABI_VERSION 7
+#define PS_GBC_GAME_ABI_VERSION 8
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 128
 
@@ -183,6 +183,7 @@ typedef struct ps_gbc_game_view {
     const uint16_t* background_palettes;
     const uint8_t* palette_remap;
     const uint8_t* palette_priorities;
+    const uint8_t* exact_palette_candidates;
     uint8_t background_palette;
     const uint8_t* background_phase_tiles;
     const uint16_t* ui_palette;

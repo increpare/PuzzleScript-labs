@@ -46,6 +46,7 @@ static const ps_gbc_win_condition kWinConditions[] = {
 static const uint16_t kPalettes[32] = {0U};
 static const uint8_t kRemap[256] = {0U};
 static const uint8_t kPalettePriorities[8] = {1U};
+static const uint8_t kExactPaletteCandidates[32] = {0xffU};
 static const uint8_t kBackgroundPhaseTiles[16] = {0U};
 static const uint16_t kUiPalette[4] = {0U, 32767U, 32767U, 32767U};
 static const ps_gbc_game_view kGame = {
@@ -84,6 +85,7 @@ static const ps_gbc_game_view kGame = {
     kPalettes,
     kRemap,
     kPalettePriorities,
+    kExactPaletteCandidates,
     0U,
     kBackgroundPhaseTiles,
     kUiPalette,

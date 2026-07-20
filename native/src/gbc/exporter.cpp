@@ -584,6 +584,33 @@ std::string emitSource(
     emitUnsignedArray(out, "uint16_t", "kBackgroundPalettes", flatPalettes, "U");
     emitUnsignedArray(out, "uint8_t", "kPaletteRemap",
         std::vector<uint8_t>(remap.begin(), remap.end()), "U");
+    std::array<uint8_t, 32> exactPaletteCandidates{};
+    for (uint8_t sourcePalette = 0U; sourcePalette < 8U; ++sourcePalette) {
+        for (uint8_t sourceColor = 0U; sourceColor < 4U; ++sourceColor) {
+            const uint16_t color = palettes[sourcePalette][sourceColor];
+            uint8_t candidates = 0U;
+            for (uint8_t targetPalette = 0U; targetPalette < 8U; ++targetPalette) {
+                const uint8_t remapped = remap[
+                    static_cast<size_t>(targetPalette) * 32U
+                    + static_cast<size_t>(sourcePalette) * 4U
+                    + sourceColor];
+                if (palettes[targetPalette][remapped] == color) {
+                    candidates |= static_cast<uint8_t>(1U << targetPalette);
+                }
+            }
+            exactPaletteCandidates[
+                static_cast<size_t>(sourcePalette) * 4U + sourceColor] =
+                candidates;
+        }
+    }
+    emitUnsignedArray(
+        out,
+        "uint8_t",
+        "kExactPaletteCandidates",
+        std::vector<uint8_t>(
+            exactPaletteCandidates.begin(),
+            exactPaletteCandidates.end()),
+        "U");
     std::array<uint8_t, 8> palettePriorities{};
     for (const PackedObject& object : objects) {
         palettePriorities[object.palette] = std::max(
@@ -751,7 +778,8 @@ std::string emitSource(
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
            "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
         << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, "
-           "kPalettePriorities, " << static_cast<unsigned int>(backgroundPalette)
+           "kPalettePriorities, kExactPaletteCandidates, "
+        << static_cast<unsigned int>(backgroundPalette)
         << "U, kBackgroundPhaseTiles, kUiPalette,\n"
         << "    " << (game.metadata.values.count("noaction") ? "true" : "false") << ", "
         << (game.metadata.values.count("noundo") ? "true" : "false") << ", "
@@ -835,7 +863,12 @@ ExportResult exportGame(const ExportOptions& options) {
                 }
             }
         }
-        std::vector<uint16_t> compositeColors = opaqueColors;
+        /*
+         * A packed 8x8 hardware tile includes pixels from neighboring native
+         * cells. Reserve floor colours before sprite detail so transparent
+         * edges cannot quantize the background into a visible halo.
+         */
+        std::vector<uint16_t> compositeColors;
         const auto appendObjectColors = [&](const ObjectDef& lowerObject) {
             for (const std::string& value : lowerObject.colors) {
                 const Rgb color = parseColor(value);
@@ -848,6 +881,19 @@ ExportResult exportGame(const ExportOptions& options) {
                 }
             }
         };
+        if (game.backgroundId >= 0
+            && static_cast<size_t>(game.backgroundId) < game.objectsById.size()) {
+            appendObjectColors(game.objectsById[static_cast<size_t>(game.backgroundId)]);
+        }
+        for (const uint16_t color : opaqueColors) {
+            if (std::find(
+                    compositeColors.begin(),
+                    compositeColors.end(),
+                    color)
+                == compositeColors.end()) {
+                compositeColors.push_back(color);
+            }
+        }
         if (hasTransparentPixels) {
             for (int32_t lowerLayer = sourceObject.layer - 1; lowerLayer >= 0; --lowerLayer) {
                 for (size_t lowerId = 0; lowerId < game.objectsById.size(); ++lowerId) {
@@ -859,11 +905,6 @@ ExportResult exportGame(const ExportOptions& options) {
                     appendObjectColors(lowerObject);
                 }
             }
-        }
-        if (game.backgroundId >= 0
-            && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
-            && static_cast<size_t>(game.backgroundId) != objects.size()) {
-            appendObjectColors(game.objectsById[static_cast<size_t>(game.backgroundId)]);
         }
         std::array<uint16_t, 4> candidate{};
         candidate.fill(backgroundColor);
@@ -1020,7 +1061,7 @@ ExportResult exportGame(const ExportOptions& options) {
     if (sessionBytes > kSessionLimit) {
         throw std::runtime_error("GBC hot session cannot fit in the 4 KiB WRAM budget");
     }
-    size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U + 8U
+    size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U + 8U + 32U
         + static_cast<size_t>(cellWidth) * cellHeight * 16U
         + game.layerMaskOffsets.size() * sizeof(uint32_t)
         + movementLayout.movementToCollision.size();
