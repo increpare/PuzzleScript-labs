@@ -13,6 +13,7 @@ GENERATED          := generated
 GAME               ?= ../../src/demo/sokoban_basic.txt
 PUZZLESCRIPT_CPP   ?= ../../build/native/Release/puzzlescript_cpp.exe
 PYTHON             ?= python
+EXPORT_GBC_FLAGS   ?=
 
 CFLAGS := -msm83:gb -I$(GENERATED) -I../../native/include -DPS_GBC_FREESTANDING=1
 CFLAGS += -DPS_GBC_GENERATED_BUILD=1
@@ -43,7 +44,7 @@ all: export $(TARGET).gb check-size
 
 export:
 	@mkdir -p $(GENERATED)
-	"$(PUZZLESCRIPT_CPP)" export-gbc "$(GAME)" --out $(GENERATED)
+	"$(PUZZLESCRIPT_CPP)" export-gbc "$(GAME)" --out $(GENERATED) $(EXPORT_GBC_FLAGS)
 
 $(BUILD):
 	@mkdir -p $(BUILD)

@@ -483,3 +483,39 @@ the full runtime, so Short Adventure and Slot Machine use a lighter
 coordinate/change/win SRAM probe instead; both pass in mGBA at 14956 and 15149
 fixed-bank bytes respectively. The standalone startup fixture retains the full
 renderer probe and directly proves the metadata-induced pre-input state.
+
+### Compatibility option: cull oversized GBC levels
+
+`export-gbc --cull-oversize-levels` omits board levels wider than 10 cells or
+taller than 9 cells while retaining message levels and fitting boards in their
+original order. The default export remains strict. The manifest records source,
+retained, and culled level counts plus the zero-based source indices of every
+omitted board. Export still fails if culling removes every board or another GBC
+limit is exceeded.
+
+The strict 178-game audit had 102 games whose first reported failure was board
+size. A complete culling audit shows that only seven are otherwise compatible:
+54 lose every board, while 41 reveal a later unsupported rule or other target
+limit.
+
+| Game | Retained boards | Source boards | Culled |
+| --- | ---: | ---: | ---: |
+| Dollyban | 6 | 15 | 9 |
+| Fickle Fred | 4 | 5 | 1 |
+| Gapfiller | 8 | 10 | 2 |
+| Pushit | 2 | 4 | 2 |
+| Recondite Star Sector Sigma | 8 | 10 | 2 |
+| Voitex Rasteriser | 1 | 2 | 1 |
+| Xorro The Chaos Warden | 3 | 4 | 1 |
+| **Total** | **32** | **50** | **18** |
+
+This raises the structurally exportable corpus from 7/178 to 14/178. Production
+cartridges for all seven additional games pass header, link-map, ROM-bank, RAM,
+hash, and manifest checks. Six pass the complete render-and-logic mGBA probe;
+Voitex uses the logic-only cartridge probe because the full diagnostic payload
+overflows bank 0, while its production ROM fits at 14759/16384 bytes. The other
+production fixed-bank sizes are 14369-14383 bytes, and generated banks range
+from 3167 to 7725 bytes. All 89 native CTests and all 753 JS tests pass.
+
+The option changes only exported level data, so it adds no runtime work and has
+no ROM or performance cost when disabled.

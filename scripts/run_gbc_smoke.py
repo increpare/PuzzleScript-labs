@@ -326,6 +326,7 @@ def main() -> int:
             "gbc-smoke ok "
             f"source_hash=0x{source_hash:08x} "
             f"player={initial_x},{initial_y}->{final_x},{final_y} "
+            f"changed={changed} won={won} "
             f"title_tiles={title_map_nonzero}/{title_tile_nonzero} "
             f"board_tiles={board_tile_nonzero} "
             f"cell={cell_width}x{cell_height} "

@@ -906,24 +906,48 @@ ExportResult exportGame(const ExportOptions& options) {
     }
 
     std::vector<PackedLevel> levels;
+    std::vector<size_t> culledLevelIndices;
+    size_t sourceBoardLevelCount = 0U;
+    size_t retainedBoardLevelCount = 0U;
     uint16_t maxCells = 0U;
     uint16_t maxBoardWidth = 0U;
     uint16_t maxBoardHeight = 0U;
-    for (const LevelTemplate& sourceLevel : game.levels) {
+    for (size_t sourceLevelIndex = 0U;
+         sourceLevelIndex < game.levels.size();
+         ++sourceLevelIndex) {
+        const LevelTemplate& sourceLevel = game.levels[sourceLevelIndex];
         PackedLevel level;
         level.message = sourceLevel.isMessage;
         level.messageText = sourceLevel.message;
         if (!level.message) {
-            if (sourceLevel.width <= 0 || sourceLevel.height <= 0
-                || static_cast<size_t>(sourceLevel.width) * sourceLevel.height > kMaxBoardCells) {
+            ++sourceBoardLevelCount;
+            if (sourceLevel.width <= 0 || sourceLevel.height <= 0) {
                 throw std::runtime_error(
                     "GBC board levels must contain between 1 and 90 cells");
             }
+            const size_t cells =
+                static_cast<size_t>(sourceLevel.width) * sourceLevel.height;
+            const bool areaTooLarge = cells > kMaxBoardCells;
+            const bool dimensionsTooLarge =
+                sourceLevel.width > PS_GBC_VIEWPORT_WIDTH
+                || sourceLevel.height > PS_GBC_VIEWPORT_HEIGHT;
+            if (areaTooLarge || dimensionsTooLarge) {
+                if (options.cullOversizeLevels) {
+                    culledLevelIndices.push_back(sourceLevelIndex);
+                    continue;
+                }
+                if (areaTooLarge) {
+                    throw std::runtime_error(
+                        "GBC board levels must contain between 1 and 90 cells");
+                }
+                throw std::runtime_error(
+                    "GBC board dimensions cannot exceed the 10x9 fixed-cell screen");
+            }
+            ++retainedBoardLevelCount;
             level.width = static_cast<uint16_t>(sourceLevel.width);
             level.height = static_cast<uint16_t>(sourceLevel.height);
             maxBoardWidth = std::max(maxBoardWidth, level.width);
             maxBoardHeight = std::max(maxBoardHeight, level.height);
-            const size_t cells = static_cast<size_t>(level.width) * level.height;
             maxCells = std::max(maxCells, static_cast<uint16_t>(cells));
             level.cells.resize(cells);
             for (size_t cell = 0; cell < cells; ++cell) {
@@ -933,7 +957,12 @@ ExportResult exportGame(const ExportOptions& options) {
         }
         levels.push_back(std::move(level));
     }
-    if (maxCells == 0U) throw std::runtime_error("GBC export requires at least one board level");
+    if (maxCells == 0U) {
+        throw std::runtime_error(
+            options.cullOversizeLevels && !culledLevelIndices.empty()
+                ? "GBC level culling removed every board level"
+                : "GBC export requires at least one board level");
+    }
     if (maxBoardWidth > PS_GBC_VIEWPORT_WIDTH || maxBoardHeight > PS_GBC_VIEWPORT_HEIGHT) {
         throw std::runtime_error(
             "GBC board dimensions cannot exceed the 10x9 fixed-cell screen");
@@ -1037,6 +1066,16 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"object_bytes_per_cell\": "
         << static_cast<unsigned int>(objectCellBytes) << ",\n"
         << "  \"level_count\": " << levels.size() << ",\n"
+        << "  \"source_level_count\": " << game.levels.size() << ",\n"
+        << "  \"board_level_count\": " << retainedBoardLevelCount << ",\n"
+        << "  \"source_board_level_count\": " << sourceBoardLevelCount << ",\n"
+        << "  \"culled_level_count\": " << culledLevelIndices.size() << ",\n"
+        << "  \"culled_level_indices\": [";
+    for (size_t index = 0U; index < culledLevelIndices.size(); ++index) {
+        if (index != 0U) manifest << ", ";
+        manifest << culledLevelIndices[index];
+    }
+    manifest << "],\n"
         << "  \"max_level_cells\": " << maxCells << ",\n"
         << "  \"viewport_width\": " << viewportWidth << ",\n"
         << "  \"viewport_height\": " << viewportHeight << ",\n"
@@ -1062,10 +1101,21 @@ ExportResult exportGame(const ExportOptions& options) {
            "\"viewport_height\": 9, \"board_cells\": 90, \"session_bytes\": 4096},\n"
         << "  \"unsupported\": [\"rigid\", \"random\", \"ellipsis\", \"multi_row\", "
            "\"dynamic_bindings\", \"aggregate_player\", \"audio\"],\n"
-        << "  \"diagnostics\": ["
-        << (ignoredAudio ? "\"sound declarations are omitted by the v1 cartridge runtime\"" : "")
-        << "]\n"
-        << "}\n";
+        << "  \"diagnostics\": [";
+    bool wroteDiagnostic = false;
+    if (ignoredAudio) {
+        manifest << "\"sound declarations are omitted by the v1 cartridge runtime\"";
+        wroteDiagnostic = true;
+    }
+    if (!culledLevelIndices.empty()) {
+        if (wroteDiagnostic) manifest << ", ";
+        manifest << jsonString(
+            "culled " + std::to_string(culledLevelIndices.size())
+            + " oversized board level"
+            + (culledLevelIndices.size() == 1U ? "" : "s"));
+    }
+    manifest << "]\n"
+             << "}\n";
     writeFileIfChanged(result.manifestPath, manifest.str());
     return result;
 }

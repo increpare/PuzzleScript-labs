@@ -147,7 +147,9 @@ int main() {
         "=======\nLEVELS\n=======\n\n";
     bool rejectedWideBoard = false;
     const std::filesystem::path wideBoardPath = output / "wide_board_source.txt";
-    writeFile(wideBoardPath, minimalPrefix + "PPPPPPPPPPP\n");
+    writeFile(
+        wideBoardPath,
+        minimalPrefix + "message intro\n\nPPPPPPPPPPP\n\nP\n");
     try {
         puzzlescript::gbc::ExportOptions wideBoard;
         wideBoard.sourcePath = wideBoardPath;
@@ -159,6 +161,51 @@ int main() {
     }
     require(rejectedWideBoard,
         "the exporter rejects an 11-cell-wide board under the fixed 16x16 layout");
+
+    puzzlescript::gbc::ExportOptions culledWideBoard;
+    culledWideBoard.sourcePath = wideBoardPath;
+    culledWideBoard.outputDirectory = output / "wide_board_culled";
+    culledWideBoard.cullOversizeLevels = true;
+    const auto culledWideBoardResult =
+        puzzlescript::gbc::exportGame(culledWideBoard);
+    const std::string culledWideBoardManifest =
+        readFile(culledWideBoardResult.manifestPath);
+    require(
+        culledWideBoardManifest.find("\"level_count\": 2")
+                != std::string::npos
+            && culledWideBoardManifest.find("\"source_level_count\": 3")
+                != std::string::npos
+            && culledWideBoardManifest.find("\"board_level_count\": 1")
+                != std::string::npos
+            && culledWideBoardManifest.find("\"source_board_level_count\": 2")
+                != std::string::npos
+            && culledWideBoardManifest.find("\"culled_level_count\": 1")
+                != std::string::npos
+            && culledWideBoardManifest.find("\"culled_level_indices\": [1]")
+                != std::string::npos,
+        "opt-in culling preserves messages and legal boards with source accounting");
+    require(
+        culledWideBoardManifest.find(
+            "\"diagnostics\": [\"culled 1 oversized board level\"]")
+            != std::string::npos,
+        "the manifest diagnoses opt-in oversized-level culling");
+
+    bool rejectedAllCulled = false;
+    const std::filesystem::path allWidePath = output / "all_wide_source.txt";
+    writeFile(allWidePath, minimalPrefix + "PPPPPPPPPPP\n");
+    try {
+        puzzlescript::gbc::ExportOptions allWide;
+        allWide.sourcePath = allWidePath;
+        allWide.outputDirectory = output / "all_wide_culled";
+        allWide.cullOversizeLevels = true;
+        (void)puzzlescript::gbc::exportGame(allWide);
+    } catch (const std::runtime_error& error) {
+        rejectedAllCulled =
+            std::string(error.what()).find("removed every board level")
+            != std::string::npos;
+    }
+    require(rejectedAllCulled,
+        "opt-in culling still requires at least one playable board");
 
     const std::filesystem::path maximumBoardPath =
         output / "maximum_board_source.txt";

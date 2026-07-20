@@ -7190,6 +7190,8 @@ int exportGbcCommand(const std::string& sourcePath, int argc, char** argv) {
         const std::string arg = argv[index];
         if (arg == "--out" && index + 1 < argc) {
             options.outputDirectory = argv[++index];
+        } else if (arg == "--cull-oversize-levels") {
+            options.cullOversizeLevels = true;
         } else {
             throw std::runtime_error("Unsupported export-gbc argument: " + arg);
         }
@@ -7337,14 +7339,17 @@ void printExportGbaHelp() {
 
 void printExportGbcHelp() {
     std::cout
-        << "Usage: puzzlescript_cpp export-gbc game.txt --out DIR\n\n"
+        << "Usage: puzzlescript_cpp export-gbc game.txt --out DIR [--cull-oversize-levels]\n\n"
         << "Compiles one PuzzleScript game for the Color Game Boy target. The v1 profile\n"
         << "supports at most 32 objects/collision layers, 6 movement-capable layers,\n"
         << "5x5 source sprites, a 10x9 (90-cell) board rendered with fixed 16x16 cells,\n"
         << "and a RAM-budgeted 1-4 entry undo ring. Static\n"
         << "analysis removes dormant layers from compact movement storage. It accepts fixed,\n"
         << "single-row rules and fails with a source line when a rule requires unsupported\n"
-        << "rigid, random, ellipsis, multi-row, or dynamic-binding semantics.\n";
+        << "rigid, random, ellipsis, multi-row, or dynamic-binding semantics.\n"
+        << "--cull-oversize-levels omits board levels larger than 10x9 while preserving\n"
+        << "message levels; export still fails if no playable board remains or another\n"
+        << "target limit is exceeded. The manifest records every omitted source index.\n";
 }
 
 void printTestHelp() {

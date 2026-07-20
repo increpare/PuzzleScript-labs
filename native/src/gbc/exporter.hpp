@@ -7,6 +7,7 @@ namespace puzzlescript::gbc {
 struct ExportOptions {
     std::filesystem::path sourcePath;
     std::filesystem::path outputDirectory;
+    bool cullOversizeLevels = false;
 };
 
 struct ExportResult {
