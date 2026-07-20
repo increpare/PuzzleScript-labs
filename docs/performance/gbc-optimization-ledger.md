@@ -433,3 +433,11 @@ only -0.0001% for Slot Machine. Generated-data estimates fall by 440 bytes for
 each case because the packed-background and exact-palette tables no longer
 exist. The compatibility loss is intentional: a game must now fit a 5x5 source
 cell and every board/declared viewport must fit 10x9.
+
+The post-change structural audit exports 7 of the 178 `good_games` fixtures:
+15 Push Pull Levels, I Am a Gust of Wind, No Forbidden Symbols, Push Pull,
+Pushy-V Pully-H, Short Adventure in Sticky Wall Land, and Slot Machine. Eight
+of the 15 games accepted by the packed renderer exceed the new board limit.
+Production ROMs for all seven pass cartridge-header, link-map, hash, and
+manifest checks; separately instrumented builds of all seven boot and pass the
+mGBA hardware-state smoke.
