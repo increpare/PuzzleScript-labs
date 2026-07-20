@@ -318,3 +318,18 @@ fixed bank and adds 445 bytes to bank 1, for a net 238 ROM bytes. The cache
 costs 80 bytes of static WRAM; session RAM and SRAM are unchanged. All five
 benchmark cartridges link within their real bank limits and the mGBA
 hardware-state smoke passes.
+
+### Playtest correction: keep the LCD on for incremental renders — retained
+
+Ordinary movement used the same display-off/display-on bracket as a complete
+tile-map rewrite. On hardware and in mGBA this exposes the LCD-off blank colour
+between moves. Only first renders, level changes, and text screens now blank
+the display; dirty tile and attribute writes leave it enabled.
+
+The instrumented mGBA smoke records zero blanking transitions across an
+incremental move and confirms that the LCD remains on. Sokoban dirty rendering
+improves from 311.5 to 288.0 ticks/frame (-7.54%); walk rendering improves from
+308 to 287 ticks (-6.82%) and push rendering from 575 to 536 ticks (-6.78%).
+Initial rendering is unchanged at 1261 ticks. Shipping fixed ROM grows by
+8 bytes (14253 to 14261); static WRAM, generated ROM, session RAM, and SRAM are
+unchanged.

@@ -17,7 +17,7 @@ MAGIC = 0x54434250
 RENDER_MAGIC = 0x52434250
 VERSION = 1
 RECORD = struct.Struct("<IHBBBBBBI")
-RENDER_RECORD = struct.Struct("<I12H")
+RENDER_RECORD = struct.Struct("<I14H")
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 RENDER_OFFSET = 16
@@ -125,6 +125,8 @@ def main() -> int:
             board_map_mismatches,
             board_attribute_mismatches,
             board_palette_mismatches,
+            incremental_blank_count,
+            incremental_lcd_on,
         ) = render_record
         if render_magic != RENDER_MAGIC or render_version != VERSION:
             raise SystemExit(
@@ -159,6 +161,11 @@ def main() -> int:
                 "board hardware state differs: "
                 f"map={board_map_mismatches} attributes={board_attribute_mismatches} "
                 f"palette={board_palette_mismatches}"
+            )
+        if incremental_blank_count != 0 or incremental_lcd_on != 1:
+            raise SystemExit(
+                "incremental board update blanked the display: "
+                f"blank_count={incremental_blank_count} lcd_on={incremental_lcd_on}"
             )
         print(
             "gbc-smoke ok "

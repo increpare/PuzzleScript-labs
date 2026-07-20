@@ -46,6 +46,9 @@ ps_gbc_session* gSession;
 static bool gTitleScreen;
 static uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 static uint8_t gVramState = VRAM_STATE_UNKNOWN;
+#if defined(PS_GBC_AUTOTEST)
+static uint16_t gDisplayBlankCount;
+#endif
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
@@ -121,6 +124,13 @@ typedef struct SaveRecord {
     uint16_t level;
     uint16_t checksum;
 } SaveRecord;
+
+static void displayOffForFullRewrite(void) {
+#if defined(PS_GBC_AUTOTEST)
+    ++gDisplayBlankCount;
+#endif
+    DISPLAY_OFF;
+}
 
 /*
  * Five-column, seven-row glyphs for A-Z, 0-9, '.', '-', ':', and '!'.
@@ -289,7 +299,7 @@ void showText(const char* message, bool title) {
     uint8_t row = title ? 5U : 2U;
     const char* cursor = message;
     gRenderedLevel = NO_RENDERED_LEVEL;
-    DISPLAY_OFF;
+    displayOffForFullRewrite();
     if (gVramState != VRAM_STATE_TEXT) {
         set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
         loadFont();
@@ -388,7 +398,7 @@ void renderBoard(void) {
     offset_x = (uint8_t)((20U - status.width) / 2U);
     offset_y = (uint8_t)((18U - status.height) / 2U);
     full_render = gRenderedLevel != status.current_level;
-    DISPLAY_OFF;
+    if (full_render) displayOffForFullRewrite();
     if (gVramState != VRAM_STATE_BOARD) {
         set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
     }
@@ -448,7 +458,7 @@ void renderBoard(void) {
     ps_gbc_clear_dirty_cells(gSession);
     gRenderedLevel = status.current_level;
     gVramState = VRAM_STATE_BOARD;
-    DISPLAY_ON;
+    if (full_render) DISPLAY_ON;
 }
 
 static void saveCurrentLevel(void) {
@@ -637,6 +647,8 @@ static void runAutotest(void) {
     uint16_t board_map_mismatches;
     uint16_t board_attribute_mismatches;
     uint16_t board_palette_mismatches;
+    uint16_t incremental_blank_count;
+    uint16_t incremental_lcd_on;
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
     showText(ps_gbc_generated_game.title, true);
     DISPLAY_OFF;
@@ -662,7 +674,11 @@ static void runAutotest(void) {
     DISPLAY_ON;
     result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
     (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
+    incremental_blank_count = gDisplayBlankCount;
     renderBoard();
+    incremental_blank_count =
+        (uint16_t)(gDisplayBlankCount - incremental_blank_count);
+    incremental_lcd_on = (LCDC_REG & LCDCF_ON) != 0U ? 1U : 0U;
 #endif
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(3U);
@@ -689,6 +705,8 @@ static void runAutotest(void) {
     writeSram16(38U, board_map_mismatches);
     writeSram16(40U, board_attribute_mismatches);
     writeSram16(42U, board_palette_mismatches);
+    writeSram16(44U, incremental_blank_count);
+    writeSram16(46U, incremental_lcd_on);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(0U, AUTOTEST_MAGIC);
