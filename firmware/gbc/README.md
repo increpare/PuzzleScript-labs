@@ -78,7 +78,8 @@ checkpoint/restart snapshot share SRAM bank 1.
 The first hardware profile deliberately favors predictable memory use:
 
 - at most 32 objects/collision layers and six movement-capable layers;
-- board and viewport at most 20x18 (360 cells);
+- 5x5 source cells rendered at a fixed 16x16 pixels;
+- board and viewport at most 10x9 (90 cells);
 - fixed, single-row rules;
 - up to four undo states;
 - one 16 KiB switchable ROM bank for generated game data;
@@ -108,6 +109,10 @@ is exposed through a banked 4 KiB window rather than as one contiguous C
 address range.
 
 Rendering uses the CGB background tile hardware as a 20x18 tile framebuffer.
-Each screen cell owns an 8x8 pattern in one of the two VRAM banks. Object
-palettes are reduced to the eight hardware background palettes; colors from
-lower transparent layers are remapped to the top visible object's palette.
+Each logical 10x9 cell owns an aligned 2x2 quartet of hardware tiles. A source
+5x5 pixel expands to 3x3 pixels, with the middle source row and column expanded
+once more to make an exact 16x16 cell. Quartets never contain pixels from
+neighboring cells, so transparency and dirty updates cannot create inter-cell
+seams. Object palettes are reduced to the eight hardware background palettes;
+colors from lower transparent layers are remapped to the top visible object's
+palette.

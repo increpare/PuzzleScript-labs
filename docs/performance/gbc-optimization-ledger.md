@@ -334,7 +334,7 @@ Initial rendering is unchanged at 1261 ticks. Shipping fixed ROM grows by
 8 bytes (14253 to 14261); static WRAM, generated ROM, session RAM, and SRAM are
 unchanged.
 
-### Playtest correction: native-size packed cells — retained
+### Playtest correction: native-size packed cells — superseded
 
 The GBC background hardware still uses 8x8 tiles, but those tiles now act as a
 packed framebuffer. PuzzleScript cells retain their native dimensions (5x5 in
@@ -369,7 +369,7 @@ unchanged. The mGBA hardware-state smoke verifies a 5x5 cell pitch, a 30x35
 pixel board, exact reserved-tile mapping, palette state, VRAM upload readback,
 and zero LCD blanking transitions during an incremental move.
 
-### Playtest correction: background-first packed palettes — retained
+### Playtest correction: background-first packed palettes — superseded
 
 A native 5x5 cell can share one physical 8x8 tile with several neighboring
 cells, but GBC background tiles still have only four colours. Preserving every
@@ -394,3 +394,42 @@ logic changes by at most 0.0001%. Sokoban walk rendering is 287 ticks
 (0.113 s), 13.99% faster than the old 536-tick result. The change adds 126
 linked bank-1 bytes, 32 estimated game-data bytes, and 4 static WRAM bytes;
 fixed ROM, session RAM, and snapshot SRAM are unchanged.
+
+### Playtest correction: fixed 16x16 cells — retained
+
+The packed 5x5 framebuffer and its cross-cell palette selection were rejected
+after playtesting: the more complicated renderer still produced uneven-looking
+sprites and made palette defects difficult to reason about. The replacement is
+deliberately rigid. Every logical cell owns an aligned 2x2 quartet of CGB
+hardware tiles. Each 5x5 source pixel expands to 3x3 output pixels, and the
+middle source row and column expand to four pixels, yielding exactly 16x16.
+Hardware tiles never contain pixels from neighboring logical cells.
+
+The physical 20x18 tile screen therefore holds at most 10x9 logical cells
+(90 cells). The first 16 object-mask compositions occupy a small shared quartet
+cache; later compositions use a quartet reserved for that logical screen cell.
+The old repeating-background phases, pixel blitter, exact-palette candidate
+table, palette-priority table, and dirty physical-tile bitset are gone.
+
+The mGBA smoke validates the 16x16 pitch, all 90 quartet mappings, VRAM upload
+readback, palette and tile-map state, and zero LCD blanking events during an
+incremental move. A synthetic 17-object board exercises 18 distinct
+compositions, two cache-overflow cells, and two cells in VRAM pattern bank 1.
+
+| Case / metric | Packed 5x5 | Fixed 16x16 | Delta |
+| --- | ---: | ---: | ---: |
+| Sokoban average dirty render | 520.25 ticks | 51.00 ticks | -90.20% |
+| Sokoban initial render | 4474 ticks / 1.092 s | 2554 ticks / 0.624 s | -42.91% |
+| Sokoban walk render | 287 ticks / 0.070 s | 50 ticks / 0.012 s | -82.58% |
+| Sokoban push render | 461 ticks / 0.113 s | 58 ticks / 0.014 s | -87.42% |
+| Sokoban static WRAM | 2952 bytes | 1701 bytes | -42.38% |
+| Sokoban generated ROM bank | 5576 bytes | 3344 bytes | -40.03% |
+| Slot Machine average dirty render | 3973.25 ticks | 316.25 ticks | -92.04% |
+| Slot Machine initial render | 6387 ticks / 1.559 s | 3095 ticks / 0.756 s | -51.54% |
+| Slot Machine static WRAM | 3232 bytes | 1981 bytes | -38.71% |
+
+The benchmark's 128-turn logic timing is unchanged for Sokoban and changes by
+only -0.0001% for Slot Machine. Generated-data estimates fall by 440 bytes for
+each case because the packed-background and exact-palette tables no longer
+exist. The compatibility loss is intentional: a game must now fit a 5x5 source
+cell and every board/declared viewport must fit 10x9.

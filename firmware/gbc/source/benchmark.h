@@ -5,9 +5,11 @@
 
 #include "puzzlescript/gbc.h"
 
-extern uint8_t gTileBytes[16];
-extern uint8_t gTileMap[PS_GBC_VIEWPORT_WIDTH * PS_GBC_VIEWPORT_HEIGHT];
-extern uint8_t gAttributes[PS_GBC_VIEWPORT_WIDTH * PS_GBC_VIEWPORT_HEIGHT];
+extern uint8_t gTileBytes[64];
+extern uint8_t gTileMap[
+    PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT];
+extern uint8_t gAttributes[
+    PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT];
 extern ps_gbc_session* gSession;
 
 typedef struct perf_interaction {

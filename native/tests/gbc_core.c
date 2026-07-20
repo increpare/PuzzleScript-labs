@@ -45,9 +45,6 @@ static const ps_gbc_win_condition kWinConditions[] = {
 };
 static const uint16_t kPalettes[32] = {0U};
 static const uint8_t kRemap[256] = {0U};
-static const uint8_t kPalettePriorities[8] = {1U};
-static const uint8_t kExactPaletteCandidates[32] = {0xffU};
-static const uint8_t kBackgroundPhaseTiles[16] = {0U};
 static const uint16_t kUiPalette[4] = {0U, 32767U, 32767U, 32767U};
 static const ps_gbc_game_view kGame = {
     PS_GBC_GAME_ABI_VERSION,
@@ -84,10 +81,6 @@ static const ps_gbc_game_view kGame = {
     kWinConditions,
     kPalettes,
     kRemap,
-    kPalettePriorities,
-    kExactPaletteCandidates,
-    0U,
-    kBackgroundPhaseTiles,
     kUiPalette,
     false,
     false,
@@ -257,9 +250,13 @@ int main(void) {
         "two-byte object cells are not reflected exactly in arena size");
     failed |= require_true(four_byte_bytes == bytes + 12U,
         "four-byte object cells are not reflected exactly in arena size");
-    failed |= require_true(max_three_lane_bytes == max_one_lane_bytes + 360U,
+    failed |= require_true(
+        max_three_lane_bytes
+            == max_one_lane_bytes + PS_GBC_MAX_BOARD_CELLS,
         "maximum-board two-byte movement savings are miscounted");
-    failed |= require_true(max_six_lane_bytes == max_one_lane_bytes + 1080U,
+    failed |= require_true(
+        max_six_lane_bytes
+            == max_one_lane_bytes + PS_GBC_MAX_BOARD_CELLS * 3U,
         "maximum-board four-byte movement savings are miscounted");
     failed |= require_true(max_six_lane_bytes <= 4U * 1024U,
         "maximum board with six live lanes exceeds the session WRAM gate");

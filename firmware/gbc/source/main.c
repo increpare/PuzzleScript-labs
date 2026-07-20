@@ -10,7 +10,8 @@
 
 #include <string.h>
 
-#define SCREEN_TILES (PS_GBC_VIEWPORT_WIDTH * PS_GBC_VIEWPORT_HEIGHT)
+#define SCREEN_TILES \
+    (PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT)
 #define SNAPSHOT_RAM_BANK 1U
 #define SAVE_MAGIC 0x43424750UL
 #define SAVE_VERSION 1U
@@ -31,7 +32,7 @@
 /*
  * Keep the arena allocation identical between compact and forced-wide
  * benchmark ROMs. The extra space is the worst-case 1-byte to 4-byte movement
- * expansion for a full 20x18 board.
+ * expansion for a full 10x9 logical board.
  */
 static uint8_t gSessionArena[
     PS_GBC_GENERATED_SESSION_BYTES + PS_GBC_MAX_BOARD_CELLS * 3U
@@ -39,7 +40,7 @@ static uint8_t gSessionArena[
 #else
 static uint8_t gSessionArena[PS_GBC_GENERATED_SESSION_BYTES];
 #endif
-uint8_t gTileBytes[16];
+uint8_t gTileBytes[64];
 uint8_t gTileMap[SCREEN_TILES];
 uint8_t gAttributes[SCREEN_TILES];
 uint8_t gSourcePixels[64];
@@ -50,8 +51,6 @@ static uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_AUTOTEST)
 static uint16_t gDisplayBlankCount;
 uint16_t gTileUploadMismatches;
-uint16_t gPaletteRemapMismatches;
-uint16_t gBackgroundRemapMismatches;
 #endif
 #if defined(PS_GBC_PERF_BENCH)
 static volatile uint16_t gPerfTimerOverflows;
@@ -376,8 +375,8 @@ void renderBoard(void) {
     ps_gbc_status status;
     const void* board;
     const uint8_t* dirty;
-    uint8_t origin_x;
-    uint8_t origin_y;
+    uint8_t offset_x;
+    uint8_t offset_y;
     bool full_render;
     ps_gbc_status_get(gSession, &status);
     if (status.mode != PS_FULL_STATE_MODE_LEVEL) {
@@ -386,27 +385,23 @@ void renderBoard(void) {
     }
     board = ps_gbc_board(gSession);
     dirty = ps_gbc_dirty_cells(gSession);
-    origin_x = (uint8_t)(
-        (PS_GBC_SCREEN_WIDTH
-            - status.width * ps_gbc_generated_game.cell_width) / 2U);
-    origin_y = (uint8_t)(
-        (PS_GBC_SCREEN_HEIGHT
-            - status.height * ps_gbc_generated_game.cell_height) / 2U);
+    offset_x = (uint8_t)((PS_GBC_VIEWPORT_WIDTH - status.width) / 2U);
+    offset_y = (uint8_t)((PS_GBC_VIEWPORT_HEIGHT - status.height) / 2U);
     full_render = gRenderedLevel != status.current_level;
     if (full_render && gVramState == VRAM_STATE_BOARD) {
         showText("LOADING", false);
     }
     if (full_render) {
         ps_gbc_render_full_board(
-            board, status.width, status.height, origin_x, origin_y);
+            board, status.width, status.height, offset_x, offset_y);
     } else {
         ps_gbc_render_dirty_board(
             board,
             dirty,
             status.width,
             status.height,
-            origin_x,
-            origin_y);
+            offset_x,
+            offset_y);
     }
     if (full_render) {
         displayOffForFullRewrite();
@@ -664,8 +659,6 @@ static void runAutotest(void) {
     uint16_t board_pixel_width;
     uint16_t board_pixel_height;
     uint16_t tile_upload_mismatches;
-    uint16_t palette_remap_mismatches;
-    uint16_t background_remap_mismatches;
     uint16_t first_board;
     ps_gbc_status render_status;
     for (first_board = 0U;
@@ -694,7 +687,7 @@ static void runAutotest(void) {
         (uint16_t)(countVramNonzero(VBK_BANK_0, 256U * 16U)
             + countVramNonzero(
                 VBK_BANK_1,
-                (SCREEN_TILES + PS_GBC_BOARD_TILE_OFFSET - 256U) * 16U));
+                (PS_GBC_BOARD_TILE_LIMIT - 256U) * 16U));
     board_attributes_nonzero = countNonzero(gAttributes, sizeof(gAttributes));
     board_map_mismatches = countHardwareMapMismatches(gTileMap, VBK_BANK_0);
     board_attribute_mismatches =
@@ -711,13 +704,11 @@ static void runAutotest(void) {
     incremental_lcd_on = (LCDC_REG & LCDCF_ON) != 0U ? 1U : 0U;
     dumpFrameToSram();
     ps_gbc_status_get(gSession, &render_status);
-    cell_width = ps_gbc_generated_game.cell_width;
-    cell_height = ps_gbc_generated_game.cell_height;
+    cell_width = PS_GBC_RENDERED_CELL_WIDTH;
+    cell_height = PS_GBC_RENDERED_CELL_HEIGHT;
     board_pixel_width = (uint16_t)(render_status.width * cell_width);
     board_pixel_height = (uint16_t)(render_status.height * cell_height);
     tile_upload_mismatches = gTileUploadMismatches;
-    palette_remap_mismatches = gPaletteRemapMismatches;
-    background_remap_mismatches = gBackgroundRemapMismatches;
 #endif
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(3U);
@@ -751,8 +742,6 @@ static void runAutotest(void) {
     writeSram16(52U, board_pixel_width);
     writeSram16(54U, board_pixel_height);
     writeSram16(56U, tile_upload_mismatches);
-    writeSram16(58U, palette_remap_mismatches);
-    writeSram16(60U, background_remap_mismatches);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(0U, AUTOTEST_MAGIC);

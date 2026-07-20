@@ -6,7 +6,8 @@
 #include "benchmark.h"
 #include "generated_game.h"
 
-#define SCREEN_TILES (PS_GBC_VIEWPORT_WIDTH * PS_GBC_VIEWPORT_HEIGHT)
+#define SCREEN_TILES \
+    (PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT)
 #define PERF_RENDER_ITERATIONS 4U
 
 bool perfLoadFirstBoard(void) BANKED {
@@ -26,12 +27,13 @@ static void perfComposeBoard(void) {
     uint8_t screen_y;
     ps_gbc_status_get(gSession, &status);
     if (status.mode != PS_FULL_STATE_MODE_LEVEL) return;
-    offset_x = (uint8_t)((20U - status.width) / 2U);
-    offset_y = (uint8_t)((18U - status.height) / 2U);
-    for (screen_y = 0U; screen_y < 18U; ++screen_y) {
+    offset_x = (uint8_t)((PS_GBC_VIEWPORT_WIDTH - status.width) / 2U);
+    offset_y = (uint8_t)((PS_GBC_VIEWPORT_HEIGHT - status.height) / 2U);
+    for (screen_y = 0U; screen_y < PS_GBC_VIEWPORT_HEIGHT; ++screen_y) {
         uint8_t screen_x;
-        for (screen_x = 0U; screen_x < 20U; ++screen_x) {
-            const uint16_t screen_cell = (uint16_t)screen_y * 20U + screen_x;
+        for (screen_x = 0U; screen_x < PS_GBC_VIEWPORT_WIDTH; ++screen_x) {
+            const uint16_t screen_cell =
+                (uint16_t)screen_y * PS_GBC_VIEWPORT_WIDTH + screen_x;
             uint32_t objects = ps_gbc_generated_game.background_mask;
             if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
                 && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {

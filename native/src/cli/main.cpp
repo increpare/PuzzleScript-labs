@@ -7340,7 +7340,8 @@ void printExportGbcHelp() {
         << "Usage: puzzlescript_cpp export-gbc game.txt --out DIR\n\n"
         << "Compiles one PuzzleScript game for the Color Game Boy target. The v1 profile\n"
         << "supports at most 32 objects/collision layers, 6 movement-capable layers,\n"
-        << "a 20x18 (360-cell) board, and a RAM-budgeted 1-4 entry undo ring. Static\n"
+        << "5x5 source sprites, a 10x9 (90-cell) board rendered with fixed 16x16 cells,\n"
+        << "and a RAM-budgeted 1-4 entry undo ring. Static\n"
         << "analysis removes dormant layers from compact movement storage. It accepts fixed,\n"
         << "single-row rules and fails with a source line when a rule requires unsupported\n"
         << "rigid, random, ellipsis, multi-row, or dynamic-binding semantics.\n";

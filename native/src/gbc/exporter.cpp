@@ -584,92 +584,6 @@ std::string emitSource(
     emitUnsignedArray(out, "uint16_t", "kBackgroundPalettes", flatPalettes, "U");
     emitUnsignedArray(out, "uint8_t", "kPaletteRemap",
         std::vector<uint8_t>(remap.begin(), remap.end()), "U");
-    std::array<uint8_t, 32> exactPaletteCandidates{};
-    for (uint8_t sourcePalette = 0U; sourcePalette < 8U; ++sourcePalette) {
-        for (uint8_t sourceColor = 0U; sourceColor < 4U; ++sourceColor) {
-            const uint16_t color = palettes[sourcePalette][sourceColor];
-            uint8_t candidates = 0U;
-            for (uint8_t targetPalette = 0U; targetPalette < 8U; ++targetPalette) {
-                const uint8_t remapped = remap[
-                    static_cast<size_t>(targetPalette) * 32U
-                    + static_cast<size_t>(sourcePalette) * 4U
-                    + sourceColor];
-                if (palettes[targetPalette][remapped] == color) {
-                    candidates |= static_cast<uint8_t>(1U << targetPalette);
-                }
-            }
-            exactPaletteCandidates[
-                static_cast<size_t>(sourcePalette) * 4U + sourceColor] =
-                candidates;
-        }
-    }
-    emitUnsignedArray(
-        out,
-        "uint8_t",
-        "kExactPaletteCandidates",
-        std::vector<uint8_t>(
-            exactPaletteCandidates.begin(),
-            exactPaletteCandidates.end()),
-        "U");
-    std::array<uint8_t, 8> palettePriorities{};
-    for (const PackedObject& object : objects) {
-        palettePriorities[object.palette] = std::max(
-            palettePriorities[object.palette],
-            static_cast<uint8_t>(object.layer + 1U));
-    }
-    emitUnsignedArray(out, "uint8_t", "kPalettePriorities",
-        std::vector<uint8_t>(palettePriorities.begin(), palettePriorities.end()), "U");
-    uint8_t backgroundPalette = 0U;
-    std::vector<uint8_t> backgroundCell(
-        static_cast<size_t>(cellWidth) * cellHeight,
-        0U);
-    if (game.backgroundId >= 0
-        && static_cast<size_t>(game.backgroundId) < objects.size()) {
-        const PackedObject& background =
-            objects[static_cast<size_t>(game.backgroundId)];
-        const uint8_t offsetX = static_cast<uint8_t>((cellWidth - background.width) / 2U);
-        const uint8_t offsetY = static_cast<uint8_t>((cellHeight - background.height) / 2U);
-        backgroundPalette = background.palette;
-        for (uint8_t y = 0U; y < background.height; ++y) {
-            for (uint8_t x = 0U; x < background.width; ++x) {
-                const uint8_t source =
-                    background.pixels[static_cast<size_t>(y) * background.width + x];
-                if (source != 0xffU) {
-                    backgroundCell[
-                        static_cast<size_t>(y + offsetY) * cellWidth + x + offsetX] =
-                        source;
-                }
-            }
-        }
-    }
-    std::vector<uint8_t> backgroundPhaseTiles;
-    backgroundPhaseTiles.reserve(
-        static_cast<size_t>(cellWidth) * cellHeight * 16U);
-    for (uint8_t phaseY = 0U; phaseY < cellHeight; ++phaseY) {
-        for (uint8_t phaseX = 0U; phaseX < cellWidth; ++phaseX) {
-            for (uint8_t y = 0U; y < 8U; ++y) {
-                uint8_t low = 0U;
-                uint8_t high = 0U;
-                for (uint8_t x = 0U; x < 8U; ++x) {
-                    const uint8_t source = backgroundCell[
-                        static_cast<size_t>((phaseY + y) % cellHeight) * cellWidth
-                        + (phaseX + x) % cellWidth];
-                    const uint8_t color =
-                        remap[static_cast<size_t>(backgroundPalette) * 32U + source];
-                    low |= static_cast<uint8_t>((color & 1U) << (7U - x));
-                    high |= static_cast<uint8_t>(((color >> 1U) & 1U) << (7U - x));
-                }
-                backgroundPhaseTiles.push_back(low);
-                backgroundPhaseTiles.push_back(high);
-            }
-        }
-    }
-    emitUnsignedArray(
-        out,
-        "uint8_t",
-        "kBackgroundPhaseTiles",
-        backgroundPhaseTiles,
-        "U");
     emitUnsignedArray(out, "uint16_t", "kUiPalette",
         std::vector<uint16_t>(uiPalette.begin(), uiPalette.end()), "U");
     std::vector<uint32_t> layerMasks;
@@ -777,10 +691,7 @@ std::string emitSource(
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
            "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
-        << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, "
-           "kPalettePriorities, kExactPaletteCandidates, "
-        << static_cast<unsigned int>(backgroundPalette)
-        << "U, kBackgroundPhaseTiles, kUiPalette,\n"
+        << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, kUiPalette,\n"
         << "    " << (game.metadata.values.count("noaction") ? "true" : "false") << ", "
         << (game.metadata.values.count("noundo") ? "true" : "false") << ", "
         << (game.metadata.values.count("norestart") ? "true" : "false") << "\n"
@@ -825,8 +736,8 @@ ExportResult exportGame(const ExportOptions& options) {
     for (auto& palette : palettes) palette.fill(backgroundColor);
     std::vector<std::array<uint16_t, 4>> usedPalettes;
     std::vector<PackedObject> objects;
-    uint8_t cellWidth = 1U;
-    uint8_t cellHeight = 1U;
+    uint8_t cellWidth = 5U;
+    uint8_t cellHeight = 5U;
     objects.reserve(game.objectsById.size());
     for (const ObjectDef& sourceObject : game.objectsById) {
         if (sourceObject.layer < 0 || sourceObject.layer >= game.layerCount) {
@@ -834,8 +745,9 @@ ExportResult exportGame(const ExportOptions& options) {
         }
         const size_t height = sourceObject.sprite.size();
         const size_t width = sourceObject.sprite.empty() ? 0U : sourceObject.sprite.front().size();
-        if (width == 0U || height == 0U || width > 8U || height > 8U) {
-            throw std::runtime_error("GBC object sprites must be between 1x1 and 8x8 pixels");
+        if (width == 0U || height == 0U || width > 5U || height > 5U) {
+            throw std::runtime_error(
+                "GBC object sprites must fit the fixed 5x5 source cell");
         }
         cellWidth = std::max(cellWidth, static_cast<uint8_t>(width));
         cellHeight = std::max(cellHeight, static_cast<uint8_t>(height));
@@ -1000,7 +912,8 @@ ExportResult exportGame(const ExportOptions& options) {
         if (!level.message) {
             if (sourceLevel.width <= 0 || sourceLevel.height <= 0
                 || static_cast<size_t>(sourceLevel.width) * sourceLevel.height > kMaxBoardCells) {
-                throw std::runtime_error("GBC board levels must contain between 1 and 360 cells");
+                throw std::runtime_error(
+                    "GBC board levels must contain between 1 and 90 cells");
             }
             level.width = static_cast<uint16_t>(sourceLevel.width);
             level.height = static_cast<uint16_t>(sourceLevel.height);
@@ -1018,7 +931,8 @@ ExportResult exportGame(const ExportOptions& options) {
     }
     if (maxCells == 0U) throw std::runtime_error("GBC export requires at least one board level");
     if (maxBoardWidth > PS_GBC_VIEWPORT_WIDTH || maxBoardHeight > PS_GBC_VIEWPORT_HEIGHT) {
-        throw std::runtime_error("GBC v1 board dimensions cannot exceed the native 20x18 tile screen");
+        throw std::runtime_error(
+            "GBC board dimensions cannot exceed the 10x9 fixed-cell screen");
     }
     const std::vector<int> declaredViewport = parseScreenSize(game);
     const int viewportWidth = declaredViewport.empty() ? maxBoardWidth : declaredViewport[0];
@@ -1026,7 +940,8 @@ ExportResult exportGame(const ExportOptions& options) {
     if (viewportWidth <= 0 || viewportWidth > PS_GBC_VIEWPORT_WIDTH
         || viewportHeight <= 0 || viewportHeight > PS_GBC_VIEWPORT_HEIGHT) {
         throw std::runtime_error(
-            "GBC visible viewport exceeds 20x18 cells; add a compatible flickscreen/zoomscreen setting");
+            "GBC visible viewport exceeds 10x9 cells; add a compatible "
+            "flickscreen/zoomscreen setting");
     }
 
     std::vector<PackedPattern> patterns;
@@ -1061,8 +976,7 @@ ExportResult exportGame(const ExportOptions& options) {
     if (sessionBytes > kSessionLimit) {
         throw std::runtime_error("GBC hot session cannot fit in the 4 KiB WRAM budget");
     }
-    size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U + 8U + 32U
-        + static_cast<size_t>(cellWidth) * cellHeight * 16U
+    size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U
         + game.layerMaskOffsets.size() * sizeof(uint32_t)
         + movementLayout.movementToCollision.size();
     estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_object);
@@ -1124,6 +1038,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"viewport_height\": " << viewportHeight << ",\n"
         << "  \"cell_width\": " << static_cast<unsigned int>(cellWidth) << ",\n"
         << "  \"cell_height\": " << static_cast<unsigned int>(cellHeight) << ",\n"
+        << "  \"rendered_cell_width\": " << PS_GBC_RENDERED_CELL_WIDTH << ",\n"
+        << "  \"rendered_cell_height\": " << PS_GBC_RENDERED_CELL_HEIGHT << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
@@ -1134,8 +1050,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"snapshot_sram_bytes\": "
         << static_cast<size_t>(maxCells) * objectCellBytes * (undoCapacity + 1U) << ",\n"
         << "  \"limits\": {\"objects\": 32, \"collision_layers\": 32, "
-           "\"movement_layers\": 6, \"viewport_width\": 20, "
-           "\"viewport_height\": 18, \"board_cells\": 360, \"session_bytes\": 4096},\n"
+           "\"movement_layers\": 6, \"viewport_width\": 10, "
+           "\"viewport_height\": 9, \"board_cells\": 90, \"session_bytes\": 4096},\n"
         << "  \"unsupported\": [\"rigid\", \"random\", \"ellipsis\", \"multi_row\", "
            "\"dynamic_bindings\", \"aggregate_player\", \"audio\"],\n"
         << "  \"diagnostics\": ["

@@ -46,15 +46,19 @@ extern "C" {
 
 #define PS_GBC_SCREEN_WIDTH 160
 #define PS_GBC_SCREEN_HEIGHT 144
-#define PS_GBC_VIEWPORT_WIDTH 20
-#define PS_GBC_VIEWPORT_HEIGHT 18
+#define PS_GBC_SCREEN_TILE_WIDTH 20
+#define PS_GBC_SCREEN_TILE_HEIGHT 18
+#define PS_GBC_VIEWPORT_WIDTH 10
+#define PS_GBC_VIEWPORT_HEIGHT 9
+#define PS_GBC_RENDERED_CELL_WIDTH 16
+#define PS_GBC_RENDERED_CELL_HEIGHT 16
 #define PS_GBC_MAX_OBJECTS 32
 #define PS_GBC_MAX_COLLISION_LAYERS 32
 #define PS_GBC_MAX_MOVEMENT_LAYERS 6
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
 #define PS_GBC_MAX_UNDO 4
-#define PS_GBC_MAX_BOARD_CELLS 360
-#define PS_GBC_GAME_ABI_VERSION 8
+#define PS_GBC_MAX_BOARD_CELLS 90
+#define PS_GBC_GAME_ABI_VERSION 9
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 128
 
@@ -182,10 +186,6 @@ typedef struct ps_gbc_game_view {
     const ps_gbc_win_condition* win_conditions;
     const uint16_t* background_palettes;
     const uint8_t* palette_remap;
-    const uint8_t* palette_priorities;
-    const uint8_t* exact_palette_candidates;
-    uint8_t background_palette;
-    const uint8_t* background_phase_tiles;
     const uint16_t* ui_palette;
     bool no_action;
     bool no_undo;

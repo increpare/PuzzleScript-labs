@@ -61,8 +61,12 @@ int main() {
         "manifest selects byte-wide movement cells for one live lane");
     require(manifest.find("\"object_bytes_per_cell\": 1") != std::string::npos,
         "manifest selects byte-wide object cells for five objects");
-    require(manifest.find("\"board_cells\": 360") != std::string::npos,
+    require(manifest.find("\"board_cells\": 90") != std::string::npos,
         "manifest advertises the hardware board ceiling");
+    require(
+        manifest.find("\"rendered_cell_width\": 16") != std::string::npos
+            && manifest.find("\"rendered_cell_height\": 16") != std::string::npos,
+        "manifest records the fixed 16x16 target cell");
     require(manifest.find("\"session_bytes\": 4096") != std::string::npos,
         "manifest advertises the contiguous WRAM ceiling");
     require(manifest.find("\"snapshot_sram_bytes\": 210") != std::string::npos,
@@ -110,18 +114,10 @@ int main() {
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");
     require(
-        source.find(
-            "static const uint8_t kPalettePriorities[] = {1U, 2U, 3U, 3U, 3U")
-            != std::string::npos,
-        "generated palettes retain visible collision-layer priority");
-    require(
-        source.find("static const uint8_t kExactPaletteCandidates[] = {")
-            != std::string::npos,
-        "generated palettes expose exact cross-cell remap candidates");
-    require(
-        source.find("static const uint8_t kBackgroundPhaseTiles[] = {")
-            != std::string::npos,
-        "generated game precomputes native-cell background phases");
+        source.find("kPalettePriorities") == std::string::npos
+            && source.find("kExactPaletteCandidates") == std::string::npos
+            && source.find("kBackgroundPhaseTiles") == std::string::npos,
+        "generated data omits packed-cell palette and phase heuristics");
     require(source.find("kMovementCollisionLayers[] = {2U}") != std::string::npos,
         "the moving Sokoban layer is remapped to compact lane zero");
     require(source.find("const ps_gbc_game_view ps_gbc_generated_game") != std::string::npos,
@@ -130,6 +126,75 @@ int main() {
     const auto second = puzzlescript::gbc::exportGame(options);
     require(readFile(first.generatedSourcePath) == readFile(second.generatedSourcePath),
         "repeated exports are deterministic");
+
+    const std::string minimalPrefix =
+        "title GBC Fixed Cell Limits\n\n"
+        "========\nOBJECTS\n========\n\n"
+        "Background\nblack\n0\n\n"
+        "Player\nwhite\n0\n\n"
+        "=======\nLEGEND\n=======\n\n"
+        ". = Background\nP = Background and Player\n\n"
+        "================\nCOLLISIONLAYERS\n================\n\n"
+        "Background\nPlayer\n\n"
+        "======\nRULES\n======\n\n"
+        "right [ > Player ] -> [ > Player ]\n\n"
+        "==============\nWINCONDITIONS\n==============\n\n"
+        "some Player\n\n"
+        "=======\nLEVELS\n=======\n\n";
+    bool rejectedWideBoard = false;
+    const std::filesystem::path wideBoardPath = output / "wide_board_source.txt";
+    writeFile(wideBoardPath, minimalPrefix + "PPPPPPPPPPP\n");
+    try {
+        puzzlescript::gbc::ExportOptions wideBoard;
+        wideBoard.sourcePath = wideBoardPath;
+        wideBoard.outputDirectory = output / "wide_board";
+        (void)puzzlescript::gbc::exportGame(wideBoard);
+    } catch (const std::runtime_error& error) {
+        rejectedWideBoard =
+            std::string(error.what()).find("10x9") != std::string::npos;
+    }
+    require(rejectedWideBoard,
+        "the exporter rejects an 11-cell-wide board under the fixed 16x16 layout");
+
+    const std::filesystem::path maximumBoardPath =
+        output / "maximum_board_source.txt";
+    writeFile(
+        maximumBoardPath,
+        minimalPrefix
+            + "PPPPPPPPPP\nPPPPPPPPPP\nPPPPPPPPPP\n"
+              "PPPPPPPPPP\nPPPPPPPPPP\nPPPPPPPPPP\n"
+              "PPPPPPPPPP\nPPPPPPPPPP\nPPPPPPPPPP\n");
+    puzzlescript::gbc::ExportOptions maximumBoard;
+    maximumBoard.sourcePath = maximumBoardPath;
+    maximumBoard.outputDirectory = output / "maximum_board";
+    const auto maximumBoardResult =
+        puzzlescript::gbc::exportGame(maximumBoard);
+    require(
+        readFile(maximumBoardResult.manifestPath).find(
+            "\"max_level_cells\": 90")
+            != std::string::npos,
+        "the exact 10x9 board boundary remains exportable");
+
+    bool rejectedWideSprite = false;
+    std::string wideSpriteSource = minimalPrefix;
+    const size_t backgroundSprite = wideSpriteSource.find("Background\nblack\n0");
+    wideSpriteSource.replace(
+        backgroundSprite,
+        std::string("Background\nblack\n0").size(),
+        "Background\nblack\n000000\n000000\n000000\n000000\n000000\n000000");
+    const std::filesystem::path wideSpritePath = output / "wide_sprite_source.txt";
+    writeFile(wideSpritePath, wideSpriteSource + "P\n");
+    try {
+        puzzlescript::gbc::ExportOptions wideSprite;
+        wideSprite.sourcePath = wideSpritePath;
+        wideSprite.outputDirectory = output / "wide_sprite";
+        (void)puzzlescript::gbc::exportGame(wideSprite);
+    } catch (const std::runtime_error& error) {
+        rejectedWideSprite =
+            std::string(error.what()).find("fixed 5x5") != std::string::npos;
+    }
+    require(rejectedWideSprite,
+        "the exporter rejects source sprites wider than the fixed 5x5 cell");
 
     puzzlescript::gbc::ExportOptions staticLayers;
     staticLayers.sourcePath =
@@ -261,10 +326,17 @@ int main() {
     require(firmware.find("SWITCH_RAM_MBC5(SNAPSHOT_RAM_BANK)") != std::string::npos,
         "firmware stores snapshots in a dedicated SRAM bank");
     require(
-        firmware.find("tile_bank = (uint8_t)(tile >> 8U)")
-                != std::string::npos
-            && firmware.find("VBK_REG = tile_bank") != std::string::npos,
-        "renderer uses both CGB tile-pattern banks for all 360 screen cells");
+        firmware.find("part < PS_GBC_TILES_PER_CELL") != std::string::npos
+            && firmware.find("base_tile + part") != std::string::npos
+            && firmware.find("VBK_REG = (uint8_t)(tile >> 8U)")
+                != std::string::npos,
+        "renderer maps each logical cell to an aligned four-tile quartet");
+    require(
+        firmware.find(
+            "0U, 0U, 0U, 1U, 1U, 1U, 2U, 2U,\n"
+            "    2U, 2U, 3U, 3U, 3U, 4U, 4U, 4U")
+            != std::string::npos,
+        "renderer expands the middle 5x5 source row and column to exactly 16");
     require(firmware.find("cpu_fast()") != std::string::npos,
         "firmware enables CGB double-speed mode");
     return 0;

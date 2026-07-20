@@ -18,7 +18,7 @@ RENDER_MAGIC = 0x52434250
 FRAME_DUMP_MAGIC = 0x46474250
 VERSION = 1
 RECORD = struct.Struct("<IHBBBBBBI")
-RENDER_RECORD = struct.Struct("<I21H")
+RENDER_RECORD = struct.Struct("<I19H")
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 RENDER_OFFSET = 16
@@ -52,12 +52,16 @@ def main() -> int:
     parser.add_argument("--expect-final", type=coordinate, default=(3, 3))
     parser.add_argument("--expect-changed", type=int, choices=(0, 1), default=1)
     parser.add_argument("--expect-won", type=int, choices=(0, 1), default=0)
-    parser.add_argument("--expect-cell", type=coordinate, default=(5, 5))
+    parser.add_argument("--expect-cell", type=coordinate, default=(16, 16))
     parser.add_argument("--skip-step-check", action="store_true")
     parser.add_argument("--frame-out", type=Path)
     parser.add_argument("--frame-scale", type=int, default=1)
-    parser.add_argument("--require-exact-palette", action="store_true")
+    parser.add_argument("--require-dedicated-tiles", action="store_true")
+    parser.add_argument("--require-second-vram-bank", action="store_true")
     args = parser.parse_args()
+    unique_quartets = 0
+    dedicated_cells = 0
+    second_bank_cells = 0
     emulator = args.mgba or default_mgba()
     if emulator is None or not emulator.is_file():
         raise SystemExit("mGBA SDL executable was not found")
@@ -146,8 +150,6 @@ def main() -> int:
             board_pixel_width,
             board_pixel_height,
             tile_upload_mismatches,
-            palette_remap_mismatches,
-            background_remap_mismatches,
         ) = render_record
         if render_magic != RENDER_MAGIC or render_version != VERSION:
             raise SystemExit(
@@ -190,7 +192,7 @@ def main() -> int:
             )
         if (cell_width, cell_height) != args.expect_cell:
             raise SystemExit(
-                "native cell dimensions differ: "
+                "rendered cell dimensions differ: "
                 f"actual={cell_width}x{cell_height} "
                 f"expected={args.expect_cell[0]}x{args.expect_cell[1]}"
             )
@@ -199,7 +201,7 @@ def main() -> int:
             or board_pixel_height % cell_height != 0
         ):
             raise SystemExit(
-                "packed board dimensions are not integral native cells: "
+                "board dimensions are not integral rendered cells: "
                 f"board={board_pixel_width}x{board_pixel_height} "
                 f"cell={cell_width}x{cell_height}"
             )
@@ -207,16 +209,6 @@ def main() -> int:
             raise SystemExit(
                 "VRAM tile upload readback differs: "
                 f"mismatches={tile_upload_mismatches}"
-            )
-        if background_remap_mismatches != 0:
-            raise SystemExit(
-                "packed-cell palette selection changed background colours: "
-                f"mismatches={background_remap_mismatches}"
-            )
-        if palette_remap_mismatches != 0 and args.require_exact_palette:
-            raise SystemExit(
-                "packed cells lost exact colours across a hardware tile: "
-                f"mismatches={palette_remap_mismatches}"
             )
         if args.frame_out is not None:
             from PIL import Image
@@ -240,42 +232,52 @@ def main() -> int:
             cursor += SCREEN_TILES
             attributes = data[cursor : cursor + SCREEN_TILES]
             cursor += SCREEN_TILES
-            board_origin_x = (160 - board_pixel_width) // 2
-            board_origin_y = (144 - board_pixel_height) // 2
-            background_tile_offset = 64
-            background_phase_tiles = cell_width * cell_height
-            board_tile_offset = background_tile_offset + background_phase_tiles
             mapping_mismatches = 0
-            for screen_tile, tile in enumerate(tile_map):
-                tile_x = screen_tile % 20
-                tile_y = screen_tile // 20
-                pixel_x = tile_x * 8
-                pixel_y = tile_y * 8
-                intersects_board = (
-                    pixel_x < board_origin_x + board_pixel_width
-                    and pixel_x + 8 > board_origin_x
-                    and pixel_y < board_origin_y + board_pixel_height
-                    and pixel_y + 8 > board_origin_y
-                )
-                if intersects_board:
-                    expected_tile = board_tile_offset + screen_tile
-                else:
-                    phase_x = pixel_x % cell_width
-                    phase_y = pixel_y % cell_height
-                    expected_tile = (
-                        background_tile_offset + phase_y * cell_width + phase_x
+            quartet_bases = set()
+            for logical_y in range(9):
+                for logical_x in range(10):
+                    top_left = (logical_y * 2) * 20 + logical_x * 2
+                    parts = (
+                        top_left,
+                        top_left + 1,
+                        top_left + 20,
+                        top_left + 21,
                     )
-                if (
-                    tile != (expected_tile & 0xFF)
-                    or bool(attributes[screen_tile] & 0x08)
-                    != (expected_tile >= 256)
-                ):
-                    mapping_mismatches += 1
+                    base_tile = tile_map[top_left] + (
+                        256 if attributes[top_left] & 0x08 else 0
+                    )
+                    if (
+                        base_tile < 64
+                        or base_tile > 484
+                        or base_tile % 4 != 0
+                    ):
+                        mapping_mismatches += 1
+                        continue
+                    quartet_bases.add(base_tile)
+                    if base_tile >= 128:
+                        dedicated_cells += 1
+                    if base_tile >= 256:
+                        second_bank_cells += 1
+                    for part, screen_tile in enumerate(parts):
+                        expected_tile = base_tile + part
+                        actual_tile = tile_map[screen_tile] + (
+                            256 if attributes[screen_tile] & 0x08 else 0
+                        )
+                        if actual_tile != expected_tile:
+                            mapping_mismatches += 1
             if mapping_mismatches != 0:
                 raise SystemExit(
-                    "packed framebuffer tile map is not mapped to its reserved "
-                    "board/background tiles: "
+                    "16x16 cells are not mapped to aligned four-tile quartets: "
                     f"mismatches={mapping_mismatches}"
+                )
+            unique_quartets = len(quartet_bases)
+            if args.require_dedicated_tiles and dedicated_cells == 0:
+                raise SystemExit(
+                    "frame did not exercise the dedicated quartet overflow path"
+                )
+            if args.require_second_vram_bank and second_bank_cells == 0:
+                raise SystemExit(
+                    "frame did not exercise logical cells in VRAM pattern bank 1"
                 )
             tile_data = data[cursor : cursor + SCREEN_TILES * 16]
             cursor += SCREEN_TILES * 16
@@ -319,8 +321,10 @@ def main() -> int:
             f"board_tiles={board_tile_nonzero} "
             f"cell={cell_width}x{cell_height} "
             f"board_pixels={board_pixel_width}x{board_pixel_height} "
-            f"palette_remaps={palette_remap_mismatches} "
-            f"background_remaps={background_remap_mismatches}"
+            "renderer=fixed-16x16 "
+            f"quartets={unique_quartets} "
+            f"dedicated_cells={dedicated_cells} "
+            f"bank1_cells={second_bank_cells}"
         )
     return 0
 
