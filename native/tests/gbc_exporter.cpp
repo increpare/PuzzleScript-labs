@@ -71,6 +71,10 @@ int main() {
         "manifest advertises the contiguous WRAM ceiling");
     require(manifest.find("\"snapshot_sram_bytes\": 210") != std::string::npos,
         "manifest budgets four undo states and a checkpoint in SRAM");
+    require(
+        manifest.find("\"run_rules_on_level_start\": false")
+            != std::string::npos,
+        "manifest records the absence of a level-start rule pass");
 
     const std::string header = readFile(first.generatedHeaderPath);
     const std::string source = readFile(first.generatedSourcePath);
@@ -195,6 +199,24 @@ int main() {
     }
     require(rejectedWideSprite,
         "the exporter rejects source sprites wider than the fixed 5x5 cell");
+
+    puzzlescript::gbc::ExportOptions levelStart;
+    levelStart.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_level_start_rules.txt";
+    levelStart.outputDirectory = output / "level_start";
+    const auto levelStartResult = puzzlescript::gbc::exportGame(levelStart);
+    const std::string levelStartManifest =
+        readFile(levelStartResult.manifestPath);
+    const std::string levelStartSource =
+        readFile(levelStartResult.generatedSourcePath);
+    require(
+        levelStartManifest.find("\"run_rules_on_level_start\": true")
+            != std::string::npos,
+        "manifest preserves run_rules_on_level_start");
+    require(
+        levelStartSource.find("kUiPalette,\n    true, false, false, false")
+            != std::string::npos,
+        "generated ABI enables the level-start rule pass");
 
     puzzlescript::gbc::ExportOptions staticLayers;
     staticLayers.sourcePath =

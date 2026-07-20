@@ -58,7 +58,7 @@ extern "C" {
 #define PS_GBC_NO_MOVEMENT_LAYER 0xffU
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 9
+#define PS_GBC_GAME_ABI_VERSION 10
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 128
 
@@ -187,6 +187,7 @@ typedef struct ps_gbc_game_view {
     const uint16_t* background_palettes;
     const uint8_t* palette_remap;
     const uint16_t* ui_palette;
+    bool run_rules_on_level_start;
     bool no_action;
     bool no_undo;
     bool no_restart;

@@ -253,6 +253,8 @@ static void ps_gbc_clear_transient(ps_gbc_session* session) {
     session->undo_count = 0U;
 }
 
+static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session);
+
 static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     const ps_gbc_level* level = &session->game->levels[level_index];
     size_t cells;
@@ -272,6 +274,7 @@ static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     session->checkpoint_valid = false;
     ps_gbc_clear_transient(session);
     ps_gbc_mark_all_dirty(session);
+    ps_gbc_run_rules_on_level_start(session);
     return true;
 }
 
@@ -717,6 +720,7 @@ bool ps_gbc_restart(ps_gbc_session* session) {
     }
     ps_gbc_clear_transient(session);
     ps_gbc_mark_all_dirty(session);
+    ps_gbc_run_rules_on_level_start(session);
     return true;
 }
 
@@ -729,15 +733,99 @@ static bool ps_gbc_advance(ps_gbc_session* session) {
     return ps_gbc_load_level(session, (uint16_t)(session->current_level + 1U));
 }
 
+static bool ps_gbc_apply_turn_phases(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands
+) {
+    bool early_changed;
+    bool moved;
+    bool late_changed;
+    bool seeded;
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_SETUP);
+    memset(session->movements, 0, ps_gbc_movement_bytes(session->game));
+    session->pending_again = false;
+    seeded = ps_gbc_seed_player_movement(session, direction);
+    PS_GBC_PERF_END(PS_GBC_PERF_SETUP);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
+    early_changed = ps_gbc_apply_groups(
+        session, session->game->early_groups, session->game->early_group_count, commands);
+    PS_GBC_PERF_END(PS_GBC_PERF_EARLY_RULES);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_MOVEMENT);
+    moved = ps_gbc_resolve_movements(session);
+    PS_GBC_PERF_END(PS_GBC_PERF_MOVEMENT);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_LATE_RULES);
+    late_changed = ps_gbc_apply_groups(
+        session, session->game->late_groups, session->game->late_group_count, commands);
+    PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
+    return seeded || early_changed || moved || late_changed;
+}
+
+static void ps_gbc_finish_turn(
+    ps_gbc_session* session,
+    const ps_gbc_commands* commands,
+    bool changed,
+    uint16_t board_bytes,
+    bool level_start,
+    ps_step_result* result
+) {
+    memset(result, 0, sizeof(*result));
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_COMMANDS);
+    if ((commands->flags & PS_GBC_COMMAND_CANCEL) != 0U) {
+        (void)session->snapshots.read(
+            session->snapshots.context,
+            (uint8_t)session->undo_head,
+            session->board,
+            board_bytes);
+        PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
+        return;
+    }
+    if (!level_start
+        && (commands->flags & PS_GBC_COMMAND_RESTART) != 0U
+        && !session->game->no_restart) {
+        if (!ps_gbc_restart(session)) {
+            PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
+            return;
+        }
+        changed = true;
+        result->restarted = true;
+    }
+    if (changed && !result->restarted && !level_start) {
+        ps_gbc_commit_undo(session);
+    }
+    if ((commands->flags & PS_GBC_COMMAND_CHECKPOINT) != 0U) {
+        session->checkpoint_valid = session->snapshots.write(
+            session->snapshots.context,
+            session->game->undo_capacity,
+            session->board,
+            board_bytes);
+    }
+    PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_WIN);
+    result->changed = changed;
+    if ((commands->flags & PS_GBC_COMMAND_MESSAGE) != 0U) {
+        session->mode = (uint8_t)PS_FULL_STATE_MODE_MESSAGE;
+        session->message = commands->message;
+        session->pending_again = false;
+    }
+    if (!level_start
+        && ((commands->flags & PS_GBC_COMMAND_WIN) != 0U
+            || ps_gbc_won(session))) {
+        result->won = true;
+        result->transitioned = ps_gbc_advance(session);
+    } else if ((commands->flags & PS_GBC_COMMAND_MESSAGE) == 0U
+        && (commands->flags & PS_GBC_COMMAND_AGAIN) != 0U
+        && changed) {
+        session->pending_again = true;
+    }
+    PS_GBC_PERF_END(PS_GBC_PERF_WIN);
+}
+
 ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     ps_step_result result;
     ps_gbc_commands commands;
     uint8_t direction;
-    bool early_changed;
-    bool moved;
-    bool late_changed;
     bool changed;
-    bool seeded;
     uint16_t cells;
     uint16_t board_bytes;
     memset(&result, 0, sizeof(result));
@@ -765,64 +853,36 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
         return result;
     }
     PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_SETUP);
-    memset(session->movements, 0, ps_gbc_movement_bytes(session->game));
-    session->pending_again = false;
-    seeded = ps_gbc_seed_player_movement(session, direction);
-    PS_GBC_PERF_END(PS_GBC_PERF_SETUP);
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
-    early_changed = ps_gbc_apply_groups(
-        session, session->game->early_groups, session->game->early_group_count, &commands);
-    PS_GBC_PERF_END(PS_GBC_PERF_EARLY_RULES);
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_MOVEMENT);
-    moved = ps_gbc_resolve_movements(session);
-    PS_GBC_PERF_END(PS_GBC_PERF_MOVEMENT);
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_LATE_RULES);
-    late_changed = ps_gbc_apply_groups(
-        session, session->game->late_groups, session->game->late_group_count, &commands);
-    PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
-    changed = seeded || early_changed || moved || late_changed;
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_COMMANDS);
-    if ((commands.flags & PS_GBC_COMMAND_CANCEL) != 0U) {
-        (void)session->snapshots.read(
+    changed = ps_gbc_apply_turn_phases(session, direction, &commands);
+    ps_gbc_finish_turn(
+        session, &commands, changed, board_bytes, false, &result);
+    return result;
+}
+
+static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
+    ps_gbc_commands commands;
+    uint16_t cells;
+    uint16_t board_bytes;
+    bool changed;
+    ps_step_result ignored;
+    if (session == NULL
+        || session->mode != (uint8_t)PS_FULL_STATE_MODE_LEVEL
+        || !session->game->run_rules_on_level_start) {
+        return;
+    }
+    memset(&commands, 0, sizeof(commands));
+    cells = (uint16_t)(session->width * session->height);
+    board_bytes = (uint16_t)(cells * ps_gbc_object_width(session->game));
+    if (!session->snapshots.write(
             session->snapshots.context,
             (uint8_t)session->undo_head,
             session->board,
-            board_bytes);
-        PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
-        return result;
+            board_bytes)) {
+        return;
     }
-    if ((commands.flags & PS_GBC_COMMAND_RESTART) != 0U && !session->game->no_restart) {
-        if (!ps_gbc_restart(session)) {
-            PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
-            return result;
-        }
-        changed = true;
-        result.restarted = true;
-    }
-    if (changed && !result.restarted) ps_gbc_commit_undo(session);
-    if ((commands.flags & PS_GBC_COMMAND_CHECKPOINT) != 0U) {
-        session->checkpoint_valid = session->snapshots.write(
-            session->snapshots.context,
-            session->game->undo_capacity,
-            session->board,
-            board_bytes);
-    }
-    PS_GBC_PERF_END(PS_GBC_PERF_COMMANDS);
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_WIN);
-    result.changed = changed;
-    if ((commands.flags & PS_GBC_COMMAND_MESSAGE) != 0U) {
-        session->mode = (uint8_t)PS_FULL_STATE_MODE_MESSAGE;
-        session->message = commands.message;
-    }
-    if ((commands.flags & PS_GBC_COMMAND_WIN) != 0U || ps_gbc_won(session)) {
-        result.won = true;
-        result.transitioned = ps_gbc_advance(session);
-    } else if ((commands.flags & PS_GBC_COMMAND_AGAIN) != 0U && changed) {
-        session->pending_again = true;
-    }
-    PS_GBC_PERF_END(PS_GBC_PERF_WIN);
-    return result;
+    changed = ps_gbc_apply_turn_phases(session, 0U, &commands);
+    ps_gbc_finish_turn(
+        session, &commands, changed, board_bytes, true, &ignored);
 }
 
 void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status) {

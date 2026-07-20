@@ -40,6 +40,25 @@ static const ps_gbc_rule kRules[] = {
 static const ps_gbc_rule_group kGroups[] = {
     {0U, 1U, -1},
 };
+static const ps_gbc_pattern kLevelStartPatterns[] = {
+    {
+        2U, 0U, 0U, 0U,
+        2U, 8U, 0U, 0U, 0U,
+        PS_GBC_PATTERN_OBJECTS_PRESENT | PS_GBC_PATTERN_HAS_REPLACEMENT
+    },
+};
+static const ps_gbc_rule kLevelStartRules[] = {
+    {
+        0U,
+        1U,
+        1U,
+        PS_GBC_COMMAND_AGAIN | PS_GBC_COMMAND_RESTART | PS_GBC_COMMAND_WIN,
+        NULL
+    },
+};
+static const ps_gbc_rule_group kLevelStartGroups[] = {
+    {0U, 1U, -1},
+};
 static const ps_gbc_win_condition kWinConditions[] = {
     {1, 0U, 0U, 2U, 8U},
 };
@@ -82,6 +101,7 @@ static const ps_gbc_game_view kGame = {
     kPalettes,
     kRemap,
     kUiPalette,
+    false,
     false,
     false,
     false
@@ -137,6 +157,7 @@ int main(void) {
     ps_gbc_game_view two_byte_game = kGame;
     ps_gbc_game_view four_byte_game = kGame;
     ps_gbc_game_view invalid_game = kGame;
+    ps_gbc_game_view level_start_game = kGame;
     ps_gbc_game_view max_one_lane_game;
     ps_gbc_game_view max_three_lane_game;
     ps_gbc_game_view max_six_lane_game;
@@ -163,6 +184,9 @@ int main(void) {
     void* six_lane_arena;
     void* two_byte_arena;
     void* four_byte_arena;
+    void* level_start_arena;
+    size_t level_start_bytes;
+    ps_gbc_session* level_start_session;
     snapshot_store two_byte_snapshots = {{0U}, 8U};
     snapshot_store four_byte_snapshots = {{0U}, 16U};
     const ps_gbc_snapshot_io two_byte_snapshot_io = {
@@ -241,6 +265,16 @@ int main(void) {
     invalid_game.movement_bytes_per_cell = 1U;
     invalid_game.movement_collision_layers = three_movement_layers;
     invalid_game.objects = three_lane_objects;
+    level_start_game.pattern_count = 1U;
+    level_start_game.rule_count = 1U;
+    level_start_game.early_group_count = 1U;
+    level_start_game.late_group_count = 0U;
+    level_start_game.patterns = kLevelStartPatterns;
+    level_start_game.rules = kLevelStartRules;
+    level_start_game.early_groups = kLevelStartGroups;
+    level_start_game.late_groups = NULL;
+    level_start_game.run_rules_on_level_start = true;
+    level_start_bytes = ps_gbc_session_required_bytes(&level_start_game);
     failed |= require_true(bytes > 0U && bytes < 1024U, "unexpected session size");
     failed |= require_true(three_lane_bytes == bytes + 4U,
         "two-byte movement cells are not reflected exactly in arena size");
@@ -288,6 +322,41 @@ int main(void) {
             && !cell_dirty(session, 2U) && !cell_dirty(session, 3U),
         "dirty board did not clear");
     failed |= require_true(ps_gbc_cell_objects(session, 0, 0) == 5U, "initial player cell differs");
+    failed |= require_true(ps_gbc_cell_objects(session, 2, 0) == 3U,
+        "a game without run_rules_on_level_start changed its raw level");
+    level_start_arena = malloc(level_start_bytes);
+    failed |= require_true(level_start_arena != NULL,
+        "level-start arena allocation failed");
+    if (level_start_arena != NULL) {
+        snapshot_store level_start_snapshots = {{0U}, 4U};
+        const ps_gbc_snapshot_io level_start_snapshot_io = {
+            &level_start_snapshots,
+            snapshot_read,
+            snapshot_write
+        };
+        level_start_session = ps_gbc_session_init(
+            level_start_arena,
+            level_start_bytes,
+            &level_start_game,
+            &level_start_snapshot_io);
+        failed |= require_true(level_start_session != NULL,
+            "level-start session initialization failed");
+        if (level_start_session != NULL) {
+            ps_gbc_status_get(level_start_session, &status);
+            failed |= require_true(
+                ps_gbc_cell_objects(level_start_session, 2, 0) == 9U,
+                "run_rules_on_level_start did not transform the raw level");
+            failed |= require_true(
+                !status.completed && !status.can_undo && status.pending_again,
+                "level-start pass did not ignore win/restart, preserve again, "
+                "or incorrectly created undo");
+            failed |= require_true(
+                ps_gbc_restart(level_start_session)
+                    && ps_gbc_cell_objects(level_start_session, 2, 0) == 9U,
+                "restart did not reapply run_rules_on_level_start");
+        }
+        free(level_start_arena);
+    }
     result = ps_gbc_step(session, PS_INPUT_RIGHT);
     failed |= require_true(result.changed, "push turn did not change the board");
     failed |= require_true(result.won, "push turn did not satisfy the win condition");

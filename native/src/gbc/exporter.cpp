@@ -692,7 +692,11 @@ std::string emitSource(
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
            "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
         << "    kWinConditions, kBackgroundPalettes, kPaletteRemap, kUiPalette,\n"
-        << "    " << (game.metadata.values.count("noaction") ? "true" : "false") << ", "
+        << "    "
+        << (game.metadata.values.count("run_rules_on_level_start")
+                ? "true" : "false")
+        << ", "
+        << (game.metadata.values.count("noaction") ? "true" : "false") << ", "
         << (game.metadata.values.count("noundo") ? "true" : "false") << ", "
         << (game.metadata.values.count("norestart") ? "true" : "false") << "\n"
         << "};\n";
@@ -1040,6 +1044,10 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"cell_height\": " << static_cast<unsigned int>(cellHeight) << ",\n"
         << "  \"rendered_cell_width\": " << PS_GBC_RENDERED_CELL_WIDTH << ",\n"
         << "  \"rendered_cell_height\": " << PS_GBC_RENDERED_CELL_HEIGHT << ",\n"
+        << "  \"run_rules_on_level_start\": "
+        << (game.metadata.values.count("run_rules_on_level_start")
+                ? "true" : "false")
+        << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"

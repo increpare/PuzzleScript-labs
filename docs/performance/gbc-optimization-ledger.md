@@ -441,3 +441,37 @@ of the 15 games accepted by the packed renderer exceed the new board limit.
 Production ROMs for all seven pass cartridge-header, link-map, hash, and
 manifest checks; separately instrumented builds of all seven boot and pass the
 mGBA hardware-state smoke.
+
+### Correctness fix: run rules on level start
+
+The GBC exporter and runtime now preserve and execute
+`run_rules_on_level_start`. Loading a board performs the same zero-input early
+rules, movement resolution, late rules, and command processing as the generic
+C++ runtime. The pass does not create an undo entry, ignores `restart` and
+`win`, and preserves `again`, `checkpoint`, and `message` behavior. Restarting
+a level reapplies the pass.
+
+A dedicated parity fixture moves its player from `(0,0)` to `(1,0)` only
+during the startup pass. The native runtime and generated GBC runtime agree
+after load, an ordinary move, and restart. A GBDK cartridge reports `(1,0)` as
+its initial player coordinate through mGBA SRAM before any input.
+
+Of the seven compatible production games, three use this metadata and were
+incorrect before the fix: I Am a Gust of Wind, Short Adventure in Sticky Wall
+Land, and Slot Machine.
+
+| Metric | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Sokoban logic (no metadata) | 649.719 ticks/turn | 651.305 ticks/turn | +0.244% |
+| Sokoban walk logic | 650 ticks | 652 ticks | +0.308% |
+| Sokoban push logic | 1315 ticks | 1317 ticks | +0.152% |
+| Benchmark fixed ROM | 15331 bytes | 15765 bytes | +434 bytes |
+| Static WRAM | 1701 bytes | 1701 bytes | unchanged |
+| Generated game estimate | 1242 bytes | 1242 bytes | unchanged |
+| Session RAM / snapshot SRAM | 229 / 210 bytes | 229 / 210 bytes | unchanged |
+
+Slot Machine's startup and interaction render timings are not comparable
+before and after: the corrected build starts from the rule-transformed board,
+whereas the old build rendered the raw level. The instrumented fixture still
+fits the fixed ROM bank at 16328/16384 bytes (56 bytes spare). All 89 native
+CTest targets and all 753 JS tests pass.

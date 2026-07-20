@@ -632,6 +632,44 @@ target_link_libraries(puzzlescript_gbc_parity_smoke PRIVATE
 )
 add_test(NAME puzzlescript_gbc_parity_smoke COMMAND puzzlescript_gbc_parity_smoke)
 
+set(GBC_LEVEL_START_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_level_start)
+set(GBC_LEVEL_START_SOURCE ${GBC_LEVEL_START_DIR}/generated_game.c)
+set(GBC_LEVEL_START_HEADER ${GBC_LEVEL_START_DIR}/generated_game.h)
+set(GBC_LEVEL_START_MANIFEST ${GBC_LEVEL_START_DIR}/gbc_manifest.json)
+add_custom_command(
+  OUTPUT
+    ${GBC_LEVEL_START_SOURCE}
+    ${GBC_LEVEL_START_HEADER}
+    ${GBC_LEVEL_START_MANIFEST}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_level_start_rules.txt
+          --out ${GBC_LEVEL_START_DIR}
+  DEPENDS
+    puzzlescript_cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_level_start_rules.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_level_start_parity
+  tests/gbc_level_start_parity.cpp
+  ${GBC_LEVEL_START_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_level_start_parity PRIVATE
+  ${GBC_LEVEL_START_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_definitions(puzzlescript_gbc_level_start_parity PRIVATE
+  PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+)
+target_link_libraries(puzzlescript_gbc_level_start_parity PRIVATE
+  puzzlescript_gbc_core
+  puzzlescript_native
+  puzzlescript_compiler
+)
+add_test(
+  NAME puzzlescript_gbc_level_start_parity
+  COMMAND puzzlescript_gbc_level_start_parity
+)
+
 set(GBC_STATIC_LAYERS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_static_layers)
 set(GBC_STATIC_LAYERS_SOURCE ${GBC_STATIC_LAYERS_DIR}/generated_game.c)
 set(GBC_STATIC_LAYERS_HEADER ${GBC_STATIC_LAYERS_DIR}/generated_game.h)
