@@ -1,0 +1,57 @@
+title GBC Action Movement Layer Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+white
+0
+
+Switch
+red
+0
+
+Mark
+green
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+S = Background and Switch
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+Switch
+Mark
+
+======
+RULES
+======
+
+right [ action Player | Switch ] -> [ action Player | action Switch ]
+right [ action Switch ] -> [ Switch Mark ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player on Switch
+
+=======
+LEVELS
+=======
+
+PS

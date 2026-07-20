@@ -1760,13 +1760,96 @@ MaskVector computeObjectsOriginatingMovement(const Game& game) {
 
 } // namespace
 
+MaskVector movementOriginatingObjects(const Game& game) {
+    return computeObjectsOriginatingMovement(game);
+}
+
+MovementLayerAnalysis analyzeMovementLayers(const Game& game) {
+    MovementLayerAnalysis analysis;
+    analysis.originatingObjects = movementOriginatingObjects(game);
+    analysis.collisionToMovementLayer.assign(
+        static_cast<size_t>(std::max(game.layerCount, 0)), -1);
+    std::vector<uint8_t> active(
+        static_cast<size_t>(std::max(game.layerCount, 0)), 0U);
+    const auto markLayer = [&](int32_t layer) {
+        if (layer >= 0 && layer < game.layerCount) {
+            active[static_cast<size_t>(layer)] = 1U;
+        }
+    };
+
+    for (int32_t objectId = 0; objectId < game.objectCount; ++objectId) {
+        const uint32_t word = maskWordIndex(static_cast<uint32_t>(objectId));
+        if (word < analysis.originatingObjects.size()
+            && (analysis.originatingObjects[word]
+                & maskBit(static_cast<uint32_t>(objectId))) != 0) {
+            markLayer(game.objectsById[static_cast<size_t>(objectId)].layer);
+        }
+    }
+
+    // Cardinal movement is covered by originatingObjects. Scan raw RHS writes
+    // as well so action-only transient state receives a lane. This also makes
+    // the layer result conservatively useful to consumers that do not project
+    // at object granularity.
+    const auto visitGroups = [&](const std::vector<std::vector<Rule>>& groups) {
+        for (const std::vector<Rule>& group : groups) {
+            for (const Rule& rule : group) {
+                for (const std::vector<Pattern>& row : rule.patterns) {
+                    for (const Pattern& pattern : row) {
+                        if (!pattern.replacement.has_value()) {
+                            continue;
+                        }
+                        const Replacement& replacement = *pattern.replacement;
+                        const MaskWord* movementsSet =
+                            maskPtr(game, replacement.movementsSet);
+                        for (int32_t layer = 0; layer < game.layerCount; ++layer) {
+                            if (movementLayerBits(game, movementsSet, layer) != 0) {
+                                markLayer(layer);
+                            }
+                        }
+                        for (const int32_t layer : replacement.randomDirLayers) {
+                            markLayer(layer);
+                        }
+                        if (replacement.dynamic != nullptr) {
+                            for (const LayerCoupledMovementReplacement& coupled :
+                                 replacement.dynamic->layerCoupledMovementReplacements) {
+                                if (!coupled.hasReplacementMovementMask
+                                    || (coupled.replacementMovementMask & 0x1f) == 0) {
+                                    continue;
+                                }
+                                for (const LayerCoupledMovementLayerTerm& term :
+                                     coupled.layers) {
+                                    markLayer(term.layerIndex);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    visitGroups(game.rules);
+    visitGroups(game.lateRules);
+
+    for (int32_t collisionLayer = 0; collisionLayer < game.layerCount; ++collisionLayer) {
+        if (active[static_cast<size_t>(collisionLayer)] == 0U) {
+            continue;
+        }
+        const int32_t movementLayer =
+            static_cast<int32_t>(analysis.movementToCollisionLayer.size());
+        analysis.collisionToMovementLayer[static_cast<size_t>(collisionLayer)] =
+            movementLayer;
+        analysis.movementToCollisionLayer.push_back(collisionLayer);
+    }
+    return analysis;
+}
+
 StaticObjectAnalysis analyzeStaticObjects(const Game& game) {
     StaticObjectAnalysis analysis;
     analysis.staticObjects.assign(game.wordCount, 0);
     analysis.writtenObjects.assign(game.wordCount, 0);
     analysis.movementMentionedObjects.assign(game.wordCount, 0);
 
-    const MaskVector objectsOriginatingMovement = computeObjectsOriginatingMovement(game);
+    const MaskVector objectsOriginatingMovement = movementOriginatingObjects(game);
 
     auto visitGroups = [&](const std::vector<std::vector<Rule>>& groups) {
         for (const std::vector<Rule>& group : groups) {

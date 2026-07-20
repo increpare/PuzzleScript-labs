@@ -1,0 +1,80 @@
+title GBC Seven Movement Layer Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+white
+0
+
+A
+red
+0
+
+B
+blue
+0
+
+C
+green
+0
+
+D
+yellow
+0
+
+E
+purple
+0
+
+F
+orange
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+A
+B
+C
+D
+E
+F
+
+======
+RULES
+======
+
+right [ A ] -> [ > A ]
+right [ B ] -> [ > B ]
+right [ C ] -> [ > C ]
+right [ D ] -> [ > D ]
+right [ E ] -> [ > E ]
+right [ F ] -> [ > F ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player on A
+
+=======
+LEVELS
+=======
+
+P..

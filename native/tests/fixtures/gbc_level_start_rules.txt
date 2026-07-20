@@ -1,0 +1,71 @@
+title GBC Level Start Rules
+run_rules_on_level_start
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Raw
+red
+00000
+00000
+00000
+00000
+00000
+
+Ready
+green
+00000
+00000
+00000
+00000
+00000
+
+Player
+white
+00000
+00000
+00000
+00000
+00000
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Raw and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Raw, Ready
+Player
+
+======
+RULES
+======
+
+right [ Raw Player | no Player ] -> [ Ready | Player ]
+
+==============
+WINCONDITIONS
+==============
+
+some Raw on Ready
+
+=======
+LEVELS
+=======
+
+P.

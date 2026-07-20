@@ -28,6 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
+.PHONY: gbc gbc_export gbc_smoke
 
 NODE ?= node
 CMAKE ?= cmake
@@ -88,6 +89,10 @@ PUZZLESCRIPT_HANDHELD_REPORT := $(BUILD_DIR)/native/puzzlescript_handheld_report
 GBA_GAME ?= src/demo/sokoban_basic.txt
 GBA_EXPORT_DIR ?= $(BUILD_DIR)/gba/$(basename $(notdir $(GBA_GAME)))
 GBA_PREFLIGHT_JSON ?= $(BUILD_DIR)/gba/preflight.json
+GBC_GAME ?= src/demo/sokoban_basic.txt
+GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
+GBDK_HOME ?=
+GBC_MGBA ?=
 HANDHELD_TESTDATA_BUNDLE := $(BUILD_DIR)/handheld_testdata.bundle.ndjson
 HANDHELD_REPORT_JSON := $(BUILD_DIR)/handheld_report.json
 HANDHELD_MEMORY_AUDIT_JSON := $(BUILD_DIR)/handheld_memory_audit.json
@@ -518,6 +523,9 @@ help:
 	@echo "  make gba_export                    Export GBA data/SFX without requiring devkitARM"
 	@echo "  make gba_preflight                 Report GBA compatibility across the testdata corpus"
 	@echo "  make gba_generated_replay_tests    Compare fixed native/GBA solution replays end to end"
+	@echo "  make gbc                           Export and build one CGB-only ROM (set GBC_GAME=...)"
+	@echo "  make gbc_export                    Export bounded CGB data without requiring GBDK"
+	@echo "  make gbc_smoke                     Build an instrumented ROM and boot-test it in mGBA"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
 	@echo "  make handheld_pcb_export           Export card PCB outline/anchors to hardware/card/mechanical/"
@@ -795,6 +803,16 @@ gba: $(PUZZLESCRIPT_CPP)
 gba_preflight: $(PUZZLESCRIPT_CPP)
 	$(NODE) scripts/build_parser_corpus_bundle.js testdata > $(HANDHELD_TESTDATA_BUNDLE)
 	$(NODE) scripts/gba_preflight.js --compiler $(PUZZLESCRIPT_CPP) --corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) --out $(GBA_PREFLIGHT_JSON) --tmp-dir $(BUILD_DIR)/gba/preflight-tmp
+
+gbc_export: $(PUZZLESCRIPT_CPP)
+	$(PUZZLESCRIPT_CPP) export-gbc $(GBC_GAME) --out $(GBC_EXPORT_DIR)
+
+gbc: $(PUZZLESCRIPT_CPP)
+	$(MAKE) -C firmware/gbc GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(GBDK_HOME)"
+
+gbc_smoke: $(PUZZLESCRIPT_CPP)
+	$(MAKE) -C firmware/gbc AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(GBDK_HOME)"
+	python scripts/run_gbc_smoke.py firmware/gbc/puzzlescript_gbc_autotest.gb $(if $(strip $(GBC_MGBA)),--mgba "$(GBC_MGBA)",)
 
 handheld_memory_audit:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64

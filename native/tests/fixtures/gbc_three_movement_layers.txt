@@ -1,0 +1,56 @@
+title GBC Three Movement Layer Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+white
+0
+
+A
+red
+0
+
+B
+blue
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+A
+B
+
+======
+RULES
+======
+
+right [ A ] -> [ > A ]
+right [ B ] -> [ > B ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player on A
+
+=======
+LEVELS
+=======
+
+P..

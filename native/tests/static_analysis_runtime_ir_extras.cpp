@@ -57,6 +57,11 @@ int main() {
     assert(game.hasStaticAnalysisExtraMovementMentionedObjects);
 
     const auto analysis = puzzlescript::solver::analyzeStaticObjects(game);
+    const auto originating = puzzlescript::solver::movementOriginatingObjects(game);
+    assert((originating[0] & puzzlescript::maskBit(3)) != 0);
+    assert((originating[0] & puzzlescript::maskBit(0)) == 0);
+    assert((originating[0] & puzzlescript::maskBit(1)) == 0);
+    assert((originating[0] & puzzlescript::maskBit(2)) == 0);
     assert((analysis.writtenObjects[0] & puzzlescript::maskBit(1)) != 0);
     assert((analysis.movementMentionedObjects[0] & puzzlescript::maskBit(2)) != 0);
 
