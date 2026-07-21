@@ -99,5 +99,6 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
 
 ## Next
 
-Inert prune soundness (`dropInert` / `boardWinEquiv`) on top of `Abstract.lean` — see
-`docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
+`boardWinEquiv` / inert prune soundness on top of T5 turn congruence + T4 session WF —
+see `docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
+Optional follow-up: Prop-level `Session.WellFormed` preservation through `executeTurn`.
