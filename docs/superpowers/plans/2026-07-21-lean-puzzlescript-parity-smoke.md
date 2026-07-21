@@ -4,7 +4,9 @@
 
 **Goal:** Add a Lean 4 Lake package that loads existing `build/js-parity-data` fixtures and passes a small whitelist of JS simulation cases (starting with the two Sokoban tests) via an executable subset runtime.
 
-**Architecture:** Reuse the C++ parity export pipeline (`make js-parity-data` → `fixtures.json` + `ir/` + `traces/`). Lean never calls Node at runtime. Decode the IR subset needed for simple deterministic rules, step inputs with a pure `Game`/`Session` model, compare `serialized_level` to fixture expectations. JS is the everyday reference; if a real JS bug is found, report it and do not encode the bug in Lean.
+**Architecture:** Reuse the C++ parity export pipeline (`make js-parity-data` → `fixtures.json` + `ir/` + `traces/`). Lean never calls Node at runtime. Decode the IR subset needed for simple deterministic rules, step inputs with a pure `Game`/`Session` model, compare `serialized_level` to fixture expectations. JS is the everyday reference; if a real JS bug is found, **report it to maintainers**.
+
+**Corpus policy (added 2026-07-21):** Lean whitelist growth is restricted to **clean** simulation fixtures — JS compile with no errors and no warnings. Generate `lean/parity_clean_candidates.txt` via `make lean_clean_sim_candidates` / `scripts/lean_clean_sim_candidates.js`. Do not expand Lean to chase warning/error legacy robustness; leave that to JS/C++.
 
 **Tech Stack:** Lean 4 (`leanprover/lean4:v4.31.0`), Lake, `Lean.Data.Json` (stdlib only — no Mathlib), existing Node fixture exporter, Makefile.
 

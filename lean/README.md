@@ -24,17 +24,30 @@ lake exe parity_smoke --fixtures ../build/js-parity-data --whitelist parity_whit
 
 Requires Lean 4 as pinned in `lean-toolchain`.
 
-## Whitelist
+## Whitelist (clean kernel only)
 
-Fixture names (one per line, must match `fixtures.json` exactly) live in:
+Active cases (one name per line, must match `fixtures.json` exactly):
 
 `lean/parity_whitelist.txt`
 
-Only whitelisted cases are executed; everything else in the export is ignored.
+Only whitelisted cases are executed.
+
+**Admission rule:** new whitelist entries must come from the clean-compile candidate list:
+
+`lean/parity_clean_candidates.txt`
+
+Regenerate with:
+
+```bash
+make lean_clean_sim_candidates
+# or: node scripts/lean_clean_sim_candidates.js
+```
+
+Clean means the fixture’s source JS-compiles with **`errorCount == 0` and no warnings** (`errorStrings` empty). Warning/error-era legacy games stay on the JS/C++ corpora, not Lean.
 
 ## Fidelity policy
 
-**JavaScript is the everyday reference** for what the fixtures expect. The Lean runtime aims to match those expectations for correct games. If you find a real JS engine bug while comparing, **report it** (and fix JS if appropriate)—**do not** encode the bug in Lean to make the smoke test pass.
+**JavaScript is the everyday reference** for what the fixtures expect. If Lean work surfaces incorrect JS (or C++) behavior, **report it to the maintainers** — do not silently ignore or paper over the discrepancy. Fix the oracle when appropriate, or temporarily waive the case with an explicit rationale.
 
 ## Supported runtime subset (v1)
 
@@ -59,4 +72,4 @@ The interpreter is intentionally small. Unsupported IR features fail closed with
 
 ## Next candidates
 
-Grow the whitelist feature-by-feature. Useful near-term cases often need one of: property bindings, `any_movements_present`, ellipsis, rigid, or `again`.
+Grow `parity_whitelist.txt` **only from** `parity_clean_candidates.txt`, feature-by-feature. Useful near-term missing pieces: property bindings, `any_movements_present`, ellipsis, rigid, or `again`.

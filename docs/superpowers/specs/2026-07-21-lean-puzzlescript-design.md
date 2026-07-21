@@ -18,9 +18,18 @@ Keep Lean types and transition functions proof-friendly so later theorems can un
 ### Fidelity bar
 
 - **JS is the primary behavioral reference** for fixtures and everyday parity. Lean should match `expected_serialized_level` for every whitelisted simulation fixture in the normal case.
-- **Do not deliberately encode JS bugs in Lean.** Unlike the C++ port’s bug-for-bug policy, if Lean work surfaces incorrect JS (or C++) behavior, **report it** (issue / note) and prefer the corrected semantics in Lean rather than copying the bug.
-- Practical handling when a whitelist case hits a real JS bug: file the report, document the case, and either fix the oracle side or temporarily drop/waive that case with an explicit rationale — do not silently “pass” by imitating the bug.
+- **If Lean work surfaces incorrect JS (or C++) behavior, report it** to the maintainers (do not silently ignore or paper over the discrepancy). Prefer fixing the oracle when appropriate; do not quietly change Lean solely to imitate a bug.
+- Practical handling when a whitelist case hits a real JS bug: report it, document the case, and either fix the oracle side or temporarily drop/waive that case with an explicit rationale.
 - Other divergences (unsupported feature, Lean implementation mistake) remain Lean bugs or explicit unsupported-feature failures — not an excuse to invent new PuzzleScript dialect semantics.
+
+### Clean-kernel corpus (Lean admission)
+
+Lean targets a **theorem-friendly kernel**, not PuzzleScript’s full legacy/robustness surface.
+
+- **Eligible simulation fixtures** are those that JS-compile with **`errorCount == 0` and no warning diagnostics** (`errorStrings` empty after compile). Generate the list with `scripts/lean_clean_sim_candidates.js` → `lean/parity_clean_candidates.txt`.
+- **`lean/parity_whitelist.txt` entries must be drawn from that clean list** (plus any future explicit exception documented in `lean/README.md`).
+- Fixtures that only run thanks to warnings, soft errors, or legacy “still playable” paths stay on the JS/C++ corpora; they are out of Lean scope until a specific warning code is allowlisted for a good reason.
+- C++/JS parity bars are unchanged by this policy.
 
 ### In scope (v1)
 
@@ -175,4 +184,5 @@ Lean is a peer consumer of fixture data, not a replacement for JS or C++.
 | v1 success bar? | Handful of JS simulation suite cases match end state. |
 | Fixture source? | Existing `export_native_fixtures.js` / `js-parity-data` pipeline; no JS changes for v1. |
 | Approach? | Lean runtime over exported IR/fixtures (not trace-only revalidation, not full Lean compiler). |
-| Match JS bugs? | No — report them; prefer correct semantics in Lean (differs from C++ bug-for-bug policy). |
+| JS bugs found via Lean? | Report to maintainers; do not silently paper over. Fix oracle or waive the case with rationale. |
+| Lean corpus filter? | Clean compiles only (no errors, no warnings); see `lean_clean_sim_candidates.js`. |

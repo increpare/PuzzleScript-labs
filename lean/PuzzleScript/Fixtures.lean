@@ -63,13 +63,18 @@ def loadManifest (path : System.FilePath) : IO Manifest := do
     | .error e => throw <| IO.userError s!"{path}: schema error: {e}"
     | .ok m => pure m
 
+/-- Comment lines are empty, `##…`, or `#` / `# …` (hash then end/space).
+Fixture names may begin with `#` followed by a digit (e.g. `#1067 …`). -/
+def isWhitelistCommentLine (s : String) : Bool :=
+  s.isEmpty || s.startsWith "##" || s == "#" || s.startsWith "# "
+
 def loadWhitelist (path : System.FilePath) : IO (Array String) := do
   let text ←
     match ← readFileAt path with
     | .error e => throw <| IO.userError s!"could not read {path}: {e}"
     | .ok s => pure s
   let lines := text.splitOn "\n" |>.map (·.trimAscii.toString) |>.filter fun s =>
-    !s.isEmpty && !(s.startsWith "#")
+    !(isWhitelistCommentLine s)
   pure lines.toArray
 
 def selectFixtures (manifest : Manifest) (names : Array String) : Except String (Array SimFixture) := do

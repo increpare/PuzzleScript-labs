@@ -25,7 +25,7 @@
 	rule_plan_parity_tests \
 	profile_simulation_tests profile_simulation_tests_32 profile_solver_tests locality_survey locality_survey_tests basic_test_suite_cpp basic_test_suite_js \
 	parser_corpus_errormessage_bundle parser_corpus_testdata_bundle clean clean-native \
-	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke
+	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
 
@@ -573,6 +573,7 @@ help:
 	@echo "  make ctest                         Run fast C++ smoke/unit tests"
 	@echo "  make js_parity_tests               Run 64- and 32-bit C++ against the original JS corpus"
 	@echo "  make lean_parity_smoke             Run Lean IR parity smoke (whitelist vs js-parity-data)"
+	@echo "  make lean_clean_sim_candidates     Regenerate lean/parity_clean_candidates.txt (no warn/err)"
 	@echo "  make rule_plan_parity_tests        Compare JS/native game.rule_plan_v1 for simulation games"
 	@echo "  make simulation_tests              Run JS sim tests, then mirrored C++ sim parity"
 	@echo "  make simulation_corpus_perf_report Benchmark interpreter vs compiled-rulegroups vs compiled compact on testdata.js"
@@ -2035,7 +2036,10 @@ $(JS_PARITY_MANIFEST): $(JS_PARITY_INPUTS)
 
 js-parity-data: $(JS_PARITY_MANIFEST)
 
-.PHONY: lean_parity_smoke
+.PHONY: lean_parity_smoke lean_clean_sim_candidates
+
+lean_clean_sim_candidates:
+	$(NODE) scripts/lean_clean_sim_candidates.js --out lean/parity_clean_candidates.txt --summary $(BUILD_DIR)/lean-clean-sim-summary.json
 
 lean_parity_smoke: js-parity-data
 	@command -v lake >/dev/null 2>&1 || { \
