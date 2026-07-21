@@ -1,6 +1,6 @@
 title GBC Contrast Stretch
 background_color #202020
-text_color #e0e0e0
+text_color #ffffff
 
 ========
 OBJECTS

@@ -151,15 +151,25 @@ int main() {
     const std::string contrastManifest = readFile(contrastResult.manifestPath);
     const std::string contrastSource = readFile(contrastResult.generatedSourcePath);
     require(
-        contrastManifest.find("\"mode\": \"optimized_global_component_curve\"")
+        contrastManifest.find("\"mode\": \"optimized_gameplay_gamut\"")
+                != std::string::npos
+            && contrastManifest.find(
+                "\"anchor_policy\": \"background_and_object_colors\"")
+                != std::string::npos
+            && contrastManifest.find(
+                "\"foreground_metadata_used_as_anchor\": false")
+                != std::string::npos
+            && contrastManifest.find(
+                "\"foreground_metadata\": {\"source\": \"#FFFFFF\", "
+                "\"literal_bgr555\": 32767, \"stretched_bgr555\": 32767}")
                 != std::string::npos
             && contrastManifest.find("\"source_color_count\": 4")
                 != std::string::npos
-            && contrastManifest.find("\"source_component_level_count\": 4")
+            && contrastManifest.find("\"source_brightness_level_count\": 4")
                 != std::string::npos
-            && contrastManifest.find("\"stretched_component_level_count\": 4")
+            && contrastManifest.find("\"stretched_brightness_level_count\": 4")
                 != std::string::npos,
-        "manifest records the optimized game-wide component gamut stretch");
+        "manifest records the optimized game-wide brightness gamut stretch");
     require(
         contrastManifest.find(
             "{\"source\": \"#202020\", \"literal_bgr555\": 4228, "
@@ -185,6 +195,17 @@ int main() {
                 != std::string::npos,
         "manifest quantifies collision-free minimum contrast improvement");
     require(
+        contrastManifest.find("\"minimum_brightness_before\": 4")
+                != std::string::npos
+            && contrastManifest.find("\"maximum_brightness_before\": 28")
+                != std::string::npos
+            && contrastManifest.find("\"minimum_brightness_after\": 0")
+                != std::string::npos
+            && contrastManifest.find("\"maximum_brightness_after\": 31")
+                != std::string::npos,
+        "gameplay brightness reaches both CGB gamut endpoints without using "
+        "the white metadata foreground as an anchor");
+    require(
         contrastSource.find(
             "static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
                 != std::string::npos
@@ -202,14 +223,15 @@ int main() {
     const std::string literalFallbackManifest =
         readFile(literalFallbackResult.manifestPath);
     require(
-        literalFallbackManifest.find("\"curve\": \"literal_full_gamut\"")
+        literalFallbackManifest.find(
+            "\"curve\": \"brightness_linear_rank_blend\"")
                 != std::string::npos
-            && literalFallbackManifest.find("\"minimum_pair_distance_before\": 171")
+            && literalFallbackManifest.find("\"minimum_pair_distance_before\": 194")
                 != std::string::npos
-            && literalFallbackManifest.find("\"minimum_pair_distance_after\": 171")
+            && literalFallbackManifest.find("\"minimum_pair_distance_after\": 209")
                 != std::string::npos,
-        "an already full-gamut literal curve remains eligible when stretching "
-        "would reduce its closest-pair contrast");
+        "an already full-gamut game still redistributes intermediate brightness "
+        "levels when that improves its closest-pair contrast");
 
     puzzlescript::gbc::ExportOptions audioOptions;
     audioOptions.sourcePath =

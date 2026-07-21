@@ -523,22 +523,35 @@ no ROM or performance cost when disabled.
 ### Physical-LCD contrast: game-wide colour stretching
 
 GBC export no longer treats authored RGB values as literal cartridge colours.
-The exporter inventories every opaque object and UI colour, then applies one
-shared monotone component curve to R, G, and B. Equal components remain equal,
-so neutral greys stay neutral, and component ordering is preserved. The source
-extrema are mapped to the complete 0-31 CGB component gamut.
+The contrast inventory contains every opaque, pixel-referenced object colour
+plus the game's background colour. Declared but unused object colours are
+excluded. The metadata foreground/text colour is still transformed for UI
+rendering, but it is deliberately excluded as a contrast anchor: the usual
+black-background/white-text defaults must not prevent the gameplay palette
+from expanding.
 
-For each game, export evaluates 33 blends between a linear gamut stretch and an
-equal-rank histogram stretch. If the authored colours already include both
-component endpoints, the literal 5-bit curve is also eligible. Selection is
-deterministic and lexicographic: fewest 15-bit colour collisions, greatest
-minimum pairwise RGB distance, then greatest total pairwise distance. The
-manifest lists every source colour alongside its literal and selected BGR555
-values, the selected curve, collision counts, and before/after minimum distance.
+The primary curve stretches HSV-style brightness (the largest RGB component)
+from the darkest gameplay/background colour to 0 and the brightest to 31,
+scaling all three channels together to preserve hue, saturation, neutral greys,
+and channel ordering. The exporter also evaluates shared-component curves,
+which can separate intermediate colours more strongly; they are eligible only
+when the resulting gameplay colours still fill the 0-31 brightness gamut.
+Black and white anchors therefore do not disable nonlinear redistribution of
+the colours between them.
 
-Across all 14 compatible production games, 12 improve their closest colour
-pair and two remain equal. None regress and none gain a BGR555 collision. The
-sum of the per-game minimum squared distances rises from 815 to 1459 (+79.0%).
+Both curve families evaluate 33 blends between linear and equal-rank spacing.
+Selection is deterministic and lexicographic: fewest 15-bit colour collisions,
+greatest minimum pairwise RGB distance, then greatest total pairwise distance.
+The manifest lists every contrast-anchor colour alongside its literal and
+selected BGR555 values, records the excluded metadata foreground separately,
+and reports curve, brightness-range, collision, and pair-distance diagnostics.
+
+Across all 14 compatible production games, all 14 fill the complete 0-31
+gameplay brightness range and improve their closest colour pair. None gain a
+BGR555 collision. Five games have a foreground-only metadata colour, and six
+unused object colours are removed across six games. On the resulting set of
+actually visible gameplay colours, the sum of the per-game minimum squared
+distances rises from 838 to 1728 (+106.2%).
 The dedicated four-colour test fixture rises from 48 to 221 (+360.4%) while
 remaining collision-free.
 

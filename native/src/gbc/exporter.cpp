@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace puzzlescript::gbc {
@@ -46,17 +47,23 @@ struct Rgb {
 
 struct ColorStretch {
     std::array<uint8_t, 256> componentTo5Bit{};
+    std::array<uint8_t, 256> brightnessTo5Bit{};
     std::vector<Rgb> sourceColors;
     std::vector<uint16_t> literalColors;
     std::vector<uint16_t> stretchedColors;
-    size_t sourceComponentLevels = 0U;
-    size_t stretchedComponentLevels = 0U;
+    size_t sourceBrightnessLevels = 0U;
+    size_t stretchedBrightnessLevels = 0U;
     size_t literalCollisions = 0U;
     size_t stretchedCollisions = 0U;
     uint32_t minimumLiteralDistance = 0U;
     uint32_t minimumStretchedDistance = 0U;
+    uint8_t minimumLiteralBrightness = 0U;
+    uint8_t maximumLiteralBrightness = 0U;
+    uint8_t minimumStretchedBrightness = 0U;
+    uint8_t maximumStretchedBrightness = 0U;
     uint8_t rankMix32 = 0U;
     bool usesLiteralCurve = false;
+    bool usesComponentCurve = false;
 };
 
 struct PackedObject {
@@ -254,10 +261,23 @@ uint16_t toBgr555(const Rgb& color) {
 }
 
 uint16_t toBgr555(const Rgb& color, const ColorStretch& stretch) {
+    if (stretch.usesLiteralCurve) return toBgr555(color);
+    if (stretch.usesComponentCurve) {
+        return static_cast<uint16_t>(
+            stretch.componentTo5Bit[color.r]
+            | (stretch.componentTo5Bit[color.g] << 5U)
+            | (stretch.componentTo5Bit[color.b] << 10U));
+    }
+    const unsigned int brightness = std::max({color.r, color.g, color.b});
+    if (brightness == 0U) return 0U;
+    const unsigned int target = stretch.brightnessTo5Bit[brightness];
+    const auto scale = [&](uint8_t component) {
+        return static_cast<uint16_t>(
+            (static_cast<unsigned int>(component) * target + brightness / 2U)
+            / brightness);
+    };
     return static_cast<uint16_t>(
-        stretch.componentTo5Bit[color.r]
-        | (stretch.componentTo5Bit[color.g] << 5U)
-        | (stretch.componentTo5Bit[color.b] << 10U));
+        scale(color.r) | (scale(color.g) << 5U) | (scale(color.b) << 10U));
 }
 
 uint32_t colorDistance(uint16_t lhs, uint16_t rhs) {
@@ -307,10 +327,94 @@ size_t colorCollisionCount(const std::vector<uint16_t>& colors) {
     return colors.size() - unique.size();
 }
 
+std::pair<uint8_t, uint8_t> brightnessRange(
+    const std::vector<uint16_t>& colors
+) {
+    if (colors.empty()) return {0U, 0U};
+    uint8_t minimum = 31U;
+    uint8_t maximum = 0U;
+    for (const uint16_t color : colors) {
+        const uint8_t brightness = static_cast<uint8_t>(std::max({
+            color & 31U,
+            (color >> 5U) & 31U,
+            (color >> 10U) & 31U,
+        }));
+        minimum = std::min(minimum, brightness);
+        maximum = std::max(maximum, brightness);
+    }
+    return {minimum, maximum};
+}
+
+std::vector<uint8_t> blendedCurveTargets(
+    const std::vector<uint8_t>& levels,
+    uint8_t rankMix
+) {
+    std::vector<uint8_t> targets;
+    targets.reserve(levels.size());
+    const size_t rankDenominator = levels.size() - 1U;
+    const unsigned int linearDenominator =
+        static_cast<unsigned int>(levels.back() - levels.front());
+    for (size_t index = 0U; index < levels.size(); ++index) {
+        const unsigned int linear =
+            (static_cast<unsigned int>(levels[index] - levels.front()) * 31U
+                + linearDenominator / 2U)
+            / linearDenominator;
+        const unsigned int ranked = static_cast<unsigned int>(
+            (index * 31U + rankDenominator / 2U) / rankDenominator);
+        targets.push_back(static_cast<uint8_t>(
+            ((32U - rankMix) * linear + rankMix * ranked + 16U) / 32U));
+    }
+    return targets;
+}
+
+std::array<uint8_t, 256> interpolateCurve(
+    const std::vector<uint8_t>& levels,
+    const std::vector<uint8_t>& targets
+) {
+    std::array<uint8_t, 256> curve{};
+    size_t upperIndex = 0U;
+    for (size_t value = 0U; value < curve.size(); ++value) {
+        while (upperIndex < levels.size() && levels[upperIndex] < value) {
+            ++upperIndex;
+        }
+        if (upperIndex == 0U) {
+            curve[value] = targets.front();
+        } else if (upperIndex == levels.size()) {
+            curve[value] = targets.back();
+        } else {
+            const unsigned int lowerValue = levels[upperIndex - 1U];
+            const unsigned int upperValue = levels[upperIndex];
+            const unsigned int lowerTarget = targets[upperIndex - 1U];
+            const unsigned int upperTarget = targets[upperIndex];
+            curve[value] = static_cast<uint8_t>(
+                lowerTarget
+                + ((static_cast<unsigned int>(value) - lowerValue)
+                        * (upperTarget - lowerTarget)
+                    + (upperValue - lowerValue) / 2U)
+                    / (upperValue - lowerValue));
+        }
+    }
+    return curve;
+}
+
+std::vector<bool> referencedObjectColors(const ObjectDef& object) {
+    std::vector<bool> referenced(object.colors.size(), false);
+    for (const auto& row : object.sprite) {
+        for (const int32_t colorIndex : row) {
+            if (colorIndex >= 0
+                && static_cast<size_t>(colorIndex) < referenced.size()) {
+                referenced[static_cast<size_t>(colorIndex)] = true;
+            }
+        }
+    }
+    return referenced;
+}
+
 ColorStretch buildColorStretch(const Game& game) {
     ColorStretch stretch;
-    for (size_t value = 0U; value < stretch.componentTo5Bit.size(); ++value) {
+    for (size_t value = 0U; value < stretch.brightnessTo5Bit.size(); ++value) {
         stretch.componentTo5Bit[value] = static_cast<uint8_t>(value >> 3U);
+        stretch.brightnessTo5Bit[value] = static_cast<uint8_t>(value >> 3U);
     }
 
     const auto appendColor = [&](const Rgb& color) {
@@ -327,22 +431,22 @@ ColorStretch buildColorStretch(const Game& game) {
     };
 
     appendColor(parseColor(game.backgroundColor));
-    appendColor(parseColor(game.foregroundColor));
     for (const ObjectDef& object : game.objectsById) {
-        for (const std::string& value : object.colors) appendColor(parseColor(value));
+        const std::vector<bool> referenced = referencedObjectColors(object);
+        for (size_t index = 0U; index < object.colors.size(); ++index) {
+            if (referenced[index]) appendColor(parseColor(object.colors[index]));
+        }
     }
 
     std::array<bool, 256> sourceLevels{};
     for (const Rgb& color : stretch.sourceColors) {
-        sourceLevels[color.r] = true;
-        sourceLevels[color.g] = true;
-        sourceLevels[color.b] = true;
+        sourceLevels[std::max({color.r, color.g, color.b})] = true;
     }
     std::vector<uint8_t> levels;
     for (size_t value = 0U; value < sourceLevels.size(); ++value) {
         if (sourceLevels[value]) levels.push_back(static_cast<uint8_t>(value));
     }
-    stretch.sourceComponentLevels = levels.size();
+    stretch.sourceBrightnessLevels = levels.size();
 
     stretch.literalColors.reserve(stretch.sourceColors.size());
     for (const Rgb& color : stretch.sourceColors) {
@@ -350,17 +454,22 @@ ColorStretch buildColorStretch(const Game& game) {
     }
     stretch.literalCollisions = colorCollisionCount(stretch.literalColors);
     stretch.minimumLiteralDistance = minimumColorDistance(stretch.literalColors);
+    std::tie(stretch.minimumLiteralBrightness, stretch.maximumLiteralBrightness) =
+        brightnessRange(stretch.literalColors);
 
     /*
-     * Apply one monotone transfer curve to every RGB component in the game.
-     * Equal source components remain equal (so greys stay neutral), channel
-     * ordering is preserved, and the source extrema reach the complete 0..31
-     * CGB component gamut. We test 33 blends between a distance-preserving
-     * linear stretch and an equal-rank histogram stretch, plus the literal
-     * curve when the source already contains both gamut endpoints. Selection
-     * first avoids colour collisions, then maximizes the closest colour pair,
-     * then total pair separation. This deterministic export-time search costs
-     * nothing at run time and favours physical-LCD contrast over literal RGB.
+     * Apply one monotone transfer curve to HSV-style brightness (the largest
+     * RGB component), then scale every component of a colour by the same
+     * factor. Greys remain neutral, channel ordering and saturation ratios are
+     * preserved, and the darkest/brightest gameplay anchors reach 0 and 31.
+     * We test 33 blends between a distance-preserving linear stretch and an
+     * equal-rank histogram stretch. Brightness-scaled candidates best preserve
+     * hue; shared-component candidates may separate intermediate colours more
+     * strongly and are eligible only when they also fill the brightness gamut.
+     * The literal curve is eligible when gameplay already contains both
+     * brightness endpoints. Selection first avoids colour collisions, then
+     * maximizes the closest colour pair, then total pair separation. This
+     * deterministic export-time search costs nothing at run time.
      */
     if (levels.size() >= 2U) {
         size_t bestCollisions = std::numeric_limits<size_t>::max();
@@ -373,28 +482,18 @@ ColorStretch buildColorStretch(const Game& game) {
             stretch.stretchedColors = stretch.literalColors;
             stretch.usesLiteralCurve = true;
         }
-        const size_t rankDenominator = levels.size() - 1U;
-        const unsigned int linearDenominator =
-            static_cast<unsigned int>(levels.back() - levels.front());
-        for (uint8_t rankMix = 0U; rankMix <= 32U; ++rankMix) {
-            std::array<uint8_t, 256> candidate = stretch.componentTo5Bit;
-            for (size_t index = 0U; index < levels.size(); ++index) {
-                const unsigned int linear =
-                    (static_cast<unsigned int>(levels[index] - levels.front()) * 31U
-                        + linearDenominator / 2U)
-                    / linearDenominator;
-                const unsigned int ranked = static_cast<unsigned int>(
-                    (index * 31U + rankDenominator / 2U) / rankDenominator);
-                candidate[levels[index]] = static_cast<uint8_t>(
-                    ((32U - rankMix) * linear + rankMix * ranked + 16U) / 32U);
-            }
+        const auto considerCandidate = [&](
+            const ColorStretch& candidateStretch,
+            uint8_t rankMix
+        ) {
             std::vector<uint16_t> candidateColors;
             candidateColors.reserve(stretch.sourceColors.size());
-            ColorStretch candidateStretch;
-            candidateStretch.componentTo5Bit = candidate;
             for (const Rgb& color : stretch.sourceColors) {
                 candidateColors.push_back(toBgr555(color, candidateStretch));
             }
+            const auto [minimumBrightness, maximumBrightness] =
+                brightnessRange(candidateColors);
+            if (minimumBrightness != 0U || maximumBrightness != 31U) return;
             const size_t collisions = colorCollisionCount(candidateColors);
             const uint32_t minimumDistance = minimumColorDistance(candidateColors);
             const uint64_t totalDistance = totalColorDistance(candidateColors);
@@ -406,24 +505,63 @@ ColorStretch buildColorStretch(const Game& game) {
                 bestCollisions = collisions;
                 bestMinimumDistance = minimumDistance;
                 bestTotalDistance = totalDistance;
-                stretch.componentTo5Bit = candidate;
+                stretch.componentTo5Bit = candidateStretch.componentTo5Bit;
+                stretch.brightnessTo5Bit = candidateStretch.brightnessTo5Bit;
                 stretch.stretchedColors = std::move(candidateColors);
                 stretch.rankMix32 = rankMix;
-                stretch.usesLiteralCurve = false;
+                stretch.usesLiteralCurve = candidateStretch.usesLiteralCurve;
+                stretch.usesComponentCurve = candidateStretch.usesComponentCurve;
+            }
+        };
+
+        for (uint8_t rankMix = 0U; rankMix <= 32U; ++rankMix) {
+            ColorStretch candidateStretch;
+            candidateStretch.brightnessTo5Bit = interpolateCurve(
+                levels, blendedCurveTargets(levels, rankMix));
+            considerCandidate(candidateStretch, rankMix);
+        }
+
+        std::array<bool, 256> sourceComponentSet{};
+        for (const Rgb& color : stretch.sourceColors) {
+            sourceComponentSet[color.r] = true;
+            sourceComponentSet[color.g] = true;
+            sourceComponentSet[color.b] = true;
+        }
+        std::vector<uint8_t> componentLevels;
+        for (size_t value = 0U; value < sourceComponentSet.size(); ++value) {
+            if (sourceComponentSet[value]) {
+                componentLevels.push_back(static_cast<uint8_t>(value));
+            }
+        }
+        if (componentLevels.size() >= 2U) {
+            for (uint8_t rankMix = 0U; rankMix <= 32U; ++rankMix) {
+                ColorStretch candidateStretch;
+                candidateStretch.componentTo5Bit = interpolateCurve(
+                    componentLevels,
+                    blendedCurveTargets(componentLevels, rankMix));
+                candidateStretch.usesComponentCurve = true;
+                considerCandidate(candidateStretch, rankMix);
             }
         }
     } else {
         stretch.stretchedColors = stretch.literalColors;
+        stretch.usesLiteralCurve = true;
     }
 
     std::array<bool, 32> outputLevels{};
-    for (const uint8_t value : levels) {
-        outputLevels[stretch.componentTo5Bit[value]] = true;
+    for (const uint16_t color : stretch.stretchedColors) {
+        outputLevels[std::max({
+            color & 31U,
+            (color >> 5U) & 31U,
+            (color >> 10U) & 31U,
+        })] = true;
     }
-    stretch.stretchedComponentLevels = static_cast<size_t>(
+    stretch.stretchedBrightnessLevels = static_cast<size_t>(
         std::count(outputLevels.begin(), outputLevels.end(), true));
     stretch.stretchedCollisions = colorCollisionCount(stretch.stretchedColors);
     stretch.minimumStretchedDistance = minimumColorDistance(stretch.stretchedColors);
+    std::tie(stretch.minimumStretchedBrightness, stretch.maximumStretchedBrightness) =
+        brightnessRange(stretch.stretchedColors);
     return stretch;
 }
 
@@ -1060,9 +1198,9 @@ ExportResult exportGame(const ExportOptions& options) {
     const MovementLayout movementLayout = analyzeMovementLayout(game);
     const ColorStretch colorStretch = buildColorStretch(game);
     const Rgb background = parseColor(game.backgroundColor);
+    const Rgb foreground = parseColor(game.foregroundColor);
     const uint16_t backgroundColor = toBgr555(background, colorStretch);
-    const uint16_t foregroundColor =
-        toBgr555(parseColor(game.foregroundColor), colorStretch);
+    const uint16_t foregroundColor = toBgr555(foreground, colorStretch);
     const std::array<uint16_t, 4> uiPalette{
         backgroundColor, foregroundColor, foregroundColor, foregroundColor};
     std::array<std::array<uint16_t, 4>, 8> palettes{};
@@ -1086,6 +1224,8 @@ ExportResult exportGame(const ExportOptions& options) {
         cellHeight = std::max(cellHeight, static_cast<uint8_t>(height));
         std::vector<uint16_t> sourceColors;
         std::vector<bool> transparentColors;
+        const std::vector<bool> referencedColors =
+            referencedObjectColors(sourceObject);
         for (const std::string& value : sourceObject.colors) {
             const Rgb color = parseColor(value);
             sourceColors.push_back(toBgr555(color, colorStretch));
@@ -1093,8 +1233,10 @@ ExportResult exportGame(const ExportOptions& options) {
         }
         std::vector<uint16_t> opaqueColors;
         for (size_t index = 0; index < sourceColors.size(); ++index) {
-            if (!transparentColors[index]
-                && std::find(opaqueColors.begin(), opaqueColors.end(), sourceColors[index]) == opaqueColors.end()) {
+            if (referencedColors[index] && !transparentColors[index]
+                && std::find(
+                    opaqueColors.begin(), opaqueColors.end(), sourceColors[index])
+                    == opaqueColors.end()) {
                 opaqueColors.push_back(sourceColors[index]);
             }
         }
@@ -1115,8 +1257,11 @@ ExportResult exportGame(const ExportOptions& options) {
          */
         std::vector<uint16_t> compositeColors;
         const auto appendObjectColors = [&](const ObjectDef& lowerObject) {
-            for (const std::string& value : lowerObject.colors) {
-                const Rgb color = parseColor(value);
+            const std::vector<bool> referenced =
+                referencedObjectColors(lowerObject);
+            for (size_t index = 0U; index < lowerObject.colors.size(); ++index) {
+                if (!referenced[index]) continue;
+                const Rgb color = parseColor(lowerObject.colors[index]);
                 const uint16_t packed = toBgr555(color, colorStretch);
                 if (!color.transparent
                     && std::find(
@@ -1426,18 +1571,27 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
         << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
         << "  \"color_stretch\": {\n"
-        << "    \"mode\": \"optimized_global_component_curve\",\n"
+        << "    \"mode\": \"optimized_gameplay_gamut\",\n"
+        << "    \"anchor_policy\": \"background_and_object_colors\",\n"
+        << "    \"foreground_metadata_used_as_anchor\": false,\n"
+        << "    \"foreground_metadata\": {\"source\": "
+        << jsonString(rgbHex(foreground))
+        << ", \"literal_bgr555\": " << toBgr555(foreground)
+        << ", \"stretched_bgr555\": " << foregroundColor << "},\n"
         << "    \"curve\": "
         << jsonString(colorStretch.usesLiteralCurve
-                ? "literal_full_gamut" : "linear_rank_blend")
+                ? "literal_full_gamut"
+                : colorStretch.usesComponentCurve
+                    ? "component_linear_rank_blend"
+                    : "brightness_linear_rank_blend")
         << ",\n"
         << "    \"rank_mix_32\": "
         << static_cast<unsigned int>(colorStretch.rankMix32) << ",\n"
         << "    \"source_color_count\": " << colorStretch.sourceColors.size() << ",\n"
-        << "    \"source_component_level_count\": "
-        << colorStretch.sourceComponentLevels << ",\n"
-        << "    \"stretched_component_level_count\": "
-        << colorStretch.stretchedComponentLevels << ",\n"
+        << "    \"source_brightness_level_count\": "
+        << colorStretch.sourceBrightnessLevels << ",\n"
+        << "    \"stretched_brightness_level_count\": "
+        << colorStretch.stretchedBrightnessLevels << ",\n"
         << "    \"literal_bgr555_collision_count\": "
         << colorStretch.literalCollisions << ",\n"
         << "    \"stretched_bgr555_collision_count\": "
@@ -1446,6 +1600,14 @@ ExportResult exportGame(const ExportOptions& options) {
         << colorStretch.minimumLiteralDistance << ",\n"
         << "    \"minimum_pair_distance_after\": "
         << colorStretch.minimumStretchedDistance << ",\n"
+        << "    \"minimum_brightness_before\": "
+        << static_cast<unsigned int>(colorStretch.minimumLiteralBrightness) << ",\n"
+        << "    \"maximum_brightness_before\": "
+        << static_cast<unsigned int>(colorStretch.maximumLiteralBrightness) << ",\n"
+        << "    \"minimum_brightness_after\": "
+        << static_cast<unsigned int>(colorStretch.minimumStretchedBrightness) << ",\n"
+        << "    \"maximum_brightness_after\": "
+        << static_cast<unsigned int>(colorStretch.maximumStretchedBrightness) << ",\n"
         << "    \"colors\": [\n";
     for (size_t index = 0U; index < colorStretch.sourceColors.size(); ++index) {
         manifest << "      {\"source\": "
