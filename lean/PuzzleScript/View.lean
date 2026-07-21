@@ -122,19 +122,37 @@ def Board.matchesPlayable (game : Game) (b : Board) (e : LevelEntry) : Bool :=
       && b.strideObj == game.strideObj && b.strideMov == game.strideMov
   | .message _ => false
 
-/-- Undo frame: board geometry matches the recorded level index. -/
+/--
+First playable level at or after `lvl` (JS level cursor may sit on a preceding
+message screen while the prepared board is already the next playable).
+-/
+def Game.activePlayableLevel? (game : Game) (lvl : LevelIdx) : Option LevelEntry :=
+  Id.run do
+    let mut i := lvl.val
+    while i < game.levels.size do
+      match game.levels[i]? with
+      | some e =>
+        if e.isPlayable then
+          return some e
+        else
+          i := i + 1
+      | none => break
+    pure none
+
+/-- Undo frame: board geometry matches the active playable at the recorded index. -/
 def Session.undoFrameWellFormed (game : Game) (frame : Board × LevelIdx × Bool) : Bool :=
   let (b, lvl, _) := frame
-  match game.levels[lvl.val]? with
+  match Game.activePlayableLevel? game lvl with
   | some e => Board.matchesPlayable game b e && Board.wellFormed game b
   | none => false
 
 /--
-Session coherence: current board (and optional restart board) match the playable
-level at `currentLevel`; undo frames are each coherent with their stored level.
+Session coherence: current board (and optional restart board) match the active
+playable level at/after `currentLevel`; undo frames are each coherent with their
+stored level cursor.
 -/
 def Session.wellFormed (game : Game) (s : Session) : Bool :=
-  match game.levels[s.currentLevel.val]? with
+  match Game.activePlayableLevel? game s.currentLevel with
   | some e =>
     Board.matchesPlayable game s.board e
       && Board.wellFormed game s.board

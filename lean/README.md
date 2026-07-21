@@ -84,8 +84,8 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
 - T2: `Game.objectLayers : Array LayerIdx`, `PropertyAlias` uses `ObjectId`/`LayerIdx`, `Game.validObject` / `validLayer`
 - T5: `dropInert_turn_congruence` under `noRandomRuleGroups` (rule-array form via
   `runTurnObsWithRules`); leaf → group → loops → rigid → fuelled turn path
-- T4 (in progress): `LevelIdx`, `Session.currentLevel` / undo frames typed;
-  `Session.WellFormed` (board ↔ playable level geometry)
+- T4: `LevelIdx`, typed `Session.currentLevel` / undo frames; `Session.WellFormed`
+  (active playable at/after level cursor); `parity_smoke --check-session-wf`
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
 - Bridge lemmas for the inert fragment: `BoardViewEq`, `againEligible_*` (`Abstract.lean`)
 - §4.0: again-eligibility uses **object-mask delta** (`objectsChanged` / `againEligible`), not “command fired”
