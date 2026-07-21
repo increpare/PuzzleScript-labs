@@ -46,11 +46,6 @@ theorem BoardViewEq.trans {a b c : Board} (hab : BoardViewEq a b) (hbc : BoardVi
     hab.strideObj.trans hbc.strideObj, hab.strideMov.trans hbc.strideMov,
     hab.objects.trans hbc.objects, hab.movements.trans hbc.movements⟩
 
-/-- Mask identity of objects/movements (plus strides) yields view equality. -/
-theorem boardViewEq_of_mask_unchanged (b b' : Board)
-    (h : BoardViewEq b b') : BoardViewEq b b' :=
-  h
-
 /-- Occupancy projection agrees when views are equal. -/
 theorem BoardViewEq.occ_eq {a b : Board} (h : BoardViewEq a b) (t : TileIdx) :
     a.occ t = b.occ t := by
@@ -82,16 +77,16 @@ theorem againEligible_false_of_objects_unchanged
   | false => rfl
 
 /--
-Bridge for inert command-only fragment: mask apply that leaves object/movement arrays
-(and strides/geometry) unchanged preserves abstract projections and again-eligibility
-relative to a fixed turn backup.
+Again-eligibility depends only on the command queue and object masks.
+Given `BoardViewEq` (same objects), eligibility vs a fixed backup agrees.
+
+Note: this does *not* prove that mask/group/turn apply of an inert rule yields
+`BoardViewEq` — that seam is T5 (`boardViewEq_of_commandOnly_…` at the turn path).
 -/
-theorem inert_command_apply_preserves_view
+theorem againEligible_congr_of_boardViewEq
     (backup b b' : Board) (cmds : Array Command)
     (hMask : BoardViewEq b b') :
-    BoardViewEq b b'
-      ∧ againEligible cmds backup b = againEligible cmds backup b' := by
-  refine ⟨hMask, ?_⟩
+    againEligible cmds backup b = againEligible cmds backup b' := by
   unfold againEligible objectsChanged
   cases hMask
   cases cmds.contains .again <;> simp [*]
