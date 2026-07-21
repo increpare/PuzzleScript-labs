@@ -1,0 +1,11 @@
+name = "puzzlescript"
+version = "0.1.0"
+defaultTargets = ["parity_smoke"]
+
+[[lean_lib]]
+name = "PuzzleScript"
+
+[[lean_exe]]
+name = "parity_smoke"
+root = "ParitySmoke"
+supportInterpreter = true

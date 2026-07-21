@@ -41,6 +41,13 @@ node_modules/
 /firmware/pocket_card/sdkconfig.old
 .idf-path.local
 
+# Lean / Lake
+lean/.lake/
+lean/lake-manifest.json
+*.ilean
+*.olean
+*.trace
+
 /firmware/gba/build/
 /firmware/gba/generated/
 /firmware/gba/*.elf
