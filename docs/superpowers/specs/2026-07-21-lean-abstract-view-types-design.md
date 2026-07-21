@@ -120,12 +120,12 @@ Parity smoke must remain green after this fix (behavior should move *toward* JS)
 
 ## 8. Success criteria
 
-- [ ] Newtypes + `Dir4` + `Command` land; IR/Rules/Runtime compile against them.
-- [ ] `occ` / `movAt` / `neighbor` / `WellFormed` defined.
-- [ ] §4.0 modified/again aligned with JS object-delta.
-- [ ] Abstract kernel + bridge theorems for that kernel.
-- [ ] `make lean_parity_smoke` green.
-- [ ] Notes doc marked superseded by this design (or linked as input).
+- [x] Newtypes + `Dir4` + `Command` land; IR/Rules/Runtime compile against them.
+- [x] `occ` / `movAt` / `neighbor` / `WellFormed` defined (`ObjectSet` List stand-in for Finset).
+- [x] §4.0 modified/again aligned with JS object-delta.
+- [x] Abstract kernel + bridge theorems for that kernel (`BoardViewEq`, again lemmas).
+- [x] `make lean_parity_smoke` green.
+- [x] Notes doc marked superseded by this design (or linked as input).
 
 ## 9. Risks
 

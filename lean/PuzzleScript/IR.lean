@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import PuzzleScript.Board
+import PuzzleScript.Command
 import PuzzleScript.Serialize
 import PuzzleScript.Rules
 import PuzzleScript.Rng
@@ -214,9 +215,11 @@ private def parseCommandName (j : Json) (ctx : String) : Except String String :=
     | _ => throw s!"{ctx}: expected command string or [string, ...]"
   | _ => throw s!"{ctx}: expected command string or array"
 
-private def parseCommands (j : Json) (ctx : String) : Except String (Array String) := do
+private def parseCommands (j : Json) (ctx : String) : Except String (Array Command) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
-  arr.mapIdxM fun i elt => parseCommandName elt s!"{ctx}[{i}]"
+  arr.mapIdxM fun i elt => do
+    let name ← parseCommandName elt s!"{ctx}[{i}]"
+    parseCommand name |>.mapError fun e => s!"{ctx}[{i}]: {e}"
 
 private def parsePropertyBindings (j : Json) (ctx : String) : Except String (Array PropertyBinding) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"

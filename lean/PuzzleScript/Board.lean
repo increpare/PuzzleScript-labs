@@ -16,6 +16,17 @@ structure Board where
 
 def Board.nTiles (b : Board) : Nat := b.width * b.height
 
+/-! Column-major tile index (matches JS `level` storage: `x * height + y`). -/
+
+def Board.runtimeTile (b : Board) (x y : Nat) : Nat :=
+  x * b.height + y
+
+def Board.tileCol (b : Board) (tile : Nat) : Nat :=
+  tile / b.height
+
+def Board.tileRow (b : Board) (tile : Nat) : Nat :=
+  tile % b.height
+
 def Board.cellObjWords (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideObj
   b.objects.extract start (start + b.strideObj)

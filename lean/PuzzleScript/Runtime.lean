@@ -1,21 +1,12 @@
 import PuzzleScript.Board
 import PuzzleScript.BitVec
+import PuzzleScript.Command
+import PuzzleScript.Dir4
 import PuzzleScript.IR
 import PuzzleScript.Rng
 import PuzzleScript.Rules
 
 namespace PuzzleScript
-
-/-! Column-major tile index (matches JS `level` storage: `x * height + y`). -/
-
-def Board.runtimeTile (b : Board) (x y : Nat) : Nat :=
-  x * b.height + y
-
-def Board.tileCol (b : Board) (tile : Nat) : Nat :=
-  tile / b.height
-
-def Board.tileRow (b : Board) (tile : Nat) : Nat :=
-  tile % b.height
 
 def ruleDirectionDelta (direction height : Nat) : Int :=
   let h := Int.ofNat height
@@ -28,20 +19,12 @@ def ruleDirectionDelta (direction height : Nat) : Int :=
 
 /-- JS `processInput` direction index → movement bit mask (before layer shift). -/
 def dirInputToLayerBits (dir : Int) : Option UInt32 :=
-  match dir with
-  | 0 => some 1
-  | 1 => some 4
-  | 2 => some 2
-  | 3 => some 8
-  | 4 => some 16
-  | _ => none
+  match Dir4.ofInputIndex? dir with
+  | some d => some d.toBits
+  | none => if dir == 4 then some 16 else none
 
 def dirDelta (dirBits : UInt32) : Option (Int × Int) :=
-  if dirBits == 1 then some (0, -1)
-  else if dirBits == 2 then some (0, 1)
-  else if dirBits == 4 then some (-1, 0)
-  else if dirBits == 8 then some (1, 0)
-  else none
+  Dir4.ofBits? dirBits |>.map (·.delta)
 
 inductive InputToken where
   | movement (idx : Int)
@@ -290,7 +273,7 @@ private def collectMaskBits (m : MaskWords) (maxBit : Nat) : Array Nat :=
     pure out
 
 private def dirBitsFromIndex (n : Nat) : UInt32 :=
-  (1 : UInt32) <<< UInt32.ofNat (n % 4)
+  (Dir4.ofRandomIndex n).toBits
 
 private def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern) (caps : RuleCaptures)
     (rng : RngState) : (Bool × Board × RngState) :=
@@ -600,14 +583,11 @@ private def findRuleMatchTuples (b : Board) (rule : Rule) : Array (Array RowMatc
   let rowMatchLists := rule.patternRows.mapIdx fun i _ => findRowMatches b rule i
   if rowMatchLists.any (·.isEmpty) then #[] else cartesianRowMatches rowMatchLists
 
-private def isSfxCommand (cmd : String) : Bool :=
-  cmd.startsWith "sfx"
-
-private def queueCommandsForRule (existing : Array String) (rule : Rule) : Array String :=
-  let preCancel := existing.contains "cancel"
-  let preRestart := existing.contains "restart"
-  let ruleCancel := rule.commands.contains "cancel"
-  let ruleRestart := rule.commands.contains "restart"
+private def queueCommandsForRule (existing : Array Command) (rule : Rule) : Array Command :=
+  let preCancel := existing.contains .cancel
+  let preRestart := existing.contains .restart
+  let ruleCancel := rule.commands.contains .cancel
+  let ruleRestart := rule.commands.contains .restart
   if preCancel then
     existing
   else if preRestart && !ruleCancel then
@@ -621,19 +601,19 @@ private def queueCommandsForRule (existing : Array String) (rule : Rule) : Array
           out := out.push c
       pure out
 
-private def mergeCommands (existing newCmds : Array String) : Array String :=
-  if newCmds.any (· == "cancel") then #["cancel"]
-  else if newCmds.any (· == "restart") then #["restart"]
+private def mergeCommands (existing newCmds : Array Command) : Array Command :=
+  if newCmds.any (· == .cancel) then #[.cancel]
+  else if newCmds.any (· == .restart) then #[.restart]
   else
     Id.run do
       let mut out := existing
       for c in newCmds do
-        unless isSfxCommand c || c == "cancel" || c == "restart" || out.contains c do
+        unless c.isSfx || c == .cancel || c == .restart || out.contains c do
           out := out.push c
       pure out
 
 structure TurnState where
-  commandQueue : Array String
+  commandQueue : Array Command
   modified : Bool
   againPending : Bool
   rng : RngState
@@ -641,6 +621,16 @@ structure TurnState where
 
 def TurnState.initial (rng : RngState) : TurnState :=
   { commandQueue := #[], modified := false, againPending := false, rng }
+
+/-- JS again-gate object delta: compare object masks only (not movements / commands). -/
+def objectsChanged (before after : Board) : Bool :=
+  before.objects != after.objects
+
+/-- Again is eligible when `again` is queued and objects differ from the turn backup. -/
+def againEligible (cmds : Array Command) (backup current : Board) : Bool :=
+  match cmds.contains .again with
+  | true => objectsChanged backup current
+  | false => false
 
 def tryApplyRule (game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Bool × Board × TurnState) :=
   let rowMatchLists := rule.patternRows.mapIdx fun i _ => findRowMatches b rule i
@@ -661,7 +651,8 @@ def tryApplyRule (game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Boo
         turn := { turn with rng := rng' }
         any := any || c
         board := b'
-      let modified := turn.modified || any || !rule.commands.isEmpty
+      -- §4.0: do not treat command presence as board modification (JS uses object delta).
+      let modified := turn.modified || any
       pure (any, board, { turn with commandQueue := cmdQ, modified := modified })
 
 private def applyRandomRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : TurnState) : (Bool × Board × TurnState) :=
@@ -682,7 +673,7 @@ private def applyRandomRuleGroup (game : Game) (b : Board) (group : Array Rule) 
     | some rule =>
       let cmdQ := queueCommandsForRule st.commandQueue rule
       let (changed, board, rng'') := applyRuleTuple game b rule tuple false rng'
-      let modified := st.modified || changed || !rule.commands.isEmpty
+      let modified := st.modified || changed
       return (changed, board, { st with commandQueue := cmdQ, modified := modified, rng := rng'' })
 
 private def applyRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : TurnState) : Except String (Bool × Board × TurnState) := do
@@ -956,21 +947,21 @@ partial def runRulesOnLevelStartIfNeeded (game : Game) (session : Session) : Exc
 partial def processCommandQueue (game : Game) (turnBackup : Session) (session : Session) (turn : TurnState)
     (skipAgainProbe : Bool) : Except String (Session × Bool) := do
   let cmds := turn.commandQueue
-  if cmds.contains "cancel" then
+  if cmds.contains .cancel then
     return (turnBackup, false)
   let mut s := session
-  if cmds.contains "restart" then
+  if cmds.contains .restart then
     s := { s with undoBackups := s.undoBackups.push (turnBackup.board, turnBackup.currentLevel, turnBackup.winning) }
     if let some rb := s.restartBoard then
       s := { s with board := rb.clearMovements }
     s ← runRulesOnLevelStartIfNeeded game s
-  let winning := s.winning || cmds.contains "win" || evaluateWinConditions game s.board
+  let winning := s.winning || cmds.contains .win || evaluateWinConditions game s.board
   s := { s with winning }
-  if !s.winning && cmds.contains "checkpoint" then
+  if !s.winning && cmds.contains .checkpoint then
     s := { s with restartBoard := some s.board.clearMovements }
-  let boardChanged := boardsDiffer turnBackup.board s.board
+  -- Again gate: JS compares objects only (not movements / command firings).
   let mut againPending := false
-  if cmds.contains "again" && boardChanged then
+  if againEligible cmds turnBackup.board s.board then
     if skipAgainProbe then
       againPending := true
     else
@@ -981,7 +972,7 @@ partial def processCommandQueue (game : Game) (turnBackup : Session) (session : 
         againPending := false
       | .ok (probed, _) =>
         s := { s with rng := probed.rng }
-        againPending := boardsDiffer boardBeforeProbe probed.board
+        againPending := objectsChanged boardBeforeProbe probed.board
   return (s, againPending)
 
 partial def executeTurn (game : Game) (session : Session) (input : InputToken) (skipAgainProbe := false) : Except String (Session × Bool) := do
@@ -1042,7 +1033,7 @@ partial def executeTurn (game : Game) (session : Session) (input : InputToken) (
         && !playerMovementDetected game board playerPositions then
       return (turnBackup, false)
     let mut winning := evaluateWinConditions game board
-    if turn.commandQueue.contains "win" then
+    if turn.commandQueue.contains .win then
       winning := true
     let mut s := { session with board, winning, rng := turn.rng }
     let (s', againPending) ← processCommandQueue game turnBackup s turn skipAgainProbe

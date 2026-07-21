@@ -71,32 +71,25 @@ Clean means the fixture’s source JS-compiles with **`errorCount == 0` and no w
 
 ## Supported runtime subset
 
-The interpreter targets parity with JS `processInput` / `applyRules` / `resolveMovements` / `checkWin` for whitelisted simulation fixtures. Unsupported IR still fails closed at load time.
+The interpreter targets parity with JS `processInput` / `applyRules` / `resolveMovements` / `checkWin` for whitelisted simulation fixtures. Unsupported IR still fails closed at load time. The clean corpus whitelist is currently complete (`parity_whitelist.txt`).
 
-**Supported (high level)**
+**Typed representation (abstract-view prep)**
 
-- Object/movement masks (`STRIDE_OBJ` / `STRIDE_MOV` from IR)
-- Player input `0`–`4`, plus trace tokens `undo`, `restart`, `tick` (`processInput(-1)`)
-- `any_objects_present` and `any_movements_present` on cell patterns
-- Null / missing `replacement` on LHS cells (no-op replacement)
-- Multi-row rule patterns; single-ellipsis rows (`ellipsis_count` 0 or 1 per row)
-- Rule `commands`: `win`, `cancel`, `restart`, `again` (with post-turn `again` loop), `sfx*` ignored for board parity
-- `beginloop` / `endloop` via `loop_point` / `late_loop_point` maps
-- Win conditions with `aggr1` / `aggr2` aggregate matching; `player_mask.aggregate` for movement
-- Undo stack and `restart_target` from prepared session IR
-- Level advance on win (skips message screens)
+- Index wrappers: `TileIdx`, `LayerIdx`, `ObjectId` (`PuzzleScript/Ids.lean`)
+- `Dir4` — sole up/down/left/right ↔ bit bridge (`Dir4.lean`); Runtime direction sites use it
+- Closed `Command` inductive — IR parses fail closed; `Rule.commands` / turn queues are `Array Command`
+- Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
+- Bridge lemmas for the inert fragment: `BoardViewEq`, `againEligible_*` (`Abstract.lean`)
+- §4.0: again-eligibility uses **object-mask delta** (`objectsChanged` / `againEligible`), not “command fired”
 
-**Still unsupported (fail closed at IR load unless noted)**
+**Executable path**
 
-- `rigid` rules and rigid movement rollback
-- `is_random` / `randomdir` rules (needs `prepared_session.random_state`)
-- Nonempty `property_bindings` / `aggregate_bindings`
-- Nonempty `layer_coupled_movement_masks`
-- Two-ellipsis rows per pattern (`ellipsis_count` 2)
-- Title/message gameplay, sounds in serialized output
+- Mask `Board` + `Runtime` remain authoritative for `parity_smoke` (abstract views are not the replay engine)
+- Player input `0`–`4`, plus `undo` / `restart` / `tick`
+- Rule commands: `win`, `cancel`, `restart`, `checkpoint`, `again`, `message`, `sfx0`–`sfx10`
+- Rigid / random / bindings / layer-coupled / ellipsis-2 as needed by the clean whitelist
 
-Current whitelist size: see `parity_whitelist.txt` (grow only from `parity_clean_candidates.txt`).
+## Next
 
-## Next candidates
-
-Remaining clean-corpus gaps are mostly **rigid**, **random**, **property/aggregate bindings**, **layer-coupled movement**, and **double-ellipsis** rules — plus a tail of **serialization mismatches** to debug case-by-case.
+Inert prune soundness (`dropInert` / `boardWinEquiv`) on top of `Abstract.lean` — see
+`docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.

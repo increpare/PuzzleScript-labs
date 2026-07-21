@@ -1,4 +1,5 @@
 import PuzzleScript.BitVec
+import PuzzleScript.Command
 
 namespace PuzzleScript
 
@@ -99,7 +100,7 @@ structure Rule where
   groupNumber : Nat
   patternRows : Array (Array PatternCell)
   ellipsisCounts : Array Nat
-  commands : Array String
+  commands : Array Command
   rigid : Bool
   isRandom : Bool
   propertyBindings : Array PropertyBinding
