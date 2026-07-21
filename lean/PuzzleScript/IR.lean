@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import PuzzleScript.Board
 import PuzzleScript.Serialize
+import PuzzleScript.Rules
 open Lean
 
 namespace PuzzleScript
@@ -12,6 +13,11 @@ structure Game where
   strideMov : Nat
   layerCount : Nat
   playerMask : MaskWords
+  /-- Object id → collision layer (from `game.objects`). -/
+  objectLayers : Array Nat
+  rules : Array (Array Rule)
+  lateRules : Array (Array Rule)
+  winConditions : Array WinCondition
   deriving Repr
 
 structure Session where
@@ -46,6 +52,102 @@ private def parseUInt32Array (j : Json) (ctx : String) : Except String (Array UI
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
   arr.mapM fun elt => jsonGetUInt32 elt ctx
 
+private def parseMaskWords (j : Json) (ctx : String) : Except String MaskWords :=
+  parseUInt32Array j ctx
+
+private def jsonArrayNonempty (j : Json) (ctx : String) : Except String Bool := do
+  let arr ← (Json.getArr? j).mapError fun _ => s!"{ctx}: expected array"
+  pure (arr.size > 0)
+
+private def parseCellPattern (j : Json) (ctx : String) : Except String CellPattern := do
+  let kind ← (j.getObjValAs? String "kind").mapError fun _ => s!"{ctx}: missing kind"
+  if kind != "cell_pattern" then
+    throw s!"{ctx}: unsupported cell kind {kind}"
+  if (← jsonArrayNonempty (← (j.getObjVal? "any_objects_present").mapError fun _ => ctx) s!"{ctx}.any_objects_present") then
+    throw s!"{ctx}: any_objects_present not supported"
+  if (← jsonArrayNonempty (← (j.getObjVal? "any_movements_present").mapError fun _ => ctx) s!"{ctx}.any_movements_present") then
+    throw s!"{ctx}: any_movements_present not supported"
+  let lcm ← (j.getObjVal? "layer_coupled_movement_masks").mapError fun _ => s!"{ctx}: missing layer_coupled_movement_masks"
+  if (← jsonArrayNonempty lcm s!"{ctx}.layer_coupled_movement_masks") then
+    throw s!"{ctx}: layer_coupled_movement_masks not supported"
+  let objectsPresent ← parseMaskWords (← (j.getObjVal? "objects_present").mapError toString) s!"{ctx}.objects_present"
+  let objectsMissing ← parseMaskWords (← (j.getObjVal? "objects_missing").mapError toString) s!"{ctx}.objects_missing"
+  let movementsPresent ← parseMaskWords (← (j.getObjVal? "movements_present").mapError toString) s!"{ctx}.movements_present"
+  let movementsMissing ← parseMaskWords (← (j.getObjVal? "movements_missing").mapError toString) s!"{ctx}.movements_missing"
+  let repl ← (j.getObjVal? "replacement").mapError fun _ => s!"{ctx}: missing replacement"
+  let objectsClear ← parseMaskWords (← (repl.getObjVal? "objects_clear").mapError toString) s!"{ctx}.replacement.objects_clear"
+  let objectsSet ← parseMaskWords (← (repl.getObjVal? "objects_set").mapError toString) s!"{ctx}.replacement.objects_set"
+  let movementsClear ← parseMaskWords (← (repl.getObjVal? "movements_clear").mapError toString) s!"{ctx}.replacement.movements_clear"
+  let movementsSet ← parseMaskWords (← (repl.getObjVal? "movements_set").mapError toString) s!"{ctx}.replacement.movements_set"
+  pure {
+    objectsPresent, objectsMissing, movementsPresent, movementsMissing
+    objectsClear, objectsSet, movementsClear, movementsSet
+  }
+
+private def parseRule (j : Json) (ctx : String) : Except String Rule := do
+  if (← (j.getObjValAs? Bool "is_random").mapError fun _ => s!"{ctx}: missing is_random") then
+    throw s!"{ctx}: is_random rules not supported"
+  if (← (j.getObjValAs? Bool "rigid").mapError fun _ => s!"{ctx}: missing rigid") then
+    throw s!"{ctx}: rigid rules not supported"
+  let ellipsis ← (j.getObjVal? "ellipsis_count").mapError fun _ => s!"{ctx}: missing ellipsis_count"
+  let ellipsisArr ← (Json.getArr? ellipsis).mapError fun e => s!"{ctx}.ellipsis_count: {e}"
+  for h : i in [:ellipsisArr.size] do
+    let elt := ellipsisArr[i]
+    let n ← jsonGetInt elt s!"{ctx}.ellipsis_count[{i}]"
+    if n != 0 then
+      throw s!"{ctx}: ellipsis not supported"
+  let propBind ← (j.getObjVal? "property_bindings").mapError fun _ => s!"{ctx}: missing property_bindings"
+  if (← jsonArrayNonempty propBind s!"{ctx}.property_bindings") then
+    throw s!"{ctx}: property_bindings not supported"
+  let aggrBind ← (j.getObjVal? "aggregate_bindings").mapError fun _ => s!"{ctx}: missing aggregate_bindings"
+  if (← jsonArrayNonempty aggrBind s!"{ctx}.aggregate_bindings") then
+    throw s!"{ctx}: aggregate_bindings not supported"
+  let commands ← (j.getObjVal? "commands").mapError fun _ => s!"{ctx}: missing commands"
+  if (← jsonArrayNonempty commands s!"{ctx}.commands") then
+    throw s!"{ctx}: commands not supported"
+  let patterns ← (j.getObjVal? "patterns").mapError fun _ => s!"{ctx}: missing patterns"
+  let patternRows ← (Json.getArr? patterns).mapError fun e => s!"{ctx}.patterns: {e}"
+  if patternRows.size != 1 then
+    throw s!"{ctx}: expected exactly one pattern row, got {patternRows.size}"
+  let row := patternRows[0]!
+  let cellsJson ← (Json.getArr? row).mapError fun e => s!"{ctx}.patterns[0]: {e}"
+  let cells ← cellsJson.mapIdxM fun i cellJ =>
+    parseCellPattern cellJ s!"{ctx}.patterns[0][{i}]"
+  let direction ← (j.getObjValAs? Nat "direction").mapError fun _ => s!"{ctx}: missing direction"
+  let lineNumber ← (j.getObjValAs? Nat "line_number").mapError fun _ => s!"{ctx}: missing line_number"
+  let groupNumber ← (j.getObjValAs? Nat "group_number").mapError fun _ => s!"{ctx}: missing group_number"
+  pure { direction, lineNumber, groupNumber, cells }
+
+private def parseRuleGroup (j : Json) (ctx : String) : Except String (Array Rule) := do
+  let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  arr.mapIdxM fun i ruleJ => parseRule ruleJ s!"{ctx}[{i}]"
+
+private def parseRuleGroups (j : Json) (ctx : String) : Except String (Array (Array Rule)) := do
+  let groups ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  groups.mapIdxM fun gi groupJ => parseRuleGroup groupJ s!"{ctx}[{gi}]"
+
+private def parseWinCondition (j : Json) (ctx : String) : Except String WinCondition := do
+  let quantifier ← (j.getObjValAs? Nat "quantifier").mapError fun _ => s!"{ctx}: missing quantifier"
+  let filter1 ← parseMaskWords (← (j.getObjVal? "filter1").mapError toString) s!"{ctx}.filter1"
+  let filter2 ← parseMaskWords (← (j.getObjVal? "filter2").mapError toString) s!"{ctx}.filter2"
+  pure { quantifier, filter1, filter2 }
+
+private def parseWinConditions (j : Json) (ctx : String) : Except String (Array WinCondition) := do
+  let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  arr.mapIdxM fun i wcJ => parseWinCondition wcJ s!"{ctx}[{i}]"
+
+private def parseObjectLayers (j : Json) (objectCount : Nat) (ctx : String) : Except String (Array Nat) := do
+  let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  let mut layers := Array.replicate objectCount 0
+  for h : i in [:arr.size] do
+    let elt := arr[i]
+    let id ← (elt.getObjValAs? Nat "id").mapError fun _ => s!"{ctx}[{i}]: missing id"
+    let layer ← (elt.getObjValAs? Nat "layer").mapError fun _ => s!"{ctx}[{i}]: missing layer"
+    if id >= objectCount then
+      throw s!"{ctx}[{i}]: object id {id} out of range (object_count={objectCount})"
+    layers := layers.set! id layer
+  pure layers
+
 def loadPreparedSerializedLevel (root : Json) : Except String String := do
   let ps ← (root.getObjVal? "prepared_session").mapError toString
   (ps.getObjValAs? String "serialized_level").mapError toString
@@ -61,8 +163,17 @@ private def parseGame (j : Json) : Except String Game := do
   let pm ← (game.getObjVal? "player_mask").mapError toString
   let maskJson ← (pm.getObjVal? "mask").mapError toString
   let playerMask ← parseUInt32Array maskJson "game.player_mask.mask"
+  let objectsJson ← (game.getObjVal? "objects").mapError toString
+  let objectLayers ← parseObjectLayers objectsJson objectCount "game.objects"
+  let rulesJson ← (game.getObjVal? "rules").mapError toString
+  let rules ← parseRuleGroups rulesJson "game.rules"
+  let lateRulesJson ← (game.getObjVal? "late_rules").mapError toString
+  let lateRules ← parseRuleGroups lateRulesJson "game.late_rules"
+  let winJson ← (game.getObjVal? "winconditions").mapError toString
+  let winConditions ← parseWinConditions winJson "game.winconditions"
   pure {
     idDict, objectCount, strideObj, strideMov, layerCount, playerMask
+    objectLayers, rules, lateRules, winConditions
   }
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do
