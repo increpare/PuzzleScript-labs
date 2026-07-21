@@ -68,8 +68,8 @@ def Game.layerOf (g : Game) (o : ObjectId) : Option LayerIdx :=
 structure Session where
   board : Board
   winning : Bool
-  currentLevel : Nat
-  undoBackups : Array (Board × Nat × Bool)
+  currentLevel : LevelIdx
+  undoBackups : Array (Board × LevelIdx × Bool)
   restartBoard : Option Board
   rng : RngState
   deriving Repr
@@ -404,7 +404,7 @@ def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
     session
   else
     Id.run do
-      let mut idx := session.currentLevel + 1
+      let mut idx := session.currentLevel.val + 1
       while idx < game.levels.size do
         match game.levels[idx]? with
         | some (.playable w h lc objs) =>
@@ -413,7 +413,7 @@ def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
             session with
             board := nb
             restartBoard := some nb
-            currentLevel := idx
+            currentLevel := ⟨idx⟩
             winning := false
           }
         | some (.message _) =>
@@ -421,6 +421,11 @@ def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
         | none =>
           break
       pure session
+
+theorem sessionAfterWinAdvance_of_not_winning (game : Game) (session : Session)
+    (h : session.winning = false) :
+    sessionAfterWinAdvance game session = session := by
+  simp [sessionAfterWinAdvance, h]
 
 def loadPreparedSerializedLevel (root : Json) : Except String String := do
   let ps ← (root.getObjVal? "prepared_session").mapError toString
@@ -519,10 +524,10 @@ private def parseGame (j : Json) : Except String Game := do
 private def parseSession (j : Json) (game : Game) : Except String Session := do
   let ps ← (j.getObjVal? "prepared_session").mapError toString
   let winning ← (ps.getObjValAs? Bool "winning").mapError toString
-  let currentLevel ←
+  let currentLevel : LevelIdx ←
     match ps.getObjValAs? Nat "current_level_index" with
-    | .ok n => pure n
-    | .error _ => pure 0
+    | .ok n => pure ⟨n⟩
+    | .error _ => pure ⟨0⟩
   let level ← (ps.getObjVal? "level").mapError toString
   let width ← (level.getObjValAs? Nat "width").mapError toString
   let height ← (level.getObjValAs? Nat "height").mapError toString

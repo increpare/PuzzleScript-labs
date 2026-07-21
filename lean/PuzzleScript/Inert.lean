@@ -86,7 +86,7 @@ structure TurnObs where
   objects : Array UInt32
   movements : Array UInt32
   winning : Bool
-  currentLevel : Nat
+  currentLevel : LevelIdx
   againPending : Bool
   deriving Repr, DecidableEq
 

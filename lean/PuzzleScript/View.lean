@@ -114,4 +114,38 @@ def Board.wellFormed (game : Game) (b : Board) : Bool :=
 def Board.WellFormed (game : Game) (b : Board) : Prop :=
   b.wellFormed game = true
 
+/-- Board geometry matches a playable level entry (objects payload not compared). -/
+def Board.matchesPlayable (game : Game) (b : Board) (e : LevelEntry) : Bool :=
+  match e with
+  | .playable w h lc _ =>
+    b.width == w && b.height == h && b.layerCount == lc
+      && b.strideObj == game.strideObj && b.strideMov == game.strideMov
+  | .message _ => false
+
+/-- Undo frame: board geometry matches the recorded level index. -/
+def Session.undoFrameWellFormed (game : Game) (frame : Board × LevelIdx × Bool) : Bool :=
+  let (b, lvl, _) := frame
+  match game.levels[lvl.val]? with
+  | some e => Board.matchesPlayable game b e && Board.wellFormed game b
+  | none => false
+
+/--
+Session coherence: current board (and optional restart board) match the playable
+level at `currentLevel`; undo frames are each coherent with their stored level.
+-/
+def Session.wellFormed (game : Game) (s : Session) : Bool :=
+  match game.levels[s.currentLevel.val]? with
+  | some e =>
+    Board.matchesPlayable game s.board e
+      && Board.wellFormed game s.board
+      && (match s.restartBoard with
+          | none => true
+          | some rb =>
+            Board.matchesPlayable game rb e && Board.wellFormed game rb)
+      && s.undoBackups.all (Session.undoFrameWellFormed game)
+  | none => false
+
+def Session.WellFormed (game : Game) (s : Session) : Prop :=
+  Session.wellFormed game s = true
+
 end PuzzleScript

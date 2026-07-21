@@ -46,6 +46,7 @@ def main() -> int:
                     str(args.fixtures),
                     "--whitelist",
                     str(args.whitelist),
+                    "--check-session-wf",
                 ],
                 cwd=lean_dir,
                 timeout=args.timeout,
