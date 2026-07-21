@@ -1,57 +1,50 @@
 # Lean parity leftovers (clean corpus)
 
-Last updated: 2026-07-21. **Coverage: 261 / 305** clean candidates in `parity_whitelist.txt` (`make lean_parity_smoke` green).
+Last updated: 2026-07-21. Target: **305/305** clean candidates.
 
-## Fixed this session
+## This wave
 
-- **restart test** — `sessionAfterWinAdvance` now sets `restartBoard := some nb` when advancing after a win (mirrors JS `loadLevel` / `restartTarget = backupLevel()`). Keyboard `restart` after level change restores the current level’s snapshot, not the initial IR restart target.
+- **`require_player_movement`**: parse `metadata_map.require_player_movement`; cancel turn if no player left a start tile (JS `bitsClearInArray`). Fixes **aggregate player allowed #1032** and **C #1032** (AND-player vacuous ALL win after hat-only moves).
+- **Layer-coupled overlap**: `layerOptionMatches` / term match use **object-mask overlap** (any bit), not subset — matches JS/native. Fixes **One/Many player unlimited rigidbodies**, **10 layers***, **Kreiseln**, and many gallery cases.
+- **Undo + again**: push one undo frame per player input **after** again settles; again gated on real board change. Fixes **Undo test (#315)** and **Undo and Real-time #796**.
+- **Restart target on win advance** (prior): `restartBoard` updated in `sessionAfterWinAdvance`.
+- Expand default timeout **60s**. Bisect uses settled again snapshots.
 
-## Remaining failures (44)
+## Coverage
 
-### Timeouts (10) — again probe / turn budget / realtime
+Run `python3 scripts/lean_parity_expand.py --write-whitelist` then count unique whitelist ∩ clean candidates. Latest expand: **~14 newly passing** this wave after overlap fix; leftover names below.
 
-Likely need realtime tick loop, flick/zoom metadata, or further again-probe parity; some may be duplicate candidate names.
+## Remaining leftovers
 
-| Fixture | Notes |
-|---------|--------|
-| `robotic arm` | Heavy again / rule loops |
-| `Rigidbody fix bug #246` | Rigid rollback + many rule applications |
-| `gallery game: two worlds` (×2 in candidates) | Large gallery; duplicate line in `parity_clean_candidates.txt` |
-| `increpare game: robot arm` | Same family as robotic arm |
+### Timeouts (again / realtime / long traces)
+
+| Fixture | Why |
+|---------|-----|
+| `robotic arm` | Heavy again / rule loops (may still exceed 60s) |
+| `increpare game: robot arm` | Same family |
+| `Rigidbody fix bug #246` | Rigid rollback + long search |
 | `Neoprenanzieher` | Long input trace |
 | `Oh No My Dog Is About To Swallow A Piece Of Chocolate` | Long / again |
 | `SWIMMING TIME!` | Realtime-style |
-| `REALTIME DOG MOUNTAIN RESCUE` | Realtime (`realtime_interval` not modeled) |
-| `wb + gems test` | Large trace |
+| `REALTIME DOG MOUNTAIN RESCUE` | `realtime_interval` not modeled |
 
-### Serialize mismatch (30)
+### Serialize mismatch
 
-| Fixture | Likely root cause |
-|---------|-------------------|
-| `aggregate player allowed #1032`, `aggregate player allowed C #1032` | Aggregate **AND** player: split body/hat movement + `all player on target` win semantics; Lean spurious level advance (~input 7) after gameplay diverges from JS (hat chain rule vs aggregate player movement). B/D variants pass (OR player mask). |
-| `One player, unlimited rigidbodies`, `Many parallel players, unlimited rigidbodies` | Multi-entity rigid groups / parallel players |
-| `Undo test (#315)`, `Undo and Real-time #796` | Undo stack + realtime/tick interaction |
-| `propagation test`, `right [ vertical playerortarget \| vertical player ] -> …` | Movement propagation / vertical movement bits |
-| `Push Pull`, `Slide Pull`, `Psyshic push`, `Caramelban`, … | Compound push/pull/rigid/rule features |
-| `Sokoban... in 3D!`, `Sok7`, `Crate Assembler` | 3D / layer-coupled / large rule sets |
-| Gallery-scale puzzles (`A CLEAR VIEW OF THE SKY` ×2, `BIAXIAL INVASION OF SATURN`, …) | Many combined engine features; fix incrementally with bisect |
+| Fixture | Why |
+|---------|-----|
+| `propagation test` | Movement-guide / vertical propagation edge case (bisect input 2) |
+| `Car Crash` | Compound collision / rules |
+| `Expand, avoid the flames [also it's not always solvable]` | Large / special rules |
+| `Lightdown` | Lighting / multi-layer rules |
+| `Sok7` | Large sokoban variant |
 
-### FAIL without clean mismatch label (4)
+### FAIL
 
-Large gallery games; parity_smoke reports game title as error snippet (serialization diff too large or replay error):
-
-- `gallery game: mad queens`
-- `gallery: beam islands`
-- `gallery: tidy the cafe`
-- `increpare game: snortal`
+| Fixture | Why |
+|---------|-----|
+| `gallery: tidy the cafe` | Large gallery; parity_smoke error snippet is title-only |
 
 ## Tooling
 
-- `python3 scripts/lean_parity_expand.py --write-whitelist` — grow whitelist from `parity_clean_candidates.txt`
-- `python3 scripts/lean_parity_bisect.py --fixture 'NAME'` — first step where Lean serialize ≠ JS trace (strip trailing newlines when comparing)
-
-## Next priorities
-
-1. Aggregate AND player: align win check with JS (avoid vacuous `ALL` win / spurious `sessionAfterWinAdvance`); bisect movement from input 1.
-2. `require_player_movement` in IR + `executeTurn` (if exported in fixtures).
-3. Realtime / undo / rigid multi-player buckets above.
+- `python3 scripts/lean_parity_expand.py --write-whitelist [--timeout 60]`
+- `python3 scripts/lean_parity_bisect.py --fixture 'NAME'` (again-settled snapshots)

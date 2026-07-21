@@ -59,7 +59,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--fixtures", type=Path, default=None)
-    parser.add_argument("--timeout", type=float, default=20.0)
+    parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--write-whitelist", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()

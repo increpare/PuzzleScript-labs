@@ -99,13 +99,14 @@ private def maskAggregateMatchesAtTile (b : Board) (mask : MaskWords) (tile : Na
   maskBitsSetIn mask (b.cellObjWords tile)
 
 private def layerOptionMatches (objs movs : MaskWords) (layer : LayerCoupledLayer) : Bool :=
-  maskBitsSetIn layer.objectMask objs
+  -- Native/JS: object mask is an overlap test (any bit), not a full subset test.
+  maskAnyBits (maskAnd layer.objectMask objs)
     && (if maskAnyBits layer.movementsAny then maskAnyBits (maskAnd movs layer.movementsAny) else true)
     && maskBitsSetIn layer.movementsPresent movs
     && maskNoBitsInCommon layer.movementsMissing movs
 
 private def layerCoupledTermMatches (objs movs : MaskWords) (term : LayerCoupledTerm) : Bool :=
-  maskBitsSetIn term.objectMask objs && term.layers.any (layerOptionMatches objs movs)
+  maskAnyBits (maskAnd term.objectMask objs) && term.layers.any (layerOptionMatches objs movs)
 
 private def layerCoupledMasksMatch (objs movs : MaskWords) (terms : Array LayerCoupledTerm) : Bool :=
   terms.all (layerCoupledTermMatches objs movs)
@@ -206,6 +207,7 @@ private def captureAggregateBindings (b : Board) (rule : Rule) (tuple : Array Ro
     pure out
 
 private def applyInferredReplacementFields (game : Game) (pat : CellPattern) (caps : RuleCaptures)
+    (objs movs : MaskWords)
     (objectsClear objectsSet movementsClear movementsSet : MaskWords) :
     (MaskWords × MaskWords × MaskWords × MaskWords) :=
   Id.run do
@@ -248,15 +250,17 @@ private def applyInferredReplacementFields (game : Game) (pat : CellPattern) (ca
             match caps.getProperty pname with
             | some cap => mc := setLayerMovementBits mc cap.layerIndex 31
             | none => pure ()
+    -- Only rewrite movement on layer options that match this cell (JS/native overlap).
     for coupled in pat.layerCoupledMovementReplacements do
       for layerTerm in coupled.layers do
-        mc := setLayerMovementBits mc layerTerm.layerIndex 31
-        if let some aname := coupled.replacementAggregateName then
-          match caps.getAggregate aname with
-          | some bits => ms := setLayerMovementBits ms layerTerm.layerIndex (UInt32.ofNat bits)
-          | none => pure ()
-        else if let some m := coupled.replacementMovementMask then
-          ms := setLayerMovementBits ms layerTerm.layerIndex (UInt32.ofNat m)
+        if layerOptionMatches objs movs layerTerm then
+          mc := setLayerMovementBits mc layerTerm.layerIndex 31
+          if let some aname := coupled.replacementAggregateName then
+            match caps.getAggregate aname with
+            | some bits => ms := setLayerMovementBits ms layerTerm.layerIndex (UInt32.ofNat bits)
+            | none => pure ()
+          else if let some m := coupled.replacementMovementMask then
+            ms := setLayerMovementBits ms layerTerm.layerIndex (UInt32.ofNat m)
     pure (oc, os, mc, ms)
 
 private def buildRigidGroupMask (game : Game) (groupNumber : Nat) (movementsLayerMask : MaskWords) (stride : Nat) : MaskWords :=
@@ -315,13 +319,14 @@ private def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile :
           let (dirIdx, r) := rng'.randomNat 0 4
           rng' := r
           movementsSet := setLayerMovementBits movementsSet layer (dirBitsFromIndex dirIdx)
-      let (oc, os, mc, ms) := applyInferredReplacementFields game pat caps objectsClear objectsSet movementsClear movementsSet
+      let oldObj := b.cellObjWords tile
+      let oldMov := b.cellMovWords tile
+      let (oc, os, mc, ms) :=
+        applyInferredReplacementFields game pat caps oldObj oldMov objectsClear objectsSet movementsClear movementsSet
       objectsClear := oc
       objectsSet := os
       movementsClear := mc
       movementsSet := ms
-      let oldObj := b.cellObjWords tile
-      let oldMov := b.cellMovWords tile
       let newObj := maskApplyReplacement oldObj objectsClear objectsSet
       let movClear := maskOr movementsClear pat.movementsLayerMask
       let newMov := maskApplyReplacement oldMov movClear movementsSet
@@ -773,18 +778,36 @@ private def moveEntitiesAtIndex (game : Game) (b : Board) (tile : Nat) (entityMa
     (getLayerMovementBits m layer ||| dirMask)) mov
   b.setCellMovWords tile newMov
 
-def startMovement (game : Game) (b : Board) (dirMask : UInt32) : Board :=
+private def playerMatchesAtTile (game : Game) (b : Board) (tile : Nat) : Bool :=
+  if game.playerMaskAggregate then
+    maskAggregateMatchesAtTile b game.playerMask tile
+  else
+    maskAnyMatchesAtTile b game.playerMask tile
+
+/-- Tiles where the player currently matches (aggregate AND or any-bit OR). -/
+def getPlayerPositions (game : Game) (b : Board) : Array Nat :=
   Id.run do
-    let mut board := b
+    let mut out : Array Nat := #[]
     for tile in [:b.nTiles] do
-      let playerHere :=
-        if game.playerMaskAggregate then
-          maskAggregateMatchesAtTile board game.playerMask tile
-        else
-          maskAnyMatchesAtTile board game.playerMask tile
-      if playerHere then
-        board := moveEntitiesAtIndex game board tile game.playerMask dirMask
-    pure board
+      if playerMatchesAtTile game b tile then
+        out := out.push tile
+    pure out
+
+/-- True iff no bits of `mask` appear in the cell (JS `bitsClearInArray`). -/
+private def maskBitsClearInCell (mask cell : MaskWords) : Bool :=
+  maskNoBitsInCommon mask cell
+
+/-- After resolve: did any start-of-turn player tile lose all player-mask objects? -/
+private def playerMovementDetected (game : Game) (b : Board) (playerPositions : Array Nat) : Bool :=
+  playerPositions.any fun pos => maskBitsClearInCell game.playerMask (b.cellObjWords pos)
+
+def startMovement (game : Game) (b : Board) (dirMask : UInt32) : Board × Array Nat :=
+  Id.run do
+    let positions := getPlayerPositions game b
+    let mut board := b
+    for tile in positions do
+      board := moveEntitiesAtIndex game board tile game.playerMask dirMask
+    pure (board, positions)
 
 private def layerMaskFor (game : Game) (layer : Nat) : MaskWords :=
   (buildLayerMasks game).getD layer #[]
@@ -934,8 +957,9 @@ partial def processCommandQueue (game : Game) (turnBackup : Session) (session : 
   s := { s with winning }
   if !s.winning && cmds.contains "checkpoint" then
     s := { s with restartBoard := some s.board.clearMovements }
+  let boardChanged := boardsDiffer turnBackup.board s.board
   let againPending :=
-    if cmds.contains "again" && turn.modified then
+    if cmds.contains "again" && boardChanged then
       if skipAgainProbe then true else againProbe game s
     else
       false
@@ -964,12 +988,15 @@ partial def executeTurn (game : Game) (session : Session) (input : InputToken) (
     let turnBackup := session
     let mut board := session.board.clearMovements
     let mut turn := TurnState.initial session.rng
+    let mut playerPositions : Array Nat := #[]
     if let .movement idx := input then
       if idx >= 0 then
         let dirMask ← match dirInputToLayerBits idx with
           | none => throw s!"invalid movement input index: {idx}"
           | some m => pure m
-        board := startMovement game board dirMask
+        let (board', positions) := startMovement game board dirMask
+        board := board'
+        playerPositions := positions
     let startBoard := board
     let mut bannedGroup : Array Bool := #[]
     let mut rigidIter := 0
@@ -995,15 +1022,17 @@ partial def executeTurn (game : Game) (session : Session) (input : InputToken) (
         let (_, board''', turn'') ← applyRulesWithLoops game board game.lateRules game.lateLoopPoint turn #[]
         board := board'''
         turn := turn''
+    -- JS: require_player_movement cancels the turn before win/checkpoint/again.
+    if game.requirePlayerMovement && playerPositions.size > 0
+        && !playerMovementDetected game board playerPositions then
+      return (turnBackup, false)
     let mut winning := evaluateWinConditions game board
     if turn.commandQueue.contains "win" then
       winning := true
     let mut s := { session with board, winning, rng := turn.rng }
     let (s', againPending) ← processCommandQueue game turnBackup s turn skipAgainProbe
     s := s'
-    let restarted := turn.commandQueue.contains "restart"
-    if !restarted && (boardsDiffer turnBackup.board s.board || turn.modified) then
-      s := { s with undoBackups := s.undoBackups.push (turnBackup.board, turnBackup.currentLevel, turnBackup.winning) }
+    -- Undo stack is updated in `replay` after again settles (JS player-input frames only).
     s := sessionAfterWinAdvance game s
     pure (s, againPending)
 end
@@ -1016,6 +1045,7 @@ def replay (game : Game) (session : Session) (inputs : Array String) (maxInputs 
     | some m => if count >= m then break
     | none => pure ()
     let input ← parseMovementInputToken tok
+    let pre := s
     let (s', againPending) ← executeTurn game s input
     s := s'
     let mut again := againPending
@@ -1023,6 +1053,12 @@ def replay (game : Game) (session : Session) (inputs : Array String) (maxInputs 
       let (s'', again') ← executeTurn game s (.tick)
       s := s''
       again := again'
+    -- Push one undo frame per player input after again settles (not per again tick).
+    match input with
+    | .movement _ =>
+      if boardsDiffer pre.board s.board then
+        s := { s with undoBackups := s.undoBackups.push (pre.board, pre.currentLevel, pre.winning) }
+    | .undo | .restart | .tick => pure ()
     count := count + 1
   pure s
 

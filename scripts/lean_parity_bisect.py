@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 
 
+def settled_snapshot(snapshots: list[dict], input_index: int) -> dict:
+    """Last snapshot for this input (after again substeps settle)."""
+    cands = [s for s in snapshots if s.get("input_index") == input_index]
+    if cands:
+        return cands[-1]
+    return snapshots[input_index + 1]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
@@ -20,6 +28,8 @@ def main() -> int:
     repo = args.repo_root
     lean_dir = repo / "lean"
     fixtures = args.fixtures or (repo / "build" / "js-parity-data")
+    if not fixtures.is_absolute():
+        fixtures = (repo / fixtures).resolve()
     manifest = json.loads((fixtures / "fixtures.json").read_text(encoding="utf-8"))
     fx = next(f for f in manifest["simulation_fixtures"] if f["name"] == args.fixture)
     trace = json.loads((fixtures / fx["trace_file"]).read_text(encoding="utf-8"))
@@ -30,8 +40,7 @@ def main() -> int:
     wl.write_text(args.fixture + "\n", encoding="utf-8")
 
     for i in range(len(inputs)):
-        # snapshot after input i is at index i+1 (0 is initial)
-        expected = snapshots[i + 1]["serialized_level"]
+        expected = settled_snapshot(snapshots, i)["serialized_level"]
         proc = subprocess.run(
             [
                 "lake",
@@ -77,10 +86,10 @@ def main() -> int:
         capture_output=True,
         text=True,
     )
-    if proc.stdout != final:
+    if proc.stdout.rstrip("\n") != final.rstrip("\n"):
         print("Full replay differs from final trace snapshot")
         return 0
-    print("Full replay matches trace")
+    print("Full replay matches final snapshot")
     return 0
 
 

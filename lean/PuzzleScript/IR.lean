@@ -37,6 +37,8 @@ structure Game where
   groupNumberToRigidGroupIndex : Array (Option Nat)
   rigidGroupIndexToGroupIndex : Array Nat
   layerMasks : Array MaskWords
+  /-- JS `metadata.require_player_movement`: cancel turn if no player left a start tile. -/
+  requirePlayerMovement : Bool
   deriving Repr
 
 structure Session where
@@ -440,10 +442,19 @@ private def parseGame (j : Json) : Except String Game := do
     match game.getObjVal? "layer_masks" with
     | .ok j => parseMaskWordsArray j "game.layer_masks"
     | .error _ => pure #[]
+  let requirePlayerMovement :=
+    match game.getObjVal? "metadata_map" with
+    | .ok mm =>
+      match mm.getObjVal? "require_player_movement" with
+      | .ok (.str _) => true
+      | .ok (.bool true) => true
+      | _ => false
+    | .error _ => false
   pure {
     idDict, objectCount, strideObj, strideMov, layerCount, playerMask, playerMaskAggregate
     objectLayers, rules, lateRules, loopPoint, lateLoopPoint, winConditions, levels
     gameRigid, groupNumberToRigidGroupIndex, rigidGroupIndexToGroupIndex, layerMasks
+    requirePlayerMovement
   }
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do
