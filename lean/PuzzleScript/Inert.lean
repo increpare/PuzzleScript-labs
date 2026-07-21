@@ -28,9 +28,9 @@ namespace PuzzleScript
 
 ## Done bar
 
-`dropInert_turn_congruence : ∀ g, DropInertTurnCongruence g` under `noRandomRuleGroups`
-(rule-array form via `runTurnObsWithRules`; random groups excluded). Proven via fuelled
-`turnGo_filterNonInert` / `processCommandQueue.finish_filterNonInert` (no `sorry`).
+- T5: `dropInert_turn_congruence` under `noRandomRuleGroups` (no `sorry`).
+- Soundness: `dropInert_boardWinEquiv` — multi-turn solver-obs congruence via
+  `replaySolverGo` / `drainAgain.go` (executable content of `Game.dropInert`).
 -/
 
 /-- Drop every syntactically inert command-only rule from early and late rule groups. -/
@@ -419,5 +419,141 @@ theorem dropInert_turn_congruence (g : Game) : DropInertTurnCongruence g := by
   have hGo :=
     executeTurn.go_filterNonInert g g.rules g.lateRules s input false turnFuelDefault hR hL
   simp only [runTurnObsWithRules, hGo]
+
+/-!
+# boardWinEquiv (multi-turn inert soundness)
+
+Lift T5 turn congruence through again-drain and finite input sequences.
+`Game.dropInert` only rewrites `rules`/`lateRules`; solver obs are compared under the
+same game metadata with those arrays swapped (executable content of dropInert).
+-/
+
+theorem Game.withoutRules_dropInert (g : Game) :
+    Game.withoutRules (Game.dropInert g) = Game.withoutRules g := rfl
+
+/-- Solver-facing session snapshot (excludes undo depth, rng, restart board, sounds). -/
+structure SolverObs where
+  objects : Array UInt32
+  movements : Array UInt32
+  winning : Bool
+  currentLevel : LevelIdx
+  deriving Repr, DecidableEq
+
+def sessionSolverObs (s : Session) : SolverObs :=
+  { objects := s.board.objects
+    movements := s.board.movements
+    winning := s.winning
+    currentLevel := s.currentLevel }
+
+/-- Leaf board-effect identity: apply leaves the board unchanged. -/
+def Rule.boardEffectId (game : Game) (rule : Rule) : Prop :=
+  ∀ (b : Board) (st : TurnState), (tryApplyRule game b rule st).2.1 = b
+
+theorem syntacticInert_boardEffectId (game : Game) (rule : Rule)
+    (h : rule.syntacticInertCommandOnly = true) :
+    Rule.boardEffectId game rule := by
+  intro b st
+  exact (tryApplyRule_syntacticInert_preserves_board game b rule st h).2
+
+/-- Fuelled again-drain (replay's `while again`). -/
+def drainAgain.go (game : Game) (rules lateRules : Array (Array Rule))
+    (s : Session) (again : Bool) : Nat → Except String Session
+  | 0 => throw "again fuel exhausted"
+  | fuel + 1 =>
+    match again with
+    | false => pure s
+    | true =>
+      match executeTurn.go game rules lateRules s .tick false fuel with
+      | .error e => .error e
+      | .ok (s', again') => drainAgain.go game rules lateRules s' again' fuel
+
+/-- Finite input sequence under explicit rule arrays (no undo; solver-obs only). -/
+def replaySolverGo (game : Game) (rules lateRules : Array (Array Rule))
+    (s : Session) : List InputToken → Nat → Except String Session
+  | [], _ => pure s
+  | _, 0 => throw "replay fuel exhausted"
+  | input :: rest, fuel + 1 =>
+    match executeTurn.go game rules lateRules s input false fuel with
+    | .error e => .error e
+    | .ok (s', again) =>
+      match drainAgain.go game rules lateRules s' again fuel with
+      | .error e => .error e
+      | .ok sSettled => replaySolverGo game rules lateRules sSettled rest fuel
+
+theorem drainAgain.go_filterNonInert
+    (game : Game) (rules lateRules : Array (Array Rule))
+    (s : Session) (again : Bool) (fuel : Nat)
+    (hRules : rules.all groupNotRandom = true)
+    (hLate : lateRules.all groupNotRandom = true) :
+    drainAgain.go game rules lateRules s again fuel =
+      drainAgain.go game (filterNonInertGroups rules) (filterNonInertGroups lateRules)
+        s again fuel := by
+  induction fuel generalizing s again with
+  | zero => rfl
+  | succ fuel ih =>
+    cases again with
+    | false => rfl
+    | true =>
+      simp only [drainAgain.go]
+      rw [executeTurn.go_filterNonInert game rules lateRules s .tick false fuel hRules hLate]
+      cases executeTurn.go game (filterNonInertGroups rules) (filterNonInertGroups lateRules)
+          s .tick false fuel with
+      | error _ => rfl
+      | ok p =>
+        rcases p with ⟨s', again'⟩
+        exact ih s' again'
+
+theorem replaySolverGo_filterNonInert
+    (game : Game) (rules lateRules : Array (Array Rule))
+    (s : Session) (inputs : List InputToken) (fuel : Nat)
+    (hRules : rules.all groupNotRandom = true)
+    (hLate : lateRules.all groupNotRandom = true) :
+    replaySolverGo game rules lateRules s inputs fuel =
+      replaySolverGo game (filterNonInertGroups rules) (filterNonInertGroups lateRules)
+        s inputs fuel := by
+  induction inputs generalizing s fuel with
+  | nil => cases fuel <;> rfl
+  | cons input rest ih =>
+    cases fuel with
+    | zero => rfl
+    | succ fuel =>
+      simp only [replaySolverGo]
+      rw [executeTurn.go_filterNonInert game rules lateRules s input false fuel hRules hLate]
+      cases executeTurn.go game (filterNonInertGroups rules) (filterNonInertGroups lateRules)
+          s input false fuel with
+      | error _ => rfl
+      | ok p =>
+        rcases p with ⟨s', again⟩
+        simp
+        rw [drainAgain.go_filterNonInert game rules lateRules s' again fuel hRules hLate]
+        cases drainAgain.go game (filterNonInertGroups rules) (filterNonInertGroups lateRules)
+            s' again fuel with
+        | error _ => rfl
+        | ok sSettled => exact ih sSettled fuel
+
+/--
+`boardWinEquiv g g'`: same non-rule game metadata, and finite input sequences under
+`g`'s metadata with each game's rule arrays agree on solver observables.
+-/
+def boardWinEquiv (g g' : Game) : Prop :=
+  Game.withoutRules g = Game.withoutRules g' ∧
+    ∀ (s : Session) (inputs : List InputToken),
+      (sessionSolverObs <$>
+          replaySolverGo g g.rules g.lateRules s inputs turnFuelDefault) =
+        (sessionSolverObs <$>
+          replaySolverGo g g'.rules g'.lateRules s inputs turnFuelDefault)
+
+/--
+Inert prune soundness: under `noRandomRuleGroups`, `dropInert` preserves solver
+observables across finite input sequences (design-doc `boardWinEquiv`).
+-/
+theorem dropInert_boardWinEquiv (g : Game) (h : g.noRandomRuleGroups = true) :
+    boardWinEquiv g (Game.dropInert g) := by
+  refine ⟨Game.withoutRules_dropInert g, ?_⟩
+  intro s inputs
+  have hR := Game.noRandomRuleGroups_rules g h
+  have hL := Game.noRandomRuleGroups_lateRules g h
+  simp only [Game.dropInert_rules, Game.dropInert_lateRules]
+  rw [replaySolverGo_filterNonInert g g.rules g.lateRules s inputs turnFuelDefault hR hL]
 
 end PuzzleScript

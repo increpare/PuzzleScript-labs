@@ -86,6 +86,8 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
   `runTurnObsWithRules`); leaf → group → loops → rigid → fuelled turn path
 - T4: `LevelIdx`, typed `Session.currentLevel` / undo frames; `Session.WellFormed`
   (active playable at/after level cursor); `parity_smoke --check-session-wf`
+- `boardWinEquiv` / `dropInert_boardWinEquiv` under `noRandomRuleGroups` (multi-turn
+  lift of T5 via `replaySolverGo`); `Rule.boardEffectId` from syntactic inert
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
 - Bridge lemmas for the inert fragment: `BoardViewEq`, `againEligible_*` (`Abstract.lean`)
 - §4.0: again-eligibility uses **object-mask delta** (`objectsChanged` / `againEligible`), not “command fired”
@@ -99,6 +101,7 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
 
 ## Next
 
-`boardWinEquiv` / inert prune soundness on top of T5 turn congruence + T4 session WF —
-see `docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
-Optional follow-up: Prop-level `Session.WellFormed` preservation through `executeTurn`.
+Hand-written mini-game discharging `dropInert_boardWinEquiv`; Prop-level
+`Session.WellFormed` preservation; optional `executeTurn (dropInert g)` transport via
+`Game.withoutRules` stepper normalization — see
+`docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.

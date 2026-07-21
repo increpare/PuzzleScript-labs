@@ -46,6 +46,14 @@ structure Game where
   runRulesOnLevelStart : Bool
   deriving Repr
 
+/--
+Strip rule arrays for steppers that take rules explicitly. `dropInert` only rewrites
+`rules`/`lateRules`, so `withoutRules (dropInert g) = withoutRules g` (definitional),
+which makes game-metadata congruence for filtered turns definitional.
+-/
+def Game.withoutRules (g : Game) : Game :=
+  { g with rules := #[], lateRules := #[] }
+
 def Game.validObject (g : Game) (o : ObjectId) : Bool :=
   o.val < g.objectCount
 
