@@ -27,11 +27,12 @@ Do **not** start this work until Lean parity on the clean corpus is boring under
 
 ### In scope
 
+- **Blocking runtime fix (before or with the abstract view):** align Lean `turn.modified` / again-gating with JS (see §4.0). Without this, the inert theorem is false of the executable model.
 - Abstract board/rule vocabulary + `toMask` / `fromMask` + step equivalence for the kernel subset needed by inert theorems.
-- Accept **inert commands** (`sfx*`, `message`) in Lean IR/runtime as board no-ops; fail closed on semantic commands (`win`, `again`, `undo`, …) until modeled separately.
-- Definitions: `syntacticInertCommandOnly`, `boardEffectId`, `dropInert`, `boardWinEquiv`.
+- Accept **inert commands** (`sfx*`, `message`) in Lean IR/runtime as board no-ops; fail closed on semantic commands (`win`, `again`, `undo`, …) until modeled separately. (`again` itself is semantic; modeling full again *loops* may still be limited, but the **again-eligibility predicate** that gates them must be correct as soon as commands exist.)
+- Definitions: `syntacticInertCommandOnly`, `boardEffectId` (including again-eligibility — §4.3), `dropInert`, `boardWinEquiv`.
 - Soundness: syntactic inert ⇒ board-effect identity ⇒ prune preserves `boardWinEquiv`; transport to mask `Game` / `Session`.
-- One tiny **hand-written** Lean `Game` discharging the theorem (not gallery codegen).
+- One tiny **hand-written** Lean `Game` discharging the theorem (not gallery codegen), including a counterexample-shaped case where `again` is queued alongside inert command firings.
 
 ### Out of scope
 
@@ -79,27 +80,58 @@ Cosmetic is deferred: projection + undo-scoped soundness (documented in `STATIC_
 clean corpus parity (gate)
         │
         ▼
+BLOCKING: fix turn.modified / again-eligibility to match JS
+  (object delta, not “any command fired”)
+        │
+        ▼
 Abstract view: tiles → objects / pending movements
    + toMask / fromMask
    + theorem: abstractStep ≡ maskStep  (kernel subset)
+   + vocabulary includes againEligible (same predicate as runtime)
         │
         ▼
 Inert commands accepted as board-irrelevant effects
         │
         ▼
 syntacticInertCommandOnly / boardEffectId / dropInert / boardWinEquiv
-   (stated on abstract view)
+   (stated on abstract view; boardEffectId includes again-eligibility)
 theorem: Inert… → boardWinEquiv g (dropInert g)
    + transport to mask Game/Session
         │
         ▼
 tiny hand-written Game discharge
+  (incl. again + inert-command co-fire case)
         │
         ▼
 later: C (IR→Lean per game) · B (certified search)
 ```
 
-### 4.1 Abstract view (first deliverable after the gate)
+### 4.0 Blocking: `turn.modified` and again-eligibility
+
+JS (`processInput` / `processCommandQueue` in `src/js/engine.js`):
+
+- A dirty flag (`turnObjectsModified`) may be set conservatively when the command queue is nonempty (forces a compare).
+- The **true** `modified` returned / used for `again` is set only when `level.objects` differs from the pre-turn backup.
+- `againing` requires `again` in the queue **and** that object-delta `modified` (plus the again-probe when not skipped).
+
+Commands alone (including `sfx*` / `message`) do **not** make a turn “modified” for again purposes if objects are unchanged.
+
+**Lean footgun (must not ship into the theorem model):** treating `!rule.commands.isEmpty` as flipping `turn.modified` (as in the lean-parity-smoke worktree) invents board changes that JS does not. Then:
+
+1. A turn queues `again` and also fires only inert command-only rules with no object change.
+2. Wrong model: inert firings ⇒ `modified = true` ⇒ again runs.
+3. After `dropInert`: those firings vanish ⇒ again may be suppressed.
+4. Different again loops ⇒ different board sequences ⇒ **`boardWinEquiv` fails** even though occupancy never changed.
+
+**Required fix (blocking, not optional polish):**
+
+- Compute again-relevant modification from **board object delta** vs turn backup (match JS: objects, not “command fired”).
+- If Lean compares movements for other purposes, keep that separate from the again gate unless/until JS does too (JS again compare is objects-only today).
+- Expose the same predicate in the abstract vocabulary (e.g. `againEligible turn` / `objectsChanged turn`) so proofs talk about one notion.
+
+Do this **before or as part of** building the abstract view. Do not prove inert soundness against a runtime that still uses command-presence `modified`.
+
+### 4.1 Abstract view (first deliverable after the gate, after §4.0)
 
 Minimum vocabulary for inert:
 
@@ -123,11 +155,17 @@ Prefer a two-step implication so per-game work stays mechanical:
 
 1. `syntacticInertCommandOnly(r) → boardEffectId(r)`  
    Syntax mirrors JS tagging (command set + no object/movement mutation).  
-   `boardEffectId` in abstract words: applying `r` never adds/removes objects or changes pending moves (commands may fire but are board-irrelevant).
+   **`boardEffectId(r)` in abstract words means all of:**
+   - applying `r` never adds/removes objects or changes pending moves;
+   - applying `r` does **not** change **again-eligibility** of the turn (same `againEligible` / object-delta outcome as if `r` had not fired), even when other rules have queued `again`.
+
+   Inert commands may still enter the command queue for audio/message side effects; those must not feed the again gate (that is exactly what §4.0 enforces in the runtime).
 
 2. If every dropped rule satisfies `boardEffectId`, then `boardWinEquiv g (dropInert g)`.
 
 Track C later only needs to establish `syntacticInertCommandOnly` on concrete games (decide / codegen / `#eval`), then inherit soundness.
+
+**Why again-eligibility is part of `boardEffectId`, not a separate lemma:** board/win traces include drained again loops. A prune that only preserves occupancy but flips whether again runs is already a `boardWinEquiv` counterexample. Stating it inside `boardEffectId` keeps the hypothesis honest about what “inert for the solver state” must mean.
 
 ### 4.4 Runtime gap
 
@@ -145,12 +183,13 @@ Today Lean **rejects non-empty `commands`** (`lean/README.md`, `PuzzleScript/IR.
 ## 6. Milestone checklist (when corpus is done)
 
 1. Confirm clean-corpus Lean parity gate.
-2. Abstract view + mask bridge + step equivalence (kernel for inert).
-3. Inert command stubs in IR/runtime.
-4. Definitions on the abstract view (`boardEffectId`, `syntacticInertCommandOnly`, `dropInert`, `boardWinEquiv`).
-5. Main soundness lemma + transport to mask runtime.
-6. Hand-written mini-game theorem.
-7. Short note in `lean/README.md` (or adjacent doc) linking this work to the JS inert optimizer; point at C/B follow-ons.
+2. **Fix `turn.modified` / again-eligibility** to match JS object-delta gating (§4.0); add a regression that fails if command presence alone marks a turn modified.
+3. Abstract view + mask bridge + step equivalence (kernel for inert), including shared `againEligible` vocabulary.
+4. Inert command stubs in IR/runtime (board no-ops; must not flip again-eligibility).
+5. Definitions on the abstract view (`boardEffectId` with again-eligibility, `syntacticInertCommandOnly`, `dropInert`, `boardWinEquiv`).
+6. Main soundness lemma + transport to mask runtime.
+7. Hand-written mini-game theorem, including again + inert co-fire.
+8. Short note in `lean/README.md` (or adjacent doc) linking this work to the JS inert optimizer; point at C/B follow-ons.
 
 ## 7. Follow-ons (not this milestone)
 
@@ -163,12 +202,15 @@ Today Lean **rejects non-empty `commands`** (`lean/README.md`, `PuzzleScript/IR.
 ## 8. Testing and success criteria
 
 - Mask parity suite still green (abstract work must not break the oracle path).
-- Lean proves (or has a clear lemma statement with completed proof) inert prune soundness under `boardWinEquiv` for the supported kernel.
-- Mini-game: a concrete `Game` with an inert command-only rule; `dropInert` yields a `boardWinEquiv`-related theorem.
+- Regression: a turn that only fires inert commands (no object change) does **not** set again-relevant `modified`; with `again` also queued and no object delta, again does **not** run (match JS “wouldn't make any changes” when applicable).
+- Lean proves inert prune soundness under `boardWinEquiv` for the supported kernel, with `boardEffectId` including again-eligibility.
+- Mini-game: concrete `Game` with an inert command-only rule (and an again + inert co-fire case); `dropInert` yields a `boardWinEquiv`-related theorem.
 - No requirement that Lean reproduce JS sound/message traces for these rules.
 
 ## 9. Risks
 
+- **Wrong `modified` (blocking):** command-presence modified lets inert prune change again loops; fix in §4.0 before trusting theorems.
 - **Abstract/mask drift:** mitigate by proving equivalence early and keeping parity execution on masks.
-- **Command surface creep:** only inert commands in this milestone; semantic commands stay fail-closed.
-- **Over-building the view:** limit v1 abstract API to what inert proofs need; add concepts when the next tag analysis asks for them.
+- **Command surface creep:** only inert commands as board no-ops in this milestone; semantic commands stay fail-closed except as needed to *observe* again-eligibility correctly.
+- **Over-building the view:** limit v1 abstract API to what inert proofs need (including `againEligible`); add concepts when the next tag analysis asks for them.
+- **Objects vs movements in again compare:** JS gates on objects only; Lean must not silently widen that predicate or the theorem will prove the wrong engine.
