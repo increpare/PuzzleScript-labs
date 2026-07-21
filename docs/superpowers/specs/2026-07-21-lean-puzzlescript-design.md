@@ -17,10 +17,10 @@ Keep Lean types and transition functions proof-friendly so later theorems can un
 
 ### Fidelity bar
 
-- **JS remains the behavioral oracle.** Fixture expectations exported from the original JavaScript implementation are authoritative.
-- Lean must match `expected_serialized_level` for every whitelisted simulation fixture.
-- Divergences are Lean bugs or explicit unsupported-feature failures — not new PuzzleScript semantics.
-- Matching JS bug-for-bug is expected, same policy as the C++ port.
+- **JS is the primary behavioral reference** for fixtures and everyday parity. Lean should match `expected_serialized_level` for every whitelisted simulation fixture in the normal case.
+- **Do not deliberately encode JS bugs in Lean.** Unlike the C++ port’s bug-for-bug policy, if Lean work surfaces incorrect JS (or C++) behavior, **report it** (issue / note) and prefer the corrected semantics in Lean rather than copying the bug.
+- Practical handling when a whitelist case hits a real JS bug: file the report, document the case, and either fix the oracle side or temporarily drop/waive that case with an explicit rationale — do not silently “pass” by imitating the bug.
+- Other divergences (unsupported feature, Lean implementation mistake) remain Lean bugs or explicit unsupported-feature failures — not an excuse to invent new PuzzleScript dialect semantics.
 
 ### In scope (v1)
 
@@ -152,9 +152,9 @@ Sound parity is out of scope for v1. Per-input snapshot diffs are a useful debug
 
 | Implementation | Role |
 |---|---|
-| JavaScript (`src/`) | Oracle / reference semantics; source of fixtures via `js_oracle`. |
-| C++ (`native/`) | Production native compiler/runtime; full corpus parity consumer of the same fixtures. |
-| Lean (`lean/`) | Executable formal model; smoke parity on a whitelist; future proof surface for analysis/optimization. |
+| JavaScript (`src/`) | Primary reference and fixture source via `js_oracle`; bugs discovered via Lean should be reported, not enshrined. |
+| C++ (`native/`) | Production native compiler/runtime; full corpus parity consumer of the same fixtures (still tends toward JS bug-for-bug). |
+| Lean (`lean/`) | Executable formal model; smoke parity on a whitelist; prefers correct semantics when JS is wrong; future proof surface for analysis/optimization. |
 
 Lean is a peer consumer of fixture data, not a replacement for JS or C++.
 
@@ -175,3 +175,4 @@ Lean is a peer consumer of fixture data, not a replacement for JS or C++.
 | v1 success bar? | Handful of JS simulation suite cases match end state. |
 | Fixture source? | Existing `export_native_fixtures.js` / `js-parity-data` pipeline; no JS changes for v1. |
 | Approach? | Lean runtime over exported IR/fixtures (not trace-only revalidation, not full Lean compiler). |
+| Match JS bugs? | No — report them; prefer correct semantics in Lean (differs from C++ bug-for-bug policy). |
