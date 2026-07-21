@@ -1960,6 +1960,16 @@ Large enough for any realistic nesting; enables induction for inert congruence.
 -/
 def turnFuelDefault : Nat := 64
 
+/-- Win / checkpoint bookkeeping after cancel/restart handling (rules-independent). -/
+def processCommandQueue.afterWinCheckpoint (game : Game) (s1 : Session)
+    (cmds : Array Command) : Session :=
+  let winning := s1.winning || cmds.contains .win || evaluateWinConditions game s1.board
+  let s2 := { s1 with winning }
+  if !s2.winning && cmds.contains .checkpoint then
+    { s2 with restartBoard := some s2.board.clearMovements }
+  else
+    s2
+
 mutual
 /-- JS: after restore/load with `run_rules_on_level_start`, run `processInput(-1)` and ignore win. -/
 def runRulesOnLevelStartIfNeeded.go (game : Game) (rules lateRules : Array (Array Rule))
@@ -2003,24 +2013,19 @@ def processCommandQueue.go (game : Game) (rules lateRules : Array (Array Rule))
       match afterRestart with
       | .error e => .error e
       | .ok s1 =>
-        let winning := s1.winning || cmds.contains .win || evaluateWinConditions game s1.board
-        let s2 := { s1 with winning }
-        let s3 :=
-          if !s2.winning && cmds.contains .checkpoint then
-            { s2 with restartBoard := some s2.board.clearMovements }
-          else
-            s2
-        if againEligible cmds turnBackup.board s3.board then
-          if skipAgainProbe then
-            pure (s3, true)
-          else
+        -- Inlined `processCommandQueue.finish` (kept here for mutual termination).
+        let s3 := processCommandQueue.afterWinCheckpoint game s1 cmds
+        match againEligible cmds turnBackup.board s3.board with
+        | true =>
+          match skipAgainProbe with
+          | true => pure (s3, true)
+          | false =>
             let boardBeforeProbe := s3.board
             match executeTurn.go game rules lateRules s3 (.tick) true fuel with
             | .error _ => pure (s3, false)
             | .ok (probed, _) =>
               pure ({ s3 with rng := probed.rng }, objectsChanged boardBeforeProbe probed.board)
-        else
-          pure (s3, false)
+        | false => pure (s3, false)
 
 /--
 `game` supplies movement/win/session metadata; `rules`/`lateRules` are the rule arrays
@@ -2062,8 +2067,7 @@ def executeTurn.go (game : Game) (rules lateRules : Array (Array Rule)) (session
         match input.dirMask? with
         | some dirMask => startMovement game board0 dirMask
         | none => (board0, #[])
-      let startBoard := board1
-      match rigidRetry game rules lateRules game.loopPoint game.lateLoopPoint startBoard turn0 with
+      match rigidRetry game rules lateRules game.loopPoint game.lateLoopPoint board1 turn0 with
       | .error e => .error e
       | .ok (board2, turn2) =>
         if game.requirePlayerMovement && playerPositions.size > 0
@@ -2078,6 +2082,64 @@ def executeTurn.go (game : Game) (rules lateRules : Array (Array Rule)) (session
           | .ok (s1, againPending) =>
             pure (sessionAfterWinAdvance game s1, againPending)
 end
+
+/--
+Again-probe / return after restart+win bookkeeping. Matches the `.ok` branch of
+`processCommandQueue.go` (extracted for congruence proofs).
+-/
+def processCommandQueue.finish (game : Game) (rules lateRules : Array (Array Rule))
+    (turnBackup : Session) (s1 : Session) (cmds : Array Command) (skipAgainProbe : Bool)
+    (fuel : Nat) : Except String (Session × Bool) :=
+  let s3 := processCommandQueue.afterWinCheckpoint game s1 cmds
+  match againEligible cmds turnBackup.board s3.board with
+  | true =>
+    match skipAgainProbe with
+    | true => pure (s3, true)
+    | false =>
+      let boardBeforeProbe := s3.board
+      match executeTurn.go game rules lateRules s3 (.tick) true fuel with
+      | .error _ => pure (s3, false)
+      | .ok (probed, _) =>
+        pure ({ s3 with rng := probed.rng }, objectsChanged boardBeforeProbe probed.board)
+  | false => pure (s3, false)
+
+/--
+Tick / move / action body extracted for congruence proofs (definitionally matches `go`).
+-/
+def executeTurn.movementGo (game : Game) (rules lateRules : Array (Array Rule))
+    (session : Session) (startBoard : Board) (playerPositions : Array Nat)
+    (turn0 : TurnState) (skipAgainProbe : Bool) (fuel : Nat) :
+    Except String (Session × Bool) :=
+  let turnBackup := session
+  match rigidRetry game rules lateRules game.loopPoint game.lateLoopPoint startBoard turn0 with
+  | .error e => .error e
+  | .ok (board2, turn2) =>
+    if game.requirePlayerMovement && playerPositions.size > 0
+        && !playerMovementDetected game board2 playerPositions then
+      pure (turnBackup, false)
+    else
+      let winning0 := evaluateWinConditions game board2
+      let winning := winning0 || turn2.commandQueue.contains .win
+      let s0 := { session with board := board2, winning, rng := turn2.rng }
+      match processCommandQueue.go game rules lateRules turnBackup s0 turn2 skipAgainProbe fuel with
+      | .error e => .error e
+      | .ok (s1, againPending) =>
+        pure (sessionAfterWinAdvance game s1, againPending)
+
+theorem executeTurn.go_eq_movementGo
+    (game : Game) (rules lateRules : Array (Array Rule)) (session : Session)
+    (input : InputToken) (skip : Bool) (fuel : Nat)
+    (h : input = .tick ∨ input = .action ∨ ∃ d, input = .move d) :
+    executeTurn.go game rules lateRules session input skip (fuel + 1) =
+      (let board0 := session.board.clearMovements
+       let turn0 := TurnState.initial session.rng
+       let (board1, playerPositions) :=
+         match input.dirMask? with
+         | some dirMask => startMovement game board0 dirMask
+         | none => (board0, #[])
+       executeTurn.movementGo game rules lateRules session board1 playerPositions turn0 skip
+         fuel) := by
+  rcases h with h | h | ⟨d, h⟩ <;> subst h <;> rfl
 
 def runRulesOnLevelStartIfNeeded (game : Game) (session : Session) : Except String Session :=
   runRulesOnLevelStartIfNeeded.go game game.rules game.lateRules session turnFuelDefault
