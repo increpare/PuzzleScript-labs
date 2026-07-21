@@ -8,9 +8,9 @@ import PuzzleScript.Rules
 
 namespace PuzzleScript
 
-def ruleDirectionDelta (direction height : Nat) : Int :=
+def ruleDirectionDelta (direction : RuleDir) (height : Nat) : Int :=
   let h := Int.ofNat height
-  let d := UInt32.ofNat direction
+  let d := direction.bits
   let d0 := Int.ofNat (d &&& 1).toNat
   let d1 := Int.ofNat ((d >>> 1) &&& 1).toNat
   let d2 := Int.ofNat ((d >>> 2) &&& 1).toNat
@@ -26,12 +26,19 @@ def dirInputToLayerBits (dir : Int) : Option UInt32 :=
 def dirDelta (dirBits : UInt32) : Option (Int × Int) :=
   Dir4.ofBits? dirBits |>.map (·.delta)
 
+/-- Player / clock input. Movement uses `Dir4`; JS action key is `.action` (bit 16). -/
 inductive InputToken where
-  | movement (idx : Int)
+  | move (d : Dir4)
+  | action
   | undo
   | restart
   | tick
   deriving Repr
+
+def InputToken.dirMask? : InputToken → Option UInt32
+  | .move d => some d.toBits
+  | .action => some 16
+  | .undo | .restart | .tick => none
 
 def parseMovementInputToken (tok : String) : Except String InputToken :=
   if tok == "undo" then
@@ -44,10 +51,12 @@ def parseMovementInputToken (tok : String) : Except String InputToken :=
     match tok.toInt? with
     | none => throw s!"invalid input token: {tok}"
     | some n =>
-      if n < 0 || n > 4 then
-        throw s!"input code out of range (expected 0..4): {tok}"
+      if n == 4 then
+        pure .action
       else
-        pure (.movement n)
+        match Dir4.ofInputIndex? n with
+        | some d => pure (.move d)
+        | none => throw s!"input code out of range (expected 0..4): {tok}"
 
 private def maskComplementWord (w : UInt32) : UInt32 := ~~~w
 
@@ -500,9 +509,10 @@ private def findRowMatches (b : Board) (rule : Rule) (rowIndex : Nat) : Array Ro
   let row := rule.patternRows.getD rowIndex #[]
   let ec := rule.ellipsisCounts.getD rowIndex 0
   let delta := ruleDirectionDelta rule.direction b.height
-  if ec == 0 then findFixedRowMatches b rule.direction delta row
-  else if ec == 1 then findEllipsis1RowMatches b rule.direction delta row
-  else if ec == 2 then findEllipsis2RowMatches b rule.direction delta row
+  let dirNat := rule.direction.toNat
+  if ec == 0 then findFixedRowMatches b dirNat delta row
+  else if ec == 1 then findEllipsis1RowMatches b dirNat delta row
+  else if ec == 2 then findEllipsis2RowMatches b dirNat delta row
   else #[]
 
 private def cartesianRowMatches (lists : Array (Array RowMatch)) : Array (Array RowMatch) :=
@@ -990,19 +1000,15 @@ partial def executeTurn (game : Game) (session : Session) (input : InputToken) (
       | none => session
     let s ← runRulesOnLevelStartIfNeeded game s0
     pure (s, false)
-  | .tick | .movement _ =>
+  | .tick | .move _ | .action =>
     let turnBackup := session
     let mut board := session.board.clearMovements
     let mut turn := TurnState.initial session.rng
     let mut playerPositions : Array Nat := #[]
-    if let .movement idx := input then
-      if idx >= 0 then
-        let dirMask ← match dirInputToLayerBits idx with
-          | none => throw s!"invalid movement input index: {idx}"
-          | some m => pure m
-        let (board', positions) := startMovement game board dirMask
-        board := board'
-        playerPositions := positions
+    if let some dirMask := input.dirMask? then
+      let (board', positions) := startMovement game board dirMask
+      board := board'
+      playerPositions := positions
     let startBoard := board
     let mut bannedGroup : Array Bool := #[]
     let mut rigidIter := 0
@@ -1061,7 +1067,7 @@ def replay (game : Game) (session : Session) (inputs : Array String) (maxInputs 
       again := again'
     -- Push one undo frame per player input after again settles (not per again tick).
     match input with
-    | .movement _ =>
+    | .move _ | .action =>
       if boardsDiffer pre.board s.board then
         s := { s with undoBackups := s.undoBackups.push (pre.board, pre.currentLevel, pre.winning) }
     | .undo | .restart | .tick => pure ()
@@ -1069,7 +1075,13 @@ def replay (game : Game) (session : Session) (inputs : Array String) (maxInputs 
   pure s
 
 def stepOneInput (game : Game) (session : Session) (inputIdx : Int) : Except String Session := do
-  let (s, _) ← executeTurn game session (.movement inputIdx)
+  let input ←
+    if inputIdx == 4 then pure InputToken.action
+    else
+      match Dir4.ofInputIndex? inputIdx with
+      | some d => pure (.move d)
+      | none => throw s!"invalid movement input index: {inputIdx}"
+  let (s, _) ← executeTurn game session input
   pure s
 
 def stepInputToken (game : Game) (session : Session) (tok : String) : Except String Session := do

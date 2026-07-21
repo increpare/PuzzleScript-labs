@@ -269,7 +269,8 @@ private def parseRule (j : Json) (ctx : String) : Except String Rule := do
   let patternRows ← patternRowsJson.mapIdxM fun ri rowJ => do
     let cellsJson ← (Json.getArr? rowJ).mapError fun e => s!"{ctx}.patterns[{ri}]: {e}"
     cellsJson.mapIdxM fun ci cellJ => parsePatternCell cellJ s!"{ctx}.patterns[{ri}][{ci}]"
-  let direction ← (j.getObjValAs? Nat "direction").mapError fun _ => s!"{ctx}: missing direction"
+  let directionNat ← (j.getObjValAs? Nat "direction").mapError fun _ => s!"{ctx}: missing direction"
+  let direction := RuleDir.ofNat directionNat
   let lineNumber ← (j.getObjValAs? Nat "line_number").mapError fun _ => s!"{ctx}: missing line_number"
   let groupNumber ← (j.getObjValAs? Nat "group_number").mapError fun _ => s!"{ctx}: missing group_number"
   pure { direction, lineNumber, groupNumber, patternRows, ellipsisCounts, commands, rigid, isRandom, propertyBindings, aggregateBindings }

@@ -50,13 +50,13 @@ theorem BoardViewEq.trans {a b c : Board} (hab : BoardViewEq a b) (hbc : BoardVi
 theorem BoardViewEq.occ_eq {a b : Board} (h : BoardViewEq a b) (t : TileIdx) :
     a.occ t = b.occ t := by
   cases h
-  simp [Board.occ, Board.nTiles, Board.cellObjWords, *]
+  simp [Board.occ, Board.nTiles, Board.cellObjWordsAt, Board.cellObjWords, *]
 
 /-- Movement projection agrees when views are equal. -/
 theorem BoardViewEq.movAt_eq {a b : Board} (h : BoardViewEq a b) (t : TileIdx) (ℓ : LayerIdx) :
     a.movAt t ℓ = b.movAt t ℓ := by
   cases h
-  simp [Board.movAt, Board.nTiles, Board.cellMovWords, *]
+  simp [Board.movAt, Board.nTiles, Board.cellMovWordsAt, Board.cellMovWords, *]
 
 /-- §4.0: without `again` in the queue, again is never eligible. -/
 theorem againEligible_false_of_no_again

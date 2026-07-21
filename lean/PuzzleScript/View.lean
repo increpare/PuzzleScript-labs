@@ -40,7 +40,7 @@ def Board.occ (b : Board) (t : TileIdx) : ObjectSet :=
   if t.val ≥ b.nTiles then
     ObjectSet.empty
   else
-    let cell := b.cellObjWords t.val
+    let cell := b.cellObjWordsAt t
     Id.run do
       let mut out : ObjectSet := ObjectSet.empty
       let maxBit := b.strideObj * 32
@@ -54,7 +54,7 @@ def Board.movAt (b : Board) (t : TileIdx) (ℓ : LayerIdx) : Option Dir4 :=
   if t.val ≥ b.nTiles || ℓ.val ≥ b.layerCount then
     none
   else
-    let bits := getLayerMovementBits (b.cellMovWords t.val) ℓ.val
+    let bits := getLayerMovementBits (b.cellMovWordsAt t) ℓ.val
     Dir4.ofBits? (bits &&& 15)
 
 /-- Bounds-checked column-major neighbor. -/

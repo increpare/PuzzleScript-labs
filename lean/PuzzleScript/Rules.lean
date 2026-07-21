@@ -3,6 +3,17 @@ import PuzzleScript.Command
 
 namespace PuzzleScript
 
+/-- Rule scan/apply direction bitfield (JS `rule.direction`; may be omni / multi-bit). -/
+structure RuleDir where
+  bits : UInt32
+  deriving DecidableEq, Repr, Inhabited
+
+def RuleDir.ofNat (n : Nat) : RuleDir :=
+  ⟨UInt32.ofNat n⟩
+
+def RuleDir.toNat (d : RuleDir) : Nat :=
+  d.bits.toNat
+
 structure LayerCoupledLayer where
   layerIndex : Nat
   objectMask : MaskWords
@@ -95,7 +106,7 @@ inductive RowMatch where
   deriving Repr, Inhabited
 
 structure Rule where
-  direction : Nat
+  direction : RuleDir
   lineNumber : Nat
   groupNumber : Nat
   patternRows : Array (Array PatternCell)

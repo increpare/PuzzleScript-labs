@@ -1,4 +1,5 @@
 import PuzzleScript.BitVec
+import PuzzleScript.Ids
 
 namespace PuzzleScript
 
@@ -27,6 +28,7 @@ def Board.tileCol (b : Board) (tile : Nat) : Nat :=
 def Board.tileRow (b : Board) (tile : Nat) : Nat :=
   tile % b.height
 
+/-- Internal Nat-indexed accessors (private Runtime loops may call these). -/
 def Board.cellObjWords (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideObj
   b.objects.extract start (start + b.strideObj)
@@ -34,6 +36,13 @@ def Board.cellObjWords (b : Board) (tile : Nat) : MaskWords :=
 def Board.cellMovWords (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideMov
   b.movements.extract start (start + b.strideMov)
+
+/-- Public typed cell accessors (T1 boundary). -/
+def Board.cellObjWordsAt (b : Board) (t : TileIdx) : MaskWords :=
+  b.cellObjWords t.val
+
+def Board.cellMovWordsAt (b : Board) (t : TileIdx) : MaskWords :=
+  b.cellMovWords t.val
 
 def Board.setCellObjWords (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
   Id.run do
@@ -48,6 +57,12 @@ def Board.setCellMovWords (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
     for i in [:b.strideMov] do
       mov := mov.set! (tile * b.strideMov + i) (ws.getD i 0)
     pure { b with movements := mov }
+
+def Board.setCellObjWordsAt (b : Board) (t : TileIdx) (ws : MaskWords) : Board :=
+  b.setCellObjWords t.val ws
+
+def Board.setCellMovWordsAt (b : Board) (t : TileIdx) (ws : MaskWords) : Board :=
+  b.setCellMovWords t.val ws
 
 def Board.cellRigidMovementAppliedMask (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideMov

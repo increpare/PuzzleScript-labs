@@ -73,10 +73,12 @@ Clean means the fixture’s source JS-compiles with **`errorCount == 0` and no w
 
 The interpreter targets parity with JS `processInput` / `applyRules` / `resolveMovements` / `checkWin` for whitelisted simulation fixtures. Unsupported IR still fails closed at load time. The clean corpus whitelist is currently complete (`parity_whitelist.txt`).
 
-**Typed representation (abstract-view prep)**
+**Typed representation (abstract-view prep + T1 edges)**
 
 - Index wrappers: `TileIdx`, `LayerIdx`, `ObjectId` (`PuzzleScript/Ids.lean`)
 - `Dir4` — sole up/down/left/right ↔ bit bridge (`Dir4.lean`); Runtime direction sites use it
+- `RuleDir` — rule scan bitfield wrapper; `InputToken` is `| move Dir4 | action | undo | restart | tick`
+- Public Board accessors: `cellObjWordsAt` / `cellMovWordsAt` (private loops may still use Nat)
 - Closed `Command` inductive — IR parses fail closed; `Rule.commands` / turn queues are `Array Command`
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
 - Bridge lemmas for the inert fragment: `BoardViewEq`, `againEligible_*` (`Abstract.lean`)
