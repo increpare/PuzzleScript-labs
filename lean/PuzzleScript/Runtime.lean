@@ -932,6 +932,8 @@ partial def processCommandQueue (game : Game) (turnBackup : Session) (session : 
       s := { s with board := rb.clearMovements }
   let winning := s.winning || cmds.contains "win" || evaluateWinConditions game s.board
   s := { s with winning }
+  if !s.winning && cmds.contains "checkpoint" then
+    s := { s with restartBoard := some s.board.clearMovements }
   let againPending :=
     if cmds.contains "again" && turn.modified then
       if skipAgainProbe then true else againProbe game s
@@ -1006,9 +1008,13 @@ partial def executeTurn (game : Game) (session : Session) (input : InputToken) (
     pure (s, againPending)
 end
 
-def replay (game : Game) (session : Session) (inputs : Array String) : Except String Session := do
+def replay (game : Game) (session : Session) (inputs : Array String) (maxInputs : Option Nat := none) : Except String Session := do
   let mut s := session
+  let mut count := 0
   for tok in inputs do
+    match maxInputs with
+    | some m => if count >= m then break
+    | none => pure ()
     let input ← parseMovementInputToken tok
     let (s', againPending) ← executeTurn game s input
     s := s'
@@ -1017,6 +1023,7 @@ def replay (game : Game) (session : Session) (inputs : Array String) : Except St
       let (s'', again') ← executeTurn game s (.tick)
       s := s''
       again := again'
+    count := count + 1
   pure s
 
 def stepOneInput (game : Game) (session : Session) (inputIdx : Int) : Except String Session := do

@@ -273,3 +273,4 @@ atlas shrank
 gallery game: interconnection
 gallery: unconventional guns
 sum three horizontally to 8!
+restart test

@@ -6,7 +6,7 @@ open PuzzleScript
 open PuzzleScript.Fixtures
 
 def usage : String :=
-  "Usage: lake exe parity_smoke --fixtures DIR --whitelist FILE"
+  "Usage: lake exe parity_smoke --fixtures DIR --whitelist FILE [--max-inputs N]"
 
 def missingFlagValue (flag : String) : String :=
   s!"missing value for {flag}\n{usage}"
@@ -15,26 +15,32 @@ def looksLikeFlag (s : String) : Bool :=
   s.startsWith "--"
 
 partial def parseArgs (args : List String) (fixtures : Option System.FilePath)
-    (whitelist : Option System.FilePath) :
-    Except String (System.FilePath × System.FilePath) :=
+    (whitelist : Option System.FilePath) (maxInputs : Option Nat) (printSerialize : Bool) :
+    Except String (System.FilePath × System.FilePath × Option Nat × Bool) :=
   match args with
   | [] =>
     match fixtures, whitelist with
-    | some f, some w => pure (f, w)
+    | some f, some w => pure (f, w, maxInputs, printSerialize)
     | _, _ => throw usage
   | "--fixtures" :: [] => throw (missingFlagValue "--fixtures")
   | "--fixtures" :: val :: rest =>
     if looksLikeFlag val then throw (missingFlagValue "--fixtures")
-    else parseArgs rest (some val) whitelist
+    else parseArgs rest (some val) whitelist maxInputs printSerialize
   | "--whitelist" :: [] => throw (missingFlagValue "--whitelist")
   | "--whitelist" :: val :: rest =>
     if looksLikeFlag val then throw (missingFlagValue "--whitelist")
-    else parseArgs rest fixtures (some val)
+    else parseArgs rest fixtures (some val) maxInputs printSerialize
+  | "--max-inputs" :: [] => throw (missingFlagValue "--max-inputs")
+  | "--max-inputs" :: val :: rest =>
+    match val.toNat? with
+    | none => throw s!"invalid --max-inputs: {val}"
+    | some n => parseArgs rest fixtures whitelist (some n) printSerialize
+  | "--print-serialize" :: rest => parseArgs rest fixtures whitelist maxInputs true
   | other :: _ => throw s!"unknown arg: {other}\n{usage}"
 
 def main (args : List String) : IO UInt32 := do
-  let (fixturesDir, whitelistPath) ←
-    match parseArgs args none none with
+  let (fixturesDir, whitelistPath, maxInputs, printSerialize) ←
+    match parseArgs args none none none false with
     | .error e =>
       IO.eprintln e
       return 2
@@ -54,12 +60,15 @@ def main (args : List String) : IO UInt32 := do
   for fx in selected do
     let irPath := fixturesDir / fx.irFile
     let (game, session) ← loadIrFile irPath
-    match replay game session fx.inputs with
+    match replay game session fx.inputs maxInputs with
     | .error e =>
       IO.eprintln s!"FAIL {fx.name}: {e}"
       failures := failures + 1
     | .ok s =>
       let got := serializeLevel game.idDict s.board
+      if printSerialize then
+        IO.println got
+        return 0
       if got == fx.expectedSerializedLevel then
         IO.println s!"OK {fx.name}"
       else

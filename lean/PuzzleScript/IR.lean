@@ -374,9 +374,11 @@ def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
       while idx < game.levels.size do
         match game.levels[idx]? with
         | some (.playable w h lc objs) =>
+          let nb := boardFromPlayable game w h lc objs
           return {
             session with
-            board := boardFromPlayable game w h lc objs
+            board := nb
+            restartBoard := some nb
             currentLevel := idx
             winning := false
           }
