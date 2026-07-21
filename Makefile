@@ -25,7 +25,7 @@
 	rule_plan_parity_tests \
 	profile_simulation_tests profile_simulation_tests_32 profile_solver_tests locality_survey locality_survey_tests basic_test_suite_cpp basic_test_suite_js \
 	parser_corpus_errormessage_bundle parser_corpus_testdata_bundle clean clean-native \
-	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data
+	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
 
@@ -572,6 +572,7 @@ help:
 	@echo "  make run path/to/game.txt          Build and play a PuzzleScript game"
 	@echo "  make ctest                         Run fast C++ smoke/unit tests"
 	@echo "  make js_parity_tests               Run 64- and 32-bit C++ against the original JS corpus"
+	@echo "  make lean_parity_smoke             Run Lean IR parity smoke (whitelist vs js-parity-data)"
 	@echo "  make rule_plan_parity_tests        Compare JS/native game.rule_plan_v1 for simulation games"
 	@echo "  make simulation_tests              Run JS sim tests, then mirrored C++ sim parity"
 	@echo "  make simulation_corpus_perf_report Benchmark interpreter vs compiled-rulegroups vs compiled compact on testdata.js"
@@ -2033,6 +2034,16 @@ $(JS_PARITY_MANIFEST): $(JS_PARITY_INPUTS)
 	$(NODE) src/tests/js_oracle/export_native_fixtures.js $(JS_PARITY_DATA_DIR)
 
 js-parity-data: $(JS_PARITY_MANIFEST)
+
+.PHONY: lean_parity_smoke
+
+lean_parity_smoke: js-parity-data
+	@command -v lake >/dev/null 2>&1 || { \
+	  echo "lean_parity_smoke: 'lake' not found. Install elan (https://github.com/leanprover/elan) and retry."; \
+	  exit 1; \
+	}
+	cd lean && lake build parity_smoke
+	cd lean && lake exe parity_smoke --fixtures "$(CURDIR)/$(JS_PARITY_DATA_DIR)" --whitelist parity_whitelist.txt
 
 simulation_tests_cpp: build
 	$(PUZZLESCRIPT_CPP) test simulation-corpus src/tests/resources/testdata.js --jobs auto --progress-every 0
