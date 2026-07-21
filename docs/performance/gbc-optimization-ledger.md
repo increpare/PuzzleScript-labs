@@ -519,3 +519,33 @@ from 3167 to 7725 bytes. All 89 native CTests and all 753 JS tests pass.
 
 The option changes only exported level data, so it adds no runtime work and has
 no ROM or performance cost when disabled.
+
+### Physical-LCD contrast: game-wide colour stretching
+
+GBC export no longer treats authored RGB values as literal cartridge colours.
+The exporter inventories every opaque object and UI colour, then applies one
+shared monotone component curve to R, G, and B. Equal components remain equal,
+so neutral greys stay neutral, and component ordering is preserved. The source
+extrema are mapped to the complete 0-31 CGB component gamut.
+
+For each game, export evaluates 33 blends between a linear gamut stretch and an
+equal-rank histogram stretch. If the authored colours already include both
+component endpoints, the literal 5-bit curve is also eligible. Selection is
+deterministic and lexicographic: fewest 15-bit colour collisions, greatest
+minimum pairwise RGB distance, then greatest total pairwise distance. The
+manifest lists every source colour alongside its literal and selected BGR555
+values, the selected curve, collision counts, and before/after minimum distance.
+
+Across all 14 compatible production games, 12 improve their closest colour
+pair and two remain equal. None regress and none gain a BGR555 collision. The
+sum of the per-game minimum squared distances rises from 815 to 1459 (+79.0%).
+The dedicated four-colour test fixture rises from 48 to 221 (+360.4%) while
+remaining collision-free.
+
+This work is entirely in the host-side exporter. Every production link map is
+byte-identical in fixed-bank use, generated-bank use, static WRAM, session RAM,
+and the game-data estimate before and after (zero delta for all 14 games), so
+runtime speed and cartridge memory use are unchanged. All 89 native CTests
+pass. The instrumented cartridge passes its mGBA palette-register,
+render-and-logic smoke, and all 14 production ROMs pass link/header/memory
+checks and boot under mGBA.

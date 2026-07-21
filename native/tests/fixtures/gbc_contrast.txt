@@ -1,0 +1,55 @@
+title GBC Contrast Stretch
+background_color #202020
+text_color #e0e0e0
+
+========
+OBJECTS
+========
+
+Background
+#202020
+00000
+00000
+00000
+00000
+00000
+
+Player
+#404040 #804020 #e0e0e0
+01210
+12021
+20202
+12021
+01210
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+======
+RULES
+======
+
+[ > Player ] -> [ > Player ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player
+
+=======
+LEVELS
+=======
+
+P

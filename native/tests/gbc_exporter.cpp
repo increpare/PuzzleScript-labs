@@ -114,9 +114,9 @@ int main() {
         "5x5 sprite arrays are emitted without 8x8 padding or resampling");
     require(
         source.find(
-            "static const uint16_t kBackgroundPalettes[] = {4916U, 3624U, 0U, 0U, "
-            "4916U, 3624U, 6275U, 0U, 4916U, 3624U, 0U, 6717U, "
-            "4916U, 3624U, 4500U, 5353U, 4916U, 3624U, 6717U, 6275U")
+            "static const uint16_t kBackgroundPalettes[] = {6965U, 3658U, 0U, 0U, "
+            "6965U, 3658U, 8355U, 0U, 6965U, 3658U, 0U, 7773U, "
+            "6965U, 3658U, 4565U, 6443U, 6965U, 3658U, 7773U, 8355U")
             != std::string::npos,
         "object palettes reserve neighboring background colours and retain "
         "visible lower layers when capacity permits");
@@ -142,6 +142,74 @@ int main() {
     const auto second = puzzlescript::gbc::exportGame(options);
     require(readFile(first.generatedSourcePath) == readFile(second.generatedSourcePath),
         "repeated exports are deterministic");
+
+    puzzlescript::gbc::ExportOptions contrastOptions;
+    contrastOptions.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_contrast.txt";
+    contrastOptions.outputDirectory = output / "contrast";
+    const auto contrastResult = puzzlescript::gbc::exportGame(contrastOptions);
+    const std::string contrastManifest = readFile(contrastResult.manifestPath);
+    const std::string contrastSource = readFile(contrastResult.generatedSourcePath);
+    require(
+        contrastManifest.find("\"mode\": \"optimized_global_component_curve\"")
+                != std::string::npos
+            && contrastManifest.find("\"source_color_count\": 4")
+                != std::string::npos
+            && contrastManifest.find("\"source_component_level_count\": 4")
+                != std::string::npos
+            && contrastManifest.find("\"stretched_component_level_count\": 4")
+                != std::string::npos,
+        "manifest records the optimized game-wide component gamut stretch");
+    require(
+        contrastManifest.find(
+            "{\"source\": \"#202020\", \"literal_bgr555\": 4228, "
+            "\"stretched_bgr555\": 0}") != std::string::npos
+            && contrastManifest.find(
+                "{\"source\": \"#404040\", \"literal_bgr555\": 8456, "
+                "\"stretched_bgr555\": 10570}") != std::string::npos
+            && contrastManifest.find(
+                "{\"source\": \"#804020\", \"literal_bgr555\": 4368, "
+                "\"stretched_bgr555\": 341}") != std::string::npos
+            && contrastManifest.find(
+                "{\"source\": \"#E0E0E0\", \"literal_bgr555\": 29596, "
+                "\"stretched_bgr555\": 32767}") != std::string::npos,
+        "manifest lists every source colour and its literal and stretched CGB values");
+    require(
+        contrastManifest.find("\"literal_bgr555_collision_count\": 0")
+                != std::string::npos
+            && contrastManifest.find("\"stretched_bgr555_collision_count\": 0")
+                != std::string::npos
+            && contrastManifest.find("\"minimum_pair_distance_before\": 48")
+                != std::string::npos
+            && contrastManifest.find("\"minimum_pair_distance_after\": 221")
+                != std::string::npos,
+        "manifest quantifies collision-free minimum contrast improvement");
+    require(
+        contrastSource.find(
+            "static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
+                != std::string::npos
+            && contrastSource.find("0U, 10570U, 341U, 32767U")
+                != std::string::npos,
+        "the generated cartridge uses the stretched endpoint and midtone colours");
+
+    puzzlescript::gbc::ExportOptions literalFallbackOptions;
+    literalFallbackOptions.sourcePath =
+        root / "src" / "tests" / "good_games" / "Recondite Star Sector Sigma.txt";
+    literalFallbackOptions.outputDirectory = output / "contrast_literal_fallback";
+    literalFallbackOptions.cullOversizeLevels = true;
+    const auto literalFallbackResult =
+        puzzlescript::gbc::exportGame(literalFallbackOptions);
+    const std::string literalFallbackManifest =
+        readFile(literalFallbackResult.manifestPath);
+    require(
+        literalFallbackManifest.find("\"curve\": \"literal_full_gamut\"")
+                != std::string::npos
+            && literalFallbackManifest.find("\"minimum_pair_distance_before\": 171")
+                != std::string::npos
+            && literalFallbackManifest.find("\"minimum_pair_distance_after\": 171")
+                != std::string::npos,
+        "an already full-gamut literal curve remains eligible when stretching "
+        "would reduce its closest-pair contrast");
 
     puzzlescript::gbc::ExportOptions audioOptions;
     audioOptions.sourcePath =
