@@ -2046,8 +2046,11 @@ lean_parity_smoke: js-parity-data
 	  echo "lean_parity_smoke: 'lake' not found. Install elan (https://github.com/leanprover/elan) and retry."; \
 	  exit 1; \
 	}
-	cd lean && lake build parity_smoke
-	cd lean && lake exe parity_smoke --fixtures "$(CURDIR)/$(JS_PARITY_DATA_DIR)" --whitelist parity_whitelist.txt
+	# Flock + process-group kill via scripts/run_lean_parity_smoke.py so hung
+	# lake grandchildren cannot pile up, and concurrent smoke/expand cannot stack.
+	python3 scripts/run_lean_parity_smoke.py \
+		--fixtures "$(CURDIR)/$(JS_PARITY_DATA_DIR)" \
+		--whitelist "$(CURDIR)/lean/parity_whitelist.txt"
 
 simulation_tests_cpp: build
 	$(PUZZLESCRIPT_CPP) test simulation-corpus src/tests/resources/testdata.js --jobs auto --progress-every 0

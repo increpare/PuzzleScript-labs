@@ -969,17 +969,20 @@ partial def processCommandQueue (game : Game) (turnBackup : Session) (session : 
   if !s.winning && cmds.contains "checkpoint" then
     s := { s with restartBoard := some s.board.clearMovements }
   let boardChanged := boardsDiffer turnBackup.board s.board
-  let againPending :=
-    if cmds.contains "again" && boardChanged then
-      if skipAgainProbe then true else againProbe game s
+  let mut againPending := false
+  if cmds.contains "again" && boardChanged then
+    if skipAgainProbe then
+      againPending := true
     else
-      false
+      -- JS: processInput(-1, dontModify) then DoUndo restores objects but NOT RandomGen.
+      let boardBeforeProbe := s.board
+      match executeTurn game s (.tick) (skipAgainProbe := true) with
+      | .error _ =>
+        againPending := false
+      | .ok (probed, _) =>
+        s := { s with rng := probed.rng }
+        againPending := boardsDiffer boardBeforeProbe probed.board
   return (s, againPending)
-
-partial def againProbe (game : Game) (session : Session) : Bool :=
-  match executeTurn game session (.tick) (skipAgainProbe := true) with
-  | .error _ => false
-  | .ok (s', _) => boardsDiffer session.board s'.board
 
 partial def executeTurn (game : Game) (session : Session) (input : InputToken) (skipAgainProbe := false) : Except String (Session × Bool) := do
   match input with

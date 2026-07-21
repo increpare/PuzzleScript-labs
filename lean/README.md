@@ -34,6 +34,16 @@ python3 scripts/lean_parity_expand.py --write-whitelist
 
 This runs `parity_smoke` on each clean candidate not already whitelisted and appends passing names to `lean/parity_whitelist.txt`. Use `--verbose` to print per-case results.
 
+### Process hygiene (important for agents)
+
+`lake exe parity_smoke` spawns a grandchild binary. A plain Python `subprocess` timeout only kills `lake`, leaving hung `parity_smoke` processes behind.
+
+- Always launch via `scripts/lean_parity_expand.py`, `scripts/lean_parity_bisect.py`, or `make lean_parity_smoke` (they use `scripts/lean_parity_run.py`).
+- Those entrypoints take an exclusive flock on `/tmp/puzzlescript-lean-parity.lock` so expand/smoke/bisect do **not** stack concurrent runs.
+- On timeout they kill the **entire process group** (`SIGTERM` then `SIGKILL`).
+- Do **not** launch bare `lake exe parity_smoke` in long agent loops without that helper.
+- Do **not** start a second expand/smoke while one is already running.
+
 ## Whitelist (clean kernel only)
 
 Active cases (one name per line, must match `fixtures.json` exactly):

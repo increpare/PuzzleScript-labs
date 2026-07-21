@@ -11,6 +11,12 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+
+from lean_parity_run import parity_lock, run_parity_smoke  # noqa: E402
+
 
 def load_lines(path: Path) -> list[str]:
     return [
@@ -20,24 +26,13 @@ def load_lines(path: Path) -> list[str]:
     ]
 
 
-def is_comment_line(line: str) -> bool:
-    return (
-        not line.strip()
-        or line.startswith("##")
-        or line == "#"
-        or line.startswith("# ")
-    )
-
-
 def run_case(lean_dir: Path, fixtures: Path, name: str, timeout: float) -> tuple[str, str]:
     wl = lean_dir / ".parity_expand_one.txt"
     wl.write_text(name + "\n", encoding="utf-8")
     try:
-        proc = subprocess.run(
+        proc = run_parity_smoke(
             ["lake", "exe", "parity_smoke", "--fixtures", str(fixtures), "--whitelist", str(wl)],
             cwd=lean_dir,
-            capture_output=True,
-            text=True,
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
@@ -62,6 +57,11 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--write-whitelist", action="store_true")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--wait-lock",
+        action="store_true",
+        help="Wait for /tmp/puzzlescript-lean-parity.lock instead of exiting if held",
+    )
     args = parser.parse_args()
 
     repo = args.repo_root
@@ -70,45 +70,46 @@ def main() -> int:
     candidates_path = lean_dir / "parity_clean_candidates.txt"
     whitelist_path = lean_dir / "parity_whitelist.txt"
 
-    manifest = json.loads((fixtures / "fixtures.json").read_text(encoding="utf-8"))
-    by_name = {fx["name"]: fx for fx in manifest["simulation_fixtures"]}
-    candidates = load_lines(candidates_path)
-    whitelist = load_lines(whitelist_path)
-    whitelist_set = set(whitelist)
+    with parity_lock(wait=args.wait_lock):
+        manifest = json.loads((fixtures / "fixtures.json").read_text(encoding="utf-8"))
+        by_name = {fx["name"]: fx for fx in manifest["simulation_fixtures"]}
+        candidates = load_lines(candidates_path)
+        whitelist = load_lines(whitelist_path)
+        whitelist_set = set(whitelist)
 
-    errors: Counter[str] = Counter()
-    new_ok: list[str] = []
+        errors: Counter[str] = Counter()
+        new_ok: list[str] = []
 
-    for name in candidates:
-        if name not in by_name:
-            continue
-        if name in whitelist_set:
-            continue
-        status, reason = run_case(lean_dir, fixtures, name, args.timeout)
-        errors[status] += 1
-        if status == "ok":
-            new_ok.append(name)
-            if args.verbose:
-                print(f"OK {name}")
-        elif args.verbose:
-            print(f"{status.upper()} {name}: {reason}")
+        for name in candidates:
+            if name not in by_name:
+                continue
+            if name in whitelist_set:
+                continue
+            status, reason = run_case(lean_dir, fixtures, name, args.timeout)
+            errors[status] += 1
+            if status == "ok":
+                new_ok.append(name)
+                if args.verbose:
+                    print(f"OK {name}")
+            elif args.verbose:
+                print(f"{status.upper()} {name}: {reason}")
 
-    print(f"Candidates in fixtures: {sum(1 for n in candidates if n in by_name)}")
-    print(f"Whitelist before: {len(whitelist)}")
-    print(f"Newly passing: {len(new_ok)}")
-    print("Failure buckets (non-whitelisted only):")
-    for key, count in errors.most_common():
-        if key != "ok":
-            print(f"  {count} {key}")
+        print(f"Candidates in fixtures: {sum(1 for n in candidates if n in by_name)}")
+        print(f"Whitelist before: {len(whitelist)}")
+        print(f"Newly passing: {len(new_ok)}")
+        print("Failure buckets (non-whitelisted only):")
+        for key, count in errors.most_common():
+            if key != "ok":
+                print(f"  {count} {key}")
 
-    if args.write_whitelist and new_ok:
-        text = whitelist_path.read_text(encoding="utf-8")
-        if not text.endswith("\n"):
-            text += "\n"
-        for name in sorted(new_ok):
-            text += name + "\n"
-        whitelist_path.write_text(text, encoding="utf-8")
-        print(f"Appended {len(new_ok)} names to {whitelist_path}")
+        if args.write_whitelist and new_ok:
+            text = whitelist_path.read_text(encoding="utf-8")
+            if not text.endswith("\n"):
+                text += "\n"
+            for name in sorted(new_ok):
+                text += name + "\n"
+            whitelist_path.write_text(text, encoding="utf-8")
+            print(f"Appended {len(new_ok)} names to {whitelist_path}")
 
     return 0
 
