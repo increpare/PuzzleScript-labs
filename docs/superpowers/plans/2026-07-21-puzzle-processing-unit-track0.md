@@ -40,11 +40,11 @@ Software Tasks 1–7 do **not** require the FPGA board. Order the board in paral
 
 | Item | Why | Where / notes |
 |------|-----|----------------|
-| **ULX3S with ECP5 85F** (LFE5U-85F) | Open toolchain (Yosys/nextpnr/Trellis), enough LUT/BRAM for a real on-die state experiment, USB, buttons, HDMI later if wanted | [Mouser CS-ULX3S-03](https://www.mouser.com/ProductDetail/Radiona/CS-ULX3S-03) (~$235, often in stock); [Crowd Supply ULX3S 85F](https://www.crowdsupply.com/radiona/ulx3s); [EEZ / Radiona EU](https://www.envox.eu/product/ulx3s/) |
+| **ULX3S with ECP5 85F** (LFE5U-85F) | Open toolchain (Yosys/nextpnr/Trellis), enough LUT/BRAM for a real on-die state experiment, USB, buttons, HDMI later if wanted | **Buy here (verified working pages):** [EEZ ULX3S-85F](https://www.envox.eu/product/ulx3s/) (EU, listed in stock ~€210 ex VAT); [Crowd Supply ULX3S](https://www.crowdsupply.com/radiona/ulx3s) (pick the **85F** variant; may be pre-order). Alternate when stocked: [Lectronz ULX3S-85F](https://lectronz.com/products/ulx3s-85f-v3-1-8). Avoid stale Mouser deep-links; if you prefer Mouser, search their site for `ULX3S` / `CS-ULX3S-03` and confirm the product page loads before ordering. |
 | USB-C cable (data-capable) | Power + programming + UART | Any quality cable; avoid charge-only |
 | microSD card (any small) | Optional bitstream browser on ULX3S; not required for Track 0 UART flow | Commodity |
 
-Order **one 85F** to start. A second board is nice later for “known-good bitstream” swaps; not required for Track 0.
+Order **one 85F** to start. Prefer EEZ if you want a live “in stock” cart; Crowd Supply if that storefront is easier for you. A second board is nice later for “known-good bitstream” swaps; not required for Track 0.
 
 ### Do **not** order for Track 0
 
@@ -159,7 +159,7 @@ git commit -m "docs(ppu): Track 0 usage note and shopping list"
 
 - [ ] **Step 4: Place the hardware order**
 
-Human action: buy ULX3S 85F from Mouser/Crowd Supply/EEZ. Software continues without waiting.
+Human action: buy ULX3S 85F from [EEZ](https://www.envox.eu/product/ulx3s/) or [Crowd Supply](https://www.crowdsupply.com/radiona/ulx3s). Software continues without waiting.
 
 ---
 
