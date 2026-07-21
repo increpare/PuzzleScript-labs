@@ -1,3 +1,74 @@
 sokoban no win condition
 sokoban with win condition
 rule grouping test
+block faker no win condition
+block faker with win condition
+cat bastard
+beginloop/endloop with mutual recursion
+simple sokobond test
+mirror + test
+don't mask movements if no movements happening
+Remove movements from empty layers after rule application
+movement matching - correctly matching different objects same cell moving in different directions
+bug #186 - 'no property' on the RHS should clear objects
+Make synonyms of properties work. #215
+Make synonyms of properties work. #230
+Make synonyms of properties work. #243
+Laser movement check (#264)
+Synonym confusion
+Reserved keywords are too greedy (#419)
+Removing background tiles breaks "no X" wincondition (#534)
+Recent update broke some games with tabs in the source code #609
+Test travelling through multiple levels
+Win condition test "NO X"
+Win condition test "SOME X"
+Win condition test "SOME X ON Y"
+Win condition test "NO X ON Y"
+movement not getting correctly cleared from tile - #492
+second test for #492 movement not getting correctly cleared from tile
+third test for #492 movement not getting correctly cleared from tile
+fourth test for #492 movement not getting correctly cleared from tile
+fifth test for #492 movement not getting correctly cleared from tile
+Empty loop test
+[testing for recording through level-changes B] Simple Block asdfsadf Game
+startloop stoploop vortex check
+Audio Test 1
+Audio Test 2
+Audio Test 3
+aggregates in win conditions 3
+background_color transparent code path
+Levels can not contain glyphs that resemble section names #976
+Weirdness with = as glyph
+aggregate player allowed B #1032
+#1067 [ player no wall ] test suite, No. 1
+#1067 [ player no wall ] test suite, No. 6
+#1067 [ player no wall ] test suite, No. 9
+#1067 [ player no wall ] test suite, No. 10
+#1067 [ player no wall ] test suite, No. 12
+#1067 [ player no wall ] test suite, No. 13
+#1067 [ player no wall ] test suite, No. 14
+#1067 [ player no wall ] test suite, No. 16
+#1067 [ player no wall ] test suite, No. 18
+#1067 [ player no wall ] test suite, No. 27
+#1067 [ player no wall ] test suite, No. 28
+#1067 [ player no wall ] test suite, No. 30
+#1067 [ player no wall ] test suite, No. 31
+#1067 [ player no wall ] test suite, No. 40
+#1067 [ player no wall ] test suite, No. 43
+lhsHasOverlappingRequiredLayers
+Kettle
+throttle movement
+Can't start message with section keywords #490
+gallery game: the art of cloning
+gallery: Watch Your Step
+I am a gust of wind
+Participating in society
+Individuals can produce a society, but can a society produce individuals?
+A cliche for bedtime
+GAPFILLER / LUECKEFUELLER
+pushit
+Crate Swarp
+Pushy-V Pully-H
+Resin-Caster
+Kettle, except something is off
+aggregates in win conditions 1

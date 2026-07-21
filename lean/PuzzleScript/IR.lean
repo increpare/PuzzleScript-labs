@@ -6,12 +6,15 @@ open Lean
 
 namespace PuzzleScript
 
-structure LevelData where
-  width : Nat
-  height : Nat
-  layerCount : Nat
-  objects : Array UInt32
+/-- Playable grid level, or a message screen between levels (JS `kind: "message"`). -/
+inductive LevelEntry where
+  | playable (width height layerCount : Nat) (objects : Array UInt32)
+  | message (text : String)
   deriving Repr
+
+def LevelEntry.isPlayable : LevelEntry → Bool
+  | .playable .. => true
+  | .message _ => false
 
 structure Game where
   idDict : Array String
@@ -25,7 +28,7 @@ structure Game where
   rules : Array (Array Rule)
   lateRules : Array (Array Rule)
   winConditions : Array WinCondition
-  levels : Array LevelData
+  levels : Array LevelEntry
   deriving Repr
 
 structure Session where
@@ -165,47 +168,60 @@ private def parseObjectLayers (j : Json) (objectCount : Nat) (ctx : String) : Ex
     layers := layers.set! id layer
   pure layers
 
-private def parseLevelData (j : Json) (ctx : String) (strideObj : Nat) : Except String LevelData := do
+private def parseLevelEntry (j : Json) (ctx : String) (strideObj : Nat) : Except String LevelEntry := do
   let kind ← (j.getObjValAs? String "kind").mapError fun _ => s!"{ctx}: missing kind"
-  if kind != "level" then
-    throw s!"{ctx}: unsupported level kind {kind}"
-  let width ← (j.getObjValAs? Nat "width").mapError toString
-  let height ← (j.getObjValAs? Nat "height").mapError toString
-  let layerCount ← (j.getObjValAs? Nat "layer_count").mapError toString
-  let objectsJson ← (j.getObjVal? "objects").mapError toString
-  let objects ← parseUInt32Array objectsJson s!"{ctx}.objects"
-  let nTiles := width * height
-  let expectedObjLen := nTiles * strideObj
-  if objects.size != expectedObjLen then
-    throw s!"{ctx}.objects: length {objects.size}, expected {expectedObjLen}"
-  pure { width, height, layerCount, objects }
+  match kind with
+  | "message" =>
+    let text ← (j.getObjValAs? String "message").mapError fun _ => s!"{ctx}: message level missing message"
+    pure (.message text)
+  | "level" => do
+    let width ← (j.getObjValAs? Nat "width").mapError toString
+    let height ← (j.getObjValAs? Nat "height").mapError toString
+    let layerCount ← (j.getObjValAs? Nat "layer_count").mapError toString
+    let objectsJson ← (j.getObjVal? "objects").mapError toString
+    let objects ← parseUInt32Array objectsJson s!"{ctx}.objects"
+    let nTiles := width * height
+    let expectedObjLen := nTiles * strideObj
+    if objects.size != expectedObjLen then
+      throw s!"{ctx}.objects: length {objects.size}, expected {expectedObjLen}"
+    pure (.playable width height layerCount objects)
+  | other =>
+    throw s!"{ctx}: unsupported level kind {other}"
 
-private def parseLevels (j : Json) (ctx : String) (strideObj : Nat) : Except String (Array LevelData) := do
+private def parseLevels (j : Json) (ctx : String) (strideObj : Nat) : Except String (Array LevelEntry) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
-  arr.mapIdxM fun i lvlJ => parseLevelData lvlJ s!"{ctx}[{i}]" strideObj
+  arr.mapIdxM fun i lvlJ => parseLevelEntry lvlJ s!"{ctx}[{i}]" strideObj
 
-def boardFromLevelData (game : Game) (lvl : LevelData) : Board :=
-  let nTiles := lvl.width * lvl.height
-  { width := lvl.width
-    height := lvl.height
-    layerCount := lvl.layerCount
+def boardFromPlayable (game : Game) (width height layerCount : Nat) (objects : Array UInt32) : Board :=
+  let nTiles := width * height
+  { width, height
+    layerCount := layerCount
     strideObj := game.strideObj
     strideMov := game.strideMov
-    objects := lvl.objects
+    objects
     movements := Array.replicate (nTiles * game.strideMov) 0 }
 
+/-- After a win in unitTesting, JS `nextLevel` advances; skip message screens to the next playable level. -/
 def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
   if !session.winning then
     session
-  else if session.currentLevel + 1 >= game.levels.size then
-    session
   else
-    match game.levels[session.currentLevel + 1]? with
-    | none => session
-    | some nextLevel =>
-      { session with
-        board := boardFromLevelData game nextLevel
-        currentLevel := session.currentLevel + 1 }
+    Id.run do
+      let mut idx := session.currentLevel + 1
+      while idx < game.levels.size do
+        match game.levels[idx]? with
+        | some (.playable w h lc objs) =>
+          return {
+            session with
+            board := boardFromPlayable game w h lc objs
+            currentLevel := idx
+            winning := false
+          }
+        | some (.message _) =>
+          idx := idx + 1
+        | none =>
+          break
+      pure session
 
 def loadPreparedSerializedLevel (root : Json) : Except String String := do
   let ps ← (root.getObjVal? "prepared_session").mapError toString
@@ -240,6 +256,10 @@ private def parseGame (j : Json) : Except String Game := do
 private def parseSession (j : Json) (game : Game) : Except String Session := do
   let ps ← (j.getObjVal? "prepared_session").mapError toString
   let winning ← (ps.getObjValAs? Bool "winning").mapError toString
+  let currentLevel ←
+    match ps.getObjValAs? Nat "current_level_index" with
+    | .ok n => pure n
+    | .error _ => pure 0
   let level ← (ps.getObjVal? "level").mapError toString
   let width ← (level.getObjValAs? Nat "width").mapError toString
   let height ← (level.getObjValAs? Nat "height").mapError toString
@@ -267,7 +287,7 @@ private def parseSession (j : Json) (game : Game) : Except String Session := do
     strideMov := game.strideMov
     objects, movements
   }
-  pure { board, winning, currentLevel := 0 }
+  pure { board, winning, currentLevel }
 
 def parseIrJson (root : Json) : Except String (Game × Session) := do
   let game ← parseGame root

@@ -63,8 +63,9 @@ The interpreter is intentionally small. Unsupported IR features fail closed with
 - Rule groups applied until quiescence (non-looping games)
 - Movement resolution for non-rigid games (collision: destination blocked if same layer occupied)
 - Late rules (hook present; many whitelist games have none)
-- Win conditions (`quantifier` + two filters) and unitTesting-style level advance on win
-- Current whitelist: Sokoban cases + `rule grouping test`
+- Win conditions (`quantifier` + two filters) and unitTesting-style level advance on win (skips message screens)
+- Message levels in `game.levels` (parsed; skipped when advancing after win)
+- Current whitelist: see `parity_whitelist.txt` (grow only from `parity_clean_candidates.txt`)
 
 **Unsupported (fail closed)**
 
