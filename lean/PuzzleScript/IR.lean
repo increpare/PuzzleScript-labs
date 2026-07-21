@@ -22,13 +22,14 @@ structure Session where
 private def jsonGetInt (j : Json) (ctx : String) : Except String Int :=
   j.getInt?.mapError fun _ => ctx
 
+private def int32Min : Int := -2147483648
+private def int32Max : Int := 2147483647
+
+/-- Interpret JSON integers as signed Int32 words (JS `Int32Array`), then as UInt32 bit patterns. -/
 private def intToUInt32 (i : Int) (ctx : String) : Except String UInt32 := do
-  if i < 0 then
-    throw s!"{ctx}: negative integer {i}"
-  else if i > UInt32.size - 1 then
-    throw s!"{ctx}: integer too large for UInt32: {i}"
-  else
-    pure (UInt32.ofNat i.toNat)
+  if i < int32Min || i > int32Max then
+    throw s!"{ctx}: integer out of Int32 range: {i}"
+  pure (UInt32.ofBitVec (BitVec.ofInt 32 i))
 
 private def jsonGetUInt32 (j : Json) (ctx : String) : Except String UInt32 := do
   let i ← jsonGetInt j ctx
