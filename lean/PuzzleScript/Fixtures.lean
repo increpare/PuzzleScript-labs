@@ -77,10 +77,13 @@ def loadWhitelist (path : System.FilePath) : IO (Array String) := do
     !(isWhitelistCommentLine s)
   pure lines.toArray
 
+/-- Match whitelist names to fixtures with ASCII trim so trailing spaces/tabs in
+`testdata.js` titles (and strip-normalized candidate lists) still resolve. -/
 def selectFixtures (manifest : Manifest) (names : Array String) : Except String (Array SimFixture) := do
   let mut out : Array SimFixture := #[]
   for name in names do
-    match manifest.simulationFixtures.find? (·.name == name) with
+    let key := name.trimAscii.toString
+    match manifest.simulationFixtures.find? (fun fx => fx.name.trimAscii.toString == key) with
     | none => throw s!"whitelist name not in fixtures.json: {name}"
     | some fx => out := out.push fx
   pure out

@@ -44,6 +44,9 @@ node_modules/
 # Lean / Lake
 lean/.lake/
 lean/lake-manifest.json
+lean/.parity_*.txt
+lean/.t.txt
+scripts/__pycache__/
 *.ilean
 *.olean
 *.trace
