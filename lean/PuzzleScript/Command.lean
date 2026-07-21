@@ -19,6 +19,31 @@ def Command.isSfx : Command → Bool
   | .sfx _ => true
   | _ => false
 
+theorem Command.isInert_ne_again (c : Command) (h : c.isInert = true) : c ≠ .again := by
+  cases c <;> try (intro hEq; cases hEq)
+  simp [Command.isInert] at h
+
+theorem Command.isInert_ne_win (c : Command) (h : c.isInert = true) : c ≠ .win := by
+  cases c <;> try (intro hEq; cases hEq)
+  simp [Command.isInert] at h
+
+theorem Command.isInert_ne_cancel (c : Command) (h : c.isInert = true) : c ≠ .cancel := by
+  cases c <;> try (intro hEq; cases hEq)
+  simp [Command.isInert] at h
+
+theorem Command.isInert_ne_restart (c : Command) (h : c.isInert = true) : c ≠ .restart := by
+  cases c <;> try (intro hEq; cases hEq)
+  simp [Command.isInert] at h
+
+theorem Command.isInert_ne_checkpoint (c : Command) (h : c.isInert = true) : c ≠ .checkpoint := by
+  cases c <;> try (intro hEq; cases hEq)
+  simp [Command.isInert] at h
+
+theorem Command.isInert_false_of_effectful (c : Command)
+    (h : c = .cancel ∨ c = .restart ∨ c = .win ∨ c = .checkpoint ∨ c = .again) :
+    c.isInert = false := by
+  rcases h with h | h | h | h | h <;> subst h <;> rfl
+
 /-- Solver-facing syntactic inert: every command is inert (sfx / message). -/
 def syntacticInertCommandOnly (cmds : Array Command) : Bool :=
   !cmds.isEmpty && cmds.all (·.isInert)
