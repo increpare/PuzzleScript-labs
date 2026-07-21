@@ -1,7 +1,8 @@
 # Lean abstract view: representation notes (types, not proofs)
 
-Status: exploratory notes, not reviewed/approved. Input to the abstract-view deliverable in
-[2026-07-21-lean-post-parity-abstract-inert-design.md](2026-07-21-lean-post-parity-abstract-inert-design.md) (section 4.1).
+Status: **superseded** by [2026-07-21-lean-abstract-view-types-design.md](2026-07-21-lean-abstract-view-types-design.md)
+(approved brainstorming + implementation plan). Kept as discussion record / input to that design.
+Parent: [2026-07-21-lean-post-parity-abstract-inert-design.md](2026-07-21-lean-post-parity-abstract-inert-design.md) §4.1.
 Date: 2026-07-21.
 
 These are representation choices for the abstract view (occupancy / pending movement) that sits
