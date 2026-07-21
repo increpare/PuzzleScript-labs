@@ -44,20 +44,19 @@ The interpreter is intentionally small. Unsupported IR features fail closed with
 
 - Object/movement masks with `STRIDE_OBJ` / `STRIDE_MOV` from IR (`game.strides`)
 - Player input dirs `0=up, 1=left, 2=down, 3=right, 4=action` (same as JS `processInput`)
-- Rules with: no ellipsis, no `is_random`, no `rigid`, empty `property_bindings` / `aggregate_bindings`, no `any_objects_present` / `any_movements_present` / layer-coupled movement terms, empty `commands`
+- Rules with: no ellipsis, no `is_random`, no `rigid`, empty `property_bindings` / `aggregate_bindings`, no `any_movements_present` / layer-coupled movement terms, empty `commands`
+- `any_objects_present` (OR within each term, AND across terms — JS `anyObjectsPresent`)
 - Single-row patterns (`patterns.length = 1`) of adjacent `cell_pattern` cells
-- Rule groups + `loopPoint` style “keep applying group until quiescence” for non-looping games (Sokoban has trivial loop points)
+- Rule groups applied until quiescence (non-looping games)
 - Movement resolution for non-rigid games (collision: destination blocked if same layer occupied)
-- Late rules (Sokoban has none — hook is present)
-- Win conditions of the form used by Sokoban (`quantifier` + two filters)
-- `again` only if a future whitelist case needs it; current Sokoban cases do not
+- Late rules (hook present; many whitelist games have none)
+- Win conditions (`quantifier` + two filters) and unitTesting-style level advance on win
+- Current whitelist: Sokoban cases + `rule grouping test`
 
-**Unsupported in v1 (fail closed)**
+**Unsupported (fail closed)**
 
-- Ellipsis, rigid, random / randomdir, property/aggregate bindings, beginloop/endloop complexity beyond what’s needed, undo/restart as special cases beyond fixture inputs, sounds, title/message screens
+- Ellipsis, rigid, random / randomdir, property/aggregate bindings, `any_movements_present`, layer-coupled movement, beginloop/endloop complexity, undo/restart inputs, sounds, title/message screens, full `again` command loops
 
 ## Next candidates
 
-Cases that are still useful but **outside** the v1 subset should stay off the whitelist until the runtime grows (or the fixture is simplified), not by expanding the interpreter ad hoc.
-
-- **`rule grouping test`** — uses `any_objects_present` in a cell pattern; rejected with `any_objects_present not supported`.
+Grow the whitelist feature-by-feature. Useful near-term cases often need one of: property bindings, `any_movements_present`, ellipsis, rigid, or `again`.

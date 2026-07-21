@@ -5,6 +5,9 @@ namespace PuzzleScript
 structure CellPattern where
   objectsPresent : MaskWords
   objectsMissing : MaskWords
+  /-- Each entry is an OR-mask: the cell must share at least one bit with the mask
+  (JS `anyObjectsPresent`; AND across entries). -/
+  anyObjectsPresent : Array MaskWords
   movementsPresent : MaskWords
   movementsMissing : MaskWords
   objectsClear : MaskWords

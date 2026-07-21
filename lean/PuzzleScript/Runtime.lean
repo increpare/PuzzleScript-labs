@@ -79,11 +79,15 @@ def buildLayerMasks (game : Game) : Array MaskWords :=
         layers := layers.set! layer (maskSetBit cur oid true)
     pure layers
 
+private def anyObjectsPresentMatch (objs : MaskWords) (terms : Array MaskWords) : Bool :=
+  terms.all fun term => maskAnyBits (maskAnd objs term)
+
 private def cellPatternMatches (b : Board) (tile : Nat) (pat : CellPattern) : Bool :=
   let objs := b.cellObjWords tile
   let movs := b.cellMovWords tile
   maskBitsSetIn pat.objectsPresent objs
     && maskNoBitsInCommon pat.objectsMissing objs
+    && anyObjectsPresentMatch objs pat.anyObjectsPresent
     && maskBitsSetIn pat.movementsPresent movs
     && maskNoBitsInCommon pat.movementsMissing movs
 

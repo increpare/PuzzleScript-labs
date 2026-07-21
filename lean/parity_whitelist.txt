@@ -1,2 +1,3 @@
 sokoban no win condition
 sokoban with win condition
+rule grouping test

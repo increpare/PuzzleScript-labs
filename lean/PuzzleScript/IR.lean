@@ -68,12 +68,14 @@ private def jsonArrayNonempty (j : Json) (ctx : String) : Except String Bool := 
   let arr ← (Json.getArr? j).mapError fun _ => s!"{ctx}: expected array"
   pure (arr.size > 0)
 
+private def parseMaskWordsArray (j : Json) (ctx : String) : Except String (Array MaskWords) := do
+  let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  arr.mapIdxM fun i elt => parseMaskWords elt s!"{ctx}[{i}]"
+
 private def parseCellPattern (j : Json) (ctx : String) : Except String CellPattern := do
   let kind ← (j.getObjValAs? String "kind").mapError fun _ => s!"{ctx}: missing kind"
   if kind != "cell_pattern" then
     throw s!"{ctx}: unsupported cell kind {kind}"
-  if (← jsonArrayNonempty (← (j.getObjVal? "any_objects_present").mapError fun _ => ctx) s!"{ctx}.any_objects_present") then
-    throw s!"{ctx}: any_objects_present not supported"
   if (← jsonArrayNonempty (← (j.getObjVal? "any_movements_present").mapError fun _ => ctx) s!"{ctx}.any_movements_present") then
     throw s!"{ctx}: any_movements_present not supported"
   let lcm ← (j.getObjVal? "layer_coupled_movement_masks").mapError fun _ => s!"{ctx}: missing layer_coupled_movement_masks"
@@ -81,6 +83,8 @@ private def parseCellPattern (j : Json) (ctx : String) : Except String CellPatte
     throw s!"{ctx}: layer_coupled_movement_masks not supported"
   let objectsPresent ← parseMaskWords (← (j.getObjVal? "objects_present").mapError toString) s!"{ctx}.objects_present"
   let objectsMissing ← parseMaskWords (← (j.getObjVal? "objects_missing").mapError toString) s!"{ctx}.objects_missing"
+  let anyObjectsPresent ←
+    parseMaskWordsArray (← (j.getObjVal? "any_objects_present").mapError toString) s!"{ctx}.any_objects_present"
   let movementsPresent ← parseMaskWords (← (j.getObjVal? "movements_present").mapError toString) s!"{ctx}.movements_present"
   let movementsMissing ← parseMaskWords (← (j.getObjVal? "movements_missing").mapError toString) s!"{ctx}.movements_missing"
   let repl ← (j.getObjVal? "replacement").mapError fun _ => s!"{ctx}: missing replacement"
@@ -93,7 +97,7 @@ private def parseCellPattern (j : Json) (ctx : String) : Except String CellPatte
     | .ok j => parseMaskWords j s!"{ctx}.replacement.movements_layer_mask"
     | .error _ => pure #[0]
   pure {
-    objectsPresent, objectsMissing, movementsPresent, movementsMissing
+    objectsPresent, objectsMissing, anyObjectsPresent, movementsPresent, movementsMissing
     objectsClear, objectsSet, movementsClear, movementsSet, movementsLayerMask
   }
 
