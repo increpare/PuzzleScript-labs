@@ -318,3 +318,5 @@ Neoprenanzieher
 Sok7
 Expand, avoid the flames [also it's not always solvable]
 gallery: tidy the cafe
+test for convention #2 to issue right [ > Player | ] -> [ Player | Player ]🐱‍🐉 #679 : Should right [ Player | ] -> [ Player | Player ] propagate movements? (A: yes?)
+super tricky (related to #469) right [ vertical playerortarget | vertical player ] -> [ vertical playerortarget  |  vertical playerortarget ]

@@ -72,7 +72,8 @@ def main() -> int:
 
     with parity_lock(wait=args.wait_lock):
         manifest = json.loads((fixtures / "fixtures.json").read_text(encoding="utf-8"))
-        by_name = {fx["name"]: fx for fx in manifest["simulation_fixtures"]}
+        # Resolve strip-normalized titles to exact fixture names (trailing whitespace).
+        by_strip = {fx["name"].strip(): fx["name"] for fx in manifest["simulation_fixtures"]}
         candidates = load_lines(candidates_path)
         whitelist = load_lines(whitelist_path)
         whitelist_set = set(whitelist)
@@ -81,8 +82,10 @@ def main() -> int:
         new_ok: list[str] = []
 
         for name in candidates:
-            if name not in by_name:
+            exact = by_strip.get(name)
+            if exact is None:
                 continue
+            # Whitelist / smoke match on trimmed names (see Fixtures.selectFixtures).
             if name in whitelist_set:
                 continue
             status, reason = run_case(lean_dir, fixtures, name, args.timeout)
@@ -94,7 +97,7 @@ def main() -> int:
             elif args.verbose:
                 print(f"{status.upper()} {name}: {reason}")
 
-        print(f"Candidates in fixtures: {sum(1 for n in candidates if n in by_name)}")
+        print(f"Candidates in fixtures: {sum(1 for n in candidates if n in by_strip)}")
         print(f"Whitelist before: {len(whitelist)}")
         print(f"Newly passing: {len(new_ok)}")
         print("Failure buckets (non-whitelisted only):")
