@@ -112,16 +112,34 @@ private def layerCoupledMasksMatch (objs movs : MaskWords) (terms : Array LayerC
 
 private def getLayerMovementBits (mov : MaskWords) (layer : Nat) : UInt32 :=
   let shift := 5 * layer
-  if shift >= 32 then 0 else
-    (maskWord mov 0 >>> UInt32.ofNat shift) &&& 31
+  let wordIdx := shift / 32
+  let wordShift := shift % 32
+  let w0 := maskWord mov wordIdx
+  let raw := w0 >>> UInt32.ofNat wordShift
+  let raw' :=
+    if wordShift > 27 then
+      raw ||| (maskWord mov (wordIdx + 1) <<< (32 - UInt32.ofNat wordShift))
+    else raw
+  raw' &&& 31
 
 private def setLayerMovementBits (mov : MaskWords) (layer : Nat) (bits : UInt32) : MaskWords :=
   let shift := 5 * layer
-  let clearMask : UInt32 := (31 : UInt32) <<< UInt32.ofNat shift
-  let old := maskWord mov 0
-  let cleared := old &&& (~~~clearMask)
-  let next := cleared ||| ((bits &&& 31) <<< UInt32.ofNat shift)
-  if mov.isEmpty then #[next] else mov.set! 0 next
+  let wordIdx := shift / 32
+  let wordShift := shift % 32
+  let clearMask : UInt32 := (31 : UInt32) <<< UInt32.ofNat wordShift
+  let setBits := (bits &&& 31) <<< UInt32.ofNat wordShift
+  Id.run do
+    let mut out := mov
+    while out.size ≤ wordIdx + 1 do
+      out := out.push 0
+    let old := maskWord out wordIdx
+    out := out.set! wordIdx ((old &&& (~~~clearMask)) ||| setBits)
+    if wordShift > 27 then
+      let spill := (bits &&& 31) >>> (32 - UInt32.ofNat wordShift)
+      let old1 := maskWord out (wordIdx + 1)
+      let clearHigh : UInt32 := (31 : UInt32) >>> UInt32.ofNat (32 - wordShift)
+      out := out.set! (wordIdx + 1) ((old1 &&& (~~~clearHigh)) ||| spill)
+    pure out
 
 private def clearLayerMovementBits (mov : MaskWords) (layer : Nat) : MaskWords :=
   setLayerMovementBits mov layer 0
@@ -268,11 +286,7 @@ private def collectMaskBits (m : MaskWords) (maxBit : Nat) : Array Nat :=
     pure out
 
 private def dirBitsFromIndex (n : Nat) : UInt32 :=
-  match n % 4 with
-  | 0 => 1
-  | 1 => 4
-  | 2 => 2
-  | _ => 8
+  (1 : UInt32) <<< UInt32.ofNat (n % 4)
 
 private def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern) (caps : RuleCaptures)
     (rng : RngState) : (Bool × Board × RngState) :=
@@ -360,6 +374,28 @@ private def rowCellsMatchEllipsis1 (b : Board) (startTile gap : Nat) (delta : In
         idx := idx + delta
     pure ellipsisSeen
 
+private def rowCellsMatchEllipsis2 (b : Board) (startTile gap1 gap2 : Nat) (delta : Int) (row : Array PatternCell) : Bool :=
+  Id.run do
+    let mut idx : Int := Int.ofNat startTile
+    let mut ellipsisCount := 0
+    for cell in row do
+      match cell with
+      | .ellipsis =>
+        ellipsisCount := ellipsisCount + 1
+        if ellipsisCount == 1 then
+          idx := idx + delta * Int.ofNat gap1
+        else if ellipsisCount == 2 then
+          idx := idx + delta * Int.ofNat gap2
+        else
+          return false
+      | .cell pat =>
+        if idx < 0 then return false
+        let t := idx.toNat
+        if t >= b.nTiles then return false
+        if !cellPatternMatches b t pat then return false
+        idx := idx + delta
+    pure (ellipsisCount == 2)
+
 private def patternRowLen (row : Array PatternCell) (ellipsisCount : Nat) : Nat :=
   row.size - ellipsisCount
 
@@ -442,12 +478,41 @@ private def findEllipsis1RowMatches (b : Board) (direction : Nat) (delta : Int) 
           i := i + 1
     pure out
 
+private def findEllipsis2RowMatches (b : Board) (direction : Nat) (delta : Int) (row : Array PatternCell) : Array RowMatch :=
+  let len := patternRowLen row 2
+  if len == 0 then #[] else
+  let bounds := scanBoundsForRule b direction len
+  Id.run do
+    let mut out : Array RowMatch := #[]
+    if bounds.horizontal then
+      for y in [bounds.ymin:bounds.ymax] do
+        let mut i := bounds.xmin * b.height + y
+        for x in [bounds.xmin:bounds.xmax] do
+          let kmax := ellipsisKMax b direction x y len
+          for k1 in [0:kmax] do
+            for k2 in [0:kmax] do
+              if k1 + k2 < kmax && rowCellsMatchEllipsis2 b i k1 k2 delta row then
+                out := out.push (.ellipsis2 i k1 k2)
+          i := i + b.height
+    else
+      for x in [bounds.xmin:bounds.xmax] do
+        let mut i := x * b.height + bounds.ymin
+        for y in [bounds.ymin:bounds.ymax] do
+          let kmax := ellipsisKMax b direction x y len
+          for k1 in [0:kmax] do
+            for k2 in [0:kmax] do
+              if k1 + k2 < kmax && rowCellsMatchEllipsis2 b i k1 k2 delta row then
+                out := out.push (.ellipsis2 i k1 k2)
+          i := i + 1
+    pure out
+
 private def findRowMatches (b : Board) (rule : Rule) (rowIndex : Nat) : Array RowMatch :=
   let row := rule.patternRows.getD rowIndex #[]
   let ec := rule.ellipsisCounts.getD rowIndex 0
   let delta := ruleDirectionDelta rule.direction b.height
   if ec == 0 then findFixedRowMatches b rule.direction delta row
   else if ec == 1 then findEllipsis1RowMatches b rule.direction delta row
+  else if ec == 2 then findEllipsis2RowMatches b rule.direction delta row
   else #[]
 
 private def cartesianRowMatches (lists : Array (Array RowMatch)) : Array (Array RowMatch) :=
@@ -502,7 +567,7 @@ private def tupleStillMatches (b : Board) (rule : Rule) (tuple : Array RowMatch)
       match rm with
       | .fixed s => rowCellsMatchFixed b s delta row
       | .ellipsis1 s g => rowCellsMatchEllipsis1 b s g delta row
-      | .ellipsis2 .. => false
+      | .ellipsis2 s g1 g2 => rowCellsMatchEllipsis2 b s g1 g2 delta row
 
 private def applyRuleTuple (game : Game) (b : Board) (rule : Rule) (tuple : Array RowMatch) (recheck : Bool) (rng : RngState) : (Bool × Board × RngState) :=
   if recheck && !tupleStillMatches b rule tuple then
@@ -530,6 +595,24 @@ private def findRuleMatchTuples (b : Board) (rule : Rule) : Array (Array RowMatc
 
 private def isSfxCommand (cmd : String) : Bool :=
   cmd.startsWith "sfx"
+
+private def queueCommandsForRule (existing : Array String) (rule : Rule) : Array String :=
+  let preCancel := existing.contains "cancel"
+  let preRestart := existing.contains "restart"
+  let ruleCancel := rule.commands.contains "cancel"
+  let ruleRestart := rule.commands.contains "restart"
+  if preCancel then
+    existing
+  else if preRestart && !ruleCancel then
+    existing
+  else
+    let base := if ruleCancel || ruleRestart then #[] else existing
+    Id.run do
+      let mut out := base
+      for c in rule.commands do
+        unless out.contains c do
+          out := out.push c
+      pure out
 
 private def mergeCommands (existing newCmds : Array String) : Array String :=
   if newCmds.any (· == "cancel") then #["cancel"]
@@ -563,7 +646,7 @@ def tryApplyRule (game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Boo
       let mut any := false
       let mut turn := st
       let mut cmdQ := st.commandQueue
-      cmdQ := mergeCommands cmdQ rule.commands
+      cmdQ := queueCommandsForRule cmdQ rule
       for ti in [:tuples.size] do
         let tuple := tuples[ti]!
         let recheck := ti > 0
@@ -590,7 +673,7 @@ private def applyRandomRuleGroup (game : Game) (b : Board) (group : Array Rule) 
     match group[ruleIdx]? with
     | none => return (false, b, st)
     | some rule =>
-      let cmdQ := mergeCommands st.commandQueue rule.commands
+      let cmdQ := queueCommandsForRule st.commandQueue rule
       let (changed, board, rng'') := applyRuleTuple game b rule tuple false rng'
       let modified := st.modified || changed || !rule.commands.isEmpty
       return (changed, board, { st with commandQueue := cmdQ, modified := modified, rng := rng'' })
@@ -601,7 +684,7 @@ private def applyRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : 
     if g0.isRandom then
       let (changed, board, turn) := applyRandomRuleGroup game b group st
       return (changed, board, turn)
-  let maxLoops := 1000
+  let maxLoops := 200
   let mut board := b
   let mut turn := st
   let mut groupChanged := false
@@ -624,8 +707,6 @@ private def applyRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : 
           break
     if madeChangeThisLoop then
       groupChanged := true
-  if loopCount >= maxLoops then
-    throw "rule group exceeded iteration cap"
   pure (groupChanged, board, turn)
 
 private def applyRulesWithLoops (game : Game) (b : Board) (groups : Array (Array Rule)) (loopPoint : Array (Option Nat)) (st : TurnState)
@@ -838,20 +919,32 @@ def evaluateWinConditions (game : Game) (b : Board) : Bool :=
 private def boardsDiffer (a b : Board) : Bool :=
   a.objects != b.objects || a.movements != b.movements
 
-private def processCommandQueue (game : Game) (turnBackup : Session) (session : Session) (turn : TurnState) : Except String (Session × Bool) := do
+mutual
+partial def processCommandQueue (game : Game) (turnBackup : Session) (session : Session) (turn : TurnState)
+    (skipAgainProbe : Bool) : Except String (Session × Bool) := do
   let cmds := turn.commandQueue
   if cmds.contains "cancel" then
     return (turnBackup, false)
   let mut s := session
   if cmds.contains "restart" then
+    s := { s with undoBackups := s.undoBackups.push (turnBackup.board, turnBackup.currentLevel, turnBackup.winning) }
     if let some rb := s.restartBoard then
-      s := { s with board := rb.clearMovements, undoBackups := s.undoBackups.push (s.board, s.currentLevel, s.winning) }
+      s := { s with board := rb.clearMovements }
   let winning := s.winning || cmds.contains "win" || evaluateWinConditions game s.board
   s := { s with winning }
-  let againPending := cmds.contains "again" && turn.modified
+  let againPending :=
+    if cmds.contains "again" && turn.modified then
+      if skipAgainProbe then true else againProbe game s
+    else
+      false
   return (s, againPending)
 
-def executeTurn (game : Game) (session : Session) (input : InputToken) : Except String (Session × Bool) := do
+partial def againProbe (game : Game) (session : Session) : Bool :=
+  match executeTurn game session (.tick) (skipAgainProbe := true) with
+  | .error _ => false
+  | .ok (s', _) => boardsDiffer session.board s'.board
+
+partial def executeTurn (game : Game) (session : Session) (input : InputToken) (skipAgainProbe := false) : Except String (Session × Bool) := do
   match input with
   | .undo =>
     match session.undoBackups.back? with
@@ -904,12 +997,14 @@ def executeTurn (game : Game) (session : Session) (input : InputToken) : Except 
     if turn.commandQueue.contains "win" then
       winning := true
     let mut s := { session with board, winning, rng := turn.rng }
-    let (s', againPending) ← processCommandQueue game turnBackup s turn
+    let (s', againPending) ← processCommandQueue game turnBackup s turn skipAgainProbe
     s := s'
-    if boardsDiffer turnBackup.board s.board || turn.modified then
+    let restarted := turn.commandQueue.contains "restart"
+    if !restarted && (boardsDiffer turnBackup.board s.board || turn.modified) then
       s := { s with undoBackups := s.undoBackups.push (turnBackup.board, turnBackup.currentLevel, turnBackup.winning) }
     s := sessionAfterWinAdvance game s
     pure (s, againPending)
+end
 
 def replay (game : Game) (session : Session) (inputs : Array String) : Except String Session := do
   let mut s := session

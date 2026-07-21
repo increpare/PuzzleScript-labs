@@ -239,3 +239,37 @@ rigid disablement applies to whole rule-groups
 rigid: even a rigid rule removing an object marks the position/layer of the removed object as rigid.
 rigid: even removing and re-adding an object doesn't remove the rigid tag from that position and layer.
 simple rigid test
+10 layers 50 objects
+10 layers, 50 objects 2
+AUTOHURDLER
+Bicycle-Kick Football
+Double-ellipsis delicate test case
+Double-ellipsis testcase
+I Need To Stop My Teleport Gun
+I wanna change my position
+No! Don't eat that!
+Pupush
+SHY SNAKE
+The Red Ring of Immortality
+Voitex Rasteriser [Demake of Vertex Dispenser Puzzle Mode]
+basic unlimited object/layer support
+double ellipsis simple test
+double ellipsis simple test #2
+gallery game: I'm too far gone
+gallery game: maera public works
+gallery game: shall we golf?
+gallery: aa I'm being attacked by a giant tentacle
+gallery: newton's crates
+gallery: paralands
+legend of zokoban
+many layers movement bug
+random movement determinism test
+Bring the ice cube to the goal without exposing it to heat.
+CŌDEX·LŪBRICUS
+Des Poseidons Dreizack
+Slot Machine
+The Monsterous Autoshove
+atlas shrank
+gallery game: interconnection
+gallery: unconventional guns
+sum three horizontally to 8!
