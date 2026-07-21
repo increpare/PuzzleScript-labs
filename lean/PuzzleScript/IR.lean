@@ -6,6 +6,13 @@ open Lean
 
 namespace PuzzleScript
 
+structure LevelData where
+  width : Nat
+  height : Nat
+  layerCount : Nat
+  objects : Array UInt32
+  deriving Repr
+
 structure Game where
   idDict : Array String
   objectCount : Nat
@@ -18,11 +25,13 @@ structure Game where
   rules : Array (Array Rule)
   lateRules : Array (Array Rule)
   winConditions : Array WinCondition
+  levels : Array LevelData
   deriving Repr
 
 structure Session where
   board : Board
   winning : Bool
+  currentLevel : Nat
   deriving Repr
 
 private def jsonGetInt (j : Json) (ctx : String) : Except String Int :=
@@ -79,9 +88,13 @@ private def parseCellPattern (j : Json) (ctx : String) : Except String CellPatte
   let objectsSet ← parseMaskWords (← (repl.getObjVal? "objects_set").mapError toString) s!"{ctx}.replacement.objects_set"
   let movementsClear ← parseMaskWords (← (repl.getObjVal? "movements_clear").mapError toString) s!"{ctx}.replacement.movements_clear"
   let movementsSet ← parseMaskWords (← (repl.getObjVal? "movements_set").mapError toString) s!"{ctx}.replacement.movements_set"
+  let movementsLayerMask ←
+    match repl.getObjVal? "movements_layer_mask" with
+    | .ok j => parseMaskWords j s!"{ctx}.replacement.movements_layer_mask"
+    | .error _ => pure #[0]
   pure {
     objectsPresent, objectsMissing, movementsPresent, movementsMissing
-    objectsClear, objectsSet, movementsClear, movementsSet
+    objectsClear, objectsSet, movementsClear, movementsSet, movementsLayerMask
   }
 
 private def parseRule (j : Json) (ctx : String) : Except String Rule := do
@@ -127,7 +140,7 @@ private def parseRuleGroups (j : Json) (ctx : String) : Except String (Array (Ar
   groups.mapIdxM fun gi groupJ => parseRuleGroup groupJ s!"{ctx}[{gi}]"
 
 private def parseWinCondition (j : Json) (ctx : String) : Except String WinCondition := do
-  let quantifier ← (j.getObjValAs? Nat "quantifier").mapError fun _ => s!"{ctx}: missing quantifier"
+  let quantifier ← jsonGetInt (← (j.getObjVal? "quantifier").mapError fun _ => s!"{ctx}: missing quantifier") s!"{ctx}.quantifier"
   let filter1 ← parseMaskWords (← (j.getObjVal? "filter1").mapError toString) s!"{ctx}.filter1"
   let filter2 ← parseMaskWords (← (j.getObjVal? "filter2").mapError toString) s!"{ctx}.filter2"
   pure { quantifier, filter1, filter2 }
@@ -147,6 +160,48 @@ private def parseObjectLayers (j : Json) (objectCount : Nat) (ctx : String) : Ex
       throw s!"{ctx}[{i}]: object id {id} out of range (object_count={objectCount})"
     layers := layers.set! id layer
   pure layers
+
+private def parseLevelData (j : Json) (ctx : String) (strideObj : Nat) : Except String LevelData := do
+  let kind ← (j.getObjValAs? String "kind").mapError fun _ => s!"{ctx}: missing kind"
+  if kind != "level" then
+    throw s!"{ctx}: unsupported level kind {kind}"
+  let width ← (j.getObjValAs? Nat "width").mapError toString
+  let height ← (j.getObjValAs? Nat "height").mapError toString
+  let layerCount ← (j.getObjValAs? Nat "layer_count").mapError toString
+  let objectsJson ← (j.getObjVal? "objects").mapError toString
+  let objects ← parseUInt32Array objectsJson s!"{ctx}.objects"
+  let nTiles := width * height
+  let expectedObjLen := nTiles * strideObj
+  if objects.size != expectedObjLen then
+    throw s!"{ctx}.objects: length {objects.size}, expected {expectedObjLen}"
+  pure { width, height, layerCount, objects }
+
+private def parseLevels (j : Json) (ctx : String) (strideObj : Nat) : Except String (Array LevelData) := do
+  let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  arr.mapIdxM fun i lvlJ => parseLevelData lvlJ s!"{ctx}[{i}]" strideObj
+
+def boardFromLevelData (game : Game) (lvl : LevelData) : Board :=
+  let nTiles := lvl.width * lvl.height
+  { width := lvl.width
+    height := lvl.height
+    layerCount := lvl.layerCount
+    strideObj := game.strideObj
+    strideMov := game.strideMov
+    objects := lvl.objects
+    movements := Array.replicate (nTiles * game.strideMov) 0 }
+
+def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
+  if !session.winning then
+    session
+  else if session.currentLevel + 1 >= game.levels.size then
+    session
+  else
+    match game.levels[session.currentLevel + 1]? with
+    | none => session
+    | some nextLevel =>
+      { session with
+        board := boardFromLevelData game nextLevel
+        currentLevel := session.currentLevel + 1 }
 
 def loadPreparedSerializedLevel (root : Json) : Except String String := do
   let ps ← (root.getObjVal? "prepared_session").mapError toString
@@ -171,9 +226,11 @@ private def parseGame (j : Json) : Except String Game := do
   let lateRules ← parseRuleGroups lateRulesJson "game.late_rules"
   let winJson ← (game.getObjVal? "winconditions").mapError toString
   let winConditions ← parseWinConditions winJson "game.winconditions"
+  let levelsJson ← (game.getObjVal? "levels").mapError toString
+  let levels ← parseLevels levelsJson "game.levels" strideObj
   pure {
     idDict, objectCount, strideObj, strideMov, layerCount, playerMask
-    objectLayers, rules, lateRules, winConditions
+    objectLayers, rules, lateRules, winConditions, levels
   }
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do
@@ -206,7 +263,7 @@ private def parseSession (j : Json) (game : Game) : Except String Session := do
     strideMov := game.strideMov
     objects, movements
   }
-  pure { board, winning }
+  pure { board, winning, currentLevel := 0 }
 
 def parseIrJson (root : Json) : Except String (Game × Session) := do
   let game ← parseGame root

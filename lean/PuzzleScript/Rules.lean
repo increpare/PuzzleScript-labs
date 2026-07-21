@@ -11,6 +11,8 @@ structure CellPattern where
   objectsSet : MaskWords
   movementsClear : MaskWords
   movementsSet : MaskWords
+  /-- OR'd into movements clear at apply time (JS `movementsLayerMask`). -/
+  movementsLayerMask : MaskWords
   deriving Repr
 
 structure Rule where
@@ -22,7 +24,7 @@ structure Rule where
   deriving Repr
 
 structure WinCondition where
-  quantifier : Nat
+  quantifier : Int
   filter1 : MaskWords
   filter2 : MaskWords
   deriving Repr

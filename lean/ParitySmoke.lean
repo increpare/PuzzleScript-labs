@@ -54,22 +54,17 @@ def main (args : List String) : IO UInt32 := do
   for fx in selected do
     let irPath := fixturesDir / fx.irFile
     let (game, session) ← loadIrFile irPath
-    let got := serializeLevel game.idDict session.board
-    let preparedSerialized ← do
-      let contents ← IO.FS.readFile irPath
-      match Json.parse contents with
-      | .error e => throw <| IO.userError s!"{irPath}: parse error: {e}"
-      | .ok j =>
-        match loadPreparedSerializedLevel j with
-        | .error e => throw <| IO.userError s!"{irPath}: {e}"
-        | .ok s => pure s
-    if got != preparedSerialized then
-      IO.eprintln s!"{fx.name}: initial serialize mismatch"
+    match replay game session fx.inputs with
+    | .error e =>
+      IO.eprintln s!"FAIL {fx.name}: {e}"
       failures := failures + 1
-    else
-      IO.println s!"{fx.name}: initial serialize OK"
-      IO.println s!"TODO runtime: {fx.name} ({fx.id}) inputs={fx.inputs.size}"
-      failures := failures + 1
+    | .ok s =>
+      let got := serializeLevel game.idDict s.board
+      if got == fx.expectedSerializedLevel then
+        IO.println s!"OK {fx.name}"
+      else
+        IO.eprintln s!"FAIL {fx.name}\nexpected:\n{fx.expectedSerializedLevel}\ngot:\n{got}"
+        failures := failures + 1
   if failures = 0 then
     IO.println "lean parity smoke: OK"
     pure 0

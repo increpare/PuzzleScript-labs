@@ -91,7 +91,8 @@ private def applyCellReplacement (b : Board) (tile : Nat) (pat : CellPattern) : 
   let oldObj := b.cellObjWords tile
   let oldMov := b.cellMovWords tile
   let newObj := maskApplyReplacement oldObj pat.objectsClear pat.objectsSet
-  let newMov := maskApplyReplacement oldMov pat.movementsClear pat.movementsSet
+  let movClear := maskOr pat.movementsClear pat.movementsLayerMask
+  let newMov := maskApplyReplacement oldMov movClear pat.movementsSet
   if newObj == oldObj && newMov == oldMov then
     (false, b)
   else
@@ -347,7 +348,37 @@ def resolveMovements (game : Game) (b : Board) : Board :=
           pure m)
     pure board
 
-def stepOneInput (game : Game) (session : Session) (inputIdx : Int) : Except String Session := do
+private def winConditionPasses (b : Board) (wc : WinCondition) : Bool :=
+  let n := b.nTiles
+  if wc.quantifier == 1 then
+    Id.run do
+      for tile in [:n] do
+        if maskAnyMatchesAtTile b wc.filter1 tile then
+          if !maskAnyMatchesAtTile b wc.filter2 tile then
+            return false
+      pure true
+  else if wc.quantifier == -1 then
+    Id.run do
+      for tile in [:n] do
+        if maskAnyMatchesAtTile b wc.filter1 tile && maskAnyMatchesAtTile b wc.filter2 tile then
+          return false
+      pure true
+  else if wc.quantifier == 0 then
+    Id.run do
+      for tile in [:n] do
+        if maskAnyMatchesAtTile b wc.filter1 tile && maskAnyMatchesAtTile b wc.filter2 tile then
+          return true
+      pure false
+  else
+    false
+
+def evaluateWinConditions (game : Game) (b : Board) : Bool :=
+  if game.winConditions.isEmpty then
+    false
+  else
+    game.winConditions.all (winConditionPasses b)
+
+def executeTurn (game : Game) (session : Session) (inputIdx : Int) : Except String Session := do
   let mut board := session.board.clearMovements
   if inputIdx >= 0 then
     let dirMask ← match dirInputToLayerBits inputIdx with
@@ -355,15 +386,28 @@ def stepOneInput (game : Game) (session : Session) (inputIdx : Int) : Except Str
       | some m => pure m
     board := startMovement game board dirMask
   let (_, board') ← applyRules game board game.rules
-  let board'' := resolveMovements game board'
-  pure { session with board := board'' }
+  board := resolveMovements game board'
+  if !game.lateRules.isEmpty then
+    let (_, board'') ← applyRules game board game.lateRules
+    board := board''
+    if board.movements.any (· != 0) then
+      board := resolveMovements game board
+  let winning := evaluateWinConditions game board
+  let session' := { session with board, winning }
+  pure (sessionAfterWinAdvance game session')
+
+def replay (game : Game) (session : Session) (inputs : Array String) : Except String Session := do
+  let mut s := session
+  for tok in inputs do
+    let idx ← parseMovementInputToken tok
+    s ← executeTurn game s idx
+  pure s
+
+def stepOneInput (game : Game) (session : Session) (inputIdx : Int) : Except String Session :=
+  executeTurn game session inputIdx
 
 def stepInputToken (game : Game) (session : Session) (tok : String) : Except String Session := do
   let idx ← parseMovementInputToken tok
-  stepOneInput game session idx
-
-/-- Stub for Task 7: full turn with late rules, win, again. -/
-def executeTurn (game : Game) (session : Session) (inputIdx : Int) : Except String Session :=
-  stepOneInput game session inputIdx
+  executeTurn game session idx
 
 end PuzzleScript
