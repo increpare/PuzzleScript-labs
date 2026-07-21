@@ -118,6 +118,43 @@ structure Rule where
   aggregateBindings : Array AggregateBinding
   deriving Repr
 
+/-- Compiled-IR effect summary for a cell pattern (T3; mirrors JS command_only intent). -/
+structure PatternEffect where
+  clearsObjects : Bool
+  setsObjects : Bool
+  writesMovement : Bool
+  randomObject : Bool
+  randomDir : Bool
+  deriving Repr, DecidableEq
+
+def CellPattern.effect (p : CellPattern) : PatternEffect :=
+  { clearsObjects := maskAnyBits p.objectsClear
+    setsObjects := maskAnyBits p.objectsSet
+    writesMovement :=
+      maskAnyBits p.movementsClear || maskAnyBits p.movementsSet
+        || !p.layerCoupledMovementReplacements.isEmpty
+    randomObject := maskAnyBits p.randomEntityMask
+    randomDir := maskAnyBits p.randomDirMask }
+
+def PatternEffect.mutatesBoard (e : PatternEffect) : Bool :=
+  e.clearsObjects || e.setsObjects || e.writesMovement || e.randomObject || e.randomDir
+
+def PatternCell.mutatesBoard : PatternCell → Bool
+  | .ellipsis => false
+  | .cell p => p.hasReplacement && p.effect.mutatesBoard
+
+/--
+JS `tags.command_only` for compiled IR: nonempty commands and no object/movement writes
+on any replacement cell (empty clear/set masks ⇒ identity RHS).
+-/
+def Rule.isCommandOnly (r : Rule) : Bool :=
+  !r.commands.isEmpty
+    && r.patternRows.all (fun row => row.all (fun c => !c.mutatesBoard))
+
+/-- JS `tags.inert_command_only`: command-only and every command is sfx/message. -/
+def Rule.syntacticInertCommandOnly (r : Rule) : Bool :=
+  r.isCommandOnly && PuzzleScript.syntacticInertCommandOnly r.commands
+
 structure WinCondition where
   quantifier : Int
   filter1 : MaskWords

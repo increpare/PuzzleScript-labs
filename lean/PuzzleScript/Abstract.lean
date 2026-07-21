@@ -16,9 +16,8 @@ command-only / movement-identity rules where mask apply leaves `objects`/`moveme
 Masks remain authoritative for `parity_smoke`. These lemmas underwrite inert prune.
 -/
 
-/-- Rule has commands and every command is inert (`sfx*` / `message`). -/
-def Rule.syntacticInertCommands (r : Rule) : Bool :=
-  syntacticInertCommandOnly r.commands
+/-- Alias: prefer `Rule.syntacticInertCommandOnly` (includes command-only cell check). -/
+abbrev Rule.syntacticInertCommands := Rule.syntacticInertCommandOnly
 
 /--
 Solver-facing board view equality: same geometry and identical object/movement masks.
