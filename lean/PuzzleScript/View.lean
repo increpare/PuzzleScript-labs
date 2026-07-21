@@ -82,23 +82,28 @@ def Board.layerOccupancyCount (game : Game) (b : Board) (tile layer : Nat) : Nat
   Id.run do
     let mut n := 0
     for oid in [:game.objectCount] do
-      if maskGetBit (b.cellObjWords tile) oid && game.objectLayers.getD oid 0 == layer then
+      if maskGetBit (b.cellObjWords tile) oid
+          && (game.objectLayers.getD oid ⟨0⟩).val == layer then
         n := n + 1
     pure n
 
-/-- Executable well-formedness: dims/strides, object ids in range, ≤1 object per layer per tile. -/
+/-- Executable well-formedness: dims/strides, objectLayers coherence, ≤1 object per layer per tile. -/
 def Board.wellFormed (game : Game) (b : Board) : Bool :=
   b.layerCount == game.layerCount
     && b.strideObj == game.strideObj
     && b.strideMov == game.strideMov
+    && game.objectLayers.size == game.objectCount
     && b.objects.size == b.nTiles * b.strideObj
     && b.movements.size == b.nTiles * b.strideMov
     && Id.run do
       let mut ok := true
+      for oid in [:game.objectCount] do
+        unless game.validLayer (game.objectLayers.getD oid ⟨0⟩) do
+          ok := false
       for t in [:b.nTiles] do
         for oid in [:game.objectCount] do
           if maskGetBit (b.cellObjWords t) oid then
-            if game.objectLayers.getD oid 0 ≥ game.layerCount then
+            unless game.validObject ⟨oid⟩ && game.validLayer (game.objectLayers.getD oid ⟨0⟩) do
               ok := false
         for ℓ in [:game.layerCount] do
           if b.layerOccupancyCount game t ℓ > 1 then

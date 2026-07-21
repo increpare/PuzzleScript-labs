@@ -1,5 +1,6 @@
 import PuzzleScript.BitVec
 import PuzzleScript.Command
+import PuzzleScript.Ids
 
 namespace PuzzleScript
 
@@ -50,8 +51,8 @@ structure LayerCoupledMovementReplacement where
   deriving Repr
 
 structure PropertyAlias where
-  objectId : Nat
-  layerIndex : Nat
+  objectId : ObjectId
+  layerIndex : LayerIdx
   deriving Repr
 
 structure PropertyBinding where

@@ -24,4 +24,8 @@ instance : Hashable LayerIdx where
 instance : Hashable ObjectId where
   hash o := hash o.val
 
+/-- Convenience constructors. -/
+def ObjectId.ofNat (n : Nat) : ObjectId := ⟨n⟩
+def LayerIdx.ofNat (n : Nat) : LayerIdx := ⟨n⟩
+
 end PuzzleScript

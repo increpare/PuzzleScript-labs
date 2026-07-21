@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import PuzzleScript.Board
 import PuzzleScript.Command
+import PuzzleScript.Ids
 import PuzzleScript.Serialize
 import PuzzleScript.Rules
 import PuzzleScript.Rng
@@ -26,7 +27,8 @@ structure Game where
   layerCount : Nat
   playerMask : MaskWords
   playerMaskAggregate : Bool
-  objectLayers : Array Nat
+  /-- Per-object collision layer; `size = objectCount`, each `val < layerCount`. -/
+  objectLayers : Array LayerIdx
   rules : Array (Array Rule)
   lateRules : Array (Array Rule)
   /-- Sparse loop map: index is rule group index (may equal `rules.length` for end-loop). -/
@@ -43,6 +45,25 @@ structure Game where
   /-- JS `metadata.run_rules_on_level_start`: after load/restart, run one rule pass (tick). -/
   runRulesOnLevelStart : Bool
   deriving Repr
+
+def Game.validObject (g : Game) (o : ObjectId) : Bool :=
+  o.val < g.objectCount
+
+def Game.validLayer (g : Game) (ℓ : LayerIdx) : Bool :=
+  ℓ.val < g.layerCount
+
+def Game.ValidObject (g : Game) (o : ObjectId) : Prop :=
+  g.validObject o = true
+
+def Game.ValidLayer (g : Game) (ℓ : LayerIdx) : Prop :=
+  g.validLayer ℓ = true
+
+/-- Layer of object id, or `none` if out of range. -/
+def Game.layerOf (g : Game) (o : ObjectId) : Option LayerIdx :=
+  if h : o.val < g.objectLayers.size then
+    some g.objectLayers[o.val]
+  else
+    none
 
 structure Session where
   board : Board
@@ -232,9 +253,9 @@ private def parsePropertyBindings (j : Json) (ctx : String) : Except String (Arr
     let aliasesJson ← (elt.getObjVal? "aliases").mapError fun _ => s!"{ctx}[{i}]"
     let aliasesArr ← (Json.getArr? aliasesJson).mapError toString
     let aliases ← aliasesArr.mapIdxM fun ai aj => do
-      let objectId ← (aj.getObjValAs? Nat "object_id").mapError toString
-      let layerIndex ← (aj.getObjValAs? Nat "layer_index").mapError toString
-      pure { objectId, layerIndex }
+      let objectIdNat ← (aj.getObjValAs? Nat "object_id").mapError toString
+      let layerIndexNat ← (aj.getObjValAs? Nat "layer_index").mapError toString
+      pure { objectId := ⟨objectIdNat⟩, layerIndex := ⟨layerIndexNat⟩ }
     pure { propertyName, sourceRow, sourceCell, sourceMovementMode, sourceMovementMask, aliases }
 
 private def parseAggregateBindings (j : Json) (ctx : String) : Except String (Array AggregateBinding) := do
@@ -314,16 +335,21 @@ private def parseWinConditions (j : Json) (ctx : String) : Except String (Array 
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
   arr.mapIdxM fun i wcJ => parseWinCondition wcJ s!"{ctx}[{i}]"
 
-private def parseObjectLayers (j : Json) (objectCount : Nat) (ctx : String) : Except String (Array Nat) := do
+private def parseObjectLayers (j : Json) (objectCount layerCount : Nat) (ctx : String) :
+    Except String (Array LayerIdx) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
-  let mut layers := Array.replicate objectCount 0
+  let mut layers : Array LayerIdx := Array.replicate objectCount ⟨0⟩
   for h : i in [:arr.size] do
     let elt := arr[i]
     let id ← (elt.getObjValAs? Nat "id").mapError fun _ => s!"{ctx}[{i}]: missing id"
     let layer ← (elt.getObjValAs? Nat "layer").mapError fun _ => s!"{ctx}[{i}]: missing layer"
     if id >= objectCount then
       throw s!"{ctx}[{i}]: object id {id} out of range (object_count={objectCount})"
-    layers := layers.set! id layer
+    if layer >= layerCount then
+      throw s!"{ctx}[{i}]: layer {layer} out of range (layer_count={layerCount})"
+    layers := layers.set! id ⟨layer⟩
+  if layers.size != objectCount then
+    throw s!"{ctx}: objectLayers size {layers.size} != object_count {objectCount}"
   pure layers
 
 private def parseLevelEntry (j : Json) (ctx : String) (strideObj : Nat) : Except String LevelEntry := do
@@ -413,7 +439,7 @@ private def parseGame (j : Json) : Except String Game := do
   let playerMask ← parseUInt32Array maskJson "game.player_mask.mask"
   let playerMaskAggregate ← (pm.getObjValAs? Bool "aggregate").mapError fun _ => "game.player_mask: missing aggregate"
   let objectsJson ← (game.getObjVal? "objects").mapError toString
-  let objectLayers ← parseObjectLayers objectsJson objectCount "game.objects"
+  let objectLayers ← parseObjectLayers objectsJson objectCount layerCount "game.objects"
   let rulesJson ← (game.getObjVal? "rules").mapError toString
   let rules ← parseRuleGroups rulesJson "game.rules"
   let lateRulesJson ← (game.getObjVal? "late_rules").mapError toString
@@ -458,12 +484,37 @@ private def parseGame (j : Json) : Except String Game := do
     | .error _ => false
   let requirePlayerMovement := metaFlag "require_player_movement"
   let runRulesOnLevelStart := metaFlag "run_rules_on_level_start"
-  pure {
+  let g : Game := {
     idDict, objectCount, strideObj, strideMov, layerCount, playerMask, playerMaskAggregate
     objectLayers, rules, lateRules, loopPoint, lateLoopPoint, winConditions, levels
     gameRigid, groupNumberToRigidGroupIndex, rigidGroupIndexToGroupIndex, layerMasks
     requirePlayerMovement, runRulesOnLevelStart
   }
+  -- Fail closed: property aliases must reference valid object/layer ids.
+  let validateAliases (label : String) (groups : Array (Array Rule)) : Except String Unit := do
+    for gi in [:groups.size] do
+      match groups[gi]? with
+      | none => pure ()
+      | some group =>
+        for ri in [:group.size] do
+          match group[ri]? with
+          | none => pure ()
+          | some rule =>
+            for bi in [:rule.propertyBindings.size] do
+              match rule.propertyBindings[bi]? with
+              | none => pure ()
+              | some bnd =>
+                for ai in [:bnd.aliases.size] do
+                  match bnd.aliases[ai]? with
+                  | none => pure ()
+                  | some alias =>
+                    unless g.validObject alias.objectId do
+                      throw s!"{label}[{gi}][{ri}].property_bindings: object id {alias.objectId.val} out of range"
+                    unless g.validLayer alias.layerIndex do
+                      throw s!"{label}[{gi}][{ri}].property_bindings: layer {alias.layerIndex.val} out of range"
+  validateAliases "game.rules" g.rules
+  validateAliases "game.late_rules" g.lateRules
+  pure g
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do
   let ps ← (j.getObjVal? "prepared_session").mapError toString

@@ -75,7 +75,7 @@ def buildLayerMasks (game : Game) : Array MaskWords :=
   Id.run do
     let mut layers : Array MaskWords := Array.replicate game.layerCount #[]
     for oid in [:game.objectCount] do
-      let layer := game.objectLayers.getD oid 0
+      let layer := (game.objectLayers.getD oid ⟨0⟩).val
       if layer < game.layerCount then
         let cur := layers.getD layer #[]
         layers := layers.set! layer (maskSetBit cur oid true)
@@ -160,11 +160,11 @@ private def capturePropertyBindings (_game : Game) (b : Board) (rule : Rule) (tu
       let tile := tupleCellTile rm delta bnd.sourceRow bnd.sourceCell
       let mut found : Option PropertyAlias := none
       for alias in bnd.aliases do
-        if !maskGetBit (b.cellObjWords tile) alias.objectId then
+        if !maskGetBit (b.cellObjWords tile) alias.objectId.val then
           continue
         let mode := bnd.sourceMovementMode
         if mode != 0 then
-          let movementBits := getMovementBitsForLayerAt b tile alias.layerIndex
+          let movementBits := getMovementBitsForLayerAt b tile alias.layerIndex.val
           let sm := UInt32.ofNat bnd.sourceMovementMask
           if mode == 1 then
             if (movementBits &&& sm) != 0 then continue
@@ -187,7 +187,7 @@ private def captureAggregateBindings (b : Board) (rule : Rule) (tuple : Array Ro
       let tile := tupleCellTile rm delta bnd.sourceRow bnd.sourceCell
       let sourceLayer? : Option Nat :=
         match bnd.sourcePropertyName, bnd.sourceLayer with
-        | some pname, _ => (caps.getProperty pname).map (·.layerIndex)
+        | some pname, _ => (caps.getProperty pname).map (·.layerIndex.val)
         | none, some l => some l
         | none, none => some 0
       match sourceLayer? with
@@ -210,17 +210,17 @@ private def applyInferredReplacementFields (game : Game) (pat : CellPattern) (ca
     for s in pat.inferredPropertySources do
       match caps.getProperty s.propertyName with
       | some cap =>
-        oc := maskOr oc (game.layerMasks.getD cap.layerIndex #[])
-        mc := setLayerMovementBits mc cap.layerIndex 31
+        oc := maskOr oc (game.layerMasks.getD cap.layerIndex.val #[])
+        mc := setLayerMovementBits mc cap.layerIndex.val 31
       | none => pure ()
     for b in pat.inferredPropertyBindings do
       match caps.getProperty b.propertyName with
       | some cap =>
         if b.dirMode != 0 then
-          mc := setLayerMovementBits mc cap.layerIndex 31
+          mc := setLayerMovementBits mc cap.layerIndex.val 31
           if b.dirMode == 2 then
-            ms := setLayerMovementBits ms cap.layerIndex (UInt32.ofNat b.dirMask)
-        os := maskSetBit os cap.objectId true
+            ms := setLayerMovementBits ms cap.layerIndex.val (UInt32.ofNat b.dirMask)
+        os := maskSetBit os cap.objectId.val true
       | none => pure ()
     for b in pat.inferredAggregateBindings do
       match caps.getAggregate b.aggregateName with
@@ -231,7 +231,7 @@ private def applyInferredReplacementFields (game : Game) (pat : CellPattern) (ca
           | some l, _ => some l
           | none, some pname =>
             match caps.getProperty pname with
-            | some cap => some cap.layerIndex
+            | some cap => some cap.layerIndex.val
             | none => none
           | none, none => some 0
         match layerIdx? with
@@ -240,7 +240,7 @@ private def applyInferredReplacementFields (game : Game) (pat : CellPattern) (ca
           ms := setLayerMovementBits ms layerIdx (UInt32.ofNat captured)
           if let some pname := b.propertyName then
             match caps.getProperty pname with
-            | some cap => mc := setLayerMovementBits mc cap.layerIndex 31
+            | some cap => mc := setLayerMovementBits mc cap.layerIndex.val 31
             | none => pure ()
     -- Only rewrite movement on layer options that match this cell (JS/native overlap).
     for coupled in pat.layerCoupledMovementReplacements do
@@ -302,7 +302,7 @@ private def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile :
           rng' := r
           let oid := choices.getD idx 0
           objectsSet := maskSetBit objectsSet oid true
-          let layer := game.objectLayers.getD oid 0
+          let layer := (game.objectLayers.getD oid ⟨0⟩).val
           let layerMask := game.layerMasks.getD layer #[]
           objectsClear := maskOr objectsClear layerMask
           movementsClear := maskOr movementsClear (setLayerMovementBits (movMaskZeros b.strideMov) layer 31)
@@ -765,7 +765,7 @@ private def layersOfMask (game : Game) (cell : MaskWords) : Array Nat :=
     let mut out : Array Nat := #[]
     for oid in [:game.objectCount] do
       if maskGetBit cell oid then
-        out := out.push (game.objectLayers.getD oid 0)
+        out := out.push (game.objectLayers.getD oid ⟨0⟩).val
     pure out
 
 private def moveEntitiesAtIndex (game : Game) (b : Board) (tile : Nat) (entityMask : MaskWords) (dirMask : UInt32) : Board :=

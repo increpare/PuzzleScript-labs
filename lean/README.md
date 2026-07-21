@@ -81,6 +81,7 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
 - Public Board accessors: `cellObjWordsAt` / `cellMovWordsAt` (private loops may still use Nat)
 - Closed `Command` inductive — IR parses fail closed; `Rule.commands` / turn queues are `Array Command`
 - T3: `Rule.isCommandOnly` / `Rule.syntacticInertCommandOnly` from compiled cell replacement masks
+- T2: `Game.objectLayers : Array LayerIdx`, `PropertyAlias` uses `ObjectId`/`LayerIdx`, `Game.validObject` / `validLayer`
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
 - Bridge lemmas for the inert fragment: `BoardViewEq`, `againEligible_*` (`Abstract.lean`)
 - §4.0: again-eligibility uses **object-mask delta** (`objectsChanged` / `againEligible`), not “command fired”
