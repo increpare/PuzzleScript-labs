@@ -424,15 +424,17 @@ private def scanBoundsForRule (b : Board) (direction : Nat) (patternLen : Nat) :
       | _ => (0, b.width, 0, b.height)
   { xmin, xmax, ymin, ymax, horizontal := direction > 2 }
 
+/-- Max ellipsis gap `k` (JS `kmax`). Use `x + 2 - len` not `x - len + 2`:
+Lean `Nat` subtraction saturates, so `1 - 2 + 2 = 2` instead of `1`. -/
 private def ellipsisKMax (b : Board) (direction : Nat) (x y : Nat) (len : Nat) : Nat :=
   if direction == 4 then
-    if x + 1 >= len then x - len + 2 else 0
+    if x + 1 >= len then x + 2 - len else 0
   else if direction == 8 then
-    b.width - (x + len) + 1
+    if x + len ≤ b.width then b.width + 1 - (x + len) else 0
   else if direction == 2 then
-    b.height - (y + len) + 1
+    if y + len ≤ b.height then b.height + 1 - (y + len) else 0
   else if direction == 1 then
-    if y + 1 >= len then y - len + 2 else 0
+    if y + 1 >= len then y + 2 - len else 0
   else 0
 
 private def findFixedRowMatches (b : Board) (direction : Nat) (delta : Int) (row : Array PatternCell) : Array RowMatch :=
@@ -943,6 +945,14 @@ private def boardsDiffer (a b : Board) : Bool :=
   a.objects != b.objects || a.movements != b.movements
 
 mutual
+/-- JS: after restore/load with `run_rules_on_level_start`, run `processInput(-1)` and ignore win. -/
+partial def runRulesOnLevelStartIfNeeded (game : Game) (session : Session) : Except String Session := do
+  if !game.runRulesOnLevelStart then
+    return session
+  let (s, _) ← executeTurn game session (.tick) (skipAgainProbe := true)
+  -- JS ignores win conditions satisfied during the level-start rule pass.
+  pure { s with winning := false }
+
 partial def processCommandQueue (game : Game) (turnBackup : Session) (session : Session) (turn : TurnState)
     (skipAgainProbe : Bool) : Except String (Session × Bool) := do
   let cmds := turn.commandQueue
@@ -953,6 +963,7 @@ partial def processCommandQueue (game : Game) (turnBackup : Session) (session : 
     s := { s with undoBackups := s.undoBackups.push (turnBackup.board, turnBackup.currentLevel, turnBackup.winning) }
     if let some rb := s.restartBoard then
       s := { s with board := rb.clearMovements }
+    s ← runRulesOnLevelStartIfNeeded game s
   let winning := s.winning || cmds.contains "win" || evaluateWinConditions game s.board
   s := { s with winning }
   if !s.winning && cmds.contains "checkpoint" then
@@ -979,10 +990,11 @@ partial def executeTurn (game : Game) (session : Session) (input : InputToken) (
       let backups := session.undoBackups.extract 0 (session.undoBackups.size - 1)
       pure ({ session with board := board.clearMovements, currentLevel := lvl, winning := win, undoBackups := backups }, false)
   | .restart =>
-    let s :=
+    let s0 :=
       match session.restartBoard with
       | some rb => { session with board := rb.clearMovements, undoBackups := session.undoBackups.push (session.board, session.currentLevel, session.winning) }
       | none => session
+    let s ← runRulesOnLevelStartIfNeeded game s0
     pure (s, false)
   | .tick | .movement _ =>
     let turnBackup := session

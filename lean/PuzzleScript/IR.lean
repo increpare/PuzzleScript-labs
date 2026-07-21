@@ -39,6 +39,8 @@ structure Game where
   layerMasks : Array MaskWords
   /-- JS `metadata.require_player_movement`: cancel turn if no player left a start tile. -/
   requirePlayerMovement : Bool
+  /-- JS `metadata.run_rules_on_level_start`: after load/restart, run one rule pass (tick). -/
+  runRulesOnLevelStart : Bool
   deriving Repr
 
 structure Session where
@@ -442,19 +444,21 @@ private def parseGame (j : Json) : Except String Game := do
     match game.getObjVal? "layer_masks" with
     | .ok j => parseMaskWordsArray j "game.layer_masks"
     | .error _ => pure #[]
-  let requirePlayerMovement :=
+  let metaFlag (key : String) : Bool :=
     match game.getObjVal? "metadata_map" with
     | .ok mm =>
-      match mm.getObjVal? "require_player_movement" with
+      match mm.getObjVal? key with
       | .ok (.str _) => true
       | .ok (.bool true) => true
       | _ => false
     | .error _ => false
+  let requirePlayerMovement := metaFlag "require_player_movement"
+  let runRulesOnLevelStart := metaFlag "run_rules_on_level_start"
   pure {
     idDict, objectCount, strideObj, strideMov, layerCount, playerMask, playerMaskAggregate
     objectLayers, rules, lateRules, loopPoint, lateLoopPoint, winConditions, levels
     gameRigid, groupNumberToRigidGroupIndex, rigidGroupIndexToGroupIndex, layerMasks
-    requirePlayerMovement
+    requirePlayerMovement, runRulesOnLevelStart
   }
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do

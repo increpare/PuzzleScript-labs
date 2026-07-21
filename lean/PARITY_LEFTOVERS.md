@@ -1,43 +1,23 @@
 # Lean parity leftovers (clean corpus)
 
-Last updated: 2026-07-21. **Coverage: 292 / 303** unique clean names in `fixtures.json` (`make lean_parity_smoke` green). Candidate file has 305 lines including duplicates.
+Last updated: 2026-07-21. **Coverage: 300 / 303** unique clean names in `fixtures.json` (`make lean_parity_smoke` green). Candidate file has 305 lines including 2 stale names not in `fixtures.json`.
 
 ## This wave
 
-- **`require_player_movement`**: parse `metadata_map`; cancel turn if no player left a start tile. Fixes **aggregate player allowed #1032** / **C #1032**.
-- **Layer-coupled object overlap**: match/apply use overlap (any bit), not subset — JS/native. Fixes unlimited-rigidbody games, 10-layer suites, many gallery titles.
-- **Undo + again**: one undo frame per player input after again settles; again requires board change. Fixes **Undo test (#315)**.
-- Expand default timeout **60s**; bisect uses again-settled snapshots.
+- **Ellipsis `kmax` Nat underflow**: use `y + 2 - len` (not `y - len + 2`). Lean `Nat` saturates so `1 - 2 + 2 = 2`, allowing vertical/horizontal wrap matches. Fixes **propagation test**.
+- **`run_rules_on_level_start`**: after restart (input or command), run one tick and ignore win — paints random/checkered backgrounds from `restart_target`. Fixes **Car Crash**, **Lightdown**, **SWIMMING TIME!**, **REALTIME DOG MOUNTAIN RESCUE**, **Rigidbody fix bug #246**, **Neoprenanzieher**, **Oh No My Dog…**, and other restart/level-start games.
 
-## Remaining (11)
+## Remaining (3) — again / action / realtime animation
 
-### Timeouts
+| Fixture | Bisect | Notes |
+|---------|--------|-------|
+| `Sok7` | @35 left + again | One cell: JS `five o` vs Lean `o six` after again number-match rules |
+| `Expand, avoid the flames […]` | @7 action + again | Action→`direkt` / random spawn again diverge (boards match through input 6) |
+| `gallery: tidy the cafe` | @14 left after ticks | Candlestick frame desync (`realtime_interval` + explicit `tick` inputs) |
 
-| Fixture | Why |
-|---------|-----|
-| `Rigidbody fix bug #246` | Rigid rollback + long turn budget |
-| `Neoprenanzieher` | Long input trace |
-| `Oh No My Dog Is About To Swallow A Piece Of Chocolate` | Long / again |
-| `SWIMMING TIME!` | Realtime-style |
-| `REALTIME DOG MOUNTAIN RESCUE` | `realtime_interval` not modeled |
-
-### Serialize mismatch
-
-| Fixture | Why |
-|---------|-----|
-| `propagation test` | Movement-guide leftover (bisect @ input 2) |
-| `Car Crash` | Compound rules |
-| `Expand, avoid the flames [also it's not always solvable]` | Large / special |
-| `Lightdown` | Multi-layer / lighting rules |
-| `Sok7` | Large variant |
-
-### FAIL
-
-| Fixture | Why |
-|---------|-----|
-| `gallery: tidy the cafe` | Large gallery mismatch |
+These need deeper again-settling / action-rule / realtime animation work beyond this wave.
 
 ## Tooling
 
-- `python3 scripts/lean_parity_expand.py --write-whitelist`
+- `python3 scripts/lean_parity_expand.py --write-whitelist --timeout 300`
 - `python3 scripts/lean_parity_bisect.py --fixture 'NAME'`
