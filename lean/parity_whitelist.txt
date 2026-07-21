@@ -72,3 +72,112 @@ Pushy-V Pully-H
 Resin-Caster
 Kettle, except something is off
 aggregates in win conditions 1
+"right [ Player ] -> [ up Player ]" gets compiled to down #755
+(censored version of NSFW game) Sexual Intercourse
+Acorn Scorchery Paradise
+An OK multiban level
+Attractor Net
+Autowin
+Autowin2
+Big dog and little dog
+Bug: "norestart" prelude option can interfere with "restart" command #411
+Chevron Lodger
+Clearing space
+Crates move when you move
+Cucumber Surprise
+Don't let your goals slip away
+Explodoban
+Head Skuller
+Hole-Stuffer
+I SURE LOOK TASTY!
+It gets its Feet Wet
+Legend of Swixero
+Long Haul Space Flight
+Loop example with both late and regular rules.
+Make way!
+MazezaM
+Microban x 10
+Missing/Skipping Rules? Objects disappear for no reason? #1046
+NIGHTMARECROBAN
+NO FORBIDDEN SYMBOLS
+Oh no I accidentally swallowed myself!
+Paralelism
+Pocket Gopher: Root-Shoot Nibbler
+Put the logs in the water, elephant!
+Recondite Star Sector Sigma
+Restart command on level start
+Rule direction inference test (#407)
+Scalesoban
+Schleimban
+Slidings
+Sokoban[Sokoban[Sokoban]]]
+SokokoS
+Subway upholstry snot smearing championship
+Test for cancel cancelling restart #374
+Test for trigger message at same time as cancel
+Test for trigger message at same time as reset
+The Far Away Danish Pastry is always Deliciouser.
+Two-Tone Tango
+Van-to-Mobile-Living-Space-Conversion Window-Frame-Installation
+Varifocal Nightmare
+Vexatious Match 3
+Wand Spinner
+[testing for recording through level-changes C] Don't asdlet your goals slip away
+again + message combo
+aggregate player allowed D #1032
+aggregates in win conditions 2
+aggregates in win conditions 4
+aggregates in win conditions 5
+aggregates in win conditions 6
+aggregates in win conditions 7
+annoying edge case
+beginloop/endloop test
+crate guardian
+ebony & ivory
+ecosystem generator
+ellipsis bug: rule matches two candidates, first replacement invalidates second
+ellipsis magnetism test
+ellipsisPropagationBug1
+ellipsisTest1
+explod
+gallery game: fall leaves
+gallery game: soliquid
+gallery: PrograMaze
+gallery: Symbolism
+gallery: collapsable sokoban
+gallery: count mover
+gallery: flower dance
+gallery: midas
+gallery: multi-word dictionary
+gallery: pushcat junior
+gallery: singleton traffic
+gallery: stairways
+gallery: swap bot
+gallery: the undertaking
+increpare game: match three billiards
+increpare game: you complete me
+it dies in the light
+late beginloop/endloop test
+limerick
+love and pieces
+mirror loop test
+modality
+movement matching - ellipsis bug - forgot to include one case in above
+multiple loops
+multiple patterns not checking for modifications
+newton
+no heroes necessary
+optimization that broke andrew's game
+ortho test 1
+ortho test 2
+pipe puffer
+short adventure in sticky wall land
+should allow overlapping things #512
+sticky candy puzzle saga
+take heart lass
+the exit is under my left foot
+trouble parsing non-ascii in unicode #528
+undo test
+undoing reset undoes two steps, not one #453
+unewton
+zen puzzle garden

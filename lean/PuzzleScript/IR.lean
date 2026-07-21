@@ -23,10 +23,13 @@ structure Game where
   strideMov : Nat
   layerCount : Nat
   playerMask : MaskWords
-  /-- Object id → collision layer (from `game.objects`). -/
+  playerMaskAggregate : Bool
   objectLayers : Array Nat
   rules : Array (Array Rule)
   lateRules : Array (Array Rule)
+  /-- Sparse loop map: index is rule group index (may equal `rules.length` for end-loop). -/
+  loopPoint : Array (Option Nat)
+  lateLoopPoint : Array (Option Nat)
   winConditions : Array WinCondition
   levels : Array LevelEntry
   deriving Repr
@@ -35,6 +38,8 @@ structure Session where
   board : Board
   winning : Bool
   currentLevel : Nat
+  undoBackups : Array (Board × Nat × Bool)
+  restartBoard : Option Board
   deriving Repr
 
 private def jsonGetInt (j : Json) (ctx : String) : Except String Int :=
@@ -43,7 +48,6 @@ private def jsonGetInt (j : Json) (ctx : String) : Except String Int :=
 private def int32Min : Int := -2147483648
 private def int32Max : Int := 2147483647
 
-/-- Interpret JSON integers as signed Int32 words (JS `Int32Array`), then as UInt32 bit patterns. -/
 private def intToUInt32 (i : Int) (ctx : String) : Except String UInt32 := do
   if i < int32Min || i > int32Max then
     throw s!"{ctx}: integer out of Int32 range: {i}"
@@ -75,12 +79,23 @@ private def parseMaskWordsArray (j : Json) (ctx : String) : Except String (Array
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
   arr.mapIdxM fun i elt => parseMaskWords elt s!"{ctx}[{i}]"
 
+private def emptyMask : MaskWords := #[]
+
+private def parseReplacementFields (repl : Json) (ctx : String) : Except String (MaskWords × MaskWords × MaskWords × MaskWords × MaskWords) := do
+  let objectsClear ← parseMaskWords (← (repl.getObjVal? "objects_clear").mapError toString) s!"{ctx}.objects_clear"
+  let objectsSet ← parseMaskWords (← (repl.getObjVal? "objects_set").mapError toString) s!"{ctx}.objects_set"
+  let movementsClear ← parseMaskWords (← (repl.getObjVal? "movements_clear").mapError toString) s!"{ctx}.movements_clear"
+  let movementsSet ← parseMaskWords (← (repl.getObjVal? "movements_set").mapError toString) s!"{ctx}.movements_set"
+  let movementsLayerMask ←
+    match repl.getObjVal? "movements_layer_mask" with
+    | .ok j => parseMaskWords j s!"{ctx}.replacement.movements_layer_mask"
+    | .error _ => pure #[0]
+  pure (objectsClear, objectsSet, movementsClear, movementsSet, movementsLayerMask)
+
 private def parseCellPattern (j : Json) (ctx : String) : Except String CellPattern := do
   let kind ← (j.getObjValAs? String "kind").mapError fun _ => s!"{ctx}: missing kind"
   if kind != "cell_pattern" then
     throw s!"{ctx}: unsupported cell kind {kind}"
-  if (← jsonArrayNonempty (← (j.getObjVal? "any_movements_present").mapError fun _ => ctx) s!"{ctx}.any_movements_present") then
-    throw s!"{ctx}: any_movements_present not supported"
   let lcm ← (j.getObjVal? "layer_coupled_movement_masks").mapError fun _ => s!"{ctx}: missing layer_coupled_movement_masks"
   if (← jsonArrayNonempty lcm s!"{ctx}.layer_coupled_movement_masks") then
     throw s!"{ctx}: layer_coupled_movement_masks not supported"
@@ -88,55 +103,78 @@ private def parseCellPattern (j : Json) (ctx : String) : Except String CellPatte
   let objectsMissing ← parseMaskWords (← (j.getObjVal? "objects_missing").mapError toString) s!"{ctx}.objects_missing"
   let anyObjectsPresent ←
     parseMaskWordsArray (← (j.getObjVal? "any_objects_present").mapError toString) s!"{ctx}.any_objects_present"
+  let anyMovementsPresent ←
+    parseMaskWordsArray (← (j.getObjVal? "any_movements_present").mapError toString) s!"{ctx}.any_movements_present"
   let movementsPresent ← parseMaskWords (← (j.getObjVal? "movements_present").mapError toString) s!"{ctx}.movements_present"
   let movementsMissing ← parseMaskWords (← (j.getObjVal? "movements_missing").mapError toString) s!"{ctx}.movements_missing"
-  let repl ← (j.getObjVal? "replacement").mapError fun _ => s!"{ctx}: missing replacement"
-  let objectsClear ← parseMaskWords (← (repl.getObjVal? "objects_clear").mapError toString) s!"{ctx}.replacement.objects_clear"
-  let objectsSet ← parseMaskWords (← (repl.getObjVal? "objects_set").mapError toString) s!"{ctx}.replacement.objects_set"
-  let movementsClear ← parseMaskWords (← (repl.getObjVal? "movements_clear").mapError toString) s!"{ctx}.replacement.movements_clear"
-  let movementsSet ← parseMaskWords (← (repl.getObjVal? "movements_set").mapError toString) s!"{ctx}.replacement.movements_set"
-  let movementsLayerMask ←
-    match repl.getObjVal? "movements_layer_mask" with
-    | .ok j => parseMaskWords j s!"{ctx}.replacement.movements_layer_mask"
-    | .error _ => pure #[0]
+  let (hasReplacement, objectsClear, objectsSet, movementsClear, movementsSet, movementsLayerMask) ←
+    match j.getObjVal? "replacement" with
+    | .error _ =>
+      pure (false, emptyMask, emptyMask, emptyMask, emptyMask, #[0])
+    | .ok repl =>
+      if repl == Json.null then
+        pure (false, emptyMask, emptyMask, emptyMask, emptyMask, #[0])
+      else
+        let (oc, os, mc, ms, mlm) ← parseReplacementFields repl s!"{ctx}.replacement"
+        pure (true, oc, os, mc, ms, mlm)
   pure {
-    objectsPresent, objectsMissing, anyObjectsPresent, movementsPresent, movementsMissing
-    objectsClear, objectsSet, movementsClear, movementsSet, movementsLayerMask
+    objectsPresent, objectsMissing, anyObjectsPresent, anyMovementsPresent
+    movementsPresent, movementsMissing
+    hasReplacement, objectsClear, objectsSet, movementsClear, movementsSet, movementsLayerMask
   }
 
+private def parsePatternCell (j : Json) (ctx : String) : Except String PatternCell := do
+  let kind ← (j.getObjValAs? String "kind").mapError fun _ => s!"{ctx}: missing kind"
+  if kind == "ellipsis" then
+    pure (.ellipsis)
+  else if kind == "cell_pattern" then
+    let cp ← parseCellPattern j ctx
+    pure (.cell cp)
+  else
+    throw s!"{ctx}: unsupported pattern cell kind {kind}"
+
+private def parseCommandName (j : Json) (ctx : String) : Except String String :=
+  match j with
+  | Json.str s => pure s
+  | Json.arr arr =>
+    match arr[0]? with
+    | some (Json.str s) => pure s
+    | _ => throw s!"{ctx}: expected command string or [string, ...]"
+  | _ => throw s!"{ctx}: expected command string or array"
+
+private def parseCommands (j : Json) (ctx : String) : Except String (Array String) := do
+  let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
+  arr.mapIdxM fun i elt => parseCommandName elt s!"{ctx}[{i}]"
+
 private def parseRule (j : Json) (ctx : String) : Except String Rule := do
-  if (← (j.getObjValAs? Bool "is_random").mapError fun _ => s!"{ctx}: missing is_random") then
+  let isRandom ← (j.getObjValAs? Bool "is_random").mapError fun _ => s!"{ctx}: missing is_random"
+  if isRandom then
     throw s!"{ctx}: is_random rules not supported"
-  if (← (j.getObjValAs? Bool "rigid").mapError fun _ => s!"{ctx}: missing rigid") then
+  let rigid ← (j.getObjValAs? Bool "rigid").mapError fun _ => s!"{ctx}: missing rigid"
+  if rigid then
     throw s!"{ctx}: rigid rules not supported"
-  let ellipsis ← (j.getObjVal? "ellipsis_count").mapError fun _ => s!"{ctx}: missing ellipsis_count"
-  let ellipsisArr ← (Json.getArr? ellipsis).mapError fun e => s!"{ctx}.ellipsis_count: {e}"
-  for h : i in [:ellipsisArr.size] do
-    let elt := ellipsisArr[i]
-    let n ← jsonGetInt elt s!"{ctx}.ellipsis_count[{i}]"
-    if n != 0 then
-      throw s!"{ctx}: ellipsis not supported"
+  let ellipsisJson ← (j.getObjVal? "ellipsis_count").mapError fun _ => s!"{ctx}: missing ellipsis_count"
+  let ellipsisArr ← (Json.getArr? ellipsisJson).mapError fun e => s!"{ctx}.ellipsis_count: {e}"
+  let ellipsisCounts ← ellipsisArr.mapIdxM fun i elt =>
+    jsonGetInt elt s!"{ctx}.ellipsis_count[{i}]" |>.map Int.toNat
   let propBind ← (j.getObjVal? "property_bindings").mapError fun _ => s!"{ctx}: missing property_bindings"
   if (← jsonArrayNonempty propBind s!"{ctx}.property_bindings") then
     throw s!"{ctx}: property_bindings not supported"
   let aggrBind ← (j.getObjVal? "aggregate_bindings").mapError fun _ => s!"{ctx}: missing aggregate_bindings"
   if (← jsonArrayNonempty aggrBind s!"{ctx}.aggregate_bindings") then
     throw s!"{ctx}: aggregate_bindings not supported"
-  let commands ← (j.getObjVal? "commands").mapError fun _ => s!"{ctx}: missing commands"
-  if (← jsonArrayNonempty commands s!"{ctx}.commands") then
-    throw s!"{ctx}: commands not supported"
+  let commands ← parseCommands (← (j.getObjVal? "commands").mapError fun _ => s!"{ctx}: missing commands") s!"{ctx}.commands"
   let patterns ← (j.getObjVal? "patterns").mapError fun _ => s!"{ctx}: missing patterns"
-  let patternRows ← (Json.getArr? patterns).mapError fun e => s!"{ctx}.patterns: {e}"
-  if patternRows.size != 1 then
-    throw s!"{ctx}: expected exactly one pattern row, got {patternRows.size}"
-  let row := patternRows[0]!
-  let cellsJson ← (Json.getArr? row).mapError fun e => s!"{ctx}.patterns[0]: {e}"
-  let cells ← cellsJson.mapIdxM fun i cellJ =>
-    parseCellPattern cellJ s!"{ctx}.patterns[0][{i}]"
+  let patternRowsJson ← (Json.getArr? patterns).mapError fun e => s!"{ctx}.patterns: {e}"
+  if patternRowsJson.size != ellipsisCounts.size then
+    throw s!"{ctx}: patterns rows {patternRowsJson.size} != ellipsis_count {ellipsisCounts.size}"
+  let patternRows ← patternRowsJson.mapIdxM fun ri rowJ => do
+    let cellsJson ← (Json.getArr? rowJ).mapError fun e => s!"{ctx}.patterns[{ri}]: {e}"
+    cellsJson.mapIdxM fun ci cellJ => parsePatternCell cellJ s!"{ctx}.patterns[{ri}][{ci}]"
   let direction ← (j.getObjValAs? Nat "direction").mapError fun _ => s!"{ctx}: missing direction"
   let lineNumber ← (j.getObjValAs? Nat "line_number").mapError fun _ => s!"{ctx}: missing line_number"
   let groupNumber ← (j.getObjValAs? Nat "group_number").mapError fun _ => s!"{ctx}: missing group_number"
-  pure { direction, lineNumber, groupNumber, cells }
+  pure { direction, lineNumber, groupNumber, patternRows, ellipsisCounts, commands, rigid, isRandom }
 
 private def parseRuleGroup (j : Json) (ctx : String) : Except String (Array Rule) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
@@ -146,11 +184,32 @@ private def parseRuleGroups (j : Json) (ctx : String) : Except String (Array (Ar
   let groups ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
   groups.mapIdxM fun gi groupJ => parseRuleGroup groupJ s!"{ctx}[{gi}]"
 
+private def parseLoopPointMap (j : Json) (ctx : String) (groupCount : Nat) : Except String (Array (Option Nat)) := do
+  let obj ← (j.getObj?).mapError fun _ => s!"{ctx}: expected object"
+  let mut maxIdx := groupCount
+  let mut points : Array (Option Nat) := Array.replicate (groupCount + 1) none
+  for (k, v) in obj do
+    let gi ← match k.toNat? with
+      | some n => pure n
+      | none => throw s!"{ctx}: non-integer loop_point key {k}"
+    let target ← jsonGetInt v s!"{ctx}[{k}]" |>.map Int.toNat
+    if gi > maxIdx then
+      maxIdx := gi
+    while points.size ≤ gi do
+      points := points.push none
+    points := points.set! gi (some target)
+  if maxIdx > groupCount then
+    while points.size ≤ maxIdx do
+      points := points.push none
+  pure points
+
 private def parseWinCondition (j : Json) (ctx : String) : Except String WinCondition := do
   let quantifier ← jsonGetInt (← (j.getObjVal? "quantifier").mapError fun _ => s!"{ctx}: missing quantifier") s!"{ctx}.quantifier"
   let filter1 ← parseMaskWords (← (j.getObjVal? "filter1").mapError toString) s!"{ctx}.filter1"
   let filter2 ← parseMaskWords (← (j.getObjVal? "filter2").mapError toString) s!"{ctx}.filter2"
-  pure { quantifier, filter1, filter2 }
+  let aggr1 ← (j.getObjValAs? Bool "aggr1").mapError fun _ => s!"{ctx}: missing aggr1"
+  let aggr2 ← (j.getObjValAs? Bool "aggr2").mapError fun _ => s!"{ctx}: missing aggr2"
+  pure { quantifier, filter1, filter2, aggr1, aggr2 }
 
 private def parseWinConditions (j : Json) (ctx : String) : Except String (Array WinCondition) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"
@@ -201,7 +260,17 @@ def boardFromPlayable (game : Game) (width height layerCount : Nat) (objects : A
     objects
     movements := Array.replicate (nTiles * game.strideMov) 0 }
 
-/-- After a win in unitTesting, JS `nextLevel` advances; skip message screens to the next playable level. -/
+private def parseRestartBoard (j : Json) (game : Game) (ctx : String) : Except String Board := do
+  let width ← (j.getObjValAs? Nat "width").mapError fun _ => s!"{ctx}: missing width"
+  let height ← (j.getObjValAs? Nat "height").mapError fun _ => s!"{ctx}: missing height"
+  let objectsJson ← (j.getObjVal? "objects").mapError fun _ => s!"{ctx}: missing objects"
+  let objects ← parseUInt32Array objectsJson s!"{ctx}.objects"
+  let nTiles := width * height
+  let expectedObjLen := nTiles * game.strideObj
+  if objects.size != expectedObjLen then
+    throw s!"{ctx}.objects: length {objects.size}, expected {expectedObjLen}"
+  pure (boardFromPlayable game width height game.layerCount objects)
+
 def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
   if !session.winning then
     session
@@ -238,19 +307,28 @@ private def parseGame (j : Json) : Except String Game := do
   let pm ← (game.getObjVal? "player_mask").mapError toString
   let maskJson ← (pm.getObjVal? "mask").mapError toString
   let playerMask ← parseUInt32Array maskJson "game.player_mask.mask"
+  let playerMaskAggregate ← (pm.getObjValAs? Bool "aggregate").mapError fun _ => "game.player_mask: missing aggregate"
   let objectsJson ← (game.getObjVal? "objects").mapError toString
   let objectLayers ← parseObjectLayers objectsJson objectCount "game.objects"
   let rulesJson ← (game.getObjVal? "rules").mapError toString
   let rules ← parseRuleGroups rulesJson "game.rules"
   let lateRulesJson ← (game.getObjVal? "late_rules").mapError toString
   let lateRules ← parseRuleGroups lateRulesJson "game.late_rules"
+  let loopPoint ←
+    match game.getObjVal? "loop_point" with
+    | .ok lp => parseLoopPointMap lp "game.loop_point" rules.size
+    | .error _ => pure (Array.replicate (rules.size + 1) none)
+  let lateLoopPoint ←
+    match game.getObjVal? "late_loop_point" with
+    | .ok lp => parseLoopPointMap lp "game.late_loop_point" lateRules.size
+    | .error _ => pure (Array.replicate (lateRules.size + 1) none)
   let winJson ← (game.getObjVal? "winconditions").mapError toString
   let winConditions ← parseWinConditions winJson "game.winconditions"
   let levelsJson ← (game.getObjVal? "levels").mapError toString
   let levels ← parseLevels levelsJson "game.levels" strideObj
   pure {
-    idDict, objectCount, strideObj, strideMov, layerCount, playerMask
-    objectLayers, rules, lateRules, winConditions, levels
+    idDict, objectCount, strideObj, strideMov, layerCount, playerMask, playerMaskAggregate
+    objectLayers, rules, lateRules, loopPoint, lateLoopPoint, winConditions, levels
   }
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do
@@ -287,7 +365,11 @@ private def parseSession (j : Json) (game : Game) : Except String Session := do
     strideMov := game.strideMov
     objects, movements
   }
-  pure { board, winning, currentLevel }
+  let restartBoard ←
+    match ps.getObjVal? "restart_target" with
+    | .ok rt => parseRestartBoard rt game "prepared_session.restart_target" |>.map some
+    | .error _ => pure none
+  pure { board, winning, currentLevel, undoBackups := #[], restartBoard }
 
 def parseIrJson (root : Json) : Except String (Game × Session) := do
   let game ← parseGame root

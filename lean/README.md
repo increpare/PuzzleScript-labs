@@ -24,6 +24,16 @@ lake exe parity_smoke --fixtures ../build/js-parity-data --whitelist parity_whit
 
 Requires Lean 4 as pinned in `lean-toolchain`.
 
+## Expanding the whitelist
+
+From the repo root (with `lake` on `PATH`):
+
+```bash
+python3 scripts/lean_parity_expand.py --write-whitelist
+```
+
+This runs `parity_smoke` on each clean candidate not already whitelisted and appends passing names to `lean/parity_whitelist.txt`. Use `--verbose` to print per-case results.
+
 ## Whitelist (clean kernel only)
 
 Active cases (one name per line, must match `fixtures.json` exactly):
@@ -49,28 +59,34 @@ Clean means the fixture’s source JS-compiles with **`errorCount == 0` and no w
 
 **JavaScript is the everyday reference** for what the fixtures expect. If Lean work surfaces incorrect JS (or C++) behavior, **report it to the maintainers** — do not silently ignore or paper over the discrepancy. Fix the oracle when appropriate, or temporarily waive the case with an explicit rationale.
 
-## Supported runtime subset (v1)
+## Supported runtime subset
 
-The interpreter is intentionally small. Unsupported IR features fail closed with a clear error.
+The interpreter targets parity with JS `processInput` / `applyRules` / `resolveMovements` / `checkWin` for whitelisted simulation fixtures. Unsupported IR still fails closed at load time.
 
-**Supported**
+**Supported (high level)**
 
-- Object/movement masks with `STRIDE_OBJ` / `STRIDE_MOV` from IR (`game.strides`)
-- Player input dirs `0=up, 1=left, 2=down, 3=right, 4=action` (same as JS `processInput`)
-- Rules with: no ellipsis, no `is_random`, no `rigid`, empty `property_bindings` / `aggregate_bindings`, no `any_movements_present` / layer-coupled movement terms, empty `commands`
-- `any_objects_present` (OR within each term, AND across terms — JS `anyObjectsPresent`)
-- Single-row patterns (`patterns.length = 1`) of adjacent `cell_pattern` cells
-- Rule groups applied until quiescence (non-looping games)
-- Movement resolution for non-rigid games (collision: destination blocked if same layer occupied)
-- Late rules (hook present; many whitelist games have none)
-- Win conditions (`quantifier` + two filters) and unitTesting-style level advance on win (skips message screens)
-- Message levels in `game.levels` (parsed; skipped when advancing after win)
-- Current whitelist: see `parity_whitelist.txt` (grow only from `parity_clean_candidates.txt`)
+- Object/movement masks (`STRIDE_OBJ` / `STRIDE_MOV` from IR)
+- Player input `0`–`4`, plus trace tokens `undo`, `restart`, `tick` (`processInput(-1)`)
+- `any_objects_present` and `any_movements_present` on cell patterns
+- Null / missing `replacement` on LHS cells (no-op replacement)
+- Multi-row rule patterns; single-ellipsis rows (`ellipsis_count` 0 or 1 per row)
+- Rule `commands`: `win`, `cancel`, `restart`, `again` (with post-turn `again` loop), `sfx*` ignored for board parity
+- `beginloop` / `endloop` via `loop_point` / `late_loop_point` maps
+- Win conditions with `aggr1` / `aggr2` aggregate matching; `player_mask.aggregate` for movement
+- Undo stack and `restart_target` from prepared session IR
+- Level advance on win (skips message screens)
 
-**Unsupported (fail closed)**
+**Still unsupported (fail closed at IR load unless noted)**
 
-- Ellipsis, rigid, random / randomdir, property/aggregate bindings, `any_movements_present`, layer-coupled movement, beginloop/endloop complexity, undo/restart inputs, sounds, title/message screens, full `again` command loops
+- `rigid` rules and rigid movement rollback
+- `is_random` / `randomdir` rules (needs `prepared_session.random_state`)
+- Nonempty `property_bindings` / `aggregate_bindings`
+- Nonempty `layer_coupled_movement_masks`
+- Two-ellipsis rows per pattern (`ellipsis_count` 2)
+- Title/message gameplay, sounds in serialized output
+
+Current whitelist size: see `parity_whitelist.txt` (grow only from `parity_clean_candidates.txt`).
 
 ## Next candidates
 
-Grow `parity_whitelist.txt` **only from** `parity_clean_candidates.txt`, feature-by-feature. Useful near-term missing pieces: property bindings, `any_movements_present`, ellipsis, rigid, or `again`.
+Remaining clean-corpus gaps are mostly **rigid**, **random**, **property/aggregate bindings**, **layer-coupled movement**, and **double-ellipsis** rules — plus a tail of **serialization mismatches** to debug case-by-case.
