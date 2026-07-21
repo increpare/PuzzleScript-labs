@@ -181,3 +181,61 @@ undo test
 undoing reset undoes two steps, not one #453
 unewton
 zen puzzle garden
+100 objects
+1st alternative test for: right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682
+200 objects
+2048
+2nd alternative test for: right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682
+50 layers
+50 layers 2
+50 objects
+B*TTEATER
+DICE GOBLIN
+Double-Entry Bookkeeping Simulator#1
+Double-Entry Bookkeeping Simulator#2
+Failed rigid groups shouldn't block late rule execution. #254
+Fickle Fred
+Flying Kick
+Garten der Medusen
+KONSUM
+Kreiseln
+Match-Maker
+Moved by leaves of grass
+Rigid weirdness test (#369)
+Rigidbody rules apply to group rather than individual rules.
+The sponge what lights up the seafloor
+Unclean Residues
+You can't make this up!
+[ orthogonal a | moving a ] -> [ moving a | orthogonal a ] produces an error #496
+beginloop/endloop test #2 (w/ rigids)
+coverage of concretizeMovingInCellByAmbiguousMovementName
+dungeon janitor
+ellipsisPropagationBug2
+gallery game: sokodig
+gallery: Stand Off
+gallery: XL-Plan
+gallery: boxes love boxing gloves
+gallery: marble shot
+loop length 1
+loop length 1-b
+misc many objects
+misc rigid test
+random instances of properties
+right [ horizontal TestObject1 | perpendicular TestObject1 ] -> [ perpendicular TestObject1 | ] produces an error #498
+right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682
+rigid DOES NOT apply to objects if a movement on the RHS is assigned, and later the object is replaced by an object on another layer
+rigid DOES NOT apply to objects if a movement on the RHS is removed implicitly [by not mentioning a movement matched on the LHS]
+rigid DOES apply to objects if a movement on the RHS is removed explicitly [by not mentioning a movement matched on the LHS]
+rigid DOES apply to objects if a movement on the RHS is removed explicitly, even if the object is replaced by another one on the same layer
+rigid applies to movements even if the initial movement applied is an ACTION that is later changed to a movement
+rigid applies to movements even if the initial movement applied is an STATIONARY that is later changed to a movement
+rigid applies to movements even if the movements are chagned by subsequent non-rigid rules in other groups
+rigid applies to movements even if the movements were already present in the cell before rule application [i.e. if the rule doesn't do anything]
+rigid applies to movements even if the objects are changed to different objects in the same layer
+rigid applies to movements even if they are removed and subsequently readded
+rigid body test
+rigid body test 2
+rigid disablement applies to whole rule-groups
+rigid: even a rigid rule removing an object marks the position/layer of the removed object as rigid.
+rigid: even removing and re-adding an object doesn't remove the rigid tag from that position and layer.
+simple rigid test

@@ -1,6 +1,7 @@
 import PuzzleScript.Board
 import PuzzleScript.BitVec
 import PuzzleScript.IR
+import PuzzleScript.Rng
 import PuzzleScript.Rules
 
 namespace PuzzleScript
@@ -97,6 +98,157 @@ private def anyMovementsPresentMatch (movs : MaskWords) (terms : Array MaskWords
 private def maskAggregateMatchesAtTile (b : Board) (mask : MaskWords) (tile : Nat) : Bool :=
   maskBitsSetIn mask (b.cellObjWords tile)
 
+private def layerOptionMatches (objs movs : MaskWords) (layer : LayerCoupledLayer) : Bool :=
+  maskBitsSetIn layer.objectMask objs
+    && (if maskAnyBits layer.movementsAny then maskAnyBits (maskAnd movs layer.movementsAny) else true)
+    && maskBitsSetIn layer.movementsPresent movs
+    && maskNoBitsInCommon layer.movementsMissing movs
+
+private def layerCoupledTermMatches (objs movs : MaskWords) (term : LayerCoupledTerm) : Bool :=
+  maskBitsSetIn term.objectMask objs && term.layers.any (layerOptionMatches objs movs)
+
+private def layerCoupledMasksMatch (objs movs : MaskWords) (terms : Array LayerCoupledTerm) : Bool :=
+  terms.all (layerCoupledTermMatches objs movs)
+
+private def getLayerMovementBits (mov : MaskWords) (layer : Nat) : UInt32 :=
+  let shift := 5 * layer
+  if shift >= 32 then 0 else
+    (maskWord mov 0 >>> UInt32.ofNat shift) &&& 31
+
+private def setLayerMovementBits (mov : MaskWords) (layer : Nat) (bits : UInt32) : MaskWords :=
+  let shift := 5 * layer
+  let clearMask : UInt32 := (31 : UInt32) <<< UInt32.ofNat shift
+  let old := maskWord mov 0
+  let cleared := old &&& (~~~clearMask)
+  let next := cleared ||| ((bits &&& 31) <<< UInt32.ofNat shift)
+  if mov.isEmpty then #[next] else mov.set! 0 next
+
+private def clearLayerMovementBits (mov : MaskWords) (layer : Nat) : MaskWords :=
+  setLayerMovementBits mov layer 0
+
+private def movMaskZeros (stride : Nat) : MaskWords :=
+  Array.replicate stride (0 : UInt32)
+
+private def getMovementBitsForLayerAt (b : Board) (tile : Nat) (layer : Nat) : UInt32 :=
+  getLayerMovementBits (b.cellMovWords tile) layer
+
+private def tupleCellTile (rm : RowMatch) (delta : Int) (_rowIdx cellIdx : Nat) : Nat :=
+  let base :=
+    match rm with
+    | .fixed s => s
+    | .ellipsis1 s _ => s
+    | .ellipsis2 s _ _ => s
+  (Int.ofNat base + delta * Int.ofNat cellIdx).toNat
+
+private def capturePropertyBindings (_game : Game) (b : Board) (rule : Rule) (tuple : Array RowMatch) (delta : Int)
+    (caps : RuleCaptures) : RuleCaptures :=
+  Id.run do
+    let mut out := caps
+    for bnd in rule.propertyBindings do
+      let rm := tuple.getD bnd.sourceRow (.fixed 0)
+      let tile := tupleCellTile rm delta bnd.sourceRow bnd.sourceCell
+      let mut found : Option PropertyAlias := none
+      for alias in bnd.aliases do
+        if !maskGetBit (b.cellObjWords tile) alias.objectId then
+          continue
+        let mode := bnd.sourceMovementMode
+        if mode != 0 then
+          let movementBits := getMovementBitsForLayerAt b tile alias.layerIndex
+          let sm := UInt32.ofNat bnd.sourceMovementMask
+          if mode == 1 then
+            if (movementBits &&& sm) != 0 then continue
+          else if mode == 3 then
+            if (movementBits &&& sm) == 0 then continue
+          else if (movementBits &&& sm) != sm then
+            continue
+        found := some alias
+        break
+      match found with
+      | some alias => out := out.setProperty bnd.propertyName alias
+      | none => pure ()
+    pure out
+
+private def captureAggregateBindings (b : Board) (rule : Rule) (tuple : Array RowMatch) (delta : Int) (caps : RuleCaptures) : RuleCaptures :=
+  Id.run do
+    let mut out := caps
+    for bnd in rule.aggregateBindings do
+      let rm := tuple.getD bnd.sourceRow (.fixed 0)
+      let tile := tupleCellTile rm delta bnd.sourceRow bnd.sourceCell
+      let sourceLayer? : Option Nat :=
+        match bnd.sourcePropertyName, bnd.sourceLayer with
+        | some pname, _ => (caps.getProperty pname).map (·.layerIndex)
+        | none, some l => some l
+        | none, none => some 0
+      match sourceLayer? with
+      | none => out := out.setAggregate bnd.aggregateName 0
+      | some sourceLayer =>
+        let raw := getMovementBitsForLayerAt b tile sourceLayer
+        let bits := raw.toNat &&& bnd.aggregateMask
+        out := out.setAggregate bnd.aggregateName bits
+    pure out
+
+private def applyInferredReplacementFields (game : Game) (pat : CellPattern) (caps : RuleCaptures)
+    (objectsClear objectsSet movementsClear movementsSet : MaskWords) :
+    (MaskWords × MaskWords × MaskWords × MaskWords) :=
+  Id.run do
+    let mut oc := objectsClear
+    let mut os := objectsSet
+    let mut mc := movementsClear
+    let mut ms := movementsSet
+    for s in pat.inferredPropertySources do
+      match caps.getProperty s.propertyName with
+      | some cap =>
+        oc := maskOr oc (game.layerMasks.getD cap.layerIndex #[])
+        mc := setLayerMovementBits mc cap.layerIndex 31
+      | none => pure ()
+    for b in pat.inferredPropertyBindings do
+      match caps.getProperty b.propertyName with
+      | some cap =>
+        if b.dirMode != 0 then
+          mc := setLayerMovementBits mc cap.layerIndex 31
+          if b.dirMode == 2 then
+            ms := setLayerMovementBits ms cap.layerIndex (UInt32.ofNat b.dirMask)
+        os := maskSetBit os cap.objectId true
+      | none => pure ()
+    for b in pat.inferredAggregateBindings do
+      match caps.getAggregate b.aggregateName with
+      | none => pure ()
+      | some captured =>
+        let layerIdx? :=
+          match b.layerIndex, b.propertyName with
+          | some l, _ => some l
+          | none, some pname =>
+            match caps.getProperty pname with
+            | some cap => some cap.layerIndex
+            | none => none
+          | none, none => some 0
+        match layerIdx? with
+        | none => pure ()
+        | some layerIdx =>
+          ms := setLayerMovementBits ms layerIdx (UInt32.ofNat captured)
+          if let some pname := b.propertyName then
+            match caps.getProperty pname with
+            | some cap => mc := setLayerMovementBits mc cap.layerIndex 31
+            | none => pure ()
+    for coupled in pat.layerCoupledMovementReplacements do
+      for layerTerm in coupled.layers do
+        mc := setLayerMovementBits mc layerTerm.layerIndex 31
+        if let some aname := coupled.replacementAggregateName then
+          match caps.getAggregate aname with
+          | some bits => ms := setLayerMovementBits ms layerTerm.layerIndex (UInt32.ofNat bits)
+          | none => pure ()
+        else if let some m := coupled.replacementMovementMask then
+          ms := setLayerMovementBits ms layerTerm.layerIndex (UInt32.ofNat m)
+    pure (oc, os, mc, ms)
+
+private def buildRigidGroupMask (game : Game) (groupNumber : Nat) (movementsLayerMask : MaskWords) (stride : Nat) : MaskWords :=
+  let rgi := (game.groupNumberToRigidGroupIndex.getD groupNumber none).getD 0 + 1
+  let full :=
+    (List.range game.layerCount).foldl
+      (fun m layer => setLayerMovementBits m layer (UInt32.ofNat rgi))
+      (movMaskZeros stride)
+  maskAnd full movementsLayerMask
+
 private def cellPatternMatches (b : Board) (tile : Nat) (pat : CellPattern) : Bool :=
   let objs := b.cellObjWords tile
   let movs := b.cellMovWords tile
@@ -104,24 +256,76 @@ private def cellPatternMatches (b : Board) (tile : Nat) (pat : CellPattern) : Bo
     && maskNoBitsInCommon pat.objectsMissing objs
     && anyObjectsPresentMatch objs pat.anyObjectsPresent
     && anyMovementsPresentMatch movs pat.anyMovementsPresent
+    && layerCoupledMasksMatch objs movs pat.layerCoupledMovementMasks
     && maskBitsSetIn pat.movementsPresent movs
     && maskNoBitsInCommon pat.movementsMissing movs
 
-private def applyCellReplacement (b : Board) (tile : Nat) (pat : CellPattern) : (Bool × Board) :=
+private def collectMaskBits (m : MaskWords) (maxBit : Nat) : Array Nat :=
+  Id.run do
+    let mut out : Array Nat := #[]
+    for bit in [:maxBit] do
+      if maskGetBit m bit then out := out.push bit
+    pure out
+
+private def dirBitsFromIndex (n : Nat) : UInt32 :=
+  match n % 4 with
+  | 0 => 1
+  | 1 => 4
+  | 2 => 2
+  | _ => 8
+
+private def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern) (caps : RuleCaptures)
+    (rng : RngState) : (Bool × Board × RngState) :=
   if !pat.hasReplacement then
-    (false, b)
+    (false, b, rng)
   else
-    let oldObj := b.cellObjWords tile
-    let oldMov := b.cellMovWords tile
-    let newObj := maskApplyReplacement oldObj pat.objectsClear pat.objectsSet
-    let movClear := maskOr pat.movementsClear pat.movementsLayerMask
-    let newMov := maskApplyReplacement oldMov movClear pat.movementsSet
-    if newObj == oldObj && newMov == oldMov then
-      (false, b)
-    else
-      let b1 := b.setCellObjWords tile newObj
-      let b2 := b1.setCellMovWords tile newMov
-      (true, b2)
+    Id.run do
+      let mut rng' := rng
+      let mut objectsClear := pat.objectsClear
+      let mut objectsSet := pat.objectsSet
+      let mut movementsClear := pat.movementsClear
+      let mut movementsSet := pat.movementsSet
+      if maskAnyBits pat.randomEntityMask then
+        let choices := collectMaskBits pat.randomEntityMask game.objectCount
+        unless choices.isEmpty do
+          let (idx, r) := rng'.randomNat 0 choices.size
+          rng' := r
+          let oid := choices.getD idx 0
+          objectsSet := maskSetBit objectsSet oid true
+          let layer := game.objectLayers.getD oid 0
+          let layerMask := game.layerMasks.getD layer #[]
+          objectsClear := maskOr objectsClear layerMask
+          movementsClear := maskOr movementsClear (setLayerMovementBits (movMaskZeros b.strideMov) layer 31)
+      for layer in [:game.layerCount] do
+        if getLayerMovementBits pat.randomDirMask layer != 0 then
+          let (dirIdx, r) := rng'.randomNat 0 4
+          rng' := r
+          movementsSet := setLayerMovementBits movementsSet layer (dirBitsFromIndex dirIdx)
+      let (oc, os, mc, ms) := applyInferredReplacementFields game pat caps objectsClear objectsSet movementsClear movementsSet
+      objectsClear := oc
+      objectsSet := os
+      movementsClear := mc
+      movementsSet := ms
+      let oldObj := b.cellObjWords tile
+      let oldMov := b.cellMovWords tile
+      let newObj := maskApplyReplacement oldObj objectsClear objectsSet
+      let movClear := maskOr movementsClear pat.movementsLayerMask
+      let newMov := maskApplyReplacement oldMov movClear movementsSet
+      let mut rigidChange := false
+      let mut board := b
+      if rule.rigid then
+        let rigidMask := buildRigidGroupMask game rule.groupNumber pat.movementsLayerMask b.strideMov
+        let curGroup := board.cellRigidGroupIndexMask tile
+        let curApplied := board.cellRigidMovementAppliedMask tile
+        if maskNoBitsInCommon rigidMask curGroup && maskNoBitsInCommon pat.movementsLayerMask curApplied then
+          rigidChange := true
+          board := board.setCellRigidGroupIndexMask tile (maskOr curGroup rigidMask)
+          board := board.setCellRigidMovementAppliedMask tile (maskOr curApplied pat.movementsLayerMask)
+      if newObj == oldObj && newMov == oldMov && !rigidChange then
+        return (false, b, rng')
+      board := board.setCellObjWords tile newObj
+      board := board.setCellMovWords tile newMov
+      return (true, board, rng')
 
 private def rowCellsMatchFixed (b : Board) (startTile : Nat) (delta : Int) (row : Array PatternCell) : Bool :=
   Id.run do
@@ -263,10 +467,12 @@ private def rowMatchStart (rm : RowMatch) : Nat :=
   | .ellipsis1 s _ => s
   | .ellipsis2 s _ _ => s
 
-private def applyRowAt (b : Board) (delta : Int) (row : Array PatternCell) (rm : RowMatch) : (Bool × Board) :=
+private def applyRowAt (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell) (rm : RowMatch) (caps : RuleCaptures)
+    (rng : RngState) : (Bool × Board × RngState) :=
   Id.run do
     let mut board := b
     let mut changed := false
+    let mut rng' := rng
     let mut idx : Int := Int.ofNat (rowMatchStart rm)
     let mut gapIdx := 0
     let gaps :=
@@ -282,11 +488,12 @@ private def applyRowAt (b : Board) (delta : Int) (row : Array PatternCell) (rm :
         idx := idx + delta * Int.ofNat g
       | .cell pat =>
         let t := idx.toNat
-        let (c, b') := applyCellReplacement board t pat
+        let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
         changed := changed || c
         board := b'
+        rng' := r
         idx := idx + delta
-    pure (changed, board)
+    pure (changed, board, rng')
 
 private def tupleStillMatches (b : Board) (rule : Rule) (tuple : Array RowMatch) : Bool :=
   let delta := ruleDirectionDelta rule.direction b.height
@@ -297,20 +504,29 @@ private def tupleStillMatches (b : Board) (rule : Rule) (tuple : Array RowMatch)
       | .ellipsis1 s g => rowCellsMatchEllipsis1 b s g delta row
       | .ellipsis2 .. => false
 
-private def applyRuleTuple (b : Board) (rule : Rule) (tuple : Array RowMatch) (recheck : Bool) : (Bool × Board) :=
+private def applyRuleTuple (game : Game) (b : Board) (rule : Rule) (tuple : Array RowMatch) (recheck : Bool) (rng : RngState) : (Bool × Board × RngState) :=
   if recheck && !tupleStillMatches b rule tuple then
-    (false, b)
+    (false, b, rng)
   else
     let delta := ruleDirectionDelta rule.direction b.height
+    let caps :=
+      captureAggregateBindings b rule tuple delta
+        (capturePropertyBindings game b rule tuple delta RuleCaptures.empty)
     Id.run do
       let mut board := b
       let mut changed := false
+      let mut rng' := rng
       for ri in [:tuple.size] do
         let row := rule.patternRows[ri]!
-        let (c, b') := applyRowAt board delta row (tuple.getD ri default)
+        let (c, b', r) := applyRowAt game rule board delta row (tuple[ri]!) caps rng'
         changed := changed || c
         board := b'
-      pure (changed, board)
+        rng' := r
+      pure (changed, board, rng')
+
+private def findRuleMatchTuples (b : Board) (rule : Rule) : Array (Array RowMatch) :=
+  let rowMatchLists := rule.patternRows.mapIdx fun i _ => findRowMatches b rule i
+  if rowMatchLists.any (·.isEmpty) then #[] else cartesianRowMatches rowMatchLists
 
 private def isSfxCommand (cmd : String) : Bool :=
   cmd.startsWith "sfx"
@@ -330,11 +546,13 @@ structure TurnState where
   commandQueue : Array String
   modified : Bool
   againPending : Bool
+  rng : RngState
   deriving Repr
 
-def TurnState.initial : TurnState := { commandQueue := #[], modified := false, againPending := false }
+def TurnState.initial (rng : RngState) : TurnState :=
+  { commandQueue := #[], modified := false, againPending := false, rng }
 
-def tryApplyRule (_game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Bool × Board × TurnState) :=
+def tryApplyRule (game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Bool × Board × TurnState) :=
   let rowMatchLists := rule.patternRows.mapIdx fun i _ => findRowMatches b rule i
   if rowMatchLists.any (·.isEmpty) then
     (false, b, st)
@@ -346,16 +564,43 @@ def tryApplyRule (_game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Bo
       let mut turn := st
       let mut cmdQ := st.commandQueue
       cmdQ := mergeCommands cmdQ rule.commands
-      for h : ti in [:tuples.size] do
+      for ti in [:tuples.size] do
         let tuple := tuples[ti]!
         let recheck := ti > 0
-        let (c, b') := applyRuleTuple board rule tuple recheck
+        let (c, b', rng') := applyRuleTuple game board rule tuple recheck turn.rng
+        turn := { turn with rng := rng' }
         any := any || c
         board := b'
       let modified := turn.modified || any || !rule.commands.isEmpty
       pure (any, board, { turn with commandQueue := cmdQ, modified := modified })
 
+private def applyRandomRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : TurnState) : (Bool × Board × TurnState) :=
+  Id.run do
+    let mut ruleMatches : Array (Nat × Array RowMatch) := #[]
+    for ruleIdx in [:group.size] do
+      match group[ruleIdx]? with
+      | none => pure ()
+      | some rule =>
+        for tuple in findRuleMatchTuples b rule do
+          ruleMatches := ruleMatches.push (ruleIdx, tuple)
+    if ruleMatches.isEmpty then
+      return (false, b, st)
+    let (pickIdx, rng') := st.rng.randomNat 0 ruleMatches.size
+    let (ruleIdx, tuple) := ruleMatches[pickIdx]!
+    match group[ruleIdx]? with
+    | none => return (false, b, st)
+    | some rule =>
+      let cmdQ := mergeCommands st.commandQueue rule.commands
+      let (changed, board, rng'') := applyRuleTuple game b rule tuple false rng'
+      let modified := st.modified || changed || !rule.commands.isEmpty
+      return (changed, board, { st with commandQueue := cmdQ, modified := modified, rng := rng'' })
+
 private def applyRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : TurnState) : Except String (Bool × Board × TurnState) := do
+  if h : group.size > 0 then
+    have g0 := group[0]
+    if g0.isRandom then
+      let (changed, board, turn) := applyRandomRuleGroup game b group st
+      return (changed, board, turn)
   let maxLoops := 1000
   let mut board := b
   let mut turn := st
@@ -383,7 +628,8 @@ private def applyRuleGroup (game : Game) (b : Board) (group : Array Rule) (st : 
     throw "rule group exceeded iteration cap"
   pure (groupChanged, board, turn)
 
-private def applyRulesWithLoops (game : Game) (b : Board) (groups : Array (Array Rule)) (loopPoint : Array (Option Nat)) (st : TurnState) : Except String (Bool × Board × TurnState) := do
+private def applyRulesWithLoops (game : Game) (b : Board) (groups : Array (Array Rule)) (loopPoint : Array (Option Nat)) (st : TurnState)
+    (bannedGroup : Array Bool) : Except String (Bool × Board × TurnState) := do
   let mut board := b
   let mut turn := st
   let mut rulesChanged := false
@@ -392,12 +638,13 @@ private def applyRulesWithLoops (game : Game) (b : Board) (groups : Array (Array
   let mut loopCount := 0
   let rulesCount := groups.size
   while ruleGroupIndex < rulesCount do
-    let group := groups[ruleGroupIndex]!
-    let (groupChanged, b', st') ← applyRuleGroup game board group turn
-    board := b'
-    turn := st'
-    rulesChanged := rulesChanged || groupChanged
-    loopPropagated := loopPropagated || groupChanged
+    unless bannedGroup.getD ruleGroupIndex false do
+      let group := groups[ruleGroupIndex]!
+      let (groupChanged, b', st') ← applyRuleGroup game board group turn
+      board := b'
+      turn := st'
+      rulesChanged := rulesChanged || groupChanged
+      loopPropagated := loopPropagated || groupChanged
     if loopPropagated then
       match loopPoint[ruleGroupIndex]? with
       | some (some target) =>
@@ -431,22 +678,6 @@ private def layersOfMask (game : Game) (cell : MaskWords) : Array Nat :=
       if maskGetBit cell oid then
         out := out.push (game.objectLayers.getD oid 0)
     pure out
-
-private def getLayerMovementBits (mov : MaskWords) (layer : Nat) : UInt32 :=
-  let shift := 5 * layer
-  if shift >= 32 then 0 else
-    (maskWord mov 0 >>> UInt32.ofNat shift) &&& 31
-
-private def setLayerMovementBits (mov : MaskWords) (layer : Nat) (bits : UInt32) : MaskWords :=
-  let shift := 5 * layer
-  let clearMask : UInt32 := (31 : UInt32) <<< UInt32.ofNat shift
-  let old := maskWord mov 0
-  let cleared := old &&& (~~~clearMask)
-  let next := cleared ||| ((bits &&& 31) <<< UInt32.ofNat shift)
-  if mov.isEmpty then #[next] else mov.set! 0 next
-
-private def clearLayerMovementBits (mov : MaskWords) (layer : Nat) : MaskWords :=
-  setLayerMovementBits mov layer 0
 
 private def moveEntitiesAtIndex (game : Game) (b : Board) (tile : Nat) (entityMask : MaskWords) (dirMask : UInt32) : Board :=
   let cell := b.cellObjWords tile
@@ -523,7 +754,15 @@ private def repositionEntitiesAtCell (game : Game) (b : Board) (tile : Nat) : (B
             board := b'
       pure (moved, board.setCellMovWords tile movement)
 
-def resolveMovements (game : Game) (b : Board) : Board :=
+private def setBannedGroup (bg : Array Bool) (groupIndex : Nat) : Array Bool :=
+  if bg.size ≤ groupIndex then
+    (bg ++ Array.replicate (groupIndex + 1 - bg.size) false).set! groupIndex true
+  else if bg[groupIndex]! then bg else bg.set! groupIndex true
+
+private def clearAllMovementBits (game : Game) (mov : MaskWords) : MaskWords :=
+  (List.range game.layerCount).foldl (fun m layer => clearLayerMovementBits m layer) mov
+
+def resolveMovements (game : Game) (b : Board) (bannedGroup : Array Bool) : (Board × Bool × Array Bool) :=
   Id.run do
     let mut board := b
     let mut again := true
@@ -536,15 +775,32 @@ def resolveMovements (game : Game) (b : Board) : Board :=
           if moved then
             again := true
             board := b'
+    let mut doUndo := false
+    let mut banned := bannedGroup
     for tile in [:board.nTiles] do
       let mov := board.cellMovWords tile
       if maskAnyBits mov then
-        board := board.setCellMovWords tile (Id.run do
-          let mut m := mov
-          for layer in [:game.layerCount] do
-            m := clearLayerMovementBits m layer
-          pure m)
-    pure board
+        if game.gameRigid then
+          let rigidApplied := board.cellRigidMovementAppliedMask tile
+          if maskAnyBits rigidApplied then
+            let movementMask := maskAnd mov rigidApplied
+            if maskAnyBits movementMask then
+              for layer in [:game.layerCount] do
+                let layerSection := getLayerMovementBits movementMask layer
+                if layerSection != 0 then
+                  let rigidGroupIndex := getLayerMovementBits (board.cellRigidGroupIndexMask tile) layer
+                  if rigidGroupIndex != 0 then
+                    let rgi := rigidGroupIndex.toNat - 1
+                    let groupIndex := game.rigidGroupIndexToGroupIndex.getD rgi 0
+                    if !banned.getD groupIndex false then
+                      banned := setBannedGroup banned groupIndex
+                      doUndo := true
+                  break
+        board := board.setCellMovWords tile (clearAllMovementBits game mov)
+        if game.gameRigid then
+          board := board.setCellRigidGroupIndexMask tile (movMaskZeros board.strideMov)
+          board := board.setCellRigidMovementAppliedMask tile (movMaskZeros board.strideMov)
+    return (board, doUndo, banned)
 
 private def filterMatchesAtTile (b : Board) (mask : MaskWords) (aggr : Bool) (tile : Nat) : Bool :=
   if aggr then maskAggregateMatchesAtTile b mask tile else maskAnyMatchesAtTile b mask tile
@@ -612,26 +868,42 @@ def executeTurn (game : Game) (session : Session) (input : InputToken) : Except 
   | .tick | .movement _ =>
     let turnBackup := session
     let mut board := session.board.clearMovements
-    let mut turn := TurnState.initial
+    let mut turn := TurnState.initial session.rng
     if let .movement idx := input then
       if idx >= 0 then
         let dirMask ← match dirInputToLayerBits idx with
           | none => throw s!"invalid movement input index: {idx}"
           | some m => pure m
         board := startMovement game board dirMask
-    let (_, board', turn') ← applyRulesWithLoops game board game.rules game.loopPoint turn
-    board := resolveMovements game board'
-    turn := turn'
-    if !game.lateRules.isEmpty then
-      let (_, board'', turn'') ← applyRulesWithLoops game board game.lateRules game.lateLoopPoint turn
+    let startBoard := board
+    let mut bannedGroup : Array Bool := #[]
+    let mut rigidIter := 0
+    let mut rigidloop := true
+    while rigidIter < 50 && rigidloop do
+      rigidloop := false
+      rigidIter := rigidIter + 1
+      let (_, board', turn') ← applyRulesWithLoops game board game.rules game.loopPoint turn bannedGroup
+      board := board'
+      turn := turn'
+      let (board'', doUndo, banned') := resolveMovements game board bannedGroup
       board := board''
-      turn := turn''
-      if board.movements.any (· != 0) then
-        board := resolveMovements game board
+      bannedGroup := banned'
+      if doUndo then
+        rigidloop := true
+        board := { startBoard with
+          objects := startBoard.objects
+          movements := startBoard.movements
+          rigidGroupIndexMask := startBoard.rigidGroupIndexMask
+          rigidMovementAppliedMask := startBoard.rigidMovementAppliedMask }
+        turn := { turn with commandQueue := #[] }
+      else if !game.lateRules.isEmpty then
+        let (_, board''', turn'') ← applyRulesWithLoops game board game.lateRules game.lateLoopPoint turn #[]
+        board := board'''
+        turn := turn''
     let mut winning := evaluateWinConditions game board
     if turn.commandQueue.contains "win" then
       winning := true
-    let mut s := { session with board, winning }
+    let mut s := { session with board, winning, rng := turn.rng }
     let (s', againPending) ← processCommandQueue game turnBackup s turn
     s := s'
     if boardsDiffer turnBackup.board s.board || turn.modified then
