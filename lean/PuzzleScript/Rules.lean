@@ -131,8 +131,10 @@ structure PatternEffect where
 def CellPattern.effect (p : CellPattern) : PatternEffect :=
   { clearsObjects := maskAnyBits p.objectsClear
     setsObjects := maskAnyBits p.objectsSet
+    -- `movementsLayerMask` is OR'd into movement clear on apply (Runtime.applyCellReplacement).
     writesMovement :=
       maskAnyBits p.movementsClear || maskAnyBits p.movementsSet
+        || maskAnyBits p.movementsLayerMask
         || !p.layerCoupledMovementReplacements.isEmpty
     randomObject := maskAnyBits p.randomEntityMask
     randomDir := maskAnyBits p.randomDirMask }
@@ -140,21 +142,45 @@ def CellPattern.effect (p : CellPattern) : PatternEffect :=
 def PatternEffect.mutatesBoard (e : PatternEffect) : Bool :=
   e.clearsObjects || e.setsObjects || e.writesMovement || e.randomObject || e.randomDir
 
+/-- Inferred property/aggregate rewrites also mutate at apply time. -/
+def CellPattern.hasInferredMutators (p : CellPattern) : Bool :=
+  !p.inferredPropertyBindings.isEmpty
+    || !p.inferredPropertySources.isEmpty
+    || !p.inferredAggregateBindings.isEmpty
+
 def PatternCell.mutatesBoard : PatternCell → Bool
   | .ellipsis => false
-  | .cell p => p.hasReplacement && p.effect.mutatesBoard
+  | .cell p =>
+      p.hasReplacement
+        && (p.effect.mutatesBoard || p.hasInferredMutators)
+
+/-- No cell in the rule writes objects/movements (compiled IR). -/
+def Rule.cellsDoNotMutate (r : Rule) : Bool :=
+  r.patternRows.all (fun row => row.all (fun c => !c.mutatesBoard))
+
+/-- Preconditions for command-only aside from per-cell mutation checks. -/
+def Rule.commandOnlyMeta (r : Rule) : Bool :=
+  !r.commands.isEmpty
+    && !r.isRandom
+    && !r.rigid
+    && r.propertyBindings.isEmpty
+    && r.aggregateBindings.isEmpty
 
 /--
 JS `tags.command_only` for compiled IR: nonempty commands and no object/movement writes
-on any replacement cell (empty clear/set masks ⇒ identity RHS).
+on any replacement cell. Excludes random/rigid rules and property/aggregate bindings
+(those rewrite masks via inferred fields / rigid masks).
 -/
 def Rule.isCommandOnly (r : Rule) : Bool :=
-  !r.commands.isEmpty
-    && r.patternRows.all (fun row => row.all (fun c => !c.mutatesBoard))
+  r.commandOnlyMeta && r.cellsDoNotMutate
 
 /-- JS `tags.inert_command_only`: command-only and every command is sfx/message. -/
 def Rule.syntacticInertCommandOnly (r : Rule) : Bool :=
   r.isCommandOnly && PuzzleScript.syntacticInertCommandOnly r.commands
+
+theorem Rule.isCommandOnly_implies_cellsDoNotMutate (r : Rule) (h : r.isCommandOnly = true) :
+    r.cellsDoNotMutate = true :=
+  (Bool.and_eq_true_iff.mp h).2
 
 structure WinCondition where
   quantifier : Int

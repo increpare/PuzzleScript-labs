@@ -12,3 +12,4 @@ import PuzzleScript.Rng
 import PuzzleScript.Runtime
 import PuzzleScript.View
 import PuzzleScript.Abstract
+import PuzzleScript.Inert
