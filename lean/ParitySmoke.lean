@@ -1,5 +1,8 @@
 import PuzzleScript
+import Lean.Data.Json
 
+open Lean
+open PuzzleScript
 open PuzzleScript.Fixtures
 
 def usage : String :=
@@ -49,8 +52,24 @@ def main (args : List String) : IO UInt32 := do
     | .ok x => pure x
   let mut failures : Nat := 0
   for fx in selected do
-    IO.println s!"TODO runtime: {fx.name} ({fx.id}) inputs={fx.inputs.size}"
-    failures := failures + 1
+    let irPath := fixturesDir / fx.irFile
+    let (game, session) ← loadIrFile irPath
+    let got := serializeLevel game.idDict session.board
+    let preparedSerialized ← do
+      let contents ← IO.FS.readFile irPath
+      match Json.parse contents with
+      | .error e => throw <| IO.userError s!"{irPath}: parse error: {e}"
+      | .ok j =>
+        match loadPreparedSerializedLevel j with
+        | .error e => throw <| IO.userError s!"{irPath}: {e}"
+        | .ok s => pure s
+    if got != preparedSerialized then
+      IO.eprintln s!"{fx.name}: initial serialize mismatch"
+      failures := failures + 1
+    else
+      IO.println s!"{fx.name}: initial serialize OK"
+      IO.println s!"TODO runtime: {fx.name} ({fx.id}) inputs={fx.inputs.size}"
+      failures := failures + 1
   if failures = 0 then
     IO.println "lean parity smoke: OK"
     pure 0
