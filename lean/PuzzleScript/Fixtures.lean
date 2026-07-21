@@ -8,6 +8,7 @@ structure SimFixture where
   name : String
   irFile : String
   traceFile : String
+  /-- JS-export replay tokens: direction codes as decimal strings (`"0"`–`"4"`), plus `"undo"` / `"restart"` when present. -/
   inputs : Array String
   expectedSerializedLevel : String
   deriving Repr
@@ -46,17 +47,27 @@ def parseManifest (j : Json) : Except String Manifest := do
   let simulationFixtures ← arr.mapM parseSimFixture
   pure { simulationFixtures }
 
+private def readFileAt (path : System.FilePath) : IO (Except String String) :=
+  (IO.FS.readFile path).map Except.ok |>.catchExceptions fun e =>
+    pure (Except.error (toString e))
+
 def loadManifest (path : System.FilePath) : IO Manifest := do
-  let contents ← IO.FS.readFile path
+  let contents ←
+    match ← readFileAt path with
+    | .error e => throw <| IO.userError s!"could not read {path}: {e}"
+    | .ok s => pure s
   match Json.parse contents with
-  | .error e => throw <| IO.userError s!"fixtures.json parse error: {e}"
+  | .error e => throw <| IO.userError s!"{path}: parse error: {e}"
   | .ok j =>
     match parseManifest j with
-    | .error e => throw <| IO.userError s!"fixtures.json schema error: {e}"
+    | .error e => throw <| IO.userError s!"{path}: schema error: {e}"
     | .ok m => pure m
 
 def loadWhitelist (path : System.FilePath) : IO (Array String) := do
-  let text ← IO.FS.readFile path
+  let text ←
+    match ← readFileAt path with
+    | .error e => throw <| IO.userError s!"could not read {path}: {e}"
+    | .ok s => pure s
   let lines := text.splitOn "\n" |>.map (·.trimAscii.toString) |>.filter fun s =>
     !s.isEmpty && !(s.startsWith "#")
   pure lines.toArray

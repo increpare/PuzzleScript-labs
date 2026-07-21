@@ -5,6 +5,12 @@ open PuzzleScript.Fixtures
 def usage : String :=
   "Usage: lake exe parity_smoke --fixtures DIR --whitelist FILE"
 
+def missingFlagValue (flag : String) : String :=
+  s!"missing value for {flag}\n{usage}"
+
+def looksLikeFlag (s : String) : Bool :=
+  s.startsWith "--"
+
 partial def parseArgs (args : List String) (fixtures : Option System.FilePath)
     (whitelist : Option System.FilePath) :
     Except String (System.FilePath × System.FilePath) :=
@@ -13,8 +19,14 @@ partial def parseArgs (args : List String) (fixtures : Option System.FilePath)
     match fixtures, whitelist with
     | some f, some w => pure (f, w)
     | _, _ => throw usage
-  | "--fixtures" :: dir :: rest => parseArgs rest (some dir) whitelist
-  | "--whitelist" :: file :: rest => parseArgs rest fixtures (some file)
+  | "--fixtures" :: [] => throw (missingFlagValue "--fixtures")
+  | "--fixtures" :: val :: rest =>
+    if looksLikeFlag val then throw (missingFlagValue "--fixtures")
+    else parseArgs rest (some val) whitelist
+  | "--whitelist" :: [] => throw (missingFlagValue "--whitelist")
+  | "--whitelist" :: val :: rest =>
+    if looksLikeFlag val then throw (missingFlagValue "--whitelist")
+    else parseArgs rest fixtures (some val)
   | other :: _ => throw s!"unknown arg: {other}\n{usage}"
 
 def main (args : List String) : IO UInt32 := do
@@ -26,6 +38,9 @@ def main (args : List String) : IO UInt32 := do
     | .ok x => pure x
   let manifest ← loadManifest (fixturesDir / "fixtures.json")
   let names ← loadWhitelist whitelistPath
+  if names.isEmpty then
+    IO.eprintln s!"whitelist is empty (no case names after comments/blanks): {whitelistPath}"
+    return 2
   let selected ←
     match selectFixtures manifest names with
     | .error e =>
