@@ -135,6 +135,41 @@ theorem tile_ranges_disjoint
   · have hspos : 0 < s := Nat.pos_of_ne_zero hs
     exact hne (tile_stride_indices_eq_implies_tile_eq tile t s i j hspos hi hj heq)
 
+/-- Writing one tile's stride slice leaves every other tile's extract unchanged. -/
+theorem Array.extract_setStrideSlice_ne
+    (xs : Array UInt32) (tile t stride : Nat) (ws : MaskWords)
+    (hne : tile ≠ t) :
+    (Array.setStrideSlice xs tile stride ws).extract (t * stride) (t * stride + stride) =
+      xs.extract (t * stride) (t * stride + stride) := by
+  have hsz := Array.size_setStrideSlice xs tile stride ws
+  apply Array.ext
+  · simp [Array.size_extract, hsz]
+  · intro i hi₁ hi₂
+    let start := t * stride
+    have hiBound : i < stride := by
+      have hle :
+          ((Array.setStrideSlice xs tile stride ws).extract start (start + stride)).size ≤
+            stride := by
+        simp only [Array.size_extract, start, hsz]
+        omega
+      exact Nat.lt_of_lt_of_le hi₁ hle
+    have hdisj : ∀ j < stride, tile * stride + j ≠ start + i := by
+      intro j hj
+      change tile * stride + j ≠ t * stride + i
+      exact tile_ranges_disjoint tile t stride j i hne hj hiBound
+    have hget := Array.getD_setStrideSlice_ne xs tile stride ws (start + i) hdisj
+    have hbound : start + i < xs.size := Array.getElem_extract_aux (xs := xs) hi₂
+    have hbound' : start + i < (Array.setStrideSlice xs tile stride ws).size := by
+      simpa [hsz] using hbound
+    rw [Array.getElem_extract (xs := Array.setStrideSlice xs tile stride ws) hi₁,
+      Array.getElem_extract (xs := xs) hi₂]
+    change (Array.setStrideSlice xs tile stride ws)[start + i] = xs[start + i]
+    have hget' :
+        (Array.setStrideSlice xs tile stride ws)[start + i]'(hbound') =
+          xs[start + i]'(hbound) := by
+      simpa [Array.getD, hbound', hbound, ↓reduceDIte] using hget
+    exact hget'
+
 /-- Internal Nat-indexed accessors (private Runtime loops may call these). -/
 def Board.cellObjWords (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideObj

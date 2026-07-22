@@ -736,75 +736,15 @@ theorem Board.maskGetBit_cellObjWords_setCellObjWords_ne
 theorem Board.cellObjWords_setCellObjWords_ne
     (b : Board) (tile t : Nat) (ws : MaskWords) (hne : tile ≠ t) :
     (b.setCellObjWords tile ws).cellObjWords t = b.cellObjWords t := by
-  simp only [Board.cellObjWords]
-  have hstride : (b.setCellObjWords tile ws).strideObj = b.strideObj := by
-    simp [Board.setCellObjWords]
-  simp only [hstride]
-  have hsz := Board.setCellObjWords_size b tile ws
-  apply Array.ext
-  · simp [Array.size_extract, hsz]
-  · intro i hi₁ hi₂
-    let start := t * b.strideObj
-    have hiBound : i < b.strideObj := by
-      have hle :
-          ((b.setCellObjWords tile ws).objects.extract start (start + b.strideObj)).size ≤
-            b.strideObj := by
-        simp only [Array.size_extract, start, hsz]
-        omega
-      exact Nat.lt_of_lt_of_le hi₁ hle
-    have hdisj : ∀ j < b.strideObj, tile * b.strideObj + j ≠ start + i := by
-      intro j hj
-      change tile * b.strideObj + j ≠ t * b.strideObj + i
-      exact tile_ranges_disjoint tile t b.strideObj j i hne hj hiBound
-    have hget := Board.objects_getD_setCellObjWords_ne b tile ws (start + i) hdisj
-    have hbound : start + i < b.objects.size := Array.getElem_extract_aux (xs := b.objects) hi₂
-    have hbound' : start + i < (b.setCellObjWords tile ws).objects.size := by
-      simpa [hsz] using hbound
-    rw [Array.getElem_extract (xs := (b.setCellObjWords tile ws).objects) hi₁,
-      Array.getElem_extract (xs := b.objects) hi₂]
-    change (b.setCellObjWords tile ws).objects[start + i] = b.objects[start + i]
-    have hget' :
-        (b.setCellObjWords tile ws).objects[start + i]'(hbound') =
-          b.objects[start + i]'(hbound) := by
-      simpa [Array.getD, hbound', hbound, ↓reduceDIte] using hget
-    exact hget'
+  simp only [Board.cellObjWords, Board.setCellObjWords]
+  exact Array.extract_setStrideSlice_ne b.objects tile t b.strideObj ws hne
 
 /-- Writing one tile's movement words leaves every other tile's movement extract unchanged. -/
 theorem Board.cellMovWords_setCellMovWords_ne
     (b : Board) (tile t : Nat) (ws : MaskWords) (hne : tile ≠ t) :
     (b.setCellMovWords tile ws).cellMovWords t = b.cellMovWords t := by
-  simp only [Board.cellMovWords]
-  have hstride : (b.setCellMovWords tile ws).strideMov = b.strideMov := by
-    simp [Board.setCellMovWords]
-  simp only [hstride]
-  have hsz := Board.setCellMovWords_size b tile ws
-  apply Array.ext
-  · simp [Array.size_extract, hsz]
-  · intro i hi₁ hi₂
-    let start := t * b.strideMov
-    have hiBound : i < b.strideMov := by
-      have hle :
-          ((b.setCellMovWords tile ws).movements.extract start (start + b.strideMov)).size ≤
-            b.strideMov := by
-        simp only [Array.size_extract, start, hsz]
-        omega
-      exact Nat.lt_of_lt_of_le hi₁ hle
-    have hdisj : ∀ j < b.strideMov, tile * b.strideMov + j ≠ start + i := by
-      intro j hj
-      change tile * b.strideMov + j ≠ t * b.strideMov + i
-      exact tile_ranges_disjoint tile t b.strideMov j i hne hj hiBound
-    have hget := Board.movements_getD_setCellMovWords_ne b tile ws (start + i) hdisj
-    have hbound : start + i < b.movements.size := Array.getElem_extract_aux (xs := b.movements) hi₂
-    have hbound' : start + i < (b.setCellMovWords tile ws).movements.size := by
-      simpa [hsz] using hbound
-    rw [Array.getElem_extract (xs := (b.setCellMovWords tile ws).movements) hi₁,
-      Array.getElem_extract (xs := b.movements) hi₂]
-    change (b.setCellMovWords tile ws).movements[start + i] = b.movements[start + i]
-    have hget' :
-        (b.setCellMovWords tile ws).movements[start + i]'(hbound') =
-          b.movements[start + i]'(hbound) := by
-      simpa [Array.getD, hbound', hbound, ↓reduceDIte] using hget
-    exact hget'
+  simp only [Board.cellMovWords, Board.setCellMovWords]
+  exact Array.extract_setStrideSlice_ne b.movements tile t b.strideMov ws hne
 
 theorem Board.cellMovWords_setCellObjWords
     (b : Board) (tile t : Nat) (ws : MaskWords) :
