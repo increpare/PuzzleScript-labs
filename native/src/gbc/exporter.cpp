@@ -1039,6 +1039,10 @@ void packGroups(
             rule.commands = commandFlags(game, sourceRule, rule.message, audio);
             const uint32_t firstPatternObjects = maskWord(
                 game, sourceRule.patterns.front().front().objectsPresent);
+            if (game.objectCount <= 16
+                && (firstPatternObjects & maskWord(game, game.playerMask)) != 0U) {
+                rule.commands |= PS_GBC_RULE_PLAYER_CELL_ANCHOR;
+            }
             if ((firstPatternObjects & ~alwaysPresentObjects) != 0U) {
                 rule.commands |= PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK;
             }
@@ -1114,7 +1118,8 @@ std::string emitHeader(
     uint8_t cellWidth,
     uint8_t cellHeight,
     const PackedAudio& audio,
-    size_t presencePrecheckCount
+    size_t presencePrecheckCount,
+    size_t playerAnchorCount
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -1144,6 +1149,8 @@ std::string emitHeader(
         << audio.movementFailureSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT "
         << presencePrecheckCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT "
+        << playerAnchorCount << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
         << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
@@ -1285,15 +1292,19 @@ std::string emitSource(
         out << "    {PS_GBC_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
             << static_cast<unsigned int>(rule.direction) << "U, ";
-        if ((rule.commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
-            const uint8_t commands = static_cast<uint8_t>(
-                rule.commands & ~PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK);
-            if (commands == 0U) {
-                out << "PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK, ";
-            } else {
-                out << "(" << static_cast<unsigned int>(commands)
-                    << "U | PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK), ";
+        const uint8_t ruleMetadata = static_cast<uint8_t>(
+            rule.commands & (PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK
+                | PS_GBC_RULE_PLAYER_CELL_ANCHOR));
+        const uint8_t commands = static_cast<uint8_t>(rule.commands & ~ruleMetadata);
+        if (ruleMetadata != 0U) {
+            out << "(" << static_cast<unsigned int>(commands) << "U";
+            if ((ruleMetadata & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U) {
+                out << " | PS_GBC_RULE_PLAYER_CELL_ANCHOR";
             }
+            if ((ruleMetadata & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
+                out << " | PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK";
+            }
+            out << "), ";
         } else {
             out << static_cast<unsigned int>(rule.commands) << "U, ";
         }
@@ -1690,6 +1701,10 @@ ExportResult exportGame(const ExportOptions& options) {
         rules.begin(), rules.end(), [](const PackedRule& rule) {
             return (rule.commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U;
         }));
+    const size_t playerAnchorCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return (rule.commands & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U;
+        }));
 
     const auto requiredBytesForUndo = [&](uint8_t undo) {
         (void)undo;
@@ -1697,6 +1712,7 @@ ExportResult exportGame(const ExportOptions& options) {
             + static_cast<size_t>(maxCells) * objectCellBytes;
         bytes = align4(bytes);
         return bytes + static_cast<size_t>(maxCells) * movementLayout.bytesPerCell
+            + (playerAnchorCount == 0U ? 0U : maxCells)
             + ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
     };
     const uint8_t undoCapacity = PS_GBC_MAX_UNDO;
@@ -1747,7 +1763,8 @@ ExportResult exportGame(const ExportOptions& options) {
             cellWidth,
             cellHeight,
             audio,
-            presencePrecheckCount));
+            presencePrecheckCount,
+            playerAnchorCount));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
         patterns, rules, earlyGroups, lateGroups, audio, static_cast<uint8_t>(viewportWidth),
@@ -1824,6 +1841,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << inputSpecializedGroups << ",\n"
         << "  \"object_presence_precheck_rule_count\": "
         << presencePrecheckCount << ",\n"
+        << "  \"player_cell_anchor_rule_count\": "
+        << playerAnchorCount << ",\n"
         << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
         << "  \"active_early_rules_by_input\": [";
     for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {

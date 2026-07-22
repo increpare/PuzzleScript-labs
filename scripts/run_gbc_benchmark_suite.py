@@ -294,6 +294,9 @@ def main() -> int:
                 "object_presence_precheck_rules": int(
                     manifest.get("object_presence_precheck_rule_count", 0)
                 ),
+                "player_cell_anchor_rules": int(
+                    manifest.get("player_cell_anchor_rule_count", 0)
+                ),
             },
             "memory": {
                 "estimated_session_bytes": int(

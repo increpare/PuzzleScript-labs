@@ -58,6 +58,15 @@ fixed-ROM bytes, and reduces the declared arena/static WRAM by 6-11 bytes by
 placing the worst-case 90-byte array inside the existing private-session
 overhead budget.
 
+A compact player-cell posting list is the first retained anchor consumer.
+Rules whose first pattern requires the player enumerate a monotone, sorted list
+of cells that have held a player instead of every legal board start. It cuts
+another 10.41%, 17.85%, and 6.78% in Sokoban, pushit, and Xorro. The list costs
+42-63 bytes of declared session/static WRAM and 811-833 fixed-ROM bytes. The
+feature is gated to one- and two-byte object boards: enabling the same code in
+the four-byte slot-machine cartridge overflowed fixed ROM by 32 bytes. The two
+four-byte controls therefore compile it out and are exactly unchanged.
+
 The next algorithmic work should use the remaining static-analysis facts
 already present in this repository: certified wake masks. After that, use
 object-position bitsets or posting lists to
@@ -326,6 +335,7 @@ earn their cost.
 | Select certified directional rule blocks for the current input | **Keep** | -47.28% | -60.18% | -12.43% | -16.63% | +0.02% | +226 B fixed ROM; game bank, static WRAM, and session unchanged |
 | Reject flagged rules whose first required objects are absent | **Keep** | 0.00% | 0.00% | -33.45% | -25.74% | -87.66% | compile-out controls unchanged; eligible builds +370-627 B fixed ROM and 1-4 B reserved session overhead; game bank/static WRAM/declared arena unchanged |
 | Store ordered matched starts instead of a bitset/full-board apply scan | **Keep** | -0.94% | -1.32% | -2.78% | -10.11% | -0.36% | -237 to -250 B fixed ROM; -6 to -11 B declared arena/static WRAM; game bank unchanged |
+| Enumerate first-pattern player cells on compact object boards | **Keep** | -10.41% | -17.85% | -6.78% | 0.00% | 0.00% | eligible builds +811-833 B fixed ROM and +42-63 B declared arena/static WRAM; four-byte controls compile out exactly; game bank unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -337,9 +347,10 @@ measurements are
 `.codex_tmp/benchmarks/p1-single-pass-certified.json`, and
 `.codex_tmp/benchmarks/p1-input-direction-layout.json`, and
 `.codex_tmp/benchmarks/p1-width-specialized-presence.json`, and
-`.codex_tmp/benchmarks/p1-inline-matched-starts-final.json`. Each row is
+`.codex_tmp/benchmarks/p1-inline-matched-starts-final.json`, and
+`.codex_tmp/benchmarks/p1-compact-player-cell-anchor.json`. Each row is
 incremental against the retained row above it. Cumulative reductions against
-the original baseline are now 67.30%, 78.01%, 69.91%, 73.66%, and 93.26%
+the original baseline are now 70.71%, 81.94%, 71.95%, 73.66%, and 93.26%
 respectively.
 
 These transformations should be the first implementation, followed by native
@@ -605,6 +616,23 @@ other timings to 2319.305, 4283.648, and 715.617 ticks per turn.
 
 Use an object required by the rule as a compile-time anchor.
 
+The first retained slice uses the player because its aggregate mask is already
+part of the runtime ABI. If a rule's first pattern requires a player, the
+exporter flags it and the collector enumerates a sorted player-cell posting
+list. The list is exact on level load and accumulates cells whenever rules or
+movement create a player. Removed players may leave stale entries, which cause
+only safe extra predicate checks; insertion order is normalized so match order
+remains the same. This flags 2/4, 4/8, and 6/62 rules in the eligible compact
+games and produces final timings of 191.422, 311.883, and 2101.844 ticks. The
+20- and 17-object builds emit a zero-count macro and are exact timing, ROM, and
+RAM controls.
+
+The all-width prototype was rejected before retention: slot machine exceeded
+the 16 KiB fixed bank by 32 bytes. Replacing the tiny insertion loop with
+`memmove` was worse, growing the overflow to 216 bytes through helper-call
+cost. Broader per-object bitsets/posting lists remain worth testing after ABI
+and renderer work free fixed ROM, but should not be enabled indiscriminately.
+
 - A per-object cell bitset costs at most `32 * ceil(90/8) = 384` bytes.
 - Select a required object, enumerate only its occupied cells, and derive the
   candidate rule start from the pattern offset and direction.
@@ -724,7 +752,8 @@ Keep these gates for every retained optimization:
    pointer/offset, after the full correctness gate.
 3. Add GBC count probes, then consume board prechecks, input specialization,
    wake masks, and certified single-pass groups one experiment at a time.
-4. Add anchor cell bitsets and a matched-start array.
+4. Extend the retained matched-start array and compact player posting list only
+   where broader anchor indexes beat their fixed-ROM and RAM costs.
 5. Introduce width-specialized packed patterns and exact sequence sharing.
 6. Re-profile. Only then test GBC-only static scratch and a fused, one-byte
    object-only SM83 match/scan kernel with the C path retained as an oracle and

@@ -93,8 +93,8 @@ int main() {
     const std::string source = readFile(first.generatedSourcePath);
     require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
         "generated data declares its switchable ROM bank");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 351U") != std::string::npos,
-        "generated header keeps ordered match starts inside reserved session overhead");
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 393U") != std::string::npos,
+        "generated header budgets the player-cell anchor list");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
     require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,
@@ -103,6 +103,10 @@ int main() {
         header.find("PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 0U")
             != std::string::npos,
         "generated header compiles out unprofitable Sokoban presence checks");
+    require(
+        header.find("PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 2U")
+            != std::string::npos,
+        "generated header records first-pattern player anchors");
     require(
         header.find("PS_GBC_GENERATED_CELL_WIDTH 5U") != std::string::npos
             && header.find("PS_GBC_GENERATED_CELL_HEIGHT 5U") != std::string::npos
@@ -173,9 +177,30 @@ int main() {
             && presenceHeader.find(
                 "PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 22U")
                 != std::string::npos
+            && presenceManifest.find("\"player_cell_anchor_rule_count\": 6")
+                != std::string::npos
+            && presenceHeader.find(
+                "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 6U")
+                != std::string::npos
             && presenceSource.find("PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK")
                 != std::string::npos,
-        "rare first-pattern objects enable cartridge presence prechecks");
+        "compact games emit presence prechecks and player-cell anchors");
+
+    puzzlescript::gbc::ExportOptions wideObjectOptions;
+    wideObjectOptions.sourcePath =
+        root / "src" / "tests" / "good_games" / "slot machine.txt";
+    wideObjectOptions.outputDirectory = output / "wide_objects";
+    wideObjectOptions.cullOversizeLevels = true;
+    const auto wideObjectResult = puzzlescript::gbc::exportGame(wideObjectOptions);
+    const std::string wideObjectManifest = readFile(wideObjectResult.manifestPath);
+    const std::string wideObjectHeader = readFile(wideObjectResult.generatedHeaderPath);
+    require(
+        wideObjectManifest.find("\"player_cell_anchor_rule_count\": 0")
+                != std::string::npos
+            && wideObjectHeader.find(
+                "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 0U")
+                != std::string::npos,
+        "four-byte object games compile out the fixed-bank-heavy player index");
 
     puzzlescript::gbc::ExportOptions contrastOptions;
     contrastOptions.sourcePath =
