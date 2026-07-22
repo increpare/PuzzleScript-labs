@@ -326,7 +326,10 @@ void runAutotest(void) BANKED {
     uint16_t board_pixel_width;
     uint16_t board_pixel_height;
     uint16_t tile_upload_mismatches;
+    uint16_t title_selection_blank_count;
+    uint16_t full_transition_blank_count;
     uint16_t first_board;
+    uint16_t next_board;
     ps_gbc_status render_status;
     for (first_board = 0U;
          first_board < ps_gbc_generated_game.level_count;
@@ -339,6 +342,13 @@ void runAutotest(void) BANKED {
     }
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
     showTitleMenu(true, true);
+    title_selection_blank_count = gDisplayBlankCount;
+    vsync();
+    updateTitleMenuSelection(false);
+    vsync();
+    updateTitleMenuSelection(true);
+    title_selection_blank_count =
+        (uint16_t)(gDisplayBlankCount - title_selection_blank_count);
     DISPLAY_OFF;
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));
     title_tile_nonzero =
@@ -369,6 +379,22 @@ void runAutotest(void) BANKED {
             0U,
             8U);
     DISPLAY_ON;
+    full_transition_blank_count = 0xffffU;
+    for (next_board = (uint16_t)(first_board + 1U);
+         next_board < ps_gbc_generated_game.level_count;
+         ++next_board) {
+        if (ps_gbc_generated_game.levels[next_board].kind
+            == PS_GBC_LEVEL_BOARD) {
+            full_transition_blank_count = gDisplayBlankCount;
+            (void)ps_gbc_load_level(gSession, next_board);
+            renderBoard();
+            full_transition_blank_count = (uint16_t)(
+                gDisplayBlankCount - full_transition_blank_count);
+            break;
+        }
+    }
+    (void)ps_gbc_load_level(gSession, first_board);
+    renderBoard();
     result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
     audioPlayEvents(&result);
     (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
@@ -420,6 +446,8 @@ void runAutotest(void) BANKED {
     writeSram16(52U, board_pixel_width);
     writeSram16(54U, board_pixel_height);
     writeSram16(56U, tile_upload_mismatches);
+    writeSram16(58U, title_selection_blank_count);
+    writeSram16(60U, full_transition_blank_count);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(AUDIO_AUTOTEST_OFFSET, 0U);

@@ -217,3 +217,19 @@ void showTitleMenu(bool has_continue, bool continue_selected) BANKED {
     gVramState = VRAM_STATE_TEXT;
     DISPLAY_ON;
 }
+
+void updateTitleMenuSelection(bool continue_selected) BANKED {
+    const uint8_t left = glyphIndex('[');
+    const uint8_t right = glyphIndex(']');
+    const uint16_t new_game = 13U * 20U;
+    const uint16_t resume = 15U * 20U;
+    gTileMap[new_game + 5U] = continue_selected ? 0U : left;
+    gTileMap[new_game + 14U] = continue_selected ? 0U : right;
+    gTileMap[resume + 5U] = continue_selected ? left : 0U;
+    gTileMap[resume + 14U] = continue_selected ? right : 0U;
+    VBK_REG = VBK_BANK_0;
+    set_bkg_tile_xy(5U, 13U, gTileMap[new_game + 5U]);
+    set_bkg_tile_xy(14U, 13U, gTileMap[new_game + 14U]);
+    set_bkg_tile_xy(5U, 15U, gTileMap[resume + 5U]);
+    set_bkg_tile_xy(14U, 15U, gTileMap[resume + 14U]);
+}

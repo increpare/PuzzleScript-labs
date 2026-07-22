@@ -19,7 +19,7 @@ AUDIO_MAGIC = 0x41434250
 FRAME_DUMP_MAGIC = 0x46474250
 VERSION = 1
 RECORD = struct.Struct("<IHBBBBBBI")
-RENDER_RECORD = struct.Struct("<I19H")
+RENDER_RECORD = struct.Struct("<I21H")
 AUDIO_RECORD = struct.Struct("<IHBBHI7B")
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
@@ -341,6 +341,8 @@ def main() -> int:
             board_pixel_width,
             board_pixel_height,
             tile_upload_mismatches,
+            title_selection_blank_count,
+            full_transition_blank_count,
         ) = render_record
         if render_magic != RENDER_MAGIC or render_version != VERSION:
             raise SystemExit(
@@ -360,6 +362,16 @@ def main() -> int:
             raise SystemExit(
                 "title hardware state differs: "
                 f"palette={title_palette_mismatches} map={title_map_mismatches}"
+            )
+        if title_selection_blank_count != 0:
+            raise SystemExit(
+                "title selection blanked the display: "
+                f"blank_count={title_selection_blank_count}"
+            )
+        if full_transition_blank_count not in (1, 0xFFFF):
+            raise SystemExit(
+                "full level transition performed extra display rewrites: "
+                f"blank_count={full_transition_blank_count}"
             )
         if board_tile_nonzero == 0 or board_attributes_nonzero == 0:
             raise SystemExit(
@@ -511,6 +523,8 @@ def main() -> int:
             f"quartets={unique_quartets} "
             f"dedicated_cells={dedicated_cells} "
             f"bank1_cells={second_bank_cells}"
+            f" title_selection_blanks={title_selection_blank_count}"
+            f" level_transition_blanks={full_transition_blank_count}"
             f"{audio_summary}"
         )
     return 0

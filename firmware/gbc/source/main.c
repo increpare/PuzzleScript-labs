@@ -253,9 +253,6 @@ void renderBoard(void) {
     dirty = ps_gbc_dirty_cells(gSession);
     offset_x = (uint8_t)((PS_GBC_VIEWPORT_WIDTH - status.width) / 2U);
     offset_y = (uint8_t)((PS_GBC_VIEWPORT_HEIGHT - status.height) / 2U);
-    if (full_render && gVramState == VRAM_STATE_BOARD) {
-        showText("LOADING", false);
-    }
     if (full_render) {
         ps_gbc_render_full_board(
             board, status.width, status.height, offset_x, offset_y);
@@ -585,7 +582,10 @@ static void runAutotest(void) BANKED {
     uint16_t board_pixel_width;
     uint16_t board_pixel_height;
     uint16_t tile_upload_mismatches;
+    uint16_t title_selection_blank_count;
+    uint16_t full_transition_blank_count;
     uint16_t first_board;
+    uint16_t next_board;
     ps_gbc_status render_status;
     for (first_board = 0U;
          first_board < ps_gbc_generated_game.level_count;
@@ -598,6 +598,13 @@ static void runAutotest(void) BANKED {
     }
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
     showTitleMenu(true, true);
+    title_selection_blank_count = gDisplayBlankCount;
+    vsync();
+    updateTitleMenuSelection(false);
+    vsync();
+    updateTitleMenuSelection(true);
+    title_selection_blank_count =
+        (uint16_t)(gDisplayBlankCount - title_selection_blank_count);
     DISPLAY_OFF;
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));
     title_tile_nonzero =
@@ -623,6 +630,22 @@ static void runAutotest(void) BANKED {
     board_palette_mismatches =
         countPaletteMismatches(ps_gbc_generated_game.background_palettes, 0U, 8U);
     DISPLAY_ON;
+    full_transition_blank_count = 0xffffU;
+    for (next_board = (uint16_t)(first_board + 1U);
+         next_board < ps_gbc_generated_game.level_count;
+         ++next_board) {
+        if (ps_gbc_generated_game.levels[next_board].kind
+            == PS_GBC_LEVEL_BOARD) {
+            full_transition_blank_count = gDisplayBlankCount;
+            (void)ps_gbc_load_level(gSession, next_board);
+            renderBoard();
+            full_transition_blank_count = (uint16_t)(
+                gDisplayBlankCount - full_transition_blank_count);
+            break;
+        }
+    }
+    (void)ps_gbc_load_level(gSession, first_board);
+    renderBoard();
     result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
     (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
     incremental_blank_count = gDisplayBlankCount;
@@ -673,6 +696,8 @@ static void runAutotest(void) BANKED {
     writeSram16(52U, board_pixel_width);
     writeSram16(54U, board_pixel_height);
     writeSram16(56U, tile_upload_mismatches);
+    writeSram16(58U, title_selection_blank_count);
+    writeSram16(60U, full_transition_blank_count);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(0U, AUTOTEST_MAGIC);
@@ -739,11 +764,11 @@ void main(void) {
             if (gFrontend.has_save
                 && (pressed & (J_UP | J_LEFT)) != 0U) {
                 ps_gbc_frontend_select_new_game(&gFrontend);
-                showTitleMenu(true, gFrontend.continue_selected);
+                updateTitleMenuSelection(gFrontend.continue_selected);
             } else if (gFrontend.has_save
                 && (pressed & (J_DOWN | J_RIGHT)) != 0U) {
                 ps_gbc_frontend_select_continue(&gFrontend);
-                showTitleMenu(true, gFrontend.continue_selected);
+                updateTitleMenuSelection(gFrontend.continue_selected);
             }
             if ((pressed & (J_A | J_START)) != 0U) {
                 bool clear_save;
