@@ -738,6 +738,18 @@ theorem Board.objects_getD_setCellObjWords_ne
   have hi' : i < b.strideObj := List.mem_range.mp hi
   exact hne i hi'
 
+theorem Board.movements_getD_setCellMovWords_ne
+    (b : Board) (tile : Nat) (ws : MaskWords) (j : Nat)
+    (hne : ∀ i < b.strideMov, tile * b.strideMov + i ≠ j) :
+    (b.setCellMovWords tile ws).movements.getD j 0 = b.movements.getD j 0 := by
+  change ((List.range b.strideMov).foldl
+      (fun mov i => mov.set! (tile * b.strideMov + i) (ws.getD i 0))
+      b.movements).getD j 0 = b.movements.getD j 0
+  refine Array.getD_foldl_set!_ne _ _ _ _ _ _ ?_
+  intro i hi
+  have hi' : i < b.strideMov := List.mem_range.mp hi
+  exact hne i hi'
+
 theorem tile_stride_indices_eq_implies_tile_eq
     (tile t s i j : Nat) (hs : 0 < s) (hi : i < s) (hj : j < s)
     (heq : tile * s + i = t * s + j) : tile = t := by
@@ -802,6 +814,90 @@ theorem Board.maskGetBit_cellObjWords_setCellObjWords_ne
   · have hIn' : ¬ oid / 32 < ((b.setCellObjWords tile ws).objects.extract start stop).size := by
       simpa [hsizeEq] using hIn
     rw [hx1, hx2, if_neg hIn', if_neg hIn]
+
+/-- Writing one tile's object words leaves every other tile's object extract unchanged. -/
+theorem Board.cellObjWords_setCellObjWords_ne
+    (b : Board) (tile t : Nat) (ws : MaskWords) (hne : tile ≠ t) :
+    (b.setCellObjWords tile ws).cellObjWords t = b.cellObjWords t := by
+  simp only [Board.cellObjWords]
+  have hstride : (b.setCellObjWords tile ws).strideObj = b.strideObj := by
+    simp [Board.setCellObjWords]
+  simp only [hstride]
+  have hsz := Board.setCellObjWords_size b tile ws
+  apply Array.ext
+  · simp [Array.size_extract, hsz]
+  · intro i hi₁ hi₂
+    let start := t * b.strideObj
+    have hiBound : i < b.strideObj := by
+      have hle :
+          ((b.setCellObjWords tile ws).objects.extract start (start + b.strideObj)).size ≤
+            b.strideObj := by
+        simp only [Array.size_extract, start, hsz]
+        omega
+      exact Nat.lt_of_lt_of_le hi₁ hle
+    have hdisj : ∀ j < b.strideObj, tile * b.strideObj + j ≠ start + i := by
+      intro j hj
+      change tile * b.strideObj + j ≠ t * b.strideObj + i
+      exact tile_ranges_disjoint tile t b.strideObj j i hne hj hiBound
+    have hget := Board.objects_getD_setCellObjWords_ne b tile ws (start + i) hdisj
+    have hbound : start + i < b.objects.size := Array.getElem_extract_aux (xs := b.objects) hi₂
+    have hbound' : start + i < (b.setCellObjWords tile ws).objects.size := by
+      simpa [hsz] using hbound
+    rw [Array.getElem_extract (xs := (b.setCellObjWords tile ws).objects) hi₁,
+      Array.getElem_extract (xs := b.objects) hi₂]
+    change (b.setCellObjWords tile ws).objects[start + i] = b.objects[start + i]
+    have hget' :
+        (b.setCellObjWords tile ws).objects[start + i]'(hbound') =
+          b.objects[start + i]'(hbound) := by
+      simpa [Array.getD, hbound', hbound, ↓reduceDIte] using hget
+    exact hget'
+
+/-- Writing one tile's movement words leaves every other tile's movement extract unchanged. -/
+theorem Board.cellMovWords_setCellMovWords_ne
+    (b : Board) (tile t : Nat) (ws : MaskWords) (hne : tile ≠ t) :
+    (b.setCellMovWords tile ws).cellMovWords t = b.cellMovWords t := by
+  simp only [Board.cellMovWords]
+  have hstride : (b.setCellMovWords tile ws).strideMov = b.strideMov := by
+    simp [Board.setCellMovWords]
+  simp only [hstride]
+  have hsz := Board.setCellMovWords_size b tile ws
+  apply Array.ext
+  · simp [Array.size_extract, hsz]
+  · intro i hi₁ hi₂
+    let start := t * b.strideMov
+    have hiBound : i < b.strideMov := by
+      have hle :
+          ((b.setCellMovWords tile ws).movements.extract start (start + b.strideMov)).size ≤
+            b.strideMov := by
+        simp only [Array.size_extract, start, hsz]
+        omega
+      exact Nat.lt_of_lt_of_le hi₁ hle
+    have hdisj : ∀ j < b.strideMov, tile * b.strideMov + j ≠ start + i := by
+      intro j hj
+      change tile * b.strideMov + j ≠ t * b.strideMov + i
+      exact tile_ranges_disjoint tile t b.strideMov j i hne hj hiBound
+    have hget := Board.movements_getD_setCellMovWords_ne b tile ws (start + i) hdisj
+    have hbound : start + i < b.movements.size := Array.getElem_extract_aux (xs := b.movements) hi₂
+    have hbound' : start + i < (b.setCellMovWords tile ws).movements.size := by
+      simpa [hsz] using hbound
+    rw [Array.getElem_extract (xs := (b.setCellMovWords tile ws).movements) hi₁,
+      Array.getElem_extract (xs := b.movements) hi₂]
+    change (b.setCellMovWords tile ws).movements[start + i] = b.movements[start + i]
+    have hget' :
+        (b.setCellMovWords tile ws).movements[start + i]'(hbound') =
+          b.movements[start + i]'(hbound) := by
+      simpa [Array.getD, hbound', hbound, ↓reduceDIte] using hget
+    exact hget'
+
+theorem Board.cellMovWords_setCellObjWords
+    (b : Board) (tile t : Nat) (ws : MaskWords) :
+    (b.setCellObjWords tile ws).cellMovWords t = b.cellMovWords t := by
+  simp [Board.cellMovWords, Board.setCellObjWords]
+
+theorem Board.cellObjWords_setCellMovWords
+    (b : Board) (tile t : Nat) (ws : MaskWords) :
+    (b.setCellMovWords tile ws).cellObjWords t = b.cellObjWords t := by
+  simp [Board.cellObjWords, Board.setCellMovWords]
 
 theorem Array.getD_foldl_set!_mem {α : Type}
     (xs : Array α) (indices : List Nat) (idx : Nat → Nat) (f : Nat → α) (i : Nat) (d : α)
@@ -1140,6 +1236,72 @@ theorem Board.applyRigidCellMasks_nTiles
     | false => simp
     | true =>
       simp [Board.setCellRigidMovementAppliedMask, Board.setCellRigidGroupIndexMask, Board.nTiles]
+
+theorem Board.applyRigidCellMasks_cellMovWords
+    (game : Game) (rule : Rule) (b : Board) (tile t : Nat) (pat : CellPattern) :
+    (applyRigidCellMasks game rule b tile pat).1.cellMovWords t = b.cellMovWords t := by
+  unfold applyRigidCellMasks
+  cases rule.rigid with
+  | false => simp
+  | true =>
+    simp only [Bool.not_true]
+    cases (maskNoBitsInCommon
+        (buildRigidGroupMask game rule.groupNumber pat.movementsLayerMask b.strideMov)
+        (b.cellRigidGroupIndexMask tile) &&
+      maskNoBitsInCommon pat.movementsLayerMask (b.cellRigidMovementAppliedMask tile)) with
+    | false => simp
+    | true =>
+      simp [Board.setCellRigidMovementAppliedMask, Board.setCellRigidGroupIndexMask, Board.cellMovWords]
+
+/-- `commitCellReplacement` only mutates object/movement words at `tile`. -/
+theorem Board.commitCellReplacement_preserves_other_tiles
+    (game : Game) (rule : Rule) (b : Board) (tile other : Nat) (pat : CellPattern)
+    (objectsClear objectsSet movementsClear movementsSet : MaskWords) (rng : RngState)
+    (hne : other ≠ tile) :
+    let r := commitCellReplacement game rule b tile pat
+      objectsClear objectsSet movementsClear movementsSet rng
+    r.2.1.cellObjWords other = b.cellObjWords other ∧
+      r.2.1.cellMovWords other = b.cellMovWords other := by
+  dsimp only [commitCellReplacement]
+  generalize hRigid : applyRigidCellMasks game rule b tile pat = rigidPair
+  rcases rigidPair with ⟨board0, rigidChange⟩
+  dsimp only
+  have hObj0 : board0.cellObjWords other = b.cellObjWords other := by
+    simpa [hRigid] using Board.applyRigidCellMasks_cellObjWords game rule b tile other pat
+  have hMov0 : board0.cellMovWords other = b.cellMovWords other := by
+    simpa [hRigid] using Board.applyRigidCellMasks_cellMovWords game rule b tile other pat
+  cases hCond :
+      ((maskApplyReplacement (b.cellObjWords tile) objectsClear objectsSet == b.cellObjWords tile) &&
+        (maskApplyReplacement (b.cellMovWords tile) (maskOr movementsClear pat.movementsLayerMask)
+            movementsSet ==
+          b.cellMovWords tile) &&
+        !rigidChange) with
+  | true =>
+    simp [hCond]
+  | false =>
+    simp [hCond]
+    have htileNe : tile ≠ other := Ne.symm hne
+    refine ⟨?obj, ?mov⟩
+    · rw [Board.cellObjWords_setCellMovWords,
+        Board.cellObjWords_setCellObjWords_ne board0 tile other _ htileNe, hObj0]
+    · rw [Board.cellMovWords_setCellMovWords_ne _ tile other _ htileNe,
+        Board.cellMovWords_setCellObjWords board0 tile other _, hMov0]
+
+/-- `applyCellReplacement` only mutates object/movement words at `tile`. -/
+theorem applyCellReplacement_preserves_other_tiles
+    (game : Game) (rule : Rule) (b : Board) (tile other : Nat) (pat : CellPattern)
+    (caps : RuleCaptures) (rng : RngState)
+    (hne : other ≠ tile) :
+    let r := applyCellReplacement game rule b tile pat caps rng
+    r.2.1.cellObjWords other = b.cellObjWords other ∧
+      r.2.1.cellMovWords other = b.cellMovWords other := by
+  dsimp only [applyCellReplacement]
+  by_cases hNo : (!pat.hasReplacement) = true
+  · rw [if_pos hNo]
+    exact ⟨rfl, rfl⟩
+  · rw [if_neg hNo]
+    exact Board.commitCellReplacement_preserves_other_tiles game rule b tile other pat
+      _ _ _ _ _ hne
 
 theorem Board.commitCellReplacement_wellFormed
     (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
@@ -2515,15 +2677,15 @@ theorem captureAggregateBindings_propertiesOk
     RuleCaptures.propertiesOk game (captureAggregateBindings b rule tuple delta caps) = true := by
   simpa [RuleCaptures.propertiesOk, captureAggregateBindings_properties_eq] using hCaps
 
-theorem applyRowAt_wellFormed
+theorem applyRowAtFold_wellFormed
     (game : Game) (rule : Rule) (b : Board) (delta : Int)
     (row : Array PatternCell) (rm : RowMatch)
     (caps : RuleCaptures) (rng : RngState)
     (hG : Game.WellFormed game) (hB : Board.WellFormed game b)
     (hRow : row.all (PatternCell.layerRespecting game) = true)
     (hCaps : RuleCaptures.propertiesOk game caps = true) :
-    Board.WellFormed game (applyRowAt game rule b delta row rm caps rng).2.1 := by
-  unfold applyRowAt
+    Board.WellFormed game (applyRowAtFold game rule b delta row rm caps rng).2.1 := by
+  unfold applyRowAtFold
   let gaps : Array Nat :=
     match rm with
     | .fixed _ => #[]
@@ -2578,6 +2740,93 @@ theorem applyRowAt_wellFormed
           exact ih _ _ _ _ _ hB' hRest
   exact this row.toList 0 (Int.ofNat (rowMatchStart rm)) false b rng hB
     (by simpa [Array.all_toList] using hRow)
+
+theorem applyRowAtFixed_wellFormed
+    (game : Game) (rule : Rule) (b : Board) (delta : Int)
+    (row : Array PatternCell) (start : Nat)
+    (caps : RuleCaptures) (rng : RngState)
+    (hG : Game.WellFormed game) (hB : Board.WellFormed game b)
+    (hRow : row.all (PatternCell.layerRespecting game) = true)
+    (hCaps : RuleCaptures.propertiesOk game caps = true) :
+    Board.WellFormed game (applyRowAtFixed game rule b delta row start caps rng).2.1 := by
+  dsimp only [applyRowAtFixed]
+  have hInv :
+      ∀ (ks : List Nat) (changed : Bool) (board : Board) (rng : RngState),
+        Board.WellFormed game board →
+        (∀ k ∈ ks, k < row.size) →
+        Board.WellFormed game
+          (ks.foldl
+            (fun (changed, board, rng') k =>
+              match row[k]?.getD (.ellipsis) with
+              | .ellipsis => (changed, board, rng')
+              | .cell pat =>
+                match fixedWalkTile? start delta k with
+                | none => (changed, board, rng')
+                | some t =>
+                  if t ≥ board.nTiles then (changed, board, rng')
+                  else
+                    let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
+                    (changed || c, b', r))
+            (changed, board, rng)).2.1 := by
+    intro ks changed board rng hBoard hBounds
+    induction ks generalizing changed board rng with
+    | nil => exact hBoard
+    | cons k rest ih =>
+      simp only [List.foldl_cons]
+      have hk : k < row.size := hBounds k (by simp)
+      have hRestBounds : ∀ k' ∈ rest, k' < row.size :=
+        fun k' hk' => hBounds k' (List.mem_cons_of_mem _ hk')
+      cases hcell : row[k]?.getD (.ellipsis) with
+      | ellipsis =>
+        exact ih _ _ _ hBoard hRestBounds
+      | cell pat =>
+        have hLR : CellPattern.layerRespecting game pat = true := by
+          have hAll := Array.all_eq_true.mp hRow
+          have hget : row[k]?.getD (.ellipsis) = row[k] := by
+            simp [Array.getD, Array.getElem?_eq_getElem hk]
+          have : PatternCell.layerRespecting game (row[k]?.getD (.ellipsis)) = true := by
+            rw [hget]; exact hAll k hk
+          simpa [hcell, PatternCell.layerRespecting] using this
+        cases hwalk : fixedWalkTile? start delta k with
+        | none =>
+          exact ih _ _ _ hBoard hRestBounds
+        | some t =>
+          by_cases ht : t ≥ board.nTiles
+          · simp [hcell, hwalk, if_pos ht]
+            exact ih _ _ _ hBoard hRestBounds
+          · simp [hcell, hwalk, if_neg (by intro h; exact ht h)]
+            have hTile : t < board.nTiles := Nat.lt_of_not_ge ht
+            have hB' := applyCellReplacement_wellFormed game rule board t pat caps rng
+              hG hBoard hTile hLR hCaps
+            exact ih _ _ _ hB' hRestBounds
+  have hRange : ∀ k ∈ List.range row.size, k < row.size :=
+    fun k hk => List.mem_range.mp hk
+  exact hInv (List.range row.size) false b rng hB hRange
+
+theorem applyRowAt_wellFormed
+    (game : Game) (rule : Rule) (b : Board) (delta : Int)
+    (row : Array PatternCell) (rm : RowMatch)
+    (caps : RuleCaptures) (rng : RngState)
+    (hG : Game.WellFormed game) (hB : Board.WellFormed game b)
+    (hRow : row.all (PatternCell.layerRespecting game) = true)
+    (hCaps : RuleCaptures.propertiesOk game caps = true) :
+    Board.WellFormed game (applyRowAt game rule b delta row rm caps rng).2.1 := by
+  cases rm with
+  | fixed s =>
+    simp only [applyRowAt]
+    by_cases hEll : row.any patternCellIsEllipsis = true
+    · simp only [hEll, ↓reduceIte]
+      exact applyRowAtFold_wellFormed game rule b delta row (.fixed s) caps rng hG hB hRow hCaps
+    · simp only [eq_false_of_ne_true hEll, ↓reduceIte]
+      exact applyRowAtFixed_wellFormed game rule b delta row s caps rng hG hB hRow hCaps
+  | ellipsis1 start gap =>
+    simpa [applyRowAt] using
+      applyRowAtFold_wellFormed game rule b delta row (.ellipsis1 start gap) caps rng
+        hG hB hRow hCaps
+  | ellipsis2 start gap1 gap2 =>
+    simpa [applyRowAt] using
+      applyRowAtFold_wellFormed game rule b delta row (.ellipsis2 start gap1 gap2) caps rng
+        hG hB hRow hCaps
 
 theorem Rule.layerRespecting_getD_row
     (game : Game) (rule : Rule) (ri : Nat)

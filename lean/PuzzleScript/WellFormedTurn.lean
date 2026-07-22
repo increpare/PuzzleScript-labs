@@ -700,13 +700,13 @@ theorem Board.resolveMovements_WH
   exact ⟨hC.1.trans hS.1, hC.2.trans hS.2⟩
 
 
-theorem applyRowAt_WH
+theorem applyRowAtFold_WH
     (game : Game) (rule : Rule) (b : Board) (delta : Int)
     (row : Array PatternCell) (rm : RowMatch)
     (caps : RuleCaptures) (rng : RngState) :
-    (applyRowAt game rule b delta row rm caps rng).2.1.width = b.width ∧
-    (applyRowAt game rule b delta row rm caps rng).2.1.height = b.height := by
-  unfold applyRowAt
+    (applyRowAtFold game rule b delta row rm caps rng).2.1.width = b.width ∧
+    (applyRowAtFold game rule b delta row rm caps rng).2.1.height = b.height := by
+  unfold applyRowAtFold
   let gaps : Array Nat :=
     match rm with
     | .fixed _ => #[]
@@ -744,6 +744,81 @@ theorem applyRowAt_WH
           have hC := applyCellReplacement_WH game rule board idx.toNat pat caps rng
           exact ih _ _ _ _ _ (hC.1.trans hw) (hC.2.trans hh)
   exact fold_wh row.toList 0 (Int.ofNat (rowMatchStart rm)) false b rng rfl rfl
+
+theorem applyRowAtFixed_WH
+    (game : Game) (rule : Rule) (b : Board) (delta : Int)
+    (row : Array PatternCell) (start : Nat)
+    (caps : RuleCaptures) (rng : RngState) :
+    (applyRowAtFixed game rule b delta row start caps rng).2.1.width = b.width ∧
+    (applyRowAtFixed game rule b delta row start caps rng).2.1.height = b.height := by
+  dsimp only [applyRowAtFixed]
+  have hInv :
+      ∀ (ks : List Nat) (changed : Bool) (board : Board) (rng : RngState),
+        board.width = b.width → board.height = b.height →
+        (ks.foldl
+          (fun (changed, board, rng') k =>
+            match row[k]?.getD (.ellipsis) with
+            | .ellipsis => (changed, board, rng')
+            | .cell pat =>
+              match fixedWalkTile? start delta k with
+              | none => (changed, board, rng')
+              | some t =>
+                if t ≥ board.nTiles then (changed, board, rng')
+                else
+                  let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
+                  (changed || c, b', r))
+          (changed, board, rng)).2.1.width = b.width ∧
+        (ks.foldl
+          (fun (changed, board, rng') k =>
+            match row[k]?.getD (.ellipsis) with
+            | .ellipsis => (changed, board, rng')
+            | .cell pat =>
+              match fixedWalkTile? start delta k with
+              | none => (changed, board, rng')
+              | some t =>
+                if t ≥ board.nTiles then (changed, board, rng')
+                else
+                  let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
+                  (changed || c, b', r))
+          (changed, board, rng)).2.1.height = b.height := by
+    intro ks changed board rng hw hh
+    induction ks generalizing changed board rng with
+    | nil => exact ⟨hw, hh⟩
+    | cons k rest ih =>
+      simp only [List.foldl_cons]
+      cases hcell : row[k]?.getD (.ellipsis) with
+      | ellipsis => exact ih _ _ _ hw hh
+      | cell pat =>
+        cases hwalk : fixedWalkTile? start delta k with
+        | none => exact ih _ _ _ hw hh
+        | some t =>
+          by_cases ht : t ≥ board.nTiles
+          · simp [hcell, hwalk, if_pos ht]; exact ih _ _ _ hw hh
+          · simp [hcell, hwalk, if_neg (by intro h; exact ht h)]
+            have hC := applyCellReplacement_WH game rule board t pat caps rng
+            exact ih _ _ _ (hC.1.trans hw) (hC.2.trans hh)
+  exact hInv (List.range row.size) false b rng rfl rfl
+
+theorem applyRowAt_WH
+    (game : Game) (rule : Rule) (b : Board) (delta : Int)
+    (row : Array PatternCell) (rm : RowMatch)
+    (caps : RuleCaptures) (rng : RngState) :
+    (applyRowAt game rule b delta row rm caps rng).2.1.width = b.width ∧
+    (applyRowAt game rule b delta row rm caps rng).2.1.height = b.height := by
+  cases rm with
+  | fixed s =>
+    simp only [applyRowAt]
+    by_cases hEll : row.any patternCellIsEllipsis = true
+    · simp only [hEll, ↓reduceIte]
+      exact applyRowAtFold_WH game rule b delta row (.fixed s) caps rng
+    · simp only [eq_false_of_ne_true hEll, ↓reduceIte]
+      exact applyRowAtFixed_WH game rule b delta row s caps rng
+  | ellipsis1 start gap =>
+    simpa [applyRowAt] using
+      applyRowAtFold_WH game rule b delta row (.ellipsis1 start gap) caps rng
+  | ellipsis2 start gap1 gap2 =>
+    simpa [applyRowAt] using
+      applyRowAtFold_WH game rule b delta row (.ellipsis2 start gap1 gap2) caps rng
 
 theorem applyRuleTuple_WH
     (game : Game) (b : Board) (rule : Rule) (tuple : Array RowMatch)

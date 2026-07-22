@@ -613,8 +613,28 @@ def rowMatchStart (rm : RowMatch) : Nat :=
   | .ellipsis1 s _ => s
   | .ellipsis2 s _ _ => s
 
-/-- Apply one pattern row at a matched start (pure list fold). -/
-def applyRowAt (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell)
+def patternCellIsEllipsis : PatternCell → Bool
+  | .ellipsis => true
+  | .cell _ => false
+
+/-- Apply one fixed row via `fixedWalkTile?` (non-ellipsis rows only). -/
+def applyRowAtFixed (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell)
+    (start : Nat) (caps : RuleCaptures) (rng : RngState) : (Bool × Board × RngState) :=
+  (List.range row.size).foldl
+    (fun (changed, board, rng') k =>
+      match row[k]?.getD (.ellipsis) with
+      | .ellipsis => (changed, board, rng')
+      | .cell pat =>
+        match fixedWalkTile? start delta k with
+        | none => (changed, board, rng')
+        | some t =>
+          if t >= board.nTiles then (changed, board, rng')
+          else
+            let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
+            (changed || c, b', r))
+    (false, b, rng)
+
+def applyRowAtFold (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell)
     (rm : RowMatch) (caps : RuleCaptures) (rng : RngState) : (Bool × Board × RngState) :=
   let gaps : Array Nat :=
     match rm with
@@ -640,6 +660,20 @@ def applyRowAt (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Arra
             (gapIdx, idx + delta, changed || c, b', r))
       init
   (changed, board, rng')
+
+/-- Apply one pattern row at a matched start (pure list fold). -/
+def applyRowAt (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell)
+    (rm : RowMatch) (caps : RuleCaptures) (rng : RngState) : (Bool × Board × RngState) :=
+  match rm with
+  | .fixed s =>
+    if row.any patternCellIsEllipsis then
+      applyRowAtFold game rule b delta row rm caps rng
+    else
+      applyRowAtFixed game rule b delta row s caps rng
+  | .ellipsis1 _ _ =>
+    applyRowAtFold game rule b delta row rm caps rng
+  | .ellipsis2 _ _ _ =>
+    applyRowAtFold game rule b delta row rm caps rng
 
 def tupleStillMatches (b : Board) (rule : Rule) (tuple : Array RowMatch) : Bool :=
   let delta := ruleDirectionDelta rule.direction b.height

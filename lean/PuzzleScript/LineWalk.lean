@@ -4,6 +4,7 @@ Fixed line-walk row/column locality (non-ellipsis, cardinal RuleDir).
 import PuzzleScript.Board
 import PuzzleScript.Runtime
 import PuzzleScript.Rules
+import PuzzleScript.WellFormed
 
 namespace PuzzleScript
 
@@ -297,5 +298,103 @@ theorem fixedWalk_vertical_same_col (b : Board) (d : RuleDir) (s k : Nat)
     rw [show ruleDirectionDelta d b.height = 1 from by
       rw [RuleDir.eq_ofNat_toNat d, h2, ruleDirectionDelta_down]]
     exact fixedWalkIdx_down_tileCol b s k hh (hDown (by simpa using h2))
+
+/-! Match/apply corollaries on the fixed walk. -/
+
+/-- If `rowCellsMatchFixed` succeeds at cell index `k`, that cell is `.cell`
+and `fixedWalkTile?` is `some t` with `t < nTiles` (the only tiles consulted). -/
+theorem rowCellsMatchFixed_implies_walk_tile
+    (b : Board) (start : Nat) (delta : Int) (row : Array PatternCell) (k : Nat)
+    (hk : k < row.size)
+    (h : rowCellsMatchFixed b start delta row = true) :
+    ∃ pat t, row[k]?.getD (.ellipsis) = .cell pat ∧
+      fixedWalkTile? start delta k = some t ∧ t < b.nTiles := by
+  simp only [rowCellsMatchFixed] at h
+  have hall := List.all_eq_true.mp h
+  have hkCell := hall k (List.mem_range.mpr hk)
+  cases hcell : row[k]?.getD (.ellipsis) with
+  | ellipsis =>
+    simp [hcell] at hkCell
+  | cell pat =>
+    cases hwalk : fixedWalkTile? start delta k with
+    | none =>
+      simp [hcell, hwalk] at hkCell
+    | some t =>
+      simp [hcell, hwalk] at hkCell
+      exact ⟨pat, t, rfl, rfl, hkCell.1⟩
+
+theorem applyRowAtFixed_preserves_off_walk
+    (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell)
+    (start other : Nat) (caps : RuleCaptures) (rng : RngState)
+    (hOff : ∀ k < row.size, fixedWalkTile? start delta k ≠ some other) :
+    let r := applyRowAtFixed game rule b delta row start caps rng
+    r.2.1.cellObjWords other = b.cellObjWords other ∧
+      r.2.1.cellMovWords other = b.cellMovWords other := by
+  dsimp only [applyRowAtFixed]
+  have hInv :
+      ∀ (ks : List Nat) (changed : Bool) (board : Board) (rng : RngState),
+        board.cellObjWords other = b.cellObjWords other →
+          board.cellMovWords other = b.cellMovWords other →
+        (∀ k ∈ ks, k < row.size) →
+        let r :=
+          ks.foldl
+            (fun (changed, board, rng') k =>
+              match row[k]?.getD (.ellipsis) with
+              | .ellipsis => (changed, board, rng')
+              | .cell pat =>
+                match fixedWalkTile? start delta k with
+                | none => (changed, board, rng')
+                | some t =>
+                  if t ≥ board.nTiles then (changed, board, rng')
+                  else
+                    let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
+                    (changed || c, b', r))
+            (changed, board, rng)
+        r.2.1.cellObjWords other = b.cellObjWords other ∧
+          r.2.1.cellMovWords other = b.cellMovWords other := by
+    intro ks changed board rng hObj hMov hBounds
+    induction ks generalizing changed board rng with
+    | nil => exact ⟨hObj, hMov⟩
+    | cons k ks ih =>
+      simp only [List.foldl_cons]
+      have hk : k < row.size := hBounds k (by simp)
+      have hRest : ∀ k' ∈ ks, k' < row.size :=
+        fun k' hk' => hBounds k' (List.mem_cons_of_mem _ hk')
+      cases hcell : row[k]?.getD (.ellipsis) with
+      | ellipsis =>
+        exact ih changed board rng hObj hMov hRest
+      | cell pat =>
+        cases hwalk : fixedWalkTile? start delta k with
+        | none =>
+          exact ih changed board rng hObj hMov hRest
+        | some t =>
+          by_cases ht : t ≥ board.nTiles
+          · simp [hcell, hwalk, if_pos ht]
+            exact ih changed board rng hObj hMov hRest
+          · simp [hcell, hwalk, if_neg (by intro h; exact ht h)]
+            have htNe : t ≠ other := fun heq => hOff k hk (by simpa [heq] using hwalk)
+            have hp :=
+              applyCellReplacement_preserves_other_tiles game rule board t other pat caps rng
+                (Ne.symm htNe)
+            exact ih (changed || (applyCellReplacement game rule board t pat caps rng).1)
+              (applyCellReplacement game rule board t pat caps rng).2.1
+              (applyCellReplacement game rule board t pat caps rng).2.2
+              (hp.1.trans hObj) (hp.2.trans hMov) hRest
+  have hRange : ∀ k ∈ List.range row.size, k < row.size := fun k hk => List.mem_range.mp hk
+  exact hInv (List.range row.size) false b rng rfl rfl hRange
+
+theorem applyRowAt_fixed_preserves_off_walk
+    (game : Game) (rule : Rule) (b : Board) (delta : Int) (row : Array PatternCell)
+    (start other : Nat) (caps : RuleCaptures) (rng : RngState)
+    (hNoEll : row.any patternCellIsEllipsis = false)
+    (hOff : ∀ k < row.size, fixedWalkTile? start delta k ≠ some other) :
+    let r := applyRowAt game rule b delta row (.fixed start) caps rng
+    r.2.1.cellObjWords other = b.cellObjWords other ∧
+      r.2.1.cellMovWords other = b.cellMovWords other := by
+  dsimp only [applyRowAt]
+  have hEll : ¬(row.any patternCellIsEllipsis = true) := by
+    simpa using hNoEll
+  rw [if_neg hEll]
+  exact applyRowAtFixed_preserves_off_walk game rule b delta row start other caps rng hOff
 
 end PuzzleScript
