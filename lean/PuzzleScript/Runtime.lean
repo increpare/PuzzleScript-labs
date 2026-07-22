@@ -18,6 +18,20 @@ def ruleDirectionDelta (direction : RuleDir) (height : Nat) : Int :=
   let d3 := Int.ofNat ((d >>> 3) &&& 1).toNat
   (d3 - d2) * h + (d1 - d0)
 
+/-- Int cursor for the `k`-th cell on a fixed (non-ellipsis) line walk. -/
+def fixedWalkIdx (start : Nat) (delta : Int) (k : Nat) : Int :=
+  Int.ofNat start + delta * Int.ofNat k
+
+/-- `some t` when the cursor is non-negative (matches match/apply OOB gating). -/
+def fixedWalkTile? (start : Nat) (delta : Int) (k : Nat) : Option Nat :=
+  let idx := fixedWalkIdx start delta k
+  if idx < 0 then none else some idx.toNat
+
+/-- Cardinal single-bit rule directions (UP/DOWN/LEFT/RIGHT). -/
+def RuleDir.isCardinal (d : RuleDir) : Bool :=
+  let n := d.toNat
+  n == 1 || n == 2 || n == 4 || n == 8
+
 /-- JS `processInput` direction index → movement bit mask (before layer shift). -/
 def dirInputToLayerBits (dir : Int) : Option UInt32 :=
   match Dir4.ofInputIndex? dir with
@@ -409,19 +423,15 @@ def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (p
       applyInferredReplacementFields game pat caps oldObj oldMov oc0 os0 mc0 ms0
     commitCellReplacement game rule b tile pat oc os mc ms rng2
 
-private def rowCellsMatchFixed (b : Board) (startTile : Nat) (delta : Int) (row : Array PatternCell) : Bool :=
-  Id.run do
-    let mut idx : Int := Int.ofNat startTile
-    for cell in row do
-      match cell with
-      | .ellipsis => return false
-      | .cell pat =>
-        if idx < 0 then return false
-        let t := idx.toNat
-        if t >= b.nTiles then return false
-        if !cellPatternMatches b t pat then return false
-        idx := idx + delta
-    pure true
+def rowCellsMatchFixed (b : Board) (startTile : Nat) (delta : Int) (row : Array PatternCell) : Bool :=
+  (List.range row.size).all fun k =>
+    match row[k]?.getD (.ellipsis) with
+    | .ellipsis => false
+    | .cell pat =>
+      match fixedWalkTile? startTile delta k with
+      | none => false
+      | some t =>
+        t < b.nTiles && cellPatternMatches b t pat
 
 private def rowCellsMatchEllipsis1 (b : Board) (startTile gap : Nat) (delta : Int) (row : Array PatternCell) : Bool :=
   Id.run do
