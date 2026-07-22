@@ -59,7 +59,7 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 14
+#define PS_GBC_GAME_ABI_VERSION 15
 #define PS_GBC_RULE_GROUP_COUNT_MASK 0x1fffU
 #define PS_GBC_RULE_GROUP_INPUT_LAYOUT_MASK 0x6000U
 #define PS_GBC_RULE_GROUP_INPUT_QUARTET 0x2000U
@@ -117,6 +117,8 @@ enum {
     PS_GBC_COMMAND_WIN = 1U << 4,
     PS_GBC_COMMAND_MESSAGE = 1U << 5
 };
+
+#define PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK (1U << 7)
 
 typedef struct ps_gbc_pattern {
     uint32_t objects_present;

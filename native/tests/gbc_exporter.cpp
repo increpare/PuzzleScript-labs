@@ -100,6 +100,10 @@ int main() {
     require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time object cell width");
     require(
+        header.find("PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 0U")
+            != std::string::npos,
+        "generated header compiles out unprofitable Sokoban presence checks");
+    require(
         header.find("PS_GBC_GENERATED_CELL_WIDTH 5U") != std::string::npos
             && header.find("PS_GBC_GENERATED_CELL_HEIGHT 5U") != std::string::npos
             && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos,
@@ -153,6 +157,25 @@ int main() {
     const auto second = puzzlescript::gbc::exportGame(options);
     require(readFile(first.generatedSourcePath) == readFile(second.generatedSourcePath),
         "repeated exports are deterministic");
+
+    puzzlescript::gbc::ExportOptions presenceOptions;
+    presenceOptions.sourcePath =
+        root / "src" / "tests" / "good_games" / "Xorro The Chaos Warden.txt";
+    presenceOptions.outputDirectory = output / "presence";
+    presenceOptions.cullOversizeLevels = true;
+    const auto presenceResult = puzzlescript::gbc::exportGame(presenceOptions);
+    const std::string presenceManifest = readFile(presenceResult.manifestPath);
+    const std::string presenceHeader = readFile(presenceResult.generatedHeaderPath);
+    const std::string presenceSource = readFile(presenceResult.generatedSourcePath);
+    require(
+        presenceManifest.find("\"object_presence_precheck_rule_count\": 22")
+                != std::string::npos
+            && presenceHeader.find(
+                "PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 22U")
+                != std::string::npos
+            && presenceSource.find("PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK")
+                != std::string::npos,
+        "rare first-pattern objects enable cartridge presence prechecks");
 
     puzzlescript::gbc::ExportOptions contrastOptions;
     contrastOptions.sourcePath =

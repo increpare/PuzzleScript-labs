@@ -9,6 +9,23 @@
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
+#if !defined(PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT) \
+    || PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT != 0U
+#define PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK 1
+#else
+#define PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK 0
+#endif
+
+#if defined(PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL) \
+    && PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 1U
+typedef uint8_t ps_gbc_presence_mask;
+#elif defined(PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL) \
+    && PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL == 2U
+typedef uint16_t ps_gbc_presence_mask;
+#else
+typedef uint32_t ps_gbc_presence_mask;
+#endif
+
 #if !defined(PS_GBC_GENERATED_SOUND_COUNT) \
     || PS_GBC_GENERATED_SOUND_COUNT != 0U
 #define PS_GBC_HAS_AUDIO 1
@@ -101,6 +118,9 @@ struct ps_gbc_session {
     ps_audio_event ui_audio_events[PS_GBC_MAX_AUDIO_EVENTS];
     uint32_t created_objects;
     uint32_t destroyed_objects;
+#if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
+    ps_gbc_presence_mask present_objects;
+#endif
     const char* message;
 };
 
@@ -432,6 +452,13 @@ static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     }
     session->width = level->width;
     session->height = level->height;
+#if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
+    session->present_objects = 0U;
+    for (size_t cell = 0U; cell < cells; ++cell) {
+        session->present_objects |= (ps_gbc_presence_mask)ps_gbc_board_get(
+            session, (uint16_t)cell);
+    }
+#endif
     session->mode = (uint8_t)PS_FULL_STATE_MODE_LEVEL;
     session->message = NULL;
     session->checkpoint_valid = false;
@@ -452,6 +479,9 @@ bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index) {
         session->height = 0U;
         session->mode = (uint8_t)PS_FULL_STATE_MODE_MESSAGE;
         session->message = level->message;
+#if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
+        session->present_objects = 0U;
+#endif
         ps_gbc_clear_transient(session);
         ps_gbc_clear_dirty_cells(session);
         return true;
@@ -613,6 +643,9 @@ static bool ps_gbc_apply_replacement(
         movements &= ~pattern->movement_layer_mask;
     }
     next_movements = (movements & ~pattern->movements_clear) | pattern->movements_set;
+#if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
+    session->present_objects |= (ps_gbc_presence_mask)next_objects;
+#endif
     ps_gbc_board_set(session, cell, next_objects);
     ps_gbc_movement_set(session, cell, next_movements);
     if (next_objects != objects) ps_gbc_mark_dirty(session, cell);
@@ -624,6 +657,16 @@ static bool ps_gbc_apply_rule(
     const ps_gbc_rule* rule,
     ps_gbc_commands* commands
 ) {
+#if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
+    if ((rule->commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
+        const ps_gbc_pattern* first_pattern = (const ps_gbc_pattern*)(
+            (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
+        const ps_gbc_presence_mask required_objects =
+            (ps_gbc_presence_mask)first_pattern->objects_present;
+        if ((session->present_objects & required_objects)
+            != required_objects) return false;
+    }
+#endif
     const int8_t delta = ps_gbc_delta(session, rule->direction);
     const uint8_t match_count = ps_gbc_collect_matches(session, rule, delta);
     const uint8_t cells = (uint8_t)(session->width * session->height);
@@ -1010,6 +1053,12 @@ bool ps_gbc_restart(ps_gbc_session* session) {
         level = &session->game->levels[session->current_level];
         memcpy(session->board, level->cells, bytes);
     }
+#if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
+    session->present_objects = 0U;
+    for (uint16_t cell = 0U; cell < cells; ++cell) {
+        session->present_objects |= (ps_gbc_presence_mask)ps_gbc_board_get(session, cell);
+    }
+#endif
     ps_gbc_clear_transient(session);
     ps_gbc_mark_all_dirty(session);
     ps_gbc_run_rules_on_level_start(session);

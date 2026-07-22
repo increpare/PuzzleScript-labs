@@ -42,9 +42,17 @@ in the first four cases; the all-universal two-lane control changes by +0.02%.
 The implementation costs 226 fixed-ROM bytes but no generated-game bytes,
 static WRAM, or session memory.
 
+A gated first-pattern object-presence precheck is retained after input
+specialization. Sokoban and pushit compile it out and remain exactly unchanged.
+Xorro, slot machine, and Voitex flag 22/62, 16/33, and 36/37 rules and improve
+by another 33.45%, 25.74%, and 87.66%. The eligible builds cost 370-627
+fixed-ROM bytes and use a one- or four-byte mask inside the already-reserved
+session overhead; generated data, declared session arenas, and static WRAM do
+not grow.
+
 The next algorithmic work should use the remaining static-analysis facts
-already present in this repository: certified wake masks and board-presence
-prechecks. After that, use object-position bitsets or posting lists to
+already present in this repository: certified wake masks. After that, use
+object-position bitsets or posting lists to
 start matching at a required object instead of scanning every legal start cell.
 
 Handwritten assembly is worth a small, gated experiment only after those C and
@@ -308,6 +316,7 @@ earn their cost.
 | Use proved 8-bit hot cells, bounds, counts, and deltas | **Keep** | -5.72% | -6.94% | -8.36% | -9.28% | -7.09% | -268 to -289 B fixed ROM; game bank, static WRAM, and session unchanged |
 | Skip fixpoint confirmation for certified single-pass groups | **Keep** | -0.07% | -0.07% | -0.15% | -15.12% | -0.04% | +1 B fixed ROM; game bank, static WRAM, and session unchanged |
 | Select certified directional rule blocks for the current input | **Keep** | -47.28% | -60.18% | -12.43% | -16.63% | +0.02% | +226 B fixed ROM; game bank, static WRAM, and session unchanged |
+| Reject flagged rules whose first required objects are absent | **Keep** | 0.00% | 0.00% | -33.45% | -25.74% | -87.66% | compile-out controls unchanged; eligible builds +370-627 B fixed ROM and 1-4 B reserved session overhead; game bank/static WRAM/declared arena unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -317,9 +326,11 @@ measurements are
 `.codex_tmp/benchmarks/p0-pattern-offset-final.json`, and
 `.codex_tmp/benchmarks/p0-narrow-hot-indexes.json`, and
 `.codex_tmp/benchmarks/p1-single-pass-certified.json`, and
-`.codex_tmp/benchmarks/p1-input-direction-layout.json`. Each row is incremental
-against the retained row above it. Cumulative reductions against the original
-baseline are now 66.99%, 77.72%, 53.49%, 60.55%, and 45.20% respectively.
+`.codex_tmp/benchmarks/p1-input-direction-layout.json`, and
+`.codex_tmp/benchmarks/p1-width-specialized-presence.json`. Each row is
+incremental against the retained row above it. Cumulative reductions against
+the original baseline are now 66.99%, 77.72%, 69.05%, 70.70%, and 93.24%
+respectively.
 
 These transformations should be the first implementation, followed by native
 and GBC parity, undo/cancel/restart, sound, render, and compatible-cartridge
@@ -540,10 +551,8 @@ The JavaScript analyzer already emits proved wake masks for every rule in all
 five cases (144/144). Use those masks in the GBC exporter/runtime rather than
 inventing a separate analysis.
 
-- Maintain a board object-presence mask using one byte of count per object
-  (32 bytes maximum), so clearing the last instance is cheap and exact.
-- Before scanning a rule, reject it if its required object/movement mask cannot
-  be present.
+- Maintain a board object-presence mask and reject a rule if its required
+  objects cannot be present.
 - Track objects/movements changed by a rule/group and use certified wake masks
   to avoid rescheduling rules that cannot observe the change.
 - Reuse the existing per-input specialization proof to exclude rule variants
@@ -566,9 +575,21 @@ bits of `rule_count`; mixed or irregular groups remain universal. On the five
 benchmarks this certifies 1, 1, 5, 6, and 0 groups respectively. For a left or
 right turn the reachable early-rule counts are 1/4, 2/8, 11/20, 9/18, and
 37/37. Selecting a block once per group is both smaller and faster than the
-rejected prototype that stored and checked an input class on every rule. The final
-incremental timings are 215.680, 384.758, 3484.773, 5768.320, and 5798.195
-ticks per turn.
+rejected prototype that stored and checked an input class on every rule. The
+final incremental timings are 215.680, 384.758, 3484.773, 5768.320, and
+5798.195 ticks per turn.
+
+The first safe board-presence consumer is retained too. Rather than maintaining
+32 exact object counters, it initializes a width-specialized OR mask when a
+board is loaded and only accumulates objects created during the level. This can
+leave harmless false positives after removals but cannot create a false
+negative. A flagged rule is rejected only when the exact objects required by
+its first pattern are absent. The exporter flags a rule only when that pattern
+mentions an object not present on every retained starting board, and emits a
+zero-count macro so games with no profitable candidates compile the cache and
+test out completely. The rejected ungated prototype slowed Sokoban and pushit
+by 0.45% and 0.51%; the retained gate restores both exactly while reducing the
+other timings to 2319.305, 4283.648, and 715.617 ticks per turn.
 
 ### P1: stop scanning every possible start cell
 

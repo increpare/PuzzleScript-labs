@@ -291,6 +291,9 @@ def main() -> int:
                 "input_specialized_groups": int(
                     manifest.get("input_specialized_group_count", 0)
                 ),
+                "object_presence_precheck_rules": int(
+                    manifest.get("object_presence_precheck_rule_count", 0)
+                ),
             },
             "memory": {
                 "estimated_session_bytes": int(

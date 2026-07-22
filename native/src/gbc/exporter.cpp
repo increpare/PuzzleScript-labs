@@ -996,7 +996,8 @@ void packGroups(
     std::vector<PackedRule>& rules,
     std::vector<PackedGroup>& groups,
     PackedAudio& audio,
-    const MovementLayout& movementLayout
+    const MovementLayout& movementLayout,
+    uint32_t alwaysPresentObjects
 ) {
     for (size_t groupIndex = 0; groupIndex < sourceGroups.size(); ++groupIndex) {
         const auto& sourceGroup = sourceGroups[groupIndex];
@@ -1036,6 +1037,11 @@ void packGroups(
             rule.activeInputsMask = sourceRule.activeInputsMask;
             rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
             rule.commands = commandFlags(game, sourceRule, rule.message, audio);
+            const uint32_t firstPatternObjects = maskWord(
+                game, sourceRule.patterns.front().front().objectsPresent);
+            if ((firstPatternObjects & ~alwaysPresentObjects) != 0U) {
+                rule.commands |= PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK;
+            }
             rule.soundCount = static_cast<uint8_t>(
                 audio.ruleSoundIds.size() - rule.firstSound);
             for (const Pattern& pattern : sourceRule.patterns.front()) {
@@ -1107,7 +1113,8 @@ std::string emitHeader(
     uint8_t objectBytesPerCellValue,
     uint8_t cellWidth,
     uint8_t cellHeight,
-    const PackedAudio& audio
+    const PackedAudio& audio,
+    size_t presencePrecheckCount
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -1135,6 +1142,8 @@ std::string emitHeader(
         << audio.movementSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_MOVEMENT_FAILURE_SOUND_COUNT "
         << audio.movementFailureSounds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT "
+        << presencePrecheckCount << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
         << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
@@ -1275,9 +1284,20 @@ std::string emitSource(
     for (const PackedRule& rule : rules) {
         out << "    {PS_GBC_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
-            << static_cast<unsigned int>(rule.direction) << "U, "
-            << static_cast<unsigned int>(rule.commands) << "U, "
-            << static_cast<unsigned int>(rule.firstSound) << "U, "
+            << static_cast<unsigned int>(rule.direction) << "U, ";
+        if ((rule.commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
+            const uint8_t commands = static_cast<uint8_t>(
+                rule.commands & ~PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK);
+            if (commands == 0U) {
+                out << "PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK, ";
+            } else {
+                out << "(" << static_cast<unsigned int>(commands)
+                    << "U | PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK), ";
+            }
+        } else {
+            out << static_cast<unsigned int>(rule.commands) << "U, ";
+        }
+        out << static_cast<unsigned int>(rule.firstSound) << "U, "
             << static_cast<unsigned int>(rule.soundCount) << "U, "
             << (rule.message.empty() ? "NULL" : escapedString(rule.message)) << "},\n";
     }
@@ -1581,6 +1601,9 @@ ExportResult exportGame(const ExportOptions& options) {
     uint16_t maxCells = 0U;
     uint16_t maxBoardWidth = 0U;
     uint16_t maxBoardHeight = 0U;
+    uint32_t alwaysPresentObjects = game.objectCount == 32
+        ? UINT32_MAX
+        : (uint32_t{1} << static_cast<uint32_t>(game.objectCount)) - 1U;
     for (size_t sourceLevelIndex = 0U;
          sourceLevelIndex < game.levels.size();
          ++sourceLevelIndex) {
@@ -1619,10 +1642,13 @@ ExportResult exportGame(const ExportOptions& options) {
             maxBoardHeight = std::max(maxBoardHeight, level.height);
             maxCells = std::max(maxCells, static_cast<uint16_t>(cells));
             level.cells.resize(cells);
+            uint32_t levelPresentObjects = 0U;
             for (size_t cell = 0; cell < cells; ++cell) {
                 level.cells[cell] = static_cast<uint32_t>(
                     static_cast<MaskWordUnsigned>(sourceLevel.objects[cell * game.wordCount]));
+                levelPresentObjects |= level.cells[cell];
             }
+            alwaysPresentObjects &= levelPresentObjects;
         }
         levels.push_back(std::move(level));
     }
@@ -1653,13 +1679,17 @@ ExportResult exportGame(const ExportOptions& options) {
     PackedAudio audio = packAudio(game, movementLayout);
     packGroups(
         game, game.rules, game.loopPoint, false, patterns, rules, earlyGroups,
-        audio, movementLayout);
+        audio, movementLayout, alwaysPresentObjects);
     packGroups(
         game, game.lateRules, game.lateLoopPoint, true, patterns, rules, lateGroups,
-        audio, movementLayout);
+        audio, movementLayout, alwaysPresentObjects);
     if (patterns.size() > UINT16_MAX || rules.size() > UINT16_MAX) {
         throw std::runtime_error("GBC rule data exceeds 16-bit table indexes");
     }
+    const size_t presencePrecheckCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return (rule.commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U;
+        }));
 
     const auto requiredBytesForUndo = [&](uint8_t undo) {
         (void)undo;
@@ -1716,7 +1746,8 @@ ExportResult exportGame(const ExportOptions& options) {
             objectCellBytes,
             cellWidth,
             cellHeight,
-            audio));
+            audio,
+            presencePrecheckCount));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
         patterns, rules, earlyGroups, lateGroups, audio, static_cast<uint8_t>(viewportWidth),
@@ -1791,6 +1822,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << lateSinglePassGroups << ",\n"
         << "  \"input_specialized_group_count\": "
         << inputSpecializedGroups << ",\n"
+        << "  \"object_presence_precheck_rule_count\": "
+        << presencePrecheckCount << ",\n"
         << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
         << "  \"active_early_rules_by_input\": [";
     for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
