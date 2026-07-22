@@ -91,6 +91,9 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
   mask mutators, fuelled `executeTurn.go` / cmd queue / level-start, public `executeTurn`,
   `stepOneInput` / `stepInputToken`, `drainAgain.go`, and `replaySolverGo` preserve
   `Session.WellFormed` (no `sorry`)
+- Line-walk locality (`LineWalk.lean`): cardinal fixed (non-ellipsis) horizontal/vertical
+  rules share one walk for match/apply; walk stays on one row/column; off-walk tiles
+  unchanged by fixed `applyRowAt`
 - `boardWinEquiv` / `dropInert_boardWinEquiv` under `noRandomRuleGroups` (multi-turn
   lift of T5 via `replaySolverGo`); `Rule.boardEffectId` from syntactic inert
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
@@ -127,3 +130,5 @@ More inert fixtures from `static_analysis_testdata` / `canonicalizer_testdata`;
 See `docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
 WellFormed preservation is done:
 `docs/superpowers/specs/2026-07-22-lean-wellformed-preservation-design.md`.
+Line-walk locality is done:
+`docs/superpowers/specs/2026-07-22-lean-line-walk-locality-design.md`.
