@@ -6,12 +6,11 @@
 
 static const uint32_t kLayerMasks[] = {1U, 2U, 12U, 0U, 0U, 0U};
 static const uint8_t kMovementCollisionLayers[] = {2U};
-static const uint8_t kSprite[] = {0U};
 static const ps_gbc_object kObjects[] = {
-    {"background", 0U, PS_GBC_NO_MOVEMENT_LAYER, 1U, 1U, 0U, kSprite, 0U},
-    {"target", 1U, PS_GBC_NO_MOVEMENT_LAYER, 1U, 1U, 0U, kSprite, 0U},
-    {"player", 2U, 0U, 1U, 1U, 0U, kSprite, 0U},
-    {"crate", 2U, 0U, 1U, 1U, 0U, kSprite, 0U},
+    {0U, PS_GBC_NO_MOVEMENT_LAYER},
+    {1U, PS_GBC_NO_MOVEMENT_LAYER},
+    {2U, 0U},
+    {2U, 0U},
 };
 static const uint8_t kLevelCells[] = {5U, 9U, 3U, 1U};
 static const uint16_t kLevelCells16[] = {5U, 9U, 3U, 1U};

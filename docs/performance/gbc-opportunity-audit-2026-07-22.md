@@ -81,6 +81,15 @@ only 0.016 repeat passes / 0.031 repeat-rule visits per turn in pushit. A wake
 table would add data and hot checks to avoid almost no work. Broader object
 anchors should wait until packed data or renderer cleanup frees fixed ROM.
 
+The first renderer/data cleanup is now retained. The exporter centers every
+legal source sprite into the native 5x5 PuzzleScript cell, emits a compact
+render table in collision-layer order, and reduces rule-time object metadata
+to layer plus movement-layer bytes. The compositor streams 25 pixels instead
+of rescanning every object for every layer and rebuilding multiply-heavy
+coordinates. Forced whole-board composition falls 82.50-91.62%, while initial
+render falls 16.27-42.91%. It also saves 27-41 fixed-ROM bytes and 302-609
+linked generated-bank bytes, with no RAM growth.
+
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
 62 bytes larger for the rule-heavy case, and applying the flag to the whole ROM
@@ -232,16 +241,26 @@ destination pointers. This should be benchmarked before precomposing every
 observed quartet because it improves every cache miss without multiplying
 generated tile data.
 
-The object descriptor also carries data that no GBC runtime path reads:
-`name` and `transparent_pixels`. Object names are used only while exporting;
-title and author are the strings displayed by the firmware. The transparent
-mask is emitted but the compositor checks pixel value `0xff` instead. On the
-SM83 target, removing the unused name pointer and 64-bit mask plus their name
-strings would save approximately 86, 100, 139, 423, and 242 bytes respectively
-across the five cases, before removing width/height or deduplicating identical
-sprite arrays. It also reduces the hot descriptor stride. Generated builds can
-trust the exporter's layer/movement validation and use a separate compact
-render descriptor rather than retaining validation-only fields.
+That experiment is retained. Export-time centering preserves the same 5x5
+input to `encodeQuartet`, including the doubled central source row/column in
+the established 15-to-16 expansion. The layer-ordered table preserves the old
+layer-then-object-id draw order but removes descriptor rejection, per-pixel
+centering, and `__muluchar` addressing. Across the five cases, isolated
+whole-board composition changes from 6098.00, 6784.25, 7500.25, 23172.25, and
+15802.75 ticks to 1042.75, 1187.50, 1143.25, 1942.25, and 1499.00. Initial
+render changes from 2526, 2237, 2243, 5113, and 1420 ticks to 2115, 1825, 1833,
+2919, and 1146. The standard hardware/render smoke passes with fixed 16x16
+cells and zero palette, map, attribute, or tile-upload mismatches. The generated
+SM83 for `composeTile` now has a 13-byte rather than 25-byte stack frame and no
+`__muluchar` calls.
+
+The unused object names and transparent masks are now removed. Object names
+remain exporter-only; title and author are the strings displayed by firmware,
+and byte value `0xff` continues to represent transparent sprite pixels. Width,
+height, palette, and sprite pointers move out of rule-time object metadata into
+the new render-only table. The core's object stride is now two bytes instead of
+17, and the actual linked generated-bank saving is 302-609 bytes after paying
+for the ordered render entries.
 
 The rule records have a similar hot/cold mixture:
 
@@ -347,6 +366,7 @@ earn their cost.
 | Enumerate first-pattern player cells on compact object boards | **Keep** | -10.41% | -17.85% | -6.78% | 0.00% | 0.00% | eligible builds +811-833 B fixed ROM and +42-63 B declared arena/static WRAM; four-byte controls compile out exactly; game bank unchanged |
 | Skip confirmation for singleton groups proved unable to self-enable | **Keep** | 0.00% | 0.00% | -0.0004% | -24.92% | -0.0044% | fixed ROM, game-bank ROM, static WRAM, and session unchanged |
 | Add per-rule wake scheduling after singleton certification | **Reject** | no repeat passes | 0.016 repeat passes/turn | no repeat passes | no repeat passes | no repeat passes | a table/check would target only 0.031 repeat-rule visits/turn at best |
+| Emit centered 5x5 sprites and one layer-ordered render entry per object | **Keep** | composition -82.90%; initial -16.27% | composition -82.50%; initial -18.42% | composition -84.76%; initial -18.28% | composition -91.62%; initial -42.91% | composition -90.51%; initial -19.30% | -27 to -41 B fixed ROM; -302 to -609 B linked generated bank; RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -360,9 +380,10 @@ measurements are
 `.codex_tmp/benchmarks/p1-width-specialized-presence.json`, and
 `.codex_tmp/benchmarks/p1-inline-matched-starts-final.json`, and
 `.codex_tmp/benchmarks/p1-compact-player-cell-anchor.json`, and
-`.codex_tmp/benchmarks/p1-singleton-confirmation.json`. Each row is
+`.codex_tmp/benchmarks/p1-singleton-confirmation.json`, and
+`.codex_tmp/benchmarks/p2-ordered-render-table.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
-the original baseline are now 70.71%, 81.94%, 71.95%, 80.23%, and 93.26%
+the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
 respectively.
 
 The scheduling decision uses the counter-only diagnostic

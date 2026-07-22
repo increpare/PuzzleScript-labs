@@ -67,14 +67,10 @@ struct ColorStretch {
 };
 
 struct PackedObject {
-    std::string name;
     uint8_t layer = 0;
     uint8_t movementLayer = PS_GBC_NO_MOVEMENT_LAYER;
-    uint8_t width = 0;
-    uint8_t height = 0;
     uint8_t palette = 0;
     std::vector<uint8_t> pixels;
-    uint64_t transparentPixels = 0;
 };
 
 struct PackedLevel {
@@ -1115,6 +1111,7 @@ std::string emitHeader(
     uint8_t objectBytesPerCellValue,
     uint8_t cellWidth,
     uint8_t cellHeight,
+    size_t renderObjectCount,
     const PackedAudio& audio,
     size_t presencePrecheckCount,
     size_t playerAnchorCount
@@ -1133,6 +1130,8 @@ std::string emitHeader(
         << static_cast<unsigned int>(cellHeight) << "U\n\n"
         << "#define PS_GBC_GENERATED_CELL_PIXELS "
         << static_cast<unsigned int>(cellWidth * cellHeight) << "U\n\n"
+        << "#define PS_GBC_GENERATED_RENDER_OBJECT_COUNT "
+        << renderObjectCount << "U\n\n"
         << "#define PS_GBC_GENERATED_SOUND_COUNT "
         << audio.seeds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_RULE_SOUND_COUNT "
@@ -1151,7 +1150,8 @@ std::string emitHeader(
         << playerAnchorCount << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
-        << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
+        << "extern const ps_gbc_game_view ps_gbc_generated_game;\n"
+        << "extern const ps_gbc_render_object ps_gbc_generated_render_objects[];\n\n"
         << "#ifdef __cplusplus\n}\n#endif\n\n#endif\n";
     return out.str();
 }
@@ -1244,13 +1244,22 @@ std::string emitSource(
     out << "\nstatic const ps_gbc_object kObjects[] = {\n";
     for (size_t index = 0; index < objects.size(); ++index) {
         const PackedObject& object = objects[index];
-        out << "    {" << escapedString(object.name) << ", "
-            << static_cast<unsigned int>(object.layer) << "U, "
-            << static_cast<unsigned int>(object.movementLayer) << "U, "
-            << static_cast<unsigned int>(object.width) << "U, "
-            << static_cast<unsigned int>(object.height) << "U, "
-            << static_cast<unsigned int>(object.palette) << "U, kObject" << index
-            << "Pixels, 0x" << std::hex << object.transparentPixels << "ULL" << std::dec << "},\n";
+        out << "    {" << static_cast<unsigned int>(object.layer) << "U, "
+            << static_cast<unsigned int>(object.movementLayer) << "U},\n";
+    }
+    std::vector<size_t> renderOrder(objects.size());
+    for (size_t index = 0U; index < renderOrder.size(); ++index) {
+        renderOrder[index] = index;
+    }
+    std::stable_sort(
+        renderOrder.begin(), renderOrder.end(), [&](size_t left, size_t right) {
+            return objects[left].layer < objects[right].layer;
+        });
+    out << "};\n\nconst ps_gbc_render_object ps_gbc_generated_render_objects[] = {\n";
+    for (const size_t index : renderOrder) {
+        out << "    {0x" << std::hex << (uint32_t{1} << index) << "U, kObject"
+            << std::dec << index << "Pixels, "
+            << static_cast<unsigned int>(objects[index].palette) << "U},\n";
     }
     out << "};\n\n";
     const char* levelCellType = objectBytesPerCellValue == 1U ? "uint8_t"
@@ -1550,21 +1559,20 @@ ExportResult exportGame(const ExportOptions& options) {
             }
         }
         PackedObject object;
-        object.name = sourceObject.name;
         object.layer = static_cast<uint8_t>(sourceObject.layer);
         const int8_t movementLayer =
             movementLayout.collisionToMovement[static_cast<size_t>(sourceObject.layer)];
         object.movementLayer = movementLayer < 0
             ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
-        object.width = static_cast<uint8_t>(width);
-        object.height = static_cast<uint8_t>(height);
         object.palette = paletteIndex;
-        std::vector<uint8_t> sourcePixels;
-        uint64_t sourceTransparentPixels = 0U;
-        for (const auto& row : sourceObject.sprite) {
+        object.pixels.assign(25U, 0xffU);
+        const size_t offsetX = (5U - width) / 2U;
+        const size_t offsetY = (5U - height) / 2U;
+        for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
+            const auto& row = sourceObject.sprite[sourceY];
             if (row.size() != width) throw std::runtime_error("GBC requires rectangular object sprites");
-            for (const int32_t colorIndex : row) {
-                const size_t pixel = sourcePixels.size();
+            for (size_t sourceX = 0U; sourceX < width; ++sourceX) {
+                const int32_t colorIndex = row[sourceX];
                 bool transparent = colorIndex < 0;
                 uint16_t color = backgroundColor;
                 if (!transparent) {
@@ -1574,16 +1582,13 @@ ExportResult exportGame(const ExportOptions& options) {
                     transparent = transparentColors[static_cast<size_t>(colorIndex)];
                     color = sourceColors[static_cast<size_t>(colorIndex)];
                 }
-                if (transparent) sourceTransparentPixels |= uint64_t{1} << pixel;
-                sourcePixels.push_back(static_cast<uint8_t>(
-                    paletteIndex * 4U + nearestColor(palettes[paletteIndex], color)));
-            }
-        }
-        object.pixels = std::move(sourcePixels);
-        object.transparentPixels = sourceTransparentPixels;
-        for (size_t pixel = 0; pixel < object.pixels.size(); ++pixel) {
-            if ((sourceTransparentPixels & (uint64_t{1} << pixel)) != 0U) {
-                object.pixels[pixel] = 0xffU;
+                if (!transparent) {
+                    const size_t destination = (sourceY + offsetY) * 5U
+                        + sourceX + offsetX;
+                    object.pixels[destination] = static_cast<uint8_t>(
+                        paletteIndex * 4U
+                        + nearestColor(palettes[paletteIndex], color));
+                }
             }
         }
         objects.push_back(std::move(object));
@@ -1723,8 +1728,9 @@ ExportResult exportGame(const ExportOptions& options) {
         + movementLayout.movementToCollision.size();
     estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_object);
     for (const PackedObject& object : objects) {
-        estimatedGameBankBytes += object.pixels.size() + object.name.size() + 1U;
+        estimatedGameBankBytes += object.pixels.size();
     }
+    estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_render_object);
     estimatedGameBankBytes += levels.size() * sizeof(ps_gbc_level);
     for (const PackedLevel& level : levels) {
         estimatedGameBankBytes += level.cells.size() * objectCellBytes
@@ -1760,6 +1766,7 @@ ExportResult exportGame(const ExportOptions& options) {
             objectCellBytes,
             cellWidth,
             cellHeight,
+            objects.size(),
             audio,
             presencePrecheckCount,
             playerAnchorCount));
@@ -1799,6 +1806,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"runtime_profile\": \"bounded_interpreter_c\",\n"
         << "  \"cgb_only\": true,\n"
         << "  \"object_count\": " << game.objectCount << ",\n"
+        << "  \"render_object_count\": " << objects.size() << ",\n"
+        << "  \"render_sprite_bytes\": " << (objects.size() * 25U) << ",\n"
         << "  \"collision_layer_count\": " << game.layerCount << ",\n"
         << "  \"movement_layer_count\": " << movementLayout.movementToCollision.size() << ",\n"
         << "  \"movement_bytes_per_cell\": "

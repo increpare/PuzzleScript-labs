@@ -30,46 +30,31 @@ static uint8_t gCompositionCount;
 static uint8_t gReadbackTile[16];
 
 uint8_t composeTile(uint32_t objects) {
-    uint8_t layer;
+    const ps_gbc_render_object* render_object =
+        ps_gbc_generated_render_objects;
+    uint8_t object_index;
     uint8_t target_palette = 0U;
-    memset(gSourcePixels, 0, sizeof(gSourcePixels));
-    for (layer = 0U; layer < ps_gbc_generated_game.layer_count; ++layer) {
-        uint8_t object_id;
-        for (object_id = 0U;
-             object_id < ps_gbc_generated_game.object_count;
-             ++object_id) {
-            const ps_gbc_object* object;
-            uint8_t source_y;
-            bool drew = false;
-            if ((objects & ((uint32_t)1U << object_id)) == 0U) continue;
-            object = &ps_gbc_generated_game.objects[object_id];
-            if (object->layer != layer) continue;
-            for (source_y = 0U; source_y < object->sprite_height; ++source_y) {
-                uint8_t source_x;
-                const uint8_t destination_y = (uint8_t)(
-                    source_y
-                    + (ps_gbc_generated_game.cell_height
-                        - object->sprite_height) / 2U);
-                for (source_x = 0U;
-                     source_x < object->sprite_width;
-                     ++source_x) {
-                    const uint8_t source = object->sprite_pixels[
-                        (uint8_t)(
-                            source_y * object->sprite_width + source_x)];
-                    const uint8_t destination_x = (uint8_t)(
-                        source_x
-                        + (ps_gbc_generated_game.cell_width
-                            - object->sprite_width) / 2U);
-                    if (source == 0xffU) continue;
-                    gSourcePixels[
-                        (uint8_t)(
-                            destination_y * ps_gbc_generated_game.cell_width
-                            + destination_x)] = source;
-                    drew = true;
-                }
+    memset(gSourcePixels, 0, PS_GBC_GENERATED_CELL_PIXELS);
+    for (object_index = 0U;
+         object_index < PS_GBC_GENERATED_RENDER_OBJECT_COUNT;
+         ++object_index, ++render_object) {
+        const uint8_t* source;
+        uint8_t* destination;
+        uint8_t remaining;
+        bool drew = false;
+        if ((objects & render_object->mask) == 0U) continue;
+        source = render_object->sprite_pixels;
+        destination = gSourcePixels;
+        remaining = PS_GBC_GENERATED_CELL_PIXELS;
+        while (remaining-- != 0U) {
+            const uint8_t pixel = *source++;
+            if (pixel != 0xffU) {
+                *destination = pixel;
+                drew = true;
             }
-            if (drew) target_palette = object->palette;
+            ++destination;
         }
+        if (drew) target_palette = render_object->palette;
     }
     return target_palette;
 }

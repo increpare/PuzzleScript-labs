@@ -59,7 +59,7 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 16
+#define PS_GBC_GAME_ABI_VERSION 17
 #define PS_GBC_RULE_GROUP_COUNT_MASK 0x1fffU
 #define PS_GBC_RULE_GROUP_INPUT_LAYOUT_MASK 0x6000U
 #define PS_GBC_RULE_GROUP_INPUT_QUARTET 0x2000U
@@ -177,15 +177,15 @@ typedef struct ps_gbc_win_condition {
 } ps_gbc_win_condition;
 
 typedef struct ps_gbc_object {
-    const char* name;
     uint8_t layer;
     uint8_t movement_layer;
-    uint8_t sprite_width;
-    uint8_t sprite_height;
-    uint8_t palette;
-    const uint8_t* sprite_pixels;
-    uint64_t transparent_pixels;
 } ps_gbc_object;
+
+typedef struct ps_gbc_render_object {
+    uint32_t mask;
+    const uint8_t* sprite_pixels;
+    uint8_t palette;
+} ps_gbc_render_object;
 
 typedef struct ps_gbc_level {
     ps_gbc_level_kind kind;

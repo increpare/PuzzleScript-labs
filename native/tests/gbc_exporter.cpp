@@ -110,7 +110,9 @@ int main() {
     require(
         header.find("PS_GBC_GENERATED_CELL_WIDTH 5U") != std::string::npos
             && header.find("PS_GBC_GENERATED_CELL_HEIGHT 5U") != std::string::npos
-            && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos,
+            && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos
+            && header.find("PS_GBC_GENERATED_RENDER_OBJECT_COUNT 5U")
+                != std::string::npos,
         "generated header preserves the native PuzzleScript cell dimensions");
     require(source.find("#pragma bank 1") != std::string::npos,
         "generated data is linked outside fixed ROM bank zero");
@@ -123,14 +125,18 @@ int main() {
     require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
         "level object masks use the selected byte-wide storage");
     require(
-        source.find("{\"background\", 0U, 255U, 5U, 5U") != std::string::npos
-            && source.find("255U, 255U, 255U") != std::string::npos,
-        "generated sprites retain native dimensions and byte transparency");
+        source.find("static const ps_gbc_object kObjects[] = {\n    {0U, 255U}")
+                != std::string::npos
+            && source.find(
+                "const ps_gbc_render_object ps_gbc_generated_render_objects[]")
+                != std::string::npos
+            && source.find("{0x1U, kObject0Pixels, 0U}") != std::string::npos,
+        "generated objects separate movement metadata from ordered render data");
     require(
         source.find(
             "static const uint8_t kObject3Pixels[] = {14U, 14U, 14U, 15U, 14U")
             != std::string::npos,
-        "5x5 sprite arrays are emitted without 8x8 padding or resampling");
+        "5x5 sprite arrays retain the native pixels used by 16x16 upscaling");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {6965U, 3658U, 0U, 0U, "
@@ -424,6 +430,12 @@ int main() {
             "\"max_level_cells\": 90")
             != std::string::npos,
         "the exact 10x9 board boundary remains exportable");
+    require(
+        readFile(maximumBoardResult.generatedSourcePath).find(
+            "kObject0Pixels[] = {255U, 255U, 255U, 255U, 255U, "
+            "255U, 255U, 255U, 255U, 255U, 255U, 255U, 0U, 255U")
+            != std::string::npos,
+        "smaller source sprites are centered in the exported 5x5 render cell");
 
     bool rejectedWideSprite = false;
     std::string wideSpriteSource = minimalPrefix;
