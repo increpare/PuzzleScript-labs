@@ -73,6 +73,134 @@ def Game.layerOf (g : Game) (o : ObjectId) : Option LayerIdx :=
   else
     none
 
+/-- Rebuild per-layer object masks from `objectLayers` (skips ids with layer ≥ `layerCount`). -/
+def Game.buildLayerMasks (game : Game) : Array MaskWords :=
+  (List.range game.objectCount).foldl
+    (fun layers oid =>
+      let layer := (game.objectLayers.getD oid ⟨0⟩).val
+      if layer < game.layerCount then
+        layers.set! layer (maskSetBit (layers.getD layer #[]) oid true)
+      else
+        layers)
+    (Array.replicate game.layerCount #[])
+
+/--
+Invert `layer_masks` into per-object layers.
+Ids absent from every mask get sentinel layer `layerMasks.size` (not a collision layer).
+-/
+def objectLayersFromLayerMasks (layerMasks : Array MaskWords) (objectCount : Nat) : Array LayerIdx :=
+  Id.run do
+    let sentinel : LayerIdx := ⟨layerMasks.size⟩
+    let mut layers : Array LayerIdx := Array.replicate objectCount sentinel
+    for ℓ in [:layerMasks.size] do
+      let m := layerMasks.getD ℓ #[]
+      for oid in [:objectCount] do
+        if maskGetBit m oid then
+          layers := layers.set! oid ⟨ℓ⟩
+    pure layers
+
+/-- Bit-equality on object ids `[0, maxBit)`. -/
+def maskWordsBitEq (a b : MaskWords) (maxBit : Nat) : Bool :=
+  (List.range maxBit).all fun bit => maskGetBit a bit == maskGetBit b bit
+
+/-- Count objects in `set` on collision layer `layer`. -/
+def objectsSetCountOnLayer (game : Game) (set : MaskWords) (layer : Nat) : Nat :=
+  ((List.range game.objectCount).filter fun oid =>
+    maskGetBit set oid && ((game.objectLayers.getD oid ⟨0⟩).val == layer)).length
+
+/-- Random-entity choices never share a collision layer with a static `objectsSet` bit,
+and every random-entity object sits on a real collision layer. -/
+def CellPattern.randomEntityCompatible (game : Game) (p : CellPattern) : Bool :=
+  (List.range game.layerCount).all (fun ℓ =>
+    objectsSetCountOnLayer game p.objectsSet ℓ = 0
+      || objectsSetCountOnLayer game p.randomEntityMask ℓ = 0)
+    && (List.range game.objectCount).all fun oid =>
+      !maskGetBit p.randomEntityMask oid
+        || (game.objectLayers.getD oid ⟨0⟩).val < game.layerCount
+
+/--
+Replacement cannot introduce two same-layer objects: ≤1 set-bit per layer, and
+each set object's full layer mask is ⊆ `objectsClear`.
+Also: random-entity mask is layer-disjoint from static `objectsSet`.
+-/
+def CellPattern.layerRespecting (game : Game) (p : CellPattern) : Bool :=
+  if !p.hasReplacement then
+    true
+  else
+    ((List.range game.layerCount).all (fun ℓ => objectsSetCountOnLayer game p.objectsSet ℓ ≤ 1)
+      && (List.range game.objectCount).all fun oid =>
+        !maskGetBit p.objectsSet oid
+          || (let layer := (game.objectLayers.getD oid ⟨0⟩).val
+              layer < game.layerCount
+                && maskBitsSetIn (game.layerMasks.getD layer #[]) p.objectsClear))
+      && CellPattern.randomEntityCompatible game p
+
+def PatternCell.layerRespecting (game : Game) : PatternCell → Bool
+  | .ellipsis => true
+  | .cell p => CellPattern.layerRespecting game p
+
+def Rule.layerRespecting (game : Game) (r : Rule) : Bool :=
+  r.patternRows.all fun row => row.all (PatternCell.layerRespecting game)
+
+/-- Alias object ids refer to collision-layer objects (for inferred property writes). -/
+def PropertyAlias.ok (game : Game) (a : PropertyAlias) : Bool :=
+  game.validObject a.objectId
+    && game.validLayer a.layerIndex
+    && (game.objectLayers.getD a.objectId.val ⟨0⟩).val < game.layerCount
+
+def Rule.propertyAliasesOk (game : Game) (r : Rule) : Bool :=
+  r.propertyBindings.all fun bnd => bnd.aliases.all (PropertyAlias.ok game)
+
+def ruleGroupsPropertyAliasesOk (game : Game) (groups : Array (Array Rule)) : Bool :=
+  groups.all fun g => g.all (Rule.propertyAliasesOk game)
+
+def RuleCaptures.propertiesOk (game : Game) (c : RuleCaptures) : Bool :=
+  c.properties.toList.all fun (_, a) => PropertyAlias.ok game a
+
+def ruleGroupsLayerRespecting (game : Game) (groups : Array (Array Rule)) : Bool :=
+  groups.all fun g => g.all (Rule.layerRespecting game)
+
+/-- Per-object layer ↔ layerMasks coherence (List form for proofs). -/
+def Game.layerMasksCoherent (g : Game) : Bool :=
+  (List.range g.objectCount).all (fun oid =>
+    let ℓ := (g.objectLayers.getD oid ⟨0⟩).val
+    if ℓ < g.layerCount then
+      maskGetBit (g.layerMasks.getD ℓ #[]) oid
+    else
+      (List.range g.layerCount).all fun ℓ' => !maskGetBit (g.layerMasks.getD ℓ' #[]) oid)
+  && (List.range g.layerCount).all fun ℓ =>
+      maskWordsBitEq (g.layerMasks.getD ℓ #[]) (g.buildLayerMasks.getD ℓ #[]) g.objectCount
+
+/-- Game metadata coherent for board WF proofs (layers, masks, strides). -/
+def Game.wellFormed (g : Game) : Bool :=
+  g.objectLayers.size == g.objectCount
+    && g.layerMasks.size == g.layerCount
+    && (g.strideObj == 0 && g.objectCount == 0
+        || g.strideObj * 32 ≥ g.objectCount)
+    && Game.layerMasksCoherent g
+
+def Game.WellFormed (g : Game) : Prop :=
+  g.wellFormed = true
+
+def Game.rulesLayerRespecting (g : Game) : Bool :=
+  ruleGroupsLayerRespecting g g.rules && ruleGroupsLayerRespecting g g.lateRules
+    && ruleGroupsPropertyAliasesOk g g.rules && ruleGroupsPropertyAliasesOk g g.lateRules
+
+def Game.RulesLayerRespecting (g : Game) : Prop :=
+  g.rulesLayerRespecting = true
+
+/--
+Normalize layer metadata:
+- If IR `layer_masks` has length `layerCount`, treat it as authoritative and sync `objectLayers`
+  (ids absent from every mask get sentinel layer `layerCount`).
+- Otherwise rebuild `layer_masks` from `objectLayers` (objects-array parse).
+-/
+def Game.normalizeLayerMasks (g : Game) : Game :=
+  if g.layerMasks.size == g.layerCount then
+    { g with objectLayers := objectLayersFromLayerMasks g.layerMasks g.objectCount }
+  else
+    { g with layerMasks := g.buildLayerMasks }
+
 structure Session where
   board : Board
   winning : Bool
@@ -407,28 +535,29 @@ private def parseRestartBoard (j : Json) (game : Game) (ctx : String) : Except S
     throw s!"{ctx}.objects: length {objects.size}, expected {expectedObjLen}"
   pure (boardFromPlayable game width height game.layerCount objects)
 
+/-- Pure scan for the next playable level after a win (returns updated session). -/
+def sessionAfterWinAdvance.go (game : Game) (session : Session) (idx : Nat) : Session :=
+  if hlt : idx < game.levels.size then
+    match game.levels[idx]? with
+    | some (.playable w h lc objs) =>
+      let nb := boardFromPlayable game w h lc objs
+      { session with
+        board := nb
+        restartBoard := some nb
+        currentLevel := ⟨idx⟩
+        winning := false }
+    | some (.message _) =>
+      sessionAfterWinAdvance.go game session (idx + 1)
+    | none => session
+  else
+    session
+termination_by game.levels.size - idx
+
 def sessionAfterWinAdvance (game : Game) (session : Session) : Session :=
   if !session.winning then
     session
   else
-    Id.run do
-      let mut idx := session.currentLevel.val + 1
-      while idx < game.levels.size do
-        match game.levels[idx]? with
-        | some (.playable w h lc objs) =>
-          let nb := boardFromPlayable game w h lc objs
-          return {
-            session with
-            board := nb
-            restartBoard := some nb
-            currentLevel := ⟨idx⟩
-            winning := false
-          }
-        | some (.message _) =>
-          idx := idx + 1
-        | none =>
-          break
-      pure session
+    sessionAfterWinAdvance.go game session (session.currentLevel.val + 1)
 
 theorem sessionAfterWinAdvance_of_not_winning (game : Game) (session : Session)
     (h : session.winning = false) :
@@ -503,7 +632,7 @@ private def parseGame (j : Json) : Except String Game := do
     gameRigid, groupNumberToRigidGroupIndex, rigidGroupIndexToGroupIndex, layerMasks
     requirePlayerMovement, runRulesOnLevelStart
   }
-  -- Fail closed: property aliases must reference valid object/layer ids.
+  -- Fail closed: property aliases must reference valid collision-layer objects.
   let validateAliases (label : String) (groups : Array (Array Rule)) : Except String Unit := do
     for gi in [:groups.size] do
       match groups[gi]? with
@@ -521,12 +650,15 @@ private def parseGame (j : Json) : Except String Game := do
                   match bnd.aliases[ai]? with
                   | none => pure ()
                   | some alias =>
-                    unless g.validObject alias.objectId do
-                      throw s!"{label}[{gi}][{ri}].property_bindings: object id {alias.objectId.val} out of range"
-                    unless g.validLayer alias.layerIndex do
-                      throw s!"{label}[{gi}][{ri}].property_bindings: layer {alias.layerIndex.val} out of range"
+                    unless PropertyAlias.ok g alias do
+                      throw s!"{label}[{gi}][{ri}].property_bindings: alias object {alias.objectId.val} invalid for WF"
   validateAliases "game.rules" g.rules
   validateAliases "game.late_rules" g.lateRules
+  let g := Game.normalizeLayerMasks g
+  unless Game.wellFormed g do
+    throw "game: failed Game.wellFormed (objectLayers / layerMasks / strides)"
+  unless Game.rulesLayerRespecting g do
+    throw "game.rules/late_rules: CellPattern.layerRespecting failed (set without full layer clear, or >1 set per layer)"
   pure g
 
 private def parseSession (j : Json) (game : Game) : Except String Session := do

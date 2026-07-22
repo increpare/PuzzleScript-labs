@@ -10,6 +10,9 @@ import PuzzleScript.Rules
 import PuzzleScript.IR
 import PuzzleScript.Rng
 import PuzzleScript.Runtime
+import PuzzleScript.LineWalk
 import PuzzleScript.View
 import PuzzleScript.Abstract
 import PuzzleScript.Inert
+import PuzzleScript.WellFormed
+import PuzzleScript.WellFormedTurn

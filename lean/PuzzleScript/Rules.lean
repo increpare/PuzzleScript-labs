@@ -235,7 +235,7 @@ structure RuleCaptures where
 def RuleCaptures.empty : RuleCaptures := { properties := #[], aggregates := #[] }
 
 def RuleCaptures.getProperty (c : RuleCaptures) (name : String) : Option PropertyAlias :=
-  c.properties.find? (·.1 == name) |>.map (·.2)
+  c.properties.toList.find? (·.1 == name) |>.map (·.2)
 
 def RuleCaptures.setProperty (c : RuleCaptures) (name : String) (alias : PropertyAlias) : RuleCaptures :=
   let props := c.properties.filter (·.1 != name) |>.push (name, alias)
