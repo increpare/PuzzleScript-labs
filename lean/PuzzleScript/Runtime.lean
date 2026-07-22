@@ -865,6 +865,47 @@ def applyMatchedTuples (game : Game) (b : Board) (rule : Rule)
       (any || c, b', rng'))
     (false, b, rng)
 
+/-- Under `skipCellWrites`, fixed-row apply never changes the board / RNG / changed flag. -/
+theorem applyRowAtFixed_skipCellWrites
+    (game : Game) (rule : Rule) (b : Board) (delta : Int)
+    (row : Array PatternCell) (start : Nat) (caps : RuleCaptures) (rng : RngState)
+    (h : rule.skipCellWrites = true) :
+    applyRowAtFixed game rule b delta row start caps rng = (false, b, rng) := by
+  dsimp only [applyRowAtFixed]
+  have hfold :
+      ∀ (ks : List Nat) (changed : Bool) (board : Board) (rng : RngState),
+        ks.foldl
+          (fun (changed, board, rng') k =>
+            match row[k]?.getD (.ellipsis) with
+            | .ellipsis => (changed, board, rng')
+            | .cell pat =>
+              match fixedWalkTile? start delta k with
+              | none => (changed, board, rng')
+              | some t =>
+                if t ≥ board.nTiles then (changed, board, rng')
+                else
+                  let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
+                  (changed || c, b', r))
+          (changed, board, rng) =
+        (changed, board, rng) := by
+    intro ks changed board rng
+    induction ks generalizing changed board rng with
+    | nil => rfl
+    | cons k rest ih =>
+      simp only [List.foldl_cons]
+      cases hcell : row[k]?.getD (.ellipsis) with
+      | ellipsis => exact ih _ _ _
+      | cell pat =>
+        cases hwalk : fixedWalkTile? start delta k with
+        | none => exact ih _ _ _
+        | some t =>
+          by_cases ht : t ≥ board.nTiles
+          · simp [hcell, hwalk, ht]; exact ih _ _ _
+          · simp [hcell, hwalk, ht,
+              applyCellReplacement_skipCellWrites game rule board t pat caps rng h]
+            exact ih _ _ _
+  simpa using hfold (List.range row.size) false b rng
+
 /--
 Full apply path: always match + `applyMatchedTuples` + queue commands.
 No inert early-out (see `tryApplyRule` for the optimization).
