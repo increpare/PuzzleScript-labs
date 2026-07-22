@@ -116,6 +116,17 @@ logic, initial-render, and incremental-render timings are exactly unchanged,
 and fixed ROM and RAM do not move. This creates bank headroom for packed
 patterns without adding a hot-loop indirection.
 
+Width-specialized packed patterns are retained next. The generated ABI uses
+the game's one-, two-, or four-byte object/movement mask widths instead of nine
+unconditional 32-bit fields, producing 10-, 22-, and 27-byte records instead
+of 37-byte records. The matcher and replacement locals use the same proved
+widths. Incremental complete-turn time falls 2.17%, 4.78%, 12.07%, 3.58%, and
+0.04%; fixed ROM falls 404, 402, 485, 304, and 246 bytes, and linked generated
+bank ROM falls 216, 648, 1,674, 930, and 370 bytes. Session RAM is unchanged.
+The generated SM83 stack frames shrink from 16 to 7 bytes for pattern matching
+and from 32 to 14 bytes for replacement. The generic portable ABI remains the
+fallback for non-generated consumers.
+
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
 62 bytes larger for the rule-heavy case, and applying the flag to the whole ROM
@@ -411,6 +422,7 @@ earn their cost.
 | Skip rendering when the final dirty bitset is empty | **Keep** | dirty control +0.99% | clean frame -93.33% | dirty control +1.60% | dirty control +0.24% | dirty control +0.63% | cold render and logic unchanged; +58 B fixed ROM; game bank/RAM unchanged |
 | Precompose frequent level-mask tile quartets | **Keep** | initial -71.35% | initial -60.11% | initial -67.38% | initial -32.89% | initial -47.91% | 6/5/5/5/2 entries; +328 to +604 B linked bank; fixed ROM/RAM unchanged; exact logic and pixel parity |
 | Share identical complete pattern sequences | **Keep** | exact control | exact control | timing 0.00%; -2,368 B bank | exact control | timing 0.00%; -888 B bank | fixed ROM/RAM unchanged; no runtime indirection |
+| Pack generated pattern masks and matcher locals to game widths | **Keep** | -2.17% | -4.78% | -12.07% | -3.58% | -0.04% | 37 B -> 10/22/27 B records; -246 to -485 B fixed ROM; -216 to -1,674 B linked bank; RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -430,10 +442,17 @@ measurements are
 `.codex_tmp/benchmarks/p2-batched-map-quartet.json`, and
 `.codex_tmp/benchmarks/p2-skip-clean-render-final.json`, and
 `.codex_tmp/benchmarks/p2-precomposed-level-masks.json`, and
-`.codex_tmp/benchmarks/p2-shared-pattern-sequences.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-shared-pattern-sequences.json`, and
+`.codex_tmp/benchmarks/p2-packed-pattern-width-locals.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
-the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
-respectively.
+the original baseline are now 71.40%, 82.83%, 75.34%, 80.93%, and 93.26%
+respectively. The packed-pattern cold-render controls are exact except for
+Sokoban's steady frame (+1 tick), rule-heavy (-0.5 tick), object-heavy's first
+transfer (1959 -> 2026 ticks) and steady frame (+0.25 tick), and the two-lane
+composition probe (+0.25 tick). Isolated composition is exact in the
+object-heavy case and its walk/push renders improve by 2/1 ticks, so the stable
+67-tick first-transfer difference is attributed to changed binary/PPU phase,
+not added drawing work; the production pixel/hardware smoke remains exact.
 
 The scheduling decision uses the counter-only diagnostic
 `.codex_tmp/benchmarks/post-singleton-schedule-counts.json`. Per turn it
@@ -759,16 +778,30 @@ Voitex; the other three cartridges are byte/timing controls. Runtime timings
 are exactly unchanged because the rule's existing first-pattern byte offset
 points directly at the shared sequence.
 
-The runtime specializes live board/movement widths, but `ps_gbc_pattern` still
-contains nine 32-bit masks plus flags. Generate mask fields at the selected
-object and movement widths. Approximate packed records are 10 bytes for a
-one-byte/one-byte game, 22 bytes for a four-byte/one-byte game, and 27 bytes for
-a four-byte/two-byte game, versus 37 bytes in the GBDK layout now.
+**Width-specialized packed records and locals are retained.** Generated games
+now define an ABI-18 pattern type whose object and movement fields use the same
+widths already selected for the live board. The measured GBDK records are 10
+bytes for one-byte/one-byte games, 22 bytes for a four-byte/one-byte game, and
+27 bytes for a four-byte/two-byte game, versus the former 37 bytes. Exact
+incremental timings are 191.055 -> 186.906, 311.430 -> 296.539, 2101.523 ->
+1847.828, 2891.055 -> 2787.625, and 712.984 -> 712.695 ticks. Linked generated
+bank savings are 216, 648, 1,674, 930, and 370 bytes; fixed-ROM savings are
+404, 402, 485, 304, and 246 bytes. Conservative estimated game-bank savings
+are 240, 720, 1,860, 1,116, and 481 bytes, and RAM is unchanged.
 
-This reduces ROM reads as well as space. Consider splitting match predicates
-from replacement data so failed candidates do not touch RHS-only fields. Share
-identical complete pattern sequences first because it has no hot-loop
-indirection; only then evaluate individual-pattern interning.
+The generated core consumes the packed type directly, while the generic
+37-byte `ps_gbc_pattern` path remains available as a portable fallback. Using
+the generated widths for matcher/replacement temporaries is important: in the
+one-byte build it reduces the generated SM83 stack frames from 16 to 7 bytes
+and 32 to 14 bytes. The width-specific C therefore earns both the ROM-read
+saving and substantially less stack byte shuffling without handwritten
+assembly.
+
+Splitting match predicates from replacement data remains untested: failed
+candidates should not need to fetch RHS-only fields, but an extra reference or
+parallel cursor may cost more than those saved reads. Individual-pattern
+interning likewise remains behind exact complete-sequence sharing because it
+would add a hot-loop indirection.
 
 Apply the same hot/cold split to rules: keep the pattern pointer/offset, count,
 and direction in the scanned record, and move commands, sounds, and messages to
@@ -858,7 +891,8 @@ Keep these gates for every retained optimization:
    wake masks, and certified single-pass groups one experiment at a time.
 4. Extend the retained matched-start array and compact player posting list only
    where broader anchor indexes beat their fixed-ROM and RAM costs.
-5. Introduce width-specialized packed patterns and exact sequence sharing.
+5. Retain the now-gated exact sequence sharing and width-specialized packed
+   patterns.
 6. Re-profile. Only then test GBC-only static scratch and a fused, one-byte
    object-only SM83 match/scan kernel with the C path retained as an oracle and
    fallback.

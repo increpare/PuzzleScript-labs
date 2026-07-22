@@ -310,6 +310,9 @@ def main() -> int:
                 "max_level_cells": int(manifest["max_level_cells"]),
                 "rules": int(manifest["rule_count"]),
                 "patterns": int(manifest["pattern_count"]),
+                "pattern_record_bytes": int(
+                    manifest.get("pattern_record_bytes", 0)
+                ),
                 "source_patterns": int(
                     manifest.get("source_pattern_count", manifest["pattern_count"])
                 ),

@@ -115,6 +115,13 @@ int main() {
             != std::string::npos,
         "generated header compiles out unprofitable Sokoban presence checks");
     require(
+        header.find("PS_GBC_GENERATED_PACKED_PATTERNS 1") != std::string::npos
+            && header.find("PS_GBC_GENERATED_PATTERN_BYTES 10U")
+                != std::string::npos
+            && manifest.find("\"pattern_record_bytes\": 10")
+                != std::string::npos,
+        "generated Sokoban patterns use byte-wide object and movement masks");
+    require(
         header.find("PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 2U")
             != std::string::npos,
         "generated header records first-pattern player anchors");
@@ -129,7 +136,8 @@ int main() {
         "generated header preserves the native PuzzleScript cell dimensions");
     require(source.find("#pragma bank 1") != std::string::npos,
         "generated data is linked outside fixed ROM bank zero");
-    require(source.find("static const ps_gbc_pattern kPatterns[]") != std::string::npos,
+    require(source.find("static const ps_gbc_generated_pattern kPatterns[]")
+            != std::string::npos,
         "lowered fixed patterns are emitted as C data");
     require(source.find("PS_GBC_RULE_GROUP_SINGLE_PASS") != std::string::npos,
         "certified groups skip their redundant confirmation pass");
@@ -236,6 +244,8 @@ int main() {
                 != std::string::npos
             && wideObjectHeader.find(
                 "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 0U")
+                != std::string::npos
+            && wideObjectHeader.find("PS_GBC_GENERATED_PATTERN_BYTES 22U")
                 != std::string::npos,
         "wide-object games compile out the player index and certify singleton groups");
 
@@ -519,11 +529,11 @@ int main() {
     require(staticSource.find("kMovementCollisionLayers[] = {6U}") != std::string::npos,
         "the high source collision layer remaps to compact movement lane zero");
     require(staticSource.find(
-            "0x2U, 0x0U, 0x0U, 0x0U, 0x2U, 0x0U, 0x0U, 0x0U, 0x0U, 117U")
+            "0x2U, 0x0U, 0x2U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 117U")
             != std::string::npos,
         "an impossible movement-present predicate is retained as never-matching");
     require(staticSource.find(
-            "0x4U, 0x0U, 0x0U, 0x0U, 0xcU, 0xcU, 0x0U, 0x0U, 0x0U, 57U")
+            "0x4U, 0x0U, 0xcU, 0xcU, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 57U")
             != std::string::npos,
         "a dormant stationary predicate is folded to an always-true movement mask");
 
@@ -576,6 +586,8 @@ int main() {
         "three originating layers are discovered by shared static analysis");
     require(threeManifest.find("\"movement_bytes_per_cell\": 2") != std::string::npos,
         "three live lanes select two-byte movement cells");
+    require(threeManifest.find("\"pattern_record_bytes\": 15") != std::string::npos,
+        "byte-wide objects and two-byte movements produce 15-byte patterns");
 
     puzzlescript::gbc::ExportOptions sixMovers;
     sixMovers.sourcePath =
@@ -587,6 +599,8 @@ int main() {
         "all six lanes available in a 32-bit movement word are usable");
     require(sixManifest.find("\"movement_bytes_per_cell\": 4") != std::string::npos,
         "six live lanes select four-byte movement cells");
+    require(sixManifest.find("\"pattern_record_bytes\": 25") != std::string::npos,
+        "byte-wide objects and four-byte movements produce 25-byte patterns");
 
     puzzlescript::gbc::ExportOptions actionMovement;
     actionMovement.sourcePath =

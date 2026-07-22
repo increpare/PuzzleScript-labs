@@ -39,6 +39,15 @@ uint8_t objectBytesPerCell(int32_t objectCount) {
     return objectCount <= 8 ? 1U : objectCount <= 16 ? 2U : 4U;
 }
 
+const char* unsignedTypeForBytes(uint8_t bytes) {
+    return bytes == 1U ? "uint8_t" : bytes == 2U ? "uint16_t" : "uint32_t";
+}
+
+size_t generatedPatternBytes(uint8_t objectBytes, uint8_t movementBytes) {
+    return static_cast<size_t>(objectBytes) * 4U
+        + static_cast<size_t>(movementBytes) * 5U + 1U;
+}
+
 struct Rgb {
     uint8_t r = 0;
     uint8_t g = 0;
@@ -1295,6 +1304,27 @@ std::string emitHeader(
         << "#define PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT "
         << playerAnchorCount << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
+        << "#define PS_GBC_GENERATED_PACKED_PATTERNS 1\n\n"
+        << "#define PS_GBC_GENERATED_PATTERN_BYTES "
+        << generatedPatternBytes(objectBytesPerCellValue, movementBytesPerCell)
+        << "U\n\n"
+        << "typedef " << unsignedTypeForBytes(objectBytesPerCellValue)
+        << " ps_gbc_generated_object_mask;\n"
+        << "typedef " << unsignedTypeForBytes(movementBytesPerCell)
+        << " ps_gbc_generated_movement_mask;\n\n"
+        << "typedef struct ps_gbc_generated_pattern {\n"
+        << "    ps_gbc_generated_object_mask objects_present;\n"
+        << "    ps_gbc_generated_object_mask objects_missing;\n"
+        << "    ps_gbc_generated_object_mask objects_clear;\n"
+        << "    ps_gbc_generated_object_mask objects_set;\n"
+        << "    ps_gbc_generated_movement_mask movements_present;\n"
+        << "    ps_gbc_generated_movement_mask movements_missing;\n"
+        << "    ps_gbc_generated_movement_mask movements_clear;\n"
+        << "    ps_gbc_generated_movement_mask movements_set;\n"
+        << "    ps_gbc_generated_movement_mask movement_layer_mask;\n"
+        << "    uint8_t flags;\n"
+        << "} ps_gbc_generated_pattern;\n\n"
+        << "#define PS_GBC_GENERATED_PATTERN_REFERENCE(index) \\\n    {(uint16_t)((uint16_t)(index) \\\n        * (uint16_t)sizeof(ps_gbc_generated_pattern))}\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
         << "extern const ps_gbc_game_view ps_gbc_generated_game;\n"
         << "extern const ps_gbc_render_object ps_gbc_generated_render_objects[];\n"
@@ -1458,13 +1488,13 @@ std::string emitSource(
             << (level.message ? "NULL" : "kLevel" + std::to_string(index) + "Cells")
             << ", " << (level.message ? escapedString(level.messageText) : "NULL") << "},\n";
     }
-    out << "};\n\nstatic const ps_gbc_pattern kPatterns[] = {\n";
+    out << "};\n\nstatic const ps_gbc_generated_pattern kPatterns[] = {\n";
     if (patterns.empty()) out << "    {0},\n";
     for (const PackedPattern& pattern : patterns) {
         out << "    {0x" << std::hex << pattern.objectsPresent << "U, 0x"
-            << pattern.objectsMissing << "U, 0x" << pattern.movementsPresent
-            << "U, 0x" << pattern.movementsMissing << "U, 0x"
-            << pattern.objectsClear << "U, 0x" << pattern.objectsSet
+            << pattern.objectsMissing << "U, 0x" << pattern.objectsClear
+            << "U, 0x" << pattern.objectsSet << "U, 0x"
+            << pattern.movementsPresent << "U, 0x" << pattern.movementsMissing
             << "U, 0x" << pattern.movementsClear << "U, 0x"
             << pattern.movementsSet << "U, 0x" << pattern.movementLayerMask
             << "U, " << std::dec << static_cast<unsigned int>(pattern.flags) << "U},\n";
@@ -1472,7 +1502,7 @@ std::string emitSource(
     out << "};\n\nstatic const ps_gbc_rule kRules[] = {\n";
     if (rules.empty()) out << "    {0},\n";
     for (const PackedRule& rule : rules) {
-        out << "    {PS_GBC_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
+        out << "    {PS_GBC_GENERATED_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
             << static_cast<unsigned int>(rule.direction) << "U, ";
         const uint8_t ruleMetadata = static_cast<uint8_t>(
@@ -1561,7 +1591,7 @@ std::string emitSource(
         << audio.movementFailureSounds.size() << "U,\n"
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
-           "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
+           "(const ps_gbc_pattern*)kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
         << "    kWinConditions, kSoundSeeds, kNamedSoundIds, kRuleSoundIds,\n"
         << "    kCreationSounds, kDestructionSounds, kMovementSounds, "
            "kMovementFailureSounds,\n"
@@ -1916,6 +1946,8 @@ ExportResult exportGame(const ExportOptions& options) {
     if (sessionBytes > kSessionLimit) {
         throw std::runtime_error("GBC hot session cannot fit in the 4 KiB WRAM budget");
     }
+    const size_t patternRecordBytes =
+        generatedPatternBytes(objectCellBytes, movementLayout.bytesPerCell);
     size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U
         + game.layerMaskOffsets.size() * sizeof(uint32_t)
         + movementLayout.movementToCollision.size();
@@ -1929,7 +1961,7 @@ ExportResult exportGame(const ExportOptions& options) {
         estimatedGameBankBytes += level.cells.size() * objectCellBytes
             + level.messageText.size() + 1U;
     }
-    estimatedGameBankBytes += patterns.size() * sizeof(ps_gbc_pattern);
+    estimatedGameBankBytes += patterns.size() * patternRecordBytes;
     estimatedGameBankBytes += rules.size() * sizeof(ps_gbc_rule);
     for (const PackedRule& rule : rules) estimatedGameBankBytes += rule.message.size() + 1U;
     estimatedGameBankBytes += (earlyGroups.size() + lateGroups.size())
@@ -2045,6 +2077,7 @@ ExportResult exportGame(const ExportOptions& options) {
         << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
+        << "  \"pattern_record_bytes\": " << patternRecordBytes << ",\n"
         << "  \"source_pattern_count\": " << sourcePatternCount << ",\n"
         << "  \"shared_pattern_record_count\": "
         << (sourcePatternCount - patterns.size()) << ",\n"

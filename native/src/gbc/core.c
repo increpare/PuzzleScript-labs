@@ -6,6 +6,16 @@
 
 #include <string.h>
 
+#if defined(PS_GBC_GENERATED_PACKED_PATTERNS)
+typedef ps_gbc_generated_pattern ps_gbc_runtime_pattern;
+typedef ps_gbc_generated_object_mask ps_gbc_runtime_object_mask;
+typedef ps_gbc_generated_movement_mask ps_gbc_runtime_movement_mask;
+#else
+typedef ps_gbc_pattern ps_gbc_runtime_pattern;
+typedef uint32_t ps_gbc_runtime_object_mask;
+typedef uint32_t ps_gbc_runtime_movement_mask;
+#endif
+
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
@@ -599,11 +609,11 @@ static int8_t ps_gbc_delta(const ps_gbc_session* session, uint8_t direction) {
 
 static bool ps_gbc_pattern_matches(
     const ps_gbc_session* session,
-    const ps_gbc_pattern* pattern,
+    const ps_gbc_runtime_pattern* pattern,
     uint8_t cell
 ) {
-    uint32_t objects;
-    uint32_t movements;
+    ps_gbc_runtime_object_mask objects;
+    ps_gbc_runtime_movement_mask movements;
     const uint8_t flags = pattern->flags;
     if ((flags & PS_GBC_PATTERN_NEVER_MATCH) != 0U) return false;
     objects = ps_gbc_board_get(session, cell);
@@ -627,7 +637,7 @@ static bool ps_gbc_rule_matches_at(
     uint8_t start,
     int8_t delta
 ) {
-    const ps_gbc_pattern* pattern = (const ps_gbc_pattern*)(
+    const ps_gbc_runtime_pattern* pattern = (const ps_gbc_runtime_pattern*)(
         (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
     uint8_t cell = start;
     uint8_t index;
@@ -697,14 +707,14 @@ static uint8_t ps_gbc_collect_matches(
 
 static bool ps_gbc_apply_replacement(
     ps_gbc_session* session,
-    const ps_gbc_pattern* pattern,
+    const ps_gbc_runtime_pattern* pattern,
     uint8_t cell
 ) {
-    uint32_t objects;
-    uint32_t movements;
-    uint32_t original_movements;
-    uint32_t next_objects;
-    uint32_t next_movements;
+    ps_gbc_runtime_object_mask objects;
+    ps_gbc_runtime_movement_mask movements;
+    ps_gbc_runtime_movement_mask original_movements;
+    ps_gbc_runtime_object_mask next_objects;
+    ps_gbc_runtime_movement_mask next_movements;
     if ((pattern->flags & PS_GBC_PATTERN_HAS_REPLACEMENT) == 0U) return false;
     objects = ps_gbc_board_get(session, cell);
     movements = ps_gbc_movement_get(session, cell);
@@ -743,7 +753,7 @@ static bool ps_gbc_apply_rule(
 ) {
 #if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
     if ((rule->commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
-        const ps_gbc_pattern* first_pattern = (const ps_gbc_pattern*)(
+        const ps_gbc_runtime_pattern* first_pattern = (const ps_gbc_runtime_pattern*)(
             (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
         const ps_gbc_presence_mask required_objects =
             (ps_gbc_presence_mask)first_pattern->objects_present;
@@ -775,12 +785,12 @@ static bool ps_gbc_apply_rule(
     }
 #endif
     for (match_index = 0U; match_index < match_count; ++match_index) {
-        const ps_gbc_pattern* pattern;
+        const ps_gbc_runtime_pattern* pattern;
         const uint8_t start = match_cells[match_index];
         uint8_t cell;
         uint8_t pattern_index;
         if (!ps_gbc_rule_matches_at(session, rule, start, delta)) continue;
-        pattern = (const ps_gbc_pattern*)(
+        pattern = (const ps_gbc_runtime_pattern*)(
             (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
         cell = start;
         for (pattern_index = 0U;
