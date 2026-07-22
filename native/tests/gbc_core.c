@@ -439,6 +439,25 @@ int main(void) {
         cell_dirty(session, 0U) && cell_dirty(session, 1U)
             && cell_dirty(session, 2U) && cell_dirty(session, 3U),
         "undo did not mark the board dirty");
+    failed |= require_true(
+        ps_gbc_load_level(session, 0U),
+        "could not reset before deferred-win coverage");
+    ps_gbc_defer_wins(session, true);
+    result = ps_gbc_step(session, PS_INPUT_RIGHT);
+    ps_gbc_status_get(session, &status);
+    failed |= require_true(
+        result.changed && result.won && !result.transitioned
+            && !status.completed && status.current_level == 0U
+            && (ps_gbc_cell_objects(session, 2, 0) & 8U) != 0U,
+        "deferred win did not retain the solved board");
+    failed |= require_true(
+        !ps_gbc_advance_level(session),
+        "advancing a deferred final win unexpectedly found another level");
+    ps_gbc_status_get(session, &status);
+    failed |= require_true(
+        status.completed,
+        "advancing a deferred final win did not complete the game");
+    ps_gbc_defer_wins(session, false);
     two_byte_arena = malloc(two_byte_bytes);
     four_byte_arena = malloc(four_byte_bytes);
     failed |= require_true(two_byte_arena != NULL && four_byte_arena != NULL,

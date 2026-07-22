@@ -406,17 +406,22 @@ def main() -> int:
         frame_mismatches = frame_border_mismatches(title_tile_map)
         masthead = glyph_tiles("PUZZLESCRIPT")
         prompt = glyph_tiles("PRESS A")
+        new_game = glyph_tiles("NEW GAME")
+        selected_continue = glyph_tiles("[CONTINUE]")
         if (
             frame_mismatches != 0
             or any(title_attributes)
             or title_tile_map[3 * 20 + 4 : 3 * 20 + 16] != masthead
-            or title_tile_map[15 * 20 + 6 : 15 * 20 + 13] != prompt
+            or title_tile_map[13 * 20 + 6 : 13 * 20 + 14] != new_game
+            or title_tile_map[15 * 20 + 5 : 15 * 20 + 15]
+                != selected_continue
         ):
             raise SystemExit(
                 "title layout differs: "
                 f"frame={frame_mismatches} attributes={sum(bool(value) for value in title_attributes)} "
                 f"masthead={title_tile_map[3 * 20 + 4 : 3 * 20 + 16] == masthead} "
-                f"prompt={title_tile_map[15 * 20 + 6 : 15 * 20 + 13] == prompt}"
+                f"new_game={title_tile_map[13 * 20 + 6 : 13 * 20 + 14] == new_game} "
+                f"continue={title_tile_map[15 * 20 + 5 : 15 * 20 + 15] == selected_continue}"
             )
         if args.title_frame_out is not None:
             save_frame_image(title_frame, args.title_frame_out, args.frame_scale)

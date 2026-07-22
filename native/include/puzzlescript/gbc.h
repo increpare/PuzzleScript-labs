@@ -298,6 +298,8 @@ ps_gbc_session* ps_gbc_session_init(
 );
 bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index);
 ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input);
+void ps_gbc_defer_wins(ps_gbc_session* session, bool defer);
+bool ps_gbc_advance_level(ps_gbc_session* session);
 bool ps_gbc_undo(ps_gbc_session* session);
 bool ps_gbc_restart(ps_gbc_session* session);
 void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status);

@@ -338,7 +338,7 @@ void runAutotest(void) BANKED {
         }
     }
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
-    showText(ps_gbc_generated_game.title, true);
+    showTitleMenu(true, true);
     DISPLAY_OFF;
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));
     title_tile_nonzero =

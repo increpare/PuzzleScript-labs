@@ -519,6 +519,18 @@ add_executable(puzzlescript_gbc_core_tests
 target_link_libraries(puzzlescript_gbc_core_tests PRIVATE puzzlescript_gbc_core)
 add_test(NAME puzzlescript_gbc_core_tests COMMAND puzzlescript_gbc_core_tests)
 
+add_executable(puzzlescript_gbc_frontend_flow_tests
+  tests/gbc_frontend_flow.c
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/gbc/source/frontend_flow.c
+)
+target_include_directories(puzzlescript_gbc_frontend_flow_tests PRIVATE
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/gbc/source
+)
+add_test(
+  NAME puzzlescript_gbc_frontend_flow_tests
+  COMMAND puzzlescript_gbc_frontend_flow_tests
+)
+
 add_executable(puzzlescript_gba_exporter_tests
   tests/gba_exporter.cpp
 )

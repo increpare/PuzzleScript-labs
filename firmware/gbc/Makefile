@@ -42,6 +42,7 @@ PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,
 AUTOTEST_OBJECTS := $(if $(filter 1 yes true on,$(AUTOTEST)),$(BUILD)/autotest.o,)
 OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
+	$(BUILD)/frontend_flow.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
 
 .PHONY: all export clean check-size
@@ -65,6 +66,9 @@ $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/audio.o: source/audio.c source/audio.h $(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/frontend_flow.o: source/frontend_flow.c source/frontend_flow.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(GENERATED)/generated_game.h | $(BUILD)

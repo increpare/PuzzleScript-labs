@@ -174,3 +174,46 @@ void showText(const char* message, bool title) BANKED {
     gVramState = VRAM_STATE_TEXT;
     DISPLAY_ON;
 }
+
+void showTitleMenu(bool has_continue, bool continue_selected) BANKED {
+    uint8_t row = 5U;
+    const char* cursor = ps_gbc_generated_game.title;
+    gRenderedLevel = NO_RENDERED_LEVEL;
+    displayOffForFullRewrite();
+    if (gVramState != VRAM_STATE_TEXT) {
+        set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
+        loadFont();
+    }
+    memset(gTileMap, 0, SCREEN_TILES);
+    memset(gAttributes, 0, SCREEN_TILES);
+    drawTextFrame();
+    (void)drawWrappedLine("PUZZLESCRIPT", 3U);
+    while (*cursor != '\0' && row < 9U) {
+        cursor = drawWrappedLine(cursor, row++);
+    }
+    cursor = ps_gbc_generated_game.author;
+    if (*cursor != '\0') {
+        (void)drawWrappedLine("BY", 10U);
+        row = 11U;
+        while (*cursor != '\0' && row < 13U) {
+            cursor = drawWrappedLine(cursor, row++);
+        }
+    }
+    if (has_continue) {
+        (void)drawWrappedLine(
+            continue_selected ? "NEW GAME" : "[NEW GAME]",
+            13U);
+        (void)drawWrappedLine(
+            continue_selected ? "[CONTINUE]" : "CONTINUE",
+            15U);
+    } else {
+        (void)drawWrappedLine("PRESS A", 15U);
+    }
+    VBK_REG = VBK_BANK_0;
+    set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
+    VBK_REG = VBK_BANK_1;
+    set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
+    VBK_REG = VBK_BANK_0;
+    gVramState = VRAM_STATE_TEXT;
+    DISPLAY_ON;
+}

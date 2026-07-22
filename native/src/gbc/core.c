@@ -157,6 +157,7 @@ struct ps_gbc_session {
     bool checkpoint_valid;
     bool pending_again;
     bool completed;
+    bool defer_win;
     bool suppress_audio;
     uint8_t audio_count;
     uint8_t ui_audio_count;
@@ -1197,6 +1198,11 @@ static bool ps_gbc_advance(ps_gbc_session* session) {
     return ps_gbc_load_level(session, (uint16_t)(session->current_level + 1U));
 }
 
+bool ps_gbc_advance_level(ps_gbc_session* session) {
+    if (session == NULL || session->completed) return false;
+    return ps_gbc_advance(session);
+}
+
 static bool ps_gbc_apply_turn_phases(
     ps_gbc_session* session,
     uint8_t direction,
@@ -1321,7 +1327,9 @@ static void ps_gbc_finish_turn(
         && ((commands->flags & PS_GBC_COMMAND_WIN) != 0U
             || ps_gbc_won(session))) {
         result->won = true;
-        result->transitioned = ps_gbc_advance(session);
+        if (!session->defer_win) {
+            result->transitioned = ps_gbc_advance(session);
+        }
     } else if ((commands->flags & PS_GBC_COMMAND_MESSAGE) == 0U
         && (commands->flags & PS_GBC_COMMAND_AGAIN) != 0U
         && changed) {
@@ -1379,6 +1387,10 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     ps_gbc_finish_turn(
         session, &commands, changed, board_bytes, false, &result);
     return result;
+}
+
+void ps_gbc_defer_wins(ps_gbc_session* session, bool defer) {
+    if (session != NULL) session->defer_win = defer;
 }
 
 static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
