@@ -148,10 +148,46 @@ def CellPattern.hasInferredMutators (p : CellPattern) : Bool :=
     || !p.inferredPropertySources.isEmpty
     || !p.inferredAggregateBindings.isEmpty
 
+/--
+Object half of an unchanged RHS. Compiled IR emits either equal clear/set (solo
+collision layer) or clear = full layer mask with set = matched present objects
+(shared layer: Player|Goal cleared, Player restored).
+-/
+def CellPattern.objectReplacementIsIdentity (p : CellPattern) : Bool :=
+  p.objectsPresent == p.objectsSet
+    && (p.objectsClear == p.objectsSet
+      || (maskAnyBits p.objectsSet && maskBitsSetIn p.objectsSet p.objectsClear))
+
+/--
+Movement half of an unchanged RHS. Includes `[ right Alpha ] -> [ right Alpha ]`,
+where IR clears the layer movement mask then restores the matched direction.
+-/
+def CellPattern.movementReplacementIsIdentity (p : CellPattern) : Bool :=
+  p.movementsPresent == p.movementsSet
+    && (
+      (!maskAnyBits p.movementsClear && !maskAnyBits p.movementsSet
+        && !maskAnyBits p.movementsLayerMask)
+      || (maskAnyBits p.movementsSet
+        && maskBitsSetIn p.movementsSet (maskOr p.movementsClear p.movementsLayerMask))
+    )
+
+/--
+JS `tags.command_only` treats unchanged RHS as non-mutating
+(`[Player] -> [Player] sfx0`, `[ right Alpha ] -> [ right Alpha ] sfx0`).
+-/
+def CellPattern.replacementIsIdentity (p : CellPattern) : Bool :=
+  p.objectReplacementIsIdentity
+    && p.movementReplacementIsIdentity
+    && !maskAnyBits p.randomEntityMask
+    && !maskAnyBits p.randomDirMask
+    && p.layerCoupledMovementReplacements.isEmpty
+    && !p.hasInferredMutators
+
 def PatternCell.mutatesBoard : PatternCell → Bool
   | .ellipsis => false
   | .cell p =>
       p.hasReplacement
+        && !p.replacementIsIdentity
         && (p.effect.mutatesBoard || p.hasInferredMutators)
 
 /-- No cell in the rule writes objects/movements (compiled IR). -/

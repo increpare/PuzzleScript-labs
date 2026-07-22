@@ -9,3 +9,8 @@ name = "PuzzleScript"
 name = "parity_smoke"
 root = "ParitySmoke"
 supportInterpreter = true
+
+[[lean_exe]]
+name = "inert_static_smoke"
+root = "InertStaticSmoke"
+supportInterpreter = true

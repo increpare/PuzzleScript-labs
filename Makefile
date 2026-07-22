@@ -573,6 +573,7 @@ help:
 	@echo "  make ctest                         Run fast C++ smoke/unit tests"
 	@echo "  make js_parity_tests               Run 64- and 32-bit C++ against the original JS corpus"
 	@echo "  make lean_parity_smoke             Run Lean IR parity smoke (whitelist vs js-parity-data)"
+	@echo "  make lean_inert_static_smoke       Scan static suite for Lean-supported tags; run Lean smoke"
 	@echo "  make lean_clean_sim_candidates     Regenerate lean/parity_clean_candidates.txt (no warn/err)"
 	@echo "  make rule_plan_parity_tests        Compare JS/native game.rule_plan_v1 for simulation games"
 	@echo "  make simulation_tests              Run JS sim tests, then mirrored C++ sim parity"
@@ -2051,6 +2052,21 @@ lean_parity_smoke: js-parity-data
 	python3 scripts/run_lean_parity_smoke.py \
 		--fixtures "$(CURDIR)/$(JS_PARITY_DATA_DIR)" \
 		--whitelist "$(CURDIR)/lean/parity_whitelist.txt"
+
+# Scan static_analysis_testdata + canonicalizer_testdata; keep fixtures with Lean-supported
+# tags (inert_command_only today); export IR + manifest under BUILD_DIR.
+LEAN_INERT_STATIC_IR_DIR ?= $(BUILD_DIR)/lean-inert-static
+
+.PHONY: lean_inert_static_ir lean_inert_static_smoke
+lean_inert_static_ir:
+	$(NODE) scripts/lean_inert_static_prepare.js --out-dir "$(LEAN_INERT_STATIC_IR_DIR)"
+
+lean_inert_static_smoke: lean_inert_static_ir
+	@command -v lake >/dev/null 2>&1 || { \
+	  echo "lean_inert_static_smoke: 'lake' not found. Install elan (https://github.com/leanprover/elan) and retry."; \
+	  exit 1; \
+	}
+	cd lean && lake build inert_static_smoke && lake exe inert_static_smoke --fixtures "$(CURDIR)/$(LEAN_INERT_STATIC_IR_DIR)"
 
 simulation_tests_cpp: build
 	$(PUZZLESCRIPT_CPP) test simulation-corpus src/tests/resources/testdata.js --jobs auto --progress-every 0

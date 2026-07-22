@@ -99,9 +99,24 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
 - Rule commands: `win`, `cancel`, `restart`, `checkpoint`, `again`, `message`, `sfx0`–`sfx10`
 - Rigid / random / bindings / layer-coupled / ellipsis-2 as needed by the clean whitelist
 
+## Inert static fixtures (preferred over hand-built Lean games)
+
+`make lean_inert_static_smoke` scans `static_analysis_testdata` +
+`canonicalizer_testdata`, keeps fixtures with any Lean-supported tag (today:
+`inert_command_only`), exports IR + `manifest.json` under
+`build/lean-inert-static/`, then checks Lean counts / `dropInert` replay.
+Unsupported tags are ignored; fixtures with none of the supported tags are skipped.
+
+```
+make lean_inert_static_smoke
+```
+
+`Rule.isCommandOnly` treats identity RHS replacements as non-mutating (JS
+`inert_command_only`), including shared-layer object clears and
+`[ right Alpha ] -> [ right Alpha ]` movement restores.
+
 ## Next
 
-Hand-written mini-game discharging `dropInert_boardWinEquiv`; Prop-level
-`Session.WellFormed` preservation; optional `executeTurn (dropInert g)` transport via
-`Game.withoutRules` stepper normalization — see
-`docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
+More inert fixtures from `static_analysis_testdata` / `canonicalizer_testdata`;
+Prop-level `Session.WellFormed` preservation; `executeTurn (dropInert g)` transport.
+See `docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
