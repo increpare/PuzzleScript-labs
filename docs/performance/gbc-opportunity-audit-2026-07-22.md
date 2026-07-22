@@ -195,7 +195,11 @@ best remaining rendering experiments are:
    byte loop inside each call, so the removed call overhead was below the timer
    resolution and did not improve any user-visible workload.
 4. Batch the two tile-map rows for a dirty 2x2 quartet and reduce repeated VBK
-   switches/API calls.
+   switches/API calls. **Measured and rejected:** two generic 2x2
+   `set_bkg_tiles` calls made incremental rendering 0.00-7.98% slower. Cold
+   rendering was unchanged within one tick. The helper's rectangular-copy
+   setup costs more than the six calls and VBK switches it removes at this
+   tiny transfer size.
 5. Do not call `renderBoard` when a turn reports a transient movement change
    but the final dirty-cell bitset is empty. This saves only about 11-19 ms in
    the rule-heavy controls, but is cheap and reduces unnecessary VRAM traffic.
@@ -372,6 +376,7 @@ earn their cost.
 | Add per-rule wake scheduling after singleton certification | **Reject** | no repeat passes | 0.016 repeat passes/turn | no repeat passes | no repeat passes | no repeat passes | a table/check would target only 0.031 repeat-rule visits/turn at best |
 | Emit centered 5x5 sprites and one layer-ordered render entry per object | **Keep** | composition -82.90%; initial -16.27% | composition -82.50%; initial -18.42% | composition -84.76%; initial -18.28% | composition -91.62%; initial -42.91% | composition -90.51%; initial -19.30% | -27 to -41 B fixed ROM; -302 to -609 B linked generated bank; RAM unchanged |
 | Upload each aligned tile quartet with one GBDK call | **Reject** | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | logic exactly unchanged; -28 B linked generated bank; no fixed-ROM or RAM change |
+| Map each dirty 2x2 quartet with two rectangular GBDK calls | **Reject** | incremental +2.46% | incremental 0.00% | incremental +2.67% | incremental +7.98% | incremental +1.89% | cold render unchanged within 1 tick; -65 B fixed ROM, +98 B linked generated bank; RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -387,7 +392,8 @@ measurements are
 `.codex_tmp/benchmarks/p1-compact-player-cell-anchor.json`, and
 `.codex_tmp/benchmarks/p1-singleton-confirmation.json`, and
 `.codex_tmp/benchmarks/p2-ordered-render-table.json`, and
-`.codex_tmp/benchmarks/p2-batched-quartet-upload.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-batched-quartet-upload.json`, and
+`.codex_tmp/benchmarks/p2-batched-map-quartet.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
 the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
 respectively.
