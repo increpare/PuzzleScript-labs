@@ -1087,6 +1087,45 @@ PackedPattern packPattern(
     return packed;
 }
 
+bool samePattern(const PackedPattern& left, const PackedPattern& right) {
+    return left.objectsPresent == right.objectsPresent
+        && left.objectsMissing == right.objectsMissing
+        && left.movementsPresent == right.movementsPresent
+        && left.movementsMissing == right.movementsMissing
+        && left.objectsClear == right.objectsClear
+        && left.objectsSet == right.objectsSet
+        && left.movementsClear == right.movementsClear
+        && left.movementsSet == right.movementsSet
+        && left.movementLayerMask == right.movementLayerMask
+        && left.flags == right.flags;
+}
+
+uint16_t internPatternSequence(
+    std::vector<PackedPattern>& patterns,
+    const std::vector<PackedPattern>& sequence
+) {
+    if (sequence.empty()) {
+        throw std::runtime_error("GBC cannot intern an empty pattern sequence");
+    }
+    for (size_t first = 0U; first + sequence.size() <= patterns.size(); ++first) {
+        bool equal = true;
+        for (size_t index = 0U; index < sequence.size(); ++index) {
+            if (!samePattern(patterns[first + index], sequence[index])) {
+                equal = false;
+                break;
+            }
+        }
+        if (equal) return static_cast<uint16_t>(first);
+    }
+    if (patterns.size() > UINT16_MAX
+        || patterns.size() + sequence.size() > UINT16_MAX) {
+        throw std::runtime_error("GBC pattern table exceeds 16-bit indexes");
+    }
+    const uint16_t first = static_cast<uint16_t>(patterns.size());
+    patterns.insert(patterns.end(), sequence.begin(), sequence.end());
+    return first;
+}
+
 void packGroups(
     const Game& game,
     const std::vector<std::vector<Rule>>& sourceGroups,
@@ -1126,12 +1165,13 @@ void packGroups(
         }
         for (const Rule& sourceRule : sourceGroup) {
             validateRule(sourceRule, late);
-            if (patterns.size() > UINT16_MAX
-                || patterns.size() + sourceRule.patterns.front().size() > UINT16_MAX) {
-                throw std::runtime_error("GBC pattern table exceeds 16-bit indexes");
+            std::vector<PackedPattern> sequence;
+            sequence.reserve(sourceRule.patterns.front().size());
+            for (const Pattern& pattern : sourceRule.patterns.front()) {
+                sequence.push_back(packPattern(game, pattern, movementLayout));
             }
             PackedRule rule;
-            rule.firstPattern = static_cast<uint16_t>(patterns.size());
+            rule.firstPattern = internPatternSequence(patterns, sequence);
             rule.patternCount = static_cast<uint8_t>(sourceRule.patterns.front().size());
             rule.direction = static_cast<uint8_t>(sourceRule.direction);
             rule.activeInputsMask = sourceRule.activeInputsMask;
@@ -1148,9 +1188,6 @@ void packGroups(
             }
             rule.soundCount = static_cast<uint8_t>(
                 audio.ruleSoundIds.size() - rule.firstSound);
-            for (const Pattern& pattern : sourceRule.patterns.front()) {
-                patterns.push_back(packPattern(game, pattern, movementLayout));
-            }
             rules.push_back(std::move(rule));
         }
         groups.push_back(group);
@@ -1829,6 +1866,17 @@ ExportResult exportGame(const ExportOptions& options) {
     std::vector<PackedRule> rules;
     std::vector<PackedGroup> earlyGroups;
     std::vector<PackedGroup> lateGroups;
+    const auto sourcePatternCountFor = [](const auto& sourceGroups) {
+        size_t count = 0U;
+        for (const auto& group : sourceGroups) {
+            for (const Rule& rule : group) {
+                if (!rule.patterns.empty()) count += rule.patterns.front().size();
+            }
+        }
+        return count;
+    };
+    const size_t sourcePatternCount =
+        sourcePatternCountFor(game.rules) + sourcePatternCountFor(game.lateRules);
     PackedAudio audio = packAudio(game, movementLayout);
     packGroups(
         game, game.rules, game.loopPoint, false, patterns, rules, earlyGroups,
@@ -1997,6 +2045,9 @@ ExportResult exportGame(const ExportOptions& options) {
         << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
+        << "  \"source_pattern_count\": " << sourcePatternCount << ",\n"
+        << "  \"shared_pattern_record_count\": "
+        << (sourcePatternCount - patterns.size()) << ",\n"
         << "  \"single_pass_group_count\": "
         << (earlySinglePassGroups + lateSinglePassGroups) << ",\n"
         << "  \"early_single_pass_group_count\": "

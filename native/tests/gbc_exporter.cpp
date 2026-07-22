@@ -63,6 +63,11 @@ int main() {
         "manifest selects byte-wide object cells for five objects");
     require(manifest.find("\"single_pass_group_count\": 1") != std::string::npos,
         "manifest records the certified single-pass Sokoban group");
+    require(
+        manifest.find("\"source_pattern_count\": 8") != std::string::npos
+            && manifest.find("\"shared_pattern_record_count\": 0")
+                != std::string::npos,
+        "manifest records the no-duplicate pattern control");
     require(manifest.find("\"input_specialized_group_count\": 1") != std::string::npos,
         "manifest records the certified input-specialized Sokoban group");
     require(manifest.find("\"active_early_rules_by_input\": [1, 1, 1, 1, 0, 0]")
@@ -205,6 +210,12 @@ int main() {
                 != std::string::npos
             && presenceHeader.find(
                 "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 6U")
+                != std::string::npos
+            && presenceManifest.find("\"source_pattern_count\": 126")
+                != std::string::npos
+            && presenceManifest.find("\"pattern_count\": 62")
+                != std::string::npos
+            && presenceManifest.find("\"shared_pattern_record_count\": 64")
                 != std::string::npos
             && presenceSource.find("PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK")
                 != std::string::npos,

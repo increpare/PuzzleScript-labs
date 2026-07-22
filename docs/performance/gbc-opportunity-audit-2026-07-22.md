@@ -108,6 +108,14 @@ payload and 328-604 linked bank bytes including lookup code, with zero fixed-ROM
 or RAM growth; logic is exactly unchanged. Uncaptured and dynamic masks retain
 the original compositor fallback.
 
+Complete pattern-sequence sharing is retained as a data-only ABI cleanup.
+Xorro has 64 duplicate records among 126 logical patterns and Voitex has 24
+among 61; the other three games are exact controls. Repointing rules at one
+copy saves 2,368 and 888 linked generated-bank bytes respectively. All five
+logic, initial-render, and incremental-render timings are exactly unchanged,
+and fixed ROM and RAM do not move. This creates bank headroom for packed
+patterns without adding a hot-loop indirection.
+
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
 62 bytes larger for the rule-heavy case, and applying the flag to the whole ROM
@@ -402,6 +410,7 @@ earn their cost.
 | Map each dirty 2x2 quartet with two rectangular GBDK calls | **Reject** | incremental +2.46% | incremental 0.00% | incremental +2.67% | incremental +7.98% | incremental +1.89% | cold render unchanged within 1 tick; -65 B fixed ROM, +98 B linked generated bank; RAM unchanged |
 | Skip rendering when the final dirty bitset is empty | **Keep** | dirty control +0.99% | clean frame -93.33% | dirty control +1.60% | dirty control +0.24% | dirty control +0.63% | cold render and logic unchanged; +58 B fixed ROM; game bank/RAM unchanged |
 | Precompose frequent level-mask tile quartets | **Keep** | initial -71.35% | initial -60.11% | initial -67.38% | initial -32.89% | initial -47.91% | 6/5/5/5/2 entries; +328 to +604 B linked bank; fixed ROM/RAM unchanged; exact logic and pixel parity |
+| Share identical complete pattern sequences | **Keep** | exact control | exact control | timing 0.00%; -2,368 B bank | exact control | timing 0.00%; -888 B bank | fixed ROM/RAM unchanged; no runtime indirection |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -420,7 +429,8 @@ measurements are
 `.codex_tmp/benchmarks/p2-batched-quartet-upload.json`, and
 `.codex_tmp/benchmarks/p2-batched-map-quartet.json`, and
 `.codex_tmp/benchmarks/p2-skip-clean-render-final.json`, and
-`.codex_tmp/benchmarks/p2-precomposed-level-masks.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-precomposed-level-masks.json`, and
+`.codex_tmp/benchmarks/p2-shared-pattern-sequences.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
 the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
 respectively.
@@ -741,6 +751,13 @@ Final incremental timings are 213.664, 379.672, 2254.812, 3850.680, and 713.055
 ticks per turn.
 
 ### P2: specialize the generated data ABI
+
+**Complete-sequence sharing is retained.** Rules now reuse an existing exact
+contiguous pattern sequence before appending new records. This removes 64
+records / 2,368 linked bytes in Xorro and 24 records / 888 linked bytes in
+Voitex; the other three cartridges are byte/timing controls. Runtime timings
+are exactly unchanged because the rule's existing first-pattern byte offset
+points directly at the shared sequence.
 
 The runtime specializes live board/movement widths, but `ps_gbc_pattern` still
 contains nine 32-bit masks plus flags. Generate mask fields at the selected
