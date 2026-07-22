@@ -23,7 +23,7 @@ typedef struct perf_interaction {
 
 void perfTimerStart(void);
 uint32_t perfTimerStop(void);
-uint8_t composeTile(uint32_t objects);
+uint16_t composeTile(uint32_t objects);
 void renderBoard(void);
 
 bool perfLoadFirstBoard(void) BANKED;

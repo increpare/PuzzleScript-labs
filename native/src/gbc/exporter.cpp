@@ -82,15 +82,25 @@ struct LayerColorGroup {
     size_t slots = 0U;
 };
 
+struct QuadrantPaletteCandidate {
+    PaletteAssignment ideal;
+    std::vector<LayerColorGroup> groups;
+    std::vector<uint16_t> objectColors;
+    bool hasOpaquePixels = false;
+};
+
 struct PackedObject {
     std::string name;
     uint8_t layer = 0;
     uint8_t movementLayer = PS_GBC_NO_MOVEMENT_LAYER;
     uint8_t width = 0;
     uint8_t height = 0;
-    uint8_t palette = 0;
+    uint16_t quadrantPalettes = 0;
     std::vector<uint8_t> pixels;
     uint64_t transparentPixels = 0;
+    std::vector<uint16_t> sourceColors;
+    std::vector<int32_t> sourceColorIndexes;
+    std::array<QuadrantPaletteCandidate, 4> paletteCandidates;
 };
 
 struct PackedLevel {
@@ -769,6 +779,64 @@ uint64_t layerAwarePaletteError(
 void appendLayerColors(
     std::vector<LayerColorGroup>& groups,
     const ObjectDef& object,
+    const ColorStretch& stretch,
+    uint8_t part
+) {
+    auto found = std::find_if(
+        groups.begin(), groups.end(),
+        [&object](const LayerColorGroup& group) {
+            return group.layer == object.layer;
+        });
+    if (found == groups.end()) {
+        groups.push_back({static_cast<int8_t>(object.layer), {}, 0U});
+        found = groups.end() - 1;
+    }
+    std::vector<Rgb> colors;
+    colors.reserve(object.colors.size());
+    for (const std::string& value : object.colors) {
+        colors.push_back(parseColor(value));
+    }
+    const size_t height = object.sprite.size();
+    const size_t width = object.sprite.empty() ? 0U : object.sprite.front().size();
+    const size_t offsetX = (5U - width) / 2U;
+    const size_t offsetY = (5U - height) / 2U;
+    for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
+        const auto& row = object.sprite[sourceY];
+        for (size_t sourceX = 0U; sourceX < row.size(); ++sourceX) {
+            const int32_t colorIndex = row[sourceX];
+            const size_t cellX = offsetX + sourceX;
+            const size_t cellY = offsetY + sourceY;
+            const size_t partX = part & 1U;
+            const size_t partY = part >> 1U;
+            const bool touchesX = cellX == 2U
+                || (cellX < 2U ? partX == 0U : partX == 1U);
+            const bool touchesY = cellY == 2U
+                || (cellY < 2U ? partY == 0U : partY == 1U);
+            if (!touchesX || !touchesY) continue;
+            if (colorIndex < 0
+                || static_cast<size_t>(colorIndex) >= colors.size()
+                || colors[static_cast<size_t>(colorIndex)].transparent) {
+                continue;
+            }
+            const uint16_t packed =
+                toBgr555(colors[static_cast<size_t>(colorIndex)], stretch);
+            const auto existing = std::find_if(
+                found->colors.begin(), found->colors.end(),
+                [packed](const WeightedColor& color) {
+                    return color.color == packed;
+                });
+            if (existing == found->colors.end()) {
+                found->colors.push_back({packed, 1U});
+            } else {
+                ++existing->weight;
+            }
+        }
+    }
+}
+
+void appendWholeObjectLayerColors(
+    std::vector<LayerColorGroup>& groups,
+    const ObjectDef& object,
     const ColorStretch& stretch
 ) {
     auto found = std::find_if(
@@ -806,6 +874,240 @@ void appendLayerColors(
             }
         }
     }
+}
+
+bool quadrantHasTransparency(const ObjectDef& object, uint8_t part) {
+    std::array<bool, 25> opaque{};
+    const size_t height = object.sprite.size();
+    const size_t width = object.sprite.empty() ? 0U : object.sprite.front().size();
+    const size_t offsetX = (5U - width) / 2U;
+    const size_t offsetY = (5U - height) / 2U;
+    std::vector<bool> transparent;
+    transparent.reserve(object.colors.size());
+    for (const std::string& value : object.colors) {
+        transparent.push_back(parseColor(value).transparent);
+    }
+    for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
+        for (size_t sourceX = 0U; sourceX < object.sprite[sourceY].size(); ++sourceX) {
+            const int32_t colorIndex = object.sprite[sourceY][sourceX];
+            if (colorIndex < 0
+                || static_cast<size_t>(colorIndex) >= transparent.size()
+                || transparent[static_cast<size_t>(colorIndex)]) {
+                continue;
+            }
+            opaque[(offsetY + sourceY) * 5U + offsetX + sourceX] = true;
+        }
+    }
+    for (size_t cellY = 0U; cellY < 5U; ++cellY) {
+        for (size_t cellX = 0U; cellX < 5U; ++cellX) {
+            const size_t partX = part & 1U;
+            const size_t partY = part >> 1U;
+            const bool touchesX = cellX == 2U
+                || (cellX < 2U ? partX == 0U : partX == 1U);
+            const bool touchesY = cellY == 2U
+                || (cellY < 2U ? partY == 0U : partY == 1U);
+            if (touchesX && touchesY && !opaque[cellY * 5U + cellX]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+std::vector<uint16_t> objectColorsInQuadrant(
+    const ObjectDef& object,
+    const ColorStretch& stretch,
+    uint8_t part
+) {
+    std::vector<LayerColorGroup> groups;
+    appendLayerColors(groups, object, stretch, part);
+    if (groups.empty()) return {};
+    std::vector<uint16_t> result;
+    for (const WeightedColor& color : groups.front().colors) {
+        result.push_back(color.color);
+    }
+    return result;
+}
+
+bool paletteContainsObjectColors(
+    const PaletteAssignment& palette,
+    const QuadrantPaletteCandidate& candidate,
+    int8_t objectLayer
+) {
+    for (const uint16_t color : candidate.objectColors) {
+        bool found = false;
+        for (size_t index = 0U; index < palette.colors.size(); ++index) {
+            if (palette.colors[index] == color
+                && palette.layers[index] == objectLayer) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return false;
+    }
+    return true;
+}
+
+struct PaletteSetScore {
+    size_t crossLayerMappings = 0U;
+    size_t fullObjects = 0U;
+    size_t exactQuadrants = 0U;
+    uint64_t colorError = 0U;
+};
+
+struct PaletteMappingError {
+    size_t crossLayerMappings = 0U;
+    uint64_t colorError = 0U;
+};
+
+PaletteMappingError paletteMappingError(
+    const PaletteAssignment& palette,
+    const std::vector<LayerColorGroup>& groups
+) {
+    PaletteMappingError error;
+    for (const LayerColorGroup& group : groups) {
+        for (const WeightedColor& weighted : group.colors) {
+            const PaletteMatch match =
+                nearestLayerColor(palette, weighted.color, group.layer);
+            if (!match.sameLayer) ++error.crossLayerMappings;
+            error.colorError += static_cast<uint64_t>(weighted.weight)
+                * colorDistance(palette.colors[match.index], weighted.color);
+        }
+    }
+    return error;
+}
+
+bool betterMappingError(
+    const PaletteMappingError& candidate,
+    const PaletteMappingError& current
+) {
+    return candidate.crossLayerMappings < current.crossLayerMappings
+        || (candidate.crossLayerMappings == current.crossLayerMappings
+            && candidate.colorError < current.colorError);
+}
+
+PaletteSetScore scorePaletteSet(
+    const std::vector<PaletteAssignment>& palettes,
+    const std::vector<PackedObject>& objects
+) {
+    PaletteSetScore score;
+    for (const PackedObject& object : objects) {
+        bool full = true;
+        for (const QuadrantPaletteCandidate& candidate : object.paletteCandidates) {
+            if (!candidate.hasOpaquePixels) continue;
+            bool exact = false;
+            for (const PaletteAssignment& palette : palettes) {
+                exact = exact || paletteContainsObjectColors(
+                    palette, candidate, static_cast<int8_t>(object.layer));
+            }
+            if (exact) {
+                ++score.exactQuadrants;
+            } else {
+                full = false;
+            }
+        }
+        if (full) {
+            ++score.fullObjects;
+            for (const QuadrantPaletteCandidate& candidate :
+                 object.paletteCandidates) {
+                if (!candidate.hasOpaquePixels) continue;
+                PaletteMappingError best{
+                    std::numeric_limits<size_t>::max(),
+                    std::numeric_limits<uint64_t>::max()};
+                for (const PaletteAssignment& palette : palettes) {
+                    if (!paletteContainsObjectColors(
+                            palette, candidate,
+                            static_cast<int8_t>(object.layer))) {
+                        continue;
+                    }
+                    const PaletteMappingError error =
+                        paletteMappingError(palette, candidate.groups);
+                    if (betterMappingError(error, best)) best = error;
+                }
+                score.crossLayerMappings += best.crossLayerMappings;
+                score.colorError += best.colorError;
+            }
+        } else {
+            PaletteMappingError best{
+                std::numeric_limits<size_t>::max(),
+                std::numeric_limits<uint64_t>::max()};
+            for (const PaletteAssignment& palette : palettes) {
+                PaletteMappingError error;
+                for (const QuadrantPaletteCandidate& candidate :
+                     object.paletteCandidates) {
+                    if (!candidate.hasOpaquePixels) continue;
+                    const PaletteMappingError part =
+                        paletteMappingError(palette, candidate.groups);
+                    error.crossLayerMappings += part.crossLayerMappings;
+                    error.colorError += part.colorError;
+                }
+                if (betterMappingError(error, best)) best = error;
+            }
+            score.crossLayerMappings += best.crossLayerMappings;
+            score.colorError += best.colorError;
+        }
+    }
+    return score;
+}
+
+bool betterPaletteSetScore(
+    const PaletteSetScore& candidate,
+    const PaletteSetScore& current
+) {
+    return candidate.crossLayerMappings < current.crossLayerMappings
+        || (candidate.crossLayerMappings == current.crossLayerMappings
+            && (candidate.fullObjects > current.fullObjects
+                || (candidate.fullObjects == current.fullObjects
+                    && (candidate.exactQuadrants > current.exactQuadrants
+                        || (candidate.exactQuadrants
+                                == current.exactQuadrants
+                            && candidate.colorError < current.colorError)))));
+}
+
+std::vector<PaletteAssignment> selectHardwarePalettes(
+    const std::vector<PackedObject>& objects
+) {
+    std::vector<PaletteAssignment> candidates;
+    for (const PackedObject& object : objects) {
+        for (const QuadrantPaletteCandidate& quadrant : object.paletteCandidates) {
+            if (!quadrant.hasOpaquePixels) continue;
+            if (std::none_of(
+                    candidates.begin(), candidates.end(),
+                    [&](const PaletteAssignment& existing) {
+                        return samePaletteAssignment(existing, quadrant.ideal);
+                    })) {
+                candidates.push_back(quadrant.ideal);
+            }
+        }
+    }
+    if (candidates.size() <= 8U) return candidates;
+
+    std::vector<PaletteAssignment> selected;
+    while (selected.size() < 8U) {
+        size_t bestIndex = 0U;
+        PaletteSetScore bestScore;
+        bool found = false;
+        for (size_t index = 0U; index < candidates.size(); ++index) {
+            if (std::any_of(
+                    selected.begin(), selected.end(),
+                    [&](const PaletteAssignment& existing) {
+                        return samePaletteAssignment(existing, candidates[index]);
+                    })) {
+                continue;
+            }
+            std::vector<PaletteAssignment> trial = selected;
+            trial.push_back(candidates[index]);
+            const PaletteSetScore score = scorePaletteSet(trial, objects);
+            if (!found || betterPaletteSetScore(score, bestScore)) {
+                found = true;
+                bestIndex = index;
+                bestScore = score;
+            }
+        }
+        if (!found) break;
+        selected.push_back(candidates[bestIndex]);
+    }
+    return selected;
 }
 
 uint32_t maskWord(const Game& game, MaskOffset offset) {
@@ -1280,8 +1582,10 @@ std::string emitSource(
             << static_cast<unsigned int>(object.movementLayer) << "U, "
             << static_cast<unsigned int>(object.width) << "U, "
             << static_cast<unsigned int>(object.height) << "U, "
-            << static_cast<unsigned int>(object.palette) << "U, kObject" << index
-            << "Pixels, 0x" << std::hex << object.transparentPixels << "ULL" << std::dec << "},\n";
+            << static_cast<unsigned int>(object.pixels.size() / 2U) << "U, "
+            << static_cast<unsigned int>(object.quadrantPalettes)
+            << "U, kObject" << index
+            << "Pixels},\n";
     }
     out << "};\n\n";
     const char* levelCellType = objectBytesPerCellValue == 1U ? "uint8_t"
@@ -1431,10 +1735,6 @@ ExportResult exportGame(const ExportOptions& options) {
         palette.colors.fill(backgroundColor);
         palette.layers.fill(-1);
     }
-    std::vector<PaletteAssignment> usedPalettes;
-    size_t exactLayerColorCount = 0U;
-    size_t intraLayerQuantizedColorCount = 0U;
-    size_t crossLayerQuantizedColorCount = 0U;
     const int8_t backgroundLayer = game.backgroundId >= 0
             && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
         ? static_cast<int8_t>(
@@ -1444,7 +1744,8 @@ ExportResult exportGame(const ExportOptions& options) {
     uint8_t cellWidth = 5U;
     uint8_t cellHeight = 5U;
     objects.reserve(game.objectsById.size());
-    for (const ObjectDef& sourceObject : game.objectsById) {
+    for (size_t objectId = 0U; objectId < game.objectsById.size(); ++objectId) {
+        const ObjectDef& sourceObject = game.objectsById[objectId];
         if (sourceObject.layer < 0 || sourceObject.layer >= game.layerCount) {
             throw std::runtime_error("GBC object has an invalid collision layer: " + sourceObject.name);
         }
@@ -1463,93 +1764,6 @@ ExportResult exportGame(const ExportOptions& options) {
             sourceColors.push_back(toBgr555(color, colorStretch));
             transparentColors.push_back(color.transparent);
         }
-        bool hasTransparentPixels = false;
-        for (const auto& row : sourceObject.sprite) {
-            for (const int32_t colorIndex : row) {
-                if (colorIndex < 0
-                    || (static_cast<size_t>(colorIndex) < transparentColors.size()
-                        && transparentColors[static_cast<size_t>(colorIndex)])) {
-                    hasTransparentPixels = true;
-                }
-            }
-        }
-        /*
-         * A CGB background tile has four palette entries. Reserve entries by
-         * collision layer before allocating extra shades within a layer. That
-         * keeps transparency halos safe without ever turning an upper-layer
-         * detail into a lower-layer terrain colour merely because it was the
-         * closest RGB value.
-         */
-        std::vector<LayerColorGroup> compositeColors;
-        if (game.backgroundId >= 0
-            && static_cast<size_t>(game.backgroundId) < game.objectsById.size()) {
-            appendLayerColors(
-                compositeColors,
-                game.objectsById[static_cast<size_t>(game.backgroundId)],
-                colorStretch);
-        }
-        if (static_cast<int32_t>(objects.size()) != game.backgroundId) {
-            appendLayerColors(compositeColors, sourceObject, colorStretch);
-        }
-        if (hasTransparentPixels) {
-            for (int32_t lowerLayer = sourceObject.layer - 1; lowerLayer >= 0; --lowerLayer) {
-                for (size_t lowerId = 0; lowerId < game.objectsById.size(); ++lowerId) {
-                    const ObjectDef& lowerObject = game.objectsById[lowerId];
-                    if (lowerObject.layer != lowerLayer
-                        || static_cast<int32_t>(lowerId) == game.backgroundId) {
-                        continue;
-                    }
-                    appendLayerColors(
-                        compositeColors, lowerObject, colorStretch);
-                }
-            }
-        }
-        const PaletteAssignment candidate = buildLayerAwarePalette(
-            compositeColors,
-            backgroundColor,
-            static_cast<int8_t>(sourceObject.layer),
-            backgroundLayer);
-        const auto exact = std::find_if(
-            usedPalettes.begin(), usedPalettes.end(),
-            [&candidate](const PaletteAssignment& palette) {
-                return samePaletteAssignment(palette, candidate);
-            });
-        uint8_t paletteIndex;
-        if (exact != usedPalettes.end()) {
-            paletteIndex = static_cast<uint8_t>(std::distance(usedPalettes.begin(), exact));
-        } else if (usedPalettes.size() < 8U) {
-            paletteIndex = static_cast<uint8_t>(usedPalettes.size());
-            usedPalettes.push_back(candidate);
-            paletteAssignments[paletteIndex] = candidate;
-            palettes[paletteIndex] = candidate.colors;
-        } else {
-            uint64_t bestScore = std::numeric_limits<uint64_t>::max();
-            paletteIndex = 0U;
-            for (uint8_t index = 0U; index < 8U; ++index) {
-                const uint64_t score = layerAwarePaletteError(
-                    paletteAssignments[index], compositeColors);
-                if (score < bestScore) {
-                    bestScore = score;
-                    paletteIndex = index;
-                }
-            }
-        }
-        for (const LayerColorGroup& group : compositeColors) {
-            for (const WeightedColor& weighted : group.colors) {
-                const PaletteMatch match = nearestLayerColor(
-                    paletteAssignments[paletteIndex],
-                    weighted.color,
-                    group.layer);
-                if (!match.sameLayer) {
-                    ++crossLayerQuantizedColorCount;
-                } else if (paletteAssignments[paletteIndex].colors[match.index]
-                    == weighted.color) {
-                    ++exactLayerColorCount;
-                } else {
-                    ++intraLayerQuantizedColorCount;
-                }
-            }
-        }
         PackedObject object;
         object.name = sourceObject.name;
         object.layer = static_cast<uint8_t>(sourceObject.layer);
@@ -1559,45 +1773,347 @@ ExportResult exportGame(const ExportOptions& options) {
             ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
         object.width = static_cast<uint8_t>(width);
         object.height = static_cast<uint8_t>(height);
-        object.palette = paletteIndex;
-        std::vector<uint8_t> sourcePixels;
+        object.sourceColors = sourceColors;
         uint64_t sourceTransparentPixels = 0U;
         for (const auto& row : sourceObject.sprite) {
             if (row.size() != width) throw std::runtime_error("GBC requires rectangular object sprites");
             for (const int32_t colorIndex : row) {
-                const size_t pixel = sourcePixels.size();
+                const size_t pixel = object.sourceColorIndexes.size();
                 bool transparent = colorIndex < 0;
-                uint16_t color = backgroundColor;
                 if (!transparent) {
                     if (static_cast<size_t>(colorIndex) >= sourceColors.size()) {
                         throw std::runtime_error("GBC object sprite color index is out of range");
                     }
                     transparent = transparentColors[static_cast<size_t>(colorIndex)];
-                    color = sourceColors[static_cast<size_t>(colorIndex)];
                 }
                 if (transparent) sourceTransparentPixels |= uint64_t{1} << pixel;
-                const PaletteMatch match = nearestLayerColor(
-                    paletteAssignments[paletteIndex],
-                    color,
-                    static_cast<int8_t>(sourceObject.layer));
-                sourcePixels.push_back(static_cast<uint8_t>(
-                    paletteIndex * 4U + match.index));
+                object.sourceColorIndexes.push_back(colorIndex);
             }
         }
-        object.pixels = std::move(sourcePixels);
         object.transparentPixels = sourceTransparentPixels;
-        for (size_t pixel = 0; pixel < object.pixels.size(); ++pixel) {
-            if ((sourceTransparentPixels & (uint64_t{1} << pixel)) != 0U) {
-                object.pixels[pixel] = 0xffU;
+
+        /*
+         * Each logical 16x16 cell is four independently-paletted 8x8 tiles.
+         * Build candidates from only the source pixels that actually reach a
+         * quadrant. Transparent quadrants also reserve colours for lower
+         * collision layers, preserving the anti-halo guarantee.
+         */
+        for (uint8_t part = 0U; part < 4U; ++part) {
+            QuadrantPaletteCandidate& candidate = object.paletteCandidates[part];
+            candidate.objectColors = objectColorsInQuadrant(
+                sourceObject, colorStretch, part);
+            candidate.hasOpaquePixels = !candidate.objectColors.empty();
+            const bool transparent = quadrantHasTransparency(sourceObject, part);
+            if (transparent && game.backgroundId >= 0
+                && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
+                && static_cast<int32_t>(objectId) != game.backgroundId) {
+                appendLayerColors(
+                    candidate.groups,
+                    game.objectsById[static_cast<size_t>(game.backgroundId)],
+                    colorStretch,
+                    part);
             }
+            appendLayerColors(
+                candidate.groups, sourceObject, colorStretch, part);
+            if (transparent) {
+                for (int32_t lowerLayer = sourceObject.layer - 1;
+                     lowerLayer >= 0;
+                     --lowerLayer) {
+                    for (size_t lowerId = 0U;
+                         lowerId < game.objectsById.size();
+                         ++lowerId) {
+                        const ObjectDef& lowerObject = game.objectsById[lowerId];
+                        if (lowerObject.layer != lowerLayer
+                            || static_cast<int32_t>(lowerId) == game.backgroundId) {
+                            continue;
+                        }
+                        appendLayerColors(
+                            candidate.groups, lowerObject, colorStretch, part);
+                    }
+                }
+            }
+            candidate.ideal = buildLayerAwarePalette(
+                candidate.groups,
+                backgroundColor,
+                static_cast<int8_t>(sourceObject.layer),
+                backgroundLayer);
         }
         objects.push_back(std::move(object));
     }
-    if (usedPalettes.empty()) usedPalettes.push_back(paletteAssignments[0]);
+
+    /* Re-run the previous one-palette allocation for an apples-to-apples
+     * retention baseline in every manifest. */
+    std::vector<PaletteAssignment> singlePaletteAssignments;
+    size_t singlePaletteFullColorObjectCount = 0U;
+    for (size_t objectId = 0U; objectId < objects.size(); ++objectId) {
+        const ObjectDef& sourceObject = game.objectsById[objectId];
+        std::vector<LayerColorGroup> groups;
+        if (game.backgroundId >= 0
+            && static_cast<size_t>(game.backgroundId) < game.objectsById.size()) {
+            appendWholeObjectLayerColors(
+                groups,
+                game.objectsById[static_cast<size_t>(game.backgroundId)],
+                colorStretch);
+        }
+        if (static_cast<int32_t>(objectId) != game.backgroundId) {
+            appendWholeObjectLayerColors(groups, sourceObject, colorStretch);
+        }
+        if (objects[objectId].transparentPixels != 0U) {
+            for (int32_t lowerLayer = sourceObject.layer - 1;
+                 lowerLayer >= 0;
+                 --lowerLayer) {
+                for (size_t lowerId = 0U;
+                     lowerId < game.objectsById.size();
+                     ++lowerId) {
+                    const ObjectDef& lowerObject = game.objectsById[lowerId];
+                    if (lowerObject.layer != lowerLayer
+                        || static_cast<int32_t>(lowerId) == game.backgroundId) {
+                        continue;
+                    }
+                    appendWholeObjectLayerColors(
+                        groups, lowerObject, colorStretch);
+                }
+            }
+        }
+        const PaletteAssignment ideal = buildLayerAwarePalette(
+            groups,
+            backgroundColor,
+            static_cast<int8_t>(sourceObject.layer),
+            backgroundLayer);
+        uint8_t assigned = 0U;
+        const auto exact = std::find_if(
+            singlePaletteAssignments.begin(), singlePaletteAssignments.end(),
+            [&](const PaletteAssignment& palette) {
+                return samePaletteAssignment(palette, ideal);
+            });
+        if (exact != singlePaletteAssignments.end()) {
+            assigned = static_cast<uint8_t>(
+                std::distance(singlePaletteAssignments.begin(), exact));
+        } else if (singlePaletteAssignments.size() < 8U) {
+            assigned = static_cast<uint8_t>(singlePaletteAssignments.size());
+            singlePaletteAssignments.push_back(ideal);
+        } else {
+            uint64_t bestError = std::numeric_limits<uint64_t>::max();
+            for (uint8_t index = 0U;
+                 index < singlePaletteAssignments.size();
+                 ++index) {
+                const uint64_t error = layerAwarePaletteError(
+                    singlePaletteAssignments[index], groups);
+                if (error < bestError) {
+                    bestError = error;
+                    assigned = index;
+                }
+            }
+        }
+        bool fullColor = true;
+        for (size_t pixel = 0U;
+             pixel < objects[objectId].sourceColorIndexes.size();
+             ++pixel) {
+            if ((objects[objectId].transparentPixels & (uint64_t{1} << pixel))
+                != 0U) {
+                continue;
+            }
+            const uint16_t color = objects[objectId].sourceColors[
+                static_cast<size_t>(
+                    objects[objectId].sourceColorIndexes[pixel])];
+            const PaletteMatch match = nearestLayerColor(
+                singlePaletteAssignments[assigned],
+                color,
+                static_cast<int8_t>(objects[objectId].layer));
+            if (!match.sameLayer
+                || singlePaletteAssignments[assigned].colors[match.index]
+                    != color) {
+                fullColor = false;
+                break;
+            }
+        }
+        if (fullColor) ++singlePaletteFullColorObjectCount;
+    }
+
+    const PaletteSetScore singlePaletteScore =
+        scorePaletteSet(singlePaletteAssignments, objects);
+    std::vector<PaletteAssignment> usedPalettes = selectHardwarePalettes(objects);
+    const PaletteSetScore quadrantScore = scorePaletteSet(usedPalettes, objects);
+    if (quadrantScore.fullObjects < singlePaletteFullColorObjectCount
+        || quadrantScore.crossLayerMappings
+            > singlePaletteScore.crossLayerMappings) {
+        usedPalettes = singlePaletteAssignments;
+    }
+    const PaletteSetScore selectedPaletteScore =
+        scorePaletteSet(usedPalettes, objects);
+    if (usedPalettes.empty()) {
+        PaletteAssignment fallback;
+        fallback.colors.fill(backgroundColor);
+        fallback.layers.fill(backgroundLayer);
+        usedPalettes.push_back(fallback);
+    }
+    for (size_t index = 0U; index < usedPalettes.size(); ++index) {
+        palettes[index] = usedPalettes[index].colors;
+        paletteAssignments[index] = usedPalettes[index];
+    }
     for (size_t index = usedPalettes.size(); index < palettes.size(); ++index) {
         palettes[index] = palettes[0];
         paletteAssignments[index] = paletteAssignments[0];
     }
+
+    size_t exactLayerColorCount = 0U;
+    size_t intraLayerQuantizedColorCount = 0U;
+    size_t crossLayerQuantizedColorCount = 0U;
+    size_t fullColorObjectCount = 0U;
+    size_t fullColorQuadrantCount = 0U;
+    size_t opaqueQuadrantCount = 0U;
+    size_t multiPaletteObjectCount = 0U;
+    size_t inconsistentObjectColorCount = 0U;
+    for (PackedObject& object : objects) {
+        std::array<uint8_t, 4> assigned{};
+        bool fullColor = true;
+        for (uint8_t part = 0U; part < 4U; ++part) {
+            const QuadrantPaletteCandidate& candidate =
+                object.paletteCandidates[part];
+            if (!candidate.hasOpaquePixels) continue;
+            ++opaqueQuadrantCount;
+            bool exact = false;
+            for (const PaletteAssignment& palette : usedPalettes) {
+                exact = exact || paletteContainsObjectColors(
+                    palette, candidate, static_cast<int8_t>(object.layer));
+            }
+            if (!exact) fullColor = false;
+        }
+        if (fullColor) {
+            ++fullColorObjectCount;
+            for (uint8_t part = 0U; part < 4U; ++part) {
+                const QuadrantPaletteCandidate& candidate =
+                    object.paletteCandidates[part];
+                PaletteMappingError bestError{
+                    std::numeric_limits<size_t>::max(),
+                    std::numeric_limits<uint64_t>::max()};
+                for (uint8_t index = 0U; index < usedPalettes.size(); ++index) {
+                    if (!paletteContainsObjectColors(
+                            usedPalettes[index], candidate,
+                            static_cast<int8_t>(object.layer))) {
+                        continue;
+                    }
+                    const PaletteMappingError error = paletteMappingError(
+                        usedPalettes[index], candidate.groups);
+                    if (betterMappingError(error, bestError)) {
+                        bestError = error;
+                        assigned[part] = index;
+                    }
+                }
+                if (candidate.hasOpaquePixels) ++fullColorQuadrantCount;
+            }
+        } else {
+            PaletteMappingError bestError{
+                std::numeric_limits<size_t>::max(),
+                std::numeric_limits<uint64_t>::max()};
+            uint8_t bestPalette = 0U;
+            for (uint8_t index = 0U; index < usedPalettes.size(); ++index) {
+                PaletteMappingError error;
+                for (const QuadrantPaletteCandidate& candidate :
+                     object.paletteCandidates) {
+                    if (candidate.hasOpaquePixels) {
+                        const PaletteMappingError part = paletteMappingError(
+                            usedPalettes[index], candidate.groups);
+                        error.crossLayerMappings += part.crossLayerMappings;
+                        error.colorError += part.colorError;
+                    }
+                }
+                if (betterMappingError(error, bestError)) {
+                    bestError = error;
+                    bestPalette = index;
+                }
+            }
+            assigned.fill(bestPalette);
+        }
+
+        std::array<bool, 8> objectPalettes{};
+        for (uint8_t part = 0U; part < 4U; ++part) {
+            object.quadrantPalettes |=
+                (uint16_t)assigned[part] << (part * 3U);
+            if (object.paletteCandidates[part].hasOpaquePixels) {
+                object.quadrantPalettes |=
+                    (uint16_t)1U << (12U + part);
+                objectPalettes[assigned[part]] = true;
+            }
+            const QuadrantPaletteCandidate& candidate =
+                object.paletteCandidates[part];
+            for (const LayerColorGroup& group : candidate.groups) {
+                for (const WeightedColor& weighted : group.colors) {
+                    const PaletteMatch match = nearestLayerColor(
+                        usedPalettes[assigned[part]],
+                        weighted.color,
+                        group.layer);
+                    if (!match.sameLayer) {
+                        ++crossLayerQuantizedColorCount;
+                    } else if (usedPalettes[assigned[part]].colors[match.index]
+                        == weighted.color) {
+                        ++exactLayerColorCount;
+                    } else {
+                        ++intraLayerQuantizedColorCount;
+                    }
+                }
+            }
+        }
+        if (std::count(objectPalettes.begin(), objectPalettes.end(), true) > 1) {
+            ++multiPaletteObjectCount;
+        }
+
+        object.pixels.reserve(object.sourceColorIndexes.size() * 3U);
+        for (size_t pixel = 0U;
+             pixel < object.sourceColorIndexes.size();
+             ++pixel) {
+            const bool transparent =
+                (object.transparentPixels & (uint64_t{1} << pixel)) != 0U;
+            if (transparent) continue;
+            const int32_t colorIndex = object.sourceColorIndexes[pixel];
+            const uint16_t color =
+                object.sourceColors[static_cast<size_t>(colorIndex)];
+            const size_t sourceX = pixel % object.width;
+            const size_t sourceY = pixel / object.width;
+            const size_t cellX = (5U - object.width) / 2U + sourceX;
+            const size_t cellY = (5U - object.height) / 2U + sourceY;
+            const size_t cell = cellY * 5U + cellX;
+            for (uint8_t part = 0U; part < 4U; ++part) {
+                const size_t partX = part & 1U;
+                const size_t partY = part >> 1U;
+                const bool touchesX = cellX == 2U
+                    || (cellX < 2U ? partX == 0U : partX == 1U);
+                const bool touchesY = cellY == 2U
+                    || (cellY < 2U ? partY == 0U : partY == 1U);
+                if (!touchesX || !touchesY) continue;
+                const PaletteMatch match = nearestLayerColor(
+                    usedPalettes[assigned[part]], color,
+                    static_cast<int8_t>(object.layer));
+                object.pixels.push_back(static_cast<uint8_t>(part * 25U + cell));
+                object.pixels.push_back(static_cast<uint8_t>(
+                    assigned[part] * 4U + match.index));
+            }
+        }
+
+        for (const uint16_t color : object.sourceColors) {
+            std::optional<uint16_t> rendered;
+            for (uint8_t part = 0U; part < 4U; ++part) {
+                const std::vector<uint16_t>& quadrantColors =
+                    object.paletteCandidates[part].objectColors;
+                if (std::find(
+                        quadrantColors.begin(), quadrantColors.end(), color)
+                    == quadrantColors.end()) {
+                    continue;
+                }
+                const PaletteMatch match = nearestLayerColor(
+                    usedPalettes[assigned[part]], color,
+                    static_cast<int8_t>(object.layer));
+                const uint16_t partColor =
+                    usedPalettes[assigned[part]].colors[match.index];
+                if (rendered && *rendered != partColor) {
+                    ++inconsistentObjectColorCount;
+                    break;
+                }
+                rendered = partColor;
+            }
+        }
+    }
+
     std::array<uint8_t, 256> remap{};
     for (uint8_t target = 0U; target < 8U; ++target) {
         for (uint8_t sourcePalette = 0U; sourcePalette < 8U; ++sourcePalette) {
@@ -1804,7 +2320,27 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
         << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
-        << "  \"palette_reduction\": {\"policy\": \"collision_layer_aware\", "
+        << "  \"palette_reduction\": {\"policy\": "
+           "\"quadrant_collision_layer_aware\", "
+        << "\"hardware_palette_count\": " << usedPalettes.size() << ", "
+        << "\"single_palette_full_color_object_count\": "
+        << singlePaletteFullColorObjectCount << ", "
+        << "\"single_palette_cross_layer_mapping_count\": "
+        << singlePaletteScore.crossLayerMappings << ", "
+        << "\"full_color_object_count\": " << fullColorObjectCount << ", "
+        << "\"full_color_object_gain\": "
+        << (static_cast<int64_t>(fullColorObjectCount)
+            - static_cast<int64_t>(singlePaletteFullColorObjectCount))
+        << ", "
+        << "\"quantized_object_count\": "
+        << (objects.size() - fullColorObjectCount) << ", "
+        << "\"full_color_quadrant_count\": " << fullColorQuadrantCount << ", "
+        << "\"opaque_quadrant_count\": " << opaqueQuadrantCount << ", "
+        << "\"multi_palette_object_count\": " << multiPaletteObjectCount << ", "
+        << "\"inconsistent_object_color_count\": "
+        << inconsistentObjectColorCount << ", "
+        << "\"selected_cross_layer_mapping_count\": "
+        << selectedPaletteScore.crossLayerMappings << ", "
         << "\"exact_layer_color_count\": " << exactLayerColorCount << ", "
         << "\"intra_layer_quantized_color_count\": "
         << intraLayerQuantizedColorCount << ", "

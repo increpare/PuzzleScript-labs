@@ -104,37 +104,45 @@ int main() {
     require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
         "level object masks use the selected byte-wide storage");
     require(
-        source.find("{\"background\", 0U, 255U, 5U, 5U") != std::string::npos
-            && source.find("255U, 255U, 255U") != std::string::npos,
-        "generated sprites retain native dimensions and byte transparency");
+        source.find("{\"background\", 0U, 255U, 5U, 5U") != std::string::npos,
+        "generated sprites retain their native dimensions");
+    require(
+        source.find("{\"player\", 2U, 0U, 5U, 5U, 26U, 63195U")
+            != std::string::npos,
+        "Sokoban's over-budget player uses one consistent palette in all four "
+        "quadrants and a compact opaque-pixel count");
     require(
         source.find(
-            "static const uint8_t kObject3Pixels[] = {15U, 15U, 15U, 14U, 15U")
+            "static const uint8_t kObject3Pixels[] = {0U, 16U, 1U, 16U")
             != std::string::npos,
-        "5x5 sprite arrays are emitted without 8x8 padding or resampling");
+        "5x5 sprite arrays precompute sparse destination/value pairs");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {3658U, 6965U, 0U, 0U, "
-            "3658U, 6965U, 8355U, 0U, 3658U, 31140U, 32767U, 8355U, "
-            "3658U, 6965U, 6443U, 4565U, 3658U, 6965U, 7773U, 8355U")
+            "3658U, 6965U, 8355U, 0U, 3658U, 7773U, 0U, 8355U, "
+            "3658U, 32767U, 31140U, 8355U")
             != std::string::npos,
-        "object palettes reserve colours per collision layer before reducing "
-        "shades within a layer");
+        "quadrant palettes reserve colours per collision layer before reducing "
+        "shades within a tile");
     require(
         source.find(
-            "static const uint8_t kObject2Pixels[] = {255U, 9U, 9U, 9U, 255U, "
-            "255U, 10U, 10U, 10U, 255U, 10U, 10U, 10U, 10U, 10U, "
-            "255U, 9U, 9U, 9U") != std::string::npos,
+            "static const uint8_t kObject2Pixels[] = {1U, 14U, 2U, 14U, "
+            "27U, 14U, 28U, 14U")
+                != std::string::npos,
         "Sokoban player details retain the player-owned blue palette entry");
     require(
         manifest.find(
-            "\"palette_reduction\": {\"policy\": \"collision_layer_aware\"")
+            "\"palette_reduction\": {\"policy\": "
+            "\"quadrant_collision_layer_aware\"")
                 != std::string::npos
-            && manifest.find("\"intra_layer_quantized_color_count\": 3")
+            && manifest.find("\"full_color_object_count\": 4")
+                != std::string::npos
+            && manifest.find("\"inconsistent_object_color_count\": 0")
                 != std::string::npos
             && manifest.find("\"cross_layer_quantized_color_count\": 0")
                 != std::string::npos,
-        "manifest proves Sokoban palette reduction never crosses collision layers");
+        "manifest proves Sokoban palette reduction preserves sprite consistency "
+        "without crossing collision layers");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");
@@ -157,6 +165,35 @@ int main() {
     const auto second = puzzlescript::gbc::exportGame(options);
     require(readFile(first.generatedSourcePath) == readFile(second.generatedSourcePath),
         "repeated exports are deterministic");
+
+    puzzlescript::gbc::ExportOptions quadrantOptions;
+    quadrantOptions.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_quadrant_palettes.txt";
+    quadrantOptions.outputDirectory = output / "quadrants";
+    const auto quadrantResult = puzzlescript::gbc::exportGame(quadrantOptions);
+    const std::string quadrantManifest = readFile(quadrantResult.manifestPath);
+    const std::string quadrantSource = readFile(quadrantResult.generatedSourcePath);
+    require(
+        quadrantManifest.find("\"single_palette_full_color_object_count\": 1")
+                != std::string::npos
+            && quadrantManifest.find("\"full_color_object_count\": 2")
+                != std::string::npos
+            && quadrantManifest.find("\"full_color_object_gain\": 1")
+                != std::string::npos
+            && quadrantManifest.find("\"multi_palette_object_count\": 1")
+                != std::string::npos
+            && quadrantManifest.find("\"inconsistent_object_color_count\": 0")
+                != std::string::npos,
+        "per-quadrant palettes retain a five-colour object while keeping every "
+        "repeated source colour identical across tile boundaries");
+    require(
+        quadrantSource.find(
+            "{\"player\", 1U, 0U, 5U, 5U, 36U, 63697U, kObject1Pixels}")
+                != std::string::npos
+            && quadrantSource.find(
+                "kObject1Pixels[] = {0U, 4U, 1U, 4U")
+                != std::string::npos,
+        "the generated object stores four palettes and sparse precomputed blits");
 
     puzzlescript::gbc::ExportOptions contrastOptions;
     contrastOptions.sourcePath =

@@ -123,5 +123,9 @@ Each logical 10x9 cell owns an aligned 2x2 quartet of hardware tiles. A source
 once more to make an exact 16x16 cell. Quartets never contain pixels from
 neighboring cells, so transparency and dirty updates cannot create inter-cell
 seams. Object palettes are reduced to the eight hardware background palettes;
-colors from lower transparent layers are remapped to the top visible object's
-palette.
+each 8x8 member of the quartet may select a different one. The exporter only
+uses multiple palettes for an object when every visible source color remains
+exact in every quadrant where it occurs. If any color must be reduced, all
+four quadrants use one palette, preventing a character's colors from changing
+at tile boundaries. Palette candidates also include colors visible through
+transparency from lower collision layers.

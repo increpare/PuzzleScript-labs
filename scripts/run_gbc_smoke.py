@@ -170,10 +170,12 @@ def main() -> int:
     parser.add_argument("--frame-scale", type=int, default=1)
     parser.add_argument("--require-dedicated-tiles", action="store_true")
     parser.add_argument("--require-second-vram-bank", action="store_true")
+    parser.add_argument("--require-quadrant-palettes", action="store_true")
     args = parser.parse_args()
     unique_quartets = 0
     dedicated_cells = 0
     second_bank_cells = 0
+    quadrant_palette_cells = 0
     if args.frame_scale < 1:
         raise SystemExit("--frame-scale must be at least 1")
     emulator = args.mgba or default_mgba()
@@ -442,7 +444,7 @@ def main() -> int:
             )
         if args.message_frame_out is not None:
             save_frame_image(message_frame, args.message_frame_out, args.frame_scale)
-        if args.frame_out is not None:
+        if args.frame_out is not None or args.require_quadrant_palettes:
             board_frame = read_frame_dump(data, FRAME_DUMP_BANK)
             tile_map, attributes, _, _ = board_frame
             mapping_mismatches = 0
@@ -471,6 +473,11 @@ def main() -> int:
                         dedicated_cells += 1
                     if base_tile >= 256:
                         second_bank_cells += 1
+                    quadrant_palettes = {
+                        attributes[screen_tile] & 0x07 for screen_tile in parts
+                    }
+                    if len(quadrant_palettes) > 1:
+                        quadrant_palette_cells += 1
                     for part, screen_tile in enumerate(parts):
                         expected_tile = base_tile + part
                         actual_tile = tile_map[screen_tile] + (
@@ -492,7 +499,12 @@ def main() -> int:
                 raise SystemExit(
                     "frame did not exercise logical cells in VRAM pattern bank 1"
                 )
-            save_frame_image(board_frame, args.frame_out, args.frame_scale)
+            if args.require_quadrant_palettes and quadrant_palette_cells == 0:
+                raise SystemExit(
+                    "frame did not exercise multiple palettes within one 16x16 cell"
+                )
+            if args.frame_out is not None:
+                save_frame_image(board_frame, args.frame_out, args.frame_scale)
         print(
             "gbc-smoke ok "
             f"source_hash=0x{source_hash:08x} "
@@ -506,6 +518,7 @@ def main() -> int:
             f"quartets={unique_quartets} "
             f"dedicated_cells={dedicated_cells} "
             f"bank1_cells={second_bank_cells}"
+            f" quadrant_palette_cells={quadrant_palette_cells}"
             f"{audio_summary}"
         )
     return 0

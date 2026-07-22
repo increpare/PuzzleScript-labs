@@ -59,7 +59,7 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 11
+#define PS_GBC_GAME_ABI_VERSION 12
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 256
 
@@ -155,9 +155,10 @@ typedef struct ps_gbc_object {
     uint8_t movement_layer;
     uint8_t sprite_width;
     uint8_t sprite_height;
-    uint8_t palette;
-    const uint8_t* sprite_pixels;
-    uint64_t transparent_pixels;
+    uint8_t composite_pixel_count;
+    /* Four three-bit palette indexes, then a four-bit opaque-quadrant mask. */
+    uint16_t quadrant_palettes;
+    const uint8_t* composite_pixels;
 } ps_gbc_object;
 
 typedef struct ps_gbc_level {

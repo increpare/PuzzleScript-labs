@@ -595,3 +595,54 @@ render ticks, and 58 push render ticks. The normal instrumented link remains
 session RAM and SRAM are unchanged. The focused cartridge passes palette,
 render, movement, and rule probes, all 14 production cartridges pass
 link/header/memory checks and boot under mGBA, and all 89 native CTests pass.
+
+### Playtest correction: per-quadrant palettes with whole-sprite consistency
+
+The CGB already assigns a background palette to each 8x8 tile, so a logical
+16x16 cell can use one palette for each member of its 2x2 tile quartet without
+introducing sprites, scanline effects, or object-at-a-time drawing. The
+exporter now builds palette candidates from the colours that can physically
+reach each quadrant, including lower collision layers visible through
+transparency.
+
+The split is deliberately all-or-safe at object scope. An object may use
+different quadrant palettes only when every one of its source colours is exact
+in every quadrant where that colour occurs. If even one colour would be
+quantized, all four quadrants are assigned the same palette. This prevents a
+face, costume, or other repeated colour from changing at the 8-pixel boundary.
+The manifest reports both the previous single-palette result and the selected
+quadrant result, the number of multi-palette objects, and any inconsistent
+object colours; the latter is a hard zero in the acceptance corpus.
+
+Across the 15 accepted audit games, full-color objects rise from 95/125
+(76.0%) to 107/125 (85.6%). Twelve objects are recovered and nine objects use
+multiple quadrant palettes. Pushit gains one full-color object, Short
+Adventure in Sticky Wall Land gains one, Slot Machine gains seven, and Voitex
+Rasteriser gains three. The collision-layer-aware quality metric also improves:
+cross-layer colour mappings fall from 316 to 228 (-27.8%), and no game regresses
+because the exporter retains the old palette set when a proposed set would do
+worse.
+
+The generated representation stores sparse opaque-pixel blits and four packed
+palette indices per object. This more than pays for the extra palette handling
+during full composition:
+
+| Five-cartridge benchmark | Delta |
+| --- | ---: |
+| Composition time | -16.81% to -55.08% |
+| Initial render time | -18.25% to -26.79% |
+| Incremental dirty-render time | -0.53% to +3.16% |
+| Generated benchmark bank | +6 to +315 bytes (+0.06% to +4.28%) |
+| Static WRAM | +84 bytes (+3.74% to +4.58%) |
+| Fixed benchmark bank | unchanged |
+| Session RAM / snapshot SRAM | unchanged |
+
+Average logic timing changes by at most 0.0014%, consistent with measurement
+noise; the render representation is not consulted by the rules engine. The
+dedicated fixture is exported as two full-color objects rather than one, and
+an mGBA framebuffer/attribute probe confirms that the hardware renderer uses
+multiple palettes inside a cell. A separate full Sokoban render/movement probe
+also passes and keeps its over-budget player on one consistent palette, with
+the blue player distinct from the green terrain. All 15 accepted cartridges
+pass link, header, bank, RAM, hash, and manifest checks. All 89 native CTests
+and all 753 JavaScript tests pass.
