@@ -101,6 +101,7 @@ struct PackedObject {
     std::vector<uint16_t> sourceColors;
     std::vector<int32_t> sourceColorIndexes;
     std::array<QuadrantPaletteCandidate, 4> paletteCandidates;
+    std::array<QuadrantPaletteCandidate, 4> conservativePaletteCandidates;
 };
 
 struct PackedLevel {
@@ -693,7 +694,8 @@ PaletteAssignment buildLayerAwarePalette(
     std::vector<LayerColorGroup> groups,
     uint16_t backgroundColor,
     int8_t objectLayer,
-    int8_t backgroundLayer
+    int8_t backgroundLayer,
+    bool prioritizeExactObject = true
 ) {
     groups.erase(
         std::remove_if(
@@ -719,6 +721,24 @@ PaletteAssignment buildLayerAwarePalette(
         if (group.slots == 0U) {
             group.slots = 1U;
             ++allocated;
+        }
+    }
+    const bool everyLayerAllocated = std::all_of(
+        groups.begin(), groups.end(),
+        [](const LayerColorGroup& group) { return group.slots != 0U; });
+    const auto objectGroup = std::find_if(
+        groups.begin(), groups.end(),
+        [objectLayer](const LayerColorGroup& group) {
+            return group.layer == objectLayer;
+        });
+    if (prioritizeExactObject
+        && everyLayerAllocated
+        && objectGroup != groups.end()) {
+        const size_t missingObjectColors =
+            objectGroup->colors.size() - objectGroup->slots;
+        if (allocated + missingObjectColors <= 4U) {
+            objectGroup->slots += missingObjectColors;
+            allocated += missingObjectColors;
         }
     }
     while (allocated < 4U) {
@@ -780,7 +800,8 @@ void appendLayerColors(
     std::vector<LayerColorGroup>& groups,
     const ObjectDef& object,
     const ColorStretch& stretch,
-    uint8_t part
+    uint8_t part,
+    const std::array<bool, 25>* visibleCells = nullptr
 ) {
     auto found = std::find_if(
         groups.begin(), groups.end(),
@@ -813,6 +834,10 @@ void appendLayerColors(
             const bool touchesY = cellY == 2U
                 || (cellY < 2U ? partY == 0U : partY == 1U);
             if (!touchesX || !touchesY) continue;
+            if (visibleCells != nullptr
+                && !(*visibleCells)[cellY * 5U + cellX]) {
+                continue;
+            }
             if (colorIndex < 0
                 || static_cast<size_t>(colorIndex) >= colors.size()
                 || colors[static_cast<size_t>(colorIndex)].transparent) {
@@ -876,8 +901,9 @@ void appendWholeObjectLayerColors(
     }
 }
 
-bool quadrantHasTransparency(const ObjectDef& object, uint8_t part) {
-    std::array<bool, 25> opaque{};
+std::array<bool, 25> lowerLayerVisibility(const ObjectDef& object) {
+    std::array<bool, 25> visible;
+    visible.fill(true);
     const size_t height = object.sprite.size();
     const size_t width = object.sprite.empty() ? 0U : object.sprite.front().size();
     const size_t offsetX = (5U - width) / 2U;
@@ -895,9 +921,16 @@ bool quadrantHasTransparency(const ObjectDef& object, uint8_t part) {
                 || transparent[static_cast<size_t>(colorIndex)]) {
                 continue;
             }
-            opaque[(offsetY + sourceY) * 5U + offsetX + sourceX] = true;
+            visible[(offsetY + sourceY) * 5U + offsetX + sourceX] = false;
         }
     }
+    return visible;
+}
+
+bool quadrantHasVisibleLowerPixel(
+    const std::array<bool, 25>& visible,
+    uint8_t part
+) {
     for (size_t cellY = 0U; cellY < 5U; ++cellY) {
         for (size_t cellX = 0U; cellX < 5U; ++cellX) {
             const size_t partX = part & 1U;
@@ -906,7 +939,7 @@ bool quadrantHasTransparency(const ObjectDef& object, uint8_t part) {
                 || (cellX < 2U ? partX == 0U : partX == 1U);
             const bool touchesY = cellY == 2U
                 || (cellY < 2U ? partY == 0U : partY == 1U);
-            if (touchesX && touchesY && !opaque[cellY * 5U + cellX]) {
+            if (touchesX && touchesY && visible[cellY * 5U + cellX]) {
                 return true;
             }
         }
@@ -988,12 +1021,16 @@ bool betterMappingError(
 
 PaletteSetScore scorePaletteSet(
     const std::vector<PaletteAssignment>& palettes,
-    const std::vector<PackedObject>& objects
+    const std::vector<PackedObject>& objects,
+    bool conservative = false
 ) {
     PaletteSetScore score;
     for (const PackedObject& object : objects) {
+        const auto& paletteCandidates = conservative
+            ? object.conservativePaletteCandidates
+            : object.paletteCandidates;
         bool full = true;
-        for (const QuadrantPaletteCandidate& candidate : object.paletteCandidates) {
+        for (const QuadrantPaletteCandidate& candidate : paletteCandidates) {
             if (!candidate.hasOpaquePixels) continue;
             bool exact = false;
             for (const PaletteAssignment& palette : palettes) {
@@ -1009,7 +1046,7 @@ PaletteSetScore scorePaletteSet(
         if (full) {
             ++score.fullObjects;
             for (const QuadrantPaletteCandidate& candidate :
-                 object.paletteCandidates) {
+                 paletteCandidates) {
                 if (!candidate.hasOpaquePixels) continue;
                 PaletteMappingError best{
                     std::numeric_limits<size_t>::max(),
@@ -1034,7 +1071,7 @@ PaletteSetScore scorePaletteSet(
             for (const PaletteAssignment& palette : palettes) {
                 PaletteMappingError error;
                 for (const QuadrantPaletteCandidate& candidate :
-                     object.paletteCandidates) {
+                     paletteCandidates) {
                     if (!candidate.hasOpaquePixels) continue;
                     const PaletteMappingError part =
                         paletteMappingError(palette, candidate.groups);
@@ -1065,11 +1102,15 @@ bool betterPaletteSetScore(
 }
 
 std::vector<PaletteAssignment> selectHardwarePalettes(
-    const std::vector<PackedObject>& objects
+    const std::vector<PackedObject>& objects,
+    bool conservative = false
 ) {
     std::vector<PaletteAssignment> candidates;
     for (const PackedObject& object : objects) {
-        for (const QuadrantPaletteCandidate& quadrant : object.paletteCandidates) {
+        const auto& paletteCandidates = conservative
+            ? object.conservativePaletteCandidates
+            : object.paletteCandidates;
+        for (const QuadrantPaletteCandidate& quadrant : paletteCandidates) {
             if (!quadrant.hasOpaquePixels) continue;
             if (std::none_of(
                     candidates.begin(), candidates.end(),
@@ -1097,7 +1138,8 @@ std::vector<PaletteAssignment> selectHardwarePalettes(
             }
             std::vector<PaletteAssignment> trial = selected;
             trial.push_back(candidates[index]);
-            const PaletteSetScore score = scorePaletteSet(trial, objects);
+            const PaletteSetScore score =
+                scorePaletteSet(trial, objects, conservative);
             if (!found || betterPaletteSetScore(score, bestScore)) {
                 found = true;
                 bestIndex = index;
@@ -1791,6 +1833,8 @@ ExportResult exportGame(const ExportOptions& options) {
             }
         }
         object.transparentPixels = sourceTransparentPixels;
+        const std::array<bool, 25> visibleLowerCells =
+            lowerLayerVisibility(sourceObject);
 
         /*
          * Each logical 16x16 cell is four independently-paletted 8x8 tiles.
@@ -1800,10 +1844,15 @@ ExportResult exportGame(const ExportOptions& options) {
          */
         for (uint8_t part = 0U; part < 4U; ++part) {
             QuadrantPaletteCandidate& candidate = object.paletteCandidates[part];
+            QuadrantPaletteCandidate& conservative =
+                object.conservativePaletteCandidates[part];
             candidate.objectColors = objectColorsInQuadrant(
                 sourceObject, colorStretch, part);
             candidate.hasOpaquePixels = !candidate.objectColors.empty();
-            const bool transparent = quadrantHasTransparency(sourceObject, part);
+            conservative.objectColors = candidate.objectColors;
+            conservative.hasOpaquePixels = candidate.hasOpaquePixels;
+            const bool transparent = quadrantHasVisibleLowerPixel(
+                visibleLowerCells, part);
             if (transparent && game.backgroundId >= 0
                 && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
                 && static_cast<int32_t>(objectId) != game.backgroundId) {
@@ -1811,10 +1860,18 @@ ExportResult exportGame(const ExportOptions& options) {
                     candidate.groups,
                     game.objectsById[static_cast<size_t>(game.backgroundId)],
                     colorStretch,
+                    part,
+                    &visibleLowerCells);
+                appendLayerColors(
+                    conservative.groups,
+                    game.objectsById[static_cast<size_t>(game.backgroundId)],
+                    colorStretch,
                     part);
             }
             appendLayerColors(
                 candidate.groups, sourceObject, colorStretch, part);
+            appendLayerColors(
+                conservative.groups, sourceObject, colorStretch, part);
             if (transparent) {
                 for (int32_t lowerLayer = sourceObject.layer - 1;
                      lowerLayer >= 0;
@@ -1828,7 +1885,16 @@ ExportResult exportGame(const ExportOptions& options) {
                             continue;
                         }
                         appendLayerColors(
-                            candidate.groups, lowerObject, colorStretch, part);
+                            candidate.groups,
+                            lowerObject,
+                            colorStretch,
+                            part,
+                            &visibleLowerCells);
+                        appendLayerColors(
+                            conservative.groups,
+                            lowerObject,
+                            colorStretch,
+                            part);
                     }
                 }
             }
@@ -1837,6 +1903,12 @@ ExportResult exportGame(const ExportOptions& options) {
                 backgroundColor,
                 static_cast<int8_t>(sourceObject.layer),
                 backgroundLayer);
+            conservative.ideal = buildLayerAwarePalette(
+                conservative.groups,
+                backgroundColor,
+                static_cast<int8_t>(sourceObject.layer),
+                backgroundLayer,
+                false);
         }
         objects.push_back(std::move(object));
     }
@@ -1879,7 +1951,8 @@ ExportResult exportGame(const ExportOptions& options) {
             groups,
             backgroundColor,
             static_cast<int8_t>(sourceObject.layer),
-            backgroundLayer);
+            backgroundLayer,
+            false);
         uint8_t assigned = 0U;
         const auto exact = std::find_if(
             singlePaletteAssignments.begin(), singlePaletteAssignments.end(),
@@ -1932,12 +2005,25 @@ ExportResult exportGame(const ExportOptions& options) {
 
     const PaletteSetScore singlePaletteScore =
         scorePaletteSet(singlePaletteAssignments, objects);
+    const PaletteSetScore singlePaletteConservativeScore =
+        scorePaletteSet(singlePaletteAssignments, objects, true);
+    std::vector<PaletteAssignment> conservativePalettes =
+        selectHardwarePalettes(objects, true);
+    const PaletteSetScore conservativeScore =
+        scorePaletteSet(conservativePalettes, objects, true);
+    if (conservativeScore.fullObjects < singlePaletteFullColorObjectCount
+        || conservativeScore.crossLayerMappings
+            > singlePaletteConservativeScore.crossLayerMappings) {
+        conservativePalettes = singlePaletteAssignments;
+    }
+    const PaletteSetScore conservativePreciseScore =
+        scorePaletteSet(conservativePalettes, objects);
     std::vector<PaletteAssignment> usedPalettes = selectHardwarePalettes(objects);
     const PaletteSetScore quadrantScore = scorePaletteSet(usedPalettes, objects);
-    if (quadrantScore.fullObjects < singlePaletteFullColorObjectCount
+    if (quadrantScore.fullObjects < conservativePreciseScore.fullObjects
         || quadrantScore.crossLayerMappings
-            > singlePaletteScore.crossLayerMappings) {
-        usedPalettes = singlePaletteAssignments;
+            > conservativePreciseScore.crossLayerMappings) {
+        usedPalettes = conservativePalettes;
     }
     const PaletteSetScore selectedPaletteScore =
         scorePaletteSet(usedPalettes, objects);
@@ -2327,10 +2413,18 @@ ExportResult exportGame(const ExportOptions& options) {
         << singlePaletteFullColorObjectCount << ", "
         << "\"single_palette_cross_layer_mapping_count\": "
         << singlePaletteScore.crossLayerMappings << ", "
+        << "\"conservative_quadrant_full_color_object_count\": "
+        << conservativePreciseScore.fullObjects << ", "
+        << "\"conservative_quadrant_cross_layer_mapping_count\": "
+        << conservativePreciseScore.crossLayerMappings << ", "
         << "\"full_color_object_count\": " << fullColorObjectCount << ", "
         << "\"full_color_object_gain\": "
         << (static_cast<int64_t>(fullColorObjectCount)
             - static_cast<int64_t>(singlePaletteFullColorObjectCount))
+        << ", "
+        << "\"visibility_aware_full_color_object_gain\": "
+        << (static_cast<int64_t>(fullColorObjectCount)
+            - static_cast<int64_t>(conservativePreciseScore.fullObjects))
         << ", "
         << "\"quantized_object_count\": "
         << (objects.size() - fullColorObjectCount) << ", "

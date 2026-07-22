@@ -107,23 +107,23 @@ int main() {
         source.find("{\"background\", 0U, 255U, 5U, 5U") != std::string::npos,
         "generated sprites retain their native dimensions");
     require(
-        source.find("{\"player\", 2U, 0U, 5U, 5U, 26U, 63195U")
+        source.find("{\"player\", 2U, 0U, 5U, 5U, 26U, 63771U")
             != std::string::npos,
-        "Sokoban's over-budget player uses one consistent palette in all four "
-        "quadrants and a compact opaque-pixel count");
+        "Sokoban's player uses consistent exact quadrant palettes and a compact "
+        "opaque-pixel count");
     require(
         source.find(
-            "static const uint8_t kObject3Pixels[] = {0U, 16U, 1U, 16U")
+            "static const uint8_t kObject3Pixels[] = {0U, 20U, 1U, 20U")
             != std::string::npos,
         "5x5 sprite arrays precompute sparse destination/value pairs");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {3658U, 6965U, 0U, 0U, "
-            "3658U, 6965U, 8355U, 0U, 3658U, 7773U, 0U, 8355U, "
-            "3658U, 32767U, 31140U, 8355U")
+            "3658U, 6965U, 8355U, 0U, 3658U, 8355U, 0U, 0U, "
+            "3658U, 7773U, 0U, 32767U")
             != std::string::npos,
-        "quadrant palettes reserve colours per collision layer before reducing "
-        "shades within a tile");
+        "quadrant palettes ignore covered lower-layer pixels before reducing "
+        "shades within a visible collision layer");
     require(
         source.find(
             "static const uint8_t kObject2Pixels[] = {1U, 14U, 2U, 14U, "
@@ -135,14 +135,21 @@ int main() {
             "\"palette_reduction\": {\"policy\": "
             "\"quadrant_collision_layer_aware\"")
                 != std::string::npos
-            && manifest.find("\"full_color_object_count\": 4")
+            && manifest.find(
+                "\"conservative_quadrant_full_color_object_count\": 4")
+                != std::string::npos
+            && manifest.find("\"full_color_object_count\": 5")
+                != std::string::npos
+            && manifest.find("\"full_color_object_gain\": 1")
+                != std::string::npos
+            && manifest.find("\"visibility_aware_full_color_object_gain\": 1")
                 != std::string::npos
             && manifest.find("\"inconsistent_object_color_count\": 0")
                 != std::string::npos
             && manifest.find("\"cross_layer_quantized_color_count\": 0")
                 != std::string::npos,
-        "manifest proves Sokoban palette reduction preserves sprite consistency "
-        "without crossing collision layers");
+        "manifest proves all Sokoban objects retain exact, consistent sprite "
+        "colours without crossing collision layers");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");

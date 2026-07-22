@@ -127,5 +127,9 @@ each 8x8 member of the quartet may select a different one. The exporter only
 uses multiple palettes for an object when every visible source color remains
 exact in every quadrant where it occurs. If any color must be reduced, all
 four quadrants use one palette, preventing a character's colors from changing
-at tile boundaries. Palette candidates also include colors visible through
-transparency from lower collision layers.
+at tile boundaries. Lower-layer candidates include only pixels that are
+actually exposed by the current object's transparency. When every visible
+collision layer can retain an entry, remaining entries first make the current
+object exact before preserving additional lower-layer shades. The exporter
+keeps the conservative palette set whenever this visibility-aware allocation
+would lose a full-color object or add a cross-layer mapping.

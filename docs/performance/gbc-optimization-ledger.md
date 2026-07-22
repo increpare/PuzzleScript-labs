@@ -641,8 +641,64 @@ Average logic timing changes by at most 0.0014%, consistent with measurement
 noise; the render representation is not consulted by the rules engine. The
 dedicated fixture is exported as two full-color objects rather than one, and
 an mGBA framebuffer/attribute probe confirms that the hardware renderer uses
-multiple palettes inside a cell. A separate full Sokoban render/movement probe
-also passes and keeps its over-budget player on one consistent palette, with
-the blue player distinct from the green terrain. All 15 accepted cartridges
-pass link, header, bank, RAM, hash, and manifest checks. All 89 native CTests
-and all 753 JavaScript tests pass.
+multiple palettes inside a cell. At this stage the structural Sokoban probe
+passed, but did not assert the authored colours in the rendered player cell.
+Later framebuffer inspection found that the player was still reduced and that
+SDCC had miscompiled the new sparse-blit indexing expression; both limitations
+are addressed below. All 15 accepted cartridges pass link, header, bank, RAM,
+hash, and manifest checks. All 89 native CTests and all 753 JavaScript tests
+pass.
+
+### Playtest correction: visible lower pixels and safe sparse blits
+
+Sokoban's player is not inherently over the per-quadrant hardware limit. Each
+upper 8x8 quadrant contains three player colours, but the first quadrant
+allocator also reserved both floor shades and the target colour. The target is
+not genuinely visible: every one of its pixels is covered by an opaque player
+pixel. The six-colour candidate was therefore an exporter artefact, not a real
+composition.
+
+Lower-layer candidates now pass through the current object's exact 5x5
+transparency mask. Once every genuinely visible collision layer has one
+palette entry, spare entries make the current object exact before preserving
+additional shades underneath it. Sokoban therefore uses `3 player + 1 floor`
+in each upper quadrant and `2 player + 2 floor` below. Black, orange, white,
+and blue are all exact; only one floor shade is reduced within the terrain
+layer. No target colour is reserved where the target cannot appear.
+
+The exporter still computes the preceding conservative quadrant palette set.
+If visibility-aware allocation would retain fewer exact objects or add a
+cross-layer mapping, it emits that conservative set instead. This guard is
+exercised by Short Adventure in Sticky Wall Land.
+
+Across the 15-game acceptance corpus, exact-colour objects rise again from
+107/125 to 113/125 (90.4%): 15 Push Pull gains one, Fickle Fred gains two,
+Pushit gains one, Push Pull gains one, and Sokoban gains one. Relative to the
+original single-palette allocator the total improvement is 95/125 to 113/125,
+or 18 recovered objects. Twenty-one objects use multiple quadrant palettes,
+the whole-object inconsistency count remains zero, and cross-layer mappings
+fall from 228 to 181 (-20.6%). No game loses an exact-colour object.
+
+The first mGBA colour assertion then found a separate runtime defect. SDCC
+miscompiled two indexed reads through the same generated ROM pointer: sparse
+destinations were correct, but later colour bytes came from a corrupted
+address calculation. Walking the destination/value pairs sequentially avoids
+the bad code generation; the emitted assembly was inspected, and the mGBA
+framebuffer now contains all four authored Sokoban player colours as well as
+the previously flattened wall and floor patterns.
+
+Correct sparse compositing is slower than the accidentally truncated work in
+the immediately preceding build: the isolated composition probe rises by
+2.92%-22.99%. Initial rendering changes by -0.05%-+3.32%, incremental dirty
+rendering by -1.07%-+0.49%, and interaction renders by at most 11 ticks. Against
+the pre-quadrant baseline, the corrected implementation is still
+14.39%-44.76% faster in composition and 18.19%-26.83% faster on initial
+rendering. Logic timings are byte-for-byte identical. Each benchmark generated
+bank shrinks by 23 bytes; fixed ROM, static WRAM, session RAM, and snapshot SRAM
+are unchanged.
+
+The final instrumented Sokoban cartridge passes its normal movement and tile
+readback checks in mGBA and additionally requires black (`0`), orange (`7773`),
+white (`32767`), and blue (`31140`) in the rendered player cell. All 15
+production cartridges pass link, header, bank, RAM, hash, and manifest checks.
+All 89 native CTests and all 753 JavaScript tests pass.

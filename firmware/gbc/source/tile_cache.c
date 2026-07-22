@@ -45,17 +45,20 @@ uint16_t composeTile(uint32_t objects) {
              ++object_id) {
             const ps_gbc_object* object;
             uint8_t composite_pixel;
+            const uint8_t* composite_pixels;
             uint8_t part;
             uint8_t drew_parts;
             if ((objects & ((uint32_t)1U << object_id)) == 0U) continue;
             object = &ps_gbc_generated_game.objects[object_id];
             if (object->layer != layer) continue;
+            /* Keep this as a sequential ROM walk. SDCC miscompiles two
+             * indexed reads through this generated banked pointer. */
+            composite_pixels = object->composite_pixels;
             for (composite_pixel = 0U;
                  composite_pixel < object->composite_pixel_count;
                  ++composite_pixel) {
-                const uint8_t source = (uint8_t)(composite_pixel << 1U);
-                gSourcePixels[object->composite_pixels[source]] =
-                    object->composite_pixels[(uint8_t)(source + 1U)];
+                const uint8_t destination = *composite_pixels++;
+                gSourcePixels[destination] = *composite_pixels++;
             }
             drew_parts = (uint8_t)(object->quadrant_palettes >> 12U);
             for (part = 0U; part < PS_GBC_TILES_PER_CELL; ++part) {
