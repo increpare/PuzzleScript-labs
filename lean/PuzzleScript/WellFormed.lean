@@ -1062,9 +1062,10 @@ theorem Board.applyRigidCellMasks_wellFormed
       exact Board.setCellRigidMovementAppliedMask_wellFormed game _ tile _
         (Board.setCellRigidGroupIndexMask_wellFormed game b tile _ h)
 
-theorem Board.applyRigidCellMasks_cellObjWords
+theorem Board.applyRigidCellMasks_cellWords
     (game : Game) (rule : Rule) (b : Board) (tile t : Nat) (pat : CellPattern) :
-    (applyRigidCellMasks game rule b tile pat).1.cellObjWords t = b.cellObjWords t := by
+    (applyRigidCellMasks game rule b tile pat).1.cellObjWords t = b.cellObjWords t ∧
+      (applyRigidCellMasks game rule b tile pat).1.cellMovWords t = b.cellMovWords t := by
   unfold applyRigidCellMasks
   cases rule.rigid with
   | false => simp
@@ -1076,7 +1077,13 @@ theorem Board.applyRigidCellMasks_cellObjWords
       maskNoBitsInCommon pat.movementsLayerMask (b.cellRigidMovementAppliedMask tile)) with
     | false => simp
     | true =>
-      simp [Board.setCellRigidMovementAppliedMask, Board.setCellRigidGroupIndexMask, Board.cellObjWords]
+      simp [Board.setCellRigidMovementAppliedMask, Board.setCellRigidGroupIndexMask,
+        Board.cellObjWords, Board.cellMovWords]
+
+theorem Board.applyRigidCellMasks_cellObjWords
+    (game : Game) (rule : Rule) (b : Board) (tile t : Nat) (pat : CellPattern) :
+    (applyRigidCellMasks game rule b tile pat).1.cellObjWords t = b.cellObjWords t :=
+  (Board.applyRigidCellMasks_cellWords game rule b tile t pat).1
 
 theorem Board.applyRigidCellMasks_nTiles
     (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern) :
@@ -1096,19 +1103,8 @@ theorem Board.applyRigidCellMasks_nTiles
 
 theorem Board.applyRigidCellMasks_cellMovWords
     (game : Game) (rule : Rule) (b : Board) (tile t : Nat) (pat : CellPattern) :
-    (applyRigidCellMasks game rule b tile pat).1.cellMovWords t = b.cellMovWords t := by
-  unfold applyRigidCellMasks
-  cases rule.rigid with
-  | false => simp
-  | true =>
-    simp only [Bool.not_true]
-    cases (maskNoBitsInCommon
-        (buildRigidGroupMask game rule.groupNumber pat.movementsLayerMask b.strideMov)
-        (b.cellRigidGroupIndexMask tile) &&
-      maskNoBitsInCommon pat.movementsLayerMask (b.cellRigidMovementAppliedMask tile)) with
-    | false => simp
-    | true =>
-      simp [Board.setCellRigidMovementAppliedMask, Board.setCellRigidGroupIndexMask, Board.cellMovWords]
+    (applyRigidCellMasks game rule b tile pat).1.cellMovWords t = b.cellMovWords t :=
+  (Board.applyRigidCellMasks_cellWords game rule b tile t pat).2
 
 /-- `commitCellReplacement` only mutates object/movement words at `tile`. -/
 theorem Board.commitCellReplacement_preserves_other_tiles
