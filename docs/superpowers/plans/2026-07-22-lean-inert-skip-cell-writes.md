@@ -30,42 +30,25 @@
 
 **Files:** Rules.lean, IR.lean, Runtime.lean
 
-- [ ] Add `skipCellWrites : Bool` to `Rule` (after `isRandom` or at end before deriving).
-- [ ] `parseRule`: `skipCellWrites := false` in the structure literal.
-- [ ] `def Rule.skipCellWritesTransform (r : Rule) : Rule := { r with skipCellWrites := true }` (name from design `skipCellWrites`).
-- [ ] In `applyCellReplacement`, first check:
-  ```lean
-  if rule.skipCellWrites || !pat.hasReplacement then (false, b, rng) else ...
-  ```
-  Or nested: `if rule.skipCellWrites then ... else if !pat.hasReplacement ...` — keep proofs simple; prefer:
-  ```lean
-  if rule.skipCellWrites then (false, b, rng)
-  else if !pat.hasReplacement then (false, b, rng)
-  else ...
-  ```
-- [ ] Extract shared full-apply body; define:
-  ```lean
-  def tryApplyRuleSpec (game) (b) (rule) (st) :=
-    let rowMatchLists := ...
-    if rowMatchLists.any (·.isEmpty) then (false, b, st)
-    else
-      let (any, board, rng') := applyMatchedTuples ...
-      (any, board, { st with commandQueue := ..., modified := ..., rng := rng' })
-  ```
-- [ ] `tryApplyRule` = match-fail same; else if `syntacticInertCommandOnly` then early-out; else `tryApplyRuleSpec` body (or call Spec and ignore that Spec already queues — keep behavior identical).
-- [ ] Update `applyCellReplacement_noReplacement` / WF proofs for the new if-arm (`rule.skipCellWrites`).
-- [ ] Build: `lake build PuzzleScript` + `make lean_parity_smoke` (behavior must match).
-- [ ] Commit: `Add Rule.skipCellWrites flag, cell-write skip, and tryApplyRuleSpec.`
+- [x] Add `skipCellWrites : Bool` to `Rule` (after `isRandom` or at end before deriving).
+- [x] `parseRule`: `skipCellWrites := false` in the structure literal.
+- [x] `def Rule.skipCellWritesTransform (r : Rule) : Rule := { r with skipCellWrites := true }` (name from design `skipCellWrites`).
+- [x] In `applyCellReplacement`, first check skip / no-replacement arms.
+- [x] Extract `tryApplyRuleSpec` (full path); keep early-out in `tryApplyRule`.
+- [x] Update WF proofs for the new if-arm (`rule.skipCellWrites`).
+- [x] Build: `lake build PuzzleScript` + `make lean_parity_smoke` (behavior must match).
+- [x] Commit: `Add Rule.skipCellWrites flag, cell-write skip, and tryApplyRuleSpec.`
 
 ### Task 2: Mask identity lemmas
 
-- [ ] Prove `maskApplyReplacement` id criteria under clear/set conditions matching match implications.
-- [ ] Commit when green.
+- [x] Prove `maskApplyReplacement` id criteria under clear/set conditions matching match implications.
+- [x] Commit when green.
 
 ### Task 3: Strengthen `P` for shared-layer clears (if needed for proofs)
 
-- [ ] Extend identity / `syntacticInert` predicates with layer metadata per design §7.2.
-- [ ] Keep `lean_inert_static_smoke` green.
+- [x] Add `objectsClearWithinSetLayers` + `*IsIdentityFor` / `syntacticInertCommandOnlyFor` in IR (Game-relative; Rules `P` unchanged for JS smoke).
+- [ ] Migrate smoke / early-out to For-predicate when ApplyObsEq proofs need it.
+- [ ] Keep `lean_inert_static_smoke` green after migration.
 
 ### Task 4: Cell / row / tuple board-id under `P`
 

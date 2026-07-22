@@ -135,6 +135,54 @@ def CellPattern.layerRespecting (game : Game) (p : CellPattern) : Bool :=
                 && maskBitsSetIn (game.layerMasks.getD layer #[]) p.objectsClear))
       && CellPattern.randomEntityCompatible game p
 
+/--
+Shared-layer clear hygiene (skipCellWrites design §7.2): every bit in `clear` lies in the
+union of collision-layer masks of objects in `set`. Pure IR + `Game` metadata (no board WF).
+-/
+def objectsClearWithinSetLayers (game : Game) (clear set : MaskWords) : Bool :=
+  let setLayerUnion : MaskWords :=
+    (List.range game.layerCount).foldl
+      (fun acc ℓ =>
+        if objectsSetCountOnLayer game set ℓ > 0 then
+          maskOr acc (game.layerMasks.getD ℓ #[])
+        else acc)
+      (#[] : MaskWords)
+  maskBitsSetIn clear setLayerUnion
+
+/--
+Game-relative object identity: existing `objectReplacementIsIdentity` plus shared-layer
+clear ⊆ set-layer union. Prefer this in skipCellWrites proofs; keep the Rules predicate
+aligned with JS tag smoke until call sites migrate.
+-/
+def CellPattern.objectReplacementIsIdentityFor (game : Game) (p : CellPattern) : Bool :=
+  CellPattern.objectReplacementIsIdentity p
+    && (p.objectsClear == p.objectsSet
+      || objectsClearWithinSetLayers game p.objectsClear p.objectsSet)
+
+def CellPattern.replacementIsIdentityFor (game : Game) (p : CellPattern) : Bool :=
+  CellPattern.objectReplacementIsIdentityFor game p
+    && p.movementReplacementIsIdentity
+    && !maskAnyBits p.randomEntityMask
+    && !maskAnyBits p.randomDirMask
+    && p.layerCoupledMovementReplacements.isEmpty
+    && !p.hasInferredMutators
+
+def PatternCell.mutatesBoardFor (game : Game) : PatternCell → Bool
+  | .ellipsis => false
+  | .cell p =>
+      p.hasReplacement
+        && !CellPattern.replacementIsIdentityFor game p
+        && (p.effect.mutatesBoard || p.hasInferredMutators)
+
+def Rule.cellsDoNotMutateFor (game : Game) (r : Rule) : Bool :=
+  r.patternRows.all (fun row => row.all (fun c => !(PatternCell.mutatesBoardFor game c)))
+
+def Rule.isCommandOnlyFor (game : Game) (r : Rule) : Bool :=
+  r.commandOnlyMeta && Rule.cellsDoNotMutateFor game r
+
+def Rule.syntacticInertCommandOnlyFor (game : Game) (r : Rule) : Bool :=
+  Rule.isCommandOnlyFor game r && PuzzleScript.syntacticInertCommandOnly r.commands
+
 def PatternCell.layerRespecting (game : Game) : PatternCell → Bool
   | .ellipsis => true
   | .cell p => CellPattern.layerRespecting game p
