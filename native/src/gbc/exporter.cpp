@@ -29,6 +29,7 @@ namespace {
 constexpr size_t kSessionLimit = 4U * 1024U;
 constexpr size_t kMaxBoardCells = PS_GBC_MAX_BOARD_CELLS;
 constexpr size_t kGeneratedRomBankLimit = 14U * 1024U;
+constexpr size_t kMaxPrecomposedCompositions = 8U;
 
 constexpr size_t align4(size_t value) {
     return (value + 3U) & ~size_t{3U};
@@ -138,6 +139,111 @@ struct PackedAudio {
         namedSoundIds.fill(PS_GBC_NO_SOUND);
     }
 };
+
+struct PackedComposition {
+    uint32_t objects = 0U;
+    uint8_t palette = 0U;
+    std::array<uint8_t, 64> tileBytes{};
+};
+
+std::vector<PackedComposition> packPrecomposedCompositions(
+    const std::vector<PackedObject>& objects,
+    const std::vector<PackedLevel>& levels,
+    const std::array<uint8_t, 256>& paletteRemap,
+    uint32_t backgroundMask
+) {
+    struct Candidate {
+        uint32_t objects = 0U;
+        size_t count = 0U;
+        size_t firstSeen = 0U;
+    };
+    static constexpr std::array<uint8_t, 16> kSourceCoordinate = {
+        0U, 0U, 0U, 1U, 1U, 1U, 2U, 2U,
+        2U, 2U, 3U, 3U, 3U, 4U, 4U, 4U
+    };
+    std::vector<Candidate> candidates;
+    size_t sequence = 0U;
+    const auto observe = [&](uint32_t mask) {
+        const auto found = std::find_if(
+            candidates.begin(), candidates.end(),
+            [mask](const Candidate& candidate) {
+                return candidate.objects == mask;
+            });
+        if (found == candidates.end()) {
+            candidates.push_back({mask, 1U, sequence++});
+        } else {
+            ++found->count;
+        }
+    };
+    for (const PackedLevel& level : levels) {
+        if (level.message) continue;
+        for (const uint32_t cell : level.cells) observe(cell);
+    }
+    observe(backgroundMask);
+    std::stable_sort(
+        candidates.begin(), candidates.end(),
+        [](const Candidate& left, const Candidate& right) {
+            if (left.count != right.count) return left.count > right.count;
+            if (left.firstSeen != right.firstSeen) {
+                return left.firstSeen < right.firstSeen;
+            }
+            return left.objects < right.objects;
+        });
+    if (candidates.size() > kMaxPrecomposedCompositions) {
+        candidates.resize(kMaxPrecomposedCompositions);
+    }
+
+    std::vector<size_t> renderOrder(objects.size());
+    for (size_t index = 0U; index < renderOrder.size(); ++index) {
+        renderOrder[index] = index;
+    }
+    std::stable_sort(
+        renderOrder.begin(), renderOrder.end(), [&](size_t left, size_t right) {
+            return objects[left].layer < objects[right].layer;
+        });
+
+    std::vector<PackedComposition> result;
+    result.reserve(candidates.size());
+    for (const Candidate& candidate : candidates) {
+        PackedComposition composition;
+        std::array<uint8_t, 25> sourcePixels{};
+        composition.objects = candidate.objects;
+        for (const size_t objectIndex : renderOrder) {
+            const PackedObject& object = objects[objectIndex];
+            bool drew = false;
+            if ((candidate.objects & (uint32_t{1} << objectIndex)) == 0U) {
+                continue;
+            }
+            for (size_t pixel = 0U; pixel < sourcePixels.size(); ++pixel) {
+                if (object.pixels[pixel] == 0xffU) continue;
+                sourcePixels[pixel] = object.pixels[pixel];
+                drew = true;
+            }
+            if (drew) composition.palette = object.palette;
+        }
+        for (size_t renderedY = 0U; renderedY < 16U; ++renderedY) {
+            const size_t sourceY = kSourceCoordinate[renderedY];
+            const size_t tileY = renderedY >> 3U;
+            const size_t tileRow = renderedY & 7U;
+            for (size_t renderedX = 0U; renderedX < 16U; ++renderedX) {
+                const size_t sourceX = kSourceCoordinate[renderedX];
+                const uint8_t source = sourcePixels[sourceY * 5U + sourceX];
+                const uint8_t color = paletteRemap[
+                    static_cast<size_t>(composition.palette) * 32U + source];
+                const size_t tileX = renderedX >> 3U;
+                const size_t tileColumn = renderedX & 7U;
+                const size_t destination =
+                    (tileY * 2U + tileX) * 16U + tileRow * 2U;
+                composition.tileBytes[destination] |= static_cast<uint8_t>(
+                    (color & 1U) << (7U - tileColumn));
+                composition.tileBytes[destination + 1U] |= static_cast<uint8_t>(
+                    ((color >> 1U) & 1U) << (7U - tileColumn));
+            }
+        }
+        result.push_back(composition);
+    }
+    return result;
+}
 
 std::string readFile(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
@@ -1112,6 +1218,7 @@ std::string emitHeader(
     uint8_t cellWidth,
     uint8_t cellHeight,
     size_t renderObjectCount,
+    size_t precomposedCompositionCount,
     const PackedAudio& audio,
     size_t presencePrecheckCount,
     size_t playerAnchorCount
@@ -1132,6 +1239,8 @@ std::string emitHeader(
         << static_cast<unsigned int>(cellWidth * cellHeight) << "U\n\n"
         << "#define PS_GBC_GENERATED_RENDER_OBJECT_COUNT "
         << renderObjectCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT "
+        << precomposedCompositionCount << "U\n\n"
         << "#define PS_GBC_GENERATED_SOUND_COUNT "
         << audio.seeds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_RULE_SOUND_COUNT "
@@ -1151,7 +1260,12 @@ std::string emitHeader(
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
         << "extern const ps_gbc_game_view ps_gbc_generated_game;\n"
-        << "extern const ps_gbc_render_object ps_gbc_generated_render_objects[];\n\n"
+        << "extern const ps_gbc_render_object ps_gbc_generated_render_objects[];\n"
+        << "#if PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT != 0U\n"
+        << "extern const uint32_t ps_gbc_generated_precomposed_masks[];\n"
+        << "extern const uint8_t ps_gbc_generated_precomposed_palettes[];\n"
+        << "extern const uint8_t ps_gbc_generated_precomposed_tiles[];\n"
+        << "#endif\n\n"
         << "#ifdef __cplusplus\n}\n#endif\n\n#endif\n";
     return out.str();
 }
@@ -1184,6 +1298,7 @@ std::string emitSource(
     const std::array<uint16_t, 4>& uiPalette,
     const MovementLayout& movementLayout,
     const std::vector<PackedObject>& objects,
+    const std::vector<PackedComposition>& precomposedCompositions,
     const std::vector<PackedLevel>& levels,
     const std::vector<PackedPattern>& patterns,
     const std::vector<PackedRule>& rules,
@@ -1262,6 +1377,30 @@ std::string emitSource(
             << static_cast<unsigned int>(objects[index].palette) << "U},\n";
     }
     out << "};\n\n";
+    if (!precomposedCompositions.empty()) {
+        out << "const uint32_t ps_gbc_generated_precomposed_masks[] = {";
+        for (size_t index = 0U; index < precomposedCompositions.size(); ++index) {
+            if (index != 0U) out << ", ";
+            out << "0x" << std::hex << precomposedCompositions[index].objects
+                << "U" << std::dec;
+        }
+        out << "};\nconst uint8_t ps_gbc_generated_precomposed_palettes[] = {";
+        for (size_t index = 0U; index < precomposedCompositions.size(); ++index) {
+            if (index != 0U) out << ", ";
+            out << static_cast<unsigned int>(precomposedCompositions[index].palette)
+                << "U";
+        }
+        out << "};\nconst uint8_t ps_gbc_generated_precomposed_tiles[] = {";
+        bool wroteTile = false;
+        for (const PackedComposition& composition : precomposedCompositions) {
+            for (const uint8_t byte : composition.tileBytes) {
+                if (wroteTile) out << ", ";
+                out << static_cast<unsigned int>(byte) << "U";
+                wroteTile = true;
+            }
+        }
+        out << "};\n\n";
+    }
     const char* levelCellType = objectBytesPerCellValue == 1U ? "uint8_t"
         : objectBytesPerCellValue == 2U ? "uint16_t" : "uint32_t";
     for (size_t index = 0; index < levels.size(); ++index) {
@@ -1708,6 +1847,12 @@ ExportResult exportGame(const ExportOptions& options) {
         rules.begin(), rules.end(), [](const PackedRule& rule) {
             return (rule.commands & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U;
         }));
+    const uint32_t backgroundMask =
+        game.backgroundId >= 0 && game.backgroundId < 32
+            ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId)
+            : 0U;
+    std::vector<PackedComposition> precomposedCompositions =
+        packPrecomposedCompositions(objects, levels, remap, backgroundMask);
 
     const auto requiredBytesForUndo = [&](uint8_t undo) {
         (void)undo;
@@ -1754,6 +1899,14 @@ ExportResult exportGame(const ExportOptions& options) {
         throw std::runtime_error(
             "GBC generated game data exceeds the conservative 14 KiB switchable-ROM-bank budget");
     }
+    const size_t precomposedEntryBytes = sizeof(uint32_t) + sizeof(uint8_t) + 64U;
+    const size_t availablePrecomposedEntries =
+        (kGeneratedRomBankLimit - estimatedGameBankBytes) / precomposedEntryBytes;
+    if (precomposedCompositions.size() > availablePrecomposedEntries) {
+        precomposedCompositions.resize(availablePrecomposedEntries);
+    }
+    estimatedGameBankBytes +=
+        precomposedCompositions.size() * precomposedEntryBytes;
 
     ExportResult result;
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
@@ -1767,12 +1920,14 @@ ExportResult exportGame(const ExportOptions& options) {
             cellWidth,
             cellHeight,
             objects.size(),
+            precomposedCompositions.size(),
             audio,
             presencePrecheckCount,
             playerAnchorCount));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
-        game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
-        patterns, rules, earlyGroups, lateGroups, audio, static_cast<uint8_t>(viewportWidth),
+        game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
+        precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
+        static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
@@ -1808,6 +1963,10 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"object_count\": " << game.objectCount << ",\n"
         << "  \"render_object_count\": " << objects.size() << ",\n"
         << "  \"render_sprite_bytes\": " << (objects.size() * 25U) << ",\n"
+        << "  \"precomposed_composition_count\": "
+        << precomposedCompositions.size() << ",\n"
+        << "  \"precomposed_composition_bytes\": "
+        << (precomposedCompositions.size() * precomposedEntryBytes) << ",\n"
         << "  \"collision_layer_count\": " << game.layerCount << ",\n"
         << "  \"movement_layer_count\": " << movementLayout.movementToCollision.size() << ",\n"
         << "  \"movement_bytes_per_cell\": "

@@ -7,6 +7,10 @@
 
 #include <string.h>
 
+#ifndef PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT
+#define PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT 0U
+#endif
+
 #define ATTR_TILE_BANK 0x08U
 #define SCREEN_TILES \
     (PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT)
@@ -119,9 +123,32 @@ static void uploadQuartet(uint16_t base_tile) {
     }
 }
 
+static bool loadPrecomposedComposition(uint32_t objects, uint8_t* palette) {
+#if PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT != 0U
+    const uint32_t* mask = ps_gbc_generated_precomposed_masks;
+    const uint8_t* tiles = ps_gbc_generated_precomposed_tiles;
+    uint8_t index;
+    for (index = 0U;
+         index < PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT;
+         ++index, ++mask, tiles += sizeof(gTileBytes)) {
+        if (*mask != objects) continue;
+        *palette = ps_gbc_generated_precomposed_palettes[index];
+        memcpy(gTileBytes, tiles, sizeof(gTileBytes));
+        return true;
+    }
+#else
+    (void)objects;
+    (void)palette;
+#endif
+    return false;
+}
+
 static uint8_t composeAndUpload(uint16_t base_tile, uint32_t objects) {
-    const uint8_t palette = composeTile(objects);
-    encodeQuartet(palette);
+    uint8_t palette;
+    if (!loadPrecomposedComposition(objects, &palette)) {
+        palette = composeTile(objects);
+        encodeQuartet(palette);
+    }
     uploadQuartet(base_tile);
     return palette;
 }

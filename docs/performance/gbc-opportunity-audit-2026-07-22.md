@@ -98,6 +98,16 @@ Dirty-frame controls cost only 0.50-0.75 extra tick, cold rendering and logic
 are unchanged, and the query costs 58 fixed-ROM bytes with no game-bank or RAM
 growth.
 
+Bounded precomposition of level masks is retained for cold rendering. Across
+all retained levels, the five cartridges contain only 6, 5, 5, 5, and 2
+distinct starting object masks. The exporter ranks those masks by frequency,
+emits at most eight ready-to-upload 64-byte quartets, and trims the table to the
+existing conservative 14 KiB generated-bank budget. Initial rendering falls
+71.35%, 60.11%, 67.38%, 32.89%, and 47.91%. The tables add 138-414 bytes of
+payload and 328-604 linked bank bytes including lookup code, with zero fixed-ROM
+or RAM growth; logic is exactly unchanged. Uncaptured and dynamic masks retain
+the original compositor fallback.
+
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
 62 bytes larger for the rule-heavy case, and applying the flag to the whole ROM
@@ -193,8 +203,11 @@ best remaining rendering experiments are:
    layer-by-object scan and variable-width address arithmetic; it does not
    replace or change `kSourceCoordinate` or the 5x5-to-16x16 encoding.
 2. Export precomposed 64-byte tile quartets for object masks present in levels
-   and other statically common masks. Cap this by available game-bank space.
-   This targets level transitions and cache misses, not ordinary motion.
+   and other statically common masks. **Retained:** the exporter frequency-ranks
+   level masks, caps the table at eight entries and the available conservative
+   game-bank budget, and leaves the dynamic compositor as fallback. Initial
+   rendering improves 32.89-71.35% for 328-604 linked bank bytes and no fixed
+   ROM or RAM.
 3. Upload an aligned quartet with one four-tile `set_bkg_data` call instead of
    four one-tile calls. All cache/dedicated base tiles are multiples of four and
    therefore do not straddle the 256-tile VRAM-bank boundary. **Measured and
@@ -388,6 +401,7 @@ earn their cost.
 | Upload each aligned tile quartet with one GBDK call | **Reject** | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | logic exactly unchanged; -28 B linked generated bank; no fixed-ROM or RAM change |
 | Map each dirty 2x2 quartet with two rectangular GBDK calls | **Reject** | incremental +2.46% | incremental 0.00% | incremental +2.67% | incremental +7.98% | incremental +1.89% | cold render unchanged within 1 tick; -65 B fixed ROM, +98 B linked generated bank; RAM unchanged |
 | Skip rendering when the final dirty bitset is empty | **Keep** | dirty control +0.99% | clean frame -93.33% | dirty control +1.60% | dirty control +0.24% | dirty control +0.63% | cold render and logic unchanged; +58 B fixed ROM; game bank/RAM unchanged |
+| Precompose frequent level-mask tile quartets | **Keep** | initial -71.35% | initial -60.11% | initial -67.38% | initial -32.89% | initial -47.91% | 6/5/5/5/2 entries; +328 to +604 B linked bank; fixed ROM/RAM unchanged; exact logic and pixel parity |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -405,7 +419,8 @@ measurements are
 `.codex_tmp/benchmarks/p2-ordered-render-table.json`, and
 `.codex_tmp/benchmarks/p2-batched-quartet-upload.json`, and
 `.codex_tmp/benchmarks/p2-batched-map-quartet.json`, and
-`.codex_tmp/benchmarks/p2-skip-clean-render-final.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-skip-clean-render-final.json`, and
+`.codex_tmp/benchmarks/p2-precomposed-level-masks.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
 the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
 respectively.
@@ -831,9 +846,9 @@ Keep these gates for every retained optimization:
    object-only SM83 match/scan kernel with the C path retained as an oracle and
    fallback.
 7. Address initial rendering first with fixed 5x5 pointer-streamed sprites and
-   a compact layer-ordered render table; then test precomposed quartets, a
-   GBDK HBlank copy, measured VRAM-DMA variants, an inactive-map handoff, and
-   near-call renderer entry points if level-transition latency or blanking
+   a compact layer-ordered render table and bounded precomposed quartets; then
+   test GBDK HBlank copy, measured VRAM-DMA variants, an inactive-map handoff,
+   and near-call renderer entry points if level-transition latency or blanking
    remains objectionable. The one-call quartet upload has already been measured
    and rejected at 0.00% initial-render improvement.
 8. Consider one-entry idle speculation only if the optimized rule engine still

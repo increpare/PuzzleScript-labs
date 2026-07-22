@@ -293,6 +293,12 @@ def main() -> int:
                 "objects": int(manifest["object_count"]),
                 "render_objects": int(manifest.get("render_object_count", 0)),
                 "render_sprite_bytes": int(manifest.get("render_sprite_bytes", 0)),
+                "precomposed_compositions": int(
+                    manifest.get("precomposed_composition_count", 0)
+                ),
+                "precomposed_composition_bytes": int(
+                    manifest.get("precomposed_composition_bytes", 0)
+                ),
                 "collision_layers": int(manifest["collision_layer_count"]),
                 "movement_layers": int(manifest["movement_layer_count"]),
                 "movement_bytes_per_cell": int(

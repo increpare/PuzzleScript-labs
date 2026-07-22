@@ -79,6 +79,12 @@ int main() {
     require(manifest.find("\"snapshot_sram_bytes\": 210") != std::string::npos,
         "manifest budgets four undo states and a checkpoint in SRAM");
     require(
+        manifest.find("\"precomposed_composition_count\": 6")
+                != std::string::npos
+            && manifest.find("\"precomposed_composition_bytes\": 414")
+                != std::string::npos,
+        "manifest records the bounded level-mask tile table");
+    require(
         manifest.find("\"run_rules_on_level_start\": false")
             != std::string::npos,
         "manifest records the absence of a level-start rule pass");
@@ -112,6 +118,8 @@ int main() {
             && header.find("PS_GBC_GENERATED_CELL_HEIGHT 5U") != std::string::npos
             && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos
             && header.find("PS_GBC_GENERATED_RENDER_OBJECT_COUNT 5U")
+                != std::string::npos
+            && header.find("PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT 6U")
                 != std::string::npos,
         "generated header preserves the native PuzzleScript cell dimensions");
     require(source.find("#pragma bank 1") != std::string::npos,
@@ -137,6 +145,14 @@ int main() {
             "static const uint8_t kObject3Pixels[] = {14U, 14U, 14U, 15U, 14U")
             != std::string::npos,
         "5x5 sprite arrays retain the native pixels used by 16x16 upscaling");
+    require(
+        source.find(
+            "ps_gbc_generated_precomposed_masks[] = {0x9U, 0x1U, 0x13U, "
+            "0x3U, 0x5U, 0x11U}") != std::string::npos
+            && source.find(
+                "ps_gbc_generated_precomposed_tiles[] = {0U, 255U, 0U, 255U")
+                != std::string::npos,
+        "frequent level masks receive deterministic precomposed 16x16 tiles");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {6965U, 3658U, 0U, 0U, "
