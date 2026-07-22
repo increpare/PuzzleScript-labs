@@ -189,7 +189,11 @@ best remaining rendering experiments are:
    This targets level transitions and cache misses, not ordinary motion.
 3. Upload an aligned quartet with one four-tile `set_bkg_data` call instead of
    four one-tile calls. All cache/dedicated base tiles are multiples of four and
-   therefore do not straddle the 256-tile VRAM-bank boundary.
+   therefore do not straddle the 256-tile VRAM-bank boundary. **Measured and
+   rejected:** initial-render time was exactly unchanged in all five cases. It
+   saved 28 linked generated-bank bytes, but GBDK already performs the same
+   byte loop inside each call, so the removed call overhead was below the timer
+   resolution and did not improve any user-visible workload.
 4. Batch the two tile-map rows for a dirty 2x2 quartet and reduce repeated VBK
    switches/API calls.
 5. Do not call `renderBoard` when a turn reports a transient movement change
@@ -367,6 +371,7 @@ earn their cost.
 | Skip confirmation for singleton groups proved unable to self-enable | **Keep** | 0.00% | 0.00% | -0.0004% | -24.92% | -0.0044% | fixed ROM, game-bank ROM, static WRAM, and session unchanged |
 | Add per-rule wake scheduling after singleton certification | **Reject** | no repeat passes | 0.016 repeat passes/turn | no repeat passes | no repeat passes | no repeat passes | a table/check would target only 0.031 repeat-rule visits/turn at best |
 | Emit centered 5x5 sprites and one layer-ordered render entry per object | **Keep** | composition -82.90%; initial -16.27% | composition -82.50%; initial -18.42% | composition -84.76%; initial -18.28% | composition -91.62%; initial -42.91% | composition -90.51%; initial -19.30% | -27 to -41 B fixed ROM; -302 to -609 B linked generated bank; RAM unchanged |
+| Upload each aligned tile quartet with one GBDK call | **Reject** | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | logic exactly unchanged; -28 B linked generated bank; no fixed-ROM or RAM change |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -381,7 +386,8 @@ measurements are
 `.codex_tmp/benchmarks/p1-inline-matched-starts-final.json`, and
 `.codex_tmp/benchmarks/p1-compact-player-cell-anchor.json`, and
 `.codex_tmp/benchmarks/p1-singleton-confirmation.json`, and
-`.codex_tmp/benchmarks/p2-ordered-render-table.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-ordered-render-table.json`, and
+`.codex_tmp/benchmarks/p2-batched-quartet-upload.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
 the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
 respectively.
@@ -808,8 +814,9 @@ Keep these gates for every retained optimization:
    fallback.
 7. Address initial rendering first with fixed 5x5 pointer-streamed sprites and
    a compact layer-ordered render table; then test precomposed quartets, a
-   one-call quartet upload, GBDK HBlank copy, measured VRAM-DMA variants, an
-   inactive-map handoff, and near-call renderer entry points if level-transition
-   latency or blanking remains objectionable.
+   GBDK HBlank copy, measured VRAM-DMA variants, an inactive-map handoff, and
+   near-call renderer entry points if level-transition latency or blanking
+   remains objectionable. The one-call quartet upload has already been measured
+   and rejected at 0.00% initial-render improvement.
 8. Consider one-entry idle speculation only if the optimized rule engine still
    misses the chosen interaction-latency target.
