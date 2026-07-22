@@ -93,8 +93,8 @@ int main() {
     const std::string source = readFile(first.generatedSourcePath);
     require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
         "generated data declares its switchable ROM bank");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 357U") != std::string::npos,
-        "generated header exposes the compact exact bounded arena");
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 351U") != std::string::npos,
+        "generated header keeps ordered match starts inside reserved session overhead");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
     require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,

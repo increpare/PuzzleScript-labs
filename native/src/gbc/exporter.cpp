@@ -1697,7 +1697,7 @@ ExportResult exportGame(const ExportOptions& options) {
             + static_cast<size_t>(maxCells) * objectCellBytes;
         bytes = align4(bytes);
         return bytes + static_cast<size_t>(maxCells) * movementLayout.bytesPerCell
-            + 2U * ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
+            + ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
     };
     const uint8_t undoCapacity = PS_GBC_MAX_UNDO;
     const size_t sessionBytes = requiredBytesForUndo(undoCapacity);

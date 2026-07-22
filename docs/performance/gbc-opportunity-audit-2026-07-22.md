@@ -50,6 +50,14 @@ fixed-ROM bytes and use a one- or four-byte mask inside the already-reserved
 session overhead; generated data, declared session arenas, and static WRAM do
 not grow.
 
+Ordered matched-start storage is retained next. The collector appends matching
+cell indexes in scan order; the apply pass walks that array and keeps the same
+per-start revalidation. This removes the match-bitset clear, variable shifts,
+and full-board second scan. It cuts another 0.36-10.11%, saves 237-250
+fixed-ROM bytes, and reduces the declared arena/static WRAM by 6-11 bytes by
+placing the worst-case 90-byte array inside the existing private-session
+overhead budget.
+
 The next algorithmic work should use the remaining static-analysis facts
 already present in this repository: certified wake masks. After that, use
 object-position bitsets or posting lists to
@@ -317,6 +325,7 @@ earn their cost.
 | Skip fixpoint confirmation for certified single-pass groups | **Keep** | -0.07% | -0.07% | -0.15% | -15.12% | -0.04% | +1 B fixed ROM; game bank, static WRAM, and session unchanged |
 | Select certified directional rule blocks for the current input | **Keep** | -47.28% | -60.18% | -12.43% | -16.63% | +0.02% | +226 B fixed ROM; game bank, static WRAM, and session unchanged |
 | Reject flagged rules whose first required objects are absent | **Keep** | 0.00% | 0.00% | -33.45% | -25.74% | -87.66% | compile-out controls unchanged; eligible builds +370-627 B fixed ROM and 1-4 B reserved session overhead; game bank/static WRAM/declared arena unchanged |
+| Store ordered matched starts instead of a bitset/full-board apply scan | **Keep** | -0.94% | -1.32% | -2.78% | -10.11% | -0.36% | -237 to -250 B fixed ROM; -6 to -11 B declared arena/static WRAM; game bank unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -327,9 +336,10 @@ measurements are
 `.codex_tmp/benchmarks/p0-narrow-hot-indexes.json`, and
 `.codex_tmp/benchmarks/p1-single-pass-certified.json`, and
 `.codex_tmp/benchmarks/p1-input-direction-layout.json`, and
-`.codex_tmp/benchmarks/p1-width-specialized-presence.json`. Each row is
+`.codex_tmp/benchmarks/p1-width-specialized-presence.json`, and
+`.codex_tmp/benchmarks/p1-inline-matched-starts-final.json`. Each row is
 incremental against the retained row above it. Cumulative reductions against
-the original baseline are now 66.99%, 77.72%, 69.05%, 70.70%, and 93.24%
+the original baseline are now 67.30%, 78.01%, 69.91%, 73.66%, and 93.26%
 respectively.
 
 These transformations should be the first implementation, followed by native
@@ -606,11 +616,14 @@ more promising than only adding a board-wide precheck because the rule-heavy
 boards can contain most object kinds while still having few cells for a
 specific anchor.
 
-Separately, replace the match bitset plus whole-board apply scan with a compact
-array of matched start cells. The board hard limit makes the worst case 90
-bytes. Apply only those starts, while retaining the current revalidation before
-each replacement to preserve rule semantics. This removes the second board
-scan and its variable bit-shift sequence.
+The separate matched-start opportunity is now retained. A fixed 90-byte array
+fits in `PS_GBC_SESSION_OVERHEAD_BUDGET`, so the explicit match bitset allocation
+is removed and declared arenas become 6-11 bytes smaller. Local pointers keep
+SDCC from repeatedly reconstructing the inline-array address. Match collection
+is already in ascending cell order, and the apply pass still revalidates each
+saved start immediately before replacement, preserving the previous semantics.
+Final incremental timings are 213.664, 379.672, 2254.812, 3850.680, and 713.055
+ticks per turn.
 
 ### P2: specialize the generated data ABI
 

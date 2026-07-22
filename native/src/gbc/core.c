@@ -96,8 +96,8 @@ struct ps_gbc_session {
     const ps_gbc_game_view* game;
     uint8_t* board;
     uint8_t* movements;
-    uint8_t* match_bits;
     uint8_t* dirty_bits;
+    uint8_t match_cells[PS_GBC_MAX_BOARD_CELLS];
     ps_gbc_snapshot_io snapshots;
     uint16_t width;
     uint16_t height;
@@ -425,7 +425,7 @@ size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game) {
     result += board_bytes;
     result = ps_gbc_align4(result);
     result += movement_bytes;
-    result += ps_gbc_cell_bitset_bytes(game) * 2U;
+    result += ps_gbc_cell_bitset_bytes(game);
     return result + 3U;
 }
 
@@ -518,8 +518,6 @@ ps_gbc_session* ps_gbc_session_init(
     cursor = ps_gbc_align_pointer(cursor);
     session->movements = cursor;
     cursor += movement_bytes;
-    session->match_bits = cursor;
-    cursor += ps_gbc_cell_bitset_bytes(game);
     session->dirty_bits = cursor;
     if (!ps_gbc_load_level(session, 0U)) return NULL;
     return session;
@@ -582,7 +580,7 @@ static uint8_t ps_gbc_collect_matches(
     int8_t delta
 ) {
     uint8_t count = 0U;
-    const size_t match_bytes = ((size_t)session->game->max_level_cells + 7U) / 8U;
+    uint8_t* const match_cells = session->match_cells;
     uint8_t x;
     uint8_t y;
     uint8_t xmin = 0U;
@@ -592,7 +590,6 @@ static uint8_t ps_gbc_collect_matches(
     const uint8_t length = rule->pattern_count;
     uint8_t cell;
     uint8_t column_advance;
-    memset(session->match_bits, 0, match_bytes);
     if (length == 0U || delta == 0) return 0U;
     if (rule->direction == 1U) ymin = (uint8_t)(length - 1U);
     else if (rule->direction == 2U) ymax = (uint8_t)(ymax - (length - 1U));
@@ -604,7 +601,7 @@ static uint8_t ps_gbc_collect_matches(
     for (x = xmin; x < xmax; ++x) {
         for (y = ymin; y < ymax; ++y) {
             if (ps_gbc_rule_matches_at(session, rule, cell, delta)) {
-                session->match_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));
+                match_cells[count] = cell;
                 ++count;
             }
             ++cell;
@@ -669,9 +666,8 @@ static bool ps_gbc_apply_rule(
 #endif
     const int8_t delta = ps_gbc_delta(session, rule->direction);
     const uint8_t match_count = ps_gbc_collect_matches(session, rule, delta);
-    const uint8_t cells = (uint8_t)(session->width * session->height);
-    uint8_t start;
-    uint8_t visited = 0U;
+    const uint8_t* const match_cells = session->match_cells;
+    uint8_t match_index;
     bool changed = false;
     if (match_count == 0U) return false;
     commands->flags |= rule->commands;
@@ -691,14 +687,11 @@ static bool ps_gbc_apply_rule(
         }
     }
 #endif
-    for (start = 0U; start < cells; ++start) {
+    for (match_index = 0U; match_index < match_count; ++match_index) {
         const ps_gbc_pattern* pattern;
+        const uint8_t start = match_cells[match_index];
         uint8_t cell;
         uint8_t pattern_index;
-        if ((session->match_bits[start >> 3U] & (uint8_t)(1U << (start & 7U))) == 0U) {
-            continue;
-        }
-        if (++visited > match_count) break;
         if (!ps_gbc_rule_matches_at(session, rule, start, delta)) continue;
         pattern = (const ps_gbc_pattern*)(
             (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
