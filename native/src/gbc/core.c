@@ -510,16 +510,21 @@ static bool ps_gbc_pattern_matches(
     const ps_gbc_pattern* pattern,
     uint16_t cell
 ) {
-    const uint32_t objects = ps_gbc_board_get(session, cell);
-    const uint32_t movements = ps_gbc_movement_get(session, cell);
-    if ((pattern->flags & PS_GBC_PATTERN_NEVER_MATCH) != 0U) return false;
-    if ((pattern->flags & PS_GBC_PATTERN_OBJECTS_PRESENT) != 0U
+    uint32_t objects;
+    uint32_t movements;
+    const uint8_t flags = pattern->flags;
+    if ((flags & PS_GBC_PATTERN_NEVER_MATCH) != 0U) return false;
+    objects = ps_gbc_board_get(session, cell);
+    if ((flags & PS_GBC_PATTERN_OBJECTS_PRESENT) != 0U
         && (objects & pattern->objects_present) != pattern->objects_present) return false;
-    if ((pattern->flags & PS_GBC_PATTERN_OBJECTS_MISSING) != 0U
+    if ((flags & PS_GBC_PATTERN_OBJECTS_MISSING) != 0U
         && (objects & pattern->objects_missing) != 0U) return false;
-    if ((pattern->flags & PS_GBC_PATTERN_MOVEMENTS_PRESENT) != 0U
+    if ((flags & (PS_GBC_PATTERN_MOVEMENTS_PRESENT
+            | PS_GBC_PATTERN_MOVEMENTS_MISSING)) == 0U) return true;
+    movements = ps_gbc_movement_get(session, cell);
+    if ((flags & PS_GBC_PATTERN_MOVEMENTS_PRESENT) != 0U
         && (movements & pattern->movements_present) != pattern->movements_present) return false;
-    if ((pattern->flags & PS_GBC_PATTERN_MOVEMENTS_MISSING) != 0U
+    if ((flags & PS_GBC_PATTERN_MOVEMENTS_MISSING) != 0U
         && (movements & pattern->movements_missing) != 0U) return false;
     return true;
 }

@@ -15,7 +15,10 @@ A performance-only prototype that hoisted repeated products out of the hot
 loops, walked pattern pointers/cell indexes incrementally, and avoided movement
 loads for object-only patterns reduced complete turn time by 30-37% in every
 case for 75 bytes of fixed ROM. This prototype was measured and then reverted;
-it has not passed the full correctness/parity gate.
+it had not passed the full correctness/parity gate when this audit was written.
+The first independently gated part is now retained: deferring movement loads
+reduced complete turn time by 5.21-7.17% for 45-46 fixed-ROM bytes, with no
+game-bank, WRAM, or session-memory growth.
 
 The next algorithmic work should use the static-analysis facts already present
 in this repository: certified wake masks, input specialization, and certified
@@ -267,6 +270,21 @@ instrumented benchmark link.
 Combined absolute turn timings were 457.609, 1112.563, 4691.984, 9432.523,
 and 6665.406 ticks respectively. No session, SRAM, or generated-game memory was
 added. The instrumented fixed bank still fit in every case.
+
+### Implementation experiment ledger
+
+The exploratory prototypes above were reverted after measurement. Production
+candidates are being reapplied independently, correctness-gated, measured with
+three deterministic emulator boots per cartridge, and committed only when they
+earn their cost.
+
+| Candidate | Decision | Sokoban | Large | Rule-heavy | Object-heavy | Two lanes | Memory / ROM |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Defer movement-plane loads for object-only patterns | **Keep** | -5.21% | -6.92% | -7.17% | -5.89% | -6.58% | +45-46 B fixed ROM; game bank, static WRAM, and session unchanged |
+
+The retained candidate passed the GBC core, exporter, generated-cartridge,
+native/GBC parity, level-start, static-layer, and action-movement tests. Its
+measurement is `.codex_tmp/benchmarks/p0-conditional-movement-final.json`.
 
 These transformations should be the first implementation, followed by native
 and GBC parity, undo/cancel/restart, sound, render, and compatible-cartridge
