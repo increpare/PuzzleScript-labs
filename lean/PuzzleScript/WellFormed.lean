@@ -202,48 +202,23 @@ theorem maskGetBit_maskApplyReplacement'
     have hc : ¬ oid / 32 < clear.size := by omega
     simp [hEmpty, word0 set hs, word0 old ho, word0 clear hc]
 
-theorem Array.size_set! {α : Type} (xs : Array α) (i : Nat) (v : α) :
-    (xs.set! i v).size = xs.size := by
-  simp [Array.set!, Array.setIfInBounds]
-  split <;> simp [Array.size_set]
-
-theorem Array.size_foldl_set!
-    {α : Type} (xs : Array α) (indices : List Nat) (idx : Nat → Nat) (f : Nat → α) :
-    (indices.foldl (fun a i => a.set! (idx i) (f i)) xs).size = xs.size := by
-  induction indices generalizing xs with
-  | nil => rfl
-  | cons i is ih =>
-    simp only [List.foldl_cons, Array.size_set!, ih]
-
 theorem Board.setCellMovWords_size (b : Board) (tile : Nat) (ws : MaskWords) :
     (b.setCellMovWords tile ws).movements.size = b.movements.size := by
-  change ((List.range b.strideMov).foldl
-      (fun mov i => mov.set! (tile * b.strideMov + i) (ws.getD i 0))
-      b.movements).size = b.movements.size
-  exact Array.size_foldl_set! _ _ _ _
+  simp [Board.setCellMovWords, Array.size_setStrideSlice]
 
 theorem Board.setCellObjWords_size (b : Board) (tile : Nat) (ws : MaskWords) :
     (b.setCellObjWords tile ws).objects.size = b.objects.size := by
-  change ((List.range b.strideObj).foldl
-      (fun objs i => objs.set! (tile * b.strideObj + i) (ws.getD i 0))
-      b.objects).size = b.objects.size
-  exact Array.size_foldl_set! _ _ _ _
+  simp [Board.setCellObjWords, Array.size_setStrideSlice]
 
 theorem Board.setCellRigidMovementAppliedMask_size (b : Board) (tile : Nat) (ws : MaskWords) :
     (b.setCellRigidMovementAppliedMask tile ws).rigidMovementAppliedMask.size =
       b.rigidMovementAppliedMask.size := by
-  change ((List.range b.strideMov).foldl
-      (fun arr i => arr.set! (tile * b.strideMov + i) (ws.getD i 0))
-      b.rigidMovementAppliedMask).size = b.rigidMovementAppliedMask.size
-  exact Array.size_foldl_set! _ _ _ _
+  simp [Board.setCellRigidMovementAppliedMask, Array.size_setStrideSlice]
 
 theorem Board.setCellRigidGroupIndexMask_size (b : Board) (tile : Nat) (ws : MaskWords) :
     (b.setCellRigidGroupIndexMask tile ws).rigidGroupIndexMask.size =
       b.rigidGroupIndexMask.size := by
-  change ((List.range b.strideMov).foldl
-      (fun arr i => arr.set! (tile * b.strideMov + i) (ws.getD i 0))
-      b.rigidGroupIndexMask).size = b.rigidGroupIndexMask.size
-  exact Array.size_foldl_set! _ _ _ _
+  simp [Board.setCellRigidGroupIndexMask, Array.size_setStrideSlice]
 
 /-- `wellFormed` ignores rigid mask arrays. -/
 theorem Board.withClearedRigidMasks_wellFormed (game : Game) (b : Board)
@@ -698,77 +673,19 @@ theorem applyCellReplacement_wellFormed_noReplacement
   rw [applyCellReplacement_noReplacement game rule b tile pat caps rng h]
   exact hB
 
-theorem Array.getD_set!_ne {α : Type} (xs : Array α) (i j : Nat) (v d : α)
-    (hne : i ≠ j) :
-    (xs.set! i v).getD j d = xs.getD j d := by
-  by_cases hi : i < xs.size
-  · have hset : xs.set! i v = xs.set i v hi := by
-      simp [Array.set!, Array.setIfInBounds, hi]
-    rw [hset]
-    simp only [Array.getD]
-    by_cases hj : j < xs.size
-    · have hsize : (xs.set i v hi).size = xs.size := Array.size_set _
-      simp [hj, hsize, Array.getElem_set_ne hi hj hne]
-    · have hsize : (xs.set i v hi).size = xs.size := Array.size_set _
-      simp [hj, hsize]
-  · simp only [Array.set!, Array.setIfInBounds, hi, ↓reduceDIte]
-
-theorem Array.getD_foldl_set!_ne {α : Type}
-    (xs : Array α) (indices : List Nat) (idx : Nat → Nat) (f : Nat → α) (j : Nat) (d : α)
-    (hne : ∀ i ∈ indices, idx i ≠ j) :
-    (indices.foldl (fun a i => a.set! (idx i) (f i)) xs).getD j d = xs.getD j d := by
-  induction indices generalizing xs with
-  | nil => rfl
-  | cons i is ih =>
-    simp only [List.foldl_cons]
-    have hi : idx i ≠ j := hne i (by simp)
-    have hrest : ∀ k ∈ is, idx k ≠ j := fun k hk => hne k (by simp [hk])
-    rw [ih (xs.set! (idx i) (f i)) hrest, Array.getD_set!_ne xs (idx i) j (f i) d hi]
-
-
 theorem Board.objects_getD_setCellObjWords_ne
     (b : Board) (tile : Nat) (ws : MaskWords) (j : Nat)
     (hne : ∀ i < b.strideObj, tile * b.strideObj + i ≠ j) :
     (b.setCellObjWords tile ws).objects.getD j 0 = b.objects.getD j 0 := by
-  change ((List.range b.strideObj).foldl
-      (fun objs i => objs.set! (tile * b.strideObj + i) (ws.getD i 0))
-      b.objects).getD j 0 = b.objects.getD j 0
-  refine Array.getD_foldl_set!_ne _ _ _ _ _ _ ?_
-  intro i hi
-  have hi' : i < b.strideObj := List.mem_range.mp hi
-  exact hne i hi'
+  simpa [Board.setCellObjWords] using
+    Array.getD_setStrideSlice_ne b.objects tile b.strideObj ws j hne
 
 theorem Board.movements_getD_setCellMovWords_ne
     (b : Board) (tile : Nat) (ws : MaskWords) (j : Nat)
     (hne : ∀ i < b.strideMov, tile * b.strideMov + i ≠ j) :
     (b.setCellMovWords tile ws).movements.getD j 0 = b.movements.getD j 0 := by
-  change ((List.range b.strideMov).foldl
-      (fun mov i => mov.set! (tile * b.strideMov + i) (ws.getD i 0))
-      b.movements).getD j 0 = b.movements.getD j 0
-  refine Array.getD_foldl_set!_ne _ _ _ _ _ _ ?_
-  intro i hi
-  have hi' : i < b.strideMov := List.mem_range.mp hi
-  exact hne i hi'
-
-theorem tile_stride_indices_eq_implies_tile_eq
-    (tile t s i j : Nat) (hs : 0 < s) (hi : i < s) (hj : j < s)
-    (heq : tile * s + i = t * s + j) : tile = t := by
-  have hdiv : (tile * s + i) / s = tile := by
-    rw [Nat.mul_comm tile s, Nat.mul_add_div hs, Nat.div_eq_of_lt hi, Nat.add_zero]
-  have hdiv' : (t * s + j) / s = t := by
-    rw [Nat.mul_comm t s, Nat.mul_add_div hs, Nat.div_eq_of_lt hj, Nat.add_zero]
-  rw [heq] at hdiv
-  exact hdiv.symm.trans hdiv'
-
-theorem tile_ranges_disjoint
-    (tile t s i j : Nat) (hne : tile ≠ t) (hi : i < s) (hj : j < s) :
-    tile * s + i ≠ t * s + j := by
-  intro heq
-  by_cases hs : s = 0
-  · simp [hs] at hi
-  · have hspos : 0 < s := Nat.pos_of_ne_zero hs
-    exact hne (tile_stride_indices_eq_implies_tile_eq tile t s i j hspos hi hj heq)
-
+  simpa [Board.setCellMovWords] using
+    Array.getD_setStrideSlice_ne b.movements tile b.strideMov ws j hne
 
 theorem Array.getD_extract {α : Type} (xs : Array α) (start stop i : Nat) (d : α) :
     (xs.extract start stop).getD i d =
