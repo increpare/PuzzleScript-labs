@@ -535,7 +535,8 @@ static bool ps_gbc_rule_matches_at(
     uint16_t start,
     int16_t delta
 ) {
-    const ps_gbc_pattern* pattern = &session->game->patterns[rule->first_pattern];
+    const ps_gbc_pattern* pattern = (const ps_gbc_pattern*)(
+        (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
     uint16_t cell = start;
     uint8_t index;
     for (index = 0U; index < rule->pattern_count; ++index, ++pattern) {
@@ -656,7 +657,8 @@ static bool ps_gbc_apply_rule(
         }
         if (++visited > match_count) break;
         if (!ps_gbc_rule_matches_at(session, rule, start, delta)) continue;
-        pattern = &session->game->patterns[rule->first_pattern];
+        pattern = (const ps_gbc_pattern*)(
+            (const uint8_t*)session->game->patterns + rule->first_pattern.byte_offset);
         cell = start;
         for (pattern_index = 0U;
              pattern_index < rule->pattern_count;

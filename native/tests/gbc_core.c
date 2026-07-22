@@ -35,7 +35,7 @@ static const ps_gbc_pattern kPatterns[] = {
     },
 };
 static const ps_gbc_rule kRules[] = {
-    {0U, 2U, 8U, 0U, 0U, 0U, NULL},
+    {PS_GBC_PATTERN_REFERENCE(0U), 2U, 8U, 0U, 0U, 0U, NULL},
 };
 static const ps_gbc_rule_group kGroups[] = {
     {0U, 1U, -1},
@@ -49,7 +49,7 @@ static const ps_gbc_pattern kLevelStartPatterns[] = {
 };
 static const ps_gbc_rule kLevelStartRules[] = {
     {
-        0U,
+        PS_GBC_PATTERN_REFERENCE(0U),
         1U,
         1U,
         PS_GBC_COMMAND_AGAIN | PS_GBC_COMMAND_RESTART | PS_GBC_COMMAND_WIN,

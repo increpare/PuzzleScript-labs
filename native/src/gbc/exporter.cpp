@@ -1097,7 +1097,7 @@ std::string emitSource(
     out << "};\n\nstatic const ps_gbc_rule kRules[] = {\n";
     if (rules.empty()) out << "    {0},\n";
     for (const PackedRule& rule : rules) {
-        out << "    {" << rule.firstPattern << "U, "
+        out << "    {PS_GBC_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
             << static_cast<unsigned int>(rule.direction) << "U, "
             << static_cast<unsigned int>(rule.commands) << "U, "

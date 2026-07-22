@@ -21,7 +21,10 @@ reduced complete turn time by 5.21-7.17% for 45-46 fixed-ROM bytes, with no
 game-bank, WRAM, or session-memory growth. The pointer/index streaming rewrite
 is also retained: it reduced the already-improved times by another 28.47-35.81%
 for 55 fixed-ROM bytes. Together they reduce the original whole-turn timings by
-32.19-40.42% for 100-101 bytes, again without data-bank or RAM growth.
+32.19-40.42% for 100-101 bytes, again without data-bank or RAM growth. Encoding
+each rule's first pattern as a compile-time byte offset is retained as well: it
+removes another 2.01-2.71% and saves 18 fixed-ROM bytes. The cumulative result
+is a 33.55-41.96% reduction for 82-83 net fixed-ROM bytes.
 
 The next algorithmic work should use the static-analysis facts already present
 in this repository: certified wake masks, input specialization, and certified
@@ -285,14 +288,16 @@ earn their cost.
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | Defer movement-plane loads for object-only patterns | **Keep** | -5.21% | -6.92% | -7.17% | -5.89% | -6.58% | +45-46 B fixed ROM; game bank, static WRAM, and session unchanged |
 | Stream pattern/cell indexes and hoist repeated products | **Keep** | -28.47% | -33.87% | -35.81% | -33.16% | -35.08% | +55 B fixed ROM; game bank, static WRAM, and session unchanged |
+| Emit first-pattern byte offsets instead of indexes | **Keep** | -2.01% | -2.25% | -2.59% | -2.29% | -2.71% | -18 B fixed ROM; game bank, static WRAM, and session unchanged |
 
-Both retained candidates passed the GBC core, exporter, generated-cartridge,
+All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
 measurements are
 `.codex_tmp/benchmarks/p0-conditional-movement-final.json` and
-`.codex_tmp/benchmarks/p0-streaming-arithmetic-final.json`. The second row is
-incremental against the first candidate. Cumulative reductions against the
-original baseline are 32.19%, 38.44%, 40.42%, 37.10%, and 39.36% respectively.
+`.codex_tmp/benchmarks/p0-streaming-arithmetic-final.json`, and
+`.codex_tmp/benchmarks/p0-pattern-offset-final.json`. Each row is incremental
+against the retained row above it. Cumulative reductions against the original
+baseline are now 33.55%, 39.83%, 41.96%, 38.54%, and 41.00% respectively.
 
 These transformations should be the first implementation, followed by native
 and GBC parity, undo/cancel/restart, sound, render, and compatible-cartridge
@@ -489,8 +494,8 @@ the current generic 32-bit interface.
 ### P0: land the measured C hot-loop rewrite
 
 **Partly retained.** The conditional-load and pointer/index streaming changes
-passed the production gate independently; direct generated pattern pointers
-and narrower generated indexes remain separate experiments.
+passed the production gate independently, as did compile-time first-pattern
+byte offsets. Narrower generated indexes remain a separate experiment.
 
 - Cache `cells = width * height` per level/session.
 - Replace each rule's first-pattern index with an emitted direct pointer or

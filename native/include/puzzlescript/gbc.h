@@ -59,7 +59,7 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 11
+#define PS_GBC_GAME_ABI_VERSION 12
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 256
 
@@ -125,8 +125,15 @@ typedef struct ps_gbc_pattern {
     uint8_t flags;
 } ps_gbc_pattern;
 
+typedef struct ps_gbc_pattern_reference {
+    uint16_t byte_offset;
+} ps_gbc_pattern_reference;
+
+#define PS_GBC_PATTERN_REFERENCE(index) \
+    {(uint16_t)((uint16_t)(index) * (uint16_t)sizeof(ps_gbc_pattern))}
+
 typedef struct ps_gbc_rule {
-    uint16_t first_pattern;
+    ps_gbc_pattern_reference first_pattern;
     uint8_t pattern_count;
     uint8_t direction;
     uint8_t commands;
