@@ -122,6 +122,11 @@ int main() {
                 != std::string::npos,
         "generated Sokoban patterns use byte-wide object and movement masks");
     require(
+        header.find("PS_GBC_GENERATED_ABI_VERSION 19U") != std::string::npos
+            && source.find("    19U, 0x") != std::string::npos
+            && manifest.find("\"abi_version\": 19") != std::string::npos,
+        "generated data bakes in the exporter ABI for stale-tool detection");
+    require(
         header.find("PS_GBC_GENERATED_PACKED_RULES 1") != std::string::npos
             && header.find("PS_GBC_GENERATED_RULE_BYTES 5U")
                 != std::string::npos

@@ -918,6 +918,18 @@ The desktop runtime already exposes similarly named counters. Mirroring a small
 subset on GBC and writing them to benchmark SRAM will make static scheduling and
 anchor experiments explainable without adding a timer call to every pattern.
 
+Generated/runtime ABI integrity is now a compile-time gate. A manual artifact
+build exposed that a compiler executable left over from a reverted four-byte
+group experiment could emit packed groups while the freshly compiled runtime
+expected six-byte groups. The result passed cartridge-size checks but corrupted
+rule dispatch. Generated headers now bake in the exporter's numeric ABI, the
+game initializer stores that same literal rather than the runtime's macro, and
+generated-core compilation fails when it differs from the current runtime ABI.
+The five corrected layouts reproduce the retained three-boot/128-turn profiles
+exactly in `.codex_tmp/benchmarks/post-abi-guard-five-game-validation.json`.
+The benchmark harness also preserves a ROM, map, and manifest per case instead
+of leaving only the final case at the shared firmware output path.
+
 Keep these gates for every retained optimization:
 
 1. Three-boot deterministic hardware-timer suite.
@@ -926,6 +938,8 @@ Keep these gates for every retained optimization:
 4. Sound-event parity for movement, failure, create/destroy, and rule SFX.
 5. Link-map limits for fixed ROM, generated bank, WRAM, and SRAM.
 6. All compatible production cartridges plus the mGBA render/hardware smoke.
+7. Rebuild the exporter after ABI edits; require its baked generated ABI to
+   match the runtime before compiling the cartridge.
 
 ## Recommended implementation order
 

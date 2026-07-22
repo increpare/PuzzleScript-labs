@@ -1310,6 +1310,8 @@ std::string emitHeader(
         << presencePrecheckCount << "U\n\n"
         << "#define PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT "
         << playerAnchorCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_ABI_VERSION "
+        << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
         << "#define PS_GBC_GENERATED_PACKED_PATTERNS 1\n\n"
         << "#define PS_GBC_GENERATED_PATTERN_BYTES "
@@ -1604,7 +1606,8 @@ std::string emitSource(
     const uint32_t backgroundMask = game.backgroundId >= 0 && game.backgroundId < 32
         ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId) : 0U;
     out << "};\n\nconst ps_gbc_game_view ps_gbc_generated_game = {\n"
-        << "    PS_GBC_GAME_ABI_VERSION, 0x" << std::hex << hash << "U" << std::dec << ",\n"
+        << "    " << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION)
+        << "U, 0x" << std::hex << hash << "U" << std::dec << ",\n"
         << "    " << escapedString(metadataValue(game, "title", "PuzzleScript Game")) << ", "
         << escapedString(metadataValue(game, "author", "")) << ",\n"
         << "    " << game.objectCount << "U, " << game.layerCount << "U, "
@@ -2080,6 +2083,7 @@ ExportResult exportGame(const ExportOptions& options) {
     std::ostringstream manifest;
     manifest << "{\n"
         << "  \"format\": \"puzzlescript-gbc-v1\",\n"
+        << "  \"abi_version\": " << PS_GBC_GAME_ABI_VERSION << ",\n"
         << "  \"source\": " << jsonString(options.sourcePath.generic_string()) << ",\n"
         << "  \"source_hash\": " << sourceHash(source) << ",\n"
         << "  \"runtime_profile\": \"bounded_interpreter_c\",\n"

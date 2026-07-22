@@ -279,12 +279,15 @@ def main() -> int:
         record = records[0]
         if args.schedules and record["schedule_counts"]["group_invocations"] == 0:
             raise SystemExit(f"schedule probes were not recorded for {name}")
-        manifest = json.loads(
-            (firmware / "generated" / "gbc_manifest.json").read_text(
-                encoding="utf-8"
-            )
-        )
+        manifest_path = firmware / "generated" / "gbc_manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         fixed_rom, generated_bank, static_wram = map_usage(map_path)
+        shutil.copy2(rom, artifact_root / f"{name}.gb")
+        shutil.copy2(map_path, artifact_root / f"{name}.map")
+        shutil.copy2(
+            manifest_path,
+            artifact_root / f"{name}.manifest.json",
+        )
         result = {
             "name": name,
             "source": relative_source,
