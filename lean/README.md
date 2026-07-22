@@ -94,6 +94,8 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
 - Line-walk locality (`LineWalk.lean`): cardinal fixed (non-ellipsis) horizontal/vertical
   rules share one walk for match/apply; walk stays on one row/column; off-walk tiles
   unchanged by fixed `applyRowAt`
+- Stride-slice Board mutators (`Array.setStrideSlice`): shared tile×stride writes for
+  obj/mov/rigid setters; unified other-tile extract preservation (prep for skipCellWrites)
 - `boardWinEquiv` / `dropInert_boardWinEquiv` under `noRandomRuleGroups` (multi-turn
   lift of T5 via `replaySolverGo`); `Rule.boardEffectId` from syntactic inert
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
@@ -132,3 +134,5 @@ WellFormed preservation is done:
 `docs/superpowers/specs/2026-07-22-lean-wellformed-preservation-design.md`.
 Line-walk locality is done:
 `docs/superpowers/specs/2026-07-22-lean-line-walk-locality-design.md`.
+Stride-slice Board mutate cleanup is done:
+`docs/superpowers/specs/2026-07-22-lean-stride-slice-board-mutate-design.md`.

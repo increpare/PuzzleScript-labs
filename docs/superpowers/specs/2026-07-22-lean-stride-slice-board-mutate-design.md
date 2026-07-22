@@ -1,6 +1,6 @@
 # Lean stride-slice Board mutate cleanup
 
-Status: design approved — ready for implementation plan.
+Status: Done (no sorry).
 Date: 2026-07-22.
 
 Related:
