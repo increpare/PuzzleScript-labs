@@ -1411,6 +1411,18 @@ const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session) {
     return session == NULL ? NULL : session->dirty_bits;
 }
 
+bool ps_gbc_has_dirty_cells(const ps_gbc_session* session) {
+    const uint8_t* dirty;
+    uint8_t remaining;
+    if (session == NULL) return false;
+    dirty = session->dirty_bits;
+    remaining = (uint8_t)ps_gbc_cell_bitset_bytes(session->game);
+    while (remaining-- != 0U) {
+        if (*dirty++ != 0U) return true;
+    }
+    return false;
+}
+
 void ps_gbc_clear_dirty_cells(ps_gbc_session* session) {
     if (session == NULL) return;
     memset(session->dirty_bits, 0, ps_gbc_cell_bitset_bytes(session->game));

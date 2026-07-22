@@ -90,6 +90,14 @@ coordinates. Forced whole-board composition falls 82.50-91.62%, while initial
 render falls 16.27-42.91%. It also saves 27-41 fixed-ROM bytes and 302-609
 linked generated-bank bytes, with no RAM growth.
 
+A clean-dirty-bitset render guard is retained as a narrow normal-frame win.
+When rules report a transient change but leave the final board unchanged, the
+renderer now returns before scanning the board or touching VRAM. The eligible
+large-board trace falls from 52.50 to 3.50 ticks (-93.33%, or 12.8 to 0.85 ms).
+Dirty-frame controls cost only 0.50-0.75 extra tick, cold rendering and logic
+are unchanged, and the query costs 58 fixed-ROM bytes with no game-bank or RAM
+growth.
+
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
 62 bytes larger for the rule-heavy case, and applying the flag to the whole ROM
@@ -201,8 +209,10 @@ best remaining rendering experiments are:
    setup costs more than the six calls and VBK switches it removes at this
    tiny transfer size.
 5. Do not call `renderBoard` when a turn reports a transient movement change
-   but the final dirty-cell bitset is empty. This saves only about 11-19 ms in
-   the rule-heavy controls, but is cheap and reduces unnecessary VRAM traffic.
+   but the final dirty-cell bitset is empty. **Retained:** a core-owned bitset
+   query reduces the eligible trace from 52.50 to 3.50 ticks (-93.33%, 12.8 to
+   0.85 ms). Dirty-frame controls add 0.50-0.75 tick; fixed ROM grows by 58
+   bytes, while game-bank ROM and RAM are unchanged.
 
 Do not spend more time optimizing full-screen palette or map uploads first:
 they measure about 4 and 98 ticks respectively and are already skipped during
@@ -377,6 +387,7 @@ earn their cost.
 | Emit centered 5x5 sprites and one layer-ordered render entry per object | **Keep** | composition -82.90%; initial -16.27% | composition -82.50%; initial -18.42% | composition -84.76%; initial -18.28% | composition -91.62%; initial -42.91% | composition -90.51%; initial -19.30% | -27 to -41 B fixed ROM; -302 to -609 B linked generated bank; RAM unchanged |
 | Upload each aligned tile quartet with one GBDK call | **Reject** | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | initial 0.00% | logic exactly unchanged; -28 B linked generated bank; no fixed-ROM or RAM change |
 | Map each dirty 2x2 quartet with two rectangular GBDK calls | **Reject** | incremental +2.46% | incremental 0.00% | incremental +2.67% | incremental +7.98% | incremental +1.89% | cold render unchanged within 1 tick; -65 B fixed ROM, +98 B linked generated bank; RAM unchanged |
+| Skip rendering when the final dirty bitset is empty | **Keep** | dirty control +0.99% | clean frame -93.33% | dirty control +1.60% | dirty control +0.24% | dirty control +0.63% | cold render and logic unchanged; +58 B fixed ROM; game bank/RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -393,7 +404,8 @@ measurements are
 `.codex_tmp/benchmarks/p1-singleton-confirmation.json`, and
 `.codex_tmp/benchmarks/p2-ordered-render-table.json`, and
 `.codex_tmp/benchmarks/p2-batched-quartet-upload.json`, and
-`.codex_tmp/benchmarks/p2-batched-map-quartet.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-batched-map-quartet.json`, and
+`.codex_tmp/benchmarks/p2-skip-clean-render-final.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
 the original baseline are now 70.76%, 81.96%, 71.95%, 80.23%, and 93.26%
 respectively.

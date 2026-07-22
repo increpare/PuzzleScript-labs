@@ -232,11 +232,14 @@ void renderBoard(void) {
         showText(status.message == NULL ? "" : status.message, false);
         return;
     }
+    full_render = gRenderedLevel != status.current_level;
+    if (!full_render && !ps_gbc_has_dirty_cells(gSession)) {
+        return;
+    }
     board = ps_gbc_board(gSession);
     dirty = ps_gbc_dirty_cells(gSession);
     offset_x = (uint8_t)((PS_GBC_VIEWPORT_WIDTH - status.width) / 2U);
     offset_y = (uint8_t)((PS_GBC_VIEWPORT_HEIGHT - status.height) / 2U);
-    full_render = gRenderedLevel != status.current_level;
     if (full_render && gVramState == VRAM_STATE_BOARD) {
         showText("LOADING", false);
     }

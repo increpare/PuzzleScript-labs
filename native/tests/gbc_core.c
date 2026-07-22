@@ -375,11 +375,17 @@ int main(void) {
         cell_dirty(session, 0U) && cell_dirty(session, 1U)
             && cell_dirty(session, 2U) && cell_dirty(session, 3U),
         "initial board was not marked dirty");
+    failed |= require_true(
+        ps_gbc_has_dirty_cells(session),
+        "initial dirty board was reported clean");
     ps_gbc_clear_dirty_cells(session);
     failed |= require_true(
         !cell_dirty(session, 0U) && !cell_dirty(session, 1U)
             && !cell_dirty(session, 2U) && !cell_dirty(session, 3U),
         "dirty board did not clear");
+    failed |= require_true(
+        !ps_gbc_has_dirty_cells(session) && !ps_gbc_has_dirty_cells(NULL),
+        "cleared or null session was reported dirty");
     failed |= require_true(ps_gbc_cell_objects(session, 0, 0) == 5U, "initial player cell differs");
     failed |= require_true(ps_gbc_cell_objects(session, 2, 0) == 3U,
         "a game without run_rules_on_level_start changed its raw level");
