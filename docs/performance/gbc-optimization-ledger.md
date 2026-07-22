@@ -562,3 +562,36 @@ runtime speed and cartridge memory use are unchanged. All 89 native CTests
 pass. The instrumented cartridge passes its mGBA palette-register,
 render-and-logic smoke, and all 14 production ROMs pass link/header/memory
 checks and boot under mGBA.
+
+### Playtest correction: collision-layer-aware palette reduction
+
+Sokoban exposed a second, later colour loss that was not caused by the global
+contrast stretch. The stretched player blue and both terrain greens were still
+distinct, but the four-entry CGB background palette was populated in
+lower-layer-first order. The two terrain greens, black, and orange consumed the
+player palette; white and blue were then nearest-colour mapped onto those four
+entries, turning the blue trousers terrain green.
+
+The exporter now allocates palette entries by collision layer before spending
+remaining entries on additional shades within a layer. Representatives are
+selected by weighted RGB error. Palette reuse and the generated remap table
+retain the same layer ownership, so an over-budget player colour is reduced to
+another player colour rather than a terrain colour. The manifest records exact,
+within-layer-quantized, and cross-layer-fallback colour counts.
+
+For Sokoban the player palette becomes terrain green, player blue, player
+white, and target dark-blue. Black and orange reduce within the player layer;
+the blue trousers remain blue. Its audit reports 17 exact layer colours, three
+within-layer reductions, and zero cross-layer reductions. Ten of the 14
+production games also need no cross-layer fallback. The remaining four have
+transparent candidates spanning more than four collision layers or exhaust
+all eight hardware palettes, where the hardware limit makes some fallback
+unavoidable and the manifest now makes that loss visible.
+
+The runtime representation and code are unchanged. Exact before/after mGBA
+benchmarks match at 83643 ticks for 128 turns, 6098 composition ticks, 50 walk
+render ticks, and 58 push render ticks. The normal instrumented link remains
+14762 fixed-bank bytes, 6912 generated-bank bytes, and 1497 static-WRAM bytes;
+session RAM and SRAM are unchanged. The focused cartridge passes palette,
+render, movement, and rule probes, all 14 production cartridges pass
+link/header/memory checks and boot under mGBA, and all 89 native CTests pass.

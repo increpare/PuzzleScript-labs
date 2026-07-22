@@ -109,17 +109,32 @@ int main() {
         "generated sprites retain native dimensions and byte transparency");
     require(
         source.find(
-            "static const uint8_t kObject3Pixels[] = {14U, 14U, 14U, 15U, 14U")
+            "static const uint8_t kObject3Pixels[] = {15U, 15U, 15U, 14U, 15U")
             != std::string::npos,
         "5x5 sprite arrays are emitted without 8x8 padding or resampling");
     require(
         source.find(
-            "static const uint16_t kBackgroundPalettes[] = {6965U, 3658U, 0U, 0U, "
-            "6965U, 3658U, 8355U, 0U, 6965U, 3658U, 0U, 7773U, "
-            "6965U, 3658U, 4565U, 6443U, 6965U, 3658U, 7773U, 8355U")
+            "static const uint16_t kBackgroundPalettes[] = {3658U, 6965U, 0U, 0U, "
+            "3658U, 6965U, 8355U, 0U, 3658U, 31140U, 32767U, 8355U, "
+            "3658U, 6965U, 6443U, 4565U, 3658U, 6965U, 7773U, 8355U")
             != std::string::npos,
-        "object palettes reserve neighboring background colours and retain "
-        "visible lower layers when capacity permits");
+        "object palettes reserve colours per collision layer before reducing "
+        "shades within a layer");
+    require(
+        source.find(
+            "static const uint8_t kObject2Pixels[] = {255U, 9U, 9U, 9U, 255U, "
+            "255U, 10U, 10U, 10U, 255U, 10U, 10U, 10U, 10U, 10U, "
+            "255U, 9U, 9U, 9U") != std::string::npos,
+        "Sokoban player details retain the player-owned blue palette entry");
+    require(
+        manifest.find(
+            "\"palette_reduction\": {\"policy\": \"collision_layer_aware\"")
+                != std::string::npos
+            && manifest.find("\"intra_layer_quantized_color_count\": 3")
+                != std::string::npos
+            && manifest.find("\"cross_layer_quantized_color_count\": 0")
+                != std::string::npos,
+        "manifest proves Sokoban palette reduction never crosses collision layers");
     require(source.find("static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
             != std::string::npos,
         "generated game emits an explicit background/text UI palette");
@@ -209,7 +224,7 @@ int main() {
         contrastSource.find(
             "static const uint16_t kUiPalette[] = {0U, 32767U, 32767U, 32767U}")
                 != std::string::npos
-            && contrastSource.find("0U, 10570U, 341U, 32767U")
+            && contrastSource.find("0U, 10570U, 32767U, 341U")
                 != std::string::npos,
         "the generated cartridge uses the stretched endpoint and midtone colours");
 
