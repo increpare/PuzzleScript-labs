@@ -435,6 +435,7 @@ earn their cost.
 | Move packed matcher/replacement temporaries to static WRAM | **Reject** | -0.301% | not run | not run | not run | not run | +79 B fixed ROM; +6 B static WRAM; matcher stack 7 -> 9 B; replacement 14 -> 13 B; loses re-entrancy |
 | Omit globally absent sound/message fields from generated rules | **Keep** | +0.033% | -0.032% | -0.109% | -0.031% | -0.389% | 9 B -> 5/7 B records; -31 to -81 B fixed ROM; -16 to -124 B linked bank; RAM unchanged |
 | Stream a direct rule pointer through each group pass | **Reject** | +0.121% | +0.076% | +0.320% | +0.128% | +0.428% | +32 B fixed ROM; group stack 16 -> 17 B; game bank/RAM unchanged |
+| Pack rule-group indexes and loop targets to generated widths | **Reject** | +0.017% | +0.008% | +0.042% | +0.025% | +0.054% | 6 B -> 4 B records; -4 to -58 B linked bank, but +9 B fixed ROM; RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -474,6 +475,10 @@ The rejected direct-rule-pointer profile is
 `.codex_tmp/benchmarks/p2-stream-rule-pointers.json`; unlike static scratch it
 was run across all five cases because multi-rule groups could plausibly have
 amortized its extra live pointer.
+The rejected packed-group profile is
+`.codex_tmp/benchmarks/p2-packed-rule-groups.json`; generated-bank headroom is
+already ample, so a small bank-only saving did not justify slower code and a
+larger fixed bank.
 
 The scheduling decision uses the counter-only diagnostic
 `.codex_tmp/benchmarks/post-singleton-schedule-counts.json`. Per turn it
@@ -844,10 +849,11 @@ successful-match indirection. Direct rule-pointer streaming is rejected: all
 five cases regress by 0.076-0.428%, fixed ROM grows 32 bytes, and the generated
 group stack frame grows from 16 to 17 bytes. The retained groups are mostly
 singletons or single-pass, so saved repeated stride arithmetic does not repay
-the extra live pointer. Also consider generated-width group counts instead of
-the existing 16-bit index/count pair. Expose more fixed counts, dimensions,
-background masks, and direct table symbols only where assembly shows SDCC
-recovering them through the generic game view.
+the extra live pointer. Generated-width group records are also rejected:
+four-byte groups save 4-58 linked bank bytes, but all five
+games slow by 0.008-0.054% and fixed ROM grows 9 bytes. Expose more fixed
+counts, dimensions, background masks, and direct table symbols only where
+assembly shows SDCC recovering them through the generic game view.
 
 Avoid unrestricted per-rule C generation initially. The conservative game-data
 estimates range from 1268 to 7716 bytes, but instrumented bank-1 links already
