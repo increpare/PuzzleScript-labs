@@ -425,6 +425,40 @@ def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (p
       applyInferredReplacementFields game pat caps oldObj oldMov oc0 os0 mc0 ms0
     commitCellReplacement game rule b tile pat oc os mc ms rng2
 
+/-- Flag skip: cell replacement is a pure no-op. -/
+theorem applyCellReplacement_skipCellWrites
+    (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
+    (caps : RuleCaptures) (rng : RngState)
+    (h : rule.skipCellWrites = true) :
+    applyCellReplacement game rule b tile pat caps rng = (false, b, rng) := by
+  simp [applyCellReplacement, h]
+
+/-- Non-rigid rules leave rigid masks untouched. -/
+theorem applyRigidCellMasks_not_rigid
+    (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
+    (h : rule.rigid = false) :
+    applyRigidCellMasks game rule b tile pat = (b, false) := by
+  simp [applyRigidCellMasks, h]
+
+/--
+When object/movement replacements are array-equal to the current cell words and the rule is
+non-rigid, commit reports no change and returns the input board.
+-/
+theorem commitCellReplacement_id_of_mask_eq
+    (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
+    (objectsClear objectsSet movementsClear movementsSet : MaskWords) (rng : RngState)
+    (hRigid : rule.rigid = false)
+    (hObj :
+      maskApplyReplacement (b.cellObjWords tile) objectsClear objectsSet = b.cellObjWords tile)
+    (hMov :
+      maskApplyReplacement (b.cellMovWords tile) (maskOr movementsClear pat.movementsLayerMask)
+        movementsSet =
+      b.cellMovWords tile) :
+    commitCellReplacement game rule b tile pat objectsClear objectsSet movementsClear
+      movementsSet rng = (false, b, rng) := by
+  simp [commitCellReplacement, applyRigidCellMasks_not_rigid game rule b tile pat hRigid,
+    hObj, hMov]
+
 def rowCellsMatchFixed (b : Board) (startTile : Nat) (delta : Int) (row : Array PatternCell) : Bool :=
   (List.range row.size).all fun k =>
     match row[k]?.getD (.ellipsis) with
