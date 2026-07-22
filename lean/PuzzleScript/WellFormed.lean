@@ -202,6 +202,20 @@ theorem maskGetBit_maskApplyReplacement'
     have hc : ¬ oid / 32 < clear.size := by omega
     simp [hEmpty, word0 set hs, word0 old ho, word0 clear hc]
 
+/--
+Bit-level identity for `maskApplyReplacement`: if every set bit is already in `old`,
+and every bit cleared from `old` is restored by `set`, then each bit of `old` is unchanged.
+-/
+theorem maskGetBit_maskApplyReplacement_eq_old
+    (old clear set : MaskWords) (oid : Nat)
+    (hSet : maskGetBit set oid = true → maskGetBit old oid = true)
+    (hClr : maskGetBit clear oid = true → maskGetBit old oid = true →
+      maskGetBit set oid = true) :
+    maskGetBit (maskApplyReplacement old clear set) oid = maskGetBit old oid := by
+  rw [maskGetBit_maskApplyReplacement']
+  cases hOld : maskGetBit old oid <;> cases hSetB : maskGetBit set oid <;>
+    cases hClrB : maskGetBit clear oid <;> simp_all
+
 theorem Board.setCellMovWords_size (b : Board) (tile : Nat) (ws : MaskWords) :
     (b.setCellMovWords tile ws).movements.size = b.movements.size := by
   simp [Board.setCellMovWords, Array.size_setStrideSlice]
@@ -1927,6 +1941,29 @@ theorem maskWord_maskAnd (a b : MaskWords) (i : Nat) :
 theorem maskGetBit_maskAnd (a b : MaskWords) (bit : Nat) :
     maskGetBit (maskAnd a b) bit = (maskGetBit a bit && maskGetBit b bit) := by
   simp only [maskGetBit, maskWord_maskAnd, UInt32.toBitVec_and, getLsbD_and]
+
+/-- Same identity criteria packaged with `maskBitsSetIn` (`set ⊆ old`, `old ∩ clear ⊆ set`). -/
+theorem maskGetBit_maskApplyReplacement_of_bitsSetIn
+    (old clear set : MaskWords) (oid : Nat)
+    (hSet : maskBitsSetIn set old = true)
+    (hClr : maskBitsSetIn (maskAnd clear old) set = true) :
+    maskGetBit (maskApplyReplacement old clear set) oid = maskGetBit old oid := by
+  refine maskGetBit_maskApplyReplacement_eq_old old clear set oid ?_ ?_
+  · intro hs
+    exact maskGetBit_of_maskBitsSetIn set old oid hSet hs
+  · intro hc ho
+    have hand : maskGetBit (maskAnd clear old) oid = true := by
+      simp [maskGetBit_maskAnd, hc, ho]
+    exact maskGetBit_of_maskBitsSetIn (maskAnd clear old) set oid hClr hand
+
+/-- Solo-layer identity: `clear = set` and `set ⊆ old`. -/
+theorem maskGetBit_maskApplyReplacement_clear_eq_set
+    (old set : MaskWords) (oid : Nat)
+    (hSet : maskBitsSetIn set old = true) :
+    maskGetBit (maskApplyReplacement old set set) oid = maskGetBit old oid := by
+  refine maskGetBit_maskApplyReplacement_eq_old old set set oid ?_ (fun hs _ => hs)
+  intro hs
+  exact maskGetBit_of_maskBitsSetIn set old oid hSet hs
 
 def onLayerStep (game : Game) (cell : MaskWords) (layer : Nat) (m : MaskWords) (o : Nat) : MaskWords :=
   if (game.objectLayers.getD o ⟨0⟩).val == layer && maskGetBit cell o then
