@@ -1,3 +1,5 @@
+import Init.Data.BitVec.Lemmas
+
 namespace PuzzleScript
 
 /-- Packed mask words (JS Int32Array / bitvec data), stored as UInt32. -/
@@ -6,60 +8,55 @@ abbrev MaskWords := Array UInt32
 def maskWord (ws : MaskWords) (i : Nat) : UInt32 :=
   ws.getD i 0
 
+/-- Bit test via `BitVec 32` view of the packed word. -/
 def maskGetBit (ws : MaskWords) (bit : Nat) : Bool :=
-  let w := bit / 32
-  let b := bit % 32
-  ((maskWord ws w) >>> UInt32.ofNat b) &&& 1 == 1
+  (maskWord ws (bit / 32)).toBitVec.getLsbD (bit % 32)
 
+def maskEnsureWords (ws : MaskWords) (nWords : Nat) : MaskWords :=
+  if ws.size ≥ nWords then ws
+  else ws ++ Array.replicate (nWords - ws.size) 0
+
+/-- Set/clear one bit via `BitVec 32` (`Init.Data.BitVec`). -/
 def maskSetBit (ws : MaskWords) (bit : Nat) (val : Bool) : MaskWords :=
   let w := bit / 32
   let b := bit % 32
-  let cur := maskWord ws w
-  let bitv : UInt32 := (1 : UInt32) <<< UInt32.ofNat b
-  let next := if val then cur ||| bitv else cur &&& (~~~bitv)
-  Id.run do
-    let mut out := ws
-    while out.size ≤ w do
-      out := out.push 0
-    pure (out.set! w next)
+  let ws := maskEnsureWords ws (w + 1)
+  let bv := (maskWord ws w).toBitVec
+  let bv' := if val then bv ||| (1#32 <<< b) else bv &&& ~~~(1#32 <<< b)
+  ws.set! w (UInt32.ofBitVec bv')
 
 def maskOr (a b : MaskWords) : MaskWords :=
   let n := max a.size b.size
-  Id.run do
-    let mut out : MaskWords := .mkEmpty n
-    for i in [:n] do
-      out := out.push (maskWord a i ||| maskWord b i)
-    pure out
+  (List.range n).foldl
+    (fun out i => out.push (maskWord a i ||| maskWord b i))
+    (#[] : MaskWords)
 
 def maskAnd (a b : MaskWords) : MaskWords :=
   let n := max a.size b.size
-  Id.run do
-    let mut out : MaskWords := .mkEmpty n
-    for i in [:n] do
-      out := out.push (maskWord a i &&& maskWord b i)
-    pure out
+  (List.range n).foldl
+    (fun out i => out.push (maskWord a i &&& maskWord b i))
+    (#[] : MaskWords)
+
+/-- Clear bits of `a` wherever `b` has bits set (`a & ~b`). -/
+def maskAndNot (a b : MaskWords) : MaskWords :=
+  let n := max a.size b.size
+  (List.range n).foldl
+    (fun out i => out.push (maskWord a i &&& ~~~maskWord b i))
+    (#[] : MaskWords)
 
 def maskAnyBits (ws : MaskWords) : Bool :=
   ws.any (· != 0)
 
 def maskBitsSetIn (required actual : MaskWords) : Bool :=
   let n := max required.size actual.size
-  Id.run do
-    let mut ok := true
-    for i in [:n] do
-      let r := maskWord required i
-      let a := maskWord actual i
-      if (r &&& a) != r then
-        ok := false
-    pure ok
+  (List.range n).all fun i =>
+    let r := maskWord required i
+    let a := maskWord actual i
+    (r &&& a) == r
 
 def maskNoBitsInCommon (a b : MaskWords) : Bool :=
   let n := max a.size b.size
-  Id.run do
-    let mut ok := true
-    for i in [:n] do
-      if (maskWord a i &&& maskWord b i) != 0 then
-        ok := false
-    pure ok
+  (List.range n).all fun i =>
+    (maskWord a i &&& maskWord b i) == 0
 
 end PuzzleScript

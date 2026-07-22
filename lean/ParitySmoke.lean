@@ -68,6 +68,10 @@ def main (args : List String) : IO UInt32 := do
       IO.eprintln s!"FAIL {fx.name}: initial session not Session.wellFormed"
       failures := failures + 1
       continue
+    if checkSessionWf && !(Game.levelsBoardsOk game) then
+      IO.eprintln s!"FAIL {fx.name}: game levels not Game.levelsBoardsOk"
+      failures := failures + 1
+      continue
     match replay game session fx.inputs maxInputs with
     | .error e =>
       IO.eprintln s!"FAIL {fx.name}: {e}"

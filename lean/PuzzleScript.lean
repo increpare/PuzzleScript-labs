@@ -13,3 +13,5 @@ import PuzzleScript.Runtime
 import PuzzleScript.View
 import PuzzleScript.Abstract
 import PuzzleScript.Inert
+import PuzzleScript.WellFormed
+import PuzzleScript.WellFormedTurn

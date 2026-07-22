@@ -45,18 +45,20 @@ def Board.cellMovWordsAt (b : Board) (t : TileIdx) : MaskWords :=
   b.cellMovWords t.val
 
 def Board.setCellObjWords (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  Id.run do
-    let mut objs := b.objects
-    for i in [:b.strideObj] do
-      objs := objs.set! (tile * b.strideObj + i) (ws.getD i 0)
-    pure { b with objects := objs }
+  let start := tile * b.strideObj
+  let objs :=
+    (List.range b.strideObj).foldl
+      (fun objs i => objs.set! (start + i) (ws.getD i 0))
+      b.objects
+  { b with objects := objs }
 
 def Board.setCellMovWords (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  Id.run do
-    let mut mov := b.movements
-    for i in [:b.strideMov] do
-      mov := mov.set! (tile * b.strideMov + i) (ws.getD i 0)
-    pure { b with movements := mov }
+  let start := tile * b.strideMov
+  let mov :=
+    (List.range b.strideMov).foldl
+      (fun mov i => mov.set! (start + i) (ws.getD i 0))
+      b.movements
+  { b with movements := mov }
 
 def Board.setCellObjWordsAt (b : Board) (t : TileIdx) (ws : MaskWords) : Board :=
   b.setCellObjWords t.val ws
@@ -69,22 +71,24 @@ def Board.cellRigidMovementAppliedMask (b : Board) (tile : Nat) : MaskWords :=
   b.rigidMovementAppliedMask.extract start (start + b.strideMov)
 
 def Board.setCellRigidMovementAppliedMask (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  Id.run do
-    let mut arr := b.rigidMovementAppliedMask
-    for i in [:b.strideMov] do
-      arr := arr.set! (tile * b.strideMov + i) (ws.getD i 0)
-    pure { b with rigidMovementAppliedMask := arr }
+  let start := tile * b.strideMov
+  let arr :=
+    (List.range b.strideMov).foldl
+      (fun arr i => arr.set! (start + i) (ws.getD i 0))
+      b.rigidMovementAppliedMask
+  { b with rigidMovementAppliedMask := arr }
 
 def Board.cellRigidGroupIndexMask (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideMov
   b.rigidGroupIndexMask.extract start (start + b.strideMov)
 
 def Board.setCellRigidGroupIndexMask (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  Id.run do
-    let mut arr := b.rigidGroupIndexMask
-    for i in [:b.strideMov] do
-      arr := arr.set! (tile * b.strideMov + i) (ws.getD i 0)
-    pure { b with rigidGroupIndexMask := arr }
+  let start := tile * b.strideMov
+  let arr :=
+    (List.range b.strideMov).foldl
+      (fun arr i => arr.set! (start + i) (ws.getD i 0))
+      b.rigidGroupIndexMask
+  { b with rigidGroupIndexMask := arr }
 
 def Board.clearMovements (b : Board) : Board :=
   { b with

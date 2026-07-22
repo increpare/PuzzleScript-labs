@@ -1,6 +1,6 @@
 # Lean inert: certified `skipCellWrites` (real-apply soundness)
 
-Status: design draft — awaiting review.
+Status: design draft — shared-layer strategy committed (strengthen `P`, not WF).
 Date: 2026-07-22.
 
 Related:
@@ -127,12 +127,11 @@ Under `CellPattern.replacementIsIdentity` (current Lean predicate: object + move
 - Movement rewrite (`movementsClear` / `movementsLayerMask` / `movementsSet`) leaves `cellMov` unchanged.
 - No rigid updates (`r.rigid = false` from `commandOnlyMeta`).
 
-**Shared-layer clears:** IR may clear a full collision-layer mask and restore `objectsPresent` (e.g. Player|Goal clear, Player set). Pure mask reasoning without layer exclusivity can fail on ill-formed boards (two same-layer objects on one tile). Options (pick in implementation; prefer A if cheap):
+**Shared-layer clears (committed choice: strengthen `P`, not WF):** IR may clear a full collision-layer mask and restore `objectsPresent` (e.g. Player|Goal clear, Player set). A naive mask identity proof without layer info fails on ill-formed boards (two same-layer objects on one tile).
 
-- **A (preferred):** hypothesis `Board.WellFormed game b` (≤1 object per layer per tile), already aligned with session WF work.
-- **B:** strengthen `objectReplacementIsIdentity` so clear bits outside `set` are only same-layer mates of `set` (needs `game.objectLayers` / `layerMasks` in the predicate).
+**Do not** take `Board.WellFormed` / `Session.WellFormed` as a hypothesis on the leaf and hope to thread it later. Today there is no theorem that turn/session execution preserves WF; every existing `Inert.lean` congruence lemma (`dropInert_turn_congruence`, `replaySolverGo_filterNonInert`, `drainAgain.go_filterNonInert`, …) is proved over arbitrary boards/sessions. Making the leaf need WF would force proving WF preservation across movement, rigid retry, command processing, restart/undo — a separate project, not a footnote.
 
-Document the chosen hypothesis on every theorem that needs it.
+**Committed approach:** strengthen the decidable IR predicate (likely needing `Game` for `objectLayers` / `layerMasks`) so that “extra” clear bits outside `objectsSet` are only same-layer mates of objects in `set` (and thus excluded once `objectsPresent ⊆ cell` from match). Keep `P` a pure boolean over IR + game metadata, consistent with how `objectReplacementIsIdentity` is already shaped — no external board invariant. Leaf theorems stay over unconstrained boards, so the existing filter/turn/replay cone need not be re-hypothesized.
 
 ### 7.3 No replacement / ellipsis
 
@@ -186,7 +185,7 @@ Once `syntacticInert_fullApply_boardId` exists:
 
 1. Introduce `skipCellWrites` (flag) + `tryApplyRuleSpec` (full path); keep or reattach early-out behind a proved eq.
 2. Mask lemmas: `maskApplyReplacement` identity criteria.
-3. `replacementIsIdentity` + `cellPatternMatches` → cell board-id (with WF hypothesis if needed).
+3. Strengthen shared-layer identity in `P` via `game.objectLayers` / `layerMasks` (§7.2); then `replacementIsIdentity` + `cellPatternMatches` → cell board-id (no WF hypothesis).
 4. Lift through row / tuple / `applyMatchedTuples`.
 5. `syntacticInert_fullApply_boardId` + `syntacticInert_skipCellWrites_apply_eq`.
 6. `optimizeRule` + corollary.
@@ -203,7 +202,7 @@ Once `syntacticInert_fullApply_boardId` exists:
 
 ## 13. Risks
 
-- **Ill-formed boards / shared layers:** identity clears need WF or a stronger predicate (§7.2).
+- **Shared-layer clears:** must be discharged by a stronger IR/`Game` predicate (§7.2), not by assuming board WF (WF preservation is a separate project: [2026-07-22-lean-wellformed-preservation-design.md](2026-07-22-lean-wellformed-preservation-design.md)).
 - **`cellPatternMatches` / any-masks / layer-coupled reads:** match definition may be richer than `present`/`missing`; proof must follow the real matcher.
 - **Movement layer masks:** `[ right X ] -> [ right X ]` clears a layer movement mask then restores; algebra must cover `movementsLayerMask`, not only `movementsClear == movementsSet`.
 - **Proof engineering size:** `applyCellReplacement` is an `Id.run` block; may need small refactors (pure helpers) to make induction/simp feasible without changing behavior.
@@ -211,6 +210,6 @@ Once `syntacticInert_fullApply_boardId` exists:
 
 ## 14. Spec self-review
 
-- No TBD placeholders for the done-bar; WF-vs-stronger-predicate is an explicit implementation choice (§7.2).
+- Shared-layer strategy is committed (§7.2: strengthen `P` with layer metadata; no WF threading).
 - Does not contradict parent inert design: strengthens the `syntacticInert → boardEffectId` step that parent assumed.
-- Scope limited to non-random full apply + certified skip; prune cone reuse called out; `dropInert` kept as a separate theorem.
+- Scope limited to non-random full apply + certified skip; prune cone reuse called out; `dropInert` kept as a separate theorem; WF-invariant project tracked in [2026-07-22-lean-wellformed-preservation-design.md](2026-07-22-lean-wellformed-preservation-design.md).

@@ -86,6 +86,11 @@ The interpreter targets parity with JS `processInput` / `applyRules` / `resolveM
   `runTurnObsWithRules`); leaf → group → loops → rigid → fuelled turn path
 - T4: `LevelIdx`, typed `Session.currentLevel` / undo frames; `Session.WellFormed`
   (active playable at/after level cursor); `parity_smoke --check-session-wf`
+- Board/Session WellFormed preservation (`WellFormed.lean` / `WellFormedTurn.lean`):
+  under `Game.WellFormed` + layer-respecting rules (+ `Game.levelsBoardsOk` for win-advance),
+  mask mutators, fuelled `executeTurn.go` / cmd queue / level-start, public `executeTurn`,
+  `stepOneInput` / `stepInputToken`, `drainAgain.go`, and `replaySolverGo` preserve
+  `Session.WellFormed` (no `sorry`)
 - `boardWinEquiv` / `dropInert_boardWinEquiv` under `noRandomRuleGroups` (multi-turn
   lift of T5 via `replaySolverGo`); `Rule.boardEffectId` from syntactic inert
 - Views over mask `Board`: `occ` / `movAt` / `neighbor` / `wellFormed` (`View.lean`)
@@ -118,5 +123,7 @@ make lean_inert_static_smoke
 ## Next
 
 More inert fixtures from `static_analysis_testdata` / `canonicalizer_testdata`;
-Prop-level `Session.WellFormed` preservation; `executeTurn (dropInert g)` transport.
+`executeTurn (dropInert g)` transport.
 See `docs/superpowers/specs/2026-07-21-lean-post-parity-abstract-inert-design.md`.
+WellFormed preservation is done:
+`docs/superpowers/specs/2026-07-22-lean-wellformed-preservation-design.md`.
