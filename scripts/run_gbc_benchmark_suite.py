@@ -285,6 +285,9 @@ def main() -> int:
                 "max_level_cells": int(manifest["max_level_cells"]),
                 "rules": int(manifest["rule_count"]),
                 "patterns": int(manifest["pattern_count"]),
+                "single_pass_groups": int(
+                    manifest.get("single_pass_group_count", 0)
+                ),
             },
             "memory": {
                 "estimated_session_bytes": int(

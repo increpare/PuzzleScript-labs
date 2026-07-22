@@ -61,6 +61,8 @@ int main() {
         "manifest selects byte-wide movement cells for one live lane");
     require(manifest.find("\"object_bytes_per_cell\": 1") != std::string::npos,
         "manifest selects byte-wide object cells for five objects");
+    require(manifest.find("\"single_pass_group_count\": 1") != std::string::npos,
+        "manifest records the certified single-pass Sokoban group");
     require(manifest.find("\"board_cells\": 90") != std::string::npos,
         "manifest advertises the hardware board ceiling");
     require(
@@ -101,6 +103,8 @@ int main() {
         "generated data is linked outside fixed ROM bank zero");
     require(source.find("static const ps_gbc_pattern kPatterns[]") != std::string::npos,
         "lowered fixed patterns are emitted as C data");
+    require(source.find("PS_GBC_RULE_GROUP_SINGLE_PASS") != std::string::npos,
+        "certified groups skip their redundant confirmation pass");
     require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
         "level object masks use the selected byte-wide storage");
     require(

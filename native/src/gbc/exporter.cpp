@@ -112,6 +112,7 @@ struct PackedGroup {
     uint16_t firstRule = 0;
     uint16_t ruleCount = 0;
     int16_t loopTarget = -1;
+    bool singlePassSafe = false;
 };
 
 struct MovementLayout {
@@ -593,6 +594,143 @@ uint32_t maskWord(const Game& game, MaskOffset offset) {
         static_cast<MaskWordUnsigned>(game.maskArena[static_cast<size_t>(offset)]));
 }
 
+uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer);
+
+struct RuleFlowSummary {
+    uint32_t readObjectsPresent = 0U;
+    uint32_t readObjectsMissing = 0U;
+    uint32_t writeObjectsPresent = 0U;
+    uint32_t writeObjectsMissing = 0U;
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> readMovementsPresent{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> readMovementsMissing{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> writeMovementsPresent{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> writeMovementsMissing{};
+};
+
+RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
+    RuleFlowSummary result;
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) continue;
+            const uint32_t lhsPresent = maskWord(game, pattern.objectsPresent);
+            const uint32_t lhsMissing = maskWord(game, pattern.objectsMissing);
+            result.readObjectsPresent |= lhsPresent;
+            result.readObjectsMissing |= lhsMissing;
+
+            for (const ObjectDef& object : game.objectsById) {
+                if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
+                const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
+                if ((lhsPresent & objectBit) == 0U) continue;
+                result.readMovementsPresent[static_cast<size_t>(object.id)] |=
+                    sourceMovementLayerBits(game, pattern.movementsPresent, object.layer);
+                result.readMovementsMissing[static_cast<size_t>(object.id)] |=
+                    sourceMovementLayerBits(game, pattern.movementsMissing, object.layer);
+            }
+
+            if (!pattern.replacement.has_value()) continue;
+            const Replacement& replacement = *pattern.replacement;
+            const uint32_t objectsClear = maskWord(game, replacement.objectsClear);
+            const uint32_t objectsSet = maskWord(game, replacement.objectsSet);
+            result.writeObjectsPresent |= objectsSet & ~lhsPresent;
+
+            for (const ObjectDef& object : game.objectsById) {
+                if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
+                const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
+                const uint32_t layerMask = object.layer >= 0
+                        && static_cast<size_t>(object.layer) < game.layerMaskOffsets.size()
+                    ? maskWord(
+                        game,
+                        game.layerMaskOffsets[static_cast<size_t>(object.layer)])
+                    : objectBit;
+                const uint32_t lhsLayerObjects = lhsPresent & layerMask;
+                if ((objectsClear & objectBit) != 0U
+                    && (objectsSet & objectBit) == 0U
+                    && (lhsMissing & objectBit) == 0U
+                    && (lhsLayerObjects == 0U
+                        || (lhsLayerObjects & objectBit) != 0U)) {
+                    result.writeObjectsMissing |= objectBit;
+                }
+
+                if ((objectsSet & objectBit) == 0U) continue;
+                const uint8_t rhsMovement = sourceMovementLayerBits(
+                    game,
+                    replacement.movementsSet,
+                    object.layer);
+                const uint8_t lhsMovement = (lhsPresent & objectBit) != 0U
+                    ? sourceMovementLayerBits(
+                        game,
+                        pattern.movementsPresent,
+                        object.layer)
+                    : 0U;
+                const uint8_t lhsMovementMissing = (lhsPresent & objectBit) != 0U
+                    ? sourceMovementLayerBits(
+                        game,
+                        pattern.movementsMissing,
+                        object.layer)
+                    : 0U;
+                const uint8_t movementClear = static_cast<uint8_t>(
+                    sourceMovementLayerBits(
+                        game,
+                        replacement.movementsClear,
+                        object.layer)
+                    | sourceMovementLayerBits(
+                        game,
+                        replacement.movementsLayerMask,
+                        object.layer));
+                result.writeMovementsPresent[static_cast<size_t>(object.id)] |=
+                    static_cast<uint8_t>(rhsMovement & ~lhsMovement);
+                result.writeMovementsMissing[static_cast<size_t>(object.id)] |=
+                    static_cast<uint8_t>(
+                        movementClear & ~rhsMovement & ~lhsMovementMissing);
+            }
+        }
+    }
+    return result;
+}
+
+bool groupSinglePassSafe(
+    const Game& game,
+    const std::vector<Rule>& group
+) {
+    /* Match the audited rulegroup_flow certificate family, which currently
+     * emits proofs only for groups containing more than one expanded rule. */
+    if (group.size() <= 1U) return false;
+    for (const Rule& rule : group) {
+        const bool hasSemanticCommand = std::any_of(
+            rule.commands.begin(),
+            rule.commands.end(),
+            [](const RuleCommand& command) {
+                return command.name.rfind("sfx", 0U) != 0U;
+            });
+        if (rule.isRandom || rule.rigid || rule.forceAlwaysRun
+            || hasSemanticCommand) return false;
+    }
+    std::vector<RuleFlowSummary> flows;
+    flows.reserve(group.size());
+    for (const Rule& rule : group) flows.push_back(summarizeRuleFlow(game, rule));
+    for (size_t writerIndex = 0U; writerIndex < group.size(); ++writerIndex) {
+        const RuleFlowSummary& writer = flows[writerIndex];
+        for (size_t readerIndex = 0U; readerIndex <= writerIndex; ++readerIndex) {
+            const RuleFlowSummary& reader = flows[readerIndex];
+            if ((writer.writeObjectsPresent & reader.readObjectsPresent) != 0U
+                || (writer.writeObjectsMissing & reader.readObjectsMissing) != 0U) {
+                return false;
+            }
+            for (size_t object = 0U;
+                 object < writer.writeMovementsPresent.size();
+                 ++object) {
+                if ((writer.writeMovementsPresent[object]
+                        & reader.readMovementsPresent[object]) != 0U
+                    || (writer.writeMovementsMissing[object]
+                        & reader.readMovementsMissing[object]) != 0U) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer) {
     if (offset == kNullMaskOffset || layer < 0
         || static_cast<size_t>(offset) >= game.maskArena.size()) return 0U;
@@ -834,6 +972,7 @@ void packGroups(
         }
         group.firstRule = static_cast<uint16_t>(rules.size());
         group.ruleCount = static_cast<uint16_t>(sourceGroup.size());
+        group.singlePassSafe = groupSinglePassSafe(game, sourceGroup);
         const auto loopAt = [&](size_t index) -> std::optional<int32_t> {
             if (index >= loopPoints.entries.size()) return std::nullopt;
             return loopPoints.entries[index];
@@ -1110,7 +1249,14 @@ std::string emitSource(
         out << "static const ps_gbc_rule_group " << name << "[] = {\n";
         if (groups.empty()) out << "    {0},\n";
         for (const PackedGroup& group : groups) {
-            out << "    {" << group.firstRule << "U, " << group.ruleCount << "U, "
+            out << "    {" << group.firstRule << "U, ";
+            if (group.singlePassSafe) {
+                out << "(" << group.ruleCount
+                    << "U | PS_GBC_RULE_GROUP_SINGLE_PASS), ";
+            } else {
+                out << group.ruleCount << "U, ";
+            }
+            out
                 << group.loopTarget << "},\n";
         }
         out << "};\n\n";
@@ -1528,6 +1674,14 @@ ExportResult exportGame(const ExportOptions& options) {
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
+    const auto singlePassCount = [](const std::vector<PackedGroup>& groups) {
+        return static_cast<size_t>(std::count_if(
+            groups.begin(),
+            groups.end(),
+            [](const PackedGroup& group) { return group.singlePassSafe; }));
+    };
+    const size_t earlySinglePassGroups = singlePassCount(earlyGroups);
+    const size_t lateSinglePassGroups = singlePassCount(lateGroups);
     std::ostringstream manifest;
     manifest << "{\n"
         << "  \"format\": \"puzzlescript-gbc-v1\",\n"
@@ -1566,6 +1720,12 @@ ExportResult exportGame(const ExportOptions& options) {
         << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
+        << "  \"single_pass_group_count\": "
+        << (earlySinglePassGroups + lateSinglePassGroups) << ",\n"
+        << "  \"early_single_pass_group_count\": "
+        << earlySinglePassGroups << ",\n"
+        << "  \"late_single_pass_group_count\": "
+        << lateSinglePassGroups << ",\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"

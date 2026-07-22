@@ -678,12 +678,17 @@ static bool ps_gbc_apply_group(
     const ps_gbc_rule_group* group,
     ps_gbc_commands* commands
 ) {
+    const uint16_t rule_count = group->rule_count & PS_GBC_RULE_GROUP_COUNT_MASK;
+    const uint16_t pass_limit =
+        (group->rule_count & PS_GBC_RULE_GROUP_SINGLE_PASS) != 0U
+            ? 1U
+            : PS_GBC_GROUP_PASSES;
     uint16_t pass;
     bool ever_changed = false;
-    for (pass = 0U; pass < PS_GBC_GROUP_PASSES; ++pass) {
+    for (pass = 0U; pass < pass_limit; ++pass) {
         uint16_t rule_index;
         bool changed = false;
-        for (rule_index = 0U; rule_index < group->rule_count; ++rule_index) {
+        for (rule_index = 0U; rule_index < rule_count; ++rule_index) {
             changed = ps_gbc_apply_rule(
                 session,
                 &session->game->rules[group->first_rule + rule_index],

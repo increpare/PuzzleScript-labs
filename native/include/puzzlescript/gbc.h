@@ -59,7 +59,9 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 12
+#define PS_GBC_GAME_ABI_VERSION 13
+#define PS_GBC_RULE_GROUP_COUNT_MASK 0x7fffU
+#define PS_GBC_RULE_GROUP_SINGLE_PASS 0x8000U
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 256
 
