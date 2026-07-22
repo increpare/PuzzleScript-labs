@@ -676,22 +676,51 @@ static bool ps_gbc_apply_rule(
 static bool ps_gbc_apply_group(
     ps_gbc_session* session,
     const ps_gbc_rule_group* group,
+    uint8_t input_direction,
     ps_gbc_commands* commands
 ) {
-    const uint16_t rule_count = group->rule_count & PS_GBC_RULE_GROUP_COUNT_MASK;
+    uint16_t first_rule = group->first_rule;
+    uint16_t rule_count = group->rule_count & PS_GBC_RULE_GROUP_COUNT_MASK;
+    const uint16_t input_layout =
+        group->rule_count & PS_GBC_RULE_GROUP_INPUT_LAYOUT_MASK;
     const uint16_t pass_limit =
         (group->rule_count & PS_GBC_RULE_GROUP_SINGLE_PASS) != 0U
             ? 1U
             : PS_GBC_GROUP_PASSES;
     uint16_t pass;
     bool ever_changed = false;
+    if (input_layout != 0U) {
+        uint16_t block_size;
+        uint8_t block;
+        if (input_layout == PS_GBC_RULE_GROUP_INPUT_QUARTET) {
+            block_size = rule_count >> 2U;
+            if (input_direction == 1U) block = 0U;
+            else if (input_direction == 2U) block = 1U;
+            else if (input_direction == 4U) block = 2U;
+            else if (input_direction == 8U) block = 3U;
+            else return false;
+        } else {
+            block_size = rule_count >> 1U;
+            if (input_layout == PS_GBC_RULE_GROUP_INPUT_VERTICAL) {
+                if (input_direction == 1U) block = 0U;
+                else if (input_direction == 2U) block = 1U;
+                else return false;
+            } else {
+                if (input_direction == 4U) block = 0U;
+                else if (input_direction == 8U) block = 1U;
+                else return false;
+            }
+        }
+        first_rule = (uint16_t)(first_rule + (uint16_t)block * block_size);
+        rule_count = block_size;
+    }
     for (pass = 0U; pass < pass_limit; ++pass) {
         uint16_t rule_index;
         bool changed = false;
         for (rule_index = 0U; rule_index < rule_count; ++rule_index) {
             changed = ps_gbc_apply_rule(
                 session,
-                &session->game->rules[group->first_rule + rule_index],
+                &session->game->rules[first_rule + rule_index],
                 commands) || changed;
         }
         if (!changed) break;
@@ -704,6 +733,7 @@ static bool ps_gbc_apply_groups(
     ps_gbc_session* session,
     const ps_gbc_rule_group* groups,
     uint16_t group_count,
+    uint8_t input_direction,
     ps_gbc_commands* commands
 ) {
     uint16_t group_index = 0U;
@@ -711,7 +741,8 @@ static bool ps_gbc_apply_groups(
     bool propagated = false;
     bool changed = false;
     while (group_index < group_count) {
-        bool group_changed = ps_gbc_apply_group(session, &groups[group_index], commands);
+        bool group_changed = ps_gbc_apply_group(
+            session, &groups[group_index], input_direction, commands);
         changed = changed || group_changed;
         propagated = propagated || group_changed;
         if (propagated && groups[group_index].loop_target >= 0) {
@@ -1010,14 +1041,22 @@ static bool ps_gbc_apply_turn_phases(
     PS_GBC_PERF_END(PS_GBC_PERF_SETUP);
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
     early_changed = ps_gbc_apply_groups(
-        session, session->game->early_groups, session->game->early_group_count, commands);
+        session,
+        session->game->early_groups,
+        session->game->early_group_count,
+        direction,
+        commands);
     PS_GBC_PERF_END(PS_GBC_PERF_EARLY_RULES);
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_MOVEMENT);
     moved = ps_gbc_resolve_movements(session);
     PS_GBC_PERF_END(PS_GBC_PERF_MOVEMENT);
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_LATE_RULES);
     late_changed = ps_gbc_apply_groups(
-        session, session->game->late_groups, session->game->late_group_count, commands);
+        session,
+        session->game->late_groups,
+        session->game->late_group_count,
+        direction,
+        commands);
     PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
     return seeded || early_changed || moved || late_changed;
 }

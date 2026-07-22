@@ -288,6 +288,9 @@ def main() -> int:
                 "single_pass_groups": int(
                     manifest.get("single_pass_group_count", 0)
                 ),
+                "input_specialized_groups": int(
+                    manifest.get("input_specialized_group_count", 0)
+                ),
             },
             "memory": {
                 "estimated_session_bytes": int(

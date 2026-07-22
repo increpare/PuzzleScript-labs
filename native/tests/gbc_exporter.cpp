@@ -63,6 +63,11 @@ int main() {
         "manifest selects byte-wide object cells for five objects");
     require(manifest.find("\"single_pass_group_count\": 1") != std::string::npos,
         "manifest records the certified single-pass Sokoban group");
+    require(manifest.find("\"input_specialized_group_count\": 1") != std::string::npos,
+        "manifest records the certified input-specialized Sokoban group");
+    require(manifest.find("\"active_early_rules_by_input\": [1, 1, 1, 1, 0, 0]")
+            != std::string::npos,
+        "manifest records the rules reachable from each input");
     require(manifest.find("\"board_cells\": 90") != std::string::npos,
         "manifest advertises the hardware board ceiling");
     require(
@@ -105,6 +110,8 @@ int main() {
         "lowered fixed patterns are emitted as C data");
     require(source.find("PS_GBC_RULE_GROUP_SINGLE_PASS") != std::string::npos,
         "certified groups skip their redundant confirmation pass");
+    require(source.find("PS_GBC_RULE_GROUP_INPUT_QUARTET") != std::string::npos,
+        "certified directional groups select only the current input block");
     require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
         "level object masks use the selected byte-wide storage");
     require(

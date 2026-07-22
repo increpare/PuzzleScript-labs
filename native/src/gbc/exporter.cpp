@@ -102,6 +102,7 @@ struct PackedRule {
     uint16_t firstPattern = 0;
     uint8_t patternCount = 0;
     uint8_t direction = 0;
+    uint8_t activeInputsMask = 0x3fU;
     uint8_t commands = 0;
     uint8_t firstSound = 0;
     uint8_t soundCount = 0;
@@ -112,6 +113,7 @@ struct PackedGroup {
     uint16_t firstRule = 0;
     uint16_t ruleCount = 0;
     int16_t loopTarget = -1;
+    uint16_t inputLayout = 0U;
     bool singlePassSafe = false;
 };
 
@@ -909,6 +911,38 @@ uint8_t commandFlags(const Game& game, const Rule& rule, std::string& message, P
     return flags;
 }
 
+uint16_t groupInputLayout(const std::vector<Rule>& group) {
+    const auto matchesBlocks = [&](std::initializer_list<uint8_t> masks) {
+        if (group.empty() || group.size() % masks.size() != 0U) return false;
+        const size_t blockSize = group.size() / masks.size();
+        size_t ruleIndex = 0U;
+        for (const uint8_t mask : masks) {
+            for (size_t offset = 0U; offset < blockSize; ++offset, ++ruleIndex) {
+                if (group[ruleIndex].activeInputsMask != mask) return false;
+            }
+        }
+        return true;
+    };
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_UP,
+            uint8_t{1} << PS_INPUT_DOWN,
+            uint8_t{1} << PS_INPUT_LEFT,
+            uint8_t{1} << PS_INPUT_RIGHT})) {
+        return PS_GBC_RULE_GROUP_INPUT_QUARTET;
+    }
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_UP,
+            uint8_t{1} << PS_INPUT_DOWN})) {
+        return PS_GBC_RULE_GROUP_INPUT_VERTICAL;
+    }
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_LEFT,
+            uint8_t{1} << PS_INPUT_RIGHT})) {
+        return PS_GBC_RULE_GROUP_INPUT_HORIZONTAL;
+    }
+    return 0U;
+}
+
 PackedPattern packPattern(
     const Game& game,
     const Pattern& pattern,
@@ -967,11 +1001,13 @@ void packGroups(
     for (size_t groupIndex = 0; groupIndex < sourceGroups.size(); ++groupIndex) {
         const auto& sourceGroup = sourceGroups[groupIndex];
         PackedGroup group;
-        if (rules.size() > UINT16_MAX || sourceGroup.size() > UINT16_MAX) {
+        if (rules.size() > UINT16_MAX
+            || sourceGroup.size() > PS_GBC_RULE_GROUP_COUNT_MASK) {
             throw std::runtime_error("GBC rule table exceeds 16-bit indexes");
         }
         group.firstRule = static_cast<uint16_t>(rules.size());
         group.ruleCount = static_cast<uint16_t>(sourceGroup.size());
+        group.inputLayout = late ? 0U : groupInputLayout(sourceGroup);
         group.singlePassSafe = groupSinglePassSafe(game, sourceGroup);
         const auto loopAt = [&](size_t index) -> std::optional<int32_t> {
             if (index >= loopPoints.entries.size()) return std::nullopt;
@@ -997,6 +1033,7 @@ void packGroups(
             rule.firstPattern = static_cast<uint16_t>(patterns.size());
             rule.patternCount = static_cast<uint8_t>(sourceRule.patterns.front().size());
             rule.direction = static_cast<uint8_t>(sourceRule.direction);
+            rule.activeInputsMask = sourceRule.activeInputsMask;
             rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
             rule.commands = commandFlags(game, sourceRule, rule.message, audio);
             rule.soundCount = static_cast<uint8_t>(
@@ -1250,11 +1287,23 @@ std::string emitSource(
         if (groups.empty()) out << "    {0},\n";
         for (const PackedGroup& group : groups) {
             out << "    {" << group.firstRule << "U, ";
-            if (group.singlePassSafe) {
-                out << "(" << group.ruleCount
-                    << "U | PS_GBC_RULE_GROUP_SINGLE_PASS), ";
-            } else {
+            if (!group.singlePassSafe && group.inputLayout == 0U) {
                 out << group.ruleCount << "U, ";
+            } else {
+                out << "(" << group.ruleCount << "U";
+                if (group.inputLayout != 0U) {
+                    if (group.inputLayout == PS_GBC_RULE_GROUP_INPUT_QUARTET) {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_QUARTET";
+                    } else if (group.inputLayout == PS_GBC_RULE_GROUP_INPUT_VERTICAL) {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_VERTICAL";
+                    } else {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_HORIZONTAL";
+                    }
+                }
+                if (group.singlePassSafe) {
+                    out << " | PS_GBC_RULE_GROUP_SINGLE_PASS";
+                }
+                out << "), ";
             }
             out
                 << group.loopTarget << "},\n";
@@ -1682,6 +1731,20 @@ ExportResult exportGame(const ExportOptions& options) {
     };
     const size_t earlySinglePassGroups = singlePassCount(earlyGroups);
     const size_t lateSinglePassGroups = singlePassCount(lateGroups);
+    const size_t inputSpecializedGroups = static_cast<size_t>(std::count_if(
+        earlyGroups.begin(),
+        earlyGroups.end(),
+        [](const PackedGroup& group) { return group.inputLayout != 0U; }));
+    std::array<size_t, 6> activeEarlyRulesByInput{};
+    size_t earlyRuleCount = 0U;
+    for (const PackedGroup& group : earlyGroups) earlyRuleCount += group.ruleCount;
+    for (size_t ruleIndex = 0U; ruleIndex < earlyRuleCount; ++ruleIndex) {
+        for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
+            if ((rules[ruleIndex].activeInputsMask & (uint8_t{1} << input)) != 0U) {
+                ++activeEarlyRulesByInput[input];
+            }
+        }
+    }
     std::ostringstream manifest;
     manifest << "{\n"
         << "  \"format\": \"puzzlescript-gbc-v1\",\n"
@@ -1726,6 +1789,21 @@ ExportResult exportGame(const ExportOptions& options) {
         << earlySinglePassGroups << ",\n"
         << "  \"late_single_pass_group_count\": "
         << lateSinglePassGroups << ",\n"
+        << "  \"input_specialized_group_count\": "
+        << inputSpecializedGroups << ",\n"
+        << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
+        << "  \"active_early_rules_by_input\": [";
+    for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
+        if (input != 0U) manifest << ", ";
+        manifest << activeEarlyRulesByInput[input];
+    }
+    manifest << "],\n"
+        << "  \"early_rule_active_input_masks\": [";
+    for (size_t ruleIndex = 0U; ruleIndex < earlyRuleCount; ++ruleIndex) {
+        if (ruleIndex != 0U) manifest << ", ";
+        manifest << static_cast<unsigned int>(rules[ruleIndex].activeInputsMask);
+    }
+    manifest << "],\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
