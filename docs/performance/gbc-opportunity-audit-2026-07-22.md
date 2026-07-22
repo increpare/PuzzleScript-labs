@@ -423,6 +423,7 @@ earn their cost.
 | Precompose frequent level-mask tile quartets | **Keep** | initial -71.35% | initial -60.11% | initial -67.38% | initial -32.89% | initial -47.91% | 6/5/5/5/2 entries; +328 to +604 B linked bank; fixed ROM/RAM unchanged; exact logic and pixel parity |
 | Share identical complete pattern sequences | **Keep** | exact control | exact control | timing 0.00%; -2,368 B bank | exact control | timing 0.00%; -888 B bank | fixed ROM/RAM unchanged; no runtime indirection |
 | Pack generated pattern masks and matcher locals to game widths | **Keep** | -2.17% | -4.78% | -12.07% | -3.58% | -0.04% | 37 B -> 10/22/27 B records; -246 to -485 B fixed ROM; -216 to -1,674 B linked bank; RAM unchanged |
+| Move packed matcher/replacement temporaries to static WRAM | **Reject** | -0.301% | not run | not run | not run | not run | +79 B fixed ROM; +6 B static WRAM; matcher stack 7 -> 9 B; replacement 14 -> 13 B; loses re-entrancy |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -453,6 +454,10 @@ composition probe (+0.25 tick). Isolated composition is exact in the
 object-heavy case and its walk/push renders improve by 2/1 ticks, so the stable
 67-tick first-transfer difference is attributed to changed binary/PPU phase,
 not added drawing work; the production pixel/hardware smoke remains exact.
+The rejected static-scratch diagnostic is
+`.codex_tmp/benchmarks/p2-static-pattern-scratch.json`; the first compact case
+was sufficient because its assembly and both memory budgets regressed before
+the other four profiles could change the decision.
 
 The scheduling decision uses the counter-only diagnostic
 `.codex_tmp/benchmarks/post-singleton-schedule-counts.json`. Per turn it
@@ -618,11 +623,13 @@ The source review adds six concrete experiments:
    precomputed byte offset, in the rule record. On the SM83 target it replaces
    the existing two-byte index rather than growing the record. This removes a
    stride multiply even before packed patterns land.
-2. **Try GBC-only static matcher scratch.** GBDK explicitly notes that globals
-   or static locals are often faster than stack locals, at the cost of
-   re-entrancy. The generated cartridge engine is single-threaded and is not
-   called by an ISR, so a benchmark-only static context is a valid comparison
-   against the current 17-byte matcher frame. Keep the portable path re-entrant.
+2. **GBC-only static matcher scratch is rejected.** GBDK notes that globals or
+   static locals can be faster than stack locals, at the cost of re-entrancy,
+   but the post-packing compiler output does not benefit. On compact Sokoban it
+   changes 186.906 to 186.344 ticks (-0.301%) while adding 79 fixed-ROM bytes
+   and 6 static-WRAM bytes. The matcher frame grows from 7 to 9 bytes because
+   absolute scratch accesses increase register spills; replacement only falls
+   from 14 to 13 bytes. That trade is not worth making the core non-re-entrant.
 3. **Use HRAM only for a few proved-hot bytes.** GBDK's `SFR` placement lets
    SDCC use compact `LDH` accesses, but makes the variable volatile. Test this
    only after static scratch identifies values that are repeatedly loaded;
@@ -893,9 +900,9 @@ Keep these gates for every retained optimization:
    where broader anchor indexes beat their fixed-ROM and RAM costs.
 5. Retain the now-gated exact sequence sharing and width-specialized packed
    patterns.
-6. Re-profile. Only then test GBC-only static scratch and a fused, one-byte
+6. Re-profile. Static scratch is now rejected; test a fused, one-byte
    object-only SM83 match/scan kernel with the C path retained as an oracle and
-   fallback.
+   fallback only if source-level specialization no longer wins.
 7. Address initial rendering first with fixed 5x5 pointer-streamed sprites and
    a compact layer-ordered render table and bounded precomposed quartets; then
    test GBDK HBlank copy, measured VRAM-DMA variants, an inactive-map handoff,
