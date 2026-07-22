@@ -42,6 +42,13 @@ def coordinate(value: str) -> tuple[int, int]:
         raise argparse.ArgumentTypeError("coordinate must be X,Y") from error
 
 
+def integer(value: str) -> int:
+    try:
+        return int(value, 0)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("value must be an integer") from error
+
+
 def default_mgba() -> Path | None:
     executable = shutil.which("mgba-sdl") or shutil.which("mgba-sdl.exe")
     if executable:
@@ -117,6 +124,28 @@ def save_frame_image(
     image.save(output)
 
 
+def frame_tile_colors(
+    frame: tuple[bytes, bytes, bytes, tuple[int, ...]],
+    screen_tiles: tuple[int, ...],
+) -> set[int]:
+    _, attributes, tile_data, palettes = frame
+    colors: set[int] = set()
+    for screen_tile in screen_tiles:
+        palette = attributes[screen_tile] & 0x07
+        pattern = tile_data[screen_tile * 16 : (screen_tile + 1) * 16]
+        for pixel_y in range(8):
+            low = pattern[pixel_y * 2]
+            high = pattern[pixel_y * 2 + 1]
+            for pixel_x in range(8):
+                shift = 7 - pixel_x
+                color_index = (
+                    ((low >> shift) & 1)
+                    | (((high >> shift) & 1) << 1)
+                )
+                colors.add(palettes[palette * 4 + color_index])
+    return colors
+
+
 def glyph_tiles(text: str) -> bytes:
     punctuation = {
         ".": 37,
@@ -170,10 +199,15 @@ def main() -> int:
     parser.add_argument("--frame-scale", type=int, default=1)
     parser.add_argument("--require-dedicated-tiles", action="store_true")
     parser.add_argument("--require-second-vram-bank", action="store_true")
+    parser.add_argument("--require-quadrant-palettes", action="store_true")
+    parser.add_argument(
+        "--require-player-color", action="append", type=integer, default=[]
+    )
     args = parser.parse_args()
     unique_quartets = 0
     dedicated_cells = 0
     second_bank_cells = 0
+    quadrant_palette_cells = 0
     if args.frame_scale < 1:
         raise SystemExit("--frame-scale must be at least 1")
     emulator = args.mgba or default_mgba()
@@ -459,7 +493,11 @@ def main() -> int:
             )
         if args.message_frame_out is not None:
             save_frame_image(message_frame, args.message_frame_out, args.frame_scale)
-        if args.frame_out is not None:
+        if (
+            args.frame_out is not None
+            or args.require_quadrant_palettes
+            or args.require_player_color
+        ):
             board_frame = read_frame_dump(data, FRAME_DUMP_BANK)
             tile_map, attributes, _, _ = board_frame
             mapping_mismatches = 0
@@ -488,6 +526,11 @@ def main() -> int:
                         dedicated_cells += 1
                     if base_tile >= 256:
                         second_bank_cells += 1
+                    quadrant_palettes = {
+                        attributes[screen_tile] & 0x07 for screen_tile in parts
+                    }
+                    if len(quadrant_palettes) > 1:
+                        quadrant_palette_cells += 1
                     for part, screen_tile in enumerate(parts):
                         expected_tile = base_tile + part
                         actual_tile = tile_map[screen_tile] + (
@@ -509,7 +552,45 @@ def main() -> int:
                 raise SystemExit(
                     "frame did not exercise logical cells in VRAM pattern bank 1"
                 )
-            save_frame_image(board_frame, args.frame_out, args.frame_scale)
+            if args.require_quadrant_palettes and quadrant_palette_cells == 0:
+                raise SystemExit(
+                    "frame did not exercise multiple palettes within one 16x16 cell"
+                )
+            if args.require_player_color:
+                logical_board_width = board_pixel_width // cell_width
+                logical_board_height = board_pixel_height // cell_height
+                player_logical_x = (
+                    (10 - logical_board_width) // 2 + final_x
+                )
+                player_logical_y = (
+                    (9 - logical_board_height) // 2 + final_y
+                )
+                player_top_left = (
+                    (player_logical_y * 2) * 20 + player_logical_x * 2
+                )
+                player_tiles = (
+                    player_top_left,
+                    player_top_left + 1,
+                    player_top_left + 20,
+                    player_top_left + 21,
+                )
+                player_colors = frame_tile_colors(board_frame, player_tiles)
+                missing_player_colors = sorted(
+                    set(args.require_player_color) - player_colors
+                )
+                if missing_player_colors:
+                    player_palettes = [
+                        attributes[screen_tile] & 0x07
+                        for screen_tile in player_tiles
+                    ]
+                    raise SystemExit(
+                        "player cell is missing required rendered colors: "
+                        f"missing={missing_player_colors} "
+                        f"observed={sorted(player_colors)} "
+                        f"palettes={player_palettes}"
+                    )
+            if args.frame_out is not None:
+                save_frame_image(board_frame, args.frame_out, args.frame_scale)
         print(
             "gbc-smoke ok "
             f"source_hash=0x{source_hash:08x} "
@@ -525,6 +606,7 @@ def main() -> int:
             f"bank1_cells={second_bank_cells}"
             f" title_selection_blanks={title_selection_blank_count}"
             f" level_transition_blanks={full_transition_blank_count}"
+            f" quadrant_palette_cells={quadrant_palette_cells}"
             f"{audio_summary}"
         )
     return 0

@@ -544,53 +544,15 @@ assert.deepStrictEqual(groupTagGroups.map(group => group.tags), [
     },
 ]);
 
-const COMMAND_GAME = `
-title Command Tags
-========
-OBJECTS
-========
-Background
-black
-Alpha
-white
-${'======='}
-LEGEND
-${'======='}
-. = Background
-a = Alpha
-Player = Alpha
-${'======='}
-SOUNDS
-${'======='}
-================
-COLLISIONLAYERS
-================
-Background
-Alpha
-=====
-RULES
-=====
-[ Alpha ] -> sfx0
-[ Alpha ] -> checkpoint
-[ Alpha ] -> cancel
-[ Alpha ] -> restart
-[ Alpha ] -> win
-[ Alpha ] -> again
-[ Alpha ] -> message hello there
-[ Alpha ] -> [ Alpha ] sfx0
-[ right Alpha ] -> [ right Alpha ] sfx0
-[ no Alpha ] -> [ no Alpha ] sfx0
-=============
-WINCONDITIONS
-=============
-Some Alpha
-======
-LEVELS
-======
-a
-`;
+const COMMAND_GAME_PATH = path.join(
+    __dirname,
+    'static_analysis_testdata',
+    'rule_tags',
+    'command-tags-inert.txt'
+);
+const COMMAND_GAME = fs.readFileSync(COMMAND_GAME_PATH, 'utf8');
 
-const commandReport = analyzeSource(COMMAND_GAME, { sourcePath: 'commands.txt' });
+const commandReport = analyzeSource(COMMAND_GAME, { sourcePath: COMMAND_GAME_PATH });
 const commandRules = commandReport.ps_tagged.rule_sections[0].groups.flatMap(group => group.rules);
 assert.strictEqual(commandRules.length, 10, 'command-only rules should remain present');
 assert.strictEqual(commandRules[0].tags.inert_command_only, true, 'sfx-only rule is inert for solver state');

@@ -1,0 +1,322 @@
+sokoban no win condition
+sokoban with win condition
+rule grouping test
+block faker no win condition
+block faker with win condition
+cat bastard
+beginloop/endloop with mutual recursion
+simple sokobond test
+mirror + test
+don't mask movements if no movements happening
+Remove movements from empty layers after rule application
+movement matching - correctly matching different objects same cell moving in different directions
+bug #186 - 'no property' on the RHS should clear objects
+Make synonyms of properties work. #215
+Make synonyms of properties work. #230
+Make synonyms of properties work. #243
+Laser movement check (#264)
+Synonym confusion
+Reserved keywords are too greedy (#419)
+Removing background tiles breaks "no X" wincondition (#534)
+Recent update broke some games with tabs in the source code #609
+Test travelling through multiple levels
+Win condition test "NO X"
+Win condition test "SOME X"
+Win condition test "SOME X ON Y"
+Win condition test "NO X ON Y"
+movement not getting correctly cleared from tile - #492
+second test for #492 movement not getting correctly cleared from tile
+third test for #492 movement not getting correctly cleared from tile
+fourth test for #492 movement not getting correctly cleared from tile
+fifth test for #492 movement not getting correctly cleared from tile
+Empty loop test
+[testing for recording through level-changes B] Simple Block asdfsadf Game
+startloop stoploop vortex check
+Audio Test 1
+Audio Test 2
+Audio Test 3
+aggregates in win conditions 3
+background_color transparent code path
+Levels can not contain glyphs that resemble section names #976
+Weirdness with = as glyph
+aggregate player allowed B #1032
+#1067 [ player no wall ] test suite, No. 1
+#1067 [ player no wall ] test suite, No. 6
+#1067 [ player no wall ] test suite, No. 9
+#1067 [ player no wall ] test suite, No. 10
+#1067 [ player no wall ] test suite, No. 12
+#1067 [ player no wall ] test suite, No. 13
+#1067 [ player no wall ] test suite, No. 14
+#1067 [ player no wall ] test suite, No. 16
+#1067 [ player no wall ] test suite, No. 18
+#1067 [ player no wall ] test suite, No. 27
+#1067 [ player no wall ] test suite, No. 28
+#1067 [ player no wall ] test suite, No. 30
+#1067 [ player no wall ] test suite, No. 31
+#1067 [ player no wall ] test suite, No. 40
+#1067 [ player no wall ] test suite, No. 43
+lhsHasOverlappingRequiredLayers
+Kettle
+throttle movement
+Can't start message with section keywords #490
+gallery game: the art of cloning
+gallery: Watch Your Step
+I am a gust of wind
+Participating in society
+Individuals can produce a society, but can a society produce individuals?
+A cliche for bedtime
+GAPFILLER / LUECKEFUELLER
+pushit
+Crate Swarp
+Pushy-V Pully-H
+Resin-Caster
+Kettle, except something is off
+aggregates in win conditions 1
+"right [ Player ] -> [ up Player ]" gets compiled to down #755
+(censored version of NSFW game) Sexual Intercourse
+Acorn Scorchery Paradise
+An OK multiban level
+Attractor Net
+Autowin
+Autowin2
+Big dog and little dog
+Bug: "norestart" prelude option can interfere with "restart" command #411
+Chevron Lodger
+Clearing space
+Crates move when you move
+Cucumber Surprise
+Don't let your goals slip away
+Explodoban
+Head Skuller
+Hole-Stuffer
+I SURE LOOK TASTY!
+It gets its Feet Wet
+Legend of Swixero
+Long Haul Space Flight
+Loop example with both late and regular rules.
+Make way!
+MazezaM
+Microban x 10
+Missing/Skipping Rules? Objects disappear for no reason? #1046
+NIGHTMARECROBAN
+NO FORBIDDEN SYMBOLS
+Oh no I accidentally swallowed myself!
+Paralelism
+Pocket Gopher: Root-Shoot Nibbler
+Put the logs in the water, elephant!
+Recondite Star Sector Sigma
+Restart command on level start
+Rule direction inference test (#407)
+Scalesoban
+Schleimban
+Slidings
+Sokoban[Sokoban[Sokoban]]]
+SokokoS
+Subway upholstry snot smearing championship
+Test for cancel cancelling restart #374
+Test for trigger message at same time as cancel
+Test for trigger message at same time as reset
+The Far Away Danish Pastry is always Deliciouser.
+Two-Tone Tango
+Van-to-Mobile-Living-Space-Conversion Window-Frame-Installation
+Varifocal Nightmare
+Vexatious Match 3
+Wand Spinner
+[testing for recording through level-changes C] Don't asdlet your goals slip away
+again + message combo
+aggregate player allowed D #1032
+aggregates in win conditions 2
+aggregates in win conditions 4
+aggregates in win conditions 5
+aggregates in win conditions 6
+aggregates in win conditions 7
+annoying edge case
+beginloop/endloop test
+crate guardian
+ebony & ivory
+ecosystem generator
+ellipsis bug: rule matches two candidates, first replacement invalidates second
+ellipsis magnetism test
+ellipsisPropagationBug1
+ellipsisTest1
+explod
+gallery game: fall leaves
+gallery game: soliquid
+gallery: PrograMaze
+gallery: Symbolism
+gallery: collapsable sokoban
+gallery: count mover
+gallery: flower dance
+gallery: midas
+gallery: multi-word dictionary
+gallery: pushcat junior
+gallery: singleton traffic
+gallery: stairways
+gallery: swap bot
+gallery: the undertaking
+increpare game: match three billiards
+increpare game: you complete me
+it dies in the light
+late beginloop/endloop test
+limerick
+love and pieces
+mirror loop test
+modality
+movement matching - ellipsis bug - forgot to include one case in above
+multiple loops
+multiple patterns not checking for modifications
+newton
+no heroes necessary
+optimization that broke andrew's game
+ortho test 1
+ortho test 2
+pipe puffer
+short adventure in sticky wall land
+should allow overlapping things #512
+sticky candy puzzle saga
+take heart lass
+the exit is under my left foot
+trouble parsing non-ascii in unicode #528
+undo test
+undoing reset undoes two steps, not one #453
+unewton
+zen puzzle garden
+100 objects
+1st alternative test for: right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682
+200 objects
+2048
+2nd alternative test for: right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682
+50 layers
+50 layers 2
+50 objects
+B*TTEATER
+DICE GOBLIN
+Double-Entry Bookkeeping Simulator#1
+Double-Entry Bookkeeping Simulator#2
+Failed rigid groups shouldn't block late rule execution. #254
+Fickle Fred
+Flying Kick
+Garten der Medusen
+KONSUM
+Kreiseln
+Match-Maker
+Moved by leaves of grass
+Rigid weirdness test (#369)
+Rigidbody rules apply to group rather than individual rules.
+The sponge what lights up the seafloor
+Unclean Residues
+You can't make this up!
+[ orthogonal a | moving a ] -> [ moving a | orthogonal a ] produces an error #496
+beginloop/endloop test #2 (w/ rigids)
+coverage of concretizeMovingInCellByAmbiguousMovementName
+dungeon janitor
+ellipsisPropagationBug2
+gallery game: sokodig
+gallery: Stand Off
+gallery: XL-Plan
+gallery: boxes love boxing gloves
+gallery: marble shot
+loop length 1
+loop length 1-b
+misc many objects
+misc rigid test
+random instances of properties
+right [ horizontal TestObject1 | perpendicular TestObject1 ] -> [ perpendicular TestObject1 | ] produces an error #498
+right [ vertical Player | perpendicular Player ] -> [ perpendicular Player | ] produces error #682
+rigid DOES NOT apply to objects if a movement on the RHS is assigned, and later the object is replaced by an object on another layer
+rigid DOES NOT apply to objects if a movement on the RHS is removed implicitly [by not mentioning a movement matched on the LHS]
+rigid DOES apply to objects if a movement on the RHS is removed explicitly [by not mentioning a movement matched on the LHS]
+rigid DOES apply to objects if a movement on the RHS is removed explicitly, even if the object is replaced by another one on the same layer
+rigid applies to movements even if the initial movement applied is an ACTION that is later changed to a movement
+rigid applies to movements even if the initial movement applied is an STATIONARY that is later changed to a movement
+rigid applies to movements even if the movements are chagned by subsequent non-rigid rules in other groups
+rigid applies to movements even if the movements were already present in the cell before rule application [i.e. if the rule doesn't do anything]
+rigid applies to movements even if the objects are changed to different objects in the same layer
+rigid applies to movements even if they are removed and subsequently readded
+rigid body test
+rigid body test 2
+rigid disablement applies to whole rule-groups
+rigid: even a rigid rule removing an object marks the position/layer of the removed object as rigid.
+rigid: even removing and re-adding an object doesn't remove the rigid tag from that position and layer.
+simple rigid test
+10 layers 50 objects
+10 layers, 50 objects 2
+AUTOHURDLER
+Bicycle-Kick Football
+Double-ellipsis delicate test case
+Double-ellipsis testcase
+I Need To Stop My Teleport Gun
+I wanna change my position
+No! Don't eat that!
+Pupush
+SHY SNAKE
+The Red Ring of Immortality
+Voitex Rasteriser [Demake of Vertex Dispenser Puzzle Mode]
+basic unlimited object/layer support
+double ellipsis simple test
+double ellipsis simple test #2
+gallery game: I'm too far gone
+gallery game: maera public works
+gallery game: shall we golf?
+gallery: aa I'm being attacked by a giant tentacle
+gallery: newton's crates
+gallery: paralands
+legend of zokoban
+many layers movement bug
+random movement determinism test
+Bring the ice cube to the goal without exposing it to heat.
+CŌDEX·LŪBRICUS
+Des Poseidons Dreizack
+Slot Machine
+The Monsterous Autoshove
+atlas shrank
+gallery game: interconnection
+gallery: unconventional guns
+sum three horizontally to 8!
+restart test
+Push Pull
+Slide Pull
+aggregate player allowed #1032
+aggregate player allowed C #1032
+A CLEAR VIEW OF THE SKY
+A CLEAR VIEW OF THE SKY
+BIAXIAL INVASION OF SATURN
+Caramelban
+Die schoene Steinmetzin
+Every Star Needs a Tree
+Eyeball-watching flowers bloom
+I want to grind myself into dust
+Psyshic push
+Undo and Real-time #796
+Undo test (#315)
+gallery game: mad queens
+gallery game: two worlds
+gallery game: two worlds
+increpare game: snortal
+2D whale world
+Crate Assembler
+Gem Socketeer
+Karamell
+Many parallel players, unlimited rigidbodies
+One player, unlimited rigidbodies
+Sokoban... in 3D!
+Voitex Rasteriser 2 [2nd Demake of Vertex Dispenser Puzzle Mode]
+gallery: beam islands
+increpare game: robot arm
+paint everything everywhere!
+right [ vertical playerortarget | vertical player ] -> [ vertical player  |  vertical playerortarget ]
+robotic arm
+wb + gems test
+Car Crash
+Lightdown
+Oh No My Dog Is About To Swallow A Piece Of Chocolate
+REALTIME DOG MOUNTAIN RESCUE
+SWIMMING TIME!
+propagation test
+Rigidbody fix bug #246
+Neoprenanzieher
+Sok7
+Expand, avoid the flames [also it's not always solvable]
+gallery: tidy the cafe
+test for convention #2 to issue right [ > Player | ] -> [ Player | Player ]🐱‍🐉 #679 : Should right [ Player | ] -> [ Player | Player ] propagate movements? (A: yes?)
+super tricky (related to #469) right [ vertical playerortarget | vertical player ] -> [ vertical playerortarget  |  vertical playerortarget ]

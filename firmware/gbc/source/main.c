@@ -44,7 +44,7 @@ static uint8_t gSessionArena[PS_GBC_GENERATED_SESSION_BYTES];
 uint8_t gTileBytes[64];
 uint8_t gTileMap[SCREEN_TILES];
 uint8_t gAttributes[SCREEN_TILES];
-uint8_t gSourcePixels[64];
+uint8_t gSourcePixels[PS_GBC_SOURCE_PIXEL_BUFFER_BYTES];
 ps_gbc_session* gSession;
 static ps_gbc_frontend gFrontend;
 uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
