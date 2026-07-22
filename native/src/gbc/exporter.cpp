@@ -694,9 +694,7 @@ bool groupSinglePassSafe(
     const Game& game,
     const std::vector<Rule>& group
 ) {
-    /* Match the audited rulegroup_flow certificate family, which currently
-     * emits proofs only for groups containing more than one expanded rule. */
-    if (group.size() <= 1U) return false;
+    if (group.empty()) return false;
     for (const Rule& rule : group) {
         const bool hasSemanticCommand = std::any_of(
             rule.commands.begin(),

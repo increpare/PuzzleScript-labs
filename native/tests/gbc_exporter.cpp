@@ -174,6 +174,8 @@ int main() {
     require(
         presenceManifest.find("\"object_presence_precheck_rule_count\": 22")
                 != std::string::npos
+            && presenceManifest.find("\"single_pass_group_count\": 3")
+                != std::string::npos
             && presenceHeader.find(
                 "PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 22U")
                 != std::string::npos
@@ -197,10 +199,12 @@ int main() {
     require(
         wideObjectManifest.find("\"player_cell_anchor_rule_count\": 0")
                 != std::string::npos
+            && wideObjectManifest.find("\"single_pass_group_count\": 12")
+                != std::string::npos
             && wideObjectHeader.find(
                 "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 0U")
                 != std::string::npos,
-        "four-byte object games compile out the fixed-bank-heavy player index");
+        "wide-object games compile out the player index and certify singleton groups");
 
     puzzlescript::gbc::ExportOptions contrastOptions;
     contrastOptions.sourcePath =
