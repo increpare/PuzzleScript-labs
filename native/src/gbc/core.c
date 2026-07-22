@@ -85,6 +85,17 @@ extern void ps_gbc_perf_phase_end(uint8_t phase);
 #define PS_GBC_PERF_END(phase) ((void)(phase))
 #endif
 
+#if defined(PS_GBC_PERF_SCHEDULES)
+extern uint16_t gPerfScheduleCounts[PS_GBC_PERF_SCHEDULE_COUNT];
+extern bool gPerfPhaseEnabled;
+#define PS_GBC_PERF_COUNT(counter) \
+    do { \
+        if (gPerfPhaseEnabled) ++gPerfScheduleCounts[(uint8_t)(counter)]; \
+    } while (0)
+#else
+#define PS_GBC_PERF_COUNT(counter) ((void)(counter))
+#endif
+
 typedef struct ps_gbc_commands {
     uint8_t flags;
     const char* message;
@@ -801,6 +812,7 @@ static bool ps_gbc_apply_group(
             : PS_GBC_GROUP_PASSES;
     uint16_t pass;
     bool ever_changed = false;
+    PS_GBC_PERF_COUNT(PS_GBC_PERF_GROUP_INVOCATIONS);
     if (input_layout != 0U) {
         uint16_t block_size;
         uint8_t block;
@@ -829,13 +841,21 @@ static bool ps_gbc_apply_group(
     for (pass = 0U; pass < pass_limit; ++pass) {
         uint16_t rule_index;
         bool changed = false;
+        PS_GBC_PERF_COUNT(PS_GBC_PERF_GROUP_PASSES);
+        if (pass != 0U) PS_GBC_PERF_COUNT(PS_GBC_PERF_REPEAT_PASSES);
         for (rule_index = 0U; rule_index < rule_count; ++rule_index) {
+            PS_GBC_PERF_COUNT(PS_GBC_PERF_RULE_VISITS);
+            if (pass != 0U) PS_GBC_PERF_COUNT(PS_GBC_PERF_REPEAT_RULE_VISITS);
             changed = ps_gbc_apply_rule(
                 session,
                 &session->game->rules[first_rule + rule_index],
                 commands) || changed;
         }
         if (!changed) break;
+        PS_GBC_PERF_COUNT(PS_GBC_PERF_CHANGING_PASSES);
+        if (pass != 0U) {
+            PS_GBC_PERF_COUNT(PS_GBC_PERF_REPEAT_CHANGING_PASSES);
+        }
         ever_changed = true;
     }
     return ever_changed;

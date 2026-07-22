@@ -21,6 +21,7 @@
 #define PERF_MAGIC 0x46434250UL
 #define PERF_PHASE_MAGIC 0x32434250UL
 #define PERF_INTERACTION_MAGIC 0x49434250UL
+#define PERF_SCHEDULE_MAGIC 0x53434250UL
 #define FRAME_DUMP_MAGIC 0x46474250UL
 #define AUDIO_AUTOTEST_MAGIC 0x41434250UL
 #define AUDIO_AUTOTEST_OFFSET 128U
@@ -39,6 +40,9 @@ extern uint16_t gTileUploadMismatches;
 
 #if defined(PS_GBC_PERF_BENCH)
 extern uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
+#if defined(PS_GBC_PERF_SCHEDULES)
+extern uint16_t gPerfScheduleCounts[PS_GBC_PERF_SCHEDULE_COUNT];
+#endif
 extern bool gPerfPhaseEnabled;
 void perfTimerInitialize(void);
 void perfTimerStart(void);
@@ -213,6 +217,9 @@ void runAutotest(void) BANKED {
         }
         (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
         memset(gPerfPhaseTicks, 0, sizeof(gPerfPhaseTicks));
+#if defined(PS_GBC_PERF_SCHEDULES)
+        memset(gPerfScheduleCounts, 0, sizeof(gPerfScheduleCounts));
+#endif
         gPerfPhaseEnabled = true;
         perfTimerInitialize();
         perfTimerStart();
@@ -267,6 +274,17 @@ void runAutotest(void) BANKED {
         writeSram32(108U, interaction.walk_render_ticks);
         writeSram32(112U, interaction.push_logic_ticks);
         writeSram32(116U, interaction.push_render_ticks);
+#if defined(PS_GBC_PERF_SCHEDULES)
+        writeSram32(160U, 0U);
+        writeSram16(164U, 1U);
+        writeSram16(166U, PS_GBC_PERF_SCHEDULE_COUNT);
+        for (phase = 0U; phase < PS_GBC_PERF_SCHEDULE_COUNT; ++phase) {
+            writeSram16(
+                (uint16_t)(168U + (uint16_t)phase * 2U),
+                gPerfScheduleCounts[phase]);
+        }
+        writeSram32(160U, PERF_SCHEDULE_MAGIC);
+#endif
         writeSram32(96U, PERF_INTERACTION_MAGIC);
         writeSram32(32U, PERF_PHASE_MAGIC);
         writeSram32(16U, PERF_MAGIC);

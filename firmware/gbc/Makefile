@@ -5,8 +5,9 @@ AUTOTEST_LOGIC_ONLY ?= 0
 PERF_BENCH         ?= 0
 PERF_WIDE          ?= 0
 PERF_PHASES        ?= 0
+PERF_SCHEDULES     ?= 0
 TARGET             := $(if $(filter 1 yes true on,$(AUTOTEST)),puzzlescript_gbc_autotest,puzzlescript_gbc)
-PERF_SUFFIX        := $(if $(filter 1 yes true on,$(PERF_BENCH)),-perf$(if $(filter 1 yes true on,$(PERF_WIDE)),-wide,-compact)$(if $(filter 1 yes true on,$(PERF_PHASES)),-phases,),)
+PERF_SUFFIX        := $(if $(filter 1 yes true on,$(PERF_BENCH)),-perf$(if $(filter 1 yes true on,$(PERF_WIDE)),-wide,-compact)$(if $(filter 1 yes true on,$(PERF_PHASES)),-phases,$(if $(filter 1 yes true on,$(PERF_SCHEDULES)),-schedules,)),)
 TARGET             := $(TARGET)$(PERF_SUFFIX)
 BUILD              := $(if $(filter 1 yes true on,$(AUTOTEST)),build-autotest,build)$(PERF_SUFFIX)
 GENERATED          := generated
@@ -32,6 +33,9 @@ CFLAGS += -DPS_GBC_BENCH_WIDE_MOVEMENTS=1
 endif
 ifneq ($(filter 1 yes true on,$(PERF_PHASES)),)
 CFLAGS += -DPS_GBC_PERF_PHASES=1
+endif
+ifneq ($(filter 1 yes true on,$(PERF_SCHEDULES)),)
+CFLAGS += -DPS_GBC_PERF_SCHEDULES=1
 endif
 LDFLAGS := -msm83:gb -Wm-yC -Wm-yt0x1B -Wm-yo8 -Wm-ya4 -Wm-ynPUZZLESCRIPT -Wl-m
 PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,)

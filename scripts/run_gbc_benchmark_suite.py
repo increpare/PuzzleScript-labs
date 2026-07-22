@@ -53,6 +53,10 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             name: ticks / logic_iterations
             for name, ticks in record["phase_ticks"].items()
         },
+        "schedule_counts_per_turn": {
+            name: count / logic_iterations
+            for name, count in record["schedule_counts"].items()
+        },
         "render_ticks_per_frame": record["render_ticks"] / render_iterations,
         "composition_ticks_per_frame": (
             record["composition_ticks"] / render_iterations
@@ -139,34 +143,44 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--phases", action="store_true")
+    parser.add_argument("--schedules", action="store_true")
     parser.add_argument("--case", action="append", choices=[case[0] for case in DEFAULT_CASES])
     parser.add_argument("--merge-input", action="append", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--baseline", type=Path)
     args = parser.parse_args()
+    if args.phases and args.schedules:
+        parser.error("--phases and --schedules are separate diagnostic builds")
 
     repository = args.repository.resolve()
     if args.merge_input:
         merged_cases = []
         seen = set()
-        phase_modes = set()
+        probe_modes = set()
         for input_path in args.merge_input:
             data = json.loads(input_path.read_text(encoding="utf-8"))
-            phase_modes.add(bool(data.get("phase_probes")))
+            probe_modes.add(
+                (
+                    bool(data.get("phase_probes")),
+                    bool(data.get("schedule_probes")),
+                )
+            )
             for case in data.get("cases", []):
                 if case["name"] in seen:
                     raise SystemExit(f"duplicate merged case: {case['name']}")
                 seen.add(case["name"])
                 merged_cases.append(case)
-        if len(phase_modes) != 1:
-            raise SystemExit("merged inputs disagree about phase-probe mode")
+        if len(probe_modes) != 1:
+            raise SystemExit("merged inputs disagree about diagnostic-probe mode")
+        phase_probes, schedule_probes = probe_modes.pop()
         output: dict[str, Any] = {
             "format": "puzzlescript-gbc-benchmark-suite-v1",
             "label": args.label,
             "revision": git_value(repository, "rev-parse", "HEAD"),
             "dirty": bool(git_value(repository, "status", "--porcelain")),
             "runs": args.runs,
-            "phase_probes": phase_modes.pop(),
+            "phase_probes": phase_probes,
+            "schedule_probes": schedule_probes,
             "cases": merged_cases,
         }
         if args.baseline is not None:
@@ -212,7 +226,7 @@ def main() -> int:
     )
     artifact_root.mkdir(parents=True, exist_ok=True)
     firmware = repository / "firmware" / "gbc"
-    suffix = "-phases" if args.phases else ""
+    suffix = "-phases" if args.phases else "-schedules" if args.schedules else ""
     rom = firmware / f"puzzlescript_gbc_autotest-perf-compact{suffix}.gb"
     map_path = firmware / f"puzzlescript_gbc_autotest-perf-compact{suffix}.map"
     results = []
@@ -232,6 +246,7 @@ def main() -> int:
             "PERF_BENCH=1",
             "PERF_WIDE=0",
             f"PERF_PHASES={1 if args.phases else 0}",
+            f"PERF_SCHEDULES={1 if args.schedules else 0}",
             f"GAME={source.as_posix()}",
             f"GBDK_HOME={gbdk_home.as_posix()}",
             f"PUZZLESCRIPT_CPP={compiler.as_posix()}",
@@ -262,6 +277,8 @@ def main() -> int:
                 + json.dumps(records, sort_keys=True)
             )
         record = records[0]
+        if args.schedules and record["schedule_counts"]["group_invocations"] == 0:
+            raise SystemExit(f"schedule probes were not recorded for {name}")
         manifest = json.loads(
             (firmware / "generated" / "gbc_manifest.json").read_text(
                 encoding="utf-8"
@@ -329,6 +346,7 @@ def main() -> int:
         "dirty": bool(git_value(repository, "status", "--porcelain")),
         "runs": args.runs,
         "phase_probes": args.phases,
+        "schedule_probes": args.schedules,
         "cases": results,
     }
     if args.baseline is not None:

@@ -75,10 +75,11 @@ machine improves by another 24.92%; all other cases are exact or within 0.005%.
 It changes only existing group flag bits, so fixed ROM, game-bank ROM, and RAM
 are all unchanged.
 
-The next algorithmic work should use the remaining static-analysis facts
-already present in this repository: certified wake masks. After that, use
-object-position bitsets or posting lists to
-start matching at a required object instead of scanning every legal start cell.
+Full per-rule wake scheduling is not worthwhile after the retained certificate
+work. New benchmark-only counters measured zero repeat passes in four cases and
+only 0.016 repeat passes / 0.031 repeat-rule visits per turn in pushit. A wake
+table would add data and hot checks to avoid almost no work. Broader object
+anchors should wait until packed data or renderer cleanup frees fixed ROM.
 
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
@@ -345,6 +346,7 @@ earn their cost.
 | Store ordered matched starts instead of a bitset/full-board apply scan | **Keep** | -0.94% | -1.32% | -2.78% | -10.11% | -0.36% | -237 to -250 B fixed ROM; -6 to -11 B declared arena/static WRAM; game bank unchanged |
 | Enumerate first-pattern player cells on compact object boards | **Keep** | -10.41% | -17.85% | -6.78% | 0.00% | 0.00% | eligible builds +811-833 B fixed ROM and +42-63 B declared arena/static WRAM; four-byte controls compile out exactly; game bank unchanged |
 | Skip confirmation for singleton groups proved unable to self-enable | **Keep** | 0.00% | 0.00% | -0.0004% | -24.92% | -0.0044% | fixed ROM, game-bank ROM, static WRAM, and session unchanged |
+| Add per-rule wake scheduling after singleton certification | **Reject** | no repeat passes | 0.016 repeat passes/turn | no repeat passes | no repeat passes | no repeat passes | a table/check would target only 0.031 repeat-rule visits/turn at best |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -362,6 +364,13 @@ measurements are
 incremental against the retained row above it. Cumulative reductions against
 the original baseline are now 70.71%, 81.94%, 71.95%, 80.23%, and 93.26%
 respectively.
+
+The scheduling decision uses the counter-only diagnostic
+`.codex_tmp/benchmarks/post-singleton-schedule-counts.json`. Per turn it
+records group passes/repeats/rule visits of 1/0/1, 1.016/0.016/2.031,
+27/0/53, 16/0/24, and 14/0/37. This is diagnostic evidence rather than a
+timing candidate; the counters compile out of production and ordinary timing
+ROMs.
 
 These transformations should be the first implementation, followed by native
 and GBC parity, undo/cancel/restart, sound, render, and compatible-cartridge

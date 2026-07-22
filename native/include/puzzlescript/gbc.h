@@ -85,6 +85,17 @@ typedef enum ps_gbc_perf_phase {
     PS_GBC_PERF_PHASE_COUNT = 7
 } ps_gbc_perf_phase;
 
+typedef enum ps_gbc_perf_schedule_counter {
+    PS_GBC_PERF_GROUP_INVOCATIONS = 0,
+    PS_GBC_PERF_GROUP_PASSES = 1,
+    PS_GBC_PERF_REPEAT_PASSES = 2,
+    PS_GBC_PERF_RULE_VISITS = 3,
+    PS_GBC_PERF_REPEAT_RULE_VISITS = 4,
+    PS_GBC_PERF_CHANGING_PASSES = 5,
+    PS_GBC_PERF_REPEAT_CHANGING_PASSES = 6,
+    PS_GBC_PERF_SCHEDULE_COUNT = 7
+} ps_gbc_perf_schedule_counter;
+
 typedef enum ps_gbc_named_sound {
     PS_GBC_SOUND_CANCEL = 0,
     PS_GBC_SOUND_CLOSEMESSAGE = 1,
