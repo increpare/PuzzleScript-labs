@@ -16,6 +16,12 @@ typedef uint32_t ps_gbc_runtime_object_mask;
 typedef uint32_t ps_gbc_runtime_movement_mask;
 #endif
 
+#if defined(PS_GBC_GENERATED_PACKED_RULES)
+typedef ps_gbc_generated_rule ps_gbc_runtime_rule;
+#else
+typedef ps_gbc_rule ps_gbc_runtime_rule;
+#endif
+
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
@@ -83,6 +89,13 @@ typedef uint32_t ps_gbc_presence_mask;
 #define PS_GBC_HAS_RULE_AUDIO 1
 #else
 #define PS_GBC_HAS_RULE_AUDIO 0
+#endif
+
+#if !defined(PS_GBC_GENERATED_RULE_MESSAGE_COUNT) \
+    || PS_GBC_GENERATED_RULE_MESSAGE_COUNT != 0U
+#define PS_GBC_HAS_RULE_MESSAGES 1
+#else
+#define PS_GBC_HAS_RULE_MESSAGES 0
 #endif
 
 #if defined(PS_GBC_PERF_PHASES)
@@ -633,7 +646,7 @@ static bool ps_gbc_pattern_matches(
 
 static bool ps_gbc_rule_matches_at(
     const ps_gbc_session* session,
-    const ps_gbc_rule* rule,
+    const ps_gbc_runtime_rule* rule,
     uint8_t start,
     int8_t delta
 ) {
@@ -650,7 +663,7 @@ static bool ps_gbc_rule_matches_at(
 
 static uint8_t ps_gbc_collect_matches(
     ps_gbc_session* session,
-    const ps_gbc_rule* rule,
+    const ps_gbc_runtime_rule* rule,
     int8_t delta
 ) {
     uint8_t count = 0U;
@@ -748,7 +761,7 @@ static bool ps_gbc_apply_replacement(
 
 static bool ps_gbc_apply_rule(
     ps_gbc_session* session,
-    const ps_gbc_rule* rule,
+    const ps_gbc_runtime_rule* rule,
     ps_gbc_commands* commands
 ) {
 #if PS_GBC_HAS_OBJECT_PRESENCE_PRECHECK
@@ -768,7 +781,9 @@ static bool ps_gbc_apply_rule(
     bool changed = false;
     if (match_count == 0U) return false;
     commands->flags |= rule->commands;
+#if PS_GBC_HAS_RULE_MESSAGES
     if ((rule->commands & PS_GBC_COMMAND_MESSAGE) != 0U) commands->message = rule->message;
+#endif
 #if PS_GBC_HAS_RULE_AUDIO
     if (rule->sound_count != 0U && session->game->rule_sound_ids != NULL) {
         uint8_t sound_index;
@@ -812,6 +827,8 @@ static bool ps_gbc_apply_group(
     uint8_t input_direction,
     ps_gbc_commands* commands
 ) {
+    const ps_gbc_runtime_rule* const rules =
+        (const ps_gbc_runtime_rule*)session->game->rules;
     uint16_t first_rule = group->first_rule;
     uint16_t rule_count = group->rule_count & PS_GBC_RULE_GROUP_COUNT_MASK;
     const uint16_t input_layout =
@@ -858,7 +875,7 @@ static bool ps_gbc_apply_group(
             if (pass != 0U) PS_GBC_PERF_COUNT(PS_GBC_PERF_REPEAT_RULE_VISITS);
             changed = ps_gbc_apply_rule(
                 session,
-                &session->game->rules[first_rule + rule_index],
+                &rules[first_rule + rule_index],
                 commands) || changed;
         }
         if (!changed) break;

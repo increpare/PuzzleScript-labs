@@ -122,6 +122,15 @@ int main() {
                 != std::string::npos,
         "generated Sokoban patterns use byte-wide object and movement masks");
     require(
+        header.find("PS_GBC_GENERATED_PACKED_RULES 1") != std::string::npos
+            && header.find("PS_GBC_GENERATED_RULE_BYTES 5U")
+                != std::string::npos
+            && header.find("PS_GBC_GENERATED_RULE_MESSAGE_COUNT 0U")
+                != std::string::npos
+            && manifest.find("\"rule_record_bytes\": 5")
+                != std::string::npos,
+        "generated Sokoban rules omit absent sound and message fields");
+    require(
         header.find("PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 2U")
             != std::string::npos,
         "generated header records first-pattern player anchors");
@@ -139,6 +148,9 @@ int main() {
     require(source.find("static const ps_gbc_generated_pattern kPatterns[]")
             != std::string::npos,
         "lowered fixed patterns are emitted as C data");
+    require(source.find("static const ps_gbc_generated_rule kRules[]")
+            != std::string::npos,
+        "lowered rules use the generated game-specific record");
     require(source.find("PS_GBC_RULE_GROUP_SINGLE_PASS") != std::string::npos,
         "certified groups skip their redundant confirmation pass");
     require(source.find("PS_GBC_RULE_GROUP_INPUT_QUARTET") != std::string::npos,
@@ -346,6 +358,7 @@ int main() {
     const auto audioResult = puzzlescript::gbc::exportGame(audioOptions);
     const std::string audioManifest = readFile(audioResult.manifestPath);
     const std::string audioSource = readFile(audioResult.generatedSourcePath);
+    const std::string audioHeader = readFile(audioResult.generatedHeaderPath);
     require(
         audioManifest.find("\"sound_seed_count\": 7") != std::string::npos
             && audioManifest.find("\"rule_sound_reference_count\": 4")
@@ -365,13 +378,32 @@ int main() {
             && audioSource.find("kMovementFailureSounds[]") != std::string::npos,
         "audio fixture emits compact named, rule, and trigger tables");
     require(
-        readFile(audioResult.generatedHeaderPath).find(
-            "PS_GBC_GENERATED_SOUND_COUNT 7U")
+        audioHeader.find("PS_GBC_GENERATED_SOUND_COUNT 7U")
                 != std::string::npos
-            && readFile(audioResult.generatedHeaderPath).find(
-                "PS_GBC_GENERATED_RULE_SOUND_COUNT 4U")
+            && audioHeader.find("PS_GBC_GENERATED_RULE_SOUND_COUNT 4U")
+                != std::string::npos
+            && audioHeader.find("PS_GBC_GENERATED_RULE_BYTES 7U")
                 != std::string::npos,
         "audio fixture emits sound-count specialization constants");
+
+    puzzlescript::gbc::ExportOptions messageAudioOptions;
+    messageAudioOptions.sourcePath =
+        root / "native" / "tests" / "gba_audio_parity.txt";
+    messageAudioOptions.outputDirectory = output / "message_audio";
+    const auto messageAudioResult =
+        puzzlescript::gbc::exportGame(messageAudioOptions);
+    const std::string messageAudioHeader =
+        readFile(messageAudioResult.generatedHeaderPath);
+    const std::string messageAudioSource =
+        readFile(messageAudioResult.generatedSourcePath);
+    require(
+        messageAudioHeader.find("PS_GBC_GENERATED_RULE_MESSAGE_COUNT 1U")
+                != std::string::npos
+            && messageAudioHeader.find("PS_GBC_GENERATED_RULE_BYTES 9U")
+                != std::string::npos
+            && messageAudioSource.find("\"Audio parity\"")
+                != std::string::npos,
+        "games with rule sounds and messages retain the complete rule record");
 
     const std::string minimalPrefix =
         "title GBC Fixed Cell Limits\n\n"

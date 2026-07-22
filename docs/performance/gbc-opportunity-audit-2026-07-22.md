@@ -127,6 +127,15 @@ The generated SM83 stack frames shrink from 16 to 7 bytes for pattern matching
 and from 32 to 14 bytes for replacement. The generic portable ABI remains the
 fallback for non-generated consumers.
 
+Generated rule records now omit cold categories that are absent from the whole
+game. Silent/message-free games use a five-byte hot record, games with rule
+audio or messages use seven bytes, and only games needing both use the full
+nine bytes. The five fixtures use 5, 5, 7, 7, and 7 bytes, saving 16, 32, 124,
+66, and 74 linked bank bytes and 31, 31, 81, 81, and 81 fixed-ROM bytes. Logic
+changes by +0.033%, -0.032%, -0.109%, -0.031%, and -0.389%, with no RAM growth.
+The generated core indexes the actual record type directly; the portable
+nine-byte rule ABI remains its fallback.
+
 Handwritten assembly is worth a small, gated experiment only after those C and
 algorithmic changes. A blanket SDCC speed-mode experiment was 2.64% slower and
 62 bytes larger for the rule-heavy case, and applying the flag to the whole ROM
@@ -424,6 +433,7 @@ earn their cost.
 | Share identical complete pattern sequences | **Keep** | exact control | exact control | timing 0.00%; -2,368 B bank | exact control | timing 0.00%; -888 B bank | fixed ROM/RAM unchanged; no runtime indirection |
 | Pack generated pattern masks and matcher locals to game widths | **Keep** | -2.17% | -4.78% | -12.07% | -3.58% | -0.04% | 37 B -> 10/22/27 B records; -246 to -485 B fixed ROM; -216 to -1,674 B linked bank; RAM unchanged |
 | Move packed matcher/replacement temporaries to static WRAM | **Reject** | -0.301% | not run | not run | not run | not run | +79 B fixed ROM; +6 B static WRAM; matcher stack 7 -> 9 B; replacement 14 -> 13 B; loses re-entrancy |
+| Omit globally absent sound/message fields from generated rules | **Keep** | +0.033% | -0.032% | -0.109% | -0.031% | -0.389% | 9 B -> 5/7 B records; -31 to -81 B fixed ROM; -16 to -124 B linked bank; RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -443,10 +453,11 @@ measurements are
 `.codex_tmp/benchmarks/p2-batched-map-quartet.json`, and
 `.codex_tmp/benchmarks/p2-skip-clean-render-final.json`, and
 `.codex_tmp/benchmarks/p2-precomposed-level-masks.json`, and
-`.codex_tmp/benchmarks/p2-shared-pattern-sequences.json`, and
-`.codex_tmp/benchmarks/p2-packed-pattern-width-locals.json`. Each logic row is
+`.codex_tmp/benchmarks/p2-shared-pattern-sequences.json`,
+`.codex_tmp/benchmarks/p2-packed-pattern-width-locals.json`, and
+`.codex_tmp/benchmarks/p2-generated-rule-records.json`. Each logic row is
 incremental against the retained row above it. Cumulative reductions against
-the original baseline are now 71.40%, 82.83%, 75.34%, 80.93%, and 93.26%
+the original baseline are now 71.39%, 82.83%, 75.37%, 80.94%, and 93.29%
 respectively. The packed-pattern cold-render controls are exact except for
 Sokoban's steady frame (+1 tick), rule-heavy (-0.5 tick), object-heavy's first
 transfer (1959 -> 2026 ticks) and steady frame (+0.25 tick), and the two-lane
@@ -810,12 +821,25 @@ parallel cursor may cost more than those saved reads. Individual-pattern
 interning likewise remains behind exact complete-sequence sharing because it
 would add a hot-loop indirection.
 
-Apply the same hot/cold split to rules: keep the pattern pointer/offset, count,
-and direction in the scanned record, and move commands, sounds, and messages to
-optional action metadata. Emit group rule pointers with generated-width counts
-instead of 16-bit index-plus-count pairs. Expose fixed counts, dimensions,
-background mask, and direct table symbols in `generated_game.h`; do not make
-SDCC recover constants through the generic cross-translation-unit game view.
+**Compile-wide generated rule trimming is retained.** Commands remain in the
+five-byte hot prefix because its high bits hold the presence-precheck and player
+anchor flags read before matching. The generated type omits `first_sound` and
+`sound_count` when the game has no rule audio and omits the message pointer when
+the game has no rule messages. The five cases therefore use 5-, 5-, 7-, 7-, and
+7-byte records instead of nine bytes. Exact timings are 186.906 -> 186.969,
+296.539 -> 296.445, 1847.828 -> 1845.813, 2787.625 -> 2786.766, and 712.695 ->
+709.922 ticks. Linked data savings exactly match `rule_count * (9 - stride)`:
+16, 32, 124, 66, and 74 bytes. Fixed ROM also falls 31-81 bytes and RAM is
+unchanged. The manifest now estimates rule bytes from the target layout instead
+of the host C++ compiler's pointer padding.
+
+A per-rule optional action table remains untested. It could remove two audio
+bytes from the many rules without sounds, but would add an action index and a
+successful-match indirection. First stream direct generated rule pointers in
+the group loop and measure that source-level arithmetic cleanup. Also consider
+generated-width group counts instead of the existing 16-bit index/count pair.
+Expose more fixed counts, dimensions, background masks, and direct table symbols
+only where assembly shows SDCC recovering them through the generic game view.
 
 Avoid unrestricted per-rule C generation initially. The conservative game-data
 estimates range from 1268 to 7716 bytes, but instrumented bank-1 links already
