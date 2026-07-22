@@ -535,12 +535,12 @@ static bool ps_gbc_rule_matches_at(
     uint16_t start,
     int16_t delta
 ) {
+    const ps_gbc_pattern* pattern = &session->game->patterns[rule->first_pattern];
+    uint16_t cell = start;
     uint8_t index;
-    for (index = 0U; index < rule->pattern_count; ++index) {
-        if (!ps_gbc_pattern_matches(
-                session,
-                &session->game->patterns[rule->first_pattern + index],
-                (uint16_t)(start + (int16_t)index * delta))) return false;
+    for (index = 0U; index < rule->pattern_count; ++index, ++pattern) {
+        if (!ps_gbc_pattern_matches(session, pattern, cell)) return false;
+        cell = (uint16_t)((int16_t)cell + delta);
     }
     return true;
 }
@@ -559,6 +559,8 @@ static uint16_t ps_gbc_collect_matches(
     uint16_t ymin = 0U;
     uint16_t ymax = session->height;
     const uint16_t length = rule->pattern_count;
+    uint16_t cell;
+    uint16_t column_advance;
     memset(session->match_bits, 0, match_bytes);
     if (length == 0U || delta == 0) return 0U;
     if (rule->direction == 1U) ymin = (uint16_t)(length - 1U);
@@ -566,14 +568,17 @@ static uint16_t ps_gbc_collect_matches(
     else if (rule->direction == 4U) xmin = (uint16_t)(length - 1U);
     else if (rule->direction == 8U) xmax = (uint16_t)(xmax - (length - 1U));
     else return 0U;
+    cell = (uint16_t)(xmin * session->height + ymin);
+    column_advance = (uint16_t)(session->height - (ymax - ymin));
     for (x = xmin; x < xmax; ++x) {
         for (y = ymin; y < ymax; ++y) {
-            const uint16_t cell = (uint16_t)(x * session->height + y);
             if (ps_gbc_rule_matches_at(session, rule, cell, delta)) {
                 session->match_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));
                 ++count;
             }
+            ++cell;
         }
+        cell = (uint16_t)(cell + column_advance);
     }
     return count;
 }
@@ -620,6 +625,7 @@ static bool ps_gbc_apply_rule(
 ) {
     const int16_t delta = ps_gbc_delta(session, rule->direction);
     const uint16_t match_count = ps_gbc_collect_matches(session, rule, delta);
+    const uint16_t cells = (uint16_t)(session->width * session->height);
     uint16_t start;
     uint16_t visited = 0U;
     bool changed = false;
@@ -641,18 +647,25 @@ static bool ps_gbc_apply_rule(
         }
     }
 #endif
-    for (start = 0U; start < (uint16_t)(session->width * session->height); ++start) {
+    for (start = 0U; start < cells; ++start) {
+        const ps_gbc_pattern* pattern;
+        uint16_t cell;
         uint8_t pattern_index;
         if ((session->match_bits[start >> 3U] & (uint8_t)(1U << (start & 7U))) == 0U) {
             continue;
         }
         if (++visited > match_count) break;
         if (!ps_gbc_rule_matches_at(session, rule, start, delta)) continue;
-        for (pattern_index = 0U; pattern_index < rule->pattern_count; ++pattern_index) {
+        pattern = &session->game->patterns[rule->first_pattern];
+        cell = start;
+        for (pattern_index = 0U;
+             pattern_index < rule->pattern_count;
+             ++pattern_index, ++pattern) {
             changed = ps_gbc_apply_replacement(
                 session,
-                &session->game->patterns[rule->first_pattern + pattern_index],
-                (uint16_t)(start + (int16_t)pattern_index * delta)) || changed;
+                pattern,
+                cell) || changed;
+            cell = (uint16_t)((int16_t)cell + delta);
         }
     }
     return changed;
