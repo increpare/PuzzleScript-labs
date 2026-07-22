@@ -434,6 +434,7 @@ earn their cost.
 | Pack generated pattern masks and matcher locals to game widths | **Keep** | -2.17% | -4.78% | -12.07% | -3.58% | -0.04% | 37 B -> 10/22/27 B records; -246 to -485 B fixed ROM; -216 to -1,674 B linked bank; RAM unchanged |
 | Move packed matcher/replacement temporaries to static WRAM | **Reject** | -0.301% | not run | not run | not run | not run | +79 B fixed ROM; +6 B static WRAM; matcher stack 7 -> 9 B; replacement 14 -> 13 B; loses re-entrancy |
 | Omit globally absent sound/message fields from generated rules | **Keep** | +0.033% | -0.032% | -0.109% | -0.031% | -0.389% | 9 B -> 5/7 B records; -31 to -81 B fixed ROM; -16 to -124 B linked bank; RAM unchanged |
+| Stream a direct rule pointer through each group pass | **Reject** | +0.121% | +0.076% | +0.320% | +0.128% | +0.428% | +32 B fixed ROM; group stack 16 -> 17 B; game bank/RAM unchanged |
 
 All retained candidates passed the GBC core, exporter, generated-cartridge,
 native/GBC parity, level-start, static-layer, and action-movement tests. Their
@@ -469,6 +470,10 @@ The rejected static-scratch diagnostic is
 `.codex_tmp/benchmarks/p2-static-pattern-scratch.json`; the first compact case
 was sufficient because its assembly and both memory budgets regressed before
 the other four profiles could change the decision.
+The rejected direct-rule-pointer profile is
+`.codex_tmp/benchmarks/p2-stream-rule-pointers.json`; unlike static scratch it
+was run across all five cases because multi-rule groups could plausibly have
+amortized its extra live pointer.
 
 The scheduling decision uses the counter-only diagnostic
 `.codex_tmp/benchmarks/post-singleton-schedule-counts.json`. Per turn it
@@ -835,11 +840,14 @@ of the host C++ compiler's pointer padding.
 
 A per-rule optional action table remains untested. It could remove two audio
 bytes from the many rules without sounds, but would add an action index and a
-successful-match indirection. First stream direct generated rule pointers in
-the group loop and measure that source-level arithmetic cleanup. Also consider
-generated-width group counts instead of the existing 16-bit index/count pair.
-Expose more fixed counts, dimensions, background masks, and direct table symbols
-only where assembly shows SDCC recovering them through the generic game view.
+successful-match indirection. Direct rule-pointer streaming is rejected: all
+five cases regress by 0.076-0.428%, fixed ROM grows 32 bytes, and the generated
+group stack frame grows from 16 to 17 bytes. The retained groups are mostly
+singletons or single-pass, so saved repeated stride arithmetic does not repay
+the extra live pointer. Also consider generated-width group counts instead of
+the existing 16-bit index/count pair. Expose more fixed counts, dimensions,
+background masks, and direct table symbols only where assembly shows SDCC
+recovering them through the generic game view.
 
 Avoid unrestricted per-rule C generation initially. The conservative game-data
 estimates range from 1268 to 7716 bytes, but instrumented bank-1 links already
