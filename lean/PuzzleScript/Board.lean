@@ -28,6 +28,25 @@ def Board.tileCol (b : Board) (tile : Nat) : Nat :=
 def Board.tileRow (b : Board) (tile : Nat) : Nat :=
   tile % b.height
 
+theorem Board.tileRow_runtimeTile (b : Board) (x y : Nat) (hy : y < b.height) :
+    b.tileRow (b.runtimeTile x y) = y := by
+  simp [Board.tileRow, Board.runtimeTile]
+  exact Nat.mod_eq_of_lt hy
+
+theorem Board.tileCol_runtimeTile (b : Board) (x y : Nat) (hy : y < b.height)
+    (hh : 0 < b.height) :
+    b.tileCol (b.runtimeTile x y) = x := by
+  simp [Board.tileCol, Board.runtimeTile]
+  have hcomm : x * b.height = b.height * x := Nat.mul_comm _ _
+  rw [hcomm, Nat.add_comm, Nat.add_mul_div_left y x hh, Nat.div_eq_of_lt hy, Nat.zero_add]
+
+theorem Board.runtimeTile_tileCol_tileRow (b : Board) (tile : Nat)
+    (_hh : 0 < b.height) :
+    b.runtimeTile (b.tileCol tile) (b.tileRow tile) = tile := by
+  simp [Board.runtimeTile, Board.tileCol, Board.tileRow]
+  rw [Nat.mul_comm]
+  exact Nat.div_add_mod tile b.height
+
 /-- Internal Nat-indexed accessors (private Runtime loops may call these). -/
 def Board.cellObjWords (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideObj
