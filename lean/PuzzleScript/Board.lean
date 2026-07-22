@@ -47,6 +47,35 @@ theorem Board.runtimeTile_tileCol_tileRow (b : Board) (tile : Nat)
   rw [Nat.mul_comm]
   exact Nat.div_add_mod tile b.height
 
+theorem Array.size_set! {α : Type} (xs : Array α) (i : Nat) (v : α) :
+    (xs.set! i v).size = xs.size := by
+  simp [Array.set!, Array.setIfInBounds]
+  split <;> simp [Array.size_set]
+
+theorem Array.size_foldl_set!
+    {α : Type} (xs : Array α) (indices : List Nat) (idx : Nat → Nat) (f : Nat → α) :
+    (indices.foldl (fun a i => a.set! (idx i) (f i)) xs).size = xs.size := by
+  induction indices generalizing xs with
+  | nil => rfl
+  | cons i is ih =>
+    simp only [List.foldl_cons, Array.size_set!, ih]
+
+/-- Write `ws` into the tile-sized slice `[tile * stride, tile * stride + stride)`. -/
+def Array.setStrideSlice (xs : Array UInt32) (tile stride : Nat) (ws : MaskWords) :
+    Array UInt32 :=
+  let start := tile * stride
+  (List.range stride).foldl
+    (fun arr i => arr.set! (start + i) (ws.getD i 0))
+    xs
+
+theorem Array.size_setStrideSlice (xs : Array UInt32) (tile stride : Nat) (ws : MaskWords) :
+    (Array.setStrideSlice xs tile stride ws).size = xs.size := by
+  dsimp only [Array.setStrideSlice]
+  change ((List.range stride).foldl
+      (fun arr i => arr.set! (tile * stride + i) (ws.getD i 0))
+      xs).size = xs.size
+  exact Array.size_foldl_set! _ _ _ _
+
 /-- Internal Nat-indexed accessors (private Runtime loops may call these). -/
 def Board.cellObjWords (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideObj
@@ -64,20 +93,10 @@ def Board.cellMovWordsAt (b : Board) (t : TileIdx) : MaskWords :=
   b.cellMovWords t.val
 
 def Board.setCellObjWords (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  let start := tile * b.strideObj
-  let objs :=
-    (List.range b.strideObj).foldl
-      (fun objs i => objs.set! (start + i) (ws.getD i 0))
-      b.objects
-  { b with objects := objs }
+  { b with objects := Array.setStrideSlice b.objects tile b.strideObj ws }
 
 def Board.setCellMovWords (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  let start := tile * b.strideMov
-  let mov :=
-    (List.range b.strideMov).foldl
-      (fun mov i => mov.set! (start + i) (ws.getD i 0))
-      b.movements
-  { b with movements := mov }
+  { b with movements := Array.setStrideSlice b.movements tile b.strideMov ws }
 
 def Board.setCellObjWordsAt (b : Board) (t : TileIdx) (ws : MaskWords) : Board :=
   b.setCellObjWords t.val ws
@@ -90,24 +109,16 @@ def Board.cellRigidMovementAppliedMask (b : Board) (tile : Nat) : MaskWords :=
   b.rigidMovementAppliedMask.extract start (start + b.strideMov)
 
 def Board.setCellRigidMovementAppliedMask (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  let start := tile * b.strideMov
-  let arr :=
-    (List.range b.strideMov).foldl
-      (fun arr i => arr.set! (start + i) (ws.getD i 0))
-      b.rigidMovementAppliedMask
-  { b with rigidMovementAppliedMask := arr }
+  { b with rigidMovementAppliedMask :=
+      Array.setStrideSlice b.rigidMovementAppliedMask tile b.strideMov ws }
 
 def Board.cellRigidGroupIndexMask (b : Board) (tile : Nat) : MaskWords :=
   let start := tile * b.strideMov
   b.rigidGroupIndexMask.extract start (start + b.strideMov)
 
 def Board.setCellRigidGroupIndexMask (b : Board) (tile : Nat) (ws : MaskWords) : Board :=
-  let start := tile * b.strideMov
-  let arr :=
-    (List.range b.strideMov).foldl
-      (fun arr i => arr.set! (start + i) (ws.getD i 0))
-      b.rigidGroupIndexMask
-  { b with rigidGroupIndexMask := arr }
+  { b with rigidGroupIndexMask :=
+      Array.setStrideSlice b.rigidGroupIndexMask tile b.strideMov ws }
 
 def Board.clearMovements (b : Board) : Board :=
   { b with
