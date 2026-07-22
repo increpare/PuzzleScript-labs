@@ -2594,20 +2594,24 @@ theorem applyRowAtFold_wellFormed
   exact this row.toList 0 (Int.ofNat (rowMatchStart rm)) false b rng hB
     (by simpa [Array.all_toList] using hRow)
 
-theorem applyRowAtFixed_wellFormed
+/-- Shared Fixed-row fold induction: `Inv` is preserved by each cell replacement. -/
+theorem applyRowAtFixed_preserves
     (game : Game) (rule : Rule) (b : Board) (delta : Int)
     (row : Array PatternCell) (start : Nat)
     (caps : RuleCaptures) (rng : RngState)
-    (hG : Game.WellFormed game) (hB : Board.WellFormed game b)
-    (hRow : row.all (PatternCell.layerRespecting game) = true)
-    (hCaps : RuleCaptures.propertiesOk game caps = true) :
-    Board.WellFormed game (applyRowAtFixed game rule b delta row start caps rng).2.1 := by
+    (Inv : Board → Prop)
+    (h0 : Inv b)
+    (hApply : ∀ (board : Board) (t : Nat) (pat : CellPattern) (rng : RngState) (k : Nat),
+      Inv board → t < board.nTiles → k < row.size →
+        row[k]?.getD (.ellipsis) = .cell pat →
+        Inv (applyCellReplacement game rule board t pat caps rng).2.1) :
+    Inv (applyRowAtFixed game rule b delta row start caps rng).2.1 := by
   dsimp only [applyRowAtFixed]
   have hInv :
       ∀ (ks : List Nat) (changed : Bool) (board : Board) (rng : RngState),
-        Board.WellFormed game board →
+        Inv board →
         (∀ k ∈ ks, k < row.size) →
-        Board.WellFormed game
+        Inv
           (ks.foldl
             (fun (changed, board, rng') k =>
               match row[k]?.getD (.ellipsis) with
@@ -2633,13 +2637,6 @@ theorem applyRowAtFixed_wellFormed
       | ellipsis =>
         exact ih _ _ _ hBoard hRestBounds
       | cell pat =>
-        have hLR : CellPattern.layerRespecting game pat = true := by
-          have hAll := Array.all_eq_true.mp hRow
-          have hget : row[k]?.getD (.ellipsis) = row[k] := by
-            simp [Array.getD, Array.getElem?_eq_getElem hk]
-          have : PatternCell.layerRespecting game (row[k]?.getD (.ellipsis)) = true := by
-            rw [hget]; exact hAll k hk
-          simpa [hcell, PatternCell.layerRespecting] using this
         cases hwalk : fixedWalkTile? start delta k with
         | none =>
           exact ih _ _ _ hBoard hRestBounds
@@ -2649,12 +2646,32 @@ theorem applyRowAtFixed_wellFormed
             exact ih _ _ _ hBoard hRestBounds
           · simp [hcell, hwalk, if_neg (by intro h; exact ht h)]
             have hTile : t < board.nTiles := Nat.lt_of_not_ge ht
-            have hB' := applyCellReplacement_wellFormed game rule board t pat caps rng
-              hG hBoard hTile hLR hCaps
+            have hB' := hApply board t pat rng k hBoard hTile hk hcell
             exact ih _ _ _ hB' hRestBounds
   have hRange : ∀ k ∈ List.range row.size, k < row.size :=
     fun k hk => List.mem_range.mp hk
-  exact hInv (List.range row.size) false b rng hB hRange
+  exact hInv (List.range row.size) false b rng h0 hRange
+
+theorem applyRowAtFixed_wellFormed
+    (game : Game) (rule : Rule) (b : Board) (delta : Int)
+    (row : Array PatternCell) (start : Nat)
+    (caps : RuleCaptures) (rng : RngState)
+    (hG : Game.WellFormed game) (hB : Board.WellFormed game b)
+    (hRow : row.all (PatternCell.layerRespecting game) = true)
+    (hCaps : RuleCaptures.propertiesOk game caps = true) :
+    Board.WellFormed game (applyRowAtFixed game rule b delta row start caps rng).2.1 := by
+  refine applyRowAtFixed_preserves game rule b delta row start caps rng
+    (Board.WellFormed game) hB ?_
+  intro board t pat rng k hBoard hTile hk hcell
+  have hLR : CellPattern.layerRespecting game pat = true := by
+    have hAll := Array.all_eq_true.mp hRow
+    have hget : row[k]?.getD (.ellipsis) = row[k] := by
+      simp [Array.getD, Array.getElem?_eq_getElem hk]
+    have : PatternCell.layerRespecting game (row[k]?.getD (.ellipsis)) = true := by
+      rw [hget]; exact hAll k hk
+    simpa [hcell, PatternCell.layerRespecting] using this
+  exact applyCellReplacement_wellFormed game rule board t pat caps rng
+    hG hBoard hTile hLR hCaps
 
 theorem applyRowAt_wellFormed
     (game : Game) (rule : Rule) (b : Board) (delta : Int)

@@ -751,53 +751,11 @@ theorem applyRowAtFixed_WH
     (caps : RuleCaptures) (rng : RngState) :
     (applyRowAtFixed game rule b delta row start caps rng).2.1.width = b.width ∧
     (applyRowAtFixed game rule b delta row start caps rng).2.1.height = b.height := by
-  dsimp only [applyRowAtFixed]
-  have hInv :
-      ∀ (ks : List Nat) (changed : Bool) (board : Board) (rng : RngState),
-        board.width = b.width → board.height = b.height →
-        (ks.foldl
-          (fun (changed, board, rng') k =>
-            match row[k]?.getD (.ellipsis) with
-            | .ellipsis => (changed, board, rng')
-            | .cell pat =>
-              match fixedWalkTile? start delta k with
-              | none => (changed, board, rng')
-              | some t =>
-                if t ≥ board.nTiles then (changed, board, rng')
-                else
-                  let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
-                  (changed || c, b', r))
-          (changed, board, rng)).2.1.width = b.width ∧
-        (ks.foldl
-          (fun (changed, board, rng') k =>
-            match row[k]?.getD (.ellipsis) with
-            | .ellipsis => (changed, board, rng')
-            | .cell pat =>
-              match fixedWalkTile? start delta k with
-              | none => (changed, board, rng')
-              | some t =>
-                if t ≥ board.nTiles then (changed, board, rng')
-                else
-                  let (c, b', r) := applyCellReplacement game rule board t pat caps rng'
-                  (changed || c, b', r))
-          (changed, board, rng)).2.1.height = b.height := by
-    intro ks changed board rng hw hh
-    induction ks generalizing changed board rng with
-    | nil => exact ⟨hw, hh⟩
-    | cons k rest ih =>
-      simp only [List.foldl_cons]
-      cases hcell : row[k]?.getD (.ellipsis) with
-      | ellipsis => exact ih _ _ _ hw hh
-      | cell pat =>
-        cases hwalk : fixedWalkTile? start delta k with
-        | none => exact ih _ _ _ hw hh
-        | some t =>
-          by_cases ht : t ≥ board.nTiles
-          · simp [hcell, hwalk, if_pos ht]; exact ih _ _ _ hw hh
-          · simp [hcell, hwalk, if_neg (by intro h; exact ht h)]
-            have hC := applyCellReplacement_WH game rule board t pat caps rng
-            exact ih _ _ _ (hC.1.trans hw) (hC.2.trans hh)
-  exact hInv (List.range row.size) false b rng rfl rfl
+  refine applyRowAtFixed_preserves game rule b delta row start caps rng
+    (fun board => board.width = b.width ∧ board.height = b.height) ⟨rfl, rfl⟩ ?_
+  intro board t pat rng _k hBoard _hTile _hk _hcell
+  have hC := applyCellReplacement_WH game rule board t pat caps rng
+  exact ⟨hC.1.trans hBoard.1, hC.2.trans hBoard.2⟩
 
 theorem applyRowAt_WH
     (game : Game) (rule : Rule) (b : Board) (delta : Int)
