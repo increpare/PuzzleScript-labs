@@ -117,7 +117,13 @@ structure Rule where
   isRandom : Bool
   propertyBindings : Array PropertyBinding
   aggregateBindings : Array AggregateBinding
+  /-- When true, `applyCellReplacement` is a no-op (match/commands still run). -/
+  skipCellWrites : Bool
   deriving Repr
+
+/-- Certified peephole: same rule, skip cell board writes. -/
+def Rule.skipCellWritesTransform (r : Rule) : Rule :=
+  { r with skipCellWrites := true }
 
 /-- Compiled-IR effect summary for a cell pattern (T3; mirrors JS command_only intent). -/
 structure PatternEffect where

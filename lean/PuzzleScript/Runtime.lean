@@ -411,7 +411,9 @@ def commitCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (
 /-- Cell replacement (public for WF preservation). -/
 def applyCellReplacement (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
     (caps : RuleCaptures) (rng : RngState) : (Bool × Board × RngState) :=
-  if !pat.hasReplacement then
+  if rule.skipCellWrites then
+    (false, b, rng)
+  else if !pat.hasReplacement then
     (false, b, rng)
   else
     let (oc0, os0, mc0, rng1) :=
@@ -830,9 +832,29 @@ def applyMatchedTuples (game : Game) (b : Board) (rule : Rule)
     (false, b, rng)
 
 /--
+Full apply path: always match + `applyMatchedTuples` + queue commands.
+No inert early-out (see `tryApplyRule` for the optimization).
+-/
+def tryApplyRuleSpec (game : Game) (b : Board) (rule : Rule) (st : TurnState) :
+    (Bool × Board × TurnState) :=
+  let rowMatchLists := rule.patternRows.mapIdx fun i _ => findRowMatches b rule i
+  if rowMatchLists.any (·.isEmpty) then
+    (false, b, st)
+  else
+    let (any, board, rng') :=
+      applyMatchedTuples game b rule (cartesianRowMatches rowMatchLists) st.rng
+    -- §4.0: do not treat command presence as board modification (JS uses object delta).
+    (any, board,
+      { st with
+        commandQueue := queueCommandsForRule st.commandQueue rule
+        modified := st.modified || any
+        rng := rng' })
+
+/--
 Apply one rule. Syntactically inert command-only rules never mutate the board or RNG:
 they only match and extend the command queue (sfx/message). This early-out matches the
-compiled-IR `isCommandOnly` contract and makes the T5 leaf lemma definitional.
+compiled-IR `isCommandOnly` contract; honesty vs full apply is proved via `tryApplyRuleSpec`
++ `skipCellWrites` (separate theorems).
 -/
 def tryApplyRule (game : Game) (b : Board) (rule : Rule) (st : TurnState) : (Bool × Board × TurnState) :=
   let rowMatchLists := rule.patternRows.mapIdx fun i _ => findRowMatches b rule i

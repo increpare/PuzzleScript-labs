@@ -662,7 +662,9 @@ theorem applyCellReplacement_noReplacement
     (caps : RuleCaptures) (rng : RngState)
     (h : pat.hasReplacement = false) :
     applyCellReplacement game rule b tile pat caps rng = (false, b, rng) := by
-  simp [applyCellReplacement, h]
+  by_cases hs : rule.skipCellWrites = true
+  · simp [applyCellReplacement, hs]
+  · simp [applyCellReplacement, hs, h]
 
 theorem applyCellReplacement_wellFormed_noReplacement
     (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
@@ -1149,12 +1151,15 @@ theorem applyCellReplacement_preserves_other_tiles
     r.2.1.cellObjWords other = b.cellObjWords other ∧
       r.2.1.cellMovWords other = b.cellMovWords other := by
   dsimp only [applyCellReplacement]
-  by_cases hNo : (!pat.hasReplacement) = true
-  · rw [if_pos hNo]
-    exact ⟨rfl, rfl⟩
-  · rw [if_neg hNo]
-    exact Board.commitCellReplacement_preserves_other_tiles game rule b tile other pat
-      _ _ _ _ _ hne
+  by_cases hs : rule.skipCellWrites = true
+  · simp [hs]
+  · simp only [hs, ↓reduceIte]
+    by_cases hNo : (!pat.hasReplacement) = true
+    · rw [if_pos hNo]
+      exact ⟨rfl, rfl⟩
+    · rw [if_neg hNo]
+      exact Board.commitCellReplacement_preserves_other_tiles game rule b tile other pat
+        _ _ _ _ _ hne
 
 theorem Board.commitCellReplacement_wellFormed
     (game : Game) (rule : Rule) (b : Board) (tile : Nat) (pat : CellPattern)
@@ -1819,32 +1824,35 @@ theorem applyCellReplacement_wellFormed
     (hCaps : RuleCaptures.propertiesOk game caps = true) :
     Board.WellFormed game (applyCellReplacement game rule b tile pat caps rng).2.1 := by
   unfold applyCellReplacement
-  by_cases hr : pat.hasReplacement = true
-  · simp only [hr, Bool.not_true]
-    have hRep0 := CellPattern.layerRespecting_hasReplacement game pat hLR hr
-    have hCompat := CellPattern.layerRespecting_randomEntityCompatible game pat hLR hr
-    have hRand := applyRandomEntityMasks_replacementOk game b pat
-      pat.objectsClear pat.objectsSet pat.movementsClear rng hG hRep0 hCompat
-    have hOk : ∀ b ∈ pat.inferredPropertyBindings.toList, ∀ cap,
-        caps.getProperty b.propertyName = some cap →
-          cap.objectId.val < game.objectCount ∧
-            (game.objectLayers.getD cap.objectId.val ⟨0⟩).val < game.layerCount := by
-      intro b hb cap hget
-      exact PropertyAlias.ok_bounds game cap
-        (RuleCaptures.propertiesOk_getProperty game caps b.propertyName cap hCaps hget)
-    have hInf := applyInferredReplacementFields_replacementOk game pat caps
-      (b.cellObjWords tile) (b.cellMovWords tile)
-      (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).1
-      (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).2.1
-      (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).2.2.1
-      (applyRandomDirMasks game pat pat.movementsSet
-        (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).2.2.2).1
-      hG hRand hOk
-    exact Board.commitCellReplacement_wellFormed game rule b tile pat
-      _ _ _ _ _ hG hB hTile hInf
-  · have : pat.hasReplacement = false := eq_false_of_ne_true hr
-    simp only [this, Bool.not_false]
-    exact hB
+  by_cases hs : rule.skipCellWrites = true
+  · simp [hs]; exact hB
+  · simp only [hs, ↓reduceIte]
+    by_cases hr : pat.hasReplacement = true
+    · simp only [hr, Bool.not_true]
+      have hRep0 := CellPattern.layerRespecting_hasReplacement game pat hLR hr
+      have hCompat := CellPattern.layerRespecting_randomEntityCompatible game pat hLR hr
+      have hRand := applyRandomEntityMasks_replacementOk game b pat
+        pat.objectsClear pat.objectsSet pat.movementsClear rng hG hRep0 hCompat
+      have hOk : ∀ b ∈ pat.inferredPropertyBindings.toList, ∀ cap,
+          caps.getProperty b.propertyName = some cap →
+            cap.objectId.val < game.objectCount ∧
+              (game.objectLayers.getD cap.objectId.val ⟨0⟩).val < game.layerCount := by
+        intro b hb cap hget
+        exact PropertyAlias.ok_bounds game cap
+          (RuleCaptures.propertiesOk_getProperty game caps b.propertyName cap hCaps hget)
+      have hInf := applyInferredReplacementFields_replacementOk game pat caps
+        (b.cellObjWords tile) (b.cellMovWords tile)
+        (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).1
+        (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).2.1
+        (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).2.2.1
+        (applyRandomDirMasks game pat pat.movementsSet
+          (applyRandomEntityMasks game b pat pat.objectsClear pat.objectsSet pat.movementsClear rng).2.2.2).1
+        hG hRand hOk
+      exact Board.commitCellReplacement_wellFormed game rule b tile pat
+        _ _ _ _ _ hG hB hTile hInf
+    · have : pat.hasReplacement = false := eq_false_of_ne_true hr
+      simp only [this, Bool.not_false]
+      exact hB
 
 
 theorem maskGetBit_empty (bit : Nat) : maskGetBit (#[] : MaskWords) bit = false := by

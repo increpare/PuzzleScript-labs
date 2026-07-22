@@ -430,7 +430,19 @@ private def parseRule (j : Json) (ctx : String) : Except String Rule := do
   let direction := RuleDir.ofNat directionNat
   let lineNumber ← (j.getObjValAs? Nat "line_number").mapError fun _ => s!"{ctx}: missing line_number"
   let groupNumber ← (j.getObjValAs? Nat "group_number").mapError fun _ => s!"{ctx}: missing group_number"
-  pure { direction, lineNumber, groupNumber, patternRows, ellipsisCounts, commands, rigid, isRandom, propertyBindings, aggregateBindings }
+  pure {
+    direction := direction
+    lineNumber := lineNumber
+    groupNumber := groupNumber
+    patternRows := patternRows
+    ellipsisCounts := ellipsisCounts
+    commands := commands
+    rigid := rigid
+    isRandom := isRandom
+    propertyBindings := propertyBindings
+    aggregateBindings := aggregateBindings
+    skipCellWrites := false
+  }
 
 private def parseRuleGroup (j : Json) (ctx : String) : Except String (Array Rule) := do
   let arr ← (Json.getArr? j).mapError fun e => s!"{ctx}: {e}"

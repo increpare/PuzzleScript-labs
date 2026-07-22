@@ -553,11 +553,13 @@ theorem applyCellReplacement_WH
     (applyCellReplacement game rule b tile pat caps rng).2.1.width = b.width ∧
     (applyCellReplacement game rule b tile pat caps rng).2.1.height = b.height := by
   unfold applyCellReplacement
-  by_cases h : (!pat.hasReplacement) = true
-  · simp [h]
-  · simp only [eq_false_of_ne_true h]
-    exact Board.commitCellReplacement_WH game rule b tile pat _ _ _ _ _
-
+  by_cases hs : rule.skipCellWrites = true
+  · simp [hs]
+  · simp only [hs, ↓reduceIte]
+    by_cases h : (!pat.hasReplacement) = true
+    · simp [h]
+    · simp only [eq_false_of_ne_true h]
+      exact Board.commitCellReplacement_WH game rule b tile pat _ _ _ _ _
 theorem Board.repositionEntitiesAtCell_wh
     (game : Game) (b : Board) (tile : Nat) :
     (repositionEntitiesAtCell game b tile).2.width = b.width ∧
