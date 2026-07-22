@@ -59,7 +59,13 @@ extern "C" {
 #define PS_GBC_MAX_AUDIO_EVENTS 8
 #define PS_GBC_MAX_UNDO 4
 #define PS_GBC_MAX_BOARD_CELLS 90
-#define PS_GBC_GAME_ABI_VERSION 12
+#define PS_GBC_GAME_ABI_VERSION 19
+#define PS_GBC_RULE_GROUP_COUNT_MASK 0x1fffU
+#define PS_GBC_RULE_GROUP_INPUT_LAYOUT_MASK 0x6000U
+#define PS_GBC_RULE_GROUP_INPUT_QUARTET 0x2000U
+#define PS_GBC_RULE_GROUP_INPUT_VERTICAL 0x4000U
+#define PS_GBC_RULE_GROUP_INPUT_HORIZONTAL 0x6000U
+#define PS_GBC_RULE_GROUP_SINGLE_PASS 0x8000U
 /* Exporters reserve this much for the private session struct and alignment. */
 #define PS_GBC_SESSION_OVERHEAD_BUDGET 256
 
@@ -78,6 +84,17 @@ typedef enum ps_gbc_perf_phase {
     PS_GBC_PERF_WIN = 6,
     PS_GBC_PERF_PHASE_COUNT = 7
 } ps_gbc_perf_phase;
+
+typedef enum ps_gbc_perf_schedule_counter {
+    PS_GBC_PERF_GROUP_INVOCATIONS = 0,
+    PS_GBC_PERF_GROUP_PASSES = 1,
+    PS_GBC_PERF_REPEAT_PASSES = 2,
+    PS_GBC_PERF_RULE_VISITS = 3,
+    PS_GBC_PERF_REPEAT_RULE_VISITS = 4,
+    PS_GBC_PERF_CHANGING_PASSES = 5,
+    PS_GBC_PERF_REPEAT_CHANGING_PASSES = 6,
+    PS_GBC_PERF_SCHEDULE_COUNT = 7
+} ps_gbc_perf_schedule_counter;
 
 typedef enum ps_gbc_named_sound {
     PS_GBC_SOUND_CANCEL = 0,
@@ -112,6 +129,9 @@ enum {
     PS_GBC_COMMAND_MESSAGE = 1U << 5
 };
 
+#define PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK (1U << 7)
+#define PS_GBC_RULE_PLAYER_CELL_ANCHOR (1U << 6)
+
 typedef struct ps_gbc_pattern {
     uint32_t objects_present;
     uint32_t objects_missing;
@@ -125,8 +145,15 @@ typedef struct ps_gbc_pattern {
     uint8_t flags;
 } ps_gbc_pattern;
 
+typedef struct ps_gbc_pattern_reference {
+    uint16_t byte_offset;
+} ps_gbc_pattern_reference;
+
+#define PS_GBC_PATTERN_REFERENCE(index) \
+    {(uint16_t)((uint16_t)(index) * (uint16_t)sizeof(ps_gbc_pattern))}
+
 typedef struct ps_gbc_rule {
-    uint16_t first_pattern;
+    ps_gbc_pattern_reference first_pattern;
     uint8_t pattern_count;
     uint8_t direction;
     uint8_t commands;
@@ -150,16 +177,15 @@ typedef struct ps_gbc_win_condition {
 } ps_gbc_win_condition;
 
 typedef struct ps_gbc_object {
-    const char* name;
     uint8_t layer;
     uint8_t movement_layer;
-    uint8_t sprite_width;
-    uint8_t sprite_height;
-    uint8_t composite_pixel_count;
-    /* Four three-bit palette indexes, then a four-bit opaque-quadrant mask. */
-    uint16_t quadrant_palettes;
-    const uint8_t* composite_pixels;
 } ps_gbc_object;
+
+typedef struct ps_gbc_render_object {
+    uint32_t mask;
+    const uint8_t* sprite_pixels;
+    uint8_t palette;
+} ps_gbc_render_object;
 
 typedef struct ps_gbc_level {
     ps_gbc_level_kind kind;
@@ -272,11 +298,14 @@ ps_gbc_session* ps_gbc_session_init(
 );
 bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index);
 ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input);
+void ps_gbc_defer_wins(ps_gbc_session* session, bool defer);
+bool ps_gbc_advance_level(ps_gbc_session* session);
 bool ps_gbc_undo(ps_gbc_session* session);
 bool ps_gbc_restart(ps_gbc_session* session);
 void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status);
 uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y);
 const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session);
+bool ps_gbc_has_dirty_cells(const ps_gbc_session* session);
 void ps_gbc_clear_dirty_cells(ps_gbc_session* session);
 bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y);
 const void* ps_gbc_board(const ps_gbc_session* session);

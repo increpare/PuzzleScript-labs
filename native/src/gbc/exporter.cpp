@@ -29,6 +29,7 @@ namespace {
 constexpr size_t kSessionLimit = 4U * 1024U;
 constexpr size_t kMaxBoardCells = PS_GBC_MAX_BOARD_CELLS;
 constexpr size_t kGeneratedRomBankLimit = 14U * 1024U;
+constexpr size_t kMaxPrecomposedCompositions = 8U;
 
 constexpr size_t align4(size_t value) {
     return (value + 3U) & ~size_t{3U};
@@ -36,6 +37,19 @@ constexpr size_t align4(size_t value) {
 
 uint8_t objectBytesPerCell(int32_t objectCount) {
     return objectCount <= 8 ? 1U : objectCount <= 16 ? 2U : 4U;
+}
+
+const char* unsignedTypeForBytes(uint8_t bytes) {
+    return bytes == 1U ? "uint8_t" : bytes == 2U ? "uint16_t" : "uint32_t";
+}
+
+size_t generatedPatternBytes(uint8_t objectBytes, uint8_t movementBytes) {
+    return static_cast<size_t>(objectBytes) * 4U
+        + static_cast<size_t>(movementBytes) * 5U + 1U;
+}
+
+size_t generatedRuleBytes(bool hasRuleAudio, bool hasRuleMessages) {
+    return 5U + (hasRuleAudio ? 2U : 0U) + (hasRuleMessages ? 2U : 0U);
 }
 
 struct Rgb {
@@ -66,42 +80,11 @@ struct ColorStretch {
     bool usesComponentCurve = false;
 };
 
-struct PaletteAssignment {
-    std::array<uint16_t, 4> colors{};
-    std::array<int8_t, 4> layers{};
-};
-
-struct WeightedColor {
-    uint16_t color = 0U;
-    uint32_t weight = 0U;
-};
-
-struct LayerColorGroup {
-    int8_t layer = -1;
-    std::vector<WeightedColor> colors;
-    size_t slots = 0U;
-};
-
-struct QuadrantPaletteCandidate {
-    PaletteAssignment ideal;
-    std::vector<LayerColorGroup> groups;
-    std::vector<uint16_t> objectColors;
-    bool hasOpaquePixels = false;
-};
-
 struct PackedObject {
-    std::string name;
     uint8_t layer = 0;
     uint8_t movementLayer = PS_GBC_NO_MOVEMENT_LAYER;
-    uint8_t width = 0;
-    uint8_t height = 0;
-    uint16_t quadrantPalettes = 0;
+    uint8_t palette = 0;
     std::vector<uint8_t> pixels;
-    uint64_t transparentPixels = 0;
-    std::vector<uint16_t> sourceColors;
-    std::vector<int32_t> sourceColorIndexes;
-    std::array<QuadrantPaletteCandidate, 4> paletteCandidates;
-    std::array<QuadrantPaletteCandidate, 4> conservativePaletteCandidates;
 };
 
 struct PackedLevel {
@@ -129,6 +112,7 @@ struct PackedRule {
     uint16_t firstPattern = 0;
     uint8_t patternCount = 0;
     uint8_t direction = 0;
+    uint8_t activeInputsMask = 0x3fU;
     uint8_t commands = 0;
     uint8_t firstSound = 0;
     uint8_t soundCount = 0;
@@ -139,6 +123,8 @@ struct PackedGroup {
     uint16_t firstRule = 0;
     uint16_t ruleCount = 0;
     int16_t loopTarget = -1;
+    uint16_t inputLayout = 0U;
+    bool singlePassSafe = false;
 };
 
 struct MovementLayout {
@@ -166,6 +152,111 @@ struct PackedAudio {
         namedSoundIds.fill(PS_GBC_NO_SOUND);
     }
 };
+
+struct PackedComposition {
+    uint32_t objects = 0U;
+    uint8_t palette = 0U;
+    std::array<uint8_t, 64> tileBytes{};
+};
+
+std::vector<PackedComposition> packPrecomposedCompositions(
+    const std::vector<PackedObject>& objects,
+    const std::vector<PackedLevel>& levels,
+    const std::array<uint8_t, 256>& paletteRemap,
+    uint32_t backgroundMask
+) {
+    struct Candidate {
+        uint32_t objects = 0U;
+        size_t count = 0U;
+        size_t firstSeen = 0U;
+    };
+    static constexpr std::array<uint8_t, 16> kSourceCoordinate = {
+        0U, 0U, 0U, 1U, 1U, 1U, 2U, 2U,
+        2U, 2U, 3U, 3U, 3U, 4U, 4U, 4U
+    };
+    std::vector<Candidate> candidates;
+    size_t sequence = 0U;
+    const auto observe = [&](uint32_t mask) {
+        const auto found = std::find_if(
+            candidates.begin(), candidates.end(),
+            [mask](const Candidate& candidate) {
+                return candidate.objects == mask;
+            });
+        if (found == candidates.end()) {
+            candidates.push_back({mask, 1U, sequence++});
+        } else {
+            ++found->count;
+        }
+    };
+    for (const PackedLevel& level : levels) {
+        if (level.message) continue;
+        for (const uint32_t cell : level.cells) observe(cell);
+    }
+    observe(backgroundMask);
+    std::stable_sort(
+        candidates.begin(), candidates.end(),
+        [](const Candidate& left, const Candidate& right) {
+            if (left.count != right.count) return left.count > right.count;
+            if (left.firstSeen != right.firstSeen) {
+                return left.firstSeen < right.firstSeen;
+            }
+            return left.objects < right.objects;
+        });
+    if (candidates.size() > kMaxPrecomposedCompositions) {
+        candidates.resize(kMaxPrecomposedCompositions);
+    }
+
+    std::vector<size_t> renderOrder(objects.size());
+    for (size_t index = 0U; index < renderOrder.size(); ++index) {
+        renderOrder[index] = index;
+    }
+    std::stable_sort(
+        renderOrder.begin(), renderOrder.end(), [&](size_t left, size_t right) {
+            return objects[left].layer < objects[right].layer;
+        });
+
+    std::vector<PackedComposition> result;
+    result.reserve(candidates.size());
+    for (const Candidate& candidate : candidates) {
+        PackedComposition composition;
+        std::array<uint8_t, 25> sourcePixels{};
+        composition.objects = candidate.objects;
+        for (const size_t objectIndex : renderOrder) {
+            const PackedObject& object = objects[objectIndex];
+            bool drew = false;
+            if ((candidate.objects & (uint32_t{1} << objectIndex)) == 0U) {
+                continue;
+            }
+            for (size_t pixel = 0U; pixel < sourcePixels.size(); ++pixel) {
+                if (object.pixels[pixel] == 0xffU) continue;
+                sourcePixels[pixel] = object.pixels[pixel];
+                drew = true;
+            }
+            if (drew) composition.palette = object.palette;
+        }
+        for (size_t renderedY = 0U; renderedY < 16U; ++renderedY) {
+            const size_t sourceY = kSourceCoordinate[renderedY];
+            const size_t tileY = renderedY >> 3U;
+            const size_t tileRow = renderedY & 7U;
+            for (size_t renderedX = 0U; renderedX < 16U; ++renderedX) {
+                const size_t sourceX = kSourceCoordinate[renderedX];
+                const uint8_t source = sourcePixels[sourceY * 5U + sourceX];
+                const uint8_t color = paletteRemap[
+                    static_cast<size_t>(composition.palette) * 32U + source];
+                const size_t tileX = renderedX >> 3U;
+                const size_t tileColumn = renderedX & 7U;
+                const size_t destination =
+                    (tileY * 2U + tileX) * 16U + tileRow * 2U;
+                composition.tileBytes[destination] |= static_cast<uint8_t>(
+                    (color & 1U) << (7U - tileColumn));
+                composition.tileBytes[destination + 1U] |= static_cast<uint8_t>(
+                    ((color >> 1U) & 1U) << (7U - tileColumn));
+            }
+        }
+        result.push_back(composition);
+    }
+    return result;
+}
 
 std::string readFile(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
@@ -614,548 +705,145 @@ uint8_t nearestColor(const std::array<uint16_t, 4>& palette, uint16_t color) {
     return best;
 }
 
-bool samePaletteAssignment(
-    const PaletteAssignment& left,
-    const PaletteAssignment& right
-) {
-    return left.colors == right.colors && left.layers == right.layers;
-}
-
-struct PaletteMatch {
-    uint8_t index = 0U;
-    bool sameLayer = false;
-};
-
-PaletteMatch nearestLayerColor(
-    const PaletteAssignment& palette,
-    uint16_t color,
-    int8_t layer
-) {
-    PaletteMatch best;
-    uint32_t bestDistance = std::numeric_limits<uint32_t>::max();
-    for (uint8_t index = 0U; index < palette.colors.size(); ++index) {
-        if (palette.layers[index] != layer) continue;
-        const uint32_t distance = colorDistance(palette.colors[index], color);
-        if (distance < bestDistance) {
-            bestDistance = distance;
-            best.index = index;
-            best.sameLayer = true;
-        }
-    }
-    if (best.sameLayer) return best;
-    best.index = nearestColor(palette.colors, color);
-    return best;
-}
-
-uint64_t representativeError(
-    const LayerColorGroup& group,
-    const std::vector<size_t>& representatives
-) {
-    uint64_t error = 0U;
-    for (const WeightedColor& weighted : group.colors) {
-        uint32_t best = std::numeric_limits<uint32_t>::max();
-        for (const size_t index : representatives) {
-            best = std::min(
-                best, colorDistance(weighted.color, group.colors[index].color));
-        }
-        error += static_cast<uint64_t>(weighted.weight) * best;
-    }
-    return error;
-}
-
-std::vector<size_t> selectRepresentatives(
-    const LayerColorGroup& group,
-    size_t count
-) {
-    std::vector<size_t> selected;
-    count = std::min(count, group.colors.size());
-    while (selected.size() < count) {
-        size_t bestIndex = 0U;
-        uint64_t bestError = std::numeric_limits<uint64_t>::max();
-        for (size_t candidate = 0U; candidate < group.colors.size(); ++candidate) {
-            if (std::find(selected.begin(), selected.end(), candidate)
-                != selected.end()) {
-                continue;
-            }
-            std::vector<size_t> trial = selected;
-            trial.push_back(candidate);
-            const uint64_t error = representativeError(group, trial);
-            if (error < bestError) {
-                bestError = error;
-                bestIndex = candidate;
-            }
-        }
-        selected.push_back(bestIndex);
-    }
-    return selected;
-}
-
-PaletteAssignment buildLayerAwarePalette(
-    std::vector<LayerColorGroup> groups,
-    uint16_t backgroundColor,
-    int8_t objectLayer,
-    int8_t backgroundLayer,
-    bool prioritizeExactObject = true
-) {
-    groups.erase(
-        std::remove_if(
-            groups.begin(), groups.end(),
-            [](const LayerColorGroup& group) { return group.colors.empty(); }),
-        groups.end());
-    size_t allocated = 0U;
-    const auto allocateLayer = [&](int8_t requestedLayer) {
-        const auto found = std::find_if(
-            groups.begin(), groups.end(),
-            [requestedLayer](const LayerColorGroup& group) {
-                return group.layer == requestedLayer;
-            });
-        if (found != groups.end() && found->slots == 0U && allocated < 4U) {
-            found->slots = 1U;
-            ++allocated;
-        }
-    };
-    allocateLayer(objectLayer);
-    allocateLayer(backgroundLayer);
-    for (LayerColorGroup& group : groups) {
-        if (allocated >= 4U) break;
-        if (group.slots == 0U) {
-            group.slots = 1U;
-            ++allocated;
-        }
-    }
-    const bool everyLayerAllocated = std::all_of(
-        groups.begin(), groups.end(),
-        [](const LayerColorGroup& group) { return group.slots != 0U; });
-    const auto objectGroup = std::find_if(
-        groups.begin(), groups.end(),
-        [objectLayer](const LayerColorGroup& group) {
-            return group.layer == objectLayer;
-        });
-    if (prioritizeExactObject
-        && everyLayerAllocated
-        && objectGroup != groups.end()) {
-        const size_t missingObjectColors =
-            objectGroup->colors.size() - objectGroup->slots;
-        if (allocated + missingObjectColors <= 4U) {
-            objectGroup->slots += missingObjectColors;
-            allocated += missingObjectColors;
-        }
-    }
-    while (allocated < 4U) {
-        LayerColorGroup* bestGroup = nullptr;
-        uint64_t bestImprovement = 0U;
-        for (LayerColorGroup& group : groups) {
-            if (group.slots == 0U || group.slots >= group.colors.size()) continue;
-            const std::vector<size_t> before =
-                selectRepresentatives(group, group.slots);
-            const std::vector<size_t> after =
-                selectRepresentatives(group, group.slots + 1U);
-            const uint64_t improvement =
-                representativeError(group, before)
-                - representativeError(group, after);
-            if (bestGroup == nullptr || improvement > bestImprovement) {
-                bestGroup = &group;
-                bestImprovement = improvement;
-            }
-        }
-        if (bestGroup == nullptr) break;
-        ++bestGroup->slots;
-        ++allocated;
-    }
-
-    PaletteAssignment result;
-    result.colors.fill(backgroundColor);
-    result.layers.fill(-1);
-    size_t destination = 0U;
-    for (const LayerColorGroup& group : groups) {
-        for (const size_t selected : selectRepresentatives(group, group.slots)) {
-            if (destination >= result.colors.size()) break;
-            result.colors[destination] = group.colors[selected].color;
-            result.layers[destination] = group.layer;
-            ++destination;
-        }
-    }
-    return result;
-}
-
-uint64_t layerAwarePaletteError(
-    const PaletteAssignment& palette,
-    const std::vector<LayerColorGroup>& groups
-) {
-    constexpr uint64_t kCrossLayerPenalty = uint64_t{1} << 40U;
-    uint64_t error = 0U;
-    for (const LayerColorGroup& group : groups) {
-        for (const WeightedColor& weighted : group.colors) {
-            const PaletteMatch match =
-                nearestLayerColor(palette, weighted.color, group.layer);
-            if (!match.sameLayer) error += kCrossLayerPenalty;
-            error += static_cast<uint64_t>(weighted.weight)
-                * colorDistance(palette.colors[match.index], weighted.color);
-        }
-    }
-    return error;
-}
-
-void appendLayerColors(
-    std::vector<LayerColorGroup>& groups,
-    const ObjectDef& object,
-    const ColorStretch& stretch,
-    uint8_t part,
-    const std::array<bool, 25>* visibleCells = nullptr
-) {
-    auto found = std::find_if(
-        groups.begin(), groups.end(),
-        [&object](const LayerColorGroup& group) {
-            return group.layer == object.layer;
-        });
-    if (found == groups.end()) {
-        groups.push_back({static_cast<int8_t>(object.layer), {}, 0U});
-        found = groups.end() - 1;
-    }
-    std::vector<Rgb> colors;
-    colors.reserve(object.colors.size());
-    for (const std::string& value : object.colors) {
-        colors.push_back(parseColor(value));
-    }
-    const size_t height = object.sprite.size();
-    const size_t width = object.sprite.empty() ? 0U : object.sprite.front().size();
-    const size_t offsetX = (5U - width) / 2U;
-    const size_t offsetY = (5U - height) / 2U;
-    for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
-        const auto& row = object.sprite[sourceY];
-        for (size_t sourceX = 0U; sourceX < row.size(); ++sourceX) {
-            const int32_t colorIndex = row[sourceX];
-            const size_t cellX = offsetX + sourceX;
-            const size_t cellY = offsetY + sourceY;
-            const size_t partX = part & 1U;
-            const size_t partY = part >> 1U;
-            const bool touchesX = cellX == 2U
-                || (cellX < 2U ? partX == 0U : partX == 1U);
-            const bool touchesY = cellY == 2U
-                || (cellY < 2U ? partY == 0U : partY == 1U);
-            if (!touchesX || !touchesY) continue;
-            if (visibleCells != nullptr
-                && !(*visibleCells)[cellY * 5U + cellX]) {
-                continue;
-            }
-            if (colorIndex < 0
-                || static_cast<size_t>(colorIndex) >= colors.size()
-                || colors[static_cast<size_t>(colorIndex)].transparent) {
-                continue;
-            }
-            const uint16_t packed =
-                toBgr555(colors[static_cast<size_t>(colorIndex)], stretch);
-            const auto existing = std::find_if(
-                found->colors.begin(), found->colors.end(),
-                [packed](const WeightedColor& color) {
-                    return color.color == packed;
-                });
-            if (existing == found->colors.end()) {
-                found->colors.push_back({packed, 1U});
-            } else {
-                ++existing->weight;
-            }
-        }
-    }
-}
-
-void appendWholeObjectLayerColors(
-    std::vector<LayerColorGroup>& groups,
-    const ObjectDef& object,
-    const ColorStretch& stretch
-) {
-    auto found = std::find_if(
-        groups.begin(), groups.end(),
-        [&object](const LayerColorGroup& group) {
-            return group.layer == object.layer;
-        });
-    if (found == groups.end()) {
-        groups.push_back({static_cast<int8_t>(object.layer), {}, 0U});
-        found = groups.end() - 1;
-    }
-    std::vector<Rgb> colors;
-    colors.reserve(object.colors.size());
-    for (const std::string& value : object.colors) {
-        colors.push_back(parseColor(value));
-    }
-    for (const auto& row : object.sprite) {
-        for (const int32_t colorIndex : row) {
-            if (colorIndex < 0
-                || static_cast<size_t>(colorIndex) >= colors.size()
-                || colors[static_cast<size_t>(colorIndex)].transparent) {
-                continue;
-            }
-            const uint16_t packed =
-                toBgr555(colors[static_cast<size_t>(colorIndex)], stretch);
-            const auto existing = std::find_if(
-                found->colors.begin(), found->colors.end(),
-                [packed](const WeightedColor& color) {
-                    return color.color == packed;
-                });
-            if (existing == found->colors.end()) {
-                found->colors.push_back({packed, 1U});
-            } else {
-                ++existing->weight;
-            }
-        }
-    }
-}
-
-std::array<bool, 25> lowerLayerVisibility(const ObjectDef& object) {
-    std::array<bool, 25> visible;
-    visible.fill(true);
-    const size_t height = object.sprite.size();
-    const size_t width = object.sprite.empty() ? 0U : object.sprite.front().size();
-    const size_t offsetX = (5U - width) / 2U;
-    const size_t offsetY = (5U - height) / 2U;
-    std::vector<bool> transparent;
-    transparent.reserve(object.colors.size());
-    for (const std::string& value : object.colors) {
-        transparent.push_back(parseColor(value).transparent);
-    }
-    for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
-        for (size_t sourceX = 0U; sourceX < object.sprite[sourceY].size(); ++sourceX) {
-            const int32_t colorIndex = object.sprite[sourceY][sourceX];
-            if (colorIndex < 0
-                || static_cast<size_t>(colorIndex) >= transparent.size()
-                || transparent[static_cast<size_t>(colorIndex)]) {
-                continue;
-            }
-            visible[(offsetY + sourceY) * 5U + offsetX + sourceX] = false;
-        }
-    }
-    return visible;
-}
-
-bool quadrantHasVisibleLowerPixel(
-    const std::array<bool, 25>& visible,
-    uint8_t part
-) {
-    for (size_t cellY = 0U; cellY < 5U; ++cellY) {
-        for (size_t cellX = 0U; cellX < 5U; ++cellX) {
-            const size_t partX = part & 1U;
-            const size_t partY = part >> 1U;
-            const bool touchesX = cellX == 2U
-                || (cellX < 2U ? partX == 0U : partX == 1U);
-            const bool touchesY = cellY == 2U
-                || (cellY < 2U ? partY == 0U : partY == 1U);
-            if (touchesX && touchesY && visible[cellY * 5U + cellX]) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-std::vector<uint16_t> objectColorsInQuadrant(
-    const ObjectDef& object,
-    const ColorStretch& stretch,
-    uint8_t part
-) {
-    std::vector<LayerColorGroup> groups;
-    appendLayerColors(groups, object, stretch, part);
-    if (groups.empty()) return {};
-    std::vector<uint16_t> result;
-    for (const WeightedColor& color : groups.front().colors) {
-        result.push_back(color.color);
-    }
-    return result;
-}
-
-bool paletteContainsObjectColors(
-    const PaletteAssignment& palette,
-    const QuadrantPaletteCandidate& candidate,
-    int8_t objectLayer
-) {
-    for (const uint16_t color : candidate.objectColors) {
-        bool found = false;
-        for (size_t index = 0U; index < palette.colors.size(); ++index) {
-            if (palette.colors[index] == color
-                && palette.layers[index] == objectLayer) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) return false;
-    }
-    return true;
-}
-
-struct PaletteSetScore {
-    size_t crossLayerMappings = 0U;
-    size_t fullObjects = 0U;
-    size_t exactQuadrants = 0U;
-    uint64_t colorError = 0U;
-};
-
-struct PaletteMappingError {
-    size_t crossLayerMappings = 0U;
-    uint64_t colorError = 0U;
-};
-
-PaletteMappingError paletteMappingError(
-    const PaletteAssignment& palette,
-    const std::vector<LayerColorGroup>& groups
-) {
-    PaletteMappingError error;
-    for (const LayerColorGroup& group : groups) {
-        for (const WeightedColor& weighted : group.colors) {
-            const PaletteMatch match =
-                nearestLayerColor(palette, weighted.color, group.layer);
-            if (!match.sameLayer) ++error.crossLayerMappings;
-            error.colorError += static_cast<uint64_t>(weighted.weight)
-                * colorDistance(palette.colors[match.index], weighted.color);
-        }
-    }
-    return error;
-}
-
-bool betterMappingError(
-    const PaletteMappingError& candidate,
-    const PaletteMappingError& current
-) {
-    return candidate.crossLayerMappings < current.crossLayerMappings
-        || (candidate.crossLayerMappings == current.crossLayerMappings
-            && candidate.colorError < current.colorError);
-}
-
-PaletteSetScore scorePaletteSet(
-    const std::vector<PaletteAssignment>& palettes,
-    const std::vector<PackedObject>& objects,
-    bool conservative = false
-) {
-    PaletteSetScore score;
-    for (const PackedObject& object : objects) {
-        const auto& paletteCandidates = conservative
-            ? object.conservativePaletteCandidates
-            : object.paletteCandidates;
-        bool full = true;
-        for (const QuadrantPaletteCandidate& candidate : paletteCandidates) {
-            if (!candidate.hasOpaquePixels) continue;
-            bool exact = false;
-            for (const PaletteAssignment& palette : palettes) {
-                exact = exact || paletteContainsObjectColors(
-                    palette, candidate, static_cast<int8_t>(object.layer));
-            }
-            if (exact) {
-                ++score.exactQuadrants;
-            } else {
-                full = false;
-            }
-        }
-        if (full) {
-            ++score.fullObjects;
-            for (const QuadrantPaletteCandidate& candidate :
-                 paletteCandidates) {
-                if (!candidate.hasOpaquePixels) continue;
-                PaletteMappingError best{
-                    std::numeric_limits<size_t>::max(),
-                    std::numeric_limits<uint64_t>::max()};
-                for (const PaletteAssignment& palette : palettes) {
-                    if (!paletteContainsObjectColors(
-                            palette, candidate,
-                            static_cast<int8_t>(object.layer))) {
-                        continue;
-                    }
-                    const PaletteMappingError error =
-                        paletteMappingError(palette, candidate.groups);
-                    if (betterMappingError(error, best)) best = error;
-                }
-                score.crossLayerMappings += best.crossLayerMappings;
-                score.colorError += best.colorError;
-            }
-        } else {
-            PaletteMappingError best{
-                std::numeric_limits<size_t>::max(),
-                std::numeric_limits<uint64_t>::max()};
-            for (const PaletteAssignment& palette : palettes) {
-                PaletteMappingError error;
-                for (const QuadrantPaletteCandidate& candidate :
-                     paletteCandidates) {
-                    if (!candidate.hasOpaquePixels) continue;
-                    const PaletteMappingError part =
-                        paletteMappingError(palette, candidate.groups);
-                    error.crossLayerMappings += part.crossLayerMappings;
-                    error.colorError += part.colorError;
-                }
-                if (betterMappingError(error, best)) best = error;
-            }
-            score.crossLayerMappings += best.crossLayerMappings;
-            score.colorError += best.colorError;
-        }
-    }
-    return score;
-}
-
-bool betterPaletteSetScore(
-    const PaletteSetScore& candidate,
-    const PaletteSetScore& current
-) {
-    return candidate.crossLayerMappings < current.crossLayerMappings
-        || (candidate.crossLayerMappings == current.crossLayerMappings
-            && (candidate.fullObjects > current.fullObjects
-                || (candidate.fullObjects == current.fullObjects
-                    && (candidate.exactQuadrants > current.exactQuadrants
-                        || (candidate.exactQuadrants
-                                == current.exactQuadrants
-                            && candidate.colorError < current.colorError)))));
-}
-
-std::vector<PaletteAssignment> selectHardwarePalettes(
-    const std::vector<PackedObject>& objects,
-    bool conservative = false
-) {
-    std::vector<PaletteAssignment> candidates;
-    for (const PackedObject& object : objects) {
-        const auto& paletteCandidates = conservative
-            ? object.conservativePaletteCandidates
-            : object.paletteCandidates;
-        for (const QuadrantPaletteCandidate& quadrant : paletteCandidates) {
-            if (!quadrant.hasOpaquePixels) continue;
-            if (std::none_of(
-                    candidates.begin(), candidates.end(),
-                    [&](const PaletteAssignment& existing) {
-                        return samePaletteAssignment(existing, quadrant.ideal);
-                    })) {
-                candidates.push_back(quadrant.ideal);
-            }
-        }
-    }
-    if (candidates.size() <= 8U) return candidates;
-
-    std::vector<PaletteAssignment> selected;
-    while (selected.size() < 8U) {
-        size_t bestIndex = 0U;
-        PaletteSetScore bestScore;
-        bool found = false;
-        for (size_t index = 0U; index < candidates.size(); ++index) {
-            if (std::any_of(
-                    selected.begin(), selected.end(),
-                    [&](const PaletteAssignment& existing) {
-                        return samePaletteAssignment(existing, candidates[index]);
-                    })) {
-                continue;
-            }
-            std::vector<PaletteAssignment> trial = selected;
-            trial.push_back(candidates[index]);
-            const PaletteSetScore score =
-                scorePaletteSet(trial, objects, conservative);
-            if (!found || betterPaletteSetScore(score, bestScore)) {
-                found = true;
-                bestIndex = index;
-                bestScore = score;
-            }
-        }
-        if (!found) break;
-        selected.push_back(candidates[bestIndex]);
-    }
-    return selected;
-}
-
 uint32_t maskWord(const Game& game, MaskOffset offset) {
     if (offset == kNullMaskOffset || static_cast<size_t>(offset) >= game.maskArena.size()) return 0U;
     return static_cast<uint32_t>(
         static_cast<MaskWordUnsigned>(game.maskArena[static_cast<size_t>(offset)]));
+}
+
+uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer);
+
+struct RuleFlowSummary {
+    uint32_t readObjectsPresent = 0U;
+    uint32_t readObjectsMissing = 0U;
+    uint32_t writeObjectsPresent = 0U;
+    uint32_t writeObjectsMissing = 0U;
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> readMovementsPresent{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> readMovementsMissing{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> writeMovementsPresent{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> writeMovementsMissing{};
+};
+
+RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
+    RuleFlowSummary result;
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) continue;
+            const uint32_t lhsPresent = maskWord(game, pattern.objectsPresent);
+            const uint32_t lhsMissing = maskWord(game, pattern.objectsMissing);
+            result.readObjectsPresent |= lhsPresent;
+            result.readObjectsMissing |= lhsMissing;
+
+            for (const ObjectDef& object : game.objectsById) {
+                if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
+                const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
+                if ((lhsPresent & objectBit) == 0U) continue;
+                result.readMovementsPresent[static_cast<size_t>(object.id)] |=
+                    sourceMovementLayerBits(game, pattern.movementsPresent, object.layer);
+                result.readMovementsMissing[static_cast<size_t>(object.id)] |=
+                    sourceMovementLayerBits(game, pattern.movementsMissing, object.layer);
+            }
+
+            if (!pattern.replacement.has_value()) continue;
+            const Replacement& replacement = *pattern.replacement;
+            const uint32_t objectsClear = maskWord(game, replacement.objectsClear);
+            const uint32_t objectsSet = maskWord(game, replacement.objectsSet);
+            result.writeObjectsPresent |= objectsSet & ~lhsPresent;
+
+            for (const ObjectDef& object : game.objectsById) {
+                if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
+                const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
+                const uint32_t layerMask = object.layer >= 0
+                        && static_cast<size_t>(object.layer) < game.layerMaskOffsets.size()
+                    ? maskWord(
+                        game,
+                        game.layerMaskOffsets[static_cast<size_t>(object.layer)])
+                    : objectBit;
+                const uint32_t lhsLayerObjects = lhsPresent & layerMask;
+                if ((objectsClear & objectBit) != 0U
+                    && (objectsSet & objectBit) == 0U
+                    && (lhsMissing & objectBit) == 0U
+                    && (lhsLayerObjects == 0U
+                        || (lhsLayerObjects & objectBit) != 0U)) {
+                    result.writeObjectsMissing |= objectBit;
+                }
+
+                if ((objectsSet & objectBit) == 0U) continue;
+                const uint8_t rhsMovement = sourceMovementLayerBits(
+                    game,
+                    replacement.movementsSet,
+                    object.layer);
+                const uint8_t lhsMovement = (lhsPresent & objectBit) != 0U
+                    ? sourceMovementLayerBits(
+                        game,
+                        pattern.movementsPresent,
+                        object.layer)
+                    : 0U;
+                const uint8_t lhsMovementMissing = (lhsPresent & objectBit) != 0U
+                    ? sourceMovementLayerBits(
+                        game,
+                        pattern.movementsMissing,
+                        object.layer)
+                    : 0U;
+                const uint8_t movementClear = static_cast<uint8_t>(
+                    sourceMovementLayerBits(
+                        game,
+                        replacement.movementsClear,
+                        object.layer)
+                    | sourceMovementLayerBits(
+                        game,
+                        replacement.movementsLayerMask,
+                        object.layer));
+                result.writeMovementsPresent[static_cast<size_t>(object.id)] |=
+                    static_cast<uint8_t>(rhsMovement & ~lhsMovement);
+                result.writeMovementsMissing[static_cast<size_t>(object.id)] |=
+                    static_cast<uint8_t>(
+                        movementClear & ~rhsMovement & ~lhsMovementMissing);
+            }
+        }
+    }
+    return result;
+}
+
+bool groupSinglePassSafe(
+    const Game& game,
+    const std::vector<Rule>& group
+) {
+    if (group.empty()) return false;
+    for (const Rule& rule : group) {
+        const bool hasSemanticCommand = std::any_of(
+            rule.commands.begin(),
+            rule.commands.end(),
+            [](const RuleCommand& command) {
+                return command.name.rfind("sfx", 0U) != 0U;
+            });
+        if (rule.isRandom || rule.rigid || rule.forceAlwaysRun
+            || hasSemanticCommand) return false;
+    }
+    std::vector<RuleFlowSummary> flows;
+    flows.reserve(group.size());
+    for (const Rule& rule : group) flows.push_back(summarizeRuleFlow(game, rule));
+    for (size_t writerIndex = 0U; writerIndex < group.size(); ++writerIndex) {
+        const RuleFlowSummary& writer = flows[writerIndex];
+        for (size_t readerIndex = 0U; readerIndex <= writerIndex; ++readerIndex) {
+            const RuleFlowSummary& reader = flows[readerIndex];
+            if ((writer.writeObjectsPresent & reader.readObjectsPresent) != 0U
+                || (writer.writeObjectsMissing & reader.readObjectsMissing) != 0U) {
+                return false;
+            }
+            for (size_t object = 0U;
+                 object < writer.writeMovementsPresent.size();
+                 ++object) {
+                if ((writer.writeMovementsPresent[object]
+                        & reader.readMovementsPresent[object]) != 0U
+                    || (writer.writeMovementsMissing[object]
+                        & reader.readMovementsMissing[object]) != 0U) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer) {
@@ -1336,6 +1024,38 @@ uint8_t commandFlags(const Game& game, const Rule& rule, std::string& message, P
     return flags;
 }
 
+uint16_t groupInputLayout(const std::vector<Rule>& group) {
+    const auto matchesBlocks = [&](std::initializer_list<uint8_t> masks) {
+        if (group.empty() || group.size() % masks.size() != 0U) return false;
+        const size_t blockSize = group.size() / masks.size();
+        size_t ruleIndex = 0U;
+        for (const uint8_t mask : masks) {
+            for (size_t offset = 0U; offset < blockSize; ++offset, ++ruleIndex) {
+                if (group[ruleIndex].activeInputsMask != mask) return false;
+            }
+        }
+        return true;
+    };
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_UP,
+            uint8_t{1} << PS_INPUT_DOWN,
+            uint8_t{1} << PS_INPUT_LEFT,
+            uint8_t{1} << PS_INPUT_RIGHT})) {
+        return PS_GBC_RULE_GROUP_INPUT_QUARTET;
+    }
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_UP,
+            uint8_t{1} << PS_INPUT_DOWN})) {
+        return PS_GBC_RULE_GROUP_INPUT_VERTICAL;
+    }
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_LEFT,
+            uint8_t{1} << PS_INPUT_RIGHT})) {
+        return PS_GBC_RULE_GROUP_INPUT_HORIZONTAL;
+    }
+    return 0U;
+}
+
 PackedPattern packPattern(
     const Game& game,
     const Pattern& pattern,
@@ -1380,6 +1100,45 @@ PackedPattern packPattern(
     return packed;
 }
 
+bool samePattern(const PackedPattern& left, const PackedPattern& right) {
+    return left.objectsPresent == right.objectsPresent
+        && left.objectsMissing == right.objectsMissing
+        && left.movementsPresent == right.movementsPresent
+        && left.movementsMissing == right.movementsMissing
+        && left.objectsClear == right.objectsClear
+        && left.objectsSet == right.objectsSet
+        && left.movementsClear == right.movementsClear
+        && left.movementsSet == right.movementsSet
+        && left.movementLayerMask == right.movementLayerMask
+        && left.flags == right.flags;
+}
+
+uint16_t internPatternSequence(
+    std::vector<PackedPattern>& patterns,
+    const std::vector<PackedPattern>& sequence
+) {
+    if (sequence.empty()) {
+        throw std::runtime_error("GBC cannot intern an empty pattern sequence");
+    }
+    for (size_t first = 0U; first + sequence.size() <= patterns.size(); ++first) {
+        bool equal = true;
+        for (size_t index = 0U; index < sequence.size(); ++index) {
+            if (!samePattern(patterns[first + index], sequence[index])) {
+                equal = false;
+                break;
+            }
+        }
+        if (equal) return static_cast<uint16_t>(first);
+    }
+    if (patterns.size() > UINT16_MAX
+        || patterns.size() + sequence.size() > UINT16_MAX) {
+        throw std::runtime_error("GBC pattern table exceeds 16-bit indexes");
+    }
+    const uint16_t first = static_cast<uint16_t>(patterns.size());
+    patterns.insert(patterns.end(), sequence.begin(), sequence.end());
+    return first;
+}
+
 void packGroups(
     const Game& game,
     const std::vector<std::vector<Rule>>& sourceGroups,
@@ -1389,16 +1148,20 @@ void packGroups(
     std::vector<PackedRule>& rules,
     std::vector<PackedGroup>& groups,
     PackedAudio& audio,
-    const MovementLayout& movementLayout
+    const MovementLayout& movementLayout,
+    uint32_t alwaysPresentObjects
 ) {
     for (size_t groupIndex = 0; groupIndex < sourceGroups.size(); ++groupIndex) {
         const auto& sourceGroup = sourceGroups[groupIndex];
         PackedGroup group;
-        if (rules.size() > UINT16_MAX || sourceGroup.size() > UINT16_MAX) {
+        if (rules.size() > UINT16_MAX
+            || sourceGroup.size() > PS_GBC_RULE_GROUP_COUNT_MASK) {
             throw std::runtime_error("GBC rule table exceeds 16-bit indexes");
         }
         group.firstRule = static_cast<uint16_t>(rules.size());
         group.ruleCount = static_cast<uint16_t>(sourceGroup.size());
+        group.inputLayout = late ? 0U : groupInputLayout(sourceGroup);
+        group.singlePassSafe = groupSinglePassSafe(game, sourceGroup);
         const auto loopAt = [&](size_t index) -> std::optional<int32_t> {
             if (index >= loopPoints.entries.size()) return std::nullopt;
             return loopPoints.entries[index];
@@ -1415,21 +1178,29 @@ void packGroups(
         }
         for (const Rule& sourceRule : sourceGroup) {
             validateRule(sourceRule, late);
-            if (patterns.size() > UINT16_MAX
-                || patterns.size() + sourceRule.patterns.front().size() > UINT16_MAX) {
-                throw std::runtime_error("GBC pattern table exceeds 16-bit indexes");
+            std::vector<PackedPattern> sequence;
+            sequence.reserve(sourceRule.patterns.front().size());
+            for (const Pattern& pattern : sourceRule.patterns.front()) {
+                sequence.push_back(packPattern(game, pattern, movementLayout));
             }
             PackedRule rule;
-            rule.firstPattern = static_cast<uint16_t>(patterns.size());
+            rule.firstPattern = internPatternSequence(patterns, sequence);
             rule.patternCount = static_cast<uint8_t>(sourceRule.patterns.front().size());
             rule.direction = static_cast<uint8_t>(sourceRule.direction);
+            rule.activeInputsMask = sourceRule.activeInputsMask;
             rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
             rule.commands = commandFlags(game, sourceRule, rule.message, audio);
+            const uint32_t firstPatternObjects = maskWord(
+                game, sourceRule.patterns.front().front().objectsPresent);
+            if (game.objectCount <= 16
+                && (firstPatternObjects & maskWord(game, game.playerMask)) != 0U) {
+                rule.commands |= PS_GBC_RULE_PLAYER_CELL_ANCHOR;
+            }
+            if ((firstPatternObjects & ~alwaysPresentObjects) != 0U) {
+                rule.commands |= PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK;
+            }
             rule.soundCount = static_cast<uint8_t>(
                 audio.ruleSoundIds.size() - rule.firstSound);
-            for (const Pattern& pattern : sourceRule.patterns.front()) {
-                patterns.push_back(packPattern(game, pattern, movementLayout));
-            }
             rules.push_back(std::move(rule));
         }
         groups.push_back(group);
@@ -1496,7 +1267,12 @@ std::string emitHeader(
     uint8_t objectBytesPerCellValue,
     uint8_t cellWidth,
     uint8_t cellHeight,
-    const PackedAudio& audio
+    size_t renderObjectCount,
+    size_t precomposedCompositionCount,
+    const PackedAudio& audio,
+    size_t ruleMessageCount,
+    size_t presencePrecheckCount,
+    size_t playerAnchorCount
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -1512,10 +1288,16 @@ std::string emitHeader(
         << static_cast<unsigned int>(cellHeight) << "U\n\n"
         << "#define PS_GBC_GENERATED_CELL_PIXELS "
         << static_cast<unsigned int>(cellWidth * cellHeight) << "U\n\n"
+        << "#define PS_GBC_GENERATED_RENDER_OBJECT_COUNT "
+        << renderObjectCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT "
+        << precomposedCompositionCount << "U\n\n"
         << "#define PS_GBC_GENERATED_SOUND_COUNT "
         << audio.seeds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_RULE_SOUND_COUNT "
         << audio.ruleSoundIds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_RULE_MESSAGE_COUNT "
+        << ruleMessageCount << "U\n\n"
         << "#define PS_GBC_GENERATED_CREATION_SOUND_COUNT "
         << audio.creationSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_DESTRUCTION_SOUND_COUNT "
@@ -1524,9 +1306,60 @@ std::string emitHeader(
         << audio.movementSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_MOVEMENT_FAILURE_SOUND_COUNT "
         << audio.movementFailureSounds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT "
+        << presencePrecheckCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT "
+        << playerAnchorCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_ABI_VERSION "
+        << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
+        << "#define PS_GBC_GENERATED_PACKED_PATTERNS 1\n\n"
+        << "#define PS_GBC_GENERATED_PATTERN_BYTES "
+        << generatedPatternBytes(objectBytesPerCellValue, movementBytesPerCell)
+        << "U\n\n"
+        << "typedef " << unsignedTypeForBytes(objectBytesPerCellValue)
+        << " ps_gbc_generated_object_mask;\n"
+        << "typedef " << unsignedTypeForBytes(movementBytesPerCell)
+        << " ps_gbc_generated_movement_mask;\n\n"
+        << "typedef struct ps_gbc_generated_pattern {\n"
+        << "    ps_gbc_generated_object_mask objects_present;\n"
+        << "    ps_gbc_generated_object_mask objects_missing;\n"
+        << "    ps_gbc_generated_object_mask objects_clear;\n"
+        << "    ps_gbc_generated_object_mask objects_set;\n"
+        << "    ps_gbc_generated_movement_mask movements_present;\n"
+        << "    ps_gbc_generated_movement_mask movements_missing;\n"
+        << "    ps_gbc_generated_movement_mask movements_clear;\n"
+        << "    ps_gbc_generated_movement_mask movements_set;\n"
+        << "    ps_gbc_generated_movement_mask movement_layer_mask;\n"
+        << "    uint8_t flags;\n"
+        << "} ps_gbc_generated_pattern;\n\n"
+        << "#define PS_GBC_GENERATED_PATTERN_REFERENCE(index) \\\n    {(uint16_t)((uint16_t)(index) \\\n        * (uint16_t)sizeof(ps_gbc_generated_pattern))}\n\n"
+        << "#define PS_GBC_GENERATED_PACKED_RULES 1\n\n"
+        << "#define PS_GBC_GENERATED_RULE_BYTES "
+        << generatedRuleBytes(
+            !audio.ruleSoundIds.empty(), ruleMessageCount != 0U)
+        << "U\n\n"
+        << "typedef struct ps_gbc_generated_rule {\n"
+        << "    ps_gbc_pattern_reference first_pattern;\n"
+        << "    uint8_t pattern_count;\n"
+        << "    uint8_t direction;\n"
+        << "    uint8_t commands;\n"
+        << "#if PS_GBC_GENERATED_RULE_SOUND_COUNT != 0U\n"
+        << "    uint8_t first_sound;\n"
+        << "    uint8_t sound_count;\n"
+        << "#endif\n"
+        << "#if PS_GBC_GENERATED_RULE_MESSAGE_COUNT != 0U\n"
+        << "    const char* message;\n"
+        << "#endif\n"
+        << "} ps_gbc_generated_rule;\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
-        << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
+        << "extern const ps_gbc_game_view ps_gbc_generated_game;\n"
+        << "extern const ps_gbc_render_object ps_gbc_generated_render_objects[];\n"
+        << "#if PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT != 0U\n"
+        << "extern const uint32_t ps_gbc_generated_precomposed_masks[];\n"
+        << "extern const uint8_t ps_gbc_generated_precomposed_palettes[];\n"
+        << "extern const uint8_t ps_gbc_generated_precomposed_tiles[];\n"
+        << "#endif\n\n"
         << "#ifdef __cplusplus\n}\n#endif\n\n#endif\n";
     return out.str();
 }
@@ -1559,6 +1392,7 @@ std::string emitSource(
     const std::array<uint16_t, 4>& uiPalette,
     const MovementLayout& movementLayout,
     const std::vector<PackedObject>& objects,
+    const std::vector<PackedComposition>& precomposedCompositions,
     const std::vector<PackedLevel>& levels,
     const std::vector<PackedPattern>& patterns,
     const std::vector<PackedRule>& rules,
@@ -1574,6 +1408,11 @@ std::string emitSource(
     uint8_t objectBytesPerCellValue
 ) {
     std::ostringstream out;
+    const bool hasRuleAudio = !audio.ruleSoundIds.empty();
+    const bool hasRuleMessages = std::any_of(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return !rule.message.empty();
+        });
     out << "/* Generated by puzzlescript_cpp export-gbc. Do not edit. */\n"
         << "#if defined(__SDCC)\n#pragma bank 1\n#endif\n"
         << "#include \"generated_game.h\"\n\n";
@@ -1619,17 +1458,48 @@ std::string emitSource(
     out << "\nstatic const ps_gbc_object kObjects[] = {\n";
     for (size_t index = 0; index < objects.size(); ++index) {
         const PackedObject& object = objects[index];
-        out << "    {" << escapedString(object.name) << ", "
-            << static_cast<unsigned int>(object.layer) << "U, "
-            << static_cast<unsigned int>(object.movementLayer) << "U, "
-            << static_cast<unsigned int>(object.width) << "U, "
-            << static_cast<unsigned int>(object.height) << "U, "
-            << static_cast<unsigned int>(object.pixels.size() / 2U) << "U, "
-            << static_cast<unsigned int>(object.quadrantPalettes)
-            << "U, kObject" << index
-            << "Pixels},\n";
+        out << "    {" << static_cast<unsigned int>(object.layer) << "U, "
+            << static_cast<unsigned int>(object.movementLayer) << "U},\n";
+    }
+    std::vector<size_t> renderOrder(objects.size());
+    for (size_t index = 0U; index < renderOrder.size(); ++index) {
+        renderOrder[index] = index;
+    }
+    std::stable_sort(
+        renderOrder.begin(), renderOrder.end(), [&](size_t left, size_t right) {
+            return objects[left].layer < objects[right].layer;
+        });
+    out << "};\n\nconst ps_gbc_render_object ps_gbc_generated_render_objects[] = {\n";
+    for (const size_t index : renderOrder) {
+        out << "    {0x" << std::hex << (uint32_t{1} << index) << "U, kObject"
+            << std::dec << index << "Pixels, "
+            << static_cast<unsigned int>(objects[index].palette) << "U},\n";
     }
     out << "};\n\n";
+    if (!precomposedCompositions.empty()) {
+        out << "const uint32_t ps_gbc_generated_precomposed_masks[] = {";
+        for (size_t index = 0U; index < precomposedCompositions.size(); ++index) {
+            if (index != 0U) out << ", ";
+            out << "0x" << std::hex << precomposedCompositions[index].objects
+                << "U" << std::dec;
+        }
+        out << "};\nconst uint8_t ps_gbc_generated_precomposed_palettes[] = {";
+        for (size_t index = 0U; index < precomposedCompositions.size(); ++index) {
+            if (index != 0U) out << ", ";
+            out << static_cast<unsigned int>(precomposedCompositions[index].palette)
+                << "U";
+        }
+        out << "};\nconst uint8_t ps_gbc_generated_precomposed_tiles[] = {";
+        bool wroteTile = false;
+        for (const PackedComposition& composition : precomposedCompositions) {
+            for (const uint8_t byte : composition.tileBytes) {
+                if (wroteTile) out << ", ";
+                out << static_cast<unsigned int>(byte) << "U";
+                wroteTile = true;
+            }
+        }
+        out << "};\n\n";
+    }
     const char* levelCellType = objectBytesPerCellValue == 1U ? "uint8_t"
         : objectBytesPerCellValue == 2U ? "uint16_t" : "uint32_t";
     for (size_t index = 0; index < levels.size(); ++index) {
@@ -1650,34 +1520,74 @@ std::string emitSource(
             << (level.message ? "NULL" : "kLevel" + std::to_string(index) + "Cells")
             << ", " << (level.message ? escapedString(level.messageText) : "NULL") << "},\n";
     }
-    out << "};\n\nstatic const ps_gbc_pattern kPatterns[] = {\n";
+    out << "};\n\nstatic const ps_gbc_generated_pattern kPatterns[] = {\n";
     if (patterns.empty()) out << "    {0},\n";
     for (const PackedPattern& pattern : patterns) {
         out << "    {0x" << std::hex << pattern.objectsPresent << "U, 0x"
-            << pattern.objectsMissing << "U, 0x" << pattern.movementsPresent
-            << "U, 0x" << pattern.movementsMissing << "U, 0x"
-            << pattern.objectsClear << "U, 0x" << pattern.objectsSet
+            << pattern.objectsMissing << "U, 0x" << pattern.objectsClear
+            << "U, 0x" << pattern.objectsSet << "U, 0x"
+            << pattern.movementsPresent << "U, 0x" << pattern.movementsMissing
             << "U, 0x" << pattern.movementsClear << "U, 0x"
             << pattern.movementsSet << "U, 0x" << pattern.movementLayerMask
             << "U, " << std::dec << static_cast<unsigned int>(pattern.flags) << "U},\n";
     }
-    out << "};\n\nstatic const ps_gbc_rule kRules[] = {\n";
+    out << "};\n\nstatic const ps_gbc_generated_rule kRules[] = {\n";
     if (rules.empty()) out << "    {0},\n";
     for (const PackedRule& rule : rules) {
-        out << "    {" << rule.firstPattern << "U, "
+        out << "    {PS_GBC_GENERATED_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
-            << static_cast<unsigned int>(rule.direction) << "U, "
-            << static_cast<unsigned int>(rule.commands) << "U, "
-            << static_cast<unsigned int>(rule.firstSound) << "U, "
-            << static_cast<unsigned int>(rule.soundCount) << "U, "
-            << (rule.message.empty() ? "NULL" : escapedString(rule.message)) << "},\n";
+            << static_cast<unsigned int>(rule.direction) << "U, ";
+        const uint8_t ruleMetadata = static_cast<uint8_t>(
+            rule.commands & (PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK
+                | PS_GBC_RULE_PLAYER_CELL_ANCHOR));
+        const uint8_t commands = static_cast<uint8_t>(rule.commands & ~ruleMetadata);
+        if (ruleMetadata != 0U) {
+            out << "(" << static_cast<unsigned int>(commands) << "U";
+            if ((ruleMetadata & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U) {
+                out << " | PS_GBC_RULE_PLAYER_CELL_ANCHOR";
+            }
+            if ((ruleMetadata & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
+                out << " | PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK";
+            }
+            out << ")";
+        } else {
+            out << static_cast<unsigned int>(rule.commands) << "U";
+        }
+        if (hasRuleAudio) {
+            out << ", " << static_cast<unsigned int>(rule.firstSound) << "U, "
+                << static_cast<unsigned int>(rule.soundCount) << "U";
+        }
+        if (hasRuleMessages) {
+            out << ", "
+                << (rule.message.empty() ? "NULL" : escapedString(rule.message));
+        }
+        out << "},\n";
     }
     out << "};\n\n";
     const auto emitGroups = [&](const char* name, const std::vector<PackedGroup>& groups) {
         out << "static const ps_gbc_rule_group " << name << "[] = {\n";
         if (groups.empty()) out << "    {0},\n";
         for (const PackedGroup& group : groups) {
-            out << "    {" << group.firstRule << "U, " << group.ruleCount << "U, "
+            out << "    {" << group.firstRule << "U, ";
+            if (!group.singlePassSafe && group.inputLayout == 0U) {
+                out << group.ruleCount << "U, ";
+            } else {
+                out << "(" << group.ruleCount << "U";
+                if (group.inputLayout != 0U) {
+                    if (group.inputLayout == PS_GBC_RULE_GROUP_INPUT_QUARTET) {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_QUARTET";
+                    } else if (group.inputLayout == PS_GBC_RULE_GROUP_INPUT_VERTICAL) {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_VERTICAL";
+                    } else {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_HORIZONTAL";
+                    }
+                }
+                if (group.singlePassSafe) {
+                    out << " | PS_GBC_RULE_GROUP_SINGLE_PASS";
+                }
+                out << "), ";
+            }
+            out
                 << group.loopTarget << "},\n";
         }
         out << "};\n\n";
@@ -1696,7 +1606,8 @@ std::string emitSource(
     const uint32_t backgroundMask = game.backgroundId >= 0 && game.backgroundId < 32
         ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId) : 0U;
     out << "};\n\nconst ps_gbc_game_view ps_gbc_generated_game = {\n"
-        << "    PS_GBC_GAME_ABI_VERSION, 0x" << std::hex << hash << "U" << std::dec << ",\n"
+        << "    " << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION)
+        << "U, 0x" << std::hex << hash << "U" << std::dec << ",\n"
         << "    " << escapedString(metadataValue(game, "title", "PuzzleScript Game")) << ", "
         << escapedString(metadataValue(game, "author", "")) << ",\n"
         << "    " << game.objectCount << "U, " << game.layerCount << "U, "
@@ -1719,7 +1630,8 @@ std::string emitSource(
         << audio.movementFailureSounds.size() << "U,\n"
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
-           "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
+           "(const ps_gbc_pattern*)kPatterns, (const ps_gbc_rule*)kRules, "
+           "kEarlyGroups, kLateGroups,\n"
         << "    kWinConditions, kSoundSeeds, kNamedSoundIds, kRuleSoundIds,\n"
         << "    kCreationSounds, kDestructionSounds, kMovementSounds, "
            "kMovementFailureSounds,\n"
@@ -1772,22 +1684,12 @@ ExportResult exportGame(const ExportOptions& options) {
         backgroundColor, foregroundColor, foregroundColor, foregroundColor};
     std::array<std::array<uint16_t, 4>, 8> palettes{};
     for (auto& palette : palettes) palette.fill(backgroundColor);
-    std::array<PaletteAssignment, 8> paletteAssignments{};
-    for (PaletteAssignment& palette : paletteAssignments) {
-        palette.colors.fill(backgroundColor);
-        palette.layers.fill(-1);
-    }
-    const int8_t backgroundLayer = game.backgroundId >= 0
-            && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
-        ? static_cast<int8_t>(
-            game.objectsById[static_cast<size_t>(game.backgroundId)].layer)
-        : -1;
+    std::vector<std::array<uint16_t, 4>> usedPalettes;
     std::vector<PackedObject> objects;
     uint8_t cellWidth = 5U;
     uint8_t cellHeight = 5U;
     objects.reserve(game.objectsById.size());
-    for (size_t objectId = 0U; objectId < game.objectsById.size(); ++objectId) {
-        const ObjectDef& sourceObject = game.objectsById[objectId];
+    for (const ObjectDef& sourceObject : game.objectsById) {
         if (sourceObject.layer < 0 || sourceObject.layer >= game.layerCount) {
             throw std::runtime_error("GBC object has an invalid collision layer: " + sourceObject.name);
         }
@@ -1801,416 +1703,153 @@ ExportResult exportGame(const ExportOptions& options) {
         cellHeight = std::max(cellHeight, static_cast<uint8_t>(height));
         std::vector<uint16_t> sourceColors;
         std::vector<bool> transparentColors;
+        const std::vector<bool> referencedColors =
+            referencedObjectColors(sourceObject);
         for (const std::string& value : sourceObject.colors) {
             const Rgb color = parseColor(value);
             sourceColors.push_back(toBgr555(color, colorStretch));
             transparentColors.push_back(color.transparent);
         }
-        PackedObject object;
-        object.name = sourceObject.name;
-        object.layer = static_cast<uint8_t>(sourceObject.layer);
-        const int8_t movementLayer =
-            movementLayout.collisionToMovement[static_cast<size_t>(sourceObject.layer)];
-        object.movementLayer = movementLayer < 0
-            ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
-        object.width = static_cast<uint8_t>(width);
-        object.height = static_cast<uint8_t>(height);
-        object.sourceColors = sourceColors;
-        uint64_t sourceTransparentPixels = 0U;
+        std::vector<uint16_t> opaqueColors;
+        for (size_t index = 0; index < sourceColors.size(); ++index) {
+            if (referencedColors[index] && !transparentColors[index]
+                && std::find(
+                    opaqueColors.begin(), opaqueColors.end(), sourceColors[index])
+                    == opaqueColors.end()) {
+                opaqueColors.push_back(sourceColors[index]);
+            }
+        }
+        bool hasTransparentPixels = false;
         for (const auto& row : sourceObject.sprite) {
-            if (row.size() != width) throw std::runtime_error("GBC requires rectangular object sprites");
             for (const int32_t colorIndex : row) {
-                const size_t pixel = object.sourceColorIndexes.size();
-                bool transparent = colorIndex < 0;
-                if (!transparent) {
-                    if (static_cast<size_t>(colorIndex) >= sourceColors.size()) {
-                        throw std::runtime_error("GBC object sprite color index is out of range");
-                    }
-                    transparent = transparentColors[static_cast<size_t>(colorIndex)];
+                if (colorIndex < 0
+                    || (static_cast<size_t>(colorIndex) < transparentColors.size()
+                        && transparentColors[static_cast<size_t>(colorIndex)])) {
+                    hasTransparentPixels = true;
                 }
-                if (transparent) sourceTransparentPixels |= uint64_t{1} << pixel;
-                object.sourceColorIndexes.push_back(colorIndex);
             }
         }
-        object.transparentPixels = sourceTransparentPixels;
-        const std::array<bool, 25> visibleLowerCells =
-            lowerLayerVisibility(sourceObject);
-
         /*
-         * Each logical 16x16 cell is four independently-paletted 8x8 tiles.
-         * Build candidates from only the source pixels that actually reach a
-         * quadrant. Transparent quadrants also reserve colours for lower
-         * collision layers, preserving the anti-halo guarantee.
+         * A packed 8x8 hardware tile includes pixels from neighboring native
+         * cells. Reserve floor colours before sprite detail so transparent
+         * edges cannot quantize the background into a visible halo.
          */
-        for (uint8_t part = 0U; part < 4U; ++part) {
-            QuadrantPaletteCandidate& candidate = object.paletteCandidates[part];
-            QuadrantPaletteCandidate& conservative =
-                object.conservativePaletteCandidates[part];
-            candidate.objectColors = objectColorsInQuadrant(
-                sourceObject, colorStretch, part);
-            candidate.hasOpaquePixels = !candidate.objectColors.empty();
-            conservative.objectColors = candidate.objectColors;
-            conservative.hasOpaquePixels = candidate.hasOpaquePixels;
-            const bool transparent = quadrantHasVisibleLowerPixel(
-                visibleLowerCells, part);
-            if (transparent && game.backgroundId >= 0
-                && static_cast<size_t>(game.backgroundId) < game.objectsById.size()
-                && static_cast<int32_t>(objectId) != game.backgroundId) {
-                appendLayerColors(
-                    candidate.groups,
-                    game.objectsById[static_cast<size_t>(game.backgroundId)],
-                    colorStretch,
-                    part,
-                    &visibleLowerCells);
-                appendLayerColors(
-                    conservative.groups,
-                    game.objectsById[static_cast<size_t>(game.backgroundId)],
-                    colorStretch,
-                    part);
-            }
-            appendLayerColors(
-                candidate.groups, sourceObject, colorStretch, part);
-            appendLayerColors(
-                conservative.groups, sourceObject, colorStretch, part);
-            if (transparent) {
-                for (int32_t lowerLayer = sourceObject.layer - 1;
-                     lowerLayer >= 0;
-                     --lowerLayer) {
-                    for (size_t lowerId = 0U;
-                         lowerId < game.objectsById.size();
-                         ++lowerId) {
-                        const ObjectDef& lowerObject = game.objectsById[lowerId];
-                        if (lowerObject.layer != lowerLayer
-                            || static_cast<int32_t>(lowerId) == game.backgroundId) {
-                            continue;
-                        }
-                        appendLayerColors(
-                            candidate.groups,
-                            lowerObject,
-                            colorStretch,
-                            part,
-                            &visibleLowerCells);
-                        appendLayerColors(
-                            conservative.groups,
-                            lowerObject,
-                            colorStretch,
-                            part);
-                    }
+        std::vector<uint16_t> compositeColors;
+        const auto appendObjectColors = [&](const ObjectDef& lowerObject) {
+            const std::vector<bool> referenced =
+                referencedObjectColors(lowerObject);
+            for (size_t index = 0U; index < lowerObject.colors.size(); ++index) {
+                if (!referenced[index]) continue;
+                const Rgb color = parseColor(lowerObject.colors[index]);
+                const uint16_t packed = toBgr555(color, colorStretch);
+                if (!color.transparent
+                    && std::find(
+                        compositeColors.begin(), compositeColors.end(), packed)
+                        == compositeColors.end()) {
+                    compositeColors.push_back(packed);
                 }
             }
-            candidate.ideal = buildLayerAwarePalette(
-                candidate.groups,
-                backgroundColor,
-                static_cast<int8_t>(sourceObject.layer),
-                backgroundLayer);
-            conservative.ideal = buildLayerAwarePalette(
-                conservative.groups,
-                backgroundColor,
-                static_cast<int8_t>(sourceObject.layer),
-                backgroundLayer,
-                false);
-        }
-        objects.push_back(std::move(object));
-    }
-
-    /* Re-run the previous one-palette allocation for an apples-to-apples
-     * retention baseline in every manifest. */
-    std::vector<PaletteAssignment> singlePaletteAssignments;
-    size_t singlePaletteFullColorObjectCount = 0U;
-    for (size_t objectId = 0U; objectId < objects.size(); ++objectId) {
-        const ObjectDef& sourceObject = game.objectsById[objectId];
-        std::vector<LayerColorGroup> groups;
+        };
         if (game.backgroundId >= 0
             && static_cast<size_t>(game.backgroundId) < game.objectsById.size()) {
-            appendWholeObjectLayerColors(
-                groups,
-                game.objectsById[static_cast<size_t>(game.backgroundId)],
-                colorStretch);
+            appendObjectColors(game.objectsById[static_cast<size_t>(game.backgroundId)]);
         }
-        if (static_cast<int32_t>(objectId) != game.backgroundId) {
-            appendWholeObjectLayerColors(groups, sourceObject, colorStretch);
+        for (const uint16_t color : opaqueColors) {
+            if (std::find(
+                    compositeColors.begin(),
+                    compositeColors.end(),
+                    color)
+                == compositeColors.end()) {
+                compositeColors.push_back(color);
+            }
         }
-        if (objects[objectId].transparentPixels != 0U) {
-            for (int32_t lowerLayer = sourceObject.layer - 1;
-                 lowerLayer >= 0;
-                 --lowerLayer) {
-                for (size_t lowerId = 0U;
-                     lowerId < game.objectsById.size();
-                     ++lowerId) {
+        if (hasTransparentPixels) {
+            for (int32_t lowerLayer = sourceObject.layer - 1; lowerLayer >= 0; --lowerLayer) {
+                for (size_t lowerId = 0; lowerId < game.objectsById.size(); ++lowerId) {
                     const ObjectDef& lowerObject = game.objectsById[lowerId];
                     if (lowerObject.layer != lowerLayer
                         || static_cast<int32_t>(lowerId) == game.backgroundId) {
                         continue;
                     }
-                    appendWholeObjectLayerColors(
-                        groups, lowerObject, colorStretch);
+                    appendObjectColors(lowerObject);
                 }
             }
         }
-        const PaletteAssignment ideal = buildLayerAwarePalette(
-            groups,
-            backgroundColor,
-            static_cast<int8_t>(sourceObject.layer),
-            backgroundLayer,
-            false);
-        uint8_t assigned = 0U;
-        const auto exact = std::find_if(
-            singlePaletteAssignments.begin(), singlePaletteAssignments.end(),
-            [&](const PaletteAssignment& palette) {
-                return samePaletteAssignment(palette, ideal);
-            });
-        if (exact != singlePaletteAssignments.end()) {
-            assigned = static_cast<uint8_t>(
-                std::distance(singlePaletteAssignments.begin(), exact));
-        } else if (singlePaletteAssignments.size() < 8U) {
-            assigned = static_cast<uint8_t>(singlePaletteAssignments.size());
-            singlePaletteAssignments.push_back(ideal);
+        std::array<uint16_t, 4> candidate{};
+        candidate.fill(backgroundColor);
+        size_t destination = 0U;
+        for (const uint16_t color : compositeColors) {
+            if (destination >= 4U) break;
+            candidate[destination++] = color;
+        }
+        auto exact = std::find(usedPalettes.begin(), usedPalettes.end(), candidate);
+        uint8_t paletteIndex;
+        if (exact != usedPalettes.end()) {
+            paletteIndex = static_cast<uint8_t>(std::distance(usedPalettes.begin(), exact));
+        } else if (usedPalettes.size() < 8U) {
+            paletteIndex = static_cast<uint8_t>(usedPalettes.size());
+            usedPalettes.push_back(candidate);
+            palettes[paletteIndex] = candidate;
         } else {
-            uint64_t bestError = std::numeric_limits<uint64_t>::max();
-            for (uint8_t index = 0U;
-                 index < singlePaletteAssignments.size();
-                 ++index) {
-                const uint64_t error = layerAwarePaletteError(
-                    singlePaletteAssignments[index], groups);
-                if (error < bestError) {
-                    bestError = error;
-                    assigned = index;
+            uint32_t bestScore = std::numeric_limits<uint32_t>::max();
+            paletteIndex = 0U;
+            for (uint8_t index = 0U; index < 8U; ++index) {
+                uint32_t score = 0U;
+                for (const uint16_t color : compositeColors) {
+                    score += colorDistance(palettes[index][nearestColor(palettes[index], color)], color);
+                }
+                if (score < bestScore) {
+                    bestScore = score;
+                    paletteIndex = index;
                 }
             }
         }
-        bool fullColor = true;
-        for (size_t pixel = 0U;
-             pixel < objects[objectId].sourceColorIndexes.size();
-             ++pixel) {
-            if ((objects[objectId].transparentPixels & (uint64_t{1} << pixel))
-                != 0U) {
-                continue;
-            }
-            const uint16_t color = objects[objectId].sourceColors[
-                static_cast<size_t>(
-                    objects[objectId].sourceColorIndexes[pixel])];
-            const PaletteMatch match = nearestLayerColor(
-                singlePaletteAssignments[assigned],
-                color,
-                static_cast<int8_t>(objects[objectId].layer));
-            if (!match.sameLayer
-                || singlePaletteAssignments[assigned].colors[match.index]
-                    != color) {
-                fullColor = false;
-                break;
+        PackedObject object;
+        object.layer = static_cast<uint8_t>(sourceObject.layer);
+        const int8_t movementLayer =
+            movementLayout.collisionToMovement[static_cast<size_t>(sourceObject.layer)];
+        object.movementLayer = movementLayer < 0
+            ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
+        object.palette = paletteIndex;
+        object.pixels.assign(25U, 0xffU);
+        const size_t offsetX = (5U - width) / 2U;
+        const size_t offsetY = (5U - height) / 2U;
+        for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
+            const auto& row = sourceObject.sprite[sourceY];
+            if (row.size() != width) throw std::runtime_error("GBC requires rectangular object sprites");
+            for (size_t sourceX = 0U; sourceX < width; ++sourceX) {
+                const int32_t colorIndex = row[sourceX];
+                bool transparent = colorIndex < 0;
+                uint16_t color = backgroundColor;
+                if (!transparent) {
+                    if (static_cast<size_t>(colorIndex) >= sourceColors.size()) {
+                        throw std::runtime_error("GBC object sprite color index is out of range");
+                    }
+                    transparent = transparentColors[static_cast<size_t>(colorIndex)];
+                    color = sourceColors[static_cast<size_t>(colorIndex)];
+                }
+                if (!transparent) {
+                    const size_t destination = (sourceY + offsetY) * 5U
+                        + sourceX + offsetX;
+                    object.pixels[destination] = static_cast<uint8_t>(
+                        paletteIndex * 4U
+                        + nearestColor(palettes[paletteIndex], color));
+                }
             }
         }
-        if (fullColor) ++singlePaletteFullColorObjectCount;
+        objects.push_back(std::move(object));
     }
-
-    const PaletteSetScore singlePaletteScore =
-        scorePaletteSet(singlePaletteAssignments, objects);
-    const PaletteSetScore singlePaletteConservativeScore =
-        scorePaletteSet(singlePaletteAssignments, objects, true);
-    std::vector<PaletteAssignment> conservativePalettes =
-        selectHardwarePalettes(objects, true);
-    const PaletteSetScore conservativeScore =
-        scorePaletteSet(conservativePalettes, objects, true);
-    if (conservativeScore.fullObjects < singlePaletteFullColorObjectCount
-        || conservativeScore.crossLayerMappings
-            > singlePaletteConservativeScore.crossLayerMappings) {
-        conservativePalettes = singlePaletteAssignments;
-    }
-    const PaletteSetScore conservativePreciseScore =
-        scorePaletteSet(conservativePalettes, objects);
-    std::vector<PaletteAssignment> usedPalettes = selectHardwarePalettes(objects);
-    const PaletteSetScore quadrantScore = scorePaletteSet(usedPalettes, objects);
-    if (quadrantScore.fullObjects < conservativePreciseScore.fullObjects
-        || quadrantScore.crossLayerMappings
-            > conservativePreciseScore.crossLayerMappings) {
-        usedPalettes = conservativePalettes;
-    }
-    const PaletteSetScore selectedPaletteScore =
-        scorePaletteSet(usedPalettes, objects);
-    if (usedPalettes.empty()) {
-        PaletteAssignment fallback;
-        fallback.colors.fill(backgroundColor);
-        fallback.layers.fill(backgroundLayer);
-        usedPalettes.push_back(fallback);
-    }
-    for (size_t index = 0U; index < usedPalettes.size(); ++index) {
-        palettes[index] = usedPalettes[index].colors;
-        paletteAssignments[index] = usedPalettes[index];
-    }
+    if (usedPalettes.empty()) usedPalettes.push_back(palettes[0]);
     for (size_t index = usedPalettes.size(); index < palettes.size(); ++index) {
         palettes[index] = palettes[0];
-        paletteAssignments[index] = paletteAssignments[0];
     }
-
-    size_t exactLayerColorCount = 0U;
-    size_t intraLayerQuantizedColorCount = 0U;
-    size_t crossLayerQuantizedColorCount = 0U;
-    size_t fullColorObjectCount = 0U;
-    size_t fullColorQuadrantCount = 0U;
-    size_t opaqueQuadrantCount = 0U;
-    size_t multiPaletteObjectCount = 0U;
-    size_t inconsistentObjectColorCount = 0U;
-    for (PackedObject& object : objects) {
-        std::array<uint8_t, 4> assigned{};
-        bool fullColor = true;
-        for (uint8_t part = 0U; part < 4U; ++part) {
-            const QuadrantPaletteCandidate& candidate =
-                object.paletteCandidates[part];
-            if (!candidate.hasOpaquePixels) continue;
-            ++opaqueQuadrantCount;
-            bool exact = false;
-            for (const PaletteAssignment& palette : usedPalettes) {
-                exact = exact || paletteContainsObjectColors(
-                    palette, candidate, static_cast<int8_t>(object.layer));
-            }
-            if (!exact) fullColor = false;
-        }
-        if (fullColor) {
-            ++fullColorObjectCount;
-            for (uint8_t part = 0U; part < 4U; ++part) {
-                const QuadrantPaletteCandidate& candidate =
-                    object.paletteCandidates[part];
-                PaletteMappingError bestError{
-                    std::numeric_limits<size_t>::max(),
-                    std::numeric_limits<uint64_t>::max()};
-                for (uint8_t index = 0U; index < usedPalettes.size(); ++index) {
-                    if (!paletteContainsObjectColors(
-                            usedPalettes[index], candidate,
-                            static_cast<int8_t>(object.layer))) {
-                        continue;
-                    }
-                    const PaletteMappingError error = paletteMappingError(
-                        usedPalettes[index], candidate.groups);
-                    if (betterMappingError(error, bestError)) {
-                        bestError = error;
-                        assigned[part] = index;
-                    }
-                }
-                if (candidate.hasOpaquePixels) ++fullColorQuadrantCount;
-            }
-        } else {
-            PaletteMappingError bestError{
-                std::numeric_limits<size_t>::max(),
-                std::numeric_limits<uint64_t>::max()};
-            uint8_t bestPalette = 0U;
-            for (uint8_t index = 0U; index < usedPalettes.size(); ++index) {
-                PaletteMappingError error;
-                for (const QuadrantPaletteCandidate& candidate :
-                     object.paletteCandidates) {
-                    if (candidate.hasOpaquePixels) {
-                        const PaletteMappingError part = paletteMappingError(
-                            usedPalettes[index], candidate.groups);
-                        error.crossLayerMappings += part.crossLayerMappings;
-                        error.colorError += part.colorError;
-                    }
-                }
-                if (betterMappingError(error, bestError)) {
-                    bestError = error;
-                    bestPalette = index;
-                }
-            }
-            assigned.fill(bestPalette);
-        }
-
-        std::array<bool, 8> objectPalettes{};
-        for (uint8_t part = 0U; part < 4U; ++part) {
-            object.quadrantPalettes |=
-                (uint16_t)assigned[part] << (part * 3U);
-            if (object.paletteCandidates[part].hasOpaquePixels) {
-                object.quadrantPalettes |=
-                    (uint16_t)1U << (12U + part);
-                objectPalettes[assigned[part]] = true;
-            }
-            const QuadrantPaletteCandidate& candidate =
-                object.paletteCandidates[part];
-            for (const LayerColorGroup& group : candidate.groups) {
-                for (const WeightedColor& weighted : group.colors) {
-                    const PaletteMatch match = nearestLayerColor(
-                        usedPalettes[assigned[part]],
-                        weighted.color,
-                        group.layer);
-                    if (!match.sameLayer) {
-                        ++crossLayerQuantizedColorCount;
-                    } else if (usedPalettes[assigned[part]].colors[match.index]
-                        == weighted.color) {
-                        ++exactLayerColorCount;
-                    } else {
-                        ++intraLayerQuantizedColorCount;
-                    }
-                }
-            }
-        }
-        if (std::count(objectPalettes.begin(), objectPalettes.end(), true) > 1) {
-            ++multiPaletteObjectCount;
-        }
-
-        object.pixels.reserve(object.sourceColorIndexes.size() * 3U);
-        for (size_t pixel = 0U;
-             pixel < object.sourceColorIndexes.size();
-             ++pixel) {
-            const bool transparent =
-                (object.transparentPixels & (uint64_t{1} << pixel)) != 0U;
-            if (transparent) continue;
-            const int32_t colorIndex = object.sourceColorIndexes[pixel];
-            const uint16_t color =
-                object.sourceColors[static_cast<size_t>(colorIndex)];
-            const size_t sourceX = pixel % object.width;
-            const size_t sourceY = pixel / object.width;
-            const size_t cellX = (5U - object.width) / 2U + sourceX;
-            const size_t cellY = (5U - object.height) / 2U + sourceY;
-            const size_t cell = cellY * 5U + cellX;
-            for (uint8_t part = 0U; part < 4U; ++part) {
-                const size_t partX = part & 1U;
-                const size_t partY = part >> 1U;
-                const bool touchesX = cellX == 2U
-                    || (cellX < 2U ? partX == 0U : partX == 1U);
-                const bool touchesY = cellY == 2U
-                    || (cellY < 2U ? partY == 0U : partY == 1U);
-                if (!touchesX || !touchesY) continue;
-                const PaletteMatch match = nearestLayerColor(
-                    usedPalettes[assigned[part]], color,
-                    static_cast<int8_t>(object.layer));
-                object.pixels.push_back(static_cast<uint8_t>(part * 25U + cell));
-                object.pixels.push_back(static_cast<uint8_t>(
-                    assigned[part] * 4U + match.index));
-            }
-        }
-
-        for (const uint16_t color : object.sourceColors) {
-            std::optional<uint16_t> rendered;
-            for (uint8_t part = 0U; part < 4U; ++part) {
-                const std::vector<uint16_t>& quadrantColors =
-                    object.paletteCandidates[part].objectColors;
-                if (std::find(
-                        quadrantColors.begin(), quadrantColors.end(), color)
-                    == quadrantColors.end()) {
-                    continue;
-                }
-                const PaletteMatch match = nearestLayerColor(
-                    usedPalettes[assigned[part]], color,
-                    static_cast<int8_t>(object.layer));
-                const uint16_t partColor =
-                    usedPalettes[assigned[part]].colors[match.index];
-                if (rendered && *rendered != partColor) {
-                    ++inconsistentObjectColorCount;
-                    break;
-                }
-                rendered = partColor;
-            }
-        }
-    }
-
     std::array<uint8_t, 256> remap{};
     for (uint8_t target = 0U; target < 8U; ++target) {
         for (uint8_t sourcePalette = 0U; sourcePalette < 8U; ++sourcePalette) {
             for (uint8_t color = 0U; color < 4U; ++color) {
-                const PaletteMatch match = nearestLayerColor(
-                    paletteAssignments[target],
-                    palettes[sourcePalette][color],
-                    paletteAssignments[sourcePalette].layers[color]);
                 remap[static_cast<size_t>(target) * 32U
                     + static_cast<size_t>(sourcePalette) * 4U + color]
-                    = match.index;
+                    = nearestColor(palettes[target], palettes[sourcePalette][color]);
             }
         }
     }
@@ -2222,6 +1861,9 @@ ExportResult exportGame(const ExportOptions& options) {
     uint16_t maxCells = 0U;
     uint16_t maxBoardWidth = 0U;
     uint16_t maxBoardHeight = 0U;
+    uint32_t alwaysPresentObjects = game.objectCount == 32
+        ? UINT32_MAX
+        : (uint32_t{1} << static_cast<uint32_t>(game.objectCount)) - 1U;
     for (size_t sourceLevelIndex = 0U;
          sourceLevelIndex < game.levels.size();
          ++sourceLevelIndex) {
@@ -2260,10 +1902,13 @@ ExportResult exportGame(const ExportOptions& options) {
             maxBoardHeight = std::max(maxBoardHeight, level.height);
             maxCells = std::max(maxCells, static_cast<uint16_t>(cells));
             level.cells.resize(cells);
+            uint32_t levelPresentObjects = 0U;
             for (size_t cell = 0; cell < cells; ++cell) {
                 level.cells[cell] = static_cast<uint32_t>(
                     static_cast<MaskWordUnsigned>(sourceLevel.objects[cell * game.wordCount]));
+                levelPresentObjects |= level.cells[cell];
             }
+            alwaysPresentObjects &= levelPresentObjects;
         }
         levels.push_back(std::move(level));
     }
@@ -2291,16 +1936,45 @@ ExportResult exportGame(const ExportOptions& options) {
     std::vector<PackedRule> rules;
     std::vector<PackedGroup> earlyGroups;
     std::vector<PackedGroup> lateGroups;
+    const auto sourcePatternCountFor = [](const auto& sourceGroups) {
+        size_t count = 0U;
+        for (const auto& group : sourceGroups) {
+            for (const Rule& rule : group) {
+                if (!rule.patterns.empty()) count += rule.patterns.front().size();
+            }
+        }
+        return count;
+    };
+    const size_t sourcePatternCount =
+        sourcePatternCountFor(game.rules) + sourcePatternCountFor(game.lateRules);
     PackedAudio audio = packAudio(game, movementLayout);
     packGroups(
         game, game.rules, game.loopPoint, false, patterns, rules, earlyGroups,
-        audio, movementLayout);
+        audio, movementLayout, alwaysPresentObjects);
     packGroups(
         game, game.lateRules, game.lateLoopPoint, true, patterns, rules, lateGroups,
-        audio, movementLayout);
+        audio, movementLayout, alwaysPresentObjects);
     if (patterns.size() > UINT16_MAX || rules.size() > UINT16_MAX) {
         throw std::runtime_error("GBC rule data exceeds 16-bit table indexes");
     }
+    const size_t ruleMessageCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return !rule.message.empty();
+        }));
+    const size_t presencePrecheckCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return (rule.commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U;
+        }));
+    const size_t playerAnchorCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return (rule.commands & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U;
+        }));
+    const uint32_t backgroundMask =
+        game.backgroundId >= 0 && game.backgroundId < 32
+            ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId)
+            : 0U;
+    std::vector<PackedComposition> precomposedCompositions =
+        packPrecomposedCompositions(objects, levels, remap, backgroundMask);
 
     const auto requiredBytesForUndo = [&](uint8_t undo) {
         (void)undo;
@@ -2308,27 +1982,33 @@ ExportResult exportGame(const ExportOptions& options) {
             + static_cast<size_t>(maxCells) * objectCellBytes;
         bytes = align4(bytes);
         return bytes + static_cast<size_t>(maxCells) * movementLayout.bytesPerCell
-            + 2U * ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
+            + (playerAnchorCount == 0U ? 0U : maxCells)
+            + ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
     };
     const uint8_t undoCapacity = PS_GBC_MAX_UNDO;
     const size_t sessionBytes = requiredBytesForUndo(undoCapacity);
     if (sessionBytes > kSessionLimit) {
         throw std::runtime_error("GBC hot session cannot fit in the 4 KiB WRAM budget");
     }
+    const size_t patternRecordBytes =
+        generatedPatternBytes(objectCellBytes, movementLayout.bytesPerCell);
+    const size_t ruleRecordBytes = generatedRuleBytes(
+        !audio.ruleSoundIds.empty(), ruleMessageCount != 0U);
     size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U
         + game.layerMaskOffsets.size() * sizeof(uint32_t)
         + movementLayout.movementToCollision.size();
     estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_object);
     for (const PackedObject& object : objects) {
-        estimatedGameBankBytes += object.pixels.size() + object.name.size() + 1U;
+        estimatedGameBankBytes += object.pixels.size();
     }
+    estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_render_object);
     estimatedGameBankBytes += levels.size() * sizeof(ps_gbc_level);
     for (const PackedLevel& level : levels) {
         estimatedGameBankBytes += level.cells.size() * objectCellBytes
             + level.messageText.size() + 1U;
     }
-    estimatedGameBankBytes += patterns.size() * sizeof(ps_gbc_pattern);
-    estimatedGameBankBytes += rules.size() * sizeof(ps_gbc_rule);
+    estimatedGameBankBytes += patterns.size() * patternRecordBytes;
+    estimatedGameBankBytes += rules.size() * ruleRecordBytes;
     for (const PackedRule& rule : rules) estimatedGameBankBytes += rule.message.size() + 1U;
     estimatedGameBankBytes += (earlyGroups.size() + lateGroups.size())
         * sizeof(ps_gbc_rule_group);
@@ -2345,6 +2025,14 @@ ExportResult exportGame(const ExportOptions& options) {
         throw std::runtime_error(
             "GBC generated game data exceeds the conservative 14 KiB switchable-ROM-bank budget");
     }
+    const size_t precomposedEntryBytes = sizeof(uint32_t) + sizeof(uint8_t) + 64U;
+    const size_t availablePrecomposedEntries =
+        (kGeneratedRomBankLimit - estimatedGameBankBytes) / precomposedEntryBytes;
+    if (precomposedCompositions.size() > availablePrecomposedEntries) {
+        precomposedCompositions.resize(availablePrecomposedEntries);
+    }
+    estimatedGameBankBytes +=
+        precomposedCompositions.size() * precomposedEntryBytes;
 
     ExportResult result;
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
@@ -2357,21 +2045,56 @@ ExportResult exportGame(const ExportOptions& options) {
             objectCellBytes,
             cellWidth,
             cellHeight,
-            audio));
+            objects.size(),
+            precomposedCompositions.size(),
+            audio,
+            ruleMessageCount,
+            presencePrecheckCount,
+            playerAnchorCount));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
-        game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
-        patterns, rules, earlyGroups, lateGroups, audio, static_cast<uint8_t>(viewportWidth),
+        game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
+        precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
+        static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
+    const auto singlePassCount = [](const std::vector<PackedGroup>& groups) {
+        return static_cast<size_t>(std::count_if(
+            groups.begin(),
+            groups.end(),
+            [](const PackedGroup& group) { return group.singlePassSafe; }));
+    };
+    const size_t earlySinglePassGroups = singlePassCount(earlyGroups);
+    const size_t lateSinglePassGroups = singlePassCount(lateGroups);
+    const size_t inputSpecializedGroups = static_cast<size_t>(std::count_if(
+        earlyGroups.begin(),
+        earlyGroups.end(),
+        [](const PackedGroup& group) { return group.inputLayout != 0U; }));
+    std::array<size_t, 6> activeEarlyRulesByInput{};
+    size_t earlyRuleCount = 0U;
+    for (const PackedGroup& group : earlyGroups) earlyRuleCount += group.ruleCount;
+    for (size_t ruleIndex = 0U; ruleIndex < earlyRuleCount; ++ruleIndex) {
+        for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
+            if ((rules[ruleIndex].activeInputsMask & (uint8_t{1} << input)) != 0U) {
+                ++activeEarlyRulesByInput[input];
+            }
+        }
+    }
     std::ostringstream manifest;
     manifest << "{\n"
         << "  \"format\": \"puzzlescript-gbc-v1\",\n"
+        << "  \"abi_version\": " << PS_GBC_GAME_ABI_VERSION << ",\n"
         << "  \"source\": " << jsonString(options.sourcePath.generic_string()) << ",\n"
         << "  \"source_hash\": " << sourceHash(source) << ",\n"
         << "  \"runtime_profile\": \"bounded_interpreter_c\",\n"
         << "  \"cgb_only\": true,\n"
         << "  \"object_count\": " << game.objectCount << ",\n"
+        << "  \"render_object_count\": " << objects.size() << ",\n"
+        << "  \"render_sprite_bytes\": " << (objects.size() * 25U) << ",\n"
+        << "  \"precomposed_composition_count\": "
+        << precomposedCompositions.size() << ",\n"
+        << "  \"precomposed_composition_bytes\": "
+        << (precomposedCompositions.size() * precomposedEntryBytes) << ",\n"
         << "  \"collision_layer_count\": " << game.layerCount << ",\n"
         << "  \"movement_layer_count\": " << movementLayout.movementToCollision.size() << ",\n"
         << "  \"movement_bytes_per_cell\": "
@@ -2401,45 +2124,41 @@ ExportResult exportGame(const ExportOptions& options) {
                 ? "true" : "false")
         << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
+        << "  \"rule_record_bytes\": " << ruleRecordBytes << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
+        << "  \"pattern_record_bytes\": " << patternRecordBytes << ",\n"
+        << "  \"source_pattern_count\": " << sourcePatternCount << ",\n"
+        << "  \"shared_pattern_record_count\": "
+        << (sourcePatternCount - patterns.size()) << ",\n"
+        << "  \"single_pass_group_count\": "
+        << (earlySinglePassGroups + lateSinglePassGroups) << ",\n"
+        << "  \"early_single_pass_group_count\": "
+        << earlySinglePassGroups << ",\n"
+        << "  \"late_single_pass_group_count\": "
+        << lateSinglePassGroups << ",\n"
+        << "  \"input_specialized_group_count\": "
+        << inputSpecializedGroups << ",\n"
+        << "  \"object_presence_precheck_rule_count\": "
+        << presencePrecheckCount << ",\n"
+        << "  \"player_cell_anchor_rule_count\": "
+        << playerAnchorCount << ",\n"
+        << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
+        << "  \"active_early_rules_by_input\": [";
+    for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
+        if (input != 0U) manifest << ", ";
+        manifest << activeEarlyRulesByInput[input];
+    }
+    manifest << "],\n"
+        << "  \"early_rule_active_input_masks\": [";
+    for (size_t ruleIndex = 0U; ruleIndex < earlyRuleCount; ++ruleIndex) {
+        if (ruleIndex != 0U) manifest << ", ";
+        manifest << static_cast<unsigned int>(rules[ruleIndex].activeInputsMask);
+    }
+    manifest << "],\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
         << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
-        << "  \"palette_reduction\": {\"policy\": "
-           "\"quadrant_collision_layer_aware\", "
-        << "\"hardware_palette_count\": " << usedPalettes.size() << ", "
-        << "\"single_palette_full_color_object_count\": "
-        << singlePaletteFullColorObjectCount << ", "
-        << "\"single_palette_cross_layer_mapping_count\": "
-        << singlePaletteScore.crossLayerMappings << ", "
-        << "\"conservative_quadrant_full_color_object_count\": "
-        << conservativePreciseScore.fullObjects << ", "
-        << "\"conservative_quadrant_cross_layer_mapping_count\": "
-        << conservativePreciseScore.crossLayerMappings << ", "
-        << "\"full_color_object_count\": " << fullColorObjectCount << ", "
-        << "\"full_color_object_gain\": "
-        << (static_cast<int64_t>(fullColorObjectCount)
-            - static_cast<int64_t>(singlePaletteFullColorObjectCount))
-        << ", "
-        << "\"visibility_aware_full_color_object_gain\": "
-        << (static_cast<int64_t>(fullColorObjectCount)
-            - static_cast<int64_t>(conservativePreciseScore.fullObjects))
-        << ", "
-        << "\"quantized_object_count\": "
-        << (objects.size() - fullColorObjectCount) << ", "
-        << "\"full_color_quadrant_count\": " << fullColorQuadrantCount << ", "
-        << "\"opaque_quadrant_count\": " << opaqueQuadrantCount << ", "
-        << "\"multi_palette_object_count\": " << multiPaletteObjectCount << ", "
-        << "\"inconsistent_object_color_count\": "
-        << inconsistentObjectColorCount << ", "
-        << "\"selected_cross_layer_mapping_count\": "
-        << selectedPaletteScore.crossLayerMappings << ", "
-        << "\"exact_layer_color_count\": " << exactLayerColorCount << ", "
-        << "\"intra_layer_quantized_color_count\": "
-        << intraLayerQuantizedColorCount << ", "
-        << "\"cross_layer_quantized_color_count\": "
-        << crossLayerQuantizedColorCount << "},\n"
         << "  \"color_stretch\": {\n"
         << "    \"mode\": \"optimized_gameplay_gamut\",\n"
         << "    \"anchor_policy\": \"background_and_object_colors\",\n"

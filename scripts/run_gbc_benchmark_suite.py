@@ -53,6 +53,10 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             name: ticks / logic_iterations
             for name, ticks in record["phase_ticks"].items()
         },
+        "schedule_counts_per_turn": {
+            name: count / logic_iterations
+            for name, count in record["schedule_counts"].items()
+        },
         "render_ticks_per_frame": record["render_ticks"] / render_iterations,
         "composition_ticks_per_frame": (
             record["composition_ticks"] / render_iterations
@@ -139,34 +143,44 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--phases", action="store_true")
+    parser.add_argument("--schedules", action="store_true")
     parser.add_argument("--case", action="append", choices=[case[0] for case in DEFAULT_CASES])
     parser.add_argument("--merge-input", action="append", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--baseline", type=Path)
     args = parser.parse_args()
+    if args.phases and args.schedules:
+        parser.error("--phases and --schedules are separate diagnostic builds")
 
     repository = args.repository.resolve()
     if args.merge_input:
         merged_cases = []
         seen = set()
-        phase_modes = set()
+        probe_modes = set()
         for input_path in args.merge_input:
             data = json.loads(input_path.read_text(encoding="utf-8"))
-            phase_modes.add(bool(data.get("phase_probes")))
+            probe_modes.add(
+                (
+                    bool(data.get("phase_probes")),
+                    bool(data.get("schedule_probes")),
+                )
+            )
             for case in data.get("cases", []):
                 if case["name"] in seen:
                     raise SystemExit(f"duplicate merged case: {case['name']}")
                 seen.add(case["name"])
                 merged_cases.append(case)
-        if len(phase_modes) != 1:
-            raise SystemExit("merged inputs disagree about phase-probe mode")
+        if len(probe_modes) != 1:
+            raise SystemExit("merged inputs disagree about diagnostic-probe mode")
+        phase_probes, schedule_probes = probe_modes.pop()
         output: dict[str, Any] = {
             "format": "puzzlescript-gbc-benchmark-suite-v1",
             "label": args.label,
             "revision": git_value(repository, "rev-parse", "HEAD"),
             "dirty": bool(git_value(repository, "status", "--porcelain")),
             "runs": args.runs,
-            "phase_probes": phase_modes.pop(),
+            "phase_probes": phase_probes,
+            "schedule_probes": schedule_probes,
             "cases": merged_cases,
         }
         if args.baseline is not None:
@@ -212,7 +226,7 @@ def main() -> int:
     )
     artifact_root.mkdir(parents=True, exist_ok=True)
     firmware = repository / "firmware" / "gbc"
-    suffix = "-phases" if args.phases else ""
+    suffix = "-phases" if args.phases else "-schedules" if args.schedules else ""
     rom = firmware / f"puzzlescript_gbc_autotest-perf-compact{suffix}.gb"
     map_path = firmware / f"puzzlescript_gbc_autotest-perf-compact{suffix}.map"
     results = []
@@ -232,6 +246,7 @@ def main() -> int:
             "PERF_BENCH=1",
             "PERF_WIDE=0",
             f"PERF_PHASES={1 if args.phases else 0}",
+            f"PERF_SCHEDULES={1 if args.schedules else 0}",
             f"GAME={source.as_posix()}",
             f"GBDK_HOME={gbdk_home.as_posix()}",
             f"PUZZLESCRIPT_CPP={compiler.as_posix()}",
@@ -262,18 +277,31 @@ def main() -> int:
                 + json.dumps(records, sort_keys=True)
             )
         record = records[0]
-        manifest = json.loads(
-            (firmware / "generated" / "gbc_manifest.json").read_text(
-                encoding="utf-8"
-            )
-        )
+        if args.schedules and record["schedule_counts"]["group_invocations"] == 0:
+            raise SystemExit(f"schedule probes were not recorded for {name}")
+        manifest_path = firmware / "generated" / "gbc_manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         fixed_rom, generated_bank, static_wram = map_usage(map_path)
+        shutil.copy2(rom, artifact_root / f"{name}.gb")
+        shutil.copy2(map_path, artifact_root / f"{name}.map")
+        shutil.copy2(
+            manifest_path,
+            artifact_root / f"{name}.manifest.json",
+        )
         result = {
             "name": name,
             "source": relative_source,
             "source_hash": int(manifest["source_hash"]),
             "shape": {
                 "objects": int(manifest["object_count"]),
+                "render_objects": int(manifest.get("render_object_count", 0)),
+                "render_sprite_bytes": int(manifest.get("render_sprite_bytes", 0)),
+                "precomposed_compositions": int(
+                    manifest.get("precomposed_composition_count", 0)
+                ),
+                "precomposed_composition_bytes": int(
+                    manifest.get("precomposed_composition_bytes", 0)
+                ),
                 "collision_layers": int(manifest["collision_layer_count"]),
                 "movement_layers": int(manifest["movement_layer_count"]),
                 "movement_bytes_per_cell": int(
@@ -284,7 +312,31 @@ def main() -> int:
                 ),
                 "max_level_cells": int(manifest["max_level_cells"]),
                 "rules": int(manifest["rule_count"]),
+                "rule_record_bytes": int(
+                    manifest.get("rule_record_bytes", 0)
+                ),
                 "patterns": int(manifest["pattern_count"]),
+                "pattern_record_bytes": int(
+                    manifest.get("pattern_record_bytes", 0)
+                ),
+                "source_patterns": int(
+                    manifest.get("source_pattern_count", manifest["pattern_count"])
+                ),
+                "shared_pattern_records": int(
+                    manifest.get("shared_pattern_record_count", 0)
+                ),
+                "single_pass_groups": int(
+                    manifest.get("single_pass_group_count", 0)
+                ),
+                "input_specialized_groups": int(
+                    manifest.get("input_specialized_group_count", 0)
+                ),
+                "object_presence_precheck_rules": int(
+                    manifest.get("object_presence_precheck_rule_count", 0)
+                ),
+                "player_cell_anchor_rules": int(
+                    manifest.get("player_cell_anchor_rule_count", 0)
+                ),
             },
             "memory": {
                 "estimated_session_bytes": int(
@@ -317,6 +369,7 @@ def main() -> int:
         "dirty": bool(git_value(repository, "status", "--porcelain")),
         "runs": args.runs,
         "phase_probes": args.phases,
+        "schedule_probes": args.schedules,
         "cases": results,
     }
     if args.baseline is not None:

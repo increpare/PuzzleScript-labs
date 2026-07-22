@@ -19,7 +19,7 @@ AUDIO_MAGIC = 0x41434250
 FRAME_DUMP_MAGIC = 0x46474250
 VERSION = 1
 RECORD = struct.Struct("<IHBBBBBBI")
-RENDER_RECORD = struct.Struct("<I19H")
+RENDER_RECORD = struct.Struct("<I21H")
 AUDIO_RECORD = struct.Struct("<IHBBHI7B")
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
@@ -375,6 +375,8 @@ def main() -> int:
             board_pixel_width,
             board_pixel_height,
             tile_upload_mismatches,
+            title_selection_blank_count,
+            full_transition_blank_count,
         ) = render_record
         if render_magic != RENDER_MAGIC or render_version != VERSION:
             raise SystemExit(
@@ -394,6 +396,16 @@ def main() -> int:
             raise SystemExit(
                 "title hardware state differs: "
                 f"palette={title_palette_mismatches} map={title_map_mismatches}"
+            )
+        if title_selection_blank_count != 0:
+            raise SystemExit(
+                "title selection blanked the display: "
+                f"blank_count={title_selection_blank_count}"
+            )
+        if full_transition_blank_count not in (1, 0xFFFF):
+            raise SystemExit(
+                "full level transition performed extra display rewrites: "
+                f"blank_count={full_transition_blank_count}"
             )
         if board_tile_nonzero == 0 or board_attributes_nonzero == 0:
             raise SystemExit(
@@ -440,17 +452,22 @@ def main() -> int:
         frame_mismatches = frame_border_mismatches(title_tile_map)
         masthead = glyph_tiles("PUZZLESCRIPT")
         prompt = glyph_tiles("PRESS A")
+        new_game = glyph_tiles("NEW GAME")
+        selected_continue = glyph_tiles("[CONTINUE]")
         if (
             frame_mismatches != 0
             or any(title_attributes)
             or title_tile_map[3 * 20 + 4 : 3 * 20 + 16] != masthead
-            or title_tile_map[15 * 20 + 6 : 15 * 20 + 13] != prompt
+            or title_tile_map[13 * 20 + 6 : 13 * 20 + 14] != new_game
+            or title_tile_map[15 * 20 + 5 : 15 * 20 + 15]
+                != selected_continue
         ):
             raise SystemExit(
                 "title layout differs: "
                 f"frame={frame_mismatches} attributes={sum(bool(value) for value in title_attributes)} "
                 f"masthead={title_tile_map[3 * 20 + 4 : 3 * 20 + 16] == masthead} "
-                f"prompt={title_tile_map[15 * 20 + 6 : 15 * 20 + 13] == prompt}"
+                f"new_game={title_tile_map[13 * 20 + 6 : 13 * 20 + 14] == new_game} "
+                f"continue={title_tile_map[15 * 20 + 5 : 15 * 20 + 15] == selected_continue}"
             )
         if args.title_frame_out is not None:
             save_frame_image(title_frame, args.title_frame_out, args.frame_scale)
@@ -587,6 +604,8 @@ def main() -> int:
             f"quartets={unique_quartets} "
             f"dedicated_cells={dedicated_cells} "
             f"bank1_cells={second_bank_cells}"
+            f" title_selection_blanks={title_selection_blank_count}"
+            f" level_transition_blanks={full_transition_blank_count}"
             f" quadrant_palette_cells={quadrant_palette_cells}"
             f"{audio_summary}"
         )

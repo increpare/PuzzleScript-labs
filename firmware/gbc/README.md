@@ -40,6 +40,11 @@ make AUTOTEST=1 PERF_BENCH=1 PERF_WIDE=0 PERF_PHASES=1
 python ../../scripts/run_gbc_benchmark.py puzzlescript_gbc_autotest-perf-compact-phases.gb
 ```
 
+Use `PERF_SCHEDULES=1` instead of `PERF_PHASES=1` (or pass `--schedules` to
+the suite) to count group passes, repeat passes, and rule visits without the
+larger timer-phase probe build. The two diagnostic modes are intentionally
+separate so the fixed ROM bank remains measurable on larger cartridges.
+
 Both ROMs reserve the same benchmark arena, so the comparison isolates
 movement clearing and access width rather than changing the surrounding WRAM
 layout. `PERF_WIDE` is a benchmark-only compatibility path; normal exports
