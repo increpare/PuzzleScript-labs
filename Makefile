@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: gbc gbc_export gbc_smoke
+.PHONY: gbc gbc_export gbc_smoke gbc_eligible
 
 NODE ?= node
 CMAKE ?= cmake
@@ -91,8 +91,16 @@ GBA_EXPORT_DIR ?= $(BUILD_DIR)/gba/$(basename $(notdir $(GBA_GAME)))
 GBA_PREFLIGHT_JSON ?= $(BUILD_DIR)/gba/preflight.json
 GBC_GAME ?= src/demo/sokoban_basic.txt
 GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
+GBC_ELIGIBLE_OUT ?= $(BUILD_DIR)/gbc/eligible
+# Cull oversized boards (>10x9) for the 14-game eligible corpus (set GBC_CULL=0 to disable).
+GBC_CULL ?= 1
+# Keep building after a failure when set to 1 (still exits non-zero).
+GBC_CONTINUE ?= 0
 GBDK_HOME ?=
 GBC_MGBA ?=
+GBC_ELIGIBLE_CULL_FLAG = $(if $(filter 0 false no off,$(GBC_CULL)),--no-cull,--cull)
+GBC_ELIGIBLE_CONTINUE_FLAG = $(if $(filter 1 true yes on,$(GBC_CONTINUE)),--continue,)
+GBC_ELIGIBLE_GBDK_ARG = $(if $(strip $(GBDK_HOME)),--gbdk-home "$(GBDK_HOME)",)
 HANDHELD_TESTDATA_BUNDLE := $(BUILD_DIR)/handheld_testdata.bundle.ndjson
 HANDHELD_REPORT_JSON := $(BUILD_DIR)/handheld_report.json
 HANDHELD_MEMORY_AUDIT_JSON := $(BUILD_DIR)/handheld_memory_audit.json
@@ -526,6 +534,8 @@ help:
 	@echo "  make gbc                           Export and build one CGB-only ROM (set GBC_GAME=...)"
 	@echo "  make gbc_export                    Export bounded CGB data without requiring GBDK"
 	@echo "  make gbc_smoke                     Build an instrumented ROM and boot-test it in mGBA"
+	@echo "  make gbc_eligible                  Rebuild all 14 documented GBC-compatible good_games"
+	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
 	@echo "  make handheld_pcb_export           Export card PCB outline/anchors to hardware/card/mechanical/"
@@ -816,6 +826,15 @@ gbc: $(PUZZLESCRIPT_CPP)
 gbc_smoke: $(PUZZLESCRIPT_CPP)
 	$(MAKE) -C firmware/gbc AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(GBDK_HOME)"
 	python scripts/run_gbc_smoke.py firmware/gbc/puzzlescript_gbc_autotest.gb $(if $(strip $(GBC_MGBA)),--mgba "$(GBC_MGBA)",)
+
+gbc_eligible: $(PUZZLESCRIPT_CPP)
+	python scripts/build_gbc_eligible_roms.py \
+		--repository . \
+		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--out "$(GBC_ELIGIBLE_OUT)" \
+		$(GBC_ELIGIBLE_GBDK_ARG) \
+		$(GBC_ELIGIBLE_CULL_FLAG) \
+		$(GBC_ELIGIBLE_CONTINUE_FLAG)
 
 handheld_memory_audit:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64
