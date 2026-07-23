@@ -29,6 +29,7 @@ namespace {
 constexpr size_t kSessionLimit = 4U * 1024U;
 constexpr size_t kMaxBoardCells = PS_GBC_MAX_BOARD_CELLS;
 constexpr size_t kGeneratedRomBankLimit = 14U * 1024U;
+constexpr size_t kMaxPrecomposedCompositions = 8U;
 
 constexpr size_t align4(size_t value) {
     return (value + 3U) & ~size_t{3U};
@@ -36,6 +37,19 @@ constexpr size_t align4(size_t value) {
 
 uint8_t objectBytesPerCell(int32_t objectCount) {
     return objectCount <= 8 ? 1U : objectCount <= 16 ? 2U : 4U;
+}
+
+const char* unsignedTypeForBytes(uint8_t bytes) {
+    return bytes == 1U ? "uint8_t" : bytes == 2U ? "uint16_t" : "uint32_t";
+}
+
+size_t generatedPatternBytes(uint8_t objectBytes, uint8_t movementBytes) {
+    return static_cast<size_t>(objectBytes) * 4U
+        + static_cast<size_t>(movementBytes) * 5U + 1U;
+}
+
+size_t generatedRuleBytes(bool hasRuleAudio, bool hasRuleMessages) {
+    return 5U + (hasRuleAudio ? 2U : 0U) + (hasRuleMessages ? 2U : 0U);
 }
 
 struct Rgb {
@@ -67,14 +81,10 @@ struct ColorStretch {
 };
 
 struct PackedObject {
-    std::string name;
     uint8_t layer = 0;
     uint8_t movementLayer = PS_GBC_NO_MOVEMENT_LAYER;
-    uint8_t width = 0;
-    uint8_t height = 0;
     uint8_t palette = 0;
     std::vector<uint8_t> pixels;
-    uint64_t transparentPixels = 0;
 };
 
 struct PackedLevel {
@@ -102,6 +112,7 @@ struct PackedRule {
     uint16_t firstPattern = 0;
     uint8_t patternCount = 0;
     uint8_t direction = 0;
+    uint8_t activeInputsMask = 0x3fU;
     uint8_t commands = 0;
     uint8_t firstSound = 0;
     uint8_t soundCount = 0;
@@ -112,6 +123,8 @@ struct PackedGroup {
     uint16_t firstRule = 0;
     uint16_t ruleCount = 0;
     int16_t loopTarget = -1;
+    uint16_t inputLayout = 0U;
+    bool singlePassSafe = false;
 };
 
 struct MovementLayout {
@@ -139,6 +152,111 @@ struct PackedAudio {
         namedSoundIds.fill(PS_GBC_NO_SOUND);
     }
 };
+
+struct PackedComposition {
+    uint32_t objects = 0U;
+    uint8_t palette = 0U;
+    std::array<uint8_t, 64> tileBytes{};
+};
+
+std::vector<PackedComposition> packPrecomposedCompositions(
+    const std::vector<PackedObject>& objects,
+    const std::vector<PackedLevel>& levels,
+    const std::array<uint8_t, 256>& paletteRemap,
+    uint32_t backgroundMask
+) {
+    struct Candidate {
+        uint32_t objects = 0U;
+        size_t count = 0U;
+        size_t firstSeen = 0U;
+    };
+    static constexpr std::array<uint8_t, 16> kSourceCoordinate = {
+        0U, 0U, 0U, 1U, 1U, 1U, 2U, 2U,
+        2U, 2U, 3U, 3U, 3U, 4U, 4U, 4U
+    };
+    std::vector<Candidate> candidates;
+    size_t sequence = 0U;
+    const auto observe = [&](uint32_t mask) {
+        const auto found = std::find_if(
+            candidates.begin(), candidates.end(),
+            [mask](const Candidate& candidate) {
+                return candidate.objects == mask;
+            });
+        if (found == candidates.end()) {
+            candidates.push_back({mask, 1U, sequence++});
+        } else {
+            ++found->count;
+        }
+    };
+    for (const PackedLevel& level : levels) {
+        if (level.message) continue;
+        for (const uint32_t cell : level.cells) observe(cell);
+    }
+    observe(backgroundMask);
+    std::stable_sort(
+        candidates.begin(), candidates.end(),
+        [](const Candidate& left, const Candidate& right) {
+            if (left.count != right.count) return left.count > right.count;
+            if (left.firstSeen != right.firstSeen) {
+                return left.firstSeen < right.firstSeen;
+            }
+            return left.objects < right.objects;
+        });
+    if (candidates.size() > kMaxPrecomposedCompositions) {
+        candidates.resize(kMaxPrecomposedCompositions);
+    }
+
+    std::vector<size_t> renderOrder(objects.size());
+    for (size_t index = 0U; index < renderOrder.size(); ++index) {
+        renderOrder[index] = index;
+    }
+    std::stable_sort(
+        renderOrder.begin(), renderOrder.end(), [&](size_t left, size_t right) {
+            return objects[left].layer < objects[right].layer;
+        });
+
+    std::vector<PackedComposition> result;
+    result.reserve(candidates.size());
+    for (const Candidate& candidate : candidates) {
+        PackedComposition composition;
+        std::array<uint8_t, 25> sourcePixels{};
+        composition.objects = candidate.objects;
+        for (const size_t objectIndex : renderOrder) {
+            const PackedObject& object = objects[objectIndex];
+            bool drew = false;
+            if ((candidate.objects & (uint32_t{1} << objectIndex)) == 0U) {
+                continue;
+            }
+            for (size_t pixel = 0U; pixel < sourcePixels.size(); ++pixel) {
+                if (object.pixels[pixel] == 0xffU) continue;
+                sourcePixels[pixel] = object.pixels[pixel];
+                drew = true;
+            }
+            if (drew) composition.palette = object.palette;
+        }
+        for (size_t renderedY = 0U; renderedY < 16U; ++renderedY) {
+            const size_t sourceY = kSourceCoordinate[renderedY];
+            const size_t tileY = renderedY >> 3U;
+            const size_t tileRow = renderedY & 7U;
+            for (size_t renderedX = 0U; renderedX < 16U; ++renderedX) {
+                const size_t sourceX = kSourceCoordinate[renderedX];
+                const uint8_t source = sourcePixels[sourceY * 5U + sourceX];
+                const uint8_t color = paletteRemap[
+                    static_cast<size_t>(composition.palette) * 32U + source];
+                const size_t tileX = renderedX >> 3U;
+                const size_t tileColumn = renderedX & 7U;
+                const size_t destination =
+                    (tileY * 2U + tileX) * 16U + tileRow * 2U;
+                composition.tileBytes[destination] |= static_cast<uint8_t>(
+                    (color & 1U) << (7U - tileColumn));
+                composition.tileBytes[destination + 1U] |= static_cast<uint8_t>(
+                    ((color >> 1U) & 1U) << (7U - tileColumn));
+            }
+        }
+        result.push_back(composition);
+    }
+    return result;
+}
 
 std::string readFile(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
@@ -593,6 +711,141 @@ uint32_t maskWord(const Game& game, MaskOffset offset) {
         static_cast<MaskWordUnsigned>(game.maskArena[static_cast<size_t>(offset)]));
 }
 
+uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer);
+
+struct RuleFlowSummary {
+    uint32_t readObjectsPresent = 0U;
+    uint32_t readObjectsMissing = 0U;
+    uint32_t writeObjectsPresent = 0U;
+    uint32_t writeObjectsMissing = 0U;
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> readMovementsPresent{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> readMovementsMissing{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> writeMovementsPresent{};
+    std::array<uint8_t, PS_GBC_MAX_OBJECTS> writeMovementsMissing{};
+};
+
+RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
+    RuleFlowSummary result;
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) continue;
+            const uint32_t lhsPresent = maskWord(game, pattern.objectsPresent);
+            const uint32_t lhsMissing = maskWord(game, pattern.objectsMissing);
+            result.readObjectsPresent |= lhsPresent;
+            result.readObjectsMissing |= lhsMissing;
+
+            for (const ObjectDef& object : game.objectsById) {
+                if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
+                const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
+                if ((lhsPresent & objectBit) == 0U) continue;
+                result.readMovementsPresent[static_cast<size_t>(object.id)] |=
+                    sourceMovementLayerBits(game, pattern.movementsPresent, object.layer);
+                result.readMovementsMissing[static_cast<size_t>(object.id)] |=
+                    sourceMovementLayerBits(game, pattern.movementsMissing, object.layer);
+            }
+
+            if (!pattern.replacement.has_value()) continue;
+            const Replacement& replacement = *pattern.replacement;
+            const uint32_t objectsClear = maskWord(game, replacement.objectsClear);
+            const uint32_t objectsSet = maskWord(game, replacement.objectsSet);
+            result.writeObjectsPresent |= objectsSet & ~lhsPresent;
+
+            for (const ObjectDef& object : game.objectsById) {
+                if (object.id < 0 || object.id >= PS_GBC_MAX_OBJECTS) continue;
+                const uint32_t objectBit = 1UL << static_cast<uint8_t>(object.id);
+                const uint32_t layerMask = object.layer >= 0
+                        && static_cast<size_t>(object.layer) < game.layerMaskOffsets.size()
+                    ? maskWord(
+                        game,
+                        game.layerMaskOffsets[static_cast<size_t>(object.layer)])
+                    : objectBit;
+                const uint32_t lhsLayerObjects = lhsPresent & layerMask;
+                if ((objectsClear & objectBit) != 0U
+                    && (objectsSet & objectBit) == 0U
+                    && (lhsMissing & objectBit) == 0U
+                    && (lhsLayerObjects == 0U
+                        || (lhsLayerObjects & objectBit) != 0U)) {
+                    result.writeObjectsMissing |= objectBit;
+                }
+
+                if ((objectsSet & objectBit) == 0U) continue;
+                const uint8_t rhsMovement = sourceMovementLayerBits(
+                    game,
+                    replacement.movementsSet,
+                    object.layer);
+                const uint8_t lhsMovement = (lhsPresent & objectBit) != 0U
+                    ? sourceMovementLayerBits(
+                        game,
+                        pattern.movementsPresent,
+                        object.layer)
+                    : 0U;
+                const uint8_t lhsMovementMissing = (lhsPresent & objectBit) != 0U
+                    ? sourceMovementLayerBits(
+                        game,
+                        pattern.movementsMissing,
+                        object.layer)
+                    : 0U;
+                const uint8_t movementClear = static_cast<uint8_t>(
+                    sourceMovementLayerBits(
+                        game,
+                        replacement.movementsClear,
+                        object.layer)
+                    | sourceMovementLayerBits(
+                        game,
+                        replacement.movementsLayerMask,
+                        object.layer));
+                result.writeMovementsPresent[static_cast<size_t>(object.id)] |=
+                    static_cast<uint8_t>(rhsMovement & ~lhsMovement);
+                result.writeMovementsMissing[static_cast<size_t>(object.id)] |=
+                    static_cast<uint8_t>(
+                        movementClear & ~rhsMovement & ~lhsMovementMissing);
+            }
+        }
+    }
+    return result;
+}
+
+bool groupSinglePassSafe(
+    const Game& game,
+    const std::vector<Rule>& group
+) {
+    if (group.empty()) return false;
+    for (const Rule& rule : group) {
+        const bool hasSemanticCommand = std::any_of(
+            rule.commands.begin(),
+            rule.commands.end(),
+            [](const RuleCommand& command) {
+                return command.name.rfind("sfx", 0U) != 0U;
+            });
+        if (rule.isRandom || rule.rigid || rule.forceAlwaysRun
+            || hasSemanticCommand) return false;
+    }
+    std::vector<RuleFlowSummary> flows;
+    flows.reserve(group.size());
+    for (const Rule& rule : group) flows.push_back(summarizeRuleFlow(game, rule));
+    for (size_t writerIndex = 0U; writerIndex < group.size(); ++writerIndex) {
+        const RuleFlowSummary& writer = flows[writerIndex];
+        for (size_t readerIndex = 0U; readerIndex <= writerIndex; ++readerIndex) {
+            const RuleFlowSummary& reader = flows[readerIndex];
+            if ((writer.writeObjectsPresent & reader.readObjectsPresent) != 0U
+                || (writer.writeObjectsMissing & reader.readObjectsMissing) != 0U) {
+                return false;
+            }
+            for (size_t object = 0U;
+                 object < writer.writeMovementsPresent.size();
+                 ++object) {
+                if ((writer.writeMovementsPresent[object]
+                        & reader.readMovementsPresent[object]) != 0U
+                    || (writer.writeMovementsMissing[object]
+                        & reader.readMovementsMissing[object]) != 0U) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer) {
     if (offset == kNullMaskOffset || layer < 0
         || static_cast<size_t>(offset) >= game.maskArena.size()) return 0U;
@@ -771,6 +1024,38 @@ uint8_t commandFlags(const Game& game, const Rule& rule, std::string& message, P
     return flags;
 }
 
+uint16_t groupInputLayout(const std::vector<Rule>& group) {
+    const auto matchesBlocks = [&](std::initializer_list<uint8_t> masks) {
+        if (group.empty() || group.size() % masks.size() != 0U) return false;
+        const size_t blockSize = group.size() / masks.size();
+        size_t ruleIndex = 0U;
+        for (const uint8_t mask : masks) {
+            for (size_t offset = 0U; offset < blockSize; ++offset, ++ruleIndex) {
+                if (group[ruleIndex].activeInputsMask != mask) return false;
+            }
+        }
+        return true;
+    };
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_UP,
+            uint8_t{1} << PS_INPUT_DOWN,
+            uint8_t{1} << PS_INPUT_LEFT,
+            uint8_t{1} << PS_INPUT_RIGHT})) {
+        return PS_GBC_RULE_GROUP_INPUT_QUARTET;
+    }
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_UP,
+            uint8_t{1} << PS_INPUT_DOWN})) {
+        return PS_GBC_RULE_GROUP_INPUT_VERTICAL;
+    }
+    if (matchesBlocks({
+            uint8_t{1} << PS_INPUT_LEFT,
+            uint8_t{1} << PS_INPUT_RIGHT})) {
+        return PS_GBC_RULE_GROUP_INPUT_HORIZONTAL;
+    }
+    return 0U;
+}
+
 PackedPattern packPattern(
     const Game& game,
     const Pattern& pattern,
@@ -815,6 +1100,45 @@ PackedPattern packPattern(
     return packed;
 }
 
+bool samePattern(const PackedPattern& left, const PackedPattern& right) {
+    return left.objectsPresent == right.objectsPresent
+        && left.objectsMissing == right.objectsMissing
+        && left.movementsPresent == right.movementsPresent
+        && left.movementsMissing == right.movementsMissing
+        && left.objectsClear == right.objectsClear
+        && left.objectsSet == right.objectsSet
+        && left.movementsClear == right.movementsClear
+        && left.movementsSet == right.movementsSet
+        && left.movementLayerMask == right.movementLayerMask
+        && left.flags == right.flags;
+}
+
+uint16_t internPatternSequence(
+    std::vector<PackedPattern>& patterns,
+    const std::vector<PackedPattern>& sequence
+) {
+    if (sequence.empty()) {
+        throw std::runtime_error("GBC cannot intern an empty pattern sequence");
+    }
+    for (size_t first = 0U; first + sequence.size() <= patterns.size(); ++first) {
+        bool equal = true;
+        for (size_t index = 0U; index < sequence.size(); ++index) {
+            if (!samePattern(patterns[first + index], sequence[index])) {
+                equal = false;
+                break;
+            }
+        }
+        if (equal) return static_cast<uint16_t>(first);
+    }
+    if (patterns.size() > UINT16_MAX
+        || patterns.size() + sequence.size() > UINT16_MAX) {
+        throw std::runtime_error("GBC pattern table exceeds 16-bit indexes");
+    }
+    const uint16_t first = static_cast<uint16_t>(patterns.size());
+    patterns.insert(patterns.end(), sequence.begin(), sequence.end());
+    return first;
+}
+
 void packGroups(
     const Game& game,
     const std::vector<std::vector<Rule>>& sourceGroups,
@@ -824,16 +1148,20 @@ void packGroups(
     std::vector<PackedRule>& rules,
     std::vector<PackedGroup>& groups,
     PackedAudio& audio,
-    const MovementLayout& movementLayout
+    const MovementLayout& movementLayout,
+    uint32_t alwaysPresentObjects
 ) {
     for (size_t groupIndex = 0; groupIndex < sourceGroups.size(); ++groupIndex) {
         const auto& sourceGroup = sourceGroups[groupIndex];
         PackedGroup group;
-        if (rules.size() > UINT16_MAX || sourceGroup.size() > UINT16_MAX) {
+        if (rules.size() > UINT16_MAX
+            || sourceGroup.size() > PS_GBC_RULE_GROUP_COUNT_MASK) {
             throw std::runtime_error("GBC rule table exceeds 16-bit indexes");
         }
         group.firstRule = static_cast<uint16_t>(rules.size());
         group.ruleCount = static_cast<uint16_t>(sourceGroup.size());
+        group.inputLayout = late ? 0U : groupInputLayout(sourceGroup);
+        group.singlePassSafe = groupSinglePassSafe(game, sourceGroup);
         const auto loopAt = [&](size_t index) -> std::optional<int32_t> {
             if (index >= loopPoints.entries.size()) return std::nullopt;
             return loopPoints.entries[index];
@@ -850,21 +1178,29 @@ void packGroups(
         }
         for (const Rule& sourceRule : sourceGroup) {
             validateRule(sourceRule, late);
-            if (patterns.size() > UINT16_MAX
-                || patterns.size() + sourceRule.patterns.front().size() > UINT16_MAX) {
-                throw std::runtime_error("GBC pattern table exceeds 16-bit indexes");
+            std::vector<PackedPattern> sequence;
+            sequence.reserve(sourceRule.patterns.front().size());
+            for (const Pattern& pattern : sourceRule.patterns.front()) {
+                sequence.push_back(packPattern(game, pattern, movementLayout));
             }
             PackedRule rule;
-            rule.firstPattern = static_cast<uint16_t>(patterns.size());
+            rule.firstPattern = internPatternSequence(patterns, sequence);
             rule.patternCount = static_cast<uint8_t>(sourceRule.patterns.front().size());
             rule.direction = static_cast<uint8_t>(sourceRule.direction);
+            rule.activeInputsMask = sourceRule.activeInputsMask;
             rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
             rule.commands = commandFlags(game, sourceRule, rule.message, audio);
+            const uint32_t firstPatternObjects = maskWord(
+                game, sourceRule.patterns.front().front().objectsPresent);
+            if (game.objectCount <= 16
+                && (firstPatternObjects & maskWord(game, game.playerMask)) != 0U) {
+                rule.commands |= PS_GBC_RULE_PLAYER_CELL_ANCHOR;
+            }
+            if ((firstPatternObjects & ~alwaysPresentObjects) != 0U) {
+                rule.commands |= PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK;
+            }
             rule.soundCount = static_cast<uint8_t>(
                 audio.ruleSoundIds.size() - rule.firstSound);
-            for (const Pattern& pattern : sourceRule.patterns.front()) {
-                patterns.push_back(packPattern(game, pattern, movementLayout));
-            }
             rules.push_back(std::move(rule));
         }
         groups.push_back(group);
@@ -931,7 +1267,12 @@ std::string emitHeader(
     uint8_t objectBytesPerCellValue,
     uint8_t cellWidth,
     uint8_t cellHeight,
-    const PackedAudio& audio
+    size_t renderObjectCount,
+    size_t precomposedCompositionCount,
+    const PackedAudio& audio,
+    size_t ruleMessageCount,
+    size_t presencePrecheckCount,
+    size_t playerAnchorCount
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -947,10 +1288,16 @@ std::string emitHeader(
         << static_cast<unsigned int>(cellHeight) << "U\n\n"
         << "#define PS_GBC_GENERATED_CELL_PIXELS "
         << static_cast<unsigned int>(cellWidth * cellHeight) << "U\n\n"
+        << "#define PS_GBC_GENERATED_RENDER_OBJECT_COUNT "
+        << renderObjectCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT "
+        << precomposedCompositionCount << "U\n\n"
         << "#define PS_GBC_GENERATED_SOUND_COUNT "
         << audio.seeds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_RULE_SOUND_COUNT "
         << audio.ruleSoundIds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_RULE_MESSAGE_COUNT "
+        << ruleMessageCount << "U\n\n"
         << "#define PS_GBC_GENERATED_CREATION_SOUND_COUNT "
         << audio.creationSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_DESTRUCTION_SOUND_COUNT "
@@ -959,9 +1306,60 @@ std::string emitHeader(
         << audio.movementSounds.size() << "U\n\n"
         << "#define PS_GBC_GENERATED_MOVEMENT_FAILURE_SOUND_COUNT "
         << audio.movementFailureSounds.size() << "U\n\n"
+        << "#define PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT "
+        << presencePrecheckCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT "
+        << playerAnchorCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_ABI_VERSION "
+        << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
+        << "#define PS_GBC_GENERATED_PACKED_PATTERNS 1\n\n"
+        << "#define PS_GBC_GENERATED_PATTERN_BYTES "
+        << generatedPatternBytes(objectBytesPerCellValue, movementBytesPerCell)
+        << "U\n\n"
+        << "typedef " << unsignedTypeForBytes(objectBytesPerCellValue)
+        << " ps_gbc_generated_object_mask;\n"
+        << "typedef " << unsignedTypeForBytes(movementBytesPerCell)
+        << " ps_gbc_generated_movement_mask;\n\n"
+        << "typedef struct ps_gbc_generated_pattern {\n"
+        << "    ps_gbc_generated_object_mask objects_present;\n"
+        << "    ps_gbc_generated_object_mask objects_missing;\n"
+        << "    ps_gbc_generated_object_mask objects_clear;\n"
+        << "    ps_gbc_generated_object_mask objects_set;\n"
+        << "    ps_gbc_generated_movement_mask movements_present;\n"
+        << "    ps_gbc_generated_movement_mask movements_missing;\n"
+        << "    ps_gbc_generated_movement_mask movements_clear;\n"
+        << "    ps_gbc_generated_movement_mask movements_set;\n"
+        << "    ps_gbc_generated_movement_mask movement_layer_mask;\n"
+        << "    uint8_t flags;\n"
+        << "} ps_gbc_generated_pattern;\n\n"
+        << "#define PS_GBC_GENERATED_PATTERN_REFERENCE(index) \\\n    {(uint16_t)((uint16_t)(index) \\\n        * (uint16_t)sizeof(ps_gbc_generated_pattern))}\n\n"
+        << "#define PS_GBC_GENERATED_PACKED_RULES 1\n\n"
+        << "#define PS_GBC_GENERATED_RULE_BYTES "
+        << generatedRuleBytes(
+            !audio.ruleSoundIds.empty(), ruleMessageCount != 0U)
+        << "U\n\n"
+        << "typedef struct ps_gbc_generated_rule {\n"
+        << "    ps_gbc_pattern_reference first_pattern;\n"
+        << "    uint8_t pattern_count;\n"
+        << "    uint8_t direction;\n"
+        << "    uint8_t commands;\n"
+        << "#if PS_GBC_GENERATED_RULE_SOUND_COUNT != 0U\n"
+        << "    uint8_t first_sound;\n"
+        << "    uint8_t sound_count;\n"
+        << "#endif\n"
+        << "#if PS_GBC_GENERATED_RULE_MESSAGE_COUNT != 0U\n"
+        << "    const char* message;\n"
+        << "#endif\n"
+        << "} ps_gbc_generated_rule;\n\n"
         << "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
-        << "extern const ps_gbc_game_view ps_gbc_generated_game;\n\n"
+        << "extern const ps_gbc_game_view ps_gbc_generated_game;\n"
+        << "extern const ps_gbc_render_object ps_gbc_generated_render_objects[];\n"
+        << "#if PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT != 0U\n"
+        << "extern const uint32_t ps_gbc_generated_precomposed_masks[];\n"
+        << "extern const uint8_t ps_gbc_generated_precomposed_palettes[];\n"
+        << "extern const uint8_t ps_gbc_generated_precomposed_tiles[];\n"
+        << "#endif\n\n"
         << "#ifdef __cplusplus\n}\n#endif\n\n#endif\n";
     return out.str();
 }
@@ -994,6 +1392,7 @@ std::string emitSource(
     const std::array<uint16_t, 4>& uiPalette,
     const MovementLayout& movementLayout,
     const std::vector<PackedObject>& objects,
+    const std::vector<PackedComposition>& precomposedCompositions,
     const std::vector<PackedLevel>& levels,
     const std::vector<PackedPattern>& patterns,
     const std::vector<PackedRule>& rules,
@@ -1009,6 +1408,11 @@ std::string emitSource(
     uint8_t objectBytesPerCellValue
 ) {
     std::ostringstream out;
+    const bool hasRuleAudio = !audio.ruleSoundIds.empty();
+    const bool hasRuleMessages = std::any_of(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return !rule.message.empty();
+        });
     out << "/* Generated by puzzlescript_cpp export-gbc. Do not edit. */\n"
         << "#if defined(__SDCC)\n#pragma bank 1\n#endif\n"
         << "#include \"generated_game.h\"\n\n";
@@ -1054,15 +1458,48 @@ std::string emitSource(
     out << "\nstatic const ps_gbc_object kObjects[] = {\n";
     for (size_t index = 0; index < objects.size(); ++index) {
         const PackedObject& object = objects[index];
-        out << "    {" << escapedString(object.name) << ", "
-            << static_cast<unsigned int>(object.layer) << "U, "
-            << static_cast<unsigned int>(object.movementLayer) << "U, "
-            << static_cast<unsigned int>(object.width) << "U, "
-            << static_cast<unsigned int>(object.height) << "U, "
-            << static_cast<unsigned int>(object.palette) << "U, kObject" << index
-            << "Pixels, 0x" << std::hex << object.transparentPixels << "ULL" << std::dec << "},\n";
+        out << "    {" << static_cast<unsigned int>(object.layer) << "U, "
+            << static_cast<unsigned int>(object.movementLayer) << "U},\n";
+    }
+    std::vector<size_t> renderOrder(objects.size());
+    for (size_t index = 0U; index < renderOrder.size(); ++index) {
+        renderOrder[index] = index;
+    }
+    std::stable_sort(
+        renderOrder.begin(), renderOrder.end(), [&](size_t left, size_t right) {
+            return objects[left].layer < objects[right].layer;
+        });
+    out << "};\n\nconst ps_gbc_render_object ps_gbc_generated_render_objects[] = {\n";
+    for (const size_t index : renderOrder) {
+        out << "    {0x" << std::hex << (uint32_t{1} << index) << "U, kObject"
+            << std::dec << index << "Pixels, "
+            << static_cast<unsigned int>(objects[index].palette) << "U},\n";
     }
     out << "};\n\n";
+    if (!precomposedCompositions.empty()) {
+        out << "const uint32_t ps_gbc_generated_precomposed_masks[] = {";
+        for (size_t index = 0U; index < precomposedCompositions.size(); ++index) {
+            if (index != 0U) out << ", ";
+            out << "0x" << std::hex << precomposedCompositions[index].objects
+                << "U" << std::dec;
+        }
+        out << "};\nconst uint8_t ps_gbc_generated_precomposed_palettes[] = {";
+        for (size_t index = 0U; index < precomposedCompositions.size(); ++index) {
+            if (index != 0U) out << ", ";
+            out << static_cast<unsigned int>(precomposedCompositions[index].palette)
+                << "U";
+        }
+        out << "};\nconst uint8_t ps_gbc_generated_precomposed_tiles[] = {";
+        bool wroteTile = false;
+        for (const PackedComposition& composition : precomposedCompositions) {
+            for (const uint8_t byte : composition.tileBytes) {
+                if (wroteTile) out << ", ";
+                out << static_cast<unsigned int>(byte) << "U";
+                wroteTile = true;
+            }
+        }
+        out << "};\n\n";
+    }
     const char* levelCellType = objectBytesPerCellValue == 1U ? "uint8_t"
         : objectBytesPerCellValue == 2U ? "uint16_t" : "uint32_t";
     for (size_t index = 0; index < levels.size(); ++index) {
@@ -1083,34 +1520,74 @@ std::string emitSource(
             << (level.message ? "NULL" : "kLevel" + std::to_string(index) + "Cells")
             << ", " << (level.message ? escapedString(level.messageText) : "NULL") << "},\n";
     }
-    out << "};\n\nstatic const ps_gbc_pattern kPatterns[] = {\n";
+    out << "};\n\nstatic const ps_gbc_generated_pattern kPatterns[] = {\n";
     if (patterns.empty()) out << "    {0},\n";
     for (const PackedPattern& pattern : patterns) {
         out << "    {0x" << std::hex << pattern.objectsPresent << "U, 0x"
-            << pattern.objectsMissing << "U, 0x" << pattern.movementsPresent
-            << "U, 0x" << pattern.movementsMissing << "U, 0x"
-            << pattern.objectsClear << "U, 0x" << pattern.objectsSet
+            << pattern.objectsMissing << "U, 0x" << pattern.objectsClear
+            << "U, 0x" << pattern.objectsSet << "U, 0x"
+            << pattern.movementsPresent << "U, 0x" << pattern.movementsMissing
             << "U, 0x" << pattern.movementsClear << "U, 0x"
             << pattern.movementsSet << "U, 0x" << pattern.movementLayerMask
             << "U, " << std::dec << static_cast<unsigned int>(pattern.flags) << "U},\n";
     }
-    out << "};\n\nstatic const ps_gbc_rule kRules[] = {\n";
+    out << "};\n\nstatic const ps_gbc_generated_rule kRules[] = {\n";
     if (rules.empty()) out << "    {0},\n";
     for (const PackedRule& rule : rules) {
-        out << "    {" << rule.firstPattern << "U, "
+        out << "    {PS_GBC_GENERATED_PATTERN_REFERENCE(" << rule.firstPattern << "U), "
             << static_cast<unsigned int>(rule.patternCount) << "U, "
-            << static_cast<unsigned int>(rule.direction) << "U, "
-            << static_cast<unsigned int>(rule.commands) << "U, "
-            << static_cast<unsigned int>(rule.firstSound) << "U, "
-            << static_cast<unsigned int>(rule.soundCount) << "U, "
-            << (rule.message.empty() ? "NULL" : escapedString(rule.message)) << "},\n";
+            << static_cast<unsigned int>(rule.direction) << "U, ";
+        const uint8_t ruleMetadata = static_cast<uint8_t>(
+            rule.commands & (PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK
+                | PS_GBC_RULE_PLAYER_CELL_ANCHOR));
+        const uint8_t commands = static_cast<uint8_t>(rule.commands & ~ruleMetadata);
+        if (ruleMetadata != 0U) {
+            out << "(" << static_cast<unsigned int>(commands) << "U";
+            if ((ruleMetadata & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U) {
+                out << " | PS_GBC_RULE_PLAYER_CELL_ANCHOR";
+            }
+            if ((ruleMetadata & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U) {
+                out << " | PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK";
+            }
+            out << ")";
+        } else {
+            out << static_cast<unsigned int>(rule.commands) << "U";
+        }
+        if (hasRuleAudio) {
+            out << ", " << static_cast<unsigned int>(rule.firstSound) << "U, "
+                << static_cast<unsigned int>(rule.soundCount) << "U";
+        }
+        if (hasRuleMessages) {
+            out << ", "
+                << (rule.message.empty() ? "NULL" : escapedString(rule.message));
+        }
+        out << "},\n";
     }
     out << "};\n\n";
     const auto emitGroups = [&](const char* name, const std::vector<PackedGroup>& groups) {
         out << "static const ps_gbc_rule_group " << name << "[] = {\n";
         if (groups.empty()) out << "    {0},\n";
         for (const PackedGroup& group : groups) {
-            out << "    {" << group.firstRule << "U, " << group.ruleCount << "U, "
+            out << "    {" << group.firstRule << "U, ";
+            if (!group.singlePassSafe && group.inputLayout == 0U) {
+                out << group.ruleCount << "U, ";
+            } else {
+                out << "(" << group.ruleCount << "U";
+                if (group.inputLayout != 0U) {
+                    if (group.inputLayout == PS_GBC_RULE_GROUP_INPUT_QUARTET) {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_QUARTET";
+                    } else if (group.inputLayout == PS_GBC_RULE_GROUP_INPUT_VERTICAL) {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_VERTICAL";
+                    } else {
+                        out << " | PS_GBC_RULE_GROUP_INPUT_HORIZONTAL";
+                    }
+                }
+                if (group.singlePassSafe) {
+                    out << " | PS_GBC_RULE_GROUP_SINGLE_PASS";
+                }
+                out << "), ";
+            }
+            out
                 << group.loopTarget << "},\n";
         }
         out << "};\n\n";
@@ -1129,7 +1606,8 @@ std::string emitSource(
     const uint32_t backgroundMask = game.backgroundId >= 0 && game.backgroundId < 32
         ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId) : 0U;
     out << "};\n\nconst ps_gbc_game_view ps_gbc_generated_game = {\n"
-        << "    PS_GBC_GAME_ABI_VERSION, 0x" << std::hex << hash << "U" << std::dec << ",\n"
+        << "    " << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION)
+        << "U, 0x" << std::hex << hash << "U" << std::dec << ",\n"
         << "    " << escapedString(metadataValue(game, "title", "PuzzleScript Game")) << ", "
         << escapedString(metadataValue(game, "author", "")) << ",\n"
         << "    " << game.objectCount << "U, " << game.layerCount << "U, "
@@ -1152,7 +1630,8 @@ std::string emitSource(
         << audio.movementFailureSounds.size() << "U,\n"
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
-           "kPatterns, kRules, kEarlyGroups, kLateGroups,\n"
+           "(const ps_gbc_pattern*)kPatterns, (const ps_gbc_rule*)kRules, "
+           "kEarlyGroups, kLateGroups,\n"
         << "    kWinConditions, kSoundSeeds, kNamedSoundIds, kRuleSoundIds,\n"
         << "    kCreationSounds, kDestructionSounds, kMovementSounds, "
            "kMovementFailureSounds,\n"
@@ -1326,21 +1805,20 @@ ExportResult exportGame(const ExportOptions& options) {
             }
         }
         PackedObject object;
-        object.name = sourceObject.name;
         object.layer = static_cast<uint8_t>(sourceObject.layer);
         const int8_t movementLayer =
             movementLayout.collisionToMovement[static_cast<size_t>(sourceObject.layer)];
         object.movementLayer = movementLayer < 0
             ? PS_GBC_NO_MOVEMENT_LAYER : static_cast<uint8_t>(movementLayer);
-        object.width = static_cast<uint8_t>(width);
-        object.height = static_cast<uint8_t>(height);
         object.palette = paletteIndex;
-        std::vector<uint8_t> sourcePixels;
-        uint64_t sourceTransparentPixels = 0U;
-        for (const auto& row : sourceObject.sprite) {
+        object.pixels.assign(25U, 0xffU);
+        const size_t offsetX = (5U - width) / 2U;
+        const size_t offsetY = (5U - height) / 2U;
+        for (size_t sourceY = 0U; sourceY < height; ++sourceY) {
+            const auto& row = sourceObject.sprite[sourceY];
             if (row.size() != width) throw std::runtime_error("GBC requires rectangular object sprites");
-            for (const int32_t colorIndex : row) {
-                const size_t pixel = sourcePixels.size();
+            for (size_t sourceX = 0U; sourceX < width; ++sourceX) {
+                const int32_t colorIndex = row[sourceX];
                 bool transparent = colorIndex < 0;
                 uint16_t color = backgroundColor;
                 if (!transparent) {
@@ -1350,16 +1828,13 @@ ExportResult exportGame(const ExportOptions& options) {
                     transparent = transparentColors[static_cast<size_t>(colorIndex)];
                     color = sourceColors[static_cast<size_t>(colorIndex)];
                 }
-                if (transparent) sourceTransparentPixels |= uint64_t{1} << pixel;
-                sourcePixels.push_back(static_cast<uint8_t>(
-                    paletteIndex * 4U + nearestColor(palettes[paletteIndex], color)));
-            }
-        }
-        object.pixels = std::move(sourcePixels);
-        object.transparentPixels = sourceTransparentPixels;
-        for (size_t pixel = 0; pixel < object.pixels.size(); ++pixel) {
-            if ((sourceTransparentPixels & (uint64_t{1} << pixel)) != 0U) {
-                object.pixels[pixel] = 0xffU;
+                if (!transparent) {
+                    const size_t destination = (sourceY + offsetY) * 5U
+                        + sourceX + offsetX;
+                    object.pixels[destination] = static_cast<uint8_t>(
+                        paletteIndex * 4U
+                        + nearestColor(palettes[paletteIndex], color));
+                }
             }
         }
         objects.push_back(std::move(object));
@@ -1386,6 +1861,9 @@ ExportResult exportGame(const ExportOptions& options) {
     uint16_t maxCells = 0U;
     uint16_t maxBoardWidth = 0U;
     uint16_t maxBoardHeight = 0U;
+    uint32_t alwaysPresentObjects = game.objectCount == 32
+        ? UINT32_MAX
+        : (uint32_t{1} << static_cast<uint32_t>(game.objectCount)) - 1U;
     for (size_t sourceLevelIndex = 0U;
          sourceLevelIndex < game.levels.size();
          ++sourceLevelIndex) {
@@ -1424,10 +1902,13 @@ ExportResult exportGame(const ExportOptions& options) {
             maxBoardHeight = std::max(maxBoardHeight, level.height);
             maxCells = std::max(maxCells, static_cast<uint16_t>(cells));
             level.cells.resize(cells);
+            uint32_t levelPresentObjects = 0U;
             for (size_t cell = 0; cell < cells; ++cell) {
                 level.cells[cell] = static_cast<uint32_t>(
                     static_cast<MaskWordUnsigned>(sourceLevel.objects[cell * game.wordCount]));
+                levelPresentObjects |= level.cells[cell];
             }
+            alwaysPresentObjects &= levelPresentObjects;
         }
         levels.push_back(std::move(level));
     }
@@ -1455,16 +1936,45 @@ ExportResult exportGame(const ExportOptions& options) {
     std::vector<PackedRule> rules;
     std::vector<PackedGroup> earlyGroups;
     std::vector<PackedGroup> lateGroups;
+    const auto sourcePatternCountFor = [](const auto& sourceGroups) {
+        size_t count = 0U;
+        for (const auto& group : sourceGroups) {
+            for (const Rule& rule : group) {
+                if (!rule.patterns.empty()) count += rule.patterns.front().size();
+            }
+        }
+        return count;
+    };
+    const size_t sourcePatternCount =
+        sourcePatternCountFor(game.rules) + sourcePatternCountFor(game.lateRules);
     PackedAudio audio = packAudio(game, movementLayout);
     packGroups(
         game, game.rules, game.loopPoint, false, patterns, rules, earlyGroups,
-        audio, movementLayout);
+        audio, movementLayout, alwaysPresentObjects);
     packGroups(
         game, game.lateRules, game.lateLoopPoint, true, patterns, rules, lateGroups,
-        audio, movementLayout);
+        audio, movementLayout, alwaysPresentObjects);
     if (patterns.size() > UINT16_MAX || rules.size() > UINT16_MAX) {
         throw std::runtime_error("GBC rule data exceeds 16-bit table indexes");
     }
+    const size_t ruleMessageCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return !rule.message.empty();
+        }));
+    const size_t presencePrecheckCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return (rule.commands & PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK) != 0U;
+        }));
+    const size_t playerAnchorCount = static_cast<size_t>(std::count_if(
+        rules.begin(), rules.end(), [](const PackedRule& rule) {
+            return (rule.commands & PS_GBC_RULE_PLAYER_CELL_ANCHOR) != 0U;
+        }));
+    const uint32_t backgroundMask =
+        game.backgroundId >= 0 && game.backgroundId < 32
+            ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId)
+            : 0U;
+    std::vector<PackedComposition> precomposedCompositions =
+        packPrecomposedCompositions(objects, levels, remap, backgroundMask);
 
     const auto requiredBytesForUndo = [&](uint8_t undo) {
         (void)undo;
@@ -1472,27 +1982,33 @@ ExportResult exportGame(const ExportOptions& options) {
             + static_cast<size_t>(maxCells) * objectCellBytes;
         bytes = align4(bytes);
         return bytes + static_cast<size_t>(maxCells) * movementLayout.bytesPerCell
-            + 2U * ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
+            + (playerAnchorCount == 0U ? 0U : maxCells)
+            + ((static_cast<size_t>(maxCells) + 7U) / 8U) + 3U;
     };
     const uint8_t undoCapacity = PS_GBC_MAX_UNDO;
     const size_t sessionBytes = requiredBytesForUndo(undoCapacity);
     if (sessionBytes > kSessionLimit) {
         throw std::runtime_error("GBC hot session cannot fit in the 4 KiB WRAM budget");
     }
+    const size_t patternRecordBytes =
+        generatedPatternBytes(objectCellBytes, movementLayout.bytesPerCell);
+    const size_t ruleRecordBytes = generatedRuleBytes(
+        !audio.ruleSoundIds.empty(), ruleMessageCount != 0U);
     size_t estimatedGameBankBytes = 36U * sizeof(uint16_t) + 256U
         + game.layerMaskOffsets.size() * sizeof(uint32_t)
         + movementLayout.movementToCollision.size();
     estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_object);
     for (const PackedObject& object : objects) {
-        estimatedGameBankBytes += object.pixels.size() + object.name.size() + 1U;
+        estimatedGameBankBytes += object.pixels.size();
     }
+    estimatedGameBankBytes += objects.size() * sizeof(ps_gbc_render_object);
     estimatedGameBankBytes += levels.size() * sizeof(ps_gbc_level);
     for (const PackedLevel& level : levels) {
         estimatedGameBankBytes += level.cells.size() * objectCellBytes
             + level.messageText.size() + 1U;
     }
-    estimatedGameBankBytes += patterns.size() * sizeof(ps_gbc_pattern);
-    estimatedGameBankBytes += rules.size() * sizeof(ps_gbc_rule);
+    estimatedGameBankBytes += patterns.size() * patternRecordBytes;
+    estimatedGameBankBytes += rules.size() * ruleRecordBytes;
     for (const PackedRule& rule : rules) estimatedGameBankBytes += rule.message.size() + 1U;
     estimatedGameBankBytes += (earlyGroups.size() + lateGroups.size())
         * sizeof(ps_gbc_rule_group);
@@ -1509,6 +2025,14 @@ ExportResult exportGame(const ExportOptions& options) {
         throw std::runtime_error(
             "GBC generated game data exceeds the conservative 14 KiB switchable-ROM-bank budget");
     }
+    const size_t precomposedEntryBytes = sizeof(uint32_t) + sizeof(uint8_t) + 64U;
+    const size_t availablePrecomposedEntries =
+        (kGeneratedRomBankLimit - estimatedGameBankBytes) / precomposedEntryBytes;
+    if (precomposedCompositions.size() > availablePrecomposedEntries) {
+        precomposedCompositions.resize(availablePrecomposedEntries);
+    }
+    estimatedGameBankBytes +=
+        precomposedCompositions.size() * precomposedEntryBytes;
 
     ExportResult result;
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
@@ -1521,21 +2045,56 @@ ExportResult exportGame(const ExportOptions& options) {
             objectCellBytes,
             cellWidth,
             cellHeight,
-            audio));
+            objects.size(),
+            precomposedCompositions.size(),
+            audio,
+            ruleMessageCount,
+            presencePrecheckCount,
+            playerAnchorCount));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
-        game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects, levels,
-        patterns, rules, earlyGroups, lateGroups, audio, static_cast<uint8_t>(viewportWidth),
+        game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
+        precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
+        static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
+    const auto singlePassCount = [](const std::vector<PackedGroup>& groups) {
+        return static_cast<size_t>(std::count_if(
+            groups.begin(),
+            groups.end(),
+            [](const PackedGroup& group) { return group.singlePassSafe; }));
+    };
+    const size_t earlySinglePassGroups = singlePassCount(earlyGroups);
+    const size_t lateSinglePassGroups = singlePassCount(lateGroups);
+    const size_t inputSpecializedGroups = static_cast<size_t>(std::count_if(
+        earlyGroups.begin(),
+        earlyGroups.end(),
+        [](const PackedGroup& group) { return group.inputLayout != 0U; }));
+    std::array<size_t, 6> activeEarlyRulesByInput{};
+    size_t earlyRuleCount = 0U;
+    for (const PackedGroup& group : earlyGroups) earlyRuleCount += group.ruleCount;
+    for (size_t ruleIndex = 0U; ruleIndex < earlyRuleCount; ++ruleIndex) {
+        for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
+            if ((rules[ruleIndex].activeInputsMask & (uint8_t{1} << input)) != 0U) {
+                ++activeEarlyRulesByInput[input];
+            }
+        }
+    }
     std::ostringstream manifest;
     manifest << "{\n"
         << "  \"format\": \"puzzlescript-gbc-v1\",\n"
+        << "  \"abi_version\": " << PS_GBC_GAME_ABI_VERSION << ",\n"
         << "  \"source\": " << jsonString(options.sourcePath.generic_string()) << ",\n"
         << "  \"source_hash\": " << sourceHash(source) << ",\n"
         << "  \"runtime_profile\": \"bounded_interpreter_c\",\n"
         << "  \"cgb_only\": true,\n"
         << "  \"object_count\": " << game.objectCount << ",\n"
+        << "  \"render_object_count\": " << objects.size() << ",\n"
+        << "  \"render_sprite_bytes\": " << (objects.size() * 25U) << ",\n"
+        << "  \"precomposed_composition_count\": "
+        << precomposedCompositions.size() << ",\n"
+        << "  \"precomposed_composition_bytes\": "
+        << (precomposedCompositions.size() * precomposedEntryBytes) << ",\n"
         << "  \"collision_layer_count\": " << game.layerCount << ",\n"
         << "  \"movement_layer_count\": " << movementLayout.movementToCollision.size() << ",\n"
         << "  \"movement_bytes_per_cell\": "
@@ -1565,7 +2124,37 @@ ExportResult exportGame(const ExportOptions& options) {
                 ? "true" : "false")
         << ",\n"
         << "  \"rule_count\": " << rules.size() << ",\n"
+        << "  \"rule_record_bytes\": " << ruleRecordBytes << ",\n"
         << "  \"pattern_count\": " << patterns.size() << ",\n"
+        << "  \"pattern_record_bytes\": " << patternRecordBytes << ",\n"
+        << "  \"source_pattern_count\": " << sourcePatternCount << ",\n"
+        << "  \"shared_pattern_record_count\": "
+        << (sourcePatternCount - patterns.size()) << ",\n"
+        << "  \"single_pass_group_count\": "
+        << (earlySinglePassGroups + lateSinglePassGroups) << ",\n"
+        << "  \"early_single_pass_group_count\": "
+        << earlySinglePassGroups << ",\n"
+        << "  \"late_single_pass_group_count\": "
+        << lateSinglePassGroups << ",\n"
+        << "  \"input_specialized_group_count\": "
+        << inputSpecializedGroups << ",\n"
+        << "  \"object_presence_precheck_rule_count\": "
+        << presencePrecheckCount << ",\n"
+        << "  \"player_cell_anchor_rule_count\": "
+        << playerAnchorCount << ",\n"
+        << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
+        << "  \"active_early_rules_by_input\": [";
+    for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {
+        if (input != 0U) manifest << ", ";
+        manifest << activeEarlyRulesByInput[input];
+    }
+    manifest << "],\n"
+        << "  \"early_rule_active_input_masks\": [";
+    for (size_t ruleIndex = 0U; ruleIndex < earlyRuleCount; ++ruleIndex) {
+        if (ruleIndex != 0U) manifest << ", ";
+        manifest << static_cast<unsigned int>(rules[ruleIndex].activeInputsMask);
+    }
+    manifest << "],\n"
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"

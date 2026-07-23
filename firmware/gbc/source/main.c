@@ -2,6 +2,7 @@
 #include <gb/gb.h>
 
 #include "audio.h"
+#include "frontend_flow.h"
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
@@ -22,6 +23,7 @@
 #define PERF_MAGIC 0x46434250UL
 #define PERF_PHASE_MAGIC 0x32434250UL
 #define PERF_INTERACTION_MAGIC 0x49434250UL
+#define PERF_SCHEDULE_MAGIC 0x53434250UL
 #define FRAME_DUMP_MAGIC 0x46474250UL
 #define PERF_ITERATIONS 128U
 #define PERF_RENDER_ITERATIONS 4U
@@ -42,9 +44,9 @@ static uint8_t gSessionArena[PS_GBC_GENERATED_SESSION_BYTES];
 uint8_t gTileBytes[64];
 uint8_t gTileMap[SCREEN_TILES];
 uint8_t gAttributes[SCREEN_TILES];
-uint8_t gSourcePixels[64];
+uint8_t gSourcePixels[PS_GBC_SOURCE_PIXEL_BUFFER_BYTES];
 ps_gbc_session* gSession;
-static bool gTitleScreen;
+static ps_gbc_frontend gFrontend;
 uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 uint8_t gVramState = VRAM_STATE_UNKNOWN;
 #if defined(PS_GBC_AUTOTEST) && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
@@ -55,6 +57,9 @@ uint16_t gTileUploadMismatches;
 static volatile uint16_t gPerfTimerOverflows;
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
 uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
+#if defined(PS_GBC_PERF_SCHEDULES)
+uint16_t gPerfScheduleCounts[PS_GBC_PERF_SCHEDULE_COUNT];
+#endif
 bool gPerfPhaseEnabled;
 
 static void perfTimerInterrupt(void) {
@@ -216,6 +221,18 @@ static void writeSave(uint16_t level) {
     DISABLE_RAM_MBC5;
 }
 
+static void clearSave(void) {
+    volatile uint8_t* destination;
+    uint8_t index;
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(0U);
+    destination = (volatile uint8_t*)0xa000U;
+    for (index = 0U; index < sizeof(uint32_t); ++index) {
+        destination[index] = 0U;
+    }
+    DISABLE_RAM_MBC5;
+}
+
 void renderBoard(void) {
     ps_gbc_status status;
     const void* board;
@@ -228,14 +245,14 @@ void renderBoard(void) {
         showText(status.message == NULL ? "" : status.message, false);
         return;
     }
+    full_render = gRenderedLevel != status.current_level;
+    if (!full_render && !ps_gbc_has_dirty_cells(gSession)) {
+        return;
+    }
     board = ps_gbc_board(gSession);
     dirty = ps_gbc_dirty_cells(gSession);
     offset_x = (uint8_t)((PS_GBC_VIEWPORT_WIDTH - status.width) / 2U);
     offset_y = (uint8_t)((PS_GBC_VIEWPORT_HEIGHT - status.height) / 2U);
-    full_render = gRenderedLevel != status.current_level;
-    if (full_render && gVramState == VRAM_STATE_BOARD) {
-        showText("LOADING", false);
-    }
     if (full_render) {
         ps_gbc_render_full_board(
             board, status.width, status.height, offset_x, offset_y);
@@ -267,22 +284,31 @@ static void saveCurrentLevel(void) {
     ps_gbc_status status;
     ps_gbc_status_get(gSession, &status);
     writeSave(status.current_level);
+    ps_gbc_frontend_record_progress(&gFrontend, status.current_level);
 }
 
 static void playStepAudio(const ps_step_result* result) {
     ps_gbc_status status;
     audioPlayEvents(result);
-    if (result->won) audioPlayNamed(PS_GBC_SOUND_ENDLEVEL);
-    if (!result->transitioned && !result->won) return;
-    ps_gbc_status_get(gSession, &status);
-    if (status.completed) {
-        audioPlayNamed(PS_GBC_SOUND_ENDGAME);
-    } else if (result->transitioned) {
-        audioPlayNamed(
-            status.mode == PS_FULL_STATE_MODE_MESSAGE
-                ? PS_GBC_SOUND_SHOWMESSAGE
-                : PS_GBC_SOUND_STARTLEVEL);
+    if (result->won) {
+        audioPlayNamed(PS_GBC_SOUND_ENDLEVEL);
+        return;
     }
+    if (!result->transitioned) return;
+    ps_gbc_status_get(gSession, &status);
+    audioPlayNamed(
+        status.mode == PS_FULL_STATE_MODE_MESSAGE
+            ? PS_GBC_SOUND_SHOWMESSAGE
+            : PS_GBC_SOUND_STARTLEVEL);
+}
+
+static void playLevelStartAudio(void) {
+    ps_gbc_status status;
+    ps_gbc_status_get(gSession, &status);
+    audioPlayNamed(
+        status.mode == PS_FULL_STATE_MODE_MESSAGE
+            ? PS_GBC_SOUND_SHOWMESSAGE
+            : PS_GBC_SOUND_STARTLEVEL);
 }
 
 #if defined(PS_GBC_AUTOTEST) && defined(PS_GBC_AUTOTEST_IN_MAIN)
@@ -448,6 +474,9 @@ static void runAutotest(void) BANKED {
         }
         (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
         memset(gPerfPhaseTicks, 0, sizeof(gPerfPhaseTicks));
+#if defined(PS_GBC_PERF_SCHEDULES)
+        memset(gPerfScheduleCounts, 0, sizeof(gPerfScheduleCounts));
+#endif
         gPerfPhaseEnabled = true;
         perfTimerInitialize();
         perfTimerStart();
@@ -502,6 +531,17 @@ static void runAutotest(void) BANKED {
         writeSram32(108U, interaction.walk_render_ticks);
         writeSram32(112U, interaction.push_logic_ticks);
         writeSram32(116U, interaction.push_render_ticks);
+#if defined(PS_GBC_PERF_SCHEDULES)
+        writeSram32(160U, 0U);
+        writeSram16(164U, 1U);
+        writeSram16(166U, PS_GBC_PERF_SCHEDULE_COUNT);
+        for (phase = 0U; phase < PS_GBC_PERF_SCHEDULE_COUNT; ++phase) {
+            writeSram16(
+                (uint16_t)(168U + (uint16_t)phase * 2U),
+                gPerfScheduleCounts[phase]);
+        }
+        writeSram32(160U, PERF_SCHEDULE_MAGIC);
+#endif
         writeSram32(96U, PERF_INTERACTION_MAGIC);
         writeSram32(32U, PERF_PHASE_MAGIC);
         writeSram32(16U, PERF_MAGIC);
@@ -542,7 +582,10 @@ static void runAutotest(void) BANKED {
     uint16_t board_pixel_width;
     uint16_t board_pixel_height;
     uint16_t tile_upload_mismatches;
+    uint16_t title_selection_blank_count;
+    uint16_t full_transition_blank_count;
     uint16_t first_board;
+    uint16_t next_board;
     ps_gbc_status render_status;
     for (first_board = 0U;
          first_board < ps_gbc_generated_game.level_count;
@@ -554,7 +597,14 @@ static void runAutotest(void) BANKED {
         }
     }
     (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
-    showText(ps_gbc_generated_game.title, true);
+    showTitleMenu(true, true);
+    title_selection_blank_count = gDisplayBlankCount;
+    vsync();
+    updateTitleMenuSelection(false);
+    vsync();
+    updateTitleMenuSelection(true);
+    title_selection_blank_count =
+        (uint16_t)(gDisplayBlankCount - title_selection_blank_count);
     DISPLAY_OFF;
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));
     title_tile_nonzero =
@@ -580,6 +630,22 @@ static void runAutotest(void) BANKED {
     board_palette_mismatches =
         countPaletteMismatches(ps_gbc_generated_game.background_palettes, 0U, 8U);
     DISPLAY_ON;
+    full_transition_blank_count = 0xffffU;
+    for (next_board = (uint16_t)(first_board + 1U);
+         next_board < ps_gbc_generated_game.level_count;
+         ++next_board) {
+        if (ps_gbc_generated_game.levels[next_board].kind
+            == PS_GBC_LEVEL_BOARD) {
+            full_transition_blank_count = gDisplayBlankCount;
+            (void)ps_gbc_load_level(gSession, next_board);
+            renderBoard();
+            full_transition_blank_count = (uint16_t)(
+                gDisplayBlankCount - full_transition_blank_count);
+            break;
+        }
+    }
+    (void)ps_gbc_load_level(gSession, first_board);
+    renderBoard();
     result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
     (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
     incremental_blank_count = gDisplayBlankCount;
@@ -630,6 +696,8 @@ static void runAutotest(void) BANKED {
     writeSram16(52U, board_pixel_width);
     writeSram16(54U, board_pixel_height);
     writeSram16(56U, tile_upload_mismatches);
+    writeSram16(58U, title_selection_blank_count);
+    writeSram16(60U, full_transition_blank_count);
     writeSram32(16U, RENDER_AUTOTEST_MAGIC);
 #endif
     writeSram32(0U, AUTOTEST_MAGIC);
@@ -647,6 +715,7 @@ void main(void) {
     const ps_gbc_snapshot_io snapshot_io = {NULL, snapshotRead, snapshotWrite};
     uint16_t saved_level = 0U;
     uint8_t previous_keys = 0U;
+    bool save_valid;
     SWITCH_ROM_MBC5(PS_GBC_GENERATED_ROM_BANK);
     if (_cpu == CGB_TYPE) cpu_fast();
     audioInitialize();
@@ -659,13 +728,14 @@ void main(void) {
         showText("MEMORY ERROR", false);
         for (;;) vsync();
     }
-    if (readSave(&saved_level)) (void)ps_gbc_load_level(gSession, saved_level);
+    ps_gbc_defer_wins(gSession, true);
+    save_valid = readSave(&saved_level);
+    ps_gbc_frontend_init(&gFrontend, save_valid, saved_level);
     SHOW_BKG;
 #if defined(PS_GBC_AUTOTEST)
     runAutotest();
 #endif
-    gTitleScreen = true;
-    showText(ps_gbc_generated_game.title, true);
+    showTitleMenu(gFrontend.has_save, gFrontend.continue_selected);
     audioPlayNamed(PS_GBC_SOUND_TITLESCREEN);
     for (;;) {
         const uint8_t keys = joypad();
@@ -674,29 +744,67 @@ void main(void) {
         bool redraw = false;
         SWITCH_ROM_MBC5(PS_GBC_GENERATED_ROM_BANK);
         ps_gbc_status_get(gSession, &status);
-        if (gTitleScreen) {
+        if (gFrontend.mode == PS_GBC_FRONTEND_WIN_PAUSE) {
+            const ps_gbc_frontend_action action =
+                ps_gbc_frontend_tick(&gFrontend);
+            if (action == PS_GBC_FRONTEND_ACTION_SHOW_NEXT_LEVEL) {
+                if (ps_gbc_advance_level(gSession)) {
+                    saveCurrentLevel();
+                    playLevelStartAudio();
+                    redraw = true;
+                }
+            } else if (action == PS_GBC_FRONTEND_ACTION_END_GAME) {
+                (void)ps_gbc_advance_level(gSession);
+                clearSave();
+                (void)ps_gbc_load_level(gSession, 0U);
+                showTitleMenu(false, false);
+                audioPlayNamed(PS_GBC_SOUND_ENDGAME);
+            }
+        } else if (gFrontend.mode == PS_GBC_FRONTEND_TITLE) {
+            if (gFrontend.has_save
+                && (pressed & (J_UP | J_LEFT)) != 0U) {
+                ps_gbc_frontend_select_new_game(&gFrontend);
+                updateTitleMenuSelection(gFrontend.continue_selected);
+            } else if (gFrontend.has_save
+                && (pressed & (J_DOWN | J_RIGHT)) != 0U) {
+                ps_gbc_frontend_select_continue(&gFrontend);
+                updateTitleMenuSelection(gFrontend.continue_selected);
+            }
             if ((pressed & (J_A | J_START)) != 0U) {
-                gTitleScreen = false;
+                bool clear_save;
+                const uint16_t level =
+                    ps_gbc_frontend_start_game(&gFrontend, &clear_save);
+                if (clear_save) clearSave();
+                (void)ps_gbc_load_level(gSession, level);
                 audioPlayNamed(PS_GBC_SOUND_STARTGAME);
-                audioPlayNamed(
-                    status.mode == PS_FULL_STATE_MODE_MESSAGE
-                        ? PS_GBC_SOUND_SHOWMESSAGE
-                        : PS_GBC_SOUND_STARTLEVEL);
+                playLevelStartAudio();
                 renderBoard();
             }
         } else if (status.completed) {
-            showText("COMPLETE", false);
-            gTitleScreen = true;
+            clearSave();
+            (void)ps_gbc_load_level(gSession, 0U);
+            ps_gbc_frontend_init(&gFrontend, false, 0U);
+            showTitleMenu(false, false);
+            audioPlayNamed(PS_GBC_SOUND_ENDGAME);
         } else if ((pressed & J_START) != 0U) {
-            gTitleScreen = true;
-            showText(ps_gbc_generated_game.title, true);
+            ps_gbc_frontend_open_title(&gFrontend);
+            showTitleMenu(gFrontend.has_save, gFrontend.continue_selected);
             audioPlayNamed(PS_GBC_SOUND_TITLESCREEN);
         } else if (status.mode == PS_FULL_STATE_MODE_MESSAGE) {
             if ((pressed & J_A) != 0U) {
                 const ps_step_result result = ps_gbc_step(gSession, PS_INPUT_ACTION);
                 playStepAudio(&result);
                 if (result.transitioned) saveCurrentLevel();
-                redraw = true;
+                ps_gbc_status_get(gSession, &status);
+                if (status.completed) {
+                    clearSave();
+                    (void)ps_gbc_load_level(gSession, 0U);
+                    ps_gbc_frontend_init(&gFrontend, false, 0U);
+                    showTitleMenu(false, false);
+                    audioPlayNamed(PS_GBC_SOUND_ENDGAME);
+                } else {
+                    redraw = true;
+                }
             }
         } else if ((pressed & J_B) != 0U) {
             redraw = ps_gbc_undo(gSession);
@@ -715,11 +823,20 @@ void main(void) {
             if (has_input) {
                 const ps_step_result result = ps_gbc_step(gSession, input);
                 playStepAudio(&result);
-                if (result.transitioned || result.won) saveCurrentLevel();
-                redraw = result.changed || result.transitioned || result.won;
+                if (result.won) {
+                    ps_gbc_status_get(gSession, &status);
+                    renderBoard();
+                    ps_gbc_frontend_begin_win(
+                        &gFrontend,
+                        (uint16_t)(status.current_level + 1U)
+                            >= ps_gbc_generated_game.level_count);
+                } else {
+                    if (result.transitioned) saveCurrentLevel();
+                    redraw = result.changed || result.transitioned;
+                }
             }
         }
-        if (redraw && !gTitleScreen) renderBoard();
+        if (redraw && gFrontend.mode == PS_GBC_FRONTEND_PLAYING) renderBoard();
         previous_keys = keys;
         vsync();
     }

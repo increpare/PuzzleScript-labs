@@ -20,6 +20,8 @@ PERF_PHASE_MAGIC = 0x32434250
 PERF_PHASE_RECORD = struct.Struct("<IHHHH7I6I")
 PERF_INTERACTION_MAGIC = 0x49434250
 PERF_INTERACTION_RECORD = struct.Struct("<I5I")
+PERF_SCHEDULE_MAGIC = 0x53434250
+PERF_SCHEDULE_RECORD = struct.Struct("<IHH7H")
 PERF_PHASE_NAMES = (
     "snapshot",
     "setup",
@@ -29,11 +31,21 @@ PERF_PHASE_NAMES = (
     "commands",
     "win",
 )
+PERF_SCHEDULE_NAMES = (
+    "group_invocations",
+    "group_passes",
+    "repeat_passes",
+    "rule_visits",
+    "repeat_rule_visits",
+    "changing_passes",
+    "repeat_changing_passes",
+)
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 PERF_OFFSET = 16
 PERF_PHASE_OFFSET = 32
 PERF_INTERACTION_OFFSET = 96
+PERF_SCHEDULE_OFFSET = 160
 
 
 def default_mgba() -> Path | None:
@@ -135,6 +147,24 @@ def run_once(emulator: Path, source_rom: Path, timeout: float) -> dict[str, int]
                 "invalid interaction benchmark record "
                 f"magic=0x{interaction_record[0]:08x}"
             )
+        schedule_values = [0] * len(PERF_SCHEDULE_NAMES)
+        schedule_offset = SRAM_BANK * SRAM_BANK_SIZE + PERF_SCHEDULE_OFFSET
+        if len(data) >= schedule_offset + PERF_SCHEDULE_RECORD.size:
+            schedule_record = PERF_SCHEDULE_RECORD.unpack_from(data, schedule_offset)
+            schedule_magic, schedule_version, schedule_count, *values = (
+                schedule_record
+            )
+            if schedule_magic == PERF_SCHEDULE_MAGIC:
+                if (
+                    schedule_version != 1
+                    or schedule_count != len(PERF_SCHEDULE_NAMES)
+                ):
+                    raise RuntimeError(
+                        "invalid schedule benchmark record "
+                        f"magic=0x{schedule_magic:08x} version={schedule_version} "
+                        f"counter_count={schedule_count}"
+                    )
+                schedule_values = values
         return {
             "iterations": iterations,
             "ticks": ticks,
@@ -161,6 +191,9 @@ def run_once(emulator: Path, source_rom: Path, timeout: float) -> dict[str, int]
                     ),
                     interaction_record[1:],
                 )
+            ),
+            "schedule_counts": dict(
+                zip(PERF_SCHEDULE_NAMES, schedule_values)
             ),
         }
 

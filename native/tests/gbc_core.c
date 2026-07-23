@@ -6,12 +6,11 @@
 
 static const uint32_t kLayerMasks[] = {1U, 2U, 12U, 0U, 0U, 0U};
 static const uint8_t kMovementCollisionLayers[] = {2U};
-static const uint8_t kSprite[] = {0U};
 static const ps_gbc_object kObjects[] = {
-    {"background", 0U, PS_GBC_NO_MOVEMENT_LAYER, 1U, 1U, 0U, kSprite, 0U},
-    {"target", 1U, PS_GBC_NO_MOVEMENT_LAYER, 1U, 1U, 0U, kSprite, 0U},
-    {"player", 2U, 0U, 1U, 1U, 0U, kSprite, 0U},
-    {"crate", 2U, 0U, 1U, 1U, 0U, kSprite, 0U},
+    {0U, PS_GBC_NO_MOVEMENT_LAYER},
+    {1U, PS_GBC_NO_MOVEMENT_LAYER},
+    {2U, 0U},
+    {2U, 0U},
 };
 static const uint8_t kLevelCells[] = {5U, 9U, 3U, 1U};
 static const uint16_t kLevelCells16[] = {5U, 9U, 3U, 1U};
@@ -35,7 +34,7 @@ static const ps_gbc_pattern kPatterns[] = {
     },
 };
 static const ps_gbc_rule kRules[] = {
-    {0U, 2U, 8U, 0U, 0U, 0U, NULL},
+    {PS_GBC_PATTERN_REFERENCE(0U), 2U, 8U, 0U, 0U, 0U, NULL},
 };
 static const ps_gbc_rule_group kGroups[] = {
     {0U, 1U, -1},
@@ -49,7 +48,7 @@ static const ps_gbc_pattern kLevelStartPatterns[] = {
 };
 static const ps_gbc_rule kLevelStartRules[] = {
     {
-        0U,
+        PS_GBC_PATTERN_REFERENCE(0U),
         1U,
         1U,
         PS_GBC_COMMAND_AGAIN | PS_GBC_COMMAND_RESTART | PS_GBC_COMMAND_WIN,
@@ -376,11 +375,17 @@ int main(void) {
         cell_dirty(session, 0U) && cell_dirty(session, 1U)
             && cell_dirty(session, 2U) && cell_dirty(session, 3U),
         "initial board was not marked dirty");
+    failed |= require_true(
+        ps_gbc_has_dirty_cells(session),
+        "initial dirty board was reported clean");
     ps_gbc_clear_dirty_cells(session);
     failed |= require_true(
         !cell_dirty(session, 0U) && !cell_dirty(session, 1U)
             && !cell_dirty(session, 2U) && !cell_dirty(session, 3U),
         "dirty board did not clear");
+    failed |= require_true(
+        !ps_gbc_has_dirty_cells(session) && !ps_gbc_has_dirty_cells(NULL),
+        "cleared or null session was reported dirty");
     failed |= require_true(ps_gbc_cell_objects(session, 0, 0) == 5U, "initial player cell differs");
     failed |= require_true(ps_gbc_cell_objects(session, 2, 0) == 3U,
         "a game without run_rules_on_level_start changed its raw level");
@@ -434,6 +439,25 @@ int main(void) {
         cell_dirty(session, 0U) && cell_dirty(session, 1U)
             && cell_dirty(session, 2U) && cell_dirty(session, 3U),
         "undo did not mark the board dirty");
+    failed |= require_true(
+        ps_gbc_load_level(session, 0U),
+        "could not reset before deferred-win coverage");
+    ps_gbc_defer_wins(session, true);
+    result = ps_gbc_step(session, PS_INPUT_RIGHT);
+    ps_gbc_status_get(session, &status);
+    failed |= require_true(
+        result.changed && result.won && !result.transitioned
+            && !status.completed && status.current_level == 0U
+            && (ps_gbc_cell_objects(session, 2, 0) & 8U) != 0U,
+        "deferred win did not retain the solved board");
+    failed |= require_true(
+        !ps_gbc_advance_level(session),
+        "advancing a deferred final win unexpectedly found another level");
+    ps_gbc_status_get(session, &status);
+    failed |= require_true(
+        status.completed,
+        "advancing a deferred final win did not complete the game");
+    ps_gbc_defer_wins(session, false);
     two_byte_arena = malloc(two_byte_bytes);
     four_byte_arena = malloc(four_byte_bytes);
     failed |= require_true(two_byte_arena != NULL && four_byte_arena != NULL,

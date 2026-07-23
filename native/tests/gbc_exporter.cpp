@@ -61,6 +61,18 @@ int main() {
         "manifest selects byte-wide movement cells for one live lane");
     require(manifest.find("\"object_bytes_per_cell\": 1") != std::string::npos,
         "manifest selects byte-wide object cells for five objects");
+    require(manifest.find("\"single_pass_group_count\": 1") != std::string::npos,
+        "manifest records the certified single-pass Sokoban group");
+    require(
+        manifest.find("\"source_pattern_count\": 8") != std::string::npos
+            && manifest.find("\"shared_pattern_record_count\": 0")
+                != std::string::npos,
+        "manifest records the no-duplicate pattern control");
+    require(manifest.find("\"input_specialized_group_count\": 1") != std::string::npos,
+        "manifest records the certified input-specialized Sokoban group");
+    require(manifest.find("\"active_early_rules_by_input\": [1, 1, 1, 1, 0, 0]")
+            != std::string::npos,
+        "manifest records the rules reachable from each input");
     require(manifest.find("\"board_cells\": 90") != std::string::npos,
         "manifest advertises the hardware board ceiling");
     require(
@@ -71,6 +83,12 @@ int main() {
         "manifest advertises the contiguous WRAM ceiling");
     require(manifest.find("\"snapshot_sram_bytes\": 210") != std::string::npos,
         "manifest budgets four undo states and a checkpoint in SRAM");
+    require(
+        manifest.find("\"precomposed_composition_count\": 6")
+                != std::string::npos
+            && manifest.find("\"precomposed_composition_bytes\": 414")
+                != std::string::npos,
+        "manifest records the bounded level-mask tile table");
     require(
         manifest.find("\"run_rules_on_level_start\": false")
             != std::string::npos,
@@ -86,32 +104,85 @@ int main() {
     const std::string source = readFile(first.generatedSourcePath);
     require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
         "generated data declares its switchable ROM bank");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 357U") != std::string::npos,
-        "generated header exposes the compact exact bounded arena");
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 393U") != std::string::npos,
+        "generated header budgets the player-cell anchor list");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
     require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time object cell width");
     require(
+        header.find("PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 0U")
+            != std::string::npos,
+        "generated header compiles out unprofitable Sokoban presence checks");
+    require(
+        header.find("PS_GBC_GENERATED_PACKED_PATTERNS 1") != std::string::npos
+            && header.find("PS_GBC_GENERATED_PATTERN_BYTES 10U")
+                != std::string::npos
+            && manifest.find("\"pattern_record_bytes\": 10")
+                != std::string::npos,
+        "generated Sokoban patterns use byte-wide object and movement masks");
+    require(
+        header.find("PS_GBC_GENERATED_ABI_VERSION 19U") != std::string::npos
+            && source.find("    19U, 0x") != std::string::npos
+            && manifest.find("\"abi_version\": 19") != std::string::npos,
+        "generated data bakes in the exporter ABI for stale-tool detection");
+    require(
+        header.find("PS_GBC_GENERATED_PACKED_RULES 1") != std::string::npos
+            && header.find("PS_GBC_GENERATED_RULE_BYTES 5U")
+                != std::string::npos
+            && header.find("PS_GBC_GENERATED_RULE_MESSAGE_COUNT 0U")
+                != std::string::npos
+            && manifest.find("\"rule_record_bytes\": 5")
+                != std::string::npos,
+        "generated Sokoban rules omit absent sound and message fields");
+    require(
+        header.find("PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 2U")
+            != std::string::npos,
+        "generated header records first-pattern player anchors");
+    require(
         header.find("PS_GBC_GENERATED_CELL_WIDTH 5U") != std::string::npos
             && header.find("PS_GBC_GENERATED_CELL_HEIGHT 5U") != std::string::npos
-            && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos,
+            && header.find("PS_GBC_GENERATED_CELL_PIXELS 25U") != std::string::npos
+            && header.find("PS_GBC_GENERATED_RENDER_OBJECT_COUNT 5U")
+                != std::string::npos
+            && header.find("PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT 6U")
+                != std::string::npos,
         "generated header preserves the native PuzzleScript cell dimensions");
     require(source.find("#pragma bank 1") != std::string::npos,
         "generated data is linked outside fixed ROM bank zero");
-    require(source.find("static const ps_gbc_pattern kPatterns[]") != std::string::npos,
+    require(source.find("static const ps_gbc_generated_pattern kPatterns[]")
+            != std::string::npos,
         "lowered fixed patterns are emitted as C data");
+    require(source.find("static const ps_gbc_generated_rule kRules[]")
+            != std::string::npos,
+        "lowered rules use the generated game-specific record");
+    require(source.find("PS_GBC_RULE_GROUP_SINGLE_PASS") != std::string::npos,
+        "certified groups skip their redundant confirmation pass");
+    require(source.find("PS_GBC_RULE_GROUP_INPUT_QUARTET") != std::string::npos,
+        "certified directional groups select only the current input block");
     require(source.find("static const uint8_t kLevel0Cells[]") != std::string::npos,
         "level object masks use the selected byte-wide storage");
     require(
-        source.find("{\"background\", 0U, 255U, 5U, 5U") != std::string::npos
-            && source.find("255U, 255U, 255U") != std::string::npos,
-        "generated sprites retain native dimensions and byte transparency");
+        source.find("static const ps_gbc_object kObjects[] = {\n    {0U, 255U}")
+                != std::string::npos
+            && source.find(
+                "const ps_gbc_render_object ps_gbc_generated_render_objects[]")
+                != std::string::npos
+            && source.find("{0x1U, kObject0Pixels, 0U}") != std::string::npos,
+        "generated objects separate movement metadata from ordered render data");
     require(
         source.find(
             "static const uint8_t kObject3Pixels[] = {14U, 14U, 14U, 15U, 14U")
             != std::string::npos,
-        "5x5 sprite arrays are emitted without 8x8 padding or resampling");
+        "5x5 sprite arrays retain the native pixels used by 16x16 upscaling");
+    require(
+        source.find(
+            "ps_gbc_generated_precomposed_masks[] = {0x9U, 0x1U, 0x13U, "
+            "0x3U, 0x5U, 0x11U}") != std::string::npos
+            && source.find(
+                "ps_gbc_generated_precomposed_tiles[] = {0U, 255U, 0U, 255U")
+                != std::string::npos,
+        "frequent level masks receive deterministic precomposed 16x16 tiles");
     require(
         source.find(
             "static const uint16_t kBackgroundPalettes[] = {6965U, 3658U, 0U, 0U, "
@@ -142,6 +213,58 @@ int main() {
     const auto second = puzzlescript::gbc::exportGame(options);
     require(readFile(first.generatedSourcePath) == readFile(second.generatedSourcePath),
         "repeated exports are deterministic");
+
+    puzzlescript::gbc::ExportOptions presenceOptions;
+    presenceOptions.sourcePath =
+        root / "src" / "tests" / "good_games" / "Xorro The Chaos Warden.txt";
+    presenceOptions.outputDirectory = output / "presence";
+    presenceOptions.cullOversizeLevels = true;
+    const auto presenceResult = puzzlescript::gbc::exportGame(presenceOptions);
+    const std::string presenceManifest = readFile(presenceResult.manifestPath);
+    const std::string presenceHeader = readFile(presenceResult.generatedHeaderPath);
+    const std::string presenceSource = readFile(presenceResult.generatedSourcePath);
+    require(
+        presenceManifest.find("\"object_presence_precheck_rule_count\": 22")
+                != std::string::npos
+            && presenceManifest.find("\"single_pass_group_count\": 3")
+                != std::string::npos
+            && presenceHeader.find(
+                "PS_GBC_GENERATED_OBJECT_PRESENCE_PRECHECK_COUNT 22U")
+                != std::string::npos
+            && presenceManifest.find("\"player_cell_anchor_rule_count\": 6")
+                != std::string::npos
+            && presenceHeader.find(
+                "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 6U")
+                != std::string::npos
+            && presenceManifest.find("\"source_pattern_count\": 126")
+                != std::string::npos
+            && presenceManifest.find("\"pattern_count\": 62")
+                != std::string::npos
+            && presenceManifest.find("\"shared_pattern_record_count\": 64")
+                != std::string::npos
+            && presenceSource.find("PS_GBC_RULE_OBJECT_PRESENCE_PRECHECK")
+                != std::string::npos,
+        "compact games emit presence prechecks and player-cell anchors");
+
+    puzzlescript::gbc::ExportOptions wideObjectOptions;
+    wideObjectOptions.sourcePath =
+        root / "src" / "tests" / "good_games" / "slot machine.txt";
+    wideObjectOptions.outputDirectory = output / "wide_objects";
+    wideObjectOptions.cullOversizeLevels = true;
+    const auto wideObjectResult = puzzlescript::gbc::exportGame(wideObjectOptions);
+    const std::string wideObjectManifest = readFile(wideObjectResult.manifestPath);
+    const std::string wideObjectHeader = readFile(wideObjectResult.generatedHeaderPath);
+    require(
+        wideObjectManifest.find("\"player_cell_anchor_rule_count\": 0")
+                != std::string::npos
+            && wideObjectManifest.find("\"single_pass_group_count\": 12")
+                != std::string::npos
+            && wideObjectHeader.find(
+                "PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT 0U")
+                != std::string::npos
+            && wideObjectHeader.find("PS_GBC_GENERATED_PATTERN_BYTES 22U")
+                != std::string::npos,
+        "wide-object games compile out the player index and certify singleton groups");
 
     puzzlescript::gbc::ExportOptions contrastOptions;
     contrastOptions.sourcePath =
@@ -240,6 +363,7 @@ int main() {
     const auto audioResult = puzzlescript::gbc::exportGame(audioOptions);
     const std::string audioManifest = readFile(audioResult.manifestPath);
     const std::string audioSource = readFile(audioResult.generatedSourcePath);
+    const std::string audioHeader = readFile(audioResult.generatedHeaderPath);
     require(
         audioManifest.find("\"sound_seed_count\": 7") != std::string::npos
             && audioManifest.find("\"rule_sound_reference_count\": 4")
@@ -259,13 +383,32 @@ int main() {
             && audioSource.find("kMovementFailureSounds[]") != std::string::npos,
         "audio fixture emits compact named, rule, and trigger tables");
     require(
-        readFile(audioResult.generatedHeaderPath).find(
-            "PS_GBC_GENERATED_SOUND_COUNT 7U")
+        audioHeader.find("PS_GBC_GENERATED_SOUND_COUNT 7U")
                 != std::string::npos
-            && readFile(audioResult.generatedHeaderPath).find(
-                "PS_GBC_GENERATED_RULE_SOUND_COUNT 4U")
+            && audioHeader.find("PS_GBC_GENERATED_RULE_SOUND_COUNT 4U")
+                != std::string::npos
+            && audioHeader.find("PS_GBC_GENERATED_RULE_BYTES 7U")
                 != std::string::npos,
         "audio fixture emits sound-count specialization constants");
+
+    puzzlescript::gbc::ExportOptions messageAudioOptions;
+    messageAudioOptions.sourcePath =
+        root / "native" / "tests" / "gba_audio_parity.txt";
+    messageAudioOptions.outputDirectory = output / "message_audio";
+    const auto messageAudioResult =
+        puzzlescript::gbc::exportGame(messageAudioOptions);
+    const std::string messageAudioHeader =
+        readFile(messageAudioResult.generatedHeaderPath);
+    const std::string messageAudioSource =
+        readFile(messageAudioResult.generatedSourcePath);
+    require(
+        messageAudioHeader.find("PS_GBC_GENERATED_RULE_MESSAGE_COUNT 1U")
+                != std::string::npos
+            && messageAudioHeader.find("PS_GBC_GENERATED_RULE_BYTES 9U")
+                != std::string::npos
+            && messageAudioSource.find("\"Audio parity\"")
+                != std::string::npos,
+        "games with rule sounds and messages retain the complete rule record");
 
     const std::string minimalPrefix =
         "title GBC Fixed Cell Limits\n\n"
@@ -361,6 +504,12 @@ int main() {
             "\"max_level_cells\": 90")
             != std::string::npos,
         "the exact 10x9 board boundary remains exportable");
+    require(
+        readFile(maximumBoardResult.generatedSourcePath).find(
+            "kObject0Pixels[] = {255U, 255U, 255U, 255U, 255U, "
+            "255U, 255U, 255U, 255U, 255U, 255U, 255U, 0U, 255U")
+            != std::string::npos,
+        "smaller source sprites are centered in the exported 5x5 render cell");
 
     bool rejectedWideSprite = false;
     std::string wideSpriteSource = minimalPrefix;
@@ -417,11 +566,11 @@ int main() {
     require(staticSource.find("kMovementCollisionLayers[] = {6U}") != std::string::npos,
         "the high source collision layer remaps to compact movement lane zero");
     require(staticSource.find(
-            "0x2U, 0x0U, 0x0U, 0x0U, 0x2U, 0x0U, 0x0U, 0x0U, 0x0U, 117U")
+            "0x2U, 0x0U, 0x2U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 117U")
             != std::string::npos,
         "an impossible movement-present predicate is retained as never-matching");
     require(staticSource.find(
-            "0x4U, 0x0U, 0x0U, 0x0U, 0xcU, 0xcU, 0x0U, 0x0U, 0x0U, 57U")
+            "0x4U, 0x0U, 0xcU, 0xcU, 0x0U, 0x0U, 0x0U, 0x0U, 0x0U, 57U")
             != std::string::npos,
         "a dormant stationary predicate is folded to an always-true movement mask");
 
@@ -474,6 +623,8 @@ int main() {
         "three originating layers are discovered by shared static analysis");
     require(threeManifest.find("\"movement_bytes_per_cell\": 2") != std::string::npos,
         "three live lanes select two-byte movement cells");
+    require(threeManifest.find("\"pattern_record_bytes\": 15") != std::string::npos,
+        "byte-wide objects and two-byte movements produce 15-byte patterns");
 
     puzzlescript::gbc::ExportOptions sixMovers;
     sixMovers.sourcePath =
@@ -485,6 +636,8 @@ int main() {
         "all six lanes available in a 32-bit movement word are usable");
     require(sixManifest.find("\"movement_bytes_per_cell\": 4") != std::string::npos,
         "six live lanes select four-byte movement cells");
+    require(sixManifest.find("\"pattern_record_bytes\": 25") != std::string::npos,
+        "byte-wide objects and four-byte movements produce 25-byte patterns");
 
     puzzlescript::gbc::ExportOptions actionMovement;
     actionMovement.sourcePath =

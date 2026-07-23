@@ -1,0 +1,55 @@
+title GBC Quadrant Palette Fixture
+background_color black
+text_color white
+
+========
+OBJECTS
+========
+
+Background
+black
+00000
+00000
+00000
+00000
+00000
+
+Player
+#f0b090 red blue green yellow
+11122
+11022
+00000
+33044
+33344
+
+========
+LEGEND
+========
+
+. = Background
+P = Background and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+======
+RULES
+======
+
+[ > Player ] -> [ > Player ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player
+
+========
+LEVELS
+========
+
+P

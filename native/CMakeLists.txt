@@ -519,6 +519,18 @@ add_executable(puzzlescript_gbc_core_tests
 target_link_libraries(puzzlescript_gbc_core_tests PRIVATE puzzlescript_gbc_core)
 add_test(NAME puzzlescript_gbc_core_tests COMMAND puzzlescript_gbc_core_tests)
 
+add_executable(puzzlescript_gbc_frontend_flow_tests
+  tests/gbc_frontend_flow.c
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/gbc/source/frontend_flow.c
+)
+target_include_directories(puzzlescript_gbc_frontend_flow_tests PRIVATE
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/gbc/source
+)
+add_test(
+  NAME puzzlescript_gbc_frontend_flow_tests
+  COMMAND puzzlescript_gbc_frontend_flow_tests
+)
+
 add_executable(puzzlescript_gba_exporter_tests
   tests/gba_exporter.cpp
 )
@@ -605,17 +617,21 @@ add_custom_command(
 )
 add_executable(puzzlescript_gbc_generated_smoke
   tests/gbc_generated_smoke.c
+  src/gbc/core.c
   ${GBC_GENERATED_SMOKE_SOURCE}
 )
 target_include_directories(puzzlescript_gbc_generated_smoke PRIVATE
   ${GBC_GENERATED_SMOKE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_link_libraries(puzzlescript_gbc_generated_smoke PRIVATE puzzlescript_gbc_core)
+target_compile_definitions(puzzlescript_gbc_generated_smoke PRIVATE
+  PS_GBC_GENERATED_BUILD=1
+)
 add_test(NAME puzzlescript_gbc_generated_smoke COMMAND puzzlescript_gbc_generated_smoke)
 
 add_executable(puzzlescript_gbc_parity_smoke
   tests/gbc_parity_smoke.cpp
+  src/gbc/core.c
   ${GBC_GENERATED_SMOKE_SOURCE}
 )
 target_include_directories(puzzlescript_gbc_parity_smoke PRIVATE
@@ -624,9 +640,9 @@ target_include_directories(puzzlescript_gbc_parity_smoke PRIVATE
 )
 target_compile_definitions(puzzlescript_gbc_parity_smoke PRIVATE
   PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+  PS_GBC_GENERATED_BUILD=1
 )
 target_link_libraries(puzzlescript_gbc_parity_smoke PRIVATE
-  puzzlescript_gbc_core
   puzzlescript_native
   puzzlescript_compiler
 )
@@ -651,6 +667,7 @@ add_custom_command(
 )
 add_executable(puzzlescript_gbc_level_start_parity
   tests/gbc_level_start_parity.cpp
+  src/gbc/core.c
   ${GBC_LEVEL_START_SOURCE}
 )
 target_include_directories(puzzlescript_gbc_level_start_parity PRIVATE
@@ -659,9 +676,9 @@ target_include_directories(puzzlescript_gbc_level_start_parity PRIVATE
 )
 target_compile_definitions(puzzlescript_gbc_level_start_parity PRIVATE
   PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+  PS_GBC_GENERATED_BUILD=1
 )
 target_link_libraries(puzzlescript_gbc_level_start_parity PRIVATE
-  puzzlescript_gbc_core
   puzzlescript_native
   puzzlescript_compiler
 )
@@ -689,6 +706,7 @@ add_custom_command(
 )
 add_executable(puzzlescript_gbc_static_layers_parity
   tests/gbc_static_layers_parity.cpp
+  src/gbc/core.c
   ${GBC_STATIC_LAYERS_SOURCE}
 )
 target_include_directories(puzzlescript_gbc_static_layers_parity PRIVATE
@@ -697,9 +715,9 @@ target_include_directories(puzzlescript_gbc_static_layers_parity PRIVATE
 )
 target_compile_definitions(puzzlescript_gbc_static_layers_parity PRIVATE
   PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+  PS_GBC_GENERATED_BUILD=1
 )
 target_link_libraries(puzzlescript_gbc_static_layers_parity PRIVATE
-  puzzlescript_gbc_core
   puzzlescript_native
   puzzlescript_compiler
 )
@@ -727,14 +745,15 @@ add_custom_command(
 )
 add_executable(puzzlescript_gbc_action_movement_smoke
   tests/gbc_action_movement_smoke.c
+  src/gbc/core.c
   ${GBC_ACTION_MOVEMENT_SOURCE}
 )
 target_include_directories(puzzlescript_gbc_action_movement_smoke PRIVATE
   ${GBC_ACTION_MOVEMENT_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_link_libraries(puzzlescript_gbc_action_movement_smoke PRIVATE
-  puzzlescript_gbc_core
+target_compile_definitions(puzzlescript_gbc_action_movement_smoke PRIVATE
+  PS_GBC_GENERATED_BUILD=1
 )
 add_test(
   NAME puzzlescript_gbc_action_movement_smoke

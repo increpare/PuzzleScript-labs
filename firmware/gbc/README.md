@@ -40,6 +40,11 @@ make AUTOTEST=1 PERF_BENCH=1 PERF_WIDE=0 PERF_PHASES=1
 python ../../scripts/run_gbc_benchmark.py puzzlescript_gbc_autotest-perf-compact-phases.gb
 ```
 
+Use `PERF_SCHEDULES=1` instead of `PERF_PHASES=1` (or pass `--schedules` to
+the suite) to count group passes, repeat passes, and rule visits without the
+larger timer-phase probe build. The two diagnostic modes are intentionally
+separate so the fixed ROM bank remains measurable on larger cartridges.
+
 Both ROMs reserve the same benchmark arena, so the comparison isolates
 movement clearing and access width rather than changing the surrounding WRAM
 layout. `PERF_WIDE` is a benchmark-only compatibility path; normal exports
@@ -123,5 +128,13 @@ Each logical 10x9 cell owns an aligned 2x2 quartet of hardware tiles. A source
 once more to make an exact 16x16 cell. Quartets never contain pixels from
 neighboring cells, so transparency and dirty updates cannot create inter-cell
 seams. Object palettes are reduced to the eight hardware background palettes;
-colors from lower transparent layers are remapped to the top visible object's
-palette.
+each 8x8 member of the quartet may select a different one. The exporter only
+uses multiple palettes for an object when every visible source color remains
+exact in every quadrant where it occurs. If any color must be reduced, all
+four quadrants use one palette, preventing a character's colors from changing
+at tile boundaries. Lower-layer candidates include only pixels that are
+actually exposed by the current object's transparency. When every visible
+collision layer can retain an entry, remaining entries first make the current
+object exact before preserving additional lower-layer shades. The exporter
+keeps the conservative palette set whenever this visibility-aware allocation
+would lose a full-color object or add a cross-layer mapping.
