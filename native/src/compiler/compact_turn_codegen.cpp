@@ -7822,6 +7822,10 @@ void emitGbcSpecializedRuleFunction(
             << "            for (x = xmin; x < xmax; ++x) {\n"
             << "                for (y = ymin; y < ymax; ++y) {\n";
         if (applyOnMatch) {
+            // Single-pass groups still need every pre-pass match applied in one
+            // rule invocation (interpreter collect-all semantics). Do not exit
+            // the scan after the first hit — e.g. late [flippedv]->[] must clear
+            // every marked cell, not just the first.
             emitGbcSpecializedFusedMatchApplyAt(
                 out,
                 rule,
@@ -7835,8 +7839,6 @@ void emitGbcSpecializedRuleFunction(
                 objectBytesPerCell,
                 movementBytesPerCell,
                 singlePlayerCellCertified);
-            out << "                    if (changed) goto ps_gbc_specialized_rule_" << ruleIndex
-                << "_scan_done;\n";
         } else {
             out << "                    if (ps_gbc_specialized_rule_" << ruleIndex << "_matches_at(\n"
                 << "                            session, cell, delta)) {\n"
@@ -7888,8 +7890,6 @@ void emitGbcSpecializedRuleFunction(
                     objectBytesPerCell,
                     movementBytesPerCell,
                     singlePlayerCellCertified);
-                out << "                            if (changed) goto ps_gbc_specialized_rule_" << ruleIndex
-                    << "_scan_done;\n";
             } else {
                 out << "                            if (ps_gbc_specialized_rule_" << ruleIndex
                     << "_matches_at(session, start, delta)) {\n"
@@ -7946,9 +7946,6 @@ void emitGbcSpecializedRuleFunction(
         if ((rule.commands & 64U) != 0U) {
             out << "#endif\n";
         }
-    }
-    if (applyOnMatch) {
-        out << "        ps_gbc_specialized_rule_" << ruleIndex << "_scan_done:;\n";
     }
     out << "    }\n";
     if (applyOnMatch) {

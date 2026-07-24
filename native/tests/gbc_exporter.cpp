@@ -97,7 +97,8 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_won") != std::string::npos
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
             && specializedTurn.find("session->board[") != std::string::npos
-            && specializedTurn.find("& 0x") != std::string::npos,
+            && specializedTurn.find("& 0x") != std::string::npos
+            && specializedTurn.find("_scan_done") == std::string::npos,
         "specialized turn uses direct board storage, inline rules, resolve, and won");
 
     {

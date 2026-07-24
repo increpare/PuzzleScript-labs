@@ -898,3 +898,30 @@ Host `--skip-rom --max-levels 2` on the problem set:
 | pushit / recondite | both boards win (still net host slowdowns) |
 | xorro L0 | win; **L1 still specialized lose** |
 | voitex | solver timeout (unchanged) |
+
+### Single-pass apply-on-match full-scan fix (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+**Bug:** Certified `PS_GBC_RULE_GROUP_SINGLE_PASS` rules used fused apply-on-match
+emission that `goto`'d out of the scan after the first hit. Interpreter
+single-pass still collect-all-then-applies every match in one rule invocation.
+Xorro late `[flippedv]->[]` / `[flippedh]->[]` therefore cleared only one cell;
+leftover flip markers diverged from baseline from turn 2 on board 1.
+
+**Fix:** Keep apply-on-match fusion, but scan the whole grid (no early exit).
+
+| Check | Result |
+| --- | --- |
+| xorro L1 host replay | baseline win ≡ specialized win (31 moves, board hash match) |
+| voitex L0 | hand fixture 33 moves; both win (`--reuse-fixtures`) |
+| Problem set (slot/pushit/recondite/xorro/voitex) | all solved boards won on specialized |
+
+Voitex remains hard for `puzzlescript_solver` within 120s; canonical fixture:
+`native/tests/fixtures/gbc_voitex_rasteriser_board0.txt` (copied into
+`build/gbc/eligible/solution-fixtures/` for `--reuse-fixtures`). Bench script
+gains `--reuse-fixtures`.
+
+Eligible-14 host (`--skip-rom --reuse-fixtures --max-levels 2`): **25/25** solved
+boards won on specialized. Remaining gap is solver-only:
+`short-adventure-in-sticky-wall-land` board 1 times out (no specialized lose).

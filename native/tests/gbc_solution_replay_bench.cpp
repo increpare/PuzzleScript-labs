@@ -82,6 +82,33 @@ std::vector<ps_input> loadReplay(const std::filesystem::path& path) {
     return inputs;
 }
 
+uint64_t boardHash(const ps_gbc_session* session) {
+    ps_gbc_status status{};
+    ps_gbc_status_get(session, &status);
+    const uint8_t* board = static_cast<const uint8_t*>(ps_gbc_board(session));
+    const size_t bytes = static_cast<size_t>(status.width)
+        * static_cast<size_t>(status.height)
+        * static_cast<size_t>(ps_gbc_generated_game.object_bytes_per_cell);
+    uint64_t hash = 14695981039346656037ULL;
+    for (size_t index = 0; index < bytes; ++index) {
+        hash ^= board[index];
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
+const char* inputName(ps_input input) {
+    switch (input) {
+    case PS_INPUT_UP: return "up";
+    case PS_INPUT_DOWN: return "down";
+    case PS_INPUT_LEFT: return "left";
+    case PS_INPUT_RIGHT: return "right";
+    case PS_INPUT_ACTION: return "action";
+    case PS_INPUT_TICK: return "tick";
+    default: return "?";
+    }
+}
+
 bool loadBoardByOrdinal(ps_gbc_session* session, int boardOrdinal) {
     int seen = 0;
     for (uint16_t index = 0U; index < ps_gbc_generated_game.level_count; ++index) {
@@ -151,6 +178,7 @@ int main(int argc, char** argv) {
     std::string gameSlug = "sokoban_basic";
     int iterations = 3;
     int boardOrdinal = 0;
+    bool dumpTrace = false;
     for (int index = 1; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--fixture" && index + 1 < argc) {
@@ -169,9 +197,14 @@ int main(int argc, char** argv) {
             iterations = std::max(1, std::atoi(argv[++index]));
             continue;
         }
+        if (arg == "--dump-trace") {
+            dumpTrace = true;
+            continue;
+        }
         fprintf(
             stderr,
-            "usage: %s [--fixture PATH] [--slug NAME] [--board-index N] [--iterations N]\n",
+            "usage: %s [--fixture PATH] [--slug NAME] [--board-index N] "
+            "[--iterations N] [--dump-trace]\n",
             argv[0]);
         return 1;
     }
@@ -200,6 +233,7 @@ int main(int argc, char** argv) {
         }
 
         if (run == 0) turnMs.clear();
+        size_t turnIndex = 0;
         for (const ps_input input : inputs) {
             // Solver solutions use AgainPolicy::Drain (player inputs only).
             // GBC exposes again as pending_again + PS_INPUT_TICK, so drain here
@@ -226,11 +260,36 @@ int main(int argc, char** argv) {
                 ps_gbc_status_get(session, &status);
             }
 
+            if (dumpTrace && run == 0) {
+                fprintf(
+                    stderr,
+                    "trace turn=%zu input=%s again=%d changed=%d won=%d "
+                    "pending=%d hash=%016llx\n",
+                    turnIndex,
+                    inputName(input),
+                    againPasses,
+                    result.changed ? 1 : 0,
+                    won ? 1 : 0,
+                    status.pending_again ? 1 : 0,
+                    static_cast<unsigned long long>(boardHash(session)));
+                for (uint16_t y = 0; y < status.height; ++y) {
+                    fprintf(stderr, "board y=%u:", y);
+                    for (uint16_t x = 0; x < status.width; ++x) {
+                        fprintf(
+                            stderr,
+                            " %08x",
+                            ps_gbc_cell_objects(session, static_cast<int16_t>(x), static_cast<int16_t>(y)));
+                    }
+                    fprintf(stderr, "\n");
+                }
+            }
+
             const auto elapsed = Clock::now() - start;
             if (run == 0) {
                 turnMs.push_back(
                     std::chrono::duration<double, std::milli>(elapsed).count());
             }
+            ++turnIndex;
         }
     }
 

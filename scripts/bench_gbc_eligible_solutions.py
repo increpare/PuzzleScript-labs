@@ -419,6 +419,11 @@ def main() -> int:
         action="store_true",
         help="Skip baseline/specialized cartridge rebuilds",
     )
+    parser.add_argument(
+        "--reuse-fixtures",
+        action="store_true",
+        help="Reuse existing solution fixtures when present (skip solver)",
+    )
     parser.add_argument("--gbdk-home", type=Path)
     parser.add_argument("--cull", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--slug", action="append", default=[])
@@ -557,32 +562,54 @@ def main() -> int:
                     "source_level": source_level,
                     "success": False,
                 }
-                try:
-                    result = solve_level_json(
-                        solver, corpus, game_name, source_level, args.timeout_ms
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    level_entry["error"] = f"solve exception: {exc}"
-                    level_rows.append(level_entry)
-                    print(f"  L{board_index}/src{source_level} FAIL solve: {exc}", flush=True)
-                    continue
-                status = str(result.get("status"))
-                tokens = [str(token).lower() for token in (result.get("solution") or [])]
-                level_entry["solver_status"] = status
-                level_entry["solver_strategy"] = result.get("strategy")
-                if status != "solved" or not tokens:
-                    level_entry["error"] = f"unsolved:{status}"
-                    level_rows.append(level_entry)
-                    print(
-                        f"  L{board_index}/src{source_level} FAIL {status}",
-                        flush=True,
-                    )
-                    continue
-
                 fixture = fixtures_root / f"{slug}-board{board_index}.txt"
-                write_fixture(tokens, fixture)
-                level_entry["fixture"] = str(fixture.relative_to(repository))
-                level_entry["replay_turns"] = len(tokens)
+                tokens: list[str] = []
+                if args.reuse_fixtures and fixture.is_file():
+                    tokens = [
+                        line.strip().lower()
+                        for line in fixture.read_text(encoding="utf-8").splitlines()
+                        if line.strip()
+                    ]
+                    if tokens:
+                        level_entry["solver_status"] = "reused_fixture"
+                        level_entry["fixture"] = str(fixture.relative_to(repository))
+                        level_entry["replay_turns"] = len(tokens)
+                        print(
+                            f"  L{board_index}/src{source_level} reuse fixture "
+                            f"turns={len(tokens)}",
+                            flush=True,
+                        )
+                if not tokens:
+                    try:
+                        result = solve_level_json(
+                            solver, corpus, game_name, source_level, args.timeout_ms
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        level_entry["error"] = f"solve exception: {exc}"
+                        level_rows.append(level_entry)
+                        print(
+                            f"  L{board_index}/src{source_level} FAIL solve: {exc}",
+                            flush=True,
+                        )
+                        continue
+                    status = str(result.get("status"))
+                    tokens = [
+                        str(token).lower() for token in (result.get("solution") or [])
+                    ]
+                    level_entry["solver_status"] = status
+                    level_entry["solver_strategy"] = result.get("strategy")
+                    if status != "solved" or not tokens:
+                        level_entry["error"] = f"unsolved:{status}"
+                        level_rows.append(level_entry)
+                        print(
+                            f"  L{board_index}/src{source_level} FAIL {status}",
+                            flush=True,
+                        )
+                        continue
+
+                    write_fixture(tokens, fixture)
+                    level_entry["fixture"] = str(fixture.relative_to(repository))
+                    level_entry["replay_turns"] = len(tokens)
 
                 try:
                     before = run_host_bench(
