@@ -1077,6 +1077,28 @@ no longer falls back to interpreter on size-check failure; ROM builds fail hard
 instead. `scripts/gbc_manifest_disable_specialized.py` remains for manual use
 only.
 
+### GBC good_games cull audit after any/layer-coupled specialized emit (2026-07-25)
+
+Revision: `gbc-any-layer-coupled-codegen` (`scripts/audit_gbc_good_games_export.py --cull`).
+
+| First-fail class | Before (cull audit) | After |
+| --- | ---: | ---: |
+| **export OK** | **14** | **35** |
+| any/layer-coupled | 50 | **0** |
+| board cull-all | 54 | 54 |
+| object_count (>32) | — | 27 |
+| multi-row rules | — | 19 |
+| dynamic replacements | — | 19 |
+| other (invalid layer, etc.) | 41 mixed | 18 |
+| ellipsis | — | 3 |
+| movement layers (>6) | — | 3 |
+
+Milestone A removed the entire any/layer-coupled first-fail wall (+21 structurally
+exportable games with cull). Remaining rejects are honest later limits: oversized
+boards culled to zero, object count, multi-row/dynamic rule shapes, and a long
+tail of invalid-layer or property edge cases. Production `ELIGIBLE_GAMES` (14) is
+unchanged; expand only after ROM/size validation on newly OK titles.
+
 ### GBC specialized turn → dedicated bank 3 (2026-07-24)
 
 Revision: working tree on `gbc-specialized-turn-codegen`.
