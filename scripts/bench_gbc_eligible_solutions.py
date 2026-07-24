@@ -265,6 +265,7 @@ def run_host_bench(
     fixture: Path,
     slug: str,
     board_index: int,
+    iterations: int = 3,
 ) -> dict[str, Any]:
     run = subprocess.run(
         [
@@ -276,7 +277,7 @@ def run_host_bench(
             "--board-index",
             str(board_index),
             "--iterations",
-            "3",
+            str(iterations),
         ],
         capture_output=True,
         text=True,
