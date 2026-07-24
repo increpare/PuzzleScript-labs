@@ -1133,7 +1133,7 @@ bool ps_gbc_advance_level(ps_gbc_session* session) {
     return ps_gbc_advance(session);
 }
 
-bool ps_gbc_apply_turn_phases(
+bool ps_gbc_apply_rules_and_movement(
     ps_gbc_session* session,
     uint8_t direction,
     ps_gbc_commands* commands
@@ -1141,12 +1141,6 @@ bool ps_gbc_apply_turn_phases(
     bool early_changed;
     bool moved;
     bool late_changed;
-    bool seeded;
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_SETUP);
-    memset(session->movements, 0, ps_gbc_movement_bytes(session->game));
-    session->pending_again = false;
-    seeded = ps_gbc_seed_player_movement(session, direction);
-    PS_GBC_PERF_END(PS_GBC_PERF_SETUP);
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
     early_changed = ps_gbc_apply_groups(
         session,
@@ -1166,7 +1160,23 @@ bool ps_gbc_apply_turn_phases(
         direction,
         commands);
     PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
-    return seeded || early_changed || moved || late_changed;
+    return early_changed || moved || late_changed;
+}
+
+bool ps_gbc_apply_turn_phases(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands
+) {
+    bool seeded;
+    bool rest;
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_SETUP);
+    memset(session->movements, 0, ps_gbc_movement_bytes(session->game));
+    session->pending_again = false;
+    seeded = ps_gbc_seed_player_movement(session, direction);
+    PS_GBC_PERF_END(PS_GBC_PERF_SETUP);
+    rest = ps_gbc_apply_rules_and_movement(session, direction, commands);
+    return seeded || rest;
 }
 
 #if !defined(PS_GBC_HAS_SPECIALIZED_TURN)

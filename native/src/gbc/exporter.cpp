@@ -1661,7 +1661,7 @@ SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     info.supported = compactTurnSupport.nativeKernel();
     if (info.supported) {
         std::ostringstream specializedTurnSource;
-        compiler::emitGbcSpecializedTurn(specializedTurnSource);
+        compiler::emitGbcSpecializedTurn(specializedTurnSource, game);
         writeFileIfChanged(path, specializedTurnSource.str());
         info.generatedPath = path;
         return info;

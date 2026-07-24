@@ -7052,21 +7052,67 @@ void emitCompactTurnAccessLayer(
 
 } // namespace
 
-void emitGbcSpecializedTurn(std::ostream& out) {
+void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
+    (void)game;
     out << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
-        << "#include \"specialized_turn.h\"\n\n"
-        << "bool ps_gbc_apply_turn_phases(\n"
+        << "#include \"specialized_turn.h\"\n"
+        << "#include \"generated_game.h\"\n"
+        << "#include <string.h>\n\n"
+        << "bool ps_gbc_apply_rules_and_movement(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction,\n"
         << "    ps_gbc_commands* commands);\n\n"
+        << "static bool ps_gbc_specialized_seed_player_movement(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint8_t direction\n"
+        << ") {\n"
+        << "    const uint16_t cells = ps_gbc_facade_cell_count(session);\n"
+        << "    bool seeded = false;\n"
+        << "    uint16_t cell;\n"
+        << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n"
+        << "    for (cell = 0U; cell < cells; ++cell) {\n"
+        << "        uint32_t players = ps_gbc_facade_get_objects(session, cell)\n"
+        << "            & ps_gbc_generated_game.player_mask;\n"
+        << "        uint8_t object_id = 0U;\n"
+        << "        while (players != 0U) {\n"
+        << "            if ((players & 1U) != 0U) {\n"
+        << "                const uint8_t movement_layer =\n"
+        << "                    ps_gbc_generated_game.objects[object_id].movement_layer;\n"
+        << "                uint32_t movement;\n"
+        << "                if (movement_layer == PS_GBC_NO_MOVEMENT_LAYER) {\n"
+        << "                    players >>= 1U;\n"
+        << "                    ++object_id;\n"
+        << "                    continue;\n"
+        << "                }\n"
+        << "                movement = ps_gbc_facade_get_movements(session, cell);\n"
+        << "                movement |= (uint32_t)direction << (5U * movement_layer);\n"
+        << "                ps_gbc_facade_set_movements(session, cell, movement);\n"
+        << "                seeded = true;\n"
+        << "            }\n"
+        << "            players >>= 1U;\n"
+        << "            ++object_id;\n"
+        << "        }\n"
+        << "    }\n"
+        << "    return seeded;\n"
+        << "}\n\n"
         << "bool ps_gbc_specialized_apply_turn_phases(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction,\n"
         << "    ps_gbc_commands* commands,\n"
         << "    bool* out_changed\n"
         << ") {\n"
+        << "    bool seeded;\n"
+        << "    bool rest;\n"
         << "    if (out_changed == NULL) return false;\n"
-        << "    *out_changed = ps_gbc_apply_turn_phases(session, direction, commands);\n"
+        << "    memset(\n"
+        << "        session->movements,\n"
+        << "        0,\n"
+        << "        (size_t)ps_gbc_generated_game.max_level_cells\n"
+        << "            * ps_gbc_generated_game.movement_bytes_per_cell);\n"
+        << "    session->pending_again = false;\n"
+        << "    seeded = ps_gbc_specialized_seed_player_movement(session, direction);\n"
+        << "    rest = ps_gbc_apply_rules_and_movement(session, direction, commands);\n"
+        << "    *out_changed = seeded || rest;\n"
         << "    return true;\n"
         << "}\n";
 }
@@ -7080,7 +7126,7 @@ void emitCompactTurnBackend(
     CompactCodegenOptions options
 ) {
     if (options.target == CompactCodegenTarget::GbdC) {
-        emitGbcSpecializedTurn(out);
+        emitGbcSpecializedTurn(out, game);
         return;
     }
     const CompactTurnSupport compactTurnSupport = compactTurnSupportForGame(game, options);

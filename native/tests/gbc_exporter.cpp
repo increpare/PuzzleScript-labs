@@ -67,9 +67,12 @@ int main() {
     require(
         specializedTurn.find("ps_gbc_specialized_apply_turn_phases")
             != std::string::npos
-            && specializedTurn.find("ps_gbc_apply_turn_phases(session, direction, commands)")
-                != std::string::npos,
-        "specialized turn stub delegates to the interpreter bridge");
+            && specializedTurn.find("ps_gbc_specialized_seed_player_movement")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_apply_rules_and_movement(session, direction, commands)")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos,
+        "specialized turn uses facade seeding and shared rules/movement core");
 
     {
         puzzlescript::Rule unsupportedRule;

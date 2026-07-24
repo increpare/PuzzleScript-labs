@@ -10,6 +10,11 @@ bool ps_gbc_apply_turn_phases(
     uint8_t direction,
     ps_gbc_commands* commands);
 
+bool ps_gbc_apply_rules_and_movement(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands);
+
 /*
  * Specialized turn hook. ps_gbc_step always calls this before falling back.
  *
