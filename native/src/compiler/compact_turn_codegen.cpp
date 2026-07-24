@@ -7058,6 +7058,134 @@ void emitGbcHexU32(std::ostream& out, uint32_t value) {
     out << "0x" << std::hex << value << std::dec << "U";
 }
 
+// Dialect sibling of emitCompactInlinePatternMatchTest for GbdC façade loads.
+void emitCompactInlineGbdCPatternMatch(
+    std::ostream& out,
+    const GbcSpecializedPatternEmit& pattern,
+    std::string_view indent,
+    std::string_view cellExpr,
+    std::string_view tileVariableName,
+    std::string_view matchedFlagName
+) {
+    constexpr uint8_t kObjectsPresent = 1U << 0;
+    constexpr uint8_t kObjectsMissing = 1U << 1;
+    constexpr uint8_t kMovementsPresent = 1U << 2;
+    constexpr uint8_t kMovementsMissing = 1U << 3;
+    constexpr uint8_t kMovementsAny = kMovementsPresent | kMovementsMissing;
+    constexpr uint8_t kNeverMatch = 1U << 6;
+
+    out << indent << "if (" << matchedFlagName << ") {\n";
+    if ((pattern.flags & kNeverMatch) != 0U) {
+        out << indent << "    " << matchedFlagName << " = false;\n";
+    } else {
+        if ((pattern.flags & (kObjectsPresent | kObjectsMissing)) != 0U) {
+            const std::string objectVar = std::string(tileVariableName) + "_objects";
+            out << indent << "    uint32_t " << objectVar
+                << " = ps_gbc_facade_get_objects(session, " << cellExpr << ");\n";
+            if ((pattern.flags & kObjectsPresent) != 0U) {
+                out << indent << "    if ((" << objectVar << " & ";
+                emitGbcHexU32(out, pattern.objectsPresent);
+                out << ") != ";
+                emitGbcHexU32(out, pattern.objectsPresent);
+                out << ") " << matchedFlagName << " = false;\n";
+            }
+            if ((pattern.flags & kObjectsMissing) != 0U) {
+                out << indent << "    if ((" << objectVar << " & ";
+                emitGbcHexU32(out, pattern.objectsMissing);
+                out << ") != 0U) " << matchedFlagName << " = false;\n";
+            }
+        }
+        if ((pattern.flags & kMovementsAny) != 0U) {
+            const std::string movementVar = std::string(tileVariableName) + "_movements";
+            out << indent << "    if (" << matchedFlagName << ") {\n"
+                << indent << "        uint32_t " << movementVar
+                << " = ps_gbc_facade_get_movements(session, " << cellExpr << ");\n";
+            if ((pattern.flags & kMovementsPresent) != 0U) {
+                out << indent << "        if ((" << movementVar << " & ";
+                emitGbcHexU32(out, pattern.movementsPresent);
+                out << ") != ";
+                emitGbcHexU32(out, pattern.movementsPresent);
+                out << ") " << matchedFlagName << " = false;\n";
+            }
+            if ((pattern.flags & kMovementsMissing) != 0U) {
+                out << indent << "        if ((" << movementVar << " & ";
+                emitGbcHexU32(out, pattern.movementsMissing);
+                out << ") != 0U) " << matchedFlagName << " = false;\n";
+            }
+            out << indent << "    }\n";
+        }
+    }
+    out << indent << "}\n";
+}
+
+void emitCompactInlineGbdCPatternApply(
+    std::ostream& out,
+    const GbcSpecializedPatternEmit& pattern,
+    std::string_view indent,
+    std::string_view cellExpr,
+    std::string_view tileVariableName,
+    std::string_view changedFlagName
+) {
+    constexpr uint8_t kHasReplacement = 1U << 4;
+    constexpr uint8_t kClearMovementLayers = 1U << 5;
+    if ((pattern.flags & kHasReplacement) == 0U) {
+        return;
+    }
+
+    const std::string objectsVar = std::string(tileVariableName) + "_objects";
+    const std::string movementsVar = std::string(tileVariableName) + "_movements";
+    const std::string originalMovementsVar = std::string(tileVariableName) + "_original_movements";
+    const std::string nextObjectsVar = std::string(tileVariableName) + "_next_objects";
+    const std::string nextMovementsVar = std::string(tileVariableName) + "_next_movements";
+
+    out << indent << "{\n"
+        << indent << "    uint32_t " << objectsVar << " = ps_gbc_facade_get_objects(session, "
+        << cellExpr << ");\n"
+        << indent << "    uint32_t " << movementsVar << " = ps_gbc_facade_get_movements(session, "
+        << cellExpr << ");\n"
+        << indent << "    uint32_t " << originalMovementsVar << " = " << movementsVar << ";\n"
+        << indent << "    uint32_t " << nextObjectsVar << " = (" << objectsVar << " & ~";
+    emitGbcHexU32(out, pattern.objectsClear);
+    out << ") | ";
+    emitGbcHexU32(out, pattern.objectsSet);
+    out << ";\n";
+    if ((pattern.flags & kClearMovementLayers) != 0U) {
+        out << indent << "    " << movementsVar << " &= ~";
+        emitGbcHexU32(out, pattern.movementLayerMask);
+        out << ";\n";
+    }
+    out << indent << "    " << nextMovementsVar << " = (" << movementsVar << " & ~";
+    emitGbcHexU32(out, pattern.movementsClear);
+    out << ") | ";
+    emitGbcHexU32(out, pattern.movementsSet);
+    out << ";\n"
+        << indent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+        << indent << "    if ((" << nextObjectsVar << " & ps_gbc_generated_game.player_mask) != 0U) {\n"
+        << indent << "        uint8_t index = 0U;\n"
+        << indent << "        uint8_t shift;\n"
+        << indent << "        while (index < session->player_cell_count\n"
+        << indent << "            && session->player_cells[index] < " << cellExpr << ") ++index;\n"
+        << indent << "        if (index >= session->player_cell_count\n"
+        << indent << "            || session->player_cells[index] != " << cellExpr << ") {\n"
+        << indent << "            shift = session->player_cell_count;\n"
+        << indent << "            while (shift > index) {\n"
+        << indent << "                session->player_cells[shift] = session->player_cells[shift - 1U];\n"
+        << indent << "                --shift;\n"
+        << indent << "            }\n"
+        << indent << "            session->player_cells[index] = " << cellExpr << ";\n"
+        << indent << "            ++session->player_cell_count;\n"
+        << indent << "        }\n"
+        << indent << "    }\n"
+        << indent << "#endif\n"
+        << indent << "    ps_gbc_facade_set_objects(session, " << cellExpr << ", " << nextObjectsVar << ");\n"
+        << indent << "    ps_gbc_facade_set_movements(session, " << cellExpr << ", " << nextMovementsVar << ");\n"
+        << indent << "    if (" << nextObjectsVar << " != " << objectsVar << ") ps_gbc_facade_mark_dirty(session, "
+        << cellExpr << ");\n"
+        << indent << "    if (" << nextObjectsVar << " != " << objectsVar << " || " << nextMovementsVar
+        << " != " << originalMovementsVar << ") " << changedFlagName << " = true;\n"
+        << indent << "}\n";
+}
+
 void emitGbcSpecializedSeedAndHelpers(std::ostream& out) {
     out << "#if defined(__SDCC) || defined(GBDK)\n"
         << "#pragma bank 2\n"
