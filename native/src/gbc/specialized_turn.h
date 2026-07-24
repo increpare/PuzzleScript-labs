@@ -52,6 +52,7 @@ bool ps_gbc_specialized_apply_turn_phases(
     ps_gbc_commands* commands,
     bool* out_changed) PS_GBC_SPECIALIZED_TURN_BANKED;
 
-#if defined(PS_GBC_GENERATED_SPECIALIZED_WON) && PS_GBC_GENERATED_SPECIALIZED_WON
+#if defined(PS_GBC_GENERATED_SPECIALIZED_WON) && PS_GBC_GENERATED_SPECIALIZED_WON \
+    && defined(PS_GBC_HAS_SPECIALIZED_TURN) && PS_GBC_HAS_SPECIALIZED_TURN
 bool ps_gbc_specialized_won(const ps_gbc_session* session) PS_GBC_SPECIALIZED_TURN_BANKED;
 #endif

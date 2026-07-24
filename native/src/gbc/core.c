@@ -1298,7 +1298,8 @@ static void ps_gbc_finish_turn(
     }
     if (!level_start
         && ((commands->flags & PS_GBC_COMMAND_WIN) != 0U
-#if defined(PS_GBC_GENERATED_SPECIALIZED_WON) && PS_GBC_GENERATED_SPECIALIZED_WON
+#if defined(PS_GBC_GENERATED_SPECIALIZED_WON) && PS_GBC_GENERATED_SPECIALIZED_WON \
+    && defined(PS_GBC_HAS_SPECIALIZED_TURN) && PS_GBC_HAS_SPECIALIZED_TURN
             || ps_gbc_specialized_won(session)
 #else
             || ps_gbc_won(session)

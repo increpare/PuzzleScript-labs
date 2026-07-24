@@ -7715,7 +7715,8 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             out << "    cell = (uint8_t)((int16_t)cell + delta);\n";
         }
     }
-    out << "    commands->flags |= " << static_cast<unsigned>(rule.commands) << "U;\n"
+    out << "    commands->flags |= "
+        << static_cast<unsigned>(rule.commands & 0x3fU) << "U;\n"
         << "    return true;\n"
         << "}\n\n";
 }
@@ -7951,16 +7952,25 @@ void emitGbcSpecializedRuleFunction(
     }
     out << "    }\n";
     if (applyOnMatch) {
-        out << "    if (changed) commands->flags |= " << static_cast<unsigned>(rule.commands) << "U;\n"
+        const unsigned commandBits = static_cast<unsigned>(rule.commands & 0x3fU);
+        out << "    if (changed) commands->flags |= " << commandBits << "U;\n"
             << "    return changed;\n"
             << "}\n\n";
         return;
     }
-    out << "    if (match_count == 0U) return false;\n"
-        << "    commands->flags |= " << static_cast<unsigned>(rule.commands) << "U;\n"
-        << "    for (match_index = 0U; match_index < match_count; ++match_index) {\n"
-        << "        const uint8_t start = session->match_cells[match_index];\n"
-        << "        uint8_t cell = start;\n";
+    {
+        const unsigned commandBits = static_cast<unsigned>(rule.commands & 0x3fU);
+        out << "    if (match_count == 0U) return false;\n"
+            << "    commands->flags |= " << commandBits << "U;\n";
+        if (commandBits != 0U) {
+            // Command-only matches (e.g. []->again) must count as turn changes so
+            // finish_turn will honor pending_again / win / message.
+            out << "    changed = true;\n";
+        }
+        out << "    for (match_index = 0U; match_index < match_count; ++match_index) {\n"
+            << "        const uint8_t start = session->match_cells[match_index];\n"
+            << "        uint8_t cell = start;\n";
+    }
     for (uint8_t patternIndex = 0; patternIndex < rule.patternCount; ++patternIndex) {
         const auto& pattern = patterns[rule.firstPattern + patternIndex];
         const std::string tileName = "a" + std::to_string(patternIndex);
@@ -8056,20 +8066,22 @@ void emitGbcSpecializedPhaseApply(
                         << "            else if (input_direction == 2U) block = 1U;\n"
                         << "            else if (input_direction == 4U) block = 2U;\n"
                         << "            else if (input_direction == 8U) block = 3U;\n"
-                        << "            else return ever_changed;\n";
+                        << "            else { rule_count = 0U; block = 0U; block_size = 0U; }\n";
                 } else if (group.inputLayout == 0x4000U) { // VERTICAL
                     out << "            block_size = rule_count >> 1U;\n"
                         << "            if (input_direction == 1U) block = 0U;\n"
                         << "            else if (input_direction == 2U) block = 1U;\n"
-                        << "            else return ever_changed;\n";
+                        << "            else { rule_count = 0U; block = 0U; block_size = 0U; }\n";
                 } else { // HORIZONTAL
                     out << "            block_size = rule_count >> 1U;\n"
                         << "            if (input_direction == 4U) block = 0U;\n"
                         << "            else if (input_direction == 8U) block = 1U;\n"
-                        << "            else return ever_changed;\n";
+                        << "            else { rule_count = 0U; block = 0U; block_size = 0U; }\n";
                 }
-                out << "            first_rule = (uint16_t)(first_rule + (uint16_t)block * block_size);\n"
-                    << "            rule_count = block_size;\n"
+                out << "            if (rule_count != 0U) {\n"
+                    << "                first_rule = (uint16_t)(first_rule + (uint16_t)block * block_size);\n"
+                    << "                rule_count = block_size;\n"
+                    << "            }\n"
                     << "        }\n";
             }
             out << "        for (pass = 0U; pass < pass_limit; ++pass) {\n"
