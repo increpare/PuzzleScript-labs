@@ -1,8 +1,10 @@
 #pragma once
 
 #include "runtime/core.hpp"
+#include "compiler/compact_turn_codegen.hpp"
 
 #include <filesystem>
+#include <vector>
 
 namespace puzzlescript::gbc {
 
@@ -27,7 +29,12 @@ struct SpecializedTurnExportInfo {
 
 SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const Game& game,
-    const std::filesystem::path& outputDirectory);
+    const std::filesystem::path& outputDirectory,
+    bool singlePlayerCellCertified = false,
+    const std::vector<compiler::GbcSpecializedPatternEmit>& patterns = {},
+    const std::vector<compiler::GbcSpecializedRuleEmit>& rules = {},
+    const std::vector<compiler::GbcSpecializedGroupEmit>& earlyGroups = {},
+    const std::vector<compiler::GbcSpecializedGroupEmit>& lateGroups = {});
 
 ExportResult exportGame(const ExportOptions& options);
 

@@ -6,3 +6,5 @@ left
 down
 down
 right
+right
+down

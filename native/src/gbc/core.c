@@ -1203,7 +1203,7 @@ bool ps_gbc_specialized_apply_turn_phases(
     uint8_t direction,
     ps_gbc_commands* commands,
     bool* out_changed
-) {
+) PS_GBC_SPECIALIZED_TURN_BANKED {
     (void)session;
     (void)direction;
     (void)commands;

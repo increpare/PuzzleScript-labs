@@ -7052,18 +7052,17 @@ void emitCompactTurnAccessLayer(
 
 } // namespace
 
-void emitGbcSpecializedTurn(
-    std::ostream& out,
-    const Game& game,
-    bool singlePlayerCellCertified
-) {
-    (void)game;
-    (void)singlePlayerCellCertified;
+namespace {
+
+void emitGbcHexU32(std::ostream& out, uint32_t value) {
+    out << "0x" << std::hex << value << std::dec << "U";
+}
+
+void emitGbcSpecializedSeedAndHelpers(std::ostream& out) {
     out << "#if defined(__SDCC) || defined(GBDK)\n"
         << "#pragma bank 2\n"
         << "#endif\n"
         << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
-        << "#include \"puzzlescript/gbc_facade_rules.h\"\n"
         << "#include \"specialized_turn.h\"\n"
         << "#include \"generated_game.h\"\n"
         << "#include <string.h>\n\n"
@@ -7152,8 +7151,356 @@ void emitGbcSpecializedTurn(
         << "    }\n"
         << "#endif\n"
         << "    return seeded;\n"
+        << "}\n\n";
+}
+
+void emitGbcSpecializedPatternTable(
+    std::ostream& out,
+    const std::vector<GbcSpecializedPatternEmit>& patterns
+) {
+    out << "static const ps_gbc_generated_pattern ps_gbc_specialized_patterns[] = {\n";
+    if (patterns.empty()) {
+        out << "    {0},\n";
+    }
+    for (const auto& pattern : patterns) {
+        // Must match ps_gbc_generated_pattern field order in generated_game.h.
+        out << "    {";
+        emitGbcHexU32(out, pattern.objectsPresent);
+        out << ", ";
+        emitGbcHexU32(out, pattern.objectsMissing);
+        out << ", ";
+        emitGbcHexU32(out, pattern.objectsClear);
+        out << ", ";
+        emitGbcHexU32(out, pattern.objectsSet);
+        out << ", ";
+        emitGbcHexU32(out, pattern.movementsPresent);
+        out << ", ";
+        emitGbcHexU32(out, pattern.movementsMissing);
+        out << ", ";
+        emitGbcHexU32(out, pattern.movementsClear);
+        out << ", ";
+        emitGbcHexU32(out, pattern.movementsSet);
+        out << ", ";
+        emitGbcHexU32(out, pattern.movementLayerMask);
+        out << ", " << static_cast<unsigned>(pattern.flags) << "U},\n";
+    }
+    out << "};\n\n"
+        << "static bool ps_gbc_specialized_pattern_matches(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    const ps_gbc_generated_pattern* pattern,\n"
+        << "    uint8_t cell\n"
+        << ") {\n"
+        << "    const uint8_t flags = pattern->flags;\n"
+        << "    uint32_t objects;\n"
+        << "    uint32_t movements;\n"
+        << "    if ((flags & PS_GBC_PATTERN_NEVER_MATCH) != 0U) return false;\n"
+        << "    objects = ps_gbc_facade_get_objects(session, cell);\n"
+        << "    if ((flags & PS_GBC_PATTERN_OBJECTS_PRESENT) != 0U\n"
+        << "        && (objects & pattern->objects_present) != pattern->objects_present) return false;\n"
+        << "    if ((flags & PS_GBC_PATTERN_OBJECTS_MISSING) != 0U\n"
+        << "        && (objects & pattern->objects_missing) != 0U) return false;\n"
+        << "    if ((flags & (PS_GBC_PATTERN_MOVEMENTS_PRESENT | PS_GBC_PATTERN_MOVEMENTS_MISSING)) == 0U) return true;\n"
+        << "    movements = ps_gbc_facade_get_movements(session, cell);\n"
+        << "    if ((flags & PS_GBC_PATTERN_MOVEMENTS_PRESENT) != 0U\n"
+        << "        && (movements & pattern->movements_present) != pattern->movements_present) return false;\n"
+        << "    if ((flags & PS_GBC_PATTERN_MOVEMENTS_MISSING) != 0U\n"
+        << "        && (movements & pattern->movements_missing) != 0U) return false;\n"
+        << "    return true;\n"
         << "}\n\n"
-        << "bool ps_gbc_specialized_apply_turn_phases(\n"
+        << "static bool ps_gbc_specialized_apply_replacement(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    const ps_gbc_generated_pattern* pattern,\n"
+        << "    uint8_t cell\n"
+        << ") {\n"
+        << "    uint32_t objects;\n"
+        << "    uint32_t movements;\n"
+        << "    uint32_t original_movements;\n"
+        << "    uint32_t next_objects;\n"
+        << "    uint32_t next_movements;\n"
+        << "    if ((pattern->flags & PS_GBC_PATTERN_HAS_REPLACEMENT) == 0U) return false;\n"
+        << "    objects = ps_gbc_facade_get_objects(session, cell);\n"
+        << "    movements = ps_gbc_facade_get_movements(session, cell);\n"
+        << "    original_movements = movements;\n"
+        << "    next_objects = (objects & ~pattern->objects_clear) | pattern->objects_set;\n"
+        << "    if ((pattern->flags & PS_GBC_REPLACEMENT_CLEAR_MOVEMENT_LAYERS) != 0U) {\n"
+        << "        movements &= ~pattern->movement_layer_mask;\n"
+        << "    }\n"
+        << "    next_movements = (movements & ~pattern->movements_clear) | pattern->movements_set;\n"
+        << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+        << "    if ((next_objects & ps_gbc_generated_game.player_mask) != 0U) {\n"
+        << "        uint8_t index = 0U;\n"
+        << "        uint8_t shift;\n"
+        << "        while (index < session->player_cell_count\n"
+        << "            && session->player_cells[index] < cell) ++index;\n"
+        << "        if (index >= session->player_cell_count\n"
+        << "            || session->player_cells[index] != cell) {\n"
+        << "            shift = session->player_cell_count;\n"
+        << "            while (shift > index) {\n"
+        << "                session->player_cells[shift] = session->player_cells[shift - 1U];\n"
+        << "                --shift;\n"
+        << "            }\n"
+        << "            session->player_cells[index] = cell;\n"
+        << "            ++session->player_cell_count;\n"
+        << "        }\n"
+        << "    }\n"
+        << "#endif\n"
+        << "    ps_gbc_facade_set_objects(session, cell, next_objects);\n"
+        << "    ps_gbc_facade_set_movements(session, cell, next_movements);\n"
+        << "    if (next_objects != objects) ps_gbc_facade_mark_dirty(session, cell);\n"
+        << "    return next_objects != objects || next_movements != original_movements;\n"
+        << "}\n\n"
+        << "static bool ps_gbc_specialized_rule_matches_at(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint16_t first_pattern,\n"
+        << "    uint8_t pattern_count,\n"
+        << "    uint8_t start,\n"
+        << "    int8_t delta\n"
+        << ") {\n"
+        << "    uint8_t cell = start;\n"
+        << "    uint8_t index;\n"
+        << "    for (index = 0U; index < pattern_count; ++index) {\n"
+        << "        if (!ps_gbc_specialized_pattern_matches(\n"
+        << "                session,\n"
+        << "                &ps_gbc_specialized_patterns[first_pattern + index],\n"
+        << "                cell)) return false;\n"
+        << "        cell = (uint8_t)((int16_t)cell + delta);\n"
+        << "    }\n"
+        << "    return true;\n"
+        << "}\n\n";
+}
+
+void emitGbcSpecializedRuleFunction(
+    std::ostream& out,
+    size_t ruleIndex,
+    const GbcSpecializedRuleEmit& rule,
+    const std::vector<GbcSpecializedPatternEmit>& patterns
+) {
+    (void)patterns;
+    out << "static bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    ps_gbc_commands* commands\n"
+        << ") {\n"
+        << "    const uint8_t direction = " << static_cast<unsigned>(rule.direction) << "U;\n"
+        << "    const uint16_t first_pattern = " << rule.firstPattern << "U;\n"
+        << "    const uint8_t pattern_count = " << static_cast<unsigned>(rule.patternCount) << "U;\n"
+        << "    int8_t delta;\n"
+        << "    uint8_t match_count = 0U;\n"
+        << "    uint8_t match_index;\n"
+        << "    bool changed = false;\n"
+        << "    switch (direction) {\n"
+        << "        case 1U: delta = -1; break;\n"
+        << "        case 2U: delta = 1; break;\n"
+        << "        case 4U: delta = -(int8_t)session->height; break;\n"
+        << "        case 8U: delta = (int8_t)session->height; break;\n"
+        << "        default: return false;\n"
+        << "    }\n"
+        << "    {\n"
+        << "        uint8_t xmin = 0U;\n"
+        << "        uint8_t xmax = (uint8_t)session->width;\n"
+        << "        uint8_t ymin = 0U;\n"
+        << "        uint8_t ymax = (uint8_t)session->height;\n"
+        << "        if (pattern_count == 0U) return false;\n"
+        << "        if (direction == 1U) ymin = (uint8_t)(pattern_count - 1U);\n"
+        << "        else if (direction == 2U) ymax = (uint8_t)(ymax - (pattern_count - 1U));\n"
+        << "        else if (direction == 4U) xmin = (uint8_t)(pattern_count - 1U);\n"
+        << "        else if (direction == 8U) xmax = (uint8_t)(xmax - (pattern_count - 1U));\n";
+    if ((rule.commands & 64U) != 0U) {
+        out << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+            << "        {\n"
+            << "            uint8_t player_index;\n"
+            << "            for (player_index = 0U; player_index < session->player_cell_count; ++player_index) {\n"
+            << "                const uint8_t start = session->player_cells[player_index];\n"
+            << "                const uint8_t player_x = (uint8_t)(start / session->height);\n"
+            << "                const uint8_t player_y = (uint8_t)(start - player_x * session->height);\n"
+            << "                if (player_x < xmin || player_x >= xmax\n"
+            << "                    || player_y < ymin || player_y >= ymax) continue;\n"
+            << "                if (ps_gbc_specialized_rule_matches_at(\n"
+            << "                        session, first_pattern, pattern_count, start, delta)) {\n"
+            << "                    session->match_cells[match_count] = start;\n"
+            << "                    ++match_count;\n"
+            << "                }\n"
+            << "            }\n"
+            << "        }\n"
+            << "#else\n";
+    }
+    out << "        {\n"
+        << "            uint8_t x;\n"
+        << "            uint8_t y;\n"
+        << "            uint8_t cell = (uint8_t)(xmin * session->height + ymin);\n"
+        << "            const uint8_t column_advance = (uint8_t)(session->height - (ymax - ymin));\n"
+        << "            for (x = xmin; x < xmax; ++x) {\n"
+        << "                for (y = ymin; y < ymax; ++y) {\n"
+        << "                    if (ps_gbc_specialized_rule_matches_at(\n"
+        << "                            session, first_pattern, pattern_count, cell, delta)) {\n"
+        << "                        session->match_cells[match_count] = cell;\n"
+        << "                        ++match_count;\n"
+        << "                    }\n"
+        << "                    ++cell;\n"
+        << "                }\n"
+        << "                cell = (uint8_t)(cell + column_advance);\n"
+        << "            }\n"
+        << "        }\n";
+    if ((rule.commands & 64U) != 0U) {
+        out << "#endif\n";
+    }
+    out << "    }\n"
+        << "    if (match_count == 0U) return false;\n"
+        << "    commands->flags |= " << static_cast<unsigned>(rule.commands) << "U;\n"
+        << "    for (match_index = 0U; match_index < match_count; ++match_index) {\n"
+        << "        const uint8_t start = session->match_cells[match_index];\n"
+        << "        uint8_t cell = start;\n"
+        << "        uint8_t pattern_index;\n"
+        << "        if (!ps_gbc_specialized_rule_matches_at(\n"
+        << "                session, first_pattern, pattern_count, start, delta)) continue;\n"
+        << "        for (pattern_index = 0U; pattern_index < pattern_count; ++pattern_index) {\n"
+        << "            changed = ps_gbc_specialized_apply_replacement(\n"
+        << "                session,\n"
+        << "                &ps_gbc_specialized_patterns[first_pattern + pattern_index],\n"
+        << "                cell) || changed;\n"
+        << "            cell = (uint8_t)((int16_t)cell + delta);\n"
+        << "        }\n"
+        << "    }\n"
+        << "    return changed;\n"
+        << "}\n\n";
+}
+
+void emitGbcSpecializedPhaseApply(
+    std::ostream& out,
+    const char* phaseName,
+    const std::vector<GbcSpecializedGroupEmit>& groups,
+    const std::vector<GbcSpecializedRuleEmit>& rules,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    size_t ruleIndexBase
+) {
+    (void)rules;
+    (void)patterns;
+    (void)ruleIndexBase;
+    out << "static bool ps_gbc_specialized_apply_" << phaseName << "(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint8_t input_direction,\n"
+        << "    ps_gbc_commands* commands\n"
+        << ") {\n"
+        << "    bool ever_changed = false;\n";
+    if (groups.empty()) {
+        out << "    (void)session;\n"
+            << "    (void)input_direction;\n"
+            << "    (void)commands;\n"
+            << "    return false;\n"
+            << "}\n\n";
+        return;
+    }
+    for (size_t groupIndex = 0; groupIndex < groups.size(); ++groupIndex) {
+        const auto& group = groups[groupIndex];
+        out << "    {\n"
+            << "        uint16_t first_rule = " << group.firstRule << "U;\n"
+            << "        uint16_t rule_count = " << group.ruleCount << "U;\n"
+            << "        const uint16_t pass_limit = "
+            << (group.singlePass ? "1U" : "200U") << ";\n"
+            << "        uint16_t pass;\n";
+        if (group.inputLayout != 0U) {
+            out << "        {\n"
+                << "            uint16_t block_size;\n"
+                << "            uint8_t block;\n";
+            if (group.inputLayout == 0x2000U) { // QUARTET
+                out << "            block_size = rule_count >> 2U;\n"
+                    << "            if (input_direction == 1U) block = 0U;\n"
+                    << "            else if (input_direction == 2U) block = 1U;\n"
+                    << "            else if (input_direction == 4U) block = 2U;\n"
+                    << "            else if (input_direction == 8U) block = 3U;\n"
+                    << "            else return ever_changed;\n";
+            } else if (group.inputLayout == 0x4000U) { // VERTICAL
+                out << "            block_size = rule_count >> 1U;\n"
+                    << "            if (input_direction == 1U) block = 0U;\n"
+                    << "            else if (input_direction == 2U) block = 1U;\n"
+                    << "            else return ever_changed;\n";
+            } else { // HORIZONTAL
+                out << "            block_size = rule_count >> 1U;\n"
+                    << "            if (input_direction == 4U) block = 0U;\n"
+                    << "            else if (input_direction == 8U) block = 1U;\n"
+                    << "            else return ever_changed;\n";
+            }
+            out << "            first_rule = (uint16_t)(first_rule + (uint16_t)block * block_size);\n"
+                << "            rule_count = block_size;\n"
+                << "        }\n";
+        }
+        out << "        for (pass = 0U; pass < pass_limit; ++pass) {\n"
+            << "            uint16_t rule_index;\n"
+            << "            bool changed = false;\n"
+            << "            for (rule_index = 0U; rule_index < rule_count; ++rule_index) {\n"
+            << "                const uint16_t absolute = (uint16_t)(first_rule + rule_index);\n"
+            << "                switch (absolute) {\n";
+        for (uint16_t r = 0; r < group.ruleCount; ++r) {
+            const size_t abs = static_cast<size_t>(group.firstRule) + r;
+            out << "                case " << abs << "U:\n"
+                << "                    changed = ps_gbc_specialized_rule_" << abs
+                << "(session, commands) || changed;\n"
+                << "                    break;\n";
+        }
+        out << "                default:\n"
+            << "                    break;\n"
+            << "                }\n"
+            << "            }\n"
+            << "            if (changed) ever_changed = true;\n"
+            << "            else break;\n"
+            << "        }\n"
+            << "    }\n";
+    }
+    out << "    return ever_changed;\n"
+        << "}\n\n";
+}
+
+} // namespace
+
+void emitGbcSpecializedTurn(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    const std::vector<GbcSpecializedRuleEmit>& rules,
+    const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
+    const std::vector<GbcSpecializedGroupEmit>& lateGroups
+) {
+    (void)game;
+    (void)singlePlayerCellCertified;
+    emitGbcSpecializedSeedAndHelpers(out);
+
+    if (patterns.empty() || rules.empty()) {
+        // Fallback walker path when packing was not provided.
+        out << "#include \"puzzlescript/gbc_facade_rules.h\"\n\n"
+            << "static bool ps_gbc_specialized_apply_early(\n"
+            << "    ps_gbc_session* session,\n"
+            << "    uint8_t direction,\n"
+            << "    ps_gbc_commands* commands\n"
+            << ") {\n"
+            << "    return ps_gbc_facade_apply_groups(\n"
+            << "        session,\n"
+            << "        ps_gbc_generated_game.early_groups,\n"
+            << "        ps_gbc_generated_game.early_group_count,\n"
+            << "        direction,\n"
+            << "        commands);\n"
+            << "}\n\n"
+            << "static bool ps_gbc_specialized_apply_late(\n"
+            << "    ps_gbc_session* session,\n"
+            << "    uint8_t direction,\n"
+            << "    ps_gbc_commands* commands\n"
+            << ") {\n"
+            << "    return ps_gbc_facade_apply_groups(\n"
+            << "        session,\n"
+            << "        ps_gbc_generated_game.late_groups,\n"
+            << "        ps_gbc_generated_game.late_group_count,\n"
+            << "        direction,\n"
+            << "        commands);\n"
+            << "}\n\n";
+    } else {
+        emitGbcSpecializedPatternTable(out, patterns);
+        for (size_t ruleIndex = 0; ruleIndex < rules.size(); ++ruleIndex) {
+            emitGbcSpecializedRuleFunction(out, ruleIndex, rules[ruleIndex], patterns);
+        }
+        emitGbcSpecializedPhaseApply(out, "early", earlyGroups, rules, patterns, 0);
+        emitGbcSpecializedPhaseApply(out, "late", lateGroups, rules, patterns, 0);
+    }
+
+    out << "bool ps_gbc_specialized_apply_turn_phases(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction,\n"
         << "    ps_gbc_commands* commands,\n"
@@ -7171,19 +7518,9 @@ void emitGbcSpecializedTurn(
         << "            * ps_gbc_generated_game.movement_bytes_per_cell);\n"
         << "    session->pending_again = false;\n"
         << "    seeded = ps_gbc_specialized_seed_player_movement(session, direction);\n"
-        << "    early = ps_gbc_facade_apply_groups(\n"
-        << "        session,\n"
-        << "        ps_gbc_generated_game.early_groups,\n"
-        << "        ps_gbc_generated_game.early_group_count,\n"
-        << "        direction,\n"
-        << "        commands);\n"
+        << "    early = ps_gbc_specialized_apply_early(session, direction, commands);\n"
         << "    moved = ps_gbc_resolve_movements(session);\n"
-        << "    late = ps_gbc_facade_apply_groups(\n"
-        << "        session,\n"
-        << "        ps_gbc_generated_game.late_groups,\n"
-        << "        ps_gbc_generated_game.late_group_count,\n"
-        << "        direction,\n"
-        << "        commands);\n"
+        << "    late = ps_gbc_specialized_apply_late(session, direction, commands);\n"
         << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
         << "    if (seeded || early || moved || late) {\n"
         << "        ps_gbc_specialized_refresh_player_cell(session);\n"
@@ -7193,6 +7530,22 @@ void emitGbcSpecializedTurn(
         << "    return true;\n"
         << "}\n";
 }
+
+void emitGbcSpecializedTurn(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified
+) {
+    emitGbcSpecializedTurn(
+        out,
+        game,
+        singlePlayerCellCertified,
+        {},
+        {},
+        {},
+        {});
+}
+
 
 void emitCompactTurnBackend(
     std::ostream& out,

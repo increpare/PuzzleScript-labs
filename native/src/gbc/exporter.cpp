@@ -1721,7 +1721,11 @@ std::string emitSource(
 SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const Game& game,
     const std::filesystem::path& outputDirectory,
-    bool singlePlayerCellCertified
+    bool singlePlayerCellCertified,
+    const std::vector<compiler::GbcSpecializedPatternEmit>& patterns,
+    const std::vector<compiler::GbcSpecializedRuleEmit>& rules,
+    const std::vector<compiler::GbcSpecializedGroupEmit>& earlyGroups,
+    const std::vector<compiler::GbcSpecializedGroupEmit>& lateGroups
 ) {
     SpecializedTurnExportInfo info;
     const std::filesystem::path path = outputDirectory / "generated_specialized_turn.c";
@@ -1732,7 +1736,13 @@ SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     if (info.supported) {
         std::ostringstream specializedTurnSource;
         compiler::emitGbcSpecializedTurn(
-            specializedTurnSource, game, singlePlayerCellCertified);
+            specializedTurnSource,
+            game,
+            singlePlayerCellCertified,
+            patterns,
+            rules,
+            earlyGroups,
+            lateGroups);
         writeFileIfChanged(path, specializedTurnSource.str());
         info.generatedPath = path;
         return info;
@@ -2155,9 +2165,55 @@ ExportResult exportGame(const ExportOptions& options) {
         static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
+    std::vector<compiler::GbcSpecializedPatternEmit> specializedPatterns;
+    specializedPatterns.reserve(patterns.size());
+    for (const PackedPattern& pattern : patterns) {
+        compiler::GbcSpecializedPatternEmit emit;
+        emit.objectsPresent = pattern.objectsPresent;
+        emit.objectsMissing = pattern.objectsMissing;
+        emit.movementsPresent = pattern.movementsPresent;
+        emit.movementsMissing = pattern.movementsMissing;
+        emit.objectsClear = pattern.objectsClear;
+        emit.objectsSet = pattern.objectsSet;
+        emit.movementsClear = pattern.movementsClear;
+        emit.movementsSet = pattern.movementsSet;
+        emit.movementLayerMask = pattern.movementLayerMask;
+        emit.flags = pattern.flags;
+        specializedPatterns.push_back(emit);
+    }
+    std::vector<compiler::GbcSpecializedRuleEmit> specializedRules;
+    specializedRules.reserve(rules.size());
+    for (const PackedRule& rule : rules) {
+        compiler::GbcSpecializedRuleEmit emit;
+        emit.firstPattern = rule.firstPattern;
+        emit.patternCount = rule.patternCount;
+        emit.direction = rule.direction;
+        emit.commands = rule.commands;
+        specializedRules.push_back(emit);
+    }
+    const auto toSpecializedGroups = [](const std::vector<PackedGroup>& groups) {
+        std::vector<compiler::GbcSpecializedGroupEmit> out;
+        out.reserve(groups.size());
+        for (const PackedGroup& group : groups) {
+            compiler::GbcSpecializedGroupEmit emit;
+            emit.firstRule = group.firstRule;
+            emit.ruleCount = group.ruleCount;
+            emit.inputLayout = group.inputLayout;
+            emit.singlePass = group.singlePassSafe;
+            emit.loopTarget = group.loopTarget;
+            out.push_back(emit);
+        }
+        return out;
+    };
     const SpecializedTurnExportInfo specializedTurnExport =
         writeSpecializedTurnArtifacts(
-            game, options.outputDirectory, singlePlayerCellCertified);
+            game,
+            options.outputDirectory,
+            singlePlayerCellCertified,
+            specializedPatterns,
+            specializedRules,
+            toSpecializedGroups(earlyGroups),
+            toSpecializedGroups(lateGroups));
     const bool specializedTurnSupported = specializedTurnExport.supported;
     result.generatedSpecializedTurnPath = specializedTurnExport.generatedPath;
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);

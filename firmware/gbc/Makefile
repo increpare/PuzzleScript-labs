@@ -61,8 +61,14 @@ all:
 build-rom: $(TARGET).gb check-size
 
 export:
+ifeq ($(filter 1 yes true on,$(SKIP_EXPORT)),)
 	@mkdir -p $(GENERATED)
 	"$(PUZZLESCRIPT_CPP)" export-gbc "$(GAME)" --out $(GENERATED) $(EXPORT_GBC_FLAGS)
+else
+	@test -f $(GENERATED)/generated_game.c
+	@test -f $(GENERATED)/generated_game.h
+	@test -f $(GENERATED)/gbc_manifest.json
+endif
 
 $(BUILD):
 	@mkdir -p $(BUILD)

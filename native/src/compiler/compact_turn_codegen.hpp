@@ -5,6 +5,7 @@
 #include <iosfwd>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "runtime/core.hpp"
 
@@ -61,6 +62,44 @@ void emitCompactTurnBackend(
     size_t sourceIndex,
     CompactCodegenOptions options);
 
+struct GbcSpecializedPatternEmit {
+    uint32_t objectsPresent = 0;
+    uint32_t objectsMissing = 0;
+    uint32_t movementsPresent = 0;
+    uint32_t movementsMissing = 0;
+    uint32_t objectsClear = 0;
+    uint32_t objectsSet = 0;
+    uint32_t movementsClear = 0;
+    uint32_t movementsSet = 0;
+    uint32_t movementLayerMask = 0;
+    uint8_t flags = 0;
+};
+
+struct GbcSpecializedRuleEmit {
+    uint16_t firstPattern = 0;
+    uint8_t patternCount = 0;
+    uint8_t direction = 0;
+    uint8_t commands = 0;
+};
+
+struct GbcSpecializedGroupEmit {
+    uint16_t firstRule = 0;
+    uint16_t ruleCount = 0;
+    uint16_t inputLayout = 0;
+    bool singlePass = false;
+    int16_t loopTarget = -1;
+};
+
+void emitGbcSpecializedTurn(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    const std::vector<GbcSpecializedRuleEmit>& rules,
+    const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
+    const std::vector<GbcSpecializedGroupEmit>& lateGroups);
+
+// Legacy entry used when packed tables are unavailable; emits walker fallback.
 void emitGbcSpecializedTurn(
     std::ostream& out,
     const Game& game,

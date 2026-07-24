@@ -766,3 +766,25 @@ complete for Sokoban parity but is not the final performance shape.
 (desktop `compact_turn_codegen` match/apply paths through the façade) instead of
 calling `ps_gbc_facade_apply_groups` for whole rulegroups. Until that lands, treat
 specialized carts as parity/orchestration wins only, not snappy-turn wins.
+
+### GBC unrolled GbdC Sokoban slice (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+Sokoban `generated_specialized_turn.c` no longer calls
+`ps_gbc_facade_apply_groups`. It emits a packed `ps_gbc_generated_pattern` table
+plus shared match/apply helpers and per-rule/group control flow that uses façade
+get/set only. Movement still goes through `ps_gbc_resolve_movements`.
+
+| Check | Result |
+| --- | --- |
+| Structural | no `ps_gbc_facade_apply_groups`; `ps_gbc_specialized_apply_early/late` present |
+| Oracle (crate-push replay) | PASS (`puzzlescript_gbc_specialized_oracle_smoke`) |
+| Full solution (33 moves) | specialized wins; ≡ interpreter on host |
+| Host mean ms/turn (solution, O2, 20 iters) | interpreter **0.000298** → specialized **0.000708** (**−137.6%** speedup; slower) |
+| Cart/mGBA | not remeasured (out of slice gate) |
+
+**Honest takeaway:** this is the first real unrolled GbdC emission path and clears
+the walker for Sokoban with oracle parity. Host µs timings are still worse than
+the interpreter on this tiny game (call overhead / code size dominate); treat as
+an informational baseline for the eligible-14 unroll follow-on, not a snappy win.

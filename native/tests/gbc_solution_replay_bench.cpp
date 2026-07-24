@@ -82,11 +82,26 @@ std::vector<ps_input> loadReplay(const std::filesystem::path& path) {
     return inputs;
 }
 
+bool loadBoardByOrdinal(ps_gbc_session* session, int boardOrdinal) {
+    int seen = 0;
+    for (uint16_t index = 0U; index < ps_gbc_generated_game.level_count; ++index) {
+        if (ps_gbc_generated_game.levels[index].kind != PS_GBC_LEVEL_BOARD) {
+            continue;
+        }
+        if (seen == boardOrdinal) {
+            return ps_gbc_load_level(session, index);
+        }
+        ++seen;
+    }
+    return false;
+}
+
 bool initSession(
     ps_gbc_session** sessionOut,
     SnapshotMemory* memoryOut,
     std::vector<uint8_t>* arenaOut,
-    ps_gbc_snapshot_io* snapshotsOut
+    ps_gbc_snapshot_io* snapshotsOut,
+    int boardOrdinal
 ) {
     const size_t requiredBytes = std::max(
         static_cast<size_t>(PS_GBC_GENERATED_SESSION_BYTES),
@@ -107,7 +122,8 @@ bool initSession(
         arenaOut->size(),
         &ps_gbc_generated_game,
         snapshotsOut);
-    return *sessionOut != nullptr;
+    if (*sessionOut == nullptr) return false;
+    return loadBoardByOrdinal(*sessionOut, boardOrdinal);
 }
 
 double percentileLe(const std::vector<double>& samples, double thresholdMs) {
@@ -132,18 +148,31 @@ int main(int argc, char** argv) {
         / "tests"
         / "fixtures"
         / "gbc_sokoban_basic_solution.txt";
+    std::string gameSlug = "sokoban_basic";
     int iterations = 3;
+    int boardOrdinal = 0;
     for (int index = 1; index < argc; ++index) {
         const std::string arg = argv[index];
         if (arg == "--fixture" && index + 1 < argc) {
             fixturePath = argv[++index];
             continue;
         }
+        if (arg == "--slug" && index + 1 < argc) {
+            gameSlug = argv[++index];
+            continue;
+        }
+        if (arg == "--board-index" && index + 1 < argc) {
+            boardOrdinal = std::max(0, std::atoi(argv[++index]));
+            continue;
+        }
         if (arg == "--iterations" && index + 1 < argc) {
             iterations = std::max(1, std::atoi(argv[++index]));
             continue;
         }
-        fprintf(stderr, "usage: %s [--fixture PATH] [--iterations N]\n", argv[0]);
+        fprintf(
+            stderr,
+            "usage: %s [--fixture PATH] [--slug NAME] [--board-index N] [--iterations N]\n",
+            argv[0]);
         return 1;
     }
 
@@ -162,21 +191,46 @@ int main(int argc, char** argv) {
         SnapshotMemory memory{};
         std::vector<uint8_t> arena;
         ps_gbc_snapshot_io snapshots{};
-        if (!initSession(&session, &memory, &arena, &snapshots)) {
-            fprintf(stderr, "gbc_solution_replay_bench: session init failed\n");
+        if (!initSession(&session, &memory, &arena, &snapshots, boardOrdinal)) {
+            fprintf(
+                stderr,
+                "gbc_solution_replay_bench: session init / board %d failed\n",
+                boardOrdinal);
             return 1;
         }
 
         if (run == 0) turnMs.clear();
         for (const ps_input input : inputs) {
+            // Solver solutions use AgainPolicy::Drain (player inputs only).
+            // GBC exposes again as pending_again + PS_INPUT_TICK, so drain here
+            // and attribute that work to the triggering player turn.
             const auto start = Clock::now();
-            const ps_step_result result = ps_gbc_step(session, input);
+            ps_step_result result = ps_gbc_step(session, input);
+            if (result.won) won = true;
+
+            ps_gbc_status status{};
+            ps_gbc_status_get(session, &status);
+            int againPasses = 0;
+            while (status.pending_again && againPasses < 500) {
+                result = ps_gbc_step(session, PS_INPUT_TICK);
+                if (result.won) won = true;
+                ps_gbc_status_get(session, &status);
+                ++againPasses;
+            }
+
+            // Solver mode suppresses rule messages; acknowledge them so replay
+            // can continue through mid-level MESSAGE commands.
+            if (!won && status.mode == PS_FULL_STATE_MODE_MESSAGE) {
+                result = ps_gbc_step(session, PS_INPUT_ACTION);
+                if (result.won) won = true;
+                ps_gbc_status_get(session, &status);
+            }
+
             const auto elapsed = Clock::now() - start;
             if (run == 0) {
                 turnMs.push_back(
                     std::chrono::duration<double, std::milli>(elapsed).count());
             }
-            if (result.won) won = true;
         }
     }
 
@@ -189,8 +243,13 @@ int main(int argc, char** argv) {
     std::printf("{\n");
     std::printf("  \"format\": \"puzzlescript-gbc-solution-replay-bench-v1\",\n");
     std::printf("  \"timing_source\": \"host_gbc_core\",\n");
-    std::printf("  \"game_slug\": \"sokoban_basic\",\n");
+    std::printf("  \"game_slug\": \"%s\",\n", gameSlug.c_str());
+    std::printf("  \"board_index\": %d,\n", boardOrdinal);
+#if defined(PS_GBC_HAS_SPECIALIZED_TURN) && PS_GBC_HAS_SPECIALIZED_TURN
     std::printf("  \"specialized\": true,\n");
+#else
+    std::printf("  \"specialized\": false,\n");
+#endif
     std::printf("  \"replay_turns\": %zu,\n", turnMs.size());
     std::printf("  \"won\": %s,\n", won ? "true" : "false");
     printJsonDouble("mean_ms_per_turn", meanMs, true);

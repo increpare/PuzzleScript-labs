@@ -78,11 +78,13 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_refresh_player_cell")
                 != std::string::npos
-            && specializedTurn.find("ps_gbc_facade_apply_groups") != std::string::npos
+            && specializedTurn.find("ps_gbc_facade_apply_groups") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_apply_early") != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
             && specializedTurn.find("ps_gbc_resolve_movements(session)") != std::string::npos
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
             && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos,
-        "specialized turn uses certified single-player seeding and facade rules");
+        "specialized turn unrolls early/late rules without the facade group walker");
 
     {
         puzzlescript::Rule unsupportedRule;

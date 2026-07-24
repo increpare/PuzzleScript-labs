@@ -30,11 +30,11 @@
 **Files:**
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1:** Change specialized-turn require to expect `ps_gbc_facade_apply_groups` **absent**, and `ps_gbc_specialized_apply_early` (or similar) present.
+- [x] **Step 1:** Change specialized-turn require to expect `ps_gbc_facade_apply_groups` **absent**, and `ps_gbc_specialized_apply_early` (or similar) present.
 
-- [ ] **Step 2:** Run `ctest --test-dir build/native -R puzzlescript_gbc_exporter --output-on-failure` — expect FAIL.
+- [x] **Step 2:** Run `ctest --test-dir build/native -R puzzlescript_gbc_exporter --output-on-failure` — expect FAIL.
 
-- [ ] **Step 3:** Commit test-only change (optional if same commit as impl; prefer with impl if branch WIP).
+- [x] **Step 3:** Commit test-only change (optional if same commit as impl; prefer with impl if branch WIP).
 
 ---
 
@@ -43,17 +43,17 @@
 **Files:**
 - Modify: `compact_turn_codegen.hpp/.cpp`, `exporter.cpp`
 
-- [ ] **Step 1:** Add compact POD types mirroring packed pattern/rule/group fields needed for emission.
+- [x] **Step 1:** Add compact POD types mirroring packed pattern/rule/group fields needed for emission.
 
-- [ ] **Step 2:** Implement emitters:
+- [x] **Step 2:** Implement emitters:
   - per-rule: match (literal masks + façade get) + apply replacement (literal clear/set + façade set + dirty)
   - per-group: input-quartet/single-pass selection matching `facade_rules.c`
   - `ps_gbc_specialized_apply_early/late`
   - turn body calls those + `ps_gbc_resolve_movements` — **no** `apply_groups`
 
-- [ ] **Step 3:** Wire exporter to pass packed early/late into emit after packing.
+- [x] **Step 3:** Wire exporter to pass packed early/late into emit after packing.
 
-- [ ] **Step 4:** Re-run exporter test — PASS.
+- [x] **Step 4:** Re-run exporter test — PASS.
 
 ---
 
@@ -63,14 +63,14 @@
 - Modify: `native/tests/fixtures/gbc_sokoban_basic_replay.txt`
 - Possibly regenerate CMake GBC smoke export
 
-- [ ] **Step 1:** Extend replay with moves that push a crate on level 0.
+- [x] **Step 1:** Extend replay with moves that push a crate on level 0.
 
-- [ ] **Step 2:** Rebuild oracle target; `ctest -R puzzlescript_gbc_specialized_oracle` PASS.
+- [x] **Step 2:** Rebuild oracle target; `ctest -R puzzlescript_gbc_specialized_oracle` PASS.
 
-- [ ] **Step 3:** Host before/after on Sokoban solution (informational); ledger note.
+- [x] **Step 3:** Host before/after on Sokoban solution (informational); ledger note.
 
 ---
 
 ### Task 4: Commit
 
-- [ ] Commit emitter + tests + ledger with message focused on removing the walker from Sokoban specialized turns.
+- [x] Commit emitter + tests + ledger with message focused on removing the walker from Sokoban specialized turns.

@@ -20,24 +20,35 @@ MAP_AREA = re.compile(
 )
 
 
+def map_banked_sizes(path: Path) -> dict[str, int]:
+    sizes: dict[str, int] = {}
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        match = MAP_AREA.match(line)
+        if not match:
+            continue
+        name, _address_text, size_text = match.groups()
+        if re.fullmatch(r"_CODE_\d+", name):
+            sizes[name] = int(size_text, 16)
+    return sizes
+
+
 def map_usage(path: Path) -> tuple[int, int, int]:
+    """Return (fixed_rom_high, banked_rom_bytes_sum, static_wram_bytes)."""
     fixed_rom_high = 0
-    game_bank_bytes = 0
     static_wram_high = 0xC000
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         match = MAP_AREA.match(line)
         if not match:
             continue
-        name, address_text, size_text = match.groups()
+        name, address_text, _size_text = match.groups()
         address = int(address_text, 16)
-        size = int(size_text, 16)
+        size = int(match.group(3), 16)
         if name.startswith("_HEADER") or (0 < address < 0x4000):
             fixed_rom_high = max(fixed_rom_high, address + size)
-        if name == "_CODE_1":
-            game_bank_bytes = max(game_bank_bytes, size)
         if 0xC000 <= address < 0xE000:
             static_wram_high = max(static_wram_high, address + size)
-    return fixed_rom_high, game_bank_bytes, static_wram_high - 0xC000
+    banked = sum(map_banked_sizes(path).values())
+    return fixed_rom_high, banked, static_wram_high - 0xC000
 
 
 def main() -> int:
@@ -56,6 +67,8 @@ def main() -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     map_path = Path(sys.argv[3]) if len(sys.argv) == 4 else rom_path.with_suffix(".map")
     fixed_rom, game_bank, static_wram = map_usage(map_path) if map_path.is_file() else (0, 0, 0)
+    bank_sizes = map_banked_sizes(map_path) if map_path.is_file() else {}
+    largest_bank = max(bank_sizes.values()) if bank_sizes else game_bank
     collision_layers = int(manifest["collision_layer_count"])
     movement_layers = int(manifest["movement_layer_count"])
     movement_bytes = int(manifest["movement_bytes_per_cell"])
@@ -108,7 +121,11 @@ def main() -> int:
         checks.extend(
             [
                 ("fixed ROM bank", fixed_rom <= MAX_FIXED_ROM_BYTES, str(fixed_rom)),
-                ("generated ROM bank", game_bank <= MAX_GAME_BANK_BYTES, str(game_bank)),
+                (
+                    "largest generated ROM bank",
+                    largest_bank <= MAX_GAME_BANK_BYTES,
+                    str(largest_bank),
+                ),
                 ("static WRAM", static_wram <= MAX_STATIC_WRAM_BYTES, str(static_wram)),
             ]
         )
