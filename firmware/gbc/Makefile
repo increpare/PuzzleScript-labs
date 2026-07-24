@@ -59,7 +59,10 @@ $(BUILD):
 $(BUILD)/main.o: source/main.c source/audio.h source/text.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/core.o: ../../native/src/gbc/core.c ../../native/include/puzzlescript/gbc.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/core.o: ../../native/src/gbc/core.c \
+	../../native/src/gbc/session_internal.h \
+	../../native/include/puzzlescript/gbc.h \
+	$(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_game.h | $(BUILD)
