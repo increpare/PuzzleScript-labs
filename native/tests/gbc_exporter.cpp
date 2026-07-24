@@ -79,12 +79,17 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_refresh_player_cell")
                 != std::string::npos
             && specializedTurn.find("ps_gbc_facade_apply_groups") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_patterns") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_pattern_matches") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_apply_replacement") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_rule_matches_at") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_early") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
             && specializedTurn.find("ps_gbc_resolve_movements(session)") != std::string::npos
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
-            && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos,
-        "specialized turn unrolls early/late rules without the facade group walker");
+            && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos
+            && specializedTurn.find("& 0x") != std::string::npos,
+        "specialized turn emits inline literal match/apply without pattern-table helpers");
 
     {
         puzzlescript::Rule unsupportedRule;
