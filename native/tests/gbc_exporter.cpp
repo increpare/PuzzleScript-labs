@@ -76,8 +76,6 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_player_cell")
                 != std::string::npos
-            && specializedTurn.find("ps_gbc_specialized_refresh_player_cell")
-                != std::string::npos
             && specializedTurn.find("ps_gbc_facade_apply_groups") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_patterns") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_pattern_matches") == std::string::npos
@@ -85,11 +83,13 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_rule_matches_at") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_early") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_rule_0") != std::string::npos
+            && specializedTurn.find("player_cells") != std::string::npos
             && specializedTurn.find("ps_gbc_resolve_movements(session)") != std::string::npos
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
-            && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos
+            && specializedTurn.find("session->board[") != std::string::npos
             && specializedTurn.find("& 0x") != std::string::npos,
-        "specialized turn emits inline literal match/apply without pattern-table helpers");
+        "specialized turn uses direct board storage and inline rule bodies");
 
     {
         puzzlescript::Rule unsupportedRule;

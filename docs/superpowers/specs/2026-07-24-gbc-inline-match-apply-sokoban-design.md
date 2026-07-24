@@ -28,11 +28,13 @@ clear/set operations through the façade get/set API.
 interpreter on `native/tests/fixtures/gbc_sokoban_basic_solution.txt` (33 moves),
 with ≥20 iterations for noise, oracle still green.
 
-**Non-goals (this slice):**
-- Inlining façade cell storage / strides (option B)
+**Non-goals (original slice):**
 - Specializing `ps_gbc_resolve_movements`
 - Eligible-14 unroll
 - Cart/mGBA timing as a gate (ledger-only if convenient)
+
+**Follow-on approved 2026-07-24:** Inlining façade cell storage / strides (option B)
+kept the host-faster gate; see ledger entry for the winning slim single-player path.
 
 ## 3. Approach
 
@@ -75,23 +77,22 @@ Win / message / again / undo remain in `ps_gbc_step` → `ps_gbc_finish_turn`.
 
 ## 5. Emitted shape (Sokoban)
 
-Match (per pattern cell that `compactPatternCanInlineMatch`):
+Match (per pattern cell; storage-inlined after option B approval):
 
 ```c
-uint32_t tile_0_objects = ps_gbc_facade_get_objects(session, tile_0);
+uint32_t tile_0_objects = session->board[tile_0];
 if ((tile_0_objects & 0x10U) != 0x10U) matched = false;
-uint32_t tile_0_movements = ps_gbc_facade_get_movements(session, tile_0);
+uint32_t tile_0_movements = session->movements[tile_0];
 if ((tile_0_movements & 0x1U) != 0x1U) matched = false;
 ```
 
-Apply: literal clear/set on objects/movements, façade set, dirty if objects
-changed — **not** `ps_gbc_specialized_apply_replacement(pattern*)`.
+Apply: literal clear/set on objects/movements, direct board/movement stores, dirty
+bit if objects changed — **not** `ps_gbc_specialized_apply_replacement(pattern*)`.
 
 **Structural asserts** on Sokoban `generated_specialized_turn.c`:
 - Absent: `ps_gbc_specialized_patterns`, `ps_gbc_specialized_pattern_matches`,
   `ps_gbc_specialized_apply_replacement`, `ps_gbc_facade_apply_groups`
-- Present: `ps_gbc_facade_get_objects` / `set_objects` with hex mask literals
-  inside rule bodies
+- Present: `session->board[` and hex mask literals (`& 0x`) inside rule bodies
 
 ## 6. Correctness & measurement
 

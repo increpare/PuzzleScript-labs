@@ -788,3 +788,24 @@ get/set only. Movement still goes through `ps_gbc_resolve_movements`.
 the walker for Sokoban with oracle parity. Host µs timings are still worse than
 the interpreter on this tiny game (call overhead / code size dominate); treat as
 an informational baseline for the eligible-14 unroll follow-on, not a snappy win.
+
+### GBC inline match/apply + storage inline Sokoban (2026-07-24)
+
+Revision: working tree on `gbc-inline-match-apply-sokoban`.
+
+Replaced packed pattern-table specialized match/apply with dialect-style literal
+inline checks/writes (`emitCompactInlineGbdCPatternMatch` / `Apply`), then inlined
+façade cell get/set to direct `session->board` / `movements` / `dirty_bits` access.
+Certified single-player apply-on-match rules use a slim O(1) live-`player_cells`
+anchor (skipping stale pre-resolve entries) with match-all-then-apply fused loads.
+
+| Check | Result |
+| --- | --- |
+| Structural | no pattern table / shared match-apply helpers; `session->board[` + `& 0x` present |
+| Oracle | PASS (crate-push + full 33-move solution) |
+| Host mean ms/turn (solution, O2, 200 iters) | interpreter **0.000297** → specialized **0.000174** (**+41.4%** speedup) |
+
+Script: `python3 scripts/bench_gbc_sokoban_host_speed.py`.
+
+**Retained:** host specialized turns are faster than the GBC interpreter on the
+Sokoban solution replay. Cart/mGBA not remeasured in this slice.

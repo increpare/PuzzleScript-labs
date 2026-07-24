@@ -27,7 +27,7 @@ SPECIALIZED_TURN_C = GENERATED_DIR / "generated_specialized_turn.c"
 FIXTURE = Path("native/tests/fixtures/gbc_sokoban_basic_solution.txt")
 SLUG = "sokoban_basic"
 BOARD_INDEX = 0
-ITERATIONS = 20
+ITERATIONS = 200
 
 
 def ensure_generated_export(repository: Path, cmake: Path, build_dir: Path) -> Path:
