@@ -7052,6 +7052,25 @@ void emitCompactTurnAccessLayer(
 
 } // namespace
 
+void emitGbcSpecializedTurn(std::ostream& out) {
+    out << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
+        << "#include \"specialized_turn.h\"\n\n"
+        << "bool ps_gbc_apply_turn_phases(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint8_t direction,\n"
+        << "    ps_gbc_commands* commands);\n\n"
+        << "bool ps_gbc_specialized_apply_turn_phases(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint8_t direction,\n"
+        << "    ps_gbc_commands* commands,\n"
+        << "    bool* out_changed\n"
+        << ") {\n"
+        << "    if (out_changed == NULL) return true;\n"
+        << "    *out_changed = ps_gbc_apply_turn_phases(session, direction, commands);\n"
+        << "    return true;\n"
+        << "}\n";
+}
+
 void emitCompactTurnBackend(
     std::ostream& out,
     const Game& game,
@@ -7060,6 +7079,10 @@ void emitCompactTurnBackend(
     size_t sourceIndex,
     CompactCodegenOptions options
 ) {
+    if (options.target == CompactCodegenTarget::GbdC) {
+        emitGbcSpecializedTurn(out);
+        return;
+    }
     const CompactTurnSupport compactTurnSupport = compactTurnSupportForGame(game, options);
     const std::string suffix = sourceSuffix(sourceIndex);
     const CompactTurnProgram program = buildCompactTurnProgram(game);

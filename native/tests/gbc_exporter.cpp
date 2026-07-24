@@ -47,10 +47,27 @@ int main() {
     require(std::filesystem::exists(first.manifestPath), "manifest is generated");
     require(std::filesystem::exists(first.generatedHeaderPath), "generated header is generated");
     require(std::filesystem::exists(first.generatedSourcePath), "generated C is generated");
+    require(
+        std::filesystem::exists(first.generatedSpecializedTurnPath),
+        "specialized turn stub is generated for Sokoban");
+    require(
+        first.generatedSpecializedTurnPath.filename() == "generated_specialized_turn.c",
+        "specialized turn stub uses the expected filename");
 
     const std::string manifest = readFile(first.manifestPath);
     require(manifest.find("\"runtime_profile\": \"bounded_interpreter_c\"") != std::string::npos,
         "manifest records the bounded C runtime");
+    require(
+        manifest.find("\"specialized_turn\": true") != std::string::npos,
+        "manifest records compact-turn support for Sokoban");
+
+    const std::string specializedTurn = readFile(first.generatedSpecializedTurnPath);
+    require(
+        specializedTurn.find("ps_gbc_specialized_apply_turn_phases")
+            != std::string::npos
+            && specializedTurn.find("ps_gbc_apply_turn_phases(session, direction, commands)")
+                != std::string::npos,
+        "specialized turn stub delegates to the interpreter bridge");
     require(manifest.find("\"object_count\": 5") != std::string::npos,
         "manifest records the lowered object count");
     require(manifest.find("\"collision_layer_count\": 3") != std::string::npos,

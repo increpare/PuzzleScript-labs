@@ -34,6 +34,11 @@ typedef uint16_t ps_gbc_presence_mask;
 typedef uint32_t ps_gbc_presence_mask;
 #endif
 
+typedef struct ps_gbc_commands {
+    uint8_t flags;
+    const char* message;
+} ps_gbc_commands;
+
 struct ps_gbc_session {
     const ps_gbc_game_view* game;
     uint8_t* board;

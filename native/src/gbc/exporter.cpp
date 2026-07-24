@@ -2,6 +2,7 @@
 
 #include "compiler/lower_to_runtime.hpp"
 #include "compiler/parser.hpp"
+#include "compiler/compact_turn_codegen.hpp"
 #include "puzzlescript/gbc.h"
 #include "runtime/core.hpp"
 #include "solver/static_analysis.hpp"
@@ -2057,6 +2058,20 @@ ExportResult exportGame(const ExportOptions& options) {
         static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
+    const compiler::CompactTurnSupport compactTurnSupport =
+        compiler::compactNativeTurnSupportForGame(game);
+    const bool specializedTurnSupported = compactTurnSupport.nativeKernel();
+    result.generatedSpecializedTurnPath =
+        options.outputDirectory / "generated_specialized_turn.c";
+    if (specializedTurnSupported) {
+        std::ostringstream specializedTurnSource;
+        compiler::emitGbcSpecializedTurn(specializedTurnSource);
+        writeFileIfChanged(
+            result.generatedSpecializedTurnPath,
+            specializedTurnSource.str());
+    } else {
+        result.generatedSpecializedTurnPath.clear();
+    }
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
     const auto singlePassCount = [](const std::vector<PackedGroup>& groups) {
         return static_cast<size_t>(std::count_if(
@@ -2158,6 +2173,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"undo_capacity\": " << static_cast<unsigned int>(undoCapacity) << ",\n"
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
+        << "  \"specialized_turn\": "
+        << (specializedTurnSupported ? "true" : "false") << ",\n"
         << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
         << "  \"color_stretch\": {\n"
         << "    \"mode\": \"optimized_gameplay_gamut\",\n"

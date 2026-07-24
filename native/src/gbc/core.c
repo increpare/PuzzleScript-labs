@@ -9,6 +9,7 @@
 #endif
 
 #include "session_internal.h"
+#include "specialized_turn.h"
 
 #include <string.h>
 
@@ -100,11 +101,6 @@ extern bool gPerfPhaseEnabled;
 #else
 #define PS_GBC_PERF_COUNT(counter) ((void)(counter))
 #endif
-
-typedef struct ps_gbc_commands {
-    uint8_t flags;
-    const char* message;
-} ps_gbc_commands;
 
 enum {
     PS_GBC_AUDIO_CANTMOVE = 0U,
@@ -1137,7 +1133,7 @@ bool ps_gbc_advance_level(ps_gbc_session* session) {
     return ps_gbc_advance(session);
 }
 
-static bool ps_gbc_apply_turn_phases(
+bool ps_gbc_apply_turn_phases(
     ps_gbc_session* session,
     uint8_t direction,
     ps_gbc_commands* commands
@@ -1172,6 +1168,21 @@ static bool ps_gbc_apply_turn_phases(
     PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
     return seeded || early_changed || moved || late_changed;
 }
+
+#if !defined(PS_GBC_HAS_SPECIALIZED_TURN)
+bool ps_gbc_specialized_apply_turn_phases(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands,
+    bool* out_changed
+) {
+    (void)session;
+    (void)direction;
+    (void)commands;
+    if (out_changed != NULL) *out_changed = false;
+    return false;
+}
+#endif
 
 static void ps_gbc_finish_turn(
     ps_gbc_session* session,
@@ -1317,7 +1328,11 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
         return result;
     }
     PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
-    changed = ps_gbc_apply_turn_phases(session, direction, &commands);
+    changed = false;
+    if (!ps_gbc_specialized_apply_turn_phases(
+            session, direction, &commands, &changed)) {
+        changed = ps_gbc_apply_turn_phases(session, direction, &commands);
+    }
     ps_gbc_finish_turn(
         session, &commands, changed, board_bytes, false, &result);
     return result;
@@ -1352,7 +1367,11 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
 #if PS_GBC_HAS_AUDIO
     session->suppress_audio = true;
 #endif
-    changed = ps_gbc_apply_turn_phases(session, 0U, &commands);
+    changed = false;
+    if (!ps_gbc_specialized_apply_turn_phases(
+            session, 0U, &commands, &changed)) {
+        changed = ps_gbc_apply_turn_phases(session, 0U, &commands);
+    }
     ps_gbc_finish_turn(
         session, &commands, changed, board_bytes, true, &ignored);
 #if PS_GBC_HAS_AUDIO
