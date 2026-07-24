@@ -61,6 +61,9 @@ void emitCompactTurnBackend(
     size_t sourceIndex,
     CompactCodegenOptions options);
 
-void emitGbcSpecializedTurn(std::ostream& out, const Game& game);
+void emitGbcSpecializedTurn(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified = false);
 
 } // namespace puzzlescript::compiler

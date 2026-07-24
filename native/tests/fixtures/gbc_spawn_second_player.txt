@@ -1,0 +1,45 @@
+title GBC Spawn Second Player
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+white
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player
+
+======
+RULES
+======
+
+action [ ] -> [ Player ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player
+
+=======
+LEVELS
+=======
+
+P

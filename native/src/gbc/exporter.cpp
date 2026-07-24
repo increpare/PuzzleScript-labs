@@ -806,6 +806,71 @@ RuleFlowSummary summarizeRuleFlow(const Game& game, const Rule& rule) {
     return result;
 }
 
+size_t countPlayerObjectBits(uint32_t cellMask, uint32_t playerMask) {
+    uint32_t players = cellMask & playerMask;
+    size_t count = 0U;
+    while (players != 0U) {
+        count += players & 1U;
+        players >>= 1U;
+    }
+    return count;
+}
+
+bool ruleCanChangePlayerCardinality(
+    const Game& game,
+    const Rule& rule,
+    uint32_t playerMask
+) {
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        for (const Pattern& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) continue;
+            if (!pattern.replacement.has_value()) continue;
+            const uint32_t lhsPresent = maskWord(game, pattern.objectsPresent);
+            const Replacement& replacement = *pattern.replacement;
+            const uint32_t objectsClear = maskWord(game, replacement.objectsClear);
+            const uint32_t objectsSet = maskWord(game, replacement.objectsSet);
+            if ((objectsClear & playerMask) != 0U
+                && (objectsSet & playerMask) == 0U
+                && (lhsPresent & playerMask) != 0U) {
+                return true;
+            }
+            if ((objectsSet & playerMask) != 0U && (lhsPresent & playerMask) == 0U) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool gbcSinglePlayerCertified(
+    const Game& game,
+    const std::vector<PackedLevel>& levels
+) {
+    const uint32_t playerMask = maskWord(game, game.playerMask);
+    if (playerMask == 0U) return false;
+    for (const PackedLevel& level : levels) {
+        if (level.message) continue;
+        size_t playerCells = 0U;
+        for (const uint32_t cell : level.cells) {
+            if ((cell & playerMask) == 0U) continue;
+            ++playerCells;
+            if (countPlayerObjectBits(cell, playerMask) != 1U) return false;
+        }
+        if (playerCells != 1U) return false;
+    }
+    for (const std::vector<Rule>& group : game.rules) {
+        for (const Rule& rule : group) {
+            if (ruleCanChangePlayerCardinality(game, rule, playerMask)) return false;
+        }
+    }
+    for (const std::vector<Rule>& group : game.lateRules) {
+        for (const Rule& rule : group) {
+            if (ruleCanChangePlayerCardinality(game, rule, playerMask)) return false;
+        }
+    }
+    return true;
+}
+
 bool groupSinglePassSafe(
     const Game& game,
     const std::vector<Rule>& group
@@ -1273,7 +1338,8 @@ std::string emitHeader(
     const PackedAudio& audio,
     size_t ruleMessageCount,
     size_t presencePrecheckCount,
-    size_t playerAnchorCount
+    size_t playerAnchorCount,
+    bool singlePlayerCellCertified
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -1311,6 +1377,8 @@ std::string emitHeader(
         << presencePrecheckCount << "U\n\n"
         << "#define PS_GBC_GENERATED_PLAYER_CELL_ANCHOR_COUNT "
         << playerAnchorCount << "U\n\n"
+        << "#define PS_GBC_GENERATED_SINGLE_PLAYER_CELL "
+        << (singlePlayerCellCertified ? "1" : "0") << "\n\n"
         << "#define PS_GBC_GENERATED_ABI_VERSION "
         << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
@@ -1652,16 +1720,19 @@ std::string emitSource(
 
 SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const Game& game,
-    const std::filesystem::path& outputDirectory
+    const std::filesystem::path& outputDirectory,
+    bool singlePlayerCellCertified
 ) {
     SpecializedTurnExportInfo info;
     const std::filesystem::path path = outputDirectory / "generated_specialized_turn.c";
     const compiler::CompactTurnSupport compactTurnSupport =
         compiler::compactNativeTurnSupportForGame(game);
     info.supported = compactTurnSupport.nativeKernel();
+    info.singlePlayerCellCertified = singlePlayerCellCertified;
     if (info.supported) {
         std::ostringstream specializedTurnSource;
-        compiler::emitGbcSpecializedTurn(specializedTurnSource, game);
+        compiler::emitGbcSpecializedTurn(
+            specializedTurnSource, game, singlePlayerCellCertified);
         writeFileIfChanged(path, specializedTurnSource.str());
         info.generatedPath = path;
         return info;
@@ -2058,6 +2129,8 @@ ExportResult exportGame(const ExportOptions& options) {
     estimatedGameBankBytes +=
         precomposedCompositions.size() * precomposedEntryBytes;
 
+    const bool singlePlayerCellCertified = gbcSinglePlayerCertified(game, levels);
+
     ExportResult result;
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
     result.generatedSourcePath = options.outputDirectory / "generated_game.c";
@@ -2074,7 +2147,8 @@ ExportResult exportGame(const ExportOptions& options) {
             audio,
             ruleMessageCount,
             presencePrecheckCount,
-            playerAnchorCount));
+            playerAnchorCount,
+            singlePlayerCellCertified));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
         precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
@@ -2082,7 +2156,8 @@ ExportResult exportGame(const ExportOptions& options) {
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
     const SpecializedTurnExportInfo specializedTurnExport =
-        writeSpecializedTurnArtifacts(game, options.outputDirectory);
+        writeSpecializedTurnArtifacts(
+            game, options.outputDirectory, singlePlayerCellCertified);
     const bool specializedTurnSupported = specializedTurnExport.supported;
     result.generatedSpecializedTurnPath = specializedTurnExport.generatedPath;
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
@@ -2170,6 +2245,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << presencePrecheckCount << ",\n"
         << "  \"player_cell_anchor_rule_count\": "
         << playerAnchorCount << ",\n"
+        << "  \"single_player_cell\": "
+        << (singlePlayerCellCertified ? "true" : "false") << ",\n"
         << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
         << "  \"active_early_rules_by_input\": [";
     for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {

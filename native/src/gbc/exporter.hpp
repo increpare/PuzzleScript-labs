@@ -21,6 +21,7 @@ struct ExportResult {
 
 struct SpecializedTurnExportInfo {
     bool supported = false;
+    bool singlePlayerCellCertified = false;
     std::filesystem::path generatedPath;
 };
 

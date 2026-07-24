@@ -62,6 +62,9 @@ int main() {
     require(
         manifest.find("\"specialized_turn\": true") != std::string::npos,
         "manifest records compact-turn support for Sokoban");
+    require(
+        manifest.find("\"single_player_cell\": true") != std::string::npos,
+        "manifest records single-player certification for Sokoban");
 
     const std::string specializedTurn = readFile(first.generatedSpecializedTurnPath);
     require(
@@ -69,11 +72,17 @@ int main() {
             != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_seed_player_movement")
                 != std::string::npos
+            && specializedTurn.find("#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_player_cell")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_refresh_player_cell")
+                != std::string::npos
             && specializedTurn.find("ps_gbc_facade_apply_groups") != std::string::npos
             && specializedTurn.find("ps_gbc_resolve_movements(session)") != std::string::npos
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
             && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos,
-        "specialized turn uses facade early/late rules and shared movement resolve");
+        "specialized turn uses certified single-player seeding and facade rules");
 
     {
         puzzlescript::Rule unsupportedRule;
@@ -91,7 +100,7 @@ int main() {
         writeFile(stalePath, "/* stale marker */\n");
 
         const auto unsupportedInfo = puzzlescript::gbc::writeSpecializedTurnArtifacts(
-            unsupportedGame, unsupportedDir);
+            unsupportedGame, unsupportedDir, false);
         require(
             !unsupportedInfo.supported,
             "compact-turn support rejects synthetic unsupported commands");
@@ -749,5 +758,16 @@ int main() {
         "renderer expands the middle 5x5 source row and column to exactly 16");
     require(firmware.find("cpu_fast()") != std::string::npos,
         "firmware enables CGB double-speed mode");
+
+    puzzlescript::gbc::ExportOptions spawnPlayerOptions;
+    spawnPlayerOptions.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_spawn_second_player.txt";
+    spawnPlayerOptions.outputDirectory = output / "spawn_second_player";
+    const auto spawnPlayerResult = puzzlescript::gbc::exportGame(spawnPlayerOptions);
+    const std::string spawnPlayerManifest = readFile(spawnPlayerResult.manifestPath);
+    require(
+        spawnPlayerManifest.find("\"single_player_cell\": false")
+            != std::string::npos,
+        "spawn-player fixture is not single-player certified");
     return 0;
 }

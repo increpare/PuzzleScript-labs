@@ -7052,8 +7052,13 @@ void emitCompactTurnAccessLayer(
 
 } // namespace
 
-void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
+void emitGbcSpecializedTurn(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified
+) {
     (void)game;
+    (void)singlePlayerCellCertified;
     out << "#if defined(__SDCC) || defined(GBDK)\n"
         << "#pragma bank 2\n"
         << "#endif\n"
@@ -7062,14 +7067,66 @@ void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
         << "#include \"specialized_turn.h\"\n"
         << "#include \"generated_game.h\"\n"
         << "#include <string.h>\n\n"
+        << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "static uint16_t ps_gbc_specialized_player_cell = UINT16_MAX;\n\n"
+        << "static void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session) {\n"
+        << "    const uint16_t cells = ps_gbc_facade_cell_count(session);\n"
+        << "    uint16_t cell;\n"
+        << "    ps_gbc_specialized_player_cell = UINT16_MAX;\n"
+        << "    for (cell = 0U; cell < cells; ++cell) {\n"
+        << "        if ((ps_gbc_facade_get_objects(session, cell)\n"
+        << "                & ps_gbc_generated_game.player_mask) == 0U) {\n"
+        << "            continue;\n"
+        << "        }\n"
+        << "        ps_gbc_specialized_player_cell = cell;\n"
+        << "        return;\n"
+        << "    }\n"
+        << "}\n\n"
+        << "#endif\n"
         << "static bool ps_gbc_specialized_seed_player_movement(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction\n"
         << ") {\n"
-        << "    const uint16_t cells = ps_gbc_facade_cell_count(session);\n"
         << "    bool seeded = false;\n"
-        << "    uint16_t cell;\n"
         << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n"
+        << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "    {\n"
+        << "        const uint16_t cell = ps_gbc_specialized_player_cell;\n"
+        << "        uint32_t players;\n"
+        << "        uint8_t object_id = 0U;\n"
+        << "        if (cell == UINT16_MAX\n"
+        << "            || (ps_gbc_facade_get_objects(session, cell)\n"
+        << "                & ps_gbc_generated_game.player_mask) == 0U) {\n"
+        << "            ps_gbc_specialized_refresh_player_cell(session);\n"
+        << "        }\n"
+        << "        if (ps_gbc_specialized_player_cell == UINT16_MAX) return false;\n"
+        << "        players = ps_gbc_facade_get_objects(\n"
+        << "            session, ps_gbc_specialized_player_cell)\n"
+        << "            & ps_gbc_generated_game.player_mask;\n"
+        << "        while (players != 0U) {\n"
+        << "            if ((players & 1U) != 0U) {\n"
+        << "                const uint8_t movement_layer =\n"
+        << "                    ps_gbc_generated_game.objects[object_id].movement_layer;\n"
+        << "                uint32_t movement;\n"
+        << "                if (movement_layer == PS_GBC_NO_MOVEMENT_LAYER) {\n"
+        << "                    players >>= 1U;\n"
+        << "                    ++object_id;\n"
+        << "                    continue;\n"
+        << "                }\n"
+        << "                movement = ps_gbc_facade_get_movements(\n"
+        << "                    session, ps_gbc_specialized_player_cell);\n"
+        << "                movement |= (uint32_t)direction << (5U * movement_layer);\n"
+        << "                ps_gbc_facade_set_movements(\n"
+        << "                    session, ps_gbc_specialized_player_cell, movement);\n"
+        << "                seeded = true;\n"
+        << "            }\n"
+        << "            players >>= 1U;\n"
+        << "            ++object_id;\n"
+        << "        }\n"
+        << "    }\n"
+        << "#else\n"
+        << "    const uint16_t cells = ps_gbc_facade_cell_count(session);\n"
+        << "    uint16_t cell;\n"
         << "    for (cell = 0U; cell < cells; ++cell) {\n"
         << "        uint32_t players = ps_gbc_facade_get_objects(session, cell)\n"
         << "            & ps_gbc_generated_game.player_mask;\n"
@@ -7093,6 +7150,7 @@ void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
         << "            ++object_id;\n"
         << "        }\n"
         << "    }\n"
+        << "#endif\n"
         << "    return seeded;\n"
         << "}\n\n"
         << "bool ps_gbc_specialized_apply_turn_phases(\n"
@@ -7126,6 +7184,11 @@ void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
         << "        ps_gbc_generated_game.late_group_count,\n"
         << "        direction,\n"
         << "        commands);\n"
+        << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "    if (seeded || early || moved || late) {\n"
+        << "        ps_gbc_specialized_refresh_player_cell(session);\n"
+        << "    }\n"
+        << "#endif\n"
         << "    *out_changed = seeded || early || moved || late;\n"
         << "    return true;\n"
         << "}\n";
@@ -7140,7 +7203,7 @@ void emitCompactTurnBackend(
     CompactCodegenOptions options
 ) {
     if (options.target == CompactCodegenTarget::GbdC) {
-        emitGbcSpecializedTurn(out, game);
+        emitGbcSpecializedTurn(out, game, false);
         return;
     }
     const CompactTurnSupport compactTurnSupport = compactTurnSupportForGame(game, options);
