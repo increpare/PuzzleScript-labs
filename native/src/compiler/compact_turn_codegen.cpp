@@ -7439,8 +7439,11 @@ void emitGbcSpecializedSeedAndHelpers(
     uint8_t movementBytesPerCell
 ) {
     const std::optional<uint8_t> playerMovementLayer = gbcUniquePlayerMovementLayer(game);
+    // Bank 3: dedicated specialized-turn code. Bank 1 holds UI + generated_game;
+    // bank 2 holds the compact façade. Sharing bank 1 caused near-miss overflows
+    // (e.g. push-pull at 16433) even when specialized alone fit in 16 KiB.
     out << "#if defined(__SDCC) || defined(GBDK)\n"
-        << "#pragma bank 1\n"
+        << "#pragma bank 3\n"
         << "#endif\n"
         << "#include \"session_internal.h\"\n"
         << "#include \"puzzlescript/gbc_compact_facade.h\"\n"

@@ -1071,3 +1071,28 @@ passes size checks.
 Eligible-14 rebuild (`--cull --continue`): **14/14 ROMs**. Specialized retained on
 `no-forbidden-symbols` and `pushy-v-pully-h` only; the other 12 fall back with
 `linked_rom_bank_or_total_over_budget`.
+
+### GBC specialized turn → dedicated bank 3 (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+`generated_specialized_turn.c` now `#pragma bank 3` (was bank 1, shared with UI +
+`generated_game.c`). Façade stays bank 2. Host exporter test asserts bank 3;
+`puzzlescript_gbc_specialized_oracle_smoke` green.
+
+Eligible-14 (`make gbc_eligible --cull`): **6/14 specialized** (was 2/14).
+
+| Kept specialized | `_CODE_3` |
+| --- | ---: |
+| pushy-v-pully-h | 6555 |
+| 15-push-pull-levels | 9408 |
+| push-pull | 10281 |
+| i-am-a-gust-of-wind | 10278 |
+| no-forbidden-symbols | 10378 |
+| fickle-fred | 10975 |
+
+Still fallback (largest bank on failed specialized link): pushit 19876,
+short-adventure 20487, recondite 22093, dollyban 23472, voitex 27392,
+gapfiller 30296, slot-machine 33126, xorro 69551.
+
+Next: multi-bank specialized emit (early / late+resolve) for the remaining 8.

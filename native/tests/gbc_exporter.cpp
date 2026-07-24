@@ -111,7 +111,8 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_level_width")
                 != std::string::npos
             && specializedTurn.find("= 7U") != std::string::npos
-            && specializedTurn.find("= 6U") != std::string::npos,
+            && specializedTurn.find("= 6U") != std::string::npos
+            && specializedTurn.find("#pragma bank 3") != std::string::npos,
         "specialized turn uses direct board storage, inline rules, resolve, and won");
 
     {
