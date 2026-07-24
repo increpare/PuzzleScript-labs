@@ -10,6 +10,7 @@
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace puzzlescript::compiler {
@@ -7346,6 +7347,59 @@ void emitCompactInlineGbdCPatternApply(
         << indent << "}\n";
 }
 
+struct GbcSpecializedLevelSize {
+    bool literal = false;
+    uint8_t width = 0;
+    uint8_t height = 0;
+};
+
+GbcSpecializedLevelSize g_gbcSpecializedLevelSize;
+
+const char* gbcLevelWidthExpr() {
+    return g_gbcSpecializedLevelSize.literal ? "ps_gbc_specialized_level_width"
+                                            : "session->width";
+}
+
+const char* gbcLevelHeightExpr() {
+    return g_gbcSpecializedLevelSize.literal ? "ps_gbc_specialized_level_height"
+                                             : "session->height";
+}
+
+std::string gbcLevelCellsExpr() {
+    if (g_gbcSpecializedLevelSize.literal) {
+        const unsigned cells = static_cast<unsigned>(g_gbcSpecializedLevelSize.width)
+            * static_cast<unsigned>(g_gbcSpecializedLevelSize.height);
+        return std::to_string(cells) + "U";
+    }
+    return "(uint16_t)(session->width * session->height)";
+}
+
+GbcSpecializedLevelSize gbcUniformBoardLevelSize(const Game& game) {
+    GbcSpecializedLevelSize result;
+    bool found = false;
+    for (const LevelTemplate& level : game.levels) {
+        if (level.isMessage || level.width <= 0 || level.height <= 0) {
+            continue;
+        }
+        if (level.width > 255 || level.height > 255) {
+            return {};
+        }
+        const auto width = static_cast<uint8_t>(level.width);
+        const auto height = static_cast<uint8_t>(level.height);
+        if (!found) {
+            result.width = width;
+            result.height = height;
+            result.literal = true;
+            found = true;
+            continue;
+        }
+        if (width != result.width || height != result.height) {
+            return {};
+        }
+    }
+    return found ? result : GbcSpecializedLevelSize{};
+}
+
 std::optional<uint8_t> gbcUniquePlayerMovementLayer(const Game& game) {
     const std::vector<MaskWord> words =
         compiledMaskWords(game, game.playerMask, game.wordCount);
@@ -7392,8 +7446,14 @@ void emitGbcSpecializedSeedAndHelpers(
         << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
         << "#include \"specialized_turn.h\"\n"
         << "#include \"generated_game.h\"\n"
-        << "#include <string.h>\n\n"
-        << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
+        << "#include <string.h>\n\n";
+    if (g_gbcSpecializedLevelSize.literal) {
+        out << "static const uint8_t ps_gbc_specialized_level_width = "
+            << static_cast<unsigned>(g_gbcSpecializedLevelSize.width) << "U;\n"
+            << "static const uint8_t ps_gbc_specialized_level_height = "
+            << static_cast<unsigned>(g_gbcSpecializedLevelSize.height) << "U;\n\n";
+    }
+    out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
         << "static uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n\n"
         << "static void ps_gbc_specialized_mark_move_cell(uint16_t cell) {\n"
         << "    if (cell >= PS_GBC_MAX_BOARD_CELLS) return;\n"
@@ -7424,7 +7484,7 @@ void emitGbcSpecializedSeedAndHelpers(
         << "    }\n"
         << "#endif\n"
         << "    {\n"
-        << "        const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+        << "        const uint16_t cells = " << gbcLevelCellsExpr() << ";\n"
         << "        uint16_t cell;\n"
         << "        for (cell = 0U; cell < cells; ++cell) {\n";
     emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
@@ -7465,7 +7525,7 @@ void emitGbcSpecializedSeedAndHelpers(
             << "    }\n"
             << "#else\n"
             << "    {\n"
-            << "        const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+            << "        const uint16_t cells = " << gbcLevelCellsExpr() << ";\n"
             << "        uint16_t cell;\n"
             << "        for (cell = 0U; cell < cells; ++cell) {\n";
         emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
@@ -7517,7 +7577,7 @@ void emitGbcSpecializedSeedAndHelpers(
             << "    }\n"
             << "#else\n"
             << "    {\n"
-            << "        const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+            << "        const uint16_t cells = " << gbcLevelCellsExpr() << ";\n"
             << "        uint16_t cell;\n"
             << "        for (cell = 0U; cell < cells; ++cell) {\n";
         emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
@@ -7687,8 +7747,8 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "#endif\n"
         << "    (void)player_index;\n"
         << "    (void)found_player;\n"
-        << "    xmax = (uint8_t)session->width;\n"
-        << "    ymax = (uint8_t)session->height;\n";
+        << "    xmax = (uint8_t)" << gbcLevelWidthExpr() << ";\n"
+        << "    ymax = (uint8_t)" << gbcLevelHeightExpr() << ";\n";
     if (direction == 1U) {
         out << "    delta = -1;\n"
             << "    ymin = (uint8_t)(pattern_count - 1U);\n";
@@ -7696,10 +7756,10 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         out << "    delta = 1;\n"
             << "    ymax = (uint8_t)(ymax - (pattern_count - 1U));\n";
     } else if (direction == 4U) {
-        out << "    delta = -(int8_t)session->height;\n"
+        out << "    delta = -(int8_t)" << gbcLevelHeightExpr() << ";\n"
             << "    xmin = (uint8_t)(pattern_count - 1U);\n";
     } else if (direction == 8U) {
-        out << "    delta = (int8_t)session->height;\n"
+        out << "    delta = (int8_t)" << gbcLevelHeightExpr() << ";\n"
             << "    xmax = (uint8_t)(xmax - (pattern_count - 1U));\n";
     } else {
         out << "    return false;\n"
@@ -7709,8 +7769,8 @@ void emitGbcSpecializedSlimSinglePlayerRule(
     out << "    start16 = (int16_t)player_cell - (int16_t)player_pattern_index * (int16_t)delta;\n"
         << "    if (start16 < 0) return false;\n"
         << "    start = (uint8_t)start16;\n"
-        << "    sx = (uint8_t)(start / session->height);\n"
-        << "    sy = (uint8_t)(start - sx * session->height);\n"
+        << "    sx = (uint8_t)(start / " << gbcLevelHeightExpr() << ");\n"
+        << "    sy = (uint8_t)(start - sx * " << gbcLevelHeightExpr() << ");\n"
         << "    if (sx < xmin || sx >= xmax || sy < ymin || sy >= ymax) return false;\n";
 
     // Load all cells, match all, then apply — never mutate before a full match.
@@ -7889,15 +7949,15 @@ void emitGbcSpecializedRuleFunction(
         << "    switch (direction) {\n"
         << "        case 1U: delta = -1; break;\n"
         << "        case 2U: delta = 1; break;\n"
-        << "        case 4U: delta = -(int8_t)session->height; break;\n"
-        << "        case 8U: delta = (int8_t)session->height; break;\n"
+        << "        case 4U: delta = -(int8_t)" << gbcLevelHeightExpr() << "; break;\n"
+        << "        case 8U: delta = (int8_t)" << gbcLevelHeightExpr() << "; break;\n"
         << "        default: return false;\n"
         << "    }\n"
         << "    {\n"
         << "        uint8_t xmin = 0U;\n"
-        << "        uint8_t xmax = (uint8_t)session->width;\n"
+        << "        uint8_t xmax = (uint8_t)" << gbcLevelWidthExpr() << ";\n"
         << "        uint8_t ymin = 0U;\n"
-        << "        uint8_t ymax = (uint8_t)session->height;\n"
+        << "        uint8_t ymax = (uint8_t)" << gbcLevelHeightExpr() << ";\n"
         << "        if (pattern_count == 0U) return false;\n"
         << "        if (direction == 1U) ymin = (uint8_t)(pattern_count - 1U);\n"
         << "        else if (direction == 2U) ymax = (uint8_t)(ymax - (pattern_count - 1U));\n"
@@ -7909,8 +7969,8 @@ void emitGbcSpecializedRuleFunction(
         out << "        {\n"
             << "            uint8_t x;\n"
             << "            uint8_t y;\n"
-            << "            uint8_t cell = (uint8_t)(xmin * session->height + ymin);\n"
-            << "            const uint8_t column_advance = (uint8_t)(session->height - (ymax - ymin));\n"
+            << "            uint8_t cell = (uint8_t)(xmin * " << gbcLevelHeightExpr() << " + ymin);\n"
+            << "            const uint8_t column_advance = (uint8_t)(" << gbcLevelHeightExpr() << " - (ymax - ymin));\n"
             << "            for (x = xmin; x < xmax; ++x) {\n"
             << "                for (y = ymin; y < ymax; ++y) {\n";
         if (applyOnMatch) {
@@ -7965,8 +8025,8 @@ void emitGbcSpecializedRuleFunction(
                 << static_cast<unsigned>(patternIndex) << " * (int16_t)delta;\n"
                 << "                    if (start16 >= 0) {\n"
                 << "                        const uint8_t start = (uint8_t)start16;\n"
-                << "                        const uint8_t sx = (uint8_t)(start / session->height);\n"
-                << "                        const uint8_t sy = (uint8_t)(start - sx * session->height);\n"
+                << "                        const uint8_t sx = (uint8_t)(start / " << gbcLevelHeightExpr() << ");\n"
+                << "                        const uint8_t sy = (uint8_t)(start - sx * " << gbcLevelHeightExpr() << ");\n"
                 << "                        if (sx >= xmin && sx < xmax && sy >= ymin && sy < ymax) {\n";
             if (applyOnMatch) {
                 emitGbcSpecializedFusedMatchApplyAt(
@@ -8005,8 +8065,8 @@ void emitGbcSpecializedRuleFunction(
                 << "            uint8_t player_index;\n"
                 << "            for (player_index = 0U; player_index < session->player_cell_count; ++player_index) {\n"
                 << "                const uint8_t start = session->player_cells[player_index];\n"
-                << "                const uint8_t player_x = (uint8_t)(start / session->height);\n"
-                << "                const uint8_t player_y = (uint8_t)(start - player_x * session->height);\n"
+                << "                const uint8_t player_x = (uint8_t)(start / " << gbcLevelHeightExpr() << ");\n"
+                << "                const uint8_t player_y = (uint8_t)(start - player_x * " << gbcLevelHeightExpr() << ");\n"
                 << "                if (player_x < xmin || player_x >= xmax\n"
                 << "                    || player_y < ymin || player_y >= ymax) continue;\n";
             if (applyOnMatch) {
@@ -8295,13 +8355,13 @@ void emitGbcSpecializedResolveLayersForCell(
             << deep << "else if (direction == 4U) dx = -1;\n"
             << deep << "else if (direction == 8U) dx = 1;\n"
             << deep << "if (dx != 0 || dy != 0) {\n"
-            << deeper << "x = (int16_t)(cell / session->height);\n"
-            << deeper << "y = (int16_t)(cell % session->height);\n"
+            << deeper << "x = (int16_t)(cell / " << gbcLevelHeightExpr() << ");\n"
+            << deeper << "y = (int16_t)(cell % " << gbcLevelHeightExpr() << ");\n"
             << deeper << "target_x = (int16_t)(x + dx);\n"
             << deeper << "target_y = (int16_t)(y + dy);\n"
-            << deeper << "if (target_x >= 0 && target_x < (int16_t)session->width\n"
-            << deeper << "    && target_y >= 0 && target_y < (int16_t)session->height) {\n"
-            << deepest << "target = (uint16_t)(target_x * session->height + target_y);\n";
+            << deeper << "if (target_x >= 0 && target_x < (int16_t)" << gbcLevelWidthExpr() << "\n"
+            << deeper << "    && target_y >= 0 && target_y < (int16_t)" << gbcLevelHeightExpr() << ") {\n"
+            << deepest << "target = (uint16_t)(target_x * " << gbcLevelHeightExpr() << " + target_y);\n";
         emitGbdCBoardGet(out, deepest, "target_objects", "target", objectBytesPerCell);
         emitGbdCBoardGet(out, deepest, "source_objects", "cell", objectBytesPerCell);
         out << deepest << "if ((target_objects & ";
@@ -8398,7 +8458,7 @@ void emitGbcSpecializedResolveMovements(
     uint8_t movementBytesPerCell
 ) {
     out << "static bool ps_gbc_specialized_resolve_movements(ps_gbc_session* session) {\n"
-        << "    const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+        << "    const uint16_t cells = " << gbcLevelCellsExpr() << ";\n"
         << "    const uint8_t bit_bytes = (uint8_t)((cells + 7U) / 8U);\n"
         << "    bool moved_any = false;\n"
         << "    bool moved_pass = true;\n"
@@ -8486,7 +8546,7 @@ void emitGbcSpecializedWon(
             << "}\n\n";
         return;
     }
-    out << "    const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+    out << "    const uint16_t cells = " << gbcLevelCellsExpr() << ";\n"
         << "    uint16_t cell;\n";
     for (size_t conditionIndex = 0; conditionIndex < game.winConditions.size(); ++conditionIndex) {
         const WinCondition& condition = game.winConditions[conditionIndex];
@@ -8559,6 +8619,7 @@ void emitGbcSpecializedTurn(
         playerMaskWords.empty() ? 0U : static_cast<uint32_t>(playerMaskWords[0]);
     const bool specializeResolve = gbcSpecializedResolveEligible(game);
     const bool specializeWon = gbcSpecializedWonEligible(game);
+    g_gbcSpecializedLevelSize = gbcUniformBoardLevelSize(game);
     emitGbcSpecializedSeedAndHelpers(out, game, objectBytesPerCell, movementBytesPerCell);
     if (specializeResolve) {
         emitGbcSpecializedResolveMovements(

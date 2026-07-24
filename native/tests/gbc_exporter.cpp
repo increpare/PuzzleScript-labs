@@ -105,7 +105,13 @@ int main() {
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
             && specializedTurn.find("session->board[") != std::string::npos
             && specializedTurn.find("& 0x") != std::string::npos
-            && specializedTurn.find("_scan_done") == std::string::npos,
+            && specializedTurn.find("_scan_done") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_level_height")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_level_width")
+                != std::string::npos
+            && specializedTurn.find("= 7U") != std::string::npos
+            && specializedTurn.find("= 6U") != std::string::npos,
         "specialized turn uses direct board storage, inline rules, resolve, and won");
 
     {

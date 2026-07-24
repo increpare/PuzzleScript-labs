@@ -1014,3 +1014,22 @@ up `objects[id].movement_layer`.
 
 Oracle green. Artifacts:
 `build/gbc/sokoban-cart-perf/specialized-literal-seed-mgba.json`.
+
+### GBC specialized literal level dimensions (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+When every board level shares the same width×height, emit
+`ps_gbc_specialized_level_width/height` and use those (plus a literal cell
+count) in rules, resolve, seed, and won instead of `session->width/height`.
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| ticks/turn | 54.484 | **51.703 (−5.1%)** |
+| walk_logic | 48 | **46** |
+| push_logic | 83 | 84 |
+| win phase | 5.500 | **4.289** |
+| Largest gen bank | 14476 | **13907 (−569)** |
+
+Oracle green. Artifacts:
+`build/gbc/sokoban-cart-perf/specialized-literal-dims-mgba.json`.
