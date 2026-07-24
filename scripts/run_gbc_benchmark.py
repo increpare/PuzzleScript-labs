@@ -52,6 +52,9 @@ def default_mgba() -> Path | None:
     executable = shutil.which("mgba-sdl") or shutil.which("mgba-sdl.exe")
     if executable:
         return Path(executable)
+    mac_app = Path("/Applications/mGBA.app/Contents/MacOS/mGBA")
+    if mac_app.is_file():
+        return mac_app
     candidate = (
         Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
         / "mGBA"
@@ -67,8 +70,11 @@ def run_once(emulator: Path, source_rom: Path, timeout: float) -> dict[str, int]
         save = temp / "bench.sav"
         shutil.copy2(source_rom, rom)
         environment = os.environ.copy()
-        environment["SDL_VIDEODRIVER"] = "dummy"
-        environment["SDL_AUDIODRIVER"] = "dummy"
+        # SDL dummy drivers are for mgba-sdl. The macOS .app is Qt/Cocoa and
+        # fails to write SRAM under dummy video in some environments.
+        if emulator.name.lower() in {"mgba-sdl", "mgba-sdl.exe"}:
+            environment["SDL_VIDEODRIVER"] = "dummy"
+            environment["SDL_AUDIODRIVER"] = "dummy"
         process = subprocess.Popen(
             [
                 str(emulator),

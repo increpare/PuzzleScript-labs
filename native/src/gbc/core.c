@@ -1298,7 +1298,12 @@ static void ps_gbc_finish_turn(
     }
     if (!level_start
         && ((commands->flags & PS_GBC_COMMAND_WIN) != 0U
-            || ps_gbc_won(session))) {
+#if defined(PS_GBC_GENERATED_SPECIALIZED_WON) && PS_GBC_GENERATED_SPECIALIZED_WON
+            || ps_gbc_specialized_won(session)
+#else
+            || ps_gbc_won(session)
+#endif
+            )) {
         result->won = true;
         if (!session->defer_win) {
             result->transitioned = ps_gbc_advance(session);

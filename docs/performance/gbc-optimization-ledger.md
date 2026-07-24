@@ -825,9 +825,22 @@ PERF_BENCH):
 
 Artifacts: `build/gbc/sokoban-cart-compare/rom-size-compare.json`.
 
-**Cart timing:** blocked in this environment — `mgba-sdl` is not installed and
-Homebrew install failed (Cellar permissions / API 403). Rebuild PERF_BENCH ROMs
-and run `scripts/run_gbc_benchmark.py` once mGBA is available.
+**Cart timing (mGBA Mac `.app`, PERF_BENCH 128 L/R, 3 deterministic runs):**
+
+Specialized turn must live in **bank 1** with `generated_game.c`. Emitting it in
+bank 2 hung when calling non-`NONBANKED` core helpers (never wrote PERF SRAM).
+`scripts/run_gbc_benchmark.py` now discovers `/Applications/mGBA.app/.../mGBA`
+and skips SDL dummy drivers for that Cocoa binary.
+
+| Variant | ticks/turn | ms @ 4096 Hz | walk logic | push logic | Banked code |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Interpreter baseline | 202.227 | 49.37 | 163 | 221 | 8045 |
+| Specialized (bank 1) | 130.930 | 31.97 | 124 | 168 | 15525 |
+| Δ | **−35.3%** | | −24% | −24% | **+7480** |
+
+Artifacts: `build/gbc/sokoban-cart-perf/{baseline,specialized}-mgba.json`,
+`compare.json`. Phase counters are zero on the specialized path (not wired
+through interpreter phase probes); whole-turn + interaction ticks are valid.
 
 **Eligible-14 host solution benches** (`scripts/bench_gbc_eligible_solutions.py
 --skip-rom --max-levels 2`): several games already beat the interpreter on host
@@ -836,3 +849,32 @@ issues: specialized win failures / timeouts on some boards (slot-machine,
 voitex, xorro L0); net host slowdowns on pushit / recondite. Compile failure for
 `SINGLE_PLAYER_CELL` without player-cell anchors was fixed by gating
 `session->player_cells` behind `PS_GBC_HAS_PLAYER_CELL_ANCHORS`.
+
+### GBC specialized resolve + won (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+Shape-gated emitters add `ps_gbc_specialized_resolve_movements` (literal layer
+masks, direct board/movements/dirty, player anchors updated at the move site)
+and `ps_gbc_specialized_won` (literal All/No/Some filters). `finish_turn` calls
+the specialized won predicate when `PS_GBC_GENERATED_SPECIALIZED_WON`. Canmove
+SFX is not emitted on the specialized resolve path yet (sounds out of scope).
+
+| Check | Result |
+| --- | --- |
+| Oracle | PASS (`puzzlescript_gbc_specialized_oracle_smoke`) |
+| Structural | Sokoban emit uses specialized resolve + won; no shared resolve call |
+| Cart PERF (mGBA Mac `.app`, 3 runs) | see table |
+
+| Variant | ticks/turn | ms @ 4096 Hz | walk | push | Banked |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Interpreter baseline | 202.227 | 49.37 | 163 | 221 | 8045 |
+| Prior specialized (rules only) | 130.930 | 31.97 | 124 | 168 | 15525 |
+| **Resolve + won** | **88.594** | **21.63** | **83** | **115** | 16454 |
+| vs prior specialized | **−32.3%** | | | | +929 |
+| vs interpreter | **−56.2%** | | | | |
+
+Win phase probe (instrumented outside specialized body): ~37.4 → **5.45**
+ticks/turn. Artifacts:
+`build/gbc/sokoban-cart-perf/compare-resolve-won.json`,
+`specialized-resolve-won-mgba.json`.

@@ -1339,7 +1339,9 @@ std::string emitHeader(
     size_t ruleMessageCount,
     size_t presencePrecheckCount,
     size_t playerAnchorCount,
-    bool singlePlayerCellCertified
+    bool singlePlayerCellCertified,
+    bool specializedResolve,
+    bool specializedWon
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -1379,6 +1381,10 @@ std::string emitHeader(
         << playerAnchorCount << "U\n\n"
         << "#define PS_GBC_GENERATED_SINGLE_PLAYER_CELL "
         << (singlePlayerCellCertified ? "1" : "0") << "\n\n"
+        << "#define PS_GBC_GENERATED_SPECIALIZED_RESOLVE "
+        << (specializedResolve ? "1" : "0") << "\n\n"
+        << "#define PS_GBC_GENERATED_SPECIALIZED_WON "
+        << (specializedWon ? "1" : "0") << "\n\n"
         << "#define PS_GBC_GENERATED_ABI_VERSION "
         << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
@@ -2140,6 +2146,14 @@ ExportResult exportGame(const ExportOptions& options) {
         precomposedCompositions.size() * precomposedEntryBytes;
 
     const bool singlePlayerCellCertified = gbcSinglePlayerCertified(game, levels);
+    const bool specializedTurnKernelSupported =
+        compiler::compactNativeTurnSupportForGame(game).nativeKernel();
+    const bool specializedResolve =
+        specializedTurnKernelSupported
+        && compiler::gbcSpecializedResolveEligibleForGame(game);
+    const bool specializedWon =
+        specializedTurnKernelSupported
+        && compiler::gbcSpecializedWonEligibleForGame(game);
 
     ExportResult result;
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
@@ -2158,7 +2172,9 @@ ExportResult exportGame(const ExportOptions& options) {
             ruleMessageCount,
             presencePrecheckCount,
             playerAnchorCount,
-            singlePlayerCellCertified));
+            singlePlayerCellCertified,
+            specializedResolve,
+            specializedWon));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
         precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
@@ -2303,6 +2319,10 @@ ExportResult exportGame(const ExportOptions& options) {
         << playerAnchorCount << ",\n"
         << "  \"single_player_cell\": "
         << (singlePlayerCellCertified ? "true" : "false") << ",\n"
+        << "  \"specialized_resolve\": "
+        << (specializedResolve ? "true" : "false") << ",\n"
+        << "  \"specialized_won\": "
+        << (specializedWon ? "true" : "false") << ",\n"
         << "  \"early_rule_count\": " << earlyRuleCount << ",\n"
         << "  \"active_early_rules_by_input\": [";
     for (size_t input = 0U; input < activeEarlyRulesByInput.size(); ++input) {

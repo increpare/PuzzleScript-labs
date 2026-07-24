@@ -99,6 +99,9 @@ void emitGbcSpecializedTurn(
     const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
     const std::vector<GbcSpecializedGroupEmit>& lateGroups);
 
+bool gbcSpecializedResolveEligibleForGame(const Game& game);
+bool gbcSpecializedWonEligibleForGame(const Game& game);
+
 // Legacy entry used when packed tables are unavailable; emits walker fallback.
 void emitGbcSpecializedTurn(
     std::ostream& out,

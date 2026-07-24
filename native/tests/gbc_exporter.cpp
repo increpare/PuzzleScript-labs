@@ -63,6 +63,12 @@ int main() {
         manifest.find("\"specialized_turn\": true") != std::string::npos,
         "manifest records compact-turn support for Sokoban");
     require(
+        manifest.find("\"specialized_resolve\": true") != std::string::npos,
+        "manifest records specialized_resolve for Sokoban");
+    require(
+        manifest.find("\"specialized_won\": true") != std::string::npos,
+        "manifest records specialized_won for Sokoban");
+    require(
         manifest.find("\"single_player_cell\": true") != std::string::npos,
         "manifest records single-player certification for Sokoban");
 
@@ -85,11 +91,14 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_rule_0") != std::string::npos
             && specializedTurn.find("player_cells") != std::string::npos
-            && specializedTurn.find("ps_gbc_resolve_movements(session)") != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_resolve_movements(session)")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_resolve_movements(session)") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_won") != std::string::npos
             && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
             && specializedTurn.find("session->board[") != std::string::npos
             && specializedTurn.find("& 0x") != std::string::npos,
-        "specialized turn uses direct board storage and inline rule bodies");
+        "specialized turn uses direct board storage, inline rules, resolve, and won");
 
     {
         puzzlescript::Rule unsupportedRule;
