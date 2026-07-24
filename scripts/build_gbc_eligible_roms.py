@@ -258,7 +258,14 @@ def main() -> int:
     }
     report_path = out_root / "rom-build-report.json"
     write_report(report_path, report)
-    print(f"wrote {report_path}", flush=True)
+    successful = report["summary"]["successful"]
+    out_display = relpath(out_root, repository)
+    print(f"wrote {relpath(report_path, repository)}", flush=True)
+    print(
+        f"ROMs: {successful}/{len(ELIGIBLE_GAMES)} under {out_display}/"
+        f" (<slug>/<slug>.gb)",
+        flush=True,
+    )
     return 1 if failures else 0
 
 

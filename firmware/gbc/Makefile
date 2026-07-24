@@ -13,7 +13,7 @@ BUILD              := $(if $(filter 1 yes true on,$(AUTOTEST)),build-autotest,bu
 GENERATED          := generated
 GAME               ?= ../../src/demo/sokoban_basic.txt
 PUZZLESCRIPT_CPP   ?= ../../build/native/Release/puzzlescript_cpp.exe
-PYTHON             ?= python
+PYTHON             ?= python3
 EXPORT_GBC_FLAGS   ?=
 
 CFLAGS := -msm83:gb -I$(GENERATED) -I../../native/include -DPS_GBC_FREESTANDING=1
