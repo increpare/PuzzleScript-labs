@@ -935,8 +935,13 @@ Realtime-style games (slot-machine: late clear/redraw shadows + `[]->again`)
 report `changed` every tick even when the board net-returns to the turn-start
 state, so host solution replay drained **500 again ticks per move**.
 
-**Fix:** Hash the board at snapshot time; schedule again only if the end-of-turn
-hash differs (JS/native again-probe equivalent). Stop forcing `changed` for
+**Fix (v1, rejected for cart):** Hash the board every turn at snapshot time —
+fixed host again loops but blew Sokoban cart PERF from ~88.6 → **~304**
+ticks/turn (`snapshot≈229`).
+
+**Fix (retained):** Before `commit_undo`, when `again && changed`, compare the
+live board to the turn-start undo slot (`snapshots.read` + memcmp). Cost only
+on again turns; Sokoban / no-again games unpaid. Stop forcing `changed` for
 again-only specialized command matches.
 
 | Check | Before → After |
@@ -945,4 +950,8 @@ again-only specialized command matches.
 | slot L1 again ticks (57 moves) | 28002 → **64** |
 | slot host specialized ms/turn | ~4.1 → **~0.18** |
 | slot host speedup vs interpreter | **−262% → +45.7%** |
+| Sokoban cart specialized (phases) | **88.695** ticks/turn (was ~304 with hash) |
+| vs resolve+won (~88.594) | within noise |
 | Oracle / again-game wins | still green |
+
+Artifacts: `build/gbc/sokoban-cart-perf/specialized-again-gate-v2-mgba.json`.
