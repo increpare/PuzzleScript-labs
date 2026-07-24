@@ -10,7 +10,13 @@
 
 namespace puzzlescript::compiler {
 
+enum class CompactCodegenTarget {
+    NativeCpp,
+    GbdC,
+};
+
 struct CompactCodegenOptions {
+    CompactCodegenTarget target = CompactCodegenTarget::NativeCpp;
     bool interpreterMode = false;
     bool externalBoardStorage = false;
     bool externalSnapshotStorage = false;

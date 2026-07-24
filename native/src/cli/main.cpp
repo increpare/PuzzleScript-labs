@@ -6566,7 +6566,7 @@ int compileRulesCommand(const std::string& sourcePath, int argc, char** argv) {
     std::optional<std::string> caseNameFilter;
     std::string symbol = "puzzlescript_compiled_rules";
     CompiledRulesOptions options;
-    CompactCodegenOptions compactOptions{true};
+    CompactCodegenOptions compactOptions{.interpreterMode = true};
     bool statsOnly = false;
     bool compactTurnOnly = false;
     bool runtimeIrCacheOmitRules = false;

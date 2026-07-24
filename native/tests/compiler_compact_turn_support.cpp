@@ -68,8 +68,11 @@ void expectInterpreterBridge(
 
 int main() {
     using puzzlescript::compiler::CompactCodegenOptions;
+    using puzzlescript::compiler::CompactCodegenTarget;
     using puzzlescript::compiler::compactNativeTurnSupportForGame;
     using puzzlescript::compiler::compactTurnSupportForGame;
+
+    assert(CompactCodegenOptions{}.target == CompactCodegenTarget::NativeCpp);
 
     const CompactCodegenOptions compilerMode{};
     CompactCodegenOptions interpreterMode{};
