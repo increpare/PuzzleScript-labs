@@ -7959,9 +7959,11 @@ void emitGbcSpecializedRuleFunction(
         const unsigned commandBits = static_cast<unsigned>(rule.commands & 0x3fU);
         out << "    if (match_count == 0U) return false;\n"
             << "    commands->flags |= " << commandBits << "U;\n";
-        if (commandBits != 0U) {
-            // Command-only matches (e.g. []->again) must count as turn changes so
-            // finish_turn will honor pending_again / win / message.
+        // PS_GBC_COMMAND_AGAIN is bit 0; other command bits force changed.
+        if ((commandBits & ~1U) != 0U) {
+            // Non-again commands (win/message/…) count as turn changes.
+            // again alone must not force changed: finish_turn schedules again
+            // only when the board net-differs from turn start (JS again probe).
             out << "    changed = true;\n";
         }
         out << "    for (match_index = 0U; match_index < match_count; ++match_index) {\n"

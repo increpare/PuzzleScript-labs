@@ -32,6 +32,19 @@ typedef ps_gbc_rule ps_gbc_runtime_rule;
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
+/* Turn-start board hash for again net-change gating (single-threaded host/cart). */
+static uint32_t g_ps_gbc_turn_start_board_hash;
+
+static uint32_t ps_gbc_hash_board_bytes(const uint8_t* board, uint16_t board_bytes) {
+    uint32_t hash = 2166136261U;
+    uint16_t index;
+    for (index = 0U; index < board_bytes; ++index) {
+        hash ^= board[index];
+        hash *= 16777619U;
+    }
+    return hash;
+}
+
 #if !defined(PS_GBC_GENERATED_SOUND_COUNT) \
     || PS_GBC_GENERATED_SOUND_COUNT != 0U
 #define PS_GBC_HAS_AUDIO 1
@@ -1311,7 +1324,12 @@ static void ps_gbc_finish_turn(
         }
     } else if ((commands->flags & PS_GBC_COMMAND_MESSAGE) == 0U
         && (commands->flags & PS_GBC_COMMAND_AGAIN) != 0U
-        && changed) {
+        && changed
+        && ps_gbc_hash_board_bytes(session->board, board_bytes)
+            != g_ps_gbc_turn_start_board_hash) {
+        /* Match JS/native again probe: only continue when the board's net
+         * state differs from turn start. Cyclical late rules (e.g. clear then
+         * redraw shadows) plus []->again must not infinite-loop. */
         session->pending_again = true;
     }
     PS_GBC_PERF_END(PS_GBC_PERF_WIN);
@@ -1361,6 +1379,8 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
         PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
         return result;
     }
+    g_ps_gbc_turn_start_board_hash =
+        ps_gbc_hash_board_bytes(session->board, board_bytes);
     PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
     changed = false;
     if (!ps_gbc_specialized_apply_turn_phases(
@@ -1398,6 +1418,8 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
             board_bytes)) {
         return;
     }
+    g_ps_gbc_turn_start_board_hash =
+        ps_gbc_hash_board_bytes(session->board, board_bytes);
 #if PS_GBC_HAS_AUDIO
     session->suppress_audio = true;
 #endif

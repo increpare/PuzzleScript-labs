@@ -925,3 +925,24 @@ gains `--reuse-fixtures`.
 Eligible-14 host (`--skip-rom --reuse-fixtures --max-levels 2`): **25/25** solved
 boards won on specialized. Remaining gap is solver-only:
 `short-adventure-in-sticky-wall-land` board 1 times out (no specialized lose).
+
+### GBC again net-change gate (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+**Bug:** `finish_turn` scheduled `pending_again` whenever `again && changed`.
+Realtime-style games (slot-machine: late clear/redraw shadows + `[]->again`)
+report `changed` every tick even when the board net-returns to the turn-start
+state, so host solution replay drained **500 again ticks per move**.
+
+**Fix:** Hash the board at snapshot time; schedule again only if the end-of-turn
+hash differs (JS/native again-probe equivalent). Stop forcing `changed` for
+again-only specialized command matches.
+
+| Check | Before → After |
+| --- | --- |
+| slot L0 again ticks (11 moves) | 5002 → **12** |
+| slot L1 again ticks (57 moves) | 28002 → **64** |
+| slot host specialized ms/turn | ~4.1 → **~0.18** |
+| slot host speedup vs interpreter | **−262% → +45.7%** |
+| Oracle / again-game wins | still green |
