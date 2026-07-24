@@ -811,6 +811,21 @@ int main() {
                 || anyMaskSpecialized.find("0xCU") != std::string::npos),
         "any-object fixture specialized turn emits any-object mask tests");
 
+    puzzlescript::gbc::ExportOptions layerCoupledApply;
+    layerCoupledApply.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_layer_coupled_apply.txt";
+    layerCoupledApply.outputDirectory = output / "layer_coupled_apply";
+    const auto layerCoupledApplyResult = puzzlescript::gbc::exportGame(layerCoupledApply);
+    require(
+        std::filesystem::exists(layerCoupledApplyResult.generatedSpecializedTurnPath),
+        "layer-coupled apply fixture specialized turn is generated");
+    const std::string layerCoupledApplySpecialized =
+        readFile(layerCoupledApplyResult.generatedSpecializedTurnPath);
+    require(
+        layerCoupledApplySpecialized.find("/* layer-coupled replacement */")
+            != std::string::npos,
+        "layer-coupled apply fixture specialized turn emits replacement apply");
+
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
         + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");

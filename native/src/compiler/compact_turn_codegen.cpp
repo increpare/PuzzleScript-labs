@@ -7356,6 +7356,56 @@ void emitCompactInlineGbdCPatternMatch(
     out << indent << "}\n";
 }
 
+void emitGbdCLayerCoupledReplacementApply(
+    std::ostream& out,
+    const GbcSpecializedPatternEmit& pattern,
+    std::string_view indent,
+    std::string_view objectsVar,
+    std::string_view originalMovementsVar,
+    std::string_view nextMovementsVar
+) {
+    for (const GbcSpecializedLayerCoupledTermEmit& term : pattern.layerCoupledReplacementTerms) {
+        for (const GbcSpecializedLayerCoupledLayerEmit& layer : term.layers) {
+            if (layer.layerIndex < 0) {
+                continue;
+            }
+            const unsigned movementLane = static_cast<unsigned>(layer.layerIndex);
+            out << indent << "/* layer-coupled replacement */\n"
+                << indent << "if ((" << objectsVar << " & ";
+            emitGbcHexU32(out, layer.objectMask);
+            out << ") != 0U) {\n"
+                << indent << "    bool layer_ok = true;\n";
+            if (layer.movementsAny != 0U) {
+                out << indent << "    if ((" << originalMovementsVar << " & ";
+                emitGbcHexU32(out, layer.movementsAny);
+                out << ") == 0U) layer_ok = false;\n";
+            }
+            if (layer.movementsPresent != 0U) {
+                out << indent << "    if ((" << originalMovementsVar << " & ";
+                emitGbcHexU32(out, layer.movementsPresent);
+                out << ") != ";
+                emitGbcHexU32(out, layer.movementsPresent);
+                out << ") layer_ok = false;\n";
+            }
+            if (layer.movementsMissing != 0U) {
+                out << indent << "    if ((" << originalMovementsVar << " & ";
+                emitGbcHexU32(out, layer.movementsMissing);
+                out << ") != 0U) layer_ok = false;\n";
+            }
+            out << indent << "    if (layer_ok) {\n"
+                << indent << "        " << nextMovementsVar << " &= ~(0x1fU << (5U * "
+                << movementLane << "U));\n";
+            if (term.hasReplacementMovementMask) {
+                out << indent << "        " << nextMovementsVar << " |= ((";
+                emitGbcHexU32(out, term.replacementMovementMask & 0x1fU);
+                out << ") << (5U * " << movementLane << "U));\n";
+            }
+            out << indent << "    }\n"
+                << indent << "}\n";
+        }
+    }
+}
+
 void emitCompactInlineGbdCPatternApply(
     std::ostream& out,
     const GbcSpecializedPatternEmit& pattern,
@@ -7402,8 +7452,15 @@ void emitCompactInlineGbdCPatternApply(
     emitGbcHexU32(out, pattern.movementsClear);
     out << ") | ";
     emitGbcHexU32(out, pattern.movementsSet);
-    out << ";\n"
-        << indent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+    out << ";\n";
+    emitGbdCLayerCoupledReplacementApply(
+        out,
+        pattern,
+        std::string(indent) + "    ",
+        objectsVar,
+        originalMovementsVar,
+        nextMovementsVar);
+    out << indent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
         << indent << "    if ((" << nextObjectsVar << " & ps_gbc_generated_game.player_mask) != 0U) {\n";
     if (singlePlayerCellCertified) {
         out << indent << "        session->player_cells[0] = " << cellExpr << ";\n"
@@ -8102,8 +8159,15 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         emitGbcHexU32(out, pattern.movementsClear);
         out << ") | ";
         emitGbcHexU32(out, pattern.movementsSet);
-        out << ";\n"
-            << "        if ((next_objects & ps_gbc_generated_game.player_mask) != 0U) {\n"
+        out << ";\n";
+        emitGbdCLayerCoupledReplacementApply(
+            out,
+            pattern,
+            "        ",
+            objectsVar,
+            movementsVar,
+            "next_movements");
+        out << "        if ((next_objects & ps_gbc_generated_game.player_mask) != 0U) {\n"
             << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
             << "            session->player_cells[0] = cell;\n"
             << "            session->player_cell_count = 1U;\n"

@@ -751,6 +751,52 @@ add_test(
   COMMAND puzzlescript_gbc_any_mask_oracle_smoke
 )
 
+set(GBC_LAYER_COUPLED_APPLY_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_layer_coupled_apply)
+set(GBC_LAYER_COUPLED_APPLY_SOURCE ${GBC_LAYER_COUPLED_APPLY_DIR}/generated_game.c)
+set(GBC_LAYER_COUPLED_APPLY_HEADER ${GBC_LAYER_COUPLED_APPLY_DIR}/generated_game.h)
+set(GBC_LAYER_COUPLED_APPLY_MANIFEST ${GBC_LAYER_COUPLED_APPLY_DIR}/gbc_manifest.json)
+set(GBC_LAYER_COUPLED_APPLY_SPECIALIZED_TURN ${GBC_LAYER_COUPLED_APPLY_DIR}/generated_specialized_turn.c)
+add_custom_command(
+  OUTPUT
+    ${GBC_LAYER_COUPLED_APPLY_SOURCE}
+    ${GBC_LAYER_COUPLED_APPLY_HEADER}
+    ${GBC_LAYER_COUPLED_APPLY_MANIFEST}
+    ${GBC_LAYER_COUPLED_APPLY_SPECIALIZED_TURN}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_layer_coupled_apply.txt
+          --out ${GBC_LAYER_COUPLED_APPLY_DIR}
+  DEPENDS
+    puzzlescript_cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_layer_coupled_apply.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_layer_coupled_apply_oracle_smoke
+  tests/gbc_layer_coupled_apply_oracle_smoke.cpp
+  src/gbc/core.c
+  src/gbc/compact_facade.c
+  src/gbc/facade_rules.c
+  ${GBC_LAYER_COUPLED_APPLY_SOURCE}
+  ${GBC_LAYER_COUPLED_APPLY_SPECIALIZED_TURN}
+)
+target_include_directories(puzzlescript_gbc_layer_coupled_apply_oracle_smoke PRIVATE
+  ${GBC_LAYER_COUPLED_APPLY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
+)
+target_compile_definitions(puzzlescript_gbc_layer_coupled_apply_oracle_smoke PRIVATE
+  PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+  PS_GBC_GENERATED_BUILD=1
+  PS_GBC_HAS_SPECIALIZED_TURN=1
+)
+target_link_libraries(puzzlescript_gbc_layer_coupled_apply_oracle_smoke PRIVATE
+  puzzlescript_native
+  puzzlescript_compiler
+)
+add_test(
+  NAME puzzlescript_gbc_layer_coupled_apply_oracle_smoke
+  COMMAND puzzlescript_gbc_layer_coupled_apply_oracle_smoke
+)
+
 add_executable(puzzlescript_gbc_solution_replay_bench
   tests/gbc_solution_replay_bench.cpp
   src/gbc/core.c

@@ -1,0 +1,72 @@
+title GBC Layer Coupled Apply Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+white
+0
+
+Crate
+red
+0
+
+c_u
+green
+0
+
+c_d
+green
+0
+
+c_l
+green
+0
+
+c_r
+green
+0
+
+=======
+LEGEND
+=======
+
+c = c_u or c_d or c_l or c_r
+u = Crate and c_u
+. = Background
+P = Background and Player
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Crate
+c_u
+c_d
+c_l
+c_r
+
+======
+RULES
+======
+
+right [ > Player | Crate ] -> [ > Player | > Crate ]
+[moving crate c] -> [ moving crate moving c ]
+
+==============
+WINCONDITIONS
+==============
+
+some Wall
+
+=======
+LEVELS
+=======
+
+P.u

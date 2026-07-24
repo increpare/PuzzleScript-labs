@@ -1031,6 +1031,12 @@ bool gbcReplacementDynamicAllowed(const Replacement& replacement) {
         || dynamic->rhsPropertyPreserveMask != kNullMaskOffset) {
         return false;
     }
+    for (const LayerCoupledMovementReplacement& coupled :
+        dynamic->layerCoupledMovementReplacements) {
+        if (coupled.replacementAggregateName.has_value()) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -1047,7 +1053,13 @@ compiler::GbcSpecializedLayerCoupledLayerEmit packLayerCoupledLayerEmit(
         repackMovementMask(game, layerTerm.movementsPresent, movementLayout);
     emit.movementsMissing =
         repackMovementMask(game, layerTerm.movementsMissing, movementLayout);
-    emit.layerIndex = static_cast<int8_t>(layerTerm.layerIndex);
+    if (layerTerm.layerIndex >= 0
+        && static_cast<size_t>(layerTerm.layerIndex) < movementLayout.collisionToMovement.size()) {
+        emit.layerIndex =
+            movementLayout.collisionToMovement[static_cast<size_t>(layerTerm.layerIndex)];
+    } else {
+        emit.layerIndex = -1;
+    }
     return emit;
 }
 
