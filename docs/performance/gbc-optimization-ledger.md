@@ -955,3 +955,23 @@ again-only specialized command matches.
 | Oracle / again-game wins | still green |
 
 Artifacts: `build/gbc/sokoban-cart-perf/specialized-again-gate-v2-mgba.json`.
+
+### GBC specialized resolve seeded-player fast path (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+**Idea:** After turn-start `memset` of movements, only seed and early rules can
+introduce movers. Skip resolve when both are false. When seed ran and early did
+not match, only the player cell can hold movement — resolve that cell in O(1)
+instead of scanning the whole grid. Push turns (`early`) keep the full
+multi-pass specialized resolve.
+
+| Variant | ticks/turn | walk | push | Largest gen bank |
+| --- | ---: | ---: | ---: | ---: |
+| Prior specialized (again-gate v2) | 88.695 | 83 | 115 | 13524 |
+| **Seeded-player fast path** | **55.812** | **49** | **116** | 14331 |
+| vs prior | **−37.1%** | | | +807 |
+| vs interpreter (~202.2) | **−72.4%** | | | |
+
+Oracle + exporter structural asserts green. Artifacts:
+`build/gbc/sokoban-cart-perf/specialized-resolve-fastpath-mgba.json`.

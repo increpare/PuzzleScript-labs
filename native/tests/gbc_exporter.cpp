@@ -91,6 +91,9 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_rule_0") != std::string::npos
             && specializedTurn.find("player_cells") != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_resolve_seeded_player")
+                != std::string::npos
+            && specializedTurn.find("if (seeded && !early)") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_resolve_movements(session)")
                 != std::string::npos
             && specializedTurn.find("ps_gbc_resolve_movements(session)") == std::string::npos

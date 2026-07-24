@@ -8157,6 +8157,140 @@ uint32_t gbcFirstMaskWord(const Game& game, MaskOffset offset) {
     return words.empty() ? 0U : static_cast<uint32_t>(words[0]);
 }
 
+void emitGbcSpecializedResolveLayersForCell(
+    std::ostream& out,
+    const std::string& indent,
+    const Game& game,
+    bool singlePlayerCellCertified,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell,
+    bool setMovedPass
+) {
+    const solver::MovementLayerAnalysis analysis = solver::analyzeMovementLayers(game);
+    const uint32_t playerMask = gbcFirstMaskWord(game, game.playerMask);
+    const std::string body = indent + "    ";
+    const std::string deep = indent + "        ";
+    const std::string deeper = indent + "            ";
+    const std::string deepest = indent + "                ";
+    const std::string moveIndent = indent + "                    ";
+    const std::string applyIndent = indent + "                        ";
+    const std::string playerIndent = indent + "                            ";
+
+    for (size_t layer = 0; layer < analysis.movementToCollisionLayer.size(); ++layer) {
+        const int32_t collisionLayer = analysis.movementToCollisionLayer[layer];
+        const uint32_t layerMask = gbcFirstMaskWord(
+            game,
+            game.layerMaskOffsets[static_cast<size_t>(collisionLayer)]);
+        const unsigned shift = static_cast<unsigned>(5U * layer);
+        out << indent << "{\n"
+            << body << "const uint8_t direction = (uint8_t)((movement >> " << shift
+            << "U) & 0x1fU);\n"
+            << body << "int8_t dx = 0;\n"
+            << body << "int8_t dy = 0;\n"
+            << body << "int16_t x;\n"
+            << body << "int16_t y;\n"
+            << body << "int16_t target_x;\n"
+            << body << "int16_t target_y;\n"
+            << body << "uint16_t target;\n"
+            << body << "uint32_t moving;\n"
+            << body << "if (direction == 0U) {\n"
+            << body << "} else if (direction == 16U) {\n"
+            << deep << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
+        emitGbdCMovementsSet(out, deep, "cell", "movement", movementBytesPerCell);
+        out << body << "} else {\n"
+            << deep << "if (direction == 1U) dy = -1;\n"
+            << deep << "else if (direction == 2U) dy = 1;\n"
+            << deep << "else if (direction == 4U) dx = -1;\n"
+            << deep << "else if (direction == 8U) dx = 1;\n"
+            << deep << "if (dx != 0 || dy != 0) {\n"
+            << deeper << "x = (int16_t)(cell / session->height);\n"
+            << deeper << "y = (int16_t)(cell % session->height);\n"
+            << deeper << "target_x = (int16_t)(x + dx);\n"
+            << deeper << "target_y = (int16_t)(y + dy);\n"
+            << deeper << "if (target_x >= 0 && target_x < (int16_t)session->width\n"
+            << deeper << "    && target_y >= 0 && target_y < (int16_t)session->height) {\n"
+            << deepest << "target = (uint16_t)(target_x * session->height + target_y);\n";
+        emitGbdCBoardGet(out, deepest, "target_objects", "target", objectBytesPerCell);
+        emitGbdCBoardGet(out, deepest, "source_objects", "cell", objectBytesPerCell);
+        out << deepest << "if ((target_objects & ";
+        emitGbcHexU32(out, layerMask);
+        out << ") == 0U) {\n"
+            << moveIndent << "moving = source_objects & ";
+        emitGbcHexU32(out, layerMask);
+        out << ";\n"
+            << moveIndent << "if (moving == 0U) {\n"
+            << applyIndent << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
+        emitGbdCMovementsSet(out, applyIndent, "cell", "movement", movementBytesPerCell);
+        out << moveIndent << "} else {\n"
+            << applyIndent << "const uint32_t next_source = source_objects & ~";
+        emitGbcHexU32(out, layerMask);
+        out << ";\n"
+            << applyIndent << "const uint32_t next_target = target_objects | moving;\n";
+        emitGbdCBoardSet(out, applyIndent, "cell", "next_source", objectBytesPerCell);
+        emitGbdCBoardSet(out, applyIndent, "target", "next_target", objectBytesPerCell);
+        emitGbdCDirtyMark(out, applyIndent, "cell");
+        emitGbdCDirtyMark(out, applyIndent, "target");
+        out << applyIndent << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
+        emitGbdCMovementsSet(out, applyIndent, "cell", "movement", movementBytesPerCell);
+        out << applyIndent << "if ((moving & ";
+        emitGbcHexU32(out, playerMask);
+        out << ") != 0U) {\n";
+        if (singlePlayerCellCertified) {
+            out << playerIndent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+                << playerIndent << "session->player_cells[0] = (uint8_t)target;\n"
+                << playerIndent << "session->player_cell_count = 1U;\n"
+                << playerIndent << "#endif\n"
+                << playerIndent << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+                << playerIndent << "ps_gbc_specialized_player_cell = target;\n"
+                << playerIndent << "#endif\n";
+        } else {
+            out << playerIndent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+                << playerIndent << "{\n"
+                << playerIndent << "    uint8_t index = 0U;\n"
+                << playerIndent << "    uint8_t shift_i;\n"
+                << playerIndent
+                << "    while (index < session->player_cell_count\n"
+                << playerIndent
+                << "        && session->player_cells[index] < (uint8_t)target) ++index;\n"
+                << playerIndent
+                << "    if (index >= session->player_cell_count\n"
+                << playerIndent
+                << "        || session->player_cells[index] != (uint8_t)target) {\n"
+                << playerIndent << "        shift_i = session->player_cell_count;\n"
+                << playerIndent << "        while (shift_i > index) {\n"
+                << playerIndent
+                << "            session->player_cells[shift_i] = "
+                   "session->player_cells[shift_i - 1U];\n"
+                << playerIndent << "            --shift_i;\n"
+                << playerIndent << "        }\n"
+                << playerIndent << "        session->player_cells[index] = (uint8_t)target;\n"
+                << playerIndent << "        ++session->player_cell_count;\n"
+                << playerIndent << "    }\n"
+                << playerIndent << "}\n"
+                << playerIndent << "#endif\n";
+        }
+        out << applyIndent << "}\n";
+        if (setMovedPass) {
+            out << applyIndent << "moved_pass = true;\n";
+        }
+        out << applyIndent << "moved_any = true;\n"
+            << moveIndent << "}\n"
+            << deepest << "}\n"
+            << deeper << "}\n"
+            << deep << "}\n"
+            << body << "}\n"
+            << indent << "}\n";
+    }
+}
+
+void emitGbcSpecializedClearMovements(std::ostream& out, const std::string& indent) {
+    out << indent << "memset(\n"
+        << indent << "    session->movements,\n"
+        << indent << "    0,\n"
+        << indent << "    (size_t)ps_gbc_generated_game.max_level_cells\n"
+        << indent << "        * ps_gbc_generated_game.movement_bytes_per_cell);\n";
+}
+
 void emitGbcSpecializedResolveMovements(
     std::ostream& out,
     const Game& game,
@@ -8164,8 +8298,6 @@ void emitGbcSpecializedResolveMovements(
     uint8_t objectBytesPerCell,
     uint8_t movementBytesPerCell
 ) {
-    const solver::MovementLayerAnalysis analysis = solver::analyzeMovementLayers(game);
-    const uint32_t playerMask = gbcFirstMaskWord(game, game.playerMask);
     out << "static bool ps_gbc_specialized_resolve_movements(ps_gbc_session* session) {\n"
         << "    const uint16_t cells = (uint16_t)(session->width * session->height);\n"
         << "    bool moved_any = false;\n"
@@ -8176,138 +8308,60 @@ void emitGbcSpecializedResolveMovements(
         << "        for (cell = 0U; cell < cells; ++cell) {\n";
     emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
     out << "            if (movement == 0U) continue;\n";
-
-    for (size_t layer = 0; layer < analysis.movementToCollisionLayer.size(); ++layer) {
-        const int32_t collisionLayer = analysis.movementToCollisionLayer[layer];
-        const uint32_t layerMask = gbcFirstMaskWord(
-            game,
-            game.layerMaskOffsets[static_cast<size_t>(collisionLayer)]);
-        const unsigned shift = static_cast<unsigned>(5U * layer);
-        out << "            {\n"
-            << "                const uint8_t direction = (uint8_t)((movement >> "
-            << shift << "U) & 0x1fU);\n"
-            << "                int8_t dx = 0;\n"
-            << "                int8_t dy = 0;\n"
-            << "                int16_t x;\n"
-            << "                int16_t y;\n"
-            << "                int16_t target_x;\n"
-            << "                int16_t target_y;\n"
-            << "                uint16_t target;\n"
-            << "                uint32_t moving;\n"
-            << "                if (direction == 0U) {\n"
-            << "                } else if (direction == 16U) {\n"
-            << "                    movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
-        emitGbdCMovementsSet(out, "                    ", "cell", "movement", movementBytesPerCell);
-        out << "                } else {\n"
-            << "                    if (direction == 1U) dy = -1;\n"
-            << "                    else if (direction == 2U) dy = 1;\n"
-            << "                    else if (direction == 4U) dx = -1;\n"
-            << "                    else if (direction == 8U) dx = 1;\n"
-            << "                    if (dx != 0 || dy != 0) {\n"
-            << "                        x = (int16_t)(cell / session->height);\n"
-            << "                        y = (int16_t)(cell % session->height);\n"
-            << "                        target_x = (int16_t)(x + dx);\n"
-            << "                        target_y = (int16_t)(y + dy);\n"
-            << "                        if (target_x >= 0 && target_x < (int16_t)session->width\n"
-            << "                            && target_y >= 0 && target_y < (int16_t)session->height) {\n"
-            << "                            target = (uint16_t)(target_x * session->height + target_y);\n";
-        emitGbdCBoardGet(out, "                            ", "target_objects", "target", objectBytesPerCell);
-        emitGbdCBoardGet(out, "                            ", "source_objects", "cell", objectBytesPerCell);
-        out << "                            if ((target_objects & ";
-        emitGbcHexU32(out, layerMask);
-        out << ") == 0U) {\n"
-            << "                                moving = source_objects & ";
-        emitGbcHexU32(out, layerMask);
-        out << ";\n"
-            << "                                if (moving == 0U) {\n"
-            << "                                    movement &= ~((uint32_t)0x1fU << "
-            << shift << "U);\n";
-        emitGbdCMovementsSet(
-            out,
-            "                                    ",
-            "cell",
-            "movement",
-            movementBytesPerCell);
-        out << "                                } else {\n"
-            << "                                    const uint32_t next_source = source_objects & ~";
-        emitGbcHexU32(out, layerMask);
-        out << ";\n"
-            << "                                    const uint32_t next_target = target_objects | moving;\n";
-        emitGbdCBoardSet(
-            out,
-            "                                    ",
-            "cell",
-            "next_source",
-            objectBytesPerCell);
-        emitGbdCBoardSet(
-            out,
-            "                                    ",
-            "target",
-            "next_target",
-            objectBytesPerCell);
-        emitGbdCDirtyMark(out, "                                    ", "cell");
-        emitGbdCDirtyMark(out, "                                    ", "target");
-        out << "                                    movement &= ~((uint32_t)0x1fU << "
-            << shift << "U);\n";
-        emitGbdCMovementsSet(
-            out,
-            "                                    ",
-            "cell",
-            "movement",
-            movementBytesPerCell);
-        out << "                                    if ((moving & ";
-        emitGbcHexU32(out, playerMask);
-        out << ") != 0U) {\n";
-        if (singlePlayerCellCertified) {
-            out << "                                        "
-                   "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
-                << "                                        session->player_cells[0] = (uint8_t)target;\n"
-                << "                                        session->player_cell_count = 1U;\n"
-                << "                                        #endif\n"
-                << "                                        "
-                   "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-                << "                                        ps_gbc_specialized_player_cell = target;\n"
-                << "                                        #endif\n";
-        } else {
-            out << "                                        "
-                   "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
-                << "                                        {\n"
-                << "                                            uint8_t index = 0U;\n"
-                << "                                            uint8_t shift_i;\n"
-                << "                                            while (index < session->player_cell_count\n"
-                << "                                                && session->player_cells[index] < (uint8_t)target) ++index;\n"
-                << "                                            if (index >= session->player_cell_count\n"
-                << "                                                || session->player_cells[index] != (uint8_t)target) {\n"
-                << "                                                shift_i = session->player_cell_count;\n"
-                << "                                                while (shift_i > index) {\n"
-                << "                                                    session->player_cells[shift_i] = session->player_cells[shift_i - 1U];\n"
-                << "                                                    --shift_i;\n"
-                << "                                                }\n"
-                << "                                                session->player_cells[index] = (uint8_t)target;\n"
-                << "                                                ++session->player_cell_count;\n"
-                << "                                            }\n"
-                << "                                        }\n"
-                << "                                        #endif\n";
-        }
-        out << "                                    }\n"
-            << "                                    moved_pass = true;\n"
-            << "                                    moved_any = true;\n"
-            << "                                }\n"
-            << "                            }\n"
-            << "                        }\n"
-            << "                    }\n"
-            << "                }\n"
-            << "            }\n";
-    }
-
+    emitGbcSpecializedResolveLayersForCell(
+        out,
+        "            ",
+        game,
+        singlePlayerCellCertified,
+        objectBytesPerCell,
+        movementBytesPerCell,
+        true);
     out << "        }\n"
+        << "    }\n";
+    emitGbcSpecializedClearMovements(out, "    ");
+    out << "    return moved_any;\n"
+        << "}\n\n";
+}
+
+void emitGbcSpecializedResolveSeededPlayer(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell
+) {
+    out << "static bool ps_gbc_specialized_resolve_seeded_player(ps_gbc_session* session) {\n"
+        << "    bool moved_any = false;\n"
+        << "    bool have_cell = false;\n"
+        << "    uint16_t cell = 0U;\n"
+        << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+        << "    if (session->player_cell_count > 0U) {\n"
+        << "        cell = session->player_cells[0];\n"
+        << "        have_cell = true;\n"
         << "    }\n"
-        << "    memset(\n"
-        << "        session->movements,\n"
-        << "        0,\n"
-        << "        (size_t)ps_gbc_generated_game.max_level_cells\n"
-        << "            * ps_gbc_generated_game.movement_bytes_per_cell);\n"
-        << "    return moved_any;\n"
+        << "#elif PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "    if (ps_gbc_specialized_player_cell != UINT16_MAX) {\n"
+        << "        cell = ps_gbc_specialized_player_cell;\n"
+        << "        have_cell = true;\n"
+        << "    }\n"
+        << "#else\n"
+        << "    return ps_gbc_specialized_resolve_movements(session);\n"
+        << "#endif\n"
+        << "    if (have_cell) {\n";
+    emitGbdCMovementsGet(out, "        ", "movement", "cell", movementBytesPerCell);
+    out << "        if (movement != 0U) {\n";
+    emitGbcSpecializedResolveLayersForCell(
+        out,
+        "            ",
+        game,
+        singlePlayerCellCertified,
+        objectBytesPerCell,
+        movementBytesPerCell,
+        false);
+    out << "        }\n"
+        << "    }\n";
+    emitGbcSpecializedClearMovements(out, "    ");
+    out << "    return moved_any;\n"
         << "}\n\n";
 }
 
@@ -8404,6 +8458,12 @@ void emitGbcSpecializedTurn(
             singlePlayerCellCertified,
             objectBytesPerCell,
             movementBytesPerCell);
+        emitGbcSpecializedResolveSeededPlayer(
+            out,
+            game,
+            singlePlayerCellCertified,
+            objectBytesPerCell,
+            movementBytesPerCell);
     }
     if (specializeWon) {
         emitGbcSpecializedWon(out, game, objectBytesPerCell);
@@ -8489,11 +8549,20 @@ void emitGbcSpecializedTurn(
         << "            * ps_gbc_generated_game.movement_bytes_per_cell);\n"
         << "    session->pending_again = false;\n"
         << "    seeded = ps_gbc_specialized_seed_player_movement(session, direction);\n"
-        << "    early = ps_gbc_specialized_apply_early(session, direction, commands);\n";
+        << "    early = ps_gbc_specialized_apply_early(session, direction, commands);\n"
+        << "    if (!seeded && !early) {\n"
+        << "        moved = false;\n"
+        << "    } else ";
     if (specializeResolve) {
-        out << "    moved = ps_gbc_specialized_resolve_movements(session);\n";
+        out << "if (seeded && !early) {\n"
+            << "        moved = ps_gbc_specialized_resolve_seeded_player(session);\n"
+            << "    } else {\n"
+            << "        moved = ps_gbc_specialized_resolve_movements(session);\n"
+            << "    }\n";
     } else {
-        out << "    moved = ps_gbc_resolve_movements(session);\n";
+        out << "{\n"
+            << "        moved = ps_gbc_resolve_movements(session);\n"
+            << "    }\n";
     }
     out << "    late = ps_gbc_specialized_apply_late(session, direction, commands);\n";
     out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n";
