@@ -922,7 +922,7 @@ static void ps_gbc_audio_mask_matches(
 }
 #endif
 
-bool ps_gbc_resolve_movements(ps_gbc_session* session) {
+bool ps_gbc_resolve_movements(ps_gbc_session* session) PS_GBC_CORE_RUNTIME_NONBANKED {
     uint16_t cell;
     const uint16_t cells = (uint16_t)(session->width * session->height);
     bool moved_any = false;

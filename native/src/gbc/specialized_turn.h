@@ -5,6 +5,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#if defined(PS_GBC_FREESTANDING)
+#include <gb/gb.h>
+#define PS_GBC_SPECIALIZED_TURN_BANKED BANKED
+#define PS_GBC_CORE_RUNTIME_NONBANKED NONBANKED
+#else
+#define PS_GBC_SPECIALIZED_TURN_BANKED
+#define PS_GBC_CORE_RUNTIME_NONBANKED
+#endif
+
 bool ps_gbc_apply_turn_phases(
     ps_gbc_session* session,
     uint8_t direction,
@@ -15,7 +24,7 @@ bool ps_gbc_apply_early_rule_groups(
     uint8_t direction,
     ps_gbc_commands* commands);
 
-bool ps_gbc_resolve_movements(ps_gbc_session* session);
+bool ps_gbc_resolve_movements(ps_gbc_session* session) PS_GBC_CORE_RUNTIME_NONBANKED;
 
 bool ps_gbc_apply_late_rule_groups(
     ps_gbc_session* session,
@@ -41,4 +50,4 @@ bool ps_gbc_specialized_apply_turn_phases(
     ps_gbc_session* session,
     uint8_t direction,
     ps_gbc_commands* commands,
-    bool* out_changed);
+    bool* out_changed) PS_GBC_SPECIALIZED_TURN_BANKED;

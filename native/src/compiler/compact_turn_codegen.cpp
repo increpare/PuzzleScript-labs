@@ -7054,7 +7054,10 @@ void emitCompactTurnAccessLayer(
 
 void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
     (void)game;
-    out << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
+    out << "#if defined(__SDCC) || defined(GBDK)\n"
+        << "#pragma bank 2\n"
+        << "#endif\n"
+        << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
         << "#include \"puzzlescript/gbc_facade_rules.h\"\n"
         << "#include \"specialized_turn.h\"\n"
         << "#include \"generated_game.h\"\n"
@@ -7097,7 +7100,7 @@ void emitGbcSpecializedTurn(std::ostream& out, const Game& game) {
         << "    uint8_t direction,\n"
         << "    ps_gbc_commands* commands,\n"
         << "    bool* out_changed\n"
-        << ") {\n"
+        << ") PS_GBC_SPECIALIZED_TURN_BANKED {\n"
         << "    bool seeded;\n"
         << "    bool early;\n"
         << "    bool moved;\n"

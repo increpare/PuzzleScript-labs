@@ -1,3 +1,7 @@
+#if defined(__SDCC) || defined(GBDK)
+#pragma bank 2
+#endif
+
 #include "puzzlescript/gbc_compact_facade.h"
 
 #include "session_internal.h"
