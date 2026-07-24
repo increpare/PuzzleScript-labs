@@ -16,6 +16,10 @@ PUZZLESCRIPT_CPP   ?= ../../build/native/Release/puzzlescript_cpp.exe
 PYTHON             ?= python3
 EXPORT_GBC_FLAGS   ?=
 
+SPECIALIZED_SRC    := $(GENERATED)/generated_specialized_turn.c
+HAS_SPECIALIZED    := $(shell test -f $(SPECIALIZED_SRC) && echo 1)
+SPECIALIZED_CFLAGS := $(if $(HAS_SPECIALIZED),-DPS_GBC_HAS_SPECIALIZED_TURN=1,)
+
 CFLAGS := -msm83:gb -I$(GENERATED) -I../../native/include -I../../native/src/gbc -DPS_GBC_FREESTANDING=1
 CFLAGS += -DPS_GBC_GENERATED_BUILD=1
 CFLAGS += -Wf--max-allocs-per-node50000
@@ -37,17 +41,23 @@ endif
 ifneq ($(filter 1 yes true on,$(PERF_SCHEDULES)),)
 CFLAGS += -DPS_GBC_PERF_SCHEDULES=1
 endif
-LDFLAGS := -msm83:gb -Wm-yC -Wm-yt0x1B -Wm-yo8 -Wm-ya4 -Wm-ynPUZZLESCRIPT -Wl-m
+LDFLAGS := -msm83:gb -Wm-yC -Wm-yt0x1B -Wm-yo32 -Wm-ya4 -Wm-ynPUZZLESCRIPT -Wl-m
 PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,)
 AUTOTEST_OBJECTS := $(if $(filter 1 yes true on,$(AUTOTEST)),$(BUILD)/autotest.o,)
 OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
 	$(BUILD)/frontend_flow.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
+SPECIALIZED_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/generated_specialized_turn.o,)
+LINK_OBJECTS := $(OBJECTS) $(SPECIALIZED_OBJECTS)
 
-.PHONY: all export clean check-size
+.PHONY: all export clean check-size build-rom
 
-all: export $(TARGET).gb check-size
+all:
+	$(MAKE) export
+	$(MAKE) build-rom
+
+build-rom: $(TARGET).gb check-size
 
 export:
 	@mkdir -p $(GENERATED)
@@ -62,8 +72,13 @@ $(BUILD)/main.o: source/main.c source/audio.h source/text.h $(GENERATED)/generat
 $(BUILD)/core.o: ../../native/src/gbc/core.c \
 	../../native/src/gbc/session_internal.h \
 	../../native/include/puzzlescript/gbc.h \
-	$(GENERATED)/generated_game.h | $(BUILD)
-	"$(LCC)" $(CFLAGS) -c -o $@ $<
+	$(GENERATED)/generated_game.h \
+	$(if $(HAS_SPECIALIZED),$(SPECIALIZED_SRC),) | $(BUILD)
+	"$(LCC)" $(CFLAGS) $(SPECIALIZED_CFLAGS) -c -o $@ $<
+
+$(BUILD)/generated_specialized_turn.o: $(SPECIALIZED_SRC) \
+	../../native/src/gbc/specialized_turn.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -DPS_GBC_HAS_SPECIALIZED_TURN=1 -c -o $@ $<
 
 $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
@@ -86,8 +101,8 @@ $(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h $(GENE
 $(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(TARGET).gb: $(OBJECTS)
-	"$(LCC)" $(LDFLAGS) -o $@ $(OBJECTS)
+$(TARGET).gb: $(LINK_OBJECTS)
+	"$(LCC)" $(LDFLAGS) -o $@ $(LINK_OBJECTS)
 
 check-size: $(TARGET).gb
 	"$(PYTHON)" ../../scripts/check_gbc_rom.py $(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
