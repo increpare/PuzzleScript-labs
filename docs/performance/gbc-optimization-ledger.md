@@ -809,3 +809,30 @@ Script: `python3 scripts/bench_gbc_sokoban_host_speed.py`.
 
 **Retained:** host specialized turns are faster than the GBC interpreter on the
 Sokoban solution replay. Cart/mGBA not remeasured in this slice.
+
+### GBC specialized follow-on — cart size + eligible-14 host (2026-07-24)
+
+Revision: `gbc-specialized-turn-codegen` @ `df784fea` (+ player_cells guard fix).
+
+**Sokoban cartridge link sizes** (production `build-rom`, absolute GBDK; not
+PERF_BENCH):
+
+| Variant | Fixed | Banked sum | Linked code | Static WRAM |
+| --- | ---: | ---: | ---: | ---: |
+| Interpreter baseline | 15312 | 5868 | 21180 | 1565 |
+| Specialized | 15301 | 13273 | 28574 | 1567 |
+| Δ | −11 | **+7405** | **+7394** | +2 |
+
+Artifacts: `build/gbc/sokoban-cart-compare/rom-size-compare.json`.
+
+**Cart timing:** blocked in this environment — `mgba-sdl` is not installed and
+Homebrew install failed (Cellar permissions / API 403). Rebuild PERF_BENCH ROMs
+and run `scripts/run_gbc_benchmark.py` once mGBA is available.
+
+**Eligible-14 host solution benches** (`scripts/bench_gbc_eligible_solutions.py
+--skip-rom --max-levels 2`): several games already beat the interpreter on host
+(e.g. 15-push-pull ~+64%, i-am-a-gust-of-wind ~+68%, dollyban ~+31%). Remaining
+issues: specialized win failures / timeouts on some boards (slot-machine,
+voitex, xorro L0); net host slowdowns on pushit / recondite. Compile failure for
+`SINGLE_PLAYER_CELL` without player-cell anchors was fixed by gating
+`session->player_cells` behind `PS_GBC_HAS_PLAYER_CELL_ANCHORS`.

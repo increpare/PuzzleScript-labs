@@ -7563,6 +7563,7 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "    int8_t delta;\n"
         << "    uint8_t cell;\n"
         << "    bool changed = false;\n"
+        << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
         << "    /* player_cells can retain stale pre-resolve entries; pick a live one. */\n"
         << "    for (player_index = 0U; player_index < session->player_cell_count; ++player_index) {\n"
         << "        const uint8_t candidate = session->player_cells[player_index];\n";
@@ -7575,6 +7576,28 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "    if (!found_player) return false;\n"
         << "    session->player_cells[0] = player_cell;\n"
         << "    session->player_cell_count = 1U;\n"
+        << "#elif PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "    {\n"
+        << "        uint16_t cached = ps_gbc_specialized_player_cell;\n"
+        << "        if (cached == UINT16_MAX) {\n"
+        << "            ps_gbc_specialized_refresh_player_cell(session);\n"
+        << "            cached = ps_gbc_specialized_player_cell;\n"
+        << "        } else {\n";
+    emitGbdCBoardGet(out, "            ", "cached_objects", "cached", objectBytesPerCell);
+    out << "            if ((cached_objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+        << "                ps_gbc_specialized_refresh_player_cell(session);\n"
+        << "                cached = ps_gbc_specialized_player_cell;\n"
+        << "            }\n"
+        << "        }\n"
+        << "        if (cached == UINT16_MAX) return false;\n"
+        << "        player_cell = (uint8_t)cached;\n"
+        << "        found_player = true;\n"
+        << "    }\n"
+        << "#else\n"
+        << "    return false;\n"
+        << "#endif\n"
+        << "    (void)player_index;\n"
+        << "    (void)found_player;\n"
         << "    xmax = (uint8_t)session->width;\n"
         << "    ymax = (uint8_t)session->height;\n";
     if (direction == 1U) {
@@ -7673,8 +7696,13 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         emitGbcHexU32(out, pattern.movementsSet);
         out << ";\n"
             << "        if ((next_objects & ps_gbc_generated_game.player_mask) != 0U) {\n"
+            << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
             << "            session->player_cells[0] = cell;\n"
             << "            session->player_cell_count = 1U;\n"
+            << "#endif\n"
+            << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "            ps_gbc_specialized_player_cell = cell;\n"
+            << "#endif\n"
             << "        }\n";
         emitGbdCBoardSet(out, "        ", "cell", "next_objects", objectBytesPerCell);
         emitGbdCMovementsSet(out, "        ", "cell", "next_movements", movementBytesPerCell);
@@ -8173,19 +8201,23 @@ void emitGbcSpecializedTurn(
         << "    early = ps_gbc_specialized_apply_early(session, direction, commands);\n"
         << "    moved = ps_gbc_resolve_movements(session);\n"
         << "    late = ps_gbc_specialized_apply_late(session, direction, commands);\n";
+    out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n";
     if (singlePlayerCellCertified) {
-        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        out << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
             << "    if (moved && session->player_cell_count > 0U) {\n"
             << "        ps_gbc_specialized_player_cell = session->player_cells[0];\n"
             << "    }\n"
-            << "#endif\n";
-    } else {
-        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "#else\n"
             << "    if (seeded || early || moved || late) {\n"
             << "        ps_gbc_specialized_refresh_player_cell(session);\n"
             << "    }\n"
             << "#endif\n";
+    } else {
+        out << "    if (seeded || early || moved || late) {\n"
+            << "        ps_gbc_specialized_refresh_player_cell(session);\n"
+            << "    }\n";
     }
+    out << "#endif\n";
     out << "    *out_changed = seeded || early || moved || late;\n"
         << "    return true;\n"
         << "}\n";
