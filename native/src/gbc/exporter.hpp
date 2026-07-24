@@ -1,5 +1,7 @@
 #pragma once
 
+#include "runtime/core.hpp"
+
 #include <filesystem>
 
 namespace puzzlescript::gbc {
@@ -16,6 +18,15 @@ struct ExportResult {
     std::filesystem::path generatedSourcePath;
     std::filesystem::path generatedSpecializedTurnPath;
 };
+
+struct SpecializedTurnExportInfo {
+    bool supported = false;
+    std::filesystem::path generatedPath;
+};
+
+SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
+    const Game& game,
+    const std::filesystem::path& outputDirectory);
 
 ExportResult exportGame(const ExportOptions& options);
 

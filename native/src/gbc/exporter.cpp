@@ -1650,6 +1650,29 @@ std::string emitSource(
 
 } // namespace
 
+SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
+    const Game& game,
+    const std::filesystem::path& outputDirectory
+) {
+    SpecializedTurnExportInfo info;
+    const std::filesystem::path path = outputDirectory / "generated_specialized_turn.c";
+    const compiler::CompactTurnSupport compactTurnSupport =
+        compiler::compactNativeTurnSupportForGame(game);
+    info.supported = compactTurnSupport.nativeKernel();
+    if (info.supported) {
+        std::ostringstream specializedTurnSource;
+        compiler::emitGbcSpecializedTurn(specializedTurnSource);
+        writeFileIfChanged(path, specializedTurnSource.str());
+        info.generatedPath = path;
+        return info;
+    }
+    if (std::filesystem::exists(path)) {
+        std::filesystem::remove(path);
+    }
+    info.generatedPath.clear();
+    return info;
+}
+
 ExportResult exportGame(const ExportOptions& options) {
     if (options.sourcePath.empty() || options.outputDirectory.empty()) {
         throw std::runtime_error("export-gbc requires a source path and output directory");
@@ -2058,20 +2081,10 @@ ExportResult exportGame(const ExportOptions& options) {
         static_cast<uint8_t>(viewportWidth),
         static_cast<uint8_t>(viewportHeight), cellWidth, cellHeight,
         maxCells, undoCapacity, objectCellBytes));
-    const compiler::CompactTurnSupport compactTurnSupport =
-        compiler::compactNativeTurnSupportForGame(game);
-    const bool specializedTurnSupported = compactTurnSupport.nativeKernel();
-    result.generatedSpecializedTurnPath =
-        options.outputDirectory / "generated_specialized_turn.c";
-    if (specializedTurnSupported) {
-        std::ostringstream specializedTurnSource;
-        compiler::emitGbcSpecializedTurn(specializedTurnSource);
-        writeFileIfChanged(
-            result.generatedSpecializedTurnPath,
-            specializedTurnSource.str());
-    } else {
-        result.generatedSpecializedTurnPath.clear();
-    }
+    const SpecializedTurnExportInfo specializedTurnExport =
+        writeSpecializedTurnArtifacts(game, options.outputDirectory);
+    const bool specializedTurnSupported = specializedTurnExport.supported;
+    result.generatedSpecializedTurnPath = specializedTurnExport.generatedPath;
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
     const auto singlePassCount = [](const std::vector<PackedGroup>& groups) {
         return static_cast<size_t>(std::count_if(

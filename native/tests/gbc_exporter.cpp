@@ -1,5 +1,7 @@
 #include "gbc/exporter.hpp"
 
+#include "runtime/core.hpp"
+
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -68,6 +70,35 @@ int main() {
             && specializedTurn.find("ps_gbc_apply_turn_phases(session, direction, commands)")
                 != std::string::npos,
         "specialized turn stub delegates to the interpreter bridge");
+
+    {
+        puzzlescript::Rule unsupportedRule;
+        unsupportedRule.patterns = {{{}}};
+        unsupportedRule.ellipsisCount = {0};
+        unsupportedRule.commands.push_back({"unsupported_test_command", std::nullopt});
+        puzzlescript::Game unsupportedGame;
+        unsupportedGame.rules = {{unsupportedRule}};
+
+        const std::filesystem::path unsupportedDir =
+            output / "unsupported_specialized_turn_cleanup";
+        std::filesystem::create_directories(unsupportedDir);
+        const std::filesystem::path stalePath =
+            unsupportedDir / "generated_specialized_turn.c";
+        writeFile(stalePath, "/* stale marker */\n");
+
+        const auto unsupportedInfo = puzzlescript::gbc::writeSpecializedTurnArtifacts(
+            unsupportedGame, unsupportedDir);
+        require(
+            !unsupportedInfo.supported,
+            "compact-turn support rejects synthetic unsupported commands");
+        require(
+            unsupportedInfo.generatedPath.empty(),
+            "unsupported export clears the specialized turn result path");
+        require(
+            !std::filesystem::exists(stalePath),
+            "unsupported export deletes a stale specialized turn stub");
+    }
+
     require(manifest.find("\"object_count\": 5") != std::string::npos,
         "manifest records the lowered object count");
     require(manifest.find("\"collision_layer_count\": 3") != std::string::npos,

@@ -7065,7 +7065,7 @@ void emitGbcSpecializedTurn(std::ostream& out) {
         << "    ps_gbc_commands* commands,\n"
         << "    bool* out_changed\n"
         << ") {\n"
-        << "    if (out_changed == NULL) return true;\n"
+        << "    if (out_changed == NULL) return false;\n"
         << "    *out_changed = ps_gbc_apply_turn_phases(session, direction, commands);\n"
         << "    return true;\n"
         << "}\n";
