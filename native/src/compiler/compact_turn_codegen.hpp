@@ -100,7 +100,11 @@ struct GbcSpecializedTurnEmitResult {
 };
 
 struct GbcSpecializedTurnEmitOptions {
+    // Soft target for each rules bank when splitting is required.
     size_t rulePackSourceByteThreshold = 45000U;
+    // Keep a single bank-3 TU (static rules, no BANKED stubs) when total rule
+    // source stays under this. ~60KiB C ≈ ~10KiB ROM; above this, split.
+    size_t singleFileMaxRuleSourceBytes = 60000U;
     unsigned mainBank = 3U;
     unsigned firstRulesBank = 4U;
 };

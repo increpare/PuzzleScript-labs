@@ -1102,27 +1102,21 @@ Next: multi-bank specialized emit (early / late+resolve) for the remaining 8.
 Revision: working tree on `gbc-specialized-turn-codegen`.
 
 Split unrolled specialized rules into `generated_specialized_turn_rules_<N>.c`
-(bank 4+N, greedy ~45 KiB source-byte packs). Bank 3 keeps entry,
-NONBANKED shared WRAM/helpers, resolve/won, and phase apply calling BANKED
-rule functions via `generated_specialized_shared.h`.
+(bank 4+N, greedy ~45 KiB source packs) when total rule source exceeds ~60 KiB;
+smaller games stay a single bank-3 TU. Multi-pack layout:
 
-Eligible-14 (`make gbc_eligible --cull`): **10/14 specialized** (was 6/14 after
-bank-3 move).
+- Bank 3: entry, WRAM globals, BANKED helpers (stubs only in home), resolve/won,
+  phase apply
+- Bank 4+: static rules + one BANKED `ps_gbc_specialized_rule_pack_N` dispatcher
+  per pack (not per-rule BANKED — that blew fixed ROM with stub count)
+- Level W×H duplicated per TU (safe ROM-local consts)
 
-| Kept specialized | max `_CODE_*` | rule packs |
-| --- | ---: | ---: |
-| pushit | 10468 | 2 |
-| slot-machine | 8504 | 3 |
-| gapfiller | (split) | multi |
-| dollyban | (split) | multi |
-| recondite-star-sector-sigma | (split) | multi |
-| voitex-rasteriser | (split) | multi |
-| 15-push-pull-levels | ≤16384 | 1 |
-| push-pull / pushy / gust | ≤16384 | 1 |
+Eligible-14 (`make gbc_eligible --cull`): **14/14 specialized**.
 
-Still fallback (`linked_rom_bank_or_total_over_budget`): no-forbidden-symbols
-(fixed ROM bank 16490), fickle-fred, short-adventure, xorro (fixed ROM bank
-16517 — per-bank specialized ≤10 KiB but bank-0 linker stubs overflow).
+| Note | Value |
+| --- | --- |
+| Retention | **14/14** (was 2/14 pre bank-3; 6/14 after bank-3; 10/14 after first multi-pack) |
+| Largest gen bank (xorro) | 10157 (`_CODE_7`) |
+| Xorro banks used | `_CODE_1`…`_CODE_10` (UI/game/façade/specialized packs) |
 
-Oracle + exporter tests green. Follow-up: shrink fixed-ROM bank pressure for
-small multi-pack games or single-file when one rules pack suffices.
+Oracle + exporter tests green. Phase-1 size goal for the eligible-14 is met.

@@ -51,7 +51,7 @@ After push-pull fallback, `_CODE_1` ≈ **6152** → specialized was sharing ~10
 
 **Bank choice:** Use **bank 3** for `generated_specialized_turn.c` (`#pragma bank 3`). Keep façade on bank 2, `generated_game` + UI on bank 1. Document in a comment next to the pragma why bank 3 (avoid colliding with façade bank 2 and UI/game bank 1).
 
-- [ ] **Step 1: Change emit pragma**
+- [x] **Step 1: Change emit pragma**
 
 In `emitGbcSpecializedSeedAndHelpers`, replace:
 

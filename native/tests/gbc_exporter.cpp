@@ -73,18 +73,13 @@ int main() {
         "manifest records single-player certification for Sokoban");
 
     const std::string specializedTurn = readFile(first.generatedSpecializedTurnPath);
-    const std::filesystem::path specializedRulesPath =
-        output / "generated_specialized_turn_rules_0.c";
-    const std::filesystem::path specializedSharedPath =
-        output / "generated_specialized_shared.h";
+    // Sokoban fits one pack: single bank-3 TU (no per-rule BANKED stubs).
     require(
-        std::filesystem::exists(specializedRulesPath),
-        "specialized turn rules pack is generated for Sokoban");
+        !std::filesystem::exists(output / "generated_specialized_turn_rules_0.c"),
+        "Sokoban keeps a single specialized TU when rules fit one bank");
     require(
-        std::filesystem::exists(specializedSharedPath),
-        "specialized turn shared header is generated for Sokoban");
-    const std::string specializedRules = readFile(specializedRulesPath);
-    const std::string specializedShared = readFile(specializedSharedPath);
+        !std::filesystem::exists(output / "generated_specialized_shared.h"),
+        "Sokoban does not emit a shared specialized header when unsplit");
     require(
         specializedTurn.find("ps_gbc_specialized_apply_turn_phases")
             != std::string::npos
@@ -101,7 +96,7 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_rule_matches_at") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_early") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
-            && specializedTurn.find("bool ps_gbc_specialized_rule_0(") == std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_rule_0") != std::string::npos
             && specializedTurn.find("player_cells") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_resolve_seeded_player")
                 != std::string::npos
@@ -124,22 +119,8 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("= 7U") != std::string::npos
             && specializedTurn.find("= 6U") != std::string::npos
-            && specializedTurn.find("#pragma bank 3") != std::string::npos
-            && specializedTurn.find("#include \"generated_specialized_shared.h\"")
-                != std::string::npos,
+            && specializedTurn.find("#pragma bank 3") != std::string::npos,
         "specialized turn uses direct board storage, inline rules, resolve, and won");
-    require(
-        specializedRules.find("#pragma bank 4") != std::string::npos
-            && specializedRules.find("bool ps_gbc_specialized_rule_0(")
-                != std::string::npos
-            && specializedRules.find("#include \"generated_specialized_shared.h\"")
-                != std::string::npos,
-        "specialized turn rules live in bank 4 with shared externs");
-    require(
-        specializedShared.find("ps_gbc_specialized_rule_0") != std::string::npos
-            && specializedShared.find("PS_GBC_SPECIALIZED_TURN_BANKED") != std::string::npos,
-        "shared header declares banked specialized rule entry points");
-
     {
         puzzlescript::Rule unsupportedRule;
         unsupportedRule.patterns = {{{}}};

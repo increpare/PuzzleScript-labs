@@ -7437,6 +7437,9 @@ struct GbcSpecializedSplitEmitMode {
     unsigned bankNumber = 3U;
     bool emitBankPragma = true;
     bool includeSharedHeader = false;
+    // When non-null, phase apply calls ps_gbc_specialized_rule_pack_P(L, ...)
+    // instead of ps_gbc_specialized_rule_R(...). Indexed by absolute rule index.
+    const std::vector<std::pair<uint8_t, uint8_t>>* rulePackLocals = nullptr;
 };
 
 constexpr const char* kGbcSpecializedSharedHeaderName = "generated_specialized_shared.h";
@@ -7466,37 +7469,60 @@ void emitGbcSpecializedTranslationUnitPrologue(
 
 void emitGbcSpecializedSharedHeader(
     std::ostream& out,
-    size_t ruleCount
+    size_t packCount
 ) {
     out << "#pragma once\n\n"
         << "#include \"session_internal.h\"\n"
         << "#include \"specialized_turn.h\"\n"
-        << "#include \"generated_game.h\"\n\n";
-    if (g_gbcSpecializedLevelSize.literal) {
-        out << "extern const uint8_t ps_gbc_specialized_level_width;\n"
-            << "extern const uint8_t ps_gbc_specialized_level_height;\n\n";
-    }
-    out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
+        << "#include \"generated_game.h\"\n\n"
+        // Level width/height are duplicated per banked TU (ROM-bank locals), not
+        // shared via extern — cross-bank reads of banked const data are unsafe.
+        << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
         << "extern uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n"
-        << "void ps_gbc_specialized_mark_move_cell(uint16_t cell) PS_GBC_CORE_RUNTIME_NONBANKED;\n"
-        << "void ps_gbc_specialized_clear_move_bits(void) PS_GBC_CORE_RUNTIME_NONBANKED;\n\n"
+        << "void ps_gbc_specialized_mark_move_cell(uint16_t cell)\n"
+        << "    PS_GBC_SPECIALIZED_TURN_BANKED;\n"
+        << "void ps_gbc_specialized_clear_move_bits(void)\n"
+        << "    PS_GBC_SPECIALIZED_TURN_BANKED;\n\n"
         << "#endif\n"
         << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
         << "extern uint16_t ps_gbc_specialized_player_cell;\n"
         << "void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session)\n"
-        << "    PS_GBC_CORE_RUNTIME_NONBANKED;\n\n"
-        << "#endif\n"
-        << "bool ps_gbc_specialized_seed_player_movement(\n"
-        << "    ps_gbc_session* session,\n"
-        << "    uint8_t direction\n"
-        << ") PS_GBC_CORE_RUNTIME_NONBANKED;\n\n";
-    for (size_t ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
-        out << "bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
+        << "    PS_GBC_SPECIALIZED_TURN_BANKED;\n\n"
+        << "#endif\n";
+    // One BANKED entry per pack (not per rule) — per-rule BANKED stubs blow
+    // fixed ROM bank 0 on large games.
+    for (size_t packIndex = 0; packIndex < packCount; ++packIndex) {
+        out << "bool ps_gbc_specialized_rule_pack_" << packIndex << "(\n"
+            << "    uint8_t local_index,\n"
             << "    ps_gbc_session* session,\n"
             << "    ps_gbc_commands* commands\n"
             << ") PS_GBC_SPECIALIZED_TURN_BANKED;\n";
     }
     out << "\n";
+}
+
+void emitGbcSpecializedRulePackDispatcher(
+    std::ostream& out,
+    size_t packIndex,
+    const std::vector<size_t>& ruleIndices
+) {
+    out << "bool ps_gbc_specialized_rule_pack_" << packIndex << "(\n"
+        << "    uint8_t local_index,\n"
+        << "    ps_gbc_session* session,\n"
+        << "    ps_gbc_commands* commands\n"
+        << ") PS_GBC_SPECIALIZED_TURN_BANKED {\n"
+        << "    switch (local_index) {\n";
+    for (size_t local = 0; local < ruleIndices.size(); ++local) {
+        out << "    case " << local << "U:\n"
+            << "        return ps_gbc_specialized_rule_" << ruleIndices[local]
+            << "(session, commands);\n";
+    }
+    out << "    default:\n"
+        << "        (void)session;\n"
+        << "        (void)commands;\n"
+        << "        return false;\n"
+        << "    }\n"
+        << "}\n\n";
 }
 
 std::string gbcSpecializedRuleFunctionLinkagePrefix(bool bankedGlobal) {
@@ -7518,15 +7544,17 @@ void emitGbcSpecializedSeedAndHelpers(
     const std::optional<uint8_t> playerMovementLayer = gbcUniquePlayerMovementLayer(game);
     emitGbcSpecializedTranslationUnitPrologue(out, mode);
     if (g_gbcSpecializedLevelSize.literal) {
-        out << (split ? "" : "static ")
-            << "const uint8_t ps_gbc_specialized_level_width = "
+        // Always TU-local: safe to read from the same ROM bank as the code.
+        out << "static const uint8_t ps_gbc_specialized_level_width = "
             << static_cast<unsigned>(g_gbcSpecializedLevelSize.width) << "U;\n"
-            << (split ? "" : "static ")
-            << "const uint8_t ps_gbc_specialized_level_height = "
+            << "static const uint8_t ps_gbc_specialized_level_height = "
             << static_cast<unsigned>(g_gbcSpecializedLevelSize.height) << "U;\n\n";
     }
-    const char* helperAttr = split ? " PS_GBC_CORE_RUNTIME_NONBANKED" : "";
+    // Cross-bank helpers must be BANKED (stub in home, body in this bank).
+    // NONBANKED would place full bodies in fixed ROM bank 0 and overflow it.
+    const char* helperAttr = split ? " PS_GBC_SPECIALIZED_TURN_BANKED" : "";
     const char* globalStorage = split ? "" : "static ";
+    const char* seedAttr = ""; // only called from apply_turn_phases in this bank
     out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
         << globalStorage << "uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n\n"
         << globalStorage << "void ps_gbc_specialized_mark_move_cell(uint16_t cell)" << helperAttr << " {\n"
@@ -7576,7 +7604,7 @@ void emitGbcSpecializedSeedAndHelpers(
         << "bool ps_gbc_specialized_seed_player_movement(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction\n"
-        << ")" << helperAttr << " {\n"
+        << ")" << seedAttr << " {\n"
         << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n";
     if (playerMovementLayer.has_value()) {
         const unsigned shift = static_cast<unsigned>(5U * *playerMovementLayer);
@@ -8225,6 +8253,24 @@ void emitGbcSpecializedRuleFunction(
         << "}\n\n";
 }
 
+void emitGbcSpecializedRuleCall(
+    std::ostream& out,
+    size_t absoluteRuleIndex,
+    const std::vector<std::pair<uint8_t, uint8_t>>* rulePackLocals,
+    const char* indent
+) {
+    if (rulePackLocals != nullptr && absoluteRuleIndex < rulePackLocals->size()) {
+        const auto [packIndex, localIndex] = (*rulePackLocals)[absoluteRuleIndex];
+        out << indent << "changed = ps_gbc_specialized_rule_pack_"
+            << static_cast<unsigned>(packIndex) << "("
+            << static_cast<unsigned>(localIndex)
+            << "U, session, commands) || changed;\n";
+        return;
+    }
+    out << indent << "changed = ps_gbc_specialized_rule_" << absoluteRuleIndex
+        << "(session, commands) || changed;\n";
+}
+
 void emitGbcSpecializedPhaseApply(
     std::ostream& out,
     const char* phaseName,
@@ -8232,7 +8278,8 @@ void emitGbcSpecializedPhaseApply(
     const std::vector<GbcSpecializedRuleEmit>& rules,
     const std::vector<GbcSpecializedPatternEmit>& patterns,
     size_t ruleIndexBase,
-    bool globalLinkage
+    bool globalLinkage,
+    const std::vector<std::pair<uint8_t, uint8_t>>* rulePackLocals = nullptr
 ) {
     (void)rules;
     (void)patterns;
@@ -8273,8 +8320,8 @@ void emitGbcSpecializedPhaseApply(
                         static_cast<size_t>(group.firstRule)
                         + static_cast<size_t>(slot) * blockSize
                         + offset;
-                    out << "                changed = ps_gbc_specialized_rule_" << abs
-                        << "(session, commands) || changed;\n";
+                    emitGbcSpecializedRuleCall(
+                        out, abs, rulePackLocals, "                ");
                 }
                 out << "                break;\n";
             }
@@ -8326,10 +8373,10 @@ void emitGbcSpecializedPhaseApply(
                 << "                switch (absolute) {\n";
             for (uint16_t r = 0; r < group.ruleCount; ++r) {
                 const size_t abs = static_cast<size_t>(group.firstRule) + r;
-                out << "                case " << abs << "U:\n"
-                    << "                    changed = ps_gbc_specialized_rule_" << abs
-                    << "(session, commands) || changed;\n"
-                    << "                    break;\n";
+                out << "                case " << abs << "U:\n";
+                emitGbcSpecializedRuleCall(
+                    out, abs, rulePackLocals, "                    ");
+                out << "                    break;\n";
             }
             out << "                default:\n"
                 << "                    break;\n"
@@ -8835,14 +8882,42 @@ void emitGbcSpecializedTurn(
                 bankedRules);
         }
         emitGbcSpecializedPhaseApply(
-            out, "early", earlyGroups, rules, patterns, 0, globalPhaseApply);
+            out,
+            "early",
+            earlyGroups,
+            rules,
+            patterns,
+            0,
+            globalPhaseApply,
+            mode.rulePackLocals);
         emitGbcSpecializedPhaseApply(
-            out, "late", lateGroups, rules, patterns, 0, globalPhaseApply);
+            out,
+            "late",
+            lateGroups,
+            rules,
+            patterns,
+            0,
+            globalPhaseApply,
+            mode.rulePackLocals);
     } else {
         emitGbcSpecializedPhaseApply(
-            out, "early", earlyGroups, rules, patterns, 0, globalPhaseApply);
+            out,
+            "early",
+            earlyGroups,
+            rules,
+            patterns,
+            0,
+            globalPhaseApply,
+            mode.rulePackLocals);
         emitGbcSpecializedPhaseApply(
-            out, "late", lateGroups, rules, patterns, 0, globalPhaseApply);
+            out,
+            "late",
+            lateGroups,
+            rules,
+            patterns,
+            0,
+            globalPhaseApply,
+            mode.rulePackLocals);
     }
 
     out << "bool ps_gbc_specialized_apply_turn_phases(\n"
@@ -9026,8 +9101,39 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
         packs.push_back({});
     }
 
+    size_t totalRuleSourceBytes = 0U;
+    for (const RulePack& pack : packs) {
+        totalRuleSourceBytes += pack.sourceBytes;
+    }
+    // Prefer one bank-3 TU whenever the full rule set fits a single ROM bank.
+    // Packing may still produce multiple soft packs below this total; collapsing
+    // them avoids fixed-bank BANKED stub pressure on near-fit games.
+    if (totalRuleSourceBytes <= options.singleFileMaxRuleSourceBytes) {
+        std::ostringstream single;
+        emitGbcSpecializedTurn(
+            single,
+            game,
+            singlePlayerCellCertified,
+            patterns,
+            rules,
+            earlyGroups,
+            lateGroups);
+        result.files.push_back({"generated_specialized_turn.c", single.str()});
+        return result;
+    }
+
+    std::vector<std::pair<uint8_t, uint8_t>> rulePackLocals(rules.size(), {0U, 0U});
+    for (size_t packIndex = 0; packIndex < packs.size(); ++packIndex) {
+        for (size_t local = 0; local < packs[packIndex].ruleIndices.size(); ++local) {
+            const size_t ruleIndex = packs[packIndex].ruleIndices[local];
+            rulePackLocals[ruleIndex] = {
+                static_cast<uint8_t>(packIndex),
+                static_cast<uint8_t>(local)};
+        }
+    }
+
     std::ostringstream sharedHeader;
-    emitGbcSpecializedSharedHeader(sharedHeader, rules.size());
+    emitGbcSpecializedSharedHeader(sharedHeader, packs.size());
     result.files.push_back({kGbcSpecializedSharedHeaderName, sharedHeader.str()});
 
     for (size_t packIndex = 0; packIndex < packs.size(); ++packIndex) {
@@ -9038,7 +9144,16 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
         rulesMode.includeSharedHeader = true;
         std::ostringstream rulesOut;
         emitGbcSpecializedTranslationUnitPrologue(rulesOut, rulesMode);
+        if (g_gbcSpecializedLevelSize.literal) {
+            rulesOut << "static const uint8_t ps_gbc_specialized_level_width = "
+                     << static_cast<unsigned>(g_gbcSpecializedLevelSize.width)
+                     << "U;\n"
+                     << "static const uint8_t ps_gbc_specialized_level_height = "
+                     << static_cast<unsigned>(g_gbcSpecializedLevelSize.height)
+                     << "U;\n\n";
+        }
         for (size_t ruleIndex : packs[packIndex].ruleIndices) {
+            // Static within the pack; one BANKED dispatcher per pack below.
             emitGbcSpecializedRuleFunction(
                 rulesOut,
                 ruleIndex,
@@ -9049,8 +9164,10 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
                 applyOnMatchFlags[ruleIndex],
                 singlePlayerCellCertified,
                 playerMask,
-                true);
+                false);
         }
+        emitGbcSpecializedRulePackDispatcher(
+            rulesOut, packIndex, packs[packIndex].ruleIndices);
         result.files.push_back(
             {"generated_specialized_turn_rules_" + std::to_string(packIndex) + ".c",
              rulesOut.str()});
@@ -9061,6 +9178,7 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
     mainMode.bankNumber = options.mainBank;
     mainMode.emitBankPragma = true;
     mainMode.includeSharedHeader = true;
+    mainMode.rulePackLocals = &rulePackLocals;
     std::ostringstream mainOut;
     emitGbcSpecializedTurn(
         mainOut,
