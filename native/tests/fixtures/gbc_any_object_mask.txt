@@ -1,0 +1,56 @@
+title GBC Any Object Mask Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+white
+0
+
+Crate
+red
+0
+
+Wall
+blue
+0
+
+=======
+LEGEND
+=======
+
+Thing = Crate or Wall
+. = Background
+P = Background and Player
+* = Crate
+# = Wall
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Wall, Crate
+
+======
+RULES
+======
+
+[ > Player | Thing ] -> [ > Player | > Thing ]
+
+==============
+WINCONDITIONS
+==============
+
+some Player
+
+=======
+LEVELS
+=======
+
+P*#

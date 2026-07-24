@@ -788,6 +788,20 @@ int main() {
     }
     require(rejectedRigid, "rigid games are rejected with an explicit structural diagnostic");
 
+    bool rejectedAnyMask = false;
+    try {
+        puzzlescript::gbc::ExportOptions anyMask;
+        anyMask.sourcePath =
+            root / "native" / "tests" / "fixtures" / "gbc_any_object_mask.txt";
+        anyMask.outputDirectory = output / "any_object_mask";
+        (void)puzzlescript::gbc::exportGame(anyMask);
+    } catch (const std::runtime_error& error) {
+        rejectedAnyMask =
+            std::string(error.what()).find("any/layer-coupled") != std::string::npos;
+    }
+    require(rejectedAnyMask,
+        "baseline: any-object fixture is rejected by GBC v1 validateRule");
+
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
         + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");
