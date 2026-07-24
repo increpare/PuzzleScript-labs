@@ -8337,101 +8337,148 @@ void emitGbcSpecializedResolveLayersForCell(
         out << indent << "{\n"
             << body << "const uint8_t direction = (uint8_t)((movement >> " << shift
             << "U) & 0x1fU);\n"
-            << body << "int8_t dx = 0;\n"
-            << body << "int8_t dy = 0;\n"
-            << body << "int16_t x;\n"
-            << body << "int16_t y;\n"
-            << body << "int16_t target_x;\n"
-            << body << "int16_t target_y;\n"
-            << body << "uint16_t target;\n"
-            << body << "uint32_t moving;\n"
-            << body << "if (direction == 0U) {\n"
+            << body << "uint32_t moving;\n";
+        if (!g_gbcSpecializedLevelSize.literal) {
+            out << body << "int8_t dx = 0;\n"
+                << body << "int8_t dy = 0;\n"
+                << body << "int16_t x;\n"
+                << body << "int16_t y;\n"
+                << body << "int16_t target_x;\n"
+                << body << "int16_t target_y;\n"
+                << body << "uint16_t target;\n";
+        }
+        out << body << "if (direction == 0U) {\n"
             << body << "} else if (direction == 16U) {\n"
             << deep << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
         emitGbdCMovementsSet(out, deep, "cell", "movement", movementBytesPerCell);
-        out << body << "} else {\n"
-            << deep << "if (direction == 1U) dy = -1;\n"
-            << deep << "else if (direction == 2U) dy = 1;\n"
-            << deep << "else if (direction == 4U) dx = -1;\n"
-            << deep << "else if (direction == 8U) dx = 1;\n"
-            << deep << "if (dx != 0 || dy != 0) {\n"
-            << deeper << "x = (int16_t)(cell / " << gbcLevelHeightExpr() << ");\n"
-            << deeper << "y = (int16_t)(cell % " << gbcLevelHeightExpr() << ");\n"
-            << deeper << "target_x = (int16_t)(x + dx);\n"
-            << deeper << "target_y = (int16_t)(y + dy);\n"
-            << deeper << "if (target_x >= 0 && target_x < (int16_t)" << gbcLevelWidthExpr() << "\n"
-            << deeper << "    && target_y >= 0 && target_y < (int16_t)" << gbcLevelHeightExpr() << ") {\n"
-            << deepest << "target = (uint16_t)(target_x * " << gbcLevelHeightExpr() << " + target_y);\n";
-        emitGbdCBoardGet(out, deepest, "target_objects", "target", objectBytesPerCell);
-        emitGbdCBoardGet(out, deepest, "source_objects", "cell", objectBytesPerCell);
-        out << deepest << "if ((target_objects & ";
-        emitGbcHexU32(out, layerMask);
-        out << ") == 0U) {\n"
-            << moveIndent << "moving = source_objects & ";
-        emitGbcHexU32(out, layerMask);
-        out << ";\n"
-            << moveIndent << "if (moving == 0U) {\n"
-            << applyIndent << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
-        emitGbdCMovementsSet(out, applyIndent, "cell", "movement", movementBytesPerCell);
-        out << moveIndent << "} else {\n"
-            << applyIndent << "const uint32_t next_source = source_objects & ~";
-        emitGbcHexU32(out, layerMask);
-        out << ";\n"
-            << applyIndent << "const uint32_t next_target = target_objects | moving;\n";
-        emitGbdCBoardSet(out, applyIndent, "cell", "next_source", objectBytesPerCell);
-        emitGbdCBoardSet(out, applyIndent, "target", "next_target", objectBytesPerCell);
-        emitGbdCDirtyMark(out, applyIndent, "cell");
-        emitGbdCDirtyMark(out, applyIndent, "target");
-        out << applyIndent << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
-        emitGbdCMovementsSet(out, applyIndent, "cell", "movement", movementBytesPerCell);
-        out << applyIndent << "if ((moving & ";
-        emitGbcHexU32(out, playerMask);
-        out << ") != 0U) {\n";
-        if (singlePlayerCellCertified) {
-            out << playerIndent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
-                << playerIndent << "session->player_cells[0] = (uint8_t)target;\n"
-                << playerIndent << "session->player_cell_count = 1U;\n"
-                << playerIndent << "#endif\n"
-                << playerIndent << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-                << playerIndent << "ps_gbc_specialized_player_cell = target;\n"
-                << playerIndent << "#endif\n";
+        out << body << "} else {\n";
+        const auto emitMoveApply = [&](const std::string& boundIndent) {
+            const std::string tGet = boundIndent;
+            const std::string tBody = boundIndent + "    ";
+            const std::string tDeep = boundIndent + "        ";
+            const std::string tPlayer = boundIndent + "            ";
+            emitGbdCBoardGet(out, tGet, "target_objects", "target", objectBytesPerCell);
+            emitGbdCBoardGet(out, tGet, "source_objects", "cell", objectBytesPerCell);
+            out << tGet << "if ((target_objects & ";
+            emitGbcHexU32(out, layerMask);
+            out << ") == 0U) {\n"
+                << tBody << "moving = source_objects & ";
+            emitGbcHexU32(out, layerMask);
+            out << ";\n"
+                << tBody << "if (moving == 0U) {\n"
+                << tDeep << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
+            emitGbdCMovementsSet(out, tDeep, "cell", "movement", movementBytesPerCell);
+            out << tBody << "} else {\n"
+                << tDeep << "const uint32_t next_source = source_objects & ~";
+            emitGbcHexU32(out, layerMask);
+            out << ";\n"
+                << tDeep << "const uint32_t next_target = target_objects | moving;\n";
+            emitGbdCBoardSet(out, tDeep, "cell", "next_source", objectBytesPerCell);
+            emitGbdCBoardSet(out, tDeep, "target", "next_target", objectBytesPerCell);
+            emitGbdCDirtyMark(out, tDeep, "cell");
+            emitGbdCDirtyMark(out, tDeep, "target");
+            out << tDeep << "movement &= ~((uint32_t)0x1fU << " << shift << "U);\n";
+            emitGbdCMovementsSet(out, tDeep, "cell", "movement", movementBytesPerCell);
+            out << tDeep << "if ((moving & ";
+            emitGbcHexU32(out, playerMask);
+            out << ") != 0U) {\n";
+            if (singlePlayerCellCertified) {
+                out << tPlayer << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+                    << tPlayer << "session->player_cells[0] = (uint8_t)target;\n"
+                    << tPlayer << "session->player_cell_count = 1U;\n"
+                    << tPlayer << "#endif\n"
+                    << tPlayer << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+                    << tPlayer << "ps_gbc_specialized_player_cell = target;\n"
+                    << tPlayer << "#endif\n";
+            } else {
+                out << tPlayer << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+                    << tPlayer << "{\n"
+                    << tPlayer << "    uint8_t index = 0U;\n"
+                    << tPlayer << "    uint8_t shift_i;\n"
+                    << tPlayer
+                    << "    while (index < session->player_cell_count\n"
+                    << tPlayer
+                    << "        && session->player_cells[index] < (uint8_t)target) ++index;\n"
+                    << tPlayer
+                    << "    if (index >= session->player_cell_count\n"
+                    << tPlayer
+                    << "        || session->player_cells[index] != (uint8_t)target) {\n"
+                    << tPlayer << "        shift_i = session->player_cell_count;\n"
+                    << tPlayer << "        while (shift_i > index) {\n"
+                    << tPlayer
+                    << "            session->player_cells[shift_i] = "
+                       "session->player_cells[shift_i - 1U];\n"
+                    << tPlayer << "            --shift_i;\n"
+                    << tPlayer << "        }\n"
+                    << tPlayer << "        session->player_cells[index] = (uint8_t)target;\n"
+                    << tPlayer << "        ++session->player_cell_count;\n"
+                    << tPlayer << "    }\n"
+                    << tPlayer << "}\n"
+                    << tPlayer << "#endif\n";
+            }
+            out << tDeep << "}\n";
+            if (setMovedPass) {
+                out << tDeep << "moved_pass = true;\n";
+            }
+            out << tDeep << "moved_any = true;\n"
+                << tBody << "}\n"
+                << tGet << "}\n";
+        };
+
+        if (g_gbcSpecializedLevelSize.literal) {
+            const unsigned height = g_gbcSpecializedLevelSize.height;
+            const unsigned width = g_gbcSpecializedLevelSize.width;
+            const unsigned rightMinCell = (width - 1U) * height;
+            out << deep << "uint16_t target = 0U;\n"
+                << deep << "bool in_bounds = false;\n"
+                << deep << "if (direction == 1U) {\n"
+                << deeper << "if ((cell % " << height << "U) != 0U) {\n"
+                << deepest << "target = (uint16_t)(cell - 1U);\n"
+                << deepest << "in_bounds = true;\n"
+                << deeper << "}\n"
+                << deep << "} else if (direction == 2U) {\n"
+                << deeper << "if ((cell % " << height << "U) != " << (height - 1U) << "U) {\n"
+                << deepest << "target = (uint16_t)(cell + 1U);\n"
+                << deepest << "in_bounds = true;\n"
+                << deeper << "}\n"
+                << deep << "} else if (direction == 4U) {\n"
+                << deeper << "if (cell >= " << height << "U) {\n"
+                << deepest << "target = (uint16_t)(cell - " << height << "U);\n"
+                << deepest << "in_bounds = true;\n"
+                << deeper << "}\n"
+                << deep << "} else if (direction == 8U) {\n"
+                << deeper << "if (cell < " << rightMinCell << "U) {\n"
+                << deepest << "target = (uint16_t)(cell + " << height << "U);\n"
+                << deepest << "in_bounds = true;\n"
+                << deeper << "}\n"
+                << deep << "}\n"
+                << deep << "if (in_bounds) {\n";
+            emitMoveApply(deeper);
+            out << deep << "}\n"
+                << body << "}\n"
+                << indent << "}\n";
         } else {
-            out << playerIndent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
-                << playerIndent << "{\n"
-                << playerIndent << "    uint8_t index = 0U;\n"
-                << playerIndent << "    uint8_t shift_i;\n"
-                << playerIndent
-                << "    while (index < session->player_cell_count\n"
-                << playerIndent
-                << "        && session->player_cells[index] < (uint8_t)target) ++index;\n"
-                << playerIndent
-                << "    if (index >= session->player_cell_count\n"
-                << playerIndent
-                << "        || session->player_cells[index] != (uint8_t)target) {\n"
-                << playerIndent << "        shift_i = session->player_cell_count;\n"
-                << playerIndent << "        while (shift_i > index) {\n"
-                << playerIndent
-                << "            session->player_cells[shift_i] = "
-                   "session->player_cells[shift_i - 1U];\n"
-                << playerIndent << "            --shift_i;\n"
-                << playerIndent << "        }\n"
-                << playerIndent << "        session->player_cells[index] = (uint8_t)target;\n"
-                << playerIndent << "        ++session->player_cell_count;\n"
-                << playerIndent << "    }\n"
-                << playerIndent << "}\n"
-                << playerIndent << "#endif\n";
+            out << deep << "if (direction == 1U) dy = -1;\n"
+                << deep << "else if (direction == 2U) dy = 1;\n"
+                << deep << "else if (direction == 4U) dx = -1;\n"
+                << deep << "else if (direction == 8U) dx = 1;\n"
+                << deep << "if (dx != 0 || dy != 0) {\n"
+                << deeper << "x = (int16_t)(cell / " << gbcLevelHeightExpr() << ");\n"
+                << deeper << "y = (int16_t)(cell % " << gbcLevelHeightExpr() << ");\n"
+                << deeper << "target_x = (int16_t)(x + dx);\n"
+                << deeper << "target_y = (int16_t)(y + dy);\n"
+                << deeper << "if (target_x >= 0 && target_x < (int16_t)" << gbcLevelWidthExpr()
+                << "\n"
+                << deeper << "    && target_y >= 0 && target_y < (int16_t)" << gbcLevelHeightExpr()
+                << ") {\n"
+                << deepest << "target = (uint16_t)(target_x * " << gbcLevelHeightExpr()
+                << " + target_y);\n";
+            emitMoveApply(deepest);
+            out << deeper << "}\n"
+                << deep << "}\n"
+                << body << "}\n"
+                << indent << "}\n";
         }
-        out << applyIndent << "}\n";
-        if (setMovedPass) {
-            out << applyIndent << "moved_pass = true;\n";
-        }
-        out << applyIndent << "moved_any = true;\n"
-            << moveIndent << "}\n"
-            << deepest << "}\n"
-            << deeper << "}\n"
-            << deep << "}\n"
-            << body << "}\n"
-            << indent << "}\n";
     }
 }
 

@@ -1033,3 +1033,24 @@ count) in rules, resolve, seed, and won instead of `session->width/height`.
 
 Oracle green. Artifacts:
 `build/gbc/sokoban-cart-perf/specialized-literal-dims-mgba.json`.
+
+### GBC specialized direction-neighbor resolve (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+With uniform literal level size, resolve computes the neighbor by direction
+(`cell±1` / `cell±height`) with cheap edge checks instead of
+`div/mod/mul` coordinate math.
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| ticks/turn | 51.703 | **48.859 (−5.5%)** |
+| walk_logic | 46 | **43** |
+| push_logic | 84 | **75 (−10.7%)** |
+| Largest gen bank | 13907 | **13818 (−89)** |
+
+Oracle green. Artifacts:
+`build/gbc/sokoban-cart-perf/specialized-dir-neighbor-mgba.json`.
+
+**Rejected (same session):** paired-byte SRAM snapshot copy in firmware
+`snapshotWrite`/`snapshotRead` — snapshot phase 14→18, whole turn 51.7→55.7.
