@@ -1054,3 +1054,20 @@ Oracle green. Artifacts:
 
 **Rejected (same session):** paired-byte SRAM snapshot copy in firmware
 `snapshotWrite`/`snapshotRead` — snapshot phase 14→18, whole turn 51.7→55.7.
+
+### GBC specialized size-budget interpreter fallback (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+After link, if `check_gbc_rom` fails (16 KiB per-bank or 512 KiB total) while
+`generated_specialized_turn.c` is present, firmware `build-rom` deletes the
+specialized turn, patches the manifest
+(`specialized_turn_fallback_reason=linked_rom_bank_or_total_over_budget`), and
+relinks interpreter-only. Export also accepts `--no-specialized-turn`.
+
+Smoke: Sokoban keeps specialized; push-pull falls back (bank 16433→6152) and
+passes size checks.
+
+Eligible-14 rebuild (`--cull --continue`): **14/14 ROMs**. Specialized retained on
+`no-forbidden-symbols` and `pushy-v-pully-h` only; the other 12 fall back with
+`linked_rom_bank_or_total_over_budget`.

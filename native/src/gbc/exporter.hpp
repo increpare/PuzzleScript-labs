@@ -12,6 +12,7 @@ struct ExportOptions {
     std::filesystem::path sourcePath;
     std::filesystem::path outputDirectory;
     bool cullOversizeLevels = false;
+    bool emitSpecializedTurn = true;
 };
 
 struct ExportResult {

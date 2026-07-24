@@ -58,7 +58,38 @@ all:
 	$(MAKE) export
 	$(MAKE) build-rom
 
-build-rom: $(TARGET).gb check-size
+# Size gate: if the specialized-turn bank (16 KiB) or total ROM (512 KiB) fails,
+# drop generated_specialized_turn.c and relink the interpreter-only cartridge.
+build-rom: $(TARGET).gb
+	@set -e; \
+	if "$(PYTHON)" ../../scripts/check_gbc_rom.py \
+		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map; then \
+		exit 0; \
+	fi; \
+	if [ ! -f $(SPECIALIZED_SRC) ]; then \
+		exit 1; \
+	fi; \
+	echo "gbc: size check failed with specialized turn; falling back to interpreter"; \
+	rm -f $(SPECIALIZED_SRC); \
+	rm -f $(BUILD)/generated_specialized_turn.o \
+		$(BUILD)/compact_facade.o \
+		$(BUILD)/facade_rules.o \
+		$(BUILD)/core.o \
+		$(TARGET).gb \
+		$(TARGET).map \
+		$(TARGET).ihx \
+		$(TARGET).noi \
+		$(TARGET).sym; \
+	"$(PYTHON)" ../../scripts/gbc_manifest_disable_specialized.py \
+		$(GENERATED)/gbc_manifest.json \
+		--reason linked_rom_bank_or_total_over_budget; \
+	$(MAKE) $(TARGET).gb SKIP_EXPORT=1; \
+	"$(PYTHON)" ../../scripts/check_gbc_rom.py \
+		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
+
+check-size: $(TARGET).gb
+	"$(PYTHON)" ../../scripts/check_gbc_rom.py \
+		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
 
 export:
 ifeq ($(filter 1 yes true on,$(SKIP_EXPORT)),)
@@ -126,9 +157,6 @@ $(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(GENERATED)/gene
 
 $(TARGET).gb: $(LINK_OBJECTS)
 	"$(LCC)" $(LDFLAGS) -o $@ $(LINK_OBJECTS)
-
-check-size: $(TARGET).gb
-	"$(PYTHON)" ../../scripts/check_gbc_rom.py $(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
 
 clean:
 	@rm -rf build build-autotest build*-perf-* $(GENERATED) puzzlescript_gbc.gb puzzlescript_gbc_autotest.gb

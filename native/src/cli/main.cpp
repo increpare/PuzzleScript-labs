@@ -7192,6 +7192,8 @@ int exportGbcCommand(const std::string& sourcePath, int argc, char** argv) {
             options.outputDirectory = argv[++index];
         } else if (arg == "--cull-oversize-levels") {
             options.cullOversizeLevels = true;
+        } else if (arg == "--no-specialized-turn") {
+            options.emitSpecializedTurn = false;
         } else {
             throw std::runtime_error("Unsupported export-gbc argument: " + arg);
         }

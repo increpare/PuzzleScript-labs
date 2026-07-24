@@ -415,6 +415,9 @@ def main() -> int:
                 "culled_level_count": int(manifest.get("culled_level_count", 0)),
                 "culled_level_indices": list(manifest.get("culled_level_indices", [])),
                 "specialized_turn": bool(manifest.get("specialized_turn", False)),
+                "specialized_turn_fallback_reason": manifest.get(
+                    "specialized_turn_fallback_reason"
+                ),
                 "single_player_cell": bool(manifest.get("single_player_cell", False)),
                 "rom_bytes": (game_out / f"{slug}.gb").stat().st_size,
                 "fallback_reason": (

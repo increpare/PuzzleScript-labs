@@ -2221,8 +2221,9 @@ ExportResult exportGame(const ExportOptions& options) {
         }
         return out;
     };
-    const SpecializedTurnExportInfo specializedTurnExport =
-        writeSpecializedTurnArtifacts(
+    SpecializedTurnExportInfo specializedTurnExport;
+    if (options.emitSpecializedTurn) {
+        specializedTurnExport = writeSpecializedTurnArtifacts(
             game,
             options.outputDirectory,
             singlePlayerCellCertified,
@@ -2230,6 +2231,15 @@ ExportResult exportGame(const ExportOptions& options) {
             specializedRules,
             toSpecializedGroups(earlyGroups),
             toSpecializedGroups(lateGroups));
+    } else {
+        const std::filesystem::path specializedPath =
+            options.outputDirectory / "generated_specialized_turn.c";
+        if (std::filesystem::exists(specializedPath)) {
+            std::filesystem::remove(specializedPath);
+        }
+        specializedTurnExport.supported = false;
+        specializedTurnExport.singlePlayerCellCertified = singlePlayerCellCertified;
+    }
     const bool specializedTurnSupported = specializedTurnExport.supported;
     result.generatedSpecializedTurnPath = specializedTurnExport.generatedPath;
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
@@ -2340,8 +2350,15 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"estimated_session_bytes\": " << sessionBytes << ",\n"
         << "  \"generated_c_bytes\": " << generatedBytes << ",\n"
         << "  \"specialized_turn\": "
-        << (specializedTurnSupported ? "true" : "false") << ",\n"
-        << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
+        << (specializedTurnSupported ? "true" : "false") << ",\n";
+    if (!options.emitSpecializedTurn) {
+        manifest << "  \"specialized_turn_fallback_reason\": "
+                    "\"export_flag_no_specialized_turn\",\n";
+    } else if (!specializedTurnSupported) {
+        manifest << "  \"specialized_turn_fallback_reason\": "
+                    "\"compact_turn_unsupported\",\n";
+    }
+    manifest << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
         << "  \"color_stretch\": {\n"
         << "    \"mode\": \"optimized_gameplay_gamut\",\n"
         << "    \"anchor_policy\": \"background_and_object_colors\",\n"
