@@ -975,3 +975,24 @@ multi-pass specialized resolve.
 
 Oracle + exporter structural asserts green. Artifacts:
 `build/gbc/sokoban-cart-perf/specialized-resolve-fastpath-mgba.json`.
+
+### GBC specialized resolve move-bit worklist (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+**Idea:** Rule apply marks cells that receive movement into a 12-byte bitset.
+Full specialized resolve (push / multi-mover) walks only marked cells. The
+seeded-player O(1) path stays unmarked so walk-heavy PERF averages do not pay
+bitset overhead. Before full resolve, re-mark the seeded player cell when seed
+ran (covers early matches that do not rewrite the player cell).
+
+| Metric | Before (seeded-player) | After |
+| --- | ---: | ---: |
+| ticks/turn (128 R/L) | 55.812 | **55.852** (noise) |
+| walk_logic | 49 | 50 |
+| push_logic | 116 | **85 (−26.7%)** |
+| static WRAM | 2276 | 2288 (+12) |
+| Largest gen bank | 14331 | 14610 (+279) |
+
+Oracle green. Artifacts:
+`build/gbc/sokoban-cart-perf/specialized-move-bits-v2-mgba.json`.

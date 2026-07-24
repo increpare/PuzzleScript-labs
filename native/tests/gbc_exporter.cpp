@@ -93,6 +93,10 @@ int main() {
             && specializedTurn.find("player_cells") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_resolve_seeded_player")
                 != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_mark_move_cell")
+                != std::string::npos
+            && specializedTurn.find("ps_gbc_specialized_move_bits")
+                != std::string::npos
             && specializedTurn.find("if (seeded && !early)") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_resolve_movements(session)")
                 != std::string::npos

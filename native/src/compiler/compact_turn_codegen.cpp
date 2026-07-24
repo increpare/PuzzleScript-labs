@@ -7335,7 +7335,10 @@ void emitCompactInlineGbdCPatternApply(
         cellExpr,
         nextMovementsVar,
         movementBytesPerCell);
-    out << indent << "    if (" << nextObjectsVar << " != " << objectsVar << ") ";
+    out << indent << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
+        << indent << "    ps_gbc_specialized_mark_move_cell(" << cellExpr << ");\n"
+        << indent << "#endif\n"
+        << indent << "    if (" << nextObjectsVar << " != " << objectsVar << ") ";
     emitGbdCDirtyMark(out, "", cellExpr);
     out << indent << "    if (" << nextObjectsVar << " != " << objectsVar << " || " << nextMovementsVar
         << " != " << originalMovementsVar << ") " << changedFlagName << " = true;\n"
@@ -7355,6 +7358,16 @@ void emitGbcSpecializedSeedAndHelpers(
         << "#include \"specialized_turn.h\"\n"
         << "#include \"generated_game.h\"\n"
         << "#include <string.h>\n\n"
+        << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
+        << "static uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n\n"
+        << "static void ps_gbc_specialized_mark_move_cell(uint16_t cell) {\n"
+        << "    if (cell >= PS_GBC_MAX_BOARD_CELLS) return;\n"
+        << "    ps_gbc_specialized_move_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));\n"
+        << "}\n\n"
+        << "static void ps_gbc_specialized_clear_move_bits(void) {\n"
+        << "    memset(ps_gbc_specialized_move_bits, 0, sizeof(ps_gbc_specialized_move_bits));\n"
+        << "}\n\n"
+        << "#endif\n"
         << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
         << "static uint16_t ps_gbc_specialized_player_cell = UINT16_MAX;\n\n"
         << "static void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session) {\n"
@@ -7706,7 +7719,10 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             << "        }\n";
         emitGbdCBoardSet(out, "        ", "cell", "next_objects", objectBytesPerCell);
         emitGbdCMovementsSet(out, "        ", "cell", "next_movements", movementBytesPerCell);
-        out << "        if (next_objects != " << objectsVar << ") ";
+        out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
+            << "        ps_gbc_specialized_mark_move_cell(cell);\n"
+            << "#endif\n"
+            << "        if (next_objects != " << objectsVar << ") ";
         emitGbdCDirtyMark(out, "", "cell");
         out << "        if (next_objects != " << objectsVar << " || next_movements != "
             << movementsVar << ") changed = true;\n"
@@ -8283,12 +8299,19 @@ void emitGbcSpecializedResolveLayersForCell(
     }
 }
 
-void emitGbcSpecializedClearMovements(std::ostream& out, const std::string& indent) {
+void emitGbcSpecializedClearMovements(
+    std::ostream& out,
+    const std::string& indent,
+    bool clearMoveBits
+) {
     out << indent << "memset(\n"
         << indent << "    session->movements,\n"
         << indent << "    0,\n"
         << indent << "    (size_t)ps_gbc_generated_game.max_level_cells\n"
         << indent << "        * ps_gbc_generated_game.movement_bytes_per_cell);\n";
+    if (clearMoveBits) {
+        out << indent << "ps_gbc_specialized_clear_move_bits();\n";
+    }
 }
 
 void emitGbcSpecializedResolveMovements(
@@ -8300,25 +8323,35 @@ void emitGbcSpecializedResolveMovements(
 ) {
     out << "static bool ps_gbc_specialized_resolve_movements(ps_gbc_session* session) {\n"
         << "    const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+        << "    const uint8_t bit_bytes = (uint8_t)((cells + 7U) / 8U);\n"
         << "    bool moved_any = false;\n"
         << "    bool moved_pass = true;\n"
         << "    while (moved_pass) {\n"
         << "        moved_pass = false;\n"
-        << "        uint16_t cell;\n"
-        << "        for (cell = 0U; cell < cells; ++cell) {\n";
-    emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
-    out << "            if (movement == 0U) continue;\n";
+        << "        uint8_t byte_index;\n"
+        << "        for (byte_index = 0U; byte_index < bit_bytes; ++byte_index) {\n"
+        << "            uint8_t bits = ps_gbc_specialized_move_bits[byte_index];\n"
+        << "            uint8_t bit;\n"
+        << "            if (bits == 0U) continue;\n"
+        << "            for (bit = 0U; bit < 8U; ++bit) {\n"
+        << "                uint16_t cell;\n"
+        << "                if ((bits & (uint8_t)(1U << bit)) == 0U) continue;\n"
+        << "                cell = (uint16_t)(((uint16_t)byte_index << 3U) | (uint16_t)bit);\n"
+        << "                if (cell >= cells) continue;\n";
+    emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
+    out << "                if (movement == 0U) continue;\n";
     emitGbcSpecializedResolveLayersForCell(
         out,
-        "            ",
+        "                ",
         game,
         singlePlayerCellCertified,
         objectBytesPerCell,
         movementBytesPerCell,
         true);
-    out << "        }\n"
+    out << "            }\n"
+        << "        }\n"
         << "    }\n";
-    emitGbcSpecializedClearMovements(out, "    ");
+    emitGbcSpecializedClearMovements(out, "    ", true);
     out << "    return moved_any;\n"
         << "}\n\n";
 }
@@ -8360,7 +8393,7 @@ void emitGbcSpecializedResolveSeededPlayer(
         false);
     out << "        }\n"
         << "    }\n";
-    emitGbcSpecializedClearMovements(out, "    ");
+    emitGbcSpecializedClearMovements(out, "    ", false);
     out << "    return moved_any;\n"
         << "}\n\n";
 }
@@ -8557,6 +8590,17 @@ void emitGbcSpecializedTurn(
         out << "if (seeded && !early) {\n"
             << "        moved = ps_gbc_specialized_resolve_seeded_player(session);\n"
             << "    } else {\n"
+            << "        if (seeded) {\n"
+            << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+            << "            if (session->player_cell_count > 0U) {\n"
+            << "                ps_gbc_specialized_mark_move_cell(session->player_cells[0]);\n"
+            << "            }\n"
+            << "#elif PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "            if (ps_gbc_specialized_player_cell != UINT16_MAX) {\n"
+            << "                ps_gbc_specialized_mark_move_cell(ps_gbc_specialized_player_cell);\n"
+            << "            }\n"
+            << "#endif\n"
+            << "        }\n"
             << "        moved = ps_gbc_specialized_resolve_movements(session);\n"
             << "    }\n";
     } else {
