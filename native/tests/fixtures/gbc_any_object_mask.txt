@@ -47,10 +47,10 @@ RULES
 WINCONDITIONS
 ==============
 
-some Player
+all Crate on Wall
 
 =======
 LEVELS
 =======
 
-P*#
+P*.

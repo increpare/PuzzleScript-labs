@@ -705,6 +705,52 @@ add_test(
   COMMAND puzzlescript_gbc_specialized_oracle_smoke
 )
 
+set(GBC_ANY_MASK_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_any_object_mask)
+set(GBC_ANY_MASK_SOURCE ${GBC_ANY_MASK_DIR}/generated_game.c)
+set(GBC_ANY_MASK_HEADER ${GBC_ANY_MASK_DIR}/generated_game.h)
+set(GBC_ANY_MASK_MANIFEST ${GBC_ANY_MASK_DIR}/gbc_manifest.json)
+set(GBC_ANY_MASK_SPECIALIZED_TURN ${GBC_ANY_MASK_DIR}/generated_specialized_turn.c)
+add_custom_command(
+  OUTPUT
+    ${GBC_ANY_MASK_SOURCE}
+    ${GBC_ANY_MASK_HEADER}
+    ${GBC_ANY_MASK_MANIFEST}
+    ${GBC_ANY_MASK_SPECIALIZED_TURN}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_any_object_mask.txt
+          --out ${GBC_ANY_MASK_DIR}
+  DEPENDS
+    puzzlescript_cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gbc_any_object_mask.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_any_mask_oracle_smoke
+  tests/gbc_any_mask_oracle_smoke.cpp
+  src/gbc/core.c
+  src/gbc/compact_facade.c
+  src/gbc/facade_rules.c
+  ${GBC_ANY_MASK_SOURCE}
+  ${GBC_ANY_MASK_SPECIALIZED_TURN}
+)
+target_include_directories(puzzlescript_gbc_any_mask_oracle_smoke PRIVATE
+  ${GBC_ANY_MASK_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
+)
+target_compile_definitions(puzzlescript_gbc_any_mask_oracle_smoke PRIVATE
+  PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+  PS_GBC_GENERATED_BUILD=1
+  PS_GBC_HAS_SPECIALIZED_TURN=1
+)
+target_link_libraries(puzzlescript_gbc_any_mask_oracle_smoke PRIVATE
+  puzzlescript_native
+  puzzlescript_compiler
+)
+add_test(
+  NAME puzzlescript_gbc_any_mask_oracle_smoke
+  COMMAND puzzlescript_gbc_any_mask_oracle_smoke
+)
+
 add_executable(puzzlescript_gbc_solution_replay_bench
   tests/gbc_solution_replay_bench.cpp
   src/gbc/core.c

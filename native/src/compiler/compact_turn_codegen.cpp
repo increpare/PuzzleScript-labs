@@ -7182,6 +7182,45 @@ void emitGbdCDirtyMark(
         << cellExpr << " & 7U));\n";
 }
 
+namespace {
+
+bool gbcSpecializedPatternNeedsObjects(const GbcSpecializedPatternEmit& pattern) {
+    constexpr uint8_t kObjectsPresent = 1U << 0;
+    constexpr uint8_t kObjectsMissing = 1U << 1;
+    if ((pattern.flags & (kObjectsPresent | kObjectsMissing)) != 0U) {
+        return true;
+    }
+    if (!pattern.anyObjectMasks.empty()) {
+        return true;
+    }
+    for (const GbcSpecializedLayerCoupledTermEmit& term : pattern.layerCoupledMatchTerms) {
+        for (const GbcSpecializedLayerCoupledLayerEmit& layer : term.layers) {
+            if (layer.objectMask != 0U) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool gbcSpecializedPatternNeedsMovements(const GbcSpecializedPatternEmit& pattern) {
+    constexpr uint8_t kMovementsPresent = 1U << 2;
+    constexpr uint8_t kMovementsMissing = 1U << 3;
+    constexpr uint8_t kMovementsAny = kMovementsPresent | kMovementsMissing;
+    if ((pattern.flags & kMovementsAny) != 0U) {
+        return true;
+    }
+    if (!pattern.anyMovementMasks.empty()) {
+        return true;
+    }
+    if (!pattern.layerCoupledMatchTerms.empty()) {
+        return true;
+    }
+    return false;
+}
+
+} // namespace
+
 // Dialect sibling of emitCompactInlinePatternMatchTest for direct session storage.
 void emitCompactInlineGbdCPatternMatch(
     std::ostream& out,
@@ -7200,18 +7239,25 @@ void emitCompactInlineGbdCPatternMatch(
     constexpr uint8_t kMovementsAny = kMovementsPresent | kMovementsMissing;
     constexpr uint8_t kNeverMatch = 1U << 6;
 
+    const std::string objectVar = std::string(tileVariableName) + "_objects";
+    const std::string movementVar = std::string(tileVariableName) + "_movements";
+    const bool needsObjects = gbcSpecializedPatternNeedsObjects(pattern);
+    const bool needsMovements = gbcSpecializedPatternNeedsMovements(pattern);
+    bool objectsLoaded = false;
+    bool movementsLoaded = false;
+
     out << indent << "if (" << matchedFlagName << ") {\n";
     if ((pattern.flags & kNeverMatch) != 0U) {
         out << indent << "    " << matchedFlagName << " = false;\n";
     } else {
-        if ((pattern.flags & (kObjectsPresent | kObjectsMissing)) != 0U) {
-            const std::string objectVar = std::string(tileVariableName) + "_objects";
+        if (needsObjects) {
             emitGbdCBoardGet(
                 out,
                 std::string(indent) + "    ",
                 objectVar,
                 cellExpr,
                 objectBytesPerCell);
+            objectsLoaded = true;
             if ((pattern.flags & kObjectsPresent) != 0U) {
                 out << indent << "    if ((" << objectVar << " & ";
                 emitGbcHexU32(out, pattern.objectsPresent);
@@ -7224,9 +7270,14 @@ void emitCompactInlineGbdCPatternMatch(
                 emitGbcHexU32(out, pattern.objectsMissing);
                 out << ") != 0U) " << matchedFlagName << " = false;\n";
             }
+            for (uint32_t anyMask : pattern.anyObjectMasks) {
+                out << indent << "    /* any-object mask */\n"
+                    << indent << "    if ((" << objectVar << " & ";
+                emitGbcHexU32(out, anyMask);
+                out << ") == 0U) " << matchedFlagName << " = false;\n";
+            }
         }
-        if ((pattern.flags & kMovementsAny) != 0U) {
-            const std::string movementVar = std::string(tileVariableName) + "_movements";
+        if (needsMovements) {
             out << indent << "    if (" << matchedFlagName << ") {\n";
             emitGbdCMovementsGet(
                 out,
@@ -7234,6 +7285,7 @@ void emitCompactInlineGbdCPatternMatch(
                 movementVar,
                 cellExpr,
                 movementBytesPerCell);
+            movementsLoaded = true;
             if ((pattern.flags & kMovementsPresent) != 0U) {
                 out << indent << "        if ((" << movementVar << " & ";
                 emitGbcHexU32(out, pattern.movementsPresent);
@@ -7245,6 +7297,58 @@ void emitCompactInlineGbdCPatternMatch(
                 out << indent << "        if ((" << movementVar << " & ";
                 emitGbcHexU32(out, pattern.movementsMissing);
                 out << ") != 0U) " << matchedFlagName << " = false;\n";
+            }
+            for (uint32_t anyMask : pattern.anyMovementMasks) {
+                out << indent << "        /* any-movement mask */\n"
+                    << indent << "        if ((" << movementVar << " & ";
+                emitGbcHexU32(out, anyMask);
+                out << ") == 0U) " << matchedFlagName << " = false;\n";
+            }
+            for (size_t termIndex = 0; termIndex < pattern.layerCoupledMatchTerms.size(); ++termIndex) {
+                const GbcSpecializedLayerCoupledTermEmit& term =
+                    pattern.layerCoupledMatchTerms[termIndex];
+                const std::string termVar =
+                    std::string(tileVariableName) + "_layer_coupled_term_" + std::to_string(termIndex);
+                out << indent << "        /* layer-coupled match term */\n"
+                    << indent << "        bool " << termVar << " = false;\n";
+                for (size_t layerIndex = 0; layerIndex < term.layers.size(); ++layerIndex) {
+                    const GbcSpecializedLayerCoupledLayerEmit& layer = term.layers[layerIndex];
+                    if (!objectsLoaded) {
+                        emitGbdCBoardGet(
+                            out,
+                            std::string(indent) + "        ",
+                            objectVar,
+                            cellExpr,
+                            objectBytesPerCell);
+                        objectsLoaded = true;
+                    }
+                    out << indent << "        if (!" << termVar << ") {\n"
+                        << indent << "            if ((" << objectVar << " & ";
+                    emitGbcHexU32(out, layer.objectMask);
+                    out << ") != 0U) {\n"
+                        << indent << "                bool layer_ok = true;\n";
+                    if (layer.movementsAny != 0U) {
+                        out << indent << "                if ((" << movementVar << " & ";
+                        emitGbcHexU32(out, layer.movementsAny);
+                        out << ") == 0U) layer_ok = false;\n";
+                    }
+                    if (layer.movementsPresent != 0U) {
+                        out << indent << "                if ((" << movementVar << " & ";
+                        emitGbcHexU32(out, layer.movementsPresent);
+                        out << ") != ";
+                        emitGbcHexU32(out, layer.movementsPresent);
+                        out << ") layer_ok = false;\n";
+                    }
+                    if (layer.movementsMissing != 0U) {
+                        out << indent << "                if ((" << movementVar << " & ";
+                        emitGbcHexU32(out, layer.movementsMissing);
+                        out << ") != 0U) layer_ok = false;\n";
+                    }
+                    out << indent << "                if (layer_ok) " << termVar << " = true;\n"
+                        << indent << "            }\n"
+                        << indent << "        }\n";
+                }
+                out << indent << "        if (!" << termVar << ") " << matchedFlagName << " = false;\n";
             }
             out << indent << "    }\n";
         }
@@ -7906,6 +8010,12 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             emitGbcHexU32(out, pattern.objectsMissing);
             out << ") != 0U) return false;\n";
         }
+        for (uint32_t anyMask : pattern.anyObjectMasks) {
+            out << "    /* any-object mask */\n"
+                << "    if ((" << objectsVar << " & ";
+            emitGbcHexU32(out, anyMask);
+            out << ") == 0U) return false;\n";
+        }
         if ((pattern.flags & kMovementsPresent) != 0U) {
             out << "    if ((" << movementsVar << " & ";
             emitGbcHexU32(out, pattern.movementsPresent);
@@ -7917,6 +8027,49 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             out << "    if ((" << movementsVar << " & ";
             emitGbcHexU32(out, pattern.movementsMissing);
             out << ") != 0U) return false;\n";
+        }
+        for (uint32_t anyMask : pattern.anyMovementMasks) {
+            out << "    /* any-movement mask */\n"
+                << "    if ((" << movementsVar << " & ";
+            emitGbcHexU32(out, anyMask);
+            out << ") == 0U) return false;\n";
+        }
+        for (size_t termIndex = 0; termIndex < pattern.layerCoupledMatchTerms.size(); ++termIndex) {
+            const GbcSpecializedLayerCoupledTermEmit& term =
+                pattern.layerCoupledMatchTerms[termIndex];
+            const std::string termVar =
+                "layer_coupled_term_" + std::to_string(ruleIndex) + "_"
+                + std::to_string(patternIndex) + "_" + std::to_string(termIndex);
+            out << "    /* layer-coupled match term */\n"
+                << "    bool " << termVar << " = false;\n";
+            for (const GbcSpecializedLayerCoupledLayerEmit& layer : term.layers) {
+                out << "    if (!" << termVar << ") {\n"
+                    << "        if ((" << objectsVar << " & ";
+                emitGbcHexU32(out, layer.objectMask);
+                out << ") != 0U) {\n"
+                    << "            bool layer_ok = true;\n";
+                if (layer.movementsAny != 0U) {
+                    out << "            if ((" << movementsVar << " & ";
+                    emitGbcHexU32(out, layer.movementsAny);
+                    out << ") == 0U) layer_ok = false;\n";
+                }
+                if (layer.movementsPresent != 0U) {
+                    out << "            if ((" << movementsVar << " & ";
+                    emitGbcHexU32(out, layer.movementsPresent);
+                    out << ") != ";
+                    emitGbcHexU32(out, layer.movementsPresent);
+                    out << ") layer_ok = false;\n";
+                }
+                if (layer.movementsMissing != 0U) {
+                    out << "            if ((" << movementsVar << " & ";
+                    emitGbcHexU32(out, layer.movementsMissing);
+                    out << ") != 0U) layer_ok = false;\n";
+                }
+                out << "            if (layer_ok) " << termVar << " = true;\n"
+                    << "        }\n"
+                    << "    }\n";
+            }
+            out << "    if (!" << termVar << ") return false;\n";
         }
         if (patternIndex + 1U < rule.patternCount) {
             out << "    cell = (uint8_t)((int16_t)cell + delta);\n";

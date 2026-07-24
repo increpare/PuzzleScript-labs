@@ -803,6 +803,13 @@ int main() {
     require(
         anyMaskManifest.find("\"specialized_turn\": true") != std::string::npos,
         "any-object fixture manifest records specialized_turn");
+    const std::string anyMaskSpecialized =
+        readFile(anyMaskResult.generatedSpecializedTurnPath);
+    require(
+        anyMaskSpecialized.find("/* any-object mask */") != std::string::npos
+            && (anyMaskSpecialized.find("0xcU") != std::string::npos
+                || anyMaskSpecialized.find("0xCU") != std::string::npos),
+        "any-object fixture specialized turn emits any-object mask tests");
 
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
