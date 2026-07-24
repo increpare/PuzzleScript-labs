@@ -16,7 +16,7 @@ PUZZLESCRIPT_CPP   ?= ../../build/native/Release/puzzlescript_cpp.exe
 PYTHON             ?= python3
 EXPORT_GBC_FLAGS   ?=
 
-CFLAGS := -msm83:gb -I$(GENERATED) -I../../native/include -DPS_GBC_FREESTANDING=1
+CFLAGS := -msm83:gb -I$(GENERATED) -I../../native/include -I../../native/src/gbc -DPS_GBC_FREESTANDING=1
 CFLAGS += -DPS_GBC_GENERATED_BUILD=1
 CFLAGS += -Wf--max-allocs-per-node50000
 ifneq ($(filter 1 yes true on,$(AUTOTEST)),)

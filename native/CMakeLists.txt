@@ -153,6 +153,8 @@ add_library(puzzlescript_gbc_core STATIC
 target_include_directories(puzzlescript_gbc_core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
 )
 set_target_properties(puzzlescript_gbc_core PROPERTIES
   C_STANDARD 11
@@ -623,6 +625,7 @@ add_executable(puzzlescript_gbc_generated_smoke
 target_include_directories(puzzlescript_gbc_generated_smoke PRIVATE
   ${GBC_GENERATED_SMOKE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
 )
 target_compile_definitions(puzzlescript_gbc_generated_smoke PRIVATE
   PS_GBC_GENERATED_BUILD=1
@@ -637,6 +640,7 @@ add_executable(puzzlescript_gbc_parity_smoke
 target_include_directories(puzzlescript_gbc_parity_smoke PRIVATE
   ${GBC_GENERATED_SMOKE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
 )
 target_compile_definitions(puzzlescript_gbc_parity_smoke PRIVATE
   PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
@@ -673,6 +677,7 @@ add_executable(puzzlescript_gbc_level_start_parity
 target_include_directories(puzzlescript_gbc_level_start_parity PRIVATE
   ${GBC_LEVEL_START_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
 )
 target_compile_definitions(puzzlescript_gbc_level_start_parity PRIVATE
   PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
@@ -712,6 +717,7 @@ add_executable(puzzlescript_gbc_static_layers_parity
 target_include_directories(puzzlescript_gbc_static_layers_parity PRIVATE
   ${GBC_STATIC_LAYERS_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
 )
 target_compile_definitions(puzzlescript_gbc_static_layers_parity PRIVATE
   PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
@@ -751,6 +757,7 @@ add_executable(puzzlescript_gbc_action_movement_smoke
 target_include_directories(puzzlescript_gbc_action_movement_smoke PRIVATE
   ${GBC_ACTION_MOVEMENT_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
 )
 target_compile_definitions(puzzlescript_gbc_action_movement_smoke PRIVATE
   PS_GBC_GENERATED_BUILD=1
