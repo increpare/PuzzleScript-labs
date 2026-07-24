@@ -7154,7 +7154,7 @@ void emitCompactInlineGbdCPatternApply(
         emitGbcHexU32(out, pattern.movementLayerMask);
         out << ";\n";
     }
-    out << indent << "    " << nextMovementsVar << " = (" << movementsVar << " & ~";
+    out << indent << "    uint32_t " << nextMovementsVar << " = (" << movementsVar << " & ~";
     emitGbcHexU32(out, pattern.movementsClear);
     out << ") | ";
     emitGbcHexU32(out, pattern.movementsSet);
