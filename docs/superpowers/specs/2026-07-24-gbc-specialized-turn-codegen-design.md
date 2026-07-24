@@ -171,3 +171,10 @@ Out of scope until after M3: full-turn handwritten SM83; widening the GBC langua
 - Exact solution-replay artifact format / where solutions are sourced for the 14 games
 - Whether host oracle compiles emitted GBDK C with a second toolchain or a host-C dialect twin
 - Optional later: disassemble other GBC puzzle games for micro-opt ideas
+
+**Next (M4):** real compact-turn unrolled GbdC rule emission is still TODO on the
+Sokoban path. The shipping specialized turn uses the façade rule walker for
+early/late groups plus shared movement resolve — correct, banked, and
+single-player-aware, but not yet the desktop-style unrolled matchers that the
+speed target assumes. mGBA solution-replay timing on cart remains the gating
+measurement once unrolled emission lands.

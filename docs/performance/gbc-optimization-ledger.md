@@ -731,6 +731,15 @@ lands (see Next below).
 
 Make target: `make gbc_specialized_bench`.
 
+### GBC specialized turn — single-player bake-in (Task 11)
+
+Export-time analysis `gbcSinglePlayerCertified` requires exactly one player cell
+on every retained board and rejects rules that net-create or net-destroy player
+objects (conservative per-pattern check, ignoring crate-only clear masks). When
+certified, the manifest sets `"single_player_cell": true` and generated code keeps
+a static `ps_gbc_specialized_player_cell` refreshed after each successful turn.
+Sokoban is certified; `gbc_spawn_second_player.txt` is not.
+
 ### GBC eligible corpus specialized scoreboard (Task 12)
 
 `scripts/build_gbc_eligible_roms.py` now emits
@@ -740,3 +749,20 @@ reflects ROMs exported before the specialized manifest fields; rebuilding with
 `make gbc_eligible` is required for accurate per-game `specialized_turn` flags.
 Solution replay timings in the scoreboard remain null except where a fixture
 exists (currently none among the 14 eligible slugs).
+
+### GBC specialized turn — size/speed hardening notes (Task 13)
+
+Bank placement: façade helpers (`compact_facade.c`, `facade_rules.c`) and
+`generated_specialized_turn.c` link in generated-data bank 2 (`#pragma bank 2`);
+the fixed shell stays in bank 0/1. The Sokoban specialized production cart leaves
+**1085 bytes** spare in fixed bank 0 (15301/16384) and **10516 bytes** spare in
+bank 1 (5868/16384) after linking façade + specialized turn objects.
+
+GbdC emission intentionally avoids desktop-only hooks (`PersistentLevelState`,
+`std::vector`, `PS_COMPACT_TURN_OUTPUT_HOOKS`). The bootstrap façade path is
+complete for Sokoban parity but is not the final performance shape.
+
+**Next:** emit real compact-turn **unrolled** early/late/movement GbdC rule bodies
+(desktop `compact_turn_codegen` match/apply paths through the façade) instead of
+calling `ps_gbc_facade_apply_groups` for whole rulegroups. Until that lands, treat
+specialized carts as parity/orchestration wins only, not snappy-turn wins.
