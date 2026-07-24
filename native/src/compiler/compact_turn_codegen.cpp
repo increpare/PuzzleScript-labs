@@ -7432,43 +7432,115 @@ std::optional<uint8_t> gbcUniquePlayerMovementLayer(const Game& game) {
     return std::nullopt;
 }
 
+struct GbcSpecializedSplitEmitMode {
+    bool splitRulesAcrossBanks = false;
+    unsigned bankNumber = 3U;
+    bool emitBankPragma = true;
+    bool includeSharedHeader = false;
+};
+
+constexpr const char* kGbcSpecializedSharedHeaderName = "generated_specialized_shared.h";
+
+void emitGbcSpecializedBankPragma(std::ostream& out, unsigned bankNumber) {
+    out << "#if defined(__SDCC) || defined(GBDK)\n"
+        << "#pragma bank " << bankNumber << "\n"
+        << "#endif\n";
+}
+
+void emitGbcSpecializedTranslationUnitPrologue(
+    std::ostream& out,
+    const GbcSpecializedSplitEmitMode& mode
+) {
+    if (mode.emitBankPragma) {
+        emitGbcSpecializedBankPragma(out, mode.bankNumber);
+    }
+    out << "#include \"session_internal.h\"\n"
+        << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
+        << "#include \"specialized_turn.h\"\n"
+        << "#include \"generated_game.h\"\n";
+    if (mode.includeSharedHeader) {
+        out << "#include \"" << kGbcSpecializedSharedHeaderName << "\"\n";
+    }
+    out << "#include <string.h>\n\n";
+}
+
+void emitGbcSpecializedSharedHeader(
+    std::ostream& out,
+    size_t ruleCount
+) {
+    out << "#pragma once\n\n"
+        << "#include \"session_internal.h\"\n"
+        << "#include \"specialized_turn.h\"\n"
+        << "#include \"generated_game.h\"\n\n";
+    if (g_gbcSpecializedLevelSize.literal) {
+        out << "extern const uint8_t ps_gbc_specialized_level_width;\n"
+            << "extern const uint8_t ps_gbc_specialized_level_height;\n\n";
+    }
+    out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
+        << "extern uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n"
+        << "void ps_gbc_specialized_mark_move_cell(uint16_t cell) PS_GBC_CORE_RUNTIME_NONBANKED;\n"
+        << "void ps_gbc_specialized_clear_move_bits(void) PS_GBC_CORE_RUNTIME_NONBANKED;\n\n"
+        << "#endif\n"
+        << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "extern uint16_t ps_gbc_specialized_player_cell;\n"
+        << "void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session)\n"
+        << "    PS_GBC_CORE_RUNTIME_NONBANKED;\n\n"
+        << "#endif\n"
+        << "bool ps_gbc_specialized_seed_player_movement(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint8_t direction\n"
+        << ") PS_GBC_CORE_RUNTIME_NONBANKED;\n\n";
+    for (size_t ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
+        out << "bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
+            << "    ps_gbc_session* session,\n"
+            << "    ps_gbc_commands* commands\n"
+            << ") PS_GBC_SPECIALIZED_TURN_BANKED;\n";
+    }
+    out << "\n";
+}
+
+std::string gbcSpecializedRuleFunctionLinkagePrefix(bool bankedGlobal) {
+    return bankedGlobal ? "" : "static ";
+}
+
+std::string gbcSpecializedRuleFunctionLinkageSuffix(bool bankedGlobal) {
+    return bankedGlobal ? " PS_GBC_SPECIALIZED_TURN_BANKED" : "";
+}
+
 void emitGbcSpecializedSeedAndHelpers(
     std::ostream& out,
     const Game& game,
     uint8_t objectBytesPerCell,
-    uint8_t movementBytesPerCell
+    uint8_t movementBytesPerCell,
+    const GbcSpecializedSplitEmitMode& mode
 ) {
+    const bool split = mode.splitRulesAcrossBanks;
     const std::optional<uint8_t> playerMovementLayer = gbcUniquePlayerMovementLayer(game);
-    // Bank 3: dedicated specialized-turn code. Bank 1 holds UI + generated_game;
-    // bank 2 holds the compact façade. Sharing bank 1 caused near-miss overflows
-    // (e.g. push-pull at 16433) even when specialized alone fit in 16 KiB.
-    out << "#if defined(__SDCC) || defined(GBDK)\n"
-        << "#pragma bank 3\n"
-        << "#endif\n"
-        << "#include \"session_internal.h\"\n"
-        << "#include \"puzzlescript/gbc_compact_facade.h\"\n"
-        << "#include \"specialized_turn.h\"\n"
-        << "#include \"generated_game.h\"\n"
-        << "#include <string.h>\n\n";
+    emitGbcSpecializedTranslationUnitPrologue(out, mode);
     if (g_gbcSpecializedLevelSize.literal) {
-        out << "static const uint8_t ps_gbc_specialized_level_width = "
+        out << (split ? "" : "static ")
+            << "const uint8_t ps_gbc_specialized_level_width = "
             << static_cast<unsigned>(g_gbcSpecializedLevelSize.width) << "U;\n"
-            << "static const uint8_t ps_gbc_specialized_level_height = "
+            << (split ? "" : "static ")
+            << "const uint8_t ps_gbc_specialized_level_height = "
             << static_cast<unsigned>(g_gbcSpecializedLevelSize.height) << "U;\n\n";
     }
+    const char* helperAttr = split ? " PS_GBC_CORE_RUNTIME_NONBANKED" : "";
+    const char* globalStorage = split ? "" : "static ";
     out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
-        << "static uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n\n"
-        << "static void ps_gbc_specialized_mark_move_cell(uint16_t cell) {\n"
+        << globalStorage << "uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n\n"
+        << globalStorage << "void ps_gbc_specialized_mark_move_cell(uint16_t cell)" << helperAttr << " {\n"
         << "    if (cell >= PS_GBC_MAX_BOARD_CELLS) return;\n"
         << "    ps_gbc_specialized_move_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));\n"
         << "}\n\n"
-        << "static void ps_gbc_specialized_clear_move_bits(void) {\n"
+        << globalStorage << "void ps_gbc_specialized_clear_move_bits(void)" << helperAttr << " {\n"
         << "    memset(ps_gbc_specialized_move_bits, 0, sizeof(ps_gbc_specialized_move_bits));\n"
         << "}\n\n"
         << "#endif\n"
         << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        << "static uint16_t ps_gbc_specialized_player_cell = UINT16_MAX;\n\n"
-        << "static void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session) {\n"
+        << globalStorage << "uint16_t ps_gbc_specialized_player_cell = UINT16_MAX;\n\n"
+        << globalStorage << "void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session)"
+        << helperAttr << " {\n"
         << "    ps_gbc_specialized_player_cell = UINT16_MAX;\n"
         << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
         << "    {\n"
@@ -7500,10 +7572,11 @@ void emitGbcSpecializedSeedAndHelpers(
         << "    }\n"
         << "}\n\n"
         << "#endif\n"
-        << "static bool ps_gbc_specialized_seed_player_movement(\n"
+        << (split ? "" : "static ")
+        << "bool ps_gbc_specialized_seed_player_movement(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction\n"
-        << ") {\n"
+        << ")" << helperAttr << " {\n"
         << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n";
     if (playerMovementLayer.has_value()) {
         const unsigned shift = static_cast<unsigned>(5U * *playerMovementLayer);
@@ -7682,7 +7755,8 @@ void emitGbcSpecializedSlimSinglePlayerRule(
     const std::vector<GbcSpecializedPatternEmit>& patterns,
     uint8_t objectBytesPerCell,
     uint8_t movementBytesPerCell,
-    uint8_t playerPatternIndex
+    uint8_t playerPatternIndex,
+    bool bankedGlobal
 ) {
     constexpr uint8_t kObjectsPresent = 1U << 0;
     constexpr uint8_t kObjectsMissing = 1U << 1;
@@ -7694,10 +7768,11 @@ void emitGbcSpecializedSlimSinglePlayerRule(
 
     const unsigned direction = static_cast<unsigned>(rule.direction);
     const unsigned patternCount = static_cast<unsigned>(rule.patternCount);
-    out << "static bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
+    out << gbcSpecializedRuleFunctionLinkagePrefix(bankedGlobal)
+        << "bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
         << "    ps_gbc_session* session,\n"
         << "    ps_gbc_commands* commands\n"
-        << ") {\n"
+        << ")" << gbcSpecializedRuleFunctionLinkageSuffix(bankedGlobal) << " {\n"
         << "    const uint8_t pattern_count = " << patternCount << "U;\n"
         << "    const uint8_t player_pattern_index = "
         << static_cast<unsigned>(playerPatternIndex) << "U;\n"
@@ -7885,7 +7960,8 @@ void emitGbcSpecializedRuleFunction(
     uint8_t movementBytesPerCell,
     bool applyOnMatch,
     bool singlePlayerCellCertified,
-    uint32_t playerMask
+    uint32_t playerMask,
+    bool bankedGlobal
 ) {
     std::vector<uint8_t> playerPatternIndices;
     playerPatternIndices.reserve(rule.patternCount);
@@ -7905,7 +7981,8 @@ void emitGbcSpecializedRuleFunction(
             patterns,
             objectBytesPerCell,
             movementBytesPerCell,
-            playerPatternIndices[0]);
+            playerPatternIndices[0],
+            bankedGlobal);
         return;
     }
 
@@ -7937,10 +8014,11 @@ void emitGbcSpecializedRuleFunction(
             << "}\n\n";
     }
 
-    out << "static bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
+    out << gbcSpecializedRuleFunctionLinkagePrefix(bankedGlobal)
+        << "bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
         << "    ps_gbc_session* session,\n"
         << "    ps_gbc_commands* commands\n"
-        << ") {\n"
+        << ")" << gbcSpecializedRuleFunctionLinkageSuffix(bankedGlobal) << " {\n"
         << "    const uint8_t direction = " << static_cast<unsigned>(rule.direction) << "U;\n"
         << "    const uint8_t pattern_count = " << static_cast<unsigned>(rule.patternCount) << "U;\n"
         << "    int8_t delta;\n";
@@ -8153,12 +8231,14 @@ void emitGbcSpecializedPhaseApply(
     const std::vector<GbcSpecializedGroupEmit>& groups,
     const std::vector<GbcSpecializedRuleEmit>& rules,
     const std::vector<GbcSpecializedPatternEmit>& patterns,
-    size_t ruleIndexBase
+    size_t ruleIndexBase,
+    bool globalLinkage
 ) {
     (void)rules;
     (void)patterns;
     (void)ruleIndexBase;
-    out << "static bool ps_gbc_specialized_apply_" << phaseName << "(\n"
+    out << (globalLinkage ? "" : "static ")
+        << "bool ps_gbc_specialized_apply_" << phaseName << "(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t input_direction,\n"
         << "    ps_gbc_commands* commands\n"
@@ -8659,7 +8739,9 @@ void emitGbcSpecializedTurn(
     const std::vector<GbcSpecializedPatternEmit>& patterns,
     const std::vector<GbcSpecializedRuleEmit>& rules,
     const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
-    const std::vector<GbcSpecializedGroupEmit>& lateGroups
+    const std::vector<GbcSpecializedGroupEmit>& lateGroups,
+    const GbcSpecializedSplitEmitMode& mode,
+    bool emitUnrolledRules
 ) {
     const uint8_t objectBytesPerCell = gbdCObjectBytesPerCell(game.objectCount);
     const uint8_t movementBytesPerCell = gbdCMovementBytesPerCell(game);
@@ -8669,8 +8751,12 @@ void emitGbcSpecializedTurn(
         playerMaskWords.empty() ? 0U : static_cast<uint32_t>(playerMaskWords[0]);
     const bool specializeResolve = gbcSpecializedResolveEligible(game);
     const bool specializeWon = gbcSpecializedWonEligible(game);
+    const bool split = mode.splitRulesAcrossBanks;
+    const bool bankedRules = split && emitUnrolledRules;
+    const bool globalPhaseApply = split && !patterns.empty() && !rules.empty();
     g_gbcSpecializedLevelSize = gbcUniformBoardLevelSize(game);
-    emitGbcSpecializedSeedAndHelpers(out, game, objectBytesPerCell, movementBytesPerCell);
+    emitGbcSpecializedSeedAndHelpers(
+        out, game, objectBytesPerCell, movementBytesPerCell, mode);
     if (specializeResolve) {
         emitGbcSpecializedResolveMovements(
             out,
@@ -8716,7 +8802,7 @@ void emitGbcSpecializedTurn(
             << "        direction,\n"
             << "        commands);\n"
             << "}\n\n";
-    } else {
+    } else if (emitUnrolledRules) {
         std::vector<bool> applyOnMatchFlags(rules.size(), false);
         const auto markApplyOnMatchGroups =
             [&](const std::vector<GbcSpecializedGroupEmit>& groups) {
@@ -8745,10 +8831,18 @@ void emitGbcSpecializedTurn(
                 movementBytesPerCell,
                 applyOnMatchFlags[ruleIndex],
                 singlePlayerCellCertified,
-                playerMask);
+                playerMask,
+                bankedRules);
         }
-        emitGbcSpecializedPhaseApply(out, "early", earlyGroups, rules, patterns, 0);
-        emitGbcSpecializedPhaseApply(out, "late", lateGroups, rules, patterns, 0);
+        emitGbcSpecializedPhaseApply(
+            out, "early", earlyGroups, rules, patterns, 0, globalPhaseApply);
+        emitGbcSpecializedPhaseApply(
+            out, "late", lateGroups, rules, patterns, 0, globalPhaseApply);
+    } else {
+        emitGbcSpecializedPhaseApply(
+            out, "early", earlyGroups, rules, patterns, 0, globalPhaseApply);
+        emitGbcSpecializedPhaseApply(
+            out, "late", lateGroups, rules, patterns, 0, globalPhaseApply);
     }
 
     out << "bool ps_gbc_specialized_apply_turn_phases(\n"
@@ -8818,6 +8912,170 @@ void emitGbcSpecializedTurn(
     out << "    *out_changed = seeded || early || moved || late;\n"
         << "    return true;\n"
         << "}\n";
+}
+
+void emitGbcSpecializedTurn(
+    std::ostream& out,
+    const Game& game,
+    bool singlePlayerCellCertified,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    const std::vector<GbcSpecializedRuleEmit>& rules,
+    const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
+    const std::vector<GbcSpecializedGroupEmit>& lateGroups
+) {
+    GbcSpecializedSplitEmitMode mode;
+    emitGbcSpecializedTurn(
+        out,
+        game,
+        singlePlayerCellCertified,
+        patterns,
+        rules,
+        earlyGroups,
+        lateGroups,
+        mode,
+        true);
+}
+
+GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
+    const Game& game,
+    bool singlePlayerCellCertified,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    const std::vector<GbcSpecializedRuleEmit>& rules,
+    const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
+    const std::vector<GbcSpecializedGroupEmit>& lateGroups,
+    const GbcSpecializedTurnEmitOptions& options
+) {
+    GbcSpecializedTurnEmitResult result;
+    if (patterns.empty() || rules.empty()) {
+        std::ostringstream single;
+        emitGbcSpecializedTurn(
+            single,
+            game,
+            singlePlayerCellCertified,
+            patterns,
+            rules,
+            earlyGroups,
+            lateGroups);
+        result.files.push_back(
+            {"generated_specialized_turn.c", single.str()});
+        return result;
+    }
+
+    g_gbcSpecializedLevelSize = gbcUniformBoardLevelSize(game);
+    const uint8_t objectBytesPerCell = gbdCObjectBytesPerCell(game.objectCount);
+    const uint8_t movementBytesPerCell = gbdCMovementBytesPerCell(game);
+    const std::vector<MaskWord> playerMaskWords =
+        compiledMaskWords(game, game.playerMask, game.wordCount);
+    const uint32_t playerMask =
+        playerMaskWords.empty() ? 0U : static_cast<uint32_t>(playerMaskWords[0]);
+
+    std::vector<bool> applyOnMatchFlags(rules.size(), false);
+    const auto markApplyOnMatchGroups =
+        [&](const std::vector<GbcSpecializedGroupEmit>& groups) {
+            for (const GbcSpecializedGroupEmit& group : groups) {
+                if (!group.singlePass) {
+                    continue;
+                }
+                for (uint16_t ruleOffset = 0U; ruleOffset < group.ruleCount; ++ruleOffset) {
+                    const size_t absolute =
+                        static_cast<size_t>(group.firstRule) + ruleOffset;
+                    if (absolute < applyOnMatchFlags.size()) {
+                        applyOnMatchFlags[absolute] = true;
+                    }
+                }
+            }
+        };
+    markApplyOnMatchGroups(earlyGroups);
+    markApplyOnMatchGroups(lateGroups);
+
+    struct RulePack {
+        std::vector<size_t> ruleIndices;
+        size_t sourceBytes = 0U;
+    };
+    std::vector<RulePack> packs;
+    RulePack currentPack;
+    size_t currentPackBytes = 0U;
+    for (size_t ruleIndex = 0; ruleIndex < rules.size(); ++ruleIndex) {
+        std::ostringstream ruleEstimate;
+        emitGbcSpecializedRuleFunction(
+            ruleEstimate,
+            ruleIndex,
+            rules[ruleIndex],
+            patterns,
+            objectBytesPerCell,
+            movementBytesPerCell,
+            applyOnMatchFlags[ruleIndex],
+            singlePlayerCellCertified,
+            playerMask,
+            true);
+        const size_t ruleBytes = ruleEstimate.str().size();
+        if (!currentPack.ruleIndices.empty()
+            && currentPackBytes + ruleBytes > options.rulePackSourceByteThreshold) {
+            packs.push_back(currentPack);
+            currentPack = {};
+            currentPackBytes = 0U;
+        }
+        currentPack.ruleIndices.push_back(ruleIndex);
+        currentPack.sourceBytes += ruleBytes;
+        currentPackBytes += ruleBytes;
+    }
+    if (!currentPack.ruleIndices.empty()) {
+        packs.push_back(currentPack);
+    }
+    if (packs.empty()) {
+        packs.push_back({});
+    }
+
+    std::ostringstream sharedHeader;
+    emitGbcSpecializedSharedHeader(sharedHeader, rules.size());
+    result.files.push_back({kGbcSpecializedSharedHeaderName, sharedHeader.str()});
+
+    for (size_t packIndex = 0; packIndex < packs.size(); ++packIndex) {
+        GbcSpecializedSplitEmitMode rulesMode;
+        rulesMode.splitRulesAcrossBanks = true;
+        rulesMode.bankNumber = options.firstRulesBank + static_cast<unsigned>(packIndex);
+        rulesMode.emitBankPragma = true;
+        rulesMode.includeSharedHeader = true;
+        std::ostringstream rulesOut;
+        emitGbcSpecializedTranslationUnitPrologue(rulesOut, rulesMode);
+        for (size_t ruleIndex : packs[packIndex].ruleIndices) {
+            emitGbcSpecializedRuleFunction(
+                rulesOut,
+                ruleIndex,
+                rules[ruleIndex],
+                patterns,
+                objectBytesPerCell,
+                movementBytesPerCell,
+                applyOnMatchFlags[ruleIndex],
+                singlePlayerCellCertified,
+                playerMask,
+                true);
+        }
+        result.files.push_back(
+            {"generated_specialized_turn_rules_" + std::to_string(packIndex) + ".c",
+             rulesOut.str()});
+    }
+
+    GbcSpecializedSplitEmitMode mainMode;
+    mainMode.splitRulesAcrossBanks = true;
+    mainMode.bankNumber = options.mainBank;
+    mainMode.emitBankPragma = true;
+    mainMode.includeSharedHeader = true;
+    std::ostringstream mainOut;
+    emitGbcSpecializedTurn(
+        mainOut,
+        game,
+        singlePlayerCellCertified,
+        patterns,
+        rules,
+        earlyGroups,
+        lateGroups,
+        mainMode,
+        false);
+    result.files.insert(
+        result.files.begin() + 1,
+        {"generated_specialized_turn.c", mainOut.str()});
+    return result;
 }
 
 bool gbcSpecializedResolveEligibleForGame(const Game& game) {

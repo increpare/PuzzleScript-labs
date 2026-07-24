@@ -607,12 +607,20 @@ set(GBC_GENERATED_SMOKE_SOURCE ${GBC_GENERATED_SMOKE_DIR}/generated_game.c)
 set(GBC_GENERATED_SMOKE_HEADER ${GBC_GENERATED_SMOKE_DIR}/generated_game.h)
 set(GBC_GENERATED_SMOKE_MANIFEST ${GBC_GENERATED_SMOKE_DIR}/gbc_manifest.json)
 set(GBC_GENERATED_SMOKE_SPECIALIZED_TURN ${GBC_GENERATED_SMOKE_DIR}/generated_specialized_turn.c)
+set(GBC_GENERATED_SMOKE_SPECIALIZED_SHARED ${GBC_GENERATED_SMOKE_DIR}/generated_specialized_shared.h)
+set(GBC_GENERATED_SMOKE_SPECIALIZED_RULES_0 ${GBC_GENERATED_SMOKE_DIR}/generated_specialized_turn_rules_0.c)
+set(GBC_GENERATED_SMOKE_SPECIALIZED_SOURCES
+  ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
+  ${GBC_GENERATED_SMOKE_SPECIALIZED_RULES_0}
+)
 add_custom_command(
   OUTPUT
     ${GBC_GENERATED_SMOKE_SOURCE}
     ${GBC_GENERATED_SMOKE_HEADER}
     ${GBC_GENERATED_SMOKE_MANIFEST}
     ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
+    ${GBC_GENERATED_SMOKE_SPECIALIZED_SHARED}
+    ${GBC_GENERATED_SMOKE_SPECIALIZED_RULES_0}
   COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
           ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
           --out ${GBC_GENERATED_SMOKE_DIR}
@@ -681,7 +689,7 @@ add_executable(puzzlescript_gbc_specialized_oracle_smoke
   src/gbc/compact_facade.c
   src/gbc/facade_rules.c
   ${GBC_GENERATED_SMOKE_SOURCE}
-  ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
+  ${GBC_GENERATED_SMOKE_SPECIALIZED_SOURCES}
 )
 target_include_directories(puzzlescript_gbc_specialized_oracle_smoke PRIVATE
   ${GBC_GENERATED_SMOKE_DIR}
@@ -708,7 +716,7 @@ add_executable(puzzlescript_gbc_solution_replay_bench
   src/gbc/compact_facade.c
   src/gbc/facade_rules.c
   ${GBC_GENERATED_SMOKE_SOURCE}
-  ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
+  ${GBC_GENERATED_SMOKE_SPECIALIZED_SOURCES}
 )
 target_include_directories(puzzlescript_gbc_solution_replay_bench PRIVATE
   ${GBC_GENERATED_SMOKE_DIR}

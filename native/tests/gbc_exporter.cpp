@@ -73,6 +73,18 @@ int main() {
         "manifest records single-player certification for Sokoban");
 
     const std::string specializedTurn = readFile(first.generatedSpecializedTurnPath);
+    const std::filesystem::path specializedRulesPath =
+        output / "generated_specialized_turn_rules_0.c";
+    const std::filesystem::path specializedSharedPath =
+        output / "generated_specialized_shared.h";
+    require(
+        std::filesystem::exists(specializedRulesPath),
+        "specialized turn rules pack is generated for Sokoban");
+    require(
+        std::filesystem::exists(specializedSharedPath),
+        "specialized turn shared header is generated for Sokoban");
+    const std::string specializedRules = readFile(specializedRulesPath);
+    const std::string specializedShared = readFile(specializedSharedPath);
     require(
         specializedTurn.find("ps_gbc_specialized_apply_turn_phases")
             != std::string::npos
@@ -89,7 +101,7 @@ int main() {
             && specializedTurn.find("ps_gbc_specialized_rule_matches_at") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_early") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_apply_late") != std::string::npos
-            && specializedTurn.find("ps_gbc_specialized_rule_0") != std::string::npos
+            && specializedTurn.find("bool ps_gbc_specialized_rule_0(") == std::string::npos
             && specializedTurn.find("player_cells") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_resolve_seeded_player")
                 != std::string::npos
@@ -112,8 +124,21 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("= 7U") != std::string::npos
             && specializedTurn.find("= 6U") != std::string::npos
-            && specializedTurn.find("#pragma bank 3") != std::string::npos,
+            && specializedTurn.find("#pragma bank 3") != std::string::npos
+            && specializedTurn.find("#include \"generated_specialized_shared.h\"")
+                != std::string::npos,
         "specialized turn uses direct board storage, inline rules, resolve, and won");
+    require(
+        specializedRules.find("#pragma bank 4") != std::string::npos
+            && specializedRules.find("bool ps_gbc_specialized_rule_0(")
+                != std::string::npos
+            && specializedRules.find("#include \"generated_specialized_shared.h\"")
+                != std::string::npos,
+        "specialized turn rules live in bank 4 with shared externs");
+    require(
+        specializedShared.find("ps_gbc_specialized_rule_0") != std::string::npos
+            && specializedShared.find("PS_GBC_SPECIALIZED_TURN_BANKED") != std::string::npos,
+        "shared header declares banked specialized rule entry points");
 
     {
         puzzlescript::Rule unsupportedRule;
@@ -128,7 +153,13 @@ int main() {
         std::filesystem::create_directories(unsupportedDir);
         const std::filesystem::path stalePath =
             unsupportedDir / "generated_specialized_turn.c";
+        const std::filesystem::path staleRulesPath =
+            unsupportedDir / "generated_specialized_turn_rules_0.c";
+        const std::filesystem::path staleSharedPath =
+            unsupportedDir / "generated_specialized_shared.h";
         writeFile(stalePath, "/* stale marker */\n");
+        writeFile(staleRulesPath, "/* stale rules */\n");
+        writeFile(staleSharedPath, "/* stale shared */\n");
 
         const auto unsupportedInfo = puzzlescript::gbc::writeSpecializedTurnArtifacts(
             unsupportedGame, unsupportedDir, false);
@@ -141,6 +172,12 @@ int main() {
         require(
             !std::filesystem::exists(stalePath),
             "unsupported export deletes a stale specialized turn stub");
+        require(
+            !std::filesystem::exists(staleRulesPath),
+            "unsupported export deletes stale specialized rule packs");
+        require(
+            !std::filesystem::exists(staleSharedPath),
+            "unsupported export deletes stale specialized shared header");
     }
 
     require(manifest.find("\"object_count\": 5") != std::string::npos,

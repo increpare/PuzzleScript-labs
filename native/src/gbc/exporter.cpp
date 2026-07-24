@@ -1724,6 +1724,32 @@ std::string emitSource(
 
 } // namespace
 
+void removeStaleGbcSpecializedTurnArtifacts(const std::filesystem::path& outputDirectory) {
+    const std::filesystem::path sharedHeader =
+        outputDirectory / "generated_specialized_shared.h";
+    const std::filesystem::path sourcesList =
+        outputDirectory / "specialized_sources.list";
+    if (std::filesystem::exists(sharedHeader)) {
+        std::filesystem::remove(sharedHeader);
+    }
+    if (std::filesystem::exists(sourcesList)) {
+        std::filesystem::remove(sourcesList);
+    }
+    if (!std::filesystem::exists(outputDirectory)) {
+        return;
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(outputDirectory)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+        const std::string filename = entry.path().filename().string();
+        if (filename.rfind("generated_specialized_turn", 0) == 0
+            && entry.path().extension() == ".c") {
+            std::filesystem::remove(entry.path());
+        }
+    }
+}
+
 SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const Game& game,
     const std::filesystem::path& outputDirectory,
@@ -1740,22 +1766,30 @@ SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     info.supported = compactTurnSupport.nativeKernel();
     info.singlePlayerCellCertified = singlePlayerCellCertified;
     if (info.supported) {
-        std::ostringstream specializedTurnSource;
-        compiler::emitGbcSpecializedTurn(
-            specializedTurnSource,
-            game,
-            singlePlayerCellCertified,
-            patterns,
-            rules,
-            earlyGroups,
-            lateGroups);
-        writeFileIfChanged(path, specializedTurnSource.str());
+        const compiler::GbcSpecializedTurnEmitResult emitResult =
+            compiler::emitGbcSpecializedTurnFiles(
+                game,
+                singlePlayerCellCertified,
+                patterns,
+                rules,
+                earlyGroups,
+                lateGroups);
+        removeStaleGbcSpecializedTurnArtifacts(outputDirectory);
+        info.generatedSourcePaths.clear();
+        std::ostringstream sourcesList;
+        for (const compiler::GbcSpecializedTurnSourceFile& sourceFile : emitResult.files) {
+            const std::filesystem::path filePath = outputDirectory / sourceFile.relativePath;
+            writeFileIfChanged(filePath, sourceFile.contents);
+            info.generatedSourcePaths.push_back(filePath);
+            sourcesList << sourceFile.relativePath << '\n';
+        }
+        writeFileIfChanged(
+            outputDirectory / "specialized_sources.list",
+            sourcesList.str());
         info.generatedPath = path;
         return info;
     }
-    if (std::filesystem::exists(path)) {
-        std::filesystem::remove(path);
-    }
+    removeStaleGbcSpecializedTurnArtifacts(outputDirectory);
     info.generatedPath.clear();
     return info;
 }
@@ -2232,11 +2266,7 @@ ExportResult exportGame(const ExportOptions& options) {
             toSpecializedGroups(earlyGroups),
             toSpecializedGroups(lateGroups));
     } else {
-        const std::filesystem::path specializedPath =
-            options.outputDirectory / "generated_specialized_turn.c";
-        if (std::filesystem::exists(specializedPath)) {
-            std::filesystem::remove(specializedPath);
-        }
+        removeStaleGbcSpecializedTurnArtifacts(options.outputDirectory);
         specializedTurnExport.supported = false;
         specializedTurnExport.singlePlayerCellCertified = singlePlayerCellCertified;
     }

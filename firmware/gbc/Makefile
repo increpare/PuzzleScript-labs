@@ -17,6 +17,7 @@ PYTHON             ?= python3
 EXPORT_GBC_FLAGS   ?=
 
 SPECIALIZED_SRC    := $(GENERATED)/generated_specialized_turn.c
+SPECIALIZED_SRCS   := $(wildcard $(GENERATED)/generated_specialized_turn*.c)
 HAS_SPECIALIZED    := $(shell test -f $(SPECIALIZED_SRC) && echo 1)
 SPECIALIZED_CFLAGS := $(if $(HAS_SPECIALIZED),-DPS_GBC_HAS_SPECIALIZED_TURN=1,)
 
@@ -48,7 +49,7 @@ OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
 	$(BUILD)/frontend_flow.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
-SPECIALIZED_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/generated_specialized_turn.o,)
+SPECIALIZED_OBJECTS := $(if $(HAS_SPECIALIZED),$(patsubst $(GENERATED)/%.c,$(BUILD)/%.o,$(SPECIALIZED_SRCS)),)
 FACADE_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/compact_facade.o $(BUILD)/facade_rules.o,)
 LINK_OBJECTS := $(OBJECTS) $(FACADE_OBJECTS) $(SPECIALIZED_OBJECTS)
 
@@ -70,8 +71,10 @@ build-rom: $(TARGET).gb
 		exit 1; \
 	fi; \
 	echo "gbc: size check failed with specialized turn; falling back to interpreter"; \
-	rm -f $(SPECIALIZED_SRC); \
-	rm -f $(BUILD)/generated_specialized_turn.o \
+	rm -f $(GENERATED)/generated_specialized_turn*.c; \
+	rm -f $(GENERATED)/generated_specialized_shared.h; \
+	rm -f $(GENERATED)/specialized_sources.list; \
+	rm -f $(BUILD)/generated_specialized_turn*.o \
 		$(BUILD)/compact_facade.o \
 		$(BUILD)/facade_rules.o \
 		$(BUILD)/core.o \
@@ -114,10 +117,19 @@ $(BUILD)/core.o: ../../native/src/gbc/core.c \
 	$(if $(HAS_SPECIALIZED),$(SPECIALIZED_SRC),) | $(BUILD)
 	"$(LCC)" $(CFLAGS) $(SPECIALIZED_CFLAGS) -c -o $@ $<
 
-$(BUILD)/generated_specialized_turn.o: $(SPECIALIZED_SRC) \
+$(BUILD)/generated_specialized_turn.o: $(GENERATED)/generated_specialized_turn.c \
 	../../native/src/gbc/specialized_turn.h \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
 	../../native/include/puzzlescript/gbc_facade_rules.h \
+	$(wildcard $(GENERATED)/generated_specialized_shared.h) \
+	$(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -DPS_GBC_HAS_SPECIALIZED_TURN=1 -c -o $@ $<
+
+$(BUILD)/generated_specialized_turn_rules_%.o: $(GENERATED)/generated_specialized_turn_rules_%.c \
+	../../native/src/gbc/specialized_turn.h \
+	../../native/include/puzzlescript/gbc_compact_facade.h \
+	../../native/include/puzzlescript/gbc_facade_rules.h \
+	$(wildcard $(GENERATED)/generated_specialized_shared.h) \
 	$(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -DPS_GBC_HAS_SPECIALIZED_TURN=1 -c -o $@ $<
 

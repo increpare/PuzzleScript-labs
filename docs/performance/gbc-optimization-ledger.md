@@ -1096,3 +1096,33 @@ short-adventure 20487, recondite 22093, dollyban 23472, voitex 27392,
 gapfiller 30296, slot-machine 33126, xorro 69551.
 
 Next: multi-bank specialized emit (early / late+resolve) for the remaining 8.
+
+### GBC specialized turn multi-bank rule packs (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+Split unrolled specialized rules into `generated_specialized_turn_rules_<N>.c`
+(bank 4+N, greedy ~45 KiB source-byte packs). Bank 3 keeps entry,
+NONBANKED shared WRAM/helpers, resolve/won, and phase apply calling BANKED
+rule functions via `generated_specialized_shared.h`.
+
+Eligible-14 (`make gbc_eligible --cull`): **10/14 specialized** (was 6/14 after
+bank-3 move).
+
+| Kept specialized | max `_CODE_*` | rule packs |
+| --- | ---: | ---: |
+| pushit | 10468 | 2 |
+| slot-machine | 8504 | 3 |
+| gapfiller | (split) | multi |
+| dollyban | (split) | multi |
+| recondite-star-sector-sigma | (split) | multi |
+| voitex-rasteriser | (split) | multi |
+| 15-push-pull-levels | ≤16384 | 1 |
+| push-pull / pushy / gust | ≤16384 | 1 |
+
+Still fallback (`linked_rom_bank_or_total_over_budget`): no-forbidden-symbols
+(fixed ROM bank 16490), fickle-fred, short-adventure, xorro (fixed ROM bank
+16517 — per-bank specialized ≤10 KiB but bank-0 linker stubs overflow).
+
+Oracle + exporter tests green. Follow-up: shrink fixed-ROM bank pressure for
+small multi-pack games or single-file when one rules pack suffices.

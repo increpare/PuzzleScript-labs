@@ -90,6 +90,30 @@ struct GbcSpecializedGroupEmit {
     int16_t loopTarget = -1;
 };
 
+struct GbcSpecializedTurnSourceFile {
+    std::string relativePath;
+    std::string contents;
+};
+
+struct GbcSpecializedTurnEmitResult {
+    std::vector<GbcSpecializedTurnSourceFile> files;
+};
+
+struct GbcSpecializedTurnEmitOptions {
+    size_t rulePackSourceByteThreshold = 45000U;
+    unsigned mainBank = 3U;
+    unsigned firstRulesBank = 4U;
+};
+
+GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
+    const Game& game,
+    bool singlePlayerCellCertified,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    const std::vector<GbcSpecializedRuleEmit>& rules,
+    const std::vector<GbcSpecializedGroupEmit>& earlyGroups,
+    const std::vector<GbcSpecializedGroupEmit>& lateGroups,
+    const GbcSpecializedTurnEmitOptions& options = {});
+
 void emitGbcSpecializedTurn(
     std::ostream& out,
     const Game& game,
