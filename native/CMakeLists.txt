@@ -605,11 +605,13 @@ set(GBC_GENERATED_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_sokoban)
 set(GBC_GENERATED_SMOKE_SOURCE ${GBC_GENERATED_SMOKE_DIR}/generated_game.c)
 set(GBC_GENERATED_SMOKE_HEADER ${GBC_GENERATED_SMOKE_DIR}/generated_game.h)
 set(GBC_GENERATED_SMOKE_MANIFEST ${GBC_GENERATED_SMOKE_DIR}/gbc_manifest.json)
+set(GBC_GENERATED_SMOKE_SPECIALIZED_TURN ${GBC_GENERATED_SMOKE_DIR}/generated_specialized_turn.c)
 add_custom_command(
   OUTPUT
     ${GBC_GENERATED_SMOKE_SOURCE}
     ${GBC_GENERATED_SMOKE_HEADER}
     ${GBC_GENERATED_SMOKE_MANIFEST}
+    ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
   COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
           ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
           --out ${GBC_GENERATED_SMOKE_DIR}
@@ -671,6 +673,32 @@ target_link_libraries(puzzlescript_gbc_parity_smoke PRIVATE
   puzzlescript_compiler
 )
 add_test(NAME puzzlescript_gbc_parity_smoke COMMAND puzzlescript_gbc_parity_smoke)
+
+add_executable(puzzlescript_gbc_specialized_oracle_smoke
+  tests/gbc_specialized_oracle_smoke.cpp
+  src/gbc/core.c
+  src/gbc/compact_facade.c
+  ${GBC_GENERATED_SMOKE_SOURCE}
+  ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
+)
+target_include_directories(puzzlescript_gbc_specialized_oracle_smoke PRIVATE
+  ${GBC_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
+)
+target_compile_definitions(puzzlescript_gbc_specialized_oracle_smoke PRIVATE
+  PS_REPO_ROOT="${PUZZLESCRIPT_REPO_ROOT}"
+  PS_GBC_GENERATED_BUILD=1
+  PS_GBC_HAS_SPECIALIZED_TURN=1
+)
+target_link_libraries(puzzlescript_gbc_specialized_oracle_smoke PRIVATE
+  puzzlescript_native
+  puzzlescript_compiler
+)
+add_test(
+  NAME puzzlescript_gbc_specialized_oracle_smoke
+  COMMAND puzzlescript_gbc_specialized_oracle_smoke
+)
 
 set(GBC_LEVEL_START_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_level_start)
 set(GBC_LEVEL_START_SOURCE ${GBC_LEVEL_START_DIR}/generated_game.c)
