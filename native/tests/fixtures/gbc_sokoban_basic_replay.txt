@@ -3,3 +3,6 @@ right
 up
 left
 left
+down
+down
+right

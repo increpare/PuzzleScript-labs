@@ -69,10 +69,11 @@ int main() {
             != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_seed_player_movement")
                 != std::string::npos
-            && specializedTurn.find("ps_gbc_apply_rules_and_movement(session, direction, commands)")
-                != std::string::npos
+            && specializedTurn.find("ps_gbc_facade_apply_groups") != std::string::npos
+            && specializedTurn.find("ps_gbc_resolve_movements(session)") != std::string::npos
+            && specializedTurn.find("ps_gbc_apply_rules_and_movement") == std::string::npos
             && specializedTurn.find("ps_gbc_facade_get_objects") != std::string::npos,
-        "specialized turn uses facade seeding and shared rules/movement core");
+        "specialized turn uses facade early/late rules and shared movement resolve");
 
     {
         puzzlescript::Rule unsupportedRule;

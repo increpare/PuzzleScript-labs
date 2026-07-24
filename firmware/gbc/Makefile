@@ -49,7 +49,7 @@ OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/frontend_flow.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
 SPECIALIZED_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/generated_specialized_turn.o,)
-FACADE_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/compact_facade.o,)
+FACADE_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/compact_facade.o $(BUILD)/facade_rules.o,)
 LINK_OBJECTS := $(OBJECTS) $(FACADE_OBJECTS) $(SPECIALIZED_OBJECTS)
 
 .PHONY: all export clean check-size build-rom
@@ -80,10 +80,18 @@ $(BUILD)/core.o: ../../native/src/gbc/core.c \
 $(BUILD)/generated_specialized_turn.o: $(SPECIALIZED_SRC) \
 	../../native/src/gbc/specialized_turn.h \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
+	../../native/include/puzzlescript/gbc_facade_rules.h \
 	$(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -DPS_GBC_HAS_SPECIALIZED_TURN=1 -c -o $@ $<
 
 $(BUILD)/compact_facade.o: ../../native/src/gbc/compact_facade.c \
+	../../native/include/puzzlescript/gbc_compact_facade.h \
+	../../native/src/gbc/session_internal.h \
+	$(GENERATED)/generated_game.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/facade_rules.o: ../../native/src/gbc/facade_rules.c \
+	../../native/include/puzzlescript/gbc_facade_rules.h \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
 	../../native/src/gbc/session_internal.h \
 	$(GENERATED)/generated_game.h | $(BUILD)
