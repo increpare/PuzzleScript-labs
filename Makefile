@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: gbc gbc_export gbc_smoke gbc_eligible
+.PHONY: gbc gbc_export gbc_smoke gbc_eligible gbc_specialized_bench
 
 NODE ?= node
 CMAKE ?= cmake
@@ -535,6 +535,7 @@ help:
 	@echo "  make gbc_export                    Export bounded CGB data without requiring GBDK"
 	@echo "  make gbc_smoke                     Build an instrumented ROM and boot-test it in mGBA"
 	@echo "  make gbc_eligible                  Rebuild all 14 documented GBC-compatible good_games"
+	@echo "  make gbc_specialized_bench         Bench specialized Sokoban solution-replay timing"
 	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
@@ -835,6 +836,12 @@ gbc_eligible: $(PUZZLESCRIPT_CPP)
 		$(GBC_ELIGIBLE_GBDK_ARG) \
 		$(GBC_ELIGIBLE_CULL_FLAG) \
 		$(GBC_ELIGIBLE_CONTINUE_FLAG)
+
+gbc_specialized_bench: $(PUZZLESCRIPT_CPP)
+	python3 scripts/run_gbc_solution_replay_bench.py \
+		--repository . \
+		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--gbdk-home "$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),.codex_tmp/toolchains/gbdk)"
 
 handheld_memory_audit:
 	$(CMAKE) -S . -B $(BUILD_DIR) -DPS_MASK_WORD_BITS=64

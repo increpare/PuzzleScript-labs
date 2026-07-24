@@ -702,3 +702,31 @@ readback checks in mGBA and additionally requires black (`0`), orange (`7773`),
 white (`32767`), and blue (`31140`) in the rendered player cell. All 15
 production cartridges pass link, header, bank, RAM, hash, and manifest checks.
 All 89 native CTests and all 753 JavaScript tests pass.
+
+### GBC specialized turn codegen — solution replay bench (Task 10)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+Added a checked-in level-0 solution for `sokoban_basic` (33 moves, solver-generated)
+and a host-side replay bench (`puzzlescript_gbc_solution_replay_bench` +
+`scripts/run_gbc_solution_replay_bench.py`). The bench verifies the solution wins
+under the specialized GBC core and records per-turn host timings with
+`timing_source: host_gbc_core`. Cartridge mGBA solution-feed replay is not wired
+yet; cart timings should still use the existing 4096 Hz perf ROM methodology.
+
+| Metric | Interpreter baseline (ledger) | Specialized Sokoban (this work) |
+| --- | ---: | ---: |
+| Logic ticks/turn (128-turn perf ROM) | 651.305 (~159 ms @ 4096 Hz) | not remeasured on cart (façade path) |
+| Solution replay (33 turns) | — | wins; host mean ≪ 1 ms/turn (not cart comparable) |
+| Linked fixed ROM | ~14762 (instrumented normal cart) | 15301 (+539 B) |
+| Linked generated bank | ~6912 | 5868 (−1044 B net with façade objects) |
+| `specialized_turn` manifest | false / absent | true |
+| Snappy scoreboard (cart) | — | pending mGBA solution replay |
+
+**Honest speed note:** the current specialized entry still executes early/late
+rules through the shared façade rule walker plus `ps_gbc_resolve_movements`. That
+is semantic specialization (single call site, bank-2 placement), not desktop-style
+compact-turn unrolling. Do not expect cart speedups until real GbdC rule emission
+lands (see Next below).
+
+Make target: `make gbc_specialized_bench`.
