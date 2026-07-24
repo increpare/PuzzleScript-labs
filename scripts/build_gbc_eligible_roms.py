@@ -12,6 +12,8 @@ import subprocess
 import sys
 from typing import Any
 
+from check_gbc_rom import map_usage
+
 
 # Ledger corpus: 7 strict exports + 7 games that need --cull-oversize-levels.
 ELIGIBLE_GAMES: tuple[tuple[str, str], ...] = (
@@ -36,6 +38,13 @@ ELIGIBLE_GAMES: tuple[tuple[str, str], ...] = (
     ("voitex-rasteriser", "src/tests/good_games/Voitex Rasteriser.txt"),
     ("xorro-the-chaos-warden", "src/tests/good_games/Xorro The Chaos Warden.txt"),
 )
+
+SOLUTION_FIXTURES: dict[str, Path] = {
+    "sokoban_basic": Path("native/tests/fixtures/gbc_sokoban_basic_solution.txt"),
+}
+
+SPECIALIZED_FALLBACK_UNSUPPORTED = "compact_turn_unsupported"
+SPECIALIZED_FALLBACK_MISSING = "specialized_turn_not_emitted"
 
 
 def find_make() -> Path | None:
@@ -79,6 +88,155 @@ def write_report(path: Path, report: dict[str, Any]) -> None:
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def find_bench_binary(repository: Path, build_dir: Path) -> Path | None:
+    for candidate in (
+        build_dir / "native" / "puzzlescript_gbc_solution_replay_bench",
+        build_dir / "native" / "Release" / "puzzlescript_gbc_solution_replay_bench.exe",
+        build_dir / "native" / "puzzlescript_gbc_solution_replay_bench.exe",
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def scoreboard_entry_from_record(
+    record: dict[str, Any],
+    repository: Path,
+    bench_binary: Path | None,
+) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "slug": record["slug"],
+        "source": record.get("source"),
+        "specialized": False,
+        "single_player_cell": False,
+        "rom_bytes": None,
+        "replay_turns": None,
+        "mean_ms_per_turn": None,
+        "pct_le_50ms": None,
+        "pct_le_80ms": None,
+        "fallback_reason": None,
+        "timing_source": None,
+    }
+    if not record.get("success"):
+        entry["fallback_reason"] = record.get("error", "build_failed")
+        return entry
+
+    manifest_path = repository / str(record["manifest"])
+    rom_path = repository / str(record["rom"])
+    if not manifest_path.is_file() or not rom_path.is_file():
+        entry["fallback_reason"] = "missing_manifest_or_rom"
+        return entry
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    specialized = bool(manifest.get("specialized_turn", False))
+    entry["specialized"] = specialized
+    entry["single_player_cell"] = bool(manifest.get("single_player_cell", False))
+    map_path = repository / str(record.get("map", ""))
+    if map_path.is_file():
+        fixed_rom, generated_bank, _static_wram = map_usage(map_path)
+        entry["rom_bytes"] = fixed_rom + generated_bank
+        entry["linked_fixed_rom_bytes"] = fixed_rom
+        entry["linked_generated_rom_bank_bytes"] = generated_bank
+    else:
+        entry["rom_bytes"] = rom_path.stat().st_size
+    if not specialized:
+        entry["fallback_reason"] = SPECIALIZED_FALLBACK_UNSUPPORTED
+        if "specialized_turn" not in manifest:
+            entry["fallback_reason"] = "manifest_missing_specialized_turn"
+
+    fixture = SOLUTION_FIXTURES.get(record["slug"])
+    if fixture is None or bench_binary is None:
+        return entry
+
+    fixture_path = repository / fixture
+    if not fixture_path.is_file():
+        return entry
+
+    process = subprocess.run(
+        [
+            str(bench_binary),
+            "--fixture",
+            str(fixture_path),
+            "--iterations",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if process.returncode != 0:
+        entry["fallback_reason"] = entry["fallback_reason"] or "solution_replay_failed"
+        return entry
+
+    bench = json.loads(process.stdout)
+    entry.update(
+        {
+            "replay_turns": int(bench.get("replay_turns", 0)),
+            "mean_ms_per_turn": float(bench.get("mean_ms_per_turn", 0.0)),
+            "pct_le_50ms": float(bench.get("pct_le_50ms", 0.0)),
+            "pct_le_80ms": float(bench.get("pct_le_80ms", 0.0)),
+            "timing_source": bench.get("timing_source"),
+        }
+    )
+    return entry
+
+
+def write_specialized_scoreboard(
+    repository: Path,
+    out_root: Path,
+    records: list[dict[str, Any]],
+    build_dir: Path,
+) -> Path:
+    bench_binary = find_bench_binary(repository, build_dir)
+    games = [
+        scoreboard_entry_from_record(record, repository, bench_binary)
+        for record in records
+    ]
+    scoreboard = {
+        "format": "puzzlescript-gbc-specialized-scoreboard-v1",
+        "summary": {
+            "games": len(games),
+            "specialized": sum(1 for game in games if game["specialized"]),
+            "single_player_cell": sum(
+                1 for game in games if game.get("single_player_cell")
+            ),
+            "with_replay_timing": sum(
+                1 for game in games if game.get("mean_ms_per_turn") is not None
+            ),
+        },
+        "games": games,
+    }
+    scoreboard_path = out_root / "specialized-scoreboard.json"
+    write_report(scoreboard_path, scoreboard)
+    return scoreboard_path
+
+
+def load_existing_records(out_root: Path, repository: Path) -> list[dict[str, Any]]:
+    report_path = out_root / "rom-build-report.json"
+    if not report_path.is_file():
+        raise SystemExit(f"missing build report: {report_path}")
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    records = list(report.get("games", []))
+    for slug, _relative_source in ELIGIBLE_GAMES:
+        if any(record.get("slug") == slug for record in records):
+            continue
+        game_out = out_root / slug
+        manifest = game_out / "gbc_manifest.json"
+        rom = game_out / f"{slug}.gb"
+        if manifest.is_file() and rom.is_file():
+            records.append(
+                {
+                    "slug": slug,
+                    "source": next(
+                        source for name, source in ELIGIBLE_GAMES if name == slug
+                    ),
+                    "success": True,
+                    "manifest": str(manifest.relative_to(repository)).replace("\\", "/"),
+                    "rom": str(rom.relative_to(repository)).replace("\\", "/"),
+                }
+            )
+    return records
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -108,10 +266,35 @@ def main() -> int:
         action="store_true",
         help="Build remaining games after a failure; still exit non-zero",
     )
+    parser.add_argument(
+        "--scoreboard-only",
+        action="store_true",
+        help="Regenerate specialized-scoreboard.json from existing eligible artifacts",
+    )
+    parser.add_argument(
+        "--build-dir",
+        type=Path,
+        default=Path("build"),
+        help="CMake build directory for optional host replay bench binary",
+    )
     args = parser.parse_args()
 
     repository = args.repository.resolve()
     out_root = (args.out or (repository / "build" / "gbc" / "eligible")).resolve()
+    build_dir = (
+        repository / args.build_dir
+        if not args.build_dir.is_absolute()
+        else args.build_dir
+    )
+
+    if args.scoreboard_only:
+        records = load_existing_records(out_root, repository)
+        scoreboard_path = write_specialized_scoreboard(
+            repository, out_root, records, build_dir.resolve()
+        )
+        print(f"wrote {relpath(scoreboard_path, repository)}", flush=True)
+        return 0
+
     make = args.make or find_make()
     compiler = find_compiler(repository, args.compiler)
     gbdk_home = args.gbdk_home
@@ -231,6 +414,14 @@ def main() -> int:
                 ),
                 "culled_level_count": int(manifest.get("culled_level_count", 0)),
                 "culled_level_indices": list(manifest.get("culled_level_indices", [])),
+                "specialized_turn": bool(manifest.get("specialized_turn", False)),
+                "single_player_cell": bool(manifest.get("single_player_cell", False)),
+                "rom_bytes": (game_out / f"{slug}.gb").stat().st_size,
+                "fallback_reason": (
+                    None
+                    if manifest.get("specialized_turn")
+                    else SPECIALIZED_FALLBACK_UNSUPPORTED
+                ),
             }
         )
         records.append(record)
@@ -258,9 +449,13 @@ def main() -> int:
     }
     report_path = out_root / "rom-build-report.json"
     write_report(report_path, report)
+    scoreboard_path = write_specialized_scoreboard(
+        repository, out_root, records, build_dir.resolve()
+    )
     successful = report["summary"]["successful"]
     out_display = relpath(out_root, repository)
     print(f"wrote {relpath(report_path, repository)}", flush=True)
+    print(f"wrote {relpath(scoreboard_path, repository)}", flush=True)
     print(
         f"ROMs: {successful}/{len(ELIGIBLE_GAMES)} under {out_display}/"
         f" (<slug>/<slug>.gb)",

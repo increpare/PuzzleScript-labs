@@ -730,3 +730,13 @@ compact-turn unrolling. Do not expect cart speedups until real GbdC rule emissio
 lands (see Next below).
 
 Make target: `make gbc_specialized_bench`.
+
+### GBC eligible corpus specialized scoreboard (Task 12)
+
+`scripts/build_gbc_eligible_roms.py` now emits
+`build/gbc/eligible/specialized-scoreboard.json` and supports
+`--scoreboard-only` over an existing eligible tree. The checked-in scoreboard
+reflects ROMs exported before the specialized manifest fields; rebuilding with
+`make gbc_eligible` is required for accurate per-game `specialized_turn` flags.
+Solution replay timings in the scoreboard remain null except where a fixture
+exists (currently none among the 14 eligible slugs).
