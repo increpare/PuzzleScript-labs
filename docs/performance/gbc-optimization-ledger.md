@@ -878,3 +878,23 @@ Win phase probe (instrumented outside specialized body): ~37.4 → **5.45**
 ticks/turn. Artifacts:
 `build/gbc/sokoban-cart-perf/compare-resolve-won.json`,
 `specialized-resolve-won-mgba.json`.
+
+### Eligible correctness follow-up (2026-07-24)
+
+Revision: `gbc-specialized-turn-codegen` @ `00d451a5`.
+
+Fixes for host specialized replay:
+- Gate `ps_gbc_specialized_won` on `PS_GBC_HAS_SPECIALIZED_TURN` (baseline host
+  benches must not require the specialized object).
+- Command-only matches (e.g. `[]->again`) set turn `changed` so `finish_turn`
+  honors `pending_again`.
+- Mismatched input-specialized groups **skip** instead of returning from the
+  whole early/late phase (matches interpreter per-group `return false`).
+
+Host `--skip-rom --max-levels 2` on the problem set:
+| Game | Result |
+| --- | --- |
+| slot-machine | both boards win (correct again; slower than false no-again path) |
+| pushit / recondite | both boards win (still net host slowdowns) |
+| xorro L0 | win; **L1 still specialized lose** |
+| voitex | solver timeout (unchanged) |
