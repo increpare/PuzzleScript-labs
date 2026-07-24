@@ -1072,6 +1072,11 @@ Eligible-14 rebuild (`--cull --continue`): **14/14 ROMs**. Specialized retained 
 `no-forbidden-symbols` and `pushy-v-pully-h` only; the other 12 fall back with
 `linked_rom_bank_or_total_over_budget`.
 
+**Retired (2026-07-25, `gbc-any-layer-coupled-codegen`):** firmware `build-rom`
+no longer falls back to interpreter on size-check failure; ROM builds fail hard
+instead. `scripts/gbc_manifest_disable_specialized.py` remains for manual use
+only.
+
 ### GBC specialized turn → dedicated bank 3 (2026-07-24)
 
 Revision: working tree on `gbc-specialized-turn-codegen`.

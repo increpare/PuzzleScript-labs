@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Mark a GBC export manifest as interpreter-only after a size-budget fallback."""
+"""Mark a GBC export manifest as interpreter-only (manual / legacy use).
+
+Firmware ``build-rom`` no longer invokes this on size-check failure; ROM builds
+fail hard instead (see gbc-any-layer-coupled-codegen Task 5).
+"""
 
 from __future__ import annotations
 

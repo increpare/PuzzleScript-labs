@@ -59,34 +59,8 @@ all:
 	$(MAKE) export
 	$(MAKE) build-rom
 
-# Size gate: if the specialized-turn bank (16 KiB) or total ROM (512 KiB) fails,
-# drop generated_specialized_turn.c and relink the interpreter-only cartridge.
+# Size gate: specialized bank (16 KiB) and total ROM (512 KiB) must pass.
 build-rom: $(TARGET).gb
-	@set -e; \
-	if "$(PYTHON)" ../../scripts/check_gbc_rom.py \
-		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map; then \
-		exit 0; \
-	fi; \
-	if [ ! -f $(SPECIALIZED_SRC) ]; then \
-		exit 1; \
-	fi; \
-	echo "gbc: size check failed with specialized turn; falling back to interpreter"; \
-	rm -f $(GENERATED)/generated_specialized_turn*.c; \
-	rm -f $(GENERATED)/generated_specialized_shared.h; \
-	rm -f $(GENERATED)/specialized_sources.list; \
-	rm -f $(BUILD)/generated_specialized_turn*.o \
-		$(BUILD)/compact_facade.o \
-		$(BUILD)/facade_rules.o \
-		$(BUILD)/core.o \
-		$(TARGET).gb \
-		$(TARGET).map \
-		$(TARGET).ihx \
-		$(TARGET).noi \
-		$(TARGET).sym; \
-	"$(PYTHON)" ../../scripts/gbc_manifest_disable_specialized.py \
-		$(GENERATED)/gbc_manifest.json \
-		--reason linked_rom_bank_or_total_over_budget; \
-	$(MAKE) $(TARGET).gb SKIP_EXPORT=1; \
 	"$(PYTHON)" ../../scripts/check_gbc_rom.py \
 		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
 
