@@ -1,0 +1,84 @@
+title GBC Duplicate Collisionlayer Members Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+.....
+.....
+.....
+.....
+.....
+
+PlayerL
+white
+.000.
+.0.0.
+.000.
+.0...
+.0...
+
+PlayerR
+blue
+.000.
+.0.0.
+.000.
+...0.
+...0.
+
+Wall
+darkblue
+00000
+0...0
+0...0
+0...0
+00000
+
+Crate
+brown
+.000.
+0...0
+0.0.0
+0...0
+.000.
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and PlayerL
+* = Background and Crate
+# = Background and Wall
+
+Player = PlayerL or PlayerR
+Solid = Player or Wall or Crate
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Solid
+
+======
+RULES
+======
+
+[ > PlayerL | Crate ] -> [ > PlayerL | > Crate ]
+[ > PlayerL | Wall ] -> [ PlayerL | Wall ]
+
+==============
+WINCONDITIONS
+==============
+
+some PlayerL
+
+=======
+LEVELS
+=======
+
+P*
+#.#

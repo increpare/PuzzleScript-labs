@@ -67,6 +67,28 @@ struct PackedObject {
     uint32_t transparentPixels = 0;
 };
 
+// See GBC exporter: non-canonical duplicate idDict slots use layer=-1.
+const ObjectDef& objectDefForExportPacking(const Game& game, const ObjectDef& object) {
+    if (object.layer >= 0 && object.layer < game.layerCount) {
+        return object;
+    }
+    const ObjectDef* canonical = nullptr;
+    for (const ObjectDef& candidate : game.objectsById) {
+        if (candidate.name != object.name) {
+            continue;
+        }
+        if (candidate.layer < 0 || candidate.layer >= game.layerCount) {
+            continue;
+        }
+        canonical = &candidate;
+    }
+    if (canonical == nullptr) {
+        throw std::runtime_error(
+            "GBA object has an invalid collision layer: " + object.name);
+    }
+    return *canonical;
+}
+
 struct PackedLevel {
     bool message = false;
     int width = 0;
@@ -814,9 +836,10 @@ ExportResult exportGame(const ExportOptions& options) {
 
     std::vector<PackedObject> objects;
     objects.reserve(game.objectsById.size());
-    for (const ObjectDef& object : game.objectsById) {
+    for (const ObjectDef& listedObject : game.objectsById) {
+        const ObjectDef& object = objectDefForExportPacking(game, listedObject);
         PackedObject packed;
-        packed.name = object.name;
+        packed.name = listedObject.name;
         packed.layer = object.layer;
         packed.height = static_cast<int>(object.sprite.size());
         packed.width = object.sprite.empty() ? 0 : static_cast<int>(object.sprite.front().size());
