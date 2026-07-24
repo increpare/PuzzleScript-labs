@@ -107,6 +107,10 @@ struct PackedPattern {
     uint32_t movementsSet = 0;
     uint32_t movementLayerMask = 0;
     uint8_t flags = 0;
+    std::vector<uint32_t> anyObjectMasks;
+    std::vector<uint32_t> anyMovementMasks;
+    std::vector<compiler::GbcSpecializedLayerCoupledTermEmit> layerCoupledMatchTerms;
+    std::vector<compiler::GbcSpecializedLayerCoupledTermEmit> layerCoupledReplacementTerms;
 };
 
 struct PackedRule {
@@ -1013,6 +1017,92 @@ std::string metadataValue(const Game& game, const char* key, const char* fallbac
     return found == game.metadata.values.end() ? fallback : found->second;
 }
 
+bool gbcReplacementDynamicAllowed(const Replacement& replacement) {
+    if (replacement.hasRandomEntityMask || replacement.hasRandomDirMask) {
+        return false;
+    }
+    const ReplacementDynamic* dynamic = replacement.dynamic.get();
+    if (dynamic == nullptr) {
+        return true;
+    }
+    if (!dynamic->inferredAggregateBindings.empty()
+        || !dynamic->inferredPropertyBindings.empty()
+        || !dynamic->inferredPropertySources.empty()
+        || dynamic->rhsPropertyPreserveMask != kNullMaskOffset) {
+        return false;
+    }
+    return true;
+}
+
+compiler::GbcSpecializedLayerCoupledLayerEmit packLayerCoupledLayerEmit(
+    const Game& game,
+    const LayerCoupledMovementLayerTerm& layerTerm,
+    const MovementLayout& movementLayout
+) {
+    compiler::GbcSpecializedLayerCoupledLayerEmit emit;
+    emit.objectMask = maskWord(game, layerTerm.objectMask);
+    emit.movementsAny =
+        repackMovementMask(game, layerTerm.movementsAny, movementLayout);
+    emit.movementsPresent =
+        repackMovementMask(game, layerTerm.movementsPresent, movementLayout);
+    emit.movementsMissing =
+        repackMovementMask(game, layerTerm.movementsMissing, movementLayout);
+    emit.layerIndex = static_cast<int8_t>(layerTerm.layerIndex);
+    return emit;
+}
+
+compiler::GbcSpecializedLayerCoupledTermEmit packLayerCoupledTermEmit(
+    const Game& game,
+    const LayerCoupledMovementReplacement& coupled,
+    const MovementLayout& movementLayout
+) {
+    compiler::GbcSpecializedLayerCoupledTermEmit emit;
+    emit.layers.reserve(coupled.layers.size());
+    for (const LayerCoupledMovementLayerTerm& layerTerm : coupled.layers) {
+        emit.layers.push_back(packLayerCoupledLayerEmit(game, layerTerm, movementLayout));
+    }
+    emit.replacementMovementMask = static_cast<uint32_t>(coupled.replacementMovementMask);
+    emit.hasReplacementMovementMask = coupled.hasReplacementMovementMask;
+    return emit;
+}
+
+bool sameLayerCoupledLayerEmit(
+    const compiler::GbcSpecializedLayerCoupledLayerEmit& left,
+    const compiler::GbcSpecializedLayerCoupledLayerEmit& right
+) {
+    return left.objectMask == right.objectMask
+        && left.movementsAny == right.movementsAny
+        && left.movementsPresent == right.movementsPresent
+        && left.movementsMissing == right.movementsMissing
+        && left.layerIndex == right.layerIndex;
+}
+
+bool sameLayerCoupledTermEmit(
+    const compiler::GbcSpecializedLayerCoupledTermEmit& left,
+    const compiler::GbcSpecializedLayerCoupledTermEmit& right
+) {
+    if (left.replacementMovementMask != right.replacementMovementMask
+        || left.hasReplacementMovementMask != right.hasReplacementMovementMask
+        || left.layers.size() != right.layers.size()) {
+        return false;
+    }
+    for (size_t index = 0U; index < left.layers.size(); ++index) {
+        if (!sameLayerCoupledLayerEmit(left.layers[index], right.layers[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool patternNeedsSpecializedAnyOrCoupled(
+    const compiler::GbcSpecializedPatternEmit& pattern
+) {
+    return !pattern.anyObjectMasks.empty()
+        || !pattern.anyMovementMasks.empty()
+        || !pattern.layerCoupledMatchTerms.empty()
+        || !pattern.layerCoupledReplacementTerms.empty();
+}
+
 void validateRule(const Rule& rule, bool late) {
     const std::string prefix = "GBC export rejects rule on line " + std::to_string(rule.lineNumber) + ": ";
     if (rule.rigid) throw std::runtime_error(prefix + "rigid rules are not in the v1 runtime");
@@ -1034,14 +1124,9 @@ void validateRule(const Rule& rule, bool late) {
         if (pattern.kind != Pattern::Kind::CellPattern) {
             throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
         }
-        if (pattern.anyObjectsCount != 0U || pattern.anyMovementsCount != 0U
-            || !pattern.layerCoupledMovementMasks.empty()) {
-            throw std::runtime_error(prefix + "dynamic any/layer-coupled masks are not in the v1 runtime");
-        }
         if (pattern.replacement.has_value()) {
             const Replacement& replacement = *pattern.replacement;
-            if (replacement.dynamic != nullptr || replacement.hasRandomEntityMask
-                || replacement.hasRandomDirMask) {
+            if (!gbcReplacementDynamicAllowed(replacement)) {
                 throw std::runtime_error(prefix + "dynamic or random replacements are not in the v1 runtime");
             }
         }
@@ -1162,21 +1247,70 @@ PackedPattern packPattern(
             packed.movementLayerMask =
                 repackMovementMask(game, replacement.movementsLayerMask, movementLayout);
         }
+        if (const ReplacementDynamic* dynamic = replacement.dynamic.get()) {
+            packed.layerCoupledReplacementTerms.reserve(
+                dynamic->layerCoupledMovementReplacements.size());
+            for (const LayerCoupledMovementReplacement& coupled :
+                dynamic->layerCoupledMovementReplacements) {
+                packed.layerCoupledReplacementTerms.push_back(
+                    packLayerCoupledTermEmit(game, coupled, movementLayout));
+            }
+        }
+    }
+    packed.anyObjectMasks.reserve(pattern.anyObjectsCount);
+    for (uint32_t anyIndex = 0U; anyIndex < pattern.anyObjectsCount; ++anyIndex) {
+        packed.anyObjectMasks.push_back(maskWord(
+            game,
+            game.anyObjectOffsets[pattern.anyObjectsFirst + anyIndex]));
+    }
+    packed.anyMovementMasks.reserve(pattern.anyMovementsCount);
+    for (uint32_t anyIndex = 0U; anyIndex < pattern.anyMovementsCount; ++anyIndex) {
+        packed.anyMovementMasks.push_back(repackMovementMask(
+            game,
+            game.anyMovementOffsets[pattern.anyMovementsFirst + anyIndex],
+            movementLayout));
+    }
+    packed.layerCoupledMatchTerms.reserve(pattern.layerCoupledMovementMasks.size());
+    for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
+        packed.layerCoupledMatchTerms.push_back(
+            packLayerCoupledTermEmit(game, coupled, movementLayout));
     }
     return packed;
 }
 
 bool samePattern(const PackedPattern& left, const PackedPattern& right) {
-    return left.objectsPresent == right.objectsPresent
-        && left.objectsMissing == right.objectsMissing
-        && left.movementsPresent == right.movementsPresent
-        && left.movementsMissing == right.movementsMissing
-        && left.objectsClear == right.objectsClear
-        && left.objectsSet == right.objectsSet
-        && left.movementsClear == right.movementsClear
-        && left.movementsSet == right.movementsSet
-        && left.movementLayerMask == right.movementLayerMask
-        && left.flags == right.flags;
+    if (left.objectsPresent != right.objectsPresent
+        || left.objectsMissing != right.objectsMissing
+        || left.movementsPresent != right.movementsPresent
+        || left.movementsMissing != right.movementsMissing
+        || left.objectsClear != right.objectsClear
+        || left.objectsSet != right.objectsSet
+        || left.movementsClear != right.movementsClear
+        || left.movementsSet != right.movementsSet
+        || left.movementLayerMask != right.movementLayerMask
+        || left.flags != right.flags
+        || left.anyObjectMasks != right.anyObjectMasks
+        || left.anyMovementMasks != right.anyMovementMasks
+        || left.layerCoupledMatchTerms.size() != right.layerCoupledMatchTerms.size()
+        || left.layerCoupledReplacementTerms.size()
+            != right.layerCoupledReplacementTerms.size()) {
+        return false;
+    }
+    for (size_t index = 0U; index < left.layerCoupledMatchTerms.size(); ++index) {
+        if (!sameLayerCoupledTermEmit(
+                left.layerCoupledMatchTerms[index],
+                right.layerCoupledMatchTerms[index])) {
+            return false;
+        }
+    }
+    for (size_t index = 0U; index < left.layerCoupledReplacementTerms.size(); ++index) {
+        if (!sameLayerCoupledTermEmit(
+                left.layerCoupledReplacementTerms[index],
+                right.layerCoupledReplacementTerms[index])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 uint16_t internPatternSequence(
@@ -2229,6 +2363,10 @@ ExportResult exportGame(const ExportOptions& options) {
         emit.movementsSet = pattern.movementsSet;
         emit.movementLayerMask = pattern.movementLayerMask;
         emit.flags = pattern.flags;
+        emit.anyObjectMasks = pattern.anyObjectMasks;
+        emit.anyMovementMasks = pattern.anyMovementMasks;
+        emit.layerCoupledMatchTerms = pattern.layerCoupledMatchTerms;
+        emit.layerCoupledReplacementTerms = pattern.layerCoupledReplacementTerms;
         specializedPatterns.push_back(emit);
     }
     std::vector<compiler::GbcSpecializedRuleEmit> specializedRules;
@@ -2272,6 +2410,18 @@ ExportResult exportGame(const ExportOptions& options) {
     }
     const bool specializedTurnSupported = specializedTurnExport.supported;
     result.generatedSpecializedTurnPath = specializedTurnExport.generatedPath;
+    const bool needsSpecializedAnyOrCoupled = std::any_of(
+        specializedPatterns.begin(),
+        specializedPatterns.end(),
+        patternNeedsSpecializedAnyOrCoupled);
+    if (needsSpecializedAnyOrCoupled) {
+        if (!options.emitSpecializedTurn
+            || !specializedTurnSupported
+            || result.generatedSpecializedTurnPath.empty()) {
+            throw std::runtime_error(
+                "GBC export requires specialized turn for any/layer-coupled patterns");
+        }
+    }
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);
     const auto singlePassCount = [](const std::vector<PackedGroup>& groups) {
         return static_cast<size_t>(std::count_if(

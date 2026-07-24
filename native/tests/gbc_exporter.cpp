@@ -788,19 +788,21 @@ int main() {
     }
     require(rejectedRigid, "rigid games are rejected with an explicit structural diagnostic");
 
-    bool rejectedAnyMask = false;
-    try {
-        puzzlescript::gbc::ExportOptions anyMask;
-        anyMask.sourcePath =
-            root / "native" / "tests" / "fixtures" / "gbc_any_object_mask.txt";
-        anyMask.outputDirectory = output / "any_object_mask";
-        (void)puzzlescript::gbc::exportGame(anyMask);
-    } catch (const std::runtime_error& error) {
-        rejectedAnyMask =
-            std::string(error.what()).find("any/layer-coupled") != std::string::npos;
-    }
-    require(rejectedAnyMask,
-        "baseline: any-object fixture is rejected by GBC v1 validateRule");
+    puzzlescript::gbc::ExportOptions anyMask;
+    anyMask.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_any_object_mask.txt";
+    anyMask.outputDirectory = output / "any_object_mask";
+    const auto anyMaskResult = puzzlescript::gbc::exportGame(anyMask);
+    require(
+        std::filesystem::exists(anyMaskResult.manifestPath),
+        "any-object fixture manifest is generated");
+    require(
+        std::filesystem::exists(anyMaskResult.generatedSpecializedTurnPath),
+        "any-object fixture specialized turn is generated");
+    const std::string anyMaskManifest = readFile(anyMaskResult.manifestPath);
+    require(
+        anyMaskManifest.find("\"specialized_turn\": true") != std::string::npos,
+        "any-object fixture manifest records specialized_turn");
 
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
