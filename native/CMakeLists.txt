@@ -149,6 +149,7 @@ target_compile_options(puzzlescript_gba_core PRIVATE
 add_library(puzzlescript_gbc_core STATIC
   include/puzzlescript/gbc.h
   src/gbc/core.c
+  src/gbc/compact_facade.c
 )
 target_include_directories(puzzlescript_gbc_core
   PUBLIC
@@ -631,6 +632,25 @@ target_compile_definitions(puzzlescript_gbc_generated_smoke PRIVATE
   PS_GBC_GENERATED_BUILD=1
 )
 add_test(NAME puzzlescript_gbc_generated_smoke COMMAND puzzlescript_gbc_generated_smoke)
+
+add_executable(puzzlescript_gbc_compact_facade_tests
+  tests/gbc_compact_facade_tests.c
+  src/gbc/core.c
+  src/gbc/compact_facade.c
+  ${GBC_GENERATED_SMOKE_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_compact_facade_tests PRIVATE
+  ${GBC_GENERATED_SMOKE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
+)
+target_compile_definitions(puzzlescript_gbc_compact_facade_tests PRIVATE
+  PS_GBC_GENERATED_BUILD=1
+)
+add_test(
+  NAME puzzlescript_gbc_compact_facade_tests
+  COMMAND puzzlescript_gbc_compact_facade_tests
+)
 
 add_executable(puzzlescript_gbc_parity_smoke
   tests/gbc_parity_smoke.cpp
