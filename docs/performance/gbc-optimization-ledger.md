@@ -996,3 +996,21 @@ ran (covers early matches that do not rewrite the player cell).
 
 Oracle green. Artifacts:
 `build/gbc/sokoban-cart-perf/specialized-move-bits-v2-mgba.json`.
+
+### GBC specialized literal player-layer seed (2026-07-24)
+
+Revision: working tree on `gbc-specialized-turn-codegen`.
+
+When the player mask is a single object with a known movement layer, seed emits
+`movement |= direction << (5 * layer)` instead of scanning object bits / looking
+up `objects[id].movement_layer`.
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| ticks/turn | 55.852 | **54.484 (−2.5%)** |
+| walk_logic | 50 | **48** |
+| push_logic | 85 | **83** |
+| Largest gen bank | 14610 | **14476 (−134)** |
+
+Oracle green. Artifacts:
+`build/gbc/sokoban-cart-perf/specialized-literal-seed-mgba.json`.

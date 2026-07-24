@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
@@ -7345,11 +7346,45 @@ void emitCompactInlineGbdCPatternApply(
         << indent << "}\n";
 }
 
+std::optional<uint8_t> gbcUniquePlayerMovementLayer(const Game& game) {
+    const std::vector<MaskWord> words =
+        compiledMaskWords(game, game.playerMask, game.wordCount);
+    if (words.size() != 1U) {
+        return std::nullopt;
+    }
+    uint32_t mask = static_cast<uint32_t>(words[0]);
+    if (mask == 0U || (mask & (mask - 1U)) != 0U) {
+        return std::nullopt;
+    }
+    uint8_t objectId = 0U;
+    while ((mask & 1U) == 0U) {
+        mask >>= 1U;
+        ++objectId;
+    }
+    if (objectId >= game.objectsById.size()) {
+        return std::nullopt;
+    }
+    const int32_t collisionLayer = game.objectsById[objectId].layer;
+    if (collisionLayer < 0) {
+        return std::nullopt;
+    }
+    const solver::MovementLayerAnalysis analysis = solver::analyzeMovementLayers(game);
+    for (size_t movementLayer = 0; movementLayer < analysis.movementToCollisionLayer.size();
+         ++movementLayer) {
+        if (analysis.movementToCollisionLayer[movementLayer] == collisionLayer) {
+            return static_cast<uint8_t>(movementLayer);
+        }
+    }
+    return std::nullopt;
+}
+
 void emitGbcSpecializedSeedAndHelpers(
     std::ostream& out,
+    const Game& game,
     uint8_t objectBytesPerCell,
     uint8_t movementBytesPerCell
 ) {
+    const std::optional<uint8_t> playerMovementLayer = gbcUniquePlayerMovementLayer(game);
     out << "#if defined(__SDCC) || defined(GBDK)\n"
         << "#pragma bank 1\n"
         << "#endif\n"
@@ -7406,73 +7441,114 @@ void emitGbcSpecializedSeedAndHelpers(
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction\n"
         << ") {\n"
-        << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n"
-        << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
-        << "    {\n"
-        << "        uint8_t player_index;\n"
-        << "        for (player_index = 0U;\n"
-        << "             player_index < session->player_cell_count;\n"
-        << "             ++player_index) {\n"
-        << "            const uint8_t cell = session->player_cells[player_index];\n";
-    emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
-    out << "            {\n"
-        << "                uint32_t players = objects & ps_gbc_generated_game.player_mask;\n"
-        << "                uint8_t object_id = 0U;\n"
-        << "                if (players == 0U) continue;\n";
-    emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
-    out << "                while (players != 0U) {\n"
-        << "                    if ((players & 1U) != 0U) {\n"
-        << "                        const uint8_t movement_layer =\n"
-        << "                            ps_gbc_generated_game.objects[object_id].movement_layer;\n"
-        << "                        if (movement_layer != PS_GBC_NO_MOVEMENT_LAYER) {\n"
-        << "                            movement |= (uint32_t)direction << (5U * movement_layer);\n"
-        << "                        }\n"
-        << "                    }\n"
-        << "                    players >>= 1U;\n"
-        << "                    ++object_id;\n"
-        << "                }\n";
-    emitGbdCMovementsSet(out, "                ", "cell", "movement", movementBytesPerCell);
-    out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        << "                ps_gbc_specialized_player_cell = cell;\n"
-        << "#endif\n"
-        << "                return true;\n"
-        << "            }\n"
-        << "        }\n"
-        << "        return false;\n"
-        << "    }\n"
-        << "#else\n"
-        << "    {\n"
-        << "        const uint16_t cells = (uint16_t)(session->width * session->height);\n"
-        << "        uint16_t cell;\n"
-        << "        for (cell = 0U; cell < cells; ++cell) {\n";
-    emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
-    out << "            {\n"
-        << "                uint32_t players = objects & ps_gbc_generated_game.player_mask;\n"
-        << "                uint8_t object_id = 0U;\n"
-        << "                if (players == 0U) continue;\n";
-    emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
-    out << "                while (players != 0U) {\n"
-        << "                    if ((players & 1U) != 0U) {\n"
-        << "                        const uint8_t movement_layer =\n"
-        << "                            ps_gbc_generated_game.objects[object_id].movement_layer;\n"
-        << "                        if (movement_layer != PS_GBC_NO_MOVEMENT_LAYER) {\n"
-        << "                            movement |= (uint32_t)direction << (5U * movement_layer);\n"
-        << "                        }\n"
-        << "                    }\n"
-        << "                    players >>= 1U;\n"
-        << "                    ++object_id;\n"
-        << "                }\n";
-    emitGbdCMovementsSet(out, "                ", "cell", "movement", movementBytesPerCell);
-    out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        << "                ps_gbc_specialized_player_cell = cell;\n"
-        << "#endif\n"
-        << "                return true;\n"
-        << "            }\n"
-        << "        }\n"
-        << "        return false;\n"
-        << "    }\n"
-        << "#endif\n"
-        << "}\n\n";
+        << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n";
+    if (playerMovementLayer.has_value()) {
+        const unsigned shift = static_cast<unsigned>(5U * *playerMovementLayer);
+        out << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+            << "    {\n"
+            << "        uint8_t player_index;\n"
+            << "        for (player_index = 0U;\n"
+            << "             player_index < session->player_cell_count;\n"
+            << "             ++player_index) {\n"
+            << "            const uint8_t cell = session->player_cells[player_index];\n";
+        emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
+        out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n";
+        emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
+        out << "            movement |= (uint32_t)direction << " << shift << "U;\n";
+        emitGbdCMovementsSet(out, "            ", "cell", "movement", movementBytesPerCell);
+        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "            ps_gbc_specialized_player_cell = cell;\n"
+            << "#endif\n"
+            << "            return true;\n"
+            << "        }\n"
+            << "        return false;\n"
+            << "    }\n"
+            << "#else\n"
+            << "    {\n"
+            << "        const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+            << "        uint16_t cell;\n"
+            << "        for (cell = 0U; cell < cells; ++cell) {\n";
+        emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
+        out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n";
+        emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
+        out << "            movement |= (uint32_t)direction << " << shift << "U;\n";
+        emitGbdCMovementsSet(out, "            ", "cell", "movement", movementBytesPerCell);
+        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "            ps_gbc_specialized_player_cell = cell;\n"
+            << "#endif\n"
+            << "            return true;\n"
+            << "        }\n"
+            << "        return false;\n"
+            << "    }\n"
+            << "#endif\n";
+    } else {
+        out << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
+            << "    {\n"
+            << "        uint8_t player_index;\n"
+            << "        for (player_index = 0U;\n"
+            << "             player_index < session->player_cell_count;\n"
+            << "             ++player_index) {\n"
+            << "            const uint8_t cell = session->player_cells[player_index];\n";
+        emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
+        out << "            {\n"
+            << "                uint32_t players = objects & ps_gbc_generated_game.player_mask;\n"
+            << "                uint8_t object_id = 0U;\n"
+            << "                if (players == 0U) continue;\n";
+        emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
+        out << "                while (players != 0U) {\n"
+            << "                    if ((players & 1U) != 0U) {\n"
+            << "                        const uint8_t movement_layer =\n"
+            << "                            ps_gbc_generated_game.objects[object_id].movement_layer;\n"
+            << "                        if (movement_layer != PS_GBC_NO_MOVEMENT_LAYER) {\n"
+            << "                            movement |= (uint32_t)direction << (5U * movement_layer);\n"
+            << "                        }\n"
+            << "                    }\n"
+            << "                    players >>= 1U;\n"
+            << "                    ++object_id;\n"
+            << "                }\n";
+        emitGbdCMovementsSet(out, "                ", "cell", "movement", movementBytesPerCell);
+        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "                ps_gbc_specialized_player_cell = cell;\n"
+            << "#endif\n"
+            << "                return true;\n"
+            << "            }\n"
+            << "        }\n"
+            << "        return false;\n"
+            << "    }\n"
+            << "#else\n"
+            << "    {\n"
+            << "        const uint16_t cells = (uint16_t)(session->width * session->height);\n"
+            << "        uint16_t cell;\n"
+            << "        for (cell = 0U; cell < cells; ++cell) {\n";
+        emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
+        out << "            {\n"
+            << "                uint32_t players = objects & ps_gbc_generated_game.player_mask;\n"
+            << "                uint8_t object_id = 0U;\n"
+            << "                if (players == 0U) continue;\n";
+        emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
+        out << "                while (players != 0U) {\n"
+            << "                    if ((players & 1U) != 0U) {\n"
+            << "                        const uint8_t movement_layer =\n"
+            << "                            ps_gbc_generated_game.objects[object_id].movement_layer;\n"
+            << "                        if (movement_layer != PS_GBC_NO_MOVEMENT_LAYER) {\n"
+            << "                            movement |= (uint32_t)direction << (5U * movement_layer);\n"
+            << "                        }\n"
+            << "                    }\n"
+            << "                    players >>= 1U;\n"
+            << "                    ++object_id;\n"
+            << "                }\n";
+        emitGbdCMovementsSet(out, "                ", "cell", "movement", movementBytesPerCell);
+        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+            << "                ps_gbc_specialized_player_cell = cell;\n"
+            << "#endif\n"
+            << "                return true;\n"
+            << "            }\n"
+            << "        }\n"
+            << "        return false;\n"
+            << "    }\n"
+            << "#endif\n";
+    }
+    out << "}\n\n";
 }
 
 void emitGbcSpecializedFusedMatchApplyAt(
@@ -8483,7 +8559,7 @@ void emitGbcSpecializedTurn(
         playerMaskWords.empty() ? 0U : static_cast<uint32_t>(playerMaskWords[0]);
     const bool specializeResolve = gbcSpecializedResolveEligible(game);
     const bool specializeWon = gbcSpecializedWonEligible(game);
-    emitGbcSpecializedSeedAndHelpers(out, objectBytesPerCell, movementBytesPerCell);
+    emitGbcSpecializedSeedAndHelpers(out, game, objectBytesPerCell, movementBytesPerCell);
     if (specializeResolve) {
         emitGbcSpecializedResolveMovements(
             out,
