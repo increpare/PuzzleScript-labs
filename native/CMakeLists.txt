@@ -150,6 +150,7 @@ add_library(puzzlescript_gbc_core STATIC
   include/puzzlescript/gbc.h
   src/gbc/core.c
   src/gbc/compact_facade.c
+  src/gbc/facade_rules.c
 )
 target_include_directories(puzzlescript_gbc_core
   PUBLIC
@@ -678,6 +679,7 @@ add_executable(puzzlescript_gbc_specialized_oracle_smoke
   tests/gbc_specialized_oracle_smoke.cpp
   src/gbc/core.c
   src/gbc/compact_facade.c
+  src/gbc/facade_rules.c
   ${GBC_GENERATED_SMOKE_SOURCE}
   ${GBC_GENERATED_SMOKE_SPECIALIZED_TURN}
 )

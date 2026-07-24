@@ -922,7 +922,7 @@ static void ps_gbc_audio_mask_matches(
 }
 #endif
 
-static bool ps_gbc_resolve_movements(ps_gbc_session* session) {
+bool ps_gbc_resolve_movements(ps_gbc_session* session) {
     uint16_t cell;
     const uint16_t cells = (uint16_t)(session->width * session->height);
     bool moved_any = false;
@@ -1133,6 +1133,38 @@ bool ps_gbc_advance_level(ps_gbc_session* session) {
     return ps_gbc_advance(session);
 }
 
+bool ps_gbc_apply_early_rule_groups(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands
+) {
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
+    const bool changed = ps_gbc_apply_groups(
+        session,
+        session->game->early_groups,
+        session->game->early_group_count,
+        direction,
+        commands);
+    PS_GBC_PERF_END(PS_GBC_PERF_EARLY_RULES);
+    return changed;
+}
+
+bool ps_gbc_apply_late_rule_groups(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands
+) {
+    PS_GBC_PERF_BEGIN(PS_GBC_PERF_LATE_RULES);
+    const bool changed = ps_gbc_apply_groups(
+        session,
+        session->game->late_groups,
+        session->game->late_group_count,
+        direction,
+        commands);
+    PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
+    return changed;
+}
+
 bool ps_gbc_apply_rules_and_movement(
     ps_gbc_session* session,
     uint8_t direction,
@@ -1141,25 +1173,11 @@ bool ps_gbc_apply_rules_and_movement(
     bool early_changed;
     bool moved;
     bool late_changed;
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_EARLY_RULES);
-    early_changed = ps_gbc_apply_groups(
-        session,
-        session->game->early_groups,
-        session->game->early_group_count,
-        direction,
-        commands);
-    PS_GBC_PERF_END(PS_GBC_PERF_EARLY_RULES);
+    early_changed = ps_gbc_apply_early_rule_groups(session, direction, commands);
     PS_GBC_PERF_BEGIN(PS_GBC_PERF_MOVEMENT);
     moved = ps_gbc_resolve_movements(session);
     PS_GBC_PERF_END(PS_GBC_PERF_MOVEMENT);
-    PS_GBC_PERF_BEGIN(PS_GBC_PERF_LATE_RULES);
-    late_changed = ps_gbc_apply_groups(
-        session,
-        session->game->late_groups,
-        session->game->late_group_count,
-        direction,
-        commands);
-    PS_GBC_PERF_END(PS_GBC_PERF_LATE_RULES);
+    late_changed = ps_gbc_apply_late_rule_groups(session, direction, commands);
     return early_changed || moved || late_changed;
 }
 

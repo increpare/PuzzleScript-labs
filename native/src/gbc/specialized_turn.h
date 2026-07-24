@@ -10,6 +10,18 @@ bool ps_gbc_apply_turn_phases(
     uint8_t direction,
     ps_gbc_commands* commands);
 
+bool ps_gbc_apply_early_rule_groups(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands);
+
+bool ps_gbc_resolve_movements(ps_gbc_session* session);
+
+bool ps_gbc_apply_late_rule_groups(
+    ps_gbc_session* session,
+    uint8_t direction,
+    ps_gbc_commands* commands);
+
 bool ps_gbc_apply_rules_and_movement(
     ps_gbc_session* session,
     uint8_t direction,
