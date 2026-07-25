@@ -30,14 +30,18 @@
 
 *(none remaining from the initial inventory)*
 
-### Open — both GBC paths lose (interpreter and specialized)
+### Open — B-class (reclassified 2026-07-25)
 
-| ID | Game | Evidence | Leading hypothesis |
-|---|---|---|---|
-| B1 | `crate guardian.txt` | Culled solve finds solution; host interpreter `won=false` | Native↔GBC semantic gap (again / realtime / win / message), or wrong retained board / level start rules |
-| B2 | `crate swap.txt` | Same pattern | Same class as B1 |
-| B3 | `flesh-handed hot casserole delivery bot.txt` | Same pattern | Same class as B1 |
-| B4 | `Muraphilic Monophobic Multiban.txt` | 3-move “solution” still loses on interpreter | Likely wrong win / trivial false solve / `again` drain; treat carefully |
+Native FullState (`turn_with_options(..., solver_mode=true)` + again drain) **wins** all four on the culled board. Earlier “native lose” was a bad serialization heuristic.
+
+| ID | Game | native | gbc_interp | gbc_spec | Notes |
+|---|---|---|---|---|---|
+| B1 | `crate guardian.txt` | win | lose | lose | Hash diverge turn 0: interp `changed=0`, spec moves player. Both fail later. |
+| B2 | `crate swap.txt` | win | lose | **win** | Hash diverge turn 2 (player path). Spec tracks native win. |
+| B3 | `flesh-handed…` | win | lose | **win** | Hash diverge turn 4. Spec tracks native win. |
+| B4 | `Muraphilic Monophobic Multiban.txt` | win | lose | **win** | **Localized:** turns 0–1 identical; on turn 2 `down` through `[ > Player \| pushable \| pushable ]` (`pushable = wall or crate`), interpreter leaves a Target bare and parks Crate one cell past it; specialized lands Crate on Target and wins. |
+
+**Dominant bucket:** GBC **interpreter** rule/resolve gap on property / multi-cell push chains (Milestone A specialized emit is ahead of the interpreter). Not a culled-solve harness bug.
 
 ### Confirmed healthy (regression anchors)
 
@@ -154,28 +158,16 @@ EOF
 
 ---
 
-### Task 3: B-class triage — shared GBC interpreter losses
+### Task 3: B-class triage — interpreter behind specialized/native
 
 Games: B1 `crate guardian`, B2 `crate swap`, B3 `flesh-handed…`, B4 `muraphilic…`.
 
-**Do not touch specialized until interpreter parity with native is understood.**
-
-- [ ] **Step 1: For each game, native FullState replay of culled solution**
-
-Table: `native_won`, `gbc_interp_won`, `gbc_spec_won`, first divergence turn (native vs interp).
-
-- [ ] **Step 2: Bucket results**
-
-| Bucket | Meaning | Next action |
-|---|---|---|
-| Native lose | Bad solve / wrong board extract | Fix harness (F0b follow-up) |
-| Native win, interp lose @ again/tick | Host again drain / realtime | Fix bench or GBC again |
-| Native win, interp lose @ rules | GBC exporter/runtime gap | New GBC bug ticket/fix |
-| Native win, interp lose @ win | specialized_won / winconditions | Win codegen/interpreter |
-
-- [ ] **Step 3: Pick the smallest B* game in the dominant bucket; full differential**
-- [ ] **Step 4: Fix or document unsupported (e.g. requires realtime ticks beyond drain policy)**
-- [ ] **Step 5: Commit harness or runtime fix; leave truly unsupported games listed in ledger**
+- [x] **Step 1: Native FullState replay** — all four `won=true` with solver_mode + again drain.
+- [x] **Step 2: Bucket** — native win, interp lose @ rules/resolve (not harness). Spec wins B2–B4; B1 both GBC paths lose.
+- [x] **Step 3: Smallest game B4 differential** — property `pushable` triple-cell push; interpreter crate overshoot on turn 2.
+- [ ] **Step 4: Fix interpreter** (`facade_rules.c` / `core.c` resolve) for property OR-mask push chains; add focused fixture from Muraphilic level-2 `up,left,down`.
+- [ ] **Step 5: Re-check B2/B3 (likely same class); triage B1 separately (turn-0 no-op on interp).**
+- [ ] **Step 6: Commit**
 
 ---
 
