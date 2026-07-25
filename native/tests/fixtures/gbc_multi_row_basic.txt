@@ -1,0 +1,55 @@
+title GBC Multi Row Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+blue
+0
+
+TopMarker
+red
+0
+
+BottomMarker
+green
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Player
+T = TopMarker
+B = BottomMarker
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, TopMarker, BottomMarker
+
+======
+RULES
+======
+
+late [ T ] [ B ] -> [ T ] [ B ]
+
+==============
+WINCONDITIONS
+==============
+
+=======
+LEVELS
+=======
+
+P
+T
+B

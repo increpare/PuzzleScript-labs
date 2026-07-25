@@ -926,6 +926,28 @@ int main() {
                 != std::string::npos,
         "aggregate-binding fixture specialized turn emits capture and inferred apply");
 
+    puzzlescript::gbc::ExportOptions multiRowOptions;
+    multiRowOptions.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_multi_row_basic.txt";
+    multiRowOptions.outputDirectory = output / "multi_row_basic";
+    const auto multiRowResult = puzzlescript::gbc::exportGame(multiRowOptions);
+    require(
+        std::filesystem::exists(multiRowResult.generatedSpecializedTurnPath),
+        "multi-row fixture specialized turn is generated");
+    const std::string multiRowManifest = readFile(multiRowResult.manifestPath);
+    require(
+        multiRowManifest.find("\"specialized_turn\": true") != std::string::npos,
+        "multi-row fixture manifest records specialized_turn");
+    const std::string multiRowSpecialized =
+        readFile(multiRowResult.generatedSpecializedTurnPath);
+    require(
+        multiRowSpecialized.find("row0_starts[PS_GBC_MAX_BOARD_CELLS]") != std::string::npos
+            && multiRowSpecialized.find("row1_starts[PS_GBC_MAX_BOARD_CELLS]")
+                != std::string::npos
+            && multiRowSpecialized.find("row0_count") != std::string::npos
+            && multiRowSpecialized.find("row1_count") != std::string::npos,
+        "multi-row fixture specialized turn emits bounded two-row scratch");
+
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
         + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");

@@ -132,6 +132,8 @@ struct GbcSpecializedPatternEmit {
 struct GbcSpecializedRuleEmit {
     uint16_t firstPattern = 0;
     uint8_t patternCount = 0;
+    uint8_t rowCount = 1;
+    uint8_t rowPatternCounts[2] = {0, 0};
     uint8_t direction = 0;
     uint8_t commands = 0;
     std::vector<GbcSpecializedPropertyBindingEmit> propertyBindings;

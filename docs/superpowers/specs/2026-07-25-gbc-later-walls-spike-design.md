@@ -9,7 +9,7 @@
 |-------|-------------:|------|
 | board cull-all | 54 | Level size policy, not codegen |
 | object_count (>32) | 27 | `exporter.cpp` `PS_GBC_MAX_OBJECTS` + cell bytes / WRAM |
-| multi-row rules | 19 | `validateRule` + specialized single-row pack |
+| multi-row rules (>2 rows) | 4 (was 25) | `validateRule` `kMaxRowCount=2`; 2-row via `emitGbcSpecializedTwoRowRule` |
 | dynamic replacements | 19 | `gbcReplacementDynamicAllowed` |
 | other / invalid layer | ~18 | Mixed |
 | ellipsis | 3 | Explicit v1 reject |

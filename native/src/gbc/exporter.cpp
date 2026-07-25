@@ -145,6 +145,8 @@ struct PackedPattern {
 struct PackedRule {
     uint16_t firstPattern = 0;
     uint8_t patternCount = 0;
+    uint8_t rowCount = 1;
+    uint8_t rowPatternCounts[2] = {0, 0};
     uint8_t direction = 0;
     uint8_t activeInputsMask = 0x3fU;
     uint8_t commands = 0;
@@ -1238,24 +1240,45 @@ void validateRule(const Rule& rule, bool late) {
     const std::string prefix = "GBC export rejects rule on line " + std::to_string(rule.lineNumber) + ": ";
     if (rule.rigid) throw std::runtime_error(prefix + "rigid rules are not in the v1 runtime");
     if (rule.isRandom) throw std::runtime_error(prefix + "random rule groups are not in the v1 runtime");
-    if (rule.patterns.size() != 1U) throw std::runtime_error(prefix + "multi-row rules are not in the v1 runtime");
-    if (rule.patterns.front().empty() || rule.patterns.front().size() > 255U) {
-        throw std::runtime_error(prefix + "rule rows must contain 1 to 255 cells");
+    constexpr size_t kMaxRowCount = 2U;
+    if (rule.patterns.empty() || rule.patterns.size() > kMaxRowCount) {
+        throw std::runtime_error(prefix + "rules must contain 1 to 2 rows");
     }
-    if (!rule.ellipsisCount.empty() && rule.ellipsisCount.front() != 0) {
-        throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
+    if (rule.patterns.size() == 1U) {
+        if (!rule.ellipsisCount.empty() && rule.ellipsisCount.front() != 0) {
+            throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
+        }
+    }
+    if (rule.patterns.size() > 1U) {
+        if (rule.ellipsisCount.size() < rule.patterns.size()) {
+            throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
+        }
+        for (size_t rowIndex = 0U; rowIndex < rule.patterns.size(); ++rowIndex) {
+            if (rule.ellipsisCount[rowIndex] != 0) {
+                throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
+            }
+        }
+        if (!rule.propertyBindings.empty() || !rule.aggregateBindings.empty()) {
+            throw std::runtime_error(
+                prefix + "multi-row rules with property/aggregate bindings are not in the v1 runtime");
+        }
     }
     if (rule.direction != 1 && rule.direction != 2 && rule.direction != 4 && rule.direction != 8) {
         throw std::runtime_error(prefix + "the lowered scan direction is unsupported");
     }
-    for (const Pattern& pattern : rule.patterns.front()) {
-        if (pattern.kind != Pattern::Kind::CellPattern) {
-            throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
+    for (const std::vector<Pattern>& row : rule.patterns) {
+        if (row.empty() || row.size() > 255U) {
+            throw std::runtime_error(prefix + "rule rows must contain 1 to 255 cells");
         }
-        if (pattern.replacement.has_value()) {
-            const Replacement& replacement = *pattern.replacement;
-            if (!gbcReplacementDynamicAllowed(replacement)) {
-                throw std::runtime_error(prefix + "dynamic or random replacements are not in the v1 runtime");
+        for (const Pattern& pattern : row) {
+            if (pattern.kind != Pattern::Kind::CellPattern) {
+                throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
+            }
+            if (pattern.replacement.has_value()) {
+                const Replacement& replacement = *pattern.replacement;
+                if (!gbcReplacementDynamicAllowed(replacement)) {
+                    throw std::runtime_error(prefix + "dynamic or random replacements are not in the v1 runtime");
+                }
             }
         }
     }
@@ -1564,13 +1587,22 @@ void packGroups(
         for (const Rule& sourceRule : sourceGroup) {
             validateRule(sourceRule, late);
             std::vector<PackedPattern> sequence;
-            sequence.reserve(sourceRule.patterns.front().size());
-            for (const Pattern& pattern : sourceRule.patterns.front()) {
-                sequence.push_back(packPattern(game, sourceRule, pattern, movementLayout));
+            for (const std::vector<Pattern>& row : sourceRule.patterns) {
+                sequence.reserve(sequence.size() + row.size());
+                for (const Pattern& pattern : row) {
+                    sequence.push_back(packPattern(game, sourceRule, pattern, movementLayout));
+                }
             }
             PackedRule rule;
             rule.firstPattern = internPatternSequence(patterns, sequence);
-            rule.patternCount = static_cast<uint8_t>(sourceRule.patterns.front().size());
+            rule.rowCount = static_cast<uint8_t>(sourceRule.patterns.size());
+            for (size_t rowIndex = 0U; rowIndex < sourceRule.patterns.size(); ++rowIndex) {
+                rule.rowPatternCounts[rowIndex] =
+                    static_cast<uint8_t>(sourceRule.patterns[rowIndex].size());
+            }
+            rule.patternCount = rule.rowCount == 1U
+                ? rule.rowPatternCounts[0]
+                : static_cast<uint8_t>(sequence.size());
             rule.direction = static_cast<uint8_t>(sourceRule.direction);
             rule.activeInputsMask = sourceRule.activeInputsMask;
             rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
@@ -2573,6 +2605,9 @@ ExportResult exportGame(const ExportOptions& options) {
         compiler::GbcSpecializedRuleEmit emit;
         emit.firstPattern = rule.firstPattern;
         emit.patternCount = rule.patternCount;
+        emit.rowCount = rule.rowCount;
+        emit.rowPatternCounts[0] = rule.rowPatternCounts[0];
+        emit.rowPatternCounts[1] = rule.rowPatternCounts[1];
         emit.direction = rule.direction;
         emit.commands = rule.commands;
         emit.propertyBindings = rule.propertyBindings;
@@ -2812,7 +2847,8 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"limits\": {\"objects\": 32, \"collision_layers\": 32, "
            "\"movement_layers\": 6, \"viewport_width\": 10, "
            "\"viewport_height\": 9, \"board_cells\": 90, \"session_bytes\": 4096},\n"
-        << "  \"unsupported\": [\"rigid\", \"random\", \"ellipsis\", \"multi_row\", "
+        << "  \"unsupported\": [\"rigid\", \"random\", \"ellipsis\", "
+           "\"multi_row_gt_2\", \"multi_row_bindings\", "
            "\"dynamic_bindings\", \"aggregate_player\"],\n"
         << "  \"diagnostics\": [";
     bool wroteDiagnostic = false;

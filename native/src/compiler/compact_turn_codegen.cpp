@@ -8416,6 +8416,253 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "}\n\n";
 }
 
+void emitGbcSpecializedCollectFixedRowStarts(
+    std::ostream& out,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    uint16_t firstPatternIndex,
+    uint8_t patternCountInRow,
+    std::string_view rowStartsArray,
+    std::string_view rowCountVar,
+    std::string_view deltaVar,
+    std::string_view directionVar,
+    std::string_view indent,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell
+) {
+    out << indent << rowCountVar << " = 0U;\n"
+        << indent << "{\n"
+        << indent << "    uint8_t xmin = 0U;\n"
+        << indent << "    uint8_t xmax = (uint8_t)" << gbcLevelWidthExpr() << ";\n"
+        << indent << "    uint8_t ymin = 0U;\n"
+        << indent << "    uint8_t ymax = (uint8_t)" << gbcLevelHeightExpr() << ";\n"
+        << indent << "    const uint8_t pattern_count = "
+        << static_cast<unsigned>(patternCountInRow) << "U;\n"
+        << indent << "    if (" << directionVar << " == 1U) ymin = (uint8_t)(pattern_count - 1U);\n"
+        << indent << "    else if (" << directionVar << " == 2U) ymax = (uint8_t)(ymax - (pattern_count - 1U));\n"
+        << indent << "    else if (" << directionVar << " == 4U) xmin = (uint8_t)(pattern_count - 1U);\n"
+        << indent << "    else if (" << directionVar << " == 8U) xmax = (uint8_t)(xmax - (pattern_count - 1U));\n"
+        << indent << "    uint8_t x;\n"
+        << indent << "    uint8_t y;\n"
+        << indent << "    uint8_t cell = (uint8_t)(xmin * " << gbcLevelHeightExpr() << " + ymin);\n"
+        << indent << "    const uint8_t column_advance = (uint8_t)(" << gbcLevelHeightExpr()
+        << " - (ymax - ymin));\n"
+        << indent << "    for (x = xmin; x < xmax; ++x) {\n"
+        << indent << "        for (y = ymin; y < ymax; ++y) {\n"
+        << indent << "            bool row_matched = true;\n"
+        << indent << "            uint8_t check_cell = cell;\n";
+    for (uint8_t patternIndex = 0; patternIndex < patternCountInRow; ++patternIndex) {
+        const auto& pattern = patterns[firstPatternIndex + patternIndex];
+        const std::string tileName = "collect_p" + std::to_string(patternIndex);
+        emitCompactInlineGbdCPatternMatch(
+            out,
+            pattern,
+            std::string(indent) + "            ",
+            "check_cell",
+            tileName,
+            "row_matched",
+            objectBytesPerCell,
+            movementBytesPerCell);
+        if (patternIndex + 1U < patternCountInRow) {
+            out << indent << "            check_cell = (uint8_t)((int16_t)check_cell + "
+                << deltaVar << ");\n";
+        }
+    }
+    out << indent << "            if (row_matched && " << rowCountVar
+        << " < PS_GBC_MAX_BOARD_CELLS) {\n"
+        << indent << "                " << rowStartsArray << "[" << rowCountVar << "] = cell;\n"
+        << indent << "                ++" << rowCountVar << ";\n"
+        << indent << "            }\n"
+        << indent << "            ++cell;\n"
+        << indent << "        }\n"
+        << indent << "        cell = (uint8_t)(cell + column_advance);\n"
+        << indent << "    }\n"
+        << indent << "}\n";
+}
+
+void emitGbcSpecializedApplyRowAt(
+    std::ostream& out,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    uint16_t firstPatternIndex,
+    uint8_t patternCountInRow,
+    std::string_view startExpr,
+    std::string_view deltaVar,
+    std::string_view indent,
+    std::string_view changedFlagName,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell,
+    bool singlePlayerCellCertified
+) {
+    out << indent << "{\n"
+        << indent << "    uint8_t apply_cell = " << startExpr << ";\n";
+    for (uint8_t patternIndex = 0; patternIndex < patternCountInRow; ++patternIndex) {
+        const auto& pattern = patterns[firstPatternIndex + patternIndex];
+        const std::string tileName = "apply_p" + std::to_string(patternIndex);
+        emitCompactInlineGbdCPatternApply(
+            out,
+            pattern,
+            std::string(indent) + "    ",
+            "apply_cell",
+            tileName,
+            changedFlagName,
+            objectBytesPerCell,
+            movementBytesPerCell,
+            singlePlayerCellCertified);
+        if (patternIndex + 1U < patternCountInRow) {
+            out << indent << "    apply_cell = (uint8_t)((int16_t)apply_cell + "
+                << deltaVar << ");\n";
+        }
+    }
+    out << indent << "}\n";
+}
+
+void emitGbcSpecializedTwoRowRule(
+    std::ostream& out,
+    size_t ruleIndex,
+    const GbcSpecializedRuleEmit& rule,
+    const std::vector<GbcSpecializedPatternEmit>& patterns,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell,
+    bool applyOnMatch,
+    bool singlePlayerCellCertified,
+    bool bankedGlobal
+) {
+    const uint16_t row0FirstPattern = rule.firstPattern;
+    const uint16_t row1FirstPattern =
+        static_cast<uint16_t>(rule.firstPattern + rule.rowPatternCounts[0]);
+    out << gbcSpecializedRuleFunctionLinkagePrefix(bankedGlobal)
+        << "bool ps_gbc_specialized_rule_" << ruleIndex << "(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    ps_gbc_commands* commands\n"
+        << ")" << gbcSpecializedRuleFunctionLinkageSuffix(bankedGlobal) << " {\n"
+        << "    const uint8_t direction = " << static_cast<unsigned>(rule.direction) << "U;\n"
+        << "    int8_t delta;\n"
+        << "    uint8_t row0_starts[PS_GBC_MAX_BOARD_CELLS];\n"
+        << "    uint8_t row1_starts[PS_GBC_MAX_BOARD_CELLS];\n"
+        << "    uint8_t row0_count;\n"
+        << "    uint8_t row1_count;\n"
+        << "    uint8_t row0_index;\n"
+        << "    uint8_t row1_index;\n"
+        << "    bool changed = false;\n"
+        << "    bool first_tuple = true;\n"
+        << "    switch (direction) {\n"
+        << "        case 1U: delta = -1; break;\n"
+        << "        case 2U: delta = 1; break;\n"
+        << "        case 4U: delta = -(int8_t)" << gbcLevelHeightExpr() << "; break;\n"
+        << "        case 8U: delta = (int8_t)" << gbcLevelHeightExpr() << "; break;\n"
+        << "        default: return false;\n"
+        << "    }\n";
+    emitGbcSpecializedCollectFixedRowStarts(
+        out,
+        patterns,
+        row0FirstPattern,
+        rule.rowPatternCounts[0],
+        "row0_starts",
+        "row0_count",
+        "delta",
+        "direction",
+        "    ",
+        objectBytesPerCell,
+        movementBytesPerCell);
+    emitGbcSpecializedCollectFixedRowStarts(
+        out,
+        patterns,
+        row1FirstPattern,
+        rule.rowPatternCounts[1],
+        "row1_starts",
+        "row1_count",
+        "delta",
+        "direction",
+        "    ",
+        objectBytesPerCell,
+        movementBytesPerCell);
+    out << "    if (row0_count == 0U || row1_count == 0U) return false;\n";
+    if (!applyOnMatch) {
+        const unsigned commandBits = static_cast<unsigned>(rule.commands & 0x3fU);
+        out << "    commands->flags |= " << commandBits << "U;\n";
+        if ((commandBits & ~1U) != 0U) {
+            out << "    changed = true;\n";
+        }
+    }
+    out << "    for (row0_index = 0U; row0_index < row0_count; ++row0_index) {\n"
+        << "        for (row1_index = 0U; row1_index < row1_count; ++row1_index) {\n"
+        << "            bool still_matches = true;\n"
+        << "            if (!first_tuple) {\n"
+        << "                const uint8_t start0 = row0_starts[row0_index];\n"
+        << "                const uint8_t start1 = row1_starts[row1_index];\n"
+        << "                uint8_t check_cell = start0;\n"
+        << "                bool row_matched = true;\n";
+    for (uint8_t patternIndex = 0; patternIndex < rule.rowPatternCounts[0]; ++patternIndex) {
+        const auto& pattern = patterns[row0FirstPattern + patternIndex];
+        emitCompactInlineGbdCPatternMatch(
+            out,
+            pattern,
+            "                ",
+            "check_cell",
+            "verify0_p" + std::to_string(patternIndex),
+            "row_matched",
+            objectBytesPerCell,
+            movementBytesPerCell);
+        if (patternIndex + 1U < rule.rowPatternCounts[0]) {
+            out << "                check_cell = (uint8_t)((int16_t)check_cell + delta);\n";
+        }
+    }
+    out << "                if (!row_matched) still_matches = false;\n"
+        << "                check_cell = start1;\n"
+        << "                row_matched = true;\n";
+    for (uint8_t patternIndex = 0; patternIndex < rule.rowPatternCounts[1]; ++patternIndex) {
+        const auto& pattern = patterns[row1FirstPattern + patternIndex];
+        emitCompactInlineGbdCPatternMatch(
+            out,
+            pattern,
+            "                ",
+            "check_cell",
+            "verify1_p" + std::to_string(patternIndex),
+            "row_matched",
+            objectBytesPerCell,
+            movementBytesPerCell);
+        if (patternIndex + 1U < rule.rowPatternCounts[1]) {
+            out << "                check_cell = (uint8_t)((int16_t)check_cell + delta);\n";
+        }
+    }
+    out << "                if (!row_matched) still_matches = false;\n"
+        << "            }\n"
+        << "            if (still_matches) {\n";
+    emitGbcSpecializedApplyRowAt(
+        out,
+        patterns,
+        row0FirstPattern,
+        rule.rowPatternCounts[0],
+        "row0_starts[row0_index]",
+        "delta",
+        "                ",
+        "changed",
+        objectBytesPerCell,
+        movementBytesPerCell,
+        singlePlayerCellCertified);
+    emitGbcSpecializedApplyRowAt(
+        out,
+        patterns,
+        row1FirstPattern,
+        rule.rowPatternCounts[1],
+        "row1_starts[row1_index]",
+        "delta",
+        "                ",
+        "changed",
+        objectBytesPerCell,
+        movementBytesPerCell,
+        singlePlayerCellCertified);
+    out << "            }\n"
+        << "            first_tuple = false;\n"
+        << "        }\n"
+        << "    }\n";
+    if (applyOnMatch) {
+        const unsigned commandBits = static_cast<unsigned>(rule.commands & 0x3fU);
+        out << "    if (changed) commands->flags |= " << commandBits << "U;\n";
+    }
+    out << "    return changed;\n"
+        << "}\n\n";
+}
+
 void emitGbcSpecializedRuleFunction(
     std::ostream& out,
     size_t ruleIndex,
@@ -8428,6 +8675,22 @@ void emitGbcSpecializedRuleFunction(
     uint32_t playerMask,
     bool bankedGlobal
 ) {
+    if (rule.rowCount > 1U) {
+        if (rule.rowCount != 2U) {
+            throw std::logic_error("GBC specialized emit supports at most 2 pattern rows");
+        }
+        emitGbcSpecializedTwoRowRule(
+            out,
+            ruleIndex,
+            rule,
+            patterns,
+            objectBytesPerCell,
+            movementBytesPerCell,
+            applyOnMatch,
+            singlePlayerCellCertified,
+            bankedGlobal);
+        return;
+    }
     std::vector<uint8_t> playerPatternIndices;
     playerPatternIndices.reserve(rule.patternCount);
     for (uint8_t patternIndex = 0; patternIndex < rule.patternCount; ++patternIndex) {
