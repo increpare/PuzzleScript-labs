@@ -1096,8 +1096,31 @@ Revision: `gbc-any-layer-coupled-codegen` (`scripts/audit_gbc_good_games_export.
 Milestone A removed the entire any/layer-coupled first-fail wall (+21 structurally
 exportable games with cull). Remaining rejects are honest later limits: oversized
 boards culled to zero, object count, multi-row/dynamic rule shapes, and a long
-tail of invalid-layer or property edge cases. Production `ELIGIBLE_GAMES` (14) is
-unchanged; expand only after ROM/size validation on newly OK titles.
+tail of invalid-layer or property edge cases. Production `ELIGIBLE_GAMES` (14) was
+unchanged at Milestone A; expanded to 32 after ROM validation (see below).
+
+### GBC eligible promote after Milestone A (2026-07-25)
+
+Validation: `scripts/validate_gbc_promote_candidates.py` (cull + specialized + ≤512 KiB).
+
+| Result | Count | Notes |
+| --- | ---: | --- |
+| Cull export OK (audit) | 35 | from `good-games-export-audit-cull.json` |
+| Already eligible | 14 | unchanged baseline |
+| ROM-validated & promoted | 18 | listed below |
+| ROM failed (not promoted) | 3 | reasons below |
+
+**Promoted:** `all-green-and-blue-on-yellow`, `all-green-to-blue`, `attractor-net`, `chevron-lodger`, `crate-guardian`, `crate-swap`, `don't-let-your-goals-slip-away`, `explodoban`, `flesh-handed-hot-casserole-delivery-bot`, `hedgehog-stimulator`, `m-c-eschers-armageddon`, `match-maker`, `muraphilic-monophobic-multiban`, `resin-caster`, `slime-vat-filler`, `the-monsterous-autoshove`, `two-step-pete`, `unclean-residues`
+
+**Not promoted (export OK, ROM fail):**
+
+| slug | error |
+| --- | --- |
+| an-ok-multiban-level | build_failed (fixed ROM bank over budget) |
+| head-skuller | build_failed (fixed ROM bank over budget) |
+| the-red-ring-of-immortality | build_failed (fixed ROM bank over budget) |
+
+`ELIGIBLE_GAMES` size is now **32**. Host solution-replay scoreboard for new titles is follow-up (not a promote gate).
 
 ### GBC specialized turn → dedicated bank 3 (2026-07-24)
 

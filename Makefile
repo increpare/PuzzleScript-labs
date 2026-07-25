@@ -92,7 +92,7 @@ GBA_PREFLIGHT_JSON ?= $(BUILD_DIR)/gba/preflight.json
 GBC_GAME ?= src/demo/sokoban_basic.txt
 GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
 GBC_ELIGIBLE_OUT ?= $(BUILD_DIR)/gbc/eligible
-# Cull oversized boards (>10x9) for the 14-game eligible corpus (set GBC_CULL=0 to disable).
+# Cull oversized boards (>10x9) for the eligible good_games corpus (set GBC_CULL=0 to disable).
 GBC_CULL ?= 1
 # Keep building after a failure when set to 1 (still exits non-zero).
 GBC_CONTINUE ?= 0
@@ -534,7 +534,7 @@ help:
 	@echo "  make gbc                           Export and build one CGB-only ROM (set GBC_GAME=...)"
 	@echo "  make gbc_export                    Export bounded CGB data without requiring GBDK"
 	@echo "  make gbc_smoke                     Build an instrumented ROM and boot-test it in mGBA"
-	@echo "  make gbc_eligible                  Rebuild all 14 documented GBC-compatible good_games"
+	@echo "  make gbc_eligible                  Rebuild documented GBC-compatible good_games ROMs"
 	@echo "  make gbc_specialized_bench         Bench specialized Sokoban solution-replay timing"
 	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
