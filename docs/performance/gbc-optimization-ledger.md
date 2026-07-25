@@ -1173,6 +1173,12 @@ Revision: `gbc-followups-batch` (`6b3fc344`). Cull audit after emit:
 property/aggregate first-fails reclassified. Aggregate player still rejected.
 ROM validation of newly OK titles is the next promote step.
 
+### GBC eligible-46 rebuild green (2026-07-25)
+
+`make gbc_eligible GBC_CONTINUE=1` on `gbc-followups-batch`: **46/46** specialized ROMs ≤512 KiB.
+
+Object_count (>32) remains the largest structural wall (**27** first-fails); board cull-all is policy (**67**). No soft raise of `PS_GBC_MAX_OBJECTS` in this batch.
+
 ### GBC follow-ups second-wave promote after 2-row (2026-07-25)
 
 | Result | Count |
