@@ -1143,6 +1143,26 @@ Revision: `gbc-followups-batch` (`6b3fc344`). Cull audit after emit:
 property/aggregate first-fails reclassified. Aggregate player still rejected.
 ROM validation of newly OK titles is the next promote step.
 
+### GBC follow-ups promote after Milestone B + fixed-ROM omit (2026-07-25)
+
+Revision: `gbc-followups-batch`. ROM gate unchanged (specialized + ≤512 KiB).
+
+| Result | Count | Notes |
+| --- | ---: | --- |
+| Cull export OK after Milestone B | 48 | before 2-row land |
+| Already eligible | 32 | post first promote |
+| Candidates ROM-tested | 16 | OK − eligible |
+| ROM-validated & promoted | **5** | listed below |
+| ROM failed (not promoted) | 11 | fixed ROM / link / check failures |
+
+**Promoted (ELIGIBLE now 37):** `an-ok-multiban-level`, `head-skuller`, `nightmarecroban`, `pipe-puffer`, `sokobond-demake`.
+
+**Unstuck prior fixed-ROM fails:** `an-ok-multiban-level`, `head-skuller` (omit interpreter bodies). Still failing: `the-red-ring-of-immortality`.
+
+**Also failed this wave:** `bicycle-kick-football`, `eyeball-watching-flowers-bloom`, `icecrates`, `ledchallenge`, `make-way`, `slide-pull`, `subway-upholstry-snot-smearing-championship`, `take-heart-lass`, `two-tone-tango`, `yellow-box`.
+
+2-row specialized emit (`503b30b7`) landed after this candidate snapshot; re-audit/promote follow-up expected.
+
 ### GBC eligible host solution-replay scoreboard (2026-07-25)
 
 Revision: `gbc-followups-batch`. Command: `make gbc_eligible_solutions_bench` /

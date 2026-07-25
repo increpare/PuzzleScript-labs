@@ -55,6 +55,11 @@ ELIGIBLE_GAMES: tuple[tuple[str, str], ...] = (
     ("the-monsterous-autoshove", "src/tests/good_games/The Monsterous Autoshove.txt"),
     ("two-step-pete", "src/tests/good_games/Two-Step Pete.txt"),
     ("unclean-residues", "src/tests/good_games/unclean residues.txt"),
+    ("an-ok-multiban-level", "src/tests/good_games/an ok multiban level.txt"),
+    ("head-skuller", "src/tests/good_games/head skuller.txt"),
+    ("nightmarecroban", "src/tests/good_games/NIGHTMARECROBAN.txt"),
+    ("pipe-puffer", "src/tests/good_games/pipe puffer.txt"),
+    ("sokobond-demake", "src/tests/good_games/sokobond demake.txt"),
 )
 
 SOLUTION_FIXTURES: dict[str, Path] = {
