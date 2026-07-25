@@ -907,5 +907,11 @@ int main() {
         spawnPlayerManifest.find("\"single_player_cell\": false")
             != std::string::npos,
         "spawn-player fixture is not single-player certified");
+    const std::string spawnPlayerSpecialized =
+        readFile(spawnPlayerResult.generatedSpecializedTurnPath);
+    require(
+        spawnPlayerSpecialized.find("seeded = true") != std::string::npos
+            && spawnPlayerSpecialized.find("return seeded;") != std::string::npos,
+        "multi-player specialized seed continues across all player cells");
     return 0;
 }

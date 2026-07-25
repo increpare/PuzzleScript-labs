@@ -23,13 +23,12 @@
 | F0a | Host bench multi-pack link | **Fixed** (`8d83fee0`) in `scripts/bench_gbc_eligible_solutions.py` | Specialized host link only compiled `generated_specialized_turn.c`, omitting `generated_specialized_turn_rules_*.c` → undefined `_ps_gbc_specialized_rule_pack_N` |
 | F0b | Culled single-level solve | **Fixed** (`8d83fee0`) in same script | Blank-line LEVELS split wrong; now uses IR `line_number` + one-level temp corpus so solver `--level 0` ≡ GBC board ordinal 0 |
 | P1 | `pushit` specialized lose / interpreter win | **Fixed** (`8d83fee0`) in `compact_turn_codegen.cpp` | After seed, resolve marked only `player_cells[0]`; insert-only anchors leave stale empty cell first → seeded movement never enters `move_bits` → second input no-op |
-| S1 | `Explodoban.txt` specialized lose | **Fixed** (this plan Task 1) | `object_bytes_per_cell==2` but `resolve_seeded_player` / mark-after-seed used `session->board[cell]` (byte index) → never saw player → no moves. `again=` dump asymmetry was a red herring (hashes matched after fix). |
+| S1 | `Explodoban.txt` specialized lose | **Fixed** (`036f68f1`) | `object_bytes_per_cell==2` but `resolve_seeded_player` / mark-after-seed used `session->board[cell]` (byte index) → never saw player → no moves. `again=` dump asymmetry was a red herring (hashes matched after fix). |
+| S2 | `Attractor Net.txt` specialized lose | **Fixed** (this plan Task 2) | Multi-player aggregate: `ps_gbc_specialized_seed_player_movement` returned after the first live player cell, so only one of nine pieces moved. |
 
 ### Open — specialized-only (interpreter wins, specialized loses)
 
-| ID | Game | Evidence | Leading hypothesis |
-|---|---|---|---|
-| S2 | `Attractor Net.txt` | Baseline win, specialized lose on 43-move culled solve | Unknown; start with dump-trace first hash divergence (check `object_bytes_per_cell` first — may be S1 twin) |
+*(none remaining from the initial inventory)*
 
 ### Open — both GBC paths lose (interpreter and specialized)
 
@@ -144,12 +143,14 @@ EOF
 
 ### Task 2: S2 — Attractor Net specialized-only fail
 
-**Files:** same differential toolkit as Task 1; game `Attractor Net.txt`
+**Files:**
+- Modify: `native/src/compiler/compact_turn_codegen.cpp` (seed all player cells unless single-player certified)
+- Modify: `native/tests/gbc_exporter.cpp` (multi-player seed continue assert on spawn-player fixture)
 
-- [ ] **Step 1: Culled solve + dump-trace; record first hash/again divergence**
-- [ ] **Step 2: Classify subsystem (seed / early / resolve / late / again / win)**
-- [ ] **Step 3: Fix or file as duplicate of S1 if same again root cause**
-- [ ] **Step 4: Commit if independent fix**
+- [x] **Step 1: Culled solve + dump-trace** — turn 0: only one of nine player pieces moved left.
+- [x] **Step 2: Classify** — seed early-return; not S1 twin (board widths already correct).
+- [x] **Step 3: Fix + verify** — 43-turn hash match; Explodoban/pushit still green.
+- [ ] **Step 4: Commit**
 
 ---
 

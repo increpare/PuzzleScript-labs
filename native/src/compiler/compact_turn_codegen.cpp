@@ -7766,7 +7766,24 @@ void emitGbcSpecializedSeedAndHelpers(
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction\n"
         << ")" << seedAttr << " {\n"
+        << "    bool seeded = false;\n"
         << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n";
+    // Single-player certified games may return after the first live cell.
+    // Multi-player aggregates (e.g. Attractor Net) must seed every player cell.
+    const char* afterSeed =
+        "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        "            ps_gbc_specialized_player_cell = cell;\n"
+        "            return true;\n"
+        "#else\n"
+        "            seeded = true;\n"
+        "#endif\n";
+    const char* afterSeedNested =
+        "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        "                ps_gbc_specialized_player_cell = cell;\n"
+        "                return true;\n"
+        "#else\n"
+        "                seeded = true;\n"
+        "#endif\n";
     if (playerMovementLayer.has_value()) {
         const unsigned shift = static_cast<unsigned>(5U * *playerMovementLayer);
         out << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
@@ -7781,12 +7798,9 @@ void emitGbcSpecializedSeedAndHelpers(
         emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
         out << "            movement |= (uint32_t)direction << " << shift << "U;\n";
         emitGbdCMovementsSet(out, "            ", "cell", "movement", movementBytesPerCell);
-        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << "            ps_gbc_specialized_player_cell = cell;\n"
-            << "#endif\n"
-            << "            return true;\n"
+        out << afterSeed
             << "        }\n"
-            << "        return false;\n"
+            << "        return seeded;\n"
             << "    }\n"
             << "#else\n"
             << "    {\n"
@@ -7798,12 +7812,9 @@ void emitGbcSpecializedSeedAndHelpers(
         emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
         out << "            movement |= (uint32_t)direction << " << shift << "U;\n";
         emitGbdCMovementsSet(out, "            ", "cell", "movement", movementBytesPerCell);
-        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << "            ps_gbc_specialized_player_cell = cell;\n"
-            << "#endif\n"
-            << "            return true;\n"
+        out << afterSeed
             << "        }\n"
-            << "        return false;\n"
+            << "        return seeded;\n"
             << "    }\n"
             << "#endif\n";
     } else {
@@ -7832,13 +7843,10 @@ void emitGbcSpecializedSeedAndHelpers(
             << "                    ++object_id;\n"
             << "                }\n";
         emitGbdCMovementsSet(out, "                ", "cell", "movement", movementBytesPerCell);
-        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << "                ps_gbc_specialized_player_cell = cell;\n"
-            << "#endif\n"
-            << "                return true;\n"
+        out << afterSeedNested
             << "            }\n"
             << "        }\n"
-            << "        return false;\n"
+            << "        return seeded;\n"
             << "    }\n"
             << "#else\n"
             << "    {\n"
@@ -7863,13 +7871,10 @@ void emitGbcSpecializedSeedAndHelpers(
             << "                    ++object_id;\n"
             << "                }\n";
         emitGbdCMovementsSet(out, "                ", "cell", "movement", movementBytesPerCell);
-        out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << "                ps_gbc_specialized_player_cell = cell;\n"
-            << "#endif\n"
-            << "                return true;\n"
+        out << afterSeedNested
             << "            }\n"
             << "        }\n"
-            << "        return false;\n"
+            << "        return seeded;\n"
             << "    }\n"
             << "#endif\n";
     }
