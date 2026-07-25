@@ -18,7 +18,9 @@
 - Static WRAM cap: **6,144 bytes** (`MAX_STATIC_WRAM_BYTES`). Session arena cap: **4,096 bytes** (`MAX_SESSION_BYTES`).
 - Every game must retain its specialized turn. There is no interpreter fallback — as of 2026-07-25 firmware `build-rom` fails hard rather than relinking interpreter-only.
 - No `cd` in commands. Use `make -C`, `git -C`, `ctest --test-dir` and absolute or repo-relative paths.
-- GBDK lives at `.codex_tmp/toolchains/gbdk` when `GBDK_HOME` is unset.
+- GBDK and `build/native` are git-ignored, so a fresh worktree has neither. Export `GBDK_HOME=/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/.codex_tmp/toolchains/gbdk` (the main checkout's copy — a toolchain, safe to share) and build the worktree's own `build/native` with `cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release && cmake --build build/native -j 8`, because this plan modifies the exporter.
+- **Never pass a game path containing spaces to `make gbc` / `make gbc_smoke`.** The root Makefile wraps `GBC_GAME` in `$(abspath …)`, which splits on whitespace and produces a bogus target. Use `src/demo/sokoban_basic.txt` for all single-game verification in this plan. Every strict-export corpus game happens to have spaces in its filename.
+- `ELIGIBLE_GAMES` in `scripts/build_gbc_eligible_roms.py` holds **46** games as of this branch's base commit, not the 32 quoted in the design spec.
 - Repo has no linter or formatter. Match surrounding style: 4-space indent in C, `ps_gbc_` prefix on runtime symbols, `snake_case` throughout.
 
 **Reference commands** (all from the repository root):
@@ -31,16 +33,25 @@ cmake --build build/native --target puzzlescript_cpp
 ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
 
 # Build one cartridge
-make gbc GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 
 # Boot-test a cartridge in mGBA
-make gbc_smoke GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc_smoke GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 
-# Rebuild the eligible corpus (32 ROMs)
-make gbc_eligible GBDK_HOME=.codex_tmp/toolchains/gbdk
+# Rebuild the eligible corpus (46 ROMs)
+make gbc_eligible GBDK_HOME="$GBDK_HOME"
 ```
 
-**Baseline to beat.** Record these before starting; they are the acceptance evidence for Task 7. Measured 2026-07-25 on `build/gbc/eligible/*/`:
+**Baseline to beat.** The single-game verification target for Tasks 2-6 is `src/demo/sokoban_basic.txt`, measured in this worktree on 2026-07-25 at branch base `1c37e5cd`:
+
+| Area | Bytes |
+| --- | ---: |
+| HOME | 11,961 |
+| `_CODE_1` | 5,868 |
+| `_CODE_2` | 2,922 |
+| `_CODE_3` | 6,022 |
+
+Task 7's corpus evidence is measured against these, recorded 2026-07-25 on `build/gbc/eligible/*/`:
 
 | Game | HOME bytes | Largest bank |
 | --- | ---: | ---: |
@@ -421,7 +432,7 @@ Expected: PASS, all GBC host tests green.
 - [ ] **Step 5: Verify the default export is unchanged**
 
 ```bash
-make gbc GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 python3 scripts/report_gbc_layout.py firmware/gbc/puzzlescript_gbc.map
 ```
 
@@ -493,7 +504,7 @@ In `native/src/gbc/session_internal.h`, inside the existing `PS_GBC_GENERATED_BU
 
 ```bash
 ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
-make gbc GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 ```
 
 Expected: host tests PASS (unprefixed, `PS_GBC_GENERATED_BUILD` undefined) and the cartridge links (prefix empty, so still unprefixed).
@@ -501,7 +512,7 @@ Expected: host tests PASS (unprefixed, `PS_GBC_GENERATED_BUILD` undefined) and t
 - [ ] **Step 5: Verify prefixing actually reaches core.c**
 
 ```bash
-build/native/puzzlescript_cpp export-gbc "src/tests/good_games/push pull.txt" \
+build/native/puzzlescript_cpp export-gbc src/demo/sokoban_basic.txt \
   --out /tmp/ns-check --symbol-prefix g07
 make -C firmware/gbc SKIP_EXPORT=1 GENERATED=/tmp/ns-check \
   GBDK_HOME=$(pwd)/.codex_tmp/toolchains/gbdk
@@ -565,7 +576,7 @@ Then add the assertion to the ROM gate. In `scripts/check_gbc_rom.py`, extend th
 - [ ] **Step 2: Run the gate to verify it fails**
 
 ```bash
-make gbc GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 ```
 
 Expected: FAIL on `core is banked, not in HOME` reporting roughly 15,840 bytes, because `core.c` is still compiled straight into HOME.
@@ -599,7 +610,7 @@ $(BUILD)/core.o: source/core_banked.c ../../native/src/gbc/core.c \
 - [ ] **Step 4: Run the gate to verify it passes**
 
 ```bash
-make gbc GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 python3 scripts/report_gbc_layout.py firmware/gbc/puzzlescript_gbc.map \
   --build-dir firmware/gbc/build
 ```
@@ -611,7 +622,7 @@ If the link fails with a bank-overflow on `_CODE_11`, `core.o` exceeds 16 KiB fo
 - [ ] **Step 5: Prove behaviour is unchanged**
 
 ```bash
-make gbc_smoke GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc_smoke GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
 ```
 
@@ -852,7 +863,7 @@ Add `$(BUILD)/game_dispatch.o` to `OBJECTS` in `firmware/gbc/Makefile:49-52` and
 
 ```bash
 ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
-make gbc_smoke GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc_smoke GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 python3 scripts/report_gbc_layout.py firmware/gbc/puzzlescript_gbc.map --build-dir firmware/gbc/build
 ```
 
@@ -979,7 +990,7 @@ Expected: `check_gbc_rom_test: ok`
 Build the cartridge and read the failure:
 
 ```bash
-make gbc GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 ```
 
 Expected: FAIL reporting `generated_specialized_turn.o=12`. Find the file-scope variables in the emitted `firmware/gbc/generated/generated_specialized_turn.c`, add equivalent fields to `struct ps_gbc_session` in `native/src/gbc/session_internal.h:41-77` behind `#if defined(PS_GBC_HAS_SPECIALIZED_TURN)`, and change the emitter in `native/src/gbc/exporter.cpp` to read and write them through the session pointer. Rebuild until the gate reports `none`.
@@ -988,7 +999,7 @@ Expected: FAIL reporting `generated_specialized_turn.o=12`. Find the file-scope 
 
 ```bash
 ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
-make gbc_smoke GBC_GAME="src/tests/good_games/push pull.txt" GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc_smoke GBC_GAME=src/demo/sokoban_basic.txt GBDK_HOME="$GBDK_HOME"
 git add scripts/check_gbc_rom.py scripts/check_gbc_rom_test.py \
         native/src/gbc/exporter.cpp native/src/gbc/session_internal.h
 git commit -m "Gate generated GBC objects against declaring static WRAM."
@@ -998,7 +1009,7 @@ git commit -m "Gate generated GBC objects against declaring static WRAM."
 
 ### Task 7: Corpus rebuild and HOME budget evidence
 
-One game proving out is not evidence. Rebuild all 32 and record the result in the ledger.
+One game proving out is not evidence. Rebuild all 46 and record the result in the ledger.
 
 **Files:**
 - Modify: `docs/performance/gbc-optimization-ledger.md` (append a dated section)
@@ -1010,10 +1021,10 @@ One game proving out is not evidence. Rebuild all 32 and record the result in th
 - [ ] **Step 1: Rebuild the corpus**
 
 ```bash
-make gbc_eligible GBDK_HOME=.codex_tmp/toolchains/gbdk
+make gbc_eligible GBDK_HOME="$GBDK_HOME"
 ```
 
-Expected: 32/32 ROMs build. Any game that now fails is a real regression — do not drop it from `ELIGIBLE_GAMES` to make the build pass.
+Expected: 46/46 ROMs build. Any game that now fails is a real regression — do not drop it from `ELIGIBLE_GAMES` to make the build pass.
 
 - [ ] **Step 2: Collect the layout table**
 
@@ -1053,4 +1064,4 @@ git commit -m "Document GBC per-game banked core corpus results."
 
 **Known risk.** Task 4 Step 5 is where the 2026-07-24 bank-2 hang would resurface if any banked caller reaches a core helper without its bank mapped. The plan calls this out and forbids the `NONBANKED` workaround, because reinstating it would put `core.c` back in HOME and defeat the entire plan.
 
-**Open assumption.** Task 4 assumes `core.o` fits in one 16 KiB bank for every game. It measures 12,277 bytes for the current export and `core.c` has no per-game code generation in it, so this should hold across the corpus — but Task 4 Step 4 checks it explicitly, and Task 7 Step 1 confirms it for all 32.
+**Open assumption.** Task 4 assumes `core.o` fits in one 16 KiB bank for every game. It measures 12,277 bytes for the current export and `core.c` has no per-game code generation in it, so this should hold across the corpus — but Task 4 Step 4 checks it explicitly, and Task 7 Step 1 confirms it for all 46.
