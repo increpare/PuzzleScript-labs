@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: gbc gbc_export gbc_smoke gbc_eligible gbc_specialized_bench
+.PHONY: gbc gbc_export gbc_smoke gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 
 NODE ?= node
 CMAKE ?= cmake
@@ -536,6 +536,7 @@ help:
 	@echo "  make gbc_smoke                     Build an instrumented ROM and boot-test it in mGBA"
 	@echo "  make gbc_eligible                  Rebuild documented GBC-compatible good_games ROMs"
 	@echo "  make gbc_specialized_bench         Bench specialized Sokoban solution-replay timing"
+	@echo "  make gbc_eligible_solutions_bench  Host solution-replay scoreboard for ELIGIBLE_GAMES"
 	@echo "                                     (cull oversized levels by default; GBC_CULL=0 to disable)"
 	@echo "  make handheld_memory_audit         Measure per-game native peak RSS for handheld Track 0"
 	@echo "  make handheld_blockout_tests       Run card blockout + PCB mechanical export tests"
@@ -841,6 +842,22 @@ gbc_specialized_bench: $(PUZZLESCRIPT_CPP)
 	python3 scripts/run_gbc_solution_replay_bench.py \
 		--repository . \
 		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--gbdk-home "$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),.codex_tmp/toolchains/gbdk)"
+
+# Host desktop timings for the full ELIGIBLE_GAMES corpus (not cart/mGBA).
+# Default skips ROM rebuilds; pass GBC_ELIGIBLE_BENCH_ROM=1 to compare linked maps.
+GBC_ELIGIBLE_BENCH_SKIP_ROM ?= 1
+GBC_ELIGIBLE_BENCH_MAX_LEVELS ?= 3
+GBC_ELIGIBLE_BENCH_OUT ?= $(GBC_ELIGIBLE_OUT)/solution-bench-compare.json
+GBC_ELIGIBLE_BENCH_SKIP_ROM_FLAG = $(if $(filter 1,$(GBC_ELIGIBLE_BENCH_SKIP_ROM)),--skip-rom,)
+gbc_eligible_solutions_bench: $(PUZZLESCRIPT_CPP)
+	python3 scripts/bench_gbc_eligible_solutions.py \
+		--repository . \
+		--out "$(GBC_ELIGIBLE_BENCH_OUT)" \
+		--max-levels $(GBC_ELIGIBLE_BENCH_MAX_LEVELS) \
+		--reuse-fixtures \
+		$(GBC_ELIGIBLE_BENCH_SKIP_ROM_FLAG) \
+		$(GBC_ELIGIBLE_CULL_FLAG) \
 		--gbdk-home "$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),.codex_tmp/toolchains/gbdk)"
 
 handheld_memory_audit:
