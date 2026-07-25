@@ -37,6 +37,24 @@ ELIGIBLE_GAMES: tuple[tuple[str, str], ...] = (
     ),
     ("voitex-rasteriser", "src/tests/good_games/Voitex Rasteriser.txt"),
     ("xorro-the-chaos-warden", "src/tests/good_games/Xorro The Chaos Warden.txt"),
+    ("all-green-and-blue-on-yellow", "src/tests/good_games/All Green and Blue on Yellow.txt"),
+    ("all-green-to-blue", "src/tests/good_games/ALL GREEN TO BLUE.txt"),
+    ("attractor-net", "src/tests/good_games/Attractor Net.txt"),
+    ("chevron-lodger", "src/tests/good_games/Chevron Lodger.txt"),
+    ("crate-guardian", "src/tests/good_games/crate guardian.txt"),
+    ("crate-swap", "src/tests/good_games/crate swap.txt"),
+    ("don't-let-your-goals-slip-away", "src/tests/good_games/Don't let your goals slip away.txt"),
+    ("explodoban", "src/tests/good_games/Explodoban.txt"),
+    ("flesh-handed-hot-casserole-delivery-bot", "src/tests/good_games/flesh-handed hot casserole delivery bot.txt"),
+    ("hedgehog-stimulator", "src/tests/good_games/hedgehog stimulator.txt"),
+    ("m-c-eschers-armageddon", "src/tests/good_games/m c eschers armageddon.txt"),
+    ("match-maker", "src/tests/good_games/Match-Maker.txt"),
+    ("muraphilic-monophobic-multiban", "src/tests/good_games/Muraphilic Monophobic Multiban.txt"),
+    ("resin-caster", "src/tests/good_games/Resin-Caster.txt"),
+    ("slime-vat-filler", "src/tests/good_games/slime vat filler.txt"),
+    ("the-monsterous-autoshove", "src/tests/good_games/The Monsterous Autoshove.txt"),
+    ("two-step-pete", "src/tests/good_games/Two-Step Pete.txt"),
+    ("unclean-residues", "src/tests/good_games/unclean residues.txt"),
 )
 
 SOLUTION_FIXTURES: dict[str, Path] = {
@@ -240,7 +258,7 @@ def load_existing_records(out_root: Path, repository: Path) -> list[dict[str, An
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Rebuild production GBC ROMs for the 14 documented compatible "
+            "Rebuild production GBC ROMs for the documented compatible "
             "good_games (strict + cull-oversize)."
         )
     )
