@@ -1302,9 +1302,11 @@ static void ps_gbc_finish_turn(
     }
     /* Decide again before commit_undo while undo_head still holds turn start. */
     {
+        /* Level-start passes ignore win/restart/undo but still honor again:
+         * ps_gbc_run_rules_on_level_start writes the turn-start snapshot at
+         * undo_head precisely so the net-change compare below is valid here. */
         const bool want_again =
-            !level_start
-            && (commands->flags & PS_GBC_COMMAND_MESSAGE) == 0U
+            (commands->flags & PS_GBC_COMMAND_MESSAGE) == 0U
             && (commands->flags & PS_GBC_COMMAND_AGAIN) != 0U
             && changed
             && !result->restarted
