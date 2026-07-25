@@ -1122,6 +1122,27 @@ Validation: `scripts/validate_gbc_promote_candidates.py` (cull + specialized + �
 
 `ELIGIBLE_GAMES` size is now **32**. Host solution-replay scoreboard for new titles is follow-up (not a promote gate).
 
+### GBC Milestone B property/aggregate specialized emit (2026-07-25)
+
+Revision: `gbc-followups-batch` (`6b3fc344`). Cull audit after emit:
+
+| First-fail class | Before (post Milestone A) | After Milestone B |
+| --- | ---: | ---: |
+| **export OK** | **35** | **48** |
+| property/aggregate | (in mixed tail) | **0** |
+| board cull-all | 54 | 67 |
+| object_count (>32) | 27 | 27 |
+| multi-row rules | 19 | 25 |
+| dynamic replacements | 19 | 0 (absorbed / reclassified) |
+| ellipsis | 3 | 5 |
+| movement layers (>6) | 3 | 3 |
+| random | — | 2 |
+| rom_budget | — | 1 |
+
++13 structurally exportable games with cull. Multi-row/cull-all rose as former
+property/aggregate first-fails reclassified. Aggregate player still rejected.
+ROM validation of newly OK titles is the next promote step.
+
 ### GBC eligible host solution-replay scoreboard (2026-07-25)
 
 Revision: `gbc-followups-batch`. Command: `make gbc_eligible_solutions_bench` /
