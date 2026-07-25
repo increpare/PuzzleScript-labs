@@ -1143,6 +1143,22 @@ Revision: `gbc-followups-batch` (`6b3fc344`). Cull audit after emit:
 property/aggregate first-fails reclassified. Aggregate player still rejected.
 ROM validation of newly OK titles is the next promote step.
 
+### GBC specialized 2-row rules (2026-07-25)
+
+Revision: `gbc-followups-batch` (`503b30b7`). Cull audit:
+
+| First-fail class | After Milestone B | After 2-row |
+| --- | ---: | ---: |
+| **export OK** | **48** | **62** |
+| multi-row | 25 | **4** (>2 rows) |
+| object_count (>32) | 27 | 27 |
+| board cull-all | 67 | 67 |
+| dynamic_replacement | 0 | 2 |
+| ellipsis | 5 | 7 |
+| rom_budget | 1 | 4 |
+
++14 export-OK from bounded 2-row specialized emit. Remaining multi-row are 3+ rows.
+
 ### GBC follow-ups promote after Milestone B + fixed-ROM omit (2026-07-25)
 
 Revision: `gbc-followups-batch`. ROM gate unchanged (specialized + ≤512 KiB).
