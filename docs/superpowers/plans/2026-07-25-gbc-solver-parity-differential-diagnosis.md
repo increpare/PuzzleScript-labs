@@ -20,16 +20,16 @@
 
 | ID | Item | Status | Root cause |
 |---|---|---|---|
-| F0a | Host bench multi-pack link | **Fixed (uncommitted)** in `scripts/bench_gbc_eligible_solutions.py` | Specialized host link only compiled `generated_specialized_turn.c`, omitting `generated_specialized_turn_rules_*.c` → undefined `_ps_gbc_specialized_rule_pack_N` |
-| F0b | Culled single-level solve | **Implemented (uncommitted)** in same script | Blank-line LEVELS split wrong; now uses IR `line_number` + one-level temp corpus so solver `--level 0` ≡ GBC board ordinal 0 |
-| P1 | `pushit` specialized lose / interpreter win | **Fixed (uncommitted)** in `compact_turn_codegen.cpp` | After seed, resolve marked only `player_cells[0]`; insert-only anchors leave stale empty cell first → seeded movement never enters `move_bits` → second input no-op |
+| F0a | Host bench multi-pack link | **Fixed** (`8d83fee0`) in `scripts/bench_gbc_eligible_solutions.py` | Specialized host link only compiled `generated_specialized_turn.c`, omitting `generated_specialized_turn_rules_*.c` → undefined `_ps_gbc_specialized_rule_pack_N` |
+| F0b | Culled single-level solve | **Fixed** (`8d83fee0`) in same script | Blank-line LEVELS split wrong; now uses IR `line_number` + one-level temp corpus so solver `--level 0` ≡ GBC board ordinal 0 |
+| P1 | `pushit` specialized lose / interpreter win | **Fixed** (`8d83fee0`) in `compact_turn_codegen.cpp` | After seed, resolve marked only `player_cells[0]`; insert-only anchors leave stale empty cell first → seeded movement never enters `move_bits` → second input no-op |
+| S1 | `Explodoban.txt` specialized lose | **Fixed** (this plan Task 1) | `object_bytes_per_cell==2` but `resolve_seeded_player` / mark-after-seed used `session->board[cell]` (byte index) → never saw player → no moves. `again=` dump asymmetry was a red herring (hashes matched after fix). |
 
 ### Open — specialized-only (interpreter wins, specialized loses)
 
 | ID | Game | Evidence | Leading hypothesis |
 |---|---|---|---|
-| S1 | `Explodoban.txt` | Turn 0 hash diverges; baseline `again=1 changed=0`, specialized `again=0 changed=1`; game has `late [explode] -> again` | Specialized late/`again` / explode object path diverges from interpreter |
-| S2 | `Attractor Net.txt` | Baseline win, specialized lose on 43-move culled solve | Unknown; start with dump-trace first hash divergence |
+| S2 | `Attractor Net.txt` | Baseline win, specialized lose on 43-move culled solve | Unknown; start with dump-trace first hash divergence (check `object_bytes_per_cell` first — may be S1 twin) |
 
 ### Open — both GBC paths lose (interpreter and specialized)
 
@@ -128,43 +128,17 @@ EOF
 
 ---
 
-### Task 1: S1 — Explodoban specialized vs interpreter (again/late)
+### Task 1: S1 — Explodoban specialized vs interpreter (2-byte board loads)
 
 **Files:**
-- Inspect: `src/tests/good_games/Explodoban.txt` (`late [explode] -> again`)
-- Inspect: exported `generated_specialized_turn*.c` late packs + again command handling
-- Compare: interpreter late/`again` in `native/src/gbc/core.c`
-- Possibly modify: `compact_turn_codegen.cpp` again/late emit
+- Modify: `native/src/compiler/compact_turn_codegen.cpp` (`emitGbdCBoardGet` in resolve_seeded + mark-after-seed)
+- Modify: `native/tests/gbc_exporter.cpp` (two-byte object-cell emit regression)
 
-- [ ] **Step 1: Reproduce with dump-trace**
-
-Confirm first-turn divergence: baseline `again≥1`, specialized `again=0`, different hashes.
-
-- [ ] **Step 2: Native FullState replay of same tokens on culled one-level game**
-
-If native wins and matches baseline board progression, specialized is wrong. If native matches specialized, baseline/host again drain differs.
-
-- [ ] **Step 3: Diff turn-0 post-state**
-
-Object-by-object: is `explode` spawned? Are movements cleared? Is `pending_again` set in specialized session after late rules?
-
-- [ ] **Step 4: Trace specialized late rule that should set again**
-
-Find whether the late rule is emitted, whether it matches, whether `commands` include again, whether turn wrapper sets `session->pending_again`.
-
-- [ ] **Step 5: Minimal fix + regression**
-
-Prefer a tiny fixture (`gbc_late_again_explode.txt` or similar) + oracle/bench rather than only relying on full Explodoban.
-
-- [ ] **Step 6: Commit when green**
-
-```bash
-git commit -m "$(cat <<'EOF'
-Fix specialized late-rule again handling for Explodoban-class games.
-
-EOF
-)"
-```
+- [x] **Step 1: Reproduce with dump-trace** — specialized stuck at start cell; baseline moved; `again=` differed but was not causal.
+- [x] **Step 2: Localize** — Explodoban `object_bytes_per_cell: 2`; seed used uint16 view; `resolve_seeded_player` used `session->board[candidate]` (byte).
+- [x] **Step 3: Fix** — width-aware board get in both sites.
+- [x] **Step 4: Verify** — Explodoban 23-turn hashes match; both win; pushit still green; exporter two-byte assert.
+- [ ] **Step 5: Commit**
 
 ---
 

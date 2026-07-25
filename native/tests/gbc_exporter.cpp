@@ -826,6 +826,57 @@ int main() {
             != std::string::npos,
         "layer-coupled apply fixture specialized turn emits replacement apply");
 
+    // >8 objects → 2-byte cells; resolve_seeded_player must widen board loads
+    // (byte-indexed session->board[candidate] misses the player and drops moves).
+    std::ostringstream twoByteObjectsSource;
+    twoByteObjectsSource << "title GBC Two-Byte Object Cells\n\n"
+        << "========\nOBJECTS\n========\n\n"
+        << "Background\nblack\n0\n\n"
+        << "Target\nyellow\n0\n\n"
+        << "Player\nblue\n0\n\n"
+        << "Crate\nred\n0\n\n"
+        << "Wall\nbrown\n0\n\n";
+    static const char* kDecoColors[] = {"white", "orange", "pink", "purple", "green"};
+    for (int index = 0; index < 5; ++index) {
+        twoByteObjectsSource << "Deco" << index << "\n" << kDecoColors[index] << "\n0\n\n";
+    }
+    twoByteObjectsSource << "=======\nLEGEND\n=======\n\n"
+        << ". = Background\n# = Wall\nP = Player\n* = Crate and Target\n"
+        << "@ = Crate\no = Target\n\n"
+        << "================\nCOLLISIONLAYERS\n================\n\n"
+        << "Background\nTarget\nPlayer, Wall, Crate\n"
+        << "Deco0\nDeco1\nDeco2\nDeco3\nDeco4\n\n"
+        << "======\nRULES\n======\n\n"
+        << "[ > Player | Crate ] -> [ > Player | > Crate ]\n\n"
+        << "==============\nWINCONDITIONS\n==============\n\n"
+        << "All Target on Crate\n\n"
+        << "=======\nLEVELS\n=======\n\n"
+        << "####\n#P@o#\n####\n";
+    const std::filesystem::path twoByteObjectsPath = output / "two_byte_objects_source.txt";
+    writeFile(twoByteObjectsPath, twoByteObjectsSource.str());
+    puzzlescript::gbc::ExportOptions twoByteObjects;
+    twoByteObjects.sourcePath = twoByteObjectsPath;
+    twoByteObjects.outputDirectory = output / "two_byte_objects";
+    const auto twoByteObjectsResult = puzzlescript::gbc::exportGame(twoByteObjects);
+    const std::string twoByteObjectsManifest = readFile(twoByteObjectsResult.manifestPath);
+    require(
+        twoByteObjectsManifest.find("\"object_bytes_per_cell\": 2") != std::string::npos,
+        "ten objects select two-byte object cells");
+    require(
+        std::filesystem::exists(twoByteObjectsResult.generatedSpecializedTurnPath),
+        "two-byte-object game emits specialized turn");
+    const std::string twoByteObjectsSpecialized =
+        readFile(twoByteObjectsResult.generatedSpecializedTurnPath);
+    require(
+        twoByteObjectsSpecialized.find(
+            "((const uint16_t*)session->board)[candidate]")
+            != std::string::npos,
+        "seeded-player resolve loads two-byte cells via uint16 board view");
+    require(
+        twoByteObjectsSpecialized.find("uint32_t objects = session->board[candidate];")
+            == std::string::npos,
+        "seeded-player resolve does not byte-index two-byte boards");
+
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
         + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");

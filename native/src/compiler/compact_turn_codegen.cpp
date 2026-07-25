@@ -8906,9 +8906,9 @@ void emitGbcSpecializedResolveSeededPlayer(
         << "        for (player_index = 0U;\n"
         << "             player_index < session->player_cell_count;\n"
         << "             ++player_index) {\n"
-        << "            const uint8_t candidate = session->player_cells[player_index];\n"
-        << "            uint32_t objects = session->board[candidate];\n"
-        << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n"
+        << "            const uint8_t candidate = session->player_cells[player_index];\n";
+    emitGbdCBoardGet(out, "            ", "objects", "candidate", objectBytesPerCell);
+    out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n"
         << "            cell = candidate;\n"
         << "            have_cell = true;\n"
         << "            if (session->movements[candidate] != 0U) break;\n"
@@ -9185,9 +9185,9 @@ void emitGbcSpecializedTurn(
             << "                for (player_index = 0U;\n"
             << "                     player_index < session->player_cell_count;\n"
             << "                     ++player_index) {\n"
-            << "                    const uint8_t cell = session->player_cells[player_index];\n"
-            << "                    uint32_t objects = session->board[cell];\n"
-            << "                    if ((objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+            << "                    const uint8_t cell = session->player_cells[player_index];\n";
+        emitGbdCBoardGet(out, "                    ", "objects", "cell", objectBytesPerCell);
+        out << "                    if ((objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
             << "                        continue;\n"
             << "                    }\n"
             << "                    ps_gbc_specialized_mark_move_cell(cell);\n"
