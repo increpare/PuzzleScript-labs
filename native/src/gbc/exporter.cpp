@@ -2833,7 +2833,7 @@ ExportResult exportGame(const ExportOptions& options) {
                     "\"compact_turn_unsupported\",\n";
     }
     manifest << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
-        << "  \"symbol_prefix\": \"" << options.symbolPrefix << "\",\n"
+        << "  \"symbol_prefix\": " << jsonString(options.symbolPrefix) << ",\n"
         << "  \"color_stretch\": {\n"
         << "    \"mode\": \"optimized_gameplay_gamut\",\n"
         << "    \"anchor_policy\": \"background_and_object_colors\",\n"

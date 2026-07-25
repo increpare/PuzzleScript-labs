@@ -71,6 +71,10 @@ static void test_namespace_header_empty_prefix_has_no_defines() {
                "empty prefix must emit no defines");
     assertTrue(header.find("PS_GBC_GENERATED_NAMESPACE_H") != std::string::npos,
                "header needs an include guard");
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    assertTrue(manifest.find("\"symbol_prefix\": \"\"") != std::string::npos,
+               "manifest symbol_prefix must render as an empty JSON string "
+               "for an empty prefix, same as before the jsonString() switch");
 }
 
 static void test_namespace_header_prefixes_every_entry_point() {
@@ -89,6 +93,33 @@ static void test_namespace_header_prefixes_every_entry_point() {
         assertTrue(header.find(expected) != std::string::npos,
                    std::string("missing define for ") + name);
     }
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    assertTrue(manifest.find("\"symbol_prefix\": \"g07\"") != std::string::npos,
+               "manifest symbol_prefix must render as a plain JSON string "
+               "for an ordinary prefix, same as before the jsonString() switch");
+}
+
+// A prefix containing characters that require JSON escaping (a double quote
+// and a backslash) must still produce a well-formed, round-trippable
+// "symbol_prefix" manifest field. Guards against exporter.cpp writing
+// options.symbolPrefix directly between literal quotes instead of going
+// through jsonString(), which every other free-form string manifest field
+// uses (e.g. "source").
+static void test_symbol_prefix_manifest_field_is_json_escaped() {
+    const std::string prefix = "g\"07\\x";
+    const auto out = exportFixture("sokoban_basic", prefix);
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    assertTrue(
+        manifest.find(R"("symbol_prefix": "g\"07\\x")") != std::string::npos,
+        "symbol_prefix must be JSON-escaped (embedded quote and backslash) "
+        "in the manifest");
+    // Sanity-check the field doesn't spill into neighboring JSON: the next
+    // manifest key must still be found intact right after it.
+    assertTrue(
+        manifest.find(
+            R"("symbol_prefix": "g\"07\\x",
+  "color_stretch": {)") != std::string::npos,
+        "escaped symbol_prefix must not corrupt the surrounding manifest JSON");
 }
 
 int main() {
@@ -1041,5 +1072,6 @@ int main() {
 
     test_namespace_header_empty_prefix_has_no_defines();
     test_namespace_header_prefixes_every_entry_point();
+    test_symbol_prefix_manifest_field_is_json_escaped();
     return 0;
 }
