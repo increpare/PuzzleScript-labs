@@ -3,6 +3,7 @@
 #include "puzzlescript/gbc.h"
 
 #if defined(PS_GBC_GENERATED_BUILD)
+#include "generated_namespace.h"
 #include "generated_game.h"
 #if !defined(PS_GBC_GENERATED_ABI_VERSION) \
     || PS_GBC_GENERATED_ABI_VERSION != PS_GBC_GAME_ABI_VERSION
