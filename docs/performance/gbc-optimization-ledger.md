@@ -1173,6 +1173,24 @@ Revision: `gbc-followups-batch` (`6b3fc344`). Cull audit after emit:
 property/aggregate first-fails reclassified. Aggregate player still rejected.
 ROM validation of newly OK titles is the next promote step.
 
+### GBC follow-ups second-wave promote after 2-row (2026-07-25)
+
+| Result | Count |
+| --- | ---: |
+| Cull export OK | 62 |
+| Eligible before wave | 37 |
+| Candidates tested | 25 |
+| ROM-validated & promoted | **9** |
+| ROM failed | 16 |
+
+**Promoted (ELIGIBLE now 46):** `crates-move-when-you-move`, `manic_ammo`, `no-forbidden-symbols-2`, `subway-upholstry-snot-smearing-championship`, `take-heart-lass`, `the-red-ring-of-immortality`, `two-tone-tango`, `wand-spinner`, `yellow-box`.
+
+
+
+Unstuck `the-red-ring-of-immortality` (was fixed-ROM fail; now passes with current specialized omit + 2-row toolchain).
+
+Remaining walls: object_count 27, board cull-all 67, multi-row (>2) 4, rom_budget/ellipsis/random/dynamic_replacement/movement_layers tail.
+
 ### GBC specialized 2-row rules (2026-07-25)
 
 Revision: `gbc-followups-batch` (`503b30b7`). Cull audit:

@@ -61,6 +61,15 @@ ELIGIBLE_GAMES: tuple[tuple[str, str], ...] = (
     ("nightmarecroban", "src/tests/good_games/NIGHTMARECROBAN.txt"),
     ("pipe-puffer", "src/tests/good_games/pipe puffer.txt"),
     ("sokobond-demake", "src/tests/good_games/sokobond demake.txt"),
+    ("crates-move-when-you-move", "src/tests/good_games/Crates move when you move.txt"),
+    ("manic_ammo", "src/tests/good_games/manic_ammo.txt"),
+    ("no-forbidden-symbols-2", "src/tests/good_games/no forbidden symbols 2.txt"),
+    ("subway-upholstry-snot-smearing-championship", "src/tests/good_games/Subway upholstry snot smearing championship.txt"),
+    ("take-heart-lass", "src/tests/good_games/take heart lass.txt"),
+    ("the-red-ring-of-immortality", "src/tests/good_games/the red ring of immortality.txt"),
+    ("two-tone-tango", "src/tests/good_games/Two-Tone Tango.txt"),
+    ("wand-spinner", "src/tests/good_games/Wand Spinner.txt"),
+    ("yellow-box", "src/tests/good_games/Yellow Box.txt"),
 )
 
 SOLUTION_FIXTURES: dict[str, Path] = {
