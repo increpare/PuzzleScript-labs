@@ -1122,6 +1122,24 @@ Validation: `scripts/validate_gbc_promote_candidates.py` (cull + specialized + �
 
 `ELIGIBLE_GAMES` size is now **32**. Host solution-replay scoreboard for new titles is follow-up (not a promote gate).
 
+### GBC eligible host solution-replay scoreboard (2026-07-25)
+
+Revision: `gbc-followups-batch`. Command: `make gbc_eligible_solutions_bench` /
+`scripts/bench_gbc_eligible_solutions.py --skip-rom --reuse-fixtures --max-levels 3`.
+
+Artifact: `build/gbc/eligible/solution-bench-compare.json` (host desktop wall-clock; not cart).
+
+| Metric | Value |
+| --- | ---: |
+| Games attempted | 32 |
+| Games with ≥1 level solved+benched+won | **24** |
+| Levels OK | 55 |
+| Mean specialized speedup (over games with data) | **+34.7%** |
+
+Games with no successful host replay level this run (solver miss, baseline/specialized lose, or bench error): `all-green-and-blue-on-yellow`, `all-green-to-blue`, `chevron-lodger`, `crate-guardian`, `don't-let-your-goals-slip-away`, `flesh-handed-hot-casserole-delivery-bot`, `muraphilic-monophobic-multiban`, `unclean-residues`.
+
+Notable: several titles show specialized *slower* on host (`m-c-eschers-armageddon` −81%, `resin-caster` −45%, `recondite` −11%) — host ms is not cart timing; keep for triage only.
+
 ### GBC specialized turn → dedicated bank 3 (2026-07-24)
 
 Revision: working tree on `gbc-specialized-turn-codegen`.
