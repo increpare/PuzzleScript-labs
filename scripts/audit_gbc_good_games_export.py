@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -123,6 +124,7 @@ def main() -> int:
         action="store_true",
         help="Print one line per game",
     )
+    parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args()
 
     repository = args.repository.resolve()
@@ -136,11 +138,19 @@ def main() -> int:
     sources = sorted(games_dir.glob("*.txt"))
     counts: Counter[str] = Counter()
     examples: dict[str, str] = {}
+    results: list[dict] = []
 
     for index, source in enumerate(sources, start=1):
         ok, reason, detail = export_one(compiler, source, cull=args.cull)
         label = "ok" if ok else reason
         counts[label] += 1
+        results.append({
+            "source": str(source.relative_to(repository)).replace("\\", "/"),
+            "name": source.name,
+            "ok": ok,
+            "class": label,
+            "detail": detail,
+        })
         if label not in examples and detail:
             examples[label] = detail
         if args.verbose:
@@ -162,6 +172,19 @@ def main() -> int:
         sample = examples.get(label, "")
         suffix = f"  e.g. {sample}" if sample else ""
         print(f"    {label}: {count}{suffix}", flush=True)
+
+    if args.json_out is not None:
+        out_path = args.json_out if args.json_out.is_absolute() else repository / args.json_out
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "format": "puzzlescript-gbc-good-games-export-audit-v1",
+            "cull_oversize_levels": bool(args.cull),
+            "compiler": str(compiler),
+            "counts": dict(counts),
+            "results": results,
+        }
+        out_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"wrote {out_path}", flush=True)
     return 0
 
 
