@@ -96,6 +96,107 @@ def write_fixture(tokens: list[str], path: Path) -> None:
     path.write_text("\n".join(tokens) + ("\n" if tokens else ""), encoding="utf-8")
 
 
+_LEVELS_HEADER_RE = re.compile(
+    r"(?im)^([ \t]*=+[ \t]*\n[ \t]*LEVELS[ \t]*\n[ \t]*=+[ \t]*\n)"
+)
+
+
+def puzzlescript_preamble(source_text: str) -> str:
+    match = _LEVELS_HEADER_RE.search(source_text)
+    if match is None:
+        raise RuntimeError("source has no LEVELS section")
+    return source_text[: match.end()]
+
+
+def extract_board_lines_via_ir(
+    compiler: Path,
+    source_path: Path,
+    source_level_index: int,
+) -> list[str]:
+    """Return map rows for a board level using compiler IR line numbers.
+
+    Blank-line LEVELS splitting is unreliable (message+map often share a
+    block). IR `line_number` points at the first map row of board levels.
+    """
+    process = subprocess.run(
+        [str(compiler), "compile", str(source_path), "--emit-ir-json"],
+        capture_output=True,
+        text=True,
+    )
+    if process.returncode != 0 or not process.stdout.strip():
+        raise RuntimeError(
+            f"compile --emit-ir-json failed for {source_path.name}: "
+            f"{process.stderr or process.stdout or f'exit {process.returncode}'}"
+        )
+    payload = json.loads(process.stdout)
+    levels = payload.get("game", {}).get("levels")
+    if not isinstance(levels, list):
+        raise RuntimeError(f"IR missing levels for {source_path.name}")
+    if source_level_index < 0 or source_level_index >= len(levels):
+        raise RuntimeError(
+            f"source level {source_level_index} out of range "
+            f"(IR has {len(levels)} levels in {source_path.name})"
+        )
+    level = levels[source_level_index]
+    kind = str(level.get("kind") or "")
+    if kind != "level":
+        raise RuntimeError(
+            f"source level {source_level_index} is {kind or 'non-board'} "
+            f"(expected a board level)"
+        )
+    line_number = level.get("line_number")
+    if not isinstance(line_number, int) or line_number < 1:
+        raise RuntimeError(
+            f"source level {source_level_index} missing IR line_number"
+        )
+    lines = source_path.read_text(encoding="utf-8").splitlines()
+    start = line_number - 1
+    if start >= len(lines):
+        raise RuntimeError(
+            f"IR line_number {line_number} past EOF in {source_path.name}"
+        )
+    height = level.get("height")
+    board: list[str] = []
+    for index in range(start, len(lines)):
+        row = lines[index]
+        if row.strip() == "":
+            break
+        lower = row.lstrip().lower()
+        if lower.startswith("message"):
+            break
+        board.append(row)
+        if isinstance(height, int) and height > 0 and len(board) >= height:
+            break
+    if not board:
+        raise RuntimeError(
+            f"no map rows at line {line_number} for level {source_level_index}"
+        )
+    return board
+
+
+def write_single_level_solve_game(
+    compiler: Path,
+    source_path: Path,
+    source_level_index: int,
+    out_path: Path,
+) -> None:
+    """Write a one-level game containing only the retained board to solve.
+
+    Solvers then use --level 0, which matches GBC board ordinal replay after
+    messages are skipped by loadBoardByOrdinal.
+    """
+    source_text = source_path.read_text(encoding="utf-8")
+    preamble = puzzlescript_preamble(source_text)
+    board_lines = extract_board_lines_via_ir(
+        compiler, source_path, source_level_index
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        preamble + "\n".join(board_lines) + "\n",
+        encoding="utf-8",
+    )
+
+
 def solve_level_json(
     solver: Path,
     corpus: Path,
@@ -129,6 +230,24 @@ def solve_level_json(
     if not isinstance(results, list) or not results:
         raise RuntimeError(f"unexpected solver JSON for {game_name} level {level}")
     return results[0]
+
+
+def solve_retained_board_json(
+    solver: Path,
+    compiler: Path,
+    source_path: Path,
+    source_level_index: int,
+    timeout_ms: int,
+    work_dir: Path,
+) -> dict[str, Any]:
+    """Solve the culled/retained board by building a one-level temp corpus game."""
+    corpus = work_dir / "culled_solver_corpus"
+    corpus.mkdir(parents=True, exist_ok=True)
+    game_name = "retained_board.txt"
+    write_single_level_solve_game(
+        compiler, source_path, source_level_index, corpus / game_name
+    )
+    return solve_level_json(solver, corpus, game_name, 0, timeout_ms)
 
 
 def parse_generated_level_kinds(generated_game_c: Path) -> list[str]:
@@ -195,14 +314,16 @@ def compile_host_benches(
         repository / "native" / "src" / "gbc" / "facade_rules.c",
         generated_dir / "generated_game.c",
     ]
-    specialized_extra = generated_dir / "generated_specialized_turn.c"
-    if not specialized_extra.is_file():
-        raise RuntimeError("missing generated_specialized_turn.c")
+    specialized_extras = sorted(generated_dir.glob("generated_specialized_turn*.c"))
+    if not specialized_extras:
+        raise RuntimeError("missing generated_specialized_turn*.c")
 
     def compile_variant(name: str, specialized: bool) -> Path:
         sources = list(common_sources)
         if specialized:
-            sources.append(specialized_extra)
+            # Multi-bank exports emit generated_specialized_turn.c plus
+            # generated_specialized_turn_rules_N.c pack bodies.
+            sources.extend(specialized_extras)
         objs: list[Path] = []
         defs = ["-DPS_GBC_GENERATED_BUILD=1"]
         if specialized:
@@ -581,9 +702,19 @@ def main() -> int:
                         )
                 if not tokens:
                     try:
-                        result = solve_level_json(
-                            solver, corpus, game_name, source_level, args.timeout_ms
-                        )
+                        # Solve a one-level culled game so solver level 0 matches
+                        # GBC board ordinal (avoids message/cull index drift).
+                        with tempfile.TemporaryDirectory(
+                            prefix=f"gbc_solve_{slug}_b{board_index}_"
+                        ) as solve_tmp:
+                            result = solve_retained_board_json(
+                                solver,
+                                compiler,
+                                source,
+                                source_level,
+                                args.timeout_ms,
+                                Path(solve_tmp),
+                            )
                     except Exception as exc:  # noqa: BLE001
                         level_entry["error"] = f"solve exception: {exc}"
                         level_rows.append(level_entry)
@@ -598,6 +729,7 @@ def main() -> int:
                     ]
                     level_entry["solver_status"] = status
                     level_entry["solver_strategy"] = result.get("strategy")
+                    level_entry["solved_via"] = "culled_single_level_game"
                     if status != "solved" or not tokens:
                         level_entry["error"] = f"unsolved:{status}"
                         level_rows.append(level_entry)
