@@ -136,6 +136,10 @@ struct PackedPattern {
     std::vector<uint32_t> anyMovementMasks;
     std::vector<compiler::GbcSpecializedLayerCoupledTermEmit> layerCoupledMatchTerms;
     std::vector<compiler::GbcSpecializedLayerCoupledTermEmit> layerCoupledReplacementTerms;
+    std::vector<compiler::GbcSpecializedInferredAggregateEmit> inferredAggregateBindings;
+    std::vector<compiler::GbcSpecializedInferredPropertyEmit> inferredPropertyBindings;
+    uint32_t rhsPropertyPreserveObjects = 0;
+    bool hasRhsPropertyPreserveObjects = false;
 };
 
 struct PackedRule {
@@ -147,6 +151,8 @@ struct PackedRule {
     uint8_t firstSound = 0;
     uint8_t soundCount = 0;
     std::string message;
+    std::vector<compiler::GbcSpecializedPropertyBindingEmit> propertyBindings;
+    std::vector<compiler::GbcSpecializedAggregateBindingEmit> aggregateBindings;
 };
 
 struct PackedGroup {
@@ -1050,19 +1056,87 @@ bool gbcReplacementDynamicAllowed(const Replacement& replacement) {
     if (dynamic == nullptr) {
         return true;
     }
-    if (!dynamic->inferredAggregateBindings.empty()
-        || !dynamic->inferredPropertyBindings.empty()
-        || !dynamic->inferredPropertySources.empty()
-        || dynamic->rhsPropertyPreserveMask != kNullMaskOffset) {
-        return false;
-    }
-    for (const LayerCoupledMovementReplacement& coupled :
-        dynamic->layerCoupledMovementReplacements) {
-        if (coupled.replacementAggregateName.has_value()) {
+    for (const InferredAggregateBinding& binding : dynamic->inferredAggregateBindings) {
+        if (binding.propertyName.has_value()) {
             return false;
         }
     }
     return true;
+}
+
+int8_t gbcAggregateBindingIndex(
+    const std::vector<AggregateBinding>& bindings,
+    const std::string& aggregateName
+) {
+    int8_t index = -1;
+    for (size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex) {
+        if (bindings[bindingIndex].aggregateName == aggregateName) {
+            index = static_cast<int8_t>(bindingIndex);
+        }
+    }
+    return index;
+}
+
+int8_t gbcPropertyBindingIndex(
+    const std::vector<PropertyBinding>& bindings,
+    const std::string& propertyName
+) {
+    for (size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex) {
+        if (bindings[bindingIndex].propertyName == propertyName) {
+            return static_cast<int8_t>(bindingIndex);
+        }
+    }
+    return -1;
+}
+
+compiler::GbcSpecializedPropertyBindingEmit packPropertyBindingEmit(
+    const Game& game,
+    const PropertyBinding& binding,
+    const MovementLayout& movementLayout
+) {
+    compiler::GbcSpecializedPropertyBindingEmit emit;
+    emit.sourceCell = static_cast<int8_t>(binding.sourceCell);
+    emit.sourceMovementMode = static_cast<int8_t>(binding.sourceMovementMode);
+    emit.sourceMovementMask = repackMovementMask(
+        game, binding.sourceMovementMask, movementLayout);
+    emit.aliases.reserve(binding.aliases.size());
+    for (const PropertyAlias& alias : binding.aliases) {
+        compiler::GbcSpecializedPropertyAliasEmit aliasEmit;
+        if (alias.objectId >= 0 && alias.objectId < game.objectCount) {
+            aliasEmit.objectMask = uint32_t{1} << static_cast<uint32_t>(alias.objectId);
+        }
+        if (alias.layerIndex >= 0
+            && static_cast<size_t>(alias.layerIndex) < movementLayout.collisionToMovement.size()) {
+            aliasEmit.layerIndex =
+                movementLayout.collisionToMovement[static_cast<size_t>(alias.layerIndex)];
+        } else {
+            aliasEmit.layerIndex = static_cast<int8_t>(alias.layerIndex);
+        }
+        emit.aliases.push_back(aliasEmit);
+    }
+    return emit;
+}
+
+compiler::GbcSpecializedAggregateBindingEmit packAggregateBindingEmit(
+    const Rule& rule,
+    const AggregateBinding& binding,
+    const MovementLayout& movementLayout
+) {
+    compiler::GbcSpecializedAggregateBindingEmit emit;
+    emit.sourceCell = static_cast<int8_t>(binding.sourceCell);
+    emit.aggregateMask = static_cast<uint8_t>(binding.aggregateMask & 0x1f);
+    if (binding.sourceLayer >= 0
+        && static_cast<size_t>(binding.sourceLayer) < movementLayout.collisionToMovement.size()) {
+        emit.sourceLayer =
+            movementLayout.collisionToMovement[static_cast<size_t>(binding.sourceLayer)];
+    } else {
+        emit.sourceLayer = static_cast<int8_t>(binding.sourceLayer);
+    }
+    if (binding.sourcePropertyName.has_value()) {
+        emit.propertyBindingIndex =
+            gbcPropertyBindingIndex(rule.propertyBindings, *binding.sourcePropertyName);
+    }
+    return emit;
 }
 
 compiler::GbcSpecializedLayerCoupledLayerEmit packLayerCoupledLayerEmit(
@@ -1091,7 +1165,8 @@ compiler::GbcSpecializedLayerCoupledLayerEmit packLayerCoupledLayerEmit(
 compiler::GbcSpecializedLayerCoupledTermEmit packLayerCoupledTermEmit(
     const Game& game,
     const LayerCoupledMovementReplacement& coupled,
-    const MovementLayout& movementLayout
+    const MovementLayout& movementLayout,
+    const std::vector<AggregateBinding>& aggregateBindings
 ) {
     compiler::GbcSpecializedLayerCoupledTermEmit emit;
     emit.layers.reserve(coupled.layers.size());
@@ -1100,6 +1175,10 @@ compiler::GbcSpecializedLayerCoupledTermEmit packLayerCoupledTermEmit(
     }
     emit.replacementMovementMask = static_cast<uint32_t>(coupled.replacementMovementMask);
     emit.hasReplacementMovementMask = coupled.hasReplacementMovementMask;
+    if (coupled.replacementAggregateName.has_value()) {
+        emit.aggregateCaptureIndex =
+            gbcAggregateBindingIndex(aggregateBindings, *coupled.replacementAggregateName);
+    }
     return emit;
 }
 
@@ -1120,6 +1199,7 @@ bool sameLayerCoupledTermEmit(
 ) {
     if (left.replacementMovementMask != right.replacementMovementMask
         || left.hasReplacementMovementMask != right.hasReplacementMovementMask
+        || left.aggregateCaptureIndex != right.aggregateCaptureIndex
         || left.layers.size() != right.layers.size()) {
         return false;
     }
@@ -1140,6 +1220,20 @@ bool patternNeedsSpecializedAnyOrCoupled(
         || !pattern.layerCoupledReplacementTerms.empty();
 }
 
+bool ruleNeedsSpecializedPropertyOrAggregate(
+    const compiler::GbcSpecializedRuleEmit& rule
+) {
+    return !rule.propertyBindings.empty() || !rule.aggregateBindings.empty();
+}
+
+bool patternNeedsSpecializedPropertyOrAggregate(
+    const compiler::GbcSpecializedPatternEmit& pattern
+) {
+    return !pattern.inferredAggregateBindings.empty()
+        || !pattern.inferredPropertyBindings.empty()
+        || pattern.hasRhsPropertyPreserveObjects;
+}
+
 void validateRule(const Rule& rule, bool late) {
     const std::string prefix = "GBC export rejects rule on line " + std::to_string(rule.lineNumber) + ": ";
     if (rule.rigid) throw std::runtime_error(prefix + "rigid rules are not in the v1 runtime");
@@ -1150,9 +1244,6 @@ void validateRule(const Rule& rule, bool late) {
     }
     if (!rule.ellipsisCount.empty() && rule.ellipsisCount.front() != 0) {
         throw std::runtime_error(prefix + "ellipsis patterns are not in the v1 runtime");
-    }
-    if (!rule.propertyBindings.empty() || !rule.aggregateBindings.empty()) {
-        throw std::runtime_error(prefix + "dynamic property/aggregate bindings are not in the v1 runtime");
     }
     if (rule.direction != 1 && rule.direction != 2 && rule.direction != 4 && rule.direction != 8) {
         throw std::runtime_error(prefix + "the lowered scan direction is unsupported");
@@ -1246,6 +1337,7 @@ uint16_t groupInputLayout(const std::vector<Rule>& group) {
 
 PackedPattern packPattern(
     const Game& game,
+    const Rule& rule,
     const Pattern& pattern,
     const MovementLayout& movementLayout
 ) {
@@ -1290,7 +1382,37 @@ PackedPattern packPattern(
             for (const LayerCoupledMovementReplacement& coupled :
                 dynamic->layerCoupledMovementReplacements) {
                 packed.layerCoupledReplacementTerms.push_back(
-                    packLayerCoupledTermEmit(game, coupled, movementLayout));
+                    packLayerCoupledTermEmit(game, coupled, movementLayout, rule.aggregateBindings));
+            }
+            for (const InferredAggregateBinding& binding : dynamic->inferredAggregateBindings) {
+                if (binding.propertyName.has_value() || !binding.layerIndex.has_value()) {
+                    continue;
+                }
+                compiler::GbcSpecializedInferredAggregateEmit emit;
+                if (binding.layerIndex >= 0
+                    && static_cast<size_t>(*binding.layerIndex)
+                        < movementLayout.collisionToMovement.size()) {
+                    emit.layerIndex =
+                        movementLayout.collisionToMovement[static_cast<size_t>(*binding.layerIndex)];
+                } else {
+                    emit.layerIndex = static_cast<int8_t>(*binding.layerIndex);
+                }
+                emit.aggregateCaptureIndex =
+                    gbcAggregateBindingIndex(rule.aggregateBindings, binding.aggregateName);
+                packed.inferredAggregateBindings.push_back(emit);
+            }
+            for (const InferredPropertyBinding& binding : dynamic->inferredPropertyBindings) {
+                compiler::GbcSpecializedInferredPropertyEmit emit;
+                emit.propertyBindingIndex =
+                    gbcPropertyBindingIndex(rule.propertyBindings, binding.propertyName);
+                emit.dirMode = static_cast<int8_t>(binding.dirMode);
+                emit.dirMask = repackMovementMask(game, binding.dirMask, movementLayout);
+                packed.inferredPropertyBindings.push_back(emit);
+            }
+            if (dynamic->rhsPropertyPreserveMask != kNullMaskOffset) {
+                packed.hasRhsPropertyPreserveObjects = true;
+                packed.rhsPropertyPreserveObjects =
+                    maskWord(game, dynamic->rhsPropertyPreserveMask);
             }
         }
     }
@@ -1310,7 +1432,7 @@ PackedPattern packPattern(
     packed.layerCoupledMatchTerms.reserve(pattern.layerCoupledMovementMasks.size());
     for (const LayerCoupledMovementReplacement& coupled : pattern.layerCoupledMovementMasks) {
         packed.layerCoupledMatchTerms.push_back(
-            packLayerCoupledTermEmit(game, coupled, movementLayout));
+            packLayerCoupledTermEmit(game, coupled, movementLayout, rule.aggregateBindings));
     }
     return packed;
 }
@@ -1330,7 +1452,13 @@ bool samePattern(const PackedPattern& left, const PackedPattern& right) {
         || left.anyMovementMasks != right.anyMovementMasks
         || left.layerCoupledMatchTerms.size() != right.layerCoupledMatchTerms.size()
         || left.layerCoupledReplacementTerms.size()
-            != right.layerCoupledReplacementTerms.size()) {
+            != right.layerCoupledReplacementTerms.size()
+        || left.inferredAggregateBindings.size()
+            != right.inferredAggregateBindings.size()
+        || left.inferredPropertyBindings.size()
+            != right.inferredPropertyBindings.size()
+        || left.hasRhsPropertyPreserveObjects != right.hasRhsPropertyPreserveObjects
+        || left.rhsPropertyPreserveObjects != right.rhsPropertyPreserveObjects) {
         return false;
     }
     for (size_t index = 0U; index < left.layerCoupledMatchTerms.size(); ++index) {
@@ -1344,6 +1472,26 @@ bool samePattern(const PackedPattern& left, const PackedPattern& right) {
         if (!sameLayerCoupledTermEmit(
                 left.layerCoupledReplacementTerms[index],
                 right.layerCoupledReplacementTerms[index])) {
+            return false;
+        }
+    }
+    if (left.inferredAggregateBindings.size() != right.inferredAggregateBindings.size()) {
+        return false;
+    }
+    for (size_t index = 0U; index < left.inferredAggregateBindings.size(); ++index) {
+        const auto& leftBinding = left.inferredAggregateBindings[index];
+        const auto& rightBinding = right.inferredAggregateBindings[index];
+        if (leftBinding.layerIndex != rightBinding.layerIndex
+            || leftBinding.aggregateCaptureIndex != rightBinding.aggregateCaptureIndex) {
+            return false;
+        }
+    }
+    for (size_t index = 0U; index < left.inferredPropertyBindings.size(); ++index) {
+        const auto& leftBinding = left.inferredPropertyBindings[index];
+        const auto& rightBinding = right.inferredPropertyBindings[index];
+        if (leftBinding.propertyBindingIndex != rightBinding.propertyBindingIndex
+            || leftBinding.dirMode != rightBinding.dirMode
+            || leftBinding.dirMask != rightBinding.dirMask) {
             return false;
         }
     }
@@ -1418,7 +1566,7 @@ void packGroups(
             std::vector<PackedPattern> sequence;
             sequence.reserve(sourceRule.patterns.front().size());
             for (const Pattern& pattern : sourceRule.patterns.front()) {
-                sequence.push_back(packPattern(game, pattern, movementLayout));
+                sequence.push_back(packPattern(game, sourceRule, pattern, movementLayout));
             }
             PackedRule rule;
             rule.firstPattern = internPatternSequence(patterns, sequence);
@@ -1427,6 +1575,16 @@ void packGroups(
             rule.activeInputsMask = sourceRule.activeInputsMask;
             rule.firstSound = static_cast<uint8_t>(audio.ruleSoundIds.size());
             rule.commands = commandFlags(game, sourceRule, rule.message, audio);
+            rule.propertyBindings.reserve(sourceRule.propertyBindings.size());
+            for (const PropertyBinding& binding : sourceRule.propertyBindings) {
+                rule.propertyBindings.push_back(
+                    packPropertyBindingEmit(game, binding, movementLayout));
+            }
+            rule.aggregateBindings.reserve(sourceRule.aggregateBindings.size());
+            for (const AggregateBinding& binding : sourceRule.aggregateBindings) {
+                rule.aggregateBindings.push_back(
+                    packAggregateBindingEmit(sourceRule, binding, movementLayout));
+            }
             const uint32_t firstPatternObjects = maskWord(
                 game, sourceRule.patterns.front().front().objectsPresent);
             if (game.objectCount <= 16
@@ -2403,6 +2561,10 @@ ExportResult exportGame(const ExportOptions& options) {
         emit.anyMovementMasks = pattern.anyMovementMasks;
         emit.layerCoupledMatchTerms = pattern.layerCoupledMatchTerms;
         emit.layerCoupledReplacementTerms = pattern.layerCoupledReplacementTerms;
+        emit.inferredAggregateBindings = pattern.inferredAggregateBindings;
+        emit.inferredPropertyBindings = pattern.inferredPropertyBindings;
+        emit.rhsPropertyPreserveObjects = pattern.rhsPropertyPreserveObjects;
+        emit.hasRhsPropertyPreserveObjects = pattern.hasRhsPropertyPreserveObjects;
         specializedPatterns.push_back(emit);
     }
     std::vector<compiler::GbcSpecializedRuleEmit> specializedRules;
@@ -2413,6 +2575,8 @@ ExportResult exportGame(const ExportOptions& options) {
         emit.patternCount = rule.patternCount;
         emit.direction = rule.direction;
         emit.commands = rule.commands;
+        emit.propertyBindings = rule.propertyBindings;
+        emit.aggregateBindings = rule.aggregateBindings;
         specializedRules.push_back(emit);
     }
     const auto toSpecializedGroups = [](const std::vector<PackedGroup>& groups) {
@@ -2450,12 +2614,23 @@ ExportResult exportGame(const ExportOptions& options) {
         specializedPatterns.begin(),
         specializedPatterns.end(),
         patternNeedsSpecializedAnyOrCoupled);
-    if (needsSpecializedAnyOrCoupled) {
+    const bool needsSpecializedPropertyAggregate =
+        std::any_of(
+            specializedRules.begin(),
+            specializedRules.end(),
+            ruleNeedsSpecializedPropertyOrAggregate)
+        || std::any_of(
+            specializedPatterns.begin(),
+            specializedPatterns.end(),
+            patternNeedsSpecializedPropertyOrAggregate);
+    if (needsSpecializedAnyOrCoupled || needsSpecializedPropertyAggregate) {
         if (!options.emitSpecializedTurn
             || !specializedTurnSupported
             || result.generatedSpecializedTurnPath.empty()) {
             throw std::runtime_error(
-                "GBC export requires specialized turn for any/layer-coupled patterns");
+                needsSpecializedPropertyAggregate
+                    ? "GBC export requires specialized turn for property/aggregate bindings"
+                    : "GBC export requires specialized turn for any/layer-coupled patterns");
         }
     }
     const size_t generatedBytes = std::filesystem::file_size(result.generatedSourcePath);

@@ -1,0 +1,59 @@
+title GBC Aggregate Binding Fixture
+
+========
+OBJECTS
+========
+
+Background
+black
+0
+
+Player
+blue
+0
+
+Box
+red
+0
+
+topmarker
+green
+0
+
+=======
+LEGEND
+=======
+
+. = Background
+P = Background and Player
+* = Box
+m = topmarker
+q = topmarker and Box
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Player, Box
+topmarker
+
+======
+RULES
+======
+
+[ > Player | Box ] -> [ > Player | > Box ]
+[ moving Box | Box ] -> [ moving Box | moving Box ]
+[ moving box topmarker ] -> [ moving box moving topmarker ]
+
+==============
+WINCONDITIONS
+==============
+
+all Box on Background
+
+=======
+LEVELS
+=======
+
+P*q

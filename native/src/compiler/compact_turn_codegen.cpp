@@ -7395,9 +7395,24 @@ void emitGbdCLayerCoupledReplacementApply(
             out << indent << "    if (layer_ok) {\n"
                 << indent << "        " << nextMovementsVar << " &= ~(0x1fU << (5U * "
                 << movementLane << "U));\n";
-            if (term.hasReplacementMovementMask) {
+            uint32_t replacementMask = term.replacementMovementMask & 0x1fU;
+            if (term.aggregateCaptureIndex >= 0) {
+                out << indent << "        {\n"
+                    << indent << "            uint32_t replacement_mask = 0U;\n"
+                    << indent << "            const size_t capture_index = "
+                    << static_cast<unsigned>(term.aggregateCaptureIndex) << "U;\n";
+                out << indent << "            if (capture_index < "
+                    << "sizeof(aggregateCaptures) / sizeof(aggregateCaptures[0])) {\n"
+                    << indent << "                replacement_mask = (uint32_t)aggregateCaptures[capture_index] & 0x1fU;\n"
+                    << indent << "            }\n"
+                    << indent << "            if (replacement_mask != 0U) {\n"
+                    << indent << "                " << nextMovementsVar << " |= (replacement_mask << (5U * "
+                    << movementLane << "U));\n"
+                    << indent << "            }\n"
+                    << indent << "        }\n";
+            } else if (term.hasReplacementMovementMask) {
                 out << indent << "        " << nextMovementsVar << " |= ((";
-                emitGbcHexU32(out, term.replacementMovementMask & 0x1fU);
+                emitGbcHexU32(out, replacementMask);
                 out << ") << (5U * " << movementLane << "U));\n";
             }
             out << indent << "    }\n"
@@ -7460,6 +7475,46 @@ void emitCompactInlineGbdCPatternApply(
         objectsVar,
         originalMovementsVar,
         nextMovementsVar);
+    for (const GbcSpecializedInferredAggregateEmit& term : pattern.inferredAggregateBindings) {
+        if (term.layerIndex < 0 || term.aggregateCaptureIndex < 0) {
+            continue;
+        }
+        out << indent << "    /* inferred aggregate binding */\n"
+            << indent << "    {\n"
+            << indent << "        const size_t capture_index = "
+            << static_cast<unsigned>(term.aggregateCaptureIndex) << "U;\n"
+            << indent << "        int32_t captured = 0;\n"
+            << indent << "        if (capture_index < sizeof(aggregateCaptures) / sizeof(aggregateCaptures[0])) {\n"
+            << indent << "            captured = aggregateCaptures[capture_index] & 0x1f;\n"
+            << indent << "        }\n"
+            << indent << "        if (captured != 0) {\n"
+            << indent << "            " << nextMovementsVar << " |= ((uint32_t)captured << (5U * "
+            << static_cast<unsigned>(term.layerIndex) << "U));\n"
+            << indent << "        }\n"
+            << indent << "    }\n";
+    }
+    for (const GbcSpecializedInferredPropertyEmit& binding : pattern.inferredPropertyBindings) {
+        if (binding.dirMode == 0 || binding.propertyBindingIndex < 0) {
+            continue;
+        }
+        out << indent << "    /* inferred property binding */\n"
+            << indent << "    if (property_capture_layers["
+            << static_cast<unsigned>(binding.propertyBindingIndex) << "] >= 0) {\n"
+            << indent << "        const uint8_t property_lane = (uint8_t)property_capture_layers["
+            << static_cast<unsigned>(binding.propertyBindingIndex) << "];\n"
+            << indent << "        " << nextMovementsVar << " &= ~(0x1fU << (5U * (uint32_t)property_lane));\n";
+        if (binding.dirMode == 2) {
+            out << indent << "        " << nextMovementsVar << " |= ((";
+            emitGbcHexU32(out, binding.dirMask & 0x1fU);
+            out << ") << (5U * (uint32_t)property_lane));\n";
+        }
+        out << indent << "    }\n";
+    }
+    if (pattern.hasRhsPropertyPreserveObjects) {
+        out << indent << "    " << nextObjectsVar << " |= (" << objectsVar << " & ";
+        emitGbcHexU32(out, pattern.rhsPropertyPreserveObjects);
+        out << ");\n";
+    }
     out << indent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
         << indent << "    if ((" << nextObjectsVar << " & ps_gbc_generated_game.player_mask) != 0U) {\n";
     if (singlePlayerCellCertified) {
@@ -7881,6 +7936,126 @@ void emitGbcSpecializedSeedAndHelpers(
     out << "}\n\n";
 }
 
+void emitGbcSpecializedPropertyCaptures(
+    std::ostream& out,
+    const GbcSpecializedRuleEmit& rule,
+    std::string_view indent,
+    std::string_view startExpr,
+    std::string_view deltaVarName,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell
+) {
+    if (rule.propertyBindings.empty()) {
+        return;
+    }
+    out << indent << "int8_t property_capture_layers["
+        << rule.propertyBindings.size() << "];\n";
+    for (size_t bindingIndex = 0; bindingIndex < rule.propertyBindings.size(); ++bindingIndex) {
+        const GbcSpecializedPropertyBindingEmit& binding = rule.propertyBindings[bindingIndex];
+        out << indent << "property_capture_layers[" << bindingIndex << "] = -1;\n"
+            << indent << "{\n"
+            << indent << "    const int16_t property_cell16 = (int16_t)" << startExpr
+            << " + (int16_t)" << static_cast<int>(binding.sourceCell) << " * (int16_t)"
+            << deltaVarName << ";\n"
+            << indent << "    if (property_cell16 >= 0) {\n"
+            << indent << "        const uint8_t property_cell = (uint8_t)property_cell16;\n";
+        emitGbdCBoardGet(
+            out,
+            std::string(indent) + "        ",
+            "property_objects",
+            "property_cell",
+            objectBytesPerCell);
+        emitGbdCMovementsGet(
+            out,
+            std::string(indent) + "        ",
+            "property_movements",
+            "property_cell",
+            movementBytesPerCell);
+        for (size_t aliasIndex = 0; aliasIndex < binding.aliases.size(); ++aliasIndex) {
+            const GbcSpecializedPropertyAliasEmit& alias = binding.aliases[aliasIndex];
+            out << indent << "        if (property_capture_layers[" << bindingIndex
+                << "] < 0 && (property_objects & ";
+            emitGbcHexU32(out, alias.objectMask);
+            out << ") != 0U) {\n"
+                << indent << "            bool property_movement_matches = false;\n"
+                << indent << "            const uint32_t property_lane_bits = (property_movements >> (5U * "
+                << static_cast<unsigned>(alias.layerIndex) << "U)) & 0x1fU;\n";
+            if (binding.sourceMovementMode == 0) {
+                out << indent << "            property_movement_matches = true;\n";
+            } else if (binding.sourceMovementMode == 1) {
+                out << indent << "            property_movement_matches = (property_lane_bits & ";
+                emitGbcHexU32(out, binding.sourceMovementMask);
+                out << ") == 0U;\n";
+            } else if (binding.sourceMovementMode == 3) {
+                out << indent << "            property_movement_matches = (property_lane_bits & ";
+                emitGbcHexU32(out, binding.sourceMovementMask);
+                out << ") != 0U;\n";
+            } else {
+                out << indent << "            property_movement_matches = (property_lane_bits & ";
+                emitGbcHexU32(out, binding.sourceMovementMask);
+                out << ") == ";
+                emitGbcHexU32(out, binding.sourceMovementMask);
+                out << ";\n";
+            }
+            out << indent << "            if (property_movement_matches) property_capture_layers["
+                << bindingIndex << "] = "
+                << static_cast<int>(alias.layerIndex) << ";\n"
+                << indent << "        }\n";
+        }
+        out << indent << "    }\n"
+            << indent << "}\n";
+    }
+}
+
+void emitGbcSpecializedAggregateCapture(
+    std::ostream& out,
+    const GbcSpecializedRuleEmit& rule,
+    std::string_view indent,
+    std::string_view startExpr,
+    std::string_view deltaVarName,
+    uint8_t objectBytesPerCell,
+    uint8_t movementBytesPerCell
+) {
+    if (rule.aggregateBindings.empty()) {
+        return;
+    }
+    out << indent << "/* compact aggregate bindings: " << rule.aggregateBindings.size() << " */\n"
+        << indent << "int32_t aggregateCaptures[" << rule.aggregateBindings.size() << "] = {};\n";
+    for (size_t bindingIndex = 0; bindingIndex < rule.aggregateBindings.size(); ++bindingIndex) {
+        const GbcSpecializedAggregateBindingEmit& binding = rule.aggregateBindings[bindingIndex];
+        out << indent << "{\n"
+            << indent << "    int8_t aggregate_source_layer = "
+            << static_cast<int>(binding.sourceLayer) << ";\n"
+            << indent << "    bool aggregate_source_layer_resolved = true;\n";
+        if (binding.propertyBindingIndex >= 0) {
+            out << indent << "    aggregate_source_layer_resolved = false;\n"
+                << indent << "    if (property_capture_layers["
+                << static_cast<unsigned>(binding.propertyBindingIndex)
+                << "] >= 0) {\n"
+                << indent << "        aggregate_source_layer = property_capture_layers["
+                << static_cast<unsigned>(binding.propertyBindingIndex) << "];\n"
+                << indent << "        aggregate_source_layer_resolved = true;\n"
+                << indent << "    }\n";
+        }
+        out << indent << "  const int16_t aggregate_cell16 = (int16_t)" << startExpr
+            << " + (int16_t)" << static_cast<int>(binding.sourceCell) << " * (int16_t)"
+            << deltaVarName << ";\n"
+            << indent << "  if (aggregate_source_layer_resolved && aggregate_cell16 >= 0) {\n"
+            << indent << "      const uint8_t aggregate_cell = (uint8_t)aggregate_cell16;\n";
+        emitGbdCMovementsGet(
+            out,
+            std::string(indent) + "      ",
+            "aggregate_movements",
+            "aggregate_cell",
+            movementBytesPerCell);
+        out << indent << "      aggregateCaptures[" << bindingIndex << "] = (int32_t)((aggregate_movements >> (5U * (uint32_t)aggregate_source_layer)) & "
+            << static_cast<unsigned>(binding.aggregateMask) << "U);\n"
+            << indent << "  }\n"
+            << indent << "}\n";
+    }
+    (void)objectBytesPerCell;
+}
+
 void emitGbcSpecializedFusedMatchApplyAt(
     std::ostream& out,
     const GbcSpecializedRuleEmit& rule,
@@ -7915,8 +8090,28 @@ void emitGbcSpecializedFusedMatchApplyAt(
                 << matchCellVarName << " + " << deltaVarName << ");\n";
         }
     }
-    out << indent << "    if (row_matched) {\n"
-        << indent << "        uint8_t " << applyCellVarName << " = " << startExpr << ";\n";
+    out << indent << "    if (row_matched) {\n";
+    if (!rule.propertyBindings.empty()) {
+        emitGbcSpecializedPropertyCaptures(
+            out,
+            rule,
+            std::string(indent) + "    ",
+            startExpr,
+            deltaVarName,
+            objectBytesPerCell,
+            movementBytesPerCell);
+    }
+    if (!rule.aggregateBindings.empty()) {
+        emitGbcSpecializedAggregateCapture(
+            out,
+            rule,
+            std::string(indent) + "    ",
+            startExpr,
+            deltaVarName,
+            objectBytesPerCell,
+            movementBytesPerCell);
+    }
+    out << indent << "        uint8_t " << applyCellVarName << " = " << startExpr << ";\n";
     for (uint8_t patternIndex = 0; patternIndex < rule.patternCount; ++patternIndex) {
         const auto& pattern = patterns[rule.firstPattern + patternIndex];
         const std::string tileName = "a" + std::to_string(patternIndex);
@@ -8137,6 +8332,26 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             out << "    cell = (uint8_t)((int16_t)cell + delta);\n";
         }
     }
+    if (!rule.propertyBindings.empty()) {
+        emitGbcSpecializedPropertyCaptures(
+            out,
+            rule,
+            "    ",
+            "start",
+            "delta",
+            objectBytesPerCell,
+            movementBytesPerCell);
+    }
+    if (!rule.aggregateBindings.empty()) {
+        emitGbcSpecializedAggregateCapture(
+            out,
+            rule,
+            "    ",
+            "start",
+            "delta",
+            objectBytesPerCell,
+            movementBytesPerCell);
+    }
     out << "    cell = start;\n";
     for (uint8_t patternIndex = 0; patternIndex < rule.patternCount; ++patternIndex) {
         const auto& pattern = patterns[rule.firstPattern + patternIndex];
@@ -8223,7 +8438,9 @@ void emitGbcSpecializedRuleFunction(
     }
     if (applyOnMatch
         && singlePlayerCellCertified
-        && playerPatternIndices.size() == 1U) {
+        && playerPatternIndices.size() == 1U
+        && rule.aggregateBindings.empty()
+        && rule.propertyBindings.empty()) {
         emitGbcSpecializedSlimSinglePlayerRule(
             out,
             ruleIndex,

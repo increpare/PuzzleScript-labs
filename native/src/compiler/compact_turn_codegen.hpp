@@ -75,6 +75,37 @@ struct GbcSpecializedLayerCoupledTermEmit {
     // Apply-side fields when packing from replacement.dynamic:
     uint32_t replacementMovementMask = 0;
     bool hasReplacementMovementMask = false;
+    int8_t aggregateCaptureIndex = -1;
+};
+
+struct GbcSpecializedPropertyAliasEmit {
+    uint32_t objectMask = 0;
+    int8_t layerIndex = -1;
+};
+
+struct GbcSpecializedPropertyBindingEmit {
+    int8_t sourceCell = 0;
+    int8_t sourceMovementMode = 0;
+    uint32_t sourceMovementMask = 0;
+    std::vector<GbcSpecializedPropertyAliasEmit> aliases;
+};
+
+struct GbcSpecializedAggregateBindingEmit {
+    int8_t sourceCell = 0;
+    int8_t sourceLayer = -1;
+    uint8_t aggregateMask = 0x1F;
+    int8_t propertyBindingIndex = -1;
+};
+
+struct GbcSpecializedInferredAggregateEmit {
+    int8_t layerIndex = -1;
+    int8_t aggregateCaptureIndex = -1;
+};
+
+struct GbcSpecializedInferredPropertyEmit {
+    int8_t propertyBindingIndex = -1;
+    int8_t dirMode = 0;
+    uint32_t dirMask = 0;
 };
 
 struct GbcSpecializedPatternEmit {
@@ -92,6 +123,10 @@ struct GbcSpecializedPatternEmit {
     std::vector<uint32_t> anyMovementMasks;
     std::vector<GbcSpecializedLayerCoupledTermEmit> layerCoupledMatchTerms;
     std::vector<GbcSpecializedLayerCoupledTermEmit> layerCoupledReplacementTerms;
+    std::vector<GbcSpecializedInferredAggregateEmit> inferredAggregateBindings;
+    std::vector<GbcSpecializedInferredPropertyEmit> inferredPropertyBindings;
+    uint32_t rhsPropertyPreserveObjects = 0;
+    bool hasRhsPropertyPreserveObjects = false;
 };
 
 struct GbcSpecializedRuleEmit {
@@ -99,6 +134,8 @@ struct GbcSpecializedRuleEmit {
     uint8_t patternCount = 0;
     uint8_t direction = 0;
     uint8_t commands = 0;
+    std::vector<GbcSpecializedPropertyBindingEmit> propertyBindings;
+    std::vector<GbcSpecializedAggregateBindingEmit> aggregateBindings;
 };
 
 struct GbcSpecializedGroupEmit {

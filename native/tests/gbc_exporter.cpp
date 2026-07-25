@@ -908,6 +908,24 @@ int main() {
             "atlas shrank must not fail on non-canonical duplicate layer ids");
     }
 
+    puzzlescript::gbc::ExportOptions aggregateBinding;
+    aggregateBinding.sourcePath =
+        root / "native" / "tests" / "fixtures" / "gbc_aggregate_binding.txt";
+    aggregateBinding.outputDirectory = output / "aggregate_binding";
+    const auto aggregateBindingResult = puzzlescript::gbc::exportGame(aggregateBinding);
+    require(
+        std::filesystem::exists(aggregateBindingResult.generatedSpecializedTurnPath),
+        "aggregate-binding fixture specialized turn is generated");
+    const std::string aggregateBindingSpecialized =
+        readFile(aggregateBindingResult.generatedSpecializedTurnPath);
+    require(
+        aggregateBindingSpecialized.find("aggregateCaptures") != std::string::npos
+            && aggregateBindingSpecialized.find("/* compact aggregate bindings:")
+                != std::string::npos
+            && aggregateBindingSpecialized.find("/* inferred aggregate binding */")
+                != std::string::npos,
+        "aggregate-binding fixture specialized turn emits capture and inferred apply");
+
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
         + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");
