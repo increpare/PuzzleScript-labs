@@ -877,6 +877,37 @@ int main() {
             == std::string::npos,
         "seeded-player resolve does not byte-index two-byte boards");
 
+    // Overlapping aggregates on one collisionlayer line (`Player, Solid`) expand
+    // to duplicate concrete names. Non-canonical idDict slots use layer=-1; export
+    // must still pack from the canonical twin (JS accepts these games).
+    puzzlescript::gbc::ExportOptions duplicateLayers;
+    duplicateLayers.sourcePath = root / "native" / "tests" / "fixtures"
+        / "gbc_duplicate_collisionlayer_members.txt";
+    duplicateLayers.outputDirectory = output / "duplicate_collisionlayer_members";
+    const auto duplicateResult = puzzlescript::gbc::exportGame(duplicateLayers);
+    const std::string duplicateManifest = readFile(duplicateResult.manifestPath);
+    require(
+        duplicateManifest.find("\"object_count\":") != std::string::npos
+            && std::filesystem::exists(duplicateResult.generatedSourcePath),
+        "overlapping collisionlayer aggregates export without invalid-layer errors");
+
+    puzzlescript::gbc::ExportOptions atlasShrank;
+    atlasShrank.sourcePath = root / "src" / "tests" / "good_games" / "atlas shrank.txt";
+    atlasShrank.outputDirectory = output / "atlas_shrank";
+    atlasShrank.cullOversizeLevels = true;
+    bool atlasRejectedInvalidLayer = false;
+    try {
+        (void)puzzlescript::gbc::exportGame(atlasShrank);
+    } catch (const std::runtime_error& error) {
+        const std::string message = error.what();
+        atlasRejectedInvalidLayer =
+            message.find("invalid collision layer") != std::string::npos;
+        // May still fail later gates (any-masks, etc.); only this bug is forbidden.
+        require(
+            !atlasRejectedInvalidLayer,
+            "atlas shrank must not fail on non-canonical duplicate layer ids");
+    }
+
     const std::string firmware =
         readFile(root / "firmware" / "gbc" / "source" / "main.c")
         + readFile(root / "firmware" / "gbc" / "source" / "tile_cache.c");

@@ -40,6 +40,31 @@ uint8_t objectBytesPerCell(int32_t objectCount) {
     return objectCount <= 8 ? 1U : objectCount <= 16 ? 2U : 4U;
 }
 
+// Collisionlayer lines can list overlapping aggregates (e.g. `Player, Solid`),
+// so the same concrete object name appears twice in the expanded layer. The
+// lowerer keeps both idDict slots for JS IR parity but marks the non-canonical
+// copy with layer=-1 (empty sprite). Export packing must use the canonical twin.
+const ObjectDef& objectDefForExportPacking(const Game& game, const ObjectDef& object) {
+    if (object.layer >= 0 && object.layer < game.layerCount) {
+        return object;
+    }
+    const ObjectDef* canonical = nullptr;
+    for (const ObjectDef& candidate : game.objectsById) {
+        if (candidate.name != object.name) {
+            continue;
+        }
+        if (candidate.layer < 0 || candidate.layer >= game.layerCount) {
+            continue;
+        }
+        canonical = &candidate;
+    }
+    if (canonical == nullptr) {
+        throw std::runtime_error(
+            "GBC object has an invalid collision layer: " + object.name);
+    }
+    return *canonical;
+}
+
 const char* unsignedTypeForBytes(uint8_t bytes) {
     return bytes == 1U ? "uint8_t" : bytes == 2U ? "uint16_t" : "uint32_t";
 }
@@ -1980,10 +2005,9 @@ ExportResult exportGame(const ExportOptions& options) {
     uint8_t cellWidth = 5U;
     uint8_t cellHeight = 5U;
     objects.reserve(game.objectsById.size());
-    for (const ObjectDef& sourceObject : game.objectsById) {
-        if (sourceObject.layer < 0 || sourceObject.layer >= game.layerCount) {
-            throw std::runtime_error("GBC object has an invalid collision layer: " + sourceObject.name);
-        }
+    for (const ObjectDef& listedObject : game.objectsById) {
+        const ObjectDef& sourceObject =
+            objectDefForExportPacking(game, listedObject);
         const size_t height = sourceObject.sprite.size();
         const size_t width = sourceObject.sprite.empty() ? 0U : sourceObject.sprite.front().size();
         if (width == 0U || height == 0U || width > 5U || height > 5U) {
