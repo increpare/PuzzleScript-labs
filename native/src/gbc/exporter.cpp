@@ -1688,6 +1688,51 @@ PackedAudio packAudio(const Game& game, const MovementLayout& movementLayout) {
     return audio;
 }
 
+// Every per-game public entry point that must be renamed so several games'
+// translation units can be linked into a single cartridge without symbol
+// collisions: the 14 public entry points in puzzlescript/gbc.h, the
+// specialized-turn resolver, and the generated data symbol.
+static const char* const kNamespacedSymbols[] = {
+    "ps_gbc_session_required_bytes",
+    "ps_gbc_session_init",
+    "ps_gbc_load_level",
+    "ps_gbc_step",
+    "ps_gbc_defer_wins",
+    "ps_gbc_advance_level",
+    "ps_gbc_undo",
+    "ps_gbc_restart",
+    "ps_gbc_status_get",
+    "ps_gbc_cell_objects",
+    "ps_gbc_dirty_cells",
+    "ps_gbc_has_dirty_cells",
+    "ps_gbc_clear_dirty_cells",
+    "ps_gbc_first_player_position",
+    "ps_gbc_board",
+    "ps_gbc_game",
+    "ps_gbc_resolve_movements",
+    "ps_gbc_generated_game",
+};
+
+static void writeNamespaceHeader(
+    const std::filesystem::path& path,
+    const std::string& prefix
+) {
+    std::ostringstream out;
+    out << "#ifndef PS_GBC_GENERATED_NAMESPACE_H\n"
+        << "#define PS_GBC_GENERATED_NAMESPACE_H\n\n";
+    if (prefix.empty()) {
+        out << "/* Standalone export: no symbol renaming. */\n\n";
+    } else {
+        out << "/* Cartridge export: rename per-game entry points. */\n";
+        for (const char* name : kNamespacedSymbols) {
+            out << "#define " << name << " " << prefix << "_" << name << "\n";
+        }
+        out << "\n";
+    }
+    out << "#endif /* PS_GBC_GENERATED_NAMESPACE_H */\n";
+    writeFileIfChanged(path, out.str());
+}
+
 std::string emitHeader(
     size_t sessionBytes,
     uint8_t movementBytesPerCell,
@@ -1706,6 +1751,7 @@ std::string emitHeader(
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
+        << "#include \"generated_namespace.h\"\n"
         << "#include \"puzzlescript/gbc.h\"\n\n"
         << "#define PS_GBC_GENERATED_SESSION_BYTES " << sessionBytes << "U\n\n"
         << "#define PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL "
@@ -2553,6 +2599,8 @@ ExportResult exportGame(const ExportOptions& options) {
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
     result.generatedSourcePath = options.outputDirectory / "generated_game.c";
     result.manifestPath = options.outputDirectory / "gbc_manifest.json";
+    writeNamespaceHeader(
+        options.outputDirectory / "generated_namespace.h", options.symbolPrefix);
     writeFileIfChanged(result.generatedHeaderPath,
         emitHeader(
             sessionBytes,
@@ -2785,6 +2833,7 @@ ExportResult exportGame(const ExportOptions& options) {
                     "\"compact_turn_unsupported\",\n";
     }
     manifest << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
+        << "  \"symbol_prefix\": \"" << options.symbolPrefix << "\",\n"
         << "  \"color_stretch\": {\n"
         << "    \"mode\": \"optimized_gameplay_gamut\",\n"
         << "    \"anchor_policy\": \"background_and_object_colors\",\n"

@@ -35,7 +35,61 @@ void writeFile(const std::filesystem::path& path, const std::string& value) {
     output << value;
 }
 
+void assertTrue(bool condition, const std::string& message) {
+    require(condition, message.c_str());
+}
+
+// Exports the named src/demo/<fixture>.txt game (optionally with a symbol
+// prefix) into its own scratch subdirectory and returns that directory, so
+// callers can read whatever artifact they need out of it.
+std::filesystem::path exportFixture(
+    const std::string& fixtureName, const std::string& symbolPrefix = ""
+) {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    const std::filesystem::path outputDirectory = root / "build" / "native"
+        / "gbc_exporter_test_output" / "namespace_fixtures"
+        / (fixtureName + (symbolPrefix.empty() ? "_noprefix" : ("_" + symbolPrefix)));
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath = root / "src" / "demo" / (fixtureName + ".txt");
+    options.outputDirectory = outputDirectory;
+    options.symbolPrefix = symbolPrefix;
+    puzzlescript::gbc::exportGame(options);
+    return outputDirectory;
+}
+
 } // namespace
+
+static void test_namespace_header_empty_prefix_has_no_defines() {
+    const auto out = exportFixture("sokoban_basic", /*symbolPrefix=*/"");
+    const std::string header = readFile(out / "generated_namespace.h");
+    // "no #defines" means no per-symbol rename defines (e.g.
+    // "#define ps_gbc_step ..."); the file still needs its own include-guard
+    // #define (PS_GBC_GENERATED_NAMESPACE_H), same as every other generated
+    // header in this exporter, so a bare "#define" search would always find
+    // that guard and can't distinguish the two cases.
+    assertTrue(header.find("#define ps_gbc_") == std::string::npos,
+               "empty prefix must emit no defines");
+    assertTrue(header.find("PS_GBC_GENERATED_NAMESPACE_H") != std::string::npos,
+               "header needs an include guard");
+}
+
+static void test_namespace_header_prefixes_every_entry_point() {
+    const auto out = exportFixture("sokoban_basic", /*symbolPrefix=*/"g07");
+    const std::string header = readFile(out / "generated_namespace.h");
+    for (const char* name : {
+             "ps_gbc_session_required_bytes", "ps_gbc_session_init",
+             "ps_gbc_load_level", "ps_gbc_step", "ps_gbc_defer_wins",
+             "ps_gbc_advance_level", "ps_gbc_undo", "ps_gbc_restart",
+             "ps_gbc_status_get", "ps_gbc_cell_objects", "ps_gbc_dirty_cells",
+             "ps_gbc_has_dirty_cells", "ps_gbc_clear_dirty_cells",
+             "ps_gbc_first_player_position", "ps_gbc_board", "ps_gbc_game",
+             "ps_gbc_resolve_movements", "ps_gbc_generated_game"}) {
+        const std::string expected =
+            std::string("#define ") + name + " g07_" + name;
+        assertTrue(header.find(expected) != std::string::npos,
+                   std::string("missing define for ") + name);
+    }
+}
 
 int main() {
     const std::filesystem::path root = PS_REPO_ROOT;
@@ -984,5 +1038,8 @@ int main() {
         spawnPlayerSpecialized.find("seeded = true") != std::string::npos
             && spawnPlayerSpecialized.find("return seeded;") != std::string::npos,
         "multi-player specialized seed continues across all player cells");
+
+    test_namespace_header_empty_prefix_has_no_defines();
+    test_namespace_header_prefixes_every_entry_point();
     return 0;
 }
