@@ -76,6 +76,9 @@ int main() {
                 "$(if $(filter 1 yes true on,$(AUDIO)),,--no-mmutil)")
             != std::string::npos,
         "muted firmware exports skip unnecessary Maxmod conversion");
+    require(gbaMakefile.find("LCD_CONTRAST        ?= 1") != std::string::npos
+            && gbaMakefile.find("LCD_CONTRAST_ARG") != std::string::npos,
+        "firmware exports default to LCD contrast with an opt-out flag");
     const std::filesystem::path output = root / "build" / "native" / "gba_exporter_test_output";
     std::filesystem::remove_all(output);
 
@@ -83,6 +86,7 @@ int main() {
     options.sourcePath = root / "src" / "demo" / "sokoban_basic.txt";
     options.outputDirectory = output;
     options.runMmutil = false;
+    options.lcdContrast = false;
     const auto first = puzzlescript::gba::exportGame(options);
     require(std::filesystem::exists(first.manifestPath), "manifest is generated");
     require(std::filesystem::exists(first.generatedHeaderPath), "generated header is generated");
@@ -102,7 +106,7 @@ int main() {
     }
     require(static_cast<int16_t>(readU16(wav, 44)) == 0, "SFX fades in from zero");
     require(static_cast<int16_t>(readU16(wav, 42U + pcmBytes)) == 0, "SFX fades out to zero");
-    require(peak <= 4096, "SFX peak is capped at one eighth full scale");
+    require(peak <= 32767, "SFX peak is capped at PCM full scale");
 
     const std::string manifest = readFile(first.manifestPath);
     require(manifest.find("\"runtime_profile\": \"generated_compact\"") != std::string::npos,
@@ -120,6 +124,10 @@ int main() {
     require(manifest.find("\"object_cell_index_enabled\": true") != std::string::npos,
         "manifest records that the representative game uses the fixed object index");
     require(manifest.find("\"soundbank_generated\": false") != std::string::npos, "no-mmutil mode is explicit");
+    require(manifest.find("\"lcd_contrast\": {") != std::string::npos
+            && manifest.find("\"enabled\": false") != std::string::npos
+            && manifest.find("\"applied\": false") != std::string::npos,
+        "literal-color exports record disabled LCD contrast");
     const std::string generatedBefore = readFile(first.generatedSourcePath);
     const std::string generatedRules = readFile(first.generatedRulesPath);
     require(generatedRules.find("compact_turn_attach_external_board_0") != std::string::npos,
@@ -253,6 +261,84 @@ int main() {
         paletteRejected = std::string(error.what()).find("palette exceeds 256") != std::string::npos;
     }
     require(paletteRejected, "title image fails export when the combined Mode 4 palette exceeds 256 colors");
+
+    const std::filesystem::path contrastOutput = root / "build" / "native" / "gba_exporter_lcd_contrast_test_output";
+    std::filesystem::remove_all(contrastOutput);
+    puzzlescript::gba::ExportOptions contrastOptions = options;
+    contrastOptions.outputDirectory = contrastOutput;
+    contrastOptions.lcdContrast = true;
+    const auto contrastResult = puzzlescript::gba::exportGame(contrastOptions);
+    const std::string contrastManifest = readFile(contrastResult.manifestPath);
+    const std::string contrastSource = readFile(contrastResult.generatedSourcePath);
+    require(contrastManifest.find("\"enabled\": true") != std::string::npos
+            && contrastManifest.find("\"applied\": true") != std::string::npos
+            && contrastManifest.find("\"background_layer_transparent\": true") != std::string::npos,
+        "LCD contrast applies the unlit-LCD path by default");
+    // text black (0), bg white (0x7fff)
+    require(contrastSource.find("0x0, 0x7fff") != std::string::npos
+            || contrastSource.find("0x0000, 0x7fff") != std::string::npos,
+        "LCD contrast forces white clear and black text");
+    require(contrastSource.find("{\"background\", 0, 5, 5, kObject0Pixels, 0x1ffffffU}") != std::string::npos,
+        "LCD contrast forces collision-layer-0 background tiles fully transparent");
+    // Object white → #CCCCCC then lift → BGR555 0x6f7b.
+    require(contrastSource.find("0x6f7b") != std::string::npos
+            || contrastSource.find("0x6F7B") != std::string::npos,
+        "LCD contrast remaps object white to lifted lightgray");
+
+    const std::filesystem::path darkTextOutput = contrastOutput / "dark-text";
+    const std::filesystem::path darkTextSource = contrastOutput / "dark_text.txt";
+    {
+        std::string sokoban = readFile(root / "src" / "demo" / "sokoban_basic.txt");
+        const std::string needle = "homepage www.puzzlescript.net\n";
+        const auto pos = sokoban.find(needle);
+        require(pos != std::string::npos, "sokoban_basic preamble contains homepage for dark-text fixture");
+        sokoban.insert(pos + needle.size(), "text_color #224466\n");
+        std::ofstream out(darkTextSource, std::ios::binary | std::ios::trunc);
+        out << sokoban;
+    }
+    puzzlescript::gba::ExportOptions darkTextOptions = contrastOptions;
+    darkTextOptions.outputDirectory = darkTextOutput;
+    darkTextOptions.sourcePath = darkTextSource;
+    const auto darkTextResult = puzzlescript::gba::exportGame(darkTextOptions);
+    const std::string darkTextSourceCpp = readFile(darkTextResult.generatedSourcePath);
+    require(darkTextSourceCpp.find("0x0, 0x7fff") != std::string::npos
+            || darkTextSourceCpp.find("0x0000, 0x7fff") != std::string::npos,
+        "LCD contrast forces black text even when authored text_color is dark");
+
+    const std::filesystem::path shadedOutput = contrastOutput / "shaded-reds";
+    puzzlescript::gba::ExportOptions shadedOptions = contrastOptions;
+    shadedOptions.outputDirectory = shadedOutput;
+    shadedOptions.sourcePath = root / "src" / "tests" / "solver_tests" / "Any hole is a goal.txt";
+    const auto shadedResult = puzzlescript::gba::exportGame(shadedOptions);
+    const std::string shadedManifest = readFile(shadedResult.manifestPath);
+    const auto paletteCountPos = shadedManifest.find("\"palette_count\": ");
+    require(paletteCountPos != std::string::npos, "shaded-red export records palette_count");
+    const int shadedPaletteCount = std::stoi(shadedManifest.substr(paletteCountPos + 17));
+    require(shadedPaletteCount >= 15,
+        "LCD contrast retains shaded red distinctions instead of snapping to a tiny fixed palette");
+
+    const std::filesystem::path paleTextOutput = contrastOutput / "pale-text";
+    puzzlescript::gba::ExportOptions paleTextOptions = contrastOptions;
+    paleTextOptions.outputDirectory = paleTextOutput;
+    paleTextOptions.sourcePath = root / "src" / "tests" / "solver_tests" / "a clear view of the sky.txt";
+    const auto paleTextResult = puzzlescript::gba::exportGame(paleTextOptions);
+    const std::string paleTextSource = readFile(paleTextResult.generatedSourcePath);
+    require(paleTextSource.find("0x0, 0x7fff") != std::string::npos
+            || paleTextSource.find("0x0000, 0x7fff") != std::string::npos,
+        "LCD contrast forces black text on white clear for pale authored text_color");
+
+    const std::filesystem::path contrastTitleOutput = contrastOutput / "title";
+    std::filesystem::create_directories(contrastTitleOutput);
+    const std::filesystem::path contrastTitleImage = contrastTitleOutput / "title.ppm";
+    writePpm(contrastTitleImage, 2, 1, {{{0, 0, 0}}, {{255, 255, 255}}});
+    puzzlescript::gba::ExportOptions contrastTitleOptions = contrastOptions;
+    contrastTitleOptions.outputDirectory = contrastTitleOutput;
+    contrastTitleOptions.titleImagePath = contrastTitleImage;
+    const auto contrastTitleResult = puzzlescript::gba::exportGame(contrastTitleOptions);
+    const std::string contrastTitleManifest = readFile(contrastTitleResult.manifestPath);
+    require(contrastTitleManifest.find("\"applied\": true") != std::string::npos
+            && contrastTitleManifest.find("\"title_image\": true") != std::string::npos,
+        "title-image exports still apply LCD contrast");
 #if PS_MASK_WORD_BITS != 32
     puzzlescript::gba::ExportOptions wrongWordSizeOptions = options;
     wrongWordSizeOptions.sourcePath = root / "src" / "tests" / "solver_tests" / "BIAXIAL INVASION OF SATURN.txt";

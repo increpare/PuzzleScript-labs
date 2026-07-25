@@ -7165,6 +7165,10 @@ int exportGbaCommand(const std::string& sourcePath, int argc, char** argv) {
             options.mmutilExecutable = argv[++index];
         } else if (arg == "--no-mmutil") {
             options.runMmutil = false;
+        } else if (arg == "--lcd-contrast") {
+            options.lcdContrast = true;
+        } else if (arg == "--no-lcd-contrast") {
+            options.lcdContrast = false;
         } else {
             throw std::runtime_error("Unsupported export-gba argument: " + arg);
         }
@@ -7328,12 +7332,17 @@ void printCompileRulesHelp() {
 
 void printExportGbaHelp() {
     std::cout
-        << "Usage: puzzlescript_cpp export-gba game.txt --out DIR [--title-image IMAGE] [--mmutil PATH] [--no-mmutil]\n\n"
+        << "Usage: puzzlescript_cpp export-gba game.txt --out DIR [--title-image IMAGE] [--mmutil PATH]\n"
+        << "         [--no-mmutil] [--lcd-contrast|--no-lcd-contrast]\n\n"
         << "Compiles a single PuzzleScript game into ROM-backed GBA data, emits the native\n"
         << "compact-turn source and deduplicated 16 kHz WAV effects, validates Mode 4 and\n"
         << "memory limits, and invokes mmutil unless --no-mmutil is supplied. --title-image\n"
         << "accepts common host image formats; the first frame is nearest-neighbour fitted\n"
         << "inside 240x160 and shares the game's Mode 4 palette.\n\n"
+        << "LCD contrast is on by default: background clears to white, layer-0 tiles become\n"
+        << "transparent, text is always black, object whites become lightgray, and\n"
+        << "remaining non-black colors are lifted into GBA-visible intensities (15–31).\n"
+        << "Pass --no-lcd-contrast to keep authored PC colors.\n\n"
         << "The ROM links the game's generated native compact-turn kernel; compatibility is\n"
         << "determined by compiler support and GBA display/ROM/RAM limits, never object names\n"
         << "or a guessed game genre. Oversized boards retain the largest undo ring that fits.\n";

@@ -36,7 +36,7 @@ constexpr size_t kSessionLimit = 160U * 1024U;
 constexpr size_t kEwramLimit = 224U * 1024U;
 constexpr size_t kPlatformEwramReserve = 64U * 1024U;
 constexpr int kSampleRate = 16000;
-constexpr float kGbaPeakLimit = 0.125f;
+constexpr float kGbaPeakLimit = 1.0f;
 
 struct Rgb {
     uint8_t r = 0;
@@ -44,6 +44,10 @@ struct Rgb {
     uint8_t b = 0;
     bool transparent = false;
 };
+
+constexpr Rgb kLcdContrastBlack{0x00, 0x00, 0x00, false};
+constexpr Rgb kLcdContrastWhite{0xff, 0xff, 0xff, false};
+constexpr Rgb kLcdContrastLightGray{0xcc, 0xcc, 0xcc, false};
 
 struct ImagePixel {
     uint8_t r = 0;
@@ -259,6 +263,43 @@ uint16_t toBgr555(const Rgb color) {
     return static_cast<uint16_t>((color.r >> 3U) | ((color.g >> 3U) << 5U) | ((color.b >> 3U) << 10U));
 }
 
+bool isPureBlack(const Rgb color) {
+    return !color.transparent && color.r == 0 && color.g == 0 && color.b == 0;
+}
+
+bool isObjectWhite(const Rgb color) {
+    return !color.transparent && color.r >= 250 && color.g >= 250 && color.b >= 250;
+}
+
+uint8_t expand5To8(uint8_t value5) {
+    return static_cast<uint8_t>((value5 << 3U) | (value5 >> 2U));
+}
+
+uint8_t liftChannelToGbaVisibleBand(uint8_t channel) {
+    const uint8_t value5 = static_cast<uint8_t>(channel >> 3U);
+    const uint8_t lifted = static_cast<uint8_t>(15U + (static_cast<uint16_t>(value5) * 16U) / 31U);
+    return expand5To8(lifted);
+}
+
+Rgb liftToGbaVisibleBand(Rgb color) {
+    if (color.transparent || isPureBlack(color)) {
+        return color;
+    }
+    return Rgb{liftChannelToGbaVisibleBand(color.r), liftChannelToGbaVisibleBand(color.g),
+        liftChannelToGbaVisibleBand(color.b), false};
+}
+
+// Sprite / title path: white→lightgray, then lift non-black into 15–31.
+Rgb applyLcdContrastObjectColor(Rgb color) {
+    if (color.transparent) {
+        return color;
+    }
+    if (isObjectWhite(color)) {
+        color = kLcdContrastLightGray;
+    }
+    return liftToGbaVisibleBand(color);
+}
+
 bool maskHasObject(const Game& game, MaskOffset offset, int objectId) {
     if (offset == kNullMaskOffset || objectId < 0) {
         return false;
@@ -408,6 +449,8 @@ std::string emitGeneratedHeader(size_t sessionBytes) {
 std::string emitGeneratedSource(
     const Game& game,
     uint64_t sourceHash,
+    uint16_t foregroundBgr555,
+    uint16_t backgroundBgr555,
     const std::vector<uint16_t>& palette,
     const std::vector<uint32_t>& playerMask,
     const std::vector<uint8_t>& titleImagePixels,
@@ -505,8 +548,8 @@ std::string emitGeneratedSource(
         << "    PS_GBA_GAME_ABI_VERSION, " << sourceHash << "ULL,\n"
         << "    " << cppString(metadataValue("title", "PuzzleScript Game")) << ", "
         << cppString(metadataValue("author", "")) << ",\n"
-        << "    0x" << std::hex << toBgr555(parseColor(game.foregroundColor)) << ", 0x"
-        << toBgr555(parseColor(game.backgroundColor)) << std::dec << ",\n"
+        << "    0x" << std::hex << foregroundBgr555 << ", 0x"
+        << backgroundBgr555 << std::dec << ",\n"
         << "    " << palette.size() << ", kPalette,\n"
         << "    " << objects.size() << ", " << ((objects.size() + 31U) / 32U) << ", kObjects,\n"
         << "    " << levels.size() << ", " << maxCells << ", " << objectCellIndexWordCount << ", "
@@ -781,6 +824,15 @@ ExportResult exportGame(const ExportOptions& options) {
 #endif
     const uint64_t sourceHash = compiledRulesHashSource(source);
 
+    const Rgb originalBackground = parseColor(game.backgroundColor);
+    const Rgb originalForeground = parseColor(game.foregroundColor);
+    const bool lcdContrastApplied = options.lcdContrast;
+    const Rgb backgroundColor = lcdContrastApplied ? kLcdContrastWhite : originalBackground;
+    const Rgb foregroundColor = lcdContrastApplied ? kLcdContrastBlack : originalForeground;
+    const auto mapObjectColor = [&](Rgb color) -> Rgb {
+        return lcdContrastApplied ? applyLcdContrastObjectColor(color) : color;
+    };
+
     std::vector<uint16_t> palette;
     std::map<uint16_t, uint16_t> paletteIndex;
     auto internPackedColor = [&](const uint16_t packed) -> uint16_t {
@@ -794,11 +846,10 @@ ExportResult exportGame(const ExportOptions& options) {
     auto internColor = [&](const std::string& value) -> uint16_t {
         const Rgb color = parseColor(value);
         if (color.transparent) return UINT16_MAX;
-        return internPackedColor(toBgr555(color));
+        return internPackedColor(toBgr555(mapObjectColor(color)));
     };
-    const Rgb backgroundColor = parseColor(game.backgroundColor);
     const uint16_t backgroundIndex = internPackedColor(toBgr555(backgroundColor));
-    (void)internColor(game.foregroundColor);
+    (void)internPackedColor(toBgr555(foregroundColor));
 
     std::vector<uint8_t> titleImagePixels;
     if (!options.titleImagePath.empty()) {
@@ -822,14 +873,16 @@ ExportResult exportGame(const ExportOptions& options) {
             for (int x = 0; x < fittedWidth; ++x) {
                 const int sourceX = static_cast<int>(static_cast<int64_t>(x) * image.width / fittedWidth);
                 const ImagePixel source = image.pixels[static_cast<size_t>(sourceY) * image.width + sourceX];
+                const Rgb mappedSource = mapObjectColor(Rgb{source.r, source.g, source.b, false});
                 const auto blend = [&](uint8_t channel, uint8_t background) -> uint8_t {
                     return static_cast<uint8_t>((static_cast<uint32_t>(channel) * source.a
                         + static_cast<uint32_t>(background) * (255U - source.a) + 127U) / 255U);
                 };
-                const Rgb color{blend(source.r, backgroundColor.r), blend(source.g, backgroundColor.g),
-                    blend(source.b, backgroundColor.b), false};
+                const Rgb color{blend(mappedSource.r, backgroundColor.r), blend(mappedSource.g, backgroundColor.g),
+                    blend(mappedSource.b, backgroundColor.b), false};
                 titleImagePixels[static_cast<size_t>(offsetY + y) * PS_GBA_SCREEN_WIDTH + offsetX + x]
-                    = static_cast<uint8_t>(internPackedColor(toBgr555(color)));
+                    = static_cast<uint8_t>(internPackedColor(toBgr555(
+                        lcdContrastApplied ? liftToGbaVisibleBand(color) : color)));
             }
         }
     }
@@ -846,6 +899,16 @@ ExportResult exportGame(const ExportOptions& options) {
         const size_t pixelCount = static_cast<size_t>(packed.width) * packed.height;
         if (pixelCount > PS_GBA_MAX_SPRITE_PIXELS) {
             throw std::runtime_error("GBA export supports object sprites with at most 32 pixels");
+        }
+        // After LCD invert, patterned background-layer tiles fight the solid clear
+        // color on unlit LCDs — force them fully transparent so background_color shows.
+        if (lcdContrastApplied && packed.layer == 0) {
+            packed.pixels.assign(pixelCount, 0);
+            packed.transparentPixels = pixelCount >= 32U
+                ? UINT32_MAX
+                : (uint32_t{1} << pixelCount) - 1U;
+            objects.push_back(std::move(packed));
+            continue;
         }
         std::vector<uint16_t> objectColors;
         objectColors.reserve(object.colors.size());
@@ -999,8 +1062,8 @@ ExportResult exportGame(const ExportOptions& options) {
     result.soundbankPath = options.outputDirectory / "soundbank.bin";
     writeFileIfChanged(result.generatedHeaderPath, emitGeneratedHeader(sessionBytes));
     writeFileIfChanged(result.generatedSourcePath, emitGeneratedSource(
-        game, sourceHash, palette, playerMask, titleImagePixels, objects, levels, metadata, sounds,
-        maxCells, objectCellIndexWords, undoCapacity));
+        game, sourceHash, toBgr555(foregroundColor), toBgr555(backgroundColor), palette, playerMask,
+        titleImagePixels, objects, levels, metadata, sounds, maxCells, objectCellIndexWords, undoCapacity));
     writeFileIfChanged(result.generatedRulesPath, emitRules(
         game, options.sourcePath, sourceHash, enableObjectCellIndex));
 
@@ -1059,6 +1122,11 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"generated_wav_bytes\": " << audioBytes << ",\n"
         << "  \"soundbank_generated\": " << (result.soundbankGenerated ? "true" : "false") << ",\n"
         << "  \"soundbank_bytes\": " << soundbankBytes << ",\n"
+        << "  \"lcd_contrast\": {\n"
+        << "    \"enabled\": " << (options.lcdContrast ? "true" : "false") << ",\n"
+        << "    \"applied\": " << (lcdContrastApplied ? "true" : "false") << ",\n"
+        << "    \"background_layer_transparent\": " << (lcdContrastApplied ? "true" : "false") << "\n"
+        << "  },\n"
         << "  \"limits\": {\"session_bytes\": 163840, \"ewram_bytes\": 229376, \"iwram_headroom_bytes\": 8192},\n"
         << "  \"diagnostics\": []\n"
         << "}\n";

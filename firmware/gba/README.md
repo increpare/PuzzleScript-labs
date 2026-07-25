@@ -38,8 +38,14 @@ checking the generated WAV files at a safe listening level, opt in with:
 make AUDIO=1 GAME=../../src/demo/sokoban_basic.txt
 ```
 
-Opt-in audio uses a reduced Maxmod effects master volume; exported samples are
-DC-centered, edge-faded, and capped at one eighth of PCM full scale.
+LCD contrast is **on** by default (`LCD_CONTRAST=1`). Export forces a white
+clear background and black text, makes collision-layer-0 tiles transparent,
+remaps object whites to lightgray, and lifts other non-black colors into
+GBA-visible 5-bit intensities (15–31). Disable with `LCD_CONTRAST=0` (or
+`export-gba --no-lcd-contrast`) to keep PC-authored colors.
+
+Opt-in audio uses Maxmod effects at full master volume (1024); exported samples
+are DC-centered, edge-faded, and normalized to PCM full scale.
 
 The default Windows host compiler path is
 `../../build/native/Release/puzzlescript_cpp.exe`; override

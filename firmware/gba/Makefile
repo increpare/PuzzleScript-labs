@@ -12,7 +12,8 @@ INCLUDES            := generated ../../native/include ../../native/src
 GAME                ?= ../../src/demo/sokoban_basic.txt
 PUZZLESCRIPT_CPP    ?= ../../build-32/native/Release/puzzlescript_cpp.exe
 AUDIO               ?= 0
-AUDIO_VOLUME        ?= 128
+AUDIO_VOLUME        ?= 1024
+LCD_CONTRAST        ?= 1
 AUTOTEST_LEVEL_START ?= 0
 PERF_BENCHMARK      ?= 0
 PERF_ITERATIONS     ?= 16
@@ -24,6 +25,7 @@ RENDER_SET_BITS     ?= 1
 RENDER_PACKED_BLIT  ?= 1
 TITLE_IMAGE         ?=
 TITLE_IMAGE_ARG     := $(if $(strip $(TITLE_IMAGE)),--title-image "$(TITLE_IMAGE)",)
+LCD_CONTRAST_ARG    := $(if $(filter 0 false no off,$(LCD_CONTRAST)),--no-lcd-contrast,)
 
 ARCH        := -mthumb -mthumb-interwork
 CFLAGS      := -g -Wall -Wextra -O2 $(ARCH) -ffunction-sections -fdata-sections
@@ -98,7 +100,7 @@ all: export $(BUILD)
 
 export:
 	@mkdir -p generated
-	"$(PUZZLESCRIPT_CPP)" export-gba "$(GAME)" --out generated $(TITLE_IMAGE_ARG) \
+	"$(PUZZLESCRIPT_CPP)" export-gba "$(GAME)" --out generated $(TITLE_IMAGE_ARG) $(LCD_CONTRAST_ARG) \
 		$(if $(filter 1 yes true on,$(AUDIO)),,--no-mmutil)
 
 $(BUILD): export

@@ -3,7 +3,7 @@ param(
     [string]$OutputDirectory = "",
     [switch]$Audio,
     [ValidateRange(0, 1024)]
-    [int]$AudioVolume = 128,
+    [int]$AudioVolume = 1024,
     [switch]$Rebuild,
     [switch]$Resume
 )

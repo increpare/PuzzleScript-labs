@@ -4,7 +4,7 @@
 #endif
 
 #ifndef PS_GBA_EFFECTS_VOLUME
-#define PS_GBA_EFFECTS_VOLUME 128
+#define PS_GBA_EFFECTS_VOLUME 1024
 #endif
 
 #ifndef PS_GBA_ROM_PREFETCH
