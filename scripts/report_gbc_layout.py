@@ -37,7 +37,7 @@ def layout(map_path: Path) -> dict[str, Any]:
         size = int(match.group(3), 16)
         if BANK_AREA.fullmatch(name):
             banks[name] = size
-        if name.startswith("_HEADER") or 0 < address < 0x4000:
+        if name.startswith("_HEADER") or address < 0x4000:
             home_high = max(home_high, address + size)
         if 0xC000 <= address < 0xE000:
             wram_high = max(wram_high, address + size)
