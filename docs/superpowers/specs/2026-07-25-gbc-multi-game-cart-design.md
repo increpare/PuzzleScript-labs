@@ -53,44 +53,62 @@ movement resolve.
 ## Cart shape
 
 MBC5, cart type `0x1B` (MBC5+RAM+BATTERY), CGB-only. **Hard cap 255 ROM banks
-(4 MB)** so `BANKED` calls keep working. Thirty-two games land near 64 banks.
+(4 MB)** so `BANKED` calls keep working. Thirty-two games land near 1.4 MB
+(~88 banks): ~1 MB of data and specialized code plus ~394 KiB of per-game core.
 
 | Region | Contents |
 | --- | --- |
-| Bank 0 (HOME, 16 KiB) | boot, main loop, input, VRAM/tilemap/palette plumbing, SRAM framing, bank dispatch, launcher trampoline, width-agnostic half of `core.c` |
+| Bank 0 (HOME, 16 KiB) | boot, main loop, input, VRAM/tilemap/palette plumbing, SRAM framing, bank dispatch, launcher trampoline |
 | Launcher bank | menu code and the launcher cards for every game |
 | Shared firmware banks | `audio`, `text`, `tile_cache`, `frontend_flow` |
-| Per-game banks | game data, façade, specialized turn packs, width-coupled core slice |
+| Per-game banks | game data, façade, specialized turn packs, private `core.c` |
 
-## Splitting core.c
+## Per-game core
 
-The split follows the width boundary, so each game keeps its own optimal object
-and movement widths. Widths vary meaningfully across the corpus: eleven of the
-fourteen measured games use 1-byte object masks, `short-adventure` uses 2 bytes
-(13 objects), and `voitex-rasteriser` and `slot-machine` use 4 bytes (17 and 20
-objects). Forcing a cart-wide width would tax thirty games to accommodate two.
+Each game carries its **own private copy of `core.c`**, compiled with its own
+width macros into its own banks. `core.c` is not split. HOME keeps only
+`main.c`, the GBDK runtime, the bank dispatch and the launcher trampoline —
+about 4 KiB, leaving roughly 12 KiB free.
 
-**Stays in HOME (width-agnostic):** frame loop, input polling, tilemap and
-palette writes, SRAM save framing, banking helpers, launcher dispatch.
+This keeps each game's optimal object and movement widths, which vary
+meaningfully across the corpus: eleven of the fourteen measured games use 1-byte
+object masks, `short-adventure` uses 2 bytes (13 objects), and
+`voitex-rasteriser` and `slot-machine` use 4 bytes (17 and 20 objects). Forcing
+a cart-wide width would tax thirty games to accommodate two.
 
-**Moves to the game's bank (width-coupled):** board cell access, movement plane
-access, snapshot and restore, level load, render feed, turn entry, resolve, won.
+The cost is ROM: `core.o` is 12,277 bytes, so 32 games carry about 394 KiB of
+duplicated core — 10% of the 4 MB cap, on top of the ~1 MB already projected.
+Splitting `core.c` along the width boundary would recover roughly 6 KiB per game
+but requires deriving that boundary function by function through a 1,522-line
+file, and is not worth the breakage risk at this ROM budget.
 
-The interface is a per-game descriptor holding the game's bank number and
-function pointers into it. HOME switches to the game's bank and calls through
-the pointer. Calls back into HOME from a banked game are safe because HOME is
+`ps_gbc_resolve_movements` (`core.c:954`) is currently `NONBANKED` so the
+specialized packs can call it while their own bank is mapped. Moving `core.c`
+into the game's banks removes that guarantee, so the specialized packs call it
+as an ordinary `BANKED` call, which saves and restores the bank.
+
+**Symbol namespacing.** Thirty-two copies of `ps_gbc_step`,
+`ps_gbc_generated_game` and every other file-scope name collide at link time.
+Every per-game translation unit — generated files and the game's `core.c` alike
+— is compiled through a generated namespace header that `#define`s each exported
+name to a per-game prefix (`g07_ps_gbc_step`).
+
+**Dispatch.** A per-game descriptor holds the game's bank number and function
+pointers into it. HOME switches to the game's bank and calls through the
+pointer. Calls back into HOME from a banked game are safe because HOME is
 permanently mapped — this is exactly why the earlier attempt to place
 specialized code in bank 2 hung when it called non-`NONBANKED` core helpers, and
-this layout removes the hazard rather than working around it. Cross-pack calls
-within a single game continue to use ordinary `BANKED` calls, which save and
-restore the bank.
+this layout removes the hazard rather than working around it. Cross-bank calls
+within a single game use ordinary `BANKED` calls.
 
 ## WRAM arena
 
-One `gArena` declared in HOME, sized to the maximum requirement over the games
-on the cart. Each game's descriptor declares its arena size and its internal
-offsets — board, movement plane, dirty bitset, match bitset. Games choose their
-own layout within the arena.
+`main.c:38` already declares `gSessionArena[PS_GBC_GENERATED_SESSION_BYTES]`,
+and `ps_gbc_session_init(arena, size, …)` already places the entire session
+inside it. The cart sizes that one array to the maximum requirement over the
+games it contains; each game's descriptor carries its own required size, and
+`ps_gbc_session_init` continues to lay out board, movement plane, dirty bitset
+and player cells within it.
 
 **Hygiene gate:** generated translation units must contribute zero bytes to
 `_DATA` and `_BSS`. Today `generated_specialized_turn.o` contributes 12 bytes of
