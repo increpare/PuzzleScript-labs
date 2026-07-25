@@ -570,6 +570,8 @@ ps_gbc_session* ps_gbc_session_init(
     return session;
 }
 
+#if !defined(PS_GBC_HAS_SPECIALIZED_TURN)
+
 static int8_t ps_gbc_delta(const ps_gbc_session* session, uint8_t direction) {
     switch (direction) {
         case 1U: return -1;
@@ -875,17 +877,6 @@ static bool ps_gbc_apply_groups(
     return changed;
 }
 
-static uint8_t ps_gbc_input_direction(ps_input input) {
-    switch (input) {
-        case PS_INPUT_UP: return 1U;
-        case PS_INPUT_DOWN: return 2U;
-        case PS_INPUT_LEFT: return 4U;
-        case PS_INPUT_RIGHT: return 8U;
-        case PS_INPUT_ACTION: return 16U;
-        default: return 0U;
-    }
-}
-
 static bool ps_gbc_seed_player_movement(ps_gbc_session* session, uint8_t direction) {
     uint16_t cell;
     const uint16_t cells = (uint16_t)(session->width * session->height);
@@ -914,6 +905,19 @@ static bool ps_gbc_seed_player_movement(ps_gbc_session* session, uint8_t directi
         }
     }
     return seeded;
+}
+
+#endif /* !PS_GBC_HAS_SPECIALIZED_TURN */
+
+static uint8_t ps_gbc_input_direction(ps_input input) {
+    switch (input) {
+        case PS_INPUT_UP: return 1U;
+        case PS_INPUT_DOWN: return 2U;
+        case PS_INPUT_LEFT: return 4U;
+        case PS_INPUT_RIGHT: return 8U;
+        case PS_INPUT_ACTION: return 16U;
+        default: return 0U;
+    }
 }
 
 static void ps_gbc_direction_delta(uint8_t direction, int8_t* dx, int8_t* dy) {
@@ -1044,6 +1048,10 @@ bool ps_gbc_resolve_movements(ps_gbc_session* session) PS_GBC_CORE_RUNTIME_NONBA
     return moved_any;
 }
 
+#if !defined(PS_GBC_HAS_SPECIALIZED_TURN) \
+    || !defined(PS_GBC_GENERATED_SPECIALIZED_WON) \
+    || !PS_GBC_GENERATED_SPECIALIZED_WON
+
 static bool ps_gbc_filter_matches(uint32_t filter, bool aggregate, uint32_t cell) {
     return aggregate ? (cell & filter) == filter : (cell & filter) != 0U;
 }
@@ -1087,6 +1095,8 @@ static bool ps_gbc_won(const ps_gbc_session* session) {
     }
     return true;
 }
+
+#endif /* interpreter win check */
 
 static void ps_gbc_commit_undo(ps_gbc_session* session) {
     session->undo_head = (uint16_t)((session->undo_head + 1U) % session->game->undo_capacity);
@@ -1158,6 +1168,8 @@ bool ps_gbc_advance_level(ps_gbc_session* session) {
     return ps_gbc_advance(session);
 }
 
+#if !defined(PS_GBC_HAS_SPECIALIZED_TURN)
+
 bool ps_gbc_apply_early_rule_groups(
     ps_gbc_session* session,
     uint8_t direction,
@@ -1221,6 +1233,8 @@ bool ps_gbc_apply_turn_phases(
     rest = ps_gbc_apply_rules_and_movement(session, direction, commands);
     return seeded || rest;
 }
+
+#endif /* !PS_GBC_HAS_SPECIALIZED_TURN */
 
 #if !defined(PS_GBC_HAS_SPECIALIZED_TURN)
 bool ps_gbc_specialized_apply_turn_phases(
@@ -1402,10 +1416,15 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     }
     PS_GBC_PERF_END(PS_GBC_PERF_SNAPSHOT);
     changed = false;
+#if defined(PS_GBC_HAS_SPECIALIZED_TURN)
+    (void)ps_gbc_specialized_apply_turn_phases(
+        session, direction, &commands, &changed);
+#else
     if (!ps_gbc_specialized_apply_turn_phases(
             session, direction, &commands, &changed)) {
         changed = ps_gbc_apply_turn_phases(session, direction, &commands);
     }
+#endif
     ps_gbc_finish_turn(
         session, &commands, changed, board_bytes, false, &result);
     return result;
@@ -1441,10 +1460,15 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
     session->suppress_audio = true;
 #endif
     changed = false;
+#if defined(PS_GBC_HAS_SPECIALIZED_TURN)
+    (void)ps_gbc_specialized_apply_turn_phases(
+        session, 0U, &commands, &changed);
+#else
     if (!ps_gbc_specialized_apply_turn_phases(
             session, 0U, &commands, &changed)) {
         changed = ps_gbc_apply_turn_phases(session, 0U, &commands);
     }
+#endif
     ps_gbc_finish_turn(
         session, &commands, changed, board_bytes, true, &ignored);
 #if PS_GBC_HAS_AUDIO

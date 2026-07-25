@@ -14,6 +14,7 @@
 #define PS_GBC_CORE_RUNTIME_NONBANKED
 #endif
 
+#if !defined(PS_GBC_HAS_SPECIALIZED_TURN)
 bool ps_gbc_apply_turn_phases(
     ps_gbc_session* session,
     uint8_t direction,
@@ -24,8 +25,6 @@ bool ps_gbc_apply_early_rule_groups(
     uint8_t direction,
     ps_gbc_commands* commands);
 
-bool ps_gbc_resolve_movements(ps_gbc_session* session) PS_GBC_CORE_RUNTIME_NONBANKED;
-
 bool ps_gbc_apply_late_rule_groups(
     ps_gbc_session* session,
     uint8_t direction,
@@ -35,6 +34,9 @@ bool ps_gbc_apply_rules_and_movement(
     ps_gbc_session* session,
     uint8_t direction,
     ps_gbc_commands* commands);
+#endif
+
+bool ps_gbc_resolve_movements(ps_gbc_session* session) PS_GBC_CORE_RUNTIME_NONBANKED;
 
 /*
  * Specialized turn hook. ps_gbc_step always calls this before falling back.
