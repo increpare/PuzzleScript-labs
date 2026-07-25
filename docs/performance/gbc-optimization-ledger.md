@@ -1116,11 +1116,41 @@ Validation: `scripts/validate_gbc_promote_candidates.py` (cull + specialized + �
 
 | slug | error |
 | --- | --- |
-| an-ok-multiban-level | build_failed (fixed ROM bank over budget) |
-| head-skuller | build_failed (fixed ROM bank over budget) |
-| the-red-ring-of-immortality | build_failed (fixed ROM bank over budget) |
+| *(none — all three fixed-ROM fails promoted 2026-07-25; see below)* | |
 
 `ELIGIBLE_GAMES` size is now **32**. Host solution-replay scoreboard for new titles is follow-up (not a promote gate).
+
+### GBC fixed-ROM interpreter dead-code + promote batch (2026-07-25)
+
+Revision: `gbc-followups-batch` (follow-ups batch).
+
+**Problem:** Three Milestone-A export-OK titles failed `check_gbc_rom.py` on fixed ROM
+bank high-water (~16405–16593 B vs 16384 B limit). Map diagnosis: ~4–5 KiB of
+interpreter rule engine in `core.c` (`ps_gbc_pattern_matches` …
+`ps_gbc_apply_turn_phases`) plus `ps_gbc_won` when specialized win is emitted —
+all dead once `PS_GBC_HAS_SPECIALIZED_TURN` is set for shipping carts.
+
+**Fix:**
+
+1. `#if !PS_GBC_HAS_SPECIALIZED_TURN` around interpreter rule/turn paths in
+   `native/src/gbc/core.c`; gate `ps_gbc_won` when `PS_GBC_GENERATED_SPECIALIZED_WON`.
+2. `firmware/gbc/Makefile`: export stamp (`gbc_manifest.json`) before any `.o`
+   build; link specialized TUs from `specialized_sources.list` (`.c` only);
+   evaluate `PS_GBC_HAS_SPECIALIZED_TURN` for `core.o` at recipe time.
+
+**Fixed ROM before → after (linked map, specialized retained, ROM ≤512 KiB):**
+
+| slug | before (B) | after (B) | spare (B) |
+| --- | ---: | ---: | ---: |
+| an-ok-multiban-level | ~16593 | 12122 | 4262 |
+| head-skuller | 16405 | 12379 | 4005 |
+| the-red-ring-of-immortality | ~16593 | 12029 | 4355 |
+
+**Promoted to `ELIGIBLE_GAMES`:** all three above (`an-ok-multiban-level` and
+`head-skuller` were already on the branch list; `the-red-ring-of-immortality`
+added). Validation: `scripts/validate_gbc_promote_candidates.py` — 3/3 pass.
+
+Design note: `docs/superpowers/specs/2026-07-25-gbc-fixed-rom-interpreter-dead-code.md`.
 
 ### GBC Milestone B property/aggregate specialized emit (2026-07-25)
 

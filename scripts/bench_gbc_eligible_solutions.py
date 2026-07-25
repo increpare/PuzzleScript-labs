@@ -65,6 +65,7 @@ ELIGIBLE_GAMES: tuple[tuple[str, str], ...] = (
     ("resin-caster", "src/tests/good_games/Resin-Caster.txt"),
     ("slime-vat-filler", "src/tests/good_games/slime vat filler.txt"),
     ("the-monsterous-autoshove", "src/tests/good_games/The Monsterous Autoshove.txt"),
+    ("the-red-ring-of-immortality", "src/tests/good_games/The Red Ring of Immortality.txt"),
     ("two-step-pete", "src/tests/good_games/Two-Step Pete.txt"),
     ("unclean-residues", "src/tests/good_games/unclean residues.txt"),
     ("an-ok-multiban-level", "src/tests/good_games/an ok multiban level.txt"),

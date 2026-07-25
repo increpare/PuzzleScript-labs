@@ -17,6 +17,7 @@ PYTHON             ?= python3
 EXPORT_GBC_FLAGS   ?=
 
 SPECIALIZED_SRC    := $(GENERATED)/generated_specialized_turn.c
+EXPORT_STAMP       := $(GENERATED)/gbc_manifest.json
 SPECIALIZED_SRCS   := $(wildcard $(GENERATED)/generated_specialized_turn*.c)
 HAS_SPECIALIZED    := $(shell test -f $(SPECIALIZED_SRC) && echo 1)
 SPECIALIZED_CFLAGS := $(if $(HAS_SPECIALIZED),-DPS_GBC_HAS_SPECIALIZED_TURN=1,)
@@ -49,15 +50,28 @@ OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
 	$(BUILD)/frontend_flow.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
-SPECIALIZED_OBJECTS := $(if $(HAS_SPECIALIZED),$(patsubst $(GENERATED)/%.c,$(BUILD)/%.o,$(SPECIALIZED_SRCS)),)
-FACADE_OBJECTS := $(if $(HAS_SPECIALIZED),$(BUILD)/compact_facade.o $(BUILD)/facade_rules.o,)
-LINK_OBJECTS := $(OBJECTS) $(FACADE_OBJECTS) $(SPECIALIZED_OBJECTS)
+FACADE_OBJECTS := $(BUILD)/compact_facade.o $(BUILD)/facade_rules.o
+
+$(TARGET).gb: $(EXPORT_STAMP) $(OBJECTS) | $(BUILD)
+	@set -e; \
+	extra_objs=; \
+	if [ -f $(GENERATED)/specialized_sources.list ]; then \
+	  "$(LCC)" $(CFLAGS) -c -o $(BUILD)/compact_facade.o ../../native/src/gbc/compact_facade.c; \
+	  "$(LCC)" $(CFLAGS) -c -o $(BUILD)/facade_rules.o ../../native/src/gbc/facade_rules.c; \
+	  extra_objs="$(FACADE_OBJECTS)"; \
+	  while IFS= read -r src; do \
+	    [ -n "$$src" ] || continue; \
+	    case "$$src" in *.c) ;; *) continue ;; esac; \
+	    obj="$(BUILD)/$$(basename $$src .c).o"; \
+	    "$(LCC)" $(CFLAGS) -DPS_GBC_HAS_SPECIALIZED_TURN=1 -c -o "$$obj" "$(GENERATED)/$$src"; \
+	    extra_objs="$$extra_objs $$obj"; \
+	  done < $(GENERATED)/specialized_sources.list; \
+	fi; \
+	"$(LCC)" $(LDFLAGS) -o $@ $(OBJECTS) $$extra_objs
 
 .PHONY: all export clean check-size build-rom
 
-all:
-	$(MAKE) export
-	$(MAKE) build-rom
+all: $(TARGET).gb
 
 # Size gate: specialized bank (16 KiB) and total ROM (512 KiB) must pass.
 build-rom: $(TARGET).gb
@@ -68,28 +82,29 @@ check-size: $(TARGET).gb
 	"$(PYTHON)" ../../scripts/check_gbc_rom.py \
 		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
 
-export:
+export: $(EXPORT_STAMP)
+
+$(EXPORT_STAMP):
 ifeq ($(filter 1 yes true on,$(SKIP_EXPORT)),)
-	@mkdir -p $(GENERATED)
+	@mkdir -p $(GENERATED) $(BUILD)
 	"$(PUZZLESCRIPT_CPP)" export-gbc "$(GAME)" --out $(GENERATED) $(EXPORT_GBC_FLAGS)
 else
 	@test -f $(GENERATED)/generated_game.c
 	@test -f $(GENERATED)/generated_game.h
-	@test -f $(GENERATED)/gbc_manifest.json
+	@test -f $(EXPORT_STAMP)
 endif
 
 $(BUILD):
 	@mkdir -p $(BUILD)
 
-$(BUILD)/main.o: source/main.c source/audio.h source/text.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/main.o: source/main.c source/audio.h source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/core.o: ../../native/src/gbc/core.c \
 	../../native/src/gbc/session_internal.h \
 	../../native/include/puzzlescript/gbc.h \
-	$(GENERATED)/generated_game.h \
-	$(if $(HAS_SPECIALIZED),$(SPECIALIZED_SRC),) | $(BUILD)
-	"$(LCC)" $(CFLAGS) $(SPECIALIZED_CFLAGS) -c -o $@ $<
+	$(EXPORT_STAMP) | $(BUILD)
+	"$(LCC)" $(CFLAGS) $$(test -f $(SPECIALIZED_SRC) && echo -DPS_GBC_HAS_SPECIALIZED_TURN=1) -c -o $@ $<
 
 $(BUILD)/generated_specialized_turn.o: $(GENERATED)/generated_specialized_turn.c \
 	../../native/src/gbc/specialized_turn.h \
@@ -110,39 +125,36 @@ $(BUILD)/generated_specialized_turn_rules_%.o: $(GENERATED)/generated_specialize
 $(BUILD)/compact_facade.o: ../../native/src/gbc/compact_facade.c \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
 	../../native/src/gbc/session_internal.h \
-	$(GENERATED)/generated_game.h | $(BUILD)
+	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/facade_rules.o: ../../native/src/gbc/facade_rules.c \
 	../../native/include/puzzlescript/gbc_facade_rules.h \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
 	../../native/src/gbc/session_internal.h \
-	$(GENERATED)/generated_game.h | $(BUILD)
+	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/audio.o: source/audio.c source/audio.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/audio.o: source/audio.c source/audio.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/frontend_flow.o: source/frontend_flow.c source/frontend_flow.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/text.o: source/text.c source/text.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/text.o: source/text.c source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(GENERATED)/generated_game.h | $(BUILD)
+$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
-
-$(TARGET).gb: $(LINK_OBJECTS)
-	"$(LCC)" $(LDFLAGS) -o $@ $(LINK_OBJECTS)
 
 clean:
 	@rm -rf build build-autotest build*-perf-* $(GENERATED) puzzlescript_gbc.gb puzzlescript_gbc_autotest.gb
