@@ -1346,3 +1346,34 @@ Live libmGBA smoke passed for both layouts:
 Both smokes passed the ROM structural checks, generated-reference/static-WRAM
 gates, emulator warning gate, title/board rendering checks, and deterministic
 player-movement assertion.
+
+### GBC 46-game compilation cartridge (2026-07-27)
+
+Revision: `master` after `e8cc453f`. Commands:
+
+- `make gbc_cart GBDK_HOME=.codex_tmp/toolchains/gbdk`
+- `python3 scripts/check_gbc_cart.py build/gbc/cart/puzzlescript-compilation-46.gb build/gbc/cart/cart-manifest.json build/gbc/cart/puzzlescript-compilation-46.map build/gbc/cart/objects`
+- `make gbc_cart_smoke GBDK_HOME=.codex_tmp/toolchains/gbdk`
+
+The production MBC5 cartridge now contains a launcher and all 46 eligible
+games. Generated symbols are namespaced per game, core/data groups retain
+dedicated descriptor banks, and façade/specialized objects are packed
+first-fit-decreasing into the remaining bank space.
+
+| Metric | Result |
+| --- | ---: |
+| Games linked / specialized | **46 / 46** |
+| ROM size | **4,194,304 B** |
+| Fixed HOME high-water | **6,377 B** |
+| Packed game banks | **116** (banks 3–118) |
+| Packed payload / capacity | **1,875,865 / 1,900,544 B (98.7%)** |
+| Largest switchable bank | **16,384 B** |
+| Maximum shared session arena | **1,242 B** |
+| Unique game prefixes / hashes | **46 / 46** |
+| Per-game static WRAM offenders | **0** |
+
+Scripted libmGBA smoke passed launcher → game 1 → launcher → game 2 with
+two distinct source hashes, one recorded return, LCD enabled, 107 nonzero
+tile-map cells, and 3 emulator warnings (within the existing ceiling).
+The exact production ROM also passed a 180-frame launcher boot with LCDC
+`0xc1`, 195 nonzero tile-map cells, and zero emulator warnings.

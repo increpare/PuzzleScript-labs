@@ -101,6 +101,9 @@ static void test_namespace_header_prefixes_every_entry_point() {
              "ps_gbc_specialized_mark_move_cell",
              "ps_gbc_specialized_clear_move_bits",
              "ps_gbc_specialized_refresh_player_cell",
+             "ps_gbc_specialized_seed_player_movement",
+             "ps_gbc_specialized_apply_early",
+             "ps_gbc_specialized_apply_late",
              "ps_gbc_specialized_apply_turn_phases",
              "ps_gbc_specialized_won",
              "ps_gbc_specialized_rule_pack_0"}) {

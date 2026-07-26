@@ -839,6 +839,11 @@ gbc_cart: $(PUZZLESCRIPT_CPP)
 		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
 		--out "$(GBC_CART_OUT)" \
 		$(GBC_CART_GBDK_ARG)
+	python3 scripts/check_gbc_cart.py \
+		"$(GBC_CART_OUT)/puzzlescript-compilation-46.gb" \
+		"$(GBC_CART_OUT)/cart-manifest.json" \
+		"$(GBC_CART_OUT)/puzzlescript-compilation-46.map" \
+		"$(GBC_CART_OUT)/objects"
 
 gbc_cart_smoke: $(PUZZLESCRIPT_CPP)
 	python3 scripts/build_gbc_cart.py \
