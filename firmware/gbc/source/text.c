@@ -134,16 +134,20 @@ static void drawLauncherEntry(
     drawTextLine(line, row, length);
 }
 
-static void drawLauncherCount(void) {
-    char line[9];
+static void drawLauncherHeader(uint8_t selected) {
+    char line[19];
     uint8_t length = 0U;
+    const uint8_t number = (uint8_t)(selected + 1U);
     const uint8_t count = PS_GBC_CART_GAME_COUNT;
-    if (count >= 10U) line[length++] = (char)('0' + count / 10U);
+    memcpy(line, "PUZZLESCRIPT ", 13U);
+    length = 13U;
+    line[length++] = (char)('0' + number / 10U);
+    line[length++] = (char)('0' + number % 10U);
+    line[length++] = '/';
+    line[length++] = (char)('0' + count / 10U);
     line[length++] = (char)('0' + count % 10U);
-    memcpy(line + length, " GAMES", 6U);
-    length = (uint8_t)(length + 6U);
     line[length] = '\0';
-    drawTextLine(line, 3U, length);
+    drawTextLine(line, 2U, length);
 }
 #endif
 
@@ -336,8 +340,8 @@ void showCartLauncher(
     memset(gTileMap, 0, SCREEN_TILES);
     memset(gAttributes, 0, SCREEN_TILES);
     drawTextFrame();
-    drawTextLine("PUZZLESCRIPT CART", 2U, 17U);
-    drawLauncherCount();
+    drawLauncherHeader(selected);
+    drawTextLine("COMPILATION CART", 3U, 16U);
     for (row = 0U; row < PS_GBC_CART_PAGE_SIZE; ++row) {
         const uint8_t index = (uint8_t)(first_visible + row);
         ps_gbc_cart_entry entry;
@@ -349,7 +353,7 @@ void showCartLauncher(
                 index == selected);
         }
     }
-    drawTextLine("A OR START: PLAY", 15U, 16U);
+    drawTextLine("A PLAY L/R PAGE", 15U, 15U);
     VBK_REG = VBK_BANK_0;
     set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
     VBK_REG = VBK_BANK_1;
