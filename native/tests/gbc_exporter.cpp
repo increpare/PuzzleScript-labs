@@ -440,6 +440,12 @@ int main() {
             && manifest.find("\"sound_mask_count\": 1") != std::string::npos
             && manifest.find("\"audio\"") == std::string::npos,
         "manifest records compact cartridge audio instead of omitting it");
+    require(
+        manifest.find("\"title\": \"Simple Block Pushing Game\"")
+                != std::string::npos
+            && manifest.find("\"author\": \"David Skinner\"")
+                != std::string::npos,
+        "manifest exposes escaped launcher title and author metadata");
 
     const std::string header = readFile(first.generatedHeaderPath);
     const std::string source = readFile(first.generatedSourcePath);

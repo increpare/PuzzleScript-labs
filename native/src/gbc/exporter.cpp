@@ -2930,6 +2930,11 @@ ExportResult exportGame(const ExportOptions& options) {
         << "  \"format\": \"puzzlescript-gbc-v1\",\n"
         << "  \"abi_version\": " << PS_GBC_GAME_ABI_VERSION << ",\n"
         << "  \"source\": " << jsonString(options.sourcePath.generic_string()) << ",\n"
+        << "  \"title\": "
+        << jsonString(metadataValue(game, "title", "PuzzleScript Game"))
+        << ",\n"
+        << "  \"author\": "
+        << jsonString(metadataValue(game, "author", "")) << ",\n"
         << "  \"source_hash\": " << sourceHash(source) << ",\n"
         << "  \"runtime_profile\": \"bounded_interpreter_c\",\n"
         << "  \"bank_base\": " << gameCoreBank << ",\n"
