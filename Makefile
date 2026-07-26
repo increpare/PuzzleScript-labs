@@ -92,6 +92,7 @@ GBA_PREFLIGHT_JSON ?= $(BUILD_DIR)/gba/preflight.json
 GBC_GAME ?= src/demo/sokoban_basic.txt
 GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
 GBC_ELIGIBLE_OUT ?= $(BUILD_DIR)/gbc/eligible
+GBC_EXPORT_FLAGS ?= --bank-base 2
 # Cull oversized boards (>10x9) for the eligible good_games corpus (set GBC_CULL=0 to disable).
 GBC_CULL ?= 1
 # Keep building after a failure when set to 1 (still exits non-zero).
@@ -820,13 +821,13 @@ gba_preflight: $(PUZZLESCRIPT_CPP)
 	$(NODE) scripts/gba_preflight.js --compiler $(PUZZLESCRIPT_CPP) --corpus-ndjson $(HANDHELD_TESTDATA_BUNDLE) --out $(GBA_PREFLIGHT_JSON) --tmp-dir $(BUILD_DIR)/gba/preflight-tmp
 
 gbc_export: $(PUZZLESCRIPT_CPP)
-	$(PUZZLESCRIPT_CPP) export-gbc $(GBC_GAME) --out $(GBC_EXPORT_DIR)
+	$(PUZZLESCRIPT_CPP) export-gbc $(GBC_GAME) --out $(GBC_EXPORT_DIR) $(GBC_EXPORT_FLAGS)
 
 gbc: $(PUZZLESCRIPT_CPP)
-	$(MAKE) -C firmware/gbc GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)"
+	$(MAKE) -C firmware/gbc build-rom GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)" EXPORT_GBC_FLAGS="$(GBC_EXPORT_FLAGS)"
 
 gbc_smoke: $(PUZZLESCRIPT_CPP)
-	$(MAKE) -C firmware/gbc AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)"
+	$(MAKE) -C firmware/gbc AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)" EXPORT_GBC_FLAGS="$(GBC_EXPORT_FLAGS)"
 	python3 scripts/run_gbc_smoke.py firmware/gbc/puzzlescript_gbc_autotest.gb $(if $(strip $(GBC_MGBA)),--mgba "$(GBC_MGBA)",)
 
 gbc_eligible: $(PUZZLESCRIPT_CPP)

@@ -45,7 +45,7 @@ void assertTrue(bool condition, const std::string& message) {
 std::filesystem::path exportFixture(
     const std::string& fixtureName,
     const std::string& symbolPrefix = "",
-    uint8_t bankBase = 1U
+    uint8_t bankBase = 2U
 ) {
     const std::filesystem::path root = PS_REPO_ROOT;
     const std::filesystem::path outputDirectory = root / "build" / "native"
@@ -287,9 +287,18 @@ int main() {
     require(
         manifest.find("\"single_player_cell\": true") != std::string::npos,
         "manifest records single-player certification for Sokoban");
+    require(
+        manifest.find("\"bank_base\": 2") != std::string::npos
+            && manifest.find("\"game_core_bank\": 2")
+                != std::string::npos
+            && manifest.find("\"facade_bank\": 3") != std::string::npos
+            && manifest.find("\"specialized_main_bank\": 4")
+                != std::string::npos
+            && manifest.find("\"next_bank\": 5") != std::string::npos,
+        "default manifest reserves shared bank one");
 
     const std::string specializedTurn = readFile(first.generatedSpecializedTurnPath);
-    // Sokoban fits one pack: single bank-3 TU (no per-rule BANKED stubs).
+    // Sokoban fits one pack: single bank-4 TU (no per-rule BANKED stubs).
     require(
         !std::filesystem::exists(output / "generated_specialized_turn_rules_0.c"),
         "Sokoban keeps a single specialized TU when rules fit one bank");
@@ -335,7 +344,7 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("= 7U") != std::string::npos
             && specializedTurn.find("= 6U") != std::string::npos
-            && specializedTurn.find("#pragma bank 3") != std::string::npos,
+            && specializedTurn.find("#pragma bank 4") != std::string::npos,
         "specialized turn uses direct board storage, inline rules, resolve, and won");
     {
         puzzlescript::Rule unsupportedRule;
@@ -428,8 +437,21 @@ int main() {
 
     const std::string header = readFile(first.generatedHeaderPath);
     const std::string source = readFile(first.generatedSourcePath);
-    require(header.find("PS_GBC_GENERATED_ROM_BANK 1U") != std::string::npos,
+    const std::string core =
+        readFile(options.outputDirectory / "generated_core.c");
+    const std::string facade =
+        readFile(options.outputDirectory / "generated_compact_facade.c");
+    const std::string facadeRules =
+        readFile(options.outputDirectory / "generated_facade_rules.c");
+    require(header.find("PS_GBC_GENERATED_ROM_BANK 2U") != std::string::npos,
         "generated data declares its switchable ROM bank");
+    require(
+        source.find("#pragma bank 2") != std::string::npos
+            && core.find("#pragma bank 2") != std::string::npos
+            && facade.find("#pragma bank 3") != std::string::npos
+            && facadeRules.find("#pragma bank 3") != std::string::npos
+            && specializedTurn.find("#pragma bank 4") != std::string::npos,
+        "default export reserves banks zero and one for shared firmware");
     require(header.find("PS_GBC_GENERATED_SESSION_BYTES 393U") != std::string::npos,
         "generated header budgets the player-cell anchor list");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
@@ -474,7 +496,7 @@ int main() {
             && header.find("PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT 6U")
                 != std::string::npos,
         "generated header preserves the native PuzzleScript cell dimensions");
-    require(source.find("#pragma bank 1") != std::string::npos,
+    require(source.find("#pragma bank 2") != std::string::npos,
         "generated data is linked outside fixed ROM bank zero");
     require(source.find("static const ps_gbc_generated_pattern kPatterns[]")
             != std::string::npos,
@@ -1204,14 +1226,14 @@ int main() {
     // A game with an empty RULES section produces no packed patterns and no
     // packed rules. compactNativeTurnSupportForGame() still reports the native
     // kernel as supported -- it only scans the rules that exist -- so before the
-    // gate in writeSpecializedTurnArtifacts this exported a bank-3 specialized
+    // gate in writeSpecializedTurnArtifacts this exported a bank-4 specialized
     // translation unit whose only content was the fallback walker: four reads of
     // ps_gbc_generated_game (which lives in the game-data bank) plus a near call
-    // to ps_gbc_facade_apply_groups, whose definition is under "#pragma bank 2".
+    // to ps_gbc_facade_apply_groups, whose definition is under "#pragma bank 3".
     // On an MBC5 cart, with its single switchable window, all of that executes
     // against whichever bank the caller occupies. The export must decline to
-    // specialize instead, leaving core.c's interpreted turn -- which lives in
-    // HOME -- to run the game.
+    // specialize instead, leaving core.c's interpreted turn in the game-data
+    // bank to run the game.
     const std::string rulesFreeSource =
         "title GBC Rules Free\n\n"
         "========\nOBJECTS\n========\n\n"

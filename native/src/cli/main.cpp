@@ -7202,9 +7202,9 @@ int exportGbcCommand(const std::string& sourcePath, int argc, char** argv) {
             options.symbolPrefix = argv[++index];
         } else if (arg == "--bank-base" && index + 1 < argc) {
             const unsigned long bankBase = std::stoul(argv[++index]);
-            if (bankBase < 1UL || bankBase > 253UL) {
+            if (bankBase < 2UL || bankBase > 253UL) {
                 throw std::runtime_error(
-                    "--bank-base must be between 1 and 253");
+                    "--bank-base must be between 2 and 253");
             }
             options.bankBase = static_cast<uint8_t>(bankBase);
         } else {

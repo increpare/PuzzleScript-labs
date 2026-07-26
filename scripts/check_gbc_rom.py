@@ -13,6 +13,7 @@ MAX_ROM_BYTES = 512 * 1024
 MAX_SESSION_BYTES = 4 * 1024
 MAX_SNAPSHOT_BANK_BYTES = 8 * 1024
 MAX_FIXED_ROM_BYTES = 16 * 1024
+MAX_FOUNDATION_HOME_BYTES = 8 * 1024
 MAX_GAME_BANK_BYTES = 16 * 1024
 MAX_STATIC_WRAM_BYTES = 6 * 1024
 MAP_AREA = re.compile(
@@ -121,6 +122,11 @@ def main() -> int:
         checks.extend(
             [
                 ("fixed ROM bank", fixed_rom <= MAX_FIXED_ROM_BYTES, str(fixed_rom)),
+                (
+                    "foundation HOME budget",
+                    fixed_rom <= MAX_FOUNDATION_HOME_BYTES,
+                    str(fixed_rom),
+                ),
                 (
                     "largest generated ROM bank",
                     largest_bank <= MAX_GAME_BANK_BYTES,

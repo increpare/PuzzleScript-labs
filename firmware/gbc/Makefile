@@ -14,10 +14,11 @@ GENERATED          := generated
 GAME               ?= ../../src/demo/sokoban_basic.txt
 PUZZLESCRIPT_CPP   ?= ../../build/native/Release/puzzlescript_cpp.exe
 PYTHON             ?= python3
-EXPORT_GBC_FLAGS   ?=
+EXPORT_GBC_FLAGS   ?= --bank-base 2
 
 SPECIALIZED_SRC    := $(GENERATED)/generated_specialized_turn.c
 EXPORT_STAMP       := $(GENERATED)/gbc_manifest.json
+EXPORT_CONFIG      := $(GENERATED)/export-config.txt
 SPECIALIZED_SRCS   := $(wildcard $(GENERATED)/generated_specialized_turn*.c)
 HAS_SPECIALIZED    := $(shell test -f $(SPECIALIZED_SRC) && echo 1)
 SPECIALIZED_CFLAGS := $(if $(HAS_SPECIALIZED),-DPS_GBC_HAS_SPECIALIZED_TURN=1,)
@@ -57,8 +58,8 @@ $(TARGET).gb: $(EXPORT_STAMP) $(OBJECTS) | $(BUILD)
 	@set -e; \
 	extra_objs=; \
 	if [ -f $(GENERATED)/specialized_sources.list ]; then \
-	  "$(LCC)" $(CFLAGS) -c -o $(BUILD)/compact_facade.o ../../native/src/gbc/compact_facade.c; \
-	  "$(LCC)" $(CFLAGS) -c -o $(BUILD)/facade_rules.o ../../native/src/gbc/facade_rules.c; \
+	  "$(LCC)" $(CFLAGS) -c -o $(BUILD)/compact_facade.o $(GENERATED)/generated_compact_facade.c; \
+	  "$(LCC)" $(CFLAGS) -c -o $(BUILD)/facade_rules.o $(GENERATED)/generated_facade_rules.c; \
 	  extra_objs="$(FACADE_OBJECTS)"; \
 	  while IFS= read -r src; do \
 	    [ -n "$$src" ] || continue; \
@@ -85,7 +86,20 @@ check-size: $(TARGET).gb
 
 export: $(EXPORT_STAMP)
 
-$(EXPORT_STAMP):
+.PHONY: FORCE
+FORCE:
+
+$(EXPORT_CONFIG): FORCE
+	@mkdir -p $(GENERATED) $(BUILD)
+	@tmp="$@.tmp"; \
+	printf 'GAME=%s\nFLAGS=%s\n' "$(abspath $(GAME))" "$(EXPORT_GBC_FLAGS)" > "$$tmp"; \
+	if test -f "$@" && cmp -s "$$tmp" "$@"; then \
+	  rm -f "$$tmp"; \
+	else \
+	  mv "$$tmp" "$@"; \
+	fi
+
+$(EXPORT_STAMP): $(EXPORT_CONFIG)
 ifeq ($(filter 1 yes true on,$(SKIP_EXPORT)),)
 	@mkdir -p $(GENERATED) $(BUILD)
 	"$(PUZZLESCRIPT_CPP)" export-gbc "$(GAME)" --out $(GENERATED) $(EXPORT_GBC_FLAGS)
@@ -102,7 +116,8 @@ $(BUILD)/main.o: source/main.c source/audio.h source/game_dispatch.h \
 	source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/core.o: ../../native/src/gbc/core.c \
+$(BUILD)/core.o: $(GENERATED)/generated_core.c \
+	../../native/src/gbc/core.c \
 	../../native/src/gbc/session_internal.h \
 	../../native/include/puzzlescript/gbc.h \
 	$(EXPORT_STAMP) | $(BUILD)
@@ -124,13 +139,15 @@ $(BUILD)/generated_specialized_turn_rules_%.o: $(GENERATED)/generated_specialize
 	$(GENERATED)/generated_game.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -DPS_GBC_HAS_SPECIALIZED_TURN=1 -c -o $@ $<
 
-$(BUILD)/compact_facade.o: ../../native/src/gbc/compact_facade.c \
+$(BUILD)/compact_facade.o: $(GENERATED)/generated_compact_facade.c \
+	../../native/src/gbc/compact_facade.c \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
 	../../native/src/gbc/session_internal.h \
 	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/facade_rules.o: ../../native/src/gbc/facade_rules.c \
+$(BUILD)/facade_rules.o: $(GENERATED)/generated_facade_rules.c \
+	../../native/src/gbc/facade_rules.c \
 	../../native/include/puzzlescript/gbc_facade_rules.h \
 	../../native/include/puzzlescript/gbc_compact_facade.h \
 	../../native/src/gbc/session_internal.h \

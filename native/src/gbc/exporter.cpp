@@ -2315,8 +2315,8 @@ ExportResult exportGame(const ExportOptions& options) {
     if (options.sourcePath.empty() || options.outputDirectory.empty()) {
         throw std::runtime_error("export-gbc requires a source path and output directory");
     }
-    if (options.bankBase < 1U || options.bankBase > 253U) {
-        throw std::runtime_error("GBC bank base must be between 1 and 253");
+    if (options.bankBase < 2U || options.bankBase > 253U) {
+        throw std::runtime_error("GBC bank base must be between 2 and 253");
     }
     const unsigned gameCoreBank = options.bankBase;
     const unsigned facadeBank = gameCoreBank + 1U;

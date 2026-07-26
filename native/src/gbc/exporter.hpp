@@ -19,7 +19,7 @@ struct ExportOptions {
     // linked into one cartridge without symbol collisions. Empty means the
     // export is standalone and no renaming happens.
     std::string symbolPrefix;
-    uint8_t bankBase = 1U;
+    uint8_t bankBase = 2U;
 };
 
 struct ExportResult {
