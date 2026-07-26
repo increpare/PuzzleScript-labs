@@ -446,8 +446,7 @@ static bool ps_gbc_game_valid(const ps_gbc_game_view* game) {
     return true;
 }
 
-size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game)
-    PS_GBC_CORE_API {
+size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game) {
     size_t board_bytes;
     size_t movement_bytes;
     size_t result;
@@ -513,8 +512,7 @@ static bool ps_gbc_load_board(ps_gbc_session* session, uint16_t level_index) {
     return true;
 }
 
-bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index)
-    PS_GBC_CORE_API {
+bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index) {
     const ps_gbc_level* level;
     if (session == NULL || level_index >= session->game->level_count) return false;
     session->current_level = level_index;
@@ -543,7 +541,7 @@ ps_gbc_session* ps_gbc_session_init(
     size_t arena_size,
     const ps_gbc_game_view* game,
     const ps_gbc_snapshot_io* snapshots
-) PS_GBC_CORE_API {
+) {
     ps_gbc_session* session;
     uint8_t* cursor;
     size_t board_bytes;
@@ -1109,7 +1107,7 @@ static void ps_gbc_commit_undo(ps_gbc_session* session) {
     if (session->undo_count < session->game->undo_capacity) ++session->undo_count;
 }
 
-bool ps_gbc_undo(ps_gbc_session* session) PS_GBC_CORE_API {
+bool ps_gbc_undo(ps_gbc_session* session) {
     uint16_t cells;
     uint16_t bytes;
     if (session == NULL || session->mode != PS_FULL_STATE_MODE_LEVEL
@@ -1130,7 +1128,7 @@ bool ps_gbc_undo(ps_gbc_session* session) PS_GBC_CORE_API {
     return true;
 }
 
-bool ps_gbc_restart(ps_gbc_session* session) PS_GBC_CORE_API {
+bool ps_gbc_restart(ps_gbc_session* session) {
     const ps_gbc_level* level;
     uint16_t cells;
     uint16_t bytes;
@@ -1169,7 +1167,7 @@ static bool ps_gbc_advance(ps_gbc_session* session) {
     return ps_gbc_load_level(session, (uint16_t)(session->current_level + 1U));
 }
 
-bool ps_gbc_advance_level(ps_gbc_session* session) PS_GBC_CORE_API {
+bool ps_gbc_advance_level(ps_gbc_session* session) {
     if (session == NULL || session->completed) return false;
     return ps_gbc_advance(session);
 }
@@ -1379,8 +1377,7 @@ static void ps_gbc_finish_turn(
 #endif
 }
 
-ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input)
-    PS_GBC_CORE_API {
+ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) {
     ps_step_result result;
     ps_gbc_commands commands;
     uint8_t direction;
@@ -1437,7 +1434,7 @@ ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input)
     return result;
 }
 
-void ps_gbc_defer_wins(ps_gbc_session* session, bool defer) PS_GBC_CORE_API {
+void ps_gbc_defer_wins(ps_gbc_session* session, bool defer) {
     if (session != NULL) session->defer_win = defer;
 }
 
@@ -1483,8 +1480,7 @@ static void ps_gbc_run_rules_on_level_start(ps_gbc_session* session) {
 #endif
 }
 
-void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status)
-    PS_GBC_CORE_API {
+void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status) {
     if (status == NULL) return;
     memset(status, 0, sizeof(*status));
     if (session == NULL) return;
@@ -1498,8 +1494,7 @@ void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status)
     status->message = session->message;
 }
 
-uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y)
-    PS_GBC_CORE_API {
+uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y) {
     if (session == NULL || session->mode != PS_FULL_STATE_MODE_LEVEL
         || x < 0 || y < 0 || x >= (int16_t)session->width || y >= (int16_t)session->height) {
         return 0U;
@@ -1509,11 +1504,11 @@ uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y
         (uint16_t)x * session->height + (uint16_t)y);
 }
 
-const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session) PS_GBC_CORE_API {
+const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session) {
     return session == NULL ? NULL : session->dirty_bits;
 }
 
-bool ps_gbc_has_dirty_cells(const ps_gbc_session* session) PS_GBC_CORE_API {
+bool ps_gbc_has_dirty_cells(const ps_gbc_session* session) {
     const uint8_t* dirty;
     uint8_t remaining;
     if (session == NULL) return false;
@@ -1525,13 +1520,12 @@ bool ps_gbc_has_dirty_cells(const ps_gbc_session* session) PS_GBC_CORE_API {
     return false;
 }
 
-void ps_gbc_clear_dirty_cells(ps_gbc_session* session) PS_GBC_CORE_API {
+void ps_gbc_clear_dirty_cells(ps_gbc_session* session) {
     if (session == NULL) return;
     memset(session->dirty_bits, 0, ps_gbc_cell_bitset_bytes(session->game));
 }
 
-bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y)
-    PS_GBC_CORE_API {
+bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y) {
     uint16_t cell;
     uint16_t cells;
     if (session == NULL || x == NULL || y == NULL
@@ -1547,10 +1541,10 @@ bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int
     return false;
 }
 
-const void* ps_gbc_board(const ps_gbc_session* session) PS_GBC_CORE_API {
+const void* ps_gbc_board(const ps_gbc_session* session) {
     return session == NULL ? NULL : session->board;
 }
 
-const ps_gbc_game_view* ps_gbc_game(const ps_gbc_session* session) PS_GBC_CORE_API {
+const ps_gbc_game_view* ps_gbc_game(const ps_gbc_session* session) {
     return session == NULL ? NULL : session->game;
 }

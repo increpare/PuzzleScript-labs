@@ -13,9 +13,6 @@ MAX_ROM_BYTES = 512 * 1024
 MAX_SESSION_BYTES = 4 * 1024
 MAX_SNAPSHOT_BANK_BYTES = 8 * 1024
 MAX_FIXED_ROM_BYTES = 16 * 1024
-# core.c lives in a switchable bank, so HOME holds only the frontend and the
-# bank dispatch. Half of HOME is reserved for the multi-game shell.
-MAX_BANKED_CORE_FIXED_ROM_BYTES = 8 * 1024
 MAX_GAME_BANK_BYTES = 16 * 1024
 MAX_STATIC_WRAM_BYTES = 6 * 1024
 MAP_AREA = re.compile(
@@ -130,11 +127,6 @@ def main() -> int:
                     str(largest_bank),
                 ),
                 ("static WRAM", static_wram <= MAX_STATIC_WRAM_BYTES, str(static_wram)),
-                (
-                    "core is banked, not in HOME",
-                    fixed_rom <= MAX_BANKED_CORE_FIXED_ROM_BYTES,
-                    f"HOME {fixed_rom} bytes",
-                ),
             ]
         )
     failed = False
