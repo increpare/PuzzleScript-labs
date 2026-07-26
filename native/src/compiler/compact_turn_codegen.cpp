@@ -9547,17 +9547,31 @@ void emitGbcSpecializedTurn(
     }
 
     if (patterns.empty() || rules.empty()) {
-        // Fallback walker path when packing was not provided.
+        // Fallback walker path, reached when this game produced no packed
+        // patterns or no packed rules -- an empty RULES section is enough. This
+        // is a property of the game, not of whether a caller supplied packing.
         //
-        // NOTE (GBC banking): unlike everything else emitted here, this path
-        // still reads ps_gbc_generated_game directly, and the two group
-        // pointers it passes point into the game-data bank. On a cartridge this
-        // translation unit runs with its own bank mapped into 0x4000-0x7fff, so
-        // both the reads and the pointers are wrong. It is unreachable for every
-        // currently eligible game (packing is always provided), which is why it
-        // is left as-is; anything that revives it must first hoist the group
-        // tables somewhere bank-independent.
-        out << "#include \"puzzlescript/gbc_facade_rules.h\"\n\n"
+        // It is NOT bank-safe on a GBC cartridge, in two independent ways:
+        //   1. it reads ps_gbc_generated_game, which lives in the game-data
+        //      bank, and hands two pointers into that bank to the callee; and
+        //   2. ps_gbc_facade_apply_groups is declared with no banking attribute
+        //      (puzzlescript/gbc_facade_rules.h) while its definition is under
+        //      "#pragma bank 2" (native/src/gbc/facade_rules.c), so the call
+        //      itself is a near call into 0x4000-0x7fff and executes this
+        //      translation unit's own bank bytes.
+        // Both need an answer before this path can be revived: the group tables
+        // must be hoisted somewhere bank-independent and the callee must be
+        // BANKED or co-located.
+        //
+        // The GBC exporter therefore declines to specialize such a game at all
+        // (writeSpecializedTurnArtifacts in native/src/gbc/exporter.cpp) and
+        // falls back to core.c's interpreted turn, which lives in HOME. The
+        // #error below is a backstop: if that gate is ever removed, the ROM
+        // build fails loudly instead of shipping a cartridge that crashes.
+        out << "#error \"GBC: the specialized fallback walker is not bank-safe; "
+               "export must decline to specialize games with no packed "
+               "patterns/rules\"\n"
+            << "#include \"puzzlescript/gbc_facade_rules.h\"\n\n"
             << "static bool ps_gbc_specialized_apply_early(\n"
             << "    ps_gbc_session* session,\n"
             << "    uint8_t direction,\n"

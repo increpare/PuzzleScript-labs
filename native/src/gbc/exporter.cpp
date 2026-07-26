@@ -2202,7 +2202,20 @@ SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const std::filesystem::path path = outputDirectory / "generated_specialized_turn.c";
     const compiler::CompactTurnSupport compactTurnSupport =
         compiler::compactNativeTurnSupportForGame(game);
-    info.supported = compactTurnSupport.nativeKernel();
+    // A game with no packed patterns or no packed rules -- an empty RULES
+    // section is enough, and compactNativeTurnSupportForGame() does not notice
+    // because it only scans the rules that exist -- drives the specialized
+    // emitter down its fallback-walker path. That path is not bank-safe: it
+    // reads ps_gbc_generated_game, which lives in the game-data bank, and it
+    // near-calls ps_gbc_facade_apply_groups, whose definition sits under
+    // "#pragma bank 2", from a translation unit compiled into bank 3. An MBC5
+    // cart has one switchable window, so both the reads and the call land in
+    // whichever bank the caller occupies. There is nothing to specialize for
+    // such a game anyway, so decline here and let core.c's interpreted turn --
+    // which is compiled into HOME and therefore always mapped -- run it.
+    info.supported = compactTurnSupport.nativeKernel()
+        && !patterns.empty()
+        && !rules.empty();
     info.singlePlayerCellCertified = singlePlayerCellCertified;
     if (info.supported) {
         const compiler::GbcSpecializedTurnEmitResult emitResult =
