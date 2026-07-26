@@ -442,7 +442,8 @@ the four-argument `ps_gbc_session_init`:
 typedef ps_gbc_session* (*ps_gbc_session_init_fn)(
     void*, size_t, const ps_gbc_game_view*, const ps_gbc_snapshot_io*);
 typedef bool (*ps_gbc_load_level_fn)(ps_gbc_session*, uint16_t);
-typedef ps_step_result (*ps_gbc_step_fn)(ps_gbc_session*, ps_input);
+typedef void (*ps_gbc_step_fn)(
+    ps_gbc_session*, ps_input, ps_step_result*);
 typedef void (*ps_gbc_defer_wins_fn)(ps_gbc_session*, bool);
 typedef bool (*ps_gbc_advance_level_fn)(ps_gbc_session*);
 typedef bool (*ps_gbc_undo_fn)(ps_gbc_session*);
@@ -488,6 +489,12 @@ typedef struct ps_gbc_game_descriptor {
     ps_gbc_board_fn board;
 } ps_gbc_game_descriptor;
 ```
+
+SDCC 4.5 hits an internal code-generator error on an indirect function call
+that returns `ps_step_result` by value. Emit a bank-local
+`ps_gbc_descriptor_step(session, input, result)` adapter that calls
+`ps_gbc_step()` directly and writes through the third argument; point the
+descriptor at that void-return adapter.
 
 Have `generated_game.h` declare `ps_gbc_generated_descriptor`. Emit its
 initializer after `ps_gbc_generated_game`, using null precomposed pointers when

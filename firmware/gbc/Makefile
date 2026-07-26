@@ -48,7 +48,8 @@ PERF_OBJECTS := $(if $(filter 1 yes true on,$(PERF_BENCH)),$(BUILD)/benchmark.o,
 AUTOTEST_OBJECTS := $(if $(filter 1 yes true on,$(AUTOTEST)),$(BUILD)/autotest.o,)
 OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
-	$(BUILD)/frontend_flow.o \
+	$(BUILD)/frontend_flow.o $(BUILD)/bank_access.o \
+	$(BUILD)/game_dispatch.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
 FACADE_OBJECTS := $(BUILD)/compact_facade.o $(BUILD)/facade_rules.o
 
@@ -97,7 +98,8 @@ endif
 $(BUILD):
 	@mkdir -p $(BUILD)
 
-$(BUILD)/main.o: source/main.c source/audio.h source/text.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/main.o: source/main.c source/audio.h source/game_dispatch.h \
+	source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/core.o: ../../native/src/gbc/core.c \
@@ -135,13 +137,24 @@ $(BUILD)/facade_rules.o: ../../native/src/gbc/facade_rules.c \
 	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/generated_game.o: $(GENERATED)/generated_game.c \
+	../../native/include/puzzlescript/gbc_descriptor.h \
+	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/audio.o: source/audio.c source/audio.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/frontend_flow.o: source/frontend_flow.c source/frontend_flow.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/bank_access.o: ../../native/src/gbc/bank_access.c \
+	../../native/include/puzzlescript/gbc_bank_access.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/game_dispatch.o: source/game_dispatch.c source/game_dispatch.h \
+	../../native/include/puzzlescript/gbc_bank_access.h \
+	../../native/include/puzzlescript/gbc_descriptor.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)

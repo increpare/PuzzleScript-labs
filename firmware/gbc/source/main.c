@@ -3,6 +3,7 @@
 
 #include "audio.h"
 #include "frontend_flow.h"
+#include "game_dispatch.h"
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
@@ -716,7 +717,11 @@ void main(void) {
     uint16_t saved_level = 0U;
     uint8_t previous_keys = 0U;
     bool save_valid;
-    SWITCH_ROM_MBC5(PS_GBC_GENERATED_ROM_BANK);
+    if (!ps_gbc_activate_game(
+            PS_GBC_GENERATED_ROM_BANK,
+            &ps_gbc_generated_descriptor)) {
+        for (;;) vsync();
+    }
     if (_cpu == CGB_TYPE) cpu_fast();
     audioInitialize();
     gSession = ps_gbc_session_init(

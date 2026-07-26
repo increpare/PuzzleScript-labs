@@ -1711,6 +1711,11 @@ static const char* const kNamespacedSymbols[] = {
     "ps_gbc_game",
     "ps_gbc_resolve_movements",
     "ps_gbc_generated_game",
+    "ps_gbc_generated_descriptor",
+    "ps_gbc_generated_render_objects",
+    "ps_gbc_generated_precomposed_masks",
+    "ps_gbc_generated_precomposed_palettes",
+    "ps_gbc_generated_precomposed_tiles",
 };
 
 static void writeNamespaceHeader(
@@ -1773,7 +1778,8 @@ std::string emitHeader(
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
         << "#include \"generated_namespace.h\"\n"
-        << "#include \"puzzlescript/gbc.h\"\n\n"
+        << "#include \"puzzlescript/gbc.h\"\n"
+        << "#include \"puzzlescript/gbc_descriptor.h\"\n\n"
         << "#define PS_GBC_GENERATED_SESSION_BYTES " << sessionBytes << "U\n\n"
         << "#define PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL "
         << static_cast<unsigned int>(movementBytesPerCell) << "U\n\n"
@@ -1891,7 +1897,9 @@ std::string emitHeader(
         << "extern const uint32_t ps_gbc_generated_precomposed_masks[];\n"
         << "extern const uint8_t ps_gbc_generated_precomposed_palettes[];\n"
         << "extern const uint8_t ps_gbc_generated_precomposed_tiles[];\n"
-        << "#endif\n\n"
+        << "#endif\n"
+        << "extern const ps_gbc_game_descriptor "
+           "ps_gbc_generated_descriptor;\n\n"
         << "#ifdef __cplusplus\n}\n#endif\n\n#endif\n";
     return out.str();
 }
@@ -2176,6 +2184,41 @@ std::string emitSource(
         << (game.metadata.values.count("noaction") ? "true" : "false") << ", "
         << (game.metadata.values.count("noundo") ? "true" : "false") << ", "
         << (game.metadata.values.count("norestart") ? "true" : "false") << "\n"
+        << "};\n\n"
+        << "static void ps_gbc_descriptor_step(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    ps_input input,\n"
+        << "    ps_step_result* result\n"
+        << ") {\n"
+        << "    *result = ps_gbc_step(session, input);\n"
+        << "}\n\n"
+        << "const ps_gbc_game_descriptor ps_gbc_generated_descriptor = {\n"
+        << "    " << gameCoreBank << "U, PS_GBC_GENERATED_SESSION_BYTES,\n"
+        << "    &ps_gbc_generated_game,\n"
+        << "    ps_gbc_generated_render_objects, "
+        << objects.size() << "U,\n";
+    if (precomposedCompositions.empty()) {
+        out << "    0, 0, 0, 0U,\n";
+    } else {
+        out << "    ps_gbc_generated_precomposed_masks,\n"
+            << "    ps_gbc_generated_precomposed_palettes,\n"
+            << "    ps_gbc_generated_precomposed_tiles, "
+            << precomposedCompositions.size() << "U,\n";
+    }
+    out << "    ps_gbc_session_init,\n"
+        << "    ps_gbc_load_level,\n"
+        << "    ps_gbc_descriptor_step,\n"
+        << "    ps_gbc_defer_wins,\n"
+        << "    ps_gbc_advance_level,\n"
+        << "    ps_gbc_undo,\n"
+        << "    ps_gbc_restart,\n"
+        << "    ps_gbc_status_get,\n"
+        << "    ps_gbc_cell_objects,\n"
+        << "    ps_gbc_dirty_cells,\n"
+        << "    ps_gbc_has_dirty_cells,\n"
+        << "    ps_gbc_clear_dirty_cells,\n"
+        << "    ps_gbc_first_player_position,\n"
+        << "    ps_gbc_board\n"
         << "};\n";
     return out.str();
 }

@@ -163,6 +163,54 @@ static void test_shifted_bank_base_moves_every_per_game_artifact() {
         "manifest reports the complete allocated range");
 }
 
+static void test_generated_descriptor_namespaces_assets_and_core_dispatch() {
+    const auto out = exportFixture("sokoban_basic", "g07", 7U);
+    const std::string namespaceHeader =
+        readFile(out / "generated_namespace.h");
+    const std::string header = readFile(out / "generated_game.h");
+    const std::string source = readFile(out / "generated_game.c");
+
+    for (const char* name : {
+             "ps_gbc_generated_descriptor",
+             "ps_gbc_generated_render_objects",
+             "ps_gbc_generated_precomposed_masks",
+             "ps_gbc_generated_precomposed_palettes",
+             "ps_gbc_generated_precomposed_tiles"}) {
+        const std::string expected =
+            std::string("#define ") + name + " g07_" + name;
+        assertTrue(
+            namespaceHeader.find(expected) != std::string::npos,
+            std::string("missing generated asset namespace for ") + name);
+    }
+    assertTrue(
+        header.find("#include \"puzzlescript/gbc_descriptor.h\"")
+                != std::string::npos
+            && header.find(
+                "extern const ps_gbc_game_descriptor "
+                "ps_gbc_generated_descriptor;")
+                != std::string::npos,
+        "generated header declares the game descriptor");
+    assertTrue(
+        source.find(
+            "const ps_gbc_game_descriptor ps_gbc_generated_descriptor")
+                != std::string::npos
+            && source.find("    7U, PS_GBC_GENERATED_SESSION_BYTES,")
+                != std::string::npos
+            && source.find("&ps_gbc_generated_game")
+                != std::string::npos
+            && source.find("ps_gbc_generated_render_objects")
+                != std::string::npos
+            && source.find("ps_gbc_session_init")
+                != std::string::npos
+            && source.find("static void ps_gbc_descriptor_step")
+                != std::string::npos
+            && source.find("    ps_gbc_descriptor_step,")
+                != std::string::npos
+            && source.find("ps_gbc_board")
+                != std::string::npos,
+        "generated descriptor records its bank, assets, and core dispatch");
+}
+
 static void test_text_staging_limit_rejects_long_source_strings() {
     const std::filesystem::path root = PS_REPO_ROOT;
     const std::filesystem::path output = root / "build" / "native"
@@ -1222,6 +1270,7 @@ int main() {
     test_namespace_header_prefixes_every_entry_point();
     test_symbol_prefix_manifest_field_is_json_escaped();
     test_shifted_bank_base_moves_every_per_game_artifact();
+    test_generated_descriptor_namespaces_assets_and_core_dispatch();
     test_text_staging_limit_rejects_long_source_strings();
     return 0;
 }
