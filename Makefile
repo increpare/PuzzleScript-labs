@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: gbc gbc_export gbc_smoke gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
+.PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 
 NODE ?= node
 CMAKE ?= cmake
@@ -92,6 +92,7 @@ GBA_PREFLIGHT_JSON ?= $(BUILD_DIR)/gba/preflight.json
 GBC_GAME ?= src/demo/sokoban_basic.txt
 GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
 GBC_ELIGIBLE_OUT ?= $(BUILD_DIR)/gbc/eligible
+GBC_CART_OUT ?= $(BUILD_DIR)/gbc/cart
 GBC_EXPORT_FLAGS ?= --bank-base 2
 # Cull oversized boards (>10x9) for the eligible good_games corpus (set GBC_CULL=0 to disable).
 GBC_CULL ?= 1
@@ -102,6 +103,7 @@ GBC_MGBA ?=
 GBC_ELIGIBLE_CULL_FLAG = $(if $(filter 0 false no off,$(GBC_CULL)),--no-cull,--cull)
 GBC_ELIGIBLE_CONTINUE_FLAG = $(if $(filter 1 true yes on,$(GBC_CONTINUE)),--continue,)
 GBC_ELIGIBLE_GBDK_ARG = $(if $(strip $(GBDK_HOME)),--gbdk-home "$(GBDK_HOME)",)
+GBC_CART_GBDK_ARG = $(if $(strip $(GBDK_HOME)),--gbdk-home "$(GBDK_HOME)",--gbdk-home ".codex_tmp/toolchains/gbdk")
 HANDHELD_TESTDATA_BUNDLE := $(BUILD_DIR)/handheld_testdata.bundle.ndjson
 HANDHELD_REPORT_JSON := $(BUILD_DIR)/handheld_report.json
 HANDHELD_MEMORY_AUDIT_JSON := $(BUILD_DIR)/handheld_memory_audit.json
@@ -829,6 +831,13 @@ gbc: $(PUZZLESCRIPT_CPP)
 gbc_smoke: $(PUZZLESCRIPT_CPP)
 	$(MAKE) -C firmware/gbc build-rom AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)" EXPORT_GBC_FLAGS="$(GBC_EXPORT_FLAGS)"
 	python3 scripts/run_gbc_smoke.py firmware/gbc/puzzlescript_gbc_autotest.gb $(if $(strip $(GBC_MGBA)),--mgba "$(GBC_MGBA)",)
+
+gbc_cart: $(PUZZLESCRIPT_CPP)
+	python3 scripts/build_gbc_cart.py \
+		--repository . \
+		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--out "$(GBC_CART_OUT)" \
+		$(GBC_CART_GBDK_ARG)
 
 gbc_eligible: $(PUZZLESCRIPT_CPP)
 	python3 scripts/build_gbc_eligible_roms.py \

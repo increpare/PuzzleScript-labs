@@ -92,7 +92,18 @@ static void test_namespace_header_prefixes_every_entry_point() {
              "ps_gbc_status_get", "ps_gbc_cell_objects", "ps_gbc_dirty_cells",
              "ps_gbc_has_dirty_cells", "ps_gbc_clear_dirty_cells",
              "ps_gbc_first_player_position", "ps_gbc_board", "ps_gbc_game",
-             "ps_gbc_resolve_movements", "ps_gbc_generated_game"}) {
+             "ps_gbc_resolve_movements", "ps_gbc_generated_game",
+             "ps_gbc_facade_cell_count", "ps_gbc_facade_get_objects",
+             "ps_gbc_facade_set_objects", "ps_gbc_facade_get_movements",
+             "ps_gbc_facade_set_movements", "ps_gbc_facade_mark_dirty",
+             "ps_gbc_facade_cell_has_any", "ps_gbc_facade_cell_has_all",
+             "ps_gbc_facade_apply_groups",
+             "ps_gbc_specialized_mark_move_cell",
+             "ps_gbc_specialized_clear_move_bits",
+             "ps_gbc_specialized_refresh_player_cell",
+             "ps_gbc_specialized_apply_turn_phases",
+             "ps_gbc_specialized_won",
+             "ps_gbc_specialized_rule_pack_0"}) {
         const std::string expected =
             std::string("#define ") + name + " g07_" + name;
         assertTrue(header.find(expected) != std::string::npos,

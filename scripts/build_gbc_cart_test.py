@@ -95,6 +95,50 @@ def main() -> int:
         build_gbc_cart.relocate_object_code_area(path, 15)
         assert "_CODE_15 size 1234" in path.read_text(encoding="utf-8")
 
+    entries = [
+        build_gbc_cart.CartIndexEntry(
+            slug="first",
+            prefix="g00",
+            title="FIRST",
+            source_hash=0x12345678,
+            descriptor_bank=3,
+            session_bytes=768,
+        ),
+        build_gbc_cart.CartIndexEntry(
+            slug="second",
+            prefix="g01",
+            title="SECOND",
+            source_hash=0x90ABCDEF,
+            descriptor_bank=4,
+            session_bytes=1024,
+        ),
+    ]
+    header = build_gbc_cart.emit_cart_header(entries)
+    assert "#define PS_GBC_CART_GAME_COUNT 2U" in header
+    assert "#define PS_GBC_CART_MAX_SESSION_BYTES 1024U" in header
+    assert "#define PS_GBC_CART_INDEX_BANK 2U" in header
+    assert (
+        "bool ps_gbc_cart_copy_entry(\n"
+        "    uint8_t index,\n"
+        "    ps_gbc_cart_entry* entry) BANKED;"
+    ) in header
+    cart_source = build_gbc_cart.emit_cart_source(entries)
+    assert "#pragma bank 2" in cart_source
+    assert (
+        "extern const ps_gbc_game_descriptor "
+        "g00_ps_gbc_generated_descriptor;"
+    ) in cart_source
+    assert (
+        "extern const ps_gbc_game_descriptor "
+        "g01_ps_gbc_generated_descriptor;"
+    ) in cart_source
+    assert (
+        '{3U, &g00_ps_gbc_generated_descriptor, 0x12345678UL, "FIRST"}'
+    ) in cart_source
+    assert (
+        '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, "SECOND"}'
+    ) in cart_source
+
     print("build_gbc_cart_test: ok")
     return 0
 
