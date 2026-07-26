@@ -157,13 +157,15 @@ $(BUILD)/game_dispatch.o: source/game_dispatch.c source/game_dispatch.h \
 	../../native/include/puzzlescript/gbc_descriptor.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/autotest.o: source/autotest.c source/audio.h source/game_dispatch.h \
+	source/text.h source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/text.o: source/text.c source/text.h source/game_dispatch.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h \
+	source/game_dispatch.h source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h source/game_dispatch.h $(EXPORT_STAMP) | $(BUILD)

@@ -4,29 +4,41 @@
 #include <gb/gb.h>
 
 #include "benchmark.h"
-#include "generated_game.h"
+#include "game_dispatch.h"
 
 #define SCREEN_TILES \
     (PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT)
 #define PERF_RENDER_ITERATIONS 4U
 
+static uint16_t gBackgroundPalettes[32];
+
 bool perfLoadFirstBoard(void) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint16_t level;
-    for (level = 0U; level < ps_gbc_generated_game.level_count; ++level) {
-        if (ps_gbc_generated_game.levels[level].kind == PS_GBC_LEVEL_BOARD) {
-            return ps_gbc_load_level(gSession, level);
+    if (game == NULL) return false;
+    for (level = 0U; level < game->level_count; ++level) {
+        ps_gbc_level level_view;
+        if (!ps_gbc_active_rom_copy(
+                game->levels + level,
+                &level_view,
+                sizeof(level_view))) {
+            return false;
+        }
+        if (level_view.kind == PS_GBC_LEVEL_BOARD) {
+            return psd_load_level(gSession, level);
         }
     }
     return false;
 }
 
 static void perfComposeBoard(void) {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     ps_gbc_status status;
     uint8_t offset_x;
     uint8_t offset_y;
     uint8_t screen_y;
-    ps_gbc_status_get(gSession, &status);
-    if (status.mode != PS_FULL_STATE_MODE_LEVEL) return;
+    psd_status_get(gSession, &status);
+    if (game == NULL || status.mode != PS_FULL_STATE_MODE_LEVEL) return;
     offset_x = (uint8_t)((PS_GBC_VIEWPORT_WIDTH - status.width) / 2U);
     offset_y = (uint8_t)((PS_GBC_VIEWPORT_HEIGHT - status.height) / 2U);
     for (screen_y = 0U; screen_y < PS_GBC_VIEWPORT_HEIGHT; ++screen_y) {
@@ -34,10 +46,10 @@ static void perfComposeBoard(void) {
         for (screen_x = 0U; screen_x < PS_GBC_VIEWPORT_WIDTH; ++screen_x) {
             const uint16_t screen_cell =
                 (uint16_t)screen_y * PS_GBC_VIEWPORT_WIDTH + screen_x;
-            uint32_t objects = ps_gbc_generated_game.background_mask;
+            uint32_t objects = game->background_mask;
             if (screen_x >= offset_x && screen_x < (uint8_t)(offset_x + status.width)
                 && screen_y >= offset_y && screen_y < (uint8_t)(offset_y + status.height)) {
-                objects = ps_gbc_cell_objects(
+                objects = psd_cell_objects(
                     gSession,
                     (int16_t)(screen_x - offset_x),
                     (int16_t)(screen_y - offset_y));
@@ -53,7 +65,7 @@ uint32_t perfMeasureRender(void) BANKED {
     uint8_t iteration;
     renderBoard();
     for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        (void)ps_gbc_step(
+        (void)psd_step(
             gSession,
             (iteration & 1U) == 0U ? PS_INPUT_RIGHT : PS_INPUT_LEFT);
         perfTimerStart();
@@ -110,12 +122,20 @@ uint32_t perfMeasureMapUpload(void) BANKED {
 }
 
 uint32_t perfMeasurePaletteUpload(void) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint8_t iteration;
     uint32_t ticks;
+    if (game == NULL
+        || !ps_gbc_active_rom_copy(
+            game->background_palettes,
+            gBackgroundPalettes,
+            sizeof(gBackgroundPalettes))) {
+        return 0U;
+    }
     DISPLAY_OFF;
     perfTimerStart();
     for (iteration = 0U; iteration < PERF_RENDER_ITERATIONS; ++iteration) {
-        set_bkg_palette(0U, 8U, ps_gbc_generated_game.background_palettes);
+        set_bkg_palette(0U, 8U, gBackgroundPalettes);
     }
     ticks = perfTimerStop();
     DISPLAY_ON;
@@ -124,9 +144,9 @@ uint32_t perfMeasurePaletteUpload(void) BANKED {
 
 uint32_t perfMeasureRepeatedText(void) BANKED {
     uint32_t ticks;
-    showText(ps_gbc_generated_game.title, true);
+    showGameTitleText();
     perfTimerStart();
-    showText(ps_gbc_generated_game.title, true);
+    showGameTitleText();
     ticks = perfTimerStop();
     return ticks;
 }
@@ -144,13 +164,13 @@ void perfMeasureInteraction(perf_interaction* result) BANKED {
     renderBoard();
     result->initial_render_ticks = perfTimerStop();
     perfTimerStart();
-    (void)ps_gbc_step(gSession, PS_INPUT_DOWN);
+    (void)psd_step(gSession, PS_INPUT_DOWN);
     result->walk_logic_ticks = perfTimerStop();
     perfTimerStart();
     renderBoard();
     result->walk_render_ticks = perfTimerStop();
     perfTimerStart();
-    (void)ps_gbc_step(gSession, PS_INPUT_RIGHT);
+    (void)psd_step(gSession, PS_INPUT_RIGHT);
     result->push_logic_ticks = perfTimerStop();
     perfTimerStart();
     renderBoard();

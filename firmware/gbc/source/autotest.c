@@ -7,6 +7,7 @@
 #if defined(PS_GBC_PERF_BENCH)
 #include "benchmark.h"
 #endif
+#include "game_dispatch.h"
 #include "generated_game.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
@@ -32,6 +33,7 @@ extern uint8_t gTileMap[SCREEN_TILES];
 extern uint8_t gAttributes[SCREEN_TILES];
 extern ps_gbc_session* gSession;
 void renderBoard(void);
+static uint16_t gActivePalette[32];
 
 #if !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
 extern uint16_t gDisplayBlankCount;
@@ -49,6 +51,35 @@ void perfTimerStart(void);
 uint32_t perfTimerStop(void);
 void perfTimerShutdown(void);
 #endif
+
+static bool activeLevelIsBoard(uint16_t index) {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
+    ps_gbc_level level;
+    return game != NULL
+        && index < game->level_count
+        && ps_gbc_active_rom_copy(
+            game->levels + index,
+            &level,
+            sizeof(level))
+        && level.kind == PS_GBC_LEVEL_BOARD;
+}
+
+static bool copyActivePalette(
+    const uint16_t* source,
+    uint8_t color_count
+) {
+    const uint16_t byte_count =
+        (uint16_t)color_count * (uint16_t)sizeof(uint16_t);
+    if (color_count > 32U
+        || !ps_gbc_active_rom_copy(
+            source,
+            gActivePalette,
+            byte_count)) {
+        memset(gActivePalette, 0, sizeof(gActivePalette));
+        return false;
+    }
+    return true;
+}
 
 static void writeSram8(uint16_t offset, uint8_t value) {
     *((volatile uint8_t*)(0xa000U + offset)) = value;
@@ -194,6 +225,7 @@ static uint16_t countPaletteMismatches(
 #endif
 
 void runAutotest(void) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     int16_t initial_x = -1;
     int16_t initial_y = -1;
     int16_t final_x = -1;
@@ -215,7 +247,7 @@ void runAutotest(void) BANKED {
             showText("BENCHMARK ERROR", false);
             for (;;) vsync();
         }
-        (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
+        (void)psd_first_player_position(gSession, &initial_x, &initial_y);
         memset(gPerfPhaseTicks, 0, sizeof(gPerfPhaseTicks));
 #if defined(PS_GBC_PERF_SCHEDULES)
         memset(gPerfScheduleCounts, 0, sizeof(gPerfScheduleCounts));
@@ -224,13 +256,13 @@ void runAutotest(void) BANKED {
         perfTimerInitialize();
         perfTimerStart();
         for (iteration = 0U; iteration < PERF_ITERATIONS; ++iteration) {
-            result = ps_gbc_step(
+            result = psd_step(
                 gSession,
                 (iteration & 1U) == 0U ? PS_INPUT_RIGHT : PS_INPUT_LEFT);
         }
         timer_ticks = perfTimerStop();
         gPerfPhaseEnabled = false;
-        (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
+        (void)psd_first_player_position(gSession, &final_x, &final_y);
         render_ticks = perfMeasureRender();
         composition_ticks = perfMeasureComposition();
         tile_upload_ticks = perfMeasureTileUpload();
@@ -250,7 +282,7 @@ void runAutotest(void) BANKED {
 #if defined(PS_GBC_BENCH_WIDE_MOVEMENTS)
         writeSram8(30U, 4U);
 #else
-        writeSram8(30U, ps_gbc_generated_game.movement_bytes_per_cell);
+        writeSram8(30U, game->movement_bytes_per_cell);
 #endif
         writeSram8(31U, result.changed ? 1U : 0U);
         writeSram32(32U, 0U);
@@ -294,18 +326,17 @@ void runAutotest(void) BANKED {
     {
         uint16_t first_board;
         for (first_board = 0U;
-             first_board < ps_gbc_generated_game.level_count;
+             first_board < game->level_count;
              ++first_board) {
-            if (ps_gbc_generated_game.levels[first_board].kind
-                == PS_GBC_LEVEL_BOARD) {
-                (void)ps_gbc_load_level(gSession, first_board);
+            if (activeLevelIsBoard(first_board)) {
+                (void)psd_load_level(gSession, first_board);
                 break;
             }
         }
-        (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
-        result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
+        (void)psd_first_player_position(gSession, &initial_x, &initial_y);
+        result = psd_step(gSession, PS_INPUT_RIGHT);
         audioPlayEvents(&result);
-        (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
+        (void)psd_first_player_position(gSession, &final_x, &final_y);
     }
 #else
     uint16_t title_map_nonzero;
@@ -332,15 +363,14 @@ void runAutotest(void) BANKED {
     uint16_t next_board;
     ps_gbc_status render_status;
     for (first_board = 0U;
-         first_board < ps_gbc_generated_game.level_count;
+         first_board < game->level_count;
          ++first_board) {
-        if (ps_gbc_generated_game.levels[first_board].kind
-            == PS_GBC_LEVEL_BOARD) {
-            (void)ps_gbc_load_level(gSession, first_board);
+        if (activeLevelIsBoard(first_board)) {
+            (void)psd_load_level(gSession, first_board);
             break;
         }
     }
-    (void)ps_gbc_first_player_position(gSession, &initial_x, &initial_y);
+    (void)psd_first_player_position(gSession, &initial_x, &initial_y);
     showTitleMenu(true, true);
     title_selection_blank_count = gDisplayBlankCount;
     vsync();
@@ -353,8 +383,9 @@ void runAutotest(void) BANKED {
     title_map_nonzero = countNonzero(gTileMap, sizeof(gTileMap));
     title_tile_nonzero =
         countVramNonzero(VBK_BANK_0, TEXT_TILE_COUNT * 16U);
+    (void)copyActivePalette(game->ui_palette, 4U);
     title_palette_mismatches =
-        countPaletteMismatches(ps_gbc_generated_game.ui_palette, 0U, 1U);
+        countPaletteMismatches(gActivePalette, 0U, 1U);
     title_background = readBkgPaletteColor(0U, 0U);
     title_foreground = readBkgPaletteColor(0U, 3U);
     title_map_mismatches =
@@ -373,38 +404,35 @@ void runAutotest(void) BANKED {
         countHardwareMapMismatches(gTileMap, VBK_BANK_0);
     board_attribute_mismatches =
         countHardwareMapMismatches(gAttributes, VBK_BANK_1);
+    (void)copyActivePalette(game->background_palettes, 32U);
     board_palette_mismatches =
-        countPaletteMismatches(
-            ps_gbc_generated_game.background_palettes,
-            0U,
-            8U);
+        countPaletteMismatches(gActivePalette, 0U, 8U);
     DISPLAY_ON;
     full_transition_blank_count = 0xffffU;
     for (next_board = (uint16_t)(first_board + 1U);
-         next_board < ps_gbc_generated_game.level_count;
+         next_board < game->level_count;
          ++next_board) {
-        if (ps_gbc_generated_game.levels[next_board].kind
-            == PS_GBC_LEVEL_BOARD) {
+        if (activeLevelIsBoard(next_board)) {
             full_transition_blank_count = gDisplayBlankCount;
-            (void)ps_gbc_load_level(gSession, next_board);
+            (void)psd_load_level(gSession, next_board);
             renderBoard();
             full_transition_blank_count = (uint16_t)(
                 gDisplayBlankCount - full_transition_blank_count);
             break;
         }
     }
-    (void)ps_gbc_load_level(gSession, first_board);
+    (void)psd_load_level(gSession, first_board);
     renderBoard();
-    result = ps_gbc_step(gSession, PS_INPUT_RIGHT);
+    result = psd_step(gSession, PS_INPUT_RIGHT);
     audioPlayEvents(&result);
-    (void)ps_gbc_first_player_position(gSession, &final_x, &final_y);
+    (void)psd_first_player_position(gSession, &final_x, &final_y);
     incremental_blank_count = gDisplayBlankCount;
     renderBoard();
     incremental_blank_count =
         (uint16_t)(gDisplayBlankCount - incremental_blank_count);
     incremental_lcd_on = (LCDC_REG & LCDCF_ON) != 0U ? 1U : 0U;
     dumpFrameToSram(2U);
-    ps_gbc_status_get(gSession, &render_status);
+    psd_status_get(gSession, &render_status);
     cell_width = PS_GBC_RENDERED_CELL_WIDTH;
     cell_height = PS_GBC_RENDERED_CELL_HEIGHT;
     board_pixel_width = (uint16_t)(render_status.width * cell_width);
@@ -423,7 +451,7 @@ void runAutotest(void) BANKED {
     writeSram8(9U, (uint8_t)final_y);
     writeSram8(10U, result.changed ? 1U : 0U);
     writeSram8(11U, result.won ? 1U : 0U);
-    writeSram32(12U, ps_gbc_generated_game.source_hash);
+    writeSram32(12U, game->source_hash);
 #if !defined(PS_GBC_PERF_BENCH) \
     && !defined(PS_GBC_AUTOTEST_LOGIC_ONLY)
     writeSram32(16U, 0U);
