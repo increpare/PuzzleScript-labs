@@ -1,7 +1,8 @@
 # GBC multi-game cart — design
 
 Date: 2026-07-25
-Status: approved design, not yet planned or implemented
+Status: core design approved; HOME bank-access bridge amendment approved in
+principle 2026-07-26 and pending written-spec review
 
 ## Goal
 
@@ -58,17 +59,33 @@ MBC5, cart type `0x1B` (MBC5+RAM+BATTERY), CGB-only. **Hard cap 255 ROM banks
 
 | Region | Contents |
 | --- | --- |
-| Bank 0 (HOME, 16 KiB) | boot, main loop, input, VRAM/tilemap/palette plumbing, SRAM framing, bank dispatch, launcher trampoline |
+| Bank 0 (HOME, 16 KiB) | boot, main loop, input, VRAM/tilemap/palette plumbing, SRAM framing, bank dispatch, launcher trampoline, ROM bank-access bridge |
 | Launcher bank | menu code and the launcher cards for every game |
 | Shared firmware banks | `audio`, `text`, `tile_cache`, `frontend_flow` |
-| Per-game banks | game data, façade, specialized turn packs, private `core.c` |
+| Per-game banks | one co-located game-data/private-core bank, façade, specialized turn packs |
+
+MBC5 exposes only one switchable 16 KiB ROM window. Code running in one
+switchable bank therefore cannot directly dereference data in another
+switchable bank. This is a hard ownership boundary, not merely a linker-layout
+detail:
+
+- a private `core.c` and its `generated_game` data share the same computed
+  per-game bank;
+- shared firmware never directly references a per-game symbol or follows a
+  pointer into a per-game bank;
+- specialized turn packs contain the constants they need and do not read the
+  generated game view across banks;
+- HOME is permanently mapped and owns the only code allowed to switch banks in
+  order to copy game-owned ROM data for shared firmware.
 
 ## Per-game core
 
 Each game carries its **own private copy of `core.c`**, compiled with its own
-width macros into its own banks. `core.c` is not split. HOME keeps only
-`main.c`, the GBDK runtime, the bank dispatch and the launcher trampoline —
-about 4 KiB, leaving roughly 12 KiB free.
+width macros into the same bank as its generated game data. `core.c` is not
+split. HOME keeps only `main.c`, the GBDK runtime, the bank dispatch, the
+launcher trampoline and the bank-access bridge. The foundation gate is HOME
+≤ 8 KiB, preserving at least 8 KiB for the launcher and future fixed-bank
+stubs; the earlier measured target without the bridge was about 4 KiB.
 
 This keeps each game's optimal object and movement widths, which vary
 meaningfully across the corpus: eleven of the fourteen measured games use 1-byte
@@ -93,13 +110,61 @@ Every per-game translation unit — generated files and the game's `core.c` alik
 — is compiled through a generated namespace header that `#define`s each exported
 name to a per-game prefix (`g07_ps_gbc_step`).
 
-**Dispatch.** A per-game descriptor holds the game's bank number and function
-pointers into it. HOME switches to the game's bank and calls through the
-pointer. Calls back into HOME from a banked game are safe because HOME is
-permanently mapped — this is exactly why the earlier attempt to place
+**Dispatch.** A per-game descriptor holds the game's bank numbers, generated
+game-view pointer, render-table pointers, required arena size and function
+pointers. Launcher descriptors may live in launcher ROM, but HOME copies the
+selected descriptor into a single WRAM `active_game` value before launch. HOME
+and shared firmware must not retain a raw pointer to a descriptor in a
+switchable ROM bank.
+
+HOME switches to the game's core/data bank and calls through the copied
+function pointer. Calls back into HOME from a banked game are safe because HOME
+is permanently mapped — this is exactly why the earlier attempt to place
 specialized code in bank 2 hung when it called non-`NONBANKED` core helpers, and
 this layout removes the hazard rather than working around it. Cross-bank calls
 within a single game use ordinary `BANKED` calls.
+
+## HOME bank-access bridge
+
+Shared `audio`, `text`, `tile_cache`, `frontend_flow`, autotest and benchmark
+code runs with its own switchable bank mapped. It must treat every pointer in
+`active_game` as an opaque ROM address. A small `NONBANKED` bridge in HOME
+provides bounded operations that:
+
+1. save the currently mapped MBC5 bank;
+2. map `active_game.game_bank`;
+3. copy a scalar, byte range or NUL-terminated string from game ROM into a
+   caller-owned WRAM destination;
+4. restore the previous bank on every return path.
+
+The bridge never returns a dereferenceable game-ROM pointer. A zero-length copy
+is a no-op; a non-zero copy with a null source or destination fails without
+changing the mapped bank. String copies take a destination capacity, always
+NUL-terminate when capacity is non-zero, and report whether the source fit.
+Generated ROM is trusted after export validation, so the bridge does not try to
+discover arbitrary ROM bounds at runtime.
+
+The first consumers use the bridge at coarse granularity:
+
+- `audio` copies the named-sound ID and selected seed into scalars before
+  starting playback;
+- `text` copies the UI palette and title, author or message into one reusable
+  256-byte WRAM staging buffer before rendering;
+- `tile_cache` copies render-object descriptors, sprite pixels, palette-remap
+  slices and precomposed tile records into its existing WRAM scratch buffers;
+- autotest and benchmark helpers copy the fields and table entries they inspect
+  rather than bypassing the production boundary.
+
+The text renderer displays at most eleven 16-character rows, so the 256-byte
+staging buffer exceeds the visible payload. The exporter still records an error
+if a source string cannot fit: silent runtime truncation is not an accepted
+export.
+
+`main.c` may directly inspect game ROM only inside an explicit interval where
+HOME has mapped `active_game.game_bank`. A banked call ends that interval because
+the call may remap the switchable window. After such a call, HOME must remap the
+game bank before another direct read. This rule is enforced structurally rather
+than depending on a caller remembering which bank happened to be left mapped.
 
 ## WRAM arena
 
@@ -118,7 +183,9 @@ sharing one arena.
 
 Existing budgets hold: static WRAM ≤ 6 KiB, hot state < 4 KiB. Measured static
 WRAM today is 1,565–1,928 bytes per game, so the maximum over a 46-game cart has
-ample margin.
+ample margin for the copied active descriptor and reusable 256-byte text
+buffer. The bridge must reuse the existing tile-cache scratch buffers rather
+than add a second sprite/tile working set.
 
 ## SRAM
 
@@ -193,40 +260,54 @@ screen is an already-defined state, so no session teardown is required and the
 arena is only ever re-initialised at launch.
 
 **Launcher cards.** The exporter pre-bakes one card per game — title, 4-colour
-palette, background tile, player tile, source hash, descriptor pointer — about
-165 bytes each, roughly 7.4 KiB for 46 games, all in the launcher bank so cursor
-movement never switches banks. `ps_game_background_color` and `text_color` exist
-in the compiler but are not currently carried into the GBC export; adding them
-is part of this work. `ps_gbc_game.title` already exists.
+palette, background tile, player tile, source hash, descriptor-table index —
+about 165 bytes each, roughly 7.4 KiB for 46 games, all in the launcher bank so
+cursor movement never switches banks. `ps_game_background_color` and
+`text_color` exist in the compiler but are not currently carried into the GBC
+export; adding them is part of this work. `ps_gbc_game_view.title` already
+exists.
 
 ## Build flow
 
 A cart manifest in the shape of today's `ELIGIBLE_GAMES`, plus
 `scripts/build_gbc_cart.py`, which:
 
-1. exports each game with a bank base offset;
+1. reserves bank 1 for cart-global shared firmware and exports each game with a
+   computed bank base (bank 2 for the first standalone/foundation build);
 2. bin-packs translation units into banks — today's one-TU-per-bank layout
    wastes roughly 40% of each bank;
 3. emits the game descriptor table and the launcher card table;
 4. links once;
 5. runs the cart gates.
 
-The exporter needs a way to emit at a bank base — either a `--bank-base N` flag
-or bank-relative output with a post-pass that rewrites `#pragma bank`.
+The exporter emits an explicit bank manifest. At a game's base, the first bank
+contains that game's generated data and private core together; the following
+banks contain its façade and specialized packs. The manifest also reports the
+first unused bank so the cart builder can allocate the next game without
+reverse-engineering generated pragmas. No per-game range may overlap the shared
+firmware or another game.
 
 **Gates (`scripts/check_gbc_cart.py`):**
 
-- HOME ≤ 16 KiB
+- HOME ≤ 8 KiB during the foundation phase (the hardware limit remains 16 KiB)
 - every bank ≤ 16 KiB
 - total ROM ≤ 4 MB and ≤ 255 banks
 - maximum arena over all games within the WRAM budget
 - zero `_DATA`/`_BSS` from generated translation units
+- zero direct references from shared firmware, autotest or benchmark objects to
+  `ps_gbc_generated_*` symbols or namespaced per-game equivalents
+- each game-data symbol and its private core functions occupy the same bank
 - every game specialized — build fails otherwise, consistent with the retired
   interpreter fallback
 
 ## Testing
 
-Single-game ROM builds and their autotest harness continue to work unchanged.
+Single-game ROMs use the same separated layout as carts: bank 1 holds shared
+firmware, bank 2 is the default game/core base, and later banks hold the façade
+and specialized packs. The existing headless libmGBA smoke must pass both at
+that default base and at a deliberately non-default base (for example bank 7).
+The non-default build is the regression that proves shared firmware is reading
+through the bridge rather than succeeding accidentally because of a fixed bank.
 
 New cart smoke test under mGBA: boot to the launcher, navigate to a game,
 launch it, replay its existing solution fixture, return via the title screen,
@@ -236,6 +317,13 @@ mode this architecture is most exposed to, so the test exercises it directly.
 
 **Parity gate:** a game's solution replay on the cart must produce the same
 result as its standalone ROM.
+
+Host tests cover zero-length/null rejection, exact copies, string termination,
+fit reporting and restoration of the previously selected bank. Exporter and
+link-map tests cover the bank manifest, non-overlap, game/core co-location, HOME
+budget and the absence of forbidden cross-bank symbol references. Live emulator
+coverage is required because the failed bank-11 prototype compiled and linked
+successfully but returned a null session only when the ROM ran.
 
 ## Out of scope
 
