@@ -22,6 +22,11 @@ SPECIALIZED_SRCS   := $(wildcard $(GENERATED)/generated_specialized_turn*.c)
 HAS_SPECIALIZED    := $(shell test -f $(SPECIALIZED_SRC) && echo 1)
 SPECIALIZED_CFLAGS := $(if $(HAS_SPECIALIZED),-DPS_GBC_HAS_SPECIALIZED_TURN=1,)
 
+# gbc.h carries the PS_GBC_CORE_API (BANKED) attribute on the core entry
+# points, so every caller must be rebuilt when it changes or it will keep
+# emitting near calls into the core's switchable bank.
+CORE_API_HEADER := ../../native/include/puzzlescript/gbc.h
+
 CFLAGS := -msm83:gb -I$(GENERATED) -I../../native/include -I../../native/src/gbc -DPS_GBC_FREESTANDING=1
 CFLAGS += -DPS_GBC_GENERATED_BUILD=1
 CFLAGS += -Wf--max-allocs-per-node50000
@@ -97,10 +102,13 @@ endif
 $(BUILD):
 	@mkdir -p $(BUILD)
 
-$(BUILD)/main.o: source/main.c source/audio.h source/text.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/main.o: source/main.c source/audio.h source/text.h $(CORE_API_HEADER) \
+	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/core.o: ../../native/src/gbc/core.c \
+# core.c is compiled through source/core_banked.c so it lands in a switchable
+# bank instead of HOME; its entry points are PS_GBC_CORE_API (BANKED).
+$(BUILD)/core.o: source/core_banked.c ../../native/src/gbc/core.c \
 	../../native/src/gbc/session_internal.h \
 	../../native/include/puzzlescript/gbc.h \
 	$(EXPORT_STAMP) | $(BUILD)
@@ -138,22 +146,25 @@ $(BUILD)/facade_rules.o: ../../native/src/gbc/facade_rules.c \
 $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/audio.o: source/audio.c source/audio.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/audio.o: source/audio.c source/audio.h $(CORE_API_HEADER) $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/frontend_flow.o: source/frontend_flow.c source/frontend_flow.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h \
+	$(CORE_API_HEADER) $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/text.o: source/text.c source/text.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/text.o: source/text.c source/text.h $(CORE_API_HEADER) $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h \
+	$(CORE_API_HEADER) $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(CORE_API_HEADER) \
+	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 clean:

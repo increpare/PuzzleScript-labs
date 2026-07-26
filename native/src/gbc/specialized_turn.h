@@ -5,14 +5,23 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/*
+ * core.c lives in a switchable bank on cartridge builds, so its entry points
+ * are ordinary BANKED functions. Callers in HOME switch banks through the
+ * banked-call trampoline; callers in the game's own specialized packs use a
+ * normal BANKED call, which saves and restores the bank.
+ *
+ * PS_GBC_CORE_RUNTIME_NONBANKED keeps its historical name for the one core
+ * helper that the specialized packs reach into; it is now just an alias for
+ * PS_GBC_CORE_API.
+ */
 #if defined(PS_GBC_FREESTANDING)
 #include <gb/gb.h>
 #define PS_GBC_SPECIALIZED_TURN_BANKED BANKED
-#define PS_GBC_CORE_RUNTIME_NONBANKED NONBANKED
 #else
 #define PS_GBC_SPECIALIZED_TURN_BANKED
-#define PS_GBC_CORE_RUNTIME_NONBANKED
 #endif
+#define PS_GBC_CORE_RUNTIME_NONBANKED PS_GBC_CORE_API
 
 #if !defined(PS_GBC_HAS_SPECIALIZED_TURN)
 bool ps_gbc_apply_turn_phases(

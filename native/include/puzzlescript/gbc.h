@@ -39,6 +39,26 @@ typedef struct ps_step_result {
 } ps_step_result;
 #endif
 
+/*
+ * Linkage attribute for the core runtime entry points.
+ *
+ * On cartridge builds core.c is compiled into a switchable ROM bank (see
+ * firmware/gbc/source/core_banked.c), so every entry point below must use the
+ * banked calling convention: callers in HOME and in other banks then go through
+ * the GBDK banked-call trampoline, which maps the core's bank and restores the
+ * caller's on return. Without this the frontend would emit a plain near call
+ * into an unmapped 0x4000-0x7fff window and the ROM would hang.
+ *
+ * Host (C and C++) and GBA builds have no banking, so it expands to nothing
+ * there and those translation units are byte-for-byte unaffected.
+ */
+#if defined(PS_GBC_FREESTANDING)
+#include <gb/gb.h>
+#define PS_GBC_CORE_API BANKED
+#else
+#define PS_GBC_CORE_API
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -289,27 +309,30 @@ typedef struct ps_gbc_status {
     const char* message;
 } ps_gbc_status;
 
-size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game);
+size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game) PS_GBC_CORE_API;
 ps_gbc_session* ps_gbc_session_init(
     void* arena,
     size_t arena_size,
     const ps_gbc_game_view* game,
     const ps_gbc_snapshot_io* snapshots
-);
-bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index);
-ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input);
-void ps_gbc_defer_wins(ps_gbc_session* session, bool defer);
-bool ps_gbc_advance_level(ps_gbc_session* session);
-bool ps_gbc_undo(ps_gbc_session* session);
-bool ps_gbc_restart(ps_gbc_session* session);
-void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status);
-uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y);
-const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session);
-bool ps_gbc_has_dirty_cells(const ps_gbc_session* session);
-void ps_gbc_clear_dirty_cells(ps_gbc_session* session);
-bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y);
-const void* ps_gbc_board(const ps_gbc_session* session);
-const ps_gbc_game_view* ps_gbc_game(const ps_gbc_session* session);
+) PS_GBC_CORE_API;
+bool ps_gbc_load_level(ps_gbc_session* session, uint16_t level_index) PS_GBC_CORE_API;
+ps_step_result ps_gbc_step(ps_gbc_session* session, ps_input input) PS_GBC_CORE_API;
+void ps_gbc_defer_wins(ps_gbc_session* session, bool defer) PS_GBC_CORE_API;
+bool ps_gbc_advance_level(ps_gbc_session* session) PS_GBC_CORE_API;
+bool ps_gbc_undo(ps_gbc_session* session) PS_GBC_CORE_API;
+bool ps_gbc_restart(ps_gbc_session* session) PS_GBC_CORE_API;
+void ps_gbc_status_get(const ps_gbc_session* session, ps_gbc_status* status)
+    PS_GBC_CORE_API;
+uint32_t ps_gbc_cell_objects(const ps_gbc_session* session, int16_t x, int16_t y)
+    PS_GBC_CORE_API;
+const uint8_t* ps_gbc_dirty_cells(const ps_gbc_session* session) PS_GBC_CORE_API;
+bool ps_gbc_has_dirty_cells(const ps_gbc_session* session) PS_GBC_CORE_API;
+void ps_gbc_clear_dirty_cells(ps_gbc_session* session) PS_GBC_CORE_API;
+bool ps_gbc_first_player_position(const ps_gbc_session* session, int16_t* x, int16_t* y)
+    PS_GBC_CORE_API;
+const void* ps_gbc_board(const ps_gbc_session* session) PS_GBC_CORE_API;
+const ps_gbc_game_view* ps_gbc_game(const ps_gbc_session* session) PS_GBC_CORE_API;
 
 #ifdef __cplusplus
 }
