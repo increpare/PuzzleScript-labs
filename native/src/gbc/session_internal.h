@@ -78,6 +78,12 @@ struct ps_gbc_session {
     ps_gbc_presence_mask present_objects;
 #endif
     const char* message;
+#if defined(PS_GBC_HAS_SPECIALIZED_TURN) \
+    && PS_GBC_HAS_SPECIALIZED_TURN
+    uint8_t specialized_move_bits[
+        (PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];
+    uint16_t specialized_player_cell;
+#endif
 };
 
 #if defined(PS_GBC_FREESTANDING)

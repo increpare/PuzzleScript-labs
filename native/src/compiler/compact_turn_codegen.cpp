@@ -7521,7 +7521,7 @@ void emitCompactInlineGbdCPatternApply(
         out << indent << "        session->player_cells[0] = " << cellExpr << ";\n"
             << indent << "        session->player_cell_count = 1U;\n"
             << indent << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << indent << "        ps_gbc_specialized_player_cell = " << cellExpr << ";\n"
+            << indent << "        session->specialized_player_cell = " << cellExpr << ";\n"
             << indent << "#endif\n";
     } else {
         out << indent << "        uint8_t index = 0U;\n"
@@ -7554,7 +7554,7 @@ void emitCompactInlineGbdCPatternApply(
         nextMovementsVar,
         movementBytesPerCell);
     out << indent << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
-        << indent << "    ps_gbc_specialized_mark_move_cell(" << cellExpr << ");\n"
+        << indent << "    ps_gbc_specialized_mark_move_cell(session, " << cellExpr << ");\n"
         << indent << "#endif\n"
         << indent << "    if (" << nextObjectsVar << " != " << objectsVar << ") ";
     emitGbdCDirtyMark(out, "", cellExpr);
@@ -7694,14 +7694,14 @@ void emitGbcSpecializedSharedHeader(
         // Level width/height are duplicated per banked TU (ROM-bank locals), not
         // shared via extern — cross-bank reads of banked const data are unsafe.
         << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
-        << "extern uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n"
-        << "void ps_gbc_specialized_mark_move_cell(uint16_t cell)\n"
+        << "void ps_gbc_specialized_mark_move_cell(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint16_t cell)\n"
         << "    PS_GBC_SPECIALIZED_TURN_BANKED;\n"
-        << "void ps_gbc_specialized_clear_move_bits(void)\n"
+        << "void ps_gbc_specialized_clear_move_bits(ps_gbc_session* session)\n"
         << "    PS_GBC_SPECIALIZED_TURN_BANKED;\n\n"
         << "#endif\n"
         << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        << "extern uint16_t ps_gbc_specialized_player_cell;\n"
         << "void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session)\n"
         << "    PS_GBC_SPECIALIZED_TURN_BANKED;\n\n"
         << "#endif\n";
@@ -7772,20 +7772,25 @@ void emitGbcSpecializedSeedAndHelpers(
     const char* globalStorage = split ? "" : "static ";
     const char* seedAttr = ""; // only called from apply_turn_phases in this bank
     out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
-        << globalStorage << "uint8_t ps_gbc_specialized_move_bits[(PS_GBC_MAX_BOARD_CELLS + 7U) / 8U];\n\n"
-        << globalStorage << "void ps_gbc_specialized_mark_move_cell(uint16_t cell)" << helperAttr << " {\n"
+        << globalStorage << "void ps_gbc_specialized_mark_move_cell(\n"
+        << "    ps_gbc_session* session,\n"
+        << "    uint16_t cell)" << helperAttr << " {\n"
         << "    if (cell >= PS_GBC_MAX_BOARD_CELLS) return;\n"
-        << "    ps_gbc_specialized_move_bits[cell >> 3U] |= (uint8_t)(1U << (cell & 7U));\n"
+        << "    session->specialized_move_bits[cell >> 3U] |=\n"
+        << "        (uint8_t)(1U << (cell & 7U));\n"
         << "}\n\n"
-        << globalStorage << "void ps_gbc_specialized_clear_move_bits(void)" << helperAttr << " {\n"
-        << "    memset(ps_gbc_specialized_move_bits, 0, sizeof(ps_gbc_specialized_move_bits));\n"
+        << globalStorage << "void ps_gbc_specialized_clear_move_bits(\n"
+        << "    ps_gbc_session* session)" << helperAttr << " {\n"
+        << "    memset(\n"
+        << "        session->specialized_move_bits,\n"
+        << "        0,\n"
+        << "        sizeof(session->specialized_move_bits));\n"
         << "}\n\n"
         << "#endif\n"
         << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        << globalStorage << "uint16_t ps_gbc_specialized_player_cell = UINT16_MAX;\n\n"
         << globalStorage << "void ps_gbc_specialized_refresh_player_cell(ps_gbc_session* session)"
         << helperAttr << " {\n"
-        << "    ps_gbc_specialized_player_cell = UINT16_MAX;\n"
+        << "    session->specialized_player_cell = UINT16_MAX;\n"
         << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
         << "    {\n"
         << "        uint8_t player_index;\n"
@@ -7797,7 +7802,7 @@ void emitGbcSpecializedSeedAndHelpers(
     out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
         << "                continue;\n"
         << "            }\n"
-        << "            ps_gbc_specialized_player_cell = cell;\n"
+        << "            session->specialized_player_cell = cell;\n"
         << "            return;\n"
         << "        }\n"
         << "    }\n"
@@ -7810,7 +7815,7 @@ void emitGbcSpecializedSeedAndHelpers(
     out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
         << "                continue;\n"
         << "            }\n"
-        << "            ps_gbc_specialized_player_cell = cell;\n"
+        << "            session->specialized_player_cell = cell;\n"
         << "            return;\n"
         << "        }\n"
         << "    }\n"
@@ -7837,14 +7842,14 @@ void emitGbcSpecializedSeedAndHelpers(
     // Multi-player aggregates (e.g. Attractor Net) must seed every player cell.
     const char* afterSeed =
         "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        "            ps_gbc_specialized_player_cell = cell;\n"
+        "            session->specialized_player_cell = cell;\n"
         "            return true;\n"
         "#else\n"
         "            seeded = true;\n"
         "#endif\n";
     const char* afterSeedNested =
         "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        "                ps_gbc_specialized_player_cell = cell;\n"
+        "                session->specialized_player_cell = cell;\n"
         "                return true;\n"
         "#else\n"
         "                seeded = true;\n"
@@ -8204,15 +8209,15 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "    session->player_cell_count = 1U;\n"
         << "#elif PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
         << "    {\n"
-        << "        uint16_t cached = ps_gbc_specialized_player_cell;\n"
+        << "        uint16_t cached = session->specialized_player_cell;\n"
         << "        if (cached == UINT16_MAX) {\n"
         << "            ps_gbc_specialized_refresh_player_cell(session);\n"
-        << "            cached = ps_gbc_specialized_player_cell;\n"
+        << "            cached = session->specialized_player_cell;\n"
         << "        } else {\n";
     emitGbdCBoardGet(out, "            ", "cached_objects", "cached", objectBytesPerCell);
     out << "            if ((cached_objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
         << "                ps_gbc_specialized_refresh_player_cell(session);\n"
-        << "                cached = ps_gbc_specialized_player_cell;\n"
+        << "                cached = session->specialized_player_cell;\n"
         << "            }\n"
         << "        }\n"
         << "        if (cached == UINT16_MAX) return false;\n"
@@ -8403,13 +8408,13 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             << "            session->player_cell_count = 1U;\n"
             << "#endif\n"
             << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << "            ps_gbc_specialized_player_cell = cell;\n"
+            << "            session->specialized_player_cell = cell;\n"
             << "#endif\n"
             << "        }\n";
         emitGbdCBoardSet(out, "        ", "cell", "next_objects", objectBytesPerCell);
         emitGbdCMovementsSet(out, "        ", "cell", "next_movements", movementBytesPerCell);
         out << "#if PS_GBC_GENERATED_SPECIALIZED_RESOLVE\n"
-            << "        ps_gbc_specialized_mark_move_cell(cell);\n"
+            << "        ps_gbc_specialized_mark_move_cell(session, cell);\n"
             << "#endif\n"
             << "        if (next_objects != " << objectsVar << ") ";
         emitGbdCDirtyMark(out, "", "cell");
@@ -8828,15 +8833,15 @@ void emitGbcSpecializedRuleFunction(
     if (usePlayerOffsetAnchor) {
         out << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
             << "        {\n"
-            << "            uint16_t player_cell = ps_gbc_specialized_player_cell;\n"
+            << "            uint16_t player_cell = session->specialized_player_cell;\n"
             << "            if (player_cell == UINT16_MAX) {\n"
             << "                ps_gbc_specialized_refresh_player_cell(session);\n"
-            << "                player_cell = ps_gbc_specialized_player_cell;\n"
+            << "                player_cell = session->specialized_player_cell;\n"
             << "            } else {\n";
         emitGbdCBoardGet(out, "                ", "player_objects", "player_cell", objectBytesPerCell);
         out << "                if ((player_objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
             << "                    ps_gbc_specialized_refresh_player_cell(session);\n"
-            << "                    player_cell = ps_gbc_specialized_player_cell;\n"
+            << "                    player_cell = session->specialized_player_cell;\n"
             << "                }\n"
             << "            }\n"
             << "            if (player_cell != UINT16_MAX) {\n";
@@ -9230,7 +9235,7 @@ void emitGbcSpecializedResolveLayersForCell(
                     << tPlayer << "session->player_cell_count = 1U;\n"
                     << tPlayer << "#endif\n"
                     << tPlayer << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-                    << tPlayer << "ps_gbc_specialized_player_cell = target;\n"
+                    << tPlayer << "session->specialized_player_cell = target;\n"
                     << tPlayer << "#endif\n";
             } else {
                 out << tPlayer << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
@@ -9335,7 +9340,7 @@ void emitGbcSpecializedClearMovements(
         << indent << "    (size_t)PS_GBC_GENERATED_MAX_LEVEL_CELLS\n"
         << indent << "        * PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL);\n";
     if (clearMoveBits) {
-        out << indent << "ps_gbc_specialized_clear_move_bits();\n";
+        out << indent << "ps_gbc_specialized_clear_move_bits(session);\n";
     }
 }
 
@@ -9355,7 +9360,7 @@ void emitGbcSpecializedResolveMovements(
         << "        moved_pass = false;\n"
         << "        uint8_t byte_index;\n"
         << "        for (byte_index = 0U; byte_index < bit_bytes; ++byte_index) {\n"
-        << "            uint8_t bits = ps_gbc_specialized_move_bits[byte_index];\n"
+        << "            uint8_t bits = session->specialized_move_bits[byte_index];\n"
         << "            uint8_t bit;\n"
         << "            if (bits == 0U) continue;\n"
         << "            for (bit = 0U; bit < 8U; ++bit) {\n"
@@ -9410,8 +9415,8 @@ void emitGbcSpecializedResolveSeededPlayer(
         << "        }\n"
         << "    }\n"
         << "#elif PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-        << "    if (ps_gbc_specialized_player_cell != UINT16_MAX) {\n"
-        << "        cell = ps_gbc_specialized_player_cell;\n"
+        << "    if (session->specialized_player_cell != UINT16_MAX) {\n"
+        << "        cell = session->specialized_player_cell;\n"
         << "        have_cell = true;\n"
         << "    }\n"
         << "#else\n"
@@ -9677,6 +9682,9 @@ void emitGbcSpecializedTurn(
         << "    bool moved;\n"
         << "    bool late;\n"
         << "    if (out_changed == NULL) return false;\n"
+        << "#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
+        << "    session->specialized_player_cell = UINT16_MAX;\n"
+        << "#endif\n"
         << "    memset(\n"
         << "        session->movements,\n"
         << "        0,\n"
@@ -9707,12 +9715,13 @@ void emitGbcSpecializedTurn(
         out << "                    if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
             << "                        continue;\n"
             << "                    }\n"
-            << "                    ps_gbc_specialized_mark_move_cell(cell);\n"
+            << "                    ps_gbc_specialized_mark_move_cell(session, cell);\n"
             << "                }\n"
             << "            }\n"
             << "#elif PS_GBC_GENERATED_SINGLE_PLAYER_CELL\n"
-            << "            if (ps_gbc_specialized_player_cell != UINT16_MAX) {\n"
-            << "                ps_gbc_specialized_mark_move_cell(ps_gbc_specialized_player_cell);\n"
+            << "            if (session->specialized_player_cell != UINT16_MAX) {\n"
+            << "                ps_gbc_specialized_mark_move_cell(\n"
+            << "                    session, session->specialized_player_cell);\n"
             << "            }\n"
             << "#endif\n"
             << "        }\n"
@@ -9730,7 +9739,7 @@ void emitGbcSpecializedTurn(
     } else if (singlePlayerCellCertified) {
         out << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
             << "    if (moved && session->player_cell_count > 0U) {\n"
-            << "        ps_gbc_specialized_player_cell = session->player_cells[0];\n"
+            << "        session->specialized_player_cell = session->player_cells[0];\n"
             << "    }\n"
             << "#else\n"
             << "    if (seeded || early || moved || late) {\n"

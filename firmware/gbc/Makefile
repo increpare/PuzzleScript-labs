@@ -78,11 +78,11 @@ all: $(TARGET).gb
 # Size gate: specialized bank (16 KiB) and total ROM (512 KiB) must pass.
 build-rom: $(TARGET).gb
 	"$(PYTHON)" ../../scripts/check_gbc_rom.py \
-		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
+		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map $(BUILD)
 
 check-size: $(TARGET).gb
 	"$(PYTHON)" ../../scripts/check_gbc_rom.py \
-		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map
+		$(TARGET).gb $(GENERATED)/gbc_manifest.json $(TARGET).map $(BUILD)
 
 export: $(EXPORT_STAMP)
 
@@ -99,10 +99,11 @@ $(EXPORT_CONFIG): FORCE
 	  mv "$$tmp" "$@"; \
 	fi
 
-$(EXPORT_STAMP): $(EXPORT_CONFIG)
+$(EXPORT_STAMP): $(EXPORT_CONFIG) $(PUZZLESCRIPT_CPP)
 ifeq ($(filter 1 yes true on,$(SKIP_EXPORT)),)
 	@mkdir -p $(GENERATED) $(BUILD)
 	"$(PUZZLESCRIPT_CPP)" export-gbc "$(GAME)" --out $(GENERATED) $(EXPORT_GBC_FLAGS)
+	@touch $(EXPORT_STAMP)
 else
 	@test -f $(GENERATED)/generated_game.c
 	@test -f $(GENERATED)/generated_game.h

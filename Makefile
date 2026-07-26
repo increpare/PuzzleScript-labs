@@ -827,7 +827,7 @@ gbc: $(PUZZLESCRIPT_CPP)
 	$(MAKE) -C firmware/gbc build-rom GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)" EXPORT_GBC_FLAGS="$(GBC_EXPORT_FLAGS)"
 
 gbc_smoke: $(PUZZLESCRIPT_CPP)
-	$(MAKE) -C firmware/gbc AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)" EXPORT_GBC_FLAGS="$(GBC_EXPORT_FLAGS)"
+	$(MAKE) -C firmware/gbc build-rom AUTOTEST=1 GAME=$(abspath $(GBC_GAME)) PUZZLESCRIPT_CPP=$(abspath $(PUZZLESCRIPT_CPP)) GBDK_HOME="$(if $(strip $(GBDK_HOME)),$(abspath $(GBDK_HOME)),)" EXPORT_GBC_FLAGS="$(GBC_EXPORT_FLAGS)"
 	python3 scripts/run_gbc_smoke.py firmware/gbc/puzzlescript_gbc_autotest.gb $(if $(strip $(GBC_MGBA)),--mgba "$(GBC_MGBA)",)
 
 gbc_eligible: $(PUZZLESCRIPT_CPP)

@@ -312,7 +312,7 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("#if PS_GBC_GENERATED_SINGLE_PLAYER_CELL")
                 != std::string::npos
-            && specializedTurn.find("ps_gbc_specialized_player_cell")
+            && specializedTurn.find("session->specialized_player_cell")
                 != std::string::npos
             && specializedTurn.find("ps_gbc_facade_apply_groups") == std::string::npos
             && specializedTurn.find("ps_gbc_specialized_patterns") == std::string::npos
@@ -327,8 +327,14 @@ int main() {
                 != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_mark_move_cell")
                 != std::string::npos
-            && specializedTurn.find("ps_gbc_specialized_move_bits")
+            && specializedTurn.find("session->specialized_move_bits")
                 != std::string::npos
+            && specializedTurn.find(
+                "uint8_t ps_gbc_specialized_move_bits")
+                == std::string::npos
+            && specializedTurn.find(
+                "uint16_t ps_gbc_specialized_player_cell")
+                == std::string::npos
             && specializedTurn.find("if (seeded && !early)") != std::string::npos
             && specializedTurn.find("ps_gbc_specialized_resolve_movements(session)")
                 != std::string::npos
