@@ -1,8 +1,8 @@
 # GBC multi-game cart — design
 
 Date: 2026-07-25
-Status: core design approved; HOME bank-access bridge amendment approved in
-principle 2026-07-26 and pending written-spec review
+Status: approved, including the HOME bank-access bridge amendment reviewed
+2026-07-26
 
 ## Goal
 
