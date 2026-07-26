@@ -458,8 +458,8 @@ int main() {
             && facadeRules.find("#pragma bank 3") != std::string::npos
             && specializedTurn.find("#pragma bank 4") != std::string::npos,
         "default export reserves banks zero and one for shared firmware");
-    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 393U") != std::string::npos,
-        "generated header budgets the player-cell anchor list");
+    require(header.find("PS_GBC_GENERATED_SESSION_BYTES 433U") != std::string::npos,
+        "generated header budgets the player-cell anchor list and again scratch");
     require(header.find("PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL 1U") != std::string::npos,
         "generated header exposes the compile-time movement cell width");
     require(header.find("PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL 1U") != std::string::npos,

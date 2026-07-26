@@ -339,9 +339,9 @@ int main(void) {
         "two-byte movement cells are not reflected exactly in arena size");
     failed |= require_true(six_lane_bytes == bytes + 12U,
         "four-byte movement cells are not reflected exactly in arena size");
-    failed |= require_true(two_byte_bytes == bytes + 4U,
+    failed |= require_true(two_byte_bytes == bytes + 8U,
         "two-byte object cells are not reflected exactly in arena size");
-    failed |= require_true(four_byte_bytes == bytes + 12U,
+    failed |= require_true(four_byte_bytes == bytes + 24U,
         "four-byte object cells are not reflected exactly in arena size");
     failed |= require_true(
         max_three_lane_bytes

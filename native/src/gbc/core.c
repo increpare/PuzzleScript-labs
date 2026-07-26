@@ -36,27 +36,24 @@ typedef ps_gbc_rule ps_gbc_runtime_rule;
 #define PS_GBC_GROUP_PASSES 200
 #define PS_GBC_RULE_LOOPS 200
 
-/* Scratch for again net-change compare (only touched when again is pending). */
-static uint8_t g_ps_gbc_again_probe[PS_GBC_MAX_BOARD_CELLS * 4U];
-
 static bool ps_gbc_board_differs_from_turn_start(
     ps_gbc_session* session,
     uint16_t board_bytes
 ) {
     uint16_t index;
     if (board_bytes == 0U
-        || board_bytes > (uint16_t)sizeof(g_ps_gbc_again_probe)) {
+        || session->again_probe == NULL) {
         return true;
     }
     if (!session->snapshots.read(
             session->snapshots.context,
             (uint8_t)session->undo_head,
-            g_ps_gbc_again_probe,
+            session->again_probe,
             board_bytes)) {
         return true;
     }
     for (index = 0U; index < board_bytes; ++index) {
-        if (session->board[index] != g_ps_gbc_again_probe[index]) return true;
+        if (session->board[index] != session->again_probe[index]) return true;
     }
     return false;
 }
@@ -455,6 +452,7 @@ size_t ps_gbc_session_required_bytes(const ps_gbc_game_view* game) {
     movement_bytes = ps_gbc_movement_bytes(game);
     result = ps_gbc_align4(sizeof(ps_gbc_session));
     result += board_bytes;
+    result += board_bytes;
     result = ps_gbc_align4(result);
     result += movement_bytes;
 #if PS_GBC_HAS_PLAYER_CELL_ANCHORS
@@ -561,6 +559,8 @@ ps_gbc_session* ps_gbc_session_init(
     session->game = game;
     session->snapshots = *snapshots;
     session->board = cursor;
+    cursor += board_bytes;
+    session->again_probe = cursor;
     cursor += board_bytes;
     cursor = ps_gbc_align_pointer(cursor);
     session->movements = cursor;

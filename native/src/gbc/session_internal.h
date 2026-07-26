@@ -48,6 +48,7 @@ struct ps_gbc_session {
     uint8_t* board;
     uint8_t* movements;
     uint8_t* dirty_bits;
+    uint8_t* again_probe;
 #if PS_GBC_HAS_PLAYER_CELL_ANCHORS
     uint8_t* player_cells;
     uint8_t player_cell_count;

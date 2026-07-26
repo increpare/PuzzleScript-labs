@@ -2696,6 +2696,7 @@ ExportResult exportGame(const ExportOptions& options) {
         (void)undo;
         size_t bytes = static_cast<size_t>(PS_GBC_SESSION_OVERHEAD_BUDGET)
             + static_cast<size_t>(maxCells) * objectCellBytes;
+        bytes += static_cast<size_t>(maxCells) * objectCellBytes;
         bytes = align4(bytes);
         return bytes + static_cast<size_t>(maxCells) * movementLayout.bytesPerCell
             + (playerAnchorCount == 0U ? 0U : maxCells)
