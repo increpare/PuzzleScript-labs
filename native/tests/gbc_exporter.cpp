@@ -35,7 +35,92 @@ void writeFile(const std::filesystem::path& path, const std::string& value) {
     output << value;
 }
 
+void assertTrue(bool condition, const std::string& message) {
+    require(condition, message.c_str());
+}
+
+// Exports the named src/demo/<fixture>.txt game (optionally with a symbol
+// prefix) into its own scratch subdirectory and returns that directory, so
+// callers can read whatever artifact they need out of it.
+std::filesystem::path exportFixture(
+    const std::string& fixtureName, const std::string& symbolPrefix = ""
+) {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    const std::filesystem::path outputDirectory = root / "build" / "native"
+        / "gbc_exporter_test_output" / "namespace_fixtures"
+        / (fixtureName + (symbolPrefix.empty() ? "_noprefix" : ("_" + symbolPrefix)));
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath = root / "src" / "demo" / (fixtureName + ".txt");
+    options.outputDirectory = outputDirectory;
+    options.symbolPrefix = symbolPrefix;
+    puzzlescript::gbc::exportGame(options);
+    return outputDirectory;
+}
+
 } // namespace
+
+static void test_namespace_header_empty_prefix_has_no_defines() {
+    const auto out = exportFixture("sokoban_basic", /*symbolPrefix=*/"");
+    const std::string header = readFile(out / "generated_namespace.h");
+    // "no #defines" means no per-symbol rename defines (e.g.
+    // "#define ps_gbc_step ..."); the file still needs its own include-guard
+    // #define (PS_GBC_GENERATED_NAMESPACE_H), same as every other generated
+    // header in this exporter, so a bare "#define" search would always find
+    // that guard and can't distinguish the two cases.
+    assertTrue(header.find("#define ps_gbc_") == std::string::npos,
+               "empty prefix must emit no defines");
+    assertTrue(header.find("PS_GBC_GENERATED_NAMESPACE_H") != std::string::npos,
+               "header needs an include guard");
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    assertTrue(manifest.find("\"symbol_prefix\": \"\"") != std::string::npos,
+               "manifest symbol_prefix must render as an empty JSON string "
+               "for an empty prefix, same as before the jsonString() switch");
+}
+
+static void test_namespace_header_prefixes_every_entry_point() {
+    const auto out = exportFixture("sokoban_basic", /*symbolPrefix=*/"g07");
+    const std::string header = readFile(out / "generated_namespace.h");
+    for (const char* name : {
+             "ps_gbc_session_required_bytes", "ps_gbc_session_init",
+             "ps_gbc_load_level", "ps_gbc_step", "ps_gbc_defer_wins",
+             "ps_gbc_advance_level", "ps_gbc_undo", "ps_gbc_restart",
+             "ps_gbc_status_get", "ps_gbc_cell_objects", "ps_gbc_dirty_cells",
+             "ps_gbc_has_dirty_cells", "ps_gbc_clear_dirty_cells",
+             "ps_gbc_first_player_position", "ps_gbc_board", "ps_gbc_game",
+             "ps_gbc_resolve_movements", "ps_gbc_generated_game"}) {
+        const std::string expected =
+            std::string("#define ") + name + " g07_" + name;
+        assertTrue(header.find(expected) != std::string::npos,
+                   std::string("missing define for ") + name);
+    }
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    assertTrue(manifest.find("\"symbol_prefix\": \"g07\"") != std::string::npos,
+               "manifest symbol_prefix must render as a plain JSON string "
+               "for an ordinary prefix, same as before the jsonString() switch");
+}
+
+// A prefix containing characters that require JSON escaping (a double quote
+// and a backslash) must still produce a well-formed, round-trippable
+// "symbol_prefix" manifest field. Guards against exporter.cpp writing
+// options.symbolPrefix directly between literal quotes instead of going
+// through jsonString(), which every other free-form string manifest field
+// uses (e.g. "source").
+static void test_symbol_prefix_manifest_field_is_json_escaped() {
+    const std::string prefix = "g\"07\\x";
+    const auto out = exportFixture("sokoban_basic", prefix);
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    assertTrue(
+        manifest.find(R"("symbol_prefix": "g\"07\\x")") != std::string::npos,
+        "symbol_prefix must be JSON-escaped (embedded quote and backslash) "
+        "in the manifest");
+    // Sanity-check the field doesn't spill into neighboring JSON: the next
+    // manifest key must still be found intact right after it.
+    assertTrue(
+        manifest.find(
+            R"("symbol_prefix": "g\"07\\x",
+  "color_stretch": {)") != std::string::npos,
+        "escaped symbol_prefix must not corrupt the surrounding manifest JSON");
+}
 
 int main() {
     const std::filesystem::path root = PS_REPO_ROOT;
@@ -984,5 +1069,74 @@ int main() {
         spawnPlayerSpecialized.find("seeded = true") != std::string::npos
             && spawnPlayerSpecialized.find("return seeded;") != std::string::npos,
         "multi-player specialized seed continues across all player cells");
+
+    // A game with an empty RULES section produces no packed patterns and no
+    // packed rules. compactNativeTurnSupportForGame() still reports the native
+    // kernel as supported -- it only scans the rules that exist -- so before the
+    // gate in writeSpecializedTurnArtifacts this exported a bank-3 specialized
+    // translation unit whose only content was the fallback walker: four reads of
+    // ps_gbc_generated_game (which lives in the game-data bank) plus a near call
+    // to ps_gbc_facade_apply_groups, whose definition is under "#pragma bank 2".
+    // On an MBC5 cart, with its single switchable window, all of that executes
+    // against whichever bank the caller occupies. The export must decline to
+    // specialize instead, leaving core.c's interpreted turn -- which lives in
+    // HOME -- to run the game.
+    const std::string rulesFreeSource =
+        "title GBC Rules Free\n\n"
+        "========\nOBJECTS\n========\n\n"
+        "Background\nblack\n0\n\n"
+        "Player\nwhite\n0\n\n"
+        "=======\nLEGEND\n=======\n\n"
+        ". = Background\nP = Background and Player\n\n"
+        "================\nCOLLISIONLAYERS\n================\n\n"
+        "Background\nPlayer\n\n"
+        "======\nRULES\n======\n\n"
+        "==============\nWINCONDITIONS\n==============\n\n"
+        "some Player\n\n"
+        "=======\nLEVELS\n=======\n\n"
+        "P.\n..\n";
+    const std::filesystem::path rulesFreePath = output / "rules_free_source.txt";
+    writeFile(rulesFreePath, rulesFreeSource);
+    puzzlescript::gbc::ExportOptions rulesFree;
+    rulesFree.sourcePath = rulesFreePath;
+    rulesFree.outputDirectory = output / "rules_free";
+    const auto rulesFreeResult = puzzlescript::gbc::exportGame(rulesFree);
+    require(
+        rulesFreeResult.generatedSpecializedTurnPath.empty()
+            && !std::filesystem::exists(
+                rulesFree.outputDirectory / "generated_specialized_turn.c")
+            && !std::filesystem::exists(
+                rulesFree.outputDirectory / "specialized_sources.list"),
+        "a rules-free game emits no specialized turn translation unit");
+    const std::string rulesFreeManifest = readFile(rulesFreeResult.manifestPath);
+    require(
+        rulesFreeManifest.find("\"specialized_turn\": false") != std::string::npos,
+        "a rules-free game records specialized_turn false in its manifest");
+
+    // Belt and braces: whatever the exporter decides, no specialized
+    // translation unit anywhere may read the game view, because those reads are
+    // only valid while the game-data bank is the mapped one.
+    for (const std::filesystem::path& directory : {
+             output / "rules_free",
+             output / "any_object_mask",
+             output / "spawn_second_player",
+         }) {
+        if (!std::filesystem::is_directory(directory)) continue;
+        for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+            const std::string name = entry.path().filename().string();
+            if (name.rfind("generated_specialized", 0) != 0) continue;
+            if (entry.path().extension() != ".c") continue;
+            assertTrue(
+                readFile(entry.path()).find("ps_gbc_generated_game")
+                    == std::string::npos,
+                "specialized translation unit " + name + " in "
+                    + directory.filename().string()
+                    + " must not read ps_gbc_generated_game across ROM banks");
+        }
+    }
+
+    test_namespace_header_empty_prefix_has_no_defines();
+    test_namespace_header_prefixes_every_entry_point();
+    test_symbol_prefix_manifest_field_is_json_escaped();
     return 0;
 }

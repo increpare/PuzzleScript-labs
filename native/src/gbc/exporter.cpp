@@ -1688,6 +1688,51 @@ PackedAudio packAudio(const Game& game, const MovementLayout& movementLayout) {
     return audio;
 }
 
+// Every per-game public entry point that must be renamed so several games'
+// translation units can be linked into a single cartridge without symbol
+// collisions: the 14 public entry points in puzzlescript/gbc.h, the
+// specialized-turn resolver, and the generated data symbol.
+static const char* const kNamespacedSymbols[] = {
+    "ps_gbc_session_required_bytes",
+    "ps_gbc_session_init",
+    "ps_gbc_load_level",
+    "ps_gbc_step",
+    "ps_gbc_defer_wins",
+    "ps_gbc_advance_level",
+    "ps_gbc_undo",
+    "ps_gbc_restart",
+    "ps_gbc_status_get",
+    "ps_gbc_cell_objects",
+    "ps_gbc_dirty_cells",
+    "ps_gbc_has_dirty_cells",
+    "ps_gbc_clear_dirty_cells",
+    "ps_gbc_first_player_position",
+    "ps_gbc_board",
+    "ps_gbc_game",
+    "ps_gbc_resolve_movements",
+    "ps_gbc_generated_game",
+};
+
+static void writeNamespaceHeader(
+    const std::filesystem::path& path,
+    const std::string& prefix
+) {
+    std::ostringstream out;
+    out << "#ifndef PS_GBC_GENERATED_NAMESPACE_H\n"
+        << "#define PS_GBC_GENERATED_NAMESPACE_H\n\n";
+    if (prefix.empty()) {
+        out << "/* Standalone export: no symbol renaming. */\n\n";
+    } else {
+        out << "/* Cartridge export: rename per-game entry points. */\n";
+        for (const char* name : kNamespacedSymbols) {
+            out << "#define " << name << " " << prefix << "_" << name << "\n";
+        }
+        out << "\n";
+    }
+    out << "#endif /* PS_GBC_GENERATED_NAMESPACE_H */\n";
+    writeFileIfChanged(path, out.str());
+}
+
 std::string emitHeader(
     size_t sessionBytes,
     uint8_t movementBytesPerCell,
@@ -1702,10 +1747,14 @@ std::string emitHeader(
     size_t playerAnchorCount,
     bool singlePlayerCellCertified,
     bool specializedResolve,
-    bool specializedWon
+    bool specializedWon,
+    uint16_t maxCells,
+    uint32_t playerMask,
+    const std::vector<PackedObject>& objects
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
+        << "#include \"generated_namespace.h\"\n"
         << "#include \"puzzlescript/gbc.h\"\n\n"
         << "#define PS_GBC_GENERATED_SESSION_BYTES " << sessionBytes << "U\n\n"
         << "#define PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL "
@@ -1749,6 +1798,35 @@ std::string emitHeader(
         << "#define PS_GBC_GENERATED_ABI_VERSION "
         << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
+        // Bank-independent mirrors of the ps_gbc_generated_game fields that the
+        // specialized turn code needs.
+        //
+        // ps_gbc_generated_game itself lives in PS_GBC_GENERATED_ROM_BANK, i.e.
+        // in the single MBC5 switchable window at 0x4000-0x7fff. Code compiled
+        // into any *other* switchable bank (the specialized turn translation
+        // units get their own banks) runs with its own bank mapped there, so a
+        // load from the struct's link-time address reads that other bank's bytes
+        // instead. These macros expand to literals that the compiler folds into
+        // the reading translation unit's own instruction stream, so they are
+        // correct whatever bank happens to be mapped. Their values are taken
+        // from the same variables that initialise the struct below, so the two
+        // cannot drift.
+        << "#define PS_GBC_GENERATED_MAX_LEVEL_CELLS "
+        << static_cast<unsigned int>(maxCells) << "U\n\n"
+        << "#define PS_GBC_GENERATED_PLAYER_MASK 0x" << std::hex << playerMask
+        << std::dec << "UL\n\n"
+        << "#define PS_GBC_GENERATED_OBJECT_MOVEMENT_LAYERS {"
+        << [&] {
+               std::ostringstream layers;
+               for (size_t index = 0; index < objects.size(); ++index) {
+                   if (index != 0U) layers << ", ";
+                   layers << static_cast<unsigned int>(objects[index].movementLayer)
+                          << "U";
+               }
+               if (objects.empty()) layers << "0U";
+               return layers.str();
+           }()
+        << "}\n\n"
         << "#define PS_GBC_GENERATED_PACKED_PATTERNS 1\n\n"
         << "#define PS_GBC_GENERATED_PATTERN_BYTES "
         << generatedPatternBytes(objectBytesPerCellValue, movementBytesPerCell)
@@ -2124,7 +2202,20 @@ SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const std::filesystem::path path = outputDirectory / "generated_specialized_turn.c";
     const compiler::CompactTurnSupport compactTurnSupport =
         compiler::compactNativeTurnSupportForGame(game);
-    info.supported = compactTurnSupport.nativeKernel();
+    // A game with no packed patterns or no packed rules -- an empty RULES
+    // section is enough, and compactNativeTurnSupportForGame() does not notice
+    // because it only scans the rules that exist -- drives the specialized
+    // emitter down its fallback-walker path. That path is not bank-safe: it
+    // reads ps_gbc_generated_game, which lives in the game-data bank, and it
+    // near-calls ps_gbc_facade_apply_groups, whose definition sits under
+    // "#pragma bank 2", from a translation unit compiled into bank 3. An MBC5
+    // cart has one switchable window, so both the reads and the call land in
+    // whichever bank the caller occupies. There is nothing to specialize for
+    // such a game anyway, so decline here and let core.c's interpreted turn --
+    // which is compiled into HOME and therefore always mapped -- run it.
+    info.supported = compactTurnSupport.nativeKernel()
+        && !patterns.empty()
+        && !rules.empty();
     info.singlePlayerCellCertified = singlePlayerCellCertified;
     if (info.supported) {
         const compiler::GbcSpecializedTurnEmitResult emitResult =
@@ -2553,6 +2644,8 @@ ExportResult exportGame(const ExportOptions& options) {
     result.generatedHeaderPath = options.outputDirectory / "generated_game.h";
     result.generatedSourcePath = options.outputDirectory / "generated_game.c";
     result.manifestPath = options.outputDirectory / "gbc_manifest.json";
+    writeNamespaceHeader(
+        options.outputDirectory / "generated_namespace.h", options.symbolPrefix);
     writeFileIfChanged(result.generatedHeaderPath,
         emitHeader(
             sessionBytes,
@@ -2568,7 +2661,10 @@ ExportResult exportGame(const ExportOptions& options) {
             playerAnchorCount,
             singlePlayerCellCertified,
             specializedResolve,
-            specializedWon));
+            specializedWon,
+            maxCells,
+            maskWord(game, game.playerMask),
+            objects));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
         precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
@@ -2785,6 +2881,7 @@ ExportResult exportGame(const ExportOptions& options) {
                     "\"compact_turn_unsupported\",\n";
     }
     manifest << "  \"estimated_game_rom_bank_bytes\": " << estimatedGameBankBytes << ",\n"
+        << "  \"symbol_prefix\": " << jsonString(options.symbolPrefix) << ",\n"
         << "  \"color_stretch\": {\n"
         << "    \"mode\": \"optimized_gameplay_gamut\",\n"
         << "    \"anchor_policy\": \"background_and_object_colors\",\n"

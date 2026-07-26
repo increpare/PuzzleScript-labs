@@ -1,3 +1,7 @@
+#if defined(PS_GBC_GENERATED_BUILD)
+#include "generated_namespace.h"
+#endif
+
 #include "puzzlescript/gbc.h"
 
 #if defined(PS_GBC_GENERATED_BUILD)

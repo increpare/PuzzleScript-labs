@@ -4,6 +4,7 @@
 #include "compiler/compact_turn_codegen.hpp"
 
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace puzzlescript::gbc {
@@ -13,6 +14,10 @@ struct ExportOptions {
     std::filesystem::path outputDirectory;
     bool cullOversizeLevels = false;
     bool emitSpecializedTurn = true;
+    // Prefix applied to every per-game entry point so several games can be
+    // linked into one cartridge without symbol collisions. Empty means the
+    // export is standalone and no renaming happens.
+    std::string symbolPrefix;
 };
 
 struct ExportResult {

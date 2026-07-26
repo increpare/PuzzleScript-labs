@@ -19,7 +19,7 @@ ROMs' link maps:
 | Game data (`generated_game.o`) | ~2.4 KiB | 1,428 B – 3,950 B |
 | Specialized turn code + façade | ~25.5 KiB | 9.5 KiB – 75 KiB |
 
-Thirty-two games therefore need roughly 1 MB. The blockers are architectural:
+Forty-six games therefore need roughly 1.3 MB. The blockers are architectural:
 
 1. **HOME is full.** Bank 0 measures 15,312–16,262 bytes against a 16,384 cap.
    Three otherwise-exportable games were rejected purely on HOME overflow.
@@ -53,8 +53,8 @@ movement resolve.
 ## Cart shape
 
 MBC5, cart type `0x1B` (MBC5+RAM+BATTERY), CGB-only. **Hard cap 255 ROM banks
-(4 MB)** so `BANKED` calls keep working. Thirty-two games land near 1.4 MB
-(~88 banks): ~1 MB of data and specialized code plus ~394 KiB of per-game core.
+(4 MB)** so `BANKED` calls keep working. Forty-six games land near 1.85 MB
+(~118 banks): ~1.3 MB of data and specialized code plus ~552 KiB of per-game core.
 
 | Region | Contents |
 | --- | --- |
@@ -76,8 +76,8 @@ object masks, `short-adventure` uses 2 bytes (13 objects), and
 `voitex-rasteriser` and `slot-machine` use 4 bytes (17 and 20 objects). Forcing
 a cart-wide width would tax thirty games to accommodate two.
 
-The cost is ROM: `core.o` is 12,277 bytes, so 32 games carry about 394 KiB of
-duplicated core — 10% of the 4 MB cap, on top of the ~1 MB already projected.
+The cost is ROM: `core.o` is 12,277 bytes, so 46 games carry about 552 KiB of
+duplicated core — 13% of the 4 MB cap, on top of the ~1.3 MB already projected.
 Splitting `core.c` along the width boundary would recover roughly 6 KiB per game
 but requires deriving that boundary function by function through a 1,522-line
 file, and is not worth the breakage risk at this ROM budget.
@@ -87,7 +87,7 @@ specialized packs can call it while their own bank is mapped. Moving `core.c`
 into the game's banks removes that guarantee, so the specialized packs call it
 as an ordinary `BANKED` call, which saves and restores the bank.
 
-**Symbol namespacing.** Thirty-two copies of `ps_gbc_step`,
+**Symbol namespacing.** Forty-six copies of `ps_gbc_step`,
 `ps_gbc_generated_game` and every other file-scope name collide at link time.
 Every per-game translation unit — generated files and the game's `core.c` alike
 — is compiled through a generated namespace header that `#define`s each exported
@@ -117,7 +117,7 @@ because per-game statics would otherwise sum across all games rather than
 sharing one arena.
 
 Existing budgets hold: static WRAM ≤ 6 KiB, hot state < 4 KiB. Measured static
-WRAM today is 1,565–1,928 bytes per game, so the maximum over a 32-game cart has
+WRAM today is 1,565–1,928 bytes per game, so the maximum over a 46-game cart has
 ample margin.
 
 ## SRAM
@@ -126,7 +126,7 @@ ample margin.
 
 **Bank 0** holds a cart header (magic, format version, game count), one progress
 slot per game, and the launcher's cursor and scroll offset. A slot is about 8
-bytes — level reached, completion flag, checksum — so 32 games cost 256 bytes
+bytes — level reached, completion flag, checksum — so 46 games cost 368 bytes
 and the full 178-game corpus would still fit. Each slot is keyed by the game's
 `source_hash`, already present in the manifest, so re-exporting one game
 invalidates only that game's save.
@@ -146,7 +146,7 @@ Game Boy Color's cap of 8 background palettes.
 
 ```
 +------------------------------------+
-|  PUZZLESCRIPT             6 / 32   |  header, selected game's palette
+|  PUZZLESCRIPT             6 / 46   |  header, selected game's palette
 +====================================+
 | [@@] dollyban              12/20 |#|  pal 0   scrollbar column
 | [@@] fickle fred            DONE |#|  pal 1   uses each row's
@@ -194,7 +194,7 @@ arena is only ever re-initialised at launch.
 
 **Launcher cards.** The exporter pre-bakes one card per game — title, 4-colour
 palette, background tile, player tile, source hash, descriptor pointer — about
-165 bytes each, roughly 5 KiB for 32 games, all in the launcher bank so cursor
+165 bytes each, roughly 7.4 KiB for 46 games, all in the launcher bank so cursor
 movement never switches banks. `ps_game_background_color` and `text_color` exist
 in the compiler but are not currently carried into the GBC export; adding them
 is part of this work. `ps_gbc_game.title` already exists.
@@ -239,11 +239,12 @@ result as its standalone ROM.
 
 ## Out of scope
 
-Widening GBC eligibility beyond the current 32 games. Of 178 games in
-`good_games`, 35 export OK and 32 are ROM-validated; the rejects are board
-cull-all (54), object count above 32 (27), multi-row rules (19), dynamic
-replacements (19), and a long tail. That work proceeds separately and this cart
-picks up whatever is eligible when it is built.
+Widening GBC eligibility beyond the games already in `ELIGIBLE_GAMES`, which
+holds 46 as of 2026-07-25 and is still growing. Of the 178 games in
+`good_games`, the rejects are board cull-all (54), object count above 32 (27),
+multi-row rules (19), dynamic replacements (19), and a long tail. That work
+proceeds separately and this cart picks up whatever is eligible when it is
+built — the cart's build reads `ELIGIBLE_GAMES` rather than a fixed count.
 
 The three games that failed promotion solely on HOME overflow —
 `an-ok-multiban-level`, `head-skuller`, `the-red-ring-of-immortality` — may
