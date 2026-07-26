@@ -7516,7 +7516,7 @@ void emitCompactInlineGbdCPatternApply(
         out << ");\n";
     }
     out << indent << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
-        << indent << "    if ((" << nextObjectsVar << " & ps_gbc_generated_game.player_mask) != 0U) {\n";
+        << indent << "    if ((" << nextObjectsVar << " & PS_GBC_GENERATED_PLAYER_MASK) != 0U) {\n";
     if (singlePlayerCellCertified) {
         out << indent << "        session->player_cells[0] = " << cellExpr << ";\n"
             << indent << "        session->player_cell_count = 1U;\n"
@@ -7794,7 +7794,7 @@ void emitGbcSpecializedSeedAndHelpers(
         << "             ++player_index) {\n"
         << "            const uint8_t cell = session->player_cells[player_index];\n";
     emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
-    out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+    out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
         << "                continue;\n"
         << "            }\n"
         << "            ps_gbc_specialized_player_cell = cell;\n"
@@ -7807,7 +7807,7 @@ void emitGbcSpecializedSeedAndHelpers(
         << "        uint16_t cell;\n"
         << "        for (cell = 0U; cell < cells; ++cell) {\n";
     emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
-    out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+    out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
         << "                continue;\n"
         << "            }\n"
         << "            ps_gbc_specialized_player_cell = cell;\n"
@@ -7815,14 +7815,24 @@ void emitGbcSpecializedSeedAndHelpers(
         << "        }\n"
         << "    }\n"
         << "}\n\n"
-        << "#endif\n"
-        << (split ? "" : "static ")
+        << "#endif\n";
+    if (!playerMovementLayer.has_value()) {
+        // The per-object movement layer table lives in ps_gbc_generated_game,
+        // i.e. in the game-data ROM bank. This translation unit runs with its
+        // own bank mapped into 0x4000-0x7fff, so reading it there would read
+        // this bank's bytes. Take a translation-unit-local copy instead: it is
+        // emitted into this TU's own code area, so it is addressable exactly
+        // when the code reading it is.
+        out << "static const uint8_t ps_gbc_specialized_object_movement_layers[] =\n"
+            << "    PS_GBC_GENERATED_OBJECT_MOVEMENT_LAYERS;\n\n";
+    }
+    out << (split ? "" : "static ")
         << "bool ps_gbc_specialized_seed_player_movement(\n"
         << "    ps_gbc_session* session,\n"
         << "    uint8_t direction\n"
         << ")" << seedAttr << " {\n"
         << "    bool seeded = false;\n"
-        << "    if (direction == 0U || ps_gbc_generated_game.player_mask == 0U) return false;\n";
+        << "    if (direction == 0U || PS_GBC_GENERATED_PLAYER_MASK == 0U) return false;\n";
     // Single-player certified games may return after the first live cell.
     // Multi-player aggregates (e.g. Attractor Net) must seed every player cell.
     const char* afterSeed =
@@ -7849,7 +7859,7 @@ void emitGbcSpecializedSeedAndHelpers(
             << "             ++player_index) {\n"
             << "            const uint8_t cell = session->player_cells[player_index];\n";
         emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
-        out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n";
+        out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) continue;\n";
         emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
         out << "            movement |= (uint32_t)direction << " << shift << "U;\n";
         emitGbdCMovementsSet(out, "            ", "cell", "movement", movementBytesPerCell);
@@ -7863,7 +7873,7 @@ void emitGbcSpecializedSeedAndHelpers(
             << "        uint16_t cell;\n"
             << "        for (cell = 0U; cell < cells; ++cell) {\n";
         emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
-        out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n";
+        out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) continue;\n";
         emitGbdCMovementsGet(out, "            ", "movement", "cell", movementBytesPerCell);
         out << "            movement |= (uint32_t)direction << " << shift << "U;\n";
         emitGbdCMovementsSet(out, "            ", "cell", "movement", movementBytesPerCell);
@@ -7882,14 +7892,14 @@ void emitGbcSpecializedSeedAndHelpers(
             << "            const uint8_t cell = session->player_cells[player_index];\n";
         emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
         out << "            {\n"
-            << "                uint32_t players = objects & ps_gbc_generated_game.player_mask;\n"
+            << "                uint32_t players = objects & PS_GBC_GENERATED_PLAYER_MASK;\n"
             << "                uint8_t object_id = 0U;\n"
             << "                if (players == 0U) continue;\n";
         emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
         out << "                while (players != 0U) {\n"
             << "                    if ((players & 1U) != 0U) {\n"
             << "                        const uint8_t movement_layer =\n"
-            << "                            ps_gbc_generated_game.objects[object_id].movement_layer;\n"
+            << "                            ps_gbc_specialized_object_movement_layers[object_id];\n"
             << "                        if (movement_layer != PS_GBC_NO_MOVEMENT_LAYER) {\n"
             << "                            movement |= (uint32_t)direction << (5U * movement_layer);\n"
             << "                        }\n"
@@ -7910,14 +7920,14 @@ void emitGbcSpecializedSeedAndHelpers(
             << "        for (cell = 0U; cell < cells; ++cell) {\n";
         emitGbdCBoardGet(out, "            ", "objects", "cell", objectBytesPerCell);
         out << "            {\n"
-            << "                uint32_t players = objects & ps_gbc_generated_game.player_mask;\n"
+            << "                uint32_t players = objects & PS_GBC_GENERATED_PLAYER_MASK;\n"
             << "                uint8_t object_id = 0U;\n"
             << "                if (players == 0U) continue;\n";
         emitGbdCMovementsGet(out, "                ", "movement", "cell", movementBytesPerCell);
         out << "                while (players != 0U) {\n"
             << "                    if ((players & 1U) != 0U) {\n"
             << "                        const uint8_t movement_layer =\n"
-            << "                            ps_gbc_generated_game.objects[object_id].movement_layer;\n"
+            << "                            ps_gbc_specialized_object_movement_layers[object_id];\n"
             << "                        if (movement_layer != PS_GBC_NO_MOVEMENT_LAYER) {\n"
             << "                            movement |= (uint32_t)direction << (5U * movement_layer);\n"
             << "                        }\n"
@@ -8184,7 +8194,7 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "    for (player_index = 0U; player_index < session->player_cell_count; ++player_index) {\n"
         << "        const uint8_t candidate = session->player_cells[player_index];\n";
     emitGbdCBoardGet(out, "        ", "candidate_objects", "candidate", objectBytesPerCell);
-    out << "        if ((candidate_objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n"
+    out << "        if ((candidate_objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) continue;\n"
         << "        player_cell = candidate;\n"
         << "        found_player = true;\n"
         << "        break;\n"
@@ -8200,7 +8210,7 @@ void emitGbcSpecializedSlimSinglePlayerRule(
         << "            cached = ps_gbc_specialized_player_cell;\n"
         << "        } else {\n";
     emitGbdCBoardGet(out, "            ", "cached_objects", "cached", objectBytesPerCell);
-    out << "            if ((cached_objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+    out << "            if ((cached_objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
         << "                ps_gbc_specialized_refresh_player_cell(session);\n"
         << "                cached = ps_gbc_specialized_player_cell;\n"
         << "            }\n"
@@ -8387,7 +8397,7 @@ void emitGbcSpecializedSlimSinglePlayerRule(
             objectsVar,
             movementsVar,
             "next_movements");
-        out << "        if ((next_objects & ps_gbc_generated_game.player_mask) != 0U) {\n"
+        out << "        if ((next_objects & PS_GBC_GENERATED_PLAYER_MASK) != 0U) {\n"
             << "#if PS_GBC_HAS_PLAYER_CELL_ANCHORS\n"
             << "            session->player_cells[0] = cell;\n"
             << "            session->player_cell_count = 1U;\n"
@@ -8824,7 +8834,7 @@ void emitGbcSpecializedRuleFunction(
             << "                player_cell = ps_gbc_specialized_player_cell;\n"
             << "            } else {\n";
         emitGbdCBoardGet(out, "                ", "player_objects", "player_cell", objectBytesPerCell);
-        out << "                if ((player_objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+        out << "                if ((player_objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
             << "                    ps_gbc_specialized_refresh_player_cell(session);\n"
             << "                    player_cell = ps_gbc_specialized_player_cell;\n"
             << "                }\n"
@@ -9322,8 +9332,8 @@ void emitGbcSpecializedClearMovements(
     out << indent << "memset(\n"
         << indent << "    session->movements,\n"
         << indent << "    0,\n"
-        << indent << "    (size_t)ps_gbc_generated_game.max_level_cells\n"
-        << indent << "        * ps_gbc_generated_game.movement_bytes_per_cell);\n";
+        << indent << "    (size_t)PS_GBC_GENERATED_MAX_LEVEL_CELLS\n"
+        << indent << "        * PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL);\n";
     if (clearMoveBits) {
         out << indent << "ps_gbc_specialized_clear_move_bits();\n";
     }
@@ -9393,7 +9403,7 @@ void emitGbcSpecializedResolveSeededPlayer(
         << "             ++player_index) {\n"
         << "            const uint8_t candidate = session->player_cells[player_index];\n";
     emitGbdCBoardGet(out, "            ", "objects", "candidate", objectBytesPerCell);
-    out << "            if ((objects & ps_gbc_generated_game.player_mask) == 0U) continue;\n"
+    out << "            if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) continue;\n"
         << "            cell = candidate;\n"
         << "            have_cell = true;\n"
         << "            if (session->movements[candidate] != 0U) break;\n"
@@ -9538,6 +9548,15 @@ void emitGbcSpecializedTurn(
 
     if (patterns.empty() || rules.empty()) {
         // Fallback walker path when packing was not provided.
+        //
+        // NOTE (GBC banking): unlike everything else emitted here, this path
+        // still reads ps_gbc_generated_game directly, and the two group
+        // pointers it passes point into the game-data bank. On a cartridge this
+        // translation unit runs with its own bank mapped into 0x4000-0x7fff, so
+        // both the reads and the pointers are wrong. It is unreachable for every
+        // currently eligible game (packing is always provided), which is why it
+        // is left as-is; anything that revives it must first hoist the group
+        // tables somewhere bank-independent.
         out << "#include \"puzzlescript/gbc_facade_rules.h\"\n\n"
             << "static bool ps_gbc_specialized_apply_early(\n"
             << "    ps_gbc_session* session,\n"
@@ -9648,8 +9667,8 @@ void emitGbcSpecializedTurn(
         << "    memset(\n"
         << "        session->movements,\n"
         << "        0,\n"
-        << "        (size_t)ps_gbc_generated_game.max_level_cells\n"
-        << "            * ps_gbc_generated_game.movement_bytes_per_cell);\n"
+        << "        (size_t)PS_GBC_GENERATED_MAX_LEVEL_CELLS\n"
+        << "            * PS_GBC_GENERATED_MOVEMENT_BYTES_PER_CELL);\n"
         << "    session->pending_again = false;\n"
         << "    seeded = ps_gbc_specialized_seed_player_movement(session, direction);\n"
         << "    early = ps_gbc_specialized_apply_early(session, direction, commands);\n"
@@ -9672,7 +9691,7 @@ void emitGbcSpecializedTurn(
             << "                     ++player_index) {\n"
             << "                    const uint8_t cell = session->player_cells[player_index];\n";
         emitGbdCBoardGet(out, "                    ", "objects", "cell", objectBytesPerCell);
-        out << "                    if ((objects & ps_gbc_generated_game.player_mask) == 0U) {\n"
+        out << "                    if ((objects & PS_GBC_GENERATED_PLAYER_MASK) == 0U) {\n"
             << "                        continue;\n"
             << "                    }\n"
             << "                    ps_gbc_specialized_mark_move_cell(cell);\n"

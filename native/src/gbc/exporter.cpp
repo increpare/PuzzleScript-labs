@@ -1747,7 +1747,10 @@ std::string emitHeader(
     size_t playerAnchorCount,
     bool singlePlayerCellCertified,
     bool specializedResolve,
-    bool specializedWon
+    bool specializedWon,
+    uint16_t maxCells,
+    uint32_t playerMask,
+    const std::vector<PackedObject>& objects
 ) {
     std::ostringstream out;
     out << "#ifndef PS_GBC_GENERATED_GAME_H\n#define PS_GBC_GENERATED_GAME_H\n\n"
@@ -1795,6 +1798,35 @@ std::string emitHeader(
         << "#define PS_GBC_GENERATED_ABI_VERSION "
         << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION) << "U\n\n"
         << "#define PS_GBC_GENERATED_ROM_BANK 1U\n\n"
+        // Bank-independent mirrors of the ps_gbc_generated_game fields that the
+        // specialized turn code needs.
+        //
+        // ps_gbc_generated_game itself lives in PS_GBC_GENERATED_ROM_BANK, i.e.
+        // in the single MBC5 switchable window at 0x4000-0x7fff. Code compiled
+        // into any *other* switchable bank (the specialized turn translation
+        // units get their own banks) runs with its own bank mapped there, so a
+        // load from the struct's link-time address reads that other bank's bytes
+        // instead. These macros expand to literals that the compiler folds into
+        // the reading translation unit's own instruction stream, so they are
+        // correct whatever bank happens to be mapped. Their values are taken
+        // from the same variables that initialise the struct below, so the two
+        // cannot drift.
+        << "#define PS_GBC_GENERATED_MAX_LEVEL_CELLS "
+        << static_cast<unsigned int>(maxCells) << "U\n\n"
+        << "#define PS_GBC_GENERATED_PLAYER_MASK 0x" << std::hex << playerMask
+        << std::dec << "UL\n\n"
+        << "#define PS_GBC_GENERATED_OBJECT_MOVEMENT_LAYERS {"
+        << [&] {
+               std::ostringstream layers;
+               for (size_t index = 0; index < objects.size(); ++index) {
+                   if (index != 0U) layers << ", ";
+                   layers << static_cast<unsigned int>(objects[index].movementLayer)
+                          << "U";
+               }
+               if (objects.empty()) layers << "0U";
+               return layers.str();
+           }()
+        << "}\n\n"
         << "#define PS_GBC_GENERATED_PACKED_PATTERNS 1\n\n"
         << "#define PS_GBC_GENERATED_PATTERN_BYTES "
         << generatedPatternBytes(objectBytesPerCellValue, movementBytesPerCell)
@@ -2616,7 +2648,10 @@ ExportResult exportGame(const ExportOptions& options) {
             playerAnchorCount,
             singlePlayerCellCertified,
             specializedResolve,
-            specializedWon));
+            specializedWon,
+            maxCells,
+            maskWord(game, game.playerMask),
+            objects));
     writeFileIfChanged(result.generatedSourcePath, emitSource(
         game, sourceHash(source), palettes, remap, uiPalette, movementLayout, objects,
         precomposedCompositions, levels, patterns, rules, earlyGroups, lateGroups, audio,
