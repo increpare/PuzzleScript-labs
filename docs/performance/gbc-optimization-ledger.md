@@ -1299,3 +1299,50 @@ Eligible-14 (`make gbc_eligible --cull`): **14/14 specialized**.
 | Xorro banks used | `_CODE_1`…`_CODE_10` (UI/game/façade/specialized packs) |
 
 Oracle + exporter tests green. Phase-1 size goal for the eligible-14 is met.
+
+### GBC co-located core/data bank bridge (2026-07-26)
+
+Revision: `ba66baf3`. Commands:
+
+- `make gbc_eligible GBC_CONTINUE=1`
+- `python3 scripts/bench_gbc_eligible_solutions.py --skip-rom --max-levels 2`
+- `make gbc_smoke GBC_EXPORT_FLAGS='--bank-base 7'`
+- `make gbc_smoke`
+
+The eligible corpus now runs the linked-ROM structural gate for every game. The
+specialized cart build omits duplicate interpreter rule tables while retaining
+the tables in non-specialized builds, keeping the approved generated core and
+game data co-located in the computed game-core bank.
+
+| Metric | Result |
+| --- | ---: |
+| Eligible ROMs linked and checked | **46/46** |
+| Foundation HOME high-water range | **5670–5678 B** |
+| Largest switchable bank | **15163 B** (`sokobond-demake`, bank 2) |
+| Highest linked bank number | **15** |
+| Core object ownership in computed bank 2 | **46/46** |
+| Game object ownership in computed bank 2 | **46/46** |
+| Forbidden shared→generated references | **0/46** |
+| Generated object static WRAM users | **0/46** |
+
+The strengthened corpus gate initially exposed three real bank-2 overflows.
+Omitting the redundant specialized-cart interpreter tables reduced their final
+largest banks to 15163 B (`sokobond-demake`), 13373 B (`manic_ammo`), and
+13752 B (`wand-spinner`).
+
+The two-level host solution comparison attempted 86 retained boards across 46
+games. It produced **45 winning baseline+specialized replays across 26 games**,
+with no win disagreement among successful comparisons. The remaining samples
+were 3 solver timeouts, 37 baseline replay non-wins, and one specialized non-win
+(`no-forbidden-symbols-2`). The latter was reproduced unchanged at `fe61a6ec`,
+before the duplicate-table omission, so it is a pre-existing specialized gap
+rather than a bank-bridge regression.
+
+Live libmGBA smoke passed for both layouts:
+
+- Standard: core/game bank 2, façade bank 3, specialized bank 4.
+- Shifted: core/game bank 7, façade bank 8, specialized bank 9.
+
+Both smokes passed the ROM structural checks, generated-reference/static-WRAM
+gates, emulator warning gate, title/board rendering checks, and deterministic
+player-movement assertion.
