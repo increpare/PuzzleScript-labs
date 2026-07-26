@@ -158,7 +158,7 @@ $(BUILD)/facade_rules.o: $(GENERATED)/generated_facade_rules.c \
 $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c \
 	../../native/include/puzzlescript/gbc_descriptor.h \
 	$(EXPORT_STAMP) | $(BUILD)
-	"$(LCC)" $(CFLAGS) -c -o $@ $<
+	"$(LCC)" $(CFLAGS) $$(test -f $(SPECIALIZED_SRC) && echo -DPS_GBC_HAS_SPECIALIZED_TURN=1) -c -o $@ $<
 
 $(BUILD)/audio.o: source/audio.c source/audio.h source/game_dispatch.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<

@@ -2061,7 +2061,9 @@ std::string emitSource(
             << (level.message ? "NULL" : "kLevel" + std::to_string(index) + "Cells")
             << ", " << (level.message ? escapedString(level.messageText) : "NULL") << "},\n";
     }
-    out << "};\n\nstatic const ps_gbc_generated_pattern kPatterns[] = {\n";
+    out << "};\n\n"
+        << "#if !defined(PS_GBC_HAS_SPECIALIZED_TURN)\n"
+        << "static const ps_gbc_generated_pattern kPatterns[] = {\n";
     if (patterns.empty()) out << "    {0},\n";
     for (const PackedPattern& pattern : patterns) {
         out << "    {0x" << std::hex << pattern.objectsPresent << "U, 0x"
@@ -2135,7 +2137,8 @@ std::string emitSource(
     };
     emitGroups("kEarlyGroups", earlyGroups);
     emitGroups("kLateGroups", lateGroups);
-    out << "static const ps_gbc_win_condition kWinConditions[] = {\n";
+    out << "#endif /* !PS_GBC_HAS_SPECIALIZED_TURN */\n\n"
+        << "static const ps_gbc_win_condition kWinConditions[] = {\n";
     if (game.winConditions.empty()) out << "    {0},\n";
     for (const WinCondition& condition : game.winConditions) {
         out << "    {" << condition.quantifier << ", " << (condition.aggr1 ? "1U" : "0U")
@@ -2146,7 +2149,27 @@ std::string emitSource(
     const uint32_t playerMask = maskWord(game, game.playerMask);
     const uint32_t backgroundMask = game.backgroundId >= 0 && game.backgroundId < 32
         ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId) : 0U;
-    out << "};\n\nconst ps_gbc_game_view ps_gbc_generated_game = {\n"
+    out << "};\n\n"
+        << "#if defined(PS_GBC_HAS_SPECIALIZED_TURN)\n"
+        << "#define PS_GBC_RUNTIME_PATTERN_COUNT 0U\n"
+        << "#define PS_GBC_RUNTIME_RULE_COUNT 0U\n"
+        << "#define PS_GBC_RUNTIME_EARLY_GROUP_COUNT 0U\n"
+        << "#define PS_GBC_RUNTIME_LATE_GROUP_COUNT 0U\n"
+        << "#define PS_GBC_RUNTIME_PATTERNS NULL\n"
+        << "#define PS_GBC_RUNTIME_RULES NULL\n"
+        << "#define PS_GBC_RUNTIME_EARLY_GROUPS NULL\n"
+        << "#define PS_GBC_RUNTIME_LATE_GROUPS NULL\n"
+        << "#else\n"
+        << "#define PS_GBC_RUNTIME_PATTERN_COUNT " << patterns.size() << "U\n"
+        << "#define PS_GBC_RUNTIME_RULE_COUNT " << rules.size() << "U\n"
+        << "#define PS_GBC_RUNTIME_EARLY_GROUP_COUNT " << earlyGroups.size() << "U\n"
+        << "#define PS_GBC_RUNTIME_LATE_GROUP_COUNT " << lateGroups.size() << "U\n"
+        << "#define PS_GBC_RUNTIME_PATTERNS ((const ps_gbc_pattern*)kPatterns)\n"
+        << "#define PS_GBC_RUNTIME_RULES ((const ps_gbc_rule*)kRules)\n"
+        << "#define PS_GBC_RUNTIME_EARLY_GROUPS kEarlyGroups\n"
+        << "#define PS_GBC_RUNTIME_LATE_GROUPS kLateGroups\n"
+        << "#endif\n\n"
+        << "const ps_gbc_game_view ps_gbc_generated_game = {\n"
         << "    " << static_cast<unsigned int>(PS_GBC_GAME_ABI_VERSION)
         << "U, 0x" << std::hex << hash << "U" << std::dec << ",\n"
         << "    " << escapedString(metadataValue(game, "title", "PuzzleScript Game")) << ", "
@@ -2160,9 +2183,10 @@ std::string emitSource(
         << static_cast<unsigned int>(viewportHeight) << "U, "
         << static_cast<unsigned int>(cellWidth) << "U, "
         << static_cast<unsigned int>(cellHeight) << "U,\n"
-        << "    " << levels.size() << "U, " << maxCells << "U, " << patterns.size()
-        << "U, " << rules.size() << "U,\n"
-        << "    " << earlyGroups.size() << "U, " << lateGroups.size() << "U, "
+        << "    " << levels.size() << "U, " << maxCells
+        << "U, PS_GBC_RUNTIME_PATTERN_COUNT, PS_GBC_RUNTIME_RULE_COUNT,\n"
+        << "    PS_GBC_RUNTIME_EARLY_GROUP_COUNT, "
+           "PS_GBC_RUNTIME_LATE_GROUP_COUNT, "
         << game.winConditions.size() << "U,\n"
         << "    " << audio.seeds.size() << "U, " << audio.ruleSoundIds.size()
         << "U, " << audio.creationSounds.size() << "U, "
@@ -2171,8 +2195,8 @@ std::string emitSource(
         << audio.movementFailureSounds.size() << "U,\n"
         << "    0x" << std::hex << playerMask << "U, 0x" << backgroundMask << "U" << std::dec << ",\n"
         << "    kLayerMasks, kMovementCollisionLayers, kObjects, kLevels, "
-           "(const ps_gbc_pattern*)kPatterns, (const ps_gbc_rule*)kRules, "
-           "kEarlyGroups, kLateGroups,\n"
+           "PS_GBC_RUNTIME_PATTERNS, PS_GBC_RUNTIME_RULES, "
+           "PS_GBC_RUNTIME_EARLY_GROUPS, PS_GBC_RUNTIME_LATE_GROUPS,\n"
         << "    kWinConditions, kSoundSeeds, kNamedSoundIds, kRuleSoundIds,\n"
         << "    kCreationSounds, kDestructionSounds, kMovementSounds, "
            "kMovementFailureSounds,\n"
@@ -2185,6 +2209,14 @@ std::string emitSource(
         << (game.metadata.values.count("noundo") ? "true" : "false") << ", "
         << (game.metadata.values.count("norestart") ? "true" : "false") << "\n"
         << "};\n\n"
+        << "#undef PS_GBC_RUNTIME_PATTERN_COUNT\n"
+        << "#undef PS_GBC_RUNTIME_RULE_COUNT\n"
+        << "#undef PS_GBC_RUNTIME_EARLY_GROUP_COUNT\n"
+        << "#undef PS_GBC_RUNTIME_LATE_GROUP_COUNT\n"
+        << "#undef PS_GBC_RUNTIME_PATTERNS\n"
+        << "#undef PS_GBC_RUNTIME_RULES\n"
+        << "#undef PS_GBC_RUNTIME_EARLY_GROUPS\n"
+        << "#undef PS_GBC_RUNTIME_LATE_GROUPS\n\n"
         << "static void ps_gbc_descriptor_step(\n"
         << "    ps_gbc_session* session,\n"
         << "    ps_input input,\n"

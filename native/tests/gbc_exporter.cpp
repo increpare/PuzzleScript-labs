@@ -510,6 +510,17 @@ int main() {
     require(source.find("static const ps_gbc_generated_rule kRules[]")
             != std::string::npos,
         "lowered rules use the generated game-specific record");
+    require(
+        source.find(
+            "#if !defined(PS_GBC_HAS_SPECIALIZED_TURN)\n"
+            "static const ps_gbc_generated_pattern kPatterns[]")
+                != std::string::npos
+            && source.find("#define PS_GBC_RUNTIME_PATTERN_COUNT 0U")
+                != std::string::npos
+            && source.find(
+                "PS_GBC_RUNTIME_PATTERN_COUNT, PS_GBC_RUNTIME_RULE_COUNT")
+                != std::string::npos,
+        "specialized cartridge builds compile out duplicate interpreter tables");
     require(source.find("PS_GBC_RULE_GROUP_SINGLE_PASS") != std::string::npos,
         "certified groups skip their redundant confirmation pass");
     require(source.find("PS_GBC_RULE_GROUP_INPUT_QUARTET") != std::string::npos,
