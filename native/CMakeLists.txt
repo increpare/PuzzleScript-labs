@@ -939,6 +939,56 @@ add_test(
   COMMAND puzzlescript_gbc_action_movement_smoke
 )
 
+# Regression coverage for Task 3 Finding 1: session_internal.h must be
+# self-protecting when it, not core.c, is the first header a translation
+# unit includes. Uses a non-empty --symbol-prefix export (unlike every other
+# GBC_*_smoke fixture above, which exports with no prefix) so that a
+# regression in session_internal.h's include order reproduces as a real
+# compile error here, the same way it would for a future game's
+# generated_specialized_turn.c or a facade addition.
+set(GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/gbc_session_internal_first_include)
+set(GBC_SESSION_INTERNAL_FIRST_INCLUDE_SOURCE
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR}/generated_game.c)
+set(GBC_SESSION_INTERNAL_FIRST_INCLUDE_HEADER
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR}/generated_game.h)
+set(GBC_SESSION_INTERNAL_FIRST_INCLUDE_MANIFEST
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR}/gbc_manifest.json)
+set(GBC_SESSION_INTERNAL_FIRST_INCLUDE_NAMESPACE
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR}/generated_namespace.h)
+add_custom_command(
+  OUTPUT
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_SOURCE}
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_HEADER}
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_MANIFEST}
+    ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_NAMESPACE}
+  COMMAND $<TARGET_FILE:puzzlescript_cpp> export-gbc
+          ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+          --out ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR}
+          --symbol-prefix g99
+  DEPENDS
+    puzzlescript_cpp
+    ${PUZZLESCRIPT_REPO_ROOT}/src/demo/sokoban_basic.txt
+  VERBATIM
+)
+add_executable(puzzlescript_gbc_session_internal_first_include_smoke
+  tests/gbc_session_internal_first_include.c
+  src/gbc/core.c
+  ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_SOURCE}
+)
+target_include_directories(puzzlescript_gbc_session_internal_first_include_smoke PRIVATE
+  ${GBC_SESSION_INTERNAL_FIRST_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gbc
+)
+target_compile_definitions(puzzlescript_gbc_session_internal_first_include_smoke PRIVATE
+  PS_GBC_GENERATED_BUILD=1
+)
+add_test(
+  NAME puzzlescript_gbc_session_internal_first_include_smoke
+  COMMAND puzzlescript_gbc_session_internal_first_include_smoke
+)
+
 # Replay fixed native-solver solutions through both the ordinary native runtime
 # and the generated GBA representation. Keep the entire executable on 32-bit
 # mask words: mixing the generated 32-bit private runtime types with a 64-bit
