@@ -7200,6 +7200,13 @@ int exportGbcCommand(const std::string& sourcePath, int argc, char** argv) {
             options.emitSpecializedTurn = false;
         } else if (arg == "--symbol-prefix" && index + 1 < argc) {
             options.symbolPrefix = argv[++index];
+        } else if (arg == "--bank-base" && index + 1 < argc) {
+            const unsigned long bankBase = std::stoul(argv[++index]);
+            if (bankBase < 1UL || bankBase > 253UL) {
+                throw std::runtime_error(
+                    "--bank-base must be between 1 and 253");
+            }
+            options.bankBase = static_cast<uint8_t>(bankBase);
         } else {
             throw std::runtime_error("Unsupported export-gbc argument: " + arg);
         }
@@ -7352,7 +7359,8 @@ void printExportGbaHelp() {
 
 void printExportGbcHelp() {
     std::cout
-        << "Usage: puzzlescript_cpp export-gbc game.txt --out DIR [--cull-oversize-levels]\n\n"
+        << "Usage: puzzlescript_cpp export-gbc game.txt --out DIR "
+           "[--cull-oversize-levels] [--bank-base N]\n\n"
         << "Compiles one PuzzleScript game for the Color Game Boy target. The v1 profile\n"
         << "supports at most 32 objects/collision layers, 6 movement-capable layers,\n"
         << "5x5 source sprites, a 10x9 (90-cell) board rendered with fixed 16x16 cells,\n"

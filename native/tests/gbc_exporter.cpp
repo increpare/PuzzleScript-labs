@@ -43,16 +43,21 @@ void assertTrue(bool condition, const std::string& message) {
 // prefix) into its own scratch subdirectory and returns that directory, so
 // callers can read whatever artifact they need out of it.
 std::filesystem::path exportFixture(
-    const std::string& fixtureName, const std::string& symbolPrefix = ""
+    const std::string& fixtureName,
+    const std::string& symbolPrefix = "",
+    uint8_t bankBase = 1U
 ) {
     const std::filesystem::path root = PS_REPO_ROOT;
     const std::filesystem::path outputDirectory = root / "build" / "native"
         / "gbc_exporter_test_output" / "namespace_fixtures"
-        / (fixtureName + (symbolPrefix.empty() ? "_noprefix" : ("_" + symbolPrefix)));
+        / (fixtureName
+            + (symbolPrefix.empty() ? "_noprefix" : ("_" + symbolPrefix))
+            + "_bank" + std::to_string(bankBase));
     puzzlescript::gbc::ExportOptions options;
     options.sourcePath = root / "src" / "demo" / (fixtureName + ".txt");
     options.outputDirectory = outputDirectory;
     options.symbolPrefix = symbolPrefix;
+    options.bankBase = bankBase;
     puzzlescript::gbc::exportGame(options);
     return outputDirectory;
 }
@@ -120,6 +125,84 @@ static void test_symbol_prefix_manifest_field_is_json_escaped() {
             R"("symbol_prefix": "g\"07\\x",
   "color_stretch": {)") != std::string::npos,
         "escaped symbol_prefix must not corrupt the surrounding manifest JSON");
+}
+
+static void test_shifted_bank_base_moves_every_per_game_artifact() {
+    const auto out = exportFixture("sokoban_basic", "", 7U);
+    const std::string header = readFile(out / "generated_game.h");
+    const std::string source = readFile(out / "generated_game.c");
+    const std::string core = readFile(out / "generated_core.c");
+    const std::string facade = readFile(out / "generated_compact_facade.c");
+    const std::string rules = readFile(out / "generated_facade_rules.c");
+    const std::string specialized =
+        readFile(out / "generated_specialized_turn.c");
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+
+    assertTrue(
+        header.find("PS_GBC_GENERATED_ROM_BANK 7U") != std::string::npos,
+        "game bank follows bank base");
+    assertTrue(
+        source.find("#pragma bank 7") != std::string::npos,
+        "game data moves to bank base");
+    assertTrue(
+        core.find("#pragma bank 7") != std::string::npos,
+        "core wrapper shares the game-data bank");
+    assertTrue(
+        facade.find("#pragma bank 8") != std::string::npos
+            && rules.find("#pragma bank 8") != std::string::npos,
+        "facade wrappers use base plus one");
+    assertTrue(
+        specialized.find("#pragma bank 9") != std::string::npos,
+        "specialized main uses base plus two");
+    assertTrue(
+        manifest.find("\"game_core_bank\": 7") != std::string::npos
+            && manifest.find("\"facade_bank\": 8") != std::string::npos
+            && manifest.find("\"specialized_main_bank\": 9")
+                != std::string::npos
+            && manifest.find("\"next_bank\": 10") != std::string::npos,
+        "manifest reports the complete allocated range");
+}
+
+static void test_text_staging_limit_rejects_long_source_strings() {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    const std::filesystem::path output = root / "build" / "native"
+        / "gbc_exporter_test_output" / "text_staging_limit";
+    const std::string original =
+        readFile(root / "src" / "demo" / "sokoban_basic.txt");
+    const std::string longText(256U, 'A');
+    const auto requireRejected =
+        [&](const std::string& name, const std::string& source) {
+            const std::filesystem::path sourcePath =
+                output / (name + ".txt");
+            writeFile(sourcePath, source);
+            puzzlescript::gbc::ExportOptions options;
+            options.sourcePath = sourcePath;
+            options.outputDirectory = output / name;
+            bool rejected = false;
+            try {
+                (void)puzzlescript::gbc::exportGame(options);
+            } catch (const std::runtime_error& error) {
+                rejected = std::string(error.what()).find(
+                    "GBC text exceeds the 255-byte staging limit")
+                    != std::string::npos;
+            }
+            assertTrue(rejected, name + " must fail the text staging limit");
+        };
+
+    std::string longTitle = original;
+    longTitle.replace(
+        0U, longTitle.find('\n'), "title " + longText);
+    requireRejected("long_title", longTitle);
+
+    std::string longMessage = original;
+    const std::string levels = "=======\nLEVELS\n=======\n\n";
+    const size_t levelsPosition = longMessage.find(levels);
+    assertTrue(
+        levelsPosition != std::string::npos,
+        "Sokoban fixture must contain the LEVELS marker");
+    longMessage.insert(
+        levelsPosition + levels.size(), "message " + longText + "\n\n");
+    requireRejected("long_level_message", longMessage);
 }
 
 int main() {
@@ -1138,5 +1221,7 @@ int main() {
     test_namespace_header_empty_prefix_has_no_defines();
     test_namespace_header_prefixes_every_entry_point();
     test_symbol_prefix_manifest_field_is_json_escaped();
+    test_shifted_bank_base_moves_every_per_game_artifact();
+    test_text_staging_limit_rejects_long_source_strings();
     return 0;
 }

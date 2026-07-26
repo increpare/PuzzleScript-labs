@@ -9555,9 +9555,8 @@ void emitGbcSpecializedTurn(
         //   1. it reads ps_gbc_generated_game, which lives in the game-data
         //      bank, and hands two pointers into that bank to the callee; and
         //   2. ps_gbc_facade_apply_groups is declared with no banking attribute
-        //      (puzzlescript/gbc_facade_rules.h) while its definition is under
-        //      "#pragma bank 2" (native/src/gbc/facade_rules.c), so the call
-        //      itself is a near call into 0x4000-0x7fff and executes this
+        //      while its definition lives in the generated facade bank, so the
+        //      call itself is a near call into 0x4000-0x7fff and executes this
         //      translation unit's own bank bytes.
         // Both need an answer before this path can be revived: the group tables
         // must be hoisted somewhere bank-independent and the callee must be
@@ -9565,7 +9564,7 @@ void emitGbcSpecializedTurn(
         //
         // The GBC exporter therefore declines to specialize such a game at all
         // (writeSpecializedTurnArtifacts in native/src/gbc/exporter.cpp) and
-        // falls back to core.c's interpreted turn, which lives in HOME. The
+        // falls back to core.c's interpreted turn. The
         // #error below is a backstop: if that gate is ever removed, the ROM
         // build fails loudly instead of shipping a cartridge that crashes.
         out << "#error \"GBC: the specialized fallback walker is not bank-safe; "
@@ -9783,6 +9782,8 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
     GbcSpecializedTurnEmitResult result;
     if (patterns.empty() || rules.empty()) {
         std::ostringstream single;
+        GbcSpecializedSplitEmitMode mode;
+        mode.bankNumber = options.mainBank;
         emitGbcSpecializedTurn(
             single,
             game,
@@ -9790,9 +9791,11 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
             patterns,
             rules,
             earlyGroups,
-            lateGroups);
+            lateGroups,
+            mode,
+            true);
         result.files.push_back(
-            {"generated_specialized_turn.c", single.str()});
+            {"generated_specialized_turn.c", single.str(), options.mainBank});
         return result;
     }
 
@@ -9865,11 +9868,13 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
     for (const RulePack& pack : packs) {
         totalRuleSourceBytes += pack.sourceBytes;
     }
-    // Prefer one bank-3 TU whenever the full rule set fits a single ROM bank.
+    // Prefer one specialized TU whenever the full rule set fits a single bank.
     // Packing may still produce multiple soft packs below this total; collapsing
     // them avoids fixed-bank BANKED stub pressure on near-fit games.
     if (totalRuleSourceBytes <= options.singleFileMaxRuleSourceBytes) {
         std::ostringstream single;
+        GbcSpecializedSplitEmitMode mode;
+        mode.bankNumber = options.mainBank;
         emitGbcSpecializedTurn(
             single,
             game,
@@ -9877,8 +9882,11 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
             patterns,
             rules,
             earlyGroups,
-            lateGroups);
-        result.files.push_back({"generated_specialized_turn.c", single.str()});
+            lateGroups,
+            mode,
+            true);
+        result.files.push_back(
+            {"generated_specialized_turn.c", single.str(), options.mainBank});
         return result;
     }
 
@@ -9930,7 +9938,8 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
             rulesOut, packIndex, packs[packIndex].ruleIndices);
         result.files.push_back(
             {"generated_specialized_turn_rules_" + std::to_string(packIndex) + ".c",
-             rulesOut.str()});
+             rulesOut.str(),
+             rulesMode.bankNumber});
     }
 
     GbcSpecializedSplitEmitMode mainMode;
@@ -9952,7 +9961,7 @@ GbcSpecializedTurnEmitResult emitGbcSpecializedTurnFiles(
         false);
     result.files.insert(
         result.files.begin() + 1,
-        {"generated_specialized_turn.c", mainOut.str()});
+        {"generated_specialized_turn.c", mainOut.str(), mainMode.bankNumber});
     return result;
 }
 

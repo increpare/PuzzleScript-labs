@@ -151,6 +151,7 @@ struct GbcSpecializedGroupEmit {
 struct GbcSpecializedTurnSourceFile {
     std::string relativePath;
     std::string contents;
+    unsigned bankNumber = 0U;
 };
 
 struct GbcSpecializedTurnEmitResult {

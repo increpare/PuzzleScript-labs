@@ -3,6 +3,7 @@
 #include "runtime/core.hpp"
 #include "compiler/compact_turn_codegen.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -18,6 +19,7 @@ struct ExportOptions {
     // linked into one cartridge without symbol collisions. Empty means the
     // export is standalone and no renaming happens.
     std::string symbolPrefix;
+    uint8_t bankBase = 1U;
 };
 
 struct ExportResult {
@@ -30,6 +32,7 @@ struct ExportResult {
 struct SpecializedTurnExportInfo {
     bool supported = false;
     bool singlePlayerCellCertified = false;
+    unsigned highestBank = 0U;
     std::filesystem::path generatedPath;
     std::vector<std::filesystem::path> generatedSourcePaths;
 };
@@ -41,7 +44,8 @@ SpecializedTurnExportInfo writeSpecializedTurnArtifacts(
     const std::vector<compiler::GbcSpecializedPatternEmit>& patterns = {},
     const std::vector<compiler::GbcSpecializedRuleEmit>& rules = {},
     const std::vector<compiler::GbcSpecializedGroupEmit>& earlyGroups = {},
-    const std::vector<compiler::GbcSpecializedGroupEmit>& lateGroups = {});
+    const std::vector<compiler::GbcSpecializedGroupEmit>& lateGroups = {},
+    const compiler::GbcSpecializedTurnEmitOptions& emitOptions = {});
 
 ExportResult exportGame(const ExportOptions& options);
 

@@ -1,4 +1,5 @@
-#if defined(__SDCC) || defined(GBDK)
+#if (defined(__SDCC) || defined(GBDK)) \
+    && !defined(PS_GBC_GENERATED_FACADE_WRAPPER)
 #pragma bank 2
 #endif
 
