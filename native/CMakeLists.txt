@@ -573,6 +573,20 @@ add_test(
   WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
 )
 
+add_executable(puzzlescript_gbc_packed_cell_tests
+  tests/gbc_packed_cell.c
+  src/gbc/packed_cell.c
+)
+target_include_directories(puzzlescript_gbc_packed_cell_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+add_test(
+  NAME puzzlescript_gbc_packed_cell_tests
+  COMMAND puzzlescript_gbc_packed_cell_tests
+  WORKING_DIRECTORY ${PUZZLESCRIPT_REPO_ROOT}
+)
+
 set(GBA_GENERATED_SMOKE_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/gba_sokoban)
 set(GBA_GENERATED_SMOKE_SOURCE ${GBA_GENERATED_SMOKE_DIR}/generated_game.cpp)
 set(GBA_GENERATED_SMOKE_HEADER ${GBA_GENERATED_SMOKE_DIR}/generated_game.hpp)

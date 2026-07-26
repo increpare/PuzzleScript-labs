@@ -50,7 +50,7 @@ AUTOTEST_OBJECTS := $(if $(filter 1 yes true on,$(AUTOTEST)),$(BUILD)/autotest.o
 OBJECTS := $(BUILD)/main.o $(BUILD)/core.o $(BUILD)/generated_game.o \
 	$(BUILD)/audio.o $(BUILD)/text.o $(BUILD)/tile_cache.o \
 	$(BUILD)/frontend_flow.o $(BUILD)/bank_access.o \
-	$(BUILD)/game_dispatch.o \
+	$(BUILD)/game_dispatch.o $(BUILD)/packed_cell.o \
 	$(PERF_OBJECTS) $(AUTOTEST_OBJECTS)
 FACADE_OBJECTS := $(BUILD)/compact_facade.o $(BUILD)/facade_rules.o
 
@@ -173,6 +173,10 @@ $(BUILD)/bank_access.o: ../../native/src/gbc/bank_access.c \
 $(BUILD)/game_dispatch.o: source/game_dispatch.c source/game_dispatch.h \
 	../../native/include/puzzlescript/gbc_bank_access.h \
 	../../native/include/puzzlescript/gbc_descriptor.h | $(BUILD)
+	"$(LCC)" $(CFLAGS) -c -o $@ $<
+
+$(BUILD)/packed_cell.o: ../../native/src/gbc/packed_cell.c \
+	../../native/include/puzzlescript/gbc_packed_cell.h | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/autotest.o: source/autotest.c source/audio.h source/game_dispatch.h \

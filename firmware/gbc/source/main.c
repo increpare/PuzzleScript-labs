@@ -186,7 +186,7 @@ static bool snapshotRead(void* context, uint8_t slot, void* data, uint16_t byte_
     uint8_t* destination = (uint8_t*)data;
     uint16_t offset = (uint16_t)((uint16_t)slot
         * game->max_level_cells
-        * PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL);
+        * game->object_bytes_per_cell);
     uint16_t index;
     (void)context;
     ENABLE_RAM_MBC5;
@@ -208,7 +208,7 @@ static bool snapshotWrite(
     const uint8_t* source = (const uint8_t*)data;
     uint16_t offset = (uint16_t)((uint16_t)slot
         * game->max_level_cells
-        * PS_GBC_GENERATED_OBJECT_BYTES_PER_CELL);
+        * game->object_bytes_per_cell);
     uint16_t index;
     (void)context;
     ENABLE_RAM_MBC5;
