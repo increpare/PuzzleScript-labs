@@ -16,6 +16,8 @@ extern uint8_t gVramState;
 
 void displayOffForFullRewrite(void) NONBANKED;
 void showText(const char* message, bool title) BANKED;
+void showGameText(const char* game_message) BANKED;
+void showGameTitleText(void) BANKED;
 void showTitleMenu(bool has_continue, bool continue_selected) BANKED;
 void updateTitleMenuSelection(bool continue_selected) BANKED;
 

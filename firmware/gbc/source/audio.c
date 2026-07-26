@@ -3,7 +3,7 @@
 #include <gb/gb.h>
 
 #include "audio.h"
-#include "generated_game.h"
+#include "game_dispatch.h"
 
 #if defined(PS_GBC_AUTOTEST)
 uint16_t gAudioPlayCount;
@@ -90,10 +90,25 @@ void audioPlayEvents(const ps_step_result* result) BANKED {
 }
 
 void audioPlayNamed(ps_gbc_named_sound sound) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint8_t sound_id;
-    if (sound >= PS_GBC_NAMED_SOUND_COUNT) return;
-    sound_id = ps_gbc_generated_game.named_sound_ids[sound];
+    int32_t seed;
+    if (game == NULL || sound >= PS_GBC_NAMED_SOUND_COUNT) return;
+    if (!ps_gbc_active_rom_copy(
+            game->named_sound_ids + sound,
+            &sound_id,
+            sizeof(sound_id))) {
+        return;
+    }
     if (sound_id == PS_GBC_NO_SOUND
-        || sound_id >= ps_gbc_generated_game.sound_count) return;
-    audioPlaySeed(ps_gbc_generated_game.sound_seeds[sound_id]);
+        || sound_id >= game->sound_count) {
+        return;
+    }
+    if (!ps_gbc_active_rom_copy(
+            game->sound_seeds + sound_id,
+            &seed,
+            sizeof(seed))) {
+        return;
+    }
+    audioPlaySeed(seed);
 }

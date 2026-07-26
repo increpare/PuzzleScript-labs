@@ -3,7 +3,7 @@
 #include <gb/cgb.h>
 #include <gb/gb.h>
 
-#include "generated_game.h"
+#include "game_dispatch.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
 
@@ -18,6 +18,9 @@
 
 extern uint8_t gTileMap[SCREEN_TILES];
 extern uint8_t gAttributes[SCREEN_TILES];
+
+static char gTextBuffer[256];
+static uint16_t gUiPalette[4];
 
 /*
  * Five-column, seven-row glyphs for A-Z, 0-9, and common punctuation.
@@ -134,13 +137,36 @@ static void drawTextFrame(void) {
     }
 }
 
+static const char* copyActiveText(const char* source) {
+    if (source == NULL) return "";
+    if (!ps_gbc_active_rom_copy_string(
+            source,
+            gTextBuffer,
+            sizeof(gTextBuffer))) {
+        gTextBuffer[0] = '\0';
+    }
+    return gTextBuffer;
+}
+
+static void loadActiveUiPalette(void) {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
+    if (game == NULL
+        || !ps_gbc_active_rom_copy(
+            game->ui_palette,
+            gUiPalette,
+            sizeof(gUiPalette))) {
+        memset(gUiPalette, 0, sizeof(gUiPalette));
+    }
+}
+
 void showText(const char* message, bool title) BANKED {
     uint8_t row = title ? 5U : 3U;
     const char* cursor = message;
     gRenderedLevel = NO_RENDERED_LEVEL;
     displayOffForFullRewrite();
     if (gVramState != VRAM_STATE_TEXT) {
-        set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
+        loadActiveUiPalette();
+        set_bkg_palette(0U, 1U, gUiPalette);
         loadFont();
     }
     memset(gTileMap, 0, SCREEN_TILES);
@@ -151,7 +177,10 @@ void showText(const char* message, bool title) BANKED {
         while (*cursor != '\0' && row < 10U) {
             cursor = drawWrappedLine(cursor, row++);
         }
-        cursor = ps_gbc_generated_game.author;
+        {
+            const ps_gbc_game_view* game = ps_gbc_active_game_view();
+            cursor = game == NULL ? "" : copyActiveText(game->author);
+        }
         if (*cursor != '\0') {
             (void)drawWrappedLine("BY", 11U);
             row = 12U;
@@ -175,13 +204,25 @@ void showText(const char* message, bool title) BANKED {
     DISPLAY_ON;
 }
 
+void showGameText(const char* game_message) BANKED {
+    showText(copyActiveText(game_message), false);
+}
+
+void showGameTitleText(void) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
+    showText(game == NULL ? "" : copyActiveText(game->title), true);
+}
+
 void showTitleMenu(bool has_continue, bool continue_selected) BANKED {
     uint8_t row = 5U;
-    const char* cursor = ps_gbc_generated_game.title;
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
+    const char* cursor =
+        game == NULL ? "" : copyActiveText(game->title);
     gRenderedLevel = NO_RENDERED_LEVEL;
     displayOffForFullRewrite();
     if (gVramState != VRAM_STATE_TEXT) {
-        set_bkg_palette(0U, 1U, ps_gbc_generated_game.ui_palette);
+        loadActiveUiPalette();
+        set_bkg_palette(0U, 1U, gUiPalette);
         loadFont();
     }
     memset(gTileMap, 0, SCREEN_TILES);
@@ -191,7 +232,7 @@ void showTitleMenu(bool has_continue, bool continue_selected) BANKED {
     while (*cursor != '\0' && row < 9U) {
         cursor = drawWrappedLine(cursor, row++);
     }
-    cursor = ps_gbc_generated_game.author;
+    cursor = game == NULL ? "" : copyActiveText(game->author);
     if (*cursor != '\0') {
         (void)drawWrappedLine("BY", 10U);
         row = 11U;

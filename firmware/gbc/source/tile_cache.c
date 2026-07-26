@@ -2,6 +2,7 @@
 
 #include <gb/gb.h>
 
+#include "game_dispatch.h"
 #include "generated_game.h"
 #include "tile_cache.h"
 
@@ -31,23 +32,38 @@ static const uint8_t kSourceCoordinate[PS_GBC_RENDERED_CELL_WIDTH] = {
 static uint32_t gCompositionMasks[PS_GBC_CACHE_COMPOSITIONS];
 static uint8_t gCompositionPalettes[PS_GBC_CACHE_COMPOSITIONS];
 static uint8_t gCompositionCount;
+static uint8_t gPaletteRemap[32];
 static uint8_t gReadbackTile[16];
 
 uint8_t composeTile(uint32_t objects) {
-    const ps_gbc_render_object* render_object =
-        ps_gbc_generated_render_objects;
+    const ps_gbc_game_descriptor* descriptor =
+        ps_gbc_active_descriptor();
     uint8_t object_index;
     uint8_t target_palette = 0U;
     memset(gSourcePixels, 0, PS_GBC_GENERATED_CELL_PIXELS);
+    if (descriptor == NULL) return target_palette;
     for (object_index = 0U;
-         object_index < PS_GBC_GENERATED_RENDER_OBJECT_COUNT;
-         ++object_index, ++render_object) {
+         object_index < descriptor->render_object_count;
+         ++object_index) {
+        ps_gbc_render_object render_object;
         const uint8_t* source;
         uint8_t* destination;
         uint8_t remaining;
         bool drew = false;
-        if ((objects & render_object->mask) == 0U) continue;
-        source = render_object->sprite_pixels;
+        if (!ps_gbc_active_rom_copy(
+                descriptor->render_objects + object_index,
+                &render_object,
+                sizeof(render_object))) {
+            continue;
+        }
+        if ((objects & render_object.mask) == 0U) continue;
+        if (!ps_gbc_active_rom_copy(
+                render_object.sprite_pixels,
+                gTileBytes,
+                PS_GBC_GENERATED_CELL_PIXELS)) {
+            continue;
+        }
+        source = gTileBytes;
         destination = gSourcePixels;
         remaining = PS_GBC_GENERATED_CELL_PIXELS;
         while (remaining-- != 0U) {
@@ -58,7 +74,7 @@ uint8_t composeTile(uint32_t objects) {
             }
             ++destination;
         }
-        if (drew) target_palette = render_object->palette;
+        if (drew) target_palette = render_object.palette;
     }
     return target_palette;
 }
@@ -72,9 +88,15 @@ uint8_t composeTile(uint32_t objects) {
 #endif
 
 static void encodeQuartet(uint8_t palette) {
-    const uint8_t* palette_remap =
-        ps_gbc_generated_game.palette_remap + ((uint16_t)palette << 5U);
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint8_t rendered_y;
+    if (game == NULL
+        || !ps_gbc_active_rom_copy(
+            game->palette_remap + ((uint16_t)palette << 5U),
+            gPaletteRemap,
+            sizeof(gPaletteRemap))) {
+        memset(gPaletteRemap, 0, sizeof(gPaletteRemap));
+    }
     memset(gTileBytes, 0, sizeof(gTileBytes));
     for (rendered_y = 0U;
          rendered_y < PS_GBC_RENDERED_CELL_HEIGHT;
@@ -89,7 +111,7 @@ static void encodeQuartet(uint8_t palette) {
             const uint8_t source_x = kSourceCoordinate[rendered_x];
             const uint8_t source = gSourcePixels[
                 (uint8_t)(source_y * PS_GBC_GENERATED_CELL_WIDTH + source_x)];
-            const uint8_t color = palette_remap[source];
+            const uint8_t color = gPaletteRemap[source];
             const uint8_t tile_x = rendered_x >> 3U;
             const uint8_t tile_column = (uint8_t)(rendered_x & 7U);
             const uint8_t destination = (uint8_t)(
@@ -125,15 +147,32 @@ static void uploadQuartet(uint16_t base_tile) {
 
 static bool loadPrecomposedComposition(uint32_t objects, uint8_t* palette) {
 #if PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT != 0U
-    const uint32_t* mask = ps_gbc_generated_precomposed_masks;
-    const uint8_t* tiles = ps_gbc_generated_precomposed_tiles;
+    const ps_gbc_game_descriptor* descriptor =
+        ps_gbc_active_descriptor();
     uint8_t index;
+    if (descriptor == NULL) return false;
     for (index = 0U;
-         index < PS_GBC_GENERATED_PRECOMPOSED_COMPOSITION_COUNT;
-         ++index, ++mask, tiles += sizeof(gTileBytes)) {
-        if (*mask != objects) continue;
-        *palette = ps_gbc_generated_precomposed_palettes[index];
-        memcpy(gTileBytes, tiles, sizeof(gTileBytes));
+         index < descriptor->precomposed_count;
+         ++index) {
+        uint32_t mask;
+        if (!ps_gbc_active_rom_copy(
+                descriptor->precomposed_masks + index,
+                &mask,
+                sizeof(mask))) {
+            continue;
+        }
+        if (mask != objects) continue;
+        if (!ps_gbc_active_rom_copy(
+                descriptor->precomposed_palettes + index,
+                palette,
+                sizeof(*palette))
+            || !ps_gbc_active_rom_copy(
+                descriptor->precomposed_tiles
+                    + (uint16_t)index * sizeof(gTileBytes),
+                gTileBytes,
+                sizeof(gTileBytes))) {
+            return false;
+        }
         return true;
     }
 #else
@@ -228,6 +267,7 @@ void ps_gbc_render_full_board(
     uint8_t offset_x,
     uint8_t offset_y
 ) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint8_t logical_y;
     gCompositionCount = 0U;
     for (logical_y = 0U;
@@ -239,7 +279,8 @@ void ps_gbc_render_full_board(
              ++logical_x) {
             const uint16_t logical_screen_cell =
                 (uint16_t)logical_y * PS_GBC_VIEWPORT_WIDTH + logical_x;
-            uint32_t objects = ps_gbc_generated_game.background_mask;
+            uint32_t objects =
+                game == NULL ? 0U : game->background_mask;
             uint8_t palette;
             uint16_t base_tile;
             if (logical_x >= offset_x

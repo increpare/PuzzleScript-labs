@@ -142,7 +142,7 @@ $(BUILD)/generated_game.o: $(GENERATED)/generated_game.c \
 	$(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/audio.o: source/audio.c source/audio.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/audio.o: source/audio.c source/audio.h source/game_dispatch.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/frontend_flow.o: source/frontend_flow.c source/frontend_flow.h | $(BUILD)
@@ -160,13 +160,13 @@ $(BUILD)/game_dispatch.o: source/game_dispatch.c source/game_dispatch.h \
 $(BUILD)/autotest.o: source/autotest.c source/audio.h source/text.h source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/text.o: source/text.c source/text.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/text.o: source/text.c source/text.h source/game_dispatch.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 $(BUILD)/benchmark.o: source/benchmark.c source/benchmark.h source/text.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
-$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h $(EXPORT_STAMP) | $(BUILD)
+$(BUILD)/tile_cache.o: source/tile_cache.c source/tile_cache.h source/game_dispatch.h $(EXPORT_STAMP) | $(BUILD)
 	"$(LCC)" $(CFLAGS) -c -o $@ $<
 
 clean:
