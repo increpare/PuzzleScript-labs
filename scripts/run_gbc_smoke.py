@@ -45,6 +45,7 @@ SHIM_ABI_VERSION = 2
 # deadline: a ROM that has crashed or hung writes nothing however long it runs,
 # and every SRAM assertion below still has to hold.
 DEFAULT_FRAME_BUDGET = 3600
+DEFAULT_MAX_EMULATOR_WARNINGS = 4
 MGBA_PREFIX_CANDIDATES = (
     "/opt/homebrew/opt/mgba",
     "/usr/local/opt/mgba",
@@ -52,6 +53,10 @@ MGBA_PREFIX_CANDIDATES = (
     "/usr/local",
     "/usr",
 )
+
+
+class EmulatorWarningLimitExceeded(SystemExit):
+    """The emulator ran, but its diagnostics exceeded the accepted ceiling."""
 
 
 def coordinate(value: str) -> tuple[int, int]:
@@ -67,6 +72,17 @@ def integer(value: str) -> int:
         return int(value, 0)
     except ValueError as error:
         raise argparse.ArgumentTypeError("value must be an integer") from error
+
+
+def enforce_emulator_warning_limit(
+    warnings: int | None, maximum: int
+) -> None:
+    """Fail when the in-process emulator reports an abnormal warning storm."""
+    if warnings is not None and warnings > maximum:
+        raise EmulatorWarningLimitExceeded(
+            "libmgba emitted too many warnings: "
+            f"{warnings}, maximum allowed is {maximum}"
+        )
 
 
 def default_mgba() -> Path | None:
@@ -237,7 +253,11 @@ SHIM_ERRORS = {
 
 
 def read_sram_libmgba(
-    rom: Path, prefix: Path, cache: Path, frames: int
+    rom: Path,
+    prefix: Path,
+    cache: Path,
+    frames: int,
+    max_emulator_warnings: int,
 ) -> tuple[bytes, str]:
     """Run the ROM inside this process and return the cartridge SRAM."""
     handle = load_libmgba_shim(prefix, cache)
@@ -289,11 +309,15 @@ def read_sram_libmgba(
                 "libmgba savedataClone disagrees with the flushed save file: "
                 f"clone={len(clone)} file={len(data)}"
             )
+        warning_count = handle.psgbc_log_count()
+        enforce_emulator_warning_limit(
+            warning_count, max_emulator_warnings
+        )
         summary = (
             f"backend=libmgba prefix={prefix} frames={frames_run.value} "
             f"sram={len(data)} pc=0x{program_counter.value:04x} "
             f"sp=0x{stack_pointer.value:04x} "
-            f"emulator_warnings={handle.psgbc_log_count()} "
+            f"emulator_warnings={warning_count} "
             f"wall={elapsed:.2f}s"
         )
         return data, summary
@@ -372,12 +396,26 @@ def collect_sram(args: argparse.Namespace) -> tuple[bytes, str]:
                 "(macOS: brew install mgba; Debian/Ubuntu: libmgba-dev) or pass "
                 "--mgba-prefix."
             )
-        return read_sram_libmgba(args.rom, prefix, cache, args.frames)
+        return read_sram_libmgba(
+            args.rom,
+            prefix,
+            cache,
+            args.frames,
+            args.max_emulator_warnings,
+        )
 
     if backend == "auto" and prefix is not None:
         try:
-            return read_sram_libmgba(args.rom, prefix, cache, args.frames)
+            return read_sram_libmgba(
+                args.rom,
+                prefix,
+                cache,
+                args.frames,
+                args.max_emulator_warnings,
+            )
         except SystemExit as error:
+            if isinstance(error, EmulatorWarningLimitExceeded):
+                raise
             fallback = args.mgba or default_mgba()
             if fallback is None or not fallback.is_file():
                 raise
@@ -543,6 +581,15 @@ def main() -> int:
         default=DEFAULT_FRAME_BUDGET,
         help="emulated frames to run under the libmgba backend",
     )
+    parser.add_argument(
+        "--max-emulator-warnings",
+        type=int,
+        default=DEFAULT_MAX_EMULATOR_WARNINGS,
+        help=(
+            "fail when the in-process libmgba backend reports more than this "
+            "many warnings"
+        ),
+    )
     parser.add_argument("--timeout", type=float, default=8.0)
     parser.add_argument("--expect-initial", type=coordinate, default=(2, 3))
     parser.add_argument("--expect-final", type=coordinate, default=(3, 3))
@@ -571,6 +618,8 @@ def main() -> int:
     quadrant_palette_cells = 0
     if args.frame_scale < 1:
         raise SystemExit("--frame-scale must be at least 1")
+    if args.max_emulator_warnings < 0:
+        raise SystemExit("--max-emulator-warnings must be non-negative")
     if not args.rom.is_file():
         raise SystemExit(f"ROM was not found: {args.rom}")
     # The emulator's entire job is to produce these bytes; everything below
