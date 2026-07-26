@@ -39,7 +39,7 @@ FRAME_VERTICAL_TILE = 39
 SRAM_BANK_COUNT = 4
 SRAM_SIZE = SRAM_BANK_COUNT * SRAM_BANK_SIZE
 SHIM_SOURCE = Path(__file__).resolve().with_name("gbc_mgba_shim.c")
-SHIM_ABI_VERSION = 2
+SHIM_ABI_VERSION = 3
 # 60 s of emulated time. The instrumented ROM never self-terminates -- it spins
 # on vsync once it has published its result -- so this is a budget, not a
 # deadline: a ROM that has crashed or hung writes nothing however long it runs,

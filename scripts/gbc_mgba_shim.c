@@ -41,7 +41,7 @@
 
 /* Bumped whenever the exported signatures change so the Python side can refuse
  * a stale cached build. */
-#define PSGBC_ABI_VERSION 2
+#define PSGBC_ABI_VERSION 3
 
 unsigned psgbc_abi_version(void) {
 	return PSGBC_ABI_VERSION;
@@ -52,6 +52,8 @@ unsigned psgbc_abi_version(void) {
  * it again) but keep a count so the harness can report emulator complaints. */
 static unsigned long sLogCount = 0;
 static bool sLogPassthrough = false;
+static unsigned sLastLcdc = 0;
+static unsigned sLastTilemapNonzero = 0;
 
 static void psgbcLog(struct mLogger* logger, int category, enum mLogLevel level,
                      const char* format, va_list args) {
@@ -71,6 +73,14 @@ unsigned long psgbc_log_count(void) {
 	return sLogCount;
 }
 
+unsigned psgbc_last_lcdc(void) {
+	return sLastLcdc;
+}
+
+unsigned psgbc_last_tilemap_nonzero(void) {
+	return sLastTilemapNonzero;
+}
+
 /* Boot `rom_path` for `frames` frames and hand back the cartridge SRAM.
  *
  * `save_path` is opened as the cartridge's backing save file through
@@ -88,17 +98,19 @@ unsigned long psgbc_log_count(void) {
  * spinning on an error screen and a ROM that has crashed into RST 38 look
  * identical from SRAM alone; these make the difference legible.
  */
-int psgbc_run(const char* rom_path,
-              const char* save_path,
-              unsigned frames,
-              unsigned char* sram_out,
-              unsigned sram_capacity,
-              unsigned* sram_size_out,
-              unsigned* frames_run_out,
-              unsigned char* video_out,
-              unsigned video_capacity,
-              unsigned* pc_out,
-              unsigned* sp_out) {
+static int psgbcRun(const char* rom_path,
+                    const char* save_path,
+                    unsigned frames,
+                    unsigned char* sram_out,
+                    unsigned sram_capacity,
+                    unsigned* sram_size_out,
+                    unsigned* frames_run_out,
+                    unsigned char* video_out,
+                    unsigned video_capacity,
+                    unsigned* pc_out,
+                    unsigned* sp_out,
+                    const uint32_t* frame_keys,
+                    unsigned frame_key_count) {
 	if (sram_size_out) {
 		*sram_size_out = 0;
 	}
@@ -169,10 +181,23 @@ int psgbc_run(const char* rom_path,
 
 	core->reset(core);
 	for (unsigned frame = 0; frame < frames; ++frame) {
+		core->setKeys(
+			core,
+			frame_keys && frame < frame_key_count ? frame_keys[frame] : 0);
 		core->runFrame(core);
 	}
 	if (frames_run_out) {
 		*frames_run_out = core->frameCounter(core);
+	}
+	sLastLcdc = core->busRead8(core, 0xFF40);
+	sLastTilemapNonzero = 0;
+	for (unsigned row = 0; row < PSGBC_SCREEN_HEIGHT / 8; ++row) {
+		for (unsigned column = 0; column < PSGBC_SCREEN_WIDTH / 8; ++column) {
+			if (core->busRead8(
+					core, 0x9800 + row * 32 + column) != 0) {
+				++sLastTilemapNonzero;
+			}
+		}
 	}
 
 	int status = PSGBC_OK;
@@ -201,9 +226,22 @@ int psgbc_run(const char* rom_path,
 	}
 
 	if (video_out) {
+		const void* pixels = NULL;
+		size_t stride = 0;
+		core->getPixels(core, &pixels, &stride);
 		size_t video_size = (size_t) width * height * sizeof(color_t);
 		if (video_size <= video_capacity) {
-			memcpy(video_out, frame_buffer, video_size);
+			if (pixels && stride >= width) {
+				for (unsigned row = 0; row < height; ++row) {
+					memcpy(
+						video_out
+							+ (size_t) row * width * sizeof(color_t),
+						(const color_t*) pixels + (size_t) row * stride,
+						(size_t) width * sizeof(color_t));
+				}
+			} else {
+				memcpy(video_out, frame_buffer, video_size);
+			}
 		}
 	}
 
@@ -224,4 +262,40 @@ int psgbc_run(const char* rom_path,
 	mCoreConfigDeinit(&core->config);
 	core->deinit(core);
 	return status;
+}
+
+int psgbc_run(const char* rom_path,
+              const char* save_path,
+              unsigned frames,
+              unsigned char* sram_out,
+              unsigned sram_capacity,
+              unsigned* sram_size_out,
+              unsigned* frames_run_out,
+              unsigned char* video_out,
+              unsigned video_capacity,
+              unsigned* pc_out,
+              unsigned* sp_out) {
+	return psgbcRun(
+		rom_path, save_path, frames, sram_out, sram_capacity,
+		sram_size_out, frames_run_out, video_out, video_capacity,
+		pc_out, sp_out, NULL, 0);
+}
+
+int psgbc_run_with_keys(const char* rom_path,
+                        const char* save_path,
+                        unsigned frames,
+                        unsigned char* sram_out,
+                        unsigned sram_capacity,
+                        unsigned* sram_size_out,
+                        unsigned* frames_run_out,
+                        unsigned char* video_out,
+                        unsigned video_capacity,
+                        unsigned* pc_out,
+                        unsigned* sp_out,
+                        const uint32_t* frame_keys,
+                        unsigned frame_key_count) {
+	return psgbcRun(
+		rom_path, save_path, frames, sram_out, sram_capacity,
+		sram_size_out, frames_run_out, video_out, video_capacity,
+		pc_out, sp_out, frame_keys, frame_key_count);
 }

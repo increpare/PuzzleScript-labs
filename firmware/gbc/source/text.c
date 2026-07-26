@@ -6,6 +6,9 @@
 #include "game_dispatch.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
+#if defined(PS_GBC_CART_BUILD)
+#include "generated_cart.h"
+#endif
 
 #include <string.h>
 
@@ -102,6 +105,47 @@ static void drawTextLine(const char* text, uint8_t row, uint8_t length) {
         ++column;
     }
 }
+
+#if defined(PS_GBC_CART_BUILD)
+static uint8_t boundedLength(const char* text, uint8_t capacity) {
+    uint8_t length = 0U;
+    while (length < capacity && text[length] != '\0') ++length;
+    return length;
+}
+
+static void drawLauncherEntry(
+    const ps_gbc_cart_entry* entry,
+    uint8_t row,
+    bool selected
+) {
+    char line[TEXT_WIDTH + 1U];
+    uint8_t length;
+    if (selected) {
+        length = boundedLength(entry->title, TEXT_WIDTH - 2U);
+        line[0] = '[';
+        memcpy(line + 1U, entry->title, length);
+        line[length + 1U] = ']';
+        length = (uint8_t)(length + 2U);
+    } else {
+        length = boundedLength(entry->title, TEXT_WIDTH);
+        memcpy(line, entry->title, length);
+    }
+    line[length] = '\0';
+    drawTextLine(line, row, length);
+}
+
+static void drawLauncherCount(void) {
+    char line[9];
+    uint8_t length = 0U;
+    const uint8_t count = PS_GBC_CART_GAME_COUNT;
+    if (count >= 10U) line[length++] = (char)('0' + count / 10U);
+    line[length++] = (char)('0' + count % 10U);
+    memcpy(line + length, " GAMES", 6U);
+    length = (uint8_t)(length + 6U);
+    line[length] = '\0';
+    drawTextLine(line, 3U, length);
+}
+#endif
 
 static const char* drawWrappedLine(const char* text, uint8_t row) {
     uint8_t length = 0U;
@@ -274,3 +318,44 @@ void updateTitleMenuSelection(bool continue_selected) BANKED {
     set_bkg_tile_xy(5U, 15U, gTileMap[resume + 5U]);
     set_bkg_tile_xy(14U, 15U, gTileMap[resume + 14U]);
 }
+
+#if defined(PS_GBC_CART_BUILD)
+void showCartLauncher(
+    uint8_t selected,
+    uint8_t first_visible
+) BANKED {
+    uint8_t row;
+    gRenderedLevel = NO_RENDERED_LEVEL;
+    displayOffForFullRewrite();
+    gUiPalette[0] = 0x7fffU;
+    gUiPalette[1] = 0x56b5U;
+    gUiPalette[2] = 0x294aU;
+    gUiPalette[3] = 0x0000U;
+    set_bkg_palette(0U, 1U, gUiPalette);
+    loadFont();
+    memset(gTileMap, 0, SCREEN_TILES);
+    memset(gAttributes, 0, SCREEN_TILES);
+    drawTextFrame();
+    drawTextLine("PUZZLESCRIPT CART", 2U, 17U);
+    drawLauncherCount();
+    for (row = 0U; row < PS_GBC_CART_PAGE_SIZE; ++row) {
+        const uint8_t index = (uint8_t)(first_visible + row);
+        ps_gbc_cart_entry entry;
+        if (index >= PS_GBC_CART_GAME_COUNT) break;
+        if (ps_gbc_cart_copy_entry(index, &entry)) {
+            drawLauncherEntry(
+                &entry,
+                (uint8_t)(5U + row),
+                index == selected);
+        }
+    }
+    drawTextLine("A OR START: PLAY", 15U, 16U);
+    VBK_REG = VBK_BANK_0;
+    set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
+    VBK_REG = VBK_BANK_1;
+    set_bkg_tiles(0U, 0U, 20U, 18U, gAttributes);
+    VBK_REG = VBK_BANK_0;
+    gVramState = VRAM_STATE_TEXT;
+    DISPLAY_ON;
+}
+#endif

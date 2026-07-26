@@ -28,7 +28,7 @@
 	clean-native-32 clean-js-parity-data configure-native build-native js-parity-data lean_parity_smoke lean_clean_sim_candidates
 
 .PHONY: gba gba_export gba_preflight gba_generated_replay_build gba_generated_replay_tests
-.PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
+.PHONY: gbc gbc_export gbc_smoke gbc_cart gbc_cart_smoke gbc_eligible gbc_specialized_bench gbc_eligible_solutions_bench
 
 NODE ?= node
 CMAKE ?= cmake
@@ -93,6 +93,7 @@ GBC_GAME ?= src/demo/sokoban_basic.txt
 GBC_EXPORT_DIR ?= $(BUILD_DIR)/gbc/$(basename $(notdir $(GBC_GAME)))
 GBC_ELIGIBLE_OUT ?= $(BUILD_DIR)/gbc/eligible
 GBC_CART_OUT ?= $(BUILD_DIR)/gbc/cart
+GBC_CART_SMOKE_OUT ?= $(BUILD_DIR)/gbc/cart-smoke
 GBC_EXPORT_FLAGS ?= --bank-base 2
 # Cull oversized boards (>10x9) for the eligible good_games corpus (set GBC_CULL=0 to disable).
 GBC_CULL ?= 1
@@ -838,6 +839,18 @@ gbc_cart: $(PUZZLESCRIPT_CPP)
 		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
 		--out "$(GBC_CART_OUT)" \
 		$(GBC_CART_GBDK_ARG)
+
+gbc_cart_smoke: $(PUZZLESCRIPT_CPP)
+	python3 scripts/build_gbc_cart.py \
+		--repository . \
+		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
+		--out "$(GBC_CART_SMOKE_OUT)" \
+		--limit 3 \
+		--autotest \
+		$(GBC_CART_GBDK_ARG)
+	python3 scripts/run_gbc_cart_smoke.py \
+		"$(GBC_CART_SMOKE_OUT)/puzzlescript-compilation-autotest-3.gb" \
+		"$(GBC_CART_SMOKE_OUT)/cart-manifest.json"
 
 gbc_eligible: $(PUZZLESCRIPT_CPP)
 	python3 scripts/build_gbc_eligible_roms.py \

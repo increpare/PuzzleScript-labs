@@ -8,6 +8,7 @@
 bool ps_gbc_activate_game(
     uint8_t descriptor_bank,
     const ps_gbc_game_descriptor* descriptor) NONBANKED;
+void ps_gbc_deactivate_game(void) NONBANKED;
 const ps_gbc_game_descriptor* ps_gbc_active_descriptor(void) NONBANKED;
 const ps_gbc_game_view* ps_gbc_active_game_view(void) NONBANKED;
 bool ps_gbc_active_rom_copy(

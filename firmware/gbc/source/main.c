@@ -2,9 +2,14 @@
 #include <gb/gb.h>
 
 #include "audio.h"
+#if defined(PS_GBC_CART_BUILD)
+#include "cart_launcher.h"
+#include "generated_cart.h"
+#else
+#include "generated_game.h"
+#endif
 #include "frontend_flow.h"
 #include "game_dispatch.h"
-#include "generated_game.h"
 #include "puzzlescript/gbc.h"
 #include "text.h"
 #include "tile_cache.h"
@@ -26,6 +31,8 @@
 #define PERF_INTERACTION_MAGIC 0x49434250UL
 #define PERF_SCHEDULE_MAGIC 0x53434250UL
 #define FRAME_DUMP_MAGIC 0x46474250UL
+#define CART_AUTOTEST_MAGIC 0x54524350UL
+#define CART_AUTOTEST_VERSION 1U
 #define PERF_ITERATIONS 128U
 #define PERF_RENDER_ITERATIONS 4U
 #define NO_RENDERED_LEVEL 0xffffU
@@ -39,6 +46,8 @@
 static uint8_t gSessionArena[
     PS_GBC_GENERATED_SESSION_BYTES + PS_GBC_MAX_BOARD_CELLS * 3U
 ];
+#elif defined(PS_GBC_CART_BUILD)
+static uint8_t gSessionArena[PS_GBC_CART_MAX_SESSION_BYTES];
 #else
 static uint8_t gSessionArena[PS_GBC_GENERATED_SESSION_BYTES];
 #endif
@@ -48,6 +57,15 @@ uint8_t gAttributes[SCREEN_TILES];
 uint8_t gSourcePixels[PS_GBC_SOURCE_PIXEL_BUFFER_BYTES];
 ps_gbc_session* gSession;
 static ps_gbc_frontend gFrontend;
+static uint8_t gActiveGameIndex;
+#if defined(PS_GBC_CART_AUTOTEST)
+static uint8_t gCartAutotestLaunches;
+static uint8_t gCartAutotestReturns;
+static uint8_t gCartAutotestFirstIndex;
+static uint8_t gCartAutotestSecondIndex;
+static uint32_t gCartAutotestFirstHash;
+static uint32_t gCartAutotestSecondHash;
+#endif
 static uint16_t gActivePalette[32];
 uint16_t gRenderedLevel = NO_RENDERED_LEVEL;
 uint8_t gVramState = VRAM_STATE_UNKNOWN;
@@ -151,6 +169,10 @@ static uint16_t saveChecksum(const SaveRecord* save) {
     return hash;
 }
 
+static uint16_t saveOffset(void) {
+    return (uint16_t)gActiveGameIndex * (uint16_t)sizeof(SaveRecord);
+}
+
 static bool activeLevelIsBoard(uint16_t index) {
     const ps_gbc_game_view* game = ps_gbc_active_game_view();
     ps_gbc_level level;
@@ -227,7 +249,7 @@ static bool readSave(uint16_t* level) {
     uint8_t index;
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(0U);
-    source = (volatile const uint8_t*)0xa000U;
+    source = (volatile const uint8_t*)(0xa000U + saveOffset());
     for (index = 0U; index < sizeof(save); ++index) destination[index] = source[index];
     DISABLE_RAM_MBC5;
     if (game == NULL
@@ -252,7 +274,7 @@ static void writeSave(uint16_t level) {
     save.checksum = saveChecksum(&save);
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(0U);
-    destination = (volatile uint8_t*)0xa000U;
+    destination = (volatile uint8_t*)(0xa000U + saveOffset());
     for (index = 0U; index < sizeof(save); ++index) destination[index] = source[index];
     DISABLE_RAM_MBC5;
 }
@@ -262,12 +284,75 @@ static void clearSave(void) {
     uint8_t index;
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(0U);
-    destination = (volatile uint8_t*)0xa000U;
+    destination = (volatile uint8_t*)(0xa000U + saveOffset());
     for (index = 0U; index < sizeof(uint32_t); ++index) {
         destination[index] = 0U;
     }
     DISABLE_RAM_MBC5;
 }
+
+#if defined(PS_GBC_CART_BUILD)
+static void clearSnapshotStorage(void) {
+    volatile uint8_t* destination;
+    uint16_t offset;
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(SNAPSHOT_RAM_BANK);
+    destination = (volatile uint8_t*)0xa000U;
+    for (offset = 0U; offset < 0x2000U; ++offset) {
+        destination[offset] = 0U;
+    }
+    DISABLE_RAM_MBC5;
+}
+#endif
+
+#if defined(PS_GBC_CART_AUTOTEST)
+static void cartAutotestWrite32(
+    volatile uint8_t* destination,
+    uint8_t offset,
+    uint32_t value
+) {
+    uint8_t byte;
+    for (byte = 0U; byte < 4U; ++byte) {
+        destination[(uint8_t)(offset + byte)] =
+            (uint8_t)(value >> (uint8_t)(byte * 8U));
+    }
+}
+
+static void cartAutotestPublish(void) {
+    volatile uint8_t* destination;
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(3U);
+    destination = (volatile uint8_t*)0xa000U;
+    cartAutotestWrite32(destination, 0U, 0U);
+    destination[4U] = CART_AUTOTEST_VERSION;
+    destination[5U] = 0U;
+    destination[6U] = gCartAutotestLaunches;
+    destination[7U] = gCartAutotestReturns;
+    destination[8U] = gCartAutotestFirstIndex;
+    destination[9U] = gCartAutotestSecondIndex;
+    destination[10U] = 0U;
+    destination[11U] = 0U;
+    cartAutotestWrite32(destination, 12U, gCartAutotestFirstHash);
+    cartAutotestWrite32(destination, 16U, gCartAutotestSecondHash);
+    cartAutotestWrite32(destination, 0U, CART_AUTOTEST_MAGIC);
+    DISABLE_RAM_MBC5;
+}
+
+static void cartAutotestRecordLaunch(
+    uint8_t index,
+    uint32_t source_hash
+) {
+    if (gCartAutotestLaunches == 0U) {
+        gCartAutotestFirstIndex = index;
+        gCartAutotestFirstHash = source_hash;
+    } else if (gCartAutotestLaunches == 1U) {
+        gCartAutotestSecondIndex = index;
+        gCartAutotestSecondHash = source_hash;
+    }
+    if (gCartAutotestLaunches < 0xffU) ++gCartAutotestLaunches;
+    cartAutotestPublish();
+}
+#endif
 
 void renderBoard(void) {
     const ps_gbc_game_view* game = ps_gbc_active_game_view();
@@ -752,35 +837,28 @@ static void runAutotest(void) BANKED {
 void runAutotest(void) BANKED;
 #endif
 
-void main(void) {
+static bool runActiveGame(void) {
     const ps_gbc_snapshot_io snapshot_io = {NULL, snapshotRead, snapshotWrite};
     const ps_gbc_game_view* game;
     uint16_t saved_level = 0U;
-    uint8_t previous_keys = 0U;
+    uint8_t previous_keys = joypad();
     bool save_valid;
-    if (!ps_gbc_activate_game(
-            PS_GBC_GENERATED_ROM_BANK,
-            &ps_gbc_generated_descriptor)) {
-        for (;;) vsync();
-    }
     game = ps_gbc_active_game_view();
-    if (game == NULL) {
-        for (;;) vsync();
-    }
-    if (_cpu == CGB_TYPE) cpu_fast();
-    audioInitialize();
+    if (game == NULL) return false;
+    memset(gSessionArena, 0, sizeof(gSessionArena));
+    gRenderedLevel = NO_RENDERED_LEVEL;
+    gVramState = VRAM_STATE_UNKNOWN;
     gSession = psd_session_init(
         gSessionArena,
         sizeof(gSessionArena),
         &snapshot_io);
     if (gSession == NULL) {
         showText("MEMORY ERROR", false);
-        for (;;) vsync();
+        return false;
     }
     psd_defer_wins(gSession, true);
     save_valid = readSave(&saved_level);
     ps_gbc_frontend_init(&gFrontend, save_valid, saved_level);
-    SHOW_BKG;
 #if defined(PS_GBC_AUTOTEST)
     runAutotest();
 #endif
@@ -809,6 +887,9 @@ void main(void) {
                 audioPlayNamed(PS_GBC_SOUND_ENDGAME);
             }
         } else if (gFrontend.mode == PS_GBC_FRONTEND_TITLE) {
+#if defined(PS_GBC_CART_BUILD)
+            if ((pressed & (J_B | J_SELECT)) != 0U) return true;
+#endif
             if (gFrontend.has_save
                 && (pressed & (J_UP | J_LEFT)) != 0U) {
                 ps_gbc_frontend_select_new_game(&gFrontend);
@@ -888,4 +969,88 @@ void main(void) {
         previous_keys = keys;
         vsync();
     }
+}
+
+void main(void) {
+    if (_cpu == CGB_TYPE) cpu_fast();
+    audioInitialize();
+    SHOW_BKG;
+#if defined(PS_GBC_CART_BUILD)
+    {
+        ps_gbc_cart_launcher launcher;
+        uint8_t previous_keys = 0U;
+        ps_gbc_cart_launcher_init(
+            &launcher,
+            PS_GBC_CART_GAME_COUNT);
+        showCartLauncher(
+            launcher.selected,
+            launcher.first_visible);
+        for (;;) {
+            const uint8_t keys = joypad();
+            const uint8_t pressed =
+                (uint8_t)(keys & (uint8_t)~previous_keys);
+            bool redraw = false;
+            if ((pressed & J_UP) != 0U) {
+                ps_gbc_cart_launcher_move(&launcher, -1);
+                redraw = true;
+            } else if ((pressed & J_DOWN) != 0U) {
+                ps_gbc_cart_launcher_move(&launcher, 1);
+                redraw = true;
+            } else if ((pressed & J_LEFT) != 0U) {
+                ps_gbc_cart_launcher_page(&launcher, -1);
+                redraw = true;
+            } else if ((pressed & J_RIGHT) != 0U) {
+                ps_gbc_cart_launcher_page(&launcher, 1);
+                redraw = true;
+            }
+            if ((pressed & (J_A | J_START)) != 0U) {
+                ps_gbc_cart_entry entry;
+                if (ps_gbc_cart_copy_entry(
+                        launcher.selected,
+                        &entry)
+                    && ps_gbc_activate_game(
+                        entry.descriptor_bank,
+                        entry.descriptor)) {
+                    gActiveGameIndex = launcher.selected;
+                    clearSnapshotStorage();
+#if defined(PS_GBC_CART_AUTOTEST)
+                    cartAutotestRecordLaunch(
+                        launcher.selected,
+                        entry.source_hash);
+#endif
+                    audioInitialize();
+                    (void)runActiveGame();
+#if defined(PS_GBC_CART_AUTOTEST)
+                    if (gCartAutotestReturns < 0xffU) {
+                        ++gCartAutotestReturns;
+                    }
+                    cartAutotestPublish();
+#endif
+                    ps_gbc_deactivate_game();
+                    gVramState = VRAM_STATE_UNKNOWN;
+                    showCartLauncher(
+                        launcher.selected,
+                        launcher.first_visible);
+                }
+                previous_keys = joypad();
+            } else {
+                if (redraw) {
+                    showCartLauncher(
+                        launcher.selected,
+                        launcher.first_visible);
+                }
+                previous_keys = keys;
+            }
+            vsync();
+        }
+    }
+#else
+    if (!ps_gbc_activate_game(
+            PS_GBC_GENERATED_ROM_BANK,
+            &ps_gbc_generated_descriptor)) {
+        for (;;) vsync();
+    }
+    (void)runActiveGame();
+    for (;;) vsync();
+#endif
 }

@@ -535,6 +535,19 @@ add_test(
   COMMAND puzzlescript_gbc_frontend_flow_tests
 )
 
+add_executable(puzzlescript_gbc_cart_launcher_tests
+  tests/gbc_cart_launcher.c
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/gbc/source/cart_launcher.c
+)
+target_include_directories(puzzlescript_gbc_cart_launcher_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${PUZZLESCRIPT_REPO_ROOT}/firmware/gbc/source
+)
+add_test(
+  NAME puzzlescript_gbc_cart_launcher_tests
+  COMMAND puzzlescript_gbc_cart_launcher_tests
+)
+
 add_executable(puzzlescript_gba_exporter_tests
   tests/gba_exporter.cpp
 )

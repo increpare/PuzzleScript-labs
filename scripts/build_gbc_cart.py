@@ -292,6 +292,7 @@ def build_cart(
     out: Path,
     games: Sequence[tuple[str, str]],
     cull: bool,
+    autotest: bool,
 ) -> tuple[Path, Path]:
     repository = repository.resolve()
     compiler = compiler.resolve()
@@ -479,6 +480,7 @@ def build_cart(
         firmware_source / "audio.c",
         firmware_source / "text.c",
         firmware_source / "tile_cache.c",
+        firmware_source / "cart_launcher.c",
         firmware_source / "frontend_flow.c",
         native_gbc / "bank_access.c",
         firmware_source / "game_dispatch.c",
@@ -492,6 +494,10 @@ def build_cart(
             source=shared_source,
             object_path=object_path,
             include_directories=shared_includes,
+            defines=(
+                "PS_GBC_CART_BUILD=1",
+                *(("PS_GBC_CART_AUTOTEST=1",) if autotest else ()),
+            ),
         )
         shared_objects.append(object_path)
     cart_index_object = objects_root / "cart_index.o"
@@ -503,7 +509,12 @@ def build_cart(
     )
     shared_objects.append(cart_index_object)
 
-    rom = out / f"puzzlescript-compilation-{len(entries)}.gb"
+    rom_name = (
+        f"puzzlescript-compilation-autotest-{len(entries)}.gb"
+        if autotest
+        else f"puzzlescript-compilation-{len(entries)}.gb"
+    )
+    rom = out / rom_name
     link_command = [
         str(lcc),
         "-msm83:gb",
@@ -529,6 +540,7 @@ def build_cart(
         cart_manifest,
         {
             "format": "puzzlescript-gbc-cart-v1",
+            "autotest": autotest,
             "game_count": len(entries),
             "index_bank": 2,
             "max_session_bytes": max(
@@ -558,6 +570,7 @@ def main() -> int:
     parser.add_argument("--gbdk-home", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=Path("build/gbc/cart"))
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--autotest", action="store_true")
     parser.add_argument(
         "--cull",
         action=argparse.BooleanOptionalAction,
@@ -582,6 +595,7 @@ def main() -> int:
             out=out,
             games=games,
             cull=args.cull,
+            autotest=args.autotest,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(f"gbc-cart: {error}", file=sys.stderr)

@@ -52,6 +52,10 @@ bool ps_gbc_activate_game(
     return true;
 }
 
+void ps_gbc_deactivate_game(void) NONBANKED {
+    gHasActiveGame = false;
+}
+
 const ps_gbc_game_descriptor* ps_gbc_active_descriptor(void) NONBANKED {
     return gHasActiveGame ? &gActiveDescriptor : NULL;
 }
