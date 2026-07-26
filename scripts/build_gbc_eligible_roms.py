@@ -109,6 +109,35 @@ def relpath(path: Path, repository: Path) -> str:
     return str(path.relative_to(repository)).replace("\\", "/")
 
 
+def firmware_build_command(
+    *,
+    make: Path,
+    firmware: Path,
+    source: Path,
+    gbdk_home: Path,
+    compiler: Path,
+    python: Path,
+    cull: bool,
+) -> list[str]:
+    command = [
+        str(make),
+        "-B",
+        "-C",
+        str(firmware),
+        "build-rom",
+        f"GAME={source.as_posix()}",
+        f"GBDK_HOME={gbdk_home.as_posix()}",
+        f"PUZZLESCRIPT_CPP={compiler.as_posix()}",
+        f"PYTHON={python.as_posix()}",
+    ]
+    command.append(
+        "EXPORT_GBC_FLAGS=--cull-oversize-levels"
+        if cull
+        else "EXPORT_GBC_FLAGS="
+    )
+    return command
+
+
 def write_report(path: Path, report: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -375,20 +404,15 @@ def main() -> int:
             flush=True,
         )
         game_out.mkdir(parents=True, exist_ok=True)
-        command = [
-            str(make),
-            "-B",
-            "-C",
-            str(firmware),
-            f"GAME={source.as_posix()}",
-            f"GBDK_HOME={gbdk_home.as_posix()}",
-            f"PUZZLESCRIPT_CPP={compiler.as_posix()}",
-            f"PYTHON={Path(sys.executable).as_posix()}",
-        ]
-        if args.cull:
-            command.append("EXPORT_GBC_FLAGS=--cull-oversize-levels")
-        else:
-            command.append("EXPORT_GBC_FLAGS=")
+        command = firmware_build_command(
+            make=make,
+            firmware=firmware,
+            source=source,
+            gbdk_home=gbdk_home,
+            compiler=compiler,
+            python=Path(sys.executable),
+            cull=args.cull,
+        )
 
         process = subprocess.run(
             command,
