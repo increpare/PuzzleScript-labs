@@ -1051,7 +1051,7 @@ void main(void) {
                             launcher.selected,
                             launcher.first_visible);
                     } else {
-                        showCartLauncher(
+                        updateCartLauncherPage(
                             launcher.selected,
                             launcher.first_visible);
                     }

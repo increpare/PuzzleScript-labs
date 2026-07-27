@@ -26,6 +26,9 @@ void updateCartLauncherSelection(
     uint8_t old_selected,
     uint8_t selected,
     uint8_t first_visible) BANKED;
+void updateCartLauncherPage(
+    uint8_t selected,
+    uint8_t first_visible) BANKED;
 #endif
 
 #endif

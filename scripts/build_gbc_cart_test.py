@@ -252,6 +252,17 @@ def main() -> int:
         "    ps_gbc_launcher_card* card"
     ) in cart_source
 
+    text_source = Path(
+        "firmware/gbc/source/text.c"
+    ).read_text(encoding="utf-8")
+    page_body = text_source.split(
+        "void updateCartLauncherPage(", 1
+    )[1]
+    page_body = page_body.split("\n}", 1)[0]
+    assert "DISPLAY_OFF" not in page_body
+    assert "displayOffForFullRewrite" not in page_body
+    assert "HDMA5_REG" in text_source
+
     print("build_gbc_cart_test: ok")
     return 0
 

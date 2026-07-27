@@ -78,6 +78,20 @@ bool ps_gbc_active_rom_copy(
         byte_count);
 }
 
+bool ps_gbc_rom_copy(
+    uint8_t source_bank,
+    const void* source,
+    void* destination,
+    uint16_t byte_count
+) NONBANKED {
+    return ps_gbc_bank_copy(
+        &kMbc5Access,
+        source_bank,
+        source,
+        destination,
+        byte_count);
+}
+
 bool ps_gbc_active_rom_copy_string(
     const char* source,
     char* destination,

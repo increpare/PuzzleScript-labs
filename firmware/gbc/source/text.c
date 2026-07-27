@@ -110,6 +110,8 @@ static void drawTextLine(const char* text, uint8_t row, uint8_t length) {
 #if defined(PS_GBC_CART_BUILD)
 #define LAUNCHER_SAVE_MAGIC 0x43424750UL
 #define LAUNCHER_SAVE_VERSION 1U
+#define LAUNCHER_BAND_TILES 40U
+#define LAUNCHER_BAND_BYTES (LAUNCHER_BAND_TILES * 16U)
 
 typedef struct LauncherSaveRecord {
     uint32_t magic;
@@ -120,7 +122,9 @@ typedef struct LauncherSaveRecord {
 } LauncherSaveRecord;
 
 static ps_gbc_launcher_card gLauncherCard;
-static uint8_t gLauncherBand[40U * 16U];
+static uint8_t gLauncherBandStorage[LAUNCHER_BAND_BYTES + 15U];
+#define gLauncherBand \
+    ((uint8_t*)(((uint16_t)gLauncherBandStorage + 15U) & 0xfff0U))
 static char gLauncherProgress[8];
 static char gLauncherCounter[8];
 static uint16_t gLauncherHeaderPalette[4];
@@ -201,28 +205,33 @@ static void setLauncherBandPixel(
 static void uploadLauncherBand(uint8_t palette, uint8_t first_screen_row) {
     const uint16_t first_screen_tile =
         (uint16_t)first_screen_row * 20U;
-    uint8_t first_count = 0U;
+    ps_gbc_launcher_transfer_span spans[2];
+    const bool unsigned_mode =
+        (LCDC_REG & LCDCF_BG8000) != 0U;
+    const uint8_t span_count =
+        ps_gbc_cart_launcher_transfer_plan(
+            first_screen_tile,
+            unsigned_mode,
+            spans);
+    uint8_t span;
     uint8_t tile;
-    if (first_screen_tile < 256U) {
-        const uint16_t available = 256U - first_screen_tile;
-        first_count = available < 40U ? (uint8_t)available : 40U;
-        VBK_REG = VBK_BANK_0;
-        set_bkg_data(
-            (uint8_t)first_screen_tile,
-            first_count,
-            gLauncherBand);
+    for (span = 0U; span < span_count; ++span) {
+        const uint16_t source = (uint16_t)(
+            gLauncherBand
+            + (uint16_t)spans[span].source_tile * 16U);
+        const uint16_t destination =
+            ps_gbc_cart_launcher_tile_data_address(
+                spans[span].tile,
+                unsigned_mode);
+        VBK_REG = spans[span].vram_bank;
+        HDMA1_REG = (uint8_t)(source >> 8U);
+        HDMA2_REG = (uint8_t)source & 0xf0U;
+        HDMA3_REG = (uint8_t)(destination >> 8U) & 0x1fU;
+        HDMA4_REG = (uint8_t)destination & 0xf0U;
+        HDMA5_REG = (uint8_t)(spans[span].tile_count - 1U);
     }
-    if (first_count < 40U) {
-        const uint8_t second_tile = first_screen_tile < 256U
-            ? 0U
-            : (uint8_t)(first_screen_tile - 256U);
-        VBK_REG = VBK_BANK_1;
-        set_bkg_data(
-            second_tile,
-            (uint8_t)(40U - first_count),
-            gLauncherBand + (uint16_t)first_count * 16U);
-    }
-    for (tile = 0U; tile < 40U; ++tile) {
+    VBK_REG = VBK_BANK_0;
+    for (tile = 0U; tile < LAUNCHER_BAND_TILES; ++tile) {
         const uint16_t screen_tile = first_screen_tile + tile;
         const bool second_bank = screen_tile >= 256U;
         gTileMap[screen_tile] = second_bank
@@ -401,19 +410,37 @@ static void formatLauncherCounter(uint8_t selected) {
     gLauncherCounter[length] = '\0';
 }
 
-static void renderLauncherHeader(
+static bool loadLauncherArtBand(
+    const ps_gbc_cart_entry* entry,
+    uint8_t band
+) {
+    if (entry == NULL
+        || entry->launcher_art == NULL
+        || band > entry->launcher_progress_variant_count) {
+        return false;
+    }
+    return ps_gbc_rom_copy(
+        entry->launcher_art_bank,
+        entry->launcher_art
+            + (uint16_t)band * LAUNCHER_BAND_BYTES,
+        gLauncherBand,
+        LAUNCHER_BAND_BYTES);
+}
+
+static bool renderLauncherHeader(
+    uint8_t selected,
     uint8_t palette
 ) {
-    uint8_t x;
-    const uint8_t counter_x = (uint8_t)(
-        156U - launcherStringLength(gLauncherCounter) * 6U);
-    memset(gLauncherBand, 0, sizeof(gLauncherBand));
-    drawLauncherText("PUZZLESCRIPT", 4U, counter_x);
-    drawLauncherText(gLauncherCounter, counter_x, 158U);
-    for (x = 0U; x < 160U; ++x) {
-        setLauncherBandPixel(x, 15U, 3U);
+    ps_gbc_cart_entry entry;
+    if (!ps_gbc_cart_copy_entry(selected, &entry)
+        || !loadLauncherArtBand(&entry, 0U)) {
+        return false;
     }
     uploadLauncherBand(palette, 0U);
+    VBK_REG = VBK_BANK_1;
+    set_bkg_tiles(0U, 0U, 20U, 2U, gAttributes);
+    VBK_REG = VBK_BANK_0;
+    return true;
 }
 
 static void updateLauncherHeaderCounter(uint8_t palette) {
@@ -556,8 +583,11 @@ static bool renderLauncherGameIndex(
 ) {
     ps_gbc_cart_entry entry;
     uint8_t level = 0U;
+    uint8_t variant;
     bool completed = false;
     bool has_save;
+    (void)first_visible;
+    (void)selected;
     if (!ps_gbc_cart_copy_entry(index, &entry)
         || !ps_gbc_cart_copy_launcher_card(index, &gLauncherCard)) {
         return false;
@@ -569,18 +599,18 @@ static bool renderLauncherGameIndex(
         gLauncherCard.level_count,
         &completed,
         &level);
-    ps_gbc_cart_launcher_format_progress(
+    variant = ps_gbc_cart_launcher_progress_variant(
         &gLauncherCard,
         has_save,
         completed,
-        level,
-        gLauncherProgress);
-    renderLauncherEntry(
-        &gLauncherCard,
-        gLauncherProgress,
-        row,
-        first_visible,
-        selected);
+        level);
+    if (variant >= entry.launcher_progress_variant_count
+        || !loadLauncherArtBand(
+            &entry,
+            (uint8_t)(variant + 1U))) {
+        return false;
+    }
+    uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
     return true;
 }
 #endif
@@ -769,8 +799,7 @@ void showCartLauncher(
     displayOffForFullRewrite();
     memset(gTileMap, 0, SCREEN_TILES);
     memset(gAttributes, 0, SCREEN_TILES);
-    formatLauncherCounter(selected);
-    renderLauncherHeader(selected_palette);
+    (void)renderLauncherHeader(selected, selected_palette);
     for (row = 0U; row < PS_GBC_CART_PAGE_SIZE; ++row) {
         const uint8_t index = (uint8_t)(first_visible + row);
         if (index >= PS_GBC_CART_GAME_COUNT) break;
@@ -782,12 +811,17 @@ void showCartLauncher(
     }
     while (row < PS_GBC_CART_PAGE_SIZE) {
         set_bkg_palette(row, 1U, gLauncherCard.palette);
-        memset(gLauncherBand, 0, sizeof(gLauncherBand));
+        memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
         uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
         ++row;
     }
     if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
         loadLauncherHeaderPalette(&gLauncherCard, selected_palette);
+        updateLauncherSelectionLines(
+            &gLauncherCard,
+            selected_palette,
+            first_visible,
+            true);
     }
     VBK_REG = VBK_BANK_0;
     set_bkg_tiles(0U, 0U, 20U, 18U, gTileMap);
@@ -813,8 +847,7 @@ void updateCartLauncherSelection(
             true);
         loadLauncherHeaderPalette(&gLauncherCard, row);
     }
-    formatLauncherCounter(selected);
-    updateLauncherHeaderCounter(row);
+    (void)renderLauncherHeader(selected, row);
     if (ps_gbc_cart_copy_launcher_card(old_selected, &gLauncherCard)) {
         set_bkg_palette(old_row, 1U, gLauncherCard.palette);
         updateLauncherSelectionLines(
@@ -822,6 +855,42 @@ void updateCartLauncherSelection(
             old_row,
             first_visible,
             false);
+    }
+    gVramState = VRAM_STATE_TEXT;
+}
+
+void updateCartLauncherPage(
+    uint8_t selected,
+    uint8_t first_visible
+) BANKED {
+    uint8_t row;
+    const uint8_t selected_palette =
+        (uint8_t)(selected - first_visible);
+    for (row = 0U; row < PS_GBC_CART_PAGE_SIZE; ++row) {
+        const uint8_t index = (uint8_t)(first_visible + row);
+        if (index >= PS_GBC_CART_GAME_COUNT) break;
+        (void)renderLauncherGameIndex(
+            index,
+            row,
+            first_visible,
+            false);
+    }
+    while (row < PS_GBC_CART_PAGE_SIZE) {
+        set_bkg_palette(row, 1U, gLauncherCard.palette);
+        memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
+        uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
+        ++row;
+    }
+    (void)renderLauncherHeader(selected, selected_palette);
+    if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
+        loadLauncherHeaderPalette(
+            &gLauncherCard,
+            selected_palette);
+        updateLauncherSelectionLines(
+            &gLauncherCard,
+            selected_palette,
+            first_visible,
+            true);
     }
     gVramState = VRAM_STATE_TEXT;
 }
