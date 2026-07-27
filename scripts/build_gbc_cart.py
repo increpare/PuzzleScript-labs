@@ -926,6 +926,15 @@ def build_cart(
             for object_path in packed_item.objects:
                 relocate_object_code_area(object_path, bank.number)
                 object_banks[object_path.name] = bank.number
+    launcher_art_names = {
+        path.name for path in launcher_art_objects.values()
+    }
+    all_game_objects.sort(
+        key=lambda path: (
+            object_banks[path.name],
+            path.name not in launcher_art_names,
+        )
+    )
 
     for index, entry in enumerate(entries):
         launcher_art_object = launcher_art_objects[entry.prefix]

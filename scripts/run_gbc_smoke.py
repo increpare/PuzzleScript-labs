@@ -39,7 +39,7 @@ FRAME_VERTICAL_TILE = 39
 SRAM_BANK_COUNT = 4
 SRAM_SIZE = SRAM_BANK_COUNT * SRAM_BANK_SIZE
 SHIM_SOURCE = Path(__file__).resolve().with_name("gbc_mgba_shim.c")
-SHIM_ABI_VERSION = 3
+SHIM_ABI_VERSION = 4
 # 60 s of emulated time. The instrumented ROM never self-terminates -- it spins
 # on vsync once it has published its result -- so this is a budget, not a
 # deadline: a ROM that has crashed or hung writes nothing however long it runs,
@@ -224,6 +224,11 @@ def load_libmgba_shim(prefix: Path, cache: Path) -> ctypes.CDLL:
             f"{SHIM_ABI_VERSION} ({library})"
         )
     handle.psgbc_log_count.restype = ctypes.c_ulong
+    handle.psgbc_frame_trace_count.restype = ctypes.c_uint
+    handle.psgbc_frame_lcdc.restype = ctypes.c_uint
+    handle.psgbc_frame_lcdc.argtypes = [ctypes.c_uint]
+    handle.psgbc_frame_background_hash.restype = ctypes.c_uint32
+    handle.psgbc_frame_background_hash.argtypes = [ctypes.c_uint]
     handle.psgbc_run.restype = ctypes.c_int
     handle.psgbc_run.argtypes = [
         ctypes.c_char_p,

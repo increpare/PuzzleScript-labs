@@ -15,11 +15,12 @@ bool ps_gbc_active_rom_copy(
     const void* source,
     void* destination,
     uint16_t byte_count) NONBANKED;
-bool ps_gbc_rom_copy(
+bool ps_gbc_rom_vram_dma(
     uint8_t source_bank,
     const void* source,
-    void* destination,
-    uint16_t byte_count) NONBANKED;
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank) NONBANKED;
 bool ps_gbc_active_rom_copy_string(
     const char* source,
     char* destination,

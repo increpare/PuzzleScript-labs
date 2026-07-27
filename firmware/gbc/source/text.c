@@ -202,7 +202,11 @@ static void setLauncherBandPixel(
     if ((color & 2U) != 0U) gLauncherBand[offset + 1U] |= mask;
 }
 
-static void uploadLauncherBand(uint8_t palette, uint8_t first_screen_row) {
+static void uploadLauncherBand(
+    uint8_t palette,
+    uint8_t first_screen_row,
+    bool update_map
+) {
     const uint16_t first_screen_tile =
         (uint16_t)first_screen_row * 20U;
     ps_gbc_launcher_transfer_span spans[2];
@@ -231,6 +235,7 @@ static void uploadLauncherBand(uint8_t palette, uint8_t first_screen_row) {
         HDMA5_REG = (uint8_t)(spans[span].tile_count - 1U);
     }
     VBK_REG = VBK_BANK_0;
+    if (!update_map) return;
     for (tile = 0U; tile < LAUNCHER_BAND_TILES; ++tile) {
         const uint16_t screen_tile = first_screen_tile + tile;
         const bool second_bank = screen_tile >= 256U;
@@ -240,6 +245,61 @@ static void uploadLauncherBand(uint8_t palette, uint8_t first_screen_row) {
         gAttributes[screen_tile] =
             (uint8_t)(palette | (second_bank ? S_BANK : 0U));
     }
+}
+
+static bool uploadLauncherArtBand(
+    const ps_gbc_cart_entry* entry,
+    uint8_t band,
+    uint8_t palette,
+    uint8_t first_screen_row,
+    bool update_map
+) {
+    const uint16_t first_screen_tile =
+        (uint16_t)first_screen_row * 20U;
+    ps_gbc_launcher_transfer_span spans[2];
+    const bool unsigned_mode =
+        (LCDC_REG & LCDCF_BG8000) != 0U;
+    const uint8_t span_count =
+        ps_gbc_cart_launcher_transfer_plan(
+            first_screen_tile,
+            unsigned_mode,
+            spans);
+    const uint8_t* source;
+    uint8_t span;
+    uint8_t tile;
+    if (entry == NULL
+        || entry->launcher_art == NULL
+        || band > entry->launcher_progress_variant_count) {
+        return false;
+    }
+    source = entry->launcher_art
+        + (uint16_t)band * LAUNCHER_BAND_BYTES;
+    for (span = 0U; span < span_count; ++span) {
+        const uint16_t destination =
+            ps_gbc_cart_launcher_tile_data_address(
+                spans[span].tile,
+                unsigned_mode);
+        if (!ps_gbc_rom_vram_dma(
+                entry->launcher_art_bank,
+                source + (uint16_t)spans[span].source_tile * 16U,
+                destination,
+                spans[span].tile_count,
+                spans[span].vram_bank)) {
+            return false;
+        }
+    }
+    VBK_REG = VBK_BANK_0;
+    if (!update_map) return true;
+    for (tile = 0U; tile < LAUNCHER_BAND_TILES; ++tile) {
+        const uint16_t screen_tile = first_screen_tile + tile;
+        const bool second_bank = screen_tile >= 256U;
+        gTileMap[screen_tile] = second_bank
+            ? (uint8_t)(screen_tile - 256U)
+            : (uint8_t)screen_tile;
+        gAttributes[screen_tile] =
+            (uint8_t)(palette | (second_bank ? S_BANK : 0U));
+    }
+    return true;
 }
 
 static void prepareLauncherBand(const ps_gbc_launcher_card* card) {
@@ -389,7 +449,10 @@ static void renderLauncherEntry(
             setLauncherBandPixel(x, 15U, 3U);
         }
     }
-    uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
+    uploadLauncherBand(
+        row,
+        (uint8_t)(2U + row * 2U),
+        true);
 }
 
 static void formatLauncherCounter(uint8_t selected) {
@@ -410,36 +473,26 @@ static void formatLauncherCounter(uint8_t selected) {
     gLauncherCounter[length] = '\0';
 }
 
-static bool loadLauncherArtBand(
-    const ps_gbc_cart_entry* entry,
-    uint8_t band
-) {
-    if (entry == NULL
-        || entry->launcher_art == NULL
-        || band > entry->launcher_progress_variant_count) {
-        return false;
-    }
-    return ps_gbc_rom_copy(
-        entry->launcher_art_bank,
-        entry->launcher_art
-            + (uint16_t)band * LAUNCHER_BAND_BYTES,
-        gLauncherBand,
-        LAUNCHER_BAND_BYTES);
-}
-
 static bool renderLauncherHeader(
     uint8_t selected,
-    uint8_t palette
+    uint8_t palette,
+    bool update_map
 ) {
     ps_gbc_cart_entry entry;
     if (!ps_gbc_cart_copy_entry(selected, &entry)
-        || !loadLauncherArtBand(&entry, 0U)) {
+        || !uploadLauncherArtBand(
+            &entry,
+            0U,
+            palette,
+            0U,
+            update_map)) {
         return false;
     }
-    uploadLauncherBand(palette, 0U);
-    VBK_REG = VBK_BANK_1;
-    set_bkg_tiles(0U, 0U, 20U, 2U, gAttributes);
-    VBK_REG = VBK_BANK_0;
+    if (update_map) {
+        VBK_REG = VBK_BANK_1;
+        set_bkg_tiles(0U, 0U, 20U, 2U, gAttributes);
+        VBK_REG = VBK_BANK_0;
+    }
     return true;
 }
 
@@ -579,7 +632,8 @@ static bool renderLauncherGameIndex(
     uint8_t index,
     uint8_t row,
     uint8_t first_visible,
-    bool selected
+    bool selected,
+    bool update_map
 ) {
     ps_gbc_cart_entry entry;
     uint8_t level = 0U;
@@ -605,12 +659,14 @@ static bool renderLauncherGameIndex(
         completed,
         level);
     if (variant >= entry.launcher_progress_variant_count
-        || !loadLauncherArtBand(
+        || !uploadLauncherArtBand(
             &entry,
-            (uint8_t)(variant + 1U))) {
+            (uint8_t)(variant + 1U),
+            row,
+            (uint8_t)(2U + row * 2U),
+            update_map)) {
         return false;
     }
-    uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
     return true;
 }
 #endif
@@ -799,7 +855,7 @@ void showCartLauncher(
     displayOffForFullRewrite();
     memset(gTileMap, 0, SCREEN_TILES);
     memset(gAttributes, 0, SCREEN_TILES);
-    (void)renderLauncherHeader(selected, selected_palette);
+    (void)renderLauncherHeader(selected, selected_palette, true);
     for (row = 0U; row < PS_GBC_CART_PAGE_SIZE; ++row) {
         const uint8_t index = (uint8_t)(first_visible + row);
         if (index >= PS_GBC_CART_GAME_COUNT) break;
@@ -807,12 +863,18 @@ void showCartLauncher(
             index,
             row,
             first_visible,
-            index == selected);
+            index == selected,
+            true);
+    }
+    if (row < PS_GBC_CART_PAGE_SIZE) {
+        memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
     }
     while (row < PS_GBC_CART_PAGE_SIZE) {
         set_bkg_palette(row, 1U, gLauncherCard.palette);
-        memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
-        uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
+        uploadLauncherBand(
+            row,
+            (uint8_t)(2U + row * 2U),
+            true);
         ++row;
     }
     if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
@@ -847,7 +909,7 @@ void updateCartLauncherSelection(
             true);
         loadLauncherHeaderPalette(&gLauncherCard, row);
     }
-    (void)renderLauncherHeader(selected, row);
+    (void)renderLauncherHeader(selected, row, true);
     if (ps_gbc_cart_copy_launcher_card(old_selected, &gLauncherCard)) {
         set_bkg_palette(old_row, 1U, gLauncherCard.palette);
         updateLauncherSelectionLines(
@@ -873,15 +935,20 @@ void updateCartLauncherPage(
             index,
             row,
             first_visible,
+            false,
             false);
     }
-    while (row < PS_GBC_CART_PAGE_SIZE) {
-        set_bkg_palette(row, 1U, gLauncherCard.palette);
+    if (row < PS_GBC_CART_PAGE_SIZE) {
         memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
-        uploadLauncherBand(row, (uint8_t)(2U + row * 2U));
+    }
+    while (row < PS_GBC_CART_PAGE_SIZE) {
+        uploadLauncherBand(
+            row,
+            (uint8_t)(2U + row * 2U),
+            false);
         ++row;
     }
-    (void)renderLauncherHeader(selected, selected_palette);
+    (void)renderLauncherHeader(selected, selected_palette, false);
     if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
         loadLauncherHeaderPalette(
             &gLauncherCard,

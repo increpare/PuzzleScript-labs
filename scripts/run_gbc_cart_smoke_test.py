@@ -46,24 +46,62 @@ def expect_invalid(data: bytes, message: str) -> None:
 def main() -> int:
     keys = run_gbc_cart_smoke.build_key_script()
     assert len(keys) == run_gbc_cart_smoke.SCRIPT_FRAMES
-    assert keys[100] == run_gbc_cart_smoke.KEY_A
-    assert keys[150] == run_gbc_cart_smoke.KEY_A
-    assert keys[200] == run_gbc_cart_smoke.KEY_A
-    assert keys[250] == run_gbc_cart_smoke.KEY_UP
-    assert keys[300] == run_gbc_cart_smoke.KEY_START
-    assert keys[340] == run_gbc_cart_smoke.KEY_B
-    assert keys[440] == run_gbc_cart_smoke.KEY_DOWN
-    assert keys[510] == run_gbc_cart_smoke.KEY_A
+    assert keys[100] == run_gbc_cart_smoke.KEY_RIGHT
+    assert keys[110] == run_gbc_cart_smoke.KEY_A
+    assert keys[160] == run_gbc_cart_smoke.KEY_A
+    assert keys[210] == run_gbc_cart_smoke.KEY_A
+    assert keys[260] == run_gbc_cart_smoke.KEY_UP
+    assert keys[310] == run_gbc_cart_smoke.KEY_START
+    assert keys[350] == run_gbc_cart_smoke.KEY_B
+    assert keys[410] == run_gbc_cart_smoke.KEY_LEFT
+    assert keys[420] == run_gbc_cart_smoke.KEY_DOWN
+    assert keys[430] == run_gbc_cart_smoke.KEY_A
     for frame in (
-        99, 101, 149, 151, 199, 201, 249, 251,
-        299, 301, 339, 341, 439, 441, 509, 511,
+        99, 101, 109, 111, 159, 161, 209, 211, 259, 261,
+        309, 311, 349, 351, 409, 411, 419, 421, 429, 431,
     ):
         assert keys[frame] == 0
 
+    lcdc = [0xC1] * 32
+    hashes = [0x11111111] * 32
+    hashes[11:] = [0x22222222] * 21
+    run_gbc_cart_smoke.validate_page_trace(
+        lcdc,
+        hashes,
+        key_frame=10,
+        stable_through=19,
+    )
+    blank_lcdc = lcdc.copy()
+    blank_lcdc[11] = 0x41
+    try:
+        run_gbc_cart_smoke.validate_page_trace(
+            blank_lcdc,
+            hashes,
+            key_frame=10,
+            stable_through=19,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("an LCD-off page transition was accepted")
+    slow_hashes = hashes.copy()
+    slow_hashes[12] = 0x33333333
+    try:
+        run_gbc_cart_smoke.validate_page_trace(
+            lcdc,
+            slow_hashes,
+            key_frame=10,
+            stable_through=19,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a multi-frame page transition was accepted")
+
     parsed = run_gbc_cart_smoke.parse_telemetry(
-        record(),
-        expected_first_index=1,
-        expected_second_index=2,
+        record(first_index=8, second_index=1),
+        expected_first_index=8,
+        expected_second_index=1,
     )
     assert parsed.launches == 2
     assert parsed.returns == 1

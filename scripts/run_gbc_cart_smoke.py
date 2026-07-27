@@ -24,6 +24,8 @@ SRAM_BANK_BYTES = 8 * 1024
 KEY_A = 1 << 0
 KEY_B = 1 << 1
 KEY_START = 1 << 3
+KEY_LEFT = 1 << 4
+KEY_RIGHT = 1 << 5
 KEY_UP = 1 << 6
 KEY_DOWN = 1 << 7
 SCRIPT_FRAMES = 570
@@ -42,15 +44,59 @@ class CartTelemetry:
 
 def build_key_script() -> list[int]:
     keys = [0] * SCRIPT_FRAMES
-    keys[100] = KEY_A
-    keys[150] = KEY_A
-    keys[200] = KEY_A
-    keys[250] = KEY_UP
-    keys[300] = KEY_START
-    keys[340] = KEY_B
-    keys[440] = KEY_DOWN
-    keys[510] = KEY_A
+    keys[100] = KEY_RIGHT
+    keys[110] = KEY_A
+    keys[160] = KEY_A
+    keys[210] = KEY_A
+    keys[260] = KEY_UP
+    keys[310] = KEY_START
+    keys[350] = KEY_B
+    keys[410] = KEY_LEFT
+    keys[420] = KEY_DOWN
+    keys[430] = KEY_A
     return keys
+
+
+def validate_page_trace(
+    lcdc: list[int],
+    background_hashes: list[int],
+    *,
+    key_frame: int,
+    stable_through: int,
+) -> None:
+    """Require a visible page switch that is complete by the next frame."""
+    if len(lcdc) != len(background_hashes):
+        raise ValueError("launcher frame trace arrays have different lengths")
+    if (
+        key_frame < 1
+        or stable_through <= key_frame + 1
+        or stable_through >= len(lcdc)
+    ):
+        raise ValueError("launcher page trace window is invalid")
+    for frame in range(key_frame, stable_through + 1):
+        if (lcdc[frame] & 0x80) == 0:
+            raise ValueError(
+                f"launcher disabled the LCD at frame {frame}: "
+                f"lcdc=0x{lcdc[frame]:02x}"
+            )
+    settled_hash = background_hashes[key_frame + 1]
+    if settled_hash == background_hashes[key_frame - 1]:
+        raise ValueError(
+            f"launcher page did not change at frame {key_frame}"
+        )
+    for frame in range(key_frame + 1, stable_through + 1):
+        if background_hashes[frame] != settled_hash:
+            samples = ", ".join(
+                f"{sample}:0x{background_hashes[sample]:08x}/"
+                f"0x{lcdc[sample]:02x}"
+                for sample in range(key_frame - 1, stable_through + 1)
+            )
+            raise ValueError(
+                "launcher page did not settle within one frame: "
+                f"frame={frame} expected=0x{settled_hash:08x} "
+                f"actual=0x{background_hashes[frame]:08x}; "
+                f"samples={samples}"
+            )
 
 
 def parse_telemetry(
@@ -135,8 +181,8 @@ def run_smoke(
         ctypes.c_uint,
     ]
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if len(manifest.get("games", [])) < 3:
-        raise SystemExit("cart smoke needs at least three games")
+    if len(manifest.get("games", [])) < 9:
+        raise SystemExit("cart smoke needs at least nine games")
     keys = build_key_script()
     key_array = (ctypes.c_uint32 * len(keys))(*keys)
     with tempfile.TemporaryDirectory(
@@ -180,12 +226,33 @@ def run_smoke(
             raise SystemExit("libmGBA did not flush the cart SRAM")
         save_data = save.read_bytes()
     offset = CART_SRAM_BANK * SRAM_BANK_BYTES
+    trace_count = handle.psgbc_frame_trace_count()
+    lcdc_trace = [
+        handle.psgbc_frame_lcdc(frame)
+        for frame in range(trace_count)
+    ]
+    background_hashes = [
+        handle.psgbc_frame_background_hash(frame)
+        for frame in range(trace_count)
+    ]
+    validate_page_trace(
+        lcdc_trace,
+        background_hashes,
+        key_frame=100,
+        stable_through=109,
+    )
+    validate_page_trace(
+        lcdc_trace,
+        background_hashes,
+        key_frame=410,
+        stable_through=419,
+    )
     telemetry = parse_telemetry(
         save_data[offset : offset + CART_RECORD.size],
-        expected_first_index=0,
+        expected_first_index=8,
         expected_second_index=1,
     )
-    expected_first_hash = int(manifest["games"][0]["source_hash"])
+    expected_first_hash = int(manifest["games"][8]["source_hash"])
     expected_second_hash = int(manifest["games"][1]["source_hash"])
     if (
         telemetry.first_hash != expected_first_hash
@@ -215,7 +282,7 @@ def run_smoke(
     )
     return (
         f"frames={frames_run.value} launches={telemetry.launches} "
-        f"returns={telemetry.returns} games=0,1 "
+        f"returns={telemetry.returns} games=8,1 "
         f"hashes=0x{telemetry.first_hash:08x},"
         f"0x{telemetry.second_hash:08x} lcdc=0x{lcdc:02x} "
         f"tilemap_nonzero={tilemap_nonzero} colors={len(colors)} "

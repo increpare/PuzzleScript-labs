@@ -850,11 +850,11 @@ gbc_cart_smoke: $(PUZZLESCRIPT_CPP)
 		--repository . \
 		--compiler "$(abspath $(PUZZLESCRIPT_CPP))" \
 		--out "$(GBC_CART_SMOKE_OUT)" \
-		--limit 3 \
+		--limit 9 \
 		--autotest \
 		$(GBC_CART_GBDK_ARG)
 	python3 scripts/run_gbc_cart_smoke.py \
-		"$(GBC_CART_SMOKE_OUT)/puzzlescript-compilation-autotest-3.gb" \
+		"$(GBC_CART_SMOKE_OUT)/puzzlescript-compilation-autotest-9.gb" \
 		"$(GBC_CART_SMOKE_OUT)/cart-manifest.json"
 
 gbc_eligible: $(PUZZLESCRIPT_CPP)

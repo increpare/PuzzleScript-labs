@@ -78,18 +78,37 @@ bool ps_gbc_active_rom_copy(
         byte_count);
 }
 
-bool ps_gbc_rom_copy(
+bool ps_gbc_rom_vram_dma(
     uint8_t source_bank,
     const void* source,
-    void* destination,
-    uint16_t byte_count
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank
 ) NONBANKED {
-    return ps_gbc_bank_copy(
-        &kMbc5Access,
-        source_bank,
-        source,
-        destination,
-        byte_count);
+    const uint16_t source_address = (uint16_t)source;
+    const uint16_t byte_count = (uint16_t)block_count << 4U;
+    const uint8_t previous_bank = CURRENT_BANK;
+    if (source_bank == 0U
+        || source_address < 0x4000U
+        || (source_address & 0x000fU) != 0U
+        || source_address + byte_count > 0x8000U
+        || destination < 0x8000U
+        || (destination & 0x000fU) != 0U
+        || destination + byte_count > 0xa000U
+        || block_count == 0U
+        || block_count > 128U
+        || vram_bank > 1U) {
+        return false;
+    }
+    SWITCH_ROM_MBC5(source_bank);
+    VBK_REG = vram_bank;
+    HDMA1_REG = (uint8_t)(source_address >> 8U);
+    HDMA2_REG = (uint8_t)source_address & 0xf0U;
+    HDMA3_REG = (uint8_t)(destination >> 8U) & 0x1fU;
+    HDMA4_REG = (uint8_t)destination & 0xf0U;
+    HDMA5_REG = (uint8_t)(block_count - 1U);
+    SWITCH_ROM_MBC5(previous_bank);
+    return true;
 }
 
 bool ps_gbc_active_rom_copy_string(

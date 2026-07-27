@@ -262,6 +262,7 @@ def main() -> int:
     assert "DISPLAY_OFF" not in page_body
     assert "displayOffForFullRewrite" not in page_body
     assert "HDMA5_REG" in text_source
+    assert "ps_gbc_rom_vram_dma(" in text_source
 
     print("build_gbc_cart_test: ok")
     return 0

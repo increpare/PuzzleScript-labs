@@ -38,10 +38,11 @@
 
 #define PSGBC_SCREEN_WIDTH 160
 #define PSGBC_SCREEN_HEIGHT 144
+#define PSGBC_MAX_FRAME_TRACE 2048
 
 /* Bumped whenever the exported signatures change so the Python side can refuse
  * a stale cached build. */
-#define PSGBC_ABI_VERSION 3
+#define PSGBC_ABI_VERSION 4
 
 unsigned psgbc_abi_version(void) {
 	return PSGBC_ABI_VERSION;
@@ -56,6 +57,9 @@ static unsigned sLastLcdc = 0;
 static unsigned sLastTilemapNonzero = 0;
 static uint16_t sLastBgPalette[32];
 static uint8_t sLastVram[2][0x2000];
+static unsigned sFrameTraceCount = 0;
+static uint8_t sFrameLcdc[PSGBC_MAX_FRAME_TRACE];
+static uint32_t sFrameBackgroundHash[PSGBC_MAX_FRAME_TRACE];
 
 static void psgbcLog(struct mLogger* logger, int category, enum mLogLevel level,
                      const char* format, va_list args) {
@@ -95,6 +99,32 @@ unsigned psgbc_last_vram_byte(unsigned bank, unsigned index) {
 		return 0;
 	}
 	return sLastVram[bank][index];
+}
+
+unsigned psgbc_frame_trace_count(void) {
+	return sFrameTraceCount;
+}
+
+unsigned psgbc_frame_lcdc(unsigned frame) {
+	return frame < sFrameTraceCount ? sFrameLcdc[frame] : 0;
+}
+
+uint32_t psgbc_frame_background_hash(unsigned frame) {
+	return frame < sFrameTraceCount ? sFrameBackgroundHash[frame] : 0;
+}
+
+static uint32_t psgbcBackgroundHash(struct mCore* core) {
+	uint32_t hash = 2166136261U;
+	unsigned old_vbk = core->busRead8(core, 0xFF4F) & 1U;
+	for (unsigned bank = 0; bank < 2; ++bank) {
+		core->busWrite8(core, 0xFF4F, bank);
+		for (unsigned index = 0; index < 0x2000; ++index) {
+			hash ^= core->busRead8(core, 0x8000 + index);
+			hash *= 16777619U;
+		}
+	}
+	core->busWrite8(core, 0xFF4F, old_vbk);
+	return hash;
 }
 
 /* Boot `rom_path` for `frames` frames and hand back the cartridge SRAM.
@@ -143,6 +173,7 @@ static int psgbcRun(const char* rom_path,
 	const char* passthrough = getenv("PSGBC_MGBA_LOG");
 	sLogPassthrough = passthrough && passthrough[0] && passthrough[0] != '0';
 	sLogCount = 0;
+	sFrameTraceCount = 0;
 	mLogSetDefaultLogger(&sLogger);
 
 	struct mCore* core = mCoreFind(rom_path);
@@ -201,6 +232,13 @@ static int psgbcRun(const char* rom_path,
 			core,
 			frame_keys && frame < frame_key_count ? frame_keys[frame] : 0);
 		core->runFrame(core);
+		if (sFrameTraceCount < PSGBC_MAX_FRAME_TRACE) {
+			sFrameLcdc[sFrameTraceCount] =
+				(uint8_t) core->busRead8(core, 0xFF40);
+			sFrameBackgroundHash[sFrameTraceCount] =
+				psgbcBackgroundHash(core);
+			++sFrameTraceCount;
+		}
 	}
 	if (frames_run_out) {
 		*frames_run_out = core->frameCounter(core);
