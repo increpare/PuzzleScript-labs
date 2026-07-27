@@ -21,6 +21,17 @@ bool ps_gbc_rom_vram_dma(
     uint16_t destination,
     uint8_t block_count,
     uint8_t vram_bank) NONBANKED;
+uint8_t ps_gbc_rom_vram_dma_hblank(
+    uint8_t source_bank,
+    const void* source,
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank) NONBANKED;
+uint8_t ps_gbc_wram_vram_dma_hblank(
+    const void* source,
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank) NONBANKED;
 bool ps_gbc_active_rom_copy_string(
     const char* source,
     char* destination,

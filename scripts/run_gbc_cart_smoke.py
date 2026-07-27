@@ -18,7 +18,7 @@ import run_gbc_smoke
 
 CART_MAGIC = 0x54524350
 CART_VERSION = 1
-CART_RECORD = struct.Struct("<IHBBBB2xII")
+CART_RECORD = struct.Struct("<IHBBBBBBIIBB")
 CART_SRAM_BANK = 3
 SRAM_BANK_BYTES = 8 * 1024
 KEY_A = 1 << 0
@@ -30,6 +30,8 @@ KEY_UP = 1 << 6
 KEY_DOWN = 1 << 7
 SCRIPT_FRAMES = 570
 VIDEO_BYTES = 160 * 144 * 4
+PAGE_DMA_BLOCKS = 8 * 40
+PAGE_HBLANK_BLOCKS_PER_LINE = 4
 
 
 @dataclass(frozen=True)
@@ -38,12 +40,18 @@ class CartTelemetry:
     returns: int
     first_index: int
     second_index: int
+    last_vblank_blocks: int
+    max_vblank_blocks: int
     first_hash: int
     second_hash: int
+    page_start_ly: int
+    page_end_ly: int
 
 
 def build_key_script() -> list[int]:
     keys = [0] * SCRIPT_FRAMES
+    for frame in range(10, 80, 10):
+        keys[frame] = KEY_DOWN
     keys[100] = KEY_RIGHT
     keys[110] = KEY_A
     keys[160] = KEY_A
@@ -64,7 +72,7 @@ def validate_page_trace(
     key_frame: int,
     stable_through: int,
 ) -> None:
-    """Require a visible page switch that is complete by the next frame."""
+    """Require one scan of scheduled work and then a stable target page."""
     if len(lcdc) != len(background_hashes):
         raise ValueError("launcher frame trace arrays have different lengths")
     if (
@@ -79,24 +87,66 @@ def validate_page_trace(
                 f"launcher disabled the LCD at frame {frame}: "
                 f"lcdc=0x{lcdc[frame]:02x}"
             )
-    settled_hash = background_hashes[key_frame + 1]
-    if settled_hash == background_hashes[key_frame - 1]:
+    settled_background_hash = background_hashes[key_frame + 4]
+    if settled_background_hash == background_hashes[key_frame - 1]:
         raise ValueError(
             f"launcher page did not change at frame {key_frame}"
         )
-    for frame in range(key_frame + 1, stable_through + 1):
-        if background_hashes[frame] != settled_hash:
+    for frame in range(key_frame + 4, stable_through + 1):
+        if background_hashes[frame] != settled_background_hash:
             samples = ", ".join(
                 f"{sample}:0x{background_hashes[sample]:08x}/"
                 f"0x{lcdc[sample]:02x}"
                 for sample in range(key_frame - 1, stable_through + 1)
             )
             raise ValueError(
-                "launcher page did not settle within one frame: "
-                f"frame={frame} expected=0x{settled_hash:08x} "
+                "launcher background did not settle after one scan: "
+                f"frame={frame} "
+                f"expected=0x{settled_background_hash:08x} "
                 f"actual=0x{background_hashes[frame]:08x}; "
                 f"samples={samples}"
             )
+
+
+def validate_page_round_trip(
+    background_hashes: list[int],
+    *,
+    initial_frame: int,
+    other_page_frame: int,
+    return_frame: int,
+) -> None:
+    if (
+        initial_frame < 0
+        or other_page_frame <= initial_frame
+        or return_frame <= other_page_frame
+        or return_frame >= len(background_hashes)
+    ):
+        raise ValueError("launcher round-trip trace window is invalid")
+    initial_hash = background_hashes[initial_frame]
+    if background_hashes[other_page_frame] == initial_hash:
+        raise ValueError("launcher other page matches the initial page")
+    if background_hashes[return_frame] != initial_hash:
+        raise ValueError(
+            "launcher did not restore the exact original page: "
+            f"initial=0x{initial_hash:08x} "
+            f"returned=0x{background_hashes[return_frame]:08x}"
+        )
+
+
+def validate_header_palette_trace(
+    header_palettes: list[int],
+    *,
+    frame: int,
+    expected_palette: int,
+) -> None:
+    if frame < 0 or frame >= len(header_palettes):
+        raise ValueError("launcher header-palette frame is invalid")
+    if header_palettes[frame] != expected_palette:
+        raise ValueError(
+            "launcher header retained a stale palette slot: "
+            f"frame={frame} expected={expected_palette} "
+            f"actual={header_palettes[frame]}"
+        )
 
 
 def parse_telemetry(
@@ -114,8 +164,12 @@ def parse_telemetry(
         returns,
         first_index,
         second_index,
+        last_vblank_blocks,
+        max_vblank_blocks,
         first_hash,
         second_hash,
+        page_start_ly,
+        page_end_ly,
     ) = CART_RECORD.unpack_from(data)
     if magic != CART_MAGIC or version != CART_VERSION:
         raise ValueError(
@@ -135,6 +189,35 @@ def parse_telemetry(
             f"cart launched games {first_index}/{second_index}, expected "
             f"{expected_first_index}/{expected_second_index}"
         )
+    if (
+        last_vblank_blocks > max_vblank_blocks
+        or max_vblank_blocks > 142
+    ):
+        raise ValueError(
+            "launcher VBlank transfer exceeded the CGB budget: "
+            f"last={last_vblank_blocks} max={max_vblank_blocks}"
+        )
+    if (
+        page_start_ly < 144
+        or 128 <= page_end_ly < 144
+    ):
+        raise ValueError(
+            "launcher page transfer missed its scanline window: "
+            f"start_ly={page_start_ly} end_ly={page_end_ly}"
+        )
+    minimum_hblank_end_ly = (
+        PAGE_DMA_BLOCKS + PAGE_HBLANK_BLOCKS_PER_LINE - 1
+    ) // PAGE_HBLANK_BLOCKS_PER_LINE - 1
+    if (
+        (last_vblank_blocks == 0
+            and page_end_ly < minimum_hblank_end_ly)
+        or (last_vblank_blocks != 0 and page_end_ly < 144)
+    ):
+        raise ValueError(
+            "launcher page transfer wrapped into another display scan: "
+            f"vblank_blocks={last_vblank_blocks} "
+            f"end_ly={page_end_ly}"
+        )
     if first_hash == 0 or second_hash == 0 or first_hash == second_hash:
         raise ValueError(
             f"cart hashes are invalid: "
@@ -145,8 +228,12 @@ def parse_telemetry(
         returns=returns,
         first_index=first_index,
         second_index=second_index,
+        last_vblank_blocks=last_vblank_blocks,
+        max_vblank_blocks=max_vblank_blocks,
         first_hash=first_hash,
         second_hash=second_hash,
+        page_start_ly=page_start_ly,
+        page_end_ly=page_end_ly,
     )
 
 
@@ -235,6 +322,10 @@ def run_smoke(
         handle.psgbc_frame_background_hash(frame)
         for frame in range(trace_count)
     ]
+    header_palettes = [
+        handle.psgbc_frame_header_palette(frame)
+        for frame in range(trace_count)
+    ]
     validate_page_trace(
         lcdc_trace,
         background_hashes,
@@ -246,6 +337,17 @@ def run_smoke(
         background_hashes,
         key_frame=410,
         stable_through=419,
+    )
+    validate_header_palette_trace(
+        header_palettes,
+        frame=102,
+        expected_palette=0,
+    )
+    validate_page_round_trip(
+        background_hashes,
+        initial_frame=9,
+        other_page_frame=104,
+        return_frame=414,
     )
     telemetry = parse_telemetry(
         save_data[offset : offset + CART_RECORD.size],
@@ -285,6 +387,10 @@ def run_smoke(
         f"returns={telemetry.returns} games=8,1 "
         f"hashes=0x{telemetry.first_hash:08x},"
         f"0x{telemetry.second_hash:08x} lcdc=0x{lcdc:02x} "
+        f"page_dma={telemetry.last_vblank_blocks}/"
+        f"{telemetry.max_vblank_blocks}blocks "
+        f"page_ly={telemetry.page_start_ly}->"
+        f"{telemetry.page_end_ly} "
         f"tilemap_nonzero={tilemap_nonzero} colors={len(colors)} "
         f"pc=0x{program_counter.value:04x} "
         f"sp=0x{stack_pointer.value:04x} "

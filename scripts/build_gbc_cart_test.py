@@ -24,6 +24,24 @@ def item(
     )
 
 
+def launcher_manifest(
+    *,
+    level_count: int,
+    board_level_count: int,
+    level_is_board_bits: list[int],
+) -> dict[str, object]:
+    return {
+        "launcher_card": {
+            "palette": [0] * 4,
+            "background_tile_2bpp": [0] * 16,
+            "player_pixels": [0] * 64,
+            "level_count": level_count,
+            "board_level_count": board_level_count,
+            "level_is_board_bits": level_is_board_bits,
+        }
+    }
+
+
 def main() -> int:
     banks = build_gbc_cart.pack_items(
         [
@@ -133,6 +151,14 @@ def main() -> int:
         game_count=46,
         progress="1/2",
     )
+    selected_card_band = build_gbc_cart.render_launcher_card_band(
+        title="FIRST",
+        card=launcher_card,
+        game_index=1,
+        game_count=46,
+        progress="1/2",
+        selected=True,
+    )
     assert len(header_band) == build_gbc_cart.LAUNCHER_BAND_BYTES
     assert len(card_band) == build_gbc_cart.LAUNCHER_BAND_BYTES
     assert build_gbc_cart.launcher_band_pixel(
@@ -143,6 +169,12 @@ def main() -> int:
     ) == 3
     assert build_gbc_cart.launcher_band_pixel(
         card_band, 158, 0
+    ) == 3
+    assert build_gbc_cart.launcher_band_pixel(
+        selected_card_band, 0, 0
+    ) == 3
+    assert build_gbc_cart.launcher_band_pixel(
+        selected_card_band, 156, 15
     ) == 3
     assert card_band == build_gbc_cart.render_launcher_card_band(
         title="FIRST",
@@ -161,6 +193,65 @@ def main() -> int:
         build_gbc_cart.launcher_progress_labels(large_launcher_card)
     ) == 19
 
+    zero_level_card = build_gbc_cart._launcher_card_from_manifest(
+        launcher_manifest(
+            level_count=0,
+            board_level_count=0,
+            level_is_board_bits=[0] * 32,
+        )
+    )
+    assert zero_level_card.level_count == 0
+    cross_byte_bitmap = [0] * 32
+    cross_byte_bitmap[1] = 1
+    cross_byte_card = build_gbc_cart._launcher_card_from_manifest(
+        launcher_manifest(
+            level_count=9,
+            board_level_count=1,
+            level_is_board_bits=cross_byte_bitmap,
+        )
+    )
+    assert cross_byte_card.level_is_board_bits[1] == 1
+    maximum_bitmap = [0] * 32
+    maximum_bitmap[31] = 1 << 6
+    maximum_level_card = build_gbc_cart._launcher_card_from_manifest(
+        launcher_manifest(
+            level_count=255,
+            board_level_count=1,
+            level_is_board_bits=maximum_bitmap,
+        )
+    )
+    assert maximum_level_card.level_is_board_bits[31] == 1 << 6
+
+    invalid_launcher_bitmaps = (
+        launcher_manifest(
+            level_count=3,
+            board_level_count=2,
+            level_is_board_bits=[0b00000001] + [0] * 31,
+        ),
+        launcher_manifest(
+            level_count=3,
+            board_level_count=1,
+            level_is_board_bits=[0b00001001] + [0] * 31,
+        ),
+        launcher_manifest(
+            level_count=255,
+            board_level_count=0,
+            level_is_board_bits=[0] * 31 + [1 << 7],
+        ),
+        launcher_manifest(
+            level_count=256,
+            board_level_count=0,
+            level_is_board_bits=[0] * 32,
+        ),
+    )
+    for manifest in invalid_launcher_bitmaps:
+        try:
+            build_gbc_cart._launcher_card_from_manifest(manifest)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("invalid launcher board bitmap was accepted")
+
     entries = [
         build_gbc_cart.CartIndexEntry(
             slug="first",
@@ -170,6 +261,7 @@ def main() -> int:
             descriptor_bank=3,
             session_bytes=768,
             launcher_art_bank=9,
+            launcher_selected_art_bank=11,
             launcher_card=launcher_card,
         ),
         build_gbc_cart.CartIndexEntry(
@@ -180,6 +272,7 @@ def main() -> int:
             descriptor_bank=4,
             session_bytes=1024,
             launcher_art_bank=10,
+            launcher_selected_art_bank=12,
             launcher_card=launcher_card,
         ),
     ]
@@ -192,6 +285,18 @@ def main() -> int:
     assert len(launcher_art.bands) == (
         1 + launcher_art.progress_variant_count
     ) * build_gbc_cart.LAUNCHER_BAND_BYTES
+    selected_launcher_art = (
+        build_gbc_cart.render_launcher_selected_art(
+            entries[0],
+            0,
+            2,
+        )
+    )
+    assert selected_launcher_art.progress_variant_count == 4
+    assert len(selected_launcher_art.bands) == (
+        selected_launcher_art.progress_variant_count
+        * build_gbc_cart.LAUNCHER_BAND_BYTES
+    )
     launcher_art_source = build_gbc_cart.emit_launcher_art_source(
         entries[0],
         launcher_art,
@@ -201,6 +306,18 @@ def main() -> int:
     assert (
         "const uint8_t g00_ps_gbc_launcher_art"
         in launcher_art_source
+    )
+    selected_launcher_art_source = (
+        build_gbc_cart.emit_launcher_selected_art_source(
+            entries[0],
+            selected_launcher_art,
+            4,
+        )
+    )
+    assert "#pragma bank 4" in selected_launcher_art_source
+    assert (
+        "const uint8_t g00_ps_gbc_launcher_selected_art"
+        in selected_launcher_art_source
     )
     assert (
         "launcher_art_bank"
@@ -236,12 +353,22 @@ def main() -> int:
     assert "extern const uint8_t g00_ps_gbc_launcher_art[];" in cart_source
     assert "extern const uint8_t g01_ps_gbc_launcher_art[];" in cart_source
     assert (
+        "extern const uint8_t g00_ps_gbc_launcher_selected_art[];"
+        in cart_source
+    )
+    assert (
+        "extern const uint8_t g01_ps_gbc_launcher_selected_art[];"
+        in cart_source
+    )
+    assert (
         '{3U, &g00_ps_gbc_generated_descriptor, 0x12345678UL, '
-        '"FIRST", 9U, g00_ps_gbc_launcher_art, 4U}'
+        '"FIRST", 9U, g00_ps_gbc_launcher_art, 11U, '
+        'g00_ps_gbc_launcher_selected_art, 4U}'
     ) in cart_source
     assert (
         '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, '
-        '"SECOND", 10U, g01_ps_gbc_launcher_art, 4U}'
+        '"SECOND", 10U, g01_ps_gbc_launcher_art, 12U, '
+        'g01_ps_gbc_launcher_selected_art, 4U}'
     ) in cart_source
     assert "static const ps_gbc_launcher_card kLauncherCards" in cart_source
     assert "{1U, 2U, 3U, 4U}" in cart_source
@@ -263,6 +390,38 @@ def main() -> int:
     assert "displayOffForFullRewrite" not in page_body
     assert "HDMA5_REG" in text_source
     assert "ps_gbc_rom_vram_dma(" in text_source
+    assert "ps_gbc_rom_vram_dma_hblank(" in text_source
+    assert "waitLauncherPageVBlank(" in page_body
+    assert (
+        "updateLauncherHeaderAttributes(selected_palette);"
+        in page_body
+    )
+    assert page_body.count("(void)renderLauncherHeader(") == 1
+    assert page_body.index("(void)renderLauncherHeader(") < (
+        page_body.index("gLauncherPageUseHBlank = true;")
+    )
+    assert "updateLauncherSelectionLines(" not in page_body
+    assert "prepareLauncherSelectionBand(" not in text_source
+    assert "launcher_selected_art" in text_source
+    dispatch_source = Path(
+        "firmware/gbc/source/game_dispatch.c"
+    ).read_text(encoding="utf-8")
+    hblank_loop = dispatch_source.split(
+        "while (transferred < block_count)", 1
+    )[1].split(
+        "uint8_t ps_gbc_rom_vram_dma_hblank(", 1
+    )[0]
+    assert "while (LY_REG >= 144U)" not in hblank_loop
+    assert "if (LY_REG >= 144U) break;" in hblank_loop
+    assert text_source.count(
+        "if (remaining == 0U) continue;\n"
+        "                gLauncherPageUseHBlank = false;"
+    ) == 2
+    assert text_source.count(
+        "beginLauncherPageHBlankSpan()"
+    ) == 2
+    assert "static bool beginLauncherPageHBlankSpan(void)" in text_source
+    assert "gLauncherPageHBlankStarted = false;" in page_body
 
     print("build_gbc_cart_test: ok")
     return 0

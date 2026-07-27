@@ -42,7 +42,7 @@
 
 /* Bumped whenever the exported signatures change so the Python side can refuse
  * a stale cached build. */
-#define PSGBC_ABI_VERSION 4
+#define PSGBC_ABI_VERSION 6
 
 unsigned psgbc_abi_version(void) {
 	return PSGBC_ABI_VERSION;
@@ -59,6 +59,7 @@ static uint16_t sLastBgPalette[32];
 static uint8_t sLastVram[2][0x2000];
 static unsigned sFrameTraceCount = 0;
 static uint8_t sFrameLcdc[PSGBC_MAX_FRAME_TRACE];
+static uint8_t sFrameHeaderPalette[PSGBC_MAX_FRAME_TRACE];
 static uint32_t sFrameBackgroundHash[PSGBC_MAX_FRAME_TRACE];
 
 static void psgbcLog(struct mLogger* logger, int category, enum mLogLevel level,
@@ -109,21 +110,68 @@ unsigned psgbc_frame_lcdc(unsigned frame) {
 	return frame < sFrameTraceCount ? sFrameLcdc[frame] : 0;
 }
 
+unsigned psgbc_frame_header_palette(unsigned frame) {
+	return frame < sFrameTraceCount ? sFrameHeaderPalette[frame] : 0;
+}
+
 uint32_t psgbc_frame_background_hash(unsigned frame) {
 	return frame < sFrameTraceCount ? sFrameBackgroundHash[frame] : 0;
+}
+
+static uint8_t psgbcHeaderPalette(struct mCore* core) {
+	unsigned old_vbk = core->busRead8(core, 0xFF4F) & 1U;
+	unsigned lcdc = core->busRead8(core, 0xFF40);
+	unsigned tilemap = (lcdc & 0x08U) ? 0x9C00U : 0x9800U;
+	core->busWrite8(core, 0xFF4F, 1);
+	uint8_t palette = core->busRead8(core, tilemap) & 0x07U;
+	core->busWrite8(core, 0xFF4F, old_vbk);
+	return palette;
 }
 
 static uint32_t psgbcBackgroundHash(struct mCore* core) {
 	uint32_t hash = 2166136261U;
 	unsigned old_vbk = core->busRead8(core, 0xFF4F) & 1U;
-	for (unsigned bank = 0; bank < 2; ++bank) {
-		core->busWrite8(core, 0xFF4F, bank);
-		for (unsigned index = 0; index < 0x2000; ++index) {
-			hash ^= core->busRead8(core, 0x8000 + index);
+	unsigned old_bcps = core->busRead8(core, 0xFF68);
+	unsigned lcdc = core->busRead8(core, 0xFF40);
+	unsigned tilemap = (lcdc & 0x08U) ? 0x9C00U : 0x9800U;
+	hash ^= lcdc & 0x19U;
+	hash *= 16777619U;
+	hash ^= core->busRead8(core, 0xFF42);
+	hash *= 16777619U;
+	hash ^= core->busRead8(core, 0xFF43);
+	hash *= 16777619U;
+	for (unsigned row = 0; row < 18; ++row) {
+		for (unsigned column = 0; column < 20; ++column) {
+			unsigned map_address = tilemap + row * 32U + column;
+			core->busWrite8(core, 0xFF4F, 0);
+			uint8_t tile = core->busRead8(core, map_address);
+			core->busWrite8(core, 0xFF4F, 1);
+			uint8_t attributes = core->busRead8(core, map_address);
+			unsigned tile_address = (lcdc & 0x10U)
+				? 0x8000U + (unsigned) tile * 16U
+				: 0x9000U + (int8_t) tile * 16;
+			hash ^= tile;
 			hash *= 16777619U;
+			hash ^= attributes;
+			hash *= 16777619U;
+			core->busWrite8(
+				core, 0xFF4F, (attributes & 0x08U) ? 1 : 0);
+			for (unsigned byte = 0; byte < 16; ++byte) {
+				uint8_t value =
+					core->busRead8(core, tile_address + byte);
+				hash ^= value;
+				hash *= 16777619U;
+			}
 		}
 	}
 	core->busWrite8(core, 0xFF4F, old_vbk);
+	for (unsigned index = 0; index < 64; ++index) {
+		core->busWrite8(core, 0xFF68, index);
+		uint8_t value = core->busRead8(core, 0xFF69);
+		hash ^= value;
+		hash *= 16777619U;
+	}
+	core->busWrite8(core, 0xFF68, old_bcps);
 	return hash;
 }
 
@@ -235,6 +283,8 @@ static int psgbcRun(const char* rom_path,
 		if (sFrameTraceCount < PSGBC_MAX_FRAME_TRACE) {
 			sFrameLcdc[sFrameTraceCount] =
 				(uint8_t) core->busRead8(core, 0xFF40);
+			sFrameHeaderPalette[sFrameTraceCount] =
+				psgbcHeaderPalette(core);
 			sFrameBackgroundHash[sFrameTraceCount] =
 				psgbcBackgroundHash(core);
 			++sFrameTraceCount;

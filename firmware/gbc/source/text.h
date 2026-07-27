@@ -29,6 +29,10 @@ void updateCartLauncherSelection(
 void updateCartLauncherPage(
     uint8_t selected,
     uint8_t first_visible) BANKED;
+uint8_t cartLauncherLastPageVBlankBlocks(void) BANKED;
+uint8_t cartLauncherMaxPageVBlankBlocks(void) BANKED;
+uint8_t cartLauncherLastPageStartLy(void) BANKED;
+uint8_t cartLauncherLastPageEndLy(void) BANKED;
 #endif
 
 #endif

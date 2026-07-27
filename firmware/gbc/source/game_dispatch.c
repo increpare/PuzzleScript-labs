@@ -107,8 +107,114 @@ bool ps_gbc_rom_vram_dma(
     HDMA3_REG = (uint8_t)(destination >> 8U) & 0x1fU;
     HDMA4_REG = (uint8_t)destination & 0xf0U;
     HDMA5_REG = (uint8_t)(block_count - 1U);
+    while (HDMA5_REG != 0xffU) {
+    }
     SWITCH_ROM_MBC5(previous_bank);
     return true;
+}
+
+static uint8_t vramDmaHBlank(
+    uint8_t source_bank,
+    const void* source,
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank,
+    bool banked_source
+) NONBANKED {
+    uint16_t source_address = (uint16_t)source;
+    uint16_t target = destination;
+    const uint16_t byte_count = (uint16_t)block_count << 4U;
+    const uint8_t previous_bank = CURRENT_BANK;
+    uint8_t transferred = 0U;
+    if ((source_address & 0x000fU) != 0U
+        || (banked_source
+            ? (source_bank == 0U
+                || source_address < 0x4000U
+                || source_address + byte_count > 0x8000U)
+            : (source_address < 0xc000U
+                || source_address + byte_count > 0xe000U))
+        || destination < 0x8000U
+        || (destination & 0x000fU) != 0U
+        || destination + byte_count > 0xa000U
+        || block_count == 0U
+        || block_count > 128U
+        || vram_bank > 1U) {
+        return 0U;
+    }
+    CRITICAL {
+        if (banked_source) SWITCH_ROM_MBC5(source_bank);
+        VBK_REG = vram_bank;
+        /*
+         * A page refresh normally enters during VBlank. Wait through that
+         * initial VBlank once, but never wait through a later VBlank: the
+         * caller must finish the remaining tail there.
+         */
+        while (LY_REG >= 144U) {
+        }
+        while (transferred < block_count) {
+            const uint8_t remaining =
+                (uint8_t)(block_count - transferred);
+            /*
+             * Starting at fresh Mode 0 leaves at least Mode 0 + Mode 2
+             * (165 dots) before VRAM closes. Four GDMA blocks consume
+             * 128 dots; the registers are programmed before the wait and
+             * interrupts remain disabled across the burst.
+             */
+            const uint8_t blocks =
+                remaining < 4U ? remaining : 4U;
+            HDMA1_REG = (uint8_t)(source_address >> 8U);
+            HDMA2_REG = (uint8_t)source_address & 0xf0U;
+            HDMA3_REG = (uint8_t)(target >> 8U) & 0x1fU;
+            HDMA4_REG = (uint8_t)target & 0xf0U;
+            if (LY_REG >= 144U) break;
+            while (LY_REG < 144U
+                && (STAT_REG & 0x03U) == 0U) {
+            }
+            while (LY_REG < 144U
+                && (STAT_REG & 0x03U) != 0U) {
+            }
+            if (LY_REG >= 144U) break;
+            HDMA5_REG = (uint8_t)(blocks - 1U);
+            while (HDMA5_REG != 0xffU) {
+            }
+            transferred = (uint8_t)(transferred + blocks);
+            source_address += (uint8_t)(blocks << 4U);
+            target += (uint8_t)(blocks << 4U);
+        }
+        if (banked_source) SWITCH_ROM_MBC5(previous_bank);
+    }
+    return transferred;
+}
+
+uint8_t ps_gbc_rom_vram_dma_hblank(
+    uint8_t source_bank,
+    const void* source,
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank
+) NONBANKED {
+    return vramDmaHBlank(
+        source_bank,
+        source,
+        destination,
+        block_count,
+        vram_bank,
+        true);
+}
+
+uint8_t ps_gbc_wram_vram_dma_hblank(
+    const void* source,
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank
+) NONBANKED {
+    return vramDmaHBlank(
+        0U,
+        source,
+        destination,
+        block_count,
+        vram_bank,
+        false);
 }
 
 bool ps_gbc_active_rom_copy_string(

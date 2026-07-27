@@ -328,6 +328,14 @@ static void cartAutotestWrite32(
 
 static void cartAutotestPublish(void) {
     volatile uint8_t* destination;
+    const uint8_t last_vblank_blocks =
+        cartLauncherLastPageVBlankBlocks();
+    const uint8_t max_vblank_blocks =
+        cartLauncherMaxPageVBlankBlocks();
+    const uint8_t page_start_ly =
+        cartLauncherLastPageStartLy();
+    const uint8_t page_end_ly =
+        cartLauncherLastPageEndLy();
     ENABLE_RAM_MBC5;
     SWITCH_RAM_MBC5(3U);
     destination = (volatile uint8_t*)0xa000U;
@@ -338,10 +346,12 @@ static void cartAutotestPublish(void) {
     destination[7U] = gCartAutotestReturns;
     destination[8U] = gCartAutotestFirstIndex;
     destination[9U] = gCartAutotestSecondIndex;
-    destination[10U] = 0U;
-    destination[11U] = 0U;
+    destination[10U] = last_vblank_blocks;
+    destination[11U] = max_vblank_blocks;
     cartAutotestWrite32(destination, 12U, gCartAutotestFirstHash);
     cartAutotestWrite32(destination, 16U, gCartAutotestSecondHash);
+    destination[20U] = page_start_ly;
+    destination[21U] = page_end_ly;
     cartAutotestWrite32(destination, 0U, CART_AUTOTEST_MAGIC);
     DISABLE_RAM_MBC5;
 }

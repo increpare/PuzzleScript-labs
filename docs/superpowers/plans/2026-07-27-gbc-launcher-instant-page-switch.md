@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the GBC launcher's 46-frame runtime page rasterization with build-time card assets and LCD-on CGB DMA uploads that complete by the next emulated frame.
+**Goal:** Replace the GBC launcher's 46-frame runtime page rasterization with build-time card assets and hardware-safe LCD-on CGB DMA uploads that complete within one display scan.
 
-**Architecture:** `build_gbc_cart.py` will render exact 160-by-16 header and progress-aware card bands and pack one launcher-art object per game. The generated cart index will expose each art object's bank and pointer. Firmware will map the requested art bank through a fixed-bank copy bridge, stage one aligned band in WRAM, split transfers at signed-tile and VRAM-bank boundaries, and upload with CGB general-purpose DMA while leaving the LCD enabled.
+**Architecture:** `build_gbc_cart.py` renders exact 160-by-16 header, unselected-card, and selected-card bands and packs two bank-bounded launcher-art objects per game. The generated cart index exposes both objects' banks and pointers. Firmware caches launcher metadata, uploads the header during the starting VBlank, maps each requested art bank through a fixed-bank bridge, splits transfers at signed-tile and VRAM-bank boundaries, and uploads at most four 16-byte blocks per fresh HBlank/Mode-2 window. The bounded tail completes with general-purpose DMA after VBlank begins, while the LCD remains enabled throughout.
 
 **Tech Stack:** Python 3 cart builder/tests, C11 host unit tests, SDCC/GBDK GBC firmware, MBC5 bank packing, CGB VRAM DMA, libmGBA smoke automation.
 
@@ -12,20 +12,20 @@
 
 ## File map
 
-- `scripts/build_gbc_cart.py`: pure launcher-band renderer, launcher-art C emission, art object compilation, and bank metadata generation.
+- `scripts/build_gbc_cart.py`: pure launcher-band renderer, ordinary/selected launcher-art C emission, art object compilation, and bank metadata generation.
 - `scripts/build_gbc_cart_test.py`: deterministic raster, variant, source emission, and bank metadata tests.
-- `native/include/puzzlescript/gbc_cart.h`: generated-cart entry fields for launcher-art bank/pointer/count.
+- `native/include/puzzlescript/gbc_cart.h`: generated-cart entry fields for ordinary/selected launcher-art banks, pointers, and count.
 - `firmware/gbc/source/cart_launcher.c`: pure progress-variant and 40-tile DMA split calculations.
 - `firmware/gbc/source/cart_launcher.h`: declarations and transfer-span type for those pure helpers.
 - `native/tests/gbc_cart_launcher.c`: host tests for progress mapping and every transfer boundary.
-- `firmware/gbc/source/game_dispatch.c`: fixed-bank arbitrary-ROM copy entry point.
-- `firmware/gbc/source/game_dispatch.h`: declaration for the copy entry point.
-- `firmware/gbc/source/text.c`: pre-rendered band loading, aligned staging, CGB DMA, page refresh, and pre-rendered header updates.
+- `firmware/gbc/source/game_dispatch.c`: fixed-bank ROM copy and bounded HBlank VRAM-transfer entry points.
+- `firmware/gbc/source/game_dispatch.h`: declarations for the fixed-bank transfer entry points.
+- `firmware/gbc/source/text.c`: launcher metadata cache, direct banked-ROM band loading, HBlank/VBlank scheduling, page refresh, and pre-rendered header updates.
 - `firmware/gbc/source/text.h`: page-refresh declaration.
 - `firmware/gbc/source/main.c`: use the fast page refresh for Left/Right.
 - `scripts/gbc_mgba_shim.c`: bounded per-frame LCDC and background-state trace.
 - `scripts/run_gbc_smoke.py`: shim ABI/accessor declarations.
-- `scripts/run_gbc_cart_smoke.py`: page-changing lifecycle and one-frame/LCD-on assertions.
+- `scripts/run_gbc_cart_smoke.py`: page-changing lifecycle, LCD-on assertions, exact page roundtrip, and DMA timing budget checks.
 - `scripts/run_gbc_cart_smoke_test.py`: scripted input and trace assertion tests.
 - `Makefile`: build a nine-game autotest cart so paging is exercised.
 - `build/gbc/cart/cart-manifest.json`: regenerated 46-game cart metadata.
@@ -157,7 +157,7 @@ git add scripts/build_gbc_cart.py scripts/build_gbc_cart_test.py
 git commit -m "Pre-render GBC launcher bands in the cart builder"
 ```
 
-### Task 2: Emit and bank-pack launcher-art objects
+### Task 2: Emit and bank-pack ordinary and selected launcher-art objects
 
 **Files:**
 - Modify: `scripts/build_gbc_cart.py`
@@ -166,7 +166,8 @@ git commit -m "Pre-render GBC launcher bands in the cart builder"
 
 - [ ] **Step 1: Write failing ABI and source-emission tests**
 
-Construct entries with explicit launcher-art banks and assert:
+Construct entries with explicit ordinary/selected launcher-art banks and
+assert:
 
 ```python
 art = build_gbc_cart.render_launcher_art(entry, 0, 46)
@@ -178,8 +179,14 @@ source = build_gbc_cart.emit_launcher_art_source(entry, art, 3)
 assert "#pragma bank 3" in source
 assert "const uint8_t g00_ps_gbc_launcher_art" in source
 
+selected_art = build_gbc_cart.render_launcher_selected_art(entry, 0, 46)
+assert len(selected_art.bands) == (
+    len(build_gbc_cart.launcher_progress_labels(launcher_card))
+) * build_gbc_cart.LAUNCHER_BAND_BYTES
+
 cart_source = build_gbc_cart.emit_cart_source(entries)
 assert "g00_ps_gbc_launcher_art" in cart_source
+assert "g00_ps_gbc_launcher_selected_art" in cart_source
 assert "launcher_art_bank" in Path(
     "native/include/puzzlescript/gbc_cart.h"
 ).read_text()
@@ -217,19 +224,23 @@ class CartIndexEntry:
     descriptor_bank: int
     session_bytes: int
     launcher_art_bank: int
+    launcher_selected_art_bank: int
     launcher_card: LauncherCard
 ```
 
-Emit one `gNN_launcher_art.c` per game containing header band 0 followed by
-progress variants. Compile it, add it as an unpinned `CartItem`, relocate it
-with the existing packer, then use `dataclasses.replace()` to record its final
-bank before generating `generated_cart.c`.
+Emit `gNN_launcher_art.c` containing header band 0 followed by unselected
+progress variants, plus `gNN_launcher_selected_art.c` containing selected
+progress variants. Compile both, add each as an unpinned `CartItem`, relocate
+them with the existing packer, then use `dataclasses.replace()` to record their
+final banks before generating `generated_cart.c`.
 
 Extend `ps_gbc_cart_entry` with:
 
 ```c
 uint8_t launcher_art_bank;
 const uint8_t* launcher_art;
+uint8_t launcher_selected_art_bank;
+const uint8_t* launcher_selected_art;
 uint8_t launcher_progress_variant_count;
 ```
 
@@ -343,7 +354,7 @@ git add firmware/gbc/source/cart_launcher.c \
 git commit -m "Plan GBC launcher art transfers"
 ```
 
-### Task 4: Replace runtime page rasterization with pre-rendered DMA
+### Task 4: Replace runtime page rasterization with pre-rendered, hardware-safe DMA
 
 **Files:**
 - Modify: `firmware/gbc/source/game_dispatch.c`
@@ -369,56 +380,55 @@ assert "HDMA5_REG" in text_source
 Run `python3 scripts/build_gbc_cart_test.py`; expected failure because
 `updateCartLauncherPage` does not exist.
 
-- [ ] **Step 2: Add fixed-bank ROM copy and aligned staging**
+- [ ] **Step 2: Add fixed-bank ROM/WRAM HBlank DMA helpers**
 
 Expose:
 
 ```c
-bool ps_gbc_rom_copy(
+uint8_t ps_gbc_rom_vram_dma_hblank(
     uint8_t source_bank,
     const void* source,
-    void* destination,
-    uint16_t byte_count) NONBANKED;
+    uint16_t destination,
+    uint8_t block_count,
+    uint8_t vram_bank) NONBANKED;
 ```
 
-Implement it through the existing `kMbc5Access` and `ps_gbc_bank_copy`.
-Replace `gLauncherBand` with 655 bytes of storage and an aligned 640-byte view:
-
-```c
-static uint8_t gLauncherBandStorage[LAUNCHER_BAND_BYTES + 15U];
-#define LAUNCHER_BAND ((uint8_t*)(
-    ((uint16_t)gLauncherBandStorage + 15U) & 0xfff0U))
-```
+Add the equivalent WRAM-source helper for deterministic blank bands. Both
+helpers keep bank state stable, start at a fresh Mode 0, transfer at most four
+blocks per burst, and return at the first subsequent VBlank.
 
 - [ ] **Step 3: Implement CGB DMA upload**
 
 For each transfer span, set `VBK_REG`, derive the signed/unsigned destination
 with `ps_gbc_cart_launcher_tile_data_address()`, program `HDMA1_REG` through
-`HDMA5_REG`, and upload an integer number of 16-byte blocks from aligned WRAM.
-Restore `VBK_REG` to bank 0.
+`HDMA5_REG`, and upload directly from the selected banked-ROM art object (or
+the aligned zero band for an unused row). Page refresh uploads the header in
+the starting VBlank, then uploads at most four row blocks after each fresh
+Mode 0 and completes the remaining tail with general-purpose DMA in VBlank.
+Wait for `HDMA5_REG == 0xff` before restoring bank state or programming another
+transfer. Restore `VBK_REG` to bank 0.
 
 - [ ] **Step 4: Load pre-rendered cards and headers**
 
-Replace launcher card rasterization calls with:
+Replace launcher card rasterization calls with direct ordinary/selected art
+selection:
 
 ```c
-const uint8_t variant =
-    ps_gbc_cart_launcher_progress_variant(
-        &gLauncherCard, has_save, completed, level);
-const uint8_t band = (uint8_t)(1U + variant);
-ps_gbc_rom_copy(
-    entry.launcher_art_bank,
-    entry.launcher_art
-        + (uint16_t)band * LAUNCHER_BAND_BYTES,
-    LAUNCHER_BAND,
-    LAUNCHER_BAND_BYTES);
-uploadPreparedLauncherBand((uint8_t)(2U + row * 2U));
+source_bank = selected
+    ? entry.launcher_selected_art_bank
+    : entry.launcher_art_bank;
+source = selected
+    ? entry.launcher_selected_art
+        + (uint16_t)variant * LAUNCHER_BAND_BYTES
+    : entry.launcher_art
+        + (uint16_t)(variant + 1U) * LAUNCHER_BAND_BYTES;
 ```
 
 Header band 0 comes from the selected game's art. Add
 `updateCartLauncherPage(selected, first_visible)`, which uploads target rows,
-blank unused rows, uploads the header, loads palettes, and adds the selected
-border without disabling the LCD or rewriting the tile maps.
+blank unused rows, uploads the header and its attributes in VBlank, loads
+palettes, and uses the pre-rendered selected border without disabling the LCD
+or rewriting the full tile map.
 
 Make `updateCartLauncherSelection()` use the pre-rendered header. Change the
 Left/Right branch in `main.c` to call `updateCartLauncherPage()` instead of
@@ -455,7 +465,7 @@ git add firmware/gbc/source/game_dispatch.c \
 git commit -m "Upload GBC launcher pages without blanking"
 ```
 
-### Task 5: Prove one-frame LCD-on paging in mGBA
+### Task 5: Prove one-scan LCD-on paging in mGBA
 
 **Files:**
 - Modify: `scripts/gbc_mgba_shim.c`
@@ -511,9 +521,12 @@ Declare their return types in `run_gbc_smoke.load_libmgba_shim()`.
 - [ ] **Step 4: Enforce paging timing in cart smoke**
 
 Build nine games in `gbc_cart_smoke`. In `run_smoke()`, validate the Right and
-Left trace windows: LCDC bit 7 stays set, the target hash is stable by the frame
-after input, and it remains stable until the next scripted input. Keep the
-existing gameplay lifecycle, distinct hash, final LCD, and warning checks.
+Left trace windows: LCDC bit 7 stays set, the target hash is stable at the
+first sample after the transfer scan, and it remains stable until the next
+scripted input. Require the transfer to begin in VBlank and the remaining
+VBlank tail to stay at or below 142 blocks. Keep the existing gameplay
+lifecycle, distinct hash, exact Right-then-Left page roundtrip, final LCD, and
+warning checks.
 
 - [ ] **Step 5: Run the smoke unit and emulator tests**
 
@@ -525,15 +538,15 @@ make gbc_cart_smoke GBDK_HOME=.codex_tmp/toolchains/gbdk
 ```
 
 Expected: unit script prints `ok`; smoke reports games `8,1`, LCDC `0xc1`,
-stable one-frame page traces, two launches, one return, and no warning-limit
-failure.
+stable one-scan page traces, bounded VBlank DMA telemetry, two launches, one
+return, and no warning-limit failure.
 
 - [ ] **Step 6: Commit emulator regression coverage**
 
 ```bash
 git add scripts/gbc_mgba_shim.c scripts/run_gbc_smoke.py \
   scripts/run_gbc_cart_smoke.py scripts/run_gbc_cart_smoke_test.py Makefile
-git commit -m "Test one-frame GBC launcher paging"
+git commit -m "Test hardware-safe GBC launcher paging"
 ```
 
 ### Task 6: Rebuild and deliver the 46-game cart
@@ -566,8 +579,9 @@ and the ROM remains exactly 4,194,304 bytes.
 
 Run the mGBA page trace against the production ROM for page 1 to page 2 and
 back, then launch games from both pages and execute an input. Expected: every
-page trace keeps LCDC bit 7 set, each target page stabilizes by the next frame,
-and gameplay remains at the normal idle PC rather than crashing.
+page trace keeps LCDC bit 7 set, each target page stabilizes within one display
+scan, the VBlank tail stays within budget, and gameplay remains at the normal
+idle PC rather than crashing.
 
 - [ ] **Step 4: Run the full PuzzleScript regression suite**
 

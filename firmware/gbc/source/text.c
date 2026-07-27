@@ -121,13 +121,35 @@ typedef struct LauncherSaveRecord {
     uint16_t checksum;
 } LauncherSaveRecord;
 
+typedef struct LauncherCachedGame {
+    uint8_t launcher_art_bank;
+    uint8_t launcher_selected_art_bank;
+    const uint8_t* header_band;
+    const uint8_t* card_band;
+    const uint8_t* selected_card_band;
+    uint16_t palette[4];
+    uint8_t background_tile_2bpp[16];
+    bool valid;
+} LauncherCachedGame;
+
 static ps_gbc_launcher_card gLauncherCard;
 static uint8_t gLauncherBandStorage[LAUNCHER_BAND_BYTES + 15U];
 #define gLauncherBand \
     ((uint8_t*)(((uint16_t)gLauncherBandStorage + 15U) & 0xfff0U))
+static uint8_t gLauncherBlankBandStorage[LAUNCHER_BAND_BYTES + 15U];
+#define gLauncherBlankBand \
+    ((uint8_t*)(((uint16_t)gLauncherBlankBandStorage + 15U) & 0xfff0U))
 static char gLauncherProgress[8];
 static char gLauncherCounter[8];
 static uint16_t gLauncherHeaderPalette[4];
+static bool gLauncherPageUseHBlank;
+static bool gLauncherPageHBlankStarted;
+static uint8_t gLauncherLastPageVBlankBlocks;
+static uint8_t gLauncherMaxPageVBlankBlocks;
+static uint8_t gLauncherLastPageStartLy;
+static uint8_t gLauncherLastPageEndLy;
+static LauncherCachedGame
+    gLauncherCache[PS_GBC_CART_GAME_COUNT];
 static const uint16_t kLauncherRowOffsets[16] = {
     0U, 2U, 4U, 6U, 8U, 10U, 12U, 14U,
     320U, 322U, 324U, 326U, 328U, 330U, 332U, 334U
@@ -202,7 +224,32 @@ static void setLauncherBandPixel(
     if ((color & 2U) != 0U) gLauncherBand[offset + 1U] |= mask;
 }
 
+static void waitLauncherPageVBlank(void) {
+    while (LY_REG < 144U) {
+    }
+}
+
+static void recordLauncherPageVBlankBlocks(uint8_t blocks) {
+    if ((uint8_t)(0xffU - gLauncherLastPageVBlankBlocks) < blocks) {
+        gLauncherLastPageVBlankBlocks = 0xffU;
+    } else {
+        gLauncherLastPageVBlankBlocks =
+            (uint8_t)(gLauncherLastPageVBlankBlocks + blocks);
+    }
+}
+
+static bool beginLauncherPageHBlankSpan(void) {
+    if (!gLauncherPageUseHBlank) return false;
+    if (gLauncherPageHBlankStarted && LY_REG >= 144U) {
+        gLauncherPageUseHBlank = false;
+        return false;
+    }
+    gLauncherPageHBlankStarted = true;
+    return true;
+}
+
 static void uploadLauncherBand(
+    const uint8_t* band,
     uint8_t palette,
     uint8_t first_screen_row,
     bool update_map
@@ -220,19 +267,42 @@ static void uploadLauncherBand(
     uint8_t span;
     uint8_t tile;
     for (span = 0U; span < span_count; ++span) {
-        const uint16_t source = (uint16_t)(
-            gLauncherBand
+        uint16_t source = (uint16_t)(
+            band
             + (uint16_t)spans[span].source_tile * 16U);
         const uint16_t destination =
             ps_gbc_cart_launcher_tile_data_address(
                 spans[span].tile,
                 unsigned_mode);
-        VBK_REG = spans[span].vram_bank;
-        HDMA1_REG = (uint8_t)(source >> 8U);
-        HDMA2_REG = (uint8_t)source & 0xf0U;
-        HDMA3_REG = (uint8_t)(destination >> 8U) & 0x1fU;
-        HDMA4_REG = (uint8_t)destination & 0xf0U;
-        HDMA5_REG = (uint8_t)(spans[span].tile_count - 1U);
+        uint16_t target = destination;
+        uint8_t remaining = spans[span].tile_count;
+        while (remaining != 0U) {
+            if (!update_map && beginLauncherPageHBlankSpan()) {
+                const uint8_t blocks =
+                    ps_gbc_wram_vram_dma_hblank(
+                        (const void*)source,
+                        target,
+                        remaining,
+                        spans[span].vram_bank);
+                const uint16_t bytes = (uint16_t)blocks << 4U;
+                source += bytes;
+                target += bytes;
+                remaining = (uint8_t)(remaining - blocks);
+                if (remaining == 0U) continue;
+                gLauncherPageUseHBlank = false;
+            }
+            if (!update_map) {
+                waitLauncherPageVBlank();
+                recordLauncherPageVBlankBlocks(remaining);
+            }
+            VBK_REG = spans[span].vram_bank;
+            HDMA1_REG = (uint8_t)(source >> 8U);
+            HDMA2_REG = (uint8_t)source & 0xf0U;
+            HDMA3_REG = (uint8_t)(target >> 8U) & 0x1fU;
+            HDMA4_REG = (uint8_t)target & 0xf0U;
+            HDMA5_REG = (uint8_t)(remaining - 1U);
+            remaining = 0U;
+        }
     }
     VBK_REG = VBK_BANK_0;
     if (!update_map) return;
@@ -247,9 +317,9 @@ static void uploadLauncherBand(
     }
 }
 
-static bool uploadLauncherArtBand(
-    const ps_gbc_cart_entry* entry,
-    uint8_t band,
+static bool uploadLauncherRomBand(
+    uint8_t source_bank,
+    const uint8_t* source,
     uint8_t palette,
     uint8_t first_screen_row,
     bool update_map
@@ -264,28 +334,47 @@ static bool uploadLauncherArtBand(
             first_screen_tile,
             unsigned_mode,
             spans);
-    const uint8_t* source;
     uint8_t span;
     uint8_t tile;
-    if (entry == NULL
-        || entry->launcher_art == NULL
-        || band > entry->launcher_progress_variant_count) {
-        return false;
-    }
-    source = entry->launcher_art
-        + (uint16_t)band * LAUNCHER_BAND_BYTES;
+    if (source == NULL) return false;
     for (span = 0U; span < span_count; ++span) {
         const uint16_t destination =
             ps_gbc_cart_launcher_tile_data_address(
                 spans[span].tile,
                 unsigned_mode);
-        if (!ps_gbc_rom_vram_dma(
-                entry->launcher_art_bank,
-                source + (uint16_t)spans[span].source_tile * 16U,
-                destination,
-                spans[span].tile_count,
-                spans[span].vram_bank)) {
-            return false;
+        const uint8_t* span_source =
+            source + (uint16_t)spans[span].source_tile * 16U;
+        uint16_t target = destination;
+        uint8_t remaining = spans[span].tile_count;
+        while (remaining != 0U) {
+            if (!update_map && beginLauncherPageHBlankSpan()) {
+                const uint8_t blocks =
+                    ps_gbc_rom_vram_dma_hblank(
+                        source_bank,
+                        span_source,
+                        target,
+                        remaining,
+                        spans[span].vram_bank);
+                const uint16_t bytes = (uint16_t)blocks << 4U;
+                span_source += bytes;
+                target += bytes;
+                remaining = (uint8_t)(remaining - blocks);
+                if (remaining == 0U) continue;
+                gLauncherPageUseHBlank = false;
+            }
+            if (!update_map) {
+                waitLauncherPageVBlank();
+                recordLauncherPageVBlankBlocks(remaining);
+            }
+            if (!ps_gbc_rom_vram_dma(
+                    source_bank,
+                    span_source,
+                    target,
+                    remaining,
+                    spans[span].vram_bank)) {
+                return false;
+            }
+            remaining = 0U;
         }
     }
     VBK_REG = VBK_BANK_0;
@@ -450,6 +539,7 @@ static void renderLauncherEntry(
         }
     }
     uploadLauncherBand(
+        gLauncherBand,
         row,
         (uint8_t)(2U + row * 2U),
         true);
@@ -478,11 +568,11 @@ static bool renderLauncherHeader(
     uint8_t palette,
     bool update_map
 ) {
-    ps_gbc_cart_entry entry;
-    if (!ps_gbc_cart_copy_entry(selected, &entry)
-        || !uploadLauncherArtBand(
-            &entry,
-            0U,
+    const LauncherCachedGame* cached = &gLauncherCache[selected];
+    if (!cached->valid
+        || !uploadLauncherRomBand(
+            cached->launcher_art_bank,
+            cached->header_band,
             palette,
             0U,
             update_map)) {
@@ -494,6 +584,16 @@ static bool renderLauncherHeader(
         VBK_REG = VBK_BANK_0;
     }
     return true;
+}
+
+static void updateLauncherHeaderAttributes(uint8_t palette) {
+    uint8_t tile;
+    for (tile = 0U; tile < LAUNCHER_BAND_TILES; ++tile) {
+        gAttributes[tile] = palette;
+    }
+    VBK_REG = VBK_BANK_1;
+    set_bkg_tiles(0U, 0U, 20U, 2U, gAttributes);
+    VBK_REG = VBK_BANK_0;
 }
 
 static void updateLauncherHeaderCounter(uint8_t palette) {
@@ -525,12 +625,12 @@ static void updateLauncherHeaderCounter(uint8_t palette) {
 }
 
 static void loadLauncherHeaderPalette(
-    const ps_gbc_launcher_card* card,
+    const uint16_t* palette_colors,
     uint8_t palette
 ) {
     gLauncherHeaderPalette[0] = 0x7fffU;
-    gLauncherHeaderPalette[1] = card->palette[1];
-    gLauncherHeaderPalette[2] = card->palette[2];
+    gLauncherHeaderPalette[1] = palette_colors[1];
+    gLauncherHeaderPalette[2] = palette_colors[2];
     gLauncherHeaderPalette[3] = 0x0000U;
     set_bkg_palette(palette, 1U, gLauncherHeaderPalette);
 }
@@ -576,8 +676,17 @@ static void writeLauncherBorderTile(
     set_vram_byte(address + 1U, plane1);
 }
 
+static void launcherSelectionBorderColors(
+    const uint8_t* background_tile_2bpp,
+    uint8_t row,
+    uint8_t first_visible,
+    uint8_t line,
+    bool selected,
+    uint8_t full[2],
+    uint8_t final[2]);
+
 static void updateLauncherSelectionLines(
-    const ps_gbc_launcher_card* card,
+    const uint8_t* background_tile_2bpp,
     uint8_t row,
     uint8_t first_visible,
     bool selected
@@ -589,33 +698,17 @@ static void updateLauncherSelectionLines(
             (uint8_t)(2U + row * 2U + line);
         const uint16_t first_screen_tile =
             (uint16_t)screen_row * 20U;
-        const uint8_t background_offset =
-            (uint8_t)(pixel_row * 2U);
-        const uint8_t scroll = launcherScrollColor(
-            first_visible,
-            row,
-            line == 0U ? 0U : 15U);
         uint8_t full[2];
         uint8_t final[2];
         uint8_t tile;
-        uint8_t plane;
-        for (plane = 0U; plane < 2U; ++plane) {
-            const uint8_t background =
-                card->background_tile_2bpp[
-                    background_offset + plane];
-            const bool scroll_plane =
-                (scroll & (uint8_t)(1U << plane)) != 0U;
-            full[plane] = ps_gbc_cart_launcher_border_plane(
-                background,
-                scroll_plane,
-                selected,
-                false);
-            final[plane] = ps_gbc_cart_launcher_border_plane(
-                background,
-                scroll_plane,
-                selected,
-                true);
-        }
+        launcherSelectionBorderColors(
+            background_tile_2bpp,
+            row,
+            first_visible,
+            line,
+            selected,
+            full,
+            final);
         for (tile = 0U; tile < 20U; ++tile) {
             const bool final_tile = tile == 19U;
             writeLauncherBorderTile(
@@ -628,6 +721,41 @@ static void updateLauncherSelectionLines(
     VBK_REG = VBK_BANK_0;
 }
 
+static void launcherSelectionBorderColors(
+    const uint8_t* background_tile_2bpp,
+    uint8_t row,
+    uint8_t first_visible,
+    uint8_t line,
+    bool selected,
+    uint8_t full[2],
+    uint8_t final[2]
+) {
+    const uint8_t pixel_row = line == 0U ? 0U : 7U;
+    const uint8_t background_offset =
+        (uint8_t)(pixel_row * 2U);
+    const uint8_t scroll = launcherScrollColor(
+        first_visible,
+        row,
+        line == 0U ? 0U : 15U);
+    uint8_t plane;
+    for (plane = 0U; plane < 2U; ++plane) {
+        const uint8_t background =
+            background_tile_2bpp[background_offset + plane];
+        const bool scroll_plane =
+            (scroll & (uint8_t)(1U << plane)) != 0U;
+        full[plane] = ps_gbc_cart_launcher_border_plane(
+            background,
+            scroll_plane,
+            selected,
+            false);
+        final[plane] = ps_gbc_cart_launcher_border_plane(
+            background,
+            scroll_plane,
+            selected,
+            true);
+    }
+}
+
 static bool renderLauncherGameIndex(
     uint8_t index,
     uint8_t row,
@@ -635,39 +763,78 @@ static bool renderLauncherGameIndex(
     bool selected,
     bool update_map
 ) {
-    ps_gbc_cart_entry entry;
-    uint8_t level = 0U;
-    uint8_t variant;
-    bool completed = false;
-    bool has_save;
+    const LauncherCachedGame* cached = &gLauncherCache[index];
     (void)first_visible;
-    (void)selected;
-    if (!ps_gbc_cart_copy_entry(index, &entry)
-        || !ps_gbc_cart_copy_launcher_card(index, &gLauncherCard)) {
-        return false;
+    if (!cached->valid) return false;
+    if (!selected) {
+        set_bkg_palette(row, 1U, cached->palette);
     }
-    set_bkg_palette(row, 1U, gLauncherCard.palette);
-    has_save = readLauncherProgress(
-        index,
-        entry.source_hash,
-        gLauncherCard.level_count,
-        &completed,
-        &level);
-    variant = ps_gbc_cart_launcher_progress_variant(
-        &gLauncherCard,
-        has_save,
-        completed,
-        level);
-    if (variant >= entry.launcher_progress_variant_count
-        || !uploadLauncherArtBand(
-            &entry,
-            (uint8_t)(variant + 1U),
+    if (!uploadLauncherRomBand(
+            selected
+                ? cached->launcher_selected_art_bank
+                : cached->launcher_art_bank,
+            selected
+                ? cached->selected_card_band
+                : cached->card_band,
             row,
             (uint8_t)(2U + row * 2U),
             update_map)) {
         return false;
     }
     return true;
+}
+
+static void refreshLauncherCache(void) {
+    uint8_t index;
+    for (index = 0U; index < PS_GBC_CART_GAME_COUNT; ++index) {
+        ps_gbc_cart_entry entry;
+        uint8_t level = 0U;
+        uint8_t variant;
+        bool completed = false;
+        bool has_save;
+        LauncherCachedGame* cached = &gLauncherCache[index];
+        cached->valid = false;
+        if (!ps_gbc_cart_copy_entry(index, &entry)
+            || !ps_gbc_cart_copy_launcher_card(
+                index,
+                &gLauncherCard)) {
+            continue;
+        }
+        memcpy(
+            cached->palette,
+            gLauncherCard.palette,
+            sizeof(gLauncherCard.palette));
+        memcpy(
+            cached->background_tile_2bpp,
+            gLauncherCard.background_tile_2bpp,
+            sizeof(gLauncherCard.background_tile_2bpp));
+        has_save = readLauncherProgress(
+            index,
+            entry.source_hash,
+            gLauncherCard.level_count,
+            &completed,
+            &level);
+        variant =
+            ps_gbc_cart_launcher_progress_variant(
+                &gLauncherCard,
+                has_save,
+                completed,
+                level);
+        if (entry.launcher_art == NULL
+            || entry.launcher_selected_art == NULL
+            || variant
+            >= entry.launcher_progress_variant_count) continue;
+        cached->launcher_art_bank = entry.launcher_art_bank;
+        cached->launcher_selected_art_bank =
+            entry.launcher_selected_art_bank;
+        cached->header_band = entry.launcher_art;
+        cached->card_band = entry.launcher_art
+            + (uint16_t)(variant + 1U) * LAUNCHER_BAND_BYTES;
+        cached->selected_card_band =
+            entry.launcher_selected_art
+            + (uint16_t)variant * LAUNCHER_BAND_BYTES;
+        cached->valid = true;
+    }
 }
 #endif
 
@@ -853,6 +1020,7 @@ void showCartLauncher(
         (uint8_t)(selected - first_visible);
     gRenderedLevel = NO_RENDERED_LEVEL;
     displayOffForFullRewrite();
+    refreshLauncherCache();
     memset(gTileMap, 0, SCREEN_TILES);
     memset(gAttributes, 0, SCREEN_TILES);
     (void)renderLauncherHeader(selected, selected_palette, true);
@@ -866,21 +1034,21 @@ void showCartLauncher(
             index == selected,
             true);
     }
-    if (row < PS_GBC_CART_PAGE_SIZE) {
-        memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
-    }
     while (row < PS_GBC_CART_PAGE_SIZE) {
         set_bkg_palette(row, 1U, gLauncherCard.palette);
         uploadLauncherBand(
+            gLauncherBlankBand,
             row,
             (uint8_t)(2U + row * 2U),
             true);
         ++row;
     }
     if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
-        loadLauncherHeaderPalette(&gLauncherCard, selected_palette);
+        loadLauncherHeaderPalette(
+            gLauncherCard.palette,
+            selected_palette);
         updateLauncherSelectionLines(
-            &gLauncherCard,
+            gLauncherCard.background_tile_2bpp,
             selected_palette,
             first_visible,
             true);
@@ -903,17 +1071,17 @@ void updateCartLauncherSelection(
     const uint8_t row = (uint8_t)(selected - first_visible);
     if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
         updateLauncherSelectionLines(
-            &gLauncherCard,
+            gLauncherCard.background_tile_2bpp,
             row,
             first_visible,
             true);
-        loadLauncherHeaderPalette(&gLauncherCard, row);
+        loadLauncherHeaderPalette(gLauncherCard.palette, row);
     }
     (void)renderLauncherHeader(selected, row, true);
     if (ps_gbc_cart_copy_launcher_card(old_selected, &gLauncherCard)) {
         set_bkg_palette(old_row, 1U, gLauncherCard.palette);
         updateLauncherSelectionLines(
-            &gLauncherCard,
+            gLauncherCard.background_tile_2bpp,
             old_row,
             first_visible,
             false);
@@ -926,39 +1094,75 @@ void updateCartLauncherPage(
     uint8_t first_visible
 ) BANKED {
     uint8_t row;
+    const uint16_t* blank_palette;
     const uint8_t selected_palette =
         (uint8_t)(selected - first_visible);
+    if (!gLauncherCache[selected].valid) return;
+    blank_palette = gLauncherCache[selected].palette;
+    gLauncherLastPageVBlankBlocks = 0U;
+    gLauncherPageUseHBlank = false;
+    waitLauncherPageVBlank();
+    gLauncherLastPageStartLy = LY_REG;
+    updateLauncherHeaderAttributes(selected_palette);
+    loadLauncherHeaderPalette(
+        gLauncherCache[selected].palette,
+        selected_palette);
+    /*
+     * The header is one 40-block span and safely fits in the starting
+     * VBlank. Uploading it here leaves only the eight card rows for the
+     * visible-scan scheduler and gives the final VBlank tail enough
+     * register/bank-switch margin below the raw 142-block ceiling.
+     */
+    (void)renderLauncherHeader(
+        selected,
+        selected_palette,
+        false);
+    gLauncherLastPageVBlankBlocks = 0U;
+    gLauncherPageHBlankStarted = false;
+    gLauncherPageUseHBlank = true;
+    /* Rows stream from top to bottom before their display deadlines. */
     for (row = 0U; row < PS_GBC_CART_PAGE_SIZE; ++row) {
         const uint8_t index = (uint8_t)(first_visible + row);
-        if (index >= PS_GBC_CART_GAME_COUNT) break;
-        (void)renderLauncherGameIndex(
-            index,
-            row,
-            first_visible,
-            false,
-            false);
+        if (index < PS_GBC_CART_GAME_COUNT
+            && gLauncherCache[index].valid) {
+            (void)renderLauncherGameIndex(
+                index,
+                row,
+                first_visible,
+                row == selected_palette,
+                false);
+            blank_palette = gLauncherCache[index].palette;
+        } else {
+            uploadLauncherBand(
+                gLauncherBlankBand,
+                row,
+                (uint8_t)(2U + row * 2U),
+                false);
+            set_bkg_palette(row, 1U, blank_palette);
+        }
     }
-    if (row < PS_GBC_CART_PAGE_SIZE) {
-        memset(gLauncherBand, 0, LAUNCHER_BAND_BYTES);
+    if (gLauncherLastPageVBlankBlocks
+        > gLauncherMaxPageVBlankBlocks) {
+        gLauncherMaxPageVBlankBlocks =
+            gLauncherLastPageVBlankBlocks;
     }
-    while (row < PS_GBC_CART_PAGE_SIZE) {
-        uploadLauncherBand(
-            row,
-            (uint8_t)(2U + row * 2U),
-            false);
-        ++row;
-    }
-    (void)renderLauncherHeader(selected, selected_palette, false);
-    if (ps_gbc_cart_copy_launcher_card(selected, &gLauncherCard)) {
-        loadLauncherHeaderPalette(
-            &gLauncherCard,
-            selected_palette);
-        updateLauncherSelectionLines(
-            &gLauncherCard,
-            selected_palette,
-            first_visible,
-            true);
-    }
+    gLauncherLastPageEndLy = LY_REG;
     gVramState = VRAM_STATE_TEXT;
+}
+
+uint8_t cartLauncherLastPageVBlankBlocks(void) BANKED {
+    return gLauncherLastPageVBlankBlocks;
+}
+
+uint8_t cartLauncherMaxPageVBlankBlocks(void) BANKED {
+    return gLauncherMaxPageVBlankBlocks;
+}
+
+uint8_t cartLauncherLastPageStartLy(void) BANKED {
+    return gLauncherLastPageStartLy;
+}
+
+uint8_t cartLauncherLastPageEndLy(void) BANKED {
+    return gLauncherLastPageEndLy;
 }
 #endif
