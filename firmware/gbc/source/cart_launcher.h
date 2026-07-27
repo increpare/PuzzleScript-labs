@@ -18,6 +18,13 @@ typedef struct ps_gbc_cart_launcher {
     uint8_t game_count;
 } ps_gbc_cart_launcher;
 
+typedef struct ps_gbc_launcher_transfer_span {
+    uint8_t vram_bank;
+    uint8_t tile;
+    uint8_t source_tile;
+    uint8_t tile_count;
+} ps_gbc_launcher_transfer_span;
+
 void ps_gbc_cart_launcher_init(
     ps_gbc_cart_launcher* launcher,
     uint8_t game_count) PS_GBC_CART_LAUNCHER_BANKED;
@@ -50,5 +57,15 @@ void ps_gbc_cart_launcher_format_progress(
     bool completed,
     uint8_t level,
     char output[8]) PS_GBC_CART_LAUNCHER_BANKED;
+uint8_t ps_gbc_cart_launcher_progress_variant(
+    const ps_gbc_launcher_card* card,
+    bool has_save,
+    bool completed,
+    uint8_t level) PS_GBC_CART_LAUNCHER_BANKED;
+uint8_t ps_gbc_cart_launcher_transfer_plan(
+    uint16_t first_screen_tile,
+    bool unsigned_mode,
+    ps_gbc_launcher_transfer_span spans[2])
+    PS_GBC_CART_LAUNCHER_BANKED;
 
 #endif

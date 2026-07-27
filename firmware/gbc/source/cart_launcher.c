@@ -179,3 +179,72 @@ void ps_gbc_cart_launcher_format_progress(
     cursor = append_number(cursor, card->board_level_count);
     *cursor = '\0';
 }
+
+uint8_t ps_gbc_cart_launcher_progress_variant(
+    const ps_gbc_launcher_card* card,
+    bool has_save,
+    bool completed,
+    uint8_t level
+) PS_GBC_CART_LAUNCHER_BANKED {
+    uint8_t board = 0U;
+    uint8_t index;
+    if (card == NULL || !has_save) return 0U;
+    if (completed) {
+        return (uint8_t)(card->board_level_count + 1U);
+    }
+    if (card->board_level_count == 0U
+        || level >= card->level_count) {
+        return 0U;
+    }
+    for (index = 0U; index <= level; ++index) {
+        if ((card->level_is_board_bits[index >> 3U]
+                & (uint8_t)(1U << (index & 7U))) != 0U) {
+            ++board;
+        }
+        if (index == 0xffU) break;
+    }
+    if (board == 0U) board = 1U;
+    if (board > card->board_level_count) {
+        board = card->board_level_count;
+    }
+    return board;
+}
+
+uint8_t ps_gbc_cart_launcher_transfer_plan(
+    uint16_t first_screen_tile,
+    bool unsigned_mode,
+    ps_gbc_launcher_transfer_span spans[2]
+) PS_GBC_CART_LAUNCHER_BANKED {
+    uint16_t screen_tile = first_screen_tile;
+    uint8_t source_tile = 0U;
+    uint8_t remaining = 40U;
+    uint8_t span_count = 0U;
+    if (spans == NULL || first_screen_tile > 472U) return 0U;
+    while (remaining != 0U) {
+        const uint8_t tile = (uint8_t)screen_tile;
+        uint16_t bank_available =
+            256U - (screen_tile & 0xffU);
+        uint8_t tile_count = remaining;
+        if (bank_available < tile_count) {
+            tile_count = (uint8_t)bank_available;
+        }
+        if (!unsigned_mode && tile < 128U) {
+            const uint8_t signed_available =
+                (uint8_t)(128U - tile);
+            if (signed_available < tile_count) {
+                tile_count = signed_available;
+            }
+        }
+        if (span_count >= 2U || tile_count == 0U) return 0U;
+        spans[span_count].vram_bank =
+            (uint8_t)(screen_tile >> 8U);
+        spans[span_count].tile = tile;
+        spans[span_count].source_tile = source_tile;
+        spans[span_count].tile_count = tile_count;
+        ++span_count;
+        screen_tile += tile_count;
+        source_tile = (uint8_t)(source_tile + tile_count);
+        remaining = (uint8_t)(remaining - tile_count);
+    }
+    return span_count;
+}

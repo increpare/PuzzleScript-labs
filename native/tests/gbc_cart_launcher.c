@@ -89,6 +89,10 @@ int main(void) {
 
     {
         char progress[8];
+        ps_gbc_launcher_card empty_card = {0};
+        ps_gbc_launcher_transfer_span spans[2] = {{0}};
+        uint8_t span_count;
+        card.level_count = 3U;
         card.board_level_count = 2U;
         card.level_is_board_bits[0] = 0x05U;
         ps_gbc_cart_launcher_format_progress(
@@ -106,6 +110,69 @@ int main(void) {
         failed |= require_true(
             strcmp(progress, "DONE") == 0,
             "completed game did not render as DONE");
+        failed |= require_true(
+            ps_gbc_cart_launcher_progress_variant(
+                &card, false, false, 0U) == 0U
+                && ps_gbc_cart_launcher_progress_variant(
+                    &card, true, false, 1U) == 1U
+                && ps_gbc_cart_launcher_progress_variant(
+                    &card, true, false, 2U) == 2U
+                && ps_gbc_cart_launcher_progress_variant(
+                    &card, true, true, 0U) == 3U,
+            "launcher progress did not select the pre-rendered variant");
+        empty_card.level_count = 1U;
+        failed |= require_true(
+            ps_gbc_cart_launcher_progress_variant(
+                &empty_card, true, true, 0U) == 1U,
+            "a completed zero-board game did not select DONE");
+
+        span_count = ps_gbc_cart_launcher_transfer_plan(
+            120U, false, spans);
+        failed |= require_true(
+            span_count == 2U
+                && spans[0].vram_bank == 0U
+                && spans[0].tile == 120U
+                && spans[0].source_tile == 0U
+                && spans[0].tile_count == 8U
+                && spans[1].vram_bank == 0U
+                && spans[1].tile == 128U
+                && spans[1].source_tile == 8U
+                && spans[1].tile_count == 32U,
+            "signed launcher tiles did not split at tile 128");
+
+        span_count = ps_gbc_cart_launcher_transfer_plan(
+            240U, false, spans);
+        failed |= require_true(
+            span_count == 2U
+                && spans[0].vram_bank == 0U
+                && spans[0].tile == 240U
+                && spans[0].source_tile == 0U
+                && spans[0].tile_count == 16U
+                && spans[1].vram_bank == 1U
+                && spans[1].tile == 0U
+                && spans[1].source_tile == 16U
+                && spans[1].tile_count == 24U,
+            "launcher tiles did not split at the VRAM bank boundary");
+
+        span_count = ps_gbc_cart_launcher_transfer_plan(
+            280U, false, spans);
+        failed |= require_true(
+            span_count == 1U
+                && spans[0].vram_bank == 1U
+                && spans[0].tile == 24U
+                && spans[0].source_tile == 0U
+                && spans[0].tile_count == 40U,
+            "a launcher row wholly in VRAM bank 1 was split");
+
+        span_count = ps_gbc_cart_launcher_transfer_plan(
+            120U, true, spans);
+        failed |= require_true(
+            span_count == 1U
+                && spans[0].vram_bank == 0U
+                && spans[0].tile == 120U
+                && spans[0].source_tile == 0U
+                && spans[0].tile_count == 40U,
+            "unsigned launcher tiles split at the signed boundary");
     }
 
     ps_gbc_cart_launcher_init(&launcher, 46U);
