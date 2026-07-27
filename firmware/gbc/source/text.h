@@ -22,6 +22,10 @@ void showTitleMenu(bool has_continue, bool continue_selected) BANKED;
 void updateTitleMenuSelection(bool continue_selected) BANKED;
 #if defined(PS_GBC_CART_BUILD)
 void showCartLauncher(uint8_t selected, uint8_t first_visible) BANKED;
+void updateCartLauncherSelection(
+    uint8_t old_selected,
+    uint8_t selected,
+    uint8_t first_visible) BANKED;
 #endif
 
 #endif

@@ -46,12 +46,18 @@ def expect_invalid(data: bytes, message: str) -> None:
 def main() -> int:
     keys = run_gbc_cart_smoke.build_key_script()
     assert len(keys) == run_gbc_cart_smoke.SCRIPT_FRAMES
-    assert keys[60] == run_gbc_cart_smoke.KEY_DOWN
-    assert keys[70] == run_gbc_cart_smoke.KEY_A
-    assert keys[140] == run_gbc_cart_smoke.KEY_B
-    assert keys[170] == run_gbc_cart_smoke.KEY_DOWN
-    assert keys[180] == run_gbc_cart_smoke.KEY_A
-    for frame in (59, 61, 69, 71, 139, 141, 169, 171, 179, 181):
+    assert keys[100] == run_gbc_cart_smoke.KEY_A
+    assert keys[150] == run_gbc_cart_smoke.KEY_A
+    assert keys[200] == run_gbc_cart_smoke.KEY_A
+    assert keys[250] == run_gbc_cart_smoke.KEY_UP
+    assert keys[300] == run_gbc_cart_smoke.KEY_START
+    assert keys[340] == run_gbc_cart_smoke.KEY_B
+    assert keys[440] == run_gbc_cart_smoke.KEY_DOWN
+    assert keys[510] == run_gbc_cart_smoke.KEY_A
+    for frame in (
+        99, 101, 149, 151, 199, 201, 249, 251,
+        299, 301, 339, 341, 439, 441, 509, 511,
+    ):
         assert keys[frame] == 0
 
     parsed = run_gbc_cart_smoke.parse_telemetry(

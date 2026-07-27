@@ -291,6 +291,14 @@ static void clearSave(void) {
     DISABLE_RAM_MBC5;
 }
 
+static void finishGameSave(void) {
+#if defined(PS_GBC_CART_BUILD)
+    writeSave(PS_GBC_CART_SAVE_COMPLETED);
+#else
+    clearSave();
+#endif
+}
+
 #if defined(PS_GBC_CART_BUILD)
 static void clearSnapshotStorage(void) {
     volatile uint8_t* destination;
@@ -881,7 +889,7 @@ static bool runActiveGame(void) {
                 }
             } else if (action == PS_GBC_FRONTEND_ACTION_END_GAME) {
                 (void)psd_advance_level(gSession);
-                clearSave();
+                finishGameSave();
                 (void)psd_load_level(gSession, 0U);
                 showTitleMenu(false, false);
                 audioPlayNamed(PS_GBC_SOUND_ENDGAME);
@@ -910,7 +918,7 @@ static bool runActiveGame(void) {
                 renderBoard();
             }
         } else if (status.completed) {
-            clearSave();
+            finishGameSave();
             (void)psd_load_level(gSession, 0U);
             ps_gbc_frontend_init(&gFrontend, false, 0U);
             showTitleMenu(false, false);
@@ -926,7 +934,7 @@ static bool runActiveGame(void) {
                 if (result.transitioned) saveCurrentLevel();
                 psd_status_get(gSession, &status);
                 if (status.completed) {
-                    clearSave();
+                    finishGameSave();
                     (void)psd_load_level(gSession, 0U);
                     ps_gbc_frontend_init(&gFrontend, false, 0U);
                     showTitleMenu(false, false);
@@ -986,6 +994,8 @@ void main(void) {
             launcher.selected,
             launcher.first_visible);
         for (;;) {
+            const uint8_t old_selected = launcher.selected;
+            const uint8_t old_first_visible = launcher.first_visible;
             const uint8_t keys = joypad();
             const uint8_t pressed =
                 (uint8_t)(keys & (uint8_t)~previous_keys);
@@ -1035,9 +1045,16 @@ void main(void) {
                 previous_keys = joypad();
             } else {
                 if (redraw) {
-                    showCartLauncher(
-                        launcher.selected,
-                        launcher.first_visible);
+                    if (launcher.first_visible == old_first_visible) {
+                        updateCartLauncherSelection(
+                            old_selected,
+                            launcher.selected,
+                            launcher.first_visible);
+                    } else {
+                        showCartLauncher(
+                            launcher.selected,
+                            launcher.first_visible);
+                    }
                 }
                 previous_keys = keys;
             }

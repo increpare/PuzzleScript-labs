@@ -197,6 +197,16 @@ struct PackedComposition {
     std::array<uint8_t, 64> tileBytes{};
 };
 
+struct PackedLauncherCard {
+    std::array<uint16_t, 4> palette{};
+    std::array<uint8_t, 16> backgroundTile{};
+    std::array<uint8_t, 64> playerPixels{};
+    std::array<uint8_t, 32> levelIsBoardBits{};
+    uint8_t levelCount = 0U;
+    uint8_t boardLevelCount = 0U;
+    bool detailColorsReduced = false;
+};
+
 std::vector<PackedComposition> packPrecomposedCompositions(
     const std::vector<PackedObject>& objects,
     const std::vector<PackedLevel>& levels,
@@ -747,6 +757,135 @@ uint32_t maskWord(const Game& game, MaskOffset offset) {
     if (offset == kNullMaskOffset || static_cast<size_t>(offset) >= game.maskArena.size()) return 0U;
     return static_cast<uint32_t>(
         static_cast<MaskWordUnsigned>(game.maskArena[static_cast<size_t>(offset)]));
+}
+
+PackedLauncherCard packLauncherCard(
+    const Game& game,
+    const std::array<std::array<uint16_t, 4>, 8>& palettes,
+    const std::vector<PackedObject>& objects,
+    const std::vector<PackedLevel>& levels,
+    uint16_t backgroundColor,
+    uint16_t textColor
+) {
+    if (levels.size() > 255U) {
+        throw std::runtime_error(
+            "GBC launcher cards support at most 255 retained levels");
+    }
+    PackedLauncherCard card;
+    card.playerPixels.fill(0xffU);
+    card.levelCount = static_cast<uint8_t>(levels.size());
+    for (size_t index = 0U; index < levels.size(); ++index) {
+        if (levels[index].message) continue;
+        card.levelIsBoardBits[index >> 3U] |=
+            static_cast<uint8_t>(1U << (index & 7U));
+        ++card.boardLevelCount;
+    }
+
+    const auto packedColor = [&](uint8_t pixel) {
+        return palettes[pixel >> 2U][pixel & 3U];
+    };
+    const auto mostFrequentVisibleColor = [&](
+        const PackedObject* object,
+        uint16_t fallback,
+        bool excludeBackground
+    ) {
+        std::vector<std::pair<uint16_t, size_t>> counts;
+        if (object != nullptr) {
+            for (const uint8_t pixel : object->pixels) {
+                if (pixel == 0xffU) continue;
+                const uint16_t color = packedColor(pixel);
+                if (excludeBackground && color == backgroundColor) continue;
+                const auto found = std::find_if(
+                    counts.begin(), counts.end(),
+                    [color](const auto& entry) {
+                        return entry.first == color;
+                    });
+                if (found == counts.end()) {
+                    counts.push_back({color, 1U});
+                } else {
+                    ++found->second;
+                }
+            }
+        }
+        if (counts.empty()) return fallback;
+        return std::max_element(
+            counts.begin(), counts.end(),
+            [](const auto& left, const auto& right) {
+                return left.second < right.second;
+            })->first;
+    };
+
+    const PackedObject* backgroundObject =
+        game.backgroundId >= 0
+            && static_cast<size_t>(game.backgroundId) < objects.size()
+        ? &objects[static_cast<size_t>(game.backgroundId)]
+        : nullptr;
+    const uint32_t playerMask = maskWord(game, game.playerMask);
+    const PackedObject* playerObject = nullptr;
+    for (size_t index = 0U; index < objects.size(); ++index) {
+        if ((playerMask & (uint32_t{1} << index)) != 0U) {
+            playerObject = &objects[index];
+            break;
+        }
+    }
+    const uint16_t backgroundDetail = mostFrequentVisibleColor(
+        backgroundObject, textColor, true);
+    const uint16_t playerPrimary = mostFrequentVisibleColor(
+        playerObject, textColor, true);
+    card.palette = {
+        backgroundColor,
+        backgroundDetail,
+        playerPrimary,
+        textColor,
+    };
+
+    const auto nearestLimited = [&](uint16_t color, uint8_t count) {
+        uint8_t best = 0U;
+        uint32_t bestDistance = std::numeric_limits<uint32_t>::max();
+        for (uint8_t index = 0U; index < count; ++index) {
+            const uint32_t distance = colorDistance(card.palette[index], color);
+            if (distance < bestDistance) {
+                best = index;
+                bestDistance = distance;
+            }
+        }
+        if (bestDistance != 0U) card.detailColorsReduced = true;
+        return best;
+    };
+
+    for (uint8_t y = 0U; y < 8U; ++y) {
+        uint8_t low = 0U;
+        uint8_t high = 0U;
+        for (uint8_t x = 0U; x < 8U; ++x) {
+            uint8_t color = 0U;
+            if (backgroundObject != nullptr) {
+                const uint8_t pixel = backgroundObject->pixels[
+                    static_cast<size_t>(y) * 5U / 8U * 5U
+                    + static_cast<size_t>(x) * 5U / 8U];
+                if (pixel != 0xffU) {
+                    color = nearestLimited(packedColor(pixel), 2U);
+                }
+            }
+            low |= static_cast<uint8_t>((color & 1U) << (7U - x));
+            high |= static_cast<uint8_t>(((color >> 1U) & 1U) << (7U - x));
+        }
+        card.backgroundTile[static_cast<size_t>(y) * 2U] = low;
+        card.backgroundTile[static_cast<size_t>(y) * 2U + 1U] = high;
+    }
+
+    if (playerObject != nullptr) {
+        for (uint8_t y = 0U; y < 5U; ++y) {
+            for (uint8_t x = 0U; x < 5U; ++x) {
+                const uint8_t pixel =
+                    playerObject->pixels[static_cast<size_t>(y) * 5U + x];
+                if (pixel == 0xffU) continue;
+                card.playerPixels[
+                    static_cast<size_t>(y + 1U) * 8U + x + 1U]
+                    = nearestLimited(packedColor(pixel), 3U);
+            }
+        }
+    }
+    return card;
 }
 
 uint8_t sourceMovementLayerBits(const Game& game, MaskOffset offset, int32_t layer);
@@ -2403,6 +2542,8 @@ ExportResult exportGame(const ExportOptions& options) {
     const ColorStretch colorStretch = buildColorStretch(game);
     const Rgb background = parseColor(game.backgroundColor);
     const Rgb foreground = parseColor(game.foregroundColor);
+    const uint16_t literalBackgroundColor = toBgr555(background);
+    const uint16_t literalForegroundColor = toBgr555(foreground);
     const uint16_t backgroundColor = toBgr555(background, colorStretch);
     const uint16_t foregroundColor = toBgr555(foreground, colorStretch);
     const std::array<uint16_t, 4> uiPalette{
@@ -2712,6 +2853,13 @@ ExportResult exportGame(const ExportOptions& options) {
         game.backgroundId >= 0 && game.backgroundId < 32
             ? uint32_t{1} << static_cast<uint32_t>(game.backgroundId)
             : 0U;
+    const PackedLauncherCard launcherCard = packLauncherCard(
+        game,
+        palettes,
+        objects,
+        levels,
+        literalBackgroundColor,
+        literalForegroundColor);
     std::vector<PackedComposition> precomposedCompositions =
         packPrecomposedCompositions(objects, levels, remap, backgroundMask);
 
@@ -2992,6 +3140,49 @@ ExportResult exportGame(const ExportOptions& options) {
         manifest << culledLevelIndices[index];
     }
     manifest << "],\n"
+        << "  \"launcher_card\": {\n"
+        << "    \"background_color\": " << launcherCard.palette[0] << ",\n"
+        << "    \"text_color\": " << launcherCard.palette[3] << ",\n"
+        << "    \"palette\": [";
+    for (size_t index = 0U; index < launcherCard.palette.size(); ++index) {
+        if (index != 0U) manifest << ", ";
+        manifest << launcherCard.palette[index];
+    }
+    manifest << "],\n"
+        << "    \"background_tile_2bpp\": [";
+    for (size_t index = 0U;
+         index < launcherCard.backgroundTile.size();
+         ++index) {
+        if (index != 0U) manifest << ", ";
+        manifest << static_cast<unsigned int>(
+            launcherCard.backgroundTile[index]);
+    }
+    manifest << "],\n"
+        << "    \"player_pixels\": [";
+    for (size_t index = 0U;
+         index < launcherCard.playerPixels.size();
+         ++index) {
+        if (index != 0U) manifest << ", ";
+        manifest << static_cast<unsigned int>(
+            launcherCard.playerPixels[index]);
+    }
+    manifest << "],\n"
+        << "    \"level_count\": "
+        << static_cast<unsigned int>(launcherCard.levelCount) << ",\n"
+        << "    \"board_level_count\": "
+        << static_cast<unsigned int>(launcherCard.boardLevelCount) << ",\n"
+        << "    \"level_is_board_bits\": [";
+    for (size_t index = 0U;
+         index < launcherCard.levelIsBoardBits.size();
+         ++index) {
+        if (index != 0U) manifest << ", ";
+        manifest << static_cast<unsigned int>(
+            launcherCard.levelIsBoardBits[index]);
+    }
+    manifest << "],\n"
+        << "    \"detail_colors_reduced\": "
+        << (launcherCard.detailColorsReduced ? "true" : "false") << "\n"
+        << "  },\n"
         << "  \"max_level_cells\": " << maxCells << ",\n"
         << "  \"viewport_width\": " << viewportWidth << ",\n"
         << "  \"viewport_height\": " << viewportHeight << ",\n"

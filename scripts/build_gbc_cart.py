@@ -22,6 +22,10 @@ LAST_CART_BANK = 255
 OBJECT_CODE_AREA = re.compile(
     r"^(A\s+)_CODE_(\d+)(\s+size\s+)([0-9A-Fa-f]+)(\b.*)$"
 )
+OBJECT_BANK_SYMBOL = re.compile(
+    r"^(S\s+b_\S+\s+Def)([0-9A-Fa-f]{8})(\b.*)$",
+    re.MULTILINE,
+)
 
 
 @dataclass(frozen=True)
@@ -40,6 +44,17 @@ class CartBank:
 
 
 @dataclass(frozen=True)
+class LauncherCard:
+    palette: tuple[int, ...]
+    background_tile: tuple[int, ...]
+    player_pixels: tuple[int, ...]
+    level_count: int
+    board_level_count: int
+    level_is_board_bits: tuple[int, ...]
+    detail_colors_reduced: bool
+
+
+@dataclass(frozen=True)
 class CartIndexEntry:
     slug: str
     prefix: str
@@ -47,6 +62,7 @@ class CartIndexEntry:
     source_hash: int
     descriptor_bank: int
     session_bytes: int
+    launcher_card: LauncherCard
 
 
 def emit_cart_header(entries: Sequence[CartIndexEntry]) -> str:
@@ -63,6 +79,9 @@ def emit_cart_header(entries: Sequence[CartIndexEntry]) -> str:
         "bool ps_gbc_cart_copy_entry(\n"
         "    uint8_t index,\n"
         "    ps_gbc_cart_entry* entry) BANKED;\n"
+        "bool ps_gbc_cart_copy_launcher_card(\n"
+        "    uint8_t index,\n"
+        "    ps_gbc_launcher_card* card) BANKED;\n"
     )
 
 
@@ -88,6 +107,22 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         "}"
         for entry in entries
     )
+    def unsigned_array(values: Sequence[int]) -> str:
+        return "{" + ", ".join(f"{value}U" for value in values) + "}"
+
+    card_rows = ",\n".join(
+        "    {"
+        f"{_c_string(entry.title, 32)}, "
+        f"{unsigned_array(entry.launcher_card.palette)}, "
+        f"{unsigned_array(entry.launcher_card.background_tile)}, "
+        f"{unsigned_array(entry.launcher_card.player_pixels)}, "
+        f"{entry.launcher_card.level_count}U, "
+        f"{entry.launcher_card.board_level_count}U, "
+        f"{unsigned_array(entry.launcher_card.level_is_board_bits)}, "
+        f"{'true' if entry.launcher_card.detail_colors_reduced else 'false'}"
+        "}"
+        for entry in entries
+    )
     return (
         "#pragma bank 2\n\n"
         "#include \"generated_cart.h\"\n\n"
@@ -96,6 +131,10 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         "[PS_GBC_CART_GAME_COUNT] = {\n"
         f"{rows}\n"
         "};\n\n"
+        "static const ps_gbc_launcher_card kLauncherCards"
+        "[PS_GBC_CART_GAME_COUNT] = {\n"
+        f"{card_rows}\n"
+        "};\n\n"
         "bool ps_gbc_cart_copy_entry(\n"
         "    uint8_t index,\n"
         "    ps_gbc_cart_entry* entry\n"
@@ -103,6 +142,15 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         "    if (entry == NULL || index >= PS_GBC_CART_GAME_COUNT) "
         "return false;\n"
         "    *entry = kCartEntries[index];\n"
+        "    return true;\n"
+        "}\n\n"
+        "bool ps_gbc_cart_copy_launcher_card(\n"
+        "    uint8_t index,\n"
+        "    ps_gbc_launcher_card* card\n"
+        ") BANKED {\n"
+        "    if (card == NULL || index >= PS_GBC_CART_GAME_COUNT) "
+        "return false;\n"
+        "    *card = kLauncherCards[index];\n"
         "    return true;\n"
         "}\n"
     )
@@ -188,7 +236,7 @@ def relocate_code_area(text: str, bank: int) -> str:
             f"expected one non-empty banked code area, found {len(areas)}"
         )
     source_bank = areas[0].group(2)
-    return re.sub(
+    relocated = re.sub(
         rf"^(A\s+)_CODE_{re.escape(source_bank)}(\s+size\s+"
         r"[0-9A-Fa-f]+\b.*)$",
         rf"\1_CODE_{bank}\2",
@@ -196,6 +244,14 @@ def relocate_code_area(text: str, bank: int) -> str:
         count=1,
         flags=re.MULTILINE,
     )
+    source_bank_number = int(source_bank)
+
+    def relocate_bank_symbol(match: re.Match[str]) -> str:
+        if int(match.group(2), 16) != source_bank_number:
+            return match.group(0)
+        return f"{match.group(1)}{bank:08X}{match.group(3)}"
+
+    return OBJECT_BANK_SYMBOL.sub(relocate_bank_symbol, relocated)
 
 
 def object_code_size(path: Path) -> int:
@@ -281,6 +337,48 @@ def _write_json(path: Path, value: object) -> None:
     path.write_text(
         json.dumps(value, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+    )
+
+
+def _launcher_card_from_manifest(manifest: dict[str, object]) -> LauncherCard:
+    value = manifest.get("launcher_card")
+    if not isinstance(value, dict):
+        raise RuntimeError("GBC export manifest has no launcher_card")
+
+    def integer_tuple(name: str, length: int, maximum: int) -> tuple[int, ...]:
+        raw = value.get(name)
+        if not isinstance(raw, list) or len(raw) != length:
+            raise RuntimeError(
+                f"launcher_card.{name} must contain {length} values"
+            )
+        result = tuple(int(item) for item in raw)
+        if any(item < 0 or item > maximum for item in result):
+            raise RuntimeError(
+                f"launcher_card.{name} contains an out-of-range value"
+            )
+        return result
+
+    level_count = int(value.get("level_count", -1))
+    board_level_count = int(value.get("board_level_count", -1))
+    if (
+        level_count < 0
+        or level_count > 255
+        or board_level_count < 0
+        or board_level_count > level_count
+    ):
+        raise RuntimeError("launcher_card level counts are invalid")
+    return LauncherCard(
+        palette=integer_tuple("palette", 4, 0x7FFF),
+        background_tile=integer_tuple("background_tile_2bpp", 16, 0xFF),
+        player_pixels=integer_tuple("player_pixels", 64, 0xFF),
+        level_count=level_count,
+        board_level_count=board_level_count,
+        level_is_board_bits=integer_tuple(
+            "level_is_board_bits", 32, 0xFF
+        ),
+        detail_colors_reduced=bool(
+            value.get("detail_colors_reduced", False)
+        ),
     )
 
 
@@ -434,6 +532,7 @@ def build_cart(
             source_hash=int(manifest["source_hash"]),
             descriptor_bank=game_bank,
             session_bytes=int(manifest["estimated_session_bytes"]),
+            launcher_card=_launcher_card_from_manifest(manifest),
         )
         entries.append(entry)
         game_records.append(

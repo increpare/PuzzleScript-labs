@@ -70,3 +70,112 @@ void ps_gbc_cart_launcher_page(
         launcher->selected = (uint8_t)(launcher->game_count - 1U);
     }
 }
+
+uint8_t ps_gbc_cart_launcher_background_pixel(
+    const ps_gbc_launcher_card* card,
+    uint8_t x,
+    uint8_t y
+) PS_GBC_CART_LAUNCHER_BANKED {
+    const uint8_t shift = (uint8_t)(7U - (x & 7U));
+    const uint8_t offset = (uint8_t)((y & 7U) * 2U);
+    return (uint8_t)(
+        ((card->background_tile_2bpp[offset] >> shift) & 1U)
+        | (((card->background_tile_2bpp[offset + 1U] >> shift) & 1U) << 1U));
+}
+
+uint8_t ps_gbc_cart_launcher_border_plane(
+    uint8_t background_plane,
+    bool scroll_plane,
+    bool selected,
+    bool final_tile
+) PS_GBC_CART_LAUNCHER_BANKED {
+    if (!final_tile) {
+        return selected ? 0xffU : background_plane;
+    }
+    return (uint8_t)(
+        (selected ? 0xf8U : (background_plane & 0xf8U))
+        | (background_plane & 0x04U)
+        | (scroll_plane ? 0x03U : 0U));
+}
+
+uint16_t ps_gbc_cart_launcher_tile_data_address(
+    uint8_t tile,
+    bool unsigned_mode
+) PS_GBC_CART_LAUNCHER_BANKED {
+    if (unsigned_mode) {
+        return (uint16_t)(0x8000U + ((uint16_t)tile << 4U));
+    }
+    if (tile < 128U) {
+        return (uint16_t)(0x9000U + ((uint16_t)tile << 4U));
+    }
+    return (uint16_t)(
+        0x8800U + ((uint16_t)(tile - 128U) << 4U));
+}
+
+bool ps_gbc_cart_launcher_decode_progress(
+    uint16_t saved_level,
+    uint8_t level_count,
+    bool* completed,
+    uint8_t* level
+) PS_GBC_CART_LAUNCHER_BANKED {
+    if (completed == NULL || level == NULL) return false;
+    if (saved_level == PS_GBC_CART_SAVE_COMPLETED) {
+        *completed = true;
+        *level = 0U;
+        return true;
+    }
+    if (saved_level >= level_count) return false;
+    *completed = false;
+    *level = (uint8_t)saved_level;
+    return true;
+}
+
+static char* append_number(char* output, uint8_t value) {
+    if (value >= 100U) {
+        *output++ = (char)('0' + value / 100U);
+        value %= 100U;
+        *output++ = (char)('0' + value / 10U);
+    } else if (value >= 10U) {
+        *output++ = (char)('0' + value / 10U);
+    }
+    *output++ = (char)('0' + value % 10U);
+    return output;
+}
+
+void ps_gbc_cart_launcher_format_progress(
+    const ps_gbc_launcher_card* card,
+    bool has_save,
+    bool completed,
+    uint8_t level,
+    char output[8]
+) PS_GBC_CART_LAUNCHER_BANKED {
+    char* cursor = output;
+    uint8_t board = 0U;
+    uint8_t index;
+    if (completed) {
+        output[0] = 'D';
+        output[1] = 'O';
+        output[2] = 'N';
+        output[3] = 'E';
+        output[4] = '\0';
+        return;
+    }
+    if (!has_save || card->board_level_count == 0U) {
+        output[0] = '-';
+        output[1] = '-';
+        output[2] = '\0';
+        return;
+    }
+    for (index = 0U; index <= level; ++index) {
+        if ((card->level_is_board_bits[index >> 3U]
+                & (uint8_t)(1U << (index & 7U))) != 0U) {
+            ++board;
+        }
+        if (index == 0xffU) break;
+    }
+    if (board == 0U) board = 1U;
+    cursor = append_number(cursor, board);
+    *cursor++ = '/';
+    cursor = append_number(cursor, card->board_level_count);
+    *cursor = '\0';
+}

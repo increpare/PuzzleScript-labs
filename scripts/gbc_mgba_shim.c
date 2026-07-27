@@ -54,6 +54,8 @@ static unsigned long sLogCount = 0;
 static bool sLogPassthrough = false;
 static unsigned sLastLcdc = 0;
 static unsigned sLastTilemapNonzero = 0;
+static uint16_t sLastBgPalette[32];
+static uint8_t sLastVram[2][0x2000];
 
 static void psgbcLog(struct mLogger* logger, int category, enum mLogLevel level,
                      const char* format, va_list args) {
@@ -79,6 +81,20 @@ unsigned psgbc_last_lcdc(void) {
 
 unsigned psgbc_last_tilemap_nonzero(void) {
 	return sLastTilemapNonzero;
+}
+
+unsigned psgbc_last_bg_color(unsigned index) {
+	if (index >= 32) {
+		return 0;
+	}
+	return sLastBgPalette[index];
+}
+
+unsigned psgbc_last_vram_byte(unsigned bank, unsigned index) {
+	if (bank >= 2 || index >= 0x2000) {
+		return 0;
+	}
+	return sLastVram[bank][index];
 }
 
 /* Boot `rom_path` for `frames` frames and hand back the cartridge SRAM.
@@ -197,6 +213,20 @@ static int psgbcRun(const char* rom_path,
 					core, 0x9800 + row * 32 + column) != 0) {
 				++sLastTilemapNonzero;
 			}
+		}
+	}
+	for (unsigned color = 0; color < 32; ++color) {
+		core->busWrite8(core, 0xFF68, color * 2);
+		uint16_t low = core->busRead8(core, 0xFF69);
+		core->busWrite8(core, 0xFF68, color * 2 + 1);
+		sLastBgPalette[color] =
+			(uint16_t) (low | (core->busRead8(core, 0xFF69) << 8));
+	}
+	for (unsigned bank = 0; bank < 2; ++bank) {
+		core->busWrite8(core, 0xFF4F, bank);
+		for (unsigned index = 0; index < 0x2000; ++index) {
+			sLastVram[bank][index] =
+				core->busRead8(core, 0x8000 + index);
 		}
 	}
 

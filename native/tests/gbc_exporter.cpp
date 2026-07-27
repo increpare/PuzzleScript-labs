@@ -177,6 +177,45 @@ static void test_shifted_bank_base_moves_every_per_game_artifact() {
         "manifest reports the complete allocated range");
 }
 
+static void test_launcher_card_manifest_carries_theme_assets() {
+    const auto out = exportFixture("sokoban_basic");
+    const std::string manifest = readFile(out / "gbc_manifest.json");
+    for (const char* field : {
+             "\"launcher_card\": {",
+             "\"palette\": [",
+             "\"background_tile_2bpp\": [",
+             "\"player_pixels\": [",
+             "\"level_is_board_bits\": [",
+             "\"detail_colors_reduced\":",
+         }) {
+        assertTrue(
+            manifest.find(field) != std::string::npos,
+            std::string("launcher card manifest is missing ") + field);
+    }
+    assertTrue(
+        manifest.find("\"level_count\": 2,\n"
+                      "    \"board_level_count\": 2,\n"
+                      "    \"level_is_board_bits\": [3")
+            != std::string::npos,
+        "launcher card records retained board levels for progress display");
+}
+
+static void test_launcher_card_preserves_metadata_colors() {
+    const std::filesystem::path root = PS_REPO_ROOT;
+    puzzlescript::gbc::ExportOptions options;
+    options.sourcePath =
+        root / "src" / "tests" / "good_games" / "i am a gust of wind.txt";
+    options.outputDirectory =
+        root / "build" / "native" / "gbc_exporter_test_output"
+        / "launcher_metadata_colors";
+    const auto result = puzzlescript::gbc::exportGame(options);
+    const std::string manifest = readFile(result.manifestPath);
+    assertTrue(
+        manifest.find("\"background_color\": 4916") != std::string::npos
+            && manifest.find("\"text_color\": 0") != std::string::npos,
+        "launcher card uses literal background_color/text_color metadata");
+}
+
 static void test_generated_descriptor_namespaces_assets_and_core_dispatch() {
     const auto out = exportFixture("sokoban_basic", "g07", 7U);
     const std::string namespaceHeader =
@@ -1329,6 +1368,8 @@ int main() {
     test_namespace_header_prefixes_every_entry_point();
     test_symbol_prefix_manifest_field_is_json_escaped();
     test_shifted_bank_base_moves_every_per_game_artifact();
+    test_launcher_card_manifest_carries_theme_assets();
+    test_launcher_card_preserves_metadata_colors();
     test_generated_descriptor_namespaces_assets_and_core_dispatch();
     test_text_staging_limit_rejects_long_source_strings();
     return 0;

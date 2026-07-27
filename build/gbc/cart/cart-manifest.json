@@ -1,0 +1,1933 @@
+{
+  "autotest": false,
+  "format": "puzzlescript-gbc-cart-v1",
+  "game_count": 46,
+  "games": [
+    {
+      "core_data_bytes": 11501,
+      "descriptor_bank": 3,
+      "index": 0,
+      "prefix": "g00",
+      "session_bytes": 433,
+      "slug": "15-push-pull-levels",
+      "source": "src/tests/good_games/15 push pull levels.txt",
+      "source_hash": 99101698,
+      "specialized": true,
+      "title": "15 push pull levels"
+    },
+    {
+      "core_data_bytes": 9859,
+      "descriptor_bank": 4,
+      "index": 1,
+      "prefix": "g01",
+      "session_bytes": 596,
+      "slug": "i-am-a-gust-of-wind",
+      "source": "src/tests/good_games/i am a gust of wind.txt",
+      "source_hash": 2263501239,
+      "specialized": true,
+      "title": "I am a gust of wind"
+    },
+    {
+      "core_data_bytes": 9741,
+      "descriptor_bank": 5,
+      "index": 2,
+      "prefix": "g02",
+      "session_bytes": 464,
+      "slug": "no-forbidden-symbols",
+      "source": "src/tests/good_games/no forbidden symbols.txt",
+      "source_hash": 821823554,
+      "specialized": true,
+      "title": "NO FORBIDDEN SYMBOLS"
+    },
+    {
+      "core_data_bytes": 9999,
+      "descriptor_bank": 6,
+      "index": 3,
+      "prefix": "g03",
+      "session_bytes": 490,
+      "slug": "push-pull",
+      "source": "src/tests/good_games/push pull.txt",
+      "source_hash": 1825074337,
+      "specialized": true,
+      "title": "Push Pull"
+    },
+    {
+      "core_data_bytes": 10562,
+      "descriptor_bank": 7,
+      "index": 4,
+      "prefix": "g04",
+      "session_bytes": 596,
+      "slug": "pushy-v-pully-h",
+      "source": "src/tests/good_games/Pushy-V Pully-H.txt",
+      "source_hash": 1615627572,
+      "specialized": true,
+      "title": "Pushy-V Pully-H"
+    },
+    {
+      "core_data_bytes": 10796,
+      "descriptor_bank": 8,
+      "index": 5,
+      "prefix": "g05",
+      "session_bytes": 700,
+      "slug": "short-adventure-in-sticky-wall-land",
+      "source": "src/tests/good_games/short adventure in sticky wall land.txt",
+      "source_hash": 551847141,
+      "specialized": true,
+      "title": "short adventure in sticky wall land"
+    },
+    {
+      "core_data_bytes": 10234,
+      "descriptor_bank": 9,
+      "index": 6,
+      "prefix": "g06",
+      "session_bytes": 916,
+      "slug": "slot-machine",
+      "source": "src/tests/good_games/slot machine.txt",
+      "source_hash": 1212554944,
+      "specialized": true,
+      "title": "Slot Machine"
+    },
+    {
+      "core_data_bytes": 10705,
+      "descriptor_bank": 10,
+      "index": 7,
+      "prefix": "g07",
+      "session_bytes": 596,
+      "slug": "dollyban",
+      "source": "src/tests/good_games/dollyban.txt",
+      "source_hash": 4249479811,
+      "specialized": true,
+      "title": "Dollyban"
+    },
+    {
+      "core_data_bytes": 10280,
+      "descriptor_bank": 11,
+      "index": 8,
+      "prefix": "g08",
+      "session_bytes": 507,
+      "slug": "fickle-fred",
+      "source": "src/tests/good_games/fickle fred.txt",
+      "source_hash": 1705935438,
+      "specialized": true,
+      "title": "Fickle Fred"
+    },
+    {
+      "core_data_bytes": 10507,
+      "descriptor_bank": 12,
+      "index": 9,
+      "prefix": "g09",
+      "session_bytes": 596,
+      "slug": "gapfiller",
+      "source": "src/tests/good_games/gapfiller.txt",
+      "source_hash": 1830824490,
+      "specialized": true,
+      "title": "GAPFILLER / LUECKEFUELLER"
+    },
+    {
+      "core_data_bytes": 9619,
+      "descriptor_bank": 13,
+      "index": 10,
+      "prefix": "g10",
+      "session_bytes": 521,
+      "slug": "pushit",
+      "source": "src/tests/good_games/pushit.txt",
+      "source_hash": 2111771270,
+      "specialized": true,
+      "title": "pushit"
+    },
+    {
+      "core_data_bytes": 10798,
+      "descriptor_bank": 14,
+      "index": 11,
+      "prefix": "g11",
+      "session_bytes": 536,
+      "slug": "recondite-star-sector-sigma",
+      "source": "src/tests/good_games/Recondite Star Sector Sigma.txt",
+      "source_hash": 2916502134,
+      "specialized": true,
+      "title": "Recondite Star Sector Sigma"
+    },
+    {
+      "core_data_bytes": 9750,
+      "descriptor_bank": 15,
+      "index": 12,
+      "prefix": "g12",
+      "session_bytes": 1080,
+      "slug": "voitex-rasteriser",
+      "source": "src/tests/good_games/Voitex Rasteriser.txt",
+      "source_hash": 2778125235,
+      "specialized": true,
+      "title": "Voitex Rasteriser [Demake of Vertex Dispenser Puzzle Mode]"
+    },
+    {
+      "core_data_bytes": 10142,
+      "descriptor_bank": 16,
+      "index": 13,
+      "prefix": "g13",
+      "session_bytes": 490,
+      "slug": "xorro-the-chaos-warden",
+      "source": "src/tests/good_games/Xorro The Chaos Warden.txt",
+      "source_hash": 1082369393,
+      "specialized": true,
+      "title": "Xorro The Chaos Warden"
+    },
+    {
+      "core_data_bytes": 10194,
+      "descriptor_bank": 17,
+      "index": 14,
+      "prefix": "g14",
+      "session_bytes": 433,
+      "slug": "all-green-and-blue-on-yellow",
+      "source": "src/tests/good_games/All Green and Blue on Yellow.txt",
+      "source_hash": 3308588966,
+      "specialized": true,
+      "title": "All Green and Blue on Yellow"
+    },
+    {
+      "core_data_bytes": 10492,
+      "descriptor_bank": 18,
+      "index": 15,
+      "prefix": "g15",
+      "session_bytes": 521,
+      "slug": "all-green-to-blue",
+      "source": "src/tests/good_games/ALL GREEN TO BLUE.txt",
+      "source_hash": 2658412256,
+      "specialized": true,
+      "title": "ALL GREEN TO BLUE"
+    },
+    {
+      "core_data_bytes": 11151,
+      "descriptor_bank": 19,
+      "index": 16,
+      "prefix": "g16",
+      "session_bytes": 756,
+      "slug": "attractor-net",
+      "source": "src/tests/good_games/Attractor Net.txt",
+      "source_hash": 2003424369,
+      "specialized": true,
+      "title": "Attractor Net"
+    },
+    {
+      "core_data_bytes": 10258,
+      "descriptor_bank": 20,
+      "index": 17,
+      "prefix": "g17",
+      "session_bytes": 631,
+      "slug": "chevron-lodger",
+      "source": "src/tests/good_games/Chevron Lodger.txt",
+      "source_hash": 3265419649,
+      "specialized": true,
+      "title": "Chevron Lodger"
+    },
+    {
+      "core_data_bytes": 9706,
+      "descriptor_bank": 21,
+      "index": 18,
+      "prefix": "g18",
+      "session_bytes": 515,
+      "slug": "crate-guardian",
+      "source": "src/tests/good_games/crate guardian.txt",
+      "source_hash": 3899860408,
+      "specialized": true,
+      "title": "crate guardian"
+    },
+    {
+      "core_data_bytes": 10265,
+      "descriptor_bank": 22,
+      "index": 19,
+      "prefix": "g19",
+      "session_bytes": 482,
+      "slug": "crate-swap",
+      "source": "src/tests/good_games/crate swap.txt",
+      "source_hash": 3995592551,
+      "specialized": true,
+      "title": "Crate Swarp"
+    },
+    {
+      "core_data_bytes": 10291,
+      "descriptor_bank": 23,
+      "index": 20,
+      "prefix": "g20",
+      "session_bytes": 567,
+      "slug": "don't-let-your-goals-slip-away",
+      "source": "src/tests/good_games/Don't let your goals slip away.txt",
+      "source_hash": 1219923344,
+      "specialized": true,
+      "title": "Don't let your goals slip away"
+    },
+    {
+      "core_data_bytes": 11133,
+      "descriptor_bank": 24,
+      "index": 21,
+      "prefix": "g21",
+      "session_bytes": 700,
+      "slug": "explodoban",
+      "source": "src/tests/good_games/Explodoban.txt",
+      "source_hash": 2162754360,
+      "specialized": true,
+      "title": "Explodoban"
+    },
+    {
+      "core_data_bytes": 10406,
+      "descriptor_bank": 25,
+      "index": 22,
+      "prefix": "g22",
+      "session_bytes": 408,
+      "slug": "flesh-handed-hot-casserole-delivery-bot",
+      "source": "src/tests/good_games/flesh-handed hot casserole delivery bot.txt",
+      "source_hash": 1600645820,
+      "specialized": true,
+      "title": "flesh-handed hot casserole delivery bot"
+    },
+    {
+      "core_data_bytes": 11968,
+      "descriptor_bank": 26,
+      "index": 23,
+      "prefix": "g23",
+      "session_bytes": 756,
+      "slug": "hedgehog-stimulator",
+      "source": "src/tests/good_games/hedgehog stimulator.txt",
+      "source_hash": 2544196811,
+      "specialized": true,
+      "title": "hedgehog stimulator"
+    },
+    {
+      "core_data_bytes": 9406,
+      "descriptor_bank": 27,
+      "index": 24,
+      "prefix": "g24",
+      "session_bytes": 602,
+      "slug": "m-c-eschers-armageddon",
+      "source": "src/tests/good_games/m c eschers armageddon.txt",
+      "source_hash": 2886659389,
+      "specialized": true,
+      "title": "MC Escher's Equestrian Armageddon"
+    },
+    {
+      "core_data_bytes": 10881,
+      "descriptor_bank": 28,
+      "index": 25,
+      "prefix": "g25",
+      "session_bytes": 658,
+      "slug": "match-maker",
+      "source": "src/tests/good_games/Match-Maker.txt",
+      "source_hash": 2529284392,
+      "specialized": true,
+      "title": "Match-Maker"
+    },
+    {
+      "core_data_bytes": 9928,
+      "descriptor_bank": 29,
+      "index": 26,
+      "prefix": "g26",
+      "session_bytes": 433,
+      "slug": "muraphilic-monophobic-multiban",
+      "source": "src/tests/good_games/Muraphilic Monophobic Multiban.txt",
+      "source_hash": 3762665407,
+      "specialized": true,
+      "title": "Muraphilic Monophobic Multiban"
+    },
+    {
+      "core_data_bytes": 10268,
+      "descriptor_bank": 30,
+      "index": 27,
+      "prefix": "g27",
+      "session_bytes": 482,
+      "slug": "resin-caster",
+      "source": "src/tests/good_games/Resin-Caster.txt",
+      "source_hash": 1849672901,
+      "specialized": true,
+      "title": "Resin-Caster"
+    },
+    {
+      "core_data_bytes": 11230,
+      "descriptor_bank": 31,
+      "index": 28,
+      "prefix": "g28",
+      "session_bytes": 756,
+      "slug": "slime-vat-filler",
+      "source": "src/tests/good_games/slime vat filler.txt",
+      "source_hash": 3273549559,
+      "specialized": true,
+      "title": "SLIME VAT FILLER"
+    },
+    {
+      "core_data_bytes": 10520,
+      "descriptor_bank": 32,
+      "index": 29,
+      "prefix": "g29",
+      "session_bytes": 523,
+      "slug": "the-monsterous-autoshove",
+      "source": "src/tests/good_games/The Monsterous Autoshove.txt",
+      "source_hash": 2644750846,
+      "specialized": true,
+      "title": "The Monsterous Autoshove"
+    },
+    {
+      "core_data_bytes": 11671,
+      "descriptor_bank": 33,
+      "index": 30,
+      "prefix": "g30",
+      "session_bytes": 916,
+      "slug": "the-red-ring-of-immortality",
+      "source": "src/tests/good_games/The Red Ring of Immortality.txt",
+      "source_hash": 561189809,
+      "specialized": true,
+      "title": "The Red Ring of Immortality"
+    },
+    {
+      "core_data_bytes": 10859,
+      "descriptor_bank": 34,
+      "index": 31,
+      "prefix": "g31",
+      "session_bytes": 560,
+      "slug": "two-step-pete",
+      "source": "src/tests/good_games/Two-Step Pete.txt",
+      "source_hash": 2318731194,
+      "specialized": true,
+      "title": "Two-Step Pete"
+    },
+    {
+      "core_data_bytes": 10794,
+      "descriptor_bank": 35,
+      "index": 32,
+      "prefix": "g32",
+      "session_bytes": 999,
+      "slug": "unclean-residues",
+      "source": "src/tests/good_games/unclean residues.txt",
+      "source_hash": 3971834647,
+      "specialized": true,
+      "title": "Unclean Residues"
+    },
+    {
+      "core_data_bytes": 10205,
+      "descriptor_bank": 36,
+      "index": 33,
+      "prefix": "g33",
+      "session_bytes": 752,
+      "slug": "an-ok-multiban-level",
+      "source": "src/tests/good_games/an ok multiban level.txt",
+      "source_hash": 3693947181,
+      "specialized": true,
+      "title": "An OK multiban level"
+    },
+    {
+      "core_data_bytes": 11142,
+      "descriptor_bank": 37,
+      "index": 34,
+      "prefix": "g34",
+      "session_bytes": 560,
+      "slug": "head-skuller",
+      "source": "src/tests/good_games/head skuller.txt",
+      "source_hash": 1228339615,
+      "specialized": true,
+      "title": "Head Skuller"
+    },
+    {
+      "core_data_bytes": 11104,
+      "descriptor_bank": 38,
+      "index": 35,
+      "prefix": "g35",
+      "session_bytes": 658,
+      "slug": "nightmarecroban",
+      "source": "src/tests/good_games/NIGHTMARECROBAN.txt",
+      "source_hash": 1135222046,
+      "specialized": true,
+      "title": "NIGHTMARECROBAN"
+    },
+    {
+      "core_data_bytes": 11261,
+      "descriptor_bank": 39,
+      "index": 36,
+      "prefix": "g36",
+      "session_bytes": 770,
+      "slug": "pipe-puffer",
+      "source": "src/tests/good_games/pipe puffer.txt",
+      "source_hash": 3963122267,
+      "specialized": true,
+      "title": "pipe puffer"
+    },
+    {
+      "core_data_bytes": 15214,
+      "descriptor_bank": 40,
+      "index": 37,
+      "prefix": "g37",
+      "session_bytes": 1242,
+      "slug": "sokobond-demake",
+      "source": "src/tests/good_games/sokobond demake.txt",
+      "source_hash": 2761319246,
+      "specialized": true,
+      "title": "Sokobond: The Demake"
+    },
+    {
+      "core_data_bytes": 10358,
+      "descriptor_bank": 41,
+      "index": 38,
+      "prefix": "g38",
+      "session_bytes": 482,
+      "slug": "crates-move-when-you-move",
+      "source": "src/tests/good_games/Crates move when you move.txt",
+      "source_hash": 1692822339,
+      "specialized": true,
+      "title": "Crates move when you move"
+    },
+    {
+      "core_data_bytes": 13424,
+      "descriptor_bank": 42,
+      "index": 39,
+      "prefix": "g39",
+      "session_bytes": 834,
+      "slug": "manic_ammo",
+      "source": "src/tests/good_games/manic_ammo.txt",
+      "source_hash": 3957477267,
+      "specialized": true,
+      "title": "Manic Ammo"
+    },
+    {
+      "core_data_bytes": 9904,
+      "descriptor_bank": 43,
+      "index": 40,
+      "prefix": "g40",
+      "session_bytes": 464,
+      "slug": "no-forbidden-symbols-2",
+      "source": "src/tests/good_games/no forbidden symbols 2.txt",
+      "source_hash": 2536870720,
+      "specialized": true,
+      "title": "NO FORBIDDEN SYMBOLS 2"
+    },
+    {
+      "core_data_bytes": 10919,
+      "descriptor_bank": 44,
+      "index": 41,
+      "prefix": "g41",
+      "session_bytes": 756,
+      "slug": "subway-upholstry-snot-smearing-championship",
+      "source": "src/tests/good_games/Subway upholstry snot smearing championship.txt",
+      "source_hash": 3702617470,
+      "specialized": true,
+      "title": "Subway upholstry snot smearing championship"
+    },
+    {
+      "core_data_bytes": 11416,
+      "descriptor_bank": 45,
+      "index": 42,
+      "prefix": "g42",
+      "session_bytes": 645,
+      "slug": "take-heart-lass",
+      "source": "src/tests/good_games/take heart lass.txt",
+      "source_hash": 3325967883,
+      "specialized": true,
+      "title": "Take Heart Lass"
+    },
+    {
+      "core_data_bytes": 10265,
+      "descriptor_bank": 46,
+      "index": 43,
+      "prefix": "g43",
+      "session_bytes": 556,
+      "slug": "two-tone-tango",
+      "source": "src/tests/good_games/Two-Tone Tango.txt",
+      "source_hash": 787571146,
+      "specialized": true,
+      "title": "Two-Tone Tango"
+    },
+    {
+      "core_data_bytes": 13803,
+      "descriptor_bank": 47,
+      "index": 44,
+      "prefix": "g44",
+      "session_bytes": 897,
+      "slug": "wand-spinner",
+      "source": "src/tests/good_games/Wand Spinner.txt",
+      "source_hash": 630719263,
+      "specialized": true,
+      "title": "Wand Spinner"
+    },
+    {
+      "core_data_bytes": 14246,
+      "descriptor_bank": 48,
+      "index": 45,
+      "prefix": "g45",
+      "session_bytes": 907,
+      "slug": "yellow-box",
+      "source": "src/tests/good_games/Yellow Box.txt",
+      "source_hash": 3172222458,
+      "specialized": true,
+      "title": "Yellow Box"
+    }
+  ],
+  "highest_game_bank": 118,
+  "index_bank": 2,
+  "max_session_bytes": 1242,
+  "object_banks": {
+    "g00_generated_compact_facade.o": 116,
+    "g00_generated_core.o": 3,
+    "g00_generated_facade_rules.o": 116,
+    "g00_generated_game.o": 3,
+    "g00_generated_specialized_turn.o": 96,
+    "g01_generated_compact_facade.o": 116,
+    "g01_generated_core.o": 4,
+    "g01_generated_facade_rules.o": 116,
+    "g01_generated_game.o": 4,
+    "g01_generated_specialized_turn.o": 74,
+    "g02_generated_compact_facade.o": 111,
+    "g02_generated_core.o": 5,
+    "g02_generated_facade_rules.o": 111,
+    "g02_generated_game.o": 5,
+    "g02_generated_specialized_turn.o": 64,
+    "g03_generated_compact_facade.o": 115,
+    "g03_generated_core.o": 6,
+    "g03_generated_facade_rules.o": 115,
+    "g03_generated_game.o": 6,
+    "g03_generated_specialized_turn.o": 73,
+    "g04_generated_compact_facade.o": 116,
+    "g04_generated_core.o": 7,
+    "g04_generated_facade_rules.o": 116,
+    "g04_generated_game.o": 7,
+    "g04_generated_specialized_turn.o": 36,
+    "g05_generated_compact_facade.o": 112,
+    "g05_generated_core.o": 8,
+    "g05_generated_facade_rules.o": 112,
+    "g05_generated_game.o": 8,
+    "g05_generated_specialized_turn.o": 103,
+    "g05_generated_specialized_turn_rules_0.o": 83,
+    "g05_generated_specialized_turn_rules_1.o": 22,
+    "g05_generated_specialized_turn_rules_2.o": 118,
+    "g06_generated_compact_facade.o": 114,
+    "g06_generated_core.o": 9,
+    "g06_generated_facade_rules.o": 114,
+    "g06_generated_game.o": 9,
+    "g06_generated_specialized_turn.o": 91,
+    "g06_generated_specialized_turn_rules_0.o": 71,
+    "g06_generated_specialized_turn_rules_1.o": 95,
+    "g06_generated_specialized_turn_rules_2.o": 80,
+    "g06_generated_specialized_turn_rules_3.o": 24,
+    "g06_generated_specialized_turn_rules_4.o": 49,
+    "g07_generated_compact_facade.o": 115,
+    "g07_generated_core.o": 10,
+    "g07_generated_facade_rules.o": 115,
+    "g07_generated_game.o": 10,
+    "g07_generated_specialized_turn.o": 105,
+    "g07_generated_specialized_turn_rules_0.o": 18,
+    "g07_generated_specialized_turn_rules_1.o": 103,
+    "g07_generated_specialized_turn_rules_2.o": 102,
+    "g07_generated_specialized_turn_rules_3.o": 89,
+    "g08_generated_compact_facade.o": 115,
+    "g08_generated_core.o": 11,
+    "g08_generated_facade_rules.o": 115,
+    "g08_generated_game.o": 11,
+    "g08_generated_specialized_turn.o": 58,
+    "g09_generated_compact_facade.o": 113,
+    "g09_generated_core.o": 12,
+    "g09_generated_facade_rules.o": 113,
+    "g09_generated_game.o": 12,
+    "g09_generated_specialized_turn.o": 106,
+    "g09_generated_specialized_turn_rules_0.o": 98,
+    "g09_generated_specialized_turn_rules_1.o": 20,
+    "g09_generated_specialized_turn_rules_2.o": 31,
+    "g09_generated_specialized_turn_rules_3.o": 118,
+    "g10_generated_compact_facade.o": 114,
+    "g10_generated_core.o": 13,
+    "g10_generated_facade_rules.o": 114,
+    "g10_generated_game.o": 13,
+    "g10_generated_specialized_turn.o": 110,
+    "g10_generated_specialized_turn_rules_0.o": 96,
+    "g10_generated_specialized_turn_rules_1.o": 99,
+    "g11_generated_compact_facade.o": 110,
+    "g11_generated_core.o": 14,
+    "g11_generated_facade_rules.o": 110,
+    "g11_generated_game.o": 14,
+    "g11_generated_specialized_turn.o": 100,
+    "g11_generated_specialized_turn_rules_0.o": 107,
+    "g11_generated_specialized_turn_rules_1.o": 101,
+    "g11_generated_specialized_turn_rules_2.o": 70,
+    "g11_generated_specialized_turn_rules_3.o": 85,
+    "g12_generated_compact_facade.o": 113,
+    "g12_generated_core.o": 15,
+    "g12_generated_facade_rules.o": 113,
+    "g12_generated_game.o": 15,
+    "g12_generated_specialized_turn.o": 114,
+    "g12_generated_specialized_turn_rules_0.o": 99,
+    "g12_generated_specialized_turn_rules_1.o": 89,
+    "g12_generated_specialized_turn_rules_2.o": 85,
+    "g12_generated_specialized_turn_rules_3.o": 63,
+    "g12_generated_specialized_turn_rules_4.o": 107,
+    "g13_generated_compact_facade.o": 111,
+    "g13_generated_core.o": 16,
+    "g13_generated_facade_rules.o": 111,
+    "g13_generated_game.o": 16,
+    "g13_generated_specialized_turn.o": 87,
+    "g13_generated_specialized_turn_rules_0.o": 67,
+    "g13_generated_specialized_turn_rules_1.o": 90,
+    "g13_generated_specialized_turn_rules_2.o": 87,
+    "g13_generated_specialized_turn_rules_3.o": 57,
+    "g13_generated_specialized_turn_rules_4.o": 59,
+    "g13_generated_specialized_turn_rules_5.o": 61,
+    "g13_generated_specialized_turn_rules_6.o": 90,
+    "g14_generated_compact_facade.o": 115,
+    "g14_generated_core.o": 17,
+    "g14_generated_facade_rules.o": 115,
+    "g14_generated_game.o": 17,
+    "g14_generated_specialized_turn.o": 50,
+    "g14_generated_specialized_turn_rules_0.o": 100,
+    "g14_generated_specialized_turn_rules_1.o": 93,
+    "g15_generated_compact_facade.o": 111,
+    "g15_generated_core.o": 18,
+    "g15_generated_facade_rules.o": 111,
+    "g15_generated_game.o": 18,
+    "g15_generated_specialized_turn.o": 105,
+    "g15_generated_specialized_turn_rules_0.o": 100,
+    "g15_generated_specialized_turn_rules_1.o": 94,
+    "g16_generated_compact_facade.o": 102,
+    "g16_generated_core.o": 19,
+    "g16_generated_facade_rules.o": 102,
+    "g16_generated_game.o": 19,
+    "g16_generated_specialized_turn.o": 99,
+    "g16_generated_specialized_turn_rules_0.o": 9,
+    "g16_generated_specialized_turn_rules_1.o": 37,
+    "g17_generated_compact_facade.o": 111,
+    "g17_generated_core.o": 20,
+    "g17_generated_facade_rules.o": 111,
+    "g17_generated_game.o": 20,
+    "g17_generated_specialized_turn.o": 101,
+    "g17_generated_specialized_turn_rules_0.o": 106,
+    "g17_generated_specialized_turn_rules_1.o": 97,
+    "g17_generated_specialized_turn_rules_2.o": 88,
+    "g17_generated_specialized_turn_rules_3.o": 106,
+    "g18_generated_compact_facade.o": 118,
+    "g18_generated_core.o": 21,
+    "g18_generated_facade_rules.o": 118,
+    "g18_generated_game.o": 21,
+    "g18_generated_specialized_turn.o": 56,
+    "g19_generated_compact_facade.o": 117,
+    "g19_generated_core.o": 22,
+    "g19_generated_facade_rules.o": 117,
+    "g19_generated_game.o": 22,
+    "g19_generated_specialized_turn.o": 15,
+    "g20_generated_compact_facade.o": 114,
+    "g20_generated_core.o": 23,
+    "g20_generated_facade_rules.o": 114,
+    "g20_generated_game.o": 23,
+    "g20_generated_specialized_turn.o": 48,
+    "g20_generated_specialized_turn_rules_0.o": 66,
+    "g20_generated_specialized_turn_rules_1.o": 97,
+    "g20_generated_specialized_turn_rules_2.o": 108,
+    "g21_generated_compact_facade.o": 112,
+    "g21_generated_core.o": 24,
+    "g21_generated_facade_rules.o": 112,
+    "g21_generated_game.o": 24,
+    "g21_generated_specialized_turn.o": 50,
+    "g22_generated_compact_facade.o": 117,
+    "g22_generated_core.o": 25,
+    "g22_generated_facade_rules.o": 117,
+    "g22_generated_game.o": 25,
+    "g22_generated_specialized_turn.o": 60,
+    "g23_generated_compact_facade.o": 112,
+    "g23_generated_core.o": 26,
+    "g23_generated_facade_rules.o": 112,
+    "g23_generated_game.o": 26,
+    "g23_generated_specialized_turn.o": 99,
+    "g23_generated_specialized_turn_rules_0.o": 68,
+    "g23_generated_specialized_turn_rules_1.o": 64,
+    "g23_generated_specialized_turn_rules_2.o": 10,
+    "g23_generated_specialized_turn_rules_3.o": 62,
+    "g24_generated_compact_facade.o": 117,
+    "g24_generated_core.o": 27,
+    "g24_generated_facade_rules.o": 117,
+    "g24_generated_game.o": 27,
+    "g24_generated_specialized_turn.o": 53,
+    "g24_generated_specialized_turn_rules_0.o": 79,
+    "g24_generated_specialized_turn_rules_1.o": 71,
+    "g24_generated_specialized_turn_rules_2.o": 80,
+    "g24_generated_specialized_turn_rules_3.o": 89,
+    "g24_generated_specialized_turn_rules_4.o": 23,
+    "g24_generated_specialized_turn_rules_5.o": 40,
+    "g25_generated_compact_facade.o": 111,
+    "g25_generated_core.o": 28,
+    "g25_generated_facade_rules.o": 111,
+    "g25_generated_game.o": 28,
+    "g25_generated_specialized_turn.o": 105,
+    "g25_generated_specialized_turn_rules_0.o": 35,
+    "g25_generated_specialized_turn_rules_1.o": 78,
+    "g25_generated_specialized_turn_rules_2.o": 55,
+    "g25_generated_specialized_turn_rules_3.o": 66,
+    "g25_generated_specialized_turn_rules_4.o": 44,
+    "g25_generated_specialized_turn_rules_5.o": 107,
+    "g26_generated_compact_facade.o": 117,
+    "g26_generated_core.o": 29,
+    "g26_generated_facade_rules.o": 117,
+    "g26_generated_game.o": 29,
+    "g26_generated_specialized_turn.o": 51,
+    "g27_generated_compact_facade.o": 117,
+    "g27_generated_core.o": 30,
+    "g27_generated_facade_rules.o": 117,
+    "g27_generated_game.o": 30,
+    "g27_generated_specialized_turn.o": 108,
+    "g27_generated_specialized_turn_rules_0.o": 6,
+    "g27_generated_specialized_turn_rules_1.o": 103,
+    "g28_generated_compact_facade.o": 109,
+    "g28_generated_core.o": 31,
+    "g28_generated_facade_rules.o": 109,
+    "g28_generated_game.o": 31,
+    "g28_generated_specialized_turn.o": 102,
+    "g28_generated_specialized_turn_rules_0.o": 102,
+    "g28_generated_specialized_turn_rules_1.o": 73,
+    "g28_generated_specialized_turn_rules_2.o": 84,
+    "g28_generated_specialized_turn_rules_3.o": 82,
+    "g29_generated_compact_facade.o": 115,
+    "g29_generated_core.o": 32,
+    "g29_generated_facade_rules.o": 115,
+    "g29_generated_game.o": 32,
+    "g29_generated_specialized_turn.o": 107,
+    "g29_generated_specialized_turn_rules_0.o": 57,
+    "g29_generated_specialized_turn_rules_1.o": 101,
+    "g30_generated_compact_facade.o": 108,
+    "g30_generated_core.o": 33,
+    "g30_generated_facade_rules.o": 108,
+    "g30_generated_game.o": 33,
+    "g30_generated_specialized_turn.o": 47,
+    "g30_generated_specialized_turn_rules_0.o": 4,
+    "g30_generated_specialized_turn_rules_1.o": 58,
+    "g30_generated_specialized_turn_rules_2.o": 46,
+    "g31_generated_compact_facade.o": 112,
+    "g31_generated_core.o": 34,
+    "g31_generated_facade_rules.o": 112,
+    "g31_generated_game.o": 34,
+    "g31_generated_specialized_turn.o": 45,
+    "g31_generated_specialized_turn_rules_0.o": 82,
+    "g31_generated_specialized_turn_rules_1.o": 27,
+    "g31_generated_specialized_turn_rules_2.o": 59,
+    "g32_generated_compact_facade.o": 109,
+    "g32_generated_core.o": 35,
+    "g32_generated_facade_rules.o": 109,
+    "g32_generated_game.o": 35,
+    "g32_generated_specialized_turn.o": 101,
+    "g32_generated_specialized_turn_rules_0.o": 83,
+    "g32_generated_specialized_turn_rules_1.o": 28,
+    "g32_generated_specialized_turn_rules_2.o": 19,
+    "g33_generated_compact_facade.o": 104,
+    "g33_generated_core.o": 36,
+    "g33_generated_facade_rules.o": 104,
+    "g33_generated_game.o": 36,
+    "g33_generated_specialized_turn.o": 91,
+    "g33_generated_specialized_turn_rules_0.o": 92,
+    "g33_generated_specialized_turn_rules_1.o": 51,
+    "g33_generated_specialized_turn_rules_2.o": 33,
+    "g34_generated_compact_facade.o": 109,
+    "g34_generated_core.o": 37,
+    "g34_generated_facade_rules.o": 109,
+    "g34_generated_game.o": 37,
+    "g34_generated_specialized_turn.o": 52,
+    "g34_generated_specialized_turn_rules_0.o": 95,
+    "g34_generated_specialized_turn_rules_1.o": 68,
+    "g34_generated_specialized_turn_rules_2.o": 76,
+    "g34_generated_specialized_turn_rules_3.o": 13,
+    "g34_generated_specialized_turn_rules_4.o": 5,
+    "g34_generated_specialized_turn_rules_5.o": 103,
+    "g35_generated_compact_facade.o": 110,
+    "g35_generated_core.o": 38,
+    "g35_generated_facade_rules.o": 110,
+    "g35_generated_game.o": 38,
+    "g35_generated_specialized_turn.o": 118,
+    "g35_generated_specialized_turn_rules_0.o": 25,
+    "g35_generated_specialized_turn_rules_1.o": 84,
+    "g35_generated_specialized_turn_rules_2.o": 109,
+    "g36_generated_compact_facade.o": 114,
+    "g36_generated_core.o": 39,
+    "g36_generated_facade_rules.o": 114,
+    "g36_generated_game.o": 39,
+    "g36_generated_specialized_turn.o": 62,
+    "g36_generated_specialized_turn_rules_0.o": 60,
+    "g36_generated_specialized_turn_rules_1.o": 77,
+    "g36_generated_specialized_turn_rules_2.o": 86,
+    "g36_generated_specialized_turn_rules_3.o": 55,
+    "g36_generated_specialized_turn_rules_4.o": 78,
+    "g36_generated_specialized_turn_rules_5.o": 116,
+    "g37_generated_compact_facade.o": 108,
+    "g37_generated_core.o": 40,
+    "g37_generated_facade_rules.o": 108,
+    "g37_generated_game.o": 40,
+    "g37_generated_specialized_turn.o": 39,
+    "g37_generated_specialized_turn_rules_0.o": 75,
+    "g37_generated_specialized_turn_rules_1.o": 52,
+    "g37_generated_specialized_turn_rules_2.o": 54,
+    "g37_generated_specialized_turn_rules_3.o": 7,
+    "g37_generated_specialized_turn_rules_4.o": 72,
+    "g37_generated_specialized_turn_rules_5.o": 77,
+    "g37_generated_specialized_turn_rules_6.o": 70,
+    "g37_generated_specialized_turn_rules_7.o": 17,
+    "g38_generated_compact_facade.o": 113,
+    "g38_generated_core.o": 41,
+    "g38_generated_facade_rules.o": 113,
+    "g38_generated_game.o": 41,
+    "g38_generated_specialized_turn.o": 49,
+    "g39_generated_compact_facade.o": 110,
+    "g39_generated_core.o": 42,
+    "g39_generated_facade_rules.o": 110,
+    "g39_generated_game.o": 42,
+    "g39_generated_specialized_turn.o": 79,
+    "g39_generated_specialized_turn_rules_0.o": 69,
+    "g39_generated_specialized_turn_rules_1.o": 74,
+    "g39_generated_specialized_turn_rules_10.o": 38,
+    "g39_generated_specialized_turn_rules_2.o": 98,
+    "g39_generated_specialized_turn_rules_3.o": 72,
+    "g39_generated_specialized_turn_rules_4.o": 11,
+    "g39_generated_specialized_turn_rules_5.o": 75,
+    "g39_generated_specialized_turn_rules_6.o": 76,
+    "g39_generated_specialized_turn_rules_7.o": 93,
+    "g39_generated_specialized_turn_rules_8.o": 88,
+    "g39_generated_specialized_turn_rules_9.o": 69,
+    "g40_generated_compact_facade.o": 116,
+    "g40_generated_core.o": 43,
+    "g40_generated_facade_rules.o": 116,
+    "g40_generated_game.o": 43,
+    "g40_generated_specialized_turn.o": 42,
+    "g40_generated_specialized_turn_rules_0.o": 16,
+    "g40_generated_specialized_turn_rules_1.o": 26,
+    "g41_generated_compact_facade.o": 110,
+    "g41_generated_core.o": 44,
+    "g41_generated_facade_rules.o": 110,
+    "g41_generated_game.o": 44,
+    "g41_generated_specialized_turn.o": 106,
+    "g41_generated_specialized_turn_rules_0.o": 92,
+    "g41_generated_specialized_turn_rules_1.o": 3,
+    "g42_generated_compact_facade.o": 112,
+    "g42_generated_core.o": 45,
+    "g42_generated_facade_rules.o": 112,
+    "g42_generated_game.o": 45,
+    "g42_generated_specialized_turn.o": 12,
+    "g42_generated_specialized_turn_rules_0.o": 29,
+    "g42_generated_specialized_turn_rules_1.o": 61,
+    "g42_generated_specialized_turn_rules_2.o": 34,
+    "g42_generated_specialized_turn_rules_3.o": 32,
+    "g42_generated_specialized_turn_rules_4.o": 30,
+    "g42_generated_specialized_turn_rules_5.o": 14,
+    "g42_generated_specialized_turn_rules_6.o": 8,
+    "g43_generated_compact_facade.o": 113,
+    "g43_generated_core.o": 46,
+    "g43_generated_facade_rules.o": 113,
+    "g43_generated_game.o": 46,
+    "g43_generated_specialized_turn.o": 41,
+    "g43_generated_specialized_turn_rules_0.o": 105,
+    "g43_generated_specialized_turn_rules_1.o": 104,
+    "g43_generated_specialized_turn_rules_2.o": 104,
+    "g43_generated_specialized_turn_rules_3.o": 104,
+    "g43_generated_specialized_turn_rules_4.o": 86,
+    "g43_generated_specialized_turn_rules_5.o": 65,
+    "g43_generated_specialized_turn_rules_6.o": 67,
+    "g43_generated_specialized_turn_rules_7.o": 21,
+    "g43_generated_specialized_turn_rules_8.o": 100,
+    "g43_generated_specialized_turn_rules_9.o": 63,
+    "g44_generated_compact_facade.o": 116,
+    "g44_generated_core.o": 47,
+    "g44_generated_facade_rules.o": 116,
+    "g44_generated_game.o": 47,
+    "g44_generated_specialized_turn.o": 108,
+    "g44_generated_specialized_turn_rules_0.o": 81,
+    "g44_generated_specialized_turn_rules_1.o": 53,
+    "g44_generated_specialized_turn_rules_2.o": 62,
+    "g44_generated_specialized_turn_rules_3.o": 63,
+    "g44_generated_specialized_turn_rules_4.o": 81,
+    "g44_generated_specialized_turn_rules_5.o": 65,
+    "g44_generated_specialized_turn_rules_6.o": 91,
+    "g44_generated_specialized_turn_rules_7.o": 43,
+    "g45_generated_compact_facade.o": 113,
+    "g45_generated_core.o": 48,
+    "g45_generated_facade_rules.o": 113,
+    "g45_generated_game.o": 48,
+    "g45_generated_specialized_turn.o": 109,
+    "g45_generated_specialized_turn_rules_0.o": 54,
+    "g45_generated_specialized_turn_rules_1.o": 56,
+    "g45_generated_specialized_turn_rules_2.o": 85,
+    "g45_generated_specialized_turn_rules_3.o": 94,
+    "g45_generated_specialized_turn_rules_4.o": 82
+  },
+  "packed_banks": [
+    {
+      "bank": 3,
+      "items": [
+        "g00-core-data",
+        "g41-generated_specialized_turn_rules_1"
+      ],
+      "used": 16371
+    },
+    {
+      "bank": 4,
+      "items": [
+        "g01-core-data",
+        "g30-generated_specialized_turn_rules_0"
+      ],
+      "used": 16330
+    },
+    {
+      "bank": 5,
+      "items": [
+        "g02-core-data",
+        "g34-generated_specialized_turn_rules_4"
+      ],
+      "used": 16367
+    },
+    {
+      "bank": 6,
+      "items": [
+        "g03-core-data",
+        "g27-generated_specialized_turn_rules_0"
+      ],
+      "used": 16379
+    },
+    {
+      "bank": 7,
+      "items": [
+        "g04-core-data",
+        "g37-generated_specialized_turn_rules_3"
+      ],
+      "used": 16376
+    },
+    {
+      "bank": 8,
+      "items": [
+        "g05-core-data",
+        "g42-generated_specialized_turn_rules_6"
+      ],
+      "used": 16377
+    },
+    {
+      "bank": 9,
+      "items": [
+        "g06-core-data",
+        "g16-generated_specialized_turn_rules_0"
+      ],
+      "used": 16366
+    },
+    {
+      "bank": 10,
+      "items": [
+        "g07-core-data",
+        "g23-generated_specialized_turn_rules_2"
+      ],
+      "used": 16381
+    },
+    {
+      "bank": 11,
+      "items": [
+        "g08-core-data",
+        "g39-generated_specialized_turn_rules_4"
+      ],
+      "used": 16364
+    },
+    {
+      "bank": 12,
+      "items": [
+        "g09-core-data",
+        "g42-generated_specialized_turn"
+      ],
+      "used": 16366
+    },
+    {
+      "bank": 13,
+      "items": [
+        "g10-core-data",
+        "g34-generated_specialized_turn_rules_3"
+      ],
+      "used": 16351
+    },
+    {
+      "bank": 14,
+      "items": [
+        "g11-core-data",
+        "g42-generated_specialized_turn_rules_5"
+      ],
+      "used": 16363
+    },
+    {
+      "bank": 15,
+      "items": [
+        "g12-core-data",
+        "g19-generated_specialized_turn"
+      ],
+      "used": 16278
+    },
+    {
+      "bank": 16,
+      "items": [
+        "g13-core-data",
+        "g40-generated_specialized_turn_rules_0"
+      ],
+      "used": 16380
+    },
+    {
+      "bank": 17,
+      "items": [
+        "g14-core-data",
+        "g37-generated_specialized_turn_rules_7"
+      ],
+      "used": 16358
+    },
+    {
+      "bank": 18,
+      "items": [
+        "g15-core-data",
+        "g07-generated_specialized_turn_rules_0"
+      ],
+      "used": 16378
+    },
+    {
+      "bank": 19,
+      "items": [
+        "g16-core-data",
+        "g32-generated_specialized_turn_rules_2"
+      ],
+      "used": 16366
+    },
+    {
+      "bank": 20,
+      "items": [
+        "g17-core-data",
+        "g09-generated_specialized_turn_rules_1"
+      ],
+      "used": 16369
+    },
+    {
+      "bank": 21,
+      "items": [
+        "g18-core-data",
+        "g43-generated_specialized_turn_rules_7"
+      ],
+      "used": 16164
+    },
+    {
+      "bank": 22,
+      "items": [
+        "g19-core-data",
+        "g05-generated_specialized_turn_rules_1"
+      ],
+      "used": 16319
+    },
+    {
+      "bank": 23,
+      "items": [
+        "g20-core-data",
+        "g24-generated_specialized_turn_rules_4"
+      ],
+      "used": 16261
+    },
+    {
+      "bank": 24,
+      "items": [
+        "g21-core-data",
+        "g06-generated_specialized_turn_rules_3"
+      ],
+      "used": 16303
+    },
+    {
+      "bank": 25,
+      "items": [
+        "g22-core-data",
+        "g35-generated_specialized_turn_rules_0"
+      ],
+      "used": 16359
+    },
+    {
+      "bank": 26,
+      "items": [
+        "g23-core-data",
+        "g40-generated_specialized_turn_rules_1"
+      ],
+      "used": 16342
+    },
+    {
+      "bank": 27,
+      "items": [
+        "g24-core-data",
+        "g31-generated_specialized_turn_rules_1"
+      ],
+      "used": 16383
+    },
+    {
+      "bank": 28,
+      "items": [
+        "g25-core-data",
+        "g32-generated_specialized_turn_rules_1"
+      ],
+      "used": 16346
+    },
+    {
+      "bank": 29,
+      "items": [
+        "g26-core-data",
+        "g42-generated_specialized_turn_rules_0"
+      ],
+      "used": 16334
+    },
+    {
+      "bank": 30,
+      "items": [
+        "g27-core-data",
+        "g42-generated_specialized_turn_rules_4"
+      ],
+      "used": 16220
+    },
+    {
+      "bank": 31,
+      "items": [
+        "g28-core-data",
+        "g09-generated_specialized_turn_rules_2"
+      ],
+      "used": 16369
+    },
+    {
+      "bank": 32,
+      "items": [
+        "g29-core-data",
+        "g42-generated_specialized_turn_rules_3"
+      ],
+      "used": 16281
+    },
+    {
+      "bank": 33,
+      "items": [
+        "g30-core-data",
+        "g33-generated_specialized_turn_rules_2"
+      ],
+      "used": 16353
+    },
+    {
+      "bank": 34,
+      "items": [
+        "g31-core-data",
+        "g42-generated_specialized_turn_rules_2"
+      ],
+      "used": 16320
+    },
+    {
+      "bank": 35,
+      "items": [
+        "g32-core-data",
+        "g25-generated_specialized_turn_rules_0"
+      ],
+      "used": 16207
+    },
+    {
+      "bank": 36,
+      "items": [
+        "g33-core-data",
+        "g04-generated_specialized_turn"
+      ],
+      "used": 16356
+    },
+    {
+      "bank": 37,
+      "items": [
+        "g34-core-data",
+        "g16-generated_specialized_turn_rules_1"
+      ],
+      "used": 16261
+    },
+    {
+      "bank": 38,
+      "items": [
+        "g35-core-data",
+        "g39-generated_specialized_turn_rules_10"
+      ],
+      "used": 16357
+    },
+    {
+      "bank": 39,
+      "items": [
+        "g36-core-data",
+        "g37-generated_specialized_turn"
+      ],
+      "used": 16301
+    },
+    {
+      "bank": 40,
+      "items": [
+        "g37-core-data",
+        "g24-generated_specialized_turn_rules_5"
+      ],
+      "used": 16328
+    },
+    {
+      "bank": 41,
+      "items": [
+        "g38-core-data",
+        "g43-generated_specialized_turn"
+      ],
+      "used": 16272
+    },
+    {
+      "bank": 42,
+      "items": [
+        "g39-core-data",
+        "g40-generated_specialized_turn"
+      ],
+      "used": 16383
+    },
+    {
+      "bank": 43,
+      "items": [
+        "g40-core-data",
+        "g44-generated_specialized_turn_rules_7"
+      ],
+      "used": 16233
+    },
+    {
+      "bank": 44,
+      "items": [
+        "g41-core-data",
+        "g25-generated_specialized_turn_rules_4"
+      ],
+      "used": 16298
+    },
+    {
+      "bank": 45,
+      "items": [
+        "g42-core-data",
+        "g31-generated_specialized_turn"
+      ],
+      "used": 16374
+    },
+    {
+      "bank": 46,
+      "items": [
+        "g43-core-data",
+        "g30-generated_specialized_turn_rules_2"
+      ],
+      "used": 16177
+    },
+    {
+      "bank": 47,
+      "items": [
+        "g44-core-data",
+        "g30-generated_specialized_turn"
+      ],
+      "used": 16361
+    },
+    {
+      "bank": 48,
+      "items": [
+        "g45-core-data",
+        "g20-generated_specialized_turn"
+      ],
+      "used": 16262
+    },
+    {
+      "bank": 49,
+      "items": [
+        "g38-generated_specialized_turn",
+        "g06-generated_specialized_turn_rules_4"
+      ],
+      "used": 16282
+    },
+    {
+      "bank": 50,
+      "items": [
+        "g21-generated_specialized_turn",
+        "g14-generated_specialized_turn"
+      ],
+      "used": 16379
+    },
+    {
+      "bank": 51,
+      "items": [
+        "g26-generated_specialized_turn",
+        "g33-generated_specialized_turn_rules_1"
+      ],
+      "used": 16243
+    },
+    {
+      "bank": 52,
+      "items": [
+        "g37-generated_specialized_turn_rules_1",
+        "g34-generated_specialized_turn"
+      ],
+      "used": 16371
+    },
+    {
+      "bank": 53,
+      "items": [
+        "g44-generated_specialized_turn_rules_1",
+        "g24-generated_specialized_turn"
+      ],
+      "used": 16174
+    },
+    {
+      "bank": 54,
+      "items": [
+        "g37-generated_specialized_turn_rules_2",
+        "g45-generated_specialized_turn_rules_0"
+      ],
+      "used": 16384
+    },
+    {
+      "bank": 55,
+      "items": [
+        "g25-generated_specialized_turn_rules_2",
+        "g36-generated_specialized_turn_rules_3"
+      ],
+      "used": 16378
+    },
+    {
+      "bank": 56,
+      "items": [
+        "g18-generated_specialized_turn",
+        "g45-generated_specialized_turn_rules_1"
+      ],
+      "used": 16304
+    },
+    {
+      "bank": 57,
+      "items": [
+        "g13-generated_specialized_turn_rules_3",
+        "g29-generated_specialized_turn_rules_0"
+      ],
+      "used": 16213
+    },
+    {
+      "bank": 58,
+      "items": [
+        "g08-generated_specialized_turn",
+        "g30-generated_specialized_turn_rules_1"
+      ],
+      "used": 16189
+    },
+    {
+      "bank": 59,
+      "items": [
+        "g13-generated_specialized_turn_rules_4",
+        "g31-generated_specialized_turn_rules_2"
+      ],
+      "used": 16107
+    },
+    {
+      "bank": 60,
+      "items": [
+        "g22-generated_specialized_turn",
+        "g36-generated_specialized_turn_rules_0"
+      ],
+      "used": 16066
+    },
+    {
+      "bank": 61,
+      "items": [
+        "g13-generated_specialized_turn_rules_5",
+        "g42-generated_specialized_turn_rules_1"
+      ],
+      "used": 15901
+    },
+    {
+      "bank": 62,
+      "items": [
+        "g44-generated_specialized_turn_rules_2",
+        "g36-generated_specialized_turn",
+        "g23-generated_specialized_turn_rules_3"
+      ],
+      "used": 16267
+    },
+    {
+      "bank": 63,
+      "items": [
+        "g44-generated_specialized_turn_rules_3",
+        "g12-generated_specialized_turn_rules_3",
+        "g43-generated_specialized_turn_rules_9"
+      ],
+      "used": 16128
+    },
+    {
+      "bank": 64,
+      "items": [
+        "g02-generated_specialized_turn",
+        "g23-generated_specialized_turn_rules_1"
+      ],
+      "used": 16371
+    },
+    {
+      "bank": 65,
+      "items": [
+        "g44-generated_specialized_turn_rules_5",
+        "g43-generated_specialized_turn_rules_5"
+      ],
+      "used": 16379
+    },
+    {
+      "bank": 66,
+      "items": [
+        "g25-generated_specialized_turn_rules_3",
+        "g20-generated_specialized_turn_rules_0"
+      ],
+      "used": 16345
+    },
+    {
+      "bank": 67,
+      "items": [
+        "g43-generated_specialized_turn_rules_6",
+        "g13-generated_specialized_turn_rules_0"
+      ],
+      "used": 16251
+    },
+    {
+      "bank": 68,
+      "items": [
+        "g34-generated_specialized_turn_rules_1",
+        "g23-generated_specialized_turn_rules_0"
+      ],
+      "used": 16371
+    },
+    {
+      "bank": 69,
+      "items": [
+        "g39-generated_specialized_turn_rules_0",
+        "g39-generated_specialized_turn_rules_9"
+      ],
+      "used": 16353
+    },
+    {
+      "bank": 70,
+      "items": [
+        "g37-generated_specialized_turn_rules_6",
+        "g11-generated_specialized_turn_rules_2"
+      ],
+      "used": 16315
+    },
+    {
+      "bank": 71,
+      "items": [
+        "g24-generated_specialized_turn_rules_1",
+        "g06-generated_specialized_turn_rules_0"
+      ],
+      "used": 16381
+    },
+    {
+      "bank": 72,
+      "items": [
+        "g37-generated_specialized_turn_rules_4",
+        "g39-generated_specialized_turn_rules_3"
+      ],
+      "used": 16240
+    },
+    {
+      "bank": 73,
+      "items": [
+        "g03-generated_specialized_turn",
+        "g28-generated_specialized_turn_rules_1"
+      ],
+      "used": 16200
+    },
+    {
+      "bank": 74,
+      "items": [
+        "g01-generated_specialized_turn",
+        "g39-generated_specialized_turn_rules_1"
+      ],
+      "used": 16189
+    },
+    {
+      "bank": 75,
+      "items": [
+        "g37-generated_specialized_turn_rules_0",
+        "g39-generated_specialized_turn_rules_5"
+      ],
+      "used": 16154
+    },
+    {
+      "bank": 76,
+      "items": [
+        "g39-generated_specialized_turn_rules_6",
+        "g34-generated_specialized_turn_rules_2"
+      ],
+      "used": 16376
+    },
+    {
+      "bank": 77,
+      "items": [
+        "g37-generated_specialized_turn_rules_5",
+        "g36-generated_specialized_turn_rules_1"
+      ],
+      "used": 15896
+    },
+    {
+      "bank": 78,
+      "items": [
+        "g25-generated_specialized_turn_rules_1",
+        "g36-generated_specialized_turn_rules_4"
+      ],
+      "used": 16370
+    },
+    {
+      "bank": 79,
+      "items": [
+        "g24-generated_specialized_turn_rules_0",
+        "g39-generated_specialized_turn"
+      ],
+      "used": 16383
+    },
+    {
+      "bank": 80,
+      "items": [
+        "g24-generated_specialized_turn_rules_2",
+        "g06-generated_specialized_turn_rules_2"
+      ],
+      "used": 16362
+    },
+    {
+      "bank": 81,
+      "items": [
+        "g44-generated_specialized_turn_rules_4",
+        "g44-generated_specialized_turn_rules_0"
+      ],
+      "used": 16262
+    },
+    {
+      "bank": 82,
+      "items": [
+        "g28-generated_specialized_turn_rules_3",
+        "g31-generated_specialized_turn_rules_0",
+        "g45-generated_specialized_turn_rules_4"
+      ],
+      "used": 16138
+    },
+    {
+      "bank": 83,
+      "items": [
+        "g32-generated_specialized_turn_rules_0",
+        "g05-generated_specialized_turn_rules_0"
+      ],
+      "used": 16377
+    },
+    {
+      "bank": 84,
+      "items": [
+        "g28-generated_specialized_turn_rules_2",
+        "g35-generated_specialized_turn_rules_1"
+      ],
+      "used": 16371
+    },
+    {
+      "bank": 85,
+      "items": [
+        "g45-generated_specialized_turn_rules_2",
+        "g12-generated_specialized_turn_rules_2",
+        "g11-generated_specialized_turn_rules_3"
+      ],
+      "used": 16266
+    },
+    {
+      "bank": 86,
+      "items": [
+        "g36-generated_specialized_turn_rules_2",
+        "g43-generated_specialized_turn_rules_4"
+      ],
+      "used": 16318
+    },
+    {
+      "bank": 87,
+      "items": [
+        "g13-generated_specialized_turn_rules_2",
+        "g13-generated_specialized_turn"
+      ],
+      "used": 16359
+    },
+    {
+      "bank": 88,
+      "items": [
+        "g17-generated_specialized_turn_rules_2",
+        "g39-generated_specialized_turn_rules_8"
+      ],
+      "used": 16343
+    },
+    {
+      "bank": 89,
+      "items": [
+        "g24-generated_specialized_turn_rules_3",
+        "g12-generated_specialized_turn_rules_1",
+        "g07-generated_specialized_turn_rules_3"
+      ],
+      "used": 15976
+    },
+    {
+      "bank": 90,
+      "items": [
+        "g13-generated_specialized_turn_rules_6",
+        "g13-generated_specialized_turn_rules_1"
+      ],
+      "used": 16359
+    },
+    {
+      "bank": 91,
+      "items": [
+        "g44-generated_specialized_turn_rules_6",
+        "g06-generated_specialized_turn",
+        "g33-generated_specialized_turn"
+      ],
+      "used": 16333
+    },
+    {
+      "bank": 92,
+      "items": [
+        "g33-generated_specialized_turn_rules_0",
+        "g41-generated_specialized_turn_rules_0"
+      ],
+      "used": 16383
+    },
+    {
+      "bank": 93,
+      "items": [
+        "g39-generated_specialized_turn_rules_7",
+        "g14-generated_specialized_turn_rules_1"
+      ],
+      "used": 16341
+    },
+    {
+      "bank": 94,
+      "items": [
+        "g45-generated_specialized_turn_rules_3",
+        "g15-generated_specialized_turn_rules_1"
+      ],
+      "used": 16302
+    },
+    {
+      "bank": 95,
+      "items": [
+        "g34-generated_specialized_turn_rules_0",
+        "g06-generated_specialized_turn_rules_1"
+      ],
+      "used": 16371
+    },
+    {
+      "bank": 96,
+      "items": [
+        "g00-generated_specialized_turn",
+        "g10-generated_specialized_turn_rules_0"
+      ],
+      "used": 16289
+    },
+    {
+      "bank": 97,
+      "items": [
+        "g20-generated_specialized_turn_rules_1",
+        "g17-generated_specialized_turn_rules_1"
+      ],
+      "used": 16267
+    },
+    {
+      "bank": 98,
+      "items": [
+        "g09-generated_specialized_turn_rules_0",
+        "g39-generated_specialized_turn_rules_2"
+      ],
+      "used": 15633
+    },
+    {
+      "bank": 99,
+      "items": [
+        "g10-generated_specialized_turn_rules_1",
+        "g12-generated_specialized_turn_rules_0",
+        "g23-generated_specialized_turn",
+        "g16-generated_specialized_turn"
+      ],
+      "used": 16307
+    },
+    {
+      "bank": 100,
+      "items": [
+        "g43-generated_specialized_turn_rules_8",
+        "g14-generated_specialized_turn_rules_0",
+        "g15-generated_specialized_turn_rules_0",
+        "g11-generated_specialized_turn"
+      ],
+      "used": 15720
+    },
+    {
+      "bank": 101,
+      "items": [
+        "g17-generated_specialized_turn",
+        "g11-generated_specialized_turn_rules_1",
+        "g29-generated_specialized_turn_rules_1",
+        "g32-generated_specialized_turn"
+      ],
+      "used": 16381
+    },
+    {
+      "bank": 102,
+      "items": [
+        "g28-generated_specialized_turn",
+        "g28-generated_specialized_turn_rules_0",
+        "g07-generated_specialized_turn_rules_2",
+        "g16-facade"
+      ],
+      "used": 16300
+    },
+    {
+      "bank": 103,
+      "items": [
+        "g07-generated_specialized_turn_rules_1",
+        "g34-generated_specialized_turn_rules_5",
+        "g05-generated_specialized_turn",
+        "g27-generated_specialized_turn_rules_1"
+      ],
+      "used": 16367
+    },
+    {
+      "bank": 104,
+      "items": [
+        "g43-generated_specialized_turn_rules_1",
+        "g43-generated_specialized_turn_rules_2",
+        "g43-generated_specialized_turn_rules_3",
+        "g33-facade"
+      ],
+      "used": 16363
+    },
+    {
+      "bank": 105,
+      "items": [
+        "g43-generated_specialized_turn_rules_0",
+        "g07-generated_specialized_turn",
+        "g15-generated_specialized_turn",
+        "g25-generated_specialized_turn"
+      ],
+      "used": 16356
+    },
+    {
+      "bank": 106,
+      "items": [
+        "g17-generated_specialized_turn_rules_0",
+        "g41-generated_specialized_turn",
+        "g09-generated_specialized_turn",
+        "g17-generated_specialized_turn_rules_3"
+      ],
+      "used": 15907
+    },
+    {
+      "bank": 107,
+      "items": [
+        "g25-generated_specialized_turn_rules_5",
+        "g29-generated_specialized_turn",
+        "g11-generated_specialized_turn_rules_0",
+        "g12-generated_specialized_turn_rules_4"
+      ],
+      "used": 15237
+    },
+    {
+      "bank": 108,
+      "items": [
+        "g30-facade",
+        "g27-generated_specialized_turn",
+        "g44-generated_specialized_turn",
+        "g37-facade",
+        "g20-generated_specialized_turn_rules_2"
+      ],
+      "used": 16377
+    },
+    {
+      "bank": 109,
+      "items": [
+        "g32-facade",
+        "g35-generated_specialized_turn_rules_2",
+        "g28-facade",
+        "g34-facade",
+        "g45-generated_specialized_turn"
+      ],
+      "used": 16318
+    },
+    {
+      "bank": 110,
+      "items": [
+        "g11-facade",
+        "g10-generated_specialized_turn",
+        "g35-facade",
+        "g41-facade",
+        "g39-facade"
+      ],
+      "used": 16311
+    },
+    {
+      "bank": 111,
+      "items": [
+        "g25-facade",
+        "g02-facade",
+        "g13-facade",
+        "g15-facade",
+        "g17-facade"
+      ],
+      "used": 15998
+    },
+    {
+      "bank": 112,
+      "items": [
+        "g05-facade",
+        "g21-facade",
+        "g23-facade",
+        "g31-facade",
+        "g42-facade"
+      ],
+      "used": 15975
+    },
+    {
+      "bank": 113,
+      "items": [
+        "g09-facade",
+        "g12-facade",
+        "g45-facade",
+        "g38-facade",
+        "g43-facade"
+      ],
+      "used": 15632
+    },
+    {
+      "bank": 114,
+      "items": [
+        "g06-facade",
+        "g36-facade",
+        "g12-generated_specialized_turn",
+        "g10-facade",
+        "g20-facade"
+      ],
+      "used": 15317
+    },
+    {
+      "bank": 115,
+      "items": [
+        "g03-facade",
+        "g07-facade",
+        "g08-facade",
+        "g14-facade",
+        "g29-facade"
+      ],
+      "used": 15155
+    },
+    {
+      "bank": 116,
+      "items": [
+        "g40-facade",
+        "g44-facade",
+        "g00-facade",
+        "g01-facade",
+        "g04-facade",
+        "g36-generated_specialized_turn_rules_5"
+      ],
+      "used": 16050
+    },
+    {
+      "bank": 117,
+      "items": [
+        "g19-facade",
+        "g22-facade",
+        "g26-facade",
+        "g27-facade",
+        "g24-facade"
+      ],
+      "used": 14603
+    },
+    {
+      "bank": 118,
+      "items": [
+        "g18-facade",
+        "g35-generated_specialized_turn",
+        "g09-generated_specialized_turn_rules_3",
+        "g05-generated_specialized_turn_rules_2"
+      ],
+      "used": 9137
+    }
+  ],
+  "rom": "/Users/stephenlavelle/Documents/GitHub/PuzzleScript-labs/build/gbc/cart/puzzlescript-compilation-46.gb"
+}

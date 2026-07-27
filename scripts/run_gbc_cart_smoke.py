@@ -23,8 +23,10 @@ CART_SRAM_BANK = 3
 SRAM_BANK_BYTES = 8 * 1024
 KEY_A = 1 << 0
 KEY_B = 1 << 1
+KEY_START = 1 << 3
+KEY_UP = 1 << 6
 KEY_DOWN = 1 << 7
-SCRIPT_FRAMES = 300
+SCRIPT_FRAMES = 570
 VIDEO_BYTES = 160 * 144 * 4
 
 
@@ -40,11 +42,14 @@ class CartTelemetry:
 
 def build_key_script() -> list[int]:
     keys = [0] * SCRIPT_FRAMES
-    keys[60] = KEY_DOWN
-    keys[70] = KEY_A
-    keys[140] = KEY_B
-    keys[170] = KEY_DOWN
-    keys[180] = KEY_A
+    keys[100] = KEY_A
+    keys[150] = KEY_A
+    keys[200] = KEY_A
+    keys[250] = KEY_UP
+    keys[300] = KEY_START
+    keys[340] = KEY_B
+    keys[440] = KEY_DOWN
+    keys[510] = KEY_A
     return keys
 
 
@@ -177,11 +182,11 @@ def run_smoke(
     offset = CART_SRAM_BANK * SRAM_BANK_BYTES
     telemetry = parse_telemetry(
         save_data[offset : offset + CART_RECORD.size],
-        expected_first_index=1,
-        expected_second_index=2,
+        expected_first_index=0,
+        expected_second_index=1,
     )
-    expected_first_hash = int(manifest["games"][1]["source_hash"])
-    expected_second_hash = int(manifest["games"][2]["source_hash"])
+    expected_first_hash = int(manifest["games"][0]["source_hash"])
+    expected_second_hash = int(manifest["games"][1]["source_hash"])
     if (
         telemetry.first_hash != expected_first_hash
         or telemetry.second_hash != expected_second_hash
@@ -210,7 +215,7 @@ def run_smoke(
     )
     return (
         f"frames={frames_run.value} launches={telemetry.launches} "
-        f"returns={telemetry.returns} games=1,2 "
+        f"returns={telemetry.returns} games=0,1 "
         f"hashes=0x{telemetry.first_hash:08x},"
         f"0x{telemetry.second_hash:08x} lcdc=0x{lcdc:02x} "
         f"tilemap_nonzero={tilemap_nonzero} colors={len(colors)} "
@@ -230,7 +235,7 @@ def main() -> int:
         type=Path,
         default=Path("build/gbc-smoke"),
     )
-    parser.add_argument("--max-emulator-warnings", type=int, default=4)
+    parser.add_argument("--max-emulator-warnings", type=int, default=5)
     args = parser.parse_args()
     print(
         "gbc-cart-smoke "

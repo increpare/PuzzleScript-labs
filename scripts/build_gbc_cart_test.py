@@ -72,8 +72,14 @@ def main() -> int:
     else:
         raise AssertionError("bank range overflow was accepted")
 
-    source = "A _CODE_7 size 1234 flags 0 addr 0\n"
+    source = (
+        "S b_g00_ps_gbc_specialized_apply_turn_phases Def00000007\n"
+        "S b_g00_ps_gbc_specialized_won Def00000007\n"
+        "A _CODE_7 size 1234 flags 0 addr 0\n"
+    )
     assert build_gbc_cart.relocate_code_area(source, 42) == (
+        "S b_g00_ps_gbc_specialized_apply_turn_phases Def0000002A\n"
+        "S b_g00_ps_gbc_specialized_won Def0000002A\n"
         "A _CODE_42 size 1234 flags 0 addr 0\n"
     )
     for invalid in (
@@ -95,6 +101,15 @@ def main() -> int:
         build_gbc_cart.relocate_object_code_area(path, 15)
         assert "_CODE_15 size 1234" in path.read_text(encoding="utf-8")
 
+    launcher_card = build_gbc_cart.LauncherCard(
+        palette=(1, 2, 3, 4),
+        background_tile=tuple(range(16)),
+        player_pixels=tuple([255] * 64),
+        level_count=2,
+        board_level_count=2,
+        level_is_board_bits=(3,) + (0,) * 31,
+        detail_colors_reduced=False,
+    )
     entries = [
         build_gbc_cart.CartIndexEntry(
             slug="first",
@@ -103,6 +118,7 @@ def main() -> int:
             source_hash=0x12345678,
             descriptor_bank=3,
             session_bytes=768,
+            launcher_card=launcher_card,
         ),
         build_gbc_cart.CartIndexEntry(
             slug="second",
@@ -111,6 +127,7 @@ def main() -> int:
             source_hash=0x90ABCDEF,
             descriptor_bank=4,
             session_bytes=1024,
+            launcher_card=launcher_card,
         ),
     ]
     header = build_gbc_cart.emit_cart_header(entries)
@@ -121,6 +138,11 @@ def main() -> int:
         "bool ps_gbc_cart_copy_entry(\n"
         "    uint8_t index,\n"
         "    ps_gbc_cart_entry* entry) BANKED;"
+    ) in header
+    assert (
+        "bool ps_gbc_cart_copy_launcher_card(\n"
+        "    uint8_t index,\n"
+        "    ps_gbc_launcher_card* card) BANKED;"
     ) in header
     cart_source = build_gbc_cart.emit_cart_source(entries)
     assert "#pragma bank 2" in cart_source
@@ -137,6 +159,14 @@ def main() -> int:
     ) in cart_source
     assert (
         '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, "SECOND"}'
+    ) in cart_source
+    assert "static const ps_gbc_launcher_card kLauncherCards" in cart_source
+    assert "{1U, 2U, 3U, 4U}" in cart_source
+    assert "{0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U" in cart_source
+    assert (
+        "bool ps_gbc_cart_copy_launcher_card(\n"
+        "    uint8_t index,\n"
+        "    ps_gbc_launcher_card* card"
     ) in cart_source
 
     print("build_gbc_cart_test: ok")
