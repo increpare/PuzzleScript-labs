@@ -9,7 +9,7 @@ import json
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Sequence
 
@@ -58,6 +58,12 @@ class LauncherCard:
 
 
 @dataclass(frozen=True)
+class LauncherArt:
+    bands: bytes
+    progress_variant_count: int
+
+
+@dataclass(frozen=True)
 class CartIndexEntry:
     slug: str
     prefix: str
@@ -65,6 +71,7 @@ class CartIndexEntry:
     source_hash: int
     descriptor_bank: int
     session_bytes: int
+    launcher_art_bank: int
     launcher_card: LauncherCard
 
 
@@ -323,6 +330,67 @@ def render_launcher_card_band(
     return bytes(band)
 
 
+def render_launcher_art(
+    entry: CartIndexEntry,
+    game_index: int,
+    game_count: int,
+) -> LauncherArt:
+    progress = launcher_progress_labels(entry.launcher_card)
+    bands = bytearray(
+        render_launcher_header_band(game_index, game_count)
+    )
+    for label in progress:
+        bands.extend(
+            render_launcher_card_band(
+                title=entry.title,
+                card=entry.launcher_card,
+                game_index=game_index,
+                game_count=game_count,
+                progress=label,
+            )
+        )
+    if len(bands) > ROM_BANK_BYTES:
+        raise ValueError(
+            f"{entry.slug} launcher art is oversize: "
+            f"{len(bands)} > {ROM_BANK_BYTES}"
+        )
+    return LauncherArt(
+        bands=bytes(bands),
+        progress_variant_count=len(progress),
+    )
+
+
+def emit_launcher_art_source(
+    entry: CartIndexEntry,
+    art: LauncherArt,
+    bank: int,
+) -> str:
+    if (
+        art.progress_variant_count <= 0
+        or len(art.bands)
+        != (art.progress_variant_count + 1) * LAUNCHER_BAND_BYTES
+    ):
+        raise ValueError(f"{entry.slug} launcher art is malformed")
+    rows = []
+    for offset in range(0, len(art.bands), 32):
+        rows.append(
+            "    "
+            + ", ".join(
+                f"{value}U"
+                for value in art.bands[offset : offset + 32]
+            )
+        )
+    values = ",\n".join(rows)
+    return (
+        f"#pragma bank {bank}\n\n"
+        "#include <stdint.h>\n\n"
+        f"const uint8_t {entry.prefix}_ps_gbc_launcher_art"
+        f"[{len(art.bands)}] = {{\n"
+        f"{values}\n"
+        "};\n"
+    )
+
+
 def emit_cart_header(entries: Sequence[CartIndexEntry]) -> str:
     if not entries:
         raise ValueError("a cart needs at least one game")
@@ -356,12 +424,19 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         f"{entry.prefix}_ps_gbc_generated_descriptor;"
         for entry in entries
     )
+    art_declarations = "\n".join(
+        f"extern const uint8_t {entry.prefix}_ps_gbc_launcher_art[];"
+        for entry in entries
+    )
     rows = ",\n".join(
         "    {"
         f"{entry.descriptor_bank}U, "
         f"&{entry.prefix}_ps_gbc_generated_descriptor, "
         f"0x{entry.source_hash:08x}UL, "
-        f"{_c_string(entry.title, 32)}"
+        f"{_c_string(entry.title, 32)}, "
+        f"{entry.launcher_art_bank}U, "
+        f"{entry.prefix}_ps_gbc_launcher_art, "
+        f"{entry.launcher_card.board_level_count + 2}U"
         "}"
         for entry in entries
     )
@@ -385,6 +460,7 @@ def emit_cart_source(entries: Sequence[CartIndexEntry]) -> str:
         "#pragma bank 2\n\n"
         "#include \"generated_cart.h\"\n\n"
         f"{declarations}\n\n"
+        f"{art_declarations}\n\n"
         "static const ps_gbc_cart_entry kCartEntries"
         "[PS_GBC_CART_GAME_COUNT] = {\n"
         f"{rows}\n"
@@ -679,6 +755,7 @@ def build_cart(
     items: list[CartItem] = []
     game_records: list[dict[str, object]] = []
     all_game_objects: list[Path] = []
+    launcher_art_objects: dict[str, Path] = {}
 
     for index, (slug, source_relative) in enumerate(games):
         prefix = f"g{index:02d}"
@@ -790,7 +867,38 @@ def build_cart(
             source_hash=int(manifest["source_hash"]),
             descriptor_bank=game_bank,
             session_bytes=int(manifest["estimated_session_bytes"]),
+            launcher_art_bank=game_bank,
             launcher_card=_launcher_card_from_manifest(manifest),
+        )
+        launcher_art = render_launcher_art(
+            entry,
+            index,
+            len(games),
+        )
+        launcher_art_source = (
+            generated_root / f"{prefix}_launcher_art.c"
+        )
+        launcher_art_source.write_text(
+            emit_launcher_art_source(entry, launcher_art, game_bank),
+            encoding="utf-8",
+        )
+        launcher_art_object = (
+            objects_root / f"{prefix}_launcher_art.o"
+        )
+        compile_source(
+            lcc=lcc,
+            source=launcher_art_source,
+            object_path=launcher_art_object,
+            include_directories=include_directories,
+        )
+        launcher_art_objects[prefix] = launcher_art_object
+        all_game_objects.append(launcher_art_object)
+        items.append(
+            CartItem(
+                name=f"{prefix}-launcher-art",
+                size=object_code_size(launcher_art_object),
+                objects=(launcher_art_object,),
+            )
         )
         entries.append(entry)
         game_records.append(
@@ -804,6 +912,9 @@ def build_cart(
                 "session_bytes": entry.session_bytes,
                 "descriptor_bank": game_bank,
                 "core_data_bytes": core_size,
+                "launcher_art_bytes": len(launcher_art.bands),
+                "launcher_progress_variant_count":
+                    launcher_art.progress_variant_count,
                 "specialized": True,
             }
         )
@@ -815,6 +926,15 @@ def build_cart(
             for object_path in packed_item.objects:
                 relocate_object_code_area(object_path, bank.number)
                 object_banks[object_path.name] = bank.number
+
+    for index, entry in enumerate(entries):
+        launcher_art_object = launcher_art_objects[entry.prefix]
+        launcher_art_bank = object_banks[launcher_art_object.name]
+        entries[index] = replace(
+            entry,
+            launcher_art_bank=launcher_art_bank,
+        )
+        game_records[index]["launcher_art_bank"] = launcher_art_bank
 
     (generated_root / "generated_cart.h").write_text(
         emit_cart_header(entries),

@@ -14,6 +14,9 @@ typedef struct ps_gbc_cart_entry {
     const ps_gbc_game_descriptor* descriptor;
     uint32_t source_hash;
     char title[PS_GBC_CART_TITLE_CAPACITY];
+    uint8_t launcher_art_bank;
+    const uint8_t* launcher_art;
+    uint8_t launcher_progress_variant_count;
 } ps_gbc_cart_entry;
 
 typedef struct ps_gbc_launcher_card {

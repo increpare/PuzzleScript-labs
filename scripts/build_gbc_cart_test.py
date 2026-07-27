@@ -46,6 +46,14 @@ def main() -> int:
         {entry.name for entry in bank.items} == {"nine", "eight"}
         for bank in banks
     )
+    packed_art = build_gbc_cart.pack_items(
+        [item("g00-launcher-art", 12_800)],
+        first_bank=3,
+    )
+    assert packed_art[0].used == 12_800
+    assert [entry.name for entry in packed_art[0].items] == [
+        "g00-launcher-art"
+    ]
 
     equal = build_gbc_cart.pack_items(
         [item("zeta", 1024), item("alpha", 1024)],
@@ -161,6 +169,7 @@ def main() -> int:
             source_hash=0x12345678,
             descriptor_bank=3,
             session_bytes=768,
+            launcher_art_bank=9,
             launcher_card=launcher_card,
         ),
         build_gbc_cart.CartIndexEntry(
@@ -170,9 +179,36 @@ def main() -> int:
             source_hash=0x90ABCDEF,
             descriptor_bank=4,
             session_bytes=1024,
+            launcher_art_bank=10,
             launcher_card=launcher_card,
         ),
     ]
+    launcher_art = build_gbc_cart.render_launcher_art(
+        entries[0],
+        0,
+        2,
+    )
+    assert launcher_art.progress_variant_count == 4
+    assert len(launcher_art.bands) == (
+        1 + launcher_art.progress_variant_count
+    ) * build_gbc_cart.LAUNCHER_BAND_BYTES
+    launcher_art_source = build_gbc_cart.emit_launcher_art_source(
+        entries[0],
+        launcher_art,
+        3,
+    )
+    assert "#pragma bank 3" in launcher_art_source
+    assert (
+        "const uint8_t g00_ps_gbc_launcher_art"
+        in launcher_art_source
+    )
+    assert (
+        "launcher_art_bank"
+        in Path(
+            "native/include/puzzlescript/gbc_cart.h"
+        ).read_text(encoding="utf-8")
+    )
+
     header = build_gbc_cart.emit_cart_header(entries)
     assert "#define PS_GBC_CART_GAME_COUNT 2U" in header
     assert "#define PS_GBC_CART_MAX_SESSION_BYTES 1024U" in header
@@ -197,11 +233,15 @@ def main() -> int:
         "extern const ps_gbc_game_descriptor "
         "g01_ps_gbc_generated_descriptor;"
     ) in cart_source
+    assert "extern const uint8_t g00_ps_gbc_launcher_art[];" in cart_source
+    assert "extern const uint8_t g01_ps_gbc_launcher_art[];" in cart_source
     assert (
-        '{3U, &g00_ps_gbc_generated_descriptor, 0x12345678UL, "FIRST"}'
+        '{3U, &g00_ps_gbc_generated_descriptor, 0x12345678UL, '
+        '"FIRST", 9U, g00_ps_gbc_launcher_art, 4U}'
     ) in cart_source
     assert (
-        '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, "SECOND"}'
+        '{4U, &g01_ps_gbc_generated_descriptor, 0x90abcdefUL, '
+        '"SECOND", 10U, g01_ps_gbc_launcher_art, 4U}'
     ) in cart_source
     assert "static const ps_gbc_launcher_card kLauncherCards" in cart_source
     assert "{1U, 2U, 3U, 4U}" in cart_source
