@@ -19,6 +19,9 @@ from build_gbc_eligible_roms import ELIGIBLE_GAMES
 ROM_BANK_BYTES = 16 * 1024
 FIRST_CART_GAME_BANK = 3
 LAST_CART_BANK = 255
+LAUNCHER_PAGE_SIZE = 8
+LAUNCHER_BAND_TILES = 40
+LAUNCHER_BAND_BYTES = LAUNCHER_BAND_TILES * 16
 OBJECT_CODE_AREA = re.compile(
     r"^(A\s+)_CODE_(\d+)(\s+size\s+)([0-9A-Fa-f]+)(\b.*)$"
 )
@@ -63,6 +66,261 @@ class CartIndexEntry:
     descriptor_bank: int
     session_bytes: int
     launcher_card: LauncherCard
+
+
+_LAUNCHER_ROW_OFFSETS = (
+    0, 2, 4, 6, 8, 10, 12, 14,
+    320, 322, 324, 326, 328, 330, 332, 334,
+)
+_LAUNCHER_PIXEL_MASKS = (
+    0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01,
+)
+_LAUNCHER_GLYPHS = (
+    (0x7E, 0x11, 0x11, 0x11, 0x7E),
+    (0x7F, 0x49, 0x49, 0x49, 0x36),
+    (0x3E, 0x41, 0x41, 0x41, 0x22),
+    (0x7F, 0x41, 0x41, 0x22, 0x1C),
+    (0x7F, 0x49, 0x49, 0x49, 0x41),
+    (0x7F, 0x09, 0x09, 0x09, 0x01),
+    (0x3E, 0x41, 0x49, 0x49, 0x7A),
+    (0x7F, 0x08, 0x08, 0x08, 0x7F),
+    (0x00, 0x41, 0x7F, 0x41, 0x00),
+    (0x20, 0x40, 0x41, 0x3F, 0x01),
+    (0x7F, 0x08, 0x14, 0x22, 0x41),
+    (0x7F, 0x40, 0x40, 0x40, 0x40),
+    (0x7F, 0x02, 0x0C, 0x02, 0x7F),
+    (0x7F, 0x04, 0x08, 0x10, 0x7F),
+    (0x3E, 0x41, 0x41, 0x41, 0x3E),
+    (0x7F, 0x09, 0x09, 0x09, 0x06),
+    (0x3E, 0x41, 0x51, 0x21, 0x5E),
+    (0x7F, 0x09, 0x19, 0x29, 0x46),
+    (0x46, 0x49, 0x49, 0x49, 0x31),
+    (0x01, 0x01, 0x7F, 0x01, 0x01),
+    (0x3F, 0x40, 0x40, 0x40, 0x3F),
+    (0x1F, 0x20, 0x40, 0x20, 0x1F),
+    (0x3F, 0x40, 0x38, 0x40, 0x3F),
+    (0x63, 0x14, 0x08, 0x14, 0x63),
+    (0x07, 0x08, 0x70, 0x08, 0x07),
+    (0x61, 0x51, 0x49, 0x45, 0x43),
+    (0x3E, 0x51, 0x49, 0x45, 0x3E),
+    (0x00, 0x42, 0x7F, 0x40, 0x00),
+    (0x62, 0x51, 0x49, 0x49, 0x46),
+    (0x22, 0x41, 0x49, 0x49, 0x36),
+    (0x18, 0x14, 0x12, 0x7F, 0x10),
+    (0x2F, 0x49, 0x49, 0x49, 0x31),
+    (0x3E, 0x49, 0x49, 0x49, 0x32),
+    (0x01, 0x71, 0x09, 0x05, 0x03),
+    (0x36, 0x49, 0x49, 0x49, 0x36),
+    (0x26, 0x49, 0x49, 0x49, 0x3E),
+    (0x00, 0x60, 0x60, 0x00, 0x00),
+    (0x08, 0x08, 0x08, 0x08, 0x08),
+    (0x00, 0x36, 0x36, 0x00, 0x00),
+    (0x00, 0x00, 0x5F, 0x00, 0x00),
+    (0x02, 0x01, 0x51, 0x09, 0x06),
+    (0x00, 0x40, 0x20, 0x00, 0x00),
+    (0x00, 0x04, 0x03, 0x00, 0x00),
+    (0x40, 0x20, 0x10, 0x0C, 0x03),
+    (0x7F, 0x41, 0x41, 0x00, 0x00),
+    (0x00, 0x00, 0x41, 0x41, 0x7F),
+)
+
+
+def _launcher_glyph_index(character: str) -> int:
+    if "a" <= character <= "z":
+        character = character.upper()
+    if "A" <= character <= "Z":
+        return 1 + ord(character) - ord("A")
+    if "0" <= character <= "9":
+        return 27 + ord(character) - ord("0")
+    return {
+        ".": 37,
+        "-": 38,
+        ":": 39,
+        "!": 40,
+        "?": 41,
+        ",": 42,
+        "'": 43,
+        "/": 44,
+        "[": 45,
+        "]": 46,
+    }.get(character, 0)
+
+
+def _set_launcher_band_pixel(
+    band: bytearray,
+    x: int,
+    y: int,
+    color: int,
+) -> None:
+    offset = _LAUNCHER_ROW_OFFSETS[y] + (x >> 3) * 16
+    mask = _LAUNCHER_PIXEL_MASKS[x & 7]
+    band[offset] &= ~mask
+    band[offset + 1] &= ~mask
+    if color & 1:
+        band[offset] |= mask
+    if color & 2:
+        band[offset + 1] |= mask
+
+
+def launcher_band_pixel(
+    band: bytes,
+    x: int,
+    y: int,
+) -> int:
+    if len(band) != LAUNCHER_BAND_BYTES:
+        raise ValueError("launcher band has the wrong size")
+    if x < 0 or x >= 160 or y < 0 or y >= 16:
+        raise ValueError("launcher band pixel is out of range")
+    offset = _LAUNCHER_ROW_OFFSETS[y] + (x >> 3) * 16
+    shift = 7 - (x & 7)
+    return (
+        ((band[offset] >> shift) & 1)
+        | (((band[offset + 1] >> shift) & 1) << 1)
+    )
+
+
+def _apply_launcher_row_mask(
+    band: bytearray,
+    x: int,
+    y: int,
+    pixels: int,
+    foreground: bool,
+) -> None:
+    tile = x >> 3
+    shift = 9 - (x & 7)
+    shifted = (pixels << shift) & 0xFFFF
+    offset = _LAUNCHER_ROW_OFFSETS[y] + tile * 16
+    first = shifted >> 8
+    second = shifted & 0xFF
+    if foreground:
+        band[offset] |= first
+        band[offset + 1] |= first
+        if tile < 19:
+            band[offset + 16] |= second
+            band[offset + 17] |= second
+    else:
+        band[offset] &= ~first
+        band[offset + 1] &= ~first
+        if tile < 19:
+            band[offset + 16] &= ~second
+            band[offset + 17] &= ~second
+
+
+def _draw_launcher_text(
+    band: bytearray,
+    text: str,
+    start_x: int,
+    limit_x: int,
+) -> None:
+    for character_index, character in enumerate(text[:31]):
+        character_x = start_x + character_index * 6
+        if character_x + 5 >= limit_x:
+            break
+        glyph = _launcher_glyph_index(character)
+        if glyph == 0:
+            continue
+        rows = [0] * 7
+        for column in range(5):
+            for row in range(7):
+                if _LAUNCHER_GLYPHS[glyph - 1][column] & (1 << row):
+                    rows[row] |= 1 << (4 - column)
+        for row in range(-1, 8):
+            neighbors = 0
+            if row > 0:
+                neighbors |= rows[row - 1]
+            if 0 <= row < 7:
+                neighbors |= rows[row]
+            if row < 6:
+                neighbors |= rows[row + 1]
+            neighbors = (neighbors << 1) & 0xFF
+            outline = (
+                neighbors | (neighbors << 1) | (neighbors >> 1)
+            ) & 0xFF
+            _apply_launcher_row_mask(
+                band,
+                character_x - 1,
+                row + 4,
+                outline,
+                False,
+            )
+        for row in range(7):
+            _apply_launcher_row_mask(
+                band,
+                character_x - 1,
+                row + 4,
+                rows[row] << 1,
+                True,
+            )
+
+
+def launcher_progress_labels(card: LauncherCard) -> tuple[str, ...]:
+    if card.board_level_count == 0:
+        return ("--", "DONE")
+    return (
+        "--",
+        *(
+            f"{board}/{card.board_level_count}"
+            for board in range(1, card.board_level_count + 1)
+        ),
+        "DONE",
+    )
+
+
+def render_launcher_header_band(
+    selected: int,
+    game_count: int,
+) -> bytes:
+    if selected < 0 or selected >= game_count:
+        raise ValueError("launcher header selection is out of range")
+    counter = f"{selected + 1} / {game_count}"
+    counter_x = 156 - len(counter) * 6
+    band = bytearray(LAUNCHER_BAND_BYTES)
+    _draw_launcher_text(band, "PUZZLESCRIPT", 4, counter_x)
+    _draw_launcher_text(band, counter, counter_x, 158)
+    for x in range(160):
+        _set_launcher_band_pixel(band, x, 15, 3)
+    return bytes(band)
+
+
+def render_launcher_card_band(
+    *,
+    title: str,
+    card: LauncherCard,
+    game_index: int,
+    game_count: int,
+    progress: str,
+) -> bytes:
+    if game_index < 0 or game_index >= game_count:
+        raise ValueError("launcher card index is out of range")
+    band = bytearray(card.background_tile * LAUNCHER_BAND_TILES)
+    for y in range(8):
+        for x in range(8):
+            player = card.player_pixels[y * 8 + x]
+            if player != 0xFF:
+                _set_launcher_band_pixel(band, x + 2, y + 4, player)
+    progress_width = len(progress) * 6
+    progress_x = 154 - progress_width if progress_width < 154 else 12
+    _draw_launcher_text(band, title, 12, progress_x - 2)
+    _draw_launcher_text(band, progress, progress_x, 158)
+    first_visible = (
+        game_index - game_index % LAUNCHER_PAGE_SIZE
+    )
+    thumb_top = first_visible * 128 // game_count
+    thumb_height = max(
+        4,
+        LAUNCHER_PAGE_SIZE * 128 // game_count,
+    )
+    row = game_index - first_visible
+    for y in range(16):
+        global_y = row * 16 + y
+        color = (
+            3
+            if thumb_top <= global_y < thumb_top + thumb_height
+            else 0
+        )
+        _set_launcher_band_pixel(band, 158, y, color)
+        _set_launcher_band_pixel(band, 159, y, color)
+    return bytes(band)
 
 
 def emit_cart_header(entries: Sequence[CartIndexEntry]) -> str:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 import build_gbc_cart
@@ -110,6 +111,48 @@ def main() -> int:
         level_is_board_bits=(3,) + (0,) * 31,
         detail_colors_reduced=False,
     )
+    assert build_gbc_cart.launcher_progress_labels(launcher_card) == (
+        "--",
+        "1/2",
+        "2/2",
+        "DONE",
+    )
+    header_band = build_gbc_cart.render_launcher_header_band(1, 46)
+    card_band = build_gbc_cart.render_launcher_card_band(
+        title="FIRST",
+        card=launcher_card,
+        game_index=1,
+        game_count=46,
+        progress="1/2",
+    )
+    assert len(header_band) == build_gbc_cart.LAUNCHER_BAND_BYTES
+    assert len(card_band) == build_gbc_cart.LAUNCHER_BAND_BYTES
+    assert build_gbc_cart.launcher_band_pixel(
+        header_band, 0, 0
+    ) == 0
+    assert build_gbc_cart.launcher_band_pixel(
+        header_band, 4, 15
+    ) == 3
+    assert build_gbc_cart.launcher_band_pixel(
+        card_band, 158, 0
+    ) == 3
+    assert card_band == build_gbc_cart.render_launcher_card_band(
+        title="FIRST",
+        card=launcher_card,
+        game_index=1,
+        game_count=46,
+        progress="1/2",
+    )
+    large_launcher_card = replace(
+        launcher_card,
+        level_count=17,
+        board_level_count=17,
+        level_is_board_bits=(0xFF, 0xFF, 0x01) + (0,) * 29,
+    )
+    assert len(
+        build_gbc_cart.launcher_progress_labels(large_launcher_card)
+    ) == 19
+
     entries = [
         build_gbc_cart.CartIndexEntry(
             slug="first",
