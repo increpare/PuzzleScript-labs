@@ -1005,6 +1005,12 @@ git commit -m "Size the GBC composition cache per level"
 
 ### Task 5: Stage dirty map spans and flush them at VBlank
 
+**Outcome (2026-07-28): completed and rejected.** The prototype passed its
+semantic, smoke, cart, and memory gates, but the three-boot count-only suite
+regressed in all five cases. No runtime or test change was retained. Full
+measurements and the rejection rationale are recorded in the
+[optimization ledger](../../performance/gbc-optimization-ledger.md#gbc-vblank-dirty-map-span-batching-rejected-2026-07-28).
+
 **Files:**
 
 - Modify: `firmware/gbc/source/tile_cache.h`
@@ -1013,7 +1019,7 @@ git commit -m "Size the GBC composition cache per level"
 - Modify: `firmware/gbc/source/benchmark.c`
 - Modify: `scripts/run_gbc_smoke.py`
 
-- [ ] **Step 1: Extend the render smoke contract**
+- [x] **Step 1: Extend the render smoke contract**
 
 The existing smoke already checks:
 
@@ -1024,7 +1030,7 @@ The existing smoke already checks:
 Add a telemetry field for map-bank flips and assert a one-cell dirty render
 uses exactly two flips: one to tile-number bank 0 and one to attribute bank 1.
 
-- [ ] **Step 2: Run red**
+- [x] **Step 2: Run red**
 
 ```bash
 make gbc_smoke
@@ -1033,7 +1039,7 @@ make gbc_smoke
 Expected: the flip assertion fails because `mapComposition()` currently flips
 twice per physical tile, eight flips per logical cell.
 
-- [ ] **Step 3: Track pending row spans**
+- [x] **Step 3: Track pending row spans**
 
 Add:
 
@@ -1048,7 +1054,7 @@ logical cell changes, widen the spans of its two physical rows. Continue
 writing `gTileMap` and `gAttributes` immediately; remove all hardware map
 writes from `mapComposition()`.
 
-- [ ] **Step 4: Implement a grouped flush**
+- [x] **Step 4: Implement a grouped flush**
 
 Expose:
 
@@ -1076,7 +1082,7 @@ Wrap only this function in the `MAP_WRITE` render phase. A gap between two
 dirty cells may upload unchanged shadow bytes; that is correct and avoids a
 larger queue.
 
-- [ ] **Step 5: Flush immediately after the next `vsync()`**
+- [x] **Step 5: Flush immediately after the next `vsync()`**
 
 At the end of the active-game loop:
 
@@ -1095,7 +1101,7 @@ post-`vsync()` flush separately, excluding the wait itself, then sum them into
 the existing interaction render total. This preserves comparison with prior
 compute-time measurements while assigning the write cost to `MAP_WRITE`.
 
-- [ ] **Step 6: Verify smoke and the phase split**
+- [x] **Step 6: Verify smoke and the phase split**
 
 ```bash
 make gbc_smoke
@@ -1113,7 +1119,10 @@ Expected:
 - map flips are two;
 - `map_write` drops on dirty renders.
 
-- [ ] **Step 7: Gate tile-data upload variants**
+- [x] **Step 7: Gate tile-data upload variants — skipped by gate**
+
+Post-map `tile_upload` remained only 21 / 1,467 attributed ticks (1.4%), so
+the conditional DMA variants were not attempted.
 
 Only if Task 2 reports `tile_upload` as material after grouped map flush, test
 these as separate commits/measurements:
@@ -1128,14 +1137,14 @@ faster on the count-only suite, passes tile readback, and does not grow packed
 payload. Do not duplicate the launcher DMA implementation and do not re-test
 the already rejected one-call `set_bkg_data(..., 4)`.
 
-- [ ] **Step 8: Commit the retained map batching**
+- [x] **Step 8: Apply the retention gate — rejected**
 
-```bash
-git add firmware/gbc/source/tile_cache.h \
-  firmware/gbc/source/tile_cache.c firmware/gbc/source/main.c \
-  firmware/gbc/source/benchmark.c scripts/run_gbc_smoke.py
-git commit -m "Flush GBC dirty map spans at VBlank"
-```
+Count-only walk/push redraws regressed in every case, including
+`large_board` (514/517 → 530/527) and `object_heavy`
+(476/465 → 536/527). The candidate source, smoke/parser contract, and
+generated artifacts were reverted. Commit `0fb67653` retained only the
+measured rejection and roadmap status; there is no map-batching runtime
+commit.
 
 ---
 
