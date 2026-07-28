@@ -1152,8 +1152,8 @@ commit.
 ### Task 6: Emit direct early rejection instead of `row_matched`
 
 **Outcome (2026-07-28): completed and rejected.** Structural and semantic
-gates passed, packed payload fell by 62,417 bytes, mean/p90 frames fell from
-30.097/53 to 28.510/47 bytes, and `ldhl sp` fell 10.32%. However,
+gates passed, packed payload fell by 62,417 bytes, mean/median/max frames fell
+from 30.097/32/128 to 28.510/30/128 bytes, and `ldhl sp` fell 10.32%. However,
 `object_heavy` logic deterministically regressed 1,149.805 → 1,300.383
 ticks/turn (+13.10%, about 36.76 ms). Alternating direct A/B boots reproduced
 the regression, so no emitter or exporter-test change was retained. Full

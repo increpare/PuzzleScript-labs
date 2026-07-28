@@ -1463,7 +1463,7 @@ Static code results were substantial:
 | Physical 4 MB headroom | 1,747,047 B | 1,809,464 B | +62,417 B |
 | Fixed HOME | 7,020 B | 7,020 B | 0 |
 | Static WRAM | 5,922 B | 5,922 B | 0 |
-| Frame mean / p90 / max | 30.097 / 53 / 128 B | 28.510 / 47 / 128 B | −1.587 / −6 / 0 B |
+| Frame mean / median / max | 30.097 / 32 / 128 B | 28.510 / 30 / 128 B | −1.587 / −2 / 0 B |
 | `ldhl sp` instructions | 125,200 | 112,278 | **−12,922 (−10.32%)** |
 | Estimated `ldhl sp` bytes | 250,400 B | 224,556 B | −25,844 B |
 

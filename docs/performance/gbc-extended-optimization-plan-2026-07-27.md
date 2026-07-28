@@ -612,8 +612,8 @@ batching must not reintroduce blanking.
 
 **Outcome (2026-07-28): rejected.** The structured direct-rejection prototype
 passed semantic and 46-game cart gates and reduced packed payload by 62,417
-bytes, mean/p90 frames from 30.097/53 to 28.510/47 bytes, and `ldhl sp` by
-10.32%. It nevertheless regressed `object_heavy` logic by 13.10%
+bytes, mean/median/max frames from 30.097/32/128 to 28.510/30/128 bytes, and
+`ldhl sp` by 10.32%. It nevertheless regressed `object_heavy` logic by 13.10%
 (+150.578 ticks/turn, about 36.76 ms), reproduced in three alternating direct
 A/B pairs. No emitter or structural-test change is retained; see the
 [ledger](gbc-optimization-ledger.md#gbc-direct-early-pattern-rejection-rejected-2026-07-28).
