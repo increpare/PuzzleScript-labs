@@ -35,9 +35,10 @@ This is one optimization program with four gated workstreams:
 2. **Renderer:** Tasks 3-5. Task 2's render-phase split decides whether Tasks
    3, 4, or 5 is attempted first; the task numbering is not permission to skip
    that decision gate.
-3. **Specialized emitter:** Tasks 6-9. Early rejection lands first. Pointer
-   hoisting, helper fusion, and static scratch are independent experiments,
-   each measured and committed or reverted separately.
+3. **Specialized emitter:** Tasks 6-9. Early rejection was attempted first and
+   rejected by its performance gate. Pointer hoisting, helper fusion, and
+   static scratch remain independent experiments, each measured and committed
+   or reverted separately.
 4. **Shipping-cart capacity:** Tasks 10-12. The cart-native scoreboard must
    exist before direction sharing or any cross-bank sharing trade is judged.
    Task 13 records the 8 MB path as deferred while 4 MB headroom remains.
@@ -1150,12 +1151,21 @@ commit.
 
 ### Task 6: Emit direct early rejection instead of `row_matched`
 
+**Outcome (2026-07-28): completed and rejected.** Structural and semantic
+gates passed, packed payload fell by 62,417 bytes, mean/p90 frames fell from
+30.097/53 to 28.510/47 bytes, and `ldhl sp` fell 10.32%. However,
+`object_heavy` logic deterministically regressed 1,149.805 → 1,300.383
+ticks/turn (+13.10%, about 36.76 ms). Alternating direct A/B boots reproduced
+the regression, so no emitter or exporter-test change was retained. Full
+measurements are recorded in the
+[optimization ledger](../../performance/gbc-optimization-ledger.md#gbc-direct-early-pattern-rejection-rejected-2026-07-28).
+
 **Files:**
 
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add failing structural assertions for every rule shape**
+- [x] **Step 1: Add failing structural assertions for every rule shape**
 
 For the existing Sokoban, aggregate/property, and two-row fixtures, concatenate
 all `generated_specialized_turn*.c` files and assert:
@@ -1178,7 +1188,7 @@ require(
 Also assert property and aggregate capture markers remain present and the
 two-row fixture still emits both row scratch arrays.
 
-- [ ] **Step 2: Run exporter test red**
+- [x] **Step 2: Run exporter test red**
 
 ```bash
 cmake --build build --target puzzlescript_gbc_exporter_tests
@@ -1187,7 +1197,7 @@ build/native/puzzlescript_gbc_exporter_tests
 
 Expected: structural assertion failure.
 
-- [ ] **Step 3: Change the match emitter contract**
+- [x] **Step 3: Change the match emitter contract**
 
 Replace `matchedFlagName` with a complete rejection statement:
 
@@ -1216,7 +1226,7 @@ For a non-fused `matches_at` helper, pass
 individual any-layer/layer-coupled alternative; never use one to guard the
 next pattern.
 
-- [ ] **Step 4: Use structured rejection at each caller**
+- [x] **Step 4: Use structured rejection at each caller**
 
 Use `do { ... } while (false)` so labels cannot collide:
 
@@ -1246,7 +1256,7 @@ The old `cell += delta` statements may be skipped after rejection because they
 mutate only a dead local. Property/aggregate capture and all writes must remain
 after the final match test.
 
-- [ ] **Step 5: Run structural and semantic parity tests**
+- [x] **Step 5: Run structural and semantic parity tests**
 
 ```bash
 cmake --build build --target \
@@ -1260,7 +1270,7 @@ ctest --test-dir build/native \
 Expected: all fixtures pass, including simultaneous matches, property
 bindings, aggregate bindings, and two-row rules.
 
-- [ ] **Step 6: Measure bytes, frames, and five-case ticks**
+- [x] **Step 6: Measure bytes, frames, and five-case ticks**
 
 ```bash
 make gbc_cart
@@ -1277,14 +1287,12 @@ Then run the standing gate. Expected:
 - rejection-heavy cases improve;
 - no case or semantic gate regresses.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Apply the retention gate — rejected**
 
-```bash
-git add native/src/compiler/compact_turn_codegen.cpp \
-  native/tests/gbc_exporter.cpp \
-  docs/performance/gbc-optimization-ledger.md
-git commit -m "Short-circuit generated GBC pattern rejection"
-```
+The candidate improved three logic cases, left Sokoban neutral, and regressed
+`object_heavy` by 13.10%. Candidate source, structural assertions, cart
+objects, linked ROM, and perf artifacts were reverted. Only this decision and
+the measured ledger entry are retained.
 
 ---
 

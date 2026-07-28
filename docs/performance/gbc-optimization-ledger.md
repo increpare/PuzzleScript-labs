@@ -1436,3 +1436,56 @@ bytes (+37, below the 6,080 contingency), fixed HOME was 7,062 / 8,192
 renderer, smoke, parser, or benchmark source change is retained. Tile upload
 was still only 21 / 1,467 attributed ticks (1.4%); the conditional DMA variants
 were not attempted.
+
+### GBC direct early pattern rejection rejected (2026-07-28)
+
+Revision: uncommitted candidate on `c2ab4989`. Transient artifacts (not
+retained) were `codegen-metrics-early-reject.json` and the three-boot
+`early-reject-counts` suite. The candidate replaced stack-resident
+`row_matched` flags with direct `return false` rejection in non-fused helpers
+and `break` from collision-safe `do { ... } while (false)` wrappers in fused,
+row-collection, and two-row paths.
+
+The required structural red test failed on the old Sokoban output. After the
+change, exporter and specialized-oracle parity passed, as did the any-mask,
+layer-coupled, and general GBC parity smokes. The full production cart compiled
+and linked all 46 games, and its checker passed. Property/aggregate capture
+ordering, collect-all behavior, scan advancement, and two-row revalidation
+remained covered by the generated fixtures and host oracles.
+
+Static code results were substantial:
+
+| Metric | Task 2 baseline | Early rejection | Delta |
+| --- | ---: | ---: | ---: |
+| Packed payload | 2,398,105 B | 2,335,688 B | **−62,417 B (−2.60%)** |
+| Allocated payload | 2,424,832 B | 2,375,680 B | −49,152 B |
+| Packed banks / highest bank | 148 / 150 | 145 / 147 | −3 / −3 |
+| Physical 4 MB headroom | 1,747,047 B | 1,809,464 B | +62,417 B |
+| Fixed HOME | 7,020 B | 7,020 B | 0 |
+| Static WRAM | 5,922 B | 5,922 B | 0 |
+| Frame mean / p90 / max | 30.097 / 53 / 128 B | 28.510 / 47 / 128 B | −1.587 / −6 / 0 B |
+| `ldhl sp` instructions | 125,200 | 112,278 | **−12,922 (−10.32%)** |
+| Estimated `ldhl sp` bytes | 250,400 B | 224,556 B | −25,844 B |
+
+The same five count-only cases were then run for three byte-identical boots
+each using Homebrew mGBA 0.10.5. Render sampling was neutral or one tick
+different, but the logic result was mixed:
+
+| Case | Task 2 logic | Early-reject logic | Delta | Task 2 walk/push | Early-reject walk/push |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| sokoban | 44.602 | 44.602 | 0.00% | 57 / 68 | 57 / 68 |
+| large_board | 104.125 | 90.438 | −13.15% | 514 / 517 | 514 / 517 |
+| rule_heavy | 853.023 | 701.531 | −17.76% | 53 / 52 | 53 / 53 |
+| object_heavy | 1,149.805 | 1,300.383 | **+13.10%** | 476 / 465 | 475 / 465 |
+| two_movement_lanes | 2,440.359 | 2,161.203 | −11.44% | 92 / 92 | 92 / 91 |
+
+At the 4,096 Hz timer rate, the `object_heavy` regression is +150.578
+ticks/turn, or about **36.76 ms**. An alternating direct A/B check ran the
+preserved Task 2 and candidate ROMs in baseline/candidate order three times.
+Every pair reproduced `object_heavy` 1,149.805 → 1,300.383 logic ticks and
+`rule_heavy` 53/52 → 53/53 render ticks, so neither difference is emulator
+launch noise or run ordering.
+
+**Decision: reject.** The 62 KB payload reduction, smaller frames, and three
+logic wins do not justify a deterministic 13.10% regression in a required
+representative case. No emitter or exporter-test source change is retained.
