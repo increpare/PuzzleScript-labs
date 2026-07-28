@@ -1377,3 +1377,62 @@ two distinct source hashes, one recorded return, LCD enabled, 107 nonzero
 tile-map cells, and 3 emulator warnings (within the existing ceiling).
 The exact production ROM also passed a 180-frame launcher boot with LCDC
 `0xc1`, 195 nonzero tile-map cells, and zero emulator warnings.
+
+### GBC VBlank dirty-map span batching rejected (2026-07-28)
+
+Revision: uncommitted candidate on `4cf6842f`. Transient three-boot artifact
+labels (not retained): `vblank-map-counts` and `vblank-map-phases`, measured
+with the same relative compiler and GBDK paths as the Task 2 probes. The
+Homebrew mGBA executable was specified because the `/Applications` launcher
+exited before publishing SRAM; the candidate ROM published all expected
+records under both libmGBA and Homebrew mGBA.
+
+The prototype staged dirty 2×2 logical cells as per-row physical tile spans,
+then flushed all tile numbers in VBK bank 0 and all attributes in VBK bank 1
+immediately after the game loop's existing `vsync()`. The smoke counter defined
+this as exactly two data-bank passes; restoring VBK bank 0 was not a third
+pass. The pre-change one-cell probe failed at eight selections, and the
+prototype passed at two. Live smoke also retained LCD-on incremental rendering
+with zero map, attribute, palette, tile-upload, or unexpected-blanking errors.
+The existing `vsync()` boundary meant no additional frame wait.
+
+Count-only interaction redraws nevertheless regressed everywhere:
+
+| Case | Task 2 walk/push | Span flush walk/push | Delta walk/push |
+| --- | ---: | ---: | ---: |
+| sokoban | 57 / 68 | 70 / 75 | +13 / +7 |
+| large_board | 514 / 517 | 530 / 527 | +16 / +10 |
+| rule_heavy | 53 / 52 | 66 / 62 | +13 / +10 |
+| object_heavy | 476 / 465 | 536 / 527 | +60 / +62 |
+| two_movement_lanes | 92 / 92 | 105 / 102 | +13 / +10 |
+
+Diagnostic phases did confirm that the intended work was removed:
+
+| Aggregate walk + push phase | Task 2 | Span flush | Delta |
+| --- | ---: | ---: | ---: |
+| compose | 130 | 130 | 0 |
+| cache lookup | 194 | 197 | +3 |
+| encode | 686 | 686 | 0 |
+| tile upload | 24 | 21 | −3 |
+| map write | 569 | 433 | **−136 (−23.9%)** |
+| all attributed phases | 1,603 | 1,467 | −136 |
+
+Phase-probe overhead over the count-only headline was respectively
+`+6/+8`, `+16/+12`, `+6/+6`, `+69/+65`, and `+6/+6` walk/push ticks for the
+five cases. The count-only result therefore remains the retention authority.
+The most plausible measured explanation is that the two BANKED API calls and
+two 18-row scans outweighed the saved per-tile VBK selections and STAT polls,
+especially when spans contained gaps.
+
+All non-performance gates passed before rejection: focused parser and
+benchmark tests, 17 native GBC tests, seven cart-related Python suites, all 753
+Node tests, live renderer smoke, the nine-game cart smoke, and the full
+46-game production cart/checker. Production static WRAM was 5,959 / 6,144
+bytes (+37, below the 6,080 contingency), fixed HOME was 7,062 / 8,192
+(+42), and banked renderer code grew by 297 bytes. Packed game payload stayed
+2,398,105 bytes across 148 banks and the ROM stayed 4 MiB.
+
+**Decision: reject.** Both required map-heavy cases became slower, so no
+renderer, smoke, parser, or benchmark source change is retained. Tile upload
+was still only 21 / 1,467 attributed ticks (1.4%); the conditional DMA variants
+were not attempted.

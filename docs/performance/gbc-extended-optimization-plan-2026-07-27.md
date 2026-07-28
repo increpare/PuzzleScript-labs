@@ -571,6 +571,16 @@ patterns) before growing the table, or switch to a small hash.
 
 ### Task 4 — Batch incremental VRAM updates into VBlank
 
+**Status (2026-07-28): rejected after measurement.** The implementation
+sequence called this renderer experiment Task 5. A row-span prototype passed
+the semantic, live-smoke, cart, and memory gates and reduced aggregate
+diagnostic `map_write` time from 569 to 433 ticks. However, count-only
+walk/push redraws regressed in all five benchmark cases, including
+`large_board` (514/517 → 530/527) and `object_heavy`
+(476/465 → 536/527). The BANKED flush and two full row scans cost more than
+the grouped writes saved. No source change is retained; see the measured
+rejection in `gbc-optimization-ledger.md`.
+
 **Why:** §4.4 — eight STAT-polling VRAM writes per dirty cell, with the LCD
 on, outside VBlank.
 
