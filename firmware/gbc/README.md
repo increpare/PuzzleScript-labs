@@ -57,14 +57,27 @@ deterministic counters across independent emulator boots, and can compare a
 candidate with a saved JSON baseline:
 
 ```sh
-python ../../scripts/run_gbc_benchmark_suite.py \
-  --repository ../.. --label working --runs 3 \
-  --out ../../build-gbc-release/benchmarks/working.json
+# Run from the repository root.
+python3 scripts/run_gbc_benchmark_suite.py \
+  --label plan-baseline --runs 3 \
+  --gbdk-home .codex_tmp/toolchains/gbdk \
+  --compiler build/native/puzzlescript_cpp \
+  --baseline docs/performance/gbc-baseline.json \
+  --out build-gbc-release/benchmarks/plan-baseline.json
+```
 
-python ../../scripts/run_gbc_benchmark_suite.py \
-  --repository ../.. --label candidate --runs 3 \
-  --baseline ../../docs/performance/gbc-baseline.json \
-  --out ../../build-gbc-release/benchmarks/candidate.json
+Explicit relative `--gbdk-home` and `--compiler` paths are resolved against
+`--repository` (the current directory by default), so the command is
+independent of where the script file lives.
+
+After building the compilation cart, record its payload composition, physical
+4 MB headroom, and specialized-rule stack/codegen metrics:
+
+```sh
+python3 scripts/report_gbc_cart_metrics.py \
+  --manifest build/gbc/cart/cart-manifest.json \
+  --objects build/gbc/cart/objects \
+  --out build/gbc/cart/codegen-metrics.json
 ```
 
 Controls:

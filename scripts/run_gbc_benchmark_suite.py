@@ -25,6 +25,17 @@ DEFAULT_CASES = (
 )
 
 
+def default_compiler(repository: Path) -> Path:
+    suffix = ".exe" if os.name == "nt" else ""
+    return repository / "build" / "native" / f"puzzlescript_cpp{suffix}"
+
+
+def resolve_tool_path(path: Path, *, repository: Path) -> Path:
+    if not path.is_absolute():
+        path = repository / path
+    return path.resolve()
+
+
 def find_make() -> Path | None:
     executable = shutil.which("make") or shutil.which("make.exe")
     if executable:
@@ -203,11 +214,13 @@ def main() -> int:
         return 0
 
     make = args.make or find_make()
-    gbdk_home = args.gbdk_home or (
-        repository / ".codex_tmp" / "toolchains" / "gbdk"
+    gbdk_home = resolve_tool_path(
+        args.gbdk_home or Path(".codex_tmp/toolchains/gbdk"),
+        repository=repository,
     )
-    compiler = args.compiler or (
-        repository / "build-gbc-release" / "native" / "puzzlescript_cpp.exe"
+    compiler = resolve_tool_path(
+        args.compiler or default_compiler(repository),
+        repository=repository,
     )
     emulator = args.mgba or default_mgba()
     if make is None or not make.is_file():
