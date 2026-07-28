@@ -19,6 +19,7 @@ from run_gbc_benchmark import (
     PERF_RENDER_SAMPLE_NAMES,
     default_mgba,
     run_once,
+    validate_render_phase_hook_assembly,
 )
 
 
@@ -115,8 +116,6 @@ def validate_render_detail(
     phase_probes: bool,
 ) -> None:
     detail = record["render_detail"]
-    total_counts = 0
-    total_phase_ticks = 0
     for sample_name in PERF_RENDER_SAMPLE_NAMES:
         sample = detail[sample_name]
         phase_ticks = sample["phase_ticks"]
@@ -134,6 +133,9 @@ def validate_render_detail(
         cache_misses = int(counts["cache_misses"])
         dedicated_fallbacks = int(counts["dedicated_fallbacks"])
         uploaded_quartets = int(counts["uploaded_quartets"])
+        sample_phase_ticks = sum(
+            int(value) for value in phase_ticks.values()
+        )
         if dirty_cells != cache_hits + cache_misses:
             raise RuntimeError(
                 f"{sample_name}: dirty_cells={dirty_cells} does not equal "
@@ -150,17 +152,18 @@ def validate_render_detail(
                 f"{sample_name}: dedicated_fallbacks={dedicated_fallbacks} "
                 f"exceeds cache_misses={cache_misses}"
             )
-        total_counts += sum(int(value) for value in counts.values())
-        total_phase_ticks += sum(int(value) for value in phase_ticks.values())
-    if total_counts == 0:
-        raise RuntimeError("render detail counters recorded no activity")
-    if phase_probes:
-        if total_phase_ticks == 0:
-            raise RuntimeError("render phase probes recorded no timed activity")
-    elif total_phase_ticks != 0:
-        raise RuntimeError(
-            "count-only render detail unexpectedly contains phase ticks"
-        )
+        if sample_name == "initial_render" and dirty_cells == 0:
+            raise RuntimeError(
+                "initial_render recorded no dirty cells or count activity"
+            )
+        if phase_probes and dirty_cells > 0 and sample_phase_ticks == 0:
+            raise RuntimeError(
+                f"{sample_name}: dirty sample recorded no phase ticks"
+            )
+        if not phase_probes and sample_phase_ticks != 0:
+            raise RuntimeError(
+                f"count-only {sample_name} unexpectedly contains phase ticks"
+            )
 
 
 def percent_delta(before: float, after: float) -> float | None:
@@ -351,6 +354,24 @@ def main() -> int:
         )
         if process.returncode != 0:
             raise SystemExit(f"GBC build failed for {name}; see {log_path}")
+        assembly_path = (
+            firmware
+            / f"build-autotest-perf-compact{suffix}"
+            / "tile_cache.asm"
+        )
+        if not assembly_path.is_file():
+            raise SystemExit(
+                f"GBC tile-cache assembly was not found: {assembly_path}"
+            )
+        try:
+            validate_render_phase_hook_assembly(
+                assembly_path.read_text(encoding="utf-8"),
+                phase_probes=args.phases,
+            )
+        except RuntimeError as error:
+            raise SystemExit(
+                f"invalid tile-cache probe assembly for {name}: {error}"
+            ) from error
 
         print(f"[{index}/{len(cases)}] mGBA {name}", flush=True)
         records = [

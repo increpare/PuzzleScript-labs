@@ -212,6 +212,7 @@ def test_render_detail_rejects_inexact_counter_semantics() -> None:
 
 def test_phase_render_detail_requires_timed_activity() -> None:
     record = benchmark_record()
+    record["render_detail"]["initial_render"]["phase_ticks"]["cache_lookup"] = 1
     record["render_detail"]["walk_render"]["phase_ticks"] = {
         "compose": 10,
         "cache_lookup": 20,
@@ -225,6 +226,70 @@ def test_phase_render_detail_requires_timed_activity() -> None:
     )
 
 
+def test_render_detail_requires_active_initial_sample() -> None:
+    record = benchmark_record()
+    record["render_detail"]["initial_render"]["counts"] = {
+        "dirty_cells": 0,
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "dedicated_fallbacks": 0,
+        "uploaded_quartets": 0,
+    }
+
+    try:
+        run_gbc_benchmark_suite.validate_render_detail(
+            record,
+            phase_probes=False,
+        )
+    except RuntimeError as error:
+        assert "initial_render" in str(error)
+        assert "no dirty cells" in str(error)
+    else:
+        raise AssertionError("expected inactive initial-render validation failure")
+
+
+def test_phase_render_detail_requires_each_dirty_sample_timed() -> None:
+    record = benchmark_record()
+    record["render_detail"]["initial_render"]["phase_ticks"]["cache_lookup"] = 1
+
+    try:
+        run_gbc_benchmark_suite.validate_render_detail(
+            record,
+            phase_probes=True,
+        )
+    except RuntimeError as error:
+        assert "walk_render" in str(error)
+        assert "no phase ticks" in str(error)
+    else:
+        raise AssertionError("expected untimed dirty-sample validation failure")
+
+
+def test_phase_render_detail_allows_clean_untimed_sample() -> None:
+    record = benchmark_record()
+    record["render_detail"]["initial_render"]["phase_ticks"]["cache_lookup"] = 1
+    record["render_detail"]["walk_render"]["phase_ticks"]["map_write"] = 1
+    run_gbc_benchmark_suite.validate_render_detail(
+        record,
+        phase_probes=True,
+    )
+
+
+def test_count_only_render_detail_rejects_any_phase_tick() -> None:
+    record = benchmark_record()
+    record["render_detail"]["walk_render"]["phase_ticks"]["map_write"] = 1
+
+    try:
+        run_gbc_benchmark_suite.validate_render_detail(
+            record,
+            phase_probes=False,
+        )
+    except RuntimeError as error:
+        assert "count-only" in str(error)
+        assert "walk_render" in str(error)
+    else:
+        raise AssertionError("expected count-only phase-tick validation failure")
+
+
 def main() -> None:
     test_script_compiles()
     test_repository_relative_tool_paths()
@@ -234,6 +299,10 @@ def main() -> None:
     test_count_only_render_detail_has_zero_phases_and_exact_events()
     test_render_detail_rejects_inexact_counter_semantics()
     test_phase_render_detail_requires_timed_activity()
+    test_render_detail_requires_active_initial_sample()
+    test_phase_render_detail_requires_each_dirty_sample_timed()
+    test_phase_render_detail_allows_clean_untimed_sample()
+    test_count_only_render_detail_rejects_any_phase_tick()
     print("run_gbc_benchmark_suite_test: ok")
 
 

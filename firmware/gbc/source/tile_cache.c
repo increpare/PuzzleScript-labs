@@ -20,13 +20,17 @@ extern uint8_t gTileBytes[64];
 extern uint16_t gTileUploadMismatches;
 #endif
 
-#if defined(PS_GBC_PERF_BENCH)
+#if defined(PS_GBC_PERF_BENCH) && defined(PS_GBC_PERF_PHASES)
 void ps_gbc_perf_render_begin(uint8_t phase);
 void ps_gbc_perf_render_end(uint8_t phase);
-void ps_gbc_perf_render_count(uint8_t counter);
 #else
 #define ps_gbc_perf_render_begin(phase) ((void)0)
 #define ps_gbc_perf_render_end(phase) ((void)0)
+#endif
+
+#if defined(PS_GBC_PERF_BENCH)
+void ps_gbc_perf_render_count(uint8_t counter);
+#else
 #define ps_gbc_perf_render_count(counter) ((void)0)
 #endif
 

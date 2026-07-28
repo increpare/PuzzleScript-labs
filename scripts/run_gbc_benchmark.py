@@ -61,6 +61,10 @@ PERF_RENDER_SAMPLE_NAMES = (
     "walk_render",
     "push_render",
 )
+PERF_RENDER_PHASE_HOOK_SYMBOLS = (
+    "_ps_gbc_perf_render_begin",
+    "_ps_gbc_perf_render_end",
+)
 SRAM_BANK_SIZE = 8 * 1024
 SRAM_BANK = 3
 PERF_OFFSET = 16
@@ -68,6 +72,34 @@ PERF_PHASE_OFFSET = 32
 PERF_INTERACTION_OFFSET = 96
 PERF_SCHEDULE_OFFSET = 160
 PERF_RENDER_DETAIL_OFFSET = 192
+
+
+def validate_render_phase_hook_assembly(
+    assembly: str,
+    *,
+    phase_probes: bool,
+) -> None:
+    references = tuple(
+        symbol
+        for symbol in PERF_RENDER_PHASE_HOOK_SYMBOLS
+        if symbol in assembly
+    )
+    if phase_probes:
+        missing = tuple(
+            symbol
+            for symbol in PERF_RENDER_PHASE_HOOK_SYMBOLS
+            if symbol not in assembly
+        )
+        if missing:
+            raise RuntimeError(
+                "phase-probe tile-cache assembly is missing "
+                + ", ".join(missing)
+            )
+    elif references:
+        raise RuntimeError(
+            "count-only tile-cache assembly references "
+            + ", ".join(references)
+        )
 
 
 def default_mgba() -> Path | None:

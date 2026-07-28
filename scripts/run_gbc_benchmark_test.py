@@ -207,6 +207,56 @@ def test_record_layout_matches_firmware_offsets() -> None:
     assert run_gbc_benchmark.PERF_RENDER_DETAIL_OFFSET == 192
 
 
+def test_count_only_assembly_accepts_counter_hook_without_phase_hooks() -> None:
+    assembly = """
+        .globl _ps_gbc_perf_render_count
+        call _ps_gbc_perf_render_count
+    """
+    run_gbc_benchmark.validate_render_phase_hook_assembly(
+        assembly,
+        phase_probes=False,
+    )
+
+
+def test_count_only_assembly_rejects_phase_hook_reference() -> None:
+    assembly = """
+        .globl _ps_gbc_perf_render_begin
+        call _ps_gbc_perf_render_begin
+    """
+    try:
+        run_gbc_benchmark.validate_render_phase_hook_assembly(
+            assembly,
+            phase_probes=False,
+        )
+    except RuntimeError as error:
+        assert "count-only" in str(error)
+        assert "render_begin" in str(error)
+    else:
+        raise AssertionError("expected count-only phase-hook validation failure")
+
+
+def test_phase_assembly_requires_both_phase_hooks() -> None:
+    assembly = """
+        call _ps_gbc_perf_render_begin
+        call _ps_gbc_perf_render_end
+    """
+    run_gbc_benchmark.validate_render_phase_hook_assembly(
+        assembly,
+        phase_probes=True,
+    )
+
+    try:
+        run_gbc_benchmark.validate_render_phase_hook_assembly(
+            "call _ps_gbc_perf_render_begin",
+            phase_probes=True,
+        )
+    except RuntimeError as error:
+        assert "phase-probe" in str(error)
+        assert "render_end" in str(error)
+    else:
+        raise AssertionError("expected missing phase-hook validation failure")
+
+
 def main() -> None:
     test_valid_version_one_render_detail()
     test_render_detail_rejects_invalid_magic()
@@ -215,6 +265,9 @@ def main() -> None:
     test_render_detail_rejects_truncated_sram()
     test_count_only_detail_allows_counts_with_zero_phase_ticks()
     test_record_layout_matches_firmware_offsets()
+    test_count_only_assembly_accepts_counter_hook_without_phase_hooks()
+    test_count_only_assembly_rejects_phase_hook_reference()
+    test_phase_assembly_requires_both_phase_hooks()
     print("run_gbc_benchmark_test: ok")
 
 
