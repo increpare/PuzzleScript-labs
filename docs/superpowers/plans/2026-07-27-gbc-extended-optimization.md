@@ -235,7 +235,7 @@ Do not combine two performance experiments in one commit.
 - Modify: `scripts/run_gbc_benchmark_suite.py`
 - Modify: `firmware/gbc/README.md`
 
-- [ ] **Step 1: Write failing tool-path tests**
+- [x] **Step 1: Write failing tool-path tests**
 
 Extract these helpers into `run_gbc_benchmark_suite.py` and test them without
 invoking GBDK:
@@ -265,7 +265,7 @@ assert resolve_tool_path(
 
 Use `Path("C:/repo")` and the `.exe` expectation when `os.name == "nt"`.
 
-- [ ] **Step 2: Run the test red**
+- [x] **Step 2: Run the test red**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite_test.py
@@ -274,7 +274,7 @@ python3 scripts/run_gbc_benchmark_suite_test.py
 Expected: import/assertion failure because the helpers and corrected default do
 not exist.
 
-- [ ] **Step 3: Use the helpers before validation and Makefile invocation**
+- [x] **Step 3: Use the helpers before validation and Makefile invocation**
 
 Replace the `build-gbc-release/native/puzzlescript_cpp.exe` default and resolve
 both explicit/default paths:
@@ -293,7 +293,7 @@ compiler = resolve_tool_path(
 
 Keep `make`, emulator, source, and output path handling unchanged.
 
-- [ ] **Step 4: Add a failing metrics parser test**
+- [x] **Step 4: Add a failing metrics parser test**
 
 The synthetic object should contain two specialized functions:
 
@@ -324,7 +324,7 @@ assert report["ldhl_sp_count"] == 3
 assert report["estimated_ldhl_sp_rom_bytes"] == 6
 ```
 
-- [ ] **Step 5: Implement the focused metrics reporter**
+- [x] **Step 5: Implement the focused metrics reporter**
 
 `scripts/report_gbc_cart_metrics.py` must:
 
@@ -351,7 +351,7 @@ python3 scripts/report_gbc_cart_metrics.py \
   --out build/gbc/cart/codegen-metrics.json
 ```
 
-- [ ] **Step 6: Run focused tests green**
+- [x] **Step 6: Run focused tests green**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite_test.py
@@ -360,7 +360,7 @@ python3 scripts/report_gbc_cart_metrics_test.py
 
 Expected: both print `ok`.
 
-- [ ] **Step 7: Reproduce the baseline with relative CLI paths**
+- [x] **Step 7: Reproduce the baseline with relative CLI paths**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite.py \
@@ -379,7 +379,7 @@ Expected: the suite completes with deterministic records and the metrics report
 matches the roadmap's order of magnitude: 1,394 rule functions, mean frame
 about 31 bytes, and about 125,200 `ldhl sp` instructions.
 
-- [ ] **Step 8: Update documentation and commit**
+- [x] **Step 8: Update documentation and commit**
 
 Document that explicit relative tool paths are resolved against
 `--repository`, and show the repository-root command above.
@@ -391,6 +391,14 @@ git add scripts/run_gbc_benchmark_suite.py \
   scripts/report_gbc_cart_metrics_test.py firmware/gbc/README.md
 git commit -m "Make GBC performance measurements reproducible"
 ```
+
+**Completed baseline (`980ce35b` artifacts):** 2,398,105 packed bytes,
+2,424,832 allocated bytes, 26,727 allocated-bank slack, 1,747,047 physical
+4 MB headroom, and highest bank 150. The validated artifact set contains 473
+payload objects and 151 specialized-rule ASM files. It reports 1,513
+specialized-rule labels, 1,371 functions with associated frames
+(mean/median/max 30.097/32/128 bytes), and 125,200 `ldhl sp` instructions.
+All five hardware cases were deterministic across three boots.
 
 ---
 
