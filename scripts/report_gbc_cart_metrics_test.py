@@ -82,6 +82,8 @@ def test_cart_and_codegen_metrics() -> None:
     assert report["max_frame_bytes"] == 32
     assert report["ldhl_sp_count"] == 3
     assert report["estimated_ldhl_sp_rom_bytes"] == 6
+    assert report["rule_function_labels"] == 2
+    assert report["rule_functions_with_frames"] == 2
     assert report["object_kinds"] == {
         "generated_compact_facade": {"bytes": 16, "count": 1},
         "generated_core": {"bytes": 64, "count": 1},
@@ -101,7 +103,7 @@ def test_specialized_rule_helper_frames_are_included() -> None:
             objects / "g00_generated_specialized_turn_rules_0.asm"
         ).write_text(
             "_ps_gbc_specialized_rule_0:\n"
-            "_other_function:\n"
+            "_other_function::\n"
             "\tadd\tsp, #-64\n"
             "_ps_gbc_specialized_rule_1_matches_at:\n"
             "\tadd\tsp, #-6\n",
@@ -112,7 +114,9 @@ def test_specialized_rule_helper_frames_are_included() -> None:
             objects
         )
 
-    assert metrics["rule_functions"] == 1
+    assert metrics["rule_function_labels"] == 2
+    assert metrics["rule_functions_with_frames"] == 1
+    assert metrics["rule_functions"] == metrics["rule_functions_with_frames"]
     assert metrics["mean_frame_bytes"] == 6.0
     assert metrics["max_frame_bytes"] == 6
 

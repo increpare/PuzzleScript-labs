@@ -25,7 +25,7 @@ OBJECT_CODE_AREA = re.compile(
 RULE_LABEL = re.compile(
     r"^\s*_ps_gbc_specialized_rule_[A-Za-z0-9_.$]+:\s*$"
 )
-SYMBOL_LABEL = re.compile(r"^\s*_[A-Za-z0-9_.$]+:\s*$")
+SYMBOL_LABEL = re.compile(r"^\s*_[A-Za-z0-9_.$]+:{1,2}\s*$")
 FRAME_ALLOCATION = re.compile(r"^\s*add\s+sp,\s*#-(\d+)\b")
 LDHL_SP = re.compile(r"^\s*ldhl\s+sp,\s*#")
 
@@ -153,7 +153,8 @@ def scan_specialized_assembly(
             f"{objects_directory}"
         )
     frame_bytes: list[int] = []
-    rule_functions = 0
+    rule_function_labels = 0
+    rule_functions_with_frames = 0
     ldhl_sp_count = 0
     for path in assembly_paths:
         waiting_for_frame = False
@@ -162,6 +163,7 @@ def scan_specialized_assembly(
             errors="replace",
         ).splitlines():
             if RULE_LABEL.match(line):
+                rule_function_labels += 1
                 waiting_for_frame = True
                 continue
             if SYMBOL_LABEL.match(line):
@@ -173,7 +175,7 @@ def scan_specialized_assembly(
                 match = FRAME_ALLOCATION.match(line)
                 if match:
                     frame_bytes.append(int(match.group(1)))
-                    rule_functions += 1
+                    rule_functions_with_frames += 1
                     waiting_for_frame = False
 
     return {
@@ -186,7 +188,10 @@ def scan_specialized_assembly(
         "median_frame_bytes": (
             statistics.median_high(frame_bytes) if frame_bytes else 0
         ),
-        "rule_functions": rule_functions,
+        "rule_function_labels": rule_function_labels,
+        # Backward-compatible alias for the original synthetic-report field.
+        "rule_functions": rule_functions_with_frames,
+        "rule_functions_with_frames": rule_functions_with_frames,
         "specialized_assembly_files": len(assembly_paths),
     }
 
