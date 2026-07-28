@@ -416,7 +416,7 @@ All five hardware cases were deterministic across three boots.
 - Modify: `scripts/run_gbc_benchmark_suite.py`
 - Modify: `scripts/run_gbc_benchmark_suite_test.py`
 
-- [ ] **Step 1: Define the failing Python record contract**
+- [x] **Step 1: Define the failing Python record contract**
 
 Refactor SRAM decoding out of `run_once()`:
 
@@ -458,7 +458,7 @@ The synthetic test must cover:
 - truncated SRAM;
 - a headline record with count values but zero phase ticks.
 
-- [ ] **Step 2: Run the parser test red**
+- [x] **Step 2: Run the parser test red**
 
 ```bash
 python3 scripts/run_gbc_benchmark_test.py
@@ -467,7 +467,7 @@ python3 scripts/run_gbc_benchmark_test.py
 Expected: failure because `parse_benchmark_sram()` and render-detail constants
 do not exist.
 
-- [ ] **Step 3: Add render probe enums to the shared ABI**
+- [x] **Step 3: Add render probe enums to the shared ABI**
 
 In `native/include/puzzlescript/gbc.h` add:
 
@@ -494,7 +494,7 @@ typedef enum ps_gbc_perf_render_counter {
 Do not change `ps_gbc_perf_phase`; logic and render probes remain separate so
 the existing seven-element record is backward compatible.
 
-- [ ] **Step 4: Implement headline counters and diagnostic timers**
+- [x] **Step 4: Implement headline counters and diagnostic timers**
 
 In `main.c`, under `PS_GBC_PERF_BENCH`, add phase starts/totals and counters.
 Counts are always active during a selected render sample. Timer probes are
@@ -533,7 +533,7 @@ void ps_gbc_perf_render_count(uint8_t counter) {
 
 Provide no-op macros in `tile_cache.c` outside `PS_GBC_PERF_BENCH`.
 
-- [ ] **Step 5: Probe mutually exclusive renderer regions**
+- [x] **Step 5: Probe mutually exclusive renderer regions**
 
 Instrument:
 
@@ -558,7 +558,7 @@ PS_GBC_RENDER_COUNT(PS_GBC_PERF_RENDER_UPLOADED_QUARTETS);
 Do not wrap `prepareComposition()` in one broad phase: nested/overlapping phase
 ticks would make the split add up to more than the measured redraw.
 
-- [ ] **Step 6: Capture initial, walk, and push samples independently**
+- [x] **Step 6: Capture initial, walk, and push samples independently**
 
 Add:
 
@@ -577,7 +577,7 @@ Publish the three samples at SRAM offset 192 after writing zero magic, then
 write the detail magic last. Keep the legacy phase/interaction offsets and
 versions intact.
 
-- [ ] **Step 7: Parse and surface the new record**
+- [x] **Step 7: Parse and surface the new record**
 
 `run_gbc_benchmark.py` must return:
 
@@ -612,13 +612,13 @@ Print:
 walk_render=<ticks> push_render=<ticks> alternating_render_diagnostic=<ticks>
 ```
 
-- [ ] **Step 8: Add suite comparison tests**
+- [x] **Step 8: Add suite comparison tests**
 
 Assert `compare_case()` compares `walk_render_ticks` and `push_render_ticks`,
 does not treat alternating render as a headline regression, and retains the
 diagnostic value in JSON.
 
-- [ ] **Step 9: Run focused and native tests**
+- [x] **Step 9: Run focused and native tests**
 
 ```bash
 python3 scripts/run_gbc_benchmark_test.py
@@ -629,7 +629,7 @@ ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
 
 Expected: all pass.
 
-- [ ] **Step 10: Measure probe overhead separately**
+- [x] **Step 10: Measure probe overhead separately**
 
 ```bash
 python3 scripts/run_gbc_benchmark_suite.py \
@@ -648,7 +648,7 @@ Expected: count-only records have nonzero counts and zero phase ticks;
 diagnostic records have a five-phase split. Record the difference between the
 two builds as probe overhead. Use the count-only ROM for all headline timing.
 
-- [ ] **Step 11: Commit instrumentation**
+- [x] **Step 11: Commit instrumentation**
 
 ```bash
 git add native/include/puzzlescript/gbc.h \
@@ -663,6 +663,22 @@ git commit -m "Attribute GBC interaction rendering costs"
 **Decision gate:** rank Tasks 3-5 by the `walk_render`/`push_render` split.
 Attempt the largest measured component first. Do not use the alternating
 right/left render sample to choose.
+
+**Completed decision (`5415f0e0` + `e0106a42`):** the corrected count-only
+walk/push ticks are Sokoban 57/68, large-board 514/517, rule-heavy 53/52,
+object-heavy 476/465, and two-movement-lanes 92/92. Across the real
+walk/push phase samples, encode accounts for 686 ticks (42.8%), map writes
+569 (35.5%), cache lookup 194 (12.1%), compose 130 (8.1%), and tile upload
+24 (1.5%). Dedicated fallbacks are zero in every sample.
+
+Task 5 therefore runs next: it targets the largest measured component covered
+by the existing renderer tasks and needs no new static-WRAM allocation.
+Task 4 is deferred because its dedicated-fallback mechanism was not exercised.
+Task 3 remains behind its approved memory-design checkpoint; the measured
+encode cost must be included in that design rather than assuming composition
+staging is the primary win. Phase-probe builds remain diagnostic only: their
+walk/push overhead ranges from +21 to +353 ticks after count-only hooks were
+compiled out.
 
 ---
 
