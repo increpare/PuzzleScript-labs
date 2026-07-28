@@ -12,6 +12,14 @@ extern uint8_t gTileMap[
 extern uint8_t gAttributes[
     PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT];
 extern ps_gbc_session* gSession;
+extern uint32_t gPerfRenderPhaseTicks[PS_GBC_PERF_RENDER_PHASE_COUNT];
+extern uint16_t gPerfRenderCounts[PS_GBC_PERF_RENDER_COUNTER_COUNT];
+extern bool gPerfRenderEnabled;
+
+typedef struct perf_render_sample {
+    uint32_t phase_ticks[PS_GBC_PERF_RENDER_PHASE_COUNT];
+    uint16_t counts[PS_GBC_PERF_RENDER_COUNTER_COUNT];
+} perf_render_sample;
 
 typedef struct perf_interaction {
     uint32_t initial_render_ticks;
@@ -19,6 +27,9 @@ typedef struct perf_interaction {
     uint32_t walk_render_ticks;
     uint32_t push_logic_ticks;
     uint32_t push_render_ticks;
+    perf_render_sample initial_render;
+    perf_render_sample walk_render;
+    perf_render_sample push_render;
 } perf_interaction;
 
 void perfTimerStart(void);

@@ -20,6 +20,16 @@ extern uint8_t gTileBytes[64];
 extern uint16_t gTileUploadMismatches;
 #endif
 
+#if defined(PS_GBC_PERF_BENCH)
+void ps_gbc_perf_render_begin(uint8_t phase);
+void ps_gbc_perf_render_end(uint8_t phase);
+void ps_gbc_perf_render_count(uint8_t counter);
+#else
+#define ps_gbc_perf_render_begin(phase) ((void)0)
+#define ps_gbc_perf_render_end(phase) ((void)0)
+#define ps_gbc_perf_render_count(counter) ((void)0)
+#endif
+
 static const uint8_t kSourceCoordinate[PS_GBC_RENDERED_CELL_WIDTH] = {
     0U, 0U, 0U, 1U, 1U, 1U, 2U, 2U,
     2U, 2U, 3U, 3U, 3U, 4U, 4U, 4U
@@ -38,11 +48,16 @@ uint8_t composeTile(uint32_t objects) {
     uint8_t cell_pixels;
     uint8_t object_index;
     uint8_t target_palette = 0U;
+    ps_gbc_perf_render_begin(PS_GBC_PERF_RENDER_COMPOSE);
     memset(gSourcePixels, 0, sizeof(gSourcePixels));
-    if (descriptor == NULL || game == NULL) return target_palette;
+    if (descriptor == NULL || game == NULL) {
+        ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_COMPOSE);
+        return target_palette;
+    }
     cell_pixels = (uint8_t)(game->cell_width * game->cell_height);
     if (cell_pixels > sizeof(gSourcePixels)
         || cell_pixels > sizeof(gTileBytes)) {
+        ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_COMPOSE);
         return target_palette;
     }
     for (object_index = 0U;
@@ -79,14 +94,17 @@ uint8_t composeTile(uint32_t objects) {
         }
         if (drew) target_palette = render_object.palette;
     }
+    ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_COMPOSE);
     return target_palette;
 }
 
 static void encodeQuartet(uint8_t palette) {
     const ps_gbc_game_view* game = ps_gbc_active_game_view();
     uint8_t rendered_y;
+    ps_gbc_perf_render_begin(PS_GBC_PERF_RENDER_ENCODE);
     if (game == NULL) {
         memset(gTileBytes, 0, sizeof(gTileBytes));
+        ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_ENCODE);
         return;
     }
     if (!ps_gbc_active_rom_copy(
@@ -130,10 +148,12 @@ static void encodeQuartet(uint8_t palette) {
                 (uint8_t)(((color >> 1U) & 1U) << (7U - tile_column));
         }
     }
+    ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_ENCODE);
 }
 
 static void uploadQuartet(uint16_t base_tile) {
     uint8_t part;
+    ps_gbc_perf_render_begin(PS_GBC_PERF_RENDER_TILE_UPLOAD);
     for (part = 0U; part < PS_GBC_TILES_PER_CELL; ++part) {
         const uint16_t tile = base_tile + part;
         VBK_REG = (uint8_t)(tile >> 8U);
@@ -151,13 +171,19 @@ static void uploadQuartet(uint16_t base_tile) {
         }
 #endif
     }
+    ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_TILE_UPLOAD);
+    ps_gbc_perf_render_count(PS_GBC_PERF_RENDER_UPLOADED_QUARTETS);
 }
 
 static bool loadPrecomposedComposition(uint32_t objects, uint8_t* palette) {
     const ps_gbc_game_descriptor* descriptor =
         ps_gbc_active_descriptor();
     uint8_t index;
-    if (descriptor == NULL) return false;
+    ps_gbc_perf_render_begin(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
+    if (descriptor == NULL) {
+        ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
+        return false;
+    }
     for (index = 0U;
          index < descriptor->precomposed_count;
          ++index) {
@@ -178,10 +204,13 @@ static bool loadPrecomposedComposition(uint32_t objects, uint8_t* palette) {
                     + (uint16_t)index * sizeof(gTileBytes),
                 gTileBytes,
                 sizeof(gTileBytes))) {
+            ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
             return false;
         }
+        ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
         return true;
     }
+    ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
     return false;
 }
 
@@ -197,15 +226,18 @@ static uint8_t composeAndUpload(uint16_t base_tile, uint32_t objects) {
 
 static uint16_t findCachedComposition(uint32_t objects, uint8_t* palette) {
     uint8_t cache_index;
+    ps_gbc_perf_render_begin(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
     for (cache_index = 0U;
          cache_index < gCompositionCount;
          ++cache_index) {
         if (gCompositionMasks[cache_index] == objects) {
             *palette = gCompositionPalettes[cache_index];
+            ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
             return PS_GBC_CACHE_TILE_OFFSET
                 + (uint16_t)cache_index * PS_GBC_TILES_PER_CELL;
         }
     }
+    ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_CACHE_LOOKUP);
     return 0xffffU;
 }
 
@@ -215,7 +247,11 @@ static uint16_t prepareComposition(
     uint8_t* palette
 ) {
     uint16_t base_tile = findCachedComposition(objects, palette);
-    if (base_tile != 0xffffU) return base_tile;
+    if (base_tile != 0xffffU) {
+        ps_gbc_perf_render_count(PS_GBC_PERF_RENDER_CACHE_HITS);
+        return base_tile;
+    }
+    ps_gbc_perf_render_count(PS_GBC_PERF_RENDER_CACHE_MISSES);
     if (gCompositionCount < PS_GBC_CACHE_COMPOSITIONS) {
         const uint8_t cache_index = gCompositionCount++;
         base_tile = PS_GBC_CACHE_TILE_OFFSET
@@ -225,6 +261,7 @@ static uint16_t prepareComposition(
         gCompositionPalettes[cache_index] = *palette;
         return base_tile;
     }
+    ps_gbc_perf_render_count(PS_GBC_PERF_RENDER_DEDICATED_FALLBACKS);
     base_tile = PS_GBC_DEDICATED_TILE_OFFSET
         + logical_screen_cell * PS_GBC_TILES_PER_CELL;
     *palette = composeAndUpload(base_tile, objects);
@@ -255,10 +292,12 @@ static void mapComposition(
         gTileMap[screen_cell] = (uint8_t)tile;
         gAttributes[screen_cell] = attributes;
         if (update_hardware) {
+            ps_gbc_perf_render_begin(PS_GBC_PERF_RENDER_MAP_WRITE);
             VBK_REG = VBK_BANK_0;
             set_bkg_tile_xy(tile_x, tile_y, (uint8_t)tile);
             VBK_REG = VBK_BANK_1;
             set_bkg_tile_xy(tile_x, tile_y, attributes);
+            ps_gbc_perf_render_end(PS_GBC_PERF_RENDER_MAP_WRITE);
         }
     }
 }
@@ -297,6 +336,7 @@ void ps_gbc_render_full_board(
                     board_x * board_height + board_y,
                     game->object_bytes_per_cell);
             }
+            ps_gbc_perf_render_count(PS_GBC_PERF_RENDER_DIRTY_CELLS);
             base_tile =
                 prepareComposition(logical_screen_cell, objects, &palette);
             mapComposition(
@@ -336,6 +376,7 @@ void ps_gbc_render_dirty_board(
                     & (uint8_t)(1U << (board_cell & 7U))) == 0U) {
                 continue;
             }
+            ps_gbc_perf_render_count(PS_GBC_PERF_RENDER_DIRTY_CELLS);
             base_tile = prepareComposition(
                 logical_screen_cell,
                 ps_gbc_packed_cell_read(

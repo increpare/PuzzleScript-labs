@@ -13,7 +13,13 @@ import sys
 from typing import Any
 
 from check_gbc_rom import map_usage
-from run_gbc_benchmark import default_mgba, run_once
+from run_gbc_benchmark import (
+    PERF_RENDER_COUNTER_NAMES,
+    PERF_RENDER_PHASE_NAMES,
+    PERF_RENDER_SAMPLE_NAMES,
+    default_mgba,
+    run_once,
+)
 
 
 DEFAULT_CASES = (
@@ -58,6 +64,14 @@ def git_value(repository: Path, *args: str) -> str:
 def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
     logic_iterations = int(record["iterations"])
     render_iterations = int(record["render_iterations"])
+    alternating_render_ticks_per_frame = (
+        record["render_ticks"] / render_iterations
+    )
+    headline_render = {
+        f"{name}_ticks": ticks
+        for name, ticks in record["interaction_ticks"].items()
+        if name in {"walk_render", "push_render"}
+    }
     return {
         "ticks_per_turn": record["ticks"] / logic_iterations,
         "phase_ticks_per_turn": {
@@ -68,7 +82,7 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             name: count / logic_iterations
             for name, count in record["schedule_counts"].items()
         },
-        "render_ticks_per_frame": record["render_ticks"] / render_iterations,
+        "render_ticks_per_frame": alternating_render_ticks_per_frame,
         "composition_ticks_per_frame": (
             record["composition_ticks"] / render_iterations
         ),
@@ -86,7 +100,67 @@ def benchmark_derived(record: dict[str, Any]) -> dict[str, Any]:
             f"{name}_ticks": ticks
             for name, ticks in record["interaction_ticks"].items()
         },
+        "diagnostic": {
+            "alternating_render_ticks_per_frame": (
+                alternating_render_ticks_per_frame
+            ),
+        },
+        "headline_render": headline_render,
     }
+
+
+def validate_render_detail(
+    record: dict[str, Any],
+    *,
+    phase_probes: bool,
+) -> None:
+    detail = record["render_detail"]
+    total_counts = 0
+    total_phase_ticks = 0
+    for sample_name in PERF_RENDER_SAMPLE_NAMES:
+        sample = detail[sample_name]
+        phase_ticks = sample["phase_ticks"]
+        counts = sample["counts"]
+        if tuple(phase_ticks) != PERF_RENDER_PHASE_NAMES:
+            raise RuntimeError(
+                f"{sample_name}: unexpected render phases {tuple(phase_ticks)}"
+            )
+        if tuple(counts) != PERF_RENDER_COUNTER_NAMES:
+            raise RuntimeError(
+                f"{sample_name}: unexpected render counters {tuple(counts)}"
+            )
+        dirty_cells = int(counts["dirty_cells"])
+        cache_hits = int(counts["cache_hits"])
+        cache_misses = int(counts["cache_misses"])
+        dedicated_fallbacks = int(counts["dedicated_fallbacks"])
+        uploaded_quartets = int(counts["uploaded_quartets"])
+        if dirty_cells != cache_hits + cache_misses:
+            raise RuntimeError(
+                f"{sample_name}: dirty_cells={dirty_cells} does not equal "
+                "cache_hits + cache_misses="
+                f"{cache_hits + cache_misses}"
+            )
+        if uploaded_quartets != cache_misses:
+            raise RuntimeError(
+                f"{sample_name}: uploaded_quartets={uploaded_quartets} "
+                f"does not equal cache_misses={cache_misses}"
+            )
+        if dedicated_fallbacks > cache_misses:
+            raise RuntimeError(
+                f"{sample_name}: dedicated_fallbacks={dedicated_fallbacks} "
+                f"exceeds cache_misses={cache_misses}"
+            )
+        total_counts += sum(int(value) for value in counts.values())
+        total_phase_ticks += sum(int(value) for value in phase_ticks.values())
+    if total_counts == 0:
+        raise RuntimeError("render detail counters recorded no activity")
+    if phase_probes:
+        if total_phase_ticks == 0:
+            raise RuntimeError("render phase probes recorded no timed activity")
+    elif total_phase_ticks != 0:
+        raise RuntimeError(
+            "count-only render detail unexpectedly contains phase ticks"
+        )
 
 
 def percent_delta(before: float, after: float) -> float | None:
@@ -102,7 +176,6 @@ def compare_case(
     metrics = {}
     for name in (
         "ticks_per_turn",
-        "render_ticks_per_frame",
         "composition_ticks_per_frame",
         "tile_upload_ticks_per_frame",
         "map_upload_ticks_per_frame",
@@ -290,6 +363,10 @@ def main() -> int:
                 + json.dumps(records, sort_keys=True)
             )
         record = records[0]
+        try:
+            validate_render_detail(record, phase_probes=args.phases)
+        except RuntimeError as error:
+            raise SystemExit(f"invalid render detail for {name}: {error}") from error
         if args.schedules and record["schedule_counts"]["group_invocations"] == 0:
             raise SystemExit(f"schedule probes were not recorded for {name}")
         manifest_path = firmware / "generated" / "gbc_manifest.json"
@@ -369,7 +446,10 @@ def main() -> int:
         results.append(result)
         print(
             f"    logic={result['derived']['ticks_per_turn']:.3f} "
-            f"render={result['derived']['render_ticks_per_frame']:.3f} "
+            f"walk_render={result['derived']['walk_render_ticks']} "
+            f"push_render={result['derived']['push_render_ticks']} "
+            "alternating_render_diagnostic="
+            f"{result['derived']['diagnostic']['alternating_render_ticks_per_frame']:.3f} "
             f"session={result['memory']['estimated_session_bytes']} "
             f"game_bank={result['memory']['estimated_game_rom_bank_bytes']}",
             flush=True,

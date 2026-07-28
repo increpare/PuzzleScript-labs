@@ -77,10 +77,16 @@ uint16_t gTileUploadMismatches;
 static volatile uint16_t gPerfTimerOverflows;
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
 uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
+uint32_t gPerfRenderPhaseTicks[PS_GBC_PERF_RENDER_PHASE_COUNT];
+uint16_t gPerfRenderCounts[PS_GBC_PERF_RENDER_COUNTER_COUNT];
+#if defined(PS_GBC_PERF_PHASES)
+static uint32_t gPerfRenderPhaseStart[PS_GBC_PERF_RENDER_PHASE_COUNT];
+#endif
 #if defined(PS_GBC_PERF_SCHEDULES)
 uint16_t gPerfScheduleCounts[PS_GBC_PERF_SCHEDULE_COUNT];
 #endif
 bool gPerfPhaseEnabled;
+bool gPerfRenderEnabled;
 
 static void perfTimerInterrupt(void) {
     ++gPerfTimerOverflows;
@@ -140,6 +146,35 @@ void ps_gbc_perf_phase_begin(uint8_t phase) {
 void ps_gbc_perf_phase_end(uint8_t phase) {
     if (gPerfPhaseEnabled && phase < PS_GBC_PERF_PHASE_COUNT) {
         gPerfPhaseTicks[phase] += perfTimerTicks() - gPerfPhaseStart[phase];
+    }
+}
+
+void ps_gbc_perf_render_begin(uint8_t phase) {
+#if defined(PS_GBC_PERF_PHASES)
+    if (gPerfRenderEnabled && phase < PS_GBC_PERF_RENDER_PHASE_COUNT) {
+        gPerfRenderPhaseStart[phase] = perfTimerTicks();
+    }
+#else
+    (void)phase;
+#endif
+}
+
+void ps_gbc_perf_render_end(uint8_t phase) {
+#if defined(PS_GBC_PERF_PHASES)
+    if (gPerfRenderEnabled && phase < PS_GBC_PERF_RENDER_PHASE_COUNT) {
+        gPerfRenderPhaseTicks[phase] +=
+            perfTimerTicks() - gPerfRenderPhaseStart[phase];
+    }
+#else
+    (void)phase;
+#endif
+}
+
+void ps_gbc_perf_render_count(uint8_t counter) {
+    if (gPerfRenderEnabled
+        && counter < PS_GBC_PERF_RENDER_COUNTER_COUNT
+        && gPerfRenderCounts[counter] != UINT16_MAX) {
+        ++gPerfRenderCounts[counter];
     }
 }
 #endif

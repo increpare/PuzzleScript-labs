@@ -85,6 +85,24 @@ typedef enum ps_gbc_perf_phase {
     PS_GBC_PERF_PHASE_COUNT = 7
 } ps_gbc_perf_phase;
 
+typedef enum ps_gbc_perf_render_phase {
+    PS_GBC_PERF_RENDER_COMPOSE = 0,
+    PS_GBC_PERF_RENDER_CACHE_LOOKUP = 1,
+    PS_GBC_PERF_RENDER_ENCODE = 2,
+    PS_GBC_PERF_RENDER_TILE_UPLOAD = 3,
+    PS_GBC_PERF_RENDER_MAP_WRITE = 4,
+    PS_GBC_PERF_RENDER_PHASE_COUNT = 5
+} ps_gbc_perf_render_phase;
+
+typedef enum ps_gbc_perf_render_counter {
+    PS_GBC_PERF_RENDER_DIRTY_CELLS = 0,
+    PS_GBC_PERF_RENDER_CACHE_HITS = 1,
+    PS_GBC_PERF_RENDER_CACHE_MISSES = 2,
+    PS_GBC_PERF_RENDER_DEDICATED_FALLBACKS = 3,
+    PS_GBC_PERF_RENDER_UPLOADED_QUARTETS = 4,
+    PS_GBC_PERF_RENDER_COUNTER_COUNT = 5
+} ps_gbc_perf_render_counter;
+
 typedef enum ps_gbc_perf_schedule_counter {
     PS_GBC_PERF_GROUP_INVOCATIONS = 0,
     PS_GBC_PERF_GROUP_PASSES = 1,

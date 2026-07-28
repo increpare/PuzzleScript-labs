@@ -6,11 +6,105 @@
 #include "benchmark.h"
 #include "game_dispatch.h"
 
+#include <string.h>
+
 #define SCREEN_TILES \
     (PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT)
 #define PERF_RENDER_ITERATIONS 4U
+#define PERF_RENDER_DETAIL_MAGIC 0x44434250UL
+#define PERF_RENDER_DETAIL_OFFSET 192U
+#define PERF_RENDER_DETAIL_SAMPLE_BYTES 30U
 
 static uint16_t gBackgroundPalettes[32];
+
+static void perfWriteSram8(uint16_t offset, uint8_t value) {
+    *((volatile uint8_t*)(0xa000U + offset)) = value;
+}
+
+static void perfWriteSram16(uint16_t offset, uint16_t value) {
+    perfWriteSram8(offset, (uint8_t)value);
+    perfWriteSram8((uint16_t)(offset + 1U), (uint8_t)(value >> 8U));
+}
+
+static void perfWriteSram32(uint16_t offset, uint32_t value) {
+    uint8_t index;
+    for (index = 0U; index < 4U; ++index) {
+        perfWriteSram8(
+            (uint16_t)(offset + index),
+            (uint8_t)(value >> (index * 8U)));
+    }
+}
+
+static void perfPublishRenderSample(
+    uint16_t offset,
+    const perf_render_sample* sample
+) {
+    uint8_t index;
+    for (index = 0U; index < PS_GBC_PERF_RENDER_PHASE_COUNT; ++index) {
+        perfWriteSram32(
+            (uint16_t)(offset + (uint16_t)index * 4U),
+            sample->phase_ticks[index]);
+    }
+    offset = (uint16_t)(
+        offset + PS_GBC_PERF_RENDER_PHASE_COUNT * sizeof(uint32_t));
+    for (index = 0U; index < PS_GBC_PERF_RENDER_COUNTER_COUNT; ++index) {
+        perfWriteSram16(
+            (uint16_t)(offset + (uint16_t)index * 2U),
+            sample->counts[index]);
+    }
+}
+
+static void perfPublishRenderDetail(const perf_interaction* interaction) {
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(3U);
+    perfWriteSram32(PERF_RENDER_DETAIL_OFFSET, 0U);
+    perfWriteSram16((uint16_t)(PERF_RENDER_DETAIL_OFFSET + 4U), 1U);
+    perfWriteSram16(
+        (uint16_t)(PERF_RENDER_DETAIL_OFFSET + 6U),
+        PS_GBC_PERF_RENDER_PHASE_COUNT);
+    perfWriteSram16(
+        (uint16_t)(PERF_RENDER_DETAIL_OFFSET + 8U),
+        PS_GBC_PERF_RENDER_COUNTER_COUNT);
+    perfWriteSram16((uint16_t)(PERF_RENDER_DETAIL_OFFSET + 10U), 0U);
+    perfPublishRenderSample(
+        (uint16_t)(PERF_RENDER_DETAIL_OFFSET + 12U),
+        &interaction->initial_render);
+    perfPublishRenderSample(
+        (uint16_t)(
+            PERF_RENDER_DETAIL_OFFSET
+            + 12U
+            + PERF_RENDER_DETAIL_SAMPLE_BYTES),
+        &interaction->walk_render);
+    perfPublishRenderSample(
+        (uint16_t)(
+            PERF_RENDER_DETAIL_OFFSET
+            + 12U
+            + PERF_RENDER_DETAIL_SAMPLE_BYTES * 2U),
+        &interaction->push_render);
+    perfWriteSram32(PERF_RENDER_DETAIL_OFFSET, PERF_RENDER_DETAIL_MAGIC);
+    DISABLE_RAM_MBC5;
+}
+
+static void perfMeasureRenderSample(
+    uint32_t* ticks,
+    perf_render_sample* sample
+) {
+    memset(gPerfRenderPhaseTicks, 0, sizeof(gPerfRenderPhaseTicks));
+    memset(gPerfRenderCounts, 0, sizeof(gPerfRenderCounts));
+    gPerfRenderEnabled = true;
+    perfTimerStart();
+    renderBoard();
+    *ticks = perfTimerStop();
+    gPerfRenderEnabled = false;
+    memcpy(
+        sample->phase_ticks,
+        gPerfRenderPhaseTicks,
+        sizeof(sample->phase_ticks));
+    memcpy(
+        sample->counts,
+        gPerfRenderCounts,
+        sizeof(sample->counts));
+}
 
 bool perfLoadFirstBoard(void) BANKED {
     const ps_gbc_game_view* game = ps_gbc_active_game_view();
@@ -153,26 +247,24 @@ uint32_t perfMeasureRepeatedText(void) BANKED {
 
 void perfMeasureInteraction(perf_interaction* result) BANKED {
     if (!perfLoadFirstBoard()) {
-        result->initial_render_ticks = 0U;
-        result->walk_logic_ticks = 0U;
-        result->walk_render_ticks = 0U;
-        result->push_logic_ticks = 0U;
-        result->push_render_ticks = 0U;
+        memset(result, 0, sizeof(*result));
+        perfPublishRenderDetail(result);
         return;
     }
-    perfTimerStart();
-    renderBoard();
-    result->initial_render_ticks = perfTimerStop();
+    perfMeasureRenderSample(
+        &result->initial_render_ticks,
+        &result->initial_render);
     perfTimerStart();
     (void)psd_step(gSession, PS_INPUT_DOWN);
     result->walk_logic_ticks = perfTimerStop();
-    perfTimerStart();
-    renderBoard();
-    result->walk_render_ticks = perfTimerStop();
+    perfMeasureRenderSample(
+        &result->walk_render_ticks,
+        &result->walk_render);
     perfTimerStart();
     (void)psd_step(gSession, PS_INPUT_RIGHT);
     result->push_logic_ticks = perfTimerStop();
-    perfTimerStart();
-    renderBoard();
-    result->push_render_ticks = perfTimerStop();
+    perfMeasureRenderSample(
+        &result->push_render_ticks,
+        &result->push_render);
+    perfPublishRenderDetail(result);
 }
