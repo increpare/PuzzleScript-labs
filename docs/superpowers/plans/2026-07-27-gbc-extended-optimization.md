@@ -1303,7 +1303,7 @@ the measured ledger entry are retained.
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add a failing structural assertion**
+- [x] **Step 1: Add a failing structural assertion**
 
 For each emitted rule body, require:
 
@@ -1316,7 +1316,7 @@ and require hot pattern loads to use `board[cell]` /
 `((uint16_t*)movements)[cell]`, not `session->board[cell]` /
 `session->movements[cell]`.
 
-- [ ] **Step 2: Parameterize storage emit helpers**
+- [x] **Step 2: Parameterize storage emit helpers**
 
 Change the internal `emitGbdCBoardGet/Assign/Set` and movement siblings to take
 `boardExpr` / `movementsExpr`. Existing non-rule callers may pass
@@ -1326,7 +1326,7 @@ Change the internal `emitGbdCBoardGet/Assign/Set` and movement siblings to take
 Emit both pointer locals once at the narrowest function that contains the scan
 loop. Do not duplicate them in each candidate-cell block.
 
-- [ ] **Step 3: Run exporter and oracle tests**
+- [x] **Step 3: Run exporter and oracle tests**
 
 ```bash
 cmake --build build --target \
@@ -1337,21 +1337,27 @@ ctest --test-dir build/native \
   --output-on-failure
 ```
 
-- [ ] **Step 4: Measure before deciding**
+- [x] **Step 4: Measure before deciding**
 
 Rebuild the cart and record ticks, payload, frame distribution, and `ldhl sp`.
 Hoisted pointers can themselves spill on SM83; retain only if the five-case
 suite and frame/ROM metrics improve together. Revert the complete experiment
 if SDCC increases frames or payload without a clear tick win.
 
-- [ ] **Step 5: Commit only if retained**
+- [x] **Step 5: Apply the retention gate — rejected**
 
-```bash
-git add native/src/compiler/compact_turn_codegen.cpp \
-  native/tests/gbc_exporter.cpp \
-  docs/performance/gbc-optimization-ledger.md
-git commit -m "Hoist generated GBC board base pointers"
-```
+The candidate reduced packed payload by 110,739 bytes (4.62%), reduced
+`ldhl sp` by 18,909 instructions (15.10%), and improved four of the five
+logic cases. However, `object_heavy` regressed deterministically from
+1,149.805 to 1,253.609 logic ticks per turn: +9.03%, reproduced in three
+alternating direct A/B pairs. SDCC kept both pointers in each rule's stack
+frame and reloaded them through `ldhl sp`; the global static improvement did
+not predict this hot-path loss.
+
+Candidate emitter/test changes and generated, linked, and performance
+artifacts were reverted. Only this decision and the measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-generated-boardmovement-base-pointer-hoist-rejected-2026-07-28)
+are retained.
 
 ---
 

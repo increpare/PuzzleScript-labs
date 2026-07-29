@@ -658,6 +658,17 @@ Three sub-experiments, each gated independently, cheapest first:
 `uint8_t *const movements = session->movements;` once per rule function and
 index those, instead of re-walking `session->` per pattern (§4.1 obs. 3).
 
+**Measured outcome (2026-07-28): rejected.** The candidate cut packed payload
+by 110,739 bytes (4.62%), reduced mean generated-rule frame size from 30.097
+to 27.873 bytes, and removed 18,909 `ldhl sp` instructions (15.10%). Four of
+five representative logic cases improved, but `object_heavy` reproducibly
+regressed by 9.03% (1,149.805 → 1,253.609 ticks/turn) in the three-boot suite
+and three alternating direct A/B pairs. Generated C and assembly confirmed
+one pointer pair per rule, but SDCC stored the pointers in the stack frame and
+reloaded them through `ldhl sp`. The emitter, tests, and transient artifacts
+were fully reverted; see the
+[ledger](gbc-optimization-ledger.md#gbc-generated-boardmovement-base-pointer-hoist-rejected-2026-07-28).
+
 **6b. Manually inline `matches_at` into the scan loop.** SDCC ignores
 `inline` (§4.1 obs. 2). The fused emitter already has an inline path; extend
 it to the cases that currently emit a helper. Watch ROM: inlining trades call

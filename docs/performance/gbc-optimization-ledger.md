@@ -1489,3 +1489,64 @@ launch noise or run ordering.
 **Decision: reject.** The 62 KB payload reduction, smaller frames, and three
 logic wins do not justify a deterministic 13.10% regression in a required
 representative case. No emitter or exporter-test source change is retained.
+
+### GBC generated board/movement base-pointer hoist rejected (2026-07-28)
+
+Revision: uncommitted candidate on `947ef126`. Transient artifacts (not
+retained) were `codegen-metrics-hoist.json`, the three-boot
+`board-pointer-hoist-counts` suite, and direct alternating A/B object-heavy
+records. The candidate emitted one
+`uint8_t* const board = session->board;` and one
+`uint8_t* const movements = session->movements;` per generated rule function,
+then routed board and movement reads/writes through those bases. Non-rule
+callers retained explicit `session->board` and `session->movements` access,
+and collect-all helpers received the two bases from their owning rule.
+
+The required structural test first failed on the old Sokoban output. After
+the change, exporter and specialized-oracle parity passed, as did the
+any-mask, layer-coupled, and general GBC parity smokes. The assertions covered
+Sokoban, layer-coupled apply, aggregate binding, multi-row, property,
+collect-all, and two-byte object/movement storage. The full production cart
+compiled and linked all 46 games, and its structural checker passed.
+
+Generated C contained exactly one pointer pair at rule-function scope with no
+direct session storage indexing in the rule bodies. Object-heavy assembly
+showed SDCC placing both pointers in the rule's stack frame and accessing
+them via `ldhl sp`; the hoist avoided repeated structure traversal but did not
+keep the bases resident in registers.
+
+Static code results improved substantially:
+
+| Metric | Task 2 baseline | Base-pointer hoist | Delta |
+| --- | ---: | ---: | ---: |
+| Packed payload | 2,398,105 B | 2,287,366 B | **−110,739 B (−4.62%)** |
+| Allocated payload | 2,424,832 B | 2,326,528 B | −98,304 B |
+| Packed banks / highest bank | 148 / 150 | 142 / 144 | −6 / −6 |
+| Physical 4 MB headroom | 1,747,047 B | 1,857,786 B | +110,739 B |
+| Fixed HOME | 7,020 B | 7,020 B | 0 |
+| Static WRAM | 5,922 B | 5,922 B | 0 |
+| Frame mean / median / max | 30.097 / 32 / 128 B | 27.873 / 29 / 128 B | −2.224 / −3 / 0 B |
+| `ldhl sp` instructions | 125,200 | 106,291 | **−18,909 (−15.10%)** |
+| Estimated `ldhl sp` bytes | 250,400 B | 212,582 B | −37,818 B |
+
+The same five count-only cases then ran for three byte-identical boots each
+under Homebrew mGBA 0.10.5:
+
+| Case | Task 2 logic | Base-pointer logic | Delta | Task 2 walk/push | Base-pointer walk/push |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| sokoban | 44.602 | 44.297 | −0.68% | 57 / 68 | 57 / 67 |
+| large_board | 104.125 | 94.805 | −8.95% | 514 / 517 | 514 / 518 |
+| rule_heavy | 853.023 | 752.383 | −11.80% | 53 / 52 | 53 / 52 |
+| object_heavy | 1,149.805 | 1,253.609 | **+9.03%** | 476 / 465 | 476 / 464 |
+| two_movement_lanes | 2,440.359 | 2,252.047 | −7.72% | 92 / 92 | 92 / 92 |
+
+At the 4,096 Hz timer rate, the `object_heavy` regression is +103.805
+ticks/turn, or about **25.34 ms**. An alternating direct A/B check ran the
+preserved Task 2 and candidate object-heavy ROMs in
+baseline/candidate order three times. Every baseline run produced 1,149.805
+logic ticks and every candidate run produced 1,253.609, with byte-identical
+results within each side, excluding launch noise and run ordering.
+
+**Decision: reject.** The 111 KB payload reduction and four logic wins do not
+justify a deterministic 9.03% regression in a required representative case.
+No emitter or exporter-test source change is retained.
