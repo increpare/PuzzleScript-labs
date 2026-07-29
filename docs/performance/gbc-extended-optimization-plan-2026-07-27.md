@@ -675,9 +675,10 @@ it to the cases that currently emit a helper. Watch ROM: inlining trades call
 overhead for duplicated bodies. **Report ticks and bytes together and let the
 ratio decide against the revalidated physical-headroom metric.**
 
-**Measured outcome (2026-07-29): rejected.** Because 6a's direct-rejection
-experiment was rejected and reverted, this candidate deliberately inlined
-the current `row_matched` matcher body rather than reviving 6a. It removed
+**Measured outcome (2026-07-29): rejected.** Because roadmap Task 5's
+direct-rejection experiment was rejected and reverted, this candidate
+deliberately inlined the current `row_matched` matcher body rather than
+reviving that rejected Task 5 optimization. It removed
 the non-fused helper boundaries, cut packed payload by 65,633 bytes (2.74%),
 cut `ldhl sp` by 6,446 instructions (5.15%), and improved `large_board`
 logic by 5.37%. However, `rule_heavy` reproducibly regressed by 2.47%
