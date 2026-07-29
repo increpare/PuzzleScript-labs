@@ -696,6 +696,17 @@ baseline is the point. Accept the re-entrancy loss only if it wins clearly;
 the GBC core is single-threaded and non-re-entrant in practice, but the
 desktop oracle build must keep the stack-local path.
 
+**Measured outcome (2026-07-29): rejected.** One shared, unnamespaced scratch
+object kept every generated per-game object at zero `_DATA/_BSS`, reduced
+mean/p90 generated-rule frames from 30.097/50 to 26.014/44 bytes, and removed
+19,235 `ldhl sp` instructions (15.36%). It also grew packed payload by
+55,019 bytes (2.29%) and four banks. Three of five representative logic cases
+regressed reproducibly: `large_board` by 4.16%, `rule_heavy` by 10.46%, and
+`object_heavy` by 3.18%; three alternating direct A/B pairs reproduced each
+result exactly. The candidate source, build wiring, switches, and tests were
+fully removed; see the
+[ledger](gbc-optimization-ledger.md#gbc-shared-specialized-rule-scratch-rejected-2026-07-29).
+
 **Metric to track alongside ticks:** re-run the §4.2 counter after each
 sub-experiment.
 

@@ -1459,13 +1459,13 @@ are retained.
 - Modify: `scripts/build_gbc_cart.py`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Preserve the cart's shared-WRAM invariant in a failing test**
+- [x] **Step 1: Preserve the cart's shared-WRAM invariant in a failing test**
 
 Extend `scripts/check_gbc_cart_test.py` with a generated rules object that has
 nonzero `_BSS`; keep the expectation that it is rejected. The experiment must
 not put file-scope statics in any `gNN_*` object.
 
-- [ ] **Step 2: Add one unnamespaced shared scratch object**
+- [x] **Step 2: Add one unnamespaced shared scratch object**
 
 Define only values shown by the current assembly to be repeatedly copied
 between stack slots:
@@ -1488,7 +1488,7 @@ Compile `specialized_scratch.c` once as shared firmware, not through
 `generated_core.c`. The desktop oracle links the same source. Do not add the
 symbol to `kNamespacedSymbols`.
 
-- [ ] **Step 3: Add an emitter-only experiment switch**
+- [x] **Step 3: Add an emitter-only experiment switch**
 
 Under a disabled-by-default option, emit references to the shared scratch for
 the selected locals. Keep the normal stack-local path for desktop builds
@@ -1497,13 +1497,19 @@ unless the host test explicitly defines the experiment macro.
 Never move arrays, property captures, aggregate captures, or row-match arrays
 into the shared object in this experiment.
 
-- [ ] **Step 4: Run re-entrancy and parity checks**
+- [x] **Step 4: Run re-entrancy and parity checks**
 
 Document and assert that no interrupt handler calls specialized rules and no
 specialized rule recursively calls another rule. Run exporter, oracle,
 eligible, cart, and sound/command gates.
 
-- [ ] **Step 5: Measure against the new baseline**
+Eligible-gate disposition: explicitly waived after the automatic payload and
+representative-runtime retention gates failed. This is an early-stop waiver,
+not a claimed eligible pass. The full production-cart build had already
+compiled and linked all 46 sources, and the measured candidate could no
+longer be retained.
+
+- [x] **Step 5: Measure against the new baseline**
 
 Compare:
 
@@ -1517,10 +1523,30 @@ Retain only for a clear speed **and** payload/frame win. The prior 0.301%
 interpreter result is not enough, and any per-game `_DATA/_BSS` is an automatic
 rejection.
 
-- [ ] **Step 6: Commit or fully remove**
+- [x] **Step 6: Commit or fully remove**
 
 If rejected, delete the new header/source/build wiring and record the result
 in the ledger. Do not leave a disabled scratch subsystem behind.
+
+Completed 2026-07-29: rejected and fully removed. The candidate used exactly
+one shared, unnamespaced nine-byte scratch object; the full 46-game cartridge
+passed with zero per-game `_DATA/_BSS`, and structural tests proved that
+specialized rule bodies do not call one another or run from the timer
+interrupt. The focused `_BSS` fixture passed immediately because the checker
+already enforced the invariant; it supplied exact coverage rather than a new
+behavioral failure. Mean/p90 rule frames fell from 30.097/50 to 26.014/44
+bytes and `ldhl sp` fell 15.36%, but packed payload grew by 55,019 bytes
+(2.29%) and four banks. Three-boot mGBA runs regressed `large_board` by
+4.16%, `rule_heavy` by 10.46%, and `object_heavy` by 3.18%; three alternating
+direct A/B pairs reproduced each result exactly. This failed both the runtime
+and payload retention gates, so the header/source, build wiring, switch,
+tests, and transient artifacts were restored. The failed gate ended the
+experiment with an explicit early-stop waiver for the remaining eligible-ROM
+sweep; it is not recorded as an eligible pass. The full production cart had
+already compiled and linked all 46 sources. Only this decision and the
+measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-shared-specialized-rule-scratch-rejected-2026-07-29)
+are retained.
 
 ---
 

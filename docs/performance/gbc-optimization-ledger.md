@@ -1618,3 +1618,74 @@ than emulator launch noise or run ordering.
 addressing, and large-board win do not justify a reproducible 2.47%
 regression in a required representative case. No emitter or exporter-test
 source change is retained.
+
+### GBC shared specialized-rule scratch rejected (2026-07-29)
+
+Revision: uncommitted candidate on `73801d7b`. Transient artifacts (not
+retained) were the 46-game `task9-cart-candidate` build, the three-boot
+`task9-shared-scratch-counts` suite, and three alternating direct A/B pairs
+for each materially regressed case.
+
+Task 9 re-tested file-scope scratch against the much larger specialized-rule
+frames. Under a disabled-by-default emitter switch, selected scalar locals
+(`session`, `commands`, `cell`, `match_count`, `match_index`, `delta`, and
+`changed`) referred to one exact shared `ps_gbc_specialized_scratch` object.
+Arrays, property and aggregate captures, and row-match arrays remained
+stack-local. The candidate linked that one unnamespaced object once in
+firmware and in the explicitly enabled desktop oracles; normal desktop builds
+kept the existing local path.
+
+The focused generated-rules `_BSS` fixture passed immediately because the
+cart checker already enforced the intended invariant across every `gNN_*`
+object; it added exact coverage rather than a new behavioral failure. The
+checker also passed the candidate's full 46-game cartridge. Every `gNN_*`
+object had zero `_DATA/_BSS`, while the one shared object contributed nine
+bytes of static WRAM. Structural exporter tests established that specialized
+rule bodies do not call one another, and source inspection established that
+the firmware timer interrupt does not enter specialized rules. Exporter,
+specialized, any-mask, layer-coupled, solution-replay, command/sound, and
+cart structural checks passed. The automatic retention gate failed after the
+full cart and runtime measurements. The separate eligible-ROM sweep was
+therefore explicitly waived as an early-stop optimization; this is not a
+claimed eligible-gate pass. The stronger full production-cart build had
+already compiled and linked all 46 sources, and no candidate code could be
+retained after the measured failures.
+
+Static code shape improved, but linked cartridge size did not:
+
+| Metric | Task 2 baseline | Shared scratch | Delta |
+| --- | ---: | ---: | ---: |
+| Packed payload | 2,398,105 B | 2,453,124 B | **+55,019 B (+2.29%)** |
+| Allocated payload | 2,424,832 B | 2,490,368 B | +65,536 B |
+| Packed banks / highest bank | 148 / 150 | 152 / 154 | +4 / +4 |
+| Physical 4 MB headroom | 1,747,047 B | 1,692,028 B | −55,019 B |
+| Fixed HOME | 7,020 B | 7,020 B | 0 |
+| Static WRAM | 5,922 B | 5,931 B | +9 B |
+| Framed rule functions | 1,371 | 1,387 | +16 |
+| Frame mean / p90 / max | 30.097 / 50 / 128 B | 26.014 / 44 / 128 B | −4.083 / −6 / 0 B |
+| `ldhl sp` instructions | 125,200 | 105,965 | **−19,235 (−15.36%)** |
+| Estimated `ldhl sp` bytes | 250,400 B | 211,930 B | −38,470 B |
+
+The exact five count-only cases then ran for three byte-identical boots each
+under Homebrew mGBA 0.10.5:
+
+| Case | Task 2 logic | Shared-scratch logic | Delta | Task 2 walk/push | Shared-scratch walk/push |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| sokoban | 44.602 | 44.680 | +0.17% | 57 / 68 | 57 / 67 |
+| large_board | 104.125 | 108.453 | **+4.16%** | 514 / 517 | 514 / 518 |
+| rule_heavy | 853.023 | 942.242 | **+10.46%** | 53 / 52 | 53 / 53 |
+| object_heavy | 1,149.805 | 1,186.336 | **+3.18%** | 476 / 465 | 476 / 464 |
+| two_movement_lanes | 2,440.359 | 2,425.969 | −0.59% | 92 / 92 | 92 / 92 |
+
+At the 4,096 Hz timer rate, the largest regression is `rule_heavy` at
++89.219 ticks/turn, or about **21.78 ms**. Three alternating direct A/B
+pairs were then run for `large_board`, `rule_heavy`, and `object_heavy`.
+Every baseline and candidate run reproduced its side's exact suite value, so
+the regressions are deterministic rather than emulator launch noise or run
+ordering.
+
+**Decision: reject.** The experiment fails both halves of the retention rule:
+three required representative cases regress materially, and packed payload
+grows despite the smaller frames and lower stack-addressing count. The
+scratch header/source, build wiring, emitter switch, and candidate tests were
+fully removed; no dormant scratch subsystem is retained.
