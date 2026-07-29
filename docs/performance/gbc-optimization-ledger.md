@@ -1550,3 +1550,71 @@ results within each side, excluding launch noise and run ordering.
 **Decision: reject.** The 111 KB payload reduction and four logic wins do not
 justify a deterministic 9.03% regression in a required representative case.
 No emitter or exporter-test source change is retained.
+
+### GBC collect-all matcher scan inlining rejected (2026-07-29)
+
+Revision: uncommitted candidate on `d7785615`. Transient artifacts (not
+retained) were `codegen-metrics-matches-at-inline.json`, the three-boot
+`matches-at-inline` suite, and three alternating direct A/B rule-heavy
+pairs.
+
+Task 8's original sketch called for a `do/while` direct-rejection body, but
+that depended on the rejected and fully reverted early-rejection experiment.
+To keep this experiment isolated, the candidate instead emitted the current
+`row_matched` matcher logic verbatim inside a lexical block at each
+collect-all scan site. Full-grid, single-player-offset, and player-cell-anchor
+plus fallback branches appended successful starts to
+`session->match_cells[match_count]` in their existing order. Two-row rules,
+fused match/apply rules, command handling, duplicate behavior, and the later
+apply loop were unchanged.
+
+The structural test first failed on the existing `_matches_at` symbol. After
+the candidate, concatenated specialized sources contained no such helper or
+call and covered all three scan shapes plus two-byte object and movement
+loads. Exporter, specialized-oracle, any-mask, layer-coupled, and general GBC
+parity tests passed. Generated C inspection confirmed lexical scoping,
+unchanged candidate ordering, and append-only-after-`row_matched` behavior.
+All 46 production games compiled and linked, and the cartridge structural
+checker passed.
+
+Static code size improved:
+
+| Metric | Task 2 baseline | Matcher inlining | Delta |
+| --- | ---: | ---: | ---: |
+| Packed payload | 2,398,105 B | 2,332,472 B | **−65,633 B (−2.74%)** |
+| Allocated payload | 2,424,832 B | 2,359,296 B | −65,536 B |
+| Packed banks / highest bank | 148 / 150 | 144 / 146 | −4 / −4 |
+| Physical 4 MB headroom | 1,747,047 B | 1,812,680 B | +65,633 B |
+| Fixed HOME | 7,020 B | 7,020 B | 0 |
+| Static WRAM | 5,922 B | 5,922 B | 0 |
+| Framed rule/helper functions | 1,371 | 1,040 | −331 |
+| Frame mean / median / max | 30.097 / 32 / 128 B | 37.808 / 36 / 128 B | +7.711 / +4 / 0 B |
+| `ldhl sp` instructions | 125,200 | 118,754 | **−6,446 (−5.15%)** |
+| Estimated `ldhl sp` bytes | 250,400 B | 237,508 B | −12,892 B |
+
+The larger average frame is not directly like-for-like: removing the small
+helper frames leaves only the larger rule functions in that population. The
+total `ldhl sp` count and linked payload remain the useful aggregate results.
+
+The exact five count-only cases then ran for three byte-identical boots each
+under Homebrew mGBA 0.10.5:
+
+| Case | Task 2 logic | Matcher-inlined logic | Delta | Task 2 walk/push | Matcher-inlined walk/push |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| sokoban | 44.602 | 44.602 | 0.00% | 57 / 68 | 57 / 68 |
+| large_board | 104.125 | 98.531 | −5.37% | 514 / 517 | 514 / 517 |
+| rule_heavy | 853.023 | 874.070 | **+2.47%** | 53 / 52 | 53 / 53 |
+| object_heavy | 1,149.805 | 1,149.742 | −0.01% | 476 / 465 | 477 / 464 |
+| two_movement_lanes | 2,440.359 | 2,440.414 | +0.00% | 92 / 92 | 91 / 92 |
+
+At the 4,096 Hz timer rate, the `rule_heavy` regression is +21.047
+ticks/turn, or about **5.14 ms**. Three alternating direct A/B pairs ran the
+preserved Task 2 and candidate ROMs in baseline/candidate order. Every
+baseline produced 853.023 logic ticks and 53/52 rendering; every candidate
+produced 874.070 and 53/53. The regression is therefore deterministic rather
+than emulator launch noise or run ordering.
+
+**Decision: reject.** The 65.6 KB payload reduction, lower aggregate stack
+addressing, and large-board win do not justify a reproducible 2.47%
+regression in a required representative case. No emitter or exporter-test
+source change is retained.

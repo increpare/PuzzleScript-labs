@@ -1368,7 +1368,7 @@ are retained.
 - Modify: `native/src/compiler/compact_turn_codegen.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add a failing no-helper assertion**
+- [x] **Step 1: Add a failing no-helper assertion**
 
 For a fixture that emits collect-all semantics (`applyOnMatch == false`),
 assert no symbol contains `_matches_at` and the scan body still writes every
@@ -1378,7 +1378,7 @@ successful candidate into:
 session->match_cells[match_count]
 ```
 
-- [ ] **Step 2: Extract one reusable C++ emission lambda**
+- [x] **Step 2: Extract one reusable C++ emission lambda**
 
 Inside `emitGbcSpecializedRuleFunction()`, add an emitter-side lambda:
 
@@ -1397,7 +1397,14 @@ call/prologue/epilogue per candidate.
 Do not change collect-all ordering or the later apply loop over
 `session->match_cells`.
 
-- [ ] **Step 3: Verify structural and semantic behavior**
+**Dependency adjustment (2026-07-29):** the `do/while` direct-rejection body
+in the sketch depended on Task 6's rejected early-rejection experiment. Task
+8 was therefore isolated from Task 6: the candidate emitted the current
+`row_matched` matcher body verbatim inside a lexical block at each scan site.
+It did not reintroduce direct rejection or otherwise change matching
+semantics.
+
+- [x] **Step 3: Verify structural and semantic behavior**
 
 ```bash
 cmake --build build --target \
@@ -1408,18 +1415,35 @@ ctest --test-dir build/native \
   --output-on-failure
 ```
 
-- [ ] **Step 4: Apply the size/speed gate**
+- [x] **Step 4: Apply the size/speed gate**
 
 Measure all five cases, packed payload, mean/p90/max frames, and `ldhl sp`.
 Retain only if call-boundary savings outweigh duplicated bodies. A tick win
 that grows the cart requires an explicit byte trade justified by Task 10's
 shipping-cart scoreboard and the physical-headroom report.
 
-- [ ] **Step 5: Commit or document rejection**
+- [x] **Step 5: Commit or document rejection — rejected**
 
 If retained, commit the code and ledger. If rejected, restore the code, add
 only the measured rejection to the ledger, and commit that documentation
 separately.
+
+The candidate removed all non-fused helper symbols and passed the exporter,
+specialized, any-mask, layer-coupled, and general parity tests. All 46 games
+built and passed the cartridge checker. Packed payload fell by 65,633 bytes
+(2.74%), packed banks fell from 148 to 144, and `ldhl sp` fell by 6,446
+instructions (5.15%).
+
+The required three-boot suite was mixed: Sokoban was neutral, `large_board`
+improved 5.37%, `object_heavy` and `two_movement_lanes` were effectively
+neutral, but `rule_heavy` regressed from 853.023 to 874.070 logic ticks
+(+2.47%, about 5.14 ms/turn) and push rendering regressed from 52 to 53 ticks.
+Three alternating direct Task 2/candidate A/B pairs reproduced those exact
+numbers. This violates the no-material-fixture-regression gate, so the
+emitter, tests, generated artifacts, and performance artifacts were restored.
+Only this decision and the measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-collect-all-matcher-scan-inlining-rejected-2026-07-29)
+are retained.
 
 ---
 
