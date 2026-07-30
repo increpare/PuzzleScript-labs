@@ -8,6 +8,12 @@ import re
 from gbc_cart_object_aliases import merge_namespaced_definitions
 
 
+NORMALIZED_FIXTURE_SHA256 = (
+    "1d6141f8f9f6bf78b00e82330ca19e3"
+    "ae516d0f891b50f3c3f78609641e499a9"
+)
+
+
 def object_text(
     *,
     prefix: str,
@@ -37,6 +43,46 @@ def object_text(
         f"{symbols_text}\n"
         f"T 00 00 00 00 {code}\n"
         f"R {relocation}\n"
+    )
+
+
+def real_gbdk_layout_text(*, prefix: str, bank: int) -> str:
+    definitions = (
+        ("get_movements", 0xA3),
+        ("set_movements", 0xAE),
+        ("get_objects", 0x81),
+        ("cell_has_all", 0x126),
+        ("set_objects", 0x8C),
+        ("cell_has_any", 0xF2),
+        ("cell_count", 0x59),
+        ("mark_dirty", 0xC5),
+    )
+    symbols = "\n".join(
+        f"S _{prefix}_{name} Def{address:08X}"
+        for name, address in definitions
+    )
+    return (
+        "XL4\n"
+        "H B areas A global symbols\n"
+        "M generated_compact_facade\n"
+        "S __mulint Ref00000000\n"
+        "S .__.ABS. Def00000000\n"
+        "A _CODE size 0 flags 0 addr 0\n"
+        "A _HRAM size 0 flags 0 addr 0\n"
+        "A _DATA size 0 flags 0 addr 0\n"
+        "A _INITIALIZED size 0 flags 0 addr 0\n"
+        "A _DABS size 0 flags 8 addr 0\n"
+        "A _HOME size 0 flags 0 addr 0\n"
+        "A _GSINIT size 0 flags 0 addr 0\n"
+        "A _GSFINAL size 0 flags 0 addr 0\n"
+        f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+        f"{symbols}\n"
+        "A _INITIALIZER size 0 flags 0 addr 0\n"
+        "A _CABS size 0 flags 8 addr 0\n"
+        "T 00 00 00 00\n"
+        "R 00 00 08 00\n"
+        "T 00 00 00 00 3E 02 C9\n"
+        "R 00 00 08 00\n"
     )
 
 
@@ -97,6 +143,14 @@ def main() -> int:
     )
     assert merged.implementation_bytes == 3
     assert re.fullmatch(r"[0-9a-f]{64}", merged.normalized_sha256)
+    assert merged.normalized_sha256 == NORMALIZED_FIXTURE_SHA256
+    reverse_merged = merge_namespaced_definitions(
+        member,
+        owner,
+        owner_prefix="g31",
+        member_prefix="g21",
+    )
+    assert reverse_merged.normalized_sha256 == NORMALIZED_FIXTURE_SHA256
     assert records(merged.text, "T ") == records(owner, "T ")
     assert records(merged.text, "R ") == records(owner, "R ")
 
@@ -313,6 +367,68 @@ def main() -> int:
         if problem is not None
     ]
     assert not layout_problems, layout_problems
+
+    real_owner = real_gbdk_layout_text(prefix="g21", bank=25)
+    real_member = real_gbdk_layout_text(prefix="g31", bank=35)
+    real_merged = merge_namespaced_definitions(
+        real_owner,
+        real_member,
+        owner_prefix="g21",
+        member_prefix="g31",
+    )
+    assert "H B areas 12 global symbols" in real_merged.text
+    assert len(real_merged.aliases) == 8
+    assert real_merged.implementation_bytes == 0x15D
+    assert real_merged.aliases[0] == ("_g31_get_movements", 0xA3)
+    assert real_merged.aliases[-1] == ("_g31_mark_dirty", 0xC5)
+    assert records(real_merged.text, "T ") == records(real_owner, "T ")
+    assert records(real_merged.text, "R ") == records(real_owner, "R ")
+    real_lines = real_merged.text.splitlines()
+    assert real_lines.index("S __mulint Ref00000000") < real_lines.index(
+        "A _CODE size 0 flags 0 addr 0"
+    )
+    assert real_lines.index(
+        "S _g21_mark_dirty Def000000C5"
+    ) < real_lines.index(
+        "S _g31_get_movements Def000000A3"
+    )
+    assert real_lines.index(
+        "S _g31_mark_dirty Def000000C5"
+    ) < real_lines.index(
+        "A _INITIALIZER size 0 flags 0 addr 0"
+    )
+    real_alias_lines = {
+        f"S {name} Def{address:08X}"
+        for name, address in real_merged.aliases
+    }
+    real_owner_lines = [
+        line for line in real_lines if line not in real_alias_lines
+    ]
+    expected_real_owner_lines = real_owner.replace(
+        "H B areas A global symbols",
+        "H B areas 12 global symbols",
+    ).splitlines()
+    assert real_owner_lines == expected_real_owner_lines
+
+    format_problems = [
+        problem
+        for problem in (
+            rejection_problem(
+                "unsupported owner format",
+                owner.replace("XL4\n", "XL3\n", 1),
+                member,
+                "object-format invariant",
+            ),
+            rejection_problem(
+                "missing member format",
+                owner,
+                member.removeprefix("XL4\n"),
+                "object-format invariant",
+            ),
+        )
+        if problem is not None
+    ]
+    assert not format_problems, format_problems
 
     print("ok")
     return 0

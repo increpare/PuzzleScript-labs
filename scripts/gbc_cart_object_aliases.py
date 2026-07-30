@@ -59,6 +59,11 @@ def _line_body(line: str) -> str:
 
 def _parse_object(text: str, role: str) -> _Object:
     lines = tuple(text.splitlines(keepends=True))
+    if not lines or _line_body(lines[0]) != "XL4":
+        raise ValueError(
+            f"{role} object-format invariant: "
+            "first line must be exactly XL4"
+        )
     headers: list[tuple[int, re.Match[str]]] = []
     symbols: list[_Symbol] = []
     text_records: list[tuple[int, ...]] = []
