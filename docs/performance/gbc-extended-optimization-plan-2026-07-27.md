@@ -810,6 +810,17 @@ by `delta` and bounds, called from four thin entry points, is the single
 largest available size lever — and it directly contradicts unrolling, so it
 must be measured against Task 7's real per-game latency, not assumed.
 
+**Measured outcome (2026-07-30): rejected.** A complete semantic family key
+found 45 conservative two-rule families across eight games. Sharing reduced
+packed payload by 32,218 bytes (1.34%), rule-pack bytes by 3.30%, and packed
+banks from 148 to 146. Weighted cart logic/interaction regressed only
+0.55%/0.39%, but two exact fresh-emulator sweeps reproduced `dollyban`
+regressions of 10.36% logic and 8.56% interaction, failing the 5% per-game
+ceiling. Its ten wrappers stack eight explicit arguments before entering five
+shared bodies instead of entering the unrolled rules directly. The option,
+implementation, wiring, and tests were fully removed; see the
+[ledger](gbc-optimization-ledger.md#gbc-direction-expanded-rule-body-sharing-rejected-2026-07-30).
+
 **8c. Defer 8 MB.** The bundled GBDK `BANKED` ABI and
 `SWITCH_ROM_MBC5` mechanism are 8-bit-bank/4 MB paths;
 `SWITCH_ROM_MBC5_8M` does not update `CURRENT_BANK` and does not make BANKED

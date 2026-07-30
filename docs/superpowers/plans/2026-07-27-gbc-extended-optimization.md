@@ -1886,7 +1886,7 @@ evidence checkpoint and approval.
 - Modify: `native/src/gbc/exporter.cpp`
 - Modify: `native/tests/gbc_exporter.cpp`
 
-- [ ] **Step 1: Add an opt-in failing structural test**
+- [x] **Step 1: Add an opt-in failing structural test**
 
 Add `shareDirectionalBodies` to `GbcSpecializedTurnEmitOptions`, default
 false. In an exporter fixture with four direction-expanded siblings, enable it
@@ -1897,7 +1897,7 @@ and assert:
 - the family receives direction, `delta`, and scan bounds explicitly;
 - default exports remain byte-for-byte structurally unchanged.
 
-- [ ] **Step 2: Emit one family only for proved-equivalent siblings**
+- [x] **Step 2: Emit one family only for proved-equivalent siblings**
 
 Build a family key from every semantic field except direction and derived scan
 bounds:
@@ -1911,12 +1911,12 @@ Only siblings with identical keys may share. Emit the existing body once with
 direction/delta/bounds parameters, and retain thin indexed wrappers so group
 scheduling and rule sound/message identity do not change.
 
-- [ ] **Step 3: Verify oracle and full structural parity**
+- [x] **Step 3: Verify oracle and full structural parity**
 
 Run exporter/oracle tests, the full eligible corpus, command/sound gates, and
 cart smoke. Reject on any ordering, simultaneous-match, or sound difference.
 
-- [ ] **Step 4: Judge with the cart scoreboard**
+- [x] **Step 4: Judge with the cart scoreboard**
 
 Compare:
 
@@ -1929,12 +1929,34 @@ Retain only if payload falls by at least 1%, weighted cart timing regresses by
 no more than 2%, and no measured game regresses by more than 5%. These are
 experiment gates, not a permanent product latency target.
 
-- [ ] **Step 5: Commit or record rejection**
+- [x] **Step 5: Commit or record rejection**
 
 Keep the option default false until the complete gate passes. If it passes,
 make the selected policy explicit in exporter/cart build configuration and
 commit one measured change. If it fails, remove the option and record the
 result.
+
+Completed 2026-07-30: rejected and fully removed. The default-off structural
+fixture first failed on the missing option, then proved one parameterized
+body, original indexed wrappers/order, explicit direction/delta/bounds, and
+byte-identical default output. The complete family key covered every required
+semantic field; 45 conservative two-rule families produced 90 wrappers in
+eight games. The exact 46-game benchmark cart passed export, link, bank,
+HOME, WRAM, identity, and specialization checks.
+
+Size passed: packed payload fell 32,218 bytes (1.34%), rule packs fell 3.30%,
+and allocated banks/highest bank fell from 148/150 to 146/148. Aggregate
+timing also passed: weighted logic rose 0.55% and interaction rose 0.39%.
+However, two fresh-emulator sweeps reproduced `dollyban` at
+675.296→745.259 logic ticks/turn (+10.36%) and 819.444→889.593 interaction
+ticks/turn (+8.56%), violating the mandatory 5% per-game ceiling. Its five
+families replaced direct unrolled entry with ten wrappers that stack eight
+arguments before the family call. The candidate eligible-ROM and cart-smoke
+sweeps were waived after this automatic rejection gate failed; they are not
+claimed as passes. The option, implementation, wiring, and tests were
+restored. Only this disposition and the measured
+[ledger entry](../../performance/gbc-optimization-ledger.md#gbc-direction-expanded-rule-body-sharing-rejected-2026-07-30)
+remain.
 
 ---
 

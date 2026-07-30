@@ -1855,3 +1855,83 @@ planned in
 executed by this task. Even a passing canary does not authorize
 facade-rules/core or cross-bank sharing; those require refreshed size and
 Task 10 latency evidence plus a new design checkpoint.
+
+### GBC direction-expanded rule-body sharing rejected (2026-07-30)
+
+Revision: uncommitted candidate on `eb4e3d39`. Transient artifacts (not
+retained) are under `build/gbc/cart-task12-direction-candidate`; the exact
+Task 10 comparison is `build/gbc/cart-task10-9dab2dfa`.
+
+The disabled-by-default `shareDirectionalBodies` experiment built a family
+key from the complete emitted pattern, replacement, property, aggregate,
+any-mask, layer-coupled, inferred-binding, command, message, sound-reference,
+row-shape, and apply-on-match state. Direction, the first-pattern storage
+offset, and direction-derived scan bounds were the only exclusions.
+Ambiguous buckets containing the same direction twice were not shared, and
+multi-row rules stayed unshared because one four-bound tuple cannot describe
+two unequal row lengths. Each retained single-row family emitted one body
+receiving direction, `delta`, `xmin`, `xmax`, `ymin`, and `ymax`, plus the
+original indexed rule entry points as wrappers. Default-off output matched
+the pre-experiment emitter byte for byte in the structural fixture.
+
+The candidate found 45 two-rule families and emitted 90 wrappers across eight
+games. The full 46-game benchmark cartridge exported, compiled, linked, and
+passed the structural checker. It retained the Task 10 7,543-byte HOME and
+5,965-byte static-WRAM use, stayed within 16 KiB in every ROM bank, and kept
+the same 36 successful and 10 failed solution rows. Seventeen native GBC
+tests, including the exporter and specialized/any-mask/layer-coupled
+oracles, passed before the full build. Once the mandatory per-game runtime
+gate failed, the separate candidate eligible-ROM and cart-smoke sweeps were
+waived rather than presented as passes; no candidate code could be retained.
+
+Static size and stack-addressing results passed their gates:
+
+| Metric | Task 10 baseline | Direction sharing | Delta |
+| --- | ---: | ---: | ---: |
+| Packed payload | 2,398,105 B | 2,365,887 B | **−32,218 B (−1.34%)** |
+| Rule-pack objects | 977,269 B | 945,051 B | **−32,218 B (−3.30%)** |
+| Allocated payload | 2,424,832 B | 2,392,064 B | −32,768 B |
+| Allocated slack | 26,727 B | 26,177 B | −550 B |
+| Packed banks / highest bank | 148 / 150 | 146 / 148 | −2 / −2 |
+| Physical 4 MB headroom | 1,747,047 B | 1,779,265 B | +32,218 B |
+| Fixed HOME | 7,543 B | 7,543 B | 0 |
+| Static WRAM | 5,965 B | 5,965 B | 0 |
+| Framed rule/helper functions | 1,371 | 1,370 | −1 |
+| Frame mean / median / max | 30.097 / 32 / 128 B | 28.855 / 30 / 128 B | −1.242 / −2 / 0 B |
+| `ldhl sp` instructions | 125,200 | 120,633 | **−4,567 (−3.65%)** |
+| Estimated `ldhl sp` bytes | 250,400 B | 241,266 B | −9,134 B |
+
+Two complete fresh-emulator sweeps reproduced the full cartridge telemetry
+projection exactly: summary counters, every per-game
+success/win/turn/tick/redraw/max-turn tuple, and both worst-ten lists matched.
+The JSON files themselves differ in `wall_seconds`, so they are not claimed
+to be byte-identical. Aggregate timing stayed inside the 2% limit:
+
+| Aggregate | Task 10 baseline | Direction sharing | Delta |
+| --- | ---: | ---: | ---: |
+| Successful / total games | 36 / 46 | 36 / 46 | unchanged |
+| Measured turns / redraws | 848 / 904 | 848 / 904 | unchanged |
+| Logic ticks | 430,387 | 432,757 | +2,370 |
+| Render ticks | 184,005 | 184,023 | +18 |
+| Weighted logic ticks/turn | 507.532 | 510.327 | **+0.55%** |
+| Weighted interaction ticks/turn | 724.519 | 727.335 | **+0.39%** |
+| Weighted render ticks/redraw | 203.545 | 203.565 | +0.01% |
+
+The per-game gate failed on `dollyban` in both sweeps:
+
+| Game | Task 10 logic / interaction | Direction sharing | Delta |
+| --- | ---: | ---: | ---: |
+| `dollyban` | 675.296 / 819.444 | 745.259 / 889.593 | **+10.36% / +8.56%** |
+
+Only five successful games had changed timing; the other four remained below
+the 5% limit. `dollyban` alone contained five shared family bodies and ten hot
+wrappers. Its generated C shrank from 136,028 to 103,573 bytes, but the
+assembly shows each wrapper loading bounds and stacking the eight explicit
+arguments before calling the family body. The baseline entered the unrolled
+rule body directly. This added call/argument traffic on frequently visited
+rules is the bounded measured explanation for the deterministic regression.
+
+**Decision: reject.** The experiment met the 1% payload and 2% weighted
+timing gates, but violated the mandatory 5% per-game ceiling. The option,
+family-key implementation, wrappers, exporter wiring, and structural tests
+were fully removed; no dormant direction-sharing path is retained.
