@@ -2026,8 +2026,10 @@ game set demonstrably cannot be packed entirely below bank 256.
 
 - Modify: `docs/performance/gbc-optimization-ledger.md`
 - Modify: `docs/performance/gbc-extended-optimization-plan-2026-07-27.md`
+- Modify (completion bookkeeping):
+  `docs/superpowers/plans/2026-07-27-gbc-extended-optimization.md`
 
-- [ ] **Step 1: Run the complete standing gate from a clean rebuild**
+- [x] **Step 1: Run the complete standing gate from a clean rebuild**
 
 Use fresh candidate labels and rebuild exporter artifacts after any ABI
 change. Also run:
@@ -2040,7 +2042,7 @@ python3 scripts/report_gbc_cart_metrics.py \
   --out build/gbc/cart/codegen-metrics-final.json
 ```
 
-- [ ] **Step 2: Produce one final before/after table**
+- [x] **Step 2: Produce one final before/after table**
 
 Include:
 
@@ -2053,19 +2055,29 @@ Include:
 - function frame mean/median/p90/max and `ldhl sp`;
 - fixed ROM, maximum bank, static WRAM, and snapshot SRAM.
 
-- [ ] **Step 3: Reconcile every roadmap task**
+- [x] **Step 3: Reconcile every roadmap task**
 
 Mark Tasks 0-8 in the source roadmap as retained, rejected, superseded,
 deferred, or split into a follow-up design. Preserve the corrected renderer
 bank-bracket, WRAM-overlay, physical-capacity, and 8 MB GBDK conclusions.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ```bash
 git add docs/performance/gbc-optimization-ledger.md \
-  docs/performance/gbc-extended-optimization-plan-2026-07-27.md
+  docs/performance/gbc-extended-optimization-plan-2026-07-27.md \
+  docs/superpowers/plans/2026-07-27-gbc-extended-optimization.md
 git commit -m "Record the extended GBC optimization results"
 ```
+
+Completed 2026-07-30 at code revision `35610684`. The clean isolated gate
+passed 17/17 native GBC tests, 753/753 JavaScript tests, 46/46 eligible ROMs,
+the production-cart checker, the nine-game cart smoke, and the standalone
+hardware smoke. Fresh count-only and phase-probed five-case runs, codegen
+metrics, and two exact 46-game scoreboard sweeps populate the final ledger
+entry; the two sweeps agree on all timing/failure projections and ranked
+arrays (their retained `wall_seconds` naturally differ). The source roadmap
+now records the measured retain/reject/defer/split disposition of Tasks 0-8.
 
 ## Program completion criteria
 

@@ -1,9 +1,12 @@
 # Game Boy Color extended optimization plan
 
 Date: 2026-07-27
-Revalidated: 2026-07-28
+Revalidated: 2026-07-30
 Target revision: `master` @ `980ce35b` (`Make GBC launcher paging hardware-safe`)
-Supersedes as the active roadmap: the "Recommended implementation order" of
+Final-gate code revision: `35610684` (`Defer GBC 8 MB support behind capacity gate`)
+Status: **closed after the complete standing gate**
+
+This roadmap superseded the "Recommended implementation order" of
 [`gbc-opportunity-audit-2026-07-22.md`](gbc-opportunity-audit-2026-07-22.md),
 whose P0/P1/P2 items are now retained (see
 [`gbc-optimization-ledger.md`](gbc-optimization-ledger.md)).
@@ -35,9 +38,52 @@ questions. They do change two implementation constraints:
 - Fixed ROM is now **7,020 / 8,192 bytes**. New NONBANKED code is a scarce
   resource and must be reported for every retained experiment.
 
-Accordingly, Tasks 0-7 remain active. Task 8a/8b are optional size
-experiments to judge after the cart-native scoreboard exists; Task 8c (8 MB)
-is deferred until measured 4 MB headroom again becomes a product constraint.
+At that revalidation point, Tasks 0-7 remained active, Task 8a/8b became
+optional measured size experiments, and Task 8c (8 MB) was deferred. The
+completed dispositions are reconciled below.
+
+---
+
+## 2026-07-30 program closure
+
+Task 14 reran the entire gate from fresh isolated outputs. It passed 17/17
+native GBC tests, 753/753 JavaScript tests, 46/46 eligible ROMs, the 46-game
+production-cart checker, the nine-game ordinary cart smoke, and the standalone
+sound/render/undo hardware smoke. Two fresh 46-game benchmark-cart sweeps
+reproduced the same timing/failure projection and both worst-ten orders:
+36/46 successful games, 848 user-visible turns, 507.532 weighted logic
+ticks/turn, and 724.519 weighted combined interaction ticks/turn.
+
+The consolidated before/after timing, render-attribution, capacity, rule-pack,
+stack-frame, and memory tables are in the
+[final ledger entry](gbc-optimization-ledger.md#extended-gbc-optimization-program-final-gate-2026-07-30).
+
+| Roadmap task | Final status | Reconciled outcome |
+| --- | --- | --- |
+| Task 0: harness paths and cart/codegen metrics | **Retained** | Relative tool inputs are resolved before validation/build use; the reporter separates packed-bank utilization from physical 4 MB headroom and reports object/rule-frame metrics reproducibly. |
+| Task 1: honest interaction render telemetry | **Retained** | Low-overhead walk/push/initial counts are the headline; phase probes remain separate and report their own overhead. |
+| Task 2: remove render-time bank copies | **Split into a follow-up design** | The original whole-render bank bracket is invalid because renderer code occupies switchable bank 1. Staging needs a separately approved launcher/active-game WRAM phase overlay before implementation. |
+| Task 3: enlarge the composition cache | **Deferred** | The ten required walk/push redraws had two cache misses and zero dedicated fallbacks in total. A larger static cache is not justified independently and remains part of the Task 2 overlay design. |
+| Task 4: VBlank dirty-map batching | **Rejected** | It reduced attributed map-write ticks but made count-only redraws slower in all five cases. No source remains. |
+| Task 5: direct early rejection | **Rejected** | It cut 62,417 payload bytes but regressed `object_heavy` logic by 13.10%. No source remains. |
+| Task 6a: base-pointer hoist | **Rejected** | It cut 110,739 payload bytes but regressed `object_heavy` logic by 9.03%. No source remains. |
+| Task 6b: matcher scan inlining | **Rejected** | It cut 65,633 payload bytes but regressed `rule_heavy` logic by 2.47% and push rendering by one tick. No source remains. |
+| Task 6c: shared specialized scratch | **Rejected** | Smaller frames did not translate to a win: payload grew 55,019 bytes and three representative games regressed. The subsystem was fully removed. |
+| Task 7: cartridge timing scoreboard | **Retained** | The benchmark-only cart and exact libmGBA runner report every game, expose failures, and establish deterministic all-game weighted and worst-ten timing. |
+| Task 8a: identical-object sharing | **Split into a follow-up design** | The retained inventory found a 90,250-byte stress-bound opportunity but proved no cluster directly shareable under current ownership. Production sharing moved to the separately approved same-bank compact-facade canary; no ABI change landed here. |
+| Task 8b: direction-expanded body sharing | **Rejected** | Payload fell 32,218 bytes, but `dollyban` regressed 10.36% logic and 8.56% interaction. No source remains. |
+| Task 8c: 8 MB cartridge | **Deferred** | The cart retains 1,747,047 physical payload bytes through bank 255. GBDK's ordinary banked-call ABI remains eight-bit/4 MB; reopen only below 256 KiB forecast headroom or when the queue cannot pack below bank 256. |
+
+Four corrected constraints remain binding:
+
+- renderer code in bank 1 cannot continue executing while a game data bank is
+  selected, so hot-path bank-copy removal requires one-time staging;
+- production static WRAM is 5,922/6,144 bytes, leaving 222 bytes below the
+  standing 6 KiB gate, so staging/cache storage needs a proved phase overlay;
+- 148 allocated banks are 98.8978% full, but physical payload-region fill is
+  only 57.8532%; allocated fill is not the 4 MB capacity measure;
+- `SWITCH_ROM_MBC5_8M` neither tracks `CURRENT_BANK` nor supports ordinary
+  SDCC `BANKED` calls, so it is not an 8 MB generated-call ABI.
 
 ---
 
@@ -471,7 +517,7 @@ Recording these so the next session does not re-derive them.
 Tasks are ordered so that each one's measurement justifies the next. Every
 task carries the standing gates in §7.
 
-### Task 0 — Make the benchmark harness runnable as documented
+### Task 0 — Make the benchmark harness runnable as documented — retained
 
 **Why:** two invocation defects cost 20 minutes before any measurement could
 start, and they will cost the same for every future session.
@@ -486,7 +532,7 @@ start, and they will cost the same for every future session.
 **Done when:** the §2 command works with relative `--compiler`/`--gbdk-home`
 and produces the same JSON.
 
-### Task 1 — Render-phase instrumentation and an honest render metric
+### Task 1 — Render-phase instrumentation and an honest render metric — retained
 
 **Why:** §4.6. Tasks 2–4 are three competing explanations for the same
 unattributed 56/513/460-tick redraws. Do not guess between them.
@@ -514,7 +560,7 @@ comparison output.
 **Decision gate:** whichever of compose / cache-miss / VRAM-stall dominates
 selects the order of Tasks 2, 3, 4.
 
-### Task 2 — Remove render-time bank copies within the WRAM gate
+### Task 2 — Remove render-time bank copies within the WRAM gate — split
 
 **Why:** §4.3 — measured 2.8 ms per `composeTile`, with two indirect
 bank save/switch/restore cycles per render object per cell.
@@ -545,7 +591,7 @@ existing 6 KiB link gate.
 session state. Assert the mode transition and zero-render-copy invariants in
 the autotest build.
 
-### Task 3 — Size the composition cache from the loaded level
+### Task 3 — Size the composition cache from the loaded level — deferred
 
 **Why:** §4.5 — 360 tiles are reserved for a 90-cell worst case while the
 shared cache is pinned at 16 entries; object_heavy's 460-tick redraw is
@@ -569,7 +615,7 @@ patterns) before growing the table, or switch to a small hash.
 
 **Expected:** near-elimination of dedicated-tile fallbacks on small boards.
 
-### Task 4 — Batch incremental VRAM updates into VBlank
+### Task 4 — Batch incremental VRAM updates into VBlank — rejected
 
 **Status (2026-07-28): rejected after measurement.** The implementation
 sequence called this renderer experiment Task 5. A row-span prototype passed
@@ -608,7 +654,7 @@ assume DMA helps; it replaces only the final 64-byte upload.
 (retained playtest correction, `gbc-optimization-ledger.md:322`). VBlank
 batching must not reintroduce blanking.
 
-### Task 5 — Early-out pattern rejection in the emitter
+### Task 5 — Early-out pattern rejection in the emitter — rejected
 
 **Outcome (2026-07-28): rejected.** The structured direct-rejection prototype
 passed semantic and 46-game cart gates and reduced packed payload by 62,417
@@ -648,7 +694,7 @@ residency for `row_matched`, and rejection on the fall-through edge.
 **Measure:** the five-case suite *and* a full `make gbc_cart` for the byte
 delta. Report both.
 
-### Task 6 — Cut emitted register pressure
+### Task 6 — Cut emitted register pressure — rejected
 
 **Why:** §4.2 — mean 31.2-byte frames, 125,200 `ldhl sp` instructions.
 
@@ -724,7 +770,7 @@ print('functions', len(frames), 'mean frame %.1f' % (sum(frames)/len(frames)),
 PY
 ```
 
-### Task 7 — Per-game cartridge timing scoreboard
+### Task 7 — Per-game cartridge timing scoreboard — retained
 
 **Why:** the five-shape suite is a proxy. The shipping product is a 46-game
 cart, and its per-game move latency has **never been measured on the
@@ -783,7 +829,7 @@ as failures. Existing host-GBC replay evidence classifies three of those
 eight as known fixture/specialized divergences and leaves five bounded
 cartridge-integration follow-ups; Task 7 does not hide or fix them.
 
-### Task 8 — Optional cartridge-size experiments
+### Task 8 — Optional cartridge-size experiments — split/rejected/deferred
 
 **Why:** §3.3 and §4.7 identify large duplication opportunities, but the
 2026-07-28 cart has about 1.75 MB of physical 4 MB headroom. These are now

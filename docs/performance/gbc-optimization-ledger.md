@@ -2003,3 +2003,156 @@ separate brainstorm/design/implementation cycle when either:
 Until one of those conditions is measured, the retained 4 MB ABI has
 1,747,047 bytes of physical payload headroom and is not the active capacity
 bottleneck.
+
+### Extended GBC optimization program final gate (2026-07-30)
+
+Final-gate code revision: `35610684`. The documentation commit that records
+this result does not change production code. Generated artifacts are under
+`build/task14-final/` and are intentionally not checked in.
+
+The gate used a new `build/task14-final` CMake tree, fresh eligible, production
+cart, autotest-cart, benchmark-cart, and performance-ROM outputs, and the
+repository's in-process libmGBA runner. The external macOS mGBA save-polling
+path again exited without publishing the PERF record; the unchanged ROM then
+published the complete record through the exact fixed-frame libmGBA backend.
+This is the same bounded environmental limitation recorded by the Task 10
+control. No source workaround is retained.
+
+Commands, with isolated output paths substituted for the standing defaults:
+
+- `cmake -S . -B build/task14-final -DPS_MASK_WORD_BITS=64 -DCMAKE_BUILD_TYPE=Release`
+  followed by a complete build;
+- `ctest --test-dir build/task14-final -R '^puzzlescript_gbc' --output-on-failure`;
+- `node src/tests/run_tests_node.js`;
+- all twelve `scripts/*gbc*_test.py` contracts;
+- `make gbc_eligible BUILD_DIR=build/task14-final
+  GBC_ELIGIBLE_OUT=build/task14-final/gbc/eligible-final-v2
+  GBC_CONTINUE=1 GBDK_HOME=../../.codex_tmp/toolchains/gbdk`;
+- `make gbc_cart` and `make gbc_cart_smoke` with Task 14 output directories
+  and `GBDK_HOME=.codex_tmp/toolchains/gbdk`;
+- `make gbc_smoke BUILD_DIR=build/task14-final`;
+- two three-boot five-case benchmark suites, count-only and `--phases`;
+- one fresh 46-game benchmark-cart build and two exact solution-replay sweeps;
+- `scripts/report_gbc_cart_metrics.py` over the fresh production objects.
+
+All semantic and hardware gates passed: 17/17 native GBC tests, 753/753
+JavaScript tests, 46/46 eligible ROMs, the 46-game production checker, the
+nine-game launcher/game/return smoke, and the standalone renderer, movement,
+undo/restart/checkpoint, message, `again`, level-start, and sound-event smoke.
+The production and benchmark carts contain the same 473 per-game/launcher
+objects byte for byte; only shared benchmark instrumentation differs.
+
+#### Final before/after scorecard
+
+The first column is the unprobed 2026-07-27 roadmap measurement. The decision
+baseline is the low-overhead count-only telemetry established by Tasks 1-2.
+The final column is a fresh Task 14 three-boot run. The final values equal the
+decision baseline exactly. Differences from the older unprobed values are
+measurement overhead from the retained counters, not a shipped renderer or
+logic regression.
+
+| Case | Unprobed roadmap: logic; walk / push / initial render | Task 2 decision baseline | Task 14 final |
+| --- | ---: | ---: | ---: |
+| `sokoban` | 44.594; 56 / 65 / 895 | 44.602; 57 / 68 / 1,032 | **44.602; 57 / 68 / 1,032** |
+| `large_board` | 104.117; 513 / 517 / 1,003 | 104.125; 514 / 517 / 1,002 | **104.125; 514 / 517 / 1,002** |
+| `rule_heavy` | 853.008; 52 / 51 / 882 | 853.023; 53 / 52 / 882 | **853.023; 53 / 52 / 882** |
+| `object_heavy` | 1,149.797; 460 / 447 / 3,684 | 1,149.805; 476 / 465 / 3,683 | **1,149.805; 476 / 465 / 3,683** |
+| `two_movement_lanes` | 2,440.352; 91 / 91 / 1,048 | 2,440.359; 92 / 92 / 1,184 | **2,440.359; 92 / 92 / 1,184** |
+
+The separate phase ROM attributes the ten final walk/push redraws as follows.
+Counts are `dirty / hit / miss / dedicated fallback / uploaded quartet`;
+phase ticks are `compose / cache lookup / encode / tile upload / map write`.
+
+| Case | Counts, walk + push | Phase ticks, walk + push | Probe overhead, walk / push |
+| --- | ---: | ---: | ---: |
+| `sokoban` | 5 / 5 / 0 / 0 / 0 | 0 / 8 / 0 / 0 / 35 | +22 / +31 |
+| `large_board` | 5 / 3 / 2 / 0 / 2 | 130 / 46 / 686 / 24 / 32 | +40 / +29 |
+| `rule_heavy` | 4 / 4 / 0 / 0 / 0 | 0 / 6 / 0 / 0 / 29 | +21 / +22 |
+| `object_heavy` | 65 / 65 / 0 / 0 / 0 | 0 / 128 / 0 / 0 / 444 | +353 / +341 |
+| `two_movement_lanes` | 4 / 4 / 0 / 0 / 0 | 0 / 6 / 0 / 0 / 29 | +22 / +22 |
+| **Total** | **83 / 81 / 2 / 0 / 2** | **130 / 194 / 686 / 24 / 569** | — |
+
+This confirms the Task 2 decision: only `large_board` missed the cache during
+the required interactions, while `object_heavy` was dominated by map writes
+over many already-cached dirty cells. There were zero dedicated fallbacks.
+The larger cache therefore remains unjustified on this evidence, and the
+attempted map batching was correctly rejected by its slower count-only result.
+
+The fresh static/cart report is unchanged from the corrected Task 1 baseline:
+
+| Metric | Decision baseline | Task 14 final | Delta |
+| --- | ---: | ---: | ---: |
+| Packed payload | 2,398,105 B | **2,398,105 B** | 0 |
+| Allocated payload / slack | 2,424,832 / 26,727 B | **2,424,832 / 26,727 B** | 0 |
+| Allocated-bank fill | 98.8978% | **98.8978%** | 0 |
+| Packed banks / highest used | 148 / 150 | **148 / 150** | 0 |
+| Physical payload-region fill | 57.8532% | **57.8532%** | 0 |
+| Physical 4 MB headroom | 1,747,047 B | **1,747,047 B** | 0 |
+| Specialized rule-pack bytes | 977,269 B | **977,269 B** | 0 |
+| Framed rule/helper functions | 1,371 | **1,371** | 0 |
+| Frame mean / median / p90 / max | 30.097 / 32 / 50 / 128 B | **30.097 / 32 / 50 / 128 B** | 0 |
+| `ldhl sp` instructions / estimated bytes | 125,200 / 250,400 B | **125,200 / 250,400 B** | 0 |
+| Fixed HOME | 7,020 / 8,192 B | **7,020 / 8,192 B** | 0 |
+| Largest linked switchable bank | 16,384 / 16,384 B | **16,384 / 16,384 B** | 0 |
+| Static WRAM | 5,922 / 6,144 B | **5,922 / 6,144 B** | 0 |
+| Maximum snapshot SRAM, one game | 1,620 / 8,192 B | **1,620 / 8,192 B** | 0 |
+
+The benchmark-only cart remained within its separate instrumentation limits at
+7,543/8,192 HOME bytes and 5,965/6,080 static WRAM bytes.
+
+#### All-game cartridge timing
+
+Both fresh sweeps report 36/46 successful games, 848 timed user turns, and
+904 redraws. Their timing/failure projections match exactly for every game:
+`success`, `won`, turns, redraws, logic ticks, render ticks, maximum-turn
+ticks, and early-win classification. Both ranked arrays also match exactly.
+The raw JSON files intentionally retain different per-run `wall_seconds`.
+
+| Weighted metric | Task 10 baseline | Task 14 sweep 1 | Task 14 sweep 2 |
+| --- | ---: | ---: | ---: |
+| Logic ticks / user turn | 507.532 | **507.532** | **507.532** |
+| Combined interaction ticks / user turn | 724.519 | **724.519** | **724.519** |
+| Render ticks / redraw | 203.545 | **203.545** | **203.545** |
+
+| Rank | Worst logic ticks / turn | Worst combined interaction ticks / turn |
+| ---: | --- | --- |
+| 1 | `sokobond-demake` 4,808.833 | `sokobond-demake` 5,283.500 |
+| 2 | `wand-spinner` 2,554.867 | `wand-spinner` 2,939.800 |
+| 3 | `m-c-eschers-armageddon` 1,702.500 | `take-heart-lass` 2,430.000 |
+| 4 | `manic_ammo` 1,545.000 | `m-c-eschers-armageddon` 2,027.250 |
+| 5 | `the-monsterous-autoshove` 941.351 | `attractor-net` 1,695.837 |
+| 6 | `take-heart-lass` 941.000 | `manic_ammo` 1,677.667 |
+| 7 | `short-adventure-in-sticky-wall-land` 897.060 | `short-adventure-in-sticky-wall-land` 1,667.000 |
+| 8 | `xorro-the-chaos-warden` 886.375 | `the-monsterous-autoshove` 1,181.514 |
+| 9 | `head-skuller` 806.029 | `xorro-the-chaos-warden` 1,002.417 |
+| 10 | `match-maker` 787.941 | `match-maker` 985.059 |
+
+The ten explicit failures also reproduce Task 10: zero-turn `slot-machine`,
+the `voitex-rasteriser` solver timeout, and eight non-winning cartridge
+replays. They remain visible follow-ups rather than silently omitted timing
+rows.
+
+#### Program verdict
+
+Tasks 0-1 and 7 are retained measurement infrastructure. Renderer staging
+(Task 2) is split into a separate WRAM-overlay design; cache growth (Task 3)
+is deferred because the required interactions had zero dedicated fallbacks.
+Task 4 and every Task 5-6 runtime/emitter candidate are rejected by measured
+performance gates. Task 8a retained the sharing inventory and split production
+sharing into its separately approved same-bank canary; Task 8b is rejected,
+and Task 8c is deferred.
+
+The renderer still cannot hold a game's data bank across composition because
+its own code executes from switchable bank 1. Any staging/cache follow-up must
+therefore reuse launcher-only memory through a proved phase overlay; the
+production cart still has only 222 bytes below the 6 KiB static-WRAM gate.
+Likewise, the 98.8978% allocated-bank fill is not physical ROM exhaustion:
+1,747,047 payload bytes remain through bank 255. The bundled GBDK banked-call
+ABI remains eight-bit/4 MB, and 8 MB work reopens only at the two measured
+thresholds recorded above.
+
+**Decision: close the extended program.** The retained result is trustworthy
+measurement and reporting infrastructure, not a speculative optimization.
+All attempted runtime/codegen changes were either rejected cleanly or moved
+behind explicit design/capacity gates, so the final shipped production code
+matches the measured decision baseline.
