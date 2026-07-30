@@ -3,15 +3,72 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import tempfile
 from pathlib import Path
 
 import check_gbc_cart
 
 
+COMPACT_FACADE_SUFFIXES = (
+    "ps_gbc_facade_get_movements",
+    "ps_gbc_facade_set_movements",
+    "ps_gbc_facade_get_objects",
+    "ps_gbc_facade_cell_has_all",
+    "ps_gbc_facade_set_objects",
+    "ps_gbc_facade_cell_has_any",
+    "ps_gbc_facade_cell_count",
+    "ps_gbc_facade_mark_dirty",
+)
+SHARING_CHECK_LABELS = (
+    "compact facade aliases",
+    "compact facade same-bank capacity",
+    "compact facade duplicate omission",
+    "compact facade sharing metadata",
+)
+
+
 def write_object(path: Path, text: str) -> Path:
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def compact_facade_owner_text(
+    bank: int,
+    *,
+    missing_alias: str | None = None,
+    wrong_alias: str | None = None,
+) -> str:
+    definitions = [
+        *(
+            f"S _g21_{suffix} Def{address:08X}"
+            for address, suffix in enumerate(
+                COMPACT_FACADE_SUFFIXES,
+                start=1,
+            )
+        ),
+        *(
+            f"S _g31_{suffix} Def"
+            f"{address + (1 if suffix == wrong_alias else 0):08X}"
+            for address, suffix in enumerate(
+                COMPACT_FACADE_SUFFIXES,
+                start=1,
+            )
+            if suffix != missing_alias
+        ),
+    ]
+    return (
+        "XL4\n"
+        f"H B areas {len(definitions):X} global symbols\n"
+        "M generated_compact_facade\n"
+        f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+        + "\n".join(definitions)
+        + "\n"
+    )
+
+
+def banked_object_text(bank: int, size: int) -> str:
+    return f"A _CODE_{bank} size {size:X} flags 0 addr 0\n"
 
 
 def main() -> int:
@@ -182,6 +239,192 @@ def main() -> int:
         assert not check_gbc_cart.check_named(
             checks, "per-game static WRAM"
         ).passed
+
+        valid_objects[-1] = write_object(
+            build_dir / "g01_generated_game.o",
+            "A _DATA size 0 flags 0 addr 0\n"
+            "A _CODE_4 size 100 flags 0 addr 0\n",
+        )
+        owner_compact = build_dir / "g21_generated_compact_facade.o"
+        owner_rules = build_dir / "g21_generated_facade_rules.o"
+        member_compact = build_dir / "g31_generated_compact_facade.o"
+        member_rules = build_dir / "g31_generated_facade_rules.o"
+        sharing_manifest = deepcopy(manifest)
+        sharing_manifest["object_banks"] = {
+            **manifest["object_banks"],
+            owner_compact.name: 142,
+            owner_rules.name: 142,
+            member_rules.name: 142,
+        }
+        sharing_manifest["compact_facade_sharing"] = {
+            "mode": "same-bank-alias-canary-v1",
+            "owner": "g21",
+            "members": ["g21", "g31"],
+            "normalized_sha256": "a" * 64,
+            "implementation_bytes": 349,
+            "gross_removed_bytes": 349,
+            "bank": 142,
+            "aliases": sorted(
+                f"g31_{suffix}" for suffix in COMPACT_FACADE_SUFFIXES
+            ),
+        }
+
+        def canary_checks(
+            candidate_manifest: dict[str, object],
+            *,
+            owner_text: str | None = None,
+            owner_rules_bank: int = 142,
+            owner_rules_size: int = 1000,
+            member_rules_bank: int = 142,
+            member_rules_size: int = 1200,
+            retain_member: bool = False,
+        ) -> list[check_gbc_cart.CartCheck]:
+            write_object(
+                owner_compact,
+                (
+                    compact_facade_owner_text(142)
+                    if owner_text is None
+                    else owner_text
+                ),
+            )
+            write_object(
+                owner_rules,
+                banked_object_text(owner_rules_bank, owner_rules_size),
+            )
+            write_object(
+                member_rules,
+                banked_object_text(member_rules_bank, member_rules_size),
+            )
+            linked_objects = [
+                *valid_objects,
+                owner_compact,
+                owner_rules,
+                member_rules,
+            ]
+            if retain_member:
+                write_object(
+                    member_compact,
+                    banked_object_text(142, 349),
+                )
+                linked_objects.append(member_compact)
+            else:
+                member_compact.unlink(missing_ok=True)
+            return check_gbc_cart.evaluate_cart(
+                bytes(rom),
+                candidate_manifest,
+                areas,
+                linked_objects,
+                expected_games=2,
+            )
+
+        checks = canary_checks(sharing_manifest)
+        missing_labels = set(SHARING_CHECK_LABELS) - {
+            check.label for check in checks
+        }
+        assert not missing_labels, f"missing sharing checks: {missing_labels}"
+        assert all(
+            check_gbc_cart.check_named(checks, label).passed
+            for label in SHARING_CHECK_LABELS
+        )
+
+        default_checks = check_gbc_cart.evaluate_cart(
+            bytes(rom),
+            manifest,
+            areas,
+            valid_objects,
+            expected_games=2,
+        )
+        assert all(
+            check_gbc_cart.check_named(default_checks, label).passed
+            for label in SHARING_CHECK_LABELS
+        )
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                missing_alias=COMPACT_FACADE_SUFFIXES[0],
+            ),
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                wrong_alias=COMPACT_FACADE_SUFFIXES[1],
+            ),
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed
+
+        checks = canary_checks(sharing_manifest, retain_member=True)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed
+
+        retained_mapping = deepcopy(sharing_manifest)
+        retained_mapping["object_banks"][member_compact.name] = 142
+        checks = canary_checks(retained_mapping)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            member_rules_bank=143,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed
+
+        forged_bank_mapping = deepcopy(sharing_manifest)
+        forged_bank_mapping["object_banks"][member_rules.name] = 143
+        checks = canary_checks(forged_bank_mapping)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed
+
+        unknown_mode = deepcopy(sharing_manifest)
+        unknown_mode["compact_facade_sharing"]["mode"] = "future-mode"
+        checks = canary_checks(unknown_mode)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade sharing metadata"
+        ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_rules_size=8000,
+            member_rules_size=8036,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed
+
+        unsorted_aliases = deepcopy(sharing_manifest)
+        unsorted_aliases["compact_facade_sharing"]["aliases"].reverse()
+        checks = canary_checks(unsorted_aliases)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade sharing metadata"
+        ).passed
+
+        malformed_records: list[object] = [None, {}]
+        for field in sharing_manifest["compact_facade_sharing"]:
+            missing_field = deepcopy(
+                sharing_manifest["compact_facade_sharing"]
+            )
+            del missing_field[field]
+            malformed_records.append(missing_field)
+        for malformed in malformed_records:
+            malformed_manifest = deepcopy(sharing_manifest)
+            malformed_manifest["compact_facade_sharing"] = malformed
+            checks = canary_checks(malformed_manifest)
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade sharing metadata"
+            ).passed, malformed
 
     print("check_gbc_cart_test: ok")
     return 0

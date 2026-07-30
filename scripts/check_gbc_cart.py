@@ -12,6 +12,12 @@ from pathlib import Path
 
 
 OBJECT_AREA = re.compile(r"^A\s+(\S+)\s+size\s+([0-9A-Fa-f]+)\b")
+OBJECT_AREA_RECORD = re.compile(
+    r"^A\s+(\S+)\s+size\s+([0-9A-Fa-f]+)\b.*$"
+)
+OBJECT_SYMBOL_RECORD = re.compile(
+    r"^S\s+(\S+)\s+(Def|Ref)([0-9A-Fa-f]{8})(.*)$"
+)
 MAP_AREA = re.compile(
     r"^([._A-Za-z][._A-Za-z0-9]*)\s+"
     r"([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{8})\s+="
@@ -21,6 +27,31 @@ CODE_AREA = re.compile(r"_CODE_(\d+)")
 MAX_ROM_BYTES = 4 * 1024 * 1024
 MAX_HOME_BYTES = 8 * 1024
 MAX_BANK_BYTES = 16 * 1024
+COMPACT_FACADE_SHARING_MODE = "same-bank-alias-canary-v1"
+COMPACT_FACADE_OWNER = "g21"
+COMPACT_FACADE_MEMBER = "g31"
+COMPACT_FACADE_MEMBERS = (
+    COMPACT_FACADE_OWNER,
+    COMPACT_FACADE_MEMBER,
+)
+COMPACT_FACADE_SUFFIXES = (
+    "ps_gbc_facade_get_movements",
+    "ps_gbc_facade_set_movements",
+    "ps_gbc_facade_get_objects",
+    "ps_gbc_facade_cell_has_all",
+    "ps_gbc_facade_set_objects",
+    "ps_gbc_facade_cell_has_any",
+    "ps_gbc_facade_cell_count",
+    "ps_gbc_facade_mark_dirty",
+)
+COMPACT_FACADE_ALIASES = tuple(
+    sorted(
+        f"{COMPACT_FACADE_MEMBER}_{suffix}"
+        for suffix in COMPACT_FACADE_SUFFIXES
+    )
+)
+COMPACT_FACADE_IMPLEMENTATION_BYTES = 349
+_MISSING_SHARING = object()
 
 
 @dataclass(frozen=True)
@@ -61,6 +92,302 @@ def object_code_banks(path: Path) -> set[int]:
         if match is not None and size != 0:
             banks.add(int(match.group(1)))
     return banks
+
+
+def _read_asxxxx_object(path: Path) -> str:
+    with path.open(
+        "r",
+        encoding="ascii",
+        errors="strict",
+        newline="",
+    ) as source:
+        return source.read()
+
+
+def _definition_addresses(text: str) -> dict[str, int]:
+    lines = text.splitlines()
+    if not lines or lines[0] != "XL4":
+        raise ValueError("object must begin with an exact XL4 record")
+    definitions: dict[str, int] = {}
+    for line in lines:
+        if not line.startswith("S "):
+            continue
+        match = OBJECT_SYMBOL_RECORD.fullmatch(line)
+        if match is None:
+            raise ValueError(f"malformed symbol record: {line!r}")
+        if match.group(2) != "Def":
+            continue
+        name = match.group(1)
+        if name in definitions:
+            raise ValueError(f"duplicate definition: {name}")
+        definitions[name] = int(match.group(3), 16)
+    return definitions
+
+
+def _code_layout(text: str) -> tuple[int, int]:
+    nonempty: list[tuple[int, int]] = []
+    for line in text.splitlines():
+        if not line.startswith("A "):
+            continue
+        match = OBJECT_AREA_RECORD.fullmatch(line)
+        if match is None:
+            if line.startswith("A _CODE"):
+                raise ValueError(f"malformed code-area record: {line!r}")
+            continue
+        code = CODE_AREA.fullmatch(match.group(1))
+        size = int(match.group(2), 16)
+        if code is not None and size != 0:
+            nonempty.append((int(code.group(1)), size))
+    if len(nonempty) != 1:
+        raise ValueError(
+            "expected one nonempty _CODE_N area, "
+            f"found {len(nonempty)}"
+        )
+    return nonempty[0]
+
+
+def _sharing_check(
+    label: str,
+    passed: bool,
+    errors: list[str],
+    *,
+    disabled: bool = False,
+) -> CartCheck:
+    if disabled:
+        value = "disabled"
+    else:
+        value = "ok" if not errors else json.dumps(errors)
+    return CartCheck(label, passed, value)
+
+
+def _compact_facade_sharing_checks(
+    sharing: object,
+    object_banks: dict[str, object],
+    object_paths: Iterable[Path],
+) -> list[CartCheck]:
+    labels = (
+        "compact facade aliases",
+        "compact facade same-bank capacity",
+        "compact facade duplicate omission",
+        "compact facade sharing metadata",
+    )
+    if sharing is _MISSING_SHARING:
+        return [
+            _sharing_check(label, True, [], disabled=True)
+            for label in labels
+        ]
+    if not isinstance(sharing, dict):
+        errors = ["compact_facade_sharing must be an object"]
+        return [
+            _sharing_check(label, False, errors)
+            for label in labels
+        ]
+
+    paths_by_name: dict[str, list[Path]] = {}
+    for path in object_paths:
+        paths_by_name.setdefault(path.name, []).append(path)
+
+    owner_object_name = (
+        f"{COMPACT_FACADE_OWNER}_generated_compact_facade.o"
+    )
+    retained_names = (
+        owner_object_name,
+        f"{COMPACT_FACADE_OWNER}_generated_facade_rules.o",
+        f"{COMPACT_FACADE_MEMBER}_generated_facade_rules.o",
+    )
+    omitted_name = (
+        f"{COMPACT_FACADE_MEMBER}_generated_compact_facade.o"
+    )
+
+    alias_errors: list[str] = []
+    owner_definitions: dict[str, int] = {}
+    owner_paths = paths_by_name.get(owner_object_name, [])
+    if len(owner_paths) != 1:
+        alias_errors.append(
+            f"{owner_object_name}: expected one linked object, "
+            f"found {len(owner_paths)}"
+        )
+    else:
+        try:
+            owner_definitions = _definition_addresses(
+                _read_asxxxx_object(owner_paths[0])
+            )
+        except (OSError, UnicodeError, ValueError) as error:
+            alias_errors.append(f"{owner_object_name}: {error}")
+
+    expected_owner_names = {
+        f"_{COMPACT_FACADE_OWNER}_{suffix}"
+        for suffix in COMPACT_FACADE_SUFFIXES
+    }
+    expected_alias_names = {
+        f"_{COMPACT_FACADE_MEMBER}_{suffix}"
+        for suffix in COMPACT_FACADE_SUFFIXES
+    }
+    actual_owner_names = {
+        name
+        for name in owner_definitions
+        if name.startswith(f"_{COMPACT_FACADE_OWNER}_")
+    }
+    actual_alias_names = {
+        name
+        for name in owner_definitions
+        if name.startswith(f"_{COMPACT_FACADE_MEMBER}_")
+    }
+    if actual_owner_names != expected_owner_names:
+        alias_errors.append(
+            "owner definitions differ: "
+            f"missing={sorted(expected_owner_names - actual_owner_names)} "
+            f"extra={sorted(actual_owner_names - expected_owner_names)}"
+        )
+    if actual_alias_names != expected_alias_names:
+        alias_errors.append(
+            "alias definitions differ: "
+            f"missing={sorted(expected_alias_names - actual_alias_names)} "
+            f"extra={sorted(actual_alias_names - expected_alias_names)}"
+        )
+    unequal_addresses = [
+        suffix
+        for suffix in COMPACT_FACADE_SUFFIXES
+        if owner_definitions.get(
+            f"_{COMPACT_FACADE_OWNER}_{suffix}"
+        )
+        != owner_definitions.get(
+            f"_{COMPACT_FACADE_MEMBER}_{suffix}"
+        )
+    ]
+    if unequal_addresses:
+        alias_errors.append(
+            "normalized definition addresses differ: "
+            + ", ".join(unequal_addresses)
+        )
+
+    bank_errors: list[str] = []
+    layouts: dict[str, tuple[int, int]] = {}
+    for name in retained_names:
+        paths = paths_by_name.get(name, [])
+        if len(paths) != 1:
+            bank_errors.append(
+                f"{name}: expected one linked object, found {len(paths)}"
+            )
+            continue
+        try:
+            layouts[name] = _code_layout(_read_asxxxx_object(paths[0]))
+        except (OSError, UnicodeError, ValueError) as error:
+            bank_errors.append(f"{name}: {error}")
+    sharing_bank = sharing.get("bank")
+    if len(layouts) == len(retained_names):
+        code_banks = {bank for bank, _size in layouts.values()}
+        if len(code_banks) != 1:
+            bank_errors.append(
+                f"linked code banks differ: {sorted(code_banks)}"
+            )
+        for name, (code_bank, _size) in layouts.items():
+            if object_banks.get(name) != code_bank:
+                bank_errors.append(
+                    f"{name}: object bank {code_bank}, "
+                    f"manifest bank {object_banks.get(name)!r}"
+                )
+            if sharing_bank != code_bank:
+                bank_errors.append(
+                    f"{name}: sharing bank {sharing_bank!r}, "
+                    f"object bank {code_bank}"
+                )
+        compound_bytes = sum(size for _bank, size in layouts.values())
+        if compound_bytes > MAX_BANK_BYTES:
+            bank_errors.append(
+                f"compound code bytes {compound_bytes} > {MAX_BANK_BYTES}"
+            )
+
+    omission_errors: list[str] = []
+    if paths_by_name.get(omitted_name):
+        omission_errors.append(f"{omitted_name}: linked object retained")
+    if omitted_name in object_banks:
+        omission_errors.append(f"{omitted_name}: bank ownership retained")
+
+    metadata_errors: list[str] = []
+    required_fields = {
+        "mode",
+        "owner",
+        "members",
+        "normalized_sha256",
+        "implementation_bytes",
+        "gross_removed_bytes",
+        "bank",
+        "aliases",
+    }
+    missing_fields = sorted(required_fields - sharing.keys())
+    if missing_fields:
+        metadata_errors.append(
+            "missing fields: " + ", ".join(missing_fields)
+        )
+    if sharing.get("mode") != COMPACT_FACADE_SHARING_MODE:
+        metadata_errors.append(f"mode={sharing.get('mode')!r}")
+    if sharing.get("owner") != COMPACT_FACADE_OWNER:
+        metadata_errors.append(f"owner={sharing.get('owner')!r}")
+    if sharing.get("members") != list(COMPACT_FACADE_MEMBERS):
+        metadata_errors.append(f"members={sharing.get('members')!r}")
+    digest = sharing.get("normalized_sha256")
+    if not isinstance(digest, str) or re.fullmatch(
+        r"[0-9a-f]{64}",
+        digest,
+    ) is None:
+        metadata_errors.append(f"normalized_sha256={digest!r}")
+    if (
+        sharing.get("implementation_bytes")
+        != COMPACT_FACADE_IMPLEMENTATION_BYTES
+    ):
+        metadata_errors.append(
+            f"implementation_bytes="
+            f"{sharing.get('implementation_bytes')!r}"
+        )
+    if (
+        sharing.get("gross_removed_bytes")
+        != COMPACT_FACADE_IMPLEMENTATION_BYTES
+    ):
+        metadata_errors.append(
+            f"gross_removed_bytes="
+            f"{sharing.get('gross_removed_bytes')!r}"
+        )
+    if (
+        not isinstance(sharing_bank, int)
+        or isinstance(sharing_bank, bool)
+        or not 3 <= sharing_bank <= 255
+    ):
+        metadata_errors.append(f"bank={sharing_bank!r}")
+    if sharing.get("aliases") != list(COMPACT_FACADE_ALIASES):
+        metadata_errors.append(f"aliases={sharing.get('aliases')!r}")
+    owner_layout = layouts.get(owner_object_name)
+    if (
+        owner_layout is None
+        or owner_layout[1] != COMPACT_FACADE_IMPLEMENTATION_BYTES
+    ):
+        metadata_errors.append(
+            "owner implementation code bytes="
+            f"{None if owner_layout is None else owner_layout[1]}"
+        )
+
+    return [
+        _sharing_check(
+            "compact facade aliases",
+            not alias_errors,
+            alias_errors,
+        ),
+        _sharing_check(
+            "compact facade same-bank capacity",
+            not bank_errors,
+            bank_errors,
+        ),
+        _sharing_check(
+            "compact facade duplicate omission",
+            not omission_errors,
+            omission_errors,
+        ),
+        _sharing_check(
+            "compact facade sharing metadata",
+            not metadata_errors,
+            metadata_errors,
+        ),
+    ]
 
 
 def map_areas(path: Path) -> dict[str, tuple[int, int]]:
@@ -173,7 +500,7 @@ def evaluate_cart(
     static_offenders = generated_static_areas(
         path for path in object_paths if path.name.startswith("g")
     )
-    return [
+    checks = [
         CartCheck(
             "cartridge header",
             header_ok,
@@ -230,6 +557,17 @@ def evaluate_cart(
             json.dumps(static_offenders, sort_keys=True),
         ),
     ]
+    checks.extend(
+        _compact_facade_sharing_checks(
+            manifest.get(
+                "compact_facade_sharing",
+                _MISSING_SHARING,
+            ),
+            object_banks,
+            object_paths,
+        )
+    )
+    return checks
 
 
 def check_cart(
