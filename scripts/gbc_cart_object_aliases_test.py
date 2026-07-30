@@ -44,11 +44,12 @@ def records(text: str, marker: str) -> tuple[str, ...]:
     return tuple(line for line in text.splitlines() if line.startswith(marker))
 
 
-def assert_rejected(
+def rejection_problem(
+    label: str,
     owner_text: str,
     member_text: str,
     invariant: str,
-) -> None:
+) -> str | None:
     try:
         merge_namespaced_definitions(
             owner_text,
@@ -57,9 +58,24 @@ def assert_rejected(
             member_prefix="g31",
         )
     except ValueError as error:
-        assert invariant in str(error), error
-    else:
-        raise AssertionError(f"{invariant} violation was accepted")
+        if invariant not in str(error):
+            return f"{label}: wrong error: {error}"
+        return None
+    return f"{label}: {invariant} violation was accepted"
+
+
+def assert_rejected(
+    owner_text: str,
+    member_text: str,
+    invariant: str,
+) -> None:
+    problem = rejection_problem(
+        invariant,
+        owner_text,
+        member_text,
+        invariant,
+    )
+    assert problem is None, problem
 
 
 def main() -> int:
@@ -234,6 +250,69 @@ def main() -> int:
         interior_member,
         "symbol-record invariant",
     )
+
+    duplicate_member = member.replace(
+        "S _g31_set Def00000002",
+        "S _g31_set Def00000002\nS _g31_get Def00000001",
+    ).replace(
+        "H B areas 2 global symbols",
+        "H B areas 3 global symbols",
+    )
+    duplicate_owner = owner.replace(
+        "S _g21_set Def00000002",
+        "S _g21_set Def00000002\nS _g21_get Def00000001",
+    ).replace(
+        "H B areas 2 global symbols",
+        "H B areas 3 global symbols",
+    )
+    duplicate_problems = [
+        problem
+        for problem in (
+            rejection_problem(
+                "member duplicate",
+                owner,
+                duplicate_member,
+                "duplicate-definition invariant",
+            ),
+            rejection_problem(
+                "owner duplicate",
+                duplicate_owner,
+                member,
+                "duplicate-definition invariant",
+            ),
+        )
+        if problem is not None
+    ]
+    assert not duplicate_problems, duplicate_problems
+
+    layout_problems = [
+        problem
+        for problem in (
+            rejection_problem(
+                "S-record whitespace",
+                owner,
+                member.replace(
+                    "S _g31_get Def00000001",
+                    "S  _g31_get  Def00000001",
+                ),
+                "normalized-object invariant",
+            ),
+            rejection_problem(
+                "line endings",
+                owner,
+                member.replace("\n", "\r\n"),
+                "normalized-object invariant",
+            ),
+            rejection_problem(
+                "final newline",
+                owner,
+                member.removesuffix("\n"),
+                "normalized-object invariant",
+            ),
+        )
+        if problem is not None
+    ]
+    assert not layout_problems, layout_problems
 
     print("ok")
     return 0

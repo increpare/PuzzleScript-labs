@@ -140,6 +140,22 @@ def _parse_object(text: str, role: str) -> _Object:
             f"{role} global-symbol count overflow invariant: "
             f"{header.group(2)} exceeds 32 bits"
         )
+    seen_definitions: set[str] = set()
+    duplicate_definitions: list[str] = []
+    for symbol in symbols:
+        if symbol.binding != "Def":
+            continue
+        if (
+            symbol.name in seen_definitions
+            and symbol.name not in duplicate_definitions
+        ):
+            duplicate_definitions.append(symbol.name)
+        seen_definitions.add(symbol.name)
+    if duplicate_definitions:
+        raise ValueError(
+            f"{role} duplicate-definition invariant: "
+            + ", ".join(duplicate_definitions)
+        )
     if len(nonempty_code_sizes) != 1:
         raise ValueError(
             f"{role} single nonempty code-area invariant: "
@@ -176,12 +192,18 @@ def _normalized_text(parsed: _Object, prefix: str) -> str:
     normalized: list[str] = []
     for line in parsed.lines:
         body = _line_body(line)
+        ending = line[len(body):]
         symbol = SYMBOL_RECORD.fullmatch(body)
         if symbol is not None:
+            name_start, name_end = symbol.span(1)
+            address_start, address_end = symbol.span(3)
             normalized.append(
-                "S "
-                f"{_normalize_symbol(symbol.group(1), prefix)} "
-                f"{symbol.group(2)}00000000{symbol.group(4)}"
+                body[:name_start]
+                + _normalize_symbol(symbol.group(1), prefix)
+                + body[name_end:address_start]
+                + "00000000"
+                + body[address_end:]
+                + ending
             )
             continue
         area = AREA_RECORD.fullmatch(body)
@@ -191,8 +213,8 @@ def _normalized_text(parsed: _Object, prefix: str) -> str:
         ):
             start, end = area.span(1)
             body = body[:start] + "_CODE_N" + body[end:]
-        normalized.append(body)
-    return "\n".join(normalized) + "\n"
+        normalized.append(body + ending)
+    return "".join(normalized)
 
 
 def _namespaced_definitions(
