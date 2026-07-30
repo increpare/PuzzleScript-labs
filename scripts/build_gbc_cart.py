@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import re
 import json
+import os
+import re
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Sequence
@@ -97,6 +100,9 @@ class CartIndexEntry:
 class SharedCompactCanary:
     item: CartItem
     link_objects: tuple[Path, ...]
+    source_items: tuple[CartItem, CartItem]
+    owner_object: Path
+    merged_text: str
     normalized_sha256: str
     implementation_bytes: int
     aliases: tuple[str, ...]
@@ -109,6 +115,44 @@ def _require_compact_facade_canary_prefixes(
         raise ValueError(
             "compact-facade sharing canary requires exactly g21 and g31"
         )
+
+
+def _read_asxxxx_object(path: Path) -> str:
+    with path.open(
+        "r",
+        encoding="ascii",
+        errors="strict",
+        newline="",
+    ) as source:
+        return source.read()
+
+
+def write_shared_compact_canary_owner(
+    sharing: SharedCompactCanary,
+) -> None:
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="ascii",
+            errors="strict",
+            newline="",
+            dir=sharing.owner_object.parent,
+            prefix=f".{sharing.owner_object.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as destination:
+            temporary_path = Path(destination.name)
+            destination.write(sharing.merged_text)
+        os.chmod(
+            temporary_path,
+            stat.S_IMODE(sharing.owner_object.stat().st_mode),
+        )
+        os.replace(temporary_path, sharing.owner_object)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def shared_compact_canary(
@@ -156,8 +200,8 @@ def shared_compact_canary(
     member_compact = objects_by_name[expected_names[2]]
     member_rules = objects_by_name[expected_names[3]]
     merged = merge_namespaced_definitions(
-        owner_compact.read_text(encoding="utf-8", errors="replace"),
-        member_compact.read_text(encoding="utf-8", errors="replace"),
+        _read_asxxxx_object(owner_compact),
+        _read_asxxxx_object(member_compact),
         owner_prefix=owner_prefix,
         member_prefix=member_prefix,
     )
@@ -179,10 +223,32 @@ def shared_compact_canary(
             + ", ".join(aliases)
         )
 
+    source_items = (
+        CartItem(
+            name=f"{owner_prefix}-facade",
+            size=(
+                merged.implementation_bytes
+                + object_code_size(owner_rules)
+            ),
+            objects=(owner_compact, owner_rules),
+        ),
+        CartItem(
+            name=f"{member_prefix}-facade",
+            size=(
+                merged.implementation_bytes
+                + object_code_size(member_rules)
+            ),
+            objects=(member_compact, member_rules),
+        ),
+    )
     retained_objects = (owner_compact, owner_rules, member_rules)
     item = CartItem(
         name="g21-g31-shared-compact-facade-canary",
-        size=sum(object_code_size(path) for path in retained_objects),
+        size=(
+            merged.implementation_bytes
+            + object_code_size(owner_rules)
+            + object_code_size(member_rules)
+        ),
         objects=retained_objects,
     )
     if item.size > ROM_BANK_BYTES:
@@ -190,15 +256,65 @@ def shared_compact_canary(
             f"{item.name} is oversize: {item.size} > {ROM_BANK_BYTES}"
         )
 
-    owner_compact.write_text(merged.text, encoding="utf-8")
     return SharedCompactCanary(
         item=item,
         link_objects=tuple(
             path for path in all_game_objects if path != member_compact
         ),
+        source_items=source_items,
+        owner_object=owner_compact,
+        merged_text=merged.text,
         normalized_sha256=merged.normalized_sha256,
         implementation_bytes=merged.implementation_bytes,
         aliases=aliases,
+    )
+
+
+def apply_shared_compact_canary(
+    items: Sequence[CartItem],
+    all_game_objects: Sequence[Path],
+    sharing: SharedCompactCanary,
+) -> tuple[tuple[CartItem, ...], tuple[Path, ...]]:
+    source_names = {item.name for item in sharing.source_items}
+    for expected_item in sharing.source_items:
+        matches = [
+            item for item in items if item.name == expected_item.name
+        ]
+        if not matches:
+            raise ValueError(
+                "compact-facade sharing canary missing source item: "
+                + expected_item.name
+            )
+        if len(matches) != 1:
+            raise ValueError(
+                "compact-facade sharing canary duplicate source item: "
+                + expected_item.name
+            )
+        if matches[0] != expected_item:
+            raise ValueError(
+                "compact-facade sharing canary source composition "
+                "changed: "
+                + expected_item.name
+            )
+
+    omitted_object = sharing.source_items[1].objects[0]
+    if (
+        sum(path == omitted_object for path in all_game_objects) != 1
+        or tuple(
+            path
+            for path in all_game_objects
+            if path != omitted_object
+        )
+        != sharing.link_objects
+    ):
+        raise ValueError(
+            "compact-facade sharing canary link-object composition changed"
+        )
+
+    return (
+        tuple(item for item in items if item.name not in source_names)
+        + (sharing.item,),
+        sharing.link_objects,
     )
 
 
@@ -1232,17 +1348,16 @@ def build_cart(
         all_game_objects=all_game_objects,
     )
     if sharing is not None:
-        replaced_facade_items = {
-            f"{prefix}-facade"
-            for prefix in COMPACT_FACADE_CANARY_PREFIXES
-        }
-        items = [
-            item
-            for item in items
-            if item.name not in replaced_facade_items
-        ]
-        items.append(sharing.item)
-        all_game_objects = list(sharing.link_objects)
+        applied_items, applied_link_objects = (
+            apply_shared_compact_canary(
+                items,
+                all_game_objects,
+                sharing,
+            )
+        )
+        write_shared_compact_canary_owner(sharing)
+        items = list(applied_items)
+        all_game_objects = list(applied_link_objects)
 
     banks = pack_items(items, first_bank=FIRST_CART_GAME_BANK)
     object_banks: dict[str, int] = {}
@@ -1251,6 +1366,10 @@ def build_cart(
             for object_path in packed_item.objects:
                 relocate_object_code_area(object_path, bank.number)
                 object_banks[object_path.name] = bank.number
+    sharing_evidence = compact_facade_sharing_evidence(
+        sharing,
+        object_banks,
+    )
     launcher_art_names = {
         path.name for path in launcher_art_objects.values()
     } | {
@@ -1381,10 +1500,7 @@ def build_cart(
             "object_banks": object_banks,
             "games": game_records,
             "rom": str(rom),
-            **compact_facade_sharing_evidence(
-                sharing,
-                object_banks,
-            ),
+            **sharing_evidence,
         },
     )
     return rom, cart_manifest

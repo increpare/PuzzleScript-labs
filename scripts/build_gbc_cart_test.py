@@ -139,6 +139,55 @@ def main() -> int:
                 f"non-canonical canary prefixes were accepted: {prefixes}"
             )
 
+    for member_bytes in (
+        compact_facade_object_text("g31", 34)
+        .replace("\n", "\r\n")
+        .encode("ascii"),
+        compact_facade_object_text("g31", 34).encode("ascii")
+        + b"\x81\n",
+    ):
+        with tempfile.TemporaryDirectory() as temporary:
+            objects = Path(temporary)
+            owner_compact = (
+                objects / "g21_generated_compact_facade.o"
+            )
+            owner_rules = objects / "g21_generated_facade_rules.o"
+            member_compact = (
+                objects / "g31_generated_compact_facade.o"
+            )
+            member_rules = objects / "g31_generated_facade_rules.o"
+            owner_bytes = compact_facade_object_text(
+                "g21", 24
+            ).encode("ascii")
+            if member_bytes.endswith(b"\x81\n"):
+                owner_bytes += b"\x80\n"
+            owner_compact.write_bytes(owner_bytes)
+            owner_rules.write_bytes(
+                banked_object_text(24, 1000).encode("ascii")
+            )
+            member_compact.write_bytes(member_bytes)
+            member_rules.write_bytes(
+                banked_object_text(34, 1200).encode("ascii")
+            )
+            try:
+                build_gbc_cart.shared_compact_canary(
+                    ("g21", "g31"),
+                    enabled=True,
+                    all_game_objects=(
+                        owner_compact,
+                        owner_rules,
+                        member_compact,
+                        member_rules,
+                    ),
+                )
+            except (UnicodeError, ValueError):
+                pass
+            else:
+                raise AssertionError(
+                    "non-byte-identical compact facades were accepted"
+                )
+            assert owner_compact.read_bytes() == owner_bytes
+
     with tempfile.TemporaryDirectory() as temporary:
         objects = Path(temporary)
         owner_compact = objects / "g21_generated_compact_facade.o"
@@ -146,10 +195,10 @@ def main() -> int:
         member_compact = objects / "g31_generated_compact_facade.o"
         member_rules = objects / "g31_generated_facade_rules.o"
         unrelated = objects / "g00_generated_core.o"
-        owner_compact.write_text(
-            compact_facade_object_text("g21", 24),
-            encoding="utf-8",
-        )
+        owner_compact_bytes = compact_facade_object_text(
+            "g21", 24
+        ).encode("ascii")
+        owner_compact.write_bytes(owner_compact_bytes)
         owner_rules.write_text(
             banked_object_text(24, 1000),
             encoding="utf-8",
@@ -176,6 +225,80 @@ def main() -> int:
             ),
         )
         assert sharing is not None
+        before = item("before", 50)
+        between = item("between", 60)
+        owner_facade = build_gbc_cart.CartItem(
+            name="g21-facade",
+            size=349 + 1000,
+            objects=(owner_compact, owner_rules),
+        )
+        member_facade = build_gbc_cart.CartItem(
+            name="g31-facade",
+            size=349 + 1200,
+            objects=(member_compact, member_rules),
+        )
+        source_items = (
+            before,
+            owner_facade,
+            between,
+            member_facade,
+        )
+        applied_items, applied_link_objects = (
+            build_gbc_cart.apply_shared_compact_canary(
+                source_items,
+                (
+                    unrelated,
+                    owner_compact,
+                    owner_rules,
+                    member_compact,
+                    member_rules,
+                ),
+                sharing,
+            )
+        )
+        assert applied_items == (before, between, sharing.item)
+        assert applied_link_objects == sharing.link_objects
+        malformed_owner = build_gbc_cart.CartItem(
+            name="g21-facade",
+            size=owner_facade.size,
+            objects=(owner_rules, owner_compact),
+        )
+        invalid_item_lists = (
+            ("missing", source_items[:-1]),
+            (
+                "duplicate",
+                source_items + (owner_facade,),
+            ),
+            (
+                "composition",
+                (
+                    before,
+                    malformed_owner,
+                    between,
+                    member_facade,
+                ),
+            ),
+        )
+        for invariant, invalid_items in invalid_item_lists:
+            try:
+                build_gbc_cart.apply_shared_compact_canary(
+                    invalid_items,
+                    (
+                        unrelated,
+                        owner_compact,
+                        owner_rules,
+                        member_compact,
+                        member_rules,
+                    ),
+                    sharing,
+                )
+            except ValueError as error:
+                assert invariant in str(error)
+            else:
+                raise AssertionError(
+                    f"{invariant} source facade items were accepted"
+                )
+        assert owner_compact.read_bytes() == owner_compact_bytes
         assert sharing.item.objects == (
             owner_compact,
             owner_rules,
@@ -192,6 +315,25 @@ def main() -> int:
         assert member_compact.read_text(
             encoding="utf-8"
         ) == member_compact_text
+        assert owner_compact.read_bytes() == owner_compact_bytes
+        try:
+            with patch.object(
+                build_gbc_cart.os,
+                "replace",
+                side_effect=OSError("replace failed"),
+            ):
+                build_gbc_cart.write_shared_compact_canary_owner(
+                    sharing
+                )
+        except OSError as error:
+            assert "replace failed" in str(error)
+        else:
+            raise AssertionError("failed atomic replace was accepted")
+        assert owner_compact.read_bytes() == owner_compact_bytes
+        assert not tuple(
+            objects.glob(f".{owner_compact.name}.*.tmp")
+        )
+        build_gbc_cart.write_shared_compact_canary_owner(sharing)
         owner_text = owner_compact.read_text(encoding="utf-8")
         assert "S _g31_ps_gbc_facade_cell_count Def" in owner_text
         assert len(sharing.aliases) == 8
