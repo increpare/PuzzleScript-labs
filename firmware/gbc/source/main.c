@@ -13,7 +13,7 @@
 #include "puzzlescript/gbc.h"
 #include "text.h"
 #include "tile_cache.h"
-#if defined(PS_GBC_PERF_BENCH)
+#if defined(PS_GBC_PERF_BENCH) || defined(PS_GBC_CART_BENCHMARK)
 #include "benchmark.h"
 #endif
 
@@ -73,8 +73,10 @@ uint8_t gVramState = VRAM_STATE_UNKNOWN;
 uint16_t gDisplayBlankCount;
 uint16_t gTileUploadMismatches;
 #endif
-#if defined(PS_GBC_PERF_BENCH)
+#if defined(PS_GBC_PERF_BENCH) || defined(PS_GBC_CART_BENCHMARK)
 static volatile uint16_t gPerfTimerOverflows;
+#endif
+#if defined(PS_GBC_PERF_BENCH)
 static uint32_t gPerfPhaseStart[PS_GBC_PERF_PHASE_COUNT];
 uint32_t gPerfPhaseTicks[PS_GBC_PERF_PHASE_COUNT];
 uint32_t gPerfRenderPhaseTicks[PS_GBC_PERF_RENDER_PHASE_COUNT];
@@ -87,7 +89,9 @@ uint16_t gPerfScheduleCounts[PS_GBC_PERF_SCHEDULE_COUNT];
 #endif
 bool gPerfPhaseEnabled;
 bool gPerfRenderEnabled;
+#endif
 
+#if defined(PS_GBC_PERF_BENCH) || defined(PS_GBC_CART_BENCHMARK)
 static void perfTimerInterrupt(void) {
     ++gPerfTimerOverflows;
 }
@@ -109,8 +113,15 @@ static uint32_t perfTimerTicks(void) {
 void perfTimerInitialize(void) {
     disable_interrupts();
     add_TIM(perfTimerInterrupt);
+#if defined(PS_GBC_CART_BENCHMARK)
+    set_interrupts((uint8_t)(VBL_IFLAG | TIM_IFLAG));
+#else
     set_interrupts(TIM_IFLAG);
+#endif
     TMA_REG = 0U;
+#if defined(PS_GBC_CART_BENCHMARK)
+    enable_interrupts();
+#endif
 }
 
 void perfTimerStart(void) {
@@ -128,15 +139,25 @@ uint32_t perfTimerStop(void) {
     TAC_REG = TACF_STOP;
     ticks = ((uint32_t)gPerfTimerOverflows << 8U) | TIMA_REG;
     if ((IF_REG & TIM_IFLAG) != 0U) ticks += 256U;
+#if defined(PS_GBC_CART_BENCHMARK)
+    enable_interrupts();
+#endif
     return ticks;
 }
 
 void perfTimerShutdown(void) {
     disable_interrupts();
     TAC_REG = TACF_STOP;
+#if defined(PS_GBC_CART_BENCHMARK)
+    set_interrupts(VBL_IFLAG);
+    enable_interrupts();
+#else
     set_interrupts(0U);
+#endif
 }
+#endif
 
+#if defined(PS_GBC_PERF_BENCH)
 void ps_gbc_perf_phase_begin(uint8_t phase) {
     if (gPerfPhaseEnabled && phase < PS_GBC_PERF_PHASE_COUNT) {
         gPerfPhaseStart[phase] = perfTimerTicks();
@@ -909,6 +930,9 @@ static bool runActiveGame(void) {
         showText("MEMORY ERROR", false);
         return false;
     }
+#if defined(PS_GBC_CART_BENCHMARK)
+    cartBenchInitialize(gActiveGameIndex);
+#endif
     psd_defer_wins(gSession, true);
     save_valid = readSave(&saved_level);
     ps_gbc_frontend_init(&gFrontend, save_valid, saved_level);
@@ -941,7 +965,12 @@ static bool runActiveGame(void) {
             }
         } else if (gFrontend.mode == PS_GBC_FRONTEND_TITLE) {
 #if defined(PS_GBC_CART_BUILD)
-            if ((pressed & (J_B | J_SELECT)) != 0U) return true;
+            if ((pressed & (J_B | J_SELECT)) != 0U) {
+#if defined(PS_GBC_CART_BENCHMARK)
+                cartBenchShutdown();
+#endif
+                return true;
+            }
 #endif
             if (gFrontend.has_save
                 && (pressed & (J_UP | J_LEFT)) != 0U) {
@@ -958,6 +987,9 @@ static bool runActiveGame(void) {
                     ps_gbc_frontend_start_game(&gFrontend, &clear_save);
                 if (clear_save) clearSave();
                 (void)psd_load_level(gSession, level);
+#if defined(PS_GBC_CART_BENCHMARK)
+                (void)cartBenchLoadFirstBoard();
+#endif
                 audioPlayNamed(PS_GBC_SOUND_STARTGAME);
                 playLevelStartAudio();
                 renderBoard();
@@ -973,19 +1005,60 @@ static bool runActiveGame(void) {
             showTitleMenu(gFrontend.has_save, gFrontend.continue_selected);
             audioPlayNamed(PS_GBC_SOUND_TITLESCREEN);
         } else if (status.mode == PS_FULL_STATE_MODE_MESSAGE) {
-            if ((pressed & J_A) != 0U) {
-                const ps_step_result result = psd_step(gSession, PS_INPUT_ACTION);
+#if defined(PS_GBC_CART_BENCHMARK)
+            const bool drain_again =
+                cartBenchHasActiveTurn() && status.pending_again;
+            const bool acknowledge =
+                drain_again
+                || cartBenchHasActiveTurn()
+                || (pressed & J_A) != 0U;
+#else
+            const bool acknowledge = (pressed & J_A) != 0U;
+#endif
+            if (acknowledge) {
+                ps_step_result result;
+#if defined(PS_GBC_CART_BENCHMARK)
+                uint32_t logic_ticks;
+                if (!cartBenchHasActiveTurn()) {
+                    cartBenchBeginUserTurn();
+                }
+                perfTimerStart();
+                result = psd_step(
+                    gSession,
+                    drain_again ? PS_INPUT_TICK : PS_INPUT_ACTION);
+                logic_ticks = perfTimerStop();
+                cartBenchAccumulateLogic(logic_ticks);
+#else
+                result = psd_step(gSession, PS_INPUT_ACTION);
+#endif
                 playStepAudio(&result);
                 if (result.transitioned) saveCurrentLevel();
                 psd_status_get(gSession, &status);
-                if (status.completed) {
+                if (result.won) {
+#if defined(PS_GBC_CART_BENCHMARK)
+                    cartBenchRender();
+                    cartBenchFinish(true);
+#else
+                    renderBoard();
+#endif
+                    ps_gbc_frontend_begin_win(
+                        &gFrontend,
+                        (uint16_t)(status.current_level + 1U)
+                            >= game->level_count);
+                } else if (status.completed) {
                     finishGameSave();
                     (void)psd_load_level(gSession, 0U);
                     ps_gbc_frontend_init(&gFrontend, false, 0U);
                     showTitleMenu(false, false);
                     audioPlayNamed(PS_GBC_SOUND_ENDGAME);
                 } else {
+#if defined(PS_GBC_CART_BENCHMARK)
+                    redraw = drain_again
+                        ? result.changed || result.transitioned
+                        : true;
+#else
                     redraw = true;
+#endif
                 }
             }
         } else if ((pressed & J_B) != 0U) {
@@ -997,17 +1070,54 @@ static bool runActiveGame(void) {
         } else {
             ps_input input = PS_INPUT_TICK;
             bool has_input = status.pending_again;
-            if ((pressed & J_UP) != 0U) { input = PS_INPUT_UP; has_input = true; }
-            else if ((pressed & J_LEFT) != 0U) { input = PS_INPUT_LEFT; has_input = true; }
-            else if ((pressed & J_DOWN) != 0U) { input = PS_INPUT_DOWN; has_input = true; }
-            else if ((pressed & J_RIGHT) != 0U) { input = PS_INPUT_RIGHT; has_input = true; }
-            else if ((pressed & J_A) != 0U) { input = PS_INPUT_ACTION; has_input = true; }
+            bool user_input = false;
+            if ((pressed & J_UP) != 0U) {
+                input = PS_INPUT_UP;
+                has_input = true;
+                user_input = true;
+            } else if ((pressed & J_LEFT) != 0U) {
+                input = PS_INPUT_LEFT;
+                has_input = true;
+                user_input = true;
+            } else if ((pressed & J_DOWN) != 0U) {
+                input = PS_INPUT_DOWN;
+                has_input = true;
+                user_input = true;
+            } else if ((pressed & J_RIGHT) != 0U) {
+                input = PS_INPUT_RIGHT;
+                has_input = true;
+                user_input = true;
+            } else if ((pressed & J_A) != 0U) {
+                input = PS_INPUT_ACTION;
+                has_input = true;
+                user_input = true;
+            }
             if (has_input) {
-                const ps_step_result result = psd_step(gSession, input);
+                ps_step_result result;
+#if defined(PS_GBC_CART_BENCHMARK)
+                if (user_input) cartBenchBeginUserTurn();
+                if (cartBenchHasActiveTurn()) {
+                    uint32_t logic_ticks;
+                    perfTimerStart();
+                    result = psd_step(gSession, input);
+                    logic_ticks = perfTimerStop();
+                    cartBenchAccumulateLogic(logic_ticks);
+                } else {
+                    result = psd_step(gSession, input);
+                }
+#else
+                (void)user_input;
+                result = psd_step(gSession, input);
+#endif
                 playStepAudio(&result);
                 if (result.won) {
                     psd_status_get(gSession, &status);
+#if defined(PS_GBC_CART_BENCHMARK)
+                    cartBenchRender();
+                    cartBenchFinish(true);
+#else
                     renderBoard();
+#endif
                     ps_gbc_frontend_begin_win(
                         &gFrontend,
                         (uint16_t)(status.current_level + 1U)
@@ -1018,7 +1128,17 @@ static bool runActiveGame(void) {
                 }
             }
         }
-        if (redraw && gFrontend.mode == PS_GBC_FRONTEND_PLAYING) renderBoard();
+        if (redraw && gFrontend.mode == PS_GBC_FRONTEND_PLAYING) {
+#if defined(PS_GBC_CART_BENCHMARK)
+            if (cartBenchHasActiveTurn()) {
+                cartBenchRender();
+            } else {
+                renderBoard();
+            }
+#else
+            renderBoard();
+#endif
+        }
         previous_keys = keys;
         vsync();
     }

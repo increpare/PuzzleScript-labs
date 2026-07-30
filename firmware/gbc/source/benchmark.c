@@ -8,6 +8,7 @@
 
 #include <string.h>
 
+#if defined(PS_GBC_PERF_BENCH)
 #define SCREEN_TILES \
     (PS_GBC_SCREEN_TILE_WIDTH * PS_GBC_SCREEN_TILE_HEIGHT)
 #define PERF_RENDER_ITERATIONS 4U
@@ -268,3 +269,140 @@ void perfMeasureInteraction(perf_interaction* result) BANKED {
         &result->push_render);
     perfPublishRenderDetail(result);
 }
+#endif
+
+#if defined(PS_GBC_CART_BENCHMARK)
+static uint16_t gCartBenchGameIndex;
+static uint32_t gCartBenchUserTurns;
+static uint32_t gCartBenchRedraws;
+static uint32_t gCartBenchLogicTicks;
+static uint32_t gCartBenchRenderTicks;
+static uint32_t gCartBenchMaxTurnTicks;
+static uint32_t gCartBenchTurnLogicTicks;
+static uint32_t gCartBenchTurnRenderTicks;
+static bool gCartBenchTurnActive;
+
+static void cartBenchWrite32(
+    volatile uint8_t* destination,
+    uint16_t offset,
+    uint32_t value
+) {
+    uint8_t byte;
+    for (byte = 0U; byte < 4U; ++byte) {
+        destination[(uint16_t)(offset + byte)] =
+            (uint8_t)(value >> (byte * 8U));
+    }
+}
+
+static void cartBenchFinalizeTurn(void) {
+    uint32_t turn_ticks;
+    if (!gCartBenchTurnActive) return;
+    ++gCartBenchUserTurns;
+    turn_ticks = gCartBenchTurnLogicTicks + gCartBenchTurnRenderTicks;
+    if (turn_ticks > gCartBenchMaxTurnTicks) {
+        gCartBenchMaxTurnTicks = turn_ticks;
+    }
+    gCartBenchTurnLogicTicks = 0U;
+    gCartBenchTurnRenderTicks = 0U;
+    gCartBenchTurnActive = false;
+}
+
+static void cartBenchPublish(bool won) {
+    volatile uint8_t* destination;
+    uint8_t byte;
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(CART_BENCH_SRAM_BANK);
+    destination = (volatile uint8_t*)(
+        0xa000U + CART_BENCH_SRAM_OFFSET);
+    cartBenchWrite32(destination, 0U, 0U);
+    destination[4U] = CART_BENCH_VERSION;
+    destination[5U] = 0U;
+    destination[6U] = (uint8_t)gCartBenchGameIndex;
+    destination[7U] = (uint8_t)(gCartBenchGameIndex >> 8U);
+    cartBenchWrite32(destination, 8U, gCartBenchUserTurns);
+    cartBenchWrite32(destination, 12U, gCartBenchRedraws);
+    cartBenchWrite32(destination, 16U, gCartBenchLogicTicks);
+    cartBenchWrite32(destination, 20U, gCartBenchRenderTicks);
+    cartBenchWrite32(destination, 24U, gCartBenchMaxTurnTicks);
+    destination[28U] = won ? 1U : 0U;
+    for (byte = 29U; byte < CART_BENCH_RECORD_BYTES; ++byte) {
+        destination[byte] = 0U;
+    }
+    /* Commit marker last: all preceding fixed-width fields are now durable. */
+    cartBenchWrite32(destination, 0U, CART_BENCH_MAGIC);
+    DISABLE_RAM_MBC5;
+}
+
+void cartBenchInitialize(uint16_t game_index) BANKED {
+    volatile uint8_t* destination;
+    gCartBenchGameIndex = game_index;
+    gCartBenchUserTurns = 0U;
+    gCartBenchRedraws = 0U;
+    gCartBenchLogicTicks = 0U;
+    gCartBenchRenderTicks = 0U;
+    gCartBenchMaxTurnTicks = 0U;
+    gCartBenchTurnLogicTicks = 0U;
+    gCartBenchTurnRenderTicks = 0U;
+    gCartBenchTurnActive = false;
+    ENABLE_RAM_MBC5;
+    SWITCH_RAM_MBC5(CART_BENCH_SRAM_BANK);
+    destination = (volatile uint8_t*)(
+        0xa000U + CART_BENCH_SRAM_OFFSET);
+    /* An interrupted boot must never leave an earlier valid record. */
+    cartBenchWrite32(destination, 0U, 0U);
+    DISABLE_RAM_MBC5;
+    perfTimerInitialize();
+}
+
+bool cartBenchLoadFirstBoard(void) BANKED {
+    const ps_gbc_game_view* game = ps_gbc_active_game_view();
+    uint16_t level_index;
+    ps_gbc_level level;
+    if (game == NULL) return false;
+    for (level_index = 0U;
+         level_index < game->level_count;
+         ++level_index) {
+        if (ps_gbc_active_rom_copy(
+                game->levels + level_index,
+                &level,
+                sizeof(level))
+            && level.kind == PS_GBC_LEVEL_BOARD) {
+            return psd_load_level(gSession, level_index);
+        }
+    }
+    return false;
+}
+
+void cartBenchBeginUserTurn(void) BANKED {
+    cartBenchFinalizeTurn();
+    gCartBenchTurnActive = true;
+}
+
+bool cartBenchHasActiveTurn(void) BANKED {
+    return gCartBenchTurnActive;
+}
+
+void cartBenchAccumulateLogic(uint32_t ticks) BANKED {
+    gCartBenchLogicTicks += ticks;
+    gCartBenchTurnLogicTicks += ticks;
+}
+
+void cartBenchRender(void) BANKED {
+    uint32_t ticks;
+    perfTimerStart();
+    renderBoard();
+    ticks = perfTimerStop();
+    gCartBenchRenderTicks += ticks;
+    gCartBenchTurnRenderTicks += ticks;
+    ++gCartBenchRedraws;
+}
+
+void cartBenchFinish(bool won) BANKED {
+    cartBenchFinalizeTurn();
+    cartBenchPublish(won);
+}
+
+void cartBenchShutdown(void) BANKED {
+    perfTimerShutdown();
+}
+#endif

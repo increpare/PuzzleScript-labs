@@ -814,6 +814,7 @@ def build_cart(
     games: Sequence[tuple[str, str]],
     cull: bool,
     autotest: bool,
+    benchmark: bool = False,
 ) -> tuple[Path, Path]:
     repository = repository.resolve()
     compiler = compiler.resolve()
@@ -828,6 +829,10 @@ def build_cart(
         raise RuntimeError("cart needs at least one game")
     if len(games) > 253:
         raise RuntimeError("cart cannot reserve one core bank per game")
+    shared_defines = shared_build_defines(
+        autotest=autotest,
+        benchmark=benchmark,
+    )
 
     exports_root = out / "exports"
     objects_root = out / "objects"
@@ -1105,6 +1110,7 @@ def build_cart(
     )
     shared_sources = (
         firmware_source / "main.c",
+        *((firmware_source / "benchmark.c",) if benchmark else ()),
         firmware_source / "audio.c",
         firmware_source / "text.c",
         firmware_source / "tile_cache.c",
@@ -1122,10 +1128,7 @@ def build_cart(
             source=shared_source,
             object_path=object_path,
             include_directories=shared_includes,
-            defines=(
-                "PS_GBC_CART_BUILD=1",
-                *(("PS_GBC_CART_AUTOTEST=1",) if autotest else ()),
-            ),
+            defines=shared_defines,
         )
         shared_objects.append(object_path)
     cart_index_object = objects_root / "cart_index.o"
@@ -1137,10 +1140,10 @@ def build_cart(
     )
     shared_objects.append(cart_index_object)
 
-    rom_name = (
-        f"puzzlescript-compilation-autotest-{len(entries)}.gb"
-        if autotest
-        else f"puzzlescript-compilation-{len(entries)}.gb"
+    rom_name = cart_rom_name(
+        len(entries),
+        autotest=autotest,
+        benchmark=benchmark,
     )
     rom = out / rom_name
     link_command = [
@@ -1169,6 +1172,7 @@ def build_cart(
         {
             "format": "puzzlescript-gbc-cart-v1",
             "autotest": autotest,
+            "benchmark": benchmark,
             "game_count": len(entries),
             "index_bank": 2,
             "max_session_bytes": max(
@@ -1191,6 +1195,34 @@ def build_cart(
     return rom, cart_manifest
 
 
+def shared_build_defines(
+    *,
+    autotest: bool,
+    benchmark: bool,
+) -> tuple[str, ...]:
+    if autotest and benchmark:
+        raise ValueError("--autotest and --benchmark are mutually exclusive")
+    return (
+        "PS_GBC_CART_BUILD=1",
+        *(("PS_GBC_CART_AUTOTEST=1",) if autotest else ()),
+        *(("PS_GBC_CART_BENCHMARK=1",) if benchmark else ()),
+    )
+
+
+def cart_rom_name(
+    game_count: int,
+    *,
+    autotest: bool,
+    benchmark: bool,
+) -> str:
+    shared_build_defines(autotest=autotest, benchmark=benchmark)
+    if benchmark:
+        return f"puzzlescript-compilation-benchmark-{game_count}.gb"
+    if autotest:
+        return f"puzzlescript-compilation-autotest-{game_count}.gb"
+    return f"puzzlescript-compilation-{game_count}.gb"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", type=Path, default=Path.cwd())
@@ -1198,7 +1230,9 @@ def main() -> int:
     parser.add_argument("--gbdk-home", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=Path("build/gbc/cart"))
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--autotest", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--autotest", action="store_true")
+    mode.add_argument("--benchmark", action="store_true")
     parser.add_argument(
         "--cull",
         action=argparse.BooleanOptionalAction,
@@ -1224,6 +1258,7 @@ def main() -> int:
             games=games,
             cull=args.cull,
             autotest=args.autotest,
+            benchmark=args.benchmark,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(f"gbc-cart: {error}", file=sys.stderr)

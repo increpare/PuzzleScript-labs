@@ -1558,10 +1558,11 @@ are retained.
 - Create: `scripts/bench_gbc_cart_solutions_test.py`
 - Modify: `scripts/build_gbc_cart.py`
 - Modify: `firmware/gbc/source/main.c`
+- Modify: `firmware/gbc/source/benchmark.c`
 - Modify: `firmware/gbc/source/benchmark.h`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Write failing key-script and telemetry tests**
+- [x] **Step 1: Write failing key-script and telemetry tests**
 
 Define key conversion:
 
@@ -1604,7 +1605,7 @@ class CartBenchTelemetry:
 Cover bad magic/version/index, zero turns, truncated data, weighted mean, and
 descending worst-ten ordering.
 
-- [ ] **Step 2: Add benchmark-cart build mode**
+- [x] **Step 2: Add benchmark-cart build mode**
 
 Add `benchmark: bool` to `build_cart()` and CLI `--benchmark`, mutually
 exclusive with `--autotest`. Compile shared firmware with:
@@ -1618,13 +1619,13 @@ Name the output `puzzlescript-compilation-benchmark-46.gb` and record
 `"benchmark": true` in the cart manifest. Generated game/rule objects remain
 byte-identical to production; only shared instrumentation differs.
 
-- [ ] **Step 3: Refactor the hardware timer for both benchmark modes**
+- [x] **Step 3: Refactor the hardware timer for both benchmark modes**
 
 Compile timer primitives when either `PS_GBC_PERF_BENCH` or
 `PS_GBC_CART_BENCHMARK` is set. Do not enable phase probes in the cart
 scoreboard.
 
-- [ ] **Step 4: Accumulate one user-visible turn correctly**
+- [x] **Step 4: Accumulate one user-visible turn correctly**
 
 In the active-game loop:
 
@@ -1641,7 +1642,7 @@ Publish one record in SRAM bank 3 at offset 512. Write zero magic first and
 valid magic last. A fresh emulator boot measures one game, so the record does
 not need 46 slots.
 
-- [ ] **Step 5: Reuse/generate first-retained-board fixtures**
+- [x] **Step 5: Reuse/generate first-retained-board fixtures**
 
 Import `ELIGIBLE_GAMES` from `build_gbc_eligible_roms.py`; do not copy the
 46-entry tuple again.
@@ -1652,7 +1653,7 @@ Otherwise reuse the existing retained-board solving helpers in
 `bench_gbc_eligible_solutions.py` to solve board 0 and cache the fixture.
 Report unsolved games explicitly; never silently omit them.
 
-- [ ] **Step 6: Drive one fresh libmGBA boot per game**
+- [x] **Step 6: Drive one fresh libmGBA boot per game**
 
 Reuse `run_gbc_smoke.load_libmgba_shim()` and
 `psgbc_run_with_keys()`. For each game:
@@ -1677,7 +1678,7 @@ Output:
 }
 ```
 
-- [ ] **Step 7: Add the Make target**
+- [x] **Step 7: Add the Make target**
 
 ```make
 GBC_CART_SOLUTIONS_BENCH_OUT ?= \
@@ -1693,7 +1694,7 @@ gbc_cart_solutions_bench: $(PUZZLESCRIPT_CPP)
 
 Add the target to `.PHONY` and help text.
 
-- [ ] **Step 8: Run focused tests and a three-game smoke scoreboard**
+- [x] **Step 8: Run focused tests and a three-game smoke scoreboard**
 
 ```bash
 python3 scripts/bench_gbc_cart_solutions_test.py
@@ -1706,7 +1707,7 @@ python3 scripts/bench_gbc_cart_solutions.py \
 
 Expected: three indexed, winning rows with nonzero timer counts.
 
-- [ ] **Step 9: Run all 46 and commit**
+- [x] **Step 9: Run all 46 and commit**
 
 ```bash
 make gbc_cart_solutions_bench
@@ -1718,9 +1719,41 @@ board, and stable worst-ten lists across a repeated run.
 ```bash
 git add scripts/bench_gbc_cart_solutions.py \
   scripts/bench_gbc_cart_solutions_test.py scripts/build_gbc_cart.py \
-  firmware/gbc/source/main.c firmware/gbc/source/benchmark.h Makefile
+  firmware/gbc/source/main.c firmware/gbc/source/benchmark.c \
+  firmware/gbc/source/benchmark.h Makefile
 git commit -m "Benchmark solution turns on the GBC compilation cart"
 ```
+
+Task 10 completed on 2026-07-29. The 46-game benchmark cart linked across
+148 packed banks at 7,543/8,192 HOME bytes and 5,965/6,080 static WRAM bytes.
+All 381 generated game/rule objects were byte-identical to the matching
+production build; the benchmark adds only shared instrumentation.
+
+Two fresh-boot libmGBA sweeps reproduced exactly: 36/46 games published
+winning records, 848 user-visible turns were timed, and both worst-ten index
+orders plus every successful `(logic, render, maximum-turn)` tick tuple were
+identical. Weighted totals were 507.532 logic ticks/turn, 724.519 combined
+interaction ticks/turn, and 203.545 render ticks/redraw. The slowest measured
+logic games were `sokobond-demake`, `wand-spinner`,
+`m-c-eschers-armageddon`, and `manic_ammo`; this confirms the scoreboard is
+not Sokoban-only.
+
+Failures remain explicit in the JSON: `slot-machine` has a zero-turn replay,
+`voitex-rasteriser` times out in the solver, and eight fixtures do not publish
+a cart win. Bounded host-GBC classification found two baseline/specialized
+fixture divergences (`crate-guardian`, `two-tone-tango`), one specialized-only
+divergence (`no-forbidden-symbols-2`), and five cartridge/integration
+follow-ups (`hedgehog-stimulator`, `the-red-ring-of-immortality`,
+`unclean-residues`, `pipe-puffer`, `yellow-box`). Those follow-ups are not
+silently excluded and are outside Task 10's measurement-harness scope.
+
+Validation passed the focused Python contracts, all 17 native GBC tests, all
+753 JS tests, the nine-game launcher/cart smoke, the full structural/capacity
+checker, and a fixed-frame libmGBA replay of the legacy PERF ROM. The external
+macOS mGBA app/save polling path failed on both the new and pre-Task10 control
+ROMs, while the in-process libmGBA backend parsed the complete perf record;
+that is recorded as an environmental harness limitation, not a firmware
+timer regression.
 
 ---
 

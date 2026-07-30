@@ -1689,3 +1689,84 @@ three required representative cases regress materially, and packed payload
 grows despite the smaller frames and lower stack-addressing count. The
 scratch header/source, build wiring, emitter switch, and candidate tests were
 fully removed; no dormant scratch subsystem is retained.
+
+### GBC compilation-cart solution scoreboard (2026-07-29)
+
+Revision: Task 10 implementation on `codex/gbc-extended-optimization`.
+Artifact:
+`build/gbc/cart/solution-bench-cart.json` (generated, not checked in).
+Timing source: CGB 4,096 Hz hardware timer via in-process libmGBA.
+
+The compilation cart now has a benchmark-only build mode. Generated game and
+rule objects are unchanged; shared firmware starts an accumulator on a
+direction/action press, includes all pending-`again` steps and corresponding
+dirty renders, finalizes on the next press or win, and commits a versioned
+32-byte record to SRAM bank 3 offset 512. The host harness imports the
+canonical 46-game manifest, reuses or solves each first retained board,
+launches one fresh emulator per game, and records failures instead of
+dropping them.
+
+The shipping-scale benchmark cart passed the structural checker:
+
+| Metric | Production | Benchmark | Delta / result |
+| --- | ---: | ---: | ---: |
+| Games | 46 | 46 | all indexed |
+| Packed game banks | 148 | 148 | unchanged |
+| Fixed HOME | 7,020 B | 7,543 B | +523 B; below 8,192 B |
+| Static WRAM | 5,922 B | 5,965 B | +43 B; below 6,080 B |
+| Banked payload | 2,419,100 B | 2,420,020 B | +920 B shared instrumentation |
+| Generated game/rule objects | 381 | 381 | 381 byte-identical; 0 mismatches |
+
+Two complete fresh-boot sweeps reproduced every successful
+`logic_ticks`/`render_ticks`/`max_turn_ticks` tuple and both worst-ten orders
+exactly:
+
+| Aggregate | Result |
+| --- | ---: |
+| Successful / total games | 36 / 46 |
+| Measured user turns | 848 |
+| Redraws | 904 |
+| Weighted logic ticks/turn | 507.532 |
+| Weighted interaction ticks/turn | 724.519 |
+| Weighted render ticks/redraw | 203.545 |
+
+The ranked cartridge targets are:
+
+| Rank | Logic ticks/turn | Interaction ticks/turn |
+| ---: | --- | --- |
+| 1 | `sokobond-demake` 4,808.833 | `sokobond-demake` 5,283.500 |
+| 2 | `wand-spinner` 2,554.867 | `wand-spinner` 2,939.800 |
+| 3 | `m-c-eschers-armageddon` 1,702.500 | `take-heart-lass` 2,430.000 |
+| 4 | `manic_ammo` 1,545.000 | `m-c-eschers-armageddon` 2,027.250 |
+| 5 | `the-monsterous-autoshove` 941.351 | `attractor-net` 1,695.837 |
+| 6 | `take-heart-lass` 941.000 | `manic_ammo` 1,677.667 |
+| 7 | `short-adventure-in-sticky-wall-land` 897.060 | `short-adventure-in-sticky-wall-land` 1,667.000 |
+| 8 | `xorro-the-chaos-warden` 886.375 | `the-monsterous-autoshove` 1,181.514 |
+| 9 | `head-skuller` 806.029 | `xorro-the-chaos-warden` 1,002.417 |
+| 10 | `match-maker` 787.941 | `match-maker` 985.059 |
+
+Ten games remain explicit failures. `slot-machine` produces a zero-turn
+record and `voitex-rasteriser` times out while solving. Eight solved fixtures
+do not publish a cart win. A bounded fresh-export host-GBC replay classified
+them without expanding Task 10 into game fixes:
+
+| Game | Fixture turns | Host baseline | Host specialized | Classification |
+| --- | ---: | --- | --- | --- |
+| `crate-guardian` | 46 | no win | no win | existing GBC fixture/core divergence |
+| `hedgehog-stimulator` | 47 | no win | win | cartridge/integration follow-up |
+| `the-red-ring-of-immortality` | 15 | no win | win | cartridge/integration follow-up |
+| `unclean-residues` | 35 | no win | win | cartridge/integration follow-up |
+| `pipe-puffer` | 30 | win | win | cartridge/integration follow-up |
+| `no-forbidden-symbols-2` | 48 | win | no win | existing specialized divergence |
+| `two-tone-tango` | 27 | no win | no win | existing GBC fixture/core divergence |
+| `yellow-box` | 43 | win | win | cartridge/integration follow-up |
+
+Validation passed the scoreboard/build-mode unit contracts, the full
+structural/capacity checker, all 17 native GBC tests, all 753 JS tests, and
+the nine-game cart smoke (two launches, one return, distinct game hashes).
+The legacy PERF ROM also published and parsed its complete main,
+interaction, and render-detail records through fixed-frame libmGBA
+(128 iterations, 5,709 logic ticks). The external macOS mGBA application
+save-polling path missed records for both the new and pre-Task10 control ROMs,
+so that result is an environmental harness limitation rather than a retained
+firmware regression.

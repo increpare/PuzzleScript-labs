@@ -751,6 +751,30 @@ game, and names the worst 10. Those become the real optimisation targets;
 Voitex at 596 ms/turn is currently the only known worst case and it was chosen
 in 2026-06, before 41 of the 46 games existed.
 
+**Completed 2026-07-29.** A benchmark-only cart mode now measures each
+user-visible turn with the CGB 4,096 Hz timer, including pending-`again` work
+and dirty redraws, and publishes a versioned record through SRAM bank 3.
+The harness reuses or solves the first retained board, boots libmGBA fresh per
+game, reports every failure, and ranks weighted cartridge measurements.
+
+The full 46-game cart linked across 148 packed banks at 7,543 HOME bytes and
+5,965 static WRAM bytes. Its 381 generated game/rule objects were
+byte-identical to the matching production build. Two full emulator sweeps
+were exactly repeatable: 36 successes, 10 explicit failures, 848 measured
+turns, 507.532 weighted logic ticks/turn, 724.519 weighted interaction
+ticks/turn, and 203.545 render ticks/redraw. Both worst-ten orders and every
+successful timing tuple matched across the repeat.
+
+The new top cartridge targets are not limited to Sokoban:
+`sokobond-demake`, `wand-spinner`, `m-c-eschers-armageddon`, and
+`manic_ammo` lead logic ticks/turn. `take-heart-lass` and `attractor-net`
+also enter the interaction worst ten because rendering changes the order.
+The JSON retains the zero-turn `slot-machine` fixture, the
+`voitex-rasteriser` solver timeout, and eight non-winning cartridge replays
+as failures. Existing host-GBC replay evidence classifies three of those
+eight as known fixture/specialized divergences and leaves five bounded
+cartridge-integration follow-ups; Task 7 does not hide or fix them.
+
 ### Task 8 — Optional cartridge-size experiments
 
 **Why:** §3.3 and §4.7 identify large duplication opportunities, but the
