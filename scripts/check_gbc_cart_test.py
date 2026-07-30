@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
 import tempfile
 from pathlib import Path
 
@@ -325,6 +326,8 @@ def main() -> int:
             owner_rules_text: str | None = None,
             member_rules_text: str | None = None,
             retain_member: bool = False,
+            provide_linked_evidence: bool = True,
+            missing_linked_object: str | None = None,
         ) -> list[check_gbc_cart.CartCheck]:
             write_object(
                 owner_compact,
@@ -356,20 +359,26 @@ def main() -> int:
                     else member_rules_text
                 ),
             )
-            linked_objects = [
+            write_object(
+                member_compact,
+                banked_object_text(142, 349),
+            )
+            compiled_objects = [
                 *valid_objects,
                 owner_compact,
                 owner_rules,
+                member_compact,
                 member_rules,
             ]
+            linked_object_names = {
+                owner_compact.name,
+                owner_rules.name,
+                member_rules.name,
+            }
             if retain_member:
-                write_object(
-                    member_compact,
-                    banked_object_text(142, 349),
-                )
-                linked_objects.append(member_compact)
-            else:
-                member_compact.unlink(missing_ok=True)
+                linked_object_names.add(member_compact.name)
+            if missing_linked_object is not None:
+                linked_object_names.discard(missing_linked_object)
             return check_gbc_cart.evaluate_cart(
                 bytes(rom),
                 candidate_manifest,
@@ -378,9 +387,93 @@ def main() -> int:
                     if candidate_areas is None
                     else candidate_areas
                 ),
-                linked_objects,
+                compiled_objects,
                 expected_games=2,
+                linked_object_names=(
+                    linked_object_names
+                    if provide_linked_evidence
+                    else None
+                ),
             )
+
+        write_object(
+            owner_compact,
+            compact_facade_owner_text(142),
+        )
+        write_object(
+            owner_rules,
+            banked_object_text(142, 1000),
+        )
+        write_object(
+            member_compact,
+            banked_object_text(142, 349),
+        )
+        write_object(
+            member_rules,
+            banked_object_text(142, 1200),
+        )
+        linked_map_text = (
+            "_CODE_142              008E4000    000009F5 = "
+            "2549. bytes (REL,CON)\n"
+            "\fASxxxx Linker V03.00/V05.40 + sdld,  page 184.\n"
+            "\n"
+            "Files Linked                              [ module(s) ]\n"
+            "\n"
+            f"{owner_compact}\n"
+            "                                          "
+            "[ generated_compact_facade ]\n"
+            f"{owner_rules}\n"
+            "                                          "
+            "[ generated_facade_rules ]\n"
+            f"{member_rules}\n"
+            "                                          "
+            "[ generated_facade_rules ]\n"
+            "00000000 g31_generated_compact_facade.o\n"
+            "\n"
+            "Libraries Linked                          "
+            "[ object file ]\n"
+            "\n"
+            "/toolchain/lib/gb.lib\n"
+            "                                          "
+            "[ g31_generated_compact_facade.o ]\n"
+        )
+        cli_rom = build_dir / "candidate.gb"
+        cli_manifest = build_dir / "cart-manifest.json"
+        cli_map = build_dir / "candidate.map"
+        cli_rom.write_bytes(bytes(rom))
+        cli_manifest.write_text(
+            json.dumps(sharing_manifest),
+            encoding="utf-8",
+        )
+        cli_map.write_text(linked_map_text, encoding="ascii")
+        cli_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            cli_checks, "compact facade duplicate omission"
+        ).passed, "compiled but unlinked member was treated as linked"
+
+        parsed_linked_names = (
+            check_gbc_cart.linked_object_names_from_map_text(
+                linked_map_text
+            )
+        )
+        assert parsed_linked_names == {
+            owner_compact.name,
+            owner_rules.name,
+            member_rules.name,
+        }
+        assert member_compact.name not in parsed_linked_names
+        assert (
+            check_gbc_cart.linked_object_names_from_map_text(
+                "_CODE_142 008E4000 000009F5 =\n"
+            )
+            is None
+        )
 
         checks = canary_checks(sharing_manifest)
         missing_labels = set(SHARING_CHECK_LABELS) - {
@@ -403,6 +496,22 @@ def main() -> int:
             check_gbc_cart.check_named(default_checks, label).passed
             for label in SHARING_CHECK_LABELS
         )
+
+        checks = canary_checks(
+            sharing_manifest,
+            provide_linked_evidence=False,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed, "missing linked-object evidence was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            missing_linked_object=owner_rules.name,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed, "missing retained linked object was accepted"
 
         missing_sharing_map = dict(sharing_areas)
         del missing_sharing_map["_CODE_142"]
