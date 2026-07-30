@@ -1771,7 +1771,7 @@ timer regression.
 - Create: `scripts/analyze_gbc_cart_sharing.py`
 - Create: `scripts/analyze_gbc_cart_sharing_test.py`
 
-- [ ] **Step 1: Write a failing normalized-cluster test**
+- [x] **Step 1: Write a failing normalized-cluster test**
 
 Use synthetic objects/symbol tables to distinguish:
 
@@ -1793,7 +1793,7 @@ The report row must include:
 }
 ```
 
-- [ ] **Step 2: Implement source/object normalization**
+- [x] **Step 2: Implement source/object normalization**
 
 Normalize only:
 
@@ -1809,7 +1809,7 @@ normalized per-game reference. Mark an object directly shareable only when a
 single definition can satisfy every consumer without a per-game alias or
 cross-bank access.
 
-- [ ] **Step 3: Run against the shipping cart**
+- [x] **Step 3: Run against the shipping cart**
 
 ```bash
 python3 scripts/analyze_gbc_cart_sharing.py \
@@ -1821,7 +1821,7 @@ python3 scripts/analyze_gbc_cart_sharing.py \
 Expected: reconcile the roadmap's approximately 148 KB gross duplicates and
 explain how much is blocked by namespaced data/call references.
 
-- [ ] **Step 4: Apply the design gate**
+- [x] **Step 4: Apply the design gate**
 
 Do **not** change `pack_items()` merely because normalized bytes match.
 Proceed to a new shared-core design only if the report identifies at least
@@ -1836,10 +1836,38 @@ If the threshold is met, write a focused design/spec for the smallest safe
 cluster (prefer compact facade before core) and create a separate
 implementation plan. If not, record Task 8a as rejected with the report.
 
-- [ ] **Step 5: Commit the analysis tool/report conclusion**
+- [x] **Step 5: Commit the analysis tool/report conclusion**
 
 Commit the tool/test and the ledger conclusion. Build artifacts remain
 untracked.
+
+Task 11 completed on 2026-07-30 against the preserved Task 10 revision
+`9dab2dfa`. The untracked report is
+`build/gbc/cart-task10-9dab2dfa/sharing-analysis.json`.
+
+The analyzer parsed 473 per-game ASxxxx objects and reproduced the roadmap
+exactly: 110,558 duplicate bytes in `generated_core`, 27,160 in
+`generated_facade_rules`, and 10,644 in `generated_compact_facade`, for
+148,362 bytes total. All 1,634 per-game symbol-reference records resolved;
+884 are same-bank and 750 are cross-bank. No duplicate cluster is directly
+shareable because every cluster needs namespaced aliases, per-game
+references, or different-bank access.
+
+The conservative design model retains one implementation for each of 25
+configuration clusters and subtracts 1,034 bytes of descriptor/context
+state, 7,664 bytes of HOME/`BANKED` aliases, 1,856 bytes for 58 hot
+cross-bank symbol edges, and a 25,414-byte genericity reserve. The resulting
+112,394-byte net estimate passes the 65,536-byte gate.
+
+Per the gate, no packer, generated-code, or bank-ABI change was made here.
+The approved follow-up design and its separate unexecuted plan are:
+
+- `docs/superpowers/specs/2026-07-30-gbc-shared-compact-facade-design.md`
+- `docs/superpowers/plans/2026-07-30-gbc-shared-compact-facade.md`
+
+They authorize only a default-off, same-bank `g21`/`g31` compact-facade
+alias canary. Broader facade-rules/core or cross-bank sharing requires a new
+evidence checkpoint and approval.
 
 ---
 

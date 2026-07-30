@@ -1777,3 +1777,69 @@ interaction, and render-detail records through fixed-frame libmGBA
 save-polling path missed records for both the new and pre-Task10 control ROMs,
 so that result is an environmental harness limitation rather than a retained
 firmware regression.
+
+### GBC compilation-cart sharing inventory (2026-07-30)
+
+Revision: Task 11 analysis on the preserved Task 10 object set at `9dab2dfa`.
+Artifact (generated, not checked in):
+`build/gbc/cart-task10-9dab2dfa/sharing-analysis.json`.
+
+The inventory parsed all 473 per-game ASxxxx objects and preserved their
+instruction and relocation streams. Normalization removes only `gNN_`
+namespaces, `_CODE_N` area numbers, and `S`-record addresses, including the
+values of generated `b_gNN_*` bank symbols. It does not normalize instruction
+bytes, constants, remaining call-target names, or relocation kinds. Synthetic
+tests distinguish exact shareability, namespaced references/definitions,
+same-size different code, changed post-namespace targets, and changed
+relocation records.
+
+The measured duplicate totals exactly reconcile the earlier roadmap:
+
+| Kind | Objects | Normalized contents | Duplicate clusters | Gross duplicate bytes |
+| --- | ---: | ---: | ---: | ---: |
+| `generated_core` | 46 | 33 | 9 | 110,558 |
+| `generated_facade_rules` | 46 | 36 | 8 | 27,160 |
+| `generated_compact_facade` | 46 | 15 | 8 | 10,644 |
+| **Total** | **138** | | **25** | **148,362** |
+
+No cluster is directly shareable. Compact-facade clusters still expose eight
+namespaced definitions. Core clusters expose 17 namespaced definitions and
+refer to the per-game specialized apply/win entry points. Facade-rules
+clusters expose one namespaced definition and refer to five per-game compact
+facade entry points. Across all per-game cart objects, every one of 1,634
+namespaced reference records resolves: 884 targets are in the same packed
+bank and 750 are cross-bank.
+
+The 64 KiB gate uses deliberately conservative, explicit allowances:
+
+| Estimate component | Bytes / count |
+| --- | ---: |
+| Configuration clusters retained | 25 |
+| Cluster members / eliminated copies | 79 / 54 |
+| Shared implementations retained | 101,655 B |
+| Gross duplicates removed | 148,362 B |
+| Per-member context + three-byte far pointers | −1,034 B |
+| Sixteen-byte HOME/`BANKED` alias allowance | −7,664 B |
+| 58 hot cross-bank symbol edges at 32 bytes | −1,856 B |
+| Genericity reserve (25% of retained implementations) | −25,414 B |
+| **Conservative net opportunity** | **112,394 B** |
+| Design threshold | 65,536 B |
+
+**Decision: pass the design gate, but make no ABI change in Task 11.** A
+linker-only normalized-content key would violate the proven per-game
+ownership constraints. The smallest follow-up is a separate default-off
+same-bank canary for the normalized-identical 349-byte compact facades of
+`g21` (`explodoban`) and `g31` (`two-step-pete`). Their compact-facade and
+facade-rules callers already co-reside in Task 10 bank 142. The approved
+design keeps the original eight namespaced signatures as zero-byte ASxxxx
+definition aliases, keeps `ps_gbc_session*` as the sole context, and groups
+the owner and callers into one packed item; it introduces no far pointer,
+`BANKED` call, HOME code, or `pack_items()` change.
+
+The follow-up is specified separately in
+`docs/superpowers/specs/2026-07-30-gbc-shared-compact-facade-design.md` and
+planned in
+`docs/superpowers/plans/2026-07-30-gbc-shared-compact-facade.md`. It is not
+executed by this task. Even a passing canary does not authorize
+facade-rules/core or cross-bank sharing; those require refreshed size and
+Task 10 latency evidence plus a new design checkpoint.
