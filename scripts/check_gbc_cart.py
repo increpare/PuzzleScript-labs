@@ -126,8 +126,12 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
     if not lines or lines[0] != "XL4":
         raise ValueError("object must begin with an exact XL4 record")
     headers: list[tuple[int, int]] = []
+    module_count = 0
     symbol_count = 0
+    symbol_names: set[str] = set()
     definitions: dict[str, int] = {}
+    area_count = 0
+    area_names: set[str] = set()
     nonempty_code_areas: list[tuple[int, int]] = []
     for line in lines[1:]:
         if line.startswith("H"):
@@ -145,19 +149,25 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
             match = OBJECT_SYMBOL_RECORD.fullmatch(line)
             if match is None:
                 raise ValueError(f"malformed symbol record: {line!r}")
+            name = match.group(1)
+            if name in symbol_names:
+                raise ValueError(f"duplicate symbol: {name}")
+            symbol_names.add(name)
             symbol_count += 1
             if match.group(2) != "Def":
                 continue
-            name = match.group(1)
-            if name in definitions:
-                raise ValueError(f"duplicate definition: {name}")
             definitions[name] = int(match.group(3), 16)
             continue
         if line.startswith("A"):
             match = OBJECT_AREA_RECORD.fullmatch(line)
             if match is None:
                 raise ValueError(f"malformed area record: {line!r}")
-            code = CODE_AREA.fullmatch(match.group(1))
+            name = match.group(1)
+            if name in area_names:
+                raise ValueError(f"duplicate area: {name}")
+            area_names.add(name)
+            area_count += 1
+            code = CODE_AREA.fullmatch(name)
             size = int(match.group(2), 16)
             if code is not None and size != 0:
                 nonempty_code_areas.append(
@@ -167,6 +177,7 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
         if line.startswith("M"):
             if OBJECT_MODULE_RECORD.fullmatch(line) is None:
                 raise ValueError(f"malformed module record: {line!r}")
+            module_count += 1
             continue
         if line.startswith("T"):
             if OBJECT_TEXT_RECORD.fullmatch(line) is None:
@@ -184,12 +195,22 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
         raise ValueError(
             f"expected one H record, found {len(headers)}"
         )
-    _declared_area_count, declared_symbol_count = headers[0]
+    declared_area_count, declared_symbol_count = headers[0]
+    if declared_area_count != area_count:
+        raise ValueError(
+            "area count mismatch: "
+            f"declared {declared_area_count:X}, "
+            f"found {area_count:X}"
+        )
     if declared_symbol_count != symbol_count:
         raise ValueError(
             "global-symbol count mismatch: "
             f"declared {declared_symbol_count:X}, "
             f"found {symbol_count:X}"
+        )
+    if module_count != 1:
+        raise ValueError(
+            f"expected one M record, found {module_count}"
         )
     if len(nonempty_code_areas) != 1:
         raise ValueError(

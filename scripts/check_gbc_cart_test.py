@@ -454,6 +454,11 @@ def main() -> int:
 
         valid_owner_text = compact_facade_owner_text(142)
         owner_header = "H 1 areas 10 global symbols\n"
+        owner_module = "M generated_compact_facade\n"
+        owner_area = "A _CODE_142 size 15D flags 0 addr 0\n"
+        owner_first_definition = (
+            "S _g21_ps_gbc_facade_get_movements Def00000001\n"
+        )
         malformed_owners = (
             (
                 "missing XL4",
@@ -500,6 +505,54 @@ def main() -> int:
                     "A _CODE_142 size 15D flags 0",
                 ),
             ),
+            (
+                "area-count mismatch",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 2 areas 10 global symbols\n",
+                ),
+            ),
+            (
+                "missing module",
+                valid_owner_text.replace(owner_module, ""),
+            ),
+            (
+                "duplicate module",
+                valid_owner_text.replace(
+                    owner_module,
+                    owner_module + owner_module,
+                ),
+            ),
+            (
+                "duplicate reference",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 1 areas 12 global symbols\n",
+                ).replace(
+                    owner_area,
+                    "S _owner_duplicate Ref00000000\n"
+                    "S _owner_duplicate Ref00000000\n"
+                    + owner_area,
+                ),
+            ),
+            (
+                "duplicate definition",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 1 areas 11 global symbols\n",
+                ).replace(
+                    owner_first_definition,
+                    owner_first_definition + owner_first_definition,
+                ),
+            ),
+            (
+                "duplicate trailing zero-size area",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 2 areas 10 global symbols\n",
+                )
+                + "A _CODE_142 size 0 flags 0 addr 0\n",
+            ),
         )
         for problem, malformed_owner in malformed_owners:
             checks = canary_checks(
@@ -515,6 +568,9 @@ def main() -> int:
 
         valid_caller_text = banked_object_text(142, 1000)
         caller_header = "H 1 areas 1 global symbols\n"
+        caller_module = "M generated_facade_rules\n"
+        caller_area = "A _CODE_142 size 3E8 flags 0 addr 0\n"
+        caller_definition = "S .__.ABS. Def00000000\n"
         malformed_callers = (
             (
                 "missing XL4",
@@ -558,6 +614,54 @@ def main() -> int:
                     "A _CODE_142 size 3E8 flags 0 addr 0",
                     "A _CODE_142 size 3E8 flags 0 addr 0 garbage",
                 ),
+            ),
+            (
+                "area-count mismatch",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 2 areas 1 global symbols\n",
+                ),
+            ),
+            (
+                "missing module",
+                valid_caller_text.replace(caller_module, ""),
+            ),
+            (
+                "duplicate module",
+                valid_caller_text.replace(
+                    caller_module,
+                    caller_module + caller_module,
+                ),
+            ),
+            (
+                "duplicate reference",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas 3 global symbols\n",
+                ).replace(
+                    caller_area,
+                    "S _caller_duplicate Ref00000000\n"
+                    "S _caller_duplicate Ref00000000\n"
+                    + caller_area,
+                ),
+            ),
+            (
+                "duplicate definition",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas 2 global symbols\n",
+                ).replace(
+                    caller_definition,
+                    caller_definition + caller_definition,
+                ),
+            ),
+            (
+                "duplicate trailing zero-size area",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 2 areas 1 global symbols\n",
+                )
+                + "A _CODE_142 size 0 flags 0 addr 0\n",
             ),
         )
         for problem, malformed_caller in malformed_callers:
