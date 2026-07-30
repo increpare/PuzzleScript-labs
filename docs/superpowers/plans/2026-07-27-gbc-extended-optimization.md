@@ -1974,29 +1974,49 @@ remain.
 
 - Modify: `docs/performance/gbc-optimization-ledger.md`
 
-- [ ] **Step 1: Record the revalidated capacity**
+- [x] **Step 1: Record the revalidated capacity**
 
 Record the current packed payload, allocated-bank slack, highest used bank,
 and physical headroom through bank 255. State explicitly that allocated-bank
 fill is not physical-ROM fill.
 
-- [ ] **Step 2: Record the ABI constraint**
+- [x] **Step 2: Record the ABI constraint**
 
 Document that normal GBDK `BANKED` calls and `SWITCH_ROM_MBC5` carry an
 8-bit bank and that `SWITCH_ROM_MBC5_8M` does not make generated calls above
 bank 255 safe.
 
-- [ ] **Step 3: Define the reopen gate**
+- [x] **Step 3: Define the reopen gate**
 
 No spike or production code is part of this plan. Reopen 8 MB as a separate
 brainstorm/design/implementation cycle only when a cart forecast shows less
 than 256 KiB of physical 4 MB headroom or a queued game set demonstrably
 cannot pack below bank 256.
 
-- [ ] **Step 4: Commit the deferral**
+- [x] **Step 4: Commit the deferral**
 
 Commit only the ledger conclusion. Do not add high-bank smoke scripts, widen
 bank types, or modify the packer/checker/ROM header.
+
+Task 13 completed on 2026-07-30 as a documentation-only capacity decision.
+The exact retained Task 10 artifact at `9dab2dfa` still packs 2,398,105 bytes
+into 148 contiguous payload banks (3-150). Those allocated banks are 98.90%
+full, but the complete bank-3-through-255 payload region is only 57.85% full:
+26,727 bytes of allocated-bank slack plus 105 wholly unused banks leave
+1,747,047 bytes of physical 4 MB headroom.
+
+Bundled GBDK 4.5 keeps the normal call path eight-bit: `BANK()` casts the bank
+symbol to `uint8_t`, `SWITCH_ROM_MBC5()` selects a maximum of bank 255 and
+clears the ninth MBC5 bank bit, and SDCC `BANKED` calls track that ordinary
+bank in `CURRENT_BANK`. `SWITCH_ROM_MBC5_8M()` can set the ninth hardware
+bit, but GBDK explicitly says it neither tracks `CURRENT_BANK` nor supports
+banked SDCC calls. It therefore cannot make the cart's generated calls above
+bank 255 safe.
+
+No high-bank spike or production change was made. Reopen 8 MB only through a
+separate brainstorm/design/implementation cycle when a measured forecast has
+strictly less than 262,144 bytes of physical 4 MB headroom, or when the queued
+game set demonstrably cannot be packed entirely below bank 256.
 
 ---
 

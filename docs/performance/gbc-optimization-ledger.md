@@ -1938,3 +1938,68 @@ timing gates, but violated the mandatory 5% per-game ceiling. The option,
 family-key implementation, wrappers, exporter wiring, and structural tests
 were removed, and the pre-experiment source/tests were restored. No dormant
 direction-sharing path is retained.
+
+### GBC 8 MB path deferred (2026-07-30)
+
+Revision: retained Task 10 artifact at `9dab2dfa`.
+Manifest:
+`build/gbc/cart-task10-9dab2dfa/cart-manifest.json` (generated, not checked
+in). Capacity was reproduced from that manifest and its preserved object set
+with `scripts/report_gbc_cart_metrics.py`.
+
+The current pack remains well short of the physical 4 MB limit:
+
+| Metric | Retained Task 10 cart |
+| --- | ---: |
+| Packed payload | 2,398,105 B |
+| Packed banks | 148 (banks 3-150) |
+| Allocated payload | 2,424,832 B |
+| Allocated-bank slack | 26,727 B |
+| Allocated-bank fill | 98.8978% |
+| Highest used bank | 150 |
+| Physical payload capacity, banks 3-255 | 4,145,152 B |
+| Physical payload-region fill | 57.8532% |
+| Physical 4 MB headroom through bank 255 | 1,747,047 B |
+| Completely unused banks | 105 (banks 151-255; 1,720,320 B) |
+
+The two fill percentages answer different questions. The 98.8978% value
+means the 148 banks already allocated by the packer are tightly filled; it
+does **not** mean the physical ROM is 98.8978% full. Across every payload bank
+available in the current 4 MB ABI, the packed payload occupies 57.8532% and
+leaves 42.1468% free. The headroom reconciles exactly as 26,727 bytes of
+slack inside allocated banks plus 1,720,320 bytes in 105 unused banks. The ROM
+artifact itself is a padded 4,194,304-byte file, so its file length is also
+not a measure of occupied payload. Banks 0-2 are reserved for fixed/shared
+code and the cart index and are excluded from both payload figures.
+
+The bundled GBDK 4.5 headers make the existing ABI limit explicit:
+
+- `BANK(VARNAME)` converts the linker bank symbol to `uint8_t`;
+- `SWITCH_ROM_MBC5(b)` records `b` in `CURRENT_BANK`, writes zero to the
+  ninth-bit register `rROMB1`, and writes `b` to `rROMB0`; its documented
+  maximum is bank 255 (4 MB);
+- `BANKED` maps to SDCC `__banked`, whose normal call path uses that tracked
+  ordinary bank. The cart reinforces the same limit by storing descriptor and
+  bank-access bank numbers as `uint8_t`;
+- `SWITCH_ROM_MBC5_8M(b)` can manually write the ninth bank bit, but GBDK
+  explicitly states that this macro does not track `CURRENT_BANK`, does not
+  support banked SDCC calls, and must not be mixed with the ordinary switch
+  macros.
+
+Consequently, `SWITCH_ROM_MBC5_8M` by itself cannot make generated
+inter-bank calls above bank 255 safe. The call/return bank tracking, generated
+bank references, descriptors, and dispatch interfaces would all need a
+separately designed far-bank ABI.
+
+**Decision: defer.** This task adds no spike, high-bank smoke script, widened
+bank type, packer/checker change, or ROM-header change. Reopen 8 MB only as a
+separate brainstorm/design/implementation cycle when either:
+
+1. a measured cart forecast reports strictly less than 256 KiB
+   (262,144 bytes) of physical 4 MB headroom; or
+2. the queued game set demonstrably cannot pack entirely below bank 256 under
+   the current 16 KiB bank constraints.
+
+Until one of those conditions is measured, the retained 4 MB ABI has
+1,747,047 bytes of physical payload headroom and is not the active capacity
+bottleneck.
