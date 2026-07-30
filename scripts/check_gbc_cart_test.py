@@ -326,8 +326,9 @@ def main() -> int:
             owner_rules_text: str | None = None,
             member_rules_text: str | None = None,
             retain_member: bool = False,
+            provide_omitted_identity: bool = True,
             provide_linked_evidence: bool = True,
-            missing_linked_object: str | None = None,
+            missing_linked_object: Path | None = None,
         ) -> list[check_gbc_cart.CartCheck]:
             write_object(
                 owner_compact,
@@ -367,18 +368,21 @@ def main() -> int:
                 *valid_objects,
                 owner_compact,
                 owner_rules,
-                member_compact,
                 member_rules,
             ]
-            linked_object_names = {
-                owner_compact.name,
-                owner_rules.name,
-                member_rules.name,
+            if provide_omitted_identity:
+                compiled_objects.append(member_compact)
+            linked_object_paths = {
+                owner_compact.resolve(),
+                owner_rules.resolve(),
+                member_rules.resolve(),
             }
             if retain_member:
-                linked_object_names.add(member_compact.name)
+                linked_object_paths.add(member_compact.resolve())
             if missing_linked_object is not None:
-                linked_object_names.discard(missing_linked_object)
+                linked_object_paths.discard(
+                    missing_linked_object.resolve()
+                )
             return check_gbc_cart.evaluate_cart(
                 bytes(rom),
                 candidate_manifest,
@@ -389,8 +393,8 @@ def main() -> int:
                 ),
                 compiled_objects,
                 expected_games=2,
-                linked_object_names=(
-                    linked_object_names
+                linked_object_paths=(
+                    linked_object_paths
                     if provide_linked_evidence
                     else None
                 ),
@@ -429,6 +433,7 @@ def main() -> int:
             "                                          "
             "[ generated_facade_rules ]\n"
             "00000000 g31_generated_compact_facade.o\n"
+            "/tmp/g31_generated_compact_facade.o trailing\n"
             "\n"
             "Libraries Linked                          "
             "[ object file ]\n"
@@ -457,24 +462,195 @@ def main() -> int:
             cli_checks, "compact facade duplicate omission"
         ).passed, "compiled but unlinked member was treated as linked"
 
-        parsed_linked_names = (
-            check_gbc_cart.linked_object_names_from_map_text(
+        decoy_root = Path("/tmp/gbc-cart-decoy-objects")
+        decoy_retained_map_text = linked_map_text
+        for retained_path in (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        ):
+            decoy_retained_map_text = (
+                decoy_retained_map_text.replace(
+                    str(retained_path),
+                    str(decoy_root / retained_path.name),
+                )
+            )
+        cli_map.write_text(
+            decoy_retained_map_text,
+            encoding="ascii",
+        )
+        decoy_retained_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert not check_gbc_cart.check_named(
+            decoy_retained_checks,
+            "compact facade duplicate omission",
+        ).passed, "same-basename decoy retained paths were accepted"
+
+        cli_map.write_text(linked_map_text, encoding="ascii")
+        parsed_linked_paths = (
+            check_gbc_cart.linked_object_paths_from_map_text(
                 linked_map_text
             )
         )
-        assert parsed_linked_names == {
-            owner_compact.name,
-            owner_rules.name,
-            member_rules.name,
+        assert parsed_linked_paths == {
+            str(owner_compact),
+            str(owner_rules),
+            str(member_rules),
+            "00000000 g31_generated_compact_facade.o",
         }
-        assert member_compact.name not in parsed_linked_names
+        assert str(member_compact) not in parsed_linked_paths
+        bare_spaced_relative_map = (
+            "Files Linked                              "
+            "[ module(s) ]\n"
+            "foo bar.o\n"
+            "12345678 foo.o\n"
+            "Libraries Linked                          "
+            "[ object file ]\n"
+        )
         assert (
-            check_gbc_cart.linked_object_names_from_map_text(
+            check_gbc_cart.linked_object_paths_from_map_text(
+                bare_spaced_relative_map
+            )
+            == {"foo bar.o", "12345678 foo.o"}
+        )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
                 "_CODE_142 008E4000 000009F5 =\n"
             )
             is None
         )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                linked_map_text.split(
+                    "Libraries Linked",
+                    maxsplit=1,
+                )[0]
+            )
+            is None
+        )
+        assert (
+            check_gbc_cart.linked_object_paths_from_map_text(
+                linked_map_text.replace(
+                    "Files Linked                              "
+                    "[ module(s) ]\n",
+                    "Files Linked                              "
+                    "[ module(s) ]\n"
+                    "Files Linked                              "
+                    "[ module(s) ]\n",
+                    1,
+                )
+            )
+            is None
+        )
 
+        spaced_objects = build_dir / "compiled objects"
+        spaced_objects.mkdir()
+        for source in (
+            *valid_objects,
+            owner_compact,
+            owner_rules,
+            member_compact,
+            member_rules,
+        ):
+            (spaced_objects / source.name).write_bytes(
+                source.read_bytes()
+            )
+        spaced_map_text = linked_map_text
+        for retained_path in (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        ):
+            spaced_map_text = spaced_map_text.replace(
+                str(retained_path),
+                str(spaced_objects / retained_path.name),
+            )
+        cli_map.write_text(spaced_map_text, encoding="ascii")
+        spaced_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            spaced_objects,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            spaced_checks,
+            "compact facade duplicate omission",
+        ).passed, "exact retained object paths containing spaces failed"
+
+        linked_member_map_text = linked_map_text.replace(
+            "Libraries Linked                          "
+            "[ object file ]\n",
+            f"{member_compact}\n"
+            "                                          "
+            "[ generated_compact_facade ]\n"
+            "Libraries Linked                          "
+            "[ object file ]\n",
+        )
+        cli_map.write_text(linked_member_map_text, encoding="ascii")
+        linked_member_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert not check_gbc_cart.check_named(
+            linked_member_checks,
+            "compact facade duplicate omission",
+        ).passed, "exact omitted member path was accepted"
+
+        decoy_member_map_text = linked_map_text.replace(
+            "Libraries Linked                          "
+            "[ object file ]\n",
+            f"{decoy_root / member_compact.name}\n"
+            "                                          "
+            "[ generated_compact_facade ]\n"
+            "Libraries Linked                          "
+            "[ object file ]\n",
+        )
+        cli_map.write_text(decoy_member_map_text, encoding="ascii")
+        decoy_member_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            decoy_member_checks,
+            "compact facade duplicate omission",
+        ).passed, "same-basename decoy member was treated as retained"
+
+        relative_map_text = linked_map_text
+        for retained_path in (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        ):
+            relative_map_text = relative_map_text.replace(
+                str(retained_path),
+                f"./{retained_path.name}",
+            )
+        cli_map.write_text(relative_map_text, encoding="ascii")
+        relative_checks = check_gbc_cart.check_cart(
+            cli_rom,
+            cli_manifest,
+            cli_map,
+            build_dir,
+            expected_games=2,
+        )
+        assert check_gbc_cart.check_named(
+            relative_checks,
+            "compact facade duplicate omission",
+        ).passed, "relative linked paths were not based on the map parent"
+
+        cli_map.write_text(linked_map_text, encoding="ascii")
         checks = canary_checks(sharing_manifest)
         missing_labels = set(SHARING_CHECK_LABELS) - {
             check.label for check in checks
@@ -507,7 +683,15 @@ def main() -> int:
 
         checks = canary_checks(
             sharing_manifest,
-            missing_linked_object=owner_rules.name,
+            provide_omitted_identity=False,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade duplicate omission"
+        ).passed, "missing compiled-object identity was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            missing_linked_object=owner_rules,
         )
         assert not check_gbc_cart.check_named(
             checks, "compact facade duplicate omission"

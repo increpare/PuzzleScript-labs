@@ -34,7 +34,6 @@ FILES_LINKED_HEADER = re.compile(
 LIBRARIES_LINKED_HEADER = re.compile(
     r"^Libraries Linked\s+\[ object file \]$"
 )
-LINKED_OBJECT_PATH = re.compile(r"^(\S+\.o)$")
 MAP_AREA = re.compile(
     r"^([._A-Za-z][._A-Za-z0-9]*)\s+"
     r"([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{8})\s+="
@@ -264,7 +263,7 @@ def _compact_facade_sharing_checks(
     bank_sizes: dict[int, int],
     packed_banks: Iterable[object],
     highest_game_bank: object,
-    linked_object_names: set[str] | None,
+    linked_object_paths: set[Path] | None,
 ) -> list[CartCheck]:
     labels = (
         "compact facade aliases",
@@ -506,20 +505,36 @@ def _compact_facade_sharing_checks(
             )
 
     omission_errors: list[str] = []
-    if linked_object_names is None:
+    if linked_object_paths is None:
         omission_errors.append("linked-object map evidence unavailable")
     else:
-        missing_linked_names = sorted(
+        retained_paths: dict[str, Path] = {}
+        for name in retained_names:
+            paths = paths_by_name.get(name, [])
+            if len(paths) != 1:
+                omission_errors.append(
+                    f"{name}: exact compiled-object identity "
+                    f"unavailable ({len(paths)} matches)"
+                )
+                continue
+            retained_paths[name] = paths[0]
+        missing_linked_paths = sorted(
             name
-            for name in retained_names
-            if name not in linked_object_names
+            for name, path in retained_paths.items()
+            if path not in linked_object_paths
         )
-        if missing_linked_names:
+        if missing_linked_paths:
             omission_errors.append(
                 "retained objects absent from linked map: "
-                + ", ".join(missing_linked_names)
+                + ", ".join(missing_linked_paths)
             )
-        if omitted_name in linked_object_names:
+        omitted_paths = paths_by_name.get(omitted_name, [])
+        if len(omitted_paths) != 1:
+            omission_errors.append(
+                f"{omitted_name}: exact compiled-object identity "
+                f"unavailable ({len(omitted_paths)} matches)"
+            )
+        elif omitted_paths[0] in linked_object_paths:
             omission_errors.append(
                 f"{omitted_name}: linked object retained"
             )
@@ -624,7 +639,8 @@ def map_areas(path: Path) -> dict[str, tuple[int, int]]:
     return areas
 
 
-def linked_object_names_from_map_text(text: str) -> set[str] | None:
+def linked_object_paths_from_map_text(text: str) -> set[str] | None:
+    """Return exact object path strings from the Files Linked section."""
     lines = text.splitlines()
     headers = [
         index
@@ -633,20 +649,30 @@ def linked_object_names_from_map_text(text: str) -> set[str] | None:
     ]
     if len(headers) != 1:
         return None
-    names: set[str] = set()
+    paths: set[str] = set()
     found_end = False
     for line in lines[headers[0] + 1:]:
         if LIBRARIES_LINKED_HEADER.fullmatch(line) is not None:
             found_end = True
             break
-        match = LINKED_OBJECT_PATH.fullmatch(line)
-        if match is None:
+        if (
+            line != line.strip()
+            or not line.endswith(".o")
+        ):
             continue
-        names.add(re.split(r"[\\/]", match.group(1))[-1])
-    return names if found_end else None
+        paths.add(line)
+    return paths if found_end else None
 
 
-def map_linked_object_names(path: Path) -> set[str] | None:
+def _resolve_object_path(path: str | Path, base: Path) -> Path:
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = base / candidate
+    return candidate.resolve()
+
+
+def map_linked_object_paths(path: Path) -> set[Path] | None:
+    """Resolve relative Files Linked entries against the map parent."""
     try:
         with path.open(
             "r",
@@ -654,9 +680,17 @@ def map_linked_object_names(path: Path) -> set[str] | None:
             errors="strict",
             newline="",
         ) as source:
-            return linked_object_names_from_map_text(source.read())
+            linked_paths = linked_object_paths_from_map_text(
+                source.read()
+            )
     except (OSError, UnicodeError):
         return None
+    if linked_paths is None:
+        return None
+    return {
+        _resolve_object_path(linked_path, path.parent)
+        for linked_path in linked_paths
+    }
 
 
 def check_named(checks: Iterable[CartCheck], label: str) -> CartCheck:
@@ -680,16 +714,22 @@ def evaluate_cart(
     object_paths: Iterable[Path],
     *,
     expected_games: int = 46,
-    linked_object_names: Iterable[str] | None = None,
+    linked_object_paths: Iterable[str | Path] | None = None,
 ) -> list[CartCheck]:
     games = list(manifest.get("games", []))
     packed_banks = list(manifest.get("packed_banks", []))
     object_banks = dict(manifest.get("object_banks", {}))
-    object_paths = list(object_paths)
-    linked_object_names = (
+    object_paths = [
+        _resolve_object_path(path, Path.cwd())
+        for path in object_paths
+    ]
+    linked_object_paths = (
         None
-        if linked_object_names is None
-        else set(linked_object_names)
+        if linked_object_paths is None
+        else {
+            _resolve_object_path(path, Path.cwd())
+            for path in linked_object_paths
+        }
     )
     fixed_high = max(
         (
@@ -831,7 +871,7 @@ def evaluate_cart(
             bank_sizes,
             packed_banks,
             manifest.get("highest_game_bank"),
-            linked_object_names,
+            linked_object_paths,
         )
     )
     return checks
@@ -851,7 +891,7 @@ def check_cart(
         map_areas(map_path),
         sorted(objects_directory.glob("g*.o")),
         expected_games=expected_games,
-        linked_object_names=map_linked_object_names(map_path),
+        linked_object_paths=map_linked_object_paths(map_path),
     )
 
 
