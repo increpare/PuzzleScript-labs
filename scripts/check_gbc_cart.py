@@ -72,8 +72,14 @@ class CartCheck:
 
 
 @dataclass(frozen=True)
+class _Definition:
+    address: int
+    area: str | None
+
+
+@dataclass(frozen=True)
 class _AsxxxxEvidence:
-    definitions: dict[str, int]
+    definitions: dict[str, _Definition]
     code_bank: int
     code_size: int
 
@@ -129,9 +135,10 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
     module_count = 0
     symbol_count = 0
     symbol_names: set[str] = set()
-    definitions: dict[str, int] = {}
+    definitions: dict[str, _Definition] = {}
     area_count = 0
     area_names: set[str] = set()
+    active_area: str | None = None
     nonempty_code_areas: list[tuple[int, int]] = []
     for line in lines[1:]:
         if line.startswith("H"):
@@ -156,7 +163,10 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
             symbol_count += 1
             if match.group(2) != "Def":
                 continue
-            definitions[name] = int(match.group(3), 16)
+            definitions[name] = _Definition(
+                address=int(match.group(3), 16),
+                area=active_area,
+            )
             continue
         if line.startswith("A"):
             match = OBJECT_AREA_RECORD.fullmatch(line)
@@ -167,6 +177,7 @@ def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
                 raise ValueError(f"duplicate area: {name}")
             area_names.add(name)
             area_count += 1
+            active_area = name
             code = CODE_AREA.fullmatch(name)
             size = int(match.group(2), 16)
             if code is not None and size != 0:
@@ -243,6 +254,9 @@ def _compact_facade_sharing_checks(
     sharing: object,
     object_banks: dict[str, object],
     object_paths: Iterable[Path],
+    bank_sizes: dict[int, int],
+    packed_banks: Iterable[object],
+    highest_game_bank: object,
 ) -> list[CartCheck]:
     labels = (
         "compact facade aliases",
@@ -295,7 +309,7 @@ def _compact_facade_sharing_checks(
             evidence_errors[name] = str(error)
 
     alias_errors: list[str] = []
-    owner_definitions: dict[str, int] = {}
+    owner_definitions: dict[str, _Definition] = {}
     owner_evidence = evidence_by_name.get(owner_object_name)
     if owner_evidence is None:
         alias_errors.append(
@@ -338,11 +352,21 @@ def _compact_facade_sharing_checks(
     unequal_addresses = [
         suffix
         for suffix in COMPACT_FACADE_SUFFIXES
-        if owner_definitions.get(
-            f"_{COMPACT_FACADE_OWNER}_{suffix}"
-        )
-        != owner_definitions.get(
-            f"_{COMPACT_FACADE_MEMBER}_{suffix}"
+        if (
+            owner_definitions.get(
+                f"_{COMPACT_FACADE_OWNER}_{suffix}"
+            )
+            is None
+            or owner_definitions.get(
+                f"_{COMPACT_FACADE_MEMBER}_{suffix}"
+            )
+            is None
+            or owner_definitions[
+                f"_{COMPACT_FACADE_OWNER}_{suffix}"
+            ].address
+            != owner_definitions[
+                f"_{COMPACT_FACADE_MEMBER}_{suffix}"
+            ].address
         )
     ]
     if unequal_addresses:
@@ -350,6 +374,23 @@ def _compact_facade_sharing_checks(
             "normalized definition addresses differ: "
             + ", ".join(unequal_addresses)
         )
+    if owner_evidence is not None:
+        code_area = f"_CODE_{owner_evidence.code_bank}"
+        for name in sorted(expected_owner_names | expected_alias_names):
+            definition = owner_definitions.get(name)
+            if definition is None:
+                continue
+            if definition.area != code_area:
+                alias_errors.append(
+                    f"{name}: definition area "
+                    f"{definition.area!r} != {code_area}"
+                )
+            if not 0 <= definition.address < owner_evidence.code_size:
+                alias_errors.append(
+                    f"{name}: definition address "
+                    f"{definition.address:X} outside "
+                    f"[0,{owner_evidence.code_size:X})"
+                )
 
     bank_errors: list[str] = []
     layouts: dict[str, tuple[int, int]] = {}
@@ -363,6 +404,7 @@ def _compact_facade_sharing_checks(
             continue
         layouts[name] = (evidence.code_bank, evidence.code_size)
     sharing_bank = sharing.get("bank")
+    compound_bytes: int | None = None
     if len(layouts) == len(retained_names):
         code_banks = {bank for bank, _size in layouts.values()}
         if len(code_banks) != 1:
@@ -384,6 +426,75 @@ def _compact_facade_sharing_checks(
         if compound_bytes > MAX_BANK_BYTES:
             bank_errors.append(
                 f"compound code bytes {compound_bytes} > {MAX_BANK_BYTES}"
+            )
+    sharing_bank_is_int = (
+        isinstance(sharing_bank, int)
+        and not isinstance(sharing_bank, bool)
+    )
+    if not sharing_bank_is_int:
+        bank_errors.append(f"invalid sharing bank: {sharing_bank!r}")
+    else:
+        if (
+            not isinstance(highest_game_bank, int)
+            or isinstance(highest_game_bank, bool)
+            or sharing_bank > highest_game_bank
+        ):
+            bank_errors.append(
+                f"sharing bank {sharing_bank} exceeds highest game bank "
+                f"{highest_game_bank!r}"
+            )
+        mapped_bytes = bank_sizes.get(sharing_bank)
+        if mapped_bytes is None:
+            bank_errors.append(
+                f"sharing bank {sharing_bank} absent from map"
+            )
+        packed_matches = [
+            bank
+            for bank in packed_banks
+            if isinstance(bank, dict)
+            and bank.get("bank") == sharing_bank
+        ]
+        packed_bytes: object = None
+        if len(packed_matches) != 1:
+            bank_errors.append(
+                f"sharing bank {sharing_bank} packed entries="
+                f"{len(packed_matches)}"
+            )
+        else:
+            packed_bytes = packed_matches[0].get("used")
+            if (
+                not isinstance(packed_bytes, int)
+                or isinstance(packed_bytes, bool)
+            ):
+                bank_errors.append(
+                    f"sharing bank {sharing_bank} packed used="
+                    f"{packed_bytes!r}"
+                )
+        if compound_bytes is not None and mapped_bytes is not None:
+            if mapped_bytes < compound_bytes:
+                bank_errors.append(
+                    f"mapped bytes {mapped_bytes} < "
+                    f"compound bytes {compound_bytes}"
+                )
+        if (
+            compound_bytes is not None
+            and isinstance(packed_bytes, int)
+            and not isinstance(packed_bytes, bool)
+            and packed_bytes < compound_bytes
+        ):
+            bank_errors.append(
+                f"packed bytes {packed_bytes} < "
+                f"compound bytes {compound_bytes}"
+            )
+        if (
+            mapped_bytes is not None
+            and isinstance(packed_bytes, int)
+            and not isinstance(packed_bytes, bool)
+            and mapped_bytes != packed_bytes
+        ):
+            bank_errors.append(
+                f"mapped bytes {mapped_bytes} != "
+                f"packed bytes {packed_bytes}"
             )
 
     omission_errors: list[str] = []
@@ -653,6 +764,9 @@ def evaluate_cart(
             ),
             object_banks,
             object_paths,
+            bank_sizes,
+            packed_banks,
+            manifest.get("highest_game_bank"),
         )
     )
     return checks

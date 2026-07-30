@@ -38,10 +38,16 @@ def compact_facade_owner_text(
     *,
     missing_alias: str | None = None,
     wrong_alias: str | None = None,
+    definitions_in_home: bool = False,
+    address_overrides: dict[str, int] | None = None,
 ) -> str:
+    address_overrides = (
+        {} if address_overrides is None else address_overrides
+    )
     definitions = [
         *(
-            f"S _g21_{suffix} Def{address:08X}"
+            f"S _g21_{suffix} Def"
+            f"{address_overrides.get(suffix, address):08X}"
             for address, suffix in enumerate(
                 COMPACT_FACADE_SUFFIXES,
                 start=1,
@@ -49,7 +55,9 @@ def compact_facade_owner_text(
         ),
         *(
             f"S _g31_{suffix} Def"
-            f"{address + (1 if suffix == wrong_alias else 0):08X}"
+            f"{address_overrides.get(suffix, address) + (
+                1 if suffix == wrong_alias else 0
+            ):08X}"
             for address, suffix in enumerate(
                 COMPACT_FACADE_SUFFIXES,
                 start=1,
@@ -57,13 +65,25 @@ def compact_facade_owner_text(
             if suffix != missing_alias
         ),
     ]
+    definition_area = (
+        "A _HOME size 0 flags 0 addr 0\n"
+        if definitions_in_home
+        else f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+    )
+    trailing_code_area = (
+        f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+        if definitions_in_home
+        else ""
+    )
     return (
         "XL4\n"
-        f"H 1 areas {len(definitions):X} global symbols\n"
+        f"H {2 if definitions_in_home else 1:X} areas "
+        f"{len(definitions):X} global symbols\n"
         "M generated_compact_facade\n"
-        f"A _CODE_{bank} size 15D flags 0 addr 0\n"
+        f"{definition_area}"
         + "\n".join(definitions)
         + "\n"
+        f"{trailing_code_area}"
         "T 00 00 00 00 C9\n"
         "R 00 00 08 00\n"
     )
@@ -259,7 +279,17 @@ def main() -> int:
         owner_rules = build_dir / "g21_generated_facade_rules.o"
         member_compact = build_dir / "g31_generated_compact_facade.o"
         member_rules = build_dir / "g31_generated_facade_rules.o"
+        compound_bytes = 349 + 1000 + 1200
         sharing_manifest = deepcopy(manifest)
+        sharing_manifest["highest_game_bank"] = 142
+        sharing_manifest["packed_banks"] = [
+            *manifest["packed_banks"],
+            {
+                "bank": 142,
+                "used": compound_bytes,
+                "items": ["g21-g31-shared-compact-facade-canary"],
+            },
+        ]
         sharing_manifest["object_banks"] = {
             **manifest["object_banks"],
             owner_compact.name: 142,
@@ -278,10 +308,15 @@ def main() -> int:
                 f"g31_{suffix}" for suffix in COMPACT_FACADE_SUFFIXES
             ),
         }
+        sharing_areas = {
+            **areas,
+            "_CODE_142": (0x8E4000, compound_bytes),
+        }
 
         def canary_checks(
             candidate_manifest: dict[str, object],
             *,
+            candidate_areas: dict[str, tuple[int, int]] | None = None,
             owner_text: str | None = None,
             owner_rules_bank: int = 142,
             owner_rules_size: int = 1000,
@@ -338,7 +373,11 @@ def main() -> int:
             return check_gbc_cart.evaluate_cart(
                 bytes(rom),
                 candidate_manifest,
-                areas,
+                (
+                    sharing_areas
+                    if candidate_areas is None
+                    else candidate_areas
+                ),
                 linked_objects,
                 expected_games=2,
             )
@@ -365,6 +404,84 @@ def main() -> int:
             for label in SHARING_CHECK_LABELS
         )
 
+        missing_sharing_map = dict(sharing_areas)
+        del missing_sharing_map["_CODE_142"]
+        checks = canary_checks(
+            sharing_manifest,
+            candidate_areas=missing_sharing_map,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "sharing bank absent from map was accepted"
+
+        absent_packed_bank = deepcopy(sharing_manifest)
+        absent_packed_bank["packed_banks"] = [
+            bank
+            for bank in absent_packed_bank["packed_banks"]
+            if bank["bank"] != 142
+        ]
+        checks = canary_checks(absent_packed_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "sharing bank absent from packed banks was accepted"
+
+        mismatched_packed_bank = deepcopy(sharing_manifest)
+        mismatched_packed_bank["highest_game_bank"] = 143
+        mismatched_packed_bank["packed_banks"][-1]["bank"] = 143
+        checks = canary_checks(mismatched_packed_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "mismatched packed sharing bank was accepted"
+
+        below_highest_bank = deepcopy(sharing_manifest)
+        below_highest_bank["highest_game_bank"] = 141
+        checks = canary_checks(below_highest_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "sharing bank above highest bank was accepted"
+
+        undersized_map = dict(sharing_areas)
+        undersized_map["_CODE_142"] = (
+            sharing_areas["_CODE_142"][0],
+            compound_bytes - 1,
+        )
+        checks = canary_checks(
+            sharing_manifest,
+            candidate_areas=undersized_map,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "map smaller than compound objects was accepted"
+
+        undersized_packed_bank = deepcopy(sharing_manifest)
+        undersized_packed_bank["packed_banks"][-1]["used"] = (
+            compound_bytes - 1
+        )
+        checks = canary_checks(undersized_packed_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "packed bank smaller than compound objects was accepted"
+
+        mismatched_map_used = dict(sharing_areas)
+        mismatched_map_used["_CODE_142"] = (
+            sharing_areas["_CODE_142"][0],
+            compound_bytes + 1,
+        )
+        checks = canary_checks(
+            sharing_manifest,
+            candidate_areas=mismatched_map_used,
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "mismatched map/packed used bytes were accepted"
+
+        mismatched_sharing_bank = deepcopy(sharing_manifest)
+        mismatched_sharing_bank["compact_facade_sharing"]["bank"] = 143
+        checks = canary_checks(mismatched_sharing_bank)
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade same-bank capacity"
+        ).passed, "mismatched sharing metadata bank was accepted"
+
         checks = canary_checks(
             sharing_manifest,
             owner_text=compact_facade_owner_text(
@@ -386,6 +503,44 @@ def main() -> int:
         assert not check_gbc_cart.check_named(
             checks, "compact facade aliases"
         ).passed
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                definitions_in_home=True,
+            ),
+        )
+        assert not check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed, "aliases defined under _HOME were accepted"
+
+        first_suffix = COMPACT_FACADE_SUFFIXES[0]
+        for label, address in (
+            ("address equal to code size", 349),
+            ("maximum encoded address", 0xFFFFFFFF),
+        ):
+            checks = canary_checks(
+                sharing_manifest,
+                owner_text=compact_facade_owner_text(
+                    142,
+                    address_overrides={first_suffix: address},
+                ),
+            )
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade aliases"
+            ).passed, f"{label} was accepted"
+
+        checks = canary_checks(
+            sharing_manifest,
+            owner_text=compact_facade_owner_text(
+                142,
+                address_overrides={first_suffix: 348},
+            ),
+        )
+        assert check_gbc_cart.check_named(
+            checks, "compact facade aliases"
+        ).passed, "last byte in the code area was rejected"
 
         checks = canary_checks(sharing_manifest, retain_member=True)
         assert not check_gbc_cart.check_named(
