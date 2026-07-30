@@ -13,10 +13,10 @@ its sections outright:
 | July 12 section | Status |
 |---|---|
 | Mechanical architecture (front/rear decorative PCB sandwich, midframe) | **Replaced** — moulded two-part shell |
-| Control hierarchy and layout (four separate direction buttons, guided caps over tacts) | **Replaced** — GBC parts on silicone membranes |
+| Control hierarchy and layout (four separate direction buttons, guided caps over tacts) | **Replaced** — DMG parts on silicone membranes |
 | Button mechanism gate (tact vs snap dome coupon) | **Deleted** — the membrane decides it |
 | Storage (microSD as the cartridge path) | **Replaced** — internal flash over USB-MSC |
-| Power model (switch in battery lead, ≥1 A) | **Amended** — retained but conditional |
+| Power model (switch in battery lead, ≥1 A) | **Retained unchanged** |
 
 `hardware/card/case/case.blend` is **not** a source of truth. It was examined and
 set aside by the owner. Its `ab_button` / `staretselecT_cutout` geometry
@@ -126,7 +126,7 @@ arbitrates diagonals.
 
 ### Parts strategy
 
-Aftermarket **Game Boy Color repair parts**: d-pad, A/B caps, Start/Select
+Aftermarket **Game Boy classic (DMG) repair parts**: d-pad, A/B caps, Start/Select
 pills, and the conductive-carbon **silicone membranes** beneath them.
 
 The membrane is the decisive element. It is simultaneously the return spring,
@@ -141,7 +141,7 @@ shell colour doing the differentiation.
 
 ### Mapping
 
-| GBC part | Function | MCP23017 |
+| DMG part | Function | MCP23017 |
 |---|---|---|
 | D-pad ↑ ↓ ← → | Directions | PA0–PA3 |
 | B cap (inboard) | **Undo** | PA5 |
@@ -161,14 +161,17 @@ Volume Up/Down as separate inputs are **deleted**. See *Audio*.
 Screen above, controls below. Control band is the lower ~40 mm.
 
 - **D-pad** — left, centred around x ≈ 23 mm.
-- **Undo / Action** — right, on the GBC's fixed diagonal pitch and angle. Undo
+- **Undo / Action** — right, on the DMG's fixed diagonal pitch and angle. Undo
   inboard and lower, Action outboard and upper.
 - **Restart / Menu** — bottom centre, as the angled Start/Select pill pair.
 - **Speaker grille** — front face, lower right. Owner is designing the grille
   pattern; the DMG's ~30° slot run is a placeholder only.
 
-Because the body is 90 mm wide against a GBC's ~50 mm, the clusters get
-noticeably more separation than the originals.
+**A DMG is 90 mm wide and so is this body.** DMG control geometry is therefore
+proportionally native to this face — d-pad size, A/B pitch and the Start/Select
+pair were all laid out for exactly this width. This is the main reason DMG parts
+were chosen over Game Boy Color ones, whose ~78 mm body would leave the clusters
+reading undersized here.
 
 **Known geometry conflict:** as currently drawn the Menu pill and Undo overlap
 by ~1 mm. Shift the pill pair ~4 mm left, or Undo ~2 mm right.
@@ -188,7 +191,7 @@ face buttons back down into the grille.
 | Bottom | Power switch (left), mute switch (beneath the grille) |
 
 No control may be placed on a side edge in the **upper 50 mm**: the module is
-86 × 50 in a 90 mm body and 10.6 mm deep in a ~14 mm body, so the top and both
+86 × 50 in a 90 mm body and 10.6 mm deep in a ~12.6 mm body, so the top and both
 side edges are backed directly by module with no interior volume behind them.
 This is why power cannot sit where a Game Boy's does without adding ~7 mm of
 body height, which was considered and rejected.
@@ -263,22 +266,36 @@ Unchanged from the July 12 contract except the mapping above.
 
 ## Power
 
-Retained as a hard slide switch in the battery lead, **conditionally**.
+A hard slide switch in the battery lead. **Decided, not conditional.**
 
 - Position: bottom edge, left. Rated **≥1 A** — the lead sees at most ~560 mA,
   so this is ~2× margin on a lithium cell.
 - Semantics are unchanged from July 12: charging requires the switch on; USB
   powers the module regardless of switch position.
+- Off means the cell is physically disconnected. Shelf life is set by the cell's
+  own self-discharge and nothing else.
 
-**This switch may not survive validation.** An ESP32-S3 in deep sleep draws tens
-of microamps, and a 1000 mAh cell self-discharges at ~30 µA equivalent — a
-sleeping device is below the noise floor of its own battery. If the module's
-standby current measures in microamps, the switch is deleted and power becomes a
-long-press on Menu, which also removes the "must be on to charge" wart.
+A soft-power alternative — deep sleep behind a momentary button, no switch — was
+considered and dropped. The switch is simpler, is genuinely zero-drain, and
+does not depend on any measurement.
+
+### What standby current still affects
+
+Nothing mechanical, and nothing about whether this switch exists. It affects
+**firmware sleep policy only**:
+
+- How long the device survives left switched *on* but idle. If module standby is
+  milliamps, a weekend on the desk flattens it, and the switch stops being
+  optional hygiene and becomes something the UI must actively push users toward.
+- Whether an idle deep-sleep state is worth implementing at all, or whether
+  dimming the backlight is the only lever that matters.
+- Whether the July 12 critical-battery path (save, disable audio/backlight/LED,
+  deep sleep before hardware cutoff) actually protects the cell for a useful
+  period, or merely delays cutoff.
 
 The unknown is the module, not the SoC: it carries a charger, LDO, FT6336G and
-ES8311. **Measure ES3C28P standby current on the first sample.** Until then the
-switch stays in CAD as the safe default.
+ES8311. Worth measuring when a sample exists, but it gates firmware behaviour,
+not CAD.
 
 ## Storage
 
@@ -341,7 +358,7 @@ and JLCPCB's turnkey PCBA does not do mechanical assembly.
 | Stream | Contents |
 |---|---|
 | JLCPCB / LCSC | MCP23017, passives, both slide switches, connectors, test points, and the contact pads (copper, not a part) |
-| Repair-parts supplier | D-pad, A/B caps, Start/Select pills (×2 sets), membranes, plus a donor GBC shell to measure |
+| Repair-parts supplier | D-pad, A/B caps, Start/Select pills, membranes, plus a donor DMG shell to measure |
 | Final assembly | Owner for the pilot; PCBWay box-build at volume |
 
 Risks specific to this route:
@@ -356,25 +373,34 @@ Risks specific to this route:
 
 ## Open items — all measurements, no decisions
 
-1. **ES3C28P standby current.** Determines whether the power switch exists.
-2. **Membrane and cap geometry** off a donor GBC shell — retention ribs,
-   pocket depths, dome height.
-3. **Contact comb pitch and carbon pill diameter** off a real board and membrane.
-4. **Confirm the clockwise rotation** and connector positions on a physical
+1. **Membrane and cap geometry** off a donor DMG shell — retention ribs, pocket
+   depths, dome height. The largest remaining piece of real CAD input.
+2. **Confirm the clockwise rotation** and connector positions on a physical
    module.
-5. **Wall thickness**, which firms up the ~14 mm stack.
-6. **Driver diameter** the bottom-right corner actually allows, once the grille
+3. **Carbon pill diameter** off a real membrane. The comb pattern itself does not
+   need reverse-engineering — silicone keypad vendors publish the design rules,
+   and pills run 2–8 mm with a board contact area sized around them. One measured
+   number is enough to draw our own pads.
+4. **Wall thickness**, which firms up the ~12.6 mm stack.
+5. **Driver diameter** the bottom-right corner actually allows, once the grille
    shape exists.
-7. **Cell dimensions** including protection-board bulge and connector polarity.
-8. Speaker socket position, to fix a cable length.
+6. **Cell dimensions** including protection-board bulge and connector polarity.
+7. **Speaker socket position**, to fix a cable length.
 
-Items 1 and 4 are cheap and gate the most downstream work. Do them first.
+Items 1 and 2 gate the most downstream work and are cheap — a donor shell and a
+module together are a few tens of pounds. Do those first.
+
+ES3C28P standby current is **not** on this list: with a hard power switch it no
+longer affects any mechanical or electrical decision. It is a firmware-behaviour
+question, recorded under *Power* above.
 
 ## Decisions reversed during this session
 
 Recorded so they are not relitigated:
 
-- **12 mm thickness → ~14 mm.** The original figure predates the datasheet.
+- **12 mm thickness → ~12.6 mm**, set by the battery zone rather than the
+  display. An intermediate ~14 mm figure was wrong: it double-counted a front
+  shell wall in front of a module that actually sits flush in the window.
 - **Four separate direction buttons → d-pad rocker.** The parts family won.
 - **Guided caps over tacts → silicone membranes.** Deletes the load path and
   the coupon gate.
@@ -384,5 +410,5 @@ Recorded so they are not relitigated:
   edge; a slide switch can.
 - **Growing the body to 90 × 100 for a top-mounted power switch → rejected.**
 - **Control strip under the screen → withdrawn** once volume left the face.
-- **Speaker grille muffling objection → withdrawn.** The DMG and GBC both fire
+- **Speaker grille muffling objection → withdrawn.** The DMG and Game Boy Color both fire
   from the lower right under the same heel of the same hand.
