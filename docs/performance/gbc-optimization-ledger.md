@@ -1730,6 +1730,13 @@ exactly:
 | Weighted interaction ticks/turn | 724.519 |
 | Weighted render ticks/redraw | 203.545 |
 
+One successful replay is explicitly non-ordinary. The
+`sokobond-demake` fixture contains 10 tokens, but the cartridge publishes a
+win after consuming 6 and leaves 4 unused. It remains successful and ranked
+because the cart did win, while `fixture_tokens_consumed`,
+`unused_fixture_tokens`, and `early_cart_win` classify it as a
+cart-versus-fixture semantic divergence rather than a full-fixture replay.
+
 The ranked cartridge targets are:
 
 | Rank | Logic ticks/turn | Interaction ticks/turn |

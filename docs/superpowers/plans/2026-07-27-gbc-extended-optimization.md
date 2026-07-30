@@ -1738,6 +1738,13 @@ logic games were `sokobond-demake`, `wand-spinner`,
 `m-c-eschers-armageddon`, and `manic_ammo`; this confirms the scoreboard is
 not Sokoban-only.
 
+Successful rows expose fixture consumption explicitly.
+`sokobond-demake` remains successful and ranked, but is classified as a
+cart-versus-fixture semantic divergence because the cart wins after 6 of its
+10 fixture tokens. Its row records 4 unused tokens and `early_cart_win=true`;
+ordinary successful replays record zero unused tokens and
+`early_cart_win=false`.
+
 Failures remain explicit in the JSON: `slot-machine` has a zero-turn replay,
 `voitex-rasteriser` times out in the solver, and eight fixtures do not publish
 a cart win. Bounded host-GBC classification found two baseline/specialized

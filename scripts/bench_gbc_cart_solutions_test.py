@@ -188,6 +188,48 @@ def test_weighted_means_and_stable_worst_ten() -> None:
     ]
 
 
+def test_success_fields_classify_fixture_consumption() -> None:
+    success_fields = getattr(bench, "successful_replay_fields", None)
+    assert callable(success_fields), (
+        "successful replay rows need explicit fixture-consumption fields"
+    )
+    normal = success_fields(
+        bench.CartBenchTelemetry(
+            game_index=0,
+            user_turns=10,
+            redraws=10,
+            logic_ticks=100,
+            render_ticks=50,
+            max_turn_ticks=20,
+            won=True,
+        ),
+        fixture_turns=10,
+        elapsed=1.25,
+        warning_count=2,
+    )
+    assert normal["fixture_tokens_consumed"] == 10
+    assert normal["unused_fixture_tokens"] == 0
+    assert normal["early_cart_win"] is False
+
+    early = success_fields(
+        bench.CartBenchTelemetry(
+            game_index=1,
+            user_turns=6,
+            redraws=6,
+            logic_ticks=120,
+            render_ticks=60,
+            max_turn_ticks=40,
+            won=True,
+        ),
+        fixture_turns=10,
+        elapsed=2.5,
+        warning_count=3,
+    )
+    assert early["fixture_tokens_consumed"] == 6
+    assert early["unused_fixture_tokens"] == 4
+    assert early["early_cart_win"] is True
+
+
 def test_benchmark_cart_build_mode_contract() -> None:
     assert build_gbc_cart.shared_build_defines(
         autotest=False,
@@ -289,6 +331,41 @@ def test_benchmark_helpers_are_banked_and_messages_auto_ack() -> None:
     )
 
 
+def test_message_win_handling_is_benchmark_only() -> None:
+    main_source = Path(
+        "firmware/gbc/source/main.c"
+    ).read_text(encoding="utf-8")
+    start = main_source.index(
+        "        } else if (status.mode == PS_FULL_STATE_MODE_MESSAGE) {"
+    )
+    end = main_source.index(
+        "        } else if ((pressed & J_B) != 0U) {",
+        start,
+    )
+    message_block = main_source[start:end]
+    assert message_block.startswith(
+        "        } else if (status.mode == PS_FULL_STATE_MODE_MESSAGE) {\n"
+        "#if defined(PS_GBC_CART_BENCHMARK)\n"
+    )
+    production_marker = (
+        "#else\n"
+        "            if ((pressed & J_A) != 0U) {\n"
+        "                const ps_step_result result = "
+        "psd_step(gSession, PS_INPUT_ACTION);\n"
+    )
+    assert production_marker in message_block, (
+        "production MESSAGE handling must retain its pre-benchmark shape"
+    )
+    benchmark_block, production_block = message_block.split(
+        production_marker,
+        1,
+    )
+    assert "if (result.won)" in benchmark_block
+    assert "if (result.won)" not in production_block
+    assert "if (status.completed)" in production_block
+    assert message_block.rstrip().endswith("#endif")
+
+
 def test_timer_interrupt_masks_are_mode_specific() -> None:
     main_source = Path(
         "firmware/gbc/source/main.c"
@@ -322,9 +399,11 @@ def main() -> int:
     test_token_mapping_and_validation()
     test_telemetry_parser()
     test_weighted_means_and_stable_worst_ten()
+    test_success_fields_classify_fixture_consumption()
     test_benchmark_cart_build_mode_contract()
     test_reused_cart_manifest_is_bound_to_current_corpus()
     test_benchmark_helpers_are_banked_and_messages_auto_ack()
+    test_message_win_handling_is_benchmark_only()
     test_timer_interrupt_masks_are_mode_specific()
     print("bench_gbc_cart_solutions_test: ok")
     return 0

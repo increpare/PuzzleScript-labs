@@ -430,6 +430,45 @@ def run_game(
     return telemetry, elapsed, warning_count
 
 
+def successful_replay_fields(
+    telemetry: CartBenchTelemetry,
+    *,
+    fixture_turns: int,
+    elapsed: float,
+    warning_count: int,
+) -> dict[str, Any]:
+    if telemetry.user_turns > fixture_turns:
+        raise ValueError(
+            "cart benchmark consumed more turns than the solution fixture"
+        )
+    unused_fixture_tokens = fixture_turns - telemetry.user_turns
+    return {
+        "success": True,
+        "won": True,
+        "user_turns": telemetry.user_turns,
+        "fixture_tokens_consumed": telemetry.user_turns,
+        "unused_fixture_tokens": unused_fixture_tokens,
+        "early_cart_win": unused_fixture_tokens > 0,
+        "redraws": telemetry.redraws,
+        "logic_ticks": telemetry.logic_ticks,
+        "render_ticks": telemetry.render_ticks,
+        "max_turn_ticks": telemetry.max_turn_ticks,
+        "logic_ticks_per_turn": (
+            telemetry.logic_ticks / telemetry.user_turns
+        ),
+        "interaction_ticks_per_turn": (
+            telemetry.logic_ticks + telemetry.render_ticks
+        )
+        / telemetry.user_turns,
+        "render_ticks_per_redraw": _ratio(
+            telemetry.render_ticks,
+            telemetry.redraws,
+        ),
+        "wall_seconds": elapsed,
+        "emulator_warnings": warning_count,
+    }
+
+
 def build_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "format": REPORT_FORMAT,
@@ -589,28 +628,12 @@ def main() -> int:
                     "benchmark timer produced a zero logic/render total"
                 )
             row.update(
-                {
-                    "success": True,
-                    "won": True,
-                    "user_turns": telemetry.user_turns,
-                    "redraws": telemetry.redraws,
-                    "logic_ticks": telemetry.logic_ticks,
-                    "render_ticks": telemetry.render_ticks,
-                    "max_turn_ticks": telemetry.max_turn_ticks,
-                    "logic_ticks_per_turn": (
-                        telemetry.logic_ticks / telemetry.user_turns
-                    ),
-                    "interaction_ticks_per_turn": (
-                        telemetry.logic_ticks + telemetry.render_ticks
-                    )
-                    / telemetry.user_turns,
-                    "render_ticks_per_redraw": _ratio(
-                        telemetry.render_ticks,
-                        telemetry.redraws,
-                    ),
-                    "wall_seconds": elapsed,
-                    "emulator_warnings": warning_count,
-                }
+                successful_replay_fields(
+                    telemetry,
+                    fixture_turns=len(tokens),
+                    elapsed=elapsed,
+                    warning_count=warning_count,
+                )
             )
             print(
                 f"  ok turns={telemetry.user_turns} "

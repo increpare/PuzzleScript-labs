@@ -765,6 +765,14 @@ turns, 507.532 weighted logic ticks/turn, 724.519 weighted interaction
 ticks/turn, and 203.545 render ticks/redraw. Both worst-ten orders and every
 successful timing tuple matched across the repeat.
 
+Successful rows now distinguish fixture length from the inputs consumed
+before the cartridge publishes its win. `sokobond-demake` is intentionally
+kept successful and ranked, but is flagged as a cart-versus-fixture semantic
+divergence: the fixture contains 10 tokens and the cartridge wins after 6,
+leaving 4 unused. The JSON exposes `fixture_tokens_consumed`,
+`unused_fixture_tokens`, and `early_cart_win` so this result cannot look like
+an ordinary full-fixture replay.
+
 The new top cartridge targets are not limited to Sokoban:
 `sokobond-demake`, `wand-spinner`, `m-c-eschers-armageddon`, and
 `manic_ammo` lead logic ticks/turn. `take-heart-lass` and `attractor-net`
