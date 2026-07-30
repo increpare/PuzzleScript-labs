@@ -816,9 +816,12 @@ packed payload by 32,218 bytes (1.34%), rule-pack bytes by 3.30%, and packed
 banks from 148 to 146. Weighted cart logic/interaction regressed only
 0.55%/0.39%, but two exact fresh-emulator sweeps reproduced `dollyban`
 regressions of 10.36% logic and 8.56% interaction, failing the 5% per-game
-ceiling. Its ten wrappers stack eight explicit arguments before entering five
-shared bodies instead of entering the unrolled rules directly. The option,
-implementation, wiring, and tests were fully removed; see the
+ceiling. Its ten wrappers enter five shared bodies instead of entering the
+unrolled rules directly. Each call has eight total parameters:
+`session`/`commands` travel in DE/BC, while direction, `delta`, and the four
+bounds add six stack bytes.
+The experiment option, implementation, wiring, and tests were removed, and
+the pre-experiment source/tests were restored; see the
 [ledger](gbc-optimization-ledger.md#gbc-direction-expanded-rule-body-sharing-rejected-2026-07-30).
 
 **8c. Defer 8 MB.** The bundled GBDK `BANKED` ABI and

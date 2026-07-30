@@ -1911,10 +1911,16 @@ Only siblings with identical keys may share. Emit the existing body once with
 direction/delta/bounds parameters, and retain thin indexed wrappers so group
 scheduling and rule sound/message identity do not change.
 
-- [x] **Step 3: Verify oracle and full structural parity**
+- [ ] **Step 3: Verify oracle and full structural parity (partial; waived)**
 
 Run exporter/oracle tests, the full eligible corpus, command/sound gates, and
 cart smoke. Reject on any ordering, simultaneous-match, or sound difference.
+
+Short-circuited after the hard runtime rejection: exporter/oracle tests, the
+full 46-game cart structural build/check, and both scoreboard sweeps ran. The
+separate eligible-ROM sweep and candidate cart smoke did not run after the
+measured per-game regression exceeded 5%; this step is intentionally not
+recorded as complete.
 
 - [x] **Step 4: Judge with the cart scoreboard**
 
@@ -1945,15 +1951,17 @@ eight games. The exact 46-game benchmark cart passed export, link, bank,
 HOME, WRAM, identity, and specialization checks.
 
 Size passed: packed payload fell 32,218 bytes (1.34%), rule packs fell 3.30%,
-and allocated banks/highest bank fell from 148/150 to 146/148. Aggregate
+and packed banks/highest bank fell from 148/150 to 146/148. Aggregate
 timing also passed: weighted logic rose 0.55% and interaction rose 0.39%.
 However, two fresh-emulator sweeps reproduced `dollyban` at
 675.296→745.259 logic ticks/turn (+10.36%) and 819.444→889.593 interaction
 ticks/turn (+8.56%), violating the mandatory 5% per-game ceiling. Its five
-families replaced direct unrolled entry with ten wrappers that stack eight
-arguments before the family call. The candidate eligible-ROM and cart-smoke
-sweeps were waived after this automatic rejection gate failed; they are not
-claimed as passes. The option, implementation, wiring, and tests were
+families replaced direct unrolled entry with ten wrappers. Each call has
+eight total parameters: `session`/`commands` travel in DE/BC, while direction,
+`delta`, and the four bounds add six stack bytes. The candidate eligible-ROM
+and cart-smoke sweeps were waived after this automatic rejection gate failed;
+they are not claimed as passes. The experiment option, implementation,
+wiring, and tests were removed, and the pre-experiment source/tests were
 restored. Only this disposition and the measured
 [ledger entry](../../performance/gbc-optimization-ledger.md#gbc-direction-expanded-rule-body-sharing-rejected-2026-07-30)
 remain.

@@ -1926,12 +1926,15 @@ The per-game gate failed on `dollyban` in both sweeps:
 Only five successful games had changed timing; the other four remained below
 the 5% limit. `dollyban` alone contained five shared family bodies and ten hot
 wrappers. Its generated C shrank from 136,028 to 103,573 bytes, but the
-assembly shows each wrapper loading bounds and stacking the eight explicit
-arguments before calling the family body. The baseline entered the unrolled
-rule body directly. This added call/argument traffic on frequently visited
-rules is the bounded measured explanation for the deterministic regression.
+assembly shows each wrapper loading bounds for a call with eight total
+parameters: `session` and `commands` travel in DE/BC, while direction,
+`delta`, and the four bounds add six stack bytes before the family call. The
+baseline entered the unrolled rule body directly. This added call/argument
+traffic on frequently visited rules is the bounded measured explanation for
+the deterministic regression.
 
 **Decision: reject.** The experiment met the 1% payload and 2% weighted
 timing gates, but violated the mandatory 5% per-game ceiling. The option,
 family-key implementation, wrappers, exporter wiring, and structural tests
-were fully removed; no dormant direction-sharing path is retained.
+were removed, and the pre-experiment source/tests were restored. No dormant
+direction-sharing path is retained.
