@@ -5,9 +5,47 @@ from __future__ import annotations
 
 import tempfile
 from dataclasses import replace
+from inspect import signature
 from pathlib import Path
 
 import build_gbc_cart
+
+
+COMPACT_FACADE_SUFFIXES = (
+    "ps_gbc_facade_get_movements",
+    "ps_gbc_facade_set_movements",
+    "ps_gbc_facade_get_objects",
+    "ps_gbc_facade_cell_has_all",
+    "ps_gbc_facade_set_objects",
+    "ps_gbc_facade_cell_has_any",
+    "ps_gbc_facade_cell_count",
+    "ps_gbc_facade_mark_dirty",
+)
+
+
+def compact_facade_object_text(
+    prefix: str,
+    bank: int,
+    *,
+    code_size: int = 349,
+) -> str:
+    definitions = "\n".join(
+        f"S _{prefix}_{suffix} Def{index:08X}"
+        for index, suffix in enumerate(COMPACT_FACADE_SUFFIXES, start=1)
+    )
+    return (
+        "XL4\n"
+        "H B areas 8 global symbols\n"
+        "M generated_compact_facade\n"
+        f"A _CODE_{bank} size {code_size:X} flags 0 addr 0\n"
+        f"{definitions}\n"
+        "T 00 00 00 00 C9\n"
+        "R 00 00 08 00\n"
+    )
+
+
+def banked_object_text(bank: int, size: int) -> str:
+    return f"A _CODE_{bank} size {size:X} flags 0 addr 0\n"
 
 
 def item(
@@ -43,6 +81,152 @@ def launcher_manifest(
 
 
 def main() -> int:
+    options = build_gbc_cart.parse_options(
+        ["--gbdk-home", "toolchains/gbdk"]
+    )
+    assert options.share_compact_facade_canary is False
+    assert (
+        signature(build_gbc_cart.build_cart)
+        .parameters["share_compact_facade_canary"]
+        .default
+        is False
+    )
+    assert (
+        build_gbc_cart.shared_compact_canary(
+            ("g21", "g31"),
+            enabled=False,
+        )
+        is None
+    )
+    for prefixes in ((), ("g21",), ("g31",), ("g31", "g21")):
+        try:
+            build_gbc_cart.shared_compact_canary(
+                prefixes,
+                enabled=True,
+            )
+        except ValueError as error:
+            assert "requires exactly g21 and g31" in str(error)
+        else:
+            raise AssertionError(
+                f"non-canonical canary prefixes were accepted: {prefixes}"
+            )
+
+    with tempfile.TemporaryDirectory() as temporary:
+        objects = Path(temporary)
+        owner_compact = objects / "g21_generated_compact_facade.o"
+        owner_rules = objects / "g21_generated_facade_rules.o"
+        member_compact = objects / "g31_generated_compact_facade.o"
+        member_rules = objects / "g31_generated_facade_rules.o"
+        unrelated = objects / "g00_generated_core.o"
+        owner_compact.write_text(
+            compact_facade_object_text("g21", 24),
+            encoding="utf-8",
+        )
+        owner_rules.write_text(
+            banked_object_text(24, 1000),
+            encoding="utf-8",
+        )
+        member_compact_text = compact_facade_object_text("g31", 34)
+        member_compact.write_text(member_compact_text, encoding="utf-8")
+        member_rules.write_text(
+            banked_object_text(34, 1200),
+            encoding="utf-8",
+        )
+        unrelated.write_text(
+            banked_object_text(3, 100),
+            encoding="utf-8",
+        )
+        sharing = build_gbc_cart.shared_compact_canary(
+            ("g21", "g31"),
+            enabled=True,
+            all_game_objects=(
+                unrelated,
+                owner_compact,
+                owner_rules,
+                member_compact,
+                member_rules,
+            ),
+        )
+        assert sharing is not None
+        assert sharing.item.objects == (
+            owner_compact,
+            owner_rules,
+            member_rules,
+        )
+        assert sharing.item.size == 349 + 1000 + 1200
+        assert sharing.link_objects == (
+            unrelated,
+            owner_compact,
+            owner_rules,
+            member_rules,
+        )
+        assert member_compact not in sharing.link_objects
+        assert member_compact.read_text(
+            encoding="utf-8"
+        ) == member_compact_text
+        owner_text = owner_compact.read_text(encoding="utf-8")
+        assert "S _g31_ps_gbc_facade_cell_count Def" in owner_text
+        assert len(sharing.aliases) == 8
+
+        assert (
+            build_gbc_cart.compact_facade_sharing_evidence(
+                None,
+                {},
+            )
+            == {}
+        )
+        evidence = build_gbc_cart.compact_facade_sharing_evidence(
+            sharing,
+            {
+                owner_compact.name: 142,
+                owner_rules.name: 142,
+                member_rules.name: 142,
+            },
+        )
+        sharing_manifest = evidence["compact_facade_sharing"]
+        assert sharing_manifest == {
+            "mode": "same-bank-alias-canary-v1",
+            "owner": "g21",
+            "members": ["g21", "g31"],
+            "normalized_sha256": sharing.normalized_sha256,
+            "implementation_bytes": 349,
+            "gross_removed_bytes": 349,
+            "bank": 142,
+            "aliases": sorted(
+                f"g31_{suffix}" for suffix in COMPACT_FACADE_SUFFIXES
+            ),
+        }
+
+        owner_compact_text = compact_facade_object_text("g21", 24)
+        owner_compact.write_text(owner_compact_text, encoding="utf-8")
+        owner_rules.write_text(
+            banked_object_text(24, 16_384 - 349),
+            encoding="utf-8",
+        )
+        member_rules.write_text(
+            banked_object_text(34, 1),
+            encoding="utf-8",
+        )
+        try:
+            build_gbc_cart.shared_compact_canary(
+                ("g21", "g31"),
+                enabled=True,
+                all_game_objects=(
+                    owner_compact,
+                    owner_rules,
+                    member_compact,
+                    member_rules,
+                ),
+            )
+        except ValueError as error:
+            assert "oversize" in str(error)
+            assert "16385 > 16384" in str(error)
+        else:
+            raise AssertionError("oversize shared facade item was accepted")
+        assert owner_compact.read_text(
+            encoding="utf-8"
+        ) == owner_compact_text
+
     banks = build_gbc_cart.pack_items(
         [
             item("g00-core", 10 * 1024, pinned_bank=3),
