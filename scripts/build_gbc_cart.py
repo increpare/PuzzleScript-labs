@@ -1439,7 +1439,10 @@ def parse_options(
         "--share-compact-facade-canary",
         action="store_true",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be positive")
+    return args
 
 
 def main() -> int:
@@ -1451,8 +1454,6 @@ def main() -> int:
     out = args.out if args.out.is_absolute() else repository / args.out
     games = list(ELIGIBLE_GAMES)
     if args.limit is not None:
-        if args.limit < 1:
-            parser.error("--limit must be positive")
         games = games[: args.limit]
     try:
         rom, manifest = build_cart(

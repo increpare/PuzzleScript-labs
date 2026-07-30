@@ -3,10 +3,14 @@
 
 from __future__ import annotations
 
+import sys
 import tempfile
+from contextlib import redirect_stderr
 from dataclasses import replace
+from io import StringIO
 from inspect import signature
 from pathlib import Path
+from unittest.mock import patch
 
 import build_gbc_cart
 
@@ -85,6 +89,30 @@ def main() -> int:
         ["--gbdk-home", "toolchains/gbdk"]
     )
     assert options.share_compact_facade_canary is False
+    limit_stderr = StringIO()
+    try:
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "build_gbc_cart.py",
+                "--gbdk-home",
+                "toolchains/gbdk",
+                "--limit",
+                "0",
+            ],
+        ):
+            with redirect_stderr(limit_stderr):
+                build_gbc_cart.main()
+    except SystemExit as error:
+        assert error.code == 2
+    except NameError as error:
+        raise AssertionError(
+            f"--limit 0 raised NameError: {error}"
+        ) from error
+    else:
+        raise AssertionError("--limit 0 was accepted")
+    assert "--limit must be positive" in limit_stderr.getvalue()
     assert (
         signature(build_gbc_cart.build_cart)
         .parameters["share_compact_facade_canary"]
