@@ -1797,7 +1797,8 @@ The report row must include:
 
 Normalize only:
 
-- `gNN_` namespace prefixes;
+- leading `_gNN_` / `b_gNN_` symbol namespaces that match the containing
+  `gNN_` object, plus the corresponding leading object/module prefix;
 - `_CODE_N` area numbers;
 - symbol addresses and generated bank literals.
 
@@ -1848,16 +1849,21 @@ Task 11 completed on 2026-07-30 against the preserved Task 10 revision
 The analyzer parsed 473 per-game ASxxxx objects and reproduced the roadmap
 exactly: 110,558 duplicate bytes in `generated_core`, 27,160 in
 `generated_facade_rules`, and 10,644 in `generated_compact_facade`, for
-148,362 bytes total. All 1,634 per-game symbol-reference records resolved;
-884 are same-bank and 750 are cross-bank. No duplicate cluster is directly
-shareable because every cluster needs namespaced aliases, per-game
-references, or different-bank access.
+148,362 bytes total. The manifest/object map is an exact 473/473 bijection.
+All 1,634 per-game symbol-reference records resolved; 884 are same-bank, 750
+are cross-bank, and none has unknown bank ownership. No duplicate cluster is
+directly shareable because every cluster needs namespaced aliases, per-game
+references, different-bank ownership, or consumers outside the retained
+implementation bank.
 
 The conservative design model retains one implementation for each of 25
 configuration clusters and subtracts 1,034 bytes of descriptor/context
-state, 7,664 bytes of HOME/`BANKED` aliases, 1,856 bytes for 58 hot
-cross-bank symbol edges, and a 25,414-byte genericity reserve. The resulting
-112,394-byte net estimate passes the 65,536-byte gate.
+state, 7,664 bytes of HOME/`BANKED` aliases, 1,856 bytes for 58 modeled shared
+bridge/thunks, and a 25,414-byte genericity reserve. That model yields
+112,394 bytes net. A stronger stress bound replaces the 58-thunk allowance
+with 32 bytes for each of all 750 observed cross-bank reference records
+(24,000 bytes), yielding 90,250 bytes. The 65,536-byte gate uses the stress
+bound and still passes.
 
 Per the gate, no packer, generated-code, or bank-ABI change was made here.
 The approved follow-up design and its separate unexecuted plan are:

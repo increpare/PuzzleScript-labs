@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 
-OBJECT_NAME = re.compile(r"^g\d{2}_(.+)\.o$")
-GAME_NAMESPACE = re.compile(r"g\d{2}_")
+OBJECT_NAME = re.compile(r"^(g\d{2})_(.+)\.o$")
+GAME_SYMBOL_NAMESPACE = re.compile(r"^(?:_|b_)g\d{2}_")
 SYMBOL_RECORD = re.compile(
     r"^S\s+(\S+)\s+(Def|Ref)([0-9A-Fa-f]{8})(.*)$"
 )
@@ -31,7 +31,8 @@ ROADMAP_KINDS = {
 DESCRIPTOR_BASE_BYTES_PER_MEMBER = 8
 FAR_POINTER_BYTES = 3
 BANKED_BRIDGE_BYTES_PER_EXPORTED_ALIAS = 16
-HOT_CROSS_BANK_BYTES_PER_SYMBOL_EDGE = 32
+SHARED_BRIDGE_THUNK_BYTES = 32
+STRESS_BYTES_PER_OBSERVED_CROSS_BANK_RECORD = 32
 DESIGN_GATE_BYTES = 64 * 1024
 
 
@@ -47,6 +48,7 @@ class Symbol:
 @dataclass(frozen=True)
 class ObjectInfo:
     path: Path
+    prefix: str | None
     kind: str
     code_size: int
     normalized_digest: str
@@ -75,7 +77,6 @@ class ObjectInfo:
                     for symbol in self.symbols
                     if symbol.binding == "Def"
                     and symbol.per_game
-                    and not symbol.normalized_name.startswith("b_")
                 }
             )
         )
@@ -89,15 +90,30 @@ def display_symbol(name: str) -> str:
 
 def object_kind(path: Path) -> str:
     match = OBJECT_NAME.match(path.name)
-    return match.group(1) if match is not None else path.stem
+    return match.group(2) if match is not None else path.stem
 
 
-def _normalized_lines(text: str) -> list[str]:
+def object_prefix(path: Path) -> str | None:
+    match = OBJECT_NAME.match(path.name)
+    return match.group(1) if match is not None else None
+
+
+def normalize_symbol(name: str, prefix: str | None) -> str:
+    if prefix is None:
+        return name
+    for marker in ("_", "b_"):
+        namespaced = f"{marker}{prefix}_"
+        if name.startswith(namespaced):
+            return marker + name[len(namespaced):]
+    return name
+
+
+def _normalized_lines(text: str, prefix: str | None) -> list[str]:
     normalized: list[str] = []
     for line in text.splitlines():
         symbol = SYMBOL_RECORD.match(line)
         if symbol is not None:
-            name = GAME_NAMESPACE.sub("", symbol.group(1))
+            name = normalize_symbol(symbol.group(1), prefix)
             normalized.append(
                 f"S {name} {symbol.group(2)}00000000{symbol.group(4)}"
             )
@@ -105,12 +121,15 @@ def _normalized_lines(text: str) -> list[str]:
         area = AREA_RECORD.match(line)
         if area is not None and CODE_AREA.match(area.group(1)) is not None:
             line = line.replace(area.group(1), "_CODE_N", 1)
-        normalized.append(GAME_NAMESPACE.sub("", line))
+        if prefix is not None and line.startswith(f"M {prefix}_"):
+            line = "M " + line[len(prefix) + 3:]
+        normalized.append(line)
     return normalized
 
 
 def parse_object(path: Path) -> ObjectInfo:
     text = path.read_text(encoding="utf-8", errors="replace")
+    prefix = object_prefix(path)
     symbols: list[Symbol] = []
     text_records: list[tuple[int, ...]] = []
     relocations: list[tuple[int, ...]] = []
@@ -122,10 +141,10 @@ def parse_object(path: Path) -> ObjectInfo:
             symbols.append(
                 Symbol(
                     name=name,
-                    normalized_name=GAME_NAMESPACE.sub("", name),
+                    normalized_name=normalize_symbol(name, prefix),
                     binding=symbol.group(2),
                     address=int(symbol.group(3), 16),
-                    per_game=GAME_NAMESPACE.search(name) is not None,
+                    per_game=GAME_SYMBOL_NAMESPACE.match(name) is not None,
                 )
             )
             continue
@@ -149,9 +168,10 @@ def parse_object(path: Path) -> ObjectInfo:
             f"{path}: expected one non-empty _CODE_N area, "
             f"found {len(nonempty_code_areas)}"
         )
-    normalized = "\n".join(_normalized_lines(text)) + "\n"
+    normalized = "\n".join(_normalized_lines(text, prefix)) + "\n"
     return ObjectInfo(
         path=path,
+        prefix=prefix,
         kind=object_kind(path),
         code_size=nonempty_code_areas[0],
         normalized_digest=hashlib.sha256(
@@ -168,8 +188,28 @@ def analyze_objects(
     *,
     object_banks: dict[str, int] | None = None,
 ) -> dict[str, object]:
-    banks = object_banks or {}
-    objects = [parse_object(path) for path in sorted(paths)]
+    object_paths = sorted(paths)
+    bank_mapping_complete = object_banks is not None
+    banks = {} if object_banks is None else object_banks
+    if object_banks is not None:
+        object_names = {path.name for path in object_paths}
+        bank_names = set(object_banks)
+        missing = sorted(object_names - bank_names)
+        extra = sorted(bank_names - object_names)
+        if missing or extra:
+            raise ValueError(
+                "object bank mapping must exactly match analyzed objects: "
+                f"missing={missing}, extra={extra}"
+            )
+    objects = [parse_object(path) for path in object_paths]
+    definitions: dict[str, list[ObjectInfo]] = {}
+    consumers: dict[str, list[ObjectInfo]] = {}
+    for entry in objects:
+        for symbol in entry.symbols:
+            if symbol.binding == "Def":
+                definitions.setdefault(symbol.name, []).append(entry)
+            elif symbol.binding == "Ref":
+                consumers.setdefault(symbol.name, []).append(entry)
     grouped: dict[tuple[str, str], list[ObjectInfo]] = {}
     for entry in objects:
         grouped.setdefault(
@@ -208,6 +248,58 @@ def analyze_objects(
                 for definition in member.per_game_definitions
             }
         )
+        member_definitions = {
+            symbol.name: symbol
+            for member in members
+            for symbol in member.symbols
+            if symbol.binding == "Def"
+        }
+        consumer_rows: list[dict[str, object]] = []
+        for definition_name, definition in member_definitions.items():
+            for consumer in consumers.get(definition_name, []):
+                if consumer.path.name not in banks:
+                    continue
+                consumer_rows.append(
+                    {
+                        "consumer_object": consumer.path.name,
+                        "consumer_bank": banks[consumer.path.name],
+                        "symbol": display_symbol(
+                            definition.normalized_name
+                        ),
+                    }
+                )
+        consumer_rows = [
+            dict(row)
+            for row in {
+                (
+                    str(row["consumer_object"]),
+                    int(row["consumer_bank"]),
+                    str(row["symbol"]),
+                ): row
+                for row in consumer_rows
+            }.values()
+        ]
+        consumer_rows.sort(
+            key=lambda row: (
+                row["consumer_object"],
+                row["symbol"],
+            )
+        )
+        consumer_banks = sorted(
+            {int(row["consumer_bank"]) for row in consumer_rows}
+        )
+        retained_implementation_bank = (
+            source_banks[0] if len(source_banks) == 1 else None
+        )
+        cross_bank_consumers = (
+            [
+                row
+                for row in consumer_rows
+                if row["consumer_bank"] != retained_implementation_bank
+            ]
+            if retained_implementation_bank is not None
+            else []
+        )
         clusters.append(
             {
                 "kind": kind,
@@ -220,10 +312,16 @@ def analyze_objects(
                 "per_game_symbol_references": per_game_references,
                 "per_game_symbol_definitions": per_game_definitions,
                 "source_banks": source_banks,
+                "retained_implementation_bank":
+                    retained_implementation_bank,
+                "consumer_banks": consumer_banks,
+                "cross_bank_consumers": cross_bank_consumers,
                 "directly_shareable": (
-                    not per_game_references
+                    bank_mapping_complete
+                    and not per_game_references
                     and not per_game_definitions
-                    and len(source_banks) <= 1
+                    and retained_implementation_bank is not None
+                    and not cross_bank_consumers
                 ),
             }
         )
@@ -252,15 +350,11 @@ def analyze_objects(
             ),
         }
 
-    definitions: dict[str, list[ObjectInfo]] = {}
-    for entry in objects:
-        for symbol in entry.symbols:
-            if symbol.binding == "Def":
-                definitions.setdefault(symbol.name, []).append(entry)
     reference_occurrences = 0
     resolved_occurrences = 0
     same_bank_occurrences = 0
     cross_bank_occurrences = 0
+    unknown_bank_occurrences = 0
     unresolved_occurrences = 0
     cross_bank_edges: list[dict[str, object]] = []
     for source in objects:
@@ -277,6 +371,7 @@ def analyze_objects(
             source_bank = banks.get(source.path.name)
             target_bank = banks.get(target.path.name)
             if source_bank is None or target_bank is None:
+                unknown_bank_occurrences += 1
                 continue
             if source_bank == target_bank:
                 same_bank_occurrences += 1
@@ -296,7 +391,11 @@ def analyze_objects(
         "format": "puzzlescript-gbc-sharing-analysis-v1",
         "normalization": {
             "normalized": [
-                "gNN_ namespace prefixes",
+                (
+                    "leading _gNN_/b_gNN_ symbol namespaces matching "
+                    "each object"
+                ),
+                "leading gNN_ object/module prefixes",
                 "_CODE_N area numbers",
                 (
                     "S-record symbol addresses and generated "
@@ -320,6 +419,8 @@ def analyze_objects(
                 same_bank_occurrences,
             "cross_bank_per_game_reference_occurrences":
                 cross_bank_occurrences,
+            "unknown_bank_per_game_reference_occurrences":
+                unknown_bank_occurrences,
             "unresolved_per_game_reference_occurrences":
                 unresolved_occurrences,
             "cross_bank_edges": sorted(
@@ -382,13 +483,22 @@ def estimate_opportunity(
         * BANKED_BRIDGE_BYTES_PER_EXPORTED_ALIAS
         for cluster in selected
     )
-    hot_cross_bank_symbol_edges = sum(
+    modeled_shared_bridge_thunks = sum(
         len(cluster["per_game_symbol_references"])
         for cluster in selected
     )
-    hot_cross_bank_call_bytes = (
-        hot_cross_bank_symbol_edges
-        * HOT_CROSS_BANK_BYTES_PER_SYMBOL_EDGE
+    modeled_shared_bridge_thunk_bytes = (
+        modeled_shared_bridge_thunks
+        * SHARED_BRIDGE_THUNK_BYTES
+    )
+    observed_cross_bank_reference_records = int(
+        report["reference_inventory"][
+            "cross_bank_per_game_reference_occurrences"
+        ]
+    )
+    stress_cross_bank_reference_bytes = (
+        observed_cross_bank_reference_records
+        * STRESS_BYTES_PER_OBSERVED_CROSS_BANK_RECORD
     )
     genericity_reserve_bytes = (
         shared_implementation_bytes + 3
@@ -398,7 +508,15 @@ def estimate_opportunity(
         gross_duplicate_bytes
         - descriptor_context_bytes
         - home_banked_bridge_bytes
-        - hot_cross_bank_call_bytes
+        - modeled_shared_bridge_thunk_bytes
+        - genericity_reserve_bytes,
+    )
+    stress_bound_net_bytes = max(
+        0,
+        gross_duplicate_bytes
+        - descriptor_context_bytes
+        - home_banked_bridge_bytes
+        - stress_cross_bank_reference_bytes
         - genericity_reserve_bytes,
     )
     return {
@@ -409,13 +527,20 @@ def estimate_opportunity(
         "gross_duplicate_bytes": gross_duplicate_bytes,
         "descriptor_context_bytes": descriptor_context_bytes,
         "home_banked_bridge_bytes": home_banked_bridge_bytes,
-        "hot_cross_bank_symbol_edges": hot_cross_bank_symbol_edges,
-        "hot_cross_bank_call_bytes": hot_cross_bank_call_bytes,
+        "modeled_shared_bridge_thunks": modeled_shared_bridge_thunks,
+        "modeled_shared_bridge_thunk_bytes":
+            modeled_shared_bridge_thunk_bytes,
+        "observed_cross_bank_reference_records":
+            observed_cross_bank_reference_records,
+        "stress_cross_bank_reference_bytes":
+            stress_cross_bank_reference_bytes,
         "genericity_reserve_bytes": genericity_reserve_bytes,
         "conservative_net_bytes": conservative_net_bytes,
+        "stress_bound_net_bytes": stress_bound_net_bytes,
         "design_gate_bytes": DESIGN_GATE_BYTES,
+        "design_gate_basis": "stress_bound_net_bytes",
         "passes_64k_design_gate": (
-            conservative_net_bytes >= DESIGN_GATE_BYTES
+            stress_bound_net_bytes >= DESIGN_GATE_BYTES
         ),
         "estimate_assumptions": {
             "descriptor_base_bytes_per_cluster_member":
@@ -424,8 +549,10 @@ def estimate_opportunity(
                 FAR_POINTER_BYTES,
             "banked_bridge_bytes_per_eliminated_exported_alias":
                 BANKED_BRIDGE_BYTES_PER_EXPORTED_ALIAS,
-            "hot_cross_bank_bytes_per_symbol_edge":
-                HOT_CROSS_BANK_BYTES_PER_SYMBOL_EDGE,
+            "modeled_bytes_per_shared_bridge_thunk":
+                SHARED_BRIDGE_THUNK_BYTES,
+            "stress_bytes_per_observed_cross_bank_reference_record":
+                STRESS_BYTES_PER_OBSERVED_CROSS_BANK_RECORD,
             "genericity_reserve_percent": 25,
         },
     }

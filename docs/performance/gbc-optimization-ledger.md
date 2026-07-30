@@ -1784,13 +1784,16 @@ Revision: Task 11 analysis on the preserved Task 10 object set at `9dab2dfa`.
 Artifact (generated, not checked in):
 `build/gbc/cart-task10-9dab2dfa/sharing-analysis.json`.
 
-The inventory parsed all 473 per-game ASxxxx objects and preserved their
-instruction and relocation streams. Normalization removes only `gNN_`
-namespaces, `_CODE_N` area numbers, and `S`-record addresses, including the
-values of generated `b_gNN_*` bank symbols. It does not normalize instruction
-bytes, constants, remaining call-target names, or relocation kinds. Synthetic
-tests distinguish exact shareability, namespaced references/definitions,
-same-size different code, changed post-namespace targets, and changed
+The inventory parsed all 473 per-game ASxxxx objects and required an exact
+473/473 filename bijection with the manifest's object-bank map.
+Normalization removes only leading `_gNN_` / `b_gNN_` symbol namespaces that
+match the containing `gNN_` object, the corresponding leading object/module
+prefix, `_CODE_N` area numbers, and `S`-record addresses (including generated
+bank-symbol values). Interior `gNN_` substrings remain significant. The tool
+does not normalize instruction bytes, constants, remaining call-target names,
+or relocation kinds. Synthetic tests distinguish exact shareability,
+namespaced references/definitions, same-size different code, changed
+post-namespace targets, interior namespace-like substrings, and changed
 relocation records.
 
 The measured duplicate totals exactly reconcile the earlier roadmap:
@@ -1802,13 +1805,16 @@ The measured duplicate totals exactly reconcile the earlier roadmap:
 | `generated_compact_facade` | 46 | 15 | 8 | 10,644 |
 | **Total** | **138** | | **25** | **148,362** |
 
-No cluster is directly shareable. Compact-facade clusters still expose eight
-namespaced definitions. Core clusters expose 17 namespaced definitions and
-refer to the per-game specialized apply/win entry points. Facade-rules
-clusters expose one namespaced definition and refer to five per-game compact
-facade entry points. Across all per-game cart objects, every one of 1,634
-namespaced reference records resolves: 884 targets are in the same packed
-bank and 750 are cross-bank.
+No cluster is directly shareable. The analyzer now proves both object
+ownership and every consumer of each clustered definition; a cluster passes
+only when every consumer stays in the retained implementation bank.
+Compact-facade clusters still expose eight namespaced definitions. Core
+clusters expose 17 namespaced definitions and refer to the per-game
+specialized apply/win entry points. Facade-rules clusters expose one
+namespaced definition and refer to five per-game compact-facade entry points.
+Across all per-game cart objects, every one of 1,634 namespaced reference
+records resolves: 884 targets are in the same packed bank, 750 are
+cross-bank, and zero have unknown bank ownership.
 
 The 64 KiB gate uses deliberately conservative, explicit allowances:
 
@@ -1820,10 +1826,16 @@ The 64 KiB gate uses deliberately conservative, explicit allowances:
 | Gross duplicates removed | 148,362 B |
 | Per-member context + three-byte far pointers | −1,034 B |
 | Sixteen-byte HOME/`BANKED` alias allowance | −7,664 B |
-| 58 hot cross-bank symbol edges at 32 bytes | −1,856 B |
+| 58 modeled shared bridge/thunks at 32 bytes | −1,856 B |
 | Genericity reserve (25% of retained implementations) | −25,414 B |
-| **Conservative net opportunity** | **112,394 B** |
+| **Modeled conservative net opportunity** | **112,394 B** |
+| Stress replacement: all 750 observed cross-bank records × 32 B | −24,000 B |
+| **Stress-bound net opportunity** | **90,250 B** |
 | Design threshold | 65,536 B |
+
+The 90,250-byte stress result replaces the modeled 1,856-byte thunk charge;
+the two charges are not cumulative. The design gate is applied to that lower
+stress-bound result, not the 112,394-byte model, and still passes.
 
 **Decision: pass the design gate, but make no ABI change in Task 11.** A
 linker-only normalized-content key would violate the proven per-game

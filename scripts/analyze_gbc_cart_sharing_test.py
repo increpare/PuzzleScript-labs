@@ -92,10 +92,17 @@ def main() -> int:
         shareable_cluster = cluster_for(same_bank_report, "shared_helper")
         assert shareable_cluster["gross_duplicate_bytes"] == 0x10
         assert shareable_cluster["per_game_symbol_references"] == []
+        assert shareable_cluster["retained_implementation_bank"] == 20
+        assert shareable_cluster["consumer_banks"] == []
+        assert shareable_cluster["cross_bank_consumers"] == []
         assert shareable_cluster["directly_shareable"] is True
         assert same_bank_report["normalization"] == {
             "normalized": [
-                "gNN_ namespace prefixes",
+                (
+                    "leading _gNN_/b_gNN_ symbol namespaces matching "
+                    "each object"
+                ),
+                "leading gNN_ object/module prefixes",
                 "_CODE_N area numbers",
                 "S-record symbol addresses and generated bank-symbol values",
             ],
@@ -119,6 +126,92 @@ def main() -> int:
             ]
             is False
         )
+        for incomplete_banks in (
+            {"g00_shared_helper.o": 20},
+            {
+                "g00_shared_helper.o": 20,
+                "g01_shared_helper.o": 20,
+                "g02_extra.o": 20,
+            },
+        ):
+            try:
+                analyze_gbc_cart_sharing.analyze_objects(
+                    shareable,
+                    object_banks=incomplete_banks,
+                )
+            except ValueError as error:
+                assert "object bank mapping" in str(error)
+            else:
+                raise AssertionError("incomplete object bank map was accepted")
+
+        consumer = write_object(
+            root,
+            "g02_shared_consumer.o",
+            object_text(
+                module="shared_consumer",
+                bank=21,
+                code_size=3,
+                definitions=("_consumer",),
+                references=("_shared_helper",),
+            ),
+        )
+        consumer_report = analyze_gbc_cart_sharing.analyze_objects(
+            shareable + [consumer],
+            object_banks={
+                "g00_shared_helper.o": 20,
+                "g01_shared_helper.o": 20,
+                "g02_shared_consumer.o": 21,
+            },
+        )
+        consumer_cluster = cluster_for(
+            consumer_report, "shared_helper"
+        )
+        assert consumer_cluster["consumer_banks"] == [21]
+        assert consumer_cluster["cross_bank_consumers"] == [
+            {
+                "consumer_object": "g02_shared_consumer.o",
+                "consumer_bank": 21,
+                "symbol": "shared_helper",
+            }
+        ]
+        assert consumer_cluster["directly_shareable"] is False
+
+        bank_aliases = [
+            write_object(
+                root,
+                "g00_bank_alias_only.o",
+                object_text(
+                    module="bank_alias_only",
+                    bank=22,
+                    code_size=3,
+                    definitions=("b_g00_helper",),
+                ),
+            ),
+            write_object(
+                root,
+                "g01_bank_alias_only.o",
+                object_text(
+                    module="bank_alias_only",
+                    bank=23,
+                    code_size=3,
+                    definitions=("b_g01_helper",),
+                ),
+            ),
+        ]
+        bank_alias_report = analyze_gbc_cart_sharing.analyze_objects(
+            bank_aliases,
+            object_banks={
+                "g00_bank_alias_only.o": 30,
+                "g01_bank_alias_only.o": 30,
+            },
+        )
+        bank_alias_cluster = cluster_for(
+            bank_alias_report, "bank_alias_only"
+        )
+        assert bank_alias_cluster["per_game_symbol_definitions"] == [
+            "helper"
+        ]
+        assert bank_alias_cluster["directly_shareable"] is False
 
         generated = [
             write_object(
@@ -197,6 +290,9 @@ def main() -> int:
             "per_game_symbol_references": ["ps_gbc_generated_game"],
             "per_game_symbol_definitions": ["ps_gbc_step"],
             "source_banks": [3, 4],
+            "retained_implementation_bank": None,
+            "consumer_banks": [],
+            "cross_bank_consumers": [],
             "directly_shareable": False,
         }
         assert generated_report["reference_inventory"] == {
@@ -204,6 +300,7 @@ def main() -> int:
             "resolved_per_game_reference_occurrences": 2,
             "same_bank_per_game_reference_occurrences": 1,
             "cross_bank_per_game_reference_occurrences": 1,
+            "unknown_bank_per_game_reference_occurrences": 0,
             "unresolved_per_game_reference_occurrences": 0,
             "cross_bank_edges": [
                 {
@@ -215,6 +312,15 @@ def main() -> int:
                 }
             ],
         }
+        unknown_bank_report = analyze_gbc_cart_sharing.analyze_objects(
+            generated + generated_targets
+        )
+        assert unknown_bank_report["reference_inventory"][
+            "resolved_per_game_reference_occurrences"
+        ] == 2
+        assert unknown_bank_report["reference_inventory"][
+            "unknown_bank_per_game_reference_occurrences"
+        ] == 2
         estimate = analyze_gbc_cart_sharing.estimate_opportunity(
             generated_report,
             kinds={"generated_core"},
@@ -224,10 +330,14 @@ def main() -> int:
         assert estimate["gross_duplicate_bytes"] == 8192
         assert estimate["descriptor_context_bytes"] == 22
         assert estimate["home_banked_bridge_bytes"] == 16
-        assert estimate["hot_cross_bank_symbol_edges"] == 1
-        assert estimate["hot_cross_bank_call_bytes"] == 32
+        assert estimate["modeled_shared_bridge_thunks"] == 1
+        assert estimate["modeled_shared_bridge_thunk_bytes"] == 32
+        assert estimate["observed_cross_bank_reference_records"] == 1
+        assert estimate["stress_cross_bank_reference_bytes"] == 32
         assert estimate["genericity_reserve_bytes"] == 2048
         assert estimate["conservative_net_bytes"] == 6074
+        assert estimate["stress_bound_net_bytes"] == 6074
+        assert estimate["design_gate_basis"] == "stress_bound_net_bytes"
         assert estimate["passes_64k_design_gate"] is False
 
         different_bytes = [
@@ -289,6 +399,32 @@ def main() -> int:
         assert analyze_gbc_cart_sharing.analyze_objects(call_targets)[
             "clusters"
         ] == []
+
+        interior_namespaces = [
+            write_object(
+                root,
+                "g00_interior_namespace.o",
+                object_text(
+                    module="interior_namespace",
+                    bank=15,
+                    code_size=3,
+                    definitions=("_helper_g00_value",),
+                ),
+            ),
+            write_object(
+                root,
+                "g01_interior_namespace.o",
+                object_text(
+                    module="interior_namespace",
+                    bank=16,
+                    code_size=3,
+                    definitions=("_helper_g01_value",),
+                ),
+            ),
+        ]
+        assert analyze_gbc_cart_sharing.analyze_objects(
+            interior_namespaces
+        )["clusters"] == []
 
         relocation_kinds = [
             write_object(

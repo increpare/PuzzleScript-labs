@@ -7,10 +7,12 @@ experiment only; it does not authorize general object sharing.
 ## Evidence and decision
 
 The Task 10 shipping/benchmark object set at revision `9dab2dfa` contains 473
-per-game ASxxxx objects. Normalizing only `gNN_` namespaces, `_CODE_N` area
-numbers, symbol addresses (including generated bank-symbol values), and
-nothing in the instruction or relocation streams reproduces the roadmap
-exactly:
+per-game ASxxxx objects and an exact 473-entry manifest bank map. Normalizing
+only leading `_gNN_` / `b_gNN_` symbols that match the containing object,
+corresponding leading object/module prefixes, `_CODE_N` area numbers, and
+symbol addresses (including generated bank-symbol values), while preserving
+interior namespace-like substrings and every instruction/relocation byte,
+reproduces the roadmap exactly:
 
 | Kind | Objects / normalized contents | Gross duplicates |
 | --- | ---: | ---: |
@@ -22,14 +24,20 @@ exactly:
 None of those bytes is directly shareable. The objects expose namespaced
 definitions, and the core/rule objects also refer to namespaced game code.
 Across all per-game objects, all 1,634 namespaced reference records resolve;
-884 are same-bank and 750 cross a bank.
+884 are same-bank, 750 cross a bank, and none lacks bank ownership.
+Direct-shareability analysis also inventories every consumer of clustered
+definitions and rejects a cluster when a consumer lies outside the retained
+implementation bank.
 
 A deliberately conservative model keeps one implementation for each of the
 25 duplicate configuration clusters, then reserves 1,034 bytes for
 per-game context/far pointers, 7,664 bytes for aliases or banked bridges,
-1,856 bytes for hot cross-bank symbol edges, and 25,414 bytes (25% of the
-shared implementations) for genericity/code-growth uncertainty. The
-resulting 112,394-byte net opportunity exceeds the 65,536-byte design gate.
+1,856 bytes for 58 modeled shared bridge/thunks, and 25,414 bytes (25% of the
+shared implementations) for genericity/code-growth uncertainty. That model
+yields 112,394 bytes. A stronger stress calculation replaces the modeled
+thunk charge with 32 bytes for each of all 750 observed cross-bank reference
+records, yielding 90,250 bytes. The 65,536-byte design gate uses that lower
+stress-bound result and still passes.
 
 The gate justifies a separate experiment, not a linker-only deduplication.
 Three approaches were considered:

@@ -132,12 +132,14 @@ def merge_namespaced_definitions(
 ```
 
 Parse the `H` record, the single nonempty `_CODE_N` area, `S` definitions,
-and all `T`/`R` records. Normalize only the two supplied namespace prefixes,
-the `_CODE_N` number, and `S` addresses for the equivalence digest. Preserve
-instruction bytes, constants, remaining call-target names, symbol order, and
-relocation bytes. Append aliases after the owner's last `S` definition and
-increase the hexadecimal global-symbol count. Never insert before an
-existing symbol because `R` records index the original symbol table.
+and all `T`/`R` records. Normalize only leading `_g21_` / `b_g21_` owner
+symbols and the corresponding leading `_g31_` / `b_g31_` member symbols, the
+`_CODE_N` number, and `S` addresses for the equivalence digest. Preserve
+interior namespace-like substrings, instruction bytes, constants, remaining
+call-target names, symbol order, and relocation bytes. Append aliases after
+the owner's last `S` definition and increase the hexadecimal global-symbol
+count. Never insert before an existing symbol because `R` records index the
+original symbol table.
 
 - [ ] **Step 5: Verify green**
 
@@ -377,11 +379,21 @@ cmake --build build --target puzzlescript_cpp puzzlescript_gbc_exporter_tests
 ctest --test-dir build/native -R puzzlescript_gbc --output-on-failure
 node src/tests/run_tests_node.js
 make gbc_eligible GBC_CONTINUE=1
-make gbc_cart_smoke
+python3 scripts/build_gbc_cart.py \
+  --repository . --compiler build/native/puzzlescript_cpp \
+  --gbdk-home .codex_tmp/toolchains/gbdk \
+  --out build/gbc/cart-shared-compact-canary-smoke \
+  --autotest --share-compact-facade-canary
+python3 scripts/run_gbc_cart_smoke.py \
+  build/gbc/cart-shared-compact-canary-smoke/puzzlescript-compilation-autotest-46.gb \
+  build/gbc/cart-shared-compact-canary-smoke/cart-manifest.json
 ```
 
 Expected: all native GBC tests, all JavaScript tests, 46 eligible exports,
-and cart smoke pass. Any mismatch rejects the candidate.
+and a boot/relaunch smoke of the full 46-game opt-in cart pass. The smoke
+artifact must contain both canary members `g21` and `g31`; the default
+nine-game Make target is not evidence for this experiment. Any mismatch
+rejects the candidate.
 
 ---
 
