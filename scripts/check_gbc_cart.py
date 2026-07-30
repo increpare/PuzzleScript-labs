@@ -12,11 +12,21 @@ from pathlib import Path
 
 
 OBJECT_AREA = re.compile(r"^A\s+(\S+)\s+size\s+([0-9A-Fa-f]+)\b")
+OBJECT_HEADER_RECORD = re.compile(
+    r"^H\s+([0-9A-Fa-f]+)\s+areas\s+"
+    r"([0-9A-Fa-f]+)\s+global symbols$"
+)
 OBJECT_AREA_RECORD = re.compile(
-    r"^A\s+(\S+)\s+size\s+([0-9A-Fa-f]+)\b.*$"
+    r"^A\s+(\S+)\s+size\s+([0-9A-Fa-f]+)\s+"
+    r"flags\s+([0-9A-Fa-f]+)\s+addr\s+([0-9A-Fa-f]+)$"
 )
 OBJECT_SYMBOL_RECORD = re.compile(
-    r"^S\s+(\S+)\s+(Def|Ref)([0-9A-Fa-f]{8})(.*)$"
+    r"^S\s+(\S+)\s+(Def|Ref)([0-9A-Fa-f]{8})$"
+)
+OBJECT_MODULE_RECORD = re.compile(r"^M\s+\S+$")
+OBJECT_TEXT_RECORD = re.compile(r"^T(?:\s+[0-9A-Fa-f]{2})+$")
+OBJECT_RELOCATION_RECORD = re.compile(
+    r"^R(?:\s+[0-9A-Fa-f]{2})+$"
 )
 MAP_AREA = re.compile(
     r"^([._A-Za-z][._A-Za-z0-9]*)\s+"
@@ -59,6 +69,13 @@ class CartCheck:
     label: str
     passed: bool
     value: str
+
+
+@dataclass(frozen=True)
+class _AsxxxxEvidence:
+    definitions: dict[str, int]
+    code_bank: int
+    code_size: int
 
 
 def object_areas(path: Path) -> dict[str, int]:
@@ -104,46 +121,87 @@ def _read_asxxxx_object(path: Path) -> str:
         return source.read()
 
 
-def _definition_addresses(text: str) -> dict[str, int]:
+def _parse_asxxxx_evidence(text: str) -> _AsxxxxEvidence:
     lines = text.splitlines()
     if not lines or lines[0] != "XL4":
         raise ValueError("object must begin with an exact XL4 record")
+    headers: list[tuple[int, int]] = []
+    symbol_count = 0
     definitions: dict[str, int] = {}
-    for line in lines:
-        if not line.startswith("S "):
+    nonempty_code_areas: list[tuple[int, int]] = []
+    for line in lines[1:]:
+        if line.startswith("H"):
+            match = OBJECT_HEADER_RECORD.fullmatch(line)
+            if match is None:
+                raise ValueError(f"malformed header record: {line!r}")
+            headers.append(
+                (
+                    int(match.group(1), 16),
+                    int(match.group(2), 16),
+                )
+            )
             continue
-        match = OBJECT_SYMBOL_RECORD.fullmatch(line)
-        if match is None:
-            raise ValueError(f"malformed symbol record: {line!r}")
-        if match.group(2) != "Def":
+        if line.startswith("S"):
+            match = OBJECT_SYMBOL_RECORD.fullmatch(line)
+            if match is None:
+                raise ValueError(f"malformed symbol record: {line!r}")
+            symbol_count += 1
+            if match.group(2) != "Def":
+                continue
+            name = match.group(1)
+            if name in definitions:
+                raise ValueError(f"duplicate definition: {name}")
+            definitions[name] = int(match.group(3), 16)
             continue
-        name = match.group(1)
-        if name in definitions:
-            raise ValueError(f"duplicate definition: {name}")
-        definitions[name] = int(match.group(3), 16)
-    return definitions
+        if line.startswith("A"):
+            match = OBJECT_AREA_RECORD.fullmatch(line)
+            if match is None:
+                raise ValueError(f"malformed area record: {line!r}")
+            code = CODE_AREA.fullmatch(match.group(1))
+            size = int(match.group(2), 16)
+            if code is not None and size != 0:
+                nonempty_code_areas.append(
+                    (int(code.group(1)), size)
+                )
+            continue
+        if line.startswith("M"):
+            if OBJECT_MODULE_RECORD.fullmatch(line) is None:
+                raise ValueError(f"malformed module record: {line!r}")
+            continue
+        if line.startswith("T"):
+            if OBJECT_TEXT_RECORD.fullmatch(line) is None:
+                raise ValueError(f"malformed text record: {line!r}")
+            continue
+        if line.startswith("R"):
+            if OBJECT_RELOCATION_RECORD.fullmatch(line) is None:
+                raise ValueError(
+                    f"malformed relocation record: {line!r}"
+                )
+            continue
+        raise ValueError(f"unrecognized object record: {line!r}")
 
-
-def _code_layout(text: str) -> tuple[int, int]:
-    nonempty: list[tuple[int, int]] = []
-    for line in text.splitlines():
-        if not line.startswith("A "):
-            continue
-        match = OBJECT_AREA_RECORD.fullmatch(line)
-        if match is None:
-            if line.startswith("A _CODE"):
-                raise ValueError(f"malformed code-area record: {line!r}")
-            continue
-        code = CODE_AREA.fullmatch(match.group(1))
-        size = int(match.group(2), 16)
-        if code is not None and size != 0:
-            nonempty.append((int(code.group(1)), size))
-    if len(nonempty) != 1:
+    if len(headers) != 1:
+        raise ValueError(
+            f"expected one H record, found {len(headers)}"
+        )
+    _declared_area_count, declared_symbol_count = headers[0]
+    if declared_symbol_count != symbol_count:
+        raise ValueError(
+            "global-symbol count mismatch: "
+            f"declared {declared_symbol_count:X}, "
+            f"found {symbol_count:X}"
+        )
+    if len(nonempty_code_areas) != 1:
         raise ValueError(
             "expected one nonempty _CODE_N area, "
-            f"found {len(nonempty)}"
+            f"found {len(nonempty_code_areas)}"
         )
-    return nonempty[0]
+    code_bank, code_size = nonempty_code_areas[0]
+    return _AsxxxxEvidence(
+        definitions=definitions,
+        code_bank=code_bank,
+        code_size=code_size,
+    )
 
 
 def _sharing_check(
@@ -199,21 +257,32 @@ def _compact_facade_sharing_checks(
         f"{COMPACT_FACADE_MEMBER}_generated_compact_facade.o"
     )
 
-    alias_errors: list[str] = []
-    owner_definitions: dict[str, int] = {}
-    owner_paths = paths_by_name.get(owner_object_name, [])
-    if len(owner_paths) != 1:
-        alias_errors.append(
-            f"{owner_object_name}: expected one linked object, "
-            f"found {len(owner_paths)}"
-        )
-    else:
+    evidence_by_name: dict[str, _AsxxxxEvidence] = {}
+    evidence_errors: dict[str, str] = {}
+    for name in retained_names:
+        paths = paths_by_name.get(name, [])
+        if len(paths) != 1:
+            evidence_errors[name] = (
+                f"expected one linked object, found {len(paths)}"
+            )
+            continue
         try:
-            owner_definitions = _definition_addresses(
-                _read_asxxxx_object(owner_paths[0])
+            evidence_by_name[name] = _parse_asxxxx_evidence(
+                _read_asxxxx_object(paths[0])
             )
         except (OSError, UnicodeError, ValueError) as error:
-            alias_errors.append(f"{owner_object_name}: {error}")
+            evidence_errors[name] = str(error)
+
+    alias_errors: list[str] = []
+    owner_definitions: dict[str, int] = {}
+    owner_evidence = evidence_by_name.get(owner_object_name)
+    if owner_evidence is None:
+        alias_errors.append(
+            f"{owner_object_name}: "
+            f"{evidence_errors.get(owner_object_name, 'invalid object')}"
+        )
+    else:
+        owner_definitions = owner_evidence.definitions
 
     expected_owner_names = {
         f"_{COMPACT_FACADE_OWNER}_{suffix}"
@@ -264,16 +333,14 @@ def _compact_facade_sharing_checks(
     bank_errors: list[str] = []
     layouts: dict[str, tuple[int, int]] = {}
     for name in retained_names:
-        paths = paths_by_name.get(name, [])
-        if len(paths) != 1:
+        evidence = evidence_by_name.get(name)
+        if evidence is None:
             bank_errors.append(
-                f"{name}: expected one linked object, found {len(paths)}"
+                f"{name}: "
+                f"{evidence_errors.get(name, 'invalid object')}"
             )
             continue
-        try:
-            layouts[name] = _code_layout(_read_asxxxx_object(paths[0]))
-        except (OSError, UnicodeError, ValueError) as error:
-            bank_errors.append(f"{name}: {error}")
+        layouts[name] = (evidence.code_bank, evidence.code_size)
     sharing_bank = sharing.get("bank")
     if len(layouts) == len(retained_names):
         code_banks = {bank for bank, _size in layouts.values()}

@@ -59,16 +59,26 @@ def compact_facade_owner_text(
     ]
     return (
         "XL4\n"
-        f"H B areas {len(definitions):X} global symbols\n"
+        f"H 1 areas {len(definitions):X} global symbols\n"
         "M generated_compact_facade\n"
         f"A _CODE_{bank} size 15D flags 0 addr 0\n"
         + "\n".join(definitions)
         + "\n"
+        "T 00 00 00 00 C9\n"
+        "R 00 00 08 00\n"
     )
 
 
 def banked_object_text(bank: int, size: int) -> str:
-    return f"A _CODE_{bank} size {size:X} flags 0 addr 0\n"
+    return (
+        "XL4\n"
+        "H 1 areas 1 global symbols\n"
+        "M generated_facade_rules\n"
+        "S .__.ABS. Def00000000\n"
+        f"A _CODE_{bank} size {size:X} flags 0 addr 0\n"
+        "T 00 00 00 00 C9\n"
+        "R 00 00 08 00\n"
+    )
 
 
 def main() -> int:
@@ -277,6 +287,8 @@ def main() -> int:
             owner_rules_size: int = 1000,
             member_rules_bank: int = 142,
             member_rules_size: int = 1200,
+            owner_rules_text: str | None = None,
+            member_rules_text: str | None = None,
             retain_member: bool = False,
         ) -> list[check_gbc_cart.CartCheck]:
             write_object(
@@ -289,11 +301,25 @@ def main() -> int:
             )
             write_object(
                 owner_rules,
-                banked_object_text(owner_rules_bank, owner_rules_size),
+                (
+                    banked_object_text(
+                        owner_rules_bank,
+                        owner_rules_size,
+                    )
+                    if owner_rules_text is None
+                    else owner_rules_text
+                ),
             )
             write_object(
                 member_rules,
-                banked_object_text(member_rules_bank, member_rules_size),
+                (
+                    banked_object_text(
+                        member_rules_bank,
+                        member_rules_size,
+                    )
+                    if member_rules_text is None
+                    else member_rules_text
+                ),
             )
             linked_objects = [
                 *valid_objects,
@@ -425,6 +451,123 @@ def main() -> int:
             assert not check_gbc_cart.check_named(
                 checks, "compact facade sharing metadata"
             ).passed, malformed
+
+        valid_owner_text = compact_facade_owner_text(142)
+        owner_header = "H 1 areas 10 global symbols\n"
+        malformed_owners = (
+            (
+                "missing XL4",
+                valid_owner_text.removeprefix("XL4\n"),
+            ),
+            (
+                "missing H",
+                valid_owner_text.replace(owner_header, ""),
+            ),
+            (
+                "symbol-count mismatch",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H 1 areas F global symbols\n",
+                ),
+            ),
+            (
+                "duplicate H",
+                valid_owner_text.replace(
+                    owner_header,
+                    owner_header + owner_header,
+                ),
+            ),
+            (
+                "malformed H",
+                valid_owner_text.replace(
+                    owner_header,
+                    "H nope areas 10 global symbols\n",
+                ),
+            ),
+            (
+                "trailing symbol garbage",
+                valid_owner_text.replace(
+                    "S _g21_ps_gbc_facade_get_movements "
+                    "Def00000001",
+                    "S _g21_ps_gbc_facade_get_movements "
+                    "Def00000001 garbage",
+                ),
+            ),
+            (
+                "malformed area",
+                valid_owner_text.replace(
+                    "A _CODE_142 size 15D flags 0 addr 0",
+                    "A _CODE_142 size 15D flags 0",
+                ),
+            ),
+        )
+        for problem, malformed_owner in malformed_owners:
+            checks = canary_checks(
+                sharing_manifest,
+                owner_text=malformed_owner,
+            )
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade aliases"
+            ).passed, f"{problem} owner alias evidence was accepted"
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade same-bank capacity"
+            ).passed, f"{problem} owner bank evidence was accepted"
+
+        valid_caller_text = banked_object_text(142, 1000)
+        caller_header = "H 1 areas 1 global symbols\n"
+        malformed_callers = (
+            (
+                "missing XL4",
+                valid_caller_text.removeprefix("XL4\n"),
+            ),
+            (
+                "missing H",
+                valid_caller_text.replace(caller_header, ""),
+            ),
+            (
+                "symbol-count mismatch",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas 0 global symbols\n",
+                ),
+            ),
+            (
+                "duplicate H",
+                valid_caller_text.replace(
+                    caller_header,
+                    caller_header + caller_header,
+                ),
+            ),
+            (
+                "malformed H",
+                valid_caller_text.replace(
+                    caller_header,
+                    "H 1 areas nope global symbols\n",
+                ),
+            ),
+            (
+                "trailing symbol garbage",
+                valid_caller_text.replace(
+                    "S .__.ABS. Def00000000",
+                    "S .__.ABS. Def00000000 garbage",
+                ),
+            ),
+            (
+                "trailing area garbage",
+                valid_caller_text.replace(
+                    "A _CODE_142 size 3E8 flags 0 addr 0",
+                    "A _CODE_142 size 3E8 flags 0 addr 0 garbage",
+                ),
+            ),
+        )
+        for problem, malformed_caller in malformed_callers:
+            checks = canary_checks(
+                sharing_manifest,
+                owner_rules_text=malformed_caller,
+            )
+            assert not check_gbc_cart.check_named(
+                checks, "compact facade same-bank capacity"
+            ).passed, f"{problem} caller evidence was accepted"
 
     print("check_gbc_cart_test: ok")
     return 0
