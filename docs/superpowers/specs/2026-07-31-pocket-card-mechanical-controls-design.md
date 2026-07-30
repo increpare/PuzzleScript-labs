@@ -47,32 +47,43 @@ and must be replaced with measurements before CAD is frozen.
 
 ## Envelope
 
-- Body: **90 × 93 mm**, thickness **~14 mm**.
-- The 12 mm ceiling in the July 12 spec is withdrawn. It predates the 10.60 mm
-  module figure and leaves 1.4 mm for two shell walls — not mouldable, not
-  strong enough around a screen opening, and unable to hold a screw boss.
+- Body: **90 × 93 mm**, thickness **~12.6 mm**.
+- The touch surface sits **flush in the front shell's window**, not behind a
+  wall, so the front shell contributes no depth over the screen. This is the
+  same arrangement the July 12 spec assumed ("flush or slightly recessed").
+- Thickness is set by the **battery zone**, not the display. The module zone
+  comes out at 12.4 mm and the control/battery zone at 12.6 mm.
+- The 12 mm ceiling in the July 12 spec is therefore missed by ~0.6 mm rather
+  than abandoned. Treat 12 mm as aspirational and ~12.6 mm as the working
+  number until measured hardware says otherwise.
 - Growing the body to gain internal volume was considered and rejected by the
-  owner. 90 × 93 is fixed; thickness is the variable that moved.
-- Levers if ~14 mm proves unacceptable: 1.2 mm walls (→ ~13.0 mm, tight for
-  bosses), or recessing the touch surface flush into the front shell rather
-  than behind a wall (recovers most of 1.5 mm).
+  owner. 90 × 93 is fixed.
+- Levers if ~12.6 mm proves unacceptable: 1.2 mm walls, or a thinner cell.
+  Both trade against strength and runtime respectively.
 
 ### Depth stack-up
 
 | Upper zone (module) | mm | Lower zone (controls + battery) | mm |
 |---|---|---|---|
-| front shell | 1.5 *assumed* | front shell | 1.5 *assumed* |
+| front shell over screen | 0 — module is flush in the window | front shell | 1.5 *assumed* |
 | — | — | membrane + cap | 2.3 *assumed* |
 | module front stack | 5.85 | controller PCB | 1.6 *assumed* |
 | module rear components | 4.75 | PET insulator | 0.2 *assumed* |
 | clearance | 0.3 *assumed* | 503450 cell | 5.0 |
 | — | — | swell allowance | 0.5 *assumed* |
 | back shell | 1.5 *assumed* | back shell | 1.5 *assumed* |
-| **total** | **13.9** | **total** | **12.6** |
+| **total** | **12.4** | **total** | **12.6** |
 
-The module zone is the thicker of the two. **There is no usable space behind the
-display.** The ~1.3 mm difference is not enough for the cell (5 mm) or a driver
+The two zones are within 0.2 mm of each other, so **there is no usable space
+behind the display.** Any slack is far short of the cell (5 mm) or a driver
 (3–4 mm), sits over the RF section, and would require stepping the back shell.
+
+A touchless **ES3N28P** behind a transparent shell acting as the lens was
+evaluated and **rejected** by the owner. It would have given 1.20 mm less module
+depth (§3.4) and 270 rather than 230 cd/m² (§3.6), but required an opaque
+backlight mask, polished tooling, a prototype path diverging from production,
+and left the bare TFT exposed during assembly. Recorded so it is not
+re-proposed.
 
 ## Module orientation
 
