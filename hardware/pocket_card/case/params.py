@@ -41,14 +41,23 @@ MOUNT_INSET  = 4.0                          # DATASHEET  from each module edge
 # All MEASURED. These are shell OPENINGS, not cap sizes: caps are smaller by
 # the original's clearance, with the flange behind.
 
-FACE_T = 2.30          # MEASURED  DMG front face wall in the button area
+DMG_FACE_T = 2.30      # MEASURED  the reference shell's own face thickness
+FACE_T     = 1.50      # DECIDED   ours is thinner, to claw back 0.8 mm of body
 
 # Every membrane retention feature on the DMG -- d-pad ring, A/B collars and
-# the Start/Select ribs -- terminates on ONE common plane 6.25 mm below the
-# outer face. That plane is where the PCB sits; the ribs are the standoffs
-# that set membrane compression. This is the single most important number here.
-RIB_PLANE_Z = 6.25     # MEASURED  from outer face
-RIB_PROUD   = RIB_PLANE_Z - FACE_T   # 3.95, height above the inner face
+# the Start/Select ribs -- terminates on ONE common plane, 3.95 mm above the
+# inner face (6.25 below the DMG's outer face; the three features agree to
+# 0.04 mm). The ribs are not just locators: they are the standoffs that set
+# membrane compression, and the PCB rests on them.
+#
+# RIB_PROUD is therefore fixed by the membrane and is NOT a free variable.
+# FACE_T is ours to choose; everything downstream shifts with it.
+RIB_PROUD   = 3.95                    # MEASURED  height above the inner face
+RIB_PLANE_Z = FACE_T + RIB_PROUD      # 5.45 from our outer face
+
+# Cost of the thinner face: the A/B cap guide bore is FACE_T + RIB_PROUD deep,
+# so 5.45 mm rather than the DMG's 6.15 mm. Check this on the coupon.
+AB_GUIDE_DEPTH = RIB_PLANE_Z
 
 DPAD_SPAN     = 22.00  # MEASURED  tip to tip
 DPAD_ARM_W    = 7.75   # MEASURED  through the arm; fillets to ~7.6 at the tips
@@ -93,7 +102,12 @@ CELL_SWELL   = 0.5     # ASSUMED
 
 # The PCB front face is NOT a free variable: it is pinned to the rib plane,
 # because the ribs are what the board rests on.
-PCB_FRONT_Z  = RIB_PLANE_Z         # 6.25 with a DMG-thickness face
+PCB_FRONT_Z  = RIB_PLANE_Z         # 5.45
+
+# Resulting body thickness. The lower zone dominates; the module zone is 12.40.
+LOWER_ZONE_T = FACE_T + RIB_PROUD + PCB_T + PET_T + CELL_T + CELL_SWELL + WALL
+UPPER_ZONE_T = MOD_DEPTH + 0.3 + WALL     # module sits flush in the front window
+BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)    # 14.25
 
 # ------------------------------------------------------------- audio ------
 DRIVER_D     = 18.0    # ASSUMED  final size set by the bottom-right corner

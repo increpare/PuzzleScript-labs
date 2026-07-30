@@ -47,36 +47,56 @@ and must be replaced with measurements before CAD is frozen.
 
 ## Envelope
 
-- Body: **90 × 93 mm**, thickness **~12.6 mm**.
+- Body: **90 × 93 mm**, thickness **14.25 mm**.
 - The touch surface sits **flush in the front shell's window**, not behind a
   wall, so the front shell contributes no depth over the screen. This is the
   same arrangement the July 12 spec assumed ("flush or slightly recessed").
-- Thickness is set by the **battery zone**, not the display. The module zone
-  comes out at 12.4 mm and the control/battery zone at 12.6 mm.
-- The 12 mm ceiling in the July 12 spec is therefore missed by ~0.6 mm rather
-  than abandoned. Treat 12 mm as aspirational and ~12.6 mm as the working
-  number until measured hardware says otherwise.
-- Growing the body to gain internal volume was considered and rejected by the
-  owner. 90 × 93 is fixed.
-- Levers if ~12.6 mm proves unacceptable: 1.2 mm walls, or a thinner cell.
-  Both trade against strength and runtime respectively.
+- Thickness is set by the **control/battery zone**, not the display. The module
+  zone is 12.40 mm; the lower zone is 14.25 mm.
+- The 12 mm ceiling in the July 12 spec is missed by 2.25 mm and should be
+  treated as withdrawn, not aspirational.
+- Growing the body in X or Y to gain internal volume was considered and
+  rejected by the owner. 90 × 93 is fixed.
+
+**Why the lower zone is deeper than first estimated.** Membrane compression is
+set by the DMG's retention ribs, which stand **3.95 mm** above the inner face —
+not the 2.3 mm originally assumed for "membrane + cap". That value is fixed by
+the membrane and is not a design variable. Measurement replaced an assumption
+and moved the number the wrong way.
+
+The front face was thinned from the DMG's 2.30 mm to **1.50 mm** to recover
+0.8 mm. The cost is A/B cap guide depth: **5.45 mm** of bore rather than the
+DMG's 6.15 mm. Verify on the coupon.
+
+The only remaining lever is a **thinner cell** — a 4 mm pouch would give
+~13.3 mm — which trades directly against the four-hour runtime gate and is
+not taken. The battery cannot move beside the PCB instead of behind it: the
+button field occupies the whole lower band and no column is 50 mm wide.
 
 ### Depth stack-up
 
 | Upper zone (module) | mm | Lower zone (controls + battery) | mm |
 |---|---|---|---|
-| front shell over screen | 0 — module is flush in the window | front shell | 1.5 *assumed* |
-| — | — | membrane + cap | 2.3 *assumed* |
-| module front stack | 5.85 | controller PCB | 1.6 *assumed* |
-| module rear components | 4.75 | PET insulator | 0.2 *assumed* |
-| clearance | 0.3 *assumed* | 503450 cell | 5.0 |
-| — | — | swell allowance | 0.5 *assumed* |
-| back shell | 1.5 *assumed* | back shell | 1.5 *assumed* |
-| **total** | **12.4** | **total** | **12.6** |
+| front shell over screen | 0 — module is flush in the window | front face | 1.50 *decided* |
+| — | — | retention rib | 3.95 **measured** |
+| module front stack | 5.85 | controller PCB | 1.60 *assumed* |
+| module rear components | 4.75 | PET insulator | 0.20 *assumed* |
+| clearance | 0.30 *assumed* | 503450 cell | 5.00 |
+| — | — | swell allowance | 0.50 *assumed* |
+| back shell | 1.50 *assumed* | back shell | 1.50 *assumed* |
+| **total** | **12.40** | **total** | **14.25** |
 
-The two zones are within 0.2 mm of each other, so **there is no usable space
-behind the display.** Any slack is far short of the cell (5 mm) or a driver
-(3–4 mm), sits over the RF section, and would require stepping the back shell.
+**There is no usable space behind the display.** The module zone is the
+shallower of the two, and its 1.85 mm of slack is far short of the cell (5 mm)
+or a driver (3–4 mm), sits over the RF section, and would need the back shell
+stepped.
+
+**The PCB front face is not a free variable.** It sits on the retention ribs at
+`FACE_T + RIB_PROUD` = 5.45 mm, because the ribs are the standoffs that set
+membrane compression.
+
+These numbers are computed in `hardware/pocket_card/case/params.py`, which is
+authoritative. This table is a transcription of it.
 
 A touchless **ES3N28P** behind a transparent shell acting as the lens was
 evaluated and **rejected** by the owner. It would have given 1.20 mm less module
@@ -139,6 +159,74 @@ locating ribs.
 The owner has accepted that the device will read as a Game Boy homage, with
 shell colour doing the differentiation.
 
+### Measured DMG geometry
+
+Taken from **[guighub/DMG-01-Shell](https://github.com/guighub/DMG-01-Shell)**
+(`STL/DMG-01_Front_v38.stl`, MIT licence), rasterised at 0.05 mm and analysed by
+connected components. The model measures **89.99 × 148.00 mm** — the DMG exactly
+— which is the basic credibility check.
+
+These are **shell openings**, not cap dimensions. Caps are smaller by the
+original's clearance, with the flange behind.
+
+| Feature | Opening | Pair geometry |
+|---|---|---|
+| D-pad | cross, **22.00 mm** span; arm **7.75 mm**, filleted to ~7.6 at the tips | single part |
+| A / B | **Ø11.00 mm** | **16.34 mm** centres, at **25.4°** |
+| Start / Select | pill **11.15 × 3.00 mm**, at **23.4°** | **15.00 mm** apart, level |
+| Screen aperture | 48.75 × 45.75 mm | — |
+| Speaker slots | ~1.6 mm wide, ~60° | bottom-right corner |
+
+**Confidence:** 22.00, 11.00, 15.00 and 3.00 land exactly on round values, which
+reads as design intent surviving into the model. 7.75, 11.15, 16.34 and 25.4°
+do not, so treat those as carrying the author's trace error. The model is a
+replica, not a scan; its author notes screw holes may be offset from original
+and makes no accuracy claim for the button features. Add ±0.05 mm of
+rasterisation error to everything above.
+
+### What the parts actually constrain
+
+A DMG uses **three separate membranes** — d-pad, A/B, Start/Select. The
+constrained geometry is therefore *within* each cluster and never between them.
+
+| Fixed by the parts | Free to us |
+|---|---|
+| D-pad cross 22.00 mm | Position of each of the three clusters |
+| A→B 16.34 mm at 25.4° | Distance between clusters |
+| Start→Select 15.00 mm | Rotation of each group |
+
+This is a much lighter constraint than assumed earlier in the design session,
+where the parts were thought to dictate the whole face arrangement.
+
+### Horizontal positions
+
+A DMG is 90 mm wide and so is this body, so **X transfers 1:1 with no scaling**.
+Measured from the left edge:
+
+| Control | x (mm) |
+|---|---|
+| D-pad centre | 18.22 |
+| Undo (B) | 63.22 |
+| Action (A) | 77.98 |
+| Restart (Select) | 33.23 |
+| Menu (Start) | 48.23 |
+
+### Vertical fit
+
+The DMG spreads its controls over an 83 mm region; ours is 40 mm. The cluster
+itself is only ~35 mm from d-pad top to pill bottom — the DMG simply has a lot
+of empty plastic.
+
+At true DMG spacing (d-pad centre to pills = 21.63 mm) the pills collide with
+the bottom wall. Reducing that gap to **20.0 mm** resolves it:
+
+- d-pad top at y = 55, **2.5 mm** clear of the module
+- pill bottom at y = 89.1, **2.4 mm** clear of the interior wall
+- A/B pair unrotated, at its true 25.4°
+
+So the layout works at **full DMG scale**, with ~1.6 mm of compression between
+clusters and none within any of them.
+
 ### Mapping
 
 | DMG part | Function | MCP23017 |
@@ -191,7 +279,8 @@ face buttons back down into the grille.
 | Bottom | Power switch (left), mute switch (beneath the grille) |
 
 No control may be placed on a side edge in the **upper 50 mm**: the module is
-86 × 50 in a 90 mm body and 10.6 mm deep in a ~12.6 mm body, so the top and both
+86 × 50 in a 90 mm body and 10.6 mm deep in a 14.25 mm body whose upper zone is
+only 12.40 mm, so the top and both
 side edges are backed directly by module with no interior volume behind them.
 This is why power cannot sit where a Game Boy's does without adding ~7 mm of
 body height, which was considered and rejected.
@@ -381,7 +470,8 @@ Risks specific to this route:
    need reverse-engineering — silicone keypad vendors publish the design rules,
    and pills run 2–8 mm with a board contact area sized around them. One measured
    number is enough to draw our own pads.
-4. **Wall thickness**, which firms up the ~12.6 mm stack.
+4. **Confirm rib height against a real membrane.** 3.95 mm was measured off the
+   reference shell and now sets body thickness directly. The coupon tests it.
 5. **Driver diameter** the bottom-right corner actually allows, once the grille
    shape exists.
 6. **Cell dimensions** including protection-board bulge and connector polarity.
@@ -398,9 +488,12 @@ question, recorded under *Power* above.
 
 Recorded so they are not relitigated:
 
-- **12 mm thickness → ~12.6 mm**, set by the battery zone rather than the
-  display. An intermediate ~14 mm figure was wrong: it double-counted a front
-  shell wall in front of a module that actually sits flush in the window.
+- **12 mm thickness → 14.25 mm**, set by the control/battery zone. This moved
+  twice. An intermediate 13.9 mm figure double-counted a shell wall in front of
+  a module that sits flush in the window; correcting that gave 12.6 mm. Then
+  measuring the DMG retention ribs at 3.95 mm — against 2.3 mm assumed for
+  "membrane + cap" — pushed it back out to 14.25 mm. The front face was thinned
+  from 2.30 to 1.50 mm to recover 0.8 mm of that.
 - **Four separate direction buttons → d-pad rocker.** The parts family won.
 - **Guided caps over tacts → silicone membranes.** Deletes the load path and
   the coupon gate.
