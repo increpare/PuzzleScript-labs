@@ -46,13 +46,15 @@ completed dispositions are reconciled below.
 
 ## 2026-07-30 program closure
 
-Task 14 reran the entire gate from fresh isolated outputs. It passed 17/17
-native GBC tests, 753/753 JavaScript tests, 46/46 eligible ROMs, the 46-game
-production-cart checker, the nine-game ordinary cart smoke, and the standalone
-sound/render/undo hardware smoke. Two fresh 46-game benchmark-cart sweeps
-reproduced the same timing/failure projection and both worst-ten orders:
-36/46 successful games, 848 user-visible turns, 507.532 weighted logic
-ticks/turn, and 724.519 weighted combined interaction ticks/turn.
+The implementation-plan Task 14 final gate reran the entire gate from fresh
+isolated outputs. It passed 17/17 native GBC tests, 753/753 JavaScript tests,
+46/46 eligible ROMs, and the 46-game production-cart checker. It also passed
+the nine-game autotest cart smoke and standalone sound/render/undo hardware
+smoke. Two fresh 46-game benchmark-cart sweeps reproduced the same
+successful-game weighted metrics, per-game failure projections, and both
+worst-ten orders: 36/46 successful games, 848 user-visible turns, 507.532
+weighted logic ticks/turn, and 724.519 weighted combined interaction
+ticks/turn.
 
 The consolidated before/after timing, render-attribution, capacity, rule-pack,
 stack-frame, and memory tables are in the
@@ -60,19 +62,19 @@ stack-frame, and memory tables are in the
 
 | Roadmap task | Final status | Reconciled outcome |
 | --- | --- | --- |
-| Task 0: harness paths and cart/codegen metrics | **Retained** | Relative tool inputs are resolved before validation/build use; the reporter separates packed-bank utilization from physical 4 MB headroom and reports object/rule-frame metrics reproducibly. |
-| Task 1: honest interaction render telemetry | **Retained** | Low-overhead walk/push/initial counts are the headline; phase probes remain separate and report their own overhead. |
-| Task 2: remove render-time bank copies | **Split into a follow-up design** | The original whole-render bank bracket is invalid because renderer code occupies switchable bank 1. Staging needs a separately approved launcher/active-game WRAM phase overlay before implementation. |
-| Task 3: enlarge the composition cache | **Deferred** | The ten required walk/push redraws had two cache misses and zero dedicated fallbacks in total. A larger static cache is not justified independently and remains part of the Task 2 overlay design. |
-| Task 4: VBlank dirty-map batching | **Rejected** | It reduced attributed map-write ticks but made count-only redraws slower in all five cases. No source remains. |
-| Task 5: direct early rejection | **Rejected** | It cut 62,417 payload bytes but regressed `object_heavy` logic by 13.10%. No source remains. |
-| Task 6a: base-pointer hoist | **Rejected** | It cut 110,739 payload bytes but regressed `object_heavy` logic by 9.03%. No source remains. |
-| Task 6b: matcher scan inlining | **Rejected** | It cut 65,633 payload bytes but regressed `rule_heavy` logic by 2.47% and push rendering by one tick. No source remains. |
-| Task 6c: shared specialized scratch | **Rejected** | Smaller frames did not translate to a win: payload grew 55,019 bytes and three representative games regressed. The subsystem was fully removed. |
-| Task 7: cartridge timing scoreboard | **Retained** | The benchmark-only cart and exact libmGBA runner report every game, expose failures, and establish deterministic all-game weighted and worst-ten timing. |
-| Task 8a: identical-object sharing | **Split into a follow-up design** | The retained inventory found a 90,250-byte stress-bound opportunity but proved no cluster directly shareable under current ownership. Production sharing moved to the separately approved same-bank compact-facade canary; no ABI change landed here. |
-| Task 8b: direction-expanded body sharing | **Rejected** | Payload fell 32,218 bytes, but `dollyban` regressed 10.36% logic and 8.56% interaction. No source remains. |
-| Task 8c: 8 MB cartridge | **Deferred** | The cart retains 1,747,047 physical payload bytes through bank 255. GBDK's ordinary banked-call ABI remains eight-bit/4 MB; reopen only below 256 KiB forecast headroom or when the queue cannot pack below bank 256. |
+| roadmap Task 0: harness paths and cart/codegen metrics | **Retained** | Relative tool inputs are resolved before validation/build use; the reporter separates packed-bank utilization from physical 4 MB headroom and reports object/rule-frame metrics reproducibly. |
+| roadmap Task 1: honest interaction render telemetry | **Retained** | Low-overhead walk/push/initial counts are the headline; phase probes remain separate and report their own overhead. |
+| roadmap Task 2: remove render-time bank copies | **Split into a follow-up design** | The original whole-render bank bracket is invalid because renderer code occupies switchable bank 1. Staging needs a separately approved launcher/active-game WRAM phase overlay before implementation. |
+| roadmap Task 3: enlarge the composition cache | **Deferred** | The ten required walk/push redraws had two cache misses and zero dedicated fallbacks in total. A larger static cache is not justified independently and remains part of the roadmap Task 2 overlay design. |
+| roadmap Task 4: VBlank dirty-map batching | **Rejected** | It reduced attributed map-write ticks but made count-only redraws slower in all five cases. No source remains. |
+| roadmap Task 5: direct early rejection | **Rejected** | It cut 62,417 payload bytes but regressed `object_heavy` logic by 13.10%. No source remains. |
+| roadmap Task 6a: base-pointer hoist | **Rejected** | It cut 110,739 payload bytes but regressed `object_heavy` logic by 9.03%. No source remains. |
+| roadmap Task 6b: matcher scan inlining | **Rejected** | It cut 65,633 payload bytes but regressed `rule_heavy` logic by 2.47% and push rendering by one tick. No source remains. |
+| roadmap Task 6c: shared specialized scratch | **Rejected** | Smaller frames did not translate to a win: payload grew 55,019 bytes and three representative games regressed. The subsystem was fully removed. |
+| roadmap Task 7: cartridge timing scoreboard | **Retained** | The benchmark-only cart and exact libmGBA runner report every game, expose per-game failures, and establish deterministic successful-game weighted metrics and worst-ten orders across repeated all-game sweeps. |
+| roadmap Task 8a: identical-object sharing | **Split into a follow-up design** | The retained inventory found a 90,250-byte stress-bound opportunity but proved no cluster directly shareable under current ownership. Production sharing moved to the separately approved same-bank compact-facade canary; no ABI change landed here. |
+| roadmap Task 8b: direction-expanded body sharing | **Rejected** | Payload fell 32,218 bytes, but `dollyban` regressed 10.36% logic and 8.56% interaction. No source remains. |
+| roadmap Task 8c: 8 MB cartridge | **Deferred** | The cart retains 1,747,047 physical payload bytes through bank 255. GBDK's ordinary banked-call ABI remains eight-bit/4 MB; reopen only below 256 KiB forecast headroom or when the queue cannot pack below bank 256. |
 
 Four corrected constraints remain binding:
 
