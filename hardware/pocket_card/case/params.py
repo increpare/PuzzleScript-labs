@@ -55,13 +55,29 @@ TACT_H       = 2.5     # DECIDED   SMD tact body height above the PCB
 TACT_TRAVEL  = 0.25    # ASSUMED   actuation travel; confirm against the chosen part
 TACT_FORCE_N = 1.6     # ASSUMED   target actuation force
 
+# --- fit clearances, by manufacturing process -------------------------------
+# Radial clearance for a free-sliding fit. These are genuinely different numbers
+# per process and must not be conflated: an FDM prototype needs roughly double
+# what an injection-moulded part does, so a shell that feels right printed will
+# be sloppy moulded, and vice versa.
+#
+# All ASSUMED, and deliberately loose-ish: too tight is a scrapped print, too
+# loose is a wobbly button you can still measure. Revise from a real print.
+PROCESS = "fdm"        # "fdm" | "resin" | "mould"
+_FIT = {
+    "fdm":   0.20,     # 0.4 mm nozzle, allowing for elephant's foot and hole shrink
+    "resin": 0.12,
+    "mould": 0.08,     # tooling holds far better than this; the fit is the limit
+}
+FIT_CLEAR = _FIT[PROCESS]
+
 # Cap: head through the face, flange captured behind it, boss down to the plunger
-CAP_PROUD      = 1.0   # DECIDED  head standing above the outer face
-CAP_CLEAR      = 0.10  # ASSUMED  head-to-hole radial clearance; TOLERANCE LADDER
-CAP_FLANGE_T   = 1.0   # ASSUMED  flange thickness
-CAP_FLANGE_OS  = 1.1   # ASSUMED  flange radius beyond the head
-COLLAR_CLEAR   = 0.10  # ASSUMED  flange-to-collar radial clearance; TOLERANCE LADDER
-COLLAR_DEPTH   = 2.0   # ASSUMED  guide length below the inner face
+CAP_PROUD      = 1.0        # DECIDED  head standing above the outer face
+CAP_CLEAR      = FIT_CLEAR  # head-to-hole radial clearance
+CAP_FLANGE_T   = 1.0        # ASSUMED  flange thickness
+CAP_FLANGE_OS  = 1.1        # ASSUMED  flange radius beyond the head
+COLLAR_CLEAR   = FIT_CLEAR  # flange-to-collar radial clearance
+COLLAR_DEPTH   = 2.0        # ASSUMED  guide length below the inner face
 HARD_STOP_AT   = 0.35  # DECIDED  flange lands here: past 0.25 actuation,
                        #          before the switch bottoms
 CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
