@@ -1,7 +1,7 @@
 {
     "$schema": "https://schemas.kicad.org/drc.v1.json",
     "coordinate_units": "mm",
-    "date": "2026-08-01T00:48:01",
+    "date": "2026-08-01T01:07:30",
     "ignored_checks": [
         {
             "description": "Footprint has no courtyard defined",
@@ -37,154 +37,31 @@
             "description": "Via is not connected or connected on only one layer",
             "items": [
                 {
-                    "description": "Via [SIG_UP] auf F.Cu - B.Cu",
+                    "description": "Via [SIG_DOWN] auf F.Cu - B.Cu",
                     "pos": {
                         "x": 32.0,
-                        "y": 58.0
+                        "y": 78.0
                     },
-                    "uuid": "067c3b27-eb77-4107-b8e1-27e4494f1ddd"
+                    "uuid": "5a494ee9-ff4f-453d-bdad-5713465a00de"
                 }
             ],
             "severity": "warning",
             "type": "via_dangling"
         },
         {
-            "description": "Silkscreen clearance",
+            "description": "Track has unconnected end",
             "items": [
                 {
-                    "description": "Abschnitt von J_BAT_OUT auf B.Silkscreen",
+                    "description": "Leiterbahn [SIG_LEFT] auf F.Cu, Länge 0.5639 mm",
                     "pos": {
-                        "x": 75.715,
-                        "y": 76.44
+                        "x": 44.1413,
+                        "y": 68.638
                     },
-                    "uuid": "29462267-5062-4fc8-955e-2d174e9d8040"
-                },
-                {
-                    "description": "Referenzfeld von J_BAT_IN",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 75.9
-                    },
-                    "uuid": "4dfe4985-91ad-4238-b21b-e5abf4c07931"
+                    "uuid": "41fb63ba-0a35-410c-980d-1d9c9219acd1"
                 }
             ],
             "severity": "warning",
-            "type": "silk_overlap"
-        },
-        {
-            "description": "Silkscreen clearance",
-            "items": [
-                {
-                    "description": "Abschnitt von J_BAT_IN auf B.Silkscreen",
-                    "pos": {
-                        "x": 75.715,
-                        "y": 69.44
-                    },
-                    "uuid": "12409b36-b6a6-48f8-9157-f94a1f2ad038"
-                },
-                {
-                    "description": "Referenzfeld von J_EXP",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 68.9
-                    },
-                    "uuid": "732db4a2-0639-48de-b43a-f9c750393cb8"
-                }
-            ],
-            "severity": "warning",
-            "type": "silk_overlap"
-        },
-        {
-            "description": "Silkscreen clearance",
-            "items": [
-                {
-                    "description": "Abschnitt von J_EXP auf B.Silkscreen",
-                    "pos": {
-                        "x": 76.965,
-                        "y": 62.44
-                    },
-                    "uuid": "5f1b9754-ce9e-465a-ad35-7ef4a9312470"
-                },
-                {
-                    "description": "Referenzfeld von J_I2C",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 61.9
-                    },
-                    "uuid": "e3af6c43-12a0-4ef0-8723-dd4a16485dff"
-                }
-            ],
-            "severity": "warning",
-            "type": "silk_overlap"
-        },
-        {
-            "description": "Silkscreen clipped by solder mask",
-            "items": [
-                {
-                    "description": "Referenzfeld von J_BAT_IN",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 75.9
-                    },
-                    "uuid": "4dfe4985-91ad-4238-b21b-e5abf4c07931"
-                },
-                {
-                    "description": "Pad MP [GND] von J_BAT_OUT auf B.Cu",
-                    "pos": {
-                        "x": 71.525,
-                        "y": 77.65
-                    },
-                    "uuid": "cae84416-e7dd-4878-8be1-ce885f38bbf0"
-                }
-            ],
-            "severity": "warning",
-            "type": "silk_over_copper"
-        },
-        {
-            "description": "Silkscreen clipped by solder mask",
-            "items": [
-                {
-                    "description": "Referenzfeld von J_BAT_IN",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 75.9
-                    },
-                    "uuid": "4dfe4985-91ad-4238-b21b-e5abf4c07931"
-                },
-                {
-                    "description": "Pad MP [GND] von J_BAT_OUT auf B.Cu",
-                    "pos": {
-                        "x": 76.475,
-                        "y": 77.65
-                    },
-                    "uuid": "27891616-c947-4f74-a9c1-37e720af24cb"
-                }
-            ],
-            "severity": "warning",
-            "type": "silk_over_copper"
-        },
-        {
-            "description": "Silkscreen clipped by solder mask",
-            "items": [
-                {
-                    "description": "Referenzfeld von J_EXP",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 68.9
-                    },
-                    "uuid": "732db4a2-0639-48de-b43a-f9c750393cb8"
-                },
-                {
-                    "description": "Pad MP [GND] von J_BAT_IN auf B.Cu",
-                    "pos": {
-                        "x": 71.525,
-                        "y": 70.65
-                    },
-                    "uuid": "d2bb2055-0e8c-47b1-8497-a5f438d5dec7"
-                }
-            ],
-            "severity": "warning",
-            "type": "silk_over_copper"
+            "type": "track_dangling"
         },
         {
             "description": "Non-Mirrored text on back layer",
@@ -192,10 +69,10 @@
                 {
                     "description": "Referenzfeld von J_BAT_IN",
                     "pos": {
-                        "x": 74.0,
-                        "y": 75.9
+                        "x": 63.0,
+                        "y": 72.1
                     },
-                    "uuid": "4dfe4985-91ad-4238-b21b-e5abf4c07931"
+                    "uuid": "65a5eb32-362a-4c06-81f5-a71d73e5e5ed"
                 }
             ],
             "severity": "warning",
@@ -207,10 +84,10 @@
                 {
                     "description": "Wert-Feld von J_BAT_IN (JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal)",
                     "pos": {
-                        "x": 74.0,
-                        "y": 68.1
+                        "x": 63.0,
+                        "y": 79.9
                     },
-                    "uuid": "871ac9dd-2b93-46f7-b582-c66c9b4c5dff"
+                    "uuid": "e65e9327-d3ed-41cb-ad51-ec55b69facc4"
                 }
             ],
             "severity": "warning",
@@ -222,55 +99,10 @@
                 {
                     "description": "Footprint-Text von J_BAT_IN (J_BAT_IN)",
                     "pos": {
-                        "x": 74.0,
-                        "y": 72.0
+                        "x": 63.0,
+                        "y": 76.0
                     },
-                    "uuid": "98559f04-d717-44af-8d45-d2c107500b82"
-                }
-            ],
-            "severity": "warning",
-            "type": "nonmirrored_text_on_back_layer"
-        },
-        {
-            "description": "Non-Mirrored text on back layer",
-            "items": [
-                {
-                    "description": "Referenzfeld von J_I2C",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 61.9
-                    },
-                    "uuid": "e3af6c43-12a0-4ef0-8723-dd4a16485dff"
-                }
-            ],
-            "severity": "warning",
-            "type": "nonmirrored_text_on_back_layer"
-        },
-        {
-            "description": "Non-Mirrored text on back layer",
-            "items": [
-                {
-                    "description": "Wert-Feld von J_I2C (JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal)",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 54.1
-                    },
-                    "uuid": "57db50d3-1d61-4e26-bfe3-94d6ac0fa5f5"
-                }
-            ],
-            "severity": "warning",
-            "type": "nonmirrored_text_on_back_layer"
-        },
-        {
-            "description": "Non-Mirrored text on back layer",
-            "items": [
-                {
-                    "description": "Footprint-Text von J_I2C (J_I2C)",
-                    "pos": {
-                        "x": 74.0,
-                        "y": 58.0
-                    },
-                    "uuid": "c4f1ccc1-3d7f-448e-9278-f538daf999ae"
+                    "uuid": "526ddb2b-9d6a-4b04-9cd5-97821bc1fd5d"
                 }
             ],
             "severity": "warning",
@@ -282,10 +114,10 @@
                 {
                     "description": "Referenzfeld von J_BAT_OUT",
                     "pos": {
-                        "x": 74.0,
-                        "y": 82.9
+                        "x": 78.0,
+                        "y": 72.1
                     },
-                    "uuid": "c692f07f-bdc3-4acf-a975-49a8260ae264"
+                    "uuid": "431fbec6-1037-4c3c-bf91-757d8e1f65d2"
                 }
             ],
             "severity": "warning",
@@ -297,10 +129,10 @@
                 {
                     "description": "Wert-Feld von J_BAT_OUT (JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal)",
                     "pos": {
-                        "x": 74.0,
-                        "y": 75.1
+                        "x": 78.0,
+                        "y": 79.9
                     },
-                    "uuid": "1c46cea4-35d7-45c5-8d62-6b61e0f828fe"
+                    "uuid": "9c0c10b4-3886-4995-9fa7-0bed917338ef"
                 }
             ],
             "severity": "warning",
@@ -312,10 +144,10 @@
                 {
                     "description": "Footprint-Text von J_BAT_OUT (J_BAT_OUT)",
                     "pos": {
-                        "x": 74.0,
-                        "y": 79.0
+                        "x": 78.0,
+                        "y": 76.0
                     },
-                    "uuid": "55805c44-e440-475d-97ef-2d89d9e8299a"
+                    "uuid": "0cdfc53a-4f92-4b6f-b18a-a3713f12c7b6"
                 }
             ],
             "severity": "warning",
@@ -327,10 +159,10 @@
                 {
                     "description": "Referenzfeld von J_EXP",
                     "pos": {
-                        "x": 74.0,
-                        "y": 68.9
+                        "x": 78.0,
+                        "y": 59.1
                     },
-                    "uuid": "732db4a2-0639-48de-b43a-f9c750393cb8"
+                    "uuid": "3ab6ffbf-da36-4256-9420-3955476289c8"
                 }
             ],
             "severity": "warning",
@@ -342,10 +174,10 @@
                 {
                     "description": "Wert-Feld von J_EXP (JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal)",
                     "pos": {
-                        "x": 74.0,
-                        "y": 61.1
+                        "x": 78.0,
+                        "y": 66.9
                     },
-                    "uuid": "624370a3-9fab-4d4d-b009-56fbd0f6921d"
+                    "uuid": "47d92939-6a0c-4d46-bb5c-036567655b20"
                 }
             ],
             "severity": "warning",
@@ -357,10 +189,55 @@
                 {
                     "description": "Footprint-Text von J_EXP (J_EXP)",
                     "pos": {
-                        "x": 74.0,
-                        "y": 65.0
+                        "x": 78.0,
+                        "y": 63.0
                     },
-                    "uuid": "9a8ce673-7f02-4d41-aa10-e98b1ed724ae"
+                    "uuid": "e9d49d47-d833-4136-b188-c132ba201d81"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Referenzfeld von J_I2C",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 59.1
+                    },
+                    "uuid": "3712180a-7907-4c6d-9f8a-164f29b7fa04"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Wert-Feld von J_I2C (JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal)",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 66.9
+                    },
+                    "uuid": "d783b57b-0755-4eb5-acbb-efbb7b3f2596"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Footprint-Text von J_I2C (J_I2C)",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 63.0
+                    },
+                    "uuid": "2f446277-d08e-49fd-aabd-cb496f16d5cc"
                 }
             ],
             "severity": "warning",

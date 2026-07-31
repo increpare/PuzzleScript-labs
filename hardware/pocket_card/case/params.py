@@ -246,18 +246,27 @@ MUTE_SW_X  = 70.0                  # DECIDED  bottom edge, clear of Reset
 # pour inset. 86.5 keeps pad copper ≥0.5 mm from the south edge at y=90.
 POWER_SW_Y = 86.5                  # DECIDED
 MUTE_SW_Y  = 86.5                  # DECIDED
+# Shell bottom-edge openings for PCM12SMTR: body ~6.3×2.5, actuator ~1.4 tall.
+# Old cuts were 12×5 mm in Z and ignored POWER_SW_Y — mute looked missing,
+# power looked like a letterbox.
+SLIDE_CUT_X = 7.5    # ASSUMED  along bottom edge (travel + finger)
+SLIDE_CUT_Z = 2.4    # ASSUMED  aperture height on the bottom wall
+SLIDE_CUT_Y = 8.0    # ASSUMED  depth through wall into the switch cavity
 
 # Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
 # y is still device/face coordinates (KiCad Y-down matches params).
 # Cell fence ends near BATT_X + CELL_W + BATT_CLEAR ≈ 59.6; cluster sits in the
 # open band left of the driver and right of the cell. Driver XY overlap on B.Cu
-# is fine — the driver is front-side only (z ≈ 1.5–5.0).
-# Pitch: GH courtyard is 6.4 mm in Y / up to 9.46 mm in X — plan's 6.0/4.5 mm
-# y-steps and x=68 overlapped each other and H3 (65,56). x=74, Δy=7 clears both.
-CONN_I2C     = (74.0, 58.0)   # ASSUMED  4P GH — tune after cable dress
-CONN_EXP     = (74.0, 65.0)   # ASSUMED  4P GH
-CONN_BAT_IN  = (74.0, 72.0)   # ASSUMED  2P GH from cell
-CONN_BAT_OUT = (74.0, 79.0)   # ASSUMED  2P GH to module BAT
+# is fine — the driver is front-shell only (z ≈ 1.5–5.0).
+#
+# 2×2 so a GH plug can engage (Δy=7 single-file was courtyard-only clearance).
+# rot=180 pointed mouths at the bottom edge (away from the module); 0 flips them.
+# Left column clear of H4 (66,81); Δy=13 / Δx=15 for GH plug access.
+CONN_I2C     = (63.0, 63.0)   # ASSUMED  4P GH
+CONN_EXP     = (78.0, 63.0)   # ASSUMED  4P GH
+CONN_BAT_IN  = (63.0, 76.0)   # ASSUMED  2P GH from cell
+CONN_BAT_OUT = (78.0, 76.0)   # ASSUMED  2P GH to module BAT
+CONN_ROT     = 0              # DECIDED  was 180 (faced away from module)
 CONN_SIDE    = "B.Cu"         # DECIDED
 
 # Two extra screw bosses so the lower half is actually fastened. Without them

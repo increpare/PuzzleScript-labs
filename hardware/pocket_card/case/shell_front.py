@@ -283,14 +283,18 @@ def edge_openings():
         cq.Workplane("XY").box(P.WALL + 3, 10.0, 4.2, centered=(False, True, True))
         .translate((-1.5, usb_y, -(MOD_PCB_BACK + 2.1))))
 
-    # power switch, bottom edge left of the grille
-    cuts = cuts.union(
-        cq.Workplane("XY").box(12.0, P.WALL + 3, 5.0, centered=(True, False, True))
-        .translate((P.POWER_SW_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
-    # mute switch, bottom edge beneath the grille
-    cuts = cuts.union(
-        cq.Workplane("XY").box(10.0, P.WALL + 3, 5.0, centered=(True, False, True))
-        .translate((P.MUTE_SW_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
+    # PCM12 slides on the bottom wall. Cut is sized to the actuator (not a 5 mm
+    # letterbox) and reaches from the switch Y out through the outer face.
+    def _slide_cut(x, y):
+        # y = footprint anchor; cut extends +Y through the wall (BODY_H).
+        y0 = y + 1.0
+        return (cq.Workplane("XY")
+                .box(P.SLIDE_CUT_X, P.SLIDE_CUT_Y, P.SLIDE_CUT_Z,
+                     centered=(True, False, True))
+                .translate((x, y0, -(P.PCB_FRONT_Z + P.SLIDE_CUT_Z / 2 - 0.2))))
+
+    cuts = cuts.union(_slide_cut(P.POWER_SW_X, P.POWER_SW_Y))
+    cuts = cuts.union(_slide_cut(P.MUTE_SW_X, P.MUTE_SW_Y))
     return cuts
 
 

@@ -250,7 +250,8 @@ def build_sexpr():
 
     for ref, ways, x, y, _note in CONNECTORS:
         lib, name = (JST4 if ways == 4 else JST2)
-        parts.append(footprint_sexpr(lib, name, x, y, ref, rot=180, back=True))
+        parts.append(footprint_sexpr(
+            lib, name, x, y, ref, rot=P.CONN_ROT, back=True))
         placed.append((ref, name, x, y, "B.Cu"))
 
     for i, (x, y) in enumerate(PCB_MOUNTS):
@@ -321,7 +322,7 @@ def build_pcbnew():
     place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE")
     for ref, ways, x, y, _note in CONNECTORS:
         lib, name = (JST4 if ways == 4 else JST2)
-        place(board, lib, name, x, y, ref, 180, back=True)
+        place(board, lib, name, x, y, ref, P.CONN_ROT, back=True)
     for i, (x, y) in enumerate(PCB_MOUNTS):
         place(board, MHOLE[0], MHOLE[1], x, y, "H%d" % (i + 1))
     return board

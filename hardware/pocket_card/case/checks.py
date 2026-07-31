@@ -702,18 +702,32 @@ def check_connector_pocket():
     cell_x = P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.0
     x_lo, x_hi = P.PCB_X + 1.0, P.PCB_X + P.PCB_W - 1.0
     y_lo, y_hi = P.PCB_Y + 1.0, P.PCB_Y + P.PCB_H - 1.0
-    for name, (x, y) in (
+    sites = (
         ("CONN_I2C", P.CONN_I2C),
         ("CONN_EXP", P.CONN_EXP),
         ("CONN_BAT_IN", P.CONN_BAT_IN),
         ("CONN_BAT_OUT", P.CONN_BAT_OUT),
-    ):
+    )
+    for name, (x, y) in sites:
         ok = (x > cell_x and x_lo <= x <= x_hi and y_lo <= y <= y_hi)
         print(f"   {'PASS' if ok else 'FAIL'}  {name} ({x:.1f}, {y:.1f}) "
               f"cell_x>{cell_x:.1f} board [{x_lo:.1f}..{x_hi:.1f}]×"
               f"[{y_lo:.1f}..{y_hi:.1f}]")
         if not ok:
             FAILURES.append(name)
+    # Plug clearance: GH courtyard is 6.4 mm in the cable axis; need ≥9 mm
+    # centre pitch so a housing can engage. Same-row X neighbours likewise.
+    min_pitch = 9.0
+    for i in range(len(sites)):
+        for j in range(i + 1, len(sites)):
+            n1, (x1, y1) = sites[i]
+            n2, (x2, y2) = sites[j]
+            d = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+            ok = d + 1e-9 >= min_pitch
+            print(f"   {'PASS' if ok else 'FAIL'}  {n1}–{n2} pitch {d:.1f} "
+                  f"(want >= {min_pitch:.1f})")
+            if not ok:
+                FAILURES.append(f"pitch {n1}-{n2}")
 
 
 # From Button_Switch_SMD:SW_SPST_SKQG_WithStem (0° local coords)
