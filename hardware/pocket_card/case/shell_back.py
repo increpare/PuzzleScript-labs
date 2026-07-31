@@ -60,15 +60,15 @@ def battery_fence():
     h = P.CELL_H + 2 * P.BATT_CLEAR
     outer = (cq.Workplane("XY")
              .box(w + 2 * FENCE_T, h + 2 * FENCE_T, FENCE_H, centered=(False, False, False))
-             .translate((x - FENCE_T, y - FENCE_T, LID_Z1 - FENCE_H)))
+             .translate((x - FENCE_T, y - FENCE_T, LID_Z1)))   # inward, not out the back
     pocket = (cq.Workplane("XY")
               .box(w, h, FENCE_H + 1, centered=(False, False, False))
-              .translate((x, y, LID_Z1 - FENCE_H - 0.5)))
+              .translate((x, y, LID_Z1 - 0.5)))
     fence = outer.cut(pocket)
     # gap on the left wall for the battery lead to exit upward
     gap = (cq.Workplane("XY")
            .box(FENCE_T + 1, 10.0, FENCE_H + 1, centered=(False, True, False))
-           .translate((x - FENCE_T - 0.5, y + h / 2, LID_Z1 - FENCE_H - 0.5)))
+           .translate((x - FENCE_T - 0.5, y + h / 2, LID_Z1 - 0.5)))
     return fence.cut(gap)
 
 
@@ -83,13 +83,39 @@ def driver_housing():
     ring = (cq.Workplane("XY")
             .circle(r_out).circle(P.DRIVER_D / 2 + 0.3)
             .extrude(FENCE_H)
-            .translate((P.GRILLE_X, P.GRILLE_Y, LID_Z1 - FENCE_H)))
+            .translate((P.GRILLE_X, P.GRILLE_Y, LID_Z1)))
     for bx, by in P.EXTRA_BOSSES:
         if (bx - P.GRILLE_X) ** 2 + (by - P.GRILLE_Y) ** 2 < (r_out + 3.0) ** 2:
             ring = ring.cut(
                 cq.Workplane("XY").circle(3.0).extrude(FENCE_H + 1)
-                .translate((bx, by, LID_Z1 - FENCE_H - 0.5)))
+                .translate((bx, by, LID_Z1 - 0.5)))
     return ring
+
+
+MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK       # 7.50
+
+
+def module_support():
+    """Ribs bearing on the module's rear, around each screw position.
+
+    Without these the module hangs on four plain posts with nothing setting it
+    axially -- so it would end up resting on the front face, which the July 12
+    spec forbids ("the bezel must not press on the touch/LCD stack"), and any
+    pull on the module's connectors would work it back and forth.
+
+    With the front shell's shoulders in front and these behind, the board is
+    properly sandwiched at all four corners.
+    """
+    h = SHELL_DEPTH - MOD_PCB_BACK                  # 5.30
+    xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
+    ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
+    ribs = cq.Workplane("XY")
+    for x in xs:
+        for y in ys:
+            ribs = ribs.union(
+                cq.Workplane("XY").circle(3.5).circle(1.8)   # bore clears the Ø3.0 post
+                .extrude(h).translate((x, y, LID_Z1)))
+    return ribs
 
 
 def screw_holes():
@@ -119,6 +145,7 @@ def build_back():
     s = lid()
     s = s.union(battery_fence())
     s = s.union(driver_housing())
+    s = s.union(module_support())
     s = s.cut(screw_holes())
     return to_model_space(s)
 

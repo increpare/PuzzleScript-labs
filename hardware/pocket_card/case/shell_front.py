@@ -26,7 +26,9 @@ CORNER_R = 4.5
 SHELL_DEPTH = P.BODY_T - P.WALL        # 12.80; the back lid takes the last 1.5
 COLLAR_WALL = 1.2
 FLAT_DEPTH = 0.8
-POST_D = 3.0                           # through the module's 3.2 holes
+POST_D = 3.0                           # through the module's Ø3.2 holes
+SHOULDER_D = 5.5                       # module rests its PCB on this
+BOSS_D = 4.2                           # corner bosses, nothing to thread through
 POST_PILOT_D = 1.7                     # self-tapping screw pilot
 
 # module PCB planes, derived
@@ -108,18 +110,36 @@ def module_posts():
     """
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
-    sites = [(x, y) for x in xs for y in ys] + list(P.EXTRA_BOSSES)
     add = cq.Workplane("XY")
     cut = cq.Workplane("XY")
-    length = SHELL_DEPTH - P.FACE_T
-    if True:
-        for x, y in sites:
+
+    # Module sites: a Ø5.5 shoulder from the face down to the board's front
+    # plane, then Ø3.0 through the module's own Ø3.2 hole. The shoulder is what
+    # sets the module axially -- without it the board would come to rest against
+    # the bezel, which must never touch the touch/LCD stack.
+    for x in xs:
+        for y in ys:
             add = add.union(
-                cq.Workplane("XY").circle(POST_D / 2 + 0.6).extrude(-length)
+                cq.Workplane("XY").circle(SHOULDER_D / 2)
+                .extrude(-(MOD_PCB_FRONT - P.FACE_T))
                 .translate((x, y, -P.FACE_T)))
+            add = add.union(
+                cq.Workplane("XY").circle(POST_D / 2)
+                .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
+                .translate((x, y, -MOD_PCB_FRONT)))
             cut = cut.union(
-                cq.Workplane("XY").circle(POST_PILOT_D / 2).extrude(-length + 1.2)
-                .translate((x, y, -SHELL_DEPTH - 0.01)))
+                cq.Workplane("XY").circle(POST_PILOT_D / 2)
+                .extrude(SHELL_DEPTH - MOD_PCB_FRONT - 1.2)
+                .translate((x, y, -SHELL_DEPTH)))
+
+    # Corner bosses pass through nothing, so they can be fat.
+    for x, y in P.EXTRA_BOSSES:
+        add = add.union(
+            cq.Workplane("XY").circle(BOSS_D / 2).extrude(-(SHELL_DEPTH - P.FACE_T))
+            .translate((x, y, -P.FACE_T)))
+        cut = cut.union(
+            cq.Workplane("XY").circle(POST_PILOT_D / 2)
+            .extrude(SHELL_DEPTH - P.FACE_T - 1.2).translate((x, y, -SHELL_DEPTH)))
     return add, cut
 
 

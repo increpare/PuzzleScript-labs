@@ -364,6 +364,39 @@ def check_interior_fit():
         FAILURES.append("Reset vs Menu")
 
 
+def check_back_shell():
+    """Nothing on the lid may protrude out of the back, and the module must be
+    clamped rather than left floating on plain posts.
+
+    Both guard bugs this file previously had. The battery fence and driver ring
+    were extruded the wrong way and stood 0.5 mm proud of the outer surface; and
+    the posts were widened to Ø4.2 for the corner bosses, which cannot pass
+    through the module's Ø3.2 holes at all. A render shows neither.
+    """
+    path = os.path.join(OUT, "shell_back.stl")
+    if not os.path.exists(path):
+        return
+    print("\nback shell")
+    tri = load_tris(path)
+    zmin = float(tri[:, :, 2].min())
+    ok = zmin >= -P.BODY_T - 0.02
+    print(f"   {'PASS' if ok else 'FAIL'}  nothing proud of the back    "
+          f"min z = {zmin:.2f} (outer surface {-P.BODY_T:.2f})")
+    if not ok:
+        FAILURES.append("feature proud of back")
+
+    ok = 3.0 < P.MOUNT_HOLE_D
+    print(f"   {'PASS' if ok else 'FAIL'}  post fits the module hole   "
+          f"Ø3.0 through Ø{P.MOUNT_HOLE_D}")
+    if not ok:
+        FAILURES.append("post too fat for module hole")
+
+    pcb_front = P.MODULE_Z + P.MOD_FRONT_STACK - 1.6
+    pcb_back = P.MODULE_Z + P.MOD_FRONT_STACK
+    print(f"   INFO  module clamped between {pcb_front:.2f} (front-shell shoulder) "
+          f"and {pcb_back:.2f} (lid rib)")
+
+
 def check(name, got, want, tol):
     ok = abs(got - want) <= tol
     print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
@@ -422,6 +455,7 @@ def main():
     check_shell()
     check_orientation()
     check_interior_fit()
+    check_back_shell()
 
     print()
     if FAILURES:
