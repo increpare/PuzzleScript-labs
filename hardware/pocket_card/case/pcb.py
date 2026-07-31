@@ -130,7 +130,10 @@ def build():
     for ref, x, y in switches:
         place(board, TACT[0], TACT[1], x, y, ref)
 
-    place(board, EXPANDER[0], EXPANDER[1], 30.0, 62.0, "U1", 90)
+    # (45, 72) unrotated: at (30, 62) rot90 the package overlapped the "up"
+    # and "right" direction collars. Components sit at z 3.75-5.5 and collars
+    # end at 3.5, so plan overlap really is a collision.
+    place(board, EXPANDER[0], EXPANDER[1], 45.0, 72.0, "U1")
     place(board, SLIDE[0], SLIDE[1], P.POWER_SW_X, 88.5, "SW_PWR")
     place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, 88.5, "SW_MUTE")
     for ref, ways, x, y, _note in CONNECTORS:
