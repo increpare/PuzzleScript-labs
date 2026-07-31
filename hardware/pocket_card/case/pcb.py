@@ -36,7 +36,26 @@ JST2 = ("Connector_JST", "JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal")
 TP = ("TestPoint", "TestPoint_Pad_D1.5mm")
 MHOLE = ("MountingHole", "MountingHole_2.2mm_M2")
 
-PCB_MOUNTS = ((65.0, 56.0), (72.5, 88.0))
+# Screws can only go where the cell is not behind the board -- the cell fence
+# reaches x = 60.8 -- so both land on the right. The left edge is retained by a
+# moulded lip on the front shell instead, which the board slides under.
+PCB_MOUNTS = ((65.0, 56.0), (80.0, 72.0))
+
+# The module presents five 1.25 mm JST sockets. We need matching ones for:
+#   I2C  4P  3V3 / GND / SCL(IO15) / SDA(IO16)   -- powers the expander and the bus
+#   EXP  4P  IO2 / IO3 / IO14 / IO21             -- IO2 is the expander interrupt
+#   BAT  2P in, 2P out                           -- the power switch sits IN the
+#                                                   cell lead, so it must break
+#                                                   the circuit: cell -> board ->
+#                                                   switch -> module BAT socket
+# The speaker does NOT pass through this board: mute is a logic signal to the
+# module's amp-enable pin, not a break in the speaker wires.
+CONNECTORS = [
+    ("J_I2C", 4, 12.0, 54.5, "3V3/GND/SCL/SDA -- to module I2C"),
+    ("J_EXP", 4, 26.0, 54.5, "IO2 interrupt -- to module expansion"),
+    ("J_BAT_IN", 2, 40.0, 54.5, "from cell"),
+    ("J_BAT_OUT", 2, 50.0, 54.5, "to module BAT"),
+]
 
 
 def mm(v):
@@ -114,9 +133,9 @@ def build():
     place(board, EXPANDER[0], EXPANDER[1], 30.0, 62.0, "U1", 90)
     place(board, SLIDE[0], SLIDE[1], P.POWER_SW_X, 88.5, "SW_PWR")
     place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, 88.5, "SW_MUTE")
-    place(board, JST4[0], JST4[1], 14.0, 54.5, "J_I2C", 180)
-    place(board, JST2[0], JST2[1], 30.0, 54.5, "J_SPK", 180)
-    place(board, JST2[0], JST2[1], 44.0, 54.5, "J_BAT", 180)
+    for ref, ways, x, y, _note in CONNECTORS:
+        lib, name = (JST4 if ways == 4 else JST2)
+        place(board, lib, name, x, y, ref, 180)
 
     for i, (nm, x) in enumerate([("3V3", 0), ("GND", 1), ("SDA", 2),
                                  ("SCL", 3), ("INT", 4)]):
