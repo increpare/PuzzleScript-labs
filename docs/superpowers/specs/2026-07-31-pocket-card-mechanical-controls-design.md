@@ -4,6 +4,11 @@ Date: 2026-07-31
 Status: agreed in design session; supersedes the mechanical, control, storage and
 power sections of `2026-07-12-puzzlescript-pocket-card-design.md`.
 
+**Amendment (same day):** tact part/height, hard-stop/assembly, and controller
+PCB rear keep-out are superseded by
+`2026-07-31-pocket-card-skqg-rear-connectors-design.md`. Where the two
+disagree, the SKQG/rear-connectors document wins.
+
 ## What this replaces
 
 The July 12 specification remains authoritative for product intent, firmware
