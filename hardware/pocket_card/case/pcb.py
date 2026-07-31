@@ -79,27 +79,23 @@ def place(board, lib, name, x, y, ref, rot=0):
 
 
 def outline_points():
-    """Board outline: rectangle with a bite taken out for the driver."""
+    """Board outline: rectangle with a rectangular bite for the driver.
+
+    The speaker is 14 x 20 mm, not the disc previously assumed, so the notch is
+    square-cornered. The driver has to straddle the board plane to reach the
+    grille chamber -- it cannot sit behind a solid board.
+    """
     x0, y0 = P.PCB_X, P.PCB_Y
     x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
-    cx, cy = P.GRILLE_X, P.GRILLE_Y
-    r = P.DRIVER_D / 2 + 0.8
+    nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8
+    ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8
+    ny1 = P.GRILLE_Y + P.DRIVER_H / 2 + 0.8
 
-    dx = x1 - cx
-    if abs(dx) >= r:
+    if nx0 >= x1:
         return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
-    dy = math.sqrt(r * r - dx * dx)
-    ya, yb = cy - dy, cy + dy
-
-    pts = [(x0, y0), (x1, y0), (x1, ya)]
-    a0 = math.atan2(ya - cy, x1 - cx)
-    a1 = math.atan2(yb - cy, x1 - cx)
-    steps = 24
-    for i in range(1, steps):
-        t = a0 + (a1 - a0 - 2 * math.pi) * i / steps    # the short way, inward
-        pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
-    pts += [(x1, yb), (x1, y1), (x0, y1)]
-    return pts
+    ny0, ny1 = max(ny0, y0), min(ny1, y1)
+    return [(x0, y0), (x1, y0), (x1, ny0), (nx0, ny0),
+            (nx0, ny1), (x1, ny1), (x1, y1), (x0, y1)]
 
 
 def build():

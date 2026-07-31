@@ -79,16 +79,19 @@ def driver_housing():
     driver against the chamber, so it does not need to be continuous -- which
     saves moving the grille every time the bottom-right corner gets crowded.
     """
-    r_out = P.DRIVER_D / 2 + 1.6
-    ring = (cq.Workplane("XY")
-            .circle(r_out).circle(P.DRIVER_D / 2 + 0.3)
-            .extrude(FENCE_H)
-            .translate((P.GRILLE_X, P.GRILLE_Y, LID_Z1)))
+    w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
+    outer = (cq.Workplane("XY")
+             .box(w + 2 * FENCE_T, h + 2 * FENCE_T, FENCE_H,
+                  centered=(True, True, False))
+             .translate((P.GRILLE_X, P.GRILLE_Y, LID_Z1)))
+    pocket = (cq.Workplane("XY")
+              .box(w, h, FENCE_H + 1, centered=(True, True, False))
+              .translate((P.GRILLE_X, P.GRILLE_Y, LID_Z1 - 0.5)))
+    ring = outer.cut(pocket)
     for bx, by in P.EXTRA_BOSSES:
-        if (bx - P.GRILLE_X) ** 2 + (by - P.GRILLE_Y) ** 2 < (r_out + 3.0) ** 2:
-            ring = ring.cut(
-                cq.Workplane("XY").circle(3.0).extrude(FENCE_H + 1)
-                .translate((bx, by, LID_Z1 - 0.5)))
+        ring = ring.cut(
+            cq.Workplane("XY").circle(3.0).extrude(FENCE_H + 1)
+            .translate((bx, by, LID_Z1 - 0.5)))
     return ring
 
 
@@ -157,8 +160,7 @@ def pcb_outline_wire():
              .translate((P.PCB_X, P.PCB_Y, 0))
              .edges("|Z").fillet(2.0))
     notch = (cq.Workplane("XY")
-             .circle(P.DRIVER_D / 2 + 0.8)
-             .extrude(4)
+             .box(P.DRIVER_W + 1.6, P.DRIVER_H + 1.6, 4, centered=(True, True, False))
              .translate((P.GRILLE_X, P.GRILLE_Y, -1)))
     return to_model_space(board.cut(notch))
 
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     print(f"shell_back   {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f}")
     print(f"  battery fence  {P.CELL_W} x {P.CELL_H} cell at "
           f"({P.BATT_X}, {P.BATT_Y}), {P.BATT_CLEAR} clearance")
-    print(f"  driver ring    Ø{P.DRIVER_D} at ({P.GRILLE_X}, {P.GRILLE_Y})")
+    print(f"  driver fence   {P.DRIVER_W} x {P.DRIVER_H} at ({P.GRILLE_X}, {P.GRILLE_Y})")
 
     pcb = pcb_outline_wire()
     cq.exporters.export(pcb, os.path.join(OUT, "pcb_outline.stl"))

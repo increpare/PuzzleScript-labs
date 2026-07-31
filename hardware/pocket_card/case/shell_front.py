@@ -164,17 +164,33 @@ def edge_openings():
     return cuts
 
 
-def grille_placeholder():
-    """DMG-style angled slot run. Swap for the real pattern when it exists."""
+def grille_slots():
+    """The PuzzleScript man as horizontal slats.
+
+    Each run of 1s in GRILLE_BITMAP becomes one slot. The bottom row is two
+    separate runs, so the five-row figure is cut as six slots.
+    """
+    cell = P.GRILLE_CELL
+    rows = P.GRILLE_BITMAP
+    n = len(rows)
     cuts = cq.Workplane("XY")
-    a = math.radians(P.GRILLE_ANGLE)
-    for i in range(P.GRILLE_SLOTS):
-        off = (i - (P.GRILLE_SLOTS - 1) / 2) * P.GRILLE_PITCH
-        cuts = cuts.union(
-            cq.Workplane("XY").slot2D(P.GRILLE_SLOT_L, P.GRILLE_SLOT_W, -P.GRILLE_ANGLE)
-            .extrude(-P.FACE_T - 2).translate((0, 0, 1))
-            .translate((P.GRILLE_X - off * math.sin(a),
-                        P.GRILLE_Y + off * math.cos(a), 0)))
+    for r, row in enumerate(rows):
+        c = 0
+        while c < len(row):
+            if row[c] != "1":
+                c += 1
+                continue
+            c0 = c
+            while c < len(row) and row[c] == "1":
+                c += 1
+            c1 = c - 1
+            length = (c1 - c0 + 1) * cell
+            dx = ((c0 + c1) / 2.0 - (len(row) - 1) / 2.0) * cell
+            dy = (r - (n - 1) / 2.0) * cell
+            cuts = cuts.union(
+                cq.Workplane("XY").slot2D(length, P.GRILLE_SLOT_H, 0)
+                .extrude(-P.FACE_T - 2).translate((0, 0, 1))
+                .translate((P.GRILLE_X + dx, P.GRILLE_Y + dy, 0)))
     return cuts
 
 
@@ -215,7 +231,7 @@ def build():
     add, cut = module_posts()
     shell = shell.union(add).cut(cut)
     shell = shell.cut(edge_openings())
-    shell = shell.cut(grille_placeholder())
+    shell = shell.cut(grille_slots())
     return to_model_space(shell)
 
 

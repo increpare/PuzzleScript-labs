@@ -293,8 +293,8 @@ def check_interior_fit():
          P.BATT_X - P.BATT_CLEAR - fence_t, P.BATT_X + P.CELL_W + P.BATT_CLEAR + fence_t,
          P.BATT_Y - P.BATT_CLEAR - fence_t, P.BATT_Y + P.CELL_H + P.BATT_CLEAR + fence_t),
         ("driver ring",
-         P.GRILLE_X - P.DRIVER_D / 2 - 1.6, P.GRILLE_X + P.DRIVER_D / 2 + 1.6,
-         P.GRILLE_Y - P.DRIVER_D / 2 - 1.6, P.GRILLE_Y + P.DRIVER_D / 2 + 1.6),
+         P.GRILLE_X - P.DRIVER_W / 2 - 1.5, P.GRILLE_X + P.DRIVER_W / 2 + 1.5,
+         P.GRILLE_Y - P.DRIVER_H / 2 - 1.5, P.GRILLE_Y + P.DRIVER_H / 2 + 1.5),
         ("controller PCB",
          P.PCB_X, P.PCB_X + P.PCB_W, P.PCB_Y, P.PCB_Y + P.PCB_H),
     ]
@@ -309,7 +309,7 @@ def check_interior_fit():
     # at z -10.8..-12.8 on the lid while the Reset collar is at 0..-3.5 on the
     # front shell, so they never meet. The driver body does span the collar's
     # depth, so that is the pair that matters.
-    gap = (P.GRILLE_X - P.DRIVER_D / 2) - (P.RESET_X + P.RESET_CAP_D / 2 +
+    gap = (P.GRILLE_X - P.DRIVER_W / 2) - (P.RESET_X + P.RESET_CAP_D / 2 +
                                            P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2)
     ok = gap >= 0
     print(f"   {'PASS' if ok else 'FAIL'}  {'driver vs Reset cap':18} clearance {gap:+.2f} mm")
@@ -334,8 +334,8 @@ def check_interior_fit():
         # The driver BODY, not its retaining ring: the ring is relieved around
         # any boss that encroaches (see shell_back.driver_housing), so only the
         # driver itself is a hard obstacle here.
-        ("driver", P.GRILLE_X - P.DRIVER_D / 2, P.GRILLE_X + P.DRIVER_D / 2,
-         P.GRILLE_Y - P.DRIVER_D / 2, P.GRILLE_Y + P.DRIVER_D / 2),
+        ("driver", P.GRILLE_X - P.DRIVER_W / 2, P.GRILLE_X + P.DRIVER_W / 2,
+         P.GRILLE_Y - P.DRIVER_H / 2, P.GRILLE_Y + P.DRIVER_H / 2),
     ]
     for bi, (bx, by) in enumerate(P.EXTRA_BOSSES):
         m = min(bx - boss_r - P.WALL, P.BODY_W - P.WALL - bx - boss_r,

@@ -216,12 +216,24 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 # cost in tactile snap.
 
 # ------------------------------------------------------------- audio ------
-DRIVER_D = 12.0        # DECIDED  Ø18 put the back-shell retaining ring
-                       # 1.1 mm outside the right wall and 1.1 past the
-                       # bottom. Ø14 is what the corner actually allows.
-DRIVER_T = 4.0         # ASSUMED
-GRILLE_X, GRILLE_Y = 77.50, 81.20  # DECIDED  centre, bottom right
-                                   # nudged right/down to clear the Reset cap
+# The actual speaker, measured: rectangular, not the disc previously assumed.
+DRIVER_W, DRIVER_H = 14.0, 20.0    # MEASURED
+DRIVER_T = 3.5                     # MEASURED
+GRILLE_X, GRILLE_Y = 76.0, 80.0    # DECIDED  centre, bottom right. At the old
+                                   # (77.5, 81.2) a 14 x 20 driver overlapped
+                                   # the corner boss; here the tightest
+                                   # neighbour is the Undo collar at +0.6 mm.
+
+# The grille is the PuzzleScript man, drawn as horizontal slats. Runs of 1 are
+# cut; the gaps between rows are the webs that hold the face together. The
+# bottom row is two separate runs, so this is six slots rather than five.
+GRILLE_BITMAP = ("01110",
+                 "01110",
+                 "11111",
+                 "01110",
+                 "01010")
+GRILLE_CELL   = 2.6    # DECIDED  square pixels; 5 cells = 13 mm across
+GRILLE_SLOT_H = 1.6    # DECIDED  leaves a 1.0 mm web between rows
 
 # Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.
 # Sized so the run stays clear of the bottom and right walls: at (78, 83) with
