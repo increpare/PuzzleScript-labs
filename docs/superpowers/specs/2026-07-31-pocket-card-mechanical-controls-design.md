@@ -47,13 +47,13 @@ and must be replaced with measurements before CAD is frozen.
 
 ## Envelope
 
-- Body: **90 × 93 mm**, thickness **14.30 mm**.
+- Body: **90 × 93 mm**, thickness **14.70 mm**.
 - The touch surface sits **flush in the front shell's window**, not behind a
   wall, so the front shell contributes no depth over the screen. This is the
   same arrangement the July 12 spec assumed ("flush or slightly recessed").
 - Thickness is set by the **control/battery zone**, not the display. The module
-  zone is 12.40 mm; the lower zone is 14.30 mm.
-- The 12 mm ceiling in the July 12 spec is missed by 2.30 mm and should be
+  zone is 12.40 mm; the lower zone is 14.70 mm.
+- The 12 mm ceiling in the July 12 spec is missed by 2.70 mm and should be
   treated as withdrawn, not aspirational.
 - Growing the body in X or Y to gain internal volume was considered and
   rejected by the owner. 90 × 93 is fixed.
@@ -79,12 +79,12 @@ button field occupies the whole lower band and no column is 50 mm wide.
 | — | — | cap flange | 1.00 *assumed* |
 | — | — | boss gap | 0.50 *assumed* |
 | module front stack | 5.85 | tact body | 2.50 *decided* |
-| module rear components | 4.75 | controller PCB | 1.60 *assumed* |
+| module rear components | 4.75 | controller PCB | 2.00 *decided* |
 | clearance | 0.30 *assumed* | PET insulator | 0.20 *assumed* |
 | — | — | 503450 cell | 5.00 |
 | — | — | swell allowance | 0.50 *assumed* |
 | back shell | 1.50 *assumed* | back shell | 1.50 *assumed* |
-| **total** | **12.40** | **total** | **14.30** |
+| **total** | **12.40** | **total** | **14.70** |
 
 **There is no usable space behind the display.** The module zone is the
 shallower of the two, and its 1.9 mm of slack is far short of the cell (5 mm)

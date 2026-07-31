@@ -192,6 +192,17 @@ PCB_W, PCB_H   = 75.0, 37.0
 PCB_MOUNTS = ((65.0, 56.0), (66.0, 81.0))
 PCB_MOUNT_D = 2.2      # M2 clearance
 
+# Both screws sit at x ~= 65, which supports Undo, Action and Reset well but
+# leaves the direction cluster 54 mm from the nearest fixing. The cell is
+# directly behind it, so neither a screw nor a boss can go there. This rib on
+# the back shell bears on the board's rear instead, above the cell.
+PCB_RIB_X0, PCB_RIB_X1 = 9.0, 62.0
+PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
+# The rib and the cell fence wanted the same 1.5 mm strip, and the band is only
+# 39 mm for a 34 mm cell plus fence -- there is no room for both. The fence is
+# only a locating rib, so it is left open at the top and this rib retains the
+# cell as well as supporting the board. One feature, two jobs.
+
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
 MUTE_SW_X  = 66.0                  # DECIDED  bottom edge, left of the driver notch
                                    # NB: no longer directly under the grille --
@@ -208,7 +219,10 @@ MUTE_SW_X  = 66.0                  # DECIDED  bottom edge, left of the driver no
 EXTRA_BOSSES = ((4.5, 88.0), (86.0, 89.0))    # DECIDED  layout coords
 
 # ---------------------------------------------------- lower zone stack ----
-PCB_T          = 1.6     # ASSUMED  controller PCB
+PCB_T          = 2.0     # DECIDED  not 1.6: stiffness goes as thickness cubed,
+                         # and at 1.6 the direction cluster deflected 0.338 mm
+                         # per press against 0.25 mm of switch travel -- the
+                         # board moved further than the switch did.
 PET_T          = 0.2     # ASSUMED  battery insulator
 CELL_T         = 5.0     # DECIDED  503450
 CELL_W, CELL_H = 50.0, 34.0        # DECIDED

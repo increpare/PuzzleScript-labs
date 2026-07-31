@@ -65,6 +65,14 @@ def battery_fence():
               .box(w, h, FENCE_H + 1, centered=(False, False, False))
               .translate((x, y, LID_Z1 - 0.5)))
     fence = outer.cut(pocket)
+    # open at the top: the PCB support rib sits in that strip and retains the
+    # cell from above, so a fence rib there would be a second feature competing
+    # for space that does not exist
+    fence = fence.cut(
+        cq.Workplane("XY")
+        .box(w + 2 * FENCE_T + 2, FENCE_T + 1, FENCE_H + 1,
+             centered=(False, False, False))
+        .translate((x - FENCE_T - 1, y - FENCE_T - 0.5, LID_Z1 - 0.5)))
     # gap on the left wall for the battery lead to exit upward
     gap = (cq.Workplane("XY")
            .box(FENCE_T + 1, 10.0, FENCE_H + 1, centered=(False, True, False))
@@ -121,6 +129,22 @@ def module_support():
     return ribs
 
 
+def pcb_support_rib():
+    """Bears on the controller PCB's rear, above the cell.
+
+    The direction cluster is 54 mm from the nearest mounting screw and the cell
+    sits directly behind it, so nothing can support it there. This rib runs
+    along the strip between the board's top edge and the cell, putting support
+    within 6 mm of the up button and 24 mm of the rest.
+    """
+    pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    h = SHELL_DEPTH - pcb_back
+    return (cq.Workplane("XY")
+            .box(P.PCB_RIB_X1 - P.PCB_RIB_X0, P.PCB_RIB_Y1 - P.PCB_RIB_Y0, h,
+                 centered=(False, False, False))
+            .translate((P.PCB_RIB_X0, P.PCB_RIB_Y0, LID_Z1)))
+
+
 def screw_holes():
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
@@ -149,6 +173,7 @@ def build_back():
     s = s.union(battery_fence())
     s = s.union(driver_housing())
     s = s.union(module_support())
+    s = s.union(pcb_support_rib())
     s = s.cut(screw_holes())
     return to_model_space(s)
 

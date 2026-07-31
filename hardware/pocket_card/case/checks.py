@@ -277,6 +277,38 @@ def check_orientation():
             FAILURES.append("d-pad not lower-left")
 
 
+def check_pcb_support():
+    """Deflection at each button, and that the support rib clears the cell."""
+    print("\nPCB stiffness")
+    E, t, w = 20000.0, P.PCB_T, P.PCB_H
+    I = w * t ** 3 / 12.0
+    supports = [m[0] for m in P.PCB_MOUNTS]
+    rib_y = (P.PCB_RIB_Y0 + P.PCB_RIB_Y1) / 2
+    worst = 0.0
+    for nm, bx, by in (("directions", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
+                       ("Undo", P.UNDO_X, P.UNDO_Y), ("Action", P.ACT_X, P.ACT_Y),
+                       ("Reset", P.RESET_X, P.RESET_Y), ("Menu", P.MENU_X, P.MENU_Y)):
+        span = min([abs(bx - s) for s in supports] +
+                   ([abs(by - rib_y)] if P.PCB_RIB_X0 <= bx <= P.PCB_RIB_X1 else []))
+        d = P.TACT_FORCE_N * span ** 3 / (3 * E * I)
+        worst = max(worst, d)
+        print(f"      {nm:11} span {span:5.1f} mm   deflection {d:.3f} mm")
+    ok = worst < P.TACT_TRAVEL * 0.6
+    print(f"   {'PASS' if ok else 'FAIL'}  worst deflection {worst:.3f} mm "
+          f"(want < {P.TACT_TRAVEL * 0.6:.3f}, i.e. 60% of switch travel)")
+    if not ok:
+        FAILURES.append("board too flexible")
+
+    # The fence is open at the top, so the rib is checked against the CELL
+    # itself -- it doubles as the cell's top retainer.
+    gap = P.BATT_Y - P.PCB_RIB_Y1
+    ok = gap >= 0.3
+    print(f"   {'PASS' if ok else 'FAIL'}  rib to cell {gap:+.2f} mm "
+          f"(rib also retains the cell from above)")
+    if not ok:
+        FAILURES.append("rib fouls cell")
+
+
 def check_pcb_mounts():
     """Mounting holes must sit on board material and clear of the cell.
 
@@ -482,6 +514,7 @@ def main():
     check_orientation()
     check_interior_fit()
     check_pcb_mounts()
+    check_pcb_support()
     check_back_shell()
 
     print()
