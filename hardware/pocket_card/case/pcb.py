@@ -28,7 +28,13 @@ os.makedirs(OUT, exist_ok=True)
 FP = ("/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/"
       "SharedSupport/footprints")
 
-TACT = ("Button_Switch_SMD", "Panasonic_EVQPUJ_EVQPUA")     # 6 x 6 mm SMD tact
+# Top-actuated, H2.5 to match TACT_H, with a centred 1.8 x 1.8 plunger for the
+# cap boss to press. Was Panasonic_EVQPUJ_EVQPUA, which is a SIDE-push part:
+# 6.40 x 4.50 x 1.65, no plunger on its top face at all, and its body offset in
+# y where the side actuator protrudes. Caught in KiCad's 3D view -- the pad
+# layouts are nearly identical (+/-2.62 vs +/-2.58), so nothing electrical
+# flagged it.
+TACT = ("Button_Switch_SMD", "SW_SPST_EVQP2_MiddlePushTravel_H2.5mm")
 SLIDE = ("Button_Switch_SMD", "SW_SPDT_PCM12")
 EXPANDER = ("Package_SO", "SOIC-28W_7.5x17.9mm_P1.27mm")    # MCP23017
 JST4 = ("Connector_JST", "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal")

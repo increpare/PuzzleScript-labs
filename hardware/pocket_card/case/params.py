@@ -86,9 +86,9 @@ MODULE_Z         = FACE_T + MODULE_FRONT_GAP         # 1.65 touch surface depth
 # Consequence: we own the whole load path again -- return, guide, hard stop and
 # retention -- which the membrane had been providing for free.
 
-TACT_H       = 2.5     # DECIDED   SMD tact body height above the PCB
-TACT_TRAVEL  = 0.25    # ASSUMED   actuation travel; confirm against the chosen part
-TACT_FORCE_N = 1.6     # ASSUMED   target actuation force
+TACT_H       = 2.5     # DATASHEET Panasonic EVQ-P2, H2.5 variant, top-actuated
+TACT_TRAVEL  = 0.25    # ASSUMED   EVQ-P2 "middle push travel"; confirm on datasheet
+TACT_FORCE_N = 1.6     # ASSUMED   EVQ-P2 is offered in several forces; confirm
 
 # --- fit clearances, by manufacturing process -------------------------------
 # Radial clearance for a free-sliding fit. These are genuinely different numbers
