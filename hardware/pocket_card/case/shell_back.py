@@ -27,8 +27,13 @@ RIM_H = 1.2                            # alignment lip into the front cavity
 RIM_CLEAR = 0.25
 SCREW_CLEAR_D = 2.6
 SCREW_HEAD_D = 5.0
-FENCE_H = 2.0
 FENCE_T = 1.2
+FENCE_H = 2.0                          # driver fence: the driver is only 3.5 thick
+# The cell fence is taken all the way up to the board's rear so it doubles as a
+# ledge the board rests on. It was already a border round the cell; it just was
+# not tall enough to touch anything. This supports the whole left half, which no
+# pillar can reach because the cell is behind it.
+CELL_FENCE_H = (P.BODY_T - P.WALL) - (P.PCB_FRONT_Z + P.PCB_T)   # 5.70
 
 
 def lid():
@@ -59,10 +64,11 @@ def battery_fence():
     w = P.CELL_W + 2 * P.BATT_CLEAR
     h = P.CELL_H + 2 * P.BATT_CLEAR
     outer = (cq.Workplane("XY")
-             .box(w + 2 * FENCE_T, h + 2 * FENCE_T, FENCE_H, centered=(False, False, False))
+             .box(w + 2 * FENCE_T, h + 2 * FENCE_T, CELL_FENCE_H,
+                  centered=(False, False, False))
              .translate((x - FENCE_T, y - FENCE_T, LID_Z1)))   # inward, not out the back
     pocket = (cq.Workplane("XY")
-              .box(w, h, FENCE_H + 1, centered=(False, False, False))
+              .box(w, h, CELL_FENCE_H + 1, centered=(False, False, False))
               .translate((x, y, LID_Z1 - 0.5)))
     fence = outer.cut(pocket)
     # open at the top: the PCB support rib sits in that strip and retains the
@@ -70,12 +76,12 @@ def battery_fence():
     # for space that does not exist
     fence = fence.cut(
         cq.Workplane("XY")
-        .box(w + 2 * FENCE_T + 2, FENCE_T + 1, FENCE_H + 1,
+        .box(w + 2 * FENCE_T + 2, FENCE_T + 1, CELL_FENCE_H + 1,
              centered=(False, False, False))
         .translate((x - FENCE_T - 1, y - FENCE_T - 0.5, LID_Z1 - 0.5)))
     # gap on the left wall for the battery lead to exit upward
     gap = (cq.Workplane("XY")
-           .box(FENCE_T + 1, 10.0, FENCE_H + 1, centered=(False, True, False))
+           .box(FENCE_T + 1, 10.0, CELL_FENCE_H + 1, centered=(False, True, False))
            .translate((x - FENCE_T - 0.5, y + h / 2, LID_Z1 - 0.5)))
     return fence.cut(gap)
 

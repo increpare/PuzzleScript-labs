@@ -307,6 +307,16 @@ def check_pcb_support():
     I = w * t ** 3 / 12.0
     supports = [m[0] for m in P.PCB_MOUNTS]
     pads = list(P.PCB_SUPPORT_PADS)
+    # the cell fence is now a ledge the board rests on, so its rails count
+    fx0, fx1 = P.BATT_X - P.BATT_CLEAR, P.BATT_X + P.CELL_W + P.BATT_CLEAR
+    fy0, fy1 = P.BATT_Y - P.BATT_CLEAR, P.BATT_Y + P.CELL_H + P.BATT_CLEAR
+
+    def to_fence(bx, by):
+        """Distance to the nearest fence rail (the border, not the interior)."""
+        if fx0 <= bx <= fx1 and fy0 <= by <= fy1:
+            return min(bx - fx0, fx1 - bx, by - fy0, fy1 - by)
+        return max(abs(bx - (fx0 + fx1) / 2) - (fx1 - fx0) / 2,
+                   abs(by - (fy0 + fy1) / 2) - (fy1 - fy0) / 2)
     rib_y = (P.PCB_RIB_Y0 + P.PCB_RIB_Y1) / 2
     worst = 0.0
     for nm, bx, by in (("directions", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
@@ -314,6 +324,7 @@ def check_pcb_support():
                        ("Reset", P.RESET_X, P.RESET_Y), ("Menu", P.MENU_X, P.MENU_Y)):
         span = min([abs(bx - s) for s in supports] +
                    [((bx - px) ** 2 + (by - py) ** 2) ** 0.5 for px, py in pads] +
+                   [to_fence(bx, by)] +
                    ([abs(by - rib_y)] if P.PCB_RIB_X0 <= bx <= P.PCB_RIB_X1 else []))
         d = P.TACT_FORCE_N * span ** 3 / (3 * E * I)
         worst = max(worst, d)
