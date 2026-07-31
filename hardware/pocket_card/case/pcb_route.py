@@ -67,6 +67,54 @@ def net(board, name):
     return n
 
 
+ZONE_TEMPLATE = """	(zone
+		(net "GND")
+		(layer "%s")
+		(uuid "%s")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0.5)
+		)
+		(min_thickness 0.25)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+			(island_removal_mode 0)
+		)
+		(polygon
+			(pts
+				%s
+			)
+		)
+	)
+"""
+
+
+def inject_zones(path):
+    """Write the ground pour straight into the .kicad_pcb as text.
+
+    pcbnew segfaults on Save() whenever a zone is present -- not because of the
+    zone settings (an identical one saves fine from a minimal script) and not
+    because of the destination path. Rather than keep chasing it, the file is
+    s-expression text and the exact syntax came from KiCad's own writer, so the
+    zones go in directly. KiCad fills them on open; kicad-cli fills when
+    plotting.
+    """
+    import uuid as _uuid
+    if "(zone" in open(path).read():
+        return 0          # already present; never duplicate or clobber a fill
+    x0, y0 = P.PCB_X - 1.0, P.PCB_Y - 1.0
+    x1, y1 = P.PCB_X + P.PCB_W + 1.0, P.PCB_Y + P.PCB_H + 1.0
+    pts = " ".join("(xy %g %g)" % pt for pt in
+                   ((x0, y0), (x1, y0), (x1, y1), (x0, y1)))
+    blocks = "".join(ZONE_TEMPLATE % (layer, _uuid.uuid4(), pts)
+                     for layer in ("F.Cu", "B.Cu"))
+    txt = open(path).read()
+    cut = txt.rstrip().rfind("\n)")          # before the file's final paren
+    open(path, "w").write(txt[:cut] + "\n" + blocks + ")\n")
+    return 2
+
+
 def pour(board, gnd):
     """Ground on both layers, filled. Must happen before the DSN export."""
     # F.Cu only. Every GND pad on this board is a front-side SMD pad, so one
@@ -154,7 +202,7 @@ def main():
     # ZONE_FILLER segfaults in this headless build even with a wx context, and
     # takes the process with it -- no traceback. Guarded so the rest completes;
     # the pour is added unfilled and KiCad fills it when the board is opened.
-    # NOT CALLED: pour(board, gnd)
+    # pour() is NOT called; see inject_zones below.
     #
     # board.Save() segfaults whenever a zone is present -- reproducibly, with no
     # traceback, and uncatchable since a segfault takes the interpreter with it.
@@ -179,13 +227,16 @@ def main():
     subprocess.run(["java", "-jar", jar,
                     "--gui.enabled=false", "-dct", "1",
                     "-de", dsn, "-do", ses,
-                    "-mp", "100", "-mt", "1"], check=False)
+                    "-mp", "12", "-mt", "1"], check=False)
     if not os.path.exists(ses):
         sys.exit("freerouting produced no session file")
 
     board = pcbnew.LoadBoard(BRD)
     pcbnew.ImportSpecctraSES(board, ses)
     board.Save(BRD)
+    n = inject_zones(BRD)
+    print("injected %d ground zones as text" % n if n
+          else "zones already present, left alone")
 
     tr = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T]
     vi = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
