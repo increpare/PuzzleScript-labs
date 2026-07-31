@@ -222,6 +222,50 @@ def check_shell():
         check(f"face present at ({pxm:.0f},{pym:.0f})", float(buf[r, c]), 0.0, 0.02)
 
 
+def check_interior_fit():
+    """Lower-zone features must fit inside the walls.
+
+    Analytic rather than measured, because these are back-shell features whose
+    clash is with the *other* half of the case -- nothing in either STL alone
+    would show it. Both of the numbers guarded here started out wrong.
+    """
+    print("\ninterior fit (lower zone)")
+    lo, hi_x, hi_y = P.WALL, P.BODY_W - P.WALL, P.BODY_H - P.WALL
+    fence_t, rim = 1.2, P.WALL + 0.25
+
+    items = [
+        ("battery fence",
+         P.BATT_X - P.BATT_CLEAR - fence_t, P.BATT_X + P.CELL_W + P.BATT_CLEAR + fence_t,
+         P.BATT_Y - P.BATT_CLEAR - fence_t, P.BATT_Y + P.CELL_H + P.BATT_CLEAR + fence_t),
+        ("driver ring",
+         P.GRILLE_X - P.DRIVER_D / 2 - 1.6, P.GRILLE_X + P.DRIVER_D / 2 + 1.6,
+         P.GRILLE_Y - P.DRIVER_D / 2 - 1.6, P.GRILLE_Y + P.DRIVER_D / 2 + 1.6),
+        ("controller PCB",
+         P.PCB_X, P.PCB_X + P.PCB_W, P.PCB_Y, P.PCB_Y + P.PCB_H),
+    ]
+    for name, x0, x1, y0, y1 in items:
+        m = min(x0 - rim, hi_x - x1, y0 - rim, hi_y - y1)
+        ok = m >= 0
+        print(f"   {'PASS' if ok else 'FAIL'}  {name:18} clearance {m:+.2f} mm")
+        if not ok:
+            FAILURES.append(name)
+
+    gap = (P.GRILLE_X - P.DRIVER_D / 2 - 1.6) - (P.RESET_X + P.RESET_CAP_D / 2 +
+                                                 P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2)
+    ok = gap >= 0
+    print(f"   {'PASS' if ok else 'FAIL'}  {'driver vs Reset cap':18} clearance {gap:+.2f} mm")
+    if not ok:
+        FAILURES.append("driver vs Reset")
+
+    menu_half = (P.PILL_L + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR) / 2 + 1.2
+    reset_half = P.RESET_CAP_D / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2
+    gap = (P.RESET_X - reset_half) - (P.MENU_X + menu_half)
+    ok = gap >= 0
+    print(f"   {'PASS' if ok else 'FAIL'}  {'Reset vs Menu':18} clearance {gap:+.2f} mm")
+    if not ok:
+        FAILURES.append("Reset vs Menu")
+
+
 def check(name, got, want, tol):
     ok = abs(got - want) <= tol
     print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
@@ -278,6 +322,7 @@ def main():
         print(f"   pill opening bbox: {w:.3f} x {h:.3f}")
 
     check_shell()
+    check_interior_fit()
 
     print()
     if FAILURES:

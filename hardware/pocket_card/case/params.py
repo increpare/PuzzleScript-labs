@@ -157,14 +157,33 @@ ACT_X,   ACT_Y   = 77.98, 63.99    # was DMG "A", holds true 25.4 deg to Undo
 # Reset joins the right-hand cluster as a small round cap -- subordinate to
 # Undo/Action by size, which is the hierarchy the July 12 spec asked for.
 # Menu stays a slit: it is the most recessive control on the device.
-RESET_X, RESET_Y = 64.0, 84.0
+RESET_X, RESET_Y = 63.5, 84.0      # 63.5 not 64.0: its collar overlapped
+                                   # the driver retaining ring by 0.10 mm
 RESET_CAP_D      = DIR_CAP_D       # 8.0, same as a direction button
 MENU_X,  MENU_Y  = 48.23, 86.0     # was DMG "Start", still a pill
+MENU_ANGLE       = 0.0             # DECIDED  straight, not slanted like the DMG
 
 # Cap legends are not modelled yet: arrows on the four directions, and text or
 # glyphs for Undo / Action / Reset / Menu. Recessed engraving on the crown, or
 # pad print. Note the direction caps are already keyed with anti-rotation flats
 # so an arrow stays upright.
+
+# ------------------------------------------------- lower zone layout ------
+# Battery pushed hard left so the bottom-right corner is free for the driver.
+BATT_X, BATT_Y = 4.0, 55.0         # DECIDED  cell origin
+                                   # 4.0 not 3.0: at 3.0 the retaining
+                                   # fence fouled the front shell wall
+BATT_CLEAR     = 0.6               # ASSUMED  fence clearance around the cell
+
+# Controller PCB. Outline derived from the enclosure, not the other way round.
+PCB_X, PCB_Y   = 5.0, 53.0
+PCB_W, PCB_H   = 80.0, 37.0
+
+# Edge switches, on the bottom rail of the controller PCB
+POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
+MUTE_SW_X  = 66.0                  # DECIDED  bottom edge, left of the driver notch
+                                   # NB: no longer directly under the grille --
+                                   # the driver notch takes that board area.
 
 # ---------------------------------------------------- lower zone stack ----
 PCB_T          = 1.6     # ASSUMED  controller PCB
@@ -182,7 +201,9 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 # cost in tactile snap.
 
 # ------------------------------------------------------------- audio ------
-DRIVER_D = 18.0        # ASSUMED  final size set by the bottom-right corner
+DRIVER_D = 14.0        # DECIDED  Ø18 put the back-shell retaining ring
+                       # 1.1 mm outside the right wall and 1.1 past the
+                       # bottom. Ø14 is what the corner actually allows.
 DRIVER_T = 4.0         # ASSUMED
 GRILLE_X, GRILLE_Y = 79.0, 82.0    # DECIDED  centre, bottom right
                                    # nudged right/down to clear the Reset cap

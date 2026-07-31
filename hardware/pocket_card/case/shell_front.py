@@ -129,11 +129,11 @@ def edge_openings():
     # power switch, bottom edge left of the grille
     cuts = cuts.union(
         cq.Workplane("XY").box(12.0, P.WALL + 3, 5.0, centered=(True, False, True))
-        .translate((20.0, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
+        .translate((P.POWER_SW_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
     # mute switch, bottom edge beneath the grille
     cuts = cuts.union(
         cq.Workplane("XY").box(10.0, P.WALL + 3, 5.0, centered=(True, False, True))
-        .translate((P.GRILLE_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
+        .translate((P.MUTE_SW_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
     return cuts
 
 
@@ -168,8 +168,8 @@ def build():
     for x, y, d, pill in stations:
         boss, hole = button_station(hole_d=d, pill=pill)
         if pill:
-            boss = boss.rotate((0, 0, 0), (0, 0, 1), -P.PILL_ANGLE)
-            hole = hole.rotate((0, 0, 0), (0, 0, 1), -P.PILL_ANGLE)
+            boss = boss.rotate((0, 0, 0), (0, 0, 1), -P.MENU_ANGLE)
+            hole = hole.rotate((0, 0, 0), (0, 0, 1), -P.MENU_ANGLE)
         shell = shell.union(_dev(boss, x, y)).cut(_dev(hole, x, y))
 
     add, cut = module_posts()
