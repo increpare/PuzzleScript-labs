@@ -143,6 +143,38 @@ def module_posts():
     return add, cut
 
 
+def driver_pocket():
+    """Walls locating the driver against the grille, flush behind the face.
+
+    The driver is 3.5 mm thick and its front must seal against the grille
+    chamber, so it occupies z 1.5-5.0 -- entirely in front of the board, which
+    starts at 5.5. It therefore does not straddle the board plane at all, and
+    the board behind it is what holds it forward.
+    """
+    wall = 1.2
+    w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
+    outer = (cq.Workplane("XY")
+             .box(w + 2 * wall, h + 2 * wall, P.DRIVER_T,
+                  centered=(True, True, False))
+             .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T - P.DRIVER_T)))
+    pocket = (cq.Workplane("XY")
+              .box(w, h, P.DRIVER_T + 1, centered=(True, True, False))
+              .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T - P.DRIVER_T - 0.5)))
+    walls = outer.cut(pocket)
+    # Relieve the wall wherever a button collar encroaches. Action's collar
+    # reaches y=69.1 and the pocket wall starts at 68.5, so a full box would
+    # foul it. The wall only has to locate the driver, so it need not be
+    # continuous -- the same trick the back-shell ring used for the bosses.
+    for cx, cy, d in ((P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+                      (P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+                      (P.RESET_X, P.RESET_Y, P.RESET_CAP_D)):
+        r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + COLLAR_WALL
+        walls = walls.cut(
+            cq.Workplane("XY").circle(r).extrude(-(P.FACE_T + P.DRIVER_T + 1))
+            .translate((cx, cy, 0)))
+    return walls
+
+
 def pcb_posts():
     """Stepped pillars the controller PCB drops onto.
 
@@ -251,6 +283,7 @@ def build():
     add, cut = module_posts()
     shell = shell.union(add).cut(cut)
     shell = shell.union(pcb_posts())
+    shell = shell.union(driver_pocket())
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
     return to_model_space(shell)

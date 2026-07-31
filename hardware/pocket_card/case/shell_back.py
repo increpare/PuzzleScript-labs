@@ -86,7 +86,7 @@ def battery_fence():
     return fence.cut(gap)
 
 
-def driver_housing():
+def driver_housing():   # NO LONGER USED -- the driver lives in the front shell
     """Ring behind the driver, pressing it forward against the grille chamber.
 
     Relieved wherever a screw boss encroaches. The ring only has to hold the
@@ -194,7 +194,6 @@ def to_model_space(shape):
 def build_back():
     s = lid()
     s = s.union(battery_fence())
-    s = s.union(driver_housing())
     s = s.union(module_support())
     s = s.union(pcb_support_rib())
     s = s.union(pcb_support_pads())
@@ -208,10 +207,8 @@ def pcb_outline_wire():
              .box(P.PCB_W, P.PCB_H, 1.6, centered=(False, False, False))
              .translate((P.PCB_X, P.PCB_Y, 0))
              .edges("|Z").fillet(2.0))
-    notch = (cq.Workplane("XY")
-             .box(P.DRIVER_W + 1.6, P.DRIVER_H + 1.6, 4, centered=(True, True, False))
-             .translate((P.GRILLE_X, P.GRILLE_Y, -1)))
-    return to_model_space(board.cut(notch))
+    # No notch: the driver sits in front of the board, not through it.
+    return to_model_space(board)
 
 
 if __name__ == "__main__":

@@ -277,6 +277,26 @@ def check_orientation():
             FAILURES.append("d-pad not lower-left")
 
 
+def check_driver_vs_collars():
+    """The driver body must miss every collar; only its wall may be relieved."""
+    print("\ndriver vs button collars")
+    dx0, dx1 = P.GRILLE_X - P.DRIVER_W / 2, P.GRILLE_X + P.DRIVER_W / 2
+    dy0, dy1 = P.GRILLE_Y - P.DRIVER_H / 2, P.GRILLE_Y + P.DRIVER_H / 2
+    worst, which = 99.0, ""
+    for nm, cx, cy, d in (("Action", P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+                          ("Undo", P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+                          ("Reset", P.RESET_X, P.RESET_Y, P.RESET_CAP_D)):
+        r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2
+        nx, ny = max(dx0, min(cx, dx1)), max(dy0, min(cy, dy1))
+        gap = ((cx - nx) ** 2 + (cy - ny) ** 2) ** 0.5 - r
+        if gap < worst:
+            worst, which = gap, nm
+    ok = worst >= 0
+    print(f"   {'PASS' if ok else 'FAIL'}  tightest is {which} at {worst:+.2f} mm")
+    if not ok:
+        FAILURES.append("driver fouls a collar")
+
+
 def check_pcb_posts_vs_collars():
     """The pillars rise through the button cavity, so they must miss the collars."""
     print("\nPCB pillars vs button collars")
@@ -578,6 +598,7 @@ def main():
     check_pcb_mounts()
     check_pcb_support()
     check_pcb_posts_vs_collars()
+    check_driver_vs_collars()
     check_back_shell()
 
     print()

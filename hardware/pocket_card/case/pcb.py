@@ -79,28 +79,11 @@ def place(board, lib, name, x, y, ref, rot=0):
 
 
 def outline_points():
-    """Board outline: rectangle with a rectangular bite for the driver.
-
-    The speaker is 14 x 20 mm, not the disc previously assumed, so the notch is
-    square-cornered. The driver has to straddle the board plane to reach the
-    grille chamber -- it cannot sit behind a solid board.
-    """
+    """Plain rectangle. The driver sits in front of the board at z 1.5-5.0 and
+    never reaches the board plane at 5.5, so the notch it used to need is gone."""
     x0, y0 = P.PCB_X, P.PCB_Y
     x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
-    nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8
-    ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8
-    ny1 = P.GRILLE_Y + P.DRIVER_H / 2 + 0.8
-
-    if nx0 >= x1:
-        return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
-    ny0 = max(ny0, y0)
-    if ny1 >= y1 - 0.1:
-        # The notch reaches the bottom edge, so it is a corner bite, not a
-        # pocket. Emitting the pocket form here produced a zero-length segment
-        # and KiCad rejected the outline as invalid.
-        return [(x0, y0), (x1, y0), (x1, ny0), (nx0, ny0), (nx0, y1), (x0, y1)]
-    return [(x0, y0), (x1, y0), (x1, ny0), (nx0, ny0),
-            (nx0, ny1), (x1, ny1), (x1, y1), (x0, y1)]
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
 
 def build():
