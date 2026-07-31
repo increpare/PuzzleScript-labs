@@ -93,7 +93,12 @@ def outline_points():
 
     if nx0 >= x1:
         return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
-    ny0, ny1 = max(ny0, y0), min(ny1, y1)
+    ny0 = max(ny0, y0)
+    if ny1 >= y1 - 0.1:
+        # The notch reaches the bottom edge, so it is a corner bite, not a
+        # pocket. Emitting the pocket form here produced a zero-length segment
+        # and KiCad rejected the outline as invalid.
+        return [(x0, y0), (x1, y0), (x1, ny0), (nx0, ny0), (nx0, y1), (x0, y1)]
     return [(x0, y0), (x1, y0), (x1, ny0), (nx0, ny0),
             (nx0, ny1), (x1, ny1), (x1, y1), (x0, y1)]
 

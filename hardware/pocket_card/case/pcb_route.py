@@ -172,8 +172,14 @@ def main():
     jar = os.environ.get("FREEROUTING_JAR", "")
     if not os.path.exists(jar):
         sys.exit("set FREEROUTING_JAR to the freerouting 2.1.0 jar")
-    subprocess.run(["java", "-jar", jar, "-de", dsn, "-do", ses,
-                    "-mp", "50", "-mt", "1"], check=False)
+    # --gui.enabled=false is essential. Without it freerouting opens a window
+    # and waits for a human to save, so every run routed for a different length
+    # of time and the results looked like router variance when they were not.
+    # -dct 1 stops dialogs blocking on the default action.
+    subprocess.run(["java", "-jar", jar,
+                    "--gui.enabled=false", "-dct", "1",
+                    "-de", dsn, "-do", ses,
+                    "-mp", "100", "-mt", "1"], check=False)
     if not os.path.exists(ses):
         sys.exit("freerouting produced no session file")
 

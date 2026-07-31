@@ -1,7 +1,7 @@
 {
     "$schema": "https://schemas.kicad.org/drc.v1.json",
     "coordinate_units": "mm",
-    "date": "2026-07-31T16:53:47",
+    "date": "2026-07-31T18:30:58",
     "ignored_checks": [
         {
             "description": "Footprint has no courtyard defined",
@@ -31,7 +31,928 @@
     "kicad_version": "10.0.4",
     "schematic_parity": [],
     "source": "pocket_card_controller.kicad_pcb",
-    "unconnected_items": [],
+    "unconnected_items": [
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_ACTION] von SW_ACTION auf F.Cu",
+                    "pos": {
+                        "x": 74.475,
+                        "y": 60.25
+                    },
+                    "uuid": "32d79e9a-4f4b-4ccc-8f48-b8b678f3ed25"
+                },
+                {
+                    "description": "Pad 28 [SIG_ACTION] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 63.745
+                    },
+                    "uuid": "6c12bd78-9863-4d4e-8962-3498997924a7"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_ACTION] von SW_ACTION auf F.Cu",
+                    "pos": {
+                        "x": 79.725,
+                        "y": 60.25
+                    },
+                    "uuid": "195c9a0a-7b3f-451f-8c49-4cca55f54e49"
+                },
+                {
+                    "description": "Pad 1 [SIG_ACTION] von SW_ACTION auf F.Cu",
+                    "pos": {
+                        "x": 74.475,
+                        "y": 60.25
+                    },
+                    "uuid": "32d79e9a-4f4b-4ccc-8f48-b8b678f3ed25"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 8.075,
+                        "y": 69.65
+                    },
+                    "uuid": "ae967491-39b5-4b83-889f-c31c89595707"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 13.325,
+                        "y": 69.65
+                    },
+                    "uuid": "95a6852a-3a3f-49c4-9db0-728bb4d0dc28"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von J_I2C auf F.Cu",
+                    "pos": {
+                        "x": 12.625,
+                        "y": 56.35
+                    },
+                    "uuid": "a835f764-07fe-47b1-9857-fca8cb5dce5c"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 17.075,
+                        "y": 60.65
+                    },
+                    "uuid": "0466677c-79e0-4a04-a56a-f8220495c1e1"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 17.075,
+                        "y": 60.65
+                    },
+                    "uuid": "0466677c-79e0-4a04-a56a-f8220495c1e1"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 13.325,
+                        "y": 69.65
+                    },
+                    "uuid": "95a6852a-3a3f-49c4-9db0-728bb4d0dc28"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_DOWN auf F.Cu",
+                    "pos": {
+                        "x": 17.075,
+                        "y": 78.65
+                    },
+                    "uuid": "4b59067a-b418-45fd-8372-86c64c0dc1c6"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_DOWN auf F.Cu",
+                    "pos": {
+                        "x": 22.325,
+                        "y": 78.65
+                    },
+                    "uuid": "02ee2362-d490-41b5-8522-a9deab1c74a6"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_DOWN auf F.Cu",
+                    "pos": {
+                        "x": 17.075,
+                        "y": 78.65
+                    },
+                    "uuid": "4b59067a-b418-45fd-8372-86c64c0dc1c6"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 13.325,
+                        "y": 69.65
+                    },
+                    "uuid": "95a6852a-3a3f-49c4-9db0-728bb4d0dc28"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 22.325,
+                        "y": 60.65
+                    },
+                    "uuid": "3c7ff7c2-f034-46e1-ba04-faf810e20046"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 17.075,
+                        "y": 60.65
+                    },
+                    "uuid": "0466677c-79e0-4a04-a56a-f8220495c1e1"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_DOWN auf F.Cu",
+                    "pos": {
+                        "x": 22.325,
+                        "y": 78.65
+                    },
+                    "uuid": "02ee2362-d490-41b5-8522-a9deab1c74a6"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_RIGHT auf F.Cu",
+                    "pos": {
+                        "x": 26.075,
+                        "y": 69.65
+                    },
+                    "uuid": "a4e995db-5a0c-4dec-8b80-b3639162897f"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Leiterbahn [GND] auf F.Cu, Länge 5.2500 mm",
+                    "pos": {
+                        "x": 26.075,
+                        "y": 69.65
+                    },
+                    "uuid": "764da7a5-8b0f-4ca0-9db1-f604f19e2127"
+                },
+                {
+                    "description": "Pad 10 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 40.35,
+                        "y": 75.175
+                    },
+                    "uuid": "1fa57133-e2fc-4940-9406-cea246369798"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_MENU auf F.Cu",
+                    "pos": {
+                        "x": 36.975,
+                        "y": 86.25
+                    },
+                    "uuid": "60781892-fee7-487c-8d11-225976a85c8a"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_MENU auf F.Cu",
+                    "pos": {
+                        "x": 42.225,
+                        "y": 86.25
+                    },
+                    "uuid": "19f52d20-20da-40f4-910e-83c4ca76af55"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 17 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 77.715
+                    },
+                    "uuid": "f45a7945-6067-45f6-a953-4f00ef5d6730"
+                },
+                {
+                    "description": "Pad 16 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 78.985
+                    },
+                    "uuid": "18fd8461-e60a-40e3-899e-800e97cdee2f"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 17 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 77.715
+                    },
+                    "uuid": "f45a7945-6067-45f6-a953-4f00ef5d6730"
+                },
+                {
+                    "description": "Pad 10 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 40.35,
+                        "y": 75.175
+                    },
+                    "uuid": "1fa57133-e2fc-4940-9406-cea246369798"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 16 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 78.985
+                    },
+                    "uuid": "18fd8461-e60a-40e3-899e-800e97cdee2f"
+                },
+                {
+                    "description": "Pad 15 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 80.255
+                    },
+                    "uuid": "68678b1b-3934-4ddd-b268-4c309f9f77f4"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 15 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 80.255
+                    },
+                    "uuid": "68678b1b-3934-4ddd-b268-4c309f9f77f4"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_MENU auf F.Cu",
+                    "pos": {
+                        "x": 42.225,
+                        "y": 86.25
+                    },
+                    "uuid": "19f52d20-20da-40f4-910e-83c4ca76af55"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_RESET auf F.Cu",
+                    "pos": {
+                        "x": 53.875,
+                        "y": 82.45
+                    },
+                    "uuid": "c2703056-676f-4690-bd46-403b1c17fd73"
+                },
+                {
+                    "description": "Pad 15 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 80.255
+                    },
+                    "uuid": "68678b1b-3934-4ddd-b268-4c309f9f77f4"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_RESET auf F.Cu",
+                    "pos": {
+                        "x": 53.875,
+                        "y": 82.45
+                    },
+                    "uuid": "c2703056-676f-4690-bd46-403b1c17fd73"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_RESET auf F.Cu",
+                    "pos": {
+                        "x": 59.125,
+                        "y": 82.45
+                    },
+                    "uuid": "4a68917a-a09a-48b7-8152-e50cd970086d"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Leiterbahn [GND] auf F.Cu, Länge 5.2500 mm",
+                    "pos": {
+                        "x": 63.025,
+                        "y": 66.65
+                    },
+                    "uuid": "12598f4a-6446-4d04-9428-fa4526af2745"
+                },
+                {
+                    "description": "Leiterbahn [GND] auf F.Cu, Länge 1.5602 mm",
+                    "pos": {
+                        "x": 55.375,
+                        "y": 56.35
+                    },
+                    "uuid": "aa5d8798-fb4a-445e-8229-e2137ed2808b"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Leiterbahn [GND] auf F.Cu, Länge 5.2500 mm",
+                    "pos": {
+                        "x": 63.025,
+                        "y": 66.65
+                    },
+                    "uuid": "12598f4a-6446-4d04-9428-fa4526af2745"
+                },
+                {
+                    "description": "Pad 17 [GND] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 77.715
+                    },
+                    "uuid": "f45a7945-6067-45f6-a953-4f00ef5d6730"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_RESET auf F.Cu",
+                    "pos": {
+                        "x": 59.125,
+                        "y": 82.45
+                    },
+                    "uuid": "4a68917a-a09a-48b7-8152-e50cd970086d"
+                },
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 62.35,
+                        "y": 87.72
+                    },
+                    "uuid": "7b65cb6e-cfad-4d88-b76f-18161e703402"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 62.35,
+                        "y": 87.72
+                    },
+                    "uuid": "7b65cb6e-cfad-4d88-b76f-18161e703402"
+                },
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 62.35,
+                        "y": 89.93
+                    },
+                    "uuid": "1090131b-88c6-457c-9d5d-ef7b35ca8604"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 62.35,
+                        "y": 87.72
+                    },
+                    "uuid": "7b65cb6e-cfad-4d88-b76f-18161e703402"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_MUTE auf F.Cu",
+                    "pos": {
+                        "x": 66.75,
+                        "y": 87.07
+                    },
+                    "uuid": "75767119-ca64-40db-9854-ad7900796725"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [GND] von SW_UNDO auf F.Cu",
+                    "pos": {
+                        "x": 63.025,
+                        "y": 66.65
+                    },
+                    "uuid": "eda76391-7fe7-436f-b51b-9207ebeb86dd"
+                },
+                {
+                    "description": "Leiterbahn [GND] auf F.Cu, Länge 5.2500 mm",
+                    "pos": {
+                        "x": 79.725,
+                        "y": 61.95
+                    },
+                    "uuid": "057cc135-dc7e-4e81-be60-07687cb8f241"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 3 [GND] von SW_MUTE auf F.Cu",
+                    "pos": {
+                        "x": 68.25,
+                        "y": 87.07
+                    },
+                    "uuid": "1c7468fe-01d4-40a4-bfd3-91964da8d7ec"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_MUTE auf F.Cu",
+                    "pos": {
+                        "x": 66.75,
+                        "y": 87.07
+                    },
+                    "uuid": "75767119-ca64-40db-9854-ad7900796725"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 69.65,
+                        "y": 87.72
+                    },
+                    "uuid": "dfa9c1fc-2cbf-4d64-b68e-2952121dab49"
+                },
+                {
+                    "description": "Pad 3 [GND] von SW_MUTE auf F.Cu",
+                    "pos": {
+                        "x": 68.25,
+                        "y": 87.07
+                    },
+                    "uuid": "1c7468fe-01d4-40a4-bfd3-91964da8d7ec"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 69.65,
+                        "y": 89.93
+                    },
+                    "uuid": "370fdf1b-5e6d-45f0-b6ae-0b9615efc741"
+                },
+                {
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
+                    "pos": {
+                        "x": 69.65,
+                        "y": 87.72
+                    },
+                    "uuid": "dfa9c1fc-2cbf-4d64-b68e-2952121dab49"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_MENU] von SW_MENU auf F.Cu",
+                    "pos": {
+                        "x": 36.975,
+                        "y": 84.55
+                    },
+                    "uuid": "084997a1-8014-437e-9a4d-cfdec028e437"
+                },
+                {
+                    "description": "Pad 1 [SIG_MENU] von SW_MENU auf F.Cu",
+                    "pos": {
+                        "x": 42.225,
+                        "y": 84.55
+                    },
+                    "uuid": "d93bff4d-5e54-40d9-ae8f-f285333f2f28"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_MENU] von SW_MENU auf F.Cu",
+                    "pos": {
+                        "x": 42.225,
+                        "y": 84.55
+                    },
+                    "uuid": "d93bff4d-5e54-40d9-ae8f-f285333f2f28"
+                },
+                {
+                    "description": "Pad 23 [SIG_MENU] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 70.095
+                    },
+                    "uuid": "9368f78e-ec76-4729-931b-82ab55c70606"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Leiterbahn [SIG_UNDO] auf F.Cu, Länge 5.2500 mm",
+                    "pos": {
+                        "x": 63.025,
+                        "y": 64.95
+                    },
+                    "uuid": "c7b3c2ee-7359-4d9a-a47d-3f888a306ff0"
+                },
+                {
+                    "description": "Pad 26 [SIG_UNDO] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 66.285
+                    },
+                    "uuid": "49899172-be09-44df-a87c-ec3ffbde6ce8"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_UP] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 22.325,
+                        "y": 58.95
+                    },
+                    "uuid": "bd7f165c-1428-41ac-963d-84a1fe211c52"
+                },
+                {
+                    "description": "Pad 1 [SIG_UP] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 17.075,
+                        "y": 58.95
+                    },
+                    "uuid": "3ff5fc71-06e9-441c-86f7-2005b28f36a2"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_UP] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 40.35,
+                        "y": 63.745
+                    },
+                    "uuid": "0222caca-78d8-47f1-8107-ee61e2c11ab4"
+                },
+                {
+                    "description": "Pad 1 [SIG_UP] von SW_UP auf F.Cu",
+                    "pos": {
+                        "x": 22.325,
+                        "y": 58.95
+                    },
+                    "uuid": "bd7f165c-1428-41ac-963d-84a1fe211c52"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [BAT_SW] von SW_PWR auf F.Cu",
+                    "pos": {
+                        "x": 17.75,
+                        "y": 87.07
+                    },
+                    "uuid": "a95ffe57-5fd1-41b0-a1bb-3bdfca34eb3d"
+                },
+                {
+                    "description": "Pad 1 [BAT_SW] von J_BAT_OUT auf F.Cu",
+                    "pos": {
+                        "x": 56.625,
+                        "y": 56.35
+                    },
+                    "uuid": "3898cfb9-f1dd-402f-b52d-2664c2f5b1ce"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_RIGHT] von SW_RIGHT auf F.Cu",
+                    "pos": {
+                        "x": 26.075,
+                        "y": 67.95
+                    },
+                    "uuid": "0b9379ae-036d-4ae3-ad37-797244e04dd0"
+                },
+                {
+                    "description": "Pad 1 [SIG_RIGHT] von SW_RIGHT auf F.Cu",
+                    "pos": {
+                        "x": 31.325,
+                        "y": 67.95
+                    },
+                    "uuid": "90247be6-9256-49be-a2d8-2c027b7e560d"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_RIGHT] von SW_RIGHT auf F.Cu",
+                    "pos": {
+                        "x": 31.325,
+                        "y": 67.95
+                    },
+                    "uuid": "90247be6-9256-49be-a2d8-2c027b7e560d"
+                },
+                {
+                    "description": "Pad 25 [SIG_RIGHT] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 67.555
+                    },
+                    "uuid": "dc2922c9-f588-4e89-850c-ff4fec639cfd"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [INT] von J_EXP auf F.Cu",
+                    "pos": {
+                        "x": 35.875,
+                        "y": 56.35
+                    },
+                    "uuid": "ec9c4803-2b15-4e1a-8539-c2c225ac0736"
+                },
+                {
+                    "description": "Pad 20 [INT] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 73.905
+                    },
+                    "uuid": "5e616a06-9037-46be-bc85-bc9327fe71c2"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [+3V3] von J_I2C auf F.Cu",
+                    "pos": {
+                        "x": 13.875,
+                        "y": 56.35
+                    },
+                    "uuid": "fcf4f31b-32be-4fd4-b7ba-a5cd51ddb2c3"
+                },
+                {
+                    "description": "Pad 9 [+3V3] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 40.35,
+                        "y": 73.905
+                    },
+                    "uuid": "238bbaee-1785-40a3-b7e9-6ce159143962"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 4 [SDA] von J_I2C auf F.Cu",
+                    "pos": {
+                        "x": 10.125,
+                        "y": 56.35
+                    },
+                    "uuid": "bbbf8526-f742-468e-9c2e-05441fc5a958"
+                },
+                {
+                    "description": "Pad 13 [SDA] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 40.35,
+                        "y": 78.985
+                    },
+                    "uuid": "994e9f3b-d18e-4441-ab21-ec3b51c84307"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 1 [SIG_LEFT] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 13.325,
+                        "y": 67.95
+                    },
+                    "uuid": "effee1e7-1147-4e0c-b38c-1690b758087f"
+                },
+                {
+                    "description": "Pad 1 [SIG_LEFT] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 8.075,
+                        "y": 67.95
+                    },
+                    "uuid": "7fabf42b-6f1b-42af-b23c-f95701b729b7"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 24 [SIG_LEFT] von U1 auf F.Cu",
+                    "pos": {
+                        "x": 49.65,
+                        "y": 68.825
+                    },
+                    "uuid": "ab4efb23-363e-4dc3-8559-b4349e726eba"
+                },
+                {
+                    "description": "Pad 1 [SIG_LEFT] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 13.325,
+                        "y": 67.95
+                    },
+                    "uuid": "effee1e7-1147-4e0c-b38c-1690b758087f"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Pad 2 [BAT_P] von SW_PWR auf F.Cu",
+                    "pos": {
+                        "x": 20.75,
+                        "y": 87.07
+                    },
+                    "uuid": "4c1f5098-5158-4257-a2f8-80d5d3db2f04"
+                },
+                {
+                    "description": "Pad 1 [BAT_P] von J_BAT_IN auf F.Cu",
+                    "pos": {
+                        "x": 46.625,
+                        "y": 56.35
+                    },
+                    "uuid": "958f197c-3946-49c6-87cd-49e24f17c601"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        }
+    ],
     "violations": [
         {
             "description": "Courtyards overlap",
@@ -42,7 +963,7 @@
                         "x": 19.7,
                         "y": 59.8
                     },
-                    "uuid": "19e79917-937d-4997-8ecd-180a5fa23f59"
+                    "uuid": "5556282c-3407-41fd-af24-1584ef4c9800"
                 },
                 {
                     "description": "Footprint J_I2C",
@@ -50,7 +971,7 @@
                         "x": 12.0,
                         "y": 54.5
                     },
-                    "uuid": "75a1abd9-34a6-413b-afe1-a5f39c64f6cb"
+                    "uuid": "e79941a5-3492-407d-b8f4-17bc61c84b94"
                 }
             ],
             "severity": "error",
@@ -65,7 +986,7 @@
                         "x": 8.0,
                         "y": 53.0
                     },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
                 },
                 {
                     "description": "Pad MP [<no net>] von J_BAT_OUT auf F.Cu",
@@ -73,7 +994,7 @@
                         "x": 58.475,
                         "y": 53.15
                     },
-                    "uuid": "2cdd584a-cf76-43dc-a756-acc8cde7ee2b"
+                    "uuid": "ab59db12-b5c7-405f-a448-09edb2c2e2bb"
                 }
             ],
             "severity": "error",
@@ -88,7 +1009,7 @@
                         "x": 8.0,
                         "y": 53.0
                     },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
                 },
                 {
                     "description": "Pad MP [<no net>] von J_BAT_OUT auf F.Cu",
@@ -96,7 +1017,7 @@
                         "x": 53.525,
                         "y": 53.15
                     },
-                    "uuid": "5b550ecc-537d-480c-922d-c70fe008ac30"
+                    "uuid": "3090b2f7-670c-4d2b-9ab9-9052c6631323"
                 }
             ],
             "severity": "error",
@@ -111,7 +1032,7 @@
                         "x": 8.0,
                         "y": 53.0
                     },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
                 },
                 {
                     "description": "Pad MP [<no net>] von J_EXP auf F.Cu",
@@ -119,7 +1040,7 @@
                         "x": 37.725,
                         "y": 53.15
                     },
-                    "uuid": "c335380d-215c-4123-9c98-8b218b7280f4"
+                    "uuid": "7f882beb-29e1-4ce1-9cc2-fd5a3cd207f9"
                 }
             ],
             "severity": "error",
@@ -134,7 +1055,7 @@
                         "x": 8.0,
                         "y": 53.0
                     },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
                 },
                 {
                     "description": "Pad MP [<no net>] von J_EXP auf F.Cu",
@@ -142,7 +1063,7 @@
                         "x": 30.275,
                         "y": 53.15
                     },
-                    "uuid": "b81ade0c-6b1e-4ef0-bd63-4a9249f04f6c"
+                    "uuid": "9c4509fa-66b0-4409-b659-426e91f5d622"
                 }
             ],
             "severity": "error",
@@ -154,64 +1075,18 @@
                 {
                     "description": "Abschnitt auf Edge.Cuts",
                     "pos": {
-                        "x": 8.0,
-                        "y": 53.0
-                    },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_BAT_IN auf F.Cu",
-                    "pos": {
-                        "x": 48.475,
-                        "y": 53.15
-                    },
-                    "uuid": "4840e95c-db8b-43d5-b095-3f836d2d7fa8"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 8.0,
-                        "y": 53.0
-                    },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_BAT_IN auf F.Cu",
-                    "pos": {
-                        "x": 43.525,
-                        "y": 53.15
-                    },
-                    "uuid": "704ea188-39d4-4966-90c4-0d2af292af83"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 83.0,
+                        "x": 68.2,
                         "y": 90.0
                     },
-                    "uuid": "0aae123e-ae61-4614-b4af-01c0b2b9de83"
+                    "uuid": "02f1bf76-8065-414b-9f0e-b46b6ced2247"
                 },
                 {
-                    "description": "Pad [<no net>] auf SW_MUTE von F.Cu",
+                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
                     "pos": {
                         "x": 62.35,
                         "y": 89.93
                     },
-                    "uuid": "aa0f3a79-fe7d-4b92-a07c-a7b5c2695c7f"
+                    "uuid": "1090131b-88c6-457c-9d5d-ef7b35ca8604"
                 }
             ],
             "severity": "error",
@@ -223,125 +1098,33 @@
                 {
                     "description": "Abschnitt auf Edge.Cuts",
                     "pos": {
-                        "x": 83.0,
+                        "x": 68.2,
+                        "y": 69.2
+                    },
+                    "uuid": "e528d750-bdac-4c35-93bb-0009708083df"
+                },
+                {
+                    "description": "Pad 3 [GND] von SW_MUTE auf F.Cu",
+                    "pos": {
+                        "x": 68.25,
+                        "y": 87.07
+                    },
+                    "uuid": "1c7468fe-01d4-40a4-bfd3-91964da8d7ec"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 68.2,
                         "y": 90.0
                     },
-                    "uuid": "0aae123e-ae61-4614-b4af-01c0b2b9de83"
-                },
-                {
-                    "description": "Pad [<no net>] auf SW_MUTE von F.Cu",
-                    "pos": {
-                        "x": 69.65,
-                        "y": 89.93
-                    },
-                    "uuid": "0fd4454d-f0ee-4532-9ca9-db9733c9e266"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 8.0,
-                        "y": 90.0
-                    },
-                    "uuid": "7a65b621-3b26-479f-b4f4-609e173b8b47"
-                },
-                {
-                    "description": "Pad 1 [<no net>] von SW_LEFT auf F.Cu",
-                    "pos": {
-                        "x": 8.075,
-                        "y": 67.95
-                    },
-                    "uuid": "fff9dc20-a59c-44e7-a224-d21a2c5e8682"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 8.0,
-                        "y": 90.0
-                    },
-                    "uuid": "7a65b621-3b26-479f-b4f4-609e173b8b47"
-                },
-                {
-                    "description": "Pad 2 [<no net>] von SW_LEFT auf F.Cu",
-                    "pos": {
-                        "x": 8.075,
-                        "y": 69.65
-                    },
-                    "uuid": "568b699a-2c35-4729-878b-ddd41db9c011"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 8.0,
-                        "y": 53.0
-                    },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_I2C auf F.Cu",
-                    "pos": {
-                        "x": 15.725,
-                        "y": 53.15
-                    },
-                    "uuid": "07df7c13-1437-476f-9ab7-229a1b0b94f3"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 8.0,
-                        "y": 53.0
-                    },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_I2C auf F.Cu",
-                    "pos": {
-                        "x": 8.275,
-                        "y": 53.15
-                    },
-                    "uuid": "b03afdbb-1788-4a91-8184-f7fee423c1bd"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 83.0,
-                        "y": 90.0
-                    },
-                    "uuid": "0aae123e-ae61-4614-b4af-01c0b2b9de83"
+                    "uuid": "02f1bf76-8065-414b-9f0e-b46b6ced2247"
                 },
                 {
                     "description": "Pad [<no net>] auf SW_PWR von F.Cu",
@@ -349,7 +1132,7 @@
                         "x": 16.35,
                         "y": 89.93
                     },
-                    "uuid": "75c12080-8414-4a04-a58c-1e340347ad0a"
+                    "uuid": "4adbffa6-668e-435f-85b6-8eb6025c19dc"
                 }
             ],
             "severity": "error",
@@ -361,10 +1144,10 @@
                 {
                     "description": "Abschnitt auf Edge.Cuts",
                     "pos": {
-                        "x": 83.0,
+                        "x": 68.2,
                         "y": 90.0
                     },
-                    "uuid": "0aae123e-ae61-4614-b4af-01c0b2b9de83"
+                    "uuid": "02f1bf76-8065-414b-9f0e-b46b6ced2247"
                 },
                 {
                     "description": "Pad [<no net>] auf SW_PWR von F.Cu",
@@ -372,14 +1155,106 @@
                         "x": 23.65,
                         "y": 89.93
                     },
-                    "uuid": "60837b5b-dc46-4ee6-9fca-2e9f01aa0e31"
+                    "uuid": "fa76112d-677c-4dab-a63c-79f25e56789a"
                 }
             ],
             "severity": "error",
             "type": "copper_edge_clearance"
         },
         {
-            "description": "Silkscreen clipped by board edge",
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 53.0
+                    },
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
+                },
+                {
+                    "description": "Pad MP [<no net>] von J_I2C auf F.Cu",
+                    "pos": {
+                        "x": 15.725,
+                        "y": 53.15
+                    },
+                    "uuid": "b4eac2db-13a2-4df0-b967-a0dc634a9454"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 53.0
+                    },
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
+                },
+                {
+                    "description": "Pad MP [<no net>] von J_I2C auf F.Cu",
+                    "pos": {
+                        "x": 8.275,
+                        "y": 53.15
+                    },
+                    "uuid": "7e343310-c175-488a-9931-4479a791f552"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 53.0
+                    },
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
+                },
+                {
+                    "description": "Pad MP [<no net>] von J_BAT_IN auf F.Cu",
+                    "pos": {
+                        "x": 48.475,
+                        "y": 53.15
+                    },
+                    "uuid": "e6833f0d-e4d2-43a2-8ef9-3eb1e2339068"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 53.0
+                    },
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
+                },
+                {
+                    "description": "Pad MP [<no net>] von J_BAT_IN auf F.Cu",
+                    "pos": {
+                        "x": 43.525,
+                        "y": 53.15
+                    },
+                    "uuid": "65e2b9eb-8269-4beb-bffd-fca03bda5cf9"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
             "items": [
                 {
                     "description": "Abschnitt auf Edge.Cuts",
@@ -387,15 +1262,136 @@
                         "x": 8.0,
                         "y": 90.0
                     },
-                    "uuid": "7a65b621-3b26-479f-b4f4-609e173b8b47"
+                    "uuid": "97e0119a-19fb-479f-ab69-cf8016c475da"
                 },
                 {
-                    "description": "Referenzfeld von SW_LEFT",
+                    "description": "Pad 1 [SIG_LEFT] von SW_LEFT auf F.Cu",
                     "pos": {
-                        "x": 10.7,
-                        "y": 64.3
+                        "x": 8.075,
+                        "y": 67.95
                     },
-                    "uuid": "9e6495b0-f7ee-43e3-8c65-0e2ae90ae5b1"
+                    "uuid": "7fabf42b-6f1b-42af-b23c-f95701b729b7"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 90.0
+                    },
+                    "uuid": "97e0119a-19fb-479f-ab69-cf8016c475da"
+                },
+                {
+                    "description": "Pad 2 [GND] von SW_LEFT auf F.Cu",
+                    "pos": {
+                        "x": 8.075,
+                        "y": 69.65
+                    },
+                    "uuid": "ae967491-39b5-4b83-889f-c31c89595707"
+                }
+            ],
+            "severity": "error",
+            "type": "copper_edge_clearance"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Leiterbahn [SIG_MUTE] auf F.Cu, Länge 2.9278 mm",
+                    "pos": {
+                        "x": 55.5892,
+                        "y": 85.8076
+                    },
+                    "uuid": "673229b1-7564-40ac-b933-f4b62d7f267e"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Leiterbahn [SIG_MUTE] auf B.Cu, Länge 2.9278 mm",
+                    "pos": {
+                        "x": 55.5892,
+                        "y": 85.8076
+                    },
+                    "uuid": "6df4f5a7-683d-4f79-ae05-d893b4233ccb"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Leiterbahn [SIG_MUTE] auf B.Cu, Länge 1.0768 mm",
+                    "pos": {
+                        "x": 54.8278,
+                        "y": 65.015
+                    },
+                    "uuid": "f6b70710-367c-4441-8a27-1926d424ea7d"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Leiterbahn [SCL] auf F.Cu, Länge 0.7029 mm",
+                    "pos": {
+                        "x": 35.1719,
+                        "y": 57.9115
+                    },
+                    "uuid": "3459b03e-cdba-4408-b8b7-e2492da198c7"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Leiterbahn [SCL] auf B.Cu, Länge 0.7029 mm",
+                    "pos": {
+                        "x": 35.1719,
+                        "y": 57.9115
+                    },
+                    "uuid": "3e971239-0985-4256-b874-05c1960fbdcb"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 83.0,
+                        "y": 69.2
+                    },
+                    "uuid": "5e39a447-66e9-4a64-ad49-afba37540293"
+                },
+                {
+                    "description": "Referenzfeld von H2",
+                    "pos": {
+                        "x": 80.0,
+                        "y": 68.85
+                    },
+                    "uuid": "5c6b01f1-c152-4915-998f-482337ae47b7"
                 }
             ],
             "severity": "warning",
@@ -407,18 +1403,18 @@
                 {
                     "description": "Abschnitt auf Edge.Cuts",
                     "pos": {
-                        "x": 8.0,
-                        "y": 90.0
+                        "x": 68.2,
+                        "y": 69.2
                     },
-                    "uuid": "7a65b621-3b26-479f-b4f4-609e173b8b47"
+                    "uuid": "e528d750-bdac-4c35-93bb-0009708083df"
                 },
                 {
-                    "description": "Abschnitt von J_I2C auf F.Silkscreen",
+                    "description": "Referenzfeld von SW_MUTE",
                     "pos": {
-                        "x": 7.765,
-                        "y": 56.21
+                        "x": 66.0,
+                        "y": 85.3
                     },
-                    "uuid": "175f4d3e-8158-4a85-ad46-221555538a30"
+                    "uuid": "2281fbd4-973d-4d94-95d3-adf2e5d89709"
                 }
             ],
             "severity": "warning",
@@ -433,7 +1429,7 @@
                         "x": 8.0,
                         "y": 53.0
                     },
-                    "uuid": "3622f591-2969-47a9-81e0-f5e97097dc63"
+                    "uuid": "9ce45100-97f1-4a4c-bec4-f1576b0215fe"
                 },
                 {
                     "description": "Referenzfeld von H1",
@@ -441,7 +1437,53 @@
                         "x": 65.0,
                         "y": 52.85
                     },
-                    "uuid": "153cfc6f-4e75-4a4b-afcb-d62261974683"
+                    "uuid": "eab4732d-b3ad-48c1-b150-e739fbc6d3e1"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 90.0
+                    },
+                    "uuid": "97e0119a-19fb-479f-ab69-cf8016c475da"
+                },
+                {
+                    "description": "Abschnitt von J_I2C auf F.Silkscreen",
+                    "pos": {
+                        "x": 7.765,
+                        "y": 56.21
+                    },
+                    "uuid": "5cd7d69f-c435-4447-8324-9da641349177"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 8.0,
+                        "y": 90.0
+                    },
+                    "uuid": "97e0119a-19fb-479f-ab69-cf8016c475da"
+                },
+                {
+                    "description": "Referenzfeld von SW_LEFT",
+                    "pos": {
+                        "x": 10.7,
+                        "y": 64.3
+                    },
+                    "uuid": "c760ef3b-6e9b-463d-97cd-b1ab3c5933eb"
                 }
             ],
             "severity": "warning",
@@ -451,20 +1493,20 @@
             "description": "Silkscreen clearance",
             "items": [
                 {
+                    "description": "Abschnitt von U1 auf F.Silkscreen",
+                    "pos": {
+                        "x": 41.14,
+                        "y": 81.06
+                    },
+                    "uuid": "9b44bc64-d326-421d-8935-e444b4d03fa9"
+                },
+                {
                     "description": "Referenzfeld von SW_MENU",
                     "pos": {
                         "x": 39.6,
                         "y": 80.9
                     },
-                    "uuid": "be82243c-3355-4cff-a154-b893275b4fca"
-                },
-                {
-                    "description": "Abschnitt von U1 auf F.Silkscreen",
-                    "pos": {
-                        "x": 48.86,
-                        "y": 81.06
-                    },
-                    "uuid": "dc4292e1-d2e2-4e5a-94b5-0776d9f07a68"
+                    "uuid": "f415929d-0c81-4bfc-9efb-170f5539eade"
                 }
             ],
             "severity": "warning",
@@ -476,10 +1518,10 @@
                 {
                     "description": "Abschnitt von U1 auf F.Silkscreen",
                     "pos": {
-                        "x": 41.14,
+                        "x": 48.86,
                         "y": 81.06
                     },
-                    "uuid": "bdfd549f-6624-4db7-816e-6e3530d1a05b"
+                    "uuid": "a1022314-2a95-4f31-bb75-619ac05ca561"
                 },
                 {
                     "description": "Referenzfeld von SW_MENU",
@@ -487,7 +1529,7 @@
                         "x": 39.6,
                         "y": 80.9
                     },
-                    "uuid": "be82243c-3355-4cff-a154-b893275b4fca"
+                    "uuid": "f415929d-0c81-4bfc-9efb-170f5539eade"
                 }
             ],
             "severity": "warning",
@@ -502,7 +1544,7 @@
                         "x": 39.6,
                         "y": 80.9
                     },
-                    "uuid": "be82243c-3355-4cff-a154-b893275b4fca"
+                    "uuid": "f415929d-0c81-4bfc-9efb-170f5539eade"
                 },
                 {
                     "description": "Pad 14 [<no net>] von U1 auf F.Cu",
@@ -510,7 +1552,7 @@
                         "x": 40.35,
                         "y": 80.255
                     },
-                    "uuid": "41a5ec5f-52b0-40ae-a364-8edfb8f48b90"
+                    "uuid": "e7cc1ead-646a-4368-a1cd-ae7c549139b4"
                 }
             ],
             "severity": "warning",
