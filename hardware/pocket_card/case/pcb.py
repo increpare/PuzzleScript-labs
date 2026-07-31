@@ -34,7 +34,7 @@ EXPANDER = ("Package_SO", "SOIC-28W_7.5x17.9mm_P1.27mm")    # MCP23017
 JST4 = ("Connector_JST", "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal")
 JST2 = ("Connector_JST", "JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal")
 TP = ("TestPoint", "TestPoint_Pad_D1.5mm")
-MHOLE = ("MountingHole", "MountingHole_2.2mm_M2")
+MHOLE = ("MountingHole", "MountingHole_2.7mm_M2.5")   # clears the Ø2.4 post
 
 # Screws can only go where the cell is not behind the board -- the cell fence
 # reaches x = 60.8 -- so both land on the right. The left edge is retained by a

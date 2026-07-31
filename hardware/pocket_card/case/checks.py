@@ -277,6 +277,29 @@ def check_orientation():
             FAILURES.append("d-pad not lower-left")
 
 
+def check_pcb_posts_vs_collars():
+    """The pillars rise through the button cavity, so they must miss the collars."""
+    print("\nPCB pillars vs button collars")
+    collars = [("dir up", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D),
+               ("dir down", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D),
+               ("dir left", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
+               ("dir right", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
+               ("Undo", P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+               ("Action", P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+               ("Reset", P.RESET_X, P.RESET_Y, P.RESET_CAP_D)]
+    worst = 99.0
+    for px, py in P.PCB_MOUNTS:
+        for nm, cx, cy, d in collars:
+            r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2
+            gap = ((px - cx) ** 2 + (py - cy) ** 2) ** 0.5 - r - P.PCB_SHOULDER_D / 2
+            if gap < worst:
+                worst, which = gap, "(%.1f,%.1f) vs %s" % (px, py, nm)
+    ok = worst >= 0
+    print(f"   {'PASS' if ok else 'FAIL'}  tightest {which} {worst:+.2f} mm")
+    if not ok:
+        FAILURES.append("PCB pillar fouls a collar")
+
+
 def check_pcb_support():
     """Deflection at each button, and that the support rib clears the cell."""
     print("\nPCB stiffness")
@@ -320,12 +343,15 @@ def check_pcb_mounts():
     nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8
     ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8
     r = P.PCB_MOUNT_D / 2 + 0.5
+    fence_x0 = P.BATT_X - P.BATT_CLEAR - 1.2
     fence_x1 = P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.2
     for i, (hx, hy) in enumerate(P.PCB_MOUNTS, start=1):
         on_board = (P.PCB_X + r <= hx <= P.PCB_X + P.PCB_W - r
                     and P.PCB_Y + r <= hy <= P.PCB_Y + P.PCB_H - r)
         in_notch = (hx + r >= nx0 and hy + r >= ny0)
-        off_cell = hx - r >= fence_x1
+        # either side of the cell is fine; the check previously assumed only
+        # the right-hand strip existed, and rejected the new left-hand pillars
+        off_cell = (hx - r >= fence_x1) or (hx + r <= fence_x0)
         ok = on_board and not in_notch and off_cell
         why = ("in the driver notch" if in_notch else
                "off the board" if not on_board else
@@ -396,6 +422,10 @@ def check_interior_fit():
          P.GRILLE_Y - P.DRIVER_H / 2, P.GRILLE_Y + P.DRIVER_H / 2),
     ]
     for bi, (bx, by) in enumerate(P.EXTRA_BOSSES):
+        if (bx, by) in P.PCB_MOUNTS:
+            print(f"   INFO  boss {bi + 1} at ({bx}, {by}) is also a PCB mount; "
+                  f"passing through the board is intended")
+            continue
         m = min(bx - boss_r - P.WALL, P.BODY_W - P.WALL - bx - boss_r,
                 by - boss_r - P.WALL, P.BODY_H - P.WALL - by - boss_r)
         worst_name = "wall"
@@ -515,6 +545,7 @@ def main():
     check_interior_fit()
     check_pcb_mounts()
     check_pcb_support()
+    check_pcb_posts_vs_collars()
     check_back_shell()
 
     print()

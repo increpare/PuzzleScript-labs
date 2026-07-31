@@ -181,16 +181,26 @@ BATT_X, BATT_Y = 9.0, 55.0         # DECIDED  cell origin
 BATT_CLEAR     = 0.6               # ASSUMED  fence clearance around the cell
 
 # Controller PCB. Outline derived from the enclosure, not the other way round.
-PCB_X, PCB_Y   = 8.0, 53.0
-PCB_W, PCB_H   = 75.0, 37.0
+# Widened left from x=8 to x=2.5 so the board reaches the bottom-left case
+# boss and can be supported there. It also fixes SW_LEFT, whose pads reached
+# x=7.2 and overhung the old edge.
+PCB_X, PCB_Y   = 2.5, 53.0
+PCB_W, PCB_H   = 80.5, 37.0
 
 # Edge switches, on the bottom rail of the controller PCB
 # PCB mounting screws. Both must land on actual board material -- the driver
 # notch removes the whole bottom-right corner -- and off the cell, since a screw
 # head protruding into a lithium pouch is a puncture risk. That leaves a narrow
 # strip between the cell fence (x <= 60.8) and the notch (x >= 68.2).
-PCB_MOUNTS = ((65.0, 56.0), (66.0, 81.0))
-PCB_MOUNT_D = 2.2      # M2 clearance
+# Four support pillars, stepped like the module posts: narrow through the
+# board's hole, wide behind it, so the board rests on the shoulder and button
+# force goes into the shell rather than flexing the board. The two left ones
+# share the case's corner bosses, so one feature locates the board, supports it
+# and closes the case.
+PCB_MOUNTS = ((4.5, 56.0), (4.5, 88.0), (65.0, 56.0), (66.0, 81.0))
+PCB_MOUNT_D    = 2.6   # clearance hole in the board
+PCB_POST_D     = 2.4   # narrow section, passes through it
+PCB_SHOULDER_D = 4.4   # wide section behind, the board rests on this step
 
 # Both screws sit at x ~= 65, which supports Undo, Action and Reset well but
 # leaves the direction cluster 54 mm from the nearest fixing. The cell is
@@ -204,7 +214,7 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # cell as well as supporting the board. One feature, two jobs.
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
-MUTE_SW_X  = 66.0                  # DECIDED  bottom edge, left of the driver notch
+MUTE_SW_X  = 60.0                  # DECIDED  bottom edge, left of the driver notch
                                    # NB: no longer directly under the grille --
                                    # the driver notch takes that board area.
 

@@ -143,6 +143,26 @@ def module_posts():
     return add, cut
 
 
+def pcb_posts():
+    """Stepped pillars the controller PCB drops onto.
+
+    Same idea as the module posts: narrow through the board's hole, wide
+    behind it. The board rests on the step, so a button press drives force
+    into the shell instead of flexing the board. Previously the board had
+    mounting holes with nothing in the case to meet them.
+    """
+    pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    add = cq.Workplane("XY")
+    for x, y in P.PCB_MOUNTS:
+        add = add.union(
+            cq.Workplane("XY").circle(P.PCB_POST_D / 2)
+            .extrude(-(pcb_back - P.FACE_T)).translate((x, y, -P.FACE_T)))
+        add = add.union(
+            cq.Workplane("XY").circle(P.PCB_SHOULDER_D / 2)
+            .extrude(-(SHELL_DEPTH - pcb_back)).translate((x, y, -pcb_back)))
+    return add
+
+
 def edge_openings():
     """USB-C on the left wall; power and mute slides on the bottom edge."""
     cuts = cq.Workplane("XY")
@@ -230,6 +250,7 @@ def build():
 
     add, cut = module_posts()
     shell = shell.union(add).cut(cut)
+    shell = shell.union(pcb_posts())
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
     return to_model_space(shell)
