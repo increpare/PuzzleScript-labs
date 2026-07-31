@@ -144,46 +144,47 @@ def module_posts():
 
 
 def driver_pocket():
-    """Walls, seat and cable exit for the driver, flush behind the face.
+    """Locating walls and lead notches for the driver, flush behind the face.
 
-    The driver is 3.5 mm thick and its front must seal against the grille
-    chamber, so it occupies z 2.0-5.5 -- entirely in front of the board, which
-    starts at 5.5, and touching it. It seats forward on a lip rather than on the
-    grille border: the arm slot is 14.306 wide against a 14.0 driver, so along x
-    the face is fully cut away and there is nothing there to bear on. The lip is
-    DRIVER_LIP_T thick, which is exactly the slack that used to be left between
-    the driver's back and the board, so the board now clamps it rather than
-    leaving it to rattle.
+    The driver bonds to the inside of the front face with its own adhesive, so
+    it sits flush at z 1.5-5.0 and the bond carries it. There is deliberately no
+    lip or shelf: anything under the rim would hold the driver off the very
+    surface it needs to stick to, and break the seal to the grille chamber. The
+    0.5 mm left to the board at 5.5 is clearance, not slack -- the board is not
+    meant to touch it, and does not retain it.
 
-    The north wall carries a notch for the leads.
+    These walls only square the driver up while the adhesive sets, which is why
+    they can be freely interrupted for the collars and the lead notches.
     """
     wall = 1.2
     w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
-    z_lip = -P.FACE_T                       # front of the lip
-    z_seat = z_lip - P.DRIVER_LIP_T         # driver's front face
-    z_back = z_seat - P.DRIVER_T            # driver's back, = -PCB_FRONT_Z
+    z_face = -P.FACE_T                      # driver's front, on the face
+    z_back = z_face - P.DRIVER_T            # driver's back
     # Stadium, not a box: the part has semicircular ends. A rectangular pocket
     # would locate it on four corners it does not have.
     outer = (cq.Workplane("XY")
              .slot2D(h + 2 * wall, w + 2 * wall, 90)
-             .extrude(z_back).translate((P.GRILLE_X, P.GRILLE_Y, 0))
+             .extrude(z_back)
+             .translate((P.GRILLE_X, P.GRILLE_Y, 0))
              .cut(cq.Workplane("XY").box(200, 200, 200)
-                  .translate((0, 0, 100 + z_lip))))
+                  .translate((0, 0, 100 + z_face))))
     bore = (cq.Workplane("XY").slot2D(h, w, 90)
-            .extrude(z_back - 1).translate((P.GRILLE_X, P.GRILLE_Y, z_seat)))
-    seat = (cq.Workplane("XY")
-            .slot2D(h - 2 * P.DRIVER_LIP_W, w - 2 * P.DRIVER_LIP_W, 90)
-            .extrude(-(P.DRIVER_LIP_T + 1))
-            .translate((P.GRILLE_X, P.GRILLE_Y, z_lip + 0.5)))
-    walls = outer.cut(bore).cut(seat)
+            .extrude(z_back - 1).translate((P.GRILLE_X, P.GRILLE_Y, z_face + 0.5)))
+    walls = outer.cut(bore)
 
-    # Lead notch through the north wall. North is -y in layout space, which
-    # to_model_space() turns into the top of the finished part.
-    walls = walls.cut(
-        cq.Workplane("XY")
-        .box(P.DRIVER_CABLE_W, 2 * (wall + P.DRIVER_CABLE_CLR),
-             abs(z_back) + 2, centered=(True, True, False))
-        .translate((P.GRILLE_X, P.GRILLE_Y - h / 2, z_back - 1)))
+    # Lead notches through BOTH end walls. North is -y in layout space, which
+    # to_model_space() turns into the top of the finished part. The driver's
+    # leads leave on the north edge, but the north route passes under the Action
+    # collar, where the lead could be pinched or chafed by the moving cap; the
+    # south notch is the escape if that turns out to be so. An unused notch
+    # costs nothing -- these walls are only a locator, and they are already
+    # discontinuous where the collars relieve them.
+    for sign in (-1, 1):
+        walls = walls.cut(
+            cq.Workplane("XY")
+            .box(P.DRIVER_CABLE_W, 2 * (wall + P.DRIVER_CABLE_CLR),
+                 abs(z_back) + 2, centered=(True, True, False))
+            .translate((P.GRILLE_X, P.GRILLE_Y + sign * h / 2, z_back - 1)))
 
     # Relieve the wall wherever a button collar encroaches. Action's collar
     # reaches y=69.1 and the pocket wall starts at 68.5, so a full box would

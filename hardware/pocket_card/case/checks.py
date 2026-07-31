@@ -279,6 +279,48 @@ def check_orientation():
             FAILURES.append("d-pad not lower-left")
 
 
+def check_driver_bond():
+    """The driver is held by adhesive on its front, so measure what it can stick
+    to, and confirm nothing intrudes into the space it occupies.
+
+    There is no seat by design -- a lip was tried and removed, because standoff
+    under the rim is exactly where the adhesive needs contact. So the figure that
+    matters is how much solid face survives the grille slots inside the driver's
+    own footprint, and whether its full 3.5 mm depth is clear.
+    """
+    print("\ndriver bond area and clearance")
+    import cadquery as cq
+    shell = shell_front.build()
+    cy = P.BODY_H - P.GRILLE_Y
+
+    def solid_at(z):
+        slab = (cq.Workplane("XY").slot2D(P.DRIVER_H, P.DRIVER_W, 90)
+                .extrude(0.05).translate((P.GRILLE_X, cy, -z)))
+        try:
+            return shell.intersect(slab).val().Volume() / 0.05
+        except Exception:
+            return 0.0
+
+    r = P.DRIVER_W / 2.0
+    foot = math.pi * r * r + (P.DRIVER_H - P.DRIVER_W) * P.DRIVER_W
+    bond = solid_at(P.FACE_T - 0.3)
+    frac = bond / foot
+    ok = frac >= 0.5
+    print("   %s  bond area %.1f of %.1f mm2 (%.0f%% of the footprint)"
+          % ("PASS" if ok else "FAIL", bond, foot, 100 * frac))
+    if not ok:
+        FAILURES.append("too little face left for the driver to bond to")
+
+    z0, z1 = P.FACE_T, P.FACE_T + P.DRIVER_T
+    worst = max(solid_at(z) for z in
+                (z0 + 0.1, z0 + 1.0, z0 + 2.0, z1 - 0.1))
+    ok = worst <= 0.01
+    print("   %s  driver volume z %.1f-%.1f clear (worst intrusion %.2f mm2)"
+          % ("PASS" if ok else "FAIL", z0, z1, worst))
+    if not ok:
+        FAILURES.append("something intrudes into the driver volume")
+
+
 def check_cap_fits_collar():
     """Every round cap flange must actually pass its own collar bore.
 
@@ -670,6 +712,7 @@ def main():
     check_driver_vs_collars()
     check_grille_vs_driver()
     check_cap_fits_collar()
+    check_driver_bond()
     check_back_shell()
 
     print()
