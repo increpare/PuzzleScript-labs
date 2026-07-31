@@ -691,8 +691,21 @@ def check_skqg_stack():
               f"{P.HARD_STOP_AT - P.TACT_TRAVEL:.3f} mm")
 
 
+def check_hard_stop_stack():
+    print("\nhard stop stack (params)")
+    z_flange_bottom_pressed = P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT
+    z_shoulder_flat_top = P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT
+    check("stop plane", z_flange_bottom_pressed, z_shoulder_flat_top, 0.001)
+    boss_tip = P.FACE_T + P.CAP_FLANGE_T + P.CAP_BOSS_GAP
+    stem_tip = P.PCB_FRONT_Z - P.TACT_H
+    check("boss reaches stem", boss_tip, stem_tip, 0.001)
+    half = P.TACT_OUTLINE / 2
+    print(f"   INFO  SKQG half-width {half:.2f} mm; stop is in shell, not on body")
+
+
 def main():
     check_skqg_stack()
+    check_hard_stop_stack()
     path = os.path.join(OUT, "coupon_plate.stl")
     if not os.path.exists(path):
         sys.exit("coupon_plate.stl missing -- run coupon.py first")

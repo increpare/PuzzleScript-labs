@@ -120,10 +120,17 @@ CAP_CLEAR      = FIT_CLEAR  # head-to-hole radial clearance
 CAP_FLANGE_T   = 1.0        # ASSUMED  flange thickness
 CAP_FLANGE_OS  = 1.1        # ASSUMED  flange radius beyond the head
 COLLAR_CLEAR   = FIT_CLEAR  # flange-to-collar radial clearance
-COLLAR_DEPTH   = 2.0        # ASSUMED  guide length below the inner face
+COLLAR_DEPTH   = 2.2        # ASSUMED  guide length below the inner face
 HARD_STOP_AT   = 0.35  # DECIDED  flange lands here: past 0.25 actuation,
                        #          before the switch bottoms
 CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
+
+# Snap-over collar shoulder (production hard stop). Flange clicks in from the
+# PCB side over a ramp; the flat top of the lip stops travel at HARD_STOP_AT.
+# These three are coupon-tuned ASSUMED values.
+SHOULDER_RADIAL = 0.35   # ASSUMED  how far the lip intrudes past the flange OD
+SHOULDER_FLAT_T = 0.40   # ASSUMED  axial thickness of the flat stop face
+SHOULDER_RAMP_T = 0.35   # ASSUMED  axial length of the insertion ramp below
 
 # Anti-rotation for the non-round caps (pills). Two flats on the flange running
 # in matching collar slots -- the DMG's own trick, measured off the reference:
