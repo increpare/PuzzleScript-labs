@@ -154,8 +154,17 @@ DIR_GAP        = (2 ** 0.5) * DIR_RADIUS - DIR_CAP_D # 4.73 between adjacent cap
 
 UNDO_X,  UNDO_Y  = 63.22, 71.0     # was DMG "B", inboard
 ACT_X,   ACT_Y   = 77.98, 63.99    # was DMG "A", holds true 25.4 deg to Undo
-RESET_X, RESET_Y = 33.23, 86.0     # was DMG "Select"
-MENU_X,  MENU_Y  = 48.23, 86.0     # was DMG "Start"
+# Reset joins the right-hand cluster as a small round cap -- subordinate to
+# Undo/Action by size, which is the hierarchy the July 12 spec asked for.
+# Menu stays a slit: it is the most recessive control on the device.
+RESET_X, RESET_Y = 64.0, 84.0
+RESET_CAP_D      = DIR_CAP_D       # 8.0, same as a direction button
+MENU_X,  MENU_Y  = 48.23, 86.0     # was DMG "Start", still a pill
+
+# Cap legends are not modelled yet: arrows on the four directions, and text or
+# glyphs for Undo / Action / Reset / Menu. Recessed engraving on the crown, or
+# pad print. Note the direction caps are already keyed with anti-rotation flats
+# so an arrow stays upright.
 
 # ---------------------------------------------------- lower zone stack ----
 PCB_T          = 1.6     # ASSUMED  controller PCB
@@ -175,7 +184,8 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 # ------------------------------------------------------------- audio ------
 DRIVER_D = 18.0        # ASSUMED  final size set by the bottom-right corner
 DRIVER_T = 4.0         # ASSUMED
-GRILLE_X, GRILLE_Y = 78.0, 81.0    # DECIDED  centre, bottom right
+GRILLE_X, GRILLE_Y = 79.0, 82.0    # DECIDED  centre, bottom right
+                                   # nudged right/down to clear the Reset cap
 
 # Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.
 # Sized so the run stays clear of the bottom and right walls: at (78, 83) with

@@ -162,7 +162,7 @@ def build():
         (P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D, False),   # right
         (P.UNDO_X, P.UNDO_Y, P.AB_CAP_D, False),
         (P.ACT_X, P.ACT_Y, P.AB_CAP_D, False),
-        (P.RESET_X, P.RESET_Y, None, True),
+        (P.RESET_X, P.RESET_Y, P.RESET_CAP_D, False),
         (P.MENU_X, P.MENU_Y, None, True),
     ]
     for x, y, d, pill in stations:
