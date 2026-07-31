@@ -87,11 +87,16 @@ MODULE_Z         = FACE_T + MODULE_FRONT_GAP         # 1.65 touch surface depth
 # Consequence: we own the whole load path again -- return, guide, hard stop and
 # retention -- which the membrane had been providing for free.
 
-TACT_PART    = "SKQGABE010"   # DATASHEET Alps SKQG series, with stem
-TACT_H       = 1.5            # DATASHEET product height incl. stem
-TACT_TRAVEL  = 0.25           # DATASHEET
-TACT_FORCE_N = 1.57           # DATASHEET SKQGABE010
-TACT_OUTLINE = 5.2            # DATASHEET square body
+# Alps Alpine SKQGABE010 product page (catalog, not formal delivery drawing):
+# https://tech.alpsalpine.com/e/products/detail/SKQGABE010/
+#   Operating force 1.57 N, Travel 0.25 mm, Product height 1.5 mm, □5.2×1.5
+# Land pattern / keepouts: use KiCad SW_SPST_SKQG_WithStem until the formal
+# drawing is in-repo.
+TACT_PART    = "SKQGABE010"   # ALPS catalog page above
+TACT_H       = 1.5            # ALPS catalog — product height incl. stem
+TACT_TRAVEL  = 0.25           # ALPS catalog
+TACT_FORCE_N = 1.57           # ALPS catalog SKQGABE010
+TACT_OUTLINE = 5.2            # ALPS catalog square body
 
 # --- fit clearances, by manufacturing process -------------------------------
 # Radial clearance for a free-sliding fit. These are genuinely different numbers
@@ -131,6 +136,10 @@ CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
 SHOULDER_RADIAL = 0.35   # ASSUMED  how far the lip intrudes past the flange OD
 SHOULDER_FLAT_T = 0.40   # ASSUMED  axial thickness of the flat stop face
 SHOULDER_RAMP_T = 0.35   # ASSUMED  axial length of the insertion ramp below
+# Menu pill bore is only ~5.6 mm on the narrow axis; a 0.35 mm lip each side
+# leaves shoulder_id 4.9 mm — smaller than the □5.2 SKQG. Widen the pill collar
+# bore only (face hole / flange unchanged) so the lip clears the body by ≥0.2 mm.
+PILL_BORE_EXTRA = 0.60   # ASSUMED  added to pill bore_l and bore_w
 
 # Anti-rotation for the non-round caps (pills). Two flats on the flange running
 # in matching collar slots -- the DMG's own trick, measured off the reference:

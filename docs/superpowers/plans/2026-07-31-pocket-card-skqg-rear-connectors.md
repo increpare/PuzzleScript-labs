@@ -116,7 +116,8 @@ Expected: FAIL on `TACT_H` (got 2.5, want 1.5) and `PCB_FRONT_Z` / zone totals.
 
 - [ ] **Step 3: Update tact constants in `params.py`**
 
-Replace the tact block (currently EVQ-P2 H2.5) with:
+Replace the tact block in `params.py` (H2.5 placeholder; `pcb.py` meanwhile
+had EVQ-P0 on rounds and EVQ-P2 on the pill — both go away in Task 3) with:
 
 ```python
 TACT_PART    = "SKQGABE010"   # DATASHEET Alps SKQG series, with stem

@@ -714,19 +714,32 @@ def check_shoulder_params():
 
 
 def check_skqg_fits_bore():
-    """Square SKQG body must clear every collar bore (menu pill is the tight one)."""
-    print("\nskqg body vs collar bore")
+    """Square SKQG body must clear every collar — measured on built solids.
+
+    Same class of bug as EVQ-P0 vs the menu pill (−0.40 mm): a comment saying
+    the bore clears is worthless. Build each collar via button_station, place a
+    □TACT_OUTLINE × TACT_H body on the PCB plane, and require zero intersection
+    with collar material (volumes match before/after cut).
+    """
+    import cadquery as cq
+    print("\nskqg body vs collar bore (measured solids)")
     stations = [
-        ("dir", P.DIR_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
-        ("ab", P.AB_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
-        ("reset", P.RESET_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
-        ("menu_narrow", P.PILL_W + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("dir", dict(hole_d=P.DIR_CAP_D, keyed=True)),
+        ("ab", dict(hole_d=P.AB_CAP_D, keyed=False)),
+        ("reset", dict(hole_d=P.RESET_CAP_D, keyed=True)),
+        ("menu", dict(pill=True)),
     ]
-    for name, bore in stations:
-        gap = bore - P.TACT_OUTLINE
-        ok = gap >= 0.2
-        print(f"   {'PASS' if ok else 'FAIL'}  {name}: bore {bore:.2f} - "
-              f"body {P.TACT_OUTLINE:.2f} = {gap:+.2f} mm (want >= +0.20)")
+    body = (cq.Workplane("XY")
+            .box(P.TACT_OUTLINE, P.TACT_OUTLINE, P.TACT_H, centered=(True, True, False))
+            .translate((0, 0, -P.PCB_FRONT_Z)))
+    v0 = body.val().Volume()
+    for name, kwargs in stations:
+        add, _ = shell_front.button_station(**kwargs)
+        left = body.cut(add)
+        lost = v0 - left.val().Volume()
+        ok = lost < 1e-3
+        print(f"   {'PASS' if ok else 'FAIL'}  {name}: body∩collar volume "
+              f"{lost:.4f} mm³ (want ~0)")
         if not ok:
             FAILURES.append(f"bore {name}")
 

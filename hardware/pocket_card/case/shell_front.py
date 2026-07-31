@@ -75,51 +75,50 @@ def _shoulder_planes():
     return z_flat_top, z_flat_bot, z_ramp_bot
 
 
-def _shoulder_bore_round(bore, bore_d, depth):
-    """Snap-over shoulder: guide bore, flat lip, insertion ramp."""
+def _shoulder_void_round(bore_d, depth):
+    """Void to cut from the collar: guide, narrow lip pass, ramp, full bore below.
+
+    Returns the cutter solid (union of void segments). Do NOT carve a full
+    cylinder then hollow it — that inverted the lip and left the centre solid.
+    """
     z_flat_top, z_flat_bot, z_ramp_bot = _shoulder_planes()
     r = bore_d / 2
     sr = (bore_d - 2 * P.SHOULDER_RADIAL) / 2
 
-    bore = bore.cut(cq.Workplane("XY").circle(r).extrude(z_flat_top))
-    bore = bore.cut(
-        cq.Workplane("XY").workplane(offset=z_flat_top).circle(sr).extrude(z_flat_bot - z_flat_top))
+    guide = cq.Workplane("XY").circle(r).extrude(z_flat_top)
+    lip = (cq.Workplane("XY").workplane(offset=z_flat_top)
+           .circle(sr).extrude(z_flat_bot - z_flat_top))
     try:
         ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot).circle(sr)
                 .workplane(offset=z_ramp_bot - z_flat_bot).circle(r).loft(combine=True))
-        bore = bore.cut(ramp)
     except Exception:
-        bore = bore.cut(cq.Workplane("XY").workplane(offset=z_flat_bot).circle(r)
-                         .extrude(-(depth + 1) - z_flat_bot))
-        bore = bore.edges("<Z").chamfer(0.15)
-    bore = bore.cut(cq.Workplane("XY").workplane(offset=z_ramp_bot).circle(r)
-                     .extrude(-(depth + 1) - z_ramp_bot))
-    return bore
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot).circle(r)
+                .extrude(z_ramp_bot - z_flat_bot))
+    below = (cq.Workplane("XY").workplane(offset=z_ramp_bot).circle(r)
+             .extrude(-(depth + 1) - z_ramp_bot))
+    return guide.union(lip).union(ramp).union(below)
 
 
-def _shoulder_bore_slot(bore, bore_l, bore_w, depth):
-    """Snap-over shoulder for a pill station."""
+def _shoulder_void_slot(bore_l, bore_w, depth):
+    """Pill-station void with snap-over shoulder (same construction as round)."""
     z_flat_top, z_flat_bot, z_ramp_bot = _shoulder_planes()
     shoulder_l = bore_l - 2 * P.SHOULDER_RADIAL
     shoulder_w = bore_w - 2 * P.SHOULDER_RADIAL
 
-    bore = bore.cut(cq.Workplane("XY").slot2D(bore_l, bore_w, 0).extrude(z_flat_top))
-    bore = bore.cut(
-        cq.Workplane("XY").workplane(offset=z_flat_top)
-        .slot2D(shoulder_l, shoulder_w, 0).extrude(z_flat_bot - z_flat_top))
+    guide = cq.Workplane("XY").slot2D(bore_l, bore_w, 0).extrude(z_flat_top)
+    lip = (cq.Workplane("XY").workplane(offset=z_flat_top)
+           .slot2D(shoulder_l, shoulder_w, 0).extrude(z_flat_bot - z_flat_top))
     try:
         ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot)
                 .slot2D(shoulder_l, shoulder_w, 0)
                 .workplane(offset=z_ramp_bot - z_flat_bot)
                 .slot2D(bore_l, bore_w, 0).loft(combine=True))
-        bore = bore.cut(ramp)
     except Exception:
-        bore = bore.cut(cq.Workplane("XY").workplane(offset=z_flat_bot)
-                         .slot2D(bore_l, bore_w, 0).extrude(-(depth + 1) - z_flat_bot))
-        bore = bore.edges("<Z").chamfer(0.15)
-    bore = bore.cut(cq.Workplane("XY").workplane(offset=z_ramp_bot)
-                     .slot2D(bore_l, bore_w, 0).extrude(-(depth + 1) - z_ramp_bot))
-    return bore
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot)
+                .slot2D(bore_l, bore_w, 0).extrude(z_ramp_bot - z_flat_bot))
+    below = (cq.Workplane("XY").workplane(offset=z_ramp_bot)
+             .slot2D(bore_l, bore_w, 0).extrude(-(depth + 1) - z_ramp_bot))
+    return guide.union(lip).union(ramp).union(below)
 
 
 def button_station(hole_d=None, pill=False, keyed=True):
@@ -128,13 +127,12 @@ def button_station(hole_d=None, pill=False, keyed=True):
     if pill:
         flange_l = P.PILL_L + 2 * P.CAP_FLANGE_OS
         flange_w = P.PILL_W + 2 * P.CAP_FLANGE_OS
-        bore_l = flange_l + 2 * P.COLLAR_CLEAR
-        bore_w = flange_w + 2 * P.COLLAR_CLEAR
+        bore_l = flange_l + 2 * P.COLLAR_CLEAR + P.PILL_BORE_EXTRA
+        bore_w = flange_w + 2 * P.COLLAR_CLEAR + P.PILL_BORE_EXTRA
         boss = (cq.Workplane("XY")
                 .slot2D(bore_l + 2 * COLLAR_WALL, bore_w + 2 * COLLAR_WALL, 0)
                 .extrude(-depth))
-        bore = cq.Workplane("XY").slot2D(bore_l, bore_w, 0).extrude(-depth - 1)
-        bore = _shoulder_bore_slot(bore, bore_l, bore_w, depth)
+        bore = _shoulder_void_slot(bore_l, bore_w, depth)
         hole = (cq.Workplane("XY")
                 .slot2D(P.PILL_L + 2 * P.CAP_CLEAR, P.PILL_W + 2 * P.CAP_CLEAR, 0)
                 .extrude(-P.FACE_T - 2).translate((0, 0, 1)))
@@ -143,14 +141,13 @@ def button_station(hole_d=None, pill=False, keyed=True):
     flange_d = hole_d + 2 * P.CAP_FLANGE_OS
     bore_d = flange_d + 2 * P.COLLAR_CLEAR
     boss = cq.Workplane("XY").circle(bore_d / 2 + COLLAR_WALL).extrude(-depth)
-    bore = cq.Workplane("XY").circle(bore_d / 2).extrude(-depth - 1)
+    bore = _shoulder_void_round(bore_d, depth)
     if keyed:
         across = bore_d / 2 - FLAT_DEPTH
         for sign in (1, -1):
             bore = bore.cut(
                 cq.Workplane("XY").box(4 * bore_d, 4 * bore_d, 100)
                 .translate((0, sign * (across + 2 * bore_d), 0)))
-    bore = _shoulder_bore_round(bore, bore_d, depth)
     hole = (cq.Workplane("XY").circle(hole_d / 2 + P.CAP_CLEAR)
             .extrude(-P.FACE_T - 2).translate((0, 0, 1)))
     return boss.cut(bore), hole
