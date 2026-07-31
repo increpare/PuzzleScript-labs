@@ -206,6 +206,13 @@ PCB_SHOULDER_D = 4.4   # wide section behind, the board rests on this step
 # leaves the direction cluster 54 mm from the nearest fixing. The cell is
 # directly behind it, so neither a screw nor a boss can go there. This rib on
 # the back shell bears on the board's rear instead, above the cell.
+# Plain support pads on the back shell that the board simply rests on. They
+# need no hole and no clearance from the button collars, because they sit
+# BEHIND the board -- and the press force is that direction anyway. Cheaper
+# than a pillar wherever locating the board is not also required.
+PCB_SUPPORT_PADS = ((76.0, 60.0),)
+PCB_PAD_D = 5.0
+
 PCB_RIB_X0, PCB_RIB_X1 = 9.0, 62.0
 PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # The rib and the cell fence wanted the same 1.5 mm strip, and the band is only

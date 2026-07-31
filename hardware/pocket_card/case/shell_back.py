@@ -145,6 +145,23 @@ def pcb_support_rib():
             .translate((P.PCB_RIB_X0, P.PCB_RIB_Y0, LID_Z1)))
 
 
+def pcb_support_pads():
+    """Pads bearing on the board's rear where a through-pillar cannot go.
+
+    The top-right corner is inside Action's collar footprint, so nothing can
+    come up through the board there. A pad from behind has no such problem: the
+    collars are in front of the board and the press force is toward the back.
+    """
+    pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    h = SHELL_DEPTH - pcb_back
+    pads = cq.Workplane("XY")
+    for x, y in P.PCB_SUPPORT_PADS:
+        pads = pads.union(
+            cq.Workplane("XY").circle(P.PCB_PAD_D / 2).extrude(h)
+            .translate((x, y, LID_Z1)))
+    return pads
+
+
 def screw_holes():
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
@@ -174,6 +191,7 @@ def build_back():
     s = s.union(driver_housing())
     s = s.union(module_support())
     s = s.union(pcb_support_rib())
+    s = s.union(pcb_support_pads())
     s = s.cut(screw_holes())
     return to_model_space(s)
 

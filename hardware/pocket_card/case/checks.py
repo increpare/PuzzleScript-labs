@@ -306,12 +306,14 @@ def check_pcb_support():
     E, t, w = 20000.0, P.PCB_T, P.PCB_H
     I = w * t ** 3 / 12.0
     supports = [m[0] for m in P.PCB_MOUNTS]
+    pads = list(P.PCB_SUPPORT_PADS)
     rib_y = (P.PCB_RIB_Y0 + P.PCB_RIB_Y1) / 2
     worst = 0.0
     for nm, bx, by in (("directions", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
                        ("Undo", P.UNDO_X, P.UNDO_Y), ("Action", P.ACT_X, P.ACT_Y),
                        ("Reset", P.RESET_X, P.RESET_Y), ("Menu", P.MENU_X, P.MENU_Y)):
         span = min([abs(bx - s) for s in supports] +
+                   [((bx - px) ** 2 + (by - py) ** 2) ** 0.5 for px, py in pads] +
                    ([abs(by - rib_y)] if P.PCB_RIB_X0 <= bx <= P.PCB_RIB_X1 else []))
         d = P.TACT_FORCE_N * span ** 3 / (3 * E * I)
         worst = max(worst, d)
@@ -321,6 +323,25 @@ def check_pcb_support():
           f"(want < {P.TACT_TRAVEL * 0.6:.3f}, i.e. 60% of switch travel)")
     if not ok:
         FAILURES.append("board too flexible")
+
+    for px, py in P.PCB_SUPPORT_PADS:
+        r = P.PCB_PAD_D / 2
+        clashes = []
+        if (px + r > P.BATT_X - 1.8 and px - r < P.BATT_X + P.CELL_W + 1.8
+                and py + r > P.BATT_Y - 1.8 and py - r < P.BATT_Y + P.CELL_H + 1.8):
+            clashes.append("cell")
+        if (px + r > P.GRILLE_X - P.DRIVER_W / 2 - 1.5
+                and px - r < P.GRILLE_X + P.DRIVER_W / 2 + 1.5
+                and py + r > P.GRILLE_Y - P.DRIVER_H / 2 - 1.5
+                and py - r < P.GRILLE_Y + P.DRIVER_H / 2 + 1.5):
+            clashes.append("driver")
+        on_board = (P.PCB_X <= px <= P.PCB_X + P.PCB_W
+                    and P.PCB_Y <= py <= P.PCB_Y + P.PCB_H)
+        ok = not clashes and on_board
+        print(f"   {'PASS' if ok else 'FAIL'}  support pad ({px}, {py}) "
+              f"{'clear' if ok else 'fouls ' + ', '.join(clashes or ['off board'])}")
+        if not ok:
+            FAILURES.append("support pad")
 
     # The fence is open at the top, so the rib is checked against the CELL
     # itself -- it doubles as the cell's top retainer.
