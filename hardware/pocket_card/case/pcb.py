@@ -34,7 +34,17 @@ FP = ("/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/"
 # y where the side actuator protrudes. Caught in KiCad's 3D view -- the pad
 # layouts are nearly identical (+/-2.62 vs +/-2.58), so nothing electrical
 # flagged it.
-TACT = ("Button_Switch_SMD", "SW_SPST_EVQP2_MiddlePushTravel_H2.5mm")
+# Panasonic EVQ-P0: a full 6 mm tact, 6.6 x 6.0 x 2.50 with a centred 2.0 x 2.0
+# plunger. Same H2.5 as the smaller EVQ-P2, so it costs nothing in body
+# thickness, but the larger dome is where tactile snap comes from -- and snap is
+# precisely what the spec traded thickness away for ("a 1.5 mm low-profile part
+# would give ~13.3 mm, at some cost in tactile snap").
+TACT = ("Button_Switch_SMD", "SW_SPST_EVQP0")
+# The menu pill keeps the smaller EVQ-P2. Every switch's top 0.5 mm sits inside
+# its collar bore, and the pill's bore is only 5.60 wide -- EVQ-P0's 6.0 body
+# misses it by 0.40. The round bores are 10.60 and 13.60, which EVQ-P0 clears by
+# 4.00 and 7.00.
+TACT_PILL = ("Button_Switch_SMD", "SW_SPST_EVQP2_MiddlePushTravel_H2.5mm")
 SLIDE = ("Button_Switch_SMD", "SW_SPDT_PCM12")
 EXPANDER = ("Package_SO", "SOIC-28W_7.5x17.9mm_P1.27mm")    # MCP23017
 JST4 = ("Connector_JST", "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal")
@@ -118,7 +128,8 @@ def build():
         ("SW_MENU", P.MENU_X, P.MENU_Y),
     ]
     for ref, x, y in switches:
-        place(board, TACT[0], TACT[1], x, y, ref)
+        lib, fp = TACT_PILL if ref == "SW_MENU" else TACT
+        place(board, lib, fp, x, y, ref)
 
     # (45, 72) unrotated: at (30, 62) rot90 the package overlapped the "up"
     # and "right" direction collars. Components sit at z 3.75-5.5 and collars
