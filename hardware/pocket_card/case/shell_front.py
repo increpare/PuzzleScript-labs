@@ -182,8 +182,8 @@ def driver_pocket():
     for sign in (-1, 1):
         walls = walls.cut(
             cq.Workplane("XY")
-            .box(P.DRIVER_CABLE_W, 2 * (wall + P.DRIVER_CABLE_CLR),
-                 abs(z_back) + 2, centered=(True, True, False))
+            .box(P.DRIVER_CABLE_W, 2 * (wall + 1.0),
+                 P.DRIVER_CABLE_CLR + 1, centered=(True, True, False))
             .translate((P.GRILLE_X, P.GRILLE_Y + sign * h / 2, z_back - 1)))
 
     # Relieve the wall wherever a button collar encroaches. Action's collar

@@ -272,9 +272,14 @@ DRIVER_PILL = True                 # MEASURED  stadium profile, not a box
 # where the adhesive needs contact, so it would have held the driver off its own
 # bonding surface and broken the seal to the grille chamber at the same time.
 # The pocket walls are a locator for placing it squarely, nothing more.
-# Leads leave the driver on its north edge.
+# Leads leave the driver on a side face near its REAR, so the notch is cut in
+# the back of the wall only and the front 2.0 mm stays continuous as a locator.
 DRIVER_CABLE_W = 5.0               # MEASURED  notch width
-DRIVER_CABLE_CLR = 1.5             # MEASURED  space the leads need
+DRIVER_CABLE_CLR = 1.5             # MEASURED  notch height, from the driver's back
+# The adhesive is a perimeter ring, so what matters is solid face under the RIM,
+# not over the whole footprint. Ring bond measured at 94-95% for 1.0-2.0 mm ring
+# widths; the missing 5% is the two points where the arm slot crosses the rim.
+DRIVER_BOND_RING = 1.5             # ASSUMED  ring width the check measures
 GRILLE_X, GRILLE_Y = 76.0, 80.0    # DECIDED  centre, bottom right. At the old
                                    # (77.5, 81.2) a 14 x 20 driver overlapped
                                    # the corner boss; here the tightest
@@ -288,9 +293,12 @@ GRILLE_BITMAP = ("01110",
                  "11111",
                  "01110",
                  "01010")
-GRILLE_CELL   = 2.6    # DECIDED  square pixels; 5 cells = 13 mm across
-GRILLE_SLOT_H = 1.377              # MEASURED  slot height, web 1.623
-GRILLE_RUN_INSET = 0.347           # MEASURED  per end of a run, web 0.694    # DECIDED  leaves a 1.0 mm web between rows
+# Read off object "speaker_cutout" in hardware/card/case/case.blend, which is
+# the existing hand-drawn grille: 3.000 mm pitch in BOTH axes, slots 1.377 tall,
+# each run inset 0.347 from its end cells. Previously guessed at 2.6 / 1.6.
+GRILLE_CELL      = 3.0     # MEASURED  pitch, x and y alike
+GRILLE_SLOT_H    = 1.377   # MEASURED  slot height, web 1.623
+GRILLE_RUN_INSET = 0.347   # MEASURED  per end of a run, web 0.694
 
 # Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.
 # Sized so the run stays clear of the bottom and right walls: at (78, 83) with
