@@ -691,26 +691,77 @@ def check_skqg_stack():
               f"{P.HARD_STOP_AT - P.TACT_TRAVEL:.3f} mm")
 
 
-def check_hard_stop_stack():
-    print("\nhard stop stack (params)")
-    z_flange_bottom_pressed = P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT
-    z_shoulder_flat_top = P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT
-    check("stop plane", z_flange_bottom_pressed, z_shoulder_flat_top, 0.001)
-    boss_tip = P.FACE_T + P.CAP_FLANGE_T + P.CAP_BOSS_GAP
-    stem_tip = P.PCB_FRONT_Z - P.TACT_H
-    check("boss reaches stem", boss_tip, stem_tip, 0.001)
-    half = P.TACT_OUTLINE / 2
-    print(f"   INFO  SKQG half-width {half:.2f} mm; stop is in shell, not on body")
+def check_shoulder_params():
+    """Inequalities that can fail — not identities of PCB_FRONT_Z."""
+    print("\nshoulder params")
+    need = (P.CAP_FLANGE_T + P.HARD_STOP_AT + P.SHOULDER_FLAT_T
+            + P.SHOULDER_RAMP_T)
+    ok = P.COLLAR_DEPTH + 1e-9 >= need
+    print(f"   {'PASS' if ok else 'FAIL'}  COLLAR_DEPTH {P.COLLAR_DEPTH:.2f} "
+          f">= shoulder stack {need:.2f}")
+    if not ok:
+        FAILURES.append("COLLAR_DEPTH")
+    for label, hole_d in (("dir", P.DIR_CAP_D), ("ab", P.AB_CAP_D),
+                          ("reset", P.RESET_CAP_D)):
+        flange_d = hole_d + 2 * P.CAP_FLANGE_OS
+        bore_d = flange_d + 2 * P.COLLAR_CLEAR
+        sid = flange_d - 2 * P.SHOULDER_RADIAL
+        ok = 0 < sid < bore_d
+        print(f"   {'PASS' if ok else 'FAIL'}  {label} shoulder_id {sid:.2f} "
+              f"in (0, {bore_d:.2f})")
+        if not ok:
+            FAILURES.append(f"shoulder_id {label}")
+
+
+def check_skqg_fits_bore():
+    """Square SKQG body must clear every collar bore (menu pill is the tight one)."""
+    print("\nskqg body vs collar bore")
+    stations = [
+        ("dir", P.DIR_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("ab", P.AB_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("reset", P.RESET_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("menu_narrow", P.PILL_W + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+    ]
+    for name, bore in stations:
+        gap = bore - P.TACT_OUTLINE
+        ok = gap >= 0.2
+        print(f"   {'PASS' if ok else 'FAIL'}  {name}: bore {bore:.2f} - "
+              f"body {P.TACT_OUTLINE:.2f} = {gap:+.2f} mm (want >= +0.20)")
+        if not ok:
+            FAILURES.append(f"bore {name}")
+
+
+def check_shoulder_in_coupon_stl(tri):
+    """Shoulder flat present in exported coupon — measured, not assumed."""
+    print("\nshoulder in coupon_plate.stl")
+    z_want = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
+    # coupon.LADDER_X[2], ROW1_Y (plate is centered on origin in coupon.py)
+    cx, cy = 0.0, 11.0
+    flange_d = P.DIR_CAP_D + 2 * P.CAP_FLANGE_OS
+    bore_d = flange_d + 2 * P.COLLAR_CLEAR
+    sid = flange_d - 2 * P.SHOULDER_RADIAL
+    verts = tri.reshape(-1, 3)
+    d = np.hypot(verts[:, 0] - cx, verts[:, 1] - cy)
+    ann = (d >= sid / 2 - 0.05) & (d <= bore_d / 2 + 0.05)
+    zs = verts[ann, 2]
+    near = zs[(zs > z_want - 0.15) & (zs < z_want + 0.15)]
+    ok = len(near) >= 20
+    print(f"   {'PASS' if ok else 'FAIL'}  annulus verts near z={z_want:.2f}: "
+          f"{len(near)} (want >= 20)")
+    if not ok:
+        FAILURES.append("shoulder missing in STL")
 
 
 def main():
     check_skqg_stack()
-    check_hard_stop_stack()
+    check_shoulder_params()
+    check_skqg_fits_bore()
     path = os.path.join(OUT, "coupon_plate.stl")
     if not os.path.exists(path):
         sys.exit("coupon_plate.stl missing -- run coupon.py first")
 
     tri = load_tris(path)
+    check_shoulder_in_coupon_stl(tri)
     bb = [float(np.ptp(tri[:, :, i])) for i in range(3)]
     print("coupon_plate.stl")
     check("plate width", bb[0], 88.0, 0.02)

@@ -12,6 +12,52 @@
 
 ---
 
+## Plan defects (fixed 2026-08-01)
+
+Owner review caught real bugs in the original task text. Treat this section as
+binding over any contradictory wording left below until those paragraphs are
+edited inline.
+
+1. **B.Cu connectors vs driver XY keepout — wrong constraint.** The driver sits
+   in the front shell at device z ≈ 1.5–5.0. The PCB front is at 4.5; the back
+   face is at 4.5 + `PCB_T` = 6.5. B.Cu parts hang further rear. A back-side
+   JST **cannot collide with the driver at any XY**. Task 3 must **not** use a
+   2D driver keepout for `CONN_*`. Real constraints: **cell fence**, **board
+   outline**, and **back-shell interior**. The drafted `(68, 70)` / `(68, 74.5)`
+   BAT sites only “failed” the bogus driver test; keep them (or re-tune only
+   for cell/shell).
+
+2. **Task 2 Step 5 tautologies — withdrawn.** Comparing
+   `FACE_T+CAP_FLANGE_T+HARD_STOP_AT` to itself, or `boss_tip` to
+   `PCB_FRONT_Z - TACT_H` when `PCB_FRONT_Z` is defined from those terms, can
+   never fail. Replace with: (a) parametric inequalities that can fail
+   (`COLLAR_DEPTH` covers shoulder stack; `shoulder_id` positive and less than
+   bore), (b) **STL-measured** shoulder flat near
+   `z = -(FACE_T+CAP_FLANGE_T+HARD_STOP_AT)` on `coupon_plate.stl`, same spirit
+   as driver/bond checks.
+
+3. **Switch body vs collar bore — required check.** EVQ-P0 already failed the
+   menu pill bore by −0.40 mm. Assert for every station class:
+   `min_bore_width - TACT_OUTLINE > 0` (prefer ≥ 0.2 mm). Measure from the same
+   formulas `button_station` uses; do not hand-wave “5.60 clears 5.2” in a
+   comment alone.
+
+4. **DATASHEET marks for force/travel.** Alps Alpine product page for
+   SKQGABE010 lists Operating force **1.57 N**, Travel **0.25 mm**, Product
+   height **1.5 mm**, □5.2 — confirm before treating as locked
+   (https://tech.alpsalpine.com/e/products/detail/SKQGABE010/). Formal delivery
+   drawing still preferred for land pattern; KiCad keepouts stand until then.
+
+5. **Task 1 “currently EVQ-P2” premise was stale.** `params.py` said H2.5;
+   `pcb.py` already had EVQ-P0 on rounds and EVQ-P2 on the pill. Ignore that
+   sentence; Task 3 replaces all eight with SKQG.
+
+6. **`pcb_route.py` is in-plan.** Moving four connectors to B.Cu is not a
+   footnote. Add **Task 6** to re-route and drive DRC to a known clean (or
+   explicitly waived) state; the board is not orderable at ~34 DRC errors.
+
+---
+
 ## File structure
 
 | File | Responsibility |
@@ -167,24 +213,72 @@ In `coupon.py` `cap()`:
 - **Delete** the skirt union (`skirt_len` / `circle(3.0)` ring). Hard stop is the collar shoulder now.
 - Optionally keep a very short ≤0.2 mm coaxial tip on the boss only if needed for print adhesion — not a stop.
 
-- [ ] **Step 5: Add hard-stop geometry check**
+- [ ] **Step 5: Replace tautological hard-stop checks with real gates**
+
+**Do not** compare an expression to itself. Implement:
 
 ```python
-def check_hard_stop_stack():
-    print("\nhard stop stack (params)")
-    # Flange bottom at full press must meet shoulder flat top.
-    z_flange_bottom_pressed = P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT
-    z_shoulder_flat_top = P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT
-    check("stop plane", z_flange_bottom_pressed, z_shoulder_flat_top, 0.001)
-    # Boss tip at rest reaches stem tip at PCB_FRONT_Z - TACT_H
-    boss_tip = P.FACE_T + P.CAP_FLANGE_T + P.CAP_BOSS_GAP
-    stem_tip = P.PCB_FRONT_Z - P.TACT_H
-    check("boss reaches stem", boss_tip, stem_tip, 0.001)
-    # Shoulder still clears SKQG body half-width when flange is pressed
-    # (lip is on the collar, not the PCB — this is a sanity bound only).
-    half = P.TACT_OUTLINE / 2
-    print(f"   INFO  SKQG half-width {half:.2f} mm; stop is in shell, not on body")
+def check_shoulder_params():
+    print("\nshoulder params (can fail)")
+    need = P.CAP_FLANGE_T + P.HARD_STOP_AT + P.SHOULDER_FLAT_T + P.SHOULDER_RAMP_T
+    check("COLLAR_DEPTH covers shoulder", P.COLLAR_DEPTH, need, 0.0)
+    # allow COLLAR_DEPTH >= need (check() is abs tol — use explicit inequality)
+    if P.COLLAR_DEPTH + 1e-9 < need:
+        print(f"   FAIL  COLLAR_DEPTH {P.COLLAR_DEPTH} < shoulder stack {need}")
+        FAILURES.append("COLLAR_DEPTH")
+    else:
+        print(f"   PASS  COLLAR_DEPTH {P.COLLAR_DEPTH:.2f} >= {need:.2f}")
+    for label, hole_d in (("dir", P.DIR_CAP_D), ("ab", P.AB_CAP_D),
+                          ("reset", P.RESET_CAP_D)):
+        flange_d = hole_d + 2 * P.CAP_FLANGE_OS
+        bore_d = flange_d + 2 * P.COLLAR_CLEAR
+        sid = flange_d - 2 * P.SHOULDER_RADIAL
+        ok = 0 < sid < bore_d
+        print(f"   {'PASS' if ok else 'FAIL'}  {label} shoulder_id {sid:.2f} "
+              f"in (0, {bore_d:.2f})")
+        if not ok:
+            FAILURES.append(f"shoulder_id {label}")
+
+def check_skqg_fits_bore():
+    print("\nskqg body vs collar bore")
+    stations = [
+        ("dir", P.DIR_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("ab", P.AB_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("reset", P.RESET_CAP_D + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+        ("menu_narrow", P.PILL_W + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR),
+    ]
+    for name, bore in stations:
+        gap = bore - P.TACT_OUTLINE
+        ok = gap >= 0.2
+        print(f"   {'PASS' if ok else 'FAIL'}  {name}: bore {bore:.2f} - "
+              f"body {P.TACT_OUTLINE:.2f} = {gap:+.2f} mm (want >= +0.20)")
+        if not ok:
+            FAILURES.append(f"bore {name}")
+
+def check_shoulder_in_coupon_stl(tri):
+    """Shoulder flat present in exported coupon (not a params identity)."""
+    print("\nshoulder in coupon_plate.stl")
+    z_want = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
+    cx, cy = 0.0, 11.0   # coupon.LADDER_X[2], ROW1_Y — confirm against export
+    flange_d = P.DIR_CAP_D + 2 * P.CAP_FLANGE_OS
+    bore_d = flange_d + 2 * P.COLLAR_CLEAR
+    sid = flange_d - 2 * P.SHOULDER_RADIAL
+    verts = tri.reshape(-1, 3)
+    d = np.hypot(verts[:, 0] - cx, verts[:, 1] - cy)
+    ann = (d >= sid / 2 - 0.05) & (d <= bore_d / 2 + 0.05)
+    zs = verts[ann, 2]
+    near = zs[(zs > z_want - 0.15) & (zs < z_want + 0.15)]
+    ok = len(near) >= 20
+    print(f"   {'PASS' if ok else 'FAIL'}  annulus verts near z={z_want:.2f}: "
+          f"{len(near)} (want >= 20)")
+    if not ok:
+        FAILURES.append("shoulder missing in STL")
 ```
+
+Call `check_shoulder_params` and `check_skqg_fits_bore` from `main()` before STL
+load; call `check_shoulder_in_coupon_stl(tri)` after `load_tris`.
+
+**Delete** any tautological `check_hard_stop_stack` that only mirrors identities.
 
 - [ ] **Step 6: Rebuild coupon and run checks**
 
@@ -227,7 +321,15 @@ CONN_BAT_OUT = (68.0, 74.5)   # ASSUMED  2P GH to module BAT
 CONN_SIDE    = "B.Cu"         # DECIDED
 ```
 
-- [ ] **Step 2: Add pocket clearance + SKQG keepout neighbor checks**
+- [ ] **Step 2: Add B.Cu pocket clearance + SKQG keepout neighbor checks**
+
+**B.Cu pocket (no driver XY keepout):** each `CONN_*` must satisfy:
+
+- `x > BATT_X + CELL_W + BATT_CLEAR + 1.0` (cell fence)
+- inside board: `PCB_X+1 … PCB_X+PCB_W-1`, `PCB_Y+1 … PCB_Y+PCB_H-1`
+- `CONN_SIDE == "B.Cu"`
+
+Do **not** test against the driver bounding box.
 
 KiCad’s `SW_SPST_SKQG_WithStem` embeds two F.Cu keepouts (from the library
 footprint), each a 3×2.6 mm rectangle beside the stem:
@@ -296,9 +398,14 @@ def check_skqg_keepouts():
         print("   PASS  no SKQG keepout/pad AABB overlaps between sites")
 ```
 
-Also add `check_connector_pocket()` as previously specified (cell fence + driver keepout + `CONN_SIDE == "B.Cu"`). Call both from `main()` after `check_skqg_stack()`.
+Implement `check_connector_pocket()` with **only** cell fence, board outline, and
+`CONN_SIDE` (see defect #1). Call it and `check_skqg_keepouts` from `main()`
+after `check_skqg_stack()`.
 
-If `check_skqg_keepouts` fails at current face pitches, **stop and report** — do not silence the check. Fix is either a small site move, a footprint rotation that separates keepouts, or (last resort) a documented pitch change in params with owner approval.
+If `check_skqg_keepouts` fails at current face pitches, **stop and report** —
+do not silence the check. Fix is either a small site move, a footprint rotation
+that separates keepouts, or (last resort) a documented pitch change in params
+with owner approval.
 
 - [ ] **Step 3: Run the new checks**
 
@@ -359,7 +466,7 @@ Update the file header comment: component side F.Cu faces buttons; module IO is 
 /Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3 pcb.py
 ```
 
-Expected: saves `out/pcb/pocket_card_controller.kicad_pcb`; printout shows eight `SW_SPST_SKQG_WithStem` and four JST refs at the new XY. Open in KiCad and confirm JSTs are on **B.Cu** (3D view: connectors hang into the battery/driver cavity, not into the button cavity).
+Expected: saves `out/pcb/pocket_card_controller.kicad_pcb`; printout shows eight `SW_SPST_SKQG_WithStem` and four JST refs at the new XY. Open in KiCad and confirm JSTs are on **B.Cu** (hang into the rear cavity / wiring pocket, not the button cavity).
 
 - [ ] **Step 6: Re-run `checks.py` (params gates + STL gates)**
 
@@ -380,6 +487,33 @@ git commit -m "Place SKQG on front and module JSTs on PCB back."
 ```
 
 (If the generated `.kicad_pcb` is gitignored, omit it and commit only the generators.)
+
+---
+
+### Task 3b: Re-route controller PCB and clear DRC
+
+**Files:**
+- Modify: `hardware/pocket_card/case/pcb_route.py` (and/or manual KiCad session)
+- Modify: `hardware/pocket_card/case/out/pcb/pocket_card_controller.kicad_pcb`
+- Test: KiCad DRC report
+
+Moving four GH connectors to B.Cu invalidates much of the existing front copper.
+The board currently sits around **~34 DRC errors** and is not orderable; this
+task is load-bearing, not optional cleanup.
+
+- [ ] **Step 1: Baseline DRC** — open the regenerated board, run DRC, save the
+  count and a short list of classes (unconnected, clearance, keepout, edge).
+
+- [ ] **Step 2: Re-route** — update `pcb_route.py` for new connector anchors and
+  B.Cu fanout, or route in KiCad. Preserve expander↔switch intent. Respect
+  SKQG F.Cu keepout zones (no pour/track through them).
+
+- [ ] **Step 3: DRC clean** — drive to **0 errors**, or a written waive list
+  committed next to the board (each waiver one line: code, ref, reason).
+  Open connections are not waivable.
+
+- [ ] **Step 4: Commit** with message
+  `Route Pocket Card controller after SKQG and rear JST move.`
 
 ---
 
@@ -442,9 +576,11 @@ Expected: `PASS` throughout; process exit 0.
 
 - [ ] **Step 3: PCB regenerate + visual confirm**
 
-Regenerate with KiCad Python (Task 3 command). In KiCad: eight SKQG on F.Cu at collar centres; four GH connectors on B.Cu around x≈68, clear of cell and driver.
+Regenerate with KiCad Python (Task 3 command). In KiCad: eight SKQG on F.Cu at collar centres; four GH connectors on B.Cu around x≈68, clear of **cell fence** (driver XY overlap is allowed on B.Cu).
 
-- [ ] **Step 4: Final commit only if Step 1–3 left dirty files; otherwise done**
+- [ ] **Step 4: Confirm Task 3b DRC gate is green (or waived in writing)**
+
+- [ ] **Step 5: Final commit only if Step 1–4 left dirty files; otherwise done**
 
 ---
 
@@ -454,11 +590,13 @@ Regenerate with KiCad Python (Task 3 command). In KiCad: eight SKQG on F.Cu at c
 |---|---|
 | SKQGABE010 on all eight, 1.5 mm / 1.57 N / 0.25 mm | Task 1, Task 3 |
 | Body ~13.7 mm, PCB front 4.5 mm | Task 1 |
-| Snap-over ramped collar shoulder @ ~0.35 mm | Task 2 |
+| Snap-over ramped collar shoulder @ ~0.35 mm | Task 2 (+ STL measure) |
 | Withdraw skirt→PCB production stop | Task 2 |
 | Boss centres stem; no side load (geometry + notes) | Task 2, README |
+| SKQG fits every collar bore (≥0.2 mm) | Task 2 / checks |
 | JSTs on B.Cu, right-rear pocket, cell flat | Task 3 |
 | SKQG land pattern keepouts; no neighbor overlap | Task 3 |
+| Board routable / DRC clean after move | Task 3b |
 | Speaker still not on this board | unchanged (pcb.py comment already) |
 | Coupon prints real snap; clearance ladder kept | Task 2 |
 | Parent July 31 pointer | Task 4 |
@@ -469,4 +607,3 @@ Regenerate with KiCad Python (Task 3 command). In KiCad: eight SKQG on F.Cu at c
 - Physical resin coupon feel and clearance pick
 - Cable length dress on a real ES3C28P
 - Menu/Undo XY overlap fix (still open on July 31 face layout)
-- `pcb_route.py` re-route after connector move (run when copper is next regenerated)

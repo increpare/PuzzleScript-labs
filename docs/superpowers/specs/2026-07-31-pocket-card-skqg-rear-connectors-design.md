@@ -134,8 +134,10 @@ the cables already want to live under the board plane.
 | **Back (B.Cu)** | All keyed module interconnects (`J_I2C`, `J_EXP`, `J_BAT_IN`, `J_BAT_OUT`) |
 
 - Place the back-side connector cluster in the **lower-right rear pocket**,
-  opposite the cell (cell stays hard left), clearing the cell fence, driver
-  housing, and mounting bosses. Exact XY is free inside that pocket.
+  opposite the cell (cell stays hard left). Clear the **cell fence**, stay on
+  the board outline, and clear the **back-shell interior**. Do **not** treat
+  the front-shell driver XY as a keepout for B.Cu parts — the driver lives at
+  z ≈ 1.5–5.0 in front of the board. Exact XY is free inside that pocket.
 - Cables drop from the module’s lower-edge sockets and dress under/around the
   board into that pocket. Messy routing is acceptable; the case remains
   openable for service.
