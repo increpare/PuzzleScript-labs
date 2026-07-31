@@ -42,6 +42,18 @@ GRID = 18.0          # centres; the largest flange is Ø13.2
 SPRUE_W = 1.5
 COLS = 4
 
+# Same stations as shell_front.build() — keep in lockstep with that list.
+STATIONS = [
+    (P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D, False),   # up
+    (P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D, False),   # down
+    (P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D, False),   # left
+    (P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D, False),   # right
+    (P.UNDO_X, P.UNDO_Y, P.AB_CAP_D, False),
+    (P.ACT_X, P.ACT_Y, P.AB_CAP_D, False),
+    (P.RESET_X, P.RESET_Y, P.RESET_CAP_D, False),
+    (P.MENU_X, P.MENU_Y, None, True),
+]
+
 
 def cap_set(clr, vi):
     """All eight caps for one variant, joined by sprues into a single solid.
@@ -84,6 +96,26 @@ def vol(shape):
     return shape.val().Volume() / 1000.0      # mm^3 -> cm^3
 
 
+def shell_with_caps(clr):
+    """Front shell with all eight caps seated at face stations.
+
+    Preview / fit-check only — not a fab part. Uses the same clearance as the
+    production FIT_CLEAR (or whatever clr is passed) so the crowns sit in the
+    collars the way a built unit would.
+    """
+    front = shell_front.build()
+    asm = front
+    for x, y, d, pill in STATIONS:
+        shape = coupon.cap(d, clr, pill=pill)
+        if pill and P.MENU_ANGLE:
+            shape = shape.rotate((0, 0, 0), (0, 0, 1), -P.MENU_ANGLE)
+        # Caps are built in device coords; shell_front.build() already returns
+        # model space, so each cap needs the same mirror/translate.
+        placed = shell_front.to_model_space(shape.translate((x, y, 0)))
+        asm = asm.union(placed)
+    return asm
+
+
 def main():
     total = 0.0
     lines = []
@@ -100,6 +132,15 @@ def main():
     total += v
     lines.append(f"shell_back.stl                  {v:6.1f} cm3   x1")
 
+    # Assembled preview at production clearance (not counted in fab volume).
+    P.CAP_CLEAR = P.COLLAR_CLEAR = P.FIT_CLEAR
+    assembled = shell_with_caps(P.FIT_CLEAR)
+    asm_path = os.path.join(OUT, "shell_front_with_caps.stl")
+    cq.exporters.export(assembled, asm_path)
+    lines.append(
+        f"shell_front_with_caps.stl       {vol(assembled):6.1f} cm3   "
+        f"preview @ clear {P.FIT_CLEAR:.2f} (not for fab)")
+
     for vi, clr in enumerate(VARIANTS, start=1):
         P.CAP_CLEAR = clr
         P.COLLAR_CLEAR = clr
@@ -115,13 +156,15 @@ def main():
     P.CAP_CLEAR = P.COLLAR_CLEAR = P.FIT_CLEAR
 
     print("\n".join(lines))
-    print(f"\ntotal volume {total:.1f} cm3")
+    print(f"\ntotal fab volume {total:.1f} cm3  (excludes assembly preview)")
     print("\nmanifest — engraved digit on the crown:")
     for vi, clr in enumerate(VARIANTS, start=1):
         print(f"   {vi}  ->  {clr:.2f} mm clearance")
-    print(f"\n{2 + len(VARIANTS)} files total (JLCPCB allows 10). Quantity 1 of each.")
+    print(f"\n{2 + len(VARIANTS)} fab files + 1 preview (JLCPCB allows 10). "
+          f"Quantity 1 of each fab file.")
     print("Each set holds all eight caps sprued together -- snip at the flanges.")
     print("The menu pill carries no digit; its shape is unique.")
+    print("shell_front_with_caps.stl = front shell with caps seated in place.")
 
 
 if __name__ == "__main__":
