@@ -103,10 +103,31 @@ def inject_zones(path):
     import uuid as _uuid
     if "(zone" in open(path).read():
         return 0          # already present; never duplicate or clobber a fill
-    x0, y0 = P.PCB_X - 1.0, P.PCB_Y - 1.0
-    x1, y1 = P.PCB_X + P.PCB_W + 1.0, P.PCB_Y + P.PCB_H + 1.0
-    pts = " ".join("(xy %g %g)" % pt for pt in
-                   ((x0, y0), (x1, y0), (x1, y1), (x0, y1)))
+
+    # Reuse a previously filled pour if one was saved. The zone outline and
+    # board edge do not change between runs, so a stale fill is geometrically
+    # imperfect but tells freerouting the plane exists -- which is the whole
+    # point. Without it the router wastes its effort on ~25 ground connections
+    # and the owner has to fill twice per cycle.
+    frag = os.path.join(os.path.dirname(path), "zones_filled.kicad_frag")
+    if os.path.exists(frag):
+        txt = open(path).read()
+        cut = txt.rstrip().rfind("\n)")
+        open(path, "w").write(txt[:cut] + "\n" + open(frag).read() + "\n)\n")
+        return -1         # signals "reused a filled pour"
+    # Inset INSIDE the board, and follow the driver notch. Previously the
+    # outline sat 1 mm outside the edge, so the pour filled flush to it and
+    # tripped 14 copper-to-edge violations.
+    g = 0.5
+    x0, y0 = P.PCB_X + g, P.PCB_Y + g
+    x1, y1 = P.PCB_X + P.PCB_W - g, P.PCB_Y + P.PCB_H - g
+    nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8 - g
+    ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8 - g
+    if nx0 < x1 and ny0 < y1:
+        corners = ((x0, y0), (x1, y0), (x1, ny0), (nx0, ny0), (nx0, y1), (x0, y1))
+    else:
+        corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+    pts = " ".join("(xy %g %g)" % pt for pt in corners)
     blocks = "".join(ZONE_TEMPLATE % (layer, _uuid.uuid4(), pts)
                      for layer in ("F.Cu", "B.Cu"))
     txt = open(path).read()
@@ -235,8 +256,9 @@ def main():
     pcbnew.ImportSpecctraSES(board, ses)
     board.Save(BRD)
     n = inject_zones(BRD)
-    print("injected %d ground zones as text" % n if n
-          else "zones already present, left alone")
+    print({0: "zones already present, left alone",
+           -1: "reused the saved filled pour"}.get(n,
+          "injected %d ground zones as text" % n))
 
     tr = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T]
     vi = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
