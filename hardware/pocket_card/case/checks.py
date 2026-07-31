@@ -1,3 +1,4 @@
+import math
 """Verify the exported coupon geometry.
 
 Measures the exported STL rather than the in-memory model, so it also catches
@@ -275,6 +276,44 @@ def check_orientation():
               f"(centre {cx:.1f}, {cy:.1f})")
         if not ok:
             FAILURES.append("d-pad not lower-left")
+
+
+def check_grille_vs_driver():
+    """Every grille slot must open onto the driver, not past its edge.
+
+    The driver is a stadium, so near its ends it is narrower than its bounding
+    box; a slot that clears the box can still overhang the real part. Half-width
+    at a given y is the straight section's, or the semicircle's beyond it.
+    """
+    print("\ngrille slots vs driver face")
+    r = P.DRIVER_W / 2.0
+    straight = P.DRIVER_H / 2.0 - r          # semicircle centres at +/- this
+    rows = len(P.GRILLE_BITMAP)
+    cols = max(len(row) for row in P.GRILLE_BITMAP)
+    worst, where = 1e9, ""
+    for ri, row in enumerate(P.GRILLE_BITMAP):
+        cy = P.GRILLE_Y + (rows - 1 - ri - (rows - 1) / 2.0) * P.GRILLE_CELL
+        for edge in (cy - P.GRILLE_SLOT_H / 2, cy + P.GRILLE_SLOT_H / 2):
+            dy = abs(edge - P.GRILLE_Y)
+            if dy <= straight:
+                half = r
+            elif dy - straight >= r:
+                half = -1.0
+            else:
+                half = math.sqrt(r * r - (dy - straight) ** 2)
+            for ci, ch in enumerate(row):
+                if ch != "1":
+                    continue
+                cx = P.GRILLE_X + (ci - (cols - 1) / 2.0) * P.GRILLE_CELL
+                over = (half - abs(cx - P.GRILLE_X)
+                        - P.GRILLE_CELL / 2 + P.GRILLE_RUN_INSET)
+                if over < worst:
+                    worst, where = over, "row %d col %d" % (ri, ci)
+    ok = worst >= 0
+    print("   %s  tightest slot corner %s at %+.2f mm inside the driver"
+          % ("PASS" if ok else "FAIL", where, worst))
+    if not ok:
+        FAILURES.append("grille slot overhangs the driver")
 
 
 def check_driver_vs_collars():
@@ -599,6 +638,7 @@ def main():
     check_pcb_support()
     check_pcb_posts_vs_collars()
     check_driver_vs_collars()
+    check_grille_vs_driver()
     check_back_shell()
 
     print()

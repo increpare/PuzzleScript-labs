@@ -254,9 +254,18 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 # cost in tactile snap.
 
 # ------------------------------------------------------------- audio ------
-# The actual speaker, measured: rectangular, not the disc previously assumed.
-DRIVER_W, DRIVER_H = 14.0, 20.0    # MEASURED
+# The actual speaker, read out of hardware/card/case/case.blend (object
+# "speaker", 20.00 x 14.00 x 3.50, 68 vertices). It is a PILL, not a rectangle:
+# 14 mm wide with semicircular ends of radius 7, so a 6 mm straight section
+# between them. DRIVER_W/H are the bounding box; DRIVER_PILL says how to draw it.
+# Long axis VERTICAL here, unlike the blend, which is the older `card` case.
+# Horizontal gives +1.00 mm to the walls instead of +0.00, but fouls corner boss
+# 2 at (86, 89) and PCB mount H4 at (66, 81), and there is no grille position
+# that clears both. Vertical fouls nothing; its +0.00 top margin is not a breach,
+# it just means the pocket borrows the case's own top wall for that side.
+DRIVER_W, DRIVER_H = 14.0, 20.0    # MEASURED  bounding box, long axis vertical
 DRIVER_T = 3.5                     # MEASURED
+DRIVER_PILL = True                 # MEASURED  stadium profile, not a box
 GRILLE_X, GRILLE_Y = 76.0, 80.0    # DECIDED  centre, bottom right. At the old
                                    # (77.5, 81.2) a 14 x 20 driver overlapped
                                    # the corner boss; here the tightest
@@ -271,7 +280,8 @@ GRILLE_BITMAP = ("01110",
                  "01110",
                  "01010")
 GRILLE_CELL   = 2.6    # DECIDED  square pixels; 5 cells = 13 mm across
-GRILLE_SLOT_H = 1.6    # DECIDED  leaves a 1.0 mm web between rows
+GRILLE_SLOT_H = 1.377              # MEASURED  slot height, web 1.623
+GRILLE_RUN_INSET = 0.347           # MEASURED  per end of a run, web 0.694    # DECIDED  leaves a 1.0 mm web between rows
 
 # Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.
 # Sized so the run stays clear of the bottom and right walls: at (78, 83) with

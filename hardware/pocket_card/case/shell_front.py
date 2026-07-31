@@ -153,13 +153,15 @@ def driver_pocket():
     """
     wall = 1.2
     w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
+    # Stadium, not a box: the part has semicircular ends. A rectangular pocket
+    # would locate it on four corners it does not have.
     outer = (cq.Workplane("XY")
-             .box(w + 2 * wall, h + 2 * wall, P.DRIVER_T,
-                  centered=(True, True, False))
-             .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T - P.DRIVER_T)))
+             .slot2D(h + 2 * wall, w + 2 * wall, 90)
+             .extrude(-P.DRIVER_T)
+             .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T)))
     pocket = (cq.Workplane("XY")
-              .box(w, h, P.DRIVER_T + 1, centered=(True, True, False))
-              .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T - P.DRIVER_T - 0.5)))
+              .slot2D(h, w, 90).extrude(-P.DRIVER_T - 1)
+              .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T + 0.5)))
     walls = outer.cut(pocket)
     # Relieve the wall wherever a button collar encroaches. Action's collar
     # reaches y=69.1 and the pocket wall starts at 68.5, so a full box would
@@ -236,7 +238,7 @@ def grille_slots():
             while c < len(row) and row[c] == "1":
                 c += 1
             c1 = c - 1
-            length = (c1 - c0 + 1) * cell
+            length = (c1 - c0 + 1) * cell - 2 * P.GRILLE_RUN_INSET
             dx = ((c0 + c1) / 2.0 - (len(row) - 1) / 2.0) * cell
             dy = (r - (n - 1) / 2.0) * cell
             cuts = cuts.union(
