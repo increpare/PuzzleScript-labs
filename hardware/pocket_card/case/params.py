@@ -133,8 +133,8 @@ AB_CAP_D     = 11.00   # MEASURED  Undo / Action, from the DMG A/B openings
 PILL_L       = 11.15   # MEASURED  Reset / Menu
 PILL_W       = 3.00    # MEASURED  cross-checked: horizontal chord 7.55 = W/sin(23.4)
 PILL_ANGLE   = 23.4    # MEASURED
-AB_PITCH     = 16.34   # MEASURED  A to B, centre to centre
-AB_ANGLE     = 25.4    # MEASURED
+AB_PITCH     = 17.35   # DERIVED   from the placed positions (DMG was 16.34)
+AB_ANGLE     = 15.7    # DERIVED   (DMG was 25.4)
 PILL_PITCH   = 15.00   # MEASURED  Start to Select
 
 # Confidence on the measured set: 11.00, 15.00 and 3.00 land exactly on round
@@ -147,20 +147,20 @@ PILL_PITCH   = 15.00   # MEASURED  Start to Select
 # X positions transfer 1:1 from the DMG because both bodies are 90 mm wide.
 # Y is ours: the DMG spreads its controls over 83 mm and we have 40.
 
-DIR_CX, DIR_CY = 18.22, 67.5   # MEASURED x / DECIDED y   cluster centre
+DIR_CX, DIR_CY = 19.70, 68.80  # DECIDED  positioned in the layout editor
 DIR_RADIUS     = 9.0           # DECIDED   cap centres from cluster centre
 DIR_SPAN       = 2 * DIR_RADIUS + DIR_CAP_D          # 26.0 overall
 DIR_GAP        = (2 ** 0.5) * DIR_RADIUS - DIR_CAP_D # 4.73 between adjacent caps
 
-UNDO_X,  UNDO_Y  = 63.22, 71.0     # was DMG "B", inboard
-ACT_X,   ACT_Y   = 77.98, 63.99    # was DMG "A", holds true 25.4 deg to Undo
+UNDO_X,  UNDO_Y  = 60.40, 65.80    # was DMG "B", inboard
+ACT_X,   ACT_Y   = 77.10, 61.10    # was DMG "A"
 # Reset joins the right-hand cluster as a small round cap -- subordinate to
 # Undo/Action by size, which is the hierarchy the July 12 spec asked for.
 # Menu stays a slit: it is the most recessive control on the device.
-RESET_X, RESET_Y = 63.5, 84.0      # 63.5 not 64.0: its collar overlapped
+RESET_X, RESET_Y = 56.50, 81.60
                                    # the driver retaining ring by 0.10 mm
 RESET_CAP_D      = DIR_CAP_D       # 8.0, same as a direction button
-MENU_X,  MENU_Y  = 48.23, 86.0     # was DMG "Start", still a pill
+MENU_X,  MENU_Y  = 39.60, 85.40    # was DMG "Start", still a pill
 MENU_ANGLE       = 0.0             # DECIDED  straight, not slanted like the DMG
 
 # Cap legends are not modelled yet: arrows on the four directions, and text or
@@ -215,7 +215,7 @@ DRIVER_D = 12.0        # DECIDED  Ø18 put the back-shell retaining ring
                        # 1.1 mm outside the right wall and 1.1 past the
                        # bottom. Ø14 is what the corner actually allows.
 DRIVER_T = 4.0         # ASSUMED
-GRILLE_X, GRILLE_Y = 76.5, 79.0    # DECIDED  centre, bottom right
+GRILLE_X, GRILLE_Y = 77.50, 81.20  # DECIDED  centre, bottom right
                                    # nudged right/down to clear the Reset cap
 
 # Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.

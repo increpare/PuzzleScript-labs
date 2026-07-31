@@ -73,12 +73,22 @@ def battery_fence():
 
 
 def driver_housing():
-    """Ring behind the driver, pressing it forward against the grille chamber."""
+    """Ring behind the driver, pressing it forward against the grille chamber.
+
+    Relieved wherever a screw boss encroaches. The ring only has to hold the
+    driver against the chamber, so it does not need to be continuous -- which
+    saves moving the grille every time the bottom-right corner gets crowded.
+    """
     r_out = P.DRIVER_D / 2 + 1.6
     ring = (cq.Workplane("XY")
             .circle(r_out).circle(P.DRIVER_D / 2 + 0.3)
             .extrude(FENCE_H)
             .translate((P.GRILLE_X, P.GRILLE_Y, LID_Z1 - FENCE_H)))
+    for bx, by in P.EXTRA_BOSSES:
+        if (bx - P.GRILLE_X) ** 2 + (by - P.GRILLE_Y) ** 2 < (r_out + 3.0) ** 2:
+            ring = ring.cut(
+                cq.Workplane("XY").circle(3.0).extrude(FENCE_H + 1)
+                .translate((bx, by, LID_Z1 - FENCE_H - 0.5)))
     return ring
 
 
