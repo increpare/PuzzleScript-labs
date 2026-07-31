@@ -42,6 +42,20 @@ The July 31 note that “a 1.5 mm low-profile part would give ~13.3 mm, at some
 cost in tactile snap” is closed by this choice. SKQG is that part; Alps rates
 the series as sharp-feeling.
 
+### Footprint and copper keepouts
+
+Use KiCad `Button_Switch_SMD:SW_SPST_SKQG_WithStem` (or an identical land
+pattern from the Alps drawing). The part is not a plain 5.2 mm courtyard:
+
+- Body □5.2 mm; four gull-wing pads at (±3.1, ±1.85), each 1.8 × 1.1 mm.
+- Two **F.Cu keepouts** beside the stem (library zones): approximately
+  `x ∈ [±1 … ±4]`, `y ∈ [−1.3 … 1.3]` in footprint coordinates — no tracks,
+  vias, pads, or pours. Marked “KEEP-OUT ZONE / No F.Cu tracks” in the
+  footprint.
+
+Neighboring switch sites must keep those keepouts and pad copper from
+overlapping. Automated AABB checks in `checks.py` gate the face pitches.
+
 ## Thickness stack
 
 Only the tact body height changes in the lower-zone stack:

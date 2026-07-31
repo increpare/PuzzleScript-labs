@@ -227,42 +227,86 @@ CONN_BAT_OUT = (68.0, 74.5)   # ASSUMED  2P GH to module BAT
 CONN_SIDE    = "B.Cu"         # DECIDED
 ```
 
-- [ ] **Step 2: Add a failing pocket clearance check**
+- [ ] **Step 2: Add pocket clearance + SKQG keepout neighbor checks**
+
+KiCad’s `SW_SPST_SKQG_WithStem` embeds two F.Cu keepouts (from the library
+footprint), each a 3×2.6 mm rectangle beside the stem:
+
+- left:  `x ∈ [-4, -1]`, `y ∈ [-1.3, 1.3]` (footprint local, 0° rotation)
+- right: `x ∈ [+1, +4]`, `y ∈ [-1.3, 1.3]`
+
+Pads sit at (±3.1, ±1.85), size 1.8×1.1. No tracks/vias/pads/pours in those
+zones. Neighboring SKQGs must not have overlapping keepouts (or overlapping
+pad copper) at the face pitches.
 
 ```python
-def check_connector_pocket():
-    print("\nconnector pocket (params)")
-    fence_x1 = P.BATT_X + P.CELL_W + P.BATT_CLEAR
-    sites = [("I2C", P.CONN_I2C), ("EXP", P.CONN_EXP),
-             ("BAT_IN", P.CONN_BAT_IN), ("BAT_OUT", P.CONN_BAT_OUT)]
-    # JST GH body ~5 mm wide, ~4 mm tall; keep 1 mm keepout from cell fence
-    # and from driver bounding box expanded by 1.5 mm.
-    drv = (P.GRILLE_X - P.DRIVER_W / 2 - 1.5,
-           P.GRILLE_X + P.DRIVER_W / 2 + 1.5,
-           P.GRILLE_Y - P.DRIVER_H / 2 - 1.5,
-           P.GRILLE_Y + P.DRIVER_H / 2 + 1.5)
-    for name, (x, y) in sites:
-        ok_cell = x > fence_x1 + 1.0
-        ok_drv = not (drv[0] <= x <= drv[1] and drv[2] <= y <= drv[3])
-        print(f"   {'PASS' if ok_cell else 'FAIL'}  {name} clear of cell fence "
-              f"(x={x:.1f} > {fence_x1 + 1.0:.1f})")
-        print(f"   {'PASS' if ok_drv else 'FAIL'}  {name} clear of driver keepout")
-        if not ok_cell:
-            FAILURES.append(f"{name} vs cell")
-        if not ok_drv:
-            FAILURES.append(f"{name} vs driver")
-    if getattr(P, "CONN_SIDE", "") != "B.Cu":
-        FAILURES.append("CONN_SIDE")
-        print("   FAIL  CONN_SIDE must be B.Cu")
-    else:
-        print("   PASS  CONN_SIDE is B.Cu")
+# From Button_Switch_SMD:SW_SPST_SKQG_WithStem (0° local coords)
+SKQG_KEEPOUTS = ((-4.0, -1.0, -1.3, 1.3), (1.0, 4.0, -1.3, 1.3))  # x0,x1,y0,y1
+SKQG_PADS = (  # centre x,y, w, h — both nets, four pads
+    (-3.1, -1.85, 1.8, 1.1), (3.1, -1.85, 1.8, 1.1),
+    (-3.1, 1.85, 1.8, 1.1), (3.1, 1.85, 1.8, 1.1),
+)
+
+def _aabb_overlap(a, b):
+    return not (a[1] <= b[0] or b[1] <= a[0] or a[3] <= b[2] or b[3] <= a[2])
+
+def _local_box_to_board(cx, cy, rot_deg, x0, x1, y0, y1):
+    """Axis-aligned board AABB of a local rect after rotation about (cx,cy)."""
+    import math
+    r = math.radians(rot_deg)
+    c, s = math.cos(r), math.sin(r)
+    xs, ys = [], []
+    for x, y in ((x0, y0), (x0, y1), (x1, y0), (x1, y1)):
+        xs.append(cx + x * c - y * s)
+        ys.append(cy + x * s + y * c)
+    return (min(xs), max(xs), min(ys), max(ys))
+
+def check_skqg_keepouts():
+    print("\nskqg keepouts vs neighbours (params)")
+    # rot=0 for all eight in pcb.py unless a later task rotates pills.
+    sites = [
+        ("UP", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, 0),
+        ("DOWN", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, 0),
+        ("LEFT", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, 0),
+        ("RIGHT", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, 0),
+        ("UNDO", P.UNDO_X, P.UNDO_Y, 0),
+        ("ACTION", P.ACT_X, P.ACT_Y, 0),
+        ("RESET", P.RESET_X, P.RESET_Y, 0),
+        ("MENU", P.MENU_X, P.MENU_Y, 0),
+    ]
+    boxes = []  # (name, kind, aabb)
+    for name, cx, cy, rot in sites:
+        for i, (x0, x1, y0, y1) in enumerate(SKQG_KEEPOUTS):
+            boxes.append((name, f"KO{i}", _local_box_to_board(cx, cy, rot, x0, x1, y0, y1)))
+        for i, (px, py, w, h) in enumerate(SKQG_PADS):
+            boxes.append((name, f"PAD{i}", _local_box_to_board(
+                cx, cy, rot, px - w/2, px + w/2, py - h/2, py + h/2)))
+    n_fail = 0
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            n1, k1, a = boxes[i]
+            n2, k2, b = boxes[j]
+            if n1 == n2:
+                continue
+            if _aabb_overlap(a, b):
+                print(f"   FAIL  {n1}.{k1} overlaps {n2}.{k2}")
+                FAILURES.append(f"{n1}.{k1} vs {n2}.{k2}")
+                n_fail += 1
+    if n_fail == 0:
+        print("   PASS  no SKQG keepout/pad AABB overlaps between sites")
 ```
 
-- [ ] **Step 3: Run the pocket check (expect PASS on coords once params exist; FAIL if still missing)**
+Also add `check_connector_pocket()` as previously specified (cell fence + driver keepout + `CONN_SIDE == "B.Cu"`). Call both from `main()` after `check_skqg_stack()`.
+
+If `check_skqg_keepouts` fails at current face pitches, **stop and report** — do not silence the check. Fix is either a small site move, a footprint rotation that separates keepouts, or (last resort) a documented pitch change in params with owner approval.
+
+- [ ] **Step 3: Run the new checks**
 
 ```bash
-.venv/bin/python -c "import checks; checks.check_connector_pocket(); import sys; sys.exit(1 if checks.FAILURES else 0)"
+.venv/bin/python -c "import checks; checks.check_connector_pocket(); checks.check_skqg_keepouts(); import sys; sys.exit(1 if checks.FAILURES else 0)"
 ```
+
+Expected after params/connectors exist: both PASS. If a keepout pair fails, fix pitch or rotate one footprint before committing the PCB — do not weaken the check.
 
 - [ ] **Step 4: Rework `pcb.py` footprints and layers**
 
@@ -414,6 +458,7 @@ Regenerate with KiCad Python (Task 3 command). In KiCad: eight SKQG on F.Cu at c
 | Withdraw skirt→PCB production stop | Task 2 |
 | Boss centres stem; no side load (geometry + notes) | Task 2, README |
 | JSTs on B.Cu, right-rear pocket, cell flat | Task 3 |
+| SKQG land pattern keepouts; no neighbor overlap | Task 3 |
 | Speaker still not on this board | unchanged (pcb.py comment already) |
 | Coupon prints real snap; clearance ladder kept | Task 2 |
 | Parent July 31 pointer | Task 4 |
