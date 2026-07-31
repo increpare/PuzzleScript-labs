@@ -240,9 +240,12 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # cell as well as supporting the board. One feature, two jobs.
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
-MUTE_SW_X  = 60.0                  # DECIDED  bottom edge, left of the driver notch
-                                   # NB: no longer directly under the grille --
-                                   # the driver notch takes that board area.
+# Was 60: at y=86.5 the PCM12 courtyard overlapped SW_RESET at (56.5, 81.6).
+MUTE_SW_X  = 70.0                  # DECIDED  bottom edge, clear of Reset
+# y=88.5 put PCM12 pads on the Edge.Cuts (clearance 0) and outside the GND
+# pour inset. 86.5 keeps pad copper ≥0.5 mm from the south edge at y=90.
+POWER_SW_Y = 86.5                  # DECIDED
+MUTE_SW_Y  = 86.5                  # DECIDED
 
 # Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
 # y is still device/face coordinates (KiCad Y-down matches params).

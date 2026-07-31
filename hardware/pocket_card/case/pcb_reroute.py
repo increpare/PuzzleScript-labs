@@ -31,15 +31,23 @@ BRD = os.path.join(HERE, "out", "pcb", "pocket_card_controller.kicad_pcb")
 
 
 def split_zones(text):
-    """Return (text without zone blocks, list of zone blocks)."""
+    """Return (text without BOARD pour zones, list of those zone blocks).
+
+    Only strip top-level `\\t(zone` blocks (GND pours). Nested `(zone` inside
+    footprints are SKQG keepouts — pulling them out and appending at file end
+    corrupts the board (seen as ~16 orphaned keepout zones after re-route).
+    """
     blocks, out, i = [], [], 0
+    needle = "\n\t(zone"
     while True:
-        j = text.find("(zone", i)
+        j = text.find(needle, i)
         if j < 0:
             out.append(text[i:])
             break
-        out.append(text[i:j])
-        depth, k = 0, j
+        # keep the newline; start parse at the tab
+        out.append(text[i:j + 1])
+        start = j + 1
+        depth, k = 0, start
         while k < len(text):
             if text[k] == "(":
                 depth += 1
@@ -49,7 +57,12 @@ def split_zones(text):
                     k += 1
                     break
             k += 1
-        blocks.append(text[j:k])
+        block = text[start:k]
+        # Only move pours; leave any unexpected top-level keepout alone.
+        if "hatch edge" in block or '(net "GND")' in block[:80]:
+            blocks.append(block)
+        else:
+            out.append(block)
         i = k
     return "".join(out), blocks
 

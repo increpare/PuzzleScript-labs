@@ -1,0 +1,4 @@
+tools/*.jar
+.venv
+out/pcb/~*
+__pycache__/

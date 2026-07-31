@@ -241,10 +241,12 @@ def build_sexpr():
 
     parts.append(footprint_sexpr(EXPANDER[0], EXPANDER[1], 45.0, 72.0, "U1"))
     placed.append(("U1", EXPANDER[1], 45.0, 72.0, "F.Cu"))
-    parts.append(footprint_sexpr(SLIDE[0], SLIDE[1], P.POWER_SW_X, 88.5, "SW_PWR"))
-    placed.append(("SW_PWR", SLIDE[1], P.POWER_SW_X, 88.5, "F.Cu"))
-    parts.append(footprint_sexpr(SLIDE[0], SLIDE[1], P.MUTE_SW_X, 88.5, "SW_MUTE"))
-    placed.append(("SW_MUTE", SLIDE[1], P.MUTE_SW_X, 88.5, "F.Cu"))
+    parts.append(footprint_sexpr(
+        SLIDE[0], SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "SW_PWR"))
+    placed.append(("SW_PWR", SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "F.Cu"))
+    parts.append(footprint_sexpr(
+        SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE"))
+    placed.append(("SW_MUTE", SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "F.Cu"))
 
     for ref, ways, x, y, _note in CONNECTORS:
         lib, name = (JST4 if ways == 4 else JST2)
@@ -315,8 +317,8 @@ def build_pcbnew():
     for ref, x, y in switches:
         place(board, TACT[0], TACT[1], x, y, ref)
     place(board, EXPANDER[0], EXPANDER[1], 45.0, 72.0, "U1")
-    place(board, SLIDE[0], SLIDE[1], P.POWER_SW_X, 88.5, "SW_PWR")
-    place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, 88.5, "SW_MUTE")
+    place(board, SLIDE[0], SLIDE[1], P.POWER_SW_X, P.POWER_SW_Y, "SW_PWR")
+    place(board, SLIDE[0], SLIDE[1], P.MUTE_SW_X, P.MUTE_SW_Y, "SW_MUTE")
     for ref, ways, x, y, _note in CONNECTORS:
         lib, name = (JST4 if ways == 4 else JST2)
         place(board, lib, name, x, y, ref, 180, back=True)
