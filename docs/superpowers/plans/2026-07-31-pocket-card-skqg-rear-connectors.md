@@ -134,28 +134,26 @@ In `shell_front.py`, after `button_station`’s bore is created and before `retu
 Preferred construction for a round station (mirror for pills with `slot2D`):
 
 ```python
-# z=0 face outer; collar extends to -depth.
-# Flange rests at rest with its top at z=-FACE_T.
-# After HARD_STOP_AT travel, flange bottom is at:
-#   z_stop = -(FACE_T + CAP_FLANGE_T + HARD_STOP_AT)
+# z=0 is face outer; collar extends to -depth.
+# At rest, flange top is at z=-FACE_T.
+# After HARD_STOP_AT travel, flange bottom meets the shoulder flat at:
+#   z_flat_top = -(FACE_T + CAP_FLANGE_T + HARD_STOP_AT)
 flange_d = hole_d + 2 * P.CAP_FLANGE_OS
 bore_d = flange_d + 2 * P.COLLAR_CLEAR
-shoulder_id = flange_d - 2 * P.SHOULDER_RADIAL   # undercut vs flange
+shoulder_id = flange_d - 2 * P.SHOULDER_RADIAL
 z_flat_top = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
 z_flat_bot = z_flat_top - P.SHOULDER_FLAT_T
 z_ramp_bot = z_flat_bot - P.SHOULDER_RAMP_T
-
 ```
 
-Build the collar with three coaxial cuts (no loft required):
+Build the collar with coaxial cuts:
 
 1. Cut `bore_d` from `z=0` down to `z_flat_top` (flange guide).
 2. Cut `shoulder_id` from `z_flat_top` down to `z_flat_bot` (flat stop lip).
-3. Cut a truncated cone from `shoulder_id` at `z_flat_bot` to `bore_d` at `z_ramp_bot` for the insertion ramp — implement as `cq.Workplane(...).circle(shoulder_id/2).workplane(offset=-(z_flat_bot-z_ramp_bot)).circle(bore_d/2).loft()` on a throwaway solid that is then cut from the collar, **or** if loft misbehaves in the local CadQuery build, cut `bore_d` from `z_flat_bot` to `-depth-1` and chamfer the lower inner edge of the lip by approx `atan(SHOULDER_RADIAL/SHOULDER_RAMP_T)`.
-
+3. Cut a truncated cone from `shoulder_id` at `z_flat_bot` to `bore_d` at `z_ramp_bot` for the insertion ramp (`circle` → `workplane(offset=...)` → `circle` → `loft`, then cut from collar). If loft fails in the local CadQuery build, cut `bore_d` from `z_flat_bot` to `-depth-1` and chamfer the lip’s lower inner edge instead.
 4. Ensure `COLLAR_DEPTH` is deep enough that `-depth <= z_ramp_bot`.
 
-Apply the same logic to pill stations with `slot2D` dimensions: flange slot = pill + 2*`CAP_FLANGE_OS`, bore = flange + 2*`COLLAR_CLEAR`, shoulder slot shrunk by `SHOULDER_RADIAL` on each side.
+Pill stations use the same planes with `slot2D`: flange slot = pill + 2×`CAP_FLANGE_OS`, bore = flange + 2×`COLLAR_CLEAR`, shoulder slot shrunk by `SHOULDER_RADIAL` per side.
 
 - [ ] **Step 3: Update `coupon.py` collar the same way**
 
