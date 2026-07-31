@@ -144,25 +144,47 @@ def module_posts():
 
 
 def driver_pocket():
-    """Walls locating the driver against the grille, flush behind the face.
+    """Walls, seat and cable exit for the driver, flush behind the face.
 
     The driver is 3.5 mm thick and its front must seal against the grille
-    chamber, so it occupies z 1.5-5.0 -- entirely in front of the board, which
-    starts at 5.5. It therefore does not straddle the board plane at all, and
-    the board behind it is what holds it forward.
+    chamber, so it occupies z 2.0-5.5 -- entirely in front of the board, which
+    starts at 5.5, and touching it. It seats forward on a lip rather than on the
+    grille border: the arm slot is 14.306 wide against a 14.0 driver, so along x
+    the face is fully cut away and there is nothing there to bear on. The lip is
+    DRIVER_LIP_T thick, which is exactly the slack that used to be left between
+    the driver's back and the board, so the board now clamps it rather than
+    leaving it to rattle.
+
+    The north wall carries a notch for the leads.
     """
     wall = 1.2
     w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
+    z_lip = -P.FACE_T                       # front of the lip
+    z_seat = z_lip - P.DRIVER_LIP_T         # driver's front face
+    z_back = z_seat - P.DRIVER_T            # driver's back, = -PCB_FRONT_Z
     # Stadium, not a box: the part has semicircular ends. A rectangular pocket
     # would locate it on four corners it does not have.
     outer = (cq.Workplane("XY")
              .slot2D(h + 2 * wall, w + 2 * wall, 90)
-             .extrude(-P.DRIVER_T)
-             .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T)))
-    pocket = (cq.Workplane("XY")
-              .slot2D(h, w, 90).extrude(-P.DRIVER_T - 1)
-              .translate((P.GRILLE_X, P.GRILLE_Y, -P.FACE_T + 0.5)))
-    walls = outer.cut(pocket)
+             .extrude(z_back).translate((P.GRILLE_X, P.GRILLE_Y, 0))
+             .cut(cq.Workplane("XY").box(200, 200, 200)
+                  .translate((0, 0, 100 + z_lip))))
+    bore = (cq.Workplane("XY").slot2D(h, w, 90)
+            .extrude(z_back - 1).translate((P.GRILLE_X, P.GRILLE_Y, z_seat)))
+    seat = (cq.Workplane("XY")
+            .slot2D(h - 2 * P.DRIVER_LIP_W, w - 2 * P.DRIVER_LIP_W, 90)
+            .extrude(-(P.DRIVER_LIP_T + 1))
+            .translate((P.GRILLE_X, P.GRILLE_Y, z_lip + 0.5)))
+    walls = outer.cut(bore).cut(seat)
+
+    # Lead notch through the north wall. North is -y in layout space, which
+    # to_model_space() turns into the top of the finished part.
+    walls = walls.cut(
+        cq.Workplane("XY")
+        .box(P.DRIVER_CABLE_W, 2 * (wall + P.DRIVER_CABLE_CLR),
+             abs(z_back) + 2, centered=(True, True, False))
+        .translate((P.GRILLE_X, P.GRILLE_Y - h / 2, z_back - 1)))
+
     # Relieve the wall wherever a button collar encroaches. Action's collar
     # reaches y=69.1 and the pocket wall starts at 68.5, so a full box would
     # foul it. The wall only has to locate the driver, so it need not be
@@ -172,7 +194,7 @@ def driver_pocket():
                       (P.RESET_X, P.RESET_Y, P.RESET_CAP_D)):
         r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + COLLAR_WALL
         walls = walls.cut(
-            cq.Workplane("XY").circle(r).extrude(-(P.FACE_T + P.DRIVER_T + 1))
+            cq.Workplane("XY").circle(r).extrude(-(P.FACE_T + P.DRIVER_T + 2))
             .translate((cx, cy, 0)))
     return walls
 

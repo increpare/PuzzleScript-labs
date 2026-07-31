@@ -14,6 +14,7 @@ import sys
 import numpy as np
 
 import params as P
+import shell_front
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 PX = 0.05
@@ -276,6 +277,35 @@ def check_orientation():
               f"(centre {cx:.1f}, {cy:.1f})")
         if not ok:
             FAILURES.append("d-pad not lower-left")
+
+
+def check_cap_fits_collar():
+    """Every round cap flange must actually pass its own collar bore.
+
+    This existed as two independent tables. button_station() keyed every round
+    collar; a CAPS table in build_variants.py keyed only the directions and
+    reset, so the undo and action flanges -- full Ø13.2 circles -- were being
+    asked through bores with 0.8 mm flats cut into them. Nothing caught it
+    because each file was self-consistent. Measures the built solids now.
+    """
+    print("\ncap flange vs collar bore")
+    import coupon
+    worst, which = 1e9, ""
+    for nm, d in (("dir", P.DIR_CAP_D), ("undo", P.AB_CAP_D),
+                  ("action", P.AB_CAP_D), ("reset", P.RESET_CAP_D)):
+        c = coupon.cap(d, P.FIT_CLEAR)
+        bb = c.val().BoundingBox()
+        flange_d = d + 2 * P.CAP_FLANGE_OS
+        bore_d = flange_d + 2 * P.COLLAR_CLEAR
+        across = 2 * (bore_d / 2 - shell_front.FLAT_DEPTH)   # bore across flats
+        gap = across - bb.ylen                               # cap across flats
+        if gap < worst:
+            worst, which = gap, nm
+    ok = worst >= 0
+    print("   %s  tightest %s: bore across flats leads cap by %+.2f mm"
+          % ("PASS" if ok else "FAIL", which, worst))
+    if not ok:
+        FAILURES.append("cap flange cannot enter its collar")
 
 
 def check_grille_vs_driver():
@@ -639,6 +669,7 @@ def main():
     check_pcb_posts_vs_collars()
     check_driver_vs_collars()
     check_grille_vs_driver()
+    check_cap_fits_collar()
     check_back_shell()
 
     print()

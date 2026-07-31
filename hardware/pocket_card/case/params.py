@@ -266,6 +266,16 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 DRIVER_W, DRIVER_H = 14.0, 20.0    # MEASURED  bounding box, long axis vertical
 DRIVER_T = 3.5                     # MEASURED
 DRIVER_PILL = True                 # MEASURED  stadium profile, not a box
+# The driver seats on a lip rather than on the grille border: the widest slot
+# (the arms, 14.306) is wider than the driver (14.0), so along x there is no
+# face material left to bear on. Lip thickness also takes up the slack between
+# the driver's back and the board, so the board clamps it instead of leaving
+# 0.5 mm of rattle.
+DRIVER_LIP_T = 0.5                 # DECIDED  = PCB_FRONT_Z - FACE_T - DRIVER_T
+DRIVER_LIP_W = 1.0                 # DECIDED  inward projection of the seat
+# Leads leave the driver on its north edge.
+DRIVER_CABLE_W = 5.0               # MEASURED  notch width
+DRIVER_CABLE_CLR = 1.5             # MEASURED  space the leads need
 GRILLE_X, GRILLE_Y = 76.0, 80.0    # DECIDED  centre, bottom right. At the old
                                    # (77.5, 81.2) a 14 x 20 driver overlapped
                                    # the corner boss; here the tightest

@@ -63,8 +63,15 @@ def collar(hole_d, clear_collar, keyed):
     return boss.cut(bore)
 
 
-def cap(hole_d, clear_cap, keyed, pill=False):
-    """A single button cap: crown, head, flange, skirt, boss."""
+def cap(hole_d, clear_cap, pill=False):
+    """A single button cap: crown, head, flange, skirt, boss.
+
+    Every round cap is keyed, because every round collar is: button_station()
+    keys unconditionally. This used to be a caller-supplied flag, and a second
+    table in build_variants.py had it False for undo and action -- whose Ø13.2
+    flanges then could not pass the 0.8 mm flats in their own bores. There is no
+    flag now, so the two cannot disagree again. The pill is keyed by its shape.
+    """
     if pill:
         head = (
             cq.Workplane("XY")
@@ -99,8 +106,7 @@ def cap(hole_d, clear_cap, keyed, pill=False):
         cq.Workplane("XY").workplane(offset=-P.FACE_T)
         .circle(flange_d / 2).extrude(-P.CAP_FLANGE_T)
     )
-    if keyed:
-        flange = _flats(flange, flange_d / 2, FLAT_DEPTH + 0.05)
+    flange = _flats(flange, flange_d / 2, FLAT_DEPTH + 0.05)
 
     # boss down to the plunger, and a skirt that bottoms out as the hard stop
     boss_top = -(P.FACE_T + P.CAP_FLANGE_T)
@@ -176,11 +182,11 @@ if __name__ == "__main__":
     parts = []
     for i, clr in enumerate(P.COUPON_CLEARANCES):
         parts.append((f"cap_{i + 1}_dir_{clr:.2f}".replace(".", "p"),
-                      marked(cap(P.DIR_CAP_D, clr, True), i + 1), clr))
+                      marked(cap(P.DIR_CAP_D, clr), i + 1), clr))
     parts.append((f"cap_6_undo-action_{mid:.2f}".replace(".", "p"),
-                  marked(cap(P.AB_CAP_D, mid, False), 6), mid))
+                  marked(cap(P.AB_CAP_D, mid), 6), mid))
     parts.append((f"cap_7_menu-pill_{mid:.2f}".replace(".", "p"),
-                  cap(None, mid, False, pill=True), mid))
+                  cap(None, mid, pill=True), mid))
 
     for name, shape, clr in parts:
         cq.exporters.export(shape, os.path.join(OUT, name + ".stl"))

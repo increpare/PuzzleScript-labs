@@ -31,11 +31,11 @@ os.makedirs(OUT, exist_ok=True)
 VARIANTS = (0.10, 0.20, 0.30, 0.40)
 
 # One physical set: four directions, Undo, Action, Reset, Menu.
-CAPS = [("dir", P.DIR_CAP_D, False, True)] * 4 + [
-    ("undo", P.AB_CAP_D, False, False),
-    ("action", P.AB_CAP_D, False, False),
-    ("reset", P.RESET_CAP_D, False, True),
-    ("menu", None, True, False),
+CAPS = [("dir", P.DIR_CAP_D, False)] * 4 + [
+    ("undo", P.AB_CAP_D, False),
+    ("action", P.AB_CAP_D, False),
+    ("reset", P.RESET_CAP_D, False),
+    ("menu", None, True),
 ]
 
 GRID = 18.0          # centres; the largest flange is Ø13.2
@@ -57,10 +57,10 @@ def cap_set(clr, vi):
     z0 = -(P.FACE_T + P.CAP_FLANGE_T)
     out = cq.Workplane("XY")
     pos = []
-    for i, (name, dia, pill, keyed) in enumerate(CAPS):
+    for i, (name, dia, pill) in enumerate(CAPS):
         cx, cy = (i % COLS) * GRID, (i // COLS) * GRID
         pos.append((cx, cy))
-        shape = coupon.cap(dia, clr, keyed, pill=pill)
+        shape = coupon.cap(dia, clr, pill=pill)
         if not pill:
             mark = (cq.Workplane("XY").text(str(vi), 3.0, 1.0, combine=False)
                     .translate((0, 0, P.CAP_PROUD - 0.5)))
