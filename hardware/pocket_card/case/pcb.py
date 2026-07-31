@@ -52,9 +52,9 @@ PCB_MOUNTS = ((65.0, 56.0), (80.0, 72.0))
 # module's amp-enable pin, not a break in the speaker wires.
 CONNECTORS = [
     ("J_I2C", 4, 12.0, 54.5, "3V3/GND/SCL/SDA -- to module I2C"),
-    ("J_EXP", 4, 26.0, 54.5, "IO2 interrupt -- to module expansion"),
-    ("J_BAT_IN", 2, 40.0, 54.5, "from cell"),
-    ("J_BAT_OUT", 2, 50.0, 54.5, "to module BAT"),
+    ("J_EXP", 4, 34.0, 54.5, "IO2 interrupt -- to module expansion"),
+    ("J_BAT_IN", 2, 46.0, 54.5, "from cell"),
+    ("J_BAT_OUT", 2, 56.0, 54.5, "to module BAT"),
 ]
 
 
@@ -140,9 +140,9 @@ def build():
         lib, name = (JST4 if ways == 4 else JST2)
         place(board, lib, name, x, y, ref, 180)
 
-    for i, (nm, x) in enumerate([("3V3", 0), ("GND", 1), ("SDA", 2),
-                                 ("SCL", 3), ("INT", 4)]):
-        place(board, TP[0], TP[1], 64.0 + x * 3.0, 58.5, "TP_" + nm)
+    # No separate test points. J_I2C already exposes 3V3, GND, SCL and SDA on
+    # 1.25 mm pads and J_EXP exposes the interrupt, so a dedicated row bought
+    # nothing and collided with SW_ACTION and the mounting hole.
 
     for i, (x, y) in enumerate(PCB_MOUNTS):
         place(board, MHOLE[0], MHOLE[1], x, y, "H%d" % (i + 1))

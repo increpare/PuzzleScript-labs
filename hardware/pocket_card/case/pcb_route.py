@@ -1,18 +1,19 @@
-"""Netlist, routing and ground pour for the controller PCB.
+"""Netlist and ground pour for the controller PCB; routing via freerouting.
 
 Run after pcb.py, under KiCad's bundled Python 3.9.
 
-Approach:
-  * every switch's common side goes to a B.Cu ground pour through its own via,
-    so no ground routing is needed at all;
-  * signal sides run on F.Cu to the expander;
-  * expander GPIO assignment is chosen by geometry rather than fixed in
-    advance, because which bit a button lands on is a firmware constant and
-    letting the layout choose it removes most crossings.
+This script assigns nets and pours ground. It does NOT route: an earlier
+hand-rolled router produced 83 DRC violations and 26 unconnected nets, and
+the failure mode was that its output looked entirely plausible. Routing is
+handed to freerouting through Specctra DSN/SES, which is the standard KiCad
+workflow and produces output DRC can actually vouch for.
 
-The resulting mapping is printed and must be copied into the spec -- the
-July 12 allocation was explicitly provisional.
+The expander GPIO assignment is chosen by geometry rather than fixed in
+advance: which bit a button lands on is a firmware constant, so letting the
+layout pick it costs nothing and shortens the traces. The July 12 allocation
+was explicitly provisional; the mapping printed here supersedes it.
 """
+import subprocess
 import math
 import os
 import sys
@@ -115,35 +116,14 @@ def main():
         free.remove(best)
         mapping.append((ref, sig, best[0], best[1]))
 
-    routed, crossed = [], 0
     for ref, sig, gpio, gpad in mapping:
         fp = fps[ref]
         net = add_net(board, "SIG_" + sig)
         pads = list(fp.Pads())
-        sig_pad = pads[0]
-        sig_pad.SetNet(net)
+        pads[0].SetNet(net)
         for p in pads[1:]:
-            p.SetNet(gnd)
+            p.SetNet(gnd)      # common side; the pour picks these up
         gpad.SetNet(net)
-
-        a, b = xy(sig_pad), xy(gpad)
-        corner = (b[0], a[1])
-        legs = [(a, corner), (corner, b)]
-        layer = pcbnew.F_Cu
-        if any(seg_hit(l[0], l[1], r[0], r[1]) for l in legs for r in routed):
-            layer = pcbnew.B_Cu
-            crossed += 1
-            via(board, a, net)
-            via(board, b, net)
-        for s, e in legs:
-            track(board, s, e, net, layer)
-        if layer == pcbnew.F_Cu:
-            routed += legs
-
-        # ground vias for the common side
-        for p in pads[1:]:
-            px, py = xy(p)
-            via(board, (px, py), gnd)
 
     # power and bus
     for pin, net in (("9", v3), ("10", gnd), ("12", nets["SCL"]),
@@ -163,27 +143,60 @@ def main():
     pad_of(sw, "2").SetNet(nets["BAT_P"])
     pad_of(sw, "1").SetNet(nets["BAT_SW"])
 
-    for name, net in (("3V3", v3), ("GND", gnd), ("SDA", nets["SDA"]),
-                      ("SCL", nets["SCL"]), ("INT", nets["INT"])):
-        pad_of(fps["TP_" + name], "1").SetNet(net)
+    # Explicit design rules. A board from CreateEmptyBoard carries defaults that
+    # are too coarse for this fanout, and freerouting honours whatever the DSN
+    # declares -- with the defaults it left 24 nets unrouted.
+    ds = board.GetDesignSettings()
+    nc = ds.m_NetSettings.GetDefaultNetclass()
+    nc.SetClearance(mm(0.15))
+    nc.SetTrackWidth(mm(0.2))
+    nc.SetViaDiameter(mm(0.6))
+    nc.SetViaDrill(mm(0.3))
+    ds.SetCopperLayerCount(2)
+    board.Save(BRD)
 
-    # ground pour over the whole board on B.Cu
-    zone = pcbnew.ZONE(board)
-    zone.SetLayer(pcbnew.B_Cu)
-    zone.SetNet(gnd)
-    zone.SetLocalClearance(mm(CLEAR))
-    out = pcbnew.SHAPE_POLY_SET()
-    out.NewOutline()
-    x0, y0 = P.PCB_X - 1, P.PCB_Y - 1
-    x1, y1 = P.PCB_X + P.PCB_W + 1, P.PCB_Y + P.PCB_H + 1
-    for px, py in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
-        out.Append(mm(px), mm(py))
-    zone.SetOutline(out)
-    board.Add(zone)
+    # hand the routing to freerouting via Specctra
+    dsn = BRD.replace(".kicad_pcb", ".dsn")
+    ses = BRD.replace(".kicad_pcb", ".ses")
+    pcbnew.ExportSpecctraDSN(board, dsn)
+    print("exported %s" % os.path.basename(dsn))
+    jar = os.environ.get("FREEROUTING_JAR")
+    if not jar or not os.path.exists(jar):
+        print("set FREEROUTING_JAR to the freerouting 2.1.0 jar and re-run")
+        return
+    # -mt 1: freerouting's own log warns multi-threaded optimisation is broken
+    # and generates clearance violations.
+    subprocess.run(["java", "-jar", jar, "-de", dsn, "-do", ses,
+                    "-mp", "100", "-mt", "1"], check=False)
+    if os.path.exists(ses):
+        board = pcbnew.LoadBoard(BRD)
+        pcbnew.ImportSpecctraSES(board, ses)
+        print("imported routed session")
+    else:
+        print("freerouting produced no session file")
+        return
+
+    gnd = board.FindNet("GND")
+
+    # Ground pour on BOTH layers. A back-only pour cannot reach front-side SMD
+    # pads, which left every switch common unconnected -- 38 of the 28 reported
+    # unconnected items were GND.
+    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+        zone = pcbnew.ZONE(board)
+        zone.SetLayer(layer)
+        zone.SetNet(gnd)
+        zone.SetLocalClearance(mm(CLEAR))
+        out = pcbnew.SHAPE_POLY_SET()
+        out.NewOutline()
+        x0, y0 = P.PCB_X + 0.4, P.PCB_Y + 0.4
+        x1, y1 = P.PCB_X + P.PCB_W - 0.4, P.PCB_Y + P.PCB_H - 0.4
+        for px, py in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+            out.Append(mm(px), mm(py))
+        zone.SetOutline(out)
+        board.Add(zone)
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
 
     board.Save(BRD)
-    print("routed %d signals, %d needed the back layer" % (len(mapping), crossed))
     print("\nexpander allocation chosen by geometry:")
     for ref, sig, gpio, _ in mapping:
         print("   %-6s -> %s" % (sig, gpio))
