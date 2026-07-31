@@ -40,6 +40,41 @@ MOUNT_INSET  = 4.0                          # DATASHEET  from each module edge
 
 CONTROL_BAND_TOP = MOD_Y + MOD_H            # 52.5
 
+# --------------------------------------------------- screen aperture ------
+# The active area is NOT centred on the module. MEASURED off the §5.1 outline
+# drawing at 12.23 px/mm: 17.28 mm from the USB-C end, 11.12 mm from the antenna
+# end. Corroborated by the same scan returning the mounting holes at 4.01/81.99
+# (datasheet 4.00 inset, 78.00 pitch) and the touch panel at 8.58-77.66 against
+# a stated 69.20 span; and 11.12 appears verbatim in the drawing's text.
+#
+# Consequence: in a 90 mm body the screen sits 3.08 mm right of centre and
+# cannot be centred without widening to ~95.2 mm. Accepted; the wide left bezel
+# carries a wordmark so the asymmetry reads as composition, which is what the
+# DMG did with its battery LED and lettering.
+ACTIVE_OFF_USB = 17.28     # MEASURED  active area from the USB-C end
+ACTIVE_OFF_ANT = 11.12     # MEASURED  active area from the antenna end
+TP_L, TP_W     = 69.20, 50.00              # DATASHEET  touch panel, landscape
+TP_BLACK_WIDE  = 8.51      # MEASURED  black print, wide side
+TP_BLACK_TIGHT = 2.78      # MEASURED  black print, tight side -- the binding limit
+
+# Visible black border inside the aperture, uniform on all four sides. Capped by
+# TP_BLACK_TIGHT less module placement tolerance: at 2.0 a +/-0.3 drift still
+# leaves 0.48 mm of print before bare PCB would show.
+SCREEN_BORDER = 2.0        # DECIDED
+
+ACTIVE_X = MOD_X + ACTIVE_OFF_USB                    # 19.28  (USB-C end is left)
+ACTIVE_Y = MOD_Y + (MOD_H - ACTIVE_H) / 2            # 5.90   vertically centred
+APERTURE_X = ACTIVE_X - SCREEN_BORDER                # 17.28
+APERTURE_Y = ACTIVE_Y - SCREEN_BORDER                # 3.90
+APERTURE_W = ACTIVE_W + 2 * SCREEN_BORDER            # 61.60
+APERTURE_H = ACTIVE_H + 2 * SCREEN_BORDER            # 47.20
+SCREEN_OFFSET = (APERTURE_X + APERTURE_W / 2) - BODY_W / 2   # +3.08, the residue
+
+# The module sits behind the face, touch surface just clear of it. The July 12
+# spec requires the bezel not to press on the touch/LCD stack.
+MODULE_FRONT_GAP = 0.15    # ASSUMED
+MODULE_Z         = FACE_T + MODULE_FRONT_GAP         # 1.65 touch surface depth
+
 # ============================================================================
 # BUTTON MECHANISM -- guided cap over an SMD tact switch
 # ============================================================================
@@ -140,7 +175,16 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 # ------------------------------------------------------------- audio ------
 DRIVER_D = 18.0        # ASSUMED  final size set by the bottom-right corner
 DRIVER_T = 4.0         # ASSUMED
-GRILLE_X, GRILLE_Y = 78.0, 83.0    # DECIDED  centre, bottom right
+GRILLE_X, GRILLE_Y = 78.0, 81.0    # DECIDED  centre, bottom right
+
+# Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.
+# Sized so the run stays clear of the bottom and right walls: at (78, 83) with
+# 5 x 13.0 mm slots it breached the bottom wall by 0.65 mm.
+GRILLE_SLOTS  = 4
+GRILLE_PITCH  = 3.0
+GRILLE_SLOT_L = 11.0
+GRILLE_SLOT_W = 1.4
+GRILLE_ANGLE  = 30.0
 
 # ------------------------------------------------------------ switches ----
 POWER_EDGE  = "bottom"             # DECIDED  left of the grille
@@ -151,7 +195,7 @@ VOL_DELETED = True                 # DECIDED  replaced by the mute switch
 COUPON_MARGIN = 6.0
 # The tolerance ladder is the whole point of the first print: CAP_CLEAR and
 # COLLAR_CLEAR cannot be derived, only found.
-COUPON_CLEARANCES = (0.05, 0.10, 0.15, 0.20, 0.25)
+COUPON_CLEARANCES = (0.10, 0.15, 0.20, 0.25, 0.30)   # FDM-appropriate steps
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ LADDER_X = (-32.0, -16.0, 0.0, 16.0, 32.0)
 
 COLLAR_WALL = 1.2
 FLAT_DEPTH = 0.8          # anti-rotation flats, so arrow legends stay upright
-SKIRT_WALL = 0.75
+SKIRT_WALL = 1.0          # >= 2 perimeters at a 0.4 mm nozzle
 
 
 def _flats(wp, radius, depth):

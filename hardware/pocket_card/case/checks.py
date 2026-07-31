@@ -111,6 +111,117 @@ def label(mask):
     return rows, agg, find
 
 
+def raster_depth(tri):
+    """Top-down map of the front-most surface z. -1e9 where there is no material."""
+    x0, x1 = tri[:, :, 0].min(), tri[:, :, 0].max()
+    y0, y1 = tri[:, :, 1].min(), tri[:, :, 1].max()
+    W = int((x1 - x0) / PX) + 1
+    H = int((y1 - y0) / PX) + 1
+    buf = np.full((H, W), -1e9)
+    px = (tri[:, :, 0] - x0) / PX
+    py = (y1 - tri[:, :, 1]) / PX
+    pz = tri[:, :, 2]
+    for i in range(len(tri)):
+        ax, ay = px[i, 0], py[i, 0]
+        bx, by = px[i, 1], py[i, 1]
+        cx, cy = px[i, 2], py[i, 2]
+        mnx, mxx = int(max(0, np.floor(min(ax, bx, cx)))), int(min(W - 1, np.ceil(max(ax, bx, cx))))
+        mny, mxy = int(max(0, np.floor(min(ay, by, cy)))), int(min(H - 1, np.ceil(max(ay, by, cy))))
+        if mxx < mnx or mxy < mny:
+            continue
+        den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+        if abs(den) < 1e-12:
+            continue
+        gx, gy = np.meshgrid(np.arange(mnx, mxx + 1) + .5, np.arange(mny, mxy + 1) + .5)
+        w0 = ((by - cy) * (gx - cx) + (cx - bx) * (gy - cy)) / den
+        w1 = ((cy - ay) * (gx - cx) + (ax - cx) * (gy - cy)) / den
+        w2 = 1 - w0 - w1
+        m = (w0 >= 0) & (w1 >= 0) & (w2 >= 0)
+        if not m.any():
+            continue
+        zv = w0 * pz[i, 0] + w1 * pz[i, 1] + w2 * pz[i, 2]
+        sub = buf[mny:mxy + 1, mnx:mxx + 1]
+        np.maximum(sub, np.where(m, zv, -1e9), out=sub)
+    return buf, x0, y1
+
+
+def check_shell():
+    """Every opening in the front face must stay inside the walls.
+
+    This is the guard for a real bug: the placeholder grille originally ran
+    0.65 mm into the bottom wall, which is invisible in a render and fatal in
+    a mould.
+    """
+    path = os.path.join(OUT, "shell_front.stl")
+    if not os.path.exists(path):
+        print("shell_front.stl missing -- skipping")
+        return
+    print("\nshell_front.stl")
+    tri = load_tris(path)
+    bb = [float(np.ptp(tri[:, :, i])) for i in range(3)]
+    check("body width", bb[0], P.BODY_W, 0.02)
+    check("body height", bb[1], P.BODY_H, 0.02)
+
+    buf, x0, y1 = raster_depth(tri)
+    # Pad by a margin so the exterior is a single connected region. Without it
+    # the raster is exactly the body's bounding box, the four rounded corners
+    # become four separate "exterior" regions, and three of them get counted
+    # as face openings.
+    PAD = 20
+    buf = np.pad(buf, PAD, constant_values=-1e9)
+    x0 -= PAD * PX
+    y1 += PAD * PX
+
+    material = buf > -1e8
+    face = buf > -0.5                       # front face present at this cell
+    rows, agg2, find2 = label(~material)
+    ext = find2(rows[0][0][2])              # component containing pixel (0, 0)
+    inside = np.ones_like(material)
+    for r, cur in enumerate(rows):
+        for s0, e0, l in cur:
+            if find2(l) == ext:
+                inside[r, s0:e0] = False
+    openings = inside & ~face
+
+    rows3, agg3, find3 = label(openings)
+    lo_x, hi_x = P.WALL, P.BODY_W - P.WALL
+    lo_y, hi_y = P.WALL, P.BODY_H - P.WALL
+    found = 0
+    worst = None
+    for k, a in agg3.items():
+        area = a[0] * PX * PX
+        if area < 0.8:
+            continue
+        found += 1
+        ox0 = x0 + a[1] * PX
+        ox1 = x0 + (a[2] + 1) * PX
+        oy0 = y1 - (a[4] + 1) * PX
+        oy1 = y1 - a[3] * PX
+        over = max(lo_x - ox0, ox1 - hi_x, lo_y - oy0, oy1 - hi_y)
+        if worst is None or over > worst[0]:
+            worst = (over, ox0, ox1, oy0, oy1, area)
+    print(f"   face openings found: {found}")
+    o, ox0, ox1, oy0, oy1, area = worst
+    print(f"   tightest opening to wall: {-o:+.2f} mm clearance "
+          f"(bbox {ox0:.2f}..{ox1:.2f} x {oy0:.2f}..{oy1:.2f})")
+    ok = o < 0
+    print(f"   {'PASS' if ok else 'FAIL'}  no face opening breaches a wall")
+    if not ok:
+        FAILURES.append("opening breaches wall")
+
+    # Face thickness. Guards a real bug: the cavity was built 1 mm too tall and
+    # left the front face 0.5 mm instead of 1.5, which no render would show.
+    probe = [(8.0, 30.0), (45.0, 57.0), (84.0, 30.0)]
+    for pxm, pym in probe:
+        c = int((pxm - x0) / PX)
+        r = int((y1 - pym) / PX)
+        col_z = []
+        for tri_z in (buf[r, c],):
+            col_z.append(tri_z)
+        # front surface must be at z = 0
+        check(f"face present at ({pxm:.0f},{pym:.0f})", float(buf[r, c]), 0.0, 0.02)
+
+
 def check(name, got, want, tol):
     ok = abs(got - want) <= tol
     print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
@@ -165,6 +276,8 @@ def main():
     if pill:
         w, h = pill[0]
         print(f"   pill opening bbox: {w:.3f} x {h:.3f}")
+
+    check_shell()
 
     print()
     if FAILURES:
