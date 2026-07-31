@@ -62,6 +62,8 @@ the lip.
 
 Module interconnect JSTs live on the **board back** (B.Cu) in the right-rear
 wiring pocket — regenerate with `python3 pcb.py` then `./build_pcb.sh`.
+That script also writes `out/pcb/pocket_card_controller.stl` (and `.step`) with
+board body + footprint 3D models via `kicad-cli` — no manual STEP→STL conversion.
 
 ## Also here
 

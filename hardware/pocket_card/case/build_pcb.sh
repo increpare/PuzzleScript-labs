@@ -19,10 +19,14 @@ cd "$(dirname "$0")"
 
 KPY=/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
 BRD=out/pcb/pocket_card_controller.kicad_pcb
+KICAD_APP="${KICAD_APP:-/Users/stephenlavelle/Applications/KiCad/KiCad.app}"
 
 # Placement is headless (stdlib sexpr). Routing still needs KiCad's pcbnew.
 export JAVA_HOME="${JAVA_HOME:-/Library/Java/JavaVirtualMachines/jdk-23.jdk/Contents/Home}"
 export PATH="$JAVA_HOME/bin:$PATH"
+# Footprint 3D models use ${KICAD10_3DMODEL_DIR}/... — CLI does not inherit the
+# GUI path, so set it explicitly for STL/STEP export.
+export KICAD10_3DMODEL_DIR="${KICAD10_3DMODEL_DIR:-$KICAD_APP/Contents/SharedSupport/3dmodels}"
 export FREEROUTING_JAR="${FREEROUTING_JAR:-$PWD/tools/freerouting-2.1.0.jar}"
 if [[ ! -f "$FREEROUTING_JAR" ]]; then
   echo "missing FREEROUTING_JAR=$FREEROUTING_JAR" >&2
@@ -83,3 +87,14 @@ if errs:
     for i in errs[:12]:
         print("   ERR %-28s %s" % (i.get("type"), (i.get("description") or "")[:100]))
 PY
+
+echo "== 7. 3D mesh (board + components) via kicad-cli"
+STL=out/pcb/pocket_card_controller.stl
+STEP=out/pcb/pocket_card_controller.step
+# --subst-models: prefer STEP companions when a footprint only lists VRML.
+kicad-cli pcb export stl --force --subst-models -o "$STL" "$BRD" >/dev/null
+kicad-cli pcb export step --force --subst-models -o "$STEP" "$BRD" >/dev/null
+# Keep legacy names some viewers/scripts already point at.
+cp -f "$STL" out/pcb/exported.stl
+cp -f "$STEP" out/pcb/exported.step
+ls -la "$STL" "$STEP" | awk '{printf "   %s  %s\n", $5, $9}'
