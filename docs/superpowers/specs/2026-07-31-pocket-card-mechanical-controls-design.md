@@ -13,8 +13,8 @@ its sections outright:
 | July 12 section | Status |
 |---|---|
 | Mechanical architecture (front/rear decorative PCB sandwich, midframe) | **Replaced** — moulded two-part shell |
-| Control hierarchy and layout (four separate direction buttons, guided caps over tacts) | **Replaced** — DMG parts on silicone membranes |
-| Button mechanism gate (tact vs snap dome coupon) | **Deleted** — the membrane decides it |
+| Control hierarchy and layout | **Retained** — four separate direction buttons, guided caps over tacts |
+| Button mechanism gate | **Retained**, narrowed to tact selection and a clearance ladder |
 | Storage (microSD as the cartridge path) | **Replaced** — internal flash over USB-MSC |
 | Power model (switch in battery lead, ≥1 A) | **Retained unchanged** |
 
@@ -47,29 +47,27 @@ and must be replaced with measurements before CAD is frozen.
 
 ## Envelope
 
-- Body: **90 × 93 mm**, thickness **14.25 mm**.
+- Body: **90 × 93 mm**, thickness **14.30 mm**.
 - The touch surface sits **flush in the front shell's window**, not behind a
   wall, so the front shell contributes no depth over the screen. This is the
   same arrangement the July 12 spec assumed ("flush or slightly recessed").
 - Thickness is set by the **control/battery zone**, not the display. The module
-  zone is 12.40 mm; the lower zone is 14.25 mm.
-- The 12 mm ceiling in the July 12 spec is missed by 2.25 mm and should be
+  zone is 12.40 mm; the lower zone is 14.30 mm.
+- The 12 mm ceiling in the July 12 spec is missed by 2.30 mm and should be
   treated as withdrawn, not aspirational.
 - Growing the body in X or Y to gain internal volume was considered and
   rejected by the owner. 90 × 93 is fixed.
 
-**Why the lower zone is deeper than first estimated.** Membrane compression is
-set by the DMG's retention ribs, which stand **3.95 mm** above the inner face —
-not the 2.3 mm originally assumed for "membrane + cap". That value is fixed by
-the membrane and is not a design variable. Measurement replaced an assumption
-and moved the number the wrong way.
+**What sets the lower zone.** The button stack: face 1.50, cap flange 1.00,
+boss gap 0.50, tact body 2.50 — putting the PCB front at **5.50 mm**.
 
-The front face was thinned from the DMG's 2.30 mm to **1.50 mm** to recover
-0.8 mm. The cost is A/B cap guide depth: **5.45 mm** of bore rather than the
-DMG's 6.15 mm. Verify on the coupon.
+Game Boy silicone membranes were adopted mid-session and rejected on
+measurement; they would have put the PCB at 11.1 mm and the body at ~19.9 mm.
+See *Control scheme*.
 
-The only remaining lever is a **thinner cell** — a 4 mm pouch would give
-~13.3 mm — which trades directly against the four-hour runtime gate and is
+**Tact height is the one thickness lever the design controls.** A 1.5 mm
+low-profile part would give ~13.3 mm, at some cost in tactile snap. The other
+lever is a thinner cell, which trades against the four-hour runtime gate and is
 not taken. The battery cannot move beside the PCB instead of behind it: the
 button field occupies the whole lower band and no column is 50 mm wide.
 
@@ -78,22 +76,20 @@ button field occupies the whole lower band and no column is 50 mm wide.
 | Upper zone (module) | mm | Lower zone (controls + battery) | mm |
 |---|---|---|---|
 | front shell over screen | 0 — module is flush in the window | front face | 1.50 *decided* |
-| — | — | retention rib | 3.95 **measured** |
-| module front stack | 5.85 | controller PCB | 1.60 *assumed* |
-| module rear components | 4.75 | PET insulator | 0.20 *assumed* |
-| clearance | 0.30 *assumed* | 503450 cell | 5.00 |
+| — | — | cap flange | 1.00 *assumed* |
+| — | — | boss gap | 0.50 *assumed* |
+| module front stack | 5.85 | tact body | 2.50 *decided* |
+| module rear components | 4.75 | controller PCB | 1.60 *assumed* |
+| clearance | 0.30 *assumed* | PET insulator | 0.20 *assumed* |
+| — | — | 503450 cell | 5.00 |
 | — | — | swell allowance | 0.50 *assumed* |
 | back shell | 1.50 *assumed* | back shell | 1.50 *assumed* |
-| **total** | **12.40** | **total** | **14.25** |
+| **total** | **12.40** | **total** | **14.30** |
 
 **There is no usable space behind the display.** The module zone is the
-shallower of the two, and its 1.85 mm of slack is far short of the cell (5 mm)
+shallower of the two, and its 1.9 mm of slack is far short of the cell (5 mm)
 or a driver (3–4 mm), sits over the RF section, and would need the back shell
 stepped.
-
-**The PCB front face is not a free variable.** It sits on the retention ribs at
-`FACE_T + RIB_PROUD` = 5.45 mm, because the ribs are the standoffs that set
-membrane compression.
 
 These numbers are computed in `hardware/pocket_card/case/params.py`, which is
 authoritative. This table is a transcription of it.
@@ -138,109 +134,117 @@ not measured. Confirm on a physical sample before CAD.
 
 ## Control scheme
 
-Movement is a **one-piece d-pad rocker**, not four independent buttons. This
-reverses the July 12 rationale ("no cross-axis ambiguity"). The trade was made
-deliberately: the Game Boy parts family is only available as a set, and its
-mechanical benefits outweigh the theoretical actuation advantage. Firmware
-arbitrates diagonals.
+Movement is **four independent direction buttons**, not a d-pad rocker. This
+restores the July 12 rationale, which had been overridden only because the Game
+Boy parts family comes as a set:
 
-### Parts strategy
+> PuzzleScript play depends on rapid, discrete, often alternating direction
+> presses; separate contacts give cleaner actuation, faster repeat, and no
+> cross-axis ambiguity.
 
-Aftermarket **Game Boy classic (DMG) repair parts**: d-pad, A/B caps, Start/Select
-pills, and the conductive-carbon **silicone membranes** beneath them.
+With that constraint gone the original reasoning stands again. There are no
+diagonals to arbitrate in firmware, and the pivot post — the hardest single
+piece of geometry in the design — disappears.
 
-The membrane is the decisive element. It is simultaneously the return spring,
-guide collar, hard stop, dust seal and switch. This deletes the entire
-"guided cap, captured flange, hard stop, no side load into solder joints" load
-path the July 12 spec specifies, and deletes the button coupon gate with it.
-Shell design work per button reduces to a through-hole diameter and two
-locating ribs.
+The cost is **rolling**: a d-pad lets a thumb slide from up to right without
+lifting. For a game of discrete grid steps this is judged no real loss, but it
+is the one thing a rocker genuinely does better.
 
-The owner has accepted that the device will read as a Game Boy homage, with
-shell colour doing the differentiation.
+### Button mechanism — guided cap over an SMD tact
 
-### Measured DMG geometry
+Game Boy silicone membranes were adopted mid-session and then **rejected on
+measurement**. Physical DMG gaskets are 4 mm (d-pad), 5 mm (A/B) and 9 mm
+(Start/Select) tall. Those heights force the PCB 11.1 mm below the outer face
+and the body to ~19.9 mm — confirmed three ways: back-calculating from the A/B
+cap, back-calculating from Start/Select, and a depth histogram of the reference
+shell showing 101 mm² of standoffs at exactly 11.00–11.25 mm.
 
-Taken from **[guighub/DMG-01-Shell](https://github.com/guighub/DMG-01-Shell)**
-(`STL/DMG-01_Front_v38.stl`, MIT licence), rasterised at 0.05 mm and analysed by
-connected components. The model measures **89.99 × 148.00 mm** — the DMG exactly
-— which is the basic credibility check.
+A DMG is 32 mm thick and can absorb that. This device cannot.
 
-These are **shell openings**, not cap dimensions. Caps are smaller by the
-original's clearance, with the flange behind.
+Tact switches put the PCB front at **5.5 mm** and the body at **14.30 mm**:
 
-| Feature | Opening | Pair geometry |
+| Layer | mm | Note |
 |---|---|---|
-| D-pad | cross, **22.00 mm** span; arm **7.75 mm**, filleted to ~7.6 at the tips | single part |
-| A / B | **Ø11.00 mm** | **16.34 mm** centres, at **25.4°** |
-| Start / Select | pill **11.15 × 3.00 mm**, at **23.4°** | **15.00 mm** apart, level |
-| Screen aperture | 48.75 × 45.75 mm | — |
-| Speaker slots | ~1.6 mm wide, ~60° | bottom-right corner |
+| front face | 1.50 | *decided* |
+| cap flange | 1.00 | captured behind the face, guided in a collar |
+| boss gap | 0.50 | boss end to plunger at rest |
+| tact body | 2.50 | *decided*, see lever below |
+| → PCB front | **5.50** | |
 
-**Confidence:** 22.00, 11.00, 15.00 and 3.00 land exactly on round values, which
-reads as design intent surviving into the model. 7.75, 11.15, 16.34 and 25.4°
-do not, so treat those as carrying the author's trace error. The model is a
-replica, not a scan; its author notes screw holes may be offset from original
-and makes no accuracy claim for the button features. Add ±0.05 mm of
-rasterisation error to everything above.
+**Switch height is now a direct thickness lever.** Every millimetre of tact
+height is a millimetre of device; a 1.5 mm low-profile part would give ~13.3 mm
+at some cost in tactile snap. This is the first lever on thickness the design
+actually controls.
 
-### What the parts actually constrain
+What the membrane had been providing for free, and which we now own:
 
-A DMG uses **three separate membranes** — d-pad, A/B, Start/Select. The
-constrained geometry is therefore *within* each cluster and never between them.
+| Requirement | Target | Provided by |
+|---|---|---|
+| No wobble | <0.15 mm lateral | flange guided in a collar bore, not head in face hole |
+| No rattle | silent when shaken | tact spring preloads the cap against the face underside |
+| Hard stop | before switch damage | flange shoulder at 0.35 mm — past 0.25 mm actuation, before bottoming |
+| No side load in solder joints | — | collar takes lateral force; the tact sees only axial |
+| Anti-rotation | pills only | two flange flats in matching collar slots |
+| 30-minute comfort | — | cap crown shape; only a printed part answers this |
 
-| Fixed by the parts | Free to us |
-|---|---|
-| D-pad cross 22.00 mm | Position of each of the three clusters |
-| A→B 16.34 mm at 25.4° | Distance between clusters |
-| Start→Select 15.00 mm | Rotation of each group |
+The **button coupon gate returns**, and with it the tolerance ladder: cap-to-hole
+and flange-to-collar clearances cannot be derived, only printed.
 
-This is a much lighter constraint than assumed earlier in the design session,
-where the parts were thought to dictate the whole face arrangement.
+Dust sealing is lost. The silicone had been closing every opening for free.
+
+### Cap geometry, inherited from the DMG
+
+The DMG cap footprint is kept as the visual language even though the mechanism
+underneath is now ours. Measured from
+**[guighub/DMG-01-Shell](https://github.com/guighub/DMG-01-Shell)**
+(`STL/DMG-01_Front_v54.stl`, MIT licence — vendored at
+`hardware/DMG-01-Shell-Coffee/`), rasterised at 0.05 mm. The model measures
+**89.99 × 148.00 mm**, the DMG exactly, which is the basic credibility check.
+v38 and v54 are identical across every button feature.
+
+| Control | Size | Pair geometry |
+|---|---|---|
+| Directions | Ø8.0 caps, **26.0 mm** span, 4.73 mm between adjacent | ours, not DMG |
+| Undo / Action | **Ø11.00 mm** | **16.34 mm** centres at **25.4°** |
+| Reset / Menu | pill **11.15 × 3.00 mm** at **23.4°** | **15.00 mm** apart, level |
+
+**Confidence:** 11.00, 15.00 and 3.00 land exactly on round values and read as
+surviving design intent. 11.15, 16.34, 25.4° and 23.4° do not, so treat those as
+carrying the reference author's trace error. It is a replica, not a scan; its
+author notes screw holes may be offset and makes no accuracy claim for the
+button features. Add ±0.05 mm of rasterisation error.
+
+The reference also yields the **anti-rotation pattern**: two opposed slots of
+**24°**, opening 3.9 mm below the outer face and running to the collar bottom,
+with matching spokes on the cap. Reused directly for the pills.
 
 ### Horizontal positions
 
 A DMG is 90 mm wide and so is this body, so **X transfers 1:1 with no scaling**.
 Measured from the left edge:
 
-| Control | x (mm) |
-|---|---|
-| D-pad centre | 18.22 |
-| Undo (B) | 63.22 |
-| Action (A) | 77.98 |
-| Restart (Select) | 33.23 |
-| Menu (Start) | 48.23 |
+| Control | x | y |
+|---|---|---|
+| Direction cluster centre | 18.22 | 67.5 |
+| Undo | 63.22 | 71.0 |
+| Action | 77.98 | 63.99 |
+| Reset | 33.23 | 86.0 |
+| Menu | 48.23 | 86.0 |
 
-### Vertical fit
-
-The DMG spreads its controls over an 83 mm region; ours is 40 mm. The cluster
-itself is only ~35 mm from d-pad top to pill bottom — the DMG simply has a lot
-of empty plastic.
-
-At true DMG spacing (d-pad centre to pills = 21.63 mm) the pills collide with
-the bottom wall. Reducing that gap to **20.0 mm** resolves it:
-
-- d-pad top at y = 55, **2.5 mm** clear of the module
-- pill bottom at y = 89.1, **2.4 mm** clear of the interior wall
-- A/B pair unrotated, at its true 25.4°
-
-So the layout works at **full DMG scale**, with ~1.6 mm of compression between
-clusters and none within any of them.
+The 26 mm cluster spans y = 54.5 to 80.5, clearing the module by 2.0 mm and the
+pills by 1.9 mm.
 
 ### Mapping
 
-| DMG part | Function | MCP23017 |
+| Control | Function | MCP23017 |
 |---|---|---|
-| D-pad ↑ ↓ ← → | Directions | PA0–PA3 |
-| B cap (inboard) | **Undo** | PA5 |
-| A cap (outboard) | Action | PA4 |
-| Select pill | Restart | PA7 |
-| Start pill | Back/Menu | PA6 |
+| Up / Down / Left / Right | Directions | PA0–PA3 |
+| Undo (inboard, larger reach) | **Undo** | PA5 |
+| Action (outboard) | Action | PA4 |
+| Reset pill | Restart | PA7 |
+| Menu pill | Back/Menu | PA6 |
 | Mute slide switch | Audio mute (level, not edge) | PB0 |
 | — | spare | PB1–PB7 |
-
-Undo lands on B, the inboard button the right thumb rests on — the hierarchy the
-July 12 spec argued for, achieved for free by the parts.
 
 Volume Up/Down as separate inputs are **deleted**. See *Audio*.
 
@@ -279,7 +283,7 @@ face buttons back down into the grille.
 | Bottom | Power switch (left), mute switch (beneath the grille) |
 
 No control may be placed on a side edge in the **upper 50 mm**: the module is
-86 × 50 in a 90 mm body and 10.6 mm deep in a 14.25 mm body whose upper zone is
+86 × 50 in a 90 mm body and 10.6 mm deep in a 14.30 mm body whose upper zone is
 only 12.40 mm, so the top and both
 side edges are backed directly by module with no interior volume behind them.
 This is why power cannot sit where a Game Boy's does without adding ~7 mm of
@@ -305,8 +309,8 @@ not as the primary signal.
   driver behind a solid board cannot reach a front grille. Achieve this with a
   window in the board, an open notch, or a shifted board edge — settled when
   real dimensions exist. The principle is fixed; the shape is not.
-- Depth: front shell 1.5 → membrane gap 2.3 → PCB at 3.8–5.4 mm. A 4 mm driver
-  spanning 1.5–5.5 mm straddles the board plane. Interior is 9.6 mm.
+- Depth: the PCB front sits at 5.50 mm. A 4 mm driver spanning roughly
+  1.5–5.5 mm straddles the board plane, which is what the cutout is for.
 - Acoustic mesh behind the grille, both for ingress and so the case interior
   isn't visible.
 - Speaker cable runs ~55 mm from the module's socket across the board. Verify
@@ -330,13 +334,16 @@ Accepted regression: changing level mid-game requires opening the menu.
 - Roughly 80 × 38 mm in the lower zone, with the speaker cutout described above.
 - All switches, the MCP23017 and passives face **forward** into the button
   cavity. The battery-facing rear stays flat and component-free.
-- Carries: MCP23017, decoupling, the power slide switch, the mute slide switch,
-  keyed connectors to the module, and the button contact pads.
-- **Contact pads: ENIG gold, interlaced combs.** There is no switch component
-  under any face button — the switch is copper shorted by the membrane's carbon
-  pill. Carbon ink was considered; ENIG needs no special process, no extra lead
-  time, and carbon-pill-on-gold is standard in consumer devices. Comb pitch and
-  pill diameter must be measured off a real board and membrane.
+- Carries: MCP23017, decoupling, **eight SMD tact switches** (four directions,
+  Undo, Action, Reset, Menu), the power slide switch, the mute slide switch,
+  and keyed connectors to the module.
+- **No contact pads.** The earlier ENIG interdigitated-comb decision applied to
+  silicone membranes and is void — every button is now an ordinary component
+  from the LCSC library, placed by machine. Board finish reverts to whatever is
+  cheapest.
+- Tact selection targets ~2.5 mm body height, ~0.25 mm travel and ~1.6 N
+  actuation force, with a crisp snap ratio. Height is a thickness lever; see
+  *Envelope*.
 - Test points for 3V3, GND, SDA, SCL and the interrupt line.
 - Battery is pushed hard left (50 mm wide in an ~84 mm interior) to reserve the
   right corner for the driver. Its position is no longer a free variable.
@@ -435,70 +442,75 @@ alternative.
   no full-depth metal insert.
 - One screw size throughout. Keyed connectors. Minimal adhesive.
 - Battery insulated from the PCB by a PET layer, with swelling allowance.
-- Prototype by printing shells and using bought caps and membranes. No tooling
-  until fit, travel, port access, assembly order and boss strength are proven.
+- Prototype by printing shells and caps together. No tooling until fit, travel,
+  port access, assembly order and boss strength are proven.
 
 ## Sourcing
 
-The BOM splits permanently in two. JLCPCB cannot supply or fit the buttons:
-silicone pads and plastic caps are not in the LCSC library, are not solderable,
-and JLCPCB's turnkey PCBA does not do mechanical assembly.
+Returning to tact switches **collapses the two-stream BOM back into one**. Every
+electrical part, including all eight buttons, is an ordinary LCSC component that
+JLCPCB places by machine. Nothing needs a repair-parts supplier.
+
+What remains outside the board is the **caps**: printed for prototypes, moulded
+at volume, in the same family tooling as the shells. They are our parts, in our
+geometry, with no third-party supply risk.
 
 | Stream | Contents |
 |---|---|
-| JLCPCB / LCSC | MCP23017, passives, both slide switches, connectors, test points, and the contact pads (copper, not a part) |
-| Repair-parts supplier | D-pad, A/B caps, Start/Select pills, membranes, plus a donor DMG shell to measure |
+| JLCPCB / LCSC | MCP23017, passives, 8 tact switches, both slide switches, connectors, test points |
+| Us | Front shell, back shell, 8 caps — printed, then moulded |
 | Final assembly | Owner for the pilot; PCBWay box-build at volume |
 
-Risks specific to this route:
+This removes several risks recorded earlier in the session: aftermarket quality
+variance, dependence on a Game Boy repair market that is a market rather than a
+contract, and reproducing someone else's membrane retention geometry.
 
-- Aftermarket quality varies. Buy from two or three vendors early and compare
-  silicone durometer and pill conductivity.
-- Supply exists because people repair Game Boys. That is a healthy market, not
-  a contract.
-- Membrane retention geometry (ribs and pockets) must be measured off a donor
-  shell. This is the real remaining CAD work, and it is far less than designing
-  a button mechanism from scratch.
+It reintroduces one: **we own the button feel entirely**, and only a printed
+coupon answers whether we got it right.
 
-## Open items — all measurements, no decisions
+## Open items
 
-1. **Membrane and cap geometry** off a donor DMG shell — retention ribs, pocket
-   depths, dome height. The largest remaining piece of real CAD input.
-2. **Confirm the clockwise rotation** and connector positions on a physical
-   module.
-3. **Carbon pill diameter** off a real membrane. The comb pattern itself does not
-   need reverse-engineering — silicone keypad vendors publish the design rules,
-   and pills run 2–8 mm with a board contact area sized around them. One measured
-   number is enough to draw our own pads.
-4. **Confirm rib height against a real membrane.** 3.95 mm was measured off the
-   reference shell and now sets body thickness directly. The coupon tests it.
+1. **Clearance ladder.** Cap-to-hole and flange-to-collar clearances cannot be
+   derived, only printed. `COUPON_CLEARANCES` sweeps 0.05–0.25 mm. This is the
+   first print and it gates everything about button feel.
+2. **Tact switch selection** — body height, travel, force and snap ratio. Height
+   feeds straight back into body thickness.
+3. **Confirm the clockwise module rotation** and connector positions on a
+   physical sample.
+4. **Cap crown shape** — dished, 1.0 mm proud is the starting point. A feel
+   judgement, settled on the coupon.
 5. **Driver diameter** the bottom-right corner actually allows, once the grille
    shape exists.
 6. **Cell dimensions** including protection-board bulge and connector polarity.
 7. **Speaker socket position**, to fix a cable length.
 
-Items 1 and 2 gate the most downstream work and are cheap — a donor shell and a
-module together are a few tens of pounds. Do those first.
-
-ES3C28P standby current is **not** on this list: with a hard power switch it no
-longer affects any mechanical or electrical decision. It is a firmware-behaviour
-question, recorded under *Power* above.
+Items 1 and 2 gate the most downstream work and are coupled — print the ladder
+with the switch you intend to use.
 
 ## Decisions reversed during this session
 
 Recorded so they are not relitigated:
 
-- **12 mm thickness → 14.25 mm**, set by the control/battery zone. This moved
-  twice. An intermediate 13.9 mm figure double-counted a shell wall in front of
-  a module that sits flush in the window; correcting that gave 12.6 mm. Then
-  measuring the DMG retention ribs at 3.95 mm — against 2.3 mm assumed for
-  "membrane + cap" — pushed it back out to 14.25 mm. The front face was thinned
-  from 2.30 to 1.50 mm to recover 0.8 mm of that.
-- **Four separate direction buttons → d-pad rocker.** The parts family won.
-- **Guided caps over tacts → silicone membranes.** Deletes the load path and
-  the coupon gate.
+- **12 mm thickness → 14.30 mm.** This moved four times and the history is
+  worth keeping: 13.9 mm (double-counted a shell wall in front of a module that
+  actually sits flush in the window) → 12.6 mm (corrected) → 14.25 mm (measured
+  DMG retention ribs at 3.95 mm, against 2.3 mm assumed) → **19.9 mm** (physical
+  gasket heights showed the ribs were locating walls, not standoffs, and the
+  real board plane is 11.1 mm down) → 14.30 mm (tact switches). Every move but
+  the first came from replacing an assumption with a measurement.
+- **Four separate direction buttons → d-pad rocker → four separate buttons
+  again.** The rocker was adopted only because the DMG parts come as a set.
+  Once the parts went, the July 12 gameplay argument stood unopposed.
+- **Guided caps over tacts → silicone membranes → guided caps over tacts
+  again.** The membrane genuinely does delete the load path and the coupon gate,
+  and on a 32 mm-thick DMG that is the right trade. On a device targeting ~14 mm
+  its 11.1 mm board plane is disqualifying. Measured gasket heights of 4 / 5 /
+  9 mm killed it.
 - **microSD as cartridge path → internal flash over USB.** Simpler in every
   dimension.
+- **DMG cap geometry survives both reversals.** Ø11 Undo/Action at 16.34 mm and
+  25.4°, the 11.15 × 3.00 pills at 23.4°, the 1:1 X coordinates and the 24°
+  anti-rotation slots are all still in use as *cap* geometry.
 - **Volume Up/Down → mute switch.** Momentary controls cannot live on a gripped
   edge; a slide switch can.
 - **Growing the body to 90 × 100 for a top-mounted power switch → rejected.**
