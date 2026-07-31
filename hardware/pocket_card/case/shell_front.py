@@ -151,6 +151,19 @@ def grille_placeholder():
     return cuts
 
 
+def to_model_space(shape):
+    """Layout space (y down from the top) -> model space (y up).
+
+    params.py places controls the way you read a face: y = 0 at the top,
+    increasing downward. 3D space viewed from the front has +y UP, so the two
+    differ by a reflection. Without this the exported part comes out vertically
+    flipped, and rotating it upright mirrors left for right -- which is exactly
+    what happened, and my renderer was "corrected" to hide it rather than the
+    model being fixed.
+    """
+    return shape.mirror("XZ").translate((0, P.BODY_H, 0))
+
+
 def build():
     shell = outer_body().cut(cavity())
     shell = shell.cut(screen_aperture())
@@ -176,7 +189,7 @@ def build():
     shell = shell.union(add).cut(cut)
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_placeholder())
-    return shell
+    return to_model_space(shell)
 
 
 if __name__ == "__main__":

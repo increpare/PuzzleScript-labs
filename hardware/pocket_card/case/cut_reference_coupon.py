@@ -1,4 +1,4 @@
-"""Cut the button region out of the reference DMG-01 front shell.
+it"""Cut the button region out of the reference DMG-01 front shell.
 
 Produces a printable coupon of the *actual* reference geometry, with no
 dimensions transcribed by hand. Print it, drop real DMG membranes and caps in,

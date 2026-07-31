@@ -211,7 +211,10 @@ def check_shell():
 
     # Face thickness. Guards a real bug: the cavity was built 1 mm too tall and
     # left the front face 0.5 mm instead of 1.5, which no render would show.
-    probe = [(8.0, 30.0), (45.0, 57.0), (84.0, 30.0)]
+    # NB: MODEL space (y up), not the layout space params.py uses. Chosen to
+    # land on solid face: left bezel, right bezel, the strip below the module,
+    # and the bottom-left corner.
+    probe = [(8.0, 78.0), (84.0, 78.0), (45.0, 36.0), (10.0, 5.0)]
     for pxm, pym in probe:
         c = int((pxm - x0) / PX)
         r = int((y1 - pym) / PX)
@@ -220,6 +223,58 @@ def check_shell():
             col_z.append(tri_z)
         # front surface must be at z = 0
         check(f"face present at ({pxm:.0f},{pym:.0f})", float(buf[r, c]), 0.0, 0.02)
+
+
+def check_orientation():
+    """The exported part must read correctly when viewed from the front.
+
+    params.py lays the face out with y = 0 at the top, increasing downward.
+    3D space viewed from the front has +y UP. Without a reflection at build
+    time the part exports vertically flipped, and rotating it upright mirrors
+    left for right -- which shipped, and was only caught by someone opening
+    the STL. Nothing else in this file would have found it.
+    """
+    path = os.path.join(OUT, "shell_front.stl")
+    if not os.path.exists(path):
+        return
+    print("\norientation (as exported, viewed from the front)")
+    tri = load_tris(path)
+    buf, x0, y1 = raster_depth(tri)
+    material = buf > -1e8
+    face = buf > -0.5
+    PAD = 20
+    buf2 = np.pad(buf, PAD, constant_values=-1e9)
+    material = buf2 > -1e8
+    face = buf2 > -0.5
+    x0 -= PAD * PX
+    y1 += PAD * PX
+    rows, agg2, find2 = label(~material)
+    ext = find2(rows[0][0][2])
+    inside = np.ones_like(material)
+    for r, cur in enumerate(rows):
+        for s0, e0, l in cur:
+            if find2(l) == ext:
+                inside[r, s0:e0] = False
+    _, agg3, _ = label(inside & ~face)
+
+    best = max(agg3.items(), key=lambda kv: kv[1][0])[1]      # screen aperture
+    sy = y1 - (best[3] + best[4]) / 2 * PX
+    sx = x0 + (best[1] + best[2]) / 2 * PX
+    ok = sy > P.BODY_H / 2
+    print(f"   {'PASS' if ok else 'FAIL'}  screen in the UPPER half   "
+          f"(centre y = {sy:.1f}, want > {P.BODY_H / 2:.1f})")
+    if not ok:
+        FAILURES.append("screen not in upper half")
+
+    small = [a for a in agg3.values() if 40 < a[0] * PX * PX < 70]
+    if small:
+        cx = np.mean([x0 + (a[1] + a[2]) / 2 * PX for a in small])
+        cy = np.mean([y1 - (a[3] + a[4]) / 2 * PX for a in small])
+        ok = cx < P.BODY_W / 2 and cy < P.BODY_H / 2
+        print(f"   {'PASS' if ok else 'FAIL'}  d-pad in the LOWER-LEFT    "
+              f"(centre {cx:.1f}, {cy:.1f})")
+        if not ok:
+            FAILURES.append("d-pad not lower-left")
 
 
 def check_interior_fit():
@@ -322,6 +377,7 @@ def main():
         print(f"   pill opening bbox: {w:.3f} x {h:.3f}")
 
     check_shell()
+    check_orientation()
     check_interior_fit()
 
     print()

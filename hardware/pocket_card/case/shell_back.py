@@ -99,12 +99,17 @@ def screw_holes():
     return cuts
 
 
+def to_model_space(shape):
+    """See shell_front.to_model_space -- layout y is down, model y is up."""
+    return shape.mirror("XZ").translate((0, P.BODY_H, 0))
+
+
 def build_back():
     s = lid()
     s = s.union(battery_fence())
     s = s.union(driver_housing())
     s = s.cut(screw_holes())
-    return s
+    return to_model_space(s)
 
 
 def pcb_outline_wire():
@@ -117,7 +122,7 @@ def pcb_outline_wire():
              .circle(P.DRIVER_D / 2 + 0.8)
              .extrude(4)
              .translate((P.GRILLE_X, P.GRILLE_Y, -1)))
-    return board.cut(notch)
+    return to_model_space(board.cut(notch))
 
 
 if __name__ == "__main__":
