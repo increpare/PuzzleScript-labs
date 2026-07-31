@@ -163,21 +163,31 @@ if __name__ == "__main__":
     cq.exporters.export(plate, os.path.join(OUT, "coupon_plate.step"))
     print(f"plate  {PLATE_W} x {PLATE_H} x {P.FACE_T + P.COLLAR_DEPTH:.2f}")
 
-    caps = cq.Workplane("XY")
-    for i, clr in enumerate(P.COUPON_CLEARANCES):
-        c = cap(P.DIR_CAP_D, clr, True)
-        # engrave the ladder index on the crown; these are otherwise
-        # indistinguishable once a slicer has rearranged them
-        mark = (cq.Workplane("XY").text(str(i + 1), 3.0, 1.0, combine=False)
+    # One file per cap. Print services quote and nest per part, and several
+    # will reject a single STL containing disjoint solids. Each cap is exported
+    # at the origin, and the ladder index is engraved on the crown so the parts
+    # stay identifiable no matter how they come back.
+    def marked(shape, idx):
+        mark = (cq.Workplane("XY").text(str(idx), 3.0, 1.0, combine=False)
                 .translate((0, 0, P.CAP_PROUD - 0.5)))
-        c = c.cut(mark)
-        caps = caps.union(c.translate(((i - 2) * 16.0, 11.0, 0)))
+        return shape.cut(mark)
+
     mid = P.COUPON_CLEARANCES[len(P.COUPON_CLEARANCES) // 2]
-    caps = caps.union(cap(P.AB_CAP_D, mid, False).translate((-20.0, -13.0, 0)))
-    caps = caps.union(cap(None, mid, False, pill=True).translate((15.0, -13.0, 0)))
-    cq.exporters.export(caps, os.path.join(OUT, "coupon_caps.stl"))
-    cq.exporters.export(caps, os.path.join(OUT, "coupon_caps.step"))
-    print(f"caps   {len(P.COUPON_CLEARANCES)} direction + 1 Undo/Action + 1 pill")
+    parts = []
+    for i, clr in enumerate(P.COUPON_CLEARANCES):
+        parts.append((f"cap_{i + 1}_dir_{clr:.2f}".replace(".", "p"),
+                      marked(cap(P.DIR_CAP_D, clr, True), i + 1), clr))
+    parts.append((f"cap_6_undo-action_{mid:.2f}".replace(".", "p"),
+                  marked(cap(P.AB_CAP_D, mid, False), 6), mid))
+    parts.append((f"cap_7_menu-pill_{mid:.2f}".replace(".", "p"),
+                  cap(None, mid, False, pill=True), mid))
+
+    for name, shape, clr in parts:
+        cq.exporters.export(shape, os.path.join(OUT, name + ".stl"))
+        cq.exporters.export(shape, os.path.join(OUT, name + ".step"))
+    print(f"caps   {len(parts)} separate files, one per part:")
+    for name, _, clr in parts:
+        print(f"         {name}.stl        clearance {clr:.2f} mm")
 
     backing = (cq.Workplane("XY")
                .box(PLATE_W, PLATE_H, 1.6, centered=(True, True, False))

@@ -98,11 +98,16 @@ TACT_FORCE_N = 1.6     # ASSUMED   target actuation force
 #
 # All ASSUMED, and deliberately loose-ish: too tight is a scrapped print, too
 # loose is a wobbly button you can still measure. Revise from a real print.
-PROCESS = "fdm"        # "fdm" | "resin" | "mould"
+PROCESS = "jlc_resin"  # "fdm" | "resin" | "jlc_resin" | "mould"
 _FIT = {
-    "fdm":   0.20,     # 0.4 mm nozzle, allowing for elephant's foot and hole shrink
-    "resin": 0.12,
-    "mould": 0.08,     # tooling holds far better than this; the fit is the limit
+    "fdm":       0.20,  # 0.4 mm nozzle, allowing for elephant's foot and hole shrink
+    "resin":     0.12,  # a good in-house SLA machine, +/-0.05 class
+    "jlc_resin": 0.20,  # JLC3DP standard resin quotes about +/-0.2 mm. Biased
+                        # generous deliberately: at 0.12 the tight end of that
+                        # tolerance is interference and the caps simply will not
+                        # go in, which is a scrapped order. A loose cap can still
+                        # be measured and the number corrected.
+    "mould":     0.08,  # tooling holds far better; the fit is the limit, not the tool
 }
 FIT_CLEAR = _FIT[PROCESS]
 
