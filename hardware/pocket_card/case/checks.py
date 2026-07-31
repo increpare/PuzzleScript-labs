@@ -674,7 +674,25 @@ def check(name, got, want, tol):
         FAILURES.append(name)
 
 
+def check_skqg_stack():
+    print("\nskqg stack (params)")
+    check("TACT_H", P.TACT_H, 1.5, 0.001)
+    check("TACT_TRAVEL", P.TACT_TRAVEL, 0.25, 0.001)
+    check("TACT_FORCE_N", P.TACT_FORCE_N, 1.57, 0.001)
+    check("PCB_FRONT_Z", P.PCB_FRONT_Z, 4.5, 0.001)
+    check("LOWER_ZONE_T", P.LOWER_ZONE_T, 13.7, 0.02)
+    check("BODY_T", P.BODY_T, 13.7, 0.02)
+    check("HARD_STOP_AT", P.HARD_STOP_AT, 0.35, 0.001)
+    if P.HARD_STOP_AT <= P.TACT_TRAVEL:
+        print("   FAIL  HARD_STOP_AT must be > TACT_TRAVEL")
+        FAILURES.append("HARD_STOP_AT <= travel")
+    else:
+        print(f"   PASS  hard-stop overtravel "
+              f"{P.HARD_STOP_AT - P.TACT_TRAVEL:.3f} mm")
+
+
 def main():
+    check_skqg_stack()
     path = os.path.join(OUT, "coupon_plate.stl")
     if not os.path.exists(path):
         sys.exit("coupon_plate.stl missing -- run coupon.py first")

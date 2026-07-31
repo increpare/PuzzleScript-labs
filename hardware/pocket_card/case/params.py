@@ -81,14 +81,17 @@ MODULE_Z         = FACE_T + MODULE_FRONT_GAP         # 1.65 touch surface depth
 # Game Boy silicone membranes were evaluated and rejected: measured on physical
 # DMG parts, the gasket heights are 4 mm (d-pad), 5 mm (A/B) and 9 mm
 # (Start/Select), which forces the PCB 11.1 mm below the outer face and the body
-# to ~19.9 mm. Tact switches bring that to 5.5 mm and ~14.3 mm.
+# to ~19.9 mm. Tact switches bring that to 4.5 mm and ~13.7 mm (SKQGABE010;
+# see docs/superpowers/specs/2026-07-31-pocket-card-skqg-rear-connectors-design.md).
 #
 # Consequence: we own the whole load path again -- return, guide, hard stop and
 # retention -- which the membrane had been providing for free.
 
-TACT_H       = 2.5     # DATASHEET Panasonic EVQ-P2, H2.5 variant, top-actuated
-TACT_TRAVEL  = 0.25    # ASSUMED   EVQ-P2 "middle push travel"; confirm on datasheet
-TACT_FORCE_N = 1.6     # ASSUMED   EVQ-P2 is offered in several forces; confirm
+TACT_PART    = "SKQGABE010"   # DATASHEET Alps SKQG series, with stem
+TACT_H       = 1.5            # DATASHEET product height incl. stem
+TACT_TRAVEL  = 0.25           # DATASHEET
+TACT_FORCE_N = 1.57           # DATASHEET SKQGABE010
+TACT_OUTLINE = 5.2            # DATASHEET square body
 
 # --- fit clearances, by manufacturing process -------------------------------
 # Radial clearance for a free-sliding fit. These are genuinely different numbers
@@ -128,7 +131,7 @@ CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
 ANTIROT_SLOT_DEG = 24.0   # MEASURED
 
 # The PCB front face is set by the button stack, not chosen freely.
-PCB_FRONT_Z = FACE_T + CAP_FLANGE_T + CAP_BOSS_GAP + TACT_H   # 5.5
+PCB_FRONT_Z = FACE_T + CAP_FLANGE_T + CAP_BOSS_GAP + TACT_H   # 4.5
 
 # --------------------------------------------- cap sizes (DMG-derived) ----
 # The DMG cap footprint is kept as the visual language even though the
@@ -249,9 +252,8 @@ LOWER_ZONE_T = PCB_FRONT_Z + PCB_T + PET_T + CELL_T + CELL_SWELL + WALL
 UPPER_ZONE_T = MOD_DEPTH + 0.3 + WALL     # module sits flush in the front window
 BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 
-# Switch height is now a direct thickness lever: every millimetre of TACT_H is
-# a millimetre of device. A 1.5 mm low-profile part would give ~13.3 mm, at some
-# cost in tactile snap.
+# Switch height is a direct thickness lever: every millimetre of TACT_H is a
+# millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.
 
 # ------------------------------------------------------------- audio ------
 # The actual speaker, read out of hardware/card/case/case.blend (object
