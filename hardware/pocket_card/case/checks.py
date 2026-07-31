@@ -277,6 +277,32 @@ def check_orientation():
             FAILURES.append("d-pad not lower-left")
 
 
+def check_pcb_mounts():
+    """Mounting holes must sit on board material and clear of the cell.
+
+    Guards a bug the owner found: when the driver became rectangular the notch
+    grew, and H2 at (80, 72) ended up inside it -- a mounting hole floating in
+    empty space where the board had been cut away. Nothing else looked at it.
+    """
+    print("\nPCB mounting holes")
+    nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8
+    ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8
+    r = P.PCB_MOUNT_D / 2 + 0.5
+    fence_x1 = P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.2
+    for i, (hx, hy) in enumerate(P.PCB_MOUNTS, start=1):
+        on_board = (P.PCB_X + r <= hx <= P.PCB_X + P.PCB_W - r
+                    and P.PCB_Y + r <= hy <= P.PCB_Y + P.PCB_H - r)
+        in_notch = (hx + r >= nx0 and hy + r >= ny0)
+        off_cell = hx - r >= fence_x1
+        ok = on_board and not in_notch and off_cell
+        why = ("in the driver notch" if in_notch else
+               "off the board" if not on_board else
+               "over the cell" if not off_cell else "ok")
+        print(f"   {'PASS' if ok else 'FAIL'}  H{i} at ({hx}, {hy}){'':4} {why}")
+        if not ok:
+            FAILURES.append(f"PCB mount H{i}")
+
+
 def check_interior_fit():
     """Lower-zone features must fit inside the walls.
 
@@ -455,6 +481,7 @@ def main():
     check_shell()
     check_orientation()
     check_interior_fit()
+    check_pcb_mounts()
     check_back_shell()
 
     print()

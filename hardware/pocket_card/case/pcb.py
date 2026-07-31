@@ -39,7 +39,7 @@ MHOLE = ("MountingHole", "MountingHole_2.2mm_M2")
 # Screws can only go where the cell is not behind the board -- the cell fence
 # reaches x = 60.8 -- so both land on the right. The left edge is retained by a
 # moulded lip on the front shell instead, which the board slides under.
-PCB_MOUNTS = ((65.0, 56.0), (80.0, 72.0))
+PCB_MOUNTS = P.PCB_MOUNTS
 
 # The module presents five 1.25 mm JST sockets. We need matching ones for:
 #   I2C  4P  3V3 / GND / SCL(IO15) / SDA(IO16)   -- powers the expander and the bus

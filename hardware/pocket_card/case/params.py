@@ -185,6 +185,13 @@ PCB_X, PCB_Y   = 8.0, 53.0
 PCB_W, PCB_H   = 75.0, 37.0
 
 # Edge switches, on the bottom rail of the controller PCB
+# PCB mounting screws. Both must land on actual board material -- the driver
+# notch removes the whole bottom-right corner -- and off the cell, since a screw
+# head protruding into a lithium pouch is a puncture risk. That leaves a narrow
+# strip between the cell fence (x <= 60.8) and the notch (x >= 68.2).
+PCB_MOUNTS = ((65.0, 56.0), (66.0, 81.0))
+PCB_MOUNT_D = 2.2      # M2 clearance
+
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
 MUTE_SW_X  = 66.0                  # DECIDED  bottom edge, left of the driver notch
                                    # NB: no longer directly under the grille --
