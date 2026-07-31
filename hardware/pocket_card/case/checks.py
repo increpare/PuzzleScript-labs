@@ -691,6 +691,91 @@ def check_skqg_stack():
               f"{P.HARD_STOP_AT - P.TACT_TRAVEL:.3f} mm")
 
 
+def check_connector_pocket():
+    """B.Cu JST anchors: clear cell fence and board outline. No driver XY keepout."""
+    print("\nB.Cu connector pocket (params)")
+    ok_side = getattr(P, "CONN_SIDE", None) == "B.Cu"
+    print(f"   {'PASS' if ok_side else 'FAIL'}  CONN_SIDE == B.Cu "
+          f"(got {getattr(P, 'CONN_SIDE', None)!r})")
+    if not ok_side:
+        FAILURES.append("CONN_SIDE")
+    cell_x = P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.0
+    x_lo, x_hi = P.PCB_X + 1.0, P.PCB_X + P.PCB_W - 1.0
+    y_lo, y_hi = P.PCB_Y + 1.0, P.PCB_Y + P.PCB_H - 1.0
+    for name, (x, y) in (
+        ("CONN_I2C", P.CONN_I2C),
+        ("CONN_EXP", P.CONN_EXP),
+        ("CONN_BAT_IN", P.CONN_BAT_IN),
+        ("CONN_BAT_OUT", P.CONN_BAT_OUT),
+    ):
+        ok = (x > cell_x and x_lo <= x <= x_hi and y_lo <= y <= y_hi)
+        print(f"   {'PASS' if ok else 'FAIL'}  {name} ({x:.1f}, {y:.1f}) "
+              f"cell_x>{cell_x:.1f} board [{x_lo:.1f}..{x_hi:.1f}]×"
+              f"[{y_lo:.1f}..{y_hi:.1f}]")
+        if not ok:
+            FAILURES.append(name)
+
+
+# From Button_Switch_SMD:SW_SPST_SKQG_WithStem (0° local coords)
+SKQG_KEEPOUTS = ((-4.0, -1.0, -1.3, 1.3), (1.0, 4.0, -1.3, 1.3))  # x0,x1,y0,y1
+SKQG_PADS = (  # centre x,y, w, h — both nets, four pads
+    (-3.1, -1.85, 1.8, 1.1), (3.1, -1.85, 1.8, 1.1),
+    (-3.1, 1.85, 1.8, 1.1), (3.1, 1.85, 1.8, 1.1),
+)
+
+
+def _aabb_overlap(a, b):
+    return not (a[1] <= b[0] or b[1] <= a[0] or a[3] <= b[2] or b[3] <= a[2])
+
+
+def _local_box_to_board(cx, cy, rot_deg, x0, x1, y0, y1):
+    """Axis-aligned board AABB of a local rect after rotation about (cx,cy)."""
+    import math
+    r = math.radians(rot_deg)
+    c, s = math.cos(r), math.sin(r)
+    xs, ys = [], []
+    for x, y in ((x0, y0), (x0, y1), (x1, y0), (x1, y1)):
+        xs.append(cx + x * c - y * s)
+        ys.append(cy + x * s + y * c)
+    return (min(xs), max(xs), min(ys), max(ys))
+
+
+def check_skqg_keepouts():
+    print("\nskqg keepouts vs neighbours (params)")
+    # rot=0 for all eight in pcb.py unless a later task rotates pills.
+    sites = [
+        ("UP", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, 0),
+        ("DOWN", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, 0),
+        ("LEFT", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, 0),
+        ("RIGHT", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, 0),
+        ("UNDO", P.UNDO_X, P.UNDO_Y, 0),
+        ("ACTION", P.ACT_X, P.ACT_Y, 0),
+        ("RESET", P.RESET_X, P.RESET_Y, 0),
+        ("MENU", P.MENU_X, P.MENU_Y, 0),
+    ]
+    boxes = []  # (name, kind, aabb)
+    for name, cx, cy, rot in sites:
+        for i, (x0, x1, y0, y1) in enumerate(SKQG_KEEPOUTS):
+            boxes.append((name, f"KO{i}",
+                          _local_box_to_board(cx, cy, rot, x0, x1, y0, y1)))
+        for i, (px, py, w, h) in enumerate(SKQG_PADS):
+            boxes.append((name, f"PAD{i}", _local_box_to_board(
+                cx, cy, rot, px - w / 2, px + w / 2, py - h / 2, py + h / 2)))
+    n_fail = 0
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            n1, k1, a = boxes[i]
+            n2, k2, b = boxes[j]
+            if n1 == n2:
+                continue
+            if _aabb_overlap(a, b):
+                print(f"   FAIL  {n1}.{k1} overlaps {n2}.{k2}")
+                FAILURES.append(f"{n1}.{k1} vs {n2}.{k2}")
+                n_fail += 1
+    if n_fail == 0:
+        print("   PASS  no SKQG keepout/pad AABB overlaps between sites")
+
+
 def check_shoulder_params():
     """Inequalities that can fail — not identities of PCB_FRONT_Z."""
     print("\nshoulder params")
@@ -767,6 +852,8 @@ def check_shoulder_in_coupon_stl(tri):
 
 def main():
     check_skqg_stack()
+    check_connector_pocket()
+    check_skqg_keepouts()
     check_shoulder_params()
     check_skqg_fits_bore()
     path = os.path.join(OUT, "coupon_plate.stl")

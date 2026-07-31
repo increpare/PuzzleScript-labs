@@ -315,12 +315,17 @@ Cell fence ends near `BATT_X + CELL_W + BATT_CLEAR` ≈ 59.6 mm. Driver centre i
 ```python
 # Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
 # y is still device/face coordinates (KiCad Y-down matches params).
-CONN_I2C     = (68.0, 58.0)   # ASSUMED  4P GH — tune after cable dress
-CONN_EXP     = (68.0, 64.0)   # ASSUMED  4P GH
-CONN_BAT_IN  = (68.0, 70.0)   # ASSUMED  2P GH from cell
-CONN_BAT_OUT = (68.0, 74.5)   # ASSUMED  2P GH to module BAT
+CONN_I2C     = (74.0, 58.0)   # ASSUMED  4P GH — tune after cable dress
+CONN_EXP     = (74.0, 65.0)   # ASSUMED  4P GH
+CONN_BAT_IN  = (74.0, 72.0)   # ASSUMED  2P GH from cell
+CONN_BAT_OUT = (74.0, 79.0)   # ASSUMED  2P GH to module BAT
 CONN_SIDE    = "B.Cu"         # DECIDED
 ```
+
+GH courtyard is 6.4 mm tall / up to 9.46 mm wide: use **Δy ≥ 7** and
+**x ≈ 74** so the stack clears itself and mounting hole H3 at (65, 56). The
+earlier (68, 6 mm pitch) sketch overlapped courtyards and H3.
+
 
 - [ ] **Step 2: Add B.Cu pocket clearance + SKQG keepout neighbor checks**
 

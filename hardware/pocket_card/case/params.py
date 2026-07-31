@@ -244,6 +244,19 @@ MUTE_SW_X  = 60.0                  # DECIDED  bottom edge, left of the driver no
                                    # NB: no longer directly under the grille --
                                    # the driver notch takes that board area.
 
+# Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
+# y is still device/face coordinates (KiCad Y-down matches params).
+# Cell fence ends near BATT_X + CELL_W + BATT_CLEAR ≈ 59.6; cluster sits in the
+# open band left of the driver and right of the cell. Driver XY overlap on B.Cu
+# is fine — the driver is front-side only (z ≈ 1.5–5.0).
+# Pitch: GH courtyard is 6.4 mm in Y / up to 9.46 mm in X — plan's 6.0/4.5 mm
+# y-steps and x=68 overlapped each other and H3 (65,56). x=74, Δy=7 clears both.
+CONN_I2C     = (74.0, 58.0)   # ASSUMED  4P GH — tune after cable dress
+CONN_EXP     = (74.0, 65.0)   # ASSUMED  4P GH
+CONN_BAT_IN  = (74.0, 72.0)   # ASSUMED  2P GH from cell
+CONN_BAT_OUT = (74.0, 79.0)   # ASSUMED  2P GH to module BAT
+CONN_SIDE    = "B.Cu"         # DECIDED
+
 # Two extra screw bosses so the lower half is actually fastened. Without them
 # the only fixings are the four that borrow the module's mounting holes, all in
 # the upper 50 mm -- leaving the lid over a 5 mm cell held by its rim alone.
