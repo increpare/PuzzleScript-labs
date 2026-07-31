@@ -305,12 +305,52 @@ def check_interior_fit():
         if not ok:
             FAILURES.append(name)
 
-    gap = (P.GRILLE_X - P.DRIVER_D / 2 - 1.6) - (P.RESET_X + P.RESET_CAP_D / 2 +
-                                                 P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2)
+    # Compare the driver BODY, not its back-shell retaining ring: the ring lives
+    # at z -10.8..-12.8 on the lid while the Reset collar is at 0..-3.5 on the
+    # front shell, so they never meet. The driver body does span the collar's
+    # depth, so that is the pair that matters.
+    gap = (P.GRILLE_X - P.DRIVER_D / 2) - (P.RESET_X + P.RESET_CAP_D / 2 +
+                                           P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2)
     ok = gap >= 0
     print(f"   {'PASS' if ok else 'FAIL'}  {'driver vs Reset cap':18} clearance {gap:+.2f} mm")
     if not ok:
         FAILURES.append("driver vs Reset")
+
+    # Fixings coverage. Guards the gap the owner found: all four original
+    # bosses borrow the module's holes and sit in the upper 50 mm, leaving the
+    # half with the cell in it fastened by nothing. A collision check cannot
+    # see a missing feature, so this asserts presence, not absence of clash.
+    lower = [b for b in P.EXTRA_BOSSES if b[1] > P.CONTROL_BAND_TOP]
+    ok = len(lower) >= 2
+    print(f"   {'PASS' if ok else 'FAIL'}  {'lower-half fixings':18} {len(lower)} boss(es) below y={P.CONTROL_BAND_TOP}")
+    if not ok:
+        FAILURES.append("lower half unfastened")
+
+    boss_r = 2.1
+    obstacles = [
+        ("PCB", P.PCB_X, P.PCB_X + P.PCB_W, P.PCB_Y, P.PCB_Y + P.PCB_H),
+        ("cell fence", P.BATT_X - P.BATT_CLEAR - 1.2, P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.2,
+         P.BATT_Y - P.BATT_CLEAR - 1.2, P.BATT_Y + P.CELL_H + P.BATT_CLEAR + 1.2),
+        ("driver ring", P.GRILLE_X - P.DRIVER_D / 2 - 1.6, P.GRILLE_X + P.DRIVER_D / 2 + 1.6,
+         P.GRILLE_Y - P.DRIVER_D / 2 - 1.6, P.GRILLE_Y + P.DRIVER_D / 2 + 1.6),
+    ]
+    for bi, (bx, by) in enumerate(P.EXTRA_BOSSES):
+        m = min(bx - boss_r - P.WALL, P.BODY_W - P.WALL - bx - boss_r,
+                by - boss_r - P.WALL, P.BODY_H - P.WALL - by - boss_r)
+        worst_name = "wall"
+        for name, x0, x1, y0, y1 in obstacles:
+            ox = min(bx + boss_r, x1) - max(bx - boss_r, x0)
+            oy = min(by + boss_r, y1) - max(by - boss_r, y0)
+            sep = -min(ox, oy) if (ox > 0 and oy > 0) else min(
+                abs(bx - boss_r - x1), abs(x0 - bx - boss_r),
+                abs(by - boss_r - y1), abs(y0 - by - boss_r))
+            if ox > 0 and oy > 0 and sep < m:
+                m, worst_name = sep, name
+        ok = m >= 0
+        print(f"   {'PASS' if ok else 'FAIL'}  boss {bi + 1} at "
+              f"({bx}, {by}){'':4} clearance {m:+.2f} mm (vs {worst_name})")
+        if not ok:
+            FAILURES.append(f"boss {bi + 1}")
 
     menu_half = (P.PILL_L + 2 * P.CAP_FLANGE_OS + 2 * P.COLLAR_CLEAR) / 2 + 1.2
     reset_half = P.RESET_CAP_D / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2

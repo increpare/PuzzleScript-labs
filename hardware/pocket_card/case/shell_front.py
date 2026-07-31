@@ -99,16 +99,23 @@ def button_station(hole_d=None, pill=False, keyed=True):
 
 
 def module_posts():
-    """Four posts through the module's own Ø3.2 holes -- datums and fixings."""
+    """Six screw bosses.
+
+    Four pass through the module's own Ø3.2 holes, so one feature locates the
+    module, retains it and closes the case. Two more sit in the bottom corners,
+    because those four are all in the upper 50 mm and the lower half -- the half
+    with the cell pressing outward -- would otherwise be held by the rim alone.
+    """
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
+    sites = [(x, y) for x in xs for y in ys] + list(P.EXTRA_BOSSES)
     add = cq.Workplane("XY")
     cut = cq.Workplane("XY")
     length = SHELL_DEPTH - P.FACE_T
-    for x in xs:
-        for y in ys:
+    if True:
+        for x, y in sites:
             add = add.union(
-                cq.Workplane("XY").circle(POST_D / 2).extrude(-length)
+                cq.Workplane("XY").circle(POST_D / 2 + 0.6).extrude(-length)
                 .translate((x, y, -P.FACE_T)))
             cut = cut.union(
                 cq.Workplane("XY").circle(POST_PILOT_D / 2).extrude(-length + 1.2)

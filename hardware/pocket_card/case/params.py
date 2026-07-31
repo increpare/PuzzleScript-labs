@@ -170,20 +170,30 @@ MENU_ANGLE       = 0.0             # DECIDED  straight, not slanted like the DMG
 
 # ------------------------------------------------- lower zone layout ------
 # Battery pushed hard left so the bottom-right corner is free for the driver.
-BATT_X, BATT_Y = 4.0, 55.0         # DECIDED  cell origin
+BATT_X, BATT_Y = 9.0, 55.0         # DECIDED  cell origin
                                    # 4.0 not 3.0: at 3.0 the retaining
                                    # fence fouled the front shell wall
 BATT_CLEAR     = 0.6               # ASSUMED  fence clearance around the cell
 
 # Controller PCB. Outline derived from the enclosure, not the other way round.
-PCB_X, PCB_Y   = 5.0, 53.0
-PCB_W, PCB_H   = 80.0, 37.0
+PCB_X, PCB_Y   = 8.0, 53.0
+PCB_W, PCB_H   = 75.0, 37.0
 
 # Edge switches, on the bottom rail of the controller PCB
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
 MUTE_SW_X  = 66.0                  # DECIDED  bottom edge, left of the driver notch
                                    # NB: no longer directly under the grille --
                                    # the driver notch takes that board area.
+
+# Two extra screw bosses so the lower half is actually fastened. Without them
+# the only fixings are the four that borrow the module's mounting holes, all in
+# the upper 50 mm -- leaving the lid over a 5 mm cell held by its rim alone.
+#
+# The bottom-right corner is why the driver shrank from Ø14 to Ø12 and the
+# grille moved inboard: its retaining ring has to clear the boss on one side and
+# the Reset collar on the other, and there is only about 1.4 mm of slack between
+# those two constraints.
+EXTRA_BOSSES = ((4.5, 88.0), (86.0, 89.0))    # DECIDED  layout coords
 
 # ---------------------------------------------------- lower zone stack ----
 PCB_T          = 1.6     # ASSUMED  controller PCB
@@ -201,11 +211,11 @@ BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 # cost in tactile snap.
 
 # ------------------------------------------------------------- audio ------
-DRIVER_D = 14.0        # DECIDED  Ø18 put the back-shell retaining ring
+DRIVER_D = 12.0        # DECIDED  Ø18 put the back-shell retaining ring
                        # 1.1 mm outside the right wall and 1.1 past the
                        # bottom. Ø14 is what the corner actually allows.
 DRIVER_T = 4.0         # ASSUMED
-GRILLE_X, GRILLE_Y = 79.0, 82.0    # DECIDED  centre, bottom right
+GRILLE_X, GRILLE_Y = 76.5, 79.0    # DECIDED  centre, bottom right
                                    # nudged right/down to clear the Reset cap
 
 # Placeholder slot run, DMG-ish. Replace wholesale when the real pattern exists.

@@ -85,9 +85,10 @@ def driver_housing():
 def screw_holes():
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
+    sites = [(x, y) for x in xs for y in ys] + list(P.EXTRA_BOSSES)
     cuts = cq.Workplane("XY")
-    for x in xs:
-        for y in ys:
+    if True:
+        for x, y in sites:
             cuts = cuts.union(
                 cq.Workplane("XY").circle(SCREW_CLEAR_D / 2).extrude(P.WALL + 4)
                 .translate((x, y, LID_Z0 - 1)))
