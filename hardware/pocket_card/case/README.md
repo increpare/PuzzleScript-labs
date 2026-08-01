@@ -60,13 +60,44 @@ shoulder** hard stop. Tack real **SKQGABE010** (or any SKQG-with-stem) parts to
 the backing to prove make-before-stop: the stem actuates before the flange hits
 the lip.
 
-Module interconnect JSTs live on the **board back** (B.Cu) in the right-rear
-wiring pocket — regenerate with `python3 pcb.py` then `./build_pcb.sh`.
-That script also writes `out/pcb/pocket_card_controller.stl` (and `.step`) with
-board body + footprint 3D models via `kicad-cli` — no manual STEP→STL conversion.
-`exported.stl` is KiCad’s native frame; **`exported_placed.stl`** is the same
-mesh already transformed into shell model space (also written by
-`place_preview.py`).
+Controller PCB thickness is **1.6 mm** (`PCB_T`) — JLCPCB standard. Order the
+board at 1.6 mm to match the shell.
+
+Module interconnect GH headers live on the **board back** (B.Cu) in the
+right-rear wiring pocket — regenerate with `python3 pcb.py` then
+`./build_pcb.sh`. That script also writes `out/pcb/pocket_card_controller.stl`
+(and `.step`) with board body + footprint 3D models via `kicad-cli` — no
+manual STEP→STL conversion. `exported.stl` is KiCad’s native frame;
+**`exported_placed.stl`** is the same mesh already transformed into shell
+model space (also written by `place_preview.py`).
+
+### JLCPCB SMT package
+
+```
+python3 export_smt.py
+```
+
+Writes `out/pcb/BOM.csv` + `out/pcb/CPL.csv`. Upload those with
+`out/pcb/pocket_card_controller_gerbers.zip`.
+
+Connector populate (land stays KiCad JST GH; parts are GH-compatible XUNPU
+wafers — genuine JST often OOS):
+
+| Ref | MPN | LCSC |
+|---|---|---|
+| `J_I2C`, `J_EXP` | `WAFER-GH1.25-4PWB` | C3029379 |
+| `J_BAT_IN`, `J_BAT_OUT` | `WAFER-GH1.25-2PWB` | C3029377 |
+
+Constants: `params.CONN_4P_*` / `CONN_2P_*`. Spec:
+`docs/superpowers/specs/2026-07-31-pocket-card-skqg-rear-connectors-design.md`.
+
+Silk is punched clear of every pad/NPTH (+0.25 mm) so JLCPCB previews don’t
+show ink on contacts. After a silk tweak on a routed board:
+
+```
+python3 -c "import silk; print(silk.refresh_board_silk())"
+# then re-export gerbers (subtract-soldermask is on in pcbplotparams)
+```
 
 ### Overlay previews (no manual reposition)
 

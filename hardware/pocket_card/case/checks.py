@@ -890,8 +890,9 @@ def check_skqg_stack():
     check("TACT_TRAVEL", P.TACT_TRAVEL, 0.25, 0.001)
     check("TACT_FORCE_N", P.TACT_FORCE_N, 1.57, 0.001)
     check("PCB_FRONT_Z", P.PCB_FRONT_Z, 4.5, 0.001)
-    check("LOWER_ZONE_T", P.LOWER_ZONE_T, 13.7, 0.02)
-    check("BODY_T", P.BODY_T, 13.7, 0.02)
+    check("PCB_T", P.PCB_T, 1.6, 0.001)
+    check("LOWER_ZONE_T", P.LOWER_ZONE_T, 13.3, 0.02)
+    check("BODY_T", P.BODY_T, 13.3, 0.02)
     check("HARD_STOP_AT", P.HARD_STOP_AT, 0.35, 0.001)
     if P.HARD_STOP_AT <= P.TACT_TRAVEL:
         print("   FAIL  HARD_STOP_AT must be > TACT_TRAVEL")

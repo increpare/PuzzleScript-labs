@@ -40,6 +40,8 @@ FP_ROOT = ("/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/"
 TACT = ("Button_Switch_SMD", "SW_SPST_SKQG_WithStem")
 SLIDE = (P.SLIDE_FP_LIB, P.SLIDE_FP_NAME)
 EXPANDER = ("Package_SO", "SOIC-28W_7.5x17.9mm_P1.27mm")    # MCP23017
+# Land pattern = genuine JST GH R/A. JLCPCB populates GH-compatible XUNPU
+# wafers (params.CONN_*_LCSC) — see export_smt.py / BOM.csv.
 JST4 = ("Connector_JST", "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal")
 JST2 = ("Connector_JST", "JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal")
 MHOLE = ("MountingHole", "MountingHole_2.7mm_M2.5")   # clears the Ø2.4 post
@@ -254,6 +256,7 @@ def board_header():
 \t\t\t(usegerberattributes yes)
 \t\t\t(usegerberadvancedattributes yes)
 \t\t\t(creategerberjobfile yes)
+\t\t\t(subtractmaskfromsilk yes)
 \t\t\t(svgprecision 4)
 \t\t\t(outputformat 1)
 \t\t\t(mirror no)

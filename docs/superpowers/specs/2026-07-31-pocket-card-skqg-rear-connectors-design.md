@@ -62,23 +62,25 @@ overlapping. Automated AABB checks in `checks.py` gate the face pitches.
 
 Only the tact body height changes in the lower-zone stack:
 
-| Layer | July 31 | This amendment |
-|---|---|---|
-| front face | 1.50 | 1.50 |
-| cap flange | 1.00 | 1.00 |
-| boss gap | 0.50 | 0.50 |
-| tact body | **2.50** | **1.50** |
-| → PCB front | **5.50** | **4.50** |
-| controller PCB | 2.00 | 2.00 |
-| PET insulator | 0.20 | 0.20 |
-| 503450 cell | 5.00 | 5.00 |
-| swell allowance | 0.50 | 0.50 |
-| back shell | 1.50 | 1.50 |
-| **lower-zone total** | **~14.70** | **~13.70** |
+| Layer | July 31 | SKQG amend | + 1.6 mm PCB (2026-08-01) |
+|---|---|---|---|
+| front face | 1.50 | 1.50 | 1.50 |
+| cap flange | 1.00 | 1.00 | 1.00 |
+| boss gap | 0.50 | 0.50 | 0.50 |
+| tact body | **2.50** | **1.50** | **1.50** |
+| → PCB front | **5.50** | **4.50** | **4.50** |
+| controller PCB | 2.00 | 2.00 | **1.60** |
+| PET insulator | 0.20 | 0.20 | 0.20 |
+| 503450 cell | 5.00 | 5.00 | 5.00 |
+| swell allowance | 0.50 | 0.50 | 0.50 |
+| back shell | 1.50 | 1.50 | 1.50 |
+| **lower-zone total** | **~14.70** | **~13.70** | **~13.30** |
 
-Honest delta is **−1.0 mm** on body thickness. The earlier “~13.3 mm”
-handwave assumed shaving only the tact without restating the full stack; do
-not reintroduce that number.
+SKQG alone was **−1.0 mm**. Dropping the controller to JLCPCB’s standard
+**1.6 mm** (2.0 mm was a large fab upcharge) is another **−0.4 mm** →
+`BODY_T ≈ 13.3 mm` in `params.py`. Free-board flex at 1.6 was worse than
+travel on paper; production relies on post/shoulder support — revisit if
+coupon presses feel mushy.
 
 Upper (module) zone is unchanged at ~12.40 mm. Lower zone still sets body
 thickness.
@@ -145,6 +147,23 @@ the cables already want to live under the board plane.
   openable for service.
 - Speaker wiring still does **not** land on this board unless a later decision
   adds a pass-through. Mute remains a logic line to the module amp-enable.
+
+### Connector BOM (JLCPCB) — 2026-08-01
+
+Land pattern remains KiCad **JST GH** R/A (`JST_GH_SM04B-GHS-TB_*` /
+`JST_GH_SM02B-GHS-TB_*`). Genuine JST `SM04B-GHS-TB` / `SM02B-GHS-TB`
+(`C189895` / `C189893`) is frequently out of stock or Extended with an
+inflated assembly “needed” qty (e.g. 10 for two sites).
+
+| Sites | Pins | KiCad footprint | Populate (MPN) | LCSC |
+|---|---|---|---|---|
+| `J_I2C`, `J_EXP` | 4 | `JST_GH_SM04B-GHS-TB_…` | XUNPU `WAFER-GH1.25-4PWB` | **C3029379** |
+| `J_BAT_IN`, `J_BAT_OUT` | 2 | `JST_GH_SM02B-GHS-TB_…` | XUNPU `WAFER-GH1.25-2PWB` | **C3029377** |
+
+Both are GH-series right-angle SMD headers (1.25 mm, aux solder pins) and mate
+standard `GHR-04V-S` / `GHR-02V-S` housings. Numbers live in
+`hardware/pocket_card/case/params.py` (`CONN_4P_*` / `CONN_2P_*`) and
+`export_smt.py` → `out/pcb/BOM.csv`.
 
 ### Keep-out rule change
 

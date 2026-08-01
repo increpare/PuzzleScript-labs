@@ -324,6 +324,15 @@ CONN_BAT_IN  = (63.0, 76.0)   # ASSUMED  2P GH from cell
 CONN_BAT_OUT = (78.0, 76.0)   # ASSUMED  2P GH to module BAT
 CONN_ROT     = 0              # DECIDED  was 180 (faced away from module)
 CONN_SIDE    = "B.Cu"         # DECIDED
+#
+# Land pattern stays KiCad JST_GH_SM0*B-GHS-TB (genuine JST geometry).
+# JLCPCB BOM uses GH-compatible XUNPU wafers — genuine JST SM0*B-GHS-TB
+# (C189895 / C189893) is routinely OOS / Extended with inflated "needed" qty.
+# Mates standard GHR-0*V-S housings. See export_smt.py / BOM.csv.
+CONN_4P_MPN  = "WAFER-GH1.25-4PWB"   # DECIDED  XUNPU; alt genuine SM04B-GHS-TB
+CONN_4P_LCSC = "C3029379"            # DECIDED  was C189895
+CONN_2P_MPN  = "WAFER-GH1.25-2PWB"   # DECIDED  XUNPU; alt genuine SM02B-GHS-TB
+CONN_2P_LCSC = "C3029377"            # DECIDED  was C189893
 
 # Two extra screw bosses so the lower half is actually fastened. Without them
 # the only fixings are the four that borrow the module's mounting holes, all in
@@ -336,10 +345,10 @@ CONN_SIDE    = "B.Cu"         # DECIDED
 EXTRA_BOSSES = ((4.5, 88.0), (86.0, 89.0))    # DECIDED  layout coords
 
 # ---------------------------------------------------- lower zone stack ----
-PCB_T          = 2.0     # DECIDED  not 1.6: stiffness goes as thickness cubed,
-                         # and at 1.6 the direction cluster deflected 0.338 mm
-                         # per press against 0.25 mm of switch travel -- the
-                         # board moved further than the switch did.
+PCB_T          = 1.6     # DECIDED  JLCPCB standard (2.0 mm is ~15× the fab cost).
+                         # Free-board flex at 1.6 was worse than travel; in the
+                         # shell the board sits on posts/shoulders. Revisit if
+                         # coupon presses feel mushy.
 PET_T          = 0.2     # ASSUMED  battery insulator
 CELL_T         = 5.0     # DECIDED  503450
 CELL_W, CELL_H = 50.0, 34.0        # DECIDED

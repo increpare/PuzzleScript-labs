@@ -182,6 +182,85 @@ def _draw_text(dst: Image.Image, t: L.TextItem, mirror_x: bool = False):
                 dst.putpixel((ix, iy), val)
 
 
+# Silk must not cover pads / NPTH (unsolderable). Expand pad AABB by this.
+PAD_SILK_CLEAR = 0.25  # mm beyond copper pad edge
+
+
+def _pad_clearances(back: bool) -> List[Tuple[float, float, float, float]]:
+    """Silk-local AABBs (0..W, 0..H) to keep clear of SMT pads / holes."""
+    ox, oy = P.PCB_X, P.PCB_Y
+    clr = PAD_SILK_CLEAR
+    out: List[Tuple[float, float, float, float]] = []
+
+    def add_fp(fx, fy, pads_local, flipped: bool):
+        # KiCad back footprints are mirrored in X about the anchor.
+        for lx, ly, w, h in pads_local:
+            if flipped:
+                lx = -lx
+            x0 = fx - ox + lx - w / 2 - clr
+            x1 = fx - ox + lx + w / 2 + clr
+            y0 = fy - oy + ly - h / 2 - clr
+            y1 = fy - oy + ly + h / 2 + clr
+            out.append((x0, y0, x1, y1))
+
+    # SKQG — four SMD pads (KiCad SW_SPST_SKQG_WithStem)
+    skqg = [
+        (-3.1, -1.85, 1.8, 1.1), (3.1, -1.85, 1.8, 1.1),
+        (-3.1, 1.85, 1.8, 1.1), (3.1, 1.85, 1.8, 1.1),
+    ]
+    # PCM12 — signal + mech SMD + NPTH (treat holes as clearances too)
+    pcm12 = [
+        (-3.65, -0.78, 1.0, 0.8), (-3.65, 1.43, 1.0, 0.8),
+        (3.65, -0.78, 1.0, 0.8), (3.65, 1.43, 1.0, 0.8),
+        (-2.25, -1.43, 0.7, 1.5), (0.75, -1.43, 0.7, 1.5),
+        (2.25, -1.43, 0.7, 1.5),
+        (-1.5, 0.33, 0.9, 0.9), (1.5, 0.33, 0.9, 0.9),
+    ]
+    # MCP23017 SOIC-28W — body keepout + pad rows
+    soic = []
+    for i in range(14):
+        y = -8.255 + i * 1.27
+        soic.append((-4.65, y, 2.05, 0.6))
+        soic.append((4.65, y, 2.05, 0.6))
+    # JST GH R/A
+    jst4 = [
+        (-1.875, -1.85, 0.6, 1.7), (-0.625, -1.85, 0.6, 1.7),
+        (0.625, -1.85, 0.6, 1.7), (1.875, -1.85, 0.6, 1.7),
+        (-3.725, 1.35, 1.0, 2.7), (3.725, 1.35, 1.0, 2.7),
+    ]
+    jst2 = [
+        (-0.625, -1.85, 0.6, 1.7), (0.625, -1.85, 0.6, 1.7),
+        (-2.475, 1.35, 1.0, 2.7), (2.475, 1.35, 1.0, 2.7),
+    ]
+
+    if not back:
+        for fx, fy in (
+            (P.DIR_CX, P.DIR_CY - P.DIR_RADIUS),
+            (P.DIR_CX, P.DIR_CY + P.DIR_RADIUS),
+            (P.DIR_CX - P.DIR_RADIUS, P.DIR_CY),
+            (P.DIR_CX + P.DIR_RADIUS, P.DIR_CY),
+            (P.UNDO_X, P.UNDO_Y),
+            (P.ACT_X, P.ACT_Y),
+            (P.RESET_X, P.RESET_Y),
+            (P.MENU_X, P.MENU_Y),
+        ):
+            add_fp(fx, fy, skqg, False)
+        add_fp(P.POWER_SW_X, P.POWER_SW_Y, pcm12, False)
+        add_fp(P.MUTE_SW_X, P.MUTE_SW_Y, pcm12, False)
+        add_fp(45.0, 72.0, soic, False)
+        for fx, fy in P.PCB_MOUNTS:
+            add_fp(fx, fy, [(0.0, 0.0, 2.7, 2.7)], False)
+    else:
+        add_fp(*P.CONN_I2C, jst4, True)
+        add_fp(*P.CONN_EXP, jst4, True)
+        add_fp(*P.CONN_BAT_IN, jst2, True)
+        add_fp(*P.CONN_BAT_OUT, jst2, True)
+        # Mounting holes pierce both sides — keep silk clear on back too.
+        for fx, fy in P.PCB_MOUNTS:
+            add_fp(fx, fy, [(0.0, 0.0, 2.7, 2.7)], False)
+    return out
+
+
 def rasterize_side(side: L.Side, mirror_glyphs: bool = False) -> Image.Image:
     """HTML paint order: full brick → for each layer: clear masks → ink."""
     w = max(1, int(math.ceil(L.W / PX_MM)))
@@ -243,6 +322,18 @@ def rasterize_side(side: L.Side, mirror_glyphs: bool = False) -> Image.Image:
             )
         for t in texts:
             _draw_text(im, t, mirror_x=mirror_glyphs)
+
+    # Last: punch pads / NPTH so fab silk never lands on solderable copper.
+    for x0, y0, x1, y1 in _pad_clearances(back=mirror_glyphs):
+        draw.rectangle(
+            [
+                math.floor(x0 / PX_MM),
+                math.floor(y0 / PX_MM),
+                math.ceil(x1 / PX_MM),
+                math.ceil(y1 / PX_MM),
+            ],
+            fill=0,
+        )
     return im
 
 
@@ -320,6 +411,31 @@ def silk_sexpr() -> str:
         side_to_kicad(front, "F.SilkS", back=False)
         + side_to_kicad(back, "B.SilkS", back=True)
     )
+
+
+def refresh_board_silk(board_path=None) -> str:
+    """Replace top-level F/B silk gr_rects in an existing board (keeps copper)."""
+    import re
+
+    path = board_path or os.path.join(OUT_DIR, "pcb", "pocket_card_controller.kicad_pcb")
+    text = open(path, encoding="utf-8").read()
+    pat = re.compile(
+        r'\t\(gr_rect\n'
+        r'(?:.*\n)*?'
+        r'\t\t\(layer "(?:F|B)\.SilkS"\)\n'
+        r'(?:.*\n)*?'
+        r'\t\)\n',
+    )
+    stripped, n = pat.subn("", text)
+    silk_txt = silk_sexpr()
+    ef = stripped.rfind("\t(embedded_fonts")
+    if ef > 0:
+        out = stripped[:ef] + silk_txt + "\n" + stripped[ef:]
+    else:
+        cut = stripped.rstrip().rfind("\n)")
+        out = stripped[:cut] + "\n" + silk_txt + stripped[cut:]
+    open(path, "w", encoding="utf-8").write(out)
+    return "refreshed %s silk gr_rects (removed %d)" % (path, n)
 
 
 if __name__ == "__main__":
