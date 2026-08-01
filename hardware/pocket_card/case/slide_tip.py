@@ -9,12 +9,13 @@ def tip_solid():
     +Y is toward the outside of the bottom wall. Rails extend -Y into the
     wall; a rectangular pocket on the -Y face accepts the switch paddle.
     """
-    face = (cq.Workplane("XZ")
-            .box(P.TIP_FACE_X, P.TIP_FACE_Z, P.TIP_PROUD + 0.2,
-                 centered=(True, True, False))
-            .translate((0, 0, 0)))
+    # y=0 is the outer wall face; +Y is outward. Use XY so Y is the in-plane
+    # height — Workplane("XZ") extruded the thumb slab the wrong way.
+    face = (cq.Workplane("XY")
+            .box(P.TIP_FACE_X, P.TIP_PROUD, P.TIP_FACE_Z,
+                 centered=(True, False, True)))
     body = (cq.Workplane("XY")
-            .box(P.TIP_FACE_X - 0.4, P.WALL + 0.6, P.TIP_FACE_Z - 0.4,
+            .box(P.TIP_FACE_X - 0.4, P.WALL, P.TIP_FACE_Z - 0.4,
                  centered=(True, False, True))
             .translate((0, -P.WALL, 0)))
     pocket_w = 2.0 + P.TIP_POCKET_PLAY
