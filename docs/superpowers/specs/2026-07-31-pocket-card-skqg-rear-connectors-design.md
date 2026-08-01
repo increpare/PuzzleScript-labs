@@ -16,7 +16,8 @@ orientation) stand unless noted below.
 | Tact part / height / body thickness | **Replaced** — Alps SKQGABE010, 1.5 mm |
 | Hard-stop / cap assembly | **Replaced** — snap-over ramped collar shoulder |
 | Controller PCB rear keep-out | **Replaced** — module IO moves to B.Cu wiring pocket |
-| Face XY, edge switches, audio, storage, power model | **Unchanged** |
+| Face XY, audio, storage, power model | **Unchanged** |
+| Edge mute/power slides (part + tips) | **Superseded** by `2026-08-01-pocket-card-edge-slide-tips-design.md` |
 
 Numeric truth continues to live in `hardware/pocket_card/case/params.py`.
 When this spec and that file disagree after implementation, fix the file to
@@ -35,8 +36,9 @@ All eight front controls use the same part:
 | Sites | Up, Down, Left, Right, Undo, Action, Reset, Menu |
 
 This replaces the July 31 placeholder Panasonic EVQ-P2 / EVQ-P0 H2.5 class
-(~2.5 mm). Edge mute and power remain slide switches; they are out of scope
-here.
+(~2.5 mm). Edge mute and power remain slide switches; part choice, PCB
+notches, and shell-captive tips are specified in
+`2026-08-01-pocket-card-edge-slide-tips-design.md` (PCM12 retired).
 
 The July 31 note that “a 1.5 mm low-profile part would give ~13.3 mm, at some
 cost in tactile snap” is closed by this choice. SKQG is that part; Alps rates
