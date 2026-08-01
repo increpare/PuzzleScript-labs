@@ -18,6 +18,7 @@ import os
 import cadquery as cq
 
 import params as P
+import slide_tip
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
@@ -283,18 +284,7 @@ def edge_openings():
         cq.Workplane("XY").box(P.WALL + 3, 10.0, 4.2, centered=(False, True, True))
         .translate((-1.5, usb_y, -(MOD_PCB_BACK + 2.1))))
 
-    # PCM12 slides on the bottom wall. Cut is sized to the actuator (not a 5 mm
-    # letterbox) and reaches from the switch Y out through the outer face.
-    def _slide_cut(x, y):
-        # y = footprint anchor; cut extends +Y through the wall (BODY_H).
-        y0 = y + 1.0
-        return (cq.Workplane("XY")
-                .box(P.SLIDE_CUT_X, P.SLIDE_CUT_Y, P.SLIDE_CUT_Z,
-                     centered=(True, False, True))
-                .translate((x, y0, -(P.PCB_FRONT_Z + P.SLIDE_CUT_Z / 2 - 0.2))))
-
-    cuts = cuts.union(_slide_cut(P.POWER_SW_X, P.POWER_SW_Y))
-    cuts = cuts.union(_slide_cut(P.MUTE_SW_X, P.MUTE_SW_Y))
+    cuts = cuts.union(slide_tip.edge_tip_openings())
     return cuts
 
 
