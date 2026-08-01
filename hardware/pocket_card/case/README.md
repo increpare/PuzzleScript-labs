@@ -65,6 +65,12 @@ wiring pocket — regenerate with `python3 pcb.py` then `./build_pcb.sh`.
 That script also writes `out/pcb/pocket_card_controller.stl` (and `.step`) with
 board body + footprint 3D models via `kicad-cli` — no manual STEP→STL conversion.
 
+## Assembly
+
+- Power/mute tips: drop the two resin tips into the front-shell bottom slots
+  from the inside before seating the controller PCB. No glue. Paddles of the
+  JS102011-class slides engage the tip pockets; the shell takes end-stop.
+
 ## Also here
 
 `out/reference_button_coupon.stl` is the button region booleaned out of the

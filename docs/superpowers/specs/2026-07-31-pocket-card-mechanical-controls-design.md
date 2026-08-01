@@ -287,6 +287,9 @@ face buttons back down into the grille.
 | Right | Antenna keepout, upper zone. Lower zone free. |
 | Bottom | Power switch (left), mute switch (beneath the grille) |
 
+Slide part selection and resin tip geometry are superseded by
+`2026-08-01-pocket-card-edge-slide-tips-design.md` (edge XY positions unchanged).
+
 No control may be placed on a side edge in the **upper 50 mm**: the module is
 86 × 50 in a 90 mm body and 10.6 mm deep in a 14.30 mm body whose upper zone is
 only 12.40 mm, so the top and both
