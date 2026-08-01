@@ -213,8 +213,13 @@ def module_posts():
                 .extrude(SHELL_DEPTH - MOD_PCB_FRONT - 1.2)
                 .translate((x, y, -SHELL_DEPTH)))
 
-    # Corner bosses pass through nothing, so they can be fat.
+    # Corner bosses that do NOT coincide with a PCB mount can be fat (they
+    # pass through nothing). Sites that are also PCB_MOUNTS get a thin pin +
+    # pilot from pcb_posts() instead — a Ø4.2 column cannot go through Ø2.6.
+    pcb_mounts = set(P.PCB_MOUNTS)
     for x, y in P.EXTRA_BOSSES:
+        if (x, y) in pcb_mounts:
+            continue
         add = add.union(
             cq.Workplane("XY").circle(BOSS_D / 2).extrude(-(SHELL_DEPTH - P.FACE_T))
             .translate((x, y, -P.FACE_T)))
@@ -282,26 +287,28 @@ def driver_pocket():
 
 
 def pcb_posts():
-    """Stepped pillars the controller PCB drops onto.
+    """Thin pins the controller PCB drops onto (no rear flare).
 
-    Narrow through the board hole, wide shoulder just behind the PCB so the
-    board rests on the step. Shoulders are short by default — a full-depth
-    extrude to SHELL_DEPTH glued H3/H4 to the tray rear and filled the
-    battery/wiring volume. Mounts that also act as case-closing bosses
-    (EXTRA_BOSSES) still run to the split plane.
+    Pin runs from the face through the board hole and a short tip past the PCB
+    back into the back-shell shoulder bore. Wide shoulders live on shell_back
+    so the board can be seated from the front.
     """
     pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    close_bosses = set(P.EXTRA_BOSSES)
+    pin_end = pcb_back + P.PCB_PIN_TIP
+    screw_sites = set(P.EXTRA_BOSSES)
     add = cq.Workplane("XY")
+    cut = None
     for x, y in P.PCB_MOUNTS:
         add = add.union(
             cq.Workplane("XY").circle(P.PCB_POST_D / 2)
-            .extrude(-(pcb_back - P.FACE_T)).translate((x, y, -P.FACE_T)))
-        shoulder_h = (SHELL_DEPTH - pcb_back) if (x, y) in close_bosses else P.PCB_SHOULDER_H
-        add = add.union(
-            cq.Workplane("XY").circle(P.PCB_SHOULDER_D / 2)
-            .extrude(-shoulder_h).translate((x, y, -pcb_back)))
-    return add
+            .extrude(-(pin_end - P.FACE_T)).translate((x, y, -P.FACE_T)))
+        if (x, y) in screw_sites:
+            # Pilot for a self-tapper from the back lid through the board hole.
+            pilot = (cq.Workplane("XY").circle(POST_PILOT_D / 2)
+                     .extrude(pin_end - P.FACE_T - 1.0)
+                     .translate((x, y, -pin_end)))
+            cut = pilot if cut is None else cut.union(pilot)
+    return add if cut is None else add.cut(cut)
 
 
 def edge_openings():

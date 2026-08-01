@@ -82,10 +82,13 @@ def battery_fence():
         .box(w + 2 * FENCE_T + 2, FENCE_T + 1, CELL_FENCE_H + 1,
              centered=(False, False, False))
         .translate((x - FENCE_T - 1, y - FENCE_T - 0.5, LID_Z1 - 0.5)))
-    # gap on the left wall for the battery lead to exit upward
+    # Gap on the RIGHT wall: cell → J_BAT_IN on the controller (B.Cu right-rear
+    # pocket). J_BAT_OUT then runs to the module BAT — the lead does not go
+    # left/direct to the module.
+    gap_y = P.CONN_BAT_IN[1]   # dress toward the header
     gap = (cq.Workplane("XY")
            .box(FENCE_T + 1, 10.0, CELL_FENCE_H + 1, centered=(False, True, False))
-           .translate((x - FENCE_T - 0.5, y + h / 2, LID_Z1 - 0.5)))
+           .translate((x + w - 0.5, gap_y, LID_Z1 - 0.5)))
     return fence.cut(gap)
 
 
@@ -171,6 +174,26 @@ def pcb_support_pads():
     return pads
 
 
+def pcb_shoulders():
+    """Wide columns the PCB back rests on (approach A).
+
+    Front shell only has thin pins through the board holes. These shoulders rise
+    from the lid to the PCB-back plane and take the button load. A central bore
+    accepts the pin tip (and the screw on sites that share EXTRA_BOSSES).
+    """
+    pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    h = SHELL_DEPTH - pcb_back
+    bore_d = max(P.PCB_POST_D + 0.35, SCREW_CLEAR_D)
+    add = cq.Workplane("XY")
+    for x, y in P.PCB_MOUNTS:
+        col = (cq.Workplane("XY").circle(P.PCB_SHOULDER_D / 2)
+               .extrude(h).translate((x, y, LID_Z1)))
+        bore = (cq.Workplane("XY").circle(bore_d / 2)
+                .extrude(h + 1).translate((x, y, LID_Z1 - 0.5)))
+        add = add.union(col.cut(bore))
+    return add
+
+
 def screw_holes():
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
@@ -200,6 +223,7 @@ def build_back():
     s = s.union(module_support())
     s = s.union(pcb_support_rib())
     s = s.union(pcb_support_pads())
+    s = s.union(pcb_shoulders())
     s = s.cut(screw_holes())
     return to_model_space(s)
 

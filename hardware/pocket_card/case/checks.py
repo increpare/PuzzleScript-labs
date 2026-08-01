@@ -431,7 +431,10 @@ def check_driver_vs_collars():
 
 
 def check_pcb_posts_vs_collars():
-    """The pillars rise through the button cavity, so they must miss the collars."""
+    """Front pins rise through the button cavity — must miss the collars.
+
+    Clearance uses the thin pin Ø (shoulders are on the back shell now).
+    """
     print("\nPCB pillars vs button collars")
     collars = [("dir up", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D),
                ("dir down", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D),
@@ -441,16 +444,19 @@ def check_pcb_posts_vs_collars():
                ("Action", P.ACT_X, P.ACT_Y, P.AB_CAP_D),
                ("Reset", P.RESET_X, P.RESET_Y, P.RESET_CAP_D)]
     worst = 99.0
+    which = "?"
     for px, py in P.PCB_MOUNTS:
         for nm, cx, cy, d in collars:
             r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2
-            gap = ((px - cx) ** 2 + (py - cy) ** 2) ** 0.5 - r - P.PCB_SHOULDER_D / 2
+            gap = ((px - cx) ** 2 + (py - cy) ** 2) ** 0.5 - r - P.PCB_POST_D / 2
             if gap < worst:
                 worst, which = gap, "(%.1f,%.1f) vs %s" % (px, py, nm)
     ok = worst >= 0
     print(f"   {'PASS' if ok else 'FAIL'}  tightest {which} {worst:+.2f} mm")
     if not ok:
         FAILURES.append("PCB pillar fouls a collar")
+    # Assembly: no rear flare on the front — shoulder Ø only on the back.
+    print(f"   ok    PCB shoulders on back shell (front pins Ø{P.PCB_POST_D})")
 
 
 def check_pcb_support():

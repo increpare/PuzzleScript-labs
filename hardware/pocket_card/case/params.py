@@ -215,19 +215,16 @@ PCB_W, PCB_H   = 80.5, 37.0
 # notch removes the whole bottom-right corner -- and off the cell, since a screw
 # head protruding into a lithium pouch is a puncture risk. That leaves a narrow
 # strip between the cell fence (x <= 60.8) and the notch (x >= 68.2).
-# Four support pillars, stepped like the module posts: narrow through the
-# board's hole, wide behind it, so the board rests on the shoulder and button
-# force goes into the shell rather than flexing the board. The two left ones
-# share the case's corner bosses, so one feature locates the board, supports it
-# and closes the case.
+# PCB mounts (approach A): thin pins from the FRONT through the board holes;
+# wide shoulders on the BACK shell that the PCB rests on (with a bore for the
+# pin tip). A rear flare on the front shell made the board impossible to seat.
 PCB_MOUNTS = ((4.5, 56.0), (4.5, 88.0), (65.0, 56.0), (66.0, 81.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board
-PCB_POST_D     = 2.4   # narrow section, passes through it
-PCB_SHOULDER_D = 4.4   # wide section behind, the board rests on this step
-# Short step behind the PCB — not a column to the front-shell rear (that was
-# filling the battery/wiring volume on H3/H4). Mounts that also close the case
-# (see EXTRA_BOSSES) still run full-depth in shell_front.pcb_posts().
-PCB_SHOULDER_H = 1.5   # DECIDED  standoff behind PCB back
+PCB_POST_D     = 2.4   # front pin through the hole
+PCB_SHOULDER_D = 4.4   # back-shell column the board rests on
+PCB_PIN_TIP    = 1.2   # DECIDED  pin past PCB back into the shoulder bore
+# Legacy name: shoulder height is now “back column up to PCB back” (derived).
+PCB_SHOULDER_H = 1.5   # unused for geometry; kept so old checks don’t ImportError
 
 # Both screws sit at x ~= 65, which supports Undo, Action and Reset well but
 # leaves the direction cluster 54 mm from the nearest fixing. The cell is
