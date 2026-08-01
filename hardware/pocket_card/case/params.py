@@ -240,7 +240,7 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # cell as well as supporting the board. One feature, two jobs.
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
-MUTE_SW_X  = 70.0                  # DECIDED  bottom edge, under grille / clear of Reset
+MUTE_SW_X  = 74.0                  # DECIDED  east of H4 courtyard (JS102011 at y=88)
 # JS102011SAQN: pads at footprint y=-2.75 size 2.5 → copper to SW_Y-1.5.
 # Paddle fab extends to ~+4.25. y=88.0 → pad clear 3.5 mm, paddle tip 92.25
 # (into the 1.5 mm wall; tip sled carries the rest proud of BODY_H=93).
