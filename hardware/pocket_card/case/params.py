@@ -240,18 +240,42 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # cell as well as supporting the board. One feature, two jobs.
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
-# Was 60: at y=86.5 the PCM12 courtyard overlapped SW_RESET at (56.5, 81.6).
-MUTE_SW_X  = 70.0                  # DECIDED  bottom edge, clear of Reset
-# y=88.5 put PCM12 pads on the Edge.Cuts (clearance 0) and outside the GND
-# pour inset. 86.5 keeps pad copper ≥0.5 mm from the south edge at y=90.
-POWER_SW_Y = 86.5                  # DECIDED
-MUTE_SW_Y  = 86.5                  # DECIDED
-# Shell bottom-edge openings for PCM12SMTR: body ~6.3×2.5, actuator ~1.4 tall.
-# Old cuts were 12×5 mm in Z and ignored POWER_SW_Y — mute looked missing,
-# power looked like a letterbox.
-SLIDE_CUT_X = 7.5    # ASSUMED  along bottom edge (travel + finger)
-SLIDE_CUT_Z = 2.4    # ASSUMED  aperture height on the bottom wall
-SLIDE_CUT_Y = 8.0    # ASSUMED  depth through wall into the switch cavity
+MUTE_SW_X  = 70.0                  # DECIDED  bottom edge, under grille / clear of Reset
+# JS102011SAQN: pads at footprint y=-2.75 size 2.5 → copper to SW_Y-1.5.
+# Paddle fab extends to ~+4.25. y=88.0 → pad clear 3.5 mm, paddle tip 92.25
+# (into the 1.5 mm wall; tip sled carries the rest proud of BODY_H=93).
+POWER_SW_Y = 88.0                  # DECIDED  was 86.5 (PCM12)
+MUTE_SW_Y  = 88.0                  # DECIDED
+
+SLIDE_FP_LIB = "Button_Switch_SMD"
+SLIDE_FP_NAME = "SW_SPDT_CK_JS102011SAQN"  # DECIDED class; LCSC MPN at import
+SLIDE_PAD_SOUTH_REL = -1.5         # DATASHEET/KiCad  pad center -2.75 + half 1.25
+SLIDE_PADDLE_Y_REL = 4.25          # ASSUMED  fab/silk +Y extreme of actuator
+
+# Local south-edge notches under each paddle (Edge.Cuts).
+SLIDE_NOTCH_W = 10.0               # ASSUMED  along X, clears body courtyard
+SLIDE_NOTCH_D = 2.0                # ASSUMED  north from south edge into board
+
+# Shell-captive tip (spec 2026-08-01).
+TIP_FACE_X = 6.0                   # ASSUMED  along bottom edge
+TIP_FACE_Z = 3.0                   # ASSUMED  aperture / thumb height
+TIP_PROUD = 0.8                    # DECIDED  in [0.6, 1.0]
+TIP_TRAVEL = 2.0                   # ASSUMED  switch throw class; confirm on MPN
+TIP_SLACK = 0.2                    # ASSUMED  each end of slot
+TIP_POCKET_PLAY = 0.25             # ASSUMED  fork clearance on paddle
+TIP_RAIL_T = 0.8                   # ASSUMED  captive rail thickness in wall
+# Slot length along edge = face + travel + 2*slack
+TIP_SLOT_X = TIP_FACE_X + TIP_TRAVEL + 2 * TIP_SLACK  # 8.4
+TIP_SLOT_Z = TIP_FACE_Z + 0.4      # ASSUMED  vertical clearance in wall
+TIP_SLOT_Y = WALL + TIP_PROUD + 1.0  # through wall into cavity
+
+# Actuator / tip Z above F.Cu (JS body ~1.5–2 mm class; tune after 3D).
+SLIDE_ACTUATOR_Z_ABOVE_PCB = 1.4   # ASSUMED
+
+# Temporary aliases until Task 3 rewires shell_front
+SLIDE_CUT_X = TIP_SLOT_X
+SLIDE_CUT_Y = TIP_SLOT_Y
+SLIDE_CUT_Z = TIP_SLOT_Z
 
 # Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
 # y is still device/face coordinates (KiCad Y-down matches params).

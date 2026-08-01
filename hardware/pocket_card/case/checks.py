@@ -668,10 +668,57 @@ def check_back_shell():
 
 
 def check(name, got, want, tol):
-    ok = abs(got - want) <= tol
-    print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
+    if isinstance(got, str) or isinstance(want, str):
+        ok = got == want
+        print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got!r:8}  (want {want!r})")
+    else:
+        ok = abs(got - want) <= tol
+        print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
     if not ok:
         FAILURES.append(name)
+
+
+def check_edge_slide_tips():
+    print("\nedge slide tips (params)")
+    # Footprint: KiCad SW_SPDT_CK_JS102011SAQN — pads at y=-2.75, size 1.25×2.5
+    # → copper Y ∈ [SW_Y-4.0, SW_Y-1.5] for each site.
+    south = P.PCB_Y + P.PCB_H  # 90.0
+    for name, x, y in (
+        ("POWER", P.POWER_SW_X, P.POWER_SW_Y),
+        ("MUTE", P.MUTE_SW_X, P.MUTE_SW_Y),
+    ):
+        pad_south = y + P.SLIDE_PAD_SOUTH_REL  # -1.5
+        clear = south - pad_south
+        if clear < 0.5 - 1e-6:
+            print(f"   FAIL  {name} pad-edge clear {clear:.2f} < 0.5")
+            FAILURES.append(f"{name} pad edge")
+        else:
+            print(f"   ok    {name} pad-edge clear {clear:.2f}")
+        # Paddle tip (fab +Y) must reach into the wall cavity (past south).
+        tip_y = y + P.SLIDE_PADDLE_Y_REL
+        if tip_y < south - 0.2:
+            print(f"   FAIL  {name} paddle tip y={tip_y:.2f} short of edge {south}")
+            FAILURES.append(f"{name} paddle short")
+        else:
+            print(f"   ok    {name} paddle tip y={tip_y:.2f}")
+
+    if not (0.6 - 1e-6 <= P.TIP_PROUD <= 1.0 + 1e-6):
+        print(f"   FAIL  TIP_PROUD {P.TIP_PROUD} not in [0.6, 1.0]")
+        FAILURES.append("TIP_PROUD")
+    else:
+        print(f"   ok    TIP_PROUD {P.TIP_PROUD}")
+
+    # Slot/tip Z centered above PCB front (same bug class as old PCM12 cut).
+    # Device z: PCB front = -PCB_FRONT_Z; "above" means less negative (toward face).
+    z_center = -(P.PCB_FRONT_Z - P.SLIDE_ACTUATOR_Z_ABOVE_PCB)
+    pcb_front = -P.PCB_FRONT_Z
+    if z_center <= pcb_front + 1e-6:
+        print(f"   FAIL  tip Z center {z_center} not above PCB front {pcb_front}")
+        FAILURES.append("tip Z")
+    else:
+        print(f"   ok    tip Z center {z_center:.2f} (PCB front {pcb_front:.2f})")
+
+    check("SLIDE_FP", P.SLIDE_FP_NAME, "SW_SPDT_CK_JS102011SAQN", 0)
 
 
 def check_skqg_stack():
@@ -865,6 +912,7 @@ def check_shoulder_in_coupon_stl(tri):
 
 
 def main():
+    check_edge_slide_tips()
     check_skqg_stack()
     check_connector_pocket()
     check_skqg_keepouts()
