@@ -149,22 +149,31 @@ def _notch_intervals():
     return sorted(spans)
 
 
+def _append_pt(pts, pt):
+    if not pts or pt != pts[-1]:
+        pts.append(pt)
+
+
 def outline_points():
     x0, y0 = P.PCB_X, P.PCB_Y
     x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
     yn = y1 - P.SLIDE_NOTCH_D
-    pts = [(x0, y0), (x1, y0), (x1, y1)]
+    pts = []
+    _append_pt(pts, (x0, y0))
+    _append_pt(pts, (x1, y0))
+    _append_pt(pts, (x1, y1))
     # Walk south edge right→left, dropping into notches.
     cursor = x1
     for nx0, nx1 in reversed(_notch_intervals()):
         if cursor > nx1:
-            pts.append((cursor, y1))
-            pts.append((nx1, y1))
-        pts.extend([(nx1, yn), (nx0, yn), (nx0, y1)])
+            _append_pt(pts, (cursor, y1))
+            _append_pt(pts, (nx1, y1))
+        for pt in ((nx1, yn), (nx0, yn), (nx0, y1)):
+            _append_pt(pts, pt)
         cursor = nx0
-    pts.append((cursor, y1))
-    pts.append((x0, y1))
-    pts.append((x0, y0))
+    _append_pt(pts, (cursor, y1))
+    _append_pt(pts, (x0, y1))
+    _append_pt(pts, (x0, y0))
     return pts
 
 
