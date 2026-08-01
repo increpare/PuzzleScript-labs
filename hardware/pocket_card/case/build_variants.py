@@ -21,6 +21,7 @@ import params as P
 import coupon
 import shell_front
 import shell_back
+import slide_tip
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out", "order")
 os.makedirs(OUT, exist_ok=True)
@@ -132,6 +133,17 @@ def main():
     total += v
     lines.append(f"shell_back.stl                  {v:6.1f} cm3   x1")
 
+    tips = slide_tip.tip_solid()
+    tips = tips.union(slide_tip.tip_solid().translate((12.0, 0, 0)))
+    sprue = (cq.Workplane("XY")
+             .box(12.0 - P.TIP_FACE_X, 1.2, 1.2, centered=(False, True, True))
+             .translate((P.TIP_FACE_X / 2, 0, 0)))
+    tips = tips.union(sprue)
+    cq.exporters.export(tips, os.path.join(OUT, "edge_tips.stl"))
+    v = vol(tips)
+    total += v
+    lines.append(f"edge_tips.stl                   {v:6.2f} cm3   x1   (power+mute sprued)")
+
     # Assembled preview at production clearance (not counted in fab volume).
     P.CAP_CLEAR = P.COLLAR_CLEAR = P.FIT_CLEAR
     assembled = shell_with_caps(P.FIT_CLEAR)
@@ -160,7 +172,7 @@ def main():
     print("\nmanifest — engraved digit on the crown:")
     for vi, clr in enumerate(VARIANTS, start=1):
         print(f"   {vi}  ->  {clr:.2f} mm clearance")
-    print(f"\n{2 + len(VARIANTS)} fab files + 1 preview (JLCPCB allows 10). "
+    print(f"\n{3 + len(VARIANTS)} fab files + 1 preview (JLCPCB allows 10). "
           f"Quantity 1 of each fab file.")
     print("Each set holds all eight caps sprued together -- snip at the flanges.")
     print("The menu pill carries no digit; its shape is unique.")
