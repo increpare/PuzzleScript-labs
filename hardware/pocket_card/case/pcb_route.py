@@ -24,10 +24,12 @@ import os
 import subprocess
 import sys
 
-import wx
-_app = wx.App()          # must precede any ZONE_FILLER use
-
-import pcbnew
+# Do NOT create wx.App() here. In this environment (and some headless runs)
+# wx.App() hangs forever; LoadBoard / SetNet / ExportSpecctraDSN / Save work
+# without it (KiCad may print a traits assert — ignore it). ZONE_FILLER is
+# unused; zones are injected as text and filled by kicad-cli.
+# pcbnew is imported lazily in main() so inject_zones() can run under stdlib
+# Python when repairing board text.
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import params as P
@@ -49,6 +51,7 @@ SWITCHES = [("SW_UP", "UP"), ("SW_DOWN", "DOWN"), ("SW_LEFT", "LEFT"),
 
 
 def mm(v):
+    import pcbnew
     return pcbnew.FromMM(v)
 
 
@@ -60,6 +63,7 @@ def pad_of(fp, name):
 
 
 def net(board, name):
+    import pcbnew
     n = board.FindNet(name)
     if n is None:
         n = pcbnew.NETINFO_ITEM(board, name)
@@ -76,7 +80,7 @@ ZONE_TEMPLATE = """	(zone
 			(clearance 0.5)
 		)
 		(min_thickness 0.25)
-		(fill
+		(fill yes
 			(thermal_gap 0.5)
 			(thermal_bridge_width 0.5)
 			(island_removal_mode 0)
@@ -88,6 +92,14 @@ ZONE_TEMPLATE = """	(zone
 		)
 	)
 """
+
+# Stitch F.Cu ↔ B.Cu GND pours. Keep clear of U1 (45,72), JST cluster (~74,*),
+# and mounting holes. Freerouting often leaves the two fills as islands.
+GND_STITCH = (
+    (10.0, 58.0), (32.0, 58.0), (52.0, 58.0),
+    (10.0, 78.0), (32.0, 78.0), (55.0, 78.0),
+    (10.0, 86.0), (32.0, 86.0), (50.0, 86.0),
+)
 
 
 def inject_zones(path):
@@ -101,7 +113,10 @@ def inject_zones(path):
     plotting.
     """
     import uuid as _uuid
-    if "(zone" in open(path).read():
+    txt0 = open(path).read()
+    # Footprint keepouts (SKQG) also use "(zone"; only skip if a board GND pour
+    # is already present.
+    if '(zone\n\t\t(net "GND")' in txt0 or '(zone\n\t(net "GND")' in txt0:
         return 0          # already present; never duplicate or clobber a fill
 
     # Reuse a previously filled pour if one was saved. The zone outline and
@@ -115,59 +130,36 @@ def inject_zones(path):
         cut = txt.rstrip().rfind("\n)")
         open(path, "w").write(txt[:cut] + "\n" + open(frag).read() + "\n)\n")
         return -1         # signals "reused a filled pour"
-    # Inset INSIDE the board, and follow the driver notch. Previously the
-    # outline sat 1 mm outside the edge, so the pour filled flush to it and
-    # tripped 14 copper-to-edge violations.
+    # Inset INSIDE the board. Outline is a plain rectangle (no driver notch —
+    # driver is front-shell only). Both layers: B.Cu now carries JST GND pads.
     g = 0.5
     x0, y0 = P.PCB_X + g, P.PCB_Y + g
     x1, y1 = P.PCB_X + P.PCB_W - g, P.PCB_Y + P.PCB_H - g
-    nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8 - g
-    ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8 - g
-    if nx0 < x1 and ny0 < y1:
-        corners = ((x0, y0), (x1, y0), (x1, ny0), (nx0, ny0), (nx0, y1), (x0, y1))
-    else:
-        corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+    corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
     pts = " ".join("(xy %g %g)" % pt for pt in corners)
     blocks = "".join(ZONE_TEMPLATE % (layer, _uuid.uuid4(), pts)
                      for layer in ("F.Cu", "B.Cu"))
     txt = open(path).read()
+    vias = []
+    for x, y in GND_STITCH:
+        vias.append(
+            '\t(via\n'
+            '\t\t(at %g %g)\n'
+            '\t\t(size %g)\n'
+            '\t\t(drill %g)\n'
+            '\t\t(layers "F.Cu" "B.Cu")\n'
+            '\t\t(net "GND")\n'
+            '\t\t(uuid "%s")\n'
+            '\t)' % (x, y, VIA_D, VIA_DRILL, _uuid.uuid4())
+        )
     cut = txt.rstrip().rfind("\n)")          # before the file's final paren
-    open(path, "w").write(txt[:cut] + "\n" + blocks + ")\n")
+    open(path, "w").write(
+        txt[:cut] + "\n" + "\n".join(vias) + "\n" + blocks + ")\n")
     return 2
 
 
-def pour(board, gnd):
-    """Ground on both layers, filled. Must happen before the DSN export."""
-    # F.Cu only. Every GND pad on this board is a front-side SMD pad, so one
-    # front zone reaches all of them -- and two zones made board.Save()
-    # segfault where one does not.
-    for layer in (pcbnew.F_Cu,):
-        z = pcbnew.ZONE(board)
-        z.SetLayer(layer)
-        z.SetNet(gnd)
-        z.SetLocalClearance(mm(CLEAR))
-        # A bare pcbnew.ZONE() has a zero hatch pitch, and board.Save() then
-        # divides by it and segfaults with no traceback. These three lines are
-        # the difference between a working script and an unexplained crash.
-        z.SetMinThickness(mm(0.25))
-        z.SetAssignedPriority(0)
-        z.SetBorderDisplayStyle(
-            pcbnew.ZONE_BORDER_DISPLAY_STYLE_DIAGONAL_EDGE, mm(0.5), True)
-        poly = pcbnew.SHAPE_POLY_SET()
-        poly.NewOutline()
-        x0, y0 = P.PCB_X + 0.4, P.PCB_Y + 0.4
-        x1, y1 = P.PCB_X + P.PCB_W - 0.4, P.PCB_Y + P.PCB_H - 0.4
-        for px, py in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
-            poly.Append(mm(px), mm(py))
-        z.SetOutline(poly)
-        board.Add(z)
-    # No ZONE_FILLER here. It segfaults in this headless build even with a wx
-    # context, and a segfault cannot be caught -- it takes the interpreter with
-    # it. The zones are saved unfilled; KiCad fills them on open, and kicad-cli
-    # fills them when plotting.
-
-
 def main():
+    import pcbnew
     board = pcbnew.LoadBoard(BRD)
     fps = {f.GetReference(): f for f in board.GetFootprints()}
     u1 = fps["U1"]
@@ -211,6 +203,11 @@ def main():
         pad_of(fps["J_BAT_IN"], pin).SetNet(n)
     for pin, n in (("1", sig["BAT_SW"]), ("2", gnd)):
         pad_of(fps["J_BAT_OUT"], pin).SetNet(n)
+    # GH mounting pads are copper pour anchors — tie them to GND.
+    for ref in ("J_I2C", "J_EXP", "J_BAT_IN", "J_BAT_OUT"):
+        for pd in fps[ref].Pads():
+            if pd.GetPadName() == "MP":
+                pd.SetNet(gnd)
     pad_of(fps["SW_PWR"], "2").SetNet(sig["BAT_P"])
     pad_of(fps["SW_PWR"], "1").SetNet(sig["BAT_SW"])
 
@@ -245,6 +242,8 @@ def main():
     # and waits for a human to save, so every run routed for a different length
     # of time and the results looked like router variance when they were not.
     # -dct 1 stops dialogs blocking on the default action.
+    if os.path.exists(ses):
+        os.remove(ses)
     subprocess.run(["java", "-jar", jar,
                     "--gui.enabled=false", "-dct", "1",
                     "-de", dsn, "-do", ses,
@@ -260,6 +259,7 @@ def main():
            -1: "reused the saved filled pour"}.get(n,
           "injected %d ground zones as text" % n))
 
+    board = pcbnew.LoadBoard(BRD)
     tr = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T]
     vi = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
     print("tracks %d, vias %d, zones %d, nets %d"

@@ -31,7 +31,55 @@ LADDER_X = (-32.0, -16.0, 0.0, 16.0, 32.0)
 
 COLLAR_WALL = 1.2
 FLAT_DEPTH = 0.8          # anti-rotation flats, so arrow legends stay upright
-SKIRT_WALL = 1.0          # >= 2 perimeters at a 0.4 mm nozzle
+
+
+def _shoulder_planes():
+    z_flat_top = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
+    z_flat_bot = z_flat_top - P.SHOULDER_FLAT_T
+    z_ramp_bot = z_flat_bot - P.SHOULDER_RAMP_T
+    return z_flat_top, z_flat_bot, z_ramp_bot
+
+
+def _shoulder_void_round(bore_d, depth):
+    """Void cutter: guide + lip pass + ramp + full bore below (not a hollowed cylinder)."""
+    z_flat_top, z_flat_bot, z_ramp_bot = _shoulder_planes()
+    r = bore_d / 2
+    sr = (bore_d - 2 * P.SHOULDER_RADIAL) / 2
+
+    guide = cq.Workplane("XY").circle(r).extrude(z_flat_top)
+    lip = (cq.Workplane("XY").workplane(offset=z_flat_top)
+           .circle(sr).extrude(z_flat_bot - z_flat_top))
+    try:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot).circle(sr)
+                .workplane(offset=z_ramp_bot - z_flat_bot).circle(r).loft(combine=True))
+    except Exception:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot).circle(r)
+                .extrude(z_ramp_bot - z_flat_bot))
+    below = (cq.Workplane("XY").workplane(offset=z_ramp_bot).circle(r)
+             .extrude(-(depth + 1) - z_ramp_bot))
+    return guide.union(lip).union(ramp).union(below)
+
+
+def _shoulder_void_slot(bore_l, bore_w, depth):
+    """Pill void cutter with snap-over shoulder."""
+    z_flat_top, z_flat_bot, z_ramp_bot = _shoulder_planes()
+    shoulder_l = bore_l - 2 * P.SHOULDER_RADIAL
+    shoulder_w = bore_w - 2 * P.SHOULDER_RADIAL
+
+    guide = cq.Workplane("XY").slot2D(bore_l, bore_w, 0).extrude(z_flat_top)
+    lip = (cq.Workplane("XY").workplane(offset=z_flat_top)
+           .slot2D(shoulder_l, shoulder_w, 0).extrude(z_flat_bot - z_flat_top))
+    try:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot)
+                .slot2D(shoulder_l, shoulder_w, 0)
+                .workplane(offset=z_ramp_bot - z_flat_bot)
+                .slot2D(bore_l, bore_w, 0).loft(combine=True))
+    except Exception:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot)
+                .slot2D(bore_l, bore_w, 0).extrude(z_ramp_bot - z_flat_bot))
+    below = (cq.Workplane("XY").workplane(offset=z_ramp_bot)
+             .slot2D(bore_l, bore_w, 0).extrude(-(depth + 1) - z_ramp_bot))
+    return guide.union(lip).union(ramp).union(below)
 
 
 def _flats(wp, radius, depth):
@@ -48,6 +96,7 @@ def _flats(wp, radius, depth):
 
 def collar(hole_d, clear_collar, keyed):
     """One station's collar boss, to be unioned onto the plate underside."""
+    depth = P.FACE_T + P.COLLAR_DEPTH
     flange_d = hole_d + 2 * P.CAP_FLANGE_OS
     bore_d = flange_d + 2 * clear_collar
     outer_d = bore_d + 2 * COLLAR_WALL
@@ -55,16 +104,16 @@ def collar(hole_d, clear_collar, keyed):
     boss = (
         cq.Workplane("XY")
         .circle(outer_d / 2)
-        .extrude(-(P.FACE_T + P.COLLAR_DEPTH))
+        .extrude(-depth)
     )
-    bore = cq.Workplane("XY").circle(bore_d / 2).extrude(-(P.FACE_T + P.COLLAR_DEPTH) - 1)
+    bore = _shoulder_void_round(bore_d, depth)
     if keyed:
         bore = _flats(bore, bore_d / 2, FLAT_DEPTH)
     return boss.cut(bore)
 
 
 def cap(hole_d, clear_cap, pill=False):
-    """A single button cap: crown, head, flange, skirt, boss.
+    """A single button cap: crown, head, flange, boss.
 
     Every round cap is keyed, because every round collar is: button_station()
     keys unconditionally. This used to be a caller-supplied flag, and a second
@@ -108,19 +157,13 @@ def cap(hole_d, clear_cap, pill=False):
     )
     flange = _flats(flange, flange_d / 2, FLAT_DEPTH + 0.05)
 
-    # boss down to the plunger, and a skirt that bottoms out as the hard stop
+    # boss down to the plunger; hard stop is the collar shoulder, not a skirt
     boss_top = -(P.FACE_T + P.CAP_FLANGE_T)
     boss = (
         cq.Workplane("XY").workplane(offset=boss_top)
         .circle(1.5).extrude(-P.CAP_BOSS_GAP)
     )
-    skirt_len = (P.PCB_FRONT_Z - P.HARD_STOP_AT) - (P.FACE_T + P.CAP_FLANGE_T)
-    skirt = (
-        cq.Workplane("XY").workplane(offset=boss_top)
-        .circle(3.0 + SKIRT_WALL).circle(3.0)
-        .extrude(-skirt_len)
-    )
-    return head.union(flange).union(boss).union(skirt)
+    return head.union(flange).union(boss)
 
 
 def build_plate():
@@ -139,14 +182,15 @@ def build_plate():
             cutter = (cq.Workplane("XY")
                       .slot2D(P.PILL_L + 2 * clr, P.PILL_W + 2 * clr, 0)
                       .extrude(-10).translate((x, y, 1)))
+            bore_l = (P.PILL_L + 2 * P.CAP_FLANGE_OS + 2 * mid
+                      + P.PILL_BORE_EXTRA)
+            bore_w = (P.PILL_W + 2 * P.CAP_FLANGE_OS + 2 * mid
+                      + P.PILL_BORE_EXTRA)
+            depth = P.FACE_T + P.COLLAR_DEPTH
             boss = (cq.Workplane("XY")
-                    .slot2D(P.PILL_L + 2 * P.CAP_FLANGE_OS + 2 * COLLAR_WALL + 2 * mid,
-                            P.PILL_W + 2 * P.CAP_FLANGE_OS + 2 * COLLAR_WALL + 2 * mid, 0)
-                    .extrude(-(P.FACE_T + P.COLLAR_DEPTH)))
-            bore = (cq.Workplane("XY")
-                    .slot2D(P.PILL_L + 2 * P.CAP_FLANGE_OS + 2 * mid,
-                            P.PILL_W + 2 * P.CAP_FLANGE_OS + 2 * mid, 0)
-                    .extrude(-(P.FACE_T + P.COLLAR_DEPTH) - 1))
+                    .slot2D(bore_l + 2 * COLLAR_WALL, bore_w + 2 * COLLAR_WALL, 0)
+                    .extrude(-depth))
+            bore = _shoulder_void_slot(bore_l, bore_w, depth)
             plate = plate.union(boss.cut(bore).translate((x, y, 0))).cut(cutter)
         else:
             plate = plate.union(collar(hole_d, clr, keyed).translate((x, y, 0)))

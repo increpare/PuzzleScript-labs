@@ -4,6 +4,11 @@ Date: 2026-07-31
 Status: agreed in design session; supersedes the mechanical, control, storage and
 power sections of `2026-07-12-puzzlescript-pocket-card-design.md`.
 
+**Amendment (same day):** tact part/height, hard-stop/assembly, and controller
+PCB rear keep-out are superseded by
+`2026-07-31-pocket-card-skqg-rear-connectors-design.md`. Where the two
+disagree, the SKQG/rear-connectors document wins.
+
 ## What this replaces
 
 The July 12 specification remains authoritative for product intent, firmware
@@ -281,6 +286,9 @@ face buttons back down into the grille.
 | Left | USB-C only, centred on the module's 50 mm run |
 | Right | Antenna keepout, upper zone. Lower zone free. |
 | Bottom | Power switch (left), mute switch (beneath the grille) |
+
+Slide part selection and resin tip geometry are superseded by
+`2026-08-01-pocket-card-edge-slide-tips-design.md` (edge XY positions unchanged).
 
 No control may be placed on a side edge in the **upper 50 mm**: the module is
 86 × 50 in a 90 mm body and 10.6 mm deep in a 14.30 mm body whose upper zone is

@@ -1,7 +1,7 @@
 {
     "$schema": "https://schemas.kicad.org/drc.v1.json",
     "coordinate_units": "mm",
-    "date": "2026-07-31T21:01:28",
+    "date": "2026-08-01T02:48:32",
     "ignored_checks": [
         {
             "description": "Footprint has no courtyard defined",
@@ -31,1026 +31,384 @@
     "kicad_version": "10.0.4",
     "schematic_parity": [],
     "source": "pocket_card_controller.kicad_pcb",
-    "unconnected_items": [
-        {
-            "description": "Missing connection between items",
-            "items": [
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                },
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                }
-            ],
-            "severity": "error",
-            "type": "unconnected_items"
-        },
-        {
-            "description": "Missing connection between items",
-            "items": [
-                {
-                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
-                    "pos": {
-                        "x": 22.58,
-                        "y": 61.8
-                    },
-                    "uuid": "0a9fcbff-d7bb-4165-b54a-7246754345fd"
-                },
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                }
-            ],
-            "severity": "error",
-            "type": "unconnected_items"
-        },
-        {
-            "description": "Missing connection between items",
-            "items": [
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                },
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                }
-            ],
-            "severity": "error",
-            "type": "unconnected_items"
-        },
-        {
-            "description": "Missing connection between items",
-            "items": [
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                },
-                {
-                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
-                    "pos": {
-                        "x": 56.35,
-                        "y": 89.93
-                    },
-                    "uuid": "9e9151ce-8803-4bc2-8964-75015b0c272e"
-                }
-            ],
-            "severity": "error",
-            "type": "unconnected_items"
-        },
-        {
-            "description": "Missing connection between items",
-            "items": [
-                {
-                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
-                    "pos": {
-                        "x": 63.65,
-                        "y": 89.93
-                    },
-                    "uuid": "b5601c2f-b91d-448c-a496-90622371e809"
-                },
-                {
-                    "description": "Leiterbahn [GND] auf F.Cu, Länge 0.4725 mm",
-                    "pos": {
-                        "x": 62.25,
-                        "y": 88.0717
-                    },
-                    "uuid": "29ce65c9-6573-474a-abd8-85a5d7b35fa4"
-                }
-            ],
-            "severity": "error",
-            "type": "unconnected_items"
-        }
-    ],
+    "unconnected_items": [],
     "violations": [
         {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1906 mm)",
+            "description": "Via is not connected or connected on only one layer",
             "items": [
                 {
-                    "description": "Via [BAT_P] auf F.Cu - B.Cu",
+                    "description": "Via [SIG_UP] auf F.Cu - B.Cu",
                     "pos": {
-                        "x": 28.2476,
-                        "y": 67.6194
+                        "x": 32.0,
+                        "y": 58.0
                     },
-                    "uuid": "7d00b953-8ba5-49cc-a214-85b85f673b84"
-                },
-                {
-                    "description": "Leiterbahn [GND] auf F.Cu, Länge 0.7706 mm",
-                    "pos": {
-                        "x": 27.9916,
-                        "y": 67.0401
-                    },
-                    "uuid": "a0bf74ab-ca8d-4c2c-9da4-8b7f3def2cc6"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1517 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [GND] auf F.Cu, Länge 8.9985 mm",
-                    "pos": {
-                        "x": 15.1933,
-                        "y": 79.8
-                    },
-                    "uuid": "a5a58363-79a0-41f6-a021-e0eda4d52808"
-                },
-                {
-                    "description": "Pad 1 [SIG_DOWN] von SW_DOWN auf F.Cu",
-                    "pos": {
-                        "x": 16.82,
-                        "y": 75.8
-                    },
-                    "uuid": "fbd32998-e51c-428d-956f-8a9bfc5adbb1"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1793 mm)",
-            "items": [
-                {
-                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
-                    "pos": {
-                        "x": 22.58,
-                        "y": 61.8
-                    },
-                    "uuid": "0a9fcbff-d7bb-4165-b54a-7246754345fd"
-                },
-                {
-                    "description": "Leiterbahn [SDA] auf F.Cu, Länge 6.8683 mm",
-                    "pos": {
-                        "x": 28.2025,
-                        "y": 65.1525
-                    },
-                    "uuid": "0d60ea27-7be1-4ce2-8f3d-6e2b6d4f2a82"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1772 mm)",
-            "items": [
-                {
-                    "description": "Pad 23 [SIG_MENU] von U1 auf F.Cu",
-                    "pos": {
-                        "x": 49.65,
-                        "y": 70.095
-                    },
-                    "uuid": "4a970dd8-600e-4d7c-a4e9-542cf802e0fe"
-                },
-                {
-                    "description": "Leiterbahn [INT] auf F.Cu, Länge 0.4899 mm",
-                    "pos": {
-                        "x": 50.6441,
-                        "y": 69.46
-                    },
-                    "uuid": "bdd92a17-d031-4c6d-ba6b-768282ee6323"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1516 mm)",
-            "items": [
-                {
-                    "description": "Via [BAT_P] auf F.Cu - B.Cu",
-                    "pos": {
-                        "x": 44.0137,
-                        "y": 64.5765
-                    },
-                    "uuid": "1b4b1a95-4127-4e78-98bd-553c25725ed4"
-                },
-                {
-                    "description": "Leiterbahn [INT] auf F.Cu, Länge 17.3129 mm",
-                    "pos": {
-                        "x": 35.875,
-                        "y": 57.2179
-                    },
-                    "uuid": "3c3a7e87-1277-4551-babc-001a5765ebc9"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1517 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [SIG_LEFT] auf B.Cu, Länge 22.7128 mm",
-                    "pos": {
-                        "x": 25.3012,
-                        "y": 68.1711
-                    },
-                    "uuid": "728706b2-8dd5-4d66-b29a-115f931c6ba5"
-                },
-                {
-                    "description": "Via [BAT_P] auf F.Cu - B.Cu",
-                    "pos": {
-                        "x": 28.2476,
-                        "y": 67.6194
-                    },
-                    "uuid": "7d00b953-8ba5-49cc-a214-85b85f673b84"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1732 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [SIG_LEFT] auf F.Cu, Länge 2.4470 mm",
-                    "pos": {
-                        "x": 13.58,
-                        "y": 62.7786
-                    },
-                    "uuid": "c4bf62d5-f69a-49b1-9e17-ceb9015dead8"
-                },
-                {
-                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
-                    "pos": {
-                        "x": 16.82,
-                        "y": 61.8
-                    },
-                    "uuid": "e6a4f3bf-a8bf-4e73-8d0d-5839662d4f2d"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1517 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [SIG_LEFT] auf F.Cu, Länge 3.0630 mm",
-                    "pos": {
-                        "x": 15.3103,
-                        "y": 61.0483
-                    },
-                    "uuid": "09206b54-2669-4b37-8317-0bac4e41ef41"
-                },
-                {
-                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
-                    "pos": {
-                        "x": 16.82,
-                        "y": 61.8
-                    },
-                    "uuid": "e6a4f3bf-a8bf-4e73-8d0d-5839662d4f2d"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1793 mm)",
-            "items": [
-                {
-                    "description": "Via [BAT_P] auf F.Cu - B.Cu",
-                    "pos": {
-                        "x": 28.2476,
-                        "y": 67.6194
-                    },
-                    "uuid": "7d00b953-8ba5-49cc-a214-85b85f673b84"
-                },
-                {
-                    "description": "Leiterbahn [GND] auf F.Cu, Länge 0.5402 mm",
-                    "pos": {
-                        "x": 28.5318,
-                        "y": 67.0401
-                    },
-                    "uuid": "d940ef6b-cbc8-4c4e-94c4-866e34354f61"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1580 mm)",
-            "items": [
-                {
-                    "description": "Pad 22 [SIG_RESET] von U1 auf F.Cu",
-                    "pos": {
-                        "x": 49.65,
-                        "y": 71.365
-                    },
-                    "uuid": "76d5191e-a413-467a-93c2-d9d1b46e3cde"
-                },
-                {
-                    "description": "Leiterbahn [SIG_MENU] auf F.Cu, Länge 10.1017 mm",
-                    "pos": {
-                        "x": 49.318,
-                        "y": 70.095
-                    },
-                    "uuid": "ce7344aa-540e-4efd-a137-cc884619b622"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1517 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [GND] auf F.Cu, Länge 8.2483 mm",
-                    "pos": {
-                        "x": 15.2067,
-                        "y": 70.8
-                    },
-                    "uuid": "aaed93ee-368f-4a83-8e7f-f5d0a733afe7"
-                },
-                {
-                    "description": "Pad 1 [SIG_LEFT] von SW_LEFT auf F.Cu",
-                    "pos": {
-                        "x": 13.58,
-                        "y": 66.8
-                    },
-                    "uuid": "c43e7e61-55ab-4bb6-b8b5-32e8641c0fcf"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1963 mm)",
-            "items": [
-                {
-                    "description": "Pad 12 [SCL] von U1 auf F.Cu",
-                    "pos": {
-                        "x": 40.35,
-                        "y": 77.715
-                    },
-                    "uuid": "185aefc2-0daf-46d5-bd6b-dd095473e681"
-                },
-                {
-                    "description": "Leiterbahn [SDA] auf F.Cu, Länge 9.2078 mm",
-                    "pos": {
-                        "x": 39.9639,
-                        "y": 78.985
-                    },
-                    "uuid": "4e9e5dc9-3a6e-49c6-867e-263ccfc6c3dc"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1517 mm)",
-            "items": [
-                {
-                    "description": "Pad 1 [SIG_RIGHT] von SW_RIGHT auf F.Cu",
-                    "pos": {
-                        "x": 31.58,
-                        "y": 66.8
-                    },
-                    "uuid": "1d699acf-64b7-4605-9706-35de0dc5d217"
-                },
-                {
-                    "description": "Leiterbahn [SDA] auf F.Cu, Länge 4.8003 mm",
-                    "pos": {
-                        "x": 31.5968,
-                        "y": 69.0478
-                    },
-                    "uuid": "5afd3471-3010-4f4d-a370-bb7ad73dbfe5"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1766 mm)",
-            "items": [
-                {
-                    "description": "Pad 25 [SIG_RIGHT] von U1 auf F.Cu",
-                    "pos": {
-                        "x": 49.65,
-                        "y": 67.555
-                    },
-                    "uuid": "35f19bc1-499e-46e9-a5ef-af74677d5c23"
-                },
-                {
-                    "description": "Leiterbahn [SIG_LEFT] auf F.Cu, Länge 0.6209 mm",
-                    "pos": {
-                        "x": 48.3357,
-                        "y": 68.1316
-                    },
-                    "uuid": "b4054a4d-619f-4be9-b5ea-e46065fec8fc"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1550 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [SIG_MUTE] auf F.Cu, Länge 14.3537 mm",
-                    "pos": {
-                        "x": 57.75,
-                        "y": 72.7163
-                    },
-                    "uuid": "1e5aa2f2-bf39-4979-9a1d-24b63f2cef94"
-                },
-                {
-                    "description": "Pad 1 [SIG_RESET] von SW_RESET auf F.Cu",
-                    "pos": {
-                        "x": 59.38,
-                        "y": 79.6
-                    },
-                    "uuid": "b5baf5ec-5216-44f2-a54c-10a09e2a2d66"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1766 mm)",
-            "items": [
-                {
-                    "description": "Pad 25 [SIG_RIGHT] von U1 auf F.Cu",
-                    "pos": {
-                        "x": 49.65,
-                        "y": 67.555
-                    },
-                    "uuid": "35f19bc1-499e-46e9-a5ef-af74677d5c23"
-                },
-                {
-                    "description": "Leiterbahn [SIG_LEFT] auf F.Cu, Länge 0.9806 mm",
-                    "pos": {
-                        "x": 48.9566,
-                        "y": 68.1316
-                    },
-                    "uuid": "bfd7a798-2d38-4a34-b385-098ba2932316"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Freiraum-Verstoß ( Freiraum 0.2000 mm; tatsächlich 0.1533 mm)",
-            "items": [
-                {
-                    "description": "Leiterbahn [SDA] auf F.Cu, Länge 1.9686 mm",
-                    "pos": {
-                        "x": 33.453,
-                        "y": 70.4398
-                    },
-                    "uuid": "86b99f69-b82f-4145-9b9b-2bdaaa36780d"
-                },
-                {
-                    "description": "Pad 2 [GND] von SW_RIGHT auf F.Cu",
-                    "pos": {
-                        "x": 31.58,
-                        "y": 70.8
-                    },
-                    "uuid": "b97e34fd-70c5-4a56-b065-23524043e8a5"
-                }
-            ],
-            "severity": "error",
-            "type": "clearance"
-        },
-        {
-            "description": "Courtyards overlap",
-            "items": [
-                {
-                    "description": "Footprint SW_UP",
-                    "pos": {
-                        "x": 19.7,
-                        "y": 59.8
-                    },
-                    "uuid": "333481f3-9ef0-4a14-bb26-bf56931915a8"
-                },
-                {
-                    "description": "Footprint J_I2C",
-                    "pos": {
-                        "x": 12.0,
-                        "y": 54.5
-                    },
-                    "uuid": "562e3024-7938-4085-ad52-9a5be16cd146"
-                }
-            ],
-            "severity": "error",
-            "type": "courtyards_overlap"
-        },
-        {
-            "description": "Courtyards overlap",
-            "items": [
-                {
-                    "description": "Footprint J_I2C",
-                    "pos": {
-                        "x": 12.0,
-                        "y": 54.5
-                    },
-                    "uuid": "562e3024-7938-4085-ad52-9a5be16cd146"
-                },
-                {
-                    "description": "Footprint H1",
-                    "pos": {
-                        "x": 4.5,
-                        "y": 56.0
-                    },
-                    "uuid": "8298c500-a378-44c2-a4cc-e6aad6652682"
-                }
-            ],
-            "severity": "error",
-            "type": "courtyards_overlap"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_EXP auf F.Cu",
-                    "pos": {
-                        "x": 37.725,
-                        "y": 53.15
-                    },
-                    "uuid": "82cf1c61-e0f0-4128-8ef1-6f9accf8b06a"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_EXP auf F.Cu",
-                    "pos": {
-                        "x": 30.275,
-                        "y": 53.15
-                    },
-                    "uuid": "a72b9bba-df5e-4f80-b327-7ecadcf637f5"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 83.0,
-                        "y": 90.0
-                    },
-                    "uuid": "02e80125-d156-49f2-b07e-42b56261da9a"
-                },
-                {
-                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
-                    "pos": {
-                        "x": 56.35,
-                        "y": 89.93
-                    },
-                    "uuid": "9e9151ce-8803-4bc2-8964-75015b0c272e"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 83.0,
-                        "y": 90.0
-                    },
-                    "uuid": "02e80125-d156-49f2-b07e-42b56261da9a"
-                },
-                {
-                    "description": "Pad [GND] auf SW_MUTE von F.Cu",
-                    "pos": {
-                        "x": 63.65,
-                        "y": 89.93
-                    },
-                    "uuid": "b5601c2f-b91d-448c-a496-90622371e809"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_BAT_IN auf F.Cu",
-                    "pos": {
-                        "x": 48.475,
-                        "y": 53.15
-                    },
-                    "uuid": "8cddc7b9-22f3-460b-b39c-175ea1104070"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_BAT_IN auf F.Cu",
-                    "pos": {
-                        "x": 43.525,
-                        "y": 53.15
-                    },
-                    "uuid": "1e4c2594-03ee-454c-8f8c-f70838ce5ada"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_I2C auf F.Cu",
-                    "pos": {
-                        "x": 15.725,
-                        "y": 53.15
-                    },
-                    "uuid": "44848d5a-cad9-4fcd-b9de-fb3363b760c0"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_I2C auf F.Cu",
-                    "pos": {
-                        "x": 8.275,
-                        "y": 53.15
-                    },
-                    "uuid": "c4034bb0-d0aa-486f-ac0a-1bf1f4bc9c37"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 83.0,
-                        "y": 90.0
-                    },
-                    "uuid": "02e80125-d156-49f2-b07e-42b56261da9a"
-                },
-                {
-                    "description": "Pad [<no net>] auf SW_PWR von F.Cu",
-                    "pos": {
-                        "x": 16.35,
-                        "y": 89.93
-                    },
-                    "uuid": "d5be4ea5-892a-4edb-9f91-f908da66881b"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 83.0,
-                        "y": 90.0
-                    },
-                    "uuid": "02e80125-d156-49f2-b07e-42b56261da9a"
-                },
-                {
-                    "description": "Pad [<no net>] auf SW_PWR von F.Cu",
-                    "pos": {
-                        "x": 23.65,
-                        "y": 89.93
-                    },
-                    "uuid": "16f5acad-2c2f-4dac-901f-41b94768ecc5"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_BAT_OUT auf F.Cu",
-                    "pos": {
-                        "x": 58.475,
-                        "y": 53.15
-                    },
-                    "uuid": "fde04589-6bc0-4926-a1d5-a13bdcb8906c"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Platinenkanten-Freiraum-Verstoß (Einschränkungen aus Platinenkonfiguration zum Rand Freiraum 0.5000 mm; tatsächlich 0.0000 mm)",
-            "items": [
-                {
-                    "description": "Abschnitt auf Edge.Cuts",
-                    "pos": {
-                        "x": 2.5,
-                        "y": 53.0
-                    },
-                    "uuid": "0c24af4a-b3e4-4b00-9e25-b2053eefbc08"
-                },
-                {
-                    "description": "Pad MP [<no net>] von J_BAT_OUT auf F.Cu",
-                    "pos": {
-                        "x": 53.525,
-                        "y": 53.15
-                    },
-                    "uuid": "2f6fc048-cd72-4177-9e91-8c6d52b07a9b"
-                }
-            ],
-            "severity": "error",
-            "type": "copper_edge_clearance"
-        },
-        {
-            "description": "Verbindung der Wärmefalle zur Zone unvollständig (Lage F.Cu; Zone min. Steganzahl 2; tatsächlich 1)",
-            "items": [
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                },
-                {
-                    "description": "Pad 2 [GND] von SW_UP auf F.Cu",
-                    "pos": {
-                        "x": 16.82,
-                        "y": 61.8
-                    },
-                    "uuid": "e6a4f3bf-a8bf-4e73-8d0d-5839662d4f2d"
-                }
-            ],
-            "severity": "error",
-            "type": "starved_thermal"
-        },
-        {
-            "description": "Verbindung der Wärmefalle zur Zone unvollständig (Lage F.Cu; Zone min. Steganzahl 2; tatsächlich 1)",
-            "items": [
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                },
-                {
-                    "description": "Pad 2 [GND] von J_I2C auf F.Cu",
-                    "pos": {
-                        "x": 12.625,
-                        "y": 56.35
-                    },
-                    "uuid": "60f57b4d-20b9-470e-b985-cf31aecce1ff"
-                }
-            ],
-            "severity": "error",
-            "type": "starved_thermal"
-        },
-        {
-            "description": "Verbindung der Wärmefalle zur Zone unvollständig (Lage F.Cu; Zone min. Steganzahl 2; tatsächlich 1)",
-            "items": [
-                {
-                    "description": "Zone [GND] auf F.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "7119a42a-8328-48f1-8db5-a7363d06ab3f"
-                },
-                {
-                    "description": "Pad 10 [GND] von U1 auf F.Cu",
-                    "pos": {
-                        "x": 40.35,
-                        "y": 75.175
-                    },
-                    "uuid": "67bc1a91-3270-4f38-802a-618284f5d516"
-                }
-            ],
-            "severity": "error",
-            "type": "starved_thermal"
-        },
-        {
-            "description": "Isolated copper fill",
-            "items": [
-                {
-                    "description": "Zone [GND] auf B.Cu, Priorität 0",
-                    "pos": {
-                        "x": 3.0,
-                        "y": 53.5
-                    },
-                    "uuid": "1f90aa59-6855-4d1a-8aa6-3da4b0273a63"
+                    "uuid": "141cf927-1879-4a3f-959b-50a5c0d3f155"
                 }
             ],
             "severity": "warning",
-            "type": "isolated_copper"
+            "type": "via_dangling"
         },
         {
-            "description": "Isolated copper fill",
+            "description": "Track has unconnected end",
             "items": [
                 {
-                    "description": "Zone [GND] auf B.Cu, Priorität 0",
+                    "description": "Leiterbahn [SCL] auf F.Cu, Länge 2.5148 mm",
                     "pos": {
-                        "x": 3.0,
-                        "y": 53.5
+                        "x": 41.9599,
+                        "y": 70.7552
                     },
-                    "uuid": "1f90aa59-6855-4d1a-8aa6-3da4b0273a63"
+                    "uuid": "da6eca42-4200-478b-a5d5-0f90e6fdec90"
                 }
             ],
             "severity": "warning",
-            "type": "isolated_copper"
+            "type": "track_dangling"
         },
         {
-            "description": "Isolated copper fill",
+            "description": "Track has unconnected end",
             "items": [
                 {
-                    "description": "Zone [GND] auf B.Cu, Priorität 0",
+                    "description": "Leiterbahn [SCL] auf B.Cu, Länge 2.5148 mm",
                     "pos": {
-                        "x": 3.0,
-                        "y": 53.5
+                        "x": 41.9599,
+                        "y": 70.7552
                     },
-                    "uuid": "1f90aa59-6855-4d1a-8aa6-3da4b0273a63"
+                    "uuid": "8ea8205f-d6aa-4ca4-9208-eaf489b8e4a6"
                 }
             ],
             "severity": "warning",
-            "type": "isolated_copper"
+            "type": "track_dangling"
         },
         {
-            "description": "Isolated copper fill",
+            "description": "Track has unconnected end",
             "items": [
                 {
-                    "description": "Zone [GND] auf B.Cu, Priorität 0",
+                    "description": "Leiterbahn [SIG_LEFT] auf F.Cu, Länge 0.7526 mm",
                     "pos": {
-                        "x": 3.0,
-                        "y": 53.5
+                        "x": 48.2151,
+                        "y": 65.5978
                     },
-                    "uuid": "1f90aa59-6855-4d1a-8aa6-3da4b0273a63"
+                    "uuid": "90450140-d5cc-45b7-a626-6fc7b9e0ca15"
                 }
             ],
             "severity": "warning",
-            "type": "isolated_copper"
+            "type": "track_dangling"
         },
         {
-            "description": "Isolated copper fill",
+            "description": "Track has unconnected end",
             "items": [
                 {
-                    "description": "Zone [GND] auf B.Cu, Priorität 0",
+                    "description": "Leiterbahn [SIG_LEFT] auf B.Cu, Länge 0.7526 mm",
                     "pos": {
-                        "x": 3.0,
-                        "y": 53.5
+                        "x": 48.2151,
+                        "y": 65.5978
                     },
-                    "uuid": "1f90aa59-6855-4d1a-8aa6-3da4b0273a63"
+                    "uuid": "2399ff11-ae8e-4b9b-8d18-fa9a8dfaeaff"
                 }
             ],
             "severity": "warning",
-            "type": "isolated_copper"
+            "type": "track_dangling"
         },
         {
-            "description": "Silkscreen clearance",
+            "description": "Track has unconnected end",
             "items": [
                 {
-                    "description": "Referenzfeld von SW_MUTE",
+                    "description": "Leiterbahn [BAT_P] auf F.Cu, Länge 1.1167 mm",
                     "pos": {
-                        "x": 60.0,
-                        "y": 85.3
+                        "x": 20.0,
+                        "y": 80.6326
                     },
-                    "uuid": "2094dd41-5cf3-428b-8050-fafb0f5fc59d"
+                    "uuid": "cb4358df-bd3d-43cd-95be-b4207e2e3cb1"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Leiterbahn [BAT_P] auf B.Cu, Länge 1.1167 mm",
+                    "pos": {
+                        "x": 20.0,
+                        "y": 80.6326
+                    },
+                    "uuid": "2d2f8af6-af7c-400d-b25d-5618b5013f67"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 79.0,
+                        "y": 88.0
+                    },
+                    "uuid": "1b343990-58b2-48e1-b1bd-76d5be4052c0"
                 },
                 {
-                    "description": "Abschnitt von SW_RESET auf F.Silkscreen",
+                    "description": "Abschnitt von SW_MUTE auf F.Silkscreen",
                     "pos": {
-                        "x": 53.15,
-                        "y": 84.7
+                        "x": 69.4,
+                        "y": 88.4
                     },
-                    "uuid": "755c8e30-025a-480f-909a-aeef789d03f3"
+                    "uuid": "6616c772-599d-4c6b-a454-62392a7dd6d4"
                 }
             ],
             "severity": "warning",
-            "type": "silk_overlap"
+            "type": "silk_edge_clearance"
         },
         {
-            "description": "Silkscreen clearance",
+            "description": "Silkscreen clipped by board edge",
             "items": [
                 {
-                    "description": "Referenzfeld von SW_MUTE",
+                    "description": "Abschnitt auf Edge.Cuts",
                     "pos": {
-                        "x": 60.0,
-                        "y": 85.3
+                        "x": 79.0,
+                        "y": 88.0
                     },
-                    "uuid": "2094dd41-5cf3-428b-8050-fafb0f5fc59d"
+                    "uuid": "1b343990-58b2-48e1-b1bd-76d5be4052c0"
                 },
                 {
-                    "description": "Abschnitt von SW_RESET auf F.Silkscreen",
+                    "description": "Abschnitt von SW_MUTE auf F.Silkscreen",
                     "pos": {
-                        "x": 59.85,
-                        "y": 84.7
+                        "x": 78.6,
+                        "y": 86.1
                     },
-                    "uuid": "8ec7f51d-d791-4e17-a8b4-3eacb53f7ce6"
+                    "uuid": "b0777b9e-9b7e-4f18-baae-46ee686f5a85"
                 }
             ],
             "severity": "warning",
-            "type": "silk_overlap"
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 25.0,
+                        "y": 88.0
+                    },
+                    "uuid": "0f4e4fd6-433a-46b2-8c4e-ef7aa070891c"
+                },
+                {
+                    "description": "Abschnitt von SW_PWR auf F.Silkscreen",
+                    "pos": {
+                        "x": 15.4,
+                        "y": 88.4
+                    },
+                    "uuid": "20ca4c0f-634d-45b0-a7c5-1e026a362ef5"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Abschnitt auf Edge.Cuts",
+                    "pos": {
+                        "x": 25.0,
+                        "y": 88.0
+                    },
+                    "uuid": "0f4e4fd6-433a-46b2-8c4e-ef7aa070891c"
+                },
+                {
+                    "description": "Abschnitt von SW_PWR auf F.Silkscreen",
+                    "pos": {
+                        "x": 24.6,
+                        "y": 86.1
+                    },
+                    "uuid": "30cf2618-9f58-4914-a834-ae5692e55417"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Referenzfeld von J_EXP",
+                    "pos": {
+                        "x": 78.0,
+                        "y": 59.1
+                    },
+                    "uuid": "c068396a-7f03-4206-9cab-45a8d913ae13"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Wert-Feld von J_EXP (JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal)",
+                    "pos": {
+                        "x": 78.0,
+                        "y": 66.9
+                    },
+                    "uuid": "24cde5ad-d095-4a04-ad51-0f3fe5925f09"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Footprint-Text von J_EXP (J_EXP)",
+                    "pos": {
+                        "x": 78.0,
+                        "y": 63.0
+                    },
+                    "uuid": "3055dc38-070a-4668-83f1-ba8b6a6b0dfd"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Referenzfeld von J_BAT_IN",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 72.1
+                    },
+                    "uuid": "5df0f6d1-07b6-4884-b1c0-85a73b7d03d4"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Wert-Feld von J_BAT_IN (JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal)",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 79.9
+                    },
+                    "uuid": "02310862-f253-454b-ba0c-6ae25aa34c0b"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Footprint-Text von J_BAT_IN (J_BAT_IN)",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 76.0
+                    },
+                    "uuid": "e7ecc776-01ec-4084-9361-25d1221d9b6e"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Referenzfeld von J_BAT_OUT",
+                    "pos": {
+                        "x": 78.0,
+                        "y": 72.1
+                    },
+                    "uuid": "96949502-259f-4d42-9451-c0d9b3fdbcec"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Wert-Feld von J_BAT_OUT (JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal)",
+                    "pos": {
+                        "x": 78.0,
+                        "y": 79.9
+                    },
+                    "uuid": "7be63346-accd-4acc-8b36-dbf6a7d7a431"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Footprint-Text von J_BAT_OUT (J_BAT_OUT)",
+                    "pos": {
+                        "x": 78.0,
+                        "y": 76.0
+                    },
+                    "uuid": "ddf216ec-1027-4faa-a115-61e52b0945c4"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Referenzfeld von J_I2C",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 59.1
+                    },
+                    "uuid": "bdf3b6c7-e0a5-49f7-be13-8d476a8edc78"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Wert-Feld von J_I2C (JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal)",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 66.9
+                    },
+                    "uuid": "634e4934-2361-4e67-95f8-7c7260b23e3b"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
+        },
+        {
+            "description": "Non-Mirrored text on back layer",
+            "items": [
+                {
+                    "description": "Footprint-Text von J_I2C (J_I2C)",
+                    "pos": {
+                        "x": 63.0,
+                        "y": 63.0
+                    },
+                    "uuid": "863aa7a6-d79d-4d05-a88b-d59c59835192"
+                }
+            ],
+            "severity": "warning",
+            "type": "nonmirrored_text_on_back_layer"
         }
     ]
 }

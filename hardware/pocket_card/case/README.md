@@ -1,8 +1,13 @@
 # Pocket Card enclosure CAD
 
-Code-driven. `params.py` is the single source of numeric truth; the design spec
-(`docs/superpowers/specs/2026-07-31-pocket-card-mechanical-controls-design.md`)
-records the decisions and transcribes the numbers from here.
+Code-driven. `params.py` is the single source of numeric truth. Design decisions
+live in:
+
+- `docs/superpowers/specs/2026-07-31-pocket-card-mechanical-controls-design.md`
+- `docs/superpowers/specs/2026-07-31-pocket-card-skqg-rear-connectors-design.md`
+  (amendment: SKQGABE010 tact stack, snap-over shoulder, module JSTs on PCB back)
+
+Where those two disagree, the SKQG/rear-connectors document wins.
 
 ## Setup
 
@@ -50,7 +55,21 @@ legends stay upright) and the Ø11 station is not. Comparing them tells you
 whether the flats add noticeable friction.
 
 `out/coupon_backing.stl` is a flat plate sitting at the PCB front plane
-(z = 5.50 mm). Tack real tact switches to it to check travel and the hard stop.
+(z = 4.50 mm, `PCB_FRONT_Z`). The coupon collars include the **snap-over
+shoulder** hard stop. Tack real **SKQGABE010** (or any SKQG-with-stem) parts to
+the backing to prove make-before-stop: the stem actuates before the flange hits
+the lip.
+
+Module interconnect JSTs live on the **board back** (B.Cu) in the right-rear
+wiring pocket — regenerate with `python3 pcb.py` then `./build_pcb.sh`.
+That script also writes `out/pcb/pocket_card_controller.stl` (and `.step`) with
+board body + footprint 3D models via `kicad-cli` — no manual STEP→STL conversion.
+
+## Assembly
+
+- Power/mute tips: drop the two resin tips into the front-shell bottom slots
+  from the inside before seating the controller PCB. No glue. Paddles of the
+  JS102011-class slides engage the tip pockets; the shell takes end-stop.
 
 ## Also here
 

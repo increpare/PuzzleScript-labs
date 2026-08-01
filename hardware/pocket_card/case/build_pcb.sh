@@ -11,29 +11,62 @@
 # plane is filled, the second pass only has signals left, which is the easy
 # case -- ~25 point-to-point ground connections were the whole difficulty.
 #
-# Usage:  FREEROUTING_JAR=/path/to/freerouting-2.1.0.jar ./build_pcb.sh
+# Usage:
+#   FREEROUTING_JAR=tools/freerouting-2.1.0.jar ./build_pcb.sh
+#   # or rely on the default path below
 set -e
 cd "$(dirname "$0")"
 
 KPY=/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
 BRD=out/pcb/pocket_card_controller.kicad_pcb
+KICAD_APP="${KICAD_APP:-/Users/stephenlavelle/Applications/KiCad/KiCad.app}"
+
+# Placement is headless (stdlib sexpr). Routing still needs KiCad's pcbnew.
+export JAVA_HOME="${JAVA_HOME:-/Library/Java/JavaVirtualMachines/jdk-23.jdk/Contents/Home}"
+export PATH="$JAVA_HOME/bin:$PATH"
+# Footprint 3D models use ${KICAD10_3DMODEL_DIR}/... — CLI does not inherit the
+# GUI path, so set it explicitly for STL/STEP export.
+export KICAD10_3DMODEL_DIR="${KICAD10_3DMODEL_DIR:-$KICAD_APP/Contents/SharedSupport/3dmodels}"
+export FREEROUTING_JAR="${FREEROUTING_JAR:-$PWD/tools/freerouting-2.1.0.jar}"
+if [[ ! -f "$FREEROUTING_JAR" ]]; then
+  echo "missing FREEROUTING_JAR=$FREEROUTING_JAR" >&2
+  echo "download: https://github.com/freerouting/freerouting/releases/download/v2.1.0/freerouting-2.1.0.jar" >&2
+  exit 1
+fi
 
 echo "== 1. placement and outline, from params.py"
-"$KPY" pcb.py 2>/dev/null | grep -E "outline|footprints"
+python3 pcb.py | grep -E "outline|footprints|saved"
 
 echo "== 2. netlist, first routing pass, zones injected"
-"$KPY" pcb_route.py 2>/dev/null | grep -E "tracks|zones|injected|reused"
+"$KPY" pcb_route.py 2>/dev/null | grep -E "tracks|zones|injected|reused|expander|allocation|->"
 
 echo "== 3. fill the pour"
-kicad-cli pcb drc --refill-zones --save-board --format json \
-    --output out/pcb/drc.json "$BRD" >/dev/null 2>&1
+if ! kicad-cli pcb drc --refill-zones --save-board --format json \
+    --output out/pcb/drc.json "$BRD" 2>out/pcb/drc_cli.log; then
+  echo "kicad-cli DRC failed; see out/pcb/drc_cli.log" >&2
+  tail -20 out/pcb/drc_cli.log >&2 || true
+  exit 1
+fi
+if grep -q 'Fehler beim Laden\|Error loading\|failed to load' out/pcb/drc_cli.log 2>/dev/null; then
+  echo "board failed to load in kicad-cli; see out/pcb/drc_cli.log" >&2
+  cat out/pcb/drc_cli.log >&2
+  exit 1
+fi
 
 echo "== 4. second routing pass, now that ground is carried"
 "$KPY" pcb_reroute.py 2>/dev/null | grep -E "tracks|zones|found"
 
 echo "== 5. fill again -- a fill is stale the moment copper moves"
-kicad-cli pcb drc --refill-zones --save-board --format json \
-    --output out/pcb/drc.json "$BRD" >/dev/null 2>&1
+if ! kicad-cli pcb drc --refill-zones --save-board --format json \
+    --output out/pcb/drc.json "$BRD" 2>out/pcb/drc_cli.log; then
+  echo "kicad-cli DRC failed; see out/pcb/drc_cli.log" >&2
+  exit 1
+fi
+if grep -q 'Fehler beim Laden\|Error loading\|failed to load' out/pcb/drc_cli.log 2>/dev/null; then
+  echo "board failed to load in kicad-cli; see out/pcb/drc_cli.log" >&2
+  cat out/pcb/drc_cli.log >&2
+  exit 1
+fi
 
 echo "== 6. verdict"
 python3 - <<'PY'
@@ -50,4 +83,18 @@ errs = [i for i in d["violations"] if i.get("severity") == "error"]
 print("   unconnected %d  %s" % (len(un), dict(nets) if nets else ""))
 print("   violations  %d, of which errors %d" % (len(d["violations"]), len(errs)))
 print("   %s" % dict(collections.Counter(i["type"] for i in d["violations"])))
+if errs:
+    for i in errs[:12]:
+        print("   ERR %-28s %s" % (i.get("type"), (i.get("description") or "")[:100]))
 PY
+
+echo "== 7. 3D mesh (board + components) via kicad-cli"
+STL=out/pcb/pocket_card_controller.stl
+STEP=out/pcb/pocket_card_controller.step
+# --subst-models: prefer STEP companions when a footprint only lists VRML.
+kicad-cli pcb export stl --force --subst-models -o "$STL" "$BRD" >/dev/null
+kicad-cli pcb export step --force --subst-models -o "$STEP" "$BRD" >/dev/null
+# Keep legacy names some viewers/scripts already point at.
+cp -f "$STL" out/pcb/exported.stl
+cp -f "$STEP" out/pcb/exported.step
+ls -la "$STL" "$STEP" | awk '{printf "   %s  %s\n", $5, $9}'

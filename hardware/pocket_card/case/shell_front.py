@@ -18,6 +18,7 @@ import os
 import cadquery as cq
 
 import params as P
+import slide_tip
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
@@ -68,18 +69,71 @@ def screen_aperture():
             .edges("|Z").fillet(0.8))
 
 
+def _shoulder_planes():
+    z_flat_top = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
+    z_flat_bot = z_flat_top - P.SHOULDER_FLAT_T
+    z_ramp_bot = z_flat_bot - P.SHOULDER_RAMP_T
+    return z_flat_top, z_flat_bot, z_ramp_bot
+
+
+def _shoulder_void_round(bore_d, depth):
+    """Void to cut from the collar: guide, narrow lip pass, ramp, full bore below.
+
+    Returns the cutter solid (union of void segments). Do NOT carve a full
+    cylinder then hollow it — that inverted the lip and left the centre solid.
+    """
+    z_flat_top, z_flat_bot, z_ramp_bot = _shoulder_planes()
+    r = bore_d / 2
+    sr = (bore_d - 2 * P.SHOULDER_RADIAL) / 2
+
+    guide = cq.Workplane("XY").circle(r).extrude(z_flat_top)
+    lip = (cq.Workplane("XY").workplane(offset=z_flat_top)
+           .circle(sr).extrude(z_flat_bot - z_flat_top))
+    try:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot).circle(sr)
+                .workplane(offset=z_ramp_bot - z_flat_bot).circle(r).loft(combine=True))
+    except Exception:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot).circle(r)
+                .extrude(z_ramp_bot - z_flat_bot))
+    below = (cq.Workplane("XY").workplane(offset=z_ramp_bot).circle(r)
+             .extrude(-(depth + 1) - z_ramp_bot))
+    return guide.union(lip).union(ramp).union(below)
+
+
+def _shoulder_void_slot(bore_l, bore_w, depth):
+    """Pill-station void with snap-over shoulder (same construction as round)."""
+    z_flat_top, z_flat_bot, z_ramp_bot = _shoulder_planes()
+    shoulder_l = bore_l - 2 * P.SHOULDER_RADIAL
+    shoulder_w = bore_w - 2 * P.SHOULDER_RADIAL
+
+    guide = cq.Workplane("XY").slot2D(bore_l, bore_w, 0).extrude(z_flat_top)
+    lip = (cq.Workplane("XY").workplane(offset=z_flat_top)
+           .slot2D(shoulder_l, shoulder_w, 0).extrude(z_flat_bot - z_flat_top))
+    try:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot)
+                .slot2D(shoulder_l, shoulder_w, 0)
+                .workplane(offset=z_ramp_bot - z_flat_bot)
+                .slot2D(bore_l, bore_w, 0).loft(combine=True))
+    except Exception:
+        ramp = (cq.Workplane("XY").workplane(offset=z_flat_bot)
+                .slot2D(bore_l, bore_w, 0).extrude(z_ramp_bot - z_flat_bot))
+    below = (cq.Workplane("XY").workplane(offset=z_ramp_bot)
+             .slot2D(bore_l, bore_w, 0).extrude(-(depth + 1) - z_ramp_bot))
+    return guide.union(lip).union(ramp).union(below)
+
+
 def button_station(hole_d=None, pill=False, keyed=True):
     """Face hole plus guide collar. Returns (solid_to_add, solid_to_cut)."""
     depth = P.FACE_T + P.COLLAR_DEPTH
     if pill:
         flange_l = P.PILL_L + 2 * P.CAP_FLANGE_OS
         flange_w = P.PILL_W + 2 * P.CAP_FLANGE_OS
-        bore_l = flange_l + 2 * P.COLLAR_CLEAR
-        bore_w = flange_w + 2 * P.COLLAR_CLEAR
+        bore_l = flange_l + 2 * P.COLLAR_CLEAR + P.PILL_BORE_EXTRA
+        bore_w = flange_w + 2 * P.COLLAR_CLEAR + P.PILL_BORE_EXTRA
         boss = (cq.Workplane("XY")
                 .slot2D(bore_l + 2 * COLLAR_WALL, bore_w + 2 * COLLAR_WALL, 0)
                 .extrude(-depth))
-        bore = cq.Workplane("XY").slot2D(bore_l, bore_w, 0).extrude(-depth - 1)
+        bore = _shoulder_void_slot(bore_l, bore_w, depth)
         hole = (cq.Workplane("XY")
                 .slot2D(P.PILL_L + 2 * P.CAP_CLEAR, P.PILL_W + 2 * P.CAP_CLEAR, 0)
                 .extrude(-P.FACE_T - 2).translate((0, 0, 1)))
@@ -88,7 +142,7 @@ def button_station(hole_d=None, pill=False, keyed=True):
     flange_d = hole_d + 2 * P.CAP_FLANGE_OS
     bore_d = flange_d + 2 * P.COLLAR_CLEAR
     boss = cq.Workplane("XY").circle(bore_d / 2 + COLLAR_WALL).extrude(-depth)
-    bore = cq.Workplane("XY").circle(bore_d / 2).extrude(-depth - 1)
+    bore = _shoulder_void_round(bore_d, depth)
     if keyed:
         across = bore_d / 2 - FLAT_DEPTH
         for sign in (1, -1):
@@ -230,14 +284,7 @@ def edge_openings():
         cq.Workplane("XY").box(P.WALL + 3, 10.0, 4.2, centered=(False, True, True))
         .translate((-1.5, usb_y, -(MOD_PCB_BACK + 2.1))))
 
-    # power switch, bottom edge left of the grille
-    cuts = cuts.union(
-        cq.Workplane("XY").box(12.0, P.WALL + 3, 5.0, centered=(True, False, True))
-        .translate((P.POWER_SW_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
-    # mute switch, bottom edge beneath the grille
-    cuts = cuts.union(
-        cq.Workplane("XY").box(10.0, P.WALL + 3, 5.0, centered=(True, False, True))
-        .translate((P.MUTE_SW_X, P.BODY_H - P.WALL - 1.5, -(P.PCB_FRONT_Z + 1.0))))
+    cuts = cuts.union(slide_tip.edge_tip_openings())
     return cuts
 
 

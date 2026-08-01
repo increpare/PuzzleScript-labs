@@ -16,7 +16,8 @@ orientation) stand unless noted below.
 | Tact part / height / body thickness | **Replaced** — Alps SKQGABE010, 1.5 mm |
 | Hard-stop / cap assembly | **Replaced** — snap-over ramped collar shoulder |
 | Controller PCB rear keep-out | **Replaced** — module IO moves to B.Cu wiring pocket |
-| Face XY, edge switches, audio, storage, power model | **Unchanged** |
+| Face XY, audio, storage, power model | **Unchanged** |
+| Edge mute/power slides (part + tips) | **Superseded** by `2026-08-01-pocket-card-edge-slide-tips-design.md` |
 
 Numeric truth continues to live in `hardware/pocket_card/case/params.py`.
 When this spec and that file disagree after implementation, fix the file to
@@ -35,12 +36,27 @@ All eight front controls use the same part:
 | Sites | Up, Down, Left, Right, Undo, Action, Reset, Menu |
 
 This replaces the July 31 placeholder Panasonic EVQ-P2 / EVQ-P0 H2.5 class
-(~2.5 mm). Edge mute and power remain slide switches; they are out of scope
-here.
+(~2.5 mm). Edge mute and power remain slide switches; part choice, PCB
+notches, and shell-captive tips are specified in
+`2026-08-01-pocket-card-edge-slide-tips-design.md` (PCM12 retired).
 
 The July 31 note that “a 1.5 mm low-profile part would give ~13.3 mm, at some
 cost in tactile snap” is closed by this choice. SKQG is that part; Alps rates
 the series as sharp-feeling.
+
+### Footprint and copper keepouts
+
+Use KiCad `Button_Switch_SMD:SW_SPST_SKQG_WithStem` (or an identical land
+pattern from the Alps drawing). The part is not a plain 5.2 mm courtyard:
+
+- Body □5.2 mm; four gull-wing pads at (±3.1, ±1.85), each 1.8 × 1.1 mm.
+- Two **F.Cu keepouts** beside the stem (library zones): approximately
+  `x ∈ [±1 … ±4]`, `y ∈ [−1.3 … 1.3]` in footprint coordinates — no tracks,
+  vias, pads, or pours. Marked “KEEP-OUT ZONE / No F.Cu tracks” in the
+  footprint.
+
+Neighboring switch sites must keep those keepouts and pad copper from
+overlapping. Automated AABB checks in `checks.py` gate the face pitches.
 
 ## Thickness stack
 
@@ -120,8 +136,10 @@ the cables already want to live under the board plane.
 | **Back (B.Cu)** | All keyed module interconnects (`J_I2C`, `J_EXP`, `J_BAT_IN`, `J_BAT_OUT`) |
 
 - Place the back-side connector cluster in the **lower-right rear pocket**,
-  opposite the cell (cell stays hard left), clearing the cell fence, driver
-  housing, and mounting bosses. Exact XY is free inside that pocket.
+  opposite the cell (cell stays hard left). Clear the **cell fence**, stay on
+  the board outline, and clear the **back-shell interior**. Do **not** treat
+  the front-shell driver XY as a keepout for B.Cu parts — the driver lives at
+  z ≈ 1.5–5.0 in front of the board. Exact XY is free inside that pocket.
 - Cables drop from the module’s lower-edge sockets and dress under/around the
   board into that pocket. Messy routing is acceptable; the case remains
   openable for service.

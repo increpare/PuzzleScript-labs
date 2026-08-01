@@ -668,18 +668,262 @@ def check_back_shell():
 
 
 def check(name, got, want, tol):
-    ok = abs(got - want) <= tol
-    print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
+    if isinstance(got, str) or isinstance(want, str):
+        ok = got == want
+        print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got!r:8}  (want {want!r})")
+    else:
+        ok = abs(got - want) <= tol
+        print(f"   {'PASS' if ok else 'FAIL'}  {name:34} {got:8.3f}  (want {want:.3f} +/- {tol})")
     if not ok:
         FAILURES.append(name)
 
 
+def check_edge_slide_tips():
+    print("\nedge slide tips (params)")
+    # Footprint: KiCad SW_SPDT_CK_JS102011SAQN — pads at y=-2.75, size 1.25×2.5
+    # → copper Y ∈ [SW_Y-4.0, SW_Y-1.5] for each site.
+    south = P.PCB_Y + P.PCB_H  # 90.0
+    for name, x, y in (
+        ("POWER", P.POWER_SW_X, P.POWER_SW_Y),
+        ("MUTE", P.MUTE_SW_X, P.MUTE_SW_Y),
+    ):
+        pad_south = y + P.SLIDE_PAD_SOUTH_REL  # -1.5
+        clear = south - pad_south
+        if clear < 0.5 - 1e-6:
+            print(f"   FAIL  {name} pad-edge clear {clear:.2f} < 0.5")
+            FAILURES.append(f"{name} pad edge")
+        else:
+            print(f"   ok    {name} pad-edge clear {clear:.2f}")
+        # Paddle tip (fab +Y) must reach into the wall cavity (past south).
+        tip_y = y + P.SLIDE_PADDLE_Y_REL
+        if tip_y < south - 0.2:
+            print(f"   FAIL  {name} paddle tip y={tip_y:.2f} short of edge {south}")
+            FAILURES.append(f"{name} paddle short")
+        else:
+            print(f"   ok    {name} paddle tip y={tip_y:.2f}")
+
+    if not (0.6 - 1e-6 <= P.TIP_PROUD <= 1.0 + 1e-6):
+        print(f"   FAIL  TIP_PROUD {P.TIP_PROUD} not in [0.6, 1.0]")
+        FAILURES.append("TIP_PROUD")
+    else:
+        print(f"   ok    TIP_PROUD {P.TIP_PROUD}")
+
+    # Slot/tip Z centered above PCB front (same bug class as old PCM12 cut).
+    # Device z: PCB front = -PCB_FRONT_Z; "above" means less negative (toward face).
+    z_center = -(P.PCB_FRONT_Z - P.SLIDE_ACTUATOR_Z_ABOVE_PCB)
+    pcb_front = -P.PCB_FRONT_Z
+    if z_center <= pcb_front + 1e-6:
+        print(f"   FAIL  tip Z center {z_center} not above PCB front {pcb_front}")
+        FAILURES.append("tip Z")
+    else:
+        print(f"   ok    tip Z center {z_center:.2f} (PCB front {pcb_front:.2f})")
+
+    check("SLIDE_FP", P.SLIDE_FP_NAME, "SW_SPDT_CK_JS102011SAQN", 0)
+
+
+def check_skqg_stack():
+    print("\nskqg stack (params)")
+    check("TACT_H", P.TACT_H, 1.5, 0.001)
+    check("TACT_TRAVEL", P.TACT_TRAVEL, 0.25, 0.001)
+    check("TACT_FORCE_N", P.TACT_FORCE_N, 1.57, 0.001)
+    check("PCB_FRONT_Z", P.PCB_FRONT_Z, 4.5, 0.001)
+    check("LOWER_ZONE_T", P.LOWER_ZONE_T, 13.7, 0.02)
+    check("BODY_T", P.BODY_T, 13.7, 0.02)
+    check("HARD_STOP_AT", P.HARD_STOP_AT, 0.35, 0.001)
+    if P.HARD_STOP_AT <= P.TACT_TRAVEL:
+        print("   FAIL  HARD_STOP_AT must be > TACT_TRAVEL")
+        FAILURES.append("HARD_STOP_AT <= travel")
+    else:
+        print(f"   PASS  hard-stop overtravel "
+              f"{P.HARD_STOP_AT - P.TACT_TRAVEL:.3f} mm")
+
+
+def check_connector_pocket():
+    """B.Cu JST anchors: clear cell fence and board outline. No driver XY keepout."""
+    print("\nB.Cu connector pocket (params)")
+    ok_side = getattr(P, "CONN_SIDE", None) == "B.Cu"
+    print(f"   {'PASS' if ok_side else 'FAIL'}  CONN_SIDE == B.Cu "
+          f"(got {getattr(P, 'CONN_SIDE', None)!r})")
+    if not ok_side:
+        FAILURES.append("CONN_SIDE")
+    cell_x = P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.0
+    x_lo, x_hi = P.PCB_X + 1.0, P.PCB_X + P.PCB_W - 1.0
+    y_lo, y_hi = P.PCB_Y + 1.0, P.PCB_Y + P.PCB_H - 1.0
+    sites = (
+        ("CONN_I2C", P.CONN_I2C),
+        ("CONN_EXP", P.CONN_EXP),
+        ("CONN_BAT_IN", P.CONN_BAT_IN),
+        ("CONN_BAT_OUT", P.CONN_BAT_OUT),
+    )
+    for name, (x, y) in sites:
+        ok = (x > cell_x and x_lo <= x <= x_hi and y_lo <= y <= y_hi)
+        print(f"   {'PASS' if ok else 'FAIL'}  {name} ({x:.1f}, {y:.1f}) "
+              f"cell_x>{cell_x:.1f} board [{x_lo:.1f}..{x_hi:.1f}]×"
+              f"[{y_lo:.1f}..{y_hi:.1f}]")
+        if not ok:
+            FAILURES.append(name)
+    # Plug clearance: GH courtyard is 6.4 mm in the cable axis; need ≥9 mm
+    # centre pitch so a housing can engage. Same-row X neighbours likewise.
+    min_pitch = 9.0
+    for i in range(len(sites)):
+        for j in range(i + 1, len(sites)):
+            n1, (x1, y1) = sites[i]
+            n2, (x2, y2) = sites[j]
+            d = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+            ok = d + 1e-9 >= min_pitch
+            print(f"   {'PASS' if ok else 'FAIL'}  {n1}–{n2} pitch {d:.1f} "
+                  f"(want >= {min_pitch:.1f})")
+            if not ok:
+                FAILURES.append(f"pitch {n1}-{n2}")
+
+
+# From Button_Switch_SMD:SW_SPST_SKQG_WithStem (0° local coords)
+SKQG_KEEPOUTS = ((-4.0, -1.0, -1.3, 1.3), (1.0, 4.0, -1.3, 1.3))  # x0,x1,y0,y1
+SKQG_PADS = (  # centre x,y, w, h — both nets, four pads
+    (-3.1, -1.85, 1.8, 1.1), (3.1, -1.85, 1.8, 1.1),
+    (-3.1, 1.85, 1.8, 1.1), (3.1, 1.85, 1.8, 1.1),
+)
+
+
+def _aabb_overlap(a, b):
+    return not (a[1] <= b[0] or b[1] <= a[0] or a[3] <= b[2] or b[3] <= a[2])
+
+
+def _local_box_to_board(cx, cy, rot_deg, x0, x1, y0, y1):
+    """Axis-aligned board AABB of a local rect after rotation about (cx,cy)."""
+    import math
+    r = math.radians(rot_deg)
+    c, s = math.cos(r), math.sin(r)
+    xs, ys = [], []
+    for x, y in ((x0, y0), (x0, y1), (x1, y0), (x1, y1)):
+        xs.append(cx + x * c - y * s)
+        ys.append(cy + x * s + y * c)
+    return (min(xs), max(xs), min(ys), max(ys))
+
+
+def check_skqg_keepouts():
+    print("\nskqg keepouts vs neighbours (params)")
+    # rot=0 for all eight in pcb.py unless a later task rotates pills.
+    sites = [
+        ("UP", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, 0),
+        ("DOWN", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, 0),
+        ("LEFT", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, 0),
+        ("RIGHT", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, 0),
+        ("UNDO", P.UNDO_X, P.UNDO_Y, 0),
+        ("ACTION", P.ACT_X, P.ACT_Y, 0),
+        ("RESET", P.RESET_X, P.RESET_Y, 0),
+        ("MENU", P.MENU_X, P.MENU_Y, 0),
+    ]
+    boxes = []  # (name, kind, aabb)
+    for name, cx, cy, rot in sites:
+        for i, (x0, x1, y0, y1) in enumerate(SKQG_KEEPOUTS):
+            boxes.append((name, f"KO{i}",
+                          _local_box_to_board(cx, cy, rot, x0, x1, y0, y1)))
+        for i, (px, py, w, h) in enumerate(SKQG_PADS):
+            boxes.append((name, f"PAD{i}", _local_box_to_board(
+                cx, cy, rot, px - w / 2, px + w / 2, py - h / 2, py + h / 2)))
+    n_fail = 0
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            n1, k1, a = boxes[i]
+            n2, k2, b = boxes[j]
+            if n1 == n2:
+                continue
+            if _aabb_overlap(a, b):
+                print(f"   FAIL  {n1}.{k1} overlaps {n2}.{k2}")
+                FAILURES.append(f"{n1}.{k1} vs {n2}.{k2}")
+                n_fail += 1
+    if n_fail == 0:
+        print("   PASS  no SKQG keepout/pad AABB overlaps between sites")
+
+
+def check_shoulder_params():
+    """Inequalities that can fail — not identities of PCB_FRONT_Z."""
+    print("\nshoulder params")
+    need = (P.CAP_FLANGE_T + P.HARD_STOP_AT + P.SHOULDER_FLAT_T
+            + P.SHOULDER_RAMP_T)
+    ok = P.COLLAR_DEPTH + 1e-9 >= need
+    print(f"   {'PASS' if ok else 'FAIL'}  COLLAR_DEPTH {P.COLLAR_DEPTH:.2f} "
+          f">= shoulder stack {need:.2f}")
+    if not ok:
+        FAILURES.append("COLLAR_DEPTH")
+    for label, hole_d in (("dir", P.DIR_CAP_D), ("ab", P.AB_CAP_D),
+                          ("reset", P.RESET_CAP_D)):
+        flange_d = hole_d + 2 * P.CAP_FLANGE_OS
+        bore_d = flange_d + 2 * P.COLLAR_CLEAR
+        sid = flange_d - 2 * P.SHOULDER_RADIAL
+        ok = 0 < sid < bore_d
+        print(f"   {'PASS' if ok else 'FAIL'}  {label} shoulder_id {sid:.2f} "
+              f"in (0, {bore_d:.2f})")
+        if not ok:
+            FAILURES.append(f"shoulder_id {label}")
+
+
+def check_skqg_fits_bore():
+    """Square SKQG body must clear every collar — measured on built solids.
+
+    Same class of bug as EVQ-P0 vs the menu pill (−0.40 mm): a comment saying
+    the bore clears is worthless. Build each collar via button_station, place a
+    □TACT_OUTLINE × TACT_H body on the PCB plane, and require zero intersection
+    with collar material (volumes match before/after cut).
+    """
+    import cadquery as cq
+    print("\nskqg body vs collar bore (measured solids)")
+    stations = [
+        ("dir", dict(hole_d=P.DIR_CAP_D, keyed=True)),
+        ("ab", dict(hole_d=P.AB_CAP_D, keyed=False)),
+        ("reset", dict(hole_d=P.RESET_CAP_D, keyed=True)),
+        ("menu", dict(pill=True)),
+    ]
+    body = (cq.Workplane("XY")
+            .box(P.TACT_OUTLINE, P.TACT_OUTLINE, P.TACT_H, centered=(True, True, False))
+            .translate((0, 0, -P.PCB_FRONT_Z)))
+    v0 = body.val().Volume()
+    for name, kwargs in stations:
+        add, _ = shell_front.button_station(**kwargs)
+        left = body.cut(add)
+        lost = v0 - left.val().Volume()
+        ok = lost < 1e-3
+        print(f"   {'PASS' if ok else 'FAIL'}  {name}: body∩collar volume "
+              f"{lost:.4f} mm³ (want ~0)")
+        if not ok:
+            FAILURES.append(f"bore {name}")
+
+
+def check_shoulder_in_coupon_stl(tri):
+    """Shoulder flat present in exported coupon — measured, not assumed."""
+    print("\nshoulder in coupon_plate.stl")
+    z_want = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
+    # coupon.LADDER_X[2], ROW1_Y (plate is centered on origin in coupon.py)
+    cx, cy = 0.0, 11.0
+    flange_d = P.DIR_CAP_D + 2 * P.CAP_FLANGE_OS
+    bore_d = flange_d + 2 * P.COLLAR_CLEAR
+    sid = flange_d - 2 * P.SHOULDER_RADIAL
+    verts = tri.reshape(-1, 3)
+    d = np.hypot(verts[:, 0] - cx, verts[:, 1] - cy)
+    ann = (d >= sid / 2 - 0.05) & (d <= bore_d / 2 + 0.05)
+    zs = verts[ann, 2]
+    near = zs[(zs > z_want - 0.15) & (zs < z_want + 0.15)]
+    ok = len(near) >= 20
+    print(f"   {'PASS' if ok else 'FAIL'}  annulus verts near z={z_want:.2f}: "
+          f"{len(near)} (want >= 20)")
+    if not ok:
+        FAILURES.append("shoulder missing in STL")
+
+
 def main():
+    check_edge_slide_tips()
+    check_skqg_stack()
+    check_connector_pocket()
+    check_skqg_keepouts()
+    check_shoulder_params()
+    check_skqg_fits_bore()
     path = os.path.join(OUT, "coupon_plate.stl")
     if not os.path.exists(path):
         sys.exit("coupon_plate.stl missing -- run coupon.py first")
 
     tri = load_tris(path)
+    check_shoulder_in_coupon_stl(tri)
     bb = [float(np.ptp(tri[:, :, i])) for i in range(3)]
     print("coupon_plate.stl")
     check("plate width", bb[0], 88.0, 0.02)

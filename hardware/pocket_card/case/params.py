@@ -81,14 +81,22 @@ MODULE_Z         = FACE_T + MODULE_FRONT_GAP         # 1.65 touch surface depth
 # Game Boy silicone membranes were evaluated and rejected: measured on physical
 # DMG parts, the gasket heights are 4 mm (d-pad), 5 mm (A/B) and 9 mm
 # (Start/Select), which forces the PCB 11.1 mm below the outer face and the body
-# to ~19.9 mm. Tact switches bring that to 5.5 mm and ~14.3 mm.
+# to ~19.9 mm. Tact switches bring that to 4.5 mm and ~13.7 mm (SKQGABE010;
+# see docs/superpowers/specs/2026-07-31-pocket-card-skqg-rear-connectors-design.md).
 #
 # Consequence: we own the whole load path again -- return, guide, hard stop and
 # retention -- which the membrane had been providing for free.
 
-TACT_H       = 2.5     # DATASHEET Panasonic EVQ-P2, H2.5 variant, top-actuated
-TACT_TRAVEL  = 0.25    # ASSUMED   EVQ-P2 "middle push travel"; confirm on datasheet
-TACT_FORCE_N = 1.6     # ASSUMED   EVQ-P2 is offered in several forces; confirm
+# Alps Alpine SKQGABE010 product page (catalog, not formal delivery drawing):
+# https://tech.alpsalpine.com/e/products/detail/SKQGABE010/
+#   Operating force 1.57 N, Travel 0.25 mm, Product height 1.5 mm, □5.2×1.5
+# Land pattern / keepouts: use KiCad SW_SPST_SKQG_WithStem until the formal
+# drawing is in-repo.
+TACT_PART    = "SKQGABE010"   # ALPS catalog page above
+TACT_H       = 1.5            # ALPS catalog — product height incl. stem
+TACT_TRAVEL  = 0.25           # ALPS catalog
+TACT_FORCE_N = 1.57           # ALPS catalog SKQGABE010
+TACT_OUTLINE = 5.2            # ALPS catalog square body
 
 # --- fit clearances, by manufacturing process -------------------------------
 # Radial clearance for a free-sliding fit. These are genuinely different numbers
@@ -117,10 +125,21 @@ CAP_CLEAR      = FIT_CLEAR  # head-to-hole radial clearance
 CAP_FLANGE_T   = 1.0        # ASSUMED  flange thickness
 CAP_FLANGE_OS  = 1.1        # ASSUMED  flange radius beyond the head
 COLLAR_CLEAR   = FIT_CLEAR  # flange-to-collar radial clearance
-COLLAR_DEPTH   = 2.0        # ASSUMED  guide length below the inner face
+COLLAR_DEPTH   = 2.2        # ASSUMED  guide length below the inner face
 HARD_STOP_AT   = 0.35  # DECIDED  flange lands here: past 0.25 actuation,
                        #          before the switch bottoms
 CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
+
+# Snap-over collar shoulder (production hard stop). Flange clicks in from the
+# PCB side over a ramp; the flat top of the lip stops travel at HARD_STOP_AT.
+# These three are coupon-tuned ASSUMED values.
+SHOULDER_RADIAL = 0.35   # ASSUMED  how far the lip intrudes past the flange OD
+SHOULDER_FLAT_T = 0.40   # ASSUMED  axial thickness of the flat stop face
+SHOULDER_RAMP_T = 0.35   # ASSUMED  axial length of the insertion ramp below
+# Menu pill bore is only ~5.6 mm on the narrow axis; a 0.35 mm lip each side
+# leaves shoulder_id 4.9 mm — smaller than the □5.2 SKQG. Widen the pill collar
+# bore only (face hole / flange unchanged) so the lip clears the body by ≥0.2 mm.
+PILL_BORE_EXTRA = 0.60   # ASSUMED  added to pill bore_l and bore_w
 
 # Anti-rotation for the non-round caps (pills). Two flats on the flange running
 # in matching collar slots -- the DMG's own trick, measured off the reference:
@@ -128,7 +147,7 @@ CAP_BOSS_GAP   = 0.5   # ASSUMED  boss end to plunger at rest
 ANTIROT_SLOT_DEG = 24.0   # MEASURED
 
 # The PCB front face is set by the button stack, not chosen freely.
-PCB_FRONT_Z = FACE_T + CAP_FLANGE_T + CAP_BOSS_GAP + TACT_H   # 5.5
+PCB_FRONT_Z = FACE_T + CAP_FLANGE_T + CAP_BOSS_GAP + TACT_H   # 4.5
 
 # --------------------------------------------- cap sizes (DMG-derived) ----
 # The DMG cap footprint is kept as the visual language even though the
@@ -221,9 +240,58 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # cell as well as supporting the board. One feature, two jobs.
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
-MUTE_SW_X  = 60.0                  # DECIDED  bottom edge, left of the driver notch
-                                   # NB: no longer directly under the grille --
-                                   # the driver notch takes that board area.
+MUTE_SW_X  = 74.0                  # DECIDED  east of H4 courtyard (JS102011 at y=88)
+# JS102011SAQN: pads at footprint y=-2.75 size 2.5 → copper to SW_Y-1.5.
+# Paddle fab extends to ~+4.25. y=88.0 → pad clear 3.5 mm, paddle tip 92.25
+# (into the 1.5 mm wall; tip sled carries the rest proud of BODY_H=93).
+POWER_SW_Y = 88.0                  # DECIDED  was 86.5 (PCM12)
+MUTE_SW_Y  = 88.0                  # DECIDED
+
+SLIDE_FP_LIB = "Button_Switch_SMD"
+SLIDE_FP_NAME = "SW_SPDT_CK_JS102011SAQN"  # DECIDED class; LCSC MPN at import
+SLIDE_PAD_SOUTH_REL = -1.5         # DATASHEET/KiCad  pad center -2.75 + half 1.25
+SLIDE_PADDLE_Y_REL = 4.25          # ASSUMED  fab/silk +Y extreme of actuator
+
+# Local south-edge notches under each paddle (Edge.Cuts).
+SLIDE_NOTCH_W = 10.0               # ASSUMED  along X, clears body courtyard
+SLIDE_NOTCH_D = 2.0                # ASSUMED  north from south edge into board
+
+# Shell-captive tip (spec 2026-08-01).
+TIP_FACE_X = 6.0                   # ASSUMED  along bottom edge
+TIP_FACE_Z = 3.0                   # ASSUMED  aperture / thumb height
+TIP_PROUD = 0.8                    # DECIDED  in [0.6, 1.0]
+TIP_TRAVEL = 2.0                   # ASSUMED  switch throw class; confirm on MPN
+TIP_SLACK = 0.2                    # ASSUMED  each end of slot
+TIP_POCKET_PLAY = 0.25             # ASSUMED  fork clearance on paddle
+TIP_RAIL_T = 0.8                   # ASSUMED  captive rail thickness in wall
+# Slot length along edge = face + travel + 2*slack
+TIP_SLOT_X = TIP_FACE_X + TIP_TRAVEL + 2 * TIP_SLACK  # 8.4
+TIP_SLOT_Z = TIP_FACE_Z + 0.4      # ASSUMED  vertical clearance in wall
+TIP_SLOT_Y = WALL + TIP_PROUD + 1.0  # through wall into cavity
+
+# Actuator / tip Z above F.Cu (JS body ~1.5–2 mm class; tune after 3D).
+SLIDE_ACTUATOR_Z_ABOVE_PCB = 1.4   # ASSUMED
+
+# Temporary aliases until Task 3 rewires shell_front
+SLIDE_CUT_X = TIP_SLOT_X
+SLIDE_CUT_Y = TIP_SLOT_Y
+SLIDE_CUT_Z = TIP_SLOT_Z
+
+# Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
+# y is still device/face coordinates (KiCad Y-down matches params).
+# Cell fence ends near BATT_X + CELL_W + BATT_CLEAR ≈ 59.6; cluster sits in the
+# open band left of the driver and right of the cell. Driver XY overlap on B.Cu
+# is fine — the driver is front-shell only (z ≈ 1.5–5.0).
+#
+# 2×2 so a GH plug can engage (Δy=7 single-file was courtyard-only clearance).
+# rot=180 pointed mouths at the bottom edge (away from the module); 0 flips them.
+# Left column clear of H4 (66,81); Δy=13 / Δx=15 for GH plug access.
+CONN_I2C     = (63.0, 63.0)   # ASSUMED  4P GH
+CONN_EXP     = (78.0, 63.0)   # ASSUMED  4P GH
+CONN_BAT_IN  = (63.0, 76.0)   # ASSUMED  2P GH from cell
+CONN_BAT_OUT = (78.0, 76.0)   # ASSUMED  2P GH to module BAT
+CONN_ROT     = 0              # DECIDED  was 180 (faced away from module)
+CONN_SIDE    = "B.Cu"         # DECIDED
 
 # Two extra screw bosses so the lower half is actually fastened. Without them
 # the only fixings are the four that borrow the module's mounting holes, all in
@@ -249,9 +317,8 @@ LOWER_ZONE_T = PCB_FRONT_Z + PCB_T + PET_T + CELL_T + CELL_SWELL + WALL
 UPPER_ZONE_T = MOD_DEPTH + 0.3 + WALL     # module sits flush in the front window
 BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 
-# Switch height is now a direct thickness lever: every millimetre of TACT_H is
-# a millimetre of device. A 1.5 mm low-profile part would give ~13.3 mm, at some
-# cost in tactile snap.
+# Switch height is a direct thickness lever: every millimetre of TACT_H is a
+# millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.
 
 # ------------------------------------------------------------- audio ------
 # The actual speaker, read out of hardware/card/case/case.blend (object
