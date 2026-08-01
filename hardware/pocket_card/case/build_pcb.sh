@@ -94,7 +94,14 @@ STEP=out/pcb/pocket_card_controller.step
 # --subst-models: prefer STEP companions when a footprint only lists VRML.
 kicad-cli pcb export stl --force --subst-models -o "$STL" "$BRD" >/dev/null
 kicad-cli pcb export step --force --subst-models -o "$STEP" "$BRD" >/dev/null
-# Keep legacy names some viewers/scripts already point at.
+# Keep legacy names some viewers/scripts already point at (KiCad native frame).
 cp -f "$STL" out/pcb/exported.stl
 cp -f "$STEP" out/pcb/exported.step
 ls -la "$STL" "$STEP" | awk '{printf "   %s  %s\n", $5, $9}'
+
+echo "== 8. place PCB into shell model space (exported_placed.*)"
+if [[ -x .venv/bin/python ]]; then
+  .venv/bin/python -c "import place_preview; place_preview.place_pcb()"
+else
+  python3 -c "import place_preview; place_preview.place_pcb()"
+fi

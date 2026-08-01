@@ -34,13 +34,6 @@ os.makedirs(OUT, exist_ok=True)
 FP_ROOT = ("/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/"
            "SharedSupport/footprints")
 
-# Official packages3D has no SW_SPDT_CK_JS102011SAQN.step (footprint still
-# references it). Project stand-in from gen_js102011_3d.py.
-SLIDE_3D_NAME = "SW_SPDT_CK_JS102011SAQN.step"
-SLIDE_3D_SRC = os.path.join(HERE, "3dmodels", SLIDE_3D_NAME)
-SLIDE_3D_DST_DIR = os.path.join(OUT, "3dmodels")
-SLIDE_3D_BOARD_PATH = "${KIPRJMOD}/3dmodels/%s" % SLIDE_3D_NAME
-
 # Alps SKQGABE010 — □5.2 × 1.5 mm with stem. KiCad land pattern embeds the
 # F.Cu keepouts beside the stem; see checks.check_skqg_keepouts.
 TACT = ("Button_Switch_SMD", "SW_SPST_SKQG_WithStem")
@@ -108,30 +101,6 @@ def _set_property_ref(body, ref, rot):
     return body
 
 
-def _ensure_slide_3d():
-    """Copy the project JS102011 STEP next to the board for ${KIPRJMOD}."""
-    if not os.path.isfile(SLIDE_3D_SRC):
-        raise RuntimeError(
-            "missing %s — run: .venv/bin/python gen_js102011_3d.py" % SLIDE_3D_SRC)
-    os.makedirs(SLIDE_3D_DST_DIR, exist_ok=True)
-    dst = os.path.join(SLIDE_3D_DST_DIR, SLIDE_3D_NAME)
-    if (not os.path.isfile(dst)
-            or os.path.getmtime(SLIDE_3D_SRC) > os.path.getmtime(dst)):
-        import shutil
-        shutil.copy2(SLIDE_3D_SRC, dst)
-    return dst
-
-
-def _rewrite_slide_3d_path(raw):
-    """Point the JS102011 footprint at the project STEP, not the missing library one."""
-    return re.sub(
-        r'\$\{KICAD\d*_3DMODEL_DIR\}/Button_Switch_SMD\.3dshapes/'
-        r'SW_SPDT_CK_JS102011SAQN\.step',
-        SLIDE_3D_BOARD_PATH,
-        raw,
-    )
-
-
 def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     path = _mod_path(lib, name)
     if not os.path.exists(path):
@@ -145,10 +114,6 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     raw = re.sub(r'\n\t\(generator [^\n]+', '', raw, count=1)
     raw = re.sub(r'\n\t\(generator_version [^\n]+', '', raw, count=1)
     raw = re.sub(r'\n\t\(layer "[FB]\.Cu"\)', '', raw, count=1)
-
-    if "JS102011" in name:
-        _ensure_slide_3d()
-        raw = _rewrite_slide_3d_path(raw)
 
     if back:
         raw = _flip_layers(raw)
@@ -192,22 +157,24 @@ def _append_pt(pts, pt):
 def outline_points():
     x0, y0 = P.PCB_X, P.PCB_Y
     x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
-    yn = y1 - P.SLIDE_NOTCH_D
     pts = []
     _append_pt(pts, (x0, y0))
     _append_pt(pts, (x1, y0))
     _append_pt(pts, (x1, y1))
-    # Walk south edge right→left, dropping into notches.
-    cursor = x1
-    for nx0, nx1 in reversed(_notch_intervals()):
-        if cursor > nx1:
-            _append_pt(pts, (cursor, y1))
-            _append_pt(pts, (nx1, y1))
-        for pt in ((nx1, yn), (nx0, yn), (nx0, y1)):
-            _append_pt(pts, pt)
-        cursor = nx0
-    _append_pt(pts, (cursor, y1))
-    _append_pt(pts, (x0, y1))
+    # Optional south-edge notches (D=0: pegs need unbroken FR4 under the slides).
+    if P.SLIDE_NOTCH_D > 1e-6:
+        yn = y1 - P.SLIDE_NOTCH_D
+        cursor = x1
+        for nx0, nx1 in reversed(_notch_intervals()):
+            if cursor > nx1:
+                _append_pt(pts, (cursor, y1))
+                _append_pt(pts, (nx1, y1))
+            for pt in ((nx1, yn), (nx0, yn), (nx0, y1)):
+                _append_pt(pts, pt)
+            cursor = nx0
+        _append_pt(pts, (cursor, y1))
+    else:
+        _append_pt(pts, (x0, y1))
     _append_pt(pts, (x0, y0))
     return pts
 

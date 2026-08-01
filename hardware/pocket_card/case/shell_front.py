@@ -284,20 +284,23 @@ def driver_pocket():
 def pcb_posts():
     """Stepped pillars the controller PCB drops onto.
 
-    Same idea as the module posts: narrow through the board's hole, wide
-    behind it. The board rests on the step, so a button press drives force
-    into the shell instead of flexing the board. Previously the board had
-    mounting holes with nothing in the case to meet them.
+    Narrow through the board hole, wide shoulder just behind the PCB so the
+    board rests on the step. Shoulders are short by default — a full-depth
+    extrude to SHELL_DEPTH glued H3/H4 to the tray rear and filled the
+    battery/wiring volume. Mounts that also act as case-closing bosses
+    (EXTRA_BOSSES) still run to the split plane.
     """
     pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    close_bosses = set(P.EXTRA_BOSSES)
     add = cq.Workplane("XY")
     for x, y in P.PCB_MOUNTS:
         add = add.union(
             cq.Workplane("XY").circle(P.PCB_POST_D / 2)
             .extrude(-(pcb_back - P.FACE_T)).translate((x, y, -P.FACE_T)))
+        shoulder_h = (SHELL_DEPTH - pcb_back) if (x, y) in close_bosses else P.PCB_SHOULDER_H
         add = add.union(
             cq.Workplane("XY").circle(P.PCB_SHOULDER_D / 2)
-            .extrude(-(SHELL_DEPTH - pcb_back)).translate((x, y, -pcb_back)))
+            .extrude(-shoulder_h).translate((x, y, -pcb_back)))
     return add
 
 
@@ -391,10 +394,14 @@ def build():
 
 if __name__ == "__main__":
     s = build()
-    cq.exporters.export(s, os.path.join(OUT, "shell_front.stl"))
-    cq.exporters.export(s, os.path.join(OUT, "shell_front.step"))
+    order = os.path.join(OUT, "order")
+    os.makedirs(order, exist_ok=True)
+    for folder in (OUT, order):
+        cq.exporters.export(s, os.path.join(folder, "shell_front.stl"))
+        cq.exporters.export(s, os.path.join(folder, "shell_front.step"))
     bb = s.val().BoundingBox()
     print(f"shell_front  {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f}")
+    print(f"  wrote out/shell_front.stl and out/order/shell_front.stl")
     print(f"  aperture   {P.APERTURE_W:.2f} x {P.APERTURE_H:.2f} at "
           f"({P.APERTURE_X:.2f}, {P.APERTURE_Y:.2f})")
     print(f"  screen off-centre by {P.SCREEN_OFFSET:+.2f} mm (accepted)")

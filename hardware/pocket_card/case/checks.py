@@ -175,7 +175,10 @@ def check_shell():
     y1 += PAD * PX
 
     material = buf > -1e8
-    face = buf > -0.5                       # front face present at this cell
+    # Front face is z≈0; EDGE_CHAMFER pulls the rim below that. A fixed -0.5
+    # threshold treated the whole chamfer ring as one opening (false breach).
+    face_z = -(getattr(P, "EDGE_CHAMFER", 0.0) + 0.1)
+    face = buf > face_z
     rows, agg2, find2 = label(~material)
     ext = find2(rows[0][0][2])              # component containing pixel (0, 0)
     inside = np.ones_like(material)
@@ -680,27 +683,61 @@ def check(name, got, want, tol):
 
 def check_edge_slide_tips():
     print("\nedge slide tips (params)")
-    # Footprint: KiCad SW_SPDT_CK_JS102011SAQN — pads at y=-2.75, size 1.25×2.5
-    # → copper Y ∈ [SW_Y-4.0, SW_Y-1.5] for each site.
+    # Footprint: KiCad SW_SPDT_PCM12 — signal pads at y=-1.43, size 0.7×1.5
+    # → copper south = SW_Y + SLIDE_PAD_SOUTH_REL. Pegs NPTH at y=+0.33.
     south = P.PCB_Y + P.PCB_H  # 90.0
-    for name, x, y in (
-        ("POWER", P.POWER_SW_X, P.POWER_SW_Y),
-        ("MUTE", P.MUTE_SW_X, P.MUTE_SW_Y),
+    for name, y in (
+        ("POWER", P.POWER_SW_Y),
+        ("MUTE", P.MUTE_SW_Y),
     ):
-        pad_south = y + P.SLIDE_PAD_SOUTH_REL  # -1.5
+        pad_south = y + P.SLIDE_PAD_SOUTH_REL
         clear = south - pad_south
         if clear < 0.5 - 1e-6:
             print(f"   FAIL  {name} pad-edge clear {clear:.2f} < 0.5")
             FAILURES.append(f"{name} pad edge")
         else:
             print(f"   ok    {name} pad-edge clear {clear:.2f}")
-        # Paddle tip (fab +Y) must reach into the wall cavity (past south).
+        # Paddle tip (device +Y after KiCad 3D Y-mirror) into the wall cavity.
         tip_y = y + P.SLIDE_PADDLE_Y_REL
         if tip_y < south - 0.2:
             print(f"   FAIL  {name} paddle tip y={tip_y:.2f} short of edge {south}")
             FAILURES.append(f"{name} paddle short")
         else:
             print(f"   ok    {name} paddle tip y={tip_y:.2f}")
+        # Locating pegs at footprint (±1.5, SLIDE_PEG_Y_REL). Need FR4 under
+        # them (drill r=0.45, ≥0.5 mm to Edge.Cuts); no south-edge notch.
+        peg_y = y + P.SLIDE_PEG_Y_REL
+        hole_south = peg_y + 0.45
+        peg_clear = south - hole_south
+        if peg_clear < 0.5 - 1e-6:
+            print(f"   FAIL  {name} peg land clear {peg_clear:.2f} < 0.5 "
+                  f"(peg at y={peg_y}, edge {south})")
+            FAILURES.append(f"{name} peg land")
+        else:
+            print(f"   ok    {name} peg land clear {peg_clear:.2f}")
+        if P.SLIDE_NOTCH_D > 1e-6 and peg_y > south - P.SLIDE_NOTCH_D - 1e-6:
+            print(f"   FAIL  {name} peg y={peg_y} falls inside notch "
+                  f"(edge-{P.SLIDE_NOTCH_D}={south - P.SLIDE_NOTCH_D})")
+            FAILURES.append(f"{name} peg in notch")
+
+    # Seated tip: fork pocket (into the cavity) must cover the STEP actuator.
+    import slide_tip
+    need_y = P.SLIDE_ACTUATOR_LEN - 0.05
+    for name, sx, sy in (
+        ("POWER", P.POWER_SW_X, P.POWER_SW_Y),
+        ("MUTE", P.MUTE_SW_X, P.MUTE_SW_Y),
+    ):
+        pk = slide_tip.tip_pocket_aabb(sx)
+        p_south = sy + P.SLIDE_PADDLE_Y_REL
+        p_north = p_south - P.SLIDE_ACTUATOR_LEN
+        overlap = max(0.0, min(p_south, pk["y1"]) - max(p_north, pk["y0"]))
+        if overlap < need_y:
+            print(f"   FAIL  {name} pocket∩paddle Y overlap {overlap:.2f} < {need_y} "
+                  f"(pocket [{pk['y0']:.2f},{pk['y1']:.2f}] "
+                  f"paddle [{p_north:.2f},{p_south:.2f}])")
+            FAILURES.append(f"{name} pocket Y")
+        else:
+            print(f"   ok    {name} pocket∩paddle Y overlap {overlap:.2f} mm")
 
     if not (0.6 - 1e-6 <= P.TIP_PROUD <= 1.0 + 1e-6):
         print(f"   FAIL  TIP_PROUD {P.TIP_PROUD} not in [0.6, 1.0]")
@@ -708,7 +745,7 @@ def check_edge_slide_tips():
     else:
         print(f"   ok    TIP_PROUD {P.TIP_PROUD}")
 
-    # Slot/tip Z centered above PCB front (same bug class as old PCM12 cut).
+    # Slot/tip Z centered above PCB front.
     # Device z: PCB front = -PCB_FRONT_Z; "above" means less negative (toward face).
     z_center = -(P.PCB_FRONT_Z - P.SLIDE_ACTUATOR_Z_ABOVE_PCB)
     pcb_front = -P.PCB_FRONT_Z
@@ -717,8 +754,128 @@ def check_edge_slide_tips():
         FAILURES.append("tip Z")
     else:
         print(f"   ok    tip Z center {z_center:.2f} (PCB front {pcb_front:.2f})")
+    # Tip pocket vs PCM12 actuator Z (STEP band mid/h from params).
+    act_h = P.SLIDE_ACTUATOR_H
+    pad_lo = pcb_front + (P.SLIDE_ACTUATOR_Z_ABOVE_PCB - act_h / 2)
+    pad_hi = pcb_front + (P.SLIDE_ACTUATOR_Z_ABOVE_PCB + act_h / 2)
+    pocket_h = P.SLIDE_ACTUATOR_H + P.TIP_POCKET_PLAY
+    pk_lo, pk_hi = z_center - pocket_h / 2, z_center + pocket_h / 2
+    overlap = max(0.0, min(pk_hi, pad_hi) - max(pk_lo, pad_lo))
+    if overlap + 1e-6 < act_h - 0.05:
+        print(f"   FAIL  tip pocket vs paddle Z overlap {overlap:.2f} "
+              f"(want ~{act_h:.2f}; act_z={P.SLIDE_ACTUATOR_Z_ABOVE_PCB})")
+        FAILURES.append("tip pocket Z")
+    else:
+        print(f"   ok    tip pocket vs paddle Z overlap {overlap:.2f} mm")
+    if abs(P.SLIDE_ACTUATOR_Z_ABOVE_PCB - 0.80) > 0.05:
+        print(f"   FAIL  SLIDE_ACTUATOR_Z_ABOVE_PCB "
+              f"{P.SLIDE_ACTUATOR_Z_ABOVE_PCB} != PCM12 STEP mid 0.80")
+        FAILURES.append("actuator Z sync")
+    else:
+        print(f"   ok    actuator Z sync {P.SLIDE_ACTUATOR_Z_ABOVE_PCB:.2f}")
+    if abs(P.SLIDE_PADDLE_Y_REL - 3.13) > 0.05:
+        print(f"   FAIL  SLIDE_PADDLE_Y_REL {P.SLIDE_PADDLE_Y_REL} "
+              f"!= PCM12 STEP tip 3.13")
+        FAILURES.append("paddle Y sync")
+    else:
+        print(f"   ok    paddle Y sync {P.SLIDE_PADDLE_Y_REL:.2f}")
+    if abs(P.SLIDE_ACTUATOR_X_REL - (-0.58)) > 0.05:
+        print(f"   FAIL  SLIDE_ACTUATOR_X_REL {P.SLIDE_ACTUATOR_X_REL} "
+              f"!= PCM12 STEP mid -0.58")
+        FAILURES.append("actuator X sync")
+    else:
+        print(f"   ok    actuator X offset {P.SLIDE_ACTUATOR_X_REL:.2f}")
+    # Tip (dome + fork) and letterbox share the nub centre, not SW_X.
+    for name, sx, sy in (
+        ("POWER", P.POWER_SW_X, P.POWER_SW_Y),
+        ("MUTE", P.MUTE_SW_X, P.MUTE_SW_Y),
+    ):
+        site = slide_tip.tip_site_x(sx)
+        nub = sx + P.SLIDE_ACTUATOR_X_REL
+        if abs(site - nub) > 1e-6:
+            print(f"   FAIL  {name} tip site {site} != nub {nub}")
+            FAILURES.append(f"{name} tip site")
+        else:
+            print(f"   ok    {name} tip/dome centred on nub x={site:.2f}")
+        pk = slide_tip.tip_pocket_aabb(sx)
+        ax0 = nub - P.SLIDE_ACTUATOR_W / 2
+        ax1 = nub + P.SLIDE_ACTUATOR_W / 2
+        ay1 = sy + P.SLIDE_PADDLE_Y_REL
+        ay0 = ay1 - P.SLIDE_ACTUATOR_LEN
+        az0 = pcb_front + (P.SLIDE_ACTUATOR_Z_ABOVE_PCB - P.SLIDE_ACTUATOR_H / 2)
+        az1 = pcb_front + (P.SLIDE_ACTUATOR_Z_ABOVE_PCB + P.SLIDE_ACTUATOR_H / 2)
 
-    check("SLIDE_FP", P.SLIDE_FP_NAME, "SW_SPDT_CK_JS102011SAQN", 0)
+        def _ov(a0, a1, b0, b1):
+            return max(0.0, min(a1, b1) - max(a0, b0))
+
+        ox = _ov(ax0, ax1, pk["x0"], pk["x1"])
+        oy = _ov(ay0, ay1, pk["y0"], pk["y1"])
+        oz = _ov(az0, az1, pk["z0"], pk["z1"])
+        need_x = P.SLIDE_ACTUATOR_W - 0.05
+        need_y = P.SLIDE_ACTUATOR_LEN - 0.05
+        need_z = P.SLIDE_ACTUATOR_H - 0.05
+        if ox < need_x or oy < need_y or oz < need_z:
+            print(f"   FAIL  {name} STEP∩pocket "
+                  f"X={ox:.2f}/{need_x:.2f} Y={oy:.2f}/{need_y:.2f} "
+                  f"Z={oz:.2f}/{need_z:.2f}")
+            FAILURES.append(f"{name} STEP pocket")
+        else:
+            print(f"   ok    {name} STEP∩pocket "
+                  f"X={ox:.2f} Y={oy:.2f} Z={oz:.2f}")
+
+    # Inside install: face must pass through the letterbox; flange stays in.
+    face_need_x = P.TIP_SLOT_X - 2 * P.TIP_NECK_CLEAR
+    face_need_z = P.TIP_SLOT_Z - 2 * P.TIP_NECK_CLEAR
+    if P.TIP_FACE_X > face_need_x + 1e-6:
+        print(f"   FAIL  TIP_FACE_X {P.TIP_FACE_X} > insertable {face_need_x} "
+              f"(slot {P.TIP_SLOT_X})")
+        FAILURES.append("tip face insert X")
+    else:
+        print(f"   ok    face fits slot in X "
+              f"({P.TIP_FACE_X:.2f} <= {face_need_x:.2f})")
+    if P.TIP_FACE_Z > face_need_z + 1e-6:
+        print(f"   FAIL  TIP_FACE_Z {P.TIP_FACE_Z} > insertable {face_need_z} "
+              f"(slot {P.TIP_SLOT_Z})")
+        FAILURES.append("tip face insert Z")
+    else:
+        print(f"   ok    face fits slot in Z "
+              f"({P.TIP_FACE_Z:.2f} <= {face_need_z:.2f})")
+    # Dome tip: retainer flange only needs to be wider than the slot (captive),
+    # not to cover slot+travel like the old T-cap.
+    if P.TIP_FACE_X > P.TIP_NECK_X + 0.05:
+        print(f"   FAIL  dome/face {P.TIP_FACE_X} >> neck {P.TIP_NECK_X} "
+              f"(want dome tip, not wide T-face)")
+        FAILURES.append("tip dome not T")
+    else:
+        print(f"   ok    dome width {P.TIP_FACE_X:.2f} ≈ neck {P.TIP_NECK_X:.2f}")
+    if P.TIP_NECK_X + P.TIP_TRAVEL + 2 * P.TIP_SLACK > P.TIP_SLOT_X + 1e-6:
+        print(f"   FAIL  neck+travel does not fit TIP_SLOT_X {P.TIP_SLOT_X}")
+        FAILURES.append("tip neck travel")
+    else:
+        print(f"   ok    neck {P.TIP_NECK_X:.2f} + travel fits slot {P.TIP_SLOT_X:.2f}")
+    # T-slot captivity: flange wider than outer neck slot in Z (no travel axis).
+    if P.TIP_FLANGE_Z <= P.TIP_SLOT_Z + 1e-6:
+        print(f"   FAIL  flange Z {P.TIP_FLANGE_Z} not > slot Z {P.TIP_SLOT_Z}")
+        FAILURES.append("tip flange Z")
+    else:
+        print(f"   ok    flange Z {P.TIP_FLANGE_Z:.2f} > slot Z {P.TIP_SLOT_Z:.2f}")
+    if P.TIP_CHAMBER_Z <= P.TIP_FLANGE_Z + 1e-6:
+        print(f"   FAIL  chamber Z {P.TIP_CHAMBER_Z} not > flange Z {P.TIP_FLANGE_Z}")
+        FAILURES.append("tip chamber Z")
+    else:
+        print(f"   ok    chamber Z {P.TIP_CHAMBER_Z:.2f} > flange Z {P.TIP_FLANGE_Z:.2f}")
+    if P.TIP_FLANGE_X <= P.TIP_SLOT_X + 1e-6:
+        print(f"   FAIL  flange X {P.TIP_FLANGE_X} not > slot X {P.TIP_SLOT_X}")
+        FAILURES.append("tip flange X")
+    else:
+        print(f"   ok    flange X {P.TIP_FLANGE_X:.2f} > slot X {P.TIP_SLOT_X:.2f}")
+    if P.TIP_RAIL_T >= P.WALL - 1e-6:
+        print(f"   FAIL  TIP_RAIL_T {P.TIP_RAIL_T} leaves no neck in WALL {P.WALL}")
+        FAILURES.append("tip rail vs wall")
+    else:
+        print(f"   ok    neck length {P.WALL - P.TIP_RAIL_T:.2f} in WALL {P.WALL}")
+
+    check("SLIDE_FP", P.SLIDE_FP_NAME, "SW_SPDT_PCM12", 0)
 
 
 def check_skqg_stack():

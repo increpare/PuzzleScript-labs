@@ -64,17 +64,34 @@ Module interconnect JSTs live on the **board back** (B.Cu) in the right-rear
 wiring pocket — regenerate with `python3 pcb.py` then `./build_pcb.sh`.
 That script also writes `out/pcb/pocket_card_controller.stl` (and `.step`) with
 board body + footprint 3D models via `kicad-cli` — no manual STEP→STL conversion.
+`exported.stl` is KiCad’s native frame; **`exported_placed.stl`** is the same
+mesh already transformed into shell model space (also written by
+`place_preview.py`).
 
-The JS102011 footprint references a STEP that KiCad never shipped in packages3D.
-`gen_js102011_3d.py` builds a Fab-outline stand-in at `3dmodels/`; `pcb.py`
-copies it to `out/pcb/3dmodels/` and rewrites the footprint model path to
-`${KIPRJMOD}/3dmodels/…`. Regenerate the stand-in if you change the part.
+### Overlay previews (no manual reposition)
+
+```
+.venv/bin/python place_preview.py
+```
+
+Writes **separate** meshes (not unioned) into `out/order/preview/`:
+
+- `pcb.stl` / `pcb.step`
+- `tip_power.stl`, `tip_mute.stl` (+ `tips_placed.step` multi-body)
+- `cap_*.stl` (+ `caps_placed.step` multi-body)
+
+All share the same frame as `shell_front.stl` / `shell_back.stl` — drag them in
+together. Prefer the `.step` compounds when you want selectable bodies in one
+file; STLs are one body per file so nothing gets fused.
+
+Power/mute slides are C&K **PCM12SMTR** (`SW_SPDT_PCM12`) with the official
+KiCad packages3D STEP — low profile (~1.5 mm body), no project stand-in needed.
+([PCM series datasheet](https://datasheet.octopart.com/PCM12SMTR-ITT-datasheet-7274995.pdf))
 
 ## Assembly
 
-- Power/mute tips: drop the two resin tips into the front-shell bottom slots
-  from the inside before seating the controller PCB. No glue. Paddles of the
-  JS102011-class slides engage the tip pockets; the shell takes end-stop.
+- Power/mute tips: small proud dome (not a wide T-cap). Drop in from inside —
+  thin retainer flange keeps it captive; short U-fork catches the PCM12 nub.
 
 ## Also here
 

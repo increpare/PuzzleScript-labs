@@ -216,10 +216,14 @@ def pcb_outline_wire():
 
 if __name__ == "__main__":
     back = build_back()
-    cq.exporters.export(back, os.path.join(OUT, "shell_back.stl"))
-    cq.exporters.export(back, os.path.join(OUT, "shell_back.step"))
+    order = os.path.join(OUT, "order")
+    os.makedirs(order, exist_ok=True)
+    for folder in (OUT, order):
+        cq.exporters.export(back, os.path.join(folder, "shell_back.stl"))
+        cq.exporters.export(back, os.path.join(folder, "shell_back.step"))
     bb = back.val().BoundingBox()
     print(f"shell_back   {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f}")
+    print(f"  wrote out/shell_back.stl and out/order/shell_back.stl")
     print(f"  battery fence  {P.CELL_W} x {P.CELL_H} cell at "
           f"({P.BATT_X}, {P.BATT_Y}), {P.BATT_CLEAR} clearance")
     print(f"  driver fence   {P.DRIVER_W} x {P.DRIVER_H} at ({P.GRILLE_X}, {P.GRILLE_Y})")

@@ -185,7 +185,7 @@ ACT_X,   ACT_Y   = 77.10, 61.10    # was DMG "A"
 # Reset joins the right-hand cluster as a small round cap -- subordinate to
 # Undo/Action by size, which is the hierarchy the July 12 spec asked for.
 # Menu stays a slit: it is the most recessive control on the device.
-RESET_X, RESET_Y = 56.50, 81.60
+RESET_X, RESET_Y = 56.50, 80.00    # was 81.60; north so mute clears courtyard
                                    # the driver retaining ring by 0.10 mm
 RESET_CAP_D      = DIR_CAP_D       # 8.0, same as a direction button
 MENU_X,  MENU_Y  = 39.60, 85.40    # was DMG "Start", still a pill
@@ -224,6 +224,10 @@ PCB_MOUNTS = ((4.5, 56.0), (4.5, 88.0), (65.0, 56.0), (66.0, 81.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board
 PCB_POST_D     = 2.4   # narrow section, passes through it
 PCB_SHOULDER_D = 4.4   # wide section behind, the board rests on this step
+# Short step behind the PCB — not a column to the front-shell rear (that was
+# filling the battery/wiring volume on H3/H4). Mounts that also close the case
+# (see EXTRA_BOSSES) still run full-depth in shell_front.pcb_posts().
+PCB_SHOULDER_H = 1.5   # DECIDED  standoff behind PCB back
 
 # Both screws sit at x ~= 65, which supports Undo, Action and Reset well but
 # leaves the direction cluster 54 mm from the nearest fixing. The cell is
@@ -244,39 +248,66 @@ PCB_RIB_Y0, PCB_RIB_Y1 = 53.0, 54.4
 # cell as well as supporting the board. One feature, two jobs.
 
 POWER_SW_X = 20.0                  # DECIDED  bottom edge, far left
-MUTE_SW_X  = 74.0                  # DECIDED  east of H4 courtyard (JS102011 at y=88)
-# JS102011SAQN: pads at footprint y=-2.75 size 2.5 → copper to SW_Y-1.5.
-# Paddle fab extends to ~+4.25. y=88.0 → pad clear 3.5 mm, paddle tip 92.25
-# (into the 1.5 mm wall; tip sled carries the rest proud of BODY_H=93).
-POWER_SW_Y = 88.0                  # DECIDED  was 86.5 (PCM12)
-MUTE_SW_Y  = 88.0                  # DECIDED
+# Mute must sit left of the driver bore (~x 68.7–83.3) and clear Reset/H4
+# courtyards. Pure X at y=88 between Reset@81.6 and the driver is too tight;
+# Reset north to y=80 frees mute at x=58 (clears H4 by dx, Reset by dy).
+MUTE_SW_X  = 58.0                  # DECIDED  left of speaker enclosure
+# C&K PCM12SMTR (KiCad SW_SPDT_PCM12) — official STEP in packages3D, ~1.5 mm
+# above F.Cu. JS102011SAQN retired (no official 3D, ~3.5 mm body ate the face).
+# Pegs at footprint y=+0.33 must sit on FR4; no south-edge notch under them.
+# Mechanical SMD tabs at y=+1.43 (size 0.8) set the edge budget — need
+# SW_Y+1.83 ≤ south−0.5 → SW_Y ≤ 87.67. Tip pocket reaches deeper into the
+# cavity so Y engagement still hits SLIDE_ACTUATOR_LEN at this Y.
+# Max SW_Y ≈ 87.67 for 0.5 mm mech-pad clear to Edge.Cuts (tabs at +1.83).
+POWER_SW_Y = 87.65                 # DECIDED  flush as pad clear allows
+MUTE_SW_Y  = 87.65                 # DECIDED
 
 SLIDE_FP_LIB = "Button_Switch_SMD"
-SLIDE_FP_NAME = "SW_SPDT_CK_JS102011SAQN"  # DECIDED class; LCSC MPN at import
-SLIDE_PAD_SOUTH_REL = -1.5         # DATASHEET/KiCad  pad center -2.75 + half 1.25
-SLIDE_PADDLE_Y_REL = 4.25          # ASSUMED  fab/silk +Y extreme of actuator
+SLIDE_FP_NAME = "SW_SPDT_PCM12"    # DECIDED  LCSC C221841 / PCM12SMTR
+# Southernmost copper: mech tabs cy +1.43, half 0.4 → +1.83 (not signal pads).
+SLIDE_PAD_SOUTH_REL = 1.83         # DATASHEET/KiCad  mech tab copper south
+# Official STEP actuator (KiCad 3D Y-mirror → device south). Nub is NOT on
+# footprint X=0 — tip + letterbox centre at SW_X + SLIDE_ACTUATOR_X_REL.
+SLIDE_PADDLE_Y_REL = 3.13          # DECIDED  STEP |Ymin|
+SLIDE_PEG_Y_REL = 0.33             # DATASHEET/KiCad  NPTH at (±1.5, 0.33)
+SLIDE_ACTUATOR_X_REL = -0.58       # DECIDED  STEP actuator X mid (whole tip)
+SLIDE_ACTUATOR_LEN = 1.30          # DECIDED  STEP actuator Y span
+SLIDE_ACTUATOR_W = 1.30            # DECIDED  STEP actuator X span
+SLIDE_ACTUATOR_H = 0.80            # DECIDED  STEP actuator Z span
+SLIDE_ACTUATOR_Z_ABOVE_PCB = 0.80  # DECIDED  STEP actuator Z mid
+# U-fork into cavity (−Y). 2.0 = was 2.5; −0.5 clears the PCM12 body.
+TIP_POCKET_CAVITY = 2.0            # DECIDED  was 2.5 (fork hit switch body)
 
-# Local south-edge notches under each paddle (Edge.Cuts).
-SLIDE_NOTCH_W = 10.0               # ASSUMED  along X, clears body courtyard
-SLIDE_NOTCH_D = 2.0                # ASSUMED  north from south edge into board
+# Retired: notches under the slides removed the peg land. Keep W for reference;
+# D=0 → rectangular outline (actuator overhangs the unbroken south edge).
+SLIDE_NOTCH_W = 10.0               # unused while D=0
+SLIDE_NOTCH_D = 0.0                # DECIDED  no cutout under pegs
 
-# Shell-captive tip (spec 2026-08-01).
-TIP_FACE_X = 6.0                   # ASSUMED  along bottom edge
-TIP_FACE_Z = 3.0                   # ASSUMED  aperture / thumb height
-TIP_PROUD = 0.8                    # DECIDED  in [0.6, 1.0]
-TIP_TRAVEL = 2.0                   # ASSUMED  switch throw class; confirm on MPN
-TIP_SLACK = 0.2                    # ASSUMED  each end of slot
-TIP_POCKET_PLAY = 0.25             # ASSUMED  fork clearance on paddle
-TIP_RAIL_T = 0.8                   # ASSUMED  captive rail thickness in wall
-# Slot length along edge = face + travel + 2*slack
-TIP_SLOT_X = TIP_FACE_X + TIP_TRAVEL + 2 * TIP_SLACK  # 8.4
-TIP_SLOT_Z = TIP_FACE_Z + 0.4      # ASSUMED  vertical clearance in wall
-TIP_SLOT_Y = WALL + TIP_PROUD + 1.0  # through wall into cavity
+# Dome tip (not a wide T-cap): proud bump + stem through the letterbox + small
+# inner retainer flange (captive, no glue) + short U-fork on the PCM12 nub.
+# Throw: Littelfuse PCM12SMTR travel min/nom/max = 1.3 / 1.5 / 1.7 mm
+# (was ASSUMED 2.0 → letterbox ~1 mm too wide).
+TIP_NECK_X = 3.2                   # ASSUMED  stem / dome width
+TIP_DOME_Z = 2.6                   # ASSUMED  dome height through slot
+TIP_PROUD = 0.7                    # DECIDED  slight bump outside the wall
+TIP_TRAVEL = 1.5                   # DATASHEET  PCM12SMTR nominal throw
+TIP_SLACK = 0.2                    # ASSUMED  each end (covers max 1.7 with margin)
+TIP_POCKET_PLAY = 0.30             # ASSUMED  fork clearance on STEP actuator
+TIP_RAIL_T = 0.6                   # DECIDED  thin inner retainer (not a cover plate)
+TIP_NECK_CLEAR = 0.15              # ASSUMED  dome/neck vs slot clearance each side
+TIP_SLOT_X = TIP_NECK_X + TIP_TRAVEL + 2 * TIP_SLACK   # 5.1
+TIP_SLOT_Z = TIP_DOME_Z + 0.4      # 3.0
+TIP_SLOT_Y = WALL + TIP_PROUD + 1.0
+TIP_FACE_X = TIP_NECK_X            # alias — dome width
+TIP_FACE_Z = TIP_DOME_Z            # alias — dome height
+# Retainer: just wider than the slot (~0.5 mm lip each side). Not a cover plate.
+TIP_FLANGE_OVER = 1.0              # DECIDED  total X beyond slot
+TIP_FLANGE_X = TIP_SLOT_X + TIP_FLANGE_OVER            # 6.1
+TIP_FLANGE_Z = TIP_SLOT_Z + TIP_FLANGE_OVER            # 4.0
+TIP_CHAMBER_X = TIP_FLANGE_X + TIP_TRAVEL + 2 * TIP_SLACK  # 8.0
+TIP_CHAMBER_Z = TIP_FLANGE_Z + 0.6                     # 4.6
 
-# Actuator / tip Z above F.Cu (JS body ~1.5–2 mm class; tune after 3D).
-SLIDE_ACTUATOR_Z_ABOVE_PCB = 1.4   # ASSUMED
-
-# Temporary aliases until Task 3 rewires shell_front
+# Legacy aliases (outer neck slot)
 SLIDE_CUT_X = TIP_SLOT_X
 SLIDE_CUT_Y = TIP_SLOT_Y
 SLIDE_CUT_Z = TIP_SLOT_Z
