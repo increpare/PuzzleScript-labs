@@ -1577,7 +1577,7 @@
 			(uuid "7404a558-de07-4c4e-8d5c-a4fc961a1a0f")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Button_Switch_SMD.3dshapes/SW_SPDT_CK_JS102011SAQN.step"
+		(model "${KIPRJMOD}/3dmodels/SW_SPDT_CK_JS102011SAQN.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -4407,7 +4407,7 @@
 			(uuid "7bb39c07-00b8-4c84-bfb2-b2cf2a5c5d48")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Button_Switch_SMD.3dshapes/SW_SPDT_CK_JS102011SAQN.step"
+		(model "${KIPRJMOD}/3dmodels/SW_SPDT_CK_JS102011SAQN.step"
 			(offset
 				(xyz 0 0 0)
 			)

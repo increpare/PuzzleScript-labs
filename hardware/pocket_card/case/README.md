@@ -65,6 +65,11 @@ wiring pocket — regenerate with `python3 pcb.py` then `./build_pcb.sh`.
 That script also writes `out/pcb/pocket_card_controller.stl` (and `.step`) with
 board body + footprint 3D models via `kicad-cli` — no manual STEP→STL conversion.
 
+The JS102011 footprint references a STEP that KiCad never shipped in packages3D.
+`gen_js102011_3d.py` builds a Fab-outline stand-in at `3dmodels/`; `pcb.py`
+copies it to `out/pcb/3dmodels/` and rewrites the footprint model path to
+`${KIPRJMOD}/3dmodels/…`. Regenerate the stand-in if you change the part.
+
 ## Assembly
 
 - Power/mute tips: drop the two resin tips into the front-shell bottom slots

@@ -22,6 +22,10 @@ BODY_W = 90.0          # DECIDED
 BODY_H = 93.0          # DECIDED
 WALL   = 1.5           # ASSUMED  shell wall thickness, sides and back
 FACE_T = 1.5           # DECIDED  front face thickness in the button area
+# Outer "brick" belt (face↔side, back↔side) and screen lip. Keep ≤~0.8 so the
+# 1.5 mm wall/face is not knifed down at the rim.
+EDGE_CHAMFER = 0.6        # DECIDED  front + back perimeter
+APERTURE_CHAMFER = 0.7    # DECIDED  screen opening, viewing angle
 
 # ------------------------------------------------------------- module -----
 MOD_W, MOD_H    = 86.0, 50.0    # DATASHEET  ES3C28P outline

@@ -41,6 +41,9 @@ def lid():
             .box(P.BODY_W, P.BODY_H, P.WALL, centered=(False, False, False))
             .translate((0, 0, LID_Z0))
             .edges("|Z").fillet(CORNER_R))
+    # Soften the back↔side belt (outer back is the most-negative Z face).
+    if P.EDGE_CHAMFER > 0:
+        body = body.faces("<Z").edges().chamfer(P.EDGE_CHAMFER)
 
     # alignment rim, sitting inside the front shell's cavity
     w = P.BODY_W - 2 * P.WALL - 2 * RIM_CLEAR

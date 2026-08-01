@@ -43,10 +43,14 @@ def _dev(shape, x, y):
 
 
 def outer_body():
-    return (cq.Workplane("XY")
+    body = (cq.Workplane("XY")
             .box(P.BODY_W, P.BODY_H, SHELL_DEPTH, centered=(False, False, False))
             .translate((0, 0, -SHELL_DEPTH))
             .edges("|Z").fillet(CORNER_R))
+    # Soften the face↔side belt (outer face is +Z / z=0).
+    if P.EDGE_CHAMFER > 0:
+        body = body.faces(">Z").edges().chamfer(P.EDGE_CHAMFER)
+    return body
 
 
 def cavity():
@@ -68,6 +72,29 @@ def screen_aperture():
             .translate((P.APERTURE_X, P.APERTURE_Y, -P.FACE_T - 1))
             .edges("|Z").fillet(0.8))
 
+
+def _chamfer_aperture_lip(shell):
+    """45°-ish bevel on the screen opening at the outer face (FOV).
+
+    Applied after the aperture cut and before button holes so the selector only
+    sees the screen rim, not collar bores. Box is padded just outside the
+    aperture; APERTURE_Y ≈ 3.9 keeps it clear of the outer top edge.
+    """
+    ch = P.APERTURE_CHAMFER
+    if ch <= 0:
+        return shell
+    pad = 0.4
+    x0 = P.APERTURE_X - pad
+    y0 = P.APERTURE_Y - pad
+    x1 = P.APERTURE_X + P.APERTURE_W + pad
+    y1 = P.APERTURE_Y + P.APERTURE_H + pad
+    try:
+        return (shell.edges(cq.selectors.BoxSelector((x0, y0, -0.5), (x1, y1, 0.5)))
+                .chamfer(ch))
+    except Exception:
+        # Filleted aperture rims sometimes refuse a chamfer; fillet is close enough.
+        return (shell.edges(cq.selectors.BoxSelector((x0, y0, -0.5), (x1, y1, 0.5)))
+                .fillet(ch))
 
 def _shoulder_planes():
     z_flat_top = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
@@ -334,6 +361,7 @@ def to_model_space(shape):
 def build():
     shell = outer_body().cut(cavity())
     shell = shell.cut(screen_aperture())
+    shell = _chamfer_aperture_lip(shell)
 
     stations = [
         (P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D, False),   # up
