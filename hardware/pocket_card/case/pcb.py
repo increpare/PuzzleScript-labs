@@ -6,7 +6,8 @@ come from the same file. The board and the enclosure cannot disagree.
 KiCad's PCB coordinates are Y-down, the same convention params.py uses for the
 face layout, so positions transfer with no transform. Component side is F.Cu
 (buttons / expander / slides). Module IO JSTs live on B.Cu in the right-rear
-wiring pocket per the SKQG amendatory spec.
+wiring pocket per the SKQG amendatory spec. Decorative silk (brick / rules /
+logo / labels) comes from silk.py.
 
 Default path is a headless S-expression writer (stdlib only) that inlines
 `.kicad_mod` footprints. Optional pcbnew path when a real GUI session is
@@ -120,6 +121,17 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
 
     raw = re.sub(r'\(uuid "[^"]+"\)', lambda _m: '(uuid "%s")' % _uid(), raw)
     raw = _set_property_ref(raw, ref, rot)
+    # Decorative silk owns the board — hide footprint ref/value legends.
+    for prop in ("Reference", "Value"):
+        raw = re.sub(
+            r'(\(property "%s"[^\n]*\n'
+            r'\t+\(at[^\n]*\n'
+            r'\t+\(layer[^\n]*\n)'
+            r'(?!\t+\(hide yes\))' % prop,
+            r'\1\t\t(hide yes)\n',
+            raw,
+            count=1,
+        )
 
     layer = "B.Cu" if back else "F.Cu"
     at = "(at %s %s)" % (x, y) if not rot else "(at %s %s %s)" % (x, y, rot)
@@ -293,6 +305,8 @@ def build_sexpr():
         placed.append((ref, MHOLE[1], x, y, "F.Cu"))
 
     parts.append(outline_sexpr())
+    import silk
+    parts.append(silk.silk_sexpr())
     parts.append("\t(embedded_fonts no)")
     parts.append(")")
     return "\n".join(parts) + "\n", placed
