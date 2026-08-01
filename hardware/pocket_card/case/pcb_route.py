@@ -94,10 +94,11 @@ ZONE_TEMPLATE = """	(zone
 """
 
 # Stitch F.Cu ↔ B.Cu GND pours. Keep clear of U1 (45,72), JST cluster (~74,*),
-# and mounting holes. Freerouting often leaves the two fills as islands.
+# mounting holes, and the B.Cu BAT_P run near y≈77.5 (a via at 32,78 nearly
+# shorted it). Freerouting often leaves the two fills as islands.
 GND_STITCH = (
-    (10.0, 58.0), (32.0, 58.0), (52.0, 58.0),
-    (10.0, 78.0), (32.0, 78.0), (55.0, 78.0),
+    (10.0, 58.0), (20.0, 65.0), (52.0, 58.0),
+    (10.0, 78.0), (18.0, 72.0), (60.0, 70.0),
     (10.0, 86.0), (32.0, 86.0), (50.0, 86.0),
 )
 
