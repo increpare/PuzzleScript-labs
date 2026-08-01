@@ -37,7 +37,7 @@ FP_ROOT = ("/Users/stephenlavelle/Applications/KiCad/KiCad.app/Contents/"
 # Alps SKQGABE010 — □5.2 × 1.5 mm with stem. KiCad land pattern embeds the
 # F.Cu keepouts beside the stem; see checks.check_skqg_keepouts.
 TACT = ("Button_Switch_SMD", "SW_SPST_SKQG_WithStem")
-SLIDE = ("Button_Switch_SMD", "SW_SPDT_PCM12")
+SLIDE = (P.SLIDE_FP_LIB, P.SLIDE_FP_NAME)
 EXPANDER = ("Package_SO", "SOIC-28W_7.5x17.9mm_P1.27mm")    # MCP23017
 JST4 = ("Connector_JST", "JST_GH_SM04B-GHS-TB_1x04-1MP_P1.25mm_Horizontal")
 JST2 = ("Connector_JST", "JST_GH_SM02B-GHS-TB_1x02-1MP_P1.25mm_Horizontal")
@@ -139,17 +139,39 @@ def footprint_sexpr(lib, name, x, y, ref, rot=0, back=False):
     return "\n".join(out)
 
 
-def outline_sexpr():
+def _notch_intervals():
+    """Return sorted (x0, x1) notch spans on the south edge (device X)."""
+    half = P.SLIDE_NOTCH_W / 2
+    spans = [
+        (P.POWER_SW_X - half, P.POWER_SW_X + half),
+        (P.MUTE_SW_X - half, P.MUTE_SW_X + half),
+    ]
+    return sorted(spans)
+
+
+def outline_points():
     x0, y0 = P.PCB_X, P.PCB_Y
     x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
-    segs = [
-        ((x0, y0), (x1, y0)),
-        ((x1, y0), (x1, y1)),
-        ((x1, y1), (x0, y1)),
-        ((x0, y1), (x0, y0)),
-    ]
+    yn = y1 - P.SLIDE_NOTCH_D
+    pts = [(x0, y0), (x1, y0), (x1, y1)]
+    # Walk south edge right→left, dropping into notches.
+    cursor = x1
+    for nx0, nx1 in reversed(_notch_intervals()):
+        if cursor > nx1:
+            pts.append((cursor, y1))
+            pts.append((nx1, y1))
+        pts.extend([(nx1, yn), (nx0, yn), (nx0, y1)])
+        cursor = nx0
+    pts.append((cursor, y1))
+    pts.append((x0, y1))
+    pts.append((x0, y0))
+    return pts
+
+
+def outline_sexpr():
+    pts = outline_points()
     parts = []
-    for (a, b) in segs:
+    for a, b in zip(pts, pts[1:]):
         parts.append(
             "\t(gr_line\n"
             "\t\t(start %s %s)\n"
@@ -291,12 +313,8 @@ def build_pcbnew():
         return fp
 
     board = pcbnew.CreateEmptyBoard()
-    for a, b in (
-        ((P.PCB_X, P.PCB_Y), (P.PCB_X + P.PCB_W, P.PCB_Y)),
-        ((P.PCB_X + P.PCB_W, P.PCB_Y), (P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H)),
-        ((P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H), (P.PCB_X, P.PCB_Y + P.PCB_H)),
-        ((P.PCB_X, P.PCB_Y + P.PCB_H), (P.PCB_X, P.PCB_Y)),
-    ):
+    pts = outline_points()
+    for a, b in zip(pts, pts[1:]):
         seg = pcbnew.PCB_SHAPE(board)
         seg.SetShape(pcbnew.SHAPE_T_SEGMENT)
         seg.SetStart(at(*a))
