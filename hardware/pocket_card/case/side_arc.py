@@ -195,9 +195,10 @@ def blend_bottom_seams(body: cq.Workplane, *, wall: float = 0.0) -> cq.Workplane
 def shaped_brick(corner_r: float = 4.5, *, blend_seams: bool = True) -> cq.Workplane:
     """Solid outer envelope: profile extruded full length.
 
-    ``blend_seams`` fillets the side-arc × bottom-round join. Leave it off for
-    ``clip_to_envelope`` — OCC can hang intersecting a filleted envelope with
-    a feature-heavy shell.
+    ``blend_seams`` fillets the side-arc × bottom-round join. Must run *after*
+    perimeter fillet/chamfer — blending first then chamfering the face leaves a
+    corrupt solid whose back half fails boolean intersects (empty lid band →
+    shell_back collapses to posts). Leave blend off for ``clip_to_envelope``.
     """
     rl = float(P.SIDE_ARC_R_L)
     rr = float(P.SIDE_ARC_R_R)
@@ -205,8 +206,6 @@ def shaped_brick(corner_r: float = 4.5, *, blend_seams: bool = True) -> cq.Workp
     y1 = float(getattr(P, "SIDE_ARC_Y1", P.BODY_H))
     body = profile_solid(P.BODY_W, P.BODY_T, rl, rr, y0, y1)
     body = apply_pcb_bottom_fit(body, wall=0.0)
-    if blend_seams:
-        body = blend_bottom_seams(body, wall=0.0)
     bb = body.val().BoundingBox()
     if bb.zlen > P.BODY_T + 2 or bb.xlen > P.BODY_W + 2:
         raise RuntimeError(
@@ -231,6 +230,9 @@ def shaped_brick(corner_r: float = 4.5, *, blend_seams: bool = True) -> cq.Workp
                 body = body.faces(sel).edges().chamfer(ch)
             except Exception:
                 pass
+    # Seam blend last — see docstring.
+    if blend_seams:
+        body = blend_bottom_seams(body, wall=0.0)
     return body
 
 
