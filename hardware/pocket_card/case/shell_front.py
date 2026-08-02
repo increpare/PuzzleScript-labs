@@ -393,6 +393,8 @@ def build():
     shell = shell.union(driver_pocket())
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
+    # Keep posts/collars from ever sitting outside the curved envelope.
+    shell = side_arc.clip_to_envelope(shell)
     return to_model_space(shell)
 
 

@@ -137,3 +137,12 @@ def shaped_outer_band(z0: float, z1: float, corner_r: float = 4.5) -> cq.Workpla
             .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad, z1 - z0, centered=False)
             .translate((-pad, -pad, z0)))
     return shaped_brick(corner_r).intersect(band)
+
+
+def clip_to_envelope(shape, corner_r: float = 4.5) -> cq.Workplane:
+    """Trim any rectangular internals that stick into the side scoops.
+
+    Rim, module ribs, shoulders, etc. were still axis-aligned boxes; after the
+    outer profile curves in they poke through the 'base' of the case.
+    """
+    return shape.intersect(shaped_brick(corner_r))

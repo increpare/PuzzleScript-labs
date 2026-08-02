@@ -222,6 +222,8 @@ def build_back():
     s = s.union(pcb_support_pads())
     s = s.union(pcb_shoulders())
     s = s.cut(screw_holes())
+    # Rectangular rim/ribs must not poke through the curved side scoops.
+    s = side_arc.clip_to_envelope(s)
     return to_model_space(s)
 
 
