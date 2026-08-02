@@ -15,6 +15,7 @@ import os
 import cadquery as cq
 
 import params as P
+import side_arc
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
@@ -225,16 +226,22 @@ def build_back():
     s = s.union(pcb_support_pads())
     s = s.union(pcb_shoulders())
     s = s.cut(screw_holes())
+    s = s.cut(side_arc.cutters())
     return to_model_space(s)
 
 
 def pcb_outline_wire():
-    """Board outline with the driver notch taken out of the bottom-right."""
+    """Controller outline; larger bottom radii free lower side-wall carve."""
     board = (cq.Workplane("XY")
              .box(P.PCB_W, P.PCB_H, 1.6, centered=(False, False, False))
-             .translate((P.PCB_X, P.PCB_Y, 0))
-             .edges("|Z").fillet(2.0))
-    # No notch: the driver sits in front of the board, not through it.
+             .translate((P.PCB_X, P.PCB_Y, 0)))
+    # Top corners (min Y in layout): small fillet. Bottom (max Y): larger.
+    top_r = getattr(P, "PCB_CORNER_R", 2.0)
+    bot_r = getattr(P, "PCB_BOTTOM_R", top_r)
+    if top_r > 0:
+        board = board.edges("|Z and <Y").fillet(top_r)
+    if bot_r > 0:
+        board = board.edges("|Z and >Y").fillet(bot_r)
     return to_model_space(board)
 
 

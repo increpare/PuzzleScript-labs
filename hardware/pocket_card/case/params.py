@@ -218,7 +218,8 @@ PCB_W, PCB_H   = 80.5, 37.0
 # PCB mounts (approach A): thin pins from the FRONT through the board holes;
 # wide shoulders on the BACK shell that the PCB rests on (with a bore for the
 # pin tip). A rear flare on the front shell made the board impossible to seat.
-PCB_MOUNTS = ((4.5, 56.0), (4.5, 88.0), (65.0, 56.0), (66.0, 81.0))
+# Lower-left mount deferred with EXTRA_BOSSES (sat in the bottom fillet zone).
+PCB_MOUNTS = ((4.5, 56.0), (65.0, 56.0), (66.0, 81.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board
 PCB_POST_D     = 2.4   # front pin through the hole
 PCB_SHOULDER_D = 4.4   # back-shell column the board rests on
@@ -334,15 +335,24 @@ CONN_4P_LCSC = "C3029379"            # DECIDED  was C189895
 CONN_2P_MPN  = "WAFER-GH1.25-2PWB"   # DECIDED  XUNPU; alt genuine SM02B-GHS-TB
 CONN_2P_LCSC = "C3029377"            # DECIDED  was C189893
 
-# Two extra screw bosses so the lower half is actually fastened. Without them
-# the only fixings are the four that borrow the module's mounting holes, all in
-# the upper 50 mm -- leaving the lid over a 5 mm cell held by its rim alone.
-#
-# The bottom-right corner is why the driver shrank from Ø14 to Ø12 and the
-# grille moved inboard: its retaining ring has to clear the boss on one side and
-# the Reset collar on the other, and there is only about 1.4 mm of slack between
-# those two constraints.
-EXTRA_BOSSES = ((4.5, 88.0), (86.0, 89.0))    # DECIDED  layout coords
+# Lower shell/PCB posts deferred while side-arc ergonomics settle the outer
+# carve (see 2026-08-02-pocket-card-side-arc-ergonomics-design.md). Re-place
+# after the grip curve is tuned; case still closes on the four module mounts.
+EXTRA_BOSSES = ()                          # DEFERRED  was ((4.5, 88), (86, 89))
+
+# ---------------------------------------------------- side-arc ergonomics ----
+# Volume reduction only: carve left/right back corners into today's BODY_T brick.
+# Radii maxed under cell / min-wall; tune on first feel print.
+SIDE_ARC_R_L = 6.5         # ASSUMED  peak left radius (cell at BATT_X=9)
+SIDE_ARC_R_R = 10.0        # ASSUMED  peak right radius (more free air)
+SIDE_ARC_Y0 = 12.0         # ASSUMED  carve starts below top edge
+SIDE_ARC_Y1 = 90.0         # ASSUMED  carve ends above bottom edge
+SIDE_ARC_FADE = 18.0       # ASSUMED  cosine fade length at each end
+SIDE_ARC_SLICE = 2.5       # ASSUMED  Y step for faded cutter union
+SIDE_ARC_MIN_WALL = WALL   # DECIDED  floor after carve
+
+PCB_CORNER_R = 2.0         # DECIDED  top / generic outline fillet
+PCB_BOTTOM_R = 6.0         # ASSUMED  bottom corners — frees lower side wall
 
 # ---------------------------------------------------- lower zone stack ----
 PCB_T          = 1.6     # DECIDED  JLCPCB standard (2.0 mm is ~15× the fab cost).

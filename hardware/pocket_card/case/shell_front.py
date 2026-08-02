@@ -18,6 +18,7 @@ import os
 import cadquery as cq
 
 import params as P
+import side_arc
 import slide_tip
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
@@ -396,6 +397,8 @@ def build():
     shell = shell.union(driver_pocket())
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
+    # Outer volume reduction — after all walls/bosses so the curve wraps sides.
+    shell = shell.cut(side_arc.cutters())
     return to_model_space(shell)
 
 
