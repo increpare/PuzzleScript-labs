@@ -39,23 +39,21 @@ match this document, then re-derive dependent CAD.
 
 ## Approach
 
-**Elliptical / cylindrical boolean cuts** on the existing brick shells
-(recommended over a full loft rewrite or fillets-only).
+**Extruded XZ profile** (straight edges + B-spline quarter-corners), then
+hollow with a matching inset profile. Implemented in `side_arc.py`.
 
-1. Keep today’s front and back shell construction as a brick.
-2. Cut left and right squat half-cylinder / elliptical cutters through the
-   **outer** solids of `shell_front` and `shell_back` so the resulting surface
-   wraps the split line.
-3. Fade cutter depth along Y (lofted cutter or multi-radius steps): deep in the
-   grip band, shallow near top ports and bottom edge hardware.
-4. Left and right radii may differ — the cell leaves less free air on the left
-   (`BATT_X` ≈ 9 mm) than on the right.
-5. Split line stays **planar**; no new midframe.
+1. Build a closed XZ silhouette: flat front, vertical sides, back corners as
+   B-splines through quarter-circle samples (left/right radii may differ).
+2. Extrude full length along Y (`SIDE_ARC_Y0`…`Y1`, normally the whole body).
+3. Hollow with the same silhouette inset by `WALL` (radii reduced by `WALL`) so
+   side walls stay closed — never boolean-cut crescents out of a hollow brick.
+4. Clip into front/back Z bands; split line stays planar.
 
-Rejected for this pass:
+Rejected / failed attempts:
 
 - Growing a mid “belly” past `BODY_T`.
-- Full section-loft outer envelope (higher CAD / reprint risk).
+- Boolean crescents on a hollow shell (punches mid-side holes).
+- OCC `radiusArc` / `tangentArc` long-way scoops (same holes, deeper).
 - Fillets-only soft edges (insufficient GBA read).
 
 ## Keepouts
