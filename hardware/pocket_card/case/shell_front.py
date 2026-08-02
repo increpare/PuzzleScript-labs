@@ -1,9 +1,9 @@
 """Front shell.
 
 A deep tray: face, perimeter walls, screen aperture, eight guided button
-stations, four posts through the module's own mounting holes, and the edge
-openings. The back shell is a shallow lid closing on the same posts, so the
-split line sits at the very back and is barely visible from the front or sides.
+stations, four posts through the module's own mounting holes, and the tip
+openings. The back shell is a deeper tray (LID_T) with a shaped perimeter lip;
+USB-C lives in the back. Split is planar at z = -(BODY_T - LID_T).
 
 Coordinates: device coordinates from params.py, with z flipped for modelling.
   x  0 .. BODY_W   left to right, viewed from the front
@@ -25,7 +25,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
 
 CORNER_R = 4.5
-SHELL_DEPTH = P.BODY_T - P.WALL        # 12.80; the back lid takes the last 1.5
+SHELL_DEPTH = P.BODY_T - P.LID_T       # front ends where the back tray begins
 COLLAR_WALL = 1.2
 FLAT_DEPTH = 0.8
 POST_D = 3.0                           # through the module's Ø3.2 holes
@@ -309,17 +309,8 @@ def pcb_posts():
 
 
 def edge_openings():
-    """USB-C on the left wall; power and mute slides on the bottom edge."""
-    cuts = cq.Workplane("XY")
-
-    # USB-C: on the module's rear face, at the module's vertical midpoint
-    usb_y = P.MOD_Y + P.MOD_H / 2
-    cuts = cuts.union(
-        cq.Workplane("XY").box(P.WALL + 3, 10.0, 4.2, centered=(False, True, True))
-        .translate((-1.5, usb_y, -(MOD_PCB_BACK + 2.1))))
-
-    cuts = cuts.union(slide_tip.edge_tip_openings())
-    return cuts
+    """Power and mute tip slots on the bottom edge (USB-C is in the back tray)."""
+    return slide_tip.edge_tip_openings()
 
 
 def grille_slots():

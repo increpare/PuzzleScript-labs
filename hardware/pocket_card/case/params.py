@@ -21,6 +21,10 @@ Coordinate convention for the assembled device, viewed from the front:
 BODY_W = 90.0          # DECIDED
 BODY_H = 93.0          # DECIDED
 WALL   = 1.5           # ASSUMED  shell wall thickness, sides and back
+# Back tray depth (outer). Was WALL (1.5): that slab sat inside the side-arc
+# scoop and left holes / no continuous lip. ~6 mm parks USB wholly in the tray
+# and leaves stock for a shaped full-perimeter rim (split-lip design 2026-08-02).
+LID_T  = 6.0           # DECIDED  back tray; front SHELL_DEPTH = BODY_T - LID_T
 FACE_T = 1.5           # DECIDED  front face thickness in the button area
 # Outer "brick" belt (face↔side, back↔side) and screen lip. Keep ≤~0.8 so the
 # 1.5 mm wall/face is not knifed down at the rim.
@@ -345,7 +349,7 @@ EXTRA_BOSSES = ()                          # DEFERRED  was ((4.5, 88), (86, 89))
 # hollow with WALL preserved (never cut arcs out of a hollow shell — holes).
 # Full length, constant R; left limited by cell, right can go harder.
 PCB_CORNER_R = 2.0         # DECIDED  top / generic outline fillet
-PCB_BOTTOM_R = 6.0         # ASSUMED  bottom corners — frees lower side wall
+PCB_BOTTOM_R = 14.0        # ASSUMED  bottom corners — frees lower side wall
 
 # ---------------------------------------------------- lower zone stack ----
 PCB_T          = 1.6     # DECIDED  JLCPCB standard (2.0 mm is ~15× the fab cost).
@@ -372,6 +376,17 @@ SIDE_ARC_R_R = _SIDE_ARC_R_MAX            # ASSUMED  as hard as face keepout all
 SIDE_ARC_Y0 = 0.0                         # DECIDED  full length
 SIDE_ARC_Y1 = BODY_H                      # DECIDED  through the bottom
 SIDE_ARC_MIN_WALL = WALL                  # DECIDED
+# Plan-view bottom corners follow the controller outline: PCB_BOTTOM_R plus the
+# board-to-shell gap on each side so the case hugs the rounded FR4 (not a
+# rectangular pocket around a radiused board).
+_PCB_GAP_L = PCB_X
+_PCB_GAP_R = BODY_W - (PCB_X + PCB_W)
+_PCB_GAP_B = BODY_H - (PCB_Y + PCB_H)
+CASE_BOTTOM_R_L = PCB_BOTTOM_R + min(_PCB_GAP_L, _PCB_GAP_B)  # ≈ 16.5
+CASE_BOTTOM_R_R = PCB_BOTTOM_R + min(_PCB_GAP_R, _PCB_GAP_B)  # ≈ 17.0
+# Soften the space-curve where the side-arc cylinder meets the plan-view
+# bottom round. OCC tops out near ~2.6 on the tighter left scoop.
+SIDE_ARC_BOTTOM_BLEND = 2.6            # ASSUMED  seam fillet (mm)
 
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a
 # millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.

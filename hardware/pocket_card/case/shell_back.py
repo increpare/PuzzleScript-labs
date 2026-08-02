@@ -1,8 +1,7 @@
 """Back shell and controller PCB outline.
 
-The back shell is a lid closing on the same four posts the module hangs from,
-so the split line sits at the very back. It carries the battery fence, the
-driver housing and the screw countersinks.
+Deeper back tray (LID_T) with a shaped full-perimeter lip into the front
+cavity. Owns the USB-C aperture. Closes on the module posts / PCB shoulders.
 
 The PCB outline is generated here rather than drawn in KiCad, so it derives
 from the enclosure instead of the other way round. It exports DXF for import
@@ -21,40 +20,40 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
 
 CORNER_R = 4.5
-SHELL_DEPTH = P.BODY_T - P.WALL        # front shell runs to here
+SHELL_DEPTH = P.BODY_T - P.LID_T       # front shell ends here
 LID_Z0 = -P.BODY_T                     # outer back surface
-LID_Z1 = -SHELL_DEPTH                  # meets the front shell's wall ends
+LID_Z1 = -SHELL_DEPTH                  # meets the front shell
+# Inner face of the back floor (WALL thick). Internal ribs rise from here.
+FLOOR_Z = LID_Z0 + P.WALL
 RIM_H = 1.2                            # alignment lip into the front cavity
 RIM_CLEAR = 0.25
 SCREW_CLEAR_D = 2.6
 SCREW_HEAD_D = 5.0
 FENCE_T = 1.2
 FENCE_H = 2.0                          # driver fence: the driver is only 3.5 thick
-# The cell fence is taken all the way up to the board's rear so it doubles as a
-# ledge the board rests on. It was already a border round the cell; it just was
-# not tall enough to touch anything. This supports the whole left half, which no
-# pillar can reach because the cell is behind it.
-CELL_FENCE_H = (P.BODY_T - P.WALL) - (P.PCB_FRONT_Z + P.PCB_T)   # 5.70
+# Cell fence from the floor up to the board's rear (doubles as a ledge).
+_PCB_BACK = P.PCB_FRONT_Z + P.PCB_T
+CELL_FENCE_H = max((-FLOOR_Z) - _PCB_BACK, 0.8)  # FLOOR_Z→PCB in +Z
+
+
+def shaped_rim():
+    """Full-perimeter lip: inset of the side-arc envelope, not a clipped box."""
+    outer_wall = P.WALL + RIM_CLEAR
+    inner_wall = outer_wall + FENCE_T
+    outer = side_arc.shaped_cavity_xy(
+        outer_wall, LID_Z1, LID_Z1 + RIM_H, CORNER_R)
+    inner = side_arc.shaped_cavity_xy(
+        inner_wall, LID_Z1 - 0.5, LID_Z1 + RIM_H + 0.5, CORNER_R)
+    return outer.cut(inner)
 
 
 def lid():
-    # Same shaped envelope as the front (side arcs), clipped to the lid band.
-    # Edge chamfer is applied inside shaped_brick before the arcs.
+    """Hollow tray: shaped outer band, WALL floor/sides, open at the split."""
     body = side_arc.shaped_outer_band(LID_Z0, LID_Z1, CORNER_R)
-
-    # alignment rim, sitting inside the front shell's cavity
-    w = P.BODY_W - 2 * P.WALL - 2 * RIM_CLEAR
-    h = P.BODY_H - 2 * P.WALL - 2 * RIM_CLEAR
-    rim = (cq.Workplane("XY")
-           .box(w, h, RIM_H, centered=(False, False, False))
-           .translate((P.WALL + RIM_CLEAR, P.WALL + RIM_CLEAR, LID_Z1))
-           .edges("|Z").fillet(max(CORNER_R - P.WALL, 0.6)))
-    inner = (cq.Workplane("XY")
-             .box(w - 2 * FENCE_T, h - 2 * FENCE_T, RIM_H + 1, centered=(False, False, False))
-             .translate((P.WALL + RIM_CLEAR + FENCE_T, P.WALL + RIM_CLEAR + FENCE_T,
-                         LID_Z1 - 0.5))
-             .edges("|Z").fillet(0.6))
-    return body.union(rim.cut(inner))
+    # Void from above the floor through the open face (into the front a hair).
+    cav = side_arc.shaped_cavity_xy(P.WALL, FLOOR_Z, LID_Z1 + 0.5, CORNER_R)
+    body = body.cut(cav)
+    return body.union(shaped_rim())
 
 
 def battery_fence():
@@ -66,10 +65,10 @@ def battery_fence():
     outer = (cq.Workplane("XY")
              .box(w + 2 * FENCE_T, h + 2 * FENCE_T, CELL_FENCE_H,
                   centered=(False, False, False))
-             .translate((x - FENCE_T, y - FENCE_T, LID_Z1)))   # inward, not out the back
+             .translate((x - FENCE_T, y - FENCE_T, FLOOR_Z)))
     pocket = (cq.Workplane("XY")
               .box(w, h, CELL_FENCE_H + 1, centered=(False, False, False))
-              .translate((x, y, LID_Z1 - 0.5)))
+              .translate((x, y, FLOOR_Z - 0.5)))
     fence = outer.cut(pocket)
     # open at the top: the PCB support rib sits in that strip and retains the
     # cell from above, so a fence rib there would be a second feature competing
@@ -78,14 +77,14 @@ def battery_fence():
         cq.Workplane("XY")
         .box(w + 2 * FENCE_T + 2, FENCE_T + 1, CELL_FENCE_H + 1,
              centered=(False, False, False))
-        .translate((x - FENCE_T - 1, y - FENCE_T - 0.5, LID_Z1 - 0.5)))
+        .translate((x - FENCE_T - 1, y - FENCE_T - 0.5, FLOOR_Z - 0.5)))
     # Gap on the RIGHT wall: cell → J_BAT_IN on the controller (B.Cu right-rear
     # pocket). J_BAT_OUT then runs to the module BAT — the lead does not go
     # left/direct to the module.
     gap_y = P.CONN_BAT_IN[1]   # dress toward the header
     gap = (cq.Workplane("XY")
            .box(FENCE_T + 1, 10.0, CELL_FENCE_H + 1, centered=(False, True, False))
-           .translate((x + w - 0.5, gap_y, LID_Z1 - 0.5)))
+           .translate((x + w - 0.5, gap_y, FLOOR_Z - 0.5)))
     return fence.cut(gap)
 
 
@@ -125,8 +124,11 @@ def module_support():
 
     With the front shell's shoulders in front and these behind, the board is
     properly sandwiched at all four corners.
+
+    Pads rise from the tray floor to the module PCB back.
     """
-    h = SHELL_DEPTH - MOD_PCB_BACK                  # 5.30
+    z_board = -MOD_PCB_BACK
+    h = max(z_board - FLOOR_Z, 0.8)
     xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
     ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
     ribs = cq.Workplane("XY")
@@ -134,8 +136,16 @@ def module_support():
         for y in ys:
             ribs = ribs.union(
                 cq.Workplane("XY").circle(3.5).circle(1.8)   # bore clears the Ø3.0 post
-                .extrude(h).translate((x, y, LID_Z1)))
+                .extrude(h).translate((x, y, FLOOR_Z)))
     return ribs
+
+
+def usb_opening():
+    """USB-C window in the left wall — wholly in the back tray (split-lip)."""
+    usb_y = P.MOD_Y + P.MOD_H / 2
+    return (cq.Workplane("XY")
+            .box(P.WALL + 3, 10.0, 4.2, centered=(False, True, True))
+            .translate((-1.5, usb_y, -(MOD_PCB_BACK + 2.1))))
 
 
 def pcb_support_rib():
@@ -147,11 +157,11 @@ def pcb_support_rib():
     within 6 mm of the up button and 24 mm of the rest.
     """
     pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    h = SHELL_DEPTH - pcb_back
+    h = max((-FLOOR_Z) - pcb_back, 0.8)
     return (cq.Workplane("XY")
             .box(P.PCB_RIB_X1 - P.PCB_RIB_X0, P.PCB_RIB_Y1 - P.PCB_RIB_Y0, h,
                  centered=(False, False, False))
-            .translate((P.PCB_RIB_X0, P.PCB_RIB_Y0, LID_Z1)))
+            .translate((P.PCB_RIB_X0, P.PCB_RIB_Y0, FLOOR_Z)))
 
 
 def pcb_support_pads():
@@ -162,12 +172,12 @@ def pcb_support_pads():
     collars are in front of the board and the press force is toward the back.
     """
     pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    h = SHELL_DEPTH - pcb_back
+    h = max((-FLOOR_Z) - pcb_back, 0.8)
     pads = cq.Workplane("XY")
     for x, y in P.PCB_SUPPORT_PADS:
         pads = pads.union(
             cq.Workplane("XY").circle(P.PCB_PAD_D / 2).extrude(h)
-            .translate((x, y, LID_Z1)))
+            .translate((x, y, FLOOR_Z)))
     return pads
 
 
@@ -175,18 +185,18 @@ def pcb_shoulders():
     """Wide columns the PCB back rests on (approach A).
 
     Front shell only has thin pins through the board holes. These shoulders rise
-    from the lid to the PCB-back plane and take the button load. A central bore
-    accepts the pin tip (and the screw on sites that share EXTRA_BOSSES).
+    from the tray floor to the PCB-back plane and take the button load. A
+    central bore accepts the pin tip (and the screw on shared EXTRA_BOSSES).
     """
     pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    h = SHELL_DEPTH - pcb_back
+    h = max((-FLOOR_Z) - pcb_back, 0.8)
     bore_d = max(P.PCB_POST_D + 0.35, SCREW_CLEAR_D)
     add = cq.Workplane("XY")
     for x, y in P.PCB_MOUNTS:
         col = (cq.Workplane("XY").circle(P.PCB_SHOULDER_D / 2)
-               .extrude(h).translate((x, y, LID_Z1)))
+               .extrude(h).translate((x, y, FLOOR_Z)))
         bore = (cq.Workplane("XY").circle(bore_d / 2)
-                .extrude(h + 1).translate((x, y, LID_Z1 - 0.5)))
+                .extrude(h + 1).translate((x, y, FLOOR_Z - 0.5)))
         add = add.union(col.cut(bore))
     return add
 
@@ -199,7 +209,7 @@ def screw_holes():
     if True:
         for x, y in sites:
             cuts = cuts.union(
-                cq.Workplane("XY").circle(SCREW_CLEAR_D / 2).extrude(P.WALL + 4)
+                cq.Workplane("XY").circle(SCREW_CLEAR_D / 2).extrude(P.LID_T + 4)
                 .translate((x, y, LID_Z0 - 1)))
             cuts = cuts.union(
                 cq.Workplane("XY")
@@ -222,7 +232,8 @@ def build_back():
     s = s.union(pcb_support_pads())
     s = s.union(pcb_shoulders())
     s = s.cut(screw_holes())
-    # Rectangular rim/ribs must not poke through the curved side scoops.
+    s = s.cut(usb_opening())
+    # Internals must not poke through the curved side scoops.
     s = side_arc.clip_to_envelope(s)
     return to_model_space(s)
 

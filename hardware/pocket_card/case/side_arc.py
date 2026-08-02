@@ -73,13 +73,140 @@ def profile_solid(w: float, t: float, rl: float, rr: float,
     return body.translate((x0, y0, z_front))
 
 
-def shaped_brick(corner_r: float = 4.5) -> cq.Workplane:
-    """Solid outer envelope: profile extruded full length."""
+def _bottom_xy_cutters(w: float, h: float, r_l: float, r_r: float, *,
+                      x0: float = 0.0, y0: float = 0.0,
+                      z0: float = -P.BODY_T - 2.0, z1: float = 2.0):
+    """Corner-box minus cylinder cutters for plan-view bottom L/R rounds."""
+    if z1 < z0:
+        z0, z1 = z1, z0
+    depth = (z1 - z0) + 0.02
+    z_lo = z0 - 0.01
+    cuts = None
+    for r, side in ((float(r_l), "L"), (float(r_r), "R")):
+        if r < 0.5:
+            continue
+        cy = y0 + h - r
+        if side == "L":
+            cx = x0 + r
+            box = (cq.Workplane("XY")
+                   .box(r + 0.05, r + 0.05, depth, centered=False)
+                   .translate((x0 - 0.02, cy, z_lo)))
+        else:
+            cx = x0 + w - r
+            box = (cq.Workplane("XY")
+                   .box(r + 0.05, r + 0.05, depth, centered=False)
+                   .translate((cx, cy, z_lo)))
+        cyl = (cq.Workplane("XY").circle(r).extrude(depth)
+               .translate((cx, cy, z_lo)))
+        piece = box.cut(cyl)
+        cuts = piece if cuts is None else cuts.union(piece)
+    return cuts
+
+
+def apply_pcb_bottom_fit(body: cq.Workplane, *, wall: float = 0.0) -> cq.Workplane:
+    """Round plan-view bottom corners to hug the controller PCB outline.
+
+    Outer radii are ``CASE_BOTTOM_R_*`` (PCB_BOTTOM_R + board-to-shell gap).
+    For the cavity, pass ``wall`` so radii shrink and the solid is inset.
+    """
+    r_l = float(getattr(P, "CASE_BOTTOM_R_L", 0.0)) - wall
+    r_r = float(getattr(P, "CASE_BOTTOM_R_R", 0.0)) - wall
+    if r_l < 0.5 and r_r < 0.5:
+        return body
+    x0 = wall
+    y0 = float(getattr(P, "SIDE_ARC_Y0", 0.0)) + wall
+    w = P.BODY_W - 2 * wall
+    h = (float(getattr(P, "SIDE_ARC_Y1", P.BODY_H))
+         - float(getattr(P, "SIDE_ARC_Y0", 0.0)) - 2 * wall)
+    bb = body.val().BoundingBox()
+    cutters = _bottom_xy_cutters(
+        w, h, r_l, r_r, x0=x0, y0=y0, z0=bb.zmin, z1=bb.zmax)
+    if cutters is None:
+        return body
+    return body.cut(cutters)
+
+
+def _seam_edges(solid, *, wall: float = 0.0):
+    """Space-curve edges where the side-arc meets the plan-view bottom round."""
+    from OCP.TopAbs import TopAbs_EDGE
+    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopoDS import TopoDS
+
+    r_l = float(getattr(P, "CASE_BOTTOM_R_L", 0.0)) - wall
+    r_r = float(getattr(P, "CASE_BOTTOM_R_R", 0.0)) - wall
+    y1 = float(getattr(P, "SIDE_ARC_Y1", P.BODY_H)) - wall
+    out = []
+    seen = set()
+    exp = TopExp_Explorer(solid.wrapped, TopAbs_EDGE)
+    while exp.More():
+        edge = TopoDS.Edge_s(exp.Current())
+        ce = cq.Edge(edge)
+        bb = ce.BoundingBox()
+        key = (round(ce.Length(), 3), round(bb.xmin, 2), round(bb.ymin, 2),
+               round(bb.zmin, 2))
+        if key in seen:
+            exp.Next()
+            continue
+        seen.add(key)
+        dy, dz = bb.ymax - bb.ymin, bb.zmax - bb.zmin
+        if dy > 2.0 and dz > 2.0 and bb.zmin < -2.0:
+            near_l = bb.xmin < r_l and bb.ymin > y1 - r_l - 2.0
+            near_r = bb.xmax > (P.BODY_W - wall) - r_r and bb.ymin > y1 - r_r - 2.0
+            if near_l or near_r:
+                out.append(ce)
+        exp.Next()
+    return out
+
+
+def blend_bottom_seams(body: cq.Workplane, *, wall: float = 0.0) -> cq.Workplane:
+    """Fillet the diagonal join between side-arc and plan-view bottom rounds.
+
+    Tries ``SIDE_ARC_BOTTOM_BLEND`` then backs off until OCC accepts it (left
+    scoop is the limiter, typically ≤ ~2.6 mm).
+    """
+    from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
+
+    target = float(getattr(P, "SIDE_ARC_BOTTOM_BLEND", 0.0) or 0.0)
+    if target < 0.5:
+        return body
+    solid = body.val()
+    edges = _seam_edges(solid, wall=wall)
+    if not edges:
+        return body
+    # Prefer the requested radius; step down if the kernel refuses.
+    trial = []
+    r = target
+    while r >= 1.0:
+        trial.append(r)
+        r = round(r - 0.2, 2)
+    for radius in trial:
+        try:
+            mk = BRepFilletAPI_MakeFillet(solid.wrapped)
+            for edge in edges:
+                mk.Add(radius, edge.wrapped)
+            mk.Build()
+            if mk.IsDone():
+                return cq.Workplane(cq.Shape.cast(mk.Shape()))
+        except Exception:
+            continue
+    return body
+
+
+def shaped_brick(corner_r: float = 4.5, *, blend_seams: bool = True) -> cq.Workplane:
+    """Solid outer envelope: profile extruded full length.
+
+    ``blend_seams`` fillets the side-arc × bottom-round join. Leave it off for
+    ``clip_to_envelope`` — OCC can hang intersecting a filleted envelope with
+    a feature-heavy shell.
+    """
     rl = float(P.SIDE_ARC_R_L)
     rr = float(P.SIDE_ARC_R_R)
     y0 = float(getattr(P, "SIDE_ARC_Y0", 0.0))
     y1 = float(getattr(P, "SIDE_ARC_Y1", P.BODY_H))
     body = profile_solid(P.BODY_W, P.BODY_T, rl, rr, y0, y1)
+    body = apply_pcb_bottom_fit(body, wall=0.0)
+    if blend_seams:
+        body = blend_bottom_seams(body, wall=0.0)
     bb = body.val().BoundingBox()
     if bb.zlen > P.BODY_T + 2 or bb.xlen > P.BODY_W + 2:
         raise RuntimeError(
@@ -121,6 +248,8 @@ def shaped_cavity_xy(wall: float, z0: float, z1: float,
     if w < 1 or t < 0.5 or y1 <= y0:
         raise ValueError("wall/span too thick for side-arc cavity")
     body = profile_solid(w, t, rl, rr, y0, y1, x0=wall, z_front=z1)
+    body = apply_pcb_bottom_fit(body, wall=wall)
+    body = blend_bottom_seams(body, wall=wall)
     if corner_r > 0:
         try:
             body = body.edges("|Z").fillet(min(max(corner_r - wall, 0.5), 2.0))
@@ -136,7 +265,7 @@ def shaped_outer_band(z0: float, z1: float, corner_r: float = 4.5) -> cq.Workpla
     band = (cq.Workplane("XY")
             .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad, z1 - z0, centered=False)
             .translate((-pad, -pad, z0)))
-    return shaped_brick(corner_r).intersect(band)
+    return shaped_brick(corner_r, blend_seams=True).intersect(band)
 
 
 def clip_to_envelope(shape, corner_r: float = 4.5) -> cq.Workplane:
@@ -144,5 +273,6 @@ def clip_to_envelope(shape, corner_r: float = 4.5) -> cq.Workplane:
 
     Rim, module ribs, shoulders, etc. were still axis-aligned boxes; after the
     outer profile curves in they poke through the 'base' of the case.
+    Uses an unfilleted envelope so the intersect stays fast/robust.
     """
-    return shape.intersect(shaped_brick(corner_r))
+    return shape.intersect(shaped_brick(corner_r, blend_seams=False))
