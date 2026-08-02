@@ -238,26 +238,34 @@ def shaped_brick(corner_r: float = 4.5, *, blend_seams: bool = True) -> cq.Workp
 
 def shaped_cavity_xy(wall: float, z0: float, z1: float,
                      corner_r: float = 4.5) -> cq.Workplane:
-    """Inner void: same profile inset by wall (radii and XY)."""
+    """Inner void: full-body inset profile, clipped to ``[z0, z1]``.
+
+    The XZ silhouette must use ``BODY_T`` and ``SIDE_ARC_R_* - wall`` — never
+    the thin Z-band thickness. A shallow profile clamps R (``R > t``) and the
+    void punches through the deep side scoops (RHS hole in the back tray).
+    """
     if z1 < z0:
         z0, z1 = z1, z0
-    t = z1 - z0
     w = P.BODY_W - 2 * wall
     rl = max(float(P.SIDE_ARC_R_L) - wall, 0.0)
     rr = max(float(P.SIDE_ARC_R_R) - wall, 0.0)
     y0 = float(getattr(P, "SIDE_ARC_Y0", 0.0)) + wall
     y1 = float(getattr(P, "SIDE_ARC_Y1", P.BODY_H)) - wall
-    if w < 1 or t < 0.5 or y1 <= y0:
+    if w < 1 or (z1 - z0) < 0.5 or y1 <= y0:
         raise ValueError("wall/span too thick for side-arc cavity")
-    body = profile_solid(w, t, rl, rr, y0, y1, x0=wall, z_front=z1)
+    # Full-depth inset (same arc centres as the outer brick), then Z-clip.
+    body = profile_solid(w, P.BODY_T, rl, rr, y0, y1, x0=wall, z_front=0.0)
     body = apply_pcb_bottom_fit(body, wall=wall)
-    body = blend_bottom_seams(body, wall=wall)
     if corner_r > 0:
         try:
             body = body.edges("|Z").fillet(min(max(corner_r - wall, 0.5), 2.0))
         except Exception:
             pass
-    return body
+    pad = 0.05
+    slab = (cq.Workplane("XY")
+            .box(P.BODY_W + 4, P.BODY_H + 4, (z1 - z0) + 2 * pad, centered=False)
+            .translate((-2.0, -2.0, z0 - pad)))
+    return body.intersect(slab)
 
 
 def shaped_outer_band(z0: float, z1: float, corner_r: float = 4.5) -> cq.Workplane:
