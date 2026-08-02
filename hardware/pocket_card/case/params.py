@@ -341,16 +341,9 @@ CONN_2P_LCSC = "C3029377"            # DECIDED  was C189893
 EXTRA_BOSSES = ()                          # DEFERRED  was ((4.5, 88), (86, 89))
 
 # ---------------------------------------------------- side-arc ergonomics ----
-# Volume reduction only: carve left/right back corners into today's BODY_T brick.
-# Radii maxed under cell / min-wall; tune on first feel print.
-SIDE_ARC_R_L = 6.5         # ASSUMED  peak left radius (cell at BATT_X=9)
-SIDE_ARC_R_R = 10.0        # ASSUMED  peak right radius (more free air)
-SIDE_ARC_Y0 = 12.0         # ASSUMED  carve starts below top edge
-SIDE_ARC_Y1 = 90.0         # ASSUMED  carve ends above bottom edge
-SIDE_ARC_FADE = 18.0       # ASSUMED  cosine fade length at each end
-SIDE_ARC_SLICE = 2.5       # ASSUMED  Y step for faded cutter union
-SIDE_ARC_MIN_WALL = WALL   # DECIDED  floor after carve
-
+# Volume reduction only: continuous cylindrical arcs on a solid envelope, then
+# hollow with WALL preserved (never cut arcs out of a hollow shell — holes).
+# Full length, constant R; left limited by cell, right can go harder.
 PCB_CORNER_R = 2.0         # DECIDED  top / generic outline fillet
 PCB_BOTTOM_R = 6.0         # ASSUMED  bottom corners — frees lower side wall
 
@@ -367,6 +360,18 @@ CELL_SWELL     = 0.5     # ASSUMED
 LOWER_ZONE_T = PCB_FRONT_Z + PCB_T + PET_T + CELL_T + CELL_SWELL + WALL
 UPPER_ZONE_T = MOD_DEPTH + 0.3 + WALL     # module sits flush in the front window
 BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
+
+# ---------------------------------------------------- side-arc ergonomics ----
+# Continuous full-length cylindrical arcs on a solid envelope, then hollowed.
+# Cap R so the crescent stays below the face plate (z ≤ −FACE_T): the curve
+# wraps the sides up under the face without chewing button/driver land.
+# Left also limited by cell back-flat (BATT_X≈9).
+_SIDE_ARC_R_MAX = BODY_T - FACE_T - 0.2   # ≈ 11.6 — meets side under the face
+SIDE_ARC_R_L = min(8.0, _SIDE_ARC_R_MAX)  # ASSUMED
+SIDE_ARC_R_R = _SIDE_ARC_R_MAX            # ASSUMED  as hard as face keepout allows
+SIDE_ARC_Y0 = 0.0                         # DECIDED  full length
+SIDE_ARC_Y1 = BODY_H                      # DECIDED  through the bottom
+SIDE_ARC_MIN_WALL = WALL                  # DECIDED
 
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a
 # millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.

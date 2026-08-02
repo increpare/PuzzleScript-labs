@@ -38,13 +38,9 @@ CELL_FENCE_H = (P.BODY_T - P.WALL) - (P.PCB_FRONT_Z + P.PCB_T)   # 5.70
 
 
 def lid():
-    body = (cq.Workplane("XY")
-            .box(P.BODY_W, P.BODY_H, P.WALL, centered=(False, False, False))
-            .translate((0, 0, LID_Z0))
-            .edges("|Z").fillet(CORNER_R))
-    # Soften the back↔side belt (outer back is the most-negative Z face).
-    if P.EDGE_CHAMFER > 0:
-        body = body.faces("<Z").edges().chamfer(P.EDGE_CHAMFER)
+    # Same shaped envelope as the front (side arcs), clipped to the lid band.
+    # Edge chamfer is applied inside shaped_brick before the arcs.
+    body = side_arc.shaped_outer_band(LID_Z0, LID_Z1, CORNER_R)
 
     # alignment rim, sitting inside the front shell's cavity
     w = P.BODY_W - 2 * P.WALL - 2 * RIM_CLEAR
@@ -226,7 +222,6 @@ def build_back():
     s = s.union(pcb_support_pads())
     s = s.union(pcb_shoulders())
     s = s.cut(screw_holes())
-    s = s.cut(side_arc.cutters())
     return to_model_space(s)
 
 

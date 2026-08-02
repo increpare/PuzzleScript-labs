@@ -30,12 +30,12 @@ match this document, then re-derive dependent CAD.
   **removed** from the side/back corners only.
 - **Silhouette:** same XY footprint (no mid flare). Flat front remains; outer
   sides/back gain a squat curved profile by boolean removal.
-- **Extent:** full length along Y, with carve depth **faded** toward the top and
-  bottom ends.
-- **Aggressiveness:** as deep and smooth as internal geometry allows
-  (keepout-driven radii), not a fixed cosmetic chamfer.
-- **Wrap:** the curve continues across the front/back **split** onto the side
-  walls (both outer solids are cut with the same family of cutters).
+- **Extent:** **full length** along Y (through the bottom). No mid-band-only
+  scoops; no faded crescent slices.
+- **Aggressiveness:** continuous cylindrical arcs, as deep as keepouts allow
+  (left limited by cell back-flat; right can go harder).
+- **Wrap:** shaped **solid envelope**, then hollowed with `WALL` preserved so
+  the curve wraps the split without punching holes through side walls.
 
 ## Approach
 

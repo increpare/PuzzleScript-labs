@@ -44,27 +44,19 @@ def _dev(shape, x, y):
 
 
 def outer_body():
-    body = (cq.Workplane("XY")
-            .box(P.BODY_W, P.BODY_H, SHELL_DEPTH, centered=(False, False, False))
-            .translate((0, 0, -SHELL_DEPTH))
-            .edges("|Z").fillet(CORNER_R))
-    # Soften the face↔side belt (outer face is +Z / z=0).
-    if P.EDGE_CHAMFER > 0:
-        body = body.faces(">Z").edges().chamfer(P.EDGE_CHAMFER)
-    return body
+    """Shaped brick band (side arcs) for the front shell Z range."""
+    # Carve the solid envelope first; hollowing is cavity() — never cut arcs
+    # out of an already-hollow wall (that punches side holes).
+    # Edge chamfer is applied inside shaped_brick before the arcs.
+    return side_arc.shaped_outer_band(-SHELL_DEPTH, 0.0, CORNER_R)
 
 
 def cavity():
-    """Everything inside the walls, from behind the face to the open back."""
-    w = P.BODY_W - 2 * P.WALL
-    h = P.BODY_H - 2 * P.WALL
-    d = SHELL_DEPTH - P.FACE_T
-    # NB: height is exactly d. An earlier d + 1 put the cavity roof at z = -0.5
-    # and left the front face 0.5 mm thick instead of 1.5.
-    return (cq.Workplane("XY")
-            .box(w, h, d, centered=(False, False, False))
-            .translate((P.WALL, P.WALL, -SHELL_DEPTH))
-            .edges("|Z").fillet(max(CORNER_R - P.WALL, 0.6)))
+    """Interior void: XY follows the side-arc offset; open at the back."""
+    # Roof under the face at -FACE_T; slightly past -SHELL_DEPTH so the back
+    # stays open. Arc cutters use R−WALL so side walls keep thickness.
+    return side_arc.shaped_cavity_xy(
+        P.WALL, -SHELL_DEPTH - 0.5, -P.FACE_T, CORNER_R)
 
 
 def screen_aperture():
@@ -93,9 +85,13 @@ def _chamfer_aperture_lip(shell):
         return (shell.edges(cq.selectors.BoxSelector((x0, y0, -0.5), (x1, y1, 0.5)))
                 .chamfer(ch))
     except Exception:
-        # Filleted aperture rims sometimes refuse a chamfer; fillet is close enough.
-        return (shell.edges(cq.selectors.BoxSelector((x0, y0, -0.5), (x1, y1, 0.5)))
-                .fillet(ch))
+        try:
+            # Filleted aperture rims sometimes refuse a chamfer; fillet is close.
+            return (shell.edges(cq.selectors.BoxSelector((x0, y0, -0.5), (x1, y1, 0.5)))
+                    .fillet(ch))
+        except Exception:
+            # Side-arc envelope can leave a rim OCC won't blend — leave sharp.
+            return shell
 
 def _shoulder_planes():
     z_flat_top = -(P.FACE_T + P.CAP_FLANGE_T + P.HARD_STOP_AT)
@@ -397,8 +393,6 @@ def build():
     shell = shell.union(driver_pocket())
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
-    # Outer volume reduction — after all walls/bosses so the curve wraps sides.
-    shell = shell.cut(side_arc.cutters())
     return to_model_space(shell)
 
 

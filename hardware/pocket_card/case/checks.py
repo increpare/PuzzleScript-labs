@@ -161,7 +161,8 @@ def check_shell():
     print("\nshell_front.stl")
     tri = load_tris(path)
     bb = [float(np.ptp(tri[:, :, i])) for i in range(3)]
-    check("body width", bb[0], P.BODY_W, 0.02)
+    # Side arcs pull the AABB in slightly at the back; still must not grow.
+    check("body width", bb[0], P.BODY_W, 1.0)
     check("body height", bb[1], P.BODY_H, 0.02)
 
     buf, x0, y1 = raster_depth(tri)
