@@ -1,107 +1,139 @@
-"""Side-arc outer envelope for GBA-like volume reduction.
+"""GBA-like side curves via an extruded XZ profile.
 
-Builds a *solid* brick, carves continuous left/right cylindrical arcs (full
-length, constant R), then shells hollow that shaped solid with WALL preserved.
-Never cut the arcs out of an already-hollow wall — that punches side holes.
+Cross-section: flat front, vertical sides, back corners as quarter-circles
+sampled into a B-spline (CadQuery ``spline``). Extrude along Y, hollow with a
+matching inset profile so walls stay closed.
+
+Do NOT use radiusArc/tangentArc here — OCC often takes the long arc and
+scoops giant holes out of the sides. Do NOT boolean-crescent a rectangular
+cavity — the void must follow the same profile.
 
 See docs/superpowers/specs/2026-08-02-pocket-card-side-arc-ergonomics-design.md
 """
 from __future__ import annotations
 
+import math
+
 import cadquery as cq
 
 import params as P
 
+_ARC_SAMPLES = 20  # points per quarter-circle (spline)
 
-def _crescent(side: str, R: float, y0: float, y1: float) -> cq.Workplane | None:
-    """One continuous corner: box − cylinder along Y from y0..y1."""
-    if R < 0.4 or y1 <= y0:
-        return None
-    dy = y1 - y0
-    eps = 0.5
-    z_back = -P.BODY_T
-    if side == "left":
-        cx = R
-        box = (cq.Workplane("XY")
-               .box(R + eps, dy, R + eps, centered=False)
-               .translate((-eps * 0.5, y0, z_back - eps * 0.5)))
+
+def _quarter(cx: float, cz: float, r: float, a0: float, a1: float):
+    """Points on a circle from angle a0→a1 (radians, CCW from +X)."""
+    pts = []
+    for i in range(1, _ARC_SAMPLES + 1):
+        a = a0 + (a1 - a0) * (i / _ARC_SAMPLES)
+        pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
+def _xz_profile(w: float, t: float, rl: float, rr: float):
+    """Closed XZ wire: front z=0, back z=−t. Local (x,y) == device (x,z).
+
+    Straight edges stay as lines. Each back corner is a B-spline through
+    quarter-circle samples (splining the whole silhouette overshoots wildly).
+    """
+    rl = min(max(float(rl), 0.0), w * 0.45, max(t - 0.2, 0.0))
+    rr = min(max(float(rr), 0.0), w * 0.45, max(t - 0.2, 0.0))
+
+    wp = cq.Workplane("XZ").moveTo(0.0, 0.0).lineTo(w, 0.0)
+
+    if rr > 0.05:
+        wp = wp.lineTo(w, -(t - rr))
+        right = _quarter(w - rr, -(t - rr), rr, 0.0, -math.pi / 2)
+        wp = wp.spline(right, includeCurrent=True)
     else:
-        cx = P.BODY_W - R
-        box = (cq.Workplane("XY")
-               .box(R + eps, dy, R + eps, centered=False)
-               .translate((P.BODY_W - R - eps * 0.5, y0, z_back - eps * 0.5)))
-    cyl = (cq.Workplane("XZ")
-           .workplane(offset=y0)
-           .center(cx, z_back + R)
-           .circle(R)
-           .extrude(dy))
-    return box.cut(cyl)
+        wp = wp.lineTo(w, -t)
+
+    if rl > 0.05:
+        # Current point should be (w−rr, −t); line across the flat back if needed.
+        wp = wp.lineTo(rl, -t)
+        left = _quarter(rl, -(t - rl), rl, -math.pi / 2, -math.pi)
+        wp = wp.spline(left, includeCurrent=True)
+    else:
+        wp = wp.lineTo(0.0, -t)
+
+    return wp.lineTo(0.0, 0.0).close()
 
 
-def cutters(radius_shrink: float = 0.0) -> cq.Workplane:
-    """Left + right continuous arcs. radius_shrink offsets R for the cavity wall."""
-    y0 = getattr(P, "SIDE_ARC_Y0", 0.0)
-    y1 = getattr(P, "SIDE_ARC_Y1", P.BODY_H)
-    acc = None
-    for side, r_peak in (("left", P.SIDE_ARC_R_L), ("right", P.SIDE_ARC_R_R)):
-        R = r_peak - radius_shrink
-        piece = _crescent(side, R, y0, y1)
-        if piece is None:
-            continue
-        acc = piece if acc is None else acc.union(piece)
-    if acc is None:
-        return (cq.Workplane("XY").box(0.01, 0.01, 0.01)
-                .translate((-1000, -1000, -1000)))
-    return acc
-
-
-def _z_band(z0: float, z1: float) -> cq.Workplane:
-    if z1 < z0:
-        z0, z1 = z1, z0
-    pad = 2.0
-    return (cq.Workplane("XY")
-            .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad, z1 - z0, centered=False)
-            .translate((-pad, -pad, z0)))
+def profile_solid(w: float, t: float, rl: float, rr: float,
+                  y0: float, y1: float, *,
+                  x0: float = 0.0, z_front: float = 0.0) -> cq.Workplane:
+    """Extrude an XZ profile along Y from y0 to y1."""
+    if y1 < y0:
+        y0, y1 = y1, y0
+    dy = y1 - y0
+    # XZ normal is −Y; extrude then normalize to y ∈ [0, dy].
+    body = _xz_profile(w, t, rl, rr).extrude(dy)
+    bb = body.val().BoundingBox()
+    body = body.translate((0.0, -bb.ymin, 0.0))
+    return body.translate((x0, y0, z_front))
 
 
 def shaped_brick(corner_r: float = 4.5) -> cq.Workplane:
-    """Solid device outer volume with continuous side arcs."""
-    body = (cq.Workplane("XY")
-            .box(P.BODY_W, P.BODY_H, P.BODY_T, centered=False)
-            .translate((0, 0, -P.BODY_T)))
+    """Solid outer envelope: profile extruded full length."""
+    rl = float(P.SIDE_ARC_R_L)
+    rr = float(P.SIDE_ARC_R_R)
+    y0 = float(getattr(P, "SIDE_ARC_Y0", 0.0))
+    y1 = float(getattr(P, "SIDE_ARC_Y1", P.BODY_H))
+    body = profile_solid(P.BODY_W, P.BODY_T, rl, rr, y0, y1)
+    bb = body.val().BoundingBox()
+    if bb.zlen > P.BODY_T + 2 or bb.xlen > P.BODY_W + 2:
+        raise RuntimeError(
+            f"side-arc profile exploded: bbox {bb.xlen:.1f}x{bb.ylen:.1f}x{bb.zlen:.1f}"
+        )
+    # Volume must stay close to the brick (shallow corner scoops only).
+    brick_vol = P.BODY_W * (y1 - y0) * P.BODY_T
+    vol = body.val().Volume()
+    if vol < 0.85 * brick_vol:
+        raise RuntimeError(
+            f"side-arc scooped too deep: vol {vol:.0f} vs brick {brick_vol:.0f}"
+        )
     if corner_r > 0:
-        body = body.edges("|Z").fillet(corner_r)
-    # Chamfer front/back rims *before* the arcs — after the cut, OCC often
-    # refuses a chamfer on the shaped face boundary.
+        try:
+            body = body.edges("|Z").fillet(min(corner_r, 2.0))
+        except Exception:
+            pass
     ch = getattr(P, "EDGE_CHAMFER", 0) or 0
     if ch > 0:
-        try:
-            body = body.faces(">Z").edges().chamfer(ch)
-        except Exception:
-            pass
-        try:
-            body = body.faces("<Z").edges().chamfer(ch)
-        except Exception:
-            pass
-    return body.cut(cutters(0.0))
+        for sel in (">Z", "<Z"):
+            try:
+                body = body.faces(sel).edges().chamfer(ch)
+            except Exception:
+                pass
+    return body
 
 
 def shaped_cavity_xy(wall: float, z0: float, z1: float,
                      corner_r: float = 4.5) -> cq.Workplane:
-    """Cavity: XY inset + arc at R−wall, spanning Z [z0, z1] (open ends OK)."""
+    """Inner void: same profile inset by wall (radii and XY)."""
     if z1 < z0:
         z0, z1 = z1, z0
+    t = z1 - z0
     w = P.BODY_W - 2 * wall
-    h = P.BODY_H - 2 * wall
-    if w < 1 or h < 1 or (z1 - z0) < 0.5:
+    rl = max(float(P.SIDE_ARC_R_L) - wall, 0.0)
+    rr = max(float(P.SIDE_ARC_R_R) - wall, 0.0)
+    y0 = float(getattr(P, "SIDE_ARC_Y0", 0.0)) + wall
+    y1 = float(getattr(P, "SIDE_ARC_Y1", P.BODY_H)) - wall
+    if w < 1 or t < 0.5 or y1 <= y0:
         raise ValueError("wall/span too thick for side-arc cavity")
-    body = (cq.Workplane("XY")
-            .box(w, h, z1 - z0, centered=False)
-            .translate((wall, wall, z0)))
-    fr = max(corner_r - wall, 0.6)
-    body = body.edges("|Z").fillet(fr)
-    return body.cut(cutters(radius_shrink=wall))
+    body = profile_solid(w, t, rl, rr, y0, y1, x0=wall, z_front=z1)
+    if corner_r > 0:
+        try:
+            body = body.edges("|Z").fillet(min(max(corner_r - wall, 0.5), 2.0))
+        except Exception:
+            pass
+    return body
 
 
 def shaped_outer_band(z0: float, z1: float, corner_r: float = 4.5) -> cq.Workplane:
-    return shaped_brick(corner_r).intersect(_z_band(z0, z1))
+    if z1 < z0:
+        z0, z1 = z1, z0
+    pad = 2.0
+    band = (cq.Workplane("XY")
+            .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad, z1 - z0, centered=False)
+            .translate((-pad, -pad, z0)))
+    return shaped_brick(corner_r).intersect(band)
