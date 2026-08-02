@@ -169,6 +169,7 @@ def _append_pt(pts, pt):
 
 
 def outline_points():
+    """Corner points only (sharp). Prefer outline_edges() for fab Edge.Cuts."""
     x0, y0 = P.PCB_X, P.PCB_Y
     x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
     pts = []
@@ -193,22 +194,90 @@ def outline_points():
     return pts
 
 
+def _arc_mid(cx, cy, x0, y0, x1, y1):
+    """Midpoint on the minor arc from (x0,y0) to (x1,y1) about (cx,cy)."""
+    import math
+    a0 = math.atan2(y0 - cy, x0 - cx)
+    a1 = math.atan2(y1 - cy, x1 - cx)
+    da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+    am = a0 + 0.5 * da
+    r = math.hypot(x0 - cx, y0 - cy)
+    return (cx + r * math.cos(am), cy + r * math.sin(am))
+
+
+def outline_edges():
+    """Edge.Cuts primitives: ('line', a, b) or ('arc', start, mid, end).
+
+    Top corners use PCB_CORNER_R; bottom corners use PCB_BOTTOM_R so the shell
+    side-arc carve can pull in (side-arc ergonomics spec).
+    """
+    x0, y0 = P.PCB_X, P.PCB_Y
+    x1, y1 = P.PCB_X + P.PCB_W, P.PCB_Y + P.PCB_H
+    rt = min(getattr(P, "PCB_CORNER_R", 2.0), P.PCB_W / 2 - 0.1, P.PCB_H / 2 - 0.1)
+    rb = min(getattr(P, "PCB_BOTTOM_R", rt), P.PCB_W / 2 - 0.1, P.PCB_H / 2 - 0.1)
+    # Notches force a polyline (no bottom arcs) — rare; SLIDE_NOTCH_D is 0.
+    if P.SLIDE_NOTCH_D > 1e-6 or (rt < 0.2 and rb < 0.2):
+        pts = outline_points()
+        return [("line", a, b) for a, b in zip(pts, pts[1:])]
+
+    edges = []
+    # CW from top edge, Y-down board coords.
+    # top-left arc centre
+    tl = (x0 + rt, y0 + rt)
+    tr = (x1 - rt, y0 + rt)
+    br = (x1 - rb, y1 - rb)
+    bl = (x0 + rb, y1 - rb)
+
+    def arc(c, a, b):
+        return ("arc", a, _arc_mid(c[0], c[1], a[0], a[1], b[0], b[1]), b)
+
+    # top edge
+    edges.append(("line", (tl[0], y0), (tr[0], y0)))
+    edges.append(arc(tr, (tr[0], y0), (x1, tr[1])))
+    # right edge
+    edges.append(("line", (x1, tr[1]), (x1, br[1])))
+    edges.append(arc(br, (x1, br[1]), (br[0], y1)))
+    # bottom edge
+    edges.append(("line", (br[0], y1), (bl[0], y1)))
+    edges.append(arc(bl, (bl[0], y1), (x0, bl[1])))
+    # left edge
+    edges.append(("line", (x0, bl[1]), (x0, tl[1])))
+    edges.append(arc(tl, (x0, tl[1]), (tl[0], y0)))
+    return edges
+
+
 def outline_sexpr():
-    pts = outline_points()
     parts = []
-    for a, b in zip(pts, pts[1:]):
-        parts.append(
-            "\t(gr_line\n"
-            "\t\t(start %s %s)\n"
-            "\t\t(end %s %s)\n"
-            "\t\t(stroke\n"
-            "\t\t\t(width 0.1)\n"
-            "\t\t\t(type default)\n"
-            "\t\t)\n"
-            "\t\t(layer \"Edge.Cuts\")\n"
-            "\t\t(uuid \"%s\")\n"
-            "\t)" % (a[0], a[1], b[0], b[1], _uid())
-        )
+    for edge in outline_edges():
+        if edge[0] == "line":
+            _, a, b = edge
+            parts.append(
+                "\t(gr_line\n"
+                "\t\t(start %s %s)\n"
+                "\t\t(end %s %s)\n"
+                "\t\t(stroke\n"
+                "\t\t\t(width 0.1)\n"
+                "\t\t\t(type default)\n"
+                "\t\t)\n"
+                "\t\t(layer \"Edge.Cuts\")\n"
+                "\t\t(uuid \"%s\")\n"
+                "\t)" % (a[0], a[1], b[0], b[1], _uid())
+            )
+        else:
+            _, a, m, b = edge
+            parts.append(
+                "\t(gr_arc\n"
+                "\t\t(start %s %s)\n"
+                "\t\t(mid %s %s)\n"
+                "\t\t(end %s %s)\n"
+                "\t\t(stroke\n"
+                "\t\t\t(width 0.1)\n"
+                "\t\t\t(type default)\n"
+                "\t\t)\n"
+                "\t\t(layer \"Edge.Cuts\")\n"
+                "\t\t(uuid \"%s\")\n"
+                "\t)" % (a[0], a[1], m[0], m[1], b[0], b[1], _uid())
+            )
     return "\n".join(parts)
 
 
@@ -341,14 +410,24 @@ def build_pcbnew():
         return fp
 
     board = pcbnew.CreateEmptyBoard()
-    pts = outline_points()
-    for a, b in zip(pts, pts[1:]):
+    for edge in outline_edges():
         seg = pcbnew.PCB_SHAPE(board)
-        seg.SetShape(pcbnew.SHAPE_T_SEGMENT)
-        seg.SetStart(at(*a))
-        seg.SetEnd(at(*b))
         seg.SetLayer(pcbnew.Edge_Cuts)
         seg.SetWidth(mm(0.1))
+        if edge[0] == "line":
+            _, a, b = edge
+            seg.SetShape(pcbnew.SHAPE_T_SEGMENT)
+            seg.SetStart(at(*a))
+            seg.SetEnd(at(*b))
+        else:
+            _, a, m, b = edge
+            seg.SetShape(pcbnew.SHAPE_T_ARC)
+            seg.SetStart(at(*a))
+            if hasattr(seg, "SetArcGeometry"):
+                seg.SetArcGeometry(at(*a), at(*m), at(*b))
+            else:
+                seg.SetMid(at(*m))
+                seg.SetEnd(at(*b))
         board.Add(seg)
 
     switches = [

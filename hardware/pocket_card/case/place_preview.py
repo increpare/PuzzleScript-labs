@@ -129,13 +129,54 @@ def place_caps():
           f"(clear {clr:.2f})")
 
 
+def assemble():
+    """One STEP/STL with front + back + PCB in shell model space (showable)."""
+    import shell_back
+
+    parts = []
+    front = shell_front.build()
+    back = shell_back.build_back()
+    parts.append(_as_shape(front))
+    parts.append(_as_shape(back))
+    _export(front, os.path.join(PREV, "shell_front.stl"))
+    _export(back, os.path.join(PREV, "shell_back.stl"))
+
+    step_in = os.path.join(PCB_DIR, "pocket_card_controller.step")
+    if not os.path.isfile(step_in):
+        step_in = os.path.join(PCB_DIR, "exported.step")
+    if os.path.isfile(step_in):
+        placed = kicad_pcb_to_model_space(cq.importers.importStep(step_in))
+        parts.append(_as_shape(placed))
+        _export(placed, os.path.join(PREV, "pcb.stl"))
+        _export(placed, os.path.join(PREV, "pcb.step"))
+    else:
+        print("WARN  no board STEP — assembly is shells only")
+
+    compound = cq.Compound.makeCompound(parts)
+    for folder, name in (
+        (PREV, "assembly.step"),
+        (PREV, "assembly.stl"),
+        (ORDER, "assembly.step"),
+        (ORDER, "assembly.stl"),
+    ):
+        _export(compound, os.path.join(folder, name))
+    bb = _bbox(compound)
+    print(f"assembly    {len(parts)} solids  "
+          f"X[{bb.xmin:.2f},{bb.xmax:.2f}] "
+          f"Y[{bb.ymin:.2f},{bb.ymax:.2f}] "
+          f"Z[{bb.zmin:.2f},{bb.zmax:.2f}]")
+    print(f"  -> {os.path.join(ORDER, 'assembly.step')}")
+
+
 def main():
     print(f"preview dir {PREV}")
     place_pcb()
     place_tips()
     place_caps()
+    assemble()
     print("drag from out/order/preview/ — already in shell model space")
     print("PCB also at out/pcb/exported_placed.stl (and out/order/pcb_placed.stl)")
+    print("full pack: out/order/assembly.step")
 
 
 if __name__ == "__main__":

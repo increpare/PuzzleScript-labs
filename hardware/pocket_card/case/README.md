@@ -115,6 +115,10 @@ All share the same frame as `shell_front.stl` / `shell_back.stl` — drag them i
 together. Prefer the `.step` compounds when you want selectable bodies in one
 file; STLs are one body per file so nothing gets fused.
 
+**Showable assembly** (front + back + PCB, one file):
+
+`out/order/assembly.step` (also `out/order/preview/assembly.step`)
+
 Power/mute slides are C&K **PCM12SMTR** (`SW_SPDT_PCM12`) with the official
 KiCad packages3D STEP — low profile (~1.5 mm body), no project stand-in needed.
 ([PCM series datasheet](https://datasheet.octopart.com/PCM12SMTR-ITT-datasheet-7274995.pdf))

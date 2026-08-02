@@ -39,9 +39,14 @@
 
 - [x] Cut both shells; bottom PCB fillet; regen STLs
 - [x] `checks.py` treats empty `EXTRA_BOSSES` as deferred INFO
-- [ ] Commit
+- [x] Commit
 
-### Task 4: Follow-up (not this PR)
+### Task 4: Showable pack (done on branch)
+
+- [x] KiCad outline with bottom arcs + `./build_pcb.sh` (0 unconnected)
+- [x] `place_preview.assemble()` → `out/order/assembly.step`
+- [x] Gerbers zip + BOM/CPL refreshed
+
+### Task 5: Follow-up (later)
 
 - Re-place lower screw posts; tune R on feel print
-- Regen KiCad outline/PCB if bottom fillet is kept (`build_pcb.sh`)
