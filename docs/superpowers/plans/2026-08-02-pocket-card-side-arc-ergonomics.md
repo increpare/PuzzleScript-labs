@@ -47,6 +47,8 @@
 - [x] `place_preview.assemble()` → `out/order/assembly.step`
 - [x] Gerbers zip + BOM/CPL refreshed
 
-### Task 5: Follow-up (later)
+### Task 5: Follow-up
 
-- Re-place lower screw posts; tune R on feel print
+- [x] Split-lip deeper tray (`LID_T=6`, shaped rim, USB in back) — see split-lip spec
+- [x] Re-place lower screw posts (`EXTRA_BOSSES` on right-strip PCB mounts)
+- [ ] Tune R / lip on feel print

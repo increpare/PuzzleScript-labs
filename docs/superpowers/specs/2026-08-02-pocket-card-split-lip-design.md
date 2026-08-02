@@ -1,7 +1,7 @@
 # Pocket Card — Split Lip / Deeper Back Tray
 
 Date: 2026-08-02  
-Status: agreed in design session; implementing for feel print.
+Status: implemented on branch `pocket-card-side-arc-ergonomics`.
 
 ## What this amends
 
