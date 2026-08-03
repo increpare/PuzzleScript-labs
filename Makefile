@@ -561,6 +561,7 @@ help:
 	@echo "  make handheld_p4_probe_capture     Capture, summarize, and gate monitor logs"
 	@echo "  make handheld_p4_probe_summarize   Summarize captured ESP32-P4 probe log (set ESP32P4_LOG=...)"
 	@echo "  make handheld_p4_probe_check_log   Fail if captured ESP32-P4 probe log has failures"
+	@echo "  make pocket_card_case              Rebuild Pocket Card shells + PCB (incl. 3D meshes)"
 	@echo "  make pocket_card_probe_build       Build Pocket Card ESP32-S3 runtime probe firmware"
 	@echo "  .\\scripts\\pocket_card_probe.ps1   Windows: build + flash in one command (-Port COM3)"
 	@echo "  make pocket_card_probe_flash       Flash Pocket Card probe (set POCKET_CARD_PORT=...)"
@@ -943,6 +944,22 @@ locality_survey:
 
 locality_survey_tests:
 	$(NODE) src/tests/locality_survey_node.js
+
+POCKET_CARD_CASE_DIR := hardware/pocket_card/case
+
+.PHONY: pocket_card_case pocket_card_case_shells
+
+# Full mechanical rebuild: controller PCB (outline, route, zones, kicad-cli
+# STL/STEP with footprint 3D models, placed into shell space) then front/back
+# shells, caps, tips, and the out/order assembly pack.
+pocket_card_case:
+	cd $(POCKET_CARD_CASE_DIR) && ./build_pcb.sh
+	cd $(POCKET_CARD_CASE_DIR) && .venv/bin/python build_variants.py
+
+# Shells + order pack only (skips freerouting / kicad-cli). Uses the PCB mesh
+# already in out/pcb/ when place_preview runs.
+pocket_card_case_shells:
+	cd $(POCKET_CARD_CASE_DIR) && .venv/bin/python build_variants.py
 
 pocket_card_contract_tests: build
 	$(NODE) hardware/pocket_card/test_pin_contract.js
