@@ -403,7 +403,6 @@ def build():
     shell = outer_body().cut(cavity())
     shell = shell.cut(screen_aperture())
     shell = _chamfer_aperture_lip(shell)
-    shell = shell.union(face_blister())
 
     stations = [
         (P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D, False),   # up
@@ -427,9 +426,14 @@ def build():
     shell = shell.union(pcb_posts())
     shell = shell.union(driver_pocket())
     shell = shell.cut(edge_openings())
-    shell = shell.cut(grille_slots())
     # Keep posts/collars from ever sitting outside the curved envelope.
+    # The face blister must come AFTER this: the envelope's front is flat at
+    # z=0, so clipping with the blister already on shaved the whole rise off
+    # and left a flat face with only the grille slots (looked like we'd
+    # abandoned the bump).
     shell = side_arc.clip_to_envelope(shell)
+    shell = shell.union(face_blister())
+    shell = shell.cut(grille_slots())
     return to_model_space(shell)
 
 

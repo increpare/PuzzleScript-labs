@@ -1171,6 +1171,18 @@ def check_face_bump_vs_buttons():
     if getattr(P, "FACE_BUMP_H", 0) <= 1e-9:
         print("   INFO  no face bump; skip")
         return
+    # The blister must actually exist on the built solid. clip_to_envelope used
+    # to run after the union and shave the whole rise off (envelope front is
+    # flat at z=0), leaving a flat face that still "passed" the plan check.
+    import shell_front
+    front = shell_front.build()
+    zmax = front.val().BoundingBox().zmax
+    ok = zmax >= P.FACE_BUMP_H - 0.05
+    print(f"   {'PASS' if ok else 'FAIL'}  blister stands on the face "
+          f"(zmax {zmax:.2f}, want >= {P.FACE_BUMP_H})")
+    if not ok:
+        FAILURES.append("face blister missing from solid (clipped?)")
+        return
     bw = P.DRIVER_W / 2 + P.FACE_BUMP_MARGIN
     bh = P.DRIVER_H / 2 + P.FACE_BUMP_MARGIN
     caps = [
