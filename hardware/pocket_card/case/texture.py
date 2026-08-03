@@ -112,6 +112,72 @@ def proud_skin(relief=None):
     return grown.cut(nominal)
 
 
+# The eight control stations, mirroring shell_front.build()'s own list. Third
+# element is the collar OUTER diameter the keep-out is measured from: the cap
+# head, plus the flange overshoot, plus the flange-to-collar clearance --
+# shell_front.button_station's own "bore_d" (the guide bore the flange rides
+# in), not the boss OD one COLLAR_WALL further out. Radial clearance from
+# each cap's own physical edge therefore works out to CAP_FLANGE_OS +
+# COLLAR_CLEAR + TEX_KEEPOUT for every round station (verified per-station
+# in test_texture.py, along with the pill's two different axis clearances).
+_COLLAR_OS = P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+
+STATIONS = [
+    (P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D + 2 * _COLLAR_OS),
+    (P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D + 2 * _COLLAR_OS),
+    (P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D + 2 * _COLLAR_OS),
+    (P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D + 2 * _COLLAR_OS),
+    (P.UNDO_X, P.UNDO_Y, P.AB_CAP_D + 2 * _COLLAR_OS),
+    (P.ACT_X, P.ACT_Y, P.AB_CAP_D + 2 * _COLLAR_OS),
+    (P.RESET_X, P.RESET_Y, P.RESET_CAP_D + 2 * _COLLAR_OS),
+    # The Menu control is a pill (PILL_L x PILL_W), not a circle. A circular
+    # island sized off the long axis over-covers the short axis, which is
+    # the safe direction to be wrong in -- the island is a keep-out, not a
+    # fit (see test_stations_and_islands for the actual short-axis margin).
+    (P.MENU_X, P.MENU_Y, P.PILL_L + 2 * _COLLAR_OS),
+]
+
+
+def button_islands(keepout=None):
+    """Smooth islands around every control, where relief is suppressed.
+
+    Caps emerge from an untextured panel still at nominal, so CAP_PROUD stays
+    exactly 1.0 rather than being reduced by a raised field around it. This is
+    also what stops the left field running into the d-pad's left cap the way
+    the old Blender field did (it reached x = 9.2 against a cap spanning
+    6.7-14.7).
+    """
+    k = float(P.TEX_KEEPOUT if keepout is None else keepout)
+    tall = P.BODY_T + 4 * P.TEX_RELIEF
+    wp = None
+    for x, y, d in STATIONS:
+        cyl = (cq.Workplane("XY")
+               .circle(d / 2 + k)
+               .extrude(-tall)
+               .translate((x, y, 2 * P.TEX_RELIEF)))
+        wp = cyl if wp is None else wp.union(cyl)
+    return wp
+
+
+def bottom_clear_slab(clear=None):
+    """Everything within `clear` of the flat bottom face.
+
+    The flat bottom is never textured -- relief fades out before it, as it
+    did in the Blender passes (their cutters stopped at z = -13.8 against a
+    back face at -15.7, that -15.7 being the north rib band's local depth,
+    not the general BODY_T floor). The slab's XY footprint is padded well
+    past the body on all sides, so it is not restricted to the flat middle:
+    anything at the right depth is covered regardless of (x, y), including
+    the rolled sides and the plan corners (verified in test_texture.py).
+    """
+    c = float(P.TEX_BOTTOM_CLEAR if clear is None else clear)
+    pad = 4.0
+    h = c + pad
+    return (cq.Workplane("XY")
+            .box(P.BODY_W + 2 * pad, P.BODY_H + 2 * pad, h, centered=False)
+            .translate((-pad, -pad, -P.BODY_T - pad)))
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     pitch = P.TEX_PIXEL_FINE

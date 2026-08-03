@@ -589,6 +589,169 @@ def test_proud_skin_deviation_map():
           f"max {max((t for _, t, _ in bad_wall), default=r):.4f}")
 
 
+def test_stations_and_islands():
+    print("keep-out islands")
+    import texture
+
+    check("eight button stations", len(texture.STATIONS) == 8,
+          f"got {len(texture.STATIONS)}")
+    check("every station is inside the body",
+          all(0 <= x <= P.BODY_W and 0 <= y <= P.BODY_H
+              for x, y, _ in texture.STATIONS))
+
+    islands = texture.button_islands()
+    check("islands have real volume", islands.val().Volume() > 1.0)
+
+    # the d-pad's left cap is the one the old blend field collided with
+    left_x = P.DIR_CX - P.DIR_RADIUS
+    hit = [s for s in texture.STATIONS if abs(s[0] - left_x) < 1e-6
+           and abs(s[1] - P.DIR_CY) < 1e-6]
+    check("d-pad left cap is a station", len(hit) == 1)
+    if hit:
+        _, _, d = hit[0]
+        check("its island clears the cap by TEX_KEEPOUT",
+              d / 2 + P.TEX_KEEPOUT > P.DIR_CAP_D / 2 + P.TEX_KEEPOUT - 1e-9)
+
+    # Per-station radial clearance, measured from each cap's OWN physical
+    # edge (island_radius - cap_radius), using the real per-station diameter
+    # rather than assuming one value for all eight. For every round station
+    # this works out to the same constant -- CAP_FLANGE_OS + COLLAR_CLEAR +
+    # TEX_KEEPOUT -- because that fit clearance is identical for every
+    # button regardless of its own diameter.
+    collar_os = P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+    round_specs = [
+        ("d-pad up", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D),
+        ("d-pad down", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D),
+        ("d-pad left", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
+        ("d-pad right", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
+        ("undo", P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+        ("action", P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+        ("reset", P.RESET_X, P.RESET_Y, P.RESET_CAP_D),
+    ]
+    for name, x, y, cap_d in round_specs:
+        matches = [s for s in texture.STATIONS
+                   if abs(s[0] - x) < 1e-6 and abs(s[1] - y) < 1e-6]
+        check(f"{name} is a station", len(matches) == 1, name)
+        if not matches:
+            continue
+        _, _, station_d = matches[0]
+        island_r = station_d / 2 + P.TEX_KEEPOUT
+        clearance = island_r - cap_d / 2
+        check(f"{name} clears its own cap edge by COLLAR_OS + TEX_KEEPOUT",
+              abs(clearance - (collar_os + P.TEX_KEEPOUT)) < 1e-9,
+              f"{clearance:.3f} mm")
+
+    # Menu pill: circular island sized off PILL_L, so long-axis clearance
+    # matches every round button; short-axis clearance is necessarily much
+    # bigger -- over-covering the short axis is the safe direction to be
+    # wrong in, but the actual margin is worth stating explicitly.
+    menu = [s for s in texture.STATIONS
+            if abs(s[0] - P.MENU_X) < 1e-6 and abs(s[1] - P.MENU_Y) < 1e-6]
+    check("menu pill is a station", len(menu) == 1)
+    if menu:
+        _, _, menu_d = menu[0]
+        island_r = menu_d / 2 + P.TEX_KEEPOUT
+        clear_long = island_r - P.PILL_L / 2
+        clear_short = island_r - P.PILL_W / 2
+        print(f"   menu pill clearance: long axis {clear_long:.3f} mm, "
+              f"short axis {clear_short:.3f} mm (PILL_L={P.PILL_L}, "
+              f"PILL_W={P.PILL_W})")
+        check("menu pill long-axis clearance matches the round buttons",
+              abs(clear_long - (collar_os + P.TEX_KEEPOUT)) < 1e-9,
+              f"{clear_long:.3f} mm")
+        check("menu pill short-axis clearance is larger (safe over-cover)",
+              clear_short > clear_long,
+              f"{clear_short:.3f} vs {clear_long:.3f}")
+
+    # Against real geometry: every station's island must actually reach the
+    # proud skin -- an island that floats above or below the surface it is
+    # meant to mask would pass every check above and silently mask nothing.
+    # For each station, isolate the skin material directly over that (x, y)
+    # with a thin probe rod and confirm the island removes ALL of it
+    # (residue ~ 0). A control point far from any station confirms the
+    # technique can actually tell "covered" from "not covered": the residue
+    # there should be (approximately) the whole probed skin volume.
+    skin = texture.proud_skin()
+
+    def _residue_at(x, y):
+        rod = (cq.Workplane("XY").circle(0.3).extrude(-200)
+               .translate((x, y, 100)))
+        skin_col = rod.intersect(skin)
+        col_vals = skin_col.vals()
+        col_vol = sum(v.Volume() for v in col_vals) if col_vals else 0.0
+        residue = skin_col.cut(islands)
+        res_vals = residue.vals()
+        res_vol = sum(v.Volume() for v in res_vals) if res_vals else 0.0
+        return col_vol, res_vol
+
+    for i, (x, y, d) in enumerate(texture.STATIONS):
+        col_vol, res_vol = _residue_at(x, y)
+        check(f"station {i} at ({x:.1f}, {y:.1f}) has skin material there",
+              col_vol > 1e-6, f"{col_vol:.4f} mm^3")
+        check(f"station {i} island fully swallows the local skin",
+              res_vol < 1e-6, f"residue {res_vol:.4f} mm^3")
+
+    ctrl_col, ctrl_res = _residue_at(70.0, 20.0)
+    check("control point far from any station is NOT swallowed "
+          "(proves the residue check can tell covered from uncovered)",
+          ctrl_res > 0.5 * ctrl_col, f"{ctrl_res:.4f} of {ctrl_col:.4f}")
+
+
+def test_bottom_clear():
+    print("bottom clear band")
+    import side_arc
+    import texture
+
+    slab = texture.bottom_clear_slab()
+    sb = slab.val().BoundingBox()
+    check("slab is TEX_BOTTOM_CLEAR thick (plus margin for the roll)",
+          sb.zlen >= P.TEX_BOTTOM_CLEAR,
+          f"{sb.zlen:.2f} vs {P.TEX_BOTTOM_CLEAR:.2f}")
+    check("slab sits at the bottom of the body",
+          sb.zmin <= -P.BODY_T + 1e-6, f"zmin {sb.zmin:.2f}")
+
+    # Against real geometry: intersect with the nominal envelope and confirm
+    # the covered band spans nearly the full plan footprint, not just a
+    # patch in the flat middle. A slab restricted in XY would still pass
+    # both Z-only checks above and silently miss the rolled sides.
+    nominal = side_arc._envelope(0.0)
+    mask = cq.Workplane(nominal).intersect(slab)
+    mb = mask.val().BoundingBox()
+    check("clear band covers nearly the full width",
+          mb.xlen > P.BODY_W - 5.0, f"{mb.xlen:.2f} vs {P.BODY_W:.2f}")
+    check("clear band covers nearly the full height",
+          mb.ylen > P.BODY_H - 5.0, f"{mb.ylen:.2f} vs {P.BODY_H:.2f}")
+
+    # Explicit probes on the ROLLED surface itself, not the flat middle:
+    # near both side walls, near two rounded plan corners. Each ray-casts
+    # the nominal envelope from directly below (same real-OCC intersector
+    # technique as the proud-skin probes above); the first hit is the
+    # outward back-facing surface at that (x, y), flat or rolled.
+    from OCP.gp import gp_Dir, gp_Lin, gp_Pnt
+    from OCP.IntCurvesFace import IntCurvesFace_ShapeIntersector
+
+    def _back_z_at(x, y):
+        isec = IntCurvesFace_ShapeIntersector()
+        isec.Load(nominal.wrapped, 1e-6)
+        isec.Perform(gp_Lin(gp_Pnt(x, y, -200.0), gp_Dir(0, 0, 1)), 0.0, 1e6)
+        if not isec.IsDone() or isec.NbPnt() == 0:
+            return None
+        i = min(range(1, isec.NbPnt() + 1), key=lambda k: isec.WParameter(k))
+        return isec.Pnt(i).Z()
+
+    probes = [
+        ("near west wall, on the roll", 2.0, P.BODY_H / 2),
+        ("near east wall, on the roll", P.BODY_W - 2.0, P.BODY_H / 2),
+        ("near a rounded plan corner", 5.0, 5.0),
+        ("near the opposite plan corner", P.BODY_W - 5.0, P.BODY_H - 5.0),
+    ]
+    for name, x, y in probes:
+        z = _back_z_at(x, y)
+        check(f"{name}: back surface point falls inside the clear slab",
+              z is not None and sb.zmin - 1e-6 <= z <= sb.zmax + 1e-6,
+              f"z={z}")
+
+
 def main():
     test_tile_shape()
     test_pitches()
@@ -601,6 +764,8 @@ def main():
     test_proud_skin_thickness_probe()
     test_edge_chamfer_band_thickness()
     test_proud_skin_deviation_map()
+    test_stations_and_islands()
+    test_bottom_clear()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")
