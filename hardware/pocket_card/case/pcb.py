@@ -248,8 +248,8 @@ def outline_edges():
     nx = getattr(P, "PCB_DRIVER_NOTCH_X", None)
     ny = getattr(P, "PCB_DRIVER_NOTCH_Y", None)
     if nx is not None and ny is not None:
-        # Driver notch: the whole bottom-right corner goes (the driver's back
-        # dips 0.5 mm below the board-front plane). Swallows the old BR arc.
+        # Optional board cutout: the whole bottom-right corner goes, swallowing
+        # the normal bottom-right arc.
         r = min(getattr(P, "PCB_NOTCH_R", 2.0), 4.0)
         c = (nx + r, ny + r)   # concave corner fillet centre
         edges.append(("line", (x1, tr[1]), (x1, ny)))

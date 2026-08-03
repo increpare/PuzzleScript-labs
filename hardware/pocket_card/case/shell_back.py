@@ -140,10 +140,6 @@ def driver_housing():   # NO LONGER USED -- the driver lives in the front shell
     return ring
 
 
-def driver_backstop():
-    """retired — driver on PCB under face blister."""
-
-
 MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK       # 7.50
 
 
@@ -237,8 +233,6 @@ def build_back():
     crop = interior_crop()
     s = lid()
     materials = [battery_fence(), pcb_support_rib(), pcb_support_pads()]
-    if P.PCB_DRIVER_NOTCH_X is not None:
-        materials.append(driver_backstop())
     materials.extend(j.material() for j in js)
     for m in materials:
         s = s.union(m.intersect(crop))
@@ -252,9 +246,8 @@ def build_back():
 def pcb_outline_wire():
     """Controller outline; larger bottom radii free lower side-wall carve.
 
-    Bottom-right corner is notched away for the driver: the board front sits
-    at 4.5 and the 3.5 mm driver reaches 5.0, so it must dip through the board
-    plane. Keep in sync with pcb.outline_edges (fab Edge.Cuts).
+    Keep in sync with pcb.outline_edges (fab Edge.Cuts). The current centered
+    driver mounts above the intact board under the front-shell blister.
     """
     board = (cq.Workplane("XY")
              .box(P.PCB_W, P.PCB_H, 1.6, centered=(False, False, False))

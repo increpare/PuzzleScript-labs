@@ -527,25 +527,26 @@ def check_pcb_support():
 def check_pcb_mounts():
     """Mounting holes must sit on board material and clear of the cell.
 
-    Guards a bug the owner found: when the driver became rectangular the notch
-    grew, and H2 at (80, 72) ended up inside it -- a mounting hole floating in
-    empty space where the board had been cut away. Nothing else looked at it.
+    If a driver notch is enabled, it must also clear the mounting holes. With
+    the driver on the PCB under the face blister there is no notch, so that
+    retired constraint must not reject valid board material.
     """
     print("\nPCB mounting holes")
-    nx0 = P.GRILLE_X - P.DRIVER_W / 2 - 0.8
-    ny0 = P.GRILLE_Y - P.DRIVER_H / 2 - 0.8
+    notch_x = getattr(P, "PCB_DRIVER_NOTCH_X", None)
+    notch_y = getattr(P, "PCB_DRIVER_NOTCH_Y", None)
     r = P.PCB_MOUNT_D / 2 + 0.5
     fence_x0 = P.BATT_X - P.BATT_CLEAR - 1.2
     fence_x1 = P.BATT_X + P.CELL_W + P.BATT_CLEAR + 1.2
     for i, (hx, hy) in enumerate(P.PCB_MOUNTS, start=1):
         on_board = (P.PCB_X + r <= hx <= P.PCB_X + P.PCB_W - r
                     and P.PCB_Y + r <= hy <= P.PCB_Y + P.PCB_H - r)
-        in_notch = (hx + r >= nx0 and hy + r >= ny0)
+        in_notch = (notch_x is not None and notch_y is not None
+                    and hx + r >= notch_x and hy + r >= notch_y)
         # either side of the cell is fine; the check previously assumed only
         # the right-hand strip existed, and rejected the new left-hand pillars
         off_cell = (hx - r >= fence_x1) or (hx + r <= fence_x0)
         ok = on_board and not in_notch and off_cell
-        why = ("in the driver notch" if in_notch else
+        why = ("in a board cutout" if in_notch else
                "off the board" if not on_board else
                "over the cell" if not off_cell else "ok")
         print(f"   {'PASS' if ok else 'FAIL'}  H{i} at ({hx}, {hy}){'':4} {why}")
@@ -581,16 +582,28 @@ def check_interior_fit():
         if not ok:
             FAILURES.append(name)
 
-    # Compare the driver BODY, not its back-shell retaining ring: the ring lives
-    # at z -10.8..-12.8 on the lid while the Reset collar is at 0..-3.5 on the
-    # front shell, so they never meet. The driver body does span the collar's
-    # depth, so that is the pair that matters.
-    gap = (P.GRILLE_X - P.DRIVER_W / 2) - (P.RESET_X + P.RESET_CAP_D / 2 +
-                                           P.CAP_FLANGE_OS + P.COLLAR_CLEAR + 1.2)
-    ok = gap >= 0
-    print(f"   {'PASS' if ok else 'FAIL'}  {'driver vs Reset cap':18} clearance {gap:+.2f} mm")
-    if not ok:
-        FAILURES.append("driver vs Reset")
+    # The center driver is nowhere near Reset. U1 moved into the driver's old
+    # bottom-right seat, where it must instead clear Reset and the edge-mounted
+    # mute switch. Use the actual SOIC pad envelope and PCM12 pad envelope,
+    # expanded by a 1 mm courtyard, rather than the obsolete driver body.
+    u1_half_x, u1_half_y = 4.65 + 2.05 / 2 + 1.0, 8.255 + 0.6 / 2 + 1.0
+    controls = (
+        ("U1 vs Reset", P.RESET_X, P.RESET_Y, 5.2 / 2 + 1.0, 5.2 / 2 + 1.0),
+        ("U1 vs Mute", P.MUTE_SW_X, P.MUTE_SW_Y,
+         3.65 + 1.0 / 2 + 1.0, 2.18 + 1.0),
+    )
+    for name, cx, cy, half_x, half_y in controls:
+        dx = max(abs(P.U1_X - cx) - u1_half_x - half_x, 0.0)
+        dy = max(abs(P.U1_Y - cy) - u1_half_y - half_y, 0.0)
+        gap = math.hypot(dx, dy)
+        if dx == 0.0 and dy == 0.0:
+            gap = -min(u1_half_x + half_x - abs(P.U1_X - cx),
+                       u1_half_y + half_y - abs(P.U1_Y - cy))
+        ok = gap >= 0
+        print(f"   {'PASS' if ok else 'FAIL'}  {name:18} courtyard clearance "
+              f"{gap:+.2f} mm")
+        if not ok:
+            FAILURES.append(name)
 
     # Fixings coverage. Guards the gap the owner found: all four original
     # bosses borrow the module's holes and sit in the upper 50 mm, leaving the

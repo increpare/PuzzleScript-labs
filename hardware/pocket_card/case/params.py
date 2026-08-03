@@ -233,7 +233,7 @@ MENU_ANGLE       = 0.0             # DECIDED  straight, not slanted like the DMG
 # so an arrow stays upright.
 
 # ------------------------------------------------- lower zone layout ------
-# Battery pushed hard left so the bottom-right corner is free for the driver.
+# Battery pushed hard left to reserve right-side PCB space for connectors.
 BATT_X, BATT_Y = 9.0, 55.0         # DECIDED  cell origin
                                    # 4.0 not 3.0: at 3.0 the retaining
                                    # fence fouled the front shell wall
@@ -247,10 +247,9 @@ PCB_X, PCB_Y   = 2.5, 53.0
 PCB_W, PCB_H   = 80.5, 37.0
 
 # Edge switches, on the bottom rail of the controller PCB
-# PCB mounting screws. Both must land on actual board material -- the driver
-# notch removes the whole bottom-right corner -- and off the cell, since a screw
-# head protruding into a lithium pouch is a puncture risk. That leaves a narrow
-# strip between the cell fence (x <= 60.8) and the notch (x >= 68.2).
+# PCB mounting screws must land on actual board material and stay off the cell,
+# since a screw head protruding into a lithium pouch is a puncture risk. They
+# occupy the strip to the right of the cell fence.
 # PCB mounts (approach A): thin pins from the FRONT through the board holes;
 # wide shoulders on the BACK shell that the PCB rests on (with a bore for the
 # pin tip). A rear flare on the front shell made the board impossible to seat.
@@ -355,19 +354,16 @@ SLIDE_CUT_Z = TIP_SLOT_Z
 # Cell fence ends near BATT_X + CELL_W + BATT_CLEAR ≈ 59.6; cluster sits in the
 # open band left of the driver and right of the cell.
 #
-# "Driver XY overlap on B.Cu is fine" stopped being true when the low-profile
-# switch pulled the board to 4.5: the driver now dips through the board plane
-# and the bottom-right corner is notched away (PCB_DRIVER_NOTCH_*), so nothing
-# may live at x>=68.2, y>=69. BAT_OUT (was 78,76 — inside the notch) moved to
-# the north band. All pairwise pitches >= 9 (checks). Connectors are plugged
-# before the board is seated, so on-stack runway is rework-only.
+# The low-profile switch pulled the board to 4.5, so connectors occupy the
+# right-rear region while the driver moved to the center under the face
+# blister. All pairwise pitches >= 9 (checks). Connectors are plugged before
+# the board is seated, so on-stack runway is rework-only.
 # rot=180 pointed mouths at the bottom edge (away from the module); 0 flips them.
 #
 # The module carries sockets flush with its own edge at the board's north
 # side, so B.Cu courtyards keep CONN_NORTH_CLEAR off that edge. BAT_OUT is
-# wedged between that rule, H1's land, I2C's courtyard, the 9 mm pitch to
-# EXP, and the notch — EXP sits at its south limit (1.0 mm off the notch
-# line) to make the pitch work.
+# wedged between that rule, H1's land, I2C's courtyard, and the 9 mm pitch to
+# EXP.
 CONN_NORTH_CLEAR = 3.0        # ASSUMED  courtyard to board north edge
 CONN_I2C     = (63.0, 63.0)   # ASSUMED  4P GH
 CONN_EXP     = (78.0, 65.6)   # ASSUMED  4P GH, at south limit vs notch
@@ -612,17 +608,11 @@ SCREW_SOUTH = dict(  # south module + both controller PCB mounts
 # 1.5), leaving only 3.0 mm face->board — the 3.5 mm driver no longer fits ON
 # the board. Center-gap experiment (2026-08): grille in the button gap, driver
 # in a face blister on the PCB front — no BR corner notch.
-# (Retired notch coords: PCB_DRIVER_NOTCH_X=68.2, PCB_DRIVER_NOTCH_Y=69.0.)
+# Retained as explicit None values so downstream generators can assert the
+# board remains unnotched.
 PCB_DRIVER_NOTCH_X = None
 PCB_DRIVER_NOTCH_Y = None
 PCB_NOTCH_R        = 2.0    # ASSUMED  inner-corner radius (mill/stress)
-
-# With the board gone under the driver, a pedestal from the back-shell floor
-# rises through the notch void and stops just behind the driver's back: it
-# catches the driver on impact without preloading it (pressure would peel the
-# face adhesive the driver hangs from).
-DRIVER_BACKSTOP_D   = 10.0  # DECIDED  disc under the magnet, inside the notch
-DRIVER_BACKSTOP_CLR = 0.3   # ASSUMED  gap to driver back: catch, don't press
 
 # between them. DRIVER_W/H are the bounding box; DRIVER_PILL says how to draw it.
 # Long axis VERTICAL here, unlike the blend, which is the older `card` case.
