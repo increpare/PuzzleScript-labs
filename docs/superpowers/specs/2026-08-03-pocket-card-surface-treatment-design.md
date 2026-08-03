@@ -118,7 +118,10 @@ flat cutters per face:
 
 ```
 proud_skin = outer_solid_offset_outward_by_relief.cut(outer_solid)
-textured   = outer_solid.union(brick_prisms.intersect(proud_skin))
+bond_skin  = outer_solid_offset_outward_by_relief.cut(
+                outer_solid_offset_inward_by_root_overlap)
+textured   = outer_solid.union(
+                brick_prisms.intersect(bond_skin).cut(hard_keepouts))
 ```
 
 so relief stays constant measured **perpendicular to the surface**, regardless
@@ -130,6 +133,38 @@ In-plane foreshortening on the roll and at the `CASE_TOP_R = 7.5` /
 a curve is what brickwork does. Revisit only if a print looks wrong; the
 fallback is splitting the extrusion (radial in plan for the perimeter zone,
 −z for the flat face, meeting near 45°).
+
+#### Construction-only root overlap
+
+Decided 2026-08-04, during front-shell integration.
+
+The mathematical `proud_skin` remains the exact outside-only reference used to
+measure relief thickness. It touches the nominal shell at a zero-volume
+boundary. OCC does not reliably fuse hundreds of disconnected solids that only
+touch that boundary: the first front integration produced 135 detached relief
+solids, including 89 genuinely floating over final openings and 46 tangent but
+unfused to the shell. A fuzzy union still left 48 solids.
+
+Shell integration therefore uses `bond_skin`, which extends the root of every
+brick `TEX_ROOT_OVERLAP = 0.05 mm` inside the nominal envelope along the same
+surface-normal offset used for the proud skin. That 0.05 mm lies wholly inside
+material the shell already owns, so it disappears into the boolean union: it
+does not change the exterior, thin a wall, enter the cavity or lap void, or
+alter the measured `TEX_RELIEF` height. Its only purpose is to give OCC real
+shared volume so the textured shell is one printable solid.
+
+Keep `proud_skin()` outside-only and keep its thickness/deviation tests
+unchanged. `relief_for_zone` may request the root overlap for shell integration;
+standalone geometry tests may continue to use zero overlap when they need the
+pure proud skin.
+
+Rejected alternatives:
+
+- **Fuzzy union of tangent solids:** empirically unreliable; 48 solids remained.
+- **Translate roots along −z:** only points inward on the flat front. It is
+  tangential or wrong on rolled walls and failed OCC cleanup in the front probe.
+- **Extrude deep roots into the enclosure:** would couple decoration to wall,
+  cavity and lap geometry rather than using the existing parallel envelope.
 
 #### Accepted deviation from constant thickness — the rib blend
 
@@ -188,6 +223,11 @@ model takes one boolean rather than several hundred box booleans. Remesh BLOCKS
 is dropped entirely — parametric geometry is already crisp, and the remesh only
 quantised clean rectangles onto an accidental grid.
 
+Adjacent `#` pixels are one connected land before extrusion and chamfering. In
+the declared tile, each pair of identical four-pixel rows is therefore one
+`4 × 2` brick, not two separately chamfered `4 × 1` strips. The one-pixel
+mortar course and the one-pixel running-bond offset remain separate.
+
 Brick tops get a 0.2 mm chamfer, matching the existing `logo` bevel, so proud
 edges do not feel sharp in the hand.
 
@@ -201,6 +241,7 @@ New, in `params.py`:
 | `TEX_PIXEL_FINE` | 1.0 | DECIDED — front face |
 | `TEX_PIXEL_COARSE` | 0.5 | DECIDED — walls, back roll |
 | `TEX_RELIEF` | 0.40 | ASSUMED — coupon settles it |
+| `TEX_ROOT_OVERLAP` | 0.05 | DECIDED — construction-only boolean bond |
 | `TEX_TOP_CHAMFER` | 0.2 | DECIDED — matches `logo` bevel |
 | `TEX_KEEPOUT` | 1.0 | ASSUMED — from cap collar OD, see below |
 | `TEX_ORIGIN` | shared (x, y) | DECIDED — split registration |
@@ -223,8 +264,9 @@ tighten it only if the island reads as too dominant.
 - No relief over the USB-C opening, mute/power tip slots, or speaker grille.
 - Relief must not reduce wall anywhere. Proud construction makes this trivially
   true, but `checks.py` should assert it rather than assume it.
-- Relief must not intrude into the lap engagement — it is added outside the
-  skirt, never inside it.
+- Visible relief and newly occupied space must not intrude into the lap
+  engagement. `TEX_ROOT_OVERLAP` may enter existing skirt material only; after
+  union it adds nothing to the interior or lap void.
 
 ### Soft
 
@@ -253,6 +295,12 @@ Add to `checks.py`, against the exported STL:
    between `shell_front` and `shell_back`.
 6. Envelope assertions updated to allow envelope + `TEX_RELIEF` in textured
    zones, so proud geometry does not read as an envelope violation.
+7. Each integrated shell is exactly one valid solid; no tangent or floating
+   relief components remain.
+8. The screen aperture/chamfer, grille, edge slots and connector openings remain
+   empty after relief union, not merely after the nominal shell was cut.
+9. The root overlap is no deeper than `TEX_ROOT_OVERLAP`, while the exterior
+   surface and measured relief height match the zero-overlap construction.
 
 ## Blender
 
