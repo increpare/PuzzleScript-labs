@@ -62,11 +62,36 @@ def test_origin():
           0 <= P.TEX_ORIGIN[0] <= P.BODY_W and 0 <= P.TEX_ORIGIN[1] <= P.BODY_H)
 
 
+def test_outward_envelope():
+    print("outward envelope offset")
+    import side_arc
+
+    nominal = side_arc._envelope(0.0)
+    grown = side_arc._envelope(-P.TEX_RELIEF)
+
+    nb = nominal.BoundingBox()
+    gb = grown.BoundingBox()
+    r = P.TEX_RELIEF
+
+    check("grown envelope is wider by 2x relief",
+          abs(gb.xlen - (nb.xlen + 2 * r)) < 0.05,
+          f"{gb.xlen:.3f} vs {nb.xlen + 2 * r:.3f}")
+    check("grown envelope is taller by 2x relief",
+          abs(gb.ylen - (nb.ylen + 2 * r)) < 0.05,
+          f"{gb.ylen:.3f} vs {nb.ylen + 2 * r:.3f}")
+    check("grown envelope has more volume",
+          grown.Volume() > nominal.Volume(),
+          f"{grown.Volume():.0f} vs {nominal.Volume():.0f}")
+    check("inward offset still works",
+          side_arc._envelope(P.WALL).Volume() < nominal.Volume())
+
+
 def main():
     test_tile_shape()
     test_pitches()
     test_relief_budget()
     test_origin()
+    test_outward_envelope()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")

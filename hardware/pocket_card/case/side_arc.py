@@ -36,6 +36,10 @@ def _plan_solid(inset: float, extra: float = 0.0) -> cq.Shape:
     """Box with the four vertical corners rounded (plan-view outline).
 
     ``extra`` deepens the back only, for the north rib's envelope.
+
+    ``inset`` may be NEGATIVE, which grows the outline outward and enlarges
+    both plan radii to match — a true parallel offset. texture.proud_skin uses
+    that to build the outer skin the surface relief lives in.
     """
     from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
 
@@ -193,10 +197,16 @@ def _envelope(inset: float = 0.0) -> cq.Shape:
             except Exception:
                 pass
 
+    # A NEGATIVE inset grows the envelope outward -- that is how proud surface
+    # relief gets its constant-thickness skin (texture.proud_skin). The guards
+    # below must allow for that growth, or the skin build trips "exploded".
+    grow = max(0.0, -inset)
     bb = solid.BoundingBox()
-    if bb.zlen > P.BODY_T + P.RIB_H + 0.5 or bb.xlen > P.BODY_W + 0.5:
+    if (bb.zlen > P.BODY_T + P.RIB_H + grow + 0.5
+            or bb.xlen > P.BODY_W + 2 * grow + 0.5):
         raise RuntimeError(
             f"envelope exploded: bbox {bb.xlen:.1f}x{bb.ylen:.1f}x{bb.zlen:.1f}")
+    # Same formula reads correctly for negative inset: every term grows.
     brick = (P.BODY_W - 2 * inset) * (P.BODY_H - 2 * inset) * (P.BODY_T - inset)
     if solid.Volume() < 0.85 * brick:
         raise RuntimeError(
