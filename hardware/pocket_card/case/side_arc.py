@@ -209,9 +209,25 @@ def _envelope(inset: float = 0.0) -> cq.Shape:
         # Front perimeter only — the back has no sharp edge left to chamfer.
         ch = getattr(P, "EDGE_CHAMFER", 0) or 0
         if ch > 0:
+            # For a negative inset (the grown envelope proud_skin builds),
+            # the un-chamfered front/wall corner has already moved by
+            # (-inset) along the bevel's own 45-degree normal (that is
+            # exactly what makes the flats a true offset — see
+            # _plan_solid's docstring). Reusing the same leg length here
+            # would leave the two bevel PLANES (-inset)*sqrt(2) apart
+            # instead of (-inset) apart, measured perpendicular to the
+            # bevel: verified this was previously wrong the other way
+            # around (leg unchanged: leg=0.8 -> band measured 0.5657 mm
+            # instead of 0.4000, since sqrt(2) > 1). Growing the leg by
+            # (-inset)*(2 - sqrt(2)) is the correct compensation for a
+            # 45-degree bevel: it makes the grown bevel plane land exactly
+            # (-inset) mm outside the nominal one, confirmed by direct
+            # raycast probe (test_edge_chamfer_band_thickness).
+            grow = max(0.0, -inset)
+            leg = ch + grow * (2 - math.sqrt(2))
             try:
                 solid = (cq.Workplane(solid).faces(">Z").edges()
-                         .chamfer(ch).val())
+                         .chamfer(leg).val())
             except Exception:
                 pass
 

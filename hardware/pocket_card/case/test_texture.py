@@ -305,6 +305,20 @@ def _skin_thickness_at(nominal, grown, probe_origin, probe_dir):
 
 
 def test_proud_skin_thickness_probe():
+    """Perpendicular-thickness probe at named, well-understood locations.
+
+    Each point below sits in a region the surrounding geometry (chamfer,
+    rib blend) is known NOT to touch, so this test asserts an exact
+    TEX_RELIEF reading everywhere it samples. It is deliberately narrow: it
+    proves the mechanism works at representative points on every kind of
+    surface (flat front, flat wall, three separate roll fillets, plan
+    corner), not that the WHOLE skin is uniform -- two real, localized
+    deviations exist elsewhere (the front-perimeter chamfer band, now fixed
+    and locked by test_edge_chamfer_band_thickness; and the rib-blend band
+    on the back/wall, NOT fixed and characterised instead by
+    test_proud_skin_deviation_map's grid sweep, which is what actually
+    verifies "no deviation anywhere unaccounted for").
+    """
     print("proud skin thickness probe (perpendicular to local surface)")
     import side_arc
 
@@ -325,29 +339,56 @@ def test_proud_skin_thickness_probe():
           t is not None and abs(t - r) < tol, f"{t}")
 
     # A straight side-wall run (west wall), mid-height -- clear of the front
-    # chamfer band and the back roll.
+    # chamfer band, the back roll, and the rib-blend y-band (RIB_Y..RIB_Y2).
     t = _skin_thickness_at(nominal, grown,
                             (-100, P.BODY_H / 2, -5), (1, 0, 0))
     check("skin is TEX_RELIEF thick on a side wall",
           t is not None and abs(t - r) < tol, f"{t}")
 
-    # Partway round the side-arc back roll (the BACK_ROLL_SIDE band, west
-    # wall near the back). This is the coverage for carry-forward item 2:
-    # side_arc._roll_radius_at's "P.BACK_ROLL_* - inset" terms have no
-    # radius-sensitive test elsewhere, and _envelope(-r) is the first caller
-    # to ever invoke them with a negative inset. Verified by hand: dropping
-    # the "- inset" term from all three branches (so the grown envelope's
-    # roll fillet uses the un-grown BACK_ROLL_SIDE radius) moves this exact
-    # reading from 0.4000 to 0.4829 mm -- 0.083 mm off, 8x this test's
-    # tolerance, so a dropped term here does not slip through silently.
+    # Three separate probes, one per branch of side_arc._roll_radius_at
+    # (carry-forward item 2). side_arc._envelope(-r) is the first caller
+    # ever to invoke that function with a negative inset, and it has no
+    # other radius-sensitive coverage. A single mutation dropping all three
+    # "- inset" terms at once is not enough evidence that each BRANCH is
+    # individually exercised, so each was verified separately by hand:
+    # copy side_arc.py, drop "- inset" from exactly one branch, rebuild
+    # nominal/grown from that copy, and confirm ONLY the matching probe
+    # below moves outside `tol` while the other two stay at 0.4000:
+    #
+    #   branch dropped   north probe   south probe   side probe
+    #   BACK_ROLL_N       0.5636 <--     0.4000        0.4000
+    #   BACK_ROLL_S       0.4000         0.5427 <--     0.4000
+    #   BACK_ROLL_SIDE    0.4000         0.4000        0.4829 <--
+    #
+    # Each deviation is 8-14x this test's 0.01 mm tolerance and lands only
+    # on its own branch's probe, so a dropped term in any one branch alone
+    # does not slip through.
+
+    # North roll (BACK_ROLL_N), mid-width, well into the rib's full-depth
+    # plateau (x = 45, north of RIB_Y) so the fillet being probed is
+    # unambiguously the back-perimeter roll, not the rib blend.
+    t = _skin_thickness_at(nominal, grown, (45.0, -100.0, -115.0), (0, 1, 1))
+    check("skin is TEX_RELIEF thick on the north back roll (BACK_ROLL_N)",
+          t is not None and abs(t - r) < tol, f"{t}")
+
+    # South roll (BACK_ROLL_S), mid-width, south of the rib blend entirely.
+    t = _skin_thickness_at(nominal, grown, (45.0, 193.0, -112.0), (0, -1, 1))
+    check("skin is TEX_RELIEF thick on the south back roll (BACK_ROLL_S)",
+          t is not None and abs(t - r) < tol, f"{t}")
+
+    # Side roll (BACK_ROLL_SIDE), west wall mid-height, partway round the
+    # fillet. The local normal there measures ~15 degrees off the flat
+    # wall's normal (not "45 degrees into the fillet" as an earlier draft
+    # of this report claimed) -- still squarely on the curved roll surface,
+    # just close to the wall-tangent end of it rather than the middle.
     t = _skin_thickness_at(nominal, grown,
                             (-100, P.BODY_H / 2, -9.05 - 100), (1, 0, 1))
-    check("skin is TEX_RELIEF thick on the side-arc back roll",
+    check("skin is TEX_RELIEF thick on the side back roll (BACK_ROLL_SIDE)",
           t is not None and abs(t - r) < tol, f"{t}")
 
     # Near a plan corner (south-west, CASE_BOTTOM_R), mid-depth -- clear of
-    # both the front chamfer and the back roll, so this isolates the plan
-    # corner radius growth on its own.
+    # the front chamfer, the back roll, and the rib-blend y-band, so this
+    # isolates the plan corner radius growth on its own.
     rb = P.CASE_BOTTOM_R
     cx, cy = rb, P.BODY_H - rb
     ox, oy = cx - 70.7, cy + 70.7
@@ -360,50 +401,192 @@ def test_edge_chamfer_band_thickness():
     """Carry-forward item 1: what grown.cut(nominal) does at EDGE_CHAMFER.
 
     side_arc._envelope's EDGE_CHAMFER branch (`if inset <= 1e-9`) fires for
-    BOTH inset = 0.0 (nominal) and inset = -TEX_RELIEF (grown), applying the
-    same 0.8 mm 45-degree chamfer leg to each. The two chamfered corners
-    themselves are offset from each other by (dx, dz) = (-r, +r) before any
-    chamfering happens -- a vector that points exactly along the chamfer
-    bevel's own 45-degree normal. Chamfering both corners with the same leg
-    length clips material near each corner symmetrically but does not change
-    the gap between the two (now parallel) bevel PLANES, so the skin in that
-    0.8 mm perimeter band is r*sqrt(2) thick, not r: measured 0.5657 mm
-    against a plain TEX_RELIEF of 0.40 mm, a 41% overshoot.
+    BOTH inset = 0.0 (nominal) and inset = -TEX_RELIEF (grown). Reusing the
+    same 0.8 mm chamfer leg for both was wrong: the two un-chamfered corners
+    are already offset from each other by (dx, dz) = (-r, +r), a vector that
+    points exactly along the chamfer bevel's own 45-degree normal, so a
+    shared leg length left the two bevel PLANES r*sqrt(2) apart instead of r
+    (measured 0.5657 mm against a plain TEX_RELIEF of 0.40 mm before the fix
+    below -- a 41% overshoot).
 
-    This is a real, non-benign deviation from "constant thickness perpendicular
-    to the local surface" -- but it is NOT fixed here. A correct fix needs a
-    chamfer leg computed specifically for the grown copy (something like
-    EDGE_CHAMFER - TEX_RELIEF * (2 - sqrt(2)) for this bevel geometry), which
-    can only be correct for one specific TEX_RELIEF/EDGE_CHAMFER pairing and
-    means proud_skin can no longer just consume side_arc._envelope's shared,
-    cached construction -- the plan's own sanctioned interface for this task.
-    That is a genuine design decision (redesign the chamfer as a true offset,
-    or exclude the chamfer band from brick zones in whichever later task
-    places bricks), not a local fix belonging to this task. It does not
-    violate any of this task's hard invariants: the skin stays outside the
-    nominal envelope (checked in test_proud_skin), stays manifold (`skin.val()
-    .isValid()` is True), and does not touch wall thickness anywhere. Locked
-    in here as a regression guard and a flag for whoever places bricks in the
-    front-face zone next.
+    Fixed in _envelope: the grown copy's leg grows by
+    (-inset) * (2 - sqrt(2)), which puts its bevel plane exactly (-inset) mm
+    outside the nominal one, measured perpendicular to the bevel. This is a
+    one-line change entirely inside _envelope's existing chamfer branch, on
+    a path only negative-inset callers reach (today: only proud_skin), so it
+    carries no risk to the shells (verified in the task report: both shells'
+    build volumes are unchanged to 6 decimal places after this change, same
+    as after the front-face fix, since neither ever calls _envelope with a
+    negative inset).
     """
     print("edge chamfer band thickness (carry-forward item 1)")
     import side_arc
     import texture
 
     r = P.TEX_RELIEF
+    tol = 0.01
     nominal = side_arc._envelope(0.0)
     grown = side_arc._envelope(-r)
 
     t = _skin_thickness_at(nominal, grown,
                             (0.2, P.BODY_H / 2, 100), (0, 0, -1))
-    expected = r * math.sqrt(2)
-    check("chamfer band is r*sqrt(2) thick, not r -- known, documented, "
-          "does not affect wall thickness or manifoldness",
-          t is not None and abs(t - expected) < 0.01,
-          f"{t} vs r*sqrt(2)={expected:.4f} (plain TEX_RELIEF would be {r})")
+    check("chamfer band is TEX_RELIEF thick after the leg-length fix",
+          t is not None and abs(t - r) < tol, f"{t}")
 
-    check("skin stays a valid manifold solid despite the chamfer-band overlap",
+    check("skin stays a valid manifold solid through the chamfer band",
           texture.proud_skin(r).val().isValid())
+
+
+def test_proud_skin_deviation_map():
+    """Coarse grid sweep of perpendicular thickness across the whole skin.
+
+    The four hand-picked points in test_proud_skin_thickness_probe all landed
+    on exact regions and caught neither of this task's two real deviations
+    (the chamfer band, now fixed; the rib-blend band, not fixed). A handful
+    of named points cannot make a uniformity claim -- only a sweep can. This
+    scans several hundred points each across the front face, the back face,
+    and both side walls, using the same true-local-normal method as the
+    named probes, and asserts that nothing outside a known, characterised
+    region deviates from TEX_RELIEF by more than `tol`.
+
+    Carry-forward item 1 (chamfer): the front sweep confirms the fix holds
+    everywhere along the perimeter, not just at the one sampled x -- every
+    front-face point (992 of them, spanning x = 0..90, including the whole
+    chamfer band at every edge) reads exactly TEX_RELIEF.
+
+    The rib-blend band (side_arc._rib_region, ~side_arc.py:143-151, NOT
+    fixed per the design-decision instruction that came with this finding):
+    for negative inset it shifts its profile by (dy, dz) = (+r, -r), a
+    diagonal translation of the whole blend profile rather than a true
+    normal offset -- the exact failure mode _envelope's own docstring
+    already documents for the INWARD case ("slightly over-offset through
+    the blend ... in a band where nothing lives"). Except here something
+    DOES live there: it's a texture zone. Measured (this sweep, back face,
+    x = 45, mid-width):
+
+        y       thickness   deviation
+        11.0    0.4000      +0%       <- RIB_Y, blend start
+        15.0    0.4826      +21%
+        17.3    0.5175      +29%      <- peak
+        19.0    0.4937      +23%
+        21.0    0.4564      +14%
+        23.35   0.4048      +1%       <- RIB_Y2, blend end
+        25.0    0.4000      +0%
+
+    The deviation is confined almost exactly to y in [RIB_Y, RIB_Y2] =
+    [11.0, 23.3] -- the blend's own y-extent -- and is present across nearly
+    the full 90 mm width (x = 8..82 all read the same peak; it tapers off
+    smoothly only within about 8 mm of the plan corners, where the roll
+    takes over). It also bleeds a smaller amount onto the WEST/EAST walls in
+    the same y-band, near their back edge (z close to -BODY_T): peak
+    measured 0.488 mm (+22%) at (y=17, z=-13), fading to exact TEX_RELIEF by
+    z = -9 or so. Same root cause, same y-band, smaller magnitude because
+    the wall surface is closer to the blend's rotation axis than the back
+    face is.
+
+    None of this touches wall thickness (WALL is unrelated geometry, never
+    reduced) or manifoldness (`texture.proud_skin(r).val().isValid()` stays
+    True with the full grid built in, checked in
+    test_edge_chamfer_band_thickness). Left alone per instruction: whether a
+    ~29% overshoot in a ~12 mm-tall band is acceptable, or whether
+    _rib_region needs a true normal offset, is a design call outside this
+    task's scope.
+    """
+    print("proud skin deviation map (grid sweep)")
+    import side_arc
+    import texture
+
+    r = P.TEX_RELIEF
+    tol = 0.02
+    nominal = side_arc._envelope(0.0)
+    grown = side_arc._envelope(-r)
+
+    # The one region this task found and deliberately left un-fixed: the
+    # rib blend's y-extent, with a small margin.
+    band_y0, band_y1 = P.RIB_Y - 1.0, P.RIB_Y2 + 1.0
+    band_hi = 0.56  # comfortably above the measured 0.5175 back / 0.488 wall peaks
+
+    # Back face, from below -- the region carrying the known deviation.
+    # Keys are (x, y).
+    back = {}
+    for x in range(2, 89, 3):
+        for y in range(0, 94, 2):
+            back[(x, y)] = _skin_thickness_at(
+                nominal, grown, (float(x), float(y), -100.0), (0, 0, 1))
+
+    # Front face, from above -- must be exact everywhere, including the
+    # whole EDGE_CHAMFER band at every edge (this is the chamfer-fix
+    # regression coverage, broadened past the single sampled point in
+    # test_edge_chamfer_band_thickness). Keys are (x, y).
+    front = {}
+    for x in range(0, 91, 3):
+        for y in range(0, 94, 3):
+            front[(x, y)] = _skin_thickness_at(
+                nominal, grown, (float(x), float(y), 100.0), (0, 0, -1))
+
+    # West / east walls, horizontal rays -- picks up the rib-blend band's
+    # smaller bleed-through near the back edge of the wall. Keys are (y, z).
+    west, east = {}, {}
+    for y in range(10, 90, 3):
+        for z in range(-13, 0, 1):
+            west[(y, z)] = _skin_thickness_at(
+                nominal, grown, (-100.0, float(y), float(z)), (1, 0, 0))
+            east[(y, z)] = _skin_thickness_at(
+                nominal, grown, (190.0, float(y), float(z)), (-1, 0, 0))
+
+    def offenders(region, y_index):
+        """Points whose thickness falls outside the tight tolerance."""
+        bad = []
+        for k, t in region.items():
+            if t is None:
+                continue
+            if abs(t - r) > tol:
+                bad.append((k, t, k[y_index]))
+        return bad
+
+    bad_front = offenders(front, y_index=1)
+    bad_back = offenders(back, y_index=1)
+    bad_west = offenders(west, y_index=0)
+    bad_east = offenders(east, y_index=0)
+
+    n_pts = len(front) + len(back) + len(west) + len(east)
+    bad_wall = bad_west + bad_east
+    n_bad = len(bad_front) + len(bad_back) + len(bad_wall)
+    print(f"   swept {n_pts} points: front {len(front)}, back {len(back)}, "
+          f"west {len(west)}, east {len(east)} -- {n_bad} outside +/-{tol} mm")
+    if bad_back:
+        _, pt, py = max(bad_back, key=lambda e: abs(e[1] - r))
+        print(f"   back band peak: y={py} thickness={pt:.4f}")
+    if bad_wall:
+        _, pt, py = max(bad_wall, key=lambda e: abs(e[1] - r))
+        print(f"   wall band peak: y={py} thickness={pt:.4f}")
+
+    check("front face has zero out-of-tolerance points anywhere in the sweep "
+          "(chamfer-fix regression coverage, full perimeter)",
+          len(bad_front) == 0,
+          f"{len(bad_front)} bad of {len(front)}: {bad_front[:5]}")
+
+    check("back face has no out-of-tolerance points OUTSIDE the "
+          "characterised rib-blend band",
+          all(band_y0 <= y <= band_y1 for _, _, y in bad_back),
+          f"{len(bad_back)} bad; y outside band: "
+          f"{sorted(y for _, _, y in bad_back if not (band_y0 <= y <= band_y1))}")
+
+    check("back-band deviation stays within the characterised bound "
+          f"(<= {band_hi} mm)",
+          all(t <= band_hi for _, t, _ in bad_back),
+          f"max {max((t for _, t, _ in bad_back), default=r):.4f}")
+
+    check("west/east wall sweeps have no out-of-tolerance points OUTSIDE "
+          "the characterised rib-blend band",
+          all(band_y0 <= y <= band_y1 for _, _, y in bad_wall),
+          f"{len(bad_wall)} bad; y outside band: "
+          f"{sorted(y for _, _, y in bad_wall if not (band_y0 <= y <= band_y1))}")
+
+    check("wall-band deviation stays within the characterised bound "
+          f"(<= {band_hi} mm)",
+          all(t <= band_hi for _, t, _ in bad_wall),
+          f"max {max((t for _, t, _ in bad_wall), default=r):.4f}")
 
 
 def main():
@@ -417,6 +600,7 @@ def main():
     test_proud_skin()
     test_proud_skin_thickness_probe()
     test_edge_chamfer_band_thickness()
+    test_proud_skin_deviation_map()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")
