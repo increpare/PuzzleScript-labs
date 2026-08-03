@@ -132,12 +132,17 @@ def check_face_bump_vs_buttons():
             gap = (dx * dx + dy * dy) ** 0.5 - r
         if gap < worst:
             worst, at = gap, name
-    # Menu pill (horizontal): centre MENU_X/Y, use existing MENU size constants.
-    import shell_front as SF
-    mw = getattr(P, "MENU_LEN", 12.0) / 2 + P.CAP_FLANGE_OS
-    mh = getattr(P, "MENU_W", 3.0) / 2 + P.CAP_FLANGE_OS
-    # If MENU_LEN not in params, read from shell_front or hardcode 11.15/3.00
-    # from CAP docs — prefer existing constants in params/shell_front.
+    # Menu pill: PILL_L × PILL_W at MENU_X/Y (same constants as the collar).
+    mw = P.PILL_L / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+    mh = P.PILL_W / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+    mx0, mx1 = P.MENU_X - mw, P.MENU_X + mw
+    my0, my1 = P.MENU_Y - mh, P.MENU_Y + mh
+    ox = min(bx1, mx1) - max(bx0, mx0)
+    oy = min(by1, my1) - max(by0, my0)
+    gap_m = -min(ox, oy) if (ox > 0 and oy > 0) else min(
+        abs(bx0 - mx1), abs(mx0 - bx1), abs(by0 - my1), abs(my0 - by1))
+    if gap_m < worst:
+        worst, at = gap_m, "MENU"
     ok = worst >= P.FACE_BUMP_BTN_CLR
     print(f"   {'PASS' if ok else 'FAIL'}  blister plan clears buttons "
           f"(tightest {at}: {worst:+.2f} mm, want >= {P.FACE_BUMP_BTN_CLR})")
@@ -145,7 +150,7 @@ def check_face_bump_vs_buttons():
         FAILURES.append("face blister impinges on buttons")
 ```
 
-Wire real Menu dimensions from whatever `shell_front` / `params` already use for the pill (do not invent a second size). Call from `main()`.
+Call from `main()`.
 
 - [ ] **Step 2: Rewrite `check_driver_stack()` for on-board seat**
 
