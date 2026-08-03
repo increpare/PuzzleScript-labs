@@ -1057,6 +1057,20 @@ def test_root_overlap_skin():
 Call `test_root_overlap_skin()` immediately after `test_proud_skin()` in
 `main()`.
 
+Also add a final-pipeline regression after the zone-assembly tests. Construct
+both `relief_for_zone(..., root_overlap=0)` and
+`relief_for_zone(..., root_overlap=P.TEX_ROOT_OVERLAP)` for front and wall.
+For each zone, cut the bonded result by the nominal envelope and assert both
+mutual-difference volumes against the pure result are below 0.5 mm³. Assert
+the complete bonded result intersects nominal by more than 1.0 mm³. This is
+essential: helper-level skin equality is insufficient because chamfering a
+rooted compound can change its topology and therefore change the visible
+pattern.
+
+Add a wall-prism reach regression using a larger valid root (for example
+0.60 mm) so a hard-coded 0.05 mm prism depth cannot pass. The prism band must
+reach far enough inward to intersect the corresponding inset wall envelope.
+
 - [ ] **Step 2: Run RED**
 
 ```bash
@@ -1123,7 +1137,17 @@ Preserve the existing detailed `proud_skin` documentation around this code.
 
 - [ ] **Step 5: Thread the optional root through `relief_for_zone`**
 
-Change its signature and skin intersection only:
+Change `_wall_prisms` to accept the validated `root_overlap`. Its tangential
+box depth must be derived from `P.TEX_RELIEF + root_overlap` plus the existing
+small boolean pad; do not hard-code the decided 0.05 mm root in this generic
+helper.
+
+Assemble visible relief and its construction root separately. Chamfer the
+exact zero-root visible bricks first. Then create a shallow bond band with
+outside reach equal to `root_overlap`, cut it by the same keepouts, and union
+it into the already-chamfered result. The bond band overlaps both the shell
+and the unchamfered lower portion of every visible brick, so it joins them
+without allowing root-induced topology changes to alter the top chamfer:
 
 ```python
 def relief_for_zone(zone: str, z0: float, z1: float,
@@ -1136,17 +1160,26 @@ def relief_for_zone(zone: str, z0: float, z1: float,
     if root >= min(P.WALL, P.FACE_T):
         raise ValueError(
             f"root_overlap {root} must stay below shell thickness")
-    # existing prism selection remains
-    relief = (prisms.intersect(_relief_skin(P.TEX_RELIEF, root, zone=zone))
-              .cut(button_islands())
-              .cut(bottom_clear_slab()))
-    return _chamfer_proud_tops(relief, zone)
+    prisms = (_front_prisms(z0, z1) if zone == "front"
+              else _wall_prisms(z0, z1, root_overlap=root))
+    visible = (prisms.intersect(proud_skin())
+               .cut(button_islands())
+               .cut(bottom_clear_slab()))
+    visible = _chamfer_proud_tops(visible, zone)
+    if root == 0.0:
+        return visible
+
+    bond = (prisms.intersect(_relief_skin(root, root, zone=zone))
+            .cut(button_islands())
+            .cut(bottom_clear_slab()))
+    return visible.union(bond)
 ```
 
 Do not translate individual bricks and do not use fuzzy union here. The front
 band supplies a true z-normal root through the flat face; the cavity-envelope
 band supplies the wall/back root. Keep `proud_skin()` on the exact outside-only
-path so existing relief measurements remain unchanged.
+path and chamfer it before adding the bond band so existing relief measurements
+and brick topology remain unchanged.
 
 - [ ] **Step 6: Run GREEN and commit**
 
