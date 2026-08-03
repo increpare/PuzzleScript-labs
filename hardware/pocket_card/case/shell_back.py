@@ -141,19 +141,7 @@ def driver_housing():   # NO LONGER USED -- the driver lives in the front shell
 
 
 def driver_backstop():
-    """Pedestal under the driver, through the board notch, almost touching.
-
-    The driver hangs on its face adhesive with nothing behind it since the
-    board notch. This column rises from the tray floor to DRIVER_BACKSTOP_CLR
-    behind the driver's back: a drop lands the driver on the pedestal instead
-    of peeling the bond. Deliberately not touching — preload would hold the
-    driver off the very face it must stick to. Ø10 stays >2.5 mm inside the
-    notch so the board still seats past it.
-    """
-    top = -(P.FACE_T + P.DRIVER_T + P.DRIVER_BACKSTOP_CLR)
-    return (cq.Workplane("XY").circle(P.DRIVER_BACKSTOP_D / 2)
-            .extrude(top - FLOOR_Z)
-            .translate((P.GRILLE_X, P.GRILLE_Y, FLOOR_Z)))
+    """retired — driver on PCB under face blister."""
 
 
 MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK       # 7.50
@@ -248,8 +236,11 @@ def build_back():
     js = joints.back_joints()
     crop = interior_crop()
     s = lid()
-    for m in (battery_fence(), pcb_support_rib(), pcb_support_pads(),
-              driver_backstop(), *[j.material() for j in js]):
+    materials = [battery_fence(), pcb_support_rib(), pcb_support_pads()]
+    if P.PCB_DRIVER_NOTCH_X is not None:
+        materials.append(driver_backstop())
+    materials.extend(j.material() for j in js)
+    for m in materials:
         s = s.union(m.intersect(crop))
     for v in (usb_opening(), *[j.voids() for j in js]):
         s = s.cut(v)
