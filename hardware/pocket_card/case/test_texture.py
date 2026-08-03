@@ -724,20 +724,13 @@ def test_bottom_clear():
 
     # Explicit probes on the ROLLED surface itself, not the flat middle:
     # near both side walls, near two rounded plan corners. Each ray-casts
-    # the nominal envelope from directly below (same real-OCC intersector
-    # technique as the proud-skin probes above); the first hit is the
-    # outward back-facing surface at that (x, y), flat or rolled.
-    from OCP.gp import gp_Dir, gp_Lin, gp_Pnt
-    from OCP.IntCurvesFace import IntCurvesFace_ShapeIntersector
-
+    # the nominal envelope from directly below, reusing the module's own
+    # real-OCC intersector (_raycast, already exercised by the proud-skin
+    # probes above); the first hit is the outward back-facing surface at
+    # that (x, y), flat or rolled.
     def _back_z_at(x, y):
-        isec = IntCurvesFace_ShapeIntersector()
-        isec.Load(nominal.wrapped, 1e-6)
-        isec.Perform(gp_Lin(gp_Pnt(x, y, -200.0), gp_Dir(0, 0, 1)), 0.0, 1e6)
-        if not isec.IsDone() or isec.NbPnt() == 0:
-            return None
-        i = min(range(1, isec.NbPnt() + 1), key=lambda k: isec.WParameter(k))
-        return isec.Pnt(i).Z()
+        hit = _raycast(nominal, (x, y, -200.0), (0, 0, 1))
+        return hit[0][2] if hit else None
 
     probes = [
         ("near west wall, on the roll", 2.0, P.BODY_H / 2),
