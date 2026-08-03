@@ -802,6 +802,56 @@ def test_bottom_clear():
               f"z={z}")
 
 
+def _raises(fn):
+    try:
+        fn()
+    except Exception:
+        return True
+    return False
+
+
+def test_relief_for_zone():
+    print("relief solid")
+    import texture
+
+    front = texture.relief_for_zone("front", -P.TEX_RELIEF, P.TEX_RELIEF * 2)
+    v = front.val().Volume()
+    check("front relief has volume", v > 10.0, f"{v:.1f} mm^3")
+
+    fb = front.val().BoundingBox()
+    check("front relief does not reach past the relief height",
+          fb.zmax <= P.TEX_RELIEF + 1e-3, f"zmax {fb.zmax:.4f}")
+    check("front relief sits outside the nominal face",
+          fb.zmax > 0, f"zmax {fb.zmax:.4f}")
+
+    # keep-outs really are empty
+    islands = texture.button_islands()
+    intruding = front.intersect(islands).val()
+    vol = intruding.Volume() if intruding is not None else 0.0
+    check("no relief inside a button island", vol < 0.01,
+          f"{vol:.4f} mm^3")
+
+    # the flat bottom stays clear
+    bottom = front.intersect(texture.bottom_clear_slab()).val()
+    bvol = bottom.Volume() if bottom is not None else 0.0
+    check("no relief in the bottom clear band", bvol < 0.01,
+          f"{bvol:.4f} mm^3")
+
+    # A wall band accepts reversed limits, normalises them, and uses the
+    # coarse pattern around the complete nominal plan perimeter.
+    wall = texture.relief_for_zone("wall", -1.0, -2.0)
+    wv = wall.val().Volume()
+    wb = wall.val().BoundingBox()
+    check("reversed wall band has relief", wv > 1.0,
+          f"{wv:.1f} mm^3")
+    check("wall relief stays inside its normalized z band",
+          wb.zmin >= -2.0 - 1e-3 and wb.zmax <= -1.0 + 1e-3,
+          f"z={wb.zmin:.4f}..{wb.zmax:.4f}")
+
+    check("unknown zone is rejected",
+          _raises(lambda: texture.relief_for_zone("nope", -1.0, 1.0)))
+
+
 def main():
     test_tile_shape()
     test_pitches()
@@ -816,6 +866,7 @@ def main():
     test_proud_skin_deviation_map()
     test_stations_and_islands()
     test_bottom_clear()
+    test_relief_for_zone()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")

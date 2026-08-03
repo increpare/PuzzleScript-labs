@@ -194,6 +194,111 @@ def bottom_clear_slab(clear=None):
             .translate((-pad, -pad, -P.BODY_T - pad)))
 
 
+_ZONES = {
+    "front": P.TEX_PIXEL_FINE,
+    "wall": P.TEX_PIXEL_COARSE,
+}
+
+
+def _brick_runs(pitch, x0, y0, x1, y1):
+    """Merge touching pixel rectangles into horizontal brick runs.
+
+    `brick_rects` deliberately reports one rectangle per sprite pixel so its
+    contract mirrors TEX_TILE.  Adjacent pixels have no physical seam,
+    though, and making them as one prism avoids sending thousands of needless
+    coincident edges through OCC's boolean engine.
+    """
+    rows = {}
+    for rect in brick_rects(pitch, x0, y0, x1, y1):
+        rows.setdefault((round(rect[1], 9), round(rect[3], 9)), []).append(rect)
+
+    runs = []
+    for row in rows.values():
+        row.sort()
+        current = list(row[0])
+        for rect in row[1:]:
+            if rect[0] <= current[2] + 1e-9:
+                current[2] = max(current[2], rect[2])
+            else:
+                runs.append(tuple(current))
+                current = list(rect)
+        runs.append(tuple(current))
+    return runs
+
+
+def _front_prisms(z0, z1):
+    """Fine-pitch brick prisms through a padded plan window."""
+    pad = P.TEX_RELIEF
+    runs = _brick_runs(P.TEX_PIXEL_FINE,
+                       -pad, -pad, P.BODY_W + pad, P.BODY_H + pad)
+    solids = [cq.Solid.makeBox(x1 - x0, y1 - y0, z1 - z0,
+                               cq.Vector(x0, y0, z0))
+              for x0, y0, x1, y1 in runs]
+    return cq.Workplane(cq.Compound.makeCompound(solids))
+
+
+def _wall_prisms(z0, z1):
+    """Coarse-pitch brick prisms placed tangent to the nominal plan wire."""
+    plan = cq.Workplane(side_arc._plan_solid(0.0))
+    wire = plan.faces(">Z").val().outerWire()
+    perimeter = wire.Length()
+    runs = _brick_runs(P.TEX_PIXEL_COARSE, 0.0, z0, perimeter, z1)
+    depth = 2 * (P.TEX_RELIEF + 0.05)
+    solids = []
+    for s0, rz0, s1, rz1 in runs:
+        # CadQuery's length mode is normalized (0..1), despite the name.
+        # Sampling the block midpoint matters: placing its *start* at this
+        # point shifts every brick by half its own width around the perimeter.
+        midpoint = (s0 + s1) / 2
+        point = wire.positionAt(midpoint / perimeter, "length")
+        tangent = wire.tangentAt(midpoint / perimeter, "length").normalized()
+        plane = cq.Plane(origin=cq.Vector(point.x, point.y, (rz0 + rz1) / 2),
+                         xDir=cq.Vector(tangent.x, tangent.y, 0),
+                         normal=cq.Vector(0, 0, 1))
+        solids.append(cq.Workplane(plane).box(
+            s1 - s0, depth, rz1 - rz0, centered=(True, True, True)).val())
+    return cq.Workplane(cq.Compound.makeCompound(solids))
+
+
+def _chamfer_proud_tops(relief):
+    """Apply the cosmetic top chamfer when OCC can do so safely.
+
+    OCC's chamfer builder scales per disconnected solid.  A full front field
+    contains over a thousand solids after the skin and keep-outs, and issuing
+    that many fillets is slower than the entire useful model build.  Treat
+    that as a cosmetic chamfer failure rather than risking an unattended
+    multi-minute build; smaller callers still get the actual chamfer.
+    """
+    solids = relief.solids().vals()
+    if len(solids) > 128:
+        return relief
+    try:
+        return relief.faces(">Z").edges().chamfer(P.TEX_TOP_CHAMFER)
+    except Exception:
+        return relief
+
+
+def relief_for_zone(zone: str, z0: float, z1: float) -> cq.Workplane:
+    """Textured part of the proud skin for one named surface zone.
+
+    Brick prisms establish the pattern; the skin intersection converts them
+    into normal-direction relief over the rolls and plan corners.  Button and
+    bottom keep-outs are cut only after that intersection, so they suppress
+    every surface orientation consistently.
+    """
+    if zone not in _ZONES:
+        raise ValueError(f"unknown texture zone {zone!r}")
+    z0, z1 = sorted((float(z0), float(z1)))
+    if z1 - z0 <= 1e-9:
+        raise ValueError("texture z band must have positive height")
+
+    prisms = _front_prisms(z0, z1) if zone == "front" else _wall_prisms(z0, z1)
+    relief = (prisms.intersect(proud_skin())
+              .cut(button_islands())
+              .cut(bottom_clear_slab()))
+    return _chamfer_proud_tops(relief)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     pitch = P.TEX_PIXEL_FINE
