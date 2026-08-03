@@ -684,6 +684,194 @@ def check_back_shell():
           f"and {pcb_back:.2f} (lid rib)")
 
 
+_BUILT_BACK = None
+
+
+def _back_solid_probe():
+    """Build the back shell once; return a layout-space point classifier."""
+    global _BUILT_BACK
+    import shell_back
+    from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+    from OCP.TopAbs import TopAbs_IN, TopAbs_ON
+    from OCP.gp import gp_Pnt
+
+    if _BUILT_BACK is None:
+        _BUILT_BACK = shell_back.build_back().val()
+    shape = _BUILT_BACK
+
+    def solid(x, y_layout, z):
+        y = P.BODY_H - y_layout   # undo to_model_space mirror
+        clf = BRepClass3d_SolidClassifier(shape.wrapped, gp_Pnt(x, y, z), 1e-6)
+        return clf.State() in (TopAbs_IN, TopAbs_ON)
+
+    return solid
+
+
+def check_battery_keepout():
+    """Nothing solid may reach the cell volume (+0.3 mm of its clearance).
+
+    Found live: the rim band at the bottom-left corner round swept ~1 mm into
+    the pouch cell's front corner. Probes the built solid, dense at the edges.
+    """
+    print("\nbattery keepout (built solid)")
+    solid = _back_solid_probe()
+    pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    z0 = -(pcb_back + P.PET_T)                              # cell front
+    z1 = -(pcb_back + P.PET_T + P.CELL_T + P.CELL_SWELL)    # cell back
+    m = 0.3                     # strictly inside BATT_CLEAR: no face-contact
+    x0, x1 = P.BATT_X - m, P.BATT_X + P.CELL_W + m
+    y0, y1 = P.BATT_Y - m, P.BATT_Y + P.CELL_H + m
+    zs = (z1 + 0.15, (z0 + z1) / 2, z0 - 0.15)
+    bad = []
+    n = 0
+    step = 1.0
+    x = x0
+    while x <= x1 + 1e-6:
+        y = y0
+        while y <= y1 + 1e-6:
+            edge = (x < x0 + 2.1 or x > x1 - 2.1 or
+                    y < y0 + 2.1 or y > y1 - 2.1)
+            if edge or (int(x) % 4 == 0 and int(y) % 4 == 0):
+                for z in zs:
+                    n += 1
+                    if solid(x, y, z):
+                        bad.append((x, y, z))
+            y += step
+        x += step
+    ok = not bad
+    print(f"   {'PASS' if ok else 'FAIL'}  cell + {m} mm margin clear "
+          f"({n} probes)")
+    for b in bad[:6]:
+        print(f"          solid at ({b[0]:.1f}, {b[1]:.1f}, {b[2]:.2f})")
+    if not ok:
+        FAILURES.append("battery keepout")
+
+
+def check_driver_stack():
+    """Driver vs board: the 3.5 mm driver in a 3.0 mm face->board gap.
+
+    Only legal because the board outline is notched under it. Assert the
+    notch actually covers the driver footprint, nothing lives in the notch,
+    and the pocket walls stop above the board plane.
+    """
+    print("\ndriver stack (board notch)")
+    gap = P.PCB_FRONT_Z - P.FACE_T
+    dip = P.DRIVER_T - gap
+    print(f"   INFO  face->board {gap:.1f} mm, driver {P.DRIVER_T} mm "
+          f"-> dips {dip:.1f} through the board plane")
+    nx, ny = P.PCB_DRIVER_NOTCH_X, P.PCB_DRIVER_NOTCH_Y
+    dx0 = P.GRILLE_X - P.DRIVER_W / 2
+    dy0 = P.GRILLE_Y - P.DRIVER_H / 2
+    m = min(dx0 - nx, dy0 - ny)
+    ok = m >= 0.5
+    print(f"   {'PASS' if ok else 'FAIL'}  notch clears driver footprint by "
+          f"{m:.2f} mm (want >= 0.5)")
+    if not ok:
+        FAILURES.append("driver notch coverage")
+    # Nothing may live in the notched-away corner (with 1 mm margin).
+    parts = [
+        ("SW_UNDO", P.UNDO_X, P.UNDO_Y), ("SW_ACT", P.ACT_X, P.ACT_Y),
+        ("SW_RESET", P.RESET_X, P.RESET_Y), ("SW_MENU", P.MENU_X, P.MENU_Y),
+        ("J_BAT_IN", *P.CONN_BAT_IN), ("J_BAT_OUT", *P.CONN_BAT_OUT),
+        ("mute slide", P.MUTE_SW_X, P.PCB_Y + P.PCB_H),
+        ("power slide", P.POWER_SW_X, P.PCB_Y + P.PCB_H),
+        ("boss 1", *P.EXTRA_BOSSES[0]), ("boss 2", *P.EXTRA_BOSSES[1]),
+    ]
+    bad = [n for n, x, y in parts if x > nx - 1.0 and y > ny - 1.0]
+    ok = not bad
+    print(f"   {'PASS' if ok else 'FAIL'}  notch corner free of parts"
+          + (f" (in notch: {', '.join(bad)})" if bad else ""))
+    if not ok:
+        FAILURES.append("parts in driver notch")
+    # Pocket walls must end above the board front, with real engagement left.
+    wall_end = P.PCB_FRONT_Z - 0.2
+    engage = wall_end - P.FACE_T
+    ok = wall_end < P.PCB_FRONT_Z and engage >= 2.0
+    print(f"   {'PASS' if ok else 'FAIL'}  pocket walls end at {wall_end:.1f} "
+          f"(board {P.PCB_FRONT_Z}), engagement {engage:.1f} mm")
+    if not ok:
+        FAILURES.append("driver pocket walls")
+    # Backstop: pedestal present behind the driver, but with an air gap so it
+    # cannot preload the face bond. Probe the built back solid.
+    solid = _back_solid_probe()
+    drv_back = -(P.FACE_T + P.DRIVER_T)
+    top = drv_back - P.DRIVER_BACKSTOP_CLR
+    gx, gy = P.GRILLE_X, P.GRILLE_Y
+    present = all(solid(gx + dx, gy + dy, top - 0.2)
+                  for dx, dy in ((0, 0), (2, 0), (-2, 0), (0, 2), (0, -2)))
+    gap = not any(solid(gx + dx, gy + dy, (top + drv_back) / 2)
+                  for dx, dy in ((0, 0), (2, 0), (-2, 0), (0, 2), (0, -2)))
+    ok = present and gap
+    print(f"   {'PASS' if ok else 'FAIL'}  backstop under driver: "
+          f"solid to z={-top:.1f}, {P.DRIVER_BACKSTOP_CLR} mm air gap "
+          f"(present={present}, gap={gap})")
+    if not ok:
+        FAILURES.append("driver backstop")
+    # Board must still seat past the pedestal: footprint inside the notch.
+    r = P.DRIVER_BACKSTOP_D / 2
+    m = min(gx - r - nx, gy - r - ny)
+    ok = m >= 0.5
+    print(f"   {'PASS' if ok else 'FAIL'}  backstop {m:.1f} mm inside the "
+          f"notch (want >= 0.5)")
+    if not ok:
+        FAILURES.append("backstop vs notch")
+
+
+def check_screw_joints():
+    """Structural invariants on the BUILT back solid, per screw joint.
+
+    The old checks probed named clearances and printed 'all checks passed'
+    while six counterbores had daylight rings (WALL == SCREW_HEAD_H meant the
+    pocket depth equalled the floor). These classify actual points:
+      - pocket open from the skin to the seat,
+      - seat ring solid for >= MIN_MEMBRANE behind the seat,
+      - bore open through the land,
+      - land material present around the pocket.
+    """
+    import joints
+    import side_arc
+
+    print("\nscrew joints (built solid)")
+    solid = _back_solid_probe()
+
+    for j in joints.back_joints():
+        seat = j.seat_z
+        errs = []
+        # 1. pocket open: skin -> seat across the footprint
+        for dx in (-0.7 * j.head_r, 0.0, 0.7 * j.head_r):
+            xx = j.x + dx
+            z_skin = side_arc.outer_back_z_at(xx, j.y)
+            for f in (0.25, 0.6, 0.9):
+                z = z_skin + f * max(seat - z_skin - 0.1, 0.1)
+                if z < seat - 0.05 and solid(xx, j.y, z):
+                    errs.append(f"pocket blocked at dx={dx:+.1f} z={z:.2f}")
+        # 2. seat + membrane: ring between bore and head stays solid
+        for r in (j.bore_r + 0.25, (j.bore_r + j.head_r) / 2, j.head_r - 0.15):
+            for ax, ay in ((r, 0), (-r, 0), (0, r), (0, -r)):
+                xx, yy = j.x + ax, j.y + ay
+                for z in (seat + 0.1, seat + P.MIN_MEMBRANE - 0.05):
+                    if z <= side_arc.outer_back_z_at(xx, yy) + 0.2:
+                        continue   # outside the skin (open pocket entrance)
+                    if not solid(xx, yy, z):
+                        errs.append(f"membrane void at r={r:.2f} z={z:.2f}")
+        # 3. bore open through the land
+        z_mid = (seat + j.top_z) / 2
+        if solid(j.x, j.y, z_mid):
+            errs.append(f"bore blocked at z={z_mid:.2f}")
+        # 4. land material present around the pocket (inboard side)
+        toward = -1.0 if j.x > P.BODY_W / 2 else 1.0
+        xx = j.x + toward * (j.land_r - 0.25)
+        if not solid(xx, j.y, z_mid):
+            errs.append(f"land missing inboard at z={z_mid:.2f}")
+        ok = not errs
+        print(f"   {'PASS' if ok else 'FAIL'}  {j.kind:6} ({j.x:5.1f},{j.y:5.1f}) "
+              f"seat z={seat:6.2f} membrane>={P.MIN_MEMBRANE}")
+        for e in errs:
+            print(f"          {e}")
+        if not ok:
+            FAILURES.append(f"screw joint ({j.x},{j.y})")
+
+
 def check(name, got, want, tol):
     if isinstance(got, str) or isinstance(want, str):
         ok = got == want
@@ -901,6 +1089,7 @@ def check_skqg_stack():
     check("PCB_T", P.PCB_T, 1.6, 0.001)
     check("LOWER_ZONE_T", P.LOWER_ZONE_T, 13.3, 0.02)
     check("BODY_T", P.BODY_T, 13.3, 0.02)
+    check("LID_T", P.LID_T, 6.0, 0.02)
     check("HARD_STOP_AT", P.HARD_STOP_AT, 0.35, 0.001)
     if P.HARD_STOP_AT <= P.TACT_TRAVEL:
         print("   FAIL  HARD_STOP_AT must be > TACT_TRAVEL")
@@ -934,6 +1123,34 @@ def check_connector_pocket():
               f"[{y_lo:.1f}..{y_hi:.1f}]")
         if not ok:
             FAILURES.append(name)
+    # The display module carries sockets flush with its edge just north of
+    # the board, so courtyards keep CONN_NORTH_CLEAR off the north edge.
+    import joints
+    halfs = {"CONN_I2C": 4.95, "CONN_EXP": 4.95,
+             "CONN_BAT_IN": 3.7, "CONN_BAT_OUT": 3.7}  # GH courtyard half-w
+    for name, (x, y) in sites:
+        clr = (y - 2.4) - P.PCB_Y
+        ok = clr + 1e-9 >= P.CONN_NORTH_CLEAR
+        print(f"   {'PASS' if ok else 'FAIL'}  {name} courtyard {clr:.1f} mm "
+              f"off north edge (module sockets; want >= {P.CONN_NORTH_CLEAR})")
+        if not ok:
+            FAILURES.append(f"{name} north edge")
+    # Screw lands are solid from the floor to the board back — same z-space
+    # as the B.Cu connector bodies. Courtyards must clear every land.
+    land_r = max(j.land_r for j in joints.back_joints() if j.kind == "pcb")
+    for name, (x, y) in sites:
+        hw, hh = halfs[name], 2.4
+        worst = None
+        for bx, by in P.EXTRA_BOSSES:
+            gx = max(abs(x - bx) - hw - land_r, 0)
+            gy = max(abs(y - by) - hh - land_r, 0)
+            g = max(gx, gy)
+            worst = g if worst is None else min(worst, g)
+        ok = worst > 0
+        print(f"   {'PASS' if ok else 'FAIL'}  {name} courtyard clears screw "
+              f"lands by {worst:.2f} mm")
+        if not ok:
+            FAILURES.append(f"{name} vs screw land")
     # Plug clearance: GH courtyard is 6.4 mm in the cable axis; need ≥9 mm
     # centre pitch so a housing can engage. Same-row X neighbours likewise.
     min_pitch = 9.0
@@ -1148,7 +1365,10 @@ def main():
     check_grille_vs_driver()
     check_cap_fits_collar()
     check_driver_bond()
+    check_driver_stack()
     check_back_shell()
+    check_screw_joints()
+    check_battery_keepout()
 
     print()
     if FAILURES:

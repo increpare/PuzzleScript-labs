@@ -175,11 +175,21 @@ def outline_points():
     pts = []
     _append_pt(pts, (x0, y0))
     _append_pt(pts, (x1, y0))
-    _append_pt(pts, (x1, y1))
+    nx = getattr(P, "PCB_DRIVER_NOTCH_X", None)
+    ny = getattr(P, "PCB_DRIVER_NOTCH_Y", None)
+    if nx is not None and ny is not None:
+        # Driver notch (sharp variant): drop the bottom-right corner.
+        _append_pt(pts, (x1, ny))
+        _append_pt(pts, (nx, ny))
+        south_x = nx
+    else:
+        _append_pt(pts, (x1, y1))
+        south_x = x1
+    _append_pt(pts, (south_x, y1))
     # Optional south-edge notches (D=0: pegs need unbroken FR4 under the slides).
     if P.SLIDE_NOTCH_D > 1e-6:
         yn = y1 - P.SLIDE_NOTCH_D
-        cursor = x1
+        cursor = south_x
         for nx0, nx1 in reversed(_notch_intervals()):
             if cursor > nx1:
                 _append_pt(pts, (cursor, y1))
@@ -234,11 +244,25 @@ def outline_edges():
     # top edge
     edges.append(("line", (tl[0], y0), (tr[0], y0)))
     edges.append(arc(tr, (tr[0], y0), (x1, tr[1])))
-    # right edge
-    edges.append(("line", (x1, tr[1]), (x1, br[1])))
-    edges.append(arc(br, (x1, br[1]), (br[0], y1)))
-    # bottom edge
-    edges.append(("line", (br[0], y1), (bl[0], y1)))
+
+    nx = getattr(P, "PCB_DRIVER_NOTCH_X", None)
+    ny = getattr(P, "PCB_DRIVER_NOTCH_Y", None)
+    if nx is not None and ny is not None:
+        # Driver notch: the whole bottom-right corner goes (the driver's back
+        # dips 0.5 mm below the board-front plane). Swallows the old BR arc.
+        r = min(getattr(P, "PCB_NOTCH_R", 2.0), 4.0)
+        c = (nx + r, ny + r)   # concave corner fillet centre
+        edges.append(("line", (x1, tr[1]), (x1, ny)))
+        edges.append(("line", (x1, ny), (nx + r, ny)))
+        edges.append(arc(c, (nx + r, ny), (nx, ny + r)))
+        edges.append(("line", (nx, ny + r), (nx, y1)))
+        edges.append(("line", (nx, y1), (bl[0], y1)))
+    else:
+        # right edge
+        edges.append(("line", (x1, tr[1]), (x1, br[1])))
+        edges.append(arc(br, (x1, br[1]), (br[0], y1)))
+        # bottom edge
+        edges.append(("line", (br[0], y1), (bl[0], y1)))
     edges.append(arc(bl, (bl[0], y1), (x0, bl[1])))
     # left edge
     edges.append(("line", (x0, bl[1]), (x0, tl[1])))

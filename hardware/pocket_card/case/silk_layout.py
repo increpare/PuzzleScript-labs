@@ -14,6 +14,8 @@ from typing import List, Optional, Sequence, Tuple
 
 from PIL import Image
 
+import params as P
+
 HERE = Path(__file__).resolve().parent
 CORPUS = HERE / "silk_rules_corpus.txt"
 MASCOT_PNG = HERE.parents[2] / "src" / "images" / "mascot_16.png"
@@ -261,7 +263,7 @@ def pin_xs(n: int) -> List[float]:
     return []
 
 
-def io_block(side: Side, fx, fy, labels, title, flipped=True):
+def io_block(side: Side, fx, fy, labels, title, flipped=True, below=False):
     n = len(labels)
     xs = pin_xs(n)
     board_xs = [fx + (-x if flipped else x) for x in xs]
@@ -269,19 +271,35 @@ def io_block(side: Side, fx, fy, labels, title, flipped=True):
     cw = label_size * MASK_ADV
     cols = ["%d·%s" % (i, lab) for i, lab in enumerate(labels, 1)]
     max_len = max(len(c) for c in cols)
-    body_y = fy - 2.1
-    pin_anchor_y = body_y - 0.35
     title_size = 1.05
-    title_y = pin_anchor_y - max_len * cw - 1.4
+    if below:
+        # Stack mirrored SOUTH of the body: BAT_OUT sits 3 mm off the north
+        # edge (module-socket clearance), so there is no room above it.
+        # vtext runs upward from its anchor, so anchor each column lower by
+        # its own length to keep the stacks top-aligned at the body.
+        body_y = fy + 2.1
+        anchors = [body_y + 0.35 + len(c) * cw for c in cols]
+        title_y = body_y + 0.35 + max_len * cw + 1.4 + title_size
+        tick_y = body_y - 0.1
+    else:
+        body_y = fy - 2.1
+        anchors = [body_y - 0.35] * n
+        title_y = body_y - 0.35 - max_len * cw - 1.4
+        tick_y = body_y - 0.35
 
     side.masks.extend(text_neg_outline(fx, title_y, title, title_size, anchor="middle"))
-    for bx, col in zip(board_xs, cols):
-        side.masks.extend(vtext_neg_glyphs(bx, pin_anchor_y, col, label_size))
+    for bx, col, ay in zip(board_xs, cols, anchors):
+        side.masks.extend(vtext_neg_glyphs(bx, ay, col, label_size))
 
     side.texts.append(TextItem(title, fx, title_y, title_size, anchor="middle"))
-    for bx, col in zip(board_xs, cols):
-        side.texts.append(TextItem(col, bx, pin_anchor_y, label_size, rot=-90))
-        side.rects.append(_rect(bx - 0.15, body_y - 0.35, 0.3, 0.45))
+    for bx, col, ay in zip(board_xs, cols, anchors):
+        side.texts.append(TextItem(col, bx, ay, label_size, rot=-90))
+        side.rects.append(_rect(bx - 0.15, tick_y, 0.3, 0.45))
+
+
+def conn_anchor(site):
+    """Board-local silk anchor for a P.CONN_* connector position."""
+    return (site[0] - P.PCB_X, site[1] - P.PCB_Y)
 
 
 def brick_rects_full() -> List[AABB]:
@@ -366,10 +384,11 @@ def build_back(corpus=None, grid=None, start: int = 0) -> Side:
     brand_block(logo, 8.0, 3.2, 0.88, grid, "PuzzlePocket", "PuzzleScript", 2.8, 1.55)
 
     labels = Layer()
-    io_block(labels, 60.5, 10.0, ["3V3", "GND", "SCL", "SDA"], "J_I2C")
-    io_block(labels, 75.5, 10.0, ["INT", "NC", "NC", "NC"], "J_EXP")
-    io_block(labels, 60.5, 23.0, ["BAT+", "GND"], "J_BAT_IN")
-    io_block(labels, 75.5, 23.0, ["BAT_SW", "GND"], "J_BAT_OUT")
+    io_block(labels, *conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C")
+    io_block(labels, *conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP")
+    io_block(labels, *conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN")
+    io_block(labels, *conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT",
+             below=True)
 
     return Side(layers=[rules, logo, labels], rule_count=len(rules.texts))
 

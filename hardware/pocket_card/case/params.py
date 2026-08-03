@@ -23,12 +23,12 @@ BODY_H = 93.0          # DECIDED
 WALL   = 1.5           # ASSUMED  shell wall thickness, sides and back
 # Back tray depth (outer). Was WALL (1.5): that slab sat inside the side-arc
 # scoop and left holes / no continuous lip. ~6 mm parks USB wholly in the tray
-# and leaves stock for a shaped full-perimeter rim (split-lip design 2026-08-02).
+# and leaves stock for a shaped rim (split-lip design 2026-08-02).
 LID_T  = 6.0           # DECIDED  back tray; front SHELL_DEPTH = BODY_T - LID_T
 FACE_T = 1.5           # DECIDED  front face thickness in the button area
 # Outer "brick" belt (face↔side, back↔side) and screen lip. Keep ≤~0.8 so the
 # 1.5 mm wall/face is not knifed down at the rim.
-EDGE_CHAMFER = 0.6        # DECIDED  front + back perimeter
+EDGE_CHAMFER = 0.8        # DECIDED  softer perimeter (was 0.6)
 APERTURE_CHAMFER = 0.7    # DECIDED  screen opening, viewing angle
 
 # ------------------------------------------------------------- module -----
@@ -224,7 +224,10 @@ PCB_W, PCB_H   = 80.5, 37.0
 # pin tip). A rear flare on the front shell made the board impossible to seat.
 # Left mount (4.5,56) dropped: side-arc back land cannot host a shoulder/head
 # left of the cell. Right-strip mounts get rear screws via EXTRA_BOSSES.
-PCB_MOUNTS = ((65.0, 56.0), (66.0, 81.0))
+# H1 nudged west so J_BAT_OUT's courtyard clears its Ø7.7 land; H2 moved
+# south so the land clears J_BAT_IN's courtyard (the old (66,81) land
+# overlapped it corner-on behind the board).
+PCB_MOUNTS = ((64.5, 56.0), (66.0, 84.0))
 PCB_MOUNT_D    = 2.6   # clearance hole in the board
 PCB_POST_D     = 2.4   # front pin through the hole
 PCB_SHOULDER_D = 4.4   # back-shell column the board rests on
@@ -318,16 +321,26 @@ SLIDE_CUT_Z = TIP_SLOT_Z
 # Module interconnects live on the PCB BACK (B.Cu), right-rear wiring pocket.
 # y is still device/face coordinates (KiCad Y-down matches params).
 # Cell fence ends near BATT_X + CELL_W + BATT_CLEAR ≈ 59.6; cluster sits in the
-# open band left of the driver and right of the cell. Driver XY overlap on B.Cu
-# is fine — the driver is front-shell only (z ≈ 1.5–5.0).
+# open band left of the driver and right of the cell.
 #
-# 2×2 so a GH plug can engage (Δy=7 single-file was courtyard-only clearance).
+# "Driver XY overlap on B.Cu is fine" stopped being true when the low-profile
+# switch pulled the board to 4.5: the driver now dips through the board plane
+# and the bottom-right corner is notched away (PCB_DRIVER_NOTCH_*), so nothing
+# may live at x>=68.2, y>=69. BAT_OUT (was 78,76 — inside the notch) moved to
+# the north band. All pairwise pitches >= 9 (checks). Connectors are plugged
+# before the board is seated, so on-stack runway is rework-only.
 # rot=180 pointed mouths at the bottom edge (away from the module); 0 flips them.
-# Left column clear of H4 (66,81); Δy=13 / Δx=15 for GH plug access.
+#
+# The module carries sockets flush with its own edge at the board's north
+# side, so B.Cu courtyards keep CONN_NORTH_CLEAR off that edge. BAT_OUT is
+# wedged between that rule, H1's land, I2C's courtyard, the 9 mm pitch to
+# EXP, and the notch — EXP sits at its south limit (1.0 mm off the notch
+# line) to make the pitch work.
+CONN_NORTH_CLEAR = 3.0        # ASSUMED  courtyard to board north edge
 CONN_I2C     = (63.0, 63.0)   # ASSUMED  4P GH
-CONN_EXP     = (78.0, 63.0)   # ASSUMED  4P GH
+CONN_EXP     = (78.0, 65.6)   # ASSUMED  4P GH, at south limit vs notch
 CONN_BAT_IN  = (63.0, 76.0)   # ASSUMED  2P GH from cell
-CONN_BAT_OUT = (78.0, 76.0)   # ASSUMED  2P GH to module BAT
+CONN_BAT_OUT = (72.3, 58.5)   # ASSUMED  2P GH to module BAT; north band
 CONN_ROT     = 0              # DECIDED  was 180 (faced away from module)
 CONN_SIDE    = "B.Cu"         # DECIDED
 #
@@ -341,8 +354,8 @@ CONN_2P_MPN  = "WAFER-GH1.25-2PWB"   # DECIDED  XUNPU; alt genuine SM02B-GHS-TB
 CONN_2P_LCSC = "C3029377"            # DECIDED  was C189893
 
 # Lower-half rear screws through the controller PCB (also in PCB_MOUNTS).
-# Sites sit in the cell↔driver strip with Ø5 head land on the scooped back.
-EXTRA_BOSSES = ((65.0, 56.0), (66.0, 81.0))  # DECIDED  re-placed after side-arc
+# Sites sit in the cell↔driver strip with Ø5 head land on the flat back.
+EXTRA_BOSSES = PCB_MOUNTS                    # DECIDED  single source (see above)
 
 # ---------------------------------------------------- side-arc ergonomics ----
 # Volume reduction only: continuous cylindrical arcs on a solid envelope, then
@@ -384,9 +397,23 @@ _PCB_GAP_R = BODY_W - (PCB_X + PCB_W)
 _PCB_GAP_B = BODY_H - (PCB_Y + PCB_H)
 CASE_BOTTOM_R_L = PCB_BOTTOM_R + min(_PCB_GAP_L, _PCB_GAP_B)  # ≈ 16.5
 CASE_BOTTOM_R_R = PCB_BOTTOM_R + min(_PCB_GAP_R, _PCB_GAP_B)  # ≈ 17.0
+# Plan-view top corners. The Z-edge fillet was hard-capped at 2 mm while the
+# bottom grew to ~16 — tops read sharp. Soft outer rounds; module posts at
+# (~6, 6.5) / (~84, 6.5) still sit inside R=8.
+CASE_TOP_R = 8.0                       # ASSUMED  top-left / top-right (mm)
 # Soften the space-curve where the side-arc cylinder meets the plan-view
 # bottom round. OCC tops out near ~2.6 on the tighter left scoop.
 SIDE_ARC_BOTTOM_BLEND = 2.6            # ASSUMED  seam fillet (mm)
+# Soft chin only — no mid-back belly scoop (padding BODY_T then carving just
+# made the screen half thicker for free).
+CONTROL_CHIN_R = 2.5                   # ASSUMED  back∩south edge roll (mm)
+
+# ------------------------------------------------- structural invariants ----
+# Counterbores must always be cut into deliberately added land material, never
+# into bare floor: WALL == SCREW_HEAD_H means a pocket in the floor is a
+# through-hole. See 2026-08-03 feature-framework spec.
+MIN_MEMBRANE = 0.8     # ASSUMED  min solid behind any counterbore seat (mm)
+LAND_WALL    = 1.2     # ASSUMED  radial land material beyond the head pocket
 
 # Switch height is a direct thickness lever: every millimetre of TACT_H is a
 # millimetre of device. SKQGABE010 at 1.5 mm is the chosen low-profile part.
@@ -395,6 +422,22 @@ SIDE_ARC_BOTTOM_BLEND = 2.6            # ASSUMED  seam fillet (mm)
 # The actual speaker, read out of hardware/card/case/case.blend (object
 # "speaker", 20.00 x 14.00 x 3.50, 68 vertices). It is a PILL, not a rectangle:
 # 14 mm wide with semicircular ends of radius 7, so a 6 mm straight section
+# The board front moved from 5.5 to 4.5 with the low-profile switch (TACT_H
+# 1.5), leaving only 3.0 mm face->board — the 3.5 mm driver no longer fits ON
+# the board. The bottom-right corner is therefore NOTCHED out of the outline
+# (long assumed by the screw-placement comments above; never actually drawn
+# until now) and the driver dips 0.5 mm through it.
+PCB_DRIVER_NOTCH_X = 68.2   # DECIDED  board removed where x >= this ...
+PCB_DRIVER_NOTCH_Y = 69.0   # DECIDED  ... and y >= this (device y is down)
+PCB_NOTCH_R        = 2.0    # ASSUMED  inner-corner radius (mill/stress)
+
+# With the board gone under the driver, a pedestal from the back-shell floor
+# rises through the notch void and stops just behind the driver's back: it
+# catches the driver on impact without preloading it (pressure would peel the
+# face adhesive the driver hangs from).
+DRIVER_BACKSTOP_D   = 10.0  # DECIDED  disc under the magnet, inside the notch
+DRIVER_BACKSTOP_CLR = 0.3   # ASSUMED  gap to driver back: catch, don't press
+
 # between them. DRIVER_W/H are the bounding box; DRIVER_PILL says how to draw it.
 # Long axis VERTICAL here, unlike the blend, which is the older `card` case.
 # Horizontal gives +1.00 mm to the walls instead of +0.00, but fouls corner boss

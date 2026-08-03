@@ -3,6 +3,13 @@
 from pathlib import Path
 from PIL import Image
 
+import params as P
+
+
+def conn_anchor(site):
+    """Board-local silk anchor for a P.CONN_* connector position."""
+    return (site[0] - P.PCB_X, site[1] - P.PCB_Y)
+
 HERE = Path(__file__).resolve().parent
 OUT_HTML = HERE / "out" / "silk_preview.html"
 CORPUS = HERE / "silk_rules_corpus.txt"
@@ -244,41 +251,54 @@ def vtext_neg_glyphs(x, y, s, size):
     return "\n".join(parts)
 
 
-def io_block(fx, fy, labels, title, flipped=True, preview_body=False):
-    """Per-pin vertical legends *north* of the footprint; tight per-glyph masks."""
+def io_block(fx, fy, labels, title, flipped=True, preview_body=False,
+             below=False):
+    """Per-pin vertical legends beside the footprint; tight per-glyph masks.
+
+    Legends go north of the body unless ``below`` (BAT_OUT sits 3 mm off the
+    board's north edge, so its stack mirrors south). Keep in lockstep with
+    silk_layout.io_block.
+    """
     n = len(labels)
     xs = pin_xs(n)
     board_xs = [fx + (-x if flipped else x) for x in xs]
     body_w = (n - 1) * PIN_PITCH + 4.5
     body_h = 5.2
     body_x = fx - body_w / 2
-    body_y = fy - 2.1
+    body_top = fy - 2.1
     label_size = 0.95
     cw = label_size * MASK_ADV
     # No spaces — avoids seep gaps; thin separator still readable
     cols = ["%d·%s" % (i, lab) for i, lab in enumerate(labels, 1)]
     max_len = max(len(c) for c in cols)
-    pin_anchor_y = body_y - 0.35
     title_size = 1.05
-    title_y = pin_anchor_y - max_len * cw - 1.4
+    if below:
+        base_y = fy + 2.1
+        anchors = [base_y + 0.35 + len(c) * cw for c in cols]
+        title_y = base_y + 0.35 + max_len * cw + 1.4 + title_size
+        tick_y = base_y - 0.1
+    else:
+        anchors = [body_top - 0.35] * n
+        title_y = body_top - 0.35 - max_len * cw - 1.4
+        tick_y = body_top - 0.35
 
     # masks first
     parts = [text_neg_outline(fx, title_y, title, title_size, anchor="middle")]
-    for bx, col in zip(board_xs, cols):
-        parts.append(vtext_neg_glyphs(bx, pin_anchor_y, col, label_size))
+    for bx, col, ay in zip(board_xs, cols, anchors):
+        parts.append(vtext_neg_glyphs(bx, ay, col, label_size))
 
     # silk
     parts.append(text_line(fx, title_y, title, title_size, anchor="middle"))
-    for bx, col in zip(board_xs, cols):
-        parts.append(vtext(bx, pin_anchor_y, col, label_size))
+    for bx, col, ay in zip(board_xs, cols, anchors):
+        parts.append(vtext(bx, ay, col, label_size))
         parts.append(
-            f'<rect x="{bx - 0.15:.2f}" y="{body_y - 0.35:.2f}" '
+            f'<rect x="{bx - 0.15:.2f}" y="{tick_y:.2f}" '
             f'width="0.3" height="0.45" fill="{SILK}"/>'
         )
     # Connector body is preview chrome only — never part of fab silk.
     if preview_body:
         parts.append(
-            f'<rect x="{body_x:.2f}" y="{body_y:.2f}" width="{body_w:.2f}" '
+            f'<rect x="{body_x:.2f}" y="{body_top:.2f}" width="{body_w:.2f}" '
             f'height="{body_h:.2f}" fill="#1e3d2a" stroke="#163024" stroke-width="0.12"/>'
         )
     return "\n".join(parts)
@@ -357,10 +377,10 @@ def build_silk_svgs(corpus=None, grid=None, disp=True):
         f'<g id="rules">{columns_fill(2.6, 2.4, 79.2, 36.3, sb, 3, 0.55)}</g>',
         f'<g id="logo">{brand_block(8.0, 3.2, 0.88, grid, "PuzzlePocket", "PuzzleScript", 2.8, 1.55)}</g>',
         '<g id="labels">',
-        io_block(60.5, 10.0, ["3V3", "GND", "SCL", "SDA"], "J_I2C", preview_body=False),
-        io_block(75.5, 10.0, ["INT", "NC", "NC", "NC"], "J_EXP", preview_body=False),
-        io_block(60.5, 23.0, ["BAT+", "GND"], "J_BAT_IN", preview_body=False),
-        io_block(75.5, 23.0, ["BAT_SW", "GND"], "J_BAT_OUT", preview_body=False),
+        io_block(*conn_anchor(P.CONN_I2C), ["3V3", "GND", "SCL", "SDA"], "J_I2C", preview_body=False),
+        io_block(*conn_anchor(P.CONN_EXP), ["INT", "NC", "NC", "NC"], "J_EXP", preview_body=False),
+        io_block(*conn_anchor(P.CONN_BAT_IN), ["BAT+", "GND"], "J_BAT_IN", preview_body=False),
+        io_block(*conn_anchor(P.CONN_BAT_OUT), ["BAT_SW", "GND"], "J_BAT_OUT", preview_body=False, below=True),
         '</g>',
         "</svg>",
     ])

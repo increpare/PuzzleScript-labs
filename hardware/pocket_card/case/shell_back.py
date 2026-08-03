@@ -13,6 +13,7 @@ import os
 
 import cadquery as cq
 
+import joints
 import params as P
 import side_arc
 
@@ -27,8 +28,7 @@ LID_Z1 = -SHELL_DEPTH                  # meets the front shell
 FLOOR_Z = LID_Z0 + P.WALL
 RIM_H = 1.2                            # alignment lip into the front cavity
 RIM_CLEAR = 0.25
-SCREW_CLEAR_D = 2.6
-SCREW_HEAD_D = 5.0
+# Screw shaft/head/land geometry lives in joints.py (single spec per site).
 FENCE_T = 1.2
 FENCE_H = 2.0                          # driver fence: the driver is only 3.5 thick
 # Cell fence from the floor up to the board's rear (doubles as a ledge).
@@ -36,15 +36,32 @@ _PCB_BACK = P.PCB_FRONT_Z + P.PCB_T
 CELL_FENCE_H = max((-FLOOR_Z) - _PCB_BACK, 0.8)  # FLOOR_Z→PCB in +Z
 
 
+def cell_keepout(margin: float = 0.0):
+    """Volume the battery may occupy (cell + BATT_CLEAR + margin), to floor."""
+    pcb_back = P.PCB_FRONT_Z + P.PCB_T
+    z_top = -(pcb_back + P.PET_T) + 0.5          # a hair past the cell front
+    m = P.BATT_CLEAR + margin
+    return (cq.Workplane("XY")
+            .box(P.CELL_W + 2 * m, P.CELL_H + 2 * m, z_top - (FLOOR_Z - 0.5),
+                 centered=False)
+            .translate((P.BATT_X - m, P.BATT_Y - m, FLOOR_Z - 0.5)))
+
+
 def shaped_rim():
-    """Full-perimeter lip: inset of the side-arc envelope, not a clipped box."""
+    """Full-perimeter lip: inset of the side-arc envelope, not a clipped box.
+
+    Relieved around the battery keepout: the bottom-left corner round pulls
+    the rim band inboard across the cell's corner (~1 mm into the pouch over
+    the cell's front millimetre). A local gap in the lip beats a hard edge
+    pressing a lithium pouch.
+    """
     outer_wall = P.WALL + RIM_CLEAR
     inner_wall = outer_wall + FENCE_T
     outer = side_arc.shaped_cavity_xy(
         outer_wall, LID_Z1, LID_Z1 + RIM_H, CORNER_R)
     inner = side_arc.shaped_cavity_xy(
         inner_wall, LID_Z1 - 0.5, LID_Z1 + RIM_H + 0.5, CORNER_R)
-    return outer.cut(inner)
+    return outer.cut(inner).cut(cell_keepout())
 
 
 def lid():
@@ -111,33 +128,23 @@ def driver_housing():   # NO LONGER USED -- the driver lives in the front shell
     return ring
 
 
-MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK       # 7.50
+def driver_backstop():
+    """Pedestal under the driver, through the board notch, almost touching.
 
-
-def module_support():
-    """Ribs bearing on the module's rear, around each screw position.
-
-    Without these the module hangs on four plain posts with nothing setting it
-    axially -- so it would end up resting on the front face, which the July 12
-    spec forbids ("the bezel must not press on the touch/LCD stack"), and any
-    pull on the module's connectors would work it back and forth.
-
-    With the front shell's shoulders in front and these behind, the board is
-    properly sandwiched at all four corners.
-
-    Pads rise from the tray floor to the module PCB back.
+    The driver hangs on its face adhesive with nothing behind it since the
+    board notch. This column rises from the tray floor to DRIVER_BACKSTOP_CLR
+    behind the driver's back: a drop lands the driver on the pedestal instead
+    of peeling the bond. Deliberately not touching — preload would hold the
+    driver off the very face it must stick to. Ø10 stays >2.5 mm inside the
+    notch so the board still seats past it.
     """
-    z_board = -MOD_PCB_BACK
-    h = max(z_board - FLOOR_Z, 0.8)
-    xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
-    ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
-    ribs = cq.Workplane("XY")
-    for x in xs:
-        for y in ys:
-            ribs = ribs.union(
-                cq.Workplane("XY").circle(3.5).circle(1.8)   # bore clears the Ø3.0 post
-                .extrude(h).translate((x, y, FLOOR_Z)))
-    return ribs
+    top = -(P.FACE_T + P.DRIVER_T + P.DRIVER_BACKSTOP_CLR)
+    return (cq.Workplane("XY").circle(P.DRIVER_BACKSTOP_D / 2)
+            .extrude(top - FLOOR_Z)
+            .translate((P.GRILLE_X, P.GRILLE_Y, FLOOR_Z)))
+
+
+MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK       # 7.50
 
 
 def usb_opening():
@@ -181,65 +188,54 @@ def pcb_support_pads():
     return pads
 
 
-def pcb_shoulders():
-    """Wide columns the PCB back rests on (approach A).
-
-    Front shell only has thin pins through the board holes. These shoulders rise
-    from the tray floor to the PCB-back plane and take the button load. A
-    central bore accepts the pin tip (and the screw on shared EXTRA_BOSSES).
-    """
-    pcb_back = P.PCB_FRONT_Z + P.PCB_T
-    h = max((-FLOOR_Z) - pcb_back, 0.8)
-    bore_d = max(P.PCB_POST_D + 0.35, SCREW_CLEAR_D)
-    add = cq.Workplane("XY")
-    for x, y in P.PCB_MOUNTS:
-        col = (cq.Workplane("XY").circle(P.PCB_SHOULDER_D / 2)
-               .extrude(h).translate((x, y, FLOOR_Z)))
-        bore = (cq.Workplane("XY").circle(bore_d / 2)
-                .extrude(h + 1).translate((x, y, FLOOR_Z - 0.5)))
-        add = add.union(col.cut(bore))
-    return add
-
-
-def screw_holes():
-    xs = (P.MOD_X + P.MOUNT_INSET, P.MOD_X + P.MOD_W - P.MOUNT_INSET)
-    ys = (P.MOD_Y + P.MOUNT_INSET, P.MOD_Y + P.MOD_H - P.MOUNT_INSET)
-    sites = [(x, y) for x in xs for y in ys] + list(P.EXTRA_BOSSES)
-    cuts = cq.Workplane("XY")
-    if True:
-        for x, y in sites:
-            cuts = cuts.union(
-                cq.Workplane("XY").circle(SCREW_CLEAR_D / 2).extrude(P.LID_T + 4)
-                .translate((x, y, LID_Z0 - 1)))
-            cuts = cuts.union(
-                cq.Workplane("XY")
-                .circle(SCREW_HEAD_D / 2).workplane(offset=1.4).circle(SCREW_CLEAR_D / 2)
-                .loft()
-                .translate((x, y, LID_Z0 - 0.01)))
-    return cuts
-
-
 def to_model_space(shape):
     """See shell_front.to_model_space -- layout y is down, model y is up."""
     return shape.mirror("XZ").translate((0, P.BODY_H, 0))
 
 
+def interior_crop():
+    """Where back-shell internals are allowed to exist.
+
+    Below the split: anywhere inside the envelope (fusing into the tray wall
+    is fine — it is solid). Above the split: inset to the rim's outer offset
+    (WALL + RIM_CLEAR) so nothing pokes into the front wall's landing zone —
+    the battery fence corner used to cross it at the bottom-left round and
+    jam the case shut.
+    """
+    below = side_arc.shaped_cavity_xy(0.0, LID_Z0 - 1.0, LID_Z1, CORNER_R)
+    above = side_arc.shaped_cavity_xy(
+        P.WALL + RIM_CLEAR, LID_Z1 - 0.1, -P.FACE_T, CORNER_R)
+    return below.union(above)
+
+
 def build_back():
+    """Fixed pipeline: tray → union ALL material → cut ALL voids → clip.
+
+    Screw geometry (lands, seats, pockets, bores) comes entirely from
+    joints.back_joints(); lands are sized against the pockets by construction
+    so boolean order within each group cannot open holes. The old
+    module_support / pcb_shoulders / screw_* functions are absorbed there.
+    """
+    js = joints.back_joints()
+    crop = interior_crop()
     s = lid()
-    s = s.union(battery_fence())
-    s = s.union(module_support())
-    s = s.union(pcb_support_rib())
-    s = s.union(pcb_support_pads())
-    s = s.union(pcb_shoulders())
-    s = s.cut(screw_holes())
-    s = s.cut(usb_opening())
+    for m in (battery_fence(), pcb_support_rib(), pcb_support_pads(),
+              driver_backstop(), *[j.material() for j in js]):
+        s = s.union(m.intersect(crop))
+    for v in (usb_opening(), *[j.voids() for j in js]):
+        s = s.cut(v)
     # Internals must not poke through the curved side scoops.
     s = side_arc.clip_to_envelope(s)
     return to_model_space(s)
 
 
 def pcb_outline_wire():
-    """Controller outline; larger bottom radii free lower side-wall carve."""
+    """Controller outline; larger bottom radii free lower side-wall carve.
+
+    Bottom-right corner is notched away for the driver: the board front sits
+    at 4.5 and the 3.5 mm driver reaches 5.0, so it must dip through the board
+    plane. Keep in sync with pcb.outline_edges (fab Edge.Cuts).
+    """
     board = (cq.Workplane("XY")
              .box(P.PCB_W, P.PCB_H, 1.6, centered=(False, False, False))
              .translate((P.PCB_X, P.PCB_Y, 0)))
@@ -250,6 +246,22 @@ def pcb_outline_wire():
         board = board.edges("|Z and <Y").fillet(top_r)
     if bot_r > 0:
         board = board.edges("|Z and >Y").fillet(bot_r)
+    nx = getattr(P, "PCB_DRIVER_NOTCH_X", None)
+    ny = getattr(P, "PCB_DRIVER_NOTCH_Y", None)
+    if nx is not None and ny is not None:
+        board = board.cut(
+            cq.Workplane("XY")
+            .box(P.PCB_X + P.PCB_W - nx + 1, P.PCB_Y + P.PCB_H - ny + 1, 4,
+                 centered=False)
+            .translate((nx, ny, -1)))
+        r = getattr(P, "PCB_NOTCH_R", 2.0)
+        if r > 0:
+            try:
+                board = (board.edges(cq.selectors.BoxSelector(
+                    (nx - 0.4, ny - 0.4, -1), (nx + 0.4, ny + 0.4, 3)))
+                    .fillet(r))
+            except Exception:
+                pass   # sharp inner corner still exports; fab adds mill radius
     return to_model_space(board)
 
 
@@ -265,7 +277,6 @@ if __name__ == "__main__":
     print(f"  wrote out/shell_back.stl and out/order/shell_back.stl")
     print(f"  battery fence  {P.CELL_W} x {P.CELL_H} cell at "
           f"({P.BATT_X}, {P.BATT_Y}), {P.BATT_CLEAR} clearance")
-    print(f"  driver fence   {P.DRIVER_W} x {P.DRIVER_H} at ({P.GRILLE_X}, {P.GRILLE_Y})")
 
     pcb = pcb_outline_wire()
     cq.exporters.export(pcb, os.path.join(OUT, "pcb_outline.stl"))

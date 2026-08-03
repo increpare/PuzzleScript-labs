@@ -205,9 +205,13 @@ def module_posts():
                 cq.Workplane("XY").circle(POST_D / 2)
                 .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
                 .translate((x, y, -MOD_PCB_FRONT)))
+            # Pilot up into the post AND shoulder: the old depth
+            # (SHELL_DEPTH - MOD_PCB_FRONT - 1.2 = 0.2 mm) gave the rear screw
+            # nothing to bite. Match the corner-boss engagement, capped 1.2
+            # short of the face.
             cut = cut.union(
                 cq.Workplane("XY").circle(POST_PILOT_D / 2)
-                .extrude(SHELL_DEPTH - MOD_PCB_FRONT - 1.2)
+                .extrude(SHELL_DEPTH - P.FACE_T - 1.2)
                 .translate((x, y, -SHELL_DEPTH)))
 
     # Corner bosses that do NOT coincide with a PCB mount can be fat (they
@@ -232,22 +236,27 @@ def driver_pocket():
     The driver bonds to the inside of the front face with its own adhesive, so
     it sits flush at z 1.5-5.0 and the bond carries it. There is deliberately no
     lip or shelf: anything under the rim would hold the driver off the very
-    surface it needs to stick to, and break the seal to the grille chamber. The
-    0.5 mm left to the board at 5.5 is clearance, not slack -- the board is not
-    meant to touch it, and does not retain it.
+    surface it needs to stick to, and break the seal to the grille chamber.
 
-    These walls only square the driver up while the adhesive sets, which is why
-    they can be freely interrupted for the collars and the lead notches.
+    Since the board front moved to 4.5 (low-profile switch), the driver's back
+    (5.0) dips 0.5 through the board plane — the board outline is notched
+    around it (PCB_DRIVER_NOTCH_*). The walls, however, stop just above the
+    board plane: the west wall crosses the notch edge onto board material, and
+    2.8 mm of engagement squares the driver up fine while the adhesive sets.
+
+    These walls only square the driver up, which is why they can be freely
+    interrupted for the collars and the lead notches.
     """
     wall = 1.2
     w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
     z_face = -P.FACE_T                      # driver's front, on the face
     z_back = z_face - P.DRIVER_T            # driver's back
+    z_stop = -(P.PCB_FRONT_Z - 0.2)         # walls end above the board front
     # Stadium, not a box: the part has semicircular ends. A rectangular pocket
     # would locate it on four corners it does not have.
     outer = (cq.Workplane("XY")
              .slot2D(h + 2 * wall, w + 2 * wall, 90)
-             .extrude(z_back)
+             .extrude(z_stop)
              .translate((P.GRILLE_X, P.GRILLE_Y, 0))
              .cut(cq.Workplane("XY").box(200, 200, 200)
                   .translate((0, 0, 100 + z_face))))
