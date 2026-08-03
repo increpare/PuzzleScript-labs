@@ -698,7 +698,7 @@ COUPON_CLEARANCES = (0.10, 0.15, 0.20, 0.25, 0.30)   # FDM-appropriate steps
 #
 # One tile, two pitches. '#' is brick (proud), '.' is mortar (at nominal).
 # Running bond: each course offset half a brick from the one above.
-TEX_TILE = (
+TEX_TILE = (  # DECIDED  5×5 running-bond brick pattern
     "####.",
     "####.",
     ".....",
