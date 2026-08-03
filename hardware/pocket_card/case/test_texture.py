@@ -4,7 +4,10 @@ No pytest in this venv by design — plain asserts, same idiom as checks.py.
 
 Run:  .venv/bin/python test_texture.py
 """
+import math
 import sys
+
+import cadquery as cq
 
 import params as P
 
@@ -84,6 +87,38 @@ def test_outward_envelope():
           f"{grown.Volume():.0f} vs {nominal.Volume():.0f}")
     check("inward offset still works",
           side_arc._envelope(P.WALL).Volume() < nominal.Volume())
+
+    # Bbox and volume alone cannot tell a true parallel offset from a bug
+    # that grows w/h but leaves the corner radii (P.CASE_TOP_R / _BOTTOM_R)
+    # fixed: a rounded rectangle's bbox is always w x h regardless of corner
+    # radius, and a radius-frozen "offset" still gains volume (just less
+    # than a true one would). Steiner's formula for offsetting a CONVEX
+    # planar region outward by r is shape-independent —
+    #   Area(offset) == Area + Perimeter*r + pi*r^2
+    # — and holds for _plan_solid's rounded-rectangle cross-section (any
+    # corner radii, north/south differ) precisely BECAUSE the construction
+    # grows every radius by r in step with w/h. This checks the actual
+    # invariant by measuring real OCC geometry, not by restating the
+    # CASE_TOP_R/CASE_BOTTOM_R arithmetic under a different name — dropping
+    # either "- inset" term in _plan_solid makes the corner geometry diverge
+    # from a true offset and this check fails (verified by hand: temporarily
+    # hardcoding rt/rb to skip the inset term moved the area ~7 mm^2 off the
+    # Steiner prediction, well past the tolerance below; reverted).
+    plan_nominal = side_arc._plan_solid(0.0)
+    plan_grown = side_arc._plan_solid(-r)
+    z_ref = -1.0  # inside both solids' z-range, clear of the front/back ends
+    slab = (cq.Workplane("XY")
+            .box(P.BODY_W + 4, P.BODY_H + 4, 0.02, centered=False)
+            .translate((-2.0, -2.0, z_ref)))
+    face_n = cq.Workplane(plan_nominal).intersect(slab).faces("<Z").val()
+    face_g = cq.Workplane(plan_grown).intersect(slab).faces("<Z").val()
+    area_n, perim_n = face_n.Area(), face_n.outerWire().Length()
+    area_g = face_g.Area()
+    expected_g = area_n + perim_n * r + math.pi * r * r
+    check("plan-view corners are a true parallel offset (Steiner check)",
+          abs(area_g - expected_g) < 0.5,
+          f"{area_g:.2f} vs {expected_g:.2f} "
+          f"(nominal area {area_n:.2f}, perimeter {perim_n:.2f})")
 
 
 def main():
