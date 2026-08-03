@@ -20,6 +20,7 @@ import cadquery as cq
 import params as P
 import side_arc
 import slide_tip
+import texture
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 os.makedirs(OUT, exist_ok=True)
@@ -416,8 +417,12 @@ def build():
     shell = shell.union(driver_pocket())
     shell = shell.cut(edge_openings())
     shell = shell.cut(grille_slots())
-    # Keep posts/collars from ever sitting outside the curved envelope.
+    # Keep posts/collars from ever sitting outside the curved envelope. This
+    # must happen BEFORE the relief goes on, because relief deliberately lives
+    # outside that envelope.
     shell = side_arc.clip_to_envelope(shell)
+    shell = shell.union(
+        texture.relief_for_zone("front", -P.TEX_RELIEF, 2 * P.TEX_RELIEF))
     return to_model_space(shell)
 
 
