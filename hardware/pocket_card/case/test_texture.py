@@ -852,6 +852,23 @@ def test_relief_for_zone():
           _raises(lambda: texture.relief_for_zone("nope", -1.0, 1.0)))
 
 
+def test_large_relief_chamfer_attempt():
+    print("large relief chamfer")
+    import texture
+
+    # More than the old 128-solid bypass: all disconnected boxes have simple,
+    # valid top edges, so a per-solid chamfer must visibly reduce volume.
+    solids = [cq.Solid.makeBox(1.0, 1.0, P.TEX_RELIEF,
+                               cq.Vector(i * 2.0, 0, 0))
+              for i in range(129)]
+    relief = cq.Workplane(cq.Compound.makeCompound(solids))
+    chamfered = texture._chamfer_proud_tops(relief)
+    check("large disconnected relief gets a top chamfer",
+          chamfered.val().Volume() < relief.val().Volume() - 0.1,
+          f"{chamfered.val().Volume():.4f} vs {relief.val().Volume():.4f}")
+    check("large chamfered relief remains valid", chamfered.val().isValid())
+
+
 def main():
     test_tile_shape()
     test_pitches()
@@ -867,6 +884,7 @@ def main():
     test_stations_and_islands()
     test_bottom_clear()
     test_relief_for_zone()
+    test_large_relief_chamfer_attempt()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")

@@ -261,21 +261,36 @@ def _wall_prisms(z0, z1):
 
 
 def _chamfer_proud_tops(relief):
-    """Apply the cosmetic top chamfer when OCC can do so safely.
+    """Chamfer every disconnected brick independently where OCC permits it.
 
-    OCC's chamfer builder scales per disconnected solid.  A full front field
-    contains over a thousand solids after the skin and keep-outs, and issuing
-    that many fillets is slower than the entire useful model build.  Treat
-    that as a cosmetic chamfer failure rather than risking an unattended
-    multi-minute build; smaller callers still get the actual chamfer.
+    A skin-clipped brick can expose a degenerate top edge.  Its chamfer is
+    cosmetic, so preserve just that brick on a failure; never bypass the
+    chamfer merely because a field contains many otherwise valid solids.
     """
-    solids = relief.solids().vals()
-    if len(solids) > 128:
-        return relief
-    try:
-        return relief.faces(">Z").edges().chamfer(P.TEX_TOP_CHAMFER)
-    except Exception:
-        return relief
+    chamfered = []
+    for solid in relief.solids().vals():
+        try:
+            candidate = (cq.Workplane(solid).faces(">Z").edges()
+                         .chamfer(P.TEX_TOP_CHAMFER).val())
+            # OCC occasionally reports success on a skin-clipped top face
+            # while extending it far beyond its source solid. A chamfer can
+            # only remove material, never enlarge the original bounding box.
+            source = solid.BoundingBox()
+            result = candidate.BoundingBox()
+            tol = 1e-6
+            if (not candidate.isValid()
+                    or candidate.Volume() > solid.Volume() + tol
+                    or result.xmin < source.xmin - tol
+                    or result.ymin < source.ymin - tol
+                    or result.zmin < source.zmin - tol
+                    or result.xmax > source.xmax + tol
+                    or result.ymax > source.ymax + tol
+                    or result.zmax > source.zmax + tol):
+                raise ValueError("OCC chamfer enlarged a source solid")
+            chamfered.append(candidate)
+        except Exception:
+            chamfered.append(solid)
+    return cq.Workplane(cq.Compound.makeCompound(chamfered))
 
 
 def relief_for_zone(zone: str, z0: float, z1: float) -> cq.Workplane:
