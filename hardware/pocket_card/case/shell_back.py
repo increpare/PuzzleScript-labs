@@ -24,10 +24,13 @@ CORNER_R = 4.5
 SHELL_DEPTH = P.BODY_T - P.LID_T       # front shell ends here
 LID_Z0 = -P.BODY_T                     # outer back surface
 LID_Z1 = -SHELL_DEPTH                  # meets the front shell
+RIB_Z0 = -P.RIB_ZONE_T                 # outer back inside the north rib
 # Inner face of the back floor (WALL thick). Internal ribs rise from here.
+# The rib's own floor is P.RIB_FLOOR_Z, RIB_H lower; nothing but the module's
+# battery header lives down there, so internals still rise from FLOOR_Z.
 FLOOR_Z = LID_Z0 + P.WALL
-RIM_H = 1.2                            # alignment lip into the front cavity
-RIM_CLEAR = 0.25
+# Split-line lap geometry (LAP_*) lives in params.py — the front shell cuts
+# the matching rebate from the same numbers.
 # Screw shaft/head/land geometry lives in joints.py (single spec per site).
 FENCE_T = 1.2
 FENCE_H = 2.0                          # driver fence: the driver is only 3.5 thick
@@ -47,30 +50,39 @@ def cell_keepout(margin: float = 0.0):
             .translate((P.BATT_X - m, P.BATT_Y - m, FLOOR_Z - 0.5)))
 
 
-def shaped_rim():
-    """Full-perimeter lip: inset of the side-arc envelope, not a clipped box.
+def split_tongue():
+    """The tray's half of the lap: the inner LAP_T of the wall, run up past
+    the split into the front shell's rebate.
 
-    Relieved around the battery keepout: the bottom-left corner round pulls
-    the rim band inboard across the cell's corner (~1 mm into the pouch over
-    the cell's front millimetre). A local gap in the lip beats a hard edge
-    pressing a lithium pouch.
+    This is wall, not a lip inboard of it. The predecessor stood proud of the
+    inner wall by RIM_CLEAR, which put it over the cavity rather than over the
+    tray wall — it was a free-floating ring (lid() came out as two solids) and
+    it ran straight through the module PCB. Living in the wall thickness costs
+    no interior at all, and the tongue's inner face is the inner wall itself.
+
+    Both faces are straight prisms at the split section, so the tongue has no
+    draft: see side_arc.section_prism.
     """
-    outer_wall = P.WALL + RIM_CLEAR
-    inner_wall = outer_wall + FENCE_T
-    outer = side_arc.shaped_cavity_xy(
-        outer_wall, LID_Z1, LID_Z1 + RIM_H, CORNER_R)
-    inner = side_arc.shaped_cavity_xy(
-        inner_wall, LID_Z1 - 0.5, LID_Z1 + RIM_H + 0.5, CORNER_R)
+    outer = side_arc.section_prism(P.WALL - P.LAP_T, LID_Z1,
+                                   LID_Z1, LID_Z1 + P.LAP_H)
+    inner = side_arc.section_prism(P.WALL, LID_Z1,
+                                   LID_Z1 - 0.5, LID_Z1 + P.LAP_H + 0.5)
     return outer.cut(inner).cut(cell_keepout())
 
 
 def lid():
-    """Hollow tray: shaped outer band, WALL floor/sides, open at the split."""
-    body = side_arc.shaped_outer_band(LID_Z0, LID_Z1, CORNER_R)
+    """Hollow tray: shaped outer band, WALL floor/sides, open at the split.
+
+    Both the band and the void run to the rib's depth rather than BODY_T. The
+    envelope already carries the rib, so a void taken from RIB_FLOOR_Z is the
+    flat tray everywhere the rib is absent and the connector pocket where it is
+    not — the pocket needs no separate feature, and cannot drift from the skin.
+    """
+    body = side_arc.shaped_outer_band(RIB_Z0, LID_Z1, CORNER_R)
     # Void from above the floor through the open face (into the front a hair).
-    cav = side_arc.shaped_cavity_xy(P.WALL, FLOOR_Z, LID_Z1 + 0.5, CORNER_R)
+    cav = side_arc.shaped_cavity_xy(P.WALL, P.RIB_FLOOR_Z, LID_Z1 + 0.5, CORNER_R)
     body = body.cut(cav)
-    return body.union(shaped_rim())
+    return body.union(split_tongue())
 
 
 def battery_fence():
@@ -148,11 +160,28 @@ MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK       # 7.50
 
 
 def usb_opening():
-    """USB-C window in the left wall — wholly in the back tray (split-lip)."""
-    usb_y = P.MOD_Y + P.MOD_H / 2
+    """USB-C window in the left wall, cut as a prism along the plug axis.
+
+    Sized off the module's receptacle, not off a plug overmold — see the USB-C
+    block in params.py for why the overmold never reaches the case, and why
+    sizing for it would cut a hole taller than the wall has room for.
+
+    Two things the shape has to respect. The top edge is the split seam: the
+    receptacle's top is 0.20 under it, so a window that stops short leaves a
+    knife-edge ledge of tray wall beneath the joint. The cutter's top therefore
+    runs a hair PAST the seam, both to avoid a coincident-plane sliver and
+    because the front shell's skirt is what forms the port's upper edge; it
+    costs 0.1 off the tongue's bottom over the port's span and nothing else.
+
+    And it is a prism along +x rather than a hole normal to the skin, because
+    the wall sweeps 1 deg to 40 deg across the port — the port sits wholly
+    inside the back roll. It has to outrun the wall's inner face at the bottom
+    of that sweep, which is what P.USB_CUT_X is for.
+    """
     return (cq.Workplane("XY")
-            .box(P.WALL + 3, 10.0, 4.2, centered=(False, True, True))
-            .translate((-1.5, usb_y, -(MOD_PCB_BACK + 2.1))))
+            .box(P.USB_CUT_X + 1.5, P.USB_W, (P.USB_Z1 + 0.1) - P.USB_Z0,
+                 centered=(False, True, False))
+            .translate((-1.5, P.USB_Y, P.USB_Z0)))
 
 
 def pcb_support_rib():
@@ -197,14 +226,14 @@ def interior_crop():
     """Where back-shell internals are allowed to exist.
 
     Below the split: anywhere inside the envelope (fusing into the tray wall
-    is fine — it is solid). Above the split: inset to the rim's outer offset
-    (WALL + RIM_CLEAR) so nothing pokes into the front wall's landing zone —
-    the battery fence corner used to cross it at the bottom-left round and
-    jam the case shut.
+    is fine — it is solid). Above the split: inboard of the tongue's inner
+    face, so nothing pokes into the front wall's landing zone — the battery
+    fence corner used to cross it at the bottom-left round and jam the case
+    shut. Straight, not rolled: the roll only opens the front wall away from
+    this line as z rises, so the split section bounds the whole climb.
     """
-    below = side_arc.shaped_cavity_xy(0.0, LID_Z0 - 1.0, LID_Z1, CORNER_R)
-    above = side_arc.shaped_cavity_xy(
-        P.WALL + RIM_CLEAR, LID_Z1 - 0.1, -P.FACE_T, CORNER_R)
+    below = side_arc.shaped_cavity_xy(0.0, RIB_Z0 - 1.0, LID_Z1, CORNER_R)
+    above = side_arc.section_prism(P.WALL, LID_Z1, LID_Z1 - 0.1, -P.FACE_T)
     return below.union(above)
 
 

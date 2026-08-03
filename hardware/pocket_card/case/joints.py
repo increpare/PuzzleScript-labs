@@ -14,6 +14,8 @@ Geometry rules (see 2026-08-03 feature-framework spec):
 
 Run through shell_back.py; checks in checks.py.
 """
+import math
+
 import cadquery as cq
 
 import params as P
@@ -47,10 +49,21 @@ class ScrewJoint:
 
     # -- derived planes ----------------------------------------------------
     def skin_range(self):
-        """(z_lo, z_hi) of the outer back over the head footprint."""
+        """(z_lo, z_hi) of the outer back over the head footprint.
+
+        Samples the whole disc, not just the x-centreline. That was adequate
+        while the back only curved in x; now the roll turns the corners, so a
+        joint near the north edge varies in y too and an x-only scan reads a
+        seat that is deeper than the shallowest skin over the head.
+        """
         r = self.head_r
-        xs = (self.x - r, self.x - r / 2, self.x, self.x + r / 2, self.x + r)
-        zs = [side_arc.outer_back_z_at(xi, self.y) for xi in xs]
+        pts = [(self.x, self.y)]
+        for frac in (0.5, 1.0):
+            for i in range(8):
+                a = i * math.pi / 4
+                pts.append((self.x + frac * r * math.cos(a),
+                            self.y + frac * r * math.sin(a)))
+        zs = [side_arc.outer_back_z_at(px, py) for px, py in pts]
         return min(zs), max(zs)
 
     @property

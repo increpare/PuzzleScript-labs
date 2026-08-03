@@ -16,6 +16,7 @@ Coordinate convention for the assembled device, viewed from the front:
   y  0 .. BODY_H   top to bottom
   z  0 at the front outer surface, increasing into the body
 """
+import math as _math
 
 # ---------------------------------------------------------------- body -----
 BODY_W = 90.0          # DECIDED
@@ -31,11 +32,42 @@ FACE_T = 1.5           # DECIDED  front face thickness in the button area
 EDGE_CHAMFER = 0.8        # DECIDED  softer perimeter (was 0.6)
 APERTURE_CHAMFER = 0.7    # DECIDED  screen opening, viewing angle
 
+# ------------------------------------------------------- split-line lap -----
+# The shells overlap INSIDE the wall thickness, not inboard of it. A lip that
+# stands proud of the inner wall has nowhere to go here: the module PCB is
+# 86.0 wide and the interior at the split is ~86.1, and such a lip is not over
+# the tray wall either, so it floats free of the tray (it did: lid() built as
+# two solids). The tray keeps the inner LAP_T of the wall and runs it up past
+# the split; the front keeps the outer remainder and runs it down to meet it.
+# The tongue's inner face IS the inner wall, so nothing intrudes at all.
+#
+# Both mating faces are straight prisms taken at the split section — see
+# side_arc.section_prism. The back roll widens every cross-section with
+# height, so a lap that followed the envelope would be wider at its top than
+# the slot it has to enter and the case simply would not close.
+LAP_T     = 0.65   # DECIDED  tongue: inner slice of the wall, on the back tray
+LAP_CLEAR = 0.15   # DECIDED  radial slip fit between the two laps
+LAP_H     = 1.2    # DECIDED  engagement height above the split
+LAP_OVER  = 0.2    # DECIDED  front rebate outruns the tongue, so the shells
+                   #          close on the outer shoulder, not the tongue top
+LAP_FRONT_T = WALL - LAP_T - LAP_CLEAR   # 0.70  front skirt at the split
+
 # ------------------------------------------------------------- module -----
 MOD_W, MOD_H    = 86.0, 50.0    # DATASHEET  ES3C28P outline
+# The corners are NOT square, and it matters: the board is 86.0 wide in an
+# interior of ~86.1, so the plan-corner rounding is the whole ballgame. R3.50
+# is what lets CASE_TOP_R be 7.5 instead of 4.0.
+MOD_CORNER_R    = 3.50          # DATASHEET  "R3.50*4", outline drawing 5.1
+MOD_PCB_T       = 1.60          # DATASHEET  "1.60 PCB"
 MOD_DEPTH       = 10.60         # DATASHEET  total, touch surface to tallest rear part
 MOD_FRONT_STACK = 5.85          # DATASHEET  touch surface to back of module PCB
-MOD_REAR_PARTS  = 4.75          # DATASHEET  max rear component height
+MOD_REAR_PARTS  = 4.75          # DATASHEET  "4.70 SMD(MAX)", the BAT header alone
+# What the rest of the back carries. The datasheet maximum above is one part —
+# the vertical battery header — and sizing the whole tray to it would cost 1.25
+# of depth over the entire module. Every other rear connector is side-entry and
+# MEASURED at 3.5, so the flat tray is sized to this and the header gets the
+# north rib instead.
+MOD_REAR_TYPICAL = 3.50         # MEASURED  every rear part except BAT
 MOD_X           = (BODY_W - MOD_W) / 2      # 2.0, centred
 MOD_Y           = 2.5           # ASSUMED  top margin
 
@@ -375,38 +407,178 @@ CELL_W, CELL_H = 50.0, 34.0        # DECIDED
 CELL_SWELL     = 0.5     # ASSUMED
 
 LOWER_ZONE_T = PCB_FRONT_Z + PCB_T + PET_T + CELL_T + CELL_SWELL + WALL
-UPPER_ZONE_T = MOD_DEPTH + 0.3 + WALL     # module sits flush in the front window
+# The module hangs off the front face at MODULE_Z, so its stack starts there and
+# not at zero. Leaving MODULE_Z out read 12.40 for a zone that actually wants
+# 12.80, and would have read 14.05 against the datasheet's rear maximum — which
+# is how a 4.70 header came to be sitting 0.46 inside a 13.30 case.
+UPPER_ZONE_T = MODULE_Z + MOD_FRONT_STACK + MOD_REAR_TYPICAL + 0.3 + WALL   # 12.80
 BODY_T       = max(LOWER_ZONE_T, UPPER_ZONE_T)
 
-# ---------------------------------------------------- side-arc ergonomics ----
-# Continuous full-length cylindrical arcs on a solid envelope, then hollowed.
-# Cap R so the crescent stays below the face plate (z ≤ −FACE_T): the curve
-# wraps the sides up under the face without chewing button/driver land.
-# Left also limited by cell back-flat (BATT_X≈9).
-_SIDE_ARC_R_MAX = BODY_T - FACE_T - 0.2   # ≈ 11.6 — meets side under the face
-SIDE_ARC_R_L = min(8.0, _SIDE_ARC_R_MAX)  # ASSUMED
-SIDE_ARC_R_R = _SIDE_ARC_R_MAX            # ASSUMED  as hard as face keepout allows
-SIDE_ARC_Y0 = 0.0                         # DECIDED  full length
-SIDE_ARC_Y1 = BODY_H                      # DECIDED  through the bottom
-SIDE_ARC_MIN_WALL = WALL                  # DECIDED
-# Plan-view bottom corners follow the controller outline: PCB_BOTTOM_R plus the
-# board-to-shell gap on each side so the case hugs the rounded FR4 (not a
-# rectangular pocket around a radiused board).
-_PCB_GAP_L = PCB_X
-_PCB_GAP_R = BODY_W - (PCB_X + PCB_W)
-_PCB_GAP_B = BODY_H - (PCB_Y + PCB_H)
-CASE_BOTTOM_R_L = PCB_BOTTOM_R + min(_PCB_GAP_L, _PCB_GAP_B)  # ≈ 16.5
-CASE_BOTTOM_R_R = PCB_BOTTOM_R + min(_PCB_GAP_R, _PCB_GAP_B)  # ≈ 17.0
-# Plan-view top corners. The Z-edge fillet was hard-capped at 2 mm while the
-# bottom grew to ~16 — tops read sharp. Soft outer rounds; module posts at
-# (~6, 6.5) / (~84, 6.5) still sit inside R=8.
-CASE_TOP_R = 8.0                       # ASSUMED  top-left / top-right (mm)
-# Soften the space-curve where the side-arc cylinder meets the plan-view
-# bottom round. OCC tops out near ~2.6 on the tighter left scoop.
-SIDE_ARC_BOTTOM_BLEND = 2.6            # ASSUMED  seam fillet (mm)
-# Soft chin only — no mid-back belly scoop (padding BODY_T then carving just
-# made the screen half thicker for free).
-CONTROL_CHIN_R = 2.5                   # ASSUMED  back∩south edge roll (mm)
+# --------------------------------------------------------- north-edge rib ----
+# The module's battery header is a vertical Molex PicoBlade 53398-0271: 4.70
+# tall bare, 5.70 with the 51021 crimp housing on it. BODY_T is 13.30, set by
+# the cell in the south half, and the flat tray leaves 4.24 under the module —
+# so the mated connector does not merely foul the floor, it comes out through
+# the back of the case by 0.04.
+#
+# The fix is depth in the band the header sits in rather than over the whole
+# case: the back is RIB_H thicker from the north edge to RIB_Y, then eases back
+# to BODY_T. Full width, so it is symmetric about x = BODY_W/2 and reads as the
+# top edge being fatter rather than as a wart. The header is the only vertical
+# part on the module and it lies wholly inside the band.
+BAT_MATED_H  = 5.70   # DATASHEET  Molex, module PCB surface to top of the pair
+BAT_CABLE    = 0.80   # DECIDED  over the housing, for the leads to fold out.
+                      #          1.20 (a full 26 AWG diameter) wanted 2.60 of
+                      #          rib; 0.30 (pinched flat) wanted 1.70.
+# The rib carries the same R6 north roll as the rest of the back, and the header
+# is close enough to that edge to sit partly under it: at the north corner of
+# its footprint, allowing the module's 0.3 of drift, the roll lifts the pocket
+# roof by 0.17. Without this the promised 0.80 of lead room is only 0.63 in that
+# corner, which is exactly the kind of quiet shortfall that put the connector
+# through the back of the case in the first place.
+RIB_ROLL_LOSS = 0.20  # DECIDED  covers 0.17 with a little to spare
+RIB_ZONE_T   = (MODULE_Z + MOD_FRONT_STACK + BAT_MATED_H + BAT_CABLE
+                + RIB_ROLL_LOSS + WALL)                            # 15.70
+RIB_H        = round(RIB_ZONE_T - BODY_T, 3)      # 2.40, how proud it stands
+RIB_Y        = 11.0   # DECIDED  south end of the full-depth plateau. The
+                      #          pocket's south wall lands at 10.68.
+# The step down to BODY_T is two tangent arcs, not a chamfer and not a fillet:
+# the seam between a stepped rib and the rolled back is a closed loop that turns
+# from concave to convex as it wraps the side rolls, and OCC will not fillet
+# that chain (tried: uniform R1/R2 and split radii, all fail). Ending the rib on
+# a curve that is tangent to both back planes leaves no edge to fillet at all.
+RIB_BLEND_PHI = 22.0  # DECIDED  steepest slope of the blend, degrees
+_rib_p        = _math.radians(RIB_BLEND_PHI)
+RIB_BLEND_R   = RIB_H / (2 * (1 - _math.cos(_rib_p)))       # 15.11
+RIB_BLEND_RUN = 2 * RIB_BLEND_R * _math.sin(_rib_p)         # 11.32
+RIB_Y2        = RIB_Y + RIB_BLEND_RUN                       # 22.32, back to BODY_T
+RIB_FLOOR_Z   = -RIB_ZONE_T + WALL                          # -14.00, pocket roof
+
+# The header, from the KiCad footprint for the exact part (Connector_Molex,
+# Molex_PicoBlade_53398-0271_1x02-1MP_P1.25mm_Vertical). The module's own
+# outline drawing agrees: its 5.18 dimension lands on that footprint's
+# mounting-pad centreline, which sits 2.75 in from the pin row and 0.75 off the
+# body centre — which is why the body is not centred on the 5.18.
+#   body     x -3.825..3.825   y -1.100..2.600     7.65 x 3.70
+#   pin row  y -1.25, along the module's 86 axis, i.e. our x
+BAT_BODY_L, BAT_BODY_W = 7.65, 3.70    # DATASHEET
+BAT_X = 25.18                          # DATASHEET  86-axis chain 35.03/15.97/11.82
+BAT_Y = MOD_Y + 5.18 - 1.5 + (BAT_BODY_W / 2 - 1.1)         # 6.93, body centre
+BAT_CLR = 0.40                         # DECIDED  pocket clearance, per side
+
+# ------------------------------------------------------------ USB-C port ----
+# The module's own receptacle, in the left wall. It is dead centre of the
+# module's 50 mm edge: the outline drawing's bottom dimension chain reads
+# 13.44 / 11.56 / 11.57 / 13.43, so the connector lands at 25.00 of 50.
+USB_Y      = MOD_Y + MOD_H / 2                    # 27.5
+USB_REC_W, USB_REC_H = 8.94, 3.26   # ASSUMED  16-pin receptacle shell, outside
+USB_REC_Z1 = -(MODULE_Z + MOD_FRONT_STACK)        # -7.50, rear-mounted on the module
+USB_REC_Z0 = USB_REC_Z1 - USB_REC_H               # -10.76
+#
+# The hole does NOT have to pass a plug's overmold, which is the assumption that
+# makes people cut 12.35 x 6.50 slots. USB Type-C R2.0 fig 3-80 asks only that
+# the overmold clear the exterior surface by 0.05 when the plug is seated, and
+# the plug's shell is 6.65 long (fig 3-11 sec C-C) — so the budget from the
+# receptacle's mating datum to the skin is ~6.5. Ours is 2.00. The overmold
+# seats ~4.5 clear of the case and never enters the hole at all, and the
+# aperture only has to clear the plug's 8.25 x 2.40 shell.
+USB_CLEAR  = 0.23   # DECIDED  aperture over the receptacle shell, per side.
+                    # Leaves 0.58/side on the plug shell, so the module's
+                    # +/-0.3 placement drift cannot bring the case into the
+                    # plug's path.
+USB_W      = USB_REC_W + 2 * USB_CLEAR            # 9.40
+# The top edge is the split seam itself, not a line below it. The receptacle's
+# top is only 0.20 under the seam, so ANY aperture that clears the receptacle
+# reaches the seam anyway — the old 4.2-tall window left 0.21 mm of tray wall
+# under the joint, a knife edge no process holds. Ending on the seam removes it
+# and the front shell's skirt becomes the port's upper edge.
+USB_Z1     = -(BODY_T - LID_T)                    # -7.30, the split
+USB_Z0     = USB_REC_Z0 - USB_CLEAR               # -10.99
+# The wall sweeps 1 deg to 40 deg across the port, because the port sits wholly
+# inside the back roll — fig 3-81 covers this case and its worked example is a
+# 22 deg wall. So the hole is a prism along the PLUG axis, not normal to the
+# skin, and it has to outrun the wall's inner face at the deepest point: at
+# USB_Z0 the rolled wall reaches x 3.25, and a cutter stopping at 3.0 clipped
+# the receptacle's bottom corner by 0.11.
+USB_CUT_X  = MOD_X + 3.5                          # 5.5, past the inner face
+#
+# What the aperture actually has to pass, and the reach the overmold needs.
+# The shell's minimum exposed length is 6.51 (fig 3-11), and fig 3-80 wants
+# 0.05 of daylight, so the skin may sit at most 6.46 behind the mating datum.
+USB_PLUG_W, USB_PLUG_H, USB_PLUG_L = 8.25, 2.40, 6.65   # DATASHEET  USB-IF
+USB_MOLD_W, USB_MOLD_H = 12.35, 6.50                    # DATASHEET  maxima
+USB_SKIN_MAX = 6.46                                     # 6.51 shell - 0.05 gap
+
+# ------------------------------------------------- back roll (envelope) ----
+# The back is ONE rolled perimeter, not three separate features.
+#
+# It used to be: side arcs as an XZ profile extruded along Y, plan-view corners
+# as PRISMATIC cylinder cuts (no z rounding at all), and the chin as its own
+# cut — with nothing on the north edge, which ran flat out to y=0 at the full
+# BODY_T. Where the extruded arc met the vertical corner cut you got a space
+# curve, not a blend: the "cut meat" crease. SIDE_ARC_BOTTOM_BLEND existed only
+# to paper over that, and only ever ran on the two bottom corners.
+#
+# Now: extrude the plan outline, then fillet the whole back perimeter at one
+# radius. Corners become torus patches continuous with the side runs, so there
+# is no seam to blend — there is no boolean intersection to begin with. Along a
+# straight run a back-edge fillet of radius R is the same surface as the old
+# extruded arc of radius R, so the side ergonomics carry over unchanged.
+#
+# Mirror-symmetric about x = BODY_W/2 by construction: one roll radius, one
+# plan radius per end. The old 8.0 (left) / 11.6 (right) side split and the
+# 16.5 / 17.0 bottom split made the right-hand side read wavy against a
+# straight left.
+#
+# Caps on the roll, tightest first:
+#   torus — must stay under the plan corner radius or the corner self-intersects
+#   face  — must top out below the face plate (z <= -FACE_T) or it eats button
+#           and driver land
+#   cell  — the side wall must stay behind the pouch (check_battery_keepout)
+BACK_ROLL_MARGIN = 1.5     # DECIDED  torus safety margin vs the plan radius
+# Plan-view corners. Top was 8.0 and read sharp, then 10.0 — as far as the
+# Ø7.7 module screw lands at (6,6.5)/(84,6.5) allow before they reach the skin.
+# But the binding constraint is the display module, not the lands: its PCB is
+# 86.0 x 50.0 with R3.50 corners (DATASHEET, ES3C28P outline drawing) sitting
+# at (2.0, 2.5), and a top corner of 10.0 buried those corners 1.61 mm into
+# the wall at the board's rear plane. 7.5 is the largest that clears them.
+#
+# This one number also sets the roll, via _ROLL_PLAN_CAP below — a deep roll
+# needs a deep plan corner to sit in, and the deep plan corner is exactly what
+# eats the module. Moving the module south instead would buy only 0.5 mm: the
+# controller board starts at y 53.0 and the two overlap 0.2 mm in z.
+CASE_TOP_R = 7.5                       # DECIDED  module-corner limited
+# Bottom corners. These used to hug the controller outline (PCB_BOTTOM_R plus
+# the board-to-shell gap, ~16.5), which was free while the corner was a
+# prismatic cut. Once the back rolls, a plan corner that deep drags the cavity
+# wall right onto the cell: the pouch's bottom-left corner (9, 89) ends up
+# ~0.5 mm inside the wall, so ANY roll there intrudes. 12.0 pulls the corner
+# back out and clears it; the board (R=14 corners) still fits with room, it
+# just is not hugged any more. Measured — 14.0 still clips the pouch.
+CASE_BOTTOM_R = 12.0                   # ASSUMED  cell-limited, not board-led
+_ROLL_FACE_CAP = BODY_T - FACE_T - 0.2                       # 11.6
+_ROLL_PLAN_CAP = min(CASE_TOP_R, CASE_BOTTOM_R) - BACK_ROLL_MARGIN
+#
+# One radius per straight run; the corner arcs interpolate between the two runs
+# they join, so the radius is continuous the whole way round. That continuity
+# is load-bearing, not cosmetic — OCC flatly refuses a chain whose radius jumps
+# at a vertex (measured: every constant-per-edge variant returned IsDone=False,
+# even gentle ones), while the interpolated version builds in a fraction of a
+# second.
+#
+# Left and right are the SAME value, so the shape is mirror-symmetric about
+# x = BODY_W/2. Only north-to-south varies, and only because it must:
+#   sides — the cell's left edge (x=9) clears a roll up to ~8.7
+#   chin  — the cell's bottom edge (y=89) is just 4 mm off the south edge, and
+#           the pouch sits 11.8 deep, so the south run cannot exceed ~4. This
+#           is why the old chin was 2.5 while the sides were 8+; the old code
+#           got away with a hard bottom corner only because the plan corners
+#           were prismatic, which is exactly what made the crease.
+# 8.5 is the ergonomic wish; the plan cap binds first and lands this on 6.0,
+# which puts the roll's tangent line exactly on the split plane (LID_T = 6.0).
+BACK_ROLL_SIDE = min(8.5, _ROLL_FACE_CAP, _ROLL_PLAN_CAP)    # 6.0, plan-capped
+BACK_ROLL_N    = BACK_ROLL_SIDE        # DECIDED  whole top half at one radius
+BACK_ROLL_S    = 3.5                   # ASSUMED  cell-limited (check enforces)
 
 # ------------------------------------------------- structural invariants ----
 # Counterbores must always be cut into deliberately added land material, never

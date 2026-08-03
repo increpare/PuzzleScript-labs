@@ -666,11 +666,23 @@ def check_back_shell():
     print("\nback shell")
     tri = load_tris(path)
     zmin = float(tri[:, :, 2].min())
-    ok = zmin >= -P.BODY_T - 0.02
+    ok = zmin >= -P.RIB_ZONE_T - 0.02
     print(f"   {'PASS' if ok else 'FAIL'}  nothing proud of the back    "
-          f"min z = {zmin:.2f} (outer surface {-P.BODY_T:.2f})")
+          f"min z = {zmin:.2f} (deepest skin {-P.RIB_ZONE_T:.2f}, in the rib)")
     if not ok:
         FAILURES.append("feature proud of back")
+
+    # The rib is the only licence to pass BODY_T, and only where it actually
+    # is. Checking the global minimum alone would let a wrong-way extrusion
+    # anywhere on the shell hide behind the rib's allowance.
+    y_rib = P.BODY_H - P.RIB_Y2      # layout y is mirrored in the STL
+    outside = tri[(tri[:, :, 1] <= y_rib).all(axis=1)]
+    zmin_flat = float(outside[:, :, 2].min())
+    ok = zmin_flat >= -P.BODY_T - 0.02
+    print(f"   {'PASS' if ok else 'FAIL'}  and nothing past {-P.BODY_T:.2f} "
+          f"outside the rib      min z = {zmin_flat:.2f}")
+    if not ok:
+        FAILURES.append("feature proud of back outside the rib")
 
     ok = 3.0 < P.MOUNT_HOLE_D
     print(f"   {'PASS' if ok else 'FAIL'}  post fits the module hole   "
@@ -745,6 +757,396 @@ def check_battery_keepout():
         print(f"          solid at ({b[0]:.1f}, {b[1]:.1f}, {b[2]:.2f})")
     if not ok:
         FAILURES.append("battery keepout")
+
+
+def check_back_roll():
+    """The back perimeter must be rolled, symmetric, and never flare.
+
+    Three ways this used to go wrong: the north edge got no roll at all (flat
+    back straight out to y=0 at full BODY_T), left and right ran at different
+    radii so the right side read wavy, and the plan corners were prismatic so
+    the roll died at every corner.
+    """
+    print("\nback roll (envelope)")
+    import side_arc
+    z = side_arc.outer_back_z_at
+
+    # 1. mirror symmetry about x = BODY_W/2
+    worst, at = 0.0, None
+    for y in (1.0, 5.0, 12.0, 25.0, 46.5, 65.0, 80.0, 88.0, 92.0):
+        for x in (0.5, 2.0, 5.0, 9.0, 16.0, 30.0, 44.0):
+            d = abs(z(x, y) - z(P.BODY_W - x, y))
+            if d > worst:
+                worst, at = d, (x, y)
+    ok = worst <= 0.01
+    print(f"   {'PASS' if ok else 'FAIL'}  mirror symmetric about x={P.BODY_W/2}"
+          f" (worst {worst:.3f} mm at {at})")
+    if not ok:
+        FAILURES.append("back roll symmetry")
+
+    # 2. every edge midpoint is rolled — none left square at full depth
+    for lbl, x, y in (("north", P.BODY_W / 2, 0.3), ("south", P.BODY_W / 2, P.BODY_H - 0.3),
+                      ("west", 0.3, P.BODY_H / 2), ("east", P.BODY_W - 0.3, P.BODY_H / 2)):
+        lift = P.BODY_T + z(x, y)      # how far the skin sits off full depth
+        ok = lift >= 0.5
+        print(f"   {'PASS' if ok else 'FAIL'}  {lbl:5s} edge rolled: skin "
+              f"{lift:.2f} mm off the full-depth back")
+        if not ok:
+            FAILURES.append(f"{lbl} edge not rolled")
+
+    # 3. no flare: the skin may only get shallower toward the perimeter, so
+    #    walking outward must never find MORE depth (an overhang would trap
+    #    the part in a mould and read as the old crease).
+    bad = []
+    for y in (3.0, 20.0, 46.5, 70.0, 90.0):
+        prev = None
+        for i in range(40):
+            x = 0.4 + i * 0.4
+            cur = side_arc.outer_back_z_opt(x, y)
+            if cur is None:      # column is outside the plan outline
+                prev = None
+                continue
+            if prev is not None and cur > prev + 0.02:
+                bad.append((round(x, 1), y))
+                break
+            prev = cur
+    ok = not bad
+    print(f"   {'PASS' if ok else 'FAIL'}  monotonic inward (no flare/overhang)"
+          + (f" — reverses at {bad[:3]}" if bad else ""))
+    if not ok:
+        FAILURES.append("back roll flare")
+
+    # 4. the rib's blend must be a blend everywhere, not just down the middle.
+    #    It is a prism in x, so it only trims the back where the back is flat;
+    #    applied after the roll it left the side walls stepping the rib's full
+    #    height at RIB_Y2 while the centre eased in perfectly. Walking south
+    #    through the blend at every x catches that, and the tolerance is the
+    #    designed slope, so a step of any size fails wherever it hides.
+    if P.RIB_H > 1e-6:
+        step = 0.1
+        limit = math.tan(math.radians(P.RIB_BLEND_PHI)) * step + 0.005
+        worst, at = 0.0, None
+        x = 0.4
+        while x < P.BODY_W - 0.3:
+            prev, y = None, P.RIB_Y - 2.0
+            while y < P.RIB_Y2 + 2.0:
+                cur = side_arc.outer_back_z_opt(x, y)
+                if cur is not None and prev is not None:
+                    if abs(cur - prev) > worst:
+                        worst, at = abs(cur - prev), (round(x, 1), round(y, 1))
+                prev = cur
+                y += step
+            x += 0.5
+        ok = worst <= limit
+        print(f"   {'PASS' if ok else 'FAIL'}  rib blend is smooth across the "
+              f"full width (steepest {math.degrees(math.atan(worst/step)):.1f} "
+              f"deg at {at}, designed {P.RIB_BLEND_PHI:.0f})")
+        if not ok:
+            FAILURES.append("rib blend steps at the sides")
+
+    # 5. torus sanity: a roll wider than its plan corner self-intersects
+    for lbl, plan, roll in (("top", P.CASE_TOP_R, max(P.BACK_ROLL_N, P.BACK_ROLL_SIDE)),
+                            ("bottom", P.CASE_BOTTOM_R, max(P.BACK_ROLL_S, P.BACK_ROLL_SIDE))):
+        ok = roll <= plan - P.BACK_ROLL_MARGIN + 1e-9
+        print(f"   {'PASS' if ok else 'FAIL'}  {lbl} corner: roll {roll} <= plan "
+              f"{plan} - {P.BACK_ROLL_MARGIN}")
+        if not ok:
+            FAILURES.append(f"{lbl} torus margin")
+
+
+def check_module_outline():
+    """The display module's PCB must fit inside the interior, corners included.
+
+    Nothing checked this, and nothing in the layout is free enough to absorb it
+    if it drifts: the module is 86.0 wide in an interior of ~86.1, it can move
+    at most 0.5 mm south before it reaches the controller board, and it is a
+    bought part so its outline is fixed. CASE_TOP_R of 10.0 had its top corners
+    1.61 mm inside the wall.
+    """
+    print("\ndisplay module outline vs interior")
+    import cadquery as cq
+
+    import side_arc
+
+    z0 = -(P.MODULE_Z + P.MOD_FRONT_STACK)
+    board = (cq.Workplane("XY")
+             .box(P.MOD_W, P.MOD_H, P.MOD_PCB_T, centered=False)
+             .translate((P.MOD_X, P.MOD_Y, z0))
+             .edges("|Z").fillet(P.MOD_CORNER_R))
+    stray = board.cut(cq.Workplane(side_arc._envelope(P.WALL)))
+    lumps = stray.solids().vals()
+    v = sum(s.Volume() for s in lumps) if lumps else 0.0
+    ok = v < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  {P.MOD_W}x{P.MOD_H} R{P.MOD_CORNER_R} "
+          f"board inside the wall ({v:.3f} mm^3 outside)")
+    if not ok:
+        for s in lumps[:4]:
+            b = s.BoundingBox()
+            print(f"         lump {s.Volume():7.3f} mm^3 at x "
+                  f"{b.xmin:.2f}..{b.xmax:.2f} y {b.ymin:.2f}..{b.ymax:.2f}")
+        FAILURES.append("module outline outside the interior")
+
+    # The southward escape route, so a future MOD_Y nudge cannot silently
+    # drive the module into the controller board (they overlap 0.2 mm in z).
+    gap = P.PCB_Y - (P.MOD_Y + P.MOD_H)
+    ok = gap >= 0.0
+    print(f"   {'PASS' if ok else 'FAIL'}  module clears the controller board "
+          f"by {gap:.2f} mm")
+    if not ok:
+        FAILURES.append("module overlaps the controller board")
+
+
+def check_bat_header():
+    """The module's vertical battery header, and the rib that makes room for it.
+
+    This one went unnoticed for a long time because MOD_REAR_PARTS was declared
+    and never used: the flat tray left 4.24 under the module and the mated
+    connector is 5.70, so it did not merely foul the floor, it came out through
+    the back of the case by 0.04. The rib exists for this part alone, which is
+    why the part's own envelope is checked here rather than a rib dimension —
+    a rib that stops being tall enough, wide enough or far enough south all
+    show up as the same failure.
+    """
+    print("\nmodule battery header (PicoBlade 53398-0271) vs the north rib")
+    import cadquery as cq
+
+    import shell_back
+
+    back = shell_back.to_model_space(shell_back.build_back())
+    rear = -(P.MODULE_Z + P.MOD_FRONT_STACK)
+
+    def lump(l, w, h, dx=0.0, dy=0.0):
+        part = (cq.Workplane("XY").box(l, w, h, centered=(True, True, False))
+                .translate((P.BAT_X + dx, P.BAT_Y + dy, rear - h)))
+        s = back.intersect(part)
+        return sum(x.Volume() for x in s.solids().vals()) if s.solids().vals() else 0.0
+
+    # 1. the mated pair, at the module's placement extremes. The body is the
+    #    envelope: the crimp housing is 4.25 x 3.20 and sits inside it.
+    worst, at = 0.0, None
+    for dx in (-0.3, 0.0, 0.3):
+        for dy in (-0.3, 0.0, 0.3):
+            v = lump(P.BAT_BODY_L, P.BAT_BODY_W, P.BAT_MATED_H, dx, dy)
+            if v > worst:
+                worst, at = v, (dx, dy)
+    ok = worst < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  mated {P.BAT_BODY_L} x "
+          f"{P.BAT_BODY_W} x {P.BAT_MATED_H} clear at +/-0.3 module drift "
+          f"({worst:.4f} mm^3" + (f" at {at}" if at else "") + ")")
+    if not ok:
+        FAILURES.append("tray fouls the module's battery header")
+
+    # 2. and the lead dress over it, which is what set RIB_H in the first place
+    #    — without it the rib would be 1.70 and the cable pinched flat.
+    v = lump(P.BAT_BODY_L, P.BAT_BODY_W, P.BAT_MATED_H + P.BAT_CABLE)
+    ok = v < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  plus {P.BAT_CABLE} of lead dress "
+          f"over the housing ({v:.4f} mm^3)")
+    if not ok:
+        FAILURES.append("no room to dress the battery leads")
+
+    # 3. the part must lie in the rib's full-depth plateau, not on its blend.
+    south = P.BAT_Y + P.BAT_BODY_W / 2 + P.BAT_CLR + P.WALL
+    ok = south <= P.RIB_Y
+    print(f"   {'PASS' if ok else 'FAIL'}  pocket's south wall at {south:.2f} "
+          f"is inside the plateau (RIB_Y {P.RIB_Y})")
+    if not ok:
+        FAILURES.append("battery pocket runs into the rib's blend")
+
+    # 4. nothing else on the module needs the rib, which is the whole argument
+    #    for a band instead of 2.20 on the entire case.
+    flat = P.BODY_T - P.WALL - (P.MODULE_Z + P.MOD_FRONT_STACK)
+    ok = P.MOD_REAR_TYPICAL <= flat
+    print(f"   {'PASS' if ok else 'FAIL'}  the other rear parts "
+          f"({P.MOD_REAR_TYPICAL}) still fit the flat tray ({flat:.2f})")
+    if not ok:
+        FAILURES.append("flat tray too shallow for the module's side-entry parts")
+
+
+def check_split_lap():
+    """The two shells must be single solids that can actually be slid shut.
+
+    Every one of these fired on the rim this replaced. It was built by
+    insetting the rolled envelope, so (a) it stood inboard of the tray wall
+    with nothing under it — lid() was two solids, the lip a free-floating
+    ring; (b) it followed the roll, so it grew 0.354 mm per side over its
+    1.2 mm and its top was 0.085 mm wider than the mouth it had to enter; and
+    (c) it crossed the module PCB, which is 86.0 wide in an ~86.1 interior.
+    """
+    print("\nsplit-line lap")
+    import cadquery as cq
+
+    import shell_back
+    import shell_front
+    import side_arc
+
+    t_sum = P.LAP_T + P.LAP_CLEAR + P.LAP_FRONT_T
+    ok = abs(t_sum - P.WALL) < 1e-9 and min(P.LAP_T, P.LAP_FRONT_T) >= 0.6
+    print(f"   {'PASS' if ok else 'FAIL'}  laps partition the wall: tongue "
+          f"{P.LAP_T} + slip {P.LAP_CLEAR} + skirt {P.LAP_FRONT_T} = {t_sum}")
+    if not ok:
+        FAILURES.append("lap thickness budget")
+
+    # 1. no draft on the mating faces. Slice each one across the engagement
+    #    and compare widths: the rim this replaced opened 0.354 mm per side.
+    split = -(P.BODY_T - P.LID_T)
+
+    def width_at(shape, z):
+        slab = (cq.Workplane("XY")
+                .box(P.BODY_W + 8, P.BODY_H + 8, 0.04, centered=False)
+                .translate((-4.0, -4.0, z)))
+        cut = shape.intersect(slab)
+        return cut.val().BoundingBox().xmax if cut.solids().vals() else None
+
+    for lbl, shape in (("tongue", shell_back.split_tongue()),
+                       ("front rebate", shell_front.split_rebate())):
+        ws = [w for w in (width_at(shape, split + f * P.LAP_H)
+                          for f in (0.05, 0.35, 0.65, 0.95)) if w is not None]
+        draft = max(ws) - min(ws)
+        ok = draft <= 0.005
+        print(f"   {'PASS' if ok else 'FAIL'}  {lbl} has no draft over the "
+              f"engagement (opens {draft:.4f} mm, x_max {max(ws):.3f})")
+        if not ok:
+            FAILURES.append(f"{lbl} flares")
+
+    # 2. the tongue is over the tray wall, not over the cavity — the old rim
+    #    hung RIM_CLEAR inboard of the wall's inner face and touched nothing.
+    lid = shell_back.lid()
+    n = len(lid.solids().vals())
+    ok = n == 1
+    print(f"   {'PASS' if ok else 'FAIL'}  tray + tongue fuse into one solid "
+          f"(got {n})")
+    if not ok:
+        FAILURES.append("tongue not fused to the tray")
+
+    # 3. nothing of the tongue reaches inboard of the inner wall, so the
+    #    module PCB sees exactly the wall it saw before.
+    inner = side_arc.section_prism(P.WALL, split, split, split + P.LAP_H)
+    stray = shell_back.split_tongue().intersect(inner)
+    v = sum(s.Volume() for s in stray.solids().vals()) if stray.solids().vals() else 0.0
+    ok = v < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  tongue stays in the wall "
+          f"({v:.4f} mm^3 inboard of the inner face)")
+    if not ok:
+        FAILURES.append("tongue intrudes past the inner wall")
+
+    # 4. the shells close, and stay clear the whole way in. A lip that flares
+    #    passes this at lift 0 and fails partway — so sweep, do not spot-check.
+    front, back = shell_front.build(), shell_back.build_back()
+    for lbl, n2 in (("front", len(front.solids().vals())),
+                    ("back", len(back.solids().vals()))):
+        ok = n2 == 1
+        print(f"   {'PASS' if ok else 'FAIL'}  {lbl} shell is one solid (got {n2})")
+        if not ok:
+            FAILURES.append(f"{lbl} shell is {n2} solids")
+
+    worst, at = 0.0, None
+    for lift in (0.0, 0.1, 0.3, 0.6, 0.9, P.LAP_H, P.LAP_H + 0.4, 2.5):
+        o = front.translate((0, 0, lift)).intersect(back)
+        v = sum(s.Volume() for s in o.solids().vals()) if o.solids().vals() else 0.0
+        if v > worst:
+            worst, at = v, lift
+    ok = worst < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  shells clear each other at every "
+          f"insertion depth (worst {worst:.4f} mm^3"
+          + (f" at lift {at}" if at else "") + ")")
+    if not ok:
+        FAILURES.append("shells interfere on assembly")
+
+
+def check_usb_port():
+    """The module's USB-C port: the case must stay out of the plug's way.
+
+    Nothing checked this. The window it replaces was a round-numbered 10.0 x
+    4.2 box centred 0.47 mm low, which (a) left a 0.21 mm knife edge of tray
+    wall between the port and the split seam, and (b) still clipped the
+    receptacle's bottom corner by 0.11 because its cutter stopped at x 3.0
+    while the rolled wall reaches 3.25 down there.
+
+    The overmold check is the one that says how big the hole has to be, and it
+    is the one people get wrong in the expensive direction: sized for a
+    12.35 x 6.50 overmold the port would be taller than the wall has room for.
+    It only needs that if the skin sits further than a plug shell's length
+    behind the receptacle, and ours sits 2.00 mm behind it.
+    """
+    print("\nUSB-C port")
+    import cadquery as cq
+
+    import shell_back
+    import shell_front
+
+    back = shell_back.to_model_space(shell_back.build_back())
+    shell = back.union(shell_front.to_model_space(shell_front.build()))
+    zc = (P.USB_REC_Z0 + P.USB_REC_Z1) / 2
+
+    def prism(w, h, x0, dx, dy=0.0, dz=0.0):
+        return (cq.Workplane("XY").box(dx, w, h, centered=(False, True, True))
+                .translate((x0, P.USB_Y + dy, zc + dz)))
+
+    def volume(shape):
+        s = shell.intersect(shape)
+        return sum(x.Volume() for x in s.solids().vals()) if s.solids().vals() else 0.0
+
+    # 1. the plug's shell, all the way to the mating datum, at the module's
+    #    placement extremes — a hole sized to nominal is not sized at all.
+    worst, at = 0.0, None
+    for dy in (-0.3, 0.0, 0.3):
+        for dz in (-0.2, 0.0, 0.2):
+            v = volume(prism(P.USB_PLUG_W, P.USB_PLUG_H,
+                             P.MOD_X - P.USB_PLUG_L, P.USB_PLUG_L, dy, dz))
+            if v > worst:
+                worst, at = v, (dy, dz)
+    ok = worst < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  plug shell "
+          f"{P.USB_PLUG_W} x {P.USB_PLUG_H} travels clear at +/-0.3 module "
+          f"drift ({worst:.4f} mm^3" + (f" at {at}" if at else "") + ")")
+    if not ok:
+        FAILURES.append("case fouls the USB-C plug")
+
+    # 2. and the receptacle itself, which the old cutter clipped.
+    v = volume(prism(P.USB_REC_W, P.USB_REC_H, P.MOD_X, 7.35))
+    ok = v < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  receptacle body "
+          f"{P.USB_REC_W} x {P.USB_REC_H} clear ({v:.4f} mm^3)")
+    if not ok:
+        FAILURES.append("case fouls the USB-C receptacle")
+
+    # 3. no rib of tray wall left between the receptacle and the seam. The band
+    #    is measured from the seam down, not from the port's own top edge — the
+    #    two coincide by design, and keying off the port would make the check
+    #    vacuous exactly when the port is drawn wrong.
+    split = -(P.BODY_T - P.LID_T)
+    band = (cq.Workplane("XY")
+            .box(P.USB_CUT_X + 2.0, P.USB_W, split - P.USB_REC_Z1,
+                 centered=(False, True, False))
+            .translate((-2.0, P.USB_Y, P.USB_REC_Z1)))
+    s = back.intersect(band)
+    v = sum(x.Volume() for x in s.solids().vals()) if s.solids().vals() else 0.0
+    ok = v < 1e-3
+    print(f"   {'PASS' if ok else 'FAIL'}  no tray ledge between the port and "
+          f"the split ({v:.4f} mm^3 in the {split - P.USB_REC_Z1:.2f} mm band)")
+    if not ok:
+        FAILURES.append("knife-edge ledge over the USB port")
+
+    # 4. the overmold has to seat outside the case, over its whole 12.35 x 6.50.
+    from OCP.gp import gp_Dir, gp_Lin, gp_Pnt
+    from OCP.IntCurvesFace import IntCurvesFace_ShapeIntersector
+    isec = IntCurvesFace_ShapeIntersector()
+    isec.Load(shell.val().wrapped, 1e-6)
+    reach = 0.0
+    for iy in range(25):
+        y = P.USB_Y + P.USB_MOLD_W * (iy / 24 - 0.5)
+        for iz in range(25):
+            z = zc + P.USB_MOLD_H * (iz / 24 - 0.5)
+            isec.Perform(gp_Lin(gp_Pnt(-8.0, y, z), gp_Dir(1, 0, 0)), 0.0, 12.0)
+            if isec.IsDone() and isec.NbPnt() > 0:
+                x = min(isec.Pnt(i).X() for i in range(1, isec.NbPnt() + 1))
+                reach = max(reach, P.MOD_X - x)
+    ok = reach <= P.USB_SKIN_MAX
+    print(f"   {'PASS' if ok else 'FAIL'}  skin sits {reach:.2f} mm behind the "
+          f"mating datum (<= {P.USB_SKIN_MAX}, so the overmold seats clear)")
+    if not ok:
+        FAILURES.append("USB-C overmold cannot seat")
 
 
 def check_driver_stack():
@@ -1365,6 +1767,11 @@ def main():
     check_grille_vs_driver()
     check_cap_fits_collar()
     check_driver_bond()
+    check_back_roll()
+    check_module_outline()
+    check_bat_header()
+    check_split_lap()
+    check_usb_port()
     check_driver_stack()
     check_back_shell()
     check_screw_joints()

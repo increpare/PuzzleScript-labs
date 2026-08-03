@@ -32,6 +32,10 @@ POST_D = 3.0                           # through the module's Ø3.2 holes
 SHOULDER_D = 5.5                       # module rests its PCB on this
 BOSS_D = 4.2                           # corner bosses, nothing to thread through
 POST_PILOT_D = 1.7                     # self-tapping screw pilot
+# Bosses start this far INSIDE the face rather than on it. Landing a column
+# exactly on the cavity roof is a coincident-plane union, which OCC leaves
+# unfused: build() came out as seven solids, six of them loose pillars.
+FACE_FUSE = 0.3
 
 # module PCB planes, derived
 MOD_PCB_BACK = P.MODULE_Z + P.MOD_FRONT_STACK        # 7.50
@@ -56,7 +60,24 @@ def cavity():
     # Roof under the face at -FACE_T; slightly past -SHELL_DEPTH so the back
     # stays open. Arc cutters use R−WALL so side walls keep thickness.
     return side_arc.shaped_cavity_xy(
-        P.WALL, -SHELL_DEPTH - 0.5, -P.FACE_T, CORNER_R)
+        P.WALL, -SHELL_DEPTH - 0.5, -P.FACE_T, CORNER_R).union(split_rebate())
+
+
+def split_rebate():
+    """The front's half of the lap: thin the wall to its outer LAP_FRONT_T
+    over the engagement band, so the tray's tongue slides up inside it.
+
+    Runs LAP_OVER past the tongue's top, so closing lands the skirt's bottom
+    face on the tray's shoulder — the joint the user sees — rather than
+    stopping early on the tongue's top face.
+
+    Straight-sided at the split section: the skirt's outer face still follows
+    the roll and thickens as it climbs, but the face that has to slide over
+    the tongue must have no draft or the shells jam LAP_CLEAR short of shut.
+    """
+    return side_arc.section_prism(
+        P.LAP_FRONT_T, -SHELL_DEPTH,
+        -SHELL_DEPTH - 0.5, -SHELL_DEPTH + P.LAP_H + P.LAP_OVER)
 
 
 def screen_aperture():
@@ -199,8 +220,8 @@ def module_posts():
         for y in ys:
             add = add.union(
                 cq.Workplane("XY").circle(SHOULDER_D / 2)
-                .extrude(-(MOD_PCB_FRONT - P.FACE_T))
-                .translate((x, y, -P.FACE_T)))
+                .extrude(-(MOD_PCB_FRONT - P.FACE_T + FACE_FUSE))
+                .translate((x, y, -P.FACE_T + FACE_FUSE)))
             add = add.union(
                 cq.Workplane("XY").circle(POST_D / 2)
                 .extrude(-(SHELL_DEPTH - MOD_PCB_FRONT))
@@ -222,8 +243,9 @@ def module_posts():
         if (x, y) in pcb_mounts:
             continue
         add = add.union(
-            cq.Workplane("XY").circle(BOSS_D / 2).extrude(-(SHELL_DEPTH - P.FACE_T))
-            .translate((x, y, -P.FACE_T)))
+            cq.Workplane("XY").circle(BOSS_D / 2)
+            .extrude(-(SHELL_DEPTH - P.FACE_T + FACE_FUSE))
+            .translate((x, y, -P.FACE_T + FACE_FUSE)))
         cut = cut.union(
             cq.Workplane("XY").circle(POST_PILOT_D / 2)
             .extrude(SHELL_DEPTH - P.FACE_T - 1.2).translate((x, y, -SHELL_DEPTH)))
@@ -307,7 +329,8 @@ def pcb_posts():
     for x, y in P.PCB_MOUNTS:
         add = add.union(
             cq.Workplane("XY").circle(P.PCB_POST_D / 2)
-            .extrude(-(pin_end - P.FACE_T)).translate((x, y, -P.FACE_T)))
+            .extrude(-(pin_end - P.FACE_T + FACE_FUSE))
+            .translate((x, y, -P.FACE_T + FACE_FUSE)))
         if (x, y) in screw_sites:
             # Pilot for a self-tapper from the back lid through the board hole.
             pilot = (cq.Workplane("XY").circle(POST_PILOT_D / 2)
