@@ -89,12 +89,12 @@ def brick_face(pitch, x0, y0, x1, y1):
 
 
 def _validated_root_overlap(root_overlap):
-    """Construction-only root depth, constrained to existing shell material."""
+    """Construction-only root depth, capped at the decided bond allowance."""
     root = float(root_overlap)
     if not math.isfinite(root) or root < 0:
         raise ValueError(f"root overlap must be finite and non-negative, got {root}")
-    if root >= min(P.WALL, P.FACE_T):
-        raise ValueError(f"root overlap must be below shell thickness, got {root}")
+    if root > P.TEX_ROOT_OVERLAP:
+        raise ValueError(f"root overlap exceeds the decided construction bond, got {root}")
     return root
 
 

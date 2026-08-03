@@ -317,6 +317,7 @@ def test_root_overlap_skin():
     texture._front_prisms = construction_reached
     try:
         for value, name in ((-0.01, "negative"),
+                            (P.TEX_ROOT_OVERLAP + 0.01, "above designed root"),
                             (float("nan"), "NaN"),
                             (float("inf"), "+inf"),
                             (min(P.WALL, P.FACE_T), "shell thickness")):
@@ -967,13 +968,6 @@ def test_relief_for_zone():
           wall_lost < 0.5, f"{wall_lost:.3f} mm^3")
     check("wall rooted relief overlaps the nominal shell",
           wall_rooted.intersect(nominal).val().Volume() > 1.0)
-
-    large_root = 0.60
-    deep_wall_prisms = texture._wall_prisms(-2.0, -1.0,
-                                             root_overlap=large_root)
-    deep_cavity = cq.Workplane(side_arc._envelope(large_root))
-    check("wall prisms reach a larger valid root into the cavity envelope",
-          deep_wall_prisms.intersect(deep_cavity).val().Volume() > 1.0)
 
     check("unknown zone is rejected",
           _raises_value_error(lambda: texture.relief_for_zone("nope", -1.0, 1.0)))
