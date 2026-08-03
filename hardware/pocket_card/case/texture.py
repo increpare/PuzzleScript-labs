@@ -25,6 +25,10 @@ import side_arc  # used by later tasks in this module (proud_skin, etc.)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 
+# Symmetric OCC coverage beyond the relief and construction root; this is not
+# part of the designed root depth.
+_WALL_PRISM_BOOLEAN_PAD = 0.05
+
 
 def brick_rects(pitch, x0, y0, x1, y1):
     """Brick footprints covering [x0,x1] x [y0,y1], clipped to that window.
@@ -292,7 +296,8 @@ def _wall_prisms(z0, z1, root_overlap=0.0):
     wire = plan.faces(">Z").val().outerWire()
     perimeter = wire.Length()
     runs = _brick_runs(P.TEX_PIXEL_COARSE, 0.0, z0, perimeter, z1)
-    depth = 2 * (P.TEX_RELIEF + float(root_overlap) + 0.05)
+    depth = 2 * (P.TEX_RELIEF + float(root_overlap)
+                 + _WALL_PRISM_BOOLEAN_PAD)
     solids = []
     for s0, rz0, s1, rz1 in runs:
         # CadQuery's length mode is normalized (0..1), despite the name.
