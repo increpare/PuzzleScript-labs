@@ -88,6 +88,30 @@ def brick_face(pitch, x0, y0, x1, y1):
     return wp
 
 
+def proud_skin(relief=None):
+    """The constant-thickness shell just OUTSIDE the nominal envelope.
+
+    This is the trick that makes relief wrap. Extruded brick prisms have one
+    direction; the case surface rolls through ninety degrees from face to
+    back. Intersecting the prisms with this skin gives relief measured
+    perpendicular to the local surface everywhere, so it neither thins out nor
+    fattens as the surface turns away from the extrusion axis.
+
+    Relies on side_arc._envelope(-relief) being a genuine parallel offset of
+    _envelope(0.0) in all three axes, including the flat front face. That
+    was not true before side_arc._plan_solid grew the front face along with
+    the back and the plan outline for negative inset (see its docstring) —
+    with the front pinned to z = 0 regardless of inset, this skin was zero
+    thickness across the entire flat front face.
+    """
+    r = float(P.TEX_RELIEF if relief is None else relief)
+    if r <= 0:
+        raise ValueError(f"relief must be positive, got {r}")
+    grown = cq.Workplane(side_arc._envelope(-r))
+    nominal = cq.Workplane(side_arc._envelope(0.0))
+    return grown.cut(nominal)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     pitch = P.TEX_PIXEL_FINE

@@ -40,18 +40,33 @@ def _plan_solid(inset: float, extra: float = 0.0) -> cq.Shape:
     ``inset`` may be NEGATIVE, which grows the outline outward and enlarges
     both plan radii to match — a true parallel offset. texture.proud_skin uses
     that to build the outer skin the surface relief lives in.
+
+    The offset is genuinely two-sided in z, not just in x/y: for a negative
+    inset the FRONT face (z = 0 at inset >= 0) also moves outward, to
+    z = -inset, so the flat front gets the same growth as the back and the
+    plan outline. Without that, growing the envelope outward would only add
+    depth on the back side while leaving the front face pinned to the
+    nominal z = 0 plane — which would make texture.proud_skin's shell zero
+    thickness across the entire flat front (verified: with the front pinned,
+    a ray cast straight down at the front-face centre hits z = 0 in BOTH the
+    nominal and grown envelopes, so grown.cut(nominal) removes everything
+    there). For inset >= 0 this is a strict no-op: ``grow`` is 0, so the box
+    height and translate are bit-for-bit what they were before, and every
+    existing non-negative-inset caller (shaped_cavity_xy, section_prism,
+    etc.) sees unchanged geometry.
     """
     from OCP.BRepFilletAPI import BRepFilletAPI_MakeFillet
 
     w = P.BODY_W - 2 * inset
     h = P.BODY_H - 2 * inset
     t = P.BODY_T + extra - inset
+    grow = max(0.0, -inset)   # 0 for inset >= 0; the outward front growth
     rt = P.CASE_TOP_R - inset
     rb = P.CASE_BOTTOM_R - inset
     if w < 1 or h < 1 or t < 1 or min(rt, rb) < 0.2:
         raise ValueError(f"inset {inset} too large for the envelope")
 
-    box = (cq.Workplane("XY").box(w, h, t, centered=False)
+    box = (cq.Workplane("XY").box(w, h, t + grow, centered=False)
            .translate((inset, inset, -t)).val())
     mk = BRepFilletAPI_MakeFillet(box.wrapped)
     for edge in cq.Workplane(box).edges("|Z").vals():
@@ -203,9 +218,12 @@ def _envelope(inset: float = 0.0) -> cq.Shape:
     # A NEGATIVE inset grows the envelope outward -- that is how proud surface
     # relief gets its constant-thickness skin (texture.proud_skin). The guards
     # below must allow for that growth, or the skin build trips "exploded".
+    # Growth is two-sided in z (front AND back both move outward by `grow`,
+    # see _plan_solid), so the height bound needs 2 * grow, matching x/y
+    # which were already two-sided (w/h each grow by 2 * inset).
     grow = max(0.0, -inset)
     bb = solid.BoundingBox()
-    if (bb.zlen > P.BODY_T + P.RIB_H + grow + 0.5
+    if (bb.zlen > P.BODY_T + P.RIB_H + 2 * grow + 0.5
             or bb.xlen > P.BODY_W + 2 * grow + 0.5):
         raise RuntimeError(
             f"envelope exploded: bbox {bb.xlen:.1f}x{bb.ylen:.1f}x{bb.zlen:.1f}")

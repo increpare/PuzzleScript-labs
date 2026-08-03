@@ -212,6 +212,200 @@ def test_brick_face():
           all(abs(x.Center().z) < 1e-9 for x in f.faces().vals()))
 
 
+def test_proud_skin():
+    print("proud skin")
+    import side_arc
+    import texture
+
+    r = P.TEX_RELIEF
+    skin = texture.proud_skin(r)
+    nominal = side_arc._envelope(0.0)
+    grown = side_arc._envelope(-r)
+
+    v = skin.val().Volume()
+    expected = grown.Volume() - nominal.Volume()
+    check("skin volume is the shell between the two envelopes",
+          abs(v - expected) < 1.0, f"{v:.1f} vs {expected:.1f}")
+
+    # nothing of the skin may lie inside the nominal solid
+    overlap = skin.intersect(cq.Workplane(nominal)).val().Volume()
+    check("skin does not intrude into the nominal envelope",
+          overlap < 0.5, f"overlap {overlap:.3f} mm^3")
+
+    # thickness sanity: the skin's bbox is the grown one
+    sb = skin.val().BoundingBox()
+    gb = grown.BoundingBox()
+    check("skin bbox matches the grown envelope",
+          abs(sb.xlen - gb.xlen) < 0.05 and abs(sb.ylen - gb.ylen) < 0.05)
+
+
+def _raycast(shape, origin, direction, tol=1e-6):
+    """First hit of `shape` along `direction` from `origin`.
+
+    Returns (point (x, y, z), face, u, v, w), where w is the ray parameter
+    (distance from origin, since `direction` is normalized) -- or None on a
+    miss. Uses the real OCC face intersector, the same technique
+    side_arc.py's own `_envelope_intersector` uses for `outer_back_z_at`.
+    """
+    from OCP.gp import gp_Dir, gp_Lin, gp_Pnt
+    from OCP.IntCurvesFace import IntCurvesFace_ShapeIntersector
+
+    isec = IntCurvesFace_ShapeIntersector()
+    isec.Load(shape.wrapped, tol)
+    dx, dy, dz = direction
+    n = math.sqrt(dx * dx + dy * dy + dz * dz)
+    d = (dx / n, dy / n, dz / n)
+    isec.Perform(gp_Lin(gp_Pnt(*origin), gp_Dir(*d)), 0.0, 1e6)
+    if not isec.IsDone() or isec.NbPnt() == 0:
+        return None
+    i = min(range(1, isec.NbPnt() + 1), key=lambda k: isec.WParameter(k))
+    p = isec.Pnt(i)
+    return (p.X(), p.Y(), p.Z()), isec.Face(i), isec.UParameter(i), isec.VParameter(i), isec.WParameter(i)
+
+
+def _normal_at(face, u, v):
+    """Exact local outward normal of `face` at surface parameters (u, v)."""
+    from OCP.BRep import BRep_Tool
+    from OCP.GeomLProp import GeomLProp_SLProps
+    from OCP.TopAbs import TopAbs_Orientation
+
+    surf = BRep_Tool.Surface_s(face)
+    props = GeomLProp_SLProps(surf, u, v, 1, 1e-6)
+    n = props.Normal()
+    vec = (n.X(), n.Y(), n.Z())
+    if face.Orientation() == TopAbs_Orientation.TopAbs_REVERSED:
+        vec = (-vec[0], -vec[1], -vec[2])
+    return vec
+
+
+def _skin_thickness_at(nominal, grown, probe_origin, probe_dir):
+    """Perpendicular skin thickness where `probe_dir` from `probe_origin`
+    first meets the NOMINAL envelope's surface.
+
+    `probe_dir` only locates a point -- the actual measurement direction is
+    the real local surface normal at that point (queried from OCC, not
+    assumed), re-cast as a fresh ray. That is what "thickness measured
+    perpendicular to the local surface" means on a rolled/curved surface: a
+    plain vertical or horizontal probe over- or under-reports thickness
+    anywhere the surface is not axis-aligned, which is most of the back roll
+    and every plan corner.
+    """
+    hit = _raycast(nominal, probe_origin, probe_dir)
+    if hit is None:
+        return None
+    p0, face, u, v, _ = hit
+    nx, ny, nz = _normal_at(face, u, v)
+    far = (p0[0] + nx * 50, p0[1] + ny * 50, p0[2] + nz * 50)
+    back = (-nx, -ny, -nz)
+    hit_n = _raycast(nominal, far, back)
+    hit_g = _raycast(grown, far, back)
+    if hit_n is None or hit_g is None:
+        return None
+    return hit_n[4] - hit_g[4]
+
+
+def test_proud_skin_thickness_probe():
+    print("proud skin thickness probe (perpendicular to local surface)")
+    import side_arc
+
+    r = P.TEX_RELIEF
+    tol = 0.01
+    nominal = side_arc._envelope(0.0)
+    grown = side_arc._envelope(-r)
+
+    # Flat front face, dead centre -- clear of the EDGE_CHAMFER band and any
+    # plan corner. This is the point that was 0.0 mm (not TEX_RELIEF) before
+    # _plan_solid grew the front face along with the back and the outline:
+    # with the front pinned to z = 0 for every inset, nominal and grown
+    # shared the exact same front plane and grown.cut(nominal) removed
+    # everything there.
+    t = _skin_thickness_at(nominal, grown,
+                            (P.BODY_W / 2, P.BODY_H / 2, 100), (0, 0, -1))
+    check("skin is TEX_RELIEF thick on the flat front face",
+          t is not None and abs(t - r) < tol, f"{t}")
+
+    # A straight side-wall run (west wall), mid-height -- clear of the front
+    # chamfer band and the back roll.
+    t = _skin_thickness_at(nominal, grown,
+                            (-100, P.BODY_H / 2, -5), (1, 0, 0))
+    check("skin is TEX_RELIEF thick on a side wall",
+          t is not None and abs(t - r) < tol, f"{t}")
+
+    # Partway round the side-arc back roll (the BACK_ROLL_SIDE band, west
+    # wall near the back). This is the coverage for carry-forward item 2:
+    # side_arc._roll_radius_at's "P.BACK_ROLL_* - inset" terms have no
+    # radius-sensitive test elsewhere, and _envelope(-r) is the first caller
+    # to ever invoke them with a negative inset. Verified by hand: dropping
+    # the "- inset" term from all three branches (so the grown envelope's
+    # roll fillet uses the un-grown BACK_ROLL_SIDE radius) moves this exact
+    # reading from 0.4000 to 0.4829 mm -- 0.083 mm off, 8x this test's
+    # tolerance, so a dropped term here does not slip through silently.
+    t = _skin_thickness_at(nominal, grown,
+                            (-100, P.BODY_H / 2, -9.05 - 100), (1, 0, 1))
+    check("skin is TEX_RELIEF thick on the side-arc back roll",
+          t is not None and abs(t - r) < tol, f"{t}")
+
+    # Near a plan corner (south-west, CASE_BOTTOM_R), mid-depth -- clear of
+    # both the front chamfer and the back roll, so this isolates the plan
+    # corner radius growth on its own.
+    rb = P.CASE_BOTTOM_R
+    cx, cy = rb, P.BODY_H - rb
+    ox, oy = cx - 70.7, cy + 70.7
+    t = _skin_thickness_at(nominal, grown, (ox, oy, -5), (1, -1, 0))
+    check("skin is TEX_RELIEF thick near a plan corner",
+          t is not None and abs(t - r) < tol, f"{t}")
+
+
+def test_edge_chamfer_band_thickness():
+    """Carry-forward item 1: what grown.cut(nominal) does at EDGE_CHAMFER.
+
+    side_arc._envelope's EDGE_CHAMFER branch (`if inset <= 1e-9`) fires for
+    BOTH inset = 0.0 (nominal) and inset = -TEX_RELIEF (grown), applying the
+    same 0.8 mm 45-degree chamfer leg to each. The two chamfered corners
+    themselves are offset from each other by (dx, dz) = (-r, +r) before any
+    chamfering happens -- a vector that points exactly along the chamfer
+    bevel's own 45-degree normal. Chamfering both corners with the same leg
+    length clips material near each corner symmetrically but does not change
+    the gap between the two (now parallel) bevel PLANES, so the skin in that
+    0.8 mm perimeter band is r*sqrt(2) thick, not r: measured 0.5657 mm
+    against a plain TEX_RELIEF of 0.40 mm, a 41% overshoot.
+
+    This is a real, non-benign deviation from "constant thickness perpendicular
+    to the local surface" -- but it is NOT fixed here. A correct fix needs a
+    chamfer leg computed specifically for the grown copy (something like
+    EDGE_CHAMFER - TEX_RELIEF * (2 - sqrt(2)) for this bevel geometry), which
+    can only be correct for one specific TEX_RELIEF/EDGE_CHAMFER pairing and
+    means proud_skin can no longer just consume side_arc._envelope's shared,
+    cached construction -- the plan's own sanctioned interface for this task.
+    That is a genuine design decision (redesign the chamfer as a true offset,
+    or exclude the chamfer band from brick zones in whichever later task
+    places bricks), not a local fix belonging to this task. It does not
+    violate any of this task's hard invariants: the skin stays outside the
+    nominal envelope (checked in test_proud_skin), stays manifold (`skin.val()
+    .isValid()` is True), and does not touch wall thickness anywhere. Locked
+    in here as a regression guard and a flag for whoever places bricks in the
+    front-face zone next.
+    """
+    print("edge chamfer band thickness (carry-forward item 1)")
+    import side_arc
+    import texture
+
+    r = P.TEX_RELIEF
+    nominal = side_arc._envelope(0.0)
+    grown = side_arc._envelope(-r)
+
+    t = _skin_thickness_at(nominal, grown,
+                            (0.2, P.BODY_H / 2, 100), (0, 0, -1))
+    expected = r * math.sqrt(2)
+    check("chamfer band is r*sqrt(2) thick, not r -- known, documented, "
+          "does not affect wall thickness or manifoldness",
+          t is not None and abs(t - expected) < 0.01,
+          f"{t} vs r*sqrt(2)={expected:.4f} (plain TEX_RELIEF would be {r})")
+
+    check("skin stays a valid manifold solid despite the chamfer-band overlap",
+          texture.proud_skin(r).val().isValid())
+
+
 def main():
     test_tile_shape()
     test_pitches()
@@ -220,6 +414,9 @@ def main():
     test_outward_envelope()
     test_brick_rects()
     test_brick_face()
+    test_proud_skin()
+    test_proud_skin_thickness_probe()
+    test_edge_chamfer_band_thickness()
     print()
     if FAILURES:
         sys.exit(f"{len(FAILURES)} check(s) failed: {', '.join(FAILURES)}")
