@@ -134,7 +134,23 @@ STATIONS = [
     # island sized off the long axis over-covers the short axis, which is
     # the safe direction to be wrong in -- the island is a keep-out, not a
     # fit (see test_stations_and_islands for the actual short-axis margin).
-    (P.MENU_X, P.MENU_Y, P.PILL_L + 2 * _COLLAR_OS),
+    #
+    # The diameter below must match the real pill BORE shell_front.py cuts,
+    # not just the flange + collar clearance the round stations use: the
+    # pill bore is additionally widened by PILL_BORE_EXTRA (see its comment
+    # in params.py) so the snap-over lip clears the SKQG's square body.
+    # This is shell_front.button_station's own pill-bore expression
+    # (`bore_l = flange_l + 2*COLLAR_CLEAR + PILL_BORE_EXTRA`, shell_front.py
+    # ~line 174-177), restated here rather than imported to avoid a
+    # texture-depends-on-shell_front coupling this module otherwise has none
+    # of. Dropping the "+ PILL_BORE_EXTRA" term (as an earlier version of
+    # this line did) silently starves TEX_KEEPOUT on this one station: the
+    # island still fully contains the real bore, so nothing breaks visibly,
+    # but the radial margin actually delivered drops from the intended
+    # 1.00 mm to 0.70 mm -- caught by test_stations_and_islands measuring
+    # against the real bore geometry, not this formula restated a second
+    # time.
+    (P.MENU_X, P.MENU_Y, P.PILL_L + 2 * _COLLAR_OS + P.PILL_BORE_EXTRA),
 ]
 
 

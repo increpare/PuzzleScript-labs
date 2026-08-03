@@ -602,15 +602,17 @@ def test_stations_and_islands():
     islands = texture.button_islands()
     check("islands have real volume", islands.val().Volume() > 1.0)
 
-    # the d-pad's left cap is the one the old blend field collided with
+    # the d-pad's left cap is the one the old blend field collided with.
+    # (The brief's own follow-on check here -- comparing
+    # `d/2 + TEX_KEEPOUT > DIR_CAP_D/2 + TEX_KEEPOUT - 1e-9` -- is algebraically
+    # vacuous: TEX_KEEPOUT appears on both sides and cancels, so it reduces to
+    # `d/2 > DIR_CAP_D/2 - 1e-9`, true regardless of TEX_KEEPOUT's value.
+    # Dropped in favor of the real per-station clearance checks below, which
+    # do move when TEX_KEEPOUT changes.)
     left_x = P.DIR_CX - P.DIR_RADIUS
     hit = [s for s in texture.STATIONS if abs(s[0] - left_x) < 1e-6
            and abs(s[1] - P.DIR_CY) < 1e-6]
     check("d-pad left cap is a station", len(hit) == 1)
-    if hit:
-        _, _, d = hit[0]
-        check("its island clears the cap by TEX_KEEPOUT",
-              d / 2 + P.TEX_KEEPOUT > P.DIR_CAP_D / 2 + P.TEX_KEEPOUT - 1e-9)
 
     # Per-station radial clearance, measured from each cap's OWN physical
     # edge (island_radius - cap_radius), using the real per-station diameter
@@ -641,27 +643,82 @@ def test_stations_and_islands():
               abs(clearance - (collar_os + P.TEX_KEEPOUT)) < 1e-9,
               f"{clearance:.3f} mm")
 
-    # Menu pill: circular island sized off PILL_L, so long-axis clearance
-    # matches every round button; short-axis clearance is necessarily much
-    # bigger -- over-covering the short axis is the safe direction to be
-    # wrong in, but the actual margin is worth stating explicitly.
+    # Menu pill: measured against the REAL bore geometry shell_front.py
+    # actually cuts, not against PILL_L plus a constant that merely happens
+    # to match the round stations. Round-station "collar OD" (cap + flange +
+    # collar clearance) is the whole bore for a round station, but the pill
+    # bore is wider still by PILL_BORE_EXTRA (params.py) so its snap-over lip
+    # clears the SKQG's square body -- a term the island's own diameter must
+    # include too, or TEX_KEEPOUT quietly shrinks on this one station alone.
+    #
+    # This was exactly the Task 5 review's Important finding: an earlier
+    # version of STATIONS' Menu entry omitted "+ PILL_BORE_EXTRA" (copied
+    # verbatim from the plan's sample code, which never carried it), and
+    # measuring against PILL_L (the cap, not the bore) hid the shortfall --
+    # PILL_L alone gave a clean-looking 2.300 mm "clearance" that was
+    # comparing the wrong two surfaces. Measuring against the real bore
+    # shows what that bug actually delivered: 0.70 mm of the intended
+    # 1.00 mm TEX_KEEPOUT, a 30% shortfall (worked below).
+    import shell_front
+
     menu = [s for s in texture.STATIONS
             if abs(s[0] - P.MENU_X) < 1e-6 and abs(s[1] - P.MENU_Y) < 1e-6]
     check("menu pill is a station", len(menu) == 1)
     if menu:
         _, _, menu_d = menu[0]
         island_r = menu_d / 2 + P.TEX_KEEPOUT
-        clear_long = island_r - P.PILL_L / 2
-        clear_short = island_r - P.PILL_W / 2
-        print(f"   menu pill clearance: long axis {clear_long:.3f} mm, "
-              f"short axis {clear_short:.3f} mm (PILL_L={P.PILL_L}, "
-              f"PILL_W={P.PILL_W})")
-        check("menu pill long-axis clearance matches the round buttons",
-              abs(clear_long - (collar_os + P.TEX_KEEPOUT)) < 1e-9,
-              f"{clear_long:.3f} mm")
-        check("menu pill short-axis clearance is larger (safe over-cover)",
-              clear_short > clear_long,
-              f"{clear_short:.3f} vs {clear_long:.3f}")
+
+        # The real bore, built by shell_front.button_station's own private
+        # helper (not reimplemented) -- same expression that function itself
+        # uses for a pill (shell_front.py, button_station's `pill` branch):
+        # flange grows by CAP_FLANGE_OS, the collar clears the flange by
+        # COLLAR_CLEAR, and PILL_BORE_EXTRA widens the bore further still.
+        # Restated here (per the review's own sanctioned path) rather than
+        # imported as a function, since shell_front.button_station only
+        # returns finished solids, not the raw bore_l/bore_w it computes
+        # internally.
+        flange_l = P.PILL_L + 2 * P.CAP_FLANGE_OS
+        flange_w = P.PILL_W + 2 * P.CAP_FLANGE_OS
+        bore_l = flange_l + 2 * P.COLLAR_CLEAR + P.PILL_BORE_EXTRA
+        bore_w = flange_w + 2 * P.COLLAR_CLEAR + P.PILL_BORE_EXTRA
+
+        # Build the ACTUAL void solid with shell_front's own construction
+        # function (real geometry, not just the formula restated a second
+        # time) and measure it, so a mismatch between this test's bore_l/w
+        # and what slot2D actually produces would itself be caught.
+        depth = P.FACE_T + P.COLLAR_DEPTH
+        void = shell_front._shoulder_void_slot(bore_l, bore_w, depth)
+        vb = void.val().BoundingBox()
+        check("real Menu bore matches the bore_l/bore_w formula (long axis)",
+              abs(vb.xlen - bore_l) < 1e-6, f"{vb.xlen:.3f} vs {bore_l:.3f}")
+        check("real Menu bore matches the bore_l/bore_w formula (short axis)",
+              abs(vb.ylen - bore_w) < 1e-6, f"{vb.ylen:.3f} vs {bore_w:.3f}")
+
+        clear_long = island_r - vb.xlen / 2
+        clear_short = island_r - vb.ylen / 2
+        print(f"   menu pill clearance vs the REAL bore: long axis "
+              f"{clear_long:.3f} mm, short axis {clear_short:.3f} mm "
+              f"(bore {vb.xlen:.2f} x {vb.ylen:.2f} mm)")
+        check("menu pill delivers TEX_KEEPOUT against the real bore "
+              "(long axis, the binding one)",
+              abs(clear_long - P.TEX_KEEPOUT) < 1e-6,
+              f"{clear_long:.3f} mm vs TEX_KEEPOUT={P.TEX_KEEPOUT}")
+        check("menu pill delivers at least TEX_KEEPOUT against the real "
+              "bore (short axis, safe over-cover)",
+              clear_short >= P.TEX_KEEPOUT - 1e-9,
+              f"{clear_short:.3f} mm vs TEX_KEEPOUT={P.TEX_KEEPOUT}")
+
+        # Regression lock for the actual bug: if PILL_BORE_EXTRA is dropped
+        # from STATIONS' Menu diameter again, the long-axis clearance falls
+        # to island_r_without_extra - bore_l/2 = collar_os + TEX_KEEPOUT -
+        # PILL_BORE_EXTRA/2 = 0.70 mm -- well outside the check above's
+        # tolerance, so that regression fails loudly instead of silently
+        # under-delivering keepout on one station.
+        broken_island_r = (P.PILL_L + 2 * collar_os) / 2 + P.TEX_KEEPOUT
+        broken_clear_long = broken_island_r - vb.xlen / 2
+        check("sanity: the pre-fix formula really did under-deliver by 30%",
+              abs(broken_clear_long - 0.70) < 1e-6,
+              f"{broken_clear_long:.3f} mm (documents the bug this guards)")
 
     # Against real geometry: every station's island must actually reach the
     # proud skin -- an island that floats above or below the surface it is
