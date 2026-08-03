@@ -610,11 +610,11 @@ SCREW_SOUTH = dict(  # south module + both controller PCB mounts
 # 14 mm wide with semicircular ends of radius 7, so a 6 mm straight section
 # The board front moved from 5.5 to 4.5 with the low-profile switch (TACT_H
 # 1.5), leaving only 3.0 mm face->board — the 3.5 mm driver no longer fits ON
-# the board. The bottom-right corner is therefore NOTCHED out of the outline
-# (long assumed by the screw-placement comments above; never actually drawn
-# until now) and the driver dips 0.5 mm through it.
-PCB_DRIVER_NOTCH_X = 68.2   # DECIDED  board removed where x >= this ...
-PCB_DRIVER_NOTCH_Y = 69.0   # DECIDED  ... and y >= this (device y is down)
+# the board. Center-gap experiment (2026-08): grille in the button gap, driver
+# in a face blister on the PCB front — no BR corner notch.
+# (Retired notch coords: PCB_DRIVER_NOTCH_X=68.2, PCB_DRIVER_NOTCH_Y=69.0.)
+PCB_DRIVER_NOTCH_X = None
+PCB_DRIVER_NOTCH_Y = None
 PCB_NOTCH_R        = 2.0    # ASSUMED  inner-corner radius (mill/stress)
 
 # With the board gone under the driver, a pedestal from the back-shell floor
@@ -647,10 +647,19 @@ DRIVER_CABLE_CLR = 1.5             # MEASURED  notch height, from the driver's b
 # not over the whole footprint. Ring bond measured at 94-95% for 1.0-2.0 mm ring
 # widths; the missing 5% is the two points where the arm slot crosses the rim.
 DRIVER_BOND_RING = 1.5             # ASSUMED  ring width the check measures
-GRILLE_X, GRILLE_Y = 76.0, 80.0    # DECIDED  centre, bottom right. At the old
-                                   # (77.5, 81.2) a 14 x 20 driver overlapped
-                                   # the corner boss; here the tightest
-                                   # neighbour is the Undo collar at +0.6 mm.
+# Center-gap experiment (2026-08-03-pocket-card-center-speaker-swap-design).
+# Gap between dir cluster and Undo is ~19.8 mm; vertical 14×20 pill fits with
+# ~2.9 mm per side to the driver body. Exact XY may nudge after blister checks.
+GRILLE_X, GRILLE_Y = 42.6, 68.8
+
+# Face blister: outer skin locally FACE_BUMP_H proud of z=0. Caps already use
+# CAP_PROUD=1.0 — same visual budget. Mechanically need >= 0.5 (DRIVER_T - cavity).
+FACE_BUMP_H = 1.0          # DECIDED
+FACE_BUMP_MARGIN = 1.0     # DECIDED  blister plan beyond driver body, per side
+FACE_BUMP_BTN_CLR = 0.5    # DECIDED  min plan gap blister→cap outer
+
+# MCP23017 seat after the swap (was 45, 72 under the gap).
+U1_X, U1_Y = 76.0, 80.0    # DECIDED  seed = old grille centre; tune vs Reset/mute
 
 # The grille is the PuzzleScript man, drawn as horizontal slats. Runs of 1 are
 # cut; the gaps between rows are the webs that hold the face together. The
