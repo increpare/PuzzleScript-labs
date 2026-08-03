@@ -87,6 +87,18 @@ def screen_aperture():
             .edges("|Z").fillet(0.8))
 
 
+def face_blister():
+    """Local face rise over the centre grille; outer skin at +FACE_BUMP_H."""
+    if getattr(P, "FACE_BUMP_H", 0) <= 1e-9:
+        return cq.Workplane("XY")
+    w = P.DRIVER_W + 2 * P.FACE_BUMP_MARGIN
+    h = P.DRIVER_H + 2 * P.FACE_BUMP_MARGIN
+    return (cq.Workplane("XY")
+            .slot2D(h, w, 90)
+            .extrude(P.FACE_BUMP_H)
+            .translate((P.GRILLE_X, P.GRILLE_Y, 0)))
+
+
 def _chamfer_aperture_lip(shell):
     """45°-ish bevel on the screen opening at the outer face (FOV).
 
@@ -253,27 +265,25 @@ def module_posts():
 
 
 def driver_pocket():
-    """Locating walls and lead notches for the driver, flush behind the face.
+    """Locating walls and lead notches for the driver under the face blister.
 
     The driver bonds to the inside of the front face with its own adhesive, so
-    it sits flush at z 1.5-5.0 and the bond carries it. There is deliberately no
+    it sits at the blister's inner skin and the bond carries it. There is deliberately no
     lip or shelf: anything under the rim would hold the driver off the very
     surface it needs to stick to, and break the seal to the grille chamber.
 
-    Since the board front moved to 4.5 (low-profile switch), the driver's back
-    (5.0) dips 0.5 through the board plane — the board outline is notched
-    around it (PCB_DRIVER_NOTCH_*). The walls, however, stop just above the
-    board plane: the west wall crosses the notch edge onto board material, and
-    2.8 mm of engagement squares the driver up fine while the adhesive sets.
+    The face blister buys the depth for the driver to land on the PCB front;
+    there is no board notch. The walls stop at that board plane, so they locate
+    only and never extend into the board.
 
     These walls only square the driver up, which is why they can be freely
     interrupted for the collars and the lead notches.
     """
     wall = 1.2
     w, h = P.DRIVER_W + 0.6, P.DRIVER_H + 0.6
-    z_face = -P.FACE_T                      # driver's front, on the face
+    z_face = -(P.FACE_T - P.FACE_BUMP_H)    # driver's front, under blister
     z_back = z_face - P.DRIVER_T            # driver's back
-    z_stop = -(P.PCB_FRONT_Z - 0.2)         # walls end above the board front
+    z_stop = -(P.PCB_FRONT_Z - 0.05)        # walls end at board front
     # Stadium, not a box: the part has semicircular ends. A rectangular pocket
     # would locate it on four corners it does not have.
     outer = (cq.Workplane("XY")
@@ -370,7 +380,8 @@ def grille_slots():
             dy = (r - (n - 1) / 2.0) * cell
             cuts = cuts.union(
                 cq.Workplane("XY").slot2D(length, P.GRILLE_SLOT_H, 0)
-                .extrude(-P.FACE_T - 2).translate((0, 0, 1))
+                .extrude(-(P.FACE_BUMP_H + P.FACE_T + 0.5))
+                .translate((0, 0, P.FACE_BUMP_H))
                 .translate((P.GRILLE_X + dx, P.GRILLE_Y + dy, 0)))
     return cuts
 
@@ -392,6 +403,7 @@ def build():
     shell = outer_body().cut(cavity())
     shell = shell.cut(screen_aperture())
     shell = _chamfer_aperture_lip(shell)
+    shell = shell.union(face_blister())
 
     stations = [
         (P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D, False),   # up
