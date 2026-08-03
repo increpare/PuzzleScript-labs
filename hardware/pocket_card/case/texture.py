@@ -201,7 +201,7 @@ _ZONES = {
 
 
 def _brick_runs(pitch, x0, y0, x1, y1):
-    """Merge touching pixel rectangles into horizontal brick runs.
+    """Merge touching pixel rectangles into connected rectangular bricks.
 
     `brick_rects` deliberately reports one rectangle per sprite pixel so its
     contract mirrors TEX_TILE.  Adjacent pixels have no physical seam,
@@ -212,7 +212,7 @@ def _brick_runs(pitch, x0, y0, x1, y1):
     for rect in brick_rects(pitch, x0, y0, x1, y1):
         rows.setdefault((round(rect[1], 9), round(rect[3], 9)), []).append(rect)
 
-    runs = []
+    horizontal = []
     for row in rows.values():
         row.sort()
         current = list(row[0])
@@ -220,8 +220,24 @@ def _brick_runs(pitch, x0, y0, x1, y1):
             if rect[0] <= current[2] + 1e-9:
                 current[2] = max(current[2], rect[2])
             else:
-                runs.append(tuple(current))
+                horizontal.append(tuple(current))
                 current = list(rect)
+        horizontal.append(tuple(current))
+
+    columns = {}
+    for run in horizontal:
+        columns.setdefault((round(run[0], 9), round(run[2], 9)), []).append(run)
+
+    runs = []
+    for column in columns.values():
+        column.sort(key=lambda run: run[1])
+        current = list(column[0])
+        for run in column[1:]:
+            if run[1] <= current[3] + 1e-9:
+                current[3] = max(current[3], run[3])
+            else:
+                runs.append(tuple(current))
+                current = list(run)
         runs.append(tuple(current))
     return runs
 

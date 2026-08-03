@@ -190,6 +190,29 @@ def test_brick_rects():
           top_cols == expected_cols, f"{top_cols} vs {expected_cols}")
 
 
+def test_brick_runs_coalesce_connected_pixels():
+    print("brick runs")
+    import texture
+
+    pitch = P.TEX_PIXEL_FINE
+    tile = pitch * len(P.TEX_TILE)
+    runs = sorted(texture._brick_runs(pitch, 0.0, 0.0, tile, tile),
+                  key=lambda run: run[1])
+
+    check("one tile has exactly two connected brick components",
+          len(runs) == 2, f"got {runs}")
+    check("each connected brick is 4 pixels by 2 pixels",
+          all(abs((x1 - x0) - 4 * pitch) < 1e-9
+              and abs((y1 - y0) - 2 * pitch) < 1e-9
+              and abs((x1 - x0) * (y1 - y0) - 8 * pitch * pitch) < 1e-9
+              for x0, y0, x1, y1 in runs),
+          f"got {runs}")
+    expected = [(pitch, 0.0, 5 * pitch, 2 * pitch),
+                (0.0, 3 * pitch, 4 * pitch, 5 * pitch)]
+    check("bottom brick is offset right and row 0 stays at the tile top",
+          runs == expected, f"{runs} vs {expected}")
+
+
 def test_brick_face():
     print("brick face")
     import texture
@@ -946,6 +969,7 @@ def main():
     test_origin()
     test_outward_envelope()
     test_brick_rects()
+    test_brick_runs_coalesce_connected_pixels()
     test_brick_face()
     test_proud_skin()
     test_proud_skin_thickness_probe()
