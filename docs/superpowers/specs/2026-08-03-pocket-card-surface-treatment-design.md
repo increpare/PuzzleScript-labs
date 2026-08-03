@@ -249,6 +249,6 @@ look.
 
 ## Open questions
 
-- Whether the coarse zone is a half-scale copy of the same sprite or its own
-  5 × 5 design. Starting assumption: half-scale copy; revisit if it reads badly
-  at 2.5 mm.
+None outstanding. The coarse zone is a **half-scale copy of the same sprite**
+(decided 2026-08-03) — one tile, two pitches. Revisit only if it reads badly at
+2.5 mm on a real print.
