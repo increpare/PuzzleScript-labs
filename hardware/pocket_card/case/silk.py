@@ -247,7 +247,7 @@ def _pad_clearances(back: bool) -> List[Tuple[float, float, float, float]]:
             add_fp(fx, fy, skqg, False)
         add_fp(P.POWER_SW_X, P.POWER_SW_Y, pcm12, False)
         add_fp(P.MUTE_SW_X, P.MUTE_SW_Y, pcm12, False)
-        add_fp(45.0, 72.0, soic, False)
+        add_fp(P.U1_X, P.U1_Y, soic, False)
         for fx, fy in P.PCB_MOUNTS:
             add_fp(fx, fy, [(0.0, 0.0, 2.7, 2.7)], False)
     else:
