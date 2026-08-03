@@ -1149,74 +1149,79 @@ def check_usb_port():
         FAILURES.append("USB-C overmold cannot seat")
 
 
-def check_driver_stack():
-    """Driver vs board: the 3.5 mm driver in a 3.0 mm face->board gap.
+def check_face_bump_vs_buttons():
+    """No part of the speaker blister may impinge on front controls.
 
-    Only legal because the board outline is notched under it. Assert the
-    notch actually covers the driver footprint, nothing lives in the notch,
-    and the pocket walls stop above the board plane.
+    Spec: 2026-08-03-pocket-card-center-speaker-swap-design.md
     """
-    print("\ndriver stack (board notch)")
-    gap = P.PCB_FRONT_Z - P.FACE_T
-    dip = P.DRIVER_T - gap
-    print(f"   INFO  face->board {gap:.1f} mm, driver {P.DRIVER_T} mm "
-          f"-> dips {dip:.1f} through the board plane")
-    nx, ny = P.PCB_DRIVER_NOTCH_X, P.PCB_DRIVER_NOTCH_Y
+    print("\nface blister vs front buttons")
+    if getattr(P, "FACE_BUMP_H", 0) <= 1e-9:
+        print("   INFO  no face bump; skip")
+        return
+    bw = P.DRIVER_W / 2 + P.FACE_BUMP_MARGIN
+    bh = P.DRIVER_H / 2 + P.FACE_BUMP_MARGIN
+    caps = [
+        ("UP", P.DIR_CX, P.DIR_CY - P.DIR_RADIUS, P.DIR_CAP_D),
+        ("DOWN", P.DIR_CX, P.DIR_CY + P.DIR_RADIUS, P.DIR_CAP_D),
+        ("LEFT", P.DIR_CX - P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
+        ("RIGHT", P.DIR_CX + P.DIR_RADIUS, P.DIR_CY, P.DIR_CAP_D),
+        ("UNDO", P.UNDO_X, P.UNDO_Y, P.AB_CAP_D),
+        ("ACT", P.ACT_X, P.ACT_Y, P.AB_CAP_D),
+        ("RESET", P.RESET_X, P.RESET_Y, P.RESET_CAP_D),
+    ]
+    worst, at = 1e9, None
+    bx0, bx1 = P.GRILLE_X - bw, P.GRILLE_X + bw
+    by0, by1 = P.GRILLE_Y - bh, P.GRILLE_Y + bh
+    for name, cx, cy, d in caps:
+        r = d / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+        dx = max(bx0 - cx, 0, cx - bx1)
+        dy = max(by0 - cy, 0, cy - by1)
+        if bx0 <= cx <= bx1 and by0 <= cy <= by1:
+            gap = -r
+        else:
+            gap = (dx * dx + dy * dy) ** 0.5 - r
+        if gap < worst:
+            worst, at = gap, name
+    mw = P.PILL_L / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+    mh = P.PILL_W / 2 + P.CAP_FLANGE_OS + P.COLLAR_CLEAR
+    mx0, mx1 = P.MENU_X - mw, P.MENU_X + mw
+    my0, my1 = P.MENU_Y - mh, P.MENU_Y + mh
+    ox = min(bx1, mx1) - max(bx0, mx0)
+    oy = min(by1, my1) - max(by0, my0)
+    gap_m = -min(ox, oy) if (ox > 0 and oy > 0) else min(
+        abs(bx0 - mx1), abs(mx0 - bx1), abs(by0 - my1), abs(my0 - by1))
+    if gap_m < worst:
+        worst, at = gap_m, "MENU"
+    ok = worst >= P.FACE_BUMP_BTN_CLR
+    print(f"   {'PASS' if ok else 'FAIL'}  blister plan clears buttons "
+          f"(tightest {at}: {worst:+.2f} mm, want >= {P.FACE_BUMP_BTN_CLR})")
+    if not ok:
+        FAILURES.append("face blister impinges on buttons")
+
+
+def check_driver_stack():
+    """Driver sits on the PCB front under the face blister (no board notch)."""
+    print("\ndriver stack (on-board under blister)")
+    cavity = P.PCB_FRONT_Z - P.FACE_T
+    room = cavity + getattr(P, "FACE_BUMP_H", 0.0)
+    ok = room + 1e-9 >= P.DRIVER_T
+    print(f"   {'PASS' if ok else 'FAIL'}  room {room:.2f} >= driver {P.DRIVER_T} "
+          f"(cavity {cavity:.2f} + bump {getattr(P, 'FACE_BUMP_H', 0):.2f})")
+    if not ok:
+        FAILURES.append("driver does not fit under blister")
+    ok = P.PCB_DRIVER_NOTCH_X is None and P.PCB_DRIVER_NOTCH_Y is None
+    print(f"   {'PASS' if ok else 'FAIL'}  board notch retired "
+          f"(got {P.PCB_DRIVER_NOTCH_X}, {P.PCB_DRIVER_NOTCH_Y})")
+    if not ok:
+        FAILURES.append("driver notch still enabled")
     dx0 = P.GRILLE_X - P.DRIVER_W / 2
     dy0 = P.GRILLE_Y - P.DRIVER_H / 2
-    m = min(dx0 - nx, dy0 - ny)
-    ok = m >= 0.5
-    print(f"   {'PASS' if ok else 'FAIL'}  notch clears driver footprint by "
-          f"{m:.2f} mm (want >= 0.5)")
+    dx1, dy1 = dx0 + P.DRIVER_W, dy0 + P.DRIVER_H
+    ok = (dx0 >= P.PCB_X and dy0 >= P.PCB_Y
+          and dx1 <= P.PCB_X + P.PCB_W and dy1 <= P.PCB_Y + P.PCB_H)
+    print(f"   {'PASS' if ok else 'FAIL'}  driver footprint on PCB outline AABB")
     if not ok:
-        FAILURES.append("driver notch coverage")
-    # Nothing may live in the notched-away corner (with 1 mm margin).
-    parts = [
-        ("SW_UNDO", P.UNDO_X, P.UNDO_Y), ("SW_ACT", P.ACT_X, P.ACT_Y),
-        ("SW_RESET", P.RESET_X, P.RESET_Y), ("SW_MENU", P.MENU_X, P.MENU_Y),
-        ("J_BAT_IN", *P.CONN_BAT_IN), ("J_BAT_OUT", *P.CONN_BAT_OUT),
-        ("mute slide", P.MUTE_SW_X, P.PCB_Y + P.PCB_H),
-        ("power slide", P.POWER_SW_X, P.PCB_Y + P.PCB_H),
-        ("boss 1", *P.EXTRA_BOSSES[0]), ("boss 2", *P.EXTRA_BOSSES[1]),
-    ]
-    bad = [n for n, x, y in parts if x > nx - 1.0 and y > ny - 1.0]
-    ok = not bad
-    print(f"   {'PASS' if ok else 'FAIL'}  notch corner free of parts"
-          + (f" (in notch: {', '.join(bad)})" if bad else ""))
-    if not ok:
-        FAILURES.append("parts in driver notch")
-    # Pocket walls must end above the board front, with real engagement left.
-    wall_end = P.PCB_FRONT_Z - 0.2
-    engage = wall_end - P.FACE_T
-    ok = wall_end < P.PCB_FRONT_Z and engage >= 2.0
-    print(f"   {'PASS' if ok else 'FAIL'}  pocket walls end at {wall_end:.1f} "
-          f"(board {P.PCB_FRONT_Z}), engagement {engage:.1f} mm")
-    if not ok:
-        FAILURES.append("driver pocket walls")
-    # Backstop: pedestal present behind the driver, but with an air gap so it
-    # cannot preload the face bond. Probe the built back solid.
-    solid = _back_solid_probe()
-    drv_back = -(P.FACE_T + P.DRIVER_T)
-    top = drv_back - P.DRIVER_BACKSTOP_CLR
-    gx, gy = P.GRILLE_X, P.GRILLE_Y
-    present = all(solid(gx + dx, gy + dy, top - 0.2)
-                  for dx, dy in ((0, 0), (2, 0), (-2, 0), (0, 2), (0, -2)))
-    gap = not any(solid(gx + dx, gy + dy, (top + drv_back) / 2)
-                  for dx, dy in ((0, 0), (2, 0), (-2, 0), (0, 2), (0, -2)))
-    ok = present and gap
-    print(f"   {'PASS' if ok else 'FAIL'}  backstop under driver: "
-          f"solid to z={-top:.1f}, {P.DRIVER_BACKSTOP_CLR} mm air gap "
-          f"(present={present}, gap={gap})")
-    if not ok:
-        FAILURES.append("driver backstop")
-    # Board must still seat past the pedestal: footprint inside the notch.
-    r = P.DRIVER_BACKSTOP_D / 2
-    m = min(gx - r - nx, gy - r - ny)
-    ok = m >= 0.5
-    print(f"   {'PASS' if ok else 'FAIL'}  backstop {m:.1f} mm inside the "
-          f"notch (want >= 0.5)")
-    if not ok:
-        FAILURES.append("backstop vs notch")
+        FAILURES.append("driver off the board")
 
 
 def check_screw_joints():
@@ -1772,6 +1777,7 @@ def main():
     check_bat_header()
     check_split_lap()
     check_usb_port()
+    check_face_bump_vs_buttons()
     check_driver_stack()
     check_back_shell()
     check_screw_joints()
