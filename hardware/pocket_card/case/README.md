@@ -18,10 +18,26 @@ python3.12 -m venv .venv          # OCP wheels do not cover 3.14
 
 ## Build
 
+From the repo root, rebuild shells + PCB (including footprint 3D meshes):
+
+```
+make pocket_card_case
+```
+
+Shells / order pack only (reuse the existing PCB mesh):
+
+```
+make pocket_card_case_shells
+```
+
+Or from this directory:
+
 ```
 .venv/bin/python params.py        # print the derived stack-up
 .venv/bin/python coupon.py        # build the clearance-ladder coupon
 .venv/bin/python checks.py        # verify the exported STL
+./build_pcb.sh                    # PCB + kicad-cli STL/STEP + placed
+.venv/bin/python build_variants.py  # shells, caps, tips, assembly
 ```
 
 Outputs land in `out/`.
